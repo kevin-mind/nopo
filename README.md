@@ -17,7 +17,7 @@ docker compose up
 ## Todo
 
 - [X] make the app a workspace (encapsulate the source and configs)
-- [ ] create database service (sqlite)
+- [X] create database service (postgres)
 - [ ] create ui package
 - [ ] add storybook and vitest
 - [ ] add github actions for CI
