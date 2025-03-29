@@ -14,6 +14,16 @@ Run the project
 docker compose up
 ```
 
+## Todo
+
+- [X] make the app a workspace (encapsulate the source and configs)
+- [ ] create database service (sqlite)
+- [ ] create ui package
+- [ ] add storybook and vitest
+- [ ] add github actions for CI
+- [ ] setup deployment on fly.io
+
+
 ## Tests
 
 - test the config
