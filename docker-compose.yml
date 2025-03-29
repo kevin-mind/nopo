@@ -1,0 +1,28 @@
+services:
+  web:
+    image: "${DOCKER_TAG}"
+    env_file:
+      - .env
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: ${NODE_ENV:?}
+      args:
+        NODE_ENV: ${NODE_ENV:?}
+      cache_from:
+        - "type=gha"
+      cache_to:
+        - "type=gha,mode=max"
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5173"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s

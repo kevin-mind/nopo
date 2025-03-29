@@ -1,4 +1,27 @@
-# Welcome to React Router!
+# Website
+
+## Scripts
+
+Build the image
+
+```bash
+docker compose build
+```
+
+Run the project
+
+```bash
+docker compose up
+```
+
+## Tests
+
+- test the config
+- test the build
+- test development hot mode works
+- test production serves optimized assets
+
+## Welcome to React Router
 
 A modern, production-ready template for building full-stack React applications using React Router.
 

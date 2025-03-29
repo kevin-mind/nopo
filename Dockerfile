@@ -1,22 +1,55 @@
-FROM node:20-alpine AS development-dependencies-env
-COPY . /app
-WORKDIR /app
-RUN npm ci
+FROM node:20-slim AS base
 
-FROM node:20-alpine AS production-dependencies-env
-COPY ./package.json package-lock.json /app/
-WORKDIR /app
-RUN npm ci --omit=dev
+SHELL ["/bin/bash", "-c"]
 
-FROM node:20-alpine AS build-env
-COPY . /app/
-COPY --from=development-dependencies-env /app/node_modules /app/node_modules
-WORKDIR /app
-RUN npm run build
+ARG NODE_ENV=undefined
 
-FROM node:20-alpine
-COPY ./package.json package-lock.json /app/
-COPY --from=production-dependencies-env /app/node_modules /app/node_modules
-COPY --from=build-env /app/build /app/build
-WORKDIR /app
+ENV PORT=5173
+ENV HOST=0.0.0.0
+ENV HOME=/app
+ENV NODE_ENV=$NODE_ENV
+ENV PATH=$HOME/node_modules/.bin:$PATH
+
+WORKDIR $HOME
+
+RUN <<EOF
+  if [ "$NODE_ENV" = "undefined" ]; then
+    echo "NODE_ENV is undefined"
+    exit 1
+  fi
+EOF
+
+FROM base AS source
+
+COPY . $HOME
+
+FROM base AS dependencies
+
+RUN \
+  --mount=type=bind,source=package.json,target=$HOME/package.json \
+  --mount=type=bind,source=package-lock.json,target=$HOME/package-lock.json \
+  npm ci
+
+FROM base AS development
+
+COPY --from=dependencies $HOME/node_modules $HOME/node_modules
+COPY --from=source $HOME $HOME
+
+CMD ["npm", "run", "dev", "--", "--host"]
+
+FROM base AS build
+
+COPY --from=source $HOME $HOME
+
+RUN <<EOF
+NODE_ENV=development npm install
+npm run build
+EOF
+
+FROM base AS production
+
+COPY --from=dependencies $HOME/node_modules $HOME/node_modules
+COPY --from=build $HOME/build $HOME/build
+COPY --from=source $HOME $HOME
+
 CMD ["npm", "run", "start"]
