@@ -3,15 +3,27 @@
   "version": "0.0.1",
   "private": true,
   "description": "Project root",
+  "type": "module",
   "workspaces": [
+    "db",
     "web"
   ],
   "scripts": {
-    "dev": "npm run dev -ws",
-    "build": "npm run build -ws",
-    "start": "npm run start -ws",
-    "typecheck": "npm run typecheck -ws"
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck"
   },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "tsx": "^4.19.3",
+    "turbo": "^2.4.4",
+    "typescript": "^5.7.2"
+  },
+  "packageManager": "npm@10.2.4",
   "engines": {
     "node": ">=18.0.0"
   }

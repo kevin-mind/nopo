@@ -1,4 +1,7 @@
 .DS_Store
+**/.turbo
+**/.config
+**/.cache
 **/node_modules/
 
 # React Router

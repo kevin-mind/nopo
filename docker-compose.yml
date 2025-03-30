@@ -1,12 +1,12 @@
 services:
   web:
-    image: "${DOCKER_TAG_WEB}"
+    image: "${WEB_DOCKER_TAG}"
     env_file:
       - .env
     build:
       context: .
       dockerfile: Dockerfile.web
-      target: ${DOCKER_TARGET_WEB:?}
+      target: ${WEB_DOCKER_TARGET:?}
       args:
         NODE_ENV: ${NODE_ENV:?}
       cache_from:
@@ -30,6 +30,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    command: ["/bin/bash", "./dev.sh"]
 
   db:
     image: postgres:16

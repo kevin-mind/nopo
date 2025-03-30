@@ -1,4 +1,6 @@
 .react-router
+.turbo
 build
 node_modules
 README.md
+.env

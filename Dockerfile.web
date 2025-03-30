@@ -16,11 +16,14 @@ COPY . $HOME
 
 FROM base AS dependencies
 
-RUN \
-  --mount=type=bind,source=package.json,target=$HOME/package.json \
-  --mount=type=bind,source=./web/package.json,target=$HOME/web/package.json \
-  --mount=type=bind,source=package-lock.json,target=$HOME/package-lock.json \
-  npm ci
+COPY \
+  package.json \
+  package-lock.json \
+  web/package.json \
+  db/package.json \
+  $HOME/
+
+RUN npm ci
 
 FROM base AS build
 
@@ -28,20 +31,16 @@ COPY --from=source $HOME $HOME
 
 RUN <<EOF
 NODE_ENV=development npm install
-npm run build -w web
+npm run build -- --filter=web
 EOF
 
-FROM dependencies AS development
+FROM base AS development
 
 COPY --from=source $HOME $HOME
-COPY --from=dependencies $HOME/web/node_modules $HOME/web/node_modules
-
-CMD ["npm", "run", "dev", "-w", "web"]
 
 FROM dependencies AS production
 
-COPY package.json $HOME/package.json
-COPY package-lock.json $HOME/package-lock.json
 COPY --from=build $HOME/web/build $HOME/web/build
+COPY --from=build $HOME/db/build $HOME/db/build
 
 CMD ["npm", "run", "start", "-w", "web"]

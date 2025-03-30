@@ -1,0 +1,31 @@
+{
+  "name": "db",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Project root",
+  "type": "module",
+  "scripts": {
+    "build": "run-p db:generate",
+    "db:generate": "npm exec drizzle-kit generate",
+    "db:migrate": "npm exec drizzle-kit migrate",
+    "db:studio": "npm exec drizzle-kit studio"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "drizzle-orm": "^0.41.0",
+    "drizzle-zod": "^0.7.1",
+    "pg": "^8.14.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.11",
+    "drizzle-kit": "^0.30.6",
+    "npm-run-all": "^4.1.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "exports": {
+    ".": "./build/index.js",
+    "./schema": "./build/schema.js"
+  }
+}
