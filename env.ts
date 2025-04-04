@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 export const baseSchema = z.object({
   DATABASE_URL: z.string().optional(),
@@ -10,6 +10,4 @@ export const baseSchema = z.object({
   WEB_DOCKER_TARGET: z.string(),
 });
 
-export {
-  z
-}
+export { z };
