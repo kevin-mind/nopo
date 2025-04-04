@@ -6,6 +6,7 @@
   "type": "module",
   "workspaces": [
     "db",
+    "env",
     "web"
   ],
   "scripts": {

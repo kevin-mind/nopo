@@ -20,6 +20,7 @@ COPY \
   package.json \
   package-lock.json \
   web/package.json \
+  env/package.json \
   db/package.json \
   $HOME/
 

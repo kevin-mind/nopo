@@ -12,8 +12,11 @@
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "declaration": true,
+    "composite": true,
+    "declarationMap": true,
     "module": "preserve",
     "noEmit": true,
     "lib": ["es2022"]
-  }
+  },
+  "include": ["src/index.ts"]
 }
