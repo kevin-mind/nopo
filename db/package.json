@@ -5,17 +5,17 @@
   "description": "Project root",
   "type": "module",
   "scripts": {
-    "build": "run-p db:generate",
-    "db:generate": "npm exec drizzle-kit generate",
-    "db:migrate": "npm exec drizzle-kit migrate",
-    "db:studio": "npm exec drizzle-kit studio",
-    "typecheck": "tsc --noEmit"
+    "clean": "rm -rf node_modules migrations/meta .turbo",
+    "migrate": "npm exec drizzle-kit migrate",
+    "build": "npm exec drizzle-kit generate",
+    "studio": "npm exec drizzle-kit studio",
+    "typecheck": "tsc"
   },
   "dependencies": {
     "drizzle-orm": "^0.41.0",
     "drizzle-zod": "^0.7.1",
-    "env": "*",
-    "pg": "^8.14.1"
+    "pg": "^8.14.1",
+    "znv": "^0.5.0"
   },
   "devDependencies": {
     "@types/pg": "^8.11.11",

@@ -1,28 +1,23 @@
 services:
   web:
-    image: "${WEB_DOCKER_TAG}"
-    env_file:
-      - .env
+    extends:
+      file: docker/docker-compose.base.yml
+      service: base
+    image: "${WEB_DOCKER_TAG:-kevinmind/website:local}"
     build:
-      context: .
-      dockerfile: Dockerfile.web
-      target: ${WEB_DOCKER_TARGET:?}
       args:
-        NODE_ENV: ${NODE_ENV:?}
-      cache_from:
-        - "type=gha"
-      cache_to:
-        - "type=gha,mode=max"
-    ports:
-      - "5173:5173"
-    volumes:
-      - .:/app
-      - /app/node_modules
-      - /app/web/build
+        - TURBO_VERSION
+        - APP_NAME=web
     environment:
       - CHOKIDAR_USEPOLLING=true
+      - NODE_ENV
+      - DATABASE_URL
+    ports:
+      - "${WEB_DOCKER_PORT}:${WEB_DOCKER_PORT}"
+    volumes:
+      - .:/app
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5173"]
+      test: ["CMD", "curl", "-f", "http://localhost:${WEB_DOCKER_PORT}"]
       interval: 1m30s
       timeout: 30s
       retries: 5
@@ -30,7 +25,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    command: ["/bin/bash", "./dev.sh"]
 
   db:
     image: postgres:16
@@ -44,7 +38,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", 'pg_isready -U $POSTGRES_USER -d $POSTGRES_DB']
       interval: 10s
       timeout: 5s
       retries: 5

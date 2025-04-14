@@ -1,10 +1,10 @@
 import { defineConfig } from "drizzle-kit";
 
-import env from "env";
+import env from "./env";
 
 export default defineConfig({
   verbose: true,
-  out: "build",
+  out: "migrations",
   schema: "schema.ts",
   dialect: "postgresql",
   dbCredentials: {

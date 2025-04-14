@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { config } from "dotenv";
+import { parseEnv } from "znv";
 
 const _POSTGRESS_USER = "myuser";
 const _POSTGRESS_PASSWORD = "mypassword";
@@ -15,7 +15,7 @@ function getDatabaseUrl(
   return `${baseUrl}://${user}:${password}@db:${port}/${db}?schema=public`;
 }
 
-export const baseSchema = z.object({
+export default parseEnv(process.env, {
   DATABASE_URL: z
     .string()
     .default(
@@ -30,13 +30,4 @@ export const baseSchema = z.object({
   POSTGRES_DB: z.string().default(_POSTGRESS_DB),
   POSTGRES_USER: z.string().default(_POSTGRESS_USER),
   POSTGRES_PASSWORD: z.string().default(_POSTGRESS_PASSWORD),
-  NODE_ENV: z.string().default("development"),
-  WEB_DOCKER_TAG: z.string().default("website/web:latest"),
-  WEB_DOCKER_TARGET: z.string().default("development"),
 });
-
-export { z };
-
-const { parsed } = config();
-
-export default baseSchema.parse(parsed);

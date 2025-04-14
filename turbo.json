@@ -1,16 +1,28 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
+    "//#clean:root": {
+      "cache": false
+    },
+    "setup": {
+      "dependsOn": ["^setup"],
+      "cache": false
+    },
     "build": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["setup", "^build"],
       "outputs": ["**/build/**"]
     },
+    "clean": {
+      "dependsOn": ["^clean", "//#clean:root"],
+      "cache": false
+    },
     "dev": {
+      "dependsOn": ["setup"],
       "persistent": true,
       "cache": false
     },
     "typecheck": {
-      "dependsOn": ["^typecheck"]
+      "dependsOn": ["setup", "^typecheck"]
     }
   }
 }

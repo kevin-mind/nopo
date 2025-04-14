@@ -3,9 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "clean": "rm -rf .react-router .turbo build node_modules",
     "build": "react-router build",
-    "dev": "react-router dev --host",
-    "start": "react-router-serve ./build/server/index.js --port 5173",
+    "dev": "react-router dev --host --port 3000",
+    "start": "react-router-serve ./build/server/index.js --port 3000",
     "typecheck": "react-router typegen && tsc"
   },
   "dependencies": {

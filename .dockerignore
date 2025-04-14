@@ -1,6 +1,11 @@
-.react-router
-.turbo
-build
-node_modules
-README.md
-.env
+.DS_Store
+**/.turbo
+**/.config
+**/.cache
+**/node_modules/
+**/build/
+**/.npm
+**/.bash_history
+**/.env
+
+.git

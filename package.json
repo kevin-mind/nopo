@@ -6,15 +6,19 @@
   "type": "module",
   "workspaces": [
     "db",
-    "env",
+    "root",
     "web"
   ],
   "scripts": {
+    "clean": "turbo run clean",
+    "clean:root": "rm -rf .cache .config .npm .turbo node_modules .bash_history .env",
+    "setup": "turbo run setup",
     "lint": "eslint",
     "format": "eslint --fix",
     "dev": "turbo run dev",
     "build": "turbo run build",
-    "typecheck": "turbo run typecheck"
+    "typecheck": "turbo run typecheck",
+    "preinstall": "if [ \"$PWD\" != '/app' ]; then echo 'Do not install deps on host'; exit 1; fi"
   },
   "dependencies": {
     "dotenv": "^16.4.7",
@@ -28,12 +32,20 @@
     "eslint-plugin-prettier": "^5.2.6",
     "prettier": "3.5.3",
     "tsx": "^4.19.3",
-    "turbo": "^2.4.4",
+    "turbo": "^2.5.0",
     "typescript": "^5.8.2",
     "typescript-eslint": "^8.29.0"
   },
   "packageManager": "npm@10.2.4",
   "engines": {
     "node": ">=18.0.0"
-  }
+  },
+  "os": [
+    "darwin",
+    "linux"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ]
 }

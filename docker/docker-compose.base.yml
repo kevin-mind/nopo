@@ -1,0 +1,22 @@
+services:
+  base:
+    platform: linux/amd64
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: ${DOCKER_TARGET:-development}
+      args:
+        NODE_ENV: ${NODE_ENV:-development}
+      cache_from:
+        - "type=gha"
+      cache_to:
+        - "type=gha,mode=max"
+    volumes:
+      - .:/app
+    healthcheck:
+      test: ["CMD", "exit", "1"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+
