@@ -1,0 +1,14 @@
+{
+  "name": "docker",
+  "private": true,
+  "scripts": {
+    "env": "npm exec tsx -- src/env.ts",
+    "setup": "npm exec tsx -- src/setup.ts",
+    "build": "npm exec tsx -- src/compose/build.ts",
+    "down": "npm exec tsx -- src/compose/down.ts",
+    "up": "npm exec tsx -- src/compose/up.ts"
+  },
+  "devDependencies": {
+    "docker-compose": "^1.2.0"
+  }
+}

@@ -8,3 +8,4 @@
 **/.bash_history
 **/.env
 **/tsconfig.tsbuildinfo
+**/vite.config.ts.timestamp-*.mjs

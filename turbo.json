@@ -1,28 +1,40 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
-    "//#clean:root": {
+    "env": {
+      "dependsOn": ["^env"],
+      "cache": false
+    },
+    "clean": {
+      "dependsOn": ["^clean"],
       "cache": false
     },
     "setup": {
-      "dependsOn": ["^setup"],
-      "cache": false
+      "dependsOn": ["env", "^setup"],
+      "outputs": ["node_modules", "package-lock.json"],
+      "inputs": ["**/*package.json"]
     },
     "build": {
-      "dependsOn": ["setup", "^build"],
-      "outputs": ["**/build/**"]
-    },
-    "clean": {
-      "dependsOn": ["^clean", "//#clean:root"],
+      "dependsOn": ["env", "^build"],
       "cache": false
     },
     "dev": {
-      "dependsOn": ["setup"],
+      "dependsOn": ["^dev"],
       "persistent": true,
       "cache": false
     },
     "typecheck": {
-      "dependsOn": ["setup", "^typecheck"]
+      "dependsOn": ["^typecheck"]
+    },
+    "start": {
+      "persistent": true
+    },
+    "up": {
+      "dependsOn": ["setup"],
+      "cache": false
+    },
+    "down": {
+      "cache": false
     }
   }
 }

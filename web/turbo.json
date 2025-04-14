@@ -3,8 +3,14 @@
   "extends": ["//"],
   "tasks": {
     "dev": {
-      "with": ["db#build", "db#migrate"],
       "persistent": true
+    },
+    "build": {
+      "dependsOn": ["db#generate"],
+      "outputs": ["build"]
+    },
+    "setup": {
+      "cache": false
     }
   }
 }

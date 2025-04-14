@@ -1,11 +1,10 @@
 ARG APP_NAME
-ARG TURBO_VERSION
 
 ################################################################################################
 FROM node:20-slim AS base
 ################################################################################################
 
-SHELL ["/bin/bash", "-c"]
+SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
 
 ARG NODE_ENV
 
@@ -16,18 +15,26 @@ ENV PATH=$HOME/node_modules/.bin:$PATH
 WORKDIR $HOME
 
 # Install make
-RUN apt-get update && apt-get install -y make
+RUN apt-get update && apt-get install -y make jq
 
 ################################################################################################
 FROM base AS source
 ################################################################################################
 
-ARG TURBO_VERSION
 ARG APP_NAME
 
 COPY . $HOME
 
-RUN npx turbo@${TURBO_VERSION} prune "${APP_NAME}" --docker
+RUN <<EOF
+if [ -d "node_modules" ]; then
+  echo "node_modules exists. This should NOT happen."
+  exit 1
+fi
+EOF
+
+RUN <<EOF
+npx --yes turbo prune "${APP_NAME}" --docker
+EOF
 
 ################################################################################################
 FROM base AS dependencies
@@ -35,7 +42,7 @@ FROM base AS dependencies
 
 COPY --from=source $HOME/out/json $HOME
 
-RUN npm ci --no-fund --install-strategy=hoisted
+RUN npm ci --no-fund
 
 ################################################################################################
 FROM dependencies AS build
@@ -46,7 +53,7 @@ ARG APP_NAME
 COPY --from=source $HOME/out/full $HOME
 
 # Install full dependencies so we can build the application
-RUN npm install
+RUN npm ci --include=dev --no-fund
 RUN npm run build --filter=$APP_NAME
 
 ################################################################################################
