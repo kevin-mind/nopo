@@ -1,0 +1,29 @@
+{
+  "name": "{{name}}",
+  "version": "0.0.0",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "private": true,
+  "license": "MIT",
+  "files": [
+    "dist/**"
+  ],
+  "scripts": {
+    "test": "vitest",
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "eslint",
+    "format": "yarn lint --fix",
+    "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist"
+  },
+  "devDependencies": {
+    "tsconfig": "*",
+    "tsup": "^5.10.1",
+    "typescript": "^4.5.3"
+  },
+  "jest": {
+    "preset": "scripts/jest/node"
+  }
+}

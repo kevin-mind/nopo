@@ -1,0 +1,14 @@
+{
+  "name": "tsconfig",
+  "private": true,
+  "version": "0.0.0",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "tsconfig.base.json",
+    "tsconfig.node.json",
+    "tsconfig.web.json"
+  ]
+}

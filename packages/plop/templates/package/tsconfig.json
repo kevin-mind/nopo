@@ -1,0 +1,5 @@
+{
+  "extends": "tsconfig/tsconfig.{{tsconfigPreset}}.json",
+  "include": ["."],
+  "exclude": ["dist", "build", "node_modules"]
+}

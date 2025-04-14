@@ -1,0 +1,11 @@
+{
+  "name": "plop",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "generate:package": "NODE_OPTIONS='--import tsx' plop --plopfile scripts/package.ts"
+  },
+  "dependencies": {
+    "plop": "^4.0.1"
+  }
+}
