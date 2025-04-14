@@ -5,9 +5,8 @@
   "description": "Project root",
   "type": "module",
   "workspaces": [
-    "db",
-    "docker",
-    "web"
+    "apps/*",
+    "packages/*"
   ],
   "scripts": {
     "clean": "run-s clean:*",

@@ -1,7 +1,7 @@
 services:
   web:
     extends:
-      file: docker/docker-compose.base.yml
+      file: packages/docker/docker-compose.base.yml
       service: base
     image: "${WEB_DOCKER_TAG:-kevinmind/website:local}"
     build:

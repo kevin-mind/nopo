@@ -71,6 +71,6 @@ FROM dependencies AS production
 
 ARG APP_NAME
 
-COPY --from=build $HOME/$APP_NAME/build $HOME/$APP_NAME/build
+COPY --from=build $HOME/apps/$APP_NAME/build $HOME/apps/$APP_NAME/build
 
 CMD ["npm", "run", "start"]
