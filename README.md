@@ -20,7 +20,7 @@ docker compose up
 - [X] create database service (postgres)
 - [ ] create ui package
 - [ ] add storybook and vitest
-- [ ] add github actions for CI
+- [X] add github actions for CI
 - [ ] setup deployment on fly.io
 
 
