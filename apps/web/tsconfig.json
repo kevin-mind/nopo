@@ -1,4 +1,5 @@
 {
+  "extends": "configs/tsconfig.dom.json",
   "include": [
     "**/*",
     "**/.server/**/*",
@@ -6,20 +7,6 @@
     ".react-router/types/**/*"
   ],
   "compilerOptions": {
-    "target": "es2022",
-    "module": "preserve",
-    "moduleDetection": "force",
-    "isolatedModules": true,
-    "esModuleInterop": true,
-    "verbatimModuleSyntax": true,
-    "noUncheckedIndexedAccess": true,
-    "noImplicitOverride": true,
-    "noEmit": true,
-    "resolveJsonModule": true,
-    "skipLibCheck": true,
-    "strict": true,
-
-    "lib": ["DOM", "DOM.Iterable", "ES2022"],
     "types": ["node", "vite/client"],
     "moduleResolution": "bundler",
     "jsx": "react-jsx",

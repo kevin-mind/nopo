@@ -26,6 +26,12 @@
     "typecheck": {
       "dependsOn": ["^typecheck"]
     },
+    "lint:check": {
+      "dependsOn": ["^lint:check"]
+    },
+    "lint:fix": {
+      "dependsOn": ["^lint:fix"]
+    },
     "start": {
       "persistent": true
     },

@@ -13,7 +13,7 @@ export default function (plop: NodePlopAPI) {
         type: "list",
         name: "tsconfigPreset",
         message: "which tsconfig preset to use",
-        choices: ["base", "node", "web"],
+        choices: ["base", "node", "dom"],
       },
     ],
     actions: [
