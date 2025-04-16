@@ -27,10 +27,11 @@
   },
   "dependencies": {
     "dotenv": "^16.4.7",
-    "zod": "^3.24.2",
-    "znv": "^0.5.0"
+    "znv": "^0.5.0",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.29.1",
     "@eslint/compat": "^1.2.8",
     "@eslint/js": "^9.23.0",
     "@types/node": "^20",
