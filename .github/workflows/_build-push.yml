@@ -1,0 +1,103 @@
+on:
+  workflow_call:
+    inputs:
+      registry:
+        description: 'The registry to use for the build'
+        required: true
+        type: string
+      image:
+        description: 'The image to build and push'
+        required: true
+        type: string
+      username:
+        description: 'The username to use for the build'
+        required: true
+        type: string
+
+    secrets:
+      password:
+        description: 'The password to use for the build'
+        required: true
+
+    outputs:
+      digest:
+        description: 'The digest of the build'
+        value: ${{ jobs.build.outputs.digest }}
+      tag:
+        description: 'The tag of the build'
+        value: ${{ jobs.build.outputs.tag }}
+
+  workflow_dispatch:
+    inputs:
+      registry:
+        description: 'The registry to use for the build'
+        required: true
+      image:
+        description: 'The image to build and push'
+        required: true
+      username:
+        description: 'The username to use for the build'
+        required: true
+      password:
+        description: 'The password to use for the build'
+        required: true
+
+permissions: {}
+
+jobs:
+  build:
+    permissions:
+      packages: write
+      contents: read
+      attestations: write
+      id-token: write
+    runs-on: ubuntu-latest
+    outputs:
+      digest: ${{ steps.post.outputs.digest }}
+      tag: ${{ steps.post.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ inputs.registry }}/${{ inputs.image }}
+          tags: |
+            type=sha
+
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ inputs.registry }}
+          username: ${{ inputs.username }}
+          password: ${{ secrets.password }}
+
+      - name: Build and push
+        id: build
+        uses: docker/bake-action@v6
+        env:
+          NODE_ENV: production
+          DOCKER_TARGET: production
+          WEB_DOCKER_TAG: ${{ steps.meta.outputs.tags }}
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          files: |
+            docker-compose.yml
+            cwd://${{ steps.meta.outputs.bake-file-tags }}
+            cwd://${{ steps.meta.outputs.bake-file-labels }}
+          push: true
+
+      - name: Set output
+        id: post
+        run: |
+          cat <<EOF > metadata.json
+          ${{ steps.build.outputs.metadata }}
+          EOF
+          echo "digest=$(jq -r '.web["containerimage.digest"]' metadata.json)" >> "$GITHUB_OUTPUT"
+          echo "tag=$(jq -r '.web["image.name"]' metadata.json)" >> "$GITHUB_OUTPUT"
+          cat "$GITHUB_OUTPUT"

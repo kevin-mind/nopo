@@ -1,60 +1,51 @@
 {
-  "name": "website",
+  "name": "nopo",
   "version": "0.0.1",
   "private": true,
-  "description": "Project root",
+  "description": "mo(no) re(po) tools for mono repos",
   "type": "module",
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "scripts": {
-    "clean": "run-s clean:*",
-    "clean:turbo": "turbo run clean",
-    "clean:root": "rm -rf .cache .config .npm .turbo node_modules .bash_history .env",
-    "clean:install": "npm install --include-workspace-root",
-    "setup": "turbo run setup",
-    "lint:check": "run-s lint:*:check",
-    "lint:fix": "run-s lint:*:fix",
-    "lint:turbo:check": "turbo run lint:check",
-    "lint:turbo:fix": "turbo run lint:fix",
-    "lint:root:check": "eslint",
-    "lint:root:fix": "eslint --fix",
+    "clean": "run-s *:clean",
+    "turbo:clean": "turbo run clean",
+    "root:clean": "rm -rf .cache .config .npm .turbo node_modules .bash_history .env",
+    "check": "run-s *:check",
+    "root:lint:check": "eslint",
+    "root:types:check": "tsc --noEmit",
+    "turbo:check": "turbo run check",
+    "fix": "run-s *:fix",
+    "root:fix": "eslint --fix",
+    "turbo:fix": "turbo run fix",
     "dev": "turbo run dev",
     "build": "turbo run build",
     "start": "turbo run start",
-    "typecheck": "turbo run typecheck"
-  },
-  "dependencies": {
-    "dotenv": "^16.4.7",
-    "znv": "^0.5.0",
-    "zod": "^3.24.2"
+    "release": "npm run build && changeset publish"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.1",
     "@eslint/compat": "^1.2.8",
     "@eslint/js": "^9.23.0",
     "@types/node": "^20",
+    "docker-compose": "^1.2.0",
+    "dotenv": "^16.4.7",
     "eslint": "^9.23.0",
     "eslint-config-prettier": "^10.1.1",
     "eslint-plugin-prettier": "^5.2.6",
+    "npm-run-all": "^4.1.5",
     "prettier": "3.5.3",
     "tsx": "^4.19.3",
     "turbo": "2.5.0",
     "typescript": "^5.8.2",
     "typescript-eslint": "^8.29.0",
+    "znv": "^0.5.0",
+    "zod": "^3.24.2",
     "zx": "^8.5.2"
   },
   "packageManager": "npm@10.2.4",
   "engines": {
-    "node": ">=18.0.0"
-  },
-  "os": [
-    "darwin",
-    "linux"
-  ],
-  "cpu": [
-    "x64",
-    "arm64"
-  ]
+    "node": ">=20.0.0"
+  }
 }

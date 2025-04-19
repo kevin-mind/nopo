@@ -1,0 +1,68 @@
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'The tag to test'
+        required: false
+        type: string
+        default: 'local'
+      digest:
+        description: 'The digest to test'
+        required: false
+        type: string
+        default: null
+
+  workflow_call:
+    inputs:
+      tag:
+        description: 'The tag to test'
+        required: false
+        type: string
+        default: 'local'
+      digest:
+        description: 'The digest to test'
+        required: false
+        type: string
+        default: null
+
+permissions: {}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        run:
+          - check
+          - build
+    permissions:
+      packages: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set tag
+        id: tag
+        run: |
+          tag="${{ inputs.tag }}"
+          digest="${{ inputs.digest }}"
+
+          if [[ -n "${digest}" ]]; then
+            tag="${tag}@${digest}"
+          fi
+
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Up
+        run: make up WEB_DOCKER_TAG="${{ steps.tag.outputs.tag }}"
+
+      - name: Test
+        run: npm ${{ matrix.run }}

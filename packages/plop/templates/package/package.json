@@ -1,5 +1,5 @@
 {
-  "name": "{{name}}",
+  "name": "{{scope}}/{{name}}",
   "version": "0.0.0",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -19,7 +19,7 @@
     "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist"
   },
   "devDependencies": {
-    "tsconfig": "*",
+    "@more/configs": "*",
     "tsup": "^5.10.1",
     "typescript": "^4.5.3"
   },

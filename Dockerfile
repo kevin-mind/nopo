@@ -9,6 +9,7 @@ SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
 ARG NODE_ENV
 
 ENV HOME=/app
+ENV BUILD_PATH=/app/build
 ENV NODE_ENV=$NODE_ENV
 ENV PATH=$HOME/node_modules/.bin:$PATH
 
@@ -37,40 +38,55 @@ npx --yes turbo prune "${APP_NAME}" --docker
 EOF
 
 ################################################################################################
-FROM base AS dependencies
+FROM base AS dependencies_prod
 ################################################################################################
 
 COPY --from=source $HOME/out/json $HOME
 
-RUN npm ci --no-fund
+RUN npm ci --include=production --no-fund --no-audit
 
 ################################################################################################
-FROM dependencies AS build
+FROM base AS dependencies_dev
+################################################################################################
+
+COPY --from=source $HOME/out/json $HOME
+RUN npm ci --include=dev --include=optional --no-fund --no-audit
+
+################################################################################################
+FROM base AS build
 ################################################################################################
 
 ARG APP_NAME
 
+COPY --from=dependencies_dev $HOME $HOME
 COPY --from=source $HOME/out/full $HOME
 
-# Install full dependencies so we can build the application
-RUN npm ci --include=dev --no-fund
-RUN npm run build --filter=$APP_NAME
+RUN <<EOF
+# First run the build filtering for the app
+npm run build --filter=$APP_NAME
+APP_PATH=$(npm exec -c 'pwd' -w $APP_NAME)
+
+# The copy the build to a known location so we can copy it in the production image
+mkdir -p $BUILD_PATH
+mv $APP_PATH/build $APP_PATH/package.json $BUILD_PATH
+EOF
 
 ################################################################################################
 FROM base AS development
 ################################################################################################
 
-COPY --from=dependencies $HOME $HOME
+COPY --from=dependencies_dev $HOME $HOME
 COPY --from=source $HOME $HOME
 
 CMD ["npm", "run", "dev"]
 
 ################################################################################################
-FROM dependencies AS production
+FROM base AS production
 ################################################################################################
 
-ARG APP_NAME
+WORKDIR $BUILD_PATH
 
-COPY --from=build $HOME/apps/$APP_NAME/build $HOME/apps/$APP_NAME/build
+COPY --from=dependencies_prod $HOME $HOME
+COPY --from=build $BUILD_PATH $BUILD_PATH
 
 CMD ["npm", "run", "start"]

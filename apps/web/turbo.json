@@ -6,11 +6,7 @@
       "persistent": true
     },
     "build": {
-      "dependsOn": ["db#generate"],
       "outputs": ["build"]
-    },
-    "setup": {
-      "cache": false
     }
   }
 }

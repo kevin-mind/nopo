@@ -1,11 +1,12 @@
 {
-  "extends": "configs/tsconfig.dom.json",
+  "extends": "@more/configs/tsconfig.dom.json",
   "include": [
     "**/*",
     "**/.server/**/*",
     "**/.client/**/*",
     ".react-router/types/**/*"
   ],
+  "exclude": ["vite.config.ts.*", "node_modules"],
   "compilerOptions": {
     "types": ["node", "vite/client"],
     "moduleResolution": "bundler",

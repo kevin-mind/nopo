@@ -1,20 +1,28 @@
 services:
   web:
-    extends:
-      file: packages/docker/docker-compose.base.yml
-      service: base
-    image: "${WEB_DOCKER_TAG:-kevinmind/website:local}"
+    image: "${WEB_DOCKER_TAG:-kevinmind/website-web:local}"
     build:
+      context: .
+      dockerfile: Dockerfile
+      target: ${DOCKER_TARGET:-development}
       args:
-        - APP_NAME=web
+        NODE_ENV: ${NODE_ENV:-development}
+        APP_NAME: "@more/web"
+      cache_from:
+        - "type=gha"
+      cache_to:
+        - "type=gha,mode=max"
+    volumes:
+      - ./:/app
+      # - /app/node_modules
     environment:
       - CHOKIDAR_USEPOLLING=true
       - NODE_ENV
       - DATABASE_URL
     ports:
-      - "${WEB_DOCKER_PORT}:${WEB_DOCKER_PORT}"
+      - 3000:3000
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${WEB_DOCKER_PORT}"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
       interval: 1m30s
       timeout: 30s
       retries: 5
@@ -22,14 +30,13 @@ services:
     depends_on:
       db:
         condition: service_healthy
-
   db:
     image: postgres:16
     restart: always
     environment:
-      - POSTGRES_DB
-      - POSTGRES_USER
-      - POSTGRES_PASSWORD
+      - POSTGRES_DB=website
+      - POSTGRES_USER=website
+      - POSTGRES_PASSWORD=website
     ports:
       - "5432:5432"
     volumes:

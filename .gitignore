@@ -9,3 +9,4 @@
 **/.env
 **/tsconfig.tsbuildinfo
 **/vite.config.ts.timestamp-*.mjs
+**/out/

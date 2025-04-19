@@ -1,0 +1,75 @@
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'The environment to deploy to'
+        required: true
+        type: choice
+        options:
+          - production
+          - staging
+          - development
+
+  workflow_call:
+    inputs:
+      environment:
+        description: 'The environment to deploy to'
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  # The deployment process is repeated for all environments.
+  # 1) pull the image from ghcr
+  # 2) tag the image with the environment name
+  # 3) push the image to the environment's container registry
+  # 4) wait for the environment to have the image running
+  # 5) run the smoke tests on the environment
+  # 6) update the latest image for the environment container registry
+  # 7) wait for approval to continue based on the environment protection rules.
+
+  pull_push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set tag
+        id: tag
+        run: |
+          echo "Setting the tag"
+
+      - name: Pull image
+        run: |
+          echo "Pulling the image"
+
+      - name: Tag image
+        run: |
+          echo "Tagging the image"
+
+      - name: Push image
+        run: |
+          echo "Pushing the image"
+
+  wait_ready:
+    needs: pull_push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for deployment
+        run: |
+          echo "Waiting for deployment"
+
+  smoke_test:
+    needs: wait_ready
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run smoke test
+        run: |
+          echo "Running smoke test"
+
+  wait_approval:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Wait for approval
+        run: |
+          echo "Waiting for approval"
+

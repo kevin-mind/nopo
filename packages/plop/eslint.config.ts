@@ -1,4 +1,4 @@
-import { createEslintConfig } from "configs/eslint.config";
+import { createEslintConfig } from "@more/configs/eslint.config";
 
 export default createEslintConfig([
   {

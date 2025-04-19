@@ -1,4 +1,5 @@
 {
-  "extends": "configs/tsconfig.node.json",
-  "include": ["**/*.ts"]
+  "extends": "@more/configs/tsconfig.node.json",
+  "include": ["**/*.ts"],
+  "exclude": ["templates/**"]
 }
