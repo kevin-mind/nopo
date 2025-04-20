@@ -65,4 +65,4 @@ jobs:
         run: make up WEB_DOCKER_TAG="${{ steps.tag.outputs.tag }}"
 
       - name: Test
-        run: npm ${{ matrix.run }}
+        run: npm run ${{ matrix.run }}
