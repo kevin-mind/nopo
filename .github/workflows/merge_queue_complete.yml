@@ -1,11 +1,10 @@
-name: CI
+name: Merge Queue Completex
 
 on:
   workflow_run:
     workflows: ["Merge Queue"]
     types:
       - completed
-      - failed
 
 permissions: {}
 

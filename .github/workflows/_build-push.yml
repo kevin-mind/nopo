@@ -1,3 +1,5 @@
+name: Build and Push
+
 on:
   workflow_call:
     inputs:
@@ -43,6 +45,10 @@ on:
         required: true
 
 permissions: {}
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
   build:

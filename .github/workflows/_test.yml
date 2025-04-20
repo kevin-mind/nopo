@@ -1,3 +1,5 @@
+name: Test
+
 on:
   workflow_dispatch:
     inputs:
@@ -26,6 +28,10 @@ on:
         default: null
 
 permissions: {}
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
   test:
@@ -58,11 +64,8 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Install dependencies
-        run: npm install
-
       - name: Up
         run: make up WEB_DOCKER_TAG="${{ steps.tag.outputs.tag }}"
 
       - name: Test
-        run: npm run ${{ matrix.run }}
+        run: docker compose exec web npm run ${{ matrix.run }}

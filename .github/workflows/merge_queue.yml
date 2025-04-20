@@ -1,7 +1,11 @@
 name: Merge Queue
 
 on:
-  merge_queue:
+  merge_group:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
 
 permissions: {}
 
@@ -13,6 +17,7 @@ jobs:
   context:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/context
 
   build:
@@ -40,7 +45,7 @@ jobs:
       digest: ${{ needs.build.outputs.digest }}
 
   deploy_stage:
-    # needs: test
+    needs: test
     uses: ./.github/workflows/_deploy.yml
     with:
       environment: stage
