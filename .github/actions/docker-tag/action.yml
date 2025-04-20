@@ -1,0 +1,46 @@
+name: Docker Tag
+description: Tag a Docker image
+
+inputs:
+  registry:
+    description: The registry to tag the image with
+    required: false
+  image:
+    description: The image to tag
+    required: true
+  version:
+    description: The version to tag the image with
+    required: true
+  digest:
+    description: The digest to tag the image with
+    required: false
+
+outputs:
+  tag:
+    description: The tag to use for the Docker image
+    value: ${{ steps.tag.outputs.tag }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set tag
+      id: tag
+      shell: bash
+      run: |
+        registry="${{ inputs.registry }}"
+        image="${{ inputs.image }}"
+        digest="${{ inputs.digest }}"
+        version="${{ inputs.version }}"
+
+        tag="${image}:${version}"
+
+        if [[ -n "${registry}" ]]; then
+          tag="${registry}/${tag}"
+        fi
+
+        if [[ -n "${digest}" ]]; then
+          tag="${tag}@${digest}"
+        fi
+
+        echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+        cat "$GITHUB_OUTPUT"

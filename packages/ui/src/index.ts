@@ -1,3 +1,3 @@
-const ui = 'foo';
+const ui = "foo";
 
 export default ui;

@@ -1,5 +1,5 @@
 {
   "extends": "@more/configs/tsconfig.node.json",
-  "include": ["**/*.ts"],
-  "exclude": ["templates/**"]
+  "include": ["scripts"],
+  "exclude": ["templates"]
 }

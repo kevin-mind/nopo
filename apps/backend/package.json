@@ -15,6 +15,7 @@
     "test": "exit 0"
   },
   "devDependencies": {
-    "@more/configs": "*"
+    "@more/configs": "workspace:*",
+    "vitest": "^3.1.1"
   }
 }

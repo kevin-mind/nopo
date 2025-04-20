@@ -1,8 +1,10 @@
 import "@total-typescript/ts-reset";
-import { createEslintConfig } from "configs/eslint.config";
 import { fileURLToPath } from "node:url";
 import { includeIgnoreFile } from "@eslint/compat";
 import { globby, fs, path } from "zx";
+import tseslint from "typescript-eslint";
+import eslint from "@eslint/js";
+import eslintPluginPrettier from "eslint-plugin-prettier/recommended";
 
 import pkgJson from "./package.json" assert { type: "json" };
 
@@ -27,14 +29,21 @@ const workspaceIgnores = globby
   })
   .filter(Boolean);
 
-export default createEslintConfig(includeIgnoreFile(gitignorePath), {
-  ignores: [
-    "**/.react-router/**",
-    "**/.turbo/**",
-    "**/.vscode/**",
-    "**/.git/**",
-    "**/.node_modules/**",
-    "**/.build/**",
-    ...workspaceIgnores,
-  ],
-});
+const config: ReturnType<typeof tseslint.config> = tseslint.config(
+  eslint.configs.recommended,
+  tseslint.configs.recommended,
+  eslintPluginPrettier,
+  includeIgnoreFile(gitignorePath),
+  {
+    ignores: [
+      "**/.react-router/**",
+      "**/.vscode/**",
+      "**/.git/**",
+      "**/.node_modules/**",
+      "**/.build/**",
+      ...workspaceIgnores,
+    ],
+  },
+);
+
+export default config;

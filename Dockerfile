@@ -6,51 +6,49 @@ FROM node:20-slim AS base
 
 SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
 
-ARG NODE_ENV
+ARG NODE_ENV=production
 
 ENV HOME=/app
+ENV DEPLOY_PATH=/deploy
 ENV BUILD_PATH=/app/build
 ENV NODE_ENV=$NODE_ENV
-ENV PATH=$HOME/node_modules/.bin:$PATH
+ENV PNPM_HOME="/pnpm"
+ENV PNPM_STORE_DIR="/pnpm/store"
+ENV PATH="$PNPM_HOME:$PATH"
 
 WORKDIR $HOME
 
-# Install make
+# Install make/jq
 RUN apt-get update && apt-get install -y make jq
+
+# Install pnpm
+RUN npm install -g pnpm
 
 ################################################################################################
 FROM base AS source
 ################################################################################################
 
-ARG APP_NAME
-
 COPY . $HOME
 
-RUN <<EOF
-if [ -d "node_modules" ]; then
-  echo "node_modules exists. This should NOT happen."
-  exit 1
-fi
-EOF
-
-RUN <<EOF
-npx --yes turbo prune "${APP_NAME}" --docker
-EOF
-
 ################################################################################################
-FROM base AS dependencies_prod
+FROM source AS deploy_prod
 ################################################################################################
 
-COPY --from=source $HOME/out/json $HOME
+ARG APP_NAME
 
-RUN npm ci --include=production --no-fund --no-audit
+RUN \
+    --mount=type=cache,id=pnpm,target=$PNPM_STORE_DIR \
+    pnpm deploy --filter=${APP_NAME} --prod $DEPLOY_PATH
 
 ################################################################################################
-FROM base AS dependencies_dev
+FROM source AS deploy_dev
 ################################################################################################
 
-COPY --from=source $HOME/out/json $HOME
-RUN npm ci --include=dev --include=optional --no-fund --no-audit
+ARG APP_NAME
+
+RUN \
+    --mount=type=cache,id=pnpm,target=$PNPM_STORE_DIR \
+    pnpm deploy --filter=${APP_NAME} $DEPLOY_PATH
 
 ################################################################################################
 FROM base AS build
@@ -58,35 +56,21 @@ FROM base AS build
 
 ARG APP_NAME
 
-COPY --from=dependencies_dev $HOME $HOME
-COPY --from=source $HOME/out/full $HOME
-
-RUN <<EOF
-# First run the build filtering for the app
-npm run build --filter=$APP_NAME
-APP_PATH=$(npm exec -c 'pwd' -w $APP_NAME)
-
-# The copy the build to a known location so we can copy it in the production image
-mkdir -p $BUILD_PATH
-mv $APP_PATH/build $APP_PATH/package.json $BUILD_PATH
-EOF
+COPY --from=deploy_dev $DEPLOY_PATH $HOME
+RUN pnpm --filter=${APP_NAME} run build
 
 ################################################################################################
 FROM base AS development
 ################################################################################################
 
-COPY --from=dependencies_dev $HOME $HOME
-COPY --from=source $HOME $HOME
+COPY --from=deploy_dev $DEPLOY_PATH $HOME
 
-CMD ["npm", "run", "dev"]
+CMD ["pnpm", "run", "dev"]
 
 ################################################################################################
 FROM base AS production
 ################################################################################################
 
-WORKDIR $BUILD_PATH
+COPY --from=build $HOME $HOME
 
-COPY --from=dependencies_prod $HOME $HOME
-COPY --from=build $BUILD_PATH $BUILD_PATH
-
-CMD ["npm", "run", "start"]
+CMD ["pnpm", "run", "start"]

@@ -1,3 +1,15 @@
+.PHONY: clean
+clean:
+	pnpm clean
+
+.PHONY: check
+check:
+	pnpm check
+
+.PHONY: fix
+fix:
+	pnpm fix
+
 .PHONY: status
 status:
 	@npx tsx scripts/status.ts
@@ -12,7 +24,7 @@ exec:
 
 .PHONY: up
 up:
-	docker compose run --rm web npm install
+	docker compose run --rm web pnpm install
 	docker compose up -d --remove-orphans
 
 .PHONY: down

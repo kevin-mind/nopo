@@ -8,20 +8,6 @@ on:
         required: false
         type: string
         default: null
-      image:
-        description: 'The image to test'
-        required: true
-        type: string
-      version:
-        description: 'The version to test'
-        required: true
-        type: string
-        default: 'local'
-      digest:
-        description: 'Pull the image with this digest'
-        required: false
-        type: string
-        default: null
       username:
         description: 'The username to use for the registry'
         required: false
@@ -52,23 +38,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set tag
-        id: tag
-        run: |
-          registry="${{ inputs.registry }}"
-          image="${{ inputs.image }}"
-          digest="${{ inputs.digest }}"
-          version="${{ inputs.version }}"
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
 
-          tag="${image}:${version}"
-          if [[ -n "${digest}" ]]; then
-            tag="${tag}@${digest}"
-          fi
-
-      - uses: actions/setup-node@v4
+      - name: Install Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
+          cache: 'pnpm'
 
       - name: Login to registry
         if: inputs.username != ''
@@ -79,7 +55,7 @@ jobs:
           password: ${{ secrets.password }}
 
       - name: Up
-        run: make up WEB_DOCKER_TAG="${{ steps.tag.outputs.tag }}"
+        run: make up
 
       - name: Test
-        run: docker compose exec web npm run ${{ matrix.run }}
+        run: docker compose exec web pnpm run ${{ matrix.run }}

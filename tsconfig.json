@@ -1,3 +1,8 @@
 {
-  "extends": "./packages/configs/tsconfig.base.json"
+  "extends": "./packages/configs/tsconfig.base.json",
+  "references": [
+    { "path": "./packages/plop/tsconfig.json" },
+    { "path": "./packages/configs/tsconfig.node.json" }
+  ],
+  "exclude": ["node_modules", "packages", "apps"]
 }

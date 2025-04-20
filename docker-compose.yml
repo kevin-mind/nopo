@@ -4,6 +4,8 @@ services:
       file: docker-compose.base.yml
       service: base
     image: "${DOCKER_TAG_WEB:-kevin-mind/nopo-web:local}"
+    environment:
+      PORT: 3000
     ports:
       - 3000:3000
     healthcheck:
@@ -21,8 +23,11 @@ services:
       file: docker-compose.base.yml
       service: base
     image: "${DOCKER_TAG_BACKEND:-kevin-mind/nopo-backend:local}"
+    environment:
+      PORT: 8000
     ports:
-      - 3000:3000
+      - 8000:8000
+
   db:
     image: postgres:16
     restart: always
@@ -35,7 +40,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", 'pg_isready -U $POSTGRES_USER -d $POSTGRES_DB']
+      test: ["CMD-SHELL", 'pg_isready -U website -d website']
       interval: 10s
       timeout: 5s
       retries: 5

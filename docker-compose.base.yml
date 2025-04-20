@@ -1,7 +1,8 @@
 services:
   base:
+    restart: always
     volumes:
-      - ./:/app
+      - .:/app
     environment:
       - CHOKIDAR_USEPOLLING=true
       - NODE_ENV

@@ -11,7 +11,7 @@
     "build/**"
   ],
   "scripts": {
-    "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf build",
+    "clean": "rm -rf node_modules && rm -rf build",
     "build": "tsup",
     "dev": "tsup --watch",
     "format": "yarn lint --fix",
@@ -19,7 +19,7 @@
     "test": "vitest"
   },
   "devDependencies": {
-    "@more/configs": "*",
+    "@more/configs": "workspace:*",
     "tsup": "^8.4.0",
     "typescript": "^5.8.3",
     "vitest": "^3.1.1"

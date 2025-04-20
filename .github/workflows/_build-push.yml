@@ -96,13 +96,15 @@ jobs:
             cwd://${{ steps.meta.outputs.bake-file-labels }}
           push: true
 
-      - name: Set output
+      - name: Write metadata
         id: post
         run: |
           cat <<EOF > metadata.json
           ${{ steps.build.outputs.metadata }}
           EOF
 
-          echo "version=version" >> "$GITHUB_OUTPUT"
-          echo "digest=digest" >> "$GITHUB_OUTPUT"
-          echo "tag=tag" >> "$GITHUB_OUTPUT"
+      - name: Upload metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-metadata
+          path: metadata.json
