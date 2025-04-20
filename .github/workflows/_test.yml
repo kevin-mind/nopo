@@ -1,31 +1,36 @@
 name: Test
 
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: 'The tag to test'
-        required: false
-        type: string
-        default: 'local'
-      digest:
-        description: 'The digest to test'
-        required: false
-        type: string
-        default: null
-
   workflow_call:
     inputs:
-      tag:
-        description: 'The tag to test'
-        required: false
-        type: string
-        default: 'local'
-      digest:
-        description: 'The digest to test'
+      registry:
+        description: 'The registry to pull the image from'
         required: false
         type: string
         default: null
+      image:
+        description: 'The image to test'
+        required: true
+        type: string
+      version:
+        description: 'The version to test'
+        required: true
+        type: string
+        default: 'local'
+      digest:
+        description: 'Pull the image with this digest'
+        required: false
+        type: string
+        default: null
+      username:
+        description: 'The username to use for the registry'
+        required: false
+        type: string
+        default: null
+    secrets:
+      password:
+        description: 'The password to use for the registry'
+        required: false
 
 permissions: {}
 
@@ -50,19 +55,28 @@ jobs:
       - name: Set tag
         id: tag
         run: |
-          tag="${{ inputs.tag }}"
+          registry="${{ inputs.registry }}"
+          image="${{ inputs.image }}"
           digest="${{ inputs.digest }}"
+          version="${{ inputs.version }}"
 
+          tag="${image}:${version}"
           if [[ -n "${digest}" ]]; then
             tag="${tag}@${digest}"
           fi
-
-          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
+
+      - name: Login to registry
+        if: inputs.username != ''
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ inputs.registry }}
+          username: ${{ inputs.username }}
+          password: ${{ secrets.password }}
 
       - name: Up
         run: make up WEB_DOCKER_TAG="${{ steps.tag.outputs.tag }}"

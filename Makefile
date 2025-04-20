@@ -4,7 +4,7 @@ status:
 
 .PHONY: build
 build:
-	docker compose build --progress=plain
+	docker buildx bake --progress=plain
 
 .PHONY: exec
 exec:

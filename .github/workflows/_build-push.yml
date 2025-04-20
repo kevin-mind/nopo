@@ -22,27 +22,21 @@ on:
         required: true
 
     outputs:
+      registry:
+        description: 'The registry used for the build'
+        value: ${{ inputs.registry }}
+      image:
+        description: 'The image used for the build'
+        value: ${{ inputs.image }}
+      version:
+        description: 'The version used for the build'
+        value: ${{ jobs.build.outputs.version }}
       digest:
         description: 'The digest of the build'
         value: ${{ jobs.build.outputs.digest }}
       tag:
         description: 'The tag of the build'
         value: ${{ jobs.build.outputs.tag }}
-
-  workflow_dispatch:
-    inputs:
-      registry:
-        description: 'The registry to use for the build'
-        required: true
-      image:
-        description: 'The image to build and push'
-        required: true
-      username:
-        description: 'The username to use for the build'
-        required: true
-      password:
-        description: 'The password to use for the build'
-        required: true
 
 permissions: {}
 
@@ -59,6 +53,7 @@ jobs:
       id-token: write
     runs-on: ubuntu-latest
     outputs:
+      version: ${{ steps.post.outputs.version }}
       digest: ${{ steps.post.outputs.digest }}
       tag: ${{ steps.post.outputs.tag }}
     steps:
@@ -68,9 +63,10 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ inputs.registry }}/${{ inputs.image }}
+          bake-target: default
           tags: |
             type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Set up Docker Buildx
         id: buildx
@@ -88,12 +84,14 @@ jobs:
         uses: docker/bake-action@v6
         env:
           NODE_ENV: production
+          DOCKER_REGISTRY: ${{ inputs.registry }}
+          DOCKER_IMAGE: ${{ inputs.image }}
+          DOCKER_VERSION: ${{ steps.meta.outputs.version }}
           DOCKER_TARGET: production
-          WEB_DOCKER_TAG: ${{ steps.meta.outputs.tags }}
         with:
           builder: ${{ steps.buildx.outputs.name }}
           files: |
-            docker-compose.yml
+            docker-bake.hcl
             cwd://${{ steps.meta.outputs.bake-file-tags }}
             cwd://${{ steps.meta.outputs.bake-file-labels }}
           push: true
@@ -104,6 +102,7 @@ jobs:
           cat <<EOF > metadata.json
           ${{ steps.build.outputs.metadata }}
           EOF
-          echo "digest=$(jq -r '.web["containerimage.digest"]' metadata.json)" >> "$GITHUB_OUTPUT"
-          echo "tag=$(jq -r '.web["image.name"]' metadata.json)" >> "$GITHUB_OUTPUT"
-          cat "$GITHUB_OUTPUT"
+
+          echo "version=version" >> "$GITHUB_OUTPUT"
+          echo "digest=digest" >> "$GITHUB_OUTPUT"
+          echo "tag=tag" >> "$GITHUB_OUTPUT"

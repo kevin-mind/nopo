@@ -1,8 +1,8 @@
-name: Merge Queue Completex
+name: CI (complete)
 
 on:
   workflow_run:
-    workflows: ["Merge Queue"]
+    workflows: ["CI"]
     types:
       - completed
 
@@ -16,4 +16,6 @@ jobs:
   complete:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - uses: ./.github/actions/context

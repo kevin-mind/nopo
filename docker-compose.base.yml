@@ -1,0 +1,7 @@
+services:
+  base:
+    volumes:
+      - ./:/app
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - NODE_ENV

@@ -1,10 +1,11 @@
-name: Merge Queue
+name: CI
 
 on:
+  pull_request:
   merge_group:
 
 concurrency:
-  group: ${{ github.workflow }}
+  group: ${{ github.workflow }}-${{ github.event_name}}
   cancel-in-progress: true
 
 permissions: {}
@@ -18,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: ./.github/actions/context
 
   build:
@@ -29,7 +31,7 @@ jobs:
     uses: ./.github/workflows/_build-push.yml
     with:
       registry: ghcr.io
-      image: ${{ github.repository }}-web
+      image: ${{ github.repository }}
       username: ${{ github.actor }}
     secrets:
       password: ${{ secrets.GITHUB_TOKEN }}
@@ -41,17 +43,29 @@ jobs:
       contents: read
     uses: ./.github/workflows/_test.yml
     with:
-      tag: ${{ needs.build.outputs.tag }}
+      registry: ${{ needs.build.outputs.registry }}
+      image: ${{ needs.build.outputs.image }}
+      version: ${{ needs.build.outputs.version }}
       digest: ${{ needs.build.outputs.digest }}
+    secrets:
+      password: ${{ secrets.GITHUB_TOKEN }}
 
   deploy_stage:
     needs: test
+    if: github.event_name == 'merge_group'
+    permissions:
+      contents: read
+      packages: read
     uses: ./.github/workflows/_deploy.yml
     with:
       environment: stage
 
   deploy_prod:
     needs: deploy_stage
+    if: github.event_name == 'merge_group'
+    permissions:
+      contents: read
+      packages: read
     uses: ./.github/workflows/_deploy.yml
     with:
       environment: prod
