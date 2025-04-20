@@ -5,7 +5,8 @@
   "scripts": {
     "lint:check": "eslint",
     "lint:fix": "eslint --fix",
-    "generate:package": "NODE_OPTIONS='--import tsx' plop --plopfile scripts/package.ts"
+    "generate:package": "NODE_OPTIONS='--import tsx' plop --plopfile scripts/package.ts",
+    "generate:app": "NODE_OPTIONS='--import tsx' plop --plopfile scripts/app.ts"
   },
   "dependencies": {
     "plop": "^4.0.1"

@@ -13,24 +13,18 @@ export default function (plop: NodePlopAPI) {
       {
         type: "input",
         name: "name",
-        message: "what is the name of the package",
-      },
-      {
-        type: "list",
-        name: "tsconfigPreset",
-        message: "which tsconfig preset to use",
-        choices: ["base", "node", "dom"],
+        message: "what is the name of the app",
       },
     ],
     actions: [
       {
         type: "addMany",
-        base: "../templates/package",
-        destination: "../../{{name}}",
+        base: "../templates/app",
+        destination: "../../../apps/{{name}}",
         transform: (data) => {
           return data;
         },
-        templateFiles: "../templates/package/**",
+        templateFiles: "../templates/app/**",
         stripExtensions: ["hbs"],
         globOptions: {
           dot: true,

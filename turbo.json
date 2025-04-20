@@ -31,6 +31,9 @@
     },
     "start": {
       "persistent": true
+    },
+    "test": {
+      "dependsOn": ["^test"]
     }
   }
 }
