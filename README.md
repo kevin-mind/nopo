@@ -1,28 +1,27 @@
-# Website
+# Nopo
 
 ## Scripts
 
 Build the image
 
 ```bash
-docker compose build
+make build
 ```
 
 Run the project
 
 ```bash
-docker compose up
+make up
 ```
 
 ## Todo
 
 - [X] make the app a workspace (encapsulate the source and configs)
 - [X] create database service (postgres)
-- [ ] create ui package
+- [X] create ui package
 - [ ] add storybook and vitest
 - [X] add github actions for CI
 - [ ] setup deployment on fly.io
-
 
 ## Tests
 

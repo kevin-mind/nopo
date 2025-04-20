@@ -1,6 +1,6 @@
 services:
   web:
-    image: "${WEB_DOCKER_TAG:-kevinmind/website-web:local}"
+    image: "${WEB_DOCKER_TAG:-kevin-mind/nopo-web:local}"
     build:
       context: .
       dockerfile: Dockerfile
