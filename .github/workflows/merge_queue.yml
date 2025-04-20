@@ -1,11 +1,7 @@
-name: CI
+name: Merge Queue
 
 on:
-  pull_request:
-  workflow_dispatch:
-  push:
-    branches:
-      - main
+  merge_queue:
 
 permissions: {}
 
@@ -13,10 +9,12 @@ defaults:
   run:
     shell: bash
 
-env:
-  DOCKER_RUN_ARGS: --no-deps --quiet-pull --rm
-
 jobs:
+  context:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/actions/context
+
   build:
     permissions:
       packages: write
@@ -40,7 +38,6 @@ jobs:
     with:
       tag: ${{ needs.build.outputs.tag }}
       digest: ${{ needs.build.outputs.digest }}
-
 
   deploy_stage:
     # needs: test

@@ -1,0 +1,17 @@
+name: Context
+description: Log context about a workflow run
+
+runs:
+  using: composite
+  steps:
+    - name: Github
+      run: echo "Context: ${{ toJSON(github) }}"
+      shell: bash
+
+    - name: Run
+      run: echo "Run: ${{ toJSON(run) }}"
+      shell: bash
+
+    - name: Job
+      run: echo "Job: ${{ toJSON(job) }}"
+      shell: bash
