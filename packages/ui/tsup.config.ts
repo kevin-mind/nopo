@@ -1,9 +1,12 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig((options) => ({
-  entry: ["src/index.ts"],
+  entry: ["src/*.ts"],
   outDir: "build",
-  splitting: false,
+  target: "esnext",
+  platform: "neutral",
+  format: "esm",
+  treeshake: false,
   sourcemap: true,
   clean: true,
   minify: !options.watch,

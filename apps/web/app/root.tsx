@@ -9,6 +9,8 @@ import {
 
 import type { Route } from "./+types/root";
 
+import ui, { Component } from "@more/ui";
+
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   {
@@ -32,6 +34,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body>
+        <h1>
+          {ui}: {Component()}
+        </h1>
         {children}
         <ScrollRestoration />
         <Scripts />

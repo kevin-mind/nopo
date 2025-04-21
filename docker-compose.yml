@@ -1,9 +1,21 @@
 services:
-  web:
+  base:
     extends:
       file: docker-compose.base.yml
       service: base
-    image: "${DOCKER_TAG_WEB:-kevin-mind/nopo-web:local}"
+    command: ["pnpm", "install"]
+
+  packages:
+    extends:
+      file: docker-compose.base.yml
+      service: base
+    command: ["pnpm", "--filter", "./packages/*", "run", "--recursive", "--if-present", "dev"]
+
+  web:
+    extends:
+      file: docker-compose.base.yml
+      service: base_service
+    command: ["pnpm", "--filter", "@more/web", "run", "--recursive", "--if-present", "dev"]
     environment:
       PORT: 3000
     ports:
@@ -21,8 +33,8 @@ services:
   backend:
     extends:
       file: docker-compose.base.yml
-      service: base
-    image: "${DOCKER_TAG_BACKEND:-kevin-mind/nopo-backend:local}"
+      service: base_service
+    command: ["pnpm", "--filter", "@more/backend", "run", "--recursive", "--if-present", "dev"]
     environment:
       PORT: 8000
     ports:

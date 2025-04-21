@@ -13,3 +13,4 @@
 .local
 .pnpm-store
 .docker
+build-metadata.json

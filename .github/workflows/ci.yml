@@ -44,9 +44,7 @@ jobs:
     uses: ./.github/workflows/_test.yml
     with:
       registry: ${{ needs.build.outputs.registry }}
-      image: ${{ needs.build.outputs.image }}
-      version: ${{ needs.build.outputs.version }}
-      digest: ${{ needs.build.outputs.digest }}
+      username: ${{ github.actor }}
     secrets:
       password: ${{ secrets.GITHUB_TOKEN }}
 

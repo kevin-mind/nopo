@@ -1,5 +1,5 @@
 {
   "extends": "@more/configs/tsconfig.dom.json",
-  "include": ["."],
+  "include": ["src/**/*"],
   "exclude": ["build", "node_modules"]
 }

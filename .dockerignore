@@ -16,5 +16,6 @@
 .gitignore
 .github
 .local
+build-metadata.json
 docker-*
 Dockerfile

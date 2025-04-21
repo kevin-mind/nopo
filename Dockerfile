@@ -1,5 +1,3 @@
-ARG APP_NAME
-
 ################################################################################################
 FROM node:20-slim AS base
 ################################################################################################
@@ -8,20 +6,21 @@ SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
 
 ARG NODE_ENV=production
 
-ENV HOME=/app
-ENV DEPLOY_PATH=/deploy
-ENV BUILD_PATH=/app/build
 ENV NODE_ENV=$NODE_ENV
+ENV HOME=/app
 ENV PNPM_HOME="/pnpm"
-ENV PNPM_STORE_DIR="/pnpm/store"
+ENV PNPM_STORE_DIR="${PNPM_HOME}/store"
 ENV PATH="$PNPM_HOME:$PATH"
 
 WORKDIR $HOME
 
-# Install make/jq
-RUN apt-get update && apt-get install -y make jq
+RUN \
+  --mount=type=cache,target=/var/cache/apt,id=apt \
+  --mount=type=cache,target=/var/lib/apt,id=apt \
+<<EOF
+apt-get update && apt-get install -y make jq
+EOF
 
-# Install pnpm
 RUN npm install -g pnpm
 
 ################################################################################################
@@ -31,46 +30,44 @@ FROM base AS source
 COPY . $HOME
 
 ################################################################################################
-FROM source AS deploy_prod
+FROM base AS install_dev
 ################################################################################################
 
-ARG APP_NAME
+COPY --from=source $HOME $HOME
 
-RUN \
-    --mount=type=cache,id=pnpm,target=$PNPM_STORE_DIR \
-    pnpm deploy --filter=${APP_NAME} --prod $DEPLOY_PATH
+RUN --mount=type=cache,id=pnpm,target=$PNPM_STORE_DIR <<EOF
+pnpm install
+EOF
 
 ################################################################################################
-FROM source AS deploy_dev
+FROM base AS install_prod
 ################################################################################################
 
-ARG APP_NAME
+COPY --from=source $HOME $HOME
 
-RUN \
-    --mount=type=cache,id=pnpm,target=$PNPM_STORE_DIR \
-    pnpm deploy --filter=${APP_NAME} $DEPLOY_PATH
+RUN --mount=type=cache,id=pnpm,target=$PNPM_STORE_DIR <<EOF
+pnpm install --prod
+EOF
 
 ################################################################################################
 FROM base AS build
 ################################################################################################
 
-ARG APP_NAME
+COPY --from=install_dev $HOME $HOME
+COPY --from=source $HOME $HOME
 
-COPY --from=deploy_dev $DEPLOY_PATH $HOME
-RUN pnpm --filter=${APP_NAME} run build
+RUN pnpm run -r build
 
 ################################################################################################
 FROM base AS development
 ################################################################################################
 
-COPY --from=deploy_dev $DEPLOY_PATH $HOME
-
-CMD ["pnpm", "run", "dev"]
+COPY --from=install_dev $HOME $HOME
+COPY --from=source $HOME $HOME
 
 ################################################################################################
 FROM base AS production
 ################################################################################################
 
+COPY --from=install_prod $HOME $HOME
 COPY --from=build $HOME $HOME
-
-CMD ["pnpm", "run", "start"]

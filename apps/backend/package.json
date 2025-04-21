@@ -9,7 +9,6 @@
   "scripts": {
     "build": "mkdir -p build && echo 'build' > build/index.html",
     "clean": "exit 0",
-    "dev": "exit 0",
     "format": "exit 0",
     "lint": "exit 0",
     "test": "exit 0"

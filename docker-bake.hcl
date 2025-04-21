@@ -18,33 +18,37 @@ variable "NODE_ENV" {
   default = "development"
 }
 
-# Define the targets to build.
-# Each should correspond to:
-# 1) a service in the docker-compose.yml file
-# 2) a directory in the apps/ directory of the same name
-function "get_targets" {
+function "to_tag" {
   params = []
-  result = ["web", "backend"]
+  result = join("", [
+    DOCKER_REGISTRY,
+    DOCKER_REGISTRY != "" ? "/" : "",
+    DOCKER_IMAGE,
+    ":",
+    # Generate a random string of 5 characters to suffix the version
+    # Which is a short sha of the git commit. This virtually guarnatees
+    # that a tag is unique per build but still identifiable.
+    "${DOCKER_VERSION}-${substr(uuidv4(), 0, 5)}"
+  ])
+}
+
+variable "DOCKER_TAG" {
+  default = to_tag()
 }
 
 group "default" {
-  targets = get_targets()
+  targets = ["base"]
 }
 
 target "docker-metadata-action" {}
 
-target "default" {
+target "base" {
   inherits = ["docker-metadata-action"]
-  name = "${tgt}"
-  matrix = {
-    tgt = get_targets()
-  }
   tags = [
-    "${DOCKER_REGISTRY}${DOCKER_REGISTRY != "" ? "/" : ""}${DOCKER_IMAGE}-${tgt}:${DOCKER_VERSION}"
+    "${DOCKER_TAG}"
   ]
   args = {
     NODE_ENV = "${NODE_ENV}"
-    APP_NAME = "@more/${tgt}"
   }
   context = "."
   dockerfile = "Dockerfile"
