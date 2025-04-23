@@ -1,10 +1,9 @@
 import { defineConfig } from "tsup";
 
-export default defineConfig((options) => ({
+export default defineConfig({
   entry: ["src/index.ts"],
   outDir: "build",
+  format: ["esm", "cjs"],
   splitting: false,
-  sourcemap: true,
   clean: true,
-  minify: !options.watch,
-}));
+});

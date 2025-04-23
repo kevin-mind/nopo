@@ -2,6 +2,7 @@ services:
   base:
     image: "${DOCKER_TAG:-kevin-mind/nopo:local}"
     build: {}
+    user: nodeuser
     volumes:
       - .:/app
     environment:
@@ -10,8 +11,10 @@ services:
 
   base_service:
     extends:
+      file: docker-compose.base.yml
       service: base
     restart: always
     depends_on:
       base:
         condition: service_completed_successfully
+    command: ["sh", "command.sh"]

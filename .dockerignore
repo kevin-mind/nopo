@@ -19,3 +19,4 @@
 build-metadata.json
 docker-*
 Dockerfile
+deps

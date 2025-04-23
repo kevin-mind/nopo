@@ -1,25 +1,14 @@
 {
   "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
-  "name": "Website Devcontainer",
+  "name": "Nopo Devcontainer",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:20-bullseye",
-  "workspaceFolder": "/workspaces/website",
-  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/website,type=bind",
+  "workspaceFolder": "/workspaces/nopo",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/nopo,type=bind",
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker": {
       "version": "latest",
       "enableNonRootDocker": "true",
       "moby": "true"
-    }
-  },
-  "forwardPorts": [3000],
-  "appPort": [3000],
-  "portsAttributes": {
-    "3000": {
-      "label": "Website",
-      "onAutoForward": "notify",
-      "protocol": "http",
-      "requireLocalPort": true,
-      "elevateIfNeeded": true
     }
   },
   "postAttachCommand": "make up"

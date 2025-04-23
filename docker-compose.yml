@@ -5,19 +5,13 @@ services:
       service: base
     command: ["pnpm", "install"]
 
-  packages:
-    extends:
-      file: docker-compose.base.yml
-      service: base
-    command: ["pnpm", "--filter", "./packages/*", "run", "--recursive", "--if-present", "dev"]
-
   web:
     extends:
       file: docker-compose.base.yml
       service: base_service
-    command: ["pnpm", "--filter", "@more/web", "run", "--recursive", "--if-present", "dev"]
     environment:
-      PORT: 3000
+      APP_NAME: web
+      PORT: 300
     ports:
       - 3000:3000
     healthcheck:
@@ -34,8 +28,8 @@ services:
     extends:
       file: docker-compose.base.yml
       service: base_service
-    command: ["pnpm", "--filter", "@more/backend", "run", "--recursive", "--if-present", "dev"]
     environment:
+      APP_NAME: backend
       PORT: 8000
     ports:
       - 8000:8000

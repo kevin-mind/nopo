@@ -6,3 +6,5 @@ injectWorkspacePackages: true
 
 onlyBuiltDependencies:
   - esbuild
+
+storeDir: ${PNPM_STORE_DIR}

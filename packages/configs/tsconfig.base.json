@@ -16,6 +16,7 @@
     "declarationMap": true,
     "declaration": true,
     "module": "preserve",
-    "noEmit": false
+    "noEmit": false,
+    "customConditions": ["source"]
   }
 }

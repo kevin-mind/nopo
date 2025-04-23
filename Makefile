@@ -5,19 +5,26 @@ REST_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
 
 DOCKER = docker
 DOCKER_COMPOSE = $(DOCKER) compose
-DOCKER_COMPOSE_RUN = $(DOCKER_COMPOSE) run --rm $(DOCKER_SERVICE)
+
+.PHONY: lockfile
+lockfile:
+	npm_config_offline=false pnpm install --lockfile-only --no-frozen-lockfile
+
+.PHONY: install
+install:
+	pnpm install $(REST_ARGS)
 
 .PHONY: clean
 clean:
-	$(DOCKER_COMPOSE_RUN) pnpm clean $(REST_ARGS)
+	pnpm clean $(REST_ARGS)
 
 .PHONY: check
 check:
-	$(DOCKER_COMPOSE_RUN) pnpm check $(REST_ARGS)
+	pnpm check $(REST_ARGS)
 
 .PHONY: fix
 fix:
-	$(DOCKER_COMPOSE_RUN) pnpm fix $(REST_ARGS)
+	pnpm fix $(REST_ARGS)
 
 .PHONY: build
 build:
@@ -29,16 +36,19 @@ build:
 
 .PHONY: exec
 exec:
-	$(DOCKER_COMPOSE_RUN) $(REST_ARGS)
+	$(DOCKER_COMPOSE) exec $(DOCKER_SERVICE) $(REST_ARGS)
 
 .PHONY: shell
 shell:
-	$(DOCKER_COMPOSE_RUN) bash
+	$(DOCKER_COMPOSE) run --rm $(DOCKER_SERVICE) bash
 
-.PHONY: up
-up:
+.PHONY: start
+start:
 	$(DOCKER_COMPOSE) up -d --remove-orphans $(REST_ARGS)
 	$(DOCKER_COMPOSE) rm -f
+
+.PHONY: up
+up: build start
 
 .PHONY: down
 down:
