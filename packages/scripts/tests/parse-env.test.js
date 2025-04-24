@@ -92,7 +92,7 @@ describe("parseEnv", () => {
     expect(() =>
       parseEnv(undefined, {
         DOCKER_IMAGE: "custom/image",
-        DOCKER_DIGEST: "sha256:abc123",
+        DOCKER_DIGEST: `sha256:${DOCKER_DIGEST}`,
       }),
     ).toThrow("when specifying a digest, a version is required");
   });
@@ -106,10 +106,10 @@ describe("parseEnv", () => {
 
   it("should handle version and digest input correctly", () => {
     const env = parseEnv(undefined, {
-      DOCKER_TAG: "1.0.0@sha256:abc123",
+      DOCKER_TAG: `1.0.0@sha256:${DOCKER_DIGEST}`,
     });
     expect(env.DOCKER_TAG).toBe(
-      "docker.io/mozilla/addons-server:1.0.0@sha256:abc123",
+      `docker.io/mozilla/addons-server:1.0.0@sha256:${DOCKER_DIGEST}`,
     );
   });
 
