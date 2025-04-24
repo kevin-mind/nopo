@@ -6,13 +6,13 @@ REST_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
 DOCKER = docker
 DOCKER_COMPOSE = $(DOCKER) compose
 
-.PHONY: lockfile
-lockfile:
-	npm_config_offline=false pnpm install --lockfile-only --no-frozen-lockfile
+.PHONY: lockfile_install
+lockfile_install:
+	pnpm lockfile:install
 
-.PHONY: install
-install:
-	pnpm install $(REST_ARGS)
+.PHONY: lockfile_add
+lockfile_add:
+	pnpm lockfile:add $(REST_ARGS)
 
 .PHONY: clean
 clean:
@@ -26,8 +26,16 @@ check:
 fix:
 	pnpm fix $(REST_ARGS)
 
+.PHONY: test
+test:
+	pnpm test $(REST_ARGS)
+
+.PHONY: env
+env:
+	pnpm run script env
+
 .PHONY: build
-build:
+build: env
 	$(DOCKER) buildx bake \
 		--load \
 		--progress=plain \
@@ -39,7 +47,7 @@ exec:
 	$(DOCKER_COMPOSE) exec $(DOCKER_SERVICE) $(REST_ARGS)
 
 .PHONY: shell
-shell:
+shell: env
 	$(DOCKER_COMPOSE) run --rm $(DOCKER_SERVICE) bash
 
 .PHONY: start
@@ -48,7 +56,7 @@ start:
 	$(DOCKER_COMPOSE) rm -f
 
 .PHONY: up
-up: build start
+up: env build start
 
 .PHONY: down
 down:

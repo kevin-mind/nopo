@@ -16,11 +16,12 @@
     }
   },
   "scripts": {
-    "clean": "rm -rf node_modules && rm -rf build",
     "build": "tsup",
+    "clean": "rm -rf node_modules build && rm -f tsconfig.tsbuildinfo",
     "dev": "tsup --watch",
-    "format": "yarn lint --fix",
-    "lint": "eslint",
+    "check:types": "tsc --noEmit",
+    "check:lint": "eslint",
+    "fix:lint": "eslint --fix",
     "test": "vitest"
   },
   "devDependencies": {

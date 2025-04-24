@@ -2,16 +2,20 @@
   "name": "@more/configs",
   "version": "0.0.1",
   "private": true,
+  "scripts": {
+    "clean": "rm -rf node_modules"
+  },
   "dependencies": {
     "dotenv": "^16.4.7",
-    "zod": "^3.24.2",
-    "znv": "^0.5.0"
+    "znv": "^0.5.0",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@eslint/compat": "^1.2.8",
     "@eslint/js": "^9.23.0",
     "eslint-config-prettier": "^10.1.1",
     "eslint-plugin-prettier": "^5.2.6",
+    "globals": "^16.0.0",
     "typescript": "^5.8.2",
     "typescript-eslint": "^8.29.0"
   },

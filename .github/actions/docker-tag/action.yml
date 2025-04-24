@@ -2,45 +2,41 @@ name: Docker Tag
 description: Tag a Docker image
 
 inputs:
-  registry:
-    description: The registry to tag the image with
-    required: false
-  image:
-    description: The image to tag
+  tag:
+    description: The full docker tag to use
     required: true
-  version:
-    description: The version to tag the image with
-    required: true
-  digest:
-    description: The digest to tag the image with
-    required: false
 
 outputs:
   tag:
-    description: The tag to use for the Docker image
-    value: ${{ steps.tag.outputs.tag }}
+    description: The full docker tag to use
+    value: ${{ steps.tag.outputs.DOCKER_TAG }}
+  registry:
+    description: The registry to tag the image with
+    value: ${{ steps.tag.outputs.DOCKER_REGISTRY }}
+  image:
+    description: The image to tag
+    value: ${{ steps.tag.outputs.DOCKER_IMAGE }}
+  version:
+    description: The version to tag the image with
+    value: ${{ steps.tag.outputs.DOCKER_VERSION }}
+  digest:
+    description: The digest to tag the image with
+    value: ${{ steps.tag.outputs.DOCKER_DIGEST }}
+  target:
+    description: The target to tag the image with
+    value: ${{ steps.tag.outputs.DOCKER_TARGET }}
+  node_env:
+    description: The node environment to tag the image with
+    value: ${{ steps.tag.outputs.NODE_ENV }}
 
 runs:
   using: composite
   steps:
-    - name: Set tag
+    - name: Extract tag
       id: tag
       shell: bash
       run: |
-        registry="${{ inputs.registry }}"
-        image="${{ inputs.image }}"
-        digest="${{ inputs.digest }}"
-        version="${{ inputs.version }}"
-
-        tag="${image}:${version}"
-
-        if [[ -n "${registry}" ]]; then
-          tag="${registry}/${tag}"
-        fi
-
-        if [[ -n "${digest}" ]]; then
-          tag="${tag}@${digest}"
-        fi
-
-        echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+        make env DOCKER_TAG="${{ inputs.tag }}"
+        echo "$(cat .env)" >> "$GITHUB_OUTPUT"
+        rm -f .env
         cat "$GITHUB_OUTPUT"

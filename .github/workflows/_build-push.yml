@@ -23,13 +23,13 @@ on:
 
     outputs:
       registry:
-        description: 'The registry used for the build'
-        value: ${{ inputs.registry }}
+        description: 'The registry of the build'
+        value: ${{ jobs.build.outputs.registry }}
       image:
-        description: 'The image used for the build'
-        value: ${{ inputs.image }}
+        description: 'The image of the build'
+        value: ${{ jobs.build.outputs.image }}
       version:
-        description: 'The version used for the build'
+        description: 'The version of the build'
         value: ${{ jobs.build.outputs.version }}
       digest:
         description: 'The digest of the build'
@@ -53,14 +53,19 @@ jobs:
       id-token: write
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.post.outputs.version }}
-      digest: ${{ steps.post.outputs.digest }}
-      tag: ${{ steps.post.outputs.tag }}
+      registry: ${{ steps.docker_tag.outputs.registry }}
+      image: ${{ steps.docker_tag.outputs.image }}
+      version: ${{ steps.docker_tag.outputs.version }}
+      digest: ${{ steps.docker_tag.outputs.digest }}
+      tag: ${{ steps.docker_tag.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Docker meta
-        id: meta
+        id: docker_meta
         uses: docker/metadata-action@v5
         with:
           bake-target: default
@@ -83,28 +88,36 @@ jobs:
         id: build
         uses: docker/bake-action@v6
         env:
-          NODE_ENV: production
           DOCKER_REGISTRY: ${{ inputs.registry }}
           DOCKER_IMAGE: ${{ inputs.image }}
-          DOCKER_VERSION: ${{ steps.meta.outputs.version }}
+          DOCKER_VERSION: ${{ steps.docker_meta.outputs.version }}
           DOCKER_TARGET: production
+          NODE_ENV: production
         with:
           builder: ${{ steps.buildx.outputs.name }}
           files: |
             docker-bake.hcl
-            cwd://${{ steps.meta.outputs.bake-file-tags }}
-            cwd://${{ steps.meta.outputs.bake-file-labels }}
+            cwd://${{ steps.docker_meta.outputs.bake-file-tags }}
+            cwd://${{ steps.docker_meta.outputs.bake-file-labels }}
           push: true
 
       - name: Write metadata
-        id: post
+        id: build_meta
         run: |
           cat <<EOF > metadata.json
           ${{ steps.build.outputs.metadata }}
           EOF
+          echo "image=$(cat metadata.json | jq -r '.base["image.name"]')" >> "$GITHUB_OUTPUT"
+          echo "digest=$(cat metadata.json | jq -r '.base["containerimage.digest"]')" >> "$GITHUB_OUTPUT"
+          cat "$GITHUB_OUTPUT"
 
-      - name: Upload metadata
-        uses: actions/upload-artifact@v4
+      - name: Extract tag
+        id: docker_tag
+        uses: ./.github/actions/docker-tag
         with:
-          name: build-metadata
-          path: metadata.json
+          tag: "${{ steps.build_meta.outputs.image }}@${{ steps.build_meta.outputs.digest }}"
+
+      - name: Check output
+        run: |
+          echo "${{ toJSON(steps.docker_tag.outputs) }}"
+          echo "tag: ${{ steps.docker_tag.outputs.tag }}"

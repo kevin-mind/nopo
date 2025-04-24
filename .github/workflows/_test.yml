@@ -3,11 +3,10 @@ name: Test
 on:
   workflow_call:
     inputs:
-      registry:
-        description: 'The registry to pull the image from'
-        required: false
+      tag:
+        description: 'The full docker tag to test'
+        required: true
         type: string
-        default: null
       username:
         description: 'The username to use for the registry'
         required: false
@@ -32,6 +31,7 @@ jobs:
         run:
           - check
           - build
+          - test
     permissions:
       packages: read
       contents: read
@@ -41,21 +41,22 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
 
-      - name: Install Node.js
-        uses: actions/setup-node@v4
+      - name: Docker tag
+        id: tag
+        uses: ./.github/actions/docker-tag
         with:
-          cache: 'pnpm'
+          tag: ${{ inputs.tag }}
 
       - name: Login to registry
         if: inputs.username != ''
         uses: docker/login-action@v3
         with:
-          registry: ${{ inputs.registry }}
+          registry: ${{ steps.tag.outputs.registry }}
           username: ${{ inputs.username }}
           password: ${{ secrets.password }}
 
       - name: Up
-        run: make up
+        run: make up DOCKER_TAG="${{ steps.tag.outputs.tag }}"
 
-      - name: Test
-        run: docker compose exec web pnpm run ${{ matrix.run }}
+      - name: make ${{ matrix.run }}
+        run: make ${{ matrix.run }}

@@ -17,12 +17,16 @@ defaults:
 jobs:
   context:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+    outputs:
+      is_fork: ${{ steps.context.outputs.is_fork }}
 
-      - uses: ./.github/actions/context
+    steps:
+      - id: context
+        uses: mozilla/addons-server/.github/actions/context@master
 
   build:
+    needs: context
+    if: ${{ needs.context.outputs.is_fork }} == 'false'
     permissions:
       packages: write
       contents: read
@@ -36,20 +40,31 @@ jobs:
     secrets:
       password: ${{ secrets.GITHUB_TOKEN }}
 
-  test:
+  check:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      packages: read
+      contents: read
+    steps:
+      - name: Check
+        run: |
+          echo "${{ toJSON(needs.build.outputs) }}"
+
+  test_build:
     needs: build
     permissions:
       packages: read
       contents: read
     uses: ./.github/workflows/_test.yml
     with:
-      registry: ${{ needs.build.outputs.registry }}
+      tag: ${{ needs.build.outputs.tag }}
       username: ${{ github.actor }}
     secrets:
       password: ${{ secrets.GITHUB_TOKEN }}
 
   deploy_stage:
-    needs: test
+    needs: test_build
     if: github.event_name == 'merge_group'
     permissions:
       contents: read

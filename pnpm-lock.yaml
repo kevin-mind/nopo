@@ -27,6 +27,9 @@ importers:
       docker-compose:
         specifier: ^1.2.0
         version: 1.2.0
+      dotenv:
+        specifier: ^16.4.7
+        version: 16.5.0
       eslint:
         specifier: ^9.23.0
         version: 9.25.0(jiti@2.4.2)
@@ -36,6 +39,9 @@ importers:
       eslint-plugin-prettier:
         specifier: ^5.2.6
         version: 5.2.6(eslint-config-prettier@10.1.2(eslint@9.25.0(jiti@2.4.2)))(eslint@9.25.0(jiti@2.4.2))(prettier@3.5.3)
+      globals:
+        specifier: ^16.0.0
+        version: 16.0.0
       npm-run-all:
         specifier: ^4.1.5
         version: 4.1.5
@@ -51,6 +57,9 @@ importers:
       typescript-eslint:
         specifier: ^8.29.0
         version: 8.30.1(eslint@9.25.0(jiti@2.4.2))(typescript@5.8.3)
+      vitest:
+        specifier: ^3.1.1
+        version: 3.1.1(@types/node@20.17.30)(lightningcss@1.29.2)
       znv:
         specifier: ^0.5.0
         version: 0.5.0(zod@3.24.3)
@@ -152,6 +161,9 @@ importers:
       eslint-plugin-prettier:
         specifier: ^5.2.6
         version: 5.2.6(eslint-config-prettier@10.1.2(eslint@9.25.0(jiti@2.4.2)))(eslint@9.25.0(jiti@2.4.2))(prettier@3.5.3)
+      globals:
+        specifier: ^16.0.0
+        version: 16.0.0
       typescript:
         specifier: ^5.8.2
         version: 5.8.3
@@ -171,6 +183,19 @@ importers:
       eslint:
         specifier: ^9.15.0
         version: 9.25.0(jiti@2.4.2)
+
+  packages/scripts:
+    dependencies:
+      zod:
+        specifier: ^3.24.2
+        version: 3.24.3
+      zx:
+        specifier: ^8.5.2
+        version: 8.5.3
+    devDependencies:
+      vitest:
+        specifier: ^3.1.1
+        version: 3.1.1(@types/node@20.17.30)(lightningcss@1.29.2)
 
   packages/ui:
     devDependencies:
@@ -2455,6 +2480,10 @@ packages:
 
   globals@14.0.0:
     resolution: {integrity: sha512-oahGvuMGQlPw/ivIYBjVSrWAfWLBeku5tpPE2fOPLi+WHffIWbuh2tCjhyQhTBPMf5E9jDEH4FOmTYgYwbKwtQ==}
+    engines: {node: '>=18'}
+
+  globals@16.0.0:
+    resolution: {integrity: sha512-iInW14XItCXET01CQFqudPOWP2jYMl7T+QRQT+UNcR/iQncN/F0UNpgd76iFkBPgNQb4+X3LV9tLJYzwh+Gl3A==}
     engines: {node: '>=18'}
 
   globalthis@1.0.4:
@@ -6815,6 +6844,8 @@ snapshots:
   globals@11.12.0: {}
 
   globals@14.0.0: {}
+
+  globals@16.0.0: {}
 
   globalthis@1.0.4:
     dependencies:
