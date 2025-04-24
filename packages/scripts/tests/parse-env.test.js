@@ -3,6 +3,9 @@ import { tmpfile, dotenv } from "zx";
 
 import { parseEnv } from "../src/parse-env";
 
+const DOCKER_DIGEST =
+  "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+
 function createTmpEnv(env = {}) {
   const str = dotenv.stringify(env);
   const tmpPath = tmpfile("env", str);
@@ -91,10 +94,9 @@ describe("parseEnv", () => {
   it("should throw error when digest provided without version", () => {
     expect(() =>
       parseEnv(undefined, {
-        DOCKER_IMAGE: "custom/image",
-        DOCKER_DIGEST: `sha256:${DOCKER_DIGEST}`,
+        DOCKER_TAG: `@sha256:${DOCKER_DIGEST}`,
       }),
-    ).toThrow("when specifying a digest, a version is required");
+    ).toThrow("Invalid image tag: ");
   });
 
   it("should handle version-only input correctly", () => {
