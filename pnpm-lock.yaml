@@ -24,9 +24,6 @@ importers:
       '@types/node':
         specifier: ^20
         version: 20.17.30
-      docker-compose:
-        specifier: ^1.2.0
-        version: 1.2.0
       dotenv:
         specifier: ^16.4.7
         version: 16.5.0
@@ -186,6 +183,12 @@ importers:
 
   packages/scripts:
     dependencies:
+      docker-compose:
+        specifier: ^1.2.0
+        version: 1.2.0
+      znv:
+        specifier: ^0.5.0
+        version: 0.5.0(zod@3.24.3)
       zod:
         specifier: ^3.24.2
         version: 3.24.3

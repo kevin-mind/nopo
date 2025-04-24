@@ -1,8 +1,9 @@
 services:
   base:
     image: "${DOCKER_TAG:-kevin-mind/nopo:local}"
-    build: {}
+    platform: linux/amd64
     user: nodeuser
+    build: {}
     volumes:
       - .:/app
     environment:

@@ -32,6 +32,7 @@ jobs:
           - check
           - build
           - test
+      fail-fast: false
     permissions:
       packages: read
       contents: read

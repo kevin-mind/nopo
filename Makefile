@@ -56,7 +56,7 @@ start:
 	$(DOCKER_COMPOSE) rm -f
 
 .PHONY: up
-up: env build start
+up: env start
 
 .PHONY: down
 down:

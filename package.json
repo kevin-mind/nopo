@@ -39,7 +39,6 @@
     "@eslint/js": "^9.23.0",
     "@total-typescript/ts-reset": "^0.6.1",
     "@types/node": "^20",
-    "docker-compose": "^1.2.0",
     "dotenv": "^16.4.7",
     "eslint": "^9.23.0",
     "eslint-config-prettier": "^10.1.1",
