@@ -74,11 +74,15 @@ export function parseEnv(envFilePath, processEnv = {}) {
 
   for (const key of ["DOCKER_TARGET", "NODE_ENV"]) {
     let current = inputEnv[key];
-    if (!current || (!isLocal && current !== defaultTarget)) {
+    const isMissing = !current;
+    const isWrong = !isLocal && current !== defaultTarget;
+    if (isMissing || isWrong) {
       inputEnv[key] = defaultTarget;
+      const action = isMissing ? "Adding" : "Forcing";
+      const local = isLocal ? "local" : "non-local";
       console.log(
         chalk.yellow(
-          `Forcing "${key}" to "${defaultTarget}" on non-local image ${fullTag}`,
+          `${action} "${key}" to "${defaultTarget}" on ${local} image ${fullTag}`,
         ),
       );
     }
