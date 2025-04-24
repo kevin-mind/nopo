@@ -73,12 +73,9 @@ jobs:
             type=sha
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Set up Docker Buildx
-        id: buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+      - name: Set up Docker
+        id: docker
+        uses: ./.github/actions/setup-docker
         with:
           registry: ${{ inputs.registry }}
           username: ${{ inputs.username }}
@@ -94,7 +91,7 @@ jobs:
           DOCKER_TARGET: production
           NODE_ENV: production
         with:
-          builder: ${{ steps.buildx.outputs.name }}
+          builder: ${{ steps.docker.outputs.builder }}
           files: |
             docker-bake.hcl
             cwd://${{ steps.docker_meta.outputs.bake-file-tags }}
@@ -116,8 +113,3 @@ jobs:
         uses: ./.github/actions/docker-tag
         with:
           tag: "${{ steps.build_meta.outputs.image }}@${{ steps.build_meta.outputs.digest }}"
-
-      - name: Check output
-        run: |
-          echo "${{ toJSON(steps.docker_tag.outputs) }}"
-          echo "tag: ${{ steps.docker_tag.outputs.tag }}"

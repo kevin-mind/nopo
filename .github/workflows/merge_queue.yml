@@ -1,7 +1,6 @@
-name: CI
+name: Merge Queue
 
 on:
-  pull_request:
   merge_group:
 
 concurrency:
@@ -39,17 +38,6 @@ jobs:
       username: ${{ github.actor }}
     secrets:
       password: ${{ secrets.GITHUB_TOKEN }}
-
-  check:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      packages: read
-      contents: read
-    steps:
-      - name: Check
-        run: |
-          echo "${{ toJSON(needs.build.outputs) }}"
 
   test_build:
     needs: build

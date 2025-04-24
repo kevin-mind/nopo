@@ -1,8 +1,10 @@
-name: CI (complete)
+name: On Complete (post workflow run)
 
 on:
   workflow_run:
-    workflows: ["CI"]
+    workflows:
+      - Merge Queue
+      - Pull Request
     types:
       - completed
 
