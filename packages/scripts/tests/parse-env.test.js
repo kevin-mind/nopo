@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { tmpfile, dotenv } from "zx";
 
-import { parseEnv } from "./parse-env.js";
+import { parseEnv } from "../src/parse-env";
 
 function createTmpEnv(env = {}) {
   const str = dotenv.stringify(env);
@@ -102,6 +102,13 @@ describe("parseEnv", () => {
       DOCKER_TAG: "3.0.0",
     });
     expect(env.DOCKER_TAG).toBe("docker.io/mozilla/addons-server:3.0.0");
+  });
+
+  it("should handle version and digest input correctly", () => {
+    const env = parseEnv(undefined, {
+      DOCKER_TAG: "1.0.0@sha256:abc123",
+    });
+    expect(env.DOCKER_TAG).toBe("docker.io/mozilla/addons-server:1.0.0@sha256:abc123");
   });
 
   it("should handle image-only input correctly", () => {

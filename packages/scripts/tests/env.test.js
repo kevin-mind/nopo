@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import main from "./env";
+import main from "../src/scripts/env";
 
 const root = path.resolve(fileURLToPath(import.meta.url));
 

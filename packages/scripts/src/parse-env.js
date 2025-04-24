@@ -8,24 +8,41 @@ const baseTag = new DockerTag("docker.io/mozilla/addons-server:local");
 const envParser = z.enum(["development", "production"]);
 
 const baseSchema = {
-  NODE_ENV: envParser.optional(),
-  DOCKER_TARGET: envParser.optional(),
-  DOCKER_TAG: z.string().optional(),
-  DOCKER_REGISTRY: z.string().optional(),
-  DOCKER_IMAGE: z.string().optional(),
-  DOCKER_VERSION: z.string().optional(),
-  DOCKER_DIGEST: z.string().optional(),
+  NODE_ENV: envParser.default("development"),
+  DOCKER_TARGET: envParser.default("development"),
+  DOCKER_TAG: z.string().default(baseTag.fullTag),
+  DOCKER_REGISTRY: z.string().default(baseTag.parsed.registry),
+  DOCKER_IMAGE: z.string().default(baseTag.parsed.image),
+  DOCKER_VERSION: z.string().default(baseTag.parsed.version),
+  DOCKER_DIGEST: z.string().default(baseTag.parsed.digest),
 };
 
 const schema = z.object(baseSchema).transform((data) => {
-  let tag = null;
-  if (data.DOCKER_TAG) {
-    tag = new DockerTag(data.DOCKER_TAG);
-  } else {
-    tag = baseTag;
+  const tag = new DockerTag(data.DOCKER_TAG);
+  const target = tag.parsed.version === baseTag.parsed.version ? "development" : "production";
+  const isLocal = tag.parsed.version === baseTag.parsed.version;
+
+  if (!isLocal) {
+    data.NODE_ENV = target;
+    data.DOCKER_TARGET = target;
   }
 
-  let { registry, image, version, digest } = tag.parsed;
+  data.DOCKER_TAG = tag.fullTag;
+  data.DOCKER_REGISTRY = tag.parsed.registry;
+  data.DOCKER_IMAGE = tag.parsed.image;
+  data.DOCKER_VERSION = tag.parsed.version;
+  data.DOCKER_DIGEST = tag.parsed.digest;
+  return data;
+});
+
+export function parseEnv(envFilePath, processEnv = {}) {
+  let fileEnv = {};
+  if (fs.existsSync(envFilePath)) {
+    fileEnv = schema.parse(dotenv.load(envFilePath));
+  }
+  const outputEnv = schema.parse({ ...fileEnv, ...processEnv });
+
+  let { registry, image, version, digest } = new DockerTag(outputEnv.DOCKER_TAG);
 
   if (
     image &&
@@ -67,30 +84,6 @@ const schema = z.object(baseSchema).transform((data) => {
       );
     }
   }
-
-  data.DOCKER_TAG = tag.fullTag;
-  data.DOCKER_REGISTRY = tag.parsed.registry;
-  data.DOCKER_IMAGE = tag.parsed.image;
-  data.DOCKER_VERSION = tag.parsed.version;
-  data.DOCKER_DIGEST = tag.parsed.digest;
-  return data;
-});
-
-export function parseEnv(envFilePath, processEnv = {}) {
-  /*
-  We need to move some of the transform logic into parseEnv.
-  - we want to prioritize process over file
-  - but also prioritize DOCKER_TAG over DOCKER_* variables.
-  - Ex: if we have DOCKER_* defined in file but DOCKER_TAG in process, we should only use the DOCKER_TAG from the process.
-  - Ex: if we have DOCKER_* defined in file, and some DOCKER_* in process, we should merge them together.
-  - We want the transform logic to apply to the merged output, but we don't necessarily want to handle this identically for each source and we don't want to cross pollute all variables from both sources.
-
-  */
-  let fileEnv = {};
-  if (fs.existsSync(envFilePath)) {
-    fileEnv = schema.parse(dotenv.load(envFilePath));
-  }
-  const outputEnv = schema.parse({ ...fileEnv, ...processEnv });
 
   const finalEnv = znvParseEnv(outputEnv, baseSchema);
   return Object.fromEntries(
