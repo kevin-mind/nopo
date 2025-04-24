@@ -108,7 +108,9 @@ describe("parseEnv", () => {
     const env = parseEnv(undefined, {
       DOCKER_TAG: "1.0.0@sha256:abc123",
     });
-    expect(env.DOCKER_TAG).toBe("docker.io/mozilla/addons-server:1.0.0@sha256:abc123");
+    expect(env.DOCKER_TAG).toBe(
+      "docker.io/mozilla/addons-server:1.0.0@sha256:abc123",
+    );
   });
 
   it("should handle image-only input correctly", () => {

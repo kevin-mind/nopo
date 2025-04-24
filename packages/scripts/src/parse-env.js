@@ -8,41 +8,41 @@ const baseTag = new DockerTag("docker.io/mozilla/addons-server:local");
 const envParser = z.enum(["development", "production"]);
 
 const baseSchema = {
-  NODE_ENV: envParser.default("development"),
-  DOCKER_TARGET: envParser.default("development"),
-  DOCKER_TAG: z.string().default(baseTag.fullTag),
-  DOCKER_REGISTRY: z.string().default(baseTag.parsed.registry),
-  DOCKER_IMAGE: z.string().default(baseTag.parsed.image),
-  DOCKER_VERSION: z.string().default(baseTag.parsed.version),
-  DOCKER_DIGEST: z.string().default(baseTag.parsed.digest),
+  DOCKER_DIGEST: z.string().optional(),
+  DOCKER_IMAGE: z.string().optional(),
+  DOCKER_REGISTRY: z.string().optional(),
+  DOCKER_TAG: z.string().optional(),
+  DOCKER_TARGET: envParser.optional(),
+  DOCKER_VERSION: z.string().optional(),
+  NODE_ENV: envParser.optional(),
 };
 
-const schema = z.object(baseSchema).transform((data) => {
-  const tag = new DockerTag(data.DOCKER_TAG);
-  const target = tag.parsed.version === baseTag.parsed.version ? "development" : "production";
-  const isLocal = tag.parsed.version === baseTag.parsed.version;
+const schema = z.object(baseSchema).superRefine((data, ctx) => {
+  const actualTag = new DockerTag(data.DOCKER_TAG);
+  const computedTag = new DockerTag({
+    registry: data.DOCKER_REGISTRY,
+    image: data.DOCKER_IMAGE,
+    version: data.DOCKER_VERSION,
+    digest: data.DOCKER_DIGEST,
+  });
 
-  if (!isLocal) {
-    data.NODE_ENV = target;
-    data.DOCKER_TARGET = target;
+  if (actualTag.fullTag !== computedTag.fullTag) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Invalid image tag: ${data.DOCKER_TAG} (expected ${computedTag.fullTag})`,
+    });
   }
-
-  data.DOCKER_TAG = tag.fullTag;
-  data.DOCKER_REGISTRY = tag.parsed.registry;
-  data.DOCKER_IMAGE = tag.parsed.image;
-  data.DOCKER_VERSION = tag.parsed.version;
-  data.DOCKER_DIGEST = tag.parsed.digest;
-  return data;
 });
 
 export function parseEnv(envFilePath, processEnv = {}) {
-  let fileEnv = {};
-  if (fs.existsSync(envFilePath)) {
-    fileEnv = schema.parse(dotenv.load(envFilePath));
-  }
-  const outputEnv = schema.parse({ ...fileEnv, ...processEnv });
+  const fileEnv = fs.existsSync(envFilePath) ? dotenv.load(envFilePath) : {};
 
-  let { registry, image, version, digest } = new DockerTag(outputEnv.DOCKER_TAG);
+  let {
+    parsed: { registry, image, version, digest },
+    fullTag,
+  } = new DockerTag(
+    processEnv.DOCKER_TAG || fileEnv.DOCKER_TAG || baseTag.fullTag,
+  );
 
   if (
     image &&
@@ -60,7 +60,7 @@ export function parseEnv(envFilePath, processEnv = {}) {
 
   if (digest && !version) {
     throw new Error(
-      `Invalid image tag: ${tag.fullTag} (when specifying a digest, a version is required)`,
+      `Invalid image tag: ${fullTag} (when specifying a digest, a version is required)`,
     );
   }
 
@@ -68,24 +68,39 @@ export function parseEnv(envFilePath, processEnv = {}) {
     registry = baseTag.parsed.registry;
   }
 
-  tag = new DockerTag({ registry, image, version, digest });
-
-  const isLocal = tag.parsed.version === baseTag.parsed.version;
+  const inputEnv = { ...fileEnv, ...processEnv };
+  const isLocal = version === baseTag.parsed.version;
   const defaultTarget = isLocal ? "development" : "production";
 
   for (const key of ["DOCKER_TARGET", "NODE_ENV"]) {
-    let current = data[key];
+    let current = inputEnv[key];
     if (!current || (!isLocal && current !== defaultTarget)) {
-      data[key] = defaultTarget;
+      inputEnv[key] = defaultTarget;
       console.log(
         chalk.yellow(
-          `Forcing "${key}" to "${defaultTarget}" on non-local image ${tag.fullTag}`,
+          `Forcing "${key}" to "${defaultTarget}" on non-local image ${fullTag}`,
         ),
       );
     }
   }
 
-  const finalEnv = znvParseEnv(outputEnv, baseSchema);
+  const env = schema.parse({
+    DOCKER_TAG: DockerTag.stringify({ registry, image, version, digest }),
+    DOCKER_REGISTRY: registry,
+    DOCKER_IMAGE: image,
+    DOCKER_VERSION: version,
+    DOCKER_DIGEST: digest,
+    NODE_ENV: inputEnv.NODE_ENV,
+    DOCKER_TARGET: inputEnv.DOCKER_TARGET,
+  });
+
+  const finalEnv = znvParseEnv(
+    {
+      ...inputEnv,
+      ...env,
+    },
+    baseSchema,
+  );
   return Object.fromEntries(
     Object.entries(finalEnv).filter(([, value]) => value !== undefined),
   );
