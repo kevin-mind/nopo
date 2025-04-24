@@ -1,10 +1,10 @@
 import { minimist, chalk } from "zx";
 
-import env from "./src/env.js";
-import image from "./src/image.js";
-import status from "./src/status.js";
+import env from "./src/scripts/env.js";
+import image from "./src/scripts/image.js";
+import status from "./src/scripts/status.js";
 
-import config from "./config.js";
+import config from "./src/config.js";
 
 const availableScripts = {
   env,
