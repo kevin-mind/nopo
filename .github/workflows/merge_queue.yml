@@ -19,6 +19,8 @@ defaults:
 jobs:
   context:
     runs-on: ubuntu-latest
+    outputs:
+      is_direct_push: ${{ steps.actor.outputs.is_direct_push }}
     steps:
       - uses: actions/checkout@v4
 
@@ -26,7 +28,28 @@ jobs:
         id: context
         uses: ./.github/actions/context
 
+      - name: Check Actor
+        id: actor
+        run: |
+          # The event.sender.login for the user that pushed the commit.
+          actor="${{ github.event.sender.login }}"
+          # The name of the merge queue bot.
+          merge_actor="github-merge-queue[bot]"
+
+          is_direct_push=false
+
+          if [[ "$actor" != "$merge_actor" ]]; then
+            is_direct_push=true
+          fi
+
+          echo "is_direct_push=$is_direct_push" >> $GITHUB_OUTPUT
+          cat "$GITHUB_OUTPUT"
+
   build:
+    needs: context
+    # We should continue with the build on merge queue runs
+    # or if we pushed a commit bypassing the merge queue.
+    if: github.event_name == 'merge_group' || needs.context.outputs.is_direct_push == 'true'
     permissions:
       packages: write
       contents: read
