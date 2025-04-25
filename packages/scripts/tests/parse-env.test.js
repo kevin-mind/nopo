@@ -4,7 +4,7 @@ import { tmpfile, dotenv } from "zx";
 import { parseEnv } from "../src/parse-env";
 
 const DOCKER_DIGEST =
-  "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+  "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
 
 function createTmpEnv(env = {}) {
   const str = dotenv.stringify(env);
@@ -65,14 +65,12 @@ describe("parseEnv", () => {
       DOCKER_VERSION: "2.0.0",
       DOCKER_DIGEST,
     });
-    expect(env.DOCKER_TAG).toBe(
-      `quay.io/custom/image:2.0.0@sha256:${DOCKER_DIGEST}`,
-    );
+    expect(env.DOCKER_TAG).toBe(`quay.io/custom/image:2.0.0@${DOCKER_DIGEST}`);
   });
 
   it("should use base tag when no docker config provided", () => {
     const env = parseEnv(undefined, {});
-    expect(env.DOCKER_TAG).toBe("docker.io/mozilla/addons-server:local");
+    expect(env.DOCKER_TAG).toBe("mozilla/addons-server:local");
   });
 
   it("should force production target for non-local image", () => {
@@ -97,31 +95,29 @@ describe("parseEnv", () => {
   it("should throw error when digest provided without version", () => {
     expect(() =>
       parseEnv(undefined, {
-        DOCKER_TAG: `@sha256:${DOCKER_DIGEST}`,
+        DOCKER_TAG: `${DOCKER_DIGEST}`,
       }),
-    ).toThrow("Invalid image tag: ");
+    ).toThrow("Cannot parse image with only a digest:");
   });
 
   it("should handle version-only input correctly", () => {
     const env = parseEnv(undefined, {
       DOCKER_TAG: "3.0.0",
     });
-    expect(env.DOCKER_TAG).toBe("docker.io/mozilla/addons-server:3.0.0");
+    expect(env.DOCKER_TAG).toBe("mozilla/addons-server:3.0.0");
   });
 
   it("should handle version and digest input correctly", () => {
     const env = parseEnv(undefined, {
-      DOCKER_TAG: `1.0.0@sha256:${DOCKER_DIGEST}`,
+      DOCKER_TAG: `1.0.0@${DOCKER_DIGEST}`,
     });
-    expect(env.DOCKER_TAG).toBe(
-      `docker.io/mozilla/addons-server:1.0.0@sha256:${DOCKER_DIGEST}`,
-    );
+    expect(env.DOCKER_TAG).toBe(`mozilla/addons-server:1.0.0@${DOCKER_DIGEST}`);
   });
 
   it("should handle image-only input correctly", () => {
     const env = parseEnv(undefined, {
       DOCKER_TAG: "custom/image:1.0.0",
     });
-    expect(env.DOCKER_TAG).toBe("docker.io/custom/image:1.0.0");
+    expect(env.DOCKER_TAG).toBe("custom/image:1.0.0");
   });
 });

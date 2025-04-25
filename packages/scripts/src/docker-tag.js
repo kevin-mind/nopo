@@ -6,19 +6,19 @@
 // - ^ and $ ensure we match the full string.
 // - (?<image>[^:@]+): Matches the image name as anything except ':' and '@'.
 // - (?:\:(?<version>(?![\.-])[a-zA-Z0-9_.-]{1,128}))?: Optionally matches ':version' where version must not start with '.' or '-'.
-// - (?:@sha256:(?<digest>[a-fA-F0-9]{64}))?: Optionally matches '@sha256:' followed by 64 hexadecimal characters.
+// - (?:@(?<digest>sha256:[a-fA-F0-9]{64}))?: Optionally matches '@sha256:' followed by 64 hexadecimal characters.
 const DOCKER_TAG_REGEX =
-  /^((?<image>[^:@]+))(?::(?<version>(?![.-])[a-zA-Z0-9_.-]{1,128}))?(?:@sha256:(?<digest>[a-fA-F0-9]{64}))?$/;
+  /^((?<image>[^:@]+))(?::(?<version>(?![.-])[a-zA-Z0-9_.-]{1,128}))?(?:@(?<digest>sha256:[a-fA-F0-9]{64}))?$/;
 
 export class DockerTag {
   static regex = DOCKER_TAG_REGEX;
 
   fullTag = "";
   parsed = {
-    registry: null,
-    image: null,
-    version: null,
-    digest: null,
+    registry: "",
+    image: "",
+    version: "",
+    digest: "",
   };
 
   static parse(fullTag) {
@@ -27,15 +27,17 @@ export class DockerTag {
       throw new Error(`Invalid image tag: ${fullTag}`);
     }
 
-    let registry = null;
-    let image = null;
-    let version = null;
-    let digest = null;
-
-    ({ image, version, digest } = match.groups);
+    let registry = "";
+    let { image = "", version = "", digest = "" } = match.groups;
 
     if (!image) {
       throw new Error(`Invalid image tag: ${fullTag} (image is required)`);
+    }
+
+    if (image === "sha256") {
+      throw new Error(
+        `Cannot parse image with only a digest: ${fullTag}. Include an image and version`,
+      );
     }
 
     if (image.includes(".") && image.includes("/")) {
@@ -46,7 +48,7 @@ export class DockerTag {
     return { registry, image, version, digest };
   }
 
-  static stringify({ registry, image, version, digest } = this.parsed) {
+  static stringify({ registry, image, version, digest }) {
     let fullTag = "";
     if (registry) {
       fullTag = `${registry}/${image}`;
@@ -59,7 +61,7 @@ export class DockerTag {
     }
 
     if (digest) {
-      fullTag += `@sha256:${digest}`;
+      fullTag += `@${digest}`;
     }
 
     return fullTag;

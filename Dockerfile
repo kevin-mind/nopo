@@ -90,4 +90,4 @@ FROM base AS production
 COPY --from=install --chown=$USER $DEPS $DEPS
 COPY --from=build --chown=$USER $HOME $HOME
 
-RUN pnpm install --prod
+RUN pnpm install --prod --config.confirmModulesPurge=false
