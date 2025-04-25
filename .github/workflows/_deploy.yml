@@ -12,8 +12,8 @@ on:
         required: true
         type: choice
         options:
-          - staging
-          - production
+          - stage
+          - prod
   workflow_call:
     inputs:
       tag:
