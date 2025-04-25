@@ -60,7 +60,7 @@ jobs:
         uses: ./.github/actions/login-docker
         with:
           registry: ${{ steps.input_tag.outputs.registry }}
-          username: ${{ steps.input_tag.outputs.username }}
+          username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Pull image
