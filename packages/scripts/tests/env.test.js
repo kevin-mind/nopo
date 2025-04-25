@@ -7,7 +7,7 @@ import main from "../src/scripts/env";
 const root = path.resolve(fileURLToPath(import.meta.url));
 
 const DOCKER_DIGEST =
-  "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+  "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
 
 const config = {
   dryRun: true,
@@ -51,10 +51,10 @@ describe("env", () => {
     const env = await main({
       ...config,
       env: {
-        DOCKER_TAG: `nginx:latest@sha256:${DOCKER_DIGEST}`,
+        DOCKER_TAG: `nginx:latest@${DOCKER_DIGEST}`,
       },
     });
-    expect(env.DOCKER_TAG).toBe(`nginx:latest@sha256:${DOCKER_DIGEST}`);
+    expect(env.DOCKER_TAG).toBe(`nginx:latest@${DOCKER_DIGEST}`);
     expect(env.DOCKER_DIGEST).toBe(DOCKER_DIGEST);
   });
 
@@ -133,8 +133,7 @@ describe("env", () => {
       main({
         ...config,
         env: {
-          DOCKER_TAG:
-            "@sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+          DOCKER_TAG: `${DOCKER_DIGEST}`,
         },
       }),
     ).rejects.toThrow();
