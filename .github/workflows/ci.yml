@@ -79,7 +79,7 @@ jobs:
     with:
       tag: ${{ needs.build.outputs.tag }}
       registry: ${{ needs.build.outputs.registry }}
-      username: ${{ needs.build.outputs.username }}
+      username: ${{ github.actor }}
     secrets:
       password: ${{ secrets.GITHUB_TOKEN}}
 

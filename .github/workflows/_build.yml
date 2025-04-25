@@ -45,7 +45,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       registry: ${{ steps.output_tag.outputs.registry }}
-      username: ${{ steps.output_tag.outputs.username }}
       image: ${{ steps.output_tag.outputs.image }}
       version: ${{ steps.output_tag.outputs.version }}
       digest: ${{ steps.output_tag.outputs.digest }}
@@ -73,7 +72,6 @@ jobs:
           # If not pushing, make a bare image so the resultant tag will trigger
           # a new build when used in "make up".
           registry: ${{ inputs.push && 'ghcr.io' || '' }}
-          username: ${{ inputs.push && github.actor || '' }}
           image: ${{ github.repository }}
           version: ${{ steps.docker_meta.outputs.version }}
           target: production
@@ -88,7 +86,7 @@ jobs:
         uses: ./.github/actions/login-docker
         with:
           registry: ${{ steps.input_tag.outputs.registry }}
-          username: ${{ steps.input_tag.outputs.username }}
+          username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push
@@ -128,7 +126,6 @@ jobs:
         uses: ./.github/actions/docker-tag
         with:
           registry: ${{ steps.input_tag.outputs.registry }}
-          username: ${{ steps.input_tag.outputs.username }}
           image: ${{ steps.input_tag.outputs.image }}
           version: ${{ steps.input_tag.outputs.version }}
           # Add the digest to the output tag so we can easily pull the exact build later.
