@@ -19,7 +19,8 @@ make up
 - [X] make the app a workspace (encapsulate the source and configs)
 - [X] create database service (postgres)
 - [X] create ui package
-- [ ] add storybook and vitest
+- [ ] add storybook
+- [X] add vitest
 - [X] add github actions for CI
 - [ ] setup deployment on fly.io
 
