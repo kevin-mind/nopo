@@ -110,7 +110,7 @@ jobs:
       tag: ${{ needs.build.outputs.tag }}
 
   deploy_prod:
-    needs: [context, build, test]
+    needs: [context, build, deploy_stage, test]
     if: ${{ needs.context.outputs.push == 'true' }}
     permissions:
       contents: read
