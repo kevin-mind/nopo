@@ -73,7 +73,7 @@ jobs:
           registry: 'ghcr.io'
           image: ${{ github.repository }}
           version: ${{ steps.docker_meta.outputs.version }}
-          docker_target: production
+          target: production
           node_env: production
 
       - name: Set up Docker
@@ -94,7 +94,7 @@ jobs:
           DOCKER_REGISTRY: ${{ steps.docker_tag.outputs.registry }}
           DOCKER_IMAGE: ${{ steps.docker_tag.outputs.image }}
           DOCKER_VERSION: ${{ steps.docker_tag.outputs.version }}
-          DOCKER_TARGET: ${{ steps.docker_tag.outputs.docker_target }}
+          DOCKER_TARGET: ${{ steps.docker_tag.outputs.target }}
           NODE_ENV: ${{ steps.docker_tag.outputs.node_env }}
         with:
           builder: ${{ steps.docker.outputs.builder }}

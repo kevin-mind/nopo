@@ -1,5 +1,7 @@
 import { fileURLToPath } from "node:url";
-import { path } from "zx";
+import { path, chalk } from "zx";
+
+chalk.level = 2;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
