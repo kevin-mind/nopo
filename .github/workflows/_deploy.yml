@@ -1,17 +1,6 @@
 name: Deploy
 
 on:
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: 'The environment to deploy to'
-        required: true
-        type: choice
-        options:
-          - production
-          - staging
-          - development
-
   workflow_call:
     inputs:
       environment:
@@ -72,6 +61,7 @@ jobs:
           echo "Running smoke test"
 
   wait_approval:
+    needs: smoke_test
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
