@@ -47,6 +47,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Docker tag (ghcr)
         id: input_tag
         uses: ./.github/actions/docker-tag
