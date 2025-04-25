@@ -5,6 +5,24 @@ inputs:
   tag:
     description: The full docker tag to use
     required: true
+  registry:
+    description: The registry to tag the image with
+    required: false
+  image:
+    description: The image to tag
+    required: false
+  version:
+    description: The version to tag the image with
+    required: false
+  digest:
+    description: The digest to tag the image with
+    required: false
+  target:
+    description: The target to tag the image with
+    required: false
+  node_env:
+    description: The node environment to tag the image with
+    required: false
 
 outputs:
   tag:
@@ -32,10 +50,31 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Validate inputs
+      shell: bash
+      run: |
+        if [[ -n "${{ inputs.tag }}" ]]; then
+          if [[ -n "${{ inputs.image }}" ]]; then
+            echo "error: Cannot define both a tag and tag components"
+            exit 1
+          fi
+        elif [[ -z "${{ inputs.image }}" || -z "${{ inputs.version }}" ]]; then
+          echo "error: Image and version are required when not specifying a tag"
+          exit 1
+        fi
+
     - name: Extract tag
       id: tag
       shell: bash
       run: |
-        make env DOCKER_TAG="${{ inputs.tag }}"
+        make env \
+          DOCKER_TAG="${{ inputs.tag }}" \
+          DOCKER_REGISTRY="${{ inputs.registry }}" \
+          DOCKER_IMAGE="${{ inputs.image }}" \
+          DOCKER_VERSION="${{ inputs.version }}" \
+          DOCKER_DIGEST="${{ inputs.digest }}" \
+          DOCKER_TARGET="${{ inputs.target }}" \
+          NODE_ENV="${{ inputs.node_env }}"
+
         echo "$(cat .env)" >> "$GITHUB_OUTPUT"
         rm -f .env

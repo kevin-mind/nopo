@@ -58,13 +58,16 @@ describe("parseEnv", () => {
     expect(env.DOCKER_VERSION).toBe("1.0.0");
   });
 
-  it("should not construct tag from components if DOCKER_TAG not present", () => {
+  it("should construct tag from components if DOCKER_TAG not present", () => {
     const env = parseEnv(undefined, {
       DOCKER_REGISTRY: "quay.io",
       DOCKER_IMAGE: "custom/image",
       DOCKER_VERSION: "2.0.0",
+      DOCKER_DIGEST,
     });
-    expect(env.DOCKER_TAG).toBe("docker.io/mozilla/addons-server:local");
+    expect(env.DOCKER_TAG).toBe(
+      `quay.io/custom/image:2.0.0@sha256:${DOCKER_DIGEST}`,
+    );
   });
 
   it("should use base tag when no docker config provided", () => {

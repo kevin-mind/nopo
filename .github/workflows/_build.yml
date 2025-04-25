@@ -1,25 +1,13 @@
-name: Build and Push
+name: Build
+description: Build the image and optionally push it to ghcr.io
 
 on:
   workflow_call:
     inputs:
-      registry:
-        description: 'The registry to use for the build'
+      push:
+        description: 'Whether to push the image'
         required: true
-        type: string
-      image:
-        description: 'The image to build and push'
-        required: true
-        type: string
-      username:
-        description: 'The username to use for the build'
-        required: true
-        type: string
-
-    secrets:
-      password:
-        description: 'The password to use for the build'
-        required: true
+        type: boolean
 
     outputs:
       registry:
@@ -56,8 +44,9 @@ jobs:
       registry: ${{ steps.docker_tag.outputs.registry }}
       image: ${{ steps.docker_tag.outputs.image }}
       version: ${{ steps.docker_tag.outputs.version }}
-      digest: ${{ steps.docker_tag.outputs.digest }}
-      tag: ${{ steps.docker_tag.outputs.tag }}
+      digest: ${{ steps.digest.outputs.digest }}
+      # Append the build digest to the tag so we can easily pull the exact build later.
+      tag: "${{ steps.docker_tag.outputs.tag }}@${{ steps.digest.outputs.digest }}"
     steps:
       - uses: actions/checkout@v4
 
@@ -73,43 +62,50 @@ jobs:
             type=sha
             type=raw,value=latest,enable={{is_default_branch}}
 
+      - name: Docker tag
+        id: docker_tag
+        uses: ./.github/actions/docker-tag
+        with:
+          registry: 'ghcr.io'
+          image: ${{ github.repository }}
+          version: ${{ steps.docker_meta.outputs.version }}
+          docker_target: production
+          node_env: production
+
       - name: Set up Docker
         id: docker
         uses: ./.github/actions/setup-docker
+
+      - name: Login to Docker registry
+        uses: ./.github/actions/login-docker
         with:
-          registry: ${{ inputs.registry }}
-          username: ${{ inputs.username }}
-          password: ${{ secrets.password }}
+          registry: ${{ steps.docker_tag.outputs.registry }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push
         id: build
         uses: docker/bake-action@v6
         env:
-          DOCKER_REGISTRY: ${{ inputs.registry }}
-          DOCKER_IMAGE: ${{ inputs.image }}
-          DOCKER_VERSION: ${{ steps.docker_meta.outputs.version }}
-          DOCKER_TARGET: production
-          NODE_ENV: production
+          DOCKER_REGISTRY: ${{ steps.docker_tag.outputs.registry }}
+          DOCKER_IMAGE: ${{ steps.docker_tag.outputs.image }}
+          DOCKER_VERSION: ${{ steps.docker_tag.outputs.version }}
+          DOCKER_TARGET: ${{ steps.docker_tag.outputs.docker_target }}
+          NODE_ENV: ${{ steps.docker_tag.outputs.node_env }}
         with:
           builder: ${{ steps.docker.outputs.builder }}
           files: |
             docker-bake.hcl
             cwd://${{ steps.docker_meta.outputs.bake-file-tags }}
             cwd://${{ steps.docker_meta.outputs.bake-file-labels }}
-          push: true
+          push: ${{ inputs.push }}
 
-      - name: Write metadata
-        id: build_meta
+      - name: Extract build digest
+        id: digest
         run: |
           cat <<EOF > metadata.json
           ${{ steps.build.outputs.metadata }}
           EOF
-          echo "image=$(cat metadata.json | jq -r '.base["image.name"]')" >> "$GITHUB_OUTPUT"
-          echo "digest=$(cat metadata.json | jq -r '.base["containerimage.digest"]')" >> "$GITHUB_OUTPUT"
+          digest=$(cat metadata.json | jq -r '.base["containerimage.digest"]')
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
           cat "$GITHUB_OUTPUT"
-
-      - name: Extract tag
-        id: docker_tag
-        uses: ./.github/actions/docker-tag
-        with:
-          tag: "${{ steps.build_meta.outputs.image }}@${{ steps.build_meta.outputs.digest }}"

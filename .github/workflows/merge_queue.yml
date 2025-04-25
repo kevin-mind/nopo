@@ -14,30 +14,16 @@ defaults:
     shell: bash
 
 jobs:
-  context:
-    runs-on: ubuntu-latest
-    outputs:
-      is_fork: ${{ steps.context.outputs.is_fork }}
-
-    steps:
-      - id: context
-        uses: mozilla/addons-server/.github/actions/context@master
-
   build:
-    needs: context
-    if: ${{ needs.context.outputs.is_fork }} == 'false'
     permissions:
       packages: write
       contents: read
       attestations: write
       id-token: write
-    uses: ./.github/workflows/_build-push.yml
+    uses: ./.github/workflows/_build.yml
+    secrets: inherit
     with:
-      registry: ghcr.io
-      image: ${{ github.repository }}
-      username: ${{ github.actor }}
-    secrets:
-      password: ${{ secrets.GITHUB_TOKEN }}
+      push: true
 
   test:
     needs: build
@@ -47,13 +33,10 @@ jobs:
     uses: ./.github/workflows/_test.yml
     with:
       tag: ${{ needs.build.outputs.tag }}
-      username: ${{ github.actor }}
-    secrets:
-      password: ${{ secrets.GITHUB_TOKEN }}
+    secrets: inherit
 
   deploy_stage:
     needs: test
-    if: github.event_name == 'merge_group'
     permissions:
       contents: read
       packages: read
@@ -63,7 +46,6 @@ jobs:
 
   deploy_prod:
     needs: deploy_stage
-    if: github.event_name == 'merge_group'
     permissions:
       contents: read
       packages: read
