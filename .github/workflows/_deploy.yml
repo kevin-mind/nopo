@@ -1,8 +1,25 @@
 name: Deploy
 
 on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'The tag to deploy'
+        required: true
+        type: string
+      environment:
+        description: 'The environment to deploy to'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
   workflow_call:
     inputs:
+      tag:
+        description: 'The tag to deploy'
+        required: true
+        type: string
       environment:
         description: 'The environment to deploy to'
         required: true
@@ -26,23 +43,42 @@ jobs:
 
   push:
     runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
     steps:
-      - name: Set tag
-        id: tag
-        run: |
-          echo "Setting the tag"
+      - name: Docker tag (ghcr)
+        id: input_tag
+        uses: ./.github/actions/docker-tag
+        with:
+          tag: ${{ inputs.tag }}
+
+      - name: Login Docker
+        uses: ./.github/actions/login-docker
+        with:
+          registry: ${{ steps.input_tag.outputs.registry }}
+          username: ${{ steps.input_tag.outputs.username }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Pull image
         run: |
-          echo "Pulling the image"
+          docker pull ${{ inputs.tag }}
 
-      - name: Tag image
-        run: |
-          echo "Tagging the image"
+      - name: Setup Flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Docker tag (fly)
+        id: output_tag
+        uses: ./.github/actions/docker-tag
+        with:
+          registry: registry.fly.io
+          username: x
+          image: ${{ secrets.APP_NAME }}
+          version: ${{ steps.input_tag.outputs.version }}
 
       - name: Push image
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          echo "Pushing the image"
+          docker push ${{ steps.output_tag.outputs.tag }}
 
   ready:
     needs: push
