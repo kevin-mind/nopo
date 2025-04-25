@@ -14,10 +14,38 @@ defaults:
     shell: bash
 
 jobs:
+  context:
+    runs-on: ubuntu-latest
+    outputs:
+      push: ${{ steps.context.outputs.is_fork }} == 'false'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Context
+        id: context
+        uses: ./.github/actions/context
+
+  build:
+    needs: context
+    permissions:
+      packages: write
+      contents: read
+      attestations: write
+      id-token: write
+    uses: ./.github/workflows/_build.yml
+    secrets: inherit
+    with:
+      # PR from a fork cannot push to the registry but still require
+      # this job to pass for status checks on the PR.
+      push: ${{ needs.context.outputs.push }} == 'true'
+
   test:
     permissions:
       contents: read
       packages: read
     uses: ./.github/workflows/_test.yml
     with:
+      # We can test PRs using a locally build image.
+      # This means forks are tested the same way
+      # and build/test can run in parallel.
       tag: local

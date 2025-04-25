@@ -1,4 +1,5 @@
 name: Test
+description: Test the docker image either locally or from ghcr.io
 
 on:
   workflow_call:
@@ -11,11 +12,6 @@ on:
         description: 'The username to use for the registry'
         required: false
         type: string
-        default: null
-    secrets:
-      password:
-        description: 'The password to use for the registry'
-        required: false
 
 permissions: {}
 
@@ -30,7 +26,6 @@ jobs:
       matrix:
         run:
           - check
-          - build
           - test
       fail-fast: false
     permissions:
@@ -49,12 +44,14 @@ jobs:
           tag: ${{ inputs.tag }}
 
       - name: Set up Docker
-        id: docker
         uses: ./.github/actions/setup-docker
+
+      - name: Login Docker
+        uses: ./.github/actions/login-docker
         with:
           registry: ${{ steps.tag.outputs.registry }}
-          username: ${{ inputs.username }}
-          password: ${{ secrets.password }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Up
         run: make up DOCKER_TAG="${{ steps.tag.outputs.tag }}"

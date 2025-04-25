@@ -34,15 +34,43 @@ const schema = z.object(baseSchema).superRefine((data, ctx) => {
   }
 });
 
+function resolveTag(fileEnv, processEnv) {
+  // Resolve the tag in a prioritized order:
+
+  // Highest priority is a fully formed tag on the environment.
+  if (processEnv.DOCKER_TAG) {
+    return new DockerTag(processEnv.DOCKER_TAG);
+    // Next is tag components on the environment. At least an image and version
+  } else if (processEnv.DOCKER_IMAGE && processEnv.DOCKER_VERSION) {
+    return new DockerTag({
+      registry: processEnv.DOCKER_REGISTRY,
+      image: processEnv.DOCKER_IMAGE,
+      version: processEnv.DOCKER_VERSION,
+      digest: processEnv.DOCKER_DIGEST,
+    });
+    // Next is a fully formed tag on the file.
+  } else if (fileEnv.DOCKER_TAG) {
+    return new DockerTag(fileEnv.DOCKER_TAG);
+    // Next is a tag components on the file. At least an image and version.
+  } else if (fileEnv.DOCKER_IMAGE && fileEnv.DOCKER_VERSION) {
+    return new DockerTag({
+      registry: fileEnv.DOCKER_REGISTRY,
+      image: fileEnv.DOCKER_IMAGE,
+      version: fileEnv.DOCKER_VERSION,
+    });
+    // Finally, fall back to the base tag.
+  } else {
+    return baseTag;
+  }
+}
+
 export function parseEnv(envFilePath, processEnv = {}) {
   const fileEnv = fs.existsSync(envFilePath) ? dotenv.load(envFilePath) : {};
 
   let {
     parsed: { registry, image, version, digest },
     fullTag,
-  } = new DockerTag(
-    processEnv.DOCKER_TAG || fileEnv.DOCKER_TAG || baseTag.fullTag,
-  );
+  } = resolveTag(fileEnv, processEnv);
 
   if (
     image &&
