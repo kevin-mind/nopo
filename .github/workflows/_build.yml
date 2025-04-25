@@ -13,6 +13,9 @@ on:
       registry:
         description: 'The registry of the build'
         value: ${{ jobs.build.outputs.registry }}
+      username:
+        description: 'The username of the build'
+        value: ${{ jobs.build.outputs.username }}
       image:
         description: 'The image of the build'
         value: ${{ jobs.build.outputs.image }}
@@ -42,6 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       registry: ${{ steps.docker_tag.outputs.registry }}
+      username: ${{ github.actor }}
       image: ${{ steps.docker_tag.outputs.image }}
       version: ${{ steps.docker_tag.outputs.version }}
       digest: ${{ steps.digest.outputs.digest }}
