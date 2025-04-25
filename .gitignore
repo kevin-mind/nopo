@@ -1,5 +1,4 @@
 .DS_Store
-**/.turbo
 **/.config
 **/.cache
 **/node_modules/
@@ -10,3 +9,9 @@
 **/tsconfig.tsbuildinfo
 **/vite.config.ts.timestamp-*.mjs
 **/out/
+
+.local
+.pnpm-store
+.docker
+build-metadata.json
+deps

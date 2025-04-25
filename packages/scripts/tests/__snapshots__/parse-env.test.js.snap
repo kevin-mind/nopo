@@ -1,0 +1,12 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`parseEnv > should parse the env 1`] = `
+{
+  "DOCKER_IMAGE": "mozilla/addons-server",
+  "DOCKER_REGISTRY": "docker.io",
+  "DOCKER_TAG": "docker.io/mozilla/addons-server:local",
+  "DOCKER_TARGET": "development",
+  "DOCKER_VERSION": "local",
+  "NODE_ENV": "development",
+}
+`;

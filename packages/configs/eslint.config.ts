@@ -1,16 +1,27 @@
 import eslint from "@eslint/js";
 
-import tseslint, { type Config } from "typescript-eslint";
+import globals from "globals";
+
+import tseslint from "typescript-eslint";
 import eslintPluginPrettier from "eslint-plugin-prettier/recommended";
 
-const baseConfig = tseslint.config(
-  eslint.configs.recommended,
-  tseslint.configs.recommended,
-  eslintPluginPrettier,
-);
+export { globals };
 
-export function createEslintConfig(...config: Parameters<typeof tseslint.config>) {
-  return tseslint.config(baseConfig, config);
+export default function createEslintConfig(
+  ...config: Parameters<typeof tseslint.config>
+): ReturnType<typeof tseslint.config> {
+  return tseslint.config(
+    eslint.configs.recommended,
+    tseslint.configs.recommended,
+    eslintPluginPrettier,
+    {
+      languageOptions: {
+        globals: {
+          ...globals.builtin,
+          console: "readonly",
+        },
+      },
+    },
+    ...config,
+  );
 }
-
-export default baseConfig;

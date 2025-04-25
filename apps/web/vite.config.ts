@@ -11,4 +11,7 @@ export default defineConfig({
       root: process.cwd(),
     }),
   ],
+  server: {
+    port: 3000,
+  },
 });

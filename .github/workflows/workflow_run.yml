@@ -1,11 +1,12 @@
-name: CI
+name: On Complete (post workflow run)
 
 on:
   workflow_run:
-    workflows: ["Merge Queue"]
+    workflows:
+      - Merge Queue
+      - Pull Request
     types:
       - completed
-      - failed
 
 permissions: {}
 
@@ -17,4 +18,6 @@ jobs:
   complete:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - uses: ./.github/actions/context

@@ -1,3 +1,5 @@
+name: Build and Push
+
 on:
   workflow_call:
     inputs:
@@ -20,6 +22,15 @@ on:
         required: true
 
     outputs:
+      registry:
+        description: 'The registry of the build'
+        value: ${{ jobs.build.outputs.registry }}
+      image:
+        description: 'The image of the build'
+        value: ${{ jobs.build.outputs.image }}
+      version:
+        description: 'The version of the build'
+        value: ${{ jobs.build.outputs.version }}
       digest:
         description: 'The digest of the build'
         value: ${{ jobs.build.outputs.digest }}
@@ -27,22 +38,11 @@ on:
         description: 'The tag of the build'
         value: ${{ jobs.build.outputs.tag }}
 
-  workflow_dispatch:
-    inputs:
-      registry:
-        description: 'The registry to use for the build'
-        required: true
-      image:
-        description: 'The image to build and push'
-        required: true
-      username:
-        description: 'The username to use for the build'
-        required: true
-      password:
-        description: 'The password to use for the build'
-        required: true
-
 permissions: {}
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
   build:
@@ -53,25 +53,29 @@ jobs:
       id-token: write
     runs-on: ubuntu-latest
     outputs:
-      digest: ${{ steps.post.outputs.digest }}
-      tag: ${{ steps.post.outputs.tag }}
+      registry: ${{ steps.docker_tag.outputs.registry }}
+      image: ${{ steps.docker_tag.outputs.image }}
+      version: ${{ steps.docker_tag.outputs.version }}
+      digest: ${{ steps.docker_tag.outputs.digest }}
+      tag: ${{ steps.docker_tag.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Docker meta
-        id: meta
+        id: docker_meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ inputs.registry }}/${{ inputs.image }}
+          bake-target: default
           tags: |
             type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Set up Docker Buildx
-        id: buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+      - name: Set up Docker
+        id: docker
+        uses: ./.github/actions/setup-docker
         with:
           registry: ${{ inputs.registry }}
           username: ${{ inputs.username }}
@@ -81,23 +85,31 @@ jobs:
         id: build
         uses: docker/bake-action@v6
         env:
-          NODE_ENV: production
+          DOCKER_REGISTRY: ${{ inputs.registry }}
+          DOCKER_IMAGE: ${{ inputs.image }}
+          DOCKER_VERSION: ${{ steps.docker_meta.outputs.version }}
           DOCKER_TARGET: production
-          WEB_DOCKER_TAG: ${{ steps.meta.outputs.tags }}
+          NODE_ENV: production
         with:
-          builder: ${{ steps.buildx.outputs.name }}
+          builder: ${{ steps.docker.outputs.builder }}
           files: |
-            docker-compose.yml
-            cwd://${{ steps.meta.outputs.bake-file-tags }}
-            cwd://${{ steps.meta.outputs.bake-file-labels }}
+            docker-bake.hcl
+            cwd://${{ steps.docker_meta.outputs.bake-file-tags }}
+            cwd://${{ steps.docker_meta.outputs.bake-file-labels }}
           push: true
 
-      - name: Set output
-        id: post
+      - name: Write metadata
+        id: build_meta
         run: |
           cat <<EOF > metadata.json
           ${{ steps.build.outputs.metadata }}
           EOF
-          echo "digest=$(jq -r '.web["containerimage.digest"]' metadata.json)" >> "$GITHUB_OUTPUT"
-          echo "tag=$(jq -r '.web["image.name"]' metadata.json)" >> "$GITHUB_OUTPUT"
+          echo "image=$(cat metadata.json | jq -r '.base["image.name"]')" >> "$GITHUB_OUTPUT"
+          echo "digest=$(cat metadata.json | jq -r '.base["containerimage.digest"]')" >> "$GITHUB_OUTPUT"
           cat "$GITHUB_OUTPUT"
+
+      - name: Extract tag
+        id: docker_tag
+        uses: ./.github/actions/docker-tag
+        with:
+          tag: "${{ steps.build_meta.outputs.image }}@${{ steps.build_meta.outputs.digest }}"

@@ -1,24 +1,17 @@
 services:
+  base:
+    extends:
+      file: docker-compose.base.yml
+      service: base
+    command: ["pnpm", "install"]
+
   web:
-    image: "${WEB_DOCKER_TAG:-kevinmind/website-web:local}"
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: ${DOCKER_TARGET:-development}
-      args:
-        NODE_ENV: ${NODE_ENV:-development}
-        APP_NAME: "@more/web"
-      cache_from:
-        - "type=gha"
-      cache_to:
-        - "type=gha,mode=max"
-    volumes:
-      - ./:/app
-      # - /app/node_modules
+    extends:
+      file: docker-compose.base.yml
+      service: base_service
     environment:
-      - CHOKIDAR_USEPOLLING=true
-      - NODE_ENV
-      - DATABASE_URL
+      APP_NAME: web
+      PORT: 300
     ports:
       - 3000:3000
     healthcheck:
@@ -30,19 +23,30 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+  backend:
+    extends:
+      file: docker-compose.base.yml
+      service: base_service
+    environment:
+      APP_NAME: backend
+      PORT: 8000
+    ports:
+      - 8000:8000
+
   db:
     image: postgres:16
     restart: always
     environment:
-      - POSTGRES_DB=website
-      - POSTGRES_USER=website
-      - POSTGRES_PASSWORD=website
+      POSTGRES_DB: website
+      POSTGRES_USER: website
+      POSTGRES_PASSWORD: website
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", 'pg_isready -U $POSTGRES_USER -d $POSTGRES_DB']
+      test: ["CMD-SHELL", 'pg_isready -U website -d website']
       interval: 10s
       timeout: 5s
       retries: 5

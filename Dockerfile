@@ -1,4 +1,4 @@
-ARG APP_NAME
+ARG USER=nodeuser
 
 ################################################################################################
 FROM node:20-slim AS base
@@ -6,87 +6,88 @@ FROM node:20-slim AS base
 
 SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
 
-ARG NODE_ENV
+ARG USER
+ARG NODE_ENV=production
 
-ENV HOME=/app
-ENV BUILD_PATH=/app/build
 ENV NODE_ENV=$NODE_ENV
-ENV PATH=$HOME/node_modules/.bin:$PATH
+ENV HOME=/app
+ENV DEPS=/deps
+ENV PNPM_HOME="$DEPS/pnpm"
+ENV PNPM_STORE_DIR="$PNPM_HOME/store"
+ENV COREPACK_HOME="$DEPS/corepack"
+ENV PATH="$PNPM_HOME:$COREPACK_HOME:$PATH"
+
+RUN <<EOF
+groupadd -g 1001 $USER
+useradd -r -u 1001 -g 1001 -d $HOME $USER
+
+# Create directories and set permissions
+for dir in $HOME $DEPS $PNPM_HOME $PNPM_STORE_DIR $COREPACK_HOME; do
+  mkdir -p $dir
+  chown -R $USER:$USER $dir
+  chmod -R g+rwx $dir
+done
+EOF
 
 WORKDIR $HOME
 
-# Install make
-RUN apt-get update && apt-get install -y make jq
+RUN \
+  --mount=type=cache,target=/var/cache/apt,id=apt \
+  --mount=type=cache,target=/var/lib/apt,id=apt \
+  --mount=type=bind,source=package.json,target=$HOME/package.json \
+  --mount=type=bind,source=.npmrc,target=$HOME/.npmrc \
+<<EOF
+apt-get update && apt-get install -y make jq
+corepack enable pnpm
+corepack install -g pnpm
+# Make sure that any files created in $DEPS are owned by $USER
+chown -R $USER:$USER $DEPS
+EOF
+
+USER $USER
 
 ################################################################################################
 FROM base AS source
 ################################################################################################
 
-ARG APP_NAME
-
 COPY . $HOME
 
-RUN <<EOF
-if [ -d "node_modules" ]; then
-  echo "node_modules exists. This should NOT happen."
-  exit 1
-fi
-EOF
-
-RUN <<EOF
-npx --yes turbo prune "${APP_NAME}" --docker
-EOF
-
 ################################################################################################
-FROM base AS dependencies_prod
+FROM base AS install
 ################################################################################################
 
-COPY --from=source $HOME/out/json $HOME
+COPY --from=source --chown=$USER \
+  $HOME/.npmrc $HOME/pnpm-lock.yaml $HOME/pnpm-workspace.yaml \
+  $HOME/
 
-RUN npm ci --include=production --no-fund --no-audit
-
-################################################################################################
-FROM base AS dependencies_dev
-################################################################################################
-
-COPY --from=source $HOME/out/json $HOME
-RUN npm ci --include=dev --include=optional --no-fund --no-audit
+RUN --mount=type=bind,source=.npmrc,target=$HOME/.npmrc \
+  --mount=type=bind,source=pnpm-lock.yaml,target=$HOME/pnpm-lock.yaml \
+  --mount=type=bind,source=pnpm-workspace.yaml,target=$HOME/pnpm-workspace.yaml \
+  npm_config_offline=false pnpm fetch
 
 ################################################################################################
 FROM base AS build
 ################################################################################################
 
-ARG APP_NAME
-
-COPY --from=dependencies_dev $HOME $HOME
-COPY --from=source $HOME/out/full $HOME
+COPY --from=install --chown=$USER $DEPS $DEPS
+COPY --from=source --chown=$USER $HOME $HOME
 
 RUN <<EOF
-# First run the build filtering for the app
-npm run build --filter=$APP_NAME
-APP_PATH=$(npm exec -c 'pwd' -w $APP_NAME)
-
-# The copy the build to a known location so we can copy it in the production image
-mkdir -p $BUILD_PATH
-mv $APP_PATH/build $APP_PATH/package.json $BUILD_PATH
+pnpm install
+pnpm build
 EOF
 
 ################################################################################################
 FROM base AS development
 ################################################################################################
-
-COPY --from=dependencies_dev $HOME $HOME
-COPY --from=source $HOME $HOME
-
-CMD ["npm", "run", "dev"]
+COPY --from=install --chown=$USER $DEPS $DEPS
+COPY --from=source --chown=$USER $HOME $HOME
 
 ################################################################################################
 FROM base AS production
 ################################################################################################
 
-WORKDIR $BUILD_PATH
+COPY --from=install --chown=$USER $DEPS $DEPS
+COPY --from=build --chown=$USER $HOME $HOME
 
-COPY --from=dependencies_prod $HOME $HOME
-COPY --from=build $BUILD_PATH $BUILD_PATH
-
-CMD ["npm", "run", "start"]
+RUN pnpm install --prod

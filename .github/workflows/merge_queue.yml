@@ -1,7 +1,11 @@
 name: Merge Queue
 
 on:
-  merge_queue:
+  merge_group:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name}}
+  cancel-in-progress: true
 
 permissions: {}
 
@@ -12,10 +16,16 @@ defaults:
 jobs:
   context:
     runs-on: ubuntu-latest
+    outputs:
+      is_fork: ${{ steps.context.outputs.is_fork }}
+
     steps:
-      - uses: ./.github/actions/context
+      - id: context
+        uses: mozilla/addons-server/.github/actions/context@master
 
   build:
+    needs: context
+    if: ${{ needs.context.outputs.is_fork }} == 'false'
     permissions:
       packages: write
       contents: read
@@ -24,7 +34,7 @@ jobs:
     uses: ./.github/workflows/_build-push.yml
     with:
       registry: ghcr.io
-      image: ${{ github.repository }}-web
+      image: ${{ github.repository }}
       username: ${{ github.actor }}
     secrets:
       password: ${{ secrets.GITHUB_TOKEN }}
@@ -37,16 +47,26 @@ jobs:
     uses: ./.github/workflows/_test.yml
     with:
       tag: ${{ needs.build.outputs.tag }}
-      digest: ${{ needs.build.outputs.digest }}
+      username: ${{ github.actor }}
+    secrets:
+      password: ${{ secrets.GITHUB_TOKEN }}
 
   deploy_stage:
-    # needs: test
+    needs: test
+    if: github.event_name == 'merge_group'
+    permissions:
+      contents: read
+      packages: read
     uses: ./.github/workflows/_deploy.yml
     with:
       environment: stage
 
   deploy_prod:
     needs: deploy_stage
+    if: github.event_name == 'merge_group'
+    permissions:
+      contents: read
+      packages: read
     uses: ./.github/workflows/_deploy.yml
     with:
       environment: prod

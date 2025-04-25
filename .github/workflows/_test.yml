@@ -1,31 +1,27 @@
-on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: 'The tag to test'
-        required: false
-        type: string
-        default: 'local'
-      digest:
-        description: 'The digest to test'
-        required: false
-        type: string
-        default: null
+name: Test
 
+on:
   workflow_call:
     inputs:
       tag:
-        description: 'The tag to test'
-        required: false
+        description: 'The full docker tag to test'
+        required: true
         type: string
-        default: 'local'
-      digest:
-        description: 'The digest to test'
+      username:
+        description: 'The username to use for the registry'
         required: false
         type: string
         default: null
+    secrets:
+      password:
+        description: 'The password to use for the registry'
+        required: false
 
 permissions: {}
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
   test:
@@ -35,34 +31,33 @@ jobs:
         run:
           - check
           - build
+          - test
+      fail-fast: false
     permissions:
       packages: read
       contents: read
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set tag
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Docker tag
         id: tag
-        run: |
-          tag="${{ inputs.tag }}"
-          digest="${{ inputs.digest }}"
-
-          if [[ -n "${digest}" ]]; then
-            tag="${tag}@${digest}"
-          fi
-
-          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/setup-node@v4
+        uses: ./.github/actions/docker-tag
         with:
-          node-version: 20
-          cache: npm
+          tag: ${{ inputs.tag }}
 
-      - name: Install dependencies
-        run: npm install
+      - name: Set up Docker
+        id: docker
+        uses: ./.github/actions/setup-docker
+        with:
+          registry: ${{ steps.tag.outputs.registry }}
+          username: ${{ inputs.username }}
+          password: ${{ secrets.password }}
 
       - name: Up
-        run: make up WEB_DOCKER_TAG="${{ steps.tag.outputs.tag }}"
+        run: make up DOCKER_TAG="${{ steps.tag.outputs.tag }}"
 
-      - name: Test
-        run: npm run ${{ matrix.run }}
+      - name: make ${{ matrix.run }}
+        run: make ${{ matrix.run }}

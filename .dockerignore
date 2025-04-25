@@ -1,5 +1,4 @@
 .DS_Store
-**/.turbo
 **/.config
 **/.cache
 **/node_modules/
@@ -7,6 +6,17 @@
 **/.npm
 **/.bash_history
 **/.env
+**/tsconfig.tsbuildinfo
 
+.cache
+.changeset
+.devcontainer
+.dockerignore
 .git
-node_modules
+.gitignore
+.github
+.local
+build-metadata.json
+docker-*
+Dockerfile
+deps

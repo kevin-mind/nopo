@@ -31,9 +31,7 @@ export default function Home({ loaderData, actionData }: Route.ComponentProps) {
         <input name="increment" type="number" />
         <button type="submit">Submit</button>
       </Form>
-      <pre>
-        {JSON.stringify({ loaderData, actionData }, null, 2)}
-      </pre>
+      <pre>{JSON.stringify({ loaderData, actionData }, null, 2)}</pre>
     </>
   );
 }

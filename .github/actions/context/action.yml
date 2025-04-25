@@ -5,13 +5,16 @@ runs:
   using: composite
   steps:
     - name: Github
-      run: echo "Context: ${{ toJSON(github) }}"
       shell: bash
-
-    - name: Run
-      run: echo "Run: ${{ toJSON(run) }}"
-      shell: bash
+      run: |
+        cat <<EOF
+        ${{ toJSON(github) }}
+        EOF
 
     - name: Job
-      run: echo "Job: ${{ toJSON(job) }}"
       shell: bash
+      run: |
+        cat <<EOF
+        ${{ toJSON(job) }}
+        EOF
+

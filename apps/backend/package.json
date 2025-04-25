@@ -1,0 +1,20 @@
+{
+  "name": "@more/backend",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "files": [
+    "build/**"
+  ],
+  "scripts": {
+    "build": "mkdir -p build && echo 'build' > build/index.html",
+    "clean": "exit 0",
+    "format": "exit 0",
+    "lint": "exit 0",
+    "test": "exit 0"
+  },
+  "devDependencies": {
+    "@more/configs": "workspace:*",
+    "vitest": "^3.1.1"
+  }
+}
