@@ -15,10 +15,10 @@ export class DockerTag {
 
   fullTag = "";
   parsed = {
-    registry: null,
-    image: null,
-    version: null,
-    digest: null,
+    registry: "",
+    image: "",
+    version: "",
+    digest: "",
   };
 
   static parse(fullTag) {
@@ -27,12 +27,8 @@ export class DockerTag {
       throw new Error(`Invalid image tag: ${fullTag}`);
     }
 
-    let registry = null;
-    let image = null;
-    let version = null;
-    let digest = null;
-
-    ({ image, version, digest } = match.groups);
+    let registry = "";
+    let { image = "", version = "", digest = "" } = match.groups;
 
     if (!image) {
       throw new Error(`Invalid image tag: ${fullTag} (image is required)`);

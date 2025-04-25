@@ -24,7 +24,7 @@ jobs:
   # 6) update the latest image for the environment container registry
   # 7) wait for approval to continue based on the environment protection rules.
 
-  pull_push:
+  push:
     runs-on: ubuntu-latest
     steps:
       - name: Set tag
@@ -44,24 +44,24 @@ jobs:
         run: |
           echo "Pushing the image"
 
-  wait_ready:
-    needs: pull_push
+  ready:
+    needs: push
     runs-on: ubuntu-latest
     steps:
       - name: Wait for deployment
         run: |
           echo "Waiting for deployment"
 
-  smoke_test:
-    needs: wait_ready
+  test:
+    needs: ready
     runs-on: ubuntu-latest
     steps:
       - name: Run smoke test
         run: |
           echo "Running smoke test"
 
-  wait_approval:
-    needs: smoke_test
+  approve:
+    needs: test
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:

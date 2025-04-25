@@ -72,7 +72,7 @@ describe("parseEnv", () => {
 
   it("should use base tag when no docker config provided", () => {
     const env = parseEnv(undefined, {});
-    expect(env.DOCKER_TAG).toBe("docker.io/mozilla/addons-server:local");
+    expect(env.DOCKER_TAG).toBe("mozilla/addons-server:local");
   });
 
   it("should force production target for non-local image", () => {
@@ -106,7 +106,7 @@ describe("parseEnv", () => {
     const env = parseEnv(undefined, {
       DOCKER_TAG: "3.0.0",
     });
-    expect(env.DOCKER_TAG).toBe("docker.io/mozilla/addons-server:3.0.0");
+    expect(env.DOCKER_TAG).toBe("mozilla/addons-server:3.0.0");
   });
 
   it("should handle version and digest input correctly", () => {
@@ -114,7 +114,7 @@ describe("parseEnv", () => {
       DOCKER_TAG: `1.0.0@sha256:${DOCKER_DIGEST}`,
     });
     expect(env.DOCKER_TAG).toBe(
-      `docker.io/mozilla/addons-server:1.0.0@sha256:${DOCKER_DIGEST}`,
+      `mozilla/addons-server:1.0.0@sha256:${DOCKER_DIGEST}`,
     );
   });
 
@@ -122,6 +122,6 @@ describe("parseEnv", () => {
     const env = parseEnv(undefined, {
       DOCKER_TAG: "custom/image:1.0.0",
     });
-    expect(env.DOCKER_TAG).toBe("docker.io/custom/image:1.0.0");
+    expect(env.DOCKER_TAG).toBe("custom/image:1.0.0");
   });
 });

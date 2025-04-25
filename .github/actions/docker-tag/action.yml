@@ -23,6 +23,9 @@ inputs:
   node_env:
     description: The node environment to tag the image with
     required: false
+  username:
+    description: The username to tag the image with
+    required: false
 
 outputs:
   tag:
@@ -46,6 +49,9 @@ outputs:
   node_env:
     description: The node environment to tag the image with
     value: ${{ steps.tag.outputs.NODE_ENV }}
+  username:
+    description: The username to tag the image with
+    value: ${{ inputs.username }}
 
 runs:
   using: composite

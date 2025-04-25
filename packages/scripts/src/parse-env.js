@@ -3,18 +3,18 @@ import { fs, chalk, dotenv } from "zx";
 
 import { DockerTag } from "./docker-tag.js";
 
-const baseTag = new DockerTag("docker.io/mozilla/addons-server:local");
+const baseTag = new DockerTag("mozilla/addons-server:local");
 
 const envParser = z.enum(["development", "production"]);
 
 const baseSchema = {
-  DOCKER_DIGEST: z.string().optional(),
-  DOCKER_IMAGE: z.string().optional(),
-  DOCKER_REGISTRY: z.string().optional(),
-  DOCKER_TAG: z.string().optional(),
-  DOCKER_TARGET: envParser.optional(),
-  DOCKER_VERSION: z.string().optional(),
-  NODE_ENV: envParser.optional(),
+  DOCKER_DIGEST: z.string(),
+  DOCKER_IMAGE: z.string(),
+  DOCKER_REGISTRY: z.string(),
+  DOCKER_TAG: z.string(),
+  DOCKER_TARGET: envParser,
+  DOCKER_VERSION: z.string(),
+  NODE_ENV: envParser,
 };
 
 const schema = z.object(baseSchema).superRefine((data, ctx) => {

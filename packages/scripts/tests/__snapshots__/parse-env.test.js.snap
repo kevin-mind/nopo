@@ -2,9 +2,10 @@
 
 exports[`parseEnv > should parse the env 1`] = `
 {
+  "DOCKER_DIGEST": "",
   "DOCKER_IMAGE": "mozilla/addons-server",
-  "DOCKER_REGISTRY": "docker.io",
-  "DOCKER_TAG": "docker.io/mozilla/addons-server:local",
+  "DOCKER_REGISTRY": "",
+  "DOCKER_TAG": "mozilla/addons-server:local",
   "DOCKER_TARGET": "development",
   "DOCKER_VERSION": "local",
   "NODE_ENV": "development",

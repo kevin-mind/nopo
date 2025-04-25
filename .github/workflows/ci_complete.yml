@@ -3,8 +3,7 @@ name: On Complete (post workflow run)
 on:
   workflow_run:
     workflows:
-      - Merge Queue
-      - Pull Request
+      - CI
     types:
       - completed
 

@@ -30,10 +30,21 @@ describe("env", () => {
         DOCKER_TAG: "nginx:latest",
       },
     });
-    expect(env.DOCKER_TAG).toBe("docker.io/nginx:latest");
-    expect(env.DOCKER_REGISTRY).toBe("docker.io");
+    expect(env.DOCKER_TAG).toBe("nginx:latest");
+    expect(env.DOCKER_REGISTRY).toBe("");
     expect(env.DOCKER_IMAGE).toBe("nginx");
     expect(env.DOCKER_VERSION).toBe("latest");
+  });
+
+  it("handles docker tag with registry", async () => {
+    const env = await main({
+      ...config,
+      env: {
+        DOCKER_TAG: "registry.example.com/nginx:latest",
+      },
+    });
+    expect(env.DOCKER_TAG).toBe("registry.example.com/nginx:latest");
+    expect(env.DOCKER_REGISTRY).toBe("registry.example.com");
   });
 
   it("handles docker tag with digest", async () => {
@@ -43,9 +54,7 @@ describe("env", () => {
         DOCKER_TAG: `nginx:latest@sha256:${DOCKER_DIGEST}`,
       },
     });
-    expect(env.DOCKER_TAG).toBe(
-      `docker.io/nginx:latest@sha256:${DOCKER_DIGEST}`,
-    );
+    expect(env.DOCKER_TAG).toBe(`nginx:latest@sha256:${DOCKER_DIGEST}`);
     expect(env.DOCKER_DIGEST).toBe(DOCKER_DIGEST);
   });
 
@@ -93,7 +102,7 @@ describe("env", () => {
         DOCKER_TAG: "latest",
       },
     });
-    expect(env.DOCKER_TAG).toBe("docker.io/mozilla/addons-server:latest");
+    expect(env.DOCKER_TAG).toBe("mozilla/addons-server:latest");
     expect(env.DOCKER_IMAGE).toBe("mozilla/addons-server");
   });
 
