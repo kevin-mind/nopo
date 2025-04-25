@@ -14,19 +14,7 @@ defaults:
     shell: bash
 
 jobs:
-  context:
-    runs-on: ubuntu-latest
-    outputs:
-      push: ${{ steps.context.outputs.is_fork }} == 'false'
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Context
-        id: context
-        uses: ./.github/actions/context
-
   build:
-    needs: context
     permissions:
       packages: write
       contents: read
@@ -35,9 +23,7 @@ jobs:
     uses: ./.github/workflows/_build.yml
     secrets: inherit
     with:
-      # PR from a fork cannot push to the registry but still require
-      # this job to pass for status checks on the PR.
-      push: ${{ needs.context.outputs.push }} == 'true'
+      push: false
 
   test:
     permissions:

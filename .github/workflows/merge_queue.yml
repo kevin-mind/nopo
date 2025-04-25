@@ -1,6 +1,9 @@
 name: Merge Queue
 
 on:
+  push:
+    branches:
+      - main
   merge_group:
 
 concurrency:
@@ -14,6 +17,15 @@ defaults:
     shell: bash
 
 jobs:
+  context:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set push
+        id: context
+        uses: ./.github/actions/context
+
   build:
     permissions:
       packages: write
@@ -33,7 +45,10 @@ jobs:
     uses: ./.github/workflows/_test.yml
     with:
       tag: ${{ needs.build.outputs.tag }}
-    secrets: inherit
+      registry: ${{ needs.build.outputs.registry }}
+      username: ${{ needs.build.outputs.username }}
+    secrets:
+      password: ${{ secrets.GITHUB_TOKEN}}
 
   deploy_stage:
     needs: test

@@ -8,10 +8,18 @@ on:
         description: 'The full docker tag to test'
         required: true
         type: string
+      registry:
+        description: 'The registry to use for the test'
+        required: false
+        type: string
       username:
         description: 'The username to use for the registry'
         required: false
         type: string
+    secrets:
+      password:
+        description: 'The password to use for the registry'
+        required: false
 
 permissions: {}
 
@@ -47,11 +55,12 @@ jobs:
         uses: ./.github/actions/setup-docker
 
       - name: Login Docker
+        if: inputs.registry != '' && inputs.username != ''
         uses: ./.github/actions/login-docker
         with:
-          registry: ${{ steps.tag.outputs.registry }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: ${{ inputs.registry }}
+          username: ${{ inputs.username }}
+          password: ${{ secrets.password }}
 
       - name: Up
         run: make up DOCKER_TAG="${{ steps.tag.outputs.tag }}"
