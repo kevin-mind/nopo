@@ -39,7 +39,7 @@ jobs:
     secrets:
       password: ${{ secrets.GITHUB_TOKEN }}
 
-  test_build:
+  test:
     needs: build
     permissions:
       packages: read
@@ -52,7 +52,7 @@ jobs:
       password: ${{ secrets.GITHUB_TOKEN }}
 
   deploy_stage:
-    needs: test_build
+    needs: test
     if: github.event_name == 'merge_group'
     permissions:
       contents: read

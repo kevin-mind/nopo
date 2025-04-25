@@ -39,4 +39,3 @@ runs:
         make env DOCKER_TAG="${{ inputs.tag }}"
         echo "$(cat .env)" >> "$GITHUB_OUTPUT"
         rm -f .env
-        cat "$GITHUB_OUTPUT"
