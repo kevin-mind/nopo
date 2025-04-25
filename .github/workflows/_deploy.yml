@@ -76,7 +76,7 @@ jobs:
         with:
           registry: registry.fly.io
           username: x
-          image: ${{ secrets.APP_NAME }}
+          image: ${{ vars.APP_NAME }}
           version: ${{ steps.input_tag.outputs.version }}
 
       - name: Push image
