@@ -16,10 +16,10 @@ make up
 
 ## Todo
 
+- [ ] add storybook
 - [X] make the app a workspace (encapsulate the source and configs)
 - [X] create database service (postgres)
 - [X] create ui package
-- [ ] add storybook
 - [X] add vitest
 - [X] add github actions for CI
 - [ ] setup deployment on fly.io
