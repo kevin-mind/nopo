@@ -1,4 +1,8 @@
-export DOCKER_BUILD_METADATA_FILE ?= build-metadata.json
+export FORCE_COLOR = 1
+export NPM_FORCE_COLOR = 1
+export DOCKER_BUILDKIT = 1
+export DOCKER_BUILDKIT_PROGRESS = auto
+export DOCKER_BUILDKIT_METADATA_FILE ?= build-metadata.json
 
 DOCKER_SERVICE ?= base
 REST_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
@@ -38,8 +42,8 @@ env:
 build: env
 	$(DOCKER) buildx bake \
 		--load \
-		--progress=plain \
-		--metadata-file $(DOCKER_BUILD_METADATA_FILE) \
+		--progress=$(DOCKER_BUILDKIT_PROGRESS) \
+		--metadata-file $(DOCKER_BUILDKIT_METADATA_FILE) \
 		$(REST_ARGS)
 
 .PHONY: exec

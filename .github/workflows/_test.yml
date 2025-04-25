@@ -45,12 +45,6 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
 
-      - name: Docker tag
-        id: tag
-        uses: ./.github/actions/docker-tag
-        with:
-          tag: ${{ inputs.tag }}
-
       - name: Set up Docker
         uses: ./.github/actions/setup-docker
 
@@ -63,7 +57,7 @@ jobs:
           password: ${{ secrets.password }}
 
       - name: Up
-        run: make up DOCKER_TAG="${{ steps.tag.outputs.tag }}"
+        run: make up DOCKER_TAG="${{ inputs.tag }}"
 
       - name: make ${{ matrix.run }}
         run: make ${{ matrix.run }}
