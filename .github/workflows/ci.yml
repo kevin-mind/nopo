@@ -1,5 +1,4 @@
 name: CI
-description: 'CI workflow'
 
 on:
   push:
@@ -19,6 +18,9 @@ permissions: {}
 defaults:
   run:
     shell: bash
+
+env:
+  CI: true
 
 jobs:
   context:
@@ -58,6 +60,38 @@ jobs:
           echo "push=$push" >> $GITHUB_OUTPUT
           cat "$GITHUB_OUTPUT"
 
+  version:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' }}
+    permissions:
+      contents: write
+      packages: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          cache: 'pnpm'
+
+      - name: Install
+        run: make install_lockfile
+
+      - name: Build
+        run: pnpm build:packages
+
+      - name: Create and publish versions
+        uses: changesets/action@v1
+        with:
+          commit: "chore: update versions"
+          title: "chore: update versions"
+          publish: pnpm publish:workspace
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
   build:
     needs: context
     permissions:
@@ -82,7 +116,6 @@ jobs:
       username: ${{ github.actor }}
     secrets:
       password: ${{ secrets.GITHUB_TOKEN}}
-
 
   deploy_dry:
     runs-on: ubuntu-latest

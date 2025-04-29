@@ -28,10 +28,9 @@
     "start": "pnpm run -r start",
     "test": "pnpm run \"/^test:.*/\"",
     "test:workspace": "pnpm run -r test",
-    "release": "pnpm run build && changeset publish",
+    "publish:workspace": "pnpm publish -r",
     "script": "pnpm run --filter @more/scripts script",
-    "lockfile:install": "npm_config_offline=false pnpm install --lockfile-only --no-frozen-lockfile",
-    "lockfile:add": "npm_config_offline=false pnpm add --lockfile-only"
+    "npm:no:offline": "npm_config_offline=false"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.1",

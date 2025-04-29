@@ -10,13 +10,18 @@ REST_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
 DOCKER = docker
 DOCKER_COMPOSE = $(DOCKER) compose
 
-.PHONY: lockfile_install
-lockfile_install:
-	pnpm lockfile:install
+.PHONY: add_lockfile
+add_lockfile:
+	pnpm npm:no:offline pnpm add --lockfile-only
 
-.PHONY: lockfile_add
-lockfile_add:
-	pnpm lockfile:add $(REST_ARGS)
+.PHONY: update_lockfile
+update_lockfile:
+	pnpm npm:no:offline pnpm install --lockfile-only --no-frozen-lockfile
+
+.PHONY: install_lockfile
+install_lockfile:
+	pnpm npm:no:offline pnpm install --frozen-lockfile --config.confirmModulesPurge=false
+
 
 .PHONY: clean
 clean:
