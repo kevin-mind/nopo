@@ -13,9 +13,6 @@ on:
       registry:
         description: 'The registry of the build'
         value: ${{ jobs.build.outputs.registry }}
-      username:
-        description: 'The username of the build'
-        value: ${{ jobs.build.outputs.username }}
       image:
         description: 'The image of the build'
         value: ${{ jobs.build.outputs.image }}

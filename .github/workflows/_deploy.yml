@@ -7,6 +7,10 @@ on:
         description: 'The tag to deploy'
         required: true
         type: string
+      service:
+        description: 'The service to deploy'
+        required: true
+        type: string
       environment:
         description: 'The environment to deploy to'
         required: true
@@ -14,16 +18,31 @@ on:
         options:
           - stage
           - prod
+      dry_run:
+        description: 'Whether to run the deployment in dry-run mode'
+        required: false
+        type: boolean
+        default: false
+
   workflow_call:
     inputs:
       tag:
         description: 'The tag to deploy'
         required: true
         type: string
+      service:
+        description: 'The service to deploy'
+        required: true
+        type: string
       environment:
         description: 'The environment to deploy to'
         required: true
         type: string
+      dry_run:
+        description: 'Whether to run the deployment in dry-run mode'
+        required: false
+        type: boolean
+        default: false
 
 permissions: {}
 
@@ -32,6 +51,15 @@ defaults:
     shell: bash
 
 jobs:
+  dry_run:
+    # Uses the same name as the approve job to ensure pull request status checks are successful
+    name: approve
+    if: ${{ inputs.dry_run == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for approval
+        run: |
+          echo "Dry run approved"
   # The deployment process is repeated for all environments.
   # 1) pull the image from ghcr
   # 2) tag the image with the environment name
@@ -44,46 +72,60 @@ jobs:
   push:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
+    if: ${{ inputs.dry_run == 'false' }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
 
-      - name: Docker tag (ghcr)
-        id: input_tag
+      - name: Pull Tag
+        id: pull_tag
         uses: ./.github/actions/docker-tag
         with:
           tag: ${{ inputs.tag }}
 
+      - name: Push Tag
+        id: push_tag
+        uses: ./.github/actions/docker-tag
+        with:
+          registry: registry.fly.io
+          image: ${{ vars.APP_NAME }}
+          version: ${{ steps.pull_tag.outputs.version }}
+
       - name: Login Docker
         uses: ./.github/actions/login-docker
         with:
-          registry: ${{ steps.input_tag.outputs.registry }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Pull image
         run: |
-          docker pull ${{ inputs.tag }}
+          docker pull ${{ steps.pull_tag.outputs.tag }}
+
+      - name: Tag image
+        run: |
+          docker tag ${{ steps.pull_tag.outputs.tag }} ${{ steps.push_tag.outputs.tag }}
 
       - name: Setup Flyctl
         uses: superfly/flyctl-actions/setup-flyctl@master
 
-      - name: Docker tag (fly)
-        id: output_tag
-        uses: ./.github/actions/docker-tag
-        with:
-          registry: registry.fly.io
-          username: x
-          image: ${{ vars.APP_NAME }}
-          version: ${{ steps.input_tag.outputs.version }}
-
-      - name: Push image
+      - name: Login to Fly
+        run: flyctl auth docker
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Push image
         run: |
-          docker push ${{ steps.output_tag.outputs.tag }}
+          docker push ${{ steps.push_tag.outputs.tag }}
+
+      - name: Deploy to Fly
+        run: |
+          flyctl deploy \
+            --image "${{ steps.push_tag.outputs.tag }}" \
+            --app "${{ vars.APP_NAME }}" \
+            --env SERVICE_NAME="${{ inputs.service }}"
 
   ready:
     needs: push
@@ -102,11 +144,11 @@ jobs:
           echo "Running smoke test"
 
   approve:
+    name: approve
     needs: test
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
       - name: Wait for approval
-        run: |
-          echo "Waiting for approval"
+        run: echo "Waiting for approval"
 

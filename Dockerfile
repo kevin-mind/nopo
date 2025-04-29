@@ -4,7 +4,11 @@ ARG USER=nodeuser
 FROM node:20-slim AS base
 ################################################################################################
 
-SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
+# use our entrypoint.sh for all commands during the build and runtime
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod 555 /entrypoint.sh
+SHELL ["/entrypoint.sh", "/bin/bash", "-c"]
+ENTRYPOINT ["/entrypoint.sh"]
 
 ARG USER
 ARG NODE_ENV=production
@@ -16,6 +20,7 @@ ENV PNPM_HOME="$DEPS/pnpm"
 ENV PNPM_STORE_DIR="$PNPM_HOME/store"
 ENV COREPACK_HOME="$DEPS/corepack"
 ENV PATH="$PNPM_HOME:$COREPACK_HOME:$PATH"
+ENV SERVICE_NAME=
 
 RUN <<EOF
 groupadd -g 1001 $USER
@@ -83,6 +88,8 @@ FROM base AS development
 COPY --from=install --chown=$USER $DEPS $DEPS
 COPY --from=source --chown=$USER $HOME $HOME
 
+CMD [ "pnpm --filter "@more/${SERVICE_NAME}..." --parallel dev" ]
+
 ################################################################################################
 FROM base AS production
 ################################################################################################
@@ -91,3 +98,5 @@ COPY --from=install --chown=$USER $DEPS $DEPS
 COPY --from=build --chown=$USER $HOME $HOME
 
 RUN pnpm install --prod --config.confirmModulesPurge=false
+
+CMD [ "pnpm --filter @more/${SERVICE_NAME} start" ]

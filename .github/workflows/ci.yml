@@ -110,30 +110,13 @@ jobs:
       packages: read
       contents: read
     uses: ./.github/workflows/_test.yml
+    secrets: inherit
     with:
       tag: ${{ needs.build.outputs.tag }}
-      registry: ${{ needs.build.outputs.registry }}
-      username: ${{ github.actor }}
-    secrets:
-      password: ${{ secrets.GITHUB_TOKEN}}
-
-  deploy_dry:
-    runs-on: ubuntu-latest
-    needs: [context, test]
-    if: ${{ needs.context.outputs.push == 'false' }}
-    strategy:
-      matrix:
-        environment: [stage, prod]
-    name: deploy_${{ matrix.environment }} / approve
-    steps:
-      - name: Deploy dry
-        run: |
-          echo "Deploying dry"
-          echo "Environment: ${{ matrix.environment }}"
 
   deploy_stage:
     needs: [context, build, test]
-    if: ${{ needs.context.outputs.push == 'true' }}
+    if: always()
     permissions:
       contents: read
       packages: read
@@ -141,10 +124,12 @@ jobs:
     with:
       environment: stage
       tag: ${{ needs.build.outputs.tag }}
+      service: web
+      dry_run: ${{ needs.context.outputs.push == 'false' }}
 
   deploy_prod:
     needs: [context, build, deploy_stage, test]
-    if: ${{ needs.context.outputs.push == 'true' }}
+    if: always()
     permissions:
       contents: read
       packages: read
@@ -152,3 +137,5 @@ jobs:
     with:
       environment: prod
       tag: ${{ needs.build.outputs.tag }}
+      service: web
+      dry_run: ${{ needs.context.outputs.push == 'false' }}

@@ -18,4 +18,3 @@ services:
     depends_on:
       base:
         condition: service_completed_successfully
-    command: ["sh", "command.sh"]

@@ -27,7 +27,7 @@ async function gitRepoName() {
 const { org, repo } = await gitRepoName();
 const baseTag = new DockerTag(`${org}/${repo}:local`);
 
-const envParser = z.enum(["development", "production"]);
+const envParser = z.enum(["base", "build", "development", "production"]);
 
 const baseSchema = {
   DOCKER_DIGEST: z.string(),
