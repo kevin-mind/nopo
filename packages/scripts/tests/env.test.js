@@ -95,15 +95,15 @@ describe("env", () => {
     expect(env.DOCKER_TARGET).toBe("development");
   });
 
-  it("handles mozilla/addons-server special case", async () => {
+  it("handles base/repo special case", async () => {
     const env = await main({
       ...config,
       env: {
         DOCKER_TAG: "latest",
       },
     });
-    expect(env.DOCKER_TAG).toBe("mozilla/addons-server:latest");
-    expect(env.DOCKER_IMAGE).toBe("mozilla/addons-server");
+    expect(env.DOCKER_TAG).toBe("base/repo:latest");
+    expect(env.DOCKER_IMAGE).toBe("base/repo");
   });
 
   it("validates environment values", async () => {

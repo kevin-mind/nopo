@@ -70,12 +70,12 @@ describe("parseEnv", () => {
 
   it("should use base tag when no docker config provided", () => {
     const env = parseEnv(undefined, {});
-    expect(env.DOCKER_TAG).toBe("mozilla/addons-server:local");
+    expect(env.DOCKER_TAG).toBe("base/repo:local");
   });
 
   it("should force production target for non-local image", () => {
     const env = parseEnv(undefined, {
-      DOCKER_TAG: "docker.io/mozilla/addons-server:1.0.0",
+      DOCKER_TAG: "docker.io/base/repo:1.0.0",
       DOCKER_TARGET: "development",
     });
     expect(env.DOCKER_TARGET).toBe("production");
@@ -85,7 +85,7 @@ describe("parseEnv", () => {
     "should allow either target for local image",
     (target) => {
       const env = parseEnv(undefined, {
-        DOCKER_TAG: "docker.io/mozilla/addons-server:local",
+        DOCKER_TAG: "docker.io/base/repo:local",
         DOCKER_TARGET: target,
       });
       expect(env.DOCKER_TARGET).toBe(target);
@@ -104,14 +104,14 @@ describe("parseEnv", () => {
     const env = parseEnv(undefined, {
       DOCKER_TAG: "3.0.0",
     });
-    expect(env.DOCKER_TAG).toBe("mozilla/addons-server:3.0.0");
+    expect(env.DOCKER_TAG).toBe("base/repo:3.0.0");
   });
 
   it("should handle version and digest input correctly", () => {
     const env = parseEnv(undefined, {
       DOCKER_TAG: `1.0.0@${DOCKER_DIGEST}`,
     });
-    expect(env.DOCKER_TAG).toBe(`mozilla/addons-server:1.0.0@${DOCKER_DIGEST}`);
+    expect(env.DOCKER_TAG).toBe(`base/repo:1.0.0@${DOCKER_DIGEST}`);
   });
 
   it("should handle image-only input correctly", () => {

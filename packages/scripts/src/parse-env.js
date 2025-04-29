@@ -1,9 +1,31 @@
 import { parseEnv as znvParseEnv, z } from "znv";
-import { fs, chalk, dotenv } from "zx";
+import { fs, chalk, dotenv, $ } from "zx";
 
 import { DockerTag } from "./docker-tag.js";
 
-const baseTag = new DockerTag("mozilla/addons-server:local");
+async function gitRepoName() {
+  let org = "base";
+  let repo = "repo";
+  try {
+    const urlString = await $`git config --get remote.origin.url`
+      .quiet()
+      .text();
+    const url = new URL(urlString);
+    const repoRegex = /^\/(?<org>[^/]+)\/(?<repo>[^/]+)\.git$/;
+    const match = url.pathname.match(repoRegex);
+    if (!match) {
+      throw new Error("Could not determine git repo name");
+    }
+    org = match.groups.org;
+    repo = match.groups.repo;
+  } catch (e) {
+    console.log(e);
+  }
+  return { org, repo };
+}
+
+const { org, repo } = await gitRepoName();
+const baseTag = new DockerTag(`${org}/${repo}:local`);
 
 const envParser = z.enum(["development", "production"]);
 

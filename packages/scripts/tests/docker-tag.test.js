@@ -6,46 +6,46 @@ const DOCKER_DIGEST =
 
 const VALID_DOCKER_TAGS = [
   [
-    "docker.io/mozilla/addons-server",
+    "docker.io/base/repo",
     {
       registry: "docker.io",
-      image: "mozilla/addons-server",
+      image: "base/repo",
       version: "",
       digest: "",
     },
   ],
   [
-    "docker.io/mozilla/addons-server:latest",
+    "docker.io/base/repo:latest",
     {
       registry: "docker.io",
-      image: "mozilla/addons-server",
+      image: "base/repo",
       version: "latest",
       digest: "",
     },
   ],
   [
-    `docker.io/mozilla/addons-server@${DOCKER_DIGEST}`,
+    `docker.io/base/repo@${DOCKER_DIGEST}`,
     {
       registry: "docker.io",
-      image: "mozilla/addons-server",
+      image: "base/repo",
       version: "",
       digest: DOCKER_DIGEST,
     },
   ],
   [
-    "docker.io/mozilla/addons-server:1.0.0",
+    "docker.io/base/repo:1.0.0",
     {
       registry: "docker.io",
-      image: "mozilla/addons-server",
+      image: "base/repo",
       version: "1.0.0",
       digest: "",
     },
   ],
   [
-    `mozilla/addons-server:version@${DOCKER_DIGEST}`,
+    `base/repo:version@${DOCKER_DIGEST}`,
     {
       registry: "",
-      image: "mozilla/addons-server",
+      image: "base/repo",
       version: "version",
       digest: DOCKER_DIGEST,
     },
@@ -80,8 +80,8 @@ const VALID_DOCKER_TAGS = [
 ];
 
 const INVALID_DOCKER_TAGS = [
-  "docker.io/mozilla/addons-server:",
-  "docker.io/mozilla/addons-server@sha256:123",
+  "docker.io/base/repo:",
+  "docker.io/base/repo@sha256:123",
   ":latest",
   "addons-server@sha256:1234567890",
 ];
