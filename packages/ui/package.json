@@ -1,0 +1,32 @@
+{
+  "name": "@more/ui",
+  "version": "1.0.0",
+  "sideEffects": false,
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "main": "./build/index.cjs",
+  "module": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "import": "./build/index.js",
+      "require": "./build/index.cjs"
+    }
+  },
+  "scripts": {
+    "clean": "rm -rf node_modules && rm -rf build",
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "format": "yarn lint --fix",
+    "lint": "eslint",
+    "test": "vitest"
+  },
+  "devDependencies": {
+    "@more/configs": "workspace:*",
+    "tsup": "^8.4.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.1"
+  }
+}

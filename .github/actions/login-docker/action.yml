@@ -1,0 +1,23 @@
+name: Login to a specific Docker registry
+description: Login to a Docker registry
+
+inputs:
+  registry:
+    description: 'Docker registry'
+    required: true
+  username:
+    description: 'Docker username'
+    required: false
+  password:
+    description: 'Docker password'
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ inputs.registry }}
+        username: ${{ inputs.username }}
+        password: ${{ inputs.password }}

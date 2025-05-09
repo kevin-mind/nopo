@@ -1,0 +1,59 @@
+services:
+  base:
+    extends:
+      file: docker/docker-compose.base.yml
+      service: base
+    command:
+      - /sync-host.sh
+    volumes:
+      - ./docker/sync-host.sh:/sync-host.sh
+
+  web:
+    extends:
+      file: docker/docker-compose.base.yml
+      service: base_service
+    environment:
+      SERVICE_NAME: web
+      PORT: 3000
+    ports:
+      - 3000:3000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      db:
+        condition: service_healthy
+
+  backend:
+    extends:
+      file: docker/docker-compose.base.yml
+      service: base_service
+    environment:
+      SERVICE_NAME: backend
+      PORT: 8000
+    ports:
+      - 8000:8000
+
+  db:
+    image: postgres:16
+    restart: always
+    environment:
+      POSTGRES_DB: website
+      POSTGRES_USER: website
+      POSTGRES_PASSWORD: website
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", 'pg_isready -U website -d website']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  postgres_data:

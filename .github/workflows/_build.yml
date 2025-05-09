@@ -1,0 +1,127 @@
+name: Build
+
+on:
+  workflow_call:
+    inputs:
+      push:
+        description: 'Whether to push the image'
+        required: true
+        type: boolean
+
+    outputs:
+      registry:
+        description: 'The registry of the build'
+        value: ${{ jobs.build.outputs.registry }}
+      image:
+        description: 'The image of the build'
+        value: ${{ jobs.build.outputs.image }}
+      version:
+        description: 'The version of the build'
+        value: ${{ jobs.build.outputs.version }}
+      digest:
+        description: 'The digest of the build'
+        value: ${{ jobs.build.outputs.digest }}
+      tag:
+        description: 'The tag of the build'
+        value: ${{ jobs.build.outputs.tag }}
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    permissions:
+      packages: write
+      contents: read
+      attestations: write
+      id-token: write
+    runs-on: ubuntu-latest
+    outputs:
+      registry: ${{ steps.output_tag.outputs.registry }}
+      image: ${{ steps.output_tag.outputs.image }}
+      version: ${{ steps.output_tag.outputs.version }}
+      digest: ${{ steps.output_tag.outputs.digest }}
+      tag: ${{ steps.output_tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Docker meta
+        id: docker_meta
+        uses: docker/metadata-action@v5
+        with:
+          bake-target: default
+          tags: |
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Input tag
+        id: input_tag
+        uses: ./.github/actions/docker-tag
+        with:
+          # We only add the registry/username if we are pushing the image.
+          # If not pushing, make a bare image so the resultant tag will trigger
+          # a new build when used in "make up".
+          registry: ${{ inputs.push && 'ghcr.io' || '' }}
+          image: ${{ github.repository }}
+          version: ${{ steps.docker_meta.outputs.version }}
+          target: production
+          node_env: production
+
+      - name: Set up Docker
+        id: docker
+        uses: ./.github/actions/setup-docker
+
+      - name: Login to Docker registry
+        if: ${{ inputs.push }}
+        uses: ./.github/actions/login-docker
+        with:
+          registry: ${{ steps.input_tag.outputs.registry }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        id: build
+        uses: docker/bake-action@v6
+        env:
+          DOCKER_TAG: ${{ steps.input_tag.outputs.tag }}
+          DOCKER_TARGET: ${{ steps.input_tag.outputs.target }}
+          NODE_ENV: ${{ steps.input_tag.outputs.node_env }}
+        with:
+          builder: ${{ steps.docker.outputs.builder }}
+          targets: base
+          files: |
+            docker-compose.yml
+            cwd://${{ steps.docker_meta.outputs.bake-file-tags }}
+            cwd://${{ steps.docker_meta.outputs.bake-file-labels }}
+          push: ${{ inputs.push }}
+
+      - name: Extract build digest
+        id: digest
+        run: |
+          digest=""
+
+          if [[ "${{ inputs.push }}" == "true" ]]; then
+          cat <<EOF > metadata.json
+          ${{ steps.build.outputs.metadata }}
+          EOF
+          digest=$(cat metadata.json | jq -r '.base."containerimage.digest"')
+          fi
+
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          cat "$GITHUB_OUTPUT"
+
+      - name: Output tag
+        id: output_tag
+        uses: ./.github/actions/docker-tag
+        with:
+          registry: ${{ steps.input_tag.outputs.registry }}
+          image: ${{ steps.input_tag.outputs.image }}
+          version: ${{ steps.input_tag.outputs.version }}
+          # Add the digest to the output tag so we can easily pull the exact build later.
+          digest: ${{ steps.digest.outputs.digest }}

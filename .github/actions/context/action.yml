@@ -1,0 +1,32 @@
+name: Context
+description: Log context about a workflow run
+
+outputs:
+  is_fork:
+    description: 'Whether the repository is a fork'
+    value: ${{ steps.context.outputs.is_fork }}
+
+runs:
+  using: composite
+  steps:
+    - name: Github
+      shell: bash
+      run: |
+        cat <<EOF
+        ${{ toJSON(github) }}
+        EOF
+
+    - name: Job
+      shell: bash
+      run: |
+        cat <<EOF
+        ${{ toJSON(job) }}
+        EOF
+
+    - name: Context
+      id: context
+      shell: bash
+      run: |
+        is_fork="${{ github.event.repository.fork }}"
+        echo "is_fork=$is_fork" >> "$GITHUB_OUTPUT"
+        cat "$GITHUB_OUTPUT"

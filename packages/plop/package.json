@@ -1,0 +1,20 @@
+{
+  "name": "@more/plop",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "clean": "rm -rf node_modules && rm -f tsconfig.tsbuildinfo",
+    "check:types": "tsc --noEmit",
+    "check:lint": "eslint",
+    "fix:lint": "eslint --fix",
+    "generate:package": "NODE_OPTIONS='--import tsx' plop --plopfile scripts/package.ts",
+    "generate:app": "NODE_OPTIONS='--import tsx' plop --plopfile scripts/app.ts"
+  },
+  "dependencies": {
+    "plop": "^4.0.1"
+  },
+  "devDependencies": {
+    "@more/configs": "workspace:*",
+    "eslint": "^9.15.0"
+  }
+}

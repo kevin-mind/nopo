@@ -1,0 +1,5 @@
+{
+  "extends": "@more/configs/tsconfig.{{tsconfigPreset}}.json",
+  "include": ["src/**/*"],
+  "exclude": ["build", "node_modules"]
+}

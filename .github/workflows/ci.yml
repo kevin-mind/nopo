@@ -1,0 +1,141 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  merge_group:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CI: true
+
+jobs:
+  context:
+    runs-on: ubuntu-latest
+    outputs:
+      is_fork: ${{ steps.context.outputs.is_fork }}
+      push: ${{ steps.push.outputs.push }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Context
+        id: context
+        uses: ./.github/actions/context
+
+      - name: Push
+        id: push
+        run: |
+          is_fork="${{ steps.context.outputs.is_fork }}"
+          event_name="${{ github.event_name }}"
+          # The event.sender.login for the user that pushed the commit.
+          actor="${{ github.event.sender.login }}"
+          # The name of the merge queue bot.
+          merge_actor="github-merge-queue[bot]"
+
+          push=false
+
+          # Push images on merge queue. This only runs on the target repo
+          # so no need to check if it is a fork.
+          if [[ "$event_name" == "merge_group" ]]; then
+            push=true
+          # Push images on push events that were not sent by the merge queue bot
+          # as merge queue commits are deployed before the PR is merged.
+          elif [[ "$actor" != "$merge_actor" && "$event_name" == "push" && "$is_fork" == "false" ]]; then
+            push=true
+          fi
+
+          echo "push=$push" >> $GITHUB_OUTPUT
+          cat "$GITHUB_OUTPUT"
+
+  version:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' }}
+    permissions:
+      contents: write
+      packages: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          cache: 'pnpm'
+
+      - name: Install
+        run: make install_lockfile
+
+      - name: Build
+        run: pnpm build:packages
+
+      - name: Create and publish versions
+        uses: changesets/action@v1
+        with:
+          commit: "chore: update versions"
+          title: "chore: update versions"
+          publish: pnpm publish:workspace
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  build:
+    needs: context
+    permissions:
+      packages: write
+      contents: read
+      attestations: write
+      id-token: write
+    uses: ./.github/workflows/_build.yml
+    secrets: inherit
+    with:
+      push: ${{ needs.context.outputs.push == 'true' }}
+
+  test:
+    needs: build
+    permissions:
+      packages: read
+      contents: read
+    uses: ./.github/workflows/_test.yml
+    secrets: inherit
+    with:
+      tag: ${{ needs.build.outputs.tag }}
+
+  deploy_stage:
+    needs: [context, build, test]
+    permissions:
+      contents: read
+      packages: read
+    uses: ./.github/workflows/_deploy.yml
+    secrets: inherit
+    with:
+      environment: stage
+      tag: ${{ needs.build.outputs.tag }}
+      service: web
+      dry:  ${{ needs.context.outputs.push == 'false' }}
+
+  deploy_prod:
+    needs: [context, build, deploy_stage, test]
+    permissions:
+      contents: read
+      packages: read
+    uses: ./.github/workflows/_deploy.yml
+    secrets: inherit
+    with:
+      environment: prod
+      tag: ${{ needs.build.outputs.tag }}
+      service: web
+      dry:  ${{ needs.context.outputs.push == 'false' }}

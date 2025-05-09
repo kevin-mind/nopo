@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
+  "name": "Nopo Devcontainer",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:20-bullseye",
+  "updateRemoteUserUID": true,
+  "workspaceFolder": "/workspaces/nopo",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/nopo,type=bind",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker": {
+      "version": "latest",
+      "enableNonRootDocker": "true",
+      "moby": "true"
+    }
+  },
+  "postAttachCommand": "make up"
+}

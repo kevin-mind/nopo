@@ -1,0 +1,10 @@
+packages:
+  - packages/*
+  - apps/*
+
+injectWorkspacePackages: true
+
+onlyBuiltDependencies:
+  - esbuild
+
+storeDir: ${PNPM_STORE_DIR:-.pnpm-store}

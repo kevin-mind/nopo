@@ -1,0 +1,180 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'The tag to deploy'
+        required: true
+        type: string
+      service:
+        description: 'The service to deploy'
+        required: true
+        type: string
+      environment:
+        description: 'The environment to deploy to'
+        required: true
+        type: choice
+        options:
+          - stage
+          - prod
+      dry:
+        description: 'Whether to run the deployment in dry-run mode'
+        required: false
+        type: boolean
+        default: true
+
+  workflow_call:
+    inputs:
+      tag:
+        description: 'The tag to deploy'
+        required: true
+        type: string
+      service:
+        description: 'The service to deploy'
+        required: true
+        type: string
+      environment:
+        description: 'The environment to deploy to'
+        required: true
+        type: string
+      dry:
+        description: 'Whether to run the deployment in dry-run mode'
+        required: false
+        type: boolean
+        default: false
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: ${{ github.workflow }}-deploy
+  cancel-in-progress: true
+
+jobs:
+  # The deployment process is repeated for all environments.
+  # 1) pull the image from ghcr
+  # 2) tag the image with the environment name
+  # 3) push the image to the environment's container registry
+  # 4) wait for the environment to have the image running
+  # 5) run the smoke tests on the environment
+  # 6) update the latest image for the environment container registry
+  # 7) wait for approval to continue based on the environment protection rules.
+  context:
+    runs-on: ubuntu-latest
+    outputs:
+      dry: ${{ steps.context.outputs.dry }}
+      environment: ${{ steps.context.outputs.environment }}
+      service: ${{ steps.context.outputs.service }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Context
+        id: context
+        run: |
+          echo "dry=${{ inputs.dry }}" >> "$GITHUB_OUTPUT"
+          echo "environment=${{ inputs.environment }}" >> "$GITHUB_OUTPUT"
+          echo "service=${{ inputs.service }}" >> "$GITHUB_OUTPUT"
+          cat "$GITHUB_OUTPUT"
+
+
+  dry_approve:
+    needs: context
+    runs-on: ubuntu-latest
+    name: approve
+    if: ${{ needs.context.outputs.dry == 'true' }}
+    steps:
+      - name: Wait for approval
+        run: echo "Approving dry run"
+
+  push:
+    needs: context
+    runs-on: ubuntu-latest
+    environment: ${{ needs.context.outputs.environment }}
+    if: ${{ needs.context.outputs.dry == 'false' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Pull Tag
+        id: pull_tag
+        uses: ./.github/actions/docker-tag
+        with:
+          tag: ${{ inputs.tag }}
+
+      - name: Push Tag
+        id: push_tag
+        uses: ./.github/actions/docker-tag
+        with:
+          registry: registry.fly.io
+          image: ${{ vars.APP_NAME }}
+          version: ${{ steps.pull_tag.outputs.version }}
+
+      - name: Login Docker
+        uses: ./.github/actions/login-docker
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull image
+        run: |
+          docker pull ${{ steps.pull_tag.outputs.tag }}
+
+      - name: Tag image
+        run: |
+          docker tag ${{ steps.pull_tag.outputs.tag }} ${{ steps.push_tag.outputs.tag }}
+
+      - name: Setup Flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Login to Fly
+        run: flyctl auth docker
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Push image
+        run: |
+          docker push ${{ steps.push_tag.outputs.tag }}
+
+      - name: Deploy to Fly
+        run: |
+          flyctl deploy \
+            --image "${{ steps.push_tag.outputs.tag }}" \
+            --app "${{ vars.APP_NAME }}" \
+            --env SERVICE_NAME="${{ needs.context.outputs.service }}"
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+  ready:
+    needs: push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for deployment
+        run: |
+          echo "Waiting for deployment"
+
+  test:
+    needs: ready
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run smoke test
+        run: |
+          echo "Running smoke test"
+
+  approve:
+    if: ${{ always() && needs.test.result == 'success' }}
+    needs: [context, test]
+    name: approve
+    runs-on: ubuntu-latest
+    environment: ${{ needs.context.outputs.environment }}
+    steps:
+      - name: Wait for approval
+        run: echo "Waiting for approval"
+

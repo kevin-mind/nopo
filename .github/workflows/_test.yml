@@ -1,0 +1,56 @@
+name: Test
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: 'The full docker tag to test'
+        required: true
+        type: string
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        run:
+          - check
+          - test
+      fail-fast: false
+    permissions:
+      packages: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Docker
+        uses: ./.github/actions/setup-docker
+
+      - name: Docker Tag
+        id: docker_tag
+        uses: ./.github/actions/docker-tag
+        with:
+          tag: ${{ inputs.tag }}
+
+      - name: Login Docker
+        if: ${{ steps.docker_tag.outputs.version != 'local' }}
+        uses: ./.github/actions/login-docker
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Up
+        run: make up DOCKER_TAG="${{ steps.docker_tag.outputs.tag }}"
+
+      - name: make ${{ matrix.run }}
+        run: make ${{ matrix.run }}
