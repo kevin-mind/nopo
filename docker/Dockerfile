@@ -4,11 +4,6 @@ ARG USER=nodeuser
 FROM node:20-slim AS base
 ################################################################################################
 
-# Specify the custom entrypoint for the container
-COPY docker/entrypoint.sh /
-RUN chmod 555 /entrypoint.sh
-ENTRYPOINT [ "/entrypoint.sh" ]
-
 ARG USER
 ARG NODE_ENV=production
 

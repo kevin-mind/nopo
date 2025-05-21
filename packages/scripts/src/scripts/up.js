@@ -6,7 +6,11 @@ export default async function main(config) {
   const env = parseEnv(config.envFile);
   const promises = [];
 
-  const { data: { config: { services }}} = await compose.config({
+  const {
+    data: {
+      config: { services },
+    },
+  } = await compose.config({
     cwd: config.cwd,
     env: {
       ...process.env,
@@ -24,7 +28,7 @@ export default async function main(config) {
     }
   }
 
-  if (env.DOCKER_REGISTRY) {
+  if (!env.DOCKER_REGISTRY) {
     promises.push(
       compose.buildOne("base", {
         log: true,
@@ -33,7 +37,7 @@ export default async function main(config) {
           ...env,
           COMPOSE_BAKE: true,
         },
-      })
+      }),
     );
   } else {
     promises.push(
@@ -53,17 +57,14 @@ export default async function main(config) {
     }
   }
 
-  await Promise.allSettled([
-    compose.upMany(remoteServices, {
-      log: true,
-      commandOptions: ["--remove-orphans", "-d"],
-    }),
-    compose.upMany(localServices, {
-      log: true,
-      commandOptions: ["--remove-orphans", "-d", "--force-recreate"],
-    }),
-  ])
-
+  await compose.downMany(localServices, {
+    log: true,
+    commandOptions: ["--remove-orphans"],
+  });
+  await compose.upAll({
+    log: true,
+    commandOptions: ["--remove-orphans", "-d"],
+  });
   await compose.rm({
     log: true,
     commandOptions: ["--force"],

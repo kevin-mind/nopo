@@ -9,7 +9,6 @@
 set -xueo pipefail
 
 if [[ $(id -u) -ne 0 ]]; then
-  printenv
   exec "$@"
   exit $?
 fi

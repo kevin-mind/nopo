@@ -2,6 +2,7 @@ services:
   base:
     image: "${DOCKER_TAG:?}"
     user: root
+    entrypoint: ["/entrypoint.sh"]
     env_file:
       - path: ../.env
         required: false

@@ -72,4 +72,11 @@ runs:
           DOCKER_TARGET="${{ inputs.target }}" \
           NODE_ENV="${{ inputs.node_env }}"
 
-        echo "$(cat .env)" >> "$GITHUB_OUTPUT"
+        while IFS='=' read -r key value; do
+          if [[ -n "$value" ]]; then
+            # Remove surrounding quotes if present
+            value="${value%\"}"
+            value="${value#\"}"
+            echo "$key=$value" >> "$GITHUB_OUTPUT"
+          fi
+        done < .env
