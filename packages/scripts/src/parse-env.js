@@ -149,14 +149,11 @@ export function parseEnv(envFilePath, processEnv = {}) {
     DOCKER_TARGET: inputEnv.DOCKER_TARGET,
   });
 
-  const finalEnv = znvParseEnv(
+  return znvParseEnv(
     {
       ...inputEnv,
       ...env,
     },
     baseSchema,
-  );
-  return Object.fromEntries(
-    Object.entries(finalEnv).filter(([, value]) => value !== undefined),
   );
 }

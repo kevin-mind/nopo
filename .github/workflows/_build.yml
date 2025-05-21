@@ -87,17 +87,13 @@ jobs:
       - name: Build and push
         id: build
         uses: docker/bake-action@v6
-        env:
-          NODE_ENV: ${{ steps.input_tag.outputs.node_env }}
-          DOCKER_TAG: ${{ steps.input_tag.outputs.tag }}
-          DOCKER_VERSION: ${{ steps.input_tag.outputs.version }}
-          DOCKER_TARGET: ${{ steps.input_tag.outputs.target }}
-
         with:
           builder: ${{ steps.docker.outputs.builder }}
           targets: base
           files: |
-            docker-compose.yml
+            cwd://docker-compose.yml
+            cwd://docker-bake.hcl
+            cwd://.env
             cwd://${{ steps.docker_meta.outputs.bake-file-tags }}
             cwd://${{ steps.docker_meta.outputs.bake-file-labels }}
           push: ${{ inputs.push }}

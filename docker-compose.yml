@@ -1,5 +1,8 @@
 services:
   base:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
     extends:
       file: docker/docker-compose.base.yml
       service: base

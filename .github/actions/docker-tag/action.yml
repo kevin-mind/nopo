@@ -2,6 +2,10 @@ name: Docker Tag
 description: Tag a Docker image
 
 inputs:
+  skip_clean:
+    description: Skip removing the .env file before running the action
+    required: false
+    default: ""
   tag:
     description: The full docker tag to use
     required: true
@@ -50,23 +54,15 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Validate inputs
-      shell: bash
-      run: |
-        if [[ -n "${{ inputs.tag }}" ]]; then
-          if [[ -n "${{ inputs.image }}" ]]; then
-            echo "error: Cannot define both a tag and tag components"
-            exit 1
-          fi
-        elif [[ -z "${{ inputs.image }}" || -z "${{ inputs.version }}" ]]; then
-          echo "error: Image and version are required when not specifying a tag"
-          exit 1
-        fi
-
     - name: Extract tag
       id: tag
       shell: bash
       run: |
+        if [[ -z "${{ inputs.skip_clean }}" ]]; then
+          echo "Removing .env file"
+          rm -f .env
+        fi
+
         make env \
           DOCKER_TAG="${{ inputs.tag }}" \
           DOCKER_REGISTRY="${{ inputs.registry }}" \
@@ -77,4 +73,3 @@ runs:
           NODE_ENV="${{ inputs.node_env }}"
 
         echo "$(cat .env)" >> "$GITHUB_OUTPUT"
-        rm -f .env

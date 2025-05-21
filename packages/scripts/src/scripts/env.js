@@ -3,45 +3,52 @@ import { fs, dotenv, chalk } from "zx";
 import { parseEnv } from "../parse-env.js";
 
 export default async function main(config) {
-  const hasPrevEnv = fs.existsSync(config.envFile);
-  const prevEnv = hasPrevEnv
-    ? dotenv.parse(fs.readFileSync(config.envFile, "utf8"))
-    : {};
-
   const env = parseEnv(config.envFile, config.env);
 
-  const sortedEnv = Object.fromEntries(
-    Object.entries(env).sort((a, b) => a[0].localeCompare(b[0])),
-  );
-  const outputEnvString = dotenv.stringify(sortedEnv);
+  const sortedEnvString = Object.entries(env)
+    .filter(([, value]) => !!value)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([key, value]) => `${key}="${value}"`)
+    .join("\n");
 
   if (!config.dryRun) {
-    fs.writeFileSync(config.envFile, outputEnvString);
-
-    const createdColor = chalk.magenta;
-    const updatedColor = chalk.yellow;
-    const unchangedColor = chalk.white;
-    const backgroundColor = chalk.gray;
-
-    const action = hasPrevEnv ? "Updated" : "Created";
-    const actionColor = hasPrevEnv ? updatedColor : createdColor;
-    const title = `${action}: ${actionColor(config.envFile)}`;
-    console.log(title);
-    console.log(chalk.gray(Array(title.length).fill("-").join("")));
-    console.log(`${backgroundColor("added")}: ${createdColor("magenta")}`);
-    console.log(`${backgroundColor("updated")}: ${updatedColor("yellow")}`);
-    console.log(`${backgroundColor("unchanged")}: ${unchangedColor("white")}`);
-    console.log(chalk.gray(Array(title.length).fill("-").join("")));
-    for (const [key, value] of Object.entries(sortedEnv)) {
-      let color = unchangedColor;
-      if (!prevEnv[key]) {
-        color = createdColor;
-      } else if (prevEnv[key] !== value) {
-        color = updatedColor;
-      }
-      const text = `${chalk.gray(key)}=${color(value)}`;
-      console.log(text);
-    }
+    fs.writeFileSync(config.envFile, sortedEnvString);
   }
-  return sortedEnv;
+
+  const colors = {
+    added: chalk.magenta,
+    updated: chalk.yellow,
+    unchanged: chalk.white,
+    background: chalk.gray,
+  };
+
+  const hasPrevEnv = fs.existsSync(config.envFile);
+  const action = hasPrevEnv ? "Updated" : "Created";
+  const actionColor = hasPrevEnv ? colors.updated : colors.added;
+  const title = `${action}: ${actionColor(config.envFile)}`;
+  const breakLine = chalk.gray(Array(title.length).fill("-").join(""));
+  console.log(title);
+  console.log(breakLine);
+  Object.entries(colors).forEach(([key, color]) => {
+    if (key === "background") return;
+    console.log(`${colors.background(key)}: ${color(key)}`);
+  });
+  console.log(breakLine);
+
+  let prevEnv = {};
+  if (hasPrevEnv) {
+    prevEnv = dotenv.parse(fs.readFileSync(config.envFile, "utf8"));
+  }
+
+  for (const [key, value] of Object.entries(env)) {
+    let color = colors.unchanged;
+    if (!prevEnv[key]) {
+      color = colors.added;
+    } else if (prevEnv[key] !== value) {
+      color = colors.updated;
+    }
+    const text = `${colors.background(key)}=${color(value)}`;
+    console.log(text);
+  }
+  return env;
 }

@@ -116,7 +116,7 @@ COPY --from=info ${BUILD_INFO} ${BUILD_INFO}
 COPY --from=install --chown=$USER $DEPS $DEPS
 COPY --from=source --chown=$USER $APP $APP
 
-CMD pnpm --filter "@more/${SERVICE_NAME}" dev
+CMD ["pnpm", "--filter", "@more/${SERVICE_NAME}", "dev"]
 
 ################################################################################################
 FROM user AS production
@@ -127,5 +127,4 @@ COPY --from=build --chown=$USER $APP $APP
 
 RUN pnpm install --prod --config.confirmModulesPurge=false
 
-CMD pnpm --filter "@more/${SERVICE_NAME}" start
-
+CMD ["pnpm", "--filter", "@more/${SERVICE_NAME}", "start"]

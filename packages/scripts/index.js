@@ -1,15 +1,17 @@
-import { minimist, chalk } from "zx";
+import { minimist, chalk, $ } from "zx";
 
 import env from "./src/scripts/env.js";
-import image from "./src/scripts/image.js";
 import status from "./src/scripts/status.js";
+import up from "./src/scripts/up.js";
 
 import config from "./src/config.js";
 
+$.cwd = config.root;
+
 const availableScripts = {
   env,
-  image,
   status,
+  up,
 };
 
 function printHelp(message, exitCode = 1) {
