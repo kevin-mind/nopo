@@ -58,7 +58,6 @@ jobs:
           bake-target: default
           tags: |
             type=sha
-            type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Input tag
         id: input_tag
@@ -89,9 +88,11 @@ jobs:
         id: build
         uses: docker/bake-action@v6
         env:
-          DOCKER_TAG: ${{ steps.input_tag.outputs.tag }}
-          DOCKER_TARGET: ${{ steps.input_tag.outputs.target }}
           NODE_ENV: ${{ steps.input_tag.outputs.node_env }}
+          DOCKER_TAG: ${{ steps.input_tag.outputs.tag }}
+          DOCKER_VERSION: ${{ steps.input_tag.outputs.version }}
+          DOCKER_TARGET: ${{ steps.input_tag.outputs.target }}
+
         with:
           builder: ${{ steps.docker.outputs.builder }}
           targets: base

@@ -1,0 +1,20 @@
+import fs from "node:fs";
+import { z } from "zod";
+
+const schema = z.object({
+  commit: z.string(),
+  version: z.string(),
+  build: z.string(),
+  target: z.string(),
+  source: z.string(),
+});
+
+export async function loader() {
+  const filePath = "/build-info.json";
+  const data = await fs.promises.readFile(filePath, "utf-8");
+  const formatted = schema.parse(JSON.parse(data));
+  return new Response(JSON.stringify(formatted), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+}

@@ -91,16 +91,29 @@ jobs:
       - name: Wait for approval
         run: echo "Approving dry run"
 
-  push:
+  deploy:
     needs: context
     runs-on: ubuntu-latest
     environment: ${{ needs.context.outputs.environment }}
     if: ${{ needs.context.outputs.dry == 'false' }}
+    outputs:
+      pull_tag: ${{ steps.pull_tag.outputs.tag }}
+      push_tag: ${{ steps.push_tag.outputs.tag }}
+      previous_version: ${{ steps.previous_version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
+
+      - name: Previous Version
+        id: previous_version
+        run: |
+          public_url="${{ vars.APP_PUBLIC_URL }}"
+          url="${public_url}/__version__"
+          version=$(curl -s --max-time 30 ${url} | jq -r '.version // empty' || echo "")
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          cat "$GITHUB_OUTPUT"
 
       - name: Pull Tag
         id: pull_tag
@@ -151,26 +164,57 @@ jobs:
             --env SERVICE_NAME="${{ needs.context.outputs.service }}"
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-
-  ready:
-    needs: push
-    runs-on: ubuntu-latest
-    steps:
       - name: Wait for deployment
+        timeout-minutes: 10
         run: |
-          echo "Waiting for deployment"
+          public_url="${{ vars.APP_PUBLIC_URL }}"
+          url="${public_url}/__version__"
+          wait_time=10
+          waiting=true
 
-  test:
-    needs: ready
-    runs-on: ubuntu-latest
-    steps:
+          echo "Waiting for deployment to be ready"
+
+          while $waiting; do
+            version=$(curl -s --max-time 30 ${url} | jq -r '.version // empty' || echo "")
+            if [ "$version" = "${{ steps.push_tag.outputs.version }}" ]; then
+              waiting=false
+            else
+              echo "Version '${version}' does not match '${{ steps.push_tag.outputs.version }}'"
+              sleep "${wait_time}"
+            fi
+          done
+          echo "Deployment is ready"
+
       - name: Run smoke test
         run: |
           echo "Running smoke test"
 
+  rollback:
+    needs: [context, deploy]
+    runs-on: ubuntu-latest
+    if: ${{ always() && needs.deploy.result == 'failure' }}
+    steps:
+      - name: Should rollback?
+        run: |
+          public_url="${{ vars.APP_PUBLIC_URL }}"
+          url="${public_url}/__version__"
+          current_version=$(curl -s ${url} | jq -r '.version // empty' || echo "")
+          previous_version="${{ needs.deploy.outputs.previous_version }}"
+          push_tag="${{ needs.deploy.outputs.push_tag }}"
+
+          if [[ "$current_version" == "${push_tag}" ]]; then
+            echo "Deployed version is failing for some reason"
+            echo "========================================"
+            echo "To rollback to previous version, trigger a deployment with: "
+            echo "- tag=${previous_version}"
+            echo "- service=${{ needs.context.outputs.service }}"
+            echo "- environment=${{ needs.context.outputs.environment }}"
+            echo "- dry=false"
+          fi
+
   approve:
-    if: ${{ always() && needs.test.result == 'success' }}
-    needs: [context, test]
+    if: ${{ always() && needs.deploy.result == 'success' }}
+    needs: [context, deploy]
     name: approve
     runs-on: ubuntu-latest
     environment: ${{ needs.context.outputs.environment }}

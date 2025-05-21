@@ -1,6 +1,6 @@
 services:
   base:
-    image: "${DOCKER_TAG:-kevin-mind/nopo:local}"
+    image: "${DOCKER_TAG:?}"
     user: root
     env_file:
       - path: ../.env
@@ -9,9 +9,12 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-      target: ${DOCKER_TARGET:-production}
+      target: ${DOCKER_TARGET:?}
       args:
-        NODE_ENV: ${NODE_ENV:-production}
+        NODE_ENV: ${NODE_ENV:?}
+        DOCKER_TAG: ${DOCKER_TAG:?}
+        DOCKER_VERSION: ${DOCKER_VERSION:?}
+        DOCKER_TARGET: ${DOCKER_TARGET:?}
       cache_from:
         - type=gha
       cache_to:
