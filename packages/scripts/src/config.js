@@ -1,5 +1,7 @@
 import { fileURLToPath } from "node:url";
-import { path, chalk } from "zx";
+import { path, chalk, $ } from "zx";
+
+import { parseEnv } from "./parse-env.js";
 
 chalk.level = 2;
 
@@ -8,14 +10,16 @@ const __dirname = path.dirname(__filename);
 
 const root = path.resolve(__dirname, "..", "..", "..");
 
+$.cwd = root;
+
 const envFile = path.resolve(root, ".env");
+
+const env = parseEnv(envFile, process.env);
 
 export default {
   __filename,
   __dirname,
   root,
   envFile,
-  env: {
-    ...process.env,
-  },
+  env,
 };

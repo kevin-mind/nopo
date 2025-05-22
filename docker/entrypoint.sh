@@ -9,8 +9,8 @@
 set -xueo pipefail
 
 if [[ $(id -u) -ne 0 ]]; then
-  exec "$@"
-  exit $?
+  echo "This must be run as root"
+  exit 1
 fi
 
 USER_NAME="nodeuser"
@@ -22,7 +22,7 @@ if [[ "${TARGET_UID}" != "${USER_UID}" ]]; then
   usermod -u "${TARGET_UID}" -o "${USER_NAME}"
 fi
 
+echo "Running *@"
 cat <<EOF | su -s /bin/bash ${USER_NAME}
-  echo "running $@"
   $@
 EOF

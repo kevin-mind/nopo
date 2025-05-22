@@ -22,7 +22,6 @@ update_lockfile:
 install_lockfile:
 	pnpm npm:no:offline pnpm install --frozen-lockfile --config.confirmModulesPurge=false
 
-
 .PHONY: clean
 clean:
 	pnpm clean $(REST_ARGS)
@@ -43,16 +42,20 @@ test:
 env:
 	pnpm run script env
 
+.PHONY: image
+image:
+	pnpm run script image
+
 .PHONY: exec
 exec:
 	$(DOCKER_COMPOSE) exec $(DOCKER_SERVICE) $(REST_ARGS)
 
 .PHONY: shell
-shell: env
+shell: image
 	$(DOCKER_COMPOSE) run --rm --entrypoint /bin/bash --user nodeuser $(DOCKER_SERVICE)
 
 .PHONY: up
-up: env
+up: image
 	pnpm run script up
 
 .PHONY: down

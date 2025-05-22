@@ -11,7 +11,9 @@
     "clean": "exit 0",
     "format": "exit 0",
     "lint": "exit 0",
-    "test": "exit 0"
+    "test": "exit 0",
+    "dev": "sleep infinity",
+    "start": "sleep infinity"
   },
   "devDependencies": {
     "@more/configs": "workspace:*",

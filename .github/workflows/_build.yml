@@ -86,21 +86,18 @@ jobs:
 
       - name: Build and push
         id: build
-        if: ${{ inputs.push }}
         uses: docker/bake-action@v6
         with:
           builder: ${{ steps.docker.outputs.builder }}
           targets: base
           files: |
             cwd://docker-compose.yml
-            cwd://docker-bake.hcl
             cwd://.env
             cwd://${{ steps.docker_meta.outputs.bake-file-tags }}
             cwd://${{ steps.docker_meta.outputs.bake-file-labels }}
           push: ${{ inputs.push }}
 
       - name: Extract build digest
-        if: ${{ inputs.push }}
         id: digest
         run: |
           cat <<EOF > metadata.json

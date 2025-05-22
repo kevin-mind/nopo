@@ -1,61 +1,16 @@
 import compose from "docker-compose";
 
-import { parseEnv } from "../parse-env.js";
-
 export default async function main(config) {
-  const env = parseEnv(config.envFile);
-  const promises = [];
-
-  const {
-    data: {
-      config: { services },
-    },
-  } = await compose.config({
+  const { data } = await compose.config({
     cwd: config.cwd,
     env: {
       ...process.env,
-      ...env,
+      ...config.env.data,
     },
   });
-  const remoteServices = [];
-  const localServices = [];
-
-  for (let [name, service] of Object.entries(services)) {
-    if (service.image === env.DOCKER_TAG) {
-      localServices.push(name);
-    } else {
-      remoteServices.push(name);
-    }
-  }
-
-  if (!env.DOCKER_REGISTRY) {
-    promises.push(
-      compose.buildOne("base", {
-        log: true,
-        env: {
-          ...process.env,
-          ...env,
-          COMPOSE_BAKE: true,
-        },
-      }),
-    );
-  } else {
-    promises.push(
-      compose.pullOne("base", {
-        log: true,
-      }),
-    );
-  }
-
-  promises.push(compose.pullMany(remoteServices, { log: true }));
-
-  const results = await Promise.allSettled(promises);
-
-  for (const result of results) {
-    if (result.status === "rejected") {
-      throw new Error(result.reason.err);
-    }
-  }
+  const localServices = Object.entries(data.config.services)
+    .filter(([, service]) => service.image === config.env.DOCKER_TAG)
+    .map(([name]) => name);
 
   await compose.downMany(localServices, {
     log: true,
@@ -63,7 +18,7 @@ export default async function main(config) {
   });
   await compose.upAll({
     log: true,
-    commandOptions: ["--remove-orphans", "-d"],
+    commandOptions: ["--remove-orphans", "-d", "--no-build"],
   });
   await compose.rm({
     log: true,
