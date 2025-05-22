@@ -2,7 +2,7 @@ export FORCE_COLOR = 1
 export NPM_FORCE_COLOR = 1
 export DOCKER_BUILDKIT = 1
 export DOCKER_BUILDKIT_PROGRESS = auto
-export DOCKER_BUILDKIT_METADATA_FILE ?= build-metadata.json
+export COMPOSE_BAKE=true
 
 DOCKER_SERVICE ?= base
 REST_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
@@ -21,7 +21,6 @@ update_lockfile:
 .PHONY: install_lockfile
 install_lockfile:
 	pnpm npm:no:offline pnpm install --frozen-lockfile --config.confirmModulesPurge=false
-
 
 .PHONY: clean
 clean:
@@ -43,30 +42,21 @@ test:
 env:
 	pnpm run script env
 
-.PHONY: build
-build: env
-	$(DOCKER) buildx bake base \
-		--file docker-compose.yml \
-		--load \
-		--progress=$(DOCKER_BUILDKIT_PROGRESS) \
-		--metadata-file $(DOCKER_BUILDKIT_METADATA_FILE) \
-		$(REST_ARGS)
+.PHONY: image
+image:
+	pnpm run script image
 
 .PHONY: exec
 exec:
 	$(DOCKER_COMPOSE) exec $(DOCKER_SERVICE) $(REST_ARGS)
 
 .PHONY: shell
-shell: env
+shell: image
 	$(DOCKER_COMPOSE) run --rm --entrypoint /bin/bash --user nodeuser $(DOCKER_SERVICE)
 
-.PHONY: start
-start:
-	$(DOCKER_COMPOSE) up -d --remove-orphans $(REST_ARGS)
-	$(DOCKER_COMPOSE) rm -f
-
 .PHONY: up
-up: env start
+up: image
+	pnpm run script up
 
 .PHONY: down
 down:

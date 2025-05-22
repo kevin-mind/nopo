@@ -4,11 +4,6 @@ ARG USER=nodeuser
 FROM node:20-slim AS base
 ################################################################################################
 
-# Specify the custom entrypoint for the container
-COPY docker/entrypoint.sh /
-RUN chmod 555 /entrypoint.sh
-ENTRYPOINT [ "/entrypoint.sh" ]
-
 ARG USER
 ARG NODE_ENV=production
 
@@ -58,6 +53,7 @@ cat <<INNEREOF > ${BUILD_INFO}
 INNEREOF
 # Set permissions to make the file readable by all but only writable by root
 chmod 644 ${BUILD_INFO}
+cat ${BUILD_INFO}
 EOF
 
 FROM base AS user
@@ -77,6 +73,11 @@ EOF
 WORKDIR $APP
 
 USER $USER
+
+FROM user AS runner
+
+COPY docker/cmd.sh /cmd.sh
+CMD ["/cmd.sh"]
 
 ################################################################################################
 FROM base AS source
@@ -110,16 +111,16 @@ pnpm build
 EOF
 
 ################################################################################################
-FROM user AS development
+FROM runner AS development
 ################################################################################################
 COPY --from=info ${BUILD_INFO} ${BUILD_INFO}
 COPY --from=install --chown=$USER $DEPS $DEPS
 COPY --from=source --chown=$USER $APP $APP
 
-CMD pnpm --filter "@more/${SERVICE_NAME}" dev
+ENV SERVICE_COMMAND="dev"
 
 ################################################################################################
-FROM user AS production
+FROM runner AS production
 ################################################################################################
 COPY --from=info ${BUILD_INFO} ${BUILD_INFO}
 COPY --from=install --chown=$USER $DEPS $DEPS
@@ -127,5 +128,4 @@ COPY --from=build --chown=$USER $APP $APP
 
 RUN pnpm install --prod --config.confirmModulesPurge=false
 
-CMD pnpm --filter "@more/${SERVICE_NAME}" start
-
+ENV SERVICE_COMMAND="start"

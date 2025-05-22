@@ -87,8 +87,47 @@ function resolveTag(fileEnv, processEnv) {
   }
 }
 
-export function parseEnv(envFilePath, processEnv = {}) {
-  const fileEnv = fs.existsSync(envFilePath) ? dotenv.load(envFilePath) : {};
+function diffEnv(env) {
+  const colors = {
+    added: chalk.magenta,
+    updated: chalk.yellow,
+    unchanged: chalk.white,
+    background: chalk.gray,
+  };
+
+  const { hasPrevEnv } = env.meta;
+  const action = hasPrevEnv ? "Updated" : "Created";
+  const actionColor = hasPrevEnv ? colors.updated : colors.added;
+  const title = `${action}: ${actionColor(env.meta.path)}`;
+  const breakLine = chalk.gray(Array(title.length).fill("-").join(""));
+
+  console.log(title);
+  console.log(breakLine);
+  Object.entries(colors).forEach(([key, color]) => {
+    if (key === "background") return;
+    console.log(`${colors.background(key)}: ${color(key)}`);
+  });
+  console.log(breakLine);
+
+  for (const [key, value] of Object.entries(env.data)) {
+    let color = colors.unchanged;
+    if (!env.meta.prevEnv[key]) {
+      color = colors.added;
+    } else if (env.meta.prevEnv[key] !== value) {
+      color = colors.updated;
+    }
+    const text = `${colors.background(key)}=${color(value)}`;
+    console.log(text);
+  }
+}
+
+export function parseEnv(
+  envFilePath = undefined,
+  processEnv = {},
+  logDiff = true,
+) {
+  const hasPrevEnv = fs.existsSync(envFilePath);
+  const fileEnv = hasPrevEnv ? dotenv.load(envFilePath) : {};
 
   let {
     parsed: { registry, image, version, digest },
@@ -156,7 +195,31 @@ export function parseEnv(envFilePath, processEnv = {}) {
     },
     baseSchema,
   );
-  return Object.fromEntries(
-    Object.entries(finalEnv).filter(([, value]) => value !== undefined),
-  );
+
+  const sortedEnv = Object.entries(finalEnv)
+    .filter(([, value]) => !!value)
+    .sort((a, b) => a[0].localeCompare(b[0]));
+
+  const sortedEnvString = sortedEnv
+    .map(([key, value]) => `${key}="${value}"`)
+    .join("\n");
+
+  if (envFilePath) {
+    fs.writeFileSync(envFilePath, sortedEnvString);
+  }
+
+  const result = {
+    data: finalEnv,
+    meta: {
+      isLocal,
+      prevEnv: fileEnv,
+      path: envFilePath,
+    },
+  };
+
+  if (logDiff) {
+    diffEnv(result);
+  }
+
+  return result;
 }

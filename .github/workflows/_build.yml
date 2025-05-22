@@ -87,17 +87,12 @@ jobs:
       - name: Build and push
         id: build
         uses: docker/bake-action@v6
-        env:
-          NODE_ENV: ${{ steps.input_tag.outputs.node_env }}
-          DOCKER_TAG: ${{ steps.input_tag.outputs.tag }}
-          DOCKER_VERSION: ${{ steps.input_tag.outputs.version }}
-          DOCKER_TARGET: ${{ steps.input_tag.outputs.target }}
-
         with:
           builder: ${{ steps.docker.outputs.builder }}
           targets: base
           files: |
-            docker-compose.yml
+            cwd://docker-compose.yml
+            cwd://.env
             cwd://${{ steps.docker_meta.outputs.bake-file-tags }}
             cwd://${{ steps.docker_meta.outputs.bake-file-labels }}
           push: ${{ inputs.push }}
@@ -105,14 +100,10 @@ jobs:
       - name: Extract build digest
         id: digest
         run: |
-          digest=""
-
-          if [[ "${{ inputs.push }}" == "true" ]]; then
           cat <<EOF > metadata.json
           ${{ steps.build.outputs.metadata }}
           EOF
           digest=$(cat metadata.json | jq -r '.base."containerimage.digest"')
-          fi
 
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
           cat "$GITHUB_OUTPUT"
@@ -125,4 +116,4 @@ jobs:
           image: ${{ steps.input_tag.outputs.image }}
           version: ${{ steps.input_tag.outputs.version }}
           # Add the digest to the output tag so we can easily pull the exact build later.
-          digest: ${{ steps.digest.outputs.digest }}
+          digest: ${{ inputs.push && steps.digest.outputs.digest || '' }}

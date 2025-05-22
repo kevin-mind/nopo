@@ -1,24 +1,14 @@
 services:
   base:
     image: "${DOCKER_TAG:?}"
+    pull_policy: never
     user: root
+    entrypoint: ["/entrypoint.sh"]
+    command: ["/cmd.sh"]
     env_file:
       - path: ../.env
         required: false
     platform: linux/amd64
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-      target: ${DOCKER_TARGET:?}
-      args:
-        NODE_ENV: ${NODE_ENV:?}
-        DOCKER_TAG: ${DOCKER_TAG:?}
-        DOCKER_VERSION: ${DOCKER_VERSION:?}
-        DOCKER_TARGET: ${DOCKER_TARGET:?}
-      cache_from:
-        - type=gha
-      cache_to:
-        - type=gha,mode=max
     volumes:
       - ..:/app:cached
       - ./entrypoint.sh:/entrypoint.sh
@@ -26,6 +16,23 @@ services:
       - CHOKIDAR_USEPOLLING=true
       - NODE_ENV
       - HOST_UID
+
+  base_builder:
+    extends: base
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        NODE_ENV: "${NODE_ENV:?}"
+        DOCKER_TAG: "${DOCKER_TAG:?}"
+        DOCKER_VERSION: "${DOCKER_VERSION:?}"
+        DOCKER_TARGET: "${DOCKER_TARGET:?}"
+      cache_from:
+        - type=gha
+      cache_to:
+        - type=gha,mode=max
+      pull: true
+      target: "${DOCKER_TARGET}"
 
   base_service:
     extends: base

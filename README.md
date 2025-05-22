@@ -24,8 +24,8 @@ make up
 - [X] add github actions for CI
 - [X] setup deployment on fly.io
 - [X] add codespaces support
-- [ ] add version endpoint and UI badge
-- [ ] add health check in deployment to verify deployed
+- [X] add version endpoint and UI badge
+- [X] add health check in deployment to verify deployed
 - [ ] add smoketest via playwright
 - [ ] add post deploy push of latest image and release document
 - [ ] add PR deployment

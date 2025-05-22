@@ -2,7 +2,7 @@ services:
   base:
     extends:
       file: docker/docker-compose.base.yml
-      service: base
+      service: base_builder
     command:
       - /sync-host.sh
     volumes:
