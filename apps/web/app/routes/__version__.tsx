@@ -4,6 +4,7 @@ import { z } from "zod";
 const schema = z.object({
   commit: z.string(),
   version: z.string(),
+  tag: z.string(),
   build: z.string(),
   target: z.string(),
   source: z.string(),
