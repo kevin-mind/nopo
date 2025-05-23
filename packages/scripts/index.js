@@ -1,24 +1,20 @@
-import { minimist, chalk } from "zx";
+import { minimist, chalk, glob } from "zx";
 
-import env from "./src/scripts/env.js";
-import image from "./src/scripts/image.js";
-import status from "./src/scripts/status.js";
-import up from "./src/scripts/up.js";
-
+import { Runner } from "./src/lib.js";
 import config from "./src/config.js";
 
-const availableScripts = {
-  env,
-  image,
-  status,
-  up,
-};
+const scripts = glob.sync("./src/scripts/*.js")
+  .reduce((acc, path) => {
+    const name = path.split("/").pop().split(".").shift();
+    acc[name] = path;
+    return acc;
+  }, {});
 
 function printHelp(message, exitCode = 1) {
   const color = exitCode === 0 ? chalk.green : chalk.red;
   console.log(color(message));
   console.log(chalk.yellow("Available commands:"));
-  console.log(chalk.yellow(Object.keys(availableScripts).join("\n")));
+  console.log(chalk.yellow(Object.keys(scripts).join("\n")));
   return process.exit(exitCode);
 }
 
@@ -35,18 +31,15 @@ export default async function main() {
     return printHelp("No script provided", 1);
   }
 
-  const script = availableScripts[command];
-
-  if (!script) {
+  const scriptPath = scripts[command];
+  if (!scriptPath) {
     return printHelp(`Command ${command} not found.`, 1);
   }
 
-  if (!script || typeof script !== "function") {
-    console.error(`Command ${command} is not a function`);
-    process.exit(1);
-  }
+  const { default: script } = await import(scriptPath);
 
-  script(config);
+  const runner = new Runner();
+  await runner.run(script, config);
 }
 
 main();

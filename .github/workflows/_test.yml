@@ -29,25 +29,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
+      - uses: ./.github/actions/setup-node
 
       - name: Set up Docker
         uses: ./.github/actions/setup-docker
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Docker Tag
         id: docker_tag
         uses: ./.github/actions/docker-tag
         with:
           tag: ${{ inputs.tag }}
-
-      - name: Login Docker
-        if: ${{ steps.docker_tag.outputs.version != 'local' }}
-        uses: ./.github/actions/login-docker
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Up
         run: make up DOCKER_TAG="${{ steps.docker_tag.outputs.tag }}"

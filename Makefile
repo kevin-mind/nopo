@@ -51,11 +51,11 @@ exec:
 	$(DOCKER_COMPOSE) exec $(DOCKER_SERVICE) $(REST_ARGS)
 
 .PHONY: shell
-shell: image
+shell:
 	$(DOCKER_COMPOSE) run --rm --entrypoint /bin/bash --user nodeuser $(DOCKER_SERVICE)
 
 .PHONY: up
-up: image
+up:
 	pnpm run script up
 
 .PHONY: down

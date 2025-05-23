@@ -1,225 +1,131 @@
-import { parseEnv as znvParseEnv, z } from "znv";
-import { fs, chalk, dotenv, $ } from "zx";
+import { z } from "zod";
+import { fs, dotenv } from "zx";
 
 import { DockerTag } from "./docker-tag.js";
 
-async function gitRepoName() {
-  let org = "base";
-  let repo = "repo";
-  try {
-    const urlString = await $`git config --get remote.origin.url`
-      .quiet()
-      .text();
-    const url = new URL(urlString);
-    const repoRegex = /^\/(?<org>[^/]+)\/(?<repo>[^/]+)\.git$/;
-    const match = url.pathname.match(repoRegex);
-    if (!match) {
-      throw new Error("Could not determine git repo name");
-    }
-    org = match.groups.org;
-    repo = match.groups.repo;
-  } catch (e) {
-    console.log(e);
+const nodeEnv = z.enum(['development', 'production']);
+const dockerTarget = nodeEnv.or(z.enum(['base', 'build']));
+
+export class ParseEnv {
+  constructor(envFile, processEnv = {}) {
+    this.envFile = envFile;
+    this.processEnv = processEnv;
+    this.hasPrevEnv = fs.existsSync(this.envFile);
+    this.prevEnv = this.#getPrevEnv();
+    this.env = this.#getCurrEnv();
+    this.diff = this.#diff();
   }
-  return { org, repo };
-}
 
-const { org, repo } = await gitRepoName();
-const baseTag = new DockerTag(`${org}/${repo}:local`);
+  baseTag = new DockerTag('kevin-mind/nopo:local');
 
-const envParser = z.enum(["base", "build", "development", "production"]);
-
-const baseSchema = {
-  DOCKER_DIGEST: z.string(),
-  DOCKER_IMAGE: z.string(),
-  DOCKER_REGISTRY: z.string(),
-  DOCKER_TAG: z.string(),
-  DOCKER_TARGET: envParser,
-  DOCKER_VERSION: z.string(),
-  NODE_ENV: envParser,
-  HOST_UID: z.string().default(process.getuid().toString()),
-};
-
-const schema = z.object(baseSchema).superRefine((data, ctx) => {
-  const actualTag = new DockerTag(data.DOCKER_TAG);
-  const computedTag = new DockerTag({
-    registry: data.DOCKER_REGISTRY,
-    image: data.DOCKER_IMAGE,
-    version: data.DOCKER_VERSION,
-    digest: data.DOCKER_DIGEST,
+  schema = z.object({
+    DOCKER_TAG: z.string(),
+    DOCKER_REGISTRY: z.string(),
+    DOCKER_IMAGE: z.string(),
+    DOCKER_VERSION: z.string(),
+    DOCKER_DIGEST: z.string(),
+    DOCKER_TARGET: dockerTarget,
+    NODE_ENV: nodeEnv,
+    HOST_UID: z.string().default(process.getuid().toString()),
   });
 
-  if (actualTag.fullTag !== computedTag.fullTag) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: `Invalid image tag: ${data.DOCKER_TAG} (expected ${computedTag.fullTag})`,
-    });
+  parse(env) {
+    return this.schema.parse(env);
   }
-});
 
-function resolveTag(fileEnv, processEnv) {
-  // Resolve the tag in a prioritized order:
-
-  // Highest priority is a fully formed tag on the environment.
-  if (processEnv.DOCKER_TAG) {
-    return new DockerTag(processEnv.DOCKER_TAG);
-    // Next is tag components on the environment. At least an image and version
-  } else if (processEnv.DOCKER_IMAGE && processEnv.DOCKER_VERSION) {
-    return new DockerTag({
-      registry: processEnv.DOCKER_REGISTRY,
-      image: processEnv.DOCKER_IMAGE,
-      version: processEnv.DOCKER_VERSION,
-      digest: processEnv.DOCKER_DIGEST,
-    });
-    // Next is a fully formed tag on the file.
-  } else if (fileEnv.DOCKER_TAG) {
-    return new DockerTag(fileEnv.DOCKER_TAG);
-    // Next is a tag components on the file. At least an image and version.
-  } else if (fileEnv.DOCKER_IMAGE && fileEnv.DOCKER_VERSION) {
-    return new DockerTag({
-      registry: fileEnv.DOCKER_REGISTRY,
-      image: fileEnv.DOCKER_IMAGE,
-      version: fileEnv.DOCKER_VERSION,
-    });
-    // Finally, fall back to the base tag.
-  } else {
-    return baseTag;
+  #getPrevEnv() {
+    return this.hasPrevEnv ? dotenv.load(this.envFile) : {};
   }
-}
 
-function diffEnv(env) {
-  const colors = {
-    added: chalk.magenta,
-    updated: chalk.yellow,
-    unchanged: chalk.white,
-    background: chalk.gray,
-  };
+  #getCurrEnv() {
+    const inputEnv = { ...this.prevEnv, ...this.processEnv };
+    const { parsed, fullTag } = new DockerTag(inputEnv.DOCKER_TAG);
+    let { registry, image, version, digest } = parsed;
 
-  const { hasPrevEnv } = env.meta;
-  const action = hasPrevEnv ? "Updated" : "Created";
-  const actionColor = hasPrevEnv ? colors.updated : colors.added;
-  const title = `${action}: ${actionColor(env.meta.path)}`;
-  const breakLine = chalk.gray(Array(title.length).fill("-").join(""));
-
-  console.log(title);
-  console.log(breakLine);
-  Object.entries(colors).forEach(([key, color]) => {
-    if (key === "background") return;
-    console.log(`${colors.background(key)}: ${color(key)}`);
-  });
-  console.log(breakLine);
-
-  for (const [key, value] of Object.entries(env.data)) {
-    let color = colors.unchanged;
-    if (!env.meta.prevEnv[key]) {
-      color = colors.added;
-    } else if (env.meta.prevEnv[key] !== value) {
-      color = colors.updated;
+    if (
+      image &&
+      !version &&
+      !digest &&
+      !image.includes(":") &&
+      !image.includes("@")
+    ) {
+      version = image;
+      image = this.baseTag.parsed.image;
+    } else if (image && !version && digest && !image.includes(":")) {
+      version = image;
+      image = this.baseTag.parsed.image;
     }
-    const text = `${colors.background(key)}=${color(value)}`;
-    console.log(text);
-  }
-}
 
-export function parseEnv(
-  envFilePath = undefined,
-  processEnv = {},
-  logDiff = true,
-) {
-  const hasPrevEnv = fs.existsSync(envFilePath);
-  const fileEnv = hasPrevEnv ? dotenv.load(envFilePath) : {};
-
-  let {
-    parsed: { registry, image, version, digest },
-    fullTag,
-  } = resolveTag(fileEnv, processEnv);
-
-  if (
-    image &&
-    !version &&
-    !digest &&
-    !image.includes(":") &&
-    !image.includes("@")
-  ) {
-    version = image;
-    image = baseTag.parsed.image;
-  } else if (image && !version && digest && !image.includes(":")) {
-    version = image;
-    image = baseTag.parsed.image;
-  }
-
-  if (digest && !version) {
-    throw new Error(
-      `Invalid image tag: ${fullTag} (when specifying a digest, a version is required)`,
-    );
-  }
-
-  if (!registry) {
-    registry = baseTag.parsed.registry;
-  }
-
-  const inputEnv = { ...fileEnv, ...processEnv };
-  const isLocal = version === baseTag.parsed.version;
-  const defaultTarget = isLocal ? "development" : "production";
-
-  for (const key of ["DOCKER_TARGET", "NODE_ENV"]) {
-    let current = inputEnv[key];
-    const isMissing = !current;
-    const isWrong = !isLocal && current !== defaultTarget;
-    if (isMissing || isWrong) {
-      inputEnv[key] = defaultTarget;
-      const action = isMissing ? "Adding" : "Forcing";
-      const local = isLocal ? "local" : "non-local";
-      console.log(
-        chalk.yellow(
-          `${action} "${key}" to "${defaultTarget}" on ${local} image ${fullTag}`,
-        ),
+    if (digest && !version) {
+      throw new Error(
+        `Invalid image tag: ${fullTag} (when specifying a digest, a version is required)`,
       );
     }
+
+    if (!registry) {
+      registry = this.baseTag.parsed.registry;
+    }
+
+    const isLocal = version === 'local';
+    const defaultTarget = isLocal ? "development" : "production";
+
+    for (const key of ["DOCKER_TARGET", "NODE_ENV"]) {
+      let current = inputEnv[key];
+      const isMissing = !current;
+      const isWrong = !isLocal && current !== defaultTarget;
+      if (isMissing || isWrong) {
+        inputEnv[key] = defaultTarget;
+      }
+    }
+
+    return this.parse({
+      DOCKER_TAG: new DockerTag({registry, image, version, digest}).fullTag,
+      DOCKER_REGISTRY: registry,
+      DOCKER_IMAGE: image,
+      DOCKER_VERSION: version,
+      DOCKER_DIGEST: digest,
+      NODE_ENV: inputEnv.NODE_ENV,
+      DOCKER_TARGET: inputEnv.DOCKER_TARGET,
+    });
+
   }
 
-  const env = schema.parse({
-    DOCKER_TAG: DockerTag.stringify({ registry, image, version, digest }),
-    DOCKER_REGISTRY: registry,
-    DOCKER_IMAGE: image,
-    DOCKER_VERSION: version,
-    DOCKER_DIGEST: digest,
-    NODE_ENV: inputEnv.NODE_ENV,
-    DOCKER_TARGET: inputEnv.DOCKER_TARGET,
-  });
+  #diff() {
+    const result = {
+      added: [],
+      updated: [],
+      removed: [],
+      unchanged: [],
+    };
 
-  const finalEnv = znvParseEnv(
-    {
-      ...inputEnv,
-      ...env,
-    },
-    baseSchema,
-  );
+    const keys = Object.keys(this.schema.shape);
 
-  const sortedEnv = Object.entries(finalEnv)
-    .filter(([, value]) => !!value)
-    .sort((a, b) => a[0].localeCompare(b[0]));
+    for (const key of keys) {
+      const prevValue = this.prevEnv[key];
+      const currValue = this.env[key];
 
-  const sortedEnvString = sortedEnv
-    .map(([key, value]) => `${key}="${value}"`)
-    .join("\n");
-
-  if (envFilePath) {
-    fs.writeFileSync(envFilePath, sortedEnvString);
+      if (!prevValue && currValue) {
+        result.added.push([key, currValue]);
+      } else if (prevValue && !currValue) {
+        result.removed.push([key, prevValue]);
+      } else if (currValue && prevValue !== currValue) {
+        result.updated.push([key, currValue]);
+      } else {
+        result.unchanged.push([key, currValue]);
+      }
+    }
+    return result;
   }
 
-  const result = {
-    data: finalEnv,
-    meta: {
-      isLocal,
-      prevEnv: fileEnv,
-      path: envFilePath,
-    },
-  };
+  save() {
+    const sortedEnv = Object.entries(this.env)
+      .filter(([, value]) => !!value)
+      .sort((a, b) => a[0].localeCompare(b[0]));
 
-  if (logDiff) {
-    diffEnv(result);
+    const sortedEnvString = sortedEnv
+      .map(([key, value]) => `${key}="${value}"`)
+      .join("\n");
+
+    fs.writeFileSync(this.envFile, sortedEnvString);
   }
-
-  return result;
 }

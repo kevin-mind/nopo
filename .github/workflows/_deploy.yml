@@ -3,9 +3,13 @@ name: Deploy
 on:
   workflow_dispatch:
     inputs:
-      tag:
-        description: 'The tag to deploy'
+      version:
+        description: 'The version to deploy'
         required: true
+        type: string
+      digest:
+        description: 'The digest to deploy'
+        required: false
         type: string
       service:
         description: 'The service to deploy'
@@ -23,9 +27,13 @@ on:
 
   workflow_call:
     inputs:
-      tag:
-        description: 'The tag to deploy'
+      version:
+        description: 'The version to deploy'
         required: true
+        type: string
+      digest:
+        description: 'The digest to deploy'
+        required: false
         type: string
       service:
         description: 'The service to deploy'
@@ -68,16 +76,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
+      - uses: ./.github/actions/setup-node
+
+      - uses: ./.github/actions/setup-docker
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Pull Tag
+      # TODO: we need to modify docker-tag to stitch together the components if provided.
+      # OR maybe have to friggin put that back into the parser somehow... I hate it.
         id: pull_tag
         uses: ./.github/actions/docker-tag
         with:
           registry: ghcr.io
           image: ${{ github.repository }}
-          tag: ${{ inputs.tag }}
+          version: ${{ inputs.version }}
+          digest: ${{ inputs.digest }}
 
       - name: Push Tag
         id: push_tag
@@ -87,24 +106,6 @@ jobs:
           image: ${{ vars.APP_NAME }}
           version: ${{ steps.pull_tag.outputs.version }}
 
-      - name: Login Docker
-        uses: ./.github/actions/login-docker
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Pull image
-        run: |
-          docker pull ${{ steps.pull_tag.outputs.tag }}
-
-      - name: Tag image
-        run: |
-          docker tag ${{ steps.pull_tag.outputs.tag }} ${{ steps.push_tag.outputs.tag }}
-
-      - name: Setup Flyctl
-        uses: superfly/flyctl-actions/setup-flyctl@master
-
       - name: Login to Fly
         run: flyctl auth docker
         env:
@@ -112,7 +113,12 @@ jobs:
 
       - name: Push image
         run: |
-          docker push ${{ steps.push_tag.outputs.tag }}
+          pull_tag="${{ steps.pull_tag.outputs.tag }}"
+          push_tag="${{ steps.push_tag.outputs.tag }}"
+
+          docker pull $pull_tag
+          docker tag $pull_tag $push_tag
+          docker push $push_tag
 
       - name: Rollback Metadata
         id: rollback_meta
@@ -142,11 +148,11 @@ jobs:
           echo "Waiting for deployment to be ready"
 
           while $waiting; do
-            version=$(curl -s --max-time 30 ${url} | jq -r '.version // empty' || echo "")
-            if [ "$version" = "${{ steps.push_tag.outputs.version }}" ]; then
+            tag=$(curl -s --max-time 30 ${url} | jq -r '.tag // empty' || echo "")
+            if [ "$tag" = "${{ steps.push_tag.outputs.tag }}" ]; then
               waiting=false
             else
-              echo "Version '${version}' does not match '${{ steps.push_tag.outputs.version }}'"
+              echo "Tag '${tag}' does not match '${{ steps.push_tag.outputs.tag }}'"
               sleep "${wait_time}"
             fi
           done
