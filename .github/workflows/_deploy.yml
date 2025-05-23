@@ -18,11 +18,6 @@ on:
         options:
           - stage
           - prod
-      dry:
-        description: 'Whether to run the deployment in dry-run mode'
-        required: false
-        type: boolean
-        default: true
 
   workflow_call:
     inputs:
@@ -38,11 +33,14 @@ on:
         description: 'The environment to deploy to'
         required: true
         type: string
-      dry:
-        description: 'Whether to run the deployment in dry-run mode'
-        required: false
-        type: boolean
-        default: false
+
+    outputs:
+      deploy_tag:
+        description: the tag that was (attempted to be) deployed
+        value: ${{ jobs.deploy.outputs.push_tag }}
+      rollback:
+        description: The JSON output from the /__version__ endpoint of the previous deployment
+        value: ${{ jobs.deploy.outputs.rollback_meta }}
 
 permissions: {}
 
@@ -51,69 +49,27 @@ defaults:
     shell: bash
 
 concurrency:
-  group: ${{ github.workflow }}-deploy
+  group: |
+    ${{ github.workflow }}-
+    deploy-
+    ${{ inputs.environment }}-
+    ${{ inputs.tag }}-
+    ${{ inputs.service }}
   cancel-in-progress: true
 
 jobs:
-  # The deployment process is repeated for all environments.
-  # 1) pull the image from ghcr
-  # 2) tag the image with the environment name
-  # 3) push the image to the environment's container registry
-  # 4) wait for the environment to have the image running
-  # 5) run the smoke tests on the environment
-  # 6) update the latest image for the environment container registry
-  # 7) wait for approval to continue based on the environment protection rules.
-  context:
-    runs-on: ubuntu-latest
-    outputs:
-      dry: ${{ steps.context.outputs.dry }}
-      environment: ${{ steps.context.outputs.environment }}
-      service: ${{ steps.context.outputs.service }}
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Context
-        id: context
-        run: |
-          echo "dry=${{ inputs.dry }}" >> "$GITHUB_OUTPUT"
-          echo "environment=${{ inputs.environment }}" >> "$GITHUB_OUTPUT"
-          echo "service=${{ inputs.service }}" >> "$GITHUB_OUTPUT"
-          cat "$GITHUB_OUTPUT"
-
-
-  dry_approve:
-    needs: context
-    runs-on: ubuntu-latest
-    name: approve
-    if: ${{ needs.context.outputs.dry == 'true' }}
-    steps:
-      - name: Wait for approval
-        run: echo "Approving dry run"
-
   deploy:
-    needs: context
     runs-on: ubuntu-latest
-    environment: ${{ needs.context.outputs.environment }}
-    if: ${{ needs.context.outputs.dry == 'false' }}
+    environment: ${{ inputs.environment }}
     outputs:
       pull_tag: ${{ steps.pull_tag.outputs.tag }}
       push_tag: ${{ steps.push_tag.outputs.tag }}
-      previous_version: ${{ steps.previous_version.outputs.version }}
+      rollback_meta: ${{ steps.rollback_meta.outputs.json }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-
-      - name: Previous Version
-        id: previous_version
-        run: |
-          public_url="${{ vars.APP_PUBLIC_URL }}"
-          url="${public_url}/__version__"
-          version=$(curl -s --max-time 30 ${url} | jq -r '.version // empty' || echo "")
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
-          cat "$GITHUB_OUTPUT"
 
       - name: Pull Tag
         id: pull_tag
@@ -156,12 +112,21 @@ jobs:
         run: |
           docker push ${{ steps.push_tag.outputs.tag }}
 
+      - name: Rollback Metadata
+        id: rollback_meta
+        run: |
+          public_url="${{ vars.APP_PUBLIC_URL }}"
+          url="${public_url}/__version__"
+          json=$(curl -s --max-time 30 ${url})
+          echo "json=${json}" >> "$GITHUB_OUTPUT"
+          cat "$GITHUB_OUTPUT"
+
       - name: Deploy to Fly
         run: |
           flyctl deploy \
             --config docker/fly-${{ vars.APP_NAME }}.toml \
             --image "${{ steps.push_tag.outputs.tag }}" \
-            --env SERVICE_NAME="${{ needs.context.outputs.service }}"
+            --env SERVICE_NAME="${{ inputs.service }}"
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
       - name: Wait for deployment
@@ -189,35 +154,11 @@ jobs:
         run: |
           echo "Running smoke test"
 
-  rollback:
-    needs: [context, deploy]
-    runs-on: ubuntu-latest
-    if: ${{ always() && needs.deploy.result == 'failure' }}
-    steps:
-      - name: Should rollback?
-        run: |
-          public_url="${{ vars.APP_PUBLIC_URL }}"
-          url="${public_url}/__version__"
-          current_version=$(curl -s ${url} | jq -r '.version // empty' || echo "")
-          previous_version="${{ needs.deploy.outputs.previous_version }}"
-          push_tag="${{ needs.deploy.outputs.push_tag }}"
-
-          if [[ "$current_version" == "${push_tag}" ]]; then
-            echo "Deployed version is failing for some reason"
-            echo "========================================"
-            echo "To rollback to previous version, trigger a deployment with: "
-            echo "- tag=${previous_version}"
-            echo "- service=${{ needs.context.outputs.service }}"
-            echo "- environment=${{ needs.context.outputs.environment }}"
-            echo "- dry=false"
-          fi
-
   approve:
     if: ${{ always() && needs.deploy.result == 'success' }}
-    needs: [context, deploy]
-    name: approve
+    needs: [deploy]
     runs-on: ubuntu-latest
-    environment: ${{ needs.context.outputs.environment }}
+    environment: ${{ inputs.environment }}
     steps:
       - name: Wait for approval
         run: echo "Waiting for approval"

@@ -1,0 +1,11 @@
+name: Setup Node (pnpm)
+description: Setup Node and pnpm
+
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@v4
+
+    - uses: actions/setup-node@v4
+      with:
+        cache: 'pnpm'
