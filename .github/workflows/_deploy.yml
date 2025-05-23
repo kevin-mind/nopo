@@ -10,7 +10,9 @@ on:
       service:
         description: 'The service to deploy'
         required: true
-        type: string
+        type: choice
+        options:
+          - web
       environment:
         description: 'The environment to deploy to'
         required: true
@@ -73,6 +75,8 @@ jobs:
         id: pull_tag
         uses: ./.github/actions/docker-tag
         with:
+          registry: ghcr.io
+          image: ${{ github.repository }}
           tag: ${{ inputs.tag }}
 
       - name: Push Tag
