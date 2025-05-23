@@ -50,10 +50,8 @@ defaults:
 
 concurrency:
   group: |
-    ${{ github.workflow }}-
     deploy-
     ${{ inputs.environment }}-
-    ${{ inputs.tag }}-
     ${{ inputs.service }}
   cancel-in-progress: true
 
