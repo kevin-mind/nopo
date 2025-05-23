@@ -85,7 +85,6 @@ jobs:
   dry_approve:
     needs: context
     runs-on: ubuntu-latest
-    name: approve
     if: ${{ needs.context.outputs.dry == 'true' }}
     steps:
       - name: Wait for approval
@@ -215,7 +214,6 @@ jobs:
   approve:
     if: ${{ always() && needs.deploy.result == 'success' }}
     needs: [context, deploy]
-    name: approve
     runs-on: ubuntu-latest
     environment: ${{ needs.context.outputs.environment }}
     steps:
