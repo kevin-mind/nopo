@@ -157,7 +157,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Lateset Tag
+      - name: Latest Tag
         id: latest_tag
         uses: ./.github/actions/docker-tag
         with:
