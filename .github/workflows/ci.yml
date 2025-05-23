@@ -10,7 +10,9 @@ on:
   merge_group:
 
 concurrency:
-  group: ${{ github.workflow }}
+  group: |
+    ${{ github.workflow }}-
+    ${{ contains(fromJSON('["merge_group", "push"]'), github.event_name) && 'push' || 'pr' }}
   cancel-in-progress: true
 
 permissions: {}
