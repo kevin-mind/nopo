@@ -76,19 +76,20 @@ jobs:
       - name: Context
         id: context
         run: |
-          echo "dry=${{ inputs.dry }}" >> "$GITHUB_OUTPUT"
-          echo "environment=${{ inputs.environment }}" >> "$GITHUB_OUTPUT"
-          echo "service=${{ inputs.service }}" >> "$GITHUB_OUTPUT"
+          dry="${{ inputs.dry }} "
+          environment="${{ inputs.environment }}"
+          service="${{ inputs.service }}"
+
+          # On dry run, we don't want to trigger any actual deployment
+          # that could trigger manual approval processes.
+          if [[ "$dry" == "true" ]]; then
+            environment="review"
+          fi
+
+          echo "dry=${dry}" >> "$GITHUB_OUTPUT"
+          echo "environment=${environment}" >> "$GITHUB_OUTPUT"
+          echo "service=${service}" >> "$GITHUB_OUTPUT"
           cat "$GITHUB_OUTPUT"
-
-
-  dry_approve:
-    needs: context
-    runs-on: ubuntu-latest
-    if: ${{ needs.context.outputs.dry == 'true' }}
-    steps:
-      - name: Wait for approval
-        run: echo "Approving dry run"
 
   deploy:
     needs: context
@@ -212,7 +213,7 @@ jobs:
           fi
 
   approve:
-    if: ${{ always() && needs.deploy.result == 'success' }}
+    if: ${{ always() && (needs.context.outputs.dry == 'true' || needs.deploy.result == 'success') }}
     needs: [context, deploy]
     runs-on: ubuntu-latest
     environment: ${{ needs.context.outputs.environment }}

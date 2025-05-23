@@ -173,3 +173,14 @@ jobs:
           docker tag ${{ needs.build.outputs.tag }} ${{ steps.latest_tag.outputs.tag }}
           docker push ${{ steps.latest_tag.outputs.tag }}
 
+  post:
+    if: always()
+    needs: [deploy_stage, deploy_prod, push_latest]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Context
+        run: |
+          cat <<EOF
+          ${{ toJson(needs) }}
+          EOF
+
