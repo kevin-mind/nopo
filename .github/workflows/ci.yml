@@ -139,3 +139,35 @@ jobs:
       tag: ${{ needs.build.outputs.tag }}
       service: web
       dry:  ${{ needs.context.outputs.push == 'false' }}
+
+  push_latest:
+    needs: [build, context, deploy_prod]
+    if: ${{ needs.context.outputs.push == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+      attestations: write
+      id-token: write
+    steps:
+      - name: Login Docker
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ needs.build.outputs.registry }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Latest Tag
+        id: latest_tag
+        uses: ./.github/actions/docker-tag
+        with:
+          registry: ${{ needs.build.outputs.registry }}
+          image: ${{ needs.build.outputs.image }}
+          version: latest
+
+      - name: Push Image
+        run: |
+          docker pull ${{ needs.build.outputs.tag }}
+          docker tag ${{ needs.build.outputs.tag }} ${{ steps.latest_tag.outputs.tag }}
+          docker push ${{ steps.latest_tag.outputs.tag }}
+
