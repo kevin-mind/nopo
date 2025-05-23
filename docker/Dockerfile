@@ -40,12 +40,14 @@ ARG DOCKER_COMMIT
 ARG DOCKER_VERSION
 ARG DOCKER_BUILD
 ARG DOCKER_TARGET
+ARG DOCKER_TAG
 
 RUN <<EOF
 cat <<INNEREOF > ${BUILD_INFO}
 {
   "commit": "${DOCKER_COMMIT}",
   "version": "${DOCKER_VERSION}",
+  "tag": "${DOCKER_TAG}",
   "build": "${DOCKER_BUILD}",
   "target": "${DOCKER_TARGET}",
   "source": "https://github.com/kevin-mind/nopo"
