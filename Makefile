@@ -12,15 +12,15 @@ DOCKER_COMPOSE = $(DOCKER) compose
 
 .PHONY: add_lockfile
 add_lockfile:
-	pnpm npm:no:offline pnpm add --lockfile-only
+	pnpm add --lockfile-only
 
 .PHONY: update_lockfile
 update_lockfile:
-	pnpm npm:no:offline pnpm install --lockfile-only --no-frozen-lockfile
+	pnpm install --lockfile-only --no-frozen-lockfile
 
 .PHONY: install_lockfile
 install_lockfile:
-	pnpm npm:no:offline pnpm install --frozen-lockfile --config.confirmModulesPurge=false
+	pnpm install --frozen-lockfile --config.confirmModulesPurge=false
 
 .PHONY: clean
 clean:

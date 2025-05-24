@@ -6,9 +6,10 @@
     "check:lint": "eslint",
     "fix:lint": "eslint --fix",
     "test": "vitest",
-    "script": "npm_config_offline=false npm_config_frozen_lockfile=false npx --yes zx --install ./index.js"
+    "script": "tsx ./index.ts"
   },
   "devDependencies": {
+    "tsx": "^4.19.3",
     "vitest": "^3.1.1"
   },
   "dependencies": {

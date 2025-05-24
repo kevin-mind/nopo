@@ -98,7 +98,7 @@ COPY --from=source --chown=$USER \
 RUN --mount=type=bind,source=.npmrc,target=$APP/.npmrc \
   --mount=type=bind,source=pnpm-lock.yaml,target=$APP/pnpm-lock.yaml \
   --mount=type=bind,source=pnpm-workspace.yaml,target=$APP/pnpm-workspace.yaml \
-  npm_config_offline=false pnpm fetch
+  pnpm fetch
 
 ################################################################################################
 FROM user AS build
