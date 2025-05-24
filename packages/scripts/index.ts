@@ -1,11 +1,12 @@
 import { minimist, chalk, glob } from "zx";
 
-import { Runner } from "./src/lib.js";
-import createConfig from "./src/config.js";
+import { Runner, Config } from "./src/lib.js";
 
-const scripts = glob.sync("./src/scripts/*.js").reduce((acc, path) => {
-  const name = path.split("/").pop().split(".").shift();
-  acc[name] = path;
+const scripts = glob.sync("./src/scripts/*.ts").reduce((acc, path) => {
+  const name = path.split("/").pop()?.split(".").shift();
+  if (name) {
+    acc[name] = path;
+  }
   return acc;
 }, {});
 
@@ -36,7 +37,7 @@ export default async function main() {
   }
 
   const { default: script } = await import(scriptPath);
-  const config = createConfig({});
+  const config = new Config();
 
   const runner = new Runner(config);
   await runner.run(script);

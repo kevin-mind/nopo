@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 
-import { ParseEnv } from "../src/parse-env";
-import { dockerTag, createTmpEnv } from "./utils";
+import { ParseEnv } from "../src/parse-env.js";
+import { dockerTag, createTmpEnv } from "./utils.js";
 
 describe("parseEnv", () => {
   it("should parse the env", () => {

@@ -29,8 +29,7 @@
     "test": "pnpm run \"/^test:.*/\"",
     "test:workspace": "pnpm run -r test",
     "publish:workspace": "pnpm publish -r",
-    "script": "pnpm run --filter @more/scripts script",
-    "npm:no:offline": "npm_config_offline=false"
+    "script": "pnpm run --filter @more/scripts script"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.1",

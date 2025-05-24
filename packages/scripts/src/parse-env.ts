@@ -6,8 +6,36 @@ import { DockerTag } from "./docker-tag.js";
 const nodeEnv = z.enum(["development", "production", "test"]);
 const dockerTarget = nodeEnv.or(z.enum(["base", "build"]));
 
+type ParseEnvDiffTuple = [string, string | undefined];
+
+interface ParseEnvDiff {
+  added: ParseEnvDiffTuple[];
+  updated: ParseEnvDiffTuple[];
+  removed: ParseEnvDiffTuple[];
+  unchanged: ParseEnvDiffTuple[];
+}
+
 export class ParseEnv {
-  constructor(envFile, processEnv = {}) {
+  static baseTag = new DockerTag("kevin-mind/nopo:local");
+  static schema = z.object({
+    DOCKER_TAG: z.string(),
+    DOCKER_REGISTRY: z.string(),
+    DOCKER_IMAGE: z.string(),
+    DOCKER_VERSION: z.string(),
+    DOCKER_DIGEST: z.string().optional(),
+    DOCKER_TARGET: dockerTarget,
+    NODE_ENV: nodeEnv,
+    HOST_UID: z.string(),
+  });
+
+  envFile: string;
+  processEnv: NodeJS.ProcessEnv;
+  hasPrevEnv: boolean;
+  prevEnv: NodeJS.ProcessEnv;
+  env: z.infer<typeof ParseEnv.schema>;
+  diff: ParseEnvDiff;
+
+  constructor(envFile: string, processEnv: NodeJS.ProcessEnv = {}) {
     if (!envFile) {
       throw new Error("Missing envFile");
     }
@@ -20,23 +48,6 @@ export class ParseEnv {
     this.diff = this.#diff();
   }
 
-  static baseTag = new DockerTag("kevin-mind/nopo:local");
-
-  schema = z.object({
-    DOCKER_TAG: z.string(),
-    DOCKER_REGISTRY: z.string(),
-    DOCKER_IMAGE: z.string(),
-    DOCKER_VERSION: z.string(),
-    DOCKER_DIGEST: z.string().optional(),
-    DOCKER_TARGET: dockerTarget,
-    NODE_ENV: nodeEnv,
-    HOST_UID: z.string().default(process.getuid().toString()),
-  });
-
-  parse(env) {
-    return this.schema.parse(env);
-  }
-
   #getPrevEnv() {
     return this.hasPrevEnv ? dotenv.load(this.envFile) : {};
   }
@@ -46,7 +57,7 @@ export class ParseEnv {
       return new DockerTag(this.processEnv.DOCKER_TAG);
     } else if (this.processEnv.DOCKER_IMAGE && this.processEnv.DOCKER_VERSION) {
       return new DockerTag({
-        registry: this.processEnv.DOCKER_REGISTRY,
+        registry: this.processEnv.DOCKER_REGISTRY || "",
         image: this.processEnv.DOCKER_IMAGE,
         version: this.processEnv.DOCKER_VERSION,
         digest: this.processEnv.DOCKER_DIGEST,
@@ -55,7 +66,7 @@ export class ParseEnv {
       return new DockerTag(this.prevEnv.DOCKER_TAG);
     } else if (this.prevEnv.DOCKER_IMAGE && this.prevEnv.DOCKER_VERSION) {
       return new DockerTag({
-        registry: this.prevEnv.DOCKER_REGISTRY,
+        registry: this.prevEnv.DOCKER_REGISTRY || "",
         image: this.prevEnv.DOCKER_IMAGE,
         version: this.prevEnv.DOCKER_VERSION,
         digest: this.prevEnv.DOCKER_DIGEST,
@@ -68,7 +79,10 @@ export class ParseEnv {
   #getCurrEnv() {
     const inputEnv = { ...this.prevEnv, ...this.processEnv };
     const { parsed, fullTag } = this.resolveDockerTag();
-    let { registry, image, version, digest } = parsed;
+    let registry = parsed.registry;
+    let image = parsed.image;
+    let version = parsed.version;
+    const digest = parsed.digest;
 
     if (
       image &&
@@ -98,7 +112,7 @@ export class ParseEnv {
     const defaultTarget = isLocal ? "development" : "production";
 
     for (const key of ["DOCKER_TARGET", "NODE_ENV"]) {
-      let current = inputEnv[key];
+      const current = inputEnv[key];
       const isMissing = !current;
       const isWrong = !isLocal && current !== defaultTarget;
       if (isMissing || isWrong) {
@@ -106,7 +120,7 @@ export class ParseEnv {
       }
     }
 
-    return this.parse({
+    return ParseEnv.schema.parse({
       DOCKER_TAG: new DockerTag({ registry, image, version, digest }).fullTag,
       DOCKER_REGISTRY: registry,
       DOCKER_IMAGE: image,
@@ -114,18 +128,21 @@ export class ParseEnv {
       DOCKER_DIGEST: digest,
       NODE_ENV: inputEnv.NODE_ENV,
       DOCKER_TARGET: inputEnv.DOCKER_TARGET,
+      HOST_UID: process.getuid?.()?.toString(),
     });
   }
 
   #diff() {
-    const result = {
+    const result: ParseEnvDiff = {
       added: [],
       updated: [],
       removed: [],
       unchanged: [],
     };
 
-    const keys = Object.keys(this.schema.shape);
+    const keys = Object.keys(ParseEnv.schema.shape) as (keyof z.infer<
+      typeof ParseEnv.schema
+    >)[];
 
     for (const key of keys) {
       const prevValue = this.prevEnv[key];
@@ -137,8 +154,8 @@ export class ParseEnv {
         result.removed.push([key, prevValue]);
       } else if (currValue && prevValue !== currValue) {
         result.updated.push([key, currValue]);
-      } else {
-        result.unchanged.push([key, currValue]);
+      } else if (currValue) {
+        result.unchanged.push([key, prevValue]);
       }
     }
     return result;
