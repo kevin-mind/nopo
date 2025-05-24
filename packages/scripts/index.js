@@ -1,14 +1,13 @@
 import { minimist, chalk, glob } from "zx";
 
 import { Runner } from "./src/lib.js";
-import config from "./src/config.js";
+import createConfig from "./src/config.js";
 
-const scripts = glob.sync("./src/scripts/*.js")
-  .reduce((acc, path) => {
-    const name = path.split("/").pop().split(".").shift();
-    acc[name] = path;
-    return acc;
-  }, {});
+const scripts = glob.sync("./src/scripts/*.js").reduce((acc, path) => {
+  const name = path.split("/").pop().split(".").shift();
+  acc[name] = path;
+  return acc;
+}, {});
 
 function printHelp(message, exitCode = 1) {
   const color = exitCode === 0 ? chalk.green : chalk.red;
@@ -37,9 +36,10 @@ export default async function main() {
   }
 
   const { default: script } = await import(scriptPath);
+  const config = createConfig({});
 
-  const runner = new Runner();
-  await runner.run(script, config);
+  const runner = new Runner(config);
+  await runner.run(script);
 }
 
 main();

@@ -103,7 +103,7 @@ jobs:
       push: ${{ needs.context.outputs.push == 'true' }}
 
   test:
-    needs: build
+    needs: [build, context]
     permissions:
       packages: read
       contents: read

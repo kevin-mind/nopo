@@ -148,8 +148,8 @@ jobs:
           echo "Waiting for deployment to be ready"
 
           while $waiting; do
-            tag=$(curl -s --max-time 30 ${url} | jq -r '.tag // empty' || echo "")
-            if [ "$tag" = "${{ steps.push_tag.outputs.tag }}" ]; then
+            version=$(curl -s --max-time 30 ${url} | jq -r '.version // empty' || echo "")
+            if [ "$version" = "${{ steps.push_tag.outputs.version }}" ]; then
               waiting=false
             else
               echo "Tag '${tag}' does not match '${{ steps.push_tag.outputs.tag }}'"

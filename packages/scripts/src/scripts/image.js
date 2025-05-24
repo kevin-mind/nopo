@@ -9,8 +9,8 @@ export default class ImageScript extends Script {
   static description = "Build or pull the base image";
   static dependencies = [EnvScript];
 
-  async fn(config) {
-    const { env } = new ParseEnv(config.envFile);
+  async fn() {
+    const { env } = new ParseEnv(this.config.envFile);
     if (env.DOCKER_REGISTRY) {
       await compose.pullOne("base", {
         log: true,
@@ -19,12 +19,12 @@ export default class ImageScript extends Script {
     } else {
       await compose.buildOne("base", {
         log: true,
-        cwd: config.root,
+        cwd: this.config.root,
         env: {
-          ...process.env,
+          ...this.config.processEnv,
           ...env,
           COMPOSE_BAKE: true,
-          },
+        },
       });
     }
   }

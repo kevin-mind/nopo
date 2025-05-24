@@ -12,9 +12,13 @@ $.cwd = root;
 
 const envFile = path.resolve(root, ".env");
 
-export default {
-  __filename,
-  __dirname,
-  root,
-  envFile,
-};
+export default function createConfig(overrides = {}) {
+  return {
+    __filename,
+    __dirname,
+    root,
+    envFile,
+    processEnv: { ...process.env },
+    ...overrides,
+  };
+}

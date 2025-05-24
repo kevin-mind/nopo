@@ -20,21 +20,21 @@ export default class EnvScript extends Script {
     const title = `${action}: ${actionColor(envFile)}`;
     const breakLine = chalk.gray(Array(title.length).fill("-").join(""));
 
-    console.log(title);
-    console.log(breakLine);
+    this.logger.log(title);
+    this.logger.log(breakLine);
 
     for (const [key, section] of Object.entries(diff)) {
       if (section.length === 0) continue;
-      console.log(chalk.underline(colors[key](key)));
+      this.logger.log(chalk.underline(colors[key](key)));
       for (const [name, value] of section) {
-        console.log(`${colors.background(name)}: ${colors[key](value)}`);
+        this.logger.log(`${colors.background(name)}: ${colors[key](value)}`);
       }
     }
   }
 
-  async fn(config) {
-    const parseEnv = new ParseEnv(config.envFile, process.env);
+  async fn() {
+    const parseEnv = new ParseEnv(this.config.envFile, this.config.processEnv);
     parseEnv.save();
-    this.logDiff(parseEnv.diff, config.envFile, parseEnv.prevEnv);
+    this.logDiff(parseEnv.diff, this.config.envFile, parseEnv.prevEnv);
   }
 }

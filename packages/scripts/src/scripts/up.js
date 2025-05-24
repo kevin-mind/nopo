@@ -9,12 +9,12 @@ export default class UpScript extends Script {
   static description = "Start the services";
   static dependencies = [EnvScript, ImageScript];
 
-  async fn(config) {
-    const { env } = new ParseEnv(config.envFile);
+  async fn() {
+    const { env } = new ParseEnv(this.config.envFile);
     const { data } = await compose.config({
-      cwd: config.root,
+      cwd: this.config.root,
       env: {
-        ...process.env,
+        ...this.config.processEnv,
         ...env.data,
       },
     });

@@ -3,11 +3,15 @@ import { fs, dotenv } from "zx";
 
 import { DockerTag } from "./docker-tag.js";
 
-const nodeEnv = z.enum(['development', 'production']);
-const dockerTarget = nodeEnv.or(z.enum(['base', 'build']));
+const nodeEnv = z.enum(["development", "production", "test"]);
+const dockerTarget = nodeEnv.or(z.enum(["base", "build"]));
 
 export class ParseEnv {
   constructor(envFile, processEnv = {}) {
+    if (!envFile) {
+      throw new Error("Missing envFile");
+    }
+
     this.envFile = envFile;
     this.processEnv = processEnv;
     this.hasPrevEnv = fs.existsSync(this.envFile);
@@ -16,14 +20,14 @@ export class ParseEnv {
     this.diff = this.#diff();
   }
 
-  baseTag = new DockerTag('kevin-mind/nopo:local');
+  static baseTag = new DockerTag("kevin-mind/nopo:local");
 
   schema = z.object({
     DOCKER_TAG: z.string(),
     DOCKER_REGISTRY: z.string(),
     DOCKER_IMAGE: z.string(),
     DOCKER_VERSION: z.string(),
-    DOCKER_DIGEST: z.string(),
+    DOCKER_DIGEST: z.string().optional(),
     DOCKER_TARGET: dockerTarget,
     NODE_ENV: nodeEnv,
     HOST_UID: z.string().default(process.getuid().toString()),
@@ -37,9 +41,33 @@ export class ParseEnv {
     return this.hasPrevEnv ? dotenv.load(this.envFile) : {};
   }
 
+  resolveDockerTag() {
+    if (this.processEnv.DOCKER_TAG) {
+      return new DockerTag(this.processEnv.DOCKER_TAG);
+    } else if (this.processEnv.DOCKER_IMAGE && this.processEnv.DOCKER_VERSION) {
+      return new DockerTag({
+        registry: this.processEnv.DOCKER_REGISTRY,
+        image: this.processEnv.DOCKER_IMAGE,
+        version: this.processEnv.DOCKER_VERSION,
+        digest: this.processEnv.DOCKER_DIGEST,
+      });
+    } else if (this.prevEnv.DOCKER_TAG) {
+      return new DockerTag(this.prevEnv.DOCKER_TAG);
+    } else if (this.prevEnv.DOCKER_IMAGE && this.prevEnv.DOCKER_VERSION) {
+      return new DockerTag({
+        registry: this.prevEnv.DOCKER_REGISTRY,
+        image: this.prevEnv.DOCKER_IMAGE,
+        version: this.prevEnv.DOCKER_VERSION,
+        digest: this.prevEnv.DOCKER_DIGEST,
+      });
+    } else {
+      return ParseEnv.baseTag;
+    }
+  }
+
   #getCurrEnv() {
     const inputEnv = { ...this.prevEnv, ...this.processEnv };
-    const { parsed, fullTag } = new DockerTag(inputEnv.DOCKER_TAG);
+    const { parsed, fullTag } = this.resolveDockerTag();
     let { registry, image, version, digest } = parsed;
 
     if (
@@ -50,10 +78,10 @@ export class ParseEnv {
       !image.includes("@")
     ) {
       version = image;
-      image = this.baseTag.parsed.image;
+      image = ParseEnv.baseTag.parsed.image;
     } else if (image && !version && digest && !image.includes(":")) {
       version = image;
-      image = this.baseTag.parsed.image;
+      image = ParseEnv.baseTag.parsed.image;
     }
 
     if (digest && !version) {
@@ -63,10 +91,10 @@ export class ParseEnv {
     }
 
     if (!registry) {
-      registry = this.baseTag.parsed.registry;
+      registry = ParseEnv.baseTag.parsed.registry;
     }
 
-    const isLocal = version === 'local';
+    const isLocal = version === "local";
     const defaultTarget = isLocal ? "development" : "production";
 
     for (const key of ["DOCKER_TARGET", "NODE_ENV"]) {
@@ -79,7 +107,7 @@ export class ParseEnv {
     }
 
     return this.parse({
-      DOCKER_TAG: new DockerTag({registry, image, version, digest}).fullTag,
+      DOCKER_TAG: new DockerTag({ registry, image, version, digest }).fullTag,
       DOCKER_REGISTRY: registry,
       DOCKER_IMAGE: image,
       DOCKER_VERSION: version,
@@ -87,7 +115,6 @@ export class ParseEnv {
       NODE_ENV: inputEnv.NODE_ENV,
       DOCKER_TARGET: inputEnv.DOCKER_TARGET,
     });
-
   }
 
   #diff() {
