@@ -1,8 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { path, chalk, $ } from "zx";
 
-import { parseEnv } from "./parse-env.js";
-
 chalk.level = 2;
 
 const __filename = fileURLToPath(import.meta.url);
@@ -14,12 +12,13 @@ $.cwd = root;
 
 const envFile = path.resolve(root, ".env");
 
-const env = parseEnv(envFile, process.env);
-
-export default {
-  __filename,
-  __dirname,
-  root,
-  envFile,
-  env,
-};
+export default function createConfig(overrides = {}) {
+  return {
+    __filename,
+    __dirname,
+    root,
+    envFile,
+    processEnv: { ...process.env },
+    ...overrides,
+  };
+}

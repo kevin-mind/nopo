@@ -3,6 +3,8 @@ set -xueo
 
 yes | pnpm install
 
-if [[ "${DOCKER_TARGET}" == "production" ]]; then
+target=$(cat /build-info.json | jq -r '.target')
+
+if [[ "${target}" == "production" ]]; then
   pnpm build
 fi

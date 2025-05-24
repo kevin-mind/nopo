@@ -62,14 +62,9 @@ jobs:
         id: input_tag
         uses: ./.github/actions/docker-tag
         with:
-          # We only add the registry/username if we are pushing the image.
-          # If not pushing, make a bare image so the resultant tag will trigger
-          # a new build when used in "make up".
           registry: ${{ inputs.push && 'ghcr.io' || '' }}
           image: ${{ github.repository }}
           version: ${{ steps.docker_meta.outputs.version }}
-          target: production
-          node_env: production
 
       - name: Set up Docker
         id: docker
@@ -79,7 +74,7 @@ jobs:
         if: ${{ inputs.push }}
         uses: ./.github/actions/login-docker
         with:
-          registry: ${{ steps.input_tag.outputs.registry }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 

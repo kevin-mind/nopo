@@ -1,27 +1,31 @@
 import compose from "docker-compose";
+import { Script } from "../lib.js";
+import EnvScript from "./env.js";
 
-export default async function main(config) {
-  try {
-    if (config.env.data.DOCKER_REGISTRY) {
-      console.log("Pulling base image");
+import { ParseEnv } from "../parse-env.js";
+
+export default class ImageScript extends Script {
+  static name = "image";
+  static description = "Build or pull the base image";
+  static dependencies = [EnvScript];
+
+  async fn() {
+    const { env } = new ParseEnv(this.config.envFile);
+    if (env.DOCKER_REGISTRY) {
       await compose.pullOne("base", {
         log: true,
         commandOptions: ["--policy", "always"],
       });
     } else {
-      console.log("Building base image");
       await compose.buildOne("base", {
         log: true,
-        cwd: config.root,
+        cwd: this.config.root,
         env: {
-          ...process.env,
-          ...config.env.data,
+          ...this.config.processEnv,
+          ...env,
           COMPOSE_BAKE: true,
         },
       });
     }
-  } catch (error) {
-    console.error(error.err);
-    process.exit(error.exitCode);
   }
 }

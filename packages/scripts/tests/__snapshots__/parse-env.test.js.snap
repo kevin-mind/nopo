@@ -2,20 +2,13 @@
 
 exports[`parseEnv > should parse the env 1`] = `
 {
-  "data": {
-    "DOCKER_DIGEST": "",
-    "DOCKER_IMAGE": "base/repo",
-    "DOCKER_REGISTRY": "",
-    "DOCKER_TAG": "base/repo:local",
-    "DOCKER_TARGET": "development",
-    "DOCKER_VERSION": "local",
-    "HOST_UID": "1001",
-    "NODE_ENV": "development",
-  },
-  "meta": {
-    "isLocal": true,
-    "path": "test",
-    "prevEnv": {},
-  },
+  "DOCKER_DIGEST": "",
+  "DOCKER_IMAGE": "kevin-mind/nopo",
+  "DOCKER_REGISTRY": "",
+  "DOCKER_TAG": "kevin-mind/nopo:local",
+  "DOCKER_TARGET": "development",
+  "DOCKER_VERSION": "local",
+  "HOST_UID": "1001",
+  "NODE_ENV": "development",
 }
 `;
