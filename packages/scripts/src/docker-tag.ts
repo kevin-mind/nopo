@@ -10,25 +10,29 @@
 const DOCKER_TAG_REGEX =
   /^((?<image>[^:@]+))(?::(?<version>(?![.-])[a-zA-Z0-9_.-]{1,128}))?(?:@(?<digest>sha256:[a-fA-F0-9]{64}))?$/;
 
+interface DockerTagParsed {
+  registry: string;
+  image: string;
+  version: string;
+  digest?: string;
+}
+
 export class DockerTag {
   static regex = DOCKER_TAG_REGEX;
 
-  fullTag = "";
-  parsed = {
-    registry: "",
-    image: "",
-    version: "",
-    digest: "",
-  };
+  fullTag: string;
+  parsed: DockerTagParsed;
 
-  static parse(fullTag) {
+  static parse(fullTag: string): DockerTagParsed {
     const match = fullTag.match(DockerTag.regex);
     if (!match || !match.groups) {
       throw new Error(`Invalid image tag: ${fullTag}`);
     }
 
     let registry = "";
-    let { image = "", version = "", digest = "" } = match.groups;
+    let image = match.groups?.image || "";
+    const version = match.groups?.version || "";
+    const digest = match.groups?.digest || "";
 
     if (!image) {
       throw new Error(`Invalid image tag: ${fullTag} (image is required)`);
@@ -41,14 +45,20 @@ export class DockerTag {
     }
 
     if (image.includes(".") && image.includes("/")) {
-      [registry, ...image] = image.split("/");
-      image = image.join("/");
+      const [newRegistry, ...imageParts] = image.split("/");
+      registry = newRegistry;
+      image = imageParts.join("/");
     }
 
     return { registry, image, version, digest };
   }
 
-  static stringify({ registry, image, version, digest }) {
+  static stringify({
+    registry,
+    image,
+    version,
+    digest,
+  }: DockerTagParsed): string {
     let fullTag = "";
     if (registry) {
       fullTag = `${registry}/${image}`;
@@ -67,11 +77,7 @@ export class DockerTag {
     return fullTag;
   }
 
-  constructor(tag) {
-    this.update(tag);
-  }
-
-  update(tag) {
+  constructor(tag: string | DockerTagParsed) {
     if (typeof tag === "string") {
       this.parsed = DockerTag.parse(tag);
     } else if (typeof tag === "object") {

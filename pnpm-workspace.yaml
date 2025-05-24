@@ -9,4 +9,4 @@ onlyBuiltDependencies:
 
 storeDir: ${PNPM_STORE_DIR:-.pnpm-store}
 
-verifyDepsBeforeRun: prompt
+verifyDepsBeforeRun: install

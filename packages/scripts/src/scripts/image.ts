@@ -23,7 +23,7 @@ export default class ImageScript extends Script {
         env: {
           ...this.config.processEnv,
           ...env,
-          COMPOSE_BAKE: true,
+          COMPOSE_BAKE: "true",
         },
       });
     }

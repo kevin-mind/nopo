@@ -15,11 +15,14 @@ export default class UpScript extends Script {
       cwd: this.config.root,
       env: {
         ...this.config.processEnv,
-        ...env.data,
+        ...env,
       },
     });
     const localServices = Object.entries(data.config.services)
-      .filter(([, service]) => service.image === env.DOCKER_TAG)
+      .filter(([, service]) => {
+        if (typeof service === "string") return false;
+        return service.image === env.DOCKER_TAG;
+      })
       .map(([name]) => name);
 
     await compose.downMany(localServices, {

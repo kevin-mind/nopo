@@ -1,7 +1,7 @@
 import { tmpfile, dotenv } from "zx";
 
 import { DockerTag } from "../src/docker-tag.js";
-import { Runner } from "../src/lib.js";
+import { Config, Runner, Script } from "../src/lib.js";
 
 export const dockerTag = new DockerTag({
   registry: "docker.io",
@@ -17,7 +17,7 @@ export function createTmpEnv(env = {}) {
   return tmpPath;
 }
 
-export function runScript(script, config) {
+export function runScript(script: typeof Script, config: Config) {
   const runner = new Runner(config);
-  return runner.run(script, config);
+  return runner.run(script);
 }

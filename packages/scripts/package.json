@@ -4,6 +4,7 @@
   "scripts": {
     "clean": "rm -rf node_modules",
     "check:lint": "eslint",
+    "check:types": "tsc --noEmit",
     "fix:lint": "eslint --fix",
     "test": "vitest",
     "script": "tsx ./index.ts"
