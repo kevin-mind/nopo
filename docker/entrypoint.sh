@@ -24,5 +24,6 @@ fi
 
 echo "Running *@"
 cat <<EOF | su -s /bin/bash ${USER_NAME}
+  yes | pnpm install
   $@
 EOF
