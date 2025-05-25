@@ -10,11 +10,13 @@
     "script": "tsx ./index.ts"
   },
   "devDependencies": {
+    "@types/prompts": "^2.4.9",
     "tsx": "^4.19.3",
     "vitest": "^3.1.1"
   },
   "dependencies": {
     "docker-compose": "^1.2.0",
+    "prompts": "^2.4.2",
     "znv": "^0.5.0",
     "zod": "^3.24.2",
     "zx": "^8.5.2"
