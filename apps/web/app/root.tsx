@@ -9,9 +9,6 @@ import {
 
 import type { Route } from "./+types/root";
 
-import Component from "@more/ui/component";
-import Form from "@more/ui/form";
-
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   {
@@ -35,8 +32,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body>
-        <h1>{Component()}</h1>
-        <p>{Form()}</p>
+        <h1>{"Title"}</h1>
         {children}
         <ScrollRestoration />
         <Scripts />

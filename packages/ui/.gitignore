@@ -3,4 +3,5 @@
 dist/
 www/
 loader/
-storybook-static
+storybook-static/
+hydrate/

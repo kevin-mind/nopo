@@ -2,6 +2,8 @@ import { Form } from "react-router";
 import type { Route } from "./+types/home";
 import { useState } from "react";
 
+import { MyComponent } from "@more/ui-react";
+
 let count = 0;
 
 export async function loader() {
@@ -30,6 +32,7 @@ export default function Home({ loaderData, actionData }: Route.ComponentProps) {
     <>
       <p>Count: {loaderData.count}</p>
       <button onClick={() => setClientCount(clientCount + 1)}>Increment</button>
+      <MyComponent first={`Kevin ${clientCount}`} last="Meinhardt" />
       <Form method="post">
         <input
           name="increment"

@@ -1,4 +1,5 @@
 import { Config } from "@stencil/core";
+import { reactOutputTarget } from "@stencil/react-output-target";
 
 export const config: Config = {
   namespace: "more-ui",
@@ -8,17 +9,17 @@ export const config: Config = {
       esmLoaderPath: "../loader",
     },
     {
+      type: "dist-hydrate-script",
+      dir: "./hydrate",
+    },
+    {
       type: "dist-custom-elements",
-      customElementsExportBehavior: "auto-define-custom-elements",
       externalRuntime: false,
     },
-    {
-      type: "docs-readme",
-    },
-    {
-      type: "www",
-      serviceWorker: null, // disable service workers
-    },
+    reactOutputTarget({
+      outDir: "../ui-react/src/",
+      esModules: true,
+    }),
   ],
   testing: {
     browserHeadless: "shell",

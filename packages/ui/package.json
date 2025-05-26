@@ -7,28 +7,35 @@
   "main": "dist/index.cjs.js",
   "module": "dist/index.js",
   "types": "dist/types/index.d.ts",
-  "collection": "dist/collection/collection-manifest.json",
-  "collection:main": "dist/collection/index.js",
-  "unpkg": "dist/stencil-starter-project-name/stencil-starter-project-name.esm.js",
-  "exports": {
-    ".": {
-      "import": "./dist/stencil-starter-project-name/stencil-starter-project-name.esm.js",
-      "require": "./dist/stencil-starter-project-name/stencil-starter-project-name.cjs.js"
-    },
-    "./my-component": {
-      "types": "./dist/components/my-component.d.ts",
-      "import": "./dist/components/my-component.js"
-    },
-    "./loader": {
-      "types": "./loader/index.d.ts",
-      "import": "./loader/index.js",
-      "require": "./loader/index.cjs"
-    }
-  },
   "files": [
     "dist/",
     "loader/"
   ],
+  "exports": {
+    ".": {
+      "import": "./dist/more-ui/more-ui.esm.js",
+      "require": "./dist/more-ui/more-ui.cjs.js"
+    },
+    "./dist/*": {
+      "import": "./dist/*",
+      "types": "./dist/*"
+    },
+    "./components/*": {
+      "import": "./dist/components/*.js",
+      "types": "./dist/components/*.d.ts"
+    },
+    "./hydrate": {
+      "types": "./hydrate/index.d.ts",
+      "import": "./hydrate/index.mjs",
+      "require": "./hydrate/index.js",
+      "default": "./hydrate/index.js"
+    },
+    "./loader": {
+      "import": "./loader/index.js",
+      "require": "./loader/index.cjs",
+      "types": "./loader/index.d.ts"
+    }
+  },
   "scripts": {
     "clean": "rm -rf node_modules && rm -rf .stencil dist loader storybook-static www",
     "format": "yarn lint --fix",
@@ -44,6 +51,7 @@
   "devDependencies": {
     "@more/configs": "workspace:*",
     "@stencil/core": "^4.31.0",
+    "@stencil/react-output-target": "^1.0.2",
     "@stencil/storybook-plugin": "^0.0.14",
     "@storybook/addon-essentials": "^8.6.14",
     "@storybook/addon-interactions": "^8.6.14",
