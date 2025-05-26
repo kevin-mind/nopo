@@ -26,8 +26,8 @@ make up
 - [X] add codespaces support
 - [X] add version endpoint and UI badge
 - [X] add health check in deployment to verify deployed
-- [ ] add smoketest via playwright
-- [ ] add post deploy push of latest image and release document
+- [X] add smoketest via playwright
+- [X] add post deploy push of latest image and release document
 - [ ] add PR deployment
 - [ ] add deployment link to PR
 - [ ] add release link to PR and parent issue
