@@ -76,11 +76,6 @@ WORKDIR $APP
 
 USER $USER
 
-FROM user AS runner
-
-COPY docker/cmd.sh /cmd.sh
-CMD ["/cmd.sh"]
-
 ################################################################################################
 FROM base AS source
 ################################################################################################
@@ -113,10 +108,19 @@ pnpm build
 EOF
 
 ################################################################################################
-FROM runner AS development
+FROM user AS runner
 ################################################################################################
+
 COPY --from=info ${BUILD_INFO} ${BUILD_INFO}
 COPY --from=install --chown=$USER $DEPS $DEPS
+
+COPY docker/cmd.sh /cmd.sh
+CMD ["/cmd.sh"]
+
+################################################################################################
+FROM runner AS development
+################################################################################################
+
 COPY --from=source --chown=$USER $APP $APP
 
 ENV SERVICE_COMMAND="dev"
@@ -124,8 +128,7 @@ ENV SERVICE_COMMAND="dev"
 ################################################################################################
 FROM runner AS production
 ################################################################################################
-COPY --from=info ${BUILD_INFO} ${BUILD_INFO}
-COPY --from=install --chown=$USER $DEPS $DEPS
+
 COPY --from=build --chown=$USER $APP $APP
 
 RUN pnpm install --prod --config.confirmModulesPurge=false
