@@ -1,5 +1,6 @@
 import { Form } from "react-router";
 import type { Route } from "./+types/home";
+import { useState } from "react";
 
 let count = 0;
 
@@ -24,11 +25,18 @@ export function meta() {
 }
 
 export default function Home({ loaderData, actionData }: Route.ComponentProps) {
+  const [clientCount, setClientCount] = useState(0);
   return (
     <>
       <p>Count: {loaderData.count}</p>
+      <button onClick={() => setClientCount(clientCount + 1)}>Increment</button>
       <Form method="post">
-        <input name="increment" type="number" />
+        <input
+          name="increment"
+          type="number"
+          value={clientCount}
+          onChange={(e) => setClientCount(parseInt(e.target.value))}
+        />
         <button type="submit">Submit</button>
       </Form>
       <pre>{JSON.stringify({ loaderData, actionData }, null, 2)}</pre>

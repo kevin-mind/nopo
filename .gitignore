@@ -16,3 +16,9 @@
 .docker
 build-metadata.json
 deps
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
