@@ -5,7 +5,10 @@ import { dockerTag, createTmpEnv } from "./utils.js";
 
 describe("parseEnv", () => {
   it("should parse the env", () => {
-    const { env } = new ParseEnv(createTmpEnv());
+    const {
+      env: { HOST_UID, ...env },
+    } = new ParseEnv(createTmpEnv());
+    expect(HOST_UID).toBe(process.getuid?.()?.toString());
     expect(env).toMatchSnapshot();
   });
 

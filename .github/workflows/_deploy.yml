@@ -88,8 +88,6 @@ jobs:
         uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Pull Tag
-      # TODO: we need to modify docker-tag to stitch together the components if provided.
-      # OR maybe have to friggin put that back into the parser somehow... I hate it.
         id: pull_tag
         uses: ./.github/actions/docker-tag
         with:
