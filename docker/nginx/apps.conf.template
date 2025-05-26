@@ -1,0 +1,42 @@
+client_max_body_size 50m;
+etag off;
+merge_slashes off;
+
+server {
+    listen  80 default_server;
+    server_name localhost;
+
+    location ${SERVICE_WEB_BASE_PATH} {
+        proxy_pass http://${SERVICE_WEB_NAME};
+
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto  $scheme;
+        proxy_http_version 1.1;
+        proxy_cache_bypass $http_upgrade;
+        proxy_buffering off;
+    }
+
+    location ${SERVICE_BACKEND_BASE_PATH} {
+        proxy_pass http://${SERVICE_BACKEND_NAME};
+
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto  $scheme;
+        proxy_http_version 1.1;
+        proxy_cache_bypass $http_upgrade;
+        proxy_buffering off;
+    }
+}
+
+upstream ${SERVICE_WEB_NAME} {
+    server ${SERVICE_WEB_NAME}:${SERVICE_WEB_PORT};
+}
+
+upstream ${SERVICE_BACKEND_NAME} {
+    server ${SERVICE_BACKEND_NAME}:${SERVICE_BACKEND_PORT};
+}

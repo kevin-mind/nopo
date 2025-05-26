@@ -18,17 +18,19 @@ export default class UpScript extends Script {
         ...env,
       },
     });
-    const localServices = Object.entries(data.config.services)
-      .filter(([, service]) => {
-        if (typeof service === "string") return false;
-        return service.image === env.DOCKER_TAG;
-      })
-      .map(([name]) => name);
+    const downServices = [];
 
-    await compose.downMany(localServices, {
+    for (const [name, service] of Object.entries(data.config.services)) {
+      if (typeof service === "string") continue;
+      if (service.image !== env.DOCKER_TAG) continue;
+      downServices.push(name);
+    }
+
+    await compose.downMany(downServices, {
       log: true,
       commandOptions: ["--remove-orphans"],
     });
+
     await compose.upAll({
       log: true,
       commandOptions: ["--remove-orphans", "-d", "--no-build"],

@@ -14,7 +14,8 @@ services:
       service: base_service
     environment:
       SERVICE_NAME: web
-      PORT: 3000
+      SERVICE_PORT: 3000
+      SERVICE_PUBLIC_PATH: /web
     ports:
       - 3000:3000
     healthcheck:
@@ -33,7 +34,8 @@ services:
       service: base_service
     environment:
       SERVICE_NAME: backend
-      PORT: 8000
+      SERVICE_PORT: 8000
+      SERVICE_PUBLIC_PATH: /api
     ports:
       - 8000:8000
 
@@ -47,7 +49,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - data_postgres:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", 'pg_isready -U website -d website']
       interval: 10s
@@ -55,5 +57,31 @@ services:
       retries: 5
       start_period: 10s
 
+  nginx:
+    image: nginx:latest
+    volumes:
+      - ./docker/nginx:/etc/nginx/templates
+    environment:
+      # Web configuration
+      SERVICE_WEB_PORT: 3000
+      SERVICE_WEB_PUBLIC_PATH: /web
+      SERVICE_WEB_NAME: web
+      # Backend configuration
+      SERVICE_BACKEND_PORT: 8000
+      SERVICE_BACKEND_PUBLIC_PATH: /api
+      SERVICE_BACKEND_NAME: backend
+    ports:
+      - "8080:80"
+    networks:
+      default:
+    depends_on:
+      - web
+      - backend
+
+networks:
+  default:
+    driver: bridge
+    enable_ipv6: false
+
 volumes:
-  postgres_data:
+  data_postgres:
