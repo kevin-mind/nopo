@@ -51,7 +51,7 @@ up:
 
 .PHONY: exec
 exec:
-	$(DOCKER_COMPOSE) exec $(DOCKER_SERVICE) $(REST_ARGS)
+	$(DOCKER_COMPOSE) exec $(DOCKER_SERVICE)
 
 .PHONY: shell
 shell: image
@@ -59,4 +59,4 @@ shell: image
 
 .PHONY: down
 down:
-	$(DOCKER_COMPOSE) down --rmi local $(REST_ARGS)
+	$(DOCKER_COMPOSE) down --rmi local
