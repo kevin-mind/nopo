@@ -49,21 +49,9 @@ up:
 # Commands that still need special handling
 ################################################################################
 
-.PHONY: add_lockfile
-add_lockfile:
-	pnpm add --lockfile-only
-
-.PHONY: update_lockfile
-update_lockfile:
-	pnpm install --lockfile-only --no-frozen-lockfile
-
-.PHONY: install_lockfile
-install_lockfile:
-	pnpm install --frozen-lockfile --config.confirmModulesPurge=false
-
 .PHONY: exec
 exec:
-	$(DOCKER_COMPOSE) exec $(DOCKER_SERVICE) $(REST_ARGS)
+	$(DOCKER_COMPOSE) exec $(DOCKER_SERVICE)
 
 .PHONY: shell
 shell: image
@@ -71,4 +59,4 @@ shell: image
 
 .PHONY: down
 down:
-	$(DOCKER_COMPOSE) down --rmi local $(REST_ARGS)
+	$(DOCKER_COMPOSE) down --rmi local

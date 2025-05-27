@@ -9,3 +9,6 @@ runs:
     - uses: actions/setup-node@v4
       with:
         cache: 'pnpm'
+
+    - shell: bash
+      run: pnpm install
