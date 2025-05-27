@@ -1,0 +1,11 @@
+services:
+  base:
+    extends:
+      file: ../docker/docker-compose.base.yml
+      service: base_builder
+    build:
+      args:
+        USER_UID: ${HOST_UID}
+    command: ["/bin/bash", "-c", "sleep infinity"]
+
+

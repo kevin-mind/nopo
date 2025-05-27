@@ -1,18 +1,11 @@
 services:
   base:
-    image: "${DOCKER_TAG:?}"
+    image: "${DOCKER_TAG}"
     pull_policy: never
-    user: root
-    entrypoint: ["/entrypoint.sh"]
     command: ["/cmd.sh"]
     platform: linux/amd64
-    volumes:
-      - ..:/app:cached
-      - ./entrypoint.sh:/entrypoint.sh
     environment:
       - CHOKIDAR_USEPOLLING=true
-      - NODE_ENV
-      - HOST_UID
 
   base_builder:
     extends: base
@@ -20,10 +13,13 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
       args:
-        NODE_ENV: "${NODE_ENV:?}"
-        DOCKER_TARGET: "${DOCKER_TARGET:?}"
-        DOCKER_TAG: "${DOCKER_TAG:?}"
-        DOCKER_VERSION: "${DOCKER_VERSION:?}"
+        NODE_ENV: "${NODE_ENV}"
+        DOCKER_TARGET: "${DOCKER_TARGET}"
+        DOCKER_TAG: "${DOCKER_TAG}"
+        DOCKER_VERSION: "${DOCKER_VERSION}"
+        GIT_REPO: "${GIT_REPO}"
+        GIT_BRANCH: "${GIT_BRANCH}"
+        GIT_COMMIT: "${GIT_COMMIT}"
       cache_from:
         - type=gha
       cache_to:
@@ -37,3 +33,10 @@ services:
     depends_on:
       base:
         condition: service_completed_successfully
+    user: root
+    entrypoint: ["/entrypoint.sh"]
+    volumes:
+      - ..:/app:cached
+      - ./entrypoint.sh:/entrypoint.sh
+    environment:
+      - HOST_UID

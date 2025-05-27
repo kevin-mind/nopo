@@ -1,31 +1,15 @@
 {
   "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
   "name": "Nopo Devcontainer",
-  "build": {
-    "dockerfile": "../docker/Dockerfile",
-    "context": "..",
-    "args": {
-      "DOCKER_TAG": "vc-nopo-dev",
-      "DOCKER_TARGET": "devcontainer",
-      "NODE_ENV": "development"
-    },
-    "target": "devcontainer"
-  },
-  "remoteUser": "nodeuser",
-  "containerUser": "nodeuser",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "base",
+  "remoteUser": "root",
   "updateRemoteUserUID": true,
   "privileged": true,
   "workspaceFolder": "/app",
   "features": {
-    "ghcr.io/devcontainers/features/git": {
-      "version": "latest"
-    },
-    "ghcr.io/devcontainers/features/docker-in-docker": {
-      "version": "latest",
-      "enableNonRootDocker": "true",
-      "moby": "true"
-    }
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
   },
-  "postCreateCommand": "git clone https://github.com/kevin-mind/nopo.git ${containerWorkspaceFolder} || true",
+  "initializeCommand": "./.devcontainer/init.sh",
   "postAttachCommand": "echo 'postAttachCommand'"
 }

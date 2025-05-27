@@ -2,9 +2,10 @@ import { z } from "zod";
 import { fs, dotenv } from "zx";
 
 import { DockerTag } from "./docker-tag.js";
+import { execSync } from "child_process";
 
 const nodeEnv = z.enum(["development", "production", "test"]);
-const dockerTarget = nodeEnv.or(z.enum(["base", "build"]));
+const dockerTarget = nodeEnv.or(z.enum(["base", "build", "install", "devcontainer"]));
 
 type ParseEnvDiffTuple = [string, string | undefined];
 
@@ -22,6 +23,9 @@ export class ParseEnv {
     DOCKER_REGISTRY: z.string(),
     DOCKER_IMAGE: z.string(),
     DOCKER_VERSION: z.string(),
+    GIT_REPO: z.string(),
+    GIT_BRANCH: z.string(),
+    GIT_COMMIT: z.string(),
     DOCKER_DIGEST: z.string().optional(),
     DOCKER_TARGET: dockerTarget,
     NODE_ENV: nodeEnv,
@@ -52,7 +56,7 @@ export class ParseEnv {
     return this.hasPrevEnv ? dotenv.load(this.envFile) : {};
   }
 
-  resolveDockerTag() {
+  #resolveDockerTag() {
     if (this.processEnv.DOCKER_TAG) {
       return new DockerTag(this.processEnv.DOCKER_TAG);
     } else if (this.processEnv.DOCKER_IMAGE && this.processEnv.DOCKER_VERSION) {
@@ -76,9 +80,16 @@ export class ParseEnv {
     }
   }
 
+  #resolveDockerSourceCommit() {
+    const gitRepo = execSync("git remote get-url origin").toString().trim();
+    const gitBranch = execSync("git rev-parse --abbrev-ref HEAD").toString().trim();
+    const gitCommit = execSync("git rev-parse HEAD").toString().trim();
+    return { gitRepo, gitBranch, gitCommit };
+  }
+
   #getCurrEnv() {
     const inputEnv = { ...this.prevEnv, ...this.processEnv };
-    const { parsed, fullTag } = this.resolveDockerTag();
+    const { parsed, fullTag } = this.#resolveDockerTag();
     let registry = parsed.registry;
     let image = parsed.image;
     let version = parsed.version;
@@ -120,14 +131,19 @@ export class ParseEnv {
       }
     }
 
+    const { gitRepo, gitBranch, gitCommit } = this.#resolveDockerSourceCommit();
+
     return ParseEnv.schema.parse({
       DOCKER_TAG: new DockerTag({ registry, image, version, digest }).fullTag,
+      DOCKER_TARGET: inputEnv.DOCKER_TARGET,
       DOCKER_REGISTRY: registry,
       DOCKER_IMAGE: image,
       DOCKER_VERSION: version,
       DOCKER_DIGEST: digest,
+      GIT_REPO: gitRepo,
+      GIT_BRANCH: gitBranch,
+      GIT_COMMIT: gitCommit,
       NODE_ENV: inputEnv.NODE_ENV,
-      DOCKER_TARGET: inputEnv.DOCKER_TARGET,
       HOST_UID: process.getuid?.()?.toString(),
     });
   }

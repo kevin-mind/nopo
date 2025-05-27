@@ -1,10 +1,12 @@
 ARG USER=nodeuser
+ARG USER_UID=1001
 
 ################################################################################################
-FROM --platform=linux/amd64 node:20-slim AS base
+FROM --platform=amd64 node:20-slim AS base
 ################################################################################################
 
 ARG USER
+ARG USER_UID
 
 ARG NODE_ENV=production
 
@@ -23,10 +25,10 @@ ENV PATH="$PNPM_HOME:$COREPACK_HOME:$PATH"
 WORKDIR $APP
 
 RUN <<EOF
-groupadd -g 1001 "${USER}"
+groupadd -g ${USER_UID} "${USER}"
 useradd \
-  --uid 1001 \
-  --gid 1001 \
+  --uid ${USER_UID} \
+  --gid ${USER_UID} \
   --home-dir ${HOME} \
   --create-home \
   --shell /bin/bash \
@@ -55,8 +57,9 @@ FROM base AS info
 # Build args that represent static build information
 # These are passed to docker via the bake.hcl file and
 # should not be overridden in the container environment.
-ARG DOCKER_SOURCE
-ARG DOCKER_COMMIT
+ARG GIT_REPO
+ARG GIT_BRANCH
+ARG GIT_COMMIT
 ARG DOCKER_VERSION
 ARG DOCKER_BUILD
 ARG DOCKER_TARGET
@@ -65,12 +68,13 @@ ARG DOCKER_TAG
 RUN <<EOF
 cat <<INNEREOF > ${BUILD_INFO}
 {
-  "commit": "${DOCKER_COMMIT}",
+  "repo": "${GIT_REPO}",
+  "branch": "${GIT_BRANCH}",
+  "commit": "${GIT_COMMIT}",
   "version": "${DOCKER_VERSION}",
   "tag": "${DOCKER_TAG}",
   "build": "${DOCKER_BUILD}",
-  "target": "${DOCKER_TARGET}",
-  "source": "${DOCKER_SOURCE}"
+  "target": "${DOCKER_TARGET}"
 }
 INNEREOF
 # Set permissions to make the file readable by all but only writable by root
@@ -94,19 +98,37 @@ USER $USER
 FROM user AS install
 ################################################################################################
 
-COPY --from=source --chown=$USER \
-  $APP/pnpm-lock.yaml $APP/pnpm-workspace.yaml \
-  $APP/
-
 RUN --mount=type=bind,source=pnpm-lock.yaml,target=$APP/pnpm-lock.yaml \
   --mount=type=bind,source=pnpm-workspace.yaml,target=$APP/pnpm-workspace.yaml \
-  pnpm fetch
+  pnpm fetch --dir $PNPM_HOME
 
 ################################################################################################
-FROM user AS devcontainer
+FROM base AS git
 ################################################################################################
 
+RUN apt-get update && apt-get install -y git sudo
+
+################################################################################################
+FROM git AS devcontainer
+################################################################################################
+
+COPY --from=install --chown=$USER $DEPS $DEPS
 COPY --from=info ${BUILD_INFO} ${BUILD_INFO}
+
+ARG USER
+USER $USER
+
+RUN <<EOF
+build_info=$(cat ${BUILD_INFO})
+repo=$(echo $build_info | jq -r '.repo')
+branch=$(echo $build_info | jq -r '.branch')
+clone="git clone ${repo}"
+if [ -n "${branch}" ]; then
+  clone="${clone} -b ${branch}"
+fi
+bash -c "${clone} ${APP}"
+git config --global --add safe.directory ${APP}
+EOF
 
 ################################################################################################
 FROM user AS build
