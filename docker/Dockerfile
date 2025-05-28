@@ -109,7 +109,7 @@ FROM base AS git
 RUN apt-get update && apt-get install -y git sudo
 
 ################################################################################################
-FROM git AS devcontainer
+FROM base AS devcontainer
 ################################################################################################
 
 COPY --from=install --chown=$USER $DEPS $DEPS
@@ -118,17 +118,17 @@ COPY --from=info ${BUILD_INFO} ${BUILD_INFO}
 ARG USER
 USER $USER
 
-RUN <<EOF
-build_info=$(cat ${BUILD_INFO})
-repo=$(echo $build_info | jq -r '.repo')
-branch=$(echo $build_info | jq -r '.branch')
-clone="git clone ${repo}"
-if [ -n "${branch}" ]; then
-  clone="${clone} -b ${branch}"
-fi
-bash -c "${clone} ${APP}"
-git config --global --add safe.directory ${APP}
-EOF
+# RUN <<EOF
+# build_info=$(cat ${BUILD_INFO})
+# repo=$(echo $build_info | jq -r '.repo')
+# branch=$(echo $build_info | jq -r '.branch')
+# clone="git clone ${repo}"
+# if [ -n "${branch}" ]; then
+#   clone="${clone} -b ${branch}"
+# fi
+# bash -c "${clone} ${APP}"
+# git config --global --add safe.directory ${APP}
+# EOF
 
 ################################################################################################
 FROM user AS build

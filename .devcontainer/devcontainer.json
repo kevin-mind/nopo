@@ -1,9 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
   "name": "Nopo Devcontainer",
-  "dockerComposeFile": "docker-compose.yml",
-  "service": "base",
-  "remoteUser": "root",
+  "image": "mcr.microsoft.com/devcontainers/base:bullseye",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/app,type=bind",
   "updateRemoteUserUID": true,
   "privileged": true,
   "workspaceFolder": "/app",

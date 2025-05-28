@@ -7,5 +7,7 @@ services:
       args:
         USER_UID: ${HOST_UID}
     command: ["/bin/bash", "-c", "sleep infinity"]
+    volumes:
+      - /app/node_modules
 
 
