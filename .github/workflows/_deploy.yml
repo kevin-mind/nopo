@@ -119,6 +119,7 @@ jobs:
           docker push $push_tag
 
       - name: Rollback Metadata
+        continue-on-error: true
         id: rollback_meta
         run: |
           public_url="${{ vars.APP_PUBLIC_URL }}"

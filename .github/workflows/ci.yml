@@ -75,7 +75,7 @@ jobs:
       - uses: ./.github/actions/setup-node
 
       - name: Install
-        run: make install_lockfile
+        run: pnpm install:lock
 
       - name: Build
         run: pnpm build

@@ -23,7 +23,9 @@
     "test": "pnpm run -r test",
     "publish:workspace": "pnpm publish -r",
     "script": "pnpm run --filter @more/scripts script",
-    "smoketest": "playwright test"
+    "smoketest": "playwright test",
+    "install:lock": "yes | pnpm install --frozen-lockfile",
+    "install:offline": "pnpm install:lock --offline"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.1",

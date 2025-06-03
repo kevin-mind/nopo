@@ -23,7 +23,9 @@ RUN \
   --mount=type=cache,target=/var/cache/apt,id=apt \
   --mount=type=cache,target=/var/lib/apt,id=apt \
   --mount=type=bind,source=package.json,target=$APP/package.json \
-  --mount=type=bind,source=.npmrc,target=$APP/.npmrc \
+  --mount=type=cache,target=$PNPM_HOME,id=pnpm \
+  --mount=type=cache,target=$COREPACK_HOME,id=corepack \
+  --mount=type=cache,target=$PNPM_STORE_DIR,id=pnpm-store \
 <<EOF
 apt-get update && apt-get install -y make jq
 corepack enable pnpm
@@ -86,14 +88,9 @@ COPY . $APP
 FROM user AS install
 ################################################################################################
 
-COPY --from=source --chown=$USER \
-  $APP/.npmrc $APP/pnpm-lock.yaml $APP/pnpm-workspace.yaml \
-  $APP/
+COPY --from=source --chown=$USER $APP/pnpm-lock.yaml $APP/pnpm-workspace.yaml $APP/
 
-RUN --mount=type=bind,source=.npmrc,target=$APP/.npmrc \
-  --mount=type=bind,source=pnpm-lock.yaml,target=$APP/pnpm-lock.yaml \
-  --mount=type=bind,source=pnpm-workspace.yaml,target=$APP/pnpm-workspace.yaml \
-  pnpm fetch
+RUN pnpm fetch
 
 ################################################################################################
 FROM user AS build
@@ -103,7 +100,7 @@ COPY --from=install --chown=$USER $DEPS $DEPS
 COPY --from=source --chown=$USER $APP $APP
 
 RUN <<EOF
-pnpm install
+pnpm install:offline
 pnpm build
 EOF
 
@@ -131,6 +128,6 @@ FROM runner AS production
 
 COPY --from=build --chown=$USER $APP $APP
 
-RUN pnpm install --prod --config.confirmModulesPurge=false
+RUN pnpm install:offline --prod
 
 ENV SERVICE_COMMAND="start"
