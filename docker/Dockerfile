@@ -11,7 +11,7 @@ ENV SERVICE_NAME=
 ENV NODE_ENV=$NODE_ENV
 
 ENV BUILD_INFO=/build-info.json
-ENV HOME=/home/nodeuser
+ENV HOME=/home/$USER
 ENV APP=/app
 ENV DEPS=$HOME/deps
 ENV PNPM_HOME="$DEPS/pnpm"
@@ -33,12 +33,16 @@ corepack prepare pnpm --activate
 corepack install -g pnpm
 EOF
 
+################################################################################################
 FROM base AS info
+################################################################################################
 
 # Build args that represent static build information
 # These are passed to docker via the bake.hcl file and
 # should not be overridden in the container environment.
-ARG DOCKER_COMMIT
+ARG GIT_REPO
+ARG GIT_BRANCH
+ARG GIT_COMMIT
 ARG DOCKER_VERSION
 ARG DOCKER_BUILD
 ARG DOCKER_TARGET
@@ -47,12 +51,13 @@ ARG DOCKER_TAG
 RUN <<EOF
 cat <<INNEREOF > ${BUILD_INFO}
 {
-  "commit": "${DOCKER_COMMIT}",
+  "repo": "${GIT_REPO}",
+  "branch": "${GIT_BRANCH}",
+  "commit": "${GIT_COMMIT}",
   "version": "${DOCKER_VERSION}",
   "tag": "${DOCKER_TAG}",
   "build": "${DOCKER_BUILD}",
-  "target": "${DOCKER_TARGET}",
-  "source": "https://github.com/kevin-mind/nopo"
+  "target": "${DOCKER_TARGET}"
 }
 INNEREOF
 # Set permissions to make the file readable by all but only writable by root

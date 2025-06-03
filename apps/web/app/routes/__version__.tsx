@@ -2,12 +2,13 @@ import fs from "node:fs";
 import { z } from "zod";
 
 const schema = z.object({
+  repo: z.string(),
+  branch: z.string(),
   commit: z.string(),
   version: z.string(),
   tag: z.string(),
   build: z.string(),
   target: z.string(),
-  source: z.string(),
 });
 
 export async function loader() {
