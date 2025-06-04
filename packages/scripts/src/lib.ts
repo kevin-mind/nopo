@@ -5,16 +5,23 @@ export class Config {
   __filename: string = fileURLToPath(import.meta.url);
   __dirname: string = path.dirname(this.__filename);
   root: string = path.resolve(this.__dirname, "..", "..", "..");
-  envFile: string = path.resolve(this.root, ".env");
-  processEnv: NodeJS.ProcessEnv = { ...process.env };
-  silent: boolean = false;
+  envFile: string;
+  processEnv: NodeJS.ProcessEnv;
+  silent: boolean;
 
   constructor(
-    overrides: Partial<Pick<Config, "envFile" | "processEnv" | "silent">> = {},
+    override: Partial<Pick<Config, "envFile" | "processEnv" | "silent">> = {
+      envFile: ".env",
+      processEnv: { ...process.env },
+      silent: false,
+    },
   ) {
     chalk.level = 2;
     $.cwd = this.root;
-    Object.assign(this, overrides);
+
+    this.envFile = path.resolve(this.root, override.envFile || ".env");
+    this.processEnv = override.processEnv || { ...process.env };
+    this.silent = override.silent || false;
   }
 }
 

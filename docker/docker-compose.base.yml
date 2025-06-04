@@ -1,18 +1,10 @@
 services:
   base:
-    image: "${DOCKER_TAG:?}"
+    image: "${DOCKER_TAG}"
     pull_policy: never
-    user: root
-    entrypoint: ["/entrypoint.sh"]
     command: ["/cmd.sh"]
-    platform: linux/amd64
-    volumes:
-      - ..:/app:cached
-      - ./entrypoint.sh:/entrypoint.sh
     environment:
       - CHOKIDAR_USEPOLLING=true
-      - NODE_ENV
-      - HOST_UID
 
   base_builder:
     extends: base
@@ -31,7 +23,6 @@ services:
         - type=gha
       cache_to:
         - type=gha,mode=max
-      pull: true
       target: "${DOCKER_TARGET}"
 
   base_service:
@@ -40,3 +31,10 @@ services:
     depends_on:
       base:
         condition: service_completed_successfully
+    user: root
+    entrypoint: ["/entrypoint.sh"]
+    volumes:
+      - ..:/app:cached
+      - ./entrypoint.sh:/entrypoint.sh
+    environment:
+      - HOST_UID

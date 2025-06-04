@@ -1,0 +1,10 @@
+services:
+
+  devcontainer:
+    extends:
+      file: ../docker/docker-compose.base.yml
+      service: base_builder
+    image: nopo-devcontainer
+    command: ["/bin/bash", "-c", "sleep infinity"]
+
+
