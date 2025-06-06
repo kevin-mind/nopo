@@ -113,14 +113,21 @@ export default class RunWorkspaceScript extends Script {
   async fn() {
     const command = await this.getCommand();
 
-    const { confirmed } = await prompts({
-      name: "confirmed",
-      type: "confirm",
-      message: `Run: "${chalk.magenta(command)}"?`,
-      initial: true,
-    });
+    let isConfirmed = this.config.processEnv.DOCKER_RUN && !!command;
 
-    if (confirmed) {
+    if (!isConfirmed) {
+      const { confirmed } = await prompts({
+        name: "confirmed",
+        type: "confirm",
+        message: `Run: "${chalk.magenta(command)}"?`,
+        initial: true,
+      });
+      isConfirmed = confirmed;
+    } else {
+      this.logger.log(chalk.magenta(`Running: "${command}"`));
+    }
+
+    if (isConfirmed) {
       execSync(command, { stdio: "inherit", cwd: this.config.root });
     }
   }

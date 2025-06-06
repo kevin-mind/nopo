@@ -1,10 +1,12 @@
 ARG USER=nodeuser
+ARG USER_ID=1001
 
 ################################################################################################
-FROM node:20-slim AS base
+FROM node:23.11.1-slim AS base
 ################################################################################################
 
 ARG USER
+ARG USER_ID
 ARG NODE_ENV=production
 
 ENV SERVICE_NAME=
@@ -19,6 +21,14 @@ ENV PNPM_STORE_DIR="$PNPM_HOME/store"
 ENV COREPACK_HOME="$DEPS/corepack"
 ENV PATH="$PNPM_HOME:$COREPACK_HOME:$PATH"
 
+WORKDIR $APP
+
+RUN <<EOF
+# Create user and group
+groupadd -g $USER_ID $USER
+useradd -r -u $USER_ID -g $USER_ID -d $HOME -m -s /sbin/nologin $USER
+EOF
+
 RUN \
   --mount=type=cache,target=/var/cache/apt,id=apt \
   --mount=type=cache,target=/var/lib/apt,id=apt \
@@ -28,9 +38,9 @@ RUN \
   --mount=type=cache,target=$PNPM_STORE_DIR,id=pnpm-store \
 <<EOF
 apt-get update && apt-get install -y make jq
+npm install --global corepack@latest
 corepack enable pnpm
 corepack prepare pnpm --activate
-corepack install -g pnpm
 EOF
 
 ################################################################################################
@@ -65,24 +75,6 @@ chmod 644 ${BUILD_INFO}
 cat ${BUILD_INFO}
 EOF
 
-FROM base AS user
-
-RUN <<EOF
-groupadd -g 1001 $USER
-useradd -r -u 1001 -g 1001 -d $HOME -m -s /sbin/nologin $USER
-
-# Create directories and set permissions
-for dir in $APP $DEPS $PNPM_HOME $PNPM_STORE_DIR $COREPACK_HOME; do
-  mkdir -p $dir
-  chown -R $USER:$USER $dir
-  chmod -R g+rwx $dir
-done
-EOF
-
-WORKDIR $APP
-
-USER $USER
-
 ################################################################################################
 FROM base AS source
 ################################################################################################
@@ -90,15 +82,17 @@ FROM base AS source
 COPY . $APP
 
 ################################################################################################
-FROM user AS install
+FROM base AS install
 ################################################################################################
+
+ARG USER_ID
 
 COPY --from=source --chown=$USER $APP/pnpm-lock.yaml $APP/pnpm-workspace.yaml $APP/
 
 RUN pnpm fetch
 
 ################################################################################################
-FROM user AS build
+FROM base AS build
 ################################################################################################
 
 COPY --from=install --chown=$USER $DEPS $DEPS
@@ -110,29 +104,31 @@ pnpm build
 EOF
 
 ################################################################################################
-FROM user AS runner
+FROM base AS runner
 ################################################################################################
+
+USER $USER
 
 COPY --from=info ${BUILD_INFO} ${BUILD_INFO}
 COPY --from=install --chown=$USER $DEPS $DEPS
+COPY --from=source --chown=$USER $APP/docker/cmd.sh /cmd.sh
 
-COPY docker/cmd.sh /cmd.sh
 CMD ["/cmd.sh"]
 
 ################################################################################################
 FROM runner AS development
 ################################################################################################
 
-COPY --from=source --chown=$USER $APP $APP
-
 ENV SERVICE_COMMAND="dev"
+
+COPY --from=source --chown=$USER $APP $APP
 
 ################################################################################################
 FROM runner AS production
 ################################################################################################
 
+ENV SERVICE_COMMAND="start"
+
 COPY --from=build --chown=$USER $APP $APP
 
 RUN pnpm install:offline --prod
-
-ENV SERVICE_COMMAND="start"
