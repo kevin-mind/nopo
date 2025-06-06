@@ -6,13 +6,12 @@ import { dockerTag, createTmpEnv } from "./utils";
 vi.mock("../src/git-info", () => ({
   GitInfo: {
     parse: vi.fn(() => ({
-      repo: 'git-repo',
-      branch: 'git-branch',
-      commit: 'git-commit',
-    }))
+      repo: "git-repo",
+      branch: "git-branch",
+      commit: "git-commit",
+    })),
   },
 }));
-
 
 describe("parseEnv", () => {
   it("should parse the env", () => {
@@ -20,9 +19,9 @@ describe("parseEnv", () => {
       env: { HOST_UID, GIT_BRANCH, GIT_COMMIT, GIT_REPO, ...env },
     } = new ParseEnv(createTmpEnv());
     expect(HOST_UID).toBe(process.getuid?.()?.toString());
-    expect(GIT_REPO).toStrictEqual('git-repo');
-    expect(GIT_BRANCH).toStrictEqual('git-branch');
-    expect(GIT_COMMIT).toStrictEqual('git-commit');
+    expect(GIT_REPO).toStrictEqual("git-repo");
+    expect(GIT_BRANCH).toStrictEqual("git-branch");
+    expect(GIT_COMMIT).toStrictEqual("git-commit");
     expect(env).toMatchSnapshot();
   });
 

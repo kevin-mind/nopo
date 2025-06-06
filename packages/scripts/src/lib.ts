@@ -1,4 +1,4 @@
-import { path, chalk, $ } from "zx";
+import { path, chalk, $, ProcessOutput } from "zx";
 import { fileURLToPath } from "node:url";
 
 export class Config {
@@ -81,7 +81,17 @@ export class Runner extends Base {
         ),
       );
       const scriptInstance = new ScriptToRun(this.config, this.logger);
-      await scriptInstance.fn();
+      try {
+        await scriptInstance.fn();
+      } catch (error) {
+        if (error instanceof ProcessOutput) {
+          this.logger.log(chalk.red(error.stdout));
+          this.logger.log(chalk.red(error.stderr));
+          this.logger.log(error.stack);
+          process.exit(error.exitCode);
+        }
+        throw error;
+      }
     }
   }
 }

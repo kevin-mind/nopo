@@ -2,7 +2,6 @@ import { z } from "zod";
 import { fs, dotenv } from "zx";
 
 import { DockerTag } from "./docker-tag.js";
-import { execSync } from "child_process";
 import { GitInfo } from "./git-info.js";
 
 const nodeEnv = z.enum(["development", "production", "test"]);
@@ -79,13 +78,6 @@ export class ParseEnv {
     } else {
       return ParseEnv.baseTag;
     }
-  }
-
-  #resolveDockerSourceCommit() {
-    const gitRepo = execSync("git remote get-url origin").toString().trim();
-    const gitBranch = execSync("git rev-parse --abbrev-ref HEAD").toString().trim();
-    const gitCommit = execSync("git rev-parse HEAD").toString().trim();
-    return { gitRepo, gitBranch, gitCommit };
   }
 
   #getCurrEnv() {

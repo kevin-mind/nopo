@@ -4,6 +4,9 @@ packages:
 
 injectWorkspacePackages: true
 
+engineStrict: true
+packageManagerStrict: true
+
 onlyBuiltDependencies:
   - esbuild
 
