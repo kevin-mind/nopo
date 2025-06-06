@@ -13,6 +13,7 @@ services:
       - CHOKIDAR_USEPOLLING=true
       - NODE_ENV
       - HOST_UID
+      - CI
 
   base_builder:
     extends: base

@@ -80,6 +80,18 @@ export class ParseEnv {
     }
   }
 
+  #resolveGitInfo(repo = "unknown", branch = "unknown", commit = "unknown") {
+    if (GitInfo.exists()) {
+      return GitInfo.parse();
+    } else {
+      return {
+        repo,
+        branch,
+        commit,
+      };
+    }
+  }
+
   #getCurrEnv() {
     const inputEnv = { ...this.prevEnv, ...this.processEnv };
     const { parsed, fullTag } = this.#resolveDockerTag();
@@ -124,7 +136,11 @@ export class ParseEnv {
       }
     }
 
-    const gitInfo = GitInfo.parse();
+    const gitInfo = this.#resolveGitInfo(
+      inputEnv.GIT_REPO,
+      inputEnv.GIT_BRANCH,
+      inputEnv.GIT_COMMIT,
+    );
 
     return ParseEnv.schema.parse({
       DOCKER_TAG: new DockerTag({ registry, image, version, digest }).fullTag,
