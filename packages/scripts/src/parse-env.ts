@@ -5,7 +5,7 @@ import { DockerTag } from "./docker-tag.js";
 import { GitInfo } from "./git-info.js";
 
 const nodeEnv = z.enum(["development", "production", "test"]);
-const dockerTarget = nodeEnv.or(z.enum(["base", "build"]));
+const dockerTarget = nodeEnv.or(z.enum(["base", "build", "devcontainer"]));
 
 type ParseEnvDiffTuple = [string, string | undefined];
 
@@ -124,7 +124,11 @@ export class ParseEnv {
       }
     }
 
-    const gitInfo = GitInfo.parse();
+    const gitInfo = GitInfo.parse({
+      repo: inputEnv.GIT_REPO,
+      branch: inputEnv.GIT_BRANCH,
+      commit: inputEnv.GIT_COMMIT,
+    });
 
     return ParseEnv.schema.parse({
       DOCKER_TAG: new DockerTag({ registry, image, version, digest }).fullTag,

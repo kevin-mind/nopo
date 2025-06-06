@@ -36,8 +36,10 @@ export default async function main() {
     return printHelp(`Command ${command} not found.`, 1);
   }
 
+  const { ENV_FILE = undefined } = process.env;
+
   const { default: script } = await import(scriptPath);
-  const config = new Config();
+  const config = new Config({ envFile: ENV_FILE });
 
   const runner = new Runner(config);
   await runner.run(script);

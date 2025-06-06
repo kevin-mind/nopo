@@ -6,6 +6,7 @@ import { ParseEnv } from "../../src/parse-env.js";
 import { Config } from "../../src/lib.js";
 
 import { createTmpEnv, runScript, dockerTag } from "../utils.js";
+import path from "node:path";
 
 /*
 1. DOCKER_TAG is the ONLY input parameter
@@ -73,17 +74,6 @@ describe("env", () => {
       );
     });
 
-    it("throws error for missing envFile", async () => {
-      const config = new Config({
-        envFile: undefined,
-        processEnv: {},
-        silent: true,
-      });
-      await expect(runScript(EnvScript, config)).rejects.toThrow(
-        "Missing envFile",
-      );
-    });
-
     it("throws error for invalid DOCKER_TAG input", async () => {
       const config = new Config({
         envFile: createTmpEnv(),
@@ -128,6 +118,16 @@ describe("env", () => {
   });
 
   describe("defaults and inference", () => {
+    it("uses default .env file when none is provided", async () => {
+      const config = new Config({
+        envFile: undefined,
+        processEnv: {},
+        silent: true,
+      });
+      await runScript(EnvScript, config);
+      expect(config.envFile).toStrictEqual(path.resolve(config.root, ".env"));
+    });
+
     it('sets missing NODE_ENV and DOCKER_TARGET to "development" for local images', async () => {
       const config = new Config({
         envFile: createTmpEnv(),
