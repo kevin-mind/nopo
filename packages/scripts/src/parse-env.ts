@@ -124,7 +124,11 @@ export class ParseEnv {
       }
     }
 
-    const gitInfo = GitInfo.parse();
+    const gitInfo = GitInfo.parse({
+      repo: inputEnv.GIT_REPO,
+      branch: inputEnv.GIT_BRANCH,
+      commit: inputEnv.GIT_COMMIT,
+    });
 
     return ParseEnv.schema.parse({
       DOCKER_TAG: new DockerTag({ registry, image, version, digest }).fullTag,
