@@ -49,10 +49,6 @@ up:
 # Commands that still need special handling
 ################################################################################
 
-.PHONY: exec
-exec:
-	$(DOCKER_COMPOSE) exec $(DOCKER_SERVICE)
-
 .PHONY: shell
 shell: image
 	$(DOCKER_COMPOSE) run --rm --entrypoint /bin/bash --user nodeuser $(DOCKER_SERVICE)
