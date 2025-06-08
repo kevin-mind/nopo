@@ -26,7 +26,7 @@ WORKDIR $APP
 RUN <<EOF
 # Create user and group
 groupadd -g $USER_ID $USER
-useradd -r -u $USER_ID -g $USER_ID -d $HOME -m -s /sbin/nologin $USER
+useradd -r -u $USER_ID -g $USER_ID -d $HOME -m -s /bin/bash $USER
 EOF
 
 RUN \
@@ -104,19 +104,24 @@ pnpm build
 EOF
 
 ################################################################################################
-FROM base AS runner
+FROM base AS user
 ################################################################################################
-
-USER $USER
 
 COPY --from=info ${BUILD_INFO} ${BUILD_INFO}
 COPY --from=install --chown=$USER $DEPS $DEPS
 COPY --from=source --chown=$USER $APP/docker/cmd.sh /cmd.sh
 
+RUN <<EOF
+usermod -s /sbin/nologin $USER
+chown -R $USER:$USER $HOME $APP
+EOF
+
 CMD ["/cmd.sh"]
 
+USER $USER
+
 ################################################################################################
-FROM runner AS development
+FROM user AS development
 ################################################################################################
 
 ENV SERVICE_COMMAND="dev"
@@ -124,7 +129,7 @@ ENV SERVICE_COMMAND="dev"
 COPY --from=source --chown=$USER $APP $APP
 
 ################################################################################################
-FROM runner AS production
+FROM user AS production
 ################################################################################################
 
 ENV SERVICE_COMMAND="start"

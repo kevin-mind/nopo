@@ -54,6 +54,5 @@ jobs:
       - name: Run '${{ matrix.command }}' (${{ matrix.service }})
         run: |
           cat <<'EOF' | docker compose exec --user nodeuser ${{ matrix.service }} bash
-            ls -lan /home/nodeuser
             make ${{ matrix.command }}
           EOF
