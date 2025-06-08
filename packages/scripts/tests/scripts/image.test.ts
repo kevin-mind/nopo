@@ -1,10 +1,10 @@
 import { describe, it, vi, expect } from "vitest";
 import compose from "docker-compose";
-import ImageScript from "../../src/scripts/image.js";
-import { Config } from "../../src/lib.js";
-import { ParseEnv } from "../../src/parse-env.js";
+import ImageScript from "../../src/scripts/image";
+import { Config } from "../../src/lib";
+import { ParseEnv } from "../../src/parse-env";
 
-import { createTmpEnv, runScript } from "../utils.js";
+import { createTmpEnv, runScript } from "../utils";
 
 vi.mock("docker-compose", () => ({
   default: {

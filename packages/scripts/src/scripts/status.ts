@@ -1,5 +1,5 @@
 import { $ } from "zx";
-import { Script } from "../lib.js";
+import { Script } from "../lib.ts";
 
 export default class StatusScript extends Script {
   name = "status";

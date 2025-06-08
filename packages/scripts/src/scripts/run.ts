@@ -1,8 +1,8 @@
-import { path, $, chalk } from "zx";
+import { path, $, chalk, fs } from "zx";
 import { execSync } from "node:child_process";
 import prompts from "prompts";
-import { Script } from "../lib.js";
-import EnvScript from "./env.js";
+import { Script } from "../lib.ts";
+import EnvScript from "./env.ts";
 
 interface WorkspacePackage {
   name: string;
@@ -22,6 +22,10 @@ export default class RunWorkspaceScript extends Script {
   static description = "Run a command on one or more packages/apps";
   static dependencies = [EnvScript];
 
+  readPackageJson(path: string) {
+    return JSON.parse(fs.readFileSync(path, "utf8"));
+  }
+
   async getWorkspacePackages(): Promise<WorkspacePackage[]> {
     try {
       const result = await $`pnpm list --recursive --json --depth 0`;
@@ -30,8 +34,9 @@ export default class RunWorkspaceScript extends Script {
       const results: WorkspacePackage[] = [];
 
       for await (const pkg of packages) {
-        const pkgPath = path.join(pkg.path, "package.json");
-        const { default: pkgjson } = await import(pkgPath);
+        const pkgjson = this.readPackageJson(
+          path.join(pkg.path, "package.json"),
+        );
 
         results.push({
           name: pkg.name,

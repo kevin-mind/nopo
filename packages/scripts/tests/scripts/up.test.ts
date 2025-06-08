@@ -1,8 +1,8 @@
 import { describe, it, vi, expect } from "vitest";
 import compose from "docker-compose";
-import UpScript from "../../src/scripts/up.js";
-import { Config } from "../../src/lib.js";
-import { createTmpEnv, runScript } from "../utils.js";
+import UpScript from "../../src/scripts/up";
+import { Config } from "../../src/lib";
+import { createTmpEnv, runScript } from "../utils";
 
 vi.mock("docker-compose", () => ({
   default: {

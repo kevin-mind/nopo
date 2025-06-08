@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 
-import EnvScript from "../../src/scripts/env.js";
-import { ParseEnv } from "../../src/parse-env.js";
-import { Config } from "../../src/lib.js";
+import EnvScript from "../../src/scripts/env";
+import { ParseEnv } from "../../src/parse-env";
+import { Config } from "../../src/lib";
 
 import { createTmpEnv, runScript, dockerTag } from "../utils.js";
 import path from "node:path";

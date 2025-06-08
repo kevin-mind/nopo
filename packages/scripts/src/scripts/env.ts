@@ -1,6 +1,6 @@
 import { chalk } from "zx";
-import { Script } from "../lib.js";
-import { ParseEnv } from "../parse-env.js";
+import { Script } from "../lib.ts";
+import { ParseEnv } from "../parse-env.ts";
 
 export default class EnvScript extends Script {
   static name = "env";

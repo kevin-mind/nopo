@@ -10,42 +10,6 @@ DOCKER = docker
 DOCKER_COMPOSE = $(DOCKER) compose
 
 ################################################################################
-# Commands that don't need special handling
-################################################################################
-
-.PHONY: clean
-clean:
-	make run DOCKER_RUN=clean
-
-.PHONY: check
-check:
-	make run DOCKER_RUN=check
-
-.PHONY: fix
-fix:
-	make run DOCKER_RUN=fix
-
-.PHONY: test
-test:
-	pnpm test
-
-.PHONY: env
-env:
-	pnpm run script env
-
-.PHONY: image
-image:
-	pnpm run script image
-
-.PHONY: run
-run:
-	pnpm run script run
-
-.PHONY: up
-up:
-	pnpm run script up
-
-################################################################################
 # Commands that still need special handling
 ################################################################################
 
@@ -56,3 +20,15 @@ shell: image
 .PHONY: down
 down:
 	$(DOCKER_COMPOSE) down --rmi local
+
+################################################################################
+# Default command executes @more/scripts executable scripts
+# ex: make status will run ./packages/scripts/index.ts status
+# ex: to add multiple arguments use double quotes to prevent make from interpreting them
+# $ make "status --help" will pass --help as an argument to the script
+# Note: using npx zx directly means we do not depend on pnpm being installed
+################################################################################
+
+%:
+	pnpx zx --install ./packages/scripts/index.ts $(MAKECMDGOALS)
+

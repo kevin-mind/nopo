@@ -19,9 +19,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        run:
-          - check
-          - test
+        include:
+          -
+            service: web
+            command: check
+          -
+            service: web
+            command: test
       fail-fast: false
     permissions:
       packages: read
@@ -47,8 +51,9 @@ jobs:
       - name: Up
         run: make up DOCKER_TAG="${{ steps.docker_tag.outputs.tag }}"
 
-      - name: Run '${{ matrix.run }}'
+      - name: Run '${{ matrix.command }}' (${{ matrix.service }})
         run: |
-          cat <<'EOF' | docker compose exec --user nodeuser web bash
-            make ${{ matrix.run }}
+          cat <<'EOF' | docker compose exec --user nodeuser ${{ matrix.service }} bash
+            ls -lan /home/nodeuser
+            make ${{ matrix.command }}
           EOF

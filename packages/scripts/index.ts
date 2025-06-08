@@ -1,14 +1,22 @@
+#!/usr/bin/env node
+
 import { minimist, chalk, glob } from "zx";
+import path from "node:path";
 
-import { Runner, Config } from "./src/lib.js";
+import { Runner, Config } from "./src/lib.ts";
 
-const scripts = glob.sync("./src/scripts/*.ts").reduce((acc, path) => {
-  const name = path.split("/").pop()?.split(".").shift();
-  if (name) {
-    acc[name] = path;
-  }
-  return acc;
-}, {});
+const basePath = import.meta.dirname;
+const scriptsPath = path.join(basePath, "src", "scripts");
+
+const scripts = glob
+  .sync(path.join(scriptsPath, "*.ts"))
+  .reduce((acc, path) => {
+    const name = path.split("/").pop()?.split(".").shift();
+    if (name) {
+      acc[name] = path;
+    }
+    return acc;
+  }, {});
 
 function printHelp(message, exitCode = 1) {
   const color = exitCode === 0 ? chalk.green : chalk.red;
@@ -25,21 +33,24 @@ export default async function main() {
     return printHelp("Usage: @more/scripts <command> [options]", 0);
   }
 
-  const command = args._[0];
+  let command = args._[0];
+  const processEnv = { ...process.env };
 
   if (!command) {
-    return printHelp("No script provided", 1);
+    command = "run";
   }
 
-  const scriptPath = scripts[command];
+  let scriptPath = scripts[command];
+
   if (!scriptPath) {
-    return printHelp(`Command ${command} not found.`, 1);
+    scriptPath = scripts["run"];
+    processEnv.DOCKER_RUN = command;
   }
 
   const { ENV_FILE = undefined } = process.env;
 
   const { default: script } = await import(scriptPath);
-  const config = new Config({ envFile: ENV_FILE });
+  const config = new Config({ envFile: ENV_FILE, processEnv });
 
   const runner = new Runner(config);
   await runner.run(script);
