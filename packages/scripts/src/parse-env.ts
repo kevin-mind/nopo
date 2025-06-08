@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { fs, dotenv } from "zx";
 
-import { DockerTag } from "./docker-tag.js";
-import { GitInfo } from "./git-info.js";
+import { DockerTag } from "./docker-tag.ts";
+import { GitInfo } from "./git-info.ts";
 
 const nodeEnv = z.enum(["development", "production", "test"]);
 const dockerTarget = nodeEnv.or(z.enum(["base", "build"]));
