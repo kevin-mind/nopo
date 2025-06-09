@@ -1,10 +1,10 @@
 import { describe, it, vi, expect } from "vitest";
 import compose from "docker-compose";
-import ImageScript from "../../src/scripts/image.js";
-import { Config } from "../../src/lib.js";
-import { ParseEnv } from "../../src/parse-env.js";
+import ImageScript from "../../src/scripts/image";
+import { createConfig } from "../../src/lib";
+import { ParseEnv } from "../../src/parse-env";
 
-import { createTmpEnv, runScript } from "../utils.js";
+import { createTmpEnv, runScript } from "../utils";
 
 vi.mock("docker-compose", () => ({
   default: {
@@ -15,7 +15,7 @@ vi.mock("docker-compose", () => ({
 
 describe("image", () => {
   it("builds image when no DOCKER_REGISTRY is provided", async () => {
-    const config = new Config({
+    const config = createConfig({
       envFile: createTmpEnv({
         DOCKER_TAG: "kevin-mind/nopo:local",
       }),
@@ -38,7 +38,7 @@ describe("image", () => {
     const tmpEnv = createTmpEnv({
       DOCKER_TAG: "docker.io/kevin-mind/nopo:latest",
     });
-    const config = new Config({
+    const config = createConfig({
       envFile: tmpEnv,
       processEnv: {},
       silent: true,

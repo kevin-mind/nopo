@@ -26,7 +26,7 @@ export default class EnvScript extends Script {
     this.logger.log(title);
     this.logger.log(breakLine);
 
-    for (const key of Object.keys(env.diff) as (keyof typeof env.diff)[]) {
+    for (const key of Object.keys(env.diff)) {
       const section = env.diff[key];
       if (section.length === 0) continue;
       this.logger.log(chalk.underline(colors[key](key)));

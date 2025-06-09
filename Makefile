@@ -10,42 +10,6 @@ DOCKER = docker
 DOCKER_COMPOSE = $(DOCKER) compose
 
 ################################################################################
-# Commands that don't need special handling
-################################################################################
-
-.PHONY: clean
-clean:
-	make run DOCKER_RUN=clean
-
-.PHONY: check
-check:
-	make run DOCKER_RUN=check
-
-.PHONY: fix
-fix:
-	make run DOCKER_RUN=fix
-
-.PHONY: test
-test:
-	pnpm test
-
-.PHONY: env
-env:
-	pnpm run script env
-
-.PHONY: image
-image:
-	pnpm run script image
-
-.PHONY: run
-run:
-	pnpm run script run
-
-.PHONY: up
-up:
-	pnpm run script up
-
-################################################################################
 # Commands that still need special handling
 ################################################################################
 
@@ -56,3 +20,6 @@ shell: image
 .PHONY: down
 down:
 	$(DOCKER_COMPOSE) down --rmi local
+
+%:
+	pnpm run $(MAKECMDGOALS)
