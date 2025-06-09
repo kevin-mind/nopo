@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { DockerTag } from "../src/docker-tag";
+import { DockerTag } from "../src/docker-tag.js";
 
 const DOCKER_DIGEST =
   "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";

@@ -7,14 +7,14 @@ import { GitInfo } from "./git-info.js";
 const nodeEnv = z.enum(["development", "production", "test"]);
 const dockerTarget = nodeEnv.or(z.enum(["base", "build"]));
 
-const ParseEnvDiffTuple = z.tuple([z.string(), z.string().optional()]);
+type ParseEnvDiffTuple = [string, string | undefined];
 
-const ParseEnvDiff = z.object({
-  added: z.array(ParseEnvDiffTuple),
-  updated: z.array(ParseEnvDiffTuple),
-  removed: z.array(ParseEnvDiffTuple),
-  unchanged: z.array(ParseEnvDiffTuple),
-});
+interface ParseEnvDiff {
+  added: ParseEnvDiffTuple[];
+  updated: ParseEnvDiffTuple[];
+  removed: ParseEnvDiffTuple[];
+  unchanged: ParseEnvDiffTuple[];
+}
 
 export class ParseEnv {
   static baseTag = new DockerTag("kevin-mind/nopo:local");
@@ -32,7 +32,14 @@ export class ParseEnv {
     HOST_UID: z.string(),
   });
 
-  constructor(envFile, processEnv = {}) {
+  envFile: string;
+  processEnv: NodeJS.ProcessEnv;
+  hasPrevEnv: boolean;
+  prevEnv: NodeJS.ProcessEnv;
+  env: z.infer<typeof ParseEnv.schema>;
+  diff: ParseEnvDiff;
+
+  constructor(envFile: string, processEnv: NodeJS.ProcessEnv = {}) {
     if (!envFile) {
       throw new Error("Missing envFile");
     }
@@ -151,14 +158,16 @@ export class ParseEnv {
   }
 
   #diff() {
-    const result = ParseEnvDiff.parse({
+    const result: ParseEnvDiff = {
       added: [],
       updated: [],
       removed: [],
       unchanged: [],
-    });
+    };
 
-    const keys = Object.keys(ParseEnv.schema.shape);
+    const keys = Object.keys(ParseEnv.schema.shape) as (keyof z.infer<
+      typeof ParseEnv.schema
+    >)[];
 
     for (const key of keys) {
       const prevValue = this.prevEnv[key];

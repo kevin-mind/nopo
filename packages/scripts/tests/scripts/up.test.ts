@@ -1,8 +1,8 @@
 import { describe, it, vi, expect } from "vitest";
 import compose from "docker-compose";
-import UpScript from "../../src/scripts/up";
-import { createConfig } from "../../src/lib";
-import { createTmpEnv, runScript } from "../utils";
+import UpScript from "../../src/scripts/up.js";
+import { Config } from "../../src/lib.js";
+import { createTmpEnv, runScript } from "../utils.js";
 
 vi.mock("docker-compose", () => ({
   default: {
@@ -17,7 +17,7 @@ vi.mock("docker-compose", () => ({
 describe("image", () => {
   it("spins down services when image matches DOCKER_AG", async () => {
     const localTag = "kevin-mind/nopo:local";
-    const config = createConfig({
+    const config = new Config({
       envFile: createTmpEnv({
         DOCKER_TAG: localTag,
       }),
@@ -48,7 +48,7 @@ describe("image", () => {
     });
   });
   it("spins up all services", async () => {
-    const config = createConfig({
+    const config = new Config({
       envFile: createTmpEnv(),
       silent: true,
     });
@@ -59,7 +59,7 @@ describe("image", () => {
     });
   });
   it("removes orphaned services", async () => {
-    const config = createConfig({
+    const config = new Config({
       envFile: createTmpEnv(),
       silent: true,
     });
