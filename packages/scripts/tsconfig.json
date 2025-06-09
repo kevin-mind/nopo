@@ -12,5 +12,6 @@
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "noImplicitAny": true,
+    "allowImportingTsExtensions": true
   }
 }

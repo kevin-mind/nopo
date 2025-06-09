@@ -1,13 +1,14 @@
+import { z } from "zod";
 import { execSync } from "node:child_process";
 
-export interface ParsedGitInfo {
-  repo: string;
-  branch: string;
-  commit: string;
-}
+const ParsedGitInfo = z.object({
+  repo: z.string(),
+  branch: z.string(),
+  commit: z.string(),
+});
 
 export class GitInfo {
-  static exists(): boolean {
+  static exists() {
     try {
       this.git("--version");
       return true;
@@ -16,23 +17,23 @@ export class GitInfo {
       return false;
     }
   }
-  static git(command: string) {
+  static git(command) {
     return execSync(`git ${command}`, { stdio: "ignore" }).toString().trim();
   }
 
-  static get repo(): string {
+  static get repo() {
     return this.git("remote get-url origin");
   }
 
-  static get branch(): string {
+  static get branch() {
     return this.git("rev-parse --abbrev-ref HEAD");
   }
 
-  static get commit(): string {
+  static get commit() {
     return this.git("rev-parse HEAD");
   }
 
-  static parse(): ParsedGitInfo {
-    return this;
+  static parse() {
+    return ParsedGitInfo.parse(this);
   }
 }
