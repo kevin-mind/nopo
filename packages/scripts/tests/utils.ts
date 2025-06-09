@@ -1,7 +1,7 @@
 import { tmpfile, dotenv } from "zx";
 
-import { DockerTag } from "../src/docker-tag.js";
-import { Config, Runner, Script } from "../src/lib.js";
+import { DockerTag } from "../src/docker-tag";
+import { Config, Runner, Script } from "../src/lib";
 
 export const dockerTag = new DockerTag({
   registry: "docker.io",

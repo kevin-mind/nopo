@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 // Define the Docker tag regex using named capture groups.
 // This regex matches a docker tag of the form:
 //   image[:version][@sha256:digest]
@@ -10,20 +12,17 @@
 const DOCKER_TAG_REGEX =
   /^((?<image>[^:@]+))(?::(?<version>(?![.-])[a-zA-Z0-9_.-]{1,128}))?(?:@(?<digest>sha256:[a-fA-F0-9]{64}))?$/;
 
-interface DockerTagParsed {
-  registry: string;
-  image: string;
-  version: string;
-  digest?: string;
-}
+const DockerTagParsed = z.object({
+  registry: z.string(),
+  image: z.string(),
+  version: z.string(),
+  digest: z.string().optional(),
+});
 
 export class DockerTag {
   static regex = DOCKER_TAG_REGEX;
 
-  fullTag: string;
-  parsed: DockerTagParsed;
-
-  static parse(fullTag: string): DockerTagParsed {
+  static parse(fullTag) {
     const match = fullTag.match(DockerTag.regex);
     if (!match || !match.groups) {
       throw new Error(`Invalid image tag: ${fullTag}`);
@@ -50,15 +49,10 @@ export class DockerTag {
       image = imageParts.join("/");
     }
 
-    return { registry, image, version, digest };
+    return DockerTagParsed.parse({ registry, image, version, digest });
   }
 
-  static stringify({
-    registry,
-    image,
-    version,
-    digest,
-  }: DockerTagParsed): string {
+  static stringify({ registry, image, version, digest }) {
     let fullTag = "";
     if (registry) {
       fullTag = `${registry}/${image}`;
@@ -77,11 +71,11 @@ export class DockerTag {
     return fullTag;
   }
 
-  constructor(tag: string | DockerTagParsed) {
+  constructor(tag) {
     if (typeof tag === "string") {
       this.parsed = DockerTag.parse(tag);
     } else if (typeof tag === "object") {
-      this.parsed = tag;
+      this.parsed = DockerTagParsed.parse(tag);
     } else {
       throw new Error(`Invalid tag: ${tag}`);
     }
