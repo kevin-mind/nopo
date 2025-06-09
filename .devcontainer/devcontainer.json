@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
   "name": "Nopo Devcontainer",
-  "image": "mcr.microsoft.com/devcontainers/javascript-node:20-bullseye",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22-bullseye",
   "updateRemoteUserUID": true,
   "workspaceFolder": "/workspaces/nopo",
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/nopo,type=bind",
@@ -12,5 +12,5 @@
       "moby": "true"
     }
   },
-  "postAttachCommand": "make up"
+  "postAttachCommand": "make scripts up"
 }

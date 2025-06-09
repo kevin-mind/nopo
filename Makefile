@@ -21,14 +21,5 @@ shell: image
 down:
 	$(DOCKER_COMPOSE) down --rmi local
 
-################################################################################
-# Default command executes @more/scripts executable scripts
-# ex: make status will run ./packages/scripts/index.ts status
-# ex: to add multiple arguments use double quotes to prevent make from interpreting them
-# $ make "status --help" will pass --help as an argument to the script
-# Note: using npx zx directly means we do not depend on pnpm being installed
-################################################################################
-
 %:
-	pnpx zx --install ./packages/scripts/index.ts $(MAKECMDGOALS)
-
+	pnpm run $(MAKECMDGOALS)

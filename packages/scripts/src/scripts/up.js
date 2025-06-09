@@ -1,9 +1,9 @@
 import compose from "docker-compose";
-import { Script } from "../lib.ts";
-import EnvScript from "./env.ts";
-import ImageScript from "./image.ts";
+import { Script } from "../lib.js";
+import EnvScript from "./env.js";
+import ImageScript from "./image.js";
 
-import { ParseEnv } from "../parse-env.ts";
+import { ParseEnv } from "../parse-env.js";
 export default class UpScript extends Script {
   static name = "up";
   static description = "Start the services";

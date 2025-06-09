@@ -49,7 +49,7 @@ jobs:
           tag: ${{ inputs.tag }}
 
       - name: Up
-        run: make up DOCKER_TAG="${{ steps.docker_tag.outputs.tag }}"
+        run: make scripts up DOCKER_TAG="${{ steps.docker_tag.outputs.tag }}"
 
       - name: Run '${{ matrix.command }}' (${{ matrix.service }})
         run: |

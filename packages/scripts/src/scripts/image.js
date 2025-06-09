@@ -1,8 +1,8 @@
 import compose from "docker-compose";
-import { Script } from "../lib.ts";
-import EnvScript from "./env.ts";
+import { Script } from "../lib.js";
+import EnvScript from "./env.js";
 
-import { ParseEnv } from "../parse-env.ts";
+import { ParseEnv } from "../parse-env.js";
 
 export default class ImageScript extends Script {
   static name = "image";

@@ -1,15 +1,15 @@
-#!/usr/bin/env node
+#!/usr/bin/env zx --install
 
 import { minimist, chalk, glob } from "zx";
 import path from "node:path";
 
-import { Runner, Config } from "./src/lib.ts";
+import { Runner, createConfig } from "./src/lib.js";
 
 const basePath = import.meta.dirname;
 const scriptsPath = path.join(basePath, "src", "scripts");
 
 const scripts = glob
-  .sync(path.join(scriptsPath, "*.ts"))
+  .sync(path.join(scriptsPath, "*.js"))
   .reduce((acc, path) => {
     const name = path.split("/").pop()?.split(".").shift();
     if (name) {
@@ -34,23 +34,21 @@ export default async function main() {
   }
 
   let command = args._[0];
-  const processEnv = { ...process.env };
 
   if (!command) {
-    command = "run";
+    return printHelp("No command provided", 1);
   }
 
   let scriptPath = scripts[command];
 
   if (!scriptPath) {
-    scriptPath = scripts["run"];
-    processEnv.DOCKER_RUN = command;
+    return printHelp(`Command not found: ${command}`, 1);
   }
 
   const { ENV_FILE = undefined } = process.env;
 
   const { default: script } = await import(scriptPath);
-  const config = new Config({ envFile: ENV_FILE, processEnv });
+  const config = createConfig({ envFile: ENV_FILE });
 
   const runner = new Runner(config);
   await runner.run(script);
