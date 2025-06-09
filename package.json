@@ -9,30 +9,23 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "run-p build:*",
-    "build:workspace": "pnpm run -r build",
-    "clean": "run-p clean:*",
+    "build": "pnpm run -r build",
     "clean:workspace": "pnpm run -r clean",
     "clean:root": "rm -rf .cache .config .bash_history .env .local .pnpm-store node_modules && rm -f build-metadata.json || true",
-    "check": "run-p check:*",
     "check:workspace": "pnpm run -r \"/^check:.*/\"",
     "check:lint:root": "eslint",
     "check:types:root": "tsc --noEmit",
-    "fix": "run-p fix:*",
     "fix:workspace": "pnpm run -r \"/^fix:.*/\"",
     "fix:lint:root": "eslint --fix",
-    "dev": "run-p dev:*",
     "dev:apps": "pnpm --parallel --filter \"./apps/*\" dev",
     "dev:packages": "pnpm --parallel --filter \"./packages/*\" dev",
-    "start": "run-p start:*",
-    "start:workspace": "pnpm run -r start",
-    "test": "run-p test:*",
-    "test:workspace": "pnpm run -r test",
+    "start": "pnpm run -r start",
+    "test": "pnpm run -r test",
     "publish:workspace": "pnpm publish -r",
+    "script": "pnpm run --filter @more/scripts script",
     "smoketest": "playwright test",
     "install:lock": "yes | pnpm install --frozen-lockfile",
-    "install:offline": "pnpm install:lock --offline",
-    "scripts": "./packages/scripts/index.js"
+    "install:offline": "pnpm install:lock --offline"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.1",
@@ -58,6 +51,6 @@
   },
   "packageManager": "pnpm@10.11.1",
   "engines": {
-    "node": "22.16.0"
+    "node": "23.11.1"
   }
 }

@@ -2,7 +2,7 @@ ARG USER=nodeuser
 ARG USER_ID=1001
 
 ################################################################################################
-FROM node:22.16.0-slim AS base
+FROM node:23.11.1-slim AS base
 ################################################################################################
 
 ARG USER
@@ -26,7 +26,7 @@ WORKDIR $APP
 RUN <<EOF
 # Create user and group
 groupadd -g $USER_ID $USER
-useradd -r -u $USER_ID -g $USER_ID -d $HOME -m -s /bin/bash $USER
+useradd -r -u $USER_ID -g $USER_ID -d $HOME -m -s /sbin/nologin $USER
 EOF
 
 RUN \
@@ -104,24 +104,19 @@ pnpm build
 EOF
 
 ################################################################################################
-FROM base AS user
+FROM base AS runner
 ################################################################################################
+
+USER $USER
 
 COPY --from=info ${BUILD_INFO} ${BUILD_INFO}
 COPY --from=install --chown=$USER $DEPS $DEPS
 COPY --from=source --chown=$USER $APP/docker/cmd.sh /cmd.sh
 
-RUN <<EOF
-usermod -s /sbin/nologin $USER
-chown -R $USER:$USER $HOME $APP
-EOF
-
 CMD ["/cmd.sh"]
 
-USER $USER
-
 ################################################################################################
-FROM user AS development
+FROM runner AS development
 ################################################################################################
 
 ENV SERVICE_COMMAND="dev"
@@ -129,7 +124,7 @@ ENV SERVICE_COMMAND="dev"
 COPY --from=source --chown=$USER $APP $APP
 
 ################################################################################################
-FROM user AS production
+FROM runner AS production
 ################################################################################################
 
 ENV SERVICE_COMMAND="start"

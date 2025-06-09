@@ -1,57 +1,57 @@
 import { path, chalk, $, ProcessOutput } from "zx";
-import { z } from "zod";
 import { fileURLToPath } from "node:url";
 
-const Config = z.object({
-  root: z.string(),
-  envFile: z.string(),
-  processEnv: z.record(z.string(), z.string()),
-  silent: z.boolean(),
-});
+export class Config {
+  __filename: string = fileURLToPath(import.meta.url);
+  __dirname: string = path.dirname(this.__filename);
+  root: string = path.resolve(this.__dirname, "..", "..", "..");
+  envFile: string;
+  processEnv: NodeJS.ProcessEnv;
+  silent: boolean;
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const root = path.resolve(__dirname, "..", "..", "..");
+  constructor(
+    override: Partial<Pick<Config, "envFile" | "processEnv" | "silent">> = {
+      envFile: ".env",
+      processEnv: { ...process.env },
+      silent: false,
+    },
+  ) {
+    chalk.level = 2;
+    $.cwd = this.root;
 
-chalk.level = 2;
-$.cwd = root;
-
-export function createConfig(options = {}) {
-  const {
-    envFile = ".env",
-    processEnv = { ...process.env },
-    silent = false,
-  } = options;
-  return Config.parse({
-    root,
-    envFile: path.resolve(root, envFile),
-    processEnv,
-    silent,
-  });
+    this.envFile = path.resolve(this.root, override.envFile || ".env");
+    this.processEnv = override.processEnv || { ...process.env };
+    this.silent = override.silent || false;
+  }
 }
 
 class Logger {
-  constructor(config) {
+  config: Config;
+
+  constructor(config: Config) {
     this.config = config;
   }
 
-  log(...args) {
+  log(...args: unknown[]) {
     if (this.config.silent) return;
     console.log(...args);
   }
 }
 
 class Base {
-  constructor(config, logger = new Logger(config)) {
+  config: Config;
+  logger: Logger;
+
+  constructor(config: Config, logger: Logger = new Logger(config)) {
     this.config = config;
     this.logger = logger;
   }
 }
 
 export class Script extends Base {
-  static name = "";
-  static description = "";
-  static dependencies = [];
+  static name: string;
+  static description: string;
+  static dependencies: (typeof Script)[] = [];
 
   async fn() {
     throw new Error("Not implemented");
@@ -59,7 +59,10 @@ export class Script extends Base {
 }
 
 export class Runner extends Base {
-  resolveDependencies(scriptClass, seen = new Set()) {
+  resolveDependencies<T extends typeof Script>(
+    scriptClass: T,
+    seen: Set<T> = new Set(),
+  ) {
     if (scriptClass.dependencies.length === 0) {
       seen.add(scriptClass);
       return seen;
@@ -73,7 +76,7 @@ export class Runner extends Base {
     return seen;
   }
 
-  async run(ScriptClass) {
+  async run(ScriptClass: typeof Script) {
     const scripts = this.resolveDependencies(ScriptClass);
     const line = `\n${Array(80).fill("=").join("")}\n`;
     for await (const ScriptToRun of scripts) {
