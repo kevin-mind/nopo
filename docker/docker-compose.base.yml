@@ -1,9 +1,9 @@
 services:
   base:
-    image: "${DOCKER_TAG:?}"
+    image: "${DOCKER_TAG}"
     pull_policy: never
     volumes:
-      - ..:/app:cached
+      - ${DOCKER_MOUNT_SOURCE:-..}:/app:cached
     environment:
       - CHOKIDAR_USEPOLLING=true
       - CI

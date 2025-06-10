@@ -112,17 +112,22 @@ COPY --from=info ${BUILD_INFO} ${BUILD_INFO}
 COPY --from=install --chown=$USER $DEPS $DEPS
 COPY --from=source --chown=$USER $APP/docker/cmd.sh /cmd.sh
 
-RUN <<EOF
-usermod -s /sbin/nologin $USER
-chown -R $USER:$USER $HOME $APP
-EOF
-
 CMD ["/cmd.sh"]
+
+RUN chown -R $USER:$USER $DEPS $APP $HOME
 
 USER $USER
 
 ################################################################################################
-FROM user AS development
+FROM user AS runner
+################################################################################################
+
+USER root
+RUN usermod -s /sbin/nologin $USER
+USER $USER
+
+################################################################################################
+FROM runner AS development
 ################################################################################################
 
 ENV SERVICE_COMMAND="dev"
@@ -130,7 +135,7 @@ ENV SERVICE_COMMAND="dev"
 COPY --from=source --chown=$USER $APP $APP
 
 ################################################################################################
-FROM user AS production
+FROM runner AS production
 ################################################################################################
 
 ENV SERVICE_COMMAND="start"

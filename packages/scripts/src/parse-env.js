@@ -6,7 +6,7 @@ import { DockerTag } from "./docker-tag.js";
 import { GitInfo } from "./git-info.js";
 
 const nodeEnv = z.enum(["development", "production", "test"]);
-const dockerTarget = nodeEnv.or(z.enum(["base", "build"]));
+const dockerTarget = nodeEnv.or(z.enum(["base", "build", "user"]));
 
 const ParseEnvDiffTuple = z.tuple([z.string(), z.string().optional()]);
 

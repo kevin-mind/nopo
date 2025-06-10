@@ -1,16 +1,19 @@
 {
   "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
   "name": "Nopo Devcontainer",
-  "image": "mcr.microsoft.com/devcontainers/javascript-node:22-bullseye",
-  "updateRemoteUserUID": true,
-  "workspaceFolder": "/workspaces/nopo",
-  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/nopo,type=bind",
-  "features": {
-    "ghcr.io/devcontainers/features/docker-in-docker": {
-      "version": "latest",
-      "enableNonRootDocker": "true",
-      "moby": "true"
-    }
+  "dockerComposeFile": [
+    "../docker/docker-compose.base.yml",
+    "../docker/docker-compose.build.yml"
+  ],
+  "service": "base",
+  "workspaceFolder": "/app",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/app,type=bind",
+  "remoteEnv": {
+    "DOCKER_MOUNT_SOURCE": "${localWorkspaceFolder}"
   },
-  "postAttachCommand": "make up"
+  "features": {
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1.6.3": {}
+  },
+  "initializeCommand": "./.devcontainer/initialize.sh",
+  "postAttachCommand": "./devcontainer/post-attach.sh"
 }
