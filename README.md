@@ -5,13 +5,13 @@
 Build the image
 
 ```bash
-make scripts image
+make image
 ```
 
 Run the project
 
 ```bash
-make scripts up
+make up
 ```
 
 ## Todo

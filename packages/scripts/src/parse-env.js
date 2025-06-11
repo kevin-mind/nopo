@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { fs, dotenv } from "zx";
+import net from "node:net";
 
 import { DockerTag } from "./docker-tag.js";
 import { GitInfo } from "./git-info.js";
@@ -19,6 +20,7 @@ const ParseEnvDiff = z.object({
 export class ParseEnv {
   static baseTag = new DockerTag("kevin-mind/nopo:local");
   static schema = z.object({
+    DOCKER_PORT: z.string(),
     DOCKER_TAG: z.string(),
     DOCKER_REGISTRY: z.string(),
     DOCKER_IMAGE: z.string(),
@@ -85,6 +87,22 @@ export class ParseEnv {
     }
   }
 
+  #resolveDockerPort() {
+    if (this.processEnv.DOCKER_PORT) {
+      return String(this.processEnv.DOCKER_PORT);
+    }
+
+    const server = net.createServer();
+    server.listen(0);
+    const freePort = server.address().port;
+    server.close();
+
+    if (freePort) {
+      return String(freePort);
+    }
+    return "80";
+  }
+
   #getCurrEnv() {
     const inputEnv = { ...this.prevEnv, ...this.processEnv };
     const { parsed, fullTag } = this.#resolveDockerTag();
@@ -136,6 +154,7 @@ export class ParseEnv {
     );
 
     return ParseEnv.schema.parse({
+      DOCKER_PORT: this.#resolveDockerPort(),
       DOCKER_TAG: new DockerTag({ registry, image, version, digest }).fullTag,
       DOCKER_TARGET: inputEnv.DOCKER_TARGET,
       DOCKER_REGISTRY: registry,

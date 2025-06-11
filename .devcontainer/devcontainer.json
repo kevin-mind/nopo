@@ -12,5 +12,5 @@
       "moby": "true"
     }
   },
-  "postAttachCommand": "make scripts up"
+  "postAttachCommand": "make up"
 }

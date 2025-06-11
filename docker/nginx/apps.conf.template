@@ -3,11 +3,19 @@ etag off;
 merge_slashes off;
 
 server {
-    listen  80 default_server;
+    listen 80 default_server;
     server_name localhost;
 
-    location ${SERVICE_WEB_BASE_PATH} {
-        proxy_pass http://${SERVICE_WEB_NAME};
+    location /api {
+        try_files $uri @backend;
+    }
+
+    location / {
+        try_files $uri @web;
+    }
+
+    location @web {
+        proxy_pass http://web;
 
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -19,8 +27,8 @@ server {
         proxy_buffering off;
     }
 
-    location ${SERVICE_BACKEND_BASE_PATH} {
-        proxy_pass http://${SERVICE_BACKEND_NAME};
+    location @backend {
+        proxy_pass http://backend;
 
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -33,10 +41,10 @@ server {
     }
 }
 
-upstream ${SERVICE_WEB_NAME} {
-    server ${SERVICE_WEB_NAME}:${SERVICE_WEB_PORT};
+upstream web {
+    server web:80;
 }
 
-upstream ${SERVICE_BACKEND_NAME} {
-    server ${SERVICE_BACKEND_NAME}:${SERVICE_BACKEND_PORT};
+upstream backend {
+    server backend:80;
 }

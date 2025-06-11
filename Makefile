@@ -4,22 +4,29 @@ export DOCKER_BUILDKIT = 1
 export DOCKER_BUILDKIT_PROGRESS = auto
 export COMPOSE_BAKE=true
 
-DOCKER_SERVICE ?= base
-
-DOCKER = docker
-DOCKER_COMPOSE = $(DOCKER) compose
-
-################################################################################
-# Commands that still need special handling
-################################################################################
-
 .PHONY: shell
-shell: image
-	$(DOCKER_COMPOSE) run --rm --entrypoint /bin/bash --user nodeuser $(DOCKER_SERVICE)
+shell:
+	docker compose exec --user nodeuser $(ARGS) web /bin/bash
 
 .PHONY: down
 down:
-	$(DOCKER_COMPOSE) down --rmi local
+	docker compose down --rmi local
+
+define run_script
+	pnpm run scripts $(1)
+endef
+
+env:
+	$(call run_script,env)
+
+image:
+	$(call run_script,image)
+
+up:
+	$(call run_script,up)
+
+status:
+	$(call run_script,status)
 
 %:
 	pnpm run $(MAKECMDGOALS)

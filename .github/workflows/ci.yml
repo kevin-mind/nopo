@@ -27,6 +27,8 @@ env:
 jobs:
   context:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       is_fork: ${{ steps.context.outputs.is_fork }}
       push: ${{ steps.push.outputs.push }}

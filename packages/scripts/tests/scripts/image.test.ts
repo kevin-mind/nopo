@@ -13,6 +13,16 @@ vi.mock("docker-compose", () => ({
   },
 }));
 
+vi.mock("node:net", () => ({
+  default: {
+    createServer: vi.fn().mockImplementation(() => ({
+      listen: vi.fn(),
+      address: vi.fn().mockReturnValue({ port: 80 }),
+      close: vi.fn(),
+    })),
+  },
+}));
+
 describe("image", () => {
   it("builds image when no DOCKER_REGISTRY is provided", async () => {
     const config = createConfig({

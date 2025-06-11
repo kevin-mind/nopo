@@ -124,7 +124,6 @@ describe("env", () => {
         processEnv: {},
         silent: true,
       });
-      console.log(config);
       await runScript(EnvScript, config);
       expect(config.envFile).toStrictEqual(path.resolve(config.root, ".env"));
     });
