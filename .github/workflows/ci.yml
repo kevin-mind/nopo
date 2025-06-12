@@ -114,6 +114,17 @@ jobs:
     with:
       tag: ${{ needs.build.outputs.tag }}
 
+  smoketest:
+    if: ${{ needs.context.outputs.push == 'false' }}
+    needs: [build, context]
+    permissions:
+      packages: read
+      contents: read
+    uses: ./.github/workflows/_smoketest.yml
+    with:
+      environment: local
+      tag: ${{ needs.build.outputs.tag }}
+
   deploy_stage:
     if: ${{ needs.context.outputs.push == 'true' }}
     needs: [context, build, test]
@@ -178,7 +189,7 @@ jobs:
 
   checks:
     if: always()
-    needs: [deploy_stage, deploy_prod, push_latest]
+    needs: [smoketest, deploy_stage, deploy_prod, push_latest]
     runs-on: ubuntu-latest
     steps:
       - name: Context
