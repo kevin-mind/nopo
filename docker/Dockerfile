@@ -37,7 +37,7 @@ RUN \
   --mount=type=cache,target=$COREPACK_HOME,id=corepack \
   --mount=type=cache,target=$PNPM_STORE_DIR,id=pnpm-store \
 <<EOF
-apt-get update && apt-get install -y make jq
+apt-get update && apt-get install -y make jq curl
 npm install --global corepack@latest
 corepack enable pnpm
 corepack prepare pnpm --activate
