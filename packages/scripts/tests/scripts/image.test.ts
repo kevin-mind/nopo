@@ -13,6 +13,16 @@ vi.mock("docker-compose", () => ({
   },
 }));
 
+vi.mock("node:net", () => ({
+  default: {
+    createServer: vi.fn().mockImplementation(() => ({
+      listen: vi.fn(),
+      address: vi.fn().mockReturnValue({ port: 80 }),
+      close: vi.fn(),
+    })),
+  },
+}));
+
 describe("image", () => {
   it("builds image when no DOCKER_REGISTRY is provided", async () => {
     const config = createConfig({
@@ -25,7 +35,10 @@ describe("image", () => {
     const { env } = new ParseEnv(config.envFile);
     expect(compose.buildOne).toHaveBeenCalledWith("base", {
       log: true,
-      cwd: config.root,
+      config: [
+        "docker/docker-compose.base.yml",
+        "docker/docker-compose.build.yml",
+      ],
       env: {
         ...config.processEnv,
         ...env,
@@ -48,6 +61,7 @@ describe("image", () => {
     await runScript(ImageScript, config);
     expect(compose.pullOne).toHaveBeenCalledWith("base", {
       log: true,
+      config: ["docker/docker-compose.base.yml"],
       commandOptions: ["--policy", "always"],
     });
   });

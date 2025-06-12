@@ -85,7 +85,8 @@ jobs:
           builder: ${{ steps.docker.outputs.builder }}
           targets: base
           files: |
-            cwd://docker-compose.yml
+            cwd://docker/docker-compose.base.yml
+            cwd://docker/docker-compose.build.yml
             cwd://.env
             cwd://${{ steps.docker_meta.outputs.bake-file-tags }}
             cwd://${{ steps.docker_meta.outputs.bake-file-labels }}

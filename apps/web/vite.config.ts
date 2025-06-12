@@ -3,6 +3,8 @@ import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 
+import env from "./env";
+
 export default defineConfig({
   base: process.env.SERVICE_PUBLIC_PATH || "/",
   plugins: [
@@ -13,6 +15,6 @@ export default defineConfig({
     }),
   ],
   server: {
-    port: 3000,
+    port: env.PORT,
   },
 });

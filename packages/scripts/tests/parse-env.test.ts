@@ -14,15 +14,26 @@ vi.mock("../src/git-info", () => ({
   },
 }));
 
+vi.mock("node:net", () => ({
+  default: {
+    createServer: vi.fn().mockImplementation(() => ({
+      listen: vi.fn(),
+      address: vi.fn().mockReturnValue({ port: 80 }),
+      close: vi.fn(),
+    })),
+  },
+}));
+
 describe("parseEnv", () => {
   it("should parse the env", () => {
     const {
-      env: { HOST_UID, GIT_BRANCH, GIT_COMMIT, GIT_REPO, ...env },
+      env: { HOST_UID, GIT_BRANCH, GIT_COMMIT, GIT_REPO, DOCKER_PORT, ...env },
     } = new ParseEnv(createTmpEnv());
     expect(HOST_UID).toBe(process.getuid?.()?.toString());
     expect(GIT_REPO).toStrictEqual("unknown");
     expect(GIT_BRANCH).toStrictEqual("unknown");
     expect(GIT_COMMIT).toStrictEqual("unknown");
+    expect(DOCKER_PORT).toBe("80");
     expect(env).toMatchSnapshot();
   });
 

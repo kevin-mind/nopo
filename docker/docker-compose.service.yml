@@ -1,0 +1,11 @@
+services:
+  base:
+    extends:
+      file: docker-compose.base.yml
+      service: base
+    restart: always
+    user: root
+    entrypoint: ["/app/docker/entrypoint.sh"]
+    command: ["/cmd.sh"]
+    environment:
+      - HOST_UID

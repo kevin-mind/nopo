@@ -3,19 +3,37 @@ import compose from "docker-compose";
 import UpScript from "../../src/scripts/up";
 import { createConfig } from "../../src/lib";
 import { createTmpEnv, runScript } from "../utils";
+import { ParseEnv } from "../../src/parse-env";
 
 vi.mock("docker-compose", () => ({
   default: {
     buildOne: vi.fn(),
-    config: vi.fn(),
+    config: vi.fn().mockImplementation(() => ({
+      data: {
+        config: {
+          services: {},
+        },
+      },
+    })),
     downMany: vi.fn(),
     upAll: vi.fn(),
-    rm: vi.fn(),
+    pullAll: vi.fn(),
+    run: vi.fn(),
+  },
+}));
+
+vi.mock("node:net", () => ({
+  default: {
+    createServer: vi.fn().mockImplementation(() => ({
+      listen: vi.fn(),
+      address: vi.fn().mockReturnValue({ port: 80 }),
+      close: vi.fn(),
+    })),
   },
 }));
 
 describe("image", () => {
-  it("spins down services when image matches DOCKER_AG", async () => {
+  it("spins down services when image matches DOCKER_TAG", async () => {
     const localTag = "kevin-mind/nopo:local";
     const config = createConfig({
       envFile: createTmpEnv({
@@ -43,7 +61,7 @@ describe("image", () => {
 
     await runScript(UpScript, config);
     expect(compose.downMany).toHaveBeenCalledWith(["base"], {
-      log: true,
+      callback: expect.any(Function),
       commandOptions: ["--remove-orphans"],
     });
   });
@@ -54,19 +72,30 @@ describe("image", () => {
     });
     await runScript(UpScript, config);
     expect(compose.upAll).toHaveBeenCalledWith({
-      log: true,
-      commandOptions: ["--remove-orphans", "-d", "--no-build"],
+      callback: expect.any(Function),
+      commandOptions: ["--remove-orphans", "-d", "--no-build", "--wait"],
     });
   });
-  it("removes orphaned services", async () => {
+  it("syncs host files", async () => {
     const config = createConfig({
       envFile: createTmpEnv(),
       silent: true,
     });
+    const { env } = new ParseEnv(config.envFile);
+
     await runScript(UpScript, config);
-    expect(compose.rm).toHaveBeenCalledWith({
-      log: true,
-      commandOptions: ["--force"],
-    });
+    expect(compose.run).toHaveBeenCalledWith(
+      "base",
+      "/app/docker/sync-host.sh",
+      {
+        callback: expect.any(Function),
+        config: ["docker/docker-compose.base.yml"],
+        env: {
+          ...config.processEnv,
+          DOCKER_TAG: env.DOCKER_TAG,
+        },
+        commandOptions: ["--rm", "--no-deps"],
+      },
+    );
   });
 });

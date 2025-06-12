@@ -1,4 +1,4 @@
-#!/usr/bin/env zx --install
+#!/usr/bin/env zx
 
 import { minimist, chalk, glob } from "zx";
 import path from "node:path";

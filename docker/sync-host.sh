@@ -1,9 +1,8 @@
 #!/bin/bash
-set -xueo
 
 yes | pnpm install
 
-target=$(cat /build-info.json | jq -r '.target')
+target=$(jq -r '.target' "/build-info.json")
 
 if [[ "${target}" == "production" ]]; then
   pnpm build
