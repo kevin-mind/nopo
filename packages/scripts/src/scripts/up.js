@@ -26,18 +26,50 @@ export default class UpScript extends Script {
       downServices.push(name);
     }
 
-    await compose.downMany(downServices, {
-      log: true,
-      commandOptions: ["--remove-orphans"],
-    });
+    const createLogger = (name) => (chunk, streamSource) => {
+      const messages = chunk.toString().trim().split("\n");
+      const log = streamSource === "stdout" ? console.log : console.error;
+      for (const message of messages) {
+        log(`[${name}] ${message}`);
+      }
+    };
 
-    await compose.upAll({
-      log: true,
-      commandOptions: ["--remove-orphans", "-d", "--no-build"],
-    });
-    await compose.rm({
-      log: true,
-      commandOptions: ["--force"],
-    });
+    await Promise.all([
+      compose.run("base", "/app/docker/sync-host.sh", {
+        callback: createLogger("sync"),
+        config: ["docker/docker-compose.base.yml"],
+        commandOptions: ["--rm", "--no-deps"],
+        env: {
+          ...this.config.processEnv,
+          DOCKER_TAG: env.DOCKER_TAG,
+        },
+      }),
+      compose.downMany(downServices, {
+        callback: createLogger("down"),
+        commandOptions: ["--remove-orphans"],
+      }),
+      compose.pullAll({
+        callback: createLogger("pull"),
+        commandOptions: ["--ignore-pull-failures"],
+      }),
+    ]);
+
+    try {
+      await compose.upAll({
+        callback: createLogger("up"),
+        commandOptions: ["--remove-orphans", "-d", "--no-build", "--wait"],
+      });
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (error) {
+      await Promise.all(
+        Object.keys(data.config.services).map((service) =>
+          compose.logs(service, {
+            callback: createLogger(`log:${service}`),
+            commandOptions: ["--no-log-prefix"],
+          }),
+        ),
+      );
+      throw new Error("Failed to start services");
+    }
   }
 }

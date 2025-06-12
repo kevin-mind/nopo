@@ -14,12 +14,16 @@ export default class ImageScript extends Script {
     if (env.DOCKER_REGISTRY) {
       await compose.pullOne("base", {
         log: true,
+        config: ["docker/docker-compose.base.yml"],
         commandOptions: ["--policy", "always"],
       });
     } else {
       await compose.buildOne("base", {
         log: true,
-        cwd: this.config.root,
+        config: [
+          "docker/docker-compose.base.yml",
+          "docker/docker-compose.build.yml",
+        ],
         env: {
           ...this.config.processEnv,
           ...env,

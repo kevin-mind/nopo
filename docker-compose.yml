@@ -1,17 +1,8 @@
 services:
-  base:
-    extends:
-      file: docker/docker-compose.base.yml
-      service: base_builder
-    command:
-      - /sync-host.sh
-    volumes:
-      - ./docker/sync-host.sh:/sync-host.sh
-
   web:
     extends:
-      file: docker/docker-compose.base.yml
-      service: base_service
+      file: docker/docker-compose.service.yml
+      service: base
     environment:
       SERVICE_NAME: web
       PORT: 80
@@ -28,8 +19,8 @@ services:
 
   backend:
     extends:
-      file: docker/docker-compose.base.yml
-      service: base_service
+      file: docker/docker-compose.service.yml
+      service: base
     environment:
       SERVICE_NAME: backend
       SERVICE_PUBLIC_PATH: /api

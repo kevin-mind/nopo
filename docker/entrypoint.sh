@@ -2,8 +2,8 @@
 
 ### This is the entrypoint script used for local and CI environments
 ### It allows the web/worker containers to be run as root, but execute
-### the commands as the olympia user. This is necessary because the
-### id of the olympia user sometimes should match the host user's id
+### the commands as the nodeuser user. This is necessary because the
+### id of the nodeuser user sometimes should match the host user's id
 ### to avoid permission issues with mounted volumes.
 
 set -xueo pipefail
@@ -24,6 +24,5 @@ fi
 
 echo "Running *@"
 cat <<EOF | su -s /bin/bash ${USER_NAME}
-  yes | pnpm install
   $@
 EOF

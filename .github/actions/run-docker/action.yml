@@ -1,0 +1,27 @@
+name: 'Docker Run Action'
+description: 'Run a command in a new container'
+inputs:
+  tag:
+    description: 'The tag of the image to run.'
+    required: true
+  run:
+    description: 'Run command in container'
+    required: true
+  target:
+    description: 'Docker target to run (development|production)'
+    required: false
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Up
+      id: run
+      shell: bash
+      run: |
+        make up \
+          DOCKER_TAG="${{ inputs.tag }}" \
+          DOCKER_TARGET="${{ inputs.target }}"
+
+        cat <<'EOF' | docker compose exec --user nodeuser web sh
+          ${{ inputs.run }}
+        EOF
