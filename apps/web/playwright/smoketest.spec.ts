@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test.describe("Smoketest", () => {
   test("home page loads and has h1 element", async ({ page }) => {
     // Navigate to the home page
-    await page.goto("/web");
+    await page.goto("/");
 
     // Wait for the page to load
     await page.waitForLoadState("networkidle");
