@@ -51,7 +51,16 @@ export default async function main() {
   const config = createConfig({ envFile: ENV_FILE });
 
   const runner = new Runner(config);
-  await runner.run(script);
+  try {
+    await runner.run(script);
+  } catch (error) {
+    if (error instanceof Error) {
+      runner.logger.log(
+        chalk.red(`\n${error.message}\n${error.message}\n`, error.stack),
+      );
+    }
+    process.exit(1);
+  }
 }
 
 main();

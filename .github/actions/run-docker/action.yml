@@ -10,6 +10,7 @@ inputs:
   target:
     description: 'Docker target to run (development|production)'
     required: false
+    default: 'production'
 
 runs:
   using: 'composite'
@@ -23,6 +24,6 @@ runs:
           DOCKER_TARGET="${{ inputs.target }}" \
           DOCKER_PORT="80"
 
-        cat <<'EOF' | docker compose exec --user nodeuser web sh
+        cat <<'EOF' | docker compose exec --user nodeuser web bash
           ${{ inputs.run }}
         EOF

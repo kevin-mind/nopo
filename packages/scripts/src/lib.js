@@ -5,7 +5,6 @@ import { fileURLToPath } from "node:url";
 const Config = z.object({
   root: z.string(),
   envFile: z.string(),
-  processEnv: z.record(z.string(), z.string()),
   silent: z.boolean(),
 });
 
@@ -19,13 +18,11 @@ $.cwd = root;
 export function createConfig(options = {}) {
   const {
     envFile = ".env",
-    processEnv = { ...process.env },
     silent = false,
   } = options;
   return Config.parse({
     root,
     envFile: path.resolve(root, envFile),
-    processEnv,
     silent,
   });
 }

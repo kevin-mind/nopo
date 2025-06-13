@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import fs from "node:fs";
 
 import EnvScript from "../../src/scripts/env";
@@ -7,6 +7,17 @@ import { createConfig } from "../../src/lib";
 
 import { createTmpEnv, runScript, dockerTag } from "../utils.js";
 import path from "node:path";
+
+vi.mock("../../src/git-info", () => ({
+  GitInfo: {
+    exists: () => false,
+    parse: vi.fn(() => ({
+      repo: "unknown",
+      branch: "unknown",
+      commit: "unknown",
+    })),
+  },
+}));
 
 /*
 1. DOCKER_TAG is the ONLY input parameter
@@ -28,7 +39,7 @@ describe("env", () => {
       silent: true,
     });
     await runScript(EnvScript, config);
-    const { env } = new ParseEnv(config.envFile);
+    const { env } = new ParseEnv(config);
     expect(env.DOCKER_TAG).toStrictEqual(dockerTag.fullTag);
   });
 
@@ -41,7 +52,7 @@ describe("env", () => {
     });
 
     await runScript(EnvScript, config);
-    const { env } = new ParseEnv(config.envFile);
+    const { env } = new ParseEnv(config);
     expect(env.DOCKER_TAG).toStrictEqual("registry/repo:tag");
   });
 
@@ -53,7 +64,7 @@ describe("env", () => {
       silent: true,
     });
     await runScript(EnvScript, config);
-    const { env } = new ParseEnv(config.envFile);
+    const { env } = new ParseEnv(config);
     expect(env.DOCKER_REGISTRY).toStrictEqual(dockerTag.parsed.registry);
     expect(env.DOCKER_IMAGE).toStrictEqual(dockerTag.parsed.image);
     expect(env.DOCKER_VERSION).toStrictEqual(dockerTag.parsed.version);
@@ -97,7 +108,7 @@ describe("env", () => {
         silent: true,
       });
       await runScript(EnvScript, config);
-      const { env } = new ParseEnv(config.envFile);
+      const { env } = new ParseEnv(config);
       // Default for dockerTag is production since this is a remote image
       expect(env.NODE_ENV).toStrictEqual("production");
     });
@@ -112,7 +123,7 @@ describe("env", () => {
         silent: true,
       });
       await runScript(EnvScript, config);
-      const { env } = new ParseEnv(config.envFile);
+      const { env } = new ParseEnv(config);
       expect(env.DOCKER_TARGET).toStrictEqual("production");
     });
   });
@@ -137,7 +148,7 @@ describe("env", () => {
         silent: true,
       });
       await runScript(EnvScript, config);
-      const { env } = new ParseEnv(config.envFile);
+      const { env } = new ParseEnv(config);
       expect(env.NODE_ENV).toStrictEqual("development");
       expect(env.DOCKER_TARGET).toStrictEqual("development");
     });
@@ -151,7 +162,7 @@ describe("env", () => {
         silent: true,
       });
       await runScript(EnvScript, config);
-      const { env } = new ParseEnv(config.envFile);
+      const { env } = new ParseEnv(config);
       expect(env.HOST_UID).toStrictEqual(process.getuid?.()?.toString());
     });
 
@@ -163,7 +174,7 @@ describe("env", () => {
         silent: true,
       });
       await runScript(EnvScript, config);
-      const { env } = new ParseEnv(config.envFile);
+      const { env } = new ParseEnv(config);
       expect(env.DOCKER_TAG).toStrictEqual(ParseEnv.baseTag.fullTag);
     });
   });
@@ -191,9 +202,9 @@ describe("env", () => {
         processEnv: {},
         silent: true,
       });
-      const { env: prevEnv } = new ParseEnv(tmpFile);
+      const { env: prevEnv } = new ParseEnv(config);
       await runScript(EnvScript, config);
-      const { env: newEnv } = new ParseEnv(tmpFile);
+      const { env: newEnv } = new ParseEnv(config);
       expect(newEnv.DOCKER_TAG).toStrictEqual(prevEnv.DOCKER_TAG);
       expect(newEnv.NODE_ENV).toStrictEqual(prevEnv.NODE_ENV);
     });

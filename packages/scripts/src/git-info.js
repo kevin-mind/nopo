@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { execSync } from "node:child_process";
+import { $ } from "zx";
 
 const ParsedGitInfo = z.object({
   repo: z.string(),
@@ -17,23 +17,28 @@ export class GitInfo {
       return false;
     }
   }
-  static git(command) {
-    return execSync(`git ${command}`, { stdio: "ignore" }).toString().trim();
+  static git(...pieces) {
+    $.sync = true;
+    return $.sync`git ${pieces}`.stdout.trim();
   }
 
   static get repo() {
-    return this.git("remote get-url origin");
+    return this.git("remote", "get-url", "origin");
   }
 
   static get branch() {
-    return this.git("rev-parse --abbrev-ref HEAD");
+    return this.git("rev-parse", "--abbrev-ref", "HEAD");
   }
 
   static get commit() {
-    return this.git("rev-parse HEAD");
+    return this.git("rev-parse", "HEAD");
   }
 
   static parse() {
-    return ParsedGitInfo.parse(this);
+    return ParsedGitInfo.parse({
+      repo: this.repo,
+      branch: this.branch,
+      commit: this.commit,
+    });
   }
 }

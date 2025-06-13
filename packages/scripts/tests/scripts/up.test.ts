@@ -5,6 +5,17 @@ import { createConfig } from "../../src/lib";
 import { createTmpEnv, runScript } from "../utils";
 import { ParseEnv } from "../../src/parse-env";
 
+vi.mock("../../src/git-info", () => ({
+  GitInfo: {
+    exists: () => false,
+    parse: vi.fn(() => ({
+      repo: "unknown",
+      branch: "unknown",
+      commit: "unknown",
+    })),
+  },
+}));
+
 vi.mock("docker-compose", () => ({
   default: {
     buildOne: vi.fn(),
@@ -81,7 +92,7 @@ describe("image", () => {
       envFile: createTmpEnv(),
       silent: true,
     });
-    const { env } = new ParseEnv(config.envFile);
+    const { env } = new ParseEnv(config);
 
     await runScript(UpScript, config);
     expect(compose.run).toHaveBeenCalledWith(
@@ -90,10 +101,7 @@ describe("image", () => {
       {
         callback: expect.any(Function),
         config: ["docker/docker-compose.base.yml"],
-        env: {
-          ...config.processEnv,
-          DOCKER_TAG: env.DOCKER_TAG,
-        },
+        env,
         commandOptions: ["--rm", "--no-deps"],
       },
     );

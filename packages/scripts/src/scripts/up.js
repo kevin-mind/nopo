@@ -10,13 +10,10 @@ export default class UpScript extends Script {
   static dependencies = [EnvScript, ImageScript];
 
   async fn() {
-    const { env } = new ParseEnv(this.config.envFile);
+    const { env } = new ParseEnv(this.config);
     const { data } = await compose.config({
       cwd: this.config.root,
-      env: {
-        ...this.config.processEnv,
-        ...env,
-      },
+      env,
     });
     const downServices = [];
 
@@ -39,10 +36,7 @@ export default class UpScript extends Script {
         callback: createLogger("sync"),
         config: ["docker/docker-compose.base.yml"],
         commandOptions: ["--rm", "--no-deps"],
-        env: {
-          ...this.config.processEnv,
-          DOCKER_TAG: env.DOCKER_TAG,
-        },
+        env,
       }),
       compose.downMany(downServices, {
         callback: createLogger("down"),
