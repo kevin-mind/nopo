@@ -101,10 +101,7 @@ describe("image", () => {
       {
         callback: expect.any(Function),
         config: ["docker/docker-compose.base.yml"],
-        env: {
-          ...config.processEnv,
-          DOCKER_TAG: env.DOCKER_TAG,
-        },
+        env,
         commandOptions: ["--rm", "--no-deps"],
       },
     );

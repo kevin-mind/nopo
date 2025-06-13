@@ -50,11 +50,7 @@ describe("image", () => {
         "docker/docker-compose.base.yml",
         "docker/docker-compose.build.yml",
       ],
-      env: {
-        ...config.processEnv,
-        ...env,
-        COMPOSE_BAKE: "true",
-      },
+      env,
     });
   });
 
