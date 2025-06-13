@@ -10,7 +10,7 @@ export default class ImageScript extends Script {
   static dependencies = [EnvScript];
 
   async fn() {
-    const { env } = new ParseEnv(this.config.envFile);
+    const { env } = new ParseEnv(this.config);
     if (env.DOCKER_REGISTRY) {
       await compose.pullOne("base", {
         log: true,

@@ -10,7 +10,7 @@ export default class UpScript extends Script {
   static dependencies = [EnvScript, ImageScript];
 
   async fn() {
-    const { env } = new ParseEnv(this.config.envFile);
+    const { env } = new ParseEnv(this.config);
     const { data } = await compose.config({
       cwd: this.config.root,
       env: {

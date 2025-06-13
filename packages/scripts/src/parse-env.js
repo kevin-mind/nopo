@@ -34,7 +34,7 @@ export class ParseEnv {
     HOST_UID: z.string(),
   });
 
-  constructor(envFile, processEnv = {}) {
+  constructor({ envFile, processEnv = {} } = {}) {
     if (!envFile) {
       throw new Error("Missing envFile");
     }

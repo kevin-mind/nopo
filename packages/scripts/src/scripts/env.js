@@ -7,7 +7,7 @@ export default class EnvScript extends Script {
   static description = "Set up environment variables";
 
   async fn() {
-    const env = new ParseEnv(this.config.envFile, this.config.processEnv);
+    const env = new ParseEnv(this.config);
     env.save();
 
     const colors = {
