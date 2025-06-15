@@ -19,7 +19,8 @@ const ParseEnvDiff = z.object({
 
 export class ParseEnv {
   static baseTag = new DockerTag("kevin-mind/nopo:local");
-  static schema = z.object({
+
+  static fileSchema = z.object({
     DOCKER_PORT: z.string(),
     DOCKER_TAG: z.string(),
     DOCKER_REGISTRY: z.string(),
@@ -34,7 +35,13 @@ export class ParseEnv {
     HOST_UID: z.string(),
   });
 
-  constructor(envFile, processEnv = {}) {
+  static envSchema = z.object({
+    COMPOSE_BAKE: z.literal("true").default("true"),
+  });
+
+  static schema = z.union([ParseEnv.fileSchema, ParseEnv.envSchema]);
+
+  constructor({ envFile, processEnv } = {}) {
     if (!envFile) {
       throw new Error("Missing envFile");
     }
@@ -153,7 +160,7 @@ export class ParseEnv {
       inputEnv.GIT_COMMIT,
     );
 
-    return ParseEnv.schema.parse({
+    const fileEnv = ParseEnv.fileSchema.parse({
       DOCKER_PORT: this.#resolveDockerPort(),
       DOCKER_TAG: new DockerTag({ registry, image, version, digest }).fullTag,
       DOCKER_TARGET: inputEnv.DOCKER_TARGET,
@@ -167,6 +174,19 @@ export class ParseEnv {
       NODE_ENV: inputEnv.NODE_ENV,
       HOST_UID: process.getuid?.()?.toString(),
     });
+    const envEnv = ParseEnv.envSchema.parse({
+      COMPOSE_BAKE: "true",
+    });
+
+    const combinedEnv = ParseEnv.schema.parse({
+      ...fileEnv,
+      ...envEnv,
+    });
+
+    return {
+      ...this.processEnv,
+      ...combinedEnv,
+    };
   }
 
   #diff() {
@@ -177,7 +197,7 @@ export class ParseEnv {
       unchanged: [],
     });
 
-    const keys = Object.keys(ParseEnv.schema.shape);
+    const keys = Object.keys(ParseEnv.fileSchema.shape);
 
     for (const key of keys) {
       const prevValue = this.prevEnv[key];
@@ -197,7 +217,8 @@ export class ParseEnv {
   }
 
   save() {
-    const sortedEnv = Object.entries(this.env)
+    const env = ParseEnv.fileSchema.parse(this.env);
+    const sortedEnv = Object.entries(env)
       .filter(([, value]) => !!value)
       .sort((a, b) => a[0].localeCompare(b[0]));
 
