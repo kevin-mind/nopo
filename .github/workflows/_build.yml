@@ -78,27 +78,27 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build
         id: build
-        uses: docker/bake-action@v6
-        with:
-          builder: ${{ steps.docker.outputs.builder }}
-          targets: base
-          files: |
-            cwd://docker/docker-compose.base.yml
-            cwd://docker/docker-compose.build.yml
-            cwd://.env
-            cwd://${{ steps.docker_meta.outputs.bake-file-tags }}
-            cwd://${{ steps.docker_meta.outputs.bake-file-labels }}
-          push: ${{ inputs.push }}
+        env:
+          DOCKER_TAG: ${{ steps.input_tag.outputs.tag }}
+          DOCKER_PUSH: ${{ inputs.push }}
+        run: |
+          make image \
+            DOCKER_TAG=${DOCKER_TAG} \
+            DOCKER_PUSH=${DOCKER_PUSH}
 
       - name: Extract build digest
         id: digest
+        env:
+          push: ${{ inputs.push }}
+          tag: ${{ steps.input_tag.outputs.tag }}
         run: |
-          cat <<EOF > metadata.json
-          ${{ steps.build.outputs.metadata }}
-          EOF
-          digest=$(cat metadata.json | jq -r '.base."containerimage.digest"')
+          digest=""
+
+          if [[ "$push" == "true" ]]; then
+            digest=$(docker inspect $tag | jq -r '.[] | .RepoDigests[0]')
+          fi
 
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
           cat "$GITHUB_OUTPUT"

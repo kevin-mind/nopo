@@ -20,13 +20,20 @@ export default class ImageScript extends Script {
         env,
       });
     } else {
-      this.logger.log("Building base image");
+      const commandOptions = [];
+
+      if (this.config.processEnv.DOCKER_BUILDER) {
+        commandOptions.push("--builder", this.config.processEnv.DOCKER_BUILDER);
+      }
+
+      if (this.config.processEnv.DOCKER_PUSH) {
+        commandOptions.push("--push");
+      }
+
       await compose.buildOne("base", {
         log: true,
-        config: [
-          "docker/docker-compose.base.yml",
-          "docker/docker-compose.build.yml",
-        ],
+        config: ["docker/docker-compose.build.yml"],
+        commandOptions,
         env,
       });
     }
