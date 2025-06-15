@@ -70,10 +70,12 @@ describe("image", () => {
       err: "",
     });
 
+    const { env } = new ParseEnv(config);
     await runScript(UpScript, config);
     expect(compose.downMany).toHaveBeenCalledWith(["base"], {
       callback: expect.any(Function),
       commandOptions: ["--remove-orphans"],
+      env: expect.objectContaining(env),
     });
   });
   it("spins up all services", async () => {
@@ -81,10 +83,12 @@ describe("image", () => {
       envFile: createTmpEnv(),
       silent: true,
     });
+    const { env } = new ParseEnv(config);
     await runScript(UpScript, config);
     expect(compose.upAll).toHaveBeenCalledWith({
       callback: expect.any(Function),
       commandOptions: ["--remove-orphans", "-d", "--no-build", "--wait"],
+      env: expect.objectContaining(env),
     });
   });
   it("syncs host files", async () => {
@@ -101,7 +105,7 @@ describe("image", () => {
       {
         callback: expect.any(Function),
         config: ["docker/docker-compose.base.yml"],
-        env,
+        env: expect.objectContaining(env),
         commandOptions: ["--rm", "--no-deps"],
       },
     );

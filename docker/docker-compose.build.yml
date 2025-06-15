@@ -1,5 +1,8 @@
 services:
   base:
+    extends:
+      file: docker-compose.base.yml
+      service: base
     build:
       context: ..
       dockerfile: docker/Dockerfile
@@ -8,6 +11,7 @@ services:
         DOCKER_TARGET: "${DOCKER_TARGET}"
         DOCKER_TAG: "${DOCKER_TAG}"
         DOCKER_VERSION: "${DOCKER_VERSION}"
+        DOCKER_BUILD: "${DOCKER_BUILD}"
         GIT_REPO: "${GIT_REPO}"
         GIT_BRANCH: "${GIT_BRANCH}"
         GIT_COMMIT: "${GIT_COMMIT}"
