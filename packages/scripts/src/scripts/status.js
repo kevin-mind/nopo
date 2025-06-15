@@ -6,7 +6,7 @@ export default class StatusScript extends Script {
   description = "Check the status of the services";
 
   async fn() {
-    console.log(
+    this.logger.log(
       Object.entries({
         platform: `${process.platform} ${process.arch}\n`,
         node: await $`node --version`.text(),

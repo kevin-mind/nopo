@@ -23,6 +23,17 @@ vi.mock("node:net", () => ({
   },
 }));
 
+vi.mock("../../src/git-info", () => ({
+  GitInfo: {
+    exists: () => false,
+    parse: vi.fn(() => ({
+      repo: "unknown",
+      branch: "unknown",
+      commit: "unknown",
+    })),
+  },
+}));
+
 describe("image", () => {
   it("builds image when no DOCKER_REGISTRY is provided", async () => {
     const config = createConfig({
@@ -32,18 +43,14 @@ describe("image", () => {
       silent: true,
     });
     await runScript(ImageScript, config);
-    const { env } = new ParseEnv(config.envFile);
+    const { env } = new ParseEnv(config);
     expect(compose.buildOne).toHaveBeenCalledWith("base", {
       log: true,
       config: [
         "docker/docker-compose.base.yml",
         "docker/docker-compose.build.yml",
       ],
-      env: {
-        ...config.processEnv,
-        ...env,
-        COMPOSE_BAKE: "true",
-      },
+      env,
     });
   });
 
@@ -56,13 +63,14 @@ describe("image", () => {
       processEnv: {},
       silent: true,
     });
-    const { env } = new ParseEnv(config.envFile);
+    const { env } = new ParseEnv(config);
     expect(env.DOCKER_REGISTRY).toStrictEqual("docker.io");
     await runScript(ImageScript, config);
     expect(compose.pullOne).toHaveBeenCalledWith("base", {
       log: true,
       config: ["docker/docker-compose.base.yml"],
       commandOptions: ["--policy", "always"],
+      env,
     });
   });
 });
