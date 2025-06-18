@@ -215,14 +215,12 @@ jobs:
           ${{ toJson(needs) }}
           EOF
 
-          for key in $(echo '${{ toJson(needs) }}' | jq -r 'keys[]'); do
-            job=$(echo '${{ toJson(needs) }}' | jq -r ".[\"$key\"]")
-            result=$(echo "$job" | jq -r '.result')
-            outputs=$(echo "$job" | jq -r '.outputs')
-            if [ "$result" = "failure" ]; then
-              echo "Job $key failed with result: $result"
-              exit 1
-            fi
-            echo "Job $key completed with result: $result and outputs: $outputs"
-          done
+          cancelled="${{ contains(needs.*.result, 'cancelled' )}}"
+          failed="${{ contains(needs.*.result, 'failure' )}}"
 
+          if [[ "$cancelled" == "true" || "$failed" == "true" ]]; then
+            echo "Required Workflow cancelled or failed"
+            echo "cancelled: $cancelled"
+            echo "failed: $failed"
+            exit 1
+          fi
