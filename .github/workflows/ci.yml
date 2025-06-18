@@ -142,34 +142,36 @@ jobs:
       with:
         app_public_url: http://localhost
 
-  deploy:
-    name: deploy_${{ matrix.environment }}
+  deploy_stage:
     if: ${{ needs.context.outputs.deploy == 'true' }}
     needs: [context, build, test]
-    concurrency:
-      group: deploy
-      cancel-in-progress: false
-    strategy:
-      fail-fast: true
-      matrix:
-        environment:
-          - stage
-          - prod
-        service:
-          - web
     permissions:
       contents: read
       packages: read
     uses: ./.github/workflows/_deploy.yml
     secrets: inherit
     with:
-      environment: ${{ matrix.environment }}
+      environment: stage
       version: ${{ needs.build.outputs.version }}
       digest: ${{ needs.build.outputs.digest }}
-      service: ${{ matrix.service }}
+      service: web
 
-  push:
-    needs: [build, context, deploy]
+  deploy_prod:
+    if: ${{ needs.context.outputs.deploy == 'true' }}
+    needs: [context, build, deploy_stage, test]
+    permissions:
+      contents: read
+      packages: read
+    uses: ./.github/workflows/_deploy.yml
+    secrets: inherit
+    with:
+      environment: prod
+      version: ${{ needs.build.outputs.version }}
+      digest: ${{ needs.build.outputs.digest }}
+      service: web
+
+  push_latest:
+    needs: [build, context, deploy_prod]
     if: ${{ needs.context.outputs.deploy == 'true' }}
     runs-on: ubuntu-latest
     permissions:
@@ -204,7 +206,7 @@ jobs:
 
   checks:
     if: always()
-    needs: [build, test, smoketest, deploy, push]
+    needs: [build, test, smoketest, deploy_stage, deploy_prod, push_latest]
     runs-on: ubuntu-latest
     steps:
       - name: Context
@@ -213,14 +215,12 @@ jobs:
           ${{ toJson(needs) }}
           EOF
 
-          for key in $(echo '${{ toJson(needs) }}' | jq -r 'keys[]'); do
-            job=$(echo '${{ toJson(needs) }}' | jq -r ".[\"$key\"]")
-            result=$(echo "$job" | jq -r '.result')
-            outputs=$(echo "$job" | jq -r '.outputs')
-            if [ "$result" = "failure" ]; then
-              echo "Job $key failed with result: $result"
-              exit 1
-            fi
-            echo "Job $key completed with result: $result and outputs: $outputs"
-          done
+          cancelled="${{ contains(needs.*.result, 'cancelled' )}}"
+          failed="${{ contains(needs.*.result, 'failure' )}}"
 
+          if [[ "$cancelled" == "true" || "$failed" == "true" ]]; then
+            echo "Required Workflow cancelled or failed"
+            echo "cancelled: $cancelled"
+            echo "failed: $failed"
+            exit 1
+          fi
