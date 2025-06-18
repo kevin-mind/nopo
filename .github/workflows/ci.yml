@@ -122,15 +122,25 @@ jobs:
       tag: ${{ needs.build.outputs.tag }}
 
   smoketest:
+    needs: [context]
+    runs-on: ubuntu-latest
     if: ${{ needs.context.outputs.deploy == 'false' }}
-    needs: [build, context]
-    permissions:
-      packages: read
-      contents: read
-    uses: ./.github/workflows/_smoketest.yml
-    with:
-      environment: local
-      tag: ${{ needs.build.outputs.tag }}
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: ./.github/actions/setup-node
+
+    - uses: ./.github/actions/setup-docker
+
+    - name: Make up
+      uses: ./.github/actions/run-docker
+      with:
+        run: echo "up"
+
+    - name: Run smoketest
+      uses: ./.github/actions/smoketest
+      with:
+        app_public_url: http://localhost
 
   deploy_stage:
     if: ${{ needs.context.outputs.deploy == 'true' }}

@@ -1,0 +1,31 @@
+name: Smoketest
+description: Run smoke tests on a given URL
+
+inputs:
+  app_public_url:
+    description: The public URL of the app to test
+    required: true
+  name:
+    description: The name of the smoketest
+    required: false
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install Playwright Browsers
+      shell: bash
+      run: pnpm exec playwright install --with-deps
+
+    - name: Run Playwright tests
+      shell: bash
+      env:
+        APP_PUBLIC_URL: ${{ inputs.app_public_url }}
+      run: pnpm exec playwright test
+
+    - uses: actions/upload-artifact@v4
+      if: ${{ always() && inputs.name != '' }}
+      with:
+        name: playwright-report-${{ inputs.name }}
+        path: playwright-report/
+        retention-days: 30
