@@ -142,36 +142,34 @@ jobs:
       with:
         app_public_url: http://localhost
 
-  deploy_stage:
+  deploy:
+    name: deploy_${{ matrix.environment }}
     if: ${{ needs.context.outputs.deploy == 'true' }}
     needs: [context, build, test]
+    concurrency:
+      group: deploy
+      cancel-in-progress: false
+    strategy:
+      fail-fast: true
+      matrix:
+        environment:
+          - stage
+          - prod
+        service:
+          - web
     permissions:
       contents: read
       packages: read
     uses: ./.github/workflows/_deploy.yml
     secrets: inherit
     with:
-      environment: stage
+      environment: ${{ matrix.environment }}
       version: ${{ needs.build.outputs.version }}
       digest: ${{ needs.build.outputs.digest }}
-      service: web
+      service: ${{ matrix.service }}
 
-  deploy_prod:
-    if: ${{ needs.context.outputs.deploy == 'true' }}
-    needs: [context, build, deploy_stage, test]
-    permissions:
-      contents: read
-      packages: read
-    uses: ./.github/workflows/_deploy.yml
-    secrets: inherit
-    with:
-      environment: prod
-      version: ${{ needs.build.outputs.version }}
-      digest: ${{ needs.build.outputs.digest }}
-      service: web
-
-  push_latest:
-    needs: [build, context, deploy_prod]
+  push:
+    needs: [build, context, deploy]
     if: ${{ needs.context.outputs.deploy == 'true' }}
     runs-on: ubuntu-latest
     permissions:
@@ -206,7 +204,7 @@ jobs:
 
   checks:
     if: always()
-    needs: [build, test, smoketest, deploy_stage, deploy_prod, push_latest]
+    needs: [build, test, smoketest, deploy, push]
     runs-on: ubuntu-latest
     steps:
       - name: Context
