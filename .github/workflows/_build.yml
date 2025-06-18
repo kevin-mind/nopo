@@ -78,27 +78,38 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build
         id: build
-        uses: docker/bake-action@v6
-        with:
-          builder: ${{ steps.docker.outputs.builder }}
-          targets: base
-          files: |
-            cwd://docker/docker-compose.base.yml
-            cwd://docker/docker-compose.build.yml
-            cwd://.env
-            cwd://${{ steps.docker_meta.outputs.bake-file-tags }}
-            cwd://${{ steps.docker_meta.outputs.bake-file-labels }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DOCKER_BUILDER: ${{ steps.docker.outputs.builder }}
+          DOCKER_TAG: ${{ steps.input_tag.outputs.tag }}
+          DOCKER_BUILD: ${{ format('{0}/actions/runs/{1}', github.event.repository.html_url, github.run_id) }}
           push: ${{ inputs.push }}
+        run: |
+          gh auth status
+          make image \
+            DOCKER_BUILDER=${DOCKER_BUILDER} \
+            DOCKER_TAG=${DOCKER_TAG} \
+            DOCKER_BUILD=${DOCKER_BUILD}
+
+          if [[ "$push" == "true" ]]; then
+            docker push $DOCKER_TAG
+          fi
 
       - name: Extract build digest
         id: digest
+        env:
+          push: ${{ inputs.push }}
+          tag: ${{ steps.input_tag.outputs.tag }}
         run: |
-          cat <<EOF > metadata.json
-          ${{ steps.build.outputs.metadata }}
-          EOF
-          digest=$(cat metadata.json | jq -r '.base."containerimage.digest"')
+          digest=$(docker inspect $tag | jq -r '.[0].RepoDigests')
+
+          if [[ "$push" == "true" && "$digest" != "[]" ]]; then
+            digest=$(echo "$digest" | jq -r '.[0]' | cut -d '@' -f 2)
+          else
+            digest=""
+          fi
 
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
           cat "$GITHUB_OUTPUT"

@@ -46,11 +46,28 @@ describe("image", () => {
     const { env } = new ParseEnv(config);
     expect(compose.buildOne).toHaveBeenCalledWith("base", {
       log: true,
-      config: [
-        "docker/docker-compose.base.yml",
-        "docker/docker-compose.build.yml",
-      ],
-      env,
+      commandOptions: [],
+      config: ["docker/docker-compose.build.yml"],
+      env: expect.objectContaining(env),
+    });
+  });
+
+  it("builds image with builder", async () => {
+    const config = createConfig({
+      envFile: createTmpEnv({
+        DOCKER_TAG: "kevin-mind/nopo:local",
+      }),
+      processEnv: {
+        DOCKER_BUILDER: "custom-builder",
+      },
+    });
+    const { env } = new ParseEnv(config);
+    await runScript(ImageScript, config);
+    expect(compose.buildOne).toHaveBeenCalledWith("base", {
+      log: true,
+      commandOptions: ["--builder", "custom-builder"],
+      config: ["docker/docker-compose.build.yml"],
+      env: expect.objectContaining(env),
     });
   });
 
@@ -70,7 +87,7 @@ describe("image", () => {
       log: true,
       config: ["docker/docker-compose.base.yml"],
       commandOptions: ["--policy", "always"],
-      env,
+      env: expect.objectContaining(env),
     });
   });
 });

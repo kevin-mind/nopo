@@ -11,9 +11,14 @@ export default class UpScript extends Script {
 
   async fn() {
     const { env } = new ParseEnv(this.config);
+    const dockerEnv = {
+      ...this.config.processEnv,
+      ...env,
+    };
+
     const { data } = await compose.config({
       cwd: this.config.root,
-      env,
+      env: dockerEnv,
     });
     const downServices = [];
 
@@ -36,15 +41,17 @@ export default class UpScript extends Script {
         callback: createLogger("sync"),
         config: ["docker/docker-compose.base.yml"],
         commandOptions: ["--rm", "--no-deps"],
-        env,
+        env: dockerEnv,
       }),
       compose.downMany(downServices, {
         callback: createLogger("down"),
         commandOptions: ["--remove-orphans"],
+        env: dockerEnv,
       }),
       compose.pullAll({
         callback: createLogger("pull"),
         commandOptions: ["--ignore-pull-failures"],
+        env: dockerEnv,
       }),
     ]);
 
@@ -52,6 +59,7 @@ export default class UpScript extends Script {
       await compose.upAll({
         callback: createLogger("up"),
         commandOptions: ["--remove-orphans", "-d", "--no-build", "--wait"],
+        env: dockerEnv,
       });
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
@@ -60,6 +68,7 @@ export default class UpScript extends Script {
           compose.logs(service, {
             callback: createLogger(`log:${service}`),
             commandOptions: ["--no-log-prefix"],
+            env: dockerEnv,
           }),
         ),
       );
