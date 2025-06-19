@@ -1,0 +1,77 @@
+name: Deploy
+description: Deploy a tag to an environment
+
+inputs:
+  token:
+    description: The Fly API token
+    required: true
+  image:
+    description: The full docker tag to Deploy
+    required: true
+  app_public_url:
+    description: The public URL of the app
+    required: true
+  app_name:
+    description: The service to deploy
+    required: true
+  version:
+    description: The version to deploy
+    required: true
+  service:
+    description: The service to deploy
+    required: true
+
+outputs:
+  rollback_meta:
+    description: The version data before deploying
+    value: ${{ steps.rollback_meta.outputs.json }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Rollback Metadata
+      continue-on-error: true
+      shell: bash
+      id: rollback_meta
+      env:
+        url: ${{ inputs.app_public_url }}/__version__
+      run: |
+        json=$(curl -s --max-time 30 ${url})
+        echo "json=${json}" >> "$GITHUB_OUTPUT"
+        cat "$GITHUB_OUTPUT"
+
+    - name: Deploy to Fly
+      shell: bash
+      env:
+        FLY_API_TOKEN: ${{ inputs.token }}
+        SERVICE_NAME: ${{ inputs.service }}
+        image: ${{ inputs.image }}
+        config: "docker/fly-${{ inputs.app_name }}.toml"
+      run: |
+        flyctl deploy \
+          --config "${config}" \
+          --image "${image}" \
+          --env SERVICE_NAME="${SERVICE_NAME}"
+
+    - name: Wait for deployment
+      shell: bash
+      env:
+        url: ${{ inputs.app_public_url }}/__version__
+        version: ${{ inputs.version }}
+        image: ${{ inputs.image }}
+      run: |
+        wait_time=10
+        waiting=true
+
+        echo "Waiting for deployment to be ready"
+
+        while $waiting; do
+          current_version=$(curl -s --max-time 30 ${url} | jq -r '.version // empty' || echo "")
+          if [ "${current_version}" = "${version}" ]; then
+            waiting=false
+          else
+            echo "Tag '${image}' does not match '${version}'"
+            sleep "${wait_time}"
+          fi
+        done
+        echo "Deployment is ready"
