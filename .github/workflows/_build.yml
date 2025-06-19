@@ -62,13 +62,26 @@ jobs:
         id: input_tag
         uses: ./.github/actions/docker-tag
         with:
-          registry: ${{ inputs.push && 'ghcr.io' || '' }}
+          registry: ghcr.io
           image: ${{ github.repository }}
           version: ${{ steps.docker_meta.outputs.version }}
 
       - name: Set up Docker
         id: docker
         uses: ./.github/actions/setup-docker
+
+      - name: Build
+        id: build
+        env:
+          DOCKER_BUILDER: ${{ steps.docker.outputs.builder }}
+          DOCKER_TAG: ${{ steps.input_tag.outputs.tag }}
+          DOCKER_BUILD: ${{ format('{0}/actions/runs/{1}', github.event.repository.html_url, github.run_id) }}
+          push: ${{ inputs.push }}
+        run: |
+          make image \
+            DOCKER_BUILDER=${DOCKER_BUILDER} \
+            DOCKER_TAG=${DOCKER_TAG} \
+            DOCKER_BUILD=${DOCKER_BUILD}
 
       - name: Login to Docker registry
         if: ${{ inputs.push }}
@@ -78,24 +91,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build
-        id: build
+      - name: Push image
+        if: ${{ inputs.push }}
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DOCKER_BUILDER: ${{ steps.docker.outputs.builder }}
-          DOCKER_TAG: ${{ steps.input_tag.outputs.tag }}
-          DOCKER_BUILD: ${{ format('{0}/actions/runs/{1}', github.event.repository.html_url, github.run_id) }}
-          push: ${{ inputs.push }}
+          tag: ${{ steps.input_tag.outputs.tag }}
         run: |
-          gh auth status
-          make image \
-            DOCKER_BUILDER=${DOCKER_BUILDER} \
-            DOCKER_TAG=${DOCKER_TAG} \
-            DOCKER_BUILD=${DOCKER_BUILD}
-
-          if [[ "$push" == "true" ]]; then
-            docker push $DOCKER_TAG
-          fi
+          docker push $tag
 
       - name: Extract build digest
         id: digest
