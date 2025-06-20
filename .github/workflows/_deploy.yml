@@ -59,20 +59,19 @@ defaults:
     shell: bash
 
 concurrency:
-  group: |
-    deploy-
-    ${{ inputs.environment }}-
-    ${{ inputs.service }}
-  cancel-in-progress: true
+  group: deploy
+  cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment: ${{ inputs.environment }}
     outputs:
       pull_tag: ${{ steps.pull_tag.outputs.tag }}
       push_tag: ${{ steps.push_tag.outputs.tag }}
-      rollback_meta: ${{ steps.rollback_meta.outputs.json }}
+      rollback_meta: ${{ steps.deploy.outputs.rollback_meta }}
+      deployed: ${{ steps.deploy.outcome == 'success' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -83,10 +82,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Setup Flyctl
-        uses: superfly/flyctl-actions/setup-flyctl@master
-
       - name: Pull Tag
         id: pull_tag
         uses: ./.github/actions/docker-tag
@@ -104,59 +99,33 @@ jobs:
           image: ${{ vars.APP_NAME }}
           version: ${{ steps.pull_tag.outputs.version }}
 
+      - name: Setup Flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
       - name: Login to Fly
         run: flyctl auth docker
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
       - name: Push image
+        env:
+          pull_tag: ${{ steps.pull_tag.outputs.tag }}
+          push_tag: ${{ steps.push_tag.outputs.tag }}
         run: |
-          pull_tag="${{ steps.pull_tag.outputs.tag }}"
-          push_tag="${{ steps.push_tag.outputs.tag }}"
-
-          docker pull $pull_tag
-          docker tag $pull_tag $push_tag
-          docker push $push_tag
-
-      - name: Rollback Metadata
-        continue-on-error: true
-        id: rollback_meta
-        run: |
-          public_url="${{ vars.APP_PUBLIC_URL }}"
-          url="${public_url}/__version__"
-          json=$(curl -s --max-time 30 ${url})
-          echo "json=${json}" >> "$GITHUB_OUTPUT"
-          cat "$GITHUB_OUTPUT"
+          docker pull "${pull_tag}"
+          docker tag "${pull_tag}" "${push_tag}"
+          docker push "${push_tag}"
 
       - name: Deploy to Fly
-        run: |
-          flyctl deploy \
-            --config docker/fly-${{ vars.APP_NAME }}.toml \
-            --image "${{ steps.push_tag.outputs.tag }}" \
-            --env SERVICE_NAME="${{ inputs.service }}"
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-
-      - name: Wait for deployment
-        timeout-minutes: 10
-        run: |
-          public_url="${{ vars.APP_PUBLIC_URL }}"
-          url="${public_url}/__version__"
-          wait_time=10
-          waiting=true
-
-          echo "Waiting for deployment to be ready"
-
-          while $waiting; do
-            version=$(curl -s --max-time 30 ${url} | jq -r '.version // empty' || echo "")
-            if [ "$version" = "${{ steps.push_tag.outputs.version }}" ]; then
-              waiting=false
-            else
-              echo "Tag '${tag}' does not match '${{ steps.push_tag.outputs.tag }}'"
-              sleep "${wait_time}"
-            fi
-          done
-          echo "Deployment is ready"
+        id: deploy
+        uses: ./.github/actions/deploy
+        with:
+          token: ${{ secrets.FLY_API_TOKEN }}
+          image: ${{ steps.push_tag.outputs.tag }}
+          app_public_url: ${{ vars.APP_PUBLIC_URL }}
+          app_name: ${{ vars.APP_NAME }}
+          version: ${{ steps.push_tag.outputs.version }}
+          service: ${{ inputs.service }}
 
       - name: Run smoke test
         uses: ./.github/actions/smoketest
@@ -171,4 +140,46 @@ jobs:
     steps:
       - name: Wait for approval
         run: echo "Waiting for approval"
+
+  rollback:
+    if: |
+      always() &&
+      needs.deploy.outputs.rollback_meta != '' &&
+      needs.deploy.outputs.deployed == 'true' &&
+      (needs.deploy.result != 'success'|| needs.approve.result != 'success')
+    name: Rollback
+    needs: [deploy, approve]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-node
+
+      - name: Rollback tag
+        id: rollback_tag
+        uses: ./.github/actions/docker-tag
+        with:
+          tag: ${{ fromJson(needs.deploy.outputs.rollback_meta).tag }}
+
+      - name: Setup Flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Rollback
+        uses: ./.github/actions/deploy
+        with:
+          token: ${{ secrets.FLY_API_TOKEN }}
+          image: ${{ steps.rollback_tag.outputs.tag }}
+          version: ${{ steps.rollback_tag.outputs.version }}
+          app_public_url: ${{ vars.APP_PUBLIC_URL }}
+          app_name: ${{ vars.APP_NAME }}
+          service: ${{ inputs.service }}
+
+      - name: Run smoke test
+        uses: ./.github/actions/smoketest
+        with:
+          app_public_url: ${{ vars.APP_PUBLIC_URL }}
+
+
 
