@@ -12,8 +12,8 @@
     "format": "exit 0",
     "lint": "exit 0",
     "test": "exit 0",
-    "dev": "sleep infinity",
-    "start": "sleep infinity"
+    "dev": "uv run main.py",
+    "start": "uv run main.py"
   },
   "devDependencies": {
     "@more/configs": "workspace:*",

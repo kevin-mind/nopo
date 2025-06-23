@@ -20,6 +20,10 @@ ENV PNPM_HOME="$DEPS/pnpm"
 ENV PNPM_STORE_DIR="$PNPM_HOME/store"
 ENV COREPACK_HOME="$DEPS/corepack"
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_CACHE_DIR="$DEPS/uv-cache"
+ENV UV_PYTHON="3.12"
+ENV PYTHONUNBUFFERED=1
 ENV PATH="$PNPM_HOME:$COREPACK_HOME:$PATH"
 
 WORKDIR $APP
@@ -30,6 +34,8 @@ groupadd -g $USER_ID $USER
 useradd -r -u $USER_ID -g $USER_ID -d $HOME -m -s /bin/bash $USER
 EOF
 
+COPY --from=ghcr.io/astral-sh/uv:latest --chown=$USER:$USER /uv /uvx /bin/
+
 RUN \
   --mount=type=cache,target=/var/cache/apt,id=apt \
   --mount=type=cache,target=/var/lib/apt,id=apt \
@@ -39,6 +45,7 @@ RUN \
   --mount=type=cache,target=$PNPM_STORE_DIR,id=pnpm-store \
 <<EOF
 apt-get update && apt-get install -y make jq curl
+uv python install
 npm install --global corepack@latest
 corepack enable pnpm
 corepack prepare pnpm --activate
@@ -108,14 +115,12 @@ EOF
 FROM base AS user
 ################################################################################################
 
+COPY --from=base --chown=$USER $HOME $HOME
 COPY --from=info ${BUILD_INFO} ${BUILD_INFO}
 COPY --from=install --chown=$USER $DEPS $DEPS
 COPY --from=source --chown=$USER $APP/docker/cmd.sh /cmd.sh
 
-RUN <<EOF
-usermod -s /sbin/nologin $USER
-chown -R $USER:$USER $HOME $APP
-EOF
+RUN usermod -s /sbin/nologin $USER
 
 CMD ["/cmd.sh"]
 
@@ -126,8 +131,6 @@ FROM user AS development
 ################################################################################################
 
 ENV SERVICE_COMMAND="dev"
-
-COPY --from=source --chown=$USER $APP $APP
 
 ################################################################################################
 FROM user AS production
