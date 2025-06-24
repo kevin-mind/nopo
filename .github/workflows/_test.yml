@@ -19,13 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        include:
-          -
-            service: web
-            command: check
-          -
-            service: web
-            command: test
+        command: [check, test]
       fail-fast: false
     permissions:
       packages: read
@@ -48,7 +42,7 @@ jobs:
         with:
           tag: ${{ inputs.tag }}
 
-      - name: Run '${{ matrix.command }}' (${{ matrix.service }})
+      - name: Run '${{ matrix.command }}'
         uses: ./.github/actions/run-docker
         with:
           tag: ${{ steps.docker_tag.outputs.tag }}

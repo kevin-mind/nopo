@@ -1,5 +1,5 @@
 name: Deploy
-description: Deploy a tag to an environment
+description: Deploy a specific fly app
 
 inputs:
   token:
@@ -8,20 +8,20 @@ inputs:
   image:
     description: The full docker tag to Deploy
     required: true
-  app_public_url:
-    description: The public URL of the app
-    required: true
-  app_name:
-    description: The service to deploy
-    required: true
   version:
     description: The version to deploy
     required: true
-  service:
-    description: The service to deploy
-    required: true
 
 outputs:
+  app_name:
+    description: The fly app name to deploy
+    value: ${{ steps.config.outputs.app_name }}
+  public_url:
+    description: The public URL of the app
+    value: ${{ steps.config.outputs.public_url }}
+  check_url:
+    description: The URL to check the version
+    value: ${{ steps.config.outputs.check_url }}
   rollback_meta:
     description: The version data before deploying
     value: ${{ steps.rollback_meta.outputs.json }}
@@ -29,14 +29,29 @@ outputs:
 runs:
   using: 'composite'
   steps:
+    - name: Config
+      id: config
+      shell: bash
+      env:
+        app_name: ${{ inputs.app_name }}
+      run: |
+        config="docker/fly/${app_name}.toml"
+        public_url="https://${app_name}.fly.dev"
+        check_url="${public_url}/__version__"
+
+        echo "config=${config}" >> "$GITHUB_OUTPUT"
+        echo "public_url=${public_url}" >> "$GITHUB_OUTPUT"
+        echo "check_url=${check_url}" >> "$GITHUB_OUTPUT"
+        cat "$GITHUB_OUTPUT"
+
     - name: Rollback Metadata
       continue-on-error: true
       shell: bash
       id: rollback_meta
       env:
-        url: ${{ inputs.app_public_url }}/__version__
+        check_url: ${{ steps.config.outputs.check_url }}
       run: |
-        json=$(curl -s --max-time 30 ${url})
+        json=$(curl -s --max-time 30 ${check_url})
         echo "json=${json}" >> "$GITHUB_OUTPUT"
         cat "$GITHUB_OUTPUT"
 
@@ -44,19 +59,19 @@ runs:
       shell: bash
       env:
         FLY_API_TOKEN: ${{ inputs.token }}
-        SERVICE_NAME: ${{ inputs.service }}
+        app_name: ${{ inputs.app_name }}
         image: ${{ inputs.image }}
-        config: "docker/fly-${{ inputs.app_name }}.toml"
+        config: ${{ steps.config.outputs.config }}
       run: |
         flyctl deploy \
+          --app "${app_name}" \
           --config "${config}" \
-          --image "${image}" \
-          --env SERVICE_NAME="${SERVICE_NAME}"
+          --image "${image}"
 
     - name: Wait for deployment
       shell: bash
       env:
-        url: ${{ inputs.app_public_url }}/__version__
+        url: ${{ steps.config.outputs.check_url }}
         version: ${{ inputs.version }}
         image: ${{ inputs.image }}
       run: |

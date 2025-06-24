@@ -44,7 +44,8 @@ RUN \
   --mount=type=cache,target=$COREPACK_HOME,id=corepack \
   --mount=type=cache,target=$PNPM_STORE_DIR,id=pnpm-store \
 <<EOF
-apt-get update && apt-get install -y make jq curl
+apt-get update
+apt-get install -y --no-install-recommends make jq curl
 uv python install
 npm install --global corepack@latest
 corepack enable pnpm

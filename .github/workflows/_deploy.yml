@@ -11,12 +11,6 @@ on:
         description: 'The digest to deploy'
         required: false
         type: string
-      service:
-        description: 'The service to deploy'
-        required: true
-        type: choice
-        options:
-          - web
       environment:
         description: 'The environment to deploy to'
         required: true
@@ -34,10 +28,6 @@ on:
       digest:
         description: 'The digest to deploy'
         required: false
-        type: string
-      service:
-        description: 'The service to deploy'
-        required: true
         type: string
       environment:
         description: 'The environment to deploy to'
@@ -63,15 +53,43 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  app_names:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    outputs:
+      app_names: ${{ steps.app_names.outputs.app_names }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set App Names
+        id: app_names
+        env:
+          environment: ${{ inputs.environment }}
+        run: |
+          base_dir="docker/fly/"
+          app_names=()
+
+          for entry in "${base_dir}"nopo-${environment}-*.toml; do
+            app_names+=("$(basename "${entry}" .toml)")
+          done
+
+          # Convert the app_names array to a compact JSON array for use in GitHub Actions matrix
+          # printf '%s\n' outputs each service on a new line
+          # jq -R . reads each line as a raw string and wraps it in JSON quotes
+          # jq -s . slurps all the quoted strings into a single JSON array
+          # jq -c . compacts the JSON output (removes whitespace)
+          json_app_names=$(printf '%s\n' "${app_names[@]}" | jq -R . | jq -s . | jq -c .)
+
+          echo "app_names=${json_app_names}" >> "$GITHUB_OUTPUT"
+          cat "$GITHUB_OUTPUT"
+
+  pre_approve:
+    name: Pre-Approve deployments for (${{ needs.app_names.outputs.app_names }})
+    needs: [app_names]
+    runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     outputs:
       pull_tag: ${{ steps.pull_tag.outputs.tag }}
-      push_tag: ${{ steps.push_tag.outputs.tag }}
-      rollback_meta: ${{ steps.deploy.outputs.rollback_meta }}
-      deployed: ${{ steps.deploy.outcome == 'success' }}
+      pull_version: ${{ steps.pull_tag.outputs.version }}
     steps:
       - uses: actions/checkout@v4
 
@@ -82,6 +100,7 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Pull Tag
         id: pull_tag
         uses: ./.github/actions/docker-tag
@@ -91,13 +110,38 @@ jobs:
           version: ${{ inputs.version }}
           digest: ${{ inputs.digest }}
 
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [app_names, pre_approve]
+    timeout-minutes: 10
+    concurrency:
+      group: deploy-job
+    strategy:
+      matrix:
+        app_name: ${{ fromJson(needs.app_names.outputs.app_names) }}
+    outputs:
+      push_tag: ${{ steps.push_tag.outputs.tag }}
+      rollback_meta: ${{ steps.deploy.outputs.rollback_meta }}
+      deployed: ${{ steps.deploy.outcome == 'success' }}
+      app_name: ${{ matrix.app_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-node
+
+      - uses: ./.github/actions/setup-docker
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Push Tag
         id: push_tag
         uses: ./.github/actions/docker-tag
         with:
           registry: registry.fly.io
-          image: ${{ vars.APP_NAME }}
-          version: ${{ steps.pull_tag.outputs.version }}
+          image: ${{ matrix.app_name }}
+          version: ${{ needs.pre_approve.outputs.pull_version }}
 
       - name: Setup Flyctl
         uses: superfly/flyctl-actions/setup-flyctl@master
@@ -109,7 +153,7 @@ jobs:
 
       - name: Push image
         env:
-          pull_tag: ${{ steps.pull_tag.outputs.tag }}
+          pull_tag: ${{ needs.pre_approve.outputs.pull_tag }}
           push_tag: ${{ steps.push_tag.outputs.tag }}
         run: |
           docker pull "${pull_tag}"
@@ -122,15 +166,13 @@ jobs:
         with:
           token: ${{ secrets.FLY_API_TOKEN }}
           image: ${{ steps.push_tag.outputs.tag }}
-          app_public_url: ${{ vars.APP_PUBLIC_URL }}
-          app_name: ${{ vars.APP_NAME }}
+          app_name: ${{ matrix.app_name }}
           version: ${{ steps.push_tag.outputs.version }}
-          service: ${{ inputs.service }}
 
       - name: Run smoke test
         uses: ./.github/actions/smoketest
         with:
-          app_public_url: ${{ vars.APP_PUBLIC_URL }}
+          public_url: ${{ steps.deploy.outputs.public_url }}
 
   approve:
     if: ${{ always() && needs.deploy.result == 'success' }}
@@ -148,10 +190,12 @@ jobs:
       needs.deploy.outputs.deployed == 'true' &&
       (needs.deploy.result != 'success'|| needs.approve.result != 'success')
     name: Rollback
-    needs: [deploy, approve]
+    needs: [app_names, deploy, approve]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: ${{ inputs.environment }}
+    strategy:
+      matrix: ${{ fromJson(needs.app_names.outputs.app_names) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -167,19 +211,19 @@ jobs:
         uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Rollback
+        id: deploy
         uses: ./.github/actions/deploy
         with:
           token: ${{ secrets.FLY_API_TOKEN }}
           image: ${{ steps.rollback_tag.outputs.tag }}
           version: ${{ steps.rollback_tag.outputs.version }}
-          app_public_url: ${{ vars.APP_PUBLIC_URL }}
-          app_name: ${{ vars.APP_NAME }}
-          service: ${{ inputs.service }}
+          service: ${{ matrix.service }}
+          environment: ${{ inputs.environment }}
 
       - name: Run smoke test
         uses: ./.github/actions/smoketest
         with:
-          app_public_url: ${{ vars.APP_PUBLIC_URL }}
+          public_url: ${{ steps.deploy.outputs.public_url }}
 
 
 

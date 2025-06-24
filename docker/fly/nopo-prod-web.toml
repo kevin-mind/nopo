@@ -1,4 +1,3 @@
-app = "nopo-stage"
 primary_region = "fra"
 
 [http_service]
@@ -17,3 +16,4 @@ memory_mb = 1_024
 
 [experimental]
 entrypoint = ["/bin/bash"]
+

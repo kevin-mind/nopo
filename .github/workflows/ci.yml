@@ -70,7 +70,6 @@ jobs:
           echo "push=$push" >> $GITHUB_OUTPUT
           echo "deploy=$deploy" >> $GITHUB_OUTPUT
           cat "$GITHUB_OUTPUT"
-
   version:
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'push' }}
@@ -140,7 +139,7 @@ jobs:
     - name: Run smoketest
       uses: ./.github/actions/smoketest
       with:
-        app_public_url: http://localhost
+        public_url: http://localhost
 
   deploy_stage:
     if: ${{ needs.context.outputs.deploy == 'true' }}
@@ -154,7 +153,6 @@ jobs:
       environment: stage
       version: ${{ needs.build.outputs.version }}
       digest: ${{ needs.build.outputs.digest }}
-      service: web
 
   deploy_prod:
     if: ${{ needs.context.outputs.deploy == 'true' }}
@@ -168,7 +166,6 @@ jobs:
       environment: prod
       version: ${{ needs.build.outputs.version }}
       digest: ${{ needs.build.outputs.digest }}
-      service: web
 
   push_latest:
     needs: [build, context, deploy_prod]
