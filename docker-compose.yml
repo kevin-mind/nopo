@@ -57,6 +57,8 @@ services:
         condition: service_started
       backend:
         condition: service_started
+    environment:
+      WEB_PUBLIC_URL: ${WEB_PUBLIC_URL:-http://web:80}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost"]
       interval: 20s

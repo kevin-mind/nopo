@@ -45,7 +45,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  app_names:
+  context:
     runs-on: ubuntu-latest
     outputs:
       app_names: ${{ steps.app_names.outputs.app_names }}
@@ -57,26 +57,22 @@ jobs:
         env:
           environment: ${{ inputs.environment }}
         run: |
-          base_dir="docker/fly/"
-          app_names=()
+          app_names=$(
+            ls "docker/fly/nopo-${environment}"-*.toml \
+              | xargs -n 1 basename \
+              | sed 's/\.toml$//' \
+              | sort -u \
+              | jq -R . \
+              | jq -s . \
+              | jq -c .
+          )
 
-          for entry in "${base_dir}"nopo-${environment}-*.toml; do
-            app_names+=("$(basename "${entry}" .toml)")
-          done
-
-          # Convert the app_names array to a compact JSON array for use in GitHub Actions matrix
-          # printf '%s\n' outputs each service on a new line
-          # jq -R . reads each line as a raw string and wraps it in JSON quotes
-          # jq -s . slurps all the quoted strings into a single JSON array
-          # jq -c . compacts the JSON output (removes whitespace)
-          json_app_names=$(printf '%s\n' "${app_names[@]}" | jq -R . | jq -s . | jq -c .)
-
-          echo "app_names=${json_app_names}" >> "$GITHUB_OUTPUT"
+          echo "app_names=${app_names}" >> "$GITHUB_OUTPUT"
           cat "$GITHUB_OUTPUT"
 
   pre_approve:
-    name: Pre-Approve deployments for (${{ needs.app_names.outputs.app_names }})
-    needs: [app_names]
+    name: Pre-Approve deployments for (${{ needs.context.outputs.app_names }})
+    needs: [context]
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     outputs:
@@ -124,13 +120,13 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
-    needs: [app_names, pre_approve]
+    needs: [context, pre_approve]
     timeout-minutes: 10
     concurrency:
       group: deploy-job-${{ matrix.app_name }}
     strategy:
       matrix:
-        app_name: ${{ fromJson(needs.app_names.outputs.app_names) }}
+        app_name: ${{ fromJson(needs.context.outputs.app_names) }}
     outputs:
       deployed: ${{ steps.deploy.outcome == 'success' }}
     steps:
@@ -178,14 +174,37 @@ jobs:
           app_name: ${{ matrix.app_name }}
           version: ${{ steps.push_tag.outputs.version }}
 
-      - name: Run smoke test
+  deploy_nginx:
+    runs-on: ubuntu-latest
+    needs: [context, deploy]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-node
+
+      - name: Setup Flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy Nginx
+        id: deploy_nginx
+        uses: ./.github/actions/deploy-nginx
+        with:
+          token: ${{ secrets.FLY_API_TOKEN }}
+          apps: ${{ needs.context.outputs.app_names }}
+          environment: ${{ inputs.environment }}
+
+      - name: Smoke test
         uses: ./.github/actions/smoketest
         with:
-          public_url: ${{ steps.deploy.outputs.public_url }}
+          public_url: ${{ steps.deploy_nginx.outputs.public_url }}
 
   post_approve:
-    if: ${{ always() && needs.deploy.result == 'success' }}
-    needs: [deploy]
+    name: Post-Approve deployments for (${{ needs.context.outputs.app_names }})
+    if: |
+      always() &&
+      needs.deploy.result == 'success' &&
+      needs.deploy_nginx.result == 'success'
+    needs: [context, deploy, deploy_nginx]
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
@@ -199,12 +218,12 @@ jobs:
       needs.deploy.outputs.deployed == 'true' &&
       (needs.deploy.result != 'success'|| needs.post_approve.result != 'success')
     name: Rollback
-    needs: [app_names, pre_approve, deploy, post_approve]
+    needs: [context, pre_approve, deploy, deploy_nginx, post_approve]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
       matrix:
-        app_name: ${{ fromJson(needs.app_names.outputs.app_names) }}
+        app_name: ${{ fromJson(needs.context.outputs.app_names) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -229,11 +248,6 @@ jobs:
           image: ${{ steps.rollback_tag.outputs.tag }}
           app_name: ${{ matrix.app_name }}
           version: ${{ steps.rollback_tag.outputs.version }}
-
-      - name: Run smoke test
-        uses: ./.github/actions/smoketest
-        with:
-          public_url: ${{ steps.rollback.outputs.public_url }}
 
 
 
