@@ -13,5 +13,7 @@ if [[ "${command}" == "" ]]; then
   exit 1
 fi
 
+printenv
+
 set -xue
 pnpm --filter "@more/${service}" "${command}"

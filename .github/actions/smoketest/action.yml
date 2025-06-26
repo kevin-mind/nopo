@@ -2,7 +2,7 @@ name: Smoketest
 description: Run smoke tests on a given URL
 
 inputs:
-  app_public_url:
+  public_url:
     description: The public URL of the app to test
     required: true
   name:
@@ -20,7 +20,7 @@ runs:
     - name: Run Playwright tests
       shell: bash
       env:
-        APP_PUBLIC_URL: ${{ inputs.app_public_url }}
+        PUBLIC_URL: ${{ inputs.public_url }}
       run: pnpm exec playwright test
 
     - uses: actions/upload-artifact@v4
