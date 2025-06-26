@@ -69,6 +69,10 @@ jobs:
       - name: Set up Docker
         id: docker
         uses: ./.github/actions/setup-docker
+        with:
+          registry: ${{ inputs.push && 'ghcr.io' || '' }}
+          username: ${{ inputs.push && github.actor || '' }}
+          password: ${{ inputs.push && secrets.GITHUB_TOKEN || '' }}
 
       - name: Build
         id: build
@@ -82,14 +86,6 @@ jobs:
             DOCKER_BUILDER=${DOCKER_BUILDER} \
             DOCKER_TAG=${DOCKER_TAG} \
             DOCKER_BUILD=${DOCKER_BUILD}
-
-      - name: Login to Docker registry
-        if: ${{ inputs.push }}
-        uses: ./.github/actions/login-docker
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push image
         if: ${{ inputs.push }}
