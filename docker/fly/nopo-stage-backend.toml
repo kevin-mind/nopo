@@ -11,6 +11,7 @@ processes = [ "app" ]
 [env]
   SERVICE_NAME = "backend"
   SERVICE_PUBLIC_PATH = "/api"
+  SITE_URL = "https://nopo-stage.fly.dev"
   PORT = 3_000
 
 [[vm]]
