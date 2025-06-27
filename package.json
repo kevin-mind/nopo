@@ -13,7 +13,7 @@
     "build:workspace": "pnpm run -r build",
     "clean": "run-p clean:*",
     "clean:workspace": "pnpm run -r clean",
-    "clean:root": "rm -rf .cache .config .bash_history .env .local .pnpm-store node_modules && rm -f build-metadata.json || true",
+    "clean:root": "rm -rf .cache .config .bash_history .env .local .pnpm-store .venv/* node_modules && rm -f build-metadata.json || true",
     "check": "run-p check:*",
     "check:workspace": "pnpm run -r \"/^check:.*/\"",
     "check:lint:root": "eslint",

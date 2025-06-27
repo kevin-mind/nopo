@@ -1,0 +1,13 @@
+[project]
+name = "nopo"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = ["nopo-backend"]
+
+[tool.uv.sources]
+"nopo-backend" = { workspace = true }
+
+[tool.uv.workspace]
+members = ["apps/backend"]

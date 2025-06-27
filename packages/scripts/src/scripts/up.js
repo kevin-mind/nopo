@@ -72,7 +72,7 @@ export default class UpScript extends Script {
           }),
         ),
       );
-      throw new Error("Failed to start services");
+      throw new Error("Failed to start services", { cause: error });
     }
   }
 }

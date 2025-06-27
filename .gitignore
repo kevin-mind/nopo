@@ -22,3 +22,6 @@ deps
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+.venv
+!.venv/*
