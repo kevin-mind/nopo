@@ -22,7 +22,7 @@ ENV COREPACK_HOME="$DEPS/corepack"
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_CACHE_DIR="$DEPS/uv-cache"
-ENV UV_PYTHON="3.12"
+ENV UV_PROJECT_ENVIRONMENT="$APP/.venv"
 ENV PYTHONUNBUFFERED=1
 ENV PATH="$PNPM_HOME:$COREPACK_HOME:$PATH"
 
@@ -37,6 +37,7 @@ EOF
 COPY --from=ghcr.io/astral-sh/uv:latest --chown=$USER:$USER /uv /uvx /bin/
 
 RUN \
+  --mount=type=bind,source=.python-version,target=$APP/.python-version \
   --mount=type=cache,target=/var/cache/apt,id=apt \
   --mount=type=cache,target=/var/lib/apt,id=apt \
   --mount=type=bind,source=package.json,target=$APP/package.json \
@@ -96,9 +97,18 @@ FROM base AS install
 
 ARG USER_ID
 
-COPY --from=source --chown=$USER $APP/pnpm-lock.yaml $APP/pnpm-workspace.yaml $APP/
+COPY --from=source --chown=$USER \
+  $APP/pnpm-lock.yaml \
+  $APP/pnpm-workspace.yaml \
+  $APP/pyproject.toml \
+  $APP/uv.lock \
+  $APP/
 
-RUN pnpm fetch
+RUN <<EOF
+set -e
+uv sync --frozen --no-install-workspace
+pnpm fetch
+EOF
 
 ################################################################################################
 FROM base AS build
