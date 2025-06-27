@@ -16,18 +16,12 @@ inputs:
     required: true
 
 outputs:
-  app_name:
-    description: The fly app name to deploy
-    value: ${{ steps.config.outputs.app_name }}
   public_url:
     description: The public URL of the app
     value: ${{ steps.config.outputs.public_url }}
   check_url:
     description: The URL to check the version
     value: ${{ steps.config.outputs.check_url }}
-  rollback_meta:
-    description: The version data before deploying
-    value: ${{ steps.rollback_meta.outputs.json }}
 
 runs:
   using: 'composite'
@@ -45,17 +39,6 @@ runs:
         echo "config=${config}" >> "$GITHUB_OUTPUT"
         echo "public_url=${public_url}" >> "$GITHUB_OUTPUT"
         echo "check_url=${check_url}" >> "$GITHUB_OUTPUT"
-        cat "$GITHUB_OUTPUT"
-
-    - name: Rollback Metadata
-      continue-on-error: true
-      shell: bash
-      id: rollback_meta
-      env:
-        check_url: ${{ steps.config.outputs.check_url }}
-      run: |
-        json=$(curl -s --max-time 30 ${check_url})
-        echo "json=${json}" >> "$GITHUB_OUTPUT"
         cat "$GITHUB_OUTPUT"
 
     - name: Deploy to Fly
