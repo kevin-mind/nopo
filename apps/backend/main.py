@@ -1,5 +1,6 @@
 from time import sleep
 
+
 def main():
     print("Hello from app!")
 

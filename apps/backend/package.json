@@ -9,11 +9,14 @@
   "scripts": {
     "build": "uv run python manage.py collectstatic --noinput",
     "clean": "rm -rf db.sqlite3 build",
-    "format": "uv tool run ruff format",
+    "fix:lint": "uv tool run ruff format",
     "check:lint": "uv tool run ruff check",
     "test": "exit 0",
     "dev": "uv run --verbose python manage.py runserver 0.0.0.0:80 --settings=mysite.settings-dev",
-    "start": "uv run --verbose gunicorn --config gunicorn.conf.py mysite.wsgi:application"
+    "start": "uv run --verbose gunicorn --config gunicorn.conf.py mysite.wsgi:application",
+    "migrate": "uv run --verbose python manage.py migrate",
+    "makemigrations": "uv run --verbose python manage.py makemigrations",
+    "shell": "uv run --verbose python manage.py shell"
   },
   "devDependencies": {
     "@more/configs": "workspace:*",

@@ -24,6 +24,8 @@ services:
     environment:
       SERVICE_NAME: backend
       SERVICE_PUBLIC_PATH: /api
+      DATABASE_URL: postgres://user:password@db:5432/database
+      SITE_URL: http://localhost:${DOCKER_PORT:?}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/__version__"]
       interval: 20s
@@ -38,9 +40,9 @@ services:
     image: postgres:16
     restart: always
     environment:
-      POSTGRES_DB: website
-      POSTGRES_USER: website
-      POSTGRES_PASSWORD: website
+      POSTGRES_DB: database
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
     volumes:
       - data_postgres:/var/lib/postgresql/data
     healthcheck:

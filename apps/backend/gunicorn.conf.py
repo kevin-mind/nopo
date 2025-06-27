@@ -1,7 +1,7 @@
 import os
 
-host = os.environ.get('HOST', '0.0.0.0')
-port = os.environ.get('PORT', '80')
+host = os.environ.get("HOST", "0.0.0.0")
+port = os.environ.get("PORT", "80")
 
 print(f"host: {host}, port: {port}")
 
