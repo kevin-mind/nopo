@@ -61,7 +61,6 @@ export default class UpScript extends Script {
         commandOptions: ["--remove-orphans", "-d", "--no-build", "--wait"],
         env: dockerEnv,
       });
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       await Promise.all(
         Object.keys(data.config.services).map((service) =>
