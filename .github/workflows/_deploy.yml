@@ -168,6 +168,8 @@ jobs:
   deploy_nginx:
     runs-on: ubuntu-latest
     needs: [context, deploy]
+    outputs:
+      public_url: ${{ steps.deploy_nginx.outputs.public_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -197,7 +199,9 @@ jobs:
       needs.deploy_nginx.result == 'success'
     needs: [context, pre_approve, deploy, deploy_nginx]
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ needs.deploy_nginx.outputs.public_url }}
     permissions:
       packages: write
       contents: read
