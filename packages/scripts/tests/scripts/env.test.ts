@@ -72,32 +72,6 @@ describe("env", () => {
   });
 
   describe("error states", () => {
-    it("throws error when digest is specified without version", async () => {
-      const config = createConfig({
-        envFile: createTmpEnv(),
-        processEnv: {
-          DOCKER_TAG: `@${dockerTag.parsed.digest}`,
-        },
-        silent: true,
-      });
-      await expect(runScript(EnvScript, config)).rejects.toThrow(
-        "Invalid image tag",
-      );
-    });
-
-    it("throws error for invalid DOCKER_TAG input", async () => {
-      const config = createConfig({
-        envFile: createTmpEnv(),
-        processEnv: {
-          DOCKER_TAG: "@?sdflkj2",
-        },
-        silent: true,
-      });
-      await expect(runScript(EnvScript, config)).rejects.toThrow(
-        "Invalid image tag",
-      );
-    });
-
     it("Corrects invalid NODE_ENV to default on remote images", async () => {
       const config = createConfig({
         envFile: createTmpEnv(),

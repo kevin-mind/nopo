@@ -18,5 +18,6 @@ down:
 up:
 	pnpm run scripts up
 
+.PHONY: scripts
 %:
 	pnpm run $(MAKECMDGOALS)
