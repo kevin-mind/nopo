@@ -1,0 +1,27 @@
+name: Check
+description: Verifies no failures in any dependencies
+
+inputs:
+  json:
+    description: The JSON to check
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Check
+      shell: bash
+      env:
+        json: ${{ inputs.json }}
+      run: |
+        echo "${json}"
+
+        failed=$(echo "${json}" | jq -r '.[] | select(.result == "failure")')
+        cancelled=$(echo "${json}" | jq -r '.[] | select(.result == "cancelled")')
+
+        if [[ "$failed" == "true" || "$cancelled" == "true" ]]; then
+          echo "Required Workflow failed or cancelled"
+          echo "failed: $failed"
+          echo "cancelled: $cancelled"
+          exit 1
+        fi

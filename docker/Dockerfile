@@ -131,8 +131,6 @@ COPY --from=info ${BUILD_INFO} ${BUILD_INFO}
 COPY --from=install --chown=$USER $DEPS $DEPS
 COPY --from=source --chown=$USER $APP/docker/cmd.sh /cmd.sh
 
-RUN usermod -s /sbin/nologin $USER
-
 CMD ["/cmd.sh"]
 
 USER $USER

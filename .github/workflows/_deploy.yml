@@ -49,34 +49,24 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       app_names: ${{ steps.app_names.outputs.app_names }}
+      app_list: ${{ join(fromJson(steps.app_names.outputs.app_names), ', ') }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Set App Names
         id: app_names
-        env:
+        uses: ./.github/actions/app-names
+        with:
           environment: ${{ inputs.environment }}
-        run: |
-          app_names=$(
-            ls "docker/fly/nopo-${environment}"-*.toml \
-              | xargs -n 1 basename \
-              | sed 's/\.toml$//' \
-              | sort -u \
-              | jq -R . \
-              | jq -s . \
-              | jq -c .
-          )
-
-          echo "app_names=${app_names}" >> "$GITHUB_OUTPUT"
-          cat "$GITHUB_OUTPUT"
 
   pre_approve:
-    name: Pre-Approve deployments for (${{ needs.context.outputs.app_names }})
+    name: Preparing to deploy ${{ needs.context.outputs.app_list }}
     needs: [context]
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     outputs:
       pull_tag: ${{ steps.pull_tag.outputs.tag }}
+      env_tag: ${{ steps.env_tag.outputs.tag }}
       rollback_version: ${{ steps.rollback_version.outputs.version }}
       pull_version: ${{ steps.pull_tag.outputs.version }}
     steps:
@@ -99,19 +89,20 @@ jobs:
           version: ${{ inputs.version }}
           digest: ${{ inputs.digest }}
 
-      - name: Rollback Tag
-        id: rollback_tag
+      - name: Environment Tag
+        id: env_tag
         uses: ./.github/actions/docker-tag
         with:
           registry: ghcr.io
           image: ${{ github.repository }}
-          version: latest
+          version: ${{ inputs.environment }}
 
       - name: Get Rollback Version
         id: rollback_version
         shell: bash
+        continue-on-error: true
         env:
-          pull_tag: ${{ steps.rollback_tag.outputs.tag }}
+          pull_tag: ${{ steps.env_tag.outputs.tag }}
         run: |
           docker pull "${pull_tag}"
           version=$(docker run --rm "${pull_tag}" cat /build-info.json | jq -r '.version')
@@ -199,17 +190,36 @@ jobs:
           public_url: ${{ steps.deploy_nginx.outputs.public_url }}
 
   post_approve:
-    name: Post-Approve deployments for (${{ needs.context.outputs.app_names }})
+    name: Approve deployments for ${{ needs.context.outputs.app_list }}
     if: |
       always() &&
       needs.deploy.result == 'success' &&
       needs.deploy_nginx.result == 'success'
-    needs: [context, deploy, deploy_nginx]
+    needs: [context, pre_approve, deploy, deploy_nginx]
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
+    permissions:
+      packages: write
+      contents: read
+      attestations: write
+      id-token: write
     steps:
-      - name: Wait for approval
-        run: echo "Waiting for approval"
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-docker
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push Environment Image
+        env:
+          pull_tag: ${{ needs.pre_approve.outputs.pull_tag }}
+          push_tag: ${{ needs.pre_approve.outputs.env_tag }}
+        run: |
+          docker pull "${pull_tag}"
+          docker tag "${pull_tag}" "${push_tag}"
+          docker push "${push_tag}"
 
   rollback:
     if: |

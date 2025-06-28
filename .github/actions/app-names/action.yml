@@ -1,0 +1,40 @@
+name: App Names
+description: Get app names based on existing docker/fly/*.toml files
+
+inputs:
+  environment:
+    description: The environment to get app names for
+    required: false
+    default: "*"
+  app:
+    description: The app to get app names for
+    required: false
+    default: "*"
+
+outputs:
+  app_names:
+    description: The app names
+    value: ${{ steps.app_names.outputs.app_names }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set App Names
+      shell: bash
+      id: app_names
+      env:
+        environment: ${{ inputs.environment }}
+        app: ${{ inputs.app }}
+      run: |
+        app_names=$(
+          ls docker/fly/nopo-${environment}-${app}.toml \
+            | xargs -n 1 basename \
+            | sed 's/\.toml$//' \
+            | sort -u \
+            | jq -R . \
+            | jq -s . \
+            | jq -c .
+        )
+
+        echo "app_names=${app_names}" >> "$GITHUB_OUTPUT"
+        cat "$GITHUB_OUTPUT"
