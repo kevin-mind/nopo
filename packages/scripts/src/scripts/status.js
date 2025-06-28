@@ -1,4 +1,3 @@
-import { $ } from "zx";
 import { Script } from "../lib.js";
 
 export default class StatusScript extends Script {
@@ -6,11 +5,11 @@ export default class StatusScript extends Script {
   description = "Check the status of the services";
 
   async fn() {
-    this.logger.log(
+    this.runner.logger.log(
       Object.entries({
         platform: `${process.platform} ${process.arch}\n`,
-        node: await $`node --version`.text(),
-        pnpm: await $`pnpm --version`.text(),
+        node: await this.exec`node --version`.text(),
+        pnpm: await this.exec`pnpm --version`.text(),
       })
         .map(([key, value]) => `${key}: ${value}`)
         .join(""),

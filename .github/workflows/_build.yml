@@ -80,19 +80,13 @@ jobs:
           DOCKER_BUILDER: ${{ steps.docker.outputs.builder }}
           DOCKER_TAG: ${{ steps.input_tag.outputs.tag }}
           DOCKER_BUILD: ${{ format('{0}/actions/runs/{1}', github.event.repository.html_url, github.run_id) }}
-          push: ${{ inputs.push }}
+          DOCKER_PUSH: ${{ inputs.push }}
         run: |
-          make image \
-            DOCKER_BUILDER=${DOCKER_BUILDER} \
-            DOCKER_TAG=${DOCKER_TAG} \
-            DOCKER_BUILD=${DOCKER_BUILD}
-
-      - name: Push image
-        if: ${{ inputs.push }}
-        env:
-          tag: ${{ steps.input_tag.outputs.tag }}
-        run: |
-          docker push $tag
+          make scripts build \
+            DOCKER_BUILDER="${DOCKER_BUILDER}" \
+            DOCKER_TAG="${DOCKER_TAG}" \
+            DOCKER_BUILD="${DOCKER_BUILD}" \
+            DOCKER_PUSH="${DOCKER_PUSH}"
 
       - name: Extract build digest
         id: digest

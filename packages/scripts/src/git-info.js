@@ -18,7 +18,6 @@ export class GitInfo {
     }
   }
   static git(...pieces) {
-    $.sync = true;
     return $.sync`git ${pieces}`.stdout.trim();
   }
 

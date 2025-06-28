@@ -1,4 +1,10 @@
 services:
+  base:
+    extends:
+      file: docker/docker-compose.service.yml
+      service: base
+    command: ["sleep", "infinity"]
+
   web:
     extends:
       file: docker/docker-compose.service.yml

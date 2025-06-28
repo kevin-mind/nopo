@@ -2,7 +2,7 @@ import { describe, it, vi, expect } from "vitest";
 import compose from "docker-compose";
 import ImageScript from "../../src/scripts/image";
 import { createConfig } from "../../src/lib";
-import { ParseEnv } from "../../src/parse-env";
+import { Environment } from "../../src/parse-env";
 
 import { createTmpEnv, runScript } from "../utils";
 
@@ -43,7 +43,7 @@ describe("image", () => {
       silent: true,
     });
     await runScript(ImageScript, config);
-    const { env } = new ParseEnv(config);
+    const { env } = new Environment(config);
     expect(compose.buildOne).toHaveBeenCalledWith("base", {
       log: true,
       commandOptions: [],
@@ -61,7 +61,7 @@ describe("image", () => {
         DOCKER_BUILDER: "custom-builder",
       },
     });
-    const { env } = new ParseEnv(config);
+    const { env } = new Environment(config);
     await runScript(ImageScript, config);
     expect(compose.buildOne).toHaveBeenCalledWith("base", {
       log: true,
@@ -80,7 +80,7 @@ describe("image", () => {
       processEnv: {},
       silent: true,
     });
-    const { env } = new ParseEnv(config);
+    const { env } = new Environment(config);
     expect(env.DOCKER_REGISTRY).toStrictEqual("docker.io");
     await runScript(ImageScript, config);
     expect(compose.pullOne).toHaveBeenCalledWith("base", {

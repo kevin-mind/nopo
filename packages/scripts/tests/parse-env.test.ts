@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 
-import { ParseEnv } from "../src/parse-env";
+import { Environment } from "../src/parse-env";
 import { dockerTag, createTmpEnv } from "./utils";
 import { createConfig } from "../src/lib";
 
@@ -34,7 +34,7 @@ describe("parseEnv", () => {
     });
     const {
       env: { HOST_UID, GIT_BRANCH, GIT_COMMIT, GIT_REPO, DOCKER_PORT, ...env },
-    } = new ParseEnv(config);
+    } = new Environment(config);
     expect(HOST_UID).toBe(process.getuid?.()?.toString());
     expect(GIT_REPO).toStrictEqual("unknown");
     expect(GIT_BRANCH).toStrictEqual("unknown");
@@ -51,7 +51,7 @@ describe("parseEnv", () => {
       processEnv: {},
       silent: true,
     });
-    const { env } = new ParseEnv(config);
+    const { env } = new Environment(config);
     expect(env.NODE_ENV).toBe("production");
   });
 
@@ -65,7 +65,7 @@ describe("parseEnv", () => {
       },
       silent: true,
     });
-    const { env } = new ParseEnv(config);
+    const { env } = new Environment(config);
     expect(env.NODE_ENV).toBe("development");
   });
 
@@ -77,7 +77,7 @@ describe("parseEnv", () => {
       processEnv: {},
       silent: true,
     });
-    expect(() => new ParseEnv(config)).toThrow("Invalid enum value");
+    expect(() => new Environment(config)).toThrow("Invalid enum value");
   });
 
   it("rejects invalid DOCKER_TARGET", () => {
@@ -88,7 +88,7 @@ describe("parseEnv", () => {
       processEnv: {},
       silent: true,
     });
-    expect(() => new ParseEnv(config)).toThrow("Invalid enum value");
+    expect(() => new Environment(config)).toThrow("Invalid enum value");
   });
 
   it("should use provided DOCKER_TAG if present", () => {
@@ -99,7 +99,7 @@ describe("parseEnv", () => {
       processEnv: {},
       silent: true,
     });
-    const { env } = new ParseEnv(config);
+    const { env } = new Environment(config);
     expect(env.DOCKER_TAG).toBe(dockerTag.fullTag);
     expect(env.DOCKER_REGISTRY).toBe(dockerTag.parsed.registry);
     expect(env.DOCKER_IMAGE).toBe(dockerTag.parsed.image);
@@ -117,7 +117,7 @@ describe("parseEnv", () => {
       processEnv: {},
       silent: true,
     });
-    const { env } = new ParseEnv(config);
+    const { env } = new Environment(config);
     expect(env.DOCKER_TAG).toBe(dockerTag.fullTag);
   });
 
@@ -133,7 +133,7 @@ describe("parseEnv", () => {
       processEnv: {},
       silent: true,
     });
-    const { env } = new ParseEnv(config);
+    const { env } = new Environment(config);
     expect(env.DOCKER_TAG).toBe(dockerTag.fullTag);
   });
 
@@ -143,8 +143,8 @@ describe("parseEnv", () => {
       processEnv: {},
       silent: true,
     });
-    const { env } = new ParseEnv(config);
-    expect(env.DOCKER_TAG).toBe(ParseEnv.baseTag.fullTag);
+    const { env } = new Environment(config);
+    expect(env.DOCKER_TAG).toBe(Environment.baseTag.fullTag);
   });
 
   it("should force production target for non-local image", () => {
@@ -156,7 +156,7 @@ describe("parseEnv", () => {
       processEnv: {},
       silent: true,
     });
-    const { env } = new ParseEnv(config);
+    const { env } = new Environment(config);
     expect(env.DOCKER_TARGET).toBe("production");
   });
 
@@ -169,7 +169,7 @@ describe("parseEnv", () => {
       processEnv: {},
       silent: true,
     });
-    const { env } = new ParseEnv(config);
+    const { env } = new Environment(config);
     expect(env.NODE_ENV).toBe("production");
   });
 
@@ -184,7 +184,7 @@ describe("parseEnv", () => {
         processEnv: {},
         silent: true,
       });
-      const { env } = new ParseEnv(config);
+      const { env } = new Environment(config);
       expect(env.DOCKER_TARGET).toBe(target);
     },
   );
@@ -200,7 +200,7 @@ describe("parseEnv", () => {
         processEnv: {},
         silent: true,
       });
-      const { env } = new ParseEnv(config);
+      const { env } = new Environment(config);
       expect(env.NODE_ENV).toBe(nodeEnv);
     },
   );
@@ -213,7 +213,7 @@ describe("parseEnv", () => {
       processEnv: {},
       silent: true,
     });
-    expect(() => new ParseEnv(config)).toThrow(
+    expect(() => new Environment(config)).toThrow(
       "Cannot parse image with only a digest:",
     );
   });
@@ -226,7 +226,7 @@ describe("parseEnv", () => {
       processEnv: {},
       silent: true,
     });
-    const { env } = new ParseEnv(config);
+    const { env } = new Environment(config);
     expect(env.DOCKER_TAG).toBe("kevin-mind/nopo:3.0.0");
   });
 
@@ -238,7 +238,7 @@ describe("parseEnv", () => {
       processEnv: {},
       silent: true,
     });
-    const { env } = new ParseEnv(config);
+    const { env } = new Environment(config);
     expect(env.DOCKER_TAG).toBe(
       `kevin-mind/nopo:1.0.0@${dockerTag.parsed.digest}`,
     );
@@ -252,7 +252,7 @@ describe("parseEnv", () => {
       processEnv: {},
       silent: true,
     });
-    const { env } = new ParseEnv(config);
+    const { env } = new Environment(config);
     expect(env.DOCKER_TAG).toBe("custom/image:1.0.0");
   });
 
@@ -264,7 +264,7 @@ describe("parseEnv", () => {
       processEnv: {},
       silent: true,
     });
-    const { env } = new ParseEnv(config);
+    const { env } = new Environment(config);
     expect(env.DOCKER_TAG).toBe("nginx:latest");
     expect(env.DOCKER_REGISTRY).toBe("");
     expect(env.DOCKER_IMAGE).toBe("nginx");
@@ -279,7 +279,7 @@ describe("parseEnv", () => {
       processEnv: {},
       silent: true,
     });
-    const { env } = new ParseEnv(config);
+    const { env } = new Environment(config);
     expect(env.DOCKER_TAG).toBe(`nginx:latest@${dockerTag.parsed.digest}`);
     expect(env.DOCKER_REGISTRY).toBe("");
     expect(env.DOCKER_IMAGE).toBe("nginx");
@@ -295,6 +295,6 @@ describe("parseEnv", () => {
       processEnv: {},
       silent: true,
     });
-    expect(() => new ParseEnv(config)).toThrow("Invalid image tag:");
+    expect(() => new Environment(config)).toThrow("Invalid image tag:");
   });
 });

@@ -3,7 +3,8 @@
 import { minimist, chalk, glob } from "zx";
 import path from "node:path";
 
-import { Runner, createConfig } from "./src/lib.js";
+import { Runner, createConfig, Logger } from "./src/lib.js";
+import { Environment } from "./src/parse-env.js";
 
 const basePath = import.meta.dirname;
 const scriptsPath = path.join(basePath, "src", "scripts");
@@ -27,6 +28,10 @@ function printHelp(message, exitCode = 1) {
 }
 
 export default async function main() {
+  const config = createConfig({ envFile: process.env.ENV_FILE });
+  const logger = new Logger(config);
+  const environment = new Environment(config);
+  const runner = new Runner(config, environment, logger);
   const args = minimist(process.argv.slice(2));
 
   if (args.help) {
@@ -45,12 +50,8 @@ export default async function main() {
     return printHelp(`Command not found: ${command}`, 1);
   }
 
-  const { ENV_FILE = undefined } = process.env;
-
   const { default: script } = await import(scriptPath);
-  const config = createConfig({ envFile: ENV_FILE });
 
-  const runner = new Runner(config);
   try {
     await runner.run(script);
   } catch (error) {

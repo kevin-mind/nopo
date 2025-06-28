@@ -3,7 +3,7 @@ import compose from "docker-compose";
 import UpScript from "../../src/scripts/up";
 import { createConfig } from "../../src/lib";
 import { createTmpEnv, runScript } from "../utils";
-import { ParseEnv } from "../../src/parse-env";
+import { Environment } from "../../src/parse-env";
 
 vi.mock("../../src/git-info", () => ({
   GitInfo: {
@@ -70,7 +70,7 @@ describe("image", () => {
       err: "",
     });
 
-    const { env } = new ParseEnv(config);
+    const { env } = new Environment(config);
     await runScript(UpScript, config);
     expect(compose.downMany).toHaveBeenCalledWith(["base"], {
       callback: expect.any(Function),
@@ -83,7 +83,7 @@ describe("image", () => {
       envFile: createTmpEnv(),
       silent: true,
     });
-    const { env } = new ParseEnv(config);
+    const { env } = new Environment(config);
     await runScript(UpScript, config);
     expect(compose.upAll).toHaveBeenCalledWith({
       callback: expect.any(Function),
@@ -96,7 +96,7 @@ describe("image", () => {
       envFile: createTmpEnv(),
       silent: true,
     });
-    const { env } = new ParseEnv(config);
+    const { env } = new Environment(config);
 
     await runScript(UpScript, config);
     expect(compose.run).toHaveBeenCalledWith(
