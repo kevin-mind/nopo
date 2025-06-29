@@ -29,9 +29,12 @@ vi.mock("node:net", () => ({
 const mockBake = vi.fn().mockResolvedValue(undefined);
 BuildScript.prototype.bake = mockBake;
 
+const mockBuilder = vi.fn().mockResolvedValue("nopo-builder");
+
 describe("build", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    BuildScript.prototype.builder = mockBuilder;
   });
 
   it("builds image with default options", async () => {
@@ -51,6 +54,8 @@ describe("build", () => {
       config.envFile,
       "--debug",
       "--progress=plain",
+      "--builder",
+      "nopo-builder",
       "--load",
       "--print",
     );
@@ -61,11 +66,14 @@ describe("build", () => {
       config.envFile,
       "--debug",
       "--progress=plain",
+      "--builder",
+      "nopo-builder",
       "--load",
     );
   });
 
   it("builds image with custom builder", async () => {
+    mockBuilder.mockResolvedValue("custom-builder");
     const config = createConfig({
       envFile: createTmpEnv({
         DOCKER_TAG: "kevin-mind/nopo:local",
@@ -104,6 +112,7 @@ describe("build", () => {
   });
 
   it("pushes image when DOCKER_PUSH is set", async () => {
+    mockBuilder.mockResolvedValue("nopo-builder");
     const config = createConfig({
       envFile: createTmpEnv({
         DOCKER_TAG: "kevin-mind/nopo:local",
@@ -123,6 +132,9 @@ describe("build", () => {
       config.envFile,
       "--debug",
       "--progress=plain",
+      "--builder",
+      "nopo-builder",
+      "--load",
       "--push",
       "--print",
     );
@@ -133,6 +145,9 @@ describe("build", () => {
       config.envFile,
       "--debug",
       "--progress=plain",
+      "--builder",
+      "nopo-builder",
+      "--load",
       "--push",
     );
   });

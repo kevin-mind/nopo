@@ -71,7 +71,7 @@ export class Script {
   }
 
   log(...message) {
-    this.runner.logger.log(this.runner.logger.chalk.yellow(...message, "\n"));
+    this.runner.logger.log(this.runner.logger.chalk.yellow(...message));
   }
 }
 

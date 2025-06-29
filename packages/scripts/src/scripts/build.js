@@ -1,3 +1,4 @@
+import { $ } from "zx";
 import { Script } from "../lib.js";
 import EnvScript from "./env.js";
 
@@ -15,6 +16,22 @@ export default class BuildScript extends Script {
     return this.exec`docker buildx bake ${args}`;
   }
 
+  async builder() {
+    const builder = "nopo-builder";
+    const customBuilder = this.runner.config.processEnv.DOCKER_BUILDER;
+
+    if (customBuilder) return customBuilder;
+
+    const p = await $`docker buildx inspect ${builder}`.nothrow();
+    if (p.exitCode !== 0) {
+      this.log(`Builder '${builder}' not found, creating it...`);
+      await this
+        .exec`docker buildx create --name ${builder} --driver docker-container`;
+    }
+
+    return builder;
+  }
+
   async fn() {
     const commandOptions = [
       "-f",
@@ -24,24 +41,18 @@ export default class BuildScript extends Script {
       "--debug",
       "--progress=plain",
     ];
+    const push = this.runner.config.processEnv.DOCKER_PUSH || false;
+    const builder = await this.builder();
 
-    this.log(`Building image: ${this.runner.environment.env.DOCKER_TAG}`);
+    this.log(`
+      Building image: ${this.runner.environment.env.DOCKER_TAG}
+      - builder: "${builder}"
+      - push: "${push}"
+    `);
 
-    if (this.runner.config.processEnv.DOCKER_BUILDER) {
-      this.log("- builder:", this.runner.config.processEnv.DOCKER_BUILDER);
-      commandOptions.push(
-        "--builder",
-        this.runner.config.processEnv.DOCKER_BUILDER,
-      );
-    }
-
-    if (this.runner.config.processEnv.DOCKER_PUSH) {
-      this.log("- pushing image");
-      commandOptions.push("--push");
-    } else {
-      this.log("- loading image");
-      commandOptions.push("--load");
-    }
+    commandOptions.push("--builder", builder);
+    commandOptions.push("--load");
+    if (push) commandOptions.push("--push");
 
     await this.bake(...commandOptions, "--print");
     await this.bake(...commandOptions);
