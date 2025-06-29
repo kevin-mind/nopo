@@ -8,16 +8,16 @@ import { GitInfo } from "./git-info.js";
 const nodeEnv = z.enum(["development", "production", "test"]);
 const dockerTarget = nodeEnv.or(z.enum(["base", "build"]));
 
-const ParseEnvDiffTuple = z.tuple([z.string(), z.string().optional()]);
+const EnvironmentDiffTuple = z.tuple([z.string(), z.string().optional()]);
 
-const ParseEnvDiff = z.object({
-  added: z.array(ParseEnvDiffTuple),
-  updated: z.array(ParseEnvDiffTuple),
-  removed: z.array(ParseEnvDiffTuple),
-  unchanged: z.array(ParseEnvDiffTuple),
+const EnvironmentDiff = z.object({
+  added: z.array(EnvironmentDiffTuple),
+  updated: z.array(EnvironmentDiffTuple),
+  removed: z.array(EnvironmentDiffTuple),
+  unchanged: z.array(EnvironmentDiffTuple),
 });
 
-export class ParseEnv {
+export class Environment {
   static baseTag = new DockerTag("kevin-mind/nopo:local");
 
   static schema = z.object({
@@ -72,7 +72,7 @@ export class ParseEnv {
         digest: this.prevEnv.DOCKER_DIGEST,
       });
     } else {
-      return ParseEnv.baseTag;
+      return Environment.baseTag;
     }
   }
 
@@ -120,10 +120,10 @@ export class ParseEnv {
       !image.includes("@")
     ) {
       version = image;
-      image = ParseEnv.baseTag.parsed.image;
+      image = Environment.baseTag.parsed.image;
     } else if (image && !version && digest && !image.includes(":")) {
       version = image;
-      image = ParseEnv.baseTag.parsed.image;
+      image = Environment.baseTag.parsed.image;
     }
 
     if (digest && !version) {
@@ -133,7 +133,7 @@ export class ParseEnv {
     }
 
     if (!registry) {
-      registry = ParseEnv.baseTag.parsed.registry;
+      registry = Environment.baseTag.parsed.registry;
     }
 
     const isLocal = version === "local";
@@ -154,7 +154,7 @@ export class ParseEnv {
       inputEnv.GIT_COMMIT,
     );
 
-    return ParseEnv.schema.parse({
+    return Environment.schema.parse({
       DOCKER_PORT: this.#resolveDockerPort(),
       DOCKER_TAG: new DockerTag({ registry, image, version, digest }).fullTag,
       DOCKER_TARGET: inputEnv.DOCKER_TARGET,
@@ -171,14 +171,14 @@ export class ParseEnv {
   }
 
   #diff() {
-    const result = ParseEnvDiff.parse({
+    const result = EnvironmentDiff.parse({
       added: [],
       updated: [],
       removed: [],
       unchanged: [],
     });
 
-    const keys = Object.keys(ParseEnv.schema.shape);
+    const keys = Object.keys(Environment.schema.shape);
 
     for (const key of keys) {
       const prevValue = this.prevEnv[key];

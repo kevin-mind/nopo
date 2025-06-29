@@ -13,9 +13,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const root = path.resolve(__dirname, "..", "..", "..");
 
-chalk.level = 2;
-$.cwd = root;
-
 export function createConfig(options = {}) {
   const {
     envFile = ".env",
@@ -30,9 +27,14 @@ export function createConfig(options = {}) {
   });
 }
 
-class Logger {
+export class Logger {
   constructor(config) {
+    chalk.level = 2;
     this.config = config;
+  }
+
+  get chalk() {
+    return chalk;
   }
 
   log(...args) {
@@ -41,50 +43,84 @@ class Logger {
   }
 }
 
-class Base {
-  constructor(config, logger = new Logger(config)) {
-    this.config = config;
-    this.logger = logger;
-  }
-}
-
-export class Script extends Base {
+export class Script {
   static name = "";
   static description = "";
   static dependencies = [];
 
+  constructor(runner) {
+    this.runner = runner;
+  }
+
   async fn() {
     throw new Error("Not implemented");
   }
+
+  get exec() {
+    const shell = $({
+      cwd: this.runner.config.root,
+      stdio: "inherit",
+      verbose: true,
+      env: {
+        ...this.runner.environment.processEnv,
+        ...this.runner.environment.env,
+      },
+    });
+
+    return shell;
+  }
+
+  log(...message) {
+    this.runner.logger.log(this.runner.logger.chalk.yellow(...message));
+  }
 }
 
-export class Runner extends Base {
-  resolveDependencies(scriptClass, seen = new Set()) {
+export class Runner {
+  constructor(config, environment, logger = new Logger(config)) {
+    this.config = config;
+    this.environment = environment;
+    this.logger = logger;
+  }
+
+  resolveDependencies(scriptClass, dependencies = new Map()) {
     if (scriptClass.dependencies.length === 0) {
-      seen.add(scriptClass);
-      return seen;
+      dependencies.set(scriptClass, true);
+      return dependencies;
     }
 
     for (const dep of scriptClass.dependencies) {
-      this.resolveDependencies(dep, seen);
+      let enabled = true;
+      if (typeof dep.enabled === "function") {
+        enabled = dep.enabled(this);
+      } else {
+        enabled = dep.enabled;
+      }
+
+      dependencies.set(dep.class, enabled);
+
+      if (enabled) {
+        this.resolveDependencies(dep.class, dependencies);
+      }
     }
 
-    seen.add(scriptClass);
-    return seen;
+    dependencies.set(scriptClass, true);
+    return dependencies;
   }
 
   async run(ScriptClass) {
     const scripts = this.resolveDependencies(ScriptClass);
-    const line = `\n${Array(80).fill("=").join("")}\n`;
-    for await (const ScriptToRun of scripts) {
-      this.logger.log(
-        chalk.magenta(
-          line,
-          `${chalk.bold(ScriptToRun.name)}: ${ScriptToRun.description}`,
-          line,
-        ),
-      );
-      const scriptInstance = new ScriptToRun(this.config, this.logger);
+    const line = (length) =>
+      `${Array(Math.round(length * 1.618))
+        .fill("=")
+        .join("")}`;
+    for await (const [ScriptToRun, enabled] of scripts) {
+      const skipped = enabled ? "" : chalk.bold("(skipped)");
+      const color = enabled ? chalk.magenta : chalk.yellow;
+      const message = `${chalk.bold(ScriptToRun.name)}: ${ScriptToRun.description} ${skipped}`;
+      const length = message.length + 2;
+      this.logger.log(color([line(length), message, line(length)].join("\n")));
+      if (!enabled) continue;
+      const scriptInstance = new ScriptToRun(this);
       try {
         await scriptInstance.fn();
       } catch (error) {

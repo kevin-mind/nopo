@@ -1,30 +1,52 @@
 import compose from "docker-compose";
 import { Script } from "../lib.js";
 import EnvScript from "./env.js";
-import ImageScript from "./image.js";
+import BuildScript from "./build.js";
+import PullScript from "./pull.js";
 
-import { ParseEnv } from "../parse-env.js";
+function isBuild({ config, environment }) {
+  const forceBuild = !!config.processEnv.DOCKER_BUILD;
+  const localVersion = environment.env.DOCKER_VERSION === "local";
+  return forceBuild || localVersion;
+}
+
+function isPull(runner) {
+  return !isBuild(runner);
+}
+
 export default class UpScript extends Script {
   static name = "up";
   static description = "Start the services";
-  static dependencies = [EnvScript, ImageScript];
+  static dependencies = [
+    {
+      class: EnvScript,
+      enabled: true,
+    },
+    {
+      class: BuildScript,
+      enabled: isBuild,
+    },
+    {
+      class: PullScript,
+      enabled: isPull,
+    },
+  ];
 
   async fn() {
-    const { env } = new ParseEnv(this.config);
     const dockerEnv = {
-      ...this.config.processEnv,
-      ...env,
+      ...this.runner.environment.processEnv,
+      ...this.runner.environment.env,
     };
 
     const { data } = await compose.config({
-      cwd: this.config.root,
+      cwd: this.runner.config.root,
       env: dockerEnv,
     });
     const downServices = [];
 
     for (const [name, service] of Object.entries(data.config.services)) {
       if (typeof service === "string") continue;
-      if (service.image !== env.DOCKER_TAG) continue;
+      if (service.image !== this.runner.environment.env.DOCKER_TAG) continue;
       downServices.push(name);
     }
 

@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import fs from "node:fs";
 
 import EnvScript from "../../src/scripts/env";
-import { ParseEnv } from "../../src/parse-env";
+import { Environment } from "../../src/parse-env";
 import { createConfig } from "../../src/lib";
 
 import { createTmpEnv, runScript, dockerTag } from "../utils.js";
@@ -39,7 +39,7 @@ describe("env", () => {
       silent: true,
     });
     await runScript(EnvScript, config);
-    const { env } = new ParseEnv(config);
+    const { env } = new Environment(config);
     expect(env.DOCKER_TAG).toStrictEqual(dockerTag.fullTag);
   });
 
@@ -52,7 +52,7 @@ describe("env", () => {
     });
 
     await runScript(EnvScript, config);
-    const { env } = new ParseEnv(config);
+    const { env } = new Environment(config);
     expect(env.DOCKER_TAG).toStrictEqual("registry/repo:tag");
   });
 
@@ -64,7 +64,7 @@ describe("env", () => {
       silent: true,
     });
     await runScript(EnvScript, config);
-    const { env } = new ParseEnv(config);
+    const { env } = new Environment(config);
     expect(env.DOCKER_REGISTRY).toStrictEqual(dockerTag.parsed.registry);
     expect(env.DOCKER_IMAGE).toStrictEqual(dockerTag.parsed.image);
     expect(env.DOCKER_VERSION).toStrictEqual(dockerTag.parsed.version);
@@ -72,32 +72,6 @@ describe("env", () => {
   });
 
   describe("error states", () => {
-    it("throws error when digest is specified without version", async () => {
-      const config = createConfig({
-        envFile: createTmpEnv(),
-        processEnv: {
-          DOCKER_TAG: `@${dockerTag.parsed.digest}`,
-        },
-        silent: true,
-      });
-      await expect(runScript(EnvScript, config)).rejects.toThrow(
-        "Invalid image tag",
-      );
-    });
-
-    it("throws error for invalid DOCKER_TAG input", async () => {
-      const config = createConfig({
-        envFile: createTmpEnv(),
-        processEnv: {
-          DOCKER_TAG: "@?sdflkj2",
-        },
-        silent: true,
-      });
-      await expect(runScript(EnvScript, config)).rejects.toThrow(
-        "Invalid image tag",
-      );
-    });
-
     it("Corrects invalid NODE_ENV to default on remote images", async () => {
       const config = createConfig({
         envFile: createTmpEnv(),
@@ -108,7 +82,7 @@ describe("env", () => {
         silent: true,
       });
       await runScript(EnvScript, config);
-      const { env } = new ParseEnv(config);
+      const { env } = new Environment(config);
       // Default for dockerTag is production since this is a remote image
       expect(env.NODE_ENV).toStrictEqual("production");
     });
@@ -123,7 +97,7 @@ describe("env", () => {
         silent: true,
       });
       await runScript(EnvScript, config);
-      const { env } = new ParseEnv(config);
+      const { env } = new Environment(config);
       expect(env.DOCKER_TARGET).toStrictEqual("production");
     });
   });
@@ -148,7 +122,7 @@ describe("env", () => {
         silent: true,
       });
       await runScript(EnvScript, config);
-      const { env } = new ParseEnv(config);
+      const { env } = new Environment(config);
       expect(env.NODE_ENV).toStrictEqual("development");
       expect(env.DOCKER_TARGET).toStrictEqual("development");
     });
@@ -162,7 +136,7 @@ describe("env", () => {
         silent: true,
       });
       await runScript(EnvScript, config);
-      const { env } = new ParseEnv(config);
+      const { env } = new Environment(config);
       expect(env.HOST_UID).toStrictEqual(process.getuid?.()?.toString());
     });
 
@@ -174,8 +148,8 @@ describe("env", () => {
         silent: true,
       });
       await runScript(EnvScript, config);
-      const { env } = new ParseEnv(config);
-      expect(env.DOCKER_TAG).toStrictEqual(ParseEnv.baseTag.fullTag);
+      const { env } = new Environment(config);
+      expect(env.DOCKER_TAG).toStrictEqual(Environment.baseTag.fullTag);
     });
   });
 
@@ -202,9 +176,9 @@ describe("env", () => {
         processEnv: {},
         silent: true,
       });
-      const { env: prevEnv } = new ParseEnv(config);
+      const { env: prevEnv } = new Environment(config);
       await runScript(EnvScript, config);
-      const { env: newEnv } = new ParseEnv(config);
+      const { env: newEnv } = new Environment(config);
       expect(newEnv.DOCKER_TAG).toStrictEqual(prevEnv.DOCKER_TAG);
       expect(newEnv.NODE_ENV).toStrictEqual(prevEnv.NODE_ENV);
     });

@@ -2,12 +2,6 @@
 
 ## Scripts
 
-Build the image
-
-```bash
-make image
-```
-
 Run the project
 
 ```bash

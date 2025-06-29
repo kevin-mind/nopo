@@ -45,6 +45,8 @@ jobs:
       version: ${{ steps.output_tag.outputs.version }}
       digest: ${{ steps.output_tag.outputs.digest }}
       tag: ${{ steps.output_tag.outputs.tag }}
+    env:
+      build_metadata: build-metadata.json
     steps:
       - uses: actions/checkout@v4
 
@@ -80,30 +82,25 @@ jobs:
           DOCKER_BUILDER: ${{ steps.docker.outputs.builder }}
           DOCKER_TAG: ${{ steps.input_tag.outputs.tag }}
           DOCKER_BUILD: ${{ format('{0}/actions/runs/{1}', github.event.repository.html_url, github.run_id) }}
-          push: ${{ inputs.push }}
+          DOCKER_PUSH: ${{ inputs.push }}
+          DOCKER_METADATA_FILE: ${{ env.build_metadata }}
         run: |
-          make image \
-            DOCKER_BUILDER=${DOCKER_BUILDER} \
-            DOCKER_TAG=${DOCKER_TAG} \
-            DOCKER_BUILD=${DOCKER_BUILD}
-
-      - name: Push image
-        if: ${{ inputs.push }}
-        env:
-          tag: ${{ steps.input_tag.outputs.tag }}
-        run: |
-          docker push $tag
+          make scripts build \
+            DOCKER_BUILDER="${DOCKER_BUILDER}" \
+            DOCKER_TAG="${DOCKER_TAG}" \
+            DOCKER_BUILD="${DOCKER_BUILD}" \
+            DOCKER_PUSH="${DOCKER_PUSH}"
 
       - name: Extract build digest
         id: digest
         env:
           push: ${{ inputs.push }}
           tag: ${{ steps.input_tag.outputs.tag }}
+          meta: ${{ env.build_metadata }}
         run: |
-          digest=$(docker inspect $tag | jq -r '.[0].RepoDigests')
-
-          if [[ "$push" == "true" && "$digest" != "[]" ]]; then
-            digest=$(echo "$digest" | jq -r '.[0]' | cut -d '@' -f 2)
+          if [[ "$push" == "true" ]]; then
+            raw_json=$(docker buildx imagetools inspect $tag --raw)
+            digest=$(echo $raw_json | jq -r '.manifests[0].digest')
           else
             digest=""
           fi

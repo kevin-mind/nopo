@@ -63,7 +63,7 @@ runs:
           rm -f .env
         fi
 
-        make env \
+        make scripts env \
           DOCKER_TAG="${{ inputs.tag }}" \
           DOCKER_REGISTRY="${{ inputs.registry }}" \
           DOCKER_IMAGE="${{ inputs.image }}" \
