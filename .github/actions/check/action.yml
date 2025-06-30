@@ -19,7 +19,7 @@ runs:
         failed=$(echo "${json}" | jq -r '.[] | select(.result == "failure")')
         cancelled=$(echo "${json}" | jq -r '.[] | select(.result == "cancelled")')
 
-        if [[ "$failed" == "true" || "$cancelled" == "true" ]]; then
+        if [[ -n "$failed" || -n "$cancelled" ]]; then
           echo "Required Workflow failed or cancelled"
           echo "failed: $failed"
           echo "cancelled: $cancelled"

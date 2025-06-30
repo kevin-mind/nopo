@@ -95,25 +95,6 @@ describe("up", () => {
       env: expect.objectContaining(env),
     });
   });
-  it("syncs host files", async () => {
-    const config = createConfig({
-      envFile: createTmpEnv(),
-      silent: true,
-    });
-    const { env } = new Environment(config);
-
-    await runScript(UpScript, config);
-    expect(compose.run).toHaveBeenCalledWith(
-      "base",
-      "/app/docker/sync-host.sh",
-      {
-        callback: expect.any(Function),
-        config: ["docker/docker-compose.base.yml"],
-        env: expect.objectContaining(env),
-        commandOptions: ["--rm", "--no-deps"],
-      },
-    );
-  });
 
   describe("dependencies", () => {
     it("has build dependency enabled for local images", async () => {

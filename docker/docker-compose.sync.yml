@@ -3,5 +3,6 @@ services:
     extends:
       file: docker-compose.base.yml
       service: base
-    restart: always
-    command: ["/cmd.sh"]
+    user: root
+    environment:
+      - HOST_UID
