@@ -1,4 +1,17 @@
 services:
+  packages:
+    extends:
+      file: docker/docker-compose.service.yml
+      service: base
+    environment:
+      SERVICE_NAME: packages
+      SERVICE_COMMAND: dev
+    profiles:
+      - development
+    volumes:
+      - packages_build:/app/packages
+    command: ["/app/docker/packages-cmd.sh"]
+
   base:
     extends:
       file: docker/docker-compose.service.yml
@@ -22,6 +35,15 @@ services:
     depends_on:
       backend:
         condition: service_started
+      packages:
+        condition: service_started
+        required: false
+    volumes:
+      - packages_build:/app/packages
+    profiles:
+      - ""
+      - development
+      - production
 
   backend:
     extends:
@@ -41,6 +63,15 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      packages:
+        condition: service_started
+        required: false
+    volumes:
+      - packages_build:/app/packages
+    profiles:
+      - ""
+      - development
+      - production
 
   db:
     image: postgres:16
@@ -88,3 +119,4 @@ networks:
 
 volumes:
   data_postgres:
+  packages_build:

@@ -130,6 +130,9 @@ COPY --from=base --chown=$USER $HOME $HOME
 COPY --from=info ${BUILD_INFO} ${BUILD_INFO}
 COPY --from=install --chown=$USER $DEPS $DEPS
 COPY --from=source --chown=$USER $APP/docker/cmd.sh /cmd.sh
+COPY --from=source --chown=$USER $APP/docker/packages-cmd.sh /app/docker/packages-cmd.sh
+
+RUN chmod +x /cmd.sh /app/docker/packages-cmd.sh
 
 CMD ["/cmd.sh"]
 

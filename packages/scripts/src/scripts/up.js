@@ -81,10 +81,23 @@ export default class UpScript extends Script {
       }),
     ]);
 
+    // Determine Docker Compose profiles based on target
+    const profiles = [];
+    if (this.runner.environment.env.DOCKER_TARGET === "development") {
+      profiles.push("development");
+    } else {
+      profiles.push("production");
+    }
+
+    const upCommandOptions = ["--remove-orphans", "-d", "--no-build", "--wait"];
+    if (profiles.length > 0) {
+      upCommandOptions.push("--profile", profiles.join(","));
+    }
+
     try {
       await compose.upAll({
         callback: createLogger("up"),
-        commandOptions: ["--remove-orphans", "-d", "--no-build", "--wait"],
+        commandOptions: upCommandOptions,
         env: dockerEnv,
       });
     } catch (error) {
