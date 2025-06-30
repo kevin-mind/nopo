@@ -17,7 +17,10 @@ from urllib.parse import urlparse
 
 FLY_APP_NAME = os.environ.get("FLY_APP_NAME")
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+DEBUG = bool(os.environ.get("DEBUG", ""))
+
+BASE_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = BASE_DIR / "src"
 
 SERVICE_PUBLIC_PATH = os.environ.get("SERVICE_PUBLIC_PATH", "/")
 
@@ -53,6 +56,8 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    # Local apps
+    "src.mysite",
 ]
 
 MIDDLEWARE = [
@@ -65,12 +70,14 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "mysite.urls"
+ROOT_URLCONF = "src.mysite.urls"
 
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [
+            os.path.join(PROJECT_ROOT),
+        ],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -82,11 +89,13 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "mysite.wsgi.application"
+WSGI_APPLICATION = "src.mysite.wsgi.application"
 
 DATABASES = {
     "default": dj_database_url.config(
         conn_max_age=600,
+        conn_health_checks=True,
+        ssl_require=os.environ.get("DATABASE_SSL", "false") == "true",
     )
 }
 
@@ -118,7 +127,7 @@ STATIC_ROOT = os.path.join(BASE_DIR, "build")
 STATIC_URL = f"{SERVICE_PUBLIC_PATH}/static/"
 
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, "static"),
+    os.path.join(PROJECT_ROOT, "static"),
 ]
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
