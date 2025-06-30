@@ -41,7 +41,7 @@ export default class BuildScript extends Script {
       "--debug",
       "--progress=plain",
     ];
-    const push = this.runner.config.processEnv.DOCKER_PUSH || false;
+    const push = this.runner.config.processEnv.DOCKER_PUSH === "true";
     const builder = await this.builder();
 
     this.log(`
