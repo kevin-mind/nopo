@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import Form from "../form";
+import Form from "../src/form";
 
 describe("Form", () => {
   it("runs a test", () => {

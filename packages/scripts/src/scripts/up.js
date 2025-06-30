@@ -52,21 +52,21 @@ export default class UpScript extends Script {
       downServices.push(name);
     }
 
-    const createLogger = (name, color = "black") => (chunk, streamSource) => {
-      const messages = chunk.toString().trim().split("\n");
-      const log = streamSource === "stdout" ? console.log : console.error;
-      for (const message of messages) {
-        log(
-          chalk[color](`[${name}] ${message}`),
-        );
-      }
-    };
+    const createLogger =
+      (name, color = "black") =>
+      (chunk, streamSource) => {
+        const messages = chunk.toString().trim().split("\n");
+        const log = streamSource === "stdout" ? console.log : console.error;
+        for (const message of messages) {
+          log(chalk[color](`[${name}] ${message}`));
+        }
+      };
 
     await Promise.all([
       compose.run("base", "/app/docker/sync-host.sh", {
         callback: createLogger("sync", "green"),
-        config: ["docker/docker-compose.base.yml"],
-        commandOptions: ["--rm", "--no-deps"],
+        config: ["docker/docker-compose.sync.yml"],
+        commandOptions: ["--rm", "--no-deps", "--remove-orphans"],
         env: dockerEnv,
       }),
       compose.downMany(downServices, {

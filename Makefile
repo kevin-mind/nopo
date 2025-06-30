@@ -4,7 +4,7 @@ export DOCKER_BUILDKIT = 1
 export DOCKER_BUILDKIT_PROGRESS = auto
 export COMPOSE_BAKE=true
 
-DOCKER_SERVICE ?= base
+DOCKER_SERVICE ?=
 
 .PHONY: shell
 shell:
