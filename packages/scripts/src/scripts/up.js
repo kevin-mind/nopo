@@ -1,4 +1,6 @@
 import compose from "docker-compose";
+import { chalk } from "zx";
+
 import { Script } from "../lib.js";
 import EnvScript from "./env.js";
 import BuildScript from "./build.js";
@@ -50,28 +52,30 @@ export default class UpScript extends Script {
       downServices.push(name);
     }
 
-    const createLogger = (name) => (chunk, streamSource) => {
+    const createLogger = (name, color = "black") => (chunk, streamSource) => {
       const messages = chunk.toString().trim().split("\n");
       const log = streamSource === "stdout" ? console.log : console.error;
       for (const message of messages) {
-        log(`[${name}] ${message}`);
+        log(
+          chalk[color](`[${name}] ${message}`),
+        );
       }
     };
 
     await Promise.all([
       compose.run("base", "/app/docker/sync-host.sh", {
-        callback: createLogger("sync"),
+        callback: createLogger("sync", "green"),
         config: ["docker/docker-compose.base.yml"],
         commandOptions: ["--rm", "--no-deps"],
         env: dockerEnv,
       }),
       compose.downMany(downServices, {
-        callback: createLogger("down"),
+        callback: createLogger("down", "yellow"),
         commandOptions: ["--remove-orphans"],
         env: dockerEnv,
       }),
       compose.pullAll({
-        callback: createLogger("pull"),
+        callback: createLogger("pull", "blue"),
         commandOptions: ["--ignore-pull-failures"],
         env: dockerEnv,
       }),
