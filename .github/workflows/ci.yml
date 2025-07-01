@@ -72,6 +72,7 @@ jobs:
       push: ${{ needs.context.outputs.is_fork == 'false' }}
 
   test:
+    needs: [context]
     permissions:
       packages: read
       contents: read
@@ -81,6 +82,7 @@ jobs:
       tag: local
 
   smoketest:
+    needs: [context]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
