@@ -26,5 +26,6 @@ memory_mb = 1_024
 
 console_command = "/bin/bash"
 
-[experimental]
-entrypoint = ["/bin/bash"]
+[deploy]
+  release_command = "pnpm run --filter=@more/backend migrate"
+

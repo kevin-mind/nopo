@@ -17,8 +17,10 @@ defaults:
 jobs:
   test:
     runs-on: ubuntu-latest
+    name: ${{ matrix.command }} (${{ matrix.target }})
     strategy:
       matrix:
+        target: [development, production]
         command: [check, test]
       fail-fast: false
     permissions:
@@ -47,3 +49,4 @@ jobs:
         with:
           tag: ${{ steps.docker_tag.outputs.tag }}
           run: make ${{ matrix.command }}
+          target: ${{ matrix.target }}

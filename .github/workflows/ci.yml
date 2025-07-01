@@ -32,6 +32,33 @@ jobs:
         id: context
         uses: ./.github/actions/context
 
+      - name: Get changed files
+        id: changed_files
+        uses: tj-actions/changed-files@ed68ef82c095e0d48ec87eccea555d944a631a4c
+        with:
+          files_yaml: |
+            github_actions:
+              - .github/**
+            backend_migrations:
+              - apps/backend/src/*/migrations/**
+            backend_source:
+              - apps/backend/**
+              - "!apps/backend/src/*/migrations/**"
+
+      - name: Debug
+        run: |
+          cat <<EOF
+          ${{ toJson(steps.changed_files.outputs) }}
+          EOF
+
+      - name: Fail if migrations and source changed
+        if: |
+          contains(steps.changed_files.outputs.changed_keys, 'backend_migrations') &&
+          contains(steps.changed_files.outputs.changed_keys, 'backend_source')
+        run: |
+          echo "Migrations and source files cannot be changed together"
+          exit 1
+
   build:
     needs: [context]
     permissions:
