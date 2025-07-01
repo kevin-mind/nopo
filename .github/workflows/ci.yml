@@ -93,8 +93,6 @@ jobs:
 
     - name: Make up
       uses: ./.github/actions/run-docker
-      with:
-        run: echo "up"
 
     - name: Run smoketest
       uses: ./.github/actions/smoketest
