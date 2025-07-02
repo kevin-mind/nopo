@@ -35,14 +35,9 @@ export default class UpScript extends Script {
   ];
 
   async fn() {
-    const dockerEnv = {
-      ...this.runner.environment.processEnv,
-      ...this.runner.environment.env,
-    };
-
     const { data } = await compose.config({
       cwd: this.runner.config.root,
-      env: dockerEnv,
+      env: this.env,
     });
     const downServices = [];
 
@@ -67,17 +62,17 @@ export default class UpScript extends Script {
         callback: createLogger("sync", "green"),
         config: ["docker/docker-compose.sync.yml"],
         commandOptions: ["--rm", "--no-deps", "--remove-orphans"],
-        env: dockerEnv,
+        env: this.env,
       }),
       compose.downMany(downServices, {
         callback: createLogger("down", "yellow"),
         commandOptions: ["--remove-orphans"],
-        env: dockerEnv,
+        env: this.env,
       }),
       compose.pullAll({
         callback: createLogger("pull", "blue"),
         commandOptions: ["--ignore-pull-failures"],
-        env: dockerEnv,
+        env: this.env,
       }),
     ]);
 
@@ -85,7 +80,7 @@ export default class UpScript extends Script {
       await compose.upAll({
         callback: createLogger("up"),
         commandOptions: ["--remove-orphans", "-d", "--no-build", "--wait"],
-        env: dockerEnv,
+        env: this.env,
       });
     } catch (error) {
       await Promise.all(
@@ -93,7 +88,7 @@ export default class UpScript extends Script {
           compose.logs(service, {
             callback: createLogger(`log:${service}`),
             commandOptions: ["--no-log-prefix"],
-            env: dockerEnv,
+            env: this.env,
           }),
         ),
       );

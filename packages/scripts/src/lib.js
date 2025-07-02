@@ -56,15 +56,19 @@ export class Script {
     throw new Error("Not implemented");
   }
 
+  get env() {
+    return {
+      ...this.runner.environment.processEnv,
+      ...this.runner.environment.env,
+    };
+  }
+
   get exec() {
     const shell = $({
       cwd: this.runner.config.root,
-      stdio: "inherit",
+      stdio: "pipe",
       verbose: true,
-      env: {
-        ...this.runner.environment.processEnv,
-        ...this.runner.environment.env,
-      },
+      env: this.env,
     });
 
     return shell;
@@ -76,10 +80,11 @@ export class Script {
 }
 
 export class Runner {
-  constructor(config, environment, logger = new Logger(config)) {
+  constructor(config, environment, argv = [], logger = new Logger(config)) {
     this.config = config;
     this.environment = environment;
     this.logger = logger;
+    this.argv = argv;
   }
 
   resolveDependencies(scriptClass, dependencies = new Map()) {

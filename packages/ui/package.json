@@ -20,7 +20,7 @@
     "dev": "tsdown --watch",
     "format": "yarn lint --fix",
     "lint": "eslint",
-    "test": "vitest"
+    "test": "vitest run --run"
   },
   "devDependencies": {
     "@more/configs": "workspace:*",

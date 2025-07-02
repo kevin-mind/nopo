@@ -1,0 +1,11 @@
+name: Setup Node (pnpm)
+description: Setup Node and pnpm
+
+runs:
+  using: composite
+  steps:
+    - name: Install the latest version of uv
+      uses: astral-sh/setup-uv@v6
+      with:
+        enable-cache: true
+        cache-dependency-glob: "uv.lock"

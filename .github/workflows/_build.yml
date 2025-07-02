@@ -85,7 +85,7 @@ jobs:
           DOCKER_PUSH: ${{ inputs.push }}
           DOCKER_METADATA_FILE: ${{ env.build_metadata }}
         run: |
-          make scripts build \
+          make build \
             DOCKER_BUILDER="${DOCKER_BUILDER}" \
             DOCKER_TAG="${DOCKER_TAG}" \
             DOCKER_BUILD="${DOCKER_BUILD}" \

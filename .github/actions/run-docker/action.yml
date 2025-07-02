@@ -34,7 +34,6 @@ runs:
       shell: bash
       env:
         service: ${{ inputs.service }}
+        run: ${{ inputs.run }}
       run: |
-        cat <<'EOF' | docker compose exec --user nodeuser "${service}" bash
-          ${{ inputs.run }}
-        EOF
+        make ${run} ${service}
