@@ -101,6 +101,9 @@ DATABASES = {
         conn_max_age=600,
         conn_health_checks=True,
         ssl_require=os.environ.get("DATABASE_SSL", "false") == "true",
+        test_options={
+            "NAME": "test_database",
+        },
     )
 }
 

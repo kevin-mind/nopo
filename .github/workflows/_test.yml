@@ -17,11 +17,12 @@ defaults:
 jobs:
   test:
     runs-on: ubuntu-latest
-    name: ${{ matrix.command }} (${{ matrix.target }})
+    name: "${{ matrix.service }}: ${{ matrix.command }} (${{ matrix.target }})"
     strategy:
       matrix:
-        target: [development, production]
+        service: [web, backend]
         command: [check, test]
+        target: [development, production]
       fail-fast: false
     permissions:
       packages: read
@@ -48,5 +49,6 @@ jobs:
         uses: ./.github/actions/run-docker
         with:
           tag: ${{ steps.docker_tag.outputs.tag }}
-          run: make ${{ matrix.command }}
+          service: ${{ matrix.service }}
+          run: make ${{ matrix.command }} DOCKER_SERVICE="${{ matrix.service }}"
           target: ${{ matrix.target }}

@@ -18,16 +18,30 @@ def version(request):
     with open("/build-info.json") as file:
         return HttpResponse(file.read(), content_type="application/json")
 
+
 base_path = f"{settings.SERVICE_PUBLIC_PATH.strip('/')}/"
 
 urlpatterns = [
     path("__version__", version),
-    path(base_path, include([
-        path("admin/", admin.site.urls),
-        path("", home, name="home"),
-        path("todo/", include("src.todo.urls")),
-        path("schema/", SpectacularAPIView.as_view(), name="schema"),
-        path("docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
-        path("redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
-    ])),
+    path(
+        base_path,
+        include(
+            [
+                path("admin/", admin.site.urls),
+                path("", home, name="home"),
+                path("todo/", include("src.todo.urls")),
+                path("schema/", SpectacularAPIView.as_view(), name="schema"),
+                path(
+                    "docs/",
+                    SpectacularSwaggerView.as_view(url_name="schema"),
+                    name="swagger-ui",
+                ),
+                path(
+                    "redoc/",
+                    SpectacularRedocView.as_view(url_name="schema"),
+                    name="redoc",
+                ),
+            ]
+        ),
+    ),
 ]

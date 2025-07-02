@@ -51,7 +51,7 @@ class TodoService:
         # Get priority breakdown
         priority_stats = {}
         priority_field = TodoItem._meta.get_field("priority")
-        if hasattr(priority_field, 'choices') and priority_field.choices:
+        if hasattr(priority_field, "choices") and priority_field.choices:
             for priority, _ in priority_field.choices:
                 priority_stats[priority] = TodoItem.objects.filter(
                     priority=priority

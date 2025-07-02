@@ -4,9 +4,12 @@ inputs:
   tag:
     description: 'The tag of the image to run.'
     required: true
+  service:
+    description: 'The service to run'
+    required: false
   run:
     description: 'Run command in container'
-    required: true
+    required: false
   target:
     description: 'Docker target to run (development|production)'
     required: false
@@ -18,12 +21,20 @@ runs:
     - name: Up
       id: run
       shell: bash
+      env:
+        tag: ${{ inputs.tag }}
+        target: ${{ inputs.target }}
       run: |
         make up \
-          DOCKER_TAG="${{ inputs.tag }}" \
-          DOCKER_TARGET="${{ inputs.target }}" \
+          DOCKER_TAG="${tag}" \
+          DOCKER_TARGET="${target}" \
           DOCKER_PORT="80"
-
-        cat <<'EOF' | docker compose exec --user nodeuser web bash
+    - name: Run
+      if: ${{ inputs.run != ''}}
+      shell: bash
+      env:
+        service: ${{ inputs.service }}
+      run: |
+        cat <<'EOF' | docker compose exec --user nodeuser "${service}" bash
           ${{ inputs.run }}
         EOF

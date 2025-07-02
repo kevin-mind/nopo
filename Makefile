@@ -8,7 +8,11 @@ DOCKER_SERVICE ?=
 
 .PHONY: shell
 shell:
-	docker compose exec $(ARGS) $(DOCKER_SERVICE) bash
+ifeq ($(DOCKER_SERVICE),)
+	docker compose run --rm base bash
+else
+	docker compose exec $(DOCKER_SERVICE) bash
+endif
 
 .PHONY: down
 down:
@@ -20,4 +24,8 @@ up:
 
 .PHONY: scripts
 %:
+ifneq ($(DOCKER_SERVICE),)
+	pnpm run --filter @more/$(DOCKER_SERVICE) $(MAKECMDGOALS)
+else
 	pnpm run $(MAKECMDGOALS)
+endif
