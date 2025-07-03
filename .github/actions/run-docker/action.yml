@@ -1,5 +1,5 @@
 name: 'Docker Run Action'
-description: 'Run a command in a new container'
+description: 'Run a command in a new container or on the host'
 inputs:
   tag:
     description: 'The tag of the image to run.'
@@ -19,6 +19,7 @@ runs:
   using: 'composite'
   steps:
     - name: Up
+      if: ${{ inputs.run == ''}}
       id: run
       shell: bash
       env:
@@ -34,7 +35,11 @@ runs:
       shell: bash
       env:
         service: ${{ inputs.service }}
+        run: ${{ inputs.run }}
+        tag: ${{ inputs.tag }}
+        target: ${{ inputs.target }}
       run: |
-        cat <<'EOF' | docker compose exec --user nodeuser "${service}" bash
-          ${{ inputs.run }}
-        EOF
+        make ${run} ${service} \
+          DOCKER_TAG="${tag}" \
+          DOCKER_TARGET="${target}" \
+          DOCKER_PORT="80"

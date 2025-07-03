@@ -31,8 +31,9 @@ export default async function main() {
   const config = createConfig({ envFile: process.env.ENV_FILE });
   const logger = new Logger(config);
   const environment = new Environment(config);
-  const runner = new Runner(config, environment, logger);
-  const args = minimist(process.argv.slice(2));
+  const argv = process.argv.slice(2);
+  const args = minimist(argv);
+  const runner = new Runner(config, environment, argv.slice(2), logger);
 
   if (args.help) {
     return printHelp("Usage: @more/scripts <command> [options]", 0);
@@ -40,8 +41,8 @@ export default async function main() {
 
   let command = args._[0];
 
-  if (!command) {
-    return printHelp("No command provided", 1);
+  if (!scripts[command]) {
+    command = "index";
   }
 
   let scriptPath = scripts[command];
@@ -56,9 +57,7 @@ export default async function main() {
     await runner.run(script);
   } catch (error) {
     if (error instanceof Error) {
-      runner.logger.log(
-        chalk.red(`\n${error.message}\n${error.message}\n`, error.stack),
-      );
+      runner.logger.log(chalk.red(`\n${error.message}\n`, error.stack));
     }
     process.exit(1);
   }

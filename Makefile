@@ -4,28 +4,23 @@ export DOCKER_BUILDKIT = 1
 export DOCKER_BUILDKIT_PROGRESS = auto
 export COMPOSE_BAKE=true
 
-DOCKER_SERVICE ?=
+FIRST_WORD = $(firstword $(MAKECMDGOALS))
+SECOND_WORD = $(word 2,$(MAKECMDGOALS))
+
+export SERVICE_NAME ?= $(SECOND_WORD)
 
 .PHONY: shell
 shell:
-ifeq ($(DOCKER_SERVICE),)
-	docker compose run --rm base bash
-else
-	docker compose exec $(DOCKER_SERVICE) bash
-endif
+	if [ "$(FIRST_WORD)" = "$@" ]; then \
+		docker compose run --rm $(or $(SERVICE_NAME),base) bash; \
+	fi
 
 .PHONY: down
 down:
 	docker compose down --rmi local
 
-.PHONY: up
-up:
-	pnpm run scripts up
-
-.PHONY: scripts
+.PHONY: *
 %:
-ifneq ($(DOCKER_SERVICE),)
-	pnpm run --filter @more/$(DOCKER_SERVICE) $(MAKECMDGOALS)
-else
-	pnpm run $(MAKECMDGOALS)
-endif
+	@if [ "$(FIRST_WORD)" = "$@" ]; then \
+		npx zx --install ./packages/scripts/index.js $(MAKECMDGOALS); \
+	fi

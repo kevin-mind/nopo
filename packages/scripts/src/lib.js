@@ -56,15 +56,19 @@ export class Script {
     throw new Error("Not implemented");
   }
 
+  get env() {
+    return {
+      ...this.runner.environment.processEnv,
+      ...this.runner.environment.env,
+    };
+  }
+
   get exec() {
     const shell = $({
       cwd: this.runner.config.root,
-      stdio: "inherit",
+      stdio: "pipe",
       verbose: true,
-      env: {
-        ...this.runner.environment.processEnv,
-        ...this.runner.environment.env,
-      },
+      env: this.env,
     });
 
     return shell;
@@ -76,44 +80,43 @@ export class Script {
 }
 
 export class Runner {
-  constructor(config, environment, logger = new Logger(config)) {
+  constructor(config, environment, argv = [], logger = new Logger(config)) {
     this.config = config;
     this.environment = environment;
     this.logger = logger;
+    this.argv = argv;
   }
 
-  resolveDependencies(scriptClass, dependencies = new Map()) {
-    if (scriptClass.dependencies.length === 0) {
-      dependencies.set(scriptClass, true);
-      return dependencies;
-    }
+  async isDependencyEnabled(dependency) {
+    return typeof dependency.enabled === "function"
+      ? await dependency.enabled(this)
+      : dependency.enabled;
+  }
 
-    for (const dep of scriptClass.dependencies) {
-      let enabled = true;
-      if (typeof dep.enabled === "function") {
-        enabled = dep.enabled(this);
-      } else {
-        enabled = dep.enabled;
-      }
+  async resolveDependencies(Script, dependenciesMap = new Map()) {
+    for await (const dependency of Script.dependencies) {
+      const enabled = await this.isDependencyEnabled(dependency);
 
-      dependencies.set(dep.class, enabled);
+      const enabledArr = dependenciesMap.get(dependency.class) || [];
+      enabledArr.push(enabled);
+      dependenciesMap.set(dependency.class, enabledArr);
 
       if (enabled) {
-        this.resolveDependencies(dep.class, dependencies);
+        await this.resolveDependencies(dependency.class, dependenciesMap);
       }
     }
-
-    dependencies.set(scriptClass, true);
-    return dependencies;
+    return dependenciesMap;
   }
 
   async run(ScriptClass) {
-    const scripts = this.resolveDependencies(ScriptClass);
+    const scripts = await this.resolveDependencies(ScriptClass);
+    scripts.set(ScriptClass, [true]);
     const line = (length) =>
       `${Array(Math.round(length * 1.618))
         .fill("=")
         .join("")}`;
-    for await (const [ScriptToRun, enabled] of scripts) {
+    for await (const [ScriptToRun, enabledArr] of scripts.entries()) {
+      const enabled = enabledArr.some(Boolean);
       const skipped = enabled ? "" : chalk.bold("(skipped)");
       const color = enabled ? chalk.magenta : chalk.yellow;
       const message = `${chalk.bold(ScriptToRun.name)}: ${ScriptToRun.description} ${skipped}`;

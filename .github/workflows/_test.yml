@@ -17,12 +17,16 @@ defaults:
 jobs:
   test:
     runs-on: ubuntu-latest
-    name: "${{ matrix.service }}: ${{ matrix.command }} (${{ matrix.target }})"
+    name: "[${{ matrix.service || 'host' }}] ${{ matrix.command }} (${{ matrix.target }})"
     strategy:
       matrix:
         service: [web, backend]
-        command: [check, test]
+        command: [test]
         target: [development, production]
+        include:
+          -
+            command: check
+            target: production
       fail-fast: false
     permissions:
       packages: read
@@ -31,6 +35,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: ./.github/actions/setup-node
+
+      - uses: ./.github/actions/setup-uv
 
       - name: Set up Docker
         uses: ./.github/actions/setup-docker
@@ -50,5 +56,5 @@ jobs:
         with:
           tag: ${{ steps.docker_tag.outputs.tag }}
           service: ${{ matrix.service }}
-          run: make ${{ matrix.command }} DOCKER_SERVICE="${{ matrix.service }}"
+          run: ${{ matrix.command }}
           target: ${{ matrix.target }}

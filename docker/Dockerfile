@@ -22,7 +22,6 @@ ENV COREPACK_HOME="$DEPS/corepack"
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_CACHE_DIR="$DEPS/uv-cache"
-ENV UV_PROJECT_ENVIRONMENT="$APP/.venv"
 ENV PYTHONUNBUFFERED=1
 ENV PATH="$PNPM_HOME:$COREPACK_HOME:$PATH"
 
@@ -118,8 +117,8 @@ COPY --from=install --chown=$USER $DEPS $DEPS
 COPY --from=source --chown=$USER $APP $APP
 
 RUN <<EOF
-pnpm install:offline
-pnpm build
+pnpm "/^install:offline.*/"
+pnpm "/^build.*/"
 EOF
 
 ################################################################################################
@@ -149,4 +148,6 @@ ENV SERVICE_COMMAND="start"
 
 COPY --from=build --chown=$USER $APP $APP
 
-RUN pnpm install:offline --prod
+RUN <<EOF
+pnpm "/^install:prod.*/"
+EOF
