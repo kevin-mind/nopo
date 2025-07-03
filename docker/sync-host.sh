@@ -3,5 +3,5 @@
 set -xue
 
 rm -rf node_modules .venv
-pnpm install:lock
-pnpm build
+pnpm "/^install:lock.*/"
+pnpm "/^build.*/"

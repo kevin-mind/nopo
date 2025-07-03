@@ -8,6 +8,7 @@
   ],
   "exclude": ["vite.config.ts.*", "node_modules"],
   "compilerOptions": {
+    "noEmit": true,
     "types": ["node", "vite/client"],
     "moduleResolution": "bundler",
     "jsx": "react-jsx",

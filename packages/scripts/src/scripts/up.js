@@ -6,13 +6,13 @@ import EnvScript from "./env.js";
 import BuildScript from "./build.js";
 import PullScript from "./pull.js";
 
-function isBuild({ config, environment }) {
+export function isBuild({ config, environment }) {
   const forceBuild = !!config.processEnv.DOCKER_BUILD;
   const localVersion = environment.env.DOCKER_VERSION === "local";
   return forceBuild || localVersion;
 }
 
-function isPull(runner) {
+export function isPull(runner) {
   return !isBuild(runner);
 }
 

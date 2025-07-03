@@ -1,71 +1,98 @@
-import { z } from "zod";
-import { chalk } from "zx";
+import { chalk, minimist } from "zx";
 import compose from "docker-compose";
 
+import EnvScript from "./env.js";
+import BuildScript from "./build.js";
+import PullScript from "./pull.js";
+import { isBuild, isPull } from "./up.js";
+
 import { Script } from "../lib.js";
+
+async function isDown(runner) {
+  const args = IndexScript.args(runner);
+  // if there is no service name then the service is not down.
+  if (!args.service) return false;
+
+  const { data } = await compose.ps({
+    cwd: runner.config.root,
+  });
+
+  const service = data.services.find((service) =>
+    service.name.includes(args.service),
+  );
+  // if the service is not found or is not "up" then it is down.
+  return !service?.state?.toLowerCase().includes("up");
+}
 
 export default class IndexScript extends Script {
   static name = "run";
   static description = "Run a pnpm script in a specified service and package";
+  static dependencies = [
+    {
+      class: EnvScript,
+      enabled: async (runner) =>
+        (await isDown(runner)) && (isBuild(runner) || isPull(runner)),
+    },
+    {
+      class: BuildScript,
+      enabled: async (runner) => (await isDown(runner)) && isBuild(runner),
+    },
+    {
+      class: PullScript,
+      enabled: async (runner) => (await isDown(runner)) && isPull(runner),
+    },
+  ];
 
-  packageSchema = z.object({
-    path: z.string(),
-  });
+  static args(runner) {
+    let {
+      _: [script, service],
+      workspace,
+    } = minimist(runner.argv);
 
-  packageJsonSchema = z.object({
-    scripts: z.record(z.string()),
-  });
+    if (service && !workspace) {
+      workspace = service;
+    }
 
-  async #getServicePkgJsonPath(name) {
-    const [result] = await this
-      .exec`pnpm ls --filter @more/${name} --depth 0 --json`.json();
-    const { path: servicePath } = this.packageSchema.parse(result);
-    return `${servicePath}/package.json`;
+    return { script, service, workspace };
   }
 
-  async #hasPackageScript(packageJsonPath, script) {
-    const result = await this.exec`cat ${packageJsonPath}`.json();
-    const { scripts } = this.packageJsonSchema.parse(result);
-    return scripts[script] ?? false;
+  async #resolveScript(args) {
+    if (!args.script) {
+      throw new Error(
+        "Usage: run [script] --service [service] --workspace [workspace]",
+      );
+    }
+    const script = ["pnpm", "run"];
+    if (args.workspace) {
+      script.push("--filter", `@more/${args.workspace}`);
+    } else {
+      script.push("--fail-if-no-match");
+    }
+    script.push(`/^${args.script}.*/`);
+
+    return script;
   }
 
   async fn() {
-    let [scriptName, serviceName] = this.runner.argv;
+    const args = IndexScript.args(this.runner);
+    const script = await this.#resolveScript(args);
 
-    if (!scriptName) {
-      throw new Error("Usage: run <service> <script>");
-    }
+    if (!args.service) return await this.exec`${script}`;
 
-    if (serviceName) {
-      const packageJsonPath = await this.#getServicePkgJsonPath(serviceName);
-      if (!(await this.#hasPackageScript(packageJsonPath, scriptName))) {
-        throw new Error(
-          `script '${scriptName}' not found in ${packageJsonPath}`,
-        );
-      }
-    }
+    const createLogger =
+      (name, color = "black") =>
+      (chunk, streamSource) => {
+        const messages = chunk.toString().trim().split("\n");
+        const log = streamSource === "stdout" ? console.log : console.error;
+        for (const message of messages) {
+          log(chalk[color](`[${name}] ${message}`));
+        }
+      };
 
-    if (serviceName) {
-      const createLogger =
-        (name, color = "black") =>
-        (chunk, streamSource) => {
-          const messages = chunk.toString().trim().split("\n");
-          const log = streamSource === "stdout" ? console.log : console.error;
-          for (const message of messages) {
-            log(chalk[color](`[${name}] ${message}`));
-          }
-        };
-
-      return await compose.run(
-        serviceName,
-        `pnpm run --filter @more/${serviceName} ${scriptName}`,
-        {
-          callback: createLogger(serviceName, "white"),
-          commandOptions: ["--rm", "--remove-orphans"],
-          env: this.env,
-        },
-      );
-    }
-    return await this.exec`pnpm run --fail-if-no-match ${scriptName}`;
+    return await compose.run(args.service, script, {
+      callback: createLogger(args.service, "white"),
+      commandOptions: ["--rm", "--remove-orphans"],
+      env: this.env,
+    });
   }
 }

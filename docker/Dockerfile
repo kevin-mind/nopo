@@ -117,8 +117,8 @@ COPY --from=install --chown=$USER $DEPS $DEPS
 COPY --from=source --chown=$USER $APP $APP
 
 RUN <<EOF
-pnpm install:offline
-pnpm build
+pnpm "/^install:offline.*/"
+pnpm "/^build.*/"
 EOF
 
 ################################################################################################
@@ -148,4 +148,6 @@ ENV SERVICE_COMMAND="start"
 
 COPY --from=build --chown=$USER $APP $APP
 
-RUN pnpm install:prod
+RUN <<EOF
+pnpm "/^install:prod.*/"
+EOF
