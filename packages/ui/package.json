@@ -9,14 +9,9 @@
   "module": "./build/index.js",
   "types": "./build/index.d.ts",
   "exports": {
-    ".": {
-      "types": "./src/index.ts",
-      "default": "./build/index.js"
-    },
-    "./*": {
-      "types": "./src/*.ts",
-      "default": "./build/*.js"
-    },
+    ".": "./build/index.js",
+    "./component": "./build/component.js",
+    "./form": "./build/form.js",
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -30,8 +25,12 @@
   "devDependencies": {
     "@more/configs": "workspace:*",
     "glob": "^11.0.2",
+    "jsdom": "^26.1.0",
     "tsdown": "^0.12.3",
     "typescript": "^5.8.3",
     "vitest": "^3.1.1"
+  },
+  "dependencies": {
+    "lit": "^3.3.0"
   }
 }
