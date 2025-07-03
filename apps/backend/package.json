@@ -7,20 +7,28 @@
     "build/**"
   ],
   "scripts": {
-    "build": "uv run python manage.py collectstatic --noinput",
-    "clean": "rm -rf db.sqlite3 build",
+    "build": "vite build && uv run python manage.py collectstatic --noinput",
+    "clean": "rm -rf db.sqlite3 build dist",
     "fix:lint": "uv tool run ruff format",
     "check:lint": "uv tool run ruff check",
     "check:types": "uv run mypy .",
     "test": "uv run python manage.py test src",
     "dev": "uv run --verbose python manage.py runserver 0.0.0.0:80 --settings=settings",
+    "dev:vite": "vite dev --mode development",
     "start": "uv run --verbose gunicorn --config gunicorn.conf.py src.mysite.wsgi:application",
     "migrate": "uv run --verbose python manage.py migrate",
     "makemigrations": "uv run --verbose python manage.py makemigrations",
     "shell": "uv run --verbose python manage.py shell"
   },
+  "dependencies": {
+    "@more/ui": "workspace:*"
+  },
   "devDependencies": {
     "@more/configs": "workspace:*",
+    "@tailwindcss/vite": "^4.0.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.8.3",
+    "vite": "^5.4.11",
     "vitest": "^3.1.1"
   }
 }

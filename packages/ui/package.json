@@ -20,18 +20,36 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "clean": "rm -rf node_modules && rm -rf build",
+    "clean": "rm -rf node_modules && rm -rf build && rm -rf storybook-static",
     "build": "tsdown",
     "dev": "tsdown --watch",
     "format": "yarn lint --fix",
     "lint": "eslint",
-    "test": "vitest run --run"
+    "test": "vitest run --run",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build",
+    "test-storybook": "test-storybook"
+  },
+  "dependencies": {
+    "@lit/react": "^1.0.7",
+    "lit": "^3.1.0",
+    "react": "^19.1.0"
   },
   "devDependencies": {
     "@more/configs": "workspace:*",
+    "@storybook/addon-essentials": "^8.4.7",
+    "@storybook/addon-links": "^8.4.7",
+    "@storybook/blocks": "^8.4.7",
+    "@storybook/test": "^8.4.7",
+    "@storybook/test-runner": "^0.19.1",
+    "@storybook/web-components": "^8.4.7",
+    "@storybook/web-components-vite": "^8.4.7",
     "glob": "^11.0.2",
+    "playwright": "^1.52.0",
+    "storybook": "^8.4.7",
     "tsdown": "^0.12.3",
     "typescript": "^5.8.3",
+    "vite": "^5.4.11",
     "vitest": "^3.1.1"
   }
 }

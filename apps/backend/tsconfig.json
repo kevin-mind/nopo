@@ -1,0 +1,23 @@
+{
+  "extends": "@more/configs/tsconfig.dom.json",
+  "include": [
+    "src/frontend/**/*",
+    "vite.config.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "src/static",
+    "build",
+    "dist"
+  ],
+  "compilerOptions": {
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": false,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  }
+}

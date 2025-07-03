@@ -9,9 +9,6 @@ import {
 
 import type { Route } from "./+types/root";
 
-import Component from "@more/ui/component";
-import Form from "@more/ui/form";
-
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   {
@@ -35,8 +32,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body>
-        <h1>{Component()}</h1>
-        <p>{Form()}</p>
         {children}
         <ScrollRestoration />
         <Scripts />
@@ -60,7 +55,11 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
       error.status === 404
         ? "The requested page could not be found."
         : error.statusText || details;
-  } else if (import.meta.env.DEV && error && error instanceof Error) {
+  } else if (
+    process.env.NODE_ENV === "development" &&
+    error &&
+    error instanceof Error
+  ) {
     details = error.message;
     stack = error.stack;
   }

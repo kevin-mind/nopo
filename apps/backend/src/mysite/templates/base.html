@@ -1,0 +1,103 @@
+{% load django_vite %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Django with Web Components{% endblock %}</title>
+
+    {% vite_hmr_client %}
+    {% vite_asset 'src/frontend/main.ts' %}
+
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9fafb;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            background: white;
+            padding: 1rem 2rem;
+            border-bottom: 1px solid #e5e7eb;
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            margin: 0;
+            color: #1f2937;
+        }
+
+        .content {
+            background: white;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        .demo-section {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: #f8fafc;
+            border-radius: 0.5rem;
+            border: 1px solid #e2e8f0;
+        }
+
+        .demo-section h2 {
+            margin-top: 0;
+            color: #374151;
+        }
+
+        .component-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>{% block header %}Django with Lit Element Web Components{% endblock %}</h1>
+    </header>
+
+    <div class="container">
+        <div class="content">
+            {% block content %}
+            <div class="demo-section">
+                <h2>Interactive Components</h2>
+                <div class="component-grid">
+                    <more-component
+                        name="Primary Button"
+                        count=0>
+                    </more-component>
+
+                    <more-component
+                        name="Secondary Button"
+                        count=0>
+                    </more-component>
+                </div>
+            </div>
+
+            <div class="demo-section">
+                <h2>Form Component</h2>
+            </div>
+            {% endblock %}
+        </div>
+    </div>
+
+    <script>
+        // Global event handlers for demonstration
+        document.addEventListener('component-click', (e) => {
+            console.log('Component clicked:', e.detail);
+        });
+    </script>
+</body>
+</html>

@@ -4,18 +4,20 @@
     "**/*",
     "**/.server/**/*",
     "**/.client/**/*",
-    ".react-router/types/**/*"
+    ".react-router/types/**/*",
+    "types/**/*"
   ],
   "exclude": ["vite.config.ts.*", "node_modules"],
   "compilerOptions": {
     "noEmit": true,
-    "types": ["node", "vite/client"],
+    "types": ["node"],
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
     "baseUrl": ".",
     "rootDirs": [".", "./.react-router/types"],
     "paths": {
       "~/*": ["./app/*"]
-    }
+    },
+    "typeRoots": ["./node_modules/@types", "./types"]
   }
 }
