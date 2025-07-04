@@ -43,6 +43,7 @@ ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
     ".fly.dev",
+    # "testserver",  # For Django test client
 ]
 
 CSRF_TRUSTED_ORIGINS = [
@@ -60,6 +61,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "drf_spectacular",
     "django_filters",
+    "django_vite",
     # Local apps
     "src.mysite",
     "src.todo",
@@ -166,4 +168,18 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
     "SCHEMA_PATH_PREFIX": f"{SERVICE_PUBLIC_PATH}/",
+}
+
+# Django Vite settings
+DJANGO_VITE = {
+    "default": {
+        "dev_mode": DEBUG,
+        "dev_server_host": "localhost",
+        "dev_server_port": 5173,
+        "ws_client_url": "@vite/client",
+        "manifest_path": os.path.join(
+            BASE_DIR, "src", "static", "dist", ".vite", "manifest.json"
+        ),
+        "static_url_prefix": "",
+    }
 }

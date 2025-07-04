@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.http import HttpResponse
+from django.shortcuts import render
 from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularSwaggerView,
@@ -11,7 +12,13 @@ from drf_spectacular.views import (
 
 def home(request):
     print(f"host: {request.get_host()}")
-    return HttpResponse("Hello, World!", status=200)
+    return render(
+        request,
+        "base.html",
+        {
+            "title": "Web Components Demo",
+        },
+    )
 
 
 def version(request):

@@ -1,6 +1,7 @@
 import { Form } from "react-router";
 import type { Route } from "./+types/home";
 import { useState } from "react";
+import { MoreComponentReact } from "@more/ui/component.react";
 
 let count = 0;
 
@@ -29,7 +30,10 @@ export default function Home({ loaderData, actionData }: Route.ComponentProps) {
   return (
     <>
       <p>Count: {loaderData.count}</p>
-      <button onClick={() => setClientCount(clientCount + 1)}>Increment</button>
+      <MoreComponentReact
+        name="Web Component"
+        count={clientCount}
+      ></MoreComponentReact>
       <Form method="post">
         <input
           name="increment"
