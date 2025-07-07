@@ -1,0 +1,30 @@
+<div class="card">
+    <h3>{{ title | default('User Information') }}</h3>
+    {% if user_data %}
+        <div class="highlight">
+            <p><strong>Name:</strong> {{ user_data.name }}</p>
+            <p><strong>Role:</strong> {{ user_data.role }}</p>
+            <p><strong>Last Login:</strong> {{ user_data.last_login | default('Never') }}</p>
+            {% if user_data.preferences %}
+                <p><strong>Theme:</strong> {{ user_data.preferences.theme | title }}</p>
+                <p><strong>Language:</strong> {{ user_data.preferences.language }}</p>
+            {% endif %}
+        </div>
+        {% if user_data.stats %}
+            <h4>Activity Stats</h4>
+            <ul>
+                {% for stat_name, stat_value in user_data.stats.items() %}
+                    <li><strong>{{ stat_name | title }}:</strong> {{ stat_value }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% else %}
+        <p>No user data available. Please log in to see your information.</p>
+    {% endif %}
+    
+    {% if additional_info %}
+        <div style="margin-top: 1rem; font-style: italic;">
+            {{ additional_info }}
+        </div>
+    {% endif %}
+</div>
