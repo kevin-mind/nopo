@@ -8,5 +8,5 @@ export default defineConfig({
   outDir: "build",
   format: ["es"],
   clean: true,
-  exports: true,
+  exports: false,
 });
