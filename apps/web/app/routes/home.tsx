@@ -3,6 +3,8 @@ import { z } from "zod";
 import { useFetcher } from "react-router";
 import type { Route } from "./+types/home";
 
+import { TwindComponent } from "~/components/twind/twind.react";
+import { PureComponent } from "~/components/pure/pure.react";
 import { sleep } from "~/utils";
 
 /*
@@ -142,6 +144,21 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           Submit
         </button>
       </fetcher.Form>
+
+      <div className="flex flex-col gap-4 w-full">
+        <div className="p-4 shadow-inner w-full">
+          <p className="text-2xl font-bold">Twind</p>
+          <div className="flex flex-col items-center justify-center py-4">
+            <TwindComponent name="World" />
+          </div>
+        </div>
+        <div className="p-4 shadow-inner w-full">
+          <p className="text-2xl font-bold">Pure</p>
+          <div className="flex flex-col items-center justify-center py-4">
+            <PureComponent name="World" />
+          </div>
+        </div>
+      </div>
 
       <div className="mt-8 w-full">
         <pre className="p-4 bg-gray-900 text-gray-100 rounded-lg overflow-x-auto">

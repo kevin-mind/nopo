@@ -12,7 +12,7 @@ import type { Route } from "./+types/root";
 import Component from "@more/ui/component";
 import Form from "@more/ui/form";
 
-import "./root.css";
+import "./tailwind.global.css";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
