@@ -13,17 +13,17 @@ test.describe("Smoketest", () => {
     const text = page.getByText("John Doe");
     await expect(text).toBeVisible();
 
-    // // Find the button by its ID
-    // const viteButton = page.locator("#vite-button");
+    // Find the button by its ID
+    const viteButton = page.locator("#vite-button");
 
-    // // Ensure the button is visible and has the correct initial text
-    // await expect(viteButton).toBeVisible();
-    // await expect(viteButton).toHaveText("Click me!");
+    // Ensure the button is visible and has the correct initial text
+    await expect(viteButton).toBeVisible();
+    await expect(viteButton).toHaveText("Click me!");
 
-    // // Click the button
-    // await viteButton.click();
+    // Click the button
+    await viteButton.click();
 
-    // // Assert that the button's text has been updated
-    // await expect(viteButton).toHaveText("Clicked!");
+    // Assert that the button's text has been updated
+    await expect(viteButton).toHaveText("Clicked!");
   });
 });
