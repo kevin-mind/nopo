@@ -17,7 +17,9 @@ from urllib.parse import urlparse
 
 FLY_APP_NAME = os.environ.get("FLY_APP_NAME")
 
-DEBUG = bool(os.environ.get("DEBUG", ""))
+IS_DEV_MODE = FLY_APP_NAME is None
+
+DEBUG = IS_DEV_MODE and bool(os.environ.get("DEBUG", ""))
 
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BASE_DIR / "src"
@@ -28,7 +30,6 @@ SECRET_KEY = os.environ.get(
     "SECRET_KEY", "django-insecure-f8cge)81#503fxpdix5bx*yrg#=*$vp@_12cu3^kh)ntrn)&2a"
 )
 
-DEBUG = bool(os.environ.get("DEBUG", 1))
 
 SITE_URL = os.environ.get("SITE_URL", "http://localhost:80")
 _parsed_site_url = urlparse(SITE_URL)
@@ -185,13 +186,12 @@ SPECTACULAR_SETTINGS = {
 
 DJANGO_VITE = {
     "default": {
-        "dev_mode": DEBUG,
+        "dev_mode": IS_DEV_MODE,
         "dev_server_protocol": SITE_SCHEME,
         "dev_server_host": SITE_HOST,
         "dev_server_port": SITE_PORT,
-        "static_url_prefix": "vite" if DEBUG else "",
+        "static_url_prefix": "vite" if IS_DEV_MODE else "",
         "manifest_path": os.path.join(VITE_ASSETS_DIR, ".vite", "manifest.json"),
     }
 }
 
-print('DJANGO_VITE', DJANGO_VITE)
