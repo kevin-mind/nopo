@@ -141,6 +141,57 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       </Card>
       <Card>
         <CardHeader>
+          <CardTitle>🚀 Todo Applications</CardTitle>
+          <CardDescription>
+            Explore our todo apps built with different technologies but sharing the same backend
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid md:grid-cols-2 gap-4">
+            <a
+              href="/todos"
+              className="p-4 border border-gray-200 rounded-lg hover:border-blue-400 hover:shadow-md transition-all duration-200 block"
+            >
+              <h3 className="font-semibold text-lg text-blue-600 mb-2">
+                ⚛️ React Todo App
+              </h3>
+              <p className="text-gray-600 text-sm mb-3">
+                Full-featured interactive todo app with drag & drop, optimistic UI, 
+                and real-time updates using React Router v7.
+              </p>
+              <div className="flex flex-wrap gap-2 text-xs">
+                <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">React Router v7</span>
+                <span className="px-2 py-1 bg-green-100 text-green-800 rounded">Drag & Drop</span>
+                <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded">Optimistic UI</span>
+                <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded">TypeScript API</span>
+              </div>
+            </a>
+            
+            <a
+              href="http://localhost:8000/todo/list/"
+              className="p-4 border border-gray-200 rounded-lg hover:border-green-400 hover:shadow-md transition-all duration-200 block"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <h3 className="font-semibold text-lg text-green-600 mb-2">
+                🐍 Django Todo List
+              </h3>
+              <p className="text-gray-600 text-sm mb-3">
+                Server-rendered read-only version using Django templates and Jinja2. 
+                Same data, same Tailwind styling, different approach.
+              </p>
+              <div className="flex flex-wrap gap-2 text-xs">
+                <span className="px-2 py-1 bg-green-100 text-green-800 rounded">Django Templates</span>
+                <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded">Jinja2</span>
+                <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">Server-Side</span>
+                <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded">Read-Only</span>
+              </div>
+            </a>
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
           <CardTitle>Interactive Demo</CardTitle>
           <CardDescription>
             Use the form below to see the loader and action in action.

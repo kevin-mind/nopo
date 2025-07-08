@@ -11,6 +11,7 @@
     "test": "echo 'test'"
   },
   "dependencies": {
+    "@more/api": "workspace:*",
     "@more/ui": "workspace:*",
     "@react-router/node": "^7.4.1",
     "@react-router/serve": "^7.4.1",

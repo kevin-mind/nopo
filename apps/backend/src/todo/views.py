@@ -6,6 +6,8 @@ from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 from typing import Dict, Any, Optional
+from django.shortcuts import render
+from django.http import HttpRequest, HttpResponse
 
 from .models import TodoItem
 from .serializers import (
@@ -215,3 +217,54 @@ class TodoItemViewSet(viewsets.ModelViewSet):
                 "message": f"Deleted {deleted_count} completed items",
             }
         )
+
+
+def todo_list_view(request: HttpRequest) -> HttpResponse:
+    """
+    Basic Django template view for displaying todos with Tailwind styling.
+    This is a read-only version to demonstrate shared state across apps.
+    """
+    # Get todos with basic filtering
+    todos = TodoItem.objects.all().order_by('-created_at')
+
+    # Apply simple filtering
+    filter_completed = request.GET.get('completed')
+    filter_priority = request.GET.get('priority')
+
+    if filter_completed is not None:
+        todos = todos.filter(completed=filter_completed.lower() == 'true')
+
+    if filter_priority and filter_priority != 'all':
+        todos = todos.filter(priority=filter_priority)
+
+    # Calculate stats
+    all_todos = TodoItem.objects.all()
+    stats = {
+        'total': all_todos.count(),
+        'completed': all_todos.filter(completed=True).count(),
+        'incomplete': all_todos.filter(completed=False).count(),
+        'overdue': sum(1 for todo in all_todos.filter(completed=False) if todo.is_overdue),
+        'by_priority': {
+            'low': all_todos.filter(priority='low').count(),
+            'medium': all_todos.filter(priority='medium').count(),
+            'high': all_todos.filter(priority='high').count(),
+        }
+    }
+
+    # Separate todos by completion status
+    active_todos = [todo for todo in todos if not todo.completed]
+    completed_todos = [todo for todo in todos if todo.completed]
+
+    context = {
+        'todos': todos,
+        'active_todos': active_todos,
+        'completed_todos': completed_todos,
+        'stats': stats,
+        'current_filter': {
+            'completed': filter_completed,
+            'priority': filter_priority or 'all',
+        },
+        'priorities': ['low', 'medium', 'high'],
+    }
+
+    return render(request, 'todo/todo_list.html', context)

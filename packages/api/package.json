@@ -1,0 +1,40 @@
+{
+  "name": "@more/api",
+  "version": "1.0.0",
+  "sideEffects": false,
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "main": "./build/index.js",
+  "module": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./build/index.js"
+    },
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./build/*.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "clean": "rm -rf node_modules && rm -rf build",
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "format": "yarn lint --fix",
+    "lint": "eslint",
+    "test": "vitest run --run"
+  },
+  "devDependencies": {
+    "@more/configs": "workspace:*",
+    "glob": "^11.0.2",
+    "tsdown": "^0.12.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.1"
+  },
+  "dependencies": {
+    "zod": "^3.24.2"
+  }
+}
