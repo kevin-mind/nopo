@@ -64,5 +64,6 @@ runs:
           --dockerfile docker/Dockerfile.nginx \
           --app "${app_name}" \
           --config "${config}" \
+          --depot=false \
           ${env}
 

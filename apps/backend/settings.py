@@ -194,4 +194,3 @@ DJANGO_VITE = {
         "manifest_path": os.path.join(VITE_ASSETS_DIR, ".vite", "manifest.json"),
     }
 }
-
