@@ -50,6 +50,21 @@ services:
       db:
         condition: service_healthy
 
+  backend_vite:
+    extends:
+      file: docker/docker-compose.service.yml
+      service: base
+    environment:
+      SERVICE_NAME: backend
+      SERVICE_COMMAND: vite
+      SERVICE_PUBLIC_PATH: /api
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 20s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
   db:
     image: postgres:16
     restart: always
@@ -82,6 +97,7 @@ services:
     environment:
       WEB_PUBLIC_URL: ${WEB_PUBLIC_URL:-http://web:80}
       BACKEND_PUBLIC_URL: ${BACKEND_PUBLIC_URL:-http://backend:80}
+      BACKEND_VITE_PUBLIC_URL: ${BACKEND_VITE_PUBLIC_URL:-http://backend_vite:80}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost"]
       interval: 20s

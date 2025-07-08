@@ -2,20 +2,21 @@
 
 {% block title %}Home - Django with Jinja2{% endblock %}
 
-{% block header %}🎉 Django + Jinja2 Setup Complete!{% endblock %}
+{% block header %}🎉 Django + Jinja2 + Vite Setup Complete!{% endblock %}
 
-{% block subheader %}This page demonstrates Jinja2 templating with partials and data passing{% endblock %}
+{% block subheader %}This page demonstrates Jinja2 templating with Vite asset integration{% endblock %}
 
 {% block content %}
     <div class="card">
         <h2>Welcome to Your Jinja2-Powered Django App</h2>
         <p>This page demonstrates several key Jinja2 features:</p>
         <ul>
-            <li><strong>Template Inheritance:</strong> This template extends <code>base.html</code></li>
-            <li><strong>Block System:</strong> Different sections are defined using <code>{% raw %}{% block %}{% endraw %}</code> tags</li>
-            <li><strong>Partials/Includes:</strong> The user information below is rendered from a separate partial template</li>
-            <li><strong>Data Passing:</strong> Dynamic data is passed from the Django view to the template</li>
-            <li><strong>Filters:</strong> Built-in and custom filters for data formatting</li>
+            <li><strong>Template Inheritance:</strong> This page extends <code>base.html</code></li>
+            <li><strong>Variable Interpolation:</strong> Displaying dynamic data like {{ django_version }}</li>
+            <li><strong>Conditional Logic:</strong> Jinja2 supports if statements and loops</li>
+            <li><strong>Template Includes:</strong> Reusable partials like <code>partials/user_info.html</code></li>
+            <li><strong>Static File Integration:</strong> CSS and JS assets via Vite processing</li>
+            <li><strong>URL Generation:</strong> Dynamic URL creation with the <code>url()</code> function</li>
         </ul>
     </div>
 
@@ -29,33 +30,29 @@
         </div>
     </div>
 
-    <h2>Demonstration of Partials with Data</h2>
-    <p>The following section is rendered using a partial template (<code>partials/user_info.html</code>) with data passed from the view:</p>
-    
-    <!-- Include the user_info partial with sample data -->
-    {% include "partials/user_info.html" %}
-    
+    <!-- Vite Integration Demo -->
     <div class="card">
-        <h3>🛠️ Technical Features Demonstrated</h3>
-        <ul>
-            <li><strong>Static File Handling:</strong> Favicon loaded using <code>{{ "{{ static('favicon.ico') }}" }}</code></li>
-            <li><strong>Template Inheritance:</strong> Base template provides layout structure</li>
-            <li><strong>Conditional Rendering:</strong> Content shows/hides based on data availability</li>
-            <li><strong>Loop Processing:</strong> Stats data is iterated over in the partial</li>
-            <li><strong>Filter Usage:</strong> Date formatting, title case, and default values</li>
-            <li><strong>Variable Interpolation:</strong> Dynamic content insertion throughout</li>
-        </ul>
+        <h2>🚀 Vite Integration Demo</h2>
+        <div class="vite-demo">
+            <h3>TypeScript + CSS Integration</h3>
+            <p>This section demonstrates Vite integration with Django.</p>
+
+            <div style="margin-top: 1rem;">
+                <button type="button" class="vite-button clickable" id="vite-button">
+                    Click me!
+                </button>
+            </div>
+
+            <div class="vite-loading" style="margin-top: 1rem; display: inline-block;">
+                Vite Powered ⚡
+            </div>
+        </div>
     </div>
 
-    <div class="card">
-        <h3>📝 Next Steps</h3>
-        <p>Now that Jinja2 is configured, you can:</p>
-        <ul>
-            <li>Create more complex template hierarchies</li>
-            <li>Add custom Jinja2 filters and functions</li>
-            <li>Integrate with Django forms and authentication</li>
-            <li>Build reusable template components</li>
-            <li>Implement template caching for better performance</li>
-        </ul>
-    </div>
+    <h2>Demonstration of Partials with Data</h2>
+    <p>The following section is rendered using a partial template (<code>partials/user_info.html</code>) with data passed from the view:</p>
+
+    <!-- Include the user_info partial with sample data -->
+    {% include "partials/user_info.html" %}
+
 {% endblock %}

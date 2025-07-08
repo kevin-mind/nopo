@@ -1,0 +1,15 @@
+{
+  "extends": "@more/configs/tsconfig.dom.json",
+  "include": [
+    "**/*",
+  ],
+  "exclude": ["vite.config.ts.*", "node_modules"],
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "types": ["node", "vite/client"],
+    "moduleResolution": "bundler",
+    "baseUrl": ".",
+    "rootDirs": ["."]
+  }
+}

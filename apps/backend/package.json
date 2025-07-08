@@ -3,17 +3,23 @@
   "version": "1.0.0",
   "private": true,
   "license": "MIT",
+  "type": "module",
   "files": [
     "build/**"
   ],
   "scripts": {
-    "build": "uv run python manage.py collectstatic --noinput",
-    "clean": "rm -rf db.sqlite3 build",
+    "build": "vite build && uv run python manage.py collectstatic --noinput",
+    "clean": "rm -rf db.sqlite3 build static/vite",
     "fix:lint": "uv tool run ruff format",
+    "fix:lint:js": "eslint --fix",
     "check:lint": "uv tool run ruff check",
-    "check:types": "uv run mypy .",
+    "check:lint:js": "eslint",
+    "check:lint:py": "uv tool run ruff check",
+    "check:types:py": "uv run mypy .",
+    "check:types:js": "tsc --noEmit",
     "test": "uv run python manage.py test src",
     "dev": "uv run --verbose python manage.py runserver 0.0.0.0:80 --settings=settings",
+    "vite": "vite",
     "start": "uv run --verbose gunicorn --config gunicorn.conf.py src.mysite.wsgi:application",
     "migrate": "uv run --verbose python manage.py migrate",
     "makemigrations": "uv run --verbose python manage.py makemigrations",
@@ -21,6 +27,12 @@
   },
   "devDependencies": {
     "@more/configs": "workspace:*",
+    "@types/node": "^22.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^9.0.0",
+    "typescript": "^5.0.0",
+    "vite": "^6.0.0",
     "vitest": "^3.1.1"
   }
 }
