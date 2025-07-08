@@ -52,6 +52,7 @@ runs:
         flyctl deploy \
           --app "${app_name}" \
           --config "${config}" \
+          --depot=false \
           --image "${image}"
 
     - name: Wait for deployment

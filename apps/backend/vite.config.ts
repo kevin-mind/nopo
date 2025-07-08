@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from "vite";
 import { resolve } from "path";
+import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
@@ -13,6 +14,7 @@ export default defineConfig(({ mode }) => {
   return {
     base: viteBaseUrl,
     root: resolve(__dirname, "assets"),
+    plugins: [tailwindcss()],
     build: {
       outDir: resolve(__dirname, "assets", "dist"),
       manifest: true,
@@ -20,7 +22,7 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         input: {
           main: resolve(__dirname, "assets/js/main.ts"),
-          style: resolve(__dirname, "assets/css/main.css"),
+          style: resolve(__dirname, "assets/css/tailwind.css"),
         },
       },
       minify: process.env.NODE_ENV === "production",

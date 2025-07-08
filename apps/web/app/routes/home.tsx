@@ -2,6 +2,14 @@ import { useState, useEffect } from "react";
 import { z } from "zod";
 import { useFetcher } from "react-router";
 import type { Route } from "./+types/home";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "~/components/card";
 
 import { sleep } from "~/utils";
 
@@ -90,66 +98,121 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   }, [fetcher.data, fetcher.state]);
 
   return (
-    <div className="flex flex-col items-center justify-center p-4 w-full">
-      <fetcher.Form method="post" className="space-y-4 w-full">
-        <div className="space-y-2">
-          <label
-            htmlFor="count"
-            className="block text-sm font-medium text-gray-700"
-          >
-            Count
-          </label>
-          <input
-            id="count"
-            disabled={fetcher.state !== "idle"}
-            name="count"
-            type="number"
-            value={formCount}
-            onChange={(e) => setFormCount(Number(e.target.value))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-          />
-          {fetcher.data?.errors?.count && (
-            <p className="text-sm text-red-600">{fetcher.data.errors.count}</p>
-          )}
-        </div>
+    <div className="font-sans max-w-4xl mx-auto p-8 leading-relaxed text-gray-800 flex flex-col gap-6">
+      <Card className="bg-gradient-to-r from-purple-500 to-blue-500 text-white">
+        <CardHeader>
+          <CardTitle>🚀 React Router + Vite Setup Complete!</CardTitle>
+          <CardDescription className="text-purple-200">
+            This page demonstrates React Router v7 with Vite asset integration
+          </CardDescription>
+        </CardHeader>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Welcome to Your React-Powered App</CardTitle>
+          <CardDescription>
+            This page demonstrates several key React Router features:
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ul className="list-disc space-y-2 pl-5">
+            <li>
+              <strong>File-based Routing:</strong> Routes are defined by the
+              files in <code>app/routes</code>.
+            </li>
+            <li>
+              <strong>Data Loading:</strong> The <code>loader</code> function
+              fetches data before rendering.
+            </li>
+            <li>
+              <strong>Mutations:</strong> The <code>action</code> function
+              handles form submissions and data mutations.
+            </li>
+            <li>
+              <strong>Pending UI:</strong> The <code>useFetcher</code> hook
+              provides status for data loading and submissions.
+            </li>
+            <li>
+              <strong>Static Asset Integration:</strong> CSS and JS assets via
+              Vite processing
+            </li>
+          </ul>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Interactive Demo</CardTitle>
+          <CardDescription>
+            Use the form below to see the loader and action in action.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <fetcher.Form method="post" className="space-y-4 w-full">
+            <div className="space-y-2">
+              <label
+                htmlFor="count"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Count
+              </label>
+              <input
+                id="count"
+                disabled={fetcher.state !== "idle"}
+                name="count"
+                type="number"
+                value={formCount}
+                onChange={(e) => setFormCount(Number(e.target.value))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              />
+              {fetcher.data?.errors?.count && (
+                <p className="text-sm text-red-600">
+                  {fetcher.data.errors.count}
+                </p>
+              )}
+            </div>
 
-        <div className="space-y-2">
-          <label
-            htmlFor="name"
-            className="block text-sm font-medium text-gray-700"
-          >
-            Name
-          </label>
-          <input
-            id="name"
-            disabled={fetcher.state !== "idle"}
-            name="name"
-            type="text"
-            value={formName}
-            onChange={(e) => setFormName(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-          />
-          {fetcher.data?.errors?.name && (
-            <p className="text-sm text-red-600">{fetcher.data.errors.name}</p>
-          )}
-        </div>
+            <div className="space-y-2">
+              <label
+                htmlFor="name"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Name
+              </label>
+              <input
+                id="name"
+                disabled={fetcher.state !== "idle"}
+                name="name"
+                type="text"
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              />
+              {fetcher.data?.errors?.name && (
+                <p className="text-sm text-red-600">
+                  {fetcher.data.errors.name}
+                </p>
+              )}
+            </div>
 
-        <button
-          type="submit"
-          disabled={fetcher.state !== "idle"}
-          className="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
-        >
-          Submit
-        </button>
-      </fetcher.Form>
-
-      <div className="mt-8 w-full">
-        <pre className="p-4 bg-gray-900 text-gray-100 rounded-lg overflow-x-auto">
-          <code>
-            {JSON.stringify({ loaderData, fetcher: fetcher.data }, null, 2)}
-          </code>
-        </pre>
-      </div>
+            <button
+              type="submit"
+              disabled={fetcher.state !== "idle"}
+              className="bg-blue-500 text-white border-2 border-blue-700 px-4 py-2 rounded-md cursor-pointer transition-all duration-200 hover:bg-blue-700 hover:-translate-y-0.5 disabled:bg-gray-400 disabled:border-gray-500 disabled:cursor-not-allowed disabled:hover:bg-gray-400 disabled:hover:-translate-y-0"
+            >
+              Submit
+            </button>
+          </fetcher.Form>
+        </CardContent>
+        <CardFooter>
+          <div className="w-full">
+            <pre className="p-4 bg-gray-900 text-gray-100 rounded-lg overflow-x-auto">
+              <code>
+                {JSON.stringify({ loaderData, fetcher: fetcher.data }, null, 2)}
+              </code>
+            </pre>
+          </div>
+        </CardFooter>
+      </Card>
     </div>
   );
 }
