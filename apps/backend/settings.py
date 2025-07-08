@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "drf_spectacular",
     "django_filters",
+    "django_vite",
     # Local apps
     "src.mysite",
     "src.todo",
@@ -139,13 +140,18 @@ USE_I18N = True
 
 USE_TZ = True
 
-STATIC_ROOT = os.path.join(BASE_DIR, "build")
-
-STATIC_URL = f"{SERVICE_PUBLIC_PATH}/static/"
+# Where collectstatic will put the static files from
+VITE_ASSETS_DIR = os.path.join(BASE_DIR, "assets", "dist")
 
 STATICFILES_DIRS = [
-    os.path.join(PROJECT_ROOT, "static"),
+    VITE_ASSETS_DIR,
 ]
+
+# Where the collectstatic command will put the static files
+STATIC_ROOT = os.path.join(BASE_DIR, "build")
+
+# When rendering a static file, the URL will start with this
+STATIC_URL = f"{SERVICE_PUBLIC_PATH}/static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -176,3 +182,16 @@ SPECTACULAR_SETTINGS = {
     "COMPONENT_SPLIT_REQUEST": True,
     "SCHEMA_PATH_PREFIX": f"{SERVICE_PUBLIC_PATH}/",
 }
+
+DJANGO_VITE = {
+    "default": {
+        "dev_mode": DEBUG,
+        "dev_server_protocol": SITE_SCHEME,
+        "dev_server_host": SITE_HOST,
+        "dev_server_port": SITE_PORT,
+        "static_url_prefix": "vite" if DEBUG else "",
+        "manifest_path": os.path.join(VITE_ASSETS_DIR, ".vite", "manifest.json"),
+    }
+}
+
+print('DJANGO_VITE', DJANGO_VITE)

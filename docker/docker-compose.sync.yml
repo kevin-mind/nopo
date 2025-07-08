@@ -3,6 +3,5 @@ services:
     extends:
       file: docker-compose.base.yml
       service: base
-    user: root
     environment:
       - HOST_UID

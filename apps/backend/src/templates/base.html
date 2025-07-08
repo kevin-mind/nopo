@@ -5,6 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Django with Jinja2{% endblock %}</title>
     <link rel="icon" href="{{ static('favicon.ico') }}" type="image/x-icon">
+    
+    <!-- Vite HMR Client for development -->
+    {{ vite_hmr_client() }}
+    
+    <!-- Vite CSS Assets -->
+    {{ vite_asset('css/main.css') }}
+    
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
@@ -53,5 +60,8 @@
     <footer style="margin-top: 3rem; text-align: center; color: #666; border-top: 1px solid #eee; padding-top: 1rem;">
         <p>Powered by Django {{ django_version }} and Jinja2</p>
     </footer>
+    
+    <!-- Vite JavaScript Assets -->
+    {{ vite_asset('js/main.ts') }}
 </body>
 </html>

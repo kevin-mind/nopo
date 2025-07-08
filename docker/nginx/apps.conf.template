@@ -6,6 +6,8 @@ server {
     listen 80 default_server;
     server_name localhost;
 
+    include /etc/nginx/conf.d/apps.local*;
+
     location /api {
         try_files $uri @backend;
     }
