@@ -1,0 +1,72 @@
+import React from 'react';
+import type { Meta, StoryObj } from '@storybook/react';
+import { expect, fn, userEvent, within } from '@storybook/test';
+import { {{pascalCase name}} } from './{{kebabCase name}}';
+
+const meta = {
+  title: 'Components/{{pascalCase name}}',
+  component: {{pascalCase name}},
+  parameters: {
+    layout: 'centered',
+  },
+  tags: ['autodocs'],
+  argTypes: {
+{{#if hasVariants}}
+    variant: {
+      control: { type: 'select' },
+      options: ['default'], // Update with actual variants
+    },
+    size: {
+      control: { type: 'select' },
+      options: ['sm', 'md', 'lg'],
+    },
+{{/if}}
+  },
+  args: {
+    onClick: fn(),
+  },
+} satisfies Meta<typeof {{pascalCase name}}>;
+
+export default meta;
+type Story = StoryObj<typeof meta>;
+
+export const Default: Story = {
+  args: {
+    children: '{{description}}',
+  },
+};
+
+{{#if hasVariants}}
+export const SmallSize: Story = {
+  args: {
+    size: 'sm',
+    children: 'Small {{pascalCase name}}',
+  },
+};
+
+export const LargeSize: Story = {
+  args: {
+    size: 'lg',
+    children: 'Large {{pascalCase name}}',
+  },
+};
+{{/if}}
+
+// Interactive testing story
+export const InteractionTest: Story = {
+  args: {
+    children: 'Click me!',
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    const component = canvas.getByText('Click me!');
+
+    // Test component is rendered
+    await expect(component).toBeInTheDocument();
+    
+    // Test component click
+    await userEvent.click(component);
+    
+    // Add more interaction tests as needed
+  },
+};

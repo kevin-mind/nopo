@@ -5,33 +5,74 @@
   "private": true,
   "license": "MIT",
   "type": "module",
-  "main": "./build/index.js",
-  "module": "./build/index.js",
-  "types": "./build/index.d.ts",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "default": "./build/index.js"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     },
-    "./*": {
-      "types": "./src/*.ts",
-      "default": "./build/*.js"
+    "./components/*": {
+      "types": "./dist/components/*.d.ts",
+      "import": "./dist/components/*.js"
+    },
+    "./styles/*": {
+      "import": "./dist/styles/*"
+    },
+    "./tailwind.config": {
+      "import": "./tailwind.config.js"
     },
     "./package.json": "./package.json"
   },
+  "files": [
+    "dist",
+    "tailwind.config.js",
+    "src/styles"
+  ],
   "scripts": {
-    "clean": "rm -rf node_modules && rm -rf build",
-    "build": "tsdown",
-    "dev": "tsdown --watch",
+    "clean": "rm -rf node_modules && rm -rf dist && rm -rf storybook-static",
+    "build": "vite build && tsc --emitDeclarationOnly --outDir dist",
+    "dev": "vite build --watch",
     "format": "yarn lint --fix",
     "lint": "eslint",
-    "test": "vitest run --run"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build",
+    "generate": "plop"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "class-variance-authority": "^0.7.1"
   },
   "devDependencies": {
     "@more/configs": "workspace:*",
+    "@storybook/addon-essentials": "^8.4.7",
+    "@storybook/addon-interactions": "^8.4.7",
+    "@storybook/addon-links": "^8.4.7",
+    "@storybook/blocks": "^8.4.7",
+    "@storybook/react": "^8.4.7",
+    "@storybook/react-vite": "^8.4.7",
+    "@storybook/test": "^8.4.7",
+    "@types/react": "^18.3.17",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
     "glob": "^11.0.2",
-    "tsdown": "^0.12.3",
+    "plop": "^4.0.1",
+    "postcss": "^8.5.6",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "storybook": "^8.4.7",
+    "tailwindcss": "^3.4.16",
     "typescript": "^5.8.3",
+    "vite": "^6.0.7",
+    "vite-plugin-dts": "^4.3.0",
     "vitest": "^3.1.1"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
   }
 }

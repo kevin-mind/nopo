@@ -25,6 +25,9 @@
     "makemigrations": "uv run --verbose python manage.py makemigrations",
     "shell": "uv run --verbose python manage.py shell"
   },
+  "dependencies": {
+    "@more/ui": "workspace:*"
+  },
   "devDependencies": {
     "@more/configs": "workspace:*",
     "@tailwindcss/vite": "^4.1.4",

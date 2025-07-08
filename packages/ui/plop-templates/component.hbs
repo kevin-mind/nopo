@@ -1,0 +1,68 @@
+import React from 'react';
+{{#if hasVariants}}
+import { cva, type VariantProps } from 'class-variance-authority';
+{{/if}}
+import { clsx } from 'clsx';
+
+{{#if hasVariants}}
+const {{camelCase name}}Variants = cva(
+  'base-classes-here', // Add your base classes
+  {
+    variants: {
+      variant: {
+        default: 'default-variant-classes',
+        // Add more variants as needed
+      },
+      size: {
+        sm: 'size-small-classes',
+        md: 'size-medium-classes',
+        lg: 'size-large-classes',
+      }
+    },
+    defaultVariants: {
+      variant: 'default',
+      size: 'md'
+    }
+  }
+);
+{{/if}}
+
+export interface {{pascalCase name}}Props
+{{#if hasVariants}}
+  extends React.HTMLAttributes<HTMLDivElement>,
+    VariantProps<typeof {{camelCase name}}Variants> {
+{{else}}
+  extends React.HTMLAttributes<HTMLDivElement> {
+{{/if}}
+  // Add custom props here
+}
+
+const {{pascalCase name}} = React.forwardRef<HTMLDivElement, {{pascalCase name}}Props>(
+  ({ 
+    className, 
+{{#if hasVariants}}
+    variant,
+    size,
+{{/if}}
+    children,
+    ...props 
+  }, ref) => {
+    return (
+      <div
+{{#if hasVariants}}
+        className={clsx({{camelCase name}}Variants({ variant, size, className }))}
+{{else}}
+        className={clsx('{{kebabCase name}}-base-classes', className)}
+{{/if}}
+        ref={ref}
+        {...props}
+      >
+        {children}
+      </div>
+    );
+  }
+);
+
+{{pascalCase name}}.displayName = '{{pascalCase name}}';
+
+export { {{pascalCase name}}{{#if hasVariants}}, {{camelCase name}}Variants{{/if}} };

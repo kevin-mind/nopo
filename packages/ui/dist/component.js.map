@@ -1,0 +1,1 @@
+{"version":3,"file":"component.js","sources":["../src/component.ts"],"sourcesContent":["export default function Component() {\n  return \"Component\";\n}\n"],"names":["Component"],"mappings":"AAAA,SAAwBA,IAAY;AAC3B,SAAA;AACT;"}

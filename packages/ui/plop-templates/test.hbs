@@ -1,0 +1,38 @@
+import { render, screen } from '@testing-library/react';
+import { {{pascalCase name}} } from './{{kebabCase name}}';
+
+describe('{{pascalCase name}}', () => {
+  it('renders without crashing', () => {
+    render(<{{pascalCase name}}>Test content</{{pascalCase name}}>);
+    expect(screen.getByText('Test content')).toBeInTheDocument();
+  });
+
+  it('applies custom className', () => {
+    render(<{{pascalCase name}} className="custom-class">Test</{{pascalCase name}}>);
+    const element = screen.getByText('Test');
+    expect(element).toHaveClass('custom-class');
+  });
+
+{{#if hasVariants}}
+  it('applies variant classes correctly', () => {
+    render(<{{pascalCase name}} variant="default">Test</{{pascalCase name}}>);
+    // Add specific assertions for variant classes
+  });
+
+  it('applies size classes correctly', () => {
+    render(<{{pascalCase name}} size="lg">Test</{{pascalCase name}}>);
+    // Add specific assertions for size classes
+  });
+{{/if}}
+
+  it('forwards ref correctly', () => {
+    const ref = jest.createRef<HTMLDivElement>();
+    render(<{{pascalCase name}} ref={ref}>Test</{{pascalCase name}}>);
+    expect(ref.current).toBeInstanceOf(HTMLDivElement);
+  });
+
+  it('spreads additional props', () => {
+    render(<{{pascalCase name}} data-testid="test-{{kebabCase name}}">Test</{{pascalCase name}}>);
+    expect(screen.getByTestId('test-{{kebabCase name}}')).toBeInTheDocument();
+  });
+});
