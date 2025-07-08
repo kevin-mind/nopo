@@ -75,6 +75,9 @@ importers:
       '@more/configs':
         specifier: workspace:*
         version: link:../../packages/configs
+      '@tailwindcss/vite':
+        specifier: ^4.1.4
+        version: 4.1.4(vite@6.3.5(@types/node@22.16.0)(jiti@2.4.2)(lightningcss@1.29.2)(tsx@4.19.3)(yaml@2.7.1))
       '@types/node':
         specifier: ^22.0.0
         version: 22.16.0
@@ -87,6 +90,9 @@ importers:
       eslint:
         specifier: ^9.0.0
         version: 9.25.0(jiti@2.4.2)
+      tailwindcss:
+        specifier: ^4.1.4
+        version: 4.1.4
       typescript:
         specifier: ^5.0.0
         version: 5.8.3
@@ -5540,6 +5546,13 @@ snapshots:
       '@tailwindcss/oxide': 4.1.4
       tailwindcss: 4.1.4
       vite: 5.4.18(@types/node@20.17.30)(lightningcss@1.29.2)
+
+  '@tailwindcss/vite@4.1.4(vite@6.3.5(@types/node@22.16.0)(jiti@2.4.2)(lightningcss@1.29.2)(tsx@4.19.3)(yaml@2.7.1))':
+    dependencies:
+      '@tailwindcss/node': 4.1.4
+      '@tailwindcss/oxide': 4.1.4
+      tailwindcss: 4.1.4
+      vite: 6.3.5(@types/node@22.16.0)(jiti@2.4.2)(lightningcss@1.29.2)(tsx@4.19.3)(yaml@2.7.1)
 
   '@total-typescript/ts-reset@0.6.1': {}
 

@@ -1,7 +1,7 @@
-<div class="card">
+<div class="bg-gray-50 border border-gray-200 rounded-lg p-6 mb-4">
     <h3>{{ title | default('User Information') }}</h3>
     {% if user_data %}
-        <div class="highlight">
+        <div class="bg-yellow-50 border border-yellow-200 rounded px-2 py-1 my-2">
             <p><strong>Name:</strong> {{ user_data.name }}</p>
             <p><strong>Role:</strong> {{ user_data.role }}</p>
             <p><strong>Last Login:</strong> {{ user_data.last_login | default('Never') }}</p>
@@ -23,7 +23,7 @@
     {% endif %}
     
     {% if additional_info %}
-        <div style="margin-top: 1rem; font-style: italic;">
+        <div class="mt-4 italic">
             {{ additional_info }}
         </div>
     {% endif %}
