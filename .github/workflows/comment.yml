@@ -42,8 +42,8 @@ jobs:
         run: |
           echo "Extracting slash command from comment"
 
-          # Identify if the comment is a slash command (starts with /)
-          if [[ $raw_comment =~ ^/ ]]; then
+          # If the comment is NOT a slash command, skip everything
+          if ! [[ $raw_comment =~ ^/ ]]; then
             echo "No slash command detected, skipping"
             exit 0
           fi
