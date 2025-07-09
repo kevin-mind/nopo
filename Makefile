@@ -22,5 +22,5 @@ down:
 .PHONY: *
 %:
 	@if [ "$(FIRST_WORD)" = "$@" ]; then \
-		npx zx --install ./packages/scripts/index.js $(MAKECMDGOALS); \
+		pnpx zx --install ./packages/scripts/index.js $(MAKECMDGOALS); \
 	fi

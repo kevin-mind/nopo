@@ -8,30 +8,46 @@
   "main": "./build/index.js",
   "module": "./build/index.js",
   "types": "./build/index.d.ts",
+  "files": [
+    "build"
+  ],
   "exports": {
     ".": {
       "types": "./src/index.ts",
+      "source": "./src/index.ts",
       "default": "./build/index.js"
-    },
-    "./*": {
-      "types": "./src/*.ts",
-      "default": "./build/*.js"
     },
     "./package.json": "./package.json"
   },
   "scripts": {
     "clean": "rm -rf node_modules && rm -rf build",
-    "build": "tsdown",
-    "dev": "tsdown --watch",
+    "build": "vite build",
+    "dev": "vite build --watch",
     "format": "yarn lint --fix",
     "lint": "eslint",
     "test": "vitest run --run"
   },
   "devDependencies": {
     "@more/configs": "workspace:*",
-    "glob": "^11.0.2",
-    "tsdown": "^0.12.3",
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
+    "@vitejs/plugin-react": "^4.6.0",
+    "tailwindcss": "^4.1.11",
     "typescript": "^5.8.3",
+    "vite": "^7.0.3",
+    "vite-plugin-dts": "^4.5.4",
     "vitest": "^3.1.1"
+  },
+  "dependencies": {
+    "@radix-ui/react-slot": "^1.2.3",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.525.0",
+    "tailwind-merge": "^3.3.1",
+    "tailwindcss-animate": "^1.0.7"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   }
 }

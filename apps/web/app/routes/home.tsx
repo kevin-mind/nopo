@@ -10,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "~/components/card";
+import { Button } from "@more/ui";
 
 import { sleep } from "~/utils";
 
@@ -194,13 +195,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               )}
             </div>
 
-            <button
+            <Button
               type="submit"
               disabled={fetcher.state !== "idle"}
-              className="bg-blue-500 text-white border-2 border-blue-700 px-4 py-2 rounded-md cursor-pointer transition-all duration-200 hover:bg-blue-700 hover:-translate-y-0.5 disabled:bg-gray-400 disabled:border-gray-500 disabled:cursor-not-allowed disabled:hover:bg-gray-400 disabled:hover:-translate-y-0"
+              variant="ghost"
             >
               Submit
-            </button>
+            </Button>
           </fetcher.Form>
         </CardContent>
         <CardFooter>
