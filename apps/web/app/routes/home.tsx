@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "~/components/card";
+import { Button } from "@more/ui";
 
 import { sleep } from "~/utils";
 
@@ -198,7 +199,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             <Button
               type="submit"
               disabled={fetcher.state !== "idle"}
-              variant="outline"
+              variant="ghost"
             >
               Submit
             </Button>

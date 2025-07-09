@@ -1,12 +1,12 @@
 {
   "extends": "@more/configs/tsconfig.dom.json",
   "include": ["src/**/*"],
+  "exclude": ["build", "node_modules"],
   "compilerOptions": {
     "baseUrl": ".",
     "jsx": "react-jsx",
     "paths": {
       "~/*": ["./src/*"]
     }
-  },
-  "exclude": ["build", "node_modules"]
+  }
 }
