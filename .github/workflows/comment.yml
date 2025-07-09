@@ -136,6 +136,10 @@ jobs:
           git push origin $current_branch
 
   post_process:
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
     runs-on: ubuntu-latest
     needs: [context, pre_process, rebase]
     if: always()
