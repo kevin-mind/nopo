@@ -137,7 +137,7 @@ jobs:
     needs: [context, pre_process, rebase]
     if: always()
     steps:
-      - name: Update reaction to issue comment
+      - name: Finalize issue comment reaction
         if: ${{ needs.context.outputs.slash_command != 'unknown' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
