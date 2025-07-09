@@ -118,6 +118,9 @@ jobs:
             -f "body=$(cat comment.txt)"
 
   rebase:
+    permissions:
+      contents: write
+      pull-requests: write
     runs-on: ubuntu-latest
     needs: [context, pre_process]
     if: ${{ needs.context.outputs.slash_command == 'rebase' }}
