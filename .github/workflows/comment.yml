@@ -111,6 +111,6 @@ jobs:
             --method POST \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            "/repos/${repo}/issues/${issue_id}/comments" \
+            "/repos/${repo}/issues/${issue_number}/comments" \
             -f "body=$(cat comment.txt)"
 
