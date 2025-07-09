@@ -75,7 +75,7 @@ jobs:
     steps:
       - name: React to comment
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           repo: ${{ github.repository }}
           comment_id: ${{ needs.context.outputs.comment_id }}
           slash_command: ${{ needs.context.outputs.slash_command }}
