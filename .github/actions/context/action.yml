@@ -5,6 +5,9 @@ outputs:
   is_fork:
     description: 'Whether the repository is a fork'
     value: ${{ steps.context.outputs.is_fork }}
+  default_branch:
+    description: 'The default branch of the repository'
+    value: ${{ steps.context.outputs.default_branch }}
 
 runs:
   using: composite
@@ -26,7 +29,10 @@ runs:
     - name: Context
       id: context
       shell: bash
+      env:
+        default_branch: ${{ github.event.repository.default_branch }}
+        is_fork: ${{ github.event.repository.fork }}
       run: |
-        is_fork="${{ github.event.repository.fork }}"
+        echo "default_branch=$default_branch" >> "$GITHUB_OUTPUT"
         echo "is_fork=$is_fork" >> "$GITHUB_OUTPUT"
         cat "$GITHUB_OUTPUT"
