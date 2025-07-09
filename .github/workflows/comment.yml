@@ -127,8 +127,7 @@ jobs:
     steps:
       - name: Update branch
         env:
-          repo: ${{ github.repository }}
-          issue_number: ${{ needs.context.outputs.issue_number }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh pr update-branch --rebase
 
