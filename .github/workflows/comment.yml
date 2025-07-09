@@ -23,6 +23,7 @@ jobs:
     outputs:
       is_fork: ${{ steps.context.outputs.is_fork }}
       comment_id: ${{ steps.slash_command.outputs.comment_id }}
+      issue_id: ${{ steps.slash_command.outputs.issue_id }}
       slash_command: ${{ steps.slash_command.outputs.slash_command }}
     permissions:
       contents: read
@@ -38,6 +39,7 @@ jobs:
         id: slash_command
         env:
           comment_id: ${{ github.event.comment.id }}
+          issue_id: ${{ github.event.issue.id }}
           raw_comment: ${{ github.event.comment.body }}
         run: |
           echo "Extracting slash command from comment"
@@ -61,11 +63,12 @@ jobs:
           fi
 
           echo "comment_id=${comment_id}" >> $GITHUB_OUTPUT
+          echo "issue_id=${issue_id}" >> $GITHUB_OUTPUT
           echo "raw_comment=${raw_comment}" >> $GITHUB_OUTPUT
           echo "slash_command=${slash_command}" >> $GITHUB_OUTPUT
           cat "${GITHUB_OUTPUT}"
 
-  react:
+  process:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -74,23 +77,40 @@ jobs:
     needs: context
     if: ${{ needs.context.outputs.slash_command != '' }}
     steps:
-      - name: React to comment
+      - name: React to valid slash command
+        if: ${{ needs.context.outputs.slash_command != 'unknown' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           repo: ${{ github.repository }}
           comment_id: ${{ needs.context.outputs.comment_id }}
-          slash_command: ${{ needs.context.outputs.slash_command }}
         run: |
-          if [[ "$slash_command" == "unknown" ]]; then
-            reaction="-1"
-          else
-            reaction="+1"
-          fi
-
           gh api \
             --method POST \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "/repos/${repo}/issues/comments/${comment_id}/reactions" \
-            -f "content=${reaction}"
+            -f "content=+1"
+
+      - name: Reply to unknown slash command with help text
+        if: ${{ needs.context.outputs.slash_command == 'unknown' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          repo: ${{ github.repository }}
+          slash_command: ${{ needs.context.outputs.slash_command }}
+          issue_id: ${{ needs.context.outputs.issue_id }}
+        run: |
+          cat <<EOF > comment.txt
+          Unknown slash command detected. "${slash_command}"
+
+          Please use the following commands:
+          - /deploy - Deploy the latest version of the code to dev
+          - /rebase - Rebase the current branch with the main branch
+          EOF
+
+          gh api \
+          --method POST \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          "/repos/${repo}/issues/${issue_id}/comments" \
+          -f "body=$(cat comment.txt)"
 
