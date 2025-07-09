@@ -1,0 +1,95 @@
+name: Comment Action
+
+on:
+  issue_comment:
+    types: [created]
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CI: true
+
+jobs:
+  context:
+    runs-on: ubuntu-latest
+    outputs:
+      is_fork: ${{ steps.context.outputs.is_fork }}
+      comment_id: ${{ steps.slash_command.outputs.comment_id }}
+      slash_command: ${{ steps.slash_command.outputs.slash_command }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Context
+        id: context
+        uses: ./.github/actions/context
+
+
+      - name: Extract slash command
+        id: slash_command
+        env:
+          comment_id: ${{ github.event.comment.id }}
+          raw_comment: ${{ github.event.comment.body }}
+        run: |
+          echo "Extracting slash command from comment"
+
+          # Identify if the comment is a slash command (starts with /)
+          if [[ $raw_comment =~ ^/ ]]; then
+            echo "No slash command detected, skipping"
+            exit 0
+          fi
+
+          # Identify a valid slash command
+          if [[ "$raw_comment" == "/deploy" ]]; then
+            echo "Deploy command detected"
+            slash_command="deploy"
+          elif [[ "$raw_comment" == "/rebase" ]]; then
+            echo "Rebase command detected"
+            slash_command="rebase"
+          else
+            echo "No command identified for slash command input: "$raw_comment""
+            slash_command="unknown"
+          fi
+
+          echo "comment_id=${comment_id}" >> $GITHUB_OUTPUT
+          echo "raw_comment=${raw_comment}" >> $GITHUB_OUTPUT
+          echo "slash_command=${slash_command}" >> $GITHUB_OUTPUT
+          cat "${GITHUB_OUTPUT}"
+
+  react:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    needs: context
+    if: ${{ needs.context.outputs.slash_command != '' }}
+    steps:
+      - name: React to comment
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          repo: ${{ github.repository }}
+          comment_id: ${{ needs.context.outputs.comment_id }}
+          slash_command: ${{ needs.context.outputs.slash_command }}
+        run: |
+          if [[ "$slash_command" == "unknown" ]]; then
+            reaction="-1"
+          else
+            reaction="+1"
+          fi
+
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/$repo/issues/comments/$comment_id/reactions \
+            -f 'content=$reaction'
+
