@@ -1,16 +1,8 @@
 import { useState, useEffect } from "react";
 import { z } from "zod";
 import { useFetcher } from "react-router";
-import { Button } from "@more/ui";
+import { Button, Input, Label, Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@more/ui";
 import type { Route } from "./+types/home";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "~/components/card";
 
 import { sleep } from "~/utils";
 
@@ -99,7 +91,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   }, [fetcher.data, fetcher.state]);
 
   return (
-    <div className="font-sans max-w-4xl mx-auto p-8 leading-relaxed text-gray-800 flex flex-col gap-6">
+    <div className="container mx-auto p-8 max-w-4xl space-y-6">
       <Card className="bg-gradient-to-r from-purple-500 to-blue-500 text-white">
         <CardHeader>
           <CardTitle>🚀 React Router + Vite Setup Complete!</CardTitle>
@@ -150,46 +142,34 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <CardContent>
           <fetcher.Form method="post" className="space-y-4 w-full">
             <div className="space-y-2">
-              <label
-                htmlFor="count"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Count
-              </label>
-              <input
+              <Label htmlFor="count">Count</Label>
+              <Input
                 id="count"
                 disabled={fetcher.state !== "idle"}
                 name="count"
                 type="number"
                 value={formCount}
-                onChange={(e) => setFormCount(Number(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormCount(Number(e.target.value))}
               />
               {fetcher.data?.errors?.count && (
-                <p className="text-sm text-red-600">
+                <p className="text-sm text-destructive">
                   {fetcher.data.errors.count}
                 </p>
               )}
             </div>
 
             <div className="space-y-2">
-              <label
-                htmlFor="name"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Name
-              </label>
-              <input
+              <Label htmlFor="name">Name</Label>
+              <Input
                 id="name"
                 disabled={fetcher.state !== "idle"}
                 name="name"
                 type="text"
                 value={formName}
-                onChange={(e) => setFormName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormName(e.target.value)}
               />
               {fetcher.data?.errors?.name && (
-                <p className="text-sm text-red-600">
+                <p className="text-sm text-destructive">
                   {fetcher.data.errors.name}
                 </p>
               )}
@@ -206,7 +186,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         </CardContent>
         <CardFooter>
           <div className="w-full">
-            <pre className="p-4 bg-gray-900 text-gray-100 rounded-lg overflow-x-auto">
+            <pre className="p-4 bg-muted text-muted-foreground rounded-lg overflow-x-auto text-sm">
               <code>
                 {JSON.stringify({ loaderData, fetcher: fetcher.data }, null, 2)}
               </code>
