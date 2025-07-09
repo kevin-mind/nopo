@@ -184,10 +184,18 @@ jobs:
           apps: ${{ needs.context.outputs.app_names }}
           environment: ${{ inputs.environment }}
 
+  smoketest:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.34.3-jammy
+    needs: [deploy_nginx]
+    steps:
+      - uses: actions/checkout@v4
+
       - name: Smoke test
         uses: ./.github/actions/smoketest
         with:
-          public_url: ${{ steps.deploy_nginx.outputs.public_url }}
+          public_url: ${{ needs.deploy_nginx.outputs.public_url }}
 
   post_approve:
     name: Approve deployments for ${{ needs.context.outputs.app_list }}
