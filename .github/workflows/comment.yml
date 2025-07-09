@@ -91,6 +91,6 @@ jobs:
             --method POST \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            /repos/$repo/issues/comments/$comment_id/reactions \
-            -f 'content=$reaction'
+            "/repos/${repo}/issues/comments/${comment_id}/reactions" \
+            -f "content=${reaction}"
 
