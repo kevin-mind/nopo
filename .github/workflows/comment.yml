@@ -125,6 +125,8 @@ jobs:
     needs: [context, pre_process]
     if: ${{ needs.context.outputs.slash_command == 'rebase' }}
     steps:
+      - uses: actions/checkout@v4
+
       - name: Update branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
