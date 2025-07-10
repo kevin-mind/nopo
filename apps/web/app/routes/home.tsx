@@ -195,7 +195,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               )}
             </div>
 
-            <Button type="submit" disabled={fetcher.state !== "idle"}>
+            <Button
+              type="submit"
+              disabled={fetcher.state !== "idle"}
+              variant="outline"
+            >
               Submit
             </Button>
           </fetcher.Form>
