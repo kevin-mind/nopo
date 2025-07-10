@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { z } from "zod";
 import { useFetcher } from "react-router";
-import { Button } from "@more/ui";
 import type { Route } from "./+types/home";
 import {
   Card,
@@ -195,13 +194,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               )}
             </div>
 
-            <Button
+            <button
               type="submit"
               disabled={fetcher.state !== "idle"}
-              variant="outline"
+              className="bg-blue-500 text-white border-2 border-blue-700 px-4 py-2 rounded-md cursor-pointer transition-all duration-200 hover:bg-blue-700 hover:-translate-y-0.5 disabled:bg-gray-400 disabled:border-gray-500 disabled:cursor-not-allowed disabled:hover:bg-gray-400 disabled:hover:-translate-y-0"
             >
               Submit
-            </Button>
+            </button>
           </fetcher.Form>
         </CardContent>
         <CardFooter>
