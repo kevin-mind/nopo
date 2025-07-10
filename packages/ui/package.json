@@ -1,37 +1,54 @@
 {
   "name": "@more/ui",
   "version": "1.0.0",
-  "sideEffects": false,
+  "sideEffects": [
+    "./build/styles.css"
+  ],
   "private": true,
   "license": "MIT",
   "type": "module",
-  "main": "./build/index.js",
-  "module": "./build/index.js",
-  "types": "./build/index.d.ts",
+  "main": "./build/index.umd.js",
+  "module": "./build/index.es.js",
+  "types": "./build/src/index.d.ts",
+  "style": "./build/theme.css",
   "exports": {
     ".": {
+      "import": "./build/index.es.js",
       "types": "./src/index.ts",
-      "default": "./build/index.js"
+      "require": "./build/index.umd.js"
     },
-    "./*": {
-      "types": "./src/*.ts",
-      "default": "./build/*.js"
-    },
-    "./package.json": "./package.json"
+    "./theme.css": "./build/theme.css"
   },
   "scripts": {
     "clean": "rm -rf node_modules && rm -rf build",
-    "build": "tsdown",
-    "dev": "tsdown --watch",
+    "build": "vite build",
+    "dev": "vite build --watch",
     "format": "yarn lint --fix",
     "lint": "eslint",
     "test": "vitest run --run"
   },
   "devDependencies": {
     "@more/configs": "workspace:*",
+    "@tailwindcss/vite": "^4.1.11",
+    "@types/react": "^19.1.2",
+    "@vitejs/plugin-react": "^4.6.0",
     "glob": "^11.0.2",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
     "tsdown": "^0.12.3",
     "typescript": "^5.8.3",
+    "vite": "^7.0.4",
+    "vite-plugin-dts": "^4.5.4",
+    "vite-plugin-static-copy": "^3.1.0",
     "vitest": "^3.1.1"
+  },
+  "peerDependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^3.3.1",
+    "tailwindcss": "^4.1.11"
   }
 }
