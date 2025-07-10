@@ -17,7 +17,8 @@
       "types": "./src/index.ts",
       "require": "./build/index.umd.js"
     },
-    "./theme.css": "./build/theme.css"
+    "./theme.css": "./build/theme.css",
+    "./bem-components.css": "./build/bem-components.css"
   },
   "scripts": {
     "clean": "rm -rf node_modules && rm -rf build",

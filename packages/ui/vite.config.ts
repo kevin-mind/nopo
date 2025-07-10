@@ -3,11 +3,16 @@ import path from "node:path";
 import { defineConfig } from "vite";
 import tailwindcss from "@tailwindcss/vite";
 import { viteStaticCopy } from "vite-plugin-static-copy";
+import { cvaBEMPlugin } from "./src/lib/vite-plugin-cva-bem";
 
 export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    cvaBEMPlugin({
+      componentPrefix: '',
+      outputPath: 'build/bem-components.css',
+    }),
     viteStaticCopy({
       targets: [
         {
