@@ -15,6 +15,9 @@ export default defineConfig({
           dest: "./",
         },
       ],
+      watch: {
+        reloadPageOnChange: true,
+      },
     }),
   ],
   build: {
