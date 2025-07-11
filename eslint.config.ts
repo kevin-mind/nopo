@@ -5,6 +5,7 @@ import { globby, fs, path } from "zx";
 import tseslint from "typescript-eslint";
 import eslint from "@eslint/js";
 import eslintPluginPrettier from "eslint-plugin-prettier/recommended";
+import globals from "globals";
 
 import pkgJson from "./package.json" assert { type: "json" };
 
@@ -40,9 +41,16 @@ const config: ReturnType<typeof tseslint.config> = tseslint.config(
       "**/.vscode/**",
       "**/.git/**",
       "**/.node_modules/**",
+      "**/node_modules/**",
       "**/.build/**",
       ...workspaceIgnores,
     ],
+  },
+  {
+    files: ["docker/scripts/**/*.js"],
+    languageOptions: {
+      globals: { ...globals.node },
+    },
   },
 );
 

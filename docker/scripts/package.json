@@ -1,15 +1,15 @@
 {
-  "name": "@more/scripts",
+  "name": "nopo",
   "type": "module",
+  "bin": {
+    "nopo": "./bin.js"
+  },
   "scripts": {
     "clean": "rm -rf node_modules",
-    "check:lint": "eslint",
-    "fix:lint": "eslint --fix",
     "test": "vitest run --run",
     "script": "tsx ./index.ts"
   },
   "devDependencies": {
-    "tsx": "^4.19.3",
     "vitest": "^3.1.1"
   },
   "dependencies": {

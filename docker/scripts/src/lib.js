@@ -27,6 +27,9 @@ export function createConfig(options = {}) {
   });
 }
 
+/**
+ * Logger for script output.
+ */
 export class Logger {
   constructor(config) {
     chalk.level = 2;

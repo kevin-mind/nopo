@@ -154,6 +154,6 @@ describe("build", () => {
 
   it("has correct dependencies", () => {
     expect(BuildScript.dependencies).toHaveLength(1);
-    expect(BuildScript.dependencies[0].enabled).toBe(true);
+    expect(BuildScript.dependencies[0]?.enabled).toBe(true);
   });
 });
