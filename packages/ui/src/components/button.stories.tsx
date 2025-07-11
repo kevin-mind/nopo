@@ -1,41 +1,50 @@
-import type { Meta, StoryObj } from '@storybook/react';
-import { expect, fn, userEvent, within } from '@storybook/test';
-import { Button } from './button';
+import type { Meta, StoryObj } from "@storybook/react";
+import { expect, fn, userEvent, within } from "@storybook/test";
+import { Button } from "./button";
 
 const meta = {
-  title: 'Components/Button',
+  title: "Components/Button",
   component: Button,
   parameters: {
-    layout: 'centered',
+    layout: "centered",
     docs: {
       description: {
-        component: 'A versatile button component with multiple variants and sizes.',
+        component:
+          "A versatile button component with multiple variants and sizes.",
       },
     },
   },
-  tags: ['autodocs'],
+  tags: ["autodocs"],
   argTypes: {
     variant: {
-      control: { type: 'select' },
-      options: ['default', 'destructive', 'outline', 'secondary', 'ghost', 'link'],
-      description: 'The visual variant of the button',
+      control: { type: "select" },
+      options: [
+        "default",
+        "destructive",
+        "outline",
+        "secondary",
+        "ghost",
+        "link",
+      ],
+      description: "The visual variant of the button",
     },
     size: {
-      control: { type: 'select' },
-      options: ['default', 'sm', 'lg', 'icon'],
-      description: 'The size of the button',
+      control: { type: "select" },
+      options: ["default", "sm", "lg", "icon"],
+      description: "The size of the button",
     },
     asChild: {
-      control: { type: 'boolean' },
-      description: 'Change the component to the HTML tag or custom component of the only child',
+      control: { type: "boolean" },
+      description:
+        "Change the component to the HTML tag or custom component of the only child",
     },
     disabled: {
-      control: { type: 'boolean' },
-      description: 'Whether the button is disabled',
+      control: { type: "boolean" },
+      description: "Whether the button is disabled",
     },
     onClick: {
-      action: 'clicked',
-      description: 'Function called when the button is clicked',
+      action: "clicked",
+      description: "Function called when the button is clicked",
     },
   },
   args: {
@@ -49,64 +58,64 @@ type Story = StoryObj<typeof meta>;
 // Primary stories
 export const Default: Story = {
   args: {
-    children: 'Button',
+    children: "Button",
   },
 };
 
 export const Destructive: Story = {
   args: {
-    variant: 'destructive',
-    children: 'Delete',
+    variant: "destructive",
+    children: "Delete",
   },
 };
 
 export const Outline: Story = {
   args: {
-    variant: 'outline',
-    children: 'Outline',
+    variant: "outline",
+    children: "Outline",
   },
 };
 
 export const Secondary: Story = {
   args: {
-    variant: 'secondary',
-    children: 'Secondary',
+    variant: "secondary",
+    children: "Secondary",
   },
 };
 
 export const Ghost: Story = {
   args: {
-    variant: 'ghost',
-    children: 'Ghost',
+    variant: "ghost",
+    children: "Ghost",
   },
 };
 
 export const Link: Story = {
   args: {
-    variant: 'link',
-    children: 'Link',
+    variant: "link",
+    children: "Link",
   },
 };
 
 // Size variants
 export const Small: Story = {
   args: {
-    size: 'sm',
-    children: 'Small',
+    size: "sm",
+    children: "Small",
   },
 };
 
 export const Large: Story = {
   args: {
-    size: 'lg',
-    children: 'Large',
+    size: "lg",
+    children: "Large",
   },
 };
 
 export const Icon: Story = {
   args: {
-    size: 'icon',
-    children: '🚀',
+    size: "icon",
+    children: "🚀",
   },
 };
 
@@ -114,23 +123,23 @@ export const Icon: Story = {
 export const Disabled: Story = {
   args: {
     disabled: true,
-    children: 'Disabled',
+    children: "Disabled",
   },
 };
 
 // Interaction testing story
 export const WithInteractions: Story = {
   args: {
-    children: 'Click me!',
-    'data-testid': 'interactive-button',
+    children: "Click me!",
+    "data-testid": "interactive-button",
   },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
-    const button = canvas.getByTestId('interactive-button');
+    const button = canvas.getByTestId("interactive-button");
 
     // Test initial state
     await expect(button).toBeInTheDocument();
-    await expect(button).toHaveTextContent('Click me!');
+    await expect(button).toHaveTextContent("Click me!");
     await expect(button).not.toBeDisabled();
 
     // Test click interaction
@@ -142,11 +151,11 @@ export const WithInteractions: Story = {
     await expect(button).toHaveFocus();
 
     // Test keyboard interaction (Space key)
-    await userEvent.keyboard(' ');
+    await userEvent.keyboard(" ");
     await expect(args.onClick).toHaveBeenCalledTimes(2);
 
     // Test keyboard interaction (Enter key)
-    await userEvent.keyboard('[Enter]');
+    await userEvent.keyboard("[Enter]");
     await expect(args.onClick).toHaveBeenCalledTimes(3);
   },
 };
@@ -154,18 +163,18 @@ export const WithInteractions: Story = {
 // Multiple clicks test
 export const MultipleClicks: Story = {
   args: {
-    children: 'Multiple clicks test',
-    'data-testid': 'multiple-clicks-button',
+    children: "Multiple clicks test",
+    "data-testid": "multiple-clicks-button",
   },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
-    const button = canvas.getByTestId('multiple-clicks-button');
+    const button = canvas.getByTestId("multiple-clicks-button");
 
     // Test multiple rapid clicks
     for (let i = 0; i < 5; i++) {
       await userEvent.click(button);
     }
-    
+
     await expect(args.onClick).toHaveBeenCalledTimes(5);
   },
 };
@@ -173,13 +182,13 @@ export const MultipleClicks: Story = {
 // Disabled interaction test
 export const DisabledInteraction: Story = {
   args: {
-    children: 'Disabled button',
+    children: "Disabled button",
     disabled: true,
-    'data-testid': 'disabled-button',
+    "data-testid": "disabled-button",
   },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
-    const button = canvas.getByTestId('disabled-button');
+    const button = canvas.getByTestId("disabled-button");
 
     // Test that disabled button doesn't respond to clicks
     await expect(button).toBeDisabled();

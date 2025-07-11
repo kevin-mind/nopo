@@ -1,5 +1,5 @@
-import type { Preview } from '@storybook/react';
-import '../src/lib/theme.css';
+import type { Preview } from "@storybook/react";
+import "./tailwind.css";
 
 const preview: Preview = {
   parameters: {
@@ -12,24 +12,24 @@ const preview: Preview = {
     viewport: {
       viewports: {
         small: {
-          name: 'Small',
+          name: "Small",
           styles: {
-            width: '375px',
-            height: '667px',
+            width: "375px",
+            height: "667px",
           },
         },
         medium: {
-          name: 'Medium',
+          name: "Medium",
           styles: {
-            width: '768px',
-            height: '1024px',
+            width: "768px",
+            height: "1024px",
           },
         },
         large: {
-          name: 'Large',
+          name: "Large",
           styles: {
-            width: '1200px',
-            height: '800px',
+            width: "1200px",
+            height: "800px",
           },
         },
       },
@@ -37,12 +37,12 @@ const preview: Preview = {
   },
   globalTypes: {
     theme: {
-      description: 'Global theme for components',
-      defaultValue: 'light',
+      description: "Global theme for components",
+      defaultValue: "light",
       toolbar: {
-        title: 'Theme',
-        icon: 'paintbrush',
-        items: ['light', 'dark'],
+        title: "Theme",
+        icon: "paintbrush",
+        items: ["light", "dark"],
         dynamicTitle: true,
       },
     },
