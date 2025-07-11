@@ -1,0 +1,10 @@
+# Storybook build outputs
+storybook-static/
+*-storybook.log
+
+# Test results
+test-results/
+__image_snapshots__/
+
+# Temporary files
+.tmp/
