@@ -9,19 +9,25 @@ import "../css/tailwind.css";
 /**
  * Initialize the application
  */
+
+let clicked = false;
+
 function initApp(): void {
   console.log("🚀 Django + Vite + TypeScript integration working!");
   console.log("Build timestamp:", new Date().toISOString());
 
   // Add some interactive functionality to demonstrate the integration
-  const body = document.body;
-  if (body) {
+  const viteButton = document.querySelector("#vite-button");
+  if (viteButton) {
     // Add a click listener to demonstrate TypeScript functionality
-    body.addEventListener("click", (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (target.tagName === "BUTTON") {
-        console.log("Button clicked:", target);
-        target.innerHTML = "Clicked!";
+    viteButton.addEventListener("click", (event: Event) => {
+      console.log("Button clicked:", event.target);
+      if (!clicked) {
+        viteButton.innerHTML = "Clicked!";
+        clicked = true;
+      } else {
+        viteButton.innerHTML = "Click me!";
+        clicked = false;
       }
     });
   }
