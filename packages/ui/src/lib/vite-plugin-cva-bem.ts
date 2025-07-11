@@ -128,10 +128,24 @@ function extractCVAVariants(code: string, filePath: string): CVAVariant[] {
 
 function parseConfigObject(configStr: string): Partial<CVAConfig> {
   try {
-    // Remove outer braces and normalize
-    const cleaned = configStr.trim().slice(1, -1);
+    // This is a simplified parser and may not handle all edge cases.
+    // A more robust solution would use an AST parser.
+    // For now, we use regex to extract the variants and defaultVariants objects.
+    const sanitizedConfigStr = configStr.replace(/\s/g, "");
 
-    // Extract variants section
+    // A bit of a hacky way to evaluate the object string.
+    // WARNING: Not safe for untrusted input, but acceptable in a build tool context.
+    const evaluatedConfig = (new Function(`return ${configStr}`))();
+
+    return {
+        variants: evaluatedConfig.variants || {},
+        defaultVariants: evaluatedConfig.defaultVariants || {},
+    };
+
+  } catch (error) {
+    console.warn("Failed to parse config object, falling back to regex:", error);
+    // Fallback to original regex method if function constructor fails
+    const cleaned = configStr.trim().slice(1, -1);
     const variantsMatch = cleaned.match(
       /variants:\s*{([\s\S]*?)},?\s*(?:defaultVariants|$)/,
     );
@@ -151,167 +165,160 @@ function parseConfigObject(configStr: string): Partial<CVAConfig> {
     }
 
     return { variants, defaultVariants };
-  } catch (error) {
-    console.warn("Failed to parse config object:", error);
-    return { variants: {}, defaultVariants: {} };
   }
 }
 
 function parseVariantsObject(variantsStr: string): VariantsMap {
   const variants: VariantsMap = {};
-
-  // Split by variant groups (looking for pattern: variantName: { ... })
   const variantMatches = variantsStr.match(
     /(\w+):\s*{([^{}]*(?:{[^{}]*}[^{}]*)*)}/g,
   );
 
   if (variantMatches) {
-    for (let i = 0; i < variantMatches.length; i++) {
-      const variantMatch = variantMatches[i];
-      if (!variantMatch) continue;
-      const matchResult = variantMatch.match(/(\w+):\s*{([\s\S]*)}/) || [];
-      const variantName = matchResult[1];
-      const variantContent = matchResult[2];
-      if (variantName && variantContent) {
-        variants[variantName] = parseVariantValues(variantContent);
+    for (const variantMatch of variantMatches) {
+      const matchResult = variantMatch.match(/(\w+):\s*{([\s\S]*)}/);
+      if (matchResult) {
+        const [, variantName, variantContent] = matchResult;
+        if (variantName && variantContent) {
+          variants[variantName] = parseVariantValues(variantContent);
+        }
       }
     }
   }
-
   return variants;
 }
 
 function parseVariantValues(contentStr: string): VariantValueMap {
   const values: VariantValueMap = {};
-
-  // Match patterns like: default: "classes here",
   const valueMatches = contentStr.match(/(\w+):\s*["'`]([^"'`]*)["'`]/g);
 
   if (valueMatches) {
-    for (let i = 0; i < valueMatches.length; i++) {
-      const valueMatch = valueMatches[i];
-      if (!valueMatch) continue;
-      const matchResult =
-        valueMatch.match(/(\w+):\s*["'`]([^"'`]*)["'`]/) || [];
-      const key = matchResult[1];
-      const classes = matchResult[2];
-      if (key && classes) {
-        values[key] = classes.trim();
+    for (const valueMatch of valueMatches) {
+      const matchResult = valueMatch.match(/(\w+):\s*["'`]([^"'`]*)["'`]/);
+      if (matchResult) {
+        const [, key, classes] = matchResult;
+        if (key && classes !== undefined) {
+          values[key] = classes.trim();
+        }
       }
     }
   }
-
   return values;
 }
 
 function parseDefaultVariants(defaultStr: string): DefaultVariantsMap {
   const defaults: DefaultVariantsMap = {};
-
   const matches = defaultStr.match(/(\w+):\s*["'`]([^"'`]*)["'`]/g);
 
   if (matches) {
-    for (let i = 0; i < matches.length; i++) {
-      const match = matches[i];
-      if (!match) continue;
-      const matchResult = match.match(/(\w+):\s*["'`]([^"'`]*)["'`]/) || [];
-      const key = matchResult[1];
-      const value = matchResult[2];
-      if (key && value) {
-        defaults[key] = value;
+    for (const match of matches) {
+      const matchResult = match.match(/(\w+):\s*["'`]([^"'`]*)["'`]/);
+      if (matchResult) {
+        const [, key, value] = matchResult;
+        if (key && value) {
+          defaults[key] = value;
+        }
       }
     }
   }
-
   return defaults;
 }
 
+/**
+ * Generates the full BEM-style CSS string from all extracted CVA variants.
+ * This version only creates the base class and fully compounded variant classes.
+ */
 function generateBEMCSS(
   variants: Record<string, CVAVariant>,
   componentPrefix: string,
 ): string {
   let css = `/* Generated BEM CSS from CVA variants */\n/* This file is auto-generated. Do not edit manually. */\n\n`;
 
-  const variantKeys = Object.keys(variants);
-  for (let i = 0; i < variantKeys.length; i++) {
-    const variantKey = variantKeys[i];
-    if (!variantKey) continue;
+  for (const variantKey in variants) {
     const variant = variants[variantKey];
     if (!variant) continue;
+
     const componentName = variant.name.replace(/Variants?$/, "").toLowerCase();
     const prefixedName = componentPrefix
       ? `${componentPrefix}-${componentName}`
       : componentName;
 
-    // Generate base component class
-    css += `/* ${variant.name} */\n`;
+    // 1. Generate the base component class
+    css += `/* Base for ${componentName} */\n`;
     css += `.${prefixedName} {\n`;
     css += `  @apply ${variant.baseClasses};\n`;
     css += `}\n\n`;
 
-    // Generate variant classes using BEM modifier syntax
+    // 2. Generate fully compounded variant classes
     const configKeys = Object.keys(variant.config);
-    for (let j = 0; j < configKeys.length; j++) {
-      const variantType = configKeys[j];
-      const variantValues = variant.config[variantType];
-      const valueKeys = Object.keys(variantValues);
-
-      for (let k = 0; k < valueKeys.length; k++) {
-        const variantValueKey = valueKeys[k];
-        const variantClasses = variantValues[variantValueKey];
-        const bemClass = `.${prefixedName}--${variantValueKey}`;
-        css += `${bemClass} {\n`;
-        css += `  @apply ${variantClasses};\n`;
-        css += `}\n\n`;
-      }
-    }
-
-    // Generate combined variant classes for two-variant components
-    if (configKeys.length === 2) {
-      css += `/* Combined variants for ${prefixedName} */\n`;
-      css += generateCombinedVariants(prefixedName, variant.config);
+    if (configKeys.length > 0) {
+      css += `/* Compound variants for ${prefixedName} */\n`;
+      css += generateCompoundVariants(prefixedName, variant.config);
     }
   }
 
   return css;
 }
 
-function generateCombinedVariants(
+/**
+ * Generates CSS for every possible combination of variants (Cartesian product).
+ * @param componentName The base BEM block name (e.g., "button").
+ * @param config The "variants" object from the CVA config.
+ * @returns A string of CSS rules.
+ */
+function generateCompoundVariants(
   componentName: string,
   config: VariantsMap,
 ): string {
   let css = "";
   const variantTypes = Object.keys(config);
 
-  // Generate all possible combinations for two variants
-  if (variantTypes.length === 2) {
-    const type1 = variantTypes[0];
-    const type2 = variantTypes[1];
-    if (!type1 || !type2) return "";
+  if (variantTypes.length === 0) {
+    return "";
+  }
 
-    const config1 = config[type1];
-    const config2 = config[type2];
+  // Helper to compute the Cartesian product of multiple arrays.
+  const cartesian = <T>(arrays: T[][]): T[][] => {
+    if (!arrays || arrays.length === 0) {
+      return [[]];
+    }
+    return arrays.reduce<T[][]>(
+      (acc, curr) => acc.flatMap(a => curr.map(c => [...a, c])),
+      [[]], // Initial value is an array with a single empty array.
+    );
+  };
 
-    if (!config1 || !config2) return "";
+  // Create an array of arrays, where each inner array holds the keys for one variant type.
+  // e.g., [['default', 'destructive', ...], ['default', 'sm', ...]]
+  const valueSets = variantTypes.map(type => {
+    const variantConfig = config[type];
+    return variantConfig ? Object.keys(variantConfig) : [];
+  });
 
-    const values1 = Object.keys(config1);
-    const values2 = Object.keys(config2);
+  // Get all combinations, e.g., [['default', 'sm'], ['destructive', 'sm'], ...]
+  const combinations = cartesian(valueSets);
 
-    for (let i = 0; i < values1.length; i++) {
-      const value1 = values1[i];
-      if (!value1) continue;
-      for (let j = 0; j < values2.length; j++) {
-        const value2 = values2[j];
-        if (!value2) continue;
-        const selector = `.${componentName}--${value1}--${value2}`;
-        const classes1 = config1[value1];
-        const classes2 = config2[value2];
+  for (const combination of combinations) {
+    if (combination.length === 0) continue;
 
-        if (classes1 && classes2) {
-          css += `${selector} {\n`;
-          css += `  @apply ${classes1} ${classes2};\n`;
-          css += `}\n\n`;
-        }
-      }
+    // Create the BEM selector, e.g., .button--default--sm
+    const selector = `.${componentName}--${combination.join("--")}`;
+
+    // Collect all Tailwind classes for the current combination.
+    const classesToApply = combination
+      .map((valueKey, index) => {
+        const typeKey = variantTypes[index];
+        if (!typeKey) return "";
+        const variantConfig = config[typeKey];
+        return variantConfig ? variantConfig[valueKey] : "";
+      })
+      .filter(Boolean)
+      .join(" ");
+
+    if (classesToApply) {
+      css += `${selector} {\n`;
+      css += `  @apply ${classesToApply};\n`;
+      css += `}\n\n`;
     }
   }
 
