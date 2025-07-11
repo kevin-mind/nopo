@@ -3,10 +3,11 @@
   "include": [
     "**/*",
   ],
-  "exclude": ["vite.config.ts.*", "node_modules"],
+  "exclude": ["vite.config.ts.*", "node_modules", "build"],
   "compilerOptions": {
     "allowImportingTsExtensions": true,
     "noEmit": true,
+    "skipLibCheck": true,
     "types": ["node", "vite/client"],
     "moduleResolution": "bundler",
     "baseUrl": ".",

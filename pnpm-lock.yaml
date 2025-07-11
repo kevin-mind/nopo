@@ -220,25 +220,6 @@ importers:
         specifier: ^9.15.0
         version: 9.25.0(jiti@2.4.2)
 
-  packages/scripts:
-    dependencies:
-      docker-compose:
-        specifier: ^1.2.0
-        version: 1.2.0
-      zod:
-        specifier: ^3.24.2
-        version: 3.24.3
-      zx:
-        specifier: ^8.5.2
-        version: 8.5.3
-    devDependencies:
-      tsx:
-        specifier: ^4.19.3
-        version: 4.19.3
-      vitest:
-        specifier: ^3.1.1
-        version: 3.1.1(@types/node@22.16.0)(jiti@2.4.2)(lightningcss@1.30.1)(tsx@4.19.3)(yaml@2.7.1)
-
   packages/ui:
     dependencies:
       '@radix-ui/react-slot':
@@ -2574,10 +2555,6 @@ packages:
   dir-glob@3.0.1:
     resolution: {integrity: sha512-WkrWp9GR4KXfKGYzOLmTuGVi1UWFfws377n9cc55/tb6DuqyF6pcQ5AbiHEshaDpY9v6oaSr2XCDidGmMwdzIA==}
     engines: {node: '>=8'}
-
-  docker-compose@1.2.0:
-    resolution: {integrity: sha512-wIU1eHk3Op7dFgELRdmOYlPYS4gP8HhH1ZmZa13QZF59y0fblzFDFmKPhyc05phCy2hze9OEvNZAsoljrs+72w==}
-    engines: {node: '>= 6.0.0'}
 
   dom-helpers@3.4.0:
     resolution: {integrity: sha512-LnuPJ+dwqKDIyotW1VzmOZ5TONUN7CwkCR5hrgawTUbkBGYdeoNLZo6nNfGkCrjtE1nXXaj7iMMpDa8/d9WoIA==}
@@ -7284,10 +7261,6 @@ snapshots:
     dependencies:
       path-type: 4.0.0
 
-  docker-compose@1.2.0:
-    dependencies:
-      yaml: 2.7.1
-
   dom-helpers@3.4.0:
     dependencies:
       '@babel/runtime': 7.27.0
@@ -9661,7 +9634,8 @@ snapshots:
 
   yaml@1.10.2: {}
 
-  yaml@2.7.1: {}
+  yaml@2.7.1:
+    optional: true
 
   yocto-queue@0.1.0: {}
 

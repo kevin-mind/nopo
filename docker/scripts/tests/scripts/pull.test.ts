@@ -56,6 +56,6 @@ describe("pull", () => {
 
   it("has correct dependencies", () => {
     expect(PullScript.dependencies).toHaveLength(1);
-    expect(PullScript.dependencies[0].enabled).toBe(true);
+    expect(PullScript.dependencies[0]?.enabled).toBe(true);
   });
 });

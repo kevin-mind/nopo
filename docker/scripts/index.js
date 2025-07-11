@@ -36,7 +36,7 @@ export default async function main() {
   const runner = new Runner(config, environment, argv.slice(2), logger);
 
   if (args.help) {
-    return printHelp("Usage: @more/scripts <command> [options]", 0);
+    return printHelp("Usage: nopo <command> [options]", 0);
   }
 
   let command = args._[0];
