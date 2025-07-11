@@ -10,8 +10,8 @@ export default defineConfig({
     react(),
     tailwindcss(),
     cvaBEMPlugin({
-      componentPrefix: '',
-      outputPath: 'build/bem-components.css',
+      componentPrefix: "",
+      outputPath: "build/bem-components.css",
     }),
     viteStaticCopy({
       targets: [

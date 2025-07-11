@@ -16,7 +16,11 @@ def environment(**options):
     This function provides Django-specific functionality to Jinja2 templates
     including access to static files and URL reversing.
     """
-    env = Environment(**options)
+    env = Environment(
+        loader=options["loader"],
+        autoescape=options["autoescape"],
+        auto_reload=True,
+    )
     env.globals.update(
         {
             "static": staticfiles_storage.url,
