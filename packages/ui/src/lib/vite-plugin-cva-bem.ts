@@ -107,7 +107,7 @@ function extractCVAVariants(code: string, filePath: string): CVAVariant[] {
       // Clean up the base classes string (remove quotes and normalize)
       const baseClasses = baseClassesRaw.trim().replace(/^["'`]|["'`]$/g, "");
 
-      // Parse the config object (this is a simplified parser)
+      // Parse the config object
       const config = parseConfigObject(configRaw);
 
       if (config.variants) {
@@ -128,23 +128,20 @@ function extractCVAVariants(code: string, filePath: string): CVAVariant[] {
 
 function parseConfigObject(configStr: string): Partial<CVAConfig> {
   try {
-    // This is a simplified parser and may not handle all edge cases.
-    // A more robust solution would use an AST parser.
-    // For now, we use regex to extract the variants and defaultVariants objects.
-    const sanitizedConfigStr = configStr.replace(/\s/g, "");
-
     // A bit of a hacky way to evaluate the object string.
     // WARNING: Not safe for untrusted input, but acceptable in a build tool context.
-    const evaluatedConfig = (new Function(`return ${configStr}`))();
+    const evaluatedConfig = new Function(`return ${configStr}`)();
 
     return {
-        variants: evaluatedConfig.variants || {},
-        defaultVariants: evaluatedConfig.defaultVariants || {},
+      variants: evaluatedConfig.variants || {},
+      defaultVariants: evaluatedConfig.defaultVariants || {},
     };
-
   } catch (error) {
-    console.warn("Failed to parse config object, falling back to regex:", error);
-    // Fallback to original regex method if function constructor fails
+    console.warn(
+      "Failed to parse config object, falling back to regex:",
+      error,
+    );
+    // Fallback to regex method if function constructor fails
     const cleaned = configStr.trim().slice(1, -1);
     const variantsMatch = cleaned.match(
       /variants:\s*{([\s\S]*?)},?\s*(?:defaultVariants|$)/,
@@ -226,7 +223,7 @@ function parseDefaultVariants(defaultStr: string): DefaultVariantsMap {
 
 /**
  * Generates the full BEM-style CSS string from all extracted CVA variants.
- * This version only creates the base class and fully compounded variant classes.
+ * This version creates a self-contained class for every possible variant combination.
  */
 function generateBEMCSS(
   variants: Record<string, CVAVariant>,
@@ -243,83 +240,89 @@ function generateBEMCSS(
       ? `${componentPrefix}-${componentName}`
       : componentName;
 
-    // 1. Generate the base component class
-    css += `/* Base for ${componentName} */\n`;
-    css += `.${prefixedName} {\n`;
-    css += `  @apply ${variant.baseClasses};\n`;
-    css += `}\n\n`;
-
-    // 2. Generate fully compounded variant classes
-    const configKeys = Object.keys(variant.config);
-    if (configKeys.length > 0) {
-      css += `/* Compound variants for ${prefixedName} */\n`;
-      css += generateCompoundVariants(prefixedName, variant.config);
-    }
+    css += `/* === ${variant.name} === */\n\n`;
+    css += generateAllVariantClasses(
+      prefixedName,
+      variant.baseClasses,
+      variant.config,
+      variant.defaultVariants || {},
+    );
   }
 
   return css;
 }
 
 /**
- * Generates CSS for every possible combination of variants (Cartesian product).
+ * Generates self-contained CSS classes for every possible combination of variants.
+ * The class name is determined by its difference from the default variants.
  * @param componentName The base BEM block name (e.g., "button").
+ * @param baseClasses The base tailwind classes to apply to all variants.
  * @param config The "variants" object from the CVA config.
+ * @param defaultVariants The "defaultVariants" object from the CVA config.
  * @returns A string of CSS rules.
  */
-function generateCompoundVariants(
+function generateAllVariantClasses(
   componentName: string,
+  baseClasses: string,
   config: VariantsMap,
+  defaultVariants: DefaultVariantsMap,
 ): string {
   let css = "";
   const variantTypes = Object.keys(config);
 
   if (variantTypes.length === 0) {
-    return "";
+    // If no variants, just generate the base class
+    css += `.${componentName} {\n`;
+    css += `  @apply ${baseClasses};\n`;
+    css += `}\n\n`;
+    return css;
   }
 
   // Helper to compute the Cartesian product of multiple arrays.
   const cartesian = <T>(arrays: T[][]): T[][] => {
-    if (!arrays || arrays.length === 0) {
-      return [[]];
-    }
+    if (!arrays || arrays.length === 0) return [[]];
     return arrays.reduce<T[][]>(
-      (acc, curr) => acc.flatMap(a => curr.map(c => [...a, c])),
-      [[]], // Initial value is an array with a single empty array.
+      (acc, curr) => acc.flatMap((a) => curr.map((c) => [...a, c])),
+      [[]],
     );
   };
 
-  // Create an array of arrays, where each inner array holds the keys for one variant type.
-  // e.g., [['default', 'destructive', ...], ['default', 'sm', ...]]
-  const valueSets = variantTypes.map(type => {
-    const variantConfig = config[type];
-    return variantConfig ? Object.keys(variantConfig) : [];
-  });
-
-  // Get all combinations, e.g., [['default', 'sm'], ['destructive', 'sm'], ...]
+  const valueSets = variantTypes.map((type) => Object.keys(config[type] || {}));
   const combinations = cartesian(valueSets);
 
   for (const combination of combinations) {
     if (combination.length === 0) continue;
 
-    // Create the BEM selector, e.g., .button--default--sm
-    const selector = `.${componentName}--${combination.join("--")}`;
+    const modifierParts: string[] = [];
+    const classesToApply: string[] = [baseClasses];
 
-    // Collect all Tailwind classes for the current combination.
-    const classesToApply = combination
-      .map((valueKey, index) => {
-        const typeKey = variantTypes[index];
-        if (!typeKey) return "";
-        const variantConfig = config[typeKey];
-        return variantConfig ? variantConfig[valueKey] : "";
-      })
-      .filter(Boolean)
-      .join(" ");
+    combination.forEach((valueKey, index) => {
+      const typeKey = variantTypes[index];
+      if (!typeKey) return;
 
-    if (classesToApply) {
-      css += `${selector} {\n`;
-      css += `  @apply ${classesToApply};\n`;
-      css += `}\n\n`;
-    }
+      // Add the variant's classes to our apply list
+      const variantClasses = config[typeKey]?.[valueKey];
+      if (variantClasses) {
+        classesToApply.push(variantClasses);
+      }
+
+      // Check if this part of the combination is a default value
+      const defaultValue = defaultVariants[typeKey];
+      if (valueKey !== defaultValue) {
+        modifierParts.push(valueKey);
+      }
+    });
+
+    // Determine the final selector name
+    const selector =
+      modifierParts.length > 0
+        ? `.${componentName}--${modifierParts.join("--")}`
+        : `.${componentName}`;
+
+    // Generate the CSS rule
+    css += `${selector} {\n`;
+    css += `  @apply ${classesToApply.join(" ")};\n`;
+    css += `}\n\n`;
   }
 
   return css;
