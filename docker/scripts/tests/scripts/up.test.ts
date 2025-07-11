@@ -1,11 +1,11 @@
 import { describe, it, vi, expect } from "vitest";
 import compose from "docker-compose";
-import UpScript from "../../src/scripts/up";
-import BuildScript from "../../src/scripts/build";
-import PullScript from "../../src/scripts/pull";
-import { createConfig } from "../../src/lib";
-import { createTmpEnv, runScript } from "../utils";
-import { Environment } from "../../src/parse-env";
+import UpScript from "../../src/scripts/up.ts";
+import BuildScript from "../../src/scripts/build.ts";
+import PullScript from "../../src/scripts/pull.ts";
+import { createConfig, Runner } from "../../src/lib.ts";
+import { createTmpEnv, runScript } from "../utils.ts";
+import { Environment } from "../../src/parse-env.ts";
 
 vi.mock("../../src/scripts/build");
 vi.mock("../../src/scripts/pull");
@@ -128,9 +128,11 @@ describe("up", () => {
 
       // Mock runner with DOCKER_BUILD set
       const forceBuilderRunner = {
-        config: { processEnv: { DOCKER_BUILD: "true" } },
+        config: {
+          processEnv: { DOCKER_BUILD: "true" },
+        },
         environment: { env: { DOCKER_VERSION: "1.0.0" } },
-      };
+      } as unknown as Runner;
 
       if (buildDep && typeof buildDep.enabled === "function") {
         expect(buildDep.enabled(forceBuilderRunner)).toBe(true);

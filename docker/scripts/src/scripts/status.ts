@@ -1,12 +1,24 @@
 import compose from "docker-compose";
-
 import { Script } from "../lib.js";
+import EnvScript from "./env.ts";
+
+interface ServiceInfo {
+  name: string;
+  state: string;
+  ports: unknown;
+}
 
 export default class StatusScript extends Script {
-  name = "status";
-  description = "Check the status of the services";
+  static override dependencies = [
+    {
+      class: EnvScript,
+      enabled: true,
+    },
+  ];
+  static override name = "status";
+  static override description = "Check the status of the services";
 
-  async fn() {
+  override async fn(): Promise<void> {
     const { data } = await compose.ps({
       cwd: this.runner.config.root,
     });
@@ -22,7 +34,10 @@ export default class StatusScript extends Script {
           node,
           pnpm,
           compose: data.services.reduce(
-            (acc, { name, state, ports }) => ({
+            (
+              acc: Record<string, unknown>,
+              { name, state, ports }: ServiceInfo,
+            ) => ({
               ...acc,
               [name]: {
                 name,

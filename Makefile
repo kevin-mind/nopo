@@ -9,6 +9,13 @@ SECOND_WORD = $(word 2,$(MAKECMDGOALS))
 
 export SERVICE_NAME ?= $(SECOND_WORD)
 
+.PHONY: nopo
+nopo:
+	cd ./docker/scripts && \
+	yes | pnpm install --ignore-workspace && \
+	pnpm build && \
+	pnpm link --global
+
 .PHONY: shell
 shell:
 	if [ "$(FIRST_WORD)" = "$@" ]; then \
@@ -21,6 +28,4 @@ down:
 
 .PHONY: *
 %:
-	@if [ "$(FIRST_WORD)" = "$@" ]; then \
-		yes | npx --package=./docker/scripts nopo $(MAKECMDGOALS); \
-	fi
+	@if [ "$(FIRST_WORD)" = "$@" ]; then pnpm nopo $(MAKECMDGOALS); fi

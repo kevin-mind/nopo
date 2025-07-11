@@ -3,19 +3,19 @@ import { fs, dotenv } from "zx";
 import net from "node:net";
 
 import { DockerTag } from "./docker-tag.js";
-import { GitInfo } from "./git-info.js";
+import { GitInfo, type GitInfoType } from "./git-info.js";
+import type { Config } from "./lib.js";
 
 const nodeEnv = z.enum(["development", "production", "test"]);
 const dockerTarget = nodeEnv.or(z.enum(["base", "build"]));
 
-const EnvironmentDiffTuple = z.tuple([z.string(), z.string().optional()]);
-
-const EnvironmentDiff = z.object({
-  added: z.array(EnvironmentDiffTuple),
-  updated: z.array(EnvironmentDiffTuple),
-  removed: z.array(EnvironmentDiffTuple),
-  unchanged: z.array(EnvironmentDiffTuple),
-});
+export type EnvironmentDiffType = {
+  added: EnvironmentDiffTupleType[];
+  updated: EnvironmentDiffTupleType[];
+  removed: EnvironmentDiffTupleType[];
+  unchanged: EnvironmentDiffTupleType[];
+};
+export type EnvironmentDiffTupleType = [string, string | undefined];
 
 export class Environment {
   static baseTag = new DockerTag("kevin-mind/nopo:local");
@@ -29,13 +29,20 @@ export class Environment {
     GIT_REPO: z.string(),
     GIT_BRANCH: z.string(),
     GIT_COMMIT: z.string(),
-    DOCKER_DIGEST: z.string().optional(),
+    DOCKER_DIGEST: z.string().optional().default(""),
     DOCKER_TARGET: dockerTarget,
     NODE_ENV: nodeEnv,
     HOST_UID: z.string(),
   });
 
-  constructor({ envFile, processEnv } = {}) {
+  envFile: string;
+  processEnv: Record<string, string>;
+  hasPrevEnv: boolean;
+  prevEnv: Record<string, string>;
+  env: z.infer<typeof Environment.schema>;
+  diff: EnvironmentDiffType;
+
+  constructor({ envFile, processEnv }: Config) {
     if (!envFile) {
       throw new Error("Missing envFile");
     }
@@ -48,11 +55,13 @@ export class Environment {
     this.diff = this.#diff();
   }
 
-  #getPrevEnv() {
-    return this.hasPrevEnv ? dotenv.load(this.envFile) : {};
+  #getPrevEnv(): Record<string, string> {
+    return this.hasPrevEnv
+      ? (dotenv.load(this.envFile) as Record<string, string>)
+      : {};
   }
 
-  #resolveDockerTag() {
+  #resolveDockerTag(): DockerTag {
     if (this.processEnv.DOCKER_TAG) {
       return new DockerTag(this.processEnv.DOCKER_TAG);
     } else if (this.processEnv.DOCKER_IMAGE && this.processEnv.DOCKER_VERSION) {
@@ -60,7 +69,7 @@ export class Environment {
         registry: this.processEnv.DOCKER_REGISTRY || "",
         image: this.processEnv.DOCKER_IMAGE,
         version: this.processEnv.DOCKER_VERSION,
-        digest: this.processEnv.DOCKER_DIGEST,
+        digest: this.processEnv.DOCKER_DIGEST || "",
       });
     } else if (this.prevEnv.DOCKER_TAG) {
       return new DockerTag(this.prevEnv.DOCKER_TAG);
@@ -69,14 +78,18 @@ export class Environment {
         registry: this.prevEnv.DOCKER_REGISTRY || "",
         image: this.prevEnv.DOCKER_IMAGE,
         version: this.prevEnv.DOCKER_VERSION,
-        digest: this.prevEnv.DOCKER_DIGEST,
+        digest: this.prevEnv.DOCKER_DIGEST || "",
       });
     } else {
       return Environment.baseTag;
     }
   }
 
-  #resolveGitInfo(repo = "unknown", branch = "unknown", commit = "unknown") {
+  #resolveGitInfo(
+    repo = "unknown",
+    branch = "unknown",
+    commit = "unknown",
+  ): GitInfoType {
     if (GitInfo.exists()) {
       return GitInfo.parse();
     } else {
@@ -88,23 +101,24 @@ export class Environment {
     }
   }
 
-  #resolveDockerPort() {
+  #resolveDockerPort(): string {
     if (this.processEnv.DOCKER_PORT) {
       return String(this.processEnv.DOCKER_PORT);
     }
 
     const server = net.createServer();
     server.listen(0);
-    const freePort = server.address().port;
-    server.close();
-
-    if (freePort) {
+    const address = server.address();
+    if (address && typeof address === "object" && "port" in address) {
+      const freePort = address.port;
+      server.close();
       return String(freePort);
     }
+    server.close();
     return "80";
   }
 
-  #getCurrEnv() {
+  #getCurrEnv(): z.infer<typeof Environment.schema> {
     const inputEnv = { ...this.prevEnv, ...this.processEnv };
     const { parsed, fullTag } = this.#resolveDockerTag();
     let registry = parsed.registry;
@@ -156,40 +170,45 @@ export class Environment {
 
     return Environment.schema.parse({
       DOCKER_PORT: this.#resolveDockerPort(),
-      DOCKER_TAG: new DockerTag({ registry, image, version, digest }).fullTag,
+      DOCKER_TAG: new DockerTag({
+        registry,
+        image,
+        version,
+        digest: digest || "",
+      }).fullTag,
       DOCKER_TARGET: inputEnv.DOCKER_TARGET,
       DOCKER_REGISTRY: registry,
       DOCKER_IMAGE: image,
       DOCKER_VERSION: version,
-      DOCKER_DIGEST: digest,
+      DOCKER_DIGEST: digest || "",
       GIT_REPO: gitInfo.repo,
       GIT_BRANCH: gitInfo.branch,
       GIT_COMMIT: gitInfo.commit,
       NODE_ENV: inputEnv.NODE_ENV,
-      HOST_UID: process.getuid?.()?.toString(),
+      HOST_UID: process.getuid?.()?.toString() ?? "1000",
     });
   }
 
-  #diff() {
-    const result = EnvironmentDiff.parse({
+  #diff(): EnvironmentDiffType {
+    const result: EnvironmentDiffType = {
       added: [],
       updated: [],
       removed: [],
       unchanged: [],
-    });
+    };
 
     const keys = Object.keys(Environment.schema.shape);
 
     for (const key of keys) {
       const prevValue = this.prevEnv[key];
-      const currValue = this.env[key];
+      const currValue = this.env[key as keyof typeof this.env];
 
       if (!prevValue && currValue) {
-        result.added.push([key, currValue]);
+        result.added.push([key, String(currValue)]);
       } else if (prevValue && !currValue) {
         result.removed.push([key, prevValue]);
       } else if (currValue && prevValue !== currValue) {
-        result.updated.push([key, currValue]);
+        result.updated.push([key, String(currValue)]);
       } else if (currValue) {
         result.unchanged.push([key, prevValue]);
       }
@@ -197,7 +216,7 @@ export class Environment {
     return result;
   }
 
-  save() {
+  save(): void {
     const sortedEnv = Object.entries(this.env)
       .filter(([, value]) => !!value)
       .sort((a, b) => a[0].localeCompare(b[0]));

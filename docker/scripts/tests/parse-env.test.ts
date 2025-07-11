@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 
-import { Environment } from "../src/parse-env";
-import { dockerTag, createTmpEnv } from "./utils";
-import { createConfig } from "../src/lib";
+import { Environment } from "../src/parse-env.ts";
+import { dockerTag, createTmpEnv } from "./utils.ts";
+import { createConfig } from "../src/lib.ts";
 
 vi.mock("../src/git-info", () => ({
   GitInfo: {
