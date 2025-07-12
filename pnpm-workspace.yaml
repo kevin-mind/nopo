@@ -2,7 +2,8 @@ packages:
   - packages/*
   - apps/*
 
-injectWorkspacePackages: true
+linkWorkspacePackages: true
+preferWorkspacePackages: true
 
 engineStrict: true
 packageManagerStrict: true
