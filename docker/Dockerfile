@@ -22,6 +22,9 @@ ENV COREPACK_HOME="$DEPS/corepack"
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_CACHE_DIR="$DEPS/uv-cache"
+# Configure UV to use .venv in the project root
+ENV UV_PROJECT_ENVIRONMENT="$APP/.venv"
+ENV UV_PYTHON_PREFERENCE=only-managed
 ENV PYTHONUNBUFFERED=1
 ENV PATH="$PNPM_HOME:$COREPACK_HOME:$PATH"
 
@@ -103,9 +106,14 @@ COPY --from=source --chown=$USER \
   $APP/uv.lock \
   $APP/
 
+# Install or sync Python dependencies in development mode
+# The .venv will be created in $APP/.venv and will be mounted from host in development
 RUN <<EOF
 set -e
-uv sync --frozen --no-install-workspace
+# Create empty .venv directory structure so UV can work
+mkdir -p $APP/.venv
+# In build context, we install base dependencies but allow mounting to override
+uv sync --frozen --no-install-workspace || true
 pnpm fetch
 EOF
 
@@ -130,6 +138,28 @@ COPY --from=info ${BUILD_INFO} ${BUILD_INFO}
 COPY --from=install --chown=$USER $DEPS $DEPS
 COPY --from=source --chown=$USER $APP/docker/cmd.sh /cmd.sh
 
+# Create a wrapper script for UV commands that ensures venv is in sync
+RUN <<EOF
+cat > /usr/local/bin/uv-run << 'INNEREOF'
+#!/bin/bash
+set -e
+
+# Source UV environment
+source $HOME/.local/bin/env 2>/dev/null || true
+
+# Ensure .venv exists and is in sync
+if [ ! -d "$APP/.venv" ] || [ ! -f "$APP/.venv/pyvenv.cfg" ]; then
+    echo "Creating or repairing virtual environment..."
+    cd $APP
+    uv sync --frozen 2>/dev/null || true
+fi
+
+# Run the command with uv
+exec uv "$@"
+INNEREOF
+chmod +x /usr/local/bin/uv-run
+EOF
+
 CMD ["/cmd.sh"]
 
 USER $USER
@@ -148,6 +178,9 @@ ENV SERVICE_COMMAND="start"
 
 COPY --from=build --chown=$USER $APP $APP
 
+# In production, we want a complete .venv
 RUN <<EOF
+cd $APP
+uv sync --frozen --no-dev
 pnpm "/^install:prod.*/"
 EOF

@@ -9,6 +9,26 @@ SECOND_WORD = $(word 2,$(MAKECMDGOALS))
 
 export SERVICE_NAME ?= $(SECOND_WORD)
 
+.PHONY: uv-check
+uv-check:
+	@./uv-run.sh
+
+.PHONY: uv-sync
+uv-sync:
+	@./uv-run.sh sync --frozen
+
+.PHONY: uv-run
+uv-run:
+	@./uv-run.sh run $(ARGS)
+
+.PHONY: uv-shell
+uv-shell:
+	@./uv-run.sh run bash
+
+.PHONY: py
+py:
+	@./uv-run.sh run python $(ARGS)
+
 .PHONY: shell
 shell:
 	if [ "$(FIRST_WORD)" = "$@" ]; then \

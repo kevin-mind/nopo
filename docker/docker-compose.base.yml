@@ -4,6 +4,7 @@ services:
     pull_policy: never
     volumes:
       - ..:/app:cached
+      - ../.venv:/app/.venv:cached
     environment:
       - CHOKIDAR_USEPOLLING=true
       - CI
