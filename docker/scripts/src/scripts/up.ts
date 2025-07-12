@@ -1,25 +1,25 @@
 import compose from "docker-compose";
 import { chalk } from "zx";
 
-import { Script } from "../lib.js";
+import { Script, type ScriptDependency, type Runner } from "../lib.js";
 import EnvScript from "./env.js";
 import BuildScript from "./build.js";
 import PullScript from "./pull.js";
 
-export function isBuild({ config, environment }) {
+export function isBuild({ config, environment }: Runner): boolean {
   const forceBuild = !!config.processEnv.DOCKER_BUILD;
   const localVersion = environment.env.DOCKER_VERSION === "local";
   return forceBuild || localVersion;
 }
 
-export function isPull(runner) {
+export function isPull(runner: Runner): boolean {
   return !isBuild(runner);
 }
 
 export default class UpScript extends Script {
-  static name = "up";
-  static description = "Start the services";
-  static dependencies = [
+  static override name = "up";
+  static override description = "Start the services";
+  static override dependencies: ScriptDependency[] = [
     {
       class: EnvScript,
       enabled: true,
@@ -34,12 +34,12 @@ export default class UpScript extends Script {
     },
   ];
 
-  async fn() {
+  override async fn(): Promise<void> {
     const { data } = await compose.config({
       cwd: this.runner.config.root,
       env: this.env,
     });
-    const downServices = [];
+    const downServices: string[] = [];
 
     for (const [name, service] of Object.entries(data.config.services)) {
       if (typeof service === "string") continue;
@@ -48,12 +48,20 @@ export default class UpScript extends Script {
     }
 
     const createLogger =
-      (name, color = "black") =>
-      (chunk, streamSource) => {
+      (name: string, color: string = "black") =>
+      (chunk: Buffer, streamSource?: "stdout" | "stderr"): void => {
         const messages = chunk.toString().trim().split("\n");
         const log = streamSource === "stdout" ? console.log : console.error;
         for (const message of messages) {
-          log(chalk[color](`[${name}] ${message}`));
+          const colorFn =
+            color === "green"
+              ? chalk.green
+              : color === "yellow"
+                ? chalk.yellow
+                : color === "blue"
+                  ? chalk.blue
+                  : chalk.white;
+          log(colorFn(`[${name}] ${message}`));
         }
       };
 

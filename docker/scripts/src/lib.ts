@@ -2,24 +2,34 @@ import { path, chalk, $, ProcessOutput } from "zx";
 import { z } from "zod";
 import { fileURLToPath } from "node:url";
 
-const Config = z.object({
+const ConfigSchema = z.object({
   root: z.string(),
   envFile: z.string(),
   processEnv: z.record(z.string(), z.string()),
   silent: z.boolean(),
 });
 
+export type Config = z.infer<typeof ConfigSchema>;
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const root = path.resolve(__dirname, "..", "..", "..");
 
-export function createConfig(options = {}) {
+interface CreateConfigOptions {
+  envFile?: string | undefined;
+  processEnv?: Record<string, string>;
+  silent?: boolean;
+}
+
+export function createConfig(options: CreateConfigOptions = {}): Config {
   const {
     envFile = ".env",
-    processEnv = { ...process.env },
+    processEnv = Object.fromEntries(
+      Object.entries(process.env).filter(([, value]) => value !== undefined),
+    ) as Record<string, string>,
     silent = false,
   } = options;
-  return Config.parse({
+  return ConfigSchema.parse({
     root,
     envFile: path.resolve(root, envFile),
     processEnv,
@@ -31,35 +41,44 @@ export function createConfig(options = {}) {
  * Logger for script output.
  */
 export class Logger {
-  constructor(config) {
+  config: Config;
+
+  constructor(config: Config) {
     chalk.level = 2;
     this.config = config;
   }
 
-  get chalk() {
+  get chalk(): typeof chalk {
     return chalk;
   }
 
-  log(...args) {
+  log(...args: unknown[]): void {
     if (this.config.silent) return;
     console.log(...args);
   }
 }
 
+export interface ScriptDependency {
+  class: typeof Script;
+  enabled: boolean | ((runner: Runner) => boolean | Promise<boolean>);
+}
+
 export class Script {
   static name = "";
   static description = "";
-  static dependencies = [];
+  static dependencies: ScriptDependency[] = [];
 
-  constructor(runner) {
+  runner: Runner;
+
+  constructor(runner: Runner) {
     this.runner = runner;
   }
 
-  async fn() {
+  async fn(): Promise<void> {
     throw new Error("Not implemented");
   }
 
-  get env() {
+  get env(): Record<string, string | undefined> {
     return {
       ...this.runner.environment.processEnv,
       ...this.runner.environment.env,
@@ -77,27 +96,40 @@ export class Script {
     return shell;
   }
 
-  log(...message) {
+  log(...message: unknown[]): void {
     this.runner.logger.log(this.runner.logger.chalk.yellow(...message));
   }
 }
 
 export class Runner {
-  constructor(config, environment, argv = [], logger = new Logger(config)) {
+  config: Config;
+  environment: import("./parse-env.js").Environment;
+  logger: Logger;
+  argv: string[];
+
+  constructor(
+    config: Config,
+    environment: import("./parse-env.js").Environment,
+    argv: string[] = [],
+    logger: Logger = new Logger(config),
+  ) {
     this.config = config;
     this.environment = environment;
     this.logger = logger;
     this.argv = argv;
   }
 
-  async isDependencyEnabled(dependency) {
+  async isDependencyEnabled(dependency: ScriptDependency): Promise<boolean> {
     return typeof dependency.enabled === "function"
       ? await dependency.enabled(this)
       : dependency.enabled;
   }
 
-  async resolveDependencies(Script, dependenciesMap = new Map()) {
-    for await (const dependency of Script.dependencies) {
+  async resolveDependencies(
+    ScriptClass: typeof Script,
+    dependenciesMap: Map<typeof Script, boolean[]> = new Map(),
+  ): Promise<Map<typeof Script, boolean[]>> {
+    for await (const dependency of ScriptClass.dependencies) {
       const enabled = await this.isDependencyEnabled(dependency);
 
       const enabledArr = dependenciesMap.get(dependency.class) || [];
@@ -111,10 +143,10 @@ export class Runner {
     return dependenciesMap;
   }
 
-  async run(ScriptClass) {
+  async run(ScriptClass: typeof Script): Promise<void> {
     const scripts = await this.resolveDependencies(ScriptClass);
     scripts.set(ScriptClass, [true]);
-    const line = (length) =>
+    const line = (length: number) =>
       `${Array(Math.round(length * 1.618))
         .fill("=")
         .join("")}`;

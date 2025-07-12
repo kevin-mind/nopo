@@ -1,22 +1,22 @@
-import { $ } from "zx";
-import { Script } from "../lib.js";
+import { $, ProcessPromise } from "zx";
+import { Script, type ScriptDependency } from "../lib.js";
 import EnvScript from "./env.js";
 
 export default class BuildScript extends Script {
-  static name = "build";
-  static description = "Build the base image";
-  static dependencies = [
+  static override name = "build";
+  static override description = "Build the base image";
+  static override dependencies: ScriptDependency[] = [
     {
       class: EnvScript,
       enabled: true,
     },
   ];
 
-  async bake(...args) {
+  async bake(...args: string[]): Promise<ProcessPromise> {
     return this.exec`docker buildx bake ${args}`;
   }
 
-  async builder() {
+  async builder(): Promise<string> {
     const builder = "nopo-builder";
     const customBuilder = this.runner.config.processEnv.DOCKER_BUILDER;
 
@@ -32,7 +32,7 @@ export default class BuildScript extends Script {
     return builder;
   }
 
-  async fn() {
+  override async fn(): Promise<void> {
     const commandOptions = [
       "-f",
       "docker/docker-bake.hcl",

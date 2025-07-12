@@ -11,5 +11,12 @@ runs:
         node-version-file: 'package.json'
         cache: 'pnpm'
 
-    - shell: bash
+
+    - name: Install nopo
+      shell: bash
+      run: make nopo
+
+    - name: Install dependencies
+      shell: bash
       run: pnpm install
+

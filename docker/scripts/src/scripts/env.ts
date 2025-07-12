@@ -1,10 +1,10 @@
 import { Script } from "../lib.js";
 
 export default class EnvScript extends Script {
-  static name = "env";
-  static description = "Set up environment variables";
+  static override name = "env";
+  static override description = "Set up environment variables";
 
-  async fn() {
+  override async fn(): Promise<void> {
     const { chalk } = this.runner.logger;
 
     this.runner.environment.save();
@@ -28,12 +28,17 @@ export default class EnvScript extends Script {
     this.runner.logger.log(breakLine);
 
     for (const key of Object.keys(this.runner.environment.diff)) {
-      const section = this.runner.environment.diff[key];
+      const section =
+        this.runner.environment.diff[
+          key as keyof typeof this.runner.environment.diff
+        ];
       if (section.length === 0) continue;
-      this.runner.logger.log(chalk.underline(colors[key](key)));
+      this.runner.logger.log(
+        chalk.underline(colors[key as keyof typeof colors](key)),
+      );
       for (const [name, value] of section) {
         this.runner.logger.log(
-          `${colors.background(name)}: ${colors[key](value)}`,
+          `${colors.background(name)}: ${colors[key as keyof typeof colors](value ?? "")}`,
         );
       }
     }

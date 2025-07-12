@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
 import fs from "node:fs";
 
-import EnvScript from "../../src/scripts/env";
-import { Environment } from "../../src/parse-env";
-import { createConfig } from "../../src/lib";
+import EnvScript from "../../src/scripts/env.ts";
+import { Environment } from "../../src/parse-env.ts";
+import { createConfig } from "../../src/lib.ts";
 
-import { createTmpEnv, runScript, dockerTag } from "../utils.js";
+import { createTmpEnv, runScript, dockerTag } from "../utils.ts";
 import path from "node:path";
 
 vi.mock("../../src/git-info", () => ({

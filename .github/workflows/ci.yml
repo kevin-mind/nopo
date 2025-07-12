@@ -91,7 +91,7 @@ jobs:
 
     - uses: ./.github/actions/setup-docker
 
-    - name: Make up
+    - name: Up
       uses: ./.github/actions/run-docker
 
     - name: Run smoketest

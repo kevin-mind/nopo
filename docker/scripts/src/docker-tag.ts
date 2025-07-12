@@ -16,22 +16,33 @@ const DockerTagParsed = z.object({
   registry: z.string(),
   image: z.string(),
   version: z.string(),
-  digest: z.string().optional(),
+  digest: z.string().optional().default(""),
 });
+
+export type DockerTagParsedType = z.infer<typeof DockerTagParsed>;
+
+interface DockerTagInput {
+  registry?: string;
+  image: string;
+  version?: string;
+  digest?: string | undefined;
+}
 
 export class DockerTag {
   static regex = DOCKER_TAG_REGEX;
+  parsed: DockerTagParsedType;
+  fullTag: string;
 
-  static parse(fullTag) {
+  static parse(fullTag: string): DockerTagParsedType {
     const match = fullTag.match(DockerTag.regex);
     if (!match || !match.groups) {
       throw new Error(`Invalid image tag: ${fullTag}`);
     }
 
     let registry = "";
-    let image = match.groups?.image || "";
-    const version = match.groups?.version || "";
-    const digest = match.groups?.digest || "";
+    let image = match.groups.image || "";
+    const version = match.groups.version || "";
+    const digest = match.groups.digest || "";
 
     if (!image) {
       throw new Error(`Invalid image tag: ${fullTag} (image is required)`);
@@ -45,14 +56,24 @@ export class DockerTag {
 
     if (image.includes(".") && image.includes("/")) {
       const [newRegistry, ...imageParts] = image.split("/");
-      registry = newRegistry;
+      registry = newRegistry || "";
       image = imageParts.join("/");
     }
 
-    return DockerTagParsed.parse({ registry, image, version, digest });
+    return DockerTagParsed.parse({
+      registry,
+      image,
+      version,
+      digest: digest || "",
+    });
   }
 
-  static stringify({ registry, image, version, digest }) {
+  static stringify({
+    registry,
+    image,
+    version,
+    digest,
+  }: DockerTagParsedType): string {
     let fullTag = "";
     if (registry) {
       fullTag = `${registry}/${image}`;
@@ -71,11 +92,16 @@ export class DockerTag {
     return fullTag;
   }
 
-  constructor(tag) {
+  constructor(tag: string | DockerTagInput) {
     if (typeof tag === "string") {
       this.parsed = DockerTag.parse(tag);
     } else if (typeof tag === "object") {
-      this.parsed = DockerTagParsed.parse(tag);
+      this.parsed = DockerTagParsed.parse({
+        registry: tag.registry || "",
+        image: tag.image,
+        version: tag.version || "",
+        digest: tag.digest,
+      });
     } else {
       throw new Error(`Invalid tag: ${tag}`);
     }

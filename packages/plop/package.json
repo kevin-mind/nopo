@@ -2,6 +2,7 @@
   "name": "@more/plop",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "clean": "rm -rf node_modules && rm -f tsconfig.tsbuildinfo",
     "check:types": "tsc --noEmit",

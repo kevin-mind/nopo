@@ -1,14 +1,14 @@
-import { chalk, minimist } from "zx";
-import compose from "docker-compose";
+import { chalk, minimist, ProcessPromise } from "zx";
+import compose, { type IDockerComposeResult } from "docker-compose";
 
 import EnvScript from "./env.js";
 import BuildScript from "./build.js";
 import PullScript from "./pull.js";
 import { isBuild, isPull } from "./up.js";
 
-import { Script } from "../lib.js";
+import { Script, type ScriptDependency, type Runner } from "../lib.js";
 
-async function isDown(runner) {
+async function isDown(runner: Runner): Promise<boolean> {
   const args = IndexScript.args(runner);
   // if there is no service name then the service is not down.
   if (!args.service) return false;
@@ -17,17 +17,24 @@ async function isDown(runner) {
     cwd: runner.config.root,
   });
 
-  const service = data.services.find((service) =>
-    service.name.includes(args.service),
+  const service = data.services.find((service: { name: string }) =>
+    service.name.includes(args.service!),
   );
   // if the service is not found or is not "up" then it is down.
   return !service?.state?.toLowerCase().includes("up");
 }
 
+interface IndexScriptArgs {
+  script?: string | undefined;
+  service?: string | undefined;
+  workspace?: string | undefined;
+}
+
 export default class IndexScript extends Script {
-  static name = "run";
-  static description = "Run a pnpm script in a specified service and package";
-  static dependencies = [
+  static override name = "run";
+  static override description =
+    "Run a pnpm script in a specified service and package";
+  static override dependencies: ScriptDependency[] = [
     {
       class: EnvScript,
       enabled: async (runner) =>
@@ -43,20 +50,20 @@ export default class IndexScript extends Script {
     },
   ];
 
-  static args(runner) {
-    let {
+  static args(runner: Runner): IndexScriptArgs {
+    const {
       _: [script, service],
       workspace,
     } = minimist(runner.argv);
 
-    if (service && !workspace) {
-      workspace = service;
-    }
-
-    return { script, service, workspace };
+    return {
+      script,
+      service: service || workspace,
+      workspace: workspace || service,
+    };
   }
 
-  async #resolveScript(args) {
+  async #resolveScript(args: IndexScriptArgs): Promise<string[]> {
     if (!args.script) {
       throw new Error(
         "Usage: run [script] --service [service] --workspace [workspace]",
@@ -73,24 +80,24 @@ export default class IndexScript extends Script {
     return script;
   }
 
-  async fn() {
+  override async fn(): Promise<IDockerComposeResult | ProcessPromise> {
     const args = IndexScript.args(this.runner);
     const script = await this.#resolveScript(args);
 
     if (!args.service) return await this.exec`${script}`;
 
     const createLogger =
-      (name, color = "black") =>
-      (chunk, streamSource) => {
+      (name: string) =>
+      (chunk: Buffer, streamSource?: "stdout" | "stderr"): void => {
         const messages = chunk.toString().trim().split("\n");
         const log = streamSource === "stdout" ? console.log : console.error;
         for (const message of messages) {
-          log(chalk[color](`[${name}] ${message}`));
+          log(chalk.white(`[${name}] ${message}`));
         }
       };
 
     return await compose.run(args.service, script, {
-      callback: createLogger(args.service, "white"),
+      callback: createLogger(args.service),
       commandOptions: ["--rm", "--remove-orphans"],
       env: this.env,
     });

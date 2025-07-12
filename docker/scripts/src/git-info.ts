@@ -7,8 +7,10 @@ const ParsedGitInfo = z.object({
   commit: z.string(),
 });
 
+export type GitInfoType = z.infer<typeof ParsedGitInfo>;
+
 export class GitInfo {
-  static exists() {
+  static exists(): boolean {
     try {
       this.git("--version");
       return true;
@@ -17,23 +19,24 @@ export class GitInfo {
       return false;
     }
   }
-  static git(...pieces) {
+
+  static git(...pieces: string[]): string {
     return $.sync`git ${pieces}`.stdout.trim();
   }
 
-  static get repo() {
+  static get repo(): string {
     return this.git("remote", "get-url", "origin");
   }
 
-  static get branch() {
+  static get branch(): string {
     return this.git("rev-parse", "--abbrev-ref", "HEAD");
   }
 
-  static get commit() {
+  static get commit(): string {
     return this.git("rev-parse", "HEAD");
   }
 
-  static parse() {
+  static parse(): GitInfoType {
     return ParsedGitInfo.parse({
       repo: this.repo,
       branch: this.branch,

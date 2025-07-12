@@ -1,8 +1,8 @@
 import { describe, it, vi, expect, beforeEach } from "vitest";
-import BuildScript from "../../src/scripts/build";
-import { createConfig } from "../../src/lib";
+import BuildScript from "../../src/scripts/build.ts";
+import { createConfig } from "../../src/lib.ts";
 
-import { createTmpEnv, runScript } from "../utils";
+import { createTmpEnv, runScript } from "../utils.ts";
 
 vi.mock("../../src/git-info", () => ({
   GitInfo: {
