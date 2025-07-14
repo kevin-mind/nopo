@@ -7,18 +7,18 @@
   "private": true,
   "license": "MIT",
   "type": "module",
-  "main": "./build/index.umd.js",
-  "module": "./build/index.es.js",
-  "types": "./build/src/index.d.ts",
-  "style": "./build/theme.css",
+  "files": [
+    "build",
+    "css",
+    "src"
+  ],
   "exports": {
     ".": {
-      "import": "./build/index.es.js",
-      "types": "./src/index.ts",
+      "import": "./src/index.ts",
       "require": "./build/index.umd.js"
     },
-    "./theme.css": "./build/theme.css",
-    "./bem-components.css": "./build/bem-components.css"
+    "./theme.css": "./css/theme.css",
+    "./bem-components.css": "./css/bem-components.css"
   },
   "scripts": {
     "clean": "rm -rf node_modules && rm -rf build",

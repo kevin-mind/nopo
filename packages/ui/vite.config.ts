@@ -1,6 +1,6 @@
 import react from "@vitejs/plugin-react";
 import path from "node:path";
-import { defineConfig } from "vite";
+import { defineConfig } from "@more/configs/vite.js";
 import tailwindcss from "@tailwindcss/vite";
 import { viteStaticCopy } from "vite-plugin-static-copy";
 import { cvaBEMPlugin } from "./src/lib/vite-plugin-cva-bem";
@@ -16,8 +16,8 @@ export default defineConfig({
     viteStaticCopy({
       targets: [
         {
-          src: path.resolve(__dirname, "src/lib/theme.css"),
-          dest: "./",
+          src: path.resolve(__dirname, "build/bem-components.css"),
+          dest: path.resolve(__dirname, "css"),
         },
       ],
       watch: {
@@ -26,14 +26,6 @@ export default defineConfig({
     }),
   ],
   build: {
-    minify: true,
-    outDir: "build",
-    lib: {
-      entry: path.resolve(__dirname, "src/index.ts"),
-      name: "ui",
-      formats: ["es", "umd"],
-      fileName: (format, entryName) => `${entryName}.${format}.js`,
-    },
     rollupOptions: {
       external: ["react", "react/jsx-runtime", "react-dom", "tailwindcss"],
       output: {

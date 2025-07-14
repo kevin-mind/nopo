@@ -33,7 +33,7 @@ export function cvaBEMPlugin(options: CVABEMPluginOptions = {}): Plugin {
   const {
     include = ["**/*.{ts,tsx}"],
     exclude = ["**/*.d.ts", "**/node_modules/**"],
-    outputPath = "build/bem-components.css",
+    outputPath = "bem-components.css",
     componentPrefix = "",
   } = options;
 
@@ -74,15 +74,17 @@ export function cvaBEMPlugin(options: CVABEMPluginOptions = {}): Plugin {
 
       const css = generateBEMCSS(cvaVariants, componentPrefix);
 
+      const fileName = path.basename(outputPath);
+
       // Emit the CSS file as a build asset
       this.emitFile({
         type: "asset",
-        fileName: path.basename(outputPath),
+        fileName,
         source: css,
       });
 
       console.log(
-        `Generated BEM CSS for ${variantKeys.length} components: ${outputPath}`,
+        `Generated BEM CSS for ${variantKeys.length} components: ${fileName}`,
       );
     },
   };
