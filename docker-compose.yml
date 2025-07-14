@@ -1,24 +1,17 @@
 services:
   base:
     extends:
-      file: docker/docker-compose.service.yml
+      file: docker/docker-compose.base.yml
       service: base
     command: ["sleep", "infinity"]
 
-  packages:
-    extends:
-      file: docker/docker-compose.service.yml
-      service: base
-    command: ["pnpm", "run", "--filter=./packages/*", "dev"]
-
   web:
     extends:
-      file: docker/docker-compose.service.yml
+      file: docker/docker-compose.base.yml
       service: base
     environment:
       SERVICE_NAME: web
       PORT: 80
-      SERVICE_PUBLIC_PATH: /
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/__version__"]
       interval: 20s
@@ -28,20 +21,17 @@ services:
     depends_on:
       backend:
         condition: service_started
-      packages:
-        condition: service_started
 
   backend:
     extends:
-      file: docker/docker-compose.service.yml
+      file: docker/docker-compose.base.yml
       service: base
     environment:
       SERVICE_NAME: backend
-      SERVICE_PUBLIC_PATH: /api
       DATABASE_URL: postgres://user:password@db:5432/database
       SITE_URL: http://localhost:${DOCKER_PORT:?}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/__version__"]
+      test: ["CMD", "curl", "-f", "http://localhost/django"]
       interval: 20s
       timeout: 10s
       retries: 3
@@ -49,21 +39,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-
-  backend_vite:
-    extends:
-      file: docker/docker-compose.service.yml
-      service: base
-    environment:
-      SERVICE_NAME: backend
-      SERVICE_COMMAND: vite
-      SERVICE_PUBLIC_PATH: /api
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/"]
-      interval: 20s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
 
   db:
     image: postgres:16
@@ -73,7 +48,7 @@ services:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
     volumes:
-      - data_postgres:/var/lib/postgresql/data
+      - nopo_data_postgres:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", 'pg_isready -U website -d website']
       interval: 10s
@@ -85,6 +60,7 @@ services:
     image: nginx:latest
     volumes:
       - ./docker/nginx:/etc/nginx/templates
+      - .:/app
     ports:
       - "${DOCKER_PORT:?}:80"
     networks:
@@ -97,7 +73,7 @@ services:
     environment:
       WEB_PUBLIC_URL: ${WEB_PUBLIC_URL:-http://web:80}
       BACKEND_PUBLIC_URL: ${BACKEND_PUBLIC_URL:-http://backend:80}
-      BACKEND_VITE_PUBLIC_URL: ${BACKEND_VITE_PUBLIC_URL:-http://backend_vite:80}
+      BACKEND_VITE_PUBLIC_URL: ${BACKEND_VITE_PUBLIC_URL:-http://backend:5173}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost"]
       interval: 20s
@@ -111,4 +87,4 @@ networks:
     enable_ipv6: false
 
 volumes:
-  data_postgres:
+  nopo_data_postgres:

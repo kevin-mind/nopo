@@ -127,19 +127,6 @@ describe("env", () => {
       expect(env.DOCKER_TARGET).toStrictEqual("development");
     });
 
-    it("sets HOST_UID to current process UID by default", async () => {
-      const config = createConfig({
-        envFile: createTmpEnv(),
-        processEnv: {
-          DOCKER_TAG: dockerTag.fullTag,
-        },
-        silent: true,
-      });
-      await runScript(EnvScript, config);
-      const { env } = new Environment(config);
-      expect(env.HOST_UID).toStrictEqual(process.getuid?.()?.toString());
-    });
-
     it("uses base tag when no DOCKER_TAG is provided", async () => {
       const tmpFile = createTmpEnv();
       const config = createConfig({

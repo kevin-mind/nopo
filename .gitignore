@@ -2,6 +2,9 @@
 **/.config
 **/.cache
 **/.cursor-server
+**/*.cache
+**/.git
+**/.venv
 **/node_modules/
 **/build/
 **/.npm
@@ -10,18 +13,11 @@
 **/tsconfig.tsbuildinfo
 **/vite.config.ts.timestamp-*.mjs
 **/out/
+**/playwright-report/
+**/test-results/
 
 .local
 .pnpm-store
 .docker
 build-metadata.json
 deps
-
-# Playwright
-/test-results/
-/playwright-report/
-/blob-report/
-/playwright/.cache/
-
-.venv
-!.venv/*

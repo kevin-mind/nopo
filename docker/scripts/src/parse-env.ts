@@ -6,8 +6,18 @@ import { DockerTag } from "./docker-tag.js";
 import { GitInfo, type GitInfoType } from "./git-info.js";
 import type { Config } from "./lib.js";
 
-const nodeEnv = z.enum(["development", "production", "test"]);
-const dockerTarget = nodeEnv.or(z.enum(["base", "build"]));
+const dockerTarget = z.enum(["development", "production"]);
+const nodeEnv = z.enum(["test", "development", "production"]).optional();
+
+const buildInfoSchema = z.object({
+  repo: z.string(),
+  branch: z.string(),
+  commit: z.string(),
+  version: z.string(),
+  tag: z.string(),
+  build: z.string(),
+  target: z.string(),
+});
 
 export type EnvironmentDiffType = {
   added: EnvironmentDiffTupleType[];
@@ -21,6 +31,7 @@ export class Environment {
   static baseTag = new DockerTag("kevin-mind/nopo:local");
 
   static schema = z.object({
+    DOCKER_ROOT: z.string(),
     DOCKER_PORT: z.string(),
     DOCKER_TAG: z.string(),
     DOCKER_REGISTRY: z.string(),
@@ -32,21 +43,22 @@ export class Environment {
     DOCKER_DIGEST: z.string().optional().default(""),
     DOCKER_TARGET: dockerTarget,
     NODE_ENV: nodeEnv,
-    HOST_UID: z.string(),
   });
 
+  root: string;
   envFile: string;
   processEnv: Record<string, string>;
   hasPrevEnv: boolean;
-  prevEnv: Record<string, string>;
+  prevEnv: Partial<z.infer<typeof Environment.schema>>;
   env: z.infer<typeof Environment.schema>;
   diff: EnvironmentDiffType;
 
-  constructor({ envFile, processEnv }: Config) {
+  constructor({ envFile, processEnv, root }: Config) {
     if (!envFile) {
       throw new Error("Missing envFile");
     }
 
+    this.root = root;
     this.envFile = envFile;
     this.processEnv = processEnv;
     this.hasPrevEnv = fs.existsSync(this.envFile);
@@ -55,10 +67,11 @@ export class Environment {
     this.diff = this.#diff();
   }
 
-  #getPrevEnv(): Record<string, string> {
-    return this.hasPrevEnv
-      ? (dotenv.load(this.envFile) as Record<string, string>)
-      : {};
+  #getPrevEnv() {
+    const result = Environment.schema.safeParse(
+      this.hasPrevEnv ? dotenv.load(this.envFile) : {},
+    );
+    return result.data ?? {};
   }
 
   #resolveDockerTag(): DockerTag {
@@ -85,20 +98,28 @@ export class Environment {
     }
   }
 
-  #resolveGitInfo(
-    repo = "unknown",
-    branch = "unknown",
-    commit = "unknown",
-  ): GitInfoType {
-    if (GitInfo.exists()) {
-      return GitInfo.parse();
-    } else {
-      return {
-        repo,
-        branch,
-        commit,
-      };
+  #getBuildInfo() {
+    const { data, success } = buildInfoSchema.safeParse(
+      fs.existsSync("/build-info.json")
+        ? JSON.parse(fs.readFileSync("/build-info.json", "utf8"))
+        : null,
+    );
+    return success ? data : null;
+  }
+
+  #resolveGitInfo(inputEnv: z.infer<typeof Environment.schema>): GitInfoType {
+    const buildInfo = this.#getBuildInfo();
+    if (buildInfo) {
+      return GitInfo.parse(buildInfo);
     }
+    if (inputEnv.GIT_REPO && inputEnv.GIT_BRANCH && inputEnv.GIT_COMMIT) {
+      return GitInfo.parse({
+        repo: inputEnv.GIT_REPO,
+        branch: inputEnv.GIT_BRANCH,
+        commit: inputEnv.GIT_COMMIT,
+      });
+    }
+    return GitInfo.parse();
   }
 
   #resolveDockerPort(): string {
@@ -151,24 +172,20 @@ export class Environment {
     }
 
     const isLocal = version === "local";
-    const defaultTarget = isLocal ? "development" : "production";
 
-    for (const key of ["DOCKER_TARGET", "NODE_ENV"]) {
-      const current = inputEnv[key];
-      const isMissing = !current;
-      const isWrong = !isLocal && current !== defaultTarget;
-      if (isMissing || isWrong) {
-        inputEnv[key] = defaultTarget;
-      }
+    const defaultTarget = isLocal ? "development" : "production";
+    const current = inputEnv.DOCKER_TARGET;
+    const isMissing = !current;
+    const isWrong = !isLocal && current !== defaultTarget;
+    if (isMissing || isWrong) {
+      inputEnv.DOCKER_TARGET = defaultTarget;
+      inputEnv.NODE_ENV = defaultTarget;
     }
 
-    const gitInfo = this.#resolveGitInfo(
-      inputEnv.GIT_REPO,
-      inputEnv.GIT_BRANCH,
-      inputEnv.GIT_COMMIT,
-    );
+    const gitInfo = this.#resolveGitInfo(inputEnv);
 
     return Environment.schema.parse({
+      DOCKER_ROOT: this.root,
       DOCKER_PORT: this.#resolveDockerPort(),
       DOCKER_TAG: new DockerTag({
         registry,
@@ -185,7 +202,6 @@ export class Environment {
       GIT_BRANCH: gitInfo.branch,
       GIT_COMMIT: gitInfo.commit,
       NODE_ENV: inputEnv.NODE_ENV,
-      HOST_UID: process.getuid?.()?.toString() ?? "1000",
     });
   }
 
@@ -197,7 +213,9 @@ export class Environment {
       unchanged: [],
     };
 
-    const keys = Object.keys(Environment.schema.shape);
+    const keys = Object.keys(
+      Environment.schema.shape,
+    ) as (keyof typeof Environment.schema.shape)[];
 
     for (const key of keys) {
       const prevValue = this.prevEnv[key];

@@ -18,6 +18,7 @@ target "base" {
   target     = "${DOCKER_TARGET}"
   cache-from = ["type=gha"]
   cache-to   = ["type=gha,mode=max"]
+  platforms  = ["linux/amd64"]
   args = {
     NODE_ENV       = "${NODE_ENV}"
     DOCKER_TARGET  = "${DOCKER_TARGET}"

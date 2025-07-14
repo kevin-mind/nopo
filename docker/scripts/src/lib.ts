@@ -1,6 +1,7 @@
 import { path, chalk, $, ProcessOutput } from "zx";
 import { z } from "zod";
 import { fileURLToPath } from "node:url";
+import type { Environment } from "./parse-env.js";
 
 const ConfigSchema = z.object({
   root: z.string(),
@@ -74,11 +75,11 @@ export class Script {
     this.runner = runner;
   }
 
-  async fn(): Promise<void> {
+  async fn() {
     throw new Error("Not implemented");
   }
 
-  get env(): Record<string, string | undefined> {
+  get env() {
     return {
       ...this.runner.environment.processEnv,
       ...this.runner.environment.env,
@@ -103,13 +104,13 @@ export class Script {
 
 export class Runner {
   config: Config;
-  environment: import("./parse-env.js").Environment;
+  environment: Environment;
   logger: Logger;
   argv: string[];
 
   constructor(
     config: Config,
-    environment: import("./parse-env.js").Environment,
+    environment: Environment,
     argv: string[] = [],
     logger: Logger = new Logger(config),
   ) {

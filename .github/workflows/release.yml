@@ -77,9 +77,6 @@ jobs:
 
       - uses: ./.github/actions/setup-node
 
-      - name: Install
-        run: pnpm install:lock:pnpm
-
       - name: Build
         run: pnpm run --filter "./packages/*" build
 

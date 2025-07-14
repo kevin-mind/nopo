@@ -1,31 +1,19 @@
 ARG USER=nodeuser
 ARG USER_ID=1001
+ARG NODE_ENV=production
 
 ################################################################################################
-FROM node:22.16.0-slim AS base
+FROM node:22.16.0-slim AS nopo
 ################################################################################################
+
+##############################
+## 1) Create user and group ##
+##############################
 
 ARG USER
 ARG USER_ID
-ARG NODE_ENV=production
 
-ENV SERVICE_NAME=
-ENV NODE_ENV=$NODE_ENV
-
-ENV BUILD_INFO=/build-info.json
 ENV HOME=/home/$USER
-ENV APP=/app
-ENV DEPS=$HOME/deps
-ENV PNPM_HOME="$DEPS/pnpm"
-ENV PNPM_STORE_DIR="$PNPM_HOME/store"
-ENV COREPACK_HOME="$DEPS/corepack"
-ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
-ENV UV_COMPILE_BYTECODE=1
-ENV UV_CACHE_DIR="$DEPS/uv-cache"
-ENV PYTHONUNBUFFERED=1
-ENV PATH="$PNPM_HOME:$COREPACK_HOME:$PATH"
-
-WORKDIR $APP
 
 RUN <<EOF
 # Create user and group
@@ -33,32 +21,34 @@ groupadd -g $USER_ID $USER
 useradd -r -u $USER_ID -g $USER_ID -d $HOME -m -s /bin/bash $USER
 EOF
 
-COPY --from=ghcr.io/astral-sh/uv:latest --chown=$USER:$USER /uv /uvx /bin/
+##############################
+## 2) Set static variables  ##
+##############################
+
+ENV SERVICE_NAME=
+ENV BUILD_INFO=/build-info.json
+ENV APP=/app
+ENV DEPS=$HOME/deps
+ENV PNPM_HOME="$DEPS/pnpm"
+
+WORKDIR $APP
+
+##############################
+## 3)  Install system deps  ##
+##############################
 
 RUN \
-  --mount=type=bind,source=.python-version,target=$APP/.python-version \
   --mount=type=cache,target=/var/cache/apt,id=apt \
   --mount=type=cache,target=/var/lib/apt,id=apt \
-  --mount=type=bind,source=package.json,target=$APP/package.json \
-  --mount=type=cache,target=$PNPM_HOME,id=pnpm \
-  --mount=type=cache,target=$COREPACK_HOME,id=corepack \
-  --mount=type=cache,target=$PNPM_STORE_DIR,id=pnpm-store \
 <<EOF
 apt-get update
 apt-get install -y --no-install-recommends make jq curl
-uv python install
-npm install --global corepack@latest
-corepack enable pnpm
-corepack prepare pnpm --activate
 EOF
 
-################################################################################################
-FROM base AS info
-################################################################################################
+##############################
+## 4) Set build information ##
+##############################
 
-# Build args that represent static build information
-# These are passed to docker via the bake.hcl file and
-# should not be overridden in the container environment.
 ARG GIT_REPO
 ARG GIT_BRANCH
 ARG GIT_COMMIT
@@ -81,7 +71,49 @@ cat <<INNEREOF > ${BUILD_INFO}
 INNEREOF
 # Set permissions to make the file readable by all but only writable by root
 chmod 644 ${BUILD_INFO}
+echo "Build info: ${BUILD_INFO}"
 cat ${BUILD_INFO}
+EOF
+
+##############################
+## 5) Install nopo globally ##
+##############################
+
+COPY docker/scripts $APP
+
+RUN ./init.sh
+
+################################################################################################
+FROM nopo AS base
+################################################################################################
+
+ARG USER
+ARG NODE_ENV
+
+ENV NODE_ENV=$NODE_ENV
+# ENV PNPM_HOME="$DEPS/pnpm"
+ENV PNPM_STORE_DIR="$PNPM_HOME/store"
+ENV COREPACK_HOME="$DEPS/corepack"
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_CACHE_DIR="${DEPS}/uv/cache"
+ENV UV_PROJECT_ENVIRONMENT="${APP}/.venv"
+ENV PYTHONUNBUFFERED=1
+ENV PATH="$PNPM_HOME:$COREPACK_HOME:$PATH"
+
+COPY --from=ghcr.io/astral-sh/uv:latest --chown=$USER:$USER /uv /uvx /bin/
+
+RUN \
+  --mount=type=bind,source=.python-version,target=$APP/.python-version \
+  --mount=type=bind,source=package.json,target=$APP/package.json \
+  --mount=type=cache,target=$PNPM_HOME,id=pnpm \
+  --mount=type=cache,target=$COREPACK_HOME,id=corepack \
+  --mount=type=cache,target=$PNPM_STORE_DIR,id=pnpm-store \
+<<EOF
+uv python install
+npm install --global corepack@latest
+corepack enable pnpm
+corepack prepare pnpm --activate
 EOF
 
 ################################################################################################
@@ -113,24 +145,42 @@ EOF
 FROM base AS build
 ################################################################################################
 
-COPY --from=install --chown=$USER $DEPS $DEPS
 COPY --from=source --chown=$USER $APP $APP
 
-RUN <<EOF
-pnpm "/^install:offline.*/"
-pnpm "/^build.*/"
-EOF
+RUN nopo sync production
 
 ################################################################################################
 FROM base AS user
 ################################################################################################
 
 COPY --from=base --chown=$USER $HOME $HOME
-COPY --from=info ${BUILD_INFO} ${BUILD_INFO}
 COPY --from=install --chown=$USER $DEPS $DEPS
-COPY --from=source --chown=$USER $APP/docker/cmd.sh /cmd.sh
 
-CMD ["/cmd.sh"]
+RUN <<EOF
+cat <<'INNEREOF' > /cmd.sh
+#!/bin/bash
+
+service="${SERVICE_NAME:-}"
+command="${SERVICE_COMMAND:-}"
+
+if [[ "${service}" == "" ]]; then
+  echo "SERVICE_NAME is not set"
+  exit 1
+fi
+
+if [[ "${command}" == "" ]]; then
+  echo "SERVICE_COMMAND is not set"
+  exit 1
+fi
+
+set -xue
+pnpm --filter "@more/${service}" "${command}"
+INNEREOF
+chmod 755 /cmd.sh
+echo "Command script: /cmd.sh"
+EOF
+
+CMD ["/bin/bash", "/cmd.sh"]
 
 USER $USER
 
@@ -148,6 +198,4 @@ ENV SERVICE_COMMAND="start"
 
 COPY --from=build --chown=$USER $APP $APP
 
-RUN <<EOF
-pnpm "/^install:prod.*/"
-EOF
+RUN nopo sync production

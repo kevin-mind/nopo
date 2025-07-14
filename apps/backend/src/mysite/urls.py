@@ -1,7 +1,6 @@
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
-from django.http import HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
 import django
@@ -10,13 +9,13 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
     SpectacularRedocView,
 )
+from django.urls import re_path
 
 
 def home(request):
     """
     Home view that demonstrates Jinja2 templating with partials and data passing.
     """
-    print(f"host: {request.get_host()}")
 
     # Sample data to demonstrate passing data to partials
     sample_user_data = {
@@ -44,34 +43,23 @@ def home(request):
     return render(request, "home.html", context)
 
 
-def version(request):
-    with open("/build-info.json") as file:
-        return HttpResponse(file.read(), content_type="application/json")
-
-
-base_path = f"{settings.SERVICE_PUBLIC_PATH.strip('/')}/"
+api_urls = [
+    re_path(r"^todo/", include("src.todo.urls")),
+    re_path(r"^schema$", SpectacularAPIView.as_view(), name="schema"),
+    re_path(
+        r"^docs$",
+        SpectacularSwaggerView.as_view(url_name="schema"),
+        name="swagger-ui-no-slash",
+    ),
+    re_path(
+        r"^redoc$",
+        SpectacularRedocView.as_view(url_name="schema"),
+        name="redoc",
+    ),
+]
 
 urlpatterns = [
-    path("__version__", version),
-    path(
-        base_path,
-        include(
-            [
-                path("admin/", admin.site.urls),
-                path("", home, name="home"),
-                path("todo/", include("src.todo.urls")),
-                path("schema/", SpectacularAPIView.as_view(), name="schema"),
-                path(
-                    "docs/",
-                    SpectacularSwaggerView.as_view(url_name="schema"),
-                    name="swagger-ui",
-                ),
-                path(
-                    "redoc/",
-                    SpectacularRedocView.as_view(url_name="schema"),
-                    name="redoc",
-                ),
-            ]
-        ),
-    ),
+    path("django", home),
+    path("admin/", admin.site.urls),
+    path("api/", include(api_urls)),
 ]
