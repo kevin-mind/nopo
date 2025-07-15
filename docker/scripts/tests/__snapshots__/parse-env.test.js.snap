@@ -8,7 +8,6 @@ exports[`parseEnv > should parse the env 1`] = `
   "DOCKER_TAG": "kevin-mind/nopo:local",
   "DOCKER_TARGET": "development",
   "DOCKER_VERSION": "local",
-  "HOST_UID": "1001",
   "NODE_ENV": "development",
 }
 `;

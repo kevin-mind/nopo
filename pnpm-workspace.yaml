@@ -7,8 +7,10 @@ preferWorkspacePackages: true
 
 engineStrict: true
 packageManagerStrict: true
+nodeLinker: hoisted
 
 onlyBuiltDependencies:
   - esbuild
+  - nopo
 
 storeDir: ${PNPM_STORE_DIR:-.pnpm-store}

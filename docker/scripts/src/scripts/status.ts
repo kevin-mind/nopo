@@ -1,6 +1,7 @@
 import compose from "docker-compose";
 import { Script } from "../lib.js";
 import EnvScript from "./env.ts";
+import { isInContainer } from "../utils.ts";
 
 interface ServiceInfo {
   name: string;
@@ -18,35 +19,34 @@ export default class StatusScript extends Script {
   static override name = "status";
   static override description = "Check the status of the services";
 
-  override async fn(): Promise<void> {
+  async compose() {
+    if (isInContainer()) return {};
+
     const { data } = await compose.ps({
       cwd: this.runner.config.root,
     });
 
-    const platform = `${process.platform} ${process.arch}`;
-    const node = await this.exec`node --version`.text();
-    const pnpm = await this.exec`pnpm --version`.text();
+    data.services.reduce(
+      (acc: Record<string, unknown>, { name, state, ports }: ServiceInfo) => ({
+        ...acc,
+        [name]: {
+          name,
+          state,
+          ports,
+        },
+      }),
+      {},
+    );
+  }
 
+  override async fn(): Promise<void> {
     this.log(
       JSON.stringify(
         {
-          platform,
-          node,
-          pnpm,
-          compose: data.services.reduce(
-            (
-              acc: Record<string, unknown>,
-              { name, state, ports }: ServiceInfo,
-            ) => ({
-              ...acc,
-              [name]: {
-                name,
-                state,
-                ports,
-              },
-            }),
-            {},
-          ),
+          platform: `${process.platform} ${process.arch}`,
+          node: await this.exec`node --version`.text(),
+          pnpm: await this.exec`pnpm --version`.text(),
+          compose: await this.compose(),
         },
         null,
         2,

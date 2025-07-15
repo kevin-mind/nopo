@@ -4,6 +4,10 @@ import { resolve } from "node:path";
 import pkg from "./package.json";
 
 export default defineConfig({
+  optimizeDeps: {
+    force: true,
+    include: ["*"],
+  },
   build: {
     outDir: "build",
     emptyOutDir: true,
@@ -24,9 +28,8 @@ export default defineConfig({
         "node:process",
       ],
       output: {
-        format: "cjs",
+        format: "esm",
         entryFileNames: "[name].js",
-        preserveModules: true,
       },
     },
     minify: false,

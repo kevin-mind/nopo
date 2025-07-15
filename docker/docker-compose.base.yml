@@ -2,8 +2,10 @@ services:
   base:
     image: "${DOCKER_TAG:?}"
     pull_policy: never
+    restart: always
     volumes:
       - ..:/app:cached
     environment:
       - CHOKIDAR_USEPOLLING=true
       - CI
+      - SITE_URL=http://localhost:${DOCKER_PORT:?}

@@ -33,9 +33,8 @@ describe("parseEnv", () => {
       silent: true,
     });
     const {
-      env: { HOST_UID, GIT_BRANCH, GIT_COMMIT, GIT_REPO, DOCKER_PORT, ...env },
+      env: { GIT_BRANCH, GIT_COMMIT, GIT_REPO, DOCKER_PORT, ...env },
     } = new Environment(config);
-    expect(HOST_UID).toBe(process.getuid?.()?.toString());
     expect(GIT_REPO).toStrictEqual("unknown");
     expect(GIT_BRANCH).toStrictEqual("unknown");
     expect(GIT_COMMIT).toStrictEqual("unknown");

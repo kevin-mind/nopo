@@ -1,10 +1,10 @@
-import { chalk, minimist, ProcessPromise } from "zx";
-import compose, { type IDockerComposeResult } from "docker-compose";
+import { chalk, minimist } from "zx";
+import compose from "docker-compose";
 
 import EnvScript from "./env.js";
 import BuildScript from "./build.js";
 import PullScript from "./pull.js";
-import { isBuild, isPull } from "./up.js";
+import { isBuild, isInContainer, isPull, createLogger } from "../utils.js";
 
 import { Script, type ScriptDependency, type Runner } from "../lib.js";
 
@@ -42,11 +42,13 @@ export default class IndexScript extends Script {
     },
     {
       class: BuildScript,
-      enabled: async (runner) => (await isDown(runner)) && isBuild(runner),
+      enabled: async (runner) =>
+        (await isDown(runner)) && isBuild(runner) && !isInContainer(),
     },
     {
       class: PullScript,
-      enabled: async (runner) => (await isDown(runner)) && isPull(runner),
+      enabled: async (runner) =>
+        (await isDown(runner)) && isPull(runner) && !isInContainer(),
     },
   ];
 
@@ -80,21 +82,11 @@ export default class IndexScript extends Script {
     return script;
   }
 
-  override async fn(): Promise<IDockerComposeResult | ProcessPromise> {
+  override async fn() {
     const args = IndexScript.args(this.runner);
     const script = await this.#resolveScript(args);
 
     if (!args.service) return await this.exec`${script}`;
-
-    const createLogger =
-      (name: string) =>
-      (chunk: Buffer, streamSource?: "stdout" | "stderr"): void => {
-        const messages = chunk.toString().trim().split("\n");
-        const log = streamSource === "stdout" ? console.log : console.error;
-        for (const message of messages) {
-          log(chalk.white(`[${name}] ${message}`));
-        }
-      };
 
     return await compose.run(args.service, script, {
       callback: createLogger(args.service),

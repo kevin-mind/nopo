@@ -1,7 +1,0 @@
-services:
-  base:
-    extends:
-      file: docker-compose.base.yml
-      service: base
-    restart: always
-    command: ["/cmd.sh"]
