@@ -8,6 +8,10 @@ internal_port = 80
 min_machines_running = 0
 processes = [ "app" ]
 
+[env]
+  BACKEND_PUBLIC_URL = "https://nopo-stage-backend.fly.dev"
+  WEB_PUBLIC_URL = "https://nopo-stage-web.fly.dev"
+
 [[vm]]
 cpu_kind = "shared"
 cpus = 1

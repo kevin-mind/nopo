@@ -9,6 +9,10 @@ SECOND_WORD = $(word 2,$(MAKECMDGOALS))
 
 export SERVICE_NAME ?= $(SECOND_WORD)
 
+.PHONY: fly
+fly:
+	npx zx ./fly/scripts/$(SECOND_WORD).js
+
 .PHONY: nopo
 nopo:
 	cd ./docker/scripts && \
