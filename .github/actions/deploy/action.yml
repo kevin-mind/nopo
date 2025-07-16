@@ -5,75 +5,26 @@ inputs:
   token:
     description: The Fly API token
     required: true
-  image:
-    description: The full docker tag to Deploy
-    required: true
   version:
     description: The version to deploy
-    required: true
+    required: false
+  file:
+    description: The file to deploy
+    required: false
   app_name:
     description: The fly app name to deploy
     required: true
 
-outputs:
-  public_url:
-    description: The public URL of the app
-    value: ${{ steps.config.outputs.public_url }}
-  check_url:
-    description: The URL to check the version
-    value: ${{ steps.config.outputs.check_url }}
-
 runs:
   using: 'composite'
   steps:
-    - name: Config
-      id: config
-      shell: bash
-      env:
-        app_name: ${{ inputs.app_name }}
-      run: |
-        config="docker/fly/${app_name}.toml"
-        public_url="https://${app_name}.fly.dev"
-        check_url="${public_url}/__version__"
-
-        echo "config=${config}" >> "$GITHUB_OUTPUT"
-        echo "public_url=${public_url}" >> "$GITHUB_OUTPUT"
-        echo "check_url=${check_url}" >> "$GITHUB_OUTPUT"
-        cat "$GITHUB_OUTPUT"
-
     - name: Deploy to Fly
       shell: bash
       env:
         FLY_API_TOKEN: ${{ inputs.token }}
         app_name: ${{ inputs.app_name }}
-        image: ${{ inputs.image }}
-        config: ${{ steps.config.outputs.config }}
-      run: |
-        flyctl deploy \
-          --app "${app_name}" \
-          --config "${config}" \
-          --depot=false \
-          --image "${image}"
-
-    - name: Wait for deployment
-      shell: bash
-      env:
-        url: ${{ steps.config.outputs.check_url }}
         version: ${{ inputs.version }}
-        image: ${{ inputs.image }}
-      run: |
-        wait_time=10
-        waiting=true
+        file: ${{ inputs.file }}
+      run: make fly deploy app="${app_name}" version="${version}" file="${file}"
 
-        echo "Waiting for deployment to be ready"
 
-        while $waiting; do
-          current_version=$(curl -s --max-time 30 ${url} | jq -r '.version // empty' || echo "")
-          if [ "${current_version}" = "${version}" ]; then
-            waiting=false
-          else
-            echo "Tag '${current_version}' does not match '${version}'"
-            sleep "${wait_time}"
-          fi
-        done
-        echo "Deployment is ready"

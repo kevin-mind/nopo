@@ -81,10 +81,8 @@ jobs:
           command: ${{ inputs.command }}
           user: nodeuser
         run: |
-          flyctl console \
-            --app "${app_name}" \
-            --user "${user}" \
-            --debug \
-            --verbose \
-            -C "pnpm run --filter=\"@more/${app}\" ${command}"
+          make fly console \
+            app="${app_name}" \
+            user="${user}" \
+            command="pnpm run --filter=\"@more/${app}\" ${command}"
 

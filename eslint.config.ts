@@ -52,6 +52,12 @@ const config: ReturnType<typeof tseslint.config> = tseslint.config(
       globals: { ...globals.node },
     },
   },
+  {
+    files: ["fly/**/*.js"],
+    languageOptions: {
+      globals: { ...globals.node },
+    },
+  },
 );
 
 export default config;

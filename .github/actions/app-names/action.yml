@@ -1,5 +1,5 @@
 name: App Names
-description: Get app names based on existing docker/fly/*.toml files
+description: Get app names based on existing fly/configs/*.toml files
 
 inputs:
   environment:
@@ -26,8 +26,22 @@ runs:
         environment: ${{ inputs.environment }}
         app: ${{ inputs.app }}
       run: |
+        # This block finds all fly/configs/nopo-${environment}-${app}.toml files,
+        # extracts the app names from the filenames, sorts and deduplicates them,
+        # and outputs a compact JSON array of app names.
+        # Example:
+        #   environment="stage", app="*"
+        #   Files: fly/configs/nopo-stage-api.toml, fly/configs/nopo-stage-web.toml
+        #   Output: ["nopo-stage-api","nopo-stage-web"]
+        # Example 2:
+        #   environment="prod", app="api"
+        #   Files: fly/configs/nopo-prod-api.toml
+        #   Output: ["nopo-prod-api"]
+        # Example 3:
+        #   environment="prod", app="*"
+        #   Files: fly/configs/nopo-stage-api.toml, fly/configs/nopo-stage-web.toml
         app_names=$(
-          ls docker/fly/nopo-${environment}-${app}.toml \
+          ls fly/configs/nopo-${environment}-${app}.toml \
             | xargs -n 1 basename \
             | sed 's/\.toml$//' \
             | sort -u \
