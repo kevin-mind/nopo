@@ -13,22 +13,9 @@ export SERVICE_NAME ?= $(SECOND_WORD)
 fly:
 	npx zx ./fly/scripts/$(SECOND_WORD).js
 
-.PHONY: nopo
-nopo:
-	cd ./docker/scripts && \
-	yes | pnpm install --ignore-workspace && \
-	pnpm build && \
-	pnpm link --global
-
 .PHONY: shell
 shell:
-	if [ "$(FIRST_WORD)" = "$@" ]; then \
-		docker compose run --rm $(or $(SERVICE_NAME),base) bash; \
-	fi
-
-.PHONY: down
-down:
-	docker compose down --rmi local
+	docker compose run --rm $(or $(SERVICE_NAME),base) bash
 
 .PHONY: *
 %:

@@ -11,7 +11,7 @@ Run the project using the companion CLI (nopo).
 Use the make file to build the CLI locally and link it to global pnpm.
 
 ```bash
-make nopo
+make -C ./docker/scripts init
 ```
 
 Now you can run commands using nopo on any shell.
