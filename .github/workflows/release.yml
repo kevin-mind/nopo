@@ -78,7 +78,7 @@ jobs:
       - uses: ./.github/actions/setup-node
 
       - name: Install
-        run: pnpm install:lock:pnpm
+        run: pnpm install --frozen-lockfile
 
       - name: Build
         run: pnpm run --filter "./packages/*" build

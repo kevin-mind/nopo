@@ -1,59 +1,73 @@
-ARG USER=nodeuser
-ARG USER_ID=1001
-
 ################################################################################################
-FROM node:22.16.0-slim AS base
+FROM node:22.16.0-slim AS os
 ################################################################################################
 
-ARG USER
-ARG USER_ID
-ARG NODE_ENV=production
-
-ENV SERVICE_NAME=
-ENV NODE_ENV=$NODE_ENV
-
-ENV BUILD_INFO=/build-info.json
-ENV HOME=/home/$USER
-ENV APP=/app
-ENV DEPS=$HOME/deps
-ENV PNPM_HOME="$DEPS/pnpm"
-ENV PNPM_STORE_DIR="$PNPM_HOME/store"
-ENV COREPACK_HOME="$DEPS/corepack"
-ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
-ENV UV_COMPILE_BYTECODE=1
-ENV UV_CACHE_DIR="$DEPS/uv-cache"
-ENV PYTHONUNBUFFERED=1
-ENV PATH="$PNPM_HOME:$COREPACK_HOME:$PATH"
-
-WORKDIR $APP
-
+# Create user and group for the container
 RUN <<EOF
 # Create user and group
-groupadd -g $USER_ID $USER
-useradd -r -u $USER_ID -g $USER_ID -d $HOME -m -s /bin/bash $USER
+groupadd -g 1001 nopo
+useradd -r -u 1001 -g 1001 -d $HOME -m -s /bin/bash nopo
 EOF
 
-COPY --from=ghcr.io/astral-sh/uv:latest --chown=$USER:$USER /uv /uvx /bin/
+# Global constant environment variables
+ENV FORCE_COLOR=1
+ENV BUILD_INFO=/build-info.json
+ENV HOME=/home/nopo
+ENV APP=/app
+ENV DEPS=$HOME/deps
+
+# PNPM constant environment variables
+ENV PNPM_HOME="$DEPS/pnpm"
+ENV PNPM_STORE_DIR="$PNPM_HOME/store"
+ENV PNPM_VIRTUAL_STORE_DIR="$APP/node_modules/.pnpm"
+ENV COREPACK_HOME="$DEPS/corepack"
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+
+# UV constant environment variables
+ENV UV_HOME="$DEPS/uv"
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_CACHE_DIR="$UV_HOME/cache"
+ENV UV_PROJECT_ENVIRONMENT=$UV_HOME/.venv
+ENV UV_MANAGED_PYTHON=1
+ENV PYTHONUNBUFFERED=1
+
+# Paths needed for executing commands via uv and pnpm
+ENV PATH="$PNPM_HOME:$COREPACK_HOME:$HOME/.local/bin:$PATH"
+
+# Set the working directory for the container in all subsequent stages
+WORKDIR $APP
+
+################################################################################################
+FROM os AS base
+################################################################################################
+
+COPY --from=ghcr.io/astral-sh/uv:latest --chown="nopo:nopo" /uv /uvx /bin/
 
 RUN \
-  --mount=type=bind,source=.python-version,target=$APP/.python-version \
   --mount=type=cache,target=/var/cache/apt,id=apt \
   --mount=type=cache,target=/var/lib/apt,id=apt \
-  --mount=type=bind,source=package.json,target=$APP/package.json \
-  --mount=type=cache,target=$PNPM_HOME,id=pnpm \
-  --mount=type=cache,target=$COREPACK_HOME,id=corepack \
-  --mount=type=cache,target=$PNPM_STORE_DIR,id=pnpm-store \
+  --mount=type=bind,source=.python-version,target=$APP/.python-version \
 <<EOF
+# Install global system dependencies
 apt-get update
 apt-get install -y --no-install-recommends make jq curl
+# Install uv (and python) and pnpm
 uv python install
 npm install --global corepack@latest
 corepack enable pnpm
 corepack prepare pnpm --activate
 EOF
 
+ENV UV_PYTHON_DOWNLOADS=0
+
 ################################################################################################
-FROM base AS info
+FROM os AS source
+################################################################################################
+
+COPY . $APP
+
+################################################################################################
+FROM os AS info
 ################################################################################################
 
 # Build args that represent static build information
@@ -85,69 +99,72 @@ cat ${BUILD_INFO}
 EOF
 
 ################################################################################################
-FROM base AS source
+FROM base AS installer_pnpm
 ################################################################################################
 
-COPY . $APP
-
-################################################################################################
-FROM base AS install
-################################################################################################
-
-ARG USER_ID
-
-COPY --from=source --chown=$USER \
+COPY --from=source --chown="nopo:nopo" \
   $APP/pnpm-lock.yaml \
   $APP/pnpm-workspace.yaml \
+  $APP/
+
+RUN pnpm fetch
+
+################################################################################################
+FROM base AS installer_uv
+################################################################################################
+
+COPY --from=source --chown="nopo:nopo" \
   $APP/pyproject.toml \
   $APP/uv.lock \
   $APP/
 
+RUN uv sync --frozen --no-install-workspace --package nopo
+
+################################################################################################
+FROM base AS builder
+################################################################################################
+
+COPY --from=installer_uv --chown="nopo:nopo" $UV_HOME $UV_HOME
+COPY --from=installer_pnpm --chown="nopo:nopo" $PNPM_HOME $PNPM_HOME
+COPY --from=source --chown="nopo:nopo" $APP $APP
+
 RUN <<EOF
 set -e
-uv sync --frozen --no-install-workspace
-pnpm fetch
+uv sync --locked --package nopo
+pnpm install --frozen-lockfile
 EOF
 
-################################################################################################
-FROM base AS build
-################################################################################################
-
-COPY --from=install --chown=$USER $DEPS $DEPS
-COPY --from=source --chown=$USER $APP $APP
-
-RUN <<EOF
-pnpm "/^install:offline.*/"
-pnpm "/^build.*/"
-EOF
+RUN pnpm -r build
 
 ################################################################################################
-FROM base AS user
+FROM base AS runner
 ################################################################################################
 
-COPY --from=base --chown=$USER $HOME $HOME
 COPY --from=info ${BUILD_INFO} ${BUILD_INFO}
-COPY --from=install --chown=$USER $DEPS $DEPS
-COPY --from=source --chown=$USER $APP/docker/cmd.sh /cmd.sh
+COPY --from=installer_uv --chown="nopo:nopo" $UV_HOME $UV_HOME
+COPY --from=installer_pnpm --chown="nopo:nopo" $PNPM_HOME $PNPM_HOME
+COPY --from=source --chown="nopo:nopo" $APP/docker/cmd.sh /cmd.sh
 
 CMD ["/cmd.sh"]
 
-USER $USER
+USER nopo
 
 ################################################################################################
-FROM user AS development
+FROM runner AS development
 ################################################################################################
 
 ENV SERVICE_COMMAND="dev"
 
 ################################################################################################
-FROM user AS production
+FROM runner AS production
 ################################################################################################
 
 ENV SERVICE_COMMAND="start"
 
-COPY --from=build --chown=$USER $APP $APP
+COPY --from=builder --chown="nopo:nopo" $APP $APP
 
 RUN <<EOF
-pnpm "/^install:prod.*/"
+set -e
+uv sync --locked --no-dev --package nopo
+pnpm install --frozen-lockfile --offline --prod
 EOF
