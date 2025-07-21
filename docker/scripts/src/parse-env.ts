@@ -7,7 +7,9 @@ import { GitInfo, type GitInfoType } from "./git-info.js";
 import type { Config } from "./lib.js";
 
 const nodeEnv = z.enum(["development", "production", "test"]);
-const dockerTarget = nodeEnv.or(z.enum(["base", "build"]));
+const dockerTarget = nodeEnv.or(
+  z.enum(["os", "base", "installer_pnpm", "installer_uv", "builder", "runner"]),
+);
 
 export type EnvironmentDiffType = {
   added: EnvironmentDiffTupleType[];

@@ -14,4 +14,9 @@ if [[ "${command}" == "" ]]; then
 fi
 
 set -xue
-pnpm --filter "@more/${service}" "${command}"
+
+if [[ "${service}" == "nopo" ]]; then
+  pnpm "${command}"
+else
+  pnpm --filter "@more/${service}" "${command}"
+fi

@@ -1,6 +1,7 @@
 .DS_Store
 **/.config
 **/.cache
+**/.changeset
 **/.cursor-server
 **/.git
 **/.venv
@@ -18,6 +19,7 @@
 .docker
 build-metadata.json
 deps
+host
 
 # Playwright
 /test-results/
