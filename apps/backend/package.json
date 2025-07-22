@@ -17,13 +17,14 @@
     "check:lint:py": "uv tool run ruff check",
     "check:types:py": "uv run mypy .",
     "check:types:js": "tsc --noEmit",
-    "test": "uv run python manage.py test src",
-    "dev": "uv run --verbose python manage.py runserver 0.0.0.0:80 --settings=settings",
+    "test": "pnpm python manage.py test src",
+    "dev": "pnpm python manage.py runserver 0.0.0.0:80 --settings=settings",
     "vite": "vite",
-    "start": "uv run --verbose gunicorn --config gunicorn.conf.py src.mysite.wsgi:application",
-    "migrate": "uv run --verbose python manage.py migrate",
-    "makemigrations": "uv run --verbose python manage.py makemigrations",
-    "shell": "uv run --verbose python manage.py shell"
+    "python": "uv run python",
+    "start": "uv run gunicorn --config gunicorn.conf.py src.mysite.wsgi:application",
+    "migrate": "pnpm python manage.py migrate",
+    "makemigrations": "pnpm python manage.py makemigrations",
+    "shell": "pnpm python manage.py shell"
   },
   "devDependencies": {
     "@more/configs": "workspace:*",

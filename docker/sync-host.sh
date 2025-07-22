@@ -3,6 +3,6 @@
 set -xue
 
 rm -rf node_modules .venv
-pnpm install --frozen-lockfile --offline
-uv sync --locked --offline
+pnpm install --frozen-lockfile
+uv sync --locked
 pnpm -r build

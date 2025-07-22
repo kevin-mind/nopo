@@ -29,11 +29,11 @@ host
 .venv
 !.venv/*
 
-
-
 .devcontainer
 .dockerignore
 .git
 .gitignore
 .github
+
+docker/
 
