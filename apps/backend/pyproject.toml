@@ -1,5 +1,5 @@
 [project]
-name = "nopo-backend"
+name = "backend"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -19,6 +19,11 @@ dependencies = [
     "jinja2>=3.1.0",
     "django-vite>=3.1.0",
 ]
+
+[build-system]
+requires = ["uv_build>=0.8.2,<0.9.0"]
+build-backend = "uv_build"
+
 
 [tool.mypy]
 python_version = "3.12"

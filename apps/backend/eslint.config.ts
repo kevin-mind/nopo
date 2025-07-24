@@ -21,7 +21,7 @@ export default createEslintConfig(
       'assets/dist/**',
       'static/**',
       'build/**',
-      'src/**',
+      'src/backend/**',
       'node_modules/**',
       '*.config.*',
     ],

@@ -59,7 +59,7 @@ urlpatterns = [
             [
                 path("admin/", admin.site.urls),
                 path("", home, name="home"),
-                path("todo/", include("src.todo.urls")),
+                path("todo/", include("backend.todo.urls")),
                 path("schema/", SpectacularAPIView.as_view(), name="schema"),
                 path(
                     "docs/",

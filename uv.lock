@@ -5,7 +5,7 @@ requires-python = ">=3.12"
 [manifest]
 members = [
     "nopo",
-    "nopo-backend",
+    "backend",
 ]
 
 [[package]]
@@ -341,16 +341,16 @@ name = "nopo"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
-    { name = "nopo-backend" },
+    { name = "backend" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "nopo-backend", virtual = "apps/backend" }]
+requires-dist = [{ name = "backend", editable = "apps/backend" }]
 
 [[package]]
-name = "nopo-backend"
+name = "backend"
 version = "0.1.0"
-source = { virtual = "apps/backend" }
+source = { editable = "apps/backend" }
 dependencies = [
     { name = "dj-database-url" },
     { name = "django" },

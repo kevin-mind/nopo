@@ -5,8 +5,8 @@ from rest_framework.test import APITestCase
 from rest_framework import status
 from datetime import timedelta
 
-from src.todo.models import TodoItem
-from src.todo.serializers import (
+from backend.todo.models import TodoItem
+from backend.todo.serializers import (
     TodoItemSerializer,
     TodoItemCreateSerializer,
     TodoItemUpdateSerializer,
