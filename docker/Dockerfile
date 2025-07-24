@@ -117,6 +117,7 @@ COPY --from=install --chown=$USER $DEPS $DEPS
 COPY --from=source --chown=$USER $APP $APP
 
 RUN <<EOF
+uv sync --offline --frozen --no-install-workspace
 pnpm "/^install:offline.*/"
 pnpm "/^build.*/"
 EOF
@@ -149,5 +150,6 @@ ENV SERVICE_COMMAND="start"
 COPY --from=build --chown=$USER $APP $APP
 
 RUN <<EOF
+uv sync --offline --frozen --no-install-workspace
 pnpm "/^install:prod.*/"
 EOF
