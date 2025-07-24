@@ -103,6 +103,11 @@ COPY --from=source --chown=$USER \
   $APP/uv.lock \
   $APP/
 
+# Copy workspace members' pyproject.toml files
+COPY --from=source --chown=$USER \
+  $APP/apps/backend/pyproject.toml \
+  $APP/apps/backend/
+
 RUN <<EOF
 set -e
 uv sync --frozen --no-install-workspace
