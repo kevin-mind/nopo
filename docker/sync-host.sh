@@ -2,6 +2,6 @@
 
 set -xue
 
-rm -rf node_modules .venv
-pnpm "/^install:lock.*/"
-pnpm "/^build.*/"
+uv sync --locked --active --offline
+pnpm install --frozen-lockfile --offline
+pnpm -r build

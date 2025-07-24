@@ -14,7 +14,7 @@ runs:
 
     - name: Install nopo
       shell: bash
-      run: make nopo
+      run: make -C ./docker/scripts init
 
     - name: Install dependencies
       shell: bash

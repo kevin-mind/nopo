@@ -2,6 +2,8 @@
 **/.config
 **/.cache
 **/.cursor-server
+**/.git
+**/.venv
 **/node_modules/
 **/build/
 **/.npm

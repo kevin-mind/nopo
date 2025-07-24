@@ -8,8 +8,8 @@
     "build/**"
   ],
   "scripts": {
-    "build": "vite build && uv run python manage.py collectstatic --noinput",
-    "clean": "rm -rf db.sqlite3 build static/vite",
+    "build": "vite build && uv run python manage.py collectstatic --noinput --clear",
+    "clean": "rm -rf __pycache__ .ruff_cache node_modules",
     "fix:lint": "uv tool run ruff format",
     "fix:lint:js": "eslint --fix",
     "check:lint": "uv tool run ruff check",

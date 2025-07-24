@@ -21,13 +21,7 @@
     "start:workspace": "pnpm run -r start",
     "test:workspace": "pnpm run -r test",
     "publish:workspace": "pnpm publish -r",
-    "smoketest": "playwright test",
-    "install:lock:pnpm": "yes | pnpm install --frozen-lockfile",
-    "install:lock:uv": "uv sync --locked",
-    "install:offline:pnpm": "pnpm install:lock:pnpm --offline",
-    "install:offline:uv": "pnpm install:lock:uv --offline",
-    "install:prod:pnpm": "pnpm install:offline:pnpm --prod",
-    "install:prod:uv": "pnpm install:offline:uv --no-dev"
+    "smoketest": "playwright test"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.1",
