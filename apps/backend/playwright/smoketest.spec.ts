@@ -5,7 +5,7 @@ test.describe("Smoketest", () => {
     page,
   }) => {
     // Navigate to the home page
-    await page.goto("/api");
+    await page.goto("/django");
 
     // Wait for the page to load
     await page.waitForLoadState("networkidle");

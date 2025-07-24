@@ -4,4 +4,4 @@
 @import "@more/ui/bem-components.css";
 
 
-@source "../../src/templates/**/*.html";
+@source "../../src/backend/templates/**/*.html";

@@ -91,7 +91,7 @@ ARG DOCKER_TARGET
 ARG DOCKER_TAG
 
 RUN <<EOF
-cat <<INNEREOF > ${BUILD_INFO}
+cat <<INNEREOF > /build-info.json
 {
   "repo": "${GIT_REPO}",
   "branch": "${GIT_BRANCH}",
@@ -103,8 +103,8 @@ cat <<INNEREOF > ${BUILD_INFO}
 }
 INNEREOF
 # Set permissions to make the file readable by all but only writable by root
-chmod 644 ${BUILD_INFO}
-cat ${BUILD_INFO}
+chmod 644 /build-info.json
+cat /build-info.json
 EOF
 
 ################################################################################################
@@ -184,7 +184,7 @@ FROM base AS user
 ################################################################################################
 
 COPY --from=base --chown=$USER $HOME $HOME
-COPY --from=info ${BUILD_INFO} ${BUILD_INFO}
+COPY --from=info /build-info.json /build-info.json
 COPY --from=install_uv --chown=$USER $UV_HOME $UV_HOME
 COPY --from=install_pnpm --chown=$USER $PNPM_HOME $PNPM_HOME
 COPY --from=source --chown=$USER $APP/docker/cmd.sh /cmd.sh

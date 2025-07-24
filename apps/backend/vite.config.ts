@@ -5,18 +5,15 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
 
-  const servicePublicPath = env.SERVICE_PUBLIC_PATH || "/";
-  const staticUrl = `${servicePublicPath}/static/`.replace(/\/\//g, "/");
+  const staticUrl = `/static/`.replace(/\/\//g, "/");
   const viteBaseUrl = `${staticUrl}vite/`.replace(/\/\//g, "/");
-
-  console.log("viteBaseUrl", viteBaseUrl);
 
   return {
     base: viteBaseUrl,
     root: resolve(__dirname, "assets"),
     plugins: [tailwindcss()],
     build: {
-      outDir: resolve(__dirname, "assets", "dist"),
+      outDir: resolve(__dirname, "build"),
       manifest: true,
       emptyOutDir: true,
       rollupOptions: {
@@ -25,7 +22,7 @@ export default defineConfig(({ mode }) => {
           style: resolve(__dirname, "assets/css/tailwind.css"),
         },
       },
-      minify: process.env.NODE_ENV === "production",
+      minify: env.NODE_ENV === "production",
     },
     server: {
       host: true,

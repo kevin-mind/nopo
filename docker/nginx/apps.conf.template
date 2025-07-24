@@ -11,6 +11,17 @@ server {
     location /api {
         try_files $uri @backend;
     }
+    location /django {
+        try_files $uri @backend;
+    }
+
+    location /admin {
+        try_files $uri @backend;
+    }
+
+    location /static {
+        try_files $uri @backend;
+    }
 
     location / {
         try_files $uri @web;

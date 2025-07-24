@@ -4,4 +4,11 @@ set -xue
 
 uv sync --locked --active --offline
 pnpm install --frozen-lockfile --offline
-pnpm -r build
+
+build_info=$(cat /build-info.json)
+
+target=$(echo "${build_info}" | jq -r '.target')
+
+if [[ "${target}" == "production" ]]; then
+  pnpm -r build
+fi
