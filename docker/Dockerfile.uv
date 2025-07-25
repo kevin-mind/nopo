@@ -1,0 +1,88 @@
+ARG USER=nodeuser
+ARG USER_ID=1001
+
+################################################################################################
+FROM node:22.16.0-slim AS os
+################################################################################################
+
+
+ARG USER
+ARG USER_ID
+
+ENV HOME=/home/${USER}
+ENV APP=/app
+ENV DEPS=${HOME}/deps
+
+# UV constant environment variables
+ENV UV_HOME="${DEPS}/uv"
+ENV UV_BIN="${UV_HOME}/bin"
+ENV UV_PYTHON_INSTALL_DIR="${UV_HOME}/python"
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_CACHE_DIR="${UV_HOME}/cache"
+ENV UV_PROJECT_ENVIRONMENT="${UV_HOME}/venv"
+ENV UV_MANAGED_PYTHON=1
+ENV VIRTUAL_ENV="${UV_PROJECT_ENVIRONMENT}"
+# ENV UV_NO_EDITABLE=1
+# ENV UV_VENV_SEED="true"
+ENV XDG_BIN_HOME="${UV_BIN}"
+ENV PYTHONUNBUFFERED=1
+ENV RUST_LOG=uv=debug
+
+ENV PATH="${UV_BIN}:${UV_HOME}:${PATH}"
+
+WORKDIR $APP
+
+RUN <<EOF
+# Create user and group
+groupadd -g "${USER_ID}" "${USER}"
+useradd -r -u "${USER_ID}" -g "${USER_ID}" -d "${HOME}" -m -s /bin/bash "${USER}"
+EOF
+
+################################################################################################
+FROM os AS base
+################################################################################################
+
+COPY --from=ghcr.io/astral-sh/uv:latest --chown="${USER}:${USER}" /uv /uvx /bin/
+
+RUN \
+  --mount=type=cache,target=/var/cache/apt,id=apt \
+  --mount=type=cache,target=/var/lib/apt,id=apt \
+<<EOF
+apt-get update
+apt-get install -y --no-install-recommends make jq curl
+EOF
+
+RUN --mount=type=bind,source=.python-version,target=$APP/.python-version <<EOF
+uv venv
+EOF
+
+################################################################################################
+FROM os AS source_uv
+################################################################################################
+
+COPY . $APP/
+RUN find $APP -type f ! \( -name 'pyproject.toml' -o -name 'uv.lock' \) -delete
+
+################################################################################################
+FROM base AS install_uv
+################################################################################################
+
+COPY --from=source_uv $APP $APP
+
+RUN <<EOF
+uv sync --locked --no-install-workspace --active
+EOF
+
+################################################################################################
+FROM base AS build
+################################################################################################
+
+COPY --from=install_uv $UV_PROJECT_ENVIRONMENT $UV_PROJECT_ENVIRONMENT
+
+COPY . $APP
+
+RUN uv sync --locked --offline
+
+
+
+

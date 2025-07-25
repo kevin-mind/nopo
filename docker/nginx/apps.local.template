@@ -1,4 +1,13 @@
-location /api/static/vite {
+location = /static {
+    return 301 /static/;
+}
+
+location /static/ {
+    alias /app/apps/backend/build/;
+    try_files $uri =404;
+}
+
+location /static/vite {
     try_files $uri @backend_vite;
 }
 

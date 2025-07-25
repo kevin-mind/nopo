@@ -1,18 +1,37 @@
 .DS_Store
 **/.config
 **/.cache
+**/.git
+**/.venv
 **/node_modules/
 **/build/
 **/.npm
 **/.bash_history
 **/.env
 **/tsconfig.tsbuildinfo
+**/vite.config.ts.timestamp-*.mjs
+**/out/
+**/playwright-report/
+**/test-results/
 
-.cache
+.local
+.pnpm-store
+.docker
+build-metadata.json
+deps
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+
+# --- Extra not gitignored entries below ---
+
 .changeset
 .devcontainer
 .dockerignore
-.git
 .gitignore
 .github
 .local
@@ -20,5 +39,4 @@ build-metadata.json
 docker-*
 Dockerfile
 deps
-.venv
 .pnpm-store

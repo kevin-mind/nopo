@@ -153,7 +153,7 @@ export class Runner {
     for await (const [ScriptToRun, enabledArr] of scripts.entries()) {
       const enabled = enabledArr.some(Boolean);
       const skipped = enabled ? "" : chalk.bold("(skipped)");
-      const color = enabled ? chalk.magenta : chalk.yellow;
+      const color = enabled ? chalk.magenta : chalk.gray;
       const message = `${chalk.bold(ScriptToRun.name)}: ${ScriptToRun.description} ${skipped}`;
       const length = message.length + 2;
       this.logger.log(color([line(length), message, line(length)].join("\n")));

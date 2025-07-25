@@ -11,4 +11,4 @@ packageManagerStrict: true
 onlyBuiltDependencies:
   - esbuild
 
-storeDir: ${PNPM_STORE_DIR:-.pnpm-store}
+storeDir: "${PNPM_STORE_DIR:-.pnpm-store}"

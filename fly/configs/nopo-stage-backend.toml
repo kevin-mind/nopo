@@ -10,7 +10,6 @@ processes = [ "app" ]
 
 [env]
   SERVICE_NAME = "backend"
-  SERVICE_PUBLIC_PATH = "/api"
   SITE_URL = "https://nopo-stage.fly.dev"
   PORT = 3_000
 
@@ -22,7 +21,7 @@ memory_mb = 1_024
 
 [[statics]]
   guest_path = "/app/apps/backend/build"
-  url_prefix = "/api/static"
+  url_prefix = "/static"
 
 console_command = "/bin/bash"
 
