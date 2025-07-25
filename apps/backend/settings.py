@@ -166,12 +166,10 @@ USE_TZ = True
 
 APPEND_SLASH = False
 
-# Where collectstatic will put the static files from
-VITE_ASSETS = ASSETS_DIR / "build"
 VITE_MANIFEST = BUILD_DIR / ".vite" / "manifest.json"
 
 STATICFILES_DIRS = [
-    VITE_ASSETS,
+    BUILD_DIR,
 ]
 
 # Where the collectstatic command will put the static files
