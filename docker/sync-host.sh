@@ -3,7 +3,7 @@
 set -xue
 
 uv sync --locked --active --offline
-pnpm install --frozen-lockfile --offline
+yes | pnpm install --frozen-lockfile --offline
 
 build_info=$(cat /build-info.json)
 

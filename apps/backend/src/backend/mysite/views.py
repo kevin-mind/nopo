@@ -8,7 +8,7 @@ import json
 
 
 def version(request):
-    with open(Path("/build/build-info.json"), "r") as f:
+    with open(Path("/build-info.json"), "r") as f:
         build_info = json.load(f)
     return JsonResponse(build_info)
 

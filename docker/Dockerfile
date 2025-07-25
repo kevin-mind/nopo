@@ -22,7 +22,6 @@ EOF
 # PNPM constant environment variables
 ENV PNPM_HOME="${DEPS}/pnpm"
 ENV PNPM_STORE_DIR="${PNPM_HOME}/store"
-ENV PNPM_VIRTUAL_STORE_DIR="${APP}/node_modules/.pnpm"
 ENV COREPACK_HOME="${DEPS}/corepack"
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 
