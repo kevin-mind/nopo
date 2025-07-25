@@ -18,7 +18,6 @@ export default createEslintConfig(
   },
   {
     ignores: [
-      'assets/dist/**',
       'static/**',
       'build/**',
       'src/backend/**',
