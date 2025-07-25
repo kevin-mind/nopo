@@ -31,7 +31,7 @@ services:
       DATABASE_URL: postgres://user:password@db:5432/database
       SITE_URL: http://localhost:${DOCKER_PORT:?}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/django"]
+      test: ["CMD", "curl", "-f", "http://localhost/__version__"]
       interval: 20s
       timeout: 10s
       retries: 3

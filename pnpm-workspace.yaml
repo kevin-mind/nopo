@@ -11,4 +11,5 @@ packageManagerStrict: true
 onlyBuiltDependencies:
   - esbuild
 
-storeDir: ${PNPM_STORE_DIR:-.pnpm-store}
+storeDir: "${PNPM_STORE_DIR:-.pnpm-store}"
+virtualStoreDir: "${PNPM_VIRTUAL_STORE_DIR:-node_modules/.pnpm}"

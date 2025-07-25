@@ -1,7 +1,17 @@
 from django.conf import settings
 from django.shortcuts import render
 from django.utils import timezone
+from django.http import JsonResponse
 import django
+from pathlib import Path
+import json
+
+
+def version(request):
+    with open(Path("/build/build-info.json"), "r") as f:
+        build_info = json.load(f)
+    return JsonResponse(build_info)
+
 
 def home(request):
     """
