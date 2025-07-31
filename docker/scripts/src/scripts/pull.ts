@@ -11,7 +11,7 @@ export default class PullScript extends Script {
     },
   ];
 
-  override async fn(): Promise<void> {
+  override async fn() {
     this.log(`Pulling image: ${this.runner.environment.env.DOCKER_TAG}`);
     await this
       .exec`docker compose -f docker/docker-compose.base.yml pull base --policy always`;

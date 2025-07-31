@@ -188,7 +188,31 @@ COPY --from=install_uv --chown=$USER $UV_HOME $UV_HOME
 COPY --from=install_pnpm --chown=$USER $PNPM_HOME $PNPM_HOME
 COPY --from=source --chown=$USER $APP/docker/cmd.sh /cmd.sh
 
-CMD ["/cmd.sh"]
+RUN <<EOF
+cat <<'INNEREOF' > /cmd.sh
+#!/bin/bash
+
+service="${SERVICE_NAME:-}"
+command="${SERVICE_COMMAND:-}"
+
+if [[ "${service}" == "" ]]; then
+  echo "SERVICE_NAME is not set"
+  exit 1
+fi
+
+if [[ "${command}" == "" ]]; then
+  echo "SERVICE_COMMAND is not set"
+  exit 1
+fi
+
+set -xue
+pnpm --filter "@more/${service}" "${command}"
+INNEREOF
+chmod 755 /cmd.sh
+echo "Command script: /cmd.sh"
+EOF
+
+CMD ["/bin/bash", "/cmd.sh"]
 
 USER $USER
 

@@ -1,5 +1,5 @@
-import { chalk, minimist, ProcessPromise } from "zx";
-import compose, { type IDockerComposeResult } from "docker-compose";
+import { chalk, minimist } from "zx";
+import compose from "docker-compose";
 
 import EnvScript from "./env.js";
 import BuildScript from "./build.js";
@@ -80,7 +80,7 @@ export default class IndexScript extends Script {
     return script;
   }
 
-  override async fn(): Promise<IDockerComposeResult | ProcessPromise> {
+  override async fn() {
     const args = IndexScript.args(this.runner);
     const script = await this.#resolveScript(args);
 

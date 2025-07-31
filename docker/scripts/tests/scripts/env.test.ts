@@ -5,7 +5,12 @@ import EnvScript from "../../src/scripts/env.ts";
 import { Environment } from "../../src/parse-env.ts";
 import { createConfig } from "../../src/lib.ts";
 
-import { createTmpEnv, runScript, dockerTag } from "../utils.ts";
+import {
+  createTestConfig,
+  createTestEnv,
+  runScript,
+  dockerTag,
+} from "../utils.ts";
 import path from "node:path";
 
 vi.mock("../../src/git-info", () => ({
@@ -32,24 +37,21 @@ QUESTION: We could consider allowing "stateful" input where if you set the value
 
 describe("env", () => {
   it("prioritiszes file input over base tag", async () => {
-    const testEnv = createTmpEnv({ DOCKER_TAG: dockerTag.fullTag });
-    const config = createConfig({
-      envFile: testEnv,
-      processEnv: {},
-      silent: true,
+    const config = createTestConfig();
+    createTestEnv(config, {
+      DOCKER_TAG: dockerTag.fullTag,
     });
+
     await runScript(EnvScript, config);
     const { env } = new Environment(config);
     expect(env.DOCKER_TAG).toStrictEqual(dockerTag.fullTag);
   });
 
   it("prioritizes environment over file input", async () => {
-    const testEnv = createTmpEnv({ DOCKER_TAG: dockerTag.fullTag });
-    const config = createConfig({
-      envFile: testEnv,
+    const config = createTestConfig({
       processEnv: { DOCKER_TAG: "registry/repo:tag" },
-      silent: true,
     });
+    createTestEnv(config, { DOCKER_TAG: dockerTag.fullTag });
 
     await runScript(EnvScript, config);
     const { env } = new Environment(config);
@@ -57,12 +59,8 @@ describe("env", () => {
   });
 
   it("extracts docker tag components from DOCKER_TAG", async () => {
-    const testEnv = createTmpEnv({ DOCKER_TAG: dockerTag.fullTag });
-    const config = createConfig({
-      envFile: testEnv,
-      processEnv: {},
-      silent: true,
-    });
+    const config = createConfig();
+    createTestEnv(config, { DOCKER_TAG: dockerTag.fullTag });
     await runScript(EnvScript, config);
     const { env } = new Environment(config);
     expect(env.DOCKER_REGISTRY).toStrictEqual(dockerTag.parsed.registry);
@@ -73,13 +71,11 @@ describe("env", () => {
 
   describe("error states", () => {
     it("Corrects invalid NODE_ENV to default on remote images", async () => {
-      const config = createConfig({
-        envFile: createTmpEnv(),
+      const config = createTestConfig({
         processEnv: {
           NODE_ENV: "invalid",
           DOCKER_TAG: dockerTag.fullTag,
         },
-        silent: true,
       });
       await runScript(EnvScript, config);
       const { env } = new Environment(config);
@@ -88,13 +84,11 @@ describe("env", () => {
     });
 
     it("Corrects invalid DOCKER_TARGET to default on remote images", async () => {
-      const config = createConfig({
-        envFile: createTmpEnv(),
+      const config = createTestConfig({
         processEnv: {
           DOCKER_TARGET: "invalid",
           DOCKER_TAG: dockerTag.fullTag,
         },
-        silent: true,
       });
       await runScript(EnvScript, config);
       const { env } = new Environment(config);
@@ -104,22 +98,16 @@ describe("env", () => {
 
   describe("defaults and inference", () => {
     it("uses default .env file when none is provided", async () => {
-      const config = createConfig({
-        envFile: undefined,
-        processEnv: {},
-        silent: true,
-      });
+      const config = createTestConfig();
       await runScript(EnvScript, config);
       expect(config.envFile).toStrictEqual(path.resolve(config.root, ".env"));
     });
 
     it('sets missing NODE_ENV and DOCKER_TARGET to "development" for local images', async () => {
-      const config = createConfig({
-        envFile: createTmpEnv(),
+      const config = createTestConfig({
         processEnv: {
           DOCKER_TAG: "kevin-mind/nopo:local",
         },
-        silent: true,
       });
       await runScript(EnvScript, config);
       const { env } = new Environment(config);
@@ -127,26 +115,8 @@ describe("env", () => {
       expect(env.DOCKER_TARGET).toStrictEqual("development");
     });
 
-    it("sets HOST_UID to current process UID by default", async () => {
-      const config = createConfig({
-        envFile: createTmpEnv(),
-        processEnv: {
-          DOCKER_TAG: dockerTag.fullTag,
-        },
-        silent: true,
-      });
-      await runScript(EnvScript, config);
-      const { env } = new Environment(config);
-      expect(env.HOST_UID).toStrictEqual(process.getuid?.()?.toString());
-    });
-
     it("uses base tag when no DOCKER_TAG is provided", async () => {
-      const tmpFile = createTmpEnv();
-      const config = createConfig({
-        envFile: tmpFile,
-        processEnv: {},
-        silent: true,
-      });
+      const config = createTestConfig();
       await runScript(EnvScript, config);
       const { env } = new Environment(config);
       expect(env.DOCKER_TAG).toStrictEqual(Environment.baseTag.fullTag);
@@ -155,26 +125,16 @@ describe("env", () => {
 
   describe("file operations", () => {
     it("creates new .env file when none exists", async () => {
-      const tmpFile = createTmpEnv();
-      fs.rmSync(tmpFile);
-      const config = createConfig({
-        envFile: tmpFile,
-        processEnv: {},
-        silent: true,
-      });
+      const config = createTestConfig();
       await runScript(EnvScript, config);
-      expect(fs.existsSync(tmpFile)).toBe(true);
+      expect(fs.existsSync(config.envFile)).toBe(true);
     });
 
     it("updates existing .env file with new values", async () => {
-      const tmpFile = createTmpEnv({
+      const config = createConfig();
+      createTestEnv(config, {
         DOCKER_TAG: dockerTag.fullTag,
         NODE_ENV: "production",
-      });
-      const config = createConfig({
-        envFile: tmpFile,
-        processEnv: {},
-        silent: true,
       });
       const { env: prevEnv } = new Environment(config);
       await runScript(EnvScript, config);
@@ -184,30 +144,22 @@ describe("env", () => {
     });
 
     it("sorts environment variables alphabetically in output file", async () => {
-      const tmpFile = createTmpEnv();
-      const config = createConfig({
-        envFile: tmpFile,
-        processEnv: {},
-        silent: true,
-      });
+      const config = createTestConfig();
       await runScript(EnvScript, config);
-      const str = fs.readFileSync(tmpFile, "utf8");
+      const str = fs.readFileSync(config.envFile, "utf8");
       const actualKeys = str.split("\n").map((line) => line.split("=")[0]);
       const sortedKeys = [...actualKeys].sort();
       expect(actualKeys).toStrictEqual(sortedKeys);
     });
 
     it('formats output as KEY="value" pairs', async () => {
-      const tmpFile = createTmpEnv();
-      const config = createConfig({
-        envFile: tmpFile,
+      const config = createTestConfig({
         processEnv: {
           NODE_ENV: "production",
         },
-        silent: true,
       });
       await runScript(EnvScript, config);
-      const str = fs.readFileSync(tmpFile, "utf8");
+      const str = fs.readFileSync(config.envFile, "utf8");
       expect(str).toContain('NODE_ENV="production"');
     });
   });

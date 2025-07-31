@@ -1,3 +1,15 @@
+.PHONY: check
+check:
+	@pnpm pnpm "/^check:.*/"
+
+.PHONY: fix
+fix:
+	@pnpm pnpm "/^fix:.*/"
+
+.PHONY: test
+test:
+	@pnpm test
+
 .PHONY: install
 install:
 	@pnpm install --ignore-workspace --loglevel="error"

@@ -48,9 +48,15 @@ jobs:
             exit 1
           fi
 
+      - name: Check nopo
+        if: ${{ matrix.expected == 'success' }}
+        run: |
+          make -C ./docker/scripts check
+
       - name: Test nopo
         if: ${{ matrix.expected == 'success' }}
-        run: pnpm run --dir ./docker/scripts test
+        run: |
+          make -C ./docker/scripts test
 
   test:
     runs-on: ubuntu-latest

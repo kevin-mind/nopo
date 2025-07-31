@@ -1,46 +1,34 @@
 import { z } from "zod";
 import { $ } from "zx";
 
-const ParsedGitInfo = z.object({
+const gitSchema = z.object({
   repo: z.string(),
   branch: z.string(),
   commit: z.string(),
 });
 
-export type GitInfoType = z.infer<typeof ParsedGitInfo>;
+export type GitInfoType = z.infer<typeof gitSchema>;
 
 export class GitInfo {
-  static exists(): boolean {
-    try {
-      this.git("--version");
-      return true;
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (error) {
-      return false;
-    }
-  }
-
-  static git(...pieces: string[]): string {
+  git(...pieces: string[]): string {
     return $.sync`git ${pieces}`.stdout.trim();
   }
 
-  static get repo(): string {
+  get repo(): string {
     return this.git("remote", "get-url", "origin");
   }
 
-  static get branch(): string {
+  get branch(): string {
     return this.git("rev-parse", "--abbrev-ref", "HEAD");
   }
 
-  static get commit(): string {
+  get commit(): string {
     return this.git("rev-parse", "HEAD");
   }
 
-  static parse(): GitInfoType {
-    return ParsedGitInfo.parse({
-      repo: this.repo,
-      branch: this.branch,
-      commit: this.commit,
-    });
+  static parse(
+    input: z.infer<typeof gitSchema> | null = new GitInfo(),
+  ): GitInfoType {
+    return gitSchema.parse(input);
   }
 }

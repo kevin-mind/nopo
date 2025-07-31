@@ -1,18 +1,31 @@
 import { minimist, chalk } from "zx";
+import { z } from "zod";
 
-import { Runner, createConfig, Logger, type Config } from "./lib.js";
+import { Runner, createConfig, Logger, type Config, Script } from "./lib.js";
 import { Environment } from "./parse-env.js";
 import process from "node:process";
 
-const scriptModules = import.meta.glob("./scripts/*", { eager: true });
+import Build from "./scripts/build.ts";
+import Down from "./scripts/down.ts";
+import Env from "./scripts/env.ts";
+import Index from "./scripts/index.ts";
+import Pull from "./scripts/pull.ts";
+import Status from "./scripts/status.ts";
+import Up from "./scripts/up.ts";
 
-const scripts: Record<string, unknown> = {};
-for (const [path, module] of Object.entries(scriptModules)) {
-  const name = path.split("/").pop()?.replace(".ts", "");
-  if (name) {
-    scripts[name] = module;
-  }
-}
+type Command = "build" | "down" | "env" | "index" | "pull" | "status" | "up";
+
+const scripts: Record<Command, typeof Script> = {
+  build: Build,
+  down: Down,
+  env: Env,
+  index: Index,
+  pull: Pull,
+  status: Status,
+  up: Up,
+};
+
+const commandSchema = z.enum(Object.keys(scripts) as [Command, ...Command[]]);
 
 function printHelp(message: string, exitCode = 1): never {
   const color = exitCode === 0 ? chalk.green : chalk.red;
@@ -39,13 +52,11 @@ export default async function main(
     return printHelp("Usage: nopo <command> [options]", 0);
   }
 
-  let command: string = args._[0] || "";
+  const { data, success } = commandSchema.safeParse(args._[0]);
+  const command = success ? data : "index";
 
-  if (!scripts[command]) {
-    command = "index";
-  }
+  const ScriptClass = scripts[command];
 
-  const { default: ScriptClass } = scripts[command];
   try {
     await runner.run(ScriptClass);
   } catch (error) {

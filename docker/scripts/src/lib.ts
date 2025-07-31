@@ -1,6 +1,7 @@
 import { path, chalk, $, ProcessOutput } from "zx";
 import { z } from "zod";
 import { fileURLToPath } from "node:url";
+import type { Environment } from "./parse-env.js";
 
 const ConfigSchema = z.object({
   root: z.string(),
@@ -13,9 +14,9 @@ export type Config = z.infer<typeof ConfigSchema>;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const root = path.resolve(__dirname, "..", "..", "..");
 
-interface CreateConfigOptions {
+export interface CreateConfigOptions {
+  root?: string | undefined;
   envFile?: string | undefined;
   processEnv?: Record<string, string>;
   silent?: boolean;
@@ -23,6 +24,7 @@ interface CreateConfigOptions {
 
 export function createConfig(options: CreateConfigOptions = {}): Config {
   const {
+    root = path.resolve(__dirname, "..", "..", ".."),
     envFile = ".env",
     processEnv = Object.fromEntries(
       Object.entries(process.env).filter(([, value]) => value !== undefined),
@@ -74,11 +76,11 @@ export class Script {
     this.runner = runner;
   }
 
-  async fn(): Promise<void> {
+  async fn(): Promise<unknown> {
     throw new Error("Not implemented");
   }
 
-  get env(): Record<string, string | undefined> {
+  get env() {
     return {
       ...this.runner.environment.processEnv,
       ...this.runner.environment.env,
@@ -103,13 +105,13 @@ export class Script {
 
 export class Runner {
   config: Config;
-  environment: import("./parse-env.js").Environment;
+  environment: Environment;
   logger: Logger;
   argv: string[];
 
   constructor(
     config: Config,
-    environment: import("./parse-env.js").Environment,
+    environment: Environment,
     argv: string[] = [],
     logger: Logger = new Logger(config),
   ) {

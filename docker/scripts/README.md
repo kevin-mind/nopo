@@ -202,6 +202,7 @@ nopo run build --workspace web
 
 The tool automatically manages these environment variables:
 
+- `DOCKER_PORT` - Docker port
 - `DOCKER_TAG` - Complete Docker tag
 - `DOCKER_REGISTRY` - Docker registry URL
 - `DOCKER_IMAGE` - Image name
@@ -212,7 +213,6 @@ The tool automatically manages these environment variables:
 - `GIT_REPO` - Git repository URL
 - `GIT_BRANCH` - Current git branch
 - `GIT_COMMIT` - Current git commit hash
-- `HOST_UID` - Host user ID for Docker
 
 ### Advanced Usage
 
