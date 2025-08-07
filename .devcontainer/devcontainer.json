@@ -12,5 +12,6 @@
       "moby": "true"
     }
   },
-  "postAttachCommand": "make up"
+  "onCreateCommand": "make -C ./docker/scripts init",
+  "postAttachCommand": "nopo up"
 }
