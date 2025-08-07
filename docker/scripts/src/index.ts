@@ -1,18 +1,30 @@
 import { minimist, chalk } from "zx";
 
-import { Runner, createConfig, Logger, type Config } from "./lib.js";
+import {
+  Runner,
+  createConfig,
+  Logger,
+  type Config,
+  type Script,
+} from "./lib.js";
 import { Environment } from "./parse-env.js";
 import process from "node:process";
 
-const scriptModules = import.meta.glob("./scripts/*", { eager: true });
+import Build from "./scripts/build.ts";
+import Env from "./scripts/env.ts";
+import Index from "./scripts/index.ts";
+import Pull from "./scripts/pull.ts";
+import Status from "./scripts/status.ts";
+import Up from "./scripts/up.ts";
 
-const scripts: Record<string, unknown> = {};
-for (const [path, module] of Object.entries(scriptModules)) {
-  const name = path.split("/").pop()?.replace(".ts", "");
-  if (name) {
-    scripts[name] = module;
-  }
-}
+const scripts: Record<string, typeof Script> = {
+  build: Build,
+  env: Env,
+  index: Index,
+  pull: Pull,
+  status: Status,
+  up: Up,
+};
 
 function printHelp(message: string, exitCode = 1): never {
   const color = exitCode === 0 ? chalk.green : chalk.red;
@@ -23,8 +35,8 @@ function printHelp(message: string, exitCode = 1): never {
 }
 
 export default async function main(
-  _argv: string[],
-  _env: Record<string, string>,
+  _argv: string[] = process.argv,
+  _env: NodeJS.ProcessEnv = process.env,
 ): Promise<void> {
   const config: Config = createConfig({
     envFile: _env.ENV_FILE || undefined,
@@ -39,13 +51,8 @@ export default async function main(
     return printHelp("Usage: nopo <command> [options]", 0);
   }
 
-  let command: string = args._[0] || "";
+  const ScriptClass = scripts[args._[0] || ""] ?? Index;
 
-  if (!scripts[command]) {
-    command = "index";
-  }
-
-  const { default: ScriptClass } = scripts[command];
   try {
     await runner.run(ScriptClass);
   } catch (error) {

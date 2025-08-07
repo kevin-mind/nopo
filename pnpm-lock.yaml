@@ -173,6 +173,31 @@ importers:
         specifier: ^5.1.4
         version: 5.1.4(typescript@5.8.3)(vite@6.3.5(@types/node@20.17.30)(jiti@2.4.2)(lightningcss@1.30.1)(tsx@4.19.3)(yaml@2.7.1))
 
+  docker/scripts:
+    dependencies:
+      docker-compose:
+        specifier: ^1.2.0
+        version: 1.2.0
+      zod:
+        specifier: ^3.24.2
+        version: 3.24.3
+      zx:
+        specifier: ^8.5.2
+        version: 8.5.3
+    devDependencies:
+      '@types/node':
+        specifier: ^22.16.0
+        version: 22.16.0
+      typescript:
+        specifier: ^5.6.0
+        version: 5.8.3
+      vite:
+        specifier: ^6.0.0
+        version: 6.3.5(@types/node@22.16.0)(jiti@2.4.2)(lightningcss@1.30.1)(tsx@4.19.3)(yaml@2.7.1)
+      vitest:
+        specifier: ^3.1.1
+        version: 3.1.1(@types/node@22.16.0)(jiti@2.4.2)(jsdom@26.1.0)(lightningcss@1.30.1)(tsx@4.19.3)(yaml@2.7.1)
+
   packages/configs:
     devDependencies:
       '@eslint/compat':
@@ -3259,6 +3284,10 @@ packages:
     resolution: {integrity: sha512-WkrWp9GR4KXfKGYzOLmTuGVi1UWFfws377n9cc55/tb6DuqyF6pcQ5AbiHEshaDpY9v6oaSr2XCDidGmMwdzIA==}
     engines: {node: '>=8'}
 
+  docker-compose@1.2.0:
+    resolution: {integrity: sha512-wIU1eHk3Op7dFgELRdmOYlPYS4gP8HhH1ZmZa13QZF59y0fblzFDFmKPhyc05phCy2hze9OEvNZAsoljrs+72w==}
+    engines: {node: '>= 6.0.0'}
+
   doctrine@3.0.0:
     resolution: {integrity: sha512-yS+Q5i3hBf7GBkd4KG8a7eBNNWNGLTaEwwYWUijIYM7zrlYDM0BFXHjjPWlWZ1Rg7UaddZeIDmi9jF3HmqiQ2w==}
     engines: {node: '>=6.0.0'}
@@ -3575,14 +3604,6 @@ packages:
 
   fb-watchman@2.0.2:
     resolution: {integrity: sha512-p5161BqbuCaSnB8jIbzQHOlpgsPmK5rJVDfDKO91Axs5NC1uu3HRQm6wt9cd9/+GtQQIO53JdGXXoyDpTAsgYA==}
-
-  fdir@6.4.4:
-    resolution: {integrity: sha512-1NZP+GK4GfuAv3PqKvxQRDMjdSRZjnkq7KfhlNrCNNlZ0ygQFpebfrnfnq/W7fpUnAv9aGWmY1zKx7FYL3gwhg==}
-    peerDependencies:
-      picomatch: ^3 || ^4
-    peerDependenciesMeta:
-      picomatch:
-        optional: true
 
   fdir@6.4.6:
     resolution: {integrity: sha512-hiFoqpyZcfNm1yc4u8oWCf9A2c4D3QjCrks3zmoVKVxpQRzmPNar1hUJcBG2RQHvEVGDN+Jm81ZheVLAQMK6+w==}
@@ -6469,7 +6490,7 @@ snapshots:
       '@babel/traverse': 7.27.0
       '@babel/types': 7.27.0
       convert-source-map: 2.0.0
-      debug: 4.4.0
+      debug: 4.4.1
       gensync: 1.0.0-beta.2
       json5: 2.2.3
       semver: 6.3.1
@@ -6815,7 +6836,7 @@ snapshots:
       '@babel/parser': 7.27.0
       '@babel/template': 7.27.0
       '@babel/types': 7.27.0
-      debug: 4.4.0
+      debug: 4.4.1
       globals: 11.12.0
     transitivePeerDependencies:
       - supports-color
@@ -7204,7 +7225,7 @@ snapshots:
   '@eslint/config-array@0.20.0':
     dependencies:
       '@eslint/object-schema': 2.1.6
-      debug: 4.4.0
+      debug: 4.4.1
       minimatch: 3.1.2
     transitivePeerDependencies:
       - supports-color
@@ -7218,7 +7239,7 @@ snapshots:
   '@eslint/eslintrc@3.3.1':
     dependencies:
       ajv: 6.12.6
-      debug: 4.4.0
+      debug: 4.4.1
       espree: 10.3.0
       globals: 14.0.0
       ignore: 5.3.2
@@ -8723,7 +8744,7 @@ snapshots:
   '@types/liftoff@4.0.3':
     dependencies:
       '@types/fined': 1.1.5
-      '@types/node': 20.17.30
+      '@types/node': 22.16.0
 
   '@types/mdx@2.0.13': {}
 
@@ -8757,7 +8778,7 @@ snapshots:
 
   '@types/through@0.0.33':
     dependencies:
-      '@types/node': 20.17.30
+      '@types/node': 22.16.0
 
   '@types/uuid@9.0.8': {}
 
@@ -8822,7 +8843,7 @@ snapshots:
     dependencies:
       '@typescript-eslint/types': 8.30.1
       '@typescript-eslint/visitor-keys': 8.30.1
-      debug: 4.4.0
+      debug: 4.4.1
       fast-glob: 3.3.3
       is-glob: 4.0.3
       minimatch: 9.0.5
@@ -9725,6 +9746,10 @@ snapshots:
     dependencies:
       path-type: 4.0.0
 
+  docker-compose@1.2.0:
+    dependencies:
+      yaml: 2.7.1
+
   doctrine@3.0.0:
     dependencies:
       esutils: 2.0.3
@@ -10086,10 +10111,6 @@ snapshots:
   fb-watchman@2.0.2:
     dependencies:
       bser: 2.1.1
-
-  fdir@6.4.4(picomatch@4.0.2):
-    optionalDependencies:
-      picomatch: 4.0.2
 
   fdir@6.4.6(picomatch@4.0.2):
     optionalDependencies:
@@ -12630,7 +12651,7 @@ snapshots:
 
   tinyglobby@0.2.13:
     dependencies:
-      fdir: 6.4.4(picomatch@4.0.2)
+      fdir: 6.4.6(picomatch@4.0.2)
       picomatch: 4.0.2
 
   tinyglobby@0.2.14:
@@ -12870,7 +12891,7 @@ snapshots:
   vite-node@3.0.0-beta.2(@types/node@20.17.30)(jiti@2.4.2)(lightningcss@1.30.1)(tsx@4.19.3)(yaml@2.7.1):
     dependencies:
       cac: 6.7.14
-      debug: 4.4.0
+      debug: 4.4.1
       es-module-lexer: 1.6.0
       pathe: 1.1.2
       vite: 6.3.5(@types/node@20.17.30)(jiti@2.4.2)(lightningcss@1.30.1)(tsx@4.19.3)(yaml@2.7.1)
@@ -12891,7 +12912,7 @@ snapshots:
   vite-node@3.1.1(@types/node@20.17.30)(jiti@2.4.2)(lightningcss@1.30.1)(tsx@4.19.3)(yaml@2.7.1):
     dependencies:
       cac: 6.7.14
-      debug: 4.4.0
+      debug: 4.4.1
       es-module-lexer: 1.6.0
       pathe: 2.0.3
       vite: 6.3.5(@types/node@20.17.30)(jiti@2.4.2)(lightningcss@1.30.1)(tsx@4.19.3)(yaml@2.7.1)
@@ -12912,7 +12933,7 @@ snapshots:
   vite-node@3.1.1(@types/node@22.16.0)(jiti@2.4.2)(lightningcss@1.30.1)(tsx@4.19.3)(yaml@2.7.1):
     dependencies:
       cac: 6.7.14
-      debug: 4.4.0
+      debug: 4.4.1
       es-module-lexer: 1.6.0
       pathe: 2.0.3
       vite: 6.3.5(@types/node@22.16.0)(jiti@2.4.2)(lightningcss@1.30.1)(tsx@4.19.3)(yaml@2.7.1)
@@ -13011,7 +13032,7 @@ snapshots:
       '@vitest/spy': 3.1.1
       '@vitest/utils': 3.1.1
       chai: 5.2.0
-      debug: 4.4.0
+      debug: 4.4.1
       expect-type: 1.2.1
       magic-string: 0.30.17
       pathe: 2.0.3
@@ -13050,7 +13071,7 @@ snapshots:
       '@vitest/spy': 3.1.1
       '@vitest/utils': 3.1.1
       chai: 5.2.0
-      debug: 4.4.0
+      debug: 4.4.1
       expect-type: 1.2.1
       magic-string: 0.30.17
       pathe: 2.0.3
@@ -13215,8 +13236,7 @@ snapshots:
 
   yaml@1.10.2: {}
 
-  yaml@2.7.1:
-    optional: true
+  yaml@2.7.1: {}
 
   yargs-parser@18.1.3:
     dependencies:
