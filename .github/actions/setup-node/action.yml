@@ -11,11 +11,6 @@ runs:
         node-version-file: 'package.json'
         cache: 'pnpm'
 
-
-    - name: Install nopo
-      shell: bash
-      run: make -C ./docker/scripts init
-
     - name: Install dependencies
       shell: bash
       run: pnpm install

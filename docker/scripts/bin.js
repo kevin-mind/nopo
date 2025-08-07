@@ -2,7 +2,7 @@
 
 import("./build/index.js")
   .then(({ default: main }) => {
-    main(process.argv, process.env);
+    main();
   })
   .catch((error) => {
     console.error({ error });

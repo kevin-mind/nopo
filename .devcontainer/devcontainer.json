@@ -5,13 +5,18 @@
   "updateRemoteUserUID": true,
   "workspaceFolder": "/workspaces/nopo",
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/nopo,type=bind",
+  "containerEnv": {
+    "DOCKER_PORT": "80",
+    "SITE_URL": "https://${CODESPACE_NAME}-80.app.github.dev"
+  },
   "features": {
+    "ghcr.io/jsburckhardt/devcontainer-features/uv:1": {},
     "ghcr.io/devcontainers/features/docker-in-docker": {
       "version": "latest",
       "enableNonRootDocker": "true",
       "moby": "true"
     }
   },
-  "onCreateCommand": "make -C ./docker/scripts init",
-  "postAttachCommand": "nopo up"
+  "postStartCommand": "./.devcontainer/start.sh",
+  "postAttachCommand": "nopo status"
 }

@@ -6,10 +6,6 @@ install:
 build:
 	@pnpm build --logLevel="error" > /dev/null
 
-.PHONY: link
-link:
-	@pnpm link --global --loglevel="error"
-
 .PHONY: init
-init: install build link
+init: install build
 	@echo "nopo initialized"

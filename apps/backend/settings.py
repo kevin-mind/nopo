@@ -16,8 +16,6 @@ import dj_database_url
 from urllib.parse import urlparse
 
 SERVICE_COMMAND = os.environ.get("SERVICE_COMMAND")
-SERVICE_NAME = os.environ.get("SERVICE_NAME")
-FLY_APP_NAME = os.environ.get("FLY_APP_NAME")
 
 IS_DEV_MODE = SERVICE_COMMAND == "dev"
 
@@ -67,6 +65,7 @@ ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
     ".fly.dev",
+    ".app.github.dev",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
