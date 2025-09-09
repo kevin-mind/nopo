@@ -52,11 +52,20 @@ export default class UpScript extends Script {
     }
 
     await Promise.all([
-      compose.run("base", "/app/docker/sync-host.sh", {
-        callback: createLogger("sync", "green"),
+      compose.run("base", ["uv", "sync", "--locked", "--active", "--offline"], {
+        callback: createLogger("sync_uv", "green"),
         commandOptions: ["--rm", "--no-deps", "--remove-orphans"],
         env: this.env,
       }),
+      compose.run(
+        "base",
+        ["pnpm", "install", "--frozen-lockfile", "--offline"],
+        {
+          callback: createLogger("sync_pnpm", "blue"),
+          commandOptions: ["--rm", "--no-deps", "--remove-orphans"],
+          env: this.env,
+        },
+      ),
       compose.downMany(downServices, {
         callback: createLogger("down", "yellow"),
         commandOptions: ["--remove-orphans"],
@@ -68,6 +77,15 @@ export default class UpScript extends Script {
         env: this.env,
       }),
     ]);
+
+    if (this.runner.environment.env.DOCKER_TARGET === "production") {
+      this.log("Building packages...");
+      await compose.run("base", ["pnpm", "-r", "build"], {
+        callback: createLogger("build", "green"),
+        commandOptions: ["--rm", "--no-deps", "--remove-orphans"],
+        env: this.env,
+      });
+    }
 
     try {
       await compose.upAll({
