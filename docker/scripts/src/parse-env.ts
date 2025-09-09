@@ -32,7 +32,6 @@ export class Environment {
     DOCKER_DIGEST: z.string().optional().default(""),
     DOCKER_TARGET: dockerTarget,
     NODE_ENV: nodeEnv,
-    HOST_UID: z.string(),
   });
 
   envFile: string;
@@ -185,7 +184,6 @@ export class Environment {
       GIT_BRANCH: gitInfo.branch,
       GIT_COMMIT: gitInfo.commit,
       NODE_ENV: inputEnv.NODE_ENV,
-      HOST_UID: process.getuid?.()?.toString() ?? "1000",
     });
   }
 

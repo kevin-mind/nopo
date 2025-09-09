@@ -212,7 +212,6 @@ The tool automatically manages these environment variables:
 - `GIT_REPO` - Git repository URL
 - `GIT_BRANCH` - Current git branch
 - `GIT_COMMIT` - Current git commit hash
-- `HOST_UID` - Host user ID for Docker
 
 ### Advanced Usage
 

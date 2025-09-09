@@ -54,7 +54,6 @@ export default class UpScript extends Script {
     await Promise.all([
       compose.run("base", "/app/docker/sync-host.sh", {
         callback: createLogger("sync", "green"),
-        config: ["docker/docker-compose.sync.yml"],
         commandOptions: ["--rm", "--no-deps", "--remove-orphans"],
         env: this.env,
       }),
