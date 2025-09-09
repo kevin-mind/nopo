@@ -1,4 +1,4 @@
-import { Script } from "../lib.js";
+import { Script } from "../lib.ts";
 
 export default class EnvScript extends Script {
   static override name = "env";

@@ -5,10 +5,10 @@ import {
   type ScriptDependency,
   type Runner,
   createLogger,
-} from "../lib.js";
-import EnvScript from "./env.js";
-import BuildScript from "./build.js";
-import PullScript from "./pull.js";
+} from "../lib.ts";
+import EnvScript from "./env.ts";
+import BuildScript from "./build.ts";
+import PullScript from "./pull.ts";
 
 export function isBuild({ config, environment }: Runner): boolean {
   const forceBuild = !!config.processEnv.DOCKER_BUILD;

@@ -1,5 +1,5 @@
 import compose from "docker-compose";
-import { Script, createLogger } from "../lib.js";
+import { Script, createLogger } from "../lib.ts";
 import EnvScript from "./env.ts";
 
 export default class DownScript extends Script {

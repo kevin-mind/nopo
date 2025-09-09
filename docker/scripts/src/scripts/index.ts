@@ -1,17 +1,17 @@
 import { minimist } from "zx";
 import compose from "docker-compose";
 
-import EnvScript from "./env.js";
-import BuildScript from "./build.js";
-import PullScript from "./pull.js";
-import { isBuild, isPull } from "./up.js";
+import EnvScript from "./env.ts";
+import BuildScript from "./build.ts";
+import PullScript from "./pull.ts";
+import { isBuild, isPull } from "./up.ts";
 
 import {
   Script,
   type ScriptDependency,
   type Runner,
   createLogger,
-} from "../lib.js";
+} from "../lib.ts";
 
 async function isDown(runner: Runner): Promise<boolean> {
   const args = IndexScript.args(runner);

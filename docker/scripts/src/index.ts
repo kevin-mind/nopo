@@ -6,8 +6,8 @@ import {
   Logger,
   type Config,
   type Script,
-} from "./lib.js";
-import { Environment } from "./parse-env.js";
+} from "./lib.ts";
+import { Environment } from "./parse-env.ts";
 import process from "node:process";
 
 import Build from "./scripts/build.ts";
