@@ -1,7 +1,11 @@
 import compose from "docker-compose";
-import { chalk } from "zx";
 
-import { Script, type ScriptDependency, type Runner } from "../lib.js";
+import {
+  Script,
+  type ScriptDependency,
+  type Runner,
+  createLogger,
+} from "../lib.js";
 import EnvScript from "./env.js";
 import BuildScript from "./build.js";
 import PullScript from "./pull.js";
@@ -46,24 +50,6 @@ export default class UpScript extends Script {
       if (service.image !== this.runner.environment.env.DOCKER_TAG) continue;
       downServices.push(name);
     }
-
-    const createLogger =
-      (name: string, color: string = "black") =>
-      (chunk: Buffer, streamSource?: "stdout" | "stderr"): void => {
-        const messages = chunk.toString().trim().split("\n");
-        const log = streamSource === "stdout" ? console.log : console.error;
-        for (const message of messages) {
-          const colorFn =
-            color === "green"
-              ? chalk.green
-              : color === "yellow"
-                ? chalk.yellow
-                : color === "blue"
-                  ? chalk.blue
-                  : chalk.white;
-          log(colorFn(`[${name}] ${message}`));
-        }
-      };
 
     await Promise.all([
       compose.run("base", "/app/docker/sync-host.sh", {

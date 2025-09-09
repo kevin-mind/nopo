@@ -37,6 +37,18 @@ export function createConfig(options: CreateConfigOptions = {}): Config {
   });
 }
 
+type Color = "black" | "red" | "blue" | "yellow" | "green";
+
+export function createLogger(name: string, color: Color = "black") {
+  return (chunk: Buffer, streamSource?: "stdout" | "stderr"): void => {
+    const messages = chunk.toString().trim().split("\n");
+    const log = streamSource === "stdout" ? console.log : console.error;
+    for (const message of messages) {
+      log(chalk[color](`[${name}] ${message}`));
+    }
+  };
+}
+
 /**
  * Logger for script output.
  */

@@ -16,6 +16,7 @@ import Index from "./scripts/index.ts";
 import Pull from "./scripts/pull.ts";
 import Status from "./scripts/status.ts";
 import Up from "./scripts/up.ts";
+import Down from "./scripts/down.ts";
 
 const scripts: Record<string, typeof Script> = {
   build: Build,
@@ -24,6 +25,7 @@ const scripts: Record<string, typeof Script> = {
   pull: Pull,
   status: Status,
   up: Up,
+  down: Down,
 };
 
 function printHelp(message: string, exitCode = 1): never {
