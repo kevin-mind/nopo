@@ -1,10 +1,14 @@
 import compose from "docker-compose";
-import { chalk } from "zx";
 
-import { Script, type ScriptDependency, type Runner } from "../lib.js";
-import EnvScript from "./env.js";
-import BuildScript from "./build.js";
-import PullScript from "./pull.js";
+import {
+  Script,
+  type ScriptDependency,
+  type Runner,
+  createLogger,
+} from "../lib.ts";
+import EnvScript from "./env.ts";
+import BuildScript from "./build.ts";
+import PullScript from "./pull.ts";
 
 export function isBuild({ config, environment }: Runner): boolean {
   const forceBuild = !!config.processEnv.DOCKER_BUILD;
@@ -47,28 +51,9 @@ export default class UpScript extends Script {
       downServices.push(name);
     }
 
-    const createLogger =
-      (name: string, color: string = "black") =>
-      (chunk: Buffer, streamSource?: "stdout" | "stderr"): void => {
-        const messages = chunk.toString().trim().split("\n");
-        const log = streamSource === "stdout" ? console.log : console.error;
-        for (const message of messages) {
-          const colorFn =
-            color === "green"
-              ? chalk.green
-              : color === "yellow"
-                ? chalk.yellow
-                : color === "blue"
-                  ? chalk.blue
-                  : chalk.white;
-          log(colorFn(`[${name}] ${message}`));
-        }
-      };
-
     await Promise.all([
       compose.run("base", "/app/docker/sync-host.sh", {
         callback: createLogger("sync", "green"),
-        config: ["docker/docker-compose.sync.yml"],
         commandOptions: ["--rm", "--no-deps", "--remove-orphans"],
         env: this.env,
       }),

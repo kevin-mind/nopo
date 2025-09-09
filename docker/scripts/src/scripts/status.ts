@@ -1,5 +1,5 @@
 import compose from "docker-compose";
-import { Script } from "../lib.js";
+import { Script } from "../lib.ts";
 import EnvScript from "./env.ts";
 
 interface ServiceInfo {

@@ -1,5 +1,5 @@
-import { Script, type ScriptDependency } from "../lib.js";
-import EnvScript from "./env.js";
+import { Script, type ScriptDependency } from "../lib.ts";
+import EnvScript from "./env.ts";
 
 export default class PullScript extends Script {
   static override name = "pull";

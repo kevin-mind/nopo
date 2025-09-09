@@ -1,12 +1,17 @@
-import { chalk, minimist } from "zx";
+import { minimist } from "zx";
 import compose from "docker-compose";
 
-import EnvScript from "./env.js";
-import BuildScript from "./build.js";
-import PullScript from "./pull.js";
-import { isBuild, isPull } from "./up.js";
+import EnvScript from "./env.ts";
+import BuildScript from "./build.ts";
+import PullScript from "./pull.ts";
+import { isBuild, isPull } from "./up.ts";
 
-import { Script, type ScriptDependency, type Runner } from "../lib.js";
+import {
+  Script,
+  type ScriptDependency,
+  type Runner,
+  createLogger,
+} from "../lib.ts";
 
 async function isDown(runner: Runner): Promise<boolean> {
   const args = IndexScript.args(runner);
@@ -88,16 +93,6 @@ export default class IndexScript extends Script {
       await this.exec`${script}`;
       return;
     }
-
-    const createLogger =
-      (name: string) =>
-      (chunk: Buffer, streamSource?: "stdout" | "stderr"): void => {
-        const messages = chunk.toString().trim().split("\n");
-        const log = streamSource === "stdout" ? console.log : console.error;
-        for (const message of messages) {
-          log(chalk.white(`[${name}] ${message}`));
-        }
-      };
 
     await compose.run(args.service, script, {
       callback: createLogger(args.service),

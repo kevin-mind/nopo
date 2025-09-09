@@ -2,9 +2,9 @@ import { z } from "zod";
 import { fs, dotenv } from "zx";
 import net from "node:net";
 
-import { DockerTag } from "./docker-tag.js";
-import { GitInfo, type GitInfoType } from "./git-info.js";
-import type { Config } from "./lib.js";
+import { DockerTag } from "./docker-tag.ts";
+import { GitInfo, type GitInfoType } from "./git-info.ts";
+import type { Config } from "./lib.ts";
 
 const nodeEnv = z.enum(["development", "production", "test"]);
 const dockerTarget = nodeEnv.or(z.enum(["base", "build"]));
@@ -32,7 +32,6 @@ export class Environment {
     DOCKER_DIGEST: z.string().optional().default(""),
     DOCKER_TARGET: dockerTarget,
     NODE_ENV: nodeEnv,
-    HOST_UID: z.string(),
   });
 
   envFile: string;
@@ -185,7 +184,6 @@ export class Environment {
       GIT_BRANCH: gitInfo.branch,
       GIT_COMMIT: gitInfo.commit,
       NODE_ENV: inputEnv.NODE_ENV,
-      HOST_UID: process.getuid?.()?.toString() ?? "1000",
     });
   }
 

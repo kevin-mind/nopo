@@ -1,6 +1,6 @@
 import { $, ProcessPromise } from "zx";
-import { Script, type ScriptDependency } from "../lib.js";
-import EnvScript from "./env.js";
+import { Script, type ScriptDependency } from "../lib.ts";
+import EnvScript from "./env.ts";
 
 export default class BuildScript extends Script {
   static override name = "build";
