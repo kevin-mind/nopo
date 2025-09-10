@@ -501,13 +501,13 @@ export class Script {
 
 export class Runner {
   config: Config;
-  environment: import("./parse-env.js").Environment;
+  environment: import("./parse-env.ts").Environment;
   logger: Logger;
   argv: string[];
 
   constructor(
     config: Config,
-    environment: import("./parse-env.js").Environment,
+    environment: import("./parse-env.ts").Environment,
     argv: string[] = [],
     logger: Logger = new Logger(config),
   ) {
