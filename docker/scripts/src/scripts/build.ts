@@ -1,5 +1,9 @@
-import { $, ProcessPromise } from "zx";
-import { Script, type ScriptDependency } from "../lib.ts";
+import {
+  Script,
+  type ScriptDependency,
+  $,
+  type ProcessPromise,
+} from "../lib.ts";
 import EnvScript from "./env.ts";
 
 export default class BuildScript extends Script {
@@ -22,7 +26,7 @@ export default class BuildScript extends Script {
 
     if (customBuilder) return customBuilder;
 
-    const p = await $`docker buildx inspect ${builder}`.nothrow();
+    const p = await $({ nothrow: true })`docker buildx inspect ${builder}`;
     if (p.exitCode !== 0) {
       this.log(`Builder '${builder}' not found, creating it...`);
       await this

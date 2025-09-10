@@ -1,7 +1,9 @@
 import "@total-typescript/ts-reset";
 import { fileURLToPath } from "node:url";
+import path from "node:path";
+import fs from "node:fs";
 import { includeIgnoreFile } from "@eslint/compat";
-import { globby, fs, path } from "zx";
+import { glob } from "glob";
 import tseslint from "typescript-eslint";
 import eslint from "@eslint/js";
 import eslintPluginPrettier from "eslint-plugin-prettier/recommended";
@@ -15,20 +17,23 @@ const gitignorePath = path.resolve(__dirname, ".gitignore");
 
 const workspaceGlobs = pkgJson.workspaces || [];
 
-const workspaceIgnores = globby
-  .sync(workspaceGlobs, {
-    onlyDirectories: true,
-    cwd: __dirname,
-    absolute: false,
-  })
-  .map((workspaceDir) => {
-    const configFile = path.resolve(workspaceDir, "eslint.config.ts");
+// Use glob to find workspace directories
+const workspaceIgnores = workspaceGlobs
+  .flatMap((pattern) =>
+    glob.sync(pattern, {
+      cwd: __dirname,
+      absolute: false,
+    }),
+  )
+  .filter((workspaceDir) => {
+    // Check if it's a directory
+    const fullPath = path.resolve(__dirname, workspaceDir);
+    if (!fs.statSync(fullPath).isDirectory()) return false;
 
-    if (fs.existsSync(configFile)) {
-      return workspaceDir;
-    }
-  })
-  .filter(Boolean);
+    // Check if it has an eslint config
+    const configFile = path.resolve(fullPath, "eslint.config.ts");
+    return fs.existsSync(configFile);
+  });
 
 const config: ReturnType<typeof tseslint.config> = tseslint.config(
   eslint.configs.recommended,

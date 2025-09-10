@@ -1,5 +1,5 @@
-import { minimist } from "zx";
 import compose from "docker-compose";
+import { minimist } from "../lib.ts";
 
 import EnvScript from "./env.ts";
 import BuildScript from "./build.ts";
@@ -30,9 +30,9 @@ async function isDown(runner: Runner): Promise<boolean> {
 }
 
 interface IndexScriptArgs {
-  script?: string | undefined;
-  service?: string | undefined;
-  workspace?: string | undefined;
+  script: string;
+  service: string;
+  workspace: string;
 }
 
 export default class IndexScript extends Script {
@@ -56,10 +56,12 @@ export default class IndexScript extends Script {
   ];
 
   static args(runner: Runner): IndexScriptArgs {
-    const {
-      _: [script, service],
-      workspace,
-    } = minimist(runner.argv);
+    const { _: [script = "", service = ""] = ["", ""], workspace = "" } =
+      minimist(runner.argv);
+
+    if (workspace !== undefined && typeof workspace !== "string") {
+      throw new Error("--workspace must be a single string value");
+    }
 
     return {
       script,

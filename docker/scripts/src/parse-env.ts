@@ -1,6 +1,7 @@
 import { z } from "zod";
-import { fs, dotenv } from "zx";
+import fs from "node:fs";
 import net from "node:net";
+import { dotenv } from "./lib.ts";
 
 import { DockerTag } from "./docker-tag.ts";
 import { GitInfo, type GitInfoType } from "./git-info.ts";

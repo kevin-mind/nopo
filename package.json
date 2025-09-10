@@ -43,7 +43,7 @@
     "vitest": "^3.1.1",
     "znv": "^0.5.0",
     "zod": "^3.24.2",
-    "zx": "^8.5.2"
+    "glob": "^11.0.0"
   },
   "packageManager": "pnpm@10.11.1",
   "engines": {

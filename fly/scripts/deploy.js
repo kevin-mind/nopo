@@ -1,9 +1,12 @@
-#!/usr/bin/env zx
+#!/usr/bin/env node
 
-import { resolve } from "node:path";
-
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { spawn } from "node:child_process";
 import { z } from "zod";
-import { $ } from "zx";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -59,17 +62,49 @@ async function waitUntilHealthy(
   console.info(`${app} is healthy`);
 }
 
-$.verbose = true;
+// Helper function to execute shell commands
+function exec(command, args) {
+  return new Promise((resolve, reject) => {
+    console.log(`$ ${command} ${args.join(" ")}`);
+    const proc = spawn(command, args, { stdio: "inherit", shell: false });
+    proc.on("close", (code) => {
+      if (code !== 0) {
+        reject(new Error(`Command failed with exit code ${code}`));
+      } else {
+        resolve();
+      }
+    });
+    proc.on("error", reject);
+  });
+}
 
 async function deployImage(app, version) {
   const configPath = configFile(app);
   const image = dockerImage(app, version);
-  await $`flyctl deploy --app "${app}" --config "${configPath}" --image "${image}" --depot=false`;
+  await exec("flyctl", [
+    "deploy",
+    "--app",
+    app,
+    "--config",
+    configPath,
+    "--image",
+    image,
+    "--depot=false",
+  ]);
 }
 
 async function deployFile(app, file) {
   const configPath = configFile(app);
-  await $`flyctl deploy --dockerfile "${file}" --app "${app}" --config "${configPath}" --depot=false`;
+  await exec("flyctl", [
+    "deploy",
+    "--dockerfile",
+    file,
+    "--app",
+    app,
+    "--config",
+    configPath,
+    "--depot=false",
+  ]);
 }
 
 const env = z

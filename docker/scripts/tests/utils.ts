@@ -1,7 +1,12 @@
-import { tmpfile, dotenv } from "zx";
-
 import { DockerTag } from "../src/docker-tag.ts";
-import { Runner, Script, Logger, createConfig } from "../src/lib.ts";
+import {
+  Runner,
+  Script,
+  Logger,
+  createConfig,
+  tmpfile,
+  dotenv,
+} from "../src/lib.ts";
 import { Environment } from "../src/parse-env.ts";
 
 export const dockerTag = new DockerTag({

@@ -11,7 +11,7 @@ export SERVICE_NAME ?= $(SECOND_WORD)
 
 .PHONY: fly
 fly:
-	npx zx ./fly/scripts/$(SECOND_WORD).js
+	node ./fly/scripts/$(SECOND_WORD).js
 
 .PHONY: shell
 shell:

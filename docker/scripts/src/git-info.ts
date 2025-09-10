@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { $ } from "zx";
+import { $ } from "./lib.ts";
 
 const ParsedGitInfo = z.object({
   repo: z.string(),
