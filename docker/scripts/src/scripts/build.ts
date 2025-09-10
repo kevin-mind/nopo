@@ -32,7 +32,7 @@ export default class BuildScript extends Script {
     return builder;
   }
 
-  override async fn(): Promise<void> {
+  override async fn() {
     const commandOptions = [
       "-f",
       "docker/docker-bake.hcl",

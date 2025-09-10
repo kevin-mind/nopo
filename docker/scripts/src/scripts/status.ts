@@ -18,7 +18,7 @@ export default class StatusScript extends Script {
   static override name = "status";
   static override description = "Check the status of the services";
 
-  override async fn(): Promise<void> {
+  override async fn() {
     const { data } = await compose.ps({
       cwd: this.runner.config.root,
     });
