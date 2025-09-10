@@ -59,7 +59,7 @@ export default class UpScript extends Script {
       }),
       compose.run(
         "base",
-        ["pnpm", "install", "--frozen-lockfile", "--offline"],
+        ["sh", "-c", "yes | pnpm install --frozen-lockfile --offline"],
         {
           callback: createLogger("sync_pnpm", "blue"),
           commandOptions: ["--rm", "--no-deps", "--remove-orphans"],

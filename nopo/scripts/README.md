@@ -67,7 +67,7 @@ npm run clean
 ### Project Structure
 
 ```bash
-docker/scripts/
+nopo/scripts/
 ├── src/
 │   ├── index.ts          # Main CLI entry point
 │   ├── lib.ts             # Core classes (Script, Runner, Logger)
@@ -99,7 +99,7 @@ To install this package as a linked dependency in the root repository so you can
 1. **In the scripts directory**, create a global link:
 
    ```bash
-   cd docker/scripts
+   cd nopo/scripts
    pnpm link --global
    ```
 
@@ -123,7 +123,7 @@ To install this package as a linked dependency in the root repository so you can
 1. **In the scripts directory**:
 
    ```bash
-   cd docker/scripts
+   cd nopo/scripts
    npm link
    ```
 
@@ -139,7 +139,7 @@ To install this package as a linked dependency in the root repository so you can
 1. **Build the package**:
 
    ```bash
-   cd docker/scripts
+   cd nopo/scripts
    npm run build
    ```
 
@@ -153,7 +153,7 @@ To install this package as a linked dependency in the root repository so you can
 
    ```bash
    cd /path/to/your/project
-   npm install file:./docker/scripts
+   npm install file:./nopo/scripts
    ```
 
 ### Method 4: Using pnpm workspace (if part of monorepo)

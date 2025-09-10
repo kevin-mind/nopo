@@ -182,7 +182,7 @@ jobs:
         with:
           token: ${{ secrets.FLY_API_TOKEN }}
           app_name: nopo-${{ inputs.environment }}
-          file: docker/Dockerfile.nginx
+          file: nopo/docker/Dockerfile.nginx
 
       - name: Smoke test
         uses: ./.github/actions/smoketest

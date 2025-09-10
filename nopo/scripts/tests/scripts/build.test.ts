@@ -49,7 +49,7 @@ describe("build", () => {
 
     expect(mockBake).toHaveBeenCalledWith(
       "-f",
-      "docker/docker-bake.hcl",
+      "nopo/docker/docker-bake.hcl",
       "-f",
       config.envFile,
       "--debug",
@@ -61,7 +61,7 @@ describe("build", () => {
     );
     expect(mockBake).toHaveBeenCalledWith(
       "-f",
-      "docker/docker-bake.hcl",
+      "nopo/docker/docker-bake.hcl",
       "-f",
       config.envFile,
       "--debug",
@@ -88,7 +88,7 @@ describe("build", () => {
 
     expect(mockBake).toHaveBeenCalledWith(
       "-f",
-      "docker/docker-bake.hcl",
+      "nopo/docker/docker-bake.hcl",
       "-f",
       config.envFile,
       "--debug",
@@ -100,7 +100,7 @@ describe("build", () => {
     );
     expect(mockBake).toHaveBeenCalledWith(
       "-f",
-      "docker/docker-bake.hcl",
+      "nopo/docker/docker-bake.hcl",
       "-f",
       config.envFile,
       "--debug",
@@ -127,7 +127,7 @@ describe("build", () => {
 
     expect(mockBake).toHaveBeenCalledWith(
       "-f",
-      "docker/docker-bake.hcl",
+      "nopo/docker/docker-bake.hcl",
       "-f",
       config.envFile,
       "--debug",
@@ -140,7 +140,7 @@ describe("build", () => {
     );
     expect(mockBake).toHaveBeenCalledWith(
       "-f",
-      "docker/docker-bake.hcl",
+      "nopo/docker/docker-bake.hcl",
       "-f",
       config.envFile,
       "--debug",

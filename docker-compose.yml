@@ -1,13 +1,13 @@
 services:
   base:
     extends:
-      file: docker/docker-compose.base.yml
+      file: nopo/docker/docker-compose.base.yml
       service: base
     command: ["sleep", "infinity"]
 
   web:
     extends:
-      file: docker/docker-compose.base.yml
+      file: nopo/docker/docker-compose.base.yml
       service: base
     environment:
       SERVICE_NAME: web
@@ -24,7 +24,7 @@ services:
 
   backend:
     extends:
-      file: docker/docker-compose.base.yml
+      file: nopo/docker/docker-compose.base.yml
       service: base
     environment:
       SERVICE_NAME: backend
@@ -58,7 +58,7 @@ services:
   nginx:
     image: nginx:latest
     volumes:
-      - ./docker/nginx:/etc/nginx/templates
+      - ./nopo/nginx:/etc/nginx/templates
       - .:/app
     ports:
       - "${DOCKER_PORT:?}:80"

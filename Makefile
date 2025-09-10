@@ -19,4 +19,4 @@ shell:
 
 .PHONY: *
 %:
-	@if [ "$(FIRST_WORD)" = "$@" ]; then npx -y tsx ./docker/scripts/bin.ts $(MAKECMDGOALS); fi
+	@if [ "$(FIRST_WORD)" = "$@" ]; then npx -y tsx ./nopo/scripts/bin.ts $(MAKECMDGOALS); fi
