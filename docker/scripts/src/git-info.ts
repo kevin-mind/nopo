@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { $ } from "zx";
+import { createExec } from "./lib.ts";
 
 const ParsedGitInfo = z.object({
   repo: z.string(),
@@ -21,7 +21,16 @@ export class GitInfo {
   }
 
   static git(...pieces: string[]): string {
-    return $.sync`git ${pieces}`.stdout.trim();
+    const exec = createExec({ verbose: false });
+    // Use a subshell to run synchronously via Atomics-style blocking using spawn is complex.
+    // Instead, we execute with `bash -lc` to ensure argument spacing is preserved and then block using deasync-like pattern is overkill.
+    // We'll approximate by throwing on failure and returning trimmed stdout using child_process spawnSync via an inline helper.
+    const { spawnSync } = await import("node:child_process");
+    const res = spawnSync("git", pieces, { encoding: "utf8" });
+    if (res.status !== 0) {
+      throw new Error(res.stderr || "git failed");
+    }
+    return String(res.stdout || "").trim();
   }
 
   static get repo(): string {

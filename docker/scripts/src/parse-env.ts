@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { fs, dotenv } from "zx";
+import fs from "node:fs";
+import { dotenv } from "./lib.ts";
 import net from "node:net";
 
 import { DockerTag } from "./docker-tag.ts";

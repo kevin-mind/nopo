@@ -1,4 +1,4 @@
-import { minimist } from "zx";
+import { parseArgs } from "../lib.ts";
 import compose from "docker-compose";
 
 import EnvScript from "./env.ts";
@@ -59,7 +59,7 @@ export default class IndexScript extends Script {
     const {
       _: [script, service],
       workspace,
-    } = minimist(runner.argv);
+    } = parseArgs(runner.argv) as { _: (string | undefined)[]; workspace?: string };
 
     return {
       script,

@@ -1,4 +1,4 @@
-import { minimist, chalk } from "zx";
+import { parseArgs, chalk } from "./lib.ts";
 
 import {
   Runner,
@@ -46,7 +46,7 @@ export default async function main(
   const logger = new Logger(config);
   const environment = new Environment(config);
   const argv = _argv.slice(2);
-  const args = minimist(argv);
+  const args = parseArgs(argv);
   const runner = new Runner(config, environment, argv, logger);
 
   if (args.help) {
