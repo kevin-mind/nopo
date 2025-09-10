@@ -6,6 +6,7 @@ export default {
     ".": {
       entry: ["fly/scripts/*.js"],
       ignoreBinaries: ["dev"],
+      ignoreDependencies: ["tsx"],
     },
     "docker/scripts": {
       entry: "bin.ts",
@@ -26,6 +27,9 @@ export default {
     "packages/ui": {
       storybook: true,
       ignoreDependencies: ["tw-animate-css"],
+    },
+    "nopo/scripts": {
+      entry: "bin.ts",
     },
   },
 } satisfies KnipConfig;

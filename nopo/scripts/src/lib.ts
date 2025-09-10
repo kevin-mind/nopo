@@ -64,7 +64,7 @@ export const chalk = new Chalk();
 // ============================================================================
 // Minimist replacement - Simple argument parser
 // ============================================================================
-export interface ParsedArgs {
+interface ParsedArgs {
   _: string[];
   [key: string]: string | boolean | undefined | string[];
 }

@@ -2,10 +2,11 @@ import { resolve, dirname, basename } from "node:path";
 import { defineConfig as _defineConfig, mergeConfig, loadEnv } from "vite";
 
 export function defineConfig(overrides = {}) {
+  // eslint-disable-next-line no-undef
   const cwd = process.cwd();
   const name = basename(cwd);
   const packageType = basename(dirname(cwd));
-  const entry = resolve(cwd, "src", "index.ts")
+  const entry = resolve(cwd, "src", "index.ts");
 
   const config = _defineConfig(({ mode }) => {
     const env = loadEnv(mode, cwd, "");
@@ -15,7 +16,7 @@ export function defineConfig(overrides = {}) {
         outDir: resolve(cwd, "build"),
         emptyOutDir: true,
         manifest: true,
-      }
+      },
     };
 
     if (packageType === "packages") {
