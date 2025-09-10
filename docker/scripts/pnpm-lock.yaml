@@ -14,9 +14,6 @@ importers:
       zod:
         specifier: ^3.24.2
         version: 3.25.76
-      zx:
-        specifier: ^8.5.2
-        version: 8.6.2
     devDependencies:
       '@types/node':
         specifier: ^22.16.0
@@ -577,11 +574,6 @@ packages:
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
-  zx@8.6.2:
-    resolution: {integrity: sha512-XaDuxcYmfnGFEYFkm1d4/709FmT7mkRgzzWjrkQMb2S5gi+bt0zroZTwjN29ffxxM5PZIkxWgMzXRBZSBRvYwg==}
-    engines: {node: '>= 12.17.0'}
-    hasBin: true
-
 snapshots:
 
   '@esbuild/aix-ppc64@0.25.6':
@@ -1029,5 +1021,3 @@ snapshots:
   yaml@2.8.0: {}
 
   zod@3.25.76: {}
-
-  zx@8.6.2: {}

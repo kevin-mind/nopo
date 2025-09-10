@@ -1,10 +1,7 @@
-#!/usr/bin/env zx
+#!/usr/bin/env node
 
 import { z } from "zod";
-import { $ } from "zx";
 import { spawn } from "node:child_process";
-
-$.verbose = true;
 
 const env = z
   .object({
@@ -25,8 +22,9 @@ const args = [
   "--verbose",
 ];
 
-console.log([flyctl, ...args].join(" "));
+console.log(`$ ${[flyctl, ...args].join(" ")}`);
 
 spawn(flyctl, args, { stdio: "inherit" }).on("close", (code) => {
   console.log("[shell] terminated :", code);
+  process.exit(code || 0);
 });

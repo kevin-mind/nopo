@@ -1,11 +1,11 @@
-import { minimist, chalk } from "zx";
-
 import {
   Runner,
   createConfig,
   Logger,
   type Config,
   type Script,
+  minimist,
+  chalk,
 } from "./lib.ts";
 import { Environment } from "./parse-env.ts";
 import process from "node:process";
