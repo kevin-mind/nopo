@@ -86,11 +86,11 @@ export class Script {
     this.runner = runner;
   }
 
-  async fn(): Promise<void> {
+  async fn() {
     throw new Error("Not implemented");
   }
 
-  get env(): Record<string, string | undefined> {
+  get env() {
     return {
       ...this.runner.environment.processEnv,
       ...this.runner.environment.env,
@@ -108,7 +108,7 @@ export class Script {
     return shell;
   }
 
-  log(...message: unknown[]): void {
+  log(...message: unknown[]) {
     this.runner.logger.log(this.runner.logger.chalk.yellow(...message));
   }
 }

@@ -4,7 +4,7 @@ export default class EnvScript extends Script {
   static override name = "env";
   static override description = "Set up environment variables";
 
-  override async fn(): Promise<void> {
+  override async fn() {
     const { chalk } = this.runner.logger;
 
     this.runner.environment.save();

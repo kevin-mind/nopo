@@ -38,7 +38,7 @@ export default class UpScript extends Script {
     },
   ];
 
-  override async fn(): Promise<void> {
+  override async fn() {
     const { data } = await compose.config({
       cwd: this.runner.config.root,
       env: this.env,
