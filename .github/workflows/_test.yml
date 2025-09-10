@@ -31,12 +31,12 @@ jobs:
       - name: Monkeywrench nopo
         if: ${{ matrix.expected == 'failure' }}
         run: |
-          rm -f ./docker/scripts/src/index.ts
+          rm -f ./nopo/scripts/src/index.ts
 
       - name: Make nopo
         id: nopo
         continue-on-error: true
-        run: make -C ./docker/scripts init
+        run: make -C ./nopo/scripts init
 
       - name: Verify result
         env:
@@ -50,7 +50,7 @@ jobs:
 
       - name: Test nopo
         if: ${{ matrix.expected == 'success' }}
-        run: pnpm run --dir ./docker/scripts test
+        run: pnpm run --dir ./nopo/scripts test
 
   test:
     runs-on: ubuntu-latest

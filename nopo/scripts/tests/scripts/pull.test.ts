@@ -50,7 +50,7 @@ describe("pull", () => {
     await runScript(PullScript, config);
 
     expect(mockExec).toHaveBeenCalledWith([
-      "docker compose -f docker/docker-compose.base.yml pull base --policy always",
+      "docker compose -f nopo/docker/docker-compose.base.yml pull base --policy always",
     ]);
   });
 

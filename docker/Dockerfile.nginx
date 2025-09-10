@@ -1,3 +1,0 @@
-FROM nginx:latest
-
-COPY docker/nginx/apps.conf.template /etc/nginx/templates/apps.conf.template

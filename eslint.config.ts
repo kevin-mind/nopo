@@ -52,7 +52,7 @@ const config: ReturnType<typeof tseslint.config> = tseslint.config(
     ],
   },
   {
-    files: ["docker/scripts/**/*.js"],
+    files: ["nopo/scripts/**/*.js"],
     languageOptions: {
       globals: { ...globals.node },
     },

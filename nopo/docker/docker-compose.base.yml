@@ -4,7 +4,7 @@ services:
     pull_policy: never
     restart: always
     volumes:
-      - ..:/app:cached
+      - ../..:/app:cached
     environment:
       - CHOKIDAR_USEPOLLING=true
       - CI

@@ -39,7 +39,7 @@ export default class BuildScript extends Script {
   override async fn() {
     const commandOptions = [
       "-f",
-      "docker/docker-bake.hcl",
+      "nopo/docker/docker-bake.hcl",
       "-f",
       this.runner.environment.envFile,
       "--debug",

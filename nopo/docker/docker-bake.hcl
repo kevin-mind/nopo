@@ -4,7 +4,6 @@ group "default" {
 
 variable "DOCKER_TAG" {}
 variable "DOCKER_TARGET" {}
-variable "NODE_ENV" {}
 variable "DOCKER_VERSION" {}
 variable "DOCKER_BUILD" {}
 variable "GIT_REPO" {}
@@ -13,13 +12,12 @@ variable "GIT_COMMIT" {}
 
 target "base" {
   context    = "."
-  dockerfile = "docker/Dockerfile"
+  dockerfile = "nopo/docker/Dockerfile"
   tags       = ["${DOCKER_TAG}"]
   target     = "${DOCKER_TARGET}"
   cache-from = ["type=gha"]
   cache-to   = ["type=gha,mode=max"]
   args = {
-    NODE_ENV       = "${NODE_ENV}"
     DOCKER_TARGET  = "${DOCKER_TARGET}"
     DOCKER_TAG     = "${DOCKER_TAG}"
     DOCKER_VERSION = "${DOCKER_VERSION}"
