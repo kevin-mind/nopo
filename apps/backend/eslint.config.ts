@@ -1,4 +1,4 @@
-import createEslintConfig from '@more/configs/eslint.config';
+import createEslintConfig from '@more/configs/eslint';
 import type { Linter } from 'eslint';
 
 export default createEslintConfig(
