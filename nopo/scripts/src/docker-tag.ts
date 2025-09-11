@@ -19,7 +19,7 @@ const DockerTagParsed = z.object({
   digest: z.string().optional().default(""),
 });
 
-export type DockerTagParsedType = z.infer<typeof DockerTagParsed>;
+type DockerTagParsedType = z.infer<typeof DockerTagParsed>;
 
 interface DockerTagInput {
   registry?: string;

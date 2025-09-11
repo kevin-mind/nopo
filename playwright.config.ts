@@ -11,7 +11,7 @@ const {
       .string()
       .optional()
       .transform((val) => val === "true" || val === "1"),
-    PUBLIC_URL: z.string().url(),
+    PUBLIC_URL: z.string().url().default("http://localhost"),
   })
   .safeParse(process.env);
 

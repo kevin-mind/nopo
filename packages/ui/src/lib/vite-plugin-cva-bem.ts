@@ -22,7 +22,7 @@ interface CVAVariant {
   defaultVariants?: DefaultVariantsMap;
 }
 
-export interface CVABEMPluginOptions {
+interface CVABEMPluginOptions {
   include?: string[];
   exclude?: string[];
   outputPath?: string;

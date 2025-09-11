@@ -10,13 +10,13 @@ import type { Config } from "./lib.ts";
 const nodeEnv = z.enum(["development", "production", "test"]);
 const dockerTarget = nodeEnv.or(z.enum(["base", "build"]));
 
-export type EnvironmentDiffType = {
+type EnvironmentDiffType = {
   added: EnvironmentDiffTupleType[];
   updated: EnvironmentDiffTupleType[];
   removed: EnvironmentDiffTupleType[];
   unchanged: EnvironmentDiffTupleType[];
 };
-export type EnvironmentDiffTupleType = [string, string | undefined];
+type EnvironmentDiffTupleType = [string, string | undefined];
 
 export class Environment {
   static baseTag = new DockerTag("kevin-mind/nopo:local");
