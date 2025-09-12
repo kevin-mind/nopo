@@ -1,4 +1,4 @@
-import compose from "docker-compose";
+import { DockerCompose } from "../docker-compose.ts";
 import { Script, createLogger } from "../lib.ts";
 import EnvScript from "./env.ts";
 
@@ -13,9 +13,10 @@ export default class DownScript extends Script {
   static override description = "Bring down the containers";
 
   override async fn() {
-    await compose.downAll({
+    const compose = new DockerCompose();
+    await compose.down([], {
       callback: createLogger("down", "yellow"),
-      commandOptions: ["--rmi", "local", "--volumes"],
+      commandOptions: ["--rmi=local", "--volumes"],
     });
   }
 }

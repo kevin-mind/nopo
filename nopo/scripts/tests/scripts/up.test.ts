@@ -4,6 +4,7 @@ import UpScript from "../../src/scripts/up.ts";
 import BuildScript from "../../src/scripts/build.ts";
 import PullScript from "../../src/scripts/pull.ts";
 import { createConfig, Runner } from "../../src/lib.ts";
+import { DockerCompose } from "../../src/docker-compose.ts";
 import { createTmpEnv, runScript } from "../utils.ts";
 import { Environment } from "../../src/parse-env.ts";
 
@@ -30,7 +31,6 @@ vi.mock("docker-compose", () => ({
         },
       },
     })),
-    downMany: vi.fn(),
     upAll: vi.fn(),
     pullAll: vi.fn(),
     run: vi.fn(),
@@ -74,12 +74,12 @@ describe("up", () => {
       err: "",
     });
 
-    const { env } = new Environment(config);
+    const spyDown = vi.spyOn(DockerCompose.prototype, "down");
+
     await runScript(UpScript, config);
-    expect(compose.downMany).toHaveBeenCalledWith(["base"], {
+    expect(spyDown).toHaveBeenCalledWith(["base"], {
       callback: expect.any(Function),
       commandOptions: ["--remove-orphans"],
-      env: expect.objectContaining(env),
     });
   });
   it("spins up all services", async () => {

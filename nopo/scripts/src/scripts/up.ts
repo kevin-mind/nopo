@@ -6,6 +6,7 @@ import {
   type Runner,
   createLogger,
 } from "../lib.ts";
+import { DockerCompose } from "../docker-compose.ts";
 import EnvScript from "./env.ts";
 import BuildScript from "./build.ts";
 import PullScript from "./pull.ts";
@@ -39,6 +40,7 @@ export default class UpScript extends Script {
   ];
 
   override async fn() {
+    const docker = new DockerCompose(this.runner.config.root, this.env);
     const { data } = await compose.config({
       cwd: this.runner.config.root,
       env: this.env,
@@ -66,10 +68,9 @@ export default class UpScript extends Script {
           env: this.env,
         },
       ),
-      compose.downMany(downServices, {
+      docker.down(downServices, {
         callback: createLogger("down", "yellow"),
         commandOptions: ["--remove-orphans"],
-        env: this.env,
       }),
       compose.pullAll({
         callback: createLogger("pull", "blue"),
