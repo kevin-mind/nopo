@@ -21,19 +21,21 @@ type EnvironmentDiffTupleType = [string, string | undefined];
 export class Environment {
   static baseTag = new DockerTag("kevin-mind/nopo:local");
 
-  static schema = z.object({
-    DOCKER_PORT: z.string(),
-    DOCKER_TAG: z.string(),
-    DOCKER_REGISTRY: z.string(),
-    DOCKER_IMAGE: z.string(),
-    DOCKER_VERSION: z.string(),
-    GIT_REPO: z.string(),
-    GIT_BRANCH: z.string(),
-    GIT_COMMIT: z.string(),
-    DOCKER_DIGEST: z.string().optional().default(""),
-    DOCKER_TARGET: dockerTarget,
-    NODE_ENV: nodeEnv,
-  });
+  static schema = z
+    .object({
+      DOCKER_PORT: z.string(),
+      DOCKER_TAG: z.string(),
+      DOCKER_REGISTRY: z.string(),
+      DOCKER_IMAGE: z.string(),
+      DOCKER_VERSION: z.string(),
+      GIT_REPO: z.string(),
+      GIT_BRANCH: z.string(),
+      GIT_COMMIT: z.string(),
+      DOCKER_DIGEST: z.string().optional().default(""),
+      DOCKER_TARGET: dockerTarget,
+      NODE_ENV: nodeEnv,
+    })
+    .passthrough();
 
   envFile: string;
   processEnv: Record<string, string>;
@@ -120,6 +122,7 @@ export class Environment {
 
   #getCurrEnv(): z.infer<typeof Environment.schema> {
     const inputEnv = { ...this.prevEnv, ...this.processEnv };
+    const env: Record<string, string> = { ...inputEnv };
     const { parsed, fullTag } = this.#resolveDockerTag();
     let registry = parsed.registry;
     let image = parsed.image;
@@ -154,38 +157,38 @@ export class Environment {
     const defaultTarget = isLocal ? "development" : "production";
 
     for (const key of ["DOCKER_TARGET", "NODE_ENV"]) {
-      const current = inputEnv[key];
+      const current = env[key];
       const isMissing = !current;
       const isWrong = !isLocal && current !== defaultTarget;
       if (isMissing || isWrong) {
-        inputEnv[key] = defaultTarget;
+        env[key] = defaultTarget;
       }
     }
 
     const gitInfo = this.#resolveGitInfo(
-      inputEnv.GIT_REPO,
-      inputEnv.GIT_BRANCH,
-      inputEnv.GIT_COMMIT,
+      env.GIT_REPO,
+      env.GIT_BRANCH,
+      env.GIT_COMMIT,
     );
 
-    return Environment.schema.parse({
-      DOCKER_PORT: this.#resolveDockerPort(),
-      DOCKER_TAG: new DockerTag({
-        registry,
-        image,
-        version,
-        digest: digest || "",
-      }).fullTag,
-      DOCKER_TARGET: inputEnv.DOCKER_TARGET,
-      DOCKER_REGISTRY: registry,
-      DOCKER_IMAGE: image,
-      DOCKER_VERSION: version,
-      DOCKER_DIGEST: digest || "",
-      GIT_REPO: gitInfo.repo,
-      GIT_BRANCH: gitInfo.branch,
-      GIT_COMMIT: gitInfo.commit,
-      NODE_ENV: inputEnv.NODE_ENV,
-    });
+    env.DOCKER_PORT = this.#resolveDockerPort();
+    env.DOCKER_TAG = new DockerTag({
+      registry,
+      image,
+      version,
+      digest: digest || "",
+    }).fullTag;
+    env.DOCKER_TARGET = env.DOCKER_TARGET || defaultTarget;
+    env.DOCKER_REGISTRY = registry;
+    env.DOCKER_IMAGE = image;
+    env.DOCKER_VERSION = version;
+    env.DOCKER_DIGEST = digest || "";
+    env.GIT_REPO = gitInfo.repo;
+    env.GIT_BRANCH = gitInfo.branch;
+    env.GIT_COMMIT = gitInfo.commit;
+    env.NODE_ENV = env.NODE_ENV || defaultTarget;
+
+    return Environment.schema.parse(env);
   }
 
   #diff(): EnvironmentDiffType {

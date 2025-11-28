@@ -1,78 +1,75 @@
-ARG USER=nodeuser
-ARG USER_ID=1001
+ARG APP_USER=nopoapp
+ARG APP_UID=1001
+ARG APP_GID=1001
 
 ################################################################################################
 FROM node:22.16.0-slim AS os
 ################################################################################################
 
-ARG USER
-ARG USER_ID
-
+ARG APP_USER
+ARG APP_UID
+ARG APP_GID
 ARG SERVICE_NAME=
-ENV HOME=/home/${USER}
-ENV APP=/app
-ENV DEPS=${HOME}/deps
 
-RUN <<EOF
-# Create user and group
-groupadd -g $USER_ID $USER
-useradd -r -u $USER_ID -g $USER_ID -d $HOME -m -s /bin/bash $USER
-EOF
-
-# PNPM constant environment variables
-ENV PNPM_HOME="${DEPS}/pnpm"
-ENV PNPM_STORE_DIR="${PNPM_HOME}/store"
-ENV COREPACK_HOME="${DEPS}/corepack"
+ENV APP_HOME="/home/${APP_USER}"
+ENV APP="/app"
+ENV NOPO_CORE="/opt/nopo-core"
+ENV PNPM_STORE_DIR="${APP_HOME}/.local/share/pnpm/store"
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
-
-# UV constant environment variables
-ENV UV_HOME="${DEPS}/uv"
-ENV UV_BIN="${UV_HOME}/bin"
+ENV UV_HOME="${APP_HOME}/.uv"
+ENV UV_CACHE_DIR="${UV_HOME}/cache"
+ENV UV_PROJECT_ENVIRONMENT="${APP_HOME}/.venv"
 ENV UV_PYTHON_INSTALL_DIR="${UV_HOME}/python"
 ENV UV_COMPILE_BYTECODE=1
-ENV UV_CACHE_DIR="${UV_HOME}/cache"
-ENV UV_PROJECT_ENVIRONMENT="${UV_HOME}/venv"
 ENV UV_MANAGED_PYTHON=1
 ENV VIRTUAL_ENV="${UV_PROJECT_ENVIRONMENT}"
-ENV XDG_BIN_HOME="${UV_BIN}"
 ENV PYTHONUNBUFFERED=1
 ENV RUST_LOG=uv=debug
+ENV XDG_CACHE_HOME="${APP_HOME}/.cache"
+ENV XDG_CONFIG_HOME="${APP_HOME}/.config"
+ENV XDG_DATA_HOME="${APP_HOME}/.local/share"
+ENV PATH="${NOPO_CORE}/bin:/usr/local/bin:${PATH}"
 
-ENV PATH="${PNPM_HOME}:${COREPACK_HOME}:${UV_BIN}:${UV_HOME}:${PATH}"
+WORKDIR ${APP}
 
-WORKDIR $APP
+RUN groupadd -g ${APP_GID} ${APP_USER} && \
+    useradd -r -u ${APP_UID} -g ${APP_GID} -d ${APP_HOME} -m -s /bin/bash ${APP_USER}
 
-RUN \
-  --mount=type=cache,target=/var/cache/apt,id=apt \
-  --mount=type=cache,target=/var/lib/apt,id=apt \
-<<EOF
-apt-get update
-apt-get install -y --no-install-recommends make jq curl
-EOF
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      bash \
+      build-essential \
+      ca-certificates \
+      curl \
+      git \
+      jq \
+      make \
+      python3 \
+      python3-pip \
+      python3-venv \
+      tini && \
+    rm -rf /var/lib/apt/lists/*
 
-################################################################################################
-FROM os AS base
-################################################################################################
+RUN mkdir -p \
+      ${NOPO_CORE}/bin \
+      ${PNPM_STORE_DIR} \
+      ${UV_HOME} \
+      ${UV_CACHE_DIR} \
+      ${UV_PROJECT_ENVIRONMENT} \
+      ${APP_HOME}/deps \
+      ${APP_HOME}/.cache \
+      ${APP_HOME}/.config \
+      ${APP} && \
+    chown -R root:root ${NOPO_CORE} && \
+    chmod -R 755 ${NOPO_CORE} && \
+    chown -R ${APP_USER}:${APP_USER} ${APP_HOME} ${APP}
 
-COPY --from=ghcr.io/astral-sh/uv:latest --chown="${USER}:${USER}" /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:latest --chown=root:root /uv ${NOPO_CORE}/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:latest --chown=root:root /uvx ${NOPO_CORE}/bin/uvx
+RUN ln -sf ${NOPO_CORE}/bin/uv /usr/local/bin/uv && \
+    ln -sf ${NOPO_CORE}/bin/uvx /usr/local/bin/uvx
 
-RUN \
-  --mount=type=cache,target=/var/cache/apt,id=apt \
-  --mount=type=cache,target=/var/lib/apt,id=apt \
-<<EOF
-apt-get update
-apt-get install -y --no-install-recommends make jq curl
-EOF
-
-RUN --mount=type=bind,source=.python-version,target=$APP/.python-version <<EOF
-uv venv
-EOF
-
-RUN --mount=type=bind,source=package.json,target=$APP/package.json <<EOF
-npm install --global corepack@latest
-corepack enable pnpm
-corepack prepare pnpm --activate
-EOF
+RUN npm install --global corepack@latest pnpm@9.12.3
 
 ################################################################################################
 FROM os AS info
@@ -101,105 +98,29 @@ cat <<INNEREOF > /build-info.json
   "target": "${DOCKER_TARGET}"
 }
 INNEREOF
-# Set permissions to make the file readable by all but only writable by root
 chmod 644 /build-info.json
 cat /build-info.json
 EOF
 
 ################################################################################################
-FROM base AS source
+FROM os AS user
 ################################################################################################
 
-COPY . $APP
-
-################################################################################################
-FROM os AS source_uv
-################################################################################################
-
-COPY --from=source $APP $APP
-RUN <<EOF
-find "$APP" -type f \
-  ! -name 'pyproject.toml' \
-  ! -name 'uv.lock' \
-  -delete
-EOF
-
-################################################################################################
-FROM base AS install_uv
-################################################################################################
-
-COPY --from=source_uv --chown=$USER $APP $APP
-
-RUN <<EOF
-uv sync --locked --no-install-workspace --active
-EOF
-
-################################################################################################
-FROM os AS source_pnpm
-################################################################################################
-
-COPY --from=source --chown=$USER $APP $APP
-
-RUN <<EOF
-find "$APP" -type f \
-  ! -name 'package.json' \
-  ! -name 'pnpm-lock.yaml' \
-  ! -name 'pnpm-workspace.yaml' \
-  -delete
-EOF
-
-################################################################################################
-FROM base AS install_pnpm
-################################################################################################
-
-COPY --from=source_pnpm $APP $APP
-
-RUN <<EOF
-pnpm fetch
-EOF
-
-################################################################################################
-FROM base AS build
-################################################################################################
-
-COPY --from=install_uv --chown=$USER $UV_HOME $UV_HOME
-COPY --from=install_pnpm --chown=$USER $PNPM_HOME $PNPM_HOME
-COPY --from=source --chown=$USER $APP $APP
-
-RUN <<EOF
-uv sync --locked --offline
-EOF
-
-RUN <<EOF
-pnpm install --frozen-lockfile --offline
-EOF
-
-RUN <<EOF
-pnpm -r build
-EOF
-
-################################################################################################
-FROM base AS user
-################################################################################################
-
-COPY --from=base --chown=$USER $HOME $HOME
 COPY --from=info /build-info.json /build-info.json
-COPY --from=install_uv --chown=$USER $UV_HOME $UV_HOME
-COPY --from=install_pnpm --chown=$USER $PNPM_HOME $PNPM_HOME
 
-RUN <<EOF
+RUN <<'EOF'
 cat <<'INNEREOF' > /cmd.sh
 #!/bin/bash
 
 service="${SERVICE_NAME:-}"
 command="${SERVICE_COMMAND:-}"
 
-if [[ "${service}" == "" ]]; then
+if [[ -z "${service}" ]]; then
   echo "SERVICE_NAME is not set"
   exit 1
 fi
 
-if [[ "${command}" == "" ]]; then
+if [[ -z "${command}" ]]; then
   echo "SERVICE_COMMAND is not set"
   exit 1
 fi
@@ -209,12 +130,10 @@ pnpm --filter "@more/${service}" "${command}"
 INNEREOF
 
 chmod +x /cmd.sh
-
 EOF
 
+USER ${APP_USER}
 CMD ["/cmd.sh"]
-
-USER $USER
 
 ################################################################################################
 FROM user AS development
@@ -227,13 +146,3 @@ FROM user AS production
 ################################################################################################
 
 ENV SERVICE_COMMAND="start"
-
-COPY --from=build --chown=$USER $APP $APP
-
-RUN <<EOF
-pnpm install --frozen-lockfile --offline --prod
-EOF
-
-RUN <<EOF
-uv sync --locked --offline --no-dev
-EOF

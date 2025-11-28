@@ -1,0 +1,23 @@
+services:
+  web:
+    extends:
+      file: ../../nopo/docker/docker-compose.base.yml
+      service: base
+    image: "${WEB_IMAGE:-${DOCKER_TAG:?}}"
+    build:
+      context: ../../
+      dockerfile: apps/web/Dockerfile
+      args:
+        NOPO_BASE_IMAGE: "${DOCKER_TAG:?}"
+    environment:
+      SERVICE_NAME: web
+      PORT: 80
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/__version__"]
+      interval: 20s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    depends_on:
+      backend:
+        condition: service_started

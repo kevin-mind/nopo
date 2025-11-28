@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { describe, it, vi, expect, beforeEach } from "vitest";
 import BuildScript from "../../src/scripts/build.ts";
 import { createConfig } from "../../src/lib.ts";
@@ -155,5 +157,86 @@ describe("build", () => {
   it("has correct dependencies", () => {
     expect(BuildScript.dependencies).toHaveLength(1);
     expect(BuildScript.dependencies[0]?.enabled).toBe(true);
+  });
+
+  describe("service builds", () => {
+    const baseTag = "kevin-mind/nopo:local";
+
+    function mockExec() {
+      const calls: string[] = [];
+      const execSpy = vi
+        .spyOn(BuildScript.prototype, "exec", "get")
+        .mockReturnValue(((
+          strings: TemplateStringsArray,
+          ...values: unknown[]
+        ) => {
+          const raw = strings.reduce((acc, chunk, index) => {
+            const value = index < values.length ? String(values[index]) : "";
+            return acc + chunk + value;
+          }, "");
+          const normalized = raw.replace(/\s+/g, " ").trim();
+          calls.push(normalized);
+          const stdout = normalized.includes("/build-info.json")
+            ? JSON.stringify({ tag: baseTag })
+            : "";
+          return Promise.resolve({ stdout } as { stdout: string });
+        }) as unknown as ReturnType<BuildScript["exec"]>);
+      return { execSpy, calls };
+    }
+
+    it("builds service dockerfile and records image tag", async () => {
+      const config = createConfig({
+        envFile: createTmpEnv({
+          DOCKER_TAG: baseTag,
+        }),
+        silent: true,
+      });
+      const { execSpy, calls } = mockExec();
+
+      await runScript(
+        BuildScript,
+        config,
+        ["build", "--service", "backend"],
+      );
+
+      execSpy.mockRestore();
+
+      const dockerfile = path.join(
+        config.root,
+        "apps",
+        "backend",
+        "Dockerfile",
+      );
+
+      expect(
+        calls.some((command) =>
+          command.includes(
+            `docker build --file ${dockerfile} --build-arg NOPO_BASE_IMAGE=${baseTag}`,
+          ),
+        ),
+      ).toBe(true);
+
+      const envContents = fs.readFileSync(config.envFile, "utf-8");
+      expect(envContents).toContain(
+        'BACKEND_IMAGE="kevin-mind/nopo-backend:local"',
+      );
+    });
+
+    it("requires a service name when using --dockerFile", async () => {
+      const config = createConfig({
+        envFile: createTmpEnv({
+          DOCKER_TAG: baseTag,
+        }),
+        silent: true,
+      });
+
+      await expect(
+        runScript(
+          BuildScript,
+          config,
+          ["build", "--dockerFile", "apps/backend/Dockerfile"],
+        ),
+      ).rejects.toThrow("--dockerFile can only be used");
+    });
   });
 });
