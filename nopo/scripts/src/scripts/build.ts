@@ -152,7 +152,6 @@ export default class BuildScript extends Script {
   }
 
   private async buildServices(args: BuildCliArgs) {
-    const envUpdates: Record<string, string> = {};
     const push = this.runner.config.processEnv.DOCKER_PUSH === "true";
     for (const name of args.services) {
       const dockerfile = this.resolveDockerfile(name, args.dockerFile);
@@ -167,13 +166,13 @@ export default class BuildScript extends Script {
         await this.exec`docker push ${imageTag}`;
       }
 
-      envUpdates[this.serviceEnvKey(name)] = imageTag;
+      this.runner.environment.setExtraEnv(
+        this.serviceEnvKey(name),
+        imageTag,
+      );
     }
 
-    if (Object.keys(envUpdates).length > 0) {
-      Object.assign(this.runner.environment.env, envUpdates);
-      this.runner.environment.save();
-    }
+    this.runner.environment.save();
   }
 
   private serviceImageTag(service: string): string {

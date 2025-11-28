@@ -480,6 +480,7 @@ export class Script {
     return {
       ...this.runner.environment.processEnv,
       ...this.runner.environment.env,
+      ...this.runner.environment.extraEnv,
     };
   }
 

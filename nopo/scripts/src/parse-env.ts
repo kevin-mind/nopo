@@ -21,27 +21,30 @@ type EnvironmentDiffTupleType = [string, string | undefined];
 export class Environment {
   static baseTag = new DockerTag("kevin-mind/nopo:local");
 
-  static schema = z
-    .object({
-      DOCKER_PORT: z.string(),
-      DOCKER_TAG: z.string(),
-      DOCKER_REGISTRY: z.string(),
-      DOCKER_IMAGE: z.string(),
-      DOCKER_VERSION: z.string(),
-      GIT_REPO: z.string(),
-      GIT_BRANCH: z.string(),
-      GIT_COMMIT: z.string(),
-      DOCKER_DIGEST: z.string().optional().default(""),
-      DOCKER_TARGET: dockerTarget,
-      NODE_ENV: nodeEnv,
-    })
-    .passthrough();
+  static schema = z.object({
+    DOCKER_PORT: z.string(),
+    DOCKER_TAG: z.string(),
+    DOCKER_REGISTRY: z.string(),
+    DOCKER_IMAGE: z.string(),
+    DOCKER_VERSION: z.string(),
+    GIT_REPO: z.string(),
+    GIT_BRANCH: z.string(),
+    GIT_COMMIT: z.string(),
+    DOCKER_DIGEST: z.string().optional().default(""),
+    DOCKER_TARGET: dockerTarget,
+    NODE_ENV: nodeEnv,
+  });
+
+  static readonly baseKeys = new Set(
+    Object.keys(Environment.schema.shape),
+  );
 
   envFile: string;
   processEnv: Record<string, string>;
   hasPrevEnv: boolean;
   prevEnv: Record<string, string>;
   env: z.infer<typeof Environment.schema>;
+  extraEnv: Record<string, string>;
   diff: EnvironmentDiffType;
 
   constructor({ envFile, processEnv }: Config) {
@@ -54,6 +57,7 @@ export class Environment {
     this.hasPrevEnv = fs.existsSync(this.envFile);
     this.prevEnv = this.#getPrevEnv();
     this.env = this.#getCurrEnv();
+    this.extraEnv = this.#collectExtraEnv();
     this.diff = this.#diff();
   }
 
@@ -191,6 +195,45 @@ export class Environment {
     return Environment.schema.parse(env);
   }
 
+  static #isAllowedExtraKey(key: string): boolean {
+    return /^[A-Z0-9_]+_IMAGE$/.test(key);
+  }
+
+  static #isSafeValue(value: string): boolean {
+    return !value.includes("\n");
+  }
+
+  #collectExtraEnv(): Record<string, string> {
+    const extras: Record<string, string> = {};
+    const candidateSources = [{ ...this.prevEnv }, { ...this.processEnv }];
+    for (const source of candidateSources) {
+      for (const [key, value] of Object.entries(source)) {
+        if (
+          Environment.baseKeys.has(key) ||
+          !Environment.#isAllowedExtraKey(key) ||
+          !value
+        ) {
+          continue;
+        }
+        if (!Environment.#isSafeValue(value)) continue;
+        extras[key] = value;
+      }
+    }
+    return extras;
+  }
+
+  setExtraEnv(key: string, value: string): void {
+    if (!Environment.#isAllowedExtraKey(key)) {
+      throw new Error(
+        `Unsupported environment override "${key}". Only *_IMAGE keys are allowed.`,
+      );
+    }
+    if (!Environment.#isSafeValue(value)) {
+      throw new Error(`Value for "${key}" cannot contain newline characters.`);
+    }
+    this.extraEnv[key] = value;
+  }
+
   #diff(): EnvironmentDiffType {
     const result: EnvironmentDiffType = {
       added: [],
@@ -219,7 +262,12 @@ export class Environment {
   }
 
   save(): void {
-    const sortedEnv = Object.entries(this.env)
+    const combinedEntries = {
+      ...this.env,
+      ...this.extraEnv,
+    } as Record<string, string>;
+
+    const sortedEnv = Object.entries(combinedEntries)
       .filter(([, value]) => !!value)
       .sort((a, b) => a[0].localeCompare(b[0]));
 
