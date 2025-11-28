@@ -95,3 +95,40 @@ jobs:
           service: ${{ matrix.service }}
           run: ${{ matrix.command }}
           target: ${{ matrix.target }}
+
+  extendable:
+    runs-on: ubuntu-latest
+    name: "[docker] extendable base image"
+    permissions:
+      packages: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-node
+
+      - uses: ./.github/actions/setup-uv
+
+      - name: Set up Docker
+        uses: ./.github/actions/setup-docker
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker Tag
+        id: docker_tag
+        uses: ./.github/actions/docker-tag
+        with:
+          tag: ${{ inputs.tag }}
+
+      - name: Build base image
+        run: |
+          make build \
+            DOCKER_TAG="${{ steps.docker_tag.outputs.tag }}" \
+            DOCKER_TARGET="development"
+
+      - name: Verify extendable base image
+        env:
+          DOCKER_TAG: ${{ steps.docker_tag.outputs.tag }}
+        run: ./nopo/docker/tests/extendable.sh "${{ steps.docker_tag.outputs.tag }}"
