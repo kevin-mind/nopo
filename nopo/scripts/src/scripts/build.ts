@@ -87,13 +87,15 @@ export default class BuildScript extends Script {
 
     const argv = this.runner.argv.slice(1);
     const parsed = minimist(argv, { alias: { s: "service" } });
-    const services = this.normalizeServices(parsed.service);
+    const serviceArg = parsed.service;
+    const services = this.normalizeServices(
+      typeof serviceArg === "string" || Array.isArray(serviceArg)
+        ? serviceArg
+        : undefined,
+    );
+    const dockerFileInput = parsed.dockerFile ?? parsed.dockerfile;
     const dockerFile =
-      typeof parsed.dockerFile === "string"
-        ? parsed.dockerFile
-        : typeof parsed.dockerfile === "string"
-          ? parsed.dockerfile
-          : undefined;
+      typeof dockerFileInput === "string" ? dockerFileInput : undefined;
 
     if (dockerFile && services.length !== 1) {
       throw new Error(

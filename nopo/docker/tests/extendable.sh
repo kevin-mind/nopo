@@ -31,7 +31,7 @@ cat <<'PKG' > /tmp/pkg/package/package.json
 PKG
 echo "module.exports = () => 'ok';" > /tmp/pkg/package/index.js
 tar -czf /tmp/extend-check-1.0.0.tgz -C /tmp/pkg package
-pnpm init -y
+pnpm init --yes
 pnpm add file:/tmp/extend-check-1.0.0.tgz
 test ! -w /opt/nopo-core
 INNER

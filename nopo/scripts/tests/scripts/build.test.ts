@@ -165,7 +165,11 @@ describe("build", () => {
     function mockExec() {
       const calls: string[] = [];
       const execSpy = vi
-        .spyOn(BuildScript.prototype, "exec", "get")
+        .spyOn(
+          BuildScript.prototype as unknown as { exec: BuildScript["exec"] },
+          "exec",
+          "get",
+        )
         .mockReturnValue(((
           strings: TemplateStringsArray,
           ...values: unknown[]

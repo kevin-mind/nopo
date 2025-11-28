@@ -71,6 +71,13 @@ RUN ln -sf ${NOPO_CORE}/bin/uv /usr/local/bin/uv && \
 
 RUN npm install --global corepack@latest pnpm@9.12.3
 
+COPY .python-version /tmp/.python-version
+
+USER ${APP_USER}
+RUN uv python install "$(cat /tmp/.python-version)"
+USER root
+RUN rm -f /tmp/.python-version
+
 ################################################################################################
 FROM os AS info
 ################################################################################################
