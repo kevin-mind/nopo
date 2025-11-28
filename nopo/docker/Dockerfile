@@ -76,15 +76,17 @@ COPY .python-version /tmp/.python-version
 USER ${APP_USER}
 RUN uv python install "$(cat /tmp/.python-version)"
 USER root
-RUN rm -f /tmp/.python-version
 
-COPY apps/backend/pyproject.toml /tmp/backend/pyproject.toml
-COPY apps/backend/uv.lock /tmp/backend/uv.lock
-RUN chown -R ${APP_USER}:${APP_USER} /tmp/backend
+COPY pyproject.toml uv.lock /tmp/workspace/
+COPY .python-version /tmp/workspace/.python-version
+RUN chown -R ${APP_USER}:${APP_USER} /tmp/workspace
+
 USER ${APP_USER}
-RUN cd /tmp/backend && uv sync --locked --no-install-workspace --preview
+WORKDIR /tmp/workspace
+RUN uv sync --locked --no-install-workspace --preview
 USER root
-RUN rm -rf /tmp/backend
+WORKDIR ${APP}
+RUN rm -rf /tmp/workspace /tmp/.python-version
 
 ################################################################################################
 FROM os AS info
