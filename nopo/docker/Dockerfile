@@ -78,6 +78,14 @@ RUN uv python install "$(cat /tmp/.python-version)"
 USER root
 RUN rm -f /tmp/.python-version
 
+COPY apps/backend/pyproject.toml /tmp/backend/pyproject.toml
+COPY apps/backend/uv.lock /tmp/backend/uv.lock
+RUN chown -R ${APP_USER}:${APP_USER} /tmp/backend
+USER ${APP_USER}
+RUN cd /tmp/backend && uv sync --locked --no-install-workspace --preview
+USER root
+RUN rm -rf /tmp/backend
+
 ################################################################################################
 FROM os AS info
 ################################################################################################
