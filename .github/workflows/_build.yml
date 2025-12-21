@@ -76,7 +76,7 @@ jobs:
           username: ${{ inputs.push && github.actor || '' }}
           password: ${{ inputs.push && secrets.GITHUB_TOKEN || '' }}
 
-      - name: Build base image
+      - name: Build all images
         id: build
         env:
           DOCKER_BUILDER: ${{ steps.docker.outputs.builder }}
@@ -90,16 +90,6 @@ jobs:
             DOCKER_TAG="${DOCKER_TAG}" \
             DOCKER_BUILD="${DOCKER_BUILD}" \
             DOCKER_PUSH="${DOCKER_PUSH}"
-
-      - name: Build service images
-        env:
-          DOCKER_TAG: ${{ steps.input_tag.outputs.tag }}
-          DOCKER_PUSH: ${{ inputs.push }}
-        run: |
-          make build \
-            DOCKER_TAG="${DOCKER_TAG}" \
-            DOCKER_PUSH="${DOCKER_PUSH}" \
-            -- --service backend --service web
 
       - name: Extract build digest
         id: digest

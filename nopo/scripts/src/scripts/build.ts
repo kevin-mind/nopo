@@ -13,19 +13,33 @@ import { DockerTag } from "../docker-tag.ts";
 type BuildCliArgs = {
   services: string[];
   dockerFile?: string;
+  baseOnly: boolean;
 };
 
 const SERVICE_IMAGE_SUFFIX = "_IMAGE";
 
 export default class BuildScript extends Script {
   static override name = "build";
-  static override description = "Build the base image";
+  static override description = "Build base image and service images";
   static override dependencies: ScriptDependency[] = [
     {
       class: EnvScript,
       enabled: true,
     },
   ];
+
+  private discoverServices(): string[] {
+    const appsDir = path.join(this.runner.config.root, "apps");
+    if (!fs.existsSync(appsDir)) return [];
+
+    return fs
+      .readdirSync(appsDir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .filter((entry) =>
+        fs.existsSync(path.join(appsDir, entry.name, "Dockerfile")),
+      )
+      .map((entry) => entry.name);
+  }
 
   async bake(...args: string[]): Promise<ProcessPromise> {
     return this.exec`docker buildx bake ${args}`;
@@ -50,7 +64,7 @@ export default class BuildScript extends Script {
   override async fn() {
     const args = this.parseArgs();
     await this.buildBaseImage();
-    if (args.services.length === 0) return;
+    if (args.baseOnly) return;
     await this.buildServices(args);
   }
 
@@ -82,20 +96,35 @@ export default class BuildScript extends Script {
 
   private parseArgs(): BuildCliArgs {
     if (this.runner.argv[0] !== "build") {
-      return { services: [] };
+      return { services: [], baseOnly: true };
     }
 
     const argv = this.runner.argv.slice(1);
-    const parsed = minimist(argv);
+    const parsed = minimist(argv, {
+      boolean: ["base-only"],
+      alias: { "base-only": "baseOnly" },
+    });
+
+    const baseOnly = parsed["base-only"] === true;
+
     const serviceArg = (parsed.service ?? parsed.s) as
       | string
       | string[]
       | undefined;
-    const services = this.normalizeServices(
+    const explicitServices = this.normalizeServices(
       typeof serviceArg === "string" || Array.isArray(serviceArg)
         ? serviceArg
         : undefined,
     );
+
+    // Default to all services if no --service specified and not --base-only
+    const services =
+      explicitServices.length > 0
+        ? explicitServices
+        : baseOnly
+          ? []
+          : this.discoverServices();
+
     const dockerFileInput = (parsed.dockerFile ??
       parsed.dockerfile) as string | undefined;
     const dockerFile =
@@ -107,7 +136,7 @@ export default class BuildScript extends Script {
       );
     }
 
-    return { services, dockerFile };
+    return { services, dockerFile, baseOnly };
   }
 
   private normalizeServices(
