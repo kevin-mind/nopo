@@ -164,7 +164,7 @@ export default class BuildScript extends Script {
       const imageTag = this.serviceImageTag(name);
 
       this.log(`Building service image '${name}'`);
-      await this.exec`docker build --file ${dockerfile} --build-arg NOPO_BASE_IMAGE=${this.runner.environment.env.DOCKER_TAG} --tag ${imageTag} ${this.runner.config.root}`;
+      await this.exec`docker build --file ${dockerfile} --build-arg NOPO_BASE_IMAGE=${this.runner.environment.env.DOCKER_TAG} --build-arg SERVICE_NAME=${name} --tag ${imageTag} ${this.runner.config.root}`;
 
       await this.verifyInheritance(imageTag);
 

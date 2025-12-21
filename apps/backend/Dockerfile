@@ -2,25 +2,18 @@ ARG NOPO_BASE_IMAGE=nopo:latest
 
 FROM ${NOPO_BASE_IMAGE} AS backend-build
 
-USER root
-WORKDIR /app
-COPY --chown=nopoapp:nopoapp . .
+# User and workdir are inherited from base image (nopoapp, /app)
+# Use numeric UID:GID for COPY --chown (matches NOPO_APP_UID:NOPO_APP_GID from base)
+COPY --chown=1001:1001 . .
 
-USER nopoapp
 RUN pnpm install --filter "@more/backend" --frozen-lockfile
-WORKDIR /app/apps/backend
-RUN uv sync --locked --no-install-workspace --frozen
-WORKDIR /app
 RUN pnpm --filter "@more/backend" build
 
 FROM ${NOPO_BASE_IMAGE} AS backend
 
-USER root
-WORKDIR /app
-COPY --from=backend-build --chown=nopoapp:nopoapp /app /app
-COPY --from=backend-build --chown=nopoapp:nopoapp /home/nopoapp /home/nopoapp
+ARG SERVICE_NAME=backend
 
-USER nopoapp
-ENV SERVICE_NAME=backend
-ENV SERVICE_COMMAND=start
-CMD ["/cmd.sh"]
+COPY --from=backend-build --chown=1001:1001 /app /app
+COPY --from=backend-build --chown=1001:1001 /home/nopoapp /home/nopoapp
+
+ENV SERVICE_NAME=${SERVICE_NAME}

@@ -2,22 +2,18 @@ ARG NOPO_BASE_IMAGE=nopo:latest
 
 FROM ${NOPO_BASE_IMAGE} AS web-build
 
-USER root
-WORKDIR /app
-COPY --chown=nopoapp:nopoapp . .
+# User and workdir are inherited from base image (nopoapp, /app)
+# Use numeric UID:GID for COPY --chown (matches NOPO_APP_UID:NOPO_APP_GID from base)
+COPY --chown=1001:1001 . .
 
-USER nopoapp
 RUN pnpm install --filter "@more/web" --frozen-lockfile
 RUN pnpm --filter "@more/web" build
 
 FROM ${NOPO_BASE_IMAGE} AS web
 
-USER root
-WORKDIR /app
-COPY --from=web-build --chown=nopoapp:nopoapp /app /app
-COPY --from=web-build --chown=nopoapp:nopoapp /home/nopoapp /home/nopoapp
+ARG SERVICE_NAME=web
 
-USER nopoapp
-ENV SERVICE_NAME=web
-ENV SERVICE_COMMAND=start
-CMD ["/cmd.sh"]
+COPY --from=web-build --chown=1001:1001 /app /app
+COPY --from=web-build --chown=1001:1001 /home/nopoapp /home/nopoapp
+
+ENV SERVICE_NAME=${SERVICE_NAME}

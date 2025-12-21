@@ -9,10 +9,16 @@ FROM node:22.16.0-slim AS os
 ARG APP_USER
 ARG APP_UID
 ARG APP_GID
-ARG SERVICE_NAME=
 
-ENV APP_HOME="/home/${APP_USER}"
-ENV APP="/app"
+# Export environment variables that child images can reference
+ENV NOPO_APP_USER="${APP_USER}"
+ENV NOPO_APP_UID="${APP_UID}"
+ENV NOPO_APP_GID="${APP_GID}"
+ENV NOPO_APP_HOME="/home/${APP_USER}"
+ENV NOPO_APP_DIR="/app"
+
+ENV APP_HOME="${NOPO_APP_HOME}"
+ENV APP="${NOPO_APP_DIR}"
 ENV NOPO_CORE="/opt/nopo-core"
 ENV PNPM_STORE_DIR="${APP_HOME}/.local/share/pnpm/store"
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
@@ -123,6 +129,9 @@ EOF
 FROM os AS user
 ################################################################################################
 
+ARG APP_USER
+ARG SERVICE_NAME=
+
 COPY --from=info /build-info.json /build-info.json
 
 RUN <<'EOF'
@@ -149,7 +158,11 @@ INNEREOF
 chmod +x /cmd.sh
 EOF
 
+# Set SERVICE_NAME from build arg if provided
+ENV SERVICE_NAME="${SERVICE_NAME}"
+
 USER ${APP_USER}
+WORKDIR ${APP}
 CMD ["/cmd.sh"]
 
 ################################################################################################
