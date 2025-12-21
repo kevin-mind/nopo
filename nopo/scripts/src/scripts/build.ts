@@ -6,6 +6,8 @@ import {
   $,
   type ProcessPromise,
   minimist,
+  NOPO_APP_UID,
+  NOPO_APP_GID,
 } from "../lib.ts";
 import EnvScript from "./env.ts";
 import { DockerTag } from "../docker-tag.ts";
@@ -27,19 +29,6 @@ export default class BuildScript extends Script {
       enabled: true,
     },
   ];
-
-  private discoverServices(): string[] {
-    const appsDir = path.join(this.runner.config.root, "apps");
-    if (!fs.existsSync(appsDir)) return [];
-
-    return fs
-      .readdirSync(appsDir, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory())
-      .filter((entry) =>
-        fs.existsSync(path.join(appsDir, entry.name, "Dockerfile")),
-      )
-      .map((entry) => entry.name);
-  }
 
   async bake(...args: string[]): Promise<ProcessPromise> {
     return this.exec`docker buildx bake ${args}`;
@@ -123,7 +112,7 @@ export default class BuildScript extends Script {
         ? explicitServices
         : baseOnly
           ? []
-          : this.discoverServices();
+          : this.runner.config.services;
 
     const dockerFileInput = (parsed.dockerFile ??
       parsed.dockerfile) as string | undefined;
@@ -193,7 +182,7 @@ export default class BuildScript extends Script {
       const imageTag = this.serviceImageTag(name);
 
       this.log(`Building service image '${name}'`);
-      await this.exec`docker build --file ${dockerfile} --build-arg NOPO_BASE_IMAGE=${this.runner.environment.env.DOCKER_TAG} --build-arg SERVICE_NAME=${name} --tag ${imageTag} ${this.runner.config.root}`;
+      await this.exec`docker build --file ${dockerfile} --build-arg NOPO_BASE_IMAGE=${this.runner.environment.env.DOCKER_TAG} --build-arg SERVICE_NAME=${name} --build-arg NOPO_APP_UID=${NOPO_APP_UID} --build-arg NOPO_APP_GID=${NOPO_APP_GID} --tag ${imageTag} ${this.runner.config.root}`;
 
       await this.verifyInheritance(imageTag);
 

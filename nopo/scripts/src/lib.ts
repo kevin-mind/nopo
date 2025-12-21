@@ -5,11 +5,17 @@ import { spawn, spawnSync, type SpawnOptions } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 
+// Constants for the nopo app user (must match base Dockerfile)
+export const NOPO_APP_USER = "nopoapp";
+export const NOPO_APP_UID = "1001";
+export const NOPO_APP_GID = "1001";
+
 const ConfigSchema = z.object({
   root: z.string(),
   envFile: z.string(),
   processEnv: z.record(z.string(), z.string()),
   silent: z.boolean(),
+  services: z.array(z.string()),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
@@ -407,6 +413,19 @@ interface CreateConfigOptions {
   silent?: boolean;
 }
 
+function discoverServices(rootDir: string): string[] {
+  const appsDir = path.join(rootDir, "apps");
+  if (!fs.existsSync(appsDir)) return [];
+
+  return fs
+    .readdirSync(appsDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .filter((entry) =>
+      fs.existsSync(path.join(appsDir, entry.name, "Dockerfile")),
+    )
+    .map((entry) => entry.name);
+}
+
 export function createConfig(options: CreateConfigOptions = {}): Config {
   const {
     envFile = ".env",
@@ -420,6 +439,7 @@ export function createConfig(options: CreateConfigOptions = {}): Config {
     envFile: path.resolve(root, envFile),
     processEnv,
     silent,
+    services: discoverServices(root),
   });
 }
 
