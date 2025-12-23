@@ -8,7 +8,7 @@
     "build/**"
   ],
   "scripts": {
-    "build": "vite build && uv run python manage.py collectstatic --noinput --clear",
+    "build": "uv sync --frozen --no-install-workspace && vite build && uv run python manage.py collectstatic --noinput --clear",
     "clean": "rm -rf __pycache__ .ruff_cache node_modules",
     "fix:lint": "uv tool run ruff format",
     "fix:lint:js": "eslint --fix",

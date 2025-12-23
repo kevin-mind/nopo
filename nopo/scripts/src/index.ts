@@ -28,11 +28,60 @@ const scripts: Record<string, typeof Script> = {
   down: Down,
 };
 
+function printNopoHeader(): void {
+  const asciiArt = `
+███╗   ██╗ ██████╗ ██████╗  ██████╗ 
+████╗  ██║██╔═══██╗██╔══██╗██╔═══██╗
+██╔██╗ ██║██║   ██║██████╔╝██║   ██║
+██║╚██╗██║██║   ██║██╔═══╝ ██║   ██║
+██║ ╚████║╚██████╔╝██║     ╚██████╔╝
+╚═╝  ╚═══╝ ╚═════╝ ╚═╝      ╚═════╝ 
+`;
+  console.log(chalk.cyan(asciiArt));
+}
+
+function printCommandsTable(): void {
+  const commands = Object.entries(scripts)
+    .map(([key, ScriptClass]) => ({
+      name: ScriptClass.name || key,
+      description: ScriptClass.description || "",
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const nameWidth = Math.max(
+    ...commands.map((cmd) => cmd.name.length),
+    "COMMAND".length,
+  );
+  const descriptionWidth = Math.max(
+    ...commands.map((cmd) => cmd.description.length),
+    "DESCRIPTION".length,
+  );
+
+  const commandHeader = "COMMAND".padEnd(nameWidth);
+  const descriptionHeader = "DESCRIPTION".padEnd(descriptionWidth);
+  const header = chalk.cyan(
+    chalk.bold(`  ${commandHeader}  ${descriptionHeader}`),
+  );
+  const separator = chalk.gray(
+    `  ${"-".repeat(nameWidth)}  ${"-".repeat(descriptionWidth)}`,
+  );
+
+  console.log(header);
+  console.log(separator);
+
+  for (const cmd of commands) {
+    const name = chalk.yellow(cmd.name.padEnd(nameWidth));
+    const description = chalk.white(cmd.description.padEnd(descriptionWidth));
+    console.log(`  ${name}  ${description}`);
+  }
+}
+
 function printHelp(message: string, exitCode = 1): never {
+  printNopoHeader();
   const color = exitCode === 0 ? chalk.green : chalk.red;
   console.log(color(message));
-  console.log(chalk.yellow("Available commands:"));
-  console.log(chalk.yellow(Object.keys(scripts).join("\n")));
+  console.log();
+  printCommandsTable();
   return process.exit(exitCode);
 }
 
@@ -51,6 +100,13 @@ export default async function main(
 
   if (args.help) {
     return printHelp("Usage: nopo <command> [options]", 0);
+  }
+
+  if (!args._[0]) {
+    printNopoHeader();
+    console.log(chalk.cyan(chalk.bold("Available commands:\n")));
+    printCommandsTable();
+    return process.exit(0);
   }
 
   const ScriptClass = scripts[args._[0] || ""] ?? Index;

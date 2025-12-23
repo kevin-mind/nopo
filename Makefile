@@ -9,6 +9,11 @@ SECOND_WORD = $(word 2,$(MAKECMDGOALS))
 
 export SERVICE_NAME ?= $(SECOND_WORD)
 
+.PHONY: default
+default:
+	pnpm install
+	npx -y tsx ./nopo/scripts/bin.ts
+
 .PHONY: fly
 fly:
 	node ./fly/scripts/$(SECOND_WORD).js

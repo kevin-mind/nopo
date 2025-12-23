@@ -1,4 +1,4 @@
-ARG USER=nodeuser
+ARG USER=nopoapp
 ARG USER_ID=1001
 
 ################################################################################################
@@ -8,7 +8,10 @@ FROM node:22.16.0-slim AS os
 ARG USER
 ARG USER_ID
 
-ARG SERVICE_NAME=
+# Export for child images (must match NOPO_APP_UID/GID used by build script)
+ENV NOPO_APP_UID="${USER_ID}"
+ENV NOPO_APP_GID="${USER_ID}"
+
 ENV HOME=/home/${USER}
 ENV APP=/app
 ENV DEPS=${HOME}/deps
@@ -41,6 +44,9 @@ ENV RUST_LOG=uv=debug
 ENV PATH="${PNPM_HOME}:${COREPACK_HOME}:${UV_BIN}:${UV_HOME}:${PATH}"
 
 WORKDIR $APP
+
+# Ensure /app is owned by the user
+RUN mkdir -p $APP && chown -R $USER:$USER $APP
 
 RUN \
   --mount=type=cache,target=/var/cache/apt,id=apt \
@@ -101,91 +107,18 @@ cat <<INNEREOF > /build-info.json
   "target": "${DOCKER_TARGET}"
 }
 INNEREOF
-# Set permissions to make the file readable by all but only writable by root
 chmod 644 /build-info.json
 cat /build-info.json
-EOF
-
-################################################################################################
-FROM base AS source
-################################################################################################
-
-COPY . $APP
-
-################################################################################################
-FROM os AS source_uv
-################################################################################################
-
-COPY --from=source $APP $APP
-RUN <<EOF
-find "$APP" -type f \
-  ! -name 'pyproject.toml' \
-  ! -name 'uv.lock' \
-  -delete
-EOF
-
-################################################################################################
-FROM base AS install_uv
-################################################################################################
-
-COPY --from=source_uv --chown=$USER $APP $APP
-
-RUN <<EOF
-uv sync --locked --no-install-workspace --active
-EOF
-
-################################################################################################
-FROM os AS source_pnpm
-################################################################################################
-
-COPY --from=source --chown=$USER $APP $APP
-
-RUN <<EOF
-find "$APP" -type f \
-  ! -name 'package.json' \
-  ! -name 'pnpm-lock.yaml' \
-  ! -name 'pnpm-workspace.yaml' \
-  -delete
-EOF
-
-################################################################################################
-FROM base AS install_pnpm
-################################################################################################
-
-COPY --from=source_pnpm $APP $APP
-
-RUN <<EOF
-pnpm fetch
-EOF
-
-################################################################################################
-FROM base AS build
-################################################################################################
-
-COPY --from=install_uv --chown=$USER $UV_HOME $UV_HOME
-COPY --from=install_pnpm --chown=$USER $PNPM_HOME $PNPM_HOME
-COPY --from=source --chown=$USER $APP $APP
-
-RUN <<EOF
-uv sync --locked --offline
-EOF
-
-RUN <<EOF
-pnpm install --frozen-lockfile --offline
-EOF
-
-RUN <<EOF
-pnpm -r build
 EOF
 
 ################################################################################################
 FROM base AS user
 ################################################################################################
 
+ARG SERVICE_NAME=
+
 COPY --from=base --chown=$USER $HOME $HOME
 COPY --from=info /build-info.json /build-info.json
-COPY --from=install_uv --chown=$USER $UV_HOME $UV_HOME
-COPY --from=install_pnpm --chown=$USER $PNPM_HOME $PNPM_HOME
 
 RUN <<EOF
 cat <<'INNEREOF' > /cmd.sh
@@ -227,13 +160,3 @@ FROM user AS production
 ################################################################################################
 
 ENV SERVICE_COMMAND="start"
-
-COPY --from=build --chown=$USER $APP $APP
-
-RUN <<EOF
-pnpm install --frozen-lockfile --offline --prod
-EOF
-
-RUN <<EOF
-uv sync --locked --offline --no-dev
-EOF

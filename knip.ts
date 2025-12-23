@@ -1,12 +1,18 @@
 import { KnipConfig } from "knip";
 
 export default {
-  ignore: ["packages/plop/**", "packages/configs/**"],
+  ignore: [
+    "packages/plop/**",
+    "packages/configs/**",
+    "**/.react-router/**",
+    "**/+types/**",
+  ],
   workspaces: {
     ".": {
       entry: ["fly/scripts/*.js"],
       ignoreBinaries: ["dev"],
       ignoreDependencies: ["tsx"],
+      ignoreUnresolved: [".*\\+types.*"],
     },
     "docker/scripts": {
       entry: "bin.ts",
@@ -20,6 +26,7 @@ export default {
     },
     "apps/web": {
       "react-router": true,
+      ignoreUnresolved: [".*\\+types.*"],
     },
     "packages/config": {
       eslint: false,

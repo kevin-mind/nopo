@@ -19,8 +19,28 @@ to run against the most recent code.
 
 ### Build
 
-Build the docker image for the project. Nopo projects
-use a single docker image for all services.
+The build pipeline now produces a reusable base image (`nopo:<tag>`) plus optional
+service layers that inherit from it.
+
+- `nopo build` runs the buildx bake definition in `nopo/docker/docker-bake.hcl`
+  and publishes the base image.
+- `nopo build --service backend --service web` builds the Dockerfiles that live
+  under `apps/<service>/Dockerfile`. The CLI verifies that each image contains the
+  base `/build-info.json`, records the resulting tag as `<SERVICE>_IMAGE` inside
+  `.env`, and respects the existing `DOCKER_PUSH` flag.
+- `nopo build --service backend --dockerFile ./apps/backend/Custom.Dockerfile`
+  allows pointing at an arbitrary Dockerfile (exactly one `--service` is required
+  when using this flag).
+
+All Compose services are defined alongside their apps (see
+`apps/*/docker-compose.yml`) and are aggregated via the Compose `include`
+directive (requires Docker Compose v2.20+).
+
+Infrastructure tests that exercise the extendable image contract live in
+`nopo/docker/tests/extendable.sh`. Run the script after touching the base image to
+ensure derived images can install new npm packages while `/opt/nopo-core`
+remains read-only and the embedded `/build-info.json` matches the current base
+tag.
 
 ### Env
 

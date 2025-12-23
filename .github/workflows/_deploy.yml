@@ -53,6 +53,7 @@ jobs:
     outputs:
       app_names: ${{ steps.app_names.outputs.app_names }}
       app_list: ${{ join(fromJson(steps.app_names.outputs.app_names), ', ') }}
+      service_names: ${{ steps.service_names.outputs.names }}
     steps:
       - uses: actions/checkout@v4
 
@@ -61,6 +62,17 @@ jobs:
         uses: ./.github/actions/app-names
         with:
           environment: ${{ inputs.environment }}
+
+      - name: Extract Service Names
+        id: service_names
+        shell: bash
+        env:
+          app_names: ${{ steps.app_names.outputs.app_names }}
+        run: |
+          # Extract service names from app names (nopo-stage-backend -> backend)
+          service_names=$(echo "$app_names" | jq -r '.[] | select(. | test("^nopo-[^-]+-")) | sub("^nopo-[^-]+-"; "")' | jq -R . | jq -s . | jq -c .)
+          echo "names=${service_names}" >> "$GITHUB_OUTPUT"
+          cat "$GITHUB_OUTPUT"
 
   pre_approve:
     name: Preparing to deploy ${{ needs.context.outputs.app_list }}
@@ -132,6 +144,28 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Get service tag
+        id: service_tag
+        shell: bash
+        env:
+          app_name: ${{ matrix.app_name }}
+          version: ${{ needs.pre_approve.outputs.pull_version }}
+          registry: ghcr.io
+          image: ${{ github.repository }}
+          base_tag: ${{ needs.pre_approve.outputs.pull_tag }}
+        run: |
+          # Extract service name from app name (nopo-stage-backend -> backend)
+          service=$(echo "$app_name" | sed -E 's/^nopo-[^-]+-//')
+          if [[ "$service" == "$app_name" ]]; then
+            # No service suffix (nginx), use base tag
+            pull_tag="$base_tag"
+          else
+            # Build service tag: ghcr.io/repo-service:version
+            pull_tag="${registry}/${image}-${service}:${version}"
+          fi
+          echo "tag=${pull_tag}" >> "$GITHUB_OUTPUT"
+          cat "$GITHUB_OUTPUT"
+
       - name: Push Tag
         id: push_tag
         uses: ./.github/actions/docker-tag
@@ -150,7 +184,7 @@ jobs:
 
       - name: Push image
         env:
-          pull_tag: ${{ needs.pre_approve.outputs.pull_tag }}
+          pull_tag: ${{ steps.service_tag.outputs.tag }}
           push_tag: ${{ steps.push_tag.outputs.tag }}
         run: |
           docker pull "${pull_tag}"
@@ -186,11 +220,12 @@ jobs:
 
       - name: Smoke test
         uses: ./.github/actions/smoketest
+        timeout-minutes: 10
         with:
           public_url: ${{ env.PUBLIC_URL }}
 
-  post_approve:
-    name: Approve deployments for ${{ needs.context.outputs.app_list }}
+  post_approve_base:
+    name: Approve base deployment
     if: |
       always() &&
       needs.deploy.result == 'success' &&
@@ -214,11 +249,55 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Push Environment Image
+      - name: Push Base Environment Image
         env:
           pull_tag: ${{ needs.pre_approve.outputs.pull_tag }}
-          push_tag: ${{ needs.pre_approve.outputs.env_tag }}
+          env_tag: ${{ needs.pre_approve.outputs.env_tag }}
         run: |
+          docker pull "${pull_tag}"
+          docker tag "${pull_tag}" "${env_tag}"
+          docker push "${env_tag}"
+
+  post_approve:
+    name: Approve service deployments
+    if: |
+      always() &&
+      needs.deploy.result == 'success' &&
+      needs.deploy_nginx.result == 'success' &&
+      needs.context.outputs.service_names != '[]'
+    needs: [context, pre_approve, deploy, deploy_nginx]
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ env.PUBLIC_URL }}
+    permissions:
+      packages: write
+      contents: read
+      attestations: write
+      id-token: write
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.context.outputs.service_names) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-docker
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push Service Environment Image
+        env:
+          service: ${{ matrix.service }}
+          version: ${{ needs.pre_approve.outputs.pull_version }}
+          environment: ${{ inputs.environment }}
+          registry: ghcr.io
+          image: ${{ github.repository }}
+        run: |
+          pull_tag="${registry}/${image}-${service}:${version}"
+          push_tag="${registry}/${image}-${service}:${environment}"
+          echo "Pushing environment tag for service '${service}': ${push_tag}"
           docker pull "${pull_tag}"
           docker tag "${pull_tag}" "${push_tag}"
           docker push "${push_tag}"
@@ -227,9 +306,9 @@ jobs:
     if: |
       always() &&
       needs.pre_approve.outputs.rollback_version != '' &&
-      (needs.deploy.result != 'success'|| needs.post_approve.result != 'success')
+      (needs.deploy.result != 'success'|| needs.post_approve_base.result != 'success' || needs.post_approve.result != 'success')
     name: Rollback
-    needs: [context, pre_approve, deploy, deploy_nginx, post_approve]
+    needs: [context, pre_approve, deploy, deploy_nginx, post_approve_base, post_approve]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
@@ -241,6 +320,33 @@ jobs:
 
       - uses: ./.github/actions/setup-node
 
+      - uses: ./.github/actions/setup-docker
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get rollback service tag
+        id: rollback_service_tag
+        shell: bash
+        env:
+          app_name: ${{ matrix.app_name }}
+          rollback_version: ${{ needs.pre_approve.outputs.rollback_version }}
+          registry: ghcr.io
+          image: ${{ github.repository }}
+        run: |
+          # Extract service name from app name (nopo-stage-backend -> backend)
+          service=$(echo "$app_name" | sed -E 's/^nopo-[^-]+-//')
+          if [[ "$service" == "$app_name" ]]; then
+            # No service suffix (nginx), use base image
+            rollback_tag="${registry}/${image}:${rollback_version}"
+          else
+            # Use service-specific image
+            rollback_tag="${registry}/${image}-${service}:${rollback_version}"
+          fi
+          echo "tag=${rollback_tag}" >> "$GITHUB_OUTPUT"
+          cat "$GITHUB_OUTPUT"
+
       - name: Rollback Tag
         id: rollback_tag
         uses: ./.github/actions/docker-tag
@@ -251,6 +357,15 @@ jobs:
 
       - name: Setup Flyctl
         uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Push rollback image
+        env:
+          pull_tag: ${{ steps.rollback_service_tag.outputs.tag }}
+          push_tag: ${{ steps.rollback_tag.outputs.tag }}
+        run: |
+          docker pull "${pull_tag}"
+          docker tag "${pull_tag}" "${push_tag}"
+          docker push "${push_tag}"
 
       - name: Rollback
         id: rollback

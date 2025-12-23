@@ -5,10 +5,9 @@ test.describe("Smoketest", () => {
     page,
   }) => {
     // Navigate to the home page
-    await page.goto("/django");
+    await page.goto("/django", { waitUntil: "domcontentloaded" });
 
-    // Wait for the page to load
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("load");
 
     const text = page.getByText("John Doe");
     await expect(text).toBeVisible();

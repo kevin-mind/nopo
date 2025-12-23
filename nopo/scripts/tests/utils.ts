@@ -26,9 +26,10 @@ export function createTmpEnv(env = {}) {
 export function runScript(
   script: typeof Script,
   config: ReturnType<typeof createConfig>,
+  argv: string[] = [],
 ) {
   const logger = new Logger(config);
   const environment = new Environment(config);
-  const runner = new Runner(config, environment, [], logger);
+  const runner = new Runner(config, environment, argv, logger);
   return runner.run(script);
 }
