@@ -39,6 +39,9 @@ export default class UpScript extends Script {
   ];
 
   override async fn() {
+    if (!this.runner.environment.env.DOCKER_TAG) {
+      throw new Error("DOCKER_TAG is required but was empty");
+    }
     const { data } = await compose.config({
       cwd: this.runner.config.root,
       env: this.env,
@@ -51,21 +54,58 @@ export default class UpScript extends Script {
       downServices.push(name);
     }
 
-    await Promise.all([
-      compose.run("base", ["uv", "sync", "--locked", "--active", "--offline"], {
-        callback: createLogger("sync_uv", "green"),
-        commandOptions: ["--rm", "--no-deps", "--remove-orphans"],
-        env: this.env,
-      }),
-      compose.run(
-        "base",
-        ["sh", "-c", "yes | pnpm install --frozen-lockfile --offline"],
-        {
-          callback: createLogger("sync_pnpm", "blue"),
+    // Try offline sync first (fast), fall back to online if cache is empty
+    const uvSync = async () => {
+      try {
+        await compose.run(
+          "base",
+          ["uv", "sync", "--locked", "--active", "--offline"],
+          {
+            callback: createLogger("sync_uv", "green"),
+            commandOptions: ["--rm", "--no-deps", "--remove-orphans"],
+            env: this.env,
+          },
+        );
+      } catch {
+        this.log("Offline uv sync failed, falling back to online sync...");
+        await compose.run("base", ["uv", "sync", "--locked", "--active"], {
+          callback: createLogger("sync_uv", "green"),
           commandOptions: ["--rm", "--no-deps", "--remove-orphans"],
           env: this.env,
-        },
-      ),
+        });
+      }
+    };
+
+    const pnpmSync = async () => {
+      try {
+        await compose.run(
+          "base",
+          ["sh", "-c", "yes | pnpm install --frozen-lockfile --offline"],
+          {
+            callback: createLogger("sync_pnpm", "blue"),
+            commandOptions: ["--rm", "--no-deps", "--remove-orphans"],
+            env: this.env,
+          },
+        );
+      } catch {
+        this.log(
+          "Offline pnpm install failed, falling back to online install...",
+        );
+        await compose.run(
+          "base",
+          ["sh", "-c", "yes | pnpm install --frozen-lockfile"],
+          {
+            callback: createLogger("sync_pnpm", "blue"),
+            commandOptions: ["--rm", "--no-deps", "--remove-orphans"],
+            env: this.env,
+          },
+        );
+      }
+    };
+
+    await Promise.all([
+      uvSync(),
+      pnpmSync(),
       compose.downMany(downServices, {
         callback: createLogger("down", "yellow"),
         commandOptions: ["--remove-orphans"],
@@ -105,5 +145,8 @@ export default class UpScript extends Script {
       );
       throw new Error("Failed to start services", { cause: error });
     }
+
+    const port = this.runner.environment.env.DOCKER_PORT;
+    this.log(`\n🚀 Services are up! Visit: http://localhost:${port}\n`);
   }
 }

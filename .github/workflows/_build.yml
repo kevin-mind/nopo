@@ -24,6 +24,12 @@ on:
       tag:
         description: 'The tag of the build'
         value: ${{ jobs.build.outputs.tag }}
+      service_tags:
+        description: 'JSON object mapping service names to their image tags'
+        value: ${{ jobs.build.outputs.service_tags }}
+      service_digests:
+        description: 'JSON object mapping service names to their digests'
+        value: ${{ jobs.build.outputs.service_digests }}
 
 permissions: {}
 
@@ -45,6 +51,8 @@ jobs:
       version: ${{ steps.output_tag.outputs.version }}
       digest: ${{ steps.output_tag.outputs.digest }}
       tag: ${{ steps.output_tag.outputs.tag }}
+      service_tags: ${{ steps.build_info.outputs.service_tags }}
+      service_digests: ${{ steps.build_info.outputs.service_digests }}
     env:
       build_metadata: build-metadata.json
     steps:
@@ -85,27 +93,27 @@ jobs:
           DOCKER_PUSH: ${{ inputs.push }}
           DOCKER_METADATA_FILE: ${{ env.build_metadata }}
         run: |
-          make build \
-            DOCKER_BUILDER="${DOCKER_BUILDER}" \
-            DOCKER_TAG="${DOCKER_TAG}" \
-            DOCKER_BUILD="${DOCKER_BUILD}" \
-            DOCKER_PUSH="${DOCKER_PUSH}"
+          npx tsx ./nopo/scripts/bin.ts build --output build-output.json
 
-      - name: Extract build digest
-        id: digest
-        env:
-          push: ${{ inputs.push }}
-          tag: ${{ steps.input_tag.outputs.tag }}
-          meta: ${{ env.build_metadata }}
+      - name: Extract build info
+        id: build_info
+        shell: bash
         run: |
-          if [[ "$push" == "true" ]]; then
-            raw_json=$(docker buildx imagetools inspect $tag --raw)
-            digest=$(echo $raw_json | jq -r '.manifests[0].digest')
-          else
-            digest=""
-          fi
-
-          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          # Extract base image info
+          base_info=$(jq '.[] | select(.name == "base")' build-output.json)
+          base_tag=$(echo "$base_info" | jq -r '.tag')
+          base_digest=$(echo "$base_info" | jq -r '.digest // ""')
+          
+          # Extract service tags and digests (use -c for compact JSON, no newlines)
+          service_tags=$(jq -c '[.[] | select(.name != "base") | {key: .name, value: .tag}] | from_entries' build-output.json)
+          service_digests=$(jq -c '[.[] | select(.name != "base" and .digest != null) | {key: .name, value: .digest}] | from_entries' build-output.json)
+          
+          {
+            echo "base_tag=${base_tag}"
+            echo "base_digest=${base_digest}"
+            echo "service_tags=${service_tags}"
+            echo "service_digests=${service_digests}"
+          } >> "$GITHUB_OUTPUT"
           cat "$GITHUB_OUTPUT"
 
       - name: Output tag
@@ -116,4 +124,4 @@ jobs:
           image: ${{ steps.input_tag.outputs.image }}
           version: ${{ steps.input_tag.outputs.version }}
           # Add the digest to the output tag so we can easily pull the exact build later.
-          digest: ${{ inputs.push && steps.digest.outputs.digest || '' }}
+          digest: ${{ inputs.push && steps.build_info.outputs.base_digest || '' }}

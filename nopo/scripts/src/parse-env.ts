@@ -35,11 +35,14 @@ export class Environment {
     NODE_ENV: nodeEnv,
   });
 
+  static readonly baseKeys = new Set(Object.keys(Environment.schema.shape));
+
   envFile: string;
   processEnv: Record<string, string>;
   hasPrevEnv: boolean;
   prevEnv: Record<string, string>;
   env: z.infer<typeof Environment.schema>;
+  extraEnv: Record<string, string>;
   diff: EnvironmentDiffType;
 
   constructor({ envFile, processEnv }: Config) {
@@ -52,6 +55,7 @@ export class Environment {
     this.hasPrevEnv = fs.existsSync(this.envFile);
     this.prevEnv = this.#getPrevEnv();
     this.env = this.#getCurrEnv();
+    this.extraEnv = this.#collectExtraEnv();
     this.diff = this.#diff();
   }
 
@@ -120,6 +124,7 @@ export class Environment {
 
   #getCurrEnv(): z.infer<typeof Environment.schema> {
     const inputEnv = { ...this.prevEnv, ...this.processEnv };
+    const env: Record<string, string> = { ...inputEnv };
     const { parsed, fullTag } = this.#resolveDockerTag();
     let registry = parsed.registry;
     let image = parsed.image;
@@ -154,38 +159,77 @@ export class Environment {
     const defaultTarget = isLocal ? "development" : "production";
 
     for (const key of ["DOCKER_TARGET", "NODE_ENV"]) {
-      const current = inputEnv[key];
+      const current = env[key];
       const isMissing = !current;
       const isWrong = !isLocal && current !== defaultTarget;
       if (isMissing || isWrong) {
-        inputEnv[key] = defaultTarget;
+        env[key] = defaultTarget;
       }
     }
 
     const gitInfo = this.#resolveGitInfo(
-      inputEnv.GIT_REPO,
-      inputEnv.GIT_BRANCH,
-      inputEnv.GIT_COMMIT,
+      env.GIT_REPO,
+      env.GIT_BRANCH,
+      env.GIT_COMMIT,
     );
 
-    return Environment.schema.parse({
-      DOCKER_PORT: this.#resolveDockerPort(),
-      DOCKER_TAG: new DockerTag({
-        registry,
-        image,
-        version,
-        digest: digest || "",
-      }).fullTag,
-      DOCKER_TARGET: inputEnv.DOCKER_TARGET,
-      DOCKER_REGISTRY: registry,
-      DOCKER_IMAGE: image,
-      DOCKER_VERSION: version,
-      DOCKER_DIGEST: digest || "",
-      GIT_REPO: gitInfo.repo,
-      GIT_BRANCH: gitInfo.branch,
-      GIT_COMMIT: gitInfo.commit,
-      NODE_ENV: inputEnv.NODE_ENV,
-    });
+    env.DOCKER_PORT = this.#resolveDockerPort();
+    env.DOCKER_TAG = new DockerTag({
+      registry,
+      image,
+      version,
+      digest: digest || "",
+    }).fullTag;
+    env.DOCKER_TARGET = env.DOCKER_TARGET || defaultTarget;
+    env.DOCKER_REGISTRY = registry;
+    env.DOCKER_IMAGE = image;
+    env.DOCKER_VERSION = version;
+    env.DOCKER_DIGEST = digest || "";
+    env.GIT_REPO = gitInfo.repo;
+    env.GIT_BRANCH = gitInfo.branch;
+    env.GIT_COMMIT = gitInfo.commit;
+    env.NODE_ENV = env.NODE_ENV || defaultTarget;
+
+    return Environment.schema.parse(env);
+  }
+
+  static #isAllowedExtraKey(key: string): boolean {
+    return /^[A-Z0-9_]+_IMAGE$/.test(key);
+  }
+
+  static #isSafeValue(value: string): boolean {
+    return !value.includes("\n");
+  }
+
+  #collectExtraEnv(): Record<string, string> {
+    const extras: Record<string, string> = {};
+    const candidateSources = [{ ...this.prevEnv }, { ...this.processEnv }];
+    for (const source of candidateSources) {
+      for (const [key, value] of Object.entries(source)) {
+        if (
+          Environment.baseKeys.has(key) ||
+          !Environment.#isAllowedExtraKey(key) ||
+          !value
+        ) {
+          continue;
+        }
+        if (!Environment.#isSafeValue(value)) continue;
+        extras[key] = value;
+      }
+    }
+    return extras;
+  }
+
+  setExtraEnv(key: string, value: string): void {
+    if (!Environment.#isAllowedExtraKey(key)) {
+      throw new Error(
+        `Unsupported environment override "${key}". Only *_IMAGE keys are allowed.`,
+      );
+    }
+    if (!Environment.#isSafeValue(value)) {
+      throw new Error(`Value for "${key}" cannot contain newline characters.`);
+    }
+    this.extraEnv[key] = value;
   }
 
   #diff(): EnvironmentDiffType {
@@ -216,7 +260,12 @@ export class Environment {
   }
 
   save(): void {
-    const sortedEnv = Object.entries(this.env)
+    const combinedEntries = {
+      ...this.env,
+      ...this.extraEnv,
+    } as Record<string, string>;
+
+    const sortedEnv = Object.entries(combinedEntries)
       .filter(([, value]) => !!value)
       .sort((a, b) => a[0].localeCompare(b[0]));
 

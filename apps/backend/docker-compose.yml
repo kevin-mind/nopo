@@ -1,0 +1,23 @@
+services:
+  backend:
+    extends:
+      file: ../../nopo/docker/docker-compose.base.yml
+      service: base
+    image: "${BACKEND_IMAGE:-${DOCKER_TAG:?}}"
+    build:
+      context: ../../
+      dockerfile: apps/backend/Dockerfile
+      args:
+        NOPO_BASE_IMAGE: "${DOCKER_TAG:?}"
+    environment:
+      SERVICE_NAME: backend
+      DATABASE_URL: postgres://user:password@db:5432/database
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/__version__"]
+      interval: 20s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    depends_on:
+      db:
+        condition: service_healthy

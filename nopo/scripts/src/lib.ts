@@ -5,11 +5,16 @@ import { spawn, spawnSync, type SpawnOptions } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 
+// Constants for the nopo app user (must match base Dockerfile)
+export const NOPO_APP_UID = "1001";
+export const NOPO_APP_GID = "1001";
+
 const ConfigSchema = z.object({
   root: z.string(),
   envFile: z.string(),
   processEnv: z.record(z.string(), z.string()),
   silent: z.boolean(),
+  services: z.array(z.string()),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
@@ -69,24 +74,64 @@ interface ParsedArgs {
   [key: string]: string | boolean | undefined | string[];
 }
 
-export function minimist(args: string[]): ParsedArgs {
+interface MinimistOptions {
+  boolean?: string[];
+  string?: string[];
+  alias?: Record<string, string | string[]>;
+  default?: Record<string, unknown>;
+}
+
+export function minimist(
+  args: string[],
+  options: MinimistOptions = {},
+): ParsedArgs {
   const result: ParsedArgs = { _: [] };
+  const booleanSet = new Set(options.boolean || []);
+  const aliasMap = new Map<string, string>();
+
+  // Build alias map (both directions)
+  if (options.alias) {
+    for (const [key, aliases] of Object.entries(options.alias)) {
+      const aliasList = Array.isArray(aliases) ? aliases : [aliases];
+      for (const alias of aliasList) {
+        aliasMap.set(alias, key);
+        aliasMap.set(key, alias);
+      }
+    }
+  }
+
+  // Apply defaults
+  if (options.default) {
+    for (const [key, value] of Object.entries(options.default)) {
+      result[key] = value as string | boolean;
+    }
+  }
+
   let i = 0;
 
   while (i < args.length) {
     const arg = args[i];
 
-    if (!arg) continue;
+    if (!arg) {
+      i++;
+      continue;
+    }
 
     if (arg === "--") {
       result._.push(...args.slice(i + 1));
       break;
     } else if (arg.startsWith("--")) {
       const [key, value] = arg.slice(2).split("=");
-      if (!key) continue;
+      if (!key) {
+        i++;
+        continue;
+      }
+      const isBoolean = booleanSet.has(key);
       if (value !== undefined) {
         result[key] =
           value === "true" ? true : value === "false" ? false : value;
+      } else if (isBoolean) {
+        result[key] = true;
       } else if (i + 1 < args.length && !args[i + 1]?.startsWith("-")) {
         const nextValue = args[i + 1];
         result[key] =
@@ -99,10 +144,19 @@ export function minimist(args: string[]): ParsedArgs {
       } else {
         result[key] = true;
       }
+      // Apply aliases
+      const alias = aliasMap.get(key);
+      if (alias) {
+        result[alias] = result[key];
+      }
     } else if (arg.startsWith("-") && !arg.startsWith("--")) {
       const flags = arg.slice(1).split("");
       for (const flag of flags) {
         result[flag] = true;
+        const alias = aliasMap.get(flag);
+        if (alias) {
+          result[alias] = true;
+        }
       }
     } else {
       result._.push(arg);
@@ -407,6 +461,19 @@ interface CreateConfigOptions {
   silent?: boolean;
 }
 
+function discoverServices(rootDir: string): string[] {
+  const appsDir = path.join(rootDir, "apps");
+  if (!fs.existsSync(appsDir)) return [];
+
+  return fs
+    .readdirSync(appsDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .filter((entry) =>
+      fs.existsSync(path.join(appsDir, entry.name, "Dockerfile")),
+    )
+    .map((entry) => entry.name);
+}
+
 export function createConfig(options: CreateConfigOptions = {}): Config {
   const {
     envFile = ".env",
@@ -420,6 +487,7 @@ export function createConfig(options: CreateConfigOptions = {}): Config {
     envFile: path.resolve(root, envFile),
     processEnv,
     silent,
+    services: discoverServices(root),
   });
 }
 
@@ -480,6 +548,7 @@ export class Script {
     return {
       ...this.runner.environment.processEnv,
       ...this.runner.environment.env,
+      ...this.runner.environment.extraEnv,
     };
   }
 

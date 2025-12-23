@@ -21,7 +21,9 @@ runs:
       shell: bash
       env:
         PUBLIC_URL: ${{ inputs.public_url }}
-      run: pnpm exec playwright test
+      run: |
+        echo "PUBLIC_URL: ${PUBLIC_URL}"
+        pnpm exec playwright test --reporter=list
 
     - uses: actions/upload-artifact@v4
       if: ${{ always() && inputs.name != '' }}
