@@ -1,7 +1,7 @@
 import compose from "docker-compose";
 
 import {
-  Script,
+  TargetScript,
   type ScriptDependency,
   type Runner,
   createLogger,
@@ -9,6 +9,7 @@ import {
 import EnvScript from "./env.ts";
 import BuildScript from "./build.ts";
 import PullScript from "./pull.ts";
+import { parseTargetArgs } from "../target-args.ts";
 
 export function isBuild({ config, environment }: Runner): boolean {
   const forceBuild = !!config.processEnv.DOCKER_BUILD;
@@ -20,7 +21,11 @@ export function isPull(runner: Runner): boolean {
   return !isBuild(runner);
 }
 
-export default class UpScript extends Script {
+type UpCliArgs = {
+  targets: string[];
+};
+
+export default class UpScript extends TargetScript<UpCliArgs> {
   static override name = "up";
   static override description = "Start the services";
   static override dependencies: ScriptDependency[] = [
@@ -38,10 +43,22 @@ export default class UpScript extends Script {
     },
   ];
 
-  override async fn() {
+  static override parseArgs(runner: Runner, isDependency: boolean): UpCliArgs {
+    // When run as dependency, return empty targets (all targets)
+    if (isDependency || runner.argv[0] !== "up") {
+      return { targets: [] };
+    }
+
+    const argv = runner.argv.slice(1);
+    const parsed = parseTargetArgs("up", argv, runner.config.targets);
+    return { targets: parsed.targets };
+  }
+
+  override async fn(args: UpCliArgs) {
     if (!this.runner.environment.env.DOCKER_TAG) {
       throw new Error("DOCKER_TAG is required but was empty");
     }
+
     const { data } = await compose.config({
       cwd: this.runner.config.root,
       env: this.env,
@@ -128,14 +145,25 @@ export default class UpScript extends Script {
     }
 
     try {
-      await compose.upAll({
-        callback: createLogger("up"),
-        commandOptions: ["--remove-orphans", "-d", "--no-build", "--wait"],
-        env: this.env,
-      });
+      if (args.targets.length > 0) {
+        await compose.upMany(args.targets, {
+          callback: createLogger("up"),
+          commandOptions: ["--remove-orphans", "-d", "--no-build", "--wait"],
+          env: this.env,
+        });
+      } else {
+        await compose.upAll({
+          callback: createLogger("up"),
+          commandOptions: ["--remove-orphans", "-d", "--no-build", "--wait"],
+          env: this.env,
+        });
+      }
     } catch (error) {
+      const servicesToLog = args.targets.length > 0
+        ? args.targets
+        : Object.keys(data.config.services);
       await Promise.all(
-        Object.keys(data.config.services).map((service) =>
+        servicesToLog.map((service: string) =>
           compose.logs(service, {
             callback: createLogger(`log:${service}`),
             commandOptions: ["--no-log-prefix"],

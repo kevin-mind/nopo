@@ -9,7 +9,7 @@ The `run` command executes pnpm scripts across the monorepo, either locally or w
 ## Usage
 
 ```bash
-nopo run <script> [service] [options]
+nopo run <script> [targets...] [options]
 ```
 
 ## Arguments
@@ -17,13 +17,16 @@ nopo run <script> [service] [options]
 | Argument | Description | Required |
 |----------|-------------|----------|
 | `script` | The pnpm script name (or pattern) to run | Yes |
-| `service` | The Docker service to run the script in | No |
+| `targets` | Optional list of targets to run the script in. If omitted, runs locally | No |
+
+### Available Targets
+
+Targets are discovered from `apps/*/Dockerfile` (e.g., `backend`, `web`).
 
 ## Options
 
 | Option | Description |
 |--------|-------------|
-| `--service <name>` | Docker service to run the script in |
 | `--workspace <name>` | pnpm workspace filter (e.g., `@more/backend`) |
 
 ## Environment Variables
@@ -46,7 +49,7 @@ The `run` command automatically runs dependencies based on conditions:
 
 ### Dependency Logic
 
-- If `--service` is provided and the service is not running:
+- If targets are provided and the target is not running:
   - If `DOCKER_VERSION=local` or `DOCKER_BUILD=true`: builds the image
   - Otherwise: pulls the image from the registry
 
@@ -68,13 +71,21 @@ nopo run build --workspace backend
 
 This runs `pnpm run --filter @more/backend /^build.*/`.
 
-### Run a script in a Docker service
+### Run a script in a Docker target
 
 ```bash
-nopo run test --service backend
+nopo run test backend
 ```
 
 This runs the test script inside the `backend` Docker container.
+
+### Run a script in multiple targets
+
+```bash
+nopo run test backend web
+```
+
+This runs the test script in both `backend` and `web` containers sequentially.
 
 ### Run lint in all workspaces
 
@@ -85,7 +96,7 @@ nopo run lint
 ### Run dev server in backend
 
 ```bash
-nopo run dev --service backend
+nopo run dev backend
 ```
 
 ## How It Works
@@ -123,13 +134,13 @@ pnpm run --fail-if-no-match /^<script>.*/
 
 ### Docker Execution
 
-When `--service` is provided, the script runs inside a Docker container:
+When targets are provided, the script runs inside Docker containers:
 
 ```bash
-docker compose run --rm --remove-orphans <service> pnpm run ...
+docker compose run --rm --remove-orphans <target> pnpm run ...
 ```
 
-The container is automatically removed after execution (`--rm`).
+Each target is run sequentially. Containers are automatically removed after execution (`--rm`).
 
 ## Output
 
@@ -153,8 +164,8 @@ The command streams output from the pnpm script:
 # Run all tests
 nopo run test
 
-# Run specific service tests
-nopo run test --service backend
+# Run specific target tests
+nopo run test backend
 ```
 
 ### Development Workflow
@@ -164,7 +175,7 @@ nopo run test --service backend
 nopo up
 
 # Run specific script in container
-nopo run migrate --service backend
+nopo run migrate backend
 
 # Run type checking
 nopo run check:types
@@ -192,22 +203,22 @@ ERR_PNPM_NO_SCRIPT_MATCH  No scripts matching /^foo.*/ in any workspace
 
 Solution: Check the script name exists in package.json files.
 
-### Service Not Found
+### Target Not Found
 
-If the specified service doesn't exist:
+If the specified target doesn't exist:
 
 ```plaintext
-Error: Service "invalid" not found
+Error: Unknown target 'invalid'. Available targets: backend, web
 ```
 
-Solution: Check available services with `docker compose ps`.
+Solution: Check available targets with `nopo status` or check `apps/*/Dockerfile`.
 
 ### Missing Script Argument
 
 If no script name is provided:
 
 ```plaintext
-Error: Usage: run [script] --service [service] --workspace [workspace]
+Error: Usage: run [script] [targets...] [--workspace <name>]
 ```
 
 ## See Also

@@ -9,12 +9,18 @@ The `up` command is the primary command for starting the development environment
 ## Usage
 
 ```bash
-nopo up
+nopo up [targets...]
 ```
 
 ## Arguments
 
-This command does not accept any arguments.
+| Argument | Description |
+|----------|-------------|
+| `targets` | Optional list of targets to start. If omitted, starts all targets |
+
+### Available Targets
+
+Targets are discovered from `apps/*/Dockerfile` (e.g., `backend`, `web`).
 
 ## Options
 
@@ -54,10 +60,16 @@ function isBuild(runner): boolean {
 
 ## Examples
 
-### Start with local build (default)
+### Start all targets (default)
 
 ```bash
 nopo up
+```
+
+### Start specific targets
+
+```bash
+nopo up backend web
 ```
 
 ### Force local build

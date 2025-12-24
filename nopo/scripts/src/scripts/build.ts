@@ -1,19 +1,20 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
-  Script,
+  TargetScript,
   type ScriptDependency,
+  type Runner,
   $,
   type ProcessPromise,
-  minimist,
   tmpfile,
   NOPO_APP_UID,
   NOPO_APP_GID,
 } from "../lib.ts";
 import EnvScript from "./env.ts";
 import { DockerTag } from "../docker-tag.ts";
+import { parseTargetArgs } from "../target-args.ts";
 
-type BuildCliArgs = {
+export type BuildCliArgs = {
   targets: string[];
   noCache: boolean;
   output?: string;
@@ -41,7 +42,7 @@ interface BakeDefinition {
 
 const SERVICE_IMAGE_SUFFIX = "_IMAGE";
 
-export default class BuildScript extends Script {
+export default class BuildScript extends TargetScript<BuildCliArgs> {
   static override name = "build";
   static override description = "Build base image and service images";
   static override dependencies: ScriptDependency[] = [
@@ -50,6 +51,26 @@ export default class BuildScript extends Script {
       enabled: true,
     },
   ];
+
+  static override parseArgs(runner: Runner, isDependency: boolean): BuildCliArgs {
+    // When run as dependency, return default args
+    if (isDependency || runner.argv[0] !== "build") {
+      return { targets: [], noCache: false };
+    }
+
+    const argv = runner.argv.slice(1);
+    const availableTargets = ["base", ...runner.config.targets];
+    const parsed = parseTargetArgs("build", argv, availableTargets, {
+      boolean: ["no-cache"],
+      string: ["output"],
+      alias: { "no-cache": "noCache" },
+    });
+
+    const noCache = (parsed.options["no-cache"] as boolean) === true;
+    const output = parsed.options["output"] as string | undefined;
+
+    return { targets: parsed.targets, noCache, output };
+  }
 
   async bake(...args: string[]): Promise<ProcessPromise> {
     return this.exec`docker buildx bake ${args}`;
@@ -71,8 +92,7 @@ export default class BuildScript extends Script {
     return builder;
   }
 
-  override async fn() {
-    const args = this.parseArgs();
+  override async fn(args: BuildCliArgs) {
     const bakeFile = this.generateBakeDefinition(args.targets);
 
     await this.runBake(bakeFile, args);
@@ -82,52 +102,24 @@ export default class BuildScript extends Script {
     }
   }
 
-  private parseArgs(): BuildCliArgs {
-    if (this.runner.argv[0] !== "build") {
-      return { targets: [], noCache: false };
-    }
-
-    const argv = this.runner.argv.slice(1);
-    const parsed = minimist(argv, {
-      boolean: ["no-cache"],
-      string: ["output"],
-      alias: { "no-cache": "noCache" },
-    });
-
-    const noCache = parsed["no-cache"] === true;
-    const output = parsed["output"] as string | undefined;
-
-    const targets = parsed._.map((t) => t.toLowerCase());
-
-    return { targets, noCache, output };
-  }
-
   private generateBakeDefinition(requestedTargets: string[]): string {
     const env = this.runner.environment.env;
-    const services = this.runner.config.services;
+    const targets = this.runner.config.targets;
 
-    const allTargets = ["base", ...services];
-    const targets = requestedTargets.length > 0 ? requestedTargets : allTargets;
-
-    for (const target of targets) {
-      if (!allTargets.includes(target)) {
-        throw new Error(
-          `Unknown target '${target}'. Available targets: ${allTargets.join(", ")}`,
-        );
-      }
-    }
+    const allTargets = ["base", ...targets];
+    const buildTargets = requestedTargets.length > 0 ? requestedTargets : allTargets;
 
     const definition: BakeDefinition = {
       group: {
         default: {
-          targets,
+          targets: buildTargets,
         },
       },
       target: {},
     };
 
     const needsBase =
-      targets.includes("base") || targets.some((t) => services.includes(t));
+      buildTargets.includes("base") || buildTargets.some((t) => targets.includes(t));
     if (needsBase) {
       const baseDockerfile = path.join(
         this.runner.config.root,
@@ -154,17 +146,17 @@ export default class BuildScript extends Script {
       };
     }
 
-    for (const service of services) {
-      if (!targets.includes(service)) continue;
+    for (const target of targets) {
+      if (!buildTargets.includes(target)) continue;
 
-      const serviceTag = this.serviceImageTag(service);
-      const dockerfile = this.defaultDockerfileFor(service);
+      const serviceTag = this.serviceImageTag(target);
+      const dockerfile = this.defaultDockerfileFor(target);
 
       if (!fs.existsSync(dockerfile)) {
-        throw new Error(`Service '${service}' is missing ${dockerfile}.`);
+        throw new Error(`Target '${target}' is missing ${dockerfile}.`);
       }
 
-      definition.target[service] = {
+      definition.target[target] = {
         context: ".",
         dockerfile: path.relative(this.runner.config.root, dockerfile),
         tags: [serviceTag],
@@ -172,14 +164,14 @@ export default class BuildScript extends Script {
           base: "target:base",
         },
         args: {
-          SERVICE_NAME: service,
+          SERVICE_NAME: target,
           NOPO_APP_UID,
           NOPO_APP_GID,
         },
       };
 
       this.runner.environment.setExtraEnv(
-        this.serviceEnvKey(service),
+        this.serviceEnvKey(target),
         serviceTag,
       );
     }
@@ -257,9 +249,9 @@ export default class BuildScript extends Script {
   private async outputBuildInfo(targets: string[], outputPath?: string) {
     const push = this.runner.config.processEnv.DOCKER_PUSH === "true";
     const env = this.runner.environment.env;
-    const services = this.runner.config.services;
+    const configTargets = this.runner.config.targets;
 
-    const allTargets = ["base", ...services];
+    const allTargets = ["base", ...configTargets];
     const builtTargets = targets.length > 0 ? targets : allTargets;
 
     const images: Array<{
@@ -285,17 +277,17 @@ export default class BuildScript extends Script {
       });
     }
 
-    for (const service of services) {
-      if (!builtTargets.includes(service)) continue;
+    for (const target of configTargets) {
+      if (!builtTargets.includes(target)) continue;
 
-      const serviceTag = this.serviceImageTag(service);
+      const serviceTag = this.serviceImageTag(target);
       const serviceDigest = push ? await this.getImageDigest(serviceTag) : null;
 
       images.push({
-        name: service,
+        name: target,
         tag: serviceTag,
         registry: env.DOCKER_REGISTRY,
-        image: `${env.DOCKER_IMAGE}-${service}`,
+        image: `${env.DOCKER_IMAGE}-${target}`,
         version: env.DOCKER_VERSION,
         digest: serviceDigest,
       });

@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { spawn, spawnSync, type SpawnOptions } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
+import { parseTargetArgs } from "./target-args.ts";
 
 // Constants for the nopo app user (must match base Dockerfile)
 export const NOPO_APP_UID = "1001";
@@ -14,7 +15,7 @@ const ConfigSchema = z.object({
   envFile: z.string(),
   processEnv: z.record(z.string(), z.string()),
   silent: z.boolean(),
-  services: z.array(z.string()),
+  targets: z.array(z.string()),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
@@ -461,7 +462,7 @@ interface CreateConfigOptions {
   silent?: boolean;
 }
 
-function discoverServices(rootDir: string): string[] {
+export function discoverTargets(rootDir: string): string[] {
   const appsDir = path.join(rootDir, "apps");
   if (!fs.existsSync(appsDir)) return [];
 
@@ -487,7 +488,7 @@ export function createConfig(options: CreateConfigOptions = {}): Config {
     envFile: path.resolve(root, envFile),
     processEnv,
     silent,
-    services: discoverServices(root),
+    targets: discoverTargets(root),
   });
 }
 
@@ -525,23 +526,21 @@ export class Logger {
 }
 
 export interface ScriptDependency {
-  class: typeof Script;
+  class: typeof BaseScript;
   enabled: boolean | ((runner: Runner) => boolean | Promise<boolean>);
 }
 
-export class Script {
+export abstract class BaseScript {
   static name = "";
   static description = "";
   static dependencies: ScriptDependency[] = [];
 
   runner: Runner;
+  isDependency: boolean;
 
-  constructor(runner: Runner) {
+  constructor(runner: Runner, isDependency = false) {
     this.runner = runner;
-  }
-
-  async fn() {
-    throw new Error("Not implemented");
+    this.isDependency = isDependency;
   }
 
   get env() {
@@ -565,6 +564,24 @@ export class Script {
 
   log(...message: unknown[]) {
     this.runner.logger.log(this.runner.logger.chalk.yellow(...message));
+  }
+}
+
+export class Script<TArgs = void> extends BaseScript {
+  static parseArgs?(runner: Runner, isDependency: boolean): unknown;
+
+  async fn(_args?: TArgs | unknown): Promise<void> {
+    throw new Error("Not implemented");
+  }
+}
+
+export abstract class TargetScript<TArgs = void> extends BaseScript {
+  static parseArgs(runner: Runner, isDependency: boolean): unknown {
+    throw new Error("parseArgs must be implemented by TargetScript subclasses");
+  }
+
+  async fn(_args?: TArgs | unknown): Promise<void> {
+    throw new Error("Not implemented");
   }
 }
 
@@ -593,9 +610,9 @@ export class Runner {
   }
 
   async resolveDependencies(
-    ScriptClass: typeof Script,
-    dependenciesMap: Map<typeof Script, boolean[]> = new Map(),
-  ): Promise<Map<typeof Script, boolean[]>> {
+    ScriptClass: typeof BaseScript,
+    dependenciesMap: Map<typeof BaseScript, boolean[]> = new Map(),
+  ): Promise<Map<typeof BaseScript, boolean[]>> {
     for await (const dependency of ScriptClass.dependencies) {
       const enabled = await this.isDependencyEnabled(dependency);
 
@@ -610,7 +627,7 @@ export class Runner {
     return dependenciesMap;
   }
 
-  async run(ScriptClass: typeof Script): Promise<void> {
+  async run(ScriptClass: typeof BaseScript): Promise<void> {
     const scripts = await this.resolveDependencies(ScriptClass);
     scripts.set(ScriptClass, [true]);
     const line = (length: number) =>
@@ -625,9 +642,25 @@ export class Runner {
       const length = message.length + 2;
       this.logger.log(color([line(length), message, line(length)].join("\n")));
       if (!enabled) continue;
-      const scriptInstance = new ScriptToRun(this);
+
+      // Determine if this script is running as a dependency
+      const isDependency = ScriptToRun !== ScriptClass;
+      
+      // Create a runner with potentially modified argv (targets stripped for dependencies)
+      const runnerForScript = this.prepareRunnerForScript(ScriptToRun, isDependency);
+      const scriptInstance = this.createScriptInstance(ScriptToRun, runnerForScript, isDependency);
+
       try {
-        await scriptInstance.fn();
+        // Parse args if the script has a parseArgs method
+        if (this.isTargetScript(ScriptToRun)) {
+          const args = (ScriptToRun as typeof TargetScript).parseArgs(runnerForScript, isDependency);
+          await (scriptInstance as TargetScript<unknown>).fn(args);
+        } else if ((ScriptToRun as typeof Script).parseArgs) {
+          const args = (ScriptToRun as typeof Script).parseArgs!(runnerForScript, isDependency);
+          await (scriptInstance as Script<unknown>).fn(args);
+        } else {
+          await (scriptInstance as Script).fn();
+        }
       } catch (error) {
         if (error instanceof ProcessOutput) {
           this.logger.log(chalk.red(error.stdout));
@@ -637,6 +670,65 @@ export class Runner {
         }
         throw error;
       }
+    }
+  }
+
+  private isTargetScript(ScriptClass: typeof BaseScript): boolean {
+    return ScriptClass.prototype instanceof TargetScript;
+  }
+
+  private createScriptInstance(
+    ScriptClass: typeof BaseScript,
+    runner: Runner,
+    isDependency: boolean,
+  ): BaseScript {
+    // Use constructor directly - TypeScript will handle the typing
+    return new (ScriptClass as unknown as new (runner: Runner, isDependency?: boolean) => BaseScript)(
+      runner,
+      isDependency,
+    );
+  }
+
+  private prepareRunnerForScript(ScriptClass: typeof BaseScript, isDependency: boolean): Runner {
+    // If script is not a TargetScript or not running as dependency, return runner as-is
+    if (!this.isTargetScript(ScriptClass) || !isDependency) {
+      return this;
+    }
+
+    // For TargetScript dependencies, strip targets from argv
+    const commandName = ScriptClass.name;
+    const argv = this.argv.slice(1);
+    
+    // Determine leading positionals (e.g., 1 for 'run' command)
+    const leadingPositionals = commandName === "run" ? 1 : 0;
+    
+    try {
+      const parsed = parseTargetArgs(
+        commandName,
+        argv,
+        this.config.targets,
+        { leadingPositionals },
+      );
+
+      // Create new argv with targets removed
+      // Keep command name, leading args, and options, but remove targets
+      const newArgv: string[] = [this.argv[0]!]; // Keep command name
+      newArgv.push(...parsed.leadingArgs); // Keep leading args (e.g., script name)
+      
+      // Add options back
+      for (const [key, value] of Object.entries(parsed.options)) {
+        if (typeof value === "boolean" && value) {
+          newArgv.push(`--${key}`);
+        } else if (typeof value === "string") {
+          newArgv.push(`--${key}`, value);
+        }
+      }
+
+      return new Runner(this.config, this.environment, newArgv, this.logger);
+    } catch {
+      // If parsing fails, return original runner
+      // (let the script handle the error)
+      return this;
     }
   }
 }

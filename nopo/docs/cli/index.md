@@ -13,7 +13,7 @@ The `nopo` CLI is designed to streamline the development workflow for monorepo p
 - **Dependency resolution**: Automatic script dependency management between commands
 - **Environment management**: Automated Docker tag parsing and environment setup
 - **Docker integration**: Built-in support for Docker Buildx Bake, Compose, and registry operations
-- **Service discovery**: Automatically discovers services with Dockerfiles in `apps/`
+- **Target discovery**: Automatically discovers targets with Dockerfiles in `apps/`
 
 ## Installation
 
@@ -102,13 +102,13 @@ pnpm install
 
 | Command | Description |
 |---------|-------------|
-| [`build`](./commands/build.md) | Build base image and service images using Docker Buildx Bake |
+| [`build`](./commands/build.md) | Build base image and target images using Docker Buildx Bake |
 | [`down`](./commands/down.md) | Bring down the containers and clean up resources |
 | [`env`](./commands/env.md) | Set up environment variables and generate `.env` file |
-| [`pull`](./commands/pull.md) | Pull the base image from the registry |
-| [`run`](./commands/run.md) | Run a pnpm script in a specified service and package |
-| [`status`](./commands/status.md) | Check the status of the services and system information |
-| [`up`](./commands/up.md) | Start the services with automatic dependency management |
+| [`pull`](./commands/pull.md) | Pull the base image or target images from the registry |
+| [`run`](./commands/run.md) | Run a pnpm script in specified targets or locally |
+| [`status`](./commands/status.md) | Check the status of the targets and system information |
+| [`up`](./commands/up.md) | Start the targets with automatic dependency management |
 
 ## Usage
 
@@ -122,8 +122,50 @@ nopo
 nopo --help
 
 # Run a specific command
-nopo <command> [options]
+nopo <command> [targets...] [options]
 ```
+
+### Universal Target Pattern
+
+Most commands support targeting specific services using positional arguments:
+
+```bash
+# Build all targets (default)
+nopo build
+
+# Build specific targets
+nopo build backend web
+
+# Start all targets
+nopo up
+
+# Start specific targets
+nopo up backend
+
+# Stop all targets
+nopo down
+
+# Stop specific targets
+nopo down backend web
+
+# Pull base image (default)
+nopo pull
+
+# Pull specific target images
+nopo pull backend web
+
+# Run script locally
+nopo run test
+
+# Run script in specific targets
+nopo run test backend web
+```
+
+**Target Discovery**: Targets are automatically discovered from `apps/*/Dockerfile`. Each directory in `apps/` that contains a `Dockerfile` is considered a target (e.g., `backend`, `web`).
+
+**Special Cases**:
+- The `build` command also supports a special `base` target for the base image
+- The `run` command uses the first positional argument as the script name, followed by target names
 
 ### Global Environment Variables
 
