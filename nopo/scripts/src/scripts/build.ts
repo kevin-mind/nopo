@@ -6,6 +6,7 @@ import {
   $,
   type ProcessPromise,
   minimist,
+  tmpfile,
   NOPO_APP_UID,
   NOPO_APP_GID,
 } from "../lib.ts";
@@ -13,12 +14,30 @@ import EnvScript from "./env.ts";
 import { DockerTag } from "../docker-tag.ts";
 
 type BuildCliArgs = {
-  services: string[];
-  dockerFile?: string;
-  baseOnly: boolean;
+  targets: string[];
   noCache: boolean;
   output?: string;
 };
+
+interface BakeTarget {
+  context: string;
+  dockerfile: string;
+  tags: string[];
+  target?: string;
+  args?: Record<string, string>;
+  contexts?: Record<string, string>;
+  "cache-from"?: string[];
+  "cache-to"?: string[];
+}
+
+interface BakeDefinition {
+  group: {
+    default: {
+      targets: string[];
+    };
+  };
+  target: Record<string, BakeTarget>;
+}
 
 const SERVICE_IMAGE_SUFFIX = "_IMAGE";
 
@@ -54,108 +73,151 @@ export default class BuildScript extends Script {
 
   override async fn() {
     const args = this.parseArgs();
-    await this.buildBaseImage(args.noCache);
-    if (args.baseOnly) {
-      if (args.output) {
-        await this.outputBuildInfo([], args.output);
-      }
-      return;
-    }
-    await this.buildServices(args);
+    const bakeFile = this.generateBakeDefinition(args.targets);
+
+    await this.runBake(bakeFile, args);
+
     if (args.output) {
-      await this.outputBuildInfo(args.services, args.output);
+      await this.outputBuildInfo(args.targets, args.output);
     }
-  }
-
-  private async buildBaseImage(noCache: boolean) {
-    const commandOptions = [
-      "-f",
-      "nopo/docker/docker-bake.hcl",
-      "-f",
-      this.runner.environment.envFile,
-      "--debug",
-      "--progress=plain",
-    ];
-    const push = this.runner.config.processEnv.DOCKER_PUSH === "true";
-    const builder = await this.builder();
-
-    this.log(`
-      Building image: ${this.runner.environment.env.DOCKER_TAG}
-      - builder: "${builder}"
-      - push: "${push}"
-      - no-cache: "${noCache}"
-    `);
-
-    commandOptions.push("--builder", builder);
-    commandOptions.push("--load");
-    if (push) commandOptions.push("--push");
-    if (noCache) commandOptions.push("--no-cache");
-
-    await this.bake(...commandOptions, "--print");
-    await this.bake(...commandOptions);
   }
 
   private parseArgs(): BuildCliArgs {
     if (this.runner.argv[0] !== "build") {
-      return { services: [], baseOnly: true, noCache: false };
+      return { targets: [], noCache: false };
     }
 
     const argv = this.runner.argv.slice(1);
     const parsed = minimist(argv, {
-      boolean: ["base-only", "no-cache"],
+      boolean: ["no-cache"],
       string: ["output"],
-      alias: { "base-only": "baseOnly", "no-cache": "noCache" },
+      alias: { "no-cache": "noCache" },
     });
 
-    const baseOnly = parsed["base-only"] === true;
     const noCache = parsed["no-cache"] === true;
     const output = parsed["output"] as string | undefined;
 
-    const serviceArg = (parsed.service ?? parsed.s) as
-      | string
-      | string[]
-      | undefined;
-    const explicitServices = this.normalizeServices(
-      typeof serviceArg === "string" || Array.isArray(serviceArg)
-        ? serviceArg
-        : undefined,
-    );
+    const targets = parsed._.map((t) => t.toLowerCase());
 
-    // Default to all services if no --service specified and not --base-only
-    const services =
-      explicitServices.length > 0
-        ? explicitServices
-        : baseOnly
-          ? []
-          : this.runner.config.services;
+    return { targets, noCache, output };
+  }
 
-    const dockerFileInput = (parsed.dockerFile ?? parsed.dockerfile) as
-      | string
-      | undefined;
-    const dockerFile =
-      typeof dockerFileInput === "string" ? dockerFileInput : undefined;
+  private generateBakeDefinition(requestedTargets: string[]): string {
+    const env = this.runner.environment.env;
+    const services = this.runner.config.services;
 
-    if (dockerFile && services.length !== 1) {
-      throw new Error(
-        "--dockerFile can only be used when exactly one --service is provided",
+    const allTargets = ["base", ...services];
+    const targets = requestedTargets.length > 0 ? requestedTargets : allTargets;
+
+    for (const target of targets) {
+      if (!allTargets.includes(target)) {
+        throw new Error(
+          `Unknown target '${target}'. Available targets: ${allTargets.join(", ")}`,
+        );
+      }
+    }
+
+    const definition: BakeDefinition = {
+      group: {
+        default: {
+          targets,
+        },
+      },
+      target: {},
+    };
+
+    const needsBase =
+      targets.includes("base") || targets.some((t) => services.includes(t));
+    if (needsBase) {
+      const baseDockerfile = path.join(
+        this.runner.config.root,
+        "nopo",
+        "docker",
+        "Dockerfile",
+      );
+      definition.target.base = {
+        context: ".",
+        dockerfile: path.relative(this.runner.config.root, baseDockerfile),
+        tags: [env.DOCKER_TAG],
+        target: env.DOCKER_TARGET,
+        "cache-from": ["type=gha"],
+        "cache-to": ["type=gha,mode=max"],
+        args: {
+          DOCKER_TARGET: env.DOCKER_TARGET,
+          DOCKER_TAG: env.DOCKER_TAG,
+          DOCKER_VERSION: env.DOCKER_VERSION,
+          DOCKER_BUILD: env.DOCKER_VERSION,
+          GIT_REPO: env.GIT_REPO,
+          GIT_BRANCH: env.GIT_BRANCH,
+          GIT_COMMIT: env.GIT_COMMIT,
+        },
+      };
+    }
+
+    for (const service of services) {
+      if (!targets.includes(service)) continue;
+
+      const serviceTag = this.serviceImageTag(service);
+      const dockerfile = this.defaultDockerfileFor(service);
+
+      if (!fs.existsSync(dockerfile)) {
+        throw new Error(`Service '${service}' is missing ${dockerfile}.`);
+      }
+
+      definition.target[service] = {
+        context: ".",
+        dockerfile: path.relative(this.runner.config.root, dockerfile),
+        tags: [serviceTag],
+        contexts: {
+          base: "target:base",
+        },
+        args: {
+          SERVICE_NAME: service,
+          NOPO_APP_UID,
+          NOPO_APP_GID,
+        },
+      };
+
+      this.runner.environment.setExtraEnv(
+        this.serviceEnvKey(service),
+        serviceTag,
       );
     }
 
-    return { services, dockerFile, baseOnly, noCache, output };
+    this.runner.environment.save();
+
+    const json = JSON.stringify(definition, null, 2);
+    return tmpfile("docker-bake.json", json);
   }
 
-  private normalizeServices(value: string | string[] | undefined): string[] {
-    if (!value) return [];
-    const list = Array.isArray(value) ? value : [value];
-    const names = list
-      .flatMap((item) =>
-        item
-          .split(",")
-          .map((part) => part.trim())
-          .filter(Boolean),
-      )
-      .map((name) => name.toLowerCase());
-    return [...new Set(names)];
+  private async runBake(bakeFile: string, args: BuildCliArgs): Promise<string> {
+    const commandOptions = ["-f", bakeFile, "--debug", "--progress=plain"];
+
+    const push = this.runner.config.processEnv.DOCKER_PUSH === "true";
+    const builder = await this.builder();
+
+    const metadataFile =
+      this.runner.config.processEnv.DOCKER_METADATA_FILE ||
+      tmpfile("bake-metadata.json", "{}");
+
+    this.log(`
+      Building targets: ${args.targets.length > 0 ? args.targets.join(", ") : "all"}
+      - builder: "${builder}"
+      - push: "${push}"
+      - no-cache: "${args.noCache}"
+      - metadata-file: "${metadataFile}"
+    `);
+
+    commandOptions.push("--builder", builder);
+    commandOptions.push("--load");
+    commandOptions.push("--metadata-file", metadataFile);
+    if (push) commandOptions.push("--push");
+    if (args.noCache) commandOptions.push("--no-cache");
+
+    await this.bake(...commandOptions, "--print");
+    await this.bake(...commandOptions);
+
+    return metadataFile;
   }
 
   private serviceEnvKey(service: string): string {
@@ -164,55 +226,6 @@ export default class BuildScript extends Script {
 
   private defaultDockerfileFor(service: string): string {
     return path.join(this.runner.config.root, "apps", service, "Dockerfile");
-  }
-
-  private resolveDockerfile(service: string, override?: string): string {
-    if (override) {
-      const resolved = path.isAbsolute(override)
-        ? override
-        : path.join(this.runner.config.root, override);
-      if (!fs.existsSync(resolved)) {
-        throw new Error(`Custom docker file not found: ${resolved}`);
-      }
-      return resolved;
-    }
-
-    const dockerfile = this.defaultDockerfileFor(service);
-    if (!fs.existsSync(dockerfile)) {
-      throw new Error(
-        `Service '${service}' is missing ${dockerfile}. Provide --dockerFile to override.`,
-      );
-    }
-    return dockerfile;
-  }
-
-  private async buildServices(args: BuildCliArgs) {
-    const push = this.runner.config.processEnv.DOCKER_PUSH === "true";
-    for (const name of args.services) {
-      const dockerfile = this.resolveDockerfile(name, args.dockerFile);
-      const imageTag = this.serviceImageTag(name);
-
-      this.log(
-        `Building service image '${name}'${args.noCache ? " (no cache)" : ""}`,
-      );
-      if (args.noCache) {
-        await this
-          .exec`docker build --no-cache --file ${dockerfile} --build-arg NOPO_BASE_IMAGE=${this.runner.environment.env.DOCKER_TAG} --build-arg SERVICE_NAME=${name} --build-arg NOPO_APP_UID=${NOPO_APP_UID} --build-arg NOPO_APP_GID=${NOPO_APP_GID} --tag ${imageTag} ${this.runner.config.root}`;
-      } else {
-        await this
-          .exec`docker build --file ${dockerfile} --build-arg NOPO_BASE_IMAGE=${this.runner.environment.env.DOCKER_TAG} --build-arg SERVICE_NAME=${name} --build-arg NOPO_APP_UID=${NOPO_APP_UID} --build-arg NOPO_APP_GID=${NOPO_APP_GID} --tag ${imageTag} ${this.runner.config.root}`;
-      }
-
-      await this.verifyInheritance(imageTag);
-
-      if (push) {
-        await this.exec`docker push ${imageTag}`;
-      }
-
-      this.runner.environment.setExtraEnv(this.serviceEnvKey(name), imageTag);
-    }
-
-    this.runner.environment.save();
   }
 
   private serviceImageTag(service: string): string {
@@ -224,25 +237,6 @@ export default class BuildScript extends Script {
       version: env.DOCKER_VERSION,
     });
     return parsed.fullTag;
-  }
-
-  private async verifyInheritance(imageTag: string) {
-    const { stdout } = await this
-      .exec`docker run --rm --entrypoint cat ${imageTag} /build-info.json`;
-    let info: Record<string, string>;
-    try {
-      info = JSON.parse(stdout.trim());
-    } catch (error) {
-      throw new Error(
-        `Unable to verify base image for ${imageTag}: ${String(error)}`,
-      );
-    }
-
-    if (info.tag !== this.runner.environment.env.DOCKER_TAG) {
-      throw new Error(
-        `Image ${imageTag} does not inherit from ${this.runner.environment.env.DOCKER_TAG}`,
-      );
-    }
   }
 
   private async getImageDigest(tag: string): Promise<string | null> {
@@ -260,11 +254,13 @@ export default class BuildScript extends Script {
     }
   }
 
-  private async outputBuildInfo(services: string[], outputPath?: string) {
+  private async outputBuildInfo(targets: string[], outputPath?: string) {
     const push = this.runner.config.processEnv.DOCKER_PUSH === "true";
     const env = this.runner.environment.env;
-    const baseTag = env.DOCKER_TAG;
-    const baseDigest = push ? await this.getImageDigest(baseTag) : null;
+    const services = this.runner.config.services;
+
+    const allTargets = ["base", ...services];
+    const builtTargets = targets.length > 0 ? targets : allTargets;
 
     const images: Array<{
       name: string;
@@ -273,27 +269,33 @@ export default class BuildScript extends Script {
       image: string;
       version: string;
       digest: string | null;
-    }> = [
-      {
+    }> = [];
+
+    if (builtTargets.includes("base")) {
+      const baseDigest = push
+        ? await this.getImageDigest(env.DOCKER_TAG)
+        : null;
+      images.push({
         name: "base",
-        tag: baseTag,
+        tag: env.DOCKER_TAG,
         registry: env.DOCKER_REGISTRY,
         image: env.DOCKER_IMAGE,
         version: env.DOCKER_VERSION,
         digest: baseDigest,
-      },
-    ];
+      });
+    }
 
     for (const service of services) {
+      if (!builtTargets.includes(service)) continue;
+
       const serviceTag = this.serviceImageTag(service);
       const serviceDigest = push ? await this.getImageDigest(serviceTag) : null;
-      const serviceImage = `${env.DOCKER_IMAGE}-${service}`;
 
       images.push({
         name: service,
         tag: serviceTag,
         registry: env.DOCKER_REGISTRY,
-        image: serviceImage,
+        image: `${env.DOCKER_IMAGE}-${service}`,
         version: env.DOCKER_VERSION,
         digest: serviceDigest,
       });

@@ -1,9 +1,8 @@
-ARG NOPO_BASE_IMAGE
 ARG SERVICE_NAME
 ARG NOPO_APP_UID
 ARG NOPO_APP_GID
 
-FROM ${NOPO_BASE_IMAGE} AS backend-build
+FROM base AS backend-build
 
 ARG NOPO_APP_UID
 ARG NOPO_APP_GID
@@ -13,7 +12,7 @@ COPY --chown=${NOPO_APP_UID}:${NOPO_APP_GID} . .
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter "@more/backend" build
 
-FROM ${NOPO_BASE_IMAGE} AS backend
+FROM base AS backend
 
 ARG SERVICE_NAME
 ARG NOPO_APP_UID
