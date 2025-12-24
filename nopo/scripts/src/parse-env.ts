@@ -66,16 +66,48 @@ export class Environment {
   }
 
   #resolveDockerTag(): DockerTag {
+    // Check if user explicitly set any docker component in processEnv
+    const hasExplicitOverride =
+      this.processEnv.DOCKER_TAG ||
+      this.processEnv.DOCKER_IMAGE ||
+      this.processEnv.DOCKER_VERSION ||
+      this.processEnv.DOCKER_REGISTRY ||
+      this.processEnv.DOCKER_DIGEST;
+
     if (this.processEnv.DOCKER_TAG) {
       return new DockerTag(this.processEnv.DOCKER_TAG);
-    } else if (this.processEnv.DOCKER_IMAGE && this.processEnv.DOCKER_VERSION) {
-      return new DockerTag({
-        registry: this.processEnv.DOCKER_REGISTRY || "",
-        image: this.processEnv.DOCKER_IMAGE,
-        version: this.processEnv.DOCKER_VERSION,
-        digest: this.processEnv.DOCKER_DIGEST || "",
-      });
-    } else if (this.prevEnv.DOCKER_TAG) {
+    }
+
+    if (hasExplicitOverride) {
+      const cachedTag = this.prevEnv.DOCKER_TAG
+        ? new DockerTag(this.prevEnv.DOCKER_TAG)
+        : null;
+
+      const registry =
+        this.processEnv.DOCKER_REGISTRY ||
+        this.prevEnv.DOCKER_REGISTRY ||
+        cachedTag?.parsed.registry ||
+        "";
+      const image =
+        this.processEnv.DOCKER_IMAGE ||
+        this.prevEnv.DOCKER_IMAGE ||
+        cachedTag?.parsed.image ||
+        Environment.baseTag.parsed.image;
+      const version =
+        this.processEnv.DOCKER_VERSION ||
+        this.prevEnv.DOCKER_VERSION ||
+        cachedTag?.parsed.version ||
+        "local";
+      const digest =
+        this.processEnv.DOCKER_DIGEST ||
+        this.prevEnv.DOCKER_DIGEST ||
+        cachedTag?.parsed.digest ||
+        "";
+
+      return new DockerTag({ registry, image, version, digest });
+    }
+
+    if (this.prevEnv.DOCKER_TAG) {
       return new DockerTag(this.prevEnv.DOCKER_TAG);
     } else if (this.prevEnv.DOCKER_IMAGE && this.prevEnv.DOCKER_VERSION) {
       return new DockerTag({

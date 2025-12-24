@@ -1,5 +1,4 @@
 import fs from "node:fs";
-import path from "node:path";
 import { describe, it, vi, expect, beforeEach } from "vitest";
 import BuildScript from "../../src/scripts/build.ts";
 import { createConfig } from "../../src/lib.ts";
@@ -39,7 +38,7 @@ describe("build", () => {
     BuildScript.prototype.builder = mockBuilder;
   });
 
-  it("builds image with default options", async () => {
+  it("builds all targets with default options", async () => {
     const config = createConfig({
       envFile: createTmpEnv({
         DOCKER_TAG: "kevin-mind/nopo:local",
@@ -49,32 +48,29 @@ describe("build", () => {
 
     await runScript(BuildScript, config);
 
-    expect(mockBake).toHaveBeenCalledWith(
-      "-f",
-      "nopo/docker/docker-bake.hcl",
-      "-f",
-      config.envFile,
-      "--debug",
-      "--progress=plain",
-      "--builder",
-      "nopo-builder",
-      "--load",
-      "--print",
-    );
-    expect(mockBake).toHaveBeenCalledWith(
-      "-f",
-      "nopo/docker/docker-bake.hcl",
-      "-f",
-      config.envFile,
-      "--debug",
-      "--progress=plain",
-      "--builder",
-      "nopo-builder",
-      "--load",
-    );
+    expect(mockBake).toHaveBeenCalledTimes(2);
+
+    const firstCall = mockBake.mock.calls[0];
+    expect(firstCall).toContain("--print");
+    expect(firstCall).toContain("--builder");
+    expect(firstCall).toContain("nopo-builder");
+    expect(firstCall).toContain("--load");
+
+    const secondCall = mockBake.mock.calls[1];
+    expect(secondCall).not.toContain("--print");
+    expect(secondCall).toContain("--builder");
+    expect(secondCall).toContain("nopo-builder");
+    expect(secondCall).toContain("--load");
+
+    expect(
+      firstCall?.some((arg: string) => arg.endsWith("docker-bake.json")),
+    ).toBe(true);
+    expect(
+      secondCall?.some((arg: string) => arg.endsWith("docker-bake.json")),
+    ).toBe(true);
   });
 
-  it("builds image with custom builder", async () => {
+  it("builds with custom builder", async () => {
     mockBuilder.mockResolvedValue("custom-builder");
     const config = createConfig({
       envFile: createTmpEnv({
@@ -88,32 +84,11 @@ describe("build", () => {
 
     await runScript(BuildScript, config);
 
-    expect(mockBake).toHaveBeenCalledWith(
-      "-f",
-      "nopo/docker/docker-bake.hcl",
-      "-f",
-      config.envFile,
-      "--debug",
-      "--progress=plain",
-      "--builder",
-      "custom-builder",
-      "--load",
-      "--print",
-    );
-    expect(mockBake).toHaveBeenCalledWith(
-      "-f",
-      "nopo/docker/docker-bake.hcl",
-      "-f",
-      config.envFile,
-      "--debug",
-      "--progress=plain",
-      "--builder",
-      "custom-builder",
-      "--load",
-    );
+    expect(mockBake.mock.calls[0]).toContain("custom-builder");
+    expect(mockBake.mock.calls[1]).toContain("custom-builder");
   });
 
-  it("pushes image when DOCKER_PUSH is set", async () => {
+  it("pushes images when DOCKER_PUSH is set", async () => {
     mockBuilder.mockResolvedValue("nopo-builder");
     const config = createConfig({
       envFile: createTmpEnv({
@@ -127,31 +102,8 @@ describe("build", () => {
 
     await runScript(BuildScript, config);
 
-    expect(mockBake).toHaveBeenCalledWith(
-      "-f",
-      "nopo/docker/docker-bake.hcl",
-      "-f",
-      config.envFile,
-      "--debug",
-      "--progress=plain",
-      "--builder",
-      "nopo-builder",
-      "--load",
-      "--push",
-      "--print",
-    );
-    expect(mockBake).toHaveBeenCalledWith(
-      "-f",
-      "nopo/docker/docker-bake.hcl",
-      "-f",
-      config.envFile,
-      "--debug",
-      "--progress=plain",
-      "--builder",
-      "nopo-builder",
-      "--load",
-      "--push",
-    );
+    expect(mockBake.mock.calls[0]).toContain("--push");
+    expect(mockBake.mock.calls[1]).toContain("--push");
   });
 
   it("has correct dependencies", () => {
@@ -159,70 +111,80 @@ describe("build", () => {
     expect(BuildScript.dependencies[0]?.enabled).toBe(true);
   });
 
-  describe("service builds", () => {
+  describe("target selection", () => {
     const baseTag = "kevin-mind/nopo:local";
 
-    function mockExec() {
-      const calls: string[] = [];
-
-      const execSpy = vi
-        .spyOn(
-          BuildScript.prototype as unknown as Record<string, unknown>,
-          "exec",
-          "get",
-        )
-        .mockReturnValue(
-          (strings: TemplateStringsArray, ...values: unknown[]) => {
-            const raw = strings.reduce((acc, chunk, index) => {
-              const value = index < values.length ? String(values[index]) : "";
-              return acc + chunk + value;
-            }, "");
-            const normalized = raw.replace(/\s+/g, " ").trim();
-            calls.push(normalized);
-            const stdout = normalized.includes("/build-info.json")
-              ? JSON.stringify({ tag: baseTag })
-              : "";
-            return Promise.resolve({ stdout } as { stdout: string });
-          },
-        );
-      return { execSpy, calls };
-    }
-
-    it("builds service dockerfile and records image tag", async () => {
+    it("builds only base when specified", async () => {
       const config = createConfig({
         envFile: createTmpEnv({
           DOCKER_TAG: baseTag,
         }),
         silent: true,
       });
-      const { execSpy, calls } = mockExec();
 
-      await runScript(BuildScript, config, ["build", "--service", "backend"]);
+      await runScript(BuildScript, config, ["build", "base"]);
 
-      execSpy.mockRestore();
-
-      const dockerfile = path.join(
-        config.root,
-        "apps",
-        "backend",
-        "Dockerfile",
+      const bakeFilePath = mockBake?.mock.calls?.[0]?.find((arg: string) =>
+        arg.endsWith("docker-bake.json"),
       );
+      expect(bakeFilePath).toBeDefined();
 
-      expect(
-        calls.some((command) =>
-          command.includes(
-            `docker build --file ${dockerfile} --build-arg NOPO_BASE_IMAGE=${baseTag}`,
-          ),
-        ),
-      ).toBe(true);
+      const bakeContent = fs.readFileSync(bakeFilePath, "utf-8");
+      const bakeDefinition = JSON.parse(bakeContent);
 
-      const envContents = fs.readFileSync(config.envFile, "utf-8");
-      expect(envContents).toContain(
-        'BACKEND_IMAGE="kevin-mind/nopo-backend:local"',
-      );
+      expect(bakeDefinition.group.default.targets).toEqual(["base"]);
+      expect(bakeDefinition.target.base).toBeDefined();
+      expect(bakeDefinition.target.backend).toBeUndefined();
+      expect(bakeDefinition.target.web).toBeUndefined();
     });
 
-    it("requires a service name when using --dockerFile", async () => {
+    it("builds service with base as dependency", async () => {
+      const config = createConfig({
+        envFile: createTmpEnv({
+          DOCKER_TAG: baseTag,
+        }),
+        silent: true,
+      });
+
+      await runScript(BuildScript, config, ["build", "backend"]);
+
+      const bakeFilePath = mockBake?.mock.calls?.[0]?.find((arg: string) =>
+        arg.endsWith("docker-bake.json"),
+      );
+      const bakeContent = fs.readFileSync(bakeFilePath, "utf-8");
+      const bakeDefinition = JSON.parse(bakeContent);
+
+      expect(bakeDefinition.group.default.targets).toEqual(["backend"]);
+      expect(bakeDefinition.target.base).toBeDefined();
+      expect(bakeDefinition.target.backend).toBeDefined();
+      expect(bakeDefinition.target.backend.contexts).toEqual({
+        base: "target:base",
+      });
+    });
+
+    it("builds multiple services in parallel", async () => {
+      const config = createConfig({
+        envFile: createTmpEnv({
+          DOCKER_TAG: baseTag,
+        }),
+        silent: true,
+      });
+
+      await runScript(BuildScript, config, ["build", "backend", "web"]);
+
+      const bakeFilePath = mockBake?.mock.calls?.[0]?.find((arg: string) =>
+        arg.endsWith("docker-bake.json"),
+      );
+      const bakeContent = fs.readFileSync(bakeFilePath, "utf-8");
+      const bakeDefinition = JSON.parse(bakeContent);
+
+      expect(bakeDefinition.group.default.targets).toEqual(["backend", "web"]);
+      expect(bakeDefinition.target.base).toBeDefined();
+      expect(bakeDefinition.target.backend).toBeDefined();
+      expect(bakeDefinition.target.web).toBeDefined();
+    });
+
+    it("throws error for unknown target", async () => {
       const config = createConfig({
         envFile: createTmpEnv({
           DOCKER_TAG: baseTag,
@@ -231,12 +193,40 @@ describe("build", () => {
       });
 
       await expect(
-        runScript(BuildScript, config, [
-          "build",
-          "--dockerFile",
-          "apps/backend/Dockerfile",
-        ]),
-      ).rejects.toThrow("--dockerFile can only be used");
+        runScript(BuildScript, config, ["build", "unknown-service"]),
+      ).rejects.toThrow("Unknown target 'unknown-service'");
+    });
+
+    it("records service image tags in environment", async () => {
+      const config = createConfig({
+        envFile: createTmpEnv({
+          DOCKER_TAG: baseTag,
+        }),
+        silent: true,
+      });
+
+      await runScript(BuildScript, config, ["build", "backend"]);
+
+      const envContents = fs.readFileSync(config.envFile, "utf-8");
+      expect(envContents).toContain(
+        'BACKEND_IMAGE="kevin-mind/nopo-backend:local"',
+      );
+    });
+  });
+
+  describe("no-cache option", () => {
+    it("passes --no-cache to bake", async () => {
+      const config = createConfig({
+        envFile: createTmpEnv({
+          DOCKER_TAG: "kevin-mind/nopo:local",
+        }),
+        silent: true,
+      });
+
+      await runScript(BuildScript, config, ["build", "--no-cache"]);
+
+      expect(mockBake.mock.calls[0]).toContain("--no-cache");
+      expect(mockBake.mock.calls[1]).toContain("--no-cache");
     });
   });
 });

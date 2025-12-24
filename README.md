@@ -19,18 +19,17 @@ to run against the most recent code.
 
 ### Build
 
-The build pipeline now produces a reusable base image (`nopo:<tag>`) plus optional
-service layers that inherit from it.
+The build pipeline produces a reusable base image (`nopo:<tag>`) plus service
+layers that inherit from it. All builds use Docker Buildx Bake for parallel
+execution.
 
-- `nopo build` runs the buildx bake definition in `nopo/docker/docker-bake.hcl`
-  and publishes the base image.
-- `nopo build --service backend --service web` builds the Dockerfiles that live
-  under `apps/<service>/Dockerfile`. The CLI verifies that each image contains the
-  base `/build-info.json`, records the resulting tag as `<SERVICE>_IMAGE` inside
-  `.env`, and respects the existing `DOCKER_PUSH` flag.
-- `nopo build --service backend --dockerFile ./apps/backend/Custom.Dockerfile`
-  allows pointing at an arbitrary Dockerfile (exactly one `--service` is required
-  when using this flag).
+- `nopo build` builds everything: base image + all discovered services (in parallel)
+- `nopo build base` builds only the base image
+- `nopo build backend` builds the backend service (base is built automatically as a dependency)
+- `nopo build backend web` builds both services in parallel (plus base)
+
+Service image tags are recorded as `<SERVICE>_IMAGE` in `.env`. The `DOCKER_PUSH`
+flag controls whether images are pushed to the registry.
 
 All Compose services are defined alongside their apps (see
 `apps/*/docker-compose.yml`) and are aggregated via the Compose `include`

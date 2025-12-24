@@ -54,7 +54,7 @@ jobs:
       service_tags: ${{ steps.build_info.outputs.service_tags }}
       service_digests: ${{ steps.build_info.outputs.service_digests }}
     env:
-      build_metadata: build-metadata.json
+      build_output: build-output.json
     steps:
       - uses: actions/checkout@v4
 
@@ -91,25 +91,19 @@ jobs:
           DOCKER_TAG: ${{ steps.input_tag.outputs.tag }}
           DOCKER_BUILD: ${{ format('{0}/actions/runs/{1}', github.event.repository.html_url, github.run_id) }}
           DOCKER_PUSH: ${{ inputs.push }}
-          DOCKER_METADATA_FILE: ${{ env.build_metadata }}
         run: |
-          npx tsx ./nopo/scripts/bin.ts build --output build-output.json
+          make build -- --output ${{ env.build_output }}
 
       - name: Extract build info
         id: build_info
-        shell: bash
+        env:
+          build_output: ${{ env.build_output }}
         run: |
-          # Extract base image info
-          base_info=$(jq '.[] | select(.name == "base")' build-output.json)
-          base_tag=$(echo "$base_info" | jq -r '.tag')
-          base_digest=$(echo "$base_info" | jq -r '.digest // ""')
-          
-          # Extract service tags and digests (use -c for compact JSON, no newlines)
-          service_tags=$(jq -c '[.[] | select(.name != "base") | {key: .name, value: .tag}] | from_entries' build-output.json)
-          service_digests=$(jq -c '[.[] | select(.name != "base" and .digest != null) | {key: .name, value: .digest}] | from_entries' build-output.json)
-          
+          base_digest=$(jq -r '.[] | select(.name == "base") | .digest // ""' "$build_output")
+          service_tags=$(jq -c '[.[] | select(.name != "base") | {key: .name, value: .tag}] | from_entries' "$build_output")
+          service_digests=$(jq -c '[.[] | select(.name != "base" and .digest != null) | {key: .name, value: .digest}] | from_entries' "$build_output")
+
           {
-            echo "base_tag=${base_tag}"
             echo "base_digest=${base_digest}"
             echo "service_tags=${service_tags}"
             echo "service_digests=${service_digests}"

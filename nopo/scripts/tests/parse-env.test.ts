@@ -296,4 +296,282 @@ describe("parseEnv", () => {
     });
     expect(() => new Environment(config)).toThrow("Invalid image tag:");
   });
+
+  describe("processEnv overrides", () => {
+    describe("DOCKER_TAG takes precedence", () => {
+      it("processEnv DOCKER_TAG overrides cached DOCKER_TAG from file", () => {
+        const config = createConfig({
+          envFile: createTmpEnv({
+            DOCKER_TAG: "cached/image:old-version",
+          }),
+          processEnv: {
+            DOCKER_TAG: "new/image:new-version",
+          },
+          silent: true,
+        });
+        const { env } = new Environment(config);
+        expect(env.DOCKER_TAG).toBe("new/image:new-version");
+        expect(env.DOCKER_IMAGE).toBe("new/image");
+        expect(env.DOCKER_VERSION).toBe("new-version");
+      });
+
+      it("processEnv DOCKER_TAG overrides all component values from file", () => {
+        const config = createConfig({
+          envFile: createTmpEnv({
+            DOCKER_REGISTRY: "old.registry.io",
+            DOCKER_IMAGE: "old/image",
+            DOCKER_VERSION: "old-version",
+          }),
+          processEnv: {
+            DOCKER_TAG: "new.registry.io/new/image:new-version",
+          },
+          silent: true,
+        });
+        const { env } = new Environment(config);
+        expect(env.DOCKER_TAG).toBe("new.registry.io/new/image:new-version");
+        expect(env.DOCKER_REGISTRY).toBe("new.registry.io");
+        expect(env.DOCKER_IMAGE).toBe("new/image");
+        expect(env.DOCKER_VERSION).toBe("new-version");
+      });
+    });
+
+    describe("individual component overrides", () => {
+      it("processEnv DOCKER_VERSION alone overrides cached DOCKER_TAG", () => {
+        const config = createConfig({
+          envFile: createTmpEnv({
+            DOCKER_TAG: "kevin-mind/nopo:cached-version",
+          }),
+          processEnv: {
+            DOCKER_VERSION: "new-version",
+          },
+          silent: true,
+        });
+        const { env } = new Environment(config);
+        expect(env.DOCKER_VERSION).toBe("new-version");
+        expect(env.DOCKER_IMAGE).toBe("kevin-mind/nopo");
+        expect(env.DOCKER_TAG).toBe("kevin-mind/nopo:new-version");
+      });
+
+      it("processEnv DOCKER_IMAGE alone overrides cached DOCKER_TAG", () => {
+        const config = createConfig({
+          envFile: createTmpEnv({
+            DOCKER_TAG: "old/image:cached-version",
+          }),
+          processEnv: {
+            DOCKER_IMAGE: "new/image",
+          },
+          silent: true,
+        });
+        const { env } = new Environment(config);
+        expect(env.DOCKER_IMAGE).toBe("new/image");
+        expect(env.DOCKER_VERSION).toBe("cached-version");
+        expect(env.DOCKER_TAG).toBe("new/image:cached-version");
+      });
+
+      it("processEnv DOCKER_REGISTRY alone overrides cached DOCKER_TAG", () => {
+        const config = createConfig({
+          envFile: createTmpEnv({
+            DOCKER_TAG: "old.registry.io/image:version",
+          }),
+          processEnv: {
+            DOCKER_REGISTRY: "new.registry.io",
+          },
+          silent: true,
+        });
+        const { env } = new Environment(config);
+        expect(env.DOCKER_REGISTRY).toBe("new.registry.io");
+        expect(env.DOCKER_IMAGE).toBe("image");
+        expect(env.DOCKER_VERSION).toBe("version");
+        expect(env.DOCKER_TAG).toBe("new.registry.io/image:version");
+      });
+
+      it("processEnv DOCKER_VERSION overrides component from file", () => {
+        const config = createConfig({
+          envFile: createTmpEnv({
+            DOCKER_IMAGE: "cached/image",
+            DOCKER_VERSION: "cached-version",
+          }),
+          processEnv: {
+            DOCKER_VERSION: "new-version",
+          },
+          silent: true,
+        });
+        const { env } = new Environment(config);
+        expect(env.DOCKER_VERSION).toBe("new-version");
+        expect(env.DOCKER_IMAGE).toBe("cached/image");
+        expect(env.DOCKER_TAG).toBe("cached/image:new-version");
+      });
+
+      it("processEnv DOCKER_IMAGE overrides component from file", () => {
+        const config = createConfig({
+          envFile: createTmpEnv({
+            DOCKER_IMAGE: "cached/image",
+            DOCKER_VERSION: "cached-version",
+          }),
+          processEnv: {
+            DOCKER_IMAGE: "new/image",
+          },
+          silent: true,
+        });
+        const { env } = new Environment(config);
+        expect(env.DOCKER_IMAGE).toBe("new/image");
+        expect(env.DOCKER_VERSION).toBe("cached-version");
+        expect(env.DOCKER_TAG).toBe("new/image:cached-version");
+      });
+
+      it("processEnv DOCKER_REGISTRY overrides component from file", () => {
+        const config = createConfig({
+          envFile: createTmpEnv({
+            DOCKER_REGISTRY: "old.registry.io",
+            DOCKER_IMAGE: "image",
+            DOCKER_VERSION: "version",
+          }),
+          processEnv: {
+            DOCKER_REGISTRY: "new.registry.io",
+          },
+          silent: true,
+        });
+        const { env } = new Environment(config);
+        expect(env.DOCKER_REGISTRY).toBe("new.registry.io");
+        expect(env.DOCKER_TAG).toBe("new.registry.io/image:version");
+      });
+    });
+
+    describe("multiple component overrides", () => {
+      it("processEnv DOCKER_VERSION and DOCKER_IMAGE override cached DOCKER_TAG", () => {
+        const config = createConfig({
+          envFile: createTmpEnv({
+            DOCKER_TAG: "old.registry.io/old/image:old-version",
+          }),
+          processEnv: {
+            DOCKER_IMAGE: "new/image",
+            DOCKER_VERSION: "new-version",
+          },
+          silent: true,
+        });
+        const { env } = new Environment(config);
+        expect(env.DOCKER_IMAGE).toBe("new/image");
+        expect(env.DOCKER_VERSION).toBe("new-version");
+        expect(env.DOCKER_REGISTRY).toBe("old.registry.io");
+        expect(env.DOCKER_TAG).toBe("old.registry.io/new/image:new-version");
+      });
+
+      it("processEnv all components override cached DOCKER_TAG", () => {
+        const config = createConfig({
+          envFile: createTmpEnv({
+            DOCKER_TAG: "old.registry.io/old/image:old-version",
+          }),
+          processEnv: {
+            DOCKER_REGISTRY: "new.registry.io",
+            DOCKER_IMAGE: "new/image",
+            DOCKER_VERSION: "new-version",
+          },
+          silent: true,
+        });
+        const { env } = new Environment(config);
+        expect(env.DOCKER_REGISTRY).toBe("new.registry.io");
+        expect(env.DOCKER_IMAGE).toBe("new/image");
+        expect(env.DOCKER_VERSION).toBe("new-version");
+        expect(env.DOCKER_TAG).toBe("new.registry.io/new/image:new-version");
+      });
+
+      it("processEnv components with digest", () => {
+        const digest =
+          "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+        const config = createConfig({
+          envFile: createTmpEnv({
+            DOCKER_TAG: "old/image:old-version",
+          }),
+          processEnv: {
+            DOCKER_VERSION: "new-version",
+            DOCKER_DIGEST: digest,
+          },
+          silent: true,
+        });
+        const { env } = new Environment(config);
+        expect(env.DOCKER_VERSION).toBe("new-version");
+        expect(env.DOCKER_DIGEST).toBe(digest);
+        expect(env.DOCKER_TAG).toBe(`old/image:new-version@${digest}`);
+      });
+    });
+
+    describe("no cached values (fresh environment)", () => {
+      it("processEnv DOCKER_VERSION alone uses base image", () => {
+        const config = createConfig({
+          envFile: createTmpEnv({}),
+          processEnv: {
+            DOCKER_VERSION: "my-version",
+          },
+          silent: true,
+        });
+        const { env } = new Environment(config);
+        expect(env.DOCKER_VERSION).toBe("my-version");
+        expect(env.DOCKER_IMAGE).toBe("kevin-mind/nopo");
+        expect(env.DOCKER_TAG).toBe("kevin-mind/nopo:my-version");
+      });
+
+      it("processEnv DOCKER_IMAGE alone uses local version", () => {
+        const config = createConfig({
+          envFile: createTmpEnv({}),
+          processEnv: {
+            DOCKER_IMAGE: "custom/image",
+          },
+          silent: true,
+        });
+        const { env } = new Environment(config);
+        expect(env.DOCKER_IMAGE).toBe("custom/image");
+        expect(env.DOCKER_VERSION).toBe("local");
+        expect(env.DOCKER_TAG).toBe("custom/image:local");
+      });
+
+      it("processEnv DOCKER_REGISTRY alone uses base defaults", () => {
+        const config = createConfig({
+          envFile: createTmpEnv({}),
+          processEnv: {
+            DOCKER_REGISTRY: "my.registry.io",
+          },
+          silent: true,
+        });
+        const { env } = new Environment(config);
+        expect(env.DOCKER_REGISTRY).toBe("my.registry.io");
+        expect(env.DOCKER_IMAGE).toBe("kevin-mind/nopo");
+        expect(env.DOCKER_VERSION).toBe("local");
+        expect(env.DOCKER_TAG).toBe("my.registry.io/kevin-mind/nopo:local");
+      });
+    });
+
+    describe("edge cases", () => {
+      it("empty string processEnv values are ignored", () => {
+        const config = createConfig({
+          envFile: createTmpEnv({
+            DOCKER_TAG: "cached/image:cached-version",
+          }),
+          processEnv: {
+            DOCKER_VERSION: "",
+          },
+          silent: true,
+        });
+        const { env } = new Environment(config);
+        expect(env.DOCKER_TAG).toBe("cached/image:cached-version");
+      });
+
+      it("DOCKER_TAG in processEnv takes precedence over other processEnv components", () => {
+        const config = createConfig({
+          envFile: createTmpEnv({}),
+          processEnv: {
+            DOCKER_TAG: "tag/wins:always",
+            DOCKER_IMAGE: "ignored/image",
+            DOCKER_VERSION: "ignored-version",
+            DOCKER_REGISTRY: "ignored.registry.io",
+          },
+          silent: true,
+        });
+        const { env } = new Environment(config);
+        expect(env.DOCKER_TAG).toBe("tag/wins:always");
+        expect(env.DOCKER_IMAGE).toBe("tag/wins");
+        expect(env.DOCKER_VERSION).toBe("always");
+        expect(env.DOCKER_REGISTRY).toBe("");
+      });
+    });
+  });
 });
