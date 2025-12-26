@@ -1,8 +1,13 @@
 import compose from "docker-compose";
-import { Script, createLogger } from "../lib.ts";
+import { TargetScript, type Runner, createLogger } from "../lib.ts";
 import EnvScript from "./env.ts";
+import { parseTargetArgs } from "../target-args.ts";
 
-export default class DownScript extends Script {
+type DownCliArgs = {
+  targets: string[];
+};
+
+export default class DownScript extends TargetScript<DownCliArgs> {
   static override dependencies = [
     {
       class: EnvScript,
@@ -12,10 +17,33 @@ export default class DownScript extends Script {
   static override name = "down";
   static override description = "Bring down the containers";
 
-  override async fn() {
-    await compose.downAll({
-      callback: createLogger("down", "yellow"),
-      commandOptions: ["--rmi", "local", "--volumes"],
-    });
+  static override parseArgs(
+    runner: Runner,
+    isDependency: boolean,
+  ): DownCliArgs {
+    // When run as dependency, return empty targets (all targets)
+    if (isDependency || runner.argv[0] !== "down") {
+      return { targets: [] };
+    }
+
+    const argv = runner.argv.slice(1);
+    const parsed = parseTargetArgs("down", argv, runner.config.targets);
+    return { targets: parsed.targets };
+  }
+
+  override async fn(args: DownCliArgs) {
+    const requestedTargets = args.targets;
+
+    if (requestedTargets.length > 0) {
+      await compose.downMany(requestedTargets, {
+        callback: createLogger("down", "yellow"),
+        commandOptions: ["--rmi", "local", "--volumes"],
+      });
+    } else {
+      await compose.downAll({
+        callback: createLogger("down", "yellow"),
+        commandOptions: ["--rmi", "local", "--volumes"],
+      });
+    }
   }
 }

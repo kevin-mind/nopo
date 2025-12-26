@@ -9,12 +9,18 @@ The `pull` command downloads the Docker base image from a remote registry. This 
 ## Usage
 
 ```bash
-nopo pull
+nopo pull [targets...]
 ```
 
 ## Arguments
 
-This command does not accept any arguments.
+| Argument | Description |
+|----------|-------------|
+| `targets` | Optional list of targets to pull. If omitted, pulls the base image |
+
+### Available Targets
+
+Targets are discovered from `apps/*/Dockerfile` (e.g., `backend`, `web`).
 
 ## Options
 
@@ -39,10 +45,16 @@ The `pull` command automatically runs the following commands first:
 
 ## Examples
 
-### Pull the default image
+### Pull the base image (default)
 
 ```bash
 nopo pull
+```
+
+### Pull specific target images
+
+```bash
+nopo pull backend web
 ```
 
 ### Pull a specific version

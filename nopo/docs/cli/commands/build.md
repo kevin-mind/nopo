@@ -1,27 +1,31 @@
 # build
 
-Build base image and service images using Docker Buildx Bake.
+Build base image and target images using Docker Buildx Bake.
 
 ## Overview
 
-The `build` command creates Docker images for the nopo project using Docker Buildx Bake for parallel and efficient builds. It produces a reusable base image (`nopo:<tag>`) plus service-specific layers that inherit from it.
+The `build` command creates Docker images for the nopo project using Docker Buildx Bake for parallel and efficient builds. It produces a reusable base image (`nopo:<tag>`) plus target-specific layers that inherit from it.
 
 ## Usage
 
 ```bash
 nopo build [targets...] [options]
+
+# Get help for this command
+nopo build help
+nopo build --help
 ```
 
 ## Arguments
 
 | Argument | Description |
 |----------|-------------|
-| `targets` | Optional list of targets to build. If omitted, builds all targets (base + all services) |
+| `targets` | Optional list of targets to build. If omitted, builds all targets (base + all discovered targets) |
 
 ### Available Targets
 
 - `base` - The base image containing shared dependencies
-- Service names discovered from `apps/*/Dockerfile` (e.g., `backend`, `web`)
+- Target names discovered from `apps/*/Dockerfile` (e.g., `backend`, `web`)
 
 ## Options
 
@@ -68,13 +72,13 @@ nopo build
 nopo build base
 ```
 
-### Build a specific service
+### Build a specific target
 
 ```bash
 nopo build backend
 ```
 
-### Build multiple services in parallel
+### Build multiple targets in parallel
 
 ```bash
 nopo build backend web
@@ -112,7 +116,7 @@ nopo build --output build-info.json
 4. **Bake Definition**: Generates a Docker Bake JSON definition with all targets and their configurations
 5. **Parallel Build**: Executes Docker Buildx Bake for parallel image building
 6. **Image Loading**: Loads built images into the local Docker daemon
-7. **Environment Update**: Records service image tags as `<SERVICE>_IMAGE` in `.env`
+7. **Environment Update**: Records target image tags as `<TARGET>_IMAGE` in `.env`
 
 ### Build Arguments
 
@@ -127,7 +131,7 @@ The following build arguments are passed to the Dockerfile:
 | `GIT_REPO` | Git repository URL |
 | `GIT_BRANCH` | Current git branch |
 | `GIT_COMMIT` | Current git commit hash |
-| `SERVICE_NAME` | Name of the service being built |
+| `SERVICE_NAME` | Name of the target being built (Docker build arg name) |
 | `NOPO_APP_UID` | Application user ID (`1001`) |
 | `NOPO_APP_GID` | Application group ID (`1001`) |
 
@@ -138,15 +142,15 @@ By default, the build uses GitHub Actions cache:
 - Cache from: `type=gha`
 - Cache to: `type=gha,mode=max`
 
-### Service Image Tags
+### Target Image Tags
 
-Service images are tagged following the pattern:
+Target images are tagged following the pattern:
 
 ```plaintext
-[registry/]<image>-<service>:<version>
+[registry/]<image>-<target>:<version>
 ```
 
-For example, if the base tag is `kevin-mind/nopo:local` and the service is `backend`, the service image tag would be `kevin-mind/nopo-backend:local`.
+For example, if the base tag is `kevin-mind/nopo:local` and the target is `backend`, the target image tag would be `kevin-mind/nopo-backend:local`.
 
 ## Output
 
@@ -178,6 +182,6 @@ When `DOCKER_PUSH=true`, the `digest` field contains the image digest from the r
 ## See Also
 
 - [`env`](./env.md) - Set up environment variables
-- [`up`](./up.md) - Start services (automatically builds if needed)
+- [`up`](./up.md) - Start targets (automatically builds if needed)
 - [`pull`](./pull.md) - Pull images from registry instead of building
 

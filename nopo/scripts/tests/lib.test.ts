@@ -298,7 +298,11 @@ describe("$ command execution", () => {
   it("should handle cwd option", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "test-"));
     const result = await $({ cwd: tmpDir })`pwd`;
-    expect(result.stdout.trim()).toBe(tmpDir);
+    // macOS symlinks /var/folders to /private/var/folders, so normalize paths
+    // Use realpathSync to resolve symlinks for comparison
+    const expectedPath = fs.realpathSync(tmpDir);
+    const actualPath = fs.realpathSync(result.stdout.trim());
+    expect(actualPath).toBe(expectedPath);
     fs.rmdirSync(tmpDir);
   });
 });

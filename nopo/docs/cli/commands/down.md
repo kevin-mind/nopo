@@ -9,12 +9,18 @@ The `down` command stops and removes all Docker containers, networks, and volume
 ## Usage
 
 ```bash
-nopo down
+nopo down [targets...]
 ```
 
 ## Arguments
 
-This command does not accept any arguments.
+| Argument | Description |
+|----------|-------------|
+| `targets` | Optional list of targets to stop. If omitted, stops all targets |
+
+### Available Targets
+
+Targets are discovered from `apps/*/Dockerfile` (e.g., `backend`, `web`).
 
 ## Options
 
@@ -42,6 +48,12 @@ The `down` command automatically runs the following commands first:
 
 ```bash
 nopo down
+```
+
+### Stop specific targets
+
+```bash
+nopo down backend
 ```
 
 ### Use a custom environment file

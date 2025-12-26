@@ -14,6 +14,7 @@ import Build from "./scripts/build.ts";
 import Env from "./scripts/env.ts";
 import Index from "./scripts/index.ts";
 import Pull from "./scripts/pull.ts";
+import Run from "./scripts/run.ts";
 import Status from "./scripts/status.ts";
 import Up from "./scripts/up.ts";
 import Down from "./scripts/down.ts";
@@ -22,6 +23,7 @@ const scripts: Record<string, typeof Script> = {
   build: Build,
   env: Env,
   index: Index,
+  run: Run,
   pull: Pull,
   status: Status,
   up: Up,
@@ -76,6 +78,22 @@ function printCommandsTable(): void {
   }
 }
 
+function printCommandHelp(
+  ScriptClass: typeof Script,
+  commandName: string,
+): never {
+  printNopoHeader();
+  const name = ScriptClass.name || commandName;
+  const description = ScriptClass.description || "";
+
+  console.log(chalk.cyan(chalk.bold(`\nCommand: ${chalk.yellow(name)}\n`)));
+  if (description) {
+    console.log(chalk.white(`  ${description}\n`));
+  }
+  console.log(chalk.gray(`  Usage: nopo ${name} [options]\n`));
+  return process.exit(0);
+}
+
 function printHelp(message: string, exitCode = 1): never {
   printNopoHeader();
   const color = exitCode === 0 ? chalk.green : chalk.red;
@@ -109,7 +127,19 @@ export default async function main(
     return process.exit(0);
   }
 
-  const ScriptClass = scripts[args._[0] || ""] ?? Index;
+  const commandName = args._[0] || "";
+
+  // Handle "help" as a special command (show general help)
+  if (commandName === "help") {
+    return printHelp("Usage: nopo <command> [options]", 0);
+  }
+
+  const ScriptClass = scripts[commandName] ?? Index;
+
+  // Check for recursive help: nopo <command> help or nopo <command> --help
+  if (args._[1] === "help" || args.help) {
+    return printCommandHelp(ScriptClass, commandName);
+  }
 
   try {
     await runner.run(ScriptClass);
