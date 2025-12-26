@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+from typing import Any, cast
 import dj_database_url
 from urllib.parse import urlparse
 
@@ -129,16 +130,30 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "backend.mysite.wsgi.application"
 
-DATABASES = {
-    "default": dj_database_url.config(
-        conn_max_age=600,
-        conn_health_checks=True,
-        ssl_require=os.environ.get("DATABASE_SSL", "false") == "true",
-        test_options={
-            "NAME": "test_database",
-        },
-    )
-}
+# Database configuration
+# Use dj_database_url if DATABASE_URL is set, otherwise fall back to SQLite for tests
+db_config = dj_database_url.config(
+    conn_max_age=600,
+    conn_health_checks=True,
+    ssl_require=os.environ.get("DATABASE_SSL", "false") == "true",
+    test_options={
+        "NAME": "test_database",
+    },
+)
+
+# If dj_database_url returns empty dict (no DATABASE_URL), use SQLite for tests
+if not db_config:
+    DATABASES: dict[str, dict[str, Any]] = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": ":memory:",
+        }
+    }
+else:
+    # Cast db_config to dict[str, Any] for mypy compatibility
+    DATABASES = {
+        "default": cast(dict[str, Any], db_config),
+    }
 
 AUTH_PASSWORD_VALIDATORS = [
     {

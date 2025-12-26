@@ -10,6 +10,10 @@ The `build` command creates Docker images for the nopo project using Docker Buil
 
 ```bash
 nopo build [targets...] [options]
+
+# Get help for this command
+nopo build help
+nopo build --help
 ```
 
 ## Arguments

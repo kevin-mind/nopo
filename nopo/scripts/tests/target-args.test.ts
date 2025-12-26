@@ -100,4 +100,3 @@ describe("validateTargets", () => {
     }).not.toThrow();
   });
 });
-

@@ -1,124 +1,91 @@
-import compose from "docker-compose";
-
-import EnvScript from "./env.ts";
-import BuildScript from "./build.ts";
-import PullScript from "./pull.ts";
-import { isBuild, isPull } from "./up.ts";
-
-import {
-  TargetScript,
-  type ScriptDependency,
-  type Runner,
-  createLogger,
-} from "../lib.ts";
+import { TargetScript, type ScriptDependency, type Runner } from "../lib.ts";
 import { parseTargetArgs } from "../target-args.ts";
+import EnvScript from "./env.ts";
 
-async function isDown(runner: Runner, target?: string): Promise<boolean> {
-  // if there is no target name then the service is not down.
-  if (!target) return false;
-
-  const { data } = await compose.ps({
-    cwd: runner.config.root,
-  });
-
-  const service = data.services.find((service: { name: string }) =>
-    service.name.includes(target),
-  );
-  // if the service is not found or is not "up" then it is down.
-  return !service?.state?.toLowerCase().includes("up");
-}
-
-export type IndexScriptArgs = {
+type IndexScriptArgs = {
   script: string;
   targets: string[];
-  workspace: string;
 };
 
 export default class IndexScript extends TargetScript<IndexScriptArgs> {
-  static override name = "run";
-  static override description =
-    "Run a pnpm script in a specified service and package";
+  static override name = "";
+  static override description = "Run a pnpm script on the host machine";
   static override dependencies: ScriptDependency[] = [
     {
       class: EnvScript,
-      enabled: async (runner) => {
-        const args = IndexScript.parseArgs(runner, false);
-        if (args.targets.length === 0) return false;
-        const target = args.targets[0];
-        return (await isDown(runner, target)) && (isBuild(runner) || isPull(runner));
-      },
-    },
-    {
-      class: BuildScript,
-      enabled: async (runner) => {
-        const args = IndexScript.parseArgs(runner, false);
-        if (args.targets.length === 0) return false;
-        const target = args.targets[0];
-        return (await isDown(runner, target)) && isBuild(runner);
-      },
-    },
-    {
-      class: PullScript,
-      enabled: async (runner) => {
-        const args = IndexScript.parseArgs(runner, false);
-        if (args.targets.length === 0) return false;
-        const target = args.targets[0];
-        return (await isDown(runner, target)) && isPull(runner);
-      },
+      enabled: true,
     },
   ];
 
-  static override parseArgs(runner: Runner, isDependency: boolean): IndexScriptArgs {
-    const argv = runner.argv.slice(1);
-    const parsed = parseTargetArgs("run", argv, runner.config.targets, {
-      leadingPositionals: 1,
-      string: ["workspace"],
-    });
-
-    if (parsed.leadingArgs.length === 0) {
-      throw new Error(
-        "Usage: run [script] [targets...] [--workspace <name>]",
-      );
+  static override parseArgs(
+    runner: Runner,
+    isDependency: boolean,
+  ): IndexScriptArgs {
+    if (isDependency || runner.argv.length === 0) {
+      return { script: "", targets: [] };
     }
 
-    const script = parsed.leadingArgs[0]!;
-    const workspaceValue = parsed.options["workspace"];
-    const workspace: string = typeof workspaceValue === "string" ? workspaceValue : "";
+    const argv = runner.argv;
+    const script = argv[0]!;
+
+    // Skip parsing if "help" is the script name (handled by main entry point)
+    if (script === "help") {
+      return { script: "", targets: [] };
+    }
+
+    const parsed = parseTargetArgs(
+      script,
+      argv.slice(1),
+      runner.config.targets,
+    );
 
     return {
       script,
       targets: parsed.targets,
-      workspace,
     };
   }
 
-  async #resolveScript(args: IndexScriptArgs): Promise<string[]> {
+  #resolveScript(scriptName: string): string[] {
     const script = ["pnpm", "run"];
-    if (args.workspace) {
-      script.push("--filter", `@more/${args.workspace}`);
+
+    // Check if script name ends with ':' for pattern matching
+    if (scriptName.endsWith(":")) {
+      // Remove the trailing ':' and use regex pattern matching
+      const prefix = scriptName.slice(0, -1);
+      script.push(`/^${prefix}.*/`);
     } else {
-      script.push("--fail-if-no-match");
+      // Use exact script name
+      script.push(scriptName);
     }
-    script.push(`/^${args.script}.*/`);
 
     return script;
   }
 
   override async fn(args: IndexScriptArgs) {
-    const script = await this.#resolveScript(args);
+    if (!args.script) {
+      throw new Error("Script name is required");
+    }
+
+    const scriptCmd = this.#resolveScript(args.script);
 
     if (args.targets.length === 0) {
-      await this.exec`${script}`;
+      // Run at root level
+      await this.exec`${scriptCmd}`;
       return;
     }
 
-    // Run script in each specified target
+    // Run for each target
     for (const target of args.targets) {
-      await compose.run(target, script, {
-        callback: createLogger(target),
-        commandOptions: ["--rm", "--remove-orphans"],
-        env: this.env,
-      });
+      const targetScriptCmd = this.#resolveScript(args.script);
+      // Insert --filter before the script name/pattern
+      const filterCmd = [
+        "pnpm",
+        "--filter",
+        `@more/${target}`,
+        "run",
+        ...targetScriptCmd.slice(2),
+      ];
+      await this.exec`${filterCmd}`;
     }
   }
 }

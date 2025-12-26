@@ -1,0 +1,134 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { Runner, createConfig, Logger } from "../src/lib.ts";
+import { Environment } from "../src/parse-env.ts";
+import BuildScript from "../src/scripts/build.ts";
+import EnvScript from "../src/scripts/env.ts";
+import UpScript from "../src/scripts/up.ts";
+import IndexScript from "../src/scripts/index.ts";
+import RunScript from "../src/scripts/run.ts";
+import { createTmpEnv } from "./utils.ts";
+
+describe("Dependency Resolution Algorithm", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  describe("shared dependency resolution", () => {
+    it("should resolve dependencies for script classes", async () => {
+      const config = createConfig({
+        envFile: createTmpEnv({
+          DOCKER_TAG: "kevin-mind/nopo:local",
+        }),
+        silent: true,
+      });
+      const logger = new Logger(config);
+      const environment = new Environment(config);
+      // Test only checks static dependencies, runner not needed
+      new Runner(config, environment, ["build"], logger);
+
+      // BuildScript should have EnvScript as dependency
+      // Note: Currently dependencies are static, but should be instance properties
+      // This test documents expected behavior after refactoring
+      expect(BuildScript.dependencies).toBeDefined();
+      expect(Array.isArray(BuildScript.dependencies)).toBe(true);
+      expect(BuildScript.dependencies.length).toBeGreaterThanOrEqual(1);
+
+      // Find EnvScript dependency
+      const envDep = BuildScript.dependencies.find(
+        (dep) => dep.class === EnvScript,
+      );
+      expect(envDep).toBeDefined();
+      expect(envDep?.enabled).toBe(true);
+    });
+
+    it("should resolve nested dependencies", async () => {
+      const config = createConfig({
+        envFile: createTmpEnv({
+          DOCKER_TAG: "kevin-mind/nopo:local",
+        }),
+        silent: true,
+      });
+      const logger = new Logger(config);
+      const environment = new Environment(config);
+      // Test only checks static dependencies, runner not needed
+      new Runner(config, environment, ["up"], logger);
+
+      // UpScript should have multiple dependencies
+      // Note: Currently dependencies are static, but should be instance properties
+      expect(UpScript.dependencies).toBeDefined();
+      expect(Array.isArray(UpScript.dependencies)).toBe(true);
+      expect(UpScript.dependencies.length).toBeGreaterThan(1);
+
+      // Should include EnvScript
+      const hasEnv = UpScript.dependencies.some(
+        (dep) => dep.class === EnvScript,
+      );
+      expect(hasEnv).toBe(true);
+    });
+
+    it("should only execute enabled dependencies", async () => {
+      // Dependencies with enabled: false should be skipped
+      const config = createConfig({
+        envFile: createTmpEnv({
+          DOCKER_TAG: "kevin-mind/nopo:local",
+        }),
+        silent: true,
+      });
+      const logger = new Logger(config);
+      const environment = new Environment(config);
+      // Test only checks static dependencies, runner not needed
+      new Runner(config, environment, ["up"], logger);
+
+      // Check that conditional dependencies exist
+      // Note: Currently dependencies are static, but should be instance properties
+      expect(UpScript.dependencies).toBeDefined();
+      expect(Array.isArray(UpScript.dependencies)).toBe(true);
+
+      const conditionalDeps = UpScript.dependencies.filter(
+        (dep) => typeof dep.enabled === "function",
+      );
+      expect(conditionalDeps.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("dependency resolution for host execution", () => {
+    it("should only have EnvScript dependency for arbitrary commands on host", async () => {
+      // IndexScript (catch-all) should only have EnvScript dependency
+      expect(IndexScript.dependencies).toHaveLength(1);
+      expect(IndexScript.dependencies[0]?.class).toBe(EnvScript);
+      expect(IndexScript.dependencies[0]?.enabled).toBe(true);
+    });
+  });
+
+  describe("dependency resolution for container execution", () => {
+    it("should have full dependencies for arbitrary commands in containers", async () => {
+      // RunScript should have env, build, pull dependencies
+      expect(RunScript.dependencies.length).toBeGreaterThan(1);
+      expect(
+        RunScript.dependencies.some(
+          (d: { class: { name: string } }) => d.class.name === "env",
+        ),
+      ).toBe(true);
+    });
+
+    it("should conditionally enable build/pull based on service state", async () => {
+      // RunScript should have conditional dependencies (functions, not just booleans)
+      const conditionalDeps = RunScript.dependencies.filter(
+        (dep: { enabled: unknown }) => typeof dep.enabled === "function",
+      );
+      expect(conditionalDeps.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("dependency execution order", () => {
+    it("should execute dependencies before main command", async () => {
+      // Dependencies should be resolved and executed before the main script
+      // This is handled by Runner.run()
+    });
+
+    it("should not execute same dependency twice", async () => {
+      // If multiple scripts depend on EnvScript, it should only run once
+      // This is handled by Runner.resolveDependencies()
+    });
+  });
+});

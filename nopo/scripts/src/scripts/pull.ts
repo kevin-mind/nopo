@@ -1,5 +1,10 @@
 import compose from "docker-compose";
-import { TargetScript, type ScriptDependency, type Runner, createLogger } from "../lib.ts";
+import {
+  TargetScript,
+  type ScriptDependency,
+  type Runner,
+  createLogger,
+} from "../lib.ts";
 import EnvScript from "./env.ts";
 import { parseTargetArgs } from "../target-args.ts";
 
@@ -17,7 +22,10 @@ export default class PullScript extends TargetScript<PullCliArgs> {
     },
   ];
 
-  static override parseArgs(runner: Runner, isDependency: boolean): PullCliArgs {
+  static override parseArgs(
+    runner: Runner,
+    isDependency: boolean,
+  ): PullCliArgs {
     // When run as dependency, return empty targets (pull base image)
     if (isDependency || runner.argv[0] !== "pull") {
       return { targets: [] };

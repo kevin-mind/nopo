@@ -14,7 +14,7 @@ import EnvScript from "./env.ts";
 import { DockerTag } from "../docker-tag.ts";
 import { parseTargetArgs } from "../target-args.ts";
 
-export type BuildCliArgs = {
+type BuildCliArgs = {
   targets: string[];
   noCache: boolean;
   output?: string;
@@ -52,7 +52,10 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
     },
   ];
 
-  static override parseArgs(runner: Runner, isDependency: boolean): BuildCliArgs {
+  static override parseArgs(
+    runner: Runner,
+    isDependency: boolean,
+  ): BuildCliArgs {
     // When run as dependency, return default args
     if (isDependency || runner.argv[0] !== "build") {
       return { targets: [], noCache: false };
@@ -107,7 +110,8 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
     const targets = this.runner.config.targets;
 
     const allTargets = ["base", ...targets];
-    const buildTargets = requestedTargets.length > 0 ? requestedTargets : allTargets;
+    const buildTargets =
+      requestedTargets.length > 0 ? requestedTargets : allTargets;
 
     const definition: BakeDefinition = {
       group: {
@@ -119,7 +123,8 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
     };
 
     const needsBase =
-      buildTargets.includes("base") || buildTargets.some((t) => targets.includes(t));
+      buildTargets.includes("base") ||
+      buildTargets.some((t) => targets.includes(t));
     if (needsBase) {
       const baseDockerfile = path.join(
         this.runner.config.root,

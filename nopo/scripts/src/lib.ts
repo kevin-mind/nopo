@@ -570,16 +570,19 @@ export abstract class BaseScript {
 export class Script<TArgs = void> extends BaseScript {
   static parseArgs?(runner: Runner, isDependency: boolean): unknown;
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async fn(_args?: TArgs | unknown): Promise<void> {
     throw new Error("Not implemented");
   }
 }
 
 export abstract class TargetScript<TArgs = void> extends BaseScript {
-  static parseArgs(runner: Runner, isDependency: boolean): unknown {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  static parseArgs(_runner: Runner, _isDependency: boolean): unknown {
     throw new Error("parseArgs must be implemented by TargetScript subclasses");
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async fn(_args?: TArgs | unknown): Promise<void> {
     throw new Error("Not implemented");
   }
@@ -645,18 +648,31 @@ export class Runner {
 
       // Determine if this script is running as a dependency
       const isDependency = ScriptToRun !== ScriptClass;
-      
+
       // Create a runner with potentially modified argv (targets stripped for dependencies)
-      const runnerForScript = this.prepareRunnerForScript(ScriptToRun, isDependency);
-      const scriptInstance = this.createScriptInstance(ScriptToRun, runnerForScript, isDependency);
+      const runnerForScript = this.prepareRunnerForScript(
+        ScriptToRun,
+        isDependency,
+      );
+      const scriptInstance = this.createScriptInstance(
+        ScriptToRun,
+        runnerForScript,
+        isDependency,
+      );
 
       try {
         // Parse args if the script has a parseArgs method
         if (this.isTargetScript(ScriptToRun)) {
-          const args = (ScriptToRun as typeof TargetScript).parseArgs(runnerForScript, isDependency);
+          const args = (ScriptToRun as typeof TargetScript).parseArgs(
+            runnerForScript,
+            isDependency,
+          );
           await (scriptInstance as TargetScript<unknown>).fn(args);
         } else if ((ScriptToRun as typeof Script).parseArgs) {
-          const args = (ScriptToRun as typeof Script).parseArgs!(runnerForScript, isDependency);
+          const args = (ScriptToRun as typeof Script).parseArgs!(
+            runnerForScript,
+            isDependency,
+          );
           await (scriptInstance as Script<unknown>).fn(args);
         } else {
           await (scriptInstance as Script).fn();
@@ -683,13 +699,16 @@ export class Runner {
     isDependency: boolean,
   ): BaseScript {
     // Use constructor directly - TypeScript will handle the typing
-    return new (ScriptClass as unknown as new (runner: Runner, isDependency?: boolean) => BaseScript)(
-      runner,
-      isDependency,
-    );
+    return new (ScriptClass as unknown as new (
+      runner: Runner,
+      isDependency?: boolean,
+    ) => BaseScript)(runner, isDependency);
   }
 
-  private prepareRunnerForScript(ScriptClass: typeof BaseScript, isDependency: boolean): Runner {
+  private prepareRunnerForScript(
+    ScriptClass: typeof BaseScript,
+    isDependency: boolean,
+  ): Runner {
     // If script is not a TargetScript or not running as dependency, return runner as-is
     if (!this.isTargetScript(ScriptClass) || !isDependency) {
       return this;
@@ -698,23 +717,20 @@ export class Runner {
     // For TargetScript dependencies, strip targets from argv
     const commandName = ScriptClass.name;
     const argv = this.argv.slice(1);
-    
+
     // Determine leading positionals (e.g., 1 for 'run' command)
     const leadingPositionals = commandName === "run" ? 1 : 0;
-    
+
     try {
-      const parsed = parseTargetArgs(
-        commandName,
-        argv,
-        this.config.targets,
-        { leadingPositionals },
-      );
+      const parsed = parseTargetArgs(commandName, argv, this.config.targets, {
+        leadingPositionals,
+      });
 
       // Create new argv with targets removed
       // Keep command name, leading args, and options, but remove targets
       const newArgv: string[] = [this.argv[0]!]; // Keep command name
       newArgv.push(...parsed.leadingArgs); // Keep leading args (e.g., script name)
-      
+
       // Add options back
       for (const [key, value] of Object.entries(parsed.options)) {
         if (typeof value === "boolean" && value) {

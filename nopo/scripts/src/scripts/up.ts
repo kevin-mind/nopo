@@ -159,9 +159,10 @@ export default class UpScript extends TargetScript<UpCliArgs> {
         });
       }
     } catch (error) {
-      const servicesToLog = args.targets.length > 0
-        ? args.targets
-        : Object.keys(data.config.services);
+      const servicesToLog =
+        args.targets.length > 0
+          ? args.targets
+          : Object.keys(data.config.services);
       await Promise.all(
         servicesToLog.map((service: string) =>
           compose.logs(service, {

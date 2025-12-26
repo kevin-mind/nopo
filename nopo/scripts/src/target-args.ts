@@ -1,13 +1,13 @@
 import { minimist } from "./lib.ts";
 
-export interface ParseTargetArgsOptions {
+interface ParseTargetArgsOptions {
   leadingPositionals?: number; // For 'run': 1 (script name)
   boolean?: string[];
   string?: string[];
   alias?: Record<string, string | string[]>;
 }
 
-export interface ParsedTargetArgs {
+interface ParsedTargetArgs {
   targets: string[];
   leadingArgs: string[]; // e.g., ['test'] for run
   options: Record<string, unknown>;
@@ -86,4 +86,3 @@ export function validateTargets(
     );
   }
 }
-

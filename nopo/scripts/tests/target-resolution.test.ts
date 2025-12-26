@@ -1,0 +1,182 @@
+import { describe, it, expect } from "vitest";
+import { parseTargetArgs } from "../src/target-args.ts";
+import { discoverTargets } from "../src/lib.ts";
+import fs from "node:fs";
+import path from "node:path";
+import os from "node:os";
+import { afterEach } from "vitest";
+
+describe("Target Resolution Algorithm", () => {
+  describe("parseTargetArgs for script classes", () => {
+    const availableTargets = ["backend", "web"];
+
+    it("should extract targets from positionals for build command", () => {
+      const argv = ["backend", "web"];
+      const result = parseTargetArgs("build", argv, availableTargets);
+
+      expect(result.targets).toEqual(["backend", "web"]);
+      expect(result.leadingArgs).toEqual([]);
+    });
+
+    it("should return empty targets when none specified", () => {
+      const argv: string[] = [];
+      const result = parseTargetArgs("build", argv, availableTargets);
+
+      expect(result.targets).toEqual([]);
+      // When no targets, should use all available targets (handled by script)
+    });
+
+    it("should validate targets against available list", () => {
+      const argv = ["backend", "invalid"];
+      expect(() => {
+        parseTargetArgs("build", argv, availableTargets);
+      }).toThrow("Unknown target 'invalid'");
+    });
+  });
+
+  describe("parseTargetArgs for arbitrary commands", () => {
+    const availableTargets = ["backend", "web"];
+
+    it("should extract command name and targets for host execution", () => {
+      // nopo lint web
+      // Note: parseTargetArgs expects targets, not command names
+      // For arbitrary commands, the CLI routing should strip the command name first
+      // This test documents the expected behavior after CLI routing strips "lint"
+      const argv = ["web"]; // After CLI routing removes "lint"
+      const result = parseTargetArgs("lint", argv, availableTargets);
+
+      // After command name is stripped, only targets remain
+      expect(result.targets).toEqual(["web"]);
+    });
+
+    it("should extract command and multiple targets", () => {
+      // nopo lint backend web
+      // After CLI routing strips "lint", argv becomes ["backend", "web"]
+      const argv = ["backend", "web"];
+      const result = parseTargetArgs("lint", argv, availableTargets);
+
+      expect(result.targets).toEqual(["backend", "web"]);
+    });
+
+    it("should handle command without targets", () => {
+      // nopo lint
+      // After CLI routing strips "lint", argv is empty
+      const argv: string[] = [];
+      const result = parseTargetArgs("lint", argv, availableTargets);
+
+      expect(result.targets).toEqual([]);
+      // Should run at root level when no targets
+    });
+
+    it("should extract command and targets for container execution", () => {
+      // nopo run lint web
+      // After removing "run", argv becomes ["lint", "web"]
+      const argv = ["lint", "web"];
+      const result = parseTargetArgs("run", argv, availableTargets, {
+        leadingPositionals: 1, // "lint" is the script name (leading positional)
+      });
+
+      expect(result.leadingArgs).toEqual(["lint"]);
+      expect(result.targets).toEqual(["web"]);
+    });
+  });
+
+  describe("discoverTargets", () => {
+    const tmpDirs: string[] = [];
+
+    afterEach(() => {
+      // Cleanup all temporary directories
+      for (const tmpDir of tmpDirs) {
+        try {
+          fs.rmSync(tmpDir, { recursive: true, force: true });
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+      tmpDirs.length = 0;
+    });
+
+    it("should discover targets from apps/*/Dockerfile", () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "nopo-test-"));
+      tmpDirs.push(tmpDir);
+      const appsDir = path.join(tmpDir, "apps");
+
+      // Create test structure
+      fs.mkdirSync(path.join(appsDir, "backend"), { recursive: true });
+      fs.mkdirSync(path.join(appsDir, "web"), { recursive: true });
+      fs.mkdirSync(path.join(appsDir, "no-dockerfile"), { recursive: true });
+
+      // Create Dockerfiles
+      fs.writeFileSync(path.join(appsDir, "backend", "Dockerfile"), "");
+      fs.writeFileSync(path.join(appsDir, "web", "Dockerfile"), "");
+
+      const targets = discoverTargets(tmpDir);
+
+      expect(targets).toContain("backend");
+      expect(targets).toContain("web");
+      expect(targets).not.toContain("no-dockerfile");
+    });
+
+    it("should return empty array when apps directory doesn't exist", () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "nopo-test-"));
+      tmpDirs.push(tmpDir);
+      const targets = discoverTargets(tmpDir);
+      expect(targets).toEqual([]);
+    });
+
+    it("should only include directories with Dockerfile", () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "nopo-test-"));
+      tmpDirs.push(tmpDir);
+      const appsDir = path.join(tmpDir, "apps");
+
+      fs.mkdirSync(path.join(appsDir, "backend"), { recursive: true });
+      fs.mkdirSync(path.join(appsDir, "web"), { recursive: true });
+      fs.mkdirSync(path.join(appsDir, "no-dockerfile"), { recursive: true });
+
+      // Only backend has Dockerfile
+      fs.writeFileSync(path.join(appsDir, "backend", "Dockerfile"), "");
+
+      const targets = discoverTargets(tmpDir);
+
+      expect(targets).toEqual(["backend"]);
+      expect(targets).not.toContain("web");
+      expect(targets).not.toContain("no-dockerfile");
+    });
+  });
+
+  describe("target resolution behavior", () => {
+    it("should use all targets when none specified for script classes", () => {
+      // Script classes should operate on all targets when none specified
+      const availableTargets = ["backend", "web"];
+      const argv: string[] = [];
+      const result = parseTargetArgs("build", argv, availableTargets);
+
+      expect(result.targets).toEqual([]);
+      // Script should interpret empty as "all targets"
+    });
+
+    it("should use root level when no targets for host execution", () => {
+      // Host execution should run at root when no targets
+      // After CLI routing strips command name, argv is empty
+      const availableTargets = ["backend", "web"];
+      const argv: string[] = [];
+      const result = parseTargetArgs("lint", argv, availableTargets);
+
+      expect(result.targets).toEqual([]);
+      // Should run: pnpm run lint (at root)
+    });
+
+    it("should use all targets when none specified for container execution", () => {
+      // Container execution should run in all containers when no targets
+      const availableTargets = ["backend", "web"];
+      const argv = ["lint"];
+      const result = parseTargetArgs("run", argv, availableTargets, {
+        leadingPositionals: 1,
+      });
+
+      expect(result.leadingArgs).toEqual(["lint"]);
+      expect(result.targets).toEqual([]);
+      // Should run in all target containers
+    });
+  });
+});

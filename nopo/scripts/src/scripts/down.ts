@@ -17,7 +17,10 @@ export default class DownScript extends TargetScript<DownCliArgs> {
   static override name = "down";
   static override description = "Bring down the containers";
 
-  static override parseArgs(runner: Runner, isDependency: boolean): DownCliArgs {
+  static override parseArgs(
+    runner: Runner,
+    isDependency: boolean,
+  ): DownCliArgs {
     // When run as dependency, return empty targets (all targets)
     if (isDependency || runner.argv[0] !== "down") {
       return { targets: [] };
