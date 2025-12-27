@@ -45,7 +45,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  GCP_REGION: europe-west1
+  GCP_REGION: us-central1
   TERRAFORM_VERSION: "1.7.0"
 
 jobs:

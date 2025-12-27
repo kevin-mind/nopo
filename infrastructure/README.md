@@ -76,9 +76,9 @@ This directory contains Terraform configurations for deploying the application t
 ### 1. Initial GCP Project Setup
 
 ```bash
-# Set your project ID
-export PROJECT_ID="your-project-id"
-export REGION="europe-west1"
+# Set your project ID - REPLACE {YOUR_PROJECT_ID} with your actual value
+export PROJECT_ID="{YOUR_PROJECT_ID}"   # e.g., "mycompany-nopo"
+export REGION="us-central1"
 
 # Create project (if needed)
 gcloud projects create $PROJECT_ID --name="Nopo"
@@ -192,7 +192,7 @@ infrastructure/
 
 ## Cost Estimation
 
-Estimated monthly costs (europe-west1, minimal usage):
+Estimated monthly costs (us-central1, minimal usage):
 
 | Resource | Stage | Production |
 |----------|-------|------------|

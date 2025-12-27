@@ -148,20 +148,38 @@ gcloud auth list
 Create a file to store your configuration (don't commit this):
 
 ```bash
-# Create config file
+# Create config file - REPLACE ALL {PLACEHOLDER} VALUES with your actual values
 cat > ~/.gcp-nopo-config << 'EOF'
 # GCP Configuration for Nopo Project
-export PROJECT_ID="nopo-your-unique-id"      # Must be globally unique
+# ================================================
+# REPLACE these placeholders with your actual values:
+#   {YOUR_PROJECT_ID}  - A globally unique project ID (e.g., "mycompany-nopo-prod")
+#   {YOUR_GITHUB_ORG}  - Your GitHub username or organization (e.g., "octocat")
+#   {YOUR_GITHUB_REPO} - Your repository name (e.g., "my-app")
+#   {YOUR_DOMAIN}      - Your domain name (e.g., "myapp.com")
+# ================================================
+
+export PROJECT_ID="{YOUR_PROJECT_ID}"
 export PROJECT_NAME="Nopo Application"
 export BILLING_ACCOUNT_ID=""                  # Fill after step 3.2
-export REGION="europe-west1"
-export GITHUB_ORG="your-github-org"           # Your GitHub username or org
-export GITHUB_REPO="your-repo-name"           # Your repository name
-export DOMAIN="example.com"                   # Your domain
+export REGION="us-central1"
+export GITHUB_ORG="{YOUR_GITHUB_ORG}"
+export GITHUB_REPO="{YOUR_GITHUB_REPO}"
+export DOMAIN="{YOUR_DOMAIN}"
 EOF
+
+# IMPORTANT: Edit the file and replace placeholders before continuing
+nano ~/.gcp-nopo-config   # or use your preferred editor
 
 # Load the config
 source ~/.gcp-nopo-config
+
+# Verify your values are set correctly
+echo "PROJECT_ID: ${PROJECT_ID}"
+echo "REGION: ${REGION}"
+echo "GITHUB_ORG: ${GITHUB_ORG}"
+echo "GITHUB_REPO: ${GITHUB_REPO}"
+echo "DOMAIN: ${DOMAIN}"
 ```
 
 ### List Available Billing Accounts
@@ -422,36 +440,41 @@ gcloud iam service-accounts get-iam-policy "${SA_EMAIL}" \
 
 ## 8. Create Artifact Registry Repository
 
-### Create Repository for Staging
+Artifact Registry stores your Docker images. We'll create a single repository that holds images for all services and environments.
 
-```bash
-# Create Docker repository for staging
-gcloud artifacts repositories create "nopo-stage-repo" \
-  --project="${PROJECT_ID}" \
-  --repository-format=docker \
-  --location="${REGION}" \
-  --description="Docker images for Nopo staging environment"
+### Understanding Artifact Registry URLs
 
-# Verify creation
-gcloud artifacts repositories describe "nopo-stage-repo" \
-  --project="${PROJECT_ID}" \
-  --location="${REGION}"
+The URL format is:
+```
+{REGION}-docker.pkg.dev/{PROJECT_ID}/{REPOSITORY_NAME}/{IMAGE_NAME}:{TAG}
 ```
 
-### Create Repository for Production
+Example with real values:
+```
+us-central1-docker.pkg.dev/mycompany-nopo/nopo/backend:sha-abc123
+└─────────┬─────────────┘ └──────┬──────┘ └─┬┘ └──┬──┘ └────┬────┘
+        Region            Project ID    Repo  Image    Tag
+```
+
+### Create the Repository
 
 ```bash
-# Create Docker repository for production
-gcloud artifacts repositories create "nopo-prod-repo" \
+# Create a single Docker repository for all images
+# Repository name: "nopo" (this is NOT a placeholder)
+gcloud artifacts repositories create "nopo" \
   --project="${PROJECT_ID}" \
   --repository-format=docker \
   --location="${REGION}" \
-  --description="Docker images for Nopo production environment"
+  --description="Docker images for Nopo application"
 
 # Verify creation
-gcloud artifacts repositories describe "nopo-prod-repo" \
+gcloud artifacts repositories describe "nopo" \
   --project="${PROJECT_ID}" \
   --location="${REGION}"
+
+# Store the full registry URL for later use
+export ARTIFACT_REGISTRY_URL="${REGION}-docker.pkg.dev/${PROJECT_ID}/nopo"
+echo "Artifact Registry URL: ${ARTIFACT_REGISTRY_URL}"
 ```
 
 ### Configure Docker Authentication
@@ -536,8 +559,7 @@ WORKLOAD IDENTITY (for GitHub Actions):
   Provider:        ${WORKLOAD_PROVIDER_NAME}
 
 ARTIFACT REGISTRY:
-  Stage Registry:  ${REGION}-docker.pkg.dev/${PROJECT_ID}/nopo-stage-repo
-  Prod Registry:   ${REGION}-docker.pkg.dev/${PROJECT_ID}/nopo-prod-repo
+  Repository URL:  ${REGION}-docker.pkg.dev/${PROJECT_ID}/nopo
 
 TERRAFORM STATE:
   Bucket:          gs://${PROJECT_ID}-terraform-state
@@ -546,19 +568,27 @@ TERRAFORM STATE:
 GITHUB REPOSITORY CONFIGURATION
 ============================================================
 
-Add these as REPOSITORY VARIABLES in GitHub:
-(Settings → Secrets and variables → Actions → Variables)
+Go to: https://github.com/${GITHUB_ORG}/${GITHUB_REPO}/settings/variables/actions
 
-  GCP_PROJECT_ID:         ${PROJECT_ID}
-  GCP_ARTIFACT_REGISTRY:  ${REGION}-docker.pkg.dev/${PROJECT_ID}/nopo-stage-repo
-  TERRAFORM_STATE_BUCKET: ${PROJECT_ID}-terraform-state
-  DOMAIN:                 ${DOMAIN}
+Add these REPOSITORY VARIABLES (click "New repository variable"):
+┌─────────────────────────┬─────────────────────────────────────────────────────┐
+│ Variable Name           │ Value                                               │
+├─────────────────────────┼─────────────────────────────────────────────────────┤
+│ GCP_PROJECT_ID          │ ${PROJECT_ID}                                       │
+│ GCP_ARTIFACT_REGISTRY   │ ${REGION}-docker.pkg.dev/${PROJECT_ID}/nopo         │
+│ TERRAFORM_STATE_BUCKET  │ ${PROJECT_ID}-terraform-state                       │
+│ DOMAIN                  │ ${DOMAIN}                                           │
+└─────────────────────────┴─────────────────────────────────────────────────────┘
 
-Add these as REPOSITORY SECRETS in GitHub:
-(Settings → Secrets and variables → Actions → Secrets)
+Go to: https://github.com/${GITHUB_ORG}/${GITHUB_REPO}/settings/secrets/actions
 
-  GCP_WORKLOAD_IDENTITY_PROVIDER: ${WORKLOAD_PROVIDER_NAME}
-  GCP_SERVICE_ACCOUNT:            ${SA_EMAIL}
+Add these REPOSITORY SECRETS (click "New repository secret"):
+┌─────────────────────────────────┬───────────────────────────────────────────────┐
+│ Secret Name                     │ Value                                         │
+├─────────────────────────────────┼───────────────────────────────────────────────┤
+│ GCP_WORKLOAD_IDENTITY_PROVIDER  │ ${WORKLOAD_PROVIDER_NAME}                     │
+│ GCP_SERVICE_ACCOUNT             │ ${SA_EMAIL}                                   │
+└─────────────────────────────────┴───────────────────────────────────────────────┘
 
 ============================================================
 EOF

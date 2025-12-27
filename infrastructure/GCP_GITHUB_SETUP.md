@@ -15,15 +15,22 @@ Workload Identity Federation allows GitHub Actions to authenticate with GCP with
 ## Step 1: Set Environment Variables
 
 ```bash
-# Your GCP project ID
-export PROJECT_ID="your-gcp-project-id"
+# ================================================
+# REPLACE these placeholders with your actual values:
+#   {YOUR_PROJECT_ID}  - Your GCP project ID (e.g., "mycompany-nopo")
+#   {YOUR_GITHUB_ORG}  - Your GitHub username or organization (e.g., "octocat")
+#   {YOUR_GITHUB_REPO} - Your repository name (e.g., "my-app")
+# ================================================
 
-# Your GitHub organization/username and repository name
-export GITHUB_ORG="your-github-org"
-export GITHUB_REPO="your-repo-name"
+export PROJECT_ID="{YOUR_PROJECT_ID}"
+export GITHUB_ORG="{YOUR_GITHUB_ORG}"
+export GITHUB_REPO="{YOUR_GITHUB_REPO}"
+export REGION="us-central1"
 
-# GCP region
-export REGION="europe-west1"
+# Verify your values (should NOT contain curly braces)
+echo "PROJECT_ID: ${PROJECT_ID}"
+echo "GITHUB_ORG: ${GITHUB_ORG}"
+echo "GITHUB_REPO: ${GITHUB_REPO}"
 ```
 
 ## Step 2: Create Service Account for GitHub Actions
@@ -156,27 +163,41 @@ gsutil versioning set on "gs://${PROJECT_ID}-terraform-state"
 
 ### Repository Variables
 
-Go to your GitHub repository → Settings → Secrets and variables → Actions → Variables
+Go to your GitHub repository → **Settings** → **Secrets and variables** → **Actions** → **Variables** tab
 
-Add the following **repository variables**:
+Click **"New repository variable"** and add each of the following:
 
-| Variable Name | Value | Description |
-|---------------|-------|-------------|
-| `GCP_PROJECT_ID` | `your-gcp-project-id` | Your GCP project ID |
-| `GCP_ARTIFACT_REGISTRY` | `europe-west1-docker.pkg.dev/your-project-id/nopo-stage-repo` | Artifact Registry URL |
-| `TERRAFORM_STATE_BUCKET` | `your-project-id-terraform-state` | GCS bucket for Terraform state |
-| `DOMAIN` | `example.com` | Your domain name |
+| Variable Name | Example Value | Description |
+|---------------|---------------|-------------|
+| `GCP_PROJECT_ID` | `mycompany-nopo` | Your GCP project ID (from `$PROJECT_ID`) |
+| `GCP_ARTIFACT_REGISTRY` | `us-central1-docker.pkg.dev/mycompany-nopo/nopo` | Artifact Registry URL (see below) |
+| `TERRAFORM_STATE_BUCKET` | `mycompany-nopo-terraform-state` | GCS bucket name (from Step 6) |
+| `DOMAIN` | `myapp.com` | Your domain name |
+
+**How to construct `GCP_ARTIFACT_REGISTRY`:**
+
+```
+{REGION}-docker.pkg.dev/{PROJECT_ID}/nopo
+```
+
+Example breakdown:
+```
+us-central1-docker.pkg.dev/mycompany-nopo/nopo
+└─────────┬───────────────┘└──────┬──────┘└─┬┘
+       Region               Project ID   Repository name
+                                         (always "nopo")
+```
 
 ### Repository Secrets
 
-Go to your GitHub repository → Settings → Secrets and variables → Actions → Secrets
+Go to your GitHub repository → **Settings** → **Secrets and variables** → **Actions** → **Secrets** tab
 
-Add the following **repository secrets**:
+Click **"New repository secret"** and add each of the following:
 
-| Secret Name | Value | Description |
-|-------------|-------|-------------|
-| `GCP_WORKLOAD_IDENTITY_PROVIDER` | Output from Step 4 | The full provider path |
-| `GCP_SERVICE_ACCOUNT` | `github-actions@your-project-id.iam.gserviceaccount.com` | Service account email |
+| Secret Name | How to Get Value | Example |
+|-------------|------------------|---------|
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` | Run: `echo $WORKLOAD_IDENTITY_PROVIDER` | `projects/123456/locations/global/workloadIdentityPools/github/providers/github-provider` |
+| `GCP_SERVICE_ACCOUNT` | Run: `echo $SA_EMAIL` | `github-actions@mycompany-nopo.iam.gserviceaccount.com` |
 
 ### Environment Configuration
 

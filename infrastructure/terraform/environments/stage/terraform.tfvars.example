@@ -1,11 +1,19 @@
-# Example terraform.tfvars for staging environment
-# Copy this file to terraform.tfvars and update the values
+# Terraform variables for STAGING environment
+# ================================================
+# Copy this file to terraform.tfvars and replace all {PLACEHOLDER} values
+# ================================================
 
-project_id       = "your-gcp-project-id"
-region           = "europe-west1"
-domain           = "example.com"
-subdomain_prefix = "stage"
+# REQUIRED: Replace these placeholders with your actual values
+project_id       = "{YOUR_PROJECT_ID}"      # e.g., "mycompany-nopo"
+region           = "us-central1"
+domain           = "{YOUR_DOMAIN}"          # e.g., "myapp.com"
+subdomain_prefix = "stage"                  # Creates stage.{YOUR_DOMAIN}
 
-# These will be set by CI/CD
-# backend_image = "europe-west1-docker.pkg.dev/your-project/nopo-stage-repo/backend:sha-abc123"
-# web_image     = "europe-west1-docker.pkg.dev/your-project/nopo-stage-repo/web:sha-abc123"
+# REQUIRED: Docker images (set by CI/CD, or use placeholders for initial setup)
+# Format: {REGION}-docker.pkg.dev/{PROJECT_ID}/nopo/{SERVICE}:{VERSION}
+backend_image = "{YOUR_REGION}-docker.pkg.dev/{YOUR_PROJECT_ID}/nopo/backend:{VERSION}"
+web_image     = "{YOUR_REGION}-docker.pkg.dev/{YOUR_PROJECT_ID}/nopo/web:{VERSION}"
+
+# For initial Terraform setup before CI/CD, use Google's hello container:
+# backend_image = "gcr.io/cloudrun/hello"
+# web_image     = "gcr.io/cloudrun/hello"

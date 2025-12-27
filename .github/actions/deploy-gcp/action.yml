@@ -8,7 +8,7 @@ inputs:
   region:
     description: The GCP region
     required: false
-    default: "europe-west1"
+    default: "us-central1"
   environment:
     description: The deployment environment (stage, prod)
     required: true
