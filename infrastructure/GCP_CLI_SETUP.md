@@ -379,12 +379,14 @@ echo "Workload Pool Name: ${WORKLOAD_POOL_NAME}"
 
 ```bash
 # Create the OIDC provider for GitHub
+# The attribute-condition restricts which repositories can authenticate
 gcloud iam workload-identity-pools providers create-oidc "github-provider" \
   --project="${PROJECT_ID}" \
   --location="global" \
   --workload-identity-pool="github" \
   --display-name="GitHub OIDC Provider" \
   --attribute-mapping="google.subject=assertion.sub,attribute.actor=assertion.actor,attribute.repository=assertion.repository,attribute.repository_owner=assertion.repository_owner" \
+  --attribute-condition="assertion.repository_owner == '${GITHUB_ORG}'" \
   --issuer-uri="https://token.actions.githubusercontent.com"
 
 # Get the full provider name (needed for GitHub Actions)
@@ -396,6 +398,11 @@ export WORKLOAD_PROVIDER_NAME=$(gcloud iam workload-identity-pools providers des
 
 echo "Workload Provider Name: ${WORKLOAD_PROVIDER_NAME}"
 ```
+
+> **Note:** The `--attribute-condition` restricts authentication to repositories owned by your GitHub organization/user. For stricter security, you can limit to a specific repository:
+> ```bash
+> --attribute-condition="assertion.repository == '${GITHUB_ORG}/${GITHUB_REPO}'"
+> ```
 
 ### Allow GitHub Repository to Use Service Account
 

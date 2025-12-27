@@ -104,12 +104,14 @@ export WORKLOAD_IDENTITY_POOL_ID=$(gcloud iam workload-identity-pools describe "
 
 ```bash
 # Create the provider (OIDC)
+# The attribute-condition is REQUIRED and restricts which GitHub repos can authenticate
 gcloud iam workload-identity-pools providers create-oidc "github-provider" \
   --project="${PROJECT_ID}" \
   --location="global" \
   --workload-identity-pool="github" \
   --display-name="GitHub Provider" \
   --attribute-mapping="google.subject=assertion.sub,attribute.actor=assertion.actor,attribute.repository=assertion.repository,attribute.repository_owner=assertion.repository_owner" \
+  --attribute-condition="assertion.repository_owner == '${GITHUB_ORG}'" \
   --issuer-uri="https://token.actions.githubusercontent.com"
 
 # Get the provider name for GitHub Actions
@@ -121,6 +123,14 @@ export WORKLOAD_IDENTITY_PROVIDER=$(gcloud iam workload-identity-pools providers
 
 echo "Workload Identity Provider: ${WORKLOAD_IDENTITY_PROVIDER}"
 ```
+
+> **Security Options for `--attribute-condition`:**
+>
+> | Scope | Condition |
+> |-------|-----------|
+> | All repos in org/user | `assertion.repository_owner == '${GITHUB_ORG}'` |
+> | Specific repository | `assertion.repository == '${GITHUB_ORG}/${GITHUB_REPO}'` |
+> | Multiple repositories | `assertion.repository in ['org/repo1', 'org/repo2']` |
 
 ## Step 5: Allow GitHub to Impersonate the Service Account
 
