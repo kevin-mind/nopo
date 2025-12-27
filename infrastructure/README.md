@@ -2,6 +2,8 @@
 
 This directory contains Terraform configurations for deploying the application to Google Cloud Platform (GCP).
 
+> **New to GCP?** Start with [GCP_CLI_SETUP.md](./GCP_CLI_SETUP.md) for step-by-step instructions on installing the CLI and provisioning all required resources.
+
 ## Architecture Overview
 
 ```text
@@ -60,6 +62,14 @@ This directory contains Terraform configurations for deploying the application t
 - `gcloud` CLI installed and authenticated
 - Terraform >= 1.5.0
 - A domain name with access to DNS settings
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [README.md](./README.md) | This file - architecture overview and quick start |
+| [GCP_CLI_SETUP.md](./GCP_CLI_SETUP.md) | **Start here** - Complete CLI setup guide including gcloud installation |
+| [GCP_GITHUB_SETUP.md](./GCP_GITHUB_SETUP.md) | GitHub Actions integration with Workload Identity Federation |
 
 ## Quick Start
 
