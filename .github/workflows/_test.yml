@@ -15,6 +15,17 @@ defaults:
     shell: bash
 
 jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.services.outputs.services }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Discover services
+        id: services
+        uses: ./.github/actions/service-names
+
   test_nopo:
     runs-on: ubuntu-latest
     name: "[nopo] test"
@@ -53,11 +64,12 @@ jobs:
         run: pnpm run --dir ./nopo/scripts test
 
   test:
+    needs: [discover]
     runs-on: ubuntu-latest
     name: "[${{ matrix.service || 'host' }}] ${{ matrix.command }} (${{ matrix.target }})"
     strategy:
       matrix:
-        service: [web, backend]
+        service: ${{ fromJson(needs.discover.outputs.services) }}
         command: [test]
         target: [development, production]
         include:

@@ -53,28 +53,36 @@ jobs:
   context:
     runs-on: ubuntu-latest
     outputs:
-      app_names: ${{ steps.app_names.outputs.app_names }}
-      app_list: ${{ join(fromJson(steps.app_names.outputs.app_names), ', ') }}
-      service_names: ${{ steps.service_names.outputs.names }}
+      app_names: ${{ steps.fly_app_names.outputs.app_names }}
+      app_list: ${{ join(fromJson(steps.fly_app_names.outputs.app_names), ', ') }}
+      service_names: ${{ steps.services.outputs.services }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set App Names
-        id: app_names
-        uses: ./.github/actions/app-names
-        with:
-          environment: ${{ inputs.environment }}
+      - name: Discover services
+        id: services
+        uses: ./.github/actions/service-names
 
-      - name: Extract Service Names
-        id: service_names
+      - name: Build Fly app names
+        id: fly_app_names
         shell: bash
         env:
-          app_names: ${{ steps.app_names.outputs.app_names }}
+          SERVICES: ${{ steps.services.outputs.services }}
+          ENVIRONMENT: ${{ inputs.environment }}
         run: |
-          # Extract service names from app names (nopo-stage-backend -> backend)
-          service_names=$(echo "$app_names" | jq -r '.[] | select(. | test("^nopo-[^-]+-")) | sub("^nopo-[^-]+-"; "")' | jq -R . | jq -s . | jq -c .)
-          echo "names=${service_names}" >> "$GITHUB_OUTPUT"
-          cat "$GITHUB_OUTPUT"
+          # Build Fly app names from discovered services
+          # Services: ["backend","web"]
+          # Output: ["nopo-stage-backend","nopo-stage-web","nopo-stage"]
+          #
+          # The nginx app (nopo-{env}) doesn't have a service directory,
+          # so we add it separately.
+
+          app_names=$(echo "${SERVICES}" | jq -c --arg env "${ENVIRONMENT}" '
+            [.[] | "nopo-\($env)-\(.)"] + ["nopo-\($env)"]
+          ')
+
+          echo "app_names=${app_names}" >> "$GITHUB_OUTPUT"
+          echo "Fly app names: ${app_names}"
 
   pre_approve:
     name: Preparing to deploy ${{ needs.context.outputs.app_list }}

@@ -52,21 +52,32 @@ jobs:
   context:
     runs-on: ubuntu-latest
     outputs:
-      backend_image: ${{ steps.images.outputs.backend }}
-      web_image: ${{ steps.images.outputs.web }}
+      services: ${{ steps.services.outputs.services }}
+      services_csv: ${{ steps.services.outputs.services_csv }}
+      service_images: ${{ steps.images.outputs.service_images }}
       subdomain_prefix: ${{ steps.env_config.outputs.subdomain_prefix }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Determine image tags
+      - name: Discover services
+        id: services
+        uses: ./.github/actions/service-names
+
+      - name: Build image tags
         id: images
         env:
           REGISTRY: ${{ vars.GCP_ARTIFACT_REGISTRY }}
           VERSION: ${{ inputs.version }}
+          SERVICES: ${{ steps.services.outputs.services }}
         run: |
-          echo "backend=${REGISTRY}/backend:${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "web=${REGISTRY}/web:${VERSION}" >> "$GITHUB_OUTPUT"
-          cat "$GITHUB_OUTPUT"
+          # Build a JSON object mapping service names to their full image tags
+          # Example: {"backend":"registry/backend:sha-abc123","web":"registry/web:sha-abc123"}
+          service_images=$(echo "${SERVICES}" | jq -c --arg registry "${REGISTRY}" --arg version "${VERSION}" '
+            reduce .[] as $svc ({}; . + {($svc): "\($registry)/\($svc):\($version)"})
+          ')
+
+          echo "service_images=${service_images}" >> "$GITHUB_OUTPUT"
+          echo "Service images: ${service_images}"
 
       - name: Environment config
         id: env_config
@@ -81,7 +92,7 @@ jobs:
           cat "$GITHUB_OUTPUT"
 
   push_images:
-    name: Push images to Artifact Registry
+    name: Push ${{ matrix.service }} to Artifact Registry
     needs: [context]
     runs-on: ubuntu-latest
     permissions:
@@ -89,7 +100,7 @@ jobs:
       id-token: write
     strategy:
       matrix:
-        service: [backend, web]
+        service: ${{ fromJson(needs.context.outputs.services) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -114,8 +125,13 @@ jobs:
           GHCR_IMAGE: ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ inputs.version }}
           GCP_IMAGE: ${{ vars.GCP_ARTIFACT_REGISTRY }}/${{ matrix.service }}:${{ inputs.version }}
         run: |
+          echo "Pulling ${GHCR_IMAGE}"
           docker pull "${GHCR_IMAGE}"
+
+          echo "Tagging as ${GCP_IMAGE}"
           docker tag "${GHCR_IMAGE}" "${GCP_IMAGE}"
+
+          echo "Pushing ${GCP_IMAGE}"
           docker push "${GCP_IMAGE}"
 
   deploy:
@@ -149,8 +165,7 @@ jobs:
           environment: ${{ inputs.environment }}
           domain: ${{ vars.DOMAIN }}
           subdomain_prefix: ${{ needs.context.outputs.subdomain_prefix }}
-          backend_image: ${{ needs.context.outputs.backend_image }}
-          web_image: ${{ needs.context.outputs.web_image }}
+          service_images: ${{ needs.context.outputs.service_images }}
           terraform_state_bucket: ${{ vars.TERRAFORM_STATE_BUCKET }}
 
   run_migrations:
@@ -203,7 +218,7 @@ jobs:
           public_url: ${{ needs.deploy.outputs.public_url }}
 
   tag_environment:
-    name: Tag environment images
+    name: Tag ${{ matrix.service }} for ${{ inputs.environment }}
     needs: [context, smoketest]
     runs-on: ubuntu-latest
     permissions:
@@ -212,7 +227,7 @@ jobs:
       packages: write
     strategy:
       matrix:
-        service: [backend, web]
+        service: ${{ fromJson(needs.context.outputs.services) }}
     steps:
       - uses: actions/checkout@v4
 

@@ -19,11 +19,8 @@ inputs:
     description: The subdomain prefix (e.g., 'stage' or empty for apex)
     required: false
     default: ""
-  backend_image:
-    description: The backend Docker image
-    required: true
-  web_image:
-    description: The web Docker image
+  service_images:
+    description: JSON object mapping service names to their Docker image tags
     required: true
   terraform_state_bucket:
     description: The GCS bucket for Terraform state
@@ -50,6 +47,34 @@ runs:
         terraform_version: "1.7.0"
         terraform_wrapper: false
 
+    - name: Parse service images
+      id: parse_images
+      shell: bash
+      env:
+        SERVICE_IMAGES: ${{ inputs.service_images }}
+      run: |
+        # Extract individual service images from the JSON object
+        # This converts {"backend":"img1","web":"img2"} to TF_VAR_backend_image=img1, etc.
+
+        echo "Parsing service images: ${SERVICE_IMAGES}"
+
+        # Extract backend image (if exists)
+        backend_image=$(echo "${SERVICE_IMAGES}" | jq -r '.backend // empty')
+        if [[ -n "${backend_image}" ]]; then
+          echo "backend_image=${backend_image}" >> "$GITHUB_OUTPUT"
+          echo "Backend image: ${backend_image}"
+        fi
+
+        # Extract web image (if exists)
+        web_image=$(echo "${SERVICE_IMAGES}" | jq -r '.web // empty')
+        if [[ -n "${web_image}" ]]; then
+          echo "web_image=${web_image}" >> "$GITHUB_OUTPUT"
+          echo "Web image: ${web_image}"
+        fi
+
+        # For future extensibility, output all services
+        echo "all_images=${SERVICE_IMAGES}" >> "$GITHUB_OUTPUT"
+
     - name: Terraform Init
       shell: bash
       working-directory: ${{ inputs.working_directory }}/${{ inputs.environment }}
@@ -69,8 +94,8 @@ runs:
         TF_VAR_region: ${{ inputs.region }}
         TF_VAR_domain: ${{ inputs.domain }}
         TF_VAR_subdomain_prefix: ${{ inputs.subdomain_prefix }}
-        TF_VAR_backend_image: ${{ inputs.backend_image }}
-        TF_VAR_web_image: ${{ inputs.web_image }}
+        TF_VAR_backend_image: ${{ steps.parse_images.outputs.backend_image }}
+        TF_VAR_web_image: ${{ steps.parse_images.outputs.web_image }}
       run: |
         terraform plan -input=false -out=tfplan
 
