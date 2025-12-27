@@ -1,4 +1,6 @@
-name: Deploy
+# DEPRECATED: This workflow deploys to Fly.io
+# Use _deploy_gcp.yml for Google Cloud Platform deployments
+name: Deploy to Fly.io (Legacy)
 
 on:
   workflow_dispatch:

@@ -120,7 +120,7 @@ jobs:
       packages: write
       attestations: write
       id-token: write
-    uses: ./.github/workflows/_deploy.yml
+    uses: ./.github/workflows/_deploy_gcp.yml
     secrets: inherit
     with:
       environment: stage
@@ -135,7 +135,7 @@ jobs:
       packages: write
       attestations: write
       id-token: write
-    uses: ./.github/workflows/_deploy.yml
+    uses: ./.github/workflows/_deploy_gcp.yml
     secrets: inherit
     with:
       environment: prod

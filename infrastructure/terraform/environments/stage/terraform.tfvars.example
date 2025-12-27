@@ -1,0 +1,11 @@
+# Example terraform.tfvars for staging environment
+# Copy this file to terraform.tfvars and update the values
+
+project_id       = "your-gcp-project-id"
+region           = "europe-west1"
+domain           = "example.com"
+subdomain_prefix = "stage"
+
+# These will be set by CI/CD
+# backend_image = "europe-west1-docker.pkg.dev/your-project/nopo-stage-repo/backend:sha-abc123"
+# web_image     = "europe-west1-docker.pkg.dev/your-project/nopo-stage-repo/web:sha-abc123"

@@ -1,0 +1,95 @@
+name: Deploy to GCP
+description: Deploy services to Google Cloud Platform using Terraform
+
+inputs:
+  project_id:
+    description: The GCP project ID
+    required: true
+  region:
+    description: The GCP region
+    required: false
+    default: "europe-west1"
+  environment:
+    description: The deployment environment (stage, prod)
+    required: true
+  domain:
+    description: The domain name
+    required: true
+  subdomain_prefix:
+    description: The subdomain prefix (e.g., 'stage' or empty for apex)
+    required: false
+    default: ""
+  backend_image:
+    description: The backend Docker image
+    required: true
+  web_image:
+    description: The web Docker image
+    required: true
+  terraform_state_bucket:
+    description: The GCS bucket for Terraform state
+    required: true
+  working_directory:
+    description: The Terraform working directory
+    required: false
+    default: "infrastructure/terraform/environments"
+
+outputs:
+  load_balancer_ip:
+    description: The load balancer IP address
+    value: ${{ steps.apply.outputs.load_balancer_ip }}
+  public_url:
+    description: The public URL
+    value: ${{ steps.apply.outputs.public_url }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: "1.7.0"
+        terraform_wrapper: false
+
+    - name: Terraform Init
+      shell: bash
+      working-directory: ${{ inputs.working_directory }}/${{ inputs.environment }}
+      env:
+        TF_STATE_BUCKET: ${{ inputs.terraform_state_bucket }}
+        ENVIRONMENT: ${{ inputs.environment }}
+      run: |
+        terraform init -input=false \
+          -backend-config="bucket=${TF_STATE_BUCKET}" \
+          -backend-config="prefix=nopo/${ENVIRONMENT}"
+
+    - name: Terraform Plan
+      shell: bash
+      working-directory: ${{ inputs.working_directory }}/${{ inputs.environment }}
+      env:
+        TF_VAR_project_id: ${{ inputs.project_id }}
+        TF_VAR_region: ${{ inputs.region }}
+        TF_VAR_domain: ${{ inputs.domain }}
+        TF_VAR_subdomain_prefix: ${{ inputs.subdomain_prefix }}
+        TF_VAR_backend_image: ${{ inputs.backend_image }}
+        TF_VAR_web_image: ${{ inputs.web_image }}
+      run: |
+        terraform plan -input=false -out=tfplan
+
+    - name: Terraform Apply
+      id: apply
+      shell: bash
+      working-directory: ${{ inputs.working_directory }}/${{ inputs.environment }}
+      run: |
+        terraform apply -input=false -auto-approve tfplan
+
+        # Extract outputs
+        load_balancer_ip=$(terraform output -raw load_balancer_ip 2>/dev/null || echo "")
+        public_url=$(terraform output -raw public_url 2>/dev/null || echo "")
+
+        echo "load_balancer_ip=${load_balancer_ip}" >> "$GITHUB_OUTPUT"
+        echo "public_url=${public_url}" >> "$GITHUB_OUTPUT"
+
+    - name: Cleanup plan file
+      shell: bash
+      working-directory: ${{ inputs.working_directory }}/${{ inputs.environment }}
+      if: always()
+      run: rm -f tfplan
