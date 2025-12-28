@@ -383,6 +383,18 @@ gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
   --role="roles/iam.serviceAccountUser" \
   --condition=None
 
+# Service Account Admin - create/manage service accounts
+gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+  --member="serviceAccount:${SA_EMAIL}" \
+  --role="roles/iam.serviceAccountAdmin" \
+  --condition=None
+
+# Project IAM Admin - manage project-level IAM bindings
+gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+  --member="serviceAccount:${SA_EMAIL}" \
+  --role="roles/resourcemanager.projectIamAdmin" \
+  --condition=None
+
 # Artifact Registry Admin - manage repositories and IAM policies
 gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
   --member="serviceAccount:${SA_EMAIL}" \

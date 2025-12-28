@@ -905,7 +905,7 @@ gcloud run services update nopo-{env}-backend \
 
 | Service Account | Purpose | Roles |
 |-----------------|---------|-------|
-| `github-actions@...` | CI/CD deployment | run.admin, artifactregistry.admin, cloudsql.admin, secretmanager.admin, compute.admin, storage.admin, vpcaccess.admin, servicenetworking.networksAdmin |
+| `github-actions@...` | CI/CD deployment | run.admin, iam.serviceAccountUser, iam.serviceAccountAdmin, resourcemanager.projectIamAdmin, artifactregistry.admin, cloudsql.admin, secretmanager.admin, storage.admin, compute.admin, vpcaccess.admin, servicenetworking.networksAdmin |
 | `nopo-{env}-cloudrun@...` | Cloud Run runtime | cloudsql.client, secretmanager.secretAccessor |
 
 **External Documentation:**
