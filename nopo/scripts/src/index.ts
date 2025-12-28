@@ -13,6 +13,7 @@ import process from "node:process";
 import Build from "./scripts/build.ts";
 import Env from "./scripts/env.ts";
 import Index from "./scripts/index.ts";
+import List from "./scripts/list.ts";
 import Pull from "./scripts/pull.ts";
 import Run from "./scripts/run.ts";
 import Status from "./scripts/status.ts";
@@ -23,6 +24,7 @@ const scripts: Record<string, typeof Script> = {
   build: Build,
   env: Env,
   index: Index,
+  list: List,
   run: Run,
   pull: Pull,
   status: Status,
@@ -107,13 +109,25 @@ export default async function main(
   _argv: string[] = process.argv,
   _env: NodeJS.ProcessEnv = process.env,
 ): Promise<void> {
+  const argv = _argv.slice(2);
+  const args = minimist(argv);
+
+  // Check if this is a command that outputs machine-readable format and should be silent
+  const commandName = args._[0] || "";
+  const isJsonOutput =
+    commandName === "list" &&
+    !!(args.json || args.j || args.format === "json" || args.f === "json");
+  const isCsvOutput =
+    commandName === "list" &&
+    !!(args.csv || args.format === "csv" || args.f === "csv");
+  const isSilentOutput = isJsonOutput || isCsvOutput;
+
   const config: Config = createConfig({
     envFile: _env.ENV_FILE || undefined,
+    silent: isSilentOutput,
   });
   const logger = new Logger(config);
   const environment = new Environment(config);
-  const argv = _argv.slice(2);
-  const args = minimist(argv);
   const runner = new Runner(config, environment, argv, logger);
 
   if (args.help) {
@@ -126,8 +140,6 @@ export default async function main(
     printCommandsTable();
     return process.exit(0);
   }
-
-  const commandName = args._[0] || "";
 
   // Handle "help" as a special command (show general help)
   if (commandName === "help") {

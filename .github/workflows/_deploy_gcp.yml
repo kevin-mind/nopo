@@ -1,0 +1,267 @@
+name: Deploy to GCP
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'The version to deploy'
+        required: true
+        type: string
+      digest:
+        description: 'The digest to deploy'
+        required: false
+        type: string
+      environment:
+        description: 'The environment to deploy to'
+        required: true
+        type: choice
+        options:
+          - stage
+          - prod
+
+  workflow_call:
+    inputs:
+      version:
+        description: 'The version to deploy'
+        required: true
+        type: string
+      digest:
+        description: 'The digest to deploy'
+        required: false
+        type: string
+      environment:
+        description: 'The environment to deploy to'
+        required: true
+        type: string
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
+env:
+  GCP_REGION: us-central1
+  TERRAFORM_VERSION: "1.7.0"
+
+jobs:
+  context:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      services: ${{ steps.services.outputs.services }}
+      services_csv: ${{ steps.services.outputs.services_csv }}
+      service_images: ${{ steps.images.outputs.service_images }}
+      subdomain_prefix: ${{ steps.env_config.outputs.subdomain_prefix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-node
+
+      - name: Discover services
+        id: services
+        uses: ./.github/actions/service-names
+
+      - name: Build image tags
+        id: images
+        env:
+          REGISTRY: ${{ vars.GCP_ARTIFACT_REGISTRY }}
+          VERSION: ${{ inputs.version }}
+          SERVICES: ${{ steps.services.outputs.services }}
+        run: |
+          # Build a JSON object mapping service names to their full image tags
+          # Example: {"backend":"registry/backend:sha-abc123","web":"registry/web:sha-abc123"}
+          service_images=$(echo "${SERVICES}" | jq -c --arg registry "${REGISTRY}" --arg version "${VERSION}" '
+            reduce .[] as $svc ({}; . + {($svc): "\($registry)/\($svc):\($version)"})
+          ')
+
+          echo "service_images=${service_images}" >> "$GITHUB_OUTPUT"
+          echo "Service images: ${service_images}"
+
+      - name: Environment config
+        id: env_config
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          if [[ "$ENVIRONMENT" == "stage" ]]; then
+            echo "subdomain_prefix=stage" >> "$GITHUB_OUTPUT"
+          else
+            echo "subdomain_prefix=" >> "$GITHUB_OUTPUT"
+          fi
+          cat "$GITHUB_OUTPUT"
+
+  push_images:
+    name: Push ${{ matrix.service }} to Artifact Registry
+    needs: [context]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.context.outputs.services) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-docker
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker "${{ env.GCP_REGION }}-docker.pkg.dev" --quiet
+
+      - name: Pull and push image
+        env:
+          GHCR_IMAGE: ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ inputs.version }}
+          GCP_IMAGE: ${{ vars.GCP_ARTIFACT_REGISTRY }}/${{ matrix.service }}:${{ inputs.version }}
+        run: |
+          echo "Pulling ${GHCR_IMAGE}"
+          docker pull "${GHCR_IMAGE}"
+
+          echo "Tagging as ${GCP_IMAGE}"
+          docker tag "${GHCR_IMAGE}" "${GCP_IMAGE}"
+
+          echo "Pushing ${GCP_IMAGE}"
+          docker push "${GCP_IMAGE}"
+
+  deploy:
+    name: Deploy to ${{ inputs.environment }}
+    needs: [context, push_images]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    environment:
+      name: ${{ inputs.environment }}
+      url: https://${{ needs.context.outputs.subdomain_prefix && format('{0}.', needs.context.outputs.subdomain_prefix) || '' }}${{ vars.DOMAIN }}
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      load_balancer_ip: ${{ steps.deploy.outputs.load_balancer_ip }}
+      public_url: ${{ steps.deploy.outputs.public_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Deploy with Terraform
+        id: deploy
+        uses: ./.github/actions/deploy-gcp
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          region: ${{ env.GCP_REGION }}
+          environment: ${{ inputs.environment }}
+          domain: ${{ vars.DOMAIN }}
+          subdomain_prefix: ${{ needs.context.outputs.subdomain_prefix }}
+          service_images: ${{ needs.context.outputs.service_images }}
+          terraform_state_bucket: ${{ vars.TERRAFORM_STATE_BUCKET }}
+
+  run_migrations:
+    name: Run database migrations
+    needs: [context, deploy]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Run migrations for all services
+        env:
+          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          REGION: ${{ env.GCP_REGION }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          SERVICES: ${{ needs.context.outputs.services }}
+        run: |
+          # Find services that need migrations
+          for service in $(echo "${SERVICES}" | jq -r '.[]'); do
+            config_file="apps/${service}/infrastructure.json"
+            
+            # Check if service has run_migrations: true
+            if [[ -f "${config_file}" ]]; then
+              run_migrations=$(jq -r '.run_migrations // false' "${config_file}")
+              
+              if [[ "${run_migrations}" == "true" ]]; then
+                echo "Running migrations for ${service}..."
+                JOB_NAME="nopo-${ENVIRONMENT}-${service}-migrate"
+                
+                gcloud run jobs execute "${JOB_NAME}" \
+                  --project="${PROJECT_ID}" \
+                  --region="${REGION}" \
+                  --wait \
+                  || echo "Migration job ${JOB_NAME} may not exist yet, skipping..."
+              fi
+            fi
+          done
+
+  smoketest:
+    name: Smoke test
+    needs: [context, deploy, run_migrations]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-node
+
+      - name: Run smoketest
+        uses: ./.github/actions/smoketest
+        with:
+          public_url: ${{ needs.deploy.outputs.public_url }}
+
+  tag_environment:
+    name: Tag ${{ matrix.service }} for ${{ inputs.environment }}
+    needs: [context, smoketest]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.context.outputs.services) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-docker
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag environment image on GHCR
+        env:
+          GHCR_VERSION_IMAGE: ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ inputs.version }}
+          GHCR_ENV_IMAGE: ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ inputs.environment }}
+        run: |
+          docker pull "${GHCR_VERSION_IMAGE}"
+          docker tag "${GHCR_VERSION_IMAGE}" "${GHCR_ENV_IMAGE}"
+          docker push "${GHCR_ENV_IMAGE}"

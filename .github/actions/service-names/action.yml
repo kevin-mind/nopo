@@ -1,0 +1,61 @@
+name: Service Names
+description: Discover service names from the apps directory (services with Dockerfiles)
+
+inputs:
+  filter:
+    description: Filter to specific service(s), comma-separated or "*" for all
+    required: false
+    default: "*"
+
+outputs:
+  services:
+    description: JSON array of service names
+    value: ${{ steps.discover.outputs.services }}
+  services_csv:
+    description: Comma-separated list of service names
+    value: ${{ steps.discover.outputs.services_csv }}
+  count:
+    description: Number of services discovered
+    value: ${{ steps.discover.outputs.count }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Discover services
+      id: discover
+      shell: bash
+      env:
+        FILTER: ${{ inputs.filter }}
+      run: |
+        # Use nopo list to discover services
+        # Assumes nopo CLI is available (setup-node action should be run before this)
+        #
+        # nopo list --json outputs: ["backend","web"]
+        # nopo list --csv outputs: backend,web
+
+        all_services_json=$(make list -- --json)
+        all_services_csv=$(make list -- --csv)
+        
+        echo "All services: ${all_services_csv}"
+
+        # Apply filter if not "*"
+        if [[ "${FILTER}" == "*" ]]; then
+          services_json="${all_services_json}"
+          services_csv="${all_services_csv}"
+        else
+          # Convert comma-separated filter to array and filter JSON
+          services_json=$(echo "${all_services_json}" | jq -c --arg filter "${FILTER}" '
+            ($filter | split(",")) as $allowed |
+            map(select(. as $s | $allowed | index($s)))
+          ')
+          services_csv=$(echo "${services_json}" | jq -r '. | join(",")')
+        fi
+
+        # Count services
+        count=$(echo "${services_json}" | jq 'length')
+
+        echo "services=${services_json}" >> "$GITHUB_OUTPUT"
+        echo "services_csv=${services_csv}" >> "$GITHUB_OUTPUT"
+        echo "count=${count}" >> "$GITHUB_OUTPUT"
+
+        echo "Discovered ${count} service(s): ${services_csv}"
