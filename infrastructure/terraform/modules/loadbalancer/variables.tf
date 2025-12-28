@@ -39,8 +39,3 @@ variable "web_service_url" {
   description = "The URL of the web Cloud Run service (not used directly)"
   type        = string
 }
-
-variable "name_prefix" {
-  description = "Name prefix for resources (used to reference Cloud Run services)"
-  type        = string
-}
