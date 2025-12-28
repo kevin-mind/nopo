@@ -51,6 +51,7 @@ env:
 jobs:
   context:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       services: ${{ steps.services.outputs.services }}
       services_csv: ${{ steps.services.outputs.services_csv }}
@@ -95,6 +96,7 @@ jobs:
     name: Push ${{ matrix.service }} to Artifact Registry
     needs: [context]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       id-token: write
@@ -138,6 +140,7 @@ jobs:
     name: Deploy to ${{ inputs.environment }}
     needs: [context, push_images]
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     environment:
       name: ${{ inputs.environment }}
       url: https://${{ needs.context.outputs.subdomain_prefix && format('{0}.', needs.context.outputs.subdomain_prefix) || '' }}${{ vars.DOMAIN }}
@@ -172,6 +175,7 @@ jobs:
     name: Run database migrations
     needs: [context, deploy]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       id-token: write
@@ -234,6 +238,7 @@ jobs:
     name: Tag ${{ matrix.service }} for ${{ inputs.environment }}
     needs: [context, smoketest]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       id-token: write
