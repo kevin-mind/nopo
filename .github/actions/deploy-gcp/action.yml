@@ -176,53 +176,6 @@ runs:
         echo "services=${services}" >> "$GITHUB_OUTPUT"
         echo "static_bucket_name=${static_bucket_name}" >> "$GITHUB_OUTPUT"
 
-    - name: Build and upload static assets
-      if: steps.apply.outputs.static_bucket_name != ''
-      shell: bash
-      env:
-        STATIC_BUCKET: ${{ steps.apply.outputs.static_bucket_name }}
-      run: |
-        echo "Static bucket: ${STATIC_BUCKET}"
-        echo "Building and uploading static assets..."
-        
-        # Iterate through each service directory
-        for service_dir in apps/*/; do
-          service=$(basename "${service_dir}")
-          config_file="${service_dir}infrastructure.json"
-          
-          # Check if service has static_path configured
-          if [[ -f "${config_file}" ]]; then
-            static_path=$(jq -r '.static_path // empty' "${config_file}")
-            
-            if [[ -n "${static_path}" && "${static_path}" != "null" ]]; then
-              echo ""
-              echo "=== Processing ${service} ==="
-              build_dir="${service_dir}${static_path}"
-              
-              # Build static assets
-              echo "Building static assets for ${service}..."
-              pnpm --filter "@more/${service}" build || {
-                echo "Warning: Build failed for ${service}, skipping..."
-                continue
-              }
-              
-              # Upload to bucket
-              if [[ -d "${build_dir}" ]]; then
-                echo "Uploading ${build_dir} to gs://${STATIC_BUCKET}/${service}/"
-                gcloud storage cp -r "${build_dir}/*" "gs://${STATIC_BUCKET}/${service}/" \
-                  --cache-control="public, max-age=31536000, immutable" \
-                  --quiet
-                echo "✓ Static assets uploaded for ${service}"
-              else
-                echo "Warning: Build directory ${build_dir} not found for ${service}"
-              fi
-            fi
-          fi
-        done
-        
-        echo ""
-        echo "Static asset upload complete!"
-
     - name: Cleanup plan file
       shell: bash
       working-directory: ${{ inputs.working_directory }}/${{ inputs.environment }}

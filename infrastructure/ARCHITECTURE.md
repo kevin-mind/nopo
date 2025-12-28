@@ -755,7 +755,9 @@ gcloud run services update nopo-{env}-backend \
 │  │ 3. DEPLOY STAGING                                                               ││
 │  │    ├── Authenticate to GCP (Workload Identity)                                  ││
 │  │    ├── Push images to Artifact Registry                                         ││
-│  │    ├── Run Terraform (update Cloud Run services)                                ││
+│  │    ├── Prepare static bucket (targeted Terraform)                               ││
+│  │    ├── PARALLEL: ┬─ Deploy services (full Terraform apply)                      ││
+│  │    │             └─ Upload static assets (extract from images)                  ││
 │  │    ├── Run database migrations                                                  ││
 │  │    ├── Run smoke tests                                                          ││
 │  │    └── Tag images with "stage"                                                  ││
@@ -1006,8 +1008,14 @@ gcloud run services update nopo-{env}-backend \
 │  │  Request: /static/backend/assets/style.css                │  │
 │  │      ↓                                                    │  │
 │  │  Load Balancer routes /static/* → GCS Backend Bucket      │  │
-│  │      ↓                                                    │  │
-│  │  Cloud Storage: gs://bucket/<service>/assets/style.css    │  │
+│  │      ↓ (URL rewrite: strips /static/ prefix)              │  │
+│  │  Cloud Storage: gs://bucket/backend/assets/style.css      │  │
+│  │                                                           │  │
+│  │  Upload Process (during deployment):                      │  │
+│  │  • Files extracted from built Docker images               │  │
+│  │  • docker cp from /app/apps/<service>/<static_path>       │  │
+│  │  • Uploaded to gs://bucket/<service>/                     │  │
+│  │  • Runs in parallel with container deployment             │  │
 │  │                                                           │  │
 │  │  Configuration:                                           │  │
 │  │  • infrastructure.json: "static_path": "build"            │  │
