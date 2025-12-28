@@ -100,9 +100,39 @@ jobs:
       with:
         public_url: http://localhost
 
+  terraform:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: infrastructure/terraform
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+
+      - name: Validate modules
+        run: |
+          for dir in modules/*/; do
+            echo "=== Validating ${dir} ==="
+            terraform -chdir="${dir}" init -backend=false
+            terraform -chdir="${dir}" validate
+          done
+
+      - name: Validate root module
+        run: |
+          terraform init -backend=false
+          terraform validate
+
   checks:
     if: always()
-    needs: [context, build, test, smoketest]
+    needs: [context, build, test, smoketest, terraform]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
