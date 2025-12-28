@@ -69,14 +69,10 @@ resource "google_cloud_run_v2_service" "services" {
       }
 
       # Common environment variables
+      # Note: PORT is automatically set by Cloud Run based on the container port
       env {
         name  = "SERVICE_NAME"
         value = each.key
-      }
-
-      env {
-        name  = "PORT"
-        value = tostring(each.value.port)
       }
 
       env {
