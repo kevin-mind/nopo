@@ -12,8 +12,9 @@ resource "google_project_iam_member" "cloudsql_client" {
   member  = "serviceAccount:${google_service_account.cloudrun.email}"
 }
 
-# Grant Secret Manager access
+# Grant Secret Manager access for each secret
 resource "google_secret_manager_secret_iam_member" "db_password_access" {
+  count     = var.db_password_secret_id != "" ? 1 : 0
   project   = var.project_id
   secret_id = var.db_password_secret_id
   role      = "roles/secretmanager.secretAccessor"
@@ -21,55 +22,61 @@ resource "google_secret_manager_secret_iam_member" "db_password_access" {
 }
 
 resource "google_secret_manager_secret_iam_member" "django_secret_access" {
+  count     = var.django_secret_key_id != "" ? 1 : 0
   project   = var.project_id
   secret_id = var.django_secret_key_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.cloudrun.email}"
 }
 
-# Backend Cloud Run service
-resource "google_cloud_run_v2_service" "backend" {
+# Dynamic Cloud Run services based on var.services
+resource "google_cloud_run_v2_service" "services" {
+  for_each = var.services
+
   project  = var.project_id
-  name     = "${var.name_prefix}-backend"
+  name     = "${var.name_prefix}-${each.key}"
   location = var.region
 
   template {
     service_account = google_service_account.cloudrun.email
 
     scaling {
-      min_instance_count = var.min_instances
-      max_instance_count = var.max_instances
+      min_instance_count = each.value.min_instances
+      max_instance_count = each.value.max_instances
     }
 
-    vpc_access {
-      connector = var.vpc_connector_id
-      egress    = "PRIVATE_RANGES_ONLY"
+    dynamic "vpc_access" {
+      for_each = each.value.has_database && var.vpc_connector_id != "" ? [1] : []
+      content {
+        connector = var.vpc_connector_id
+        egress    = "PRIVATE_RANGES_ONLY"
+      }
     }
 
     containers {
-      image = var.backend_image
+      image = each.value.image
 
       resources {
         limits = {
-          cpu    = var.backend_cpu
-          memory = var.backend_memory
+          cpu    = each.value.cpu
+          memory = each.value.memory
         }
         cpu_idle = true
       }
 
       ports {
-        container_port = 3000
+        container_port = each.value.port
       }
 
-      # Environment variables
+      # Common environment variables
       env {
         name  = "SERVICE_NAME"
-        value = "backend"
+        value = each.key
       }
 
       env {
         name  = "PORT"
-        value = "3000"
+        value = tostring(each.value.port)
       }
 
       env {
@@ -77,57 +84,70 @@ resource "google_cloud_run_v2_service" "backend" {
         value = var.public_url
       }
 
-      env {
-        name  = "DB_HOST"
-        value = var.db_host
+      # Database environment variables (only for services with database access)
+      dynamic "env" {
+        for_each = each.value.has_database ? [1] : []
+        content {
+          name  = "DB_HOST"
+          value = var.db_host
+        }
       }
 
-      env {
-        name  = "DB_NAME"
-        value = var.db_name
+      dynamic "env" {
+        for_each = each.value.has_database ? [1] : []
+        content {
+          name  = "DB_NAME"
+          value = var.db_name
+        }
       }
 
-      env {
-        name  = "DB_USER"
-        value = var.db_user
+      dynamic "env" {
+        for_each = each.value.has_database ? [1] : []
+        content {
+          name  = "DB_USER"
+          value = var.db_user
+        }
       }
 
-      env {
-        name  = "DATABASE_URL"
-        value = "postgresql://${var.db_user}:$(DB_PASSWORD)@${var.db_host}:5432/${var.db_name}"
-      }
-
-      # Secret environment variables
-      env {
-        name = "DB_PASSWORD"
-        value_source {
-          secret_key_ref {
-            secret  = var.db_password_secret_id
-            version = "latest"
+      dynamic "env" {
+        for_each = each.value.has_database && var.db_password_secret_id != "" ? [1] : []
+        content {
+          name = "DB_PASSWORD"
+          value_source {
+            secret_key_ref {
+              secret  = var.db_password_secret_id
+              version = "latest"
+            }
           }
         }
       }
 
-      env {
-        name = "SECRET_KEY"
-        value_source {
-          secret_key_ref {
-            secret  = var.django_secret_key_id
-            version = "latest"
+      dynamic "env" {
+        for_each = each.value.has_database && var.django_secret_key_id != "" ? [1] : []
+        content {
+          name = "SECRET_KEY"
+          value_source {
+            secret_key_ref {
+              secret  = var.django_secret_key_id
+              version = "latest"
+            }
           }
         }
       }
 
-      # Cloud SQL connection
-      volume_mounts {
-        name       = "cloudsql"
-        mount_path = "/cloudsql"
+      # Cloud SQL connection (only for services with database access)
+      dynamic "volume_mounts" {
+        for_each = each.value.has_database && var.db_connection_name != "" ? [1] : []
+        content {
+          name       = "cloudsql"
+          mount_path = "/cloudsql"
+        }
       }
 
       startup_probe {
         http_get {
           path = "/__version__"
-          port = 3000
+          port = each.value.port
         }
         initial_delay_seconds = 10
         period_seconds        = 10
@@ -137,85 +157,20 @@ resource "google_cloud_run_v2_service" "backend" {
       liveness_probe {
         http_get {
           path = "/__version__"
-          port = 3000
+          port = each.value.port
         }
         period_seconds    = 30
         failure_threshold = 3
       }
     }
 
-    volumes {
-      name = "cloudsql"
-      cloud_sql_instance {
-        instances = [var.db_connection_name]
-      }
-    }
-  }
-
-  traffic {
-    percent = 100
-    type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
-  }
-
-  labels = var.labels
-}
-
-# Web Cloud Run service
-resource "google_cloud_run_v2_service" "web" {
-  project  = var.project_id
-  name     = "${var.name_prefix}-web"
-  location = var.region
-
-  template {
-    service_account = google_service_account.cloudrun.email
-
-    scaling {
-      min_instance_count = var.min_instances
-      max_instance_count = var.max_instances
-    }
-
-    containers {
-      image = var.web_image
-
-      resources {
-        limits = {
-          cpu    = var.web_cpu
-          memory = var.web_memory
+    dynamic "volumes" {
+      for_each = each.value.has_database && var.db_connection_name != "" ? [1] : []
+      content {
+        name = "cloudsql"
+        cloud_sql_instance {
+          instances = [var.db_connection_name]
         }
-        cpu_idle = true
-      }
-
-      ports {
-        container_port = 3000
-      }
-
-      env {
-        name  = "SERVICE_NAME"
-        value = "web"
-      }
-
-      env {
-        name  = "PORT"
-        value = "3000"
-      }
-
-      startup_probe {
-        http_get {
-          path = "/__version__"
-          port = 3000
-        }
-        initial_delay_seconds = 5
-        period_seconds        = 10
-        failure_threshold     = 3
-      }
-
-      liveness_probe {
-        http_get {
-          path = "/__version__"
-          port = 3000
-        }
-        period_seconds    = 30
-        failure_threshold = 3
       }
     }
   }
@@ -229,39 +184,38 @@ resource "google_cloud_run_v2_service" "web" {
 }
 
 # IAM policy to allow unauthenticated access (public)
-resource "google_cloud_run_v2_service_iam_member" "backend_invoker" {
-  project  = google_cloud_run_v2_service.backend.project
-  location = google_cloud_run_v2_service.backend.location
-  name     = google_cloud_run_v2_service.backend.name
+resource "google_cloud_run_v2_service_iam_member" "invokers" {
+  for_each = var.services
+
+  project  = google_cloud_run_v2_service.services[each.key].project
+  location = google_cloud_run_v2_service.services[each.key].location
+  name     = google_cloud_run_v2_service.services[each.key].name
   role     = "roles/run.invoker"
   member   = "allUsers"
 }
 
-resource "google_cloud_run_v2_service_iam_member" "web_invoker" {
-  project  = google_cloud_run_v2_service.web.project
-  location = google_cloud_run_v2_service.web.location
-  name     = google_cloud_run_v2_service.web.name
-  role     = "roles/run.invoker"
-  member   = "allUsers"
-}
+# Migration jobs for services that need them
+resource "google_cloud_run_v2_job" "migrations" {
+  for_each = { for k, v in var.services : k => v if v.run_migrations }
 
-# Migration job for running database migrations
-resource "google_cloud_run_v2_job" "migrate" {
   project  = var.project_id
-  name     = "${var.name_prefix}-backend-migrate"
+  name     = "${var.name_prefix}-${each.key}-migrate"
   location = var.region
 
   template {
     template {
       service_account = google_service_account.cloudrun.email
 
-      vpc_access {
-        connector = var.vpc_connector_id
-        egress    = "PRIVATE_RANGES_ONLY"
+      dynamic "vpc_access" {
+        for_each = var.vpc_connector_id != "" ? [1] : []
+        content {
+          connector = var.vpc_connector_id
+          egress    = "PRIVATE_RANGES_ONLY"
+        }
       }
 
       containers {
-        image = var.backend_image
+        image = each.value.image
 
         resources {
           limits = {
@@ -271,58 +225,79 @@ resource "google_cloud_run_v2_job" "migrate" {
         }
 
         # Override command to run migrations
-        command = ["pnpm", "run", "--filter=@more/backend", "migrate"]
+        command = ["pnpm", "run", "--filter=@more/${each.key}", "migrate"]
 
         env {
           name  = "SERVICE_NAME"
-          value = "backend"
+          value = each.key
         }
 
-        env {
-          name  = "DB_HOST"
-          value = var.db_host
+        dynamic "env" {
+          for_each = var.db_host != "" ? [1] : []
+          content {
+            name  = "DB_HOST"
+            value = var.db_host
+          }
         }
 
-        env {
-          name  = "DB_NAME"
-          value = var.db_name
+        dynamic "env" {
+          for_each = var.db_name != "" ? [1] : []
+          content {
+            name  = "DB_NAME"
+            value = var.db_name
+          }
         }
 
-        env {
-          name  = "DB_USER"
-          value = var.db_user
+        dynamic "env" {
+          for_each = var.db_user != "" ? [1] : []
+          content {
+            name  = "DB_USER"
+            value = var.db_user
+          }
         }
 
-        env {
-          name = "DB_PASSWORD"
-          value_source {
-            secret_key_ref {
-              secret  = var.db_password_secret_id
-              version = "latest"
+        dynamic "env" {
+          for_each = var.db_password_secret_id != "" ? [1] : []
+          content {
+            name = "DB_PASSWORD"
+            value_source {
+              secret_key_ref {
+                secret  = var.db_password_secret_id
+                version = "latest"
+              }
             }
           }
         }
 
-        env {
-          name = "SECRET_KEY"
-          value_source {
-            secret_key_ref {
-              secret  = var.django_secret_key_id
-              version = "latest"
+        dynamic "env" {
+          for_each = var.django_secret_key_id != "" ? [1] : []
+          content {
+            name = "SECRET_KEY"
+            value_source {
+              secret_key_ref {
+                secret  = var.django_secret_key_id
+                version = "latest"
+              }
             }
           }
         }
 
-        volume_mounts {
-          name       = "cloudsql"
-          mount_path = "/cloudsql"
+        dynamic "volume_mounts" {
+          for_each = var.db_connection_name != "" ? [1] : []
+          content {
+            name       = "cloudsql"
+            mount_path = "/cloudsql"
+          }
         }
       }
 
-      volumes {
-        name = "cloudsql"
-        cloud_sql_instance {
-          instances = [var.db_connection_name]
+      dynamic "volumes" {
+        for_each = var.db_connection_name != "" ? [1] : []
+        content {
+          name = "cloudsql"
+          cloud_sql_instance {
+            instances = [var.db_connection_name]
+          }
         }
       }
 

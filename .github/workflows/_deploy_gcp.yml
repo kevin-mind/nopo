@@ -170,7 +170,7 @@ jobs:
 
   run_migrations:
     name: Run database migrations
-    needs: [deploy]
+    needs: [context, deploy]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -187,20 +187,33 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Run migrations
+      - name: Run migrations for all services
         env:
           PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
           REGION: ${{ env.GCP_REGION }}
           ENVIRONMENT: ${{ inputs.environment }}
+          SERVICES: ${{ needs.context.outputs.services }}
         run: |
-          SERVICE_NAME="nopo-${ENVIRONMENT}-backend"
-
-          # Execute migration command in Cloud Run job
-          gcloud run jobs execute "${SERVICE_NAME}-migrate" \
-            --project="${PROJECT_ID}" \
-            --region="${REGION}" \
-            --wait \
-            || echo "Migration job may not exist yet, skipping..."
+          # Find services that need migrations
+          for service in $(echo "${SERVICES}" | jq -r '.[]'); do
+            config_file="apps/${service}/infrastructure.json"
+            
+            # Check if service has run_migrations: true
+            if [[ -f "${config_file}" ]]; then
+              run_migrations=$(jq -r '.run_migrations // false' "${config_file}")
+              
+              if [[ "${run_migrations}" == "true" ]]; then
+                echo "Running migrations for ${service}..."
+                JOB_NAME="nopo-${ENVIRONMENT}-${service}-migrate"
+                
+                gcloud run jobs execute "${JOB_NAME}" \
+                  --project="${PROJECT_ID}" \
+                  --region="${REGION}" \
+                  --wait \
+                  || echo "Migration job ${JOB_NAME} may not exist yet, skipping..."
+              fi
+            fi
+          done
 
   smoketest:
     name: Smoke test

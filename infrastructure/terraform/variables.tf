@@ -26,7 +26,7 @@ variable "domain" {
 }
 
 variable "subdomain_prefix" {
-  description = "Prefix for the subdomain (e.g., 'app' for app.example.com). Leave empty for apex domain."
+  description = "Prefix for the subdomain (e.g., 'stage' for stage.example.com). Leave empty for apex domain."
   type        = string
   default     = ""
 }
@@ -50,51 +50,34 @@ variable "db_user" {
   default     = "app"
 }
 
-# Cloud Run Configuration
+# Dynamic Services Configuration
+variable "services" {
+  description = "Map of services to deploy, keyed by service name"
+  type = map(object({
+    image          = string
+    cpu            = optional(string, "1")
+    memory         = optional(string, "512Mi")
+    port           = optional(number, 3000)
+    min_instances  = optional(number, 0)
+    max_instances  = optional(number, 10)
+    has_database   = optional(bool, false)
+    run_migrations = optional(bool, false)
+  }))
+  default = {}
+}
+
+# Backwards compatibility - individual image variables
+# These are used if services map is empty
 variable "backend_image" {
-  description = "The Docker image for the backend service"
+  description = "The Docker image for the backend service (legacy, use services instead)"
   type        = string
+  default     = ""
 }
 
 variable "web_image" {
-  description = "The Docker image for the web service"
+  description = "The Docker image for the web service (legacy, use services instead)"
   type        = string
-}
-
-variable "backend_cpu" {
-  description = "CPU allocation for backend (e.g., '1', '2')"
-  type        = string
-  default     = "1"
-}
-
-variable "backend_memory" {
-  description = "Memory allocation for backend (e.g., '512Mi', '1Gi')"
-  type        = string
-  default     = "512Mi"
-}
-
-variable "web_cpu" {
-  description = "CPU allocation for web (e.g., '1', '2')"
-  type        = string
-  default     = "1"
-}
-
-variable "web_memory" {
-  description = "Memory allocation for web (e.g., '512Mi', '1Gi')"
-  type        = string
-  default     = "512Mi"
-}
-
-variable "min_instances" {
-  description = "Minimum number of instances (0 for scale to zero)"
-  type        = number
-  default     = 0
-}
-
-variable "max_instances" {
-  description = "Maximum number of instances"
-  type        = number
-  default     = 10
+  default     = ""
 }
 
 # Labels

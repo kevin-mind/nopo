@@ -7,6 +7,37 @@ locals {
     managed_by  = "terraform"
     project     = "nopo"
   })
+
+  # Build services map - either from var.services or legacy individual variables
+  services = length(var.services) > 0 ? var.services : {
+    backend = {
+      image          = var.backend_image
+      cpu            = "1"
+      memory         = "512Mi"
+      port           = 3000
+      min_instances  = var.environment == "prod" ? 1 : 0
+      max_instances  = var.environment == "prod" ? 10 : 5
+      has_database   = true
+      run_migrations = true
+    }
+    web = {
+      image          = var.web_image
+      cpu            = "1"
+      memory         = "256Mi"
+      port           = 3000
+      min_instances  = var.environment == "prod" ? 1 : 0
+      max_instances  = var.environment == "prod" ? 10 : 5
+      has_database   = false
+      run_migrations = false
+    }
+  }
+
+  # Determine which services need database access (for load balancer routing)
+  db_services = [for k, v in local.services : k if v.has_database]
+
+  # Default service for load balancer (first non-db service, or first service)
+  non_db_services   = [for k, v in local.services : k if !v.has_database]
+  default_service   = length(local.non_db_services) > 0 ? local.non_db_services[0] : keys(local.services)[0]
 }
 
 # Enable required APIs
@@ -63,9 +94,10 @@ module "secrets" {
   depends_on = [google_project_service.services]
 }
 
-# Cloud SQL (PostgreSQL) database
+# Cloud SQL (PostgreSQL) database - only if any service needs it
 module "cloudsql" {
   source = "./modules/cloudsql"
+  count  = length(local.db_services) > 0 ? 1 : 0
 
   project_id         = var.project_id
   region             = var.region
@@ -86,7 +118,7 @@ module "cloudsql" {
   ]
 }
 
-# Cloud Run services
+# Cloud Run services (dynamic)
 module "cloudrun" {
   source = "./modules/cloudrun"
 
@@ -95,18 +127,11 @@ module "cloudrun" {
   name_prefix = local.name_prefix
   labels      = local.common_labels
 
-  backend_image  = var.backend_image
-  web_image      = var.web_image
-  backend_cpu    = var.backend_cpu
-  backend_memory = var.backend_memory
-  web_cpu        = var.web_cpu
-  web_memory     = var.web_memory
-  min_instances  = var.min_instances
-  max_instances  = var.max_instances
+  services = local.services
 
   vpc_connector_id      = module.networking.vpc_connector_id
-  db_connection_name    = module.cloudsql.connection_name
-  db_host               = module.cloudsql.private_ip
+  db_connection_name    = length(module.cloudsql) > 0 ? module.cloudsql[0].connection_name : ""
+  db_host               = length(module.cloudsql) > 0 ? module.cloudsql[0].private_ip : ""
   db_name               = var.db_name
   db_user               = var.db_user
   db_password_secret_id = module.secrets.db_password_secret_id
@@ -131,12 +156,13 @@ module "loadbalancer" {
   name_prefix = local.name_prefix
   labels      = local.common_labels
 
-  domain              = var.domain
-  subdomain_prefix    = var.subdomain_prefix
-  backend_service_url = module.cloudrun.backend_service_url
-  web_service_url     = module.cloudrun.web_service_url
+  domain           = var.domain
+  subdomain_prefix = var.subdomain_prefix
 
-  # name_prefix is already passed above and will be used to reference Cloud Run services
+  # Pass all service URLs for dynamic routing
+  services        = module.cloudrun.service_urls
+  default_service = local.default_service
+  db_services     = local.db_services
 
   depends_on = [
     google_project_service.services,

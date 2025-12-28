@@ -30,12 +30,19 @@ variable "subdomain_prefix" {
   default     = ""
 }
 
-variable "backend_service_url" {
-  description = "The URL of the backend Cloud Run service (not used directly)"
+# Dynamic services map
+variable "services" {
+  description = "Map of service names to their Cloud Run URLs"
+  type        = map(string)
+}
+
+variable "default_service" {
+  description = "The default service for unmatched paths (typically 'web')"
   type        = string
 }
 
-variable "web_service_url" {
-  description = "The URL of the web Cloud Run service (not used directly)"
-  type        = string
+variable "db_services" {
+  description = "List of service names that handle database/API routes"
+  type        = list(string)
+  default     = []
 }

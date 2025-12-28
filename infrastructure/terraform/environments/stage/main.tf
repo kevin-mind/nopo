@@ -25,17 +25,13 @@ module "infrastructure" {
   domain           = var.domain
   subdomain_prefix = var.subdomain_prefix
 
+  # Dynamic services (preferred) or legacy individual images
+  services      = var.services
   backend_image = var.backend_image
   web_image     = var.web_image
 
-  # Use smaller resources for staging
-  db_tier        = "db-f1-micro"
-  backend_cpu    = "1"
-  backend_memory = "512Mi"
-  web_cpu        = "1"
-  web_memory     = "256Mi"
-  min_instances  = 0
-  max_instances  = 5
+  # Staging uses smaller resources
+  db_tier = "db-f1-micro"
 
   labels = {
     environment = "stage"

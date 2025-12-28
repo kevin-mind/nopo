@@ -25,17 +25,13 @@ module "infrastructure" {
   domain           = var.domain
   subdomain_prefix = var.subdomain_prefix
 
+  # Dynamic services (preferred) or legacy individual images
+  services      = var.services
   backend_image = var.backend_image
   web_image     = var.web_image
 
-  # Production resources
-  db_tier        = "db-custom-1-3840" # 1 vCPU, 3.75 GB RAM
-  backend_cpu    = "1"
-  backend_memory = "1Gi"
-  web_cpu        = "1"
-  web_memory     = "512Mi"
-  min_instances  = 1
-  max_instances  = 10
+  # Production uses larger resources
+  db_tier = "db-custom-1-3840" # 1 vCPU, 3.75 GB RAM
 
   labels = {
     environment = "prod"

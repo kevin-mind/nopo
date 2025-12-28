@@ -37,6 +37,9 @@ outputs:
   public_url:
     description: The public URL
     value: ${{ steps.apply.outputs.public_url }}
+  services:
+    description: JSON object of deployed services
+    value: ${{ steps.apply.outputs.services }}
 
 runs:
   using: "composite"
@@ -47,33 +50,83 @@ runs:
         terraform_version: "1.7.0"
         terraform_wrapper: false
 
-    - name: Parse service images
-      id: parse_images
+    - name: Build services configuration
+      id: services_config
       shell: bash
       env:
         SERVICE_IMAGES: ${{ inputs.service_images }}
+        ENVIRONMENT: ${{ inputs.environment }}
       run: |
-        # Extract individual service images from the JSON object
-        # This converts {"backend":"img1","web":"img2"} to TF_VAR_backend_image=img1, etc.
+        # Build the Terraform services variable from discovered services and their images
+        # Input: {"backend":"registry/backend:tag","web":"registry/web:tag"}
+        # Output: Terraform-compatible services map
 
-        echo "Parsing service images: ${SERVICE_IMAGES}"
+        echo "Building services configuration..."
+        echo "Service images: ${SERVICE_IMAGES}"
 
-        # Extract backend image (if exists)
-        backend_image=$(echo "${SERVICE_IMAGES}" | jq -r '.backend // empty')
-        if [[ -n "${backend_image}" ]]; then
-          echo "backend_image=${backend_image}" >> "$GITHUB_OUTPUT"
-          echo "Backend image: ${backend_image}"
-        fi
+        # Read infrastructure.json from each service directory to get config
+        services_tf="{}"
 
-        # Extract web image (if exists)
-        web_image=$(echo "${SERVICE_IMAGES}" | jq -r '.web // empty')
-        if [[ -n "${web_image}" ]]; then
-          echo "web_image=${web_image}" >> "$GITHUB_OUTPUT"
-          echo "Web image: ${web_image}"
-        fi
+        for service in $(echo "${SERVICE_IMAGES}" | jq -r 'keys[]'); do
+          image=$(echo "${SERVICE_IMAGES}" | jq -r --arg s "$service" '.[$s]')
+          
+          # Default configuration
+          cpu="1"
+          memory="512Mi"
+          port="3000"
+          min_instances="0"
+          max_instances="10"
+          has_database="false"
+          run_migrations="false"
+          
+          # Check for service-specific config
+          config_file="apps/${service}/infrastructure.json"
+          if [[ -f "${config_file}" ]]; then
+            echo "Loading config from ${config_file}"
+            cpu=$(jq -r '.cpu // "1"' "${config_file}")
+            memory=$(jq -r '.memory // "512Mi"' "${config_file}")
+            port=$(jq -r '.port // 3000' "${config_file}")
+            min_instances=$(jq -r '.min_instances // 0' "${config_file}")
+            max_instances=$(jq -r '.max_instances // 10' "${config_file}")
+            has_database=$(jq -r '.has_database // false' "${config_file}")
+            run_migrations=$(jq -r '.run_migrations // false' "${config_file}")
+          fi
+          
+          # Adjust min_instances for production
+          if [[ "${ENVIRONMENT}" == "prod" && "${min_instances}" == "0" ]]; then
+            min_instances="1"
+          fi
+          
+          # Build service object
+          service_obj=$(jq -n \
+            --arg image "${image}" \
+            --arg cpu "${cpu}" \
+            --arg memory "${memory}" \
+            --argjson port "${port}" \
+            --argjson min "${min_instances}" \
+            --argjson max "${max_instances}" \
+            --argjson db "${has_database}" \
+            --argjson migrate "${run_migrations}" \
+            '{
+              image: $image,
+              cpu: $cpu,
+              memory: $memory,
+              port: $port,
+              min_instances: $min,
+              max_instances: $max,
+              has_database: $db,
+              run_migrations: $migrate
+            }')
+          
+          services_tf=$(echo "${services_tf}" | jq --arg k "${service}" --argjson v "${service_obj}" '. + {($k): $v}')
+        done
 
-        # For future extensibility, output all services
-        echo "all_images=${SERVICE_IMAGES}" >> "$GITHUB_OUTPUT"
+        echo "Services configuration:"
+        echo "${services_tf}" | jq .
+        
+        # Save to file for Terraform
+        echo "${services_tf}" > services.json
+        echo "services_json=${services_tf}" >> "$GITHUB_OUTPUT"
 
     - name: Terraform Init
       shell: bash
@@ -94,10 +147,10 @@ runs:
         TF_VAR_region: ${{ inputs.region }}
         TF_VAR_domain: ${{ inputs.domain }}
         TF_VAR_subdomain_prefix: ${{ inputs.subdomain_prefix }}
-        TF_VAR_backend_image: ${{ steps.parse_images.outputs.backend_image }}
-        TF_VAR_web_image: ${{ steps.parse_images.outputs.web_image }}
       run: |
-        terraform plan -input=false -out=tfplan
+        # Pass services as JSON variable
+        terraform plan -input=false -out=tfplan \
+          -var='services=${{ steps.services_config.outputs.services_json }}'
 
     - name: Terraform Apply
       id: apply
@@ -109,12 +162,14 @@ runs:
         # Extract outputs
         load_balancer_ip=$(terraform output -raw load_balancer_ip 2>/dev/null || echo "")
         public_url=$(terraform output -raw public_url 2>/dev/null || echo "")
+        services=$(terraform output -json services_summary 2>/dev/null || echo "{}")
 
         echo "load_balancer_ip=${load_balancer_ip}" >> "$GITHUB_OUTPUT"
         echo "public_url=${public_url}" >> "$GITHUB_OUTPUT"
+        echo "services=${services}" >> "$GITHUB_OUTPUT"
 
     - name: Cleanup plan file
       shell: bash
       working-directory: ${{ inputs.working_directory }}/${{ inputs.environment }}
       if: always()
-      run: rm -f tfplan
+      run: rm -f tfplan services.json

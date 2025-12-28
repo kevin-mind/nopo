@@ -8,55 +8,33 @@ resource "google_compute_global_address" "default" {
   name    = "${var.name_prefix}-lb-ip"
 }
 
-# Serverless NEG for backend service
-resource "google_compute_region_network_endpoint_group" "backend" {
+# Serverless NEGs for each service
+resource "google_compute_region_network_endpoint_group" "services" {
+  for_each = var.services
+
   project               = var.project_id
-  name                  = "${var.name_prefix}-backend-neg"
+  name                  = "${var.name_prefix}-${each.key}-neg"
   network_endpoint_type = "SERVERLESS"
   region                = var.region
 
   cloud_run {
-    service = "${var.name_prefix}-backend"
+    service = "${var.name_prefix}-${each.key}"
   }
 }
 
-# Serverless NEG for web service
-resource "google_compute_region_network_endpoint_group" "web" {
-  project               = var.project_id
-  name                  = "${var.name_prefix}-web-neg"
-  network_endpoint_type = "SERVERLESS"
-  region                = var.region
+# Backend services for each NEG
+resource "google_compute_backend_service" "services" {
+  for_each = var.services
 
-  cloud_run {
-    service = "${var.name_prefix}-web"
-  }
-}
-
-# Backend service for backend NEG
-resource "google_compute_backend_service" "backend" {
   project = var.project_id
-  name    = "${var.name_prefix}-backend-service"
+  name    = "${var.name_prefix}-${each.key}-backend"
 
   protocol    = "HTTP"
   port_name   = "http"
   timeout_sec = 30
 
   backend {
-    group = google_compute_region_network_endpoint_group.backend.id
-  }
-}
-
-# Backend service for web NEG
-resource "google_compute_backend_service" "web" {
-  project = var.project_id
-  name    = "${var.name_prefix}-web-service"
-
-  protocol    = "HTTP"
-  port_name   = "http"
-  timeout_sec = 30
-
-  backend {
-    group = google_compute_region_network_endpoint_group.web.id
+    group = google_compute_region_network_endpoint_group.services[each.key].id
   }
 }
 
@@ -65,7 +43,8 @@ resource "google_compute_url_map" "default" {
   project = var.project_id
   name    = "${var.name_prefix}-url-map"
 
-  default_service = google_compute_backend_service.web.id
+  # Default to the specified default service (usually "web")
+  default_service = google_compute_backend_service.services[var.default_service].id
 
   host_rule {
     hosts        = [local.fqdn]
@@ -74,27 +53,39 @@ resource "google_compute_url_map" "default" {
 
   path_matcher {
     name            = "main"
-    default_service = google_compute_backend_service.web.id
+    default_service = google_compute_backend_service.services[var.default_service].id
 
-    # Route /api, /admin, /django, /static to backend
-    path_rule {
-      paths   = ["/api", "/api/*"]
-      service = google_compute_backend_service.backend.id
+    # Route API paths to database-connected services (typically "backend")
+    dynamic "path_rule" {
+      for_each = var.db_services
+      content {
+        paths   = ["/api", "/api/*"]
+        service = google_compute_backend_service.services[path_rule.value].id
+      }
     }
 
-    path_rule {
-      paths   = ["/admin", "/admin/*"]
-      service = google_compute_backend_service.backend.id
+    dynamic "path_rule" {
+      for_each = var.db_services
+      content {
+        paths   = ["/admin", "/admin/*"]
+        service = google_compute_backend_service.services[path_rule.value].id
+      }
     }
 
-    path_rule {
-      paths   = ["/django", "/django/*"]
-      service = google_compute_backend_service.backend.id
+    dynamic "path_rule" {
+      for_each = var.db_services
+      content {
+        paths   = ["/django", "/django/*"]
+        service = google_compute_backend_service.services[path_rule.value].id
+      }
     }
 
-    path_rule {
-      paths   = ["/static", "/static/*"]
-      service = google_compute_backend_service.backend.id
+    dynamic "path_rule" {
+      for_each = var.db_services
+      content {
+        paths   = ["/static", "/static/*"]
+        service = google_compute_backend_service.services[path_rule.value].id
+      }
     }
   }
 }

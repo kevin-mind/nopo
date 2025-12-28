@@ -9,26 +9,37 @@ output "public_url" {
   value       = "https://${local.fqdn}"
 }
 
-# Cloud Run outputs
+# Cloud Run outputs (dynamic)
+output "service_urls" {
+  description = "Map of service names to their Cloud Run URLs"
+  value       = module.cloudrun.service_urls
+}
+
+output "service_names" {
+  description = "List of deployed service names"
+  value       = module.cloudrun.service_names
+}
+
+# Backwards compatibility
 output "backend_service_url" {
-  description = "The URL of the backend Cloud Run service"
+  description = "The URL of the backend Cloud Run service (if exists)"
   value       = module.cloudrun.backend_service_url
 }
 
 output "web_service_url" {
-  description = "The URL of the web Cloud Run service"
+  description = "The URL of the web Cloud Run service (if exists)"
   value       = module.cloudrun.web_service_url
 }
 
 # Database outputs
 output "db_connection_name" {
   description = "The Cloud SQL connection name"
-  value       = module.cloudsql.connection_name
+  value       = length(module.cloudsql) > 0 ? module.cloudsql[0].connection_name : ""
 }
 
 output "db_private_ip" {
   description = "The private IP of the Cloud SQL instance"
-  value       = module.cloudsql.private_ip
+  value       = length(module.cloudsql) > 0 ? module.cloudsql[0].private_ip : ""
 }
 
 # Artifact Registry outputs
@@ -56,4 +67,14 @@ output "dns_instructions" {
     
     SSL certificate will be automatically provisioned after DNS propagates.
   EOT
+}
+
+# Services summary
+output "services_summary" {
+  description = "Summary of deployed services"
+  value = {
+    total_services = length(module.cloudrun.service_names)
+    services       = module.cloudrun.service_names
+    urls           = module.cloudrun.service_urls
+  }
 }

@@ -19,85 +19,61 @@ variable "labels" {
   default     = {}
 }
 
-variable "backend_image" {
-  description = "The Docker image for the backend service"
-  type        = string
-}
-
-variable "web_image" {
-  description = "The Docker image for the web service"
-  type        = string
-}
-
-variable "backend_cpu" {
-  description = "CPU allocation for backend"
-  type        = string
-  default     = "1"
-}
-
-variable "backend_memory" {
-  description = "Memory allocation for backend"
-  type        = string
-  default     = "512Mi"
-}
-
-variable "web_cpu" {
-  description = "CPU allocation for web"
-  type        = string
-  default     = "1"
-}
-
-variable "web_memory" {
-  description = "Memory allocation for web"
-  type        = string
-  default     = "512Mi"
-}
-
-variable "min_instances" {
-  description = "Minimum number of instances"
-  type        = number
-  default     = 0
-}
-
-variable "max_instances" {
-  description = "Maximum number of instances"
-  type        = number
-  default     = 10
+# Dynamic services configuration
+variable "services" {
+  description = "Map of services to deploy"
+  type = map(object({
+    image          = string
+    cpu            = string
+    memory         = string
+    port           = number
+    min_instances  = number
+    max_instances  = number
+    has_database   = bool
+    run_migrations = bool
+  }))
 }
 
 variable "vpc_connector_id" {
   description = "The VPC connector ID"
   type        = string
+  default     = ""
 }
 
 variable "db_connection_name" {
   description = "The Cloud SQL connection name"
   type        = string
+  default     = ""
 }
 
 variable "db_host" {
   description = "The database host (private IP)"
   type        = string
+  default     = ""
 }
 
 variable "db_name" {
   description = "The database name"
   type        = string
+  default     = ""
 }
 
 variable "db_user" {
   description = "The database user"
   type        = string
+  default     = ""
 }
 
 variable "db_password_secret_id" {
   description = "The Secret Manager secret ID for database password"
   type        = string
+  default     = ""
 }
 
 variable "django_secret_key_id" {
   description = "The Secret Manager secret ID for Django secret key"
   type        = string
+  default     = ""
 }
 
 variable "public_url" {
