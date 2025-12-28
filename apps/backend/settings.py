@@ -92,7 +92,6 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -190,19 +189,10 @@ STATICFILES_DIRS = [
 # Where the collectstatic command will put the static files
 STATIC_ROOT = BUILD_DIR / "static"
 
-# When rendering a static file, the URL will start with this
-STATIC_URL = "/static/"
-
-# WhiteNoise settings for serving static files in production
-# Use compressed storage for better performance
-STORAGES = {
-    "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
-    },
-    "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
-    },
-}
+# Static file URL configuration
+# In production: STATIC_URL env var is set to CDN path (e.g., https://domain.com/static/backend/)
+# In development: Use local path
+STATIC_URL = os.environ.get("STATIC_URL", "/static/")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -234,13 +224,21 @@ SPECTACULAR_SETTINGS = {
     "SCHEMA_PATH_PREFIX": "/api/",
 }
 
+# Check if we're using CDN for static files (STATIC_URL is a full URL)
+_using_cdn_static = STATIC_URL.startswith("http")
+
 DJANGO_VITE = {
     "default": {
         "dev_mode": IS_DEV_MODE,
         "dev_server_protocol": SITE_SCHEME,
         "dev_server_host": SITE_HOST,
         "dev_server_port": SITE_PORT,
+        # In dev: prefix with "vite" for Vite dev server
+        # In prod with CDN: no prefix (assets are at CDN root)
+        # In prod without CDN: no prefix (served from /static/)
         "static_url_prefix": "vite" if IS_DEV_MODE else "",
         "manifest_path": VITE_MANIFEST,
+        # Use CDN URL for static files in production
+        "static_url": STATIC_URL if _using_cdn_static else None,
     }
 }

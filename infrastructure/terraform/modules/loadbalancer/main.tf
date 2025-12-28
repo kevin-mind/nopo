@@ -80,11 +80,20 @@ resource "google_compute_url_map" "default" {
       }
     }
 
-    # Route static files to bucket backend if configured, otherwise to db_services
-    dynamic "path_rule" {
+    # Route static files to bucket backend if configured
+    # URL: /static/backend/assets/style.css -> Bucket: /backend/assets/style.css
+    dynamic "route_rules" {
       for_each = var.static_backend_bucket_id != null ? [1] : []
       content {
-        paths   = ["/static", "/static/*"]
+        priority = 1
+        match_rules {
+          prefix_match = "/static/"
+        }
+        route_action {
+          url_rewrite {
+            path_prefix_rewrite = "/"
+          }
+        }
         service = var.static_backend_bucket_id
       }
     }

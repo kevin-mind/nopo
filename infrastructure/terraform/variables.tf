@@ -82,9 +82,9 @@ variable "web_image" {
 
 # Static Assets Configuration
 variable "enable_static_bucket" {
-  description = "Enable Cloud Storage bucket for static assets (served via CDN). When disabled, static files are served by the application."
+  description = "Enable Cloud Storage bucket for static assets (served via CDN)"
   type        = bool
-  default     = false
+  default     = true
 }
 
 # Labels

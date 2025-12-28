@@ -137,7 +137,8 @@ module "cloudrun" {
   db_password_secret_id = module.secrets.db_password_secret_id
   django_secret_key_id  = module.secrets.django_secret_key_id
 
-  public_url = "https://${local.fqdn}"
+  public_url      = "https://${local.fqdn}"
+  static_url_base = var.enable_static_bucket ? "https://${local.fqdn}/static" : ""
 
   depends_on = [
     google_project_service.services,

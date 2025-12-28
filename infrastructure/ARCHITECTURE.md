@@ -999,16 +999,20 @@ gcloud run services update nopo-{env}-backend \
 │  │  • Implement application-level caching                    │  │
 │  └───────────────────────────────────────────────────────────┘  │
 │                                                                 │
-│  Static File Serving:                                           │
+│  Static File Serving (Cloud-Native):                            │
 │  ┌───────────────────────────────────────────────────────────┐  │
-│  │  Default: WhiteNoise middleware serves static files       │  │
-│  │           from the Django container (simple, works)       │  │
+│  │  Static files are served from Cloud Storage + CDN:        │  │
 │  │                                                           │  │
-│  │  Optional: Cloud Storage + CDN (enable_static_bucket)     │  │
-│  │           Set enable_static_bucket = true in Terraform    │  │
-│  │           Upload assets: gcloud storage cp -r build/*     │  │
-│  │                         gs://bucket-name/static/          │  │
-│  │           Benefits: Global CDN, reduced app load          │  │
+│  │  Request: /static/backend/assets/style.css                │  │
+│  │      ↓                                                    │  │
+│  │  Load Balancer routes /static/* → GCS Backend Bucket      │  │
+│  │      ↓                                                    │  │
+│  │  Cloud Storage: gs://bucket/<service>/assets/style.css    │  │
+│  │                                                           │  │
+│  │  Configuration:                                           │  │
+│  │  • infrastructure.json: "static_path": "build"            │  │
+│  │  • Container env: STATIC_URL=https://domain.com/static/x  │  │
+│  │  • CDN enabled in production for global caching           │  │
 │  └───────────────────────────────────────────────────────────┘  │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
