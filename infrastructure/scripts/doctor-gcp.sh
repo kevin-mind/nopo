@@ -265,7 +265,7 @@ check_iam() {
         local required_roles=(
             "roles/run.admin"
             "roles/iam.serviceAccountUser"
-            "roles/artifactregistry.writer"
+            "roles/artifactregistry.admin"
             "roles/cloudsql.admin"
             "roles/secretmanager.admin"
             "roles/storage.admin"

@@ -383,16 +383,10 @@ gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
   --role="roles/iam.serviceAccountUser" \
   --condition=None
 
-# Artifact Registry Writer - push Docker images
+# Artifact Registry Admin - manage repositories and IAM policies
 gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
   --member="serviceAccount:${SA_EMAIL}" \
-  --role="roles/artifactregistry.writer" \
-  --condition=None
-
-# Artifact Registry Reader - pull Docker images
-gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
-  --member="serviceAccount:${SA_EMAIL}" \
-  --role="roles/artifactregistry.reader" \
+  --role="roles/artifactregistry.admin" \
   --condition=None
 
 # Cloud SQL Admin - manage database

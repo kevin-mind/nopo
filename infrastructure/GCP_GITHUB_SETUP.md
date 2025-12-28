@@ -58,7 +58,7 @@ gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
 # Artifact Registry Writer - to push images
 gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
   --member="serviceAccount:${SA_EMAIL}" \
-  --role="roles/artifactregistry.writer"
+  --role="roles/artifactregistry.admin"
 
 # Cloud SQL Admin - for database management
 gcloud projects add-iam-policy-binding "${PROJECT_ID}" \

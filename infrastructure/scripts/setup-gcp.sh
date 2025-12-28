@@ -257,8 +257,7 @@ create_service_account() {
     local roles=(
         "roles/run.admin"
         "roles/iam.serviceAccountUser"
-        "roles/artifactregistry.writer"
-        "roles/artifactregistry.reader"
+        "roles/artifactregistry.admin"
         "roles/cloudsql.admin"
         "roles/secretmanager.admin"
         "roles/storage.admin"
