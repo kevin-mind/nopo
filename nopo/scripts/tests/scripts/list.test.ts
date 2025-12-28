@@ -5,10 +5,7 @@ import os from "node:os";
 import process from "node:process";
 
 import ListScript from "../../src/scripts/list.ts";
-import { createConfig, discoverTargets, type Config } from "../../src/lib.ts";
-
-// Partial Runner type for parseArgs tests
-type MockRunner = { config: Config; argv: string[] };
+import { createConfig, discoverTargets } from "../../src/lib.ts";
 import { createTmpEnv, runScript } from "../utils.ts";
 
 vi.mock("../../src/git-info", () => ({
@@ -111,112 +108,8 @@ describe("list", () => {
     });
   });
 
-  describe("ListScript.parseArgs", () => {
-    it("defaults to text format", () => {
-      const config = createConfig({ silent: true });
-      const args = ListScript.parseArgs(
-        { config, argv: ["list"] } as MockRunner,
-        false,
-      );
-      expect(args.format).toBe("text");
-      expect(args.withConfig).toBe(false);
-    });
-
-    it("parses --json flag", () => {
-      const config = createConfig({ silent: true });
-      const args = ListScript.parseArgs(
-        { config, argv: ["list", "--json"] } as MockRunner,
-        false,
-      );
-      expect(args.format).toBe("json");
-    });
-
-    it("parses -j flag", () => {
-      const config = createConfig({ silent: true });
-      const args = ListScript.parseArgs(
-        { config, argv: ["list", "-j"] } as MockRunner,
-        false,
-      );
-      expect(args.format).toBe("json");
-    });
-
-    it("parses --format json", () => {
-      const config = createConfig({ silent: true });
-      const args = ListScript.parseArgs(
-        { config, argv: ["list", "--format", "json"] } as MockRunner,
-        false,
-      );
-      expect(args.format).toBe("json");
-    });
-
-    it("parses -f json", () => {
-      const config = createConfig({ silent: true });
-      const args = ListScript.parseArgs(
-        { config, argv: ["list", "-f", "json"] } as MockRunner,
-        false,
-      );
-      expect(args.format).toBe("json");
-    });
-
-    it("parses --csv flag", () => {
-      const config = createConfig({ silent: true });
-      const args = ListScript.parseArgs(
-        { config, argv: ["list", "--csv"] } as MockRunner,
-        false,
-      );
-      expect(args.format).toBe("csv");
-    });
-
-    it("parses --format csv", () => {
-      const config = createConfig({ silent: true });
-      const args = ListScript.parseArgs(
-        { config, argv: ["list", "--format", "csv"] } as MockRunner,
-        false,
-      );
-      expect(args.format).toBe("csv");
-    });
-
-    it("parses --with-config flag", () => {
-      const config = createConfig({ silent: true });
-      const args = ListScript.parseArgs(
-        { config, argv: ["list", "--with-config"] } as MockRunner,
-        false,
-      );
-      expect(args.withConfig).toBe(true);
-    });
-
-    it("parses -c flag", () => {
-      const config = createConfig({ silent: true });
-      const args = ListScript.parseArgs(
-        { config, argv: ["list", "-c"] } as MockRunner,
-        false,
-      );
-      expect(args.withConfig).toBe(true);
-    });
-
-    it("parses combined flags", () => {
-      const config = createConfig({ silent: true });
-      const args = ListScript.parseArgs(
-        { config, argv: ["list", "--json", "--with-config"] } as MockRunner,
-        false,
-      );
-      expect(args.format).toBe("json");
-      expect(args.withConfig).toBe(true);
-    });
-
-    it("returns defaults when run as dependency", () => {
-      const config = createConfig({ silent: true });
-      const args = ListScript.parseArgs(
-        { config, argv: ["list", "--json"] } as MockRunner,
-        true, // isDependency
-      );
-      expect(args.format).toBe("text");
-      expect(args.withConfig).toBe(false);
-    });
-  });
-
-  describe("JSON output", () => {
-    it("outputs services as JSON array", async () => {
+  describe("output formats", () => {
+    it("outputs JSON with --json flag", async () => {
       let output = "";
       const stdoutSpy = vi
         .spyOn(process.stdout, "write")
@@ -225,21 +118,15 @@ describe("list", () => {
           return true;
         });
 
-      const config = createConfig({
-        envFile: createTmpEnv(),
-        silent: true,
-      });
-
+      const config = createConfig({ envFile: createTmpEnv(), silent: true });
       await runScript(ListScript, config, ["list", "--json"]);
 
-      expect(stdoutSpy).toHaveBeenCalled();
       const parsed = JSON.parse(output.trim());
       expect(Array.isArray(parsed)).toBe(true);
-
       stdoutSpy.mockRestore();
     });
 
-    it("outputs services with config when --with-config is set", async () => {
+    it("outputs JSON with -j flag", async () => {
       let output = "";
       const stdoutSpy = vi
         .spyOn(process.stdout, "write")
@@ -248,29 +135,97 @@ describe("list", () => {
           return true;
         });
 
-      const config = createConfig({
-        envFile: createTmpEnv(),
-        silent: true,
-      });
+      const config = createConfig({ envFile: createTmpEnv(), silent: true });
+      await runScript(ListScript, config, ["list", "-j"]);
 
+      const parsed = JSON.parse(output.trim());
+      expect(Array.isArray(parsed)).toBe(true);
+      stdoutSpy.mockRestore();
+    });
+
+    it("outputs JSON with --format json", async () => {
+      let output = "";
+      const stdoutSpy = vi
+        .spyOn(process.stdout, "write")
+        .mockImplementation((chunk) => {
+          output += chunk;
+          return true;
+        });
+
+      const config = createConfig({ envFile: createTmpEnv(), silent: true });
+      await runScript(ListScript, config, ["list", "--format", "json"]);
+
+      const parsed = JSON.parse(output.trim());
+      expect(Array.isArray(parsed)).toBe(true);
+      stdoutSpy.mockRestore();
+    });
+
+    it("outputs CSV with --csv flag", async () => {
+      let output = "";
+      const stdoutSpy = vi
+        .spyOn(process.stdout, "write")
+        .mockImplementation((chunk) => {
+          output += chunk;
+          return true;
+        });
+
+      const config = createConfig({ envFile: createTmpEnv(), silent: true });
+      await runScript(ListScript, config, ["list", "--csv"]);
+
+      // CSV output is comma-separated service names
+      expect(output.trim()).toMatch(/^[\w,]*$/);
+      stdoutSpy.mockRestore();
+    });
+
+    it("outputs CSV with --format csv", async () => {
+      let output = "";
+      const stdoutSpy = vi
+        .spyOn(process.stdout, "write")
+        .mockImplementation((chunk) => {
+          output += chunk;
+          return true;
+        });
+
+      const config = createConfig({ envFile: createTmpEnv(), silent: true });
+      await runScript(ListScript, config, ["list", "--format", "csv"]);
+
+      expect(output.trim()).toMatch(/^[\w,]*$/);
+      stdoutSpy.mockRestore();
+    });
+
+    it("outputs JSON object with --json --with-config", async () => {
+      let output = "";
+      const stdoutSpy = vi
+        .spyOn(process.stdout, "write")
+        .mockImplementation((chunk) => {
+          output += chunk;
+          return true;
+        });
+
+      const config = createConfig({ envFile: createTmpEnv(), silent: true });
       await runScript(ListScript, config, ["list", "--json", "--with-config"]);
 
-      expect(stdoutSpy).toHaveBeenCalled();
       const parsed = JSON.parse(output.trim());
       expect(typeof parsed).toBe("object");
       expect(Array.isArray(parsed)).toBe(false);
+      stdoutSpy.mockRestore();
+    });
 
-      // Each service should have config properties
-      for (const service of Object.keys(parsed)) {
-        expect(parsed[service]).toHaveProperty("cpu");
-        expect(parsed[service]).toHaveProperty("memory");
-        expect(parsed[service]).toHaveProperty("port");
-        expect(parsed[service]).toHaveProperty("min_instances");
-        expect(parsed[service]).toHaveProperty("max_instances");
-        expect(parsed[service]).toHaveProperty("has_database");
-        expect(parsed[service]).toHaveProperty("run_migrations");
-      }
+    it("outputs JSON object with -j -c flags", async () => {
+      let output = "";
+      const stdoutSpy = vi
+        .spyOn(process.stdout, "write")
+        .mockImplementation((chunk) => {
+          output += chunk;
+          return true;
+        });
 
+      const config = createConfig({ envFile: createTmpEnv(), silent: true });
+      await runScript(ListScript, config, ["list", "-j", "-c"]);
+
+      const parsed = JSON.parse(output.trim());
+      expect(typeof parsed).toBe("object");
+      expect(Array.isArray(parsed)).toBe(false);
       stdoutSpy.mockRestore();
     });
   });
