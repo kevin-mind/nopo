@@ -224,21 +224,13 @@ SPECTACULAR_SETTINGS = {
     "SCHEMA_PATH_PREFIX": "/api/",
 }
 
-# Check if we're using CDN for static files (STATIC_URL is a full URL)
-_using_cdn_static = STATIC_URL.startswith("http")
-
 DJANGO_VITE = {
     "default": {
         "dev_mode": IS_DEV_MODE,
         "dev_server_protocol": SITE_SCHEME,
         "dev_server_host": SITE_HOST,
         "dev_server_port": SITE_PORT,
-        # In dev: prefix with "vite" for Vite dev server
-        # In prod with CDN: no prefix (assets are at CDN root)
-        # In prod without CDN: no prefix (served from /static/)
         "static_url_prefix": "vite" if IS_DEV_MODE else "",
         "manifest_path": VITE_MANIFEST,
-        # Use CDN URL for static files in production
-        "static_url": STATIC_URL if _using_cdn_static else None,
     }
 }

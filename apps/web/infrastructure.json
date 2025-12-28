@@ -6,5 +6,5 @@
   "max_instances": 10,
   "has_database": false,
   "run_migrations": false,
-  "static_path": null
+  "static_path": "build/client"
 }
