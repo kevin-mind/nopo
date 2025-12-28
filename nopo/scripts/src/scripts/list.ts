@@ -90,10 +90,10 @@ export default class ListScript extends Script<ListCliArgs> {
 
     // Calculate column widths based on content
     for (const service of services) {
-      const config = configs[service];
-      columns[0].width = Math.max(columns[0].width, service.length);
-      columns[1].width = Math.max(columns[1].width, config.cpu.length);
-      columns[2].width = Math.max(columns[2].width, config.memory.length);
+      const config = configs[service]!;
+      columns[0]!.width = Math.max(columns[0]!.width, service.length);
+      columns[1]!.width = Math.max(columns[1]!.width, config.cpu.length);
+      columns[2]!.width = Math.max(columns[2]!.width, config.memory.length);
     }
 
     // Print header
@@ -108,19 +108,19 @@ export default class ListScript extends Script<ListCliArgs> {
 
     // Print rows
     for (const service of services) {
-      const config = configs[service];
+      const config = configs[service]!;
       const row = [
-        chalk.yellow(service.padEnd(columns[0].width)),
-        config.cpu.padEnd(columns[1].width),
-        config.memory.padEnd(columns[2].width),
-        String(config.port).padEnd(columns[3].width),
-        String(config.min_instances).padEnd(columns[4].width),
-        String(config.max_instances).padEnd(columns[5].width),
+        chalk.yellow(service.padEnd(columns[0]!.width)),
+        config.cpu.padEnd(columns[1]!.width),
+        config.memory.padEnd(columns[2]!.width),
+        String(config.port).padEnd(columns[3]!.width),
+        String(config.min_instances).padEnd(columns[4]!.width),
+        String(config.max_instances).padEnd(columns[5]!.width),
         (config.has_database ? chalk.green("yes") : chalk.gray("no")).padEnd(
-          columns[6].width + 9,
+          columns[6]!.width + 9,
         ), // +9 for color codes
         (config.run_migrations ? chalk.green("yes") : chalk.gray("no")).padEnd(
-          columns[7].width + 9,
+          columns[7]!.width + 9,
         ),
       ];
       this.runner.logger.log(row.join("  "));
