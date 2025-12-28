@@ -2,7 +2,7 @@ import { Script, type Runner } from "../lib.ts";
 import process from "node:process";
 
 type ListCliArgs = {
-  format: "text" | "json";
+  format: "text" | "json" | "csv";
   withConfig: boolean;
 };
 
@@ -16,7 +16,7 @@ export default class ListScript extends Script<ListCliArgs> {
     }
 
     const argv = runner.argv.slice(1);
-    let format: "text" | "json" = "text";
+    let format: "text" | "json" | "csv" = "text";
     let withConfig = false;
 
     for (let i = 0; i < argv.length; i++) {
@@ -25,12 +25,16 @@ export default class ListScript extends Script<ListCliArgs> {
         const formatArg = argv[i + 1];
         if (formatArg === "json") {
           format = "json";
+        } else if (formatArg === "csv") {
+          format = "csv";
         } else if (formatArg === "text") {
           format = "text";
         }
         i++;
       } else if (arg === "--json" || arg === "-j") {
         format = "json";
+      } else if (arg === "--csv") {
+        format = "csv";
       } else if (arg === "--with-config" || arg === "-c") {
         withConfig = true;
       }
@@ -45,12 +49,12 @@ export default class ListScript extends Script<ListCliArgs> {
     if (args.format === "json") {
       if (args.withConfig) {
         const servicesWithConfig = await this.getServicesWithConfig(services);
-        // Write directly to stdout for clean output (no logging prefix)
         process.stdout.write(JSON.stringify(servicesWithConfig, null, 2) + "\n");
       } else {
-        // Write directly to stdout for clean output
         process.stdout.write(JSON.stringify(services) + "\n");
       }
+    } else if (args.format === "csv") {
+      process.stdout.write(services.join(",") + "\n");
     } else {
       if (services.length === 0) {
         this.runner.logger.log("No services found.");

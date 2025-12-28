@@ -155,6 +155,24 @@ describe("list", () => {
       expect(args.format).toBe("json");
     });
 
+    it("parses --csv flag", () => {
+      const config = createConfig({ silent: true });
+      const args = ListScript.parseArgs(
+        { config, argv: ["list", "--csv"] } as any,
+        false,
+      );
+      expect(args.format).toBe("csv");
+    });
+
+    it("parses --format csv", () => {
+      const config = createConfig({ silent: true });
+      const args = ListScript.parseArgs(
+        { config, argv: ["list", "--format", "csv"] } as any,
+        false,
+      );
+      expect(args.format).toBe("csv");
+    });
+
     it("parses --with-config flag", () => {
       const config = createConfig({ silent: true });
       const args = ListScript.parseArgs(

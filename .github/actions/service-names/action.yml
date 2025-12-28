@@ -21,17 +21,6 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - name: Setup Node
-      uses: actions/setup-node@v4
-      with:
-        node-version: "22"
-
-    - name: Install nopo dependencies
-      shell: bash
-      run: |
-        # Install only nopo scripts dependencies for fast discovery
-        cd nopo/scripts && npm install --prefer-offline --no-audit --ignore-scripts 2>/dev/null || npm install
-
     - name: Discover services
       id: discover
       shell: bash
@@ -39,27 +28,28 @@ runs:
         FILTER: ${{ inputs.filter }}
       run: |
         # Use nopo list to discover services
-        # This ensures consistency between CI and local development
+        # Assumes nopo CLI is available (setup-node action should be run before this)
         #
         # nopo list --json outputs: ["backend","web"]
+        # nopo list --csv outputs: backend,web
 
-        all_services_json=$(npx --yes tsx ./nopo/scripts/bin.ts list --json)
+        all_services_json=$(make list -- --json)
+        all_services_csv=$(make list -- --csv)
         
-        echo "All services: ${all_services_json}"
+        echo "All services: ${all_services_csv}"
 
         # Apply filter if not "*"
         if [[ "${FILTER}" == "*" ]]; then
           services_json="${all_services_json}"
+          services_csv="${all_services_csv}"
         else
           # Convert comma-separated filter to array and filter JSON
           services_json=$(echo "${all_services_json}" | jq -c --arg filter "${FILTER}" '
             ($filter | split(",")) as $allowed |
             map(select(. as $s | $allowed | index($s)))
           ')
+          services_csv=$(echo "${services_json}" | jq -r '. | join(",")')
         fi
-
-        # Convert to CSV
-        services_csv=$(echo "${services_json}" | jq -r '. | join(",")')
 
         # Count services
         count=$(echo "${services_json}" | jq 'length')
