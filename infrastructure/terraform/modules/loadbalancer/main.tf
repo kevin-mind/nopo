@@ -74,12 +74,16 @@ resource "google_compute_url_map" "default" {
     }
 
     # Route API paths to database-connected services (typically "backend")
+    # Each route needs both prefix match (for /path/*) and full path match (for /path)
     dynamic "route_rules" {
       for_each = var.static_backend_bucket_id != null ? var.db_services : []
       content {
         priority = 10
         match_rules {
           prefix_match = "/api/"
+        }
+        match_rules {
+          full_path_match = "/api"
         }
         service = google_compute_backend_service.services[route_rules.value].id
       }
@@ -92,6 +96,9 @@ resource "google_compute_url_map" "default" {
         match_rules {
           prefix_match = "/admin/"
         }
+        match_rules {
+          full_path_match = "/admin"
+        }
         service = google_compute_backend_service.services[route_rules.value].id
       }
     }
@@ -102,6 +109,9 @@ resource "google_compute_url_map" "default" {
         priority = 12
         match_rules {
           prefix_match = "/django/"
+        }
+        match_rules {
+          full_path_match = "/django"
         }
         service = google_compute_backend_service.services[route_rules.value].id
       }
