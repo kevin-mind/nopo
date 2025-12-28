@@ -147,6 +147,22 @@ module "cloudrun" {
   ]
 }
 
+# Static assets bucket (for serving CSS/JS via CDN)
+module "static_assets" {
+  source = "./modules/static-assets"
+  count  = var.enable_static_bucket ? 1 : 0
+
+  project_id  = var.project_id
+  region      = var.region
+  name_prefix = local.name_prefix
+  labels      = local.common_labels
+
+  cors_origins = ["https://${local.fqdn}"]
+  enable_cdn   = var.environment == "prod"
+
+  depends_on = [google_project_service.services]
+}
+
 # Load Balancer with SSL
 module "loadbalancer" {
   source = "./modules/loadbalancer"
@@ -164,8 +180,12 @@ module "loadbalancer" {
   default_service = local.default_service
   db_services     = local.db_services
 
+  # Route /static/* to bucket if enabled
+  static_backend_bucket_id = var.enable_static_bucket ? module.static_assets[0].backend_bucket_id : null
+
   depends_on = [
     google_project_service.services,
     module.cloudrun,
+    module.static_assets,
   ]
 }

@@ -80,8 +80,18 @@ resource "google_compute_url_map" "default" {
       }
     }
 
+    # Route static files to bucket backend if configured, otherwise to db_services
     dynamic "path_rule" {
-      for_each = var.db_services
+      for_each = var.static_backend_bucket_id != null ? [1] : []
+      content {
+        paths   = ["/static", "/static/*"]
+        service = var.static_backend_bucket_id
+      }
+    }
+
+    # Fallback: route static to db_services if no bucket configured
+    dynamic "path_rule" {
+      for_each = var.static_backend_bucket_id == null ? var.db_services : []
       content {
         paths   = ["/static", "/static/*"]
         service = google_compute_backend_service.services[path_rule.value].id

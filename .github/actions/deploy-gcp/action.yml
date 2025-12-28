@@ -40,6 +40,9 @@ outputs:
   services:
     description: JSON object of deployed services
     value: ${{ steps.apply.outputs.services }}
+  static_bucket_name:
+    description: The name of the static assets bucket
+    value: ${{ steps.apply.outputs.static_bucket_name }}
 
 runs:
   using: "composite"
@@ -166,10 +169,26 @@ runs:
         load_balancer_ip=$(terraform output -raw load_balancer_ip 2>/dev/null || echo "")
         public_url=$(terraform output -raw public_url 2>/dev/null || echo "")
         services=$(terraform output -json services_summary 2>/dev/null || echo "{}")
+        static_bucket_name=$(terraform output -raw static_bucket_name 2>/dev/null || echo "")
 
         echo "load_balancer_ip=${load_balancer_ip}" >> "$GITHUB_OUTPUT"
         echo "public_url=${public_url}" >> "$GITHUB_OUTPUT"
         echo "services=${services}" >> "$GITHUB_OUTPUT"
+        echo "static_bucket_name=${static_bucket_name}" >> "$GITHUB_OUTPUT"
+
+    - name: Upload static assets to bucket
+      if: steps.apply.outputs.static_bucket_name != ''
+      shell: bash
+      env:
+        STATIC_BUCKET: ${{ steps.apply.outputs.static_bucket_name }}
+      run: |
+        echo "Static bucket enabled: ${STATIC_BUCKET}"
+        echo "Note: Static asset upload requires building assets locally."
+        echo "For now, static files are served by the application using WhiteNoise."
+        echo ""
+        echo "To enable CDN-based static file serving:"
+        echo "1. Build static assets: pnpm --filter @more/backend build"
+        echo "2. Upload to bucket: gcloud storage cp -r apps/backend/build/* gs://${STATIC_BUCKET}/static/"
 
     - name: Cleanup plan file
       shell: bash
