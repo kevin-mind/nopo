@@ -58,6 +58,45 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Discover services
+        id: services
+        uses: ./.github/actions/service-names
+
+      - name: Generate docker-compose includes
+        env:
+          SERVICES: ${{ steps.services.outputs.services }}
+        run: |
+          # Generate dynamic includes for docker-compose.yml
+          echo "Discovered services: ${SERVICES}"
+          
+          # Create include list from discovered services
+          includes=""
+          for service in $(echo "${SERVICES}" | jq -r '.[]'); do
+            compose_file="./apps/${service}/docker-compose.yml"
+            if [[ -f "${compose_file}" ]]; then
+              includes="${includes}  - ${compose_file}\n"
+              echo "Found: ${compose_file}"
+            else
+              echo "Warning: ${compose_file} not found"
+            fi
+          done
+          
+          # Update docker-compose.yml with discovered services
+          # Create a new docker-compose.yml with dynamic includes
+          cat > docker-compose.override.yml << EOF
+          # Auto-generated service includes
+          include:
+          $(for service in $(echo "${SERVICES}" | jq -r '.[]'); do
+            compose_file="./apps/${service}/docker-compose.yml"
+            if [[ -f "${compose_file}" ]]; then
+              echo "  - ${compose_file}"
+            fi
+          done)
+          EOF
+          
+          echo "Generated docker-compose.override.yml:"
+          cat docker-compose.override.yml
+
       - uses: ./.github/actions/setup-node
 
       - name: Docker meta
