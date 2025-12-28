@@ -38,26 +38,27 @@ This document provides a detailed explanation of the Google Cloud Platform infra
 │  │  │ (Anycast)       │  │ Certificate     │  │                             │   │  │
 │  │  └─────────────────┘  └─────────────────┘  │  /api/*    → Backend NEG    │   │  │
 │  │                                            │  /admin/*  → Backend NEG    │   │  │
-│  │                                            │  /static/* → Backend NEG    │   │  │
+│  │                                            │  /django/* → Backend NEG    │   │  │
+│  │                                            │  /static/* → GCS Bucket     │   │  │
 │  │                                            │  /*        → Web NEG        │   │  │
 │  │                                            └─────────────────────────────┘   │  │
 │  └───────────────────────────────────────────────────────────────────────────────┘  │
 │                                      │                                               │
-│                    ┌─────────────────┴─────────────────┐                            │
-│                    ▼                                   ▼                            │
-│  ┌─────────────────────────────────┐ ┌─────────────────────────────────┐           │
-│  │      CLOUD RUN (Backend)        │ │       CLOUD RUN (Web)           │           │
-│  │  ┌───────────────────────────┐  │ │  ┌───────────────────────────┐  │           │
-│  │  │ Django + DRF              │  │ │  │ React Router (SSR)        │  │           │
-│  │  │ Gunicorn                  │  │ │  │ Node.js                   │  │           │
-│  │  │ Port 3000                 │  │ │  │ Port 3000                 │  │           │
-│  │  └───────────────────────────┘  │ │  └───────────────────────────┘  │           │
-│  │  • Auto-scaling (0-10)          │ │  • Auto-scaling (0-10)          │           │
-│  │  • 1 vCPU, 512Mi-1Gi RAM        │ │  • 1 vCPU, 256Mi-512Mi RAM      │           │
-│  └──────────────┬──────────────────┘ └─────────────────────────────────┘           │
-│                 │                                                                   │
-│                 │ VPC Connector                                                     │
-│                 ▼                                                                   │
+│                    ┌─────────────────┼─────────────────┐                            │
+│                    ▼                 ▼                 ▼                            │
+│  ┌──────────────────────────┐ ┌──────────────────────────┐ ┌──────────────────────┐│
+│  │   CLOUD RUN (Backend)    │ │    CLOUD RUN (Web)       │ │ CLOUD STORAGE (GCS)  ││
+│  │  ┌────────────────────┐  │ │  ┌────────────────────┐  │ │ ┌──────────────────┐ ││
+│  │  │ Django + DRF       │  │ │  │ React Router (SSR) │  │ │ │ Static Assets    │ ││
+│  │  │ Gunicorn           │  │ │  │ Node.js            │  │ │ │ /backend/*       │ ││
+│  │  │ Port 3000          │  │ │  │ Port 3000          │  │ │ │ /web/*           │ ││
+│  │  └────────────────────┘  │ │  └────────────────────┘  │ │ │ (CDN enabled)    │ ││
+│  │  • Auto-scaling (0-10)   │ │  • Auto-scaling (0-10)   │ │ └──────────────────┘ ││
+│  │  • 1 vCPU, 512Mi-1Gi     │ │  • 1 vCPU, 256Mi-512Mi   │ │ • Public read access ││
+│  └───────────┬──────────────┘ └──────────────────────────┘ │ • 1-year cache       ││
+│              │                                              └──────────────────────┘│
+│              │ VPC Connector                                                        │
+│              ▼                                                                      │
 │  ┌─────────────────────────────────────────────────────────────────────────────┐   │
 │  │                           VPC NETWORK                                        │   │
 │  │  ┌─────────────────────┐  ┌─────────────────────┐  ┌─────────────────────┐  │   │
@@ -96,10 +97,110 @@ This document provides a detailed explanation of the Google Cloud Platform infra
 | SSL Certificate | [Managed SSL](https://cloud.google.com/load-balancing/docs/ssl-certificates/google-managed-certs) | Automatic certificate provisioning |
 | Backend Service | [Cloud Run](https://cloud.google.com/run/docs) | Django REST API |
 | Web Service | [Cloud Run](https://cloud.google.com/run/docs) | React Router frontend |
+| Static Assets | [Cloud Storage](https://cloud.google.com/storage/docs) + [Cloud CDN](https://cloud.google.com/cdn/docs) | CSS, JS, images with global caching |
 | Database | [Cloud SQL](https://cloud.google.com/sql/docs/postgres) | PostgreSQL 16 |
 | Networking | [VPC](https://cloud.google.com/vpc/docs) | Private network connectivity |
 | Secrets | [Secret Manager](https://cloud.google.com/secret-manager/docs) | Secure credential storage |
 | Container Registry | [Artifact Registry](https://cloud.google.com/artifact-registry/docs) | Docker image storage |
+
+### Static Assets: Local vs Production
+
+The `/static/*` path is handled differently in local development vs production,
+but both use the same URL pattern from the application's perspective.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                        STATIC FILE SERVING COMPARISON                                │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                      │
+│  LOCAL DEVELOPMENT (nopo up)                                                         │
+│  ┌────────────────────────────────────────────────────────────────────────────────┐ │
+│  │                                                                                │ │
+│  │  Browser                                                                       │ │
+│  │     │                                                                          │ │
+│  │     │ GET /static/assets/style.css                                             │ │
+│  │     ▼                                                                          │ │
+│  │  ┌─────────────────────────────────┐                                           │ │
+│  │  │         Nginx (Docker)          │  ← nopo/nginx/apps.conf.template          │ │
+│  │  │                                 │  ← nopo/nginx/apps.local.template         │ │
+│  │  │  location /static/ {            │                                           │ │
+│  │  │    alias /app/apps/backend/     │                                           │ │
+│  │  │          build/;                │  ← Serves from local filesystem           │ │
+│  │  │  }                              │                                           │ │
+│  │  │                                 │                                           │ │
+│  │  │  location /static/vite {        │                                           │ │
+│  │  │    proxy_pass → Vite dev server │  ← Hot reloading in dev mode              │ │
+│  │  │  }                              │                                           │ │
+│  │  └─────────────────────────────────┘                                           │ │
+│  │                                                                                │ │
+│  │  Environment:                                                                  │ │
+│  │    STATIC_URL = /static/  (default, relative path)                             │ │
+│  │                                                                                │ │
+│  └────────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                      │
+│  PRODUCTION (GCP)                                                                    │
+│  ┌────────────────────────────────────────────────────────────────────────────────┐ │
+│  │                                                                                │ │
+│  │  Browser                                                                       │ │
+│  │     │                                                                          │ │
+│  │     │ GET /static/backend/assets/style.css                                     │ │
+│  │     ▼                                                                          │ │
+│  │  ┌─────────────────────────────────┐                                           │ │
+│  │  │     GCP Load Balancer           │  ← URL Map with path routing              │ │
+│  │  │                                 │                                           │ │
+│  │  │  /static/* → GCS Backend Bucket │  ← URL rewrite: strips /static/ prefix    │ │
+│  │  │                                 │                                           │ │
+│  │  └───────────────┬─────────────────┘                                           │ │
+│  │                  │                                                             │ │
+│  │                  ▼                                                             │ │
+│  │  ┌─────────────────────────────────┐                                           │ │
+│  │  │    Cloud Storage Bucket         │  gs://nopo-{env}-static/                  │ │
+│  │  │                                 │                                           │ │
+│  │  │    /backend/assets/style.css    │  ← Files organized by service             │ │
+│  │  │    /backend/assets/main.js      │                                           │ │
+│  │  │    /web/...                     │                                           │ │
+│  │  │                                 │                                           │ │
+│  │  │    + Cloud CDN (prod only)      │  ← Global edge caching                    │ │
+│  │  └─────────────────────────────────┘                                           │ │
+│  │                                                                                │ │
+│  │  Environment:                                                                  │ │
+│  │    STATIC_URL = https://domain.com/static/backend/  (full URL)                 │ │
+│  │                                                                                │ │
+│  └────────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                      │
+│  KEY DIFFERENCES:                                                                    │
+│  ┌────────────────────────────────────────────────────────────────────────────────┐ │
+│  │                                                                                │ │
+│  │  Feature          │ Local (nginx)              │ Production (GCP)              │ │
+│  │  ─────────────────┼────────────────────────────┼─────────────────────────────  │ │
+│  │  Routing          │ nginx location blocks      │ Load Balancer URL Map         │ │
+│  │  File source      │ Local filesystem (volume)  │ GCS bucket                    │ │
+│  │  Hot reload       │ Vite dev server proxy      │ N/A (immutable assets)        │ │
+│  │  Caching          │ None (dev)                 │ Cloud CDN (1 year)            │ │
+│  │  URL pattern      │ /static/*                  │ /static/<service>/*           │ │
+│  │  STATIC_URL env   │ /static/ (relative)        │ https://domain/static/svc/    │ │
+│  │                                                                                │ │
+│  └────────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                      │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Why Different Approaches?**
+
+| Aspect | Local (nginx) | Production (GCS) |
+|--------|---------------|------------------|
+| **Hot reloading** | ✅ Essential for DX | N/A |
+| **File changes** | Instant via volume mount | Requires deployment |
+| **CDN caching** | Not needed | Critical for performance |
+| **Cost** | Free (local) | Pay per request/storage |
+| **Setup complexity** | Simple nginx config | Terraform module + LB routing |
+
+**Configuration Files:**
+
+- **Local nginx**: `nopo/nginx/apps.conf.template` (main routing) + `nopo/nginx/apps.local.template` (static override)
+- **Production routing**: `infrastructure/terraform/modules/loadbalancer/main.tf` (URL map)
+- **Static bucket**: `infrastructure/terraform/modules/static-assets/main.tf`
+- **Django config**: `apps/backend/settings.py` (`STATIC_URL` environment variable)
 
 ---
 
