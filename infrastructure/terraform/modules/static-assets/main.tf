@@ -55,11 +55,11 @@ resource "google_compute_backend_bucket" "static" {
     for_each = var.enable_cdn ? [1] : []
     content {
       cache_mode        = "CACHE_ALL_STATIC"
-      default_ttl       = 3600   # 1 hour
-      max_ttl           = 86400  # 24 hours
-      client_ttl        = 3600   # 1 hour
+      default_ttl       = 3600  # 1 hour
+      max_ttl           = 86400 # 24 hours
+      client_ttl        = 3600  # 1 hour
       negative_caching  = true
-      serve_while_stale = 86400  # Serve stale content for up to 24 hours
+      serve_while_stale = 86400 # Serve stale content for up to 24 hours
     }
   }
 }
