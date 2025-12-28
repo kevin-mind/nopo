@@ -126,7 +126,10 @@ runs:
         
         # Save to file for Terraform
         echo "${services_tf}" > services.json
-        echo "services_json=${services_tf}" >> "$GITHUB_OUTPUT"
+        
+        # Output as compact JSON (single line) for GitHub Actions
+        services_compact=$(echo "${services_tf}" | jq -c .)
+        echo "services_json=${services_compact}" >> "$GITHUB_OUTPUT"
 
     - name: Terraform Init
       shell: bash
