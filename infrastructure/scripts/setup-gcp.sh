@@ -301,12 +301,30 @@ setup_workload_identity() {
         --location="global" \
         --format="value(name)")
     
-    # Create OIDC provider
+    # Create or update OIDC provider
     if gcloud iam workload-identity-pools providers describe "github-provider" \
         --location="global" \
         --workload-identity-pool="github" \
         --project="$PROJECT_ID" &>/dev/null; then
         log_substep "OIDC provider 'github-provider' already exists"
+        
+        # Check if attribute-condition needs updating
+        local current_condition=$(gcloud iam workload-identity-pools providers describe "github-provider" \
+            --location="global" \
+            --workload-identity-pool="github" \
+            --project="$PROJECT_ID" \
+            --format="value(attributeCondition)" 2>/dev/null)
+        
+        local expected_condition="assertion.repository_owner == '${GITHUB_ORG}'"
+        
+        if [[ "$current_condition" != "$expected_condition" ]]; then
+            log_substep "Updating OIDC provider attribute-condition..."
+            gcloud iam workload-identity-pools providers update-oidc "github-provider" \
+                --project="$PROJECT_ID" \
+                --location="global" \
+                --workload-identity-pool="github" \
+                --attribute-condition="assertion.repository_owner == '${GITHUB_ORG}'"
+        fi
     else
         log_substep "Creating OIDC provider..."
         gcloud iam workload-identity-pools providers create-oidc "github-provider" \
