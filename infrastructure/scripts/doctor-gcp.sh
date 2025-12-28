@@ -15,7 +15,8 @@
 #   -h, --help                 Show this help message
 #
 
-set -euo pipefail
+# Don't use set -e as we want the script to continue even if individual checks fail
+set -uo pipefail
 
 # Colors
 RED='\033[0;31m'
@@ -339,11 +340,12 @@ check_artifact_registry() {
     if gcloud artifacts repositories describe "nopo" --location="$REGION" --project="$PROJECT_ID" &>/dev/null; then
         log_pass "Repository 'nopo' exists in ${REGION}"
         
-        # Check for images
-        local images=$(gcloud artifacts docker images list "${REGION}-docker.pkg.dev/${PROJECT_ID}/nopo" --format="value(package)" 2>/dev/null | head -5)
+        # Check for images (command may fail if repo is empty, that's okay)
+        local images=""
+        images=$(gcloud artifacts docker images list "${REGION}-docker.pkg.dev/${PROJECT_ID}/nopo" --format="value(package)" 2>/dev/null | head -5) || true
         
         if [[ -n "$images" ]]; then
-            local count=$(echo "$images" | wc -l)
+            local count=$(echo "$images" | wc -l | tr -d ' ')
             log_pass "Found ${count} image(s)"
             log_detail "Images: $(echo $images | tr '\n' ', ')"
         else
@@ -914,6 +916,14 @@ print_summary() {
     return $FAILED
 }
 
+# Run a check function safely, catching any errors
+run_check() {
+    local check_name="$1"
+    if ! "$check_name" 2>&1; then
+        log_fail "Check '$check_name' encountered an error"
+    fi
+}
+
 # Main
 main() {
     parse_args "$@"
@@ -930,20 +940,23 @@ main() {
         echo -e "  Domain:      ${CYAN}${DOMAIN}${NC}"
     fi
     
+    # Prerequisites and project are required - exit if they fail
     check_prerequisites || exit 1
     check_project || exit 1
-    check_apis
-    check_iam
-    check_workload_identity
-    check_artifact_registry
-    check_terraform_state
-    check_networking
-    check_secrets
-    check_cloud_sql
-    check_cloud_run
-    check_load_balancer
-    check_dns
-    check_github
+    
+    # All other checks should continue even if one fails
+    run_check check_apis
+    run_check check_iam
+    run_check check_workload_identity
+    run_check check_artifact_registry
+    run_check check_terraform_state
+    run_check check_networking
+    run_check check_secrets
+    run_check check_cloud_sql
+    run_check check_cloud_run
+    run_check check_load_balancer
+    run_check check_dns
+    run_check check_github
     
     print_summary
 }
