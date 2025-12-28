@@ -2,10 +2,6 @@ name: Service Names
 description: Discover service names from the apps directory (services with Dockerfiles)
 
 inputs:
-  apps_directory:
-    description: The directory containing app subdirectories
-    required: false
-    default: "apps"
   filter:
     description: Filter to specific service(s), comma-separated or "*" for all
     required: false
@@ -25,57 +21,51 @@ outputs:
 runs:
   using: "composite"
   steps:
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: "22"
+
+    - name: Install nopo dependencies
+      shell: bash
+      run: |
+        # Install only nopo scripts dependencies for fast discovery
+        cd nopo/scripts && npm install --prefer-offline --no-audit --ignore-scripts 2>/dev/null || npm install
+
     - name: Discover services
       id: discover
       shell: bash
       env:
-        APPS_DIR: ${{ inputs.apps_directory }}
         FILTER: ${{ inputs.filter }}
       run: |
-        # Discover services by finding directories in apps/ that contain a Dockerfile
-        # This makes the service list dynamic based on the repository structure.
+        # Use nopo list to discover services
+        # This ensures consistency between CI and local development
         #
-        # Examples:
-        #   apps/backend/Dockerfile -> "backend"
-        #   apps/web/Dockerfile -> "web"
-        #   apps/api/Dockerfile -> "api"
-        #
-        # Output: JSON array like ["backend","web"]
+        # nopo list --json outputs: ["backend","web"]
 
-        if [[ ! -d "${APPS_DIR}" ]]; then
-          echo "Error: Apps directory '${APPS_DIR}' not found"
-          exit 1
-        fi
-
-        # Find all services (directories with Dockerfiles)
-        all_services=$(
-          find "${APPS_DIR}" -maxdepth 2 -name "Dockerfile" -type f \
-            | xargs -n 1 dirname \
-            | xargs -n 1 basename \
-            | sort -u
-        )
+        all_services_json=$(npx --yes tsx ./nopo/scripts/bin.ts list --json)
+        
+        echo "All services: ${all_services_json}"
 
         # Apply filter if not "*"
         if [[ "${FILTER}" == "*" ]]; then
-          filtered_services="${all_services}"
+          services_json="${all_services_json}"
         else
-          # Convert comma-separated filter to grep pattern
-          pattern=$(echo "${FILTER}" | tr ',' '|')
-          filtered_services=$(echo "${all_services}" | grep -E "^(${pattern})$" || true)
+          # Convert comma-separated filter to array and filter JSON
+          services_json=$(echo "${all_services_json}" | jq -c --arg filter "${FILTER}" '
+            ($filter | split(",")) as $allowed |
+            map(select(. as $s | $allowed | index($s)))
+          ')
         fi
 
-        # Convert to JSON array
-        services_json=$(echo "${filtered_services}" | jq -R . | jq -s -c .)
-
         # Convert to CSV
-        services_csv=$(echo "${filtered_services}" | tr '\n' ',' | sed 's/,$//')
+        services_csv=$(echo "${services_json}" | jq -r '. | join(",")')
 
         # Count services
-        count=$(echo "${filtered_services}" | grep -c . || echo "0")
+        count=$(echo "${services_json}" | jq 'length')
 
         echo "services=${services_json}" >> "$GITHUB_OUTPUT"
         echo "services_csv=${services_csv}" >> "$GITHUB_OUTPUT"
         echo "count=${count}" >> "$GITHUB_OUTPUT"
 
         echo "Discovered ${count} service(s): ${services_csv}"
-        cat "$GITHUB_OUTPUT"
