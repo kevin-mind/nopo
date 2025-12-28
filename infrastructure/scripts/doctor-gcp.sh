@@ -607,6 +607,7 @@ check_load_balancer() {
     
     if [[ -n "$ip_addr" ]]; then
         log_pass "Static IP: ${ip_addr}"
+        LB_IP="$ip_addr"  # Save for later checks
     else
         log_warn "Static IP not found"
         log_info "Load balancer will be created by Terraform"
@@ -619,8 +620,69 @@ check_load_balancer() {
     local url_map="${NAME_PREFIX}-url-map"
     if gcloud compute url-maps describe "$url_map" --project="$PROJECT_ID" &>/dev/null; then
         log_pass "URL map exists"
+        
+        # Get default service from URL map
+        local default_svc=$(gcloud compute url-maps describe "$url_map" --project="$PROJECT_ID" --format="value(defaultService)" 2>/dev/null | awk -F'/' '{print $NF}')
+        log_detail "Default service: ${default_svc}"
     else
         log_warn "URL map not found"
+    fi
+    
+    # Check backend services and their health
+    log_check "Checking backend services health"
+    
+    local backend_services=$(gcloud compute backend-services list --project="$PROJECT_ID" --global --format="value(name)" 2>/dev/null | grep "^${NAME_PREFIX}-" || true)
+    
+    if [[ -n "$backend_services" ]]; then
+        for backend in $backend_services; do
+            local backend_name="${backend#${NAME_PREFIX}-}"
+            backend_name="${backend_name%-backend}"
+            
+            # Get health status
+            local health_output=$(gcloud compute backend-services get-health "$backend" --project="$PROJECT_ID" --global --format=json 2>/dev/null || echo "[]")
+            local health_status=$(echo "$health_output" | jq -r '.[0].status.healthStatus[0].healthState // "UNKNOWN"' 2>/dev/null || echo "UNKNOWN")
+            
+            case "$health_status" in
+                HEALTHY)
+                    log_pass "Backend '${backend_name}': HEALTHY"
+                    ;;
+                UNHEALTHY)
+                    log_fail "Backend '${backend_name}': UNHEALTHY"
+                    log_fix "Check Cloud Run service logs and ensure it's responding"
+                    ;;
+                UNKNOWN|"")
+                    # For serverless NEGs, health might show differently
+                    local neg_count=$(echo "$health_output" | jq -r 'length' 2>/dev/null || echo "0")
+                    if [[ "$neg_count" == "0" ]]; then
+                        log_warn "Backend '${backend_name}': No health data (serverless NEG)"
+                        log_detail "Serverless NEGs don't have traditional health checks"
+                    else
+                        log_warn "Backend '${backend_name}': ${health_status}"
+                    fi
+                    ;;
+                *)
+                    log_warn "Backend '${backend_name}': ${health_status}"
+                    ;;
+            esac
+        done
+    else
+        log_warn "No backend services found"
+    fi
+    
+    # Check target HTTPS proxy
+    log_check "Checking target HTTPS proxy"
+    
+    local https_proxy="${NAME_PREFIX}-https-proxy"
+    local proxy_info=$(gcloud compute target-https-proxies describe "$https_proxy" --project="$PROJECT_ID" --format=json 2>/dev/null || echo "")
+    
+    if [[ -n "$proxy_info" ]]; then
+        log_pass "HTTPS proxy exists"
+        local proxy_cert=$(echo "$proxy_info" | jq -r '.sslCertificates[0] // "none"' | awk -F'/' '{print $NF}')
+        log_detail "SSL certificate: ${proxy_cert}"
+        local proxy_url_map=$(echo "$proxy_info" | jq -r '.urlMap // "none"' | awk -F'/' '{print $NF}')
+        log_detail "URL map: ${proxy_url_map}"
+    else
+        log_warn "HTTPS proxy not found"
     fi
     
     # Check SSL certificate
@@ -632,6 +694,7 @@ check_load_balancer() {
     if [[ -n "$cert_info" ]]; then
         local cert_status=$(echo "$cert_info" | jq -r '.managed.status // "UNKNOWN"')
         local domain_status=$(echo "$cert_info" | jq -r '.managed.domainStatus | to_entries[0] | "\(.key): \(.value)"' 2>/dev/null || echo "unknown")
+        local cert_created=$(echo "$cert_info" | jq -r '.creationTimestamp // "unknown"')
         
         case "$cert_status" in
             ACTIVE)
@@ -640,13 +703,51 @@ check_load_balancer() {
                 ;;
             PROVISIONING)
                 log_warn "SSL certificate is PROVISIONING"
-                log_info "This can take 10-60 minutes. Ensure DNS points to ${ip_addr}"
+                log_detail "Created: ${cert_created}"
                 log_detail "Domain status: ${domain_status}"
+                
+                # Check how long it's been provisioning
+                if [[ "$cert_created" != "unknown" ]]; then
+                    local created_epoch=$(date -d "${cert_created}" +%s 2>/dev/null || date -jf "%Y-%m-%dT%H:%M:%S" "${cert_created%%.*}" +%s 2>/dev/null || echo "0")
+                    local now_epoch=$(date +%s)
+                    local age_minutes=$(( (now_epoch - created_epoch) / 60 ))
+                    
+                    if [[ $age_minutes -gt 60 ]]; then
+                        log_fail "Certificate has been provisioning for ${age_minutes} minutes (>60 min is unusual)"
+                        log_info "Possible issues:"
+                        log_info "  1. DNS not pointing to load balancer IP (${ip_addr})"
+                        log_info "  2. Cloudflare proxy enabled (should be DNS-only/gray cloud)"
+                        log_info "  3. CAA records blocking Google CA"
+                        log_fix "Try recreating: terraform taint 'module.infrastructure.module.loadbalancer.google_compute_managed_ssl_certificate.default' && terraform apply"
+                    else
+                        log_info "Certificate provisioning for ${age_minutes} minutes (can take up to 60 min)"
+                    fi
+                fi
+                ;;
+            FAILED_NOT_VISIBLE)
+                log_fail "SSL certificate FAILED: Domain not visible"
+                log_info "Google cannot reach the domain. Check:"
+                log_info "  1. DNS points to ${ip_addr}"
+                log_info "  2. No firewall blocking Google's validators"
+                log_fix "Verify DNS: dig +short ${domain_status%%:*}"
+                ;;
+            FAILED_CAA_CHECKING)
+                log_fail "SSL certificate FAILED: CAA record issue"
+                log_info "CAA records may be blocking Google's CA"
+                log_fix "Check CAA records: dig CAA ${DOMAIN:-example.com}"
+                ;;
+            FAILED_CAA_FORBIDDEN)
+                log_fail "SSL certificate FAILED: CAA forbids Google CA"
+                log_fix "Add CAA record allowing Google: 0 issue \"pki.goog\""
+                ;;
+            FAILED_RATE_LIMITED)
+                log_fail "SSL certificate FAILED: Rate limited"
+                log_info "Too many certificate requests. Wait and try again."
                 ;;
             FAILED_*)
                 log_fail "SSL certificate FAILED: ${cert_status}"
                 log_detail "Domain status: ${domain_status}"
-                log_fix "Check DNS configuration and Cloudflare proxy settings"
+                log_fix "Check DNS configuration and try recreating the certificate"
                 ;;
             *)
                 log_warn "SSL certificate status: ${cert_status}"
@@ -661,17 +762,45 @@ check_load_balancer() {
     log_check "Checking forwarding rules"
     
     local https_rule="${NAME_PREFIX}-https-rule"
-    if gcloud compute forwarding-rules describe "$https_rule" --global --project="$PROJECT_ID" &>/dev/null; then
-        log_pass "HTTPS forwarding rule exists"
+    local https_rule_info=$(gcloud compute forwarding-rules describe "$https_rule" --global --project="$PROJECT_ID" --format=json 2>/dev/null || echo "")
+    
+    if [[ -n "$https_rule_info" ]]; then
+        log_pass "HTTPS forwarding rule exists (port 443)"
+        local rule_ip=$(echo "$https_rule_info" | jq -r '.IPAddress // "unknown"')
+        local rule_target=$(echo "$https_rule_info" | jq -r '.target // "unknown"' | awk -F'/' '{print $NF}')
+        log_detail "IP: ${rule_ip}, Target: ${rule_target}"
     else
         log_warn "HTTPS forwarding rule not found"
     fi
     
     local http_rule="${NAME_PREFIX}-http-rule"
     if gcloud compute forwarding-rules describe "$http_rule" --global --project="$PROJECT_ID" &>/dev/null; then
-        log_pass "HTTP forwarding rule exists (for redirect)"
+        log_pass "HTTP forwarding rule exists (port 80, for redirect)"
     else
         log_warn "HTTP forwarding rule not found"
+    fi
+    
+    # Test actual connectivity
+    log_check "Testing load balancer connectivity"
+    
+    # Test HTTP (should redirect)
+    local http_code=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 "http://${ip_addr}" -H "Host: test.example.com" 2>/dev/null || echo "000")
+    if [[ "$http_code" == "301" || "$http_code" == "302" ]]; then
+        log_pass "HTTP redirect working (${http_code})"
+    elif [[ "$http_code" == "000" ]]; then
+        log_fail "HTTP not responding on port 80"
+    else
+        log_warn "HTTP returned ${http_code} (expected 301/302)"
+    fi
+    
+    # Test HTTPS (may fail if cert not ready)
+    local https_code=$(curl -sk -o /dev/null -w "%{http_code}" --connect-timeout 5 "https://${ip_addr}" -H "Host: test.example.com" 2>/dev/null || echo "000")
+    if [[ "$https_code" =~ ^[234] ]]; then
+        log_pass "HTTPS responding (${https_code})"
+    elif [[ "$https_code" == "000" ]]; then
+        log_warn "HTTPS not responding (certificate may still be provisioning)"
+    else
+        log_warn "HTTPS returned ${https_code}"
     fi
 }
 
