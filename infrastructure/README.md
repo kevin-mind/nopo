@@ -2,7 +2,17 @@
 
 This directory contains Terraform configurations for deploying the application to Google Cloud Platform (GCP).
 
-> **New to GCP?** Start with [GCP_CLI_SETUP.md](./GCP_CLI_SETUP.md) for step-by-step instructions on installing the CLI and provisioning all required resources.
+## Quick Start: Automated Setup
+
+Run the interactive setup script to configure everything automatically:
+
+```bash
+./infrastructure/scripts/setup-gcp.sh
+```
+
+The script will prompt for your project details and run all required GCP commands.
+
+> **New to GCP?** See [GCP_CLI_SETUP.md](./GCP_CLI_SETUP.md) for manual step-by-step instructions including CLI installation.
 
 ## Architecture Overview
 
@@ -166,7 +176,13 @@ See [GCP_GITHUB_SETUP.md](./GCP_GITHUB_SETUP.md) for detailed instructions.
 ```text
 infrastructure/
 ├── README.md                    # This file
+├── ARCHITECTURE.md             # Detailed architecture docs
+├── ADDING_SERVICES.md          # Guide for adding new services
+├── GCP_CLI_SETUP.md            # Manual CLI setup guide
 ├── GCP_GITHUB_SETUP.md         # GitHub Actions setup guide
+├── scripts/
+│   ├── setup-gcp.sh            # Interactive GCP setup script
+│   └── sync-services.sh        # Dynamic service discovery for Terraform
 └── terraform/
     ├── main.tf                  # Root module
     ├── variables.tf             # Input variables

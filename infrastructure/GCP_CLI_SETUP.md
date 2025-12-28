@@ -2,19 +2,34 @@
 
 This guide covers installing the Google Cloud CLI and provisioning all required resources for deploying the application to Google Cloud Platform.
 
+## Quick Start: Automated Setup
+
+For a streamlined experience, use the **interactive setup script** that automates all steps:
+
+```bash
+# From the repository root
+./infrastructure/scripts/setup-gcp.sh
+```
+
+The script will prompt for your configuration and run all commands automatically. Continue reading below for manual setup or to understand what the script does.
+
+---
+
 ## Table of Contents
 
 1. [Install Google Cloud CLI](#1-install-google-cloud-cli)
-2. [Initial Authentication](#2-initial-authentication)
-3. [Create GCP Project](#3-create-gcp-project)
-4. [Enable Required APIs](#4-enable-required-apis)
-5. [Create Terraform State Bucket](#5-create-terraform-state-bucket)
-6. [Create Service Account for GitHub Actions](#6-create-service-account-for-github-actions)
-7. [Setup Workload Identity Federation](#7-setup-workload-identity-federation)
-8. [Create Artifact Registry Repository](#8-create-artifact-registry-repository)
-9. [Initial Secrets Setup](#9-initial-secrets-setup)
-10. [Verify Setup](#10-verify-setup)
-11. [Next Steps](#11-next-steps)
+2. [Install Cloudflare CLI (Optional)](#2-install-cloudflare-cli-optional)
+3. [Initial Authentication](#3-initial-authentication)
+4. [Create GCP Project](#4-create-gcp-project)
+5. [Enable Required APIs](#5-enable-required-apis)
+6. [Create Terraform State Bucket](#6-create-terraform-state-bucket)
+7. [Create Service Account for GitHub Actions](#7-create-service-account-for-github-actions)
+8. [Setup Workload Identity Federation](#8-setup-workload-identity-federation)
+9. [Create Artifact Registry Repository](#9-create-artifact-registry-repository)
+10. [Initial Secrets Setup](#10-initial-secrets-setup)
+11. [Verify Setup](#11-verify-setup)
+12. [Configure DNS with Cloudflare](#12-configure-dns-with-cloudflare)
+13. [Next Steps](#13-next-steps)
 
 ---
 
@@ -109,7 +124,66 @@ gsutil 5.x
 
 ---
 
-## 2. Initial Authentication
+## 2. Install Cloudflare CLI (Optional)
+
+If you use Cloudflare for DNS management, install `flarectl` to configure DNS records from the command line.
+
+### macOS
+
+```bash
+# Using Homebrew (recommended)
+brew install cloudflare/cloudflare/flarectl
+```
+
+### Linux
+
+```bash
+# Using Go (requires Go 1.18+)
+go install github.com/cloudflare/cloudflare-go/cmd/flarectl@latest
+
+# Or download pre-built binary
+FLARECTL_VERSION="0.93.0"
+curl -L "https://github.com/cloudflare/cloudflare-go/releases/download/v${FLARECTL_VERSION}/flarectl_${FLARECTL_VERSION}_linux_amd64.tar.gz" | tar xz
+sudo mv flarectl /usr/local/bin/
+```
+
+### Windows
+
+```powershell
+# Using Go
+go install github.com/cloudflare/cloudflare-go/cmd/flarectl@latest
+
+# Or using Scoop
+scoop bucket add cloudflare https://github.com/cloudflare/scoop-cloudflare.git
+scoop install flarectl
+```
+
+### Verify Installation
+
+```bash
+flarectl --version
+```
+
+### Configure Authentication
+
+Get your Cloudflare API token from: <https://dash.cloudflare.com/profile/api-tokens>
+
+Create a token with the following permissions:
+
+- **Zone:DNS:Edit** - To create/update DNS records
+- **Zone:Zone:Read** - To list zones
+
+```bash
+# Set environment variable (add to your shell profile for persistence)
+export CF_API_TOKEN="your-cloudflare-api-token"
+
+# Verify authentication
+flarectl zone list
+```
+
+---
+
+## 3. Initial Authentication
 
 ### Interactive Login (for local development)
 
@@ -141,7 +215,7 @@ gcloud auth list
 
 ---
 
-## 3. Create GCP Project
+## 4. Create GCP Project
 
 ### Set Environment Variables
 
@@ -232,7 +306,7 @@ gcloud config get-value project
 
 ---
 
-## 4. Enable Required APIs
+## 5. Enable Required APIs
 
 ```bash
 # Enable all required APIs (this may take a few minutes)
@@ -258,7 +332,7 @@ Expected output should include all the services above.
 
 ---
 
-## 5. Create Terraform State Bucket
+## 6. Create Terraform State Bucket
 
 ```bash
 # Create a GCS bucket for Terraform state
@@ -278,7 +352,7 @@ gcloud storage buckets describe "gs://${PROJECT_ID}-terraform-state"
 
 ---
 
-## 6. Create Service Account for GitHub Actions
+## 7. Create Service Account for GitHub Actions
 
 ### Create the Service Account
 
@@ -370,7 +444,7 @@ gcloud projects get-iam-policy "${PROJECT_ID}" \
 
 ---
 
-## 7. Setup Workload Identity Federation
+## 8. Setup Workload Identity Federation
 
 Workload Identity Federation allows GitHub Actions to authenticate without storing long-lived service account keys.
 
@@ -438,7 +512,7 @@ gcloud iam service-accounts get-iam-policy "${SA_EMAIL}" \
 
 ---
 
-## 8. Create Artifact Registry Repository
+## 9. Create Artifact Registry Repository
 
 Artifact Registry stores your Docker images. We'll create a single repository that holds images for all services and environments.
 
@@ -489,7 +563,7 @@ cat ~/.docker/config.json | grep -A2 "${REGION}-docker.pkg.dev"
 
 ---
 
-## 9. Initial Secrets Setup
+## 10. Initial Secrets Setup
 
 Create placeholder secrets that Terraform will manage:
 
@@ -536,7 +610,7 @@ gcloud secrets list --project="${PROJECT_ID}"
 
 ---
 
-## 10. Verify Setup
+## 11. Verify Setup
 
 ### Print Configuration Summary
 
@@ -623,7 +697,116 @@ gcloud iam service-accounts keys list --iam-account="${SA_EMAIL}" --project="${P
 
 ---
 
-## 11. Next Steps
+## 12. Configure DNS with Cloudflare
+
+After Terraform creates the load balancer, configure DNS to point your domain to it.
+
+### Get the Load Balancer IP
+
+```bash
+cd infrastructure/terraform/environments/stage
+LB_IP=$(terraform output -raw load_balancer_ip)
+echo "Load Balancer IP: ${LB_IP}"
+```
+
+### Using flarectl (Recommended)
+
+```bash
+# Ensure CF_API_TOKEN is set
+export CF_API_TOKEN="your-cloudflare-api-token"
+
+# List zones to find your zone name
+flarectl zone list
+
+# Create/update A record for staging
+# Replace "example.com" with your domain
+flarectl dns create-or-update \
+  --zone "example.com" \
+  --name "stage" \
+  --type A \
+  --content "${LB_IP}" \
+  --ttl 300
+
+# For production (apex domain)
+flarectl dns create-or-update \
+  --zone "example.com" \
+  --name "@" \
+  --type A \
+  --content "${LB_IP}" \
+  --ttl 300
+
+# Verify the record
+flarectl dns list --zone "example.com"
+```
+
+### Using curl (Alternative)
+
+If you prefer to use curl directly with the Cloudflare API:
+
+```bash
+# Set your credentials
+CF_API_TOKEN="your-cloudflare-api-token"
+ZONE_NAME="example.com"
+
+# Get Zone ID
+ZONE_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=${ZONE_NAME}" \
+  -H "Authorization: Bearer ${CF_API_TOKEN}" \
+  -H "Content-Type: application/json" | jq -r '.result[0].id')
+
+echo "Zone ID: ${ZONE_ID}"
+
+# Check if record exists
+RECORD_NAME="stage"
+RECORD_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records?name=${RECORD_NAME}.${ZONE_NAME}&type=A" \
+  -H "Authorization: Bearer ${CF_API_TOKEN}" \
+  -H "Content-Type: application/json" | jq -r '.result[0].id')
+
+if [[ "${RECORD_ID}" == "null" || -z "${RECORD_ID}" ]]; then
+  # Create new record
+  curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records" \
+    -H "Authorization: Bearer ${CF_API_TOKEN}" \
+    -H "Content-Type: application/json" \
+    --data "{
+      \"type\": \"A\",
+      \"name\": \"${RECORD_NAME}\",
+      \"content\": \"${LB_IP}\",
+      \"ttl\": 300,
+      \"proxied\": false
+    }"
+else
+  # Update existing record
+  curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records/${RECORD_ID}" \
+    -H "Authorization: Bearer ${CF_API_TOKEN}" \
+    -H "Content-Type: application/json" \
+    --data "{
+      \"type\": \"A\",
+      \"name\": \"${RECORD_NAME}\",
+      \"content\": \"${LB_IP}\",
+      \"ttl\": 300,
+      \"proxied\": false
+    }"
+fi
+```
+
+### Important: Disable Cloudflare Proxy
+
+> **⚠️ Important:** Set `proxied: false` for the DNS record. Google Cloud's managed SSL certificates require direct access to your domain for certificate validation. Using Cloudflare's proxy will cause SSL certificate provisioning to fail.
+
+If you want to use Cloudflare's proxy features (WAF, caching), you can enable the proxy **after** Google has provisioned the SSL certificate.
+
+### Verify DNS Propagation
+
+```bash
+# Check DNS resolution
+dig +short stage.example.com
+
+# Should return your load balancer IP
+# DNS propagation may take a few minutes
+```
+
+---
+
+## 13. Next Steps
 
 ### 1. Configure GitHub Repository
 
@@ -659,17 +842,7 @@ terraform apply
 
 ### 3. Configure DNS
 
-After Terraform completes, configure your DNS:
-
-```bash
-# Get the load balancer IP
-terraform output load_balancer_ip
-
-# Add DNS record:
-# Type: A
-# Name: stage (or @ for apex)
-# Value: <load_balancer_ip>
-```
+After Terraform completes, configure your DNS using the instructions in [Section 12](#12-configure-dns-with-cloudflare).
 
 ### 4. Trigger First Deployment
 
@@ -735,8 +908,7 @@ Region: ${REGION}
 Service Account: ${SA_EMAIL}
 Workload Identity Provider: ${WORKLOAD_PROVIDER_NAME}
 Terraform State Bucket: ${PROJECT_ID}-terraform-state
-Artifact Registry (Stage): ${REGION}-docker.pkg.dev/${PROJECT_ID}/nopo-stage-repo
-Artifact Registry (Prod): ${REGION}-docker.pkg.dev/${PROJECT_ID}/nopo-prod-repo
+Artifact Registry: ${REGION}-docker.pkg.dev/${PROJECT_ID}/nopo
 EOF
 
 chmod 600 ~/gcp-nopo-credentials.txt
