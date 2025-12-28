@@ -146,8 +146,8 @@ jobs:
             -target='module.infrastructure.module.static_assets' \
             -var='services={}'
           
-          # Output the bucket name
-          bucket_name=$(terraform output -raw static_bucket_name 2>/dev/null || echo "nopo-${ENVIRONMENT}-static")
+          # Use known bucket naming convention (terraform output not available in targeted apply)
+          bucket_name="nopo-${ENVIRONMENT}-static"
           echo "bucket_name=${bucket_name}" >> "$GITHUB_OUTPUT"
           echo "Static bucket: ${bucket_name}"
 
