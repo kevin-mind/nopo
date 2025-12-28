@@ -852,6 +852,22 @@ Push a commit to your main branch to trigger the GitHub Actions deployment workf
 
 ## Troubleshooting
 
+### Run the Doctor Script
+
+For automated diagnostics, run the health check script:
+
+```bash
+./infrastructure/scripts/doctor-gcp.sh -p YOUR_PROJECT_ID -e stage -d yourdomain.com
+
+# Options:
+#   -p, --project     GCP Project ID
+#   -e, --environment Environment (stage/prod)
+#   -d, --domain      Domain for DNS checks
+#   -v, --verbose     Show detailed output
+```
+
+The script checks all infrastructure components and suggests fixes for any issues.
+
 ### "Permission denied" on gcloud commands
 
 ```bash

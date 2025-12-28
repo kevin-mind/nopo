@@ -171,6 +171,16 @@ For automated deployments from GitHub Actions, you need to set up Workload Ident
 
 See [GCP_GITHUB_SETUP.md](./GCP_GITHUB_SETUP.md) for detailed instructions.
 
+## Troubleshooting: Health Check
+
+Run the diagnostic script to check your infrastructure health:
+
+```bash
+./infrastructure/scripts/doctor-gcp.sh -p YOUR_PROJECT_ID -e stage -d yourdomain.com
+```
+
+This checks all components and suggests fixes for any issues found.
+
 ## Directory Structure
 
 ```text
@@ -182,6 +192,7 @@ infrastructure/
 ├── GCP_GITHUB_SETUP.md         # GitHub Actions setup guide
 ├── scripts/
 │   ├── setup-gcp.sh            # Interactive GCP setup script
+│   ├── doctor-gcp.sh           # Infrastructure health check script
 │   └── sync-services.sh        # Dynamic service discovery for Terraform
 └── terraform/
     ├── main.tf                  # Root module
