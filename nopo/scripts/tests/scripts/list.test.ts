@@ -5,7 +5,10 @@ import os from "node:os";
 import process from "node:process";
 
 import ListScript from "../../src/scripts/list.ts";
-import { createConfig, discoverTargets } from "../../src/lib.ts";
+import { createConfig, discoverTargets, type Config } from "../../src/lib.ts";
+
+// Partial Runner type for parseArgs tests
+type MockRunner = { config: Config; argv: string[] };
 import { createTmpEnv, runScript } from "../utils.ts";
 
 vi.mock("../../src/git-info", () => ({
@@ -112,7 +115,7 @@ describe("list", () => {
     it("defaults to text format", () => {
       const config = createConfig({ silent: true });
       const args = ListScript.parseArgs(
-        { config, argv: ["list"] } as any,
+        { config, argv: ["list"] } as MockRunner,
         false,
       );
       expect(args.format).toBe("text");
@@ -122,7 +125,7 @@ describe("list", () => {
     it("parses --json flag", () => {
       const config = createConfig({ silent: true });
       const args = ListScript.parseArgs(
-        { config, argv: ["list", "--json"] } as any,
+        { config, argv: ["list", "--json"] } as MockRunner,
         false,
       );
       expect(args.format).toBe("json");
@@ -131,7 +134,7 @@ describe("list", () => {
     it("parses -j flag", () => {
       const config = createConfig({ silent: true });
       const args = ListScript.parseArgs(
-        { config, argv: ["list", "-j"] } as any,
+        { config, argv: ["list", "-j"] } as MockRunner,
         false,
       );
       expect(args.format).toBe("json");
@@ -140,7 +143,7 @@ describe("list", () => {
     it("parses --format json", () => {
       const config = createConfig({ silent: true });
       const args = ListScript.parseArgs(
-        { config, argv: ["list", "--format", "json"] } as any,
+        { config, argv: ["list", "--format", "json"] } as MockRunner,
         false,
       );
       expect(args.format).toBe("json");
@@ -149,7 +152,7 @@ describe("list", () => {
     it("parses -f json", () => {
       const config = createConfig({ silent: true });
       const args = ListScript.parseArgs(
-        { config, argv: ["list", "-f", "json"] } as any,
+        { config, argv: ["list", "-f", "json"] } as MockRunner,
         false,
       );
       expect(args.format).toBe("json");
@@ -158,7 +161,7 @@ describe("list", () => {
     it("parses --csv flag", () => {
       const config = createConfig({ silent: true });
       const args = ListScript.parseArgs(
-        { config, argv: ["list", "--csv"] } as any,
+        { config, argv: ["list", "--csv"] } as MockRunner,
         false,
       );
       expect(args.format).toBe("csv");
@@ -167,7 +170,7 @@ describe("list", () => {
     it("parses --format csv", () => {
       const config = createConfig({ silent: true });
       const args = ListScript.parseArgs(
-        { config, argv: ["list", "--format", "csv"] } as any,
+        { config, argv: ["list", "--format", "csv"] } as MockRunner,
         false,
       );
       expect(args.format).toBe("csv");
@@ -176,7 +179,7 @@ describe("list", () => {
     it("parses --with-config flag", () => {
       const config = createConfig({ silent: true });
       const args = ListScript.parseArgs(
-        { config, argv: ["list", "--with-config"] } as any,
+        { config, argv: ["list", "--with-config"] } as MockRunner,
         false,
       );
       expect(args.withConfig).toBe(true);
@@ -185,7 +188,7 @@ describe("list", () => {
     it("parses -c flag", () => {
       const config = createConfig({ silent: true });
       const args = ListScript.parseArgs(
-        { config, argv: ["list", "-c"] } as any,
+        { config, argv: ["list", "-c"] } as MockRunner,
         false,
       );
       expect(args.withConfig).toBe(true);
@@ -194,7 +197,7 @@ describe("list", () => {
     it("parses combined flags", () => {
       const config = createConfig({ silent: true });
       const args = ListScript.parseArgs(
-        { config, argv: ["list", "--json", "--with-config"] } as any,
+        { config, argv: ["list", "--json", "--with-config"] } as MockRunner,
         false,
       );
       expect(args.format).toBe("json");
@@ -204,7 +207,7 @@ describe("list", () => {
     it("returns defaults when run as dependency", () => {
       const config = createConfig({ silent: true });
       const args = ListScript.parseArgs(
-        { config, argv: ["list", "--json"] } as any,
+        { config, argv: ["list", "--json"] } as MockRunner,
         true, // isDependency
       );
       expect(args.format).toBe("text");

@@ -111,13 +111,17 @@ export default async function main(
 ): Promise<void> {
   const argv = _argv.slice(2);
   const args = minimist(argv);
-  
+
   // Check if this is a command that outputs machine-readable format and should be silent
   const commandName = args._[0] || "";
-  const isJsonOutput = commandName === "list" && !!(args.json || args.j || args.format === "json" || args.f === "json");
-  const isCsvOutput = commandName === "list" && !!(args.csv || args.format === "csv" || args.f === "csv");
+  const isJsonOutput =
+    commandName === "list" &&
+    !!(args.json || args.j || args.format === "json" || args.f === "json");
+  const isCsvOutput =
+    commandName === "list" &&
+    !!(args.csv || args.format === "csv" || args.f === "csv");
   const isSilentOutput = isJsonOutput || isCsvOutput;
-  
+
   const config: Config = createConfig({
     envFile: _env.ENV_FILE || undefined,
     silent: isSilentOutput,

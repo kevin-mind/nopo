@@ -10,7 +10,10 @@ export default class ListScript extends Script<ListCliArgs> {
   static override name = "list";
   static override description = "List discovered services";
 
-  static override parseArgs(runner: Runner, isDependency: boolean): ListCliArgs {
+  static override parseArgs(
+    runner: Runner,
+    isDependency: boolean,
+  ): ListCliArgs {
     if (isDependency || runner.argv[0] !== "list") {
       return { format: "text", withConfig: false };
     }
@@ -49,7 +52,9 @@ export default class ListScript extends Script<ListCliArgs> {
     if (args.format === "json") {
       if (args.withConfig) {
         const servicesWithConfig = await this.getServicesWithConfig(services);
-        process.stdout.write(JSON.stringify(servicesWithConfig, null, 2) + "\n");
+        process.stdout.write(
+          JSON.stringify(servicesWithConfig, null, 2) + "\n",
+        );
       } else {
         process.stdout.write(JSON.stringify(services) + "\n");
       }
@@ -127,9 +132,7 @@ export default class ListScript extends Script<ListCliArgs> {
     }
 
     this.runner.logger.log("");
-    this.runner.logger.log(
-      chalk.gray(`Total: ${services.length} service(s)`),
-    );
+    this.runner.logger.log(chalk.gray(`Total: ${services.length} service(s)`));
   }
 
   private async getServicesWithConfig(
