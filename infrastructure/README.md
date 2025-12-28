@@ -67,7 +67,8 @@ This directory contains Terraform configurations for deploying the application t
 
 | Document | Description |
 |----------|-------------|
-| [README.md](./README.md) | This file - architecture overview and quick start |
+| [README.md](./README.md) | This file - quick start guide |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | **Detailed architecture** - In-depth explanation of all components |
 | [GCP_CLI_SETUP.md](./GCP_CLI_SETUP.md) | **Start here** - Complete CLI setup guide including gcloud installation |
 | [GCP_GITHUB_SETUP.md](./GCP_GITHUB_SETUP.md) | GitHub Actions integration with Workload Identity Federation |
 
