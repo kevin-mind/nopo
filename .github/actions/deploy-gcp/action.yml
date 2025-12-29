@@ -40,7 +40,6 @@ outputs:
   services:
     description: JSON object of deployed services
     value: ${{ steps.apply.outputs.services }}
-
 runs:
   using: "composite"
   steps:

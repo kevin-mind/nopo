@@ -46,3 +46,9 @@ variable "db_services" {
   type        = list(string)
   default     = []
 }
+
+variable "static_backend_bucket_id" {
+  description = "Backend bucket ID for static assets (optional)"
+  type        = string
+  default     = null
+}

@@ -80,3 +80,9 @@ variable "public_url" {
   description = "The public URL of the application"
   type        = string
 }
+
+variable "static_url_base" {
+  description = "Base URL for static files (e.g., https://domain.com/static). Service name will be appended."
+  type        = string
+  default     = ""
+}

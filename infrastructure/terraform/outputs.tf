@@ -78,3 +78,14 @@ output "services_summary" {
     urls           = module.cloudrun.service_urls
   }
 }
+
+# Static assets outputs
+output "static_bucket_name" {
+  description = "Name of the static assets bucket"
+  value       = var.enable_static_bucket ? module.static_assets[0].bucket_name : ""
+}
+
+output "static_bucket_url" {
+  description = "GCS URL for uploading static assets"
+  value       = var.enable_static_bucket ? module.static_assets[0].bucket_url : ""
+}

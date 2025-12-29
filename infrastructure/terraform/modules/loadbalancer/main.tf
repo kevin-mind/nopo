@@ -55,9 +55,71 @@ resource "google_compute_url_map" "default" {
     name            = "main"
     default_service = google_compute_backend_service.services[var.default_service].id
 
+    # Route static files to bucket backend if configured
+    # URL: /static/backend/assets/style.css -> Bucket: /backend/assets/style.css
+    dynamic "route_rules" {
+      for_each = var.static_backend_bucket_id != null ? [1] : []
+      content {
+        priority = 1
+        match_rules {
+          prefix_match = "/static/"
+        }
+        route_action {
+          url_rewrite {
+            path_prefix_rewrite = "/"
+          }
+        }
+        service = var.static_backend_bucket_id
+      }
+    }
+
     # Route API paths to database-connected services (typically "backend")
+    # Each route needs both prefix match (for /path/*) and full path match (for /path)
+    dynamic "route_rules" {
+      for_each = var.static_backend_bucket_id != null ? var.db_services : []
+      content {
+        priority = 10
+        match_rules {
+          prefix_match = "/api/"
+        }
+        match_rules {
+          full_path_match = "/api"
+        }
+        service = google_compute_backend_service.services[route_rules.value].id
+      }
+    }
+
+    dynamic "route_rules" {
+      for_each = var.static_backend_bucket_id != null ? var.db_services : []
+      content {
+        priority = 11
+        match_rules {
+          prefix_match = "/admin/"
+        }
+        match_rules {
+          full_path_match = "/admin"
+        }
+        service = google_compute_backend_service.services[route_rules.value].id
+      }
+    }
+
+    dynamic "route_rules" {
+      for_each = var.static_backend_bucket_id != null ? var.db_services : []
+      content {
+        priority = 12
+        match_rules {
+          prefix_match = "/django/"
+        }
+        match_rules {
+          full_path_match = "/django"
+        }
+        service = google_compute_backend_service.services[route_rules.value].id
+      }
+    }
+
+    # Fallback path_rules when no static bucket is configured
     dynamic "path_rule" {
-      for_each = var.db_services
+      for_each = var.static_backend_bucket_id == null ? var.db_services : []
       content {
         paths   = ["/api", "/api/*"]
         service = google_compute_backend_service.services[path_rule.value].id
@@ -65,7 +127,7 @@ resource "google_compute_url_map" "default" {
     }
 
     dynamic "path_rule" {
-      for_each = var.db_services
+      for_each = var.static_backend_bucket_id == null ? var.db_services : []
       content {
         paths   = ["/admin", "/admin/*"]
         service = google_compute_backend_service.services[path_rule.value].id
@@ -73,7 +135,7 @@ resource "google_compute_url_map" "default" {
     }
 
     dynamic "path_rule" {
-      for_each = var.db_services
+      for_each = var.static_backend_bucket_id == null ? var.db_services : []
       content {
         paths   = ["/django", "/django/*"]
         service = google_compute_backend_service.services[path_rule.value].id
@@ -81,7 +143,7 @@ resource "google_compute_url_map" "default" {
     }
 
     dynamic "path_rule" {
-      for_each = var.db_services
+      for_each = var.static_backend_bucket_id == null ? var.db_services : []
       content {
         paths   = ["/static", "/static/*"]
         service = google_compute_backend_service.services[path_rule.value].id

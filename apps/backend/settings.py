@@ -189,8 +189,10 @@ STATICFILES_DIRS = [
 # Where the collectstatic command will put the static files
 STATIC_ROOT = BUILD_DIR / "static"
 
-# When rendering a static file, the URL will start with this
-STATIC_URL = "static/"
+# Static file URL configuration
+# In production: STATIC_URL env var is set to CDN path (e.g., https://domain.com/static/backend/)
+# In development: Use local path
+STATIC_URL = os.environ.get("STATIC_URL", "/static/")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

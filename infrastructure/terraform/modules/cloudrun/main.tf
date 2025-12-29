@@ -80,6 +80,15 @@ resource "google_cloud_run_v2_service" "services" {
         value = var.public_url
       }
 
+      # Static files URL (only if static bucket is configured)
+      dynamic "env" {
+        for_each = var.static_url_base != "" ? [1] : []
+        content {
+          name  = "STATIC_URL"
+          value = "${var.static_url_base}/${each.key}/"
+        }
+      }
+
       # Database environment variables (only for services with database access)
       dynamic "env" {
         for_each = each.value.has_database ? [1] : []

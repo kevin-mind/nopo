@@ -36,8 +36,8 @@ locals {
   db_services = [for k, v in local.services : k if v.has_database]
 
   # Default service for load balancer (first non-db service, or first service)
-  non_db_services   = [for k, v in local.services : k if !v.has_database]
-  default_service   = length(local.non_db_services) > 0 ? local.non_db_services[0] : keys(local.services)[0]
+  non_db_services = [for k, v in local.services : k if !v.has_database]
+  default_service = length(local.non_db_services) > 0 ? local.non_db_services[0] : keys(local.services)[0]
 }
 
 # Enable required APIs
@@ -137,7 +137,8 @@ module "cloudrun" {
   db_password_secret_id = module.secrets.db_password_secret_id
   django_secret_key_id  = module.secrets.django_secret_key_id
 
-  public_url = "https://${local.fqdn}"
+  public_url      = "https://${local.fqdn}"
+  static_url_base = var.enable_static_bucket ? "https://${local.fqdn}/static" : ""
 
   depends_on = [
     google_project_service.services,
@@ -145,6 +146,22 @@ module "cloudrun" {
     module.cloudsql,
     module.secrets,
   ]
+}
+
+# Static assets bucket (for serving CSS/JS via CDN)
+module "static_assets" {
+  source = "./modules/static-assets"
+  count  = var.enable_static_bucket ? 1 : 0
+
+  project_id  = var.project_id
+  region      = var.region
+  name_prefix = local.name_prefix
+  labels      = local.common_labels
+
+  cors_origins = ["https://${local.fqdn}"]
+  enable_cdn   = var.environment == "prod"
+
+  depends_on = [google_project_service.services]
 }
 
 # Load Balancer with SSL
@@ -164,8 +181,12 @@ module "loadbalancer" {
   default_service = local.default_service
   db_services     = local.db_services
 
+  # Route /static/* to bucket if enabled
+  static_backend_bucket_id = var.enable_static_bucket ? module.static_assets[0].backend_bucket_id : null
+
   depends_on = [
     google_project_service.services,
     module.cloudrun,
+    module.static_assets,
   ]
 }
