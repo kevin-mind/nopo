@@ -2,7 +2,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { parse as parseYaml } from "yaml";
 import { z } from "zod";
-import { DockerTag } from "../docker-tag.ts";
 
 const DEFAULT_DEPENDENCIES: Record<string, string> = {
   node: "22.16.0",
@@ -79,14 +78,11 @@ const BaseImageSchema = z.union([
   z.string().min(1),
   z.object({
     image: z.string().min(1),
-    registry: z.string().default(""),
-    tag: z.string().optional(),
-    version: z.string().optional(),
   }),
 ]);
 
 const ProjectOsSchema = z.object({
-  base: BaseImageSchema.default("kevin-mind/nopo:local"),
+  base: BaseImageSchema.default("node:22.16.0-slim"),
   dependencies: DependenciesSchema,
   user: z
     .object({
@@ -100,7 +96,7 @@ const ProjectOsSchema = z.object({
 export const ProjectConfigSchema = z.object({
   name: z.string().min(1),
   os: ProjectOsSchema.default({
-    base: "kevin-mind/nopo:local",
+    base: "node:22.16.0-slim",
   }),
   services: ServicesSchema.default({
     dir: "./apps",
@@ -174,10 +170,7 @@ export type NormalizedService =
 
 export interface NormalizedOsConfig {
   base: {
-    registry: string;
-    image: string;
-    version: string;
-    fullTag: string;
+    from: string;
   };
   dependencies: Record<string, string>;
   user: {
@@ -256,30 +249,8 @@ function normalizeOs(osConfig: ProjectConfig["os"]): NormalizedOsConfig {
 function normalizeBaseImage(
   base: ProjectConfig["os"]["base"],
 ): NormalizedOsConfig["base"] {
-  if (typeof base === "string") {
-    const tag = base.includes(":") ? base : `${base}:local`;
-    const parsed = new DockerTag(tag).parsed;
-    return {
-      registry: parsed.registry,
-      image: parsed.image,
-      version: parsed.version,
-      fullTag: new DockerTag(parsed).fullTag,
-    };
-  }
-
-  const version = base.tag || base.version || "local";
-  const parsed = new DockerTag({
-    registry: base.registry || "",
-    image: base.image,
-    version,
-  }).parsed;
-
-  return {
-    registry: parsed.registry,
-    image: parsed.image,
-    version: parsed.version,
-    fullTag: new DockerTag(parsed).fullTag,
-  };
+  const fromImage = typeof base === "string" ? base : base.image;
+  return { from: fromImage };
 }
 
 function normalizeServices(

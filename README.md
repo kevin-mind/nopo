@@ -49,8 +49,7 @@ Example root config:
 name: Nopo Project
 os:
   base:
-    image: kevin-mind/nopo
-    tag: local
+    image: node:22.16.0-slim
 services:
   dir: ./apps
   shaddow:

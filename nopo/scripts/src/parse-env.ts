@@ -51,8 +51,6 @@ export class Environment {
       throw new Error("Missing envFile");
     }
 
-    Environment.baseTag = new DockerTag(config.project.os.base.fullTag);
-
     this.envFile = envFile;
     this.processEnv = processEnv;
     this.hasPrevEnv = fs.existsSync(this.envFile);

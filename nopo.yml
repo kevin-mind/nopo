@@ -2,9 +2,7 @@ name: Nopo Project
 
 os:
   base:
-    image: kevin-mind/nopo
-    registry: ""
-    tag: local
+    image: node:22.16.0-slim
   dependencies:
     node: "22.16.0"
     pnpm: "9.15.0"

@@ -105,7 +105,7 @@ infrastructure: {}
     const project = loadProjectConfig(root);
     const worker = project.services.entries.worker;
 
-    expect(project.os.base.version).toBe("local");
+    expect(project.os.base.from).toBe("node:22.16.0-slim");
     expect(project.os.dependencies.node).toBeDefined();
     expect(worker?.infrastructure.memory).toBe("512Mi");
     expect(worker?.infrastructure.port).toBe(3000);

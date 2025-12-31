@@ -152,6 +152,8 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
       );
       const isCI =
         process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
+
+      const baseArgs = this.getBaseBuildArgs();
       definition.target.base = {
         context: ".",
         dockerfile: path.relative(this.runner.config.root, baseDockerfile),
@@ -165,6 +167,7 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
             }
           : {}),
         args: {
+          ...baseArgs,
           DOCKER_TARGET: env.DOCKER_TARGET,
           DOCKER_TAG: env.DOCKER_TAG,
           DOCKER_VERSION: env.DOCKER_VERSION,
@@ -280,6 +283,30 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
       version: env.DOCKER_VERSION,
     });
     return parsed.fullTag;
+  }
+
+  private getBaseBuildArgs() {
+    const { base, dependencies, user } = this.runner.config.project.os;
+    const packages = this.formatOsPackages(dependencies);
+    const userHome = user.home || "/home/nopo";
+    const userName = path.basename(userHome) || "nopoapp";
+    return {
+      BASE_FROM: base.from,
+      OS_PACKAGES: packages || "make jq curl",
+      USER: userName,
+      USER_ID: String(user.uid),
+      USER_HOME: userHome,
+    };
+  }
+
+  private formatOsPackages(deps: Record<string, string>): string {
+    const entries = Object.entries(deps);
+    if (entries.length === 0) return "";
+    return entries
+      .map(([name, version]) =>
+        version && version.length > 0 ? `${name}=${version}` : name,
+      )
+      .join(" ");
   }
 
   private async getImageDigest(tag: string): Promise<string | null> {
