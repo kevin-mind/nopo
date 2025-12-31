@@ -26,12 +26,18 @@ services:
       start_period: 10s
 
   shaddow:
-    build:
-      context: ./nopo/shaddow
-      dockerfile: Dockerfile
+    image: node:22-alpine
+    command: >
+      sh -c "TMP_DIR=$(mktemp -d) &&
+             printf 'Hello World\n' > \"${TMP_DIR}/index.html\" &&
+             exec npx --yes http-server \"${TMP_DIR}\" -a 0.0.0.0 -p ${PORT:-8080} -c-1 --silent"
+    environment:
+      PORT: 8080
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      test:
+        - CMD-SHELL
+        - 'wget -q -O - http://localhost:${PORT:-8080} | grep -q "Hello World"'
       interval: 20s
       timeout: 5s
       retries: 3
