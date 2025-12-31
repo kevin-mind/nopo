@@ -43,7 +43,7 @@ Create `apps/my-new-service/nopo.yml` to customize deployment settings:
 name: my-new-service
 description: Brief description for humans.
 dockerfile: Dockerfile
-context: ../..
+static_path: build
 infrastructure:
   cpu: "1"
   memory: "512Mi"
@@ -240,7 +240,7 @@ cat > apps/api-gateway/nopo.yml << 'EOF'
 name: api-gateway
 description: Public ingress gateway
 dockerfile: Dockerfile
-context: ../..
+static_path: build
 infrastructure:
   cpu: "0.5"
   memory: "128Mi"

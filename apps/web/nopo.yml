@@ -1,8 +1,7 @@
 name: web
 description: React Router front-end for Nopo.
 dockerfile: Dockerfile
-context: ../..
-route: /
+static_path: build/client
 infrastructure:
   cpu: "1"
   memory: "256Mi"
@@ -11,4 +10,3 @@ infrastructure:
   max_instances: 10
   has_database: false
   run_migrations: false
-  static_path: build/client

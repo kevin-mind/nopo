@@ -9,8 +9,17 @@ server {
     include /etc/nginx/conf.d/apps.local*;
 
     location /shaddow {
-        default_type text/plain;
-        return 200 "Hello from shaddow";
+        proxy_pass ${SHADDOW_PUBLIC_URL};
+
+        proxy_ssl_server_name on;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto  $scheme;
+        proxy_http_version 1.1;
+        proxy_cache_bypass $http_upgrade;
+        proxy_buffering off;
     }
 
     location /api {

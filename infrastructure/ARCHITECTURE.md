@@ -1147,7 +1147,7 @@ gcloud run services update nopo-{env}-backend \
 │  │  • Runs in parallel with container deployment             │  │
 │  │                                                           │  │
 │  │  Configuration:                                           │  │
-│  │  • apps/<service>/nopo.yml → infrastructure.static_path   │  │
+│  │  • apps/<service>/nopo.yml → static_path                  │  │
 │  │  • Container env: STATIC_URL=https://domain.com/static/x  │  │
 │  │  • CDN enabled in production for global caching           │  │
 │  └───────────────────────────────────────────────────────────┘  │

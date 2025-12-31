@@ -25,6 +25,18 @@ services:
       retries: 5
       start_period: 10s
 
+  shaddow:
+    build:
+      context: .
+      dockerfile: nopo/shaddow/Dockerfile
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
   nginx:
     image: nginx:latest
     volumes:
@@ -39,10 +51,13 @@ services:
         condition: service_started
       backend:
         condition: service_started
+      shaddow:
+        condition: service_started
     environment:
       WEB_PUBLIC_URL: ${WEB_PUBLIC_URL:-http://web:80}
       BACKEND_PUBLIC_URL: ${BACKEND_PUBLIC_URL:-http://backend:80}
       BACKEND_VITE_PUBLIC_URL: ${BACKEND_VITE_PUBLIC_URL:-http://backend:5173}
+      SHADDOW_PUBLIC_URL: ${SHADDOW_PUBLIC_URL:-http://shaddow:8080}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost"]
       interval: 20s

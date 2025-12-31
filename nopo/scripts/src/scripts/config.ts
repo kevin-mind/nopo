@@ -123,7 +123,7 @@ export default class ConfigScript extends Script<ConfigArgs> {
       name: service.name,
       kind: service.origin.type,
       description: service.description,
-      route: service.route,
+      static_path: service.staticPath,
       infrastructure: {
         cpu: infrastructure.cpu,
         memory: infrastructure.memory,
@@ -132,7 +132,6 @@ export default class ConfigScript extends Script<ConfigArgs> {
         max_instances: infrastructure.maxInstances,
         has_database: infrastructure.hasDatabase,
         run_migrations: infrastructure.runMigrations,
-        static_path: infrastructure.staticPath,
       },
       paths:
         service.origin.type === "directory"
@@ -146,6 +145,11 @@ export default class ConfigScript extends Script<ConfigArgs> {
                 this.runner.config.root,
                 service.paths.dockerfile,
               ),
+              context:
+                path.relative(
+                  this.runner.config.root,
+                  service.paths.context,
+                ) || ".",
             }
           : undefined,
     };

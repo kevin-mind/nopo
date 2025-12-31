@@ -49,7 +49,7 @@ services:
   dir: ./apps
   helper:
     description: Inline helper
-    route: /helper
+    static_path: inline
     infrastructure:
       port: 8080
 `,
@@ -58,7 +58,7 @@ services:
 name: api
 description: Public API
 dockerfile: Dockerfile
-context: ../..
+static_path: build
 infrastructure:
   cpu: "2"
   memory: "1Gi"
@@ -67,7 +67,6 @@ infrastructure:
   max_instances: 5
   has_database: true
   run_migrations: true
-  static_path: build
 `,
       },
     });
@@ -85,7 +84,7 @@ infrastructure:
 
     const helper = project.services.entries.helper;
     expect(helper?.origin.type).toBe("inline");
-    expect(helper?.route).toBe("/helper");
+    expect(helper?.staticPath).toBe("inline");
     expect(helper?.infrastructure.port).toBe(8080);
   });
 

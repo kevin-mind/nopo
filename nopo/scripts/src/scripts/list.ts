@@ -153,7 +153,6 @@ export default class ListScript extends Script<ListCliArgs> {
       result[service] = {
         kind: definition.origin.type,
         description: definition.description,
-        route: definition.route,
         cpu: definition.infrastructure.cpu,
         memory: definition.infrastructure.memory,
         port: definition.infrastructure.port,
@@ -161,7 +160,7 @@ export default class ListScript extends Script<ListCliArgs> {
         max_instances: definition.infrastructure.maxInstances,
         has_database: definition.infrastructure.hasDatabase,
         run_migrations: definition.infrastructure.runMigrations,
-        static_path: definition.infrastructure.staticPath,
+        static_path: definition.staticPath,
       };
     }
 
@@ -172,7 +171,6 @@ export default class ListScript extends Script<ListCliArgs> {
 interface ServiceConfig {
   kind: "inline" | "directory";
   description?: string;
-  route?: string;
   cpu: string;
   memory: string;
   port: number;

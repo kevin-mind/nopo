@@ -206,13 +206,14 @@ jobs:
           BUCKET_NAME: ${{ needs.prepare_bucket.outputs.bucket_name }}
           SERVICE: ${{ matrix.service }}
         run: |
-          service_config=$(npx -y tsx ./nopo/scripts/bin.ts config validate --json --service "${SERVICE}")
+          export PATH="./node_modules/.bin:${PATH}"
+          service_config=$(nopo config validate --json --service "${SERVICE}")
           if [[ -z "${service_config}" || "${service_config}" == "null" ]]; then
             echo "No service definition for ${SERVICE} in nopo.yml"
             exit 0
           fi
 
-          static_path=$(echo "${service_config}" | jq -r '.infrastructure.static_path // empty')
+          static_path=$(echo "${service_config}" | jq -r '.static_path // empty')
           
           if [[ -z "${static_path}" || "${static_path}" == "null" ]]; then
             echo "No static_path configured for ${SERVICE} - skipping"
@@ -315,8 +316,9 @@ jobs:
           ENVIRONMENT: ${{ inputs.environment }}
           SERVICES: ${{ needs.context.outputs.services }}
         run: |
+          export PATH="./node_modules/.bin:${PATH}"
           # Find services that need migrations
-          services_payload=$(npx -y tsx ./nopo/scripts/bin.ts config validate --json --services-only)
+          services_payload=$(nopo config validate --json --services-only)
           directory_services=$(echo "${services_payload}" | jq 'with_entries(select(.value.kind == "directory"))')
 
           for service in $(echo "${SERVICES}" | jq -r '.[]'); do

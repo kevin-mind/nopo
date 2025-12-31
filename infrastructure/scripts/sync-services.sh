@@ -55,6 +55,7 @@ done
 # Find repository root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+PATH="${REPO_ROOT}/node_modules/.bin:${PATH}"
 
 # Resolve apps directory
 if [[ ! "${APPS_DIR}" = /* ]]; then
@@ -70,7 +71,7 @@ fi
 log_info "Scanning services declared in nopo.yml"
 
 # Discover services declared in nopo.yml
-SERVICES_PAYLOAD=$(npx -y tsx "${REPO_ROOT}/nopo/scripts/bin.ts" config validate --json --services-only)
+SERVICES_PAYLOAD=$(nopo config validate --json --services-only)
 
 if [[ -z "${SERVICES_PAYLOAD}" || "${SERVICES_PAYLOAD}" == "null" ]]; then
     log_error "Unable to load services from nopo.yml"
@@ -92,7 +93,7 @@ SERVICES_JSON=$(echo "${DIRECTORY_SERVICES}" | jq --arg registry "${REGISTRY}" -
         max_instances: .value.infrastructure.max_instances,
         has_database: .value.infrastructure.has_database,
         run_migrations: .value.infrastructure.run_migrations,
-        static_path: .value.infrastructure.static_path,
+        static_path: .value.static_path,
         image: (if ($registry != "" and $version != "") then "\($registry)/\(.key):\($version)" else "" end)
     })
 ')

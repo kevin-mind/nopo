@@ -20,15 +20,13 @@ const ServiceInfrastructureSchema = z.object({
   max_instances: z.number().int().nonnegative().default(10),
   has_database: z.boolean().default(false),
   run_migrations: z.boolean().default(false),
-  static_path: z.string().default("build"),
 });
 
 const ServiceFileSchema = z.object({
   name: z.string().min(1).optional(),
   description: z.string().optional(),
   dockerfile: z.string().default("Dockerfile"),
-  context: z.string().default("../.."),
-  route: z.string().optional(),
+  static_path: z.string().default("build"),
   infrastructure: ServiceInfrastructureSchema.default({}),
 }).passthrough();
 
@@ -48,8 +46,8 @@ const InlineServiceSchema = z.object({
       retries: z.number().int().nonnegative().optional(),
     })
     .default({}),
-  route: z.string().optional(),
   response: z.string().optional(),
+  static_path: z.string().default(""),
   infrastructure: ServiceInfrastructureSchema.default({}),
 }).passthrough();
 
@@ -110,8 +108,11 @@ export const ProjectConfigSchema = z.object({
 });
 
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
+type ServiceInfrastructureInput = z.infer<typeof ServiceInfrastructureSchema>;
+type InlineServiceConfig = z.infer<typeof InlineServiceSchema>;
+type ServiceFileConfig = z.infer<typeof ServiceFileSchema>;
 
-export interface ServiceInfrastructure {
+export interface NormalizedServiceResources {
   cpu: string;
   memory: string;
   port: number;
@@ -119,7 +120,6 @@ export interface ServiceInfrastructure {
   maxInstances: number;
   hasDatabase: boolean;
   runMigrations: boolean;
-  staticPath: string;
 }
 
 export interface NormalizedHealthcheck {
@@ -138,8 +138,8 @@ export interface NormalizedDirectoryService {
   id: string;
   name: string;
   description: string;
-  route?: string;
-  infrastructure: ServiceInfrastructure;
+  staticPath: string;
+  infrastructure: NormalizedServiceResources;
   origin: ServiceOriginBase<"directory">;
   paths: {
     root: string;
@@ -153,8 +153,8 @@ export interface NormalizedInlineService {
   id: string;
   name: string;
   description: string;
-  route?: string;
-  infrastructure: ServiceInfrastructure;
+  staticPath: string;
+  infrastructure: NormalizedServiceResources;
   origin: ServiceOriginBase<"inline">;
   inline: {
     start?: string;
@@ -296,7 +296,7 @@ function normalizeServices(
     );
   }
 
-  const directories = discoverDirectoryServices(dir, entries);
+  const directories = discoverDirectoryServices(dir, entries, rootDir);
   const inline = normalizeInlineServices(
     servicesConfig,
     entries,
@@ -317,6 +317,7 @@ function normalizeServices(
 function discoverDirectoryServices(
   servicesDir: string,
   entries: Record<string, NormalizedService>,
+  projectRoot: string,
 ): Record<string, NormalizedDirectoryService> {
   const discovered: Record<string, NormalizedDirectoryService> = {};
   const children = fs.readdirSync(servicesDir, { withFileTypes: true });
@@ -341,7 +342,7 @@ function discoverDirectoryServices(
       id: serviceId,
       name: parsed.name ?? serviceId,
       description: parsed.description ?? "",
-      route: parsed.route,
+      staticPath: parsed.static_path,
       infrastructure,
       origin: {
         type: "directory",
@@ -351,7 +352,7 @@ function discoverDirectoryServices(
         root: serviceRoot,
         config: serviceConfigPath,
         dockerfile: path.resolve(serviceRoot, parsed.dockerfile),
-        context: path.resolve(serviceRoot, parsed.context),
+        context: projectRoot,
       },
     };
 
@@ -380,7 +381,7 @@ function normalizeInlineServices(
       id: key,
       name: key,
       description: parsed.description ?? "",
-      route: parsed.route,
+      staticPath: parsed.static_path,
       infrastructure,
       origin: {
         type: "inline",
@@ -419,8 +420,8 @@ function ensureServiceIsUnique(
 }
 
 function normalizeInfrastructure(
-  infra: z.infer<typeof ServiceInfrastructureSchema>,
-): ServiceInfrastructure {
+  infra: ServiceInfrastructureInput,
+): NormalizedServiceResources {
   return {
     cpu: infra.cpu,
     memory: infra.memory,
@@ -429,7 +430,6 @@ function normalizeInfrastructure(
     maxInstances: infra.max_instances,
     hasDatabase: infra.has_database,
     runMigrations: infra.run_migrations,
-    staticPath: infra.static_path,
   };
 }
 

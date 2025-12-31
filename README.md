@@ -55,7 +55,7 @@ services:
   dir: ./apps
   shaddow:
     description: Inline hello-world service
-    route: /shaddow
+    static_path: ""
     command: |
       printf 'Hello from shaddow\n'
 ```
@@ -68,7 +68,7 @@ removing the file will also remove the service from `nopo build|up|run`.
 Use the new command to validate configuration changes locally:
 
 ```bash
-npx -y tsx ./nopo/scripts/bin.ts config validate --json --services-only
+nopo config validate --json --services-only
 ```
 
 `nopo config validate` can also print a machine-readable summary that is reused

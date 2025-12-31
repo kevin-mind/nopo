@@ -20,7 +20,7 @@ services:
   dir: ./apps
   shaddow:
     description: Inline sample service that responds with Hello World.
-    route: /shaddow
+    static_path: ""
     command: |
       printf 'Hello from shaddow\n'
     response: "Hello from shaddow"
@@ -32,4 +32,3 @@ services:
       max_instances: 1
       has_database: false
       run_migrations: false
-      static_path: ""
