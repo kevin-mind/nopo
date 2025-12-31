@@ -1,18 +1,23 @@
+ARG BASE_FROM=node:22.16.0-slim
+ARG OS_PACKAGES="make jq curl"
 ARG USER=nopoapp
 ARG USER_ID=1001
+ARG USER_HOME=/home/nopoapp
 
 ################################################################################################
-FROM node:22.16.0-slim AS os
+FROM ${BASE_FROM} AS os
 ################################################################################################
 
 ARG USER
 ARG USER_ID
+ARG USER_HOME
+ARG OS_PACKAGES
 
 # Export for child images (must match NOPO_APP_UID/GID used by build script)
 ENV NOPO_APP_UID="${USER_ID}"
 ENV NOPO_APP_GID="${USER_ID}"
 
-ENV HOME=/home/${USER}
+ENV HOME=${USER_HOME}
 ENV APP=/app
 ENV DEPS=${HOME}/deps
 
@@ -53,7 +58,9 @@ RUN \
   --mount=type=cache,target=/var/lib/apt,id=apt \
 <<EOF
 apt-get update
-apt-get install -y --no-install-recommends make jq curl
+if [ -n "${OS_PACKAGES}" ]; then
+  apt-get install -y --no-install-recommends ${OS_PACKAGES}
+fi
 EOF
 
 ################################################################################################
@@ -67,7 +74,9 @@ RUN \
   --mount=type=cache,target=/var/lib/apt,id=apt \
 <<EOF
 apt-get update
-apt-get install -y --no-install-recommends make jq curl
+if [ -n "${OS_PACKAGES}" ]; then
+  apt-get install -y --no-install-recommends ${OS_PACKAGES}
+fi
 EOF
 
 RUN --mount=type=bind,source=.python-version,target=$APP/.python-version <<EOF

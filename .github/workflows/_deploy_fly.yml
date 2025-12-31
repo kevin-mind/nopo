@@ -64,6 +64,8 @@ jobs:
       - name: Discover services
         id: services
         uses: ./.github/actions/service-names
+        with:
+          filter: buildable
 
       - name: Build Fly app names
         id: fly_app_names

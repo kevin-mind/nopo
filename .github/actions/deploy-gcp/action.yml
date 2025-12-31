@@ -63,33 +63,25 @@ runs:
         echo "Building services configuration..."
         echo "Service images: ${SERVICE_IMAGES}"
 
-        # Read infrastructure.json from each service directory to get config
+        services_payload=$(make list -- --json --jq '.services')
         services_tf="{}"
 
         for service in $(echo "${SERVICE_IMAGES}" | jq -r 'keys[]'); do
           image=$(echo "${SERVICE_IMAGES}" | jq -r --arg s "$service" '.[$s]')
           
-          # Default configuration
-          cpu="1"
-          memory="512Mi"
-          port="3000"
-          min_instances="0"
-          max_instances="10"
-          has_database="false"
-          run_migrations="false"
-          
-          # Check for service-specific config
-          config_file="apps/${service}/infrastructure.json"
-          if [[ -f "${config_file}" ]]; then
-            echo "Loading config from ${config_file}"
-            cpu=$(jq -r '.cpu // "1"' "${config_file}")
-            memory=$(jq -r '.memory // "512Mi"' "${config_file}")
-            port=$(jq -r '.port // 3000' "${config_file}")
-            min_instances=$(jq -r '.min_instances // 0' "${config_file}")
-            max_instances=$(jq -r '.max_instances // 10' "${config_file}")
-            has_database=$(jq -r '.has_database // false' "${config_file}")
-            run_migrations=$(jq -r '.run_migrations // false' "${config_file}")
+          config=$(echo "${services_payload}" | jq -c --arg svc "$service" '.[$svc]')
+          if [[ -z "${config}" || "${config}" == "null" ]]; then
+            echo "Service ${service} is not defined in nopo.yml"
+            exit 1
           fi
+
+          cpu=$(echo "${config}" | jq -r '.cpu // "1"')
+          memory=$(echo "${config}" | jq -r '.memory // "512Mi"')
+          port=$(echo "${config}" | jq -r '.port // 3000')
+          min_instances=$(echo "${config}" | jq -r '.min_instances // 0')
+          max_instances=$(echo "${config}" | jq -r '.max_instances // 10')
+          has_database=$(echo "${config}" | jq -r '.has_database // false')
+          run_migrations=$(echo "${config}" | jq -r '.run_migrations // false')
           
           # Adjust min_instances for production
           if [[ "${ENVIRONMENT}" == "prod" && "${min_instances}" == "0" ]]; then

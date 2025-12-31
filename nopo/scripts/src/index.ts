@@ -11,6 +11,7 @@ import { Environment } from "./parse-env.ts";
 import process from "node:process";
 
 import Build from "./scripts/build.ts";
+import Down from "./scripts/down.ts";
 import Env from "./scripts/env.ts";
 import Index from "./scripts/index.ts";
 import List from "./scripts/list.ts";
@@ -18,18 +19,17 @@ import Pull from "./scripts/pull.ts";
 import Run from "./scripts/run.ts";
 import Status from "./scripts/status.ts";
 import Up from "./scripts/up.ts";
-import Down from "./scripts/down.ts";
 
 const scripts: Record<string, typeof Script> = {
   build: Build,
+  down: Down,
   env: Env,
   index: Index,
   list: List,
-  run: Run,
   pull: Pull,
+  run: Run,
   status: Status,
   up: Up,
-  down: Down,
 };
 
 function printNopoHeader(): void {

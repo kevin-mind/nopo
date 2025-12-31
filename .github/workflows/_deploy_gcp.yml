@@ -65,6 +65,8 @@ jobs:
       - name: Discover services
         id: services
         uses: ./.github/actions/service-names
+        with:
+          filter: buildable
 
       - name: Build image tags
         id: images
@@ -166,6 +168,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: ./.github/actions/setup-node
+
       - uses: ./.github/actions/setup-docker
         with:
           registry: ghcr.io
@@ -206,14 +210,13 @@ jobs:
           BUCKET_NAME: ${{ needs.prepare_bucket.outputs.bucket_name }}
           SERVICE: ${{ matrix.service }}
         run: |
-          config_file="apps/${SERVICE}/infrastructure.json"
-          
-          if [[ ! -f "${config_file}" ]]; then
-            echo "No infrastructure.json found for ${SERVICE}"
+          service_config=$(make list -- --json --jq ".services.\"${SERVICE}\"")
+          if [[ -z "${service_config}" || "${service_config}" == "null" ]]; then
+            echo "No service definition for ${SERVICE} in nopo.yml"
             exit 0
           fi
-          
-          static_path=$(jq -r '.static_path // empty' "${config_file}")
+
+          static_path=$(echo "${service_config}" | jq -r '.static_path // empty')
           
           if [[ -z "${static_path}" || "${static_path}" == "null" ]]; then
             echo "No static_path configured for ${SERVICE} - skipping"
@@ -271,6 +274,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: ./.github/actions/setup-node
+
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
@@ -300,6 +305,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: ./.github/actions/setup-node
+
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
@@ -317,12 +324,20 @@ jobs:
           SERVICES: ${{ needs.context.outputs.services }}
         run: |
           # Find services that need migrations
+          services_payload=$(make list -- --json --jq '.services')
+
           for service in $(echo "${SERVICES}" | jq -r '.[]'); do
-            config_file="apps/${service}/infrastructure.json"
+            config=$(echo "${services_payload}" | jq -c --arg svc "$service" '.[$svc]')
+            if [[ -z "${config}" || "${config}" == "null" ]]; then
+              echo "Skipping ${service} - not defined in nopo.yml"
+              continue
+            fi
+
+            run_migrations=$(echo "${config}" | jq -r '.run_migrations // false')
             
-            # Check if service has run_migrations: true
-            if [[ -f "${config_file}" ]]; then
-              run_migrations=$(jq -r '.run_migrations // false' "${config_file}")
+            if [[ "${run_migrations}" == "true" ]]; then
+              echo "Running migrations for ${service}..."
+              JOB_NAME="nopo-${ENVIRONMENT}-${service}-migrate"
               
               if [[ "${run_migrations}" == "true" ]]; then
                 echo "=== Checking migrations for ${service} ==="

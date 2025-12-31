@@ -1,0 +1,16 @@
+name: Nopo Project
+
+os:
+  base:
+    image: node:22.16.0-slim
+  dependencies:
+    build-essential: ""
+    jq: ""
+    curl: ""
+  user:
+    uid: 1001
+    gid: 1001
+    home: /home/nopoapp
+
+services:
+  dir: ./apps

@@ -1,10 +1,49 @@
-import { Script, type Runner } from "../lib.ts";
+import { Script, type Runner, exec } from "../lib.ts";
+import { isBuildableService, type NormalizedService } from "../config/index.ts";
 import process from "node:process";
+
+type FilterExpression = {
+  type: "preset" | "exists" | "not_exists" | "equals";
+  field?: string;
+  value?: string;
+};
 
 type ListCliArgs = {
   format: "text" | "json" | "csv";
-  withConfig: boolean;
+  filters: FilterExpression[];
+  jqFilter?: string;
+  validate: boolean;
 };
+
+/**
+ * Parse a filter expression string into a FilterExpression object.
+ *
+ * Supported formats:
+ * - "buildable"           -> preset filter (services that can be built)
+ * - "!fieldname"          -> field does not exist
+ * - "fieldname"           -> field exists
+ * - "fieldname=value"     -> field equals value
+ */
+function parseFilterExpression(expr: string): FilterExpression {
+  // Named presets
+  if (expr === "buildable") {
+    return { type: "preset", field: "buildable" };
+  }
+
+  // Negation: !fieldname
+  if (expr.startsWith("!")) {
+    return { type: "not_exists", field: expr.slice(1) };
+  }
+
+  // Equality: fieldname=value
+  if (expr.includes("=")) {
+    const [field, ...rest] = expr.split("=");
+    return { type: "equals", field, value: rest.join("=") };
+  }
+
+  // Field exists
+  return { type: "exists", field: expr };
+}
 
 export default class ListScript extends Script<ListCliArgs> {
   static override name = "list";
@@ -15,12 +54,14 @@ export default class ListScript extends Script<ListCliArgs> {
     isDependency: boolean,
   ): ListCliArgs {
     if (isDependency || runner.argv[0] !== "list") {
-      return { format: "text", withConfig: false };
+      return { format: "text", filters: [], validate: false };
     }
 
     const argv = runner.argv.slice(1);
     let format: "text" | "json" | "csv" = "text";
-    let withConfig = false;
+    const filters: FilterExpression[] = [];
+    let jqFilter: string | undefined;
+    let validate = false;
 
     for (let i = 0; i < argv.length; i++) {
       const arg = argv[i];
@@ -38,25 +79,57 @@ export default class ListScript extends Script<ListCliArgs> {
         format = "json";
       } else if (arg === "--csv") {
         format = "csv";
-      } else if (arg === "--with-config" || arg === "-c") {
-        withConfig = true;
+      } else if (arg === "--filter" || arg === "-F") {
+        const filterArg = argv[i + 1];
+        if (filterArg) {
+          filters.push(parseFilterExpression(filterArg));
+          i++;
+        }
+      } else if (arg === "--jq") {
+        const jqArg = argv[i + 1];
+        if (jqArg) {
+          jqFilter = jqArg;
+          i++;
+        }
+      } else if (arg === "--validate" || arg === "-v") {
+        validate = true;
       }
     }
 
-    return { format, withConfig };
+    return { format, filters, jqFilter, validate };
   }
 
   override async fn(args: ListCliArgs) {
-    const services = this.runner.config.targets;
+    const allServices = this.runner.config.targets;
+    const services = this.applyFilters(allServices, args.filters);
+
+    // Validate --jq requires --json
+    if (args.jqFilter && args.format !== "json") {
+      throw new Error("--jq requires --json format");
+    }
+
+    // If --validate, just output success message (config already validated during load)
+    if (args.validate) {
+      const project = this.runner.config.project;
+      this.runner.logger.log(
+        `✓ Valid nopo.yml: ${project.name} (${services.length} services)`,
+      );
+      return;
+    }
 
     if (args.format === "json") {
-      if (args.withConfig) {
-        const servicesWithConfig = await this.getServicesWithConfig(services);
-        process.stdout.write(
-          JSON.stringify(servicesWithConfig, null, 2) + "\n",
-        );
+      const output = {
+        config: this.getProjectConfig(),
+        services: this.getServicesWithConfig(services),
+      };
+      const jsonOutput = JSON.stringify(output, null, 2);
+
+      // Process through jq if filter provided
+      if (args.jqFilter) {
+        const result = await this.processJq(jsonOutput, args.jqFilter);
+        process.stdout.write(result + "\n");
       } else {
-        process.stdout.write(JSON.stringify(services) + "\n");
+        process.stdout.write(jsonOutput + "\n");
       }
     } else if (args.format === "csv") {
       process.stdout.write(services.join(",") + "\n");
@@ -66,20 +139,86 @@ export default class ListScript extends Script<ListCliArgs> {
         return;
       }
 
-      if (args.withConfig) {
-        await this.printConfigTable(services);
-      } else {
-        this.runner.logger.log(`Discovered ${services.length} service(s):`);
-        for (const service of services) {
-          this.runner.logger.log(`  - ${service}`);
-        }
-      }
+      await this.printConfigTable(services);
     }
+  }
+
+  private async processJq(jsonInput: string, filter: string): Promise<string> {
+    const result = await exec("jq", ["-c", filter], {
+      cwd: this.runner.config.root,
+      input: jsonInput,
+      nothrow: true,
+    });
+
+    if (result.exitCode !== 0) {
+      const stderr = result.stderr?.trim() || "Unknown error";
+      throw new Error(`jq filter failed: ${stderr}`);
+    }
+
+    return result.stdout.trim();
+  }
+
+  private applyFilters(
+    services: string[],
+    filters: FilterExpression[],
+  ): string[] {
+    if (filters.length === 0) return services;
+
+    const entries = this.runner.config.project.services.entries;
+
+    return services.filter((serviceName) => {
+      const service = entries[serviceName];
+      if (!service) return false;
+
+      return filters.every((filter) => this.matchesFilter(service, filter));
+    });
+  }
+
+  private matchesFilter(
+    service: NormalizedService,
+    filter: FilterExpression,
+  ): boolean {
+    switch (filter.type) {
+      case "preset":
+        if (filter.field === "buildable") {
+          return isBuildableService(service);
+        }
+        return true;
+
+      case "exists":
+        return this.getFieldValue(service, filter.field!) !== undefined;
+
+      case "not_exists":
+        return this.getFieldValue(service, filter.field!) === undefined;
+
+      case "equals": {
+        const value = this.getFieldValue(service, filter.field!);
+        if (value === undefined) return false;
+        return String(value) === filter.value;
+      }
+
+      default:
+        return true;
+    }
+  }
+
+  private getFieldValue(service: NormalizedService, field: string): unknown {
+    // Support dotted paths like "infrastructure.cpu"
+    const parts = field.split(".");
+    let current: unknown = service;
+
+    for (const part of parts) {
+      if (current === null || current === undefined) return undefined;
+      if (typeof current !== "object") return undefined;
+      current = (current as Record<string, unknown>)[part];
+    }
+
+    return current;
   }
 
   private async printConfigTable(services: string[]) {
     const { chalk } = this.runner.logger;
-    const configs = await this.getServicesWithConfig(services);
+    const configs = this.getServicesWithConfig(services);
 
     // Define columns
     const columns = [
@@ -135,40 +274,34 @@ export default class ListScript extends Script<ListCliArgs> {
     this.runner.logger.log(chalk.gray(`Total: ${services.length} service(s)`));
   }
 
-  private async getServicesWithConfig(
-    services: string[],
-  ): Promise<Record<string, ServiceConfig>> {
-    const fs = await import("node:fs");
-    const path = await import("node:path");
+  private getProjectConfig(): ProjectConfig {
+    const project = this.runner.config.project;
+    return {
+      name: project.name,
+      services_dir: project.services.dir,
+    };
+  }
 
+  private getServicesWithConfig(
+    services: string[],
+  ): Record<string, ServiceConfig> {
     const result: Record<string, ServiceConfig> = {};
+    const entries = this.runner.config.project.services.entries;
 
     for (const service of services) {
-      const configPath = path.join(
-        this.runner.config.root,
-        "apps",
-        service,
-        "infrastructure.json",
-      );
-
-      let config: Partial<ServiceConfig> = {};
-      if (fs.existsSync(configPath)) {
-        try {
-          const content = fs.readFileSync(configPath, "utf-8");
-          config = JSON.parse(content);
-        } catch {
-          // Ignore parse errors, use defaults
-        }
-      }
+      const definition = entries[service];
+      if (!definition) continue;
 
       result[service] = {
-        cpu: config.cpu ?? "1",
-        memory: config.memory ?? "512Mi",
-        port: config.port ?? 3000,
-        min_instances: config.min_instances ?? 0,
-        max_instances: config.max_instances ?? 10,
-        has_database: config.has_database ?? false,
-        run_migrations: config.run_migrations ?? false,
+        description: definition.description,
+        cpu: definition.infrastructure.cpu,
+        memory: definition.infrastructure.memory,
+        port: definition.infrastructure.port,
+        min_instances: definition.infrastructure.minInstances,
+        max_instances: definition.infrastructure.maxInstances,
+        has_database: definition.infrastructure.hasDatabase,
+        run_migrations: definition.infrastructure.runMigrations,
+        static_path: definition.staticPath,
       };
     }
 
@@ -176,7 +309,13 @@ export default class ListScript extends Script<ListCliArgs> {
   }
 }
 
+interface ProjectConfig {
+  name: string;
+  services_dir: string;
+}
+
 interface ServiceConfig {
+  description?: string;
   cpu: string;
   memory: string;
   port: number;
@@ -184,4 +323,5 @@ interface ServiceConfig {
   max_instances: number;
   has_database: boolean;
   run_migrations: boolean;
+  static_path: string;
 }

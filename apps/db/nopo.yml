@@ -1,0 +1,11 @@
+name: db
+description: PostgreSQL database for persistent data storage.
+image: postgres:16
+infrastructure:
+  cpu: "1"
+  memory: "512Mi"
+  port: 5432
+  min_instances: 1
+  max_instances: 1
+  has_database: false
+  run_migrations: false

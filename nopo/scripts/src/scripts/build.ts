@@ -10,6 +10,7 @@ import {
   NOPO_APP_UID,
   NOPO_APP_GID,
 } from "../lib.ts";
+import { isBuildableService } from "../config/index.ts";
 import EnvScript from "./env.ts";
 import { DockerTag } from "../docker-tag.ts";
 import { parseTargetArgs } from "../target-args.ts";
@@ -126,9 +127,26 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
     const env = this.runner.environment.env;
     const targets = this.runner.config.targets;
 
-    const allTargets = ["base", ...targets];
+    // Filter to only buildable services (those with dockerfiles, not pre-built images)
+    const buildableTargets = targets.filter((t) => {
+      const service = this.runner.getService(t);
+      return isBuildableService(service);
+    });
+
+    const allTargets = ["base", ...buildableTargets];
     const buildTargets =
-      requestedTargets.length > 0 ? requestedTargets : allTargets;
+      requestedTargets.length > 0
+        ? requestedTargets.filter(
+            (t) => t === "base" || buildableTargets.includes(t),
+          )
+        : allTargets;
+
+    // Log skipped services
+    for (const target of targets) {
+      if (!buildableTargets.includes(target)) {
+        this.log(`Skipping '${target}' - uses pre-built image`);
+      }
+    }
 
     const definition: BakeDefinition = {
       group: {
@@ -151,6 +169,8 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
       );
       const isCI =
         process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
+
+      const baseArgs = this.getBaseBuildArgs();
       definition.target.base = {
         context: ".",
         dockerfile: path.relative(this.runner.config.root, baseDockerfile),
@@ -164,6 +184,7 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
             }
           : {}),
         args: {
+          ...baseArgs,
           DOCKER_TARGET: env.DOCKER_TARGET,
           DOCKER_TAG: env.DOCKER_TAG,
           DOCKER_VERSION: env.DOCKER_VERSION,
@@ -175,19 +196,27 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
       };
     }
 
-    for (const target of targets) {
+    for (const target of buildableTargets) {
       if (!buildTargets.includes(target)) continue;
 
+      const service = this.runner.getService(target);
+      if (!isBuildableService(service)) continue; // Type guard
+
       const serviceTag = this.serviceImageTag(target);
-      const dockerfile = this.defaultDockerfileFor(target);
+      const dockerfile = service.paths.dockerfile;
 
       if (!fs.existsSync(dockerfile)) {
         throw new Error(`Target '${target}' is missing ${dockerfile}.`);
       }
 
+      const relativeContext =
+        path.relative(this.runner.config.root, service.paths.context) || ".";
+      const relativeDockerfile =
+        path.relative(this.runner.config.root, dockerfile) || dockerfile;
+
       definition.target[target] = {
-        context: ".",
-        dockerfile: path.relative(this.runner.config.root, dockerfile),
+        context: relativeContext,
+        dockerfile: relativeDockerfile,
         tags: [serviceTag],
         ...(push ? {} : { output: ["type=docker"] }),
         contexts: {
@@ -245,10 +274,6 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
     return `${service.replace(/[^a-zA-Z0-9]/g, "_").toUpperCase()}${SERVICE_IMAGE_SUFFIX}`;
   }
 
-  private defaultDockerfileFor(service: string): string {
-    return path.join(this.runner.config.root, "apps", service, "Dockerfile");
-  }
-
   private serviceImageTag(service: string): string {
     const env = this.runner.environment.env;
     const baseImage = `${env.DOCKER_IMAGE}-${service}`;
@@ -258,6 +283,26 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
       version: env.DOCKER_VERSION,
     });
     return parsed.fullTag;
+  }
+
+  private getBaseBuildArgs() {
+    const { base, dependencies, user } = this.runner.config.project.os;
+    const packages = this.formatOsPackages(dependencies);
+    const userHome = user.home || "/home/nopoapp";
+    const userName = path.basename(userHome) || "nopoapp";
+    return {
+      BASE_FROM: base.from,
+      OS_PACKAGES: packages || "make jq curl",
+      USER: userName,
+      USER_ID: String(user.uid),
+      USER_HOME: userHome,
+    };
+  }
+
+  private formatOsPackages(deps: Record<string, string>): string {
+    const names = Object.keys(deps);
+    if (names.length === 0) return "";
+    return names.join(" ");
   }
 
   private async getImageDigest(tag: string): Promise<string | null> {

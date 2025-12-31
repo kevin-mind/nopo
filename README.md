@@ -35,6 +35,63 @@ All Compose services are defined alongside their apps (see
 `apps/*/docker-compose.yml`) and are aggregated via the Compose `include`
 directive (requires Docker Compose v2.20+).
 
+## Configuration (`nopo.yml`)
+
+The CLI loads all service metadata from YAML. Two kinds of files are involved:
+
+- `./nopo.yml` – project-level defaults (`os`, dependencies)
+- `./apps/<service>/nopo.yml` – service-specific infrastructure settings
+
+Example root config:
+
+```yaml
+name: Nopo Project
+os:
+  base:
+    image: node:22.16.0-slim
+services:
+  dir: ./apps
+```
+
+Every service directory (backend, web, db, nginx, etc.) ships with its own
+`nopo.yml` describing CPU/memory, scaling limits, `static_path`, and database
+requirements. Services can specify either `dockerfile` for buildable services
+or `image` for pre-built images (like postgres or nginx).
+
+Example service config with dockerfile:
+
+```yaml
+name: backend
+description: Django application
+dockerfile: Dockerfile
+infrastructure:
+  cpu: "1"
+  memory: "512Mi"
+  port: 3000
+```
+
+Example service config with pre-built image:
+
+```yaml
+name: db
+description: PostgreSQL database
+image: postgres:16
+infrastructure:
+  port: 5432
+```
+
+The CLI consumes these files to decide which services exist, so
+removing the file will also remove the service from `nopo build|up|run`.
+
+Use the new command (routed through the Makefile) to validate configuration changes locally:
+
+```bash
+make config validate -- --json --services-only
+```
+
+`make config validate -- ...` can also print a machine-readable summary that is reused
+by CI/CD scripts.
+
 Infrastructure tests that exercise the extendable image contract live in
 `nopo/docker/tests/extendable.sh`. Run the script after touching the base image to
 ensure derived images can install new npm packages while `/opt/nopo-core`

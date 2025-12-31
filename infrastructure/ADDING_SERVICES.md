@@ -7,7 +7,7 @@ This guide explains how to add a new service to the infrastructure. The deployme
 To add a new service:
 
 1. Create a directory in `apps/` with a `Dockerfile`
-2. (Optional) Add an `infrastructure.json` for custom configuration
+2. Add a `nopo.yml` to describe infrastructure settings
 3. Push to `main` - the service will be automatically deployed
 
 ## Step-by-Step Guide
@@ -35,20 +35,24 @@ EXPOSE 3000
 CMD ["npm", "start"]
 ```
 
-### 3. Add Infrastructure Configuration (Optional)
+### 3. Add Service Configuration
 
-Create `apps/my-new-service/infrastructure.json` to customize deployment settings:
+Create `apps/my-new-service/nopo.yml` to customize deployment settings:
 
-```json
-{
-  "cpu": "1",
-  "memory": "512Mi",
-  "port": 3000,
-  "min_instances": 0,
-  "max_instances": 10,
-  "has_database": false,
-  "run_migrations": false
-}
+```yaml
+name: my-new-service
+description: Brief description for humans.
+dockerfile: Dockerfile
+static_path: build
+infrastructure:
+  cpu: "1"
+  memory: "512Mi"
+  port: 3000
+  min_instances: 0
+  max_instances: 10
+  has_database: false
+  run_migrations: false
+  static_path: build
 ```
 
 #### Configuration Options
@@ -207,7 +211,7 @@ Test service discovery locally:
 
 ### Database Connection Issues
 
-1. Verify `has_database: true` in `infrastructure.json`
+1. Verify `has_database: true` in `apps/<service>/nopo.yml`
 2. Check VPC connector is configured
 3. Verify service account has Cloud SQL Client role
 
@@ -231,17 +235,20 @@ EXPOSE 8080
 CMD ["nginx", "-g", "daemon off;"]
 EOF
 
-# 3. Create infrastructure config
-cat > apps/api-gateway/infrastructure.json << 'EOF'
-{
-  "cpu": "0.5",
-  "memory": "128Mi",
-  "port": 8080,
-  "min_instances": 1,
-  "max_instances": 5,
-  "has_database": false,
-  "run_migrations": false
-}
+# 3. Create service config
+cat > apps/api-gateway/nopo.yml << 'EOF'
+name: api-gateway
+description: Public ingress gateway
+dockerfile: Dockerfile
+static_path: build
+infrastructure:
+  cpu: "0.5"
+  memory: "128Mi"
+  port: 8080
+  min_instances: 1
+  max_instances: 5
+  has_database: false
+  run_migrations: false
 EOF
 
 # 4. Commit and push

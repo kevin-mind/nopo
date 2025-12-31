@@ -24,3 +24,4 @@ location @backend_vite {
     proxy_cache_bypass $http_upgrade;
     proxy_buffering off;
 }
+

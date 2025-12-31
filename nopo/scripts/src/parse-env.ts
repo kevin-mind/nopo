@@ -45,7 +45,8 @@ export class Environment {
   extraEnv: Record<string, string>;
   diff: EnvironmentDiffType;
 
-  constructor({ envFile, processEnv }: Config) {
+  constructor(config: Config) {
+    const { envFile, processEnv } = config;
     if (!envFile) {
       throw new Error("Missing envFile");
     }

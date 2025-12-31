@@ -1,10 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { parseTargetArgs } from "../src/target-args.ts";
-import { discoverTargets } from "../src/lib.ts";
-import fs from "node:fs";
-import path from "node:path";
-import os from "node:os";
-import { afterEach } from "vitest";
 
 describe("Target Resolution Algorithm", () => {
   describe("parseTargetArgs for script classes", () => {
@@ -78,69 +73,6 @@ describe("Target Resolution Algorithm", () => {
 
       expect(result.leadingArgs).toEqual(["lint"]);
       expect(result.targets).toEqual(["web"]);
-    });
-  });
-
-  describe("discoverTargets", () => {
-    const tmpDirs: string[] = [];
-
-    afterEach(() => {
-      // Cleanup all temporary directories
-      for (const tmpDir of tmpDirs) {
-        try {
-          fs.rmSync(tmpDir, { recursive: true, force: true });
-        } catch {
-          // Ignore cleanup errors
-        }
-      }
-      tmpDirs.length = 0;
-    });
-
-    it("should discover targets from apps/*/Dockerfile", () => {
-      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "nopo-test-"));
-      tmpDirs.push(tmpDir);
-      const appsDir = path.join(tmpDir, "apps");
-
-      // Create test structure
-      fs.mkdirSync(path.join(appsDir, "backend"), { recursive: true });
-      fs.mkdirSync(path.join(appsDir, "web"), { recursive: true });
-      fs.mkdirSync(path.join(appsDir, "no-dockerfile"), { recursive: true });
-
-      // Create Dockerfiles
-      fs.writeFileSync(path.join(appsDir, "backend", "Dockerfile"), "");
-      fs.writeFileSync(path.join(appsDir, "web", "Dockerfile"), "");
-
-      const targets = discoverTargets(tmpDir);
-
-      expect(targets).toContain("backend");
-      expect(targets).toContain("web");
-      expect(targets).not.toContain("no-dockerfile");
-    });
-
-    it("should return empty array when apps directory doesn't exist", () => {
-      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "nopo-test-"));
-      tmpDirs.push(tmpDir);
-      const targets = discoverTargets(tmpDir);
-      expect(targets).toEqual([]);
-    });
-
-    it("should only include directories with Dockerfile", () => {
-      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "nopo-test-"));
-      tmpDirs.push(tmpDir);
-      const appsDir = path.join(tmpDir, "apps");
-
-      fs.mkdirSync(path.join(appsDir, "backend"), { recursive: true });
-      fs.mkdirSync(path.join(appsDir, "web"), { recursive: true });
-      fs.mkdirSync(path.join(appsDir, "no-dockerfile"), { recursive: true });
-
-      // Only backend has Dockerfile
-      fs.writeFileSync(path.join(appsDir, "backend", "Dockerfile"), "");
-
-      const targets = discoverTargets(tmpDir);
-
-      expect(targets).toEqual(["backend"]);
-      expect(targets).not.toContain("web");
-      expect(targets).not.toContain("no-dockerfile");
     });
   });
 

@@ -1,11 +1,11 @@
 name: Service Names
-description: Discover service names from the apps directory (services with Dockerfiles)
+description: Discover service names from the apps directory
 
 inputs:
   filter:
-    description: Filter to specific service(s), comma-separated or "*" for all
+    description: Filter expression passed to nopo list (e.g., "buildable", "image", "!image")
     required: false
-    default: "*"
+    default: ""
 
 outputs:
   services:
@@ -30,28 +30,21 @@ runs:
         # Use nopo list to discover services
         # Assumes nopo CLI is available (setup-node action should be run before this)
         #
-        # nopo list --json outputs: ["backend","web"]
-        # nopo list --csv outputs: backend,web
+        # Examples:
+        #   filter: ""          -> all services
+        #   filter: "buildable" -> services with Dockerfiles
+        #   filter: "image"     -> services with pre-built images
 
-        all_services_json=$(make list -- --json)
-        all_services_csv=$(make list -- --csv)
-        
-        echo "All services: ${all_services_csv}"
-
-        # Apply filter if not "*"
-        if [[ "${FILTER}" == "*" ]]; then
-          services_json="${all_services_json}"
-          services_csv="${all_services_csv}"
+        if [[ -n "${FILTER}" ]]; then
+          full_json=$(make list -- --json --filter "${FILTER}")
+          services_csv=$(make list -- --csv --filter "${FILTER}")
         else
-          # Convert comma-separated filter to array and filter JSON
-          services_json=$(echo "${all_services_json}" | jq -c --arg filter "${FILTER}" '
-            ($filter | split(",")) as $allowed |
-            map(select(. as $s | $allowed | index($s)))
-          ')
-          services_csv=$(echo "${services_json}" | jq -r '. | join(",")')
+          full_json=$(make list -- --json)
+          services_csv=$(make list -- --csv)
         fi
 
-        # Count services
+        # Extract service names from JSON (avoiding pipe in make arguments)
+        services_json=$(echo "${full_json}" | jq -c '.services | keys')
         count=$(echo "${services_json}" | jq 'length')
 
         echo "services=${services_json}" >> "$GITHUB_OUTPUT"

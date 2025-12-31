@@ -18,7 +18,7 @@ ARG SERVICE_NAME
 ARG NOPO_APP_UID
 ARG NOPO_APP_GID
 
-COPY --from=web-build --chown=${NOPO_APP_UID}:${NOPO_APP_GID} /app /app
-COPY --from=web-build --chown=${NOPO_APP_UID}:${NOPO_APP_GID} /home/nopoapp /home/nopoapp
+COPY --from=web-build --chown=${NOPO_APP_UID}:${NOPO_APP_GID} ${APP} ${APP}
+COPY --from=web-build --chown=${NOPO_APP_UID}:${NOPO_APP_GID} ${HOME} ${HOME}
 
 ENV SERVICE_NAME=${SERVICE_NAME}

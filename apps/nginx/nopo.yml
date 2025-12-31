@@ -1,0 +1,11 @@
+name: nginx
+description: Nginx reverse proxy that routes traffic to backend services.
+image: nginx:latest
+infrastructure:
+  cpu: "0.5"
+  memory: "128Mi"
+  port: 80
+  min_instances: 1
+  max_instances: 3
+  has_database: false
+  run_migrations: false

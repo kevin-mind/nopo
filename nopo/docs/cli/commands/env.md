@@ -201,3 +201,4 @@ The environment is validated using a Zod schema:
 - [`up`](./up.md) - Start the services
 - [`status`](./status.md) - Check the status of services
 
+
