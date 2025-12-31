@@ -123,7 +123,8 @@ export default async function main(
     commandName === "list" &&
     !!(args.csv || args.format === "csv" || args.f === "csv");
   const isConfigJson =
-    commandName === "config" && !!(args.json || args.j || args.format === "json");
+    commandName === "config" &&
+    !!(args.json || args.j || args.format === "json");
   const isSilentOutput = isJsonOutput || isCsvOutput || isConfigJson;
 
   const config: Config = createConfig({

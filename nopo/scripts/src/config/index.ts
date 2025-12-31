@@ -19,34 +19,38 @@ const ServiceInfrastructureSchema = z.object({
   run_migrations: z.boolean().default(false),
 });
 
-const ServiceFileSchema = z.object({
-  name: z.string().min(1).optional(),
-  description: z.string().optional(),
-  dockerfile: z.string().default("Dockerfile"),
-  static_path: z.string().default("build"),
-  infrastructure: ServiceInfrastructureSchema.default({}),
-}).passthrough();
+const ServiceFileSchema = z
+  .object({
+    name: z.string().min(1).optional(),
+    description: z.string().optional(),
+    dockerfile: z.string().default("Dockerfile"),
+    static_path: z.string().default("build"),
+    infrastructure: ServiceInfrastructureSchema.default({}),
+  })
+  .passthrough();
 
-const InlineServiceSchema = z.object({
-  description: z.string().optional(),
-  start: z.string().optional(),
-  command: z.string().optional(),
-  docker: z.string().optional(),
-  ports: z.array(z.string()).default([]),
-  volumes: z.array(z.string()).default([]),
-  environment: z.record(z.string()).default({}),
-  healthcheck: z
-    .object({
-      test: z.union([z.array(z.string()), z.string()]).optional(),
-      interval: z.string().optional(),
-      timeout: z.string().optional(),
-      retries: z.number().int().nonnegative().optional(),
-    })
-    .default({}),
-  response: z.string().optional(),
-  static_path: z.string().default(""),
-  infrastructure: ServiceInfrastructureSchema.default({}),
-}).passthrough();
+const InlineServiceSchema = z
+  .object({
+    description: z.string().optional(),
+    start: z.string().optional(),
+    command: z.string().optional(),
+    docker: z.string().optional(),
+    ports: z.array(z.string()).default([]),
+    volumes: z.array(z.string()).default([]),
+    environment: z.record(z.string()).default({}),
+    healthcheck: z
+      .object({
+        test: z.union([z.array(z.string()), z.string()]).optional(),
+        interval: z.string().optional(),
+        timeout: z.string().optional(),
+        retries: z.number().int().nonnegative().optional(),
+      })
+      .default({}),
+    response: z.string().optional(),
+    static_path: z.string().default(""),
+    infrastructure: ServiceInfrastructureSchema.default({}),
+  })
+  .passthrough();
 
 const ServicesSchemaBase = z.object({
   dir: z.string().default("./apps"),
@@ -97,7 +101,7 @@ const ProjectOsSchema = z.object({
     .default({}),
 });
 
-export const ProjectConfigSchema = z.object({
+const ProjectConfigSchema = z.object({
   name: z.string().min(1),
   os: ProjectOsSchema.default({
     base: "node:22.16.0-slim",
@@ -107,12 +111,10 @@ export const ProjectConfigSchema = z.object({
   ),
 });
 
-export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
+type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
 type ServiceInfrastructureInput = z.infer<typeof ServiceInfrastructureSchema>;
-type InlineServiceConfig = z.infer<typeof InlineServiceSchema>;
-type ServiceFileConfig = z.infer<typeof ServiceFileSchema>;
 
-export interface NormalizedServiceResources {
+interface NormalizedServiceResources {
   cpu: string;
   memory: string;
   port: number;
@@ -122,7 +124,7 @@ export interface NormalizedServiceResources {
   runMigrations: boolean;
 }
 
-export interface NormalizedHealthcheck {
+interface NormalizedHealthcheck {
   test: string[];
   interval?: string;
   timeout?: string;
@@ -149,7 +151,7 @@ export interface NormalizedDirectoryService {
   };
 }
 
-export interface NormalizedInlineService {
+interface NormalizedInlineService {
   id: string;
   name: string;
   description: string;
@@ -172,7 +174,13 @@ export type NormalizedService =
   | NormalizedDirectoryService
   | NormalizedInlineService;
 
-export interface NormalizedOsConfig {
+export function isDirectoryService(
+  service: NormalizedService,
+): service is NormalizedDirectoryService {
+  return service.origin.type === "directory";
+}
+
+interface NormalizedOsConfig {
   base: {
     from: string;
   };
@@ -184,7 +192,7 @@ export interface NormalizedOsConfig {
   };
 }
 
-export interface NormalizedServicesConfig {
+interface NormalizedServicesConfig {
   dir: string;
   entries: Record<string, NormalizedService>;
   targets: string[];
@@ -215,7 +223,11 @@ export function loadProjectConfig(
 
   const document = parseYamlFile(resolvedConfigPath);
   const parsed = ProjectConfigSchema.parse(document);
-  const services = normalizeServices(parsed.services, resolvedRoot, resolvedConfigPath);
+  const services = normalizeServices(
+    parsed.services,
+    resolvedRoot,
+    resolvedConfigPath,
+  );
 
   return {
     name: parsed.name,
@@ -228,9 +240,11 @@ export function loadProjectConfig(
 function parseYamlFile(filePath: string): unknown {
   try {
     const contents = fs.readFileSync(filePath, "utf-8");
-    return contents ? parseYaml(contents) ?? {} : {};
+    return contents ? (parseYaml(contents) ?? {}) : {};
   } catch (error) {
-    throw new Error(`Failed to read ${filePath}: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(
+      `Failed to read ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 }
 
@@ -409,17 +423,11 @@ function normalizeInfrastructure(
 }
 
 function normalizeHealthcheck(
-  healthcheck: z.infer<
-    (typeof InlineServiceSchema)["shape"]["healthcheck"]
-  >,
+  healthcheck: z.infer<(typeof InlineServiceSchema)["shape"]["healthcheck"]>,
 ): NormalizedHealthcheck | undefined {
   if (!healthcheck || Object.keys(healthcheck).length === 0) return undefined;
   const rawTest = healthcheck.test;
-  const test = rawTest
-    ? Array.isArray(rawTest)
-      ? rawTest
-      : [rawTest]
-    : [];
+  const test = rawTest ? (Array.isArray(rawTest) ? rawTest : [rawTest]) : [];
 
   return {
     test,

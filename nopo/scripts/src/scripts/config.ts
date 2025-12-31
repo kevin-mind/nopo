@@ -2,6 +2,7 @@ import path from "node:path";
 import process from "node:process";
 import { Script, type Runner, minimist } from "../lib.ts";
 import type { NormalizedService } from "../config/index.ts";
+import { isDirectoryService } from "../config/index.ts";
 
 type ConfigAction = "validate";
 
@@ -18,7 +19,7 @@ export default class ConfigScript extends Script<ConfigArgs> {
 
   static override parseArgs(runner: Runner): ConfigArgs {
     const argv = runner.argv.slice(1);
-    let action: ConfigAction = "validate";
+    const action: ConfigAction = "validate";
     let optionArgs = argv;
 
     if (argv[0] === "validate") {
@@ -118,7 +119,6 @@ export default class ConfigScript extends Script<ConfigArgs> {
 
   private toServiceSummary(service: NormalizedService) {
     const infrastructure = service.infrastructure;
-    const isDirectory = service.origin.type === "directory";
     return {
       id: service.id,
       name: service.name,
@@ -134,7 +134,7 @@ export default class ConfigScript extends Script<ConfigArgs> {
         has_database: infrastructure.hasDatabase,
         run_migrations: infrastructure.runMigrations,
       },
-      paths: isDirectory
+      paths: isDirectoryService(service)
         ? {
             root:
               path.relative(this.runner.config.root, service.paths.root) || ".",

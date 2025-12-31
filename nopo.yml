@@ -10,7 +10,7 @@ os:
   user:
     uid: 1001
     gid: 1001
-    home: /home/nopo
+    home: /home/nopoapp
 
 services:
   dir: ./apps

@@ -11,6 +11,7 @@ import {
   NOPO_APP_GID,
 } from "../lib.ts";
 import type { NormalizedDirectoryService } from "../config/index.ts";
+import { isDirectoryService } from "../config/index.ts";
 import EnvScript from "./env.ts";
 import { DockerTag } from "../docker-tag.ts";
 import { parseTargetArgs } from "../target-args.ts";
@@ -258,20 +259,18 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
     return `${service.replace(/[^a-zA-Z0-9]/g, "_").toUpperCase()}${SERVICE_IMAGE_SUFFIX}`;
   }
 
-  private defaultDockerfileFor(
-    service: NormalizedDirectoryService,
-  ): string {
+  private defaultDockerfileFor(service: NormalizedDirectoryService): string {
     return service.paths.dockerfile;
   }
 
   private getDirectoryService(target: string): NormalizedDirectoryService {
     const service = this.runner.getService(target);
-    if (service.origin.type !== "directory") {
-      throw new Error(
-        `Service "${target}" is not defined as a directory service.`,
-      );
+    if (isDirectoryService(service)) {
+      return service;
     }
-    return service;
+    throw new Error(
+      `Service "${target}" is not defined as a directory service.`,
+    );
   }
 
   private serviceImageTag(service: string): string {
@@ -288,7 +287,7 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
   private getBaseBuildArgs() {
     const { base, dependencies, user } = this.runner.config.project.os;
     const packages = this.formatOsPackages(dependencies);
-    const userHome = user.home || "/home/nopo";
+    const userHome = user.home || "/home/nopoapp";
     const userName = path.basename(userHome) || "nopoapp";
     return {
       BASE_FROM: base.from,
