@@ -3,7 +3,6 @@ export NPM_FORCE_COLOR = 1
 export DOCKER_BUILDKIT = 1
 export DOCKER_BUILDKIT_PROGRESS = auto
 export COMPOSE_BAKE=true
-export PATH := $(PWD)/node_modules/.bin:$(PATH)
 
 FIRST_WORD = $(firstword $(MAKECMDGOALS))
 SECOND_WORD = $(word 2,$(MAKECMDGOALS))
@@ -13,7 +12,7 @@ export SERVICE_NAME ?= $(SECOND_WORD)
 .PHONY: default
 default:
 	pnpm install
-	nopo
+	npx -y tsx ./nopo/scripts/bin.ts
 
 .PHONY: fly
 fly:
@@ -25,4 +24,4 @@ shell:
 
 .PHONY: *
 %:
-	@if [ "$(FIRST_WORD)" = "$@" ]; then nopo $(MAKECMDGOALS); fi
+	@if [ "$(FIRST_WORD)" = "$@" ]; then npx -y tsx ./nopo/scripts/bin.ts $(MAKECMDGOALS); fi

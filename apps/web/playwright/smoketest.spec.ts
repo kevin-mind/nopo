@@ -16,4 +16,9 @@ test.describe("Smoketest", () => {
     // Verify the page title is set correctly
     await expect(page).toHaveTitle(/New React Router App/);
   });
+
+  test("shaddow endpoint returns Hello World", async ({ page }) => {
+    await page.goto("/shaddow", { waitUntil: "domcontentloaded" });
+    await expect(page.locator("body")).toContainText("Hello World");
+  });
 });

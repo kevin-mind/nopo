@@ -22,8 +22,9 @@ services:
     description: Inline sample service that responds with Hello World.
     static_path: ""
     command: |
-      printf 'Hello from shaddow\n'
-    response: "Hello from shaddow"
+      TMP_DIR="$(mktemp -d)"
+      printf 'Hello World\n' > "${TMP_DIR}/index.html"
+      exec npx --yes http-server "${TMP_DIR}" -a 0.0.0.0 -p 8080 -c-1 --silent
     infrastructure:
       cpu: "0.1"
       memory: "64Mi"

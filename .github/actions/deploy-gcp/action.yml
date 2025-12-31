@@ -63,8 +63,7 @@ runs:
         echo "Building services configuration..."
         echo "Service images: ${SERVICE_IMAGES}"
 
-        export PATH="./node_modules/.bin:${PATH}"
-        services_payload=$(nopo config validate --json --services-only)
+        services_payload=$(make config validate -- --json --services-only)
         directory_services=$(echo "${services_payload}" | jq 'with_entries(select(.value.kind == "directory"))')
         services_tf="{}"
 

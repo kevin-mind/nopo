@@ -81,6 +81,7 @@ infrastructure:
     expect(api).toBeDefined();
     expect(api?.infrastructure.cpu).toBe("2");
     expect(api?.origin.type).toBe("directory");
+    expect(api?.staticPath).toBe("build");
 
     const helper = project.services.entries.helper;
     expect(helper?.origin.type).toBe("inline");

@@ -71,7 +71,7 @@ fi
 log_info "Scanning services declared in nopo.yml"
 
 # Discover services declared in nopo.yml
-SERVICES_PAYLOAD=$(nopo config validate --json --services-only)
+SERVICES_PAYLOAD=$(make -C "${REPO_ROOT}" config validate -- --json --services-only)
 
 if [[ -z "${SERVICES_PAYLOAD}" || "${SERVICES_PAYLOAD}" == "null" ]]; then
     log_error "Unable to load services from nopo.yml"

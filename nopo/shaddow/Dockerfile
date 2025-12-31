@@ -4,9 +4,9 @@ RUN apk add --no-cache curl
 
 WORKDIR /app
 
-COPY server.mjs .
+COPY index.html .
 
 ENV PORT=8080
 EXPOSE 8080
 
-CMD ["node", "server.mjs"]
+CMD ["sh", "-c", "npx --yes http-server -a 0.0.0.0 -p ${PORT:-8080} -c-1 --silent /app"]
