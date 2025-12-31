@@ -63,26 +63,25 @@ runs:
         echo "Building services configuration..."
         echo "Service images: ${SERVICE_IMAGES}"
 
-        services_payload=$(make config validate -- --json --services-only)
-        directory_services=$(echo "${services_payload}" | jq 'with_entries(select(.value.kind == "directory"))')
+        services_payload=$(make list -- --json --jq '.services')
         services_tf="{}"
 
         for service in $(echo "${SERVICE_IMAGES}" | jq -r 'keys[]'); do
           image=$(echo "${SERVICE_IMAGES}" | jq -r --arg s "$service" '.[$s]')
           
-          config=$(echo "${directory_services}" | jq -c --arg svc "$service" '.[$svc]')
+          config=$(echo "${services_payload}" | jq -c --arg svc "$service" '.[$svc]')
           if [[ -z "${config}" || "${config}" == "null" ]]; then
             echo "Service ${service} is not defined in nopo.yml"
             exit 1
           fi
 
-          cpu=$(echo "${config}" | jq -r '.infrastructure.cpu // "1"')
-          memory=$(echo "${config}" | jq -r '.infrastructure.memory // "512Mi"')
-          port=$(echo "${config}" | jq -r '.infrastructure.port // 3000')
-          min_instances=$(echo "${config}" | jq -r '.infrastructure.min_instances // 0')
-          max_instances=$(echo "${config}" | jq -r '.infrastructure.max_instances // 10')
-          has_database=$(echo "${config}" | jq -r '.infrastructure.has_database // false')
-          run_migrations=$(echo "${config}" | jq -r '.infrastructure.run_migrations // false')
+          cpu=$(echo "${config}" | jq -r '.cpu // "1"')
+          memory=$(echo "${config}" | jq -r '.memory // "512Mi"')
+          port=$(echo "${config}" | jq -r '.port // 3000')
+          min_instances=$(echo "${config}" | jq -r '.min_instances // 0')
+          max_instances=$(echo "${config}" | jq -r '.max_instances // 10')
+          has_database=$(echo "${config}" | jq -r '.has_database // false')
+          run_migrations=$(echo "${config}" | jq -r '.run_migrations // false')
           
           # Adjust min_instances for production
           if [[ "${ENVIRONMENT}" == "prod" && "${min_instances}" == "0" ]]; then

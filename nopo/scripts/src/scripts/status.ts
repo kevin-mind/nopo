@@ -16,7 +16,7 @@ export default class StatusScript extends Script {
     },
   ];
   static override name = "status";
-  static override description = "Check the status of the services";
+  static override description = "Check the status of the project and services";
 
   override async fn() {
     const { data } = await compose.ps({
@@ -27,13 +27,27 @@ export default class StatusScript extends Script {
     const node = await this.exec`node --version`.text();
     const pnpm = await this.exec`pnpm --version`.text();
 
+    const project = this.runner.config.project;
+
     this.log(
       JSON.stringify(
         {
-          platform,
-          node,
-          pnpm,
-          compose: data.services.reduce(
+          project: {
+            name: project.name,
+            configPath: project.configPath,
+            servicesDir: project.services.dir,
+            serviceCount: project.services.targets.length,
+          },
+          os: {
+            base: project.os.base.from,
+            user: project.os.user,
+          },
+          system: {
+            platform,
+            node: node.trim(),
+            pnpm: pnpm.trim(),
+          },
+          containers: data.services.reduce(
             (
               acc: Record<string, unknown>,
               { name, state, ports }: ServiceInfo,

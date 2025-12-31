@@ -275,6 +275,7 @@ interface ExecOptions {
   stdio?: "pipe" | "inherit";
   verbose?: boolean;
   nothrow?: boolean;
+  input?: string;
 }
 
 class ProcessPromiseImpl implements ProcessPromise {
@@ -299,6 +300,12 @@ class ProcessPromiseImpl implements ProcessPromise {
       };
 
       this.proc = spawn(command, args, spawnOptions);
+
+      // Write input to stdin if provided
+      if (options.input && this.proc.stdin) {
+        this.proc.stdin.write(options.input);
+        this.proc.stdin.end();
+      }
 
       if (this.proc.stdout) {
         this.proc.stdout.on("data", (chunk) => {
@@ -411,6 +418,18 @@ export function $(options: ExecOptions = {}) {
 
     return new ProcessPromiseImpl(cmd, args, options);
   };
+}
+
+/**
+ * Execute a command with explicit arguments (no whitespace splitting).
+ * Useful when arguments contain spaces.
+ */
+export function exec(
+  command: string,
+  args: string[],
+  options: ExecOptions = {},
+): ProcessPromise {
+  return new ProcessPromiseImpl(command, args, options);
 }
 
 // Synchronous version for $.sync

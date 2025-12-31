@@ -11,7 +11,6 @@ import { Environment } from "./parse-env.ts";
 import process from "node:process";
 
 import Build from "./scripts/build.ts";
-import ConfigScript from "./scripts/config.ts";
 import Down from "./scripts/down.ts";
 import Env from "./scripts/env.ts";
 import Index from "./scripts/index.ts";
@@ -23,7 +22,6 @@ import Up from "./scripts/up.ts";
 
 const scripts: Record<string, typeof Script> = {
   build: Build,
-  config: ConfigScript,
   down: Down,
   env: Env,
   index: Index,
@@ -122,10 +120,7 @@ export default async function main(
   const isCsvOutput =
     commandName === "list" &&
     !!(args.csv || args.format === "csv" || args.f === "csv");
-  const isConfigJson =
-    commandName === "config" &&
-    !!(args.json || args.j || args.format === "json");
-  const isSilentOutput = isJsonOutput || isCsvOutput || isConfigJson;
+  const isSilentOutput = isJsonOutput || isCsvOutput;
 
   const config: Config = createConfig({
     envFile: _env.ENV_FILE || undefined,
