@@ -81,6 +81,50 @@ Again, we don't need any special handling for this because we know that the stat
 If deployment fail, we rollback and fail the deployment, preventing merge in the case of a non-bypassed pull request.
 If deployment passes, we merge the PR, push the latest environment tag and we are done.
 
+## Migration Checking
+
+To avoid wasting cloud resources running migration jobs when there are no pending migrations, the deployment workflow
+includes a migration check step before running the actual migration job.
+
+### How it works
+
+1. Services with `run_migrations: true` in their `infrastructure.json` have two Cloud Run jobs:
+   - `{env}-{service}-migrate-check`: Checks if there are pending migrations (exits 0 if none, exits 1 if pending)
+   - `{env}-{service}-migrate`: Runs the actual migrations
+
+2. During deployment, the workflow:
+   - First executes the check job for each migration-enabled service
+   - Only runs the migration job if the check indicates pending migrations
+   - Skips the migration job if no migrations are pending, saving cloud resources
+
+### Local usage
+
+To check for pending migrations locally:
+
+```bash
+pnpm run --filter=@more/backend migrate:check
+```
+
+This uses Django's `migrate --check` command which exits with code 0 if no migrations are pending, or code 1 if there are unapplied migrations.
+
+### Inspecting migrations on deployed environments
+
+To check if a deployed service has pending migrations:
+
+```bash
+# Check the stage environment
+gcloud run jobs execute nopo-stage-backend-migrate-check \
+  --project=YOUR_PROJECT_ID \
+  --region=us-central1
+
+# Check the prod environment
+gcloud run jobs execute nopo-prod-backend-migrate-check \
+  --project=YOUR_PROJECT_ID \
+  --region=us-central1
+```
+
+The job will succeed (exit 0) if no migrations are pending, or fail (exit 1) if migrations need to be applied.
+
 ## Consequences
 
 This introduces a major constraint in the types of changes we can make in a single pull request.

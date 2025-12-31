@@ -309,7 +309,7 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Run migrations for all services
+      - name: Check and run migrations for all services
         env:
           PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
           REGION: ${{ env.GCP_REGION }}
@@ -325,14 +325,80 @@ jobs:
               run_migrations=$(jq -r '.run_migrations // false' "${config_file}")
               
               if [[ "${run_migrations}" == "true" ]]; then
-                echo "Running migrations for ${service}..."
-                JOB_NAME="nopo-${ENVIRONMENT}-${service}-migrate"
+                echo "=== Checking migrations for ${service} ==="
+                CHECK_JOB_NAME="nopo-${ENVIRONMENT}-${service}-migrate-check"
+                MIGRATE_JOB_NAME="nopo-${ENVIRONMENT}-${service}-migrate"
                 
-                gcloud run jobs execute "${JOB_NAME}" \
+                # Run the check job to see if migrations are needed
+                # Exit code 0 = no migrations pending, Exit code 1 = migrations pending
+                echo "Running migration check job: ${CHECK_JOB_NAME}"
+                
+                if ! gcloud run jobs describe "${CHECK_JOB_NAME}" \
+                    --project="${PROJECT_ID}" \
+                    --region="${REGION}" \
+                    --format="value(name)" 2>/dev/null; then
+                  echo "Check job ${CHECK_JOB_NAME} does not exist yet, skipping..."
+                  continue
+                fi
+                
+                # Execute the check job and capture the result
+                EXECUTION_NAME=$(gcloud run jobs execute "${CHECK_JOB_NAME}" \
                   --project="${PROJECT_ID}" \
                   --region="${REGION}" \
-                  --wait \
-                  || echo "Migration job ${JOB_NAME} may not exist yet, skipping..."
+                  --format="value(metadata.name)" 2>/dev/null) || true
+                
+                if [[ -z "${EXECUTION_NAME}" ]]; then
+                  echo "Failed to execute check job, skipping..."
+                  continue
+                fi
+                
+                echo "Waiting for check job execution: ${EXECUTION_NAME}"
+                
+                # Wait for the job to complete and get its status
+                MAX_WAIT=120
+                WAITED=0
+                CHECK_RESULT=""
+                
+                while [[ ${WAITED} -lt ${MAX_WAIT} ]]; do
+                  STATUS=$(gcloud run jobs executions describe "${EXECUTION_NAME}" \
+                    --project="${PROJECT_ID}" \
+                    --region="${REGION}" \
+                    --format="value(status.conditions[0].type)" 2>/dev/null) || true
+                  
+                  if [[ "${STATUS}" == "Completed" ]]; then
+                    # Check if it succeeded (exit 0 = no migrations) or failed (exit 1 = migrations pending)
+                    SUCCEEDED=$(gcloud run jobs executions describe "${EXECUTION_NAME}" \
+                      --project="${PROJECT_ID}" \
+                      --region="${REGION}" \
+                      --format="value(status.succeededCount)" 2>/dev/null) || true
+                    
+                    if [[ "${SUCCEEDED}" == "1" ]]; then
+                      CHECK_RESULT="no_migrations"
+                    else
+                      CHECK_RESULT="has_migrations"
+                    fi
+                    break
+                  fi
+                  
+                  sleep 5
+                  WAITED=$((WAITED + 5))
+                done
+                
+                if [[ -z "${CHECK_RESULT}" ]]; then
+                  echo "⚠ Migration check timed out, running migrations as fallback..."
+                  CHECK_RESULT="has_migrations"
+                fi
+                
+                if [[ "${CHECK_RESULT}" == "no_migrations" ]]; then
+                  echo "✓ No pending migrations for ${service}, skipping migration job"
+                else
+                  echo "→ Pending migrations detected for ${service}, running migrations..."
+                  gcloud run jobs execute "${MIGRATE_JOB_NAME}" \
+                    --project="${PROJECT_ID}" \
+                    --region="${REGION}" \
+                    --wait \
+                    || echo "Migration job ${MIGRATE_JOB_NAME} may not exist yet, skipping..."
+                fi
               fi
             fi
           done

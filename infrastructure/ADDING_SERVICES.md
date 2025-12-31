@@ -61,7 +61,7 @@ Create `apps/my-new-service/infrastructure.json` to customize deployment setting
 | `min_instances` | number | `0` | Minimum instances (0 = scale to zero) |
 | `max_instances` | number | `10` | Maximum instances for auto-scaling |
 | `has_database` | boolean | `false` | Whether service needs database access |
-| `run_migrations` | boolean | `false` | Whether to create a migration job |
+| `run_migrations` | boolean | `false` | Whether to create migration jobs (check + migrate) |
 
 ### 4. Add Health Check Endpoint
 
