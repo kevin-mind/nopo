@@ -29,7 +29,7 @@ Tests the `HostScript` and `IndexScript` classes:
 Tests target resolution algorithm:
 - **parseTargetArgs for script classes**: Verifies target extraction from positionals
 - **parseTargetArgs for arbitrary commands**: Verifies command name vs target separation
-- **discoverTargets**: Verifies target discovery from `apps/*/Dockerfile`
+- **config loader**: Validates parsing of `nopo.yml` and service configs
 - **target resolution behavior**: Verifies default behavior when no targets specified
 
 **Status**: ✅ All tests passing (target resolution is already implemented)
@@ -54,7 +54,7 @@ Tests execution mode behavior:
 ## Implementation Status
 
 ### ✅ Already Implemented
-- Target resolution (`parseTargetArgs`, `discoverTargets`)
+- Target resolution (`parseTargetArgs`, config-driven services)
 - Dependency resolution (static dependencies)
 - Script class routing (build, up, down, etc.)
 - General help

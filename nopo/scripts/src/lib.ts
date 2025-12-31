@@ -5,20 +5,29 @@ import { spawn, spawnSync, type SpawnOptions } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import { parseTargetArgs } from "./target-args.ts";
+import {
+  loadProjectConfig,
+  type NormalizedProjectConfig,
+  type NormalizedService,
+} from "./config/index.ts";
 
 // Constants for the nopo app user (must match base Dockerfile)
 export const NOPO_APP_UID = "1001";
 export const NOPO_APP_GID = "1001";
 
-const ConfigSchema = z.object({
+const BaseConfigSchema = z.object({
   root: z.string(),
   envFile: z.string(),
   processEnv: z.record(z.string(), z.string()),
   silent: z.boolean(),
-  targets: z.array(z.string()),
 });
 
-export type Config = z.infer<typeof ConfigSchema>;
+type BaseConfig = z.infer<typeof BaseConfigSchema>;
+
+export interface Config extends BaseConfig {
+  targets: string[];
+  project: NormalizedProjectConfig;
+}
 
 // ============================================================================
 // Chalk replacement - Simple terminal color utility
@@ -454,25 +463,14 @@ $.sync = function execSync(
 // ============================================================================
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const root = path.resolve(__dirname, "..", "..", "..");
+const defaultRoot = path.resolve(__dirname, "..", "..", "..");
 
 interface CreateConfigOptions {
   envFile?: string | undefined;
   processEnv?: Record<string, string>;
   silent?: boolean;
-}
-
-export function discoverTargets(rootDir: string): string[] {
-  const appsDir = path.join(rootDir, "apps");
-  if (!fs.existsSync(appsDir)) return [];
-
-  return fs
-    .readdirSync(appsDir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .filter((entry) =>
-      fs.existsSync(path.join(appsDir, entry.name, "Dockerfile")),
-    )
-    .map((entry) => entry.name);
+  rootDir?: string;
+  configPath?: string;
 }
 
 export function createConfig(options: CreateConfigOptions = {}): Config {
@@ -482,14 +480,25 @@ export function createConfig(options: CreateConfigOptions = {}): Config {
       Object.entries(process.env).filter(([, value]) => value !== undefined),
     ) as Record<string, string>,
     silent = false,
+    rootDir,
+    configPath,
   } = options;
-  return ConfigSchema.parse({
-    root,
-    envFile: path.resolve(root, envFile),
+
+  const resolvedRoot = path.resolve(rootDir ?? defaultRoot);
+  const baseConfig = BaseConfigSchema.parse({
+    root: resolvedRoot,
+    envFile: path.resolve(resolvedRoot, envFile),
     processEnv,
     silent,
-    targets: discoverTargets(root),
   });
+
+  const project = loadProjectConfig(resolvedRoot, configPath);
+
+  return {
+    ...baseConfig,
+    project,
+    targets: project.services.targets,
+  };
 }
 
 type Color = "black" | "red" | "blue" | "yellow" | "green";
@@ -604,6 +613,16 @@ export class Runner {
     this.environment = environment;
     this.logger = logger;
     this.argv = argv;
+  }
+
+  getService(id: string): NormalizedService {
+    const service = this.config.project.services.entries[id];
+    if (!service) {
+      throw new Error(
+        `Unknown service "${id}". Define it in nopo.yml before running this command.`,
+      );
+    }
+    return service;
   }
 
   async isDependencyEnabled(dependency: ScriptDependency): Promise<boolean> {

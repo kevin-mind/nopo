@@ -35,6 +35,46 @@ All Compose services are defined alongside their apps (see
 `apps/*/docker-compose.yml`) and are aggregated via the Compose `include`
 directive (requires Docker Compose v2.20+).
 
+## Configuration (`nopo.yml`)
+
+The CLI now loads all service metadata from YAML instead of inferring it from
+the filesystem. Two kinds of files are involved:
+
+- `./nopo.yml` – project-level defaults (`os`, dependencies, inline services)
+- `./apps/<service>/nopo.yml` – service-specific infrastructure settings
+
+Example root config:
+
+```yaml
+name: Nopo Project
+os:
+  base:
+    image: kevin-mind/nopo
+    tag: local
+services:
+  dir: ./apps
+  shaddow:
+    description: Inline hello-world service
+    route: /shaddow
+    command: |
+      printf 'Hello from shaddow\n'
+```
+
+Every real service directory (backend, web, etc.) now ships with its own
+`nopo.yml` describing CPU/memory, scaling limits, `static_path`, and database
+requirements. The CLI consumes these files to decide which services exist, so
+removing the file will also remove the service from `nopo build|up|run`.
+
+Use the new command to validate configuration changes locally:
+
+```bash
+npx -y tsx ./nopo/scripts/bin.ts config validate --json --services-only
+```
+
+`nopo config validate` can also print a machine-readable summary that is reused
+by CI/CD scripts. A sample inline service (`shaddow`) is provided out of the
+box and is routed locally at `http://localhost:<port>/shaddow`.
+
 Infrastructure tests that exercise the extendable image contract live in
 `nopo/docker/tests/extendable.sh`. Run the script after touching the base image to
 ensure derived images can install new npm packages while `/opt/nopo-core`

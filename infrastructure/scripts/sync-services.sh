@@ -67,72 +67,35 @@ if [[ ! -d "${APPS_DIR}" ]]; then
     exit 1
 fi
 
-log_info "Scanning for services in: ${APPS_DIR}"
+log_info "Scanning services declared in nopo.yml"
 
-# Discover services (directories with Dockerfiles)
-SERVICES_JSON="[]"
-for dir in "${APPS_DIR}"/*/; do
-    if [[ -f "${dir}Dockerfile" ]]; then
-        service_name=$(basename "${dir}")
-        log_info "  Found service: ${service_name}"
-        
-        # Default configuration
-        cpu="1"
-        memory="512Mi"
-        port=3000
-        min_instances=0
-        max_instances=10
-        has_database=false
-        run_migrations=false
-        
-        # Check for service-specific config file
-        config_file="${dir}infrastructure.json"
-        if [[ -f "${config_file}" ]]; then
-            log_info "    Loading config from infrastructure.json"
-            cpu=$(jq -r '.cpu // "1"' "${config_file}")
-            memory=$(jq -r '.memory // "512Mi"' "${config_file}")
-            port=$(jq '.port // 3000' "${config_file}")
-            min_instances=$(jq '.min_instances // 0' "${config_file}")
-            max_instances=$(jq '.max_instances // 10' "${config_file}")
-            has_database=$(jq '.has_database // false' "${config_file}")
-            run_migrations=$(jq '.run_migrations // false' "${config_file}")
-        fi
-        
-        # Build image URL if registry and version provided
-        image=""
-        if [[ -n "${REGISTRY}" && -n "${VERSION}" ]]; then
-            image="${REGISTRY}/${service_name}:${VERSION}"
-        fi
-        
-        # Build service object and add to array
-        service_obj=$(jq -n \
-            --arg name "${service_name}" \
-            --arg cpu "${cpu}" \
-            --arg memory "${memory}" \
-            --argjson port "${port}" \
-            --argjson min "${min_instances}" \
-            --argjson max "${max_instances}" \
-            --argjson db "${has_database}" \
-            --argjson migrate "${run_migrations}" \
-            --arg image "${image}" \
-            '{
-                name: $name,
-                cpu: $cpu,
-                memory: $memory,
-                port: $port,
-                min_instances: $min,
-                max_instances: $max,
-                has_database: $db,
-                run_migrations: $migrate,
-                image: $image
-            }')
-        
-        SERVICES_JSON=$(echo "${SERVICES_JSON}" | jq --argjson svc "${service_obj}" '. + [$svc]')
-    fi
-done
+# Discover services declared in nopo.yml
+SERVICES_PAYLOAD=$(npx -y tsx "${REPO_ROOT}/nopo/scripts/bin.ts" config validate --json --services-only)
 
-service_count=$(echo "${SERVICES_JSON}" | jq 'length')
-log_info "Discovered ${service_count} service(s)"
+if [[ -z "${SERVICES_PAYLOAD}" || "${SERVICES_PAYLOAD}" == "null" ]]; then
+    log_error "Unable to load services from nopo.yml"
+    exit 1
+fi
+
+DIRECTORY_SERVICES=$(echo "${SERVICES_PAYLOAD}" | jq 'with_entries(select(.value.kind == "directory"))')
+service_count=$(echo "${DIRECTORY_SERVICES}" | jq 'length')
+log_info "Discovered ${service_count} service(s) via nopo.yml"
+
+SERVICES_JSON=$(echo "${DIRECTORY_SERVICES}" | jq --arg registry "${REGISTRY}" --arg version "${VERSION}" '
+    to_entries
+    | map({
+        name: .key,
+        cpu: .value.infrastructure.cpu,
+        memory: .value.infrastructure.memory,
+        port: .value.infrastructure.port,
+        min_instances: .value.infrastructure.min_instances,
+        max_instances: .value.infrastructure.max_instances,
+        has_database: .value.infrastructure.has_database,
+        run_migrations: .value.infrastructure.run_migrations,
+        static_path: .value.infrastructure.static_path,
+        image: (if ($registry != "" and $version != "") then "\($registry)/\(.key):\($version)" else "" end)
+    })
+')
 
 # Convert to map keyed by service name for Terraform for_each
 SERVICES_MAP=$(echo "${SERVICES_JSON}" | jq 'map({(.name): .}) | add // {}')

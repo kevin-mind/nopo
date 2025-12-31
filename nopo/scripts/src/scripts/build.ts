@@ -10,6 +10,7 @@ import {
   NOPO_APP_UID,
   NOPO_APP_GID,
 } from "../lib.ts";
+import type { NormalizedDirectoryService } from "../config/index.ts";
 import EnvScript from "./env.ts";
 import { DockerTag } from "../docker-tag.ts";
 import { parseTargetArgs } from "../target-args.ts";
@@ -179,15 +180,24 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
       if (!buildTargets.includes(target)) continue;
 
       const serviceTag = this.serviceImageTag(target);
-      const dockerfile = this.defaultDockerfileFor(target);
+      const serviceDefinition = this.getDirectoryService(target);
+      const dockerfile = this.defaultDockerfileFor(serviceDefinition);
 
       if (!fs.existsSync(dockerfile)) {
         throw new Error(`Target '${target}' is missing ${dockerfile}.`);
       }
 
+      const relativeContext =
+        path.relative(
+          this.runner.config.root,
+          serviceDefinition.paths.context,
+        ) || ".";
+      const relativeDockerfile =
+        path.relative(this.runner.config.root, dockerfile) || dockerfile;
+
       definition.target[target] = {
-        context: ".",
-        dockerfile: path.relative(this.runner.config.root, dockerfile),
+        context: relativeContext,
+        dockerfile: relativeDockerfile,
         tags: [serviceTag],
         ...(push ? {} : { output: ["type=docker"] }),
         contexts: {
@@ -245,8 +255,20 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
     return `${service.replace(/[^a-zA-Z0-9]/g, "_").toUpperCase()}${SERVICE_IMAGE_SUFFIX}`;
   }
 
-  private defaultDockerfileFor(service: string): string {
-    return path.join(this.runner.config.root, "apps", service, "Dockerfile");
+  private defaultDockerfileFor(
+    service: NormalizedDirectoryService,
+  ): string {
+    return service.paths.dockerfile;
+  }
+
+  private getDirectoryService(target: string): NormalizedDirectoryService {
+    const service = this.runner.getService(target);
+    if (service.origin.type !== "directory") {
+      throw new Error(
+        `Service "${target}" is not defined as a directory service.`,
+      );
+    }
+    return service;
   }
 
   private serviceImageTag(service: string): string {

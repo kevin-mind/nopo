@@ -1,0 +1,35 @@
+name: Nopo Project
+
+os:
+  base:
+    image: kevin-mind/nopo
+    registry: ""
+    tag: local
+  dependencies:
+    node: "22.16.0"
+    pnpm: "9.15.0"
+    jq: "1.7.0"
+    curl: "8.5.0"
+    uv: "0.6.10"
+  user:
+    uid: 1001
+    gid: 1001
+    home: /home/nopo
+
+services:
+  dir: ./apps
+  shaddow:
+    description: Inline sample service that responds with Hello World.
+    route: /shaddow
+    command: |
+      printf 'Hello from shaddow\n'
+    response: "Hello from shaddow"
+    infrastructure:
+      cpu: "0.1"
+      memory: "64Mi"
+      port: 8080
+      min_instances: 0
+      max_instances: 1
+      has_database: false
+      run_migrations: false
+      static_path: ""

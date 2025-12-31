@@ -1,0 +1,14 @@
+name: backend
+description: Django application that powers the API.
+dockerfile: Dockerfile
+context: ../..
+route: /api
+infrastructure:
+  cpu: "1"
+  memory: "512Mi"
+  port: 3000
+  min_instances: 0
+  max_instances: 10
+  has_database: true
+  run_migrations: true
+  static_path: build

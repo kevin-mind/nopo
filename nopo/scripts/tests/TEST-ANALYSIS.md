@@ -186,19 +186,19 @@ The test suite is organized into 5 main test files, each covering a specific asp
 
 **Status**: ✅ All tests pass
 
-#### discoverTargets Tests
+#### Config Loader Tests
 
-**Documentation Reference**: Architecture.md lines 125-131
+**Documentation Reference**: README.md (Configuration section) & `infrastructure/ADDING_SERVICES.md`
 
 **Tests**:
-- ✅ `should discover targets from apps/*/Dockerfile`
-- ✅ `should return empty array when apps directory doesn't exist`
-- ✅ `should only include directories with Dockerfile`
+- ✅ `loads directory services and inline overrides`
+- ✅ `applies defaults when fields are omitted`
+- ✅ `throws when a service directory is missing nopo.yml`
 
 **Verification**:
-- ✅ Matches documentation: "Location: `apps/*/Dockerfile`" (line 129)
-- ✅ Matches documentation: "Scan `apps/` directory for subdirectories containing `Dockerfile`" (line 130)
-- ✅ Matches examples: `apps/backend/Dockerfile` → target `backend` (line 131)
+- ✅ Ensures `nopo.yml` is required per service (docs: ADDING_SERVICES.md)
+- ✅ Confirms inline services inherit defaults (docs: README configuration table)
+- ✅ Confirms infrastructure defaults align with documented values
 
 **Status**: ✅ All tests pass
 
