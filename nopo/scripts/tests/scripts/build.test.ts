@@ -39,6 +39,7 @@ describe("build", () => {
   });
 
   it("builds all targets with default options", async () => {
+    mockBuilder.mockResolvedValue("default");
     const config = createConfig({
       envFile: createTmpEnv({
         DOCKER_TAG: "kevin-mind/nopo:local",
@@ -53,21 +54,32 @@ describe("build", () => {
     const firstCall = mockBake.mock.calls[0];
     expect(firstCall).toContain("--print");
     expect(firstCall).toContain("--builder");
-    expect(firstCall).toContain("nopo-builder");
-    expect(firstCall).toContain("--load");
+    expect(firstCall).toContain("default");
 
     const secondCall = mockBake.mock.calls[1];
     expect(secondCall).not.toContain("--print");
     expect(secondCall).toContain("--builder");
-    expect(secondCall).toContain("nopo-builder");
-    expect(secondCall).toContain("--load");
+    expect(secondCall).toContain("default");
 
+    // Verify bake file is used in both calls
     expect(
       firstCall?.some((arg: string) => arg.endsWith("docker-bake.json")),
     ).toBe(true);
     expect(
       secondCall?.some((arg: string) => arg.endsWith("docker-bake.json")),
     ).toBe(true);
+
+    // Verify the bake definition uses type=docker output for local builds
+    const bakeFilePath = firstCall?.find((arg: string) =>
+      arg.endsWith("docker-bake.json"),
+    );
+    expect(bakeFilePath).toBeDefined();
+
+    const bakeContent = fs.readFileSync(bakeFilePath, "utf-8");
+    const bakeDefinition = JSON.parse(bakeContent);
+
+    // For local builds (no push), output should be type=docker
+    expect(bakeDefinition.target.base.output).toEqual(["type=docker"]);
   });
 
   it("builds with custom builder", async () => {

@@ -29,6 +29,7 @@ interface BakeTarget {
   contexts?: Record<string, string>;
   "cache-from"?: string[];
   "cache-to"?: string[];
+  output?: string[];
 }
 
 interface BakeDefinition {
@@ -80,11 +81,23 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
   }
 
   async builder(): Promise<string> {
-    const builder = "nopo-builder";
     const customBuilder = this.runner.config.processEnv.DOCKER_BUILDER;
-
     if (customBuilder) return customBuilder;
 
+    // For local builds, use the default docker builder (faster, no export needed)
+    // For CI, use docker-container driver for better caching
+    const isCI =
+      process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
+
+    if (!isCI) {
+      this.log(
+        "Using default Docker builder for local development (faster builds)",
+      );
+      return "default";
+    }
+
+    // CI: use or create nopo-builder with docker-container driver
+    const builder = "nopo-builder";
     const p = await $({ nothrow: true })`docker buildx inspect ${builder}`;
     if (p.exitCode !== 0) {
       this.log(`Builder '${builder}' not found, creating it...`);
@@ -96,7 +109,8 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
   }
 
   override async fn(args: BuildCliArgs) {
-    const bakeFile = this.generateBakeDefinition(args.targets);
+    const push = this.runner.config.processEnv.DOCKER_PUSH === "true";
+    const bakeFile = this.generateBakeDefinition(args.targets, push);
 
     await this.runBake(bakeFile, args);
 
@@ -105,7 +119,10 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
     }
   }
 
-  private generateBakeDefinition(requestedTargets: string[]): string {
+  private generateBakeDefinition(
+    requestedTargets: string[],
+    push: boolean,
+  ): string {
     const env = this.runner.environment.env;
     const targets = this.runner.config.targets;
 
@@ -132,13 +149,20 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
         "docker",
         "Dockerfile",
       );
+      const isCI =
+        process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
       definition.target.base = {
         context: ".",
         dockerfile: path.relative(this.runner.config.root, baseDockerfile),
         tags: [env.DOCKER_TAG],
         target: env.DOCKER_TARGET,
-        "cache-from": ["type=gha"],
-        "cache-to": ["type=gha,mode=max"],
+        ...(push ? {} : { output: ["type=docker"] }),
+        ...(isCI
+          ? {
+              "cache-from": ["type=gha"],
+              "cache-to": ["type=gha,mode=max"],
+            }
+          : {}),
         args: {
           DOCKER_TARGET: env.DOCKER_TARGET,
           DOCKER_TAG: env.DOCKER_TAG,
@@ -165,6 +189,7 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
         context: ".",
         dockerfile: path.relative(this.runner.config.root, dockerfile),
         tags: [serviceTag],
+        ...(push ? {} : { output: ["type=docker"] }),
         contexts: {
           base: "target:base",
         },
@@ -206,7 +231,6 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
     `);
 
     commandOptions.push("--builder", builder);
-    commandOptions.push("--load");
     commandOptions.push("--metadata-file", metadataFile);
     if (push) commandOptions.push("--push");
     if (args.noCache) commandOptions.push("--no-cache");

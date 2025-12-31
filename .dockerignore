@@ -26,9 +26,40 @@ deps
 /blob-report/
 /playwright/.cache/
 
+# Python
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/*.egg-info/
+**/htmlcov/
+**/.coverage
+**/.tox/
 
-# --- Extra not gitignored entries below ---
+# IDE
+.vscode
+.idea
+.cursor
+.claude
+*.swp
+*.swo
+*~
 
+# Temp & logs
+tmp/
+*.log
+*.pid
+*.seed
+*.pid.lock
+
+# Documentation (unless needed)
+docs/
+*.md
+!README.md
+
+# Infrastructure & tooling
 .changeset
 .devcontainer
 .dockerignore
@@ -40,3 +71,12 @@ docker-*
 Dockerfile
 deps
 .pnpm-store
+fly/
+infrastructure/
+decisions/
+
+# CI/CD
+.gitlab-ci.yml
+.travis.yml
+azure-pipelines.yml
+.circleci/
