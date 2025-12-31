@@ -2,7 +2,6 @@ import path from "node:path";
 import process from "node:process";
 import { Script, type Runner, minimist } from "../lib.ts";
 import type { NormalizedService } from "../config/index.ts";
-import { isDirectoryService } from "../config/index.ts";
 
 type ConfigAction = "validate";
 
@@ -70,13 +69,9 @@ export default class ConfigScript extends Script<ConfigArgs> {
     }
 
     const project = this.runner.config.project;
-    const totalServices = project.services.order.length;
-    const directoryServices = project.services.targets.length;
-    const inlineServices = totalServices - directoryServices;
+    const totalServices = project.services.targets.length;
 
-    this.runner.logger.log(
-      `✓ Loaded nopo.yml (${directoryServices} directory services, ${inlineServices} inline services)`,
-    );
+    this.runner.logger.log(`✓ Loaded nopo.yml (${totalServices} services)`);
   }
 
   private serializeProject() {
@@ -94,7 +89,6 @@ export default class ConfigScript extends Script<ConfigArgs> {
       services: {
         dir:
           path.relative(this.runner.config.root, project.services.dir) || ".",
-        order: project.services.order,
         targets: project.services.targets,
         entries: services,
       },
@@ -122,7 +116,6 @@ export default class ConfigScript extends Script<ConfigArgs> {
     return {
       id: service.id,
       name: service.name,
-      kind: service.origin.type,
       description: service.description,
       static_path: service.staticPath,
       infrastructure: {
@@ -134,19 +127,15 @@ export default class ConfigScript extends Script<ConfigArgs> {
         has_database: infrastructure.hasDatabase,
         run_migrations: infrastructure.runMigrations,
       },
-      paths: isDirectoryService(service)
-        ? {
-            root:
-              path.relative(this.runner.config.root, service.paths.root) || ".",
-            dockerfile: path.relative(
-              this.runner.config.root,
-              service.paths.dockerfile,
-            ),
-            context:
-              path.relative(this.runner.config.root, service.paths.context) ||
-              ".",
-          }
-        : undefined,
+      image: service.image,
+      paths: {
+        root: path.relative(this.runner.config.root, service.paths.root) || ".",
+        dockerfile: service.paths.dockerfile
+          ? path.relative(this.runner.config.root, service.paths.dockerfile)
+          : undefined,
+        context:
+          path.relative(this.runner.config.root, service.paths.context) || ".",
+      },
     };
   }
 }

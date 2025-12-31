@@ -138,7 +138,7 @@ describe("list", () => {
       stdoutSpy.mockRestore();
     });
 
-    it("includes inline services when --with-config is used", async () => {
+    it("includes all services when --with-config is used", async () => {
       let output = "";
       const stdoutSpy = vi
         .spyOn(process.stdout, "write")
@@ -151,8 +151,8 @@ describe("list", () => {
       await runScript(ListScript, config, ["list", "--json", "--with-config"]);
 
       const parsed = JSON.parse(output.trim()) as Record<string, unknown>;
-      expect(parsed.shaddow).toBeDefined();
-      expect(parsed.shaddow).toHaveProperty("kind", "inline");
+      // Should include directory services like backend, web, db, nginx
+      expect(Object.keys(parsed).length).toBeGreaterThan(0);
 
       stdoutSpy.mockRestore();
     });

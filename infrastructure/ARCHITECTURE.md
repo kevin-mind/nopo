@@ -121,8 +121,8 @@ but both use the same URL pattern from the application's perspective.
 │  │     │ GET /static/assets/style.css                                             │ │
 │  │     ▼                                                                          │ │
 │  │  ┌─────────────────────────────────┐                                           │ │
-│  │  │         Nginx (Docker)          │  ← nopo/nginx/apps.conf.template          │ │
-│  │  │                                 │  ← nopo/nginx/apps.local.template         │ │
+│  │  │         Nginx (Docker)          │  ← apps/nginx/templates/apps.conf.template   │ │
+│  │  │                                 │  ← apps/nginx/templates/apps.local.template  │ │
 │  │  │  location /static/ {            │                                           │ │
 │  │  │    alias /app/apps/backend/     │                                           │ │
 │  │  │          build/;                │  ← Serves from local filesystem           │ │
@@ -197,7 +197,7 @@ but both use the same URL pattern from the application's perspective.
 
 **Configuration Files:**
 
-- **Local nginx**: `nopo/nginx/apps.conf.template` (main routing) + `nopo/nginx/apps.local.template` (static override)
+- **Local nginx**: `apps/nginx/templates/apps.conf.template` (main routing) + `apps/nginx/templates/apps.local.template` (static override)
 - **Production routing**: `infrastructure/terraform/modules/loadbalancer/main.tf` (URL map)
 - **Static bucket**: `infrastructure/terraform/modules/static-assets/main.tf`
 - **Django config**: `apps/backend/settings.py` (`STATIC_URL` environment variable)

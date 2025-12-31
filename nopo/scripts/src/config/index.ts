@@ -23,40 +23,22 @@ const ServiceFileSchema = z
   .object({
     name: z.string().min(1).optional(),
     description: z.string().optional(),
-    dockerfile: z.string().default("Dockerfile"),
+    dockerfile: z.string().optional(),
+    image: z.string().optional(),
     static_path: z.string().default("build"),
     infrastructure: ServiceInfrastructureSchema.default({}),
   })
-  .passthrough();
-
-const InlineServiceSchema = z
-  .object({
-    description: z.string().optional(),
-    start: z.string().optional(),
-    command: z.string().optional(),
-    docker: z.string().optional(),
-    ports: z.array(z.string()).default([]),
-    volumes: z.array(z.string()).default([]),
-    environment: z.record(z.string()).default({}),
-    healthcheck: z
-      .object({
-        test: z.union([z.array(z.string()), z.string()]).optional(),
-        interval: z.string().optional(),
-        timeout: z.string().optional(),
-        retries: z.number().int().nonnegative().optional(),
-      })
-      .default({}),
-    response: z.string().optional(),
-    static_path: z.string().default(""),
-    infrastructure: ServiceInfrastructureSchema.default({}),
+  .passthrough()
+  .refine((data) => data.dockerfile || data.image, {
+    message: "Either 'dockerfile' or 'image' must be specified",
   })
-  .passthrough();
+  .refine((data) => !(data.dockerfile && data.image), {
+    message: "Cannot specify both 'dockerfile' and 'image'",
+  });
 
-const ServicesSchemaBase = z.object({
+const ServicesSchema = z.object({
   dir: z.string().default("./apps"),
 });
-
-const ServicesSchema = ServicesSchemaBase.catchall(InlineServiceSchema);
 
 const DependencyVersionSchema = z
   .string()
@@ -106,9 +88,7 @@ const ProjectConfigSchema = z.object({
   os: ProjectOsSchema.default({
     base: "node:22.16.0-slim",
   }),
-  services: ServicesSchema.default(
-    () => ({ dir: "./apps" }) as z.input<typeof ServicesSchema>,
-  ),
+  services: ServicesSchema.default({ dir: "./apps" }),
 });
 
 type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
@@ -124,60 +104,33 @@ interface NormalizedServiceResources {
   runMigrations: boolean;
 }
 
-interface NormalizedHealthcheck {
-  test: string[];
-  interval?: string;
-  timeout?: string;
-  retries?: number;
-}
-
-interface ServiceOriginBase<T extends "inline" | "directory"> {
-  type: T;
-  path: string;
-}
-
-export interface NormalizedDirectoryService {
+export interface NormalizedService {
   id: string;
   name: string;
   description: string;
   staticPath: string;
   infrastructure: NormalizedServiceResources;
-  origin: ServiceOriginBase<"directory">;
+  configPath: string;
+  image?: string;
   paths: {
     root: string;
-    config: string;
+    dockerfile?: string;
+    context: string;
+  };
+}
+
+interface BuildableService extends NormalizedService {
+  paths: {
+    root: string;
     dockerfile: string;
     context: string;
   };
 }
 
-interface NormalizedInlineService {
-  id: string;
-  name: string;
-  description: string;
-  staticPath: string;
-  infrastructure: NormalizedServiceResources;
-  origin: ServiceOriginBase<"inline">;
-  inline: {
-    start?: string;
-    command?: string;
-    docker?: string;
-    ports: string[];
-    volumes: string[];
-    environment: Record<string, string>;
-    healthcheck?: NormalizedHealthcheck;
-    response?: string;
-  };
-}
-
-export type NormalizedService =
-  | NormalizedDirectoryService
-  | NormalizedInlineService;
-
-export function isDirectoryService(
+export function isBuildableService(
   service: NormalizedService,
-): service is NormalizedDirectoryService {
-  return service.origin.type === "directory";
+): service is BuildableService {
+  return service.paths.dockerfile !== undefined;
 }
 
 interface NormalizedOsConfig {
@@ -196,7 +149,6 @@ interface NormalizedServicesConfig {
   dir: string;
   entries: Record<string, NormalizedService>;
   targets: string[];
-  order: string[];
 }
 
 export interface NormalizedProjectConfig {
@@ -223,11 +175,7 @@ export function loadProjectConfig(
 
   const document = parseYamlFile(resolvedConfigPath);
   const parsed = ProjectConfigSchema.parse(document);
-  const services = normalizeServices(
-    parsed.services,
-    resolvedRoot,
-    resolvedConfigPath,
-  );
+  const services = normalizeServices(parsed.services, resolvedRoot);
 
   return {
     name: parsed.name,
@@ -274,7 +222,6 @@ function normalizeBaseImage(
 function normalizeServices(
   servicesConfig: ProjectConfig["services"],
   rootDir: string,
-  rootConfigPath: string,
 ): NormalizedServicesConfig {
   const entries: Record<string, NormalizedService> = {};
   const dir = path.resolve(rootDir, servicesConfig.dir);
@@ -285,30 +232,21 @@ function normalizeServices(
     );
   }
 
-  const directories = discoverDirectoryServices(dir, entries, rootDir);
-  const inline = normalizeInlineServices(
-    servicesConfig,
-    entries,
-    rootConfigPath,
-  );
-
-  const targets = Object.keys(directories).sort();
-  const inlineNames = Object.keys(inline).sort();
+  discoverServices(dir, entries, rootDir);
+  const targets = Object.keys(entries).sort();
 
   return {
     dir,
     entries,
     targets,
-    order: [...targets, ...inlineNames],
   };
 }
 
-function discoverDirectoryServices(
+function discoverServices(
   servicesDir: string,
   entries: Record<string, NormalizedService>,
   projectRoot: string,
-): Record<string, NormalizedDirectoryService> {
-  const discovered: Record<string, NormalizedDirectoryService> = {};
+): void {
   const children = fs.readdirSync(servicesDir, { withFileTypes: true });
 
   for (const child of children) {
@@ -327,85 +265,30 @@ function discoverDirectoryServices(
     const parsed = ServiceFileSchema.parse(serviceDocument);
     const infrastructure = normalizeInfrastructure(parsed.infrastructure);
 
-    const normalized: NormalizedDirectoryService = {
+    const normalized: NormalizedService = {
       id: serviceId,
       name: parsed.name ?? serviceId,
       description: parsed.description ?? "",
       staticPath: parsed.static_path,
       infrastructure,
-      origin: {
-        type: "directory",
-        path: serviceConfigPath,
-      },
+      configPath: serviceConfigPath,
+      image: parsed.image,
       paths: {
         root: serviceRoot,
-        config: serviceConfigPath,
-        dockerfile: path.resolve(serviceRoot, parsed.dockerfile),
+        dockerfile: parsed.dockerfile
+          ? path.resolve(serviceRoot, parsed.dockerfile)
+          : undefined,
         context: projectRoot,
       },
     };
 
-    ensureServiceIsUnique(serviceId, entries, normalized);
+    if (entries[serviceId]) {
+      throw new Error(
+        `Duplicate service "${serviceId}" found. Service IDs must be unique.`,
+      );
+    }
     entries[serviceId] = normalized;
-    discovered[serviceId] = normalized;
   }
-
-  return discovered;
-}
-
-function normalizeInlineServices(
-  servicesConfig: ProjectConfig["services"],
-  entries: Record<string, NormalizedService>,
-  configPath: string,
-): Record<string, NormalizedInlineService> {
-  const inline: Record<string, NormalizedInlineService> = {};
-
-  for (const [key, value] of Object.entries(servicesConfig)) {
-    if (key === "dir") continue;
-    const parsed = InlineServiceSchema.parse(value);
-    const infrastructure = normalizeInfrastructure(parsed.infrastructure);
-    const healthcheck = normalizeHealthcheck(parsed.healthcheck);
-
-    const normalized: NormalizedInlineService = {
-      id: key,
-      name: key,
-      description: parsed.description ?? "",
-      staticPath: parsed.static_path,
-      infrastructure,
-      origin: {
-        type: "inline",
-        path: configPath,
-      },
-      inline: {
-        start: parsed.start,
-        command: parsed.command,
-        docker: parsed.docker,
-        ports: parsed.ports,
-        volumes: parsed.volumes,
-        environment: parsed.environment,
-        healthcheck,
-        response: parsed.response,
-      },
-    };
-
-    ensureServiceIsUnique(key, entries, normalized);
-    entries[key] = normalized;
-    inline[key] = normalized;
-  }
-
-  return inline;
-}
-
-function ensureServiceIsUnique(
-  id: string,
-  entries: Record<string, NormalizedService>,
-  next: NormalizedService,
-): void {
-  if (!entries[id]) return;
-  const existing = entries[id];
-  throw new Error(
-    `Duplicate service "${id}" defined in ${next.origin.path} and ${existing.origin.path}. Service IDs must be unique.`,
-  );
 }
 
 function normalizeInfrastructure(
@@ -419,20 +302,5 @@ function normalizeInfrastructure(
     maxInstances: infra.max_instances,
     hasDatabase: infra.has_database,
     runMigrations: infra.run_migrations,
-  };
-}
-
-function normalizeHealthcheck(
-  healthcheck: z.infer<(typeof InlineServiceSchema)["shape"]["healthcheck"]>,
-): NormalizedHealthcheck | undefined {
-  if (!healthcheck || Object.keys(healthcheck).length === 0) return undefined;
-  const rawTest = healthcheck.test;
-  const test = rawTest ? (Array.isArray(rawTest) ? rawTest : [rawTest]) : [];
-
-  return {
-    test,
-    interval: healthcheck.interval,
-    timeout: healthcheck.timeout,
-    retries: healthcheck.retries,
   };
 }

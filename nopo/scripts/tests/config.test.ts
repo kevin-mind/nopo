@@ -41,17 +41,12 @@ function createProject(structure: {
 }
 
 describe("loadProjectConfig", () => {
-  it("loads directory services and inline overrides", () => {
+  it("loads directory services", () => {
     const root = createProject({
       rootConfig: `
 name: Example Project
 services:
   dir: ./apps
-  helper:
-    description: Inline helper
-    static_path: inline
-    infrastructure:
-      port: 8080
 `,
       services: {
         api: `
@@ -75,18 +70,39 @@ infrastructure:
 
     expect(project.name).toBe("Example Project");
     expect(project.services.targets).toEqual(["api"]);
-    expect(project.services.order).toEqual(["api", "helper"]);
 
     const api = project.services.entries.api;
     expect(api).toBeDefined();
     expect(api?.infrastructure.cpu).toBe("2");
-    expect(api?.origin.type).toBe("directory");
     expect(api?.staticPath).toBe("build");
+  });
 
-    const helper = project.services.entries.helper;
-    expect(helper?.origin.type).toBe("inline");
-    expect(helper?.staticPath).toBe("inline");
-    expect(helper?.infrastructure.port).toBe(8080);
+  it("loads services with image instead of dockerfile", () => {
+    const root = createProject({
+      rootConfig: `
+name: Image Project
+services:
+  dir: ./apps
+`,
+      services: {
+        db: `
+name: db
+description: Database
+image: postgres:16
+infrastructure:
+  port: 5432
+`,
+      },
+    });
+
+    const project = loadProjectConfig(root);
+
+    expect(project.services.targets).toEqual(["db"]);
+
+    const db = project.services.entries.db;
+    expect(db).toBeDefined();
+    expect(db?.image).toBe("postgres:16");
+    expect(db?.paths.dockerfile).toBeUndefined();
   });
 
   it("applies defaults when fields are omitted", () => {
@@ -97,6 +113,7 @@ name: Defaults
       services: {
         worker: `
 name: worker
+dockerfile: Dockerfile
 infrastructure: {}
 `,
       },
@@ -130,6 +147,26 @@ services:
 
     expect(() => loadProjectConfig(root)).toThrow(
       /Missing nopo\.yml in .*ghost/,
+    );
+  });
+
+  it("throws when neither dockerfile nor image is specified", () => {
+    const root = createProject({
+      rootConfig: `
+name: Missing Build Config
+services:
+  dir: ./apps
+`,
+      services: {
+        broken: `
+name: broken
+description: Missing build config
+`,
+      },
+    });
+
+    expect(() => loadProjectConfig(root)).toThrow(
+      /Either 'dockerfile' or 'image' must be specified/,
     );
   });
 });

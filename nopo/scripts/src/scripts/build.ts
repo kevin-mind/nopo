@@ -10,8 +10,7 @@ import {
   NOPO_APP_UID,
   NOPO_APP_GID,
 } from "../lib.ts";
-import type { NormalizedDirectoryService } from "../config/index.ts";
-import { isDirectoryService } from "../config/index.ts";
+import { isBuildableService } from "../config/index.ts";
 import EnvScript from "./env.ts";
 import { DockerTag } from "../docker-tag.ts";
 import { parseTargetArgs } from "../target-args.ts";
@@ -128,9 +127,26 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
     const env = this.runner.environment.env;
     const targets = this.runner.config.targets;
 
-    const allTargets = ["base", ...targets];
+    // Filter to only buildable services (those with dockerfiles, not pre-built images)
+    const buildableTargets = targets.filter((t) => {
+      const service = this.runner.getService(t);
+      return isBuildableService(service);
+    });
+
+    const allTargets = ["base", ...buildableTargets];
     const buildTargets =
-      requestedTargets.length > 0 ? requestedTargets : allTargets;
+      requestedTargets.length > 0
+        ? requestedTargets.filter(
+            (t) => t === "base" || buildableTargets.includes(t),
+          )
+        : allTargets;
+
+    // Log skipped services
+    for (const target of targets) {
+      if (!buildableTargets.includes(target)) {
+        this.log(`Skipping '${target}' - uses pre-built image`);
+      }
+    }
 
     const definition: BakeDefinition = {
       group: {
@@ -180,22 +196,21 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
       };
     }
 
-    for (const target of targets) {
+    for (const target of buildableTargets) {
       if (!buildTargets.includes(target)) continue;
 
+      const service = this.runner.getService(target);
+      if (!isBuildableService(service)) continue; // Type guard
+
       const serviceTag = this.serviceImageTag(target);
-      const serviceDefinition = this.getDirectoryService(target);
-      const dockerfile = this.defaultDockerfileFor(serviceDefinition);
+      const dockerfile = service.paths.dockerfile;
 
       if (!fs.existsSync(dockerfile)) {
         throw new Error(`Target '${target}' is missing ${dockerfile}.`);
       }
 
       const relativeContext =
-        path.relative(
-          this.runner.config.root,
-          serviceDefinition.paths.context,
-        ) || ".";
+        path.relative(this.runner.config.root, service.paths.context) || ".";
       const relativeDockerfile =
         path.relative(this.runner.config.root, dockerfile) || dockerfile;
 
@@ -257,20 +272,6 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
 
   private serviceEnvKey(service: string): string {
     return `${service.replace(/[^a-zA-Z0-9]/g, "_").toUpperCase()}${SERVICE_IMAGE_SUFFIX}`;
-  }
-
-  private defaultDockerfileFor(service: NormalizedDirectoryService): string {
-    return service.paths.dockerfile;
-  }
-
-  private getDirectoryService(target: string): NormalizedDirectoryService {
-    const service = this.runner.getService(target);
-    if (isDirectoryService(service)) {
-      return service;
-    }
-    throw new Error(
-      `Service "${target}" is not defined as a directory service.`,
-    );
   }
 
   private serviceImageTag(service: string): string {

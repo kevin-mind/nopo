@@ -191,13 +191,14 @@ The test suite is organized into 5 main test files, each covering a specific asp
 **Documentation Reference**: README.md (Configuration section) & `infrastructure/ADDING_SERVICES.md`
 
 **Tests**:
-- ✅ `loads directory services and inline overrides`
+- ✅ `loads directory services`
+- ✅ `loads services with image instead of dockerfile`
 - ✅ `applies defaults when fields are omitted`
 - ✅ `throws when a service directory is missing nopo.yml`
+- ✅ `throws when neither dockerfile nor image is specified`
 
 **Verification**:
 - ✅ Ensures `nopo.yml` is required per service (docs: ADDING_SERVICES.md)
-- ✅ Confirms inline services inherit defaults (docs: README configuration table)
 - ✅ Confirms infrastructure defaults align with documented values
 
 **Status**: ✅ All tests pass
