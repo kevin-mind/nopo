@@ -19,6 +19,25 @@ const ServiceInfrastructureSchema = z.object({
   run_migrations: z.boolean().default(false),
 });
 
+// Command dependency specification:
+// - Array of strings: ["backend", "worker"] -> same command on each service
+// - Object with arrays: { backend: ["build", "clean"] } -> specific commands per service
+// - Empty object {} -> no dependencies (overrides service-level)
+const CommandDependenciesSchema = z.union([
+  z.array(z.string().min(1)),
+  z.record(z.string().min(1), z.array(z.string().min(1))),
+]).optional();
+
+const CommandSchema = z.object({
+  command: z.string().min(1),
+  dependencies: CommandDependenciesSchema,
+});
+
+const CommandsSchema = z.record(z.string().min(1), CommandSchema).default({});
+
+// Service-level dependencies (simple array of service names)
+const ServiceDependenciesSchema = z.array(z.string().min(1)).default([]);
+
 const ServiceFileSchema = z
   .object({
     name: z.string().min(1).optional(),
@@ -27,6 +46,8 @@ const ServiceFileSchema = z
     image: z.string().optional(),
     static_path: z.string().default("build"),
     infrastructure: ServiceInfrastructureSchema.default({}),
+    dependencies: ServiceDependenciesSchema,
+    commands: CommandsSchema,
   })
   .passthrough()
   .refine((data) => data.dockerfile || data.image, {
@@ -104,6 +125,17 @@ interface NormalizedServiceResources {
   runMigrations: boolean;
 }
 
+// Command dependency types
+export type CommandDependencies =
+  | string[] // Array of service names (same command)
+  | Record<string, string[]> // Object with service -> commands mapping
+  | undefined;
+
+export interface NormalizedCommand {
+  command: string;
+  dependencies?: CommandDependencies;
+}
+
 export interface NormalizedService {
   id: string;
   name: string;
@@ -112,6 +144,8 @@ export interface NormalizedService {
   infrastructure: NormalizedServiceResources;
   configPath: string;
   image?: string;
+  dependencies: string[];
+  commands: Record<string, NormalizedCommand>;
   paths: {
     root: string;
     dockerfile?: string;
@@ -264,6 +298,7 @@ function discoverServices(
     const serviceDocument = parseYamlFile(serviceConfigPath);
     const parsed = ServiceFileSchema.parse(serviceDocument);
     const infrastructure = normalizeInfrastructure(parsed.infrastructure);
+    const commands = normalizeCommands(parsed.commands);
 
     const normalized: NormalizedService = {
       id: serviceId,
@@ -273,6 +308,8 @@ function discoverServices(
       infrastructure,
       configPath: serviceConfigPath,
       image: parsed.image,
+      dependencies: parsed.dependencies,
+      commands,
       paths: {
         root: serviceRoot,
         dockerfile: parsed.dockerfile
@@ -303,4 +340,21 @@ function normalizeInfrastructure(
     hasDatabase: infra.has_database,
     runMigrations: infra.run_migrations,
   };
+}
+
+type CommandsInput = z.infer<typeof CommandsSchema>;
+
+function normalizeCommands(
+  commands: CommandsInput,
+): Record<string, NormalizedCommand> {
+  const result: Record<string, NormalizedCommand> = {};
+
+  for (const [name, cmd] of Object.entries(commands)) {
+    result[name] = {
+      command: cmd.command,
+      dependencies: cmd.dependencies,
+    };
+  }
+
+  return result;
 }

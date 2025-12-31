@@ -103,6 +103,7 @@ pnpm install
 - [Quick Reference](./quick-reference.md) - Common usage patterns and scenarios
 - [Architecture](./architecture.md) - System architecture, algorithms, and flow diagrams
 - [Arbitrary Commands](./commands/arbitrary.md) - Running arbitrary pnpm scripts
+- [Command Configuration](./commands/config.md) - Defining commands in nopo.yml with dependency resolution
 
 ## Commands
 
