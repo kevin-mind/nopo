@@ -24,6 +24,7 @@
     "vite": "vite",
     "start": "uv run --verbose gunicorn --config gunicorn.conf.py backend.mysite.wsgi:application",
     "migrate": "uv run --verbose python manage.py migrate",
+    "migrate:check": "uv run --verbose python manage.py migrate --check",
     "makemigrations": "uv run --verbose python manage.py makemigrations",
     "shell": "uv run --verbose python manage.py shell"
   },

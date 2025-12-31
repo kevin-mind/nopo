@@ -385,16 +385,44 @@ but both use the same URL pattern from the application's perspective.
 6. Response returned (typically <100ms warm, <3s cold)
 ```
 
-### Migration Job
+### Migration Jobs
+
+Services with `run_migrations: true` get two Cloud Run jobs:
 
 ```
+┌─────────────────────────────────────────────────────────────────┐
+│           Cloud Run Job: nopo-{env}-backend-migrate-check       │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Purpose: Check for pending Django database migrations          │
+│                                                                 │
+│  Trigger: Automatically during deployment (before migrate job)  │
+│                                                                 │
+│  Command: pnpm run --filter=@more/backend migrate:check         │
+│                                                                 │
+│  Exit Codes:                                                    │
+│    - 0: No pending migrations (skip migrate job)                │
+│    - 1: Pending migrations exist (run migrate job)              │
+│                                                                 │
+│  Configuration:                                                 │
+│    - Same image as backend service                              │
+│    - Same VPC connector and secrets                             │
+│    - Timeout: 120 seconds                                       │
+│    - Max retries: 0                                             │
+│                                                                 │
+│  Execution:                                                     │
+│    gcloud run jobs execute nopo-{env}-backend-migrate-check \   │
+│      --region=us-central1                                       │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+
 ┌─────────────────────────────────────────────────────────────────┐
 │                 Cloud Run Job: nopo-{env}-backend-migrate       │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  Purpose: Run Django database migrations                        │
 │                                                                 │
-│  Trigger: Manual or via CI/CD after deployment                  │
+│  Trigger: Only runs if migrate-check indicates pending changes  │
 │                                                                 │
 │  Command: pnpm run --filter=@more/backend migrate               │
 │                                                                 │

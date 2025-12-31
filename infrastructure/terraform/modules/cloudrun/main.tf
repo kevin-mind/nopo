@@ -199,6 +199,122 @@ resource "google_cloud_run_v2_service_iam_member" "invokers" {
   member   = "allUsers"
 }
 
+# Migration check jobs for services that need migrations
+# These jobs check if there are pending migrations without applying them
+resource "google_cloud_run_v2_job" "migration_check" {
+  for_each = { for k, v in var.services : k => v if v.run_migrations }
+
+  project  = var.project_id
+  name     = "${var.name_prefix}-${each.key}-migrate-check"
+  location = var.region
+
+  template {
+    template {
+      service_account = google_service_account.cloudrun.email
+
+      dynamic "vpc_access" {
+        for_each = var.vpc_connector_id != "" ? [1] : []
+        content {
+          connector = var.vpc_connector_id
+          egress    = "PRIVATE_RANGES_ONLY"
+        }
+      }
+
+      containers {
+        image = each.value.image
+
+        resources {
+          limits = {
+            cpu    = "1"
+            memory = "512Mi"
+          }
+        }
+
+        # Check for pending migrations (exits 0 if none, 1 if pending)
+        command = ["pnpm", "run", "--filter=@more/${each.key}", "migrate:check"]
+
+        env {
+          name  = "SERVICE_NAME"
+          value = each.key
+        }
+
+        dynamic "env" {
+          for_each = var.db_host != "" ? [1] : []
+          content {
+            name  = "DB_HOST"
+            value = var.db_host
+          }
+        }
+
+        dynamic "env" {
+          for_each = var.db_name != "" ? [1] : []
+          content {
+            name  = "DB_NAME"
+            value = var.db_name
+          }
+        }
+
+        dynamic "env" {
+          for_each = var.db_user != "" ? [1] : []
+          content {
+            name  = "DB_USER"
+            value = var.db_user
+          }
+        }
+
+        dynamic "env" {
+          for_each = var.db_password_secret_id != "" ? [1] : []
+          content {
+            name = "DB_PASSWORD"
+            value_source {
+              secret_key_ref {
+                secret  = var.db_password_secret_id
+                version = "latest"
+              }
+            }
+          }
+        }
+
+        dynamic "env" {
+          for_each = var.django_secret_key_id != "" ? [1] : []
+          content {
+            name = "SECRET_KEY"
+            value_source {
+              secret_key_ref {
+                secret  = var.django_secret_key_id
+                version = "latest"
+              }
+            }
+          }
+        }
+
+        dynamic "volume_mounts" {
+          for_each = var.db_connection_name != "" ? [1] : []
+          content {
+            name       = "cloudsql"
+            mount_path = "/cloudsql"
+          }
+        }
+      }
+
+      dynamic "volumes" {
+        for_each = var.db_connection_name != "" ? [1] : []
+        content {
+          name = "cloudsql"
+          cloud_sql_instance {
+            instances = [var.db_connection_name]
+          }
+        }
+      }
+
+      max_retries = 0
+      timeout     = "120s"
+    }
+  }
+
+  labels = var.labels
+}
+
 # Migration jobs for services that need them
 resource "google_cloud_run_v2_job" "migrations" {
   for_each = { for k, v in var.services : k => v if v.run_migrations }
