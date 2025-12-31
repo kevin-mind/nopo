@@ -118,6 +118,7 @@ export default class ConfigScript extends Script<ConfigArgs> {
 
   private toServiceSummary(service: NormalizedService) {
     const infrastructure = service.infrastructure;
+    const isDirectory = service.origin.type === "directory";
     return {
       id: service.id,
       name: service.name,
@@ -133,25 +134,19 @@ export default class ConfigScript extends Script<ConfigArgs> {
         has_database: infrastructure.hasDatabase,
         run_migrations: infrastructure.runMigrations,
       },
-      paths:
-        service.origin.type === "directory"
-          ? {
-              root:
-                path.relative(
-                  this.runner.config.root,
-                  service.paths.root,
-                ) || ".",
-              dockerfile: path.relative(
-                this.runner.config.root,
-                service.paths.dockerfile,
-              ),
-              context:
-                path.relative(
-                  this.runner.config.root,
-                  service.paths.context,
-                ) || ".",
-            }
-          : undefined,
+      paths: isDirectory
+        ? {
+            root:
+              path.relative(this.runner.config.root, service.paths.root) || ".",
+            dockerfile: path.relative(
+              this.runner.config.root,
+              service.paths.dockerfile,
+            ),
+            context:
+              path.relative(this.runner.config.root, service.paths.context) ||
+              ".",
+          }
+        : undefined,
     };
   }
 }

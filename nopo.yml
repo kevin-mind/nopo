@@ -4,11 +4,9 @@ os:
   base:
     image: node:22.16.0-slim
   dependencies:
-    node: "22.16.0"
-    pnpm: "9.15.0"
-    jq: "1.7.0"
-    curl: "8.5.0"
-    uv: "0.6.10"
+    build-essential: ""
+    jq: ""
+    curl: ""
   user:
     uid: 1001
     gid: 1001

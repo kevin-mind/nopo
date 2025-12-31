@@ -58,7 +58,9 @@ RUN \
   --mount=type=cache,target=/var/lib/apt,id=apt \
 <<EOF
 apt-get update
-apt-get install -y --no-install-recommends ${OS_PACKAGES}
+if [ -n "${OS_PACKAGES}" ]; then
+  apt-get install -y --no-install-recommends ${OS_PACKAGES}
+fi
 EOF
 
 ################################################################################################
@@ -72,7 +74,9 @@ RUN \
   --mount=type=cache,target=/var/lib/apt,id=apt \
 <<EOF
 apt-get update
-apt-get install -y --no-install-recommends ${OS_PACKAGES}
+if [ -n "${OS_PACKAGES}" ]; then
+  apt-get install -y --no-install-recommends ${OS_PACKAGES}
+fi
 EOF
 
 RUN --mount=type=bind,source=.python-version,target=$APP/.python-version <<EOF

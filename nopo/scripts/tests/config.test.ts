@@ -106,7 +106,11 @@ infrastructure: {}
     const worker = project.services.entries.worker;
 
     expect(project.os.base.from).toBe("node:22.16.0-slim");
-    expect(project.os.dependencies.node).toBeDefined();
+    expect(project.os.dependencies).toEqual({
+      "build-essential": "",
+      jq: "",
+      curl: "",
+    });
     expect(worker?.infrastructure.memory).toBe("512Mi");
     expect(worker?.infrastructure.port).toBe(3000);
   });

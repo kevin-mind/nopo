@@ -300,13 +300,9 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
   }
 
   private formatOsPackages(deps: Record<string, string>): string {
-    const entries = Object.entries(deps);
-    if (entries.length === 0) return "";
-    return entries
-      .map(([name, version]) =>
-        version && version.length > 0 ? `${name}=${version}` : name,
-      )
-      .join(" ");
+    const names = Object.keys(deps);
+    if (names.length === 0) return "";
+    return names.join(" ");
   }
 
   private async getImageDigest(tag: string): Promise<string | null> {

@@ -4,11 +4,9 @@ import { parse as parseYaml } from "yaml";
 import { z } from "zod";
 
 const DEFAULT_DEPENDENCIES: Record<string, string> = {
-  node: "22.16.0",
-  pnpm: "9.15.0",
-  jq: "1.7.0",
-  curl: "8.5.0",
-  uv: "0.6.10",
+  "build-essential": "",
+  jq: "",
+  curl: "",
 };
 
 const ServiceInfrastructureSchema = z.object({
@@ -50,16 +48,22 @@ const InlineServiceSchema = z.object({
   infrastructure: ServiceInfrastructureSchema.default({}),
 }).passthrough();
 
-const ServicesSchema = z
-  .object({
-    dir: z.string().default("./apps"),
-  })
-  .catchall(InlineServiceSchema);
+const ServicesSchemaBase = z.object({
+  dir: z.string().default("./apps"),
+});
+
+const ServicesSchema = ServicesSchemaBase.catchall(InlineServiceSchema);
+
+const DependencyVersionSchema = z
+  .string()
+  .transform((value) => value.trim())
+  .optional()
+  .default("");
 
 const DependenciesSchema = z
   .union([
-    z.record(z.string().min(1), z.string().min(1)),
-    z.array(z.record(z.string().min(1), z.string().min(1))),
+    z.record(z.string().min(1), DependencyVersionSchema),
+    z.array(z.record(z.string().min(1), DependencyVersionSchema)),
   ])
   .default({})
   .transform((value) => {
@@ -98,9 +102,9 @@ export const ProjectConfigSchema = z.object({
   os: ProjectOsSchema.default({
     base: "node:22.16.0-slim",
   }),
-  services: ServicesSchema.default({
-    dir: "./apps",
-  }),
+  services: ServicesSchema.default(
+    () => ({ dir: "./apps" }) as z.input<typeof ServicesSchema>,
+  ),
 });
 
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
