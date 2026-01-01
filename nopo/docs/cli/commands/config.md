@@ -6,6 +6,12 @@ Commands can be defined in service `nopo.yml` files to specify how the service s
 
 Instead of relying on `package.json` scripts and naming conventions, nopo allows defining commands directly in `nopo.yml` files with explicit dependency declarations and execution configuration.
 
+When running a command like `nopo check backend`, nopo will:
+
+1. Look for a `check` command in the backend service's `nopo.yml`
+2. If found, use nopo's command resolution with dependency graphs
+3. If not found, fall back to pnpm's script execution
+
 ## Command Definition
 
 Commands are defined in the `commands` section of a service's `nopo.yml`:
@@ -21,6 +27,48 @@ commands:
   test:
     command: npm run test
 ```
+
+### Subcommands
+
+Commands can define nested subcommands instead of a direct command. Subcommands run in parallel as siblings:
+
+```yaml
+commands:
+  check:
+    commands:
+      types:
+        command: tsc --noEmit
+      lint:
+        command: eslint .
+      format:
+        command: prettier --check .
+```
+
+Running `nopo check web` will execute all three subcommands in parallel.
+
+**Note**: Use hyphens (`-`) instead of colons (`:`) in subcommand names, as colons are used as path separators. For example, use `lint-js` instead of `lint:js`.
+
+You can run a specific subcommand using the path syntax:
+
+```bash
+nopo check:types web   # Run only the types subcommand
+```
+
+Subcommands support up to 3 levels of nesting:
+
+```yaml
+commands:
+  check:
+    commands:
+      lint:
+        commands:
+          ts:
+            command: tsc --noEmit
+          js:
+            command: eslint .
+```
+
+**Important**: Subcommands cannot define their own dependencies. Dependencies are only allowed at the top-level command.
 
 ### Command Properties
 

@@ -10,6 +10,7 @@ import {
   resolveCommandDependencies,
   buildExecutionPlan,
   validateCommandTargets,
+  resolveCommand,
   type ExecutionPlan,
   type CommandDependencySpec,
 } from "../src/commands/index.ts";
@@ -516,7 +517,7 @@ commands:
       expect(deps).toContainEqual({ service: "backend", command: "clean" });
     });
 
-    it("skips dependencies that do not have the command defined", () => {
+    it("throws when dependency does not have the command defined", () => {
       const root = createProject({
         rootConfig: `
 name: Test Project
@@ -541,10 +542,11 @@ dockerfile: Dockerfile
       });
 
       const project = loadProjectConfig(root);
-      const deps = resolveCommandDependencies(project, "lint", "web");
-
-      // backend doesn't have lint command, so should not be included
-      expect(deps).toEqual([]);
+      
+      // backend doesn't have lint command, so should error
+      expect(() => resolveCommandDependencies(project, "lint", "web")).toThrow(
+        /Service 'backend' does not define command 'lint'/
+      );
     });
   });
 
@@ -571,7 +573,8 @@ commands:
       const plan = buildExecutionPlan(project, "lint", ["web"]);
 
       expect(plan.stages).toHaveLength(1);
-      expect(plan.stages[0]).toEqual([{ service: "web", command: "lint" }]);
+      expect(plan.stages[0]).toHaveLength(1);
+      expect(plan.stages[0]![0]).toMatchObject({ service: "web", command: "lint" });
     });
 
     it("groups independent services in the same stage for parallelization", () => {
@@ -646,8 +649,8 @@ commands:
 
       // backend first, then web
       expect(plan.stages).toHaveLength(2);
-      expect(plan.stages[0]).toContainEqual({ service: "backend", command: "lint" });
-      expect(plan.stages[1]).toContainEqual({ service: "web", command: "lint" });
+      expect(plan.stages[0]).toContainEqual(expect.objectContaining({ service: "backend", command: "lint" }));
+      expect(plan.stages[1]).toContainEqual(expect.objectContaining({ service: "web", command: "lint" }));
     });
 
     it("handles diamond dependencies correctly", () => {
@@ -701,11 +704,11 @@ commands:
 
       // shared first (stage 0), then web & api in parallel (stage 1), then app (stage 2)
       expect(plan.stages).toHaveLength(3);
-      expect(plan.stages[0]).toContainEqual({ service: "shared", command: "build" });
+      expect(plan.stages[0]).toContainEqual(expect.objectContaining({ service: "shared", command: "build" }));
       expect(plan.stages[1]).toHaveLength(2);
-      expect(plan.stages[1]).toContainEqual({ service: "web", command: "build" });
-      expect(plan.stages[1]).toContainEqual({ service: "api", command: "build" });
-      expect(plan.stages[2]).toContainEqual({ service: "app", command: "build" });
+      expect(plan.stages[1]).toContainEqual(expect.objectContaining({ service: "web", command: "build" }));
+      expect(plan.stages[1]).toContainEqual(expect.objectContaining({ service: "api", command: "build" }));
+      expect(plan.stages[2]).toContainEqual(expect.objectContaining({ service: "app", command: "build" }));
     });
 
     it("deduplicates services across multiple targets", () => {
@@ -1013,10 +1016,10 @@ commands:
 
       // d -> c -> b -> a
       expect(plan.stages).toHaveLength(4);
-      expect(plan.stages[0]).toContainEqual({ service: "d", command: "build" });
-      expect(plan.stages[1]).toContainEqual({ service: "c", command: "build" });
-      expect(plan.stages[2]).toContainEqual({ service: "b", command: "build" });
-      expect(plan.stages[3]).toContainEqual({ service: "a", command: "build" });
+      expect(plan.stages[0]).toContainEqual(expect.objectContaining({ service: "d", command: "build" }));
+      expect(plan.stages[1]).toContainEqual(expect.objectContaining({ service: "c", command: "build" }));
+      expect(plan.stages[2]).toContainEqual(expect.objectContaining({ service: "b", command: "build" }));
+      expect(plan.stages[3]).toContainEqual(expect.objectContaining({ service: "a", command: "build" }));
     });
 
     it("handles targets with glob patterns", () => {
@@ -1061,6 +1064,281 @@ commands:
       // All independent
       expect(plan.stages).toHaveLength(1);
       expect(plan.stages[0]).toHaveLength(3);
+    });
+  });
+
+  describe("Subcommands", () => {
+    it("loads subcommands from service nopo.yml", () => {
+      const root = createProject({
+        rootConfig: `
+name: Test Project
+services:
+  dir: ./apps
+`,
+        services: {
+          web: `
+name: web
+dockerfile: Dockerfile
+commands:
+  lint:
+    commands:
+      ts:
+        command: tsc --noEmit
+      eslint:
+        command: eslint .
+`,
+        },
+      });
+
+      const project = loadProjectConfig(root);
+      const web = project.services.entries.web;
+
+      expect(web?.commands?.lint).toBeDefined();
+      expect(web?.commands?.lint?.commands).toBeDefined();
+      expect(web?.commands?.lint?.commands?.ts?.command).toBe("tsc --noEmit");
+      expect(web?.commands?.lint?.commands?.eslint?.command).toBe("eslint .");
+    });
+
+    it("resolves all subcommands when running parent command", () => {
+      const root = createProject({
+        rootConfig: `
+name: Test Project
+services:
+  dir: ./apps
+`,
+        services: {
+          web: `
+name: web
+dockerfile: Dockerfile
+commands:
+  lint:
+    commands:
+      ts:
+        command: tsc --noEmit
+      eslint:
+        command: eslint .
+`,
+        },
+      });
+
+      const project = loadProjectConfig(root);
+      const resolved = resolveCommand(project, "lint", "web");
+
+      // Should return both subcommands
+      expect(resolved).toHaveLength(2);
+      expect(resolved).toContainEqual({ service: "web", command: "lint:ts", executable: "tsc --noEmit" });
+      expect(resolved).toContainEqual({ service: "web", command: "lint:eslint", executable: "eslint ." });
+    });
+
+    it("runs subcommands in parallel (same stage)", () => {
+      const root = createProject({
+        rootConfig: `
+name: Test Project
+services:
+  dir: ./apps
+`,
+        services: {
+          web: `
+name: web
+dockerfile: Dockerfile
+commands:
+  check:
+    commands:
+      types:
+        command: tsc --noEmit
+      lint:
+        command: eslint .
+      format:
+        command: prettier --check .
+`,
+        },
+      });
+
+      const project = loadProjectConfig(root);
+      const plan = buildExecutionPlan(project, "check", ["web"]);
+
+      // All subcommands should be in same stage (parallel)
+      expect(plan.stages).toHaveLength(1);
+      expect(plan.stages[0]).toHaveLength(3);
+    });
+
+    it("supports nested subcommands (up to 3 levels)", () => {
+      const root = createProject({
+        rootConfig: `
+name: Test Project
+services:
+  dir: ./apps
+`,
+        services: {
+          web: `
+name: web
+dockerfile: Dockerfile
+commands:
+  check:
+    commands:
+      lint:
+        commands:
+          ts:
+            command: tsc --noEmit
+          js:
+            command: eslint .
+`,
+        },
+      });
+
+      const project = loadProjectConfig(root);
+      const resolved = resolveCommand(project, "check", "web");
+
+      // Should flatten all nested subcommands
+      expect(resolved).toHaveLength(2);
+      expect(resolved).toContainEqual({ service: "web", command: "check:lint:ts", executable: "tsc --noEmit" });
+      expect(resolved).toContainEqual({ service: "web", command: "check:lint:js", executable: "eslint ." });
+    });
+
+    it("can run specific subcommand directly", () => {
+      const root = createProject({
+        rootConfig: `
+name: Test Project
+services:
+  dir: ./apps
+`,
+        services: {
+          web: `
+name: web
+dockerfile: Dockerfile
+commands:
+  lint:
+    commands:
+      ts:
+        command: tsc --noEmit
+      eslint:
+        command: eslint .
+`,
+        },
+      });
+
+      const project = loadProjectConfig(root);
+      const resolved = resolveCommand(project, "lint:ts", "web");
+
+      expect(resolved).toHaveLength(1);
+      expect(resolved[0]).toEqual({ service: "web", command: "lint:ts", executable: "tsc --noEmit" });
+    });
+
+    it("subcommands cannot define dependencies", () => {
+      const root = createProject({
+        rootConfig: `
+name: Test Project
+services:
+  dir: ./apps
+`,
+        services: {
+          web: `
+name: web
+dockerfile: Dockerfile
+commands:
+  lint:
+    commands:
+      ts:
+        dependencies:
+          - backend
+        command: tsc --noEmit
+`,
+        },
+      });
+
+      // Should throw when loading config because subcommands can't have dependencies
+      // The Zod schema catches this with "Expected never, received array"
+      expect(() => loadProjectConfig(root)).toThrow();
+    });
+
+    it("parent command with subcommands cannot also have command field", () => {
+      const root = createProject({
+        rootConfig: `
+name: Test Project
+services:
+  dir: ./apps
+`,
+        services: {
+          web: `
+name: web
+dockerfile: Dockerfile
+commands:
+  lint:
+    command: eslint .
+    commands:
+      ts:
+        command: tsc --noEmit
+`,
+        },
+      });
+
+      // Should throw because can't have both command and commands
+      expect(() => loadProjectConfig(root)).toThrow(
+        /Cannot specify both 'command' and 'commands'/
+      );
+    });
+
+    it("handles mixed commands and subcommands", () => {
+      const root = createProject({
+        rootConfig: `
+name: Test Project
+services:
+  dir: ./apps
+`,
+        services: {
+          web: `
+name: web
+dockerfile: Dockerfile
+commands:
+  build:
+    command: npm run build
+  check:
+    commands:
+      types:
+        command: tsc --noEmit
+      lint:
+        command: eslint .
+`,
+        },
+      });
+
+      const project = loadProjectConfig(root);
+
+      // build is a simple command
+      const buildResolved = resolveCommand(project, "build", "web");
+      expect(buildResolved).toHaveLength(1);
+      expect(buildResolved[0]).toEqual({ service: "web", command: "build", executable: "npm run build" });
+
+      // check has subcommands
+      const checkResolved = resolveCommand(project, "check", "web");
+      expect(checkResolved).toHaveLength(2);
+    });
+
+    it("validates subcommand exists when running specific subcommand", () => {
+      const root = createProject({
+        rootConfig: `
+name: Test Project
+services:
+  dir: ./apps
+`,
+        services: {
+          web: `
+name: web
+dockerfile: Dockerfile
+commands:
+  lint:
+    commands:
+      ts:
+        command: tsc --noEmit
+`,
+        },
+      });
+
+      const project = loadProjectConfig(root);
+
+      expect(() => resolveCommand(project, "lint:nonexistent", "web")).toThrow(
+        /Command 'lint:nonexistent' not found/
+      );
     });
   });
 });

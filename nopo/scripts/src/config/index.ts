@@ -28,9 +28,44 @@ const CommandDependenciesSchema = z.union([
   z.record(z.string().min(1), z.array(z.string().min(1))),
 ]).optional();
 
-const CommandSchema = z.object({
+// Sub-sub-command schema (deepest level - no further nesting)
+const SubSubCommandSchema = z.object({
   command: z.string().min(1),
+  dependencies: z.never().optional(), // Explicitly disallow dependencies
+}).strict();
+
+// Sub-command schema (can have sub-sub-commands)
+const SubCommandSchema = z.object({
+  command: z.string().min(1).optional(),
+  commands: z.record(z.string().min(1), SubSubCommandSchema).optional(),
+  dependencies: z.never().optional(), // Explicitly disallow dependencies
+}).refine((data) => {
+  // Must have either command or commands, not both
+  const hasCommand = !!data.command;
+  const hasCommands = !!data.commands && Object.keys(data.commands).length > 0;
+  if (hasCommand && hasCommands) {
+    return false;
+  }
+  return hasCommand || hasCommands;
+}, {
+  message: "Cannot specify both 'command' and 'commands'. Use one or the other.",
+});
+
+// Top-level command schema
+const CommandSchema = z.object({
+  command: z.string().min(1).optional(),
   dependencies: CommandDependenciesSchema,
+  commands: z.record(z.string().min(1), SubCommandSchema).optional(),
+}).refine((data) => {
+  // Must have either command or commands, not both
+  const hasCommand = !!data.command;
+  const hasCommands = !!data.commands && Object.keys(data.commands).length > 0;
+  if (hasCommand && hasCommands) {
+    return false;
+  }
+  return hasCommand || hasCommands;
+}, {
+  message: "Cannot specify both 'command' and 'commands'. Use one or the other.",
 });
 
 const CommandsSchema = z.record(z.string().min(1), CommandSchema).default({});
@@ -131,9 +166,16 @@ export type CommandDependencies =
   | Record<string, string[]> // Object with service -> commands mapping
   | undefined;
 
-export interface NormalizedCommand {
+// Sub-command (no dependencies allowed)
+export interface NormalizedSubCommand {
   command: string;
+  commands?: Record<string, NormalizedSubCommand>;
+}
+
+export interface NormalizedCommand {
+  command?: string;
   dependencies?: CommandDependencies;
+  commands?: Record<string, NormalizedSubCommand>;
 }
 
 export interface NormalizedService {
@@ -343,6 +385,52 @@ function normalizeInfrastructure(
 }
 
 type CommandsInput = z.infer<typeof CommandsSchema>;
+type SubCommandInput = z.infer<typeof SubCommandSchema>;
+
+function normalizeSubCommands(
+  commands: Record<string, SubCommandInput> | undefined,
+  parentPath: string,
+): Record<string, NormalizedSubCommand> | undefined {
+  if (!commands) return undefined;
+
+  const result: Record<string, NormalizedSubCommand> = {};
+
+  for (const [name, cmd] of Object.entries(commands)) {
+    // Check if subcommand has dependencies (not allowed)
+    if ('dependencies' in cmd && (cmd as { dependencies?: unknown }).dependencies) {
+      throw new Error(
+        `Subcommands cannot define dependencies. Found at '${parentPath}:${name}'.`
+      );
+    }
+
+    if (cmd.command) {
+      result[name] = { command: cmd.command };
+    } else if (cmd.commands) {
+      // Recursive for sub-sub-commands
+      result[name] = {
+        command: undefined as unknown as string, // Will be populated with subcommands
+        commands: normalizeSubSubCommands(cmd.commands, `${parentPath}:${name}`),
+      };
+    }
+  }
+
+  return result;
+}
+
+function normalizeSubSubCommands(
+  commands: Record<string, { command: string }> | undefined,
+  parentPath: string,
+): Record<string, NormalizedSubCommand> | undefined {
+  if (!commands) return undefined;
+
+  const result: Record<string, NormalizedSubCommand> = {};
+
+  for (const [name, cmd] of Object.entries(commands)) {
+    result[name] = { command: cmd.command };
+  }
+
+  return result;
+}
 
 function normalizeCommands(
   commands: CommandsInput,
@@ -350,10 +438,17 @@ function normalizeCommands(
   const result: Record<string, NormalizedCommand> = {};
 
   for (const [name, cmd] of Object.entries(commands)) {
-    result[name] = {
-      command: cmd.command,
-      dependencies: cmd.dependencies,
-    };
+    if (cmd.command) {
+      result[name] = {
+        command: cmd.command,
+        dependencies: cmd.dependencies,
+      };
+    } else if (cmd.commands) {
+      result[name] = {
+        dependencies: cmd.dependencies,
+        commands: normalizeSubCommands(cmd.commands, name),
+      };
+    }
   }
 
   return result;

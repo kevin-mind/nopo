@@ -1,6 +1,8 @@
 import type {
   NormalizedProjectConfig,
   NormalizedService,
+  NormalizedCommand,
+  NormalizedSubCommand,
   CommandDependencies,
 } from "../config/index.ts";
 
@@ -13,11 +15,20 @@ export interface CommandDependencySpec {
 }
 
 /**
+ * Represents a resolved command with its executable.
+ */
+export interface ResolvedCommand {
+  service: string;
+  command: string;
+  executable: string;
+}
+
+/**
  * Represents an execution plan with stages that can be run in parallel.
  * Each stage contains commands that are independent of each other.
  */
 export interface ExecutionPlan {
-  stages: CommandDependencySpec[][];
+  stages: ResolvedCommand[][];
 }
 
 /**
@@ -42,13 +53,125 @@ export function validateCommandTargets(
       );
     }
 
-    if (!service.commands[commandName]) {
+    // Get the root command name (before any colons for subcommands)
+    const rootCommand = commandName.split(":")[0]!;
+    
+    if (!service.commands[rootCommand]) {
       throw new Error(
         `Service '${target}' does not define command '${commandName}'. ` +
           `Available commands: ${Object.keys(service.commands).join(", ") || "none"}`,
       );
     }
   }
+}
+
+/**
+ * Resolve a command to its executable(s).
+ * If the command has subcommands, returns all subcommands flattened.
+ * Subcommands are returned with their full path (e.g., "lint:ts").
+ *
+ * @param project - The normalized project configuration
+ * @param commandName - The command to resolve (can include subcommand path like "lint:ts")
+ * @param serviceId - The service ID
+ * @returns Array of resolved commands with executables
+ */
+export function resolveCommand(
+  project: NormalizedProjectConfig,
+  commandName: string,
+  serviceId: string,
+): ResolvedCommand[] {
+  const service = project.services.entries[serviceId];
+  if (!service) {
+    throw new Error(`Unknown service '${serviceId}'`);
+  }
+
+  const parts = commandName.split(":");
+  const rootCommand = parts[0]!;
+  const subPath = parts.slice(1);
+
+  const command = service.commands[rootCommand];
+  if (!command) {
+    throw new Error(
+      `Command '${commandName}' not found in service '${serviceId}'. ` +
+        `Available commands: ${Object.keys(service.commands).join(", ") || "none"}`,
+    );
+  }
+
+  // If there's a subpath, navigate to the specific subcommand
+  if (subPath.length > 0) {
+    return resolveSubCommandPath(serviceId, rootCommand, command, subPath);
+  }
+
+  // If the command has subcommands, return all of them
+  if (command.commands) {
+    return flattenSubCommands(serviceId, rootCommand, command.commands);
+  }
+
+  // Simple command with executable
+  if (command.command) {
+    return [{ service: serviceId, command: commandName, executable: command.command }];
+  }
+
+  throw new Error(`Command '${commandName}' in service '${serviceId}' has no executable`);
+}
+
+/**
+ * Navigate to a specific subcommand path and resolve it.
+ */
+function resolveSubCommandPath(
+  serviceId: string,
+  basePath: string,
+  command: NormalizedCommand,
+  subPath: string[],
+): ResolvedCommand[] {
+  let current: NormalizedCommand | NormalizedSubCommand = command;
+  let currentPath = basePath;
+
+  for (const part of subPath) {
+    currentPath = `${currentPath}:${part}`;
+    
+    if (!current.commands || !current.commands[part]) {
+      throw new Error(`Command '${currentPath}' not found in service '${serviceId}'`);
+    }
+    
+    current = current.commands[part];
+  }
+
+  // If we landed on a command with subcommands, flatten them
+  if (current.commands) {
+    return flattenSubCommands(serviceId, currentPath, current.commands);
+  }
+
+  // Single command
+  if (current.command) {
+    return [{ service: serviceId, command: currentPath, executable: current.command }];
+  }
+
+  throw new Error(`Command '${currentPath}' in service '${serviceId}' has no executable`);
+}
+
+/**
+ * Flatten all subcommands into resolved commands.
+ */
+function flattenSubCommands(
+  serviceId: string,
+  basePath: string,
+  subCommands: Record<string, NormalizedSubCommand>,
+): ResolvedCommand[] {
+  const result: ResolvedCommand[] = [];
+
+  for (const [name, subCmd] of Object.entries(subCommands)) {
+    const cmdPath = `${basePath}:${name}`;
+
+    if (subCmd.commands) {
+      // Recurse into nested subcommands
+      result.push(...flattenSubCommands(serviceId, cmdPath, subCmd.commands));
+    } else if (subCmd.command) {
+      result.push({ service: serviceId, command: cmdPath, executable: subCmd.command });
+    }
+  }
+
+  return result;
 }
 
 /**
@@ -60,6 +183,7 @@ export function validateCommandTargets(
  * @param commandName - The command to resolve dependencies for
  * @param serviceId - The service ID to resolve dependencies for
  * @returns Array of dependencies with their command specifications
+ * @throws Error if a dependency does not have the required command
  */
 export function resolveCommandDependencies(
   project: NormalizedProjectConfig,
@@ -71,7 +195,9 @@ export function resolveCommandDependencies(
     return [];
   }
 
-  const command = service.commands[commandName];
+  // Get the root command (before subcommand path)
+  const rootCommand = commandName.split(":")[0]!;
+  const command = service.commands[rootCommand];
   const visited = new Set<string>();
   const result: CommandDependencySpec[] = [];
 
@@ -89,7 +215,7 @@ export function resolveCommandDependencies(
   }
 
   // Get the effective dependencies
-  const deps = getEffectiveDependencies(service, commandName);
+  const deps = getEffectiveDependencies(service, rootCommand);
 
   // Resolve each dependency recursively
   for (const dep of deps) {
@@ -160,6 +286,7 @@ function normalizeDependencies(
 
 /**
  * Recursively collect all dependencies for a service/command.
+ * @throws Error if a dependency service does not have the required command
  */
 function collectDependencies(
   project: NormalizedProjectConfig,
@@ -178,13 +305,16 @@ function collectDependencies(
 
   const service = project.services.entries[serviceId];
   if (!service) {
-    return;
+    throw new Error(`Unknown service '${serviceId}' referenced as dependency`);
   }
 
-  // Skip if service doesn't have this command
+  // Error if service doesn't have this command (changed from skip to error)
   const command = service.commands[commandName];
   if (!command) {
-    return;
+    throw new Error(
+      `Service '${serviceId}' does not define command '${commandName}'. ` +
+        `Dependencies must have the required command defined.`,
+    );
   }
 
   // Mark as visited
@@ -230,24 +360,19 @@ export function buildExecutionPlan(
   commandName: string,
   targets: string[],
 ): ExecutionPlan {
-  // Collect all tasks that need to run
-  const allTasks = new Map<string, CommandDependencySpec>();
+  // Collect all tasks that need to run, including subcommands
+  const allTasks = new Map<string, ResolvedCommand>();
+  const taskDependencies = new Map<string, Set<string>>();
 
   for (const target of targets) {
     // First, add all dependencies for this target
     const deps = resolveCommandDependencies(project, commandName, target);
     for (const dep of deps) {
-      const key = `${dep.service}:${dep.command}`;
-      if (!allTasks.has(key)) {
-        allTasks.set(key, dep);
-      }
+      addTasksForCommand(project, dep.service, dep.command, allTasks, taskDependencies);
     }
 
     // Then add the target itself
-    const key = `${target}:${commandName}`;
-    if (!allTasks.has(key)) {
-      allTasks.set(key, { service: target, command: commandName });
-    }
+    addTasksForCommand(project, target, commandName, allTasks, taskDependencies);
   }
 
   // Build dependency graph for topological sort
@@ -261,15 +386,10 @@ export function buildExecutionPlan(
   }
 
   // Build edges based on dependencies
-  for (const [key, task] of allTasks) {
-    const service = project.services.entries[task.service];
-    if (!service) continue;
-
-    const deps = getEffectiveDependencies(service, task.command);
-
-    for (const dep of deps) {
-      const depKey = `${dep.service}:${dep.command}`;
-
+  for (const [key] of allTasks) {
+    const deps = taskDependencies.get(key) || new Set();
+    
+    for (const depKey of deps) {
       // Only add edge if the dependency is in our task set
       if (allTasks.has(depKey)) {
         const edges = graph.get(depKey) || new Set();
@@ -283,12 +403,12 @@ export function buildExecutionPlan(
   }
 
   // Detect circular dependencies using Kahn's algorithm
-  const stages: CommandDependencySpec[][] = [];
+  const stages: ResolvedCommand[][] = [];
   const remaining = new Map(inDegree);
 
   while (remaining.size > 0) {
     // Find all tasks with no remaining dependencies
-    const stage: CommandDependencySpec[] = [];
+    const stage: ResolvedCommand[] = [];
 
     for (const [key, degree] of remaining) {
       if (degree === 0) {
@@ -327,4 +447,45 @@ export function buildExecutionPlan(
   }
 
   return { stages };
+}
+
+/**
+ * Add tasks for a command, handling subcommands.
+ */
+function addTasksForCommand(
+  project: NormalizedProjectConfig,
+  serviceId: string,
+  commandName: string,
+  allTasks: Map<string, ResolvedCommand>,
+  taskDependencies: Map<string, Set<string>>,
+): void {
+  const resolved = resolveCommand(project, commandName, serviceId);
+  const rootCommand = commandName.split(":")[0]!;
+  
+  // Get service-level dependencies for this command
+  const service = project.services.entries[serviceId];
+  const serviceDeps = service ? getEffectiveDependencies(service, rootCommand) : [];
+  
+  for (const task of resolved) {
+    const key = `${task.service}:${task.command}`;
+    if (!allTasks.has(key)) {
+      allTasks.set(key, task);
+      
+      // Subcommands are siblings - they don't depend on each other
+      // but they do depend on the service-level dependencies
+      const deps = new Set<string>();
+      for (const dep of serviceDeps) {
+        // Add dependency on all resolved commands from the dependency service
+        try {
+          const depResolved = resolveCommand(project, dep.command, dep.service);
+          for (const depTask of depResolved) {
+            deps.add(`${depTask.service}:${depTask.command}`);
+          }
+        } catch {
+          // If dependency doesn't have the command, it was already validated
+        }
+      }
+      taskDependencies.set(key, deps);
+    }
+  }
 }

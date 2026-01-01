@@ -10,3 +10,19 @@ infrastructure:
   max_instances: 10
   has_database: false
   run_migrations: false
+
+commands:
+  clean:
+    command: rm -rf .react-router build node_modules
+  build:
+    command: react-router build
+  dev:
+    command: react-router dev --host
+  start:
+    command: react-router-serve ./build/server/index.js
+  check:
+    commands:
+      types:
+        command: react-router typegen && tsc
+  test:
+    command: echo 'test'
