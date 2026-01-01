@@ -167,7 +167,7 @@ describe("Execution Modes", () => {
       const runner = new Runner(config, environment, ["lint", "web"], logger);
 
       const args = IndexScript.parseArgs(runner, false);
-      expect(args.script).toBe("lint");
+      expect(args.command).toBe("lint");
       expect(args.targets).toEqual(["web"]);
     });
 

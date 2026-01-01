@@ -38,8 +38,7 @@ describe("IndexScript (catch-all for arbitrary commands)", () => {
   });
 
   describe("parseArgs", () => {
-    it("should parse host execution command: nopo lint web", async () => {
-      // Expected: { script: "lint", targets: ["web"] }
+    it("should parse command with target: nopo lint web", async () => {
       const config = createConfig({
         envFile: createTmpEnv({}),
       });
@@ -49,13 +48,13 @@ describe("IndexScript (catch-all for arbitrary commands)", () => {
 
       const args = IndexScript.parseArgs(runner, false);
       expect(args).toEqual({
-        script: "lint",
+        command: "lint",
+        subcommand: undefined,
         targets: ["web"],
       });
     });
 
     it("should parse command without targets", async () => {
-      // Expected: { script: "lint", targets: [] }
       const config = createConfig({
         envFile: createTmpEnv({}),
       });
@@ -65,7 +64,41 @@ describe("IndexScript (catch-all for arbitrary commands)", () => {
 
       const args = IndexScript.parseArgs(runner, false);
       expect(args).toEqual({
-        script: "lint",
+        command: "lint",
+        subcommand: undefined,
+        targets: [],
+      });
+    });
+
+    it("should parse command with subcommand and target: nopo fix py web", async () => {
+      const config = createConfig({
+        envFile: createTmpEnv({}),
+      });
+      const logger = new Logger(config);
+      const environment = new Environment(config);
+      const runner = new Runner(config, environment, ["fix", "py", "web"], logger);
+
+      const args = IndexScript.parseArgs(runner, false);
+      // "py" is recognized as a subcommand because it exists in backend's fix command
+      expect(args).toEqual({
+        command: "fix",
+        subcommand: "py",
+        targets: ["web"],
+      });
+    });
+
+    it("should parse command with subcommand only: nopo fix py", async () => {
+      const config = createConfig({
+        envFile: createTmpEnv({}),
+      });
+      const logger = new Logger(config);
+      const environment = new Environment(config);
+      const runner = new Runner(config, environment, ["fix", "py"], logger);
+
+      const args = IndexScript.parseArgs(runner, false);
+      expect(args).toEqual({
+        command: "fix",
+        subcommand: "py",
         targets: [],
       });
     });
@@ -83,9 +116,32 @@ describe("IndexScript (catch-all for arbitrary commands)", () => {
         logger,
       );
 
+      // "invalid" is not a known subcommand, so it's treated as a target
+      // and should fail validation
       expect(() => {
         IndexScript.parseArgs(runner, false);
       }).toThrow("Unknown target 'invalid'");
+    });
+
+    it("should parse multiple targets: nopo lint backend web", async () => {
+      const config = createConfig({
+        envFile: createTmpEnv({}),
+      });
+      const logger = new Logger(config);
+      const environment = new Environment(config);
+      const runner = new Runner(
+        config,
+        environment,
+        ["lint", "backend", "web"],
+        logger,
+      );
+
+      const args = IndexScript.parseArgs(runner, false);
+      expect(args).toEqual({
+        command: "lint",
+        subcommand: undefined,
+        targets: ["backend", "web"],
+      });
     });
   });
 
@@ -99,7 +155,7 @@ describe("IndexScript (catch-all for arbitrary commands)", () => {
   });
 
   describe("execution", () => {
-    it("should execute pnpm --filter for each target", async () => {
+    it("should execute pnpm --filter for each target (pnpm fallback)", async () => {
       // Expected: pnpm --filter @more/web run lint
       const config = createConfig({
         envFile: createTmpEnv({}),
@@ -191,118 +247,51 @@ describe("IndexScript (catch-all for arbitrary commands)", () => {
     });
   });
 
-  describe("pattern matching", () => {
-    it("should use exact script name when script does not end with ':'", async () => {
-      // Expected: pnpm run lint (exact match)
+  describe("subcommand detection", () => {
+    it("should detect known subcommand: nopo fix py", async () => {
       const config = createConfig({
         envFile: createTmpEnv({}),
         silent: true,
       });
       const logger = new Logger(config);
       const environment = new Environment(config);
-      const runner = new Runner(config, environment, ["lint"], logger);
+      const runner = new Runner(config, environment, ["fix", "py"], logger);
 
       const args = IndexScript.parseArgs(runner, false);
-      expect(args.script).toBe("lint");
-      expect(args.script.endsWith(":")).toBe(false);
+      expect(args.command).toBe("fix");
+      expect(args.subcommand).toBe("py");
+      expect(args.targets).toEqual([]);
     });
 
-    it("should use regex pattern when script ends with ':'", async () => {
-      // Expected: script name should end with ':' for pattern matching
+    it("should detect known subcommand with target: nopo fix py backend", async () => {
       const config = createConfig({
         envFile: createTmpEnv({}),
         silent: true,
       });
       const logger = new Logger(config);
       const environment = new Environment(config);
-      const runner = new Runner(config, environment, ["lint:"], logger);
+      const runner = new Runner(config, environment, ["fix", "py", "backend"], logger);
 
       const args = IndexScript.parseArgs(runner, false);
-      expect(args.script).toBe("lint:");
-      expect(args.script.endsWith(":")).toBe(true);
+      expect(args.command).toBe("fix");
+      expect(args.subcommand).toBe("py");
+      expect(args.targets).toEqual(["backend"]);
     });
 
-    it("should parse pattern matching script with targets", async () => {
-      // Expected: { script: "lint:", targets: ["web"] }
+    it("should treat unknown arg as target when it's a valid service", async () => {
       const config = createConfig({
         envFile: createTmpEnv({}),
         silent: true,
       });
       const logger = new Logger(config);
       const environment = new Environment(config);
-      const runner = new Runner(config, environment, ["lint:", "web"], logger);
+      const runner = new Runner(config, environment, ["build", "web"], logger);
 
       const args = IndexScript.parseArgs(runner, false);
-      expect(args.script).toBe("lint:");
+      // "web" is not a subcommand of "build", so treat as target
+      expect(args.command).toBe("build");
+      expect(args.subcommand).toBeUndefined();
       expect(args.targets).toEqual(["web"]);
-    });
-
-    it("should resolve exact script name correctly", () => {
-      // Test the internal #resolveScript method behavior via parseArgs
-      const config = createConfig({
-        envFile: createTmpEnv({}),
-        silent: true,
-      });
-      const logger = new Logger(config);
-      const environment = new Environment(config);
-
-      // Exact match case
-      const exactRunner = new Runner(config, environment, ["lint"], logger);
-      const exactArgs = IndexScript.parseArgs(exactRunner, false);
-      expect(exactArgs.script).toBe("lint");
-      expect(exactArgs.script).not.toContain("/^");
-      expect(exactArgs.script).not.toContain(".*/");
-    });
-
-    it("should resolve pattern matching script name correctly", () => {
-      // Test the internal #resolveScript method behavior via parseArgs
-      const config = createConfig({
-        envFile: createTmpEnv({}),
-        silent: true,
-      });
-      const logger = new Logger(config);
-      const environment = new Environment(config);
-
-      // Pattern match case
-      const patternRunner = new Runner(config, environment, ["lint:"], logger);
-      const patternArgs = IndexScript.parseArgs(patternRunner, false);
-      expect(patternArgs.script).toBe("lint:");
-      expect(patternArgs.script.endsWith(":")).toBe(true);
-    });
-
-    it("should handle pattern matching with multiple targets", async () => {
-      // Expected: pattern matching should work with multiple targets
-      const config = createConfig({
-        envFile: createTmpEnv({}),
-        silent: true,
-      });
-      const logger = new Logger(config);
-      const environment = new Environment(config);
-      const runner = new Runner(
-        config,
-        environment,
-        ["test:", "backend", "web"],
-        logger,
-      );
-
-      const args = IndexScript.parseArgs(runner, false);
-      expect(args.script).toBe("test:");
-      expect(args.targets).toEqual(["backend", "web"]);
-    });
-
-    it("should handle complex pattern names", async () => {
-      // Test with more complex pattern names
-      const config = createConfig({
-        envFile: createTmpEnv({}),
-        silent: true,
-      });
-      const logger = new Logger(config);
-      const environment = new Environment(config);
-
-      const runner = new Runner(config, environment, ["build:prod:"], logger);
-      const args = IndexScript.parseArgs(runner, false);
-      expect(args.script).toBe("build:prod:");
-      expect(args.script.endsWith(":")).toBe(true);
     });
   });
 });

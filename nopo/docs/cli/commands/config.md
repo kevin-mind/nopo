@@ -44,15 +44,37 @@ commands:
         command: prettier --check .
 ```
 
-Running `nopo check web` will execute all three subcommands in parallel.
+#### Running Subcommands
 
-**Note**: Use hyphens (`-`) instead of colons (`:`) in subcommand names, as colons are used as path separators. For example, use `lint-js` instead of `lint:js`.
-
-You can run a specific subcommand using the path syntax:
+The CLI supports flexible subcommand targeting:
 
 ```bash
-nopo check:types web   # Run only the types subcommand
+nopo check web        # Run all check subcommands on web (types, lint, format in parallel)
+nopo check types web  # Run only check:types on web
+nopo check types      # Run check:types on all services
+nopo check            # Run all check subcommands on all services
 ```
+
+The CLI automatically distinguishes between subcommand names and service names:
+
+- If an argument matches a known subcommand, it's treated as a subcommand filter
+- Otherwise, it's treated as a service target
+
+#### Subcommand Naming
+
+Use short, descriptive names for subcommands:
+
+```yaml
+commands:
+  fix:
+    commands:
+      py:            # Good - short and clear
+        command: ruff format
+      js:            # Good - short and clear
+        command: eslint --fix
+```
+
+#### Nested Subcommands
 
 Subcommands support up to 3 levels of nesting:
 

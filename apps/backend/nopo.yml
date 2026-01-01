@@ -18,27 +18,27 @@ commands:
     command: rm -rf __pycache__ .ruff_cache node_modules
   fix:
     commands:
-      lint:
+      py:
         command: uv tool run ruff format
-      lint-js:
+      js:
         command: eslint --fix
   check:
     commands:
-      lint:
+      py:
         command: uv tool run ruff check
-      lint-js:
+      js:
         command: eslint
-      lint-py:
-        command: uv tool run ruff check
-      types-py:
-        command: uv run mypy .
-      types-js:
-        command: tsc --noEmit
+      types:
+        commands:
+          py:
+            command: uv run mypy .
+          js:
+            command: tsc --noEmit
   test:
     command: uv run python manage.py test src
   dev:
     commands:
-      runserver:
+      server:
         command: uv run --verbose python manage.py runserver 0.0.0.0:80 --settings=settings
       vite:
         command: vite --port 5173
@@ -46,8 +46,6 @@ commands:
     command: uv run --verbose gunicorn --config gunicorn.conf.py backend.mysite.wsgi:application
   migrate:
     command: uv run --verbose python manage.py migrate
-  migrate-check:
-    command: uv run --verbose python manage.py migrate --check
   makemigrations:
     command: uv run --verbose python manage.py makemigrations
   shell:
