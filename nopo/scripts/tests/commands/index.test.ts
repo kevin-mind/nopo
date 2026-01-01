@@ -5,7 +5,7 @@ import path from "node:path";
 import {
   loadProjectConfig,
   type NormalizedProjectConfig,
-} from "../src/config/index.ts";
+} from "../../src/config/index.ts";
 import {
   resolveCommandDependencies,
   buildExecutionPlan,
@@ -13,7 +13,7 @@ import {
   resolveCommand,
   type ExecutionPlan,
   type CommandDependencySpec,
-} from "../src/commands/index.ts";
+} from "../../src/commands/index.ts";
 
 const tmpDirs: string[] = [];
 
@@ -235,7 +235,9 @@ commands:
       });
 
       const project = loadProjectConfig(root);
-      expect(() => validateCommandTargets(project, "lint", ["web", "backend"])).not.toThrow();
+      expect(() =>
+        validateCommandTargets(project, "lint", ["web", "backend"]),
+      ).not.toThrow();
     });
 
     it("throws when a top-level target is missing the command", () => {
@@ -261,9 +263,9 @@ dockerfile: Dockerfile
       });
 
       const project = loadProjectConfig(root);
-      expect(() => validateCommandTargets(project, "lint", ["web", "backend"])).toThrow(
-        /Service 'backend' does not define command 'lint'/
-      );
+      expect(() =>
+        validateCommandTargets(project, "lint", ["web", "backend"]),
+      ).toThrow(/Service 'backend' does not define command 'lint'/);
     });
 
     it("does not require dependencies to have the command", () => {
@@ -292,7 +294,9 @@ dockerfile: Dockerfile
 
       const project = loadProjectConfig(root);
       // backend is a dependency but not a top-level target, so should not throw
-      expect(() => validateCommandTargets(project, "lint", ["web"])).not.toThrow();
+      expect(() =>
+        validateCommandTargets(project, "lint", ["web"]),
+      ).not.toThrow();
     });
   });
 
@@ -476,7 +480,9 @@ commands:
       // Should use command-specific dependencies, not service-level
       expect(deps).toContainEqual({ service: "backend", command: "build" });
       expect(deps).toContainEqual({ service: "worker", command: "build" });
-      expect(deps).not.toContainEqual(expect.objectContaining({ service: "api" }));
+      expect(deps).not.toContainEqual(
+        expect.objectContaining({ service: "api" }),
+      );
     });
 
     it("resolves complex command dependencies with different commands", () => {
@@ -542,10 +548,10 @@ dockerfile: Dockerfile
       });
 
       const project = loadProjectConfig(root);
-      
+
       // backend doesn't have lint command, so should error
       expect(() => resolveCommandDependencies(project, "lint", "web")).toThrow(
-        /Service 'backend' does not define command 'lint'/
+        /Service 'backend' does not define command 'lint'/,
       );
     });
   });
@@ -574,7 +580,10 @@ commands:
 
       expect(plan.stages).toHaveLength(1);
       expect(plan.stages[0]).toHaveLength(1);
-      expect(plan.stages[0]![0]).toMatchObject({ service: "web", command: "lint" });
+      expect(plan.stages[0]![0]).toMatchObject({
+        service: "web",
+        command: "lint",
+      });
     });
 
     it("groups independent services in the same stage for parallelization", () => {
@@ -610,7 +619,11 @@ commands:
       });
 
       const project = loadProjectConfig(root);
-      const plan = buildExecutionPlan(project, "lint", ["web", "backend", "worker"]);
+      const plan = buildExecutionPlan(project, "lint", [
+        "web",
+        "backend",
+        "worker",
+      ]);
 
       // All independent, should be in same stage
       expect(plan.stages).toHaveLength(1);
@@ -649,8 +662,12 @@ commands:
 
       // backend first, then web
       expect(plan.stages).toHaveLength(2);
-      expect(plan.stages[0]).toContainEqual(expect.objectContaining({ service: "backend", command: "lint" }));
-      expect(plan.stages[1]).toContainEqual(expect.objectContaining({ service: "web", command: "lint" }));
+      expect(plan.stages[0]).toContainEqual(
+        expect.objectContaining({ service: "backend", command: "lint" }),
+      );
+      expect(plan.stages[1]).toContainEqual(
+        expect.objectContaining({ service: "web", command: "lint" }),
+      );
     });
 
     it("handles diamond dependencies correctly", () => {
@@ -704,11 +721,19 @@ commands:
 
       // shared first (stage 0), then web & api in parallel (stage 1), then app (stage 2)
       expect(plan.stages).toHaveLength(3);
-      expect(plan.stages[0]).toContainEqual(expect.objectContaining({ service: "shared", command: "build" }));
+      expect(plan.stages[0]).toContainEqual(
+        expect.objectContaining({ service: "shared", command: "build" }),
+      );
       expect(plan.stages[1]).toHaveLength(2);
-      expect(plan.stages[1]).toContainEqual(expect.objectContaining({ service: "web", command: "build" }));
-      expect(plan.stages[1]).toContainEqual(expect.objectContaining({ service: "api", command: "build" }));
-      expect(plan.stages[2]).toContainEqual(expect.objectContaining({ service: "app", command: "build" }));
+      expect(plan.stages[1]).toContainEqual(
+        expect.objectContaining({ service: "web", command: "build" }),
+      );
+      expect(plan.stages[1]).toContainEqual(
+        expect.objectContaining({ service: "api", command: "build" }),
+      );
+      expect(plan.stages[2]).toContainEqual(
+        expect.objectContaining({ service: "app", command: "build" }),
+      );
     });
 
     it("deduplicates services across multiple targets", () => {
@@ -822,7 +847,7 @@ commands:
 
       const project = loadProjectConfig(root);
       expect(() => buildExecutionPlan(project, "build", ["web"])).toThrow(
-        /Circular dependency detected/
+        /Circular dependency detected/,
       );
     });
   });
@@ -1016,10 +1041,18 @@ commands:
 
       // d -> c -> b -> a
       expect(plan.stages).toHaveLength(4);
-      expect(plan.stages[0]).toContainEqual(expect.objectContaining({ service: "d", command: "build" }));
-      expect(plan.stages[1]).toContainEqual(expect.objectContaining({ service: "c", command: "build" }));
-      expect(plan.stages[2]).toContainEqual(expect.objectContaining({ service: "b", command: "build" }));
-      expect(plan.stages[3]).toContainEqual(expect.objectContaining({ service: "a", command: "build" }));
+      expect(plan.stages[0]).toContainEqual(
+        expect.objectContaining({ service: "d", command: "build" }),
+      );
+      expect(plan.stages[1]).toContainEqual(
+        expect.objectContaining({ service: "c", command: "build" }),
+      );
+      expect(plan.stages[2]).toContainEqual(
+        expect.objectContaining({ service: "b", command: "build" }),
+      );
+      expect(plan.stages[3]).toContainEqual(
+        expect.objectContaining({ service: "a", command: "build" }),
+      );
     });
 
     it("handles targets with glob patterns", () => {
@@ -1059,7 +1092,11 @@ commands:
 
       const project = loadProjectConfig(root);
       // Simulating resolved glob pattern
-      const plan = buildExecutionPlan(project, "lint", ["pkg-a", "pkg-b", "pkg-c"]);
+      const plan = buildExecutionPlan(project, "lint", [
+        "pkg-a",
+        "pkg-b",
+        "pkg-c",
+      ]);
 
       // All independent
       expect(plan.stages).toHaveLength(1);
@@ -1126,8 +1163,16 @@ commands:
 
       // Should return both subcommands
       expect(resolved).toHaveLength(2);
-      expect(resolved).toContainEqual({ service: "web", command: "lint:ts", executable: "tsc --noEmit" });
-      expect(resolved).toContainEqual({ service: "web", command: "lint:eslint", executable: "eslint ." });
+      expect(resolved).toContainEqual({
+        service: "web",
+        command: "lint:ts",
+        executable: "tsc --noEmit",
+      });
+      expect(resolved).toContainEqual({
+        service: "web",
+        command: "lint:eslint",
+        executable: "eslint .",
+      });
     });
 
     it("runs subcommands in parallel (same stage)", () => {
@@ -1191,8 +1236,16 @@ commands:
 
       // Should flatten all nested subcommands
       expect(resolved).toHaveLength(2);
-      expect(resolved).toContainEqual({ service: "web", command: "check:lint:ts", executable: "tsc --noEmit" });
-      expect(resolved).toContainEqual({ service: "web", command: "check:lint:js", executable: "eslint ." });
+      expect(resolved).toContainEqual({
+        service: "web",
+        command: "check:lint:ts",
+        executable: "tsc --noEmit",
+      });
+      expect(resolved).toContainEqual({
+        service: "web",
+        command: "check:lint:js",
+        executable: "eslint .",
+      });
     });
 
     it("can run specific subcommand directly", () => {
@@ -1221,7 +1274,11 @@ commands:
       const resolved = resolveCommand(project, "lint:ts", "web");
 
       expect(resolved).toHaveLength(1);
-      expect(resolved[0]).toEqual({ service: "web", command: "lint:ts", executable: "tsc --noEmit" });
+      expect(resolved[0]).toEqual({
+        service: "web",
+        command: "lint:ts",
+        executable: "tsc --noEmit",
+      });
     });
 
     it("subcommands cannot define dependencies", () => {
@@ -1274,7 +1331,7 @@ commands:
 
       // Should throw because can't have both command and commands
       expect(() => loadProjectConfig(root)).toThrow(
-        /Cannot specify both 'command' and 'commands'/
+        /Cannot specify both 'command' and 'commands'/,
       );
     });
 
@@ -1307,7 +1364,11 @@ commands:
       // build is a simple command
       const buildResolved = resolveCommand(project, "build", "web");
       expect(buildResolved).toHaveLength(1);
-      expect(buildResolved[0]).toEqual({ service: "web", command: "build", executable: "npm run build" });
+      expect(buildResolved[0]).toEqual({
+        service: "web",
+        command: "build",
+        executable: "npm run build",
+      });
 
       // check has subcommands
       const checkResolved = resolveCommand(project, "check", "web");
@@ -1337,7 +1398,7 @@ commands:
       const project = loadProjectConfig(root);
 
       expect(() => resolveCommand(project, "lint:nonexistent", "web")).toThrow(
-        /Command 'lint:nonexistent' not found/
+        /Command 'lint:nonexistent' not found/,
       );
     });
   });

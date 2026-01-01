@@ -11,9 +11,9 @@ import { Environment } from "./parse-env.ts";
 import process from "node:process";
 
 import Build from "./scripts/build.ts";
+import Command from "./scripts/command.ts";
 import Down from "./scripts/down.ts";
 import Env from "./scripts/env.ts";
-import Index from "./scripts/index.ts";
 import List from "./scripts/list.ts";
 import Pull from "./scripts/pull.ts";
 import Run from "./scripts/run.ts";
@@ -22,9 +22,9 @@ import Up from "./scripts/up.ts";
 
 const scripts: Record<string, typeof Script> = {
   build: Build,
+  command: Command,
   down: Down,
   env: Env,
-  index: Index,
   list: List,
   pull: Pull,
   run: Run,
@@ -146,7 +146,7 @@ export default async function main(
     return printHelp("Usage: nopo <command> [options]", 0);
   }
 
-  const ScriptClass = scripts[commandName] ?? Index;
+  const ScriptClass = scripts[commandName] ?? Command;
 
   // Check for recursive help: nopo <command> help or nopo <command> --help
   if (args._[1] === "help" || args.help) {

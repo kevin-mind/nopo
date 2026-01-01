@@ -57,7 +57,7 @@ export function validateCommandTargets(
 
     // Get the root command name (before any colons for subcommands)
     const rootCommand = commandName.split(":")[0]!;
-    
+
     if (!service.commands[rootCommand]) {
       throw new Error(
         `Service '${target}' does not define command '${commandName}'. ` +
@@ -106,21 +106,31 @@ export function resolveCommand(
 
   // If the command has subcommands, return all of them
   if (command.commands) {
-    return flattenSubCommands(serviceId, rootCommand, command.commands, command.env, command.dir);
+    return flattenSubCommands(
+      serviceId,
+      rootCommand,
+      command.commands,
+      command.env,
+      command.dir,
+    );
   }
 
   // Simple command with executable
   if (command.command) {
-    return [{ 
-      service: serviceId, 
-      command: commandName, 
-      executable: command.command,
-      env: command.env,
-      dir: command.dir,
-    }];
+    return [
+      {
+        service: serviceId,
+        command: commandName,
+        executable: command.command,
+        env: command.env,
+        dir: command.dir,
+      },
+    ];
   }
 
-  throw new Error(`Command '${commandName}' in service '${serviceId}' has no executable`);
+  throw new Error(
+    `Command '${commandName}' in service '${serviceId}' has no executable`,
+  );
 }
 
 /**
@@ -140,11 +150,13 @@ function resolveSubCommandPath(
 
   for (const part of subPath) {
     currentPath = `${currentPath}:${part}`;
-    
+
     if (!current.commands || !current.commands[part]) {
-      throw new Error(`Command '${currentPath}' not found in service '${serviceId}'`);
+      throw new Error(
+        `Command '${currentPath}' not found in service '${serviceId}'`,
+      );
     }
-    
+
     current = current.commands[part];
     // Child env/dir overrides parent
     if (current.env) inheritedEnv = { ...inheritedEnv, ...current.env };
@@ -153,21 +165,31 @@ function resolveSubCommandPath(
 
   // If we landed on a command with subcommands, flatten them
   if (current.commands) {
-    return flattenSubCommands(serviceId, currentPath, current.commands, inheritedEnv, inheritedDir);
+    return flattenSubCommands(
+      serviceId,
+      currentPath,
+      current.commands,
+      inheritedEnv,
+      inheritedDir,
+    );
   }
 
   // Single command
   if (current.command) {
-    return [{ 
-      service: serviceId, 
-      command: currentPath, 
-      executable: current.command,
-      env: current.env ? { ...inheritedEnv, ...current.env } : inheritedEnv,
-      dir: current.dir || inheritedDir,
-    }];
+    return [
+      {
+        service: serviceId,
+        command: currentPath,
+        executable: current.command,
+        env: current.env ? { ...inheritedEnv, ...current.env } : inheritedEnv,
+        dir: current.dir || inheritedDir,
+      },
+    ];
   }
 
-  throw new Error(`Command '${currentPath}' in service '${serviceId}' has no executable`);
+  throw new Error(
+    `Command '${currentPath}' in service '${serviceId}' has no executable`,
+  );
 }
 
 /**
@@ -191,11 +213,19 @@ function flattenSubCommands(
 
     if (subCmd.commands) {
       // Recurse into nested subcommands
-      result.push(...flattenSubCommands(serviceId, cmdPath, subCmd.commands, mergedEnv, effectiveDir));
+      result.push(
+        ...flattenSubCommands(
+          serviceId,
+          cmdPath,
+          subCmd.commands,
+          mergedEnv,
+          effectiveDir,
+        ),
+      );
     } else if (subCmd.command) {
-      result.push({ 
-        service: serviceId, 
-        command: cmdPath, 
+      result.push({
+        service: serviceId,
+        command: cmdPath,
         executable: subCmd.command,
         env: mergedEnv,
         dir: effectiveDir,
@@ -400,11 +430,23 @@ export function buildExecutionPlan(
     // First, add all dependencies for this target
     const deps = resolveCommandDependencies(project, commandName, target);
     for (const dep of deps) {
-      addTasksForCommand(project, dep.service, dep.command, allTasks, taskDependencies);
+      addTasksForCommand(
+        project,
+        dep.service,
+        dep.command,
+        allTasks,
+        taskDependencies,
+      );
     }
 
     // Then add the target itself
-    addTasksForCommand(project, target, commandName, allTasks, taskDependencies);
+    addTasksForCommand(
+      project,
+      target,
+      commandName,
+      allTasks,
+      taskDependencies,
+    );
   }
 
   // Build dependency graph for topological sort
@@ -420,7 +462,7 @@ export function buildExecutionPlan(
   // Build edges based on dependencies
   for (const [key] of allTasks) {
     const deps = taskDependencies.get(key) || new Set();
-    
+
     for (const depKey of deps) {
       // Only add edge if the dependency is in our task set
       if (allTasks.has(depKey)) {
@@ -493,16 +535,18 @@ function addTasksForCommand(
 ): void {
   const resolved = resolveCommand(project, commandName, serviceId);
   const rootCommand = commandName.split(":")[0]!;
-  
+
   // Get service-level dependencies for this command
   const service = project.services.entries[serviceId];
-  const serviceDeps = service ? getEffectiveDependencies(service, rootCommand) : [];
-  
+  const serviceDeps = service
+    ? getEffectiveDependencies(service, rootCommand)
+    : [];
+
   for (const task of resolved) {
     const key = `${task.service}:${task.command}`;
     if (!allTasks.has(key)) {
       allTasks.set(key, task);
-      
+
       // Subcommands are siblings - they don't depend on each other
       // but they do depend on the service-level dependencies
       const deps = new Set<string>();

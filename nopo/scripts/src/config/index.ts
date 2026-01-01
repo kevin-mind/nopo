@@ -23,10 +23,12 @@ const ServiceInfrastructureSchema = z.object({
 // - Array of strings: ["backend", "worker"] -> same command on each service
 // - Object with arrays: { backend: ["build", "clean"] } -> specific commands per service
 // - Empty object {} -> no dependencies (overrides service-level)
-const CommandDependenciesSchema = z.union([
-  z.array(z.string().min(1)),
-  z.record(z.string().min(1), z.array(z.string().min(1))),
-]).optional();
+const CommandDependenciesSchema = z
+  .union([
+    z.array(z.string().min(1)),
+    z.record(z.string().min(1), z.array(z.string().min(1))),
+  ])
+  .optional();
 
 // Environment variables for commands
 const CommandEnvSchema = z.record(z.string().min(1), z.string()).optional();
@@ -44,57 +46,91 @@ const SubSubCommandObjectSchema = z.object({
 });
 
 const SubSubCommandSchema = z.union([
-  z.string().min(1).transform((cmd) => ({ command: cmd, env: undefined, dir: undefined })),
+  z
+    .string()
+    .min(1)
+    .transform((cmd) => ({ command: cmd, env: undefined, dir: undefined })),
   SubSubCommandObjectSchema,
 ]);
 
 // Sub-command schema (can have sub-sub-commands)
 // Supports shorthand: "pnpm build" or full object
-const SubCommandObjectSchema = z.object({
-  command: z.string().min(1).optional(),
-  env: CommandEnvSchema,
-  dir: CommandDirSchema,
-  commands: z.record(z.string().min(1), SubSubCommandSchema).optional(),
-  dependencies: z.never().optional(), // Explicitly disallow dependencies
-}).refine((data) => {
-  // Must have either command or commands, not both
-  const hasCommand = !!data.command;
-  const hasCommands = !!data.commands && Object.keys(data.commands).length > 0;
-  if (hasCommand && hasCommands) {
-    return false;
-  }
-  return hasCommand || hasCommands;
-}, {
-  message: "Cannot specify both 'command' and 'commands'. Use one or the other.",
-});
+const SubCommandObjectSchema = z
+  .object({
+    command: z.string().min(1).optional(),
+    env: CommandEnvSchema,
+    dir: CommandDirSchema,
+    commands: z.record(z.string().min(1), SubSubCommandSchema).optional(),
+    dependencies: z.never().optional(), // Explicitly disallow dependencies
+  })
+  .refine(
+    (data) => {
+      // Must have either command or commands, not both
+      const hasCommand = !!data.command;
+      const hasCommands =
+        !!data.commands && Object.keys(data.commands).length > 0;
+      if (hasCommand && hasCommands) {
+        return false;
+      }
+      return hasCommand || hasCommands;
+    },
+    {
+      message:
+        "Cannot specify both 'command' and 'commands'. Use one or the other.",
+    },
+  );
 
 const SubCommandSchema = z.union([
-  z.string().min(1).transform((cmd) => ({ command: cmd, env: undefined, dir: undefined, commands: undefined })),
+  z
+    .string()
+    .min(1)
+    .transform((cmd) => ({
+      command: cmd,
+      env: undefined,
+      dir: undefined,
+      commands: undefined,
+    })),
   SubCommandObjectSchema,
 ]);
 
 // Top-level command schema
 // Supports shorthand: "pnpm build" or full object
-const CommandObjectSchema = z.object({
-  command: z.string().min(1).optional(),
-  env: CommandEnvSchema,
-  dir: CommandDirSchema,
-  dependencies: CommandDependenciesSchema,
-  commands: z.record(z.string().min(1), SubCommandSchema).optional(),
-}).refine((data) => {
-  // Must have either command or commands, not both
-  const hasCommand = !!data.command;
-  const hasCommands = !!data.commands && Object.keys(data.commands).length > 0;
-  if (hasCommand && hasCommands) {
-    return false;
-  }
-  return hasCommand || hasCommands;
-}, {
-  message: "Cannot specify both 'command' and 'commands'. Use one or the other.",
-});
+const CommandObjectSchema = z
+  .object({
+    command: z.string().min(1).optional(),
+    env: CommandEnvSchema,
+    dir: CommandDirSchema,
+    dependencies: CommandDependenciesSchema,
+    commands: z.record(z.string().min(1), SubCommandSchema).optional(),
+  })
+  .refine(
+    (data) => {
+      // Must have either command or commands, not both
+      const hasCommand = !!data.command;
+      const hasCommands =
+        !!data.commands && Object.keys(data.commands).length > 0;
+      if (hasCommand && hasCommands) {
+        return false;
+      }
+      return hasCommand || hasCommands;
+    },
+    {
+      message:
+        "Cannot specify both 'command' and 'commands'. Use one or the other.",
+    },
+  );
 
 const CommandSchema = z.union([
-  z.string().min(1).transform((cmd) => ({ command: cmd, env: undefined, dir: undefined, dependencies: undefined, commands: undefined })),
+  z
+    .string()
+    .min(1)
+    .transform((cmd) => ({
+      command: cmd,
+      env: undefined,
+      dir: undefined,
+      dependencies: undefined,
+      commands: undefined,
+    })),
   CommandObjectSchema,
 ]);
 
@@ -432,14 +468,17 @@ function normalizeSubCommands(
 
   for (const [name, cmd] of Object.entries(commands)) {
     // Check if subcommand has dependencies (not allowed)
-    if ('dependencies' in cmd && (cmd as { dependencies?: unknown }).dependencies) {
+    if (
+      "dependencies" in cmd &&
+      (cmd as { dependencies?: unknown }).dependencies
+    ) {
       throw new Error(
-        `Subcommands cannot define dependencies. Found at '${parentPath}:${name}'.`
+        `Subcommands cannot define dependencies. Found at '${parentPath}:${name}'.`,
       );
     }
 
     if (cmd.command) {
-      result[name] = { 
+      result[name] = {
         command: cmd.command,
         env: cmd.env,
         dir: cmd.dir,
@@ -450,7 +489,10 @@ function normalizeSubCommands(
         command: undefined as unknown as string, // Will be populated with subcommands
         env: cmd.env,
         dir: cmd.dir,
-        commands: normalizeSubSubCommands(cmd.commands, `${parentPath}:${name}`),
+        commands: normalizeSubSubCommands(
+          cmd.commands,
+          `${parentPath}:${name}`,
+        ),
       };
     }
   }
@@ -467,7 +509,7 @@ function normalizeSubSubCommands(
   const result: Record<string, NormalizedSubCommand> = {};
 
   for (const [name, cmd] of Object.entries(commands)) {
-    result[name] = { 
+    result[name] = {
       command: cmd.command,
       env: cmd.env,
       dir: cmd.dir,

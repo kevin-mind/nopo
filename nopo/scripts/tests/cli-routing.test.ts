@@ -25,15 +25,15 @@ vi.mock("docker-compose", () => ({
 }));
 
 import main from "../src/index.ts";
-import IndexScript from "../src/scripts/index.ts";
+import CommandScript from "../src/scripts/command.ts";
 import RunScript from "../src/scripts/run.ts";
 import BuildScript from "../src/scripts/build.ts";
 
-// Mock exec for IndexScript and RunScript to prevent actual command execution
+// Mock exec for CommandScript and RunScript to prevent actual command execution
 const mockExec = vi
   .fn()
   .mockResolvedValue({ stdout: "", stderr: "", exitCode: 0 });
-Object.defineProperty(IndexScript.prototype, "exec", {
+Object.defineProperty(CommandScript.prototype, "exec", {
   get: () => mockExec,
   configurable: true,
 });
@@ -255,7 +255,7 @@ describe("CLI Routing", () => {
       await expect(main(argv, env)).rejects.toThrow(/does not define command/);
     });
 
-    it("should route defined command to IndexScript", async () => {
+    it("should route defined command to CommandScript", async () => {
       const argv = ["node", "nopo", "test", "web"];
       const env = {
         ENV_FILE: createTmpEnv({}),

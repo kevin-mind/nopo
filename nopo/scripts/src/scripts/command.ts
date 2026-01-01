@@ -1,5 +1,10 @@
 import path from "node:path";
-import { TargetScript, type ScriptDependency, type Runner, exec } from "../lib.ts";
+import {
+  TargetScript,
+  type ScriptDependency,
+  type Runner,
+  exec,
+} from "../lib.ts";
 import EnvScript from "./env.ts";
 import {
   validateCommandTargets,
@@ -7,13 +12,13 @@ import {
   type ResolvedCommand,
 } from "../commands/index.ts";
 
-type IndexScriptArgs = {
+type CommandScriptArgs = {
   command: string;
   subcommand: string | undefined;
   targets: string[];
 };
 
-export default class IndexScript extends TargetScript<IndexScriptArgs> {
+export default class CommandScript extends TargetScript<CommandScriptArgs> {
   static override name = "";
   static override description = "Run a command defined in nopo.yml";
   static override dependencies: ScriptDependency[] = [
@@ -26,7 +31,7 @@ export default class IndexScript extends TargetScript<IndexScriptArgs> {
   static override parseArgs(
     runner: Runner,
     isDependency: boolean,
-  ): IndexScriptArgs {
+  ): CommandScriptArgs {
     if (isDependency || runner.argv.length === 0) {
       return { command: "", subcommand: undefined, targets: [] };
     }
@@ -50,24 +55,28 @@ export default class IndexScript extends TargetScript<IndexScriptArgs> {
 
     if (remaining.length > 0) {
       const firstArg = remaining[0]!;
-      
+
       // Check if firstArg is a known subcommand for this command
-      const isSubcommand = IndexScript.#isSubcommandName(runner, command, firstArg);
+      const isSubcommand = CommandScript.#isSubcommandName(
+        runner,
+        command,
+        firstArg,
+      );
       const isTarget = availableTargets.includes(firstArg.toLowerCase());
 
       if (isSubcommand && !isTarget) {
         // It's definitely a subcommand
         subcommand = firstArg;
-        targets = remaining.slice(1).map(t => t.toLowerCase());
+        targets = remaining.slice(1).map((t) => t.toLowerCase());
       } else if (!isSubcommand && isTarget) {
         // It's definitely a target
-        targets = remaining.map(t => t.toLowerCase());
+        targets = remaining.map((t) => t.toLowerCase());
       } else if (isSubcommand && isTarget) {
         // Ambiguous - could be either. Prefer subcommand interpretation
         // if there are more args (suggesting the pattern: cmd subcommand target)
         if (remaining.length > 1) {
           subcommand = firstArg;
-          targets = remaining.slice(1).map(t => t.toLowerCase());
+          targets = remaining.slice(1).map((t) => t.toLowerCase());
         } else {
           // Single arg that could be either - treat as target
           targets = [firstArg.toLowerCase()];
@@ -75,13 +84,13 @@ export default class IndexScript extends TargetScript<IndexScriptArgs> {
       } else {
         // Not a known subcommand or target - treat all remaining as targets
         // (validation will happen below)
-        targets = remaining.map(t => t.toLowerCase());
+        targets = remaining.map((t) => t.toLowerCase());
       }
     }
 
     // Validate targets
     if (targets.length > 0) {
-      const unknown = targets.filter(t => !availableTargets.includes(t));
+      const unknown = targets.filter((t) => !availableTargets.includes(t));
       if (unknown.length > 0) {
         throw new Error(
           `Unknown target${unknown.length > 1 ? "s" : ""} '${unknown.join("', '")}'. ` +
@@ -96,30 +105,35 @@ export default class IndexScript extends TargetScript<IndexScriptArgs> {
   /**
    * Check if a name is a known subcommand for the given command across any service
    */
-  static #isSubcommandName(runner: Runner, commandName: string, name: string): boolean {
+  static #isSubcommandName(
+    runner: Runner,
+    commandName: string,
+    name: string,
+  ): boolean {
     const project = runner.config.project;
-    
+
     for (const service of Object.values(project.services.entries)) {
       const cmd = service.commands[commandName];
       if (cmd?.commands && cmd.commands[name]) {
         return true;
       }
     }
-    
+
     return false;
   }
 
-  override async fn(args: IndexScriptArgs) {
+  override async fn(args: CommandScriptArgs) {
     if (!args.command) {
       throw new Error("Command name is required");
     }
 
     const project = this.runner.config.project;
-    const targets = args.targets.length > 0 ? args.targets : project.services.targets;
+    const targets =
+      args.targets.length > 0 ? args.targets : project.services.targets;
 
     // Build command path with optional subcommand
-    const commandPath = args.subcommand 
-      ? `${args.command}:${args.subcommand}` 
+    const commandPath = args.subcommand
+      ? `${args.command}:${args.subcommand}`
       : args.command;
 
     // Validate that all targets have the command defined
@@ -134,10 +148,12 @@ export default class IndexScript extends TargetScript<IndexScriptArgs> {
     // Execute each stage
     for (let i = 0; i < plan.stages.length; i++) {
       const stage = plan.stages[i]!;
-      this.log(`\nStage ${i + 1}: ${stage.map(t => `${t.service}:${t.command}`).join(", ")}`);
+      this.log(
+        `\nStage ${i + 1}: ${stage.map((t) => `${t.service}:${t.command}`).join(", ")}`,
+      );
 
       // Run all commands in this stage in parallel
-      await Promise.all(stage.map(task => this.#executeTask(task)));
+      await Promise.all(stage.map((task) => this.#executeTask(task)));
     }
   }
 

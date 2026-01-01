@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import IndexScript from "../../src/scripts/index.ts";
+import CommandScript from "../../src/scripts/command.ts";
 import { Runner, createConfig, Logger, exec } from "../../src/lib.ts";
 import { Environment } from "../../src/parse-env.ts";
 import { createTmpEnv } from "../utils.ts";
@@ -13,7 +13,7 @@ vi.mock("../../src/lib.ts", async (importOriginal) => {
   };
 });
 
-describe("IndexScript (run commands defined in nopo.yml)", () => {
+describe("CommandScript (run commands defined in nopo.yml)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -27,7 +27,7 @@ describe("IndexScript (run commands defined in nopo.yml)", () => {
       const environment = new Environment(config);
       const runner = new Runner(config, environment, ["build", "web"], logger);
 
-      const args = IndexScript.parseArgs(runner, false);
+      const args = CommandScript.parseArgs(runner, false);
       expect(args).toEqual({
         command: "build",
         subcommand: undefined,
@@ -43,7 +43,7 @@ describe("IndexScript (run commands defined in nopo.yml)", () => {
       const environment = new Environment(config);
       const runner = new Runner(config, environment, ["build"], logger);
 
-      const args = IndexScript.parseArgs(runner, false);
+      const args = CommandScript.parseArgs(runner, false);
       expect(args).toEqual({
         command: "build",
         subcommand: undefined,
@@ -57,9 +57,14 @@ describe("IndexScript (run commands defined in nopo.yml)", () => {
       });
       const logger = new Logger(config);
       const environment = new Environment(config);
-      const runner = new Runner(config, environment, ["fix", "py", "web"], logger);
+      const runner = new Runner(
+        config,
+        environment,
+        ["fix", "py", "web"],
+        logger,
+      );
 
-      const args = IndexScript.parseArgs(runner, false);
+      const args = CommandScript.parseArgs(runner, false);
       // "py" is recognized as a subcommand because it exists in backend's fix command
       expect(args).toEqual({
         command: "fix",
@@ -76,7 +81,7 @@ describe("IndexScript (run commands defined in nopo.yml)", () => {
       const environment = new Environment(config);
       const runner = new Runner(config, environment, ["fix", "py"], logger);
 
-      const args = IndexScript.parseArgs(runner, false);
+      const args = CommandScript.parseArgs(runner, false);
       expect(args).toEqual({
         command: "fix",
         subcommand: "py",
@@ -100,7 +105,7 @@ describe("IndexScript (run commands defined in nopo.yml)", () => {
       // "invalid" is not a known subcommand, so it's treated as a target
       // and should fail validation
       expect(() => {
-        IndexScript.parseArgs(runner, false);
+        CommandScript.parseArgs(runner, false);
       }).toThrow("Unknown target 'invalid'");
     });
 
@@ -117,7 +122,7 @@ describe("IndexScript (run commands defined in nopo.yml)", () => {
         logger,
       );
 
-      const args = IndexScript.parseArgs(runner, false);
+      const args = CommandScript.parseArgs(runner, false);
       expect(args).toEqual({
         command: "build",
         subcommand: undefined,
@@ -128,10 +133,10 @@ describe("IndexScript (run commands defined in nopo.yml)", () => {
 
   describe("dependencies", () => {
     it("should only have EnvScript dependency for host execution", async () => {
-      // IndexScript (catch-all) should only depend on EnvScript
-      expect(IndexScript.dependencies).toHaveLength(1);
-      expect(IndexScript.dependencies[0]?.class.name).toBe("env");
-      expect(IndexScript.dependencies[0]?.enabled).toBe(true);
+      // CommandScript (catch-all) should only depend on EnvScript
+      expect(CommandScript.dependencies).toHaveLength(1);
+      expect(CommandScript.dependencies[0]?.class.name).toBe("env");
+      expect(CommandScript.dependencies[0]?.enabled).toBe(true);
     });
   });
 
@@ -145,8 +150,8 @@ describe("IndexScript (run commands defined in nopo.yml)", () => {
       const environment = new Environment(config);
       const runner = new Runner(config, environment, ["test", "web"], logger);
 
-      const args = IndexScript.parseArgs(runner, false);
-      const script = new IndexScript(runner);
+      const args = CommandScript.parseArgs(runner, false);
+      const script = new CommandScript(runner);
 
       await script.fn(args);
 
@@ -168,10 +173,15 @@ describe("IndexScript (run commands defined in nopo.yml)", () => {
       });
       const logger = new Logger(config);
       const environment = new Environment(config);
-      const runner = new Runner(config, environment, ["clean", "backend", "web"], logger);
+      const runner = new Runner(
+        config,
+        environment,
+        ["clean", "backend", "web"],
+        logger,
+      );
 
-      const args = IndexScript.parseArgs(runner, false);
-      const script = new IndexScript(runner);
+      const args = CommandScript.parseArgs(runner, false);
+      const script = new CommandScript(runner);
 
       await script.fn(args);
 
@@ -193,8 +203,8 @@ describe("IndexScript (run commands defined in nopo.yml)", () => {
         logger,
       );
 
-      const args = IndexScript.parseArgs(runner, false);
-      const script = new IndexScript(runner);
+      const args = CommandScript.parseArgs(runner, false);
+      const script = new CommandScript(runner);
 
       await expect(script.fn(args)).rejects.toThrow(
         /does not define command 'undefined-command'/,
@@ -212,7 +222,7 @@ describe("IndexScript (run commands defined in nopo.yml)", () => {
       const environment = new Environment(config);
       const runner = new Runner(config, environment, ["fix", "py"], logger);
 
-      const args = IndexScript.parseArgs(runner, false);
+      const args = CommandScript.parseArgs(runner, false);
       expect(args.command).toBe("fix");
       expect(args.subcommand).toBe("py");
       expect(args.targets).toEqual([]);
@@ -225,9 +235,14 @@ describe("IndexScript (run commands defined in nopo.yml)", () => {
       });
       const logger = new Logger(config);
       const environment = new Environment(config);
-      const runner = new Runner(config, environment, ["fix", "py", "backend"], logger);
+      const runner = new Runner(
+        config,
+        environment,
+        ["fix", "py", "backend"],
+        logger,
+      );
 
-      const args = IndexScript.parseArgs(runner, false);
+      const args = CommandScript.parseArgs(runner, false);
       expect(args.command).toBe("fix");
       expect(args.subcommand).toBe("py");
       expect(args.targets).toEqual(["backend"]);
@@ -242,7 +257,7 @@ describe("IndexScript (run commands defined in nopo.yml)", () => {
       const environment = new Environment(config);
       const runner = new Runner(config, environment, ["build", "web"], logger);
 
-      const args = IndexScript.parseArgs(runner, false);
+      const args = CommandScript.parseArgs(runner, false);
       // "web" is not a subcommand of "build", so treat as target
       expect(args.command).toBe("build");
       expect(args.subcommand).toBeUndefined();
