@@ -19,6 +19,126 @@ const ServiceInfrastructureSchema = z.object({
   run_migrations: z.boolean().default(false),
 });
 
+// Command dependency specification:
+// - Array of strings: ["backend", "worker"] -> same command on each service
+// - Object with arrays: { backend: ["build", "clean"] } -> specific commands per service
+// - Empty object {} -> no dependencies (overrides service-level)
+const CommandDependenciesSchema = z
+  .union([
+    z.array(z.string().min(1)),
+    z.record(z.string().min(1), z.array(z.string().min(1))),
+  ])
+  .optional();
+
+// Environment variables for commands
+const CommandEnvSchema = z.record(z.string().min(1), z.string()).optional();
+
+// Working directory for commands: absolute path, relative to service, or "root"
+const CommandDirSchema = z.string().optional();
+
+// Sub-sub-command schema (deepest level - no further nesting)
+// Supports shorthand: "pnpm build" or full object { command: "pnpm build", env: {...}, dir: "..." }
+const SubSubCommandObjectSchema = z.object({
+  command: z.string().min(1),
+  env: CommandEnvSchema,
+  dir: CommandDirSchema,
+  dependencies: z.never().optional(), // Explicitly disallow dependencies
+});
+
+const SubSubCommandSchema = z.union([
+  z
+    .string()
+    .min(1)
+    .transform((cmd) => ({ command: cmd, env: undefined, dir: undefined })),
+  SubSubCommandObjectSchema,
+]);
+
+// Sub-command schema (can have sub-sub-commands)
+// Supports shorthand: "pnpm build" or full object
+const SubCommandObjectSchema = z
+  .object({
+    command: z.string().min(1).optional(),
+    env: CommandEnvSchema,
+    dir: CommandDirSchema,
+    commands: z.record(z.string().min(1), SubSubCommandSchema).optional(),
+    dependencies: z.never().optional(), // Explicitly disallow dependencies
+  })
+  .refine(
+    (data) => {
+      // Must have either command or commands, not both
+      const hasCommand = !!data.command;
+      const hasCommands =
+        !!data.commands && Object.keys(data.commands).length > 0;
+      if (hasCommand && hasCommands) {
+        return false;
+      }
+      return hasCommand || hasCommands;
+    },
+    {
+      message:
+        "Cannot specify both 'command' and 'commands'. Use one or the other.",
+    },
+  );
+
+const SubCommandSchema = z.union([
+  z
+    .string()
+    .min(1)
+    .transform((cmd) => ({
+      command: cmd,
+      env: undefined,
+      dir: undefined,
+      commands: undefined,
+    })),
+  SubCommandObjectSchema,
+]);
+
+// Top-level command schema
+// Supports shorthand: "pnpm build" or full object
+const CommandObjectSchema = z
+  .object({
+    command: z.string().min(1).optional(),
+    env: CommandEnvSchema,
+    dir: CommandDirSchema,
+    dependencies: CommandDependenciesSchema,
+    commands: z.record(z.string().min(1), SubCommandSchema).optional(),
+  })
+  .refine(
+    (data) => {
+      // Must have either command or commands, not both
+      const hasCommand = !!data.command;
+      const hasCommands =
+        !!data.commands && Object.keys(data.commands).length > 0;
+      if (hasCommand && hasCommands) {
+        return false;
+      }
+      return hasCommand || hasCommands;
+    },
+    {
+      message:
+        "Cannot specify both 'command' and 'commands'. Use one or the other.",
+    },
+  );
+
+const CommandSchema = z.union([
+  z
+    .string()
+    .min(1)
+    .transform((cmd) => ({
+      command: cmd,
+      env: undefined,
+      dir: undefined,
+      dependencies: undefined,
+      commands: undefined,
+    })),
+  CommandObjectSchema,
+]);
+
+const CommandsSchema = z.record(z.string().min(1), CommandSchema).default({});
+
+// Service-level dependencies (simple array of service names)
+const ServiceDependenciesSchema = z.array(z.string().min(1)).default([]);
+
 const ServiceFileSchema = z
   .object({
     name: z.string().min(1).optional(),
@@ -27,6 +147,8 @@ const ServiceFileSchema = z
     image: z.string().optional(),
     static_path: z.string().default("build"),
     infrastructure: ServiceInfrastructureSchema.default({}),
+    dependencies: ServiceDependenciesSchema,
+    commands: CommandsSchema,
   })
   .passthrough()
   .refine((data) => data.dockerfile || data.image, {
@@ -104,6 +226,28 @@ interface NormalizedServiceResources {
   runMigrations: boolean;
 }
 
+// Command dependency types
+export type CommandDependencies =
+  | string[] // Array of service names (same command)
+  | Record<string, string[]> // Object with service -> commands mapping
+  | undefined;
+
+// Sub-command (no dependencies allowed)
+export interface NormalizedSubCommand {
+  command: string;
+  env?: Record<string, string>;
+  dir?: string;
+  commands?: Record<string, NormalizedSubCommand>;
+}
+
+export interface NormalizedCommand {
+  command?: string;
+  env?: Record<string, string>;
+  dir?: string;
+  dependencies?: CommandDependencies;
+  commands?: Record<string, NormalizedSubCommand>;
+}
+
 export interface NormalizedService {
   id: string;
   name: string;
@@ -112,6 +256,8 @@ export interface NormalizedService {
   infrastructure: NormalizedServiceResources;
   configPath: string;
   image?: string;
+  dependencies: string[];
+  commands: Record<string, NormalizedCommand>;
   paths: {
     root: string;
     dockerfile?: string;
@@ -264,6 +410,7 @@ function discoverServices(
     const serviceDocument = parseYamlFile(serviceConfigPath);
     const parsed = ServiceFileSchema.parse(serviceDocument);
     const infrastructure = normalizeInfrastructure(parsed.infrastructure);
+    const commands = normalizeCommands(parsed.commands);
 
     const normalized: NormalizedService = {
       id: serviceId,
@@ -273,6 +420,8 @@ function discoverServices(
       infrastructure,
       configPath: serviceConfigPath,
       image: parsed.image,
+      dependencies: parsed.dependencies,
+      commands,
       paths: {
         root: serviceRoot,
         dockerfile: parsed.dockerfile
@@ -303,4 +452,115 @@ function normalizeInfrastructure(
     hasDatabase: infra.has_database,
     runMigrations: infra.run_migrations,
   };
+}
+
+type CommandsInput = z.infer<typeof CommandsSchema>;
+type SubCommandInput = z.infer<typeof SubCommandSchema>;
+type SubSubCommandInput = z.infer<typeof SubSubCommandSchema>;
+
+function normalizeSubCommands(
+  commands: Record<string, SubCommandInput> | undefined,
+  parentPath: string,
+): Record<string, NormalizedSubCommand> | undefined {
+  if (!commands) return undefined;
+
+  const result: Record<string, NormalizedSubCommand> = {};
+
+  for (const [name, cmd] of Object.entries(commands)) {
+    // Check if subcommand has dependencies (not allowed)
+    if (
+      "dependencies" in cmd &&
+      (cmd as { dependencies?: unknown }).dependencies
+    ) {
+      throw new Error(
+        `Subcommands cannot define dependencies. Found at '${parentPath}:${name}'.`,
+      );
+    }
+
+    if (cmd.command) {
+      result[name] = {
+        command: cmd.command,
+        env: cmd.env,
+        dir: cmd.dir,
+      };
+    } else if (cmd.commands) {
+      // Recursive for sub-sub-commands
+      result[name] = {
+        command: undefined as unknown as string, // Will be populated with subcommands
+        env: cmd.env,
+        dir: cmd.dir,
+        commands: normalizeSubSubCommands(
+          cmd.commands,
+          `${parentPath}:${name}`,
+        ),
+      };
+    }
+  }
+
+  return result;
+}
+
+function normalizeSubSubCommands(
+  commands: Record<string, SubSubCommandInput> | undefined,
+  _parentPath: string,
+): Record<string, NormalizedSubCommand> | undefined {
+  if (!commands) return undefined;
+
+  const result: Record<string, NormalizedSubCommand> = {};
+
+  for (const [name, cmd] of Object.entries(commands)) {
+    result[name] = {
+      command: cmd.command,
+      env: cmd.env,
+      dir: cmd.dir,
+    };
+  }
+
+  return result;
+}
+
+// Reserved command names that match nopo built-in scripts
+const RESERVED_COMMAND_NAMES = [
+  "build",
+  "command",
+  "down",
+  "env",
+  "list",
+  "pull",
+  "run",
+  "status",
+  "up",
+];
+
+function normalizeCommands(
+  commands: CommandsInput,
+): Record<string, NormalizedCommand> {
+  const result: Record<string, NormalizedCommand> = {};
+
+  for (const [name, cmd] of Object.entries(commands)) {
+    // Validate that command names don't conflict with nopo built-in scripts
+    if (RESERVED_COMMAND_NAMES.includes(name)) {
+      throw new Error(
+        `Command name '${name}' is reserved for nopo built-in scripts. Please use a different name.`,
+      );
+    }
+
+    if (cmd.command) {
+      result[name] = {
+        command: cmd.command,
+        env: cmd.env,
+        dir: cmd.dir,
+        dependencies: cmd.dependencies,
+      };
+    } else if (cmd.commands) {
+      result[name] = {
+        env: cmd.env,
+        dir: cmd.dir,
+        dependencies: cmd.dependencies,
+        commands: normalizeSubCommands(cmd.commands, name),
+      };
+    }
+  }
+
+  return result;
 }

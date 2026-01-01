@@ -4,7 +4,7 @@ import { Environment } from "../src/parse-env.ts";
 import BuildScript from "../src/scripts/build.ts";
 import EnvScript from "../src/scripts/env.ts";
 import UpScript from "../src/scripts/up.ts";
-import IndexScript from "../src/scripts/index.ts";
+import CommandScript from "../src/scripts/command.ts";
 import RunScript from "../src/scripts/run.ts";
 import { createTmpEnv } from "./utils.ts";
 
@@ -93,10 +93,10 @@ describe("Dependency Resolution Algorithm", () => {
 
   describe("dependency resolution for host execution", () => {
     it("should only have EnvScript dependency for arbitrary commands on host", async () => {
-      // IndexScript (catch-all) should only have EnvScript dependency
-      expect(IndexScript.dependencies).toHaveLength(1);
-      expect(IndexScript.dependencies[0]?.class).toBe(EnvScript);
-      expect(IndexScript.dependencies[0]?.enabled).toBe(true);
+      // CommandScript (catch-all) should only have EnvScript dependency
+      expect(CommandScript.dependencies).toHaveLength(1);
+      expect(CommandScript.dependencies[0]?.class).toBe(EnvScript);
+      expect(CommandScript.dependencies[0]?.enabled).toBe(true);
     });
   });
 

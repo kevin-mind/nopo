@@ -10,3 +10,16 @@ infrastructure:
   max_instances: 10
   has_database: false
   run_migrations: false
+
+commands:
+  clean: rm -rf .react-router build node_modules
+  compile:
+    command: pnpm exec react-router build
+    env:
+      NODE_ENV: production
+  dev: pnpm exec react-router dev --host
+  start: pnpm exec react-router-serve ./build/server/index.js
+  check:
+    commands:
+      types: pnpm exec react-router typegen && pnpm exec tsc
+  test: echo 'test'

@@ -10,7 +10,7 @@ ARG NOPO_APP_GID
 COPY --chown=${NOPO_APP_UID}:${NOPO_APP_GID} . .
 
 RUN pnpm install --frozen-lockfile
-RUN pnpm --filter "@more/web" build
+RUN NODE_ENV=production pnpm --filter @more/web build
 
 FROM base AS web
 

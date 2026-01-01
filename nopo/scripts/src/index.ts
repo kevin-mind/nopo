@@ -8,12 +8,13 @@ import {
   chalk,
 } from "./lib.ts";
 import { Environment } from "./parse-env.ts";
+import { loadProjectConfig } from "./config/index.ts";
 import process from "node:process";
 
 import Build from "./scripts/build.ts";
+import Command from "./scripts/command.ts";
 import Down from "./scripts/down.ts";
 import Env from "./scripts/env.ts";
-import Index from "./scripts/index.ts";
 import List from "./scripts/list.ts";
 import Pull from "./scripts/pull.ts";
 import Run from "./scripts/run.ts";
@@ -22,9 +23,9 @@ import Up from "./scripts/up.ts";
 
 const scripts: Record<string, typeof Script> = {
   build: Build,
+  command: Command,
   down: Down,
   env: Env,
-  index: Index,
   list: List,
   pull: Pull,
   run: Run,
@@ -80,6 +81,120 @@ function printCommandsTable(): void {
   }
 }
 
+function printServiceCommandsTable(): void {
+  try {
+    const project = loadProjectConfig(process.cwd());
+    const services = project.services.targets;
+
+    // Build a tree structure of commands
+    interface CommandNode {
+      services: Set<string>;
+      children: Map<string, CommandNode>;
+    }
+
+    const commandTree = new Map<string, CommandNode>();
+
+    // Recursively collect commands into tree structure
+    function collectCommands(
+      serviceId: string,
+      commands: Record<string, any>,
+      parentNode: Map<string, CommandNode>,
+    ): void {
+      for (const [commandName, command] of Object.entries(commands)) {
+        if (!parentNode.has(commandName)) {
+          parentNode.set(commandName, {
+            services: new Set(),
+            children: new Map(),
+          });
+        }
+        const node = parentNode.get(commandName)!;
+        node.services.add(serviceId);
+
+        // Recursively collect sub-commands
+        if (command.commands) {
+          collectCommands(serviceId, command.commands, node.children);
+        }
+      }
+    }
+
+    for (const serviceId of services) {
+      const service = project.services.entries[serviceId];
+      if (!service) continue;
+
+      collectCommands(serviceId, service.commands, commandTree);
+    }
+
+    if (commandTree.size === 0) {
+      return; // No commands to display
+    }
+
+    console.log(chalk.cyan(chalk.bold("\nService Commands:\n")));
+
+    const commandHeader = "COMMAND";
+    const servicesHeader = "SERVICES";
+    const header = chalk.cyan(chalk.bold(`  ${commandHeader.padEnd(25)}  ${servicesHeader}`));
+    const separator = chalk.gray(`  ${"-".repeat(25)}  ${"-".repeat(40)}`);
+
+    console.log(header);
+    console.log(separator);
+
+    // Print tree recursively
+    function printCommandNode(
+      name: string,
+      node: CommandNode,
+      prefix: string,
+      isLast: boolean,
+      depth: number,
+    ): void {
+      // Create the tree branch characters
+      const branch = isLast ? "└─ " : "├─ ";
+      const indent = depth === 0 ? "" : prefix + branch;
+
+      const displayName = indent + name;
+      const servicesList = Array.from(node.services)
+        .sort()
+        .map((s) => chalk.green(s))
+        .join(chalk.gray(", "));
+
+      const nameColor = depth === 0 ? chalk.yellow : chalk.cyan;
+      console.log(`  ${nameColor(displayName.padEnd(25))}  ${servicesList}`);
+
+      // Print children
+      if (node.children.size > 0) {
+        const childEntries = Array.from(node.children.entries()).sort((a, b) =>
+          a[0].localeCompare(b[0]),
+        );
+
+        const childPrefix = depth === 0 ? "" : prefix + (isLast ? "   " : "│  ");
+
+        childEntries.forEach(([childName, childNode], index) => {
+          const isLastChild = index === childEntries.length - 1;
+          printCommandNode(
+            childName,
+            childNode,
+            childPrefix,
+            isLastChild,
+            depth + 1,
+          );
+        });
+      }
+    }
+
+    // Sort and print top-level commands
+    const sortedCommands = Array.from(commandTree.entries()).sort((a, b) =>
+      a[0].localeCompare(b[0]),
+    );
+
+    sortedCommands.forEach(([name, node], index) => {
+      const isLast = index === sortedCommands.length - 1;
+      printCommandNode(name, node, "", isLast, 0);
+    });
+  } catch (error) {
+    // Silently skip if we can't load the project config
+    // This can happen if nopo.yml doesn't exist or is invalid
+  }
+}
+
 function printCommandHelp(
   ScriptClass: typeof Script,
   commandName: string,
@@ -130,7 +245,8 @@ export default async function main(
   const environment = new Environment(config);
   const runner = new Runner(config, environment, argv, logger);
 
-  if (args.help) {
+  // Show general help only if --help is passed without a command
+  if (args.help && !args._[0]) {
     return printHelp("Usage: nopo <command> [options]", 0);
   }
 
@@ -138,6 +254,7 @@ export default async function main(
     printNopoHeader();
     console.log(chalk.cyan(chalk.bold("Available commands:\n")));
     printCommandsTable();
+    printServiceCommandsTable();
     return process.exit(0);
   }
 
@@ -146,7 +263,10 @@ export default async function main(
     return printHelp("Usage: nopo <command> [options]", 0);
   }
 
-  const ScriptClass = scripts[commandName] ?? Index;
+  // Determine which script to use
+  // Priority: always use registered scripts first if they exist
+  // Only fall back to Command script if no registered script matches
+  const ScriptClass = scripts[commandName] ?? Command;
 
   // Check for recursive help: nopo <command> help or nopo <command> --help
   if (args._[1] === "help" || args.help) {
@@ -157,10 +277,15 @@ export default async function main(
     await runner.run(ScriptClass);
   } catch (error) {
     if (error instanceof Error) {
-      runner.logger.log(chalk.red(`\n${error.message}\n`, error.stack));
+      runner.logger.log(chalk.red(`\n${error.message}\n`));
+      if (error.stack) {
+        runner.logger.log(chalk.gray(error.stack));
+      }
     } else if (error && typeof error === "object" && "err" in error) {
       runner.logger.log(chalk.red(`\n${error.err}\n`));
+    } else {
+      runner.logger.log(chalk.red(`\nUnknown error: ${String(error)}\n`));
     }
-    throw error;
+    process.exit(1);
   }
 }

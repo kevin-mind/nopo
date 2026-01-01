@@ -3,12 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "clean": "rm -rf .react-router build node_modules",
-    "build": "react-router build",
-    "dev": "react-router dev --host",
-    "start": "react-router-serve ./build/server/index.js",
-    "check:types": "react-router typegen && tsc",
-    "test": "echo 'test'"
+    "build": "react-router build"
   },
   "dependencies": {
     "@more/ui": "workspace:*",

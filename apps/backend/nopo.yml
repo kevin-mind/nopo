@@ -10,3 +10,31 @@ infrastructure:
   max_instances: 10
   has_database: true
   run_migrations: true
+
+commands:
+  compile:
+    command: uv sync --frozen --no-install-workspace && pnpm exec vite build && uv run python manage.py collectstatic --noinput --clear
+    env:
+      NODE_ENV: production
+  clean: rm -rf __pycache__ .ruff_cache node_modules
+  fix:
+    commands:
+      py: uv tool run ruff format
+      js: pnpm exec eslint --fix
+  check:
+    commands:
+      py: uv tool run ruff check
+      js: pnpm exec eslint
+      types:
+        commands:
+          py: uv run mypy .
+          js: pnpm exec tsc --noEmit
+  test: uv run python manage.py test src
+  dev:
+    commands:
+      server: uv run --verbose python manage.py runserver 0.0.0.0:80 --settings=settings
+      vite: pnpm exec vite --port 5173
+  start: uv run --verbose gunicorn --config gunicorn.conf.py backend.mysite.wsgi:application
+  migrate: uv run --verbose python manage.py migrate
+  makemigrations: uv run --verbose python manage.py makemigrations
+  shell: uv run --verbose python manage.py shell

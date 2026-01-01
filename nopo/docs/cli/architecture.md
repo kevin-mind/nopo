@@ -359,9 +359,73 @@ ERR_PNPM_NO_SCRIPT  Missing script: /^lint.*/
 3. **Container Execution**: Containers are reused when possible, removed after execution
 4. **Host Execution**: Faster (no container overhead) but requires local dependencies
 
+## Command Configuration Resolution
+
+Commands can be defined in service `nopo.yml` files with explicit dependency declarations. This enables powerful dependency resolution across services.
+
+### Command Schema
+
+```yaml
+name: web
+dockerfile: Dockerfile
+dependencies:           # Service-level dependencies
+  - backend
+commands:
+  lint:
+    dependencies: {}    # Override: no dependencies
+    command: eslint .
+  build:
+    dependencies:       # Override with specific dependencies
+      - backend
+      - worker
+    command: npm run build
+  deploy:
+    dependencies:       # Override with different commands per service
+      backend:
+        - build
+        - migrate
+    command: npm run deploy
+```
+
+### Command Resolution Algorithm
+
+```mermaid
+flowchart TD
+    Start([nopo lint web backend]) --> Validate[Validate Top-Level Targets]
+    Validate --> HasCommand{All targets have 'lint'?}
+    HasCommand -->|No| Error[Error: Missing Command]
+    HasCommand -->|Yes| ResolveDeps[Resolve All Dependencies]
+    ResolveDeps --> BuildGraph[Build Dependency Graph]
+    BuildGraph --> CheckCircular{Circular Dependencies?}
+    CheckCircular -->|Yes| CircularError[Error: Circular Dependency]
+    CheckCircular -->|No| BuildPlan[Build Execution Plan]
+    BuildPlan --> CreateStages[Group into Parallel Stages]
+    CreateStages --> Execute[Execute Stages]
+    Execute --> Done([Complete])
+```
+
+### Execution Plan
+
+Commands are grouped into stages for parallel execution:
+
+```
+Stage 1: [shared:build]           # No dependencies, runs first
+Stage 2: [backend:build, api:build]  # Both depend on shared
+Stage 3: [web:build]              # Depends on backend
+```
+
+### Dependency Resolution Rules
+
+1. **Command-level dependencies** override service-level dependencies
+2. **Empty object `{}`** means no dependencies (explicit override)
+3. **Array format** `["backend"]` runs the same command on each
+4. **Object format** `{ backend: ["build", "clean"] }` runs specific commands
+5. **Dependencies without the command** are skipped (no error)
+
+See [Command Configuration](./commands/config.md) for detailed documentation.
+
 ## Future Enhancements
 
-- Parallel execution for multiple targets
 - Dependency caching
 - Incremental builds
 - Watch mode for development

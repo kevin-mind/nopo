@@ -276,6 +276,7 @@ interface ExecOptions {
   verbose?: boolean;
   nothrow?: boolean;
   input?: string;
+  callback?: (chunk: Buffer, streamSource?: "stdout" | "stderr") => void;
 }
 
 class ProcessPromiseImpl implements ProcessPromise {
@@ -310,7 +311,9 @@ class ProcessPromiseImpl implements ProcessPromise {
       if (this.proc.stdout) {
         this.proc.stdout.on("data", (chunk) => {
           stdout.push(chunk);
-          if (options.verbose) {
+          if (options.callback) {
+            options.callback(chunk, "stdout");
+          } else if (options.verbose) {
             process.stdout.write(chunk);
           }
         });
@@ -319,7 +322,9 @@ class ProcessPromiseImpl implements ProcessPromise {
       if (this.proc.stderr) {
         this.proc.stderr.on("data", (chunk) => {
           stderr.push(chunk);
-          if (options.verbose) {
+          if (options.callback) {
+            options.callback(chunk, "stderr");
+          } else if (options.verbose) {
             process.stderr.write(chunk);
           }
         });
