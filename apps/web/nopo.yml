@@ -12,17 +12,14 @@ infrastructure:
   run_migrations: false
 
 commands:
-  clean:
-    command: rm -rf .react-router build node_modules
+  clean: rm -rf .react-router build node_modules
   build:
     command: react-router build
-  dev:
-    command: react-router dev --host
-  start:
-    command: react-router-serve ./build/server/index.js
+    env:
+      NODE_ENV: production
+  dev: react-router dev --host
+  start: react-router-serve ./build/server/index.js
   check:
     commands:
-      types:
-        command: react-router typegen && tsc
-  test:
-    command: echo 'test'
+      types: react-router typegen && tsc
+  test: echo 'test'

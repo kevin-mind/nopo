@@ -15,12 +15,14 @@ export interface CommandDependencySpec {
 }
 
 /**
- * Represents a resolved command with its executable.
+ * Represents a resolved command with its executable and execution context.
  */
 export interface ResolvedCommand {
   service: string;
   command: string;
   executable: string;
+  env?: Record<string, string>;
+  dir?: string; // "root", absolute path, or relative to service
 }
 
 /**
@@ -104,12 +106,18 @@ export function resolveCommand(
 
   // If the command has subcommands, return all of them
   if (command.commands) {
-    return flattenSubCommands(serviceId, rootCommand, command.commands);
+    return flattenSubCommands(serviceId, rootCommand, command.commands, command.env, command.dir);
   }
 
   // Simple command with executable
   if (command.command) {
-    return [{ service: serviceId, command: commandName, executable: command.command }];
+    return [{ 
+      service: serviceId, 
+      command: commandName, 
+      executable: command.command,
+      env: command.env,
+      dir: command.dir,
+    }];
   }
 
   throw new Error(`Command '${commandName}' in service '${serviceId}' has no executable`);
@@ -126,6 +134,9 @@ function resolveSubCommandPath(
 ): ResolvedCommand[] {
   let current: NormalizedCommand | NormalizedSubCommand = command;
   let currentPath = basePath;
+  // Inherit env/dir from parent commands
+  let inheritedEnv: Record<string, string> | undefined = command.env;
+  let inheritedDir: string | undefined = command.dir;
 
   for (const part of subPath) {
     currentPath = `${currentPath}:${part}`;
@@ -135,16 +146,25 @@ function resolveSubCommandPath(
     }
     
     current = current.commands[part];
+    // Child env/dir overrides parent
+    if (current.env) inheritedEnv = { ...inheritedEnv, ...current.env };
+    if (current.dir) inheritedDir = current.dir;
   }
 
   // If we landed on a command with subcommands, flatten them
   if (current.commands) {
-    return flattenSubCommands(serviceId, currentPath, current.commands);
+    return flattenSubCommands(serviceId, currentPath, current.commands, inheritedEnv, inheritedDir);
   }
 
   // Single command
   if (current.command) {
-    return [{ service: serviceId, command: currentPath, executable: current.command }];
+    return [{ 
+      service: serviceId, 
+      command: currentPath, 
+      executable: current.command,
+      env: current.env ? { ...inheritedEnv, ...current.env } : inheritedEnv,
+      dir: current.dir || inheritedDir,
+    }];
   }
 
   throw new Error(`Command '${currentPath}' in service '${serviceId}' has no executable`);
@@ -157,17 +177,29 @@ function flattenSubCommands(
   serviceId: string,
   basePath: string,
   subCommands: Record<string, NormalizedSubCommand>,
+  parentEnv?: Record<string, string>,
+  parentDir?: string,
 ): ResolvedCommand[] {
   const result: ResolvedCommand[] = [];
 
   for (const [name, subCmd] of Object.entries(subCommands)) {
     const cmdPath = `${basePath}:${name}`;
+    // Merge env from parent, child overrides
+    const mergedEnv = subCmd.env ? { ...parentEnv, ...subCmd.env } : parentEnv;
+    // Child dir overrides parent
+    const effectiveDir = subCmd.dir || parentDir;
 
     if (subCmd.commands) {
       // Recurse into nested subcommands
-      result.push(...flattenSubCommands(serviceId, cmdPath, subCmd.commands));
+      result.push(...flattenSubCommands(serviceId, cmdPath, subCmd.commands, mergedEnv, effectiveDir));
     } else if (subCmd.command) {
-      result.push({ service: serviceId, command: cmdPath, executable: subCmd.command });
+      result.push({ 
+        service: serviceId, 
+        command: cmdPath, 
+        executable: subCmd.command,
+        env: mergedEnv,
+        dir: effectiveDir,
+      });
     }
   }
 

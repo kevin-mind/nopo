@@ -14,39 +14,27 @@ infrastructure:
 commands:
   build:
     command: uv sync --frozen --no-install-workspace && vite build && uv run python manage.py collectstatic --noinput --clear
-  clean:
-    command: rm -rf __pycache__ .ruff_cache node_modules
+    env:
+      NODE_ENV: production
+  clean: rm -rf __pycache__ .ruff_cache node_modules
   fix:
     commands:
-      py:
-        command: uv tool run ruff format
-      js:
-        command: eslint --fix
+      py: uv tool run ruff format
+      js: eslint --fix
   check:
     commands:
-      py:
-        command: uv tool run ruff check
-      js:
-        command: eslint
+      py: uv tool run ruff check
+      js: eslint
       types:
         commands:
-          py:
-            command: uv run mypy .
-          js:
-            command: tsc --noEmit
-  test:
-    command: uv run python manage.py test src
+          py: uv run mypy .
+          js: tsc --noEmit
+  test: uv run python manage.py test src
   dev:
     commands:
-      server:
-        command: uv run --verbose python manage.py runserver 0.0.0.0:80 --settings=settings
-      vite:
-        command: vite --port 5173
-  start:
-    command: uv run --verbose gunicorn --config gunicorn.conf.py backend.mysite.wsgi:application
-  migrate:
-    command: uv run --verbose python manage.py migrate
-  makemigrations:
-    command: uv run --verbose python manage.py makemigrations
-  shell:
-    command: uv run --verbose python manage.py shell
+      server: uv run --verbose python manage.py runserver 0.0.0.0:80 --settings=settings
+      vite: vite --port 5173
+  start: uv run --verbose gunicorn --config gunicorn.conf.py backend.mysite.wsgi:application
+  migrate: uv run --verbose python manage.py migrate
+  makemigrations: uv run --verbose python manage.py makemigrations
+  shell: uv run --verbose python manage.py shell

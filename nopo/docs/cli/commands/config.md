@@ -4,28 +4,90 @@ Commands can be defined in service `nopo.yml` files to specify how the service s
 
 ## Overview
 
-Instead of relying on `package.json` scripts and naming conventions, nopo allows defining commands directly in `nopo.yml` files with explicit dependency declarations and execution configuration.
+All commands must be defined in `nopo.yml` files. There is no fallback to `package.json` scripts.
 
 When running a command like `nopo check backend`, nopo will:
 
 1. Look for a `check` command in the backend service's `nopo.yml`
-2. If found, use nopo's command resolution with dependency graphs
-3. If not found, fall back to pnpm's script execution
+2. Validate that all target services have the command defined
+3. Build a dependency graph and execution plan
+4. Execute commands in parallel stages
 
 ## Command Definition
 
-Commands are defined in the `commands` section of a service's `nopo.yml`:
+Commands are defined in the `commands` section of a service's `nopo.yml`.
+
+### Shorthand Syntax
+
+For simple commands, use the shorthand syntax:
 
 ```yaml
-name: web
-dockerfile: Dockerfile
 commands:
-  lint:
-    command: eslint . --debug
+  lint: eslint .
+  build: npm run build
+  test: npm run test
+```
+
+### Full Object Syntax
+
+For more control, use the full object syntax:
+
+```yaml
+commands:
   build:
     command: npm run build
+    env:
+      NODE_ENV: production
+    dir: ./src
+```
+
+### Command Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `command` | string | The command to execute |
+| `dependencies` | array \| object | Dependencies to run before this command |
+| `env` | object | Environment variables to set when running the command |
+| `dir` | string | Working directory: "root", absolute path, or relative to service |
+| `commands` | object | Nested subcommands (cannot be used with `command`) |
+
+### Environment Variables
+
+Set environment variables for a command:
+
+```yaml
+commands:
+  build:
+    command: npm run build
+    env:
+      NODE_ENV: production
+      DEBUG: "true"
+```
+
+Environment variables are merged with the base environment, with command-specific values taking precedence.
+
+### Working Directory
+
+By default, commands run from the service's root directory (e.g., `./apps/web`).
+
+Override this with the `dir` field:
+
+```yaml
+commands:
+  # Run from project root
+  lint:
+    command: eslint .
+    dir: root
+
+  # Run from absolute path
+  deploy:
+    command: ./deploy.sh
+    dir: /opt/deploy
+
+  # Run from path relative to service
   test:
-    command: npm run test
+    command: pytest
+    dir: ./tests
 ```
 
 ### Subcommands
@@ -44,6 +106,16 @@ commands:
         command: prettier --check .
 ```
 
+Shorthand syntax also works for subcommands:
+
+```yaml
+commands:
+  fix:
+    commands:
+      py: ruff format
+      js: eslint --fix
+```
+
 #### Running Subcommands
 
 The CLI supports flexible subcommand targeting:
@@ -60,20 +132,6 @@ The CLI automatically distinguishes between subcommand names and service names:
 - If an argument matches a known subcommand, it's treated as a subcommand filter
 - Otherwise, it's treated as a service target
 
-#### Subcommand Naming
-
-Use short, descriptive names for subcommands:
-
-```yaml
-commands:
-  fix:
-    commands:
-      py:            # Good - short and clear
-        command: ruff format
-      js:            # Good - short and clear
-        command: eslint --fix
-```
-
 #### Nested Subcommands
 
 Subcommands support up to 3 levels of nesting:
@@ -84,20 +142,11 @@ commands:
     commands:
       lint:
         commands:
-          ts:
-            command: tsc --noEmit
-          js:
-            command: eslint .
+          ts: tsc --noEmit
+          js: eslint .
 ```
 
 **Important**: Subcommands cannot define their own dependencies. Dependencies are only allowed at the top-level command.
-
-### Command Properties
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `command` | string | The command to execute (required) |
-| `dependencies` | array \| object | Dependencies to run before this command (optional) |
 
 ## Service-Level Dependencies
 
@@ -110,8 +159,7 @@ dependencies:
   - backend
   - shared
 commands:
-  build:
-    command: npm run build
+  build: npm run build
 ```
 
 When running `nopo build web`, the `build` command will first run on `backend` and `shared` (if they have a `build` command defined).
@@ -185,9 +233,7 @@ When running `nopo lint web backend`:
 ### Dependency Requirements
 
 - **Top-level targets** MUST have the requested command defined
-- **Dependencies** do NOT need to have the command (they're skipped if missing)
-
-This allows running `nopo lint web` even if `backend` (a dependency of `web`) doesn't have a `lint` command.
+- **Dependencies** MUST also have the command defined (error if missing)
 
 ### Parallelization
 
@@ -222,129 +268,59 @@ dependencies:
 
 Running any command on these services will fail with a clear error message.
 
-## Example Usage
+## Example Configuration
 
-### Running Lint Across Services
-
-```bash
-nopo lint web backend
-```
-
-This will:
-1. Validate `web` and `backend` have `lint` defined
-2. Resolve dependencies (skip those without `lint`)
-3. Execute `lint` in dependency order with parallelization
-
-### Building with Dependencies
-
-Given this configuration:
+Here's a complete example:
 
 ```yaml
-# apps/web/nopo.yml
-name: web
-dockerfile: Dockerfile
-dependencies:
-  - backend
-commands:
-  build:
-    command: npm run build
-
 # apps/backend/nopo.yml
 name: backend
+description: Django application
 dockerfile: Dockerfile
-dependencies:
-  - db
+
 commands:
+  # Shorthand for simple commands
+  clean: rm -rf __pycache__ .ruff_cache node_modules
+  test: uv run python manage.py test src
+  start: uv run gunicorn app.wsgi:application
+  
+  # Full syntax with env
   build:
     command: npm run build
-
-# apps/db/nopo.yml
-name: db
-image: postgres:16
-commands:
-  build:
-    command: echo "no build for db"
-```
-
-Running `nopo build web` executes:
-
-```
-Stage 1: [db:build]
-Stage 2: [backend:build]
-Stage 3: [web:build]
-```
-
-### Running Independent Lints
-
-With `dependencies: {}`:
-
-```yaml
-# apps/web/nopo.yml
-commands:
-  lint:
-    dependencies: {}
-    command: eslint .
-
-# apps/backend/nopo.yml
-commands:
-  lint:
-    dependencies: {}
-    command: ruff check .
-```
-
-Running `nopo lint web backend`:
-
-```
-Stage 1: [web:lint, backend:lint]  (all in parallel!)
+    env:
+      NODE_ENV: production
+  
+  # Subcommands for grouped operations
+  fix:
+    commands:
+      py: uv tool run ruff format
+      js: eslint --fix
+  
+  check:
+    commands:
+      py: uv tool run ruff check
+      js: eslint
+      types:
+        commands:
+          py: uv run mypy .
+          js: tsc --noEmit
 ```
 
 ## API Reference
 
-### Functions
-
-#### `validateCommandTargets(project, commandName, targets)`
-
-Validates that all top-level targets have the specified command defined.
-
-**Parameters:**
-- `project` - NormalizedProjectConfig
-- `commandName` - The command to validate (e.g., "lint")
-- `targets` - Array of service IDs
-
-**Throws:** Error if any target is missing the command
-
-#### `resolveCommandDependencies(project, commandName, serviceId)`
-
-Resolves all dependencies for a command on a service.
-
-**Parameters:**
-- `project` - NormalizedProjectConfig
-- `commandName` - The command to resolve
-- `serviceId` - The service to resolve dependencies for
-
-**Returns:** Array of `{ service, command }` specs
-
-#### `buildExecutionPlan(project, commandName, targets)`
-
-Builds an execution plan with stages for parallel execution.
-
-**Parameters:**
-- `project` - NormalizedProjectConfig
-- `commandName` - The command to plan
-- `targets` - Array of top-level target service IDs
-
-**Returns:** `ExecutionPlan` with `stages` array
-
 ### Types
 
 ```typescript
-interface CommandDependencySpec {
+interface ResolvedCommand {
   service: string;
   command: string;
+  executable: string;
+  env?: Record<string, string>;
+  dir?: string;
 }
 
 interface ExecutionPlan {
-  stages: CommandDependencySpec[][];
+  stages: ResolvedCommand[][];
 }
 
 type CommandDependencies =

@@ -245,27 +245,24 @@ describe("CLI Routing", () => {
   });
 
   describe("Arbitrary Command Routing", () => {
-    it("should route unknown command to IndexScript (host execution)", async () => {
-      const argv = ["node", "nopo", "lint"];
+    it("should throw error for undefined command", async () => {
+      const argv = ["node", "nopo", "undefined-command"];
       const env = {
         ENV_FILE: createTmpEnv({}),
       };
 
-      // Expected: Should route to IndexScript (catch-all) for host execution
-      // Should NOT route to RunScript which expects 'run' prefix
-      await expect(main(argv, env)).resolves.not.toThrow();
-      // Note: May fail if lint script doesn't exist, but routing should be correct
+      // Commands must be defined in nopo.yml - no pnpm fallback
+      await expect(main(argv, env)).rejects.toThrow(/does not define command/);
     });
 
-    it("should route 'lint web' to IndexScript with targets (host execution)", async () => {
-      const argv = ["node", "nopo", "lint", "web"];
+    it("should route defined command to IndexScript", async () => {
+      const argv = ["node", "nopo", "test", "web"];
       const env = {
         ENV_FILE: createTmpEnv({}),
       };
 
-      // Expected: Should route to IndexScript (catch-all) with script="lint", targets=["web"]
+      // test is defined in web's nopo.yml
       await expect(main(argv, env)).resolves.not.toThrow();
-      // Note: May fail if lint script doesn't exist, but routing should be correct
     });
 
     it("should route 'run lint' to RunScript (container execution)", async () => {

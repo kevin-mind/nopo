@@ -7,27 +7,6 @@
   "files": [
     "build/**"
   ],
-  "scripts": {
-    "build": "uv sync --frozen --no-install-workspace && vite build && uv run python manage.py collectstatic --noinput --clear",
-    "clean": "rm -rf __pycache__ .ruff_cache node_modules",
-    "fix:lint": "uv tool run ruff format",
-    "fix:lint:js": "eslint --fix",
-    "check:lint": "uv tool run ruff check",
-    "check:lint:js": "eslint",
-    "check:lint:py": "uv tool run ruff check",
-    "check:types:py": "uv run mypy .",
-    "check:types:js": "tsc --noEmit",
-    "test": "uv run python manage.py test src",
-    "dev": "pnpm run \"/^dev:.*/\"",
-    "dev:runserver": "uv run --verbose python manage.py runserver 0.0.0.0:80 --settings=settings",
-    "dev:vite": "vite --port 5173",
-    "vite": "vite",
-    "start": "uv run --verbose gunicorn --config gunicorn.conf.py backend.mysite.wsgi:application",
-    "migrate": "uv run --verbose python manage.py migrate",
-    "migrate:check": "uv run --verbose python manage.py migrate --check",
-    "makemigrations": "uv run --verbose python manage.py makemigrations",
-    "shell": "uv run --verbose python manage.py shell"
-  },
   "devDependencies": {
     "@more/configs": "workspace:*",
     "@tailwindcss/vite": "^4.1.4",

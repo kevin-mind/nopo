@@ -2,14 +2,6 @@
   "name": "@more/web",
   "private": true,
   "type": "module",
-  "scripts": {
-    "clean": "rm -rf .react-router build node_modules",
-    "build": "react-router build",
-    "dev": "react-router dev --host",
-    "start": "react-router-serve ./build/server/index.js",
-    "check:types": "react-router typegen && tsc",
-    "test": "echo 'test'"
-  },
   "dependencies": {
     "@more/ui": "workspace:*",
     "@react-router/node": "^7.4.1",

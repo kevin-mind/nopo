@@ -1,9 +1,9 @@
+import path from "node:path";
 import { TargetScript, type ScriptDependency, type Runner, exec } from "../lib.ts";
 import EnvScript from "./env.ts";
 import {
   validateCommandTargets,
   buildExecutionPlan,
-  resolveCommand,
   type ResolvedCommand,
 } from "../commands/index.ts";
 
@@ -117,47 +117,13 @@ export default class IndexScript extends TargetScript<IndexScriptArgs> {
     const project = this.runner.config.project;
     const targets = args.targets.length > 0 ? args.targets : project.services.targets;
 
-    // Check if this command is defined in nopo.yml files
-    const hasNopoCommand = this.#hasNopoCommand(args.command, targets);
+    // Build command path with optional subcommand
+    const commandPath = args.subcommand 
+      ? `${args.command}:${args.subcommand}` 
+      : args.command;
 
-    if (hasNopoCommand) {
-      // Use nopo command resolution
-      const commandPath = args.subcommand 
-        ? `${args.command}:${args.subcommand}` 
-        : args.command;
-      await this.#runNopoCommand(commandPath, targets);
-    } else {
-      // Fall back to pnpm for commands not defined in nopo.yml
-      await this.#runPnpmCommand(args.command, args.targets);
-    }
-  }
-
-  /**
-   * Check if any of the targets have this command defined in nopo.yml
-   */
-  #hasNopoCommand(command: string, targets: string[]): boolean {
-    const project = this.runner.config.project;
-    const rootCommand = command.split(":")[0]!;
-
-    for (const target of targets) {
-      const service = project.services.entries[target];
-      if (service?.commands[rootCommand]) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  /**
-   * Run a command using nopo command resolution with dependency graph
-   */
-  async #runNopoCommand(commandPath: string, targets: string[]): Promise<void> {
-    const project = this.runner.config.project;
-    const rootCommand = commandPath.split(":")[0]!;
-
-    // Validate that all targets have the root command
-    validateCommandTargets(project, rootCommand, targets);
+    // Validate that all targets have the command defined
+    validateCommandTargets(project, args.command, targets);
 
     // Build execution plan
     const plan = buildExecutionPlan(project, commandPath, targets);
@@ -194,56 +160,45 @@ export default class IndexScript extends TargetScript<IndexScriptArgs> {
       throw new Error(`Empty command for ${task.service}:${task.command}`);
     }
 
-    // Execute in the service's root directory
-    const cwd = service.paths.root;
+    // Resolve working directory
+    const cwd = this.#resolveWorkingDirectory(task, service.paths.root);
+
+    // Merge environment variables: base env + task-specific env
+    const taskEnv = task.env ? { ...this.env, ...task.env } : this.env;
 
     await exec(cmd, cmdArgs, {
       cwd,
-      env: this.env,
+      env: taskEnv,
       stdio: "inherit",
     });
   }
 
   /**
-   * Fall back to pnpm command execution for commands not in nopo.yml
+   * Resolve the working directory for a task.
+   * - undefined: use service root (default)
+   * - "root": use project root
+   * - absolute path: use as-is
+   * - relative path: resolve relative to service root
    */
-  async #runPnpmCommand(scriptName: string, targets: string[]): Promise<void> {
-    const scriptCmd = this.#resolveScript(scriptName);
+  #resolveWorkingDirectory(task: ResolvedCommand, serviceRoot: string): string {
+    const dir = task.dir;
 
-    if (targets.length === 0) {
-      // Run at root level
-      await this.exec`${scriptCmd}`;
-      return;
+    // Default: service root
+    if (!dir) {
+      return serviceRoot;
     }
 
-    // Run for each target
-    for (const target of targets) {
-      const targetScriptCmd = this.#resolveScript(scriptName);
-      // Insert --filter before the script name/pattern
-      const filterCmd = [
-        "pnpm",
-        "--filter",
-        `@more/${target}`,
-        "run",
-        ...targetScriptCmd.slice(2),
-      ];
-      await this.exec`${filterCmd}`;
-    }
-  }
-
-  #resolveScript(scriptName: string): string[] {
-    const script = ["pnpm", "run"];
-
-    // Check if script name ends with ':' for pattern matching
-    if (scriptName.endsWith(":")) {
-      // Remove the trailing ':' and use regex pattern matching
-      const prefix = scriptName.slice(0, -1);
-      script.push(`/^${prefix}.*/`);
-    } else {
-      // Use exact script name
-      script.push(scriptName);
+    // "root" means project root
+    if (dir === "root") {
+      return this.runner.config.root;
     }
 
-    return script;
+    // Absolute path: use as-is
+    if (path.isAbsolute(dir)) {
+      return dir;
+    }
+
+    // Relative path: resolve relative to service root
+    return path.resolve(serviceRoot, dir);
   }
 }

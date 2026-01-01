@@ -28,15 +28,32 @@ const CommandDependenciesSchema = z.union([
   z.record(z.string().min(1), z.array(z.string().min(1))),
 ]).optional();
 
+// Environment variables for commands
+const CommandEnvSchema = z.record(z.string().min(1), z.string()).optional();
+
+// Working directory for commands: absolute path, relative to service, or "root"
+const CommandDirSchema = z.string().optional();
+
 // Sub-sub-command schema (deepest level - no further nesting)
-const SubSubCommandSchema = z.object({
+// Supports shorthand: "pnpm build" or full object { command: "pnpm build", env: {...}, dir: "..." }
+const SubSubCommandObjectSchema = z.object({
   command: z.string().min(1),
+  env: CommandEnvSchema,
+  dir: CommandDirSchema,
   dependencies: z.never().optional(), // Explicitly disallow dependencies
-}).strict();
+});
+
+const SubSubCommandSchema = z.union([
+  z.string().min(1).transform((cmd) => ({ command: cmd, env: undefined, dir: undefined })),
+  SubSubCommandObjectSchema,
+]);
 
 // Sub-command schema (can have sub-sub-commands)
-const SubCommandSchema = z.object({
+// Supports shorthand: "pnpm build" or full object
+const SubCommandObjectSchema = z.object({
   command: z.string().min(1).optional(),
+  env: CommandEnvSchema,
+  dir: CommandDirSchema,
   commands: z.record(z.string().min(1), SubSubCommandSchema).optional(),
   dependencies: z.never().optional(), // Explicitly disallow dependencies
 }).refine((data) => {
@@ -51,9 +68,17 @@ const SubCommandSchema = z.object({
   message: "Cannot specify both 'command' and 'commands'. Use one or the other.",
 });
 
+const SubCommandSchema = z.union([
+  z.string().min(1).transform((cmd) => ({ command: cmd, env: undefined, dir: undefined, commands: undefined })),
+  SubCommandObjectSchema,
+]);
+
 // Top-level command schema
-const CommandSchema = z.object({
+// Supports shorthand: "pnpm build" or full object
+const CommandObjectSchema = z.object({
   command: z.string().min(1).optional(),
+  env: CommandEnvSchema,
+  dir: CommandDirSchema,
   dependencies: CommandDependenciesSchema,
   commands: z.record(z.string().min(1), SubCommandSchema).optional(),
 }).refine((data) => {
@@ -67,6 +92,11 @@ const CommandSchema = z.object({
 }, {
   message: "Cannot specify both 'command' and 'commands'. Use one or the other.",
 });
+
+const CommandSchema = z.union([
+  z.string().min(1).transform((cmd) => ({ command: cmd, env: undefined, dir: undefined, dependencies: undefined, commands: undefined })),
+  CommandObjectSchema,
+]);
 
 const CommandsSchema = z.record(z.string().min(1), CommandSchema).default({});
 
@@ -169,11 +199,15 @@ export type CommandDependencies =
 // Sub-command (no dependencies allowed)
 export interface NormalizedSubCommand {
   command: string;
+  env?: Record<string, string>;
+  dir?: string;
   commands?: Record<string, NormalizedSubCommand>;
 }
 
 export interface NormalizedCommand {
   command?: string;
+  env?: Record<string, string>;
+  dir?: string;
   dependencies?: CommandDependencies;
   commands?: Record<string, NormalizedSubCommand>;
 }
@@ -386,6 +420,7 @@ function normalizeInfrastructure(
 
 type CommandsInput = z.infer<typeof CommandsSchema>;
 type SubCommandInput = z.infer<typeof SubCommandSchema>;
+type SubSubCommandInput = z.infer<typeof SubSubCommandSchema>;
 
 function normalizeSubCommands(
   commands: Record<string, SubCommandInput> | undefined,
@@ -404,11 +439,17 @@ function normalizeSubCommands(
     }
 
     if (cmd.command) {
-      result[name] = { command: cmd.command };
+      result[name] = { 
+        command: cmd.command,
+        env: cmd.env,
+        dir: cmd.dir,
+      };
     } else if (cmd.commands) {
       // Recursive for sub-sub-commands
       result[name] = {
         command: undefined as unknown as string, // Will be populated with subcommands
+        env: cmd.env,
+        dir: cmd.dir,
         commands: normalizeSubSubCommands(cmd.commands, `${parentPath}:${name}`),
       };
     }
@@ -418,15 +459,19 @@ function normalizeSubCommands(
 }
 
 function normalizeSubSubCommands(
-  commands: Record<string, { command: string }> | undefined,
-  parentPath: string,
+  commands: Record<string, SubSubCommandInput> | undefined,
+  _parentPath: string,
 ): Record<string, NormalizedSubCommand> | undefined {
   if (!commands) return undefined;
 
   const result: Record<string, NormalizedSubCommand> = {};
 
   for (const [name, cmd] of Object.entries(commands)) {
-    result[name] = { command: cmd.command };
+    result[name] = { 
+      command: cmd.command,
+      env: cmd.env,
+      dir: cmd.dir,
+    };
   }
 
   return result;
@@ -441,10 +486,14 @@ function normalizeCommands(
     if (cmd.command) {
       result[name] = {
         command: cmd.command,
+        env: cmd.env,
+        dir: cmd.dir,
         dependencies: cmd.dependencies,
       };
     } else if (cmd.commands) {
       result[name] = {
+        env: cmd.env,
+        dir: cmd.dir,
         dependencies: cmd.dependencies,
         commands: normalizeSubCommands(cmd.commands, name),
       };

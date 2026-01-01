@@ -1,96 +1,69 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { Runner, createConfig, Logger } from "../src/lib.ts";
+import { Runner, createConfig, Logger, exec } from "../src/lib.ts";
 import { Environment } from "../src/parse-env.ts";
 import { createTmpEnv } from "./utils.ts";
 import IndexScript from "../src/scripts/index.ts";
 import RunScript from "../src/scripts/run.ts";
 
-// Mock the exec property getter to return a mock template tag function
-const mockExec = vi
-  .fn()
-  .mockResolvedValue({ stdout: "", stderr: "", exitCode: 0 });
-Object.defineProperty(IndexScript.prototype, "exec", {
-  get: () => mockExec,
-  configurable: true,
+// Mock the exec function
+vi.mock("../src/lib.ts", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../src/lib.ts")>();
+  return {
+    ...original,
+    exec: vi.fn().mockResolvedValue({ stdout: "", stderr: "", exitCode: 0 }),
+  };
 });
-
-// Helper to reconstruct command from template tag call
-function reconstructCommand(call: unknown[]): string {
-  const templateStrings = call[0] as string[];
-  const values = call.slice(1) as unknown[];
-  let command = "";
-  for (let i = 0; i < templateStrings.length; i++) {
-    command += templateStrings[i] || "";
-    if (i < values.length) {
-      const value = values[i];
-      if (Array.isArray(value)) {
-        command += value.join(" ");
-      } else {
-        command += String(value);
-      }
-    }
-  }
-  return command.trim();
-}
 
 describe("Execution Modes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  describe("Host Execution", () => {
-    it("should use pnpm --filter for targeted execution", async () => {
-      // nopo lint web
-      // Expected: pnpm --filter @more/web run lint
+  describe("Host Execution (nopo.yml commands)", () => {
+    it("should execute command defined in nopo.yml", async () => {
+      // nopo test web
       const config = createConfig({
         envFile: createTmpEnv({}),
         silent: true,
       });
       const logger = new Logger(config);
       const environment = new Environment(config);
-      const runner = new Runner(config, environment, ["lint", "web"], logger);
+      const runner = new Runner(config, environment, ["test", "web"], logger);
 
       const args = IndexScript.parseArgs(runner, false);
       const script = new IndexScript(runner);
       await script.fn(args);
 
-      expect(mockExec).toHaveBeenCalled();
-      const command = reconstructCommand(mockExec.mock.calls[0] || []);
-      expect(command).toContain("pnpm");
-      expect(command).toContain("--filter");
-      expect(command).toContain("@more/web");
-      expect(command).toContain("run");
-      expect(command).toContain("lint");
+      expect(exec).toHaveBeenCalled();
+      expect(exec).toHaveBeenCalledWith(
+        "echo",
+        ["'test'"],
+        expect.objectContaining({
+          cwd: expect.stringContaining("apps/web"),
+        }),
+      );
     });
 
-    it("should use pnpm run at root when no targets", async () => {
-      // nopo lint
-      // Expected: pnpm run lint
+    it("should execute on multiple targets", async () => {
+      // nopo clean backend web
       const config = createConfig({
         envFile: createTmpEnv({}),
         silent: true,
       });
       const logger = new Logger(config);
       const environment = new Environment(config);
-      const runner = new Runner(config, environment, ["lint"], logger);
+      const runner = new Runner(config, environment, ["clean", "backend", "web"], logger);
 
       const args = IndexScript.parseArgs(runner, false);
       const script = new IndexScript(runner);
       await script.fn(args);
 
-      expect(mockExec).toHaveBeenCalled();
-      const command = reconstructCommand(mockExec.mock.calls[0] || []);
-      expect(command).toContain("pnpm");
-      expect(command).toContain("run");
-      expect(command).toContain("lint");
-      expect(command).not.toContain("--filter");
+      // Should execute on both backend and web
+      expect(exec).toHaveBeenCalledTimes(2);
     });
 
-    it("should execute for each target when multiple targets specified", async () => {
-      // nopo lint backend web
-      // Expected:
-      //   pnpm --filter @more/backend run lint
-      //   pnpm --filter @more/web run lint
+    it("should throw error for undefined command", async () => {
+      // nopo undefined-command web
       const config = createConfig({
         envFile: createTmpEnv({}),
         silent: true,
@@ -100,23 +73,20 @@ describe("Execution Modes", () => {
       const runner = new Runner(
         config,
         environment,
-        ["lint", "backend", "web"],
+        ["undefined-command", "web"],
         logger,
       );
 
       const args = IndexScript.parseArgs(runner, false);
       const script = new IndexScript(runner);
-      await script.fn(args);
 
-      expect(mockExec).toHaveBeenCalledTimes(2);
-      const firstCommand = reconstructCommand(mockExec.mock.calls[0] || []);
-      const secondCommand = reconstructCommand(mockExec.mock.calls[1] || []);
-      expect(firstCommand).toContain("@more/backend");
-      expect(secondCommand).toContain("@more/web");
+      await expect(script.fn(args)).rejects.toThrow(
+        /does not define command 'undefined-command'/,
+      );
     });
 
     it("should only run EnvScript dependency for host execution", async () => {
-      // IndexScript (catch-all) should only have EnvScript dependency
+      // IndexScript should only have EnvScript dependency
       expect(IndexScript.dependencies).toHaveLength(1);
       expect(IndexScript.dependencies[0]?.class.name).toBe("env");
     });
@@ -125,7 +95,6 @@ describe("Execution Modes", () => {
   describe("Container Execution (RunScript)", () => {
     it("should use RunScript for container execution", async () => {
       // nopo run lint web
-      // Expected: docker compose run --rm web pnpm run lint
       // RunScript handles this - see tests/scripts/run.test.ts
       const config = createConfig({
         envFile: createTmpEnv({}),
@@ -158,16 +127,16 @@ describe("Execution Modes", () => {
 
   describe("Execution Mode Detection", () => {
     it("should use IndexScript when 'run' prefix is not used", async () => {
-      // nopo lint web -> IndexScript (catch-all)
+      // nopo build web -> IndexScript
       const config = createConfig({
         envFile: createTmpEnv({}),
       });
       const logger = new Logger(config);
       const environment = new Environment(config);
-      const runner = new Runner(config, environment, ["lint", "web"], logger);
+      const runner = new Runner(config, environment, ["build", "web"], logger);
 
       const args = IndexScript.parseArgs(runner, false);
-      expect(args.command).toBe("lint");
+      expect(args.command).toBe("build");
       expect(args.targets).toEqual(["web"]);
     });
 
