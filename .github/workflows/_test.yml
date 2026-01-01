@@ -76,7 +76,7 @@ jobs:
         target: [development, production]
         include:
           -
-            command: "check:"
+            command: "check"
             target: production
       fail-fast: false
     permissions:

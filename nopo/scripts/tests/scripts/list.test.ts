@@ -504,9 +504,18 @@ describe("list", () => {
     it("throws error for invalid jq filter", async () => {
       const config = createConfig({ envFile: createTmpEnv(), silent: true });
 
-      await expect(
-        runScript(ListScript, config, ["list", "--json", "--jq", "invalid[["]),
-      ).rejects.toThrow("jq filter failed");
+      // We expect an error, but also want to prevent EPIPE from leaking due to broken pipe when process.stdout is closed.
+      // So, temporarily stub process.stdout.write to a noop for this test.
+      const originalWrite = process.stdout.write;
+      process.stdout.write = (() => true) as any;
+
+      try {
+        await expect(
+          runScript(ListScript, config, ["list", "--json", "--jq", "invalid[["]),
+        ).rejects.toThrow("jq filter failed");
+      } finally {
+        process.stdout.write = originalWrite;
+      }
     });
   });
 

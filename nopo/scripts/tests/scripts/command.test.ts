@@ -158,8 +158,8 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
       expect(exec).toHaveBeenCalled();
       // Check that exec was called with the right command
       expect(exec).toHaveBeenCalledWith(
-        "echo",
-        ["'test'"],
+        "sh",
+        ["-c", "echo 'test'"],
         expect.objectContaining({
           cwd: expect.stringContaining("apps/web"),
         }),

@@ -67,8 +67,6 @@ dockerfile: Dockerfile
 commands:
   lint:
     command: eslint .
-  build:
-    command: npm run build
 `,
         },
       });
@@ -79,7 +77,6 @@ commands:
       expect(web?.commands).toBeDefined();
       expect(web?.commands?.lint).toBeDefined();
       expect(web?.commands?.lint?.command).toBe("eslint .");
-      expect(web?.commands?.build?.command).toBe("npm run build");
     });
 
     it("loads command dependencies", () => {
@@ -94,10 +91,10 @@ services:
 name: web
 dockerfile: Dockerfile
 commands:
-  build:
+  lint:
     dependencies:
       - backend
-    command: npm run build
+    command: eslint .
 `,
         },
       });
@@ -105,7 +102,7 @@ commands:
       const project = loadProjectConfig(root);
       const web = project.services.entries.web;
 
-      expect(web?.commands?.build?.dependencies).toEqual(["backend"]);
+      expect(web?.commands?.lint?.dependencies).toEqual(["backend"]);
     });
 
     it("loads complex command dependencies with command overrides", () => {
@@ -120,12 +117,12 @@ services:
 name: web
 dockerfile: Dockerfile
 commands:
-  run:
+  banana:
     dependencies:
       web:
-        - run
+        - banana
       backend:
-        - build
+        - lint
         - clean
     command: npm start
 `,
@@ -135,9 +132,9 @@ commands:
       const project = loadProjectConfig(root);
       const web = project.services.entries.web;
 
-      expect(web?.commands?.run?.dependencies).toEqual({
-        web: ["run"],
-        backend: ["build", "clean"],
+      expect(web?.commands?.banana?.dependencies).toEqual({
+        web: ["banana"],
+        backend: ["lint", "clean"],
       });
     });
 
@@ -447,11 +444,11 @@ dockerfile: Dockerfile
 dependencies:
   - api
 commands:
-  build:
+  lint:
     dependencies:
       - backend
       - worker
-    command: npm run build
+    command: eslint .
 `,
           api: `
 name: api
@@ -461,25 +458,25 @@ dockerfile: Dockerfile
 name: backend
 dockerfile: Dockerfile
 commands:
-  build:
+  lint:
     command: python setup.py build
 `,
           worker: `
 name: worker
 dockerfile: Dockerfile
 commands:
-  build:
+  lint:
     command: cargo build
 `,
         },
       });
 
       const project = loadProjectConfig(root);
-      const deps = resolveCommandDependencies(project, "build", "web");
+      const deps = resolveCommandDependencies(project, "lint", "web");
 
       // Should use command-specific dependencies, not service-level
-      expect(deps).toContainEqual({ service: "backend", command: "build" });
-      expect(deps).toContainEqual({ service: "worker", command: "build" });
+      expect(deps).toContainEqual({ service: "backend", command: "lint" });
+      expect(deps).toContainEqual({ service: "worker", command: "lint" });
       expect(deps).not.toContainEqual(
         expect.objectContaining({ service: "api" }),
       );
@@ -497,10 +494,10 @@ services:
 name: web
 dockerfile: Dockerfile
 commands:
-  run:
+  banana:
     dependencies:
       backend:
-        - build
+        - lint
         - clean
     command: npm start
 `,
@@ -508,8 +505,8 @@ commands:
 name: backend
 dockerfile: Dockerfile
 commands:
-  build:
-    command: npm run build
+  lint:
+    command: eslint .
   clean:
     command: npm run clean
 `,
@@ -517,9 +514,9 @@ commands:
       });
 
       const project = loadProjectConfig(root);
-      const deps = resolveCommandDependencies(project, "run", "web");
+      const deps = resolveCommandDependencies(project, "banana", "web");
 
-      expect(deps).toContainEqual({ service: "backend", command: "build" });
+      expect(deps).toContainEqual({ service: "backend", command: "lint" });
       expect(deps).toContainEqual({ service: "backend", command: "clean" });
     });
 
@@ -685,8 +682,8 @@ dependencies:
   - web
   - api
 commands:
-  build:
-    command: npm run build
+  lint:
+    command: eslint .
 `,
           web: `
 name: web
@@ -694,8 +691,8 @@ dockerfile: Dockerfile
 dependencies:
   - shared
 commands:
-  build:
-    command: npm run build
+  lint:
+    command: eslint .
 `,
           api: `
 name: api
@@ -703,36 +700,36 @@ dockerfile: Dockerfile
 dependencies:
   - shared
 commands:
-  build:
-    command: npm run build
+  lint:
+    command: eslint .
 `,
           shared: `
 name: shared
 dockerfile: Dockerfile
 commands:
-  build:
-    command: npm run build
+  lint:
+    command: eslint .
 `,
         },
       });
 
       const project = loadProjectConfig(root);
-      const plan = buildExecutionPlan(project, "build", ["app"]);
+      const plan = buildExecutionPlan(project, "lint", ["app"]);
 
       // shared first (stage 0), then web & api in parallel (stage 1), then app (stage 2)
       expect(plan.stages).toHaveLength(3);
       expect(plan.stages[0]).toContainEqual(
-        expect.objectContaining({ service: "shared", command: "build" }),
+        expect.objectContaining({ service: "shared", command: "lint" }),
       );
       expect(plan.stages[1]).toHaveLength(2);
       expect(plan.stages[1]).toContainEqual(
-        expect.objectContaining({ service: "web", command: "build" }),
+        expect.objectContaining({ service: "web", command: "lint" }),
       );
       expect(plan.stages[1]).toContainEqual(
-        expect.objectContaining({ service: "api", command: "build" }),
+        expect.objectContaining({ service: "api", command: "lint" }),
       );
       expect(plan.stages[2]).toContainEqual(
-        expect.objectContaining({ service: "app", command: "build" }),
+        expect.objectContaining({ service: "app", command: "lint" }),
       );
     });
 
@@ -750,8 +747,8 @@ dockerfile: Dockerfile
 dependencies:
   - shared
 commands:
-  build:
-    command: npm run build
+  lint:
+    command: eslint .
 `,
           api: `
 name: api
@@ -759,21 +756,21 @@ dockerfile: Dockerfile
 dependencies:
   - shared
 commands:
-  build:
-    command: npm run build
+  lint:
+    command: eslint .
 `,
           shared: `
 name: shared
 dockerfile: Dockerfile
 commands:
-  build:
-    command: npm run build
+  lint:
+    command: eslint .
 `,
         },
       });
 
       const project = loadProjectConfig(root);
-      const plan = buildExecutionPlan(project, "build", ["web", "api"]);
+      const plan = buildExecutionPlan(project, "lint", ["web", "api"]);
 
       // shared should appear only once
       const allTasks = plan.stages.flat();
@@ -830,8 +827,8 @@ dockerfile: Dockerfile
 dependencies:
   - api
 commands:
-  build:
-    command: npm run build
+  lint:
+    command: eslint .
 `,
           api: `
 name: api
@@ -839,14 +836,14 @@ dockerfile: Dockerfile
 dependencies:
   - web
 commands:
-  build:
-    command: npm run build
+  lint:
+    command: eslint .
 `,
         },
       });
 
       const project = loadProjectConfig(root);
-      expect(() => buildExecutionPlan(project, "build", ["web"])).toThrow(
+      expect(() => buildExecutionPlan(project, "lint", ["web"])).toThrow(
         /Circular dependency detected/,
       );
     });
@@ -865,24 +862,24 @@ services:
 name: web
 dockerfile: Dockerfile
 commands:
-  build:
+  lint:
     dependencies:
       - backend
       - worker
-    command: npm run build
+    command: eslint .
 `,
           backend: `
 name: backend
 dockerfile: Dockerfile
 commands:
-  build:
+  lint:
     command: python setup.py build
 `,
           worker: `
 name: worker
 dockerfile: Dockerfile
 commands:
-  build:
+  lint:
     command: cargo build
 `,
         },
@@ -892,7 +889,7 @@ commands:
       const web = project.services.entries.web;
 
       // Array dependencies should be normalized to same command
-      expect(web?.commands?.build?.dependencies).toEqual(["backend", "worker"]);
+      expect(web?.commands?.lint?.dependencies).toEqual(["backend", "worker"]);
     });
 
     it("normalizes object dependencies with command arrays", () => {
@@ -910,7 +907,7 @@ commands:
   deploy:
     dependencies:
       backend:
-        - build
+        - lint
         - migrate
     command: npm run deploy
 `,
@@ -918,8 +915,8 @@ commands:
 name: backend
 dockerfile: Dockerfile
 commands:
-  build:
-    command: npm run build
+  lint:
+    command: eslint .
   migrate:
     command: npm run migrate
 `,
@@ -930,7 +927,7 @@ commands:
       const web = project.services.entries.web;
 
       expect(web?.commands?.deploy?.dependencies).toEqual({
-        backend: ["build", "migrate"],
+        backend: ["lint", "migrate"],
       });
     });
   });
@@ -950,8 +947,8 @@ dockerfile: Dockerfile
 commands:
   lint:
     command: eslint .
-  build:
-    command: npm run build
+  foo:
+    command: echo "foo"
 `,
           backend: `
 name: backend
@@ -965,11 +962,26 @@ commands:
 
       const project = loadProjectConfig(root);
 
-      // web has both lint and build, backend only has lint
-      expect(project.services.entries.web?.commands?.lint).toBeDefined();
-      expect(project.services.entries.web?.commands?.build).toBeDefined();
-      expect(project.services.entries.backend?.commands?.lint).toBeDefined();
-      expect(project.services.entries.backend?.commands?.build).toBeUndefined();
+      // web has both lint and foo, backend only has lint
+      expect(project.services.entries.web?.commands?.lint).toEqual({
+        command: "eslint .",
+        dependencies: undefined,
+        dir: undefined,
+        env: undefined,
+      });
+      expect(project.services.entries.web?.commands?.foo).toEqual({
+        command: 'echo "foo"',
+        dependencies: undefined,
+        dir: undefined,
+        env: undefined,
+      });
+      expect(project.services.entries.backend?.commands?.lint).toEqual({
+        command: "ruff check .",
+        dependencies: undefined,
+        dir: undefined,
+        env: undefined,
+      });
+      expect(project.services.entries.backend?.commands?.foo).toBeUndefined();
     });
 
     it("handles service with no commands at all", () => {
@@ -1005,7 +1017,7 @@ dockerfile: Dockerfile
 dependencies:
   - b
 commands:
-  build:
+  lint:
     command: echo a
 `,
           b: `
@@ -1014,7 +1026,7 @@ dockerfile: Dockerfile
 dependencies:
   - c
 commands:
-  build:
+  lint:
     command: echo b
 `,
           c: `
@@ -1023,35 +1035,35 @@ dockerfile: Dockerfile
 dependencies:
   - d
 commands:
-  build:
+  lint:
     command: echo c
 `,
           d: `
 name: d
 dockerfile: Dockerfile
 commands:
-  build:
+  lint:
     command: echo d
 `,
         },
       });
 
       const project = loadProjectConfig(root);
-      const plan = buildExecutionPlan(project, "build", ["a"]);
+      const plan = buildExecutionPlan(project, "lint", ["a"]);
 
       // d -> c -> b -> a
       expect(plan.stages).toHaveLength(4);
       expect(plan.stages[0]).toContainEqual(
-        expect.objectContaining({ service: "d", command: "build" }),
+        expect.objectContaining({ service: "d", command: "lint" }),
       );
       expect(plan.stages[1]).toContainEqual(
-        expect.objectContaining({ service: "c", command: "build" }),
+        expect.objectContaining({ service: "c", command: "lint" }),
       );
       expect(plan.stages[2]).toContainEqual(
-        expect.objectContaining({ service: "b", command: "build" }),
+        expect.objectContaining({ service: "b", command: "lint" }),
       );
       expect(plan.stages[3]).toContainEqual(
-        expect.objectContaining({ service: "a", command: "build" }),
+        expect.objectContaining({ service: "a", command: "lint" }),
       );
     });
 
@@ -1347,8 +1359,8 @@ services:
 name: web
 dockerfile: Dockerfile
 commands:
-  build:
-    command: npm run build
+  lint:
+    command: eslint .
   check:
     commands:
       types:
@@ -1362,12 +1374,12 @@ commands:
       const project = loadProjectConfig(root);
 
       // build is a simple command
-      const buildResolved = resolveCommand(project, "build", "web");
+      const buildResolved = resolveCommand(project, "lint", "web");
       expect(buildResolved).toHaveLength(1);
       expect(buildResolved[0]).toEqual({
         service: "web",
-        command: "build",
-        executable: "npm run build",
+        command: "lint",
+        executable: "eslint .",
       });
 
       // check has subcommands

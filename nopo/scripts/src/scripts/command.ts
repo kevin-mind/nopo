@@ -4,6 +4,7 @@ import {
   type ScriptDependency,
   type Runner,
   exec,
+  createLogger,
 } from "../lib.ts";
 import EnvScript from "./env.ts";
 import {
@@ -128,16 +129,29 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
     }
 
     const project = this.runner.config.project;
-    const targets =
-      args.targets.length > 0 ? args.targets : project.services.targets;
 
     // Build command path with optional subcommand
     const commandPath = args.subcommand
       ? `${args.command}:${args.subcommand}`
       : args.command;
 
-    // Validate that all targets have the command defined
-    validateCommandTargets(project, args.command, targets);
+    let targets: string[];
+    if (args.targets.length > 0) {
+      // If explicit targets are specified, validate that all of them have the command
+      validateCommandTargets(project, args.command, args.targets);
+      targets = args.targets;
+    } else {
+      // If no targets specified, filter to only services that have the command
+      const rootCommand = args.command.split(":")[0]!;
+      targets = project.services.targets.filter((serviceId) => {
+        const service = project.services.entries[serviceId];
+        return service && service.commands[rootCommand];
+      });
+
+      if (targets.length === 0) {
+        throw new Error(`No services have command '${args.command}'`);
+      }
+    }
 
     // Build execution plan
     const plan = buildExecutionPlan(project, commandPath, targets);
@@ -166,13 +180,7 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
       throw new Error(`Service '${task.service}' not found`);
     }
 
-    this.log(`Running ${task.command} on ${task.service}: ${task.executable}`);
-
-    // Parse the command string into parts
-    const parts = task.executable.split(/\s+/);
-    const [cmd, ...cmdArgs] = parts;
-
-    if (!cmd) {
+    if (!task.executable) {
       throw new Error(`Empty command for ${task.service}:${task.command}`);
     }
 
@@ -182,10 +190,21 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
     // Merge environment variables: base env + task-specific env
     const taskEnv = task.env ? { ...this.env, ...task.env } : this.env;
 
-    await exec(cmd, cmdArgs, {
+    // Create a prefixed logger for this task
+    const commandPath = task.subcommand
+      ? `${task.command}:${task.subcommand}`
+      : task.command;
+    const logPrefix = `${task.service}:${commandPath}`;
+
+    // Log that we're starting this task
+    this.log(`[${logPrefix}] ${task.executable}`);
+
+    // Execute the command through a shell to support shell operators like &&, ||, |, etc.
+    await exec("sh", ["-c", task.executable], {
       cwd,
       env: taskEnv,
-      stdio: "inherit",
+      stdio: "pipe",
+      callback: createLogger(logPrefix, "cyan"),
     });
   }
 

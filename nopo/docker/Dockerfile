@@ -87,6 +87,18 @@ RUN --mount=type=bind,source=package.json,target=$APP/package.json <<EOF
 npm install --global corepack@latest
 corepack enable pnpm
 corepack prepare pnpm --activate
+# Install tsx globally so we can run TypeScript directly
+npm install --global tsx@latest
+EOF
+
+# Create nopo wrapper script that uses tsx to run TypeScript directly
+# This avoids needing to build nopo separately and conflicting with workspace install
+RUN <<EOF
+cat > /usr/local/bin/nopo <<'WRAPPER'
+#!/bin/bash
+exec tsx /app/nopo/scripts/bin.ts "$@"
+WRAPPER
+chmod +x /usr/local/bin/nopo
 EOF
 
 ################################################################################################
@@ -147,7 +159,7 @@ if [[ "${command}" == "" ]]; then
 fi
 
 set -xue
-pnpm --filter "@more/${service}" "${command}"
+nopo "${command}" "${service}"
 INNEREOF
 
 chmod +x /cmd.sh

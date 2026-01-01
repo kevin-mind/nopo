@@ -13,13 +13,13 @@ infrastructure:
 
 commands:
   clean: rm -rf .react-router build node_modules
-  build:
-    command: react-router build
+  compile:
+    command: pnpm exec react-router build
     env:
       NODE_ENV: production
-  dev: react-router dev --host
-  start: react-router-serve ./build/server/index.js
+  dev: pnpm exec react-router dev --host
+  start: pnpm exec react-router-serve ./build/server/index.js
   check:
     commands:
-      types: react-router typegen && tsc
+      types: pnpm exec react-router typegen && pnpm exec tsc
   test: echo 'test'

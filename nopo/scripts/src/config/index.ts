@@ -519,12 +519,32 @@ function normalizeSubSubCommands(
   return result;
 }
 
+// Reserved command names that match nopo built-in scripts
+const RESERVED_COMMAND_NAMES = [
+  "build",
+  "command",
+  "down",
+  "env",
+  "list",
+  "pull",
+  "run",
+  "status",
+  "up",
+];
+
 function normalizeCommands(
   commands: CommandsInput,
 ): Record<string, NormalizedCommand> {
   const result: Record<string, NormalizedCommand> = {};
 
   for (const [name, cmd] of Object.entries(commands)) {
+    // Validate that command names don't conflict with nopo built-in scripts
+    if (RESERVED_COMMAND_NAMES.includes(name)) {
+      throw new Error(
+        `Command name '${name}' is reserved for nopo built-in scripts. Please use a different name.`,
+      );
+    }
+
     if (cmd.command) {
       result[name] = {
         command: cmd.command,

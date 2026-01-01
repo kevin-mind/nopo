@@ -9,3 +9,6 @@ infrastructure:
   max_instances: 1
   has_database: false
   run_migrations: false
+
+commands:
+  test: echo "No tests for db service"
