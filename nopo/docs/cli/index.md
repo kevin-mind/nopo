@@ -11,9 +11,12 @@ The `nopo` CLI is designed to streamline the development workflow for monorepo p
 - **TypeScript-first**: Fully typed codebase with strict type checking
 - **Vite-based build**: Single executable output for fast startup
 - **Dependency resolution**: Automatic script dependency management between commands
-- **Environment management**: Automated Docker tag parsing and environment setup
+- **Environment management**: Automated Docker tag parsing with digest support
 - **Docker integration**: Built-in support for Docker Buildx Bake, Compose, and registry operations
 - **Target discovery**: Automatically discovers targets with Dockerfiles in `apps/`
+- **Advanced filtering**: Powerful service filtering and multiple output formats
+- **Performance optimization**: Offline-first sync and parallel execution
+- **Machine-readable output**: JSON/CSV formats for automation and CI/CD
 
 ## Installation
 
@@ -98,31 +101,56 @@ Then run:
 pnpm install
 ```
 
-## Documentation
+## Getting Started
 
-- [Quick Reference](./quick-reference.md) - Common usage patterns and scenarios
-- [Architecture](./architecture.md) - System architecture, algorithms, and flow diagrams
-- [Arbitrary Commands](./commands/arbitrary.md) - Running arbitrary pnpm scripts
-- [Command Configuration](./commands/config.md) - Defining commands in nopo.yml with dependency resolution
+- **[Quick Start](./quick-start.md)** - Get up and running in 5 minutes
+- [Essentials](./commands/essentials.md) - Core commands for 80% of tasks
+
+## Detailed Documentation
+
+- **[Reference](./reference.md)** - Complete command and environment reference
+- [Architecture](./architecture.md) - System architecture and algorithms
+- [Commands](./commands/) - Individual command documentation
+  - [Arbitrary Commands](./commands/arbitrary.md) - Running pnpm scripts
+  - [Command Configuration](./commands/config.md) - Defining commands in nopo.yml
+
+## Guides
+
+- **[Configuration](./guides/configuration.md)** - Setup and optimization
+- \*\*[Troubleshooting](./guides/troubleshooting.md) - Quick fixes for common issues
+
+### Guides
+
+- [Advanced Configuration](./guides/advanced-configuration.md) - Docker tags, build options, and environment variables
+- [Performance Optimization](./guides/performance-optimization.md) - Offline-first sync and parallel execution
+- [Development & Debugging](./guides/development-debugging.md) - Internal features and debugging
+- [CI/CD Integration](./guides/cicd-integration.md) - Pipeline examples and best practices
+- [Troubleshooting](./guides/troubleshooting.md) - Common issues and solutions
+
+### Reference
+
+- [Environment Variables](./reference/environment-variables.md) - Complete environment variables reference
+- [Command Options](./reference/command-options.md) - All command options and arguments
 
 ## Commands
 
 ### Script Classes
 
-| Command | Description |
-|---------|-------------|
-| [`build`](./commands/build.md) | Build base image and target images using Docker Buildx Bake |
-| [`down`](./commands/down.md) | Bring down the containers and clean up resources |
-| [`env`](./commands/env.md) | Set up environment variables and generate `.env` file |
-| [`pull`](./commands/pull.md) | Pull the base image or target images from the registry |
-| [`status`](./commands/status.md) | Check the status of the targets and system information |
-| [`up`](./commands/up.md) | Start the targets with automatic dependency management |
+| Command                          | Description                                                         |
+| -------------------------------- | ------------------------------------------------------------------- |
+| [`build`](./commands/build.md)   | Build base image and target images using Docker Buildx Bake         |
+| [`down`](./commands/down.md)     | Bring down the containers and clean up resources                    |
+| [`env`](./commands/env.md)       | Set up environment variables and generate `.env` file               |
+| [`list`](./commands/list.md)     | List discovered services with filtering and multiple output formats |
+| [`pull`](./commands/pull.md)     | Pull the base image or target images from the registry              |
+| [`status`](./commands/status.md) | Check the status of the targets and system information              |
+| [`up`](./commands/up.md)         | Start the targets with automatic dependency management              |
 
 ### Arbitrary Commands
 
-| Pattern | Description |
-|---------|-------------|
-| `nopo <script> [targets...]` | Run pnpm script on host (see [Arbitrary Commands](./commands/arbitrary.md)) |
+| Pattern                          | Description                                                                       |
+| -------------------------------- | --------------------------------------------------------------------------------- |
+| `nopo <script> [targets...]`     | Run pnpm script on host (see [Arbitrary Commands](./commands/arbitrary.md))       |
 | `nopo run <script> [targets...]` | Run pnpm script in containers (see [Arbitrary Commands](./commands/arbitrary.md)) |
 
 **Note**: The legacy `run` command is being replaced by the arbitrary command pattern. See [Arbitrary Commands](./commands/arbitrary.md) for details.
@@ -157,7 +185,7 @@ nopo run <pnpm-script> [targets...] [options]
 
 The CLI supports two types of commands:
 
-1. **Script Classes**: Built-in commands like `build`, `up`, `down`, `pull`, `status`, `env`
+1. **Script Classes**: Built-in commands like `build`, `up`, `down`, `pull`, `status`, `env`, `list`
 2. **Arbitrary Commands**: Any pnpm script from your `package.json` files (e.g., `lint`, `test`, `dev`)
 
 ### Script Class Commands
@@ -194,6 +222,15 @@ nopo pull backend web
 
 # Check status
 nopo status
+
+# List services
+nopo list
+
+# List services with filtering
+nopo list --filter buildable
+
+# List services in JSON format
+nopo list --json
 ```
 
 ### Arbitrary Commands
@@ -268,6 +305,7 @@ nopo run test backend web
 **Target Discovery**: Targets are automatically discovered from `apps/*/Dockerfile`. Each directory in `apps/` that contains a `Dockerfile` is considered a target (e.g., `backend`, `web`).
 
 **Special Cases**:
+
 - The `build` command also supports a special `base` target for the base image
 - When no targets are specified:
   - **Script classes**: Operate on all discovered targets
@@ -278,16 +316,96 @@ nopo run test backend web
 
 These environment variables can be set to customize the behavior of all commands:
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `ENV_FILE` | Path to the environment file | `.env` |
-| `DOCKER_BUILDER` | Custom Docker Buildx builder name | `nopo-builder` |
+| Variable         | Description                         | Default        |
+| ---------------- | ----------------------------------- | -------------- |
+| `ENV_FILE`       | Path to the environment file        | `.env`         |
+| `DOCKER_BUILDER` | Custom Docker Buildx builder name   | `nopo-builder` |
+| `DOCKER_PUSH`    | Push images to registry after build | `false`        |
+
+For a complete reference, see [Environment Variables Reference](./reference/environment-variables.md).
+
+## Advanced Features
+
+### Service Discovery and Filtering
+
+The `list` command provides powerful service discovery capabilities:
+
+```bash
+# List all services
+nopo list
+
+# Filter buildable services
+nopo list --filter buildable
+
+# Filter by infrastructure properties
+nopo list --filter "infrastructure.cpu=1"
+nopo list --filter has_database
+
+# Output in machine-readable formats
+nopo list --json
+nopo list --csv
+nopo list --json --jq '.services | keys'
+```
+
+### Docker Tag Support with Digests
+
+Advanced Docker tag parsing supports content-addressable images:
+
+```bash
+# Standard tag
+DOCKER_TAG=myimage:v1.0.0
+
+# With digest for content addressing
+DOCKER_TAG=myimage:v1.0.0@sha256:abc123def456...
+```
+
+### Performance Optimization
+
+Offline-first sync and parallel execution for faster workflows:
+
+```bash
+# Offline-first sync (falls back to online if needed)
+nopo up
+
+# Parallel builds with dependency resolution
+nopo build backend web
+```
+
+### Machine-Readable Output
+
+Commands support JSON/CSV output for automation:
+
+```bash
+# Service inventory in JSON
+nopo list --json > services.json
+
+# Build output for CI
+nopo build --output build-info.json
+
+# Status for monitoring
+nopo status --json
+```
+
+### Configuration Validation
+
+Validate your nopo.yml configuration:
+
+```bash
+nopo list --validate
+```
+
+## See Also
+
+- [Advanced Configuration Guide](./guides/advanced-configuration.md) - Docker tags, build options, and environment variables
+- [Performance Optimization Guide](./guides/performance-optimization.md) - Offline-first sync and parallel execution
+- [CI/CD Integration Guide](./guides/cicd-integration.md) - Pipeline examples and automation
+- [Environment Variables Reference](./reference/environment-variables.md) - Complete environment variables reference
 
 ## Command Routing
 
 The CLI uses intelligent routing to determine how to execute commands:
 
-1. **Help**: 
+1. **Help**:
    - `nopo` or `nopo help` → Print general help
    - `nopo <command> help` or `nopo <command> --help` → Print command-specific help
 2. **Script Class**: If first argument matches a built-in command → Execute script class
@@ -337,17 +455,18 @@ export default class UpScript extends Script {
   static dependencies = [
     {
       class: EnvScript,
-      enabled: true // Always run env first
+      enabled: true, // Always run env first
     },
     {
       class: BuildScript,
-      enabled: (runner) => runner.environment.env.DOCKER_VERSION === "local"
-    }
+      enabled: (runner) => runner.environment.env.DOCKER_VERSION === "local",
+    },
   ];
 }
 ```
 
 **Dependency Behavior**:
+
 - **Script Classes**: Full dependency resolution (env, build, pull as needed)
 - **Host Execution**: Only `EnvScript` (environment variables)
 - **Container Execution**: Full dependency resolution (env, build/pull if service down)
@@ -379,4 +498,3 @@ The tool follows this precedence for configuration:
 
 - On Unix systems, ensure the binary is executable: `chmod +x ./bin.js`
 - For global installation, you may need sudo: `sudo npm install -g .`
-
