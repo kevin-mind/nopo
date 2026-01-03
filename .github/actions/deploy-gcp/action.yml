@@ -30,6 +30,10 @@ inputs:
     required: false
     default: "infrastructure/terraform/environments"
 
+  database_url:
+    description: "The database URL secret value"
+    required: true
+
 outputs:
   load_balancer_ip:
     description: The load balancer IP address
@@ -114,10 +118,10 @@ runs:
 
         echo "Services configuration:"
         echo "${services_tf}" | jq .
-        
+
         # Save to file for Terraform
         echo "${services_tf}" > services.json
-        
+
         # Output as compact JSON (single line) for GitHub Actions
         services_compact=$(echo "${services_tf}" | jq -c .)
         echo "services_json=${services_compact}" >> "$GITHUB_OUTPUT"
@@ -141,6 +145,7 @@ runs:
         TF_VAR_region: ${{ inputs.region }}
         TF_VAR_domain: ${{ inputs.domain }}
         TF_VAR_subdomain_prefix: ${{ inputs.subdomain_prefix }}
+        TF_VAR_database_url: ${{ inputs.database_url }}
       run: |
         # Pass services as JSON variable
         terraform plan -input=false -out=tfplan \

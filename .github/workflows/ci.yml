@@ -86,26 +86,23 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - uses: ./.github/actions/setup-node
+      - uses: ./.github/actions/setup-node
 
-    - uses: ./.github/actions/setup-docker
+      - uses: ./.github/actions/setup-docker
 
-    - name: Up
-      uses: ./.github/actions/run-docker
+      - name: Up
+        uses: ./.github/actions/run-docker
 
-    - name: Run smoketest
-      uses: ./.github/actions/smoketest
-      with:
-        public_url: http://localhost
+      - name: Run smoketest
+        uses: ./.github/actions/smoketest
+        with:
+          public_url: http://localhost
 
   terraform:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    defaults:
-      run:
-        working-directory: infrastructure/terraform
     steps:
       - uses: actions/checkout@v4
 
@@ -114,21 +111,8 @@ jobs:
         with:
           terraform_version: "1.7.0"
 
-      - name: Terraform Format Check
-        run: terraform fmt -check -recursive
-
-      - name: Validate modules
-        run: |
-          for dir in modules/*/; do
-            echo "=== Validating ${dir} ==="
-            terraform -chdir="${dir}" init -backend=false
-            terraform -chdir="${dir}" validate
-          done
-
-      - name: Validate root module
-        run: |
-          terraform init -backend=false
-          terraform validate
+      - name: Lint Infrastructure
+        run: make lint-infra
 
   checks:
     if: always()

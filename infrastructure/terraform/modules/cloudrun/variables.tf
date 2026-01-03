@@ -34,38 +34,10 @@ variable "services" {
   }))
 }
 
-variable "vpc_connector_id" {
-  description = "The VPC connector ID"
-  type        = string
-  default     = ""
-}
 
-variable "db_connection_name" {
-  description = "The Cloud SQL connection name"
-  type        = string
-  default     = ""
-}
 
-variable "db_host" {
-  description = "The database host (private IP)"
-  type        = string
-  default     = ""
-}
-
-variable "db_name" {
-  description = "The database name"
-  type        = string
-  default     = ""
-}
-
-variable "db_user" {
-  description = "The database user"
-  type        = string
-  default     = ""
-}
-
-variable "db_password_secret_id" {
-  description = "The Secret Manager secret ID for database password"
+variable "database_url_secret_id" {
+  description = "The Secret Manager secret ID for database URL"
   type        = string
   default     = ""
 }

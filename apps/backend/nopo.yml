@@ -35,7 +35,9 @@ commands:
       server: uv run --verbose python manage.py runserver 0.0.0.0:80 --settings=settings
       vite: pnpm exec vite --port 5173
   start: uv run --verbose gunicorn --config gunicorn.conf.py backend.mysite.wsgi:application
-  migrate: uv run --verbose python manage.py migrate
-  migrate:check: uv run python manage.py migrate --check
+  migrate:
+    commands:
+      run: uv run --verbose python manage.py migrate
+      check: uv run python manage.py migrate --check
   makemigrations: uv run --verbose python manage.py makemigrations
   shell: uv run --verbose python manage.py shell

@@ -31,16 +31,7 @@ output "web_service_url" {
   value       = module.cloudrun.web_service_url
 }
 
-# Database outputs
-output "db_connection_name" {
-  description = "The Cloud SQL connection name"
-  value       = length(module.cloudsql) > 0 ? module.cloudsql[0].connection_name : ""
-}
 
-output "db_private_ip" {
-  description = "The private IP of the Cloud SQL instance"
-  value       = length(module.cloudsql) > 0 ? module.cloudsql[0].private_ip : ""
-}
 
 # Artifact Registry outputs
 output "artifact_registry_url" {

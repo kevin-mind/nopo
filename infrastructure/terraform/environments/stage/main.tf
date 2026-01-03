@@ -30,8 +30,8 @@ module "infrastructure" {
   backend_image = var.backend_image
   web_image     = var.web_image
 
-  # Staging uses smaller resources
-  db_tier = "db-f1-micro"
+  database_url = var.database_url
+
 
   labels = {
     environment = "stage"

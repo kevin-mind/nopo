@@ -48,3 +48,10 @@ variable "web_image" {
   type        = string
   default     = ""
 }
+
+variable "database_url" {
+  description = "The database URL to store in Secret Manager"
+  type        = string
+  sensitive   = true
+  default     = ""
+}

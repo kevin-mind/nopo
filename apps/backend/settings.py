@@ -135,7 +135,7 @@ WSGI_APPLICATION = "backend.mysite.wsgi.application"
 db_config = dj_database_url.config(
     conn_max_age=600,
     conn_health_checks=True,
-    ssl_require=os.environ.get("DATABASE_SSL", "false") == "true",
+    ssl_require=os.environ.get("DATABASE_SSL", "False") == "True",
     test_options={
         "NAME": "test_database",
     },

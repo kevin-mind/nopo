@@ -4,15 +4,15 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'The version to deploy'
+        description: "The version to deploy"
         required: true
         type: string
       digest:
-        description: 'The digest to deploy'
+        description: "The digest to deploy"
         required: false
         type: string
       environment:
-        description: 'The environment to deploy to'
+        description: "The environment to deploy to"
         required: true
         type: choice
         options:
@@ -22,15 +22,15 @@ on:
   workflow_call:
     inputs:
       version:
-        description: 'The version to deploy'
+        description: "The version to deploy"
         required: true
         type: string
       digest:
-        description: 'The digest to deploy'
+        description: "The digest to deploy"
         required: false
         type: string
       environment:
-        description: 'The environment to deploy to'
+        description: "The environment to deploy to"
         required: true
         type: string
 
@@ -96,67 +96,10 @@ jobs:
           fi
           cat "$GITHUB_OUTPUT"
 
-  # Prepare static bucket first so push_images can upload static assets
-  prepare_bucket:
-    name: Prepare static bucket
-    needs: [context]
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      id-token: write
-    outputs:
-      bucket_name: ${{ steps.bucket.outputs.bucket_name }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "1.7.0"
-          terraform_wrapper: false
-
-      - name: Authenticate to GCP
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-
-      - name: Terraform Init
-        working-directory: infrastructure/terraform/environments/${{ inputs.environment }}
-        env:
-          TF_STATE_BUCKET: ${{ vars.TERRAFORM_STATE_BUCKET }}
-          ENVIRONMENT: ${{ inputs.environment }}
-        run: |
-          terraform init -input=false \
-            -backend-config="bucket=${TF_STATE_BUCKET}" \
-            -backend-config="prefix=nopo/${ENVIRONMENT}"
-
-      - name: Apply static bucket only
-        id: bucket
-        working-directory: infrastructure/terraform/environments/${{ inputs.environment }}
-        env:
-          TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID }}
-          TF_VAR_region: ${{ env.GCP_REGION }}
-          TF_VAR_domain: ${{ vars.DOMAIN }}
-          TF_VAR_subdomain_prefix: ${{ needs.context.outputs.subdomain_prefix }}
-          ENVIRONMENT: ${{ inputs.environment }}
-        run: |
-          # Targeted apply for just the static bucket and its dependencies
-          terraform apply -input=false -auto-approve \
-            -target='module.infrastructure.google_project_service.services' \
-            -target='module.infrastructure.module.static_assets' \
-            -var='services={}'
-          
-          # Use known bucket naming convention (terraform output not available in targeted apply)
-          bucket_name="nopo-${ENVIRONMENT}-static"
-          echo "bucket_name=${bucket_name}" >> "$GITHUB_OUTPUT"
-          echo "Static bucket: ${bucket_name}"
-
   # Push images to Artifact Registry and upload static assets (per service)
   push_images:
     name: Push ${{ matrix.service }}
-    needs: [context, prepare_bucket]
+    needs: [context]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -207,7 +150,7 @@ jobs:
       - name: Upload static assets
         env:
           GHCR_IMAGE: ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ inputs.version }}
-          BUCKET_NAME: ${{ needs.prepare_bucket.outputs.bucket_name }}
+          BUCKET_NAME: nopo-${{ inputs.environment }}-static
           SERVICE: ${{ matrix.service }}
         run: |
           service_config=$(make list -- --json --jq ".services.\"${SERVICE}\"")
@@ -217,26 +160,26 @@ jobs:
           fi
 
           static_path=$(echo "${service_config}" | jq -r '.static_path // empty')
-          
+
           if [[ -z "${static_path}" || "${static_path}" == "null" ]]; then
             echo "No static_path configured for ${SERVICE} - skipping"
             exit 0
           fi
-          
+
           echo "=== Uploading static assets for ${SERVICE} ==="
           echo "Static path: /app/apps/${SERVICE}/${static_path}"
-          
+
           # Create a temporary container from the already-pulled image
           CONTAINER_ID=$(docker create "${GHCR_IMAGE}")
           echo "Container ID: ${CONTAINER_ID}"
-          
+
           # Create temp directory
           EXTRACT_DIR=$(mktemp -d)
-          
+
           # Copy static files from container
           CONTAINER_PATH="/app/apps/${SERVICE}/${static_path}"
           echo "Extracting from ${CONTAINER_PATH}..."
-          
+
           if docker cp "${CONTAINER_ID}:${CONTAINER_PATH}/." "${EXTRACT_DIR}/" 2>/dev/null; then
             # Count and show files
             FILE_COUNT=$(find "${EXTRACT_DIR}" -type f | wc -l)
@@ -252,7 +195,7 @@ jobs:
           else
             echo "⚠ No static files found at ${CONTAINER_PATH} - skipping"
           fi
-          
+
           # Cleanup
           docker rm "${CONTAINER_ID}" > /dev/null
           rm -rf "${EXTRACT_DIR}"
@@ -293,6 +236,7 @@ jobs:
           subdomain_prefix: ${{ needs.context.outputs.subdomain_prefix }}
           service_images: ${{ needs.context.outputs.service_images }}
           terraform_state_bucket: ${{ vars.TERRAFORM_STATE_BUCKET }}
+          database_url: ${{ secrets.SUPABASE_DATABASE_URL }}
 
   run_migrations:
     name: Run database migrations
