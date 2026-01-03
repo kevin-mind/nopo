@@ -8,6 +8,7 @@ resource "google_sql_database_instance" "main" {
   settings {
     tier              = var.tier
     availability_type = "ZONAL"
+    activation_policy = "ON_DEMAND"
     disk_size         = 10
     disk_type         = "PD_SSD"
 

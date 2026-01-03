@@ -231,7 +231,7 @@ resource "google_cloud_run_v2_job" "migration_check" {
         }
 
         # Check for pending migrations (exits 0 if none, 1 if pending)
-        command = ["pnpm", "run", "--filter=@more/${each.key}", "migrate:check"]
+        command = ["nopo", "migrate:check", "${each.key}"]
 
         env {
           name  = "SERVICE_NAME"
@@ -346,7 +346,7 @@ resource "google_cloud_run_v2_job" "migrations" {
         }
 
         # Override command to run migrations
-        command = ["pnpm", "run", "--filter=@more/${each.key}", "migrate"]
+        command = ["nopo", "migrate", "${each.key}"]
 
         env {
           name  = "SERVICE_NAME"
