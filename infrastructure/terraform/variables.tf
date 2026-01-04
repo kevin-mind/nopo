@@ -93,3 +93,9 @@ variable "labels" {
   type        = map(string)
   default     = {}
 }
+
+variable "supabase_database_url" {
+  description = "The Supabase database connection string"
+  type        = string
+  sensitive   = true
+}

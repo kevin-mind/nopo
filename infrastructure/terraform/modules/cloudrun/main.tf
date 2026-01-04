@@ -29,6 +29,14 @@ resource "google_secret_manager_secret_iam_member" "django_secret_access" {
   member    = "serviceAccount:${google_service_account.cloudrun.email}"
 }
 
+resource "google_secret_manager_secret_iam_member" "supabase_db_url_access" {
+  count     = var.supabase_database_url_secret_id != "" ? 1 : 0
+  project   = var.project_id
+  secret_id = var.supabase_database_url_secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.cloudrun.email}"
+}
+
 # Dynamic Cloud Run services based on var.services
 resource "google_cloud_run_v2_service" "services" {
   for_each = var.services
@@ -69,7 +77,6 @@ resource "google_cloud_run_v2_service" "services" {
       }
 
       # Common environment variables
-      # Note: PORT is automatically set by Cloud Run based on the container port
       env {
         name  = "SERVICE_NAME"
         value = each.key
@@ -89,41 +96,26 @@ resource "google_cloud_run_v2_service" "services" {
         }
       }
 
-      # Database environment variables (only for services with database access)
+      # Database environment variables (Supabase)
       dynamic "env" {
-        for_each = each.value.has_database ? [1] : []
+        for_each = each.value.has_database && var.supabase_database_url_secret_id != "" ? [1] : []
         content {
-          name  = "DB_HOST"
-          value = var.db_host
-        }
-      }
-
-      dynamic "env" {
-        for_each = each.value.has_database ? [1] : []
-        content {
-          name  = "DB_NAME"
-          value = var.db_name
-        }
-      }
-
-      dynamic "env" {
-        for_each = each.value.has_database ? [1] : []
-        content {
-          name  = "DB_USER"
-          value = var.db_user
-        }
-      }
-
-      dynamic "env" {
-        for_each = each.value.has_database && var.db_password_secret_id != "" ? [1] : []
-        content {
-          name = "DB_PASSWORD"
+          name = "DATABASE_URL"
           value_source {
             secret_key_ref {
-              secret  = var.db_password_secret_id
+              secret  = var.supabase_database_url_secret_id
               version = "latest"
             }
           }
+        }
+      }
+
+      # Always set DATABASE_SSL=true for Supabase connections
+      dynamic "env" {
+        for_each = each.value.has_database && var.supabase_database_url_secret_id != "" ? [1] : []
+        content {
+          name  = "DATABASE_SSL"
+          value = "true"
         }
       }
 
@@ -140,7 +132,7 @@ resource "google_cloud_run_v2_service" "services" {
         }
       }
 
-      # Cloud SQL connection (only for services with database access)
+      # Cloud SQL connection (only if db_connection_name is provided)
       dynamic "volume_mounts" {
         for_each = each.value.has_database && var.db_connection_name != "" ? [1] : []
         content {
@@ -199,8 +191,7 @@ resource "google_cloud_run_v2_service_iam_member" "invokers" {
   member   = "allUsers"
 }
 
-# Migration check jobs for services that need migrations
-# These jobs check if there are pending migrations without applying them
+# Migration check jobs
 resource "google_cloud_run_v2_job" "migration_check" {
   for_each = { for k, v in var.services : k => v if v.run_migrations }
 
@@ -230,7 +221,6 @@ resource "google_cloud_run_v2_job" "migration_check" {
           }
         }
 
-        # Check for pending migrations (exits 0 if none, 1 if pending)
         command = ["nopo", "migrate:check", "${each.key}"]
 
         env {
@@ -239,39 +229,23 @@ resource "google_cloud_run_v2_job" "migration_check" {
         }
 
         dynamic "env" {
-          for_each = var.db_host != "" ? [1] : []
+          for_each = var.supabase_database_url_secret_id != "" ? [1] : []
           content {
-            name  = "DB_HOST"
-            value = var.db_host
-          }
-        }
-
-        dynamic "env" {
-          for_each = var.db_name != "" ? [1] : []
-          content {
-            name  = "DB_NAME"
-            value = var.db_name
-          }
-        }
-
-        dynamic "env" {
-          for_each = var.db_user != "" ? [1] : []
-          content {
-            name  = "DB_USER"
-            value = var.db_user
-          }
-        }
-
-        dynamic "env" {
-          for_each = var.db_password_secret_id != "" ? [1] : []
-          content {
-            name = "DB_PASSWORD"
+            name = "DATABASE_URL"
             value_source {
               secret_key_ref {
-                secret  = var.db_password_secret_id
+                secret  = var.supabase_database_url_secret_id
                 version = "latest"
               }
             }
+          }
+        }
+
+        dynamic "env" {
+          for_each = var.supabase_database_url_secret_id != "" ? [1] : []
+          content {
+            name  = "DATABASE_SSL"
+            value = "true"
           }
         }
 
@@ -315,7 +289,7 @@ resource "google_cloud_run_v2_job" "migration_check" {
   labels = var.labels
 }
 
-# Migration jobs for services that need them
+# Migration jobs
 resource "google_cloud_run_v2_job" "migrations" {
   for_each = { for k, v in var.services : k => v if v.run_migrations }
 
@@ -345,7 +319,6 @@ resource "google_cloud_run_v2_job" "migrations" {
           }
         }
 
-        # Override command to run migrations
         command = ["nopo", "migrate:run", "${each.key}"]
 
         env {
@@ -354,39 +327,23 @@ resource "google_cloud_run_v2_job" "migrations" {
         }
 
         dynamic "env" {
-          for_each = var.db_host != "" ? [1] : []
+          for_each = var.supabase_database_url_secret_id != "" ? [1] : []
           content {
-            name  = "DB_HOST"
-            value = var.db_host
-          }
-        }
-
-        dynamic "env" {
-          for_each = var.db_name != "" ? [1] : []
-          content {
-            name  = "DB_NAME"
-            value = var.db_name
-          }
-        }
-
-        dynamic "env" {
-          for_each = var.db_user != "" ? [1] : []
-          content {
-            name  = "DB_USER"
-            value = var.db_user
-          }
-        }
-
-        dynamic "env" {
-          for_each = var.db_password_secret_id != "" ? [1] : []
-          content {
-            name = "DB_PASSWORD"
+            name = "DATABASE_URL"
             value_source {
               secret_key_ref {
-                secret  = var.db_password_secret_id
+                secret  = var.supabase_database_url_secret_id
                 version = "latest"
               }
             }
+          }
+        }
+
+        dynamic "env" {
+          for_each = var.supabase_database_url_secret_id != "" ? [1] : []
+          content {
+            name  = "DATABASE_SSL"
+            value = "true"
           }
         }
 

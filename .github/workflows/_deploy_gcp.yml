@@ -146,7 +146,8 @@ jobs:
           terraform apply -input=false -auto-approve \
             -target='module.infrastructure.google_project_service.services' \
             -target='module.infrastructure.module.static_assets' \
-            -var='services={}'
+            -var='services={}' \
+            -var='supabase_database_url=dummy'
           
           # Use known bucket naming convention (terraform output not available in targeted apply)
           bucket_name="nopo-${ENVIRONMENT}-static"
@@ -293,6 +294,7 @@ jobs:
           subdomain_prefix: ${{ needs.context.outputs.subdomain_prefix }}
           service_images: ${{ needs.context.outputs.service_images }}
           terraform_state_bucket: ${{ vars.TERRAFORM_STATE_BUCKET }}
+          supabase_database_url: ${{ secrets.SUPABASE_DATABASE_URL }}
 
   run_migrations:
     name: Run database migrations

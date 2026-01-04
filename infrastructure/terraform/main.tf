@@ -91,10 +91,13 @@ module "secrets" {
   name_prefix = local.name_prefix
   labels      = local.common_labels
 
+  supabase_database_url = var.supabase_database_url
+
   depends_on = [google_project_service.services]
 }
 
 # Cloud SQL (PostgreSQL) database - only if any service needs it
+# Note: Currently bypassed in favor of Supabase, but kept for infrastructure integrity
 module "cloudsql" {
   source = "./modules/cloudsql"
   count  = length(local.db_services) > 0 ? 1 : 0
@@ -129,13 +132,17 @@ module "cloudrun" {
 
   services = local.services
 
-  vpc_connector_id      = module.networking.vpc_connector_id
+  vpc_connector_id = module.networking.vpc_connector_id
+  # DB connection/host from Cloud SQL currently unused by services, but passed for module compatibility
   db_connection_name    = length(module.cloudsql) > 0 ? module.cloudsql[0].connection_name : ""
   db_host               = length(module.cloudsql) > 0 ? module.cloudsql[0].private_ip : ""
   db_name               = var.db_name
   db_user               = var.db_user
   db_password_secret_id = module.secrets.db_password_secret_id
   django_secret_key_id  = module.secrets.django_secret_key_id
+
+  # Supabase configuration
+  supabase_database_url_secret_id = module.secrets.supabase_database_url_secret_id
 
   public_url      = "https://${local.fqdn}"
   static_url_base = var.enable_static_bucket ? "https://${local.fqdn}/static" : ""

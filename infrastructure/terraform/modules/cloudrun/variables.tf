@@ -86,3 +86,9 @@ variable "static_url_base" {
   type        = string
   default     = ""
 }
+
+variable "supabase_database_url_secret_id" {
+  description = "The Secret Manager secret ID for Supabase database URL"
+  type        = string
+  default     = ""
+}

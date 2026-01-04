@@ -11,7 +11,7 @@ resource "random_password" "django_secret" {
   special = true
 }
 
-# Database password secret
+# Database password secret (legacy Cloud SQL)
 resource "google_secret_manager_secret" "db_password" {
   project   = var.project_id
   secret_id = "${var.name_prefix}-db-password"
@@ -43,4 +43,21 @@ resource "google_secret_manager_secret" "django_secret" {
 resource "google_secret_manager_secret_version" "django_secret" {
   secret      = google_secret_manager_secret.django_secret.id
   secret_data = random_password.django_secret.result
+}
+
+# Supabase database URL secret
+resource "google_secret_manager_secret" "supabase_database_url" {
+  project   = var.project_id
+  secret_id = "${var.name_prefix}-supabase-db-url"
+
+  replication {
+    auto {}
+  }
+
+  labels = var.labels
+}
+
+resource "google_secret_manager_secret_version" "supabase_database_url" {
+  secret      = google_secret_manager_secret.supabase_database_url.id
+  secret_data = var.supabase_database_url
 }

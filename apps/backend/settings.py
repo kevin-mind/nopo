@@ -28,7 +28,7 @@ ASSETS_DIR = BASE_DIR / "assets"
 PROJECT_ROOT = BASE_DIR / "src" / "backend"
 
 SECRET_KEY = os.environ.get(
-    "SECRET_KEY", "django-insecure-f8cge)81#503fxpdix5bx*yrg#=*$vp@_12cu3^kh)ntrn)&2a"
+    "SECRET_KEY", "django-insecure-f8cge)81#503fxpdix5bx*yrg#=*@_12cu3^kh)ntrn)&2a"
 )
 
 # Add this at the end of settings.py
@@ -132,6 +132,7 @@ WSGI_APPLICATION = "backend.mysite.wsgi.application"
 
 # Database configuration
 # Use dj_database_url if DATABASE_URL is set, otherwise fall back to SQLite for tests
+# dj_database_url parses the DATABASE_URL environment variable automatically
 db_config = dj_database_url.config(
     conn_max_age=600,
     conn_health_checks=True,
