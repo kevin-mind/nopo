@@ -37,7 +37,7 @@ locals {
 
   # Default service for load balancer (first non-db service, or first service)
   non_db_services = [for k, v in local.services : k if !v.has_database]
-  default_service = length(local.non_db_services) > 0 ? local.non_db_services[0] : keys(local.services)[0]
+  default_service = length(local.non_db_services) > 0 ? local.non_db_services[0] : (contains(keys(local.services), "web") ? "web" : keys(local.services)[0])
 }
 
 # Enable required APIs

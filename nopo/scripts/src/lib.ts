@@ -304,8 +304,18 @@ class ProcessPromiseImpl implements ProcessPromise {
 
       // Write input to stdin if provided
       if (options.input && this.proc.stdin) {
-        this.proc.stdin.write(options.input);
-        this.proc.stdin.end();
+        this.proc.stdin.on("error", (err) => {
+          if ((err as any).code === "EPIPE") return;
+          reject(new ProcessOutput(1, null, "", err.message));
+        });
+        try {
+          this.proc.stdin.write(options.input);
+          this.proc.stdin.end();
+        } catch (err) {
+          if ((err as any).code === "EPIPE") return;
+          reject(new ProcessOutput(1, null, "", (err as Error).message));
+          return;
+        }
       }
 
       if (this.proc.stdout) {
