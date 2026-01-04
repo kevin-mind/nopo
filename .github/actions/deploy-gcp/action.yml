@@ -29,6 +29,9 @@ inputs:
     description: The Terraform working directory
     required: false
     default: "infrastructure/terraform/environments"
+  supabase_database_url:
+    description: The Supabase database URL
+    required: true
 
 outputs:
   load_balancer_ip:
@@ -141,6 +144,7 @@ runs:
         TF_VAR_region: ${{ inputs.region }}
         TF_VAR_domain: ${{ inputs.domain }}
         TF_VAR_subdomain_prefix: ${{ inputs.subdomain_prefix }}
+        TF_VAR_supabase_database_url: ${{ inputs.supabase_database_url }}
       run: |
         # Pass services as JSON variable
         terraform plan -input=false -out=tfplan \

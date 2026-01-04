@@ -19,12 +19,12 @@ provider "google-beta" {
 module "infrastructure" {
   source = "../../"
 
-  project_id       = var.project_id
-  region           = var.region
-  environment      = "stage"
-  domain           = var.domain
-  subdomain_prefix = var.subdomain_prefix
-
+  project_id            = var.project_id
+  region                = var.region
+  environment           = "stage"
+  domain                = var.domain
+  subdomain_prefix      = var.subdomain_prefix
+  supabase_database_url = var.supabase_database_url
   # Dynamic services (preferred) or legacy individual images
   services      = var.services
   backend_image = var.backend_image
