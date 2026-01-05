@@ -5,22 +5,7 @@ resource "google_service_account" "cloudrun" {
   display_name = "${var.name_prefix} Cloud Run Service Account"
 }
 
-# Grant Cloud SQL Client role to the service account
-resource "google_project_iam_member" "cloudsql_client" {
-  project = var.project_id
-  role    = "roles/cloudsql.client"
-  member  = "serviceAccount:${google_service_account.cloudrun.email}"
-}
-
 # Grant Secret Manager access for each secret
-resource "google_secret_manager_secret_iam_member" "db_password_access" {
-  count     = var.db_password_secret_id != "" ? 1 : 0
-  project   = var.project_id
-  secret_id = var.db_password_secret_id
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.cloudrun.email}"
-}
-
 resource "google_secret_manager_secret_iam_member" "django_secret_access" {
   count     = var.django_secret_key_id != "" ? 1 : 0
   project   = var.project_id
@@ -51,14 +36,6 @@ resource "google_cloud_run_v2_service" "services" {
     scaling {
       min_instance_count = each.value.min_instances
       max_instance_count = each.value.max_instances
-    }
-
-    dynamic "vpc_access" {
-      for_each = each.value.has_database && var.vpc_connector_id != "" ? [1] : []
-      content {
-        connector = var.vpc_connector_id
-        egress    = "PRIVATE_RANGES_ONLY"
-      }
     }
 
     containers {
@@ -132,15 +109,6 @@ resource "google_cloud_run_v2_service" "services" {
         }
       }
 
-      # Cloud SQL connection (only if db_connection_name is provided)
-      dynamic "volume_mounts" {
-        for_each = each.value.has_database && var.db_connection_name != "" ? [1] : []
-        content {
-          name       = "cloudsql"
-          mount_path = "/cloudsql"
-        }
-      }
-
       startup_probe {
         http_get {
           path = "/__version__"
@@ -158,16 +126,6 @@ resource "google_cloud_run_v2_service" "services" {
         }
         period_seconds    = 30
         failure_threshold = 3
-      }
-    }
-
-    dynamic "volumes" {
-      for_each = each.value.has_database && var.db_connection_name != "" ? [1] : []
-      content {
-        name = "cloudsql"
-        cloud_sql_instance {
-          instances = [var.db_connection_name]
-        }
       }
     }
   }
@@ -202,14 +160,6 @@ resource "google_cloud_run_v2_job" "migration_check" {
   template {
     template {
       service_account = google_service_account.cloudrun.email
-
-      dynamic "vpc_access" {
-        for_each = var.vpc_connector_id != "" ? [1] : []
-        content {
-          connector = var.vpc_connector_id
-          egress    = "PRIVATE_RANGES_ONLY"
-        }
-      }
 
       containers {
         image = each.value.image
@@ -261,24 +211,6 @@ resource "google_cloud_run_v2_job" "migration_check" {
             }
           }
         }
-
-        dynamic "volume_mounts" {
-          for_each = var.db_connection_name != "" ? [1] : []
-          content {
-            name       = "cloudsql"
-            mount_path = "/cloudsql"
-          }
-        }
-      }
-
-      dynamic "volumes" {
-        for_each = var.db_connection_name != "" ? [1] : []
-        content {
-          name = "cloudsql"
-          cloud_sql_instance {
-            instances = [var.db_connection_name]
-          }
-        }
       }
 
       max_retries = 0
@@ -300,14 +232,6 @@ resource "google_cloud_run_v2_job" "migrations" {
   template {
     template {
       service_account = google_service_account.cloudrun.email
-
-      dynamic "vpc_access" {
-        for_each = var.vpc_connector_id != "" ? [1] : []
-        content {
-          connector = var.vpc_connector_id
-          egress    = "PRIVATE_RANGES_ONLY"
-        }
-      }
 
       containers {
         image = each.value.image
@@ -357,24 +281,6 @@ resource "google_cloud_run_v2_job" "migrations" {
                 version = "latest"
               }
             }
-          }
-        }
-
-        dynamic "volume_mounts" {
-          for_each = var.db_connection_name != "" ? [1] : []
-          content {
-            name       = "cloudsql"
-            mount_path = "/cloudsql"
-          }
-        }
-      }
-
-      dynamic "volumes" {
-        for_each = var.db_connection_name != "" ? [1] : []
-        content {
-          name = "cloudsql"
-          cloud_sql_instance {
-            instances = [var.db_connection_name]
           }
         }
       }

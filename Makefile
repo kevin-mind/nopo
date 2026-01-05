@@ -14,10 +14,6 @@ default:
 	pnpm install
 	npx -y tsx ./nopo/scripts/bin.ts
 
-.PHONY: fly
-fly:
-	node ./fly/scripts/$(SECOND_WORD).js
-
 .PHONY: shell
 shell:
 	docker compose run --rm $(or $(SERVICE_NAME),base) bash

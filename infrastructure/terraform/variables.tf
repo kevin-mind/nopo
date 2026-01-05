@@ -31,25 +31,6 @@ variable "subdomain_prefix" {
   default     = ""
 }
 
-# Database Configuration
-variable "db_tier" {
-  description = "The Cloud SQL instance tier"
-  type        = string
-  default     = "db-f1-micro"
-}
-
-variable "db_name" {
-  description = "The name of the database"
-  type        = string
-  default     = "database"
-}
-
-variable "db_user" {
-  description = "The database user name"
-  type        = string
-  default     = "app"
-}
-
 # Dynamic Services Configuration
 variable "services" {
   description = "Map of services to deploy, keyed by service name"

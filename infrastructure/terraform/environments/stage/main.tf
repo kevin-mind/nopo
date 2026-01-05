@@ -19,19 +19,18 @@ provider "google-beta" {
 module "infrastructure" {
   source = "../../"
 
-  project_id            = var.project_id
-  region                = var.region
-  environment           = "stage"
-  domain                = var.domain
-  subdomain_prefix      = var.subdomain_prefix
-  supabase_database_url = var.supabase_database_url
+  project_id       = var.project_id
+  region           = var.region
+  environment      = "stage"
+  domain           = var.domain
+  subdomain_prefix = var.subdomain_prefix
+
   # Dynamic services (preferred) or legacy individual images
   services      = var.services
   backend_image = var.backend_image
   web_image     = var.web_image
 
-  # Staging uses smaller resources
-  db_tier = "db-f1-micro"
+  supabase_database_url = var.supabase_database_url
 
   labels = {
     environment = "stage"

@@ -19,19 +19,18 @@ provider "google-beta" {
 module "infrastructure" {
   source = "../../"
 
-  project_id            = var.project_id
-  region                = var.region
-  environment           = "prod"
-  domain                = var.domain
-  subdomain_prefix      = var.subdomain_prefix
-  supabase_database_url = var.supabase_database_url
+  project_id       = var.project_id
+  region           = var.region
+  environment      = "prod"
+  domain           = var.domain
+  subdomain_prefix = var.subdomain_prefix
+
   # Dynamic services (preferred) or legacy individual images
   services      = var.services
   backend_image = var.backend_image
   web_image     = var.web_image
 
-  # Production uses larger resources
-  db_tier = "db-custom-1-3840" # 1 vCPU, 3.75 GB RAM
+  supabase_database_url = var.supabase_database_url
 
   labels = {
     environment = "prod"
