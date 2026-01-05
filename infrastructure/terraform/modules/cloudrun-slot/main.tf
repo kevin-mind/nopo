@@ -1,25 +1,15 @@
-# Service account for Cloud Run services
-resource "google_service_account" "cloudrun" {
-  project      = var.project_id
-  account_id   = "${var.name_prefix}-cloudrun"
-  display_name = "${var.name_prefix} Cloud Run Service Account"
-}
+# Cloud Run services for a deployment slot (stable or canary)
+#
+# This module creates Cloud Run services with a slot suffix in the name.
+# Example: nopo-stage-backend-stable, nopo-stage-backend-canary
+#
+# The stable slot receives normal traffic.
+# The canary slot receives traffic only when X-Force-Canary header is present.
 
-# Grant Secret Manager access for each secret
-resource "google_secret_manager_secret_iam_member" "django_secret_access" {
-  count     = var.django_secret_key_id != "" ? 1 : 0
-  project   = var.project_id
-  secret_id = var.django_secret_key_id
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.cloudrun.email}"
-}
-
-resource "google_secret_manager_secret_iam_member" "supabase_db_url_access" {
-  count     = var.supabase_database_url_secret_id != "" ? 1 : 0
-  project   = var.project_id
-  secret_id = var.supabase_database_url_secret_id
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.cloudrun.email}"
+locals {
+  # Service names include the slot suffix
+  # e.g., nopo-stage-backend-stable, nopo-stage-web-canary
+  slot_suffix = "-${var.slot}"
 }
 
 # Dynamic Cloud Run services based on var.services
@@ -27,11 +17,11 @@ resource "google_cloud_run_v2_service" "services" {
   for_each = var.services
 
   project  = var.project_id
-  name     = "${var.name_prefix}-${each.key}"
+  name     = "${var.name_prefix}-${each.key}${local.slot_suffix}"
   location = var.region
 
   template {
-    service_account = google_service_account.cloudrun.email
+    service_account = var.service_account_email
 
     scaling {
       min_instance_count = each.value.min_instances
@@ -57,6 +47,11 @@ resource "google_cloud_run_v2_service" "services" {
       env {
         name  = "SERVICE_NAME"
         value = each.key
+      }
+
+      env {
+        name  = "DEPLOYMENT_SLOT"
+        value = var.slot
       }
 
       env {
@@ -135,7 +130,9 @@ resource "google_cloud_run_v2_service" "services" {
     type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
   }
 
-  labels = var.labels
+  labels = merge(var.labels, {
+    slot = var.slot
+  })
 }
 
 # IAM policy to allow unauthenticated access (public)
@@ -149,9 +146,9 @@ resource "google_cloud_run_v2_service_iam_member" "invokers" {
   member   = "allUsers"
 }
 
-# Migration check jobs
+# Migration check jobs (only for stable slot to avoid duplicate jobs)
 resource "google_cloud_run_v2_job" "migration_check" {
-  for_each = { for k, v in var.services : k => v if v.run_migrations }
+  for_each = var.slot == "stable" ? { for k, v in var.services : k => v if v.run_migrations } : {}
 
   project  = var.project_id
   name     = "${var.name_prefix}-${each.key}-migrate-check"
@@ -159,7 +156,7 @@ resource "google_cloud_run_v2_job" "migration_check" {
 
   template {
     template {
-      service_account = google_service_account.cloudrun.email
+      service_account = var.service_account_email
 
       containers {
         image = each.value.image
@@ -221,9 +218,9 @@ resource "google_cloud_run_v2_job" "migration_check" {
   labels = var.labels
 }
 
-# Migration jobs
+# Migration jobs (only for stable slot)
 resource "google_cloud_run_v2_job" "migrations" {
-  for_each = { for k, v in var.services : k => v if v.run_migrations }
+  for_each = var.slot == "stable" ? { for k, v in var.services : k => v if v.run_migrations } : {}
 
   project  = var.project_id
   name     = "${var.name_prefix}-${each.key}-migrate"
@@ -231,7 +228,7 @@ resource "google_cloud_run_v2_job" "migrations" {
 
   template {
     template {
-      service_account = google_service_account.cloudrun.email
+      service_account = var.service_account_email
 
       containers {
         image = each.value.image

@@ -30,9 +30,15 @@ variable "subdomain_prefix" {
   default     = ""
 }
 
-# Dynamic services map
-variable "services" {
-  description = "Map of service names to their Cloud Run URLs"
+# Stable slot service names (map of service key -> full Cloud Run service name)
+variable "stable_services" {
+  description = "Map of service keys to their stable Cloud Run service names"
+  type        = map(string)
+}
+
+# Canary slot service names (map of service key -> full Cloud Run service name)
+variable "canary_services" {
+  description = "Map of service keys to their canary Cloud Run service names"
   type        = map(string)
 }
 
@@ -42,7 +48,7 @@ variable "default_service" {
 }
 
 variable "db_services" {
-  description = "List of service names that handle database/API routes"
+  description = "List of service keys that handle database/API routes"
   type        = list(string)
   default     = []
 }
@@ -51,4 +57,16 @@ variable "static_backend_bucket_id" {
   description = "Backend bucket ID for static assets (optional)"
   type        = string
   default     = null
+}
+
+variable "canary_header_name" {
+  description = "HTTP header name for canary routing"
+  type        = string
+  default     = "X-Force-Canary"
+}
+
+variable "canary_header_value" {
+  description = "HTTP header value that triggers canary routing"
+  type        = string
+  default     = "true"
 }

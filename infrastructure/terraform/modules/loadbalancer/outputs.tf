@@ -12,3 +12,13 @@ output "ssl_certificate_name" {
   description = "The name of the SSL certificate"
   value       = google_compute_managed_ssl_certificate.default.name
 }
+
+output "canary_header_name" {
+  description = "The header name for canary routing"
+  value       = var.canary_header_name
+}
+
+output "canary_header_value" {
+  description = "The header value that triggers canary routing"
+  value       = var.canary_header_value
+}

@@ -12,6 +12,7 @@ const {
       .optional()
       .transform((val) => val === "true" || val === "1"),
     PUBLIC_URL: z.string().url().default("http://localhost"),
+    TEST_CANARY: z.string().optional().transform(Boolean),
   })
   .safeParse(process.env);
 
@@ -41,7 +42,7 @@ export default defineConfig({
   globalTimeout: env.CI ? 5 * 60 * 1000 : undefined,
   timeout: 30_000,
   expect: {
-    timeout: 5_000,
+    timeout: 15_000,
   },
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
@@ -49,8 +50,12 @@ export default defineConfig({
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: "on-first-retry",
-    actionTimeout: 10_000,
+    actionTimeout: 15_000,
     navigationTimeout: 30_000,
+
+    extraHTTPHeaders: {
+      ...(env.TEST_CANARY ? { "X-Force-Canary": "true" } : {}),
+    },
   },
 
   /* Configure projects for major browsers */

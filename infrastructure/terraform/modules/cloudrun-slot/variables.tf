@@ -9,8 +9,17 @@ variable "region" {
 }
 
 variable "name_prefix" {
-  description = "Prefix for resource names"
+  description = "Prefix for resource names (e.g., nopo-stage)"
   type        = string
+}
+
+variable "slot" {
+  description = "Deployment slot: 'stable' or 'canary'"
+  type        = string
+  validation {
+    condition     = contains(["stable", "canary"], var.slot)
+    error_message = "Slot must be 'stable' or 'canary'."
+  }
 }
 
 variable "labels" {
@@ -32,6 +41,11 @@ variable "services" {
     has_database   = bool
     run_migrations = bool
   }))
+}
+
+variable "service_account_email" {
+  description = "The service account email to use for Cloud Run services"
+  type        = string
 }
 
 variable "django_secret_key_id" {

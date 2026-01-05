@@ -47,9 +47,9 @@ jobs:
 
       - name: Debug
         run: |
-          cat <<EOF
+          cat <<INNEREOF
           ${{ toJson(steps.changed_files.outputs) }}
-          EOF
+          INNEREOF
 
       - name: Fail if migrations and source changed
         if: |
@@ -103,9 +103,7 @@ jobs:
   terraform:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    defaults:
-      run:
-        working-directory: infrastructure/terraform
+    # Remove defaults.run.working-directory to run make from root
     steps:
       - uses: actions/checkout@v4
 
@@ -114,21 +112,12 @@ jobs:
         with:
           terraform_version: "1.7.0"
 
-      - name: Terraform Format Check
-        run: terraform fmt -check -recursive
+      - name: Lint and Format Terraform
+        run: make lint-terraform
 
-      - name: Validate modules
+      - name: Check for uncommitted changes
         run: |
-          for dir in modules/*/; do
-            echo "=== Validating ${dir} ==="
-            terraform -chdir="${dir}" init -backend=false
-            terraform -chdir="${dir}" validate
-          done
-
-      - name: Validate root module
-        run: |
-          terraform init -backend=false
-          terraform validate
+          git diff --exit-code
 
   checks:
     if: always()
