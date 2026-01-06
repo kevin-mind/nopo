@@ -1,0 +1,86 @@
+name: Claude Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, labeled]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: read
+  id-token: write
+
+jobs:
+  extract-issue:
+    runs-on: ubuntu-latest
+    outputs:
+      issue_number: ${{ steps.extract.outputs.issue_number }}
+      issue_body: ${{ steps.extract.outputs.issue_body }}
+      has_issue: ${{ steps.extract.outputs.has_issue }}
+    steps:
+      - name: Extract linked issue
+        id: extract
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          # Extract linked issue from "Fixes #N" pattern
+          issue_number=$(echo "$PR_BODY" | grep -oP 'Fixes #\K\d+' | head -1 || true)
+
+          if [[ -n "$issue_number" ]]; then
+            echo "has_issue=true" >> $GITHUB_OUTPUT
+            echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
+
+            # Get issue body
+            issue_body=$(gh issue view "$issue_number" --json body --jq '.body')
+            echo "issue_body<<EOF" >> $GITHUB_OUTPUT
+            echo "$issue_body" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "has_issue=false" >> $GITHUB_OUTPUT
+          fi
+
+  review:
+    needs: extract-issue
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Review this pull request and validate against requirements.
+
+            ${{ needs.extract-issue.outputs.has_issue == 'true' && format('
+            ## Linked Issue #{0}
+
+            {1}
+
+            ## Validation Checklist
+            1. CHECK ALL TODO ITEMS in the issue are addressed by this PR
+            2. VERIFY code follows CLAUDE.md guidelines
+            3. ENSURE tests cover the requirements
+            4. CHECK for any regressions or breaking changes
+            5. VALIDATE the PR description accurately reflects changes
+
+            ', needs.extract-issue.outputs.issue_number, needs.extract-issue.outputs.issue_body) || '
+            No linked issue found - performing standard code review.
+            ' }}
+
+            ## Review Instructions
+
+            1. Use `/review` to perform a thorough code review
+            2. Check code quality, best practices, and potential issues
+            3. Verify tests are adequate for the changes
+
+            After review:
+            - If ALL requirements are met and code is good: APPROVE the PR
+            - If changes are needed: REQUEST CHANGES with specific feedback
+            - If questions need answers: Leave COMMENTS asking for clarification
+
+            IMPORTANT: You may APPROVE the PR but you must NOT merge it.
+            A human will review and merge the PR.
+          claude_args: "--model claude-3-5-sonnet-latest"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
