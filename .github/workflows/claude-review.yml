@@ -40,8 +40,9 @@ jobs:
             echo "has_issue=false" >> $GITHUB_OUTPUT
           fi
 
-  review:
+  review-with-issue:
     needs: extract-issue
+    if: needs.extract-issue.outputs.has_issue == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -50,12 +51,11 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
-            Review this pull request and validate against requirements.
+            Review this pull request and validate against the linked issue.
 
-            ${{ needs.extract-issue.outputs.has_issue == 'true' && format('
-            ## Linked Issue #{0}
+            ## Linked Issue #${{ needs.extract-issue.outputs.issue_number }}
 
-            {1}
+            ${{ needs.extract-issue.outputs.issue_body }}
 
             ## Validation Checklist
             1. CHECK ALL TODO ITEMS in the issue are addressed by this PR
@@ -64,15 +64,12 @@ jobs:
             4. CHECK for any regressions or breaking changes
             5. VALIDATE the PR description accurately reflects changes
 
-            ', needs.extract-issue.outputs.issue_number, needs.extract-issue.outputs.issue_body) || '
-            No linked issue found - performing standard code review.
-            ' }}
-
             ## Review Instructions
 
-            1. Use `/review` to perform a thorough code review
-            2. Check code quality, best practices, and potential issues
-            3. Verify tests are adequate for the changes
+            Perform a thorough code review checking:
+            - Code quality and best practices
+            - Potential bugs or issues
+            - Test coverage adequacy
 
             After review:
             - If ALL requirements are met and code is good: APPROVE the PR
@@ -81,6 +78,35 @@ jobs:
 
             IMPORTANT: You may APPROVE the PR but you must NOT merge it.
             A human will review and merge the PR.
-          claude_args: "--model claude-3-5-sonnet-latest"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  review-without-issue:
+    needs: extract-issue
+    if: needs.extract-issue.outputs.has_issue != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Review this pull request. No linked issue found - performing standard code review.
+
+            ## Review Instructions
+
+            Perform a thorough code review checking:
+            - Code quality and best practices
+            - Potential bugs or issues
+            - Test coverage adequacy
+
+            After review:
+            - If code is good: APPROVE the PR
+            - If changes are needed: REQUEST CHANGES with specific feedback
+            - If questions need answers: Leave COMMENTS asking for clarification
+
+            IMPORTANT: You may APPROVE the PR but you must NOT merge it.
+            A human will review and merge the PR.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
