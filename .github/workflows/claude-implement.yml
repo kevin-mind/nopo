@@ -1,0 +1,46 @@
+name: Claude Implement
+
+on:
+  issues:
+    types: [assigned]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  implement:
+    if: contains(github.event.assignee.login, 'claude')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "Claude Bot"
+          git config --global user.email "claude-bot@anthropic.com"
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You have been assigned to issue #${{ github.event.issue.number }}: "${{ github.event.issue.title }}".
+
+            Description:
+            ${{ github.event.issue.body }}
+
+            Your goal is to implement this fully.
+
+            1. Create a new branch named `feat/issue-${{ github.event.issue.number }}` from `main`.
+            2. Implement the changes required. adhering to `CLAUDE.md`.
+            3. Run tests to verify your changes. Fix any failures.
+            4. Push the branch to origin.
+            5. Create a Pull Request targeting `main` with a detailed description.
+
+            Use the `gh` CLI tool to create the PR if needed, or your internal tools.
+          claude_args: "--model claude-3-5-sonnet-latest --max-turns 30"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
