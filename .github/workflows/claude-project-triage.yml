@@ -1,8 +1,10 @@
 name: Claude Project Triage
 
 on:
-  issues:
-    types: [opened, labeled]
+  projects_v2_item:
+    types:
+      - created
+      - edited
 
 permissions:
   contents: read
@@ -10,37 +12,60 @@ permissions:
   id-token: write
 
 jobs:
-  check-triage:
+  check-status:
     runs-on: ubuntu-latest
+    # Only run when Status field changes to Backlog
+    if: |
+      github.event.changes.field_value.field_name == 'Status' &&
+      github.event.changes.field_value.to.name == 'Backlog'
     outputs:
-      should_triage: ${{ steps.check.outputs.should_triage }}
+      issue_number: ${{ steps.get-issue.outputs.issue_number }}
+      issue_title: ${{ steps.get-issue.outputs.issue_title }}
+      issue_body: ${{ steps.get-issue.outputs.issue_body }}
     steps:
-      - name: Check if triage needed
-        id: check
+      - name: Get issue details
+        id: get-issue
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ITEM_ID: ${{ github.event.projects_v2_item.node_id }}
         run: |
-          # Get issue labels
-          labels=$(gh issue view "$ISSUE_NUMBER" --json labels --jq '.labels[].name' | tr '\n' ' ')
+          # Query the project item to get the linked issue
+          result=$(gh api graphql -f query='
+            query($itemId: ID!) {
+              node(id: $itemId) {
+                ... on ProjectV2Item {
+                  content {
+                    ... on Issue {
+                      number
+                      title
+                      body
+                    }
+                  }
+                }
+              }
+            }
+          ' -f itemId="$ITEM_ID")
 
-          # Triage if:
-          # 1. Issue was just opened (no triage label yet)
-          # 2. Issue has 'needs-triage' label
-          if [[ "${{ github.event.action }}" == "opened" ]]; then
-            echo "New issue opened - needs triage"
-            echo "should_triage=true" >> $GITHUB_OUTPUT
-          elif [[ "$labels" == *"needs-triage"* ]]; then
-            echo "Issue has needs-triage label"
-            echo "should_triage=true" >> $GITHUB_OUTPUT
-          else
-            echo "No triage needed"
-            echo "should_triage=false" >> $GITHUB_OUTPUT
+          issue_number=$(echo "$result" | jq -r '.data.node.content.number // empty')
+          issue_title=$(echo "$result" | jq -r '.data.node.content.title // empty')
+
+          if [[ -z "$issue_number" ]]; then
+            echo "No issue linked to this project item"
+            exit 0
           fi
 
+          echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
+          echo "issue_title=$issue_title" >> $GITHUB_OUTPUT
+
+          # Get issue body separately (can be large)
+          issue_body=$(echo "$result" | jq -r '.data.node.content.body // empty')
+          echo "issue_body<<EOF" >> $GITHUB_OUTPUT
+          echo "$issue_body" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
   triage:
-    needs: check-triage
-    if: needs.check-triage.outputs.should_triage == 'true'
+    needs: check-status
+    if: needs.check-status.outputs.issue_number != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -49,10 +74,10 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
-            You are triaging issue #${{ github.event.issue.number }}: "${{ github.event.issue.title }}"
+            You are triaging issue #${{ needs.check-status.outputs.issue_number }}: "${{ needs.check-status.outputs.issue_title }}"
 
             Issue body:
-            ${{ github.event.issue.body }}
+            ${{ needs.check-status.outputs.issue_body }}
 
             Your tasks:
             1. ADD APPROPRIATE LABELS based on the issue type:
@@ -81,10 +106,8 @@ jobs:
                - Ask clarifying questions in a comment
                - If Todo items are vague, suggest more specific tasks
 
-            6. REMOVE 'needs-triage' label when done (if present)
-
             IMPORTANT:
-            - DO NOT add the 'ready' label - a human must do that
+            - DO NOT move the issue to 'Ready' - a human must do that
             - DO NOT assign the issue to anyone
             - Focus on making the issue as clear and actionable as possible
           claude_args: "--model claude-3-5-sonnet-latest"

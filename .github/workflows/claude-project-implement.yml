@@ -1,8 +1,9 @@
 name: Claude Project Implement
 
 on:
-  issues:
-    types: [labeled]
+  projects_v2_item:
+    types:
+      - edited
 
 permissions:
   contents: write
@@ -12,18 +13,69 @@ permissions:
 
 jobs:
   check-ready:
-    # Only trigger when 'ready' label is added
-    if: github.event.label.name == 'ready'
     runs-on: ubuntu-latest
+    # Only run when Status field changes to Ready
+    if: |
+      github.event.changes.field_value.field_name == 'Status' &&
+      github.event.changes.field_value.to.name == 'Ready'
     outputs:
       should_implement: ${{ steps.check.outputs.should_implement }}
+      issue_number: ${{ steps.get-issue.outputs.issue_number }}
+      issue_title: ${{ steps.get-issue.outputs.issue_title }}
+      issue_body: ${{ steps.get-issue.outputs.issue_body }}
     steps:
-      - name: Check if implementation needed
+      - name: Get issue details
+        id: get-issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ITEM_ID: ${{ github.event.projects_v2_item.node_id }}
+        run: |
+          # Query the project item to get the linked issue
+          result=$(gh api graphql -f query='
+            query($itemId: ID!) {
+              node(id: $itemId) {
+                ... on ProjectV2Item {
+                  content {
+                    ... on Issue {
+                      number
+                      title
+                      body
+                    }
+                  }
+                }
+              }
+            }
+          ' -f itemId="$ITEM_ID")
+
+          issue_number=$(echo "$result" | jq -r '.data.node.content.number // empty')
+          issue_title=$(echo "$result" | jq -r '.data.node.content.title // empty')
+
+          if [[ -z "$issue_number" ]]; then
+            echo "No issue linked to this project item"
+            echo "should_implement=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
+          echo "issue_title=$issue_title" >> $GITHUB_OUTPUT
+
+          # Get issue body separately (can be large)
+          issue_body=$(echo "$result" | jq -r '.data.node.content.body // empty')
+          echo "issue_body<<EOF" >> $GITHUB_OUTPUT
+          echo "$issue_body" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Check if PR already exists
         id: check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_NUMBER: ${{ steps.get-issue.outputs.issue_number }}
         run: |
+          if [[ -z "$ISSUE_NUMBER" ]]; then
+            echo "should_implement=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
           # Check if there's already a PR for this issue
           existing_pr=$(gh pr list --search "Fixes #$ISSUE_NUMBER in:body" --json number --jq '.[0].number' || true)
 
@@ -35,8 +87,62 @@ jobs:
             echo "should_implement=true" >> $GITHUB_OUTPUT
           fi
 
-  implement:
+  update-status:
     needs: check-ready
+    if: needs.check-ready.outputs.should_implement == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update project status to In Progress
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
+          ITEM_ID: ${{ github.event.projects_v2_item.node_id }}
+          PROJECT_ID: ${{ github.event.projects_v2_item.project_node_id }}
+        run: |
+          # Get Status field and In Progress option IDs
+          fields=$(gh api graphql -f query='
+            query($projectId: ID!) {
+              node(id: $projectId) {
+                ... on ProjectV2 {
+                  fields(first: 20) {
+                    nodes {
+                      ... on ProjectV2SingleSelectField {
+                        id
+                        name
+                        options { id name }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ' -f projectId="$PROJECT_ID")
+
+          field_id=$(echo "$fields" | jq -r '.data.node.fields.nodes[] | select(.name == "Status") | .id')
+          option_id=$(echo "$fields" | jq -r '.data.node.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "In Progress") | .id')
+
+          if [[ -z "$field_id" || -z "$option_id" ]]; then
+            echo "Could not find Status field or In Progress option"
+            exit 0
+          fi
+
+          # Update to In Progress status
+          gh api graphql -f query='
+            mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+              updateProjectV2ItemFieldValue(
+                input: {
+                  projectId: $projectId
+                  itemId: $itemId
+                  fieldId: $fieldId
+                  value: { singleSelectOptionId: $optionId }
+                }
+              ) { projectV2Item { id } }
+            }
+          ' -f projectId="$PROJECT_ID" -f itemId="$ITEM_ID" -f fieldId="$field_id" -f optionId="$option_id"
+
+          echo "Updated project item to In Progress status"
+
+  implement:
+    needs: [check-ready, update-status]
     if: needs.check-ready.outputs.should_implement == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -49,26 +155,19 @@ jobs:
           git config --global user.name "Claude Bot"
           git config --global user.email "claude-bot@anthropic.com"
 
-      - name: Add in-progress label
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-        run: |
-          gh issue edit "$ISSUE_NUMBER" --add-label "in-progress" --remove-label "ready" || true
-
       - uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
-            Implement issue #${{ github.event.issue.number }}: "${{ github.event.issue.title }}"
+            Implement issue #${{ needs.check-ready.outputs.issue_number }}: "${{ needs.check-ready.outputs.issue_title }}"
 
             Issue body:
-            ${{ github.event.issue.body }}
+            ${{ needs.check-ready.outputs.issue_body }}
 
             CRITICAL INSTRUCTIONS:
 
             1. CREATE BRANCH:
-               - Create branch `feat/issue-${{ github.event.issue.number }}` from `main`
+               - Create branch `feat/issue-${{ needs.check-ready.outputs.issue_number }}` from `main`
                - If branch already exists, switch to it and pull latest
 
             2. IMPLEMENT:
@@ -86,7 +185,7 @@ jobs:
 
             5. CREATE PR:
                - Use `gh pr create` to create a pull request
-               - The PR body MUST contain "Fixes #${{ github.event.issue.number }}"
+               - The PR body MUST contain "Fixes #${{ needs.check-ready.outputs.issue_number }}"
                - Include a detailed description of changes
                - Example PR body format:
                  ```
@@ -97,7 +196,7 @@ jobs:
                  - Change 1
                  - Change 2
 
-                 Fixes #${{ github.event.issue.number }}
+                 Fixes #${{ needs.check-ready.outputs.issue_number }}
                  ```
 
             The "Fixes #N" pattern is REQUIRED for automatic issue linking and closure.
