@@ -1,0 +1,132 @@
+name: Project Status Manager
+description: Query and update GitHub Project V2 item status
+
+inputs:
+  action:
+    description: 'Action to perform: get or set'
+    required: true
+  item_id:
+    description: 'Project item node ID'
+    required: true
+  project_id:
+    description: 'Project node ID (required for set action)'
+    required: false
+  target_status:
+    description: 'Status to set (required for set action)'
+    required: false
+  token:
+    description: 'GitHub token with project permissions'
+    required: true
+
+outputs:
+  status:
+    description: 'Current status name'
+    value: ${{ steps.query.outputs.status }}
+  issue_number:
+    description: 'Linked issue number'
+    value: ${{ steps.query.outputs.issue_number }}
+  issue_title:
+    description: 'Linked issue title'
+    value: ${{ steps.query.outputs.issue_title }}
+  issue_body:
+    description: 'Linked issue body'
+    value: ${{ steps.query.outputs.issue_body }}
+
+runs:
+  using: composite
+  steps:
+    - name: Query item status
+      id: query
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        ITEM_ID: ${{ inputs.item_id }}
+      run: |
+        result=$(gh api graphql -f query='
+          query($itemId: ID!) {
+            node(id: $itemId) {
+              ... on ProjectV2Item {
+                content {
+                  ... on Issue {
+                    number
+                    title
+                    body
+                  }
+                }
+                fieldValues(first: 20) {
+                  nodes {
+                    ... on ProjectV2ItemFieldSingleSelectValue {
+                      name
+                      field { ... on ProjectV2SingleSelectField { name } }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ' -f itemId="$ITEM_ID")
+
+        status=$(echo "$result" | jq -r '.data.node.fieldValues.nodes[] | select(.field.name == "Status") | .name // empty')
+        issue_number=$(echo "$result" | jq -r '.data.node.content.number // empty')
+        issue_title=$(echo "$result" | jq -r '.data.node.content.title // empty')
+
+        echo "status=$status" >> $GITHUB_OUTPUT
+        echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
+        echo "issue_title=$issue_title" >> $GITHUB_OUTPUT
+
+        # Handle multiline body
+        echo "issue_body<<EOF" >> $GITHUB_OUTPUT
+        echo "$result" | jq -r '.data.node.content.body // empty' >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+    - name: Update status
+      if: inputs.action == 'set'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        PROJECT_ID: ${{ inputs.project_id }}
+        ITEM_ID: ${{ inputs.item_id }}
+        TARGET_STATUS: ${{ inputs.target_status }}
+      run: |
+        # Get field and option IDs for the Status field
+        fields=$(gh api graphql -f query='
+          query($projectId: ID!) {
+            node(id: $projectId) {
+              ... on ProjectV2 {
+                fields(first: 20) {
+                  nodes {
+                    ... on ProjectV2SingleSelectField {
+                      id
+                      name
+                      options { id name }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ' -f projectId="$PROJECT_ID")
+
+        field_id=$(echo "$fields" | jq -r '.data.node.fields.nodes[] | select(.name == "Status") | .id')
+        option_id=$(echo "$fields" | jq -r --arg status "$TARGET_STATUS" '.data.node.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == $status) | .id')
+
+        if [[ -z "$field_id" || -z "$option_id" ]]; then
+          echo "Error: Could not find Status field or '$TARGET_STATUS' option"
+          exit 1
+        fi
+
+        # Update the status
+        gh api graphql -f query='
+          mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+            updateProjectV2ItemFieldValue(
+              input: {
+                projectId: $projectId
+                itemId: $itemId
+                fieldId: $fieldId
+                value: { singleSelectOptionId: $optionId }
+              }
+            ) { projectV2Item { id } }
+          }
+        ' -f projectId="$PROJECT_ID" -f itemId="$ITEM_ID" -f fieldId="$field_id" -f optionId="$option_id"
+
+        echo "Updated project item status to: $TARGET_STATUS"

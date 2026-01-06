@@ -1,0 +1,79 @@
+name: Task
+description: Create a new task for the project
+title: "[Task]: "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Task Template
+        Please fill out all sections below. Claude will use this information to triage and implement the task.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear, concise description of what needs to be done (TLDR)
+      placeholder: Describe the task in 2-3 sentences
+    validations:
+      required: true
+
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: Implementation details, implications, technical requirements
+      placeholder: |
+        - Technical requirements
+        - Affected files/components
+        - Related documentation
+        - Screenshots if applicable
+
+  - type: textarea
+    id: questions
+    attributes:
+      label: Questions
+      description: Open questions or uncertainties that need clarification
+      placeholder: |
+        - [ ] Question 1?
+        - [ ] Question 2?
+
+  - type: textarea
+    id: todo
+    attributes:
+      label: Todo
+      description: Specific tasks to complete (Claude will expand these during triage)
+      placeholder: |
+        - [ ] Task 1
+        - [ ] Task 2
+        - [ ] Task 3
+    validations:
+      required: true
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type
+      description: What type of task is this?
+      options:
+        - Feature
+        - Bug Fix
+        - Documentation
+        - Refactor
+        - Test
+        - Chore
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How urgent is this task?
+      options:
+        - Low
+        - Medium
+        - High
+        - Critical
+    validations:
+      required: false
