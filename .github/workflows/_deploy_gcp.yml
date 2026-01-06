@@ -283,7 +283,7 @@ jobs:
   # ===========================================================================
   upload_assets:
     name: Upload Assets ${{ matrix.service }}
-    needs: [context, provision_infra, deploy_canary]
+    needs: [context, provision_infra]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -340,7 +340,7 @@ jobs:
   # ===========================================================================
   run_migrations:
     name: Database Migrations
-    needs: [context, deploy_canary, upload_assets]
+    needs: [context, deploy_canary]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -377,7 +377,7 @@ jobs:
 
   smoketest_canary:
     name: Smoketest Canary
-    needs: [deploy_canary, run_migrations]
+    needs: [deploy_canary, run_migrations, upload_assets]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
