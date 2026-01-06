@@ -78,7 +78,7 @@ jobs:
             5. Push the changes to the same branch.
 
             This is an automated CI fix loop - focus on fixing the specific failure.
-          claude_args: "--model claude-3-5-sonnet-latest --max-turns 20"
+          claude_args: "--model claude-opus-4-5-20251101 --max-turns 20"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -123,6 +123,6 @@ jobs:
             ```
 
             Be helpful and specific - the human author should be able to easily apply your suggestions.
-          claude_args: "--model claude-3-5-sonnet-latest --max-turns 15"
+          claude_args: "--model claude-opus-4-5-20251101 --max-turns 15"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

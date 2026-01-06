@@ -110,6 +110,6 @@ jobs:
             - DO NOT move the issue to 'Ready' - a human must do that
             - DO NOT assign the issue to anyone
             - Focus on making the issue as clear and actionable as possible
-          claude_args: "--model claude-3-5-sonnet-latest"
+          claude_args: "--model claude-opus-4-5-20251101"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
