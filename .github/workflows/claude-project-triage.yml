@@ -72,7 +72,7 @@ jobs:
 
       - uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
             You are triaging issue #${{ needs.check-status.outputs.issue_number }}: "${{ needs.check-status.outputs.issue_title }}"
 
@@ -113,3 +113,8 @@ jobs:
           claude_args: "--model claude-opus-4-5-20251101"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add triaged label
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh issue edit ${{ needs.check-status.outputs.issue_number }} --add-label "triaged"

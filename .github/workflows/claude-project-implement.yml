@@ -155,49 +155,51 @@ jobs:
           git config --global user.name "Claude Bot"
           git config --global user.email "claude-bot@anthropic.com"
 
+      - name: Create or checkout branch
+        id: branch
+        env:
+          BRANCH_NAME: feat/issue-${{ needs.check-ready.outputs.issue_number }}
+        run: |
+          git fetch origin
+          if git show-ref --verify --quiet refs/remotes/origin/$BRANCH_NAME; then
+            git checkout $BRANCH_NAME
+            git pull origin $BRANCH_NAME
+          else
+            git checkout -b $BRANCH_NAME
+          fi
+          echo "name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+
       - uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
             Implement issue #${{ needs.check-ready.outputs.issue_number }}: "${{ needs.check-ready.outputs.issue_title }}"
 
             Issue body:
             ${{ needs.check-ready.outputs.issue_body }}
 
-            CRITICAL INSTRUCTIONS:
+            You are on branch `${{ steps.branch.outputs.name }}`.
 
-            1. CREATE BRANCH:
-               - Create branch `feat/issue-${{ needs.check-ready.outputs.issue_number }}` from `main`
-               - If branch already exists, switch to it and pull latest
+            INSTRUCTIONS:
 
-            2. IMPLEMENT:
+            1. IMPLEMENT:
                - Follow the guidelines in CLAUDE.md strictly
                - Address all items in the Todo section
                - Keep changes focused and minimal
 
-            3. VERIFY:
+            2. VERIFY:
                - Run `make check` to validate linting and types
                - Run `make test` to run tests
                - Fix any failures before proceeding
 
-            4. PUSH:
+            3. COMMIT AND PUSH:
+               - Commit your changes with a descriptive message
                - Push the branch to origin
 
-            5. CREATE PR:
+            4. CREATE PR:
                - Use `gh pr create` to create a pull request
                - The PR body MUST contain "Fixes #${{ needs.check-ready.outputs.issue_number }}"
                - Include a detailed description of changes
-               - Example PR body format:
-                 ```
-                 ## Summary
-                 <description of changes>
-
-                 ## Changes
-                 - Change 1
-                 - Change 2
-
-                 Fixes #${{ needs.check-ready.outputs.issue_number }}
-                 ```
 
             The "Fixes #N" pattern is REQUIRED for automatic issue linking and closure.
           claude_args: "--model claude-opus-4-5-20251101 --max-turns 30"
