@@ -16,10 +16,11 @@ jobs:
     if: github.event.workflow_run.conclusion == 'failure'
     runs-on: ubuntu-latest
     outputs:
-      should_fix: ${{ steps.check.outputs.should_fix }}
+      has_pr: ${{ steps.check.outputs.has_pr }}
+      is_claude_pr: ${{ steps.check.outputs.is_claude_pr }}
       pr_number: ${{ steps.check.outputs.pr_number }}
     steps:
-      - name: Check if Claude-created PR
+      - name: Check PR author
         id: check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -30,7 +31,7 @@ jobs:
 
           if [[ -z "$pr" ]]; then
             echo "No PR found for branch $HEAD_BRANCH"
-            echo "should_fix=false" >> $GITHUB_OUTPUT
+            echo "has_pr=false" >> $GITHUB_OUTPUT
             exit 0
           fi
 
@@ -38,19 +39,20 @@ jobs:
           author=$(echo "$pr" | jq -r '.author.login')
 
           echo "PR #$pr_number by $author"
+          echo "has_pr=true" >> $GITHUB_OUTPUT
           echo "pr_number=$pr_number" >> $GITHUB_OUTPUT
 
-          # Only fix PRs created by GitHub Actions (Claude automation)
+          # Check if PR was created by Claude automation
           if [[ "$author" == "github-actions[bot]" || "$author" == *"claude"* ]]; then
-            echo "should_fix=true" >> $GITHUB_OUTPUT
+            echo "is_claude_pr=true" >> $GITHUB_OUTPUT
           else
-            echo "Skipping - PR not created by Claude automation"
-            echo "should_fix=false" >> $GITHUB_OUTPUT
+            echo "is_claude_pr=false" >> $GITHUB_OUTPUT
           fi
 
-  fix-build:
+  # For Claude-created PRs: fix and push directly
+  fix-and-push:
     needs: check-pr
-    if: needs.check-pr.outputs.should_fix == 'true'
+    if: needs.check-pr.outputs.has_pr == 'true' && needs.check-pr.outputs.is_claude_pr == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -77,5 +79,50 @@ jobs:
 
             This is an automated CI fix loop - focus on fixing the specific failure.
           claude_args: "--model claude-3-5-sonnet-latest --max-turns 20"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # For human-created PRs: suggest fixes via review comments
+  suggest-fixes:
+    needs: check-pr
+    if: needs.check-pr.outputs.has_pr == 'true' && needs.check-pr.outputs.is_claude_pr == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+          fetch-depth: 0
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            The CI build failed for PR #${{ needs.check-pr.outputs.pr_number }} on branch ${{ github.event.workflow_run.head_branch }}.
+
+            This is a human-created PR, so DO NOT push any changes directly.
+
+            Instead:
+            1. Analyze the project to understand the build and test process (see CLAUDE.md).
+            2. Run `make check` and `make test` to reproduce the failure.
+            3. Identify the root cause of the failure.
+            4. Submit a PR review with INLINE COMMENTS suggesting specific fixes.
+               - Use `gh pr review` with `--comment` and include specific code suggestions
+               - Point to the exact lines that need to be changed
+               - Provide the corrected code in code blocks
+            5. If the fix is complex, add a summary comment explaining the overall approach.
+
+            Use the GitHub CLI to submit review comments:
+            ```
+            gh pr review ${{ needs.check-pr.outputs.pr_number }} --comment --body "..."
+            ```
+
+            For inline comments on specific files/lines, you can use:
+            ```
+            gh api repos/$GITHUB_REPOSITORY/pulls/${{ needs.check-pr.outputs.pr_number }}/comments \
+              -f body="suggestion" -f path="file.ts" -f line=42 -f side="RIGHT"
+            ```
+
+            Be helpful and specific - the human author should be able to easily apply your suggestions.
+          claude_args: "--model claude-3-5-sonnet-latest --max-turns 15"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
