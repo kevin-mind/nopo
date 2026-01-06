@@ -14,7 +14,10 @@ permissions:
 
 jobs:
   respond:
-    if: contains(github.event.comment.body, '@claude')
+    # Only run if comment contains @claude and has a valid comment ID
+    if: |
+      contains(github.event.comment.body, '@claude') &&
+      github.event.comment.id != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
