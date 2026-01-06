@@ -713,13 +713,13 @@ make check && make test && git push
 
 ## Claude Automation State Machine
 
-This project uses Claude AI agents integrated with GitHub Projects V2 for automated issue management.
+This project uses Claude AI agents with label-based triggers for automated issue management.
 
-### State Flow
+### State Flow (Label-Based)
 
 ```
 ┌──────────┐    ┌───────┐    ┌─────────────┐    ┌────────┐
-│ BACKLOG  │───►│ READY │───►│ IN PROGRESS │───►│ REVIEW │───► DONE
+│  (new)   │───►│ ready │───►│ in-progress │───►│ review │───► MERGED
 └──────────┘    └───────┘    └─────────────┘    └────────┘
      │              │               │                │
      ▼              ▼               ▼                ▼
@@ -727,35 +727,47 @@ This project uses Claude AI agents integrated with GitHub Projects V2 for automa
   Agent        Decision         Agent            Agent
 ```
 
+### Labels
+
+| Label | Purpose |
+|-------|---------|
+| `needs-triage` | Request re-triage of an issue |
+| `ready` | **Human adds** to trigger implementation |
+| `in-progress` | Added automatically when implementation starts |
+| `review-ready` | Added when CI passes and ready for review |
+| `ready-to-merge` | Added when Claude approves, awaiting human merge |
+| `needs-info` | Added if issue needs clarification |
+
 ### Agent Responsibilities
 
 | Agent | Trigger | Actions |
 |-------|---------|---------|
-| **Triage** | Issue added to Backlog | Labels, links similar issues, expands context, answers questions |
-| **Implement** | Human moves to Ready | Creates branch, implements, runs tests, creates PR with "Fixes #N" |
-| **CI-Fix** | CI failure on Claude PR | Analyzes failure, implements fix, pushes to same branch |
-| **Review** | PR opened/updated | Reviews code, validates issue todos, approves or requests changes |
-| **Approve** | Claude approves PR | Adds "ready-to-merge" label, comments for human merge |
+| **Triage** | Issue opened or `needs-triage` label | Labels, links similar issues, expands context, answers questions |
+| **Implement** | Human adds `ready` label | Creates branch, implements, runs tests, creates PR with "Fixes #N" |
+| **CI-Fix** | CI failure | Claude PRs: fix and push. Human PRs: suggest fixes via comments |
+| **CI-Pass** | CI success (no unresolved comments) | Adds `review-ready` label |
+| **Review** | PR opened/updated/labeled | Reviews code, validates issue todos, approves or requests changes |
+| **Approve** | Claude approves PR | Adds `ready-to-merge` label, awaits human merge |
 | **Respond** | @claude mention | Responds to questions/requests in comments |
 
 ### Human Gates
 
 These actions **require human intervention**:
 
-1. **Moving to Ready**: Only humans can move issues from Backlog to Ready
+1. **Adding `ready` label**: Only humans can mark issues ready for implementation
 2. **Merging PRs**: Only humans can merge approved PRs
 
 ### Workflows
 
-| Workflow | File | Purpose |
+| Workflow | File | Trigger |
 |----------|------|---------|
-| Project Triage | `claude-project-triage.yml` | Triage issues in Backlog |
-| Project Implement | `claude-project-implement.yml` | Implement Ready issues |
-| CI Fix | `claude-ci-fix.yml` | Fix CI failures on Claude PRs |
-| CI Pass | `claude-ci-pass.yml` | Move to Review when CI passes |
-| Review | `claude-review.yml` | Review PRs with issue validation |
-| Approve | `claude-approve.yml` | Mark PRs ready for human merge |
-| Respond | `claude-respond.yml` | Respond to @claude mentions |
+| Triage | `claude-project-triage.yml` | Issue opened or `needs-triage` label |
+| Implement | `claude-project-implement.yml` | `ready` label added |
+| CI Fix | `claude-ci-fix.yml` | CI failure |
+| CI Pass | `claude-ci-pass.yml` | CI success |
+| Review | `claude-review.yml` | PR opened/updated/labeled |
+| Approve | `claude-approve.yml` | Claude approves PR |
+| Respond | `claude-respond.yml` | @claude mention |
 
 ### Issue Template
 
@@ -773,7 +785,8 @@ All PRs created by Claude automation must:
 1. Include `Fixes #N` in the body to link to the issue
 2. Pass CI checks before review
 3. Have all issue todos addressed
-4. Be approved by Claude before human merge
+4. Have no unresolved review comments
+5. Be approved by Claude before human merge
 
 ### Human Intervention
 
@@ -785,9 +798,8 @@ You can intervene at any point:
 
 ### Setup Requirements
 
-1. **PROJECT_TOKEN secret**: Fine-grained PAT with `project:write` permission
-2. **ANTHROPIC_API_KEY secret**: API key for Claude
-3. **GitHub Project**: Project board with Status field (Backlog, Ready, In Progress, Review, Done)
+1. **ANTHROPIC_API_KEY secret**: API key for Claude
+2. **Required labels**: Create labels in repository (ready, in-progress, review-ready, ready-to-merge, needs-triage, needs-info)
 
 ---
 

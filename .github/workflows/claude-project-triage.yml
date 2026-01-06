@@ -1,8 +1,8 @@
 name: Claude Project Triage
 
 on:
-  projects_v2_item:
-    types: [created, edited]
+  issues:
+    types: [opened, labeled]
 
 permissions:
   contents: read
@@ -10,36 +10,37 @@ permissions:
   id-token: write
 
 jobs:
-  check-status:
+  check-triage:
     runs-on: ubuntu-latest
     outputs:
       should_triage: ${{ steps.check.outputs.should_triage }}
-      issue_number: ${{ steps.check.outputs.issue_number }}
-      issue_title: ${{ steps.check.outputs.issue_title }}
-      issue_body: ${{ steps.check.outputs.issue_body }}
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Get project item status
+      - name: Check if triage needed
         id: check
-        uses: ./.github/actions/project-status
-        with:
-          action: get
-          item_id: ${{ github.event.projects_v2_item.node_id }}
-          token: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
-
-      - name: Determine if triage needed
-        id: decide
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          if [[ "${{ steps.check.outputs.status }}" == "Backlog" ]]; then
+          # Get issue labels
+          labels=$(gh issue view "$ISSUE_NUMBER" --json labels --jq '.labels[].name' | tr '\n' ' ')
+
+          # Triage if:
+          # 1. Issue was just opened (no triage label yet)
+          # 2. Issue has 'needs-triage' label
+          if [[ "${{ github.event.action }}" == "opened" ]]; then
+            echo "New issue opened - needs triage"
+            echo "should_triage=true" >> $GITHUB_OUTPUT
+          elif [[ "$labels" == *"needs-triage"* ]]; then
+            echo "Issue has needs-triage label"
             echo "should_triage=true" >> $GITHUB_OUTPUT
           else
+            echo "No triage needed"
             echo "should_triage=false" >> $GITHUB_OUTPUT
           fi
 
   triage:
-    needs: check-status
-    if: needs.check-status.outputs.should_triage == 'true'
+    needs: check-triage
+    if: needs.check-triage.outputs.should_triage == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -48,10 +49,10 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
-            You are triaging issue #${{ needs.check-status.outputs.issue_number }}: "${{ needs.check-status.outputs.issue_title }}"
+            You are triaging issue #${{ github.event.issue.number }}: "${{ github.event.issue.title }}"
 
             Issue body:
-            ${{ needs.check-status.outputs.issue_body }}
+            ${{ github.event.issue.body }}
 
             Your tasks:
             1. ADD APPROPRIATE LABELS based on the issue type:
@@ -76,12 +77,14 @@ jobs:
                - Update the issue body or add a comment with answers
 
             5. VALIDATE COMPLETENESS:
-               - If Description or Details are unclear, add 'status: needs-info' label
+               - If Description or Details are unclear, add 'needs-info' label
                - Ask clarifying questions in a comment
                - If Todo items are vague, suggest more specific tasks
 
+            6. REMOVE 'needs-triage' label when done (if present)
+
             IMPORTANT:
-            - DO NOT move the issue to 'Ready' - a human must do that
+            - DO NOT add the 'ready' label - a human must do that
             - DO NOT assign the issue to anyone
             - Focus on making the issue as clear and actionable as possible
           claude_args: "--model claude-3-5-sonnet-latest"

@@ -1,8 +1,8 @@
 name: Claude Project Implement
 
 on:
-  projects_v2_item:
-    types: [edited]
+  issues:
+    types: [labeled]
 
 permissions:
   contents: write
@@ -12,42 +12,27 @@ permissions:
 
 jobs:
   check-ready:
+    # Only trigger when 'ready' label is added
+    if: github.event.label.name == 'ready'
     runs-on: ubuntu-latest
     outputs:
-      should_implement: ${{ steps.decide.outputs.should_implement }}
-      issue_number: ${{ steps.status.outputs.issue_number }}
-      issue_title: ${{ steps.status.outputs.issue_title }}
-      issue_body: ${{ steps.status.outputs.issue_body }}
+      should_implement: ${{ steps.check.outputs.should_implement }}
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Check if status field changed
-        id: field_check
+      - name: Check if implementation needed
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          # Only proceed if a field value changed
-          if [[ -z "${{ github.event.changes.field_value }}" ]]; then
-            echo "No field value change detected"
-            echo "field_changed=false" >> $GITHUB_OUTPUT
-          else
-            echo "field_changed=true" >> $GITHUB_OUTPUT
-          fi
+          # Check if there's already a PR for this issue
+          existing_pr=$(gh pr list --search "Fixes #$ISSUE_NUMBER in:body" --json number --jq '.[0].number' || true)
 
-      - name: Get project item status
-        if: steps.field_check.outputs.field_changed == 'true'
-        id: status
-        uses: ./.github/actions/project-status
-        with:
-          action: get
-          item_id: ${{ github.event.projects_v2_item.node_id }}
-          token: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
-
-      - name: Determine if implementation needed
-        id: decide
-        run: |
-          if [[ "${{ steps.field_check.outputs.field_changed }}" == "true" && "${{ steps.status.outputs.status }}" == "Ready" ]]; then
-            echo "should_implement=true" >> $GITHUB_OUTPUT
-          else
+          if [[ -n "$existing_pr" && "$existing_pr" != "null" ]]; then
+            echo "PR #$existing_pr already exists for issue #$ISSUE_NUMBER"
             echo "should_implement=false" >> $GITHUB_OUTPUT
+          else
+            echo "No existing PR found - proceeding with implementation"
+            echo "should_implement=true" >> $GITHUB_OUTPUT
           fi
 
   implement:
@@ -64,28 +49,26 @@ jobs:
           git config --global user.name "Claude Bot"
           git config --global user.email "claude-bot@anthropic.com"
 
-      - name: Update project status to In Progress
-        uses: ./.github/actions/project-status
-        with:
-          action: set
-          item_id: ${{ github.event.projects_v2_item.node_id }}
-          project_id: ${{ github.event.projects_v2_item.project_node_id }}
-          target_status: "In Progress"
-          token: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
+      - name: Add in-progress label
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh issue edit "$ISSUE_NUMBER" --add-label "in-progress" --remove-label "ready" || true
 
       - uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
-            Implement issue #${{ needs.check-ready.outputs.issue_number }}: "${{ needs.check-ready.outputs.issue_title }}"
+            Implement issue #${{ github.event.issue.number }}: "${{ github.event.issue.title }}"
 
             Issue body:
-            ${{ needs.check-ready.outputs.issue_body }}
+            ${{ github.event.issue.body }}
 
             CRITICAL INSTRUCTIONS:
 
             1. CREATE BRANCH:
-               - Create branch `feat/issue-${{ needs.check-ready.outputs.issue_number }}` from `main`
+               - Create branch `feat/issue-${{ github.event.issue.number }}` from `main`
                - If branch already exists, switch to it and pull latest
 
             2. IMPLEMENT:
@@ -103,7 +86,7 @@ jobs:
 
             5. CREATE PR:
                - Use `gh pr create` to create a pull request
-               - The PR body MUST contain "Fixes #${{ needs.check-ready.outputs.issue_number }}"
+               - The PR body MUST contain "Fixes #${{ github.event.issue.number }}"
                - Include a detailed description of changes
                - Example PR body format:
                  ```
@@ -114,7 +97,7 @@ jobs:
                  - Change 1
                  - Change 2
 
-                 Fixes #${{ needs.check-ready.outputs.issue_number }}
+                 Fixes #${{ github.event.issue.number }}
                  ```
 
             The "Fixes #N" pattern is REQUIRED for automatic issue linking and closure.
