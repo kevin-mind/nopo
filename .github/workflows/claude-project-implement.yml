@@ -2,7 +2,8 @@ name: Claude Project Implement
 
 on:
   projects_v2_item:
-    types: [edited]
+    types:
+      - edited
 
 permissions:
   contents: write
@@ -13,45 +14,135 @@ permissions:
 jobs:
   check-ready:
     runs-on: ubuntu-latest
+    # Only run when Status field changes to Ready
+    if: |
+      github.event.changes.field_value.field_name == 'Status' &&
+      github.event.changes.field_value.to.name == 'Ready'
     outputs:
-      should_implement: ${{ steps.decide.outputs.should_implement }}
-      issue_number: ${{ steps.status.outputs.issue_number }}
-      issue_title: ${{ steps.status.outputs.issue_title }}
-      issue_body: ${{ steps.status.outputs.issue_body }}
+      should_implement: ${{ steps.check.outputs.should_implement }}
+      issue_number: ${{ steps.get-issue.outputs.issue_number }}
+      issue_title: ${{ steps.get-issue.outputs.issue_title }}
+      issue_body: ${{ steps.get-issue.outputs.issue_body }}
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Check if status field changed
-        id: field_check
+      - name: Get issue details
+        id: get-issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ITEM_ID: ${{ github.event.projects_v2_item.node_id }}
         run: |
-          # Only proceed if a field value changed
-          if [[ -z "${{ github.event.changes.field_value }}" ]]; then
-            echo "No field value change detected"
-            echo "field_changed=false" >> $GITHUB_OUTPUT
-          else
-            echo "field_changed=true" >> $GITHUB_OUTPUT
-          fi
+          # Query the project item to get the linked issue
+          result=$(gh api graphql -f query='
+            query($itemId: ID!) {
+              node(id: $itemId) {
+                ... on ProjectV2Item {
+                  content {
+                    ... on Issue {
+                      number
+                      title
+                      body
+                    }
+                  }
+                }
+              }
+            }
+          ' -f itemId="$ITEM_ID")
 
-      - name: Get project item status
-        if: steps.field_check.outputs.field_changed == 'true'
-        id: status
-        uses: ./.github/actions/project-status
-        with:
-          action: get
-          item_id: ${{ github.event.projects_v2_item.node_id }}
-          token: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
+          issue_number=$(echo "$result" | jq -r '.data.node.content.number // empty')
+          issue_title=$(echo "$result" | jq -r '.data.node.content.title // empty')
 
-      - name: Determine if implementation needed
-        id: decide
-        run: |
-          if [[ "${{ steps.field_check.outputs.field_changed }}" == "true" && "${{ steps.status.outputs.status }}" == "Ready" ]]; then
-            echo "should_implement=true" >> $GITHUB_OUTPUT
-          else
+          if [[ -z "$issue_number" ]]; then
+            echo "No issue linked to this project item"
             echo "should_implement=false" >> $GITHUB_OUTPUT
+            exit 0
           fi
+
+          echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
+          echo "issue_title=$issue_title" >> $GITHUB_OUTPUT
+
+          # Get issue body separately (can be large)
+          issue_body=$(echo "$result" | jq -r '.data.node.content.body // empty')
+          echo "issue_body<<EOF" >> $GITHUB_OUTPUT
+          echo "$issue_body" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Check if PR already exists
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ steps.get-issue.outputs.issue_number }}
+        run: |
+          if [[ -z "$ISSUE_NUMBER" ]]; then
+            echo "should_implement=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Check if there's already a PR for this issue
+          existing_pr=$(gh pr list --search "Fixes #$ISSUE_NUMBER in:body" --json number --jq '.[0].number' || true)
+
+          if [[ -n "$existing_pr" && "$existing_pr" != "null" ]]; then
+            echo "PR #$existing_pr already exists for issue #$ISSUE_NUMBER"
+            echo "should_implement=false" >> $GITHUB_OUTPUT
+          else
+            echo "No existing PR found - proceeding with implementation"
+            echo "should_implement=true" >> $GITHUB_OUTPUT
+          fi
+
+  update-status:
+    needs: check-ready
+    if: needs.check-ready.outputs.should_implement == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update project status to In Progress
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
+          ITEM_ID: ${{ github.event.projects_v2_item.node_id }}
+          PROJECT_ID: ${{ github.event.projects_v2_item.project_node_id }}
+        run: |
+          # Get Status field and In Progress option IDs
+          fields=$(gh api graphql -f query='
+            query($projectId: ID!) {
+              node(id: $projectId) {
+                ... on ProjectV2 {
+                  fields(first: 20) {
+                    nodes {
+                      ... on ProjectV2SingleSelectField {
+                        id
+                        name
+                        options { id name }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ' -f projectId="$PROJECT_ID")
+
+          field_id=$(echo "$fields" | jq -r '.data.node.fields.nodes[] | select(.name == "Status") | .id')
+          option_id=$(echo "$fields" | jq -r '.data.node.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "In Progress") | .id')
+
+          if [[ -z "$field_id" || -z "$option_id" ]]; then
+            echo "Could not find Status field or In Progress option"
+            exit 0
+          fi
+
+          # Update to In Progress status
+          gh api graphql -f query='
+            mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+              updateProjectV2ItemFieldValue(
+                input: {
+                  projectId: $projectId
+                  itemId: $itemId
+                  fieldId: $fieldId
+                  value: { singleSelectOptionId: $optionId }
+                }
+              ) { projectV2Item { id } }
+            }
+          ' -f projectId="$PROJECT_ID" -f itemId="$ITEM_ID" -f fieldId="$field_id" -f optionId="$option_id"
+
+          echo "Updated project item to In Progress status"
 
   implement:
-    needs: check-ready
+    needs: [check-ready, update-status]
     if: needs.check-ready.outputs.should_implement == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -63,15 +154,6 @@ jobs:
         run: |
           git config --global user.name "Claude Bot"
           git config --global user.email "claude-bot@anthropic.com"
-
-      - name: Update project status to In Progress
-        uses: ./.github/actions/project-status
-        with:
-          action: set
-          item_id: ${{ github.event.projects_v2_item.node_id }}
-          project_id: ${{ github.event.projects_v2_item.project_node_id }}
-          target_status: "In Progress"
-          token: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
 
       - uses: anthropics/claude-code-action@v1
         with:

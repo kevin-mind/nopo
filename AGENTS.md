@@ -731,11 +731,12 @@ This project uses Claude AI agents integrated with GitHub Projects V2 for automa
 
 | Agent | Trigger | Actions |
 |-------|---------|---------|
-| **Triage** | Issue added to Backlog | Labels, links similar issues, expands context, answers questions |
+| **Triage** | Issue moved to Backlog | Labels, links similar issues, expands context, answers questions |
 | **Implement** | Human moves to Ready | Creates branch, implements, runs tests, creates PR with "Fixes #N" |
-| **CI-Fix** | CI failure on Claude PR | Analyzes failure, implements fix, pushes to same branch |
+| **CI-Fix** | CI failure | Claude PRs: fix and push. Human PRs: suggest fixes via comments |
+| **CI-Pass** | CI success (no unresolved comments) | Moves issue to Review, adds `review-ready` label |
 | **Review** | PR opened/updated | Reviews code, validates issue todos, approves or requests changes |
-| **Approve** | Claude approves PR | Adds "ready-to-merge" label, comments for human merge |
+| **Approve** | Claude approves PR | Adds `ready-to-merge` label, awaits human merge |
 | **Respond** | @claude mention | Responds to questions/requests in comments |
 
 ### Human Gates
@@ -747,15 +748,15 @@ These actions **require human intervention**:
 
 ### Workflows
 
-| Workflow | File | Purpose |
+| Workflow | File | Trigger |
 |----------|------|---------|
-| Project Triage | `claude-project-triage.yml` | Triage issues in Backlog |
-| Project Implement | `claude-project-implement.yml` | Implement Ready issues |
-| CI Fix | `claude-ci-fix.yml` | Fix CI failures on Claude PRs |
-| CI Pass | `claude-ci-pass.yml` | Move to Review when CI passes |
-| Review | `claude-review.yml` | Review PRs with issue validation |
-| Approve | `claude-approve.yml` | Mark PRs ready for human merge |
-| Respond | `claude-respond.yml` | Respond to @claude mentions |
+| Triage | `claude-project-triage.yml` | Project item moved to Backlog |
+| Implement | `claude-project-implement.yml` | Project item moved to Ready |
+| CI Fix | `claude-ci-fix.yml` | CI failure |
+| CI Pass | `claude-ci-pass.yml` | CI success |
+| Review | `claude-review.yml` | PR opened/updated/labeled |
+| Approve | `claude-approve.yml` | Claude approves PR |
+| Respond | `claude-respond.yml` | @claude mention |
 
 ### Issue Template
 
@@ -773,7 +774,8 @@ All PRs created by Claude automation must:
 1. Include `Fixes #N` in the body to link to the issue
 2. Pass CI checks before review
 3. Have all issue todos addressed
-4. Be approved by Claude before human merge
+4. Have no unresolved review comments
+5. Be approved by Claude before human merge
 
 ### Human Intervention
 
@@ -785,9 +787,9 @@ You can intervene at any point:
 
 ### Setup Requirements
 
-1. **PROJECT_TOKEN secret**: Fine-grained PAT with `project:write` permission
-2. **ANTHROPIC_API_KEY secret**: API key for Claude
-3. **GitHub Project**: Project board with Status field (Backlog, Ready, In Progress, Review, Done)
+1. **ANTHROPIC_API_KEY secret**: API key for Claude
+2. **PROJECT_TOKEN secret** (optional): Fine-grained PAT with `project:write` for updating project status
+3. **GitHub Project**: Project board with Status field options: Backlog, Ready, In Progress, Review, Done
 
 ---
 

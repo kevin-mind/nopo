@@ -2,7 +2,9 @@ name: Claude Project Triage
 
 on:
   projects_v2_item:
-    types: [created, edited]
+    types:
+      - created
+      - edited
 
 permissions:
   contents: read
@@ -12,34 +14,58 @@ permissions:
 jobs:
   check-status:
     runs-on: ubuntu-latest
+    # Only run when Status field changes to Backlog
+    if: |
+      github.event.changes.field_value.field_name == 'Status' &&
+      github.event.changes.field_value.to.name == 'Backlog'
     outputs:
-      should_triage: ${{ steps.check.outputs.should_triage }}
-      issue_number: ${{ steps.check.outputs.issue_number }}
-      issue_title: ${{ steps.check.outputs.issue_title }}
-      issue_body: ${{ steps.check.outputs.issue_body }}
+      issue_number: ${{ steps.get-issue.outputs.issue_number }}
+      issue_title: ${{ steps.get-issue.outputs.issue_title }}
+      issue_body: ${{ steps.get-issue.outputs.issue_body }}
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Get project item status
-        id: check
-        uses: ./.github/actions/project-status
-        with:
-          action: get
-          item_id: ${{ github.event.projects_v2_item.node_id }}
-          token: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
-
-      - name: Determine if triage needed
-        id: decide
+      - name: Get issue details
+        id: get-issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ITEM_ID: ${{ github.event.projects_v2_item.node_id }}
         run: |
-          if [[ "${{ steps.check.outputs.status }}" == "Backlog" ]]; then
-            echo "should_triage=true" >> $GITHUB_OUTPUT
-          else
-            echo "should_triage=false" >> $GITHUB_OUTPUT
+          # Query the project item to get the linked issue
+          result=$(gh api graphql -f query='
+            query($itemId: ID!) {
+              node(id: $itemId) {
+                ... on ProjectV2Item {
+                  content {
+                    ... on Issue {
+                      number
+                      title
+                      body
+                    }
+                  }
+                }
+              }
+            }
+          ' -f itemId="$ITEM_ID")
+
+          issue_number=$(echo "$result" | jq -r '.data.node.content.number // empty')
+          issue_title=$(echo "$result" | jq -r '.data.node.content.title // empty')
+
+          if [[ -z "$issue_number" ]]; then
+            echo "No issue linked to this project item"
+            exit 0
           fi
+
+          echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
+          echo "issue_title=$issue_title" >> $GITHUB_OUTPUT
+
+          # Get issue body separately (can be large)
+          issue_body=$(echo "$result" | jq -r '.data.node.content.body // empty')
+          echo "issue_body<<EOF" >> $GITHUB_OUTPUT
+          echo "$issue_body" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
   triage:
     needs: check-status
-    if: needs.check-status.outputs.should_triage == 'true'
+    if: needs.check-status.outputs.issue_number != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -76,7 +102,7 @@ jobs:
                - Update the issue body or add a comment with answers
 
             5. VALIDATE COMPLETENESS:
-               - If Description or Details are unclear, add 'status: needs-info' label
+               - If Description or Details are unclear, add 'needs-info' label
                - Ask clarifying questions in a comment
                - If Todo items are vague, suggest more specific tasks
 
