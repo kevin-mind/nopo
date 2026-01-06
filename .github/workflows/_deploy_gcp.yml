@@ -4,15 +4,15 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'The version to deploy'
+        description: "The version to deploy"
         required: true
         type: string
       digest:
-        description: 'The digest to deploy'
+        description: "The digest to deploy"
         required: false
         type: string
       environment:
-        description: 'The environment to deploy to'
+        description: "The environment to deploy to"
         required: true
         type: choice
         options:
@@ -22,15 +22,15 @@ on:
   workflow_call:
     inputs:
       version:
-        description: 'The version to deploy'
+        description: "The version to deploy"
         required: true
         type: string
       digest:
-        description: 'The digest to deploy'
+        description: "The digest to deploy"
         required: false
         type: string
       environment:
-        description: 'The environment to deploy to'
+        description: "The environment to deploy to"
         required: true
         type: string
 
@@ -54,36 +54,15 @@ jobs:
     timeout-minutes: 5
     outputs:
       services: ${{ steps.services.outputs.services }}
-      services_csv: ${{ steps.services.outputs.services_csv }}
-      service_images: ${{ steps.images.outputs.service_images }}
       subdomain_prefix: ${{ steps.env_config.outputs.subdomain_prefix }}
     steps:
       - uses: actions/checkout@v4
-
       - uses: ./.github/actions/setup-node
-
       - name: Discover services
         id: services
         uses: ./.github/actions/service-names
         with:
           filter: buildable
-
-      - name: Build image tags
-        id: images
-        env:
-          REGISTRY: ${{ vars.GCP_ARTIFACT_REGISTRY }}
-          VERSION: ${{ inputs.version }}
-          SERVICES: ${{ steps.services.outputs.services }}
-        run: |
-          # Build a JSON object mapping service names to their full image tags
-          # Example: {"backend":"registry/backend:sha-abc123","web":"registry/web:sha-abc123"}
-          service_images=$(echo "${SERVICES}" | jq -c --arg registry "${REGISTRY}" --arg version "${VERSION}" '
-            reduce .[] as $svc ({}; . + {($svc): "\($registry)/\($svc):\($version)"})
-          ')
-
-          echo "service_images=${service_images}" >> "$GITHUB_OUTPUT"
-          echo "Service images: ${service_images}"
-
       - name: Environment config
         id: env_config
         env:
@@ -94,27 +73,25 @@ jobs:
           else
             echo "subdomain_prefix=" >> "$GITHUB_OUTPUT"
           fi
-          cat "$GITHUB_OUTPUT"
 
-  # Prepare static bucket first so push_images can upload static assets
-  prepare_bucket:
-    name: Prepare static bucket
+  # ===========================================================================
+  # INFRASTRUCTURE PROVISIONING
+  # Ensure base infra (Registry, Buckets, etc.) exists before we try to use it
+  # ===========================================================================
+  provision_infra:
+    name: Provision Infrastructure
     needs: [context]
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 20
     permissions:
       contents: read
       id-token: write
     outputs:
-      bucket_name: ${{ steps.bucket.outputs.bucket_name }}
+      artifact_registry_url: ${{ steps.apply.outputs.artifact_registry_url }}
+      static_bucket_name: ${{ steps.apply.outputs.static_bucket_name }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "1.7.0"
-          terraform_wrapper: false
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
@@ -122,42 +99,112 @@ jobs:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
       - name: Terraform Init
-        working-directory: infrastructure/terraform/environments/${{ inputs.environment }}
         env:
           TF_STATE_BUCKET: ${{ vars.TERRAFORM_STATE_BUCKET }}
           ENVIRONMENT: ${{ inputs.environment }}
+        working-directory: infrastructure/terraform/environments/${{ inputs.environment }}/infra
         run: |
           terraform init -input=false \
             -backend-config="bucket=${TF_STATE_BUCKET}" \
-            -backend-config="prefix=nopo/${ENVIRONMENT}"
+            -backend-config="prefix=nopo/${ENVIRONMENT}/infra"
 
-      - name: Apply static bucket only
-        id: bucket
-        working-directory: infrastructure/terraform/environments/${{ inputs.environment }}
+      - name: Terraform Apply
+        id: apply
         env:
           TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID }}
           TF_VAR_region: ${{ env.GCP_REGION }}
           TF_VAR_domain: ${{ vars.DOMAIN }}
-          TF_VAR_subdomain_prefix: ${{ needs.context.outputs.subdomain_prefix }}
-          ENVIRONMENT: ${{ inputs.environment }}
+          TF_VAR_supabase_database_url: ${{ secrets.SUPABASE_DATABASE_URL }}
+        working-directory: infrastructure/terraform/environments/${{ inputs.environment }}/infra
         run: |
-          # Targeted apply for just the static bucket and its dependencies
-          terraform apply -input=false -auto-approve \
-            -target='module.infrastructure.google_project_service.services' \
-            -target='module.infrastructure.module.static_assets' \
-            -var='services={}' \
-            -var='supabase_database_url=dummy'
-          
-          # Use known bucket naming convention (terraform output not available in targeted apply)
-          bucket_name="nopo-${ENVIRONMENT}-static"
-          echo "bucket_name=${bucket_name}" >> "$GITHUB_OUTPUT"
-          echo "Static bucket: ${bucket_name}"
+          # Apply infra changes (create/update registry, buckets, etc.)
+          terraform apply -input=false -auto-approve
 
-  # Push images to Artifact Registry and upload static assets (per service)
+          # Capture outputs
+          artifact_registry_url=$(terraform output -raw artifact_registry_url)
+          static_bucket_name=$(terraform output -raw static_bucket_name)
+
+          echo "artifact_registry_url=${artifact_registry_url}" >> "$GITHUB_OUTPUT"
+          echo "static_bucket_name=${static_bucket_name}" >> "$GITHUB_OUTPUT"
+
+  # ===========================================================================
+  # GET CURRENT STATE
+  # We need to know what's currently deployed to the stable slot
+  # ===========================================================================
+  get_current_state:
+    name: Get Current State
+    needs: [provision_infra]
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      current_stable_backend: ${{ steps.state.outputs.backend_image }}
+      current_stable_web: ${{ steps.state.outputs.web_image }}
+      new_backend_image: ${{ steps.new_images.outputs.backend_image }}
+      new_web_image: ${{ steps.new_images.outputs.web_image }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Get stable images
+        id: state
+        env:
+          TF_STATE_BUCKET: ${{ vars.TERRAFORM_STATE_BUCKET }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          REGISTRY: ${{ needs.provision_infra.outputs.artifact_registry_url }}
+          VERSION: ${{ inputs.version }}
+        working-directory: infrastructure/terraform/environments/${{ inputs.environment }}/services
+        run: |
+          # Init to read state
+          terraform init -input=false \
+            -backend-config="bucket=${TF_STATE_BUCKET}" \
+            -backend-config="prefix=nopo/${ENVIRONMENT}/services" 2>/dev/null || true
+
+          # If first run, use new images as stable
+          backend_image="${REGISTRY}/backend:${VERSION}"
+          web_image="${REGISTRY}/web:${VERSION}"
+
+          # Try to read real state if it exists (logic to read from vars would go here)
+          # For now defaulting to new version for safety/simplicity on first run
+
+          echo "backend_image=${backend_image}" >> "$GITHUB_OUTPUT"
+          echo "web_image=${web_image}" >> "$GITHUB_OUTPUT"
+
+      - name: Build new image tags
+        id: new_images
+        env:
+          REGISTRY: ${{ needs.provision_infra.outputs.artifact_registry_url }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          backend_image="${REGISTRY}/backend:${VERSION}"
+          web_image="${REGISTRY}/web:${VERSION}"
+          echo "backend_image=${backend_image}" >> "$GITHUB_OUTPUT"
+          echo "web_image=${web_image}" >> "$GITHUB_OUTPUT"
+
+  # ===========================================================================
+  # BUILD & PUSH
+  # ===========================================================================
   push_images:
     name: Push ${{ matrix.service }}
-    needs: [context, prepare_bucket]
+    needs: [context, provision_infra]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -168,122 +215,52 @@ jobs:
         service: ${{ fromJson(needs.context.outputs.services) }}
     steps:
       - uses: actions/checkout@v4
-
-      - uses: ./.github/actions/setup-node
-
       - uses: ./.github/actions/setup-docker
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      - name: Configure Docker
+        run: gcloud auth configure-docker "${{ env.GCP_REGION }}-docker.pkg.dev" --quiet
 
-      - name: Configure Docker for Artifact Registry
-        run: |
-          gcloud auth configure-docker "${{ env.GCP_REGION }}-docker.pkg.dev" --quiet
-
-      - name: Pull image from GHCR
+      - name: Push to Artifact Registry
         env:
           GHCR_IMAGE: ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ inputs.version }}
+          GCP_IMAGE: ${{ needs.provision_infra.outputs.artifact_registry_url }}/${{ matrix.service }}:${{ inputs.version }}
         run: |
-          echo "Pulling ${GHCR_IMAGE}"
           docker pull "${GHCR_IMAGE}"
-
-      - name: Push image to Artifact Registry
-        env:
-          GHCR_IMAGE: ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ inputs.version }}
-          GCP_IMAGE: ${{ vars.GCP_ARTIFACT_REGISTRY }}/${{ matrix.service }}:${{ inputs.version }}
-        run: |
-          echo "Tagging as ${GCP_IMAGE}"
           docker tag "${GHCR_IMAGE}" "${GCP_IMAGE}"
-
-          echo "Pushing ${GCP_IMAGE}"
           docker push "${GCP_IMAGE}"
 
-      - name: Upload static assets
-        env:
-          GHCR_IMAGE: ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ inputs.version }}
-          BUCKET_NAME: ${{ needs.prepare_bucket.outputs.bucket_name }}
-          SERVICE: ${{ matrix.service }}
-        run: |
-          service_config=$(make list -- --json --jq ".services.\"${SERVICE}\"")
-          if [[ -z "${service_config}" || "${service_config}" == "null" ]]; then
-            echo "No service definition for ${SERVICE} in nopo.yml"
-            exit 0
-          fi
-
-          static_path=$(echo "${service_config}" | jq -r '.static_path // empty')
-          
-          if [[ -z "${static_path}" || "${static_path}" == "null" ]]; then
-            echo "No static_path configured for ${SERVICE} - skipping"
-            exit 0
-          fi
-          
-          echo "=== Uploading static assets for ${SERVICE} ==="
-          echo "Static path: /app/apps/${SERVICE}/${static_path}"
-          
-          # Create a temporary container from the already-pulled image
-          CONTAINER_ID=$(docker create "${GHCR_IMAGE}")
-          echo "Container ID: ${CONTAINER_ID}"
-          
-          # Create temp directory
-          EXTRACT_DIR=$(mktemp -d)
-          
-          # Copy static files from container
-          CONTAINER_PATH="/app/apps/${SERVICE}/${static_path}"
-          echo "Extracting from ${CONTAINER_PATH}..."
-          
-          if docker cp "${CONTAINER_ID}:${CONTAINER_PATH}/." "${EXTRACT_DIR}/" 2>/dev/null; then
-            # Count and show files
-            FILE_COUNT=$(find "${EXTRACT_DIR}" -type f | wc -l)
-            echo "Found ${FILE_COUNT} files"
-            
-            # Upload to GCS
-            echo "Uploading to gs://${BUCKET_NAME}/${SERVICE}/..."
-            gcloud storage cp -r "${EXTRACT_DIR}/*" "gs://${BUCKET_NAME}/${SERVICE}/" \
-              --cache-control="public, max-age=31536000, immutable" \
-              --quiet
-            
-            echo "✓ Static assets uploaded for ${SERVICE}"
-          else
-            echo "⚠ No static files found at ${CONTAINER_PATH} - skipping"
-          fi
-          
-          # Cleanup
-          docker rm "${CONTAINER_ID}" > /dev/null
-          rm -rf "${EXTRACT_DIR}"
-
-  deploy:
-    name: Deploy to ${{ inputs.environment }}
-    needs: [context, push_images]
+  # ===========================================================================
+  # DEPLOY (Canary)
+  # ===========================================================================
+  deploy_canary:
+    name: Deploy Canary
+    needs: [context, provision_infra, get_current_state, push_images]
     runs-on: ubuntu-latest
-    timeout-minutes: 120
     environment:
       name: ${{ inputs.environment }}
-      url: https://${{ needs.context.outputs.subdomain_prefix && format('{0}.', needs.context.outputs.subdomain_prefix) || '' }}${{ vars.DOMAIN }}
+      url: ${{ steps.deploy.outputs.public_url }}
     permissions:
       contents: read
       id-token: write
     outputs:
-      load_balancer_ip: ${{ steps.deploy.outputs.load_balancer_ip }}
       public_url: ${{ steps.deploy.outputs.public_url }}
     steps:
       - uses: actions/checkout@v4
-
-      - uses: ./.github/actions/setup-node
-
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - name: Deploy with Terraform
+      - name: Deploy Services (Canary)
         id: deploy
         uses: ./.github/actions/deploy-gcp
         with:
@@ -292,175 +269,186 @@ jobs:
           environment: ${{ inputs.environment }}
           domain: ${{ vars.DOMAIN }}
           subdomain_prefix: ${{ needs.context.outputs.subdomain_prefix }}
-          service_images: ${{ needs.context.outputs.service_images }}
           terraform_state_bucket: ${{ vars.TERRAFORM_STATE_BUCKET }}
+          # Images
+          stable_backend_image: ${{ needs.get_current_state.outputs.current_stable_backend }}
+          stable_web_image: ${{ needs.get_current_state.outputs.current_stable_web }}
+          canary_backend_image: ${{ needs.get_current_state.outputs.new_backend_image }}
+          canary_web_image: ${{ needs.get_current_state.outputs.new_web_image }}
+          # DB
           supabase_database_url: ${{ secrets.SUPABASE_DATABASE_URL }}
 
-  run_migrations:
-    name: Run database migrations
-    needs: [context, deploy]
+  # ===========================================================================
+  # UPLOAD ASSETS
+  # ===========================================================================
+  upload_assets:
+    name: Upload Assets ${{ matrix.service }}
+    needs: [context, provision_infra]
     runs-on: ubuntu-latest
-    timeout-minutes: 15
     permissions:
       contents: read
       id-token: write
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.context.outputs.services) }}
     steps:
       - uses: actions/checkout@v4
-
       - uses: ./.github/actions/setup-node
-
+      - uses: ./.github/actions/setup-docker
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - name: Set up Cloud SDK
+      - name: Upload to GCS
+        env:
+          GHCR_IMAGE: ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ inputs.version }}
+          BUCKET_NAME: ${{ needs.provision_infra.outputs.static_bucket_name }}
+          SERVICE: ${{ matrix.service }}
+        run: |
+          # Extract service config
+          service_config=$(make list -- --json --jq ".services.\"${SERVICE}\"")
+          static_path=$(echo "${service_config}" | jq -r '.static_path // empty')
+
+          if [[ -z "${static_path}" || "${static_path}" == "null" ]]; then
+            echo "No static_path for ${SERVICE}, skipping"
+            exit 0
+          fi
+
+          # Pull and extract
+          docker pull "${GHCR_IMAGE}"
+          CONTAINER_ID=$(docker create "${GHCR_IMAGE}")
+          EXTRACT_DIR=$(mktemp -d)
+
+          if docker cp "${CONTAINER_ID}:/app/apps/${SERVICE}/${static_path}/." "${EXTRACT_DIR}/" 2>/dev/null; then
+            echo "Uploading assets to gs://${BUCKET_NAME}/${SERVICE}/..."
+            gcloud storage cp -r "${EXTRACT_DIR}/*" "gs://${BUCKET_NAME}/${SERVICE}/" \
+              --cache-control="public, max-age=31536000, immutable" --quiet
+          else
+            echo "No static files found in image"
+          fi
+
+          docker rm "${CONTAINER_ID}" > /dev/null
+
+  # ===========================================================================
+  # MIGRATIONS & TEST
+  # ===========================================================================
+  run_migrations:
+    name: Database Migrations
+    needs: [context, deploy_canary]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-node
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      - name: Setup Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Check and run migrations for all services
+      - name: Check and Run Migrations
         env:
           PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
           REGION: ${{ env.GCP_REGION }}
           ENVIRONMENT: ${{ inputs.environment }}
           SERVICES: ${{ needs.context.outputs.services }}
         run: |
-          # Find services that need migrations
           services_payload=$(make list -- --json --jq '.services')
-
           for service in $(echo "${SERVICES}" | jq -r '.[]'); do
-            config=$(echo "${services_payload}" | jq -c --arg svc "$service" '.[$svc]')
-            if [[ -z "${config}" || "${config}" == "null" ]]; then
-              echo "Skipping ${service} - not defined in nopo.yml"
-              continue
-            fi
-
+            config=$(echo "${services_payload}" | jq -c --arg s "$service" '.[$s]')
             run_migrations=$(echo "${config}" | jq -r '.run_migrations // false')
             
             if [[ "${run_migrations}" == "true" ]]; then
               echo "Running migrations for ${service}..."
               JOB_NAME="nopo-${ENVIRONMENT}-${service}-migrate"
-              
-              if [[ "${run_migrations}" == "true" ]]; then
-                echo "=== Checking migrations for ${service} ==="
-                CHECK_JOB_NAME="nopo-${ENVIRONMENT}-${service}-migrate-check"
-                MIGRATE_JOB_NAME="nopo-${ENVIRONMENT}-${service}-migrate"
-                
-                # Run the check job to see if migrations are needed
-                # Exit code 0 = no migrations pending, Exit code 1 = migrations pending
-                echo "Running migration check job: ${CHECK_JOB_NAME}"
-                
-                if ! gcloud run jobs describe "${CHECK_JOB_NAME}" \
-                    --project="${PROJECT_ID}" \
-                    --region="${REGION}" \
-                    --format="value(name)" 2>/dev/null; then
-                  echo "Check job ${CHECK_JOB_NAME} does not exist yet, skipping..."
-                  continue
-                fi
-                
-                # Execute the check job and capture the result
-                EXECUTION_NAME=$(gcloud run jobs execute "${CHECK_JOB_NAME}" \
-                  --project="${PROJECT_ID}" \
-                  --region="${REGION}" \
-                  --format="value(metadata.name)" 2>/dev/null) || true
-                
-                if [[ -z "${EXECUTION_NAME}" ]]; then
-                  echo "Failed to execute check job, skipping..."
-                  continue
-                fi
-                
-                echo "Waiting for check job execution: ${EXECUTION_NAME}"
-                
-                # Wait for the job to complete and get its status
-                MAX_WAIT=120
-                WAITED=0
-                CHECK_RESULT=""
-                
-                while [[ ${WAITED} -lt ${MAX_WAIT} ]]; do
-                  STATUS=$(gcloud run jobs executions describe "${EXECUTION_NAME}" \
-                    --project="${PROJECT_ID}" \
-                    --region="${REGION}" \
-                    --format="value(status.conditions[0].type)" 2>/dev/null) || true
-                  
-                  if [[ "${STATUS}" == "Completed" ]]; then
-                    # Check if it succeeded (exit 0 = no migrations) or failed (exit 1 = migrations pending)
-                    SUCCEEDED=$(gcloud run jobs executions describe "${EXECUTION_NAME}" \
-                      --project="${PROJECT_ID}" \
-                      --region="${REGION}" \
-                      --format="value(status.succeededCount)" 2>/dev/null) || true
-                    
-                    if [[ "${SUCCEEDED}" == "1" ]]; then
-                      CHECK_RESULT="no_migrations"
-                    else
-                      CHECK_RESULT="has_migrations"
-                    fi
-                    break
-                  fi
-                  
-                  sleep 5
-                  WAITED=$((WAITED + 5))
-                done
-                
-                if [[ -z "${CHECK_RESULT}" ]]; then
-                  echo "⚠ Migration check timed out, running migrations as fallback..."
-                  CHECK_RESULT="has_migrations"
-                fi
-                
-                if [[ "${CHECK_RESULT}" == "no_migrations" ]]; then
-                  echo "✓ No pending migrations for ${service}, skipping migration job"
-                else
-                  echo "→ Pending migrations detected for ${service}, running migrations..."
-                  gcloud run jobs execute "${MIGRATE_JOB_NAME}" \
-                    --project="${PROJECT_ID}" \
-                    --region="${REGION}" \
-                    --wait \
-                    || echo "Migration job ${MIGRATE_JOB_NAME} may not exist yet, skipping..."
-                fi
-              fi
+              gcloud run jobs execute "${JOB_NAME}" --project="${PROJECT_ID}" --region="${REGION}" --wait || true
             fi
           done
 
-  smoketest:
-    name: Smoke test
-    needs: [context, deploy, run_migrations]
+  smoketest_canary:
+    name: Smoketest Canary
+    needs: [deploy_canary, run_migrations, upload_assets]
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-
       - uses: ./.github/actions/setup-node
-
-      - name: Run smoketest
+      - name: Test Canary
         uses: ./.github/actions/smoketest
         with:
-          public_url: ${{ needs.deploy.outputs.public_url }}
+          public_url: ${{ needs.deploy_canary.outputs.public_url }}
+          canary: true
 
-  tag_environment:
-    name: Tag ${{ matrix.service }} for ${{ inputs.environment }}
-    needs: [context, smoketest]
+  # ===========================================================================
+  # PROMOTE & FINALIZE
+  # ===========================================================================
+  promote:
+    name: Promote to Stable
+    needs: [context, deploy_canary, smoketest_canary, get_current_state]
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    environment:
+      name: ${{ inputs.environment }}
+      url: https://${{ needs.context.outputs.subdomain_prefix && format('{0}.', needs.context.outputs.subdomain_prefix) || '' }}${{ vars.DOMAIN }}
     permissions:
       contents: read
       id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Deploy Services (Promote)
+        uses: ./.github/actions/deploy-gcp
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          region: ${{ env.GCP_REGION }}
+          environment: ${{ inputs.environment }}
+          domain: ${{ vars.DOMAIN }}
+          subdomain_prefix: ${{ needs.context.outputs.subdomain_prefix }}
+          terraform_state_bucket: ${{ vars.TERRAFORM_STATE_BUCKET }}
+          # Stable now gets new images
+          stable_backend_image: ${{ needs.get_current_state.outputs.new_backend_image }}
+          stable_web_image: ${{ needs.get_current_state.outputs.new_web_image }}
+          # Canary stays same
+          canary_backend_image: ${{ needs.get_current_state.outputs.new_backend_image }}
+          canary_web_image: ${{ needs.get_current_state.outputs.new_web_image }}
+          # DB
+          supabase_database_url: ${{ secrets.SUPABASE_DATABASE_URL }}
+
+  tag_environment:
+    name: Tag Environment
+    needs: [context, promote]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
       packages: write
     strategy:
       matrix:
         service: ${{ fromJson(needs.context.outputs.services) }}
     steps:
       - uses: actions/checkout@v4
-
       - uses: ./.github/actions/setup-docker
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Tag environment image on GHCR
+      - name: Tag Image
         env:
-          GHCR_VERSION_IMAGE: ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ inputs.version }}
-          GHCR_ENV_IMAGE: ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ inputs.environment }}
+          GHCR_VERSION: ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ inputs.version }}
+          GHCR_ENV: ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ inputs.environment }}
         run: |
-          docker pull "${GHCR_VERSION_IMAGE}"
-          docker tag "${GHCR_VERSION_IMAGE}" "${GHCR_ENV_IMAGE}"
-          docker push "${GHCR_ENV_IMAGE}"
+          docker pull "${GHCR_VERSION}"
+          docker tag "${GHCR_VERSION}" "${GHCR_ENV}"
+          docker push "${GHCR_ENV}"

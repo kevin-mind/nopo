@@ -14,10 +14,6 @@ default:
 	pnpm install
 	npx -y tsx ./nopo/scripts/bin.ts
 
-.PHONY: fly
-fly:
-	node ./fly/scripts/$(SECOND_WORD).js
-
 .PHONY: shell
 shell:
 	docker compose run --rm $(or $(SERVICE_NAME),base) bash
@@ -25,3 +21,14 @@ shell:
 .PHONY: *
 %:
 	@if [ "$(FIRST_WORD)" = "$@" ]; then npx -y tsx ./nopo/scripts/bin.ts $(MAKECMDGOALS); fi
+
+.PHONY: lint-terraform
+lint-terraform:
+	terraform fmt -recursive infrastructure/terraform
+	terraform -chdir=infrastructure/terraform init -backend=false
+	terraform -chdir=infrastructure/terraform validate
+	@for dir in infrastructure/terraform/modules/*/; do \
+		echo "=== Validating $$dir ==="; \
+		terraform -chdir="$$dir" init -backend=false; \
+		terraform -chdir="$$dir" validate; \
+	done

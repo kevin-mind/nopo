@@ -1,5 +1,5 @@
 name: Deploy to GCP
-description: Deploy services to Google Cloud Platform using Terraform
+description: Deploy services to Google Cloud Platform using Terraform (services layer)
 
 inputs:
   project_id:
@@ -19,30 +19,41 @@ inputs:
     description: The subdomain prefix (e.g., 'stage' or empty for apex)
     required: false
     default: ""
-  service_images:
-    description: JSON object mapping service names to their Docker image tags
+  # Stable slot images
+  stable_backend_image:
+    description: Docker image for stable backend service
+    required: true
+  stable_web_image:
+    description: Docker image for stable web service
+    required: true
+  # Canary slot images
+  canary_backend_image:
+    description: Docker image for canary backend service
+    required: true
+  canary_web_image:
+    description: Docker image for canary web service
     required: true
   terraform_state_bucket:
     description: The GCS bucket for Terraform state
-    required: true
-  working_directory:
-    description: The Terraform working directory
-    required: false
-    default: "infrastructure/terraform/environments"
-  supabase_database_url:
-    description: The Supabase database URL
     required: true
 
 outputs:
   load_balancer_ip:
     description: The load balancer IP address
-    value: ${{ steps.apply.outputs.load_balancer_ip }}
+    value: ${{ steps.infra_outputs.outputs.load_balancer_ip }}
   public_url:
     description: The public URL
     value: ${{ steps.apply.outputs.public_url }}
-  services:
-    description: JSON object of deployed services
-    value: ${{ steps.apply.outputs.services }}
+  canary_header:
+    description: Header to send for canary routing
+    value: ${{ steps.apply.outputs.canary_header }}
+  artifact_registry_url:
+    description: The Artifact Registry URL
+    value: ${{ steps.infra_outputs.outputs.artifact_registry_url }}
+  static_bucket_name:
+    description: The static assets bucket name
+    value: ${{ steps.infra_outputs.outputs.static_bucket_name }}
+
 runs:
   using: "composite"
   steps:
@@ -52,122 +63,86 @@ runs:
         terraform_version: "1.7.0"
         terraform_wrapper: false
 
-    - name: Build services configuration
-      id: services_config
+    # Get outputs from infra layer (for artifact registry URL, bucket name, etc.)
+    - name: Get infra layer outputs
+      id: infra_outputs
       shell: bash
-      env:
-        SERVICE_IMAGES: ${{ inputs.service_images }}
-        ENVIRONMENT: ${{ inputs.environment }}
-      run: |
-        # Build the Terraform services variable from discovered services and their images
-        # Input: {"backend":"registry/backend:tag","web":"registry/web:tag"}
-        # Output: Terraform-compatible services map
-
-        echo "Building services configuration..."
-        echo "Service images: ${SERVICE_IMAGES}"
-
-        services_payload=$(make list -- --json --jq '.services')
-        services_tf="{}"
-
-        for service in $(echo "${SERVICE_IMAGES}" | jq -r 'keys[]'); do
-          image=$(echo "${SERVICE_IMAGES}" | jq -r --arg s "$service" '.[$s]')
-          
-          config=$(echo "${services_payload}" | jq -c --arg svc "$service" '.[$svc]')
-          if [[ -z "${config}" || "${config}" == "null" ]]; then
-            echo "Service ${service} is not defined in nopo.yml"
-            exit 1
-          fi
-
-          cpu=$(echo "${config}" | jq -r '.cpu // "1"')
-          memory=$(echo "${config}" | jq -r '.memory // "512Mi"')
-          port=$(echo "${config}" | jq -r '.port // 3000')
-          min_instances=$(echo "${config}" | jq -r '.min_instances // 0')
-          max_instances=$(echo "${config}" | jq -r '.max_instances // 10')
-          has_database=$(echo "${config}" | jq -r '.has_database // false')
-          run_migrations=$(echo "${config}" | jq -r '.run_migrations // false')
-          
-          # Adjust min_instances for production
-          if [[ "${ENVIRONMENT}" == "prod" && "${min_instances}" == "0" ]]; then
-            min_instances="1"
-          fi
-          
-          # Build service object
-          service_obj=$(jq -n \
-            --arg image "${image}" \
-            --arg cpu "${cpu}" \
-            --arg memory "${memory}" \
-            --argjson port "${port}" \
-            --argjson min "${min_instances}" \
-            --argjson max "${max_instances}" \
-            --argjson db "${has_database}" \
-            --argjson migrate "${run_migrations}" \
-            '{
-              image: $image,
-              cpu: $cpu,
-              memory: $memory,
-              port: $port,
-              min_instances: $min,
-              max_instances: $max,
-              has_database: $db,
-              run_migrations: $migrate
-            }')
-          
-          services_tf=$(echo "${services_tf}" | jq --arg k "${service}" --argjson v "${service_obj}" '. + {($k): $v}')
-        done
-
-        echo "Services configuration:"
-        echo "${services_tf}" | jq .
-        
-        # Save to file for Terraform
-        echo "${services_tf}" > services.json
-        
-        # Output as compact JSON (single line) for GitHub Actions
-        services_compact=$(echo "${services_tf}" | jq -c .)
-        echo "services_json=${services_compact}" >> "$GITHUB_OUTPUT"
-
-    - name: Terraform Init
-      shell: bash
-      working-directory: ${{ inputs.working_directory }}/${{ inputs.environment }}
+      working-directory: infrastructure/terraform/environments/${{ inputs.environment }}/infra
       env:
         TF_STATE_BUCKET: ${{ inputs.terraform_state_bucket }}
         ENVIRONMENT: ${{ inputs.environment }}
       run: |
         terraform init -input=false \
           -backend-config="bucket=${TF_STATE_BUCKET}" \
-          -backend-config="prefix=nopo/${ENVIRONMENT}"
+          -backend-config="prefix=nopo/${ENVIRONMENT}/infra"
+
+        artifact_registry_url=$(terraform output -raw artifact_registry_url 2>/dev/null || echo "")
+        static_bucket_name=$(terraform output -raw static_bucket_name 2>/dev/null || echo "")
+        load_balancer_ip=$(terraform output -raw load_balancer_ip 2>/dev/null || echo "")
+
+        echo "artifact_registry_url=${artifact_registry_url}" >> "$GITHUB_OUTPUT"
+        echo "static_bucket_name=${static_bucket_name}" >> "$GITHUB_OUTPUT"
+        echo "load_balancer_ip=${load_balancer_ip}" >> "$GITHUB_OUTPUT"
+
+        echo "Infra outputs:"
+        echo "  Artifact Registry: ${artifact_registry_url}"
+        echo "  Static Bucket: ${static_bucket_name}"
+        echo "  Load Balancer IP: ${load_balancer_ip}"
+
+    - name: Terraform Init (services layer)
+      shell: bash
+      working-directory: infrastructure/terraform/environments/${{ inputs.environment }}/services
+      env:
+        TF_STATE_BUCKET: ${{ inputs.terraform_state_bucket }}
+        ENVIRONMENT: ${{ inputs.environment }}
+      run: |
+        terraform init -input=false \
+          -backend-config="bucket=${TF_STATE_BUCKET}" \
+          -backend-config="prefix=nopo/${ENVIRONMENT}/services"
 
     - name: Terraform Plan
       shell: bash
-      working-directory: ${{ inputs.working_directory }}/${{ inputs.environment }}
+      working-directory: infrastructure/terraform/environments/${{ inputs.environment }}/services
       env:
         TF_VAR_project_id: ${{ inputs.project_id }}
         TF_VAR_region: ${{ inputs.region }}
         TF_VAR_domain: ${{ inputs.domain }}
-        TF_VAR_subdomain_prefix: ${{ inputs.subdomain_prefix }}
-        TF_VAR_supabase_database_url: ${{ inputs.supabase_database_url }}
+        TF_VAR_terraform_state_bucket: ${{ inputs.terraform_state_bucket }}
+        TF_VAR_stable_backend_image: ${{ inputs.stable_backend_image }}
+        TF_VAR_stable_web_image: ${{ inputs.stable_web_image }}
+        TF_VAR_canary_backend_image: ${{ inputs.canary_backend_image }}
+        TF_VAR_canary_web_image: ${{ inputs.canary_web_image }}
       run: |
-        # Pass services as JSON variable
-        terraform plan -input=false -out=tfplan \
-          -var='services=${{ steps.services_config.outputs.services_json }}'
+        echo "=== Terraform Plan (Services Layer) ==="
+        echo "Stable images:"
+        echo "  Backend: ${TF_VAR_stable_backend_image}"
+        echo "  Web: ${TF_VAR_stable_web_image}"
+        echo "Canary images:"
+        echo "  Backend: ${TF_VAR_canary_backend_image}"
+        echo "  Web: ${TF_VAR_canary_web_image}"
+
+        terraform plan -input=false -out=tfplan
 
     - name: Terraform Apply
       id: apply
       shell: bash
-      working-directory: ${{ inputs.working_directory }}/${{ inputs.environment }}
+      working-directory: infrastructure/terraform/environments/${{ inputs.environment }}/services
       run: |
         terraform apply -input=false -auto-approve tfplan
 
         # Extract outputs
-        load_balancer_ip=$(terraform output -raw load_balancer_ip 2>/dev/null || echo "")
         public_url=$(terraform output -raw public_url 2>/dev/null || echo "")
-        services=$(terraform output -json services_summary 2>/dev/null || echo "{}")
+        canary_header=$(terraform output -raw canary_header 2>/dev/null || echo "")
 
-        echo "load_balancer_ip=${load_balancer_ip}" >> "$GITHUB_OUTPUT"
         echo "public_url=${public_url}" >> "$GITHUB_OUTPUT"
-        echo "services=${services}" >> "$GITHUB_OUTPUT"
+        echo "canary_header=${canary_header}" >> "$GITHUB_OUTPUT"
+
+        echo "=== Deploy Complete ==="
+        echo "Public URL: ${public_url}"
+        echo "Canary Header: ${canary_header}"
 
     - name: Cleanup plan file
       shell: bash
-      working-directory: ${{ inputs.working_directory }}/${{ inputs.environment }}
+      working-directory: infrastructure/terraform/environments/${{ inputs.environment }}/services
       if: always()
-      run: rm -f tfplan services.json
+      run: rm -f tfplan
