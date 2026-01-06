@@ -30,6 +30,6 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           # No prompt needed, it defaults to responding to the comment context
-          claude_args: "--model claude-3-5-sonnet-latest"
+          claude_args: "--model claude-opus-4-5-20251101"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
