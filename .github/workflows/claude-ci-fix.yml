@@ -1,0 +1,42 @@
+name: Claude CI Fix
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+
+jobs:
+  fix-build:
+    if: github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "Claude Bot"
+          git config --global user.email "claude-bot@anthropic.com"
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            The CI build failed for this branch.
+
+            1. Analyze the project to understand the build and test process (see CLAUDE.md).
+            2. Run the build/test command locally to reproduce the failure.
+            3. Fix the issue.
+            4. Verify the fix by running tests again.
+            5. Push the changes.
+          claude_args: "--model claude-3-5-sonnet-latest"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
