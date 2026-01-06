@@ -59,8 +59,59 @@ jobs:
             echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
           fi
 
+      - name: Check for unresolved comments
+        if: steps.find.outputs.has_pr == 'true'
+        id: comments
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.find.outputs.pr_number }}
+        run: |
+          # Get all review threads and check for unresolved ones
+          unresolved=$(gh api graphql -f query='
+            query($owner: String!, $repo: String!, $pr: Int!) {
+              repository(owner: $owner, name: $repo) {
+                pullRequest(number: $pr) {
+                  reviewThreads(first: 100) {
+                    nodes {
+                      isResolved
+                      isOutdated
+                    }
+                  }
+                }
+              }
+            }
+          ' -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" -F pr="$PR_NUMBER")
+
+          # Count unresolved threads (excluding outdated ones)
+          unresolved_count=$(echo "$unresolved" | jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false and .isOutdated == false)] | length')
+
+          echo "Unresolved comment threads: $unresolved_count"
+
+          if [[ "$unresolved_count" -gt 0 ]]; then
+            echo "has_unresolved=true" >> $GITHUB_OUTPUT
+            echo "unresolved_count=$unresolved_count" >> $GITHUB_OUTPUT
+          else
+            echo "has_unresolved=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Skip if unresolved comments
+        if: steps.comments.outputs.has_unresolved == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.find.outputs.pr_number }}
+          UNRESOLVED_COUNT: ${{ steps.comments.outputs.unresolved_count }}
+        run: |
+          echo "Skipping move to Review - $UNRESOLVED_COUNT unresolved comment thread(s)"
+
+          # Add a comment to the PR
+          gh pr comment "$PR_NUMBER" --body "⏸️ **CI passed but not moving to Review**
+
+          There are **$UNRESOLVED_COUNT unresolved comment thread(s)** on this PR.
+
+          Please resolve all comments before the PR can move to Review status."
+
       - name: Update project status to Review
-        if: steps.find.outputs.has_issue == 'true'
+        if: steps.find.outputs.has_issue == 'true' && steps.comments.outputs.has_unresolved != 'true'
         env:
           GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ steps.find.outputs.issue_number }}
@@ -136,7 +187,7 @@ jobs:
           echo "Updated issue #$ISSUE_NUMBER to Review status"
 
       - name: Add review-ready label to PR
-        if: steps.find.outputs.has_pr == 'true'
+        if: steps.find.outputs.has_pr == 'true' && steps.comments.outputs.has_unresolved != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.find.outputs.pr_number }}

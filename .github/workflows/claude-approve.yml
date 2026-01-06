@@ -9,27 +9,23 @@ permissions:
   pull-requests: write
 
 jobs:
-  notify-ready:
+  approve-and-label:
     # Only act on approvals from Claude (github-actions[bot])
     if: |
       github.event.review.state == 'approved' &&
       github.event.review.user.login == 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
-      - name: Add ready-to-merge label
+      - name: Add label and submit approval review
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           # Add the ready-to-merge label
-          gh pr edit "$PR_NUMBER" --add-label "ready-to-merge" || true
+          gh pr edit "$PR_NUMBER" --add-label "ready-to-merge" --repo "$GITHUB_REPOSITORY" || true
 
-      - name: Comment on PR
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          gh pr comment "$PR_NUMBER" --body "## Ready for Human Review
+          # Submit an approval review with the summary message
+          gh pr review "$PR_NUMBER" --approve --repo "$GITHUB_REPOSITORY" --body "## Ready for Human Review
 
           This PR has been:
           - [x] Implemented by Claude automation
