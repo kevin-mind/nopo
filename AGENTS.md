@@ -18,6 +18,7 @@ This document provides comprehensive guidance for AI coding agents working on th
 10. [Architecture & Documentation](#architecture--documentation)
 11. [Conventions & Patterns](#conventions--patterns)
 12. [Tripwires & Anti-patterns](#tripwires--anti-patterns)
+13. [Claude Automation State Machine](#claude-automation-state-machine)
 
 ---
 
@@ -707,6 +708,86 @@ make check && make test && git push
 - Changes to CI/CD pipeline
 - Database migrations affecting production data
 - Security-sensitive changes
+
+---
+
+## Claude Automation State Machine
+
+This project uses Claude AI agents integrated with GitHub Projects V2 for automated issue management.
+
+### State Flow
+
+```
+┌──────────┐    ┌───────┐    ┌─────────────┐    ┌────────┐
+│ BACKLOG  │───►│ READY │───►│ IN PROGRESS │───►│ REVIEW │───► DONE
+└──────────┘    └───────┘    └─────────────┘    └────────┘
+     │              │               │                │
+     ▼              ▼               ▼                ▼
+ [TRIAGE]      [HUMAN]        [IMPLEMENT]      [VALIDATE]
+  Agent        Decision         Agent            Agent
+```
+
+### Agent Responsibilities
+
+| Agent | Trigger | Actions |
+|-------|---------|---------|
+| **Triage** | Issue added to Backlog | Labels, links similar issues, expands context, answers questions |
+| **Implement** | Human moves to Ready | Creates branch, implements, runs tests, creates PR with "Fixes #N" |
+| **CI-Fix** | CI failure on Claude PR | Analyzes failure, implements fix, pushes to same branch |
+| **Review** | PR opened/updated | Reviews code, validates issue todos, approves or requests changes |
+| **Approve** | Claude approves PR | Adds "ready-to-merge" label, comments for human merge |
+| **Respond** | @claude mention | Responds to questions/requests in comments |
+
+### Human Gates
+
+These actions **require human intervention**:
+
+1. **Moving to Ready**: Only humans can move issues from Backlog to Ready
+2. **Merging PRs**: Only humans can merge approved PRs
+
+### Workflows
+
+| Workflow | File | Purpose |
+|----------|------|---------|
+| Project Triage | `claude-project-triage.yml` | Triage issues in Backlog |
+| Project Implement | `claude-project-implement.yml` | Implement Ready issues |
+| CI Fix | `claude-ci-fix.yml` | Fix CI failures on Claude PRs |
+| CI Pass | `claude-ci-pass.yml` | Move to Review when CI passes |
+| Review | `claude-review.yml` | Review PRs with issue validation |
+| Approve | `claude-approve.yml` | Mark PRs ready for human merge |
+| Respond | `claude-respond.yml` | Respond to @claude mentions |
+
+### Issue Template
+
+Use the Task template when creating issues. Required sections:
+
+- **Description**: Brief TLDR of the issue
+- **Details**: Implementation details, implications
+- **Questions**: Open questions (use checkboxes)
+- **Todo**: Tasks to complete (use checkboxes)
+
+### PR Requirements
+
+All PRs created by Claude automation must:
+
+1. Include `Fixes #N` in the body to link to the issue
+2. Pass CI checks before review
+3. Have all issue todos addressed
+4. Be approved by Claude before human merge
+
+### Human Intervention
+
+You can intervene at any point:
+
+- **Push commits**: Agents continue normally with your changes
+- **@claude mention**: Spawn an agent to respond to your request
+- **Manual review**: Review and merge PRs when ready
+
+### Setup Requirements
+
+1. **PROJECT_TOKEN secret**: Fine-grained PAT with `project:write` permission
+2. **ANTHROPIC_API_KEY secret**: API key for Claude
+3. **GitHub Project**: Project board with Status field (Backlog, Ready, In Progress, Review, Done)
 
 ---
 
