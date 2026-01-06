@@ -1,0 +1,89 @@
+name: Claude Project Triage
+
+on:
+  projects_v2_item:
+    types: [created, edited]
+
+permissions:
+  contents: read
+  issues: write
+  id-token: write
+
+jobs:
+  check-status:
+    runs-on: ubuntu-latest
+    outputs:
+      should_triage: ${{ steps.check.outputs.should_triage }}
+      issue_number: ${{ steps.check.outputs.issue_number }}
+      issue_title: ${{ steps.check.outputs.issue_title }}
+      issue_body: ${{ steps.check.outputs.issue_body }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get project item status
+        id: check
+        uses: ./.github/actions/project-status
+        with:
+          action: get
+          item_id: ${{ github.event.projects_v2_item.node_id }}
+          token: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Determine if triage needed
+        id: decide
+        run: |
+          if [[ "${{ steps.check.outputs.status }}" == "Backlog" ]]; then
+            echo "should_triage=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_triage=false" >> $GITHUB_OUTPUT
+          fi
+
+  triage:
+    needs: check-status
+    if: needs.check-status.outputs.should_triage == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are triaging issue #${{ needs.check-status.outputs.issue_number }}: "${{ needs.check-status.outputs.issue_title }}"
+
+            Issue body:
+            ${{ needs.check-status.outputs.issue_body }}
+
+            Your tasks:
+            1. ADD APPROPRIATE LABELS based on the issue type:
+               - 'bug' for bug reports
+               - 'enhancement' for new features
+               - 'documentation' for docs changes
+               - 'refactor' for code improvements
+               - Priority labels if urgency is indicated
+
+            2. SEARCH FOR SIMILAR ISSUES:
+               - Use `gh issue list` to find related issues
+               - If similar issues exist, add a comment linking to them
+               - Check if this might be a duplicate
+
+            3. EXPAND CONTEXT:
+               - Review the codebase for relevant files mentioned or implied
+               - Add a comment with additional technical context
+               - Reference specific files/functions that will be affected
+
+            4. ANSWER QUESTIONS:
+               - If the issue has a Questions section, research and answer them
+               - Update the issue body or add a comment with answers
+
+            5. VALIDATE COMPLETENESS:
+               - If Description or Details are unclear, add 'status: needs-info' label
+               - Ask clarifying questions in a comment
+               - If Todo items are vague, suggest more specific tasks
+
+            IMPORTANT:
+            - DO NOT move the issue to 'Ready' - a human must do that
+            - DO NOT assign the issue to anyone
+            - Focus on making the issue as clear and actionable as possible
+          claude_args: "--model claude-3-5-sonnet-latest"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
