@@ -1,0 +1,66 @@
+name: Claude Triage
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  contents: read
+  issues: write
+  id-token: write
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    # Only triage if issue doesn't have 'triaged' label
+    if: ${{ !contains(github.event.issue.labels.*.name, 'triaged') }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            You are triaging issue #${{ github.event.issue.number }}: "${{ github.event.issue.title }}"
+
+            Issue body:
+            ${{ github.event.issue.body }}
+
+            Your tasks:
+            1. ADD APPROPRIATE LABELS based on the issue type:
+               - 'bug' for bug reports
+               - 'enhancement' for new features
+               - 'documentation' for docs changes
+               - 'refactor' for code improvements
+               - Priority labels if urgency is indicated
+
+            2. SEARCH FOR SIMILAR ISSUES:
+               - Use `gh issue list` to find related issues
+               - If similar issues exist, add a comment linking to them
+               - Check if this might be a duplicate
+
+            3. EXPAND CONTEXT:
+               - Review the codebase for relevant files mentioned or implied
+               - Add a comment with additional technical context
+               - Reference specific files/functions that will be affected
+
+            4. ANSWER QUESTIONS:
+               - If the issue has a Questions section, research and answer them
+               - Update the issue body or add a comment with answers
+
+            5. VALIDATE COMPLETENESS:
+               - If Description or Details are unclear, add 'needs-info' label
+               - Ask clarifying questions in a comment
+               - If Todo items are vague, suggest more specific tasks
+
+            IMPORTANT:
+            - DO NOT assign the issue to anyone
+            - Focus on making the issue as clear and actionable as possible
+          claude_args: "--model claude-opus-4-5-20251101"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add triaged label
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh issue edit ${{ github.event.issue.number }} --add-label "triaged"

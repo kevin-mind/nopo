@@ -32,7 +32,29 @@ jobs:
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          # No prompt needed, it defaults to responding to the comment context
-          claude_args: "--model claude-opus-4-5-20251101"
+          prompt: |
+            You were mentioned in a comment. Review the comment and take appropriate action.
+
+            If this is a PR review comment:
+            1. READ the comment and understand what's being requested
+            2. If it's a code change request:
+               - Make the requested changes to the code
+               - Commit and push the fix
+               - Reply confirming the fix was made
+            3. If it's a question:
+               - Research the answer in the codebase
+               - Reply with a clear, helpful answer
+            4. If the comment is resolved by your changes:
+               - The reviewer will resolve the thread after reviewing
+
+            If this is an issue comment:
+            1. Answer questions or provide clarification
+            2. If asked to make changes, update the issue or add context
+
+            IMPORTANT:
+            - Be helpful and responsive
+            - If you make code changes, explain what you changed
+            - Follow CLAUDE.md guidelines for any code changes
+          claude_args: "--model claude-opus-4-5-20251101 --max-turns 20"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

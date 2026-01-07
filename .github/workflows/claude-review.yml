@@ -2,7 +2,7 @@ name: Claude Review
 
 on:
   pull_request:
-    types: [opened, synchronize, labeled]
+    types: [review_requested]
 
 permissions:
   contents: read
@@ -13,6 +13,8 @@ permissions:
 jobs:
   extract-issue:
     runs-on: ubuntu-latest
+    # Only run when Claude is requested as reviewer
+    if: github.event.requested_reviewer.login == 'claude[bot]'
     outputs:
       issue_number: ${{ steps.extract.outputs.issue_number }}
       issue_body: ${{ steps.extract.outputs.issue_body }}
