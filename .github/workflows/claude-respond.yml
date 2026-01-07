@@ -1,27 +1,23 @@
 name: Claude Respond
 
 on:
-  issue_comment:
-    types: [created]
   pull_request_review_comment:
     types: [created]
 
 permissions:
   contents: write
   pull-requests: write
-  issues: write
   id-token: write
 
 jobs:
   respond:
-    # Only run if comment contains @claude and has a valid comment ID
-    if: |
-      contains(github.event.comment.body, '@claude') &&
-      github.event.comment.id != ''
+    # Only run if comment mentions @claude
+    if: contains(github.event.comment.body, '@claude')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
 
       - name: Configure Git
@@ -33,28 +29,49 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
-            You were mentioned in a comment. Review the comment and take appropriate action.
+            A PR review comment mentioned you. Determine if this is a CALL or a RESPONSE.
 
-            If this is a PR review comment:
-            1. READ the comment and understand what's being requested
-            2. If it's a code change request:
-               - Make the requested changes to the code
-               - Commit and push the fix
-               - Reply confirming the fix was made
-            3. If it's a question:
+            CALL: A comment initiating a thread - asking a question or requesting changes.
+            RESPONSE: A reply to a previous comment in an existing thread.
+
+            ## If this is a CALL (new comment thread or initiating request):
+
+            1. UNDERSTAND the comment - is it a question or a change request?
+
+            2. If it's a QUESTION:
                - Research the answer in the codebase
                - Reply with a clear, helpful answer
-            4. If the comment is resolved by your changes:
-               - The reviewer will resolve the thread after reviewing
 
-            If this is an issue comment:
-            1. Answer questions or provide clarification
-            2. If asked to make changes, update the issue or add context
+            3. If it's a CHANGE REQUEST:
+               - Assess if the request is valid
+               - Would it improve stability, resilience, or code quality?
+               - If YES: Make the change, commit, push, and reply with a link to the commit
+               - If NO: Reply explaining why you won't make the change with clear reasoning
+
+            ## If this is a RESPONSE (reply to your previous comment):
+
+            1. UNDERSTAND the response - is it answering your question or responding to your change request?
+
+            2. If it's an ANSWER to your question:
+               - Is it satisfying? Does it fully address your question?
+               - If YES: Resolve the comment thread
+               - If NO: Ask follow-up questions requesting more detail
+
+            3. If it's a RESPONSE to your change request:
+               - If they made the changes (commit): Resolve the comment thread
+               - If they're pushing back on the change:
+                 - Is their reasoning valid? Could there be good reasons NOT to make the change?
+                 - If their pushback is reasonable: Accept it and resolve the thread
+                 - If their pushback is not convincing: Reply with more compelling arguments for why the change should be made
+
+            ## Commands:
+            - To resolve a thread: `gh api /repos/{owner}/{repo}/pulls/comments/{comment_id}/replies -f body="Resolved"`
+            - The comment ID is available in the event context
 
             IMPORTANT:
-            - Be helpful and responsive
-            - If you make code changes, explain what you changed
-            - Follow CLAUDE.md guidelines for any code changes
+            - Be constructive and collaborative
+            - If making code changes, follow CLAUDE.md guidelines
+            - Don't be stubborn - if pushback is reasonable, accept it gracefully
           claude_args: "--model claude-opus-4-5-20251101 --max-turns 20"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
