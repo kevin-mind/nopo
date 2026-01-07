@@ -1,12 +1,6 @@
 name: Claude Review
 
 on:
-  pull_request:
-    types: [review_requested]
-
-concurrency:
-  group: claude-pr-${{ github.event.pull_request.number }}
-  cancel-in-progress: false
   workflow_dispatch:
     inputs:
       pr_number:
@@ -27,10 +21,6 @@ permissions:
 jobs:
   setup:
     runs-on: ubuntu-latest
-    # Only run when Claude is requested as reviewer AND PR is ready (not draft)
-    if: |
-      github.event.requested_reviewer.login == 'claude[bot]' &&
-      github.event.pull_request.draft == false
     outputs:
       pr_branch: ${{ steps.pr.outputs.branch }}
       pr_body: ${{ steps.pr.outputs.body }}
@@ -39,6 +29,8 @@ jobs:
       issue_body: ${{ steps.issue.outputs.body }}
       has_issue: ${{ steps.issue.outputs.has_issue }}
     steps:
+      - uses: actions/checkout@v4
+
       - name: Get PR details
         id: pr
         env:
@@ -141,6 +133,6 @@ jobs:
             IMPORTANT:
             - You may APPROVE but must NOT merge
             - A human will make the final merge decision
-          claude_args: "--model claude-opus-4-5-20251101"
+          claude_args: "--model claude-opus-4-5-20251101 --max-turns 30"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
