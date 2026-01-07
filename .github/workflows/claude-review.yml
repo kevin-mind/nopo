@@ -15,7 +15,7 @@ concurrency:
 permissions:
   contents: read
   pull-requests: write
-  issues: read
+  issues: write
   id-token: write
 
 jobs:
@@ -75,13 +75,94 @@ jobs:
             echo "has_issue=false" >> $GITHUB_OUTPUT
           fi
 
-  review:
+  update-project-status:
     needs: setup
+    if: needs.setup.outputs.has_issue == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update project status to In review
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ needs.setup.outputs.issue_number }}
+        run: |
+          # Get project item from issue
+          result=$(gh api graphql -f query='
+            query($owner: String!, $repo: String!, $number: Int!) {
+              repository(owner: $owner, name: $repo) {
+                issue(number: $number) {
+                  projectItems(first: 10) {
+                    nodes {
+                      id
+                      project { id }
+                    }
+                  }
+                }
+              }
+            }
+          ' -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" -F number="$ISSUE_NUMBER")
+
+          item_id=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0].id // empty')
+          project_id=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0].project.id // empty')
+
+          if [[ -z "$item_id" || -z "$project_id" ]]; then
+            echo "Issue not linked to a project - skipping status update"
+            exit 0
+          fi
+
+          # Get Status field and In review option IDs
+          fields=$(gh api graphql -f query='
+            query($projectId: ID!) {
+              node(id: $projectId) {
+                ... on ProjectV2 {
+                  fields(first: 20) {
+                    nodes {
+                      ... on ProjectV2SingleSelectField {
+                        id
+                        name
+                        options { id name }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ' -f projectId="$project_id")
+
+          field_id=$(echo "$fields" | jq -r '.data.node.fields.nodes[] | select(.name == "Status") | .id')
+          option_id=$(echo "$fields" | jq -r '.data.node.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "In review") | .id')
+
+          if [[ -z "$field_id" || -z "$option_id" ]]; then
+            echo "Could not find Status field or In review option"
+            exit 0
+          fi
+
+          # Update to In review status
+          gh api graphql -f query='
+            mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+              updateProjectV2ItemFieldValue(
+                input: {
+                  projectId: $projectId
+                  itemId: $itemId
+                  fieldId: $fieldId
+                  value: { singleSelectOptionId: $optionId }
+                }
+              ) { projectV2Item { id } }
+            }
+          ' -f projectId="$project_id" -f itemId="$item_id" -f fieldId="$field_id" -f optionId="$option_id"
+
+          echo "Updated project item to In review status"
+
+  review:
+    needs: [setup, update-project-status]
+    if: always() && needs.setup.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ needs.setup.outputs.pr_branch }}
+          fetch-depth: 0
 
       - uses: anthropics/claude-code-action@v1
         with:
@@ -102,35 +183,41 @@ jobs:
             Performing standard code review.
 
             ' }}
-            ## Step 1: Check Existing Review Comments
+            ## Step 1: View the Changes
 
-            First, check for existing unresolved review comments on this PR:
+            You are already checked out on the PR branch. To see changes:
+            ```bash
+            git fetch origin main
+            git diff origin/main...HEAD           # Full diff
+            git diff origin/main...HEAD --stat    # Summary of changed files
             ```
-            gh api /repos/${{ github.repository }}/pulls/${{ inputs.pr_number }}/comments
+
+            ## Step 2: Check Existing Review Comments
+
+            Check for existing review comments using:
+            ```bash
+            gh pr view ${{ inputs.pr_number }} --comments
             ```
 
-            For each unresolved comment thread:
-            - If the conversation is COMPLETE (question answered satisfactorily, changes made, or valid pushback accepted): Resolve the thread
-            - If more information is needed: Leave unresolved for continued discussion
-            - If changes were requested and made: Verify the fix and resolve if good
+            For unresolved comment threads, decide if they should be resolved:
+            - If the conversation is COMPLETE: Note it can be resolved
+            - If changes were requested and made: Verify the fix
+            - If more discussion needed: Leave unresolved
 
-            ## Step 2: Review the Code
+            ## Step 3: Review the Code
 
-            Perform a thorough code review:
+            Read the changed files and perform a thorough review:
             - Code quality and best practices
             - Potential bugs or edge cases
             - Test coverage adequacy
             - Security considerations
 
-            ## Step 3: Submit a Batch Review
+            ## Step 4: Submit Your Review
 
             Submit your review using `gh pr review ${{ inputs.pr_number }}` with ONE of:
             - `--approve` if ALL requirements met and code is good
-            - `--request-changes` if changes are needed (include inline comments)
-            - `--comment` if you have questions but no blocking issues
-
-            Include inline comments for specific feedback on code lines.
-            Include an overall review message summarizing your assessment.
+            - `--request-changes -b "reason"` if changes are needed
+            - `--comment -b "feedback"` if you have questions but no blocking issues
 
             IMPORTANT:
             - You may APPROVE but must NOT merge
