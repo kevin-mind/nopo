@@ -57,8 +57,10 @@ jobs:
         id: issue
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ inputs.pr_number }}
         run: |
-          pr_body='${{ steps.pr.outputs.body }}'
+          # Get PR body directly from API to avoid shell escaping issues
+          pr_body=$(gh pr view "$PR_NUMBER" --json body --jq '.body')
           issue_number=$(echo "$pr_body" | grep -oP 'Fixes #\K\d+' | head -1 || true)
 
           if [[ -n "$issue_number" ]]; then
