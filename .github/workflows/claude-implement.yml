@@ -26,6 +26,8 @@ jobs:
       issue_title: ${{ steps.issue.outputs.title }}
       issue_body: ${{ steps.issue.outputs.body }}
     steps:
+      - uses: actions/checkout@v4
+
       - name: Get issue details
         id: issue
         env:
@@ -63,6 +65,8 @@ jobs:
     if: needs.check.outputs.should_implement == 'true'
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Update project status to In Progress
         env:
           GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
