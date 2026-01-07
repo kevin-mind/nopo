@@ -18,16 +18,19 @@ permissions:
   id-token: write
 
 jobs:
-  # Check if this is a review request or @claude mention
-  check-review-request:
+  # Check if this is a special command or @claude mention
+  check-command:
     runs-on: ubuntu-latest
     if: |
-      (contains(github.event.comment.body, '@claude') || contains(github.event.comment.body, '/review')) &&
+      (contains(github.event.comment.body, '@claude') ||
+       contains(github.event.comment.body, '/review') ||
+       contains(github.event.comment.body, '/implement')) &&
       github.event.comment.user.type != 'Bot'
     outputs:
-      is_review_request: ${{ steps.check.outputs.is_review }}
+      is_review: ${{ steps.check.outputs.is_review }}
+      is_implement: ${{ steps.check.outputs.is_implement }}
       is_pr: ${{ steps.check.outputs.is_pr }}
-      pr_number: ${{ steps.check.outputs.pr_number }}
+      number: ${{ steps.check.outputs.number }}
     steps:
       - name: Check comment type
         id: check
@@ -37,30 +40,37 @@ jobs:
           # Check if this is a PR (issue_comment on a PR has pull_request in the issue object)
           if [[ "${{ github.event.issue.pull_request }}" != "" ]]; then
             echo "is_pr=true" >> $GITHUB_OUTPUT
-            echo "pr_number=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
           else
             echo "is_pr=false" >> $GITHUB_OUTPUT
           fi
+          echo "number=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
 
-          # Check if comment contains /review command
+          # Check for /review command
           if echo "$COMMENT_BODY" | grep -E '(^|\s)/review(\s|$)' > /dev/null; then
             echo "is_review=true" >> $GITHUB_OUTPUT
           else
             echo "is_review=false" >> $GITHUB_OUTPUT
           fi
 
-  # Trigger formal review workflow for "/review" on PRs
+          # Check for /implement command
+          if echo "$COMMENT_BODY" | grep -E '(^|\s)/implement(\s|$)' > /dev/null; then
+            echo "is_implement=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_implement=false" >> $GITHUB_OUTPUT
+          fi
+
+  # Trigger review workflow for "/review" on PRs
   trigger-review:
-    needs: check-review-request
+    needs: check-command
     if: |
-      needs.check-review-request.outputs.is_review_request == 'true' &&
-      needs.check-review-request.outputs.is_pr == 'true'
+      needs.check-command.outputs.is_review == 'true' &&
+      needs.check-command.outputs.is_pr == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Trigger review workflow
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ needs.check-review-request.outputs.pr_number }}
+          PR_NUMBER: ${{ needs.check-command.outputs.number }}
         run: |
           gh workflow run claude-review.yml -f pr_number="$PR_NUMBER" --repo "$GITHUB_REPOSITORY"
           echo "Triggered Claude review for PR #$PR_NUMBER"
@@ -69,11 +79,33 @@ jobs:
           gh api "/repos/$GITHUB_REPOSITORY/issues/comments/${{ github.event.comment.id }}/reactions" \
             -f content="+1" || true
 
+  # Trigger implement workflow for "/implement" on issues
+  trigger-implement:
+    needs: check-command
+    if: |
+      needs.check-command.outputs.is_implement == 'true' &&
+      needs.check-command.outputs.is_pr == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger implement workflow
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ needs.check-command.outputs.number }}
+        run: |
+          gh workflow run claude-implement.yml -f issue_number="$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY"
+          echo "Triggered Claude implementation for issue #$ISSUE_NUMBER"
+
+          # Add a reaction to acknowledge
+          gh api "/repos/$GITHUB_REPOSITORY/issues/comments/${{ github.event.comment.id }}/reactions" \
+            -f content="+1" || true
+
   # General response for other @claude mentions
   respond:
-    needs: check-review-request
+    needs: check-command
     if: |
-      needs.check-review-request.outputs.is_review_request != 'true'
+      needs.check-command.outputs.is_review != 'true' &&
+      needs.check-command.outputs.is_implement != 'true' &&
+      contains(github.event.comment.body, '@claude')
     runs-on: ubuntu-latest
     steps:
       - name: Check Claude comment count
@@ -97,6 +129,20 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           trigger_phrase: "@claude"
+          prompt: |
+            IMPORTANT: You are responding to a question or request in a GitHub issue/PR comment.
+
+            DO NOT implement code changes or make commits unless the user EXPLICITLY asks you to.
+
+            If the user wants implementation, they should use the `/implement` command on an issue.
+            If the user wants a code review, they should use the `/review` command on a PR.
+
+            Focus on:
+            - Answering questions
+            - Providing explanations
+            - Clarifying requirements
+            - Suggesting approaches (without implementing)
+            - Analyzing code or issues
           claude_args: "--model claude-opus-4-5-20251101 --max-turns 50"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
