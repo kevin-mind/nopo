@@ -13,6 +13,7 @@ permissions:
   contents: read
   issues: write
   pull-requests: write
+  actions: write
 
 jobs:
   move-to-review:
@@ -190,7 +191,7 @@ jobs:
 
           echo "Updated issue #$ISSUE_NUMBER to Review status"
 
-      - name: Convert PR to ready, add label, and request review
+      - name: Convert PR to ready and trigger Claude review
         if: steps.find.outputs.has_pr == 'true' && steps.comments.outputs.has_unresolved != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -204,6 +205,6 @@ jobs:
           gh pr edit "$PR_NUMBER" --add-label "review-ready" || true
           echo "Added review-ready label to PR #$PR_NUMBER"
 
-          # Request Claude as reviewer to continue the review loop
-          gh pr edit "$PR_NUMBER" --add-reviewer "claude[bot]" --repo "$GITHUB_REPOSITORY" || true
-          echo "Requested claude[bot] as reviewer for PR #$PR_NUMBER"
+          # Trigger Claude review workflow
+          gh workflow run claude-review.yml -f pr_number="$PR_NUMBER" --repo "$GITHUB_REPOSITORY"
+          echo "Triggered Claude review for PR #$PR_NUMBER"
