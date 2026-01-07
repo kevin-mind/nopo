@@ -7,6 +7,16 @@ on:
 concurrency:
   group: claude-pr-${{ github.event.pull_request.number }}
   cancel-in-progress: false
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to review'
+        required: true
+        type: number
+
+concurrency:
+  group: claude-pr-${{ inputs.pr_number }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -15,33 +25,56 @@ permissions:
   id-token: write
 
 jobs:
-  extract-issue:
+  setup:
     runs-on: ubuntu-latest
     # Only run when Claude is requested as reviewer AND PR is ready (not draft)
     if: |
       github.event.requested_reviewer.login == 'claude[bot]' &&
       github.event.pull_request.draft == false
     outputs:
-      issue_number: ${{ steps.extract.outputs.issue_number }}
-      issue_body: ${{ steps.extract.outputs.issue_body }}
-      has_issue: ${{ steps.extract.outputs.has_issue }}
+      pr_branch: ${{ steps.pr.outputs.branch }}
+      pr_body: ${{ steps.pr.outputs.body }}
+      is_draft: ${{ steps.pr.outputs.is_draft }}
+      issue_number: ${{ steps.issue.outputs.number }}
+      issue_body: ${{ steps.issue.outputs.body }}
+      has_issue: ${{ steps.issue.outputs.has_issue }}
     steps:
-      - name: Extract linked issue
-        id: extract
+      - name: Get PR details
+        id: pr
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_NUMBER: ${{ inputs.pr_number }}
         run: |
-          # Extract linked issue from "Fixes #N" pattern
-          issue_number=$(echo "$PR_BODY" | grep -oP 'Fixes #\K\d+' | head -1 || true)
+          pr=$(gh pr view "$PR_NUMBER" --json headRefName,body,isDraft)
+          echo "branch=$(echo "$pr" | jq -r '.headRefName')" >> $GITHUB_OUTPUT
+          echo "is_draft=$(echo "$pr" | jq -r '.isDraft')" >> $GITHUB_OUTPUT
+
+          # Store body in file to handle multiline
+          echo "$pr" | jq -r '.body' > /tmp/pr_body.txt
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          cat /tmp/pr_body.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Check if draft
+        if: steps.pr.outputs.is_draft == 'true'
+        run: |
+          echo "::warning::PR #${{ inputs.pr_number }} is a draft. Skipping review."
+          exit 1
+
+      - name: Extract linked issue
+        id: issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pr_body='${{ steps.pr.outputs.body }}'
+          issue_number=$(echo "$pr_body" | grep -oP 'Fixes #\K\d+' | head -1 || true)
 
           if [[ -n "$issue_number" ]]; then
             echo "has_issue=true" >> $GITHUB_OUTPUT
-            echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
+            echo "number=$issue_number" >> $GITHUB_OUTPUT
 
-            # Get issue body
             issue_body=$(gh issue view "$issue_number" --json body --jq '.body')
-            echo "issue_body<<EOF" >> $GITHUB_OUTPUT
+            echo "body<<EOF" >> $GITHUB_OUTPUT
             echo "$issue_body" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
           else
@@ -49,18 +82,20 @@ jobs:
           fi
 
   review:
-    needs: extract-issue
+    needs: setup
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.setup.outputs.pr_branch }}
 
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
-            You are reviewing PR #${{ github.event.pull_request.number }}.
+            You are reviewing PR #${{ inputs.pr_number }}.
 
-            ${{ needs.extract-issue.outputs.has_issue == 'true' && format('## Linked Issue #{0}
+            ${{ needs.setup.outputs.has_issue == 'true' && format('## Linked Issue #{0}
 
             {1}
 
@@ -69,7 +104,7 @@ jobs:
             - VERIFY code follows CLAUDE.md guidelines
             - ENSURE tests cover the requirements
 
-            ', needs.extract-issue.outputs.issue_number, needs.extract-issue.outputs.issue_body) || '## No Linked Issue
+            ', needs.setup.outputs.issue_number, needs.setup.outputs.issue_body) || '## No Linked Issue
             Performing standard code review.
 
             ' }}
@@ -77,7 +112,7 @@ jobs:
 
             First, check for existing unresolved review comments on this PR:
             ```
-            gh api /repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments
+            gh api /repos/${{ github.repository }}/pulls/${{ inputs.pr_number }}/comments
             ```
 
             For each unresolved comment thread:
@@ -95,7 +130,7 @@ jobs:
 
             ## Step 3: Submit a Batch Review
 
-            Submit your review using `gh pr review` with ONE of:
+            Submit your review using `gh pr review ${{ inputs.pr_number }}` with ONE of:
             - `--approve` if ALL requirements met and code is good
             - `--request-changes` if changes are needed (include inline comments)
             - `--comment` if you have questions but no blocking issues
