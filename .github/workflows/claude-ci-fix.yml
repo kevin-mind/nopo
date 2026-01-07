@@ -113,6 +113,7 @@ jobs:
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          settings: ".claude/settings.json"
           prompt: |
             The CI build failed for PR #${{ needs.check-pr.outputs.pr_number }} on branch ${{ github.event.workflow_run.head_branch }}.
 
@@ -143,6 +144,7 @@ jobs:
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          settings: ".claude/settings.json"
           prompt: |
             The CI build failed for PR #${{ needs.check-pr.outputs.pr_number }} on branch ${{ github.event.workflow_run.head_branch }}.
 

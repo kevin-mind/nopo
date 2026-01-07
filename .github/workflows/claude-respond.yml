@@ -161,6 +161,7 @@ jobs:
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          settings: ".claude/settings.json"
           trigger_phrase: "@claude"
           prompt: |
             IMPORTANT: You are responding to a question or request in a GitHub issue/PR comment.
