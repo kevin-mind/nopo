@@ -115,8 +115,11 @@ jobs:
             }
           ' -f projectId="$project_id")
 
+          echo "Available fields and options:"
+          echo "$fields" | jq '.data.node.fields.nodes[] | select(.options != null) | {name: .name, options: [.options[].name]}'
+
           field_id=$(echo "$fields" | jq -r '.data.node.fields.nodes[] | select(.name == "Status") | .id')
-          option_id=$(echo "$fields" | jq -r '.data.node.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "In Progress") | .id')
+          option_id=$(echo "$fields" | jq -r '.data.node.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "In progress") | .id')
 
           if [[ -z "$field_id" || -z "$option_id" ]]; then
             echo "Could not find Status field or In Progress option"
