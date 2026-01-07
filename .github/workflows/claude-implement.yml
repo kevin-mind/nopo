@@ -4,6 +4,10 @@ on:
   issues:
     types: [assigned]
 
+concurrency:
+  group: claude-issue-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
   issues: write
@@ -167,12 +171,14 @@ jobs:
                - Commit your changes with a descriptive message
                - Push the branch to origin
 
-            4. CREATE PR:
-               - Use `gh pr create` to create a pull request
+            4. CREATE DRAFT PR:
+               - Use `gh pr create --draft` to create a DRAFT pull request
                - The PR body MUST contain "Fixes #${{ github.event.issue.number }}"
                - Include a detailed description of changes
 
-            The "Fixes #N" pattern is REQUIRED for automatic issue linking and closure.
+            IMPORTANT:
+            - The "Fixes #N" pattern is REQUIRED for automatic issue linking and closure
+            - Create as DRAFT so CI can run first - it will be marked ready automatically when CI passes
           claude_args: "--model claude-opus-4-5-20251101 --max-turns 30"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

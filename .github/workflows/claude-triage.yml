@@ -4,6 +4,10 @@ on:
   issues:
     types: [opened, edited]
 
+concurrency:
+  group: claude-issue-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
   issues: write
@@ -56,7 +60,7 @@ jobs:
             IMPORTANT:
             - DO NOT assign the issue to anyone
             - Focus on making the issue as clear and actionable as possible
-          claude_args: "--model claude-opus-4-5-20251101"
+          claude_args: "--model claude-opus-4-5-20251101 --max-turns 15"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
