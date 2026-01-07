@@ -167,7 +167,7 @@ jobs:
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          additional_permissions: "Bash(git fetch:*),Bash(git diff:*),Bash(gh pr view:*),Bash(gh pr review:*)"
+          settings: ".claude/settings.json"
           prompt: |
             You are reviewing PR #${{ inputs.pr_number }}.
 
