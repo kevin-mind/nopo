@@ -713,59 +713,124 @@ make check && make test && git push
 
 ## Claude Automation State Machine
 
-This project uses Claude AI agents integrated with GitHub Projects V2 for automated issue management.
+This project uses Claude AI agents for automated issue management with issue-based triggers. Race conditions between CI-fix and review loops are prevented using draft/ready PR states.
 
-### State Flow
+### Overall Flow
 
 ```
-┌──────────┐    ┌───────┐    ┌─────────────┐    ┌────────┐
-│ BACKLOG  │───►│ READY │───►│ IN PROGRESS │───►│ REVIEW │───► DONE
-└──────────┘    └───────┘    └─────────────┘    └────────┘
-     │              │               │                │
-     ▼              ▼               ▼                ▼
- [TRIAGE]      [HUMAN]        [IMPLEMENT]      [VALIDATE]
-  Agent        Decision         Agent            Agent
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌──────────┐
+│   TRIAGE    │────►│  IMPLEMENT  │────►│   CI LOOP   │────►│   REVIEW    │────►│   DONE   │
+│             │     │             │     │   (draft)   │     │    LOOP     │     │          │
+└─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘     └──────────┘
+      │                   │                   │                   │                   │
+      ▼                   ▼                   ▼                   ▼                   ▼
+ Issue opened       Assigned to         CI fix loop        Review cycle        Human merges
+ or edited          claude[bot]         until green        until approved
 ```
 
-### Agent Responsibilities
+### Draft/Ready State Machine
 
-| Agent | Trigger | Actions |
-|-------|---------|---------|
-| **Triage** | Issue moved to Backlog | Labels, links similar issues, expands context, answers questions |
-| **Implement** | Human moves to Ready | Creates branch, implements, runs tests, creates PR with "Fixes #N" |
-| **CI-Fix** | CI failure | Claude PRs: fix and push. Human PRs: suggest fixes via comments |
-| **CI-Pass** | CI success (no unresolved comments) | Moves issue to Review, adds `review-ready` label |
-| **Review** | PR opened/updated | Reviews code, validates issue todos, approves or requests changes |
-| **Approve** | Claude approves PR | Adds `ready-to-merge` label, awaits human merge |
-| **Respond** | @claude mention | Responds to questions/requests in comments |
+PR state controls which automation loops can run, preventing race conditions. CI is the gatekeeper between the two loops:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                     │
+│  ┌───────────────────────────────────────┐    ┌───────────────────────────────────┐ │
+│  │            CI LOOP (draft)            │    │        REVIEW LOOP (ready)        │ │
+│  │                                       │    │                                   │ │
+│  │         IMPLEMENT                     │    │                  ┌─────────────┐  │ │
+│  │             │                         │    │     no commits   │   REVIEW    │  │ │
+│  │             │ create draft PR         │    │   ┌─────────────►│             │  │ │
+│  │             ▼                         │    │   │    ┌────────►│  submitted  │  │ │
+│  │  ┌─────────────┐                      │    │   │    │         └──────┬──────┘  │ │
+│  │  │     CI      │                      │    │   │    │                │         │ │
+│  │  │   RUNNING   │──────────────────────┼────┼───┼────┘                ▼         │ │
+│  │  │             │  pass: ready +       │    │   │  request     ┌─────────────┐  │ │
+│  │  └──────┬──────┘     request review   │    │   │  review      │  RESPONSE   │  │ │
+│  │         │                             │    │   │              │             │  │ │
+│  │         │ fail                        │    │   └──────────────│ commits? ───┼───┼──┐
+│  │         ▼                             │    │                  │             │  │ │  │
+│  │  ┌─────────────┐                      │    │                  └─────────────┘  │ │  │
+│  │  │  CI-FIX     │                      │    │                                   │ │  │
+│  │  │             │                      │    │                                   │ │  │
+│  │  │ fix & push  │───┐                  │    │                                   │ │  │
+│  │  └─────────────┘   │                  │    │                                   │ │  │
+│  │         ▲          │                  │    │                                   │ │  │
+│  │         └──────────┘                  │    │                                   │ │  │
+│  │                                       │    │                                   │ │  │
+│  └───────────────────────────────────────┘    └───────────────────────────────────┘ │  │
+│            ▲                                                                        │  │
+│            │                        yes: convert to draft & push                    │  │
+│            └────────────────────────────────────────────────────────────────────────┘  │
+│                                                                                        │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Two loops, one gateway:**
+1. **CI Loop** (draft PRs): `push → CI → fail → CI-fix → push` (repeats until green)
+2. **Review Loop** (ready PRs): `review → response` with two paths:
+   - **No commits** (questions/discussion): re-request review → stays in review loop
+   - **Has commits** (changes made): convert to draft → push → CI loop
+3. **CI is the bridge**: Only code changes go through CI; pure discussion stays in review loop
+
+### Triggers
+
+| Action | Trigger | Condition |
+|--------|---------|-----------|
+| **Triage** | `issues: [opened, edited]` | No "triaged" label |
+| **Implement** | `issues: [assigned]` | Assigned to `claude[bot]` |
+| **CI Fix** | `workflow_run: [completed]` | CI failed, Claude PR |
+| **CI Pass** | `workflow_run: [completed]` | CI passed, Claude PR |
+| **Review** | `pull_request: [review_requested]` | Reviewer is `claude[bot]`, PR is ready |
+| **Review Response** | `pull_request_review: [submitted]` | Review by `claude[bot]`, PR is ready |
+
+### Review Loop Details
+
+The review loop only operates on **ready** PRs:
+
+1. **claude-review.yml** (triggered by `review_requested`)
+   - Checks existing review comments
+   - Resolves completed threads
+   - Reviews code against issue requirements
+   - Submits batch review (approve, request changes, or comment)
+
+2. **claude-review-response.yml** (triggered by review submission)
+   - Processes change requests from the review
+   - Two paths based on whether commits were made:
+     - **Has commits**: Convert to draft → push → CI loop takes over
+     - **No commits** (discussion only): Re-request review → stays in review loop
+
+3. **Loop exits** when Claude approves the PR
 
 ### Human Gates
 
 These actions **require human intervention**:
 
-1. **Moving to Ready**: Only humans can move issues from Backlog to Ready
-2. **Merging PRs**: Only humans can merge approved PRs
+1. **Assign to Claude**: Triggers implementation
+2. **Request Claude as reviewer**: Triggers review loop
+3. **Merge PR**: Only humans can merge approved PRs
 
 ### Workflows
 
 | Workflow | File | Trigger |
 |----------|------|---------|
-| Triage | `claude-project-triage.yml` | Project item moved to Backlog |
-| Implement | `claude-project-implement.yml` | Project item moved to Ready |
-| CI Fix | `claude-ci-fix.yml` | CI failure |
-| CI Pass | `claude-ci-pass.yml` | CI success |
-| Review | `claude-review.yml` | PR opened/updated/labeled |
-| Approve | `claude-approve.yml` | Claude approves PR |
-| Respond | `claude-respond.yml` | @claude mention |
+| Triage | `claude-triage.yml` | Issue opened/edited without "triaged" label |
+| Implement | `claude-implement.yml` | Issue assigned to `claude[bot]` |
+| CI Fix | `claude-ci-fix.yml` | CI failure (converts Claude PR to draft, fixes, pushes) |
+| CI Pass | `claude-ci-pass.yml` | CI success (converts Claude PR to ready, adds label) |
+| Review | `claude-review.yml` | `claude[bot]` requested as reviewer (ready PRs only) |
+| Review Response | `claude-review-response.yml` | `claude[bot]` submits review (ready PRs only) |
 
-### Issue Template
+### Agent Responsibilities
 
-Use the Task template when creating issues. Required sections:
-
-- **Description**: Brief TLDR of the issue
-- **Details**: Implementation details, implications
-- **Questions**: Open questions (use checkboxes)
-- **Todo**: Tasks to complete (use checkboxes)
+| Agent | Actions |
+|-------|---------|
+| **Triage** | Labels, links similar issues, expands context, answers questions, adds "triaged" label |
+| **Implement** | Creates branch, implements todos, runs tests, creates draft PR with "Fixes #N" |
+| **CI-Fix** | Converts to draft → fixes code → pushes → CI runs again. Human PRs: suggest fixes via comments |
+| **CI-Pass** | Converts to ready → adds "review-ready" label → requests Claude review → updates project status |
+| **Review** | Resolves completed threads, reviews code, submits batch review (ready PRs only) |
+| **Review Response** | Processes comments: if commits → draft + push (CI loop); if no commits → re-request review (stays in review loop) |
 
 ### PR Requirements
 
@@ -777,19 +842,11 @@ All PRs created by Claude automation must:
 4. Have no unresolved review comments
 5. Be approved by Claude before human merge
 
-### Human Intervention
-
-You can intervene at any point:
-
-- **Push commits**: Agents continue normally with your changes
-- **@claude mention**: Spawn an agent to respond to your request
-- **Manual review**: Review and merge PRs when ready
-
 ### Setup Requirements
 
-1. **ANTHROPIC_API_KEY secret**: API key for Claude
+1. **CLAUDE_CODE_OAUTH_TOKEN secret**: OAuth token for Claude (uses subscription)
 2. **PROJECT_TOKEN secret** (optional): Fine-grained PAT with `project:write` for updating project status
-3. **GitHub Project**: Project board with Status field options: Backlog, Ready, In Progress, Review, Done
+3. **GitHub Project** (optional): Project board with Status field - status updated via GraphQL if issue is linked
 
 ---
 

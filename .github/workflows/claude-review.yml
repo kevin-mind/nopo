@@ -2,7 +2,11 @@ name: Claude Review
 
 on:
   pull_request:
-    types: [opened, synchronize, labeled]
+    types: [review_requested]
+
+concurrency:
+  group: claude-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -13,6 +17,10 @@ permissions:
 jobs:
   extract-issue:
     runs-on: ubuntu-latest
+    # Only run when Claude is requested as reviewer AND PR is ready (not draft)
+    if: |
+      github.event.requested_reviewer.login == 'claude[bot]' &&
+      github.event.pull_request.draft == false
     outputs:
       issue_number: ${{ steps.extract.outputs.issue_number }}
       issue_body: ${{ steps.extract.outputs.issue_body }}
@@ -40,9 +48,8 @@ jobs:
             echo "has_issue=false" >> $GITHUB_OUTPUT
           fi
 
-  review-with-issue:
+  review:
     needs: extract-issue
-    if: needs.extract-issue.outputs.has_issue == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -51,64 +58,54 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
-            Review this pull request and validate against the linked issue.
+            You are reviewing PR #${{ github.event.pull_request.number }}.
 
-            ## Linked Issue #${{ needs.extract-issue.outputs.issue_number }}
+            ${{ needs.extract-issue.outputs.has_issue == 'true' && format('## Linked Issue #{0}
 
-            ${{ needs.extract-issue.outputs.issue_body }}
+            {1}
 
-            ## Validation Checklist
-            1. CHECK ALL TODO ITEMS in the issue are addressed by this PR
-            2. VERIFY code follows CLAUDE.md guidelines
-            3. ENSURE tests cover the requirements
-            4. CHECK for any regressions or breaking changes
-            5. VALIDATE the PR description accurately reflects changes
+            ## Validation
+            - CHECK ALL TODO ITEMS in the issue are addressed
+            - VERIFY code follows CLAUDE.md guidelines
+            - ENSURE tests cover the requirements
 
-            ## Review Instructions
+            ', needs.extract-issue.outputs.issue_number, needs.extract-issue.outputs.issue_body) || '## No Linked Issue
+            Performing standard code review.
 
-            Perform a thorough code review checking:
+            ' }}
+            ## Step 1: Check Existing Review Comments
+
+            First, check for existing unresolved review comments on this PR:
+            ```
+            gh api /repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments
+            ```
+
+            For each unresolved comment thread:
+            - If the conversation is COMPLETE (question answered satisfactorily, changes made, or valid pushback accepted): Resolve the thread
+            - If more information is needed: Leave unresolved for continued discussion
+            - If changes were requested and made: Verify the fix and resolve if good
+
+            ## Step 2: Review the Code
+
+            Perform a thorough code review:
             - Code quality and best practices
-            - Potential bugs or issues
+            - Potential bugs or edge cases
             - Test coverage adequacy
+            - Security considerations
 
-            After review:
-            - If ALL requirements are met and code is good: APPROVE the PR
-            - If changes are needed: REQUEST CHANGES with specific feedback
-            - If questions need answers: Leave COMMENTS asking for clarification
+            ## Step 3: Submit a Batch Review
 
-            IMPORTANT: You may APPROVE the PR but you must NOT merge it.
-            A human will review and merge the PR.
-          claude_args: "--model claude-opus-4-5-20251101"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            Submit your review using `gh pr review` with ONE of:
+            - `--approve` if ALL requirements met and code is good
+            - `--request-changes` if changes are needed (include inline comments)
+            - `--comment` if you have questions but no blocking issues
 
-  review-without-issue:
-    needs: extract-issue
-    if: needs.extract-issue.outputs.has_issue != 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+            Include inline comments for specific feedback on code lines.
+            Include an overall review message summarizing your assessment.
 
-      - uses: anthropics/claude-code-action@v1
-        with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt: |
-            Review this pull request. No linked issue found - performing standard code review.
-
-            ## Review Instructions
-
-            Perform a thorough code review checking:
-            - Code quality and best practices
-            - Potential bugs or issues
-            - Test coverage adequacy
-
-            After review:
-            - If code is good: APPROVE the PR
-            - If changes are needed: REQUEST CHANGES with specific feedback
-            - If questions need answers: Leave COMMENTS asking for clarification
-
-            IMPORTANT: You may APPROVE the PR but you must NOT merge it.
-            A human will review and merge the PR.
+            IMPORTANT:
+            - You may APPROVE but must NOT merge
+            - A human will make the final merge decision
           claude_args: "--model claude-opus-4-5-20251101"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
