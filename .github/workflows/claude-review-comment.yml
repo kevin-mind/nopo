@@ -1,0 +1,63 @@
+name: Claude Review Comment
+
+on:
+  pull_request_review_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  review-comment:
+    # Only run if comment mentions @claude-review (initiating a call)
+    if: contains(github.event.comment.body, '@claude-review')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "Claude Bot"
+          git config --global user.email "claude-bot@anthropic.com"
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            A reviewer is CALLING you with @claude-review to initiate a review action.
+
+            This is a new request - either a question or a change request. Understand what they want:
+
+            ## If it's a QUESTION:
+            - Research the answer in the codebase
+            - Reply with a clear, helpful answer
+            - If you need clarification, ask and tell them to reply with @claude-respond
+
+            ## If it's a CHANGE REQUEST:
+            1. ASSESS the request:
+               - Is it valid? Does it make sense?
+               - Would it improve stability, resilience, or code quality?
+
+            2. If the change SHOULD be made:
+               - Make the change
+               - Commit with a clear message
+               - Push to the branch
+               - Reply with a link to the commit confirming the fix
+
+            3. If the change should NOT be made:
+               - Reply explaining WHY with clear reasoning
+               - Be specific about the trade-offs or concerns
+               - If they disagree, they can reply with @claude-respond to continue the discussion
+
+            IMPORTANT:
+            - Follow CLAUDE.md guidelines for any code changes
+            - Be thorough but concise in explanations
+            - If the reviewer replies to your comment, they should use @claude-respond
+          claude_args: "--model claude-opus-4-5-20251101 --max-turns 20"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

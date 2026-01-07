@@ -11,8 +11,8 @@ permissions:
 
 jobs:
   respond:
-    # Only run if comment mentions @claude
-    if: contains(github.event.comment.body, '@claude')
+    # Only run if comment mentions @claude-respond (response to a call)
+    if: contains(github.event.comment.body, '@claude-respond')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,49 +29,33 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
-            A PR review comment mentioned you. Determine if this is a CALL or a RESPONSE.
+            Someone is RESPONDING to your previous review comment with @claude-respond.
 
-            CALL: A comment initiating a thread - asking a question or requesting changes.
-            RESPONSE: A reply to a previous comment in an existing thread.
+            This is a reply to something you previously said. Understand their response:
 
-            ## If this is a CALL (new comment thread or initiating request):
+            ## If they're ANSWERING your question:
+            - Is the answer satisfying? Does it fully address your question?
+            - If YES: Resolve the comment thread
+            - If NO: Ask follow-up questions requesting more detail or clarification
 
-            1. UNDERSTAND the comment - is it a question or a change request?
+            ## If they're RESPONDING to your change request:
+            - Did they make the changes? (look for commit references)
+              - If YES: Resolve the comment thread
+            - Are they pushing back on your suggestion?
+              - Evaluate their reasoning objectively
+              - Could there be valid reasons NOT to make the change?
+              - If their pushback is reasonable: Accept it gracefully and resolve the thread
+              - If their pushback is not convincing: Reply with more compelling arguments, but stay collaborative
 
-            2. If it's a QUESTION:
-               - Research the answer in the codebase
-               - Reply with a clear, helpful answer
-
-            3. If it's a CHANGE REQUEST:
-               - Assess if the request is valid
-               - Would it improve stability, resilience, or code quality?
-               - If YES: Make the change, commit, push, and reply with a link to the commit
-               - If NO: Reply explaining why you won't make the change with clear reasoning
-
-            ## If this is a RESPONSE (reply to your previous comment):
-
-            1. UNDERSTAND the response - is it answering your question or responding to your change request?
-
-            2. If it's an ANSWER to your question:
-               - Is it satisfying? Does it fully address your question?
-               - If YES: Resolve the comment thread
-               - If NO: Ask follow-up questions requesting more detail
-
-            3. If it's a RESPONSE to your change request:
-               - If they made the changes (commit): Resolve the comment thread
-               - If they're pushing back on the change:
-                 - Is their reasoning valid? Could there be good reasons NOT to make the change?
-                 - If their pushback is reasonable: Accept it and resolve the thread
-                 - If their pushback is not convincing: Reply with more compelling arguments for why the change should be made
-
-            ## Commands:
-            - To resolve a thread: `gh api /repos/{owner}/{repo}/pulls/comments/{comment_id}/replies -f body="Resolved"`
-            - The comment ID is available in the event context
+            ## If they made a commit with changes:
+            - Review the commit to verify it addresses your feedback
+            - If satisfied: Resolve the thread
+            - If not quite right: Provide specific follow-up feedback
 
             IMPORTANT:
-            - Be constructive and collaborative
-            - If making code changes, follow CLAUDE.md guidelines
-            - Don't be stubborn - if pushback is reasonable, accept it gracefully
-          claude_args: "--model claude-opus-4-5-20251101 --max-turns 20"
+            - Be collaborative, not stubborn
+            - Accept reasonable pushback gracefully
+            - If you need to initiate a NEW review comment, tell them to use @claude-review instead
+          claude_args: "--model claude-opus-4-5-20251101 --max-turns 15"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
