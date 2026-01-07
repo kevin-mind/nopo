@@ -1,11 +1,15 @@
 name: Claude Implement
 
 on:
-  issues:
-    types: [assigned]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number to implement'
+        required: true
+        type: number
 
 concurrency:
-  group: claude-issue-${{ github.event.issue.number }}
+  group: claude-issue-${{ inputs.issue_number }}
   cancel-in-progress: false
 
 permissions:
@@ -17,16 +21,31 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
-    # Only run when assigned to Claude
-    if: github.event.assignee.login == 'claude[bot]'
     outputs:
       should_implement: ${{ steps.check-pr.outputs.should_implement }}
+      issue_title: ${{ steps.issue.outputs.title }}
+      issue_body: ${{ steps.issue.outputs.body }}
     steps:
+      - name: Get issue details
+        id: issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
+        run: |
+          issue=$(gh issue view "$ISSUE_NUMBER" --json title,body)
+          echo "title=$(echo "$issue" | jq -r '.title')" >> $GITHUB_OUTPUT
+
+          # Store body in file to handle multiline
+          echo "$issue" | jq -r '.body' > /tmp/issue_body.txt
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          cat /tmp/issue_body.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Check if PR already exists
         id: check-pr
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
         run: |
           # Check if there's already a PR for this issue
           existing_pr=$(gh pr list --repo "$GITHUB_REPOSITORY" --search "Fixes #$ISSUE_NUMBER in:body" --json number --jq '.[0].number' || true)
@@ -47,7 +66,7 @@ jobs:
       - name: Update project status to In Progress
         env:
           GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
         run: |
           # Get project item from issue
           result=$(gh api graphql -f query='
@@ -133,7 +152,7 @@ jobs:
       - name: Create or checkout branch
         id: branch
         env:
-          BRANCH_NAME: feat/issue-${{ github.event.issue.number }}
+          BRANCH_NAME: feat/issue-${{ inputs.issue_number }}
         run: |
           git fetch origin
           if git show-ref --verify --quiet refs/remotes/origin/$BRANCH_NAME; then
@@ -148,10 +167,10 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
-            Implement issue #${{ github.event.issue.number }}: "${{ github.event.issue.title }}"
+            Implement issue #${{ inputs.issue_number }}: "${{ needs.check.outputs.issue_title }}"
 
             Issue body:
-            ${{ github.event.issue.body }}
+            ${{ needs.check.outputs.issue_body }}
 
             You are on branch `${{ steps.branch.outputs.name }}`.
 
@@ -173,7 +192,7 @@ jobs:
 
             4. CREATE DRAFT PR:
                - Use `gh pr create --draft` to create a DRAFT pull request
-               - The PR body MUST contain "Fixes #${{ github.event.issue.number }}"
+               - The PR body MUST contain "Fixes #${{ inputs.issue_number }}"
                - Include a detailed description of changes
 
             IMPORTANT:
