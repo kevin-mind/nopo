@@ -110,6 +110,23 @@ jobs:
           git config --global user.name "Claude Bot"
           git config --global user.email "claude-bot@anthropic.com"
 
+      - name: Create Claude settings
+        run: |
+          mkdir -p .claude
+          cat > .claude/settings.json << 'EOF'
+          {
+            "permissions": {
+              "allow": [
+                "Bash(git:*)",
+                "Bash(gh:*)",
+                "Bash(make:*)",
+                "Bash(pnpm:*)",
+                "Bash(nopo:*)"
+              ]
+            }
+          }
+          EOF
+
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -140,6 +157,23 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_branch }}
           fetch-depth: 0
+
+      - name: Create Claude settings
+        run: |
+          mkdir -p .claude
+          cat > .claude/settings.json << 'EOF'
+          {
+            "permissions": {
+              "allow": [
+                "Bash(git:*)",
+                "Bash(gh:*)",
+                "Bash(make:*)",
+                "Bash(pnpm:*)",
+                "Bash(nopo:*)"
+              ]
+            }
+          }
+          EOF
 
       - uses: anthropics/claude-code-action@v1
         with:
