@@ -132,10 +132,9 @@ jobs:
 
       - name: Build base image
         run: |
-          make build \
+          make build base \
             DOCKER_TAG="${{ steps.docker_tag.outputs.tag }}" \
-            DOCKER_TARGET="development" \
-            -- base
+            DOCKER_TARGET="development"
 
       - name: Verify extendable base image
         env:
