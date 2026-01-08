@@ -1,23 +1,30 @@
-name: Claude Review
+name: Claude Review Loop
 
 on:
   pull_request:
     types: [review_requested]
+  pull_request_review:
+    types: [submitted]
 
 concurrency:
   group: claude-review-${{ github.event.pull_request.head.ref }}
   cancel-in-progress: false
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
   issues: write
   id-token: write
 
 jobs:
-  setup:
-    # Only run when nopo-bot is requested as reviewer
-    if: github.event.requested_reviewer.login == 'nopo-bot'
+  #############################################################################
+  # REVIEW REQUEST JOBS (triggered by nopo-bot requested as reviewer)
+  #############################################################################
+
+  request-setup:
+    if: |
+      github.event_name == 'pull_request' &&
+      github.event.requested_reviewer.login == 'nopo-bot'
     runs-on: ubuntu-latest
     outputs:
       pr_branch: ${{ github.event.pull_request.head.ref }}
@@ -41,7 +48,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          # Get PR body directly from API to avoid shell escaping issues
           pr_body=$(gh pr view "$PR_NUMBER" --json body --jq '.body')
           issue_number=$(echo "$pr_body" | grep -oP 'Fixes #\K\d+' | head -1 || true)
 
@@ -57,19 +63,16 @@ jobs:
             echo "has_issue=false" >> $GITHUB_OUTPUT
           fi
 
-  update-project-status:
-    needs: setup
-    if: needs.setup.outputs.has_issue == 'true'
+  request-update-project:
+    needs: request-setup
+    if: needs.request-setup.outputs.has_issue == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
       - name: Update project status to In review
         env:
           GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ needs.setup.outputs.issue_number }}
+          ISSUE_NUMBER: ${{ needs.request-setup.outputs.issue_number }}
         run: |
-          # Get project item from issue
           result=$(gh api graphql -f query='
             query($owner: String!, $repo: String!, $number: Int!) {
               repository(owner: $owner, name: $repo) {
@@ -93,7 +96,6 @@ jobs:
             exit 0
           fi
 
-          # Get Status field and In review option IDs
           fields=$(gh api graphql -f query='
             query($projectId: ID!) {
               node(id: $projectId) {
@@ -120,7 +122,6 @@ jobs:
             exit 0
           fi
 
-          # Update to In review status
           gh api graphql -f query='
             mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
               updateProjectV2ItemFieldValue(
@@ -136,14 +137,14 @@ jobs:
 
           echo "Updated project item to In review status"
 
-  review:
-    needs: [setup, update-project-status]
-    if: always() && needs.setup.result == 'success'
+  request-review:
+    needs: [request-setup, request-update-project]
+    if: always() && needs.request-setup.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ needs.setup.outputs.pr_branch }}
+          ref: ${{ needs.request-setup.outputs.pr_branch }}
           fetch-depth: 0
 
       - uses: anthropics/claude-code-action@v1
@@ -151,12 +152,12 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           settings: ".claude/settings.json"
           prompt: |
-            You are reviewing PR #${{ needs.setup.outputs.pr_number }} on behalf of nopo-bot.
+            You are reviewing PR #${{ needs.request-setup.outputs.pr_number }} on behalf of nopo-bot.
 
             nopo-bot was requested as a reviewer, which triggers this automated review.
             You (claude[bot]) will perform the actual review and submit it.
 
-            ${{ needs.setup.outputs.has_issue == 'true' && format('## Linked Issue #{0}
+            ${{ needs.request-setup.outputs.has_issue == 'true' && format('## Linked Issue #{0}
 
             {1}
 
@@ -165,7 +166,7 @@ jobs:
             - VERIFY code follows CLAUDE.md guidelines
             - ENSURE tests cover the requirements
 
-            ', needs.setup.outputs.issue_number, needs.setup.outputs.issue_body) || '## No Linked Issue
+            ', needs.request-setup.outputs.issue_number, needs.request-setup.outputs.issue_body) || '## No Linked Issue
             Performing standard code review.
 
             ' }}
@@ -182,7 +183,7 @@ jobs:
 
             Check for existing review comments using:
             ```bash
-            gh pr view ${{ needs.setup.outputs.pr_number }} --comments
+            gh pr view ${{ needs.request-setup.outputs.pr_number }} --comments
             ```
 
             For unresolved comment threads, decide if they should be resolved:
@@ -200,7 +201,7 @@ jobs:
 
             ## Step 4: Submit Your Review
 
-            Submit your review using `gh pr review ${{ needs.setup.outputs.pr_number }}` with ONE of:
+            Submit your review using `gh pr review ${{ needs.request-setup.outputs.pr_number }}` with ONE of:
             - `--approve` if ALL requirements met and code is good
             - `--request-changes -b "reason"` if changes are needed
             - `--comment -b "feedback"` if you have questions but no blocking issues
@@ -208,6 +209,95 @@ jobs:
             IMPORTANT:
             - You may APPROVE but must NOT merge
             - A human will make the final merge decision
+          claude_args: "--model claude-opus-4-5-20251101 --max-turns 30"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  #############################################################################
+  # REVIEW RESPONSE JOBS (triggered by claude[bot] submitting a review)
+  #############################################################################
+
+  response-process:
+    if: |
+      github.event_name == 'pull_request_review' &&
+      github.event.review.user.login == 'claude[bot]' &&
+      github.event.pull_request.draft == false &&
+      (github.event.review.state == 'changes_requested' || github.event.review.state == 'commented')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "Claude Bot"
+          git config --global user.email "claude-bot@anthropic.com"
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          settings: ".claude/settings.json"
+          prompt: |
+            You just submitted a review on PR #${{ github.event.pull_request.number }}.
+
+            Your review state: ${{ github.event.review.state }}
+            Your review body: ${{ github.event.review.body }}
+
+            ## Step 1: Get Your Review Comments
+
+            Fetch the comments from your review:
+            ```
+            gh api /repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments
+            ```
+
+            Filter for comments from your review (review_id: ${{ github.event.review.id }}).
+
+            ## Step 2: Process Each Comment
+
+            For each comment you made:
+
+            ### If it's a CHANGE REQUEST:
+            1. Make the requested change to the code
+            2. Commit with a clear message referencing the comment
+            3. Reply to the comment with a link to the commit
+            4. Example: "Fixed in commit abc123"
+
+            ### If it's a QUESTION:
+            - Questions will be answered by the PR author
+            - No action needed now - wait for response
+
+            ### If it contains PUSHBACK you're responding to:
+            - Evaluate their reasoning
+            - If reasonable: Accept and note in comment
+            - If not convincing: Provide more compelling arguments
+
+            ## Step 3: Finalize
+
+            After processing all comments, check if you made any commits:
+
+            ### If you made commits (code changes):
+            Convert PR to draft and push:
+            ```
+            gh pr ready ${{ github.event.pull_request.number }} --undo
+            git push origin ${{ github.event.pull_request.head.ref }}
+            ```
+            Converting to draft ensures CI runs before the review loop continues.
+            CI-pass will mark it ready and re-request nopo-bot as reviewer when CI is green.
+
+            ### If you made NO commits (only discussion/questions):
+            Re-request nopo-bot as reviewer to continue the review loop:
+            ```
+            gh pr edit ${{ github.event.pull_request.number }} --add-reviewer "nopo-bot"
+            ```
+            This keeps the PR ready and continues the review loop without CI.
+
+            IMPORTANT:
+            - Make atomic commits for each change
+            - Reference the comment in each commit message
+            - Follow CLAUDE.md guidelines for all code changes
+            - Choose the correct path based on whether you made commits
           claude_args: "--model claude-opus-4-5-20251101 --max-turns 30"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

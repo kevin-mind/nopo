@@ -1,4 +1,4 @@
-name: Claude CI Handler
+name: Claude CI Loop
 
 on:
   workflow_run:

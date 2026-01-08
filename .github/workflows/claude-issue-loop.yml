@@ -1,11 +1,15 @@
-name: Claude Implement
+name: Claude Issue Loop
 
 on:
   issues:
-    types: [assigned]
+    types: [opened, edited, assigned]
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
 
 concurrency:
-  group: claude-issue-${{ github.event.issue.number }}
+  group: claude-issue-${{ github.event.issue.number || github.event.pull_request.number }}-${{ github.event.action }}
   cancel-in-progress: false
 
 permissions:
@@ -15,10 +19,78 @@ permissions:
   id-token: write
 
 jobs:
-  check:
-    # Only run when nopo-bot is assigned
-    if: github.event.assignee.login == 'nopo-bot'
+  #############################################################################
+  # TRIAGE JOBS (triggered by issue opened/edited without 'triaged' label)
+  #############################################################################
+
+  triage:
     runs-on: ubuntu-latest
+    if: |
+      (github.event.action == 'opened' || github.event.action == 'edited') &&
+      github.event_name == 'issues' &&
+      !contains(github.event.issue.labels.*.name, 'triaged')
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          settings: ".claude/settings.json"
+          prompt: |
+            You are triaging issue #${{ github.event.issue.number }}: "${{ github.event.issue.title }}"
+
+            Issue body:
+            ${{ github.event.issue.body }}
+
+            Your tasks:
+            1. ADD APPROPRIATE LABELS based on the issue type:
+               - 'bug' for bug reports
+               - 'enhancement' for new features
+               - 'documentation' for docs changes
+               - 'refactor' for code improvements
+               - Priority labels if urgency is indicated
+
+            2. SEARCH FOR SIMILAR ISSUES:
+               - Use `gh issue list` to find related issues
+               - If similar issues exist, add a comment linking to them
+               - Check if this might be a duplicate
+
+            3. EXPAND CONTEXT:
+               - Review the codebase for relevant files mentioned or implied
+               - Add a comment with additional technical context
+               - Reference specific files/functions that will be affected
+
+            4. ANSWER QUESTIONS:
+               - If the issue has a Questions section, research and answer them
+               - Update the issue body or add a comment with answers
+
+            5. VALIDATE COMPLETENESS:
+               - If Description or Details are unclear, add 'needs-info' label
+               - Ask clarifying questions in a comment
+               - If Todo items are vague, suggest more specific tasks
+
+            IMPORTANT:
+            - DO NOT assign the issue to anyone
+            - Focus on making the issue as clear and actionable as possible
+          claude_args: "--model claude-opus-4-5-20251101 --max-turns 30"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add triaged label
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh issue edit ${{ github.event.issue.number }} --add-label "triaged"
+
+  #############################################################################
+  # IMPLEMENT JOBS (triggered by nopo-bot assigned to issue)
+  #############################################################################
+
+  implement-check:
+    runs-on: ubuntu-latest
+    if: |
+      github.event.action == 'assigned' &&
+      github.event_name == 'issues' &&
+      github.event.assignee.login == 'nopo-bot'
     outputs:
       should_implement: ${{ steps.check-pr.outputs.should_implement }}
       issue_title: ${{ github.event.issue.title }}
@@ -55,9 +127,9 @@ jobs:
             echo "should_implement=true" >> $GITHUB_OUTPUT
           fi
 
-  update-project-status:
-    needs: check
-    if: needs.check.outputs.should_implement == 'true'
+  implement-update-project:
+    needs: implement-check
+    if: needs.implement-check.outputs.should_implement == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -138,8 +210,8 @@ jobs:
           echo "Updated project item to In Progress status"
 
   implement:
-    needs: [check, update-project-status]
-    if: always() && needs.check.outputs.should_implement == 'true'
+    needs: [implement-check, implement-update-project]
+    if: always() && needs.implement-check.outputs.should_implement == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -171,10 +243,10 @@ jobs:
           assignee_trigger: "nopo-bot"
           settings: ".claude/settings.json"
           prompt: |
-            Implement issue #${{ github.event.issue.number }}: "${{ needs.check.outputs.issue_title }}"
+            Implement issue #${{ github.event.issue.number }}: "${{ needs.implement-check.outputs.issue_title }}"
 
             Issue body:
-            ${{ needs.check.outputs.issue_body }}
+            ${{ needs.implement-check.outputs.issue_body }}
 
             You are on branch `${{ steps.branch.outputs.name }}`.
 
@@ -207,3 +279,76 @@ jobs:
           claude_args: "--model claude-opus-4-5-20251101 --max-turns 30"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  #############################################################################
+  # COMMENT JOBS (triggered by @claude mention in issue/PR comments)
+  #############################################################################
+
+  comment:
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment') &&
+      contains(github.event.comment.body, '@claude') &&
+      github.event.comment.user.type != 'Bot'
+    steps:
+      - name: Add eyes reaction
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api "/repos/$GITHUB_REPOSITORY/issues/comments/${{ github.event.comment.id }}/reactions" \
+            -f content="eyes" || true
+
+      - name: Check Claude comment count
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+        run: |
+          # Count comments from claude[bot] on this issue/PR
+          comments=$(gh api "/repos/$GITHUB_REPOSITORY/issues/$ISSUE_NUMBER/comments" --jq '[.[] | select(.user.login == "claude[bot]")] | length')
+
+          echo "Claude has made $comments comments on issue #$ISSUE_NUMBER"
+
+          if [[ "$comments" -gt 20 ]]; then
+            echo "::error::Claude has made over 20 comments on this issue. Stopping to prevent spam."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          settings: ".claude/settings.json"
+          trigger_phrase: "@claude"
+          prompt: |
+            You are responding to a question or request in a GitHub issue/PR comment.
+
+            DO NOT implement code changes or make commits unless explicitly asked.
+
+            To trigger automation, users should:
+            - Assign `nopo-bot` to an issue for implementation
+            - Request `nopo-bot` as PR reviewer for code review
+
+            Focus on:
+            - Answering questions
+            - Providing explanations
+            - Clarifying requirements
+            - Suggesting approaches (without implementing)
+            - Analyzing code or issues
+          claude_args: "--model claude-opus-4-5-20251101 --max-turns 30"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add reaction on completion
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SUCCESS: ${{ job.status == 'success' }}
+        run: |
+          if [[ "$SUCCESS" == "true" ]]; then
+            reaction="+1"
+          else
+            reaction="-1"
+          fi
+          gh api "/repos/$GITHUB_REPOSITORY/issues/comments/${{ github.event.comment.id }}/reactions" \
+            -f content="$reaction" || true
