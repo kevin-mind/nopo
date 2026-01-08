@@ -781,53 +781,79 @@ PR state controls which automation loops can run, preventing race conditions. CI
    - **Has commits** (changes made): convert to draft → push → CI loop
 3. **CI is the bridge**: Only code changes go through CI; pure discussion stays in review loop
 
-### Triggers
+### Workflows (3 Loop Files)
 
-| Action | Trigger | Condition |
-|--------|---------|-----------|
+All automation is consolidated into 3 workflow files, each handling a specific loop:
+
+| File | Triggers | Purpose |
+|------|----------|---------|
+| `claude-issue-loop.yml` | `issues: [opened, edited, assigned]`, `issue_comment`, `pull_request_review_comment` | Triage, implement, @claude comments |
+| `claude-ci-loop.yml` | `push`, `workflow_run: [completed]` | Draft-on-push, CI failure fixes, CI success handling |
+| `claude-review-loop.yml` | `pull_request: [review_requested]`, `pull_request_review: [submitted]` | Review request and response |
+
+### Trigger Details
+
+| Action | Event | Condition |
+|--------|-------|-----------|
 | **Triage** | `issues: [opened, edited]` | No "triaged" label |
 | **Implement** | `issues: [assigned]` | Assigned to `nopo-bot` |
+| **@claude Comment** | `issue_comment`, `pull_request_review_comment` | Contains `@claude`, not from Bot |
+| **Push to Draft** | `push` (non-main) | Ready PR exists for branch |
 | **CI Fix** | `workflow_run: [completed]` | CI failed, Claude PR |
 | **CI Pass** | `workflow_run: [completed]` | CI passed, Claude PR |
-| **Review** | `pull_request: [review_requested]` | Reviewer is `nopo-bot`, PR is ready |
+| **Review** | `pull_request: [review_requested]` | Reviewer is `nopo-bot`, PR is ready (not draft) |
 | **Review Response** | `pull_request_review: [submitted]` | Review by `claude[bot]`, PR is ready |
+
+### Concurrency Groups
+
+Concurrency groups prevent race conditions between loops:
+
+| Group | Workflows | Behavior |
+|-------|-----------|----------|
+| `claude-triage-{issue}` | Triage job | `cancel-in-progress: true` - edits cancel in-flight triage |
+| `claude-review-{branch}` | Push-to-draft, Review Loop | Push uses `cancel-in-progress: true` to cancel reviews; Review uses `false` to queue |
+
+**Critical:** The push-convert-to-draft job shares `claude-review-{branch}` with the review loop. When code is pushed, it cancels any in-flight review and converts the PR to draft. This prevents reviews from acting on stale code.
 
 ### Review Loop Details
 
 The review loop only operates on **ready** PRs:
 
-1. **claude-review.yml** (triggered by `review_requested`)
-   - Checks existing review comments
-   - Resolves completed threads
+1. **Review Request** (triggered by `review_requested` for `nopo-bot`)
+   - Skips if PR is draft
+   - Updates project status to "In review"
    - Reviews code against issue requirements
    - Submits batch review (approve, request changes, or comment)
 
-2. **claude-review-response.yml** (triggered by review submission)
-   - Processes change requests from the review
+2. **Review Response** (triggered by `claude[bot]` submitting a review)
+   - Only runs if state is `changes_requested` or `commented`
+   - Processes each comment from the review
    - Two paths based on whether commits were made:
      - **Has commits**: Convert to draft → push → CI loop takes over
      - **No commits** (discussion only): Re-request review → stays in review loop
 
 3. **Loop exits** when Claude approves the PR
 
+### Human Feedback Flow
+
+When a human reviews a Claude PR, the response is NOT automatic. This is intentional to give humans control:
+
+1. **Human submits review** with changes_requested or comments
+2. **Human triggers Claude's response** by either:
+   - **@claude in a comment**: Claude responds to the specific question/request
+   - **Re-request nopo-bot as reviewer**: Triggers a full review cycle where Claude sees and addresses the human's feedback
+3. **Claude addresses feedback** in the triggered workflow
+
+This design ensures humans control when Claude acts on their feedback.
+
 ### Human Gates
 
 These actions **require human intervention**:
 
-1. **Assign to Claude**: Triggers implementation
-2. **Request Claude as reviewer**: Triggers review loop
-3. **Merge PR**: Only humans can merge approved PRs
-
-### Workflows
-
-| Workflow | File | Trigger |
-|----------|------|---------|
-| Triage | `claude-triage.yml` | Issue opened/edited without "triaged" label |
-| Implement | `claude-implement.yml` | Issue assigned to `nopo-bot` |
-| CI Fix | `claude-ci-fix.yml` | CI failure (converts Claude PR to draft, fixes, pushes) |
-| CI Pass | `claude-ci-pass.yml` | CI success (converts Claude PR to ready, requests `nopo-bot` review) |
-| Review | `claude-review.yml` | `nopo-bot` requested as reviewer (ready PRs only) |
-| Review Response | `claude-review-response.yml` | `claude[bot]` submits review (ready PRs only) |
+1. **Assign to Claude**: Assign `nopo-bot` to an issue to trigger implementation
+2. **Request Claude as reviewer**: Request `nopo-bot` as reviewer to trigger review loop
+3. **Respond to human feedback**: Re-request `nopo-bot` or @claude to get Claude's response
+4. **Merge PR**: Only humans can merge approved PRs
 
 ### Agent Responsibilities
 
@@ -835,9 +861,11 @@ These actions **require human intervention**:
 |-------|---------|
 | **Triage** | Labels, links similar issues, expands context, answers questions, adds "triaged" label |
 | **Implement** | Creates branch, implements todos, runs tests, creates draft PR with "Fixes #N" |
-| **CI-Fix** | Converts to draft → fixes code → pushes → CI runs again. Human PRs: suggest fixes via comments |
+| **@claude Comment** | Answers questions, provides explanations, suggests approaches (no code changes unless asked) |
+| **Push-to-Draft** | Converts ready PRs to draft on push, cancels in-flight reviews |
+| **CI-Fix** | Claude PRs: fixes code → pushes. Human PRs: suggests fixes via review comments |
 | **CI-Pass** | Converts to ready → adds "review-ready" label → requests `nopo-bot` review → updates project status |
-| **Review** | Resolves completed threads, reviews code, submits batch review (ready PRs only) |
+| **Review** | Reviews code, submits batch review (ready PRs only) |
 | **Review Response** | Processes comments: if commits → draft + push (CI loop); if no commits → re-request review (stays in review loop) |
 
 ### PR Requirements
