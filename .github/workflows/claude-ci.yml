@@ -1,0 +1,383 @@
+name: Claude CI Handler
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+concurrency:
+  group: claude-ci-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: write
+  id-token: write
+
+jobs:
+  # Shared job to find PR info
+  check-pr:
+    runs-on: ubuntu-latest
+    outputs:
+      has_pr: ${{ steps.check.outputs.has_pr }}
+      is_claude_pr: ${{ steps.check.outputs.is_claude_pr }}
+      is_draft: ${{ steps.check.outputs.is_draft }}
+      pr_number: ${{ steps.check.outputs.pr_number }}
+      pr_body: ${{ steps.check.outputs.pr_body }}
+      has_issue: ${{ steps.check.outputs.has_issue }}
+      issue_number: ${{ steps.check.outputs.issue_number }}
+    steps:
+      - name: Find PR and check details
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          # Find PR for this branch
+          pr=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$HEAD_BRANCH" --json number,author,isDraft,body --jq '.[0]')
+
+          if [[ -z "$pr" || "$pr" == "null" ]]; then
+            echo "No PR found for branch $HEAD_BRANCH"
+            echo "has_pr=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          pr_number=$(echo "$pr" | jq -r '.number')
+          author=$(echo "$pr" | jq -r '.author.login')
+          is_draft=$(echo "$pr" | jq -r '.isDraft')
+          pr_body=$(echo "$pr" | jq -r '.body')
+
+          echo "PR #$pr_number by $author (draft: $is_draft)"
+          echo "has_pr=true" >> $GITHUB_OUTPUT
+          echo "pr_number=$pr_number" >> $GITHUB_OUTPUT
+          echo "is_draft=$is_draft" >> $GITHUB_OUTPUT
+
+          # Store body for later use
+          echo "pr_body<<EOF" >> $GITHUB_OUTPUT
+          echo "$pr_body" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          # Check if PR was created by Claude automation
+          if [[ "$author" == "claude[bot]" ]]; then
+            echo "is_claude_pr=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_claude_pr=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Extract linked issue from "Fixes #N" pattern
+          issue_number=$(echo "$pr_body" | grep -oP 'Fixes #\K\d+' | head -1 || true)
+
+          if [[ -z "$issue_number" ]]; then
+            echo "No linked issue found in PR body"
+            echo "has_issue=false" >> $GITHUB_OUTPUT
+          else
+            echo "Found linked issue #$issue_number"
+            echo "has_issue=true" >> $GITHUB_OUTPUT
+            echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
+          fi
+
+  #############################################################################
+  # CI FAILURE JOBS
+  #############################################################################
+
+  # Convert Claude PR to draft on CI failure
+  failure-convert-to-draft:
+    needs: check-pr
+    if: |
+      github.event.workflow_run.conclusion == 'failure' &&
+      needs.check-pr.outputs.has_pr == 'true' &&
+      needs.check-pr.outputs.is_claude_pr == 'true' &&
+      needs.check-pr.outputs.is_draft == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Convert PR to draft
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ needs.check-pr.outputs.pr_number }}
+        run: |
+          gh pr ready "$PR_NUMBER" --undo --repo "$GITHUB_REPOSITORY"
+          echo "Converted PR #$PR_NUMBER to draft due to CI failure"
+
+  # For Claude PRs: fix and push directly
+  failure-fix-and-push:
+    needs: [check-pr, failure-convert-to-draft]
+    if: |
+      github.event.workflow_run.conclusion == 'failure' &&
+      (needs.failure-convert-to-draft.result == 'success' || needs.failure-convert-to-draft.result == 'skipped') &&
+      needs.check-pr.outputs.has_pr == 'true' &&
+      needs.check-pr.outputs.is_claude_pr == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Claude comment count
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ needs.check-pr.outputs.pr_number }}
+        run: |
+          # Count comments from claude[bot] on this PR
+          review_comments=$(gh api "/repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/comments" --jq '[.[] | select(.user.login == "claude[bot]")] | length')
+          issue_comments=$(gh api "/repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" --jq '[.[] | select(.user.login == "claude[bot]")] | length')
+          reviews=$(gh api "/repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/reviews" --jq '[.[] | select(.user.login == "claude[bot]")] | length')
+
+          total=$((review_comments + issue_comments + reviews))
+          echo "Claude has made $total comments/reviews on PR #$PR_NUMBER"
+
+          if [[ "$total" -gt 20 ]]; then
+            echo "::error::Claude has made over 20 comments on this PR. Stopping to prevent infinite loop."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "Claude Bot"
+          git config --global user.email "claude-bot@anthropic.com"
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          settings: ".claude/settings.json"
+          prompt: |
+            The CI build failed for PR #${{ needs.check-pr.outputs.pr_number }} on branch ${{ github.event.workflow_run.head_branch }}.
+
+            1. Analyze the project to understand the build and test process (see CLAUDE.md).
+            2. Run `make check` and `make test` to reproduce the failure.
+            3. Fix the issue.
+            4. Verify the fix by running tests again.
+            5. Push the changes to the same branch.
+
+            This is an automated CI fix loop - focus on fixing the specific failure.
+          claude_args: "--model claude-opus-4-5-20251101 --max-turns 30"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # For human PRs: suggest fixes via review comments
+  failure-suggest-fixes:
+    needs: check-pr
+    if: |
+      github.event.workflow_run.conclusion == 'failure' &&
+      needs.check-pr.outputs.has_pr == 'true' &&
+      needs.check-pr.outputs.is_claude_pr == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+          fetch-depth: 0
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          settings: ".claude/settings.json"
+          prompt: |
+            The CI build failed for PR #${{ needs.check-pr.outputs.pr_number }} on branch ${{ github.event.workflow_run.head_branch }}.
+
+            This is a human-created PR, so DO NOT push any changes directly.
+
+            Instead:
+            1. Analyze the project to understand the build and test process (see CLAUDE.md).
+            2. Run `make check` and `make test` to reproduce the failure.
+            3. Identify the root cause of the failure.
+            4. Submit a PR review with INLINE COMMENTS suggesting specific fixes.
+               - Use `gh pr review` with `--comment` and include specific code suggestions
+               - Point to the exact lines that need to be changed
+               - Provide the corrected code in code blocks
+            5. If the fix is complex, add a summary comment explaining the overall approach.
+
+            Use the GitHub CLI to submit review comments:
+            ```
+            gh pr review ${{ needs.check-pr.outputs.pr_number }} --comment --body "..."
+            ```
+
+            For inline comments on specific files/lines, you can use:
+            ```
+            gh api repos/$GITHUB_REPOSITORY/pulls/${{ needs.check-pr.outputs.pr_number }}/comments \
+              -f body="suggestion" -f path="file.ts" -f line=42 -f side="RIGHT"
+            ```
+
+            Be helpful and specific - the human author should be able to easily apply your suggestions.
+          claude_args: "--model claude-opus-4-5-20251101 --max-turns 30"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  #############################################################################
+  # CI SUCCESS JOBS
+  #############################################################################
+
+  # Check for unresolved comments before proceeding
+  success-check-comments:
+    needs: check-pr
+    if: |
+      github.event.workflow_run.conclusion == 'success' &&
+      needs.check-pr.outputs.has_pr == 'true' &&
+      needs.check-pr.outputs.is_claude_pr == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      has_unresolved: ${{ steps.comments.outputs.has_unresolved }}
+      unresolved_count: ${{ steps.comments.outputs.unresolved_count }}
+    steps:
+      - name: Check for unresolved comments
+        id: comments
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ needs.check-pr.outputs.pr_number }}
+        run: |
+          # Get all review threads and check for unresolved ones
+          unresolved=$(gh api graphql -f query='
+            query($owner: String!, $repo: String!, $pr: Int!) {
+              repository(owner: $owner, name: $repo) {
+                pullRequest(number: $pr) {
+                  reviewThreads(first: 100) {
+                    nodes {
+                      isResolved
+                      isOutdated
+                    }
+                  }
+                }
+              }
+            }
+          ' -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" -F pr="$PR_NUMBER")
+
+          # Count unresolved threads (excluding outdated ones)
+          unresolved_count=$(echo "$unresolved" | jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false and .isOutdated == false)] | length')
+
+          echo "Unresolved comment threads: $unresolved_count"
+
+          if [[ "$unresolved_count" -gt 0 ]]; then
+            echo "has_unresolved=true" >> $GITHUB_OUTPUT
+            echo "unresolved_count=$unresolved_count" >> $GITHUB_OUTPUT
+          else
+            echo "has_unresolved=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comment if unresolved
+        if: steps.comments.outputs.has_unresolved == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ needs.check-pr.outputs.pr_number }}
+          UNRESOLVED_COUNT: ${{ steps.comments.outputs.unresolved_count }}
+        run: |
+          echo "Skipping move to Review - $UNRESOLVED_COUNT unresolved comment thread(s)"
+
+          gh pr comment "$PR_NUMBER" --body "⏸️ **CI passed but not moving to Review**
+
+          There are **$UNRESOLVED_COUNT unresolved comment thread(s)** on this PR.
+
+          Please resolve all comments before the PR can move to Review status."
+
+  # Update project status to Review
+  success-update-project:
+    needs: [check-pr, success-check-comments]
+    if: |
+      github.event.workflow_run.conclusion == 'success' &&
+      needs.check-pr.outputs.has_issue == 'true' &&
+      needs.success-check-comments.outputs.has_unresolved != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update project status to Review
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ needs.check-pr.outputs.issue_number }}
+        run: |
+          # Get the issue's project item
+          issue_data=$(gh api graphql -f query='
+            query($owner: String!, $repo: String!, $number: Int!) {
+              repository(owner: $owner, name: $repo) {
+                issue(number: $number) {
+                  id
+                  projectItems(first: 10) {
+                    nodes {
+                      id
+                      project { id }
+                    }
+                  }
+                }
+              }
+            }
+          ' -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" -F number="$ISSUE_NUMBER")
+
+          item_id=$(echo "$issue_data" | jq -r '.data.repository.issue.projectItems.nodes[0].id // empty')
+          project_id=$(echo "$issue_data" | jq -r '.data.repository.issue.projectItems.nodes[0].project.id // empty')
+
+          if [[ -z "$item_id" || "$item_id" == "null" ]]; then
+            echo "Issue #$ISSUE_NUMBER not linked to any project"
+            exit 0
+          fi
+
+          echo "Found project item: $item_id in project: $project_id"
+
+          # Get Status field and Review option IDs
+          fields=$(gh api graphql -f query='
+            query($projectId: ID!) {
+              node(id: $projectId) {
+                ... on ProjectV2 {
+                  fields(first: 20) {
+                    nodes {
+                      ... on ProjectV2SingleSelectField {
+                        id
+                        name
+                        options { id name }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ' -f projectId="$project_id")
+
+          field_id=$(echo "$fields" | jq -r '.data.node.fields.nodes[] | select(.name == "Status") | .id')
+          option_id=$(echo "$fields" | jq -r '.data.node.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "In review") | .id')
+
+          if [[ -z "$field_id" || -z "$option_id" ]]; then
+            echo "Could not find Status field or In review option"
+            exit 0
+          fi
+
+          # Update to Review status
+          gh api graphql -f query='
+            mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+              updateProjectV2ItemFieldValue(
+                input: {
+                  projectId: $projectId
+                  itemId: $itemId
+                  fieldId: $fieldId
+                  value: { singleSelectOptionId: $optionId }
+                }
+              ) { projectV2Item { id } }
+            }
+          ' -f projectId="$project_id" -f itemId="$item_id" -f fieldId="$field_id" -f optionId="$option_id"
+
+          echo "Updated issue #$ISSUE_NUMBER to In review status"
+
+  # Convert PR to ready and request review
+  success-ready-for-review:
+    needs: [check-pr, success-check-comments, success-update-project]
+    if: |
+      always() &&
+      github.event.workflow_run.conclusion == 'success' &&
+      needs.check-pr.outputs.has_pr == 'true' &&
+      needs.check-pr.outputs.is_claude_pr == 'true' &&
+      needs.success-check-comments.outputs.has_unresolved != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Convert PR to ready and request nopo-bot review
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ needs.check-pr.outputs.pr_number }}
+        run: |
+          # Convert from draft to ready for review
+          gh pr ready "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" || true
+          echo "Marked PR #$PR_NUMBER as ready for review"
+
+          # Add the review-ready label
+          gh pr edit "$PR_NUMBER" --add-label "review-ready" || true
+          echo "Added review-ready label to PR #$PR_NUMBER"
+
+          # Request nopo-bot as reviewer to trigger the review workflow
+          gh pr edit "$PR_NUMBER" --add-reviewer "nopo-bot" --repo "$GITHUB_REPOSITORY"
+          echo "Requested nopo-bot as reviewer for PR #$PR_NUMBER"
