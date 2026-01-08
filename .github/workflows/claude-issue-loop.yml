@@ -35,12 +35,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Add eyes reaction to issue
+      - name: Add triage started comment
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          gh api "/repos/$GITHUB_REPOSITORY/issues/${{ github.event.issue.number }}/reactions" \
-            -f content="eyes" || true
+          gh issue comment "$ISSUE_NUMBER" --body "👀 **nopo-bot** is triaging this issue...
+
+          [View job]($RUN_URL)"
 
       - uses: anthropics/claude-code-action@v1
         with:
@@ -52,36 +55,68 @@ jobs:
             Issue body:
             ${{ github.event.issue.body }}
 
-            Your tasks:
-            1. ADD APPROPRIATE LABELS based on the issue type:
-               - 'bug' for bug reports
-               - 'enhancement' for new features
-               - 'documentation' for docs changes
-               - 'refactor' for code improvements
-               - Priority labels if urgency is indicated
+            ## Issue Structure
+            Issues follow this structure (from task.yml template):
+            - **Description**: Brief TLDR of what needs to be done
+            - **Details**: Implementation details, affected files, technical requirements
+            - **Questions**: Open questions that need answers (checkboxes)
+            - **Todo**: Specific tasks to complete (checkboxes)
 
-            2. SEARCH FOR SIMILAR ISSUES:
-               - Use `gh issue list` to find related issues
-               - If similar issues exist, add a comment linking to them
-               - Check if this might be a duplicate
+            ## Your Tasks
 
-            3. EXPAND CONTEXT:
-               - Review the codebase for relevant files mentioned or implied
-               - Add a comment with additional technical context
-               - Reference specific files/functions that will be affected
+            ### 1. ADD LABELS
+            Add appropriate labels based on issue type:
+            - 'bug', 'enhancement', 'documentation', 'refactor', 'test', 'chore'
+            - Priority labels if urgency is indicated
 
-            4. ANSWER QUESTIONS:
-               - If the issue has a Questions section, research and answer them
-               - Update the issue body or add a comment with answers
+            ### 2. SEARCH FOR RELATED CONTENT
+            - Use `gh issue list` to find similar/related issues
+            - Link to related issues in a comment
+            - Check if this might be a duplicate
 
-            5. VALIDATE COMPLETENESS:
-               - If Description or Details are unclear, add 'needs-info' label
-               - Ask clarifying questions in a comment
-               - If Todo items are vague, suggest more specific tasks
+            ### 3. UPDATE THE ISSUE BODY
+            Use `gh issue edit ${{ github.event.issue.number }} --body "..."` to improve the issue:
+
+            **Description**: Improve clarity if needed, make it a concise TLDR
+
+            **Details**: Expand with technical context:
+            - Reference specific files/functions that will be affected
+            - Link to relevant internal docs (files in `decisions/`, `nopo/docs/`, READMEs)
+            - Link to external documentation (libraries, APIs, standards)
+            - Add code snippets or examples if helpful
+
+            **Questions**:
+            - If questions exist, research and answer them (check the box and add answer)
+            - Add new questions if you identify uncertainties
+
+            **Todo**:
+            - Break down vague tasks into specific, actionable items
+            - Add missing tasks you identify from analyzing the codebase
+            - Each todo should be completable in a single commit
+
+            ### 4. VALIDATE COMPLETENESS
+            - If critical info is missing, add 'needs-info' label
+            - Ask clarifying questions in a comment
+
+            ## Commands
+            ```bash
+            # View current issue
+            gh issue view ${{ github.event.issue.number }}
+
+            # Update issue body (use heredoc for multiline)
+            gh issue edit ${{ github.event.issue.number }} --body "$(cat <<'EOF'
+            ... new body content ...
+            EOF
+            )"
+
+            # Add labels
+            gh issue edit ${{ github.event.issue.number }} --add-label "enhancement"
+            ```
 
             IMPORTANT:
             - DO NOT assign the issue to anyone
-            - Focus on making the issue as clear and actionable as possible
+            - Focus on making the issue clear and actionable for implementation
+            - Preserve the issue structure (Description, Details, Questions, Todo sections)
           claude_args: "--model claude-opus-4-5-20251101 --max-turns 30"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -108,6 +143,59 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check triaged label
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          has_triaged=$(gh issue view "$ISSUE_NUMBER" --json labels --jq '.labels[].name' | grep -c "^triaged$" || true)
+
+          if [[ "$has_triaged" -eq 0 ]]; then
+            gh issue comment "$ISSUE_NUMBER" --body "⚠️ Cannot start implementation - issue is missing the \`triaged\` label.
+
+          Please wait for triage to complete or manually add the \`triaged\` label, then re-assign nopo-bot."
+            gh issue edit "$ISSUE_NUMBER" --remove-assignee "nopo-bot"
+            echo "::error::Issue #$ISSUE_NUMBER is missing 'triaged' label"
+            exit 1
+          fi
+
+      - name: Check project status is Ready
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          # Get project item status for this issue
+          result=$(gh api graphql -f query='
+            query($owner: String!, $repo: String!, $number: Int!) {
+              repository(owner: $owner, name: $repo) {
+                issue(number: $number) {
+                  projectItems(first: 10) {
+                    nodes {
+                      fieldValueByName(name: "Status") {
+                        ... on ProjectV2ItemFieldSingleSelectValue {
+                          name
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ' -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" -F number="$ISSUE_NUMBER" 2>/dev/null || echo '{}')
+
+          status=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0].fieldValueByName.name // empty')
+
+          if [[ -z "$status" ]]; then
+            echo "Issue not linked to a project - skipping status check"
+          elif [[ "$status" != "Ready" ]]; then
+            gh issue comment "$ISSUE_NUMBER" --body "⚠️ Cannot start implementation - issue status is **$status**, not **Ready**.
+
+          Please move the issue to **Ready** status in the project board, then re-assign nopo-bot."
+            gh issue edit "$ISSUE_NUMBER" --remove-assignee "nopo-bot"
+            echo "::error::Issue #$ISSUE_NUMBER status is '$status', not 'Ready'"
+            exit 1
+          fi
+
       - name: Get issue body
         id: issue
         env:
@@ -120,12 +208,15 @@ jobs:
           cat /tmp/issue_body.txt >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Add eyes reaction to issue
+      - name: Add implementation started comment
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          gh api "/repos/$GITHUB_REPOSITORY/issues/${{ github.event.issue.number }}/reactions" \
-            -f content="eyes" || true
+          gh issue comment "$ISSUE_NUMBER" --body "👀 **nopo-bot** is implementing this issue...
+
+          [View job]($RUN_URL)"
 
       - name: Check if PR already exists
         id: check-pr
@@ -314,6 +405,16 @@ jobs:
         run: |
           gh api "/repos/$GITHUB_REPOSITORY/issues/comments/${{ github.event.comment.id }}/reactions" \
             -f content="eyes" || true
+
+      - name: Add working on it comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --body "👀 **nopo-bot** is responding to your request...
+
+          [View job]($RUN_URL)"
 
       - name: Check Claude comment count
         env:
