@@ -836,17 +836,15 @@ The review loop only operates on **ready** PRs:
 
 ### Human Feedback Flow
 
-When a human reviews a Claude PR (identified by `claude/issue/*` branch), Claude automatically responds:
+When a human reviews a Claude PR, the response is NOT automatic. This keeps the loops isolated and predictable:
 
 1. **Human submits review** with changes_requested or comments
-2. **Claude evaluates the feedback** - NOT blindly implementing, but critically assessing:
-   - **ACCEPT**: If feedback improves the code, implement and commit
-   - **PUSH BACK**: If Claude disagrees, reply with clear reasoning
-   - **CLARIFY**: If unclear, ask follow-up questions
-3. **If commits made**: Push triggers CI loop (draft → CI → ready → review)
-4. **If no commits**: Re-request nopo-bot to continue review loop
+2. **Human triggers Claude's response** by either:
+   - **@claude in a comment**: Claude responds to the specific question/request
+   - **Re-request nopo-bot as reviewer**: Triggers a full review cycle where Claude sees and addresses the human's feedback
+3. **Claude addresses feedback** in the triggered workflow
 
-This design makes Claude an active collaborator who defends good decisions while remaining open to valid improvements.
+This design ensures humans control when Claude acts on their feedback and prevents unexpected automation loops.
 
 ### Human Gates
 

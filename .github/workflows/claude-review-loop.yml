@@ -219,16 +219,16 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   #############################################################################
-  # REVIEW RESPONSE JOBS (triggered by any review on Claude PRs)
-  # Responds to both self-reviews (claude[bot]) and human reviews
-  # Identifies Claude PRs by branch prefix: feat/issue-*
+  # REVIEW RESPONSE JOBS (triggered by claude[bot] submitting a review)
+  # Only responds to Claude's own reviews - human reviews require @claude or
+  # re-requesting nopo-bot as reviewer to trigger a response
   #############################################################################
 
   response-process:
     if: |
       github.event_name == 'pull_request_review' &&
+      github.event.review.user.login == 'claude[bot]' &&
       github.event.pull_request.draft == false &&
-      startsWith(github.event.pull_request.head.ref, 'claude/issue/') &&
       (github.event.review.state == 'changes_requested' || github.event.review.state == 'commented')
     runs-on: ubuntu-latest
     steps:
@@ -247,46 +247,32 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           settings: ".claude/settings.json"
           prompt: |
-            A review was submitted on PR #${{ github.event.pull_request.number }}.
+            You just submitted a review on PR #${{ github.event.pull_request.number }}.
 
-            Reviewer: ${{ github.event.review.user.login }}
-            Review state: ${{ github.event.review.state }}
-            Review body: ${{ github.event.review.body }}
+            Your review state: ${{ github.event.review.state }}
+            Your review body: ${{ github.event.review.body }}
 
-            ## Step 1: Get Review Comments
+            ## Step 1: Get Your Review Comments
 
-            Fetch the comments from this review:
+            Fetch the comments from your review:
             ```
             gh api /repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments
             ```
 
-            Filter for comments from this review (review_id: ${{ github.event.review.id }}).
+            Filter for comments from your review (review_id: ${{ github.event.review.id }}).
 
             ## Step 2: Process Each Comment
 
-            ${{ github.event.review.user.login == 'claude[bot]' && '### Self-Review (your own review)
-            For your own change requests, implement them directly:
-            1. Make the requested change
-            2. Commit with a clear message
-            3. Reply noting the fix
+            For each comment you made:
 
-            ' || '### External Review (from human or another reviewer)
-            For each piece of feedback, CRITICALLY EVALUATE before acting:
+            ### If it's a CHANGE REQUEST:
+            1. Make the requested change to the code
+            2. Commit with a clear message referencing the comment
+            3. Reply to the comment noting the fix
 
-            1. **Understand the request**: What exactly is being asked?
-            2. **Evaluate pros/cons**: Is this change beneficial? Does it align with the issue requirements?
-            3. **Decide your response**:
-               - **ACCEPT**: If the feedback improves the code, implement it and reply with the commit
-               - **PUSH BACK**: If you disagree, reply with clear reasoning explaining why
-               - **CLARIFY**: If unclear, ask a follow-up question
-
-            DO NOT blindly implement every request. You are the author of this PR and should
-            defend good design decisions while remaining open to valid improvements.
-
-            ' }}
-            ### For QUESTIONS:
-            - Answer thoughtfully with context from the codebase
-            - If you need clarification, ask
+            ### If it's a QUESTION:
+            - Questions will be answered by the PR author
+            - No action needed now - wait for response
 
             ## Step 3: Finalize
 
@@ -300,7 +286,7 @@ jobs:
             The push will automatically convert PR to draft and trigger CI.
             CI-pass will mark it ready and re-request nopo-bot as reviewer when CI is green.
 
-            ### If you made NO commits (only discussion/questions/pushback):
+            ### If you made NO commits (only discussion/questions):
             Re-request nopo-bot as reviewer to continue the review loop:
             ```
             gh pr edit ${{ github.event.pull_request.number }} --add-reviewer "nopo-bot"
@@ -311,7 +297,6 @@ jobs:
             - Make atomic commits for each change
             - Reference the comment in each commit message
             - Follow CLAUDE.md guidelines for all code changes
-            - Push back respectfully when you disagree with feedback
           claude_args: "--model claude-opus-4-5-20251101 --max-turns 30"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
