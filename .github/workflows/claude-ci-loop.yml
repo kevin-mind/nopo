@@ -24,6 +24,11 @@ jobs:
   push-convert-to-draft:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    # CRITICAL: This concurrency group MUST match claude-review-loop.yml
+    # The shared group ensures pushes cancel in-flight review workflows.
+    # - Push uses cancel-in-progress: true (cancels reviews)
+    # - Review loop uses cancel-in-progress: false (queues, doesn't cancel)
+    # This prevents race conditions where review acts on stale code.
     concurrency:
       group: claude-review-${{ github.ref_name }}
       cancel-in-progress: true

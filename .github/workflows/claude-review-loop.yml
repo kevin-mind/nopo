@@ -6,6 +6,11 @@ on:
   pull_request_review:
     types: [submitted]
 
+# CRITICAL: This concurrency group MUST match push-convert-to-draft in claude-ci-loop.yml
+# The shared group ensures pushes cancel in-flight review workflows.
+# - Push uses cancel-in-progress: true (cancels reviews)
+# - Review loop uses cancel-in-progress: false (queues, doesn't cancel itself)
+# This prevents race conditions where review acts on stale code.
 concurrency:
   group: claude-review-${{ github.event.pull_request.head.ref }}
   cancel-in-progress: false
