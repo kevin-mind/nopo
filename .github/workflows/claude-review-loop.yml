@@ -225,6 +225,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Remove nopo-bot from requested reviewers
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ needs.request-setup.outputs.pr_number }}
+        run: |
+          # Remove nopo-bot from requested reviewers so it can be re-requested later
+          # This allows the CI-success workflow to trigger a new review cycle
+          gh pr edit "$PR_NUMBER" --remove-reviewer "nopo-bot" || true
+          echo "Removed nopo-bot from requested reviewers"
+
   #############################################################################
   # REVIEW RESPONSE JOBS (triggered by claude[bot] submitting a review)
   # Only responds to Claude's own reviews - human reviews require @claude or
