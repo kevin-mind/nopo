@@ -35,6 +35,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Add eyes reaction to issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api "/repos/$GITHUB_REPOSITORY/issues/${{ github.event.issue.number }}/reactions" \
+            -f content="eyes" || true
+
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -112,6 +119,13 @@ jobs:
           echo "body<<EOF" >> $GITHUB_OUTPUT
           cat /tmp/issue_body.txt >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Add eyes reaction to issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api "/repos/$GITHUB_REPOSITORY/issues/${{ github.event.issue.number }}/reactions" \
+            -f content="eyes" || true
 
       - name: Check if PR already exists
         id: check-pr

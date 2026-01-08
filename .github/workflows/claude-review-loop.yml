@@ -47,6 +47,13 @@ jobs:
           echo "::warning::PR #${{ github.event.pull_request.number }} is a draft. Skipping review."
           exit 1
 
+      - name: Add eyes reaction to PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api "/repos/$GITHUB_REPOSITORY/issues/${{ github.event.pull_request.number }}/reactions" \
+            -f content="eyes" || true
+
       - name: Extract linked issue
         id: issue
         env:
