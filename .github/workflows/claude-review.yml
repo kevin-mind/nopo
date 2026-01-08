@@ -1,15 +1,11 @@
 name: Claude Review
 
 on:
-  workflow_dispatch:
-    inputs:
-      pr_number:
-        description: 'PR number to review'
-        required: true
-        type: number
+  pull_request:
+    types: [review_requested]
 
 concurrency:
-  group: claude-pr-${{ inputs.pr_number }}
+  group: claude-pr-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 
 permissions:
@@ -20,44 +16,30 @@ permissions:
 
 jobs:
   setup:
+    # Only run when nopo-bot is requested as reviewer
+    if: github.event.requested_reviewer.login == 'nopo-bot'
     runs-on: ubuntu-latest
     outputs:
-      pr_branch: ${{ steps.pr.outputs.branch }}
-      pr_body: ${{ steps.pr.outputs.body }}
-      is_draft: ${{ steps.pr.outputs.is_draft }}
+      pr_branch: ${{ github.event.pull_request.head.ref }}
+      pr_number: ${{ github.event.pull_request.number }}
+      is_draft: ${{ github.event.pull_request.draft }}
       issue_number: ${{ steps.issue.outputs.number }}
       issue_body: ${{ steps.issue.outputs.body }}
       has_issue: ${{ steps.issue.outputs.has_issue }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Get PR details
-        id: pr
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ inputs.pr_number }}
-        run: |
-          pr=$(gh pr view "$PR_NUMBER" --json headRefName,body,isDraft)
-          echo "branch=$(echo "$pr" | jq -r '.headRefName')" >> $GITHUB_OUTPUT
-          echo "is_draft=$(echo "$pr" | jq -r '.isDraft')" >> $GITHUB_OUTPUT
-
-          # Store body in file to handle multiline
-          echo "$pr" | jq -r '.body' > /tmp/pr_body.txt
-          echo "body<<EOF" >> $GITHUB_OUTPUT
-          cat /tmp/pr_body.txt >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
       - name: Check if draft
-        if: steps.pr.outputs.is_draft == 'true'
+        if: github.event.pull_request.draft == true
         run: |
-          echo "::warning::PR #${{ inputs.pr_number }} is a draft. Skipping review."
+          echo "::warning::PR #${{ github.event.pull_request.number }} is a draft. Skipping review."
           exit 1
 
       - name: Extract linked issue
         id: issue
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ inputs.pr_number }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           # Get PR body directly from API to avoid shell escaping issues
           pr_body=$(gh pr view "$PR_NUMBER" --json body --jq '.body')
@@ -187,7 +169,10 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           settings: ".claude/settings.json"
           prompt: |
-            You are reviewing PR #${{ inputs.pr_number }}.
+            You are reviewing PR #${{ needs.setup.outputs.pr_number }} on behalf of nopo-bot.
+
+            nopo-bot was requested as a reviewer, which triggers this automated review.
+            You (claude[bot]) will perform the actual review and submit it.
 
             ${{ needs.setup.outputs.has_issue == 'true' && format('## Linked Issue #{0}
 
@@ -215,7 +200,7 @@ jobs:
 
             Check for existing review comments using:
             ```bash
-            gh pr view ${{ inputs.pr_number }} --comments
+            gh pr view ${{ needs.setup.outputs.pr_number }} --comments
             ```
 
             For unresolved comment threads, decide if they should be resolved:
@@ -233,7 +218,7 @@ jobs:
 
             ## Step 4: Submit Your Review
 
-            Submit your review using `gh pr review ${{ inputs.pr_number }}` with ONE of:
+            Submit your review using `gh pr review ${{ needs.setup.outputs.pr_number }}` with ONE of:
             - `--approve` if ALL requirements met and code is good
             - `--request-changes -b "reason"` if changes are needed
             - `--comment -b "feedback"` if you have questions but no blocking issues

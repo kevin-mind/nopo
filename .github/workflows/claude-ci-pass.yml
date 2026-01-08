@@ -195,7 +195,7 @@ jobs:
 
           echo "Updated issue #$ISSUE_NUMBER to Review status"
 
-      - name: Convert PR to ready and trigger Claude review
+      - name: Convert PR to ready and request nopo-bot review
         if: steps.find.outputs.has_pr == 'true' && steps.comments.outputs.has_unresolved != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -209,6 +209,6 @@ jobs:
           gh pr edit "$PR_NUMBER" --add-label "review-ready" || true
           echo "Added review-ready label to PR #$PR_NUMBER"
 
-          # Trigger Claude review workflow
-          gh workflow run claude-review.yml -f pr_number="$PR_NUMBER" --repo "$GITHUB_REPOSITORY"
-          echo "Triggered Claude review for PR #$PR_NUMBER"
+          # Request nopo-bot as reviewer to trigger the review workflow
+          gh pr edit "$PR_NUMBER" --add-reviewer "nopo-bot" --repo "$GITHUB_REPOSITORY"
+          echo "Requested nopo-bot as reviewer for PR #$PR_NUMBER"

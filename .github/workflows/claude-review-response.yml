@@ -98,12 +98,12 @@ jobs:
             git push origin ${{ github.event.pull_request.head.ref }}
             ```
             Converting to draft ensures CI runs before the review loop continues.
-            CI-pass will mark it ready and re-request you as reviewer when CI is green.
+            CI-pass will mark it ready and re-request nopo-bot as reviewer when CI is green.
 
             ### If you made NO commits (only discussion/questions):
-            Re-trigger the review loop:
+            Re-request nopo-bot as reviewer to continue the review loop:
             ```
-            gh workflow run claude-review.yml -f pr_number=${{ github.event.pull_request.number }}
+            gh pr edit ${{ github.event.pull_request.number }} --add-reviewer "nopo-bot"
             ```
             This keeps the PR ready and continues the review loop without CI.
 

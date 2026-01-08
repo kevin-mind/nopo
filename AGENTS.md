@@ -715,6 +715,14 @@ make check && make test && git push
 
 This project uses Claude AI agents for automated issue management with issue-based triggers. Race conditions between CI-fix and review loops are prevented using draft/ready PR states.
 
+### Actors
+
+| Actor | Role |
+|-------|------|
+| **nopo-bot** | Trigger account - assign to issues or request as reviewer to activate Claude |
+| **claude[bot]** | AI worker - performs implementations, submits reviews, responds to comments |
+| **Human** | Supervisor - assigns nopo-bot, requests reviews, merges approved PRs |
+
 ### Overall Flow
 
 ```
@@ -724,8 +732,8 @@ This project uses Claude AI agents for automated issue management with issue-bas
 └─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘     └──────────┘
       │                   │                   │                   │                   │
       ▼                   ▼                   ▼                   ▼                   ▼
- Issue opened       Assigned to         CI fix loop        Review cycle        Human merges
- or edited          claude[bot]         until green        until approved
+ Issue opened       Assign nopo-bot     CI fix loop        Request nopo-bot    Human merges
+ or edited          to issue            until green        as reviewer
 ```
 
 ### Draft/Ready State Machine
@@ -778,10 +786,10 @@ PR state controls which automation loops can run, preventing race conditions. CI
 | Action | Trigger | Condition |
 |--------|---------|-----------|
 | **Triage** | `issues: [opened, edited]` | No "triaged" label |
-| **Implement** | `issues: [assigned]` | Assigned to `claude[bot]` |
+| **Implement** | `issues: [assigned]` | Assigned to `nopo-bot` |
 | **CI Fix** | `workflow_run: [completed]` | CI failed, Claude PR |
 | **CI Pass** | `workflow_run: [completed]` | CI passed, Claude PR |
-| **Review** | `pull_request: [review_requested]` | Reviewer is `claude[bot]`, PR is ready |
+| **Review** | `pull_request: [review_requested]` | Reviewer is `nopo-bot`, PR is ready |
 | **Review Response** | `pull_request_review: [submitted]` | Review by `claude[bot]`, PR is ready |
 
 ### Review Loop Details
@@ -815,10 +823,10 @@ These actions **require human intervention**:
 | Workflow | File | Trigger |
 |----------|------|---------|
 | Triage | `claude-triage.yml` | Issue opened/edited without "triaged" label |
-| Implement | `claude-implement.yml` | Issue assigned to `claude[bot]` |
+| Implement | `claude-implement.yml` | Issue assigned to `nopo-bot` |
 | CI Fix | `claude-ci-fix.yml` | CI failure (converts Claude PR to draft, fixes, pushes) |
-| CI Pass | `claude-ci-pass.yml` | CI success (converts Claude PR to ready, adds label) |
-| Review | `claude-review.yml` | `claude[bot]` requested as reviewer (ready PRs only) |
+| CI Pass | `claude-ci-pass.yml` | CI success (converts Claude PR to ready, requests `nopo-bot` review) |
+| Review | `claude-review.yml` | `nopo-bot` requested as reviewer (ready PRs only) |
 | Review Response | `claude-review-response.yml` | `claude[bot]` submits review (ready PRs only) |
 
 ### Agent Responsibilities
@@ -828,7 +836,7 @@ These actions **require human intervention**:
 | **Triage** | Labels, links similar issues, expands context, answers questions, adds "triaged" label |
 | **Implement** | Creates branch, implements todos, runs tests, creates draft PR with "Fixes #N" |
 | **CI-Fix** | Converts to draft → fixes code → pushes → CI runs again. Human PRs: suggest fixes via comments |
-| **CI-Pass** | Converts to ready → adds "review-ready" label → requests Claude review → updates project status |
+| **CI-Pass** | Converts to ready → adds "review-ready" label → requests `nopo-bot` review → updates project status |
 | **Review** | Resolves completed threads, reviews code, submits batch review (ready PRs only) |
 | **Review Response** | Processes comments: if commits → draft + push (CI loop); if no commits → re-request review (stays in review loop) |
 
