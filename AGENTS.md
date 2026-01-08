@@ -836,15 +836,17 @@ The review loop only operates on **ready** PRs:
 
 ### Human Feedback Flow
 
-When a human reviews a Claude PR, the response is NOT automatic. This is intentional to give humans control:
+When a human reviews a Claude PR (identified by `claude/issue/*` branch), Claude automatically responds:
 
 1. **Human submits review** with changes_requested or comments
-2. **Human triggers Claude's response** by either:
-   - **@claude in a comment**: Claude responds to the specific question/request
-   - **Re-request nopo-bot as reviewer**: Triggers a full review cycle where Claude sees and addresses the human's feedback
-3. **Claude addresses feedback** in the triggered workflow
+2. **Claude evaluates the feedback** - NOT blindly implementing, but critically assessing:
+   - **ACCEPT**: If feedback improves the code, implement and commit
+   - **PUSH BACK**: If Claude disagrees, reply with clear reasoning
+   - **CLARIFY**: If unclear, ask follow-up questions
+3. **If commits made**: Push triggers CI loop (draft → CI → ready → review)
+4. **If no commits**: Re-request nopo-bot to continue review loop
 
-This design ensures humans control when Claude acts on their feedback.
+This design makes Claude an active collaborator who defends good decisions while remaining open to valid improvements.
 
 ### Human Gates
 
@@ -852,8 +854,7 @@ These actions **require human intervention**:
 
 1. **Assign to Claude**: Assign `nopo-bot` to an issue to trigger implementation
 2. **Request Claude as reviewer**: Request `nopo-bot` as reviewer to trigger review loop
-3. **Respond to human feedback**: Re-request `nopo-bot` or @claude to get Claude's response
-4. **Merge PR**: Only humans can merge approved PRs
+3. **Merge PR**: Only humans can merge approved PRs
 
 ### Agent Responsibilities
 

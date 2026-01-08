@@ -229,7 +229,7 @@ jobs:
       - name: Create or checkout branch
         id: branch
         env:
-          BRANCH_NAME: feat/issue-${{ github.event.issue.number }}
+          BRANCH_NAME: claude/issue/${{ github.event.issue.number }}
         run: |
           git fetch origin
           if git show-ref --verify --quiet refs/remotes/origin/$BRANCH_NAME; then
