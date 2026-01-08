@@ -358,27 +358,65 @@ jobs:
 
             You are on branch `${{ steps.branch.outputs.name }}`.
 
-            INSTRUCTIONS:
+            ## STEP 0: CHECK FOR CONFLICTING WORK
 
-            1. IMPLEMENT:
-               - Follow the guidelines in CLAUDE.md strictly
-               - Address all items in the Todo section
-               - Keep changes focused and minimal
+            Before implementing, check for overlapping issues that might conflict:
 
-            2. VERIFY:
-               - Run `make check` to validate linting and types
-               - Run `make test` to run tests
-               - Fix any failures before proceeding
+            ```bash
+            # Find open issues and PRs that might overlap
+            gh issue list --state open --json number,title,labels,assignees
+            gh pr list --state open --json number,title,headRefName
+            ```
 
-            3. COMMIT AND PUSH:
-               - Commit your changes with a descriptive message
-               - Push the branch to origin
+            Look for:
+            - Issues/PRs touching the same files you'll modify
+            - Issues/PRs with similar scope or functionality
+            - Active branches (claude/issue/*) that might conflict
 
-            4. CREATE DRAFT PR:
-               - Use `gh pr create --draft` to create a DRAFT pull request
-               - The PR body MUST contain "Fixes #${{ github.event.issue.number }}"
-               - Include a detailed description of changes
-               - Request review from `nopo-bot` using `--reviewer nopo-bot`
+            **If you find potential conflicts:**
+            1. Add a comment on this issue noting the related issues/PRs
+            2. Assess the conflict severity:
+               - **Minor overlap**: Note it in the PR description, proceed with implementation
+               - **Significant overlap**: Note in issue comment, proceed carefully, mention in PR
+               - **Catastrophic conflict**: Add comment explaining the conflict, unassign nopo-bot, and STOP
+
+            To unassign and stop:
+            ```bash
+            gh issue comment ${{ github.event.issue.number }} --body "⚠️ **Implementation blocked due to conflicting work**
+
+            This issue conflicts with #<number> which is currently in progress.
+            [Explain the conflict]
+
+            Recommend waiting for #<number> to complete before starting this work."
+
+            gh issue edit ${{ github.event.issue.number }} --remove-assignee "nopo-bot"
+            ```
+            Then exit without implementing.
+
+            ## STEP 1: IMPLEMENT
+
+            - Follow the guidelines in CLAUDE.md strictly
+            - Address all items in the Todo section
+            - Keep changes focused and minimal
+
+            ## STEP 2: VERIFY
+
+            - Run `make check` to validate linting and types
+            - Run `make test` to run tests
+            - Fix any failures before proceeding
+
+            ## STEP 3: COMMIT AND PUSH
+
+            - Commit your changes with a descriptive message
+            - Push the branch to origin
+
+            ## STEP 4: CREATE DRAFT PR
+
+            - Use `gh pr create --draft` to create a DRAFT pull request
+            - The PR body MUST contain "Fixes #${{ github.event.issue.number }}"
+            - Include a detailed description of changes
+            - If there are related issues/PRs, mention them in the PR description
+            - Request review from `nopo-bot` using `--reviewer nopo-bot`
 
             IMPORTANT:
             - The "Fixes #N" pattern is REQUIRED for automatic issue linking and closure
