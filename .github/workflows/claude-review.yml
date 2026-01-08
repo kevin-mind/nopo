@@ -146,24 +146,6 @@ jobs:
           ref: ${{ needs.setup.outputs.pr_branch }}
           fetch-depth: 0
 
-      - name: Create Claude settings
-        run: |
-          mkdir -p .claude
-          cat > .claude/settings.json << 'EOF'
-          {
-            "permissions": {
-              "allow": [
-                "Bash(git fetch:*)",
-                "Bash(git diff:*)",
-                "Bash(gh pr view:*)",
-                "Bash(gh pr review:*)",
-                "Bash(make:*)",
-                "Bash(pnpm:*)"
-              ]
-            }
-          }
-          EOF
-
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
