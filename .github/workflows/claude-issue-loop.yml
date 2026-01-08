@@ -380,15 +380,82 @@ jobs:
                - **Significant overlap**: Note in issue comment, proceed carefully, mention in PR
                - **Catastrophic conflict**: Add comment explaining the conflict, unassign nopo-bot, and STOP
 
-            To unassign and stop:
+            To block and stop:
             ```bash
+            # 1. Comment on THIS issue explaining the block
             gh issue comment ${{ github.event.issue.number }} --body "⚠️ **Implementation blocked due to conflicting work**
 
-            This issue conflicts with #<number> which is currently in progress.
+            This issue conflicts with #<blocking_number> which is currently in progress.
             [Explain the conflict]
 
-            Recommend waiting for #<number> to complete before starting this work."
+            Recommend waiting for #<blocking_number> to complete before starting this work."
 
+            # 2. Comment on the BLOCKING issue noting it's blocking this one
+            gh issue comment <blocking_number> --body "ℹ️ **Note**: This issue is blocking #${{ github.event.issue.number }}
+
+            #${{ github.event.issue.number }} cannot proceed until this work is complete due to:
+            [Brief explanation of the conflict]"
+
+            # 3. Update project status to Blocked (if linked to project)
+            # First get the project item ID
+            result=$(gh api graphql -f query='
+              query($owner: String!, $repo: String!, $number: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  issue(number: $number) {
+                    projectItems(first: 10) {
+                      nodes {
+                        id
+                        project { id }
+                      }
+                    }
+                  }
+                }
+              }
+            ' -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" -F number=${{ github.event.issue.number }})
+
+            item_id=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0].id // empty')
+            project_id=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0].project.id // empty')
+
+            if [[ -n "$item_id" && -n "$project_id" ]]; then
+              # Get Status field and Blocked option
+              fields=$(gh api graphql -f query='
+                query($projectId: ID!) {
+                  node(id: $projectId) {
+                    ... on ProjectV2 {
+                      fields(first: 20) {
+                        nodes {
+                          ... on ProjectV2SingleSelectField {
+                            id
+                            name
+                            options { id name }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ' -f projectId="$project_id")
+
+              field_id=$(echo "$fields" | jq -r '.data.node.fields.nodes[] | select(.name == "Status") | .id')
+              option_id=$(echo "$fields" | jq -r '.data.node.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "Blocked") | .id')
+
+              if [[ -n "$field_id" && -n "$option_id" ]]; then
+                gh api graphql -f query='
+                  mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+                    updateProjectV2ItemFieldValue(
+                      input: {
+                        projectId: $projectId
+                        itemId: $itemId
+                        fieldId: $fieldId
+                        value: { singleSelectOptionId: $optionId }
+                      }
+                    ) { projectV2Item { id } }
+                  }
+                ' -f projectId="$project_id" -f itemId="$item_id" -f fieldId="$field_id" -f optionId="$option_id"
+              fi
+            fi
+
+            # 4. Remove assignee
             gh issue edit ${{ github.event.issue.number }} --remove-assignee "nopo-bot"
             ```
             Then exit without implementing.
