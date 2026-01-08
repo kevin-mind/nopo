@@ -29,6 +29,9 @@ jobs:
       (github.event.action == 'opened' || github.event.action == 'edited') &&
       github.event_name == 'issues' &&
       !contains(github.event.issue.labels.*.name, 'triaged')
+    concurrency:
+      group: claude-triage-${{ github.event.issue.number }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
 
