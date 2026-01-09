@@ -22,7 +22,9 @@ jobs:
   #############################################################################
 
   push-convert-to-draft:
-    if: github.event_name == 'push'
+    if: |
+      github.event_name == 'push' &&
+      !startsWith(github.ref_name, 'gh-readonly-queue/')
     runs-on: ubuntu-latest
     # CRITICAL: This concurrency group MUST match claude-review-loop.yml
     # The shared group ensures pushes cancel in-flight review workflows.
