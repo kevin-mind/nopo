@@ -123,13 +123,31 @@ jobs:
       - uses: ./.github/actions/setup-uv
 
       - uses: ./.github/actions/setup-docker
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build base image
+      - name: Docker Tag
+        id: docker_tag
+        uses: ./.github/actions/docker-tag
+        with:
+          tag: ${{ inputs.tag }}
+
+      - name: Get base image
+        env:
+          DOCKER_TAG: ${{ steps.docker_tag.outputs.tag }}
+          DOCKER_DIGEST: ${{ steps.docker_tag.outputs.digest }}
         run: |
-          make build \
-            DOCKER_TAG="${{ steps.docker_tag.outputs.tag }}" \
-            DOCKER_TARGET="development" \
-            -- --base-only
+          if [[ -n "$DOCKER_DIGEST" ]]; then
+            echo "Digest present - pulling image from registry"
+            docker pull "$DOCKER_TAG"
+          else
+            echo "No digest - building image locally"
+            make build base \
+              DOCKER_TAG="$DOCKER_TAG" \
+              DOCKER_TARGET="development"
+          fi
 
       - name: Verify extendable base image
         env:
