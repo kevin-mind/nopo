@@ -10,7 +10,7 @@ concurrency:
   group: |
     ${{ github.workflow }}-
     ${{ (github.event_name == 'merge_group' || github.event_name == 'push' && github.event.sender.login != 'github-merge-queue[bot]') && 'push' || 'pr' }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions: {}
 
