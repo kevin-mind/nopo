@@ -555,7 +555,7 @@ jobs:
             - The "Fixes #N" pattern is REQUIRED for automatic issue linking and closure
             - Create as DRAFT so CI can run first - it will be marked ready automatically when CI passes
             - Always request nopo-bot as reviewer to trigger the review workflow
-          claude_args: "--model claude-opus-4-5-20251101 --max-turns 50"
+          claude_args: "--model claude-opus-4-5-20251101 --max-turns 100"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -702,7 +702,7 @@ jobs:
             ```
 
             NEVER leave the issue/PR without a visible response - your analysis must be posted as a comment.
-          claude_args: "--model claude-opus-4-5-20251101 --max-turns 50"
+          claude_args: "--model claude-opus-4-5-20251101 --max-turns 100"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
