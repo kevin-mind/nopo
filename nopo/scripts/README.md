@@ -194,8 +194,8 @@ nopo status
 # Run a script in a specific service
 nopo run test --service backend
 
-# Run a script in a specific workspace
-nopo run build --workspace web
+# Run a script in specific services using filter
+nopo run build --filter backend,web
 ```
 
 ### Environment Variables
