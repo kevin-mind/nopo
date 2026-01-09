@@ -379,3 +379,47 @@ jobs:
           claude_args: "--model claude-opus-4-5-20251101 --max-turns 50"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  #############################################################################
+  # HUMAN REVIEW NOTIFICATION (triggered by human submitting changes_requested)
+  # Posts a helpful comment explaining how to get Claude to act on feedback
+  #############################################################################
+
+  human-review-notification:
+    if: |
+      github.event_name == 'pull_request_review' &&
+      github.event.review.user.login != 'claude[bot]' &&
+      github.event.pull_request.draft == false &&
+      github.event.review.state == 'CHANGES_REQUESTED'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if PR is Claude-authored
+        id: check_author
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          # Only post notification on Claude-authored PRs
+          author=$(gh pr view "$PR_NUMBER" --json author --jq '.author.login')
+          if [[ "$author" == "app/claude" || "$author" == "github-actions[bot]" ]]; then
+            echo "is_claude_pr=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_claude_pr=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Post notification comment
+        if: steps.check_author.outputs.is_claude_pr == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REVIEWER: ${{ github.event.review.user.login }}
+        run: |
+          gh pr comment "$PR_NUMBER" --body "## 🔔 Human Review Received
+
+          @$REVIEWER requested changes on this PR.
+
+          **To get Claude to address your feedback:**
+          - **For specific fixes:** Comment \`@claude fix <description>\` on the PR
+          - **For a full re-review:** Re-request \`nopo-bot\` as a reviewer
+
+          Claude will not automatically act on human reviews to prevent unwanted automation loops."
