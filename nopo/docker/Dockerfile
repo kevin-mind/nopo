@@ -54,8 +54,8 @@ WORKDIR $APP
 RUN mkdir -p $APP && chown -R $USER:$USER $APP
 
 RUN \
-  --mount=type=cache,target=/var/cache/apt,id=apt \
-  --mount=type=cache,target=/var/lib/apt,id=apt \
+  --mount=type=cache,target=/var/cache/apt,id=apt-cache,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt,id=apt-lists,sharing=locked \
 <<EOF
 apt-get update
 if [ -n "${OS_PACKAGES}" ]; then
@@ -70,8 +70,8 @@ FROM os AS base
 COPY --from=ghcr.io/astral-sh/uv:latest --chown="${USER}:${USER}" /uv /uvx /bin/
 
 RUN \
-  --mount=type=cache,target=/var/cache/apt,id=apt \
-  --mount=type=cache,target=/var/lib/apt,id=apt \
+  --mount=type=cache,target=/var/cache/apt,id=apt-cache,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt,id=apt-lists,sharing=locked \
 <<EOF
 apt-get update
 if [ -n "${OS_PACKAGES}" ]; then

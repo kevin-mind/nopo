@@ -40,6 +40,7 @@ nopo build --help
 |----------|-------------|---------|
 | `DOCKER_BUILDER` | Custom Docker Buildx builder name | `nopo-builder` |
 | `DOCKER_PUSH` | Push images to registry after build | `false` |
+| `DOCKER_PLATFORMS` | Target platforms for multi-arch builds (comma-separated, only used when `DOCKER_PUSH=true`) | `linux/amd64,linux/arm64` |
 | `DOCKER_METADATA_FILE` | Path to write bake metadata | Temp file |
 | `DOCKER_TAG` | Base image tag | From `.env` or `kevin-mind/nopo:local` |
 | `DOCKER_TARGET` | Build target stage | `development` or `production` |
@@ -94,6 +95,20 @@ nopo build --no-cache
 
 ```bash
 DOCKER_PUSH=true nopo build
+```
+
+### Build and push multi-arch images
+
+When pushing, images are built for both `linux/amd64` and `linux/arm64` by default:
+
+```bash
+DOCKER_PUSH=true nopo build
+```
+
+### Build for a single architecture only
+
+```bash
+DOCKER_PUSH=true DOCKER_PLATFORMS=linux/amd64 nopo build
 ```
 
 ### Build with custom builder
