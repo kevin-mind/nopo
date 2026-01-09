@@ -242,7 +242,7 @@ jobs:
             IMPORTANT:
             - You may APPROVE but must NOT merge
             - A human will make the final merge decision
-          claude_args: "--model claude-opus-4-5-20251101 --max-turns 30"
+          claude_args: "--model claude-opus-4-5-20251101 --max-turns 50"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -362,6 +362,6 @@ jobs:
             - Make atomic commits for each change
             - Reference the comment in each commit message
             - Follow CLAUDE.md guidelines for all code changes
-          claude_args: "--model claude-opus-4-5-20251101 --max-turns 30"
+          claude_args: "--model claude-opus-4-5-20251101 --max-turns 50"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
