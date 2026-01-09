@@ -5,6 +5,19 @@ on:
     types: [review_requested]
   pull_request_review:
     types: [submitted]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to review"
+        required: true
+        type: string
+      action:
+        description: "Action to simulate"
+        required: true
+        type: choice
+        options:
+          - review
+          - respond
 
 # CRITICAL: This concurrency group MUST match push-convert-to-draft in claude-ci-loop.yml
 # The shared group ensures pushes cancel in-flight review workflows.

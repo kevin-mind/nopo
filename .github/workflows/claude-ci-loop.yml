@@ -7,6 +7,20 @@ on:
   workflow_run:
     workflows: ["CI", "Release"]
     types: [completed]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to process"
+        required: true
+        type: string
+      conclusion:
+        description: "Simulated workflow conclusion"
+        required: true
+        type: choice
+        options:
+          - failure
+          - success
+        default: failure
 
 permissions:
   contents: write
@@ -66,31 +80,40 @@ jobs:
 
   # Shared job to find PR info
   check-pr:
-    if: github.event_name == 'workflow_run'
+    if: github.event_name == 'workflow_run' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     outputs:
       has_pr: ${{ steps.check.outputs.has_pr }}
       is_claude_pr: ${{ steps.check.outputs.is_claude_pr }}
       is_draft: ${{ steps.check.outputs.is_draft }}
       pr_number: ${{ steps.check.outputs.pr_number }}
+      pr_head_branch: ${{ steps.check.outputs.pr_head_branch }}
       pr_body: ${{ steps.check.outputs.pr_body }}
       has_issue: ${{ steps.check.outputs.has_issue }}
       issue_number: ${{ steps.check.outputs.issue_number }}
+      conclusion: ${{ steps.check.outputs.conclusion }}
     steps:
       - name: Find PR and check details
         id: check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          INPUT_PR_NUMBER: ${{ inputs.pr_number }}
+          INPUT_CONCLUSION: ${{ inputs.conclusion }}
         run: |
+          # Handle workflow_dispatch - get PR directly by number
+          if [[ -n "$INPUT_PR_NUMBER" ]]; then
+            echo "Manual trigger for PR #$INPUT_PR_NUMBER"
+            pr=$(gh pr view "$INPUT_PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json number,author,isDraft,body,headRefName)
+            echo "conclusion=$INPUT_CONCLUSION" >> $GITHUB_OUTPUT
           # Check if this is a merge queue branch (gh-readonly-queue/main/pr-NNN-...)
-          if [[ "$HEAD_BRANCH" =~ ^gh-readonly-queue/.*/pr-([0-9]+)- ]]; then
+          elif [[ "$HEAD_BRANCH" =~ ^gh-readonly-queue/.*/pr-([0-9]+)- ]]; then
             pr_number="${BASH_REMATCH[1]}"
             echo "Merge queue branch detected, extracting PR #$pr_number"
-            pr=$(gh pr view "$pr_number" --repo "$GITHUB_REPOSITORY" --json number,author,isDraft,body)
+            pr=$(gh pr view "$pr_number" --repo "$GITHUB_REPOSITORY" --json number,author,isDraft,body,headRefName)
           else
             # Find PR for this branch
-            pr=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$HEAD_BRANCH" --json number,author,isDraft,body --jq '.[0]')
+            pr=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$HEAD_BRANCH" --json number,author,isDraft,body,headRefName --jq '.[0]')
           fi
 
           if [[ -z "$pr" || "$pr" == "null" ]]; then
@@ -103,10 +126,12 @@ jobs:
           author=$(echo "$pr" | jq -r '.author.login')
           is_draft=$(echo "$pr" | jq -r '.isDraft')
           pr_body=$(echo "$pr" | jq -r '.body')
+          pr_head_branch=$(echo "$pr" | jq -r '.headRefName')
 
-          echo "PR #$pr_number by $author (draft: $is_draft)"
+          echo "PR #$pr_number by $author (draft: $is_draft) on branch $pr_head_branch"
           echo "has_pr=true" >> $GITHUB_OUTPUT
           echo "pr_number=$pr_number" >> $GITHUB_OUTPUT
+          echo "pr_head_branch=$pr_head_branch" >> $GITHUB_OUTPUT
           echo "is_draft=$is_draft" >> $GITHUB_OUTPUT
 
           # Store body for later use
@@ -141,7 +166,7 @@ jobs:
   failure-convert-to-draft:
     needs: check-pr
     if: |
-      github.event.workflow_run.conclusion == 'failure' &&
+      (github.event.workflow_run.conclusion == 'failure' || needs.check-pr.outputs.conclusion == 'failure') &&
       needs.check-pr.outputs.has_pr == 'true' &&
       needs.check-pr.outputs.is_claude_pr == 'true' &&
       needs.check-pr.outputs.is_draft == 'false'
@@ -159,7 +184,7 @@ jobs:
   failure-fix-and-push:
     needs: [check-pr, failure-convert-to-draft]
     if: |
-      github.event.workflow_run.conclusion == 'failure' &&
+      (github.event.workflow_run.conclusion == 'failure' || needs.check-pr.outputs.conclusion == 'failure') &&
       (needs.failure-convert-to-draft.result == 'success' || needs.failure-convert-to-draft.result == 'skipped') &&
       needs.check-pr.outputs.has_pr == 'true' &&
       needs.check-pr.outputs.is_claude_pr == 'true'
@@ -185,7 +210,7 @@ jobs:
 
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_branch }}
+          ref: ${{ needs.check-pr.outputs.pr_head_branch }}
           fetch-depth: 0
 
       - name: Configure Git
@@ -198,7 +223,7 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           settings: ".claude/settings.json"
           prompt: |
-            The CI build failed for PR #${{ needs.check-pr.outputs.pr_number }} on branch ${{ github.event.workflow_run.head_branch }}.
+            The CI build failed for PR #${{ needs.check-pr.outputs.pr_number }} on branch ${{ needs.check-pr.outputs.pr_head_branch }}.
 
             1. Analyze the project to understand the build and test process (see CLAUDE.md).
             2. Run `make check` and `make test` to reproduce the failure.
@@ -215,14 +240,14 @@ jobs:
   failure-suggest-fixes:
     needs: check-pr
     if: |
-      github.event.workflow_run.conclusion == 'failure' &&
+      (github.event.workflow_run.conclusion == 'failure' || needs.check-pr.outputs.conclusion == 'failure') &&
       needs.check-pr.outputs.has_pr == 'true' &&
       needs.check-pr.outputs.is_claude_pr == 'false'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_branch }}
+          ref: ${{ needs.check-pr.outputs.pr_head_branch }}
           fetch-depth: 0
 
       - uses: anthropics/claude-code-action@v1
@@ -230,7 +255,7 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           settings: ".claude/settings.json"
           prompt: |
-            The CI build failed for PR #${{ needs.check-pr.outputs.pr_number }} on branch ${{ github.event.workflow_run.head_branch }}.
+            The CI build failed for PR #${{ needs.check-pr.outputs.pr_number }} on branch ${{ needs.check-pr.outputs.pr_head_branch }}.
 
             This is a human-created PR, so DO NOT push any changes directly.
 
@@ -268,7 +293,7 @@ jobs:
   success-check-comments:
     needs: check-pr
     if: |
-      github.event.workflow_run.conclusion == 'success' &&
+      (github.event.workflow_run.conclusion == 'success' || needs.check-pr.outputs.conclusion == 'success') &&
       needs.check-pr.outputs.has_pr == 'true'
     runs-on: ubuntu-latest
     outputs:
@@ -328,7 +353,7 @@ jobs:
   success-update-project:
     needs: [check-pr, success-check-comments]
     if: |
-      github.event.workflow_run.conclusion == 'success' &&
+      (github.event.workflow_run.conclusion == 'success' || needs.check-pr.outputs.conclusion == 'success') &&
       needs.check-pr.outputs.has_issue == 'true' &&
       needs.success-check-comments.outputs.has_unresolved != 'true'
     runs-on: ubuntu-latest
@@ -413,7 +438,7 @@ jobs:
     needs: [check-pr, success-check-comments, success-update-project]
     if: |
       always() &&
-      github.event.workflow_run.conclusion == 'success' &&
+      (github.event.workflow_run.conclusion == 'success' || needs.check-pr.outputs.conclusion == 'success') &&
       needs.check-pr.outputs.has_pr == 'true' &&
       needs.success-check-comments.outputs.has_unresolved != 'true'
     runs-on: ubuntu-latest
