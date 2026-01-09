@@ -403,16 +403,18 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   #############################################################################
-  # HUMAN REVIEW NOTIFICATION (triggered by human submitting changes_requested)
-  # Posts a helpful comment explaining how to get Claude to act on feedback
+  # HUMAN REVIEW RESPONSE (triggered by human submitting a review)
+  # Claude automatically addresses human feedback on Claude-authored PRs:
+  # - CHANGES_REQUESTED: Make the requested changes
+  # - COMMENTED: Answer questions
   #############################################################################
 
-  human-review-notification:
+  human-review-response:
     if: |
       github.event_name == 'pull_request_review' &&
       github.event.review.user.login != 'claude[bot]' &&
       github.event.pull_request.draft == false &&
-      github.event.review.state == 'CHANGES_REQUESTED'
+      (github.event.review.state == 'CHANGES_REQUESTED' || github.event.review.state == 'COMMENTED')
     runs-on: ubuntu-latest
     steps:
       - name: Check if PR is Claude-authored
@@ -421,27 +423,79 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          # Only post notification on Claude-authored PRs
+          # Only respond on Claude-authored PRs
           author=$(gh pr view "$PR_NUMBER" --json author --jq '.author.login')
           if [[ "$author" == "app/claude" || "$author" == "github-actions[bot]" ]]; then
             echo "is_claude_pr=true" >> $GITHUB_OUTPUT
           else
             echo "is_claude_pr=false" >> $GITHUB_OUTPUT
+            echo "Skipping - not a Claude-authored PR"
           fi
 
-      - name: Post notification comment
+      - uses: actions/checkout@v4
         if: steps.check_author.outputs.is_claude_pr == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          REVIEWER: ${{ github.event.review.user.login }}
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Configure Git
+        if: steps.check_author.outputs.is_claude_pr == 'true'
         run: |
-          gh pr comment "$PR_NUMBER" --body "## 🔔 Human Review Received
+          git config --global user.name "Claude Bot"
+          git config --global user.email "claude-bot@anthropic.com"
 
-          @$REVIEWER requested changes on this PR.
+      - uses: anthropics/claude-code-action@v1
+        if: steps.check_author.outputs.is_claude_pr == 'true'
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          settings: ".claude/settings.json"
+          prompt: |
+            A human reviewer (@${{ github.event.review.user.login }}) submitted a review on PR #${{ github.event.pull_request.number }}.
 
-          **To get Claude to address your feedback:**
-          - **For specific fixes:** Comment \`@claude fix <description>\` on the PR
-          - **For a full re-review:** Re-request \`nopo-bot\` as a reviewer
+            Review state: ${{ github.event.review.state }}
+            Review body: ${{ github.event.review.body }}
 
-          Claude will not automatically act on human reviews to prevent unwanted automation loops."
+            ## Step 1: Get the Review Comments
+
+            Fetch comments from this review:
+            ```
+            gh api /repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments
+            ```
+
+            Filter for comments from review_id: ${{ github.event.review.id }}
+
+            ## Step 2: Process the Feedback
+
+            **For CHANGES_REQUESTED reviews:**
+            - Make each requested change to the code
+            - Commit with a clear message referencing what was fixed
+            - Reply to each comment noting the fix
+
+            **For COMMENTED reviews (questions):**
+            - Answer each question with a reply comment
+            - If a question implies a needed change, make it
+
+            ## Step 3: Finalize
+
+            After processing all feedback:
+
+            ### If you made commits (code changes):
+            Push the changes:
+            ```
+            git push origin ${{ github.event.pull_request.head.ref }}
+            ```
+            The push will convert PR to draft and trigger CI.
+
+            ### If you only answered questions (no commits):
+            Post a summary comment, then re-request nopo-bot for the next review cycle:
+            ```
+            gh pr edit ${{ github.event.pull_request.number }} --add-reviewer "nopo-bot"
+            ```
+
+            IMPORTANT:
+            - Address ALL feedback from the human reviewer
+            - Make atomic commits for each change
+            - Follow CLAUDE.md guidelines
+          claude_args: "--model claude-opus-4-5-20251101 --max-turns 50"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
