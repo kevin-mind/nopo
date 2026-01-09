@@ -210,7 +210,7 @@ jobs:
             exit 1
           fi
 
-      - name: Check project status is Ready
+      - name: Check project status allows implementation
         env:
           GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
@@ -238,12 +238,15 @@ jobs:
 
           if [[ -z "$status" ]]; then
             echo "Issue not linked to a project - skipping status check"
-          elif [[ "$status" != "Ready" ]]; then
-            gh issue comment "$ISSUE_NUMBER" --body "⚠️ Cannot start implementation - issue status is **$status**, not **Ready**.
+          elif [[ "$status" == "Ready" || "$status" == "In progress" ]]; then
+            echo "Issue status '$status' allows implementation - proceeding"
+          else
+            gh issue comment "$ISSUE_NUMBER" --body "⚠️ Cannot start implementation - issue status is **$status**.
 
+          Implementation requires status to be **Ready** or **In progress**.
           Please move the issue to **Ready** status in the project board, then re-assign nopo-bot."
             gh issue edit "$ISSUE_NUMBER" --remove-assignee "nopo-bot"
-            echo "::error::Issue #$ISSUE_NUMBER status is '$status', not 'Ready'"
+            echo "::error::Issue #$ISSUE_NUMBER status is '$status', must be Ready or In progress"
             exit 1
           fi
 
