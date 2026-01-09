@@ -31,6 +31,7 @@ interface BakeTarget {
   "cache-from"?: string[];
   "cache-to"?: string[];
   output?: string[];
+  platforms?: string[];
 }
 
 interface BakeDefinition {
@@ -43,6 +44,7 @@ interface BakeDefinition {
 }
 
 const SERVICE_IMAGE_SUFFIX = "_IMAGE";
+const DEFAULT_PLATFORMS = "linux/amd64,linux/arm64";
 
 export default class BuildScript extends TargetScript<BuildCliArgs> {
   static override name = "build";
@@ -127,6 +129,9 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
     const env = this.runner.environment.env;
     const targets = this.runner.config.targets;
 
+    // Multi-platform builds only work with registry push (type=docker doesn't support multi-platform)
+    const platforms = push ? this.getPlatforms() : undefined;
+
     // Filter to only buildable services (those with dockerfiles, not pre-built images)
     const buildableTargets = targets.filter((t) => {
       const service = this.runner.getService(t);
@@ -177,6 +182,7 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
         tags: [env.DOCKER_TAG],
         target: env.DOCKER_TARGET,
         ...(push ? {} : { output: ["type=docker"] }),
+        ...(platforms ? { platforms } : {}),
         ...(isCI
           ? {
               "cache-from": ["type=gha"],
@@ -219,6 +225,7 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
         dockerfile: relativeDockerfile,
         tags: [serviceTag],
         ...(push ? {} : { output: ["type=docker"] }),
+        ...(platforms ? { platforms } : {}),
         contexts: {
           base: "target:base",
         },
@@ -303,6 +310,12 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
     const names = Object.keys(deps);
     if (names.length === 0) return "";
     return names.join(" ");
+  }
+
+  private getPlatforms(): string[] {
+    const platformsEnv =
+      this.runner.config.processEnv.DOCKER_PLATFORMS || DEFAULT_PLATFORMS;
+    return platformsEnv.split(",").map((p) => p.trim());
   }
 
   private async getImageDigest(tag: string): Promise<string | null> {

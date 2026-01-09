@@ -241,4 +241,122 @@ describe("build", () => {
       expect(mockBake.mock.calls[1]).toContain("--no-cache");
     });
   });
+
+  describe("multi-platform builds", () => {
+    it("includes platforms when DOCKER_PUSH is set", async () => {
+      mockBuilder.mockResolvedValue("nopo-builder");
+      const config = createConfig({
+        envFile: createTmpEnv({
+          DOCKER_TAG: "kevin-mind/nopo:local",
+        }),
+        processEnv: {
+          DOCKER_PUSH: "true",
+        },
+        silent: true,
+      });
+
+      await runScript(BuildScript, config);
+
+      const bakeFilePath = mockBake?.mock.calls?.[0]?.find((arg: string) =>
+        arg.endsWith("docker-bake.json"),
+      );
+      expect(bakeFilePath).toBeDefined();
+
+      const bakeContent = fs.readFileSync(bakeFilePath, "utf-8");
+      const bakeDefinition = JSON.parse(bakeContent);
+
+      // When pushing, platforms should be set to default multi-arch
+      expect(bakeDefinition.target.base.platforms).toEqual([
+        "linux/amd64",
+        "linux/arm64",
+      ]);
+      expect(bakeDefinition.target.backend.platforms).toEqual([
+        "linux/amd64",
+        "linux/arm64",
+      ]);
+    });
+
+    it("does not include platforms for local builds", async () => {
+      mockBuilder.mockResolvedValue("default");
+      const config = createConfig({
+        envFile: createTmpEnv({
+          DOCKER_TAG: "kevin-mind/nopo:local",
+        }),
+        silent: true,
+      });
+
+      await runScript(BuildScript, config);
+
+      const bakeFilePath = mockBake?.mock.calls?.[0]?.find((arg: string) =>
+        arg.endsWith("docker-bake.json"),
+      );
+      expect(bakeFilePath).toBeDefined();
+
+      const bakeContent = fs.readFileSync(bakeFilePath, "utf-8");
+      const bakeDefinition = JSON.parse(bakeContent);
+
+      // For local builds, platforms should not be set (Docker type=docker doesn't support multi-platform)
+      expect(bakeDefinition.target.base.platforms).toBeUndefined();
+      expect(bakeDefinition.target.backend.platforms).toBeUndefined();
+    });
+
+    it("allows overriding platforms via DOCKER_PLATFORMS env var", async () => {
+      mockBuilder.mockResolvedValue("nopo-builder");
+      const config = createConfig({
+        envFile: createTmpEnv({
+          DOCKER_TAG: "kevin-mind/nopo:local",
+        }),
+        processEnv: {
+          DOCKER_PUSH: "true",
+          DOCKER_PLATFORMS: "linux/amd64",
+        },
+        silent: true,
+      });
+
+      await runScript(BuildScript, config);
+
+      const bakeFilePath = mockBake?.mock.calls?.[0]?.find((arg: string) =>
+        arg.endsWith("docker-bake.json"),
+      );
+      expect(bakeFilePath).toBeDefined();
+
+      const bakeContent = fs.readFileSync(bakeFilePath, "utf-8");
+      const bakeDefinition = JSON.parse(bakeContent);
+
+      // Custom platforms should override the default
+      expect(bakeDefinition.target.base.platforms).toEqual(["linux/amd64"]);
+      expect(bakeDefinition.target.backend.platforms).toEqual(["linux/amd64"]);
+    });
+
+    it("handles multiple custom platforms with spaces", async () => {
+      mockBuilder.mockResolvedValue("nopo-builder");
+      const config = createConfig({
+        envFile: createTmpEnv({
+          DOCKER_TAG: "kevin-mind/nopo:local",
+        }),
+        processEnv: {
+          DOCKER_PUSH: "true",
+          DOCKER_PLATFORMS: "linux/amd64, linux/arm64, linux/arm/v7",
+        },
+        silent: true,
+      });
+
+      await runScript(BuildScript, config);
+
+      const bakeFilePath = mockBake?.mock.calls?.[0]?.find((arg: string) =>
+        arg.endsWith("docker-bake.json"),
+      );
+      expect(bakeFilePath).toBeDefined();
+
+      const bakeContent = fs.readFileSync(bakeFilePath, "utf-8");
+      const bakeDefinition = JSON.parse(bakeContent);
+
+      // Platforms should be trimmed and parsed correctly
+      expect(bakeDefinition.target.base.platforms).toEqual([
+        "linux/amd64",
+        "linux/arm64",
+        "linux/arm/v7",
+      ]);
+    });
+  });
 });
