@@ -346,13 +346,19 @@ jobs:
             CI-pass will mark it ready and re-request nopo-bot as reviewer when CI is green.
 
             ### If you made NO commits (only discussion/questions):
-            Re-request nopo-bot as reviewer to continue the review loop:
+            Post a comment summarizing your analysis, then re-request nopo-bot as reviewer:
             ```
+            gh pr comment ${{ github.event.pull_request.number }} --body "## Review Response Summary
+
+            <your analysis of the review comments and what action was taken or why no action was needed>
+
+            Re-requesting review to continue the loop."
+
             gh pr edit ${{ github.event.pull_request.number }} --add-reviewer "nopo-bot"
             ```
-            This keeps the PR ready and continues the review loop.
 
             IMPORTANT:
+            - ALWAYS post a comment with your findings - never leave the PR without feedback
             - Make atomic commits for each change
             - Reference the comment in each commit message
             - Follow CLAUDE.md guidelines for all code changes

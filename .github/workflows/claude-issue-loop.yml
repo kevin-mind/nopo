@@ -617,7 +617,28 @@ jobs:
             exit 1
           fi
 
+      - name: Get PR branch (if PR comment)
+        id: pr_context
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IS_PR: ${{ github.event.issue.pull_request != '' }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          if [[ "$IS_PR" == "true" ]]; then
+            pr_branch=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefName --jq '.headRefName')
+            echo "branch=$pr_branch" >> $GITHUB_OUTPUT
+            echo "is_pr=true" >> $GITHUB_OUTPUT
+            echo "Detected PR comment on branch: $pr_branch"
+          else
+            echo "branch=main" >> $GITHUB_OUTPUT
+            echo "is_pr=false" >> $GITHUB_OUTPUT
+            echo "Detected issue comment, using main branch"
+          fi
+
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr_context.outputs.branch }}
+          fetch-depth: 0
 
       - uses: anthropics/claude-code-action@v1
         with:
@@ -625,20 +646,37 @@ jobs:
           settings: ".claude/settings.json"
           trigger_phrase: "@claude"
           prompt: |
-            You are responding to a question or request in a GitHub issue/PR comment.
+            You are responding to a question or request in a GitHub ${{ steps.pr_context.outputs.is_pr == 'true' && 'PR' || 'issue' }} comment.
+
+            ${{ steps.pr_context.outputs.is_pr == 'true' && format('This is PR #{0} on branch `{1}`. You are checked out on the PR branch with the code changes.', github.event.issue.number, steps.pr_context.outputs.branch) || format('This is issue #{0}. You are checked out on main.', github.event.issue.number) }}
+
+            ## Your Task
+
+            Read the user's comment carefully and respond ONLY to what they asked.
+            DO NOT make unrelated suggestions or analyze unrelated code.
 
             DO NOT implement code changes or make commits unless explicitly asked.
-
             To trigger automation, users should:
             - Assign `nopo-bot` to an issue for implementation
             - Request `nopo-bot` as PR reviewer for code review
 
             Focus on:
-            - Answering questions
-            - Providing explanations
-            - Clarifying requirements
-            - Suggesting approaches (without implementing)
-            - Analyzing code or issues
+            - Answering the SPECIFIC question asked
+            - Providing relevant explanations
+            - Clarifying requirements if asked
+            - Suggesting approaches (without implementing) if requested
+            - Analyzing code the user asked about
+
+            ## IMPORTANT: Always Post Your Response
+
+            After completing your analysis, you MUST post your response as a comment:
+            ```
+            gh issue comment ${{ github.event.issue.number }} --repo "$GITHUB_REPOSITORY" --body "## Response
+
+            <your detailed response to the user's SPECIFIC question/request>"
+            ```
+
+            NEVER leave the issue/PR without a visible response - your analysis must be posted as a comment.
           claude_args: "--model claude-opus-4-5-20251101 --max-turns 30"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

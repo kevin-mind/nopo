@@ -263,22 +263,27 @@ jobs:
             1. Analyze the project to understand the build and test process (see CLAUDE.md).
             2. Run `make check` and `make test` to reproduce the failure.
             3. Identify the root cause of the failure.
-            4. Submit a PR review with INLINE COMMENTS suggesting specific fixes.
-               - Use `gh pr review` with `--comment` and include specific code suggestions
-               - Point to the exact lines that need to be changed
-               - Provide the corrected code in code blocks
-            5. If the fix is complex, add a summary comment explaining the overall approach.
+            4. Submit a PR review with your findings and suggestions.
 
-            Use the GitHub CLI to submit review comments:
-            ```
-            gh pr review ${{ needs.check-pr.outputs.pr_number }} --comment --body "..."
-            ```
+            ## IMPORTANT: Always Post Visible Feedback
 
-            For inline comments on specific files/lines, you can use:
+            You MUST submit a PR review with your analysis. Use one of:
             ```
+            # If you have specific fix suggestions:
+            gh pr review ${{ needs.check-pr.outputs.pr_number }} --comment --body "## CI Failure Analysis
+
+            **Root Cause:** <description>
+
+            **Suggested Fixes:**
+            <specific code suggestions with file paths and line numbers>"
+
+            # For inline comments on specific files/lines:
             gh api repos/$GITHUB_REPOSITORY/pulls/${{ needs.check-pr.outputs.pr_number }}/comments \
               -f body="suggestion" -f path="file.ts" -f line=42 -f side="RIGHT"
             ```
+
+            NEVER leave the PR without feedback - even if you can't identify the exact issue,
+            post what you found and any partial analysis.
 
             Be helpful and specific - the human author should be able to easily apply your suggestions.
           claude_args: "--model claude-opus-4-5-20251101 --max-turns 30"
