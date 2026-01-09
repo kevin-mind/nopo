@@ -260,8 +260,7 @@ jobs:
     needs: check-pr
     if: |
       github.event.workflow_run.conclusion == 'success' &&
-      needs.check-pr.outputs.has_pr == 'true' &&
-      needs.check-pr.outputs.is_claude_pr == 'true'
+      needs.check-pr.outputs.has_pr == 'true'
     runs-on: ubuntu-latest
     outputs:
       has_unresolved: ${{ steps.comments.outputs.has_unresolved }}
@@ -407,7 +406,6 @@ jobs:
       always() &&
       github.event.workflow_run.conclusion == 'success' &&
       needs.check-pr.outputs.has_pr == 'true' &&
-      needs.check-pr.outputs.is_claude_pr == 'true' &&
       needs.success-check-comments.outputs.has_unresolved != 'true'
     runs-on: ubuntu-latest
     steps:
