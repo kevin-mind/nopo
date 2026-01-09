@@ -48,8 +48,6 @@ jobs:
       pr_branch: ${{ github.event.pull_request.head.ref }}
       pr_number: ${{ github.event.pull_request.number }}
       is_draft: ${{ github.event.pull_request.draft }}
-      pr_author: ${{ github.event.pull_request.user.login }}
-      is_claude_authored: ${{ contains(github.event.pull_request.user.login, 'claude') }}
       issue_number: ${{ steps.issue.outputs.number }}
       issue_body: ${{ steps.issue.outputs.body }}
       has_issue: ${{ steps.issue.outputs.has_issue }}
@@ -236,51 +234,17 @@ jobs:
 
             ## Step 4: Submit Your Review
 
-            ${{ needs.request-setup.outputs.is_claude_authored == 'true' && '⚠️ SELF-AUTHORED PR: This PR was created by Claude. GitHub prevents self-approval, so use --comment with LGTM prefix instead of --approve.' || '' }}
-
             Submit your review using `gh pr review ${{ needs.request-setup.outputs.pr_number }}` with ONE of:
-            ${{ needs.request-setup.outputs.is_claude_authored == 'true' && '- `--comment -b "LGTM: <summary>"` if ALL requirements met (workflow will add ready-to-merge label)' || '- `--approve` if ALL requirements met and code is good' }}
+            - `--approve` if ALL requirements met and code is good
             - `--request-changes -b "reason"` if changes are needed
             - `--comment -b "feedback"` if you have questions but no blocking issues
 
             IMPORTANT:
-            - ${{ needs.request-setup.outputs.is_claude_authored == 'true' && 'Start comment with "LGTM:" for approval-equivalent reviews' || 'You may APPROVE but must NOT merge' }}
+            - You may APPROVE but must NOT merge
             - A human will make the final merge decision
           claude_args: "--model claude-opus-4-5-20251101 --max-turns 50"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Check for LGTM review and add label
-        if: success()
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ needs.request-setup.outputs.pr_number }}
-          IS_CLAUDE_AUTHORED: ${{ needs.request-setup.outputs.is_claude_authored }}
-        run: |
-          # For Claude-authored PRs, check if the most recent review is an LGTM
-          if [[ "$IS_CLAUDE_AUTHORED" != "true" ]]; then
-            echo "Not a Claude-authored PR, skipping LGTM check"
-            exit 0
-          fi
-
-          # Get the most recent review from claude[bot]
-          latest_review=$(gh api "/repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/reviews" \
-            --jq '[.[] | select(.user.login == "claude[bot]")] | last')
-
-          review_body=$(echo "$latest_review" | jq -r '.body // ""')
-          review_state=$(echo "$latest_review" | jq -r '.state // ""')
-
-          echo "Latest review state: $review_state"
-          echo "Review body preview: ${review_body:0:100}"
-
-          # Check if review signals approval (LGTM: prefix or APPROVED state)
-          if [[ "$review_state" == "APPROVED" ]] || [[ "$review_body" == LGTM:* ]] || [[ "$review_body" == *"LGTM:"* ]]; then
-            echo "Positive review detected - adding ready-to-merge label"
-            gh pr edit "$PR_NUMBER" --add-label "ready-to-merge" || true
-            gh pr comment "$PR_NUMBER" --body "✅ **Review Complete** - Claude has approved this PR. Ready for human merge."
-          else
-            echo "Not a positive review, no label added"
-          fi
 
       - name: Add reaction on completion
         if: always()
@@ -337,38 +301,7 @@ jobs:
           git config --global user.name "Claude Bot"
           git config --global user.email "claude-bot@anthropic.com"
 
-      - name: Check if positive review (skip if LGTM)
-        id: check_review
-        env:
-          REVIEW_BODY: ${{ github.event.review.body }}
-          REVIEW_STATE: ${{ github.event.review.state }}
-        run: |
-          echo "Review state: $REVIEW_STATE"
-          echo "Review body preview: ${REVIEW_BODY:0:200}"
-
-          # Skip if this is a positive review (LGTM: prefix or approval indicators)
-          if [[ "$REVIEW_STATE" == "APPROVED" ]]; then
-            echo "Review is APPROVED - no response needed"
-            echo "skip=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          # Check for LGTM patterns that indicate approval
-          if [[ "$REVIEW_BODY" == LGTM:* ]] || \
-             [[ "$REVIEW_BODY" == "## Review Complete"* ]] || \
-             [[ "$REVIEW_BODY" == *"All issue"*"requirements"*"addressed"* ]] || \
-             [[ "$REVIEW_BODY" == *"All requirements"*"met"* ]] || \
-             [[ "$REVIEW_BODY" == *"ready for human merge"* ]]; then
-            echo "Positive review detected - no response needed"
-            echo "skip=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          echo "Review requires response processing"
-          echo "skip=false" >> $GITHUB_OUTPUT
-
       - uses: anthropics/claude-code-action@v1
-        if: steps.check_review.outputs.skip != 'true'
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           settings: ".claude/settings.json"
