@@ -34,6 +34,7 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
         targets: ["web"],
         filters: [],
         since: undefined,
+        explicitTargets: true,
       });
     });
 
@@ -52,6 +53,7 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
         targets: [],
         filters: [],
         since: undefined,
+        explicitTargets: false,
       });
     });
 
@@ -76,6 +78,7 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
         targets: ["web"],
         filters: [],
         since: undefined,
+        explicitTargets: true,
       });
     });
 
@@ -94,6 +97,7 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
         targets: [],
         filters: [],
         since: undefined,
+        explicitTargets: false,
       });
     });
 
@@ -137,6 +141,7 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
         targets: ["backend", "web"],
         filters: [],
         since: undefined,
+        explicitTargets: true,
       });
     });
   });

@@ -26,6 +26,7 @@ type CommandScriptArgs = {
   targets: string[];
   filters: FilterExpression[];
   since?: string;
+  explicitTargets: boolean;
 };
 
 export default class CommandScript extends TargetScript<CommandScriptArgs> {
@@ -43,7 +44,7 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
     isDependency: boolean,
   ): CommandScriptArgs {
     if (isDependency || runner.argv.length === 0) {
-      return { command: "", subcommand: undefined, targets: [], filters: [] };
+      return { command: "", subcommand: undefined, targets: [], filters: [], explicitTargets: false };
     }
 
     const argv = runner.argv;
@@ -51,7 +52,7 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
 
     // Skip parsing if "help" is the script name (handled by main entry point)
     if (command === "help") {
-      return { command: "", subcommand: undefined, targets: [], filters: [] };
+      return { command: "", subcommand: undefined, targets: [], filters: [], explicitTargets: false };
     }
 
     const remaining = argv.slice(1);
@@ -87,6 +88,8 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
     // otherwise all remaining args are targets
     let subcommand: string | undefined;
     let targets: string[] = [];
+    // Track whether user provided explicit targets (before filtering)
+    let explicitTargets = false;
 
     if (positionalArgs.length > 0) {
       const firstArg = positionalArgs[0]!;
@@ -103,23 +106,29 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
         // It's definitely a subcommand
         subcommand = firstArg;
         targets = positionalArgs.slice(1).map((t) => t.toLowerCase());
+        // Explicit targets are the ones after the subcommand
+        explicitTargets = positionalArgs.length > 1;
       } else if (!isSubcommand && isTarget) {
         // It's definitely a target
         targets = positionalArgs.map((t) => t.toLowerCase());
+        explicitTargets = true;
       } else if (isSubcommand && isTarget) {
         // Ambiguous - could be either. Prefer subcommand interpretation
         // if there are more args (suggesting the pattern: cmd subcommand target)
         if (positionalArgs.length > 1) {
           subcommand = firstArg;
           targets = positionalArgs.slice(1).map((t) => t.toLowerCase());
+          explicitTargets = true;
         } else {
           // Single arg that could be either - treat as target
           targets = [firstArg.toLowerCase()];
+          explicitTargets = true;
         }
       } else {
         // Not a known subcommand or target - treat all remaining as targets
         // (validation will happen below)
         targets = positionalArgs.map((t) => t.toLowerCase());
+        explicitTargets = true;
       }
     }
 
@@ -156,7 +165,7 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
       targets = filteredTargets;
     }
 
-    return { command, subcommand, targets, filters, since };
+    return { command, subcommand, targets, filters, since, explicitTargets };
   }
 
   /**
@@ -196,6 +205,11 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
       // If explicit targets are specified, validate that all of them have the command
       validateCommandTargets(project, args.command, args.targets);
       targets = args.targets;
+    } else if (args.explicitTargets) {
+      // User explicitly provided targets but they were all filtered out
+      // Don't fallback to all services - just run on zero targets (effectively a no-op)
+      this.log(`No targets matched after filtering`);
+      return;
     } else {
       // If no targets specified, filter to only services that have the command
       const rootCommand = args.command.split(":")[0]!;
