@@ -507,23 +507,15 @@ jobs:
           gh api "/repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" \
             -f content="$reaction" || true
 
-      - name: Unassign nopo-bot if no PR created
-        if: always()
+      - name: Unassign nopo-bot on failure
+        if: failure()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
-          JOB_STATUS: ${{ job.status }}
         run: |
-          # Check if a PR was created for this issue
-          existing_pr=$(gh pr list --repo "$GITHUB_REPOSITORY" --search "Fixes #$ISSUE_NUMBER in:body" --json number --jq '.[0].number' || true)
-
-          if [[ -n "$existing_pr" && "$existing_pr" != "null" ]]; then
-            echo "PR #$existing_pr was created - keeping nopo-bot assigned"
-          else
-            echo "No PR created (job status: $JOB_STATUS) - unassigning nopo-bot"
-            gh issue edit "$ISSUE_NUMBER" --remove-assignee "nopo-bot"
-            # Note: Partial work (if any) was already saved by the salvage step above
-          fi
+          echo "Implementation failed - unassigning nopo-bot from issue #$ISSUE_NUMBER"
+          gh issue edit "$ISSUE_NUMBER" --remove-assignee "nopo-bot"
+          # Note: Partial work (if any) was already saved by the salvage step above
 
   #############################################################################
   # COMMENT JOBS (triggered by @claude mention in issue/PR comments)
