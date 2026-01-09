@@ -46,12 +46,20 @@ jobs:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
+          set -e
+          echo "Commenting on issue $ISSUE_NUMBER"
           comment_url=$(gh issue comment "$ISSUE_NUMBER" --body "👀 **nopo-bot** is triaging this issue...
 
-          [View job]($RUN_URL)" 2>&1)
+          [View job]($RUN_URL)" 2>&1) || { echo "Failed to post comment: $comment_url"; exit 1; }
 
           comment_id=$(echo "$comment_url" | grep -oP 'issuecomment-\K\d+' || true)
           echo "comment_id=$comment_id" >> $GITHUB_OUTPUT
+
+          if [[ -z "$comment_id" ]]; then
+            echo "ERROR: Comment ID was not extracted. Full gh output:"
+            echo "$comment_url"
+            exit 1
+          fi
 
       - uses: anthropics/claude-code-action@v1
         with:
