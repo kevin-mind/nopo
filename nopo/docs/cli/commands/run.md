@@ -25,9 +25,27 @@ Targets are discovered from `apps/*/Dockerfile` (e.g., `backend`, `web`).
 
 ## Options
 
-| Option | Description |
-|--------|-------------|
-| `--workspace <name>` | pnpm workspace filter (e.g., `@more/backend`) |
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--filter <expr>` / `-F <expr>` | Filter targets by expression (can be used multiple times) | None |
+| `--since <ref>` | Git reference for `changed` filter | default branch |
+
+### Filtering
+
+You can filter which services to run scripts on using expressions:
+
+```bash
+# Run tests on services with changes since main branch
+nopo run test --filter changed
+
+# Run lint on buildable services only
+nopo run lint --filter buildable
+
+# Run scripts on services with database
+nopo run migrate --filter infrastructure.hasDatabase=true
+```
+
+See [`list`](./list.md) for full filter expression documentation.
 
 ## Environment Variables
 
@@ -62,14 +80,6 @@ nopo run test
 ```
 
 This runs `pnpm run /^test.*/` across all workspaces.
-
-### Run a script in a specific workspace
-
-```bash
-nopo run build --workspace backend
-```
-
-This runs `pnpm run --filter @more/backend /^build.*/`.
 
 ### Run a script in a Docker target
 
@@ -118,18 +128,12 @@ The script name is converted to a regex pattern:
 
 This allows matching scripts like `test`, `test:unit`, `test:e2e`, etc.
 
-### Workspace Filter
+### Script Execution
 
-When `--workspace` is provided, the command filters to that specific workspace:
-
-```bash
-pnpm run --filter @more/<workspace> /^<script>.*/
-```
-
-When no workspace is specified:
+When no targets are provided, the script runs locally:
 
 ```bash
-pnpm run --fail-if-no-match /^<script>.*/
+pnpm run --fail-if-no-match /<script>.*/
 ```
 
 ### Docker Execution
@@ -187,8 +191,8 @@ nopo run check:types
 # Build all packages
 nopo run build
 
-# Build specific workspace
-nopo run build --workspace ui
+# Build only changed services
+nopo run build --filter changed
 ```
 
 ## Error Handling
@@ -218,7 +222,7 @@ Solution: Check available targets with `nopo status` or check `apps/*/Dockerfile
 If no script name is provided:
 
 ```plaintext
-Error: Usage: run [script] [targets...] [--workspace <name>]
+Error: Usage: run [script] [targets...] [--filter <expr>]
 ```
 
 ## See Also

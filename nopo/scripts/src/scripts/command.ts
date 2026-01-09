@@ -5,6 +5,7 @@ import {
   type Runner,
   exec,
   createLogger,
+  minimist,
 } from "../lib.ts";
 import EnvScript from "./env.ts";
 import {
@@ -12,11 +13,19 @@ import {
   buildExecutionPlan,
   type ResolvedCommand,
 } from "../commands/index.ts";
+import {
+  parseFilterExpression,
+  applyFiltersToNames,
+  type FilterExpression,
+  type FilterContext,
+} from "../filter.ts";
 
 type CommandScriptArgs = {
   command: string;
   subcommand: string | undefined;
   targets: string[];
+  filters: FilterExpression[];
+  since?: string;
 };
 
 export default class CommandScript extends TargetScript<CommandScriptArgs> {
@@ -34,7 +43,7 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
     isDependency: boolean,
   ): CommandScriptArgs {
     if (isDependency || runner.argv.length === 0) {
-      return { command: "", subcommand: undefined, targets: [] };
+      return { command: "", subcommand: undefined, targets: [], filters: [] };
     }
 
     const argv = runner.argv;
@@ -42,11 +51,36 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
 
     // Skip parsing if "help" is the script name (handled by main entry point)
     if (command === "help") {
-      return { command: "", subcommand: undefined, targets: [] };
+      return { command: "", subcommand: undefined, targets: [], filters: [] };
     }
 
     const remaining = argv.slice(1);
     const availableTargets = runner.config.targets;
+
+    // Parse with minimist to extract --filter and --since options
+    const parsed = minimist(remaining, {
+      string: ["filter", "since"],
+      alias: { F: "filter" },
+    });
+
+    // Parse filter expressions
+    let filters: FilterExpression[] = [];
+    const filterValue = parsed.filter;
+    if (filterValue) {
+      const filterArgs = Array.isArray(filterValue)
+        ? filterValue
+        : [filterValue];
+      filters = filterArgs
+        .filter((f): f is string => typeof f === "string" && f.length > 0)
+        .map(parseFilterExpression);
+    }
+
+    // Get since value
+    const since =
+      typeof parsed.since === "string" ? parsed.since : undefined;
+
+    // Use positional args (non-option args) for subcommand/target detection
+    const positionalArgs: string[] = parsed._ || [];
 
     // Parse remaining args to determine subcommand vs targets
     // Logic: if second arg matches a known subcommand, it's a subcommand
@@ -54,8 +88,8 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
     let subcommand: string | undefined;
     let targets: string[] = [];
 
-    if (remaining.length > 0) {
-      const firstArg = remaining[0]!;
+    if (positionalArgs.length > 0) {
+      const firstArg = positionalArgs[0]!;
 
       // Check if firstArg is a known subcommand for this command
       const isSubcommand = CommandScript.#isSubcommandName(
@@ -68,16 +102,16 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
       if (isSubcommand && !isTarget) {
         // It's definitely a subcommand
         subcommand = firstArg;
-        targets = remaining.slice(1).map((t) => t.toLowerCase());
+        targets = positionalArgs.slice(1).map((t) => t.toLowerCase());
       } else if (!isSubcommand && isTarget) {
         // It's definitely a target
-        targets = remaining.map((t) => t.toLowerCase());
+        targets = positionalArgs.map((t) => t.toLowerCase());
       } else if (isSubcommand && isTarget) {
         // Ambiguous - could be either. Prefer subcommand interpretation
         // if there are more args (suggesting the pattern: cmd subcommand target)
-        if (remaining.length > 1) {
+        if (positionalArgs.length > 1) {
           subcommand = firstArg;
-          targets = remaining.slice(1).map((t) => t.toLowerCase());
+          targets = positionalArgs.slice(1).map((t) => t.toLowerCase());
         } else {
           // Single arg that could be either - treat as target
           targets = [firstArg.toLowerCase()];
@@ -85,11 +119,26 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
       } else {
         // Not a known subcommand or target - treat all remaining as targets
         // (validation will happen below)
-        targets = remaining.map((t) => t.toLowerCase());
+        targets = positionalArgs.map((t) => t.toLowerCase());
       }
     }
 
-    // Validate targets
+    // Apply filters to get filtered target list
+    let filteredTargets = availableTargets;
+    if (filters.length > 0) {
+      const context: FilterContext = {
+        projectRoot: runner.config.root,
+        since,
+      };
+      filteredTargets = applyFiltersToNames(
+        availableTargets,
+        runner.config.project.services.entries,
+        filters,
+        context,
+      );
+    }
+
+    // Validate explicit targets
     if (targets.length > 0) {
       const unknown = targets.filter((t) => !availableTargets.includes(t));
       if (unknown.length > 0) {
@@ -98,9 +147,16 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
             `Available targets: ${availableTargets.join(", ")}`,
         );
       }
+      // Intersect with filtered targets
+      if (filters.length > 0) {
+        targets = targets.filter((t) => filteredTargets.includes(t));
+      }
+    } else if (filters.length > 0) {
+      // No explicit targets - use filtered targets
+      targets = filteredTargets;
     }
 
-    return { command, subcommand, targets };
+    return { command, subcommand, targets, filters, since };
   }
 
   /**

@@ -32,7 +32,11 @@ export default class PullScript extends TargetScript<PullCliArgs> {
     }
 
     const argv = runner.argv.slice(1);
-    const parsed = parseTargetArgs("pull", argv, runner.config.targets);
+    const parsed = parseTargetArgs("pull", argv, runner.config.targets, {
+      supportsFilter: true,
+      services: runner.config.project.services.entries,
+      projectRoot: runner.config.root,
+    });
     return { targets: parsed.targets };
   }
 

@@ -1,49 +1,20 @@
 import { Script, type Runner, exec } from "../lib.ts";
-import { isBuildableService, type NormalizedService } from "../config/index.ts";
+import type { NormalizedService } from "../config/index.ts";
+import {
+  parseFilterExpression,
+  matchesFilter,
+  type FilterExpression,
+  type FilterContext,
+} from "../filter.ts";
 import process from "node:process";
-
-type FilterExpression = {
-  type: "preset" | "exists" | "not_exists" | "equals";
-  field?: string;
-  value?: string;
-};
 
 type ListCliArgs = {
   format: "text" | "json" | "csv";
   filters: FilterExpression[];
+  since?: string;
   jqFilter?: string;
   validate: boolean;
 };
-
-/**
- * Parse a filter expression string into a FilterExpression object.
- *
- * Supported formats:
- * - "buildable"           -> preset filter (services that can be built)
- * - "!fieldname"          -> field does not exist
- * - "fieldname"           -> field exists
- * - "fieldname=value"     -> field equals value
- */
-function parseFilterExpression(expr: string): FilterExpression {
-  // Named presets
-  if (expr === "buildable") {
-    return { type: "preset", field: "buildable" };
-  }
-
-  // Negation: !fieldname
-  if (expr.startsWith("!")) {
-    return { type: "not_exists", field: expr.slice(1) };
-  }
-
-  // Equality: fieldname=value
-  if (expr.includes("=")) {
-    const [field, ...rest] = expr.split("=");
-    return { type: "equals", field, value: rest.join("=") };
-  }
-
-  // Field exists
-  return { type: "exists", field: expr };
-}
 
 export default class ListScript extends Script<ListCliArgs> {
   static override name = "list";
@@ -60,6 +31,7 @@ export default class ListScript extends Script<ListCliArgs> {
     const argv = runner.argv.slice(1);
     let format: "text" | "json" | "csv" = "text";
     const filters: FilterExpression[] = [];
+    let since: string | undefined;
     let jqFilter: string | undefined;
     let validate = false;
 
@@ -85,6 +57,12 @@ export default class ListScript extends Script<ListCliArgs> {
           filters.push(parseFilterExpression(filterArg));
           i++;
         }
+      } else if (arg === "--since") {
+        const sinceArg = argv[i + 1];
+        if (sinceArg) {
+          since = sinceArg;
+          i++;
+        }
       } else if (arg === "--jq") {
         const jqArg = argv[i + 1];
         if (jqArg) {
@@ -96,12 +74,16 @@ export default class ListScript extends Script<ListCliArgs> {
       }
     }
 
-    return { format, filters, jqFilter, validate };
+    return { format, filters, since, jqFilter, validate };
   }
 
   override async fn(args: ListCliArgs) {
     const allServices = this.runner.config.targets;
-    const services = this.applyFilters(allServices, args.filters);
+    const filterContext: FilterContext = {
+      projectRoot: this.runner.config.root,
+      since: args.since,
+    };
+    const services = this.applyFilters(allServices, args.filters, filterContext);
 
     // Validate --jq requires --json
     if (args.jqFilter && args.format !== "json") {
@@ -161,6 +143,7 @@ export default class ListScript extends Script<ListCliArgs> {
   private applyFilters(
     services: string[],
     filters: FilterExpression[],
+    context: FilterContext,
   ): string[] {
     if (filters.length === 0) return services;
 
@@ -170,50 +153,8 @@ export default class ListScript extends Script<ListCliArgs> {
       const service = entries[serviceName];
       if (!service) return false;
 
-      return filters.every((filter) => this.matchesFilter(service, filter));
+      return filters.every((filter) => matchesFilter(service, filter, context));
     });
-  }
-
-  private matchesFilter(
-    service: NormalizedService,
-    filter: FilterExpression,
-  ): boolean {
-    switch (filter.type) {
-      case "preset":
-        if (filter.field === "buildable") {
-          return isBuildableService(service);
-        }
-        return true;
-
-      case "exists":
-        return this.getFieldValue(service, filter.field!) !== undefined;
-
-      case "not_exists":
-        return this.getFieldValue(service, filter.field!) === undefined;
-
-      case "equals": {
-        const value = this.getFieldValue(service, filter.field!);
-        if (value === undefined) return false;
-        return String(value) === filter.value;
-      }
-
-      default:
-        return true;
-    }
-  }
-
-  private getFieldValue(service: NormalizedService, field: string): unknown {
-    // Support dotted paths like "infrastructure.cpu"
-    const parts = field.split(".");
-    let current: unknown = service;
-
-    for (const part of parts) {
-      if (current === null || current === undefined) return undefined;
-      if (typeof current !== "object") return undefined;
-      current = (current as Record<string, unknown>)[part];
-    }
-
-    return current;
   }
 
   private async printConfigTable(services: string[]) {

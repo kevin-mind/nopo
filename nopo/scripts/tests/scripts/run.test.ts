@@ -46,7 +46,7 @@ describe("run command (RunScript)", () => {
       expect(args.targets).toEqual([]);
     });
 
-    it("should handle workspace option", async () => {
+    it("should handle filter option", async () => {
       const config = createConfig({
         envFile: createTmpEnv({}),
       });
@@ -55,14 +55,14 @@ describe("run command (RunScript)", () => {
       const runner = new Runner(
         config,
         environment,
-        ["run", "lint", "--workspace", "backend"],
+        ["run", "lint", "--filter", "buildable"],
         logger,
       );
 
       const args = RunScript.parseArgs(runner, false);
       expect(args.script).toBe("lint");
-      expect(args.workspace).toBe("backend");
-      expect(args.targets).toEqual([]);
+      // With buildable filter, targets are filtered to only backend and web
+      expect(args.targets).toEqual(["backend", "web"]);
     });
   });
 
@@ -108,7 +108,7 @@ describe("run command (RunScript)", () => {
 
       expect(() => {
         RunScript.parseArgs(runner, false);
-      }).toThrow("Usage: run [script] [targets...]");
+      }).toThrow("Usage: run [script] [targets...] [--filter <expr>]");
     });
 
     it("should validate targets against available list", async () => {
