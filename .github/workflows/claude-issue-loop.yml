@@ -631,17 +631,27 @@ jobs:
             Read the user's comment carefully and respond ONLY to what they asked.
             DO NOT make unrelated suggestions or analyze unrelated code.
 
-            DO NOT implement code changes or make commits unless explicitly asked.
-            To trigger automation, users should:
-            - Assign `nopo-bot` to an issue for implementation
-            - Request `nopo-bot` as PR reviewer for code review
+            ## Action Detection
+
+            **If the user's comment contains ACTION WORDS** like:
+            - "fix", "implement", "change", "update", "add", "remove", "refactor", "delete"
+            - "do it", "make it", "apply", "commit", "push"
+
+            Then **DO IT IMMEDIATELY** - make the code changes and push them. Do NOT ask
+            "Would you like me to..." or "Should I..." - the user explicitly asked, so act.
+
+            **If the comment is a QUESTION or ANALYSIS REQUEST** (no action words):
+            - Answer the question
+            - Explain the code
+            - Suggest approaches (let user decide if they want implementation)
+
+            For large-scale implementation (new features), users should:
+            - Assign `nopo-bot` to an issue for full implementation
 
             Focus on:
-            - Answering the SPECIFIC question asked
-            - Providing relevant explanations
-            - Clarifying requirements if asked
-            - Suggesting approaches (without implementing) if requested
-            - Analyzing code the user asked about
+            - Detecting whether this is an ACTION REQUEST or a QUESTION
+            - For actions: implement immediately, commit, and push
+            - For questions: provide clear, helpful answers
 
             ## IMPORTANT: Always Post Your Response
 
