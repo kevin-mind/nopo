@@ -250,16 +250,28 @@ jobs:
             exit 1
           fi
 
-      - name: Get issue body
+      - name: Get issue with comments
         id: issue
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          # Store body in file to handle multiline
+          # Get issue body
           gh issue view "$ISSUE_NUMBER" --json body --jq '.body' > /tmp/issue_body.txt
+
+          # Get recent comments (last 10) for context on prior attempts
+          gh issue view "$ISSUE_NUMBER" --json comments \
+            --jq '.comments[-10:] | .[] | "---\n**\(.author.login)** (\(.createdAt)):\n\(.body)\n"' \
+            > /tmp/issue_comments.txt || true
+
+          # Combine body and comments for prompt context
           echo "body<<EOF" >> $GITHUB_OUTPUT
           cat /tmp/issue_body.txt >> $GITHUB_OUTPUT
+          if [[ -s /tmp/issue_comments.txt ]]; then
+            echo "" >> $GITHUB_OUTPUT
+            echo "## Recent Comments" >> $GITHUB_OUTPUT
+            cat /tmp/issue_comments.txt >> $GITHUB_OUTPUT
+          fi
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Add implementation started comment
@@ -419,145 +431,58 @@ jobs:
           prompt: |
             Implement issue #${{ github.event.issue.number }}: "${{ needs.implement-check.outputs.issue_title }}"
 
-            Issue body:
             ${{ needs.implement-check.outputs.issue_body }}
 
             You are on branch `${{ steps.branch.outputs.name }}`.
 
-            ## STEP 0: CHECK FOR CONFLICTING WORK
+            ## Instructions
 
-            Before implementing, check for overlapping issues that might conflict:
+            1. Follow CLAUDE.md guidelines strictly
+            2. Address all items in the Todo section
+            3. Run `make check` and `make test` - fix any failures
+            4. Commit with a descriptive message
+            5. Push to origin
+            6. Create DRAFT PR with `gh pr create --draft --reviewer nopo-bot`
+               - Body MUST contain "Fixes #${{ github.event.issue.number }}"
 
-            ```bash
-            # Find open issues and PRs that might overlap
-            gh issue list --state open --json number,title,labels,assignees
-            gh pr list --state open --json number,title,headRefName
-            ```
-
-            Look for:
-            - Issues/PRs touching the same files you'll modify
-            - Issues/PRs with similar scope or functionality
-            - Active branches (claude/issue/*) that might conflict
-
-            **If you find potential conflicts:**
-            1. Add a comment on this issue noting the related issues/PRs
-            2. Assess the conflict severity:
-               - **Minor overlap**: Note it in the PR description, proceed with implementation
-               - **Significant overlap**: Note in issue comment, proceed carefully, mention in PR
-               - **Catastrophic conflict**: Add comment explaining the conflict, unassign nopo-bot, and STOP
-
-            To block and stop:
-            ```bash
-            # 1. Comment on THIS issue explaining the block
-            gh issue comment ${{ github.event.issue.number }} --body "⚠️ **Implementation blocked due to conflicting work**
-
-            This issue conflicts with #<blocking_number> which is currently in progress.
-            [Explain the conflict]
-
-            Recommend waiting for #<blocking_number> to complete before starting this work."
-
-            # 2. Comment on the BLOCKING issue noting it's blocking this one
-            gh issue comment <blocking_number> --body "ℹ️ **Note**: This issue is blocking #${{ github.event.issue.number }}
-
-            #${{ github.event.issue.number }} cannot proceed until this work is complete due to:
-            [Brief explanation of the conflict]"
-
-            # 3. Update project status to Blocked (if linked to project)
-            # First get the project item ID
-            result=$(gh api graphql -f query='
-              query($owner: String!, $repo: String!, $number: Int!) {
-                repository(owner: $owner, name: $repo) {
-                  issue(number: $number) {
-                    projectItems(first: 10) {
-                      nodes {
-                        id
-                        project { id }
-                      }
-                    }
-                  }
-                }
-              }
-            ' -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" -F number=${{ github.event.issue.number }})
-
-            item_id=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0].id // empty')
-            project_id=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0].project.id // empty')
-
-            if [[ -n "$item_id" && -n "$project_id" ]]; then
-              # Get Status field and Blocked option
-              fields=$(gh api graphql -f query='
-                query($projectId: ID!) {
-                  node(id: $projectId) {
-                    ... on ProjectV2 {
-                      fields(first: 20) {
-                        nodes {
-                          ... on ProjectV2SingleSelectField {
-                            id
-                            name
-                            options { id name }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              ' -f projectId="$project_id")
-
-              field_id=$(echo "$fields" | jq -r '.data.node.fields.nodes[] | select(.name == "Status") | .id')
-              option_id=$(echo "$fields" | jq -r '.data.node.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "Blocked") | .id')
-
-              if [[ -n "$field_id" && -n "$option_id" ]]; then
-                gh api graphql -f query='
-                  mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
-                    updateProjectV2ItemFieldValue(
-                      input: {
-                        projectId: $projectId
-                        itemId: $itemId
-                        fieldId: $fieldId
-                        value: { singleSelectOptionId: $optionId }
-                      }
-                    ) { projectV2Item { id } }
-                  }
-                ' -f projectId="$project_id" -f itemId="$item_id" -f fieldId="$field_id" -f optionId="$option_id"
-              fi
-            fi
-
-            # 4. Remove assignee
-            gh issue edit ${{ github.event.issue.number }} --remove-assignee "nopo-bot"
-            ```
-            Then exit without implementing.
-
-            ## STEP 1: IMPLEMENT
-
-            - Follow the guidelines in CLAUDE.md strictly
-            - Address all items in the Todo section
-            - Keep changes focused and minimal
-
-            ## STEP 2: VERIFY
-
-            - Run `make check` to validate linting and types
-            - Run `make test` to run tests
-            - Fix any failures before proceeding
-
-            ## STEP 3: COMMIT AND PUSH
-
-            - Commit your changes with a descriptive message
-            - Push the branch to origin
-
-            ## STEP 4: CREATE DRAFT PR
-
-            - Use `gh pr create --draft` to create a DRAFT pull request
-            - The PR body MUST contain "Fixes #${{ github.event.issue.number }}"
-            - Include a detailed description of changes
-            - If there are related issues/PRs, mention them in the PR description
-            - Request review from `nopo-bot` using `--reviewer nopo-bot`
-
-            IMPORTANT:
-            - The "Fixes #N" pattern is REQUIRED for automatic issue linking and closure
-            - Create as DRAFT so CI can run first - it will be marked ready automatically when CI passes
-            - Always request nopo-bot as reviewer to trigger the review workflow
-          claude_args: "--model claude-opus-4-5-20251101"
+            If you notice conflicts with other open PRs, note them in the PR description.
+          claude_args: "--model claude-opus-4-5-20251101 --max-turns 75"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Salvage partial progress
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          JOB_STATUS: ${{ job.status }}
+          BRANCH_NAME: ${{ steps.branch.outputs.name }}
+        run: |
+          # Check if there are uncommitted changes
+          if ! git diff --quiet HEAD 2>/dev/null; then
+            echo "Uncommitted changes detected - salvaging partial progress"
+
+            git add -A
+            git commit -m "WIP: Partial implementation of #$ISSUE_NUMBER
+
+            Implementation was interrupted ($JOB_STATUS).
+            See issue comments for details on what was completed."
+
+            git push origin HEAD
+
+            # Comment on issue explaining partial progress
+            gh issue comment "$ISSUE_NUMBER" --body "⚠️ **Implementation partially completed**
+
+            The job was interrupted before finishing. Progress has been saved to branch \`$BRANCH_NAME\`.
+
+            **Next steps:**
+            - Review the partial changes on the branch
+            - Re-assign nopo-bot to continue implementation
+
+            [View partial work](${{ github.server_url }}/${{ github.repository }}/compare/main...$BRANCH_NAME)"
+          else
+            echo "No uncommitted changes to salvage"
+          fi
 
       - name: Add reaction on completion
         if: always()
@@ -587,11 +512,7 @@ jobs:
         run: |
           echo "Implementation failed - unassigning nopo-bot from issue #$ISSUE_NUMBER"
           gh issue edit "$ISSUE_NUMBER" --remove-assignee "nopo-bot"
-          gh issue comment "$ISSUE_NUMBER" --body "❌ **Implementation failed** - nopo-bot has been unassigned.
-
-          Check the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.
-
-          You can re-assign nopo-bot to retry implementation after addressing any issues."
+          # Note: Partial work (if any) was already saved by the salvage step above
 
   #############################################################################
   # COMMENT JOBS (triggered by @claude mention in issue/PR comments)
