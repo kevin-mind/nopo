@@ -56,8 +56,11 @@ import os
 import sys
 info = json.loads(os.environ["BUILD_INFO"])
 expected = os.environ["EXPECTED_TAG"]
-if info.get("tag") != expected:
-    print(f"Expected base tag {expected} but found {info.get('tag')}", file=sys.stderr)
+# Strip digest from expected tag - build-info.json stores tag without digest
+# e.g., "ghcr.io/kevin-mind/nopo:sha-ef7355c@sha256:..." -> "ghcr.io/kevin-mind/nopo:sha-ef7355c"
+expected_tag = expected.split("@")[0]
+if info.get("tag") != expected_tag:
+    print(f"Expected base tag {expected_tag} but found {info.get('tag')}", file=sys.stderr)
     sys.exit(1)
 PY
 
