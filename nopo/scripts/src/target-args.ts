@@ -141,14 +141,25 @@ export function parseTargetArgs(
   if (positionalArgs.length > 0) {
     // User specified explicit targets - validate them
     validateTargets(positionalArgs, availableTargets);
-    // If filtering is enabled, intersect with filtered targets
-    if (supportsFilter && filters.length > 0) {
-      targets = positionalArgs.filter((t) => filteredTargets.includes(t));
+    // PreFilter only applies when no explicit targets are given.
+    // User-provided filters (via --filter) still apply to explicit targets.
+    const userFilters = filters.filter((f) => f !== preFilter);
+    if (supportsFilter && userFilters.length > 0 && services && projectRoot) {
+      // Apply only user filters to explicit targets
+      const context: FilterContext = { projectRoot, since };
+      const userFilteredTargets = applyFiltersToNames(
+        availableTargets,
+        services,
+        userFilters,
+        context,
+      );
+      targets = positionalArgs.filter((t) => userFilteredTargets.includes(t));
     } else {
+      // No user filters - use explicit targets as-is
       targets = positionalArgs;
     }
   } else {
-    // No explicit targets - use filtered targets (or empty if no filters)
+    // No explicit targets - use filtered targets (includes preFilter)
     targets = supportsFilter && filters.length > 0 ? filteredTargets : [];
   }
 
