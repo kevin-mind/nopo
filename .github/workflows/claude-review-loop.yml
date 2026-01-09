@@ -61,6 +61,20 @@ jobs:
           echo "::warning::PR #${{ github.event.pull_request.number }} is a draft. Skipping review."
           exit 1
 
+      - name: Check for existing Claude review
+        id: existing_review
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          # Check if claude[bot] has already submitted a review on this PR
+          reviews=$(gh api "/repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/reviews" --jq '[.[] | select(.user.login == "claude[bot]")] | length')
+
+          if [[ "$reviews" -gt 0 ]]; then
+            echo "::warning::Claude has already reviewed this PR ($reviews reviews). Skipping to prevent spam."
+            exit 1
+          fi
+
       - name: Add review started comment
         id: bot_comment
         env:
