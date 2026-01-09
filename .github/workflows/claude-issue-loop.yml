@@ -428,6 +428,7 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           assignee_trigger: "nopo-bot"
           settings: ".claude/settings.json"
+          show_full_output: true
           prompt: |
             Implement issue #${{ github.event.issue.number }}: "${{ needs.implement-check.outputs.issue_title }}"
 
