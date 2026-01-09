@@ -40,14 +40,18 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Add triage started comment
+        id: bot_comment
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          gh issue comment "$ISSUE_NUMBER" --body "👀 **nopo-bot** is triaging this issue...
+          comment_url=$(gh issue comment "$ISSUE_NUMBER" --body "👀 **nopo-bot** is triaging this issue...
 
-          [View job]($RUN_URL)"
+          [View job]($RUN_URL)" 2>&1)
+
+          comment_id=$(echo "$comment_url" | grep -oP 'issuecomment-\K\d+' || true)
+          echo "comment_id=$comment_id" >> $GITHUB_OUTPUT
 
       - uses: anthropics/claude-code-action@v1
         with:
@@ -130,6 +134,26 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh issue edit ${{ github.event.issue.number }} --add-label "triaged"
 
+      - name: Add reaction on completion
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_ID: ${{ steps.bot_comment.outputs.comment_id }}
+          SUCCESS: ${{ job.status == 'success' }}
+        run: |
+          if [[ -z "$COMMENT_ID" ]]; then
+            echo "No bot comment ID found, skipping reaction"
+            exit 0
+          fi
+
+          if [[ "$SUCCESS" == "true" ]]; then
+            reaction="rocket"
+          else
+            reaction="confused"
+          fi
+          gh api "/repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" \
+            -f content="$reaction" || true
+
   #############################################################################
   # IMPLEMENT JOBS (triggered by nopo-bot assigned to issue)
   #############################################################################
@@ -144,6 +168,7 @@ jobs:
       should_implement: ${{ steps.check-pr.outputs.should_implement }}
       issue_title: ${{ github.event.issue.title }}
       issue_body: ${{ steps.issue.outputs.body }}
+      bot_comment_id: ${{ steps.bot_comment.outputs.comment_id }}
     steps:
       - uses: actions/checkout@v4
 
@@ -213,14 +238,18 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Add implementation started comment
+        id: bot_comment
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          gh issue comment "$ISSUE_NUMBER" --body "👀 **nopo-bot** is implementing this issue...
+          comment_url=$(gh issue comment "$ISSUE_NUMBER" --body "👀 **nopo-bot** is implementing this issue...
 
-          [View job]($RUN_URL)"
+          [View job]($RUN_URL)" 2>&1)
+
+          comment_id=$(echo "$comment_url" | grep -oP 'issuecomment-\K\d+' || true)
+          echo "comment_id=$comment_id" >> $GITHUB_OUTPUT
 
       - name: Check if PR already exists
         id: check-pr
@@ -497,6 +526,26 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Add reaction on completion
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_ID: ${{ needs.implement-check.outputs.bot_comment_id }}
+          SUCCESS: ${{ job.status == 'success' }}
+        run: |
+          if [[ -z "$COMMENT_ID" ]]; then
+            echo "No bot comment ID found, skipping reaction"
+            exit 0
+          fi
+
+          if [[ "$SUCCESS" == "true" ]]; then
+            reaction="rocket"
+          else
+            reaction="confused"
+          fi
+          gh api "/repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" \
+            -f content="$reaction" || true
+
   #############################################################################
   # COMMENT JOBS (triggered by @claude mention in issue/PR comments)
   #############################################################################
@@ -508,22 +557,20 @@ jobs:
       contains(github.event.comment.body, '@claude') &&
       github.event.comment.user.type != 'Bot'
     steps:
-      - name: Add eyes reaction
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh api "/repos/$GITHUB_REPOSITORY/issues/comments/${{ github.event.comment.id }}/reactions" \
-            -f content="eyes" || true
-
       - name: Add working on it comment
+        id: bot_comment
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          gh issue comment "$ISSUE_NUMBER" --body "👀 **nopo-bot** is responding to your request...
+          comment_url=$(gh issue comment "$ISSUE_NUMBER" --body "👀 **nopo-bot** is responding to your request...
 
-          [View job]($RUN_URL)"
+          [View job]($RUN_URL)" 2>&1)
+
+          # Extract comment ID from the URL (format: https://github.com/owner/repo/issues/N#issuecomment-ID)
+          comment_id=$(echo "$comment_url" | grep -oP 'issuecomment-\K\d+' || true)
+          echo "comment_id=$comment_id" >> $GITHUB_OUTPUT
 
       - name: Check Claude comment count
         env:
@@ -570,12 +617,18 @@ jobs:
         if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_ID: ${{ steps.bot_comment.outputs.comment_id }}
           SUCCESS: ${{ job.status == 'success' }}
         run: |
-          if [[ "$SUCCESS" == "true" ]]; then
-            reaction="+1"
-          else
-            reaction="-1"
+          if [[ -z "$COMMENT_ID" ]]; then
+            echo "No bot comment ID found, skipping reaction"
+            exit 0
           fi
-          gh api "/repos/$GITHUB_REPOSITORY/issues/comments/${{ github.event.comment.id }}/reactions" \
+
+          if [[ "$SUCCESS" == "true" ]]; then
+            reaction="rocket"
+          else
+            reaction="confused"
+          fi
+          gh api "/repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" \
             -f content="$reaction" || true

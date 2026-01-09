@@ -38,6 +38,7 @@ jobs:
       issue_number: ${{ steps.issue.outputs.number }}
       issue_body: ${{ steps.issue.outputs.body }}
       has_issue: ${{ steps.issue.outputs.has_issue }}
+      bot_comment_id: ${{ steps.bot_comment.outputs.comment_id }}
     steps:
       - uses: actions/checkout@v4
 
@@ -48,14 +49,18 @@ jobs:
           exit 1
 
       - name: Add review started comment
+        id: bot_comment
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          gh pr comment "$PR_NUMBER" --body "👀 **nopo-bot** is reviewing this PR...
+          comment_url=$(gh pr comment "$PR_NUMBER" --body "👀 **nopo-bot** is reviewing this PR...
 
-          [View job]($RUN_URL)"
+          [View job]($RUN_URL)" 2>&1)
+
+          comment_id=$(echo "$comment_url" | grep -oP 'issuecomment-\K\d+' || true)
+          echo "comment_id=$comment_id" >> $GITHUB_OUTPUT
 
       - name: Extract linked issue
         id: issue
@@ -227,6 +232,26 @@ jobs:
           claude_args: "--model claude-opus-4-5-20251101 --max-turns 30"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add reaction on completion
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_ID: ${{ needs.request-setup.outputs.bot_comment_id }}
+          SUCCESS: ${{ job.status == 'success' }}
+        run: |
+          if [[ -z "$COMMENT_ID" ]]; then
+            echo "No bot comment ID found, skipping reaction"
+            exit 0
+          fi
+
+          if [[ "$SUCCESS" == "true" ]]; then
+            reaction="rocket"
+          else
+            reaction="confused"
+          fi
+          gh api "/repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" \
+            -f content="$reaction" || true
 
       - name: Remove nopo-bot from requested reviewers
         if: always()
