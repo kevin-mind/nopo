@@ -31,7 +31,6 @@ async function isDown(runner: Runner, target?: string): Promise<boolean> {
 type RunScriptArgs = {
   script: string;
   targets: string[];
-  workspace: string;
 };
 
 export default class RunScript extends TargetScript<RunScriptArgs> {
@@ -78,34 +77,25 @@ export default class RunScript extends TargetScript<RunScriptArgs> {
     const argv = runner.argv.slice(1);
     const parsed = parseTargetArgs("run", argv, runner.config.targets, {
       leadingPositionals: 1,
-      string: ["workspace"],
+      supportsFilter: true,
+      services: runner.config.project.services.entries,
+      projectRoot: runner.config.root,
     });
 
     if (parsed.leadingArgs.length === 0) {
-      throw new Error("Usage: run [script] [targets...] [--workspace <name>]");
+      throw new Error("Usage: run [script] [targets...] [--filter <expr>]");
     }
 
     const script = parsed.leadingArgs[0]!;
-    const workspaceValue = parsed.options["workspace"];
-    const workspace: string =
-      typeof workspaceValue === "string" ? workspaceValue : "";
 
     return {
       script,
       targets: parsed.targets,
-      workspace,
     };
   }
 
   async #resolveScript(args: RunScriptArgs): Promise<string[]> {
-    const script = ["pnpm", "run"];
-    if (args.workspace) {
-      script.push("--filter", `@more/${args.workspace}`);
-    } else {
-      script.push("--fail-if-no-match");
-    }
-    script.push(`/^${args.script}.*/`);
-
+    const script = ["pnpm", "run", "--fail-if-no-match", `/${args.script}.*/`];
     return script;
   }
 

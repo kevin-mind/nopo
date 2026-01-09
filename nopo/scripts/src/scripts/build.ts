@@ -71,6 +71,10 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
       boolean: ["no-cache"],
       string: ["output"],
       alias: { "no-cache": "noCache" },
+      supportsFilter: true,
+      preFilter: { type: "preset", field: "buildable" },
+      services: runner.config.project.services.entries,
+      projectRoot: runner.config.root,
     });
 
     const noCache = (parsed.options["no-cache"] as boolean) === true;

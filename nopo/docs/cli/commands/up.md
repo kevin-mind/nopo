@@ -24,7 +24,27 @@ Targets are discovered from `apps/*/Dockerfile` (e.g., `backend`, `web`).
 
 ## Options
 
-This command does not accept any options.
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--filter <expr>` / `-F <expr>` | Filter targets by expression (can be used multiple times) | None |
+| `--since <ref>` | Git reference for `changed` filter | default branch |
+
+### Filtering
+
+You can filter which services to start using expressions:
+
+```bash
+# Start only services with changes since main branch
+nopo up --filter changed
+
+# Start services with database
+nopo up --filter infrastructure.hasDatabase=true
+
+# Start only buildable services that have changed
+nopo up --filter buildable --filter changed
+```
+
+See [`list`](./list.md) for full filter expression documentation.
 
 ## Environment Variables
 

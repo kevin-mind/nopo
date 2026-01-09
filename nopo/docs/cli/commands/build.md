@@ -33,6 +33,25 @@ nopo build --help
 |--------|-------------|---------|
 | `--no-cache` | Build without using cache | `false` |
 | `--output <path>` | Path to write build info JSON | None |
+| `--filter <expr>` / `-F <expr>` | Filter targets by expression (can be used multiple times) | None |
+| `--since <ref>` | Git reference for `changed` filter | default branch |
+
+### Filtering
+
+The build command automatically filters to buildable services (those with Dockerfiles). You can further filter using expressions:
+
+```bash
+# Build only services with changes since main branch
+nopo build --filter changed
+
+# Build changed services since a specific commit
+nopo build --filter changed --since abc123
+
+# Build services with database
+nopo build --filter infrastructure.hasDatabase=true
+```
+
+See [`list`](./list.md) for full filter expression documentation.
 
 ## Environment Variables
 

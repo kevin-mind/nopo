@@ -1,16 +1,35 @@
 import { minimist } from "./lib.ts";
+import {
+  parseFilterExpression,
+  applyFiltersToNames,
+  type FilterExpression,
+  type FilterContext,
+} from "./filter.ts";
+import type { NormalizedService } from "./config/index.ts";
 
 interface ParseTargetArgsOptions {
   leadingPositionals?: number; // For 'run': 1 (script name)
   boolean?: string[];
   string?: string[];
   alias?: Record<string, string | string[]>;
+  // Enable filtering for this command
+  supportsFilter?: boolean;
+  // Pre-filter (like 'buildable' for build command)
+  preFilter?: FilterExpression;
+}
+
+interface FilteredTargetArgsOptions extends ParseTargetArgsOptions {
+  supportsFilter: true;
+  services: Record<string, NormalizedService>;
+  projectRoot: string;
 }
 
 interface ParsedTargetArgs {
   targets: string[];
   leadingArgs: string[]; // e.g., ['test'] for run
   options: Record<string, unknown>;
+  filters?: FilterExpression[];
+  since?: string;
 }
 
 /**
@@ -19,16 +38,40 @@ interface ParsedTargetArgs {
  * @param commandName - The command name (e.g., 'build', 'up', 'run')
  * @param argv - The raw argv array (typically runner.argv.slice(1))
  * @param availableTargets - List of valid target names to validate against
- * @param opts - Options for parsing (minimist options + leadingPositionals)
- * @returns Parsed targets, leading args, and options
+ * @param opts - Options for parsing (minimist options + leadingPositionals + filtering)
+ * @returns Parsed targets, leading args, options, and optionally filters
  */
 export function parseTargetArgs(
   commandName: string,
   argv: string[],
   availableTargets: string[],
-  opts: ParseTargetArgsOptions = {},
+  opts: ParseTargetArgsOptions | FilteredTargetArgsOptions = {},
 ): ParsedTargetArgs {
-  const { leadingPositionals = 0, ...minimistOpts } = opts;
+  const {
+    leadingPositionals = 0,
+    supportsFilter = false,
+    preFilter,
+    ...rest
+  } = opts;
+
+  // Extract services and projectRoot if filtering is enabled
+  const services =
+    supportsFilter && "services" in opts ? opts.services : undefined;
+  const projectRoot =
+    supportsFilter && "projectRoot" in opts ? opts.projectRoot : undefined;
+
+  // Build minimist options, adding filter and since when filtering is enabled
+  const minimistOpts: Parameters<typeof minimist>[1] = {
+    boolean: rest.boolean || [],
+    string: [...(rest.string || [])],
+    alias: { ...(rest.alias || {}) },
+  };
+
+  if (supportsFilter) {
+    // --filter can be specified multiple times, so we collect them
+    minimistOpts.string!.push("filter", "since");
+    minimistOpts.alias!["F"] = "filter";
+  }
 
   // Parse with minimist
   const parsed = minimist(argv, minimistOpts);
@@ -47,23 +90,84 @@ export function parseTargetArgs(
     }
   }
 
-  // Validate targets if any are provided
-  if (positionalArgs.length > 0) {
-    validateTargets(positionalArgs, availableTargets);
-  }
-
-  // Extract options (everything except _)
+  // Extract options (everything except _ and filter/since when filtering enabled)
   const options: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(parsed)) {
-    if (key !== "_") {
-      options[key] = value;
+    if (key === "_") continue;
+    if (supportsFilter && (key === "filter" || key === "since" || key === "F"))
+      continue;
+    options[key] = value;
+  }
+
+  // Handle filtering
+  let filters: FilterExpression[] = [];
+  let since: string | undefined;
+  let filteredTargets = availableTargets;
+
+  if (supportsFilter) {
+    // Parse filter expressions
+    const filterValue = parsed.filter;
+    if (filterValue) {
+      const filterArgs = Array.isArray(filterValue)
+        ? filterValue
+        : [filterValue];
+      filters = filterArgs
+        .filter((f): f is string => typeof f === "string" && f.length > 0)
+        .map(parseFilterExpression);
+    }
+
+    // Add pre-filter if specified
+    if (preFilter) {
+      filters = [preFilter, ...filters];
+    }
+
+    // Get since value
+    since = typeof parsed.since === "string" ? parsed.since : undefined;
+
+    // Apply filters to available targets if we have the services data
+    if (services && projectRoot && filters.length > 0) {
+      const context: FilterContext = { projectRoot, since };
+      filteredTargets = applyFiltersToNames(
+        availableTargets,
+        services,
+        filters,
+        context,
+      );
     }
   }
 
+  // Determine final targets
+  let targets: string[];
+  if (positionalArgs.length > 0) {
+    // User specified explicit targets - validate them
+    validateTargets(positionalArgs, availableTargets);
+    // PreFilter only applies when no explicit targets are given.
+    // User-provided filters (via --filter) still apply to explicit targets.
+    const userFilters = filters.filter((f) => f !== preFilter);
+    if (supportsFilter && userFilters.length > 0 && services && projectRoot) {
+      // Apply only user filters to explicit targets
+      const context: FilterContext = { projectRoot, since };
+      const userFilteredTargets = applyFiltersToNames(
+        availableTargets,
+        services,
+        userFilters,
+        context,
+      );
+      targets = positionalArgs.filter((t) => userFilteredTargets.includes(t));
+    } else {
+      // No user filters - use explicit targets as-is
+      targets = positionalArgs;
+    }
+  } else {
+    // No explicit targets - use filtered targets (includes preFilter)
+    targets = supportsFilter && filters.length > 0 ? filteredTargets : [];
+  }
+
   return {
-    targets: positionalArgs,
+    targets,
     leadingArgs,
     options,
+    ...(supportsFilter ? { filters, since } : {}),
   };
 }
 

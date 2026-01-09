@@ -10,14 +10,15 @@ nopo list [options]
 
 ## Options
 
-| Option              | Short         | Description                                                | Default |
-| ------------------- | ------------- | ---------------------------------------------------------- | ------- |
-| `--format <format>` | `-f <format>` | Output format: `text`, `json`, or `csv`                    | `text`  |
-| `--json`            | `-j`          | Shortcut for `--format json`                               | N/A     |
-| `--csv`             | N/A           | Shortcut for `--format csv`                                | N/A     |
-| `--filter <expr>`   | `-F <expr>`   | Filter services by expression (can be used multiple times) | None    |
-| `--jq <filter>`     | N/A           | Apply jq filter to JSON output (requires `--json`)         | None    |
-| `--validate`        | `-v`          | Validate configuration and show summary                    | `false` |
+| Option              | Short         | Description                                                | Default        |
+| ------------------- | ------------- | ---------------------------------------------------------- | -------------- |
+| `--format <format>` | `-f <format>` | Output format: `text`, `json`, or `csv`                    | `text`         |
+| `--json`            | `-j`          | Shortcut for `--format json`                               | N/A            |
+| `--csv`             | N/A           | Shortcut for `--format csv`                                | N/A            |
+| `--filter <expr>`   | `-F <expr>`   | Filter services by expression (can be used multiple times) | None           |
+| `--since <ref>`     | N/A           | Git reference for `changed` filter (branch, tag, commit)   | default branch |
+| `--jq <filter>`     | N/A           | Apply jq filter to JSON output (requires `--json`)         | None           |
+| `--validate`        | `-v`          | Validate configuration and show summary                    | `false`        |
 
 ## Output Formats
 
@@ -101,6 +102,7 @@ The `--filter` option supports powerful filtering expressions to narrow down the
 | Type         | Format        | Example                           |
 | ------------ | ------------- | --------------------------------- |
 | Preset       | `buildable`   | `--filter buildable`              |
+| Preset       | `changed`     | `--filter changed`                |
 | Field exists | `fieldname`   | `--filter has_database`           |
 | Field absent | `!fieldname`  | `--filter !has_database`          |
 | Field equals | `field=value` | `--filter "infrastructure.cpu=1"` |
@@ -109,18 +111,39 @@ The `--filter` option supports powerful filtering expressions to narrow down the
 
 **Combine filters**: Multiple `--filter` options (AND logic)
 
-### jq Integration
-
-```bash
-nopo list --json --jq '.services | keys'      # Service names only
-nopo list --json --jq '.services | length'   # Count services
-```
+### Preset Filters
 
 **Buildable services** are those that:
 
 - Have a `dockerfile` specified
 - Are not external dependencies
 - Can be built using Docker Buildx
+
+**Changed services** are those with files modified since a git reference:
+
+- Uses `git diff` to detect file changes
+- Compares against `--since` value (defaults to repository's default branch)
+- Useful for CI pipelines to only build/test affected services
+
+```bash
+# Services with changes since main branch
+nopo list --filter changed
+
+# Services with changes since a specific branch/tag/commit
+nopo list --filter changed --since origin/release-1.0
+nopo list --filter changed --since v2.0.0
+nopo list --filter changed --since abc123
+
+# Combine with buildable for CI builds
+nopo list --filter buildable --filter changed
+```
+
+### jq Integration
+
+```bash
+nopo list --json --jq '.services | keys'      # Service names only
+nopo list --json --jq '.services | length'   # Count services
+```
 
 #### Field Existence
 

@@ -24,7 +24,24 @@ Targets are discovered from `apps/*/Dockerfile` (e.g., `backend`, `web`).
 
 ## Options
 
-This command does not accept any options.
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--filter <expr>` / `-F <expr>` | Filter targets by expression (can be used multiple times) | None |
+| `--since <ref>` | Git reference for `changed` filter | default branch |
+
+### Filtering
+
+You can filter which images to pull using expressions:
+
+```bash
+# Pull only images for services with changes
+nopo pull --filter changed
+
+# Pull images for buildable services only
+nopo pull --filter buildable
+```
+
+See [`list`](./list.md) for full filter expression documentation.
 
 ## Environment Variables
 

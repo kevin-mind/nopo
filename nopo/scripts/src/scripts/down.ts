@@ -27,7 +27,11 @@ export default class DownScript extends TargetScript<DownCliArgs> {
     }
 
     const argv = runner.argv.slice(1);
-    const parsed = parseTargetArgs("down", argv, runner.config.targets);
+    const parsed = parseTargetArgs("down", argv, runner.config.targets, {
+      supportsFilter: true,
+      services: runner.config.project.services.entries,
+      projectRoot: runner.config.root,
+    });
     return { targets: parsed.targets };
   }
 

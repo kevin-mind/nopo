@@ -24,7 +24,24 @@ Targets are discovered from `apps/*/Dockerfile` (e.g., `backend`, `web`).
 
 ## Options
 
-This command does not accept any options.
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--filter <expr>` / `-F <expr>` | Filter targets by expression (can be used multiple times) | None |
+| `--since <ref>` | Git reference for `changed` filter | default branch |
+
+### Filtering
+
+You can filter which services to stop using expressions:
+
+```bash
+# Stop only services with changes since main branch
+nopo down --filter changed
+
+# Stop services with database
+nopo down --filter infrastructure.hasDatabase=true
+```
+
+See [`list`](./list.md) for full filter expression documentation.
 
 ## Environment Variables
 

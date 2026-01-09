@@ -5,6 +5,10 @@ import ListScript from "../../src/scripts/list.ts";
 import { createConfig } from "../../src/lib.ts";
 import { createTmpEnv, runScript } from "../utils.ts";
 
+// Track mock calls for assertions
+const mockGetChangedFiles = vi.fn(() => ["apps/backend/src/index.ts"]);
+const mockGetDefaultBranch = vi.fn(() => "main");
+
 vi.mock("../../src/git-info", () => ({
   GitInfo: {
     exists: () => false,
@@ -13,6 +17,8 @@ vi.mock("../../src/git-info", () => ({
       branch: "unknown",
       commit: "unknown",
     })),
+    getChangedFiles: (...args: unknown[]) => mockGetChangedFiles(...args),
+    getDefaultBranch: () => mockGetDefaultBranch(),
   },
 }));
 
@@ -381,6 +387,156 @@ describe("list", () => {
       expect(services).toContain("web");
       expect(services).not.toContain("db");
       expect(services).not.toContain("nginx");
+      stdoutSpy.mockRestore();
+    });
+
+    it("filters to changed services with --filter changed", async () => {
+      mockGetChangedFiles.mockClear();
+      mockGetChangedFiles.mockReturnValueOnce(["apps/backend/src/index.ts"]);
+
+      let output = "";
+      const stdoutSpy = vi
+        .spyOn(process.stdout, "write")
+        .mockImplementation((chunk) => {
+          output += chunk;
+          return true;
+        });
+
+      const config = createConfig({ envFile: createTmpEnv(), silent: true });
+      await runScript(ListScript, config, [
+        "list",
+        "--json",
+        "--filter",
+        "changed",
+      ]);
+
+      const parsed = JSON.parse(output.trim()) as {
+        services: Record<string, unknown>;
+      };
+      const services = Object.keys(parsed.services);
+      // Only backend has changed files in apps/backend/
+      expect(services).toContain("backend");
+      expect(services).not.toContain("web");
+      expect(services).not.toContain("db");
+      expect(services).not.toContain("nginx");
+      stdoutSpy.mockRestore();
+    });
+
+    it("uses default branch when --since is not specified", async () => {
+      mockGetChangedFiles.mockClear();
+      mockGetDefaultBranch.mockClear();
+      mockGetChangedFiles.mockReturnValueOnce(["apps/web/src/App.tsx"]);
+      mockGetDefaultBranch.mockReturnValueOnce("main");
+
+      let output = "";
+      const stdoutSpy = vi
+        .spyOn(process.stdout, "write")
+        .mockImplementation((chunk) => {
+          output += chunk;
+          return true;
+        });
+
+      const config = createConfig({ envFile: createTmpEnv(), silent: true });
+      await runScript(ListScript, config, [
+        "list",
+        "--json",
+        "--filter",
+        "changed",
+      ]);
+
+      // getDefaultBranch should be called since --since was not provided
+      expect(mockGetDefaultBranch).toHaveBeenCalled();
+      stdoutSpy.mockRestore();
+    });
+
+    it("uses --since value when specified with --filter changed", async () => {
+      mockGetChangedFiles.mockClear();
+      mockGetDefaultBranch.mockClear();
+      mockGetChangedFiles.mockReturnValueOnce(["apps/backend/src/api.ts"]);
+
+      let output = "";
+      const stdoutSpy = vi
+        .spyOn(process.stdout, "write")
+        .mockImplementation((chunk) => {
+          output += chunk;
+          return true;
+        });
+
+      const config = createConfig({ envFile: createTmpEnv(), silent: true });
+      await runScript(ListScript, config, [
+        "list",
+        "--json",
+        "--filter",
+        "changed",
+        "--since",
+        "feature-branch",
+      ]);
+
+      // getChangedFiles should be called with the specified branch
+      expect(mockGetChangedFiles).toHaveBeenCalledWith("feature-branch");
+      // getDefaultBranch should not be called when --since is provided
+      expect(mockGetDefaultBranch).not.toHaveBeenCalled();
+      stdoutSpy.mockRestore();
+    });
+
+    it("returns empty when no services have changed files", async () => {
+      mockGetChangedFiles.mockClear();
+      mockGetChangedFiles.mockReturnValueOnce([]);
+
+      let output = "";
+      const stdoutSpy = vi
+        .spyOn(process.stdout, "write")
+        .mockImplementation((chunk) => {
+          output += chunk;
+          return true;
+        });
+
+      const config = createConfig({ envFile: createTmpEnv(), silent: true });
+      await runScript(ListScript, config, [
+        "list",
+        "--json",
+        "--filter",
+        "changed",
+      ]);
+
+      const parsed = JSON.parse(output.trim()) as {
+        services: Record<string, unknown>;
+      };
+      expect(Object.keys(parsed.services)).toEqual([]);
+      stdoutSpy.mockRestore();
+    });
+
+    it("combines --filter changed with other filters using AND logic", async () => {
+      mockGetChangedFiles.mockClear();
+      // Both backend and db have changes
+      mockGetChangedFiles.mockReturnValueOnce([
+        "apps/backend/src/index.ts",
+        "apps/db/init.sql",
+      ]);
+
+      let output = "";
+      const stdoutSpy = vi
+        .spyOn(process.stdout, "write")
+        .mockImplementation((chunk) => {
+          output += chunk;
+          return true;
+        });
+
+      const config = createConfig({ envFile: createTmpEnv(), silent: true });
+      await runScript(ListScript, config, [
+        "list",
+        "--json",
+        "--filter",
+        "changed",
+        "--filter",
+        "buildable",
+      ]);
+
+      const parsed = JSON.parse(output.trim()) as {
+        services: Record<string, unknown>;
+      };
+      // Only backend is both changed AND buildable (db has changes but is not buildable)
+      expect(Object.keys(parsed.services)).toEqual(["backend"]);
       stdoutSpy.mockRestore();
     });
   });
