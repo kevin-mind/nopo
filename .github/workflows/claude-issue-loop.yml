@@ -446,7 +446,7 @@ jobs:
                - Body MUST contain "Fixes #${{ github.event.issue.number }}"
 
             If you notice conflicts with other open PRs, note them in the PR description.
-          claude_args: "--model claude-opus-4-5-20251101 --max-turns 75"
+          claude_args: "--model claude-opus-4-5-20251101 --max-turns 200"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
