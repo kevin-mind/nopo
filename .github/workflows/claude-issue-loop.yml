@@ -439,10 +439,13 @@ jobs:
 
             1. Follow CLAUDE.md guidelines strictly
             2. Address all items in the Todo section
-            3. Run `make check` and `make test` - fix any failures
-            4. Commit with a descriptive message
-            5. Push to origin
-            6. Create DRAFT PR with `gh pr create --draft --reviewer nopo-bot`
+            3. **Read each file before editing** - the Edit tool requires this
+            4. **Verify edits succeeded** - re-read the file after editing
+            5. **Never repeat a failed edit** - if Edit fails, understand why before retrying
+            6. Run `make check` and `make test` - fix any failures
+            7. Commit with a descriptive message
+            8. Push to origin
+            9. Create DRAFT PR with `gh pr create --draft --reviewer nopo-bot`
                - Body MUST contain "Fixes #${{ github.event.issue.number }}"
 
             If you notice conflicts with other open PRs, note them in the PR description.
