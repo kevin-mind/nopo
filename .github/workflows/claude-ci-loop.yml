@@ -83,8 +83,15 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
         run: |
-          # Find PR for this branch
-          pr=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$HEAD_BRANCH" --json number,author,isDraft,body --jq '.[0]')
+          # Check if this is a merge queue branch (gh-readonly-queue/main/pr-NNN-...)
+          if [[ "$HEAD_BRANCH" =~ ^gh-readonly-queue/.*/pr-([0-9]+)- ]]; then
+            pr_number="${BASH_REMATCH[1]}"
+            echo "Merge queue branch detected, extracting PR #$pr_number"
+            pr=$(gh pr view "$pr_number" --repo "$GITHUB_REPOSITORY" --json number,author,isDraft,body)
+          else
+            # Find PR for this branch
+            pr=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$HEAD_BRANCH" --json number,author,isDraft,body --jq '.[0]')
+          fi
 
           if [[ -z "$pr" || "$pr" == "null" ]]; then
             echo "No PR found for branch $HEAD_BRANCH"
