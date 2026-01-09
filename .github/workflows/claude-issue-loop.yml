@@ -61,6 +61,104 @@ jobs:
             exit 1
           fi
 
+      - name: Add issue to project
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          DEFAULT_PROJECT_ID: ${{ vars.DEFAULT_PROJECT_ID }}
+        run: |
+          # Skip if no default project is configured
+          if [[ -z "$DEFAULT_PROJECT_ID" ]]; then
+            echo "No DEFAULT_PROJECT_ID variable set - skipping project add"
+            exit 0
+          fi
+
+          # Check if issue is already in a project
+          result=$(gh api graphql -f query='
+            query($owner: String!, $repo: String!, $number: Int!) {
+              repository(owner: $owner, name: $repo) {
+                issue(number: $number) {
+                  id
+                  projectItems(first: 10) {
+                    nodes { id }
+                  }
+                }
+              }
+            }
+          ' -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" -F number="$ISSUE_NUMBER")
+
+          issue_node_id=$(echo "$result" | jq -r '.data.repository.issue.id')
+          existing_items=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes | length')
+
+          if [[ "$existing_items" -gt 0 ]]; then
+            echo "Issue already in a project - skipping add"
+            exit 0
+          fi
+
+          echo "Adding issue to project..."
+
+          # Add issue to the default project
+          add_result=$(gh api graphql -f query='
+            mutation($projectId: ID!, $contentId: ID!) {
+              addProjectV2ItemById(input: { projectId: $projectId, contentId: $contentId }) {
+                item { id }
+              }
+            }
+          ' -f projectId="$DEFAULT_PROJECT_ID" -f contentId="$issue_node_id")
+
+          item_id=$(echo "$add_result" | jq -r '.data.addProjectV2ItemById.item.id')
+
+          if [[ -z "$item_id" || "$item_id" == "null" ]]; then
+            echo "Failed to add issue to project"
+            exit 1
+          fi
+
+          echo "Issue added to project with item ID: $item_id"
+
+          # Get Status field and Backlog option IDs
+          fields=$(gh api graphql -f query='
+            query($projectId: ID!) {
+              node(id: $projectId) {
+                ... on ProjectV2 {
+                  fields(first: 20) {
+                    nodes {
+                      ... on ProjectV2SingleSelectField {
+                        id
+                        name
+                        options { id name }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ' -f projectId="$DEFAULT_PROJECT_ID")
+
+          field_id=$(echo "$fields" | jq -r '.data.node.fields.nodes[] | select(.name == "Status") | .id')
+          option_id=$(echo "$fields" | jq -r '.data.node.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "Backlog") | .id')
+
+          if [[ -z "$field_id" || -z "$option_id" ]]; then
+            echo "Could not find Status field or Backlog option - item added but status not set"
+            exit 0
+          fi
+
+          # Set status to Backlog
+          gh api graphql -f query='
+            mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+              updateProjectV2ItemFieldValue(
+                input: {
+                  projectId: $projectId
+                  itemId: $itemId
+                  fieldId: $fieldId
+                  value: { singleSelectOptionId: $optionId }
+                }
+              ) { projectV2Item { id } }
+            }
+          ' -f projectId="$DEFAULT_PROJECT_ID" -f itemId="$item_id" -f fieldId="$field_id" -f optionId="$option_id"
+
+          echo "Set issue status to Backlog"
+
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
