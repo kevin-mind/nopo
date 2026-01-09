@@ -246,6 +246,28 @@ jobs:
             - Test coverage adequacy
             - Security considerations
 
+            ### CRITICAL: Edge Case Testing
+
+            Don't just check if todos are addressed - verify the LOGIC is correct:
+
+            1. **Trace through with examples**: Pick 2-3 realistic inputs and mentally
+               trace the code path. For example:
+               - What happens with empty input?
+               - What happens with the most common case?
+               - What happens at boundaries (first item, last item, max values)?
+
+            2. **Test conflicting requirements**: If the feature has multiple options
+               (e.g., flags, filters), what happens when they interact?
+
+            3. **Run the code if possible**: Use the CLI or test commands to verify
+               the feature actually works as intended, not just that it compiles.
+
+            4. **Check for design flaws**: Does the implementation order of operations
+               make sense? Are filters applied at the right time?
+
+            If you find a logic bug, request changes with a specific example showing
+            the incorrect behavior.
+
             ## Step 4: Submit Your Review
 
             Submit your review using `gh pr review ${{ needs.request-setup.outputs.pr_number }}` with ONE of:
