@@ -1,9 +1,8 @@
 name: Minimal Fixture Service
 
+dockerfile: Dockerfile
+
 commands:
-  test:
-    run: echo "FIXTURE_MINIMAL_TEST_SUCCESS"
-  check:
-    run: echo "FIXTURE_MINIMAL_CHECK_SUCCESS"
-  compile:
-    run: echo "FIXTURE_MINIMAL_COMPILE_SUCCESS"
+  test: echo "FIXTURE_MINIMAL_TEST_SUCCESS"
+  check: echo "FIXTURE_MINIMAL_CHECK_SUCCESS"
+  compile: echo "FIXTURE_MINIMAL_COMPILE_SUCCESS"

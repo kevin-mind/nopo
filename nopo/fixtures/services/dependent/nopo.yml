@@ -1,17 +1,21 @@
 name: Dependent Fixture Service
 
-depends_on:
+dockerfile: Dockerfile
+
+dependencies:
   - minimal
 
 commands:
   test:
-    run: echo "FIXTURE_DEPENDENT_TEST_SUCCESS"
-    depends_on:
-      - minimal:test
-  check:
-    run: echo "FIXTURE_DEPENDENT_CHECK_SUCCESS"
+    command: echo "FIXTURE_DEPENDENT_TEST_SUCCESS"
+    dependencies:
+      minimal:
+        - test
+  check: echo "FIXTURE_DEPENDENT_CHECK_SUCCESS"
   integration:
-    run: echo "FIXTURE_DEPENDENT_INTEGRATION_SUCCESS"
-    depends_on:
-      - minimal:test
-      - complex:test
+    command: echo "FIXTURE_DEPENDENT_INTEGRATION_SUCCESS"
+    dependencies:
+      minimal:
+        - test
+      complex:
+        - test

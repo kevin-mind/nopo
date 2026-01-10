@@ -497,7 +497,7 @@ $.sync = function execSync(
 // ============================================================================
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const defaultRoot = path.resolve(__dirname, "..", "..", "..");
+const defaultRoot = process.cwd();
 
 interface CreateConfigOptions {
   envFile?: string | undefined;
