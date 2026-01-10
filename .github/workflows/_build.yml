@@ -7,6 +7,16 @@ on:
         description: 'Whether to push the image'
         required: true
         type: boolean
+      filter:
+        description: 'Filter for services (e.g., "changed" to only build changed services)'
+        required: false
+        type: string
+        default: ''
+      since:
+        description: 'Git ref to compare against for "changed" filter'
+        required: false
+        type: string
+        default: ''
 
     outputs:
       registry:
@@ -30,6 +40,9 @@ on:
       service_digests:
         description: 'JSON object mapping service names to their digests'
         value: ${{ jobs.build.outputs.service_digests }}
+      changed_services:
+        description: 'JSON array of services that were built (when filter=changed)'
+        value: ${{ jobs.build.outputs.changed_services }}
 
 permissions: {}
 
@@ -53,12 +66,23 @@ jobs:
       tag: ${{ steps.output_tag.outputs.tag }}
       service_tags: ${{ steps.build_info.outputs.service_tags }}
       service_digests: ${{ steps.build_info.outputs.service_digests }}
+      changed_services: ${{ steps.changed.outputs.services }}
     env:
       build_output: build-output.json
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for git diff
 
       - uses: ./.github/actions/setup-node
+
+      - name: Discover changed services
+        id: changed
+        if: inputs.filter != ''
+        uses: ./.github/actions/service-names
+        with:
+          filter: ${{ inputs.filter }}
+          since: ${{ inputs.since }}
 
       - name: Docker meta
         id: docker_meta
@@ -91,8 +115,17 @@ jobs:
           DOCKER_TAG: ${{ steps.input_tag.outputs.tag }}
           DOCKER_BUILD: ${{ format('{0}/actions/runs/{1}', github.event.repository.html_url, github.run_id) }}
           DOCKER_PUSH: ${{ inputs.push }}
+          BUILD_FILTER: ${{ inputs.filter }}
+          BUILD_SINCE: ${{ inputs.since }}
         run: |
-          make build -- --output ${{ env.build_output }}
+          args="--output ${{ env.build_output }}"
+          if [[ -n "$BUILD_FILTER" ]]; then
+            args="$args --filter $BUILD_FILTER"
+          fi
+          if [[ -n "$BUILD_SINCE" ]]; then
+            args="$args --since $BUILD_SINCE"
+          fi
+          make build -- $args
 
       - name: Extract build info
         id: build_info

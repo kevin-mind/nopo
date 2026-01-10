@@ -80,6 +80,8 @@ jobs:
     secrets: inherit
     with:
       tag: local
+      filter: changed
+      since: origin/main
 
   smoketest:
     needs: [context]

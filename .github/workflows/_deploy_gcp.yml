@@ -33,6 +33,11 @@ on:
         description: "The environment to deploy to"
         required: true
         type: string
+      changed_services:
+        description: "JSON array of changed services to deploy (empty = deploy all)"
+        required: false
+        type: string
+        default: ''
 
 permissions: {}
 
@@ -60,9 +65,25 @@ jobs:
       - uses: ./.github/actions/setup-node
       - name: Discover services
         id: services
-        uses: ./.github/actions/service-names
-        with:
-          filter: buildable
+        env:
+          CHANGED_SERVICES: ${{ inputs.changed_services }}
+        run: |
+          # If changed_services is provided and non-empty, use it
+          # Otherwise, discover all buildable services
+          if [[ -n "$CHANGED_SERVICES" && "$CHANGED_SERVICES" != "[]" ]]; then
+            echo "Using provided changed services: $CHANGED_SERVICES"
+            services_json="$CHANGED_SERVICES"
+            count=$(echo "$services_json" | jq 'length')
+          else
+            echo "Discovering all buildable services..."
+            full_json=$(make list -- --json --filter buildable)
+            services_json=$(echo "$full_json" | jq -c '.services | keys')
+            count=$(echo "$services_json" | jq 'length')
+          fi
+
+          echo "services=$services_json" >> "$GITHUB_OUTPUT"
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          echo "Deploying $count service(s): $services_json"
       - name: Environment config
         id: env_config
         env:

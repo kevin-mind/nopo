@@ -3,7 +3,11 @@ description: Discover service names from the apps directory
 
 inputs:
   filter:
-    description: Filter expression passed to nopo list (e.g., "buildable", "image", "!image")
+    description: Filter expression passed to nopo list (e.g., "buildable", "changed", "!image")
+    required: false
+    default: ""
+  since:
+    description: Git ref to compare against for "changed" filter (defaults to default branch)
     required: false
     default: ""
 
@@ -26,6 +30,7 @@ runs:
       shell: bash
       env:
         FILTER: ${{ inputs.filter }}
+        SINCE: ${{ inputs.since }}
       run: |
         # Use nopo list to discover services
         # Assumes nopo CLI is available (setup-node action should be run before this)
@@ -33,15 +38,20 @@ runs:
         # Examples:
         #   filter: ""          -> all services
         #   filter: "buildable" -> services with Dockerfiles
+        #   filter: "changed"   -> services with changed files
         #   filter: "image"     -> services with pre-built images
 
+        # Build the command arguments
+        args="--json"
         if [[ -n "${FILTER}" ]]; then
-          full_json=$(make list -- --json --filter "${FILTER}")
-          services_csv=$(make list -- --csv --filter "${FILTER}")
-        else
-          full_json=$(make list -- --json)
-          services_csv=$(make list -- --csv)
+          args="${args} --filter ${FILTER}"
         fi
+        if [[ -n "${SINCE}" ]]; then
+          args="${args} --since ${SINCE}"
+        fi
+
+        full_json=$(make list -- ${args})
+        services_csv=$(make list -- ${args/--json/--csv})
 
         # Extract service names from JSON (avoiding pipe in make arguments)
         services_json=$(echo "${full_json}" | jq -c '.services | keys')
