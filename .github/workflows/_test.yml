@@ -7,6 +7,10 @@ on:
         description: 'The full docker tag to test'
         required: true
         type: string
+      services:
+        description: 'JSON array of services to test'
+        required: true
+        type: string
 
 permissions: {}
 
@@ -15,18 +19,6 @@ defaults:
     shell: bash
 
 jobs:
-  discover:
-    runs-on: ubuntu-latest
-    outputs:
-      services: ${{ steps.services.outputs.services }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: ./.github/actions/setup-node
-
-      - name: Discover services
-        id: services
-        uses: ./.github/actions/service-names
 
   test_nopo:
     runs-on: ubuntu-latest
@@ -66,12 +58,11 @@ jobs:
         run: pnpm run --dir ./nopo/scripts test
 
   test:
-    needs: [discover]
     runs-on: ubuntu-latest
     name: "[${{ matrix.service || 'host' }}] ${{ matrix.command }} (${{ matrix.target }})"
     strategy:
       matrix:
-        service: ${{ fromJson(needs.discover.outputs.services) }}
+        service: ${{ fromJson(inputs.services) }}
         command: [test]
         target: [development, production]
         include:

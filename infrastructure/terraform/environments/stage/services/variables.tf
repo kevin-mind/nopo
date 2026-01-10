@@ -20,21 +20,25 @@ variable "terraform_state_bucket" {
 }
 
 variable "stable_backend_image" {
-  description = "Docker image for stable backend"
+  description = "Docker image for stable backend (optional - omit to skip backend deployment)"
   type        = string
+  default     = null
 }
 
 variable "stable_web_image" {
-  description = "Docker image for stable web"
+  description = "Docker image for stable web (optional - omit to skip web deployment)"
   type        = string
+  default     = null
 }
 
 variable "canary_backend_image" {
-  description = "Docker image for canary backend"
+  description = "Docker image for canary backend (optional - omit to skip backend deployment)"
   type        = string
+  default     = null
 }
 
 variable "canary_web_image" {
-  description = "Docker image for canary web"
+  description = "Docker image for canary web (optional - omit to skip web deployment)"
   type        = string
+  default     = null
 }

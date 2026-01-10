@@ -59,8 +59,17 @@ jobs:
           echo "Migrations and source files cannot be changed together"
           exit 1
 
+  # Discover which services changed - this is the "narrow waist" for filtering
+  discover:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/_services.yml
+    with:
+      filter: changed
+      ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
   build:
-    needs: [context]
+    needs: [context, discover]
     permissions:
       packages: write
       contents: read
@@ -70,9 +79,10 @@ jobs:
     secrets: inherit
     with:
       push: ${{ needs.context.outputs.is_fork == 'false' }}
+      services: ${{ needs.discover.outputs.services }}
 
   test:
-    needs: [context]
+    needs: [context, discover]
     permissions:
       packages: read
       contents: read
@@ -80,6 +90,7 @@ jobs:
     secrets: inherit
     with:
       tag: local
+      services: ${{ needs.discover.outputs.services_json }}
 
   smoketest:
     needs: [context]
@@ -121,7 +132,7 @@ jobs:
 
   checks:
     if: always()
-    needs: [context, build, test, smoketest, terraform]
+    needs: [context, discover, build, test, smoketest, terraform]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

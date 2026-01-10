@@ -7,6 +7,11 @@ on:
         description: 'Whether to push the image'
         required: true
         type: boolean
+      services:
+        description: 'Space-separated list of services to build (empty = all buildable services)'
+        required: false
+        type: string
+        default: ''
 
     outputs:
       registry:
@@ -91,8 +96,15 @@ jobs:
           DOCKER_TAG: ${{ steps.input_tag.outputs.tag }}
           DOCKER_BUILD: ${{ format('{0}/actions/runs/{1}', github.event.repository.html_url, github.run_id) }}
           DOCKER_PUSH: ${{ inputs.push }}
+          SERVICES: ${{ inputs.services }}
         run: |
-          make build -- --output ${{ env.build_output }}
+          if [[ -n "$SERVICES" ]]; then
+            echo "Building specific services: $SERVICES"
+            make build -- $SERVICES --output ${{ env.build_output }}
+          else
+            echo "Building all services"
+            make build -- --output ${{ env.build_output }}
+          fi
 
       - name: Extract build info
         id: build_info

@@ -18,6 +18,10 @@ on:
         options:
           - stage
           - prod
+      services:
+        description: "JSON array of services to deploy"
+        required: true
+        type: string
 
   workflow_call:
     inputs:
@@ -31,6 +35,10 @@ on:
         type: string
       environment:
         description: "The environment to deploy to"
+        required: true
+        type: string
+      services:
+        description: "JSON array of services to deploy"
         required: true
         type: string
 
@@ -58,11 +66,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-node
-      - name: Discover services
+      - name: Validate and use services
         id: services
-        uses: ./.github/actions/service-names
-        with:
-          filter: buildable
+        env:
+          SERVICES: ${{ inputs.services }}
+        run: |
+          if [[ -z "$SERVICES" ]]; then
+            echo "::error::No services provided"
+            exit 1
+          fi
+
+          # Validate it's a JSON array
+          if ! echo "$SERVICES" | jq -e 'type == "array"' > /dev/null 2>&1; then
+            echo "::error::Invalid services JSON: $SERVICES"
+            exit 1
+          fi
+
+          services_json="$SERVICES"
+          count=$(echo "$services_json" | jq 'length')
+          echo "services=$services_json" >> "$GITHUB_OUTPUT"
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          echo "Deploying $count service(s): $services_json"
       - name: Environment config
         id: env_config
         env:
@@ -140,17 +164,17 @@ jobs:
   # ===========================================================================
   get_current_state:
     name: Get Current State
-    needs: [provision_infra]
+    needs: [context, provision_infra]
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     permissions:
       contents: read
       id-token: write
     outputs:
-      current_stable_backend: ${{ steps.state.outputs.backend_image }}
-      current_stable_web: ${{ steps.state.outputs.web_image }}
-      new_backend_image: ${{ steps.new_images.outputs.backend_image }}
-      new_web_image: ${{ steps.new_images.outputs.web_image }}
+      stable_backend_image: ${{ steps.images.outputs.stable_backend_image }}
+      stable_web_image: ${{ steps.images.outputs.stable_web_image }}
+      canary_backend_image: ${{ steps.images.outputs.canary_backend_image }}
+      canary_web_image: ${{ steps.images.outputs.canary_web_image }}
     steps:
       - uses: actions/checkout@v4
       - name: Authenticate to GCP
@@ -164,40 +188,43 @@ jobs:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
           terraform_wrapper: false
 
-      - name: Get stable images
-        id: state
-        env:
-          TF_STATE_BUCKET: ${{ vars.TERRAFORM_STATE_BUCKET }}
-          ENVIRONMENT: ${{ inputs.environment }}
-          REGISTRY: ${{ needs.provision_infra.outputs.artifact_registry_url }}
-          VERSION: ${{ inputs.version }}
-        working-directory: infrastructure/terraform/environments/${{ inputs.environment }}/services
-        run: |
-          # Init to read state
-          terraform init -input=false \
-            -backend-config="bucket=${TF_STATE_BUCKET}" \
-            -backend-config="prefix=nopo/${ENVIRONMENT}/services" 2>/dev/null || true
-
-          # If first run, use new images as stable
-          backend_image="${REGISTRY}/backend:${VERSION}"
-          web_image="${REGISTRY}/web:${VERSION}"
-
-          # Try to read real state if it exists (logic to read from vars would go here)
-          # For now defaulting to new version for safety/simplicity on first run
-
-          echo "backend_image=${backend_image}" >> "$GITHUB_OUTPUT"
-          echo "web_image=${web_image}" >> "$GITHUB_OUTPUT"
-
-      - name: Build new image tags
-        id: new_images
+      - name: Build image variables
+        id: images
         env:
           REGISTRY: ${{ needs.provision_infra.outputs.artifact_registry_url }}
           VERSION: ${{ inputs.version }}
+          SERVICES: ${{ needs.context.outputs.services }}
         run: |
-          backend_image="${REGISTRY}/backend:${VERSION}"
-          web_image="${REGISTRY}/web:${VERSION}"
-          echo "backend_image=${backend_image}" >> "$GITHUB_OUTPUT"
-          echo "web_image=${web_image}" >> "$GITHUB_OUTPUT"
+          services_array=$(echo "${SERVICES}" | jq -c '.')
+          
+          # Only set images for services we're actually deploying
+          # For services not in the list, output empty string (Terraform will treat as null)
+          if echo "${services_array}" | jq -e '.[] | select(. == "backend")' > /dev/null 2>&1; then
+            stable_backend_image="${REGISTRY}/backend:${VERSION}"
+            canary_backend_image="${REGISTRY}/backend:${VERSION}"
+          else
+            stable_backend_image=""
+            canary_backend_image=""
+          fi
+
+          if echo "${services_array}" | jq -e '.[] | select(. == "web")' > /dev/null 2>&1; then
+            stable_web_image="${REGISTRY}/web:${VERSION}"
+            canary_web_image="${REGISTRY}/web:${VERSION}"
+          else
+            stable_web_image=""
+            canary_web_image=""
+          fi
+
+          echo "stable_backend_image=${stable_backend_image}" >> "$GITHUB_OUTPUT"
+          echo "stable_web_image=${stable_web_image}" >> "$GITHUB_OUTPUT"
+          echo "canary_backend_image=${canary_backend_image}" >> "$GITHUB_OUTPUT"
+          echo "canary_web_image=${canary_web_image}" >> "$GITHUB_OUTPUT"
+          
+          echo "Images for deployment:"
+          echo "  Stable backend: ${stable_backend_image:-<not deploying>}"
+          echo "  Stable web: ${stable_web_image:-<not deploying>}"
+          echo "  Canary backend: ${canary_backend_image:-<not deploying>}"
+          echo "  Canary web: ${canary_web_image:-<not deploying>}"
 
   # ===========================================================================
   # BUILD & PUSH
@@ -270,11 +297,11 @@ jobs:
           domain: ${{ vars.DOMAIN }}
           subdomain_prefix: ${{ needs.context.outputs.subdomain_prefix }}
           terraform_state_bucket: ${{ vars.TERRAFORM_STATE_BUCKET }}
-          # Images
-          stable_backend_image: ${{ needs.get_current_state.outputs.current_stable_backend }}
-          stable_web_image: ${{ needs.get_current_state.outputs.current_stable_web }}
-          canary_backend_image: ${{ needs.get_current_state.outputs.new_backend_image }}
-          canary_web_image: ${{ needs.get_current_state.outputs.new_web_image }}
+          # Images (only set for services being deployed, empty/null for others)
+          stable_backend_image: ${{ needs.get_current_state.outputs.stable_backend_image }}
+          stable_web_image: ${{ needs.get_current_state.outputs.stable_web_image }}
+          canary_backend_image: ${{ needs.get_current_state.outputs.canary_backend_image }}
+          canary_web_image: ${{ needs.get_current_state.outputs.canary_web_image }}
           # DB
           supabase_database_url: ${{ secrets.SUPABASE_DATABASE_URL }}
 
@@ -418,12 +445,12 @@ jobs:
           domain: ${{ vars.DOMAIN }}
           subdomain_prefix: ${{ needs.context.outputs.subdomain_prefix }}
           terraform_state_bucket: ${{ vars.TERRAFORM_STATE_BUCKET }}
-          # Stable now gets new images
-          stable_backend_image: ${{ needs.get_current_state.outputs.new_backend_image }}
-          stable_web_image: ${{ needs.get_current_state.outputs.new_web_image }}
+          # Promote: stable gets the canary images (which are the new version)
+          stable_backend_image: ${{ needs.get_current_state.outputs.canary_backend_image }}
+          stable_web_image: ${{ needs.get_current_state.outputs.canary_web_image }}
           # Canary stays same
-          canary_backend_image: ${{ needs.get_current_state.outputs.new_backend_image }}
-          canary_web_image: ${{ needs.get_current_state.outputs.new_web_image }}
+          canary_backend_image: ${{ needs.get_current_state.outputs.canary_backend_image }}
+          canary_web_image: ${{ needs.get_current_state.outputs.canary_web_image }}
           # DB
           supabase_database_url: ${{ secrets.SUPABASE_DATABASE_URL }}
 
