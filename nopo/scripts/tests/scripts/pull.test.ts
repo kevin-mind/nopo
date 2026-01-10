@@ -1,8 +1,7 @@
 import { describe, it, vi, expect, beforeEach } from "vitest";
 import PullScript from "../../src/scripts/pull.ts";
-import { createConfig } from "../../src/lib.ts";
 
-import { createTmpEnv, runScript } from "../utils.ts";
+import { createTmpEnv, runScript, createTestConfig } from "../utils.ts";
 
 vi.mock("../../src/git-info", () => ({
   GitInfo: {
@@ -40,7 +39,7 @@ describe("pull", () => {
   });
 
   it("pulls image with correct command", async () => {
-    const config = createConfig({
+    const config = createTestConfig({
       envFile: createTmpEnv({
         DOCKER_TAG: "docker.io/kevin-mind/nopo:latest",
       }),

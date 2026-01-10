@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { Runner, createConfig, Logger } from "../src/lib.ts";
+import { Runner, Logger } from "../src/lib.ts";
 import { Environment } from "../src/parse-env.ts";
 import BuildScript from "../src/scripts/build.ts";
 import EnvScript from "../src/scripts/env.ts";
 import UpScript from "../src/scripts/up.ts";
 import CommandScript from "../src/scripts/command.ts";
 import RunScript from "../src/scripts/run.ts";
-import { createTmpEnv } from "./utils.ts";
+import { createTmpEnv, createTestConfig } from "./utils.ts";
 
 describe("Dependency Resolution Algorithm", () => {
   beforeEach(() => {
@@ -15,7 +15,7 @@ describe("Dependency Resolution Algorithm", () => {
 
   describe("shared dependency resolution", () => {
     it("should resolve dependencies for script classes", async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({
           DOCKER_TAG: "kevin-mind/nopo:local",
         }),
@@ -42,7 +42,7 @@ describe("Dependency Resolution Algorithm", () => {
     });
 
     it("should resolve nested dependencies", async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({
           DOCKER_TAG: "kevin-mind/nopo:local",
         }),
@@ -68,7 +68,7 @@ describe("Dependency Resolution Algorithm", () => {
 
     it("should only execute enabled dependencies", async () => {
       // Dependencies with enabled: false should be skipped
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({
           DOCKER_TAG: "kevin-mind/nopo:local",
         }),

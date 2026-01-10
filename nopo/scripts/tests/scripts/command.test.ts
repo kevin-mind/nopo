@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import CommandScript from "../../src/scripts/command.ts";
-import { Runner, createConfig, Logger, exec } from "../../src/lib.ts";
+import { Runner, Logger, exec } from "../../src/lib.ts";
 import { Environment } from "../../src/parse-env.ts";
-import { createTmpEnv } from "../utils.ts";
+import { createTmpEnv, createTestConfig } from "../utils.ts";
 
 // Mock the exec function
 vi.mock("../../src/lib.ts", async (importOriginal) => {
@@ -20,7 +20,7 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
 
   describe("parseArgs", () => {
     it("should parse command with target: nopo build web", async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({}),
       });
       const logger = new Logger(config);
@@ -39,7 +39,7 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
     });
 
     it("should parse command without targets", async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({}),
       });
       const logger = new Logger(config);
@@ -58,7 +58,7 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
     });
 
     it("should parse command with subcommand and target: nopo fix py web", async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({}),
       });
       const logger = new Logger(config);
@@ -83,7 +83,7 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
     });
 
     it("should parse command with subcommand only: nopo fix py", async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({}),
       });
       const logger = new Logger(config);
@@ -102,7 +102,7 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
     });
 
     it("should validate targets", async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({}),
       });
       const logger = new Logger(config);
@@ -122,7 +122,7 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
     });
 
     it("should parse multiple targets: nopo build backend web", async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({}),
       });
       const logger = new Logger(config);
@@ -157,7 +157,7 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
 
   describe("execution", () => {
     it("should execute command on target service", async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({}),
         silent: true,
       });
@@ -182,7 +182,7 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
     });
 
     it("should execute command on multiple targets", async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({}),
         silent: true,
       });
@@ -205,7 +205,7 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
     });
 
     it("should throw error for undefined command", async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({}),
         silent: true,
       });
@@ -229,7 +229,7 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
 
   describe("subcommand detection", () => {
     it("should detect known subcommand: nopo fix py", async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({}),
         silent: true,
       });
@@ -244,7 +244,7 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
     });
 
     it("should detect known subcommand with target: nopo fix py backend", async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({}),
         silent: true,
       });
@@ -264,7 +264,7 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
     });
 
     it("should treat unknown arg as target when it's a valid service", async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({}),
         silent: true,
       });

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { createTmpEnv } from "./utils.ts";
+import { createTmpEnv, PROJECT_ROOT } from "./utils.ts";
 
 // Mock docker-compose before importing anything that uses it
 vi.mock("docker-compose", () => ({
@@ -81,6 +81,7 @@ describe("CLI Routing", () => {
       const argv = ["node", "nopo"];
       const env = {
         ENV_FILE: createTmpEnv({}),
+        ROOT_DIR: PROJECT_ROOT,
       };
 
       await main(argv, env);
@@ -99,6 +100,7 @@ describe("CLI Routing", () => {
       const argv = ["node", "nopo", "help"];
       const env = {
         ENV_FILE: createTmpEnv({}),
+        ROOT_DIR: PROJECT_ROOT,
       };
 
       await main(argv, env);
@@ -113,6 +115,7 @@ describe("CLI Routing", () => {
       const argv = ["node", "nopo", "--help"];
       const env = {
         ENV_FILE: createTmpEnv({}),
+        ROOT_DIR: PROJECT_ROOT,
       };
 
       await main(argv, env);
@@ -128,6 +131,7 @@ describe("CLI Routing", () => {
         ENV_FILE: createTmpEnv({
           DOCKER_TAG: "kevin-mind/nopo:local",
         }),
+        ROOT_DIR: PROJECT_ROOT,
       };
 
       await main(argv, env);
@@ -147,6 +151,7 @@ describe("CLI Routing", () => {
         ENV_FILE: createTmpEnv({
           DOCKER_TAG: "kevin-mind/nopo:local",
         }),
+        ROOT_DIR: PROJECT_ROOT,
       };
 
       await main(argv, env);
@@ -165,6 +170,7 @@ describe("CLI Routing", () => {
         ENV_FILE: createTmpEnv({
           DOCKER_TAG: "kevin-mind/nopo:local",
         }),
+        ROOT_DIR: PROJECT_ROOT,
       };
 
       await main(argv, env);
@@ -181,6 +187,7 @@ describe("CLI Routing", () => {
       const argv = ["node", "nopo", "lint", "help"];
       const env = {
         ENV_FILE: createTmpEnv({}),
+        ROOT_DIR: PROJECT_ROOT,
       };
 
       await main(argv, env);
@@ -201,6 +208,7 @@ describe("CLI Routing", () => {
         ENV_FILE: createTmpEnv({
           DOCKER_TAG: "kevin-mind/nopo:local",
         }),
+        ROOT_DIR: PROJECT_ROOT,
       };
 
       // Currently: Routes to BuildScript correctly
@@ -216,6 +224,7 @@ describe("CLI Routing", () => {
         ENV_FILE: createTmpEnv({
           DOCKER_TAG: "kevin-mind/nopo:local",
         }),
+        ROOT_DIR: PROJECT_ROOT,
       };
 
       // Should route to up script, not arbitrary command
@@ -227,6 +236,7 @@ describe("CLI Routing", () => {
       const argv = ["node", "nopo", "down"];
       const env = {
         ENV_FILE: createTmpEnv({}),
+        ROOT_DIR: PROJECT_ROOT,
       };
 
       // Should route to down script
@@ -237,6 +247,7 @@ describe("CLI Routing", () => {
       const argv = ["node", "nopo", "status"];
       const env = {
         ENV_FILE: createTmpEnv({}),
+        ROOT_DIR: PROJECT_ROOT,
       };
 
       // Should route to status script
@@ -249,6 +260,7 @@ describe("CLI Routing", () => {
       const argv = ["node", "nopo", "undefined-command"];
       const env = {
         ENV_FILE: createTmpEnv({}),
+        ROOT_DIR: PROJECT_ROOT,
       };
       const result = await main(argv, env);
       expect(result).toBeUndefined();
@@ -260,6 +272,7 @@ describe("CLI Routing", () => {
       const argv = ["node", "nopo", "test", "web"];
       const env = {
         ENV_FILE: createTmpEnv({}),
+        ROOT_DIR: PROJECT_ROOT,
       };
 
       // test is defined in web's nopo.yml
@@ -270,6 +283,7 @@ describe("CLI Routing", () => {
       const argv = ["node", "nopo", "run", "lint"];
       const env = {
         ENV_FILE: createTmpEnv({}),
+        ROOT_DIR: PROJECT_ROOT,
       };
 
       // Expected: Should route to RunScript for container execution
@@ -281,6 +295,7 @@ describe("CLI Routing", () => {
       const argv = ["node", "nopo", "run", "lint", "web"];
       const env = {
         ENV_FILE: createTmpEnv({}),
+        ROOT_DIR: PROJECT_ROOT,
       };
 
       // Expected: Should route to RunScript with script="lint", targets=["web"]
@@ -297,6 +312,7 @@ describe("CLI Routing", () => {
         ENV_FILE: createTmpEnv({
           DOCKER_TAG: "kevin-mind/nopo:local",
         }),
+        ROOT_DIR: PROJECT_ROOT,
       };
 
       // Should route to BuildScript, not IndexScript
@@ -307,6 +323,7 @@ describe("CLI Routing", () => {
       const argv = ["node", "nopo", "run", "test"];
       const env = {
         ENV_FILE: createTmpEnv({}),
+        ROOT_DIR: PROJECT_ROOT,
       };
 
       // 'run' should route to RunScript for container execution

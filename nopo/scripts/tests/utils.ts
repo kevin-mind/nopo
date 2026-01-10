@@ -1,3 +1,5 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { DockerTag } from "../src/docker-tag.ts";
 import {
   Runner,
@@ -8,6 +10,18 @@ import {
   dotenv,
 } from "../src/lib.ts";
 import { Environment } from "../src/parse-env.ts";
+
+// Project root is 3 levels up from this file (tests/utils.ts -> scripts -> nopo -> project root)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+export const PROJECT_ROOT = path.resolve(__dirname, "..", "..", "..");
+
+export function createTestConfig(options: Parameters<typeof createConfig>[0] = {}) {
+  return createConfig({
+    rootDir: PROJECT_ROOT,
+    ...options,
+  });
+}
 
 export const dockerTag = new DockerTag({
   registry: "docker.io",

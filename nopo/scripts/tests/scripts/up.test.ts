@@ -3,8 +3,8 @@ import compose from "docker-compose";
 import UpScript from "../../src/scripts/up.ts";
 import BuildScript from "../../src/scripts/build.ts";
 import PullScript from "../../src/scripts/pull.ts";
-import { createConfig, Runner } from "../../src/lib.ts";
-import { createTmpEnv, runScript } from "../utils.ts";
+import { Runner } from "../../src/lib.ts";
+import { createTmpEnv, runScript, createTestConfig } from "../utils.ts";
 import { Environment } from "../../src/parse-env.ts";
 
 vi.mock("../../src/scripts/build");
@@ -50,7 +50,7 @@ vi.mock("node:net", () => ({
 describe("up", () => {
   it("spins down services when image matches DOCKER_TAG", async () => {
     const localTag = "kevin-mind/nopo:local";
-    const config = createConfig({
+    const config = createTestConfig({
       envFile: createTmpEnv({
         DOCKER_TAG: localTag,
       }),
@@ -83,7 +83,7 @@ describe("up", () => {
     });
   });
   it("spins up all services", async () => {
-    const config = createConfig({
+    const config = createTestConfig({
       envFile: createTmpEnv(),
       silent: true,
     });
@@ -98,7 +98,7 @@ describe("up", () => {
 
   describe("dependencies", () => {
     it("has build dependency enabled for local images", async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv(),
         processEnv: {
           DOCKER_TAG: "local",
@@ -110,7 +110,7 @@ describe("up", () => {
     });
 
     it("has pull dependency enabled for remote images", async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv(),
         processEnv: {
           DOCKER_TAG: "kevin-mind/nopo:1.0.0",

@@ -240,6 +240,7 @@ export default async function main(
   const config: Config = createConfig({
     envFile: _env.ENV_FILE || undefined,
     silent: isSilentOutput,
+    rootDir: _env.ROOT_DIR || undefined,
   });
   const logger = new Logger(config);
   const environment = new Environment(config);

@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import RunScript from "../../src/scripts/run.ts";
-import { Runner, createConfig, Logger } from "../../src/lib.ts";
+import { Runner, Logger } from "../../src/lib.ts";
 import { Environment } from "../../src/parse-env.ts";
-import { createTmpEnv } from "../utils.ts";
+import { createTmpEnv, createTestConfig } from "../utils.ts";
 
 describe("run command (RunScript)", () => {
   beforeEach(() => {
@@ -16,7 +16,7 @@ describe("run command (RunScript)", () => {
     });
 
     it("should parse run command with command and targets", async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({}),
       });
       const logger = new Logger(config);
@@ -34,7 +34,7 @@ describe("run command (RunScript)", () => {
     });
 
     it("should parse run command with command only", async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({}),
       });
       const logger = new Logger(config);
@@ -47,7 +47,7 @@ describe("run command (RunScript)", () => {
     });
 
     it("should handle filter option", async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({}),
       });
       const logger = new Logger(config);
@@ -66,7 +66,7 @@ describe("run command (RunScript)", () => {
     });
 
     it("should parse subcommand correctly", async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({}),
       });
       const logger = new Logger(config);
@@ -87,7 +87,7 @@ describe("run command (RunScript)", () => {
 
   describe("target resolution", () => {
     it("should extract targets from positionals", async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({}),
       });
       const logger = new Logger(config);
@@ -104,7 +104,7 @@ describe("run command (RunScript)", () => {
     });
 
     it("should return empty targets when none specified", async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({}),
       });
       const logger = new Logger(config);
@@ -118,7 +118,7 @@ describe("run command (RunScript)", () => {
 
   describe("error handling", () => {
     it("should return empty args when command name is missing", async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({}),
       });
       const logger = new Logger(config);
@@ -132,7 +132,7 @@ describe("run command (RunScript)", () => {
     });
 
     it("should validate targets against available list", async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({}),
       });
       const logger = new Logger(config);

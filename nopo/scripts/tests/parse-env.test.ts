@@ -1,8 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 
 import { Environment } from "../src/parse-env.ts";
-import { dockerTag, createTmpEnv } from "./utils.ts";
-import { createConfig } from "../src/lib.ts";
+import { dockerTag, createTmpEnv, createTestConfig } from "./utils.ts";
 
 vi.mock("../src/git-info", () => ({
   GitInfo: {
@@ -27,7 +26,7 @@ vi.mock("node:net", () => ({
 
 describe("parseEnv", () => {
   it("should parse the env", () => {
-    const config = createConfig({
+    const config = createTestConfig({
       envFile: createTmpEnv(),
       processEnv: {},
       silent: true,
@@ -43,7 +42,7 @@ describe("parseEnv", () => {
   });
 
   it("should override from file", () => {
-    const config = createConfig({
+    const config = createTestConfig({
       envFile: createTmpEnv({
         NODE_ENV: "production",
       }),
@@ -55,7 +54,7 @@ describe("parseEnv", () => {
   });
 
   it("should override from process", () => {
-    const config = createConfig({
+    const config = createTestConfig({
       envFile: createTmpEnv({
         NODE_ENV: "production",
       }),
@@ -69,7 +68,7 @@ describe("parseEnv", () => {
   });
 
   it("rejects invalid NODE_ENV", () => {
-    const config = createConfig({
+    const config = createTestConfig({
       envFile: createTmpEnv({
         NODE_ENV: "invalid",
       }),
@@ -80,7 +79,7 @@ describe("parseEnv", () => {
   });
 
   it("rejects invalid DOCKER_TARGET", () => {
-    const config = createConfig({
+    const config = createTestConfig({
       envFile: createTmpEnv({
         DOCKER_TARGET: "invalid",
       }),
@@ -91,7 +90,7 @@ describe("parseEnv", () => {
   });
 
   it("should use provided DOCKER_TAG if present", () => {
-    const config = createConfig({
+    const config = createTestConfig({
       envFile: createTmpEnv({
         DOCKER_TAG: dockerTag.fullTag,
       }),
@@ -106,7 +105,7 @@ describe("parseEnv", () => {
   });
 
   it("should construct tag from components if DOCKER_TAG not present", () => {
-    const config = createConfig({
+    const config = createTestConfig({
       envFile: createTmpEnv({
         DOCKER_REGISTRY: dockerTag.parsed.registry,
         DOCKER_IMAGE: dockerTag.parsed.image,
@@ -121,7 +120,7 @@ describe("parseEnv", () => {
   });
 
   it("should ignore empty DOCKER_TAG when components are provided", async () => {
-    const config = createConfig({
+    const config = createTestConfig({
       envFile: createTmpEnv({
         DOCKER_TAG: "",
         DOCKER_REGISTRY: dockerTag.parsed.registry,
@@ -137,7 +136,7 @@ describe("parseEnv", () => {
   });
 
   it("should use base tag when no docker config provided", () => {
-    const config = createConfig({
+    const config = createTestConfig({
       envFile: createTmpEnv(),
       processEnv: {},
       silent: true,
@@ -147,7 +146,7 @@ describe("parseEnv", () => {
   });
 
   it("should force production target for non-local image", () => {
-    const config = createConfig({
+    const config = createTestConfig({
       envFile: createTmpEnv({
         DOCKER_TAG: "docker.io/base/repo:1.0.0",
         DOCKER_TARGET: "development",
@@ -160,7 +159,7 @@ describe("parseEnv", () => {
   });
 
   it("should also force NODE_ENV to production for non-local image", () => {
-    const config = createConfig({
+    const config = createTestConfig({
       envFile: createTmpEnv({
         DOCKER_TAG: "docker.io/base/repo:1.0.0",
         NODE_ENV: "development",
@@ -175,7 +174,7 @@ describe("parseEnv", () => {
   it.each(["development", "production"])(
     "should allow either target for local image",
     (target) => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({
           DOCKER_TAG: "docker.io/base/repo:local",
           DOCKER_TARGET: target,
@@ -191,7 +190,7 @@ describe("parseEnv", () => {
   it.each(["development", "production"])(
     "should preserve NODE_ENV for local image (%s)",
     (nodeEnv) => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({
           DOCKER_TAG: "base/repo:local",
           NODE_ENV: nodeEnv,
@@ -205,7 +204,7 @@ describe("parseEnv", () => {
   );
 
   it("should throw error when digest provided without version", () => {
-    const config = createConfig({
+    const config = createTestConfig({
       envFile: createTmpEnv({
         DOCKER_TAG: `${dockerTag.parsed.digest}`,
       }),
@@ -218,7 +217,7 @@ describe("parseEnv", () => {
   });
 
   it("should handle version-only input correctly", () => {
-    const config = createConfig({
+    const config = createTestConfig({
       envFile: createTmpEnv({
         DOCKER_TAG: "3.0.0",
       }),
@@ -230,7 +229,7 @@ describe("parseEnv", () => {
   });
 
   it("should handle version and digest input correctly", () => {
-    const config = createConfig({
+    const config = createTestConfig({
       envFile: createTmpEnv({
         DOCKER_TAG: `1.0.0@${dockerTag.parsed.digest}`,
       }),
@@ -244,7 +243,7 @@ describe("parseEnv", () => {
   });
 
   it("should handle image-only input correctly", () => {
-    const config = createConfig({
+    const config = createTestConfig({
       envFile: createTmpEnv({
         DOCKER_TAG: "custom/image:1.0.0",
       }),
@@ -256,7 +255,7 @@ describe("parseEnv", () => {
   });
 
   it("should handle basic image:tag input correctly", () => {
-    const config = createConfig({
+    const config = createTestConfig({
       envFile: createTmpEnv({
         DOCKER_TAG: "nginx:latest",
       }),
@@ -271,7 +270,7 @@ describe("parseEnv", () => {
   });
 
   it("should handle image:tag@digest input correctly", () => {
-    const config = createConfig({
+    const config = createTestConfig({
       envFile: createTmpEnv({
         DOCKER_TAG: `nginx:latest@${dockerTag.parsed.digest}`,
       }),
@@ -287,7 +286,7 @@ describe("parseEnv", () => {
   });
 
   it("should throw an error for an invalid tag format", () => {
-    const config = createConfig({
+    const config = createTestConfig({
       envFile: createTmpEnv({
         DOCKER_TAG: "invalid:tag:format:with:many:colons",
       }),
@@ -300,7 +299,7 @@ describe("parseEnv", () => {
   describe("processEnv overrides", () => {
     describe("DOCKER_TAG takes precedence", () => {
       it("processEnv DOCKER_TAG overrides cached DOCKER_TAG from file", () => {
-        const config = createConfig({
+        const config = createTestConfig({
           envFile: createTmpEnv({
             DOCKER_TAG: "cached/image:old-version",
           }),
@@ -316,7 +315,7 @@ describe("parseEnv", () => {
       });
 
       it("processEnv DOCKER_TAG overrides all component values from file", () => {
-        const config = createConfig({
+        const config = createTestConfig({
           envFile: createTmpEnv({
             DOCKER_REGISTRY: "old.registry.io",
             DOCKER_IMAGE: "old/image",
@@ -337,7 +336,7 @@ describe("parseEnv", () => {
 
     describe("individual component overrides", () => {
       it("processEnv DOCKER_VERSION alone overrides cached DOCKER_TAG", () => {
-        const config = createConfig({
+        const config = createTestConfig({
           envFile: createTmpEnv({
             DOCKER_TAG: "kevin-mind/nopo:cached-version",
           }),
@@ -353,7 +352,7 @@ describe("parseEnv", () => {
       });
 
       it("processEnv DOCKER_IMAGE alone overrides cached DOCKER_TAG", () => {
-        const config = createConfig({
+        const config = createTestConfig({
           envFile: createTmpEnv({
             DOCKER_TAG: "old/image:cached-version",
           }),
@@ -369,7 +368,7 @@ describe("parseEnv", () => {
       });
 
       it("processEnv DOCKER_REGISTRY alone overrides cached DOCKER_TAG", () => {
-        const config = createConfig({
+        const config = createTestConfig({
           envFile: createTmpEnv({
             DOCKER_TAG: "old.registry.io/image:version",
           }),
@@ -386,7 +385,7 @@ describe("parseEnv", () => {
       });
 
       it("processEnv DOCKER_VERSION overrides component from file", () => {
-        const config = createConfig({
+        const config = createTestConfig({
           envFile: createTmpEnv({
             DOCKER_IMAGE: "cached/image",
             DOCKER_VERSION: "cached-version",
@@ -403,7 +402,7 @@ describe("parseEnv", () => {
       });
 
       it("processEnv DOCKER_IMAGE overrides component from file", () => {
-        const config = createConfig({
+        const config = createTestConfig({
           envFile: createTmpEnv({
             DOCKER_IMAGE: "cached/image",
             DOCKER_VERSION: "cached-version",
@@ -420,7 +419,7 @@ describe("parseEnv", () => {
       });
 
       it("processEnv DOCKER_REGISTRY overrides component from file", () => {
-        const config = createConfig({
+        const config = createTestConfig({
           envFile: createTmpEnv({
             DOCKER_REGISTRY: "old.registry.io",
             DOCKER_IMAGE: "image",
@@ -439,7 +438,7 @@ describe("parseEnv", () => {
 
     describe("multiple component overrides", () => {
       it("processEnv DOCKER_VERSION and DOCKER_IMAGE override cached DOCKER_TAG", () => {
-        const config = createConfig({
+        const config = createTestConfig({
           envFile: createTmpEnv({
             DOCKER_TAG: "old.registry.io/old/image:old-version",
           }),
@@ -457,7 +456,7 @@ describe("parseEnv", () => {
       });
 
       it("processEnv all components override cached DOCKER_TAG", () => {
-        const config = createConfig({
+        const config = createTestConfig({
           envFile: createTmpEnv({
             DOCKER_TAG: "old.registry.io/old/image:old-version",
           }),
@@ -478,7 +477,7 @@ describe("parseEnv", () => {
       it("processEnv components with digest", () => {
         const digest =
           "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
-        const config = createConfig({
+        const config = createTestConfig({
           envFile: createTmpEnv({
             DOCKER_TAG: "old/image:old-version",
           }),
@@ -497,7 +496,7 @@ describe("parseEnv", () => {
 
     describe("no cached values (fresh environment)", () => {
       it("processEnv DOCKER_VERSION alone uses base image", () => {
-        const config = createConfig({
+        const config = createTestConfig({
           envFile: createTmpEnv({}),
           processEnv: {
             DOCKER_VERSION: "my-version",
@@ -511,7 +510,7 @@ describe("parseEnv", () => {
       });
 
       it("processEnv DOCKER_IMAGE alone uses local version", () => {
-        const config = createConfig({
+        const config = createTestConfig({
           envFile: createTmpEnv({}),
           processEnv: {
             DOCKER_IMAGE: "custom/image",
@@ -525,7 +524,7 @@ describe("parseEnv", () => {
       });
 
       it("processEnv DOCKER_REGISTRY alone uses base defaults", () => {
-        const config = createConfig({
+        const config = createTestConfig({
           envFile: createTmpEnv({}),
           processEnv: {
             DOCKER_REGISTRY: "my.registry.io",
@@ -542,7 +541,7 @@ describe("parseEnv", () => {
 
     describe("edge cases", () => {
       it("empty string processEnv values are ignored", () => {
-        const config = createConfig({
+        const config = createTestConfig({
           envFile: createTmpEnv({
             DOCKER_TAG: "cached/image:cached-version",
           }),
@@ -556,7 +555,7 @@ describe("parseEnv", () => {
       });
 
       it("DOCKER_TAG in processEnv takes precedence over other processEnv components", () => {
-        const config = createConfig({
+        const config = createTestConfig({
           envFile: createTmpEnv({}),
           processEnv: {
             DOCKER_TAG: "tag/wins:always",
