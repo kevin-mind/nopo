@@ -445,12 +445,12 @@ jobs:
           domain: ${{ vars.DOMAIN }}
           subdomain_prefix: ${{ needs.context.outputs.subdomain_prefix }}
           terraform_state_bucket: ${{ vars.TERRAFORM_STATE_BUCKET }}
-          # Stable now gets new images
-          stable_backend_image: ${{ needs.get_current_state.outputs.new_backend_image }}
-          stable_web_image: ${{ needs.get_current_state.outputs.new_web_image }}
+          # Promote: stable gets the canary images (which are the new version)
+          stable_backend_image: ${{ needs.get_current_state.outputs.canary_backend_image }}
+          stable_web_image: ${{ needs.get_current_state.outputs.canary_web_image }}
           # Canary stays same
-          canary_backend_image: ${{ needs.get_current_state.outputs.new_backend_image }}
-          canary_web_image: ${{ needs.get_current_state.outputs.new_web_image }}
+          canary_backend_image: ${{ needs.get_current_state.outputs.canary_backend_image }}
+          canary_web_image: ${{ needs.get_current_state.outputs.canary_web_image }}
           # DB
           supabase_database_url: ${{ secrets.SUPABASE_DATABASE_URL }}
 
