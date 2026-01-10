@@ -5,7 +5,7 @@ import BuildScript from "../src/scripts/build.ts";
 import EnvScript from "../src/scripts/env.ts";
 import UpScript from "../src/scripts/up.ts";
 import CommandScript from "../src/scripts/command.ts";
-import RunScript from "../src/scripts/run.ts";
+import PullScript from "../src/scripts/pull.ts";
 import { createTmpEnv, createTestConfig } from "./utils.ts";
 
 describe("Dependency Resolution Algorithm", () => {
@@ -91,32 +91,26 @@ describe("Dependency Resolution Algorithm", () => {
     });
   });
 
-  describe("dependency resolution for host execution", () => {
-    it("should only have EnvScript dependency for arbitrary commands on host", async () => {
-      // CommandScript (catch-all) should only have EnvScript dependency
-      expect(CommandScript.dependencies).toHaveLength(1);
+  describe("dependency resolution for unified command execution", () => {
+    it("should have EnvScript, BuildScript, and PullScript dependencies", async () => {
+      // CommandScript should have EnvScript (always enabled) and
+      // conditional BuildScript/PullScript dependencies for container execution
+      expect(CommandScript.dependencies).toHaveLength(3);
       expect(CommandScript.dependencies[0]?.class).toBe(EnvScript);
       expect(CommandScript.dependencies[0]?.enabled).toBe(true);
-    });
-  });
-
-  describe("dependency resolution for container execution", () => {
-    it("should have full dependencies for arbitrary commands in containers", async () => {
-      // RunScript should have env, build, pull dependencies
-      expect(RunScript.dependencies.length).toBeGreaterThan(1);
-      expect(
-        RunScript.dependencies.some(
-          (d: { class: { name: string } }) => d.class.name === "env",
-        ),
-      ).toBe(true);
+      expect(CommandScript.dependencies[1]?.class).toBe(BuildScript);
+      expect(typeof CommandScript.dependencies[1]?.enabled).toBe("function");
+      expect(CommandScript.dependencies[2]?.class).toBe(PullScript);
+      expect(typeof CommandScript.dependencies[2]?.enabled).toBe("function");
     });
 
-    it("should conditionally enable build/pull based on service state", async () => {
-      // RunScript should have conditional dependencies (functions, not just booleans)
-      const conditionalDeps = RunScript.dependencies.filter(
+    it("should conditionally enable build/pull based on context and service state", async () => {
+      // CommandScript should have conditional dependencies (functions, not just booleans)
+      const conditionalDeps = CommandScript.dependencies.filter(
         (dep: { enabled: unknown }) => typeof dep.enabled === "function",
       );
-      expect(conditionalDeps.length).toBeGreaterThan(0);
+      // BuildScript and PullScript are conditionally enabled
+      expect(conditionalDeps.length).toBe(2);
     });
   });
 

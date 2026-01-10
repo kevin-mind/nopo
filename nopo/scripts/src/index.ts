@@ -17,7 +17,6 @@ import Down from "./scripts/down.ts";
 import Env from "./scripts/env.ts";
 import List from "./scripts/list.ts";
 import Pull from "./scripts/pull.ts";
-import Run from "./scripts/run.ts";
 import Status from "./scripts/status.ts";
 import Up from "./scripts/up.ts";
 
@@ -28,7 +27,6 @@ const scripts: Record<string, typeof Script> = {
   env: Env,
   list: List,
   pull: Pull,
-  run: Run,
   status: Status,
   up: Up,
 };

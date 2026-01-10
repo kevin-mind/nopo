@@ -147,11 +147,18 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
   });
 
   describe("dependencies", () => {
-    it("should only have EnvScript dependency for host execution", async () => {
-      // CommandScript (catch-all) should only depend on EnvScript
-      expect(CommandScript.dependencies).toHaveLength(1);
+    it("should have EnvScript, BuildScript, and PullScript dependencies", async () => {
+      // CommandScript has 3 dependencies:
+      // - EnvScript (always enabled)
+      // - BuildScript (conditionally enabled for container execution)
+      // - PullScript (conditionally enabled for container execution)
+      expect(CommandScript.dependencies).toHaveLength(3);
       expect(CommandScript.dependencies[0]?.class.name).toBe("env");
       expect(CommandScript.dependencies[0]?.enabled).toBe(true);
+      expect(CommandScript.dependencies[1]?.class.name).toBe("build");
+      expect(typeof CommandScript.dependencies[1]?.enabled).toBe("function");
+      expect(CommandScript.dependencies[2]?.class.name).toBe("pull");
+      expect(typeof CommandScript.dependencies[2]?.enabled).toBe("function");
     });
   });
 

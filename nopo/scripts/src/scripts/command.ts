@@ -1,4 +1,5 @@
 import path from "node:path";
+import compose from "docker-compose";
 import {
   TargetScript,
   type ScriptDependency,
@@ -8,6 +9,9 @@ import {
   minimist,
 } from "../lib.ts";
 import EnvScript from "./env.ts";
+import BuildScript from "./build.ts";
+import PullScript from "./pull.ts";
+import { isBuild, isPull } from "./up.ts";
 import {
   validateCommandTargets,
   buildExecutionPlan,
@@ -19,6 +23,30 @@ import {
   type FilterExpression,
   type FilterContext,
 } from "../filter.ts";
+import type { CommandContext } from "../config/index.ts";
+
+/**
+ * Check if any target container is down.
+ */
+async function hasDownContainer(runner: Runner, targets: string[]): Promise<boolean> {
+  if (targets.length === 0) return false;
+
+  const { data } = await compose.ps({
+    cwd: runner.config.root,
+  });
+
+  for (const target of targets) {
+    const service = data.services.find((service: { name: string }) =>
+      service.name.includes(target),
+    );
+    // If the service is not found or is not "up" then it is down
+    if (!service?.state?.toLowerCase().includes("up")) {
+      return true;
+    }
+  }
+
+  return false;
+}
 
 type CommandScriptArgs = {
   command: string;
@@ -27,7 +55,36 @@ type CommandScriptArgs = {
   filters: FilterExpression[];
   since?: string;
   explicitTargets: boolean;
+  contextOverride?: CommandContext; // CLI override for execution context
 };
+
+/**
+ * Check if any task will execute in container context.
+ * This is used to determine if we need to build/pull images.
+ */
+function willExecuteInContainer(
+  runner: Runner,
+  args: CommandScriptArgs,
+): boolean {
+  // If explicit CLI override to host, no container execution
+  if (args.contextOverride === "host") return false;
+
+  // If explicit CLI override to container, yes container execution
+  if (args.contextOverride === "container") return true;
+
+  // Check if any command has context: container configured
+  const project = runner.config.project;
+  const rootCommand = args.command.split(":")[0];
+  if (!rootCommand) return false;
+
+  for (const serviceId of args.targets) {
+    const service = project.services.entries[serviceId];
+    const cmd = service?.commands[rootCommand];
+    if (cmd?.context === "container") return true;
+  }
+
+  return false;
+}
 
 export default class CommandScript extends TargetScript<CommandScriptArgs> {
   static override name = "";
@@ -36,6 +93,24 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
     {
       class: EnvScript,
       enabled: true,
+    },
+    {
+      class: BuildScript,
+      enabled: async (runner) => {
+        const args = CommandScript.parseArgs(runner, false);
+        if (args.targets.length === 0) return false;
+        if (!willExecuteInContainer(runner, args)) return false;
+        return (await hasDownContainer(runner, args.targets)) && isBuild(runner);
+      },
+    },
+    {
+      class: PullScript,
+      enabled: async (runner) => {
+        const args = CommandScript.parseArgs(runner, false);
+        if (args.targets.length === 0) return false;
+        if (!willExecuteInContainer(runner, args)) return false;
+        return (await hasDownContainer(runner, args.targets)) && isPull(runner);
+      },
     },
   ];
 
@@ -58,11 +133,21 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
     const remaining = argv.slice(1);
     const availableTargets = runner.config.targets;
 
-    // Parse with minimist to extract --filter and --since options
+    // Parse with minimist to extract --filter, --since, and --context options
     const parsed = minimist(remaining, {
-      string: ["filter", "since"],
+      string: ["filter", "since", "context"],
       alias: { F: "filter" },
     });
+
+    // Parse context override
+    let contextOverride: CommandContext | undefined;
+    if (parsed.context === "host" || parsed.context === "container") {
+      contextOverride = parsed.context;
+    } else if (parsed.context !== undefined) {
+      throw new Error(
+        `Invalid --context value '${parsed.context}'. Must be 'host' or 'container'.`,
+      );
+    }
 
     // Parse filter expressions
     let filters: FilterExpression[] = [];
@@ -165,7 +250,7 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
       targets = filteredTargets;
     }
 
-    return { command, subcommand, targets, filters, since, explicitTargets };
+    return { command, subcommand, targets, filters, since, explicitTargets, contextOverride };
   }
 
   /**
@@ -237,14 +322,15 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
       );
 
       // Run all commands in this stage in parallel
-      await Promise.all(stage.map((task) => this.#executeTask(task)));
+      await Promise.all(stage.map((task) => this.#executeTask(task, args.contextOverride)));
     }
   }
 
   /**
-   * Execute a single task (resolved command)
+   * Execute a single task (resolved command).
+   * Routes to host or container execution based on context.
    */
-  async #executeTask(task: ResolvedCommand): Promise<void> {
+  async #executeTask(task: ResolvedCommand, contextOverride?: CommandContext): Promise<void> {
     const service = this.runner.config.project.services.entries[task.service];
     if (!service) {
       throw new Error(`Service '${task.service}' not found`);
@@ -254,17 +340,28 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
       throw new Error(`Empty command for ${task.service}:${task.command}`);
     }
 
+    // Determine effective context: CLI override > task config > default (host)
+    const effectiveContext = contextOverride ?? task.context ?? "host";
+
+    if (effectiveContext === "container") {
+      await this.#executeInContainer(task, service.paths.root);
+    } else {
+      await this.#executeOnHost(task, service.paths.root);
+    }
+  }
+
+  /**
+   * Execute a task on the host machine.
+   */
+  async #executeOnHost(task: ResolvedCommand, serviceRoot: string): Promise<void> {
     // Resolve working directory
-    const cwd = this.#resolveWorkingDirectory(task, service.paths.root);
+    const cwd = this.#resolveWorkingDirectory(task, serviceRoot);
 
     // Merge environment variables: base env + task-specific env
     const taskEnv = task.env ? { ...this.env, ...task.env } : this.env;
 
     // Create a prefixed logger for this task
-    const commandPath = task.subcommand
-      ? `${task.command}:${task.subcommand}`
-      : task.command;
-    const logPrefix = `${task.service}:${commandPath}`;
+    const logPrefix = `${task.service}:${task.command}`;
 
     // Log that we're starting this task
     this.log(`[${logPrefix}] ${task.executable}`);
@@ -279,7 +376,42 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
   }
 
   /**
-   * Resolve the working directory for a task.
+   * Execute a task in a Docker container.
+   */
+  async #executeInContainer(task: ResolvedCommand, serviceRoot: string): Promise<void> {
+    // Create a prefixed logger for this task
+    const logPrefix = `${task.service}:${task.command}`;
+
+    // Merge environment variables: base env + task-specific env
+    const taskEnv = task.env ? { ...this.env, ...task.env } : this.env;
+
+    // Resolve working directory for the container (always set, default to service root)
+    const containerWorkdir = this.#resolveContainerWorkdir(task, serviceRoot);
+
+    // Build and log the full docker compose command
+    const commandOptions = ["--rm", "--remove-orphans", "--workdir", containerWorkdir];
+    const composeCmd = [
+      "docker compose",
+      "run",
+      ...commandOptions,
+      task.service,
+      "sh",
+      "-c",
+      `"${task.executable}"`,
+    ].join(" ");
+    this.log(`[${logPrefix}] ${composeCmd}`);
+
+    // Execute the command in the container through a shell
+    await compose.run(task.service, ["sh", "-c", task.executable], {
+      cwd: this.runner.config.root,
+      callback: createLogger(logPrefix, "cyan"),
+      commandOptions,
+      env: taskEnv,
+    });
+  }
+
+  /**
+   * Resolve the working directory for a host task.
    * - undefined: use service root (default)
    * - "root": use project root
    * - absolute path: use as-is
@@ -305,5 +437,49 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
 
     // Relative path: resolve relative to service root
     return path.resolve(serviceRoot, dir);
+  }
+
+  /**
+   * Resolve the working directory for a container task.
+   * Converts host paths to container paths.
+   * - undefined: use service root (default)
+   * - "root": use project root
+   * - absolute path: use as-is (assumed to be container path)
+   * - relative path: resolve relative to service root
+   */
+  #resolveContainerWorkdir(task: ResolvedCommand, serviceRoot: string): string {
+    const dir = task.dir;
+    const hostRoot = this.runner.config.root;
+    // Container mount point - project is mounted at /app
+    const containerRoot = "/app";
+
+    // Helper to convert host path to container path
+    const toContainerPath = (hostPath: string): string => {
+      if (hostPath.startsWith(hostRoot)) {
+        const relativePath = path.relative(hostRoot, hostPath);
+        return path.posix.join(containerRoot, relativePath);
+      }
+      // Already a container path or unknown - return as-is
+      return hostPath;
+    };
+
+    // Default: service root
+    if (!dir) {
+      return toContainerPath(serviceRoot);
+    }
+
+    // "root" means project root
+    if (dir === "root") {
+      return containerRoot;
+    }
+
+    // Absolute path starting with container root: use as-is
+    if (dir.startsWith(containerRoot) || dir.startsWith("/")) {
+      return dir;
+    }
+
+    // Relative path: resolve relative to service root, then convert
+    const hostPath = path.resolve(serviceRoot, dir);
+    return toContainerPath(hostPath);
   }
 }

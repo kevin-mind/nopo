@@ -12,3 +12,13 @@ commands:
     commands:
       dev: echo "FIXTURE_COMPLEX_COMPILE_DEV_SUCCESS"
       prod: echo "FIXTURE_COMPLEX_COMPILE_PROD_SUCCESS"
+  # Example command with explicit container context
+  dev:
+    command: echo "FIXTURE_COMPLEX_DEV_SUCCESS"
+    context: container
+  # Example command with subcommands that inherit context
+  lint:
+    context: container
+    commands:
+      py: echo "FIXTURE_COMPLEX_LINT_PY_SUCCESS"
+      js: echo "FIXTURE_COMPLEX_LINT_JS_SUCCESS"
