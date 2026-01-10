@@ -70,6 +70,7 @@ jobs:
 
   build:
     needs: [context, discover]
+    if: ${{ needs.discover.outputs.services != '' }}
     permissions:
       packages: write
       contents: read
@@ -83,6 +84,7 @@ jobs:
 
   test:
     needs: [context, discover]
+    if: ${{ needs.discover.outputs.services_json != '[]' }}
     permissions:
       packages: read
       contents: read
@@ -98,7 +100,8 @@ jobs:
     uses: ./.github/workflows/_test_nopo.yml
 
   smoketest:
-    needs: [context]
+    needs: [context, discover]
+    if: ${{ needs.discover.outputs.services != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
