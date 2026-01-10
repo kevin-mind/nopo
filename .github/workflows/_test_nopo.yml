@@ -55,8 +55,7 @@ jobs:
 
       - uses: ./.github/actions/setup-uv
 
-      - name: Build nopo
-        run: make -C ./nopo/scripts init
+      - uses: ./.github/actions/setup-nopo
 
       - name: Run unit tests
         run: pnpm run --dir ./nopo/scripts test
@@ -70,10 +69,10 @@ jobs:
       matrix:
         test:
           - name: "list services"
-            command: "make list -- --config ./nopo/fixtures/nopo.yml"
+            command: "nopo list --config ./nopo/fixtures/nopo.yml"
             expect: "minimal"
           - name: "list json"
-            command: "make list -- --config ./nopo/fixtures/nopo.yml --json"
+            command: "nopo list --config ./nopo/fixtures/nopo.yml --json"
             expect: "complex"
           - name: "run test minimal"
             command: "nopo run test minimal --config ./nopo/fixtures/nopo.yml"
@@ -94,8 +93,7 @@ jobs:
 
       - uses: ./.github/actions/setup-uv
 
-      - name: Build nopo
-        run: make -C ./nopo/scripts init
+      - uses: ./.github/actions/setup-nopo
 
       - name: Run ${{ matrix.test.name }}
         env:

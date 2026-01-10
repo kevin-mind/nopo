@@ -1,0 +1,14 @@
+name: Setup Nopo CLI
+description: Build and install the nopo CLI globally
+
+runs:
+  using: composite
+  steps:
+    - name: Build nopo
+      shell: bash
+      run: make -C ./nopo/scripts init
+
+    - name: Link nopo globally
+      shell: bash
+      working-directory: ./nopo/scripts
+      run: pnpm link --global
