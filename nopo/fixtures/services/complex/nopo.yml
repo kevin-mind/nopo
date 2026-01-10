@@ -8,10 +8,6 @@ commands:
     commands:
       py: echo "FIXTURE_COMPLEX_CHECK_PY_SUCCESS"
       js: echo "FIXTURE_COMPLEX_CHECK_JS_SUCCESS"
-      types:
-        commands:
-          py: echo "FIXTURE_COMPLEX_CHECK_TYPES_PY_SUCCESS"
-          js: echo "FIXTURE_COMPLEX_CHECK_TYPES_JS_SUCCESS"
   compile:
     commands:
       dev: echo "FIXTURE_COMPLEX_COMPILE_DEV_SUCCESS"

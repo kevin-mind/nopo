@@ -1,8 +1,5 @@
-FROM alpine:3.19
-
-RUN apk add --no-cache bash
-
-WORKDIR /app
+# syntax=docker/dockerfile:1
+FROM base
 
 # Simple marker file to verify build
 RUN echo "FIXTURE_COMPLEX_BUILD_SUCCESS" > /app/build-marker.txt

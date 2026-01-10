@@ -77,6 +77,15 @@ jobs:
           - name: "list dependent"
             command: "nopo list"
             expect: "dependent"
+          - name: "test command"
+            command: "nopo test minimal"
+            expect: "FIXTURE_MINIMAL_TEST_SUCCESS"
+          - name: "check command"
+            command: "nopo check minimal"
+            expect: "FIXTURE_MINIMAL_CHECK_SUCCESS"
+          - name: "subcommand check:py"
+            command: "nopo check py complex"
+            expect: "FIXTURE_COMPLEX_CHECK_PY_SUCCESS"
     steps:
       - uses: actions/checkout@v4
 
