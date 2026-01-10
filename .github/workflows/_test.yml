@@ -58,6 +58,8 @@ jobs:
         run: pnpm run --dir ./nopo/scripts test
 
   test:
+    # Skip if no services to test (empty matrix causes job failure in GHA)
+    if: ${{ inputs.services != '[]' }}
     runs-on: ubuntu-latest
     name: "[${{ matrix.service || 'host' }}] ${{ matrix.command }} (${{ matrix.target }})"
     strategy:
