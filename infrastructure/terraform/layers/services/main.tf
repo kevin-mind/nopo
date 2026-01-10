@@ -37,30 +37,34 @@ locals {
     max_instances = var.environment == "prod" ? 10 : 5
   }
 
-  # Stable slot services
+  # Stable slot services - only include services with images provided
   stable_services = {
-    backend = merge(local.base_config, {
-      image          = var.stable_backend_image
-      has_database   = true
-      run_migrations = true
-    })
-    web = merge(local.base_config, {
-      image  = var.stable_web_image
-      memory = "256Mi"
-    })
+    for service, config in {
+      backend = merge(local.base_config, {
+        image          = var.stable_backend_image
+        has_database   = true
+        run_migrations = true
+      })
+      web = merge(local.base_config, {
+        image  = var.stable_web_image
+        memory = "256Mi"
+      })
+    } : service => config if config.image != null
   }
 
-  # Canary slot services
+  # Canary slot services - only include services with images provided
   canary_services = {
-    backend = merge(local.base_config, {
-      image          = var.canary_backend_image
-      has_database   = true
-      run_migrations = false
-    })
-    web = merge(local.base_config, {
-      image  = var.canary_web_image
-      memory = "256Mi"
-    })
+    for service, config in {
+      backend = merge(local.base_config, {
+        image          = var.canary_backend_image
+        has_database   = true
+        run_migrations = false
+      })
+      web = merge(local.base_config, {
+        image  = var.canary_web_image
+        memory = "256Mi"
+      })
+    } : service => config if config.image != null
   }
 
   # Service routing

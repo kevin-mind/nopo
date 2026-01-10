@@ -7,16 +7,10 @@ on:
         description: 'The full docker tag to test'
         required: true
         type: string
-      filter:
-        description: 'Filter for services (e.g., "changed" to only test changed services)'
-        required: false
+      services:
+        description: 'JSON array of services to test'
+        required: true
         type: string
-        default: ''
-      since:
-        description: 'Git ref to compare against for "changed" filter'
-        required: false
-        type: string
-        default: ''
 
 permissions: {}
 
@@ -25,24 +19,6 @@ defaults:
     shell: bash
 
 jobs:
-  discover:
-    runs-on: ubuntu-latest
-    outputs:
-      services: ${{ steps.services.outputs.services }}
-      count: ${{ steps.services.outputs.count }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Need full history for git diff
-
-      - uses: ./.github/actions/setup-node
-
-      - name: Discover services
-        id: services
-        uses: ./.github/actions/service-names
-        with:
-          filter: ${{ inputs.filter }}
-          since: ${{ inputs.since }}
 
   test_nopo:
     runs-on: ubuntu-latest
@@ -82,14 +58,11 @@ jobs:
         run: pnpm run --dir ./nopo/scripts test
 
   test:
-    needs: [discover]
-    # Skip if no services match the filter
-    if: needs.discover.outputs.count != '0'
     runs-on: ubuntu-latest
     name: "[${{ matrix.service || 'host' }}] ${{ matrix.command }} (${{ matrix.target }})"
     strategy:
       matrix:
-        service: ${{ fromJson(needs.discover.outputs.services) }}
+        service: ${{ fromJson(inputs.services) }}
         command: [test]
         target: [development, production]
         include:

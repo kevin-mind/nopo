@@ -19,20 +19,24 @@ inputs:
     description: The subdomain prefix (e.g., 'stage' or empty for apex)
     required: false
     default: ""
-  # Stable slot images
+  # Stable slot images (optional - omit to skip deployment)
   stable_backend_image:
-    description: Docker image for stable backend service
-    required: true
+    description: Docker image for stable backend service (optional - omit to skip backend)
+    required: false
+    default: ""
   stable_web_image:
-    description: Docker image for stable web service
-    required: true
-  # Canary slot images
+    description: Docker image for stable web service (optional - omit to skip web)
+    required: false
+    default: ""
+  # Canary slot images (optional - omit to skip deployment)
   canary_backend_image:
-    description: Docker image for canary backend service
-    required: true
+    description: Docker image for canary backend service (optional - omit to skip backend)
+    required: false
+    default: ""
   canary_web_image:
-    description: Docker image for canary web service
-    required: true
+    description: Docker image for canary web service (optional - omit to skip web)
+    required: false
+    default: ""
   terraform_state_bucket:
     description: The GCS bucket for Terraform state
     required: true
@@ -108,18 +112,40 @@ runs:
         TF_VAR_region: ${{ inputs.region }}
         TF_VAR_domain: ${{ inputs.domain }}
         TF_VAR_terraform_state_bucket: ${{ inputs.terraform_state_bucket }}
-        TF_VAR_stable_backend_image: ${{ inputs.stable_backend_image }}
-        TF_VAR_stable_web_image: ${{ inputs.stable_web_image }}
-        TF_VAR_canary_backend_image: ${{ inputs.canary_backend_image }}
-        TF_VAR_canary_web_image: ${{ inputs.canary_web_image }}
       run: |
         echo "=== Terraform Plan (Services Layer) ==="
-        echo "Stable images:"
-        echo "  Backend: ${TF_VAR_stable_backend_image}"
-        echo "  Web: ${TF_VAR_stable_web_image}"
-        echo "Canary images:"
-        echo "  Backend: ${TF_VAR_canary_backend_image}"
-        echo "  Web: ${TF_VAR_canary_web_image}"
+        
+        # Always set all image variables as environment variables
+        # If empty, set to empty string - Terraform will use the null default
+        # We need to export them so they're available to terraform
+        if [[ -n "${{ inputs.stable_backend_image }}" ]]; then
+          export TF_VAR_stable_backend_image="${{ inputs.stable_backend_image }}"
+          echo "  Stable Backend: ${{ inputs.stable_backend_image }}"
+        else
+          # Don't set the variable - let Terraform use the null default
+          echo "  Stable Backend: <not deploying> (using default null)"
+        fi
+        
+        if [[ -n "${{ inputs.stable_web_image }}" ]]; then
+          export TF_VAR_stable_web_image="${{ inputs.stable_web_image }}"
+          echo "  Stable Web: ${{ inputs.stable_web_image }}"
+        else
+          echo "  Stable Web: <not deploying> (using default null)"
+        fi
+        
+        if [[ -n "${{ inputs.canary_backend_image }}" ]]; then
+          export TF_VAR_canary_backend_image="${{ inputs.canary_backend_image }}"
+          echo "  Canary Backend: ${{ inputs.canary_backend_image }}"
+        else
+          echo "  Canary Backend: <not deploying> (using default null)"
+        fi
+        
+        if [[ -n "${{ inputs.canary_web_image }}" ]]; then
+          export TF_VAR_canary_web_image="${{ inputs.canary_web_image }}"
+          echo "  Canary Web: ${{ inputs.canary_web_image }}"
+        else
+          echo "  Canary Web: <not deploying> (using default null)"
+        fi
 
         terraform plan -input=false -out=tfplan
 
@@ -128,6 +154,7 @@ runs:
       shell: bash
       working-directory: infrastructure/terraform/environments/${{ inputs.environment }}/services
       run: |
+        # Plan file already contains only the targeted resources
         terraform apply -input=false -auto-approve tfplan
 
         # Extract outputs
