@@ -52,7 +52,7 @@ type RunScriptArgs = {
 export default class RunScript extends TargetScript<RunScriptArgs> {
   static override name = "run";
   static override description =
-    "Run a nopo.yml command inside Docker containers";
+    "Run a nopo.yml command (container or host)";
   static override dependencies: ScriptDependency[] = [
     {
       class: EnvScript,
