@@ -1,0 +1,26 @@
+name: Complex Fixture Service
+
+commands:
+  test:
+    run: echo "FIXTURE_COMPLEX_TEST_SUCCESS"
+  check:
+    commands:
+      py:
+        run: echo "FIXTURE_COMPLEX_CHECK_PY_SUCCESS"
+      js:
+        run: echo "FIXTURE_COMPLEX_CHECK_JS_SUCCESS"
+      types:
+        commands:
+          py:
+            run: echo "FIXTURE_COMPLEX_CHECK_TYPES_PY_SUCCESS"
+          js:
+            run: echo "FIXTURE_COMPLEX_CHECK_TYPES_JS_SUCCESS"
+  build:
+    commands:
+      dev:
+        run: echo "FIXTURE_COMPLEX_BUILD_DEV_SUCCESS"
+      prod:
+        run: echo "FIXTURE_COMPLEX_BUILD_PROD_SUCCESS"
+
+env:
+  FIXTURE_ENV_VAR: "fixture_value"

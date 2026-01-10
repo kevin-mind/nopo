@@ -1,0 +1,115 @@
+name: Test Nopo CLI
+
+on:
+  workflow_call:
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # Test that nopo CLI builds successfully (and fails when expected)
+  build:
+    runs-on: ubuntu-latest
+    name: "[nopo] build (${{ matrix.expected }})"
+    strategy:
+      matrix:
+        expected: ["success", "failure"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-node
+
+      - uses: ./.github/actions/setup-uv
+
+      - name: Monkeywrench nopo
+        if: ${{ matrix.expected == 'failure' }}
+        run: |
+          rm -f ./nopo/scripts/src/index.ts
+
+      - name: Make nopo
+        id: nopo
+        continue-on-error: true
+        run: make -C ./nopo/scripts init
+
+      - name: Verify result
+        env:
+          expected: ${{ matrix.expected }}
+          actual: ${{ steps.nopo.outcome }}
+        run: |
+          if [[ "$expected" != "$actual" ]]; then
+            echo "Expected build to result in $expected, but got $actual"
+            exit 1
+          fi
+
+  # Unit tests for nopo CLI
+  unit:
+    runs-on: ubuntu-latest
+    name: "[nopo] unit tests"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-node
+
+      - uses: ./.github/actions/setup-uv
+
+      - name: Build nopo
+        run: make -C ./nopo/scripts init
+
+      - name: Run unit tests
+        run: pnpm run --dir ./nopo/scripts test
+
+  # E2E tests using fixture services
+  e2e:
+    runs-on: ubuntu-latest
+    name: "[nopo] e2e: ${{ matrix.test.name }}"
+    strategy:
+      fail-fast: false
+      matrix:
+        test:
+          - name: "list services"
+            command: "make list -- --config ./nopo/fixtures/nopo.yml"
+            expect: "minimal"
+          - name: "list json"
+            command: "make list -- --config ./nopo/fixtures/nopo.yml --json"
+            expect: "complex"
+          - name: "run test minimal"
+            command: "nopo run test minimal --config ./nopo/fixtures/nopo.yml"
+            expect: "FIXTURE_MINIMAL_TEST_SUCCESS"
+          - name: "run check minimal"
+            command: "nopo run check minimal --config ./nopo/fixtures/nopo.yml"
+            expect: "FIXTURE_MINIMAL_CHECK_SUCCESS"
+          - name: "run subcommand check:py"
+            command: "nopo run check py complex --config ./nopo/fixtures/nopo.yml"
+            expect: "FIXTURE_COMPLEX_CHECK_PY_SUCCESS"
+          - name: "run nested subcommand check:types:py"
+            command: "nopo run check types py complex --config ./nopo/fixtures/nopo.yml"
+            expect: "FIXTURE_COMPLEX_CHECK_TYPES_PY_SUCCESS"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-node
+
+      - uses: ./.github/actions/setup-uv
+
+      - name: Build nopo
+        run: make -C ./nopo/scripts init
+
+      - name: Run ${{ matrix.test.name }}
+        env:
+          COMMAND: ${{ matrix.test.command }}
+          EXPECT: ${{ matrix.test.expect }}
+        run: |
+          echo "Running: $COMMAND"
+          output=$($COMMAND 2>&1) || true
+          echo "$output"
+          if [[ -n "$EXPECT" ]]; then
+            if echo "$output" | grep -q "$EXPECT"; then
+              echo "✓ Found expected output: $EXPECT"
+            else
+              echo "✗ Expected output not found: $EXPECT"
+              exit 1
+            fi
+          fi

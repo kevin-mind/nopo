@@ -1,0 +1,17 @@
+name: Dependent Fixture Service
+
+depends_on:
+  - minimal
+
+commands:
+  test:
+    run: echo "FIXTURE_DEPENDENT_TEST_SUCCESS"
+    depends_on:
+      - minimal:test
+  check:
+    run: echo "FIXTURE_DEPENDENT_CHECK_SUCCESS"
+  integration:
+    run: echo "FIXTURE_DEPENDENT_INTEGRATION_SUCCESS"
+    depends_on:
+      - minimal:test
+      - complex:test

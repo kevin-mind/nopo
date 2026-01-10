@@ -92,6 +92,11 @@ jobs:
       tag: local
       services: ${{ needs.discover.outputs.services_json }}
 
+  test_nopo:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/_test_nopo.yml
+
   smoketest:
     needs: [context]
     runs-on: ubuntu-latest
@@ -132,7 +137,7 @@ jobs:
 
   checks:
     if: always()
-    needs: [context, discover, build, test, smoketest, terraform]
+    needs: [context, discover, build, test, test_nopo, smoketest, terraform]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

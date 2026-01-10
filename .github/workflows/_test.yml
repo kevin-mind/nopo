@@ -19,44 +19,6 @@ defaults:
     shell: bash
 
 jobs:
-
-  test_nopo:
-    runs-on: ubuntu-latest
-    name: "[nopo] test"
-    strategy:
-      matrix:
-        expected: ["success", "failure"]
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: ./.github/actions/setup-node
-
-      - uses: ./.github/actions/setup-uv
-
-      - name: Monkeywrench nopo
-        if: ${{ matrix.expected == 'failure' }}
-        run: |
-          rm -f ./nopo/scripts/src/index.ts
-
-      - name: Make nopo
-        id: nopo
-        continue-on-error: true
-        run: make -C ./nopo/scripts init
-
-      - name: Verify result
-        env:
-          expected: ${{ matrix.expected }}
-          actual: ${{ steps.nopo.outcome }}
-        run: |
-          if [[ "$expected" != "$actual" ]]; then
-            echo "Expected build to result in $expected, but got $actual"
-            exit 1
-          fi
-
-      - name: Test nopo
-        if: ${{ matrix.expected == 'success' }}
-        run: pnpm run --dir ./nopo/scripts test
-
   test:
     # Skip if no services to test (empty matrix causes job failure in GHA)
     if: ${{ inputs.services != '[]' }}
