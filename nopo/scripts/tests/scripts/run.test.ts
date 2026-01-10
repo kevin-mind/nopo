@@ -12,10 +12,10 @@ describe("run command (RunScript)", () => {
   describe("command behavior", () => {
     it("should have correct name and description", () => {
       expect(RunScript.name).toBe("run");
-      expect(RunScript.description).toContain("pnpm script");
+      expect(RunScript.description).toContain("nopo.yml command");
     });
 
-    it("should parse run command with script and targets", async () => {
+    it("should parse run command with command and targets", async () => {
       const config = createConfig({
         envFile: createTmpEnv({}),
       });
@@ -29,11 +29,11 @@ describe("run command (RunScript)", () => {
       );
 
       const args = RunScript.parseArgs(runner, false);
-      expect(args.script).toBe("test");
+      expect(args.command).toBe("test");
       expect(args.targets).toEqual(["backend", "web"]);
     });
 
-    it("should parse run command with script only", async () => {
+    it("should parse run command with command only", async () => {
       const config = createConfig({
         envFile: createTmpEnv({}),
       });
@@ -42,7 +42,7 @@ describe("run command (RunScript)", () => {
       const runner = new Runner(config, environment, ["run", "dev"], logger);
 
       const args = RunScript.parseArgs(runner, false);
-      expect(args.script).toBe("dev");
+      expect(args.command).toBe("dev");
       expect(args.targets).toEqual([]);
     });
 
@@ -55,14 +55,33 @@ describe("run command (RunScript)", () => {
       const runner = new Runner(
         config,
         environment,
-        ["run", "lint", "--filter", "buildable"],
+        ["run", "check", "--filter", "buildable"],
         logger,
       );
 
       const args = RunScript.parseArgs(runner, false);
-      expect(args.script).toBe("lint");
+      expect(args.command).toBe("check");
       // With buildable filter, targets are filtered to only backend and web
       expect(args.targets).toEqual(["backend", "web"]);
+    });
+
+    it("should parse subcommand correctly", async () => {
+      const config = createConfig({
+        envFile: createTmpEnv({}),
+      });
+      const logger = new Logger(config);
+      const environment = new Environment(config);
+      const runner = new Runner(
+        config,
+        environment,
+        ["run", "check", "py", "backend"],
+        logger,
+      );
+
+      const args = RunScript.parseArgs(runner, false);
+      expect(args.command).toBe("check");
+      expect(args.subcommand).toBe("py");
+      expect(args.targets).toEqual(["backend"]);
     });
   });
 
@@ -76,7 +95,7 @@ describe("run command (RunScript)", () => {
       const runner = new Runner(
         config,
         environment,
-        ["run", "lint", "backend", "web"],
+        ["run", "check", "backend", "web"],
         logger,
       );
 
@@ -90,7 +109,7 @@ describe("run command (RunScript)", () => {
       });
       const logger = new Logger(config);
       const environment = new Environment(config);
-      const runner = new Runner(config, environment, ["run", "lint"], logger);
+      const runner = new Runner(config, environment, ["run", "check"], logger);
 
       const args = RunScript.parseArgs(runner, false);
       expect(args.targets).toEqual([]);
@@ -98,7 +117,7 @@ describe("run command (RunScript)", () => {
   });
 
   describe("error handling", () => {
-    it("should throw error when script name is missing", async () => {
+    it("should return empty args when command name is missing", async () => {
       const config = createConfig({
         envFile: createTmpEnv({}),
       });
@@ -106,9 +125,10 @@ describe("run command (RunScript)", () => {
       const environment = new Environment(config);
       const runner = new Runner(config, environment, ["run"], logger);
 
-      expect(() => {
-        RunScript.parseArgs(runner, false);
-      }).toThrow("Usage: run [script] [targets...] [--filter <expr>]");
+      // When only "run" is provided, parseArgs returns empty args
+      // (the fn method will throw the error about command being required)
+      const args = RunScript.parseArgs(runner, false);
+      expect(args.command).toBe("");
     });
 
     it("should validate targets against available list", async () => {
@@ -120,7 +140,7 @@ describe("run command (RunScript)", () => {
       const runner = new Runner(
         config,
         environment,
-        ["run", "lint", "unknown-target"],
+        ["run", "check", "unknown-target"],
         logger,
       );
 

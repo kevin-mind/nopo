@@ -1,23 +1,24 @@
 # run
 
-Run a pnpm script in a specified service and package.
+Run a nopo.yml command inside Docker containers.
 
 ## Overview
 
-The `run` command executes pnpm scripts across the monorepo, either locally or within Docker containers. It provides a unified interface for running scripts in specific workspaces or services with automatic dependency resolution.
+The `run` command executes commands defined in `nopo.yml` inside Docker containers. It mirrors the behavior of `nopo <command>` (which runs on the host), but executes within container environments. This unified execution model ensures consistency: `nopo <command>` runs on host, `nopo run <command>` runs in container.
 
 ## Usage
 
 ```bash
-nopo run <script> [targets...] [options]
+nopo run <command> [subcommand] [targets...] [options]
 ```
 
 ## Arguments
 
 | Argument | Description | Required |
 |----------|-------------|----------|
-| `script` | The pnpm script name (or pattern) to run | Yes |
-| `targets` | Optional list of targets to run the script in. If omitted, runs locally | No |
+| `command` | The nopo.yml command name to run (e.g., `test`, `check`, `migrate`) | Yes |
+| `subcommand` | Optional subcommand (e.g., `py` for `check:py`) | No |
+| `targets` | Optional list of targets to run the command in. If omitted, runs in all services that have the command | No |
 
 ### Available Targets
 
@@ -32,16 +33,16 @@ Targets are discovered from `apps/*/Dockerfile` (e.g., `backend`, `web`).
 
 ### Filtering
 
-You can filter which services to run scripts on using expressions:
+You can filter which services to run commands on using expressions:
 
 ```bash
 # Run tests on services with changes since main branch
 nopo run test --filter changed
 
-# Run lint on buildable services only
-nopo run lint --filter buildable
+# Run check on buildable services only
+nopo run check --filter buildable
 
-# Run scripts on services with database
+# Run migrations on services with database
 nopo run migrate --filter infrastructure.hasDatabase=true
 ```
 
@@ -73,102 +74,126 @@ The `run` command automatically runs dependencies based on conditions:
 
 ## Examples
 
-### Run a script across all workspaces
-
-```bash
-nopo run test
-```
-
-This runs `pnpm run /^test.*/` across all workspaces.
-
-### Run a script in a Docker target
+### Run a command in a specific target
 
 ```bash
 nopo run test backend
 ```
 
-This runs the test script inside the `backend` Docker container.
+This runs the `test` command from `apps/backend/nopo.yml` inside the `backend` Docker container.
 
-### Run a script in multiple targets
+### Run a command in multiple targets
 
 ```bash
 nopo run test backend web
 ```
 
-This runs the test script in both `backend` and `web` containers sequentially.
+This runs the test command in both `backend` and `web` containers sequentially.
 
-### Run lint in all workspaces
+### Run a command across all services that have it
 
 ```bash
-nopo run lint
+nopo run test
 ```
 
-### Run dev server in backend
+This runs the `test` command in all services that have it defined in their `nopo.yml`.
+
+### Run a subcommand
 
 ```bash
-nopo run dev backend
+nopo run check py backend
+```
+
+This runs the `check:py` subcommand (e.g., `uv tool run ruff check`) in the backend container.
+
+### Run migrations in container
+
+```bash
+nopo run migrate run backend
+```
+
+This runs the `migrate:run` subcommand in the backend container.
+
+### Run with filters
+
+```bash
+# Run check on changed services
+nopo run check --filter changed
+
+# Run test on buildable services
+nopo run test --filter buildable
 ```
 
 ## How It Works
 
-1. **Parse Arguments**: Extracts script name, service, and workspace from arguments
+1. **Parse Arguments**: Extracts command name, optional subcommand, and targets from arguments
 2. **Check Service State**: Determines if the target service container is running
 3. **Resolve Dependencies**: If service is down, builds or pulls images as needed
-4. **Execute Script**: Runs the pnpm script either locally or in a Docker container
+4. **Resolve Command**: Looks up the command in the target's `nopo.yml` file
+5. **Execute Command**: Runs the command inside the Docker container
 
-### Script Resolution
+### Command Resolution
 
-The script name is converted to a regex pattern:
+Commands are resolved from each target's `nopo.yml` file:
 
-| Input | Resolved Pattern |
-|-------|------------------|
-| `test` | `/^test.*/` |
-| `build` | `/^build.*/` |
-| `lint` | `/^lint.*/` |
-
-This allows matching scripts like `test`, `test:unit`, `test:e2e`, etc.
-
-### Script Execution
-
-When no targets are provided, the script runs locally:
-
-```bash
-pnpm run --fail-if-no-match /<script>.*/
+```yaml
+# apps/backend/nopo.yml
+commands:
+  test: uv run python manage.py test src
+  check:
+    commands:
+      py: uv tool run ruff check
+      js: pnpm exec eslint
 ```
+
+| Input | Resolved Command |
+|-------|------------------|
+| `nopo run test backend` | `uv run python manage.py test src` |
+| `nopo run check py backend` | `uv tool run ruff check` |
+| `nopo run check backend` | Runs both `check:py` and `check:js` |
 
 ### Docker Execution
 
-When targets are provided, the script runs inside Docker containers:
+Commands are executed inside Docker containers:
 
 ```bash
-docker compose run --rm --remove-orphans <target> pnpm run ...
+docker compose run --rm --remove-orphans <target> sh -c "<command>"
 ```
 
 Each target is run sequentially. Containers are automatically removed after execution (`--rm`).
 
 ## Output
 
-The command streams output from the pnpm script:
+The command streams output from the container:
 
 ```plaintext
-[backend] > @more/backend@0.0.0 test
-[backend] > vitest run
-[backend]
-[backend]  ✓ src/tests/index.test.ts (3 tests) 45ms
-[backend]
-[backend]  Test Files  1 passed (1)
-[backend]       Tests  3 passed (3)
+[backend:test] uv run python manage.py test src
+[backend:test] Found 10 test(s).
+[backend:test] .
+[backend:test] -----------------------------------------
+[backend:test] Ran 10 tests in 0.345s
+[backend:test]
+[backend:test] OK
 ```
+
+## Comparison: Host vs Container Execution
+
+| Aspect | Host (`nopo test backend`) | Container (`nopo run test backend`) |
+|--------|---------------------------|-------------------------------------|
+| **Command Source** | nopo.yml | nopo.yml |
+| **Environment** | Your host machine | Docker container |
+| **Dependencies** | Only `EnvScript` | Full (env, build, pull) |
+| **Speed** | Faster (no container overhead) | Slower (container startup) |
+| **Isolation** | Uses host environment | Isolated container environment |
+| **Consistency** | May vary by host | Consistent across machines |
+| **Use Case** | Quick checks, development | Tests, production-like environment |
 
 ## Use Cases
 
 ### Run Tests in CI
 
 ```bash
-# Run all tests
-nopo run test
-
-# Run specific target tests
+# Run backend tests in production container
 nopo run test backend
 ```
 
@@ -178,34 +203,34 @@ nopo run test backend
 # Start services
 nopo up
 
-# Run specific script in container
-nopo run migrate backend
+# Run migrations in container
+nopo run migrate run backend
 
-# Run type checking
-nopo run check:types
+# Run type checking in container
+nopo run check backend
 ```
 
-### Build Packages
+### Test Production Environment
 
 ```bash
-# Build all packages
-nopo run build
+# Build production images
+DOCKER_TARGET=production make build
 
-# Build only changed services
-nopo run build --filter changed
+# Run tests in production containers
+nopo run test backend
 ```
 
 ## Error Handling
 
-### Script Not Found
+### Command Not Found
 
-If no matching script is found:
+If the command doesn't exist in the service's `nopo.yml`:
 
 ```plaintext
-ERR_PNPM_NO_SCRIPT_MATCH  No scripts matching /^foo.*/ in any workspace
+Error: Command 'foo' not found in service 'backend'. Available commands: test, check, dev, ...
 ```
 
-Solution: Check the script name exists in package.json files.
+Solution: Check that the command is defined in the target's `nopo.yml`.
 
 ### Target Not Found
 
@@ -217,17 +242,20 @@ Error: Unknown target 'invalid'. Available targets: backend, web
 
 Solution: Check available targets with `nopo status` or check `apps/*/Dockerfile`.
 
-### Missing Script Argument
+### No Services Have Command
 
-If no script name is provided:
+If no services define the specified command:
 
 ```plaintext
-Error: Usage: run [script] [targets...] [--filter <expr>]
+Error: No services have command 'foo'
 ```
+
+Solution: Verify the command name or check which services have it defined.
 
 ## See Also
 
-- [`up`](./up.md) - Start services before running scripts
+- [`up`](./up.md) - Start services before running commands
 - [`status`](./status.md) - Check which services are running
 - [`env`](./env.md) - Set up environment variables
+- [Arbitrary Commands](./arbitrary.md) - Host vs container execution comparison
 
