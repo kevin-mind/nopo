@@ -15,6 +15,8 @@ import { Environment } from "../src/parse-env.ts";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 export const PROJECT_ROOT = path.resolve(__dirname, "..", "..", "..");
+// Fixtures root is 2 levels up from this file then into nopo/fixtures
+export const FIXTURES_ROOT = path.resolve(__dirname, "..", "..", "fixtures");
 
 export function createTestConfig(options: Parameters<typeof createConfig>[0] = {}) {
   return createConfig({
