@@ -26,9 +26,20 @@ export default class PullScript extends TargetScript<PullCliArgs> {
     runner: Runner,
     isDependency: boolean,
   ): PullCliArgs {
-    // When run as dependency, return empty targets (pull base image)
+    // When run as dependency for container execution, infer service targets from argv
+    // This happens when CommandScript needs to pull images before running in container
     if (isDependency || runner.argv[0] !== "pull") {
-      return { targets: [] };
+      // Try to infer service targets from the command being run
+      // e.g., "test backend" should pull backend image
+      const inferredTargets = runner.argv.slice(1).filter((arg) => {
+        // Filter out flags and options
+        return (
+          !arg.startsWith("--") &&
+          !arg.startsWith("-") &&
+          runner.config.targets.includes(arg)
+        );
+      });
+      return { targets: inferredTargets };
     }
 
     const argv = runner.argv.slice(1);
