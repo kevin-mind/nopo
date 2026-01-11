@@ -11,6 +11,7 @@ permissions:
   contents: read
   discussions: write
   issues: write
+  id-token: write  # Required for claude-code-action OIDC token
 
 jobs:
   handle:
