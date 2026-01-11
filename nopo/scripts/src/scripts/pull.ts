@@ -3,14 +3,16 @@ import {
   TargetScript,
   type ScriptDependency,
   createLogger,
+  $,
 } from "../lib.ts";
 import EnvScript from "./env.ts";
 import { baseArgs } from "../args.ts";
 import type { ScriptArgs } from "../script-args.ts";
+import { DockerTag } from "../docker-tag.ts";
 
 export default class PullScript extends TargetScript {
   static override name = "pull";
-  static override description = "Pull the base image";
+  static override description = "Pull service images";
   static override dependencies: ScriptDependency[] = [
     {
       class: EnvScript,
@@ -26,19 +28,61 @@ export default class PullScript extends TargetScript {
   override async fn(args: ScriptArgs) {
     const requestedTargets = args.get<string[]>("targets");
 
-    if (requestedTargets && requestedTargets.length > 0) {
-      // Pull specific target images from main compose file
-      await compose.pullMany(requestedTargets, {
-        callback: createLogger("pull", "blue"),
-        commandOptions: ["--ignore-pull-failures"],
-        env: this.env,
-      });
-    } else {
+    if (!requestedTargets || requestedTargets.length === 0) {
       // No targets specified - don't pull anything
       // Base image pulling is not needed since:
       // 1. When running locally, build script handles it
       // 2. When running in CI, only service images are pushed to registry
       this.log("No targets specified, skipping pull");
+      return;
     }
+
+    const env = this.runner.environment.env;
+
+    // Only pull if version is not "local" (i.e., it's a real version like sha-032904f)
+    if (env.DOCKER_VERSION === "local") {
+      this.log("Version is 'local' - skipping pull (will build locally)");
+      return;
+    }
+
+    // Pull service-specific images in parallel
+    const pullPromises = requestedTargets.map(async (target) => {
+      const serviceImageTag = this.serviceImageTag(target);
+
+      try {
+        this.log(`Pulling ${serviceImageTag}...`);
+        await this.exec`docker pull ${serviceImageTag}`;
+
+        // Set the service-specific env var for docker-compose
+        const envKey = this.serviceEnvKey(target);
+        this.runner.environment.setExtraEnv(envKey, serviceImageTag);
+
+        this.log(`✓ Pulled ${serviceImageTag}`);
+      } catch (error) {
+        this.log(`Failed to pull ${serviceImageTag}: ${error}`);
+        throw error;
+      }
+    });
+
+    await Promise.all(pullPromises);
+
+    // Save the updated environment with service image vars
+    this.runner.environment.save();
+  }
+
+  private serviceEnvKey(service: string): string {
+    return `${service.replace(/[^a-zA-Z0-9]/g, "_").toUpperCase()}_IMAGE`;
+  }
+
+  private serviceImageTag(service: string): string {
+    const env = this.runner.environment.env;
+    const baseImage = `${env.DOCKER_IMAGE}-${service}`;
+    const parsed = new DockerTag({
+      registry: env.DOCKER_REGISTRY,
+      image: baseImage,
+      version: env.DOCKER_VERSION,
+      digest: env.DOCKER_DIGEST,
+    });
+    return parsed.fullTag;
   }
 }

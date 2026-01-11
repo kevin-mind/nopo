@@ -83,15 +83,16 @@ jobs:
       services: ${{ needs.discover.outputs.services }}
 
   test:
-    needs: [context, discover]
-    if: ${{ needs.discover.outputs.services_json != '[]' }}
+    needs: [build, context, discover]
+    # Skip if build was skipped or no services to test
+    if: ${{ needs.build.result == 'success' && needs.discover.outputs.services_json != '[]' }}
     permissions:
       packages: read
       contents: read
     uses: ./.github/workflows/_test.yml
     secrets: inherit
     with:
-      tag: local
+      tag: ${{ needs.build.outputs.tag }}
       services: ${{ needs.discover.outputs.services_json }}
 
   test_nopo:

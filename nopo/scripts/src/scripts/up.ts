@@ -40,6 +40,10 @@ export default class UpScript extends TargetScript<UpCliArgs> {
     {
       class: PullScript,
       enabled: isPull,
+      // Pass targets from UpScript to PullScript
+      args: (parentArgs) => ({
+        targets: parentArgs.get("targets"),
+      }),
     },
   ];
 
