@@ -110,7 +110,7 @@ jobs:
             NEVER leave the discussion without a visible summary - your analysis must be posted as a comment.
           claude_args: "--model claude-opus-4-5-20251101 --max-turns 50"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   #############################################################################
   # RESPOND - Answer human comments
@@ -171,7 +171,7 @@ jobs:
             NEVER leave the discussion without a visible response - your analysis must be posted as a reply comment.
           claude_args: "--model claude-opus-4-5-20251101 --max-turns 100"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Add success reaction
         if: success()
@@ -280,7 +280,7 @@ jobs:
             NEVER leave the discussion without posting research findings - your analysis must be visible as multiple top-level comments.
           claude_args: "--model claude-opus-4-5-20251101 --max-turns 100"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   #############################################################################
   # PLAN - Create GitHub issues from discussion
@@ -365,7 +365,7 @@ jobs:
             NEVER leave the discussion without posting the summary - it must be visible as a reply comment.
           claude_args: "--model claude-opus-4-5-20251101 --max-turns 100"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   #############################################################################
   # COMPLETE - Mark discussion thread as complete
