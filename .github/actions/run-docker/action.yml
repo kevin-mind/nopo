@@ -1,5 +1,5 @@
 name: 'Docker Run Action'
-description: 'Run a command inside a Docker container using --context container'
+description: 'Run a command in a new container or on the host'
 inputs:
   tag:
     description: 'The tag of the image to run.'
@@ -8,7 +8,7 @@ inputs:
     description: 'The service to run'
     required: false
   run:
-    description: 'Command to run inside the container (e.g., test, check)'
+    description: 'Command to run (e.g., test, check)'
     required: false
   target:
     description: 'Docker target to run (development|production)'
@@ -45,7 +45,7 @@ runs:
         tag: ${{ inputs.tag }}
         target: ${{ inputs.target }}
       run: |
-        make ${run} ${service} -- --context container \
+        make ${run} ${service} \
           DOCKER_TAG="${tag}" \
           DOCKER_TARGET="${target}" \
           DOCKER_PORT="80"

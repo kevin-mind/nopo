@@ -20,6 +20,9 @@ commands:
   dev: pnpm exec react-router dev --host
   start: pnpm exec react-router-serve ./build/server/index.js
   check:
+    context: host
     commands:
       types: pnpm exec react-router typegen && pnpm exec tsc
-  test: echo 'test'
+  test:
+    context: container
+    command: echo 'test'

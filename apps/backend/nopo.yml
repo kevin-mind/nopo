@@ -18,10 +18,12 @@ commands:
       NODE_ENV: production
   clean: rm -rf __pycache__ .ruff_cache node_modules
   fix:
+    context: host
     commands:
       py: uv tool run ruff format
       js: pnpm exec eslint --fix
   check:
+    context: host
     commands:
       py: uv tool run ruff check
       js: pnpm exec eslint
@@ -29,7 +31,9 @@ commands:
         commands:
           py: uv run mypy .
           js: pnpm exec tsc --noEmit
-  test: uv run python manage.py test src
+  test:
+    context: container
+    command: uv run python manage.py test src
   dev:
     commands:
       server: uv run --verbose python manage.py runserver 0.0.0.0:80 --settings=settings
