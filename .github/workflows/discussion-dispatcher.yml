@@ -10,7 +10,7 @@ on:
     types: [created]
 
 permissions:
-  contents: read
+  contents: write  # Required for repository_dispatch
   discussions: write
 
 jobs:
