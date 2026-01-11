@@ -122,6 +122,10 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
     runner: Runner,
     isDependency: boolean,
   ): CommandScriptArgs {
+    if (process.env.DEBUG_SCRIPT_ARGS) {
+      console.log(`[DEBUG] CommandScript.parseArgs called with isDependency=${isDependency}, argv=`, runner.argv);
+    }
+
     if (isDependency || runner.argv.length === 0) {
       return { command: "", subcommand: undefined, targets: [], filters: [], explicitTargets: false };
     }
