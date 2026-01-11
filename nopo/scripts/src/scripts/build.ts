@@ -234,6 +234,7 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
           base: "target:base",
         },
         args: {
+          NOPO_BASE_IMAGE: env.DOCKER_TAG,
           SERVICE_NAME: target,
           NOPO_APP_UID,
           NOPO_APP_GID,
