@@ -243,9 +243,11 @@ jobs:
           echo "comment_id=$comment_id" >> $GITHUB_OUTPUT
 
       - uses: anthropics/claude-code-action@v1
+        id: claude_research
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           settings: ".claude/settings.json"
+          mode: "custom"
           prompt: |
             You are analyzing GitHub Discussion #${{ needs.detect.outputs.discussion_number }}: "${{ needs.detect.outputs.discussion_title }}"
 
@@ -371,6 +373,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Add eyes reaction (working on it)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_ID: ${{ needs.detect.outputs.comment_id }}
+        run: |
+          set -e
+
+          # Add 👀 reaction to indicate Claude is looking into it
+          gh api graphql -f query='
+            mutation($subjectId: ID!) {
+              addReaction(input: {
+                subjectId: $subjectId
+                content: EYES
+              }) {
+                reaction { id }
+              }
+            }
+          ' -f subjectId="$COMMENT_ID"
+
+          echo "Added eyes reaction to comment"
+
       - name: Get comment thread context
         id: thread
         env:
@@ -408,9 +431,11 @@ jobs:
           fi
 
       - uses: anthropics/claude-code-action@v1
+        id: claude_respond
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           settings: ".claude/settings.json"
+          mode: "custom"
           prompt: |
             A human posted a comment on Discussion #${{ needs.detect.outputs.discussion_number }}.
 
@@ -495,6 +520,68 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Add success reaction
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_ID: ${{ needs.detect.outputs.comment_id }}
+        run: |
+          set -e
+
+          # Add 👍 reaction to indicate success
+          gh api graphql -f query='
+            mutation($subjectId: ID!) {
+              addReaction(input: {
+                subjectId: $subjectId
+                content: THUMBS_UP
+              }) {
+                reaction { id }
+              }
+            }
+          ' -f subjectId="$COMMENT_ID"
+
+          echo "Added thumbs up reaction to comment"
+
+      - name: Add failure reaction and comment
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_ID: ${{ needs.detect.outputs.comment_id }}
+          DISCUSSION_ID: ${{ needs.detect.outputs.discussion_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -e
+
+          # Add 👎 reaction to indicate failure
+          gh api graphql -f query='
+            mutation($subjectId: ID!) {
+              addReaction(input: {
+                subjectId: $subjectId
+                content: THUMBS_DOWN
+              }) {
+                reaction { id }
+              }
+            }
+          ' -f subjectId="$COMMENT_ID" || echo "Failed to add reaction"
+
+          # Post error comment with job link
+          gh api graphql -f query='
+            mutation($replyToId: ID!, $body: String!) {
+              addDiscussionComment(input: {
+                replyToId: $replyToId
+                body: $body
+              }) {
+                comment { id }
+              }
+            }
+          ' -f replyToId="$COMMENT_ID" -f body="⚠️ **Failed to process your question**
+
+          Something went wrong while researching your question. Please see the [workflow run]($RUN_URL) for details.
+
+          You can retry by posting your question again or editing your comment."
+
+          echo "Posted error comment"
+
   #############################################################################
   # COMMAND: /summarize
   # Summarizes the entire discussion (all threads)
@@ -508,9 +595,11 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: anthropics/claude-code-action@v1
+        id: claude_summarize
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           settings: ".claude/settings.json"
+          mode: "custom"
           prompt: |
             The user requested a summary of Discussion #${{ needs.detect.outputs.discussion_number }}.
 
@@ -614,9 +703,11 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: anthropics/claude-code-action@v1
+        id: claude_plan
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           settings: ".claude/settings.json"
+          mode: "custom"
           prompt: |
             The user requested to create an implementation plan from Discussion #${{ needs.detect.outputs.discussion_number }}.
 
