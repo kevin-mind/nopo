@@ -1,5 +1,5 @@
 name: 'Docker Run Action'
-description: 'Run a command inside a Docker container using nopo run'
+description: 'Run a command inside a Docker container using --context container'
 inputs:
   tag:
     description: 'The tag of the image to run.'
@@ -39,7 +39,7 @@ runs:
         tag: ${{ inputs.tag }}
         target: ${{ inputs.target }}
       run: |
-        make run ${run} ${service} \
+        make ${run} ${service} -- --context container \
           DOCKER_TAG="${tag}" \
           DOCKER_TARGET="${target}" \
           DOCKER_PORT="80"
