@@ -80,6 +80,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: anthropics/claude-code-action@v1
+        id: claude
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           settings: ".claude/settings.json"
@@ -89,28 +90,43 @@ jobs:
 
             Fetch the full discussion content, analyze all comments, and organize into Key Findings, Questions Answered, Open Items, and Next Steps.
 
-            ## IMPORTANT: Always Post Your Summary
+            ## IMPORTANT: Write Summary to File
 
-            After completing your analysis, you MUST post your summary as a comment:
-            ```
-            gh api graphql -f query='
-              mutation($discussionId: ID!, $body: String!) {
-                addDiscussionComment(input: {
-                  discussionId: $discussionId
-                  body: $body
-                }) {
-                  comment { id }
-                }
-              }
-            ' -f discussionId="${{ needs.prepare.outputs.discussion_id }}" -f body="## 📋 Discussion Summary
+            After completing your analysis, you MUST write your summary to /tmp/discussion-summary.md:
+            ```bash
+            cat > /tmp/discussion-summary.md << 'SUMMARY_EOF'
+            ## 📋 Discussion Summary
 
-            <your organized summary with Key Findings, Questions Answered, Open Items, Next Steps>"
+            <your organized summary with Key Findings, Questions Answered, Open Items, Next Steps>
+            SUMMARY_EOF
             ```
 
-            NEVER leave the discussion without a visible summary - your analysis must be posted as a comment.
+            The workflow will post this file as a comment to the discussion.
           claude_args: "--model claude-opus-4-5-20251101 --max-turns 50"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Post summary comment
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DISCUSSION_ID: ${{ needs.prepare.outputs.discussion_id }}
+        run: |
+          if [[ ! -f /tmp/discussion-summary.md ]]; then
+            echo "No summary file found"
+            exit 1
+          fi
+
+          gh api graphql -f query='
+            mutation($discussionId: ID!, $body: String!) {
+              addDiscussionComment(input: {
+                discussionId: $discussionId
+                body: $body
+              }) {
+                comment { id }
+              }
+            }
+          ' -f discussionId="$DISCUSSION_ID" -F body=@/tmp/discussion-summary.md
 
   #############################################################################
   # RESPOND - Answer human comments
@@ -128,6 +144,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: anthropics/claude-code-action@v1
+        id: claude
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           settings: ".claude/settings.json"
@@ -152,26 +169,41 @@ jobs:
             - Clear, actionable guidance
             - If they're asking for implementation, suggest: "Use `/plan` to create issues, then assign nopo-bot"
 
-            ## IMPORTANT: Always Post Your Response
+            ## IMPORTANT: Write Response to File
 
-            After completing your research, you MUST post your answer as a reply:
-            ```
-            gh api graphql -f query='
-              mutation($replyToId: ID!, $body: String!) {
-                addDiscussionComment(input: {
-                  replyToId: $replyToId
-                  body: $body
-                }) {
-                  comment { id }
-                }
-              }
-            ' -f replyToId="${{ github.event.client_payload.comment_id }}" -f body="<your detailed answer with code examples and citations>"
+            After completing your research, you MUST write your answer to /tmp/discussion-response.md:
+            ```bash
+            cat > /tmp/discussion-response.md << 'RESPONSE_EOF'
+            <your detailed answer with code examples and citations>
+            RESPONSE_EOF
             ```
 
-            NEVER leave the discussion without a visible response - your analysis must be posted as a reply comment.
+            The workflow will post this file as a reply to the discussion.
           claude_args: "--model claude-opus-4-5-20251101 --max-turns 100"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Post response comment
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPLY_TO_ID: ${{ github.event.client_payload.comment_id }}
+        run: |
+          if [[ ! -f /tmp/discussion-response.md ]]; then
+            echo "No response file found"
+            exit 1
+          fi
+
+          gh api graphql -f query='
+            mutation($replyToId: ID!, $body: String!) {
+              addDiscussionComment(input: {
+                replyToId: $replyToId
+                body: $body
+              }) {
+                comment { id }
+              }
+            }
+          ' -f replyToId="$REPLY_TO_ID" -F body=@/tmp/discussion-response.md
 
       - name: Add success reaction
         if: success()
@@ -239,6 +271,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: anthropics/claude-code-action@v1
+        id: claude
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           settings: ".claude/settings.json"
@@ -257,30 +290,49 @@ jobs:
             3. Check documentation (decisions/, AGENTS.md, README.md)
             4. Web search for external concepts or best practices (if needed)
 
-            Identify major research areas and create one top-level comment for each area (e.g., Architecture, Implementation Patterns, Related Work, Code Examples).
+            Organize your findings into major research areas (e.g., Architecture, Implementation Patterns, Related Work, Code Examples).
 
-            ## IMPORTANT: Always Post Multiple Research Threads
+            ## IMPORTANT: Write Research to File
 
-            For EACH major research area, you MUST post a separate comment (run this 2-3 times):
-            ```
-            gh api graphql -f query='
-              mutation($discussionId: ID!, $body: String!) {
-                addDiscussionComment(input: {
-                  discussionId: $discussionId
-                  body: $body
-                }) {
-                  comment { id }
-                }
-              }
-            ' -f discussionId="${{ needs.prepare.outputs.discussion_id }}" -f body="## Research: <Topic Name>
+            After completing your research, you MUST write your findings to /tmp/discussion-research.md:
+            ```bash
+            cat > /tmp/discussion-research.md << 'RESEARCH_EOF'
+            ## Research Findings
 
-            <your detailed research findings with code examples and citations>"
+            ### <Topic 1>
+            <findings with code examples and citations>
+
+            ### <Topic 2>
+            <findings with code examples and citations>
+            RESEARCH_EOF
             ```
 
-            NEVER leave the discussion without posting research findings - your analysis must be visible as multiple top-level comments.
+            The workflow will post this file as a comment to the discussion.
           claude_args: "--model claude-opus-4-5-20251101 --max-turns 100"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Post research comment
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DISCUSSION_ID: ${{ needs.prepare.outputs.discussion_id }}
+        run: |
+          if [[ ! -f /tmp/discussion-research.md ]]; then
+            echo "No research file found"
+            exit 1
+          fi
+
+          gh api graphql -f query='
+            mutation($discussionId: ID!, $body: String!) {
+              addDiscussionComment(input: {
+                discussionId: $discussionId
+                body: $body
+              }) {
+                comment { id }
+              }
+            }
+          ' -f discussionId="$DISCUSSION_ID" -F body=@/tmp/discussion-research.md
 
   #############################################################################
   # PLAN - Create GitHub issues from discussion
