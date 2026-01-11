@@ -117,6 +117,8 @@ jobs:
 
   build:
     needs: [context, discover_buildable]
+    # Skip if no buildable services match
+    if: ${{ needs.discover_buildable.outputs.services_json != '[]' }}
     permissions:
       packages: write
       contents: read
@@ -130,6 +132,8 @@ jobs:
 
   test:
     needs: [build, context, discover_changed]
+    # Skip if build was skipped
+    if: ${{ needs.build.result == 'success' }}
     permissions:
       packages: read
       contents: read
@@ -141,7 +145,12 @@ jobs:
 
   deploy_stage:
     # Deploy all services if any changed (URL map requires all services to exist)
-    if: ${{ needs.context.outputs.deploy == 'true' && needs.discover_changed.outputs.services_json != '[]' }}
+    # Skip if build was skipped (no buildable services)
+    if: |
+      needs.context.outputs.deploy == 'true' &&
+      needs.discover_changed.outputs.services_json != '[]' &&
+      needs.discover_buildable.outputs.services_json != '[]' &&
+      needs.build.result == 'success'
     needs: [context, build, test, discover_changed, discover_buildable]
     permissions:
       contents: read
@@ -158,7 +167,12 @@ jobs:
 
   deploy_prod:
     # Deploy all services if any changed (URL map requires all services to exist)
-    if: ${{ needs.context.outputs.deploy == 'true' && needs.discover_changed.outputs.services_json != '[]' }}
+    # Skip if build was skipped (no buildable services)
+    if: |
+      needs.context.outputs.deploy == 'true' &&
+      needs.discover_changed.outputs.services_json != '[]' &&
+      needs.discover_buildable.outputs.services_json != '[]' &&
+      needs.build.result == 'success'
     needs: [context, build, deploy_stage, test, discover_changed, discover_buildable]
     permissions:
       contents: read

@@ -14,6 +14,10 @@ inputs:
     description: 'Docker target to run (development|production)'
     required: false
     default: 'production'
+  dir:
+    description: 'Working directory to run commands from'
+    required: false
+    default: '.'
 
 runs:
   using: 'composite'
@@ -22,6 +26,7 @@ runs:
       if: ${{ inputs.run == ''}}
       id: run
       shell: bash
+      working-directory: ${{ inputs.dir }}
       env:
         tag: ${{ inputs.tag }}
         target: ${{ inputs.target }}
@@ -33,6 +38,7 @@ runs:
     - name: Run
       if: ${{ inputs.run != ''}}
       shell: bash
+      working-directory: ${{ inputs.dir }}
       env:
         service: ${{ inputs.service }}
         run: ${{ inputs.run }}
