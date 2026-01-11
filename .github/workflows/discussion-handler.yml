@@ -122,20 +122,25 @@ jobs:
 
             ## IMPORTANT: Always Post Your Summary
 
-            After analyzing the discussion, you MUST post a comprehensive summary as a comment:
-            ```
-            gh api graphql -f query='
-              mutation($discussionId: ID!, $body: String!) {
-                addDiscussionComment(input: {
-                  discussionId: $discussionId
-                  body: $body
-                }) {
-                  comment { id }
-                }
-              }
-            ' -f discussionId="${{ needs.prepare.outputs.discussion_id }}" -f body="## 📋 Discussion Summary
+            After analyzing the discussion, you MUST post a comprehensive summary as a comment.
 
-            <organized summary with Key Findings, Questions Answered, Open Items, Next Steps>"
+            Post your summary by running:
+            ```bash
+            gh api graphql -f query='mutation($discussionId: ID!, $body: String!) { addDiscussionComment(input: { discussionId: $discussionId body: $body }) { comment { id } } }' \
+              -f discussionId="${{ needs.prepare.outputs.discussion_id }}" \
+              -f body="## 📋 Discussion Summary
+
+            ### Key Findings
+            <your findings>
+
+            ### Questions Answered
+            <Q&A pairs>
+
+            ### Open Items
+            <unresolved items>
+
+            ### Next Steps
+            <recommended actions>"
             ```
 
             NEVER leave the discussion without posting the summary - the summary must be visible as a comment.
@@ -184,18 +189,13 @@ jobs:
 
             ## IMPORTANT: Always Post Your Response
 
-            After completing your research, you MUST post your answer as a reply using this command:
-            ```
-            gh api graphql -f query='
-              mutation($replyToId: ID!, $body: String!) {
-                addDiscussionComment(input: {
-                  replyToId: $replyToId
-                  body: $body
-                }) {
-                  comment { id }
-                }
-              }
-            ' -f replyToId="${{ github.event.client_payload.comment_id }}" -f body="<your detailed answer with code examples and citations>"
+            After completing your research, you MUST post your answer as a reply.
+
+            Post your answer by running:
+            ```bash
+            gh api graphql -f query='mutation($replyToId: ID!, $body: String!) { addDiscussionComment(input: { replyToId: $replyToId body: $body }) { comment { id } } }' \
+              -f replyToId="${{ github.event.client_payload.comment_id }}" \
+              -f body="<your detailed answer with code examples (file.ts:42) and citations>"
             ```
 
             NEVER leave the discussion without a visible response - your analysis must be posted as a reply comment.
@@ -290,23 +290,18 @@ jobs:
 
             ## IMPORTANT: Always Post Multiple Research Threads
 
-            For EACH major research area you identify, post a separate top-level comment:
-            ```
-            gh api graphql -f query='
-              mutation($discussionId: ID!, $body: String!) {
-                addDiscussionComment(input: {
-                  discussionId: $discussionId
-                  body: $body
-                }) {
-                  comment { id }
-                }
-              }
-            ' -f discussionId="${{ needs.prepare.outputs.discussion_id }}" -f body="## Research: <Topic Name>
+            For EACH major research area you identify, post a separate top-level comment.
 
-            <your detailed research findings with code snippets (file.ts:42) and citations>"
+            Post each research thread by running:
+            ```bash
+            gh api graphql -f query='mutation($discussionId: ID!, $body: String!) { addDiscussionComment(input: { discussionId: $discussionId body: $body }) { comment { id } } }' \
+              -f discussionId="${{ needs.prepare.outputs.discussion_id }}" \
+              -f body="## Research: <Topic Name>
+
+            <your detailed research findings with code examples (file.ts:42) and citations>"
             ```
 
-            Post at least 2-3 research threads. Each should be focused on a single topic.
+            Run this command 2-3 times with different research topics.
 
             NEVER leave the discussion without posting research findings - your analysis must be visible as multiple top-level comments.
           claude_args: "--model claude-opus-4-5-20251101 --max-turns 100"
@@ -383,18 +378,13 @@ jobs:
 
             ## IMPORTANT: Always Post Summary
 
-            After creating issues, post a summary as a reply to the /plan command:
-            ```
-            gh api graphql -f query='
-              mutation($replyToId: ID!, $body: String!) {
-                addDiscussionComment(input: {
-                  replyToId: $replyToId
-                  body: $body
-                }) {
-                  comment { id }
-                }
-              }
-            ' -f replyToId="${{ github.event.client_payload.comment_id }}" -f body="## 📋 Created Issues
+            After creating issues, post a summary as a reply to the /plan command.
+
+            Post your summary by running:
+            ```bash
+            gh api graphql -f query='mutation($replyToId: ID!, $body: String!) { addDiscussionComment(input: { replyToId: $replyToId body: $body }) { comment { id } } }' \
+              -f replyToId="${{ github.event.client_payload.comment_id }}" \
+              -f body="## 📋 Created Issues
 
             I've created the following issues based on this discussion:
 
