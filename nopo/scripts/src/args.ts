@@ -3,6 +3,10 @@ import { ScriptArgs } from "./script-args.ts";
 /**
  * Base arguments available to all scripts
  * Scripts can extend these with their own specific arguments
+ *
+ * Note: Not all args belong here. Only truly global args like filter/since.
+ * Command-specific args (like context for CommandScript) should be defined
+ * in the individual script files.
  */
 export const baseArgs = new ScriptArgs({
   filter: {
@@ -17,17 +21,5 @@ export const baseArgs = new ScriptArgs({
     description: "Filter changed files since git ref",
     alias: ["s"],
     default: undefined,
-  },
-
-  context: {
-    type: "string",
-    description: "Execution context: host or container",
-    alias: ["c"],
-    default: undefined,
-    validate: (value) => {
-      if (value && !["host", "container"].includes(value)) {
-        throw new Error('--context must be "host" or "container"');
-      }
-    },
   },
 });
