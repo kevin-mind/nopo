@@ -107,27 +107,10 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
       class: PullScript,
       enabled: async (runner) => {
         const args = CommandScript.parseArgs(runner, false);
-
-        if (process.env.DEBUG_SCRIPT_ARGS) {
-          console.log(`[DEBUG] PullScript enabled check: targets=${JSON.stringify(args.targets)}`);
-        }
-
         if (args.targets.length === 0) return false;
-        if (!willExecuteInContainer(runner, args)) {
-          if (process.env.DEBUG_SCRIPT_ARGS) {
-            console.log(`[DEBUG] PullScript: not container execution, skipping`);
-          }
-          return false;
-        }
-        if (!isPull(runner)) {
-          if (process.env.DEBUG_SCRIPT_ARGS) {
-            console.log(`[DEBUG] PullScript: not pull mode, skipping`);
-          }
-          return false;
-        }
-
+        if (!willExecuteInContainer(runner, args)) return false;
+        if (!isPull(runner)) return false;
         // Always pull if we have targets and it's container execution in pull mode
-        // Don't check if containers are down - it's fine to pull even if they're up
         return true;
       },
       // Pass targets from CommandScript to PullScript
@@ -141,10 +124,6 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
     runner: Runner,
     isDependency: boolean,
   ): CommandScriptArgs {
-    if (process.env.DEBUG_SCRIPT_ARGS) {
-      console.log(`[DEBUG] CommandScript.parseArgs called with isDependency=${isDependency}, argv=`, runner.argv);
-    }
-
     if (isDependency || runner.argv.length === 0) {
       return { command: "", subcommand: undefined, targets: [], filters: [], explicitTargets: false };
     }

@@ -854,13 +854,6 @@ export class Runner {
               this,
               false,
             );
-
-            if (process.env.DEBUG_SCRIPT_ARGS) {
-              console.log(`[DEBUG] Bridge for ${ParentScript.name} -> ${ScriptToRun.name}`);
-              console.log(`[DEBUG] parentParsedArgs:`, parentParsedArgs);
-              console.log(`[DEBUG] targets:`, (parentParsedArgs as any).targets);
-            }
-
             // Inject targets from old system
             if ((parentParsedArgs as any).targets) {
               parentArgs.set("targets", (parentParsedArgs as any).targets);
@@ -869,11 +862,6 @@ export class Runner {
         }
 
         const overrides = depDef.args(parentArgs);
-
-        if (process.env.DEBUG_SCRIPT_ARGS) {
-          console.log(`[DEBUG] overrides from args function:`, overrides);
-          console.log(`[DEBUG] targets in overrides:`, overrides.targets);
-        }
 
         // Apply overrides (including targets!)
         for (const [key, value] of Object.entries(overrides)) {

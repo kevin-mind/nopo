@@ -107,13 +107,6 @@ export class ScriptArgs {
     // Parse remaining args with minimist
     const parsed = minimist(processedArgv, minimistOpts);
 
-    // Debug: log minimist config and result for debugging
-    if (process.env.DEBUG_SCRIPT_ARGS) {
-      console.log("minimistOpts:", JSON.stringify(minimistOpts, null, 2));
-      console.log("processedArgv:", processedArgv);
-      console.log("parsed:", parsed);
-    }
-
     // Add collected array values to parsed result
     for (const [key, values] of arrayArgs.entries()) {
       if (values.length > 0) {
