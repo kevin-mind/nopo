@@ -10,6 +10,7 @@ import {
   type NormalizedProjectConfig,
   type NormalizedService,
 } from "./config/index.ts";
+import { ScriptArgs } from "./script-args.ts";
 
 // Constants for the nopo app user (must match base Dockerfile)
 export const NOPO_APP_UID = "1001";
@@ -714,14 +715,24 @@ export class Runner {
       );
 
       try {
-        // Parse args if the script has a parseArgs method
-        if (this.isTargetScript(ScriptToRun)) {
+        // Check if script uses new ScriptArgs system
+        if ((ScriptToRun as any).args) {
+          // New ScriptArgs system
+          const args = this.prepareScriptArgs(
+            ScriptToRun,
+            ScriptClass,
+            isDependency,
+          );
+          await (scriptInstance as any).fn(args);
+        } else if (this.isTargetScript(ScriptToRun)) {
+          // Old parseArgs system for TargetScript
           const args = (ScriptToRun as typeof TargetScript).parseArgs(
             runnerForScript,
             isDependency,
           );
           await (scriptInstance as TargetScript<unknown>).fn(args);
         } else if ((ScriptToRun as typeof Script).parseArgs) {
+          // Old parseArgs system for Script
           const args = (ScriptToRun as typeof Script).parseArgs!(
             runnerForScript,
             isDependency,
@@ -799,5 +810,113 @@ export class Runner {
       // (let the script handle the error)
       return this;
     }
+  }
+
+  /**
+   * Prepare ScriptArgs for a script (new args system)
+   * Handles both main scripts and dependencies, with arg overrides
+   */
+  private prepareScriptArgs(
+    ScriptToRun: typeof BaseScript,
+    ParentScript: typeof BaseScript,
+    isDependency: boolean,
+  ): ScriptArgs {
+    // Get script's arg schema
+    const argsTemplate = (ScriptToRun as any).args as ScriptArgs | undefined;
+
+    if (!argsTemplate) {
+      // Script doesn't use args system (shouldn't happen, but handle gracefully)
+      return new ScriptArgs({}, this);
+    }
+
+    // Clone args with runner context
+    const scriptArgs = new ScriptArgs(argsTemplate.getSchema(), this);
+
+    if (isDependency) {
+      // Find dependency definition in parent
+      const parentDeps = (ParentScript as any).dependencies || [];
+      const depDef = parentDeps.find((d: any) => d.class === ScriptToRun);
+
+      if (depDef?.args) {
+        // Parent overrides dependency args
+        let parentArgs: ScriptArgs;
+
+        // Check if parent uses new ScriptArgs system
+        if ((ParentScript as any).args) {
+          parentArgs = this.prepareScriptArgs(ParentScript, ParentScript, false);
+        } else {
+          // Parent uses old parseArgs system - create a bridge ScriptArgs
+          parentArgs = new ScriptArgs({}, this);
+
+          // If parent is TargetScript with old parseArgs, get its targets
+          if (this.isTargetScript(ParentScript)) {
+            const parentParsedArgs = (ParentScript as typeof TargetScript).parseArgs(
+              this,
+              false,
+            );
+            // Inject targets from old system
+            if ((parentParsedArgs as any).targets) {
+              parentArgs.set("targets", (parentParsedArgs as any).targets);
+            }
+          }
+        }
+
+        const overrides = depDef.args(parentArgs);
+
+        // Apply overrides (including targets!)
+        for (const [key, value] of Object.entries(overrides)) {
+          scriptArgs.set(key, value);
+        }
+      } else {
+        // Use defaults for all args
+        // (values stay empty, get() returns defaults)
+      }
+    } else {
+      // For TargetScript: parse targets FIRST, strip from argv
+      let argvForParsing = this.argv.slice(1); // Skip command name
+
+      if (this.isTargetScript(ScriptToRun)) {
+        const TargetScriptClass = ScriptToRun as typeof TargetScript;
+
+        // 1. Parse targets from positionals
+        const parsed = parseTargetArgs(
+          TargetScriptClass.name,
+          this.argv.slice(1),
+          this.config.targets,
+          {
+            supportsFilter: true,
+            services: this.config.project.services.entries,
+            projectRoot: this.config.root,
+          },
+        );
+
+        const targets = parsed.targets;
+
+        // 2. Strip targets from argv - rebuild with just flags
+        argvForParsing = [];
+
+        // Add back leading args if any
+        if (parsed.leadingArgs.length > 0) {
+          argvForParsing.push(...parsed.leadingArgs);
+        }
+
+        // Add back options
+        for (const [key, value] of Object.entries(parsed.options)) {
+          if (typeof value === "boolean" && value) {
+            argvForParsing.push(`--${key}`);
+          } else if (value !== undefined && value !== false) {
+            argvForParsing.push(`--${key}`, String(value));
+          }
+        }
+
+        // 3. Set targets on args (injected separately)
+        scriptArgs.set("targets", targets);
+      }
+
+      // 4. Parse remaining flags with ScriptArgs
+      scriptArgs.parse(argvForParsing);
+    }
+
+    return scriptArgs;
   }
 }
