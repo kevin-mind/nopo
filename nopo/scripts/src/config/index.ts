@@ -36,12 +36,16 @@ const CommandEnvSchema = z.record(z.string().min(1), z.string()).optional();
 // Working directory for commands: absolute path, relative to service, or "root"
 const CommandDirSchema = z.string().optional();
 
+// Execution context for commands: host (default) or container
+const CommandContextSchema = z.enum(["host", "container"]).optional();
+
 // Sub-sub-command schema (deepest level - no further nesting)
-// Supports shorthand: "pnpm build" or full object { command: "pnpm build", env: {...}, dir: "..." }
+// Supports shorthand: "pnpm build" or full object { command: "pnpm build", env: {...}, dir: "...", context: "..." }
 const SubSubCommandObjectSchema = z.object({
   command: z.string().min(1),
   env: CommandEnvSchema,
   dir: CommandDirSchema,
+  context: CommandContextSchema,
   dependencies: z.never().optional(), // Explicitly disallow dependencies
 });
 
@@ -49,7 +53,7 @@ const SubSubCommandSchema = z.union([
   z
     .string()
     .min(1)
-    .transform((cmd) => ({ command: cmd, env: undefined, dir: undefined })),
+    .transform((cmd) => ({ command: cmd, env: undefined, dir: undefined, context: undefined })),
   SubSubCommandObjectSchema,
 ]);
 
@@ -60,6 +64,7 @@ const SubCommandObjectSchema = z
     command: z.string().min(1).optional(),
     env: CommandEnvSchema,
     dir: CommandDirSchema,
+    context: CommandContextSchema,
     commands: z.record(z.string().min(1), SubSubCommandSchema).optional(),
     dependencies: z.never().optional(), // Explicitly disallow dependencies
   })
@@ -88,6 +93,7 @@ const SubCommandSchema = z.union([
       command: cmd,
       env: undefined,
       dir: undefined,
+      context: undefined,
       commands: undefined,
     })),
   SubCommandObjectSchema,
@@ -100,6 +106,7 @@ const CommandObjectSchema = z
     command: z.string().min(1).optional(),
     env: CommandEnvSchema,
     dir: CommandDirSchema,
+    context: CommandContextSchema,
     dependencies: CommandDependenciesSchema,
     commands: z.record(z.string().min(1), SubCommandSchema).optional(),
   })
@@ -128,6 +135,7 @@ const CommandSchema = z.union([
       command: cmd,
       env: undefined,
       dir: undefined,
+      context: undefined,
       dependencies: undefined,
       commands: undefined,
     })),
@@ -232,11 +240,15 @@ export type CommandDependencies =
   | Record<string, string[]> // Object with service -> commands mapping
   | undefined;
 
+// Execution context type
+export type CommandContext = "host" | "container";
+
 // Sub-command (no dependencies allowed)
 export interface NormalizedSubCommand {
   command: string;
   env?: Record<string, string>;
   dir?: string;
+  context?: CommandContext;
   commands?: Record<string, NormalizedSubCommand>;
 }
 
@@ -244,6 +256,7 @@ export interface NormalizedCommand {
   command?: string;
   env?: Record<string, string>;
   dir?: string;
+  context?: CommandContext;
   dependencies?: CommandDependencies;
   commands?: Record<string, NormalizedSubCommand>;
 }
@@ -482,6 +495,7 @@ function normalizeSubCommands(
         command: cmd.command,
         env: cmd.env,
         dir: cmd.dir,
+        context: cmd.context,
       };
     } else if (cmd.commands) {
       // Recursive for sub-sub-commands
@@ -489,6 +503,7 @@ function normalizeSubCommands(
         command: undefined as unknown as string, // Will be populated with subcommands
         env: cmd.env,
         dir: cmd.dir,
+        context: cmd.context,
         commands: normalizeSubSubCommands(
           cmd.commands,
           `${parentPath}:${name}`,
@@ -513,6 +528,7 @@ function normalizeSubSubCommands(
       command: cmd.command,
       env: cmd.env,
       dir: cmd.dir,
+      context: cmd.context,
     };
   }
 
@@ -527,7 +543,6 @@ const RESERVED_COMMAND_NAMES = [
   "env",
   "list",
   "pull",
-  "run",
   "status",
   "up",
 ];
@@ -550,12 +565,14 @@ function normalizeCommands(
         command: cmd.command,
         env: cmd.env,
         dir: cmd.dir,
+        context: cmd.context,
         dependencies: cmd.dependencies,
       };
     } else if (cmd.commands) {
       result[name] = {
         env: cmd.env,
         dir: cmd.dir,
+        context: cmd.context,
         dependencies: cmd.dependencies,
         commands: normalizeSubCommands(cmd.commands, name),
       };

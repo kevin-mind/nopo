@@ -4,6 +4,7 @@ import type {
   NormalizedCommand,
   NormalizedSubCommand,
   CommandDependencies,
+  CommandContext,
 } from "../config/index.ts";
 
 /**
@@ -23,6 +24,7 @@ export interface ResolvedCommand {
   executable: string;
   env?: Record<string, string>;
   dir?: string; // "root", absolute path, or relative to service
+  context?: CommandContext; // "host" (default) or "container"
 }
 
 /**
@@ -112,6 +114,7 @@ export function resolveCommand(
       command.commands,
       command.env,
       command.dir,
+      command.context,
     );
   }
 
@@ -124,6 +127,7 @@ export function resolveCommand(
         executable: command.command,
         env: command.env,
         dir: command.dir,
+        context: command.context,
       },
     ];
   }
@@ -144,9 +148,10 @@ function resolveSubCommandPath(
 ): ResolvedCommand[] {
   let current: NormalizedCommand | NormalizedSubCommand = command;
   let currentPath = basePath;
-  // Inherit env/dir from parent commands
+  // Inherit env/dir/context from parent commands
   let inheritedEnv: Record<string, string> | undefined = command.env;
   let inheritedDir: string | undefined = command.dir;
+  let inheritedContext: CommandContext | undefined = command.context;
 
   for (const part of subPath) {
     currentPath = `${currentPath}:${part}`;
@@ -158,9 +163,10 @@ function resolveSubCommandPath(
     }
 
     current = current.commands[part];
-    // Child env/dir overrides parent
+    // Child env/dir/context overrides parent
     if (current.env) inheritedEnv = { ...inheritedEnv, ...current.env };
     if (current.dir) inheritedDir = current.dir;
+    if (current.context) inheritedContext = current.context;
   }
 
   // If we landed on a command with subcommands, flatten them
@@ -171,6 +177,7 @@ function resolveSubCommandPath(
       current.commands,
       inheritedEnv,
       inheritedDir,
+      inheritedContext,
     );
   }
 
@@ -183,6 +190,7 @@ function resolveSubCommandPath(
         executable: current.command,
         env: current.env ? { ...inheritedEnv, ...current.env } : inheritedEnv,
         dir: current.dir || inheritedDir,
+        context: current.context || inheritedContext,
       },
     ];
   }
@@ -201,6 +209,7 @@ function flattenSubCommands(
   subCommands: Record<string, NormalizedSubCommand>,
   parentEnv?: Record<string, string>,
   parentDir?: string,
+  parentContext?: CommandContext,
 ): ResolvedCommand[] {
   const result: ResolvedCommand[] = [];
 
@@ -208,8 +217,9 @@ function flattenSubCommands(
     const cmdPath = `${basePath}:${name}`;
     // Merge env from parent, child overrides
     const mergedEnv = subCmd.env ? { ...parentEnv, ...subCmd.env } : parentEnv;
-    // Child dir overrides parent
+    // Child dir/context overrides parent
     const effectiveDir = subCmd.dir || parentDir;
+    const effectiveContext = subCmd.context || parentContext;
 
     if (subCmd.commands) {
       // Recurse into nested subcommands
@@ -220,6 +230,7 @@ function flattenSubCommands(
           subCmd.commands,
           mergedEnv,
           effectiveDir,
+          effectiveContext,
         ),
       );
     } else if (subCmd.command) {
@@ -229,6 +240,7 @@ function flattenSubCommands(
         executable: subCmd.command,
         env: mergedEnv,
         dir: effectiveDir,
+        context: effectiveContext,
       });
     }
   }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { createTmpEnv } from "./utils.ts";
+import { createTmpEnv, PROJECT_ROOT } from "./utils.ts";
 
 // Mock docker-compose before importing anything that uses it
 vi.mock("docker-compose", () => ({
@@ -26,18 +26,13 @@ vi.mock("docker-compose", () => ({
 
 import main from "../src/index.ts";
 import CommandScript from "../src/scripts/command.ts";
-import RunScript from "../src/scripts/run.ts";
 import BuildScript from "../src/scripts/build.ts";
 
-// Mock exec for CommandScript and RunScript to prevent actual command execution
+// Mock exec for CommandScript to prevent actual command execution
 const mockExec = vi
   .fn()
   .mockResolvedValue({ stdout: "", stderr: "", exitCode: 0 });
 Object.defineProperty(CommandScript.prototype, "exec", {
-  get: () => mockExec,
-  configurable: true,
-});
-Object.defineProperty(RunScript.prototype, "exec", {
   get: () => mockExec,
   configurable: true,
 });
@@ -81,6 +76,7 @@ describe("CLI Routing", () => {
       const argv = ["node", "nopo"];
       const env = {
         ENV_FILE: createTmpEnv({}),
+        ROOT_DIR: PROJECT_ROOT,
       };
 
       await main(argv, env);
@@ -99,6 +95,7 @@ describe("CLI Routing", () => {
       const argv = ["node", "nopo", "help"];
       const env = {
         ENV_FILE: createTmpEnv({}),
+        ROOT_DIR: PROJECT_ROOT,
       };
 
       await main(argv, env);
@@ -113,6 +110,7 @@ describe("CLI Routing", () => {
       const argv = ["node", "nopo", "--help"];
       const env = {
         ENV_FILE: createTmpEnv({}),
+        ROOT_DIR: PROJECT_ROOT,
       };
 
       await main(argv, env);
@@ -128,6 +126,7 @@ describe("CLI Routing", () => {
         ENV_FILE: createTmpEnv({
           DOCKER_TAG: "kevin-mind/nopo:local",
         }),
+        ROOT_DIR: PROJECT_ROOT,
       };
 
       await main(argv, env);
@@ -147,6 +146,7 @@ describe("CLI Routing", () => {
         ENV_FILE: createTmpEnv({
           DOCKER_TAG: "kevin-mind/nopo:local",
         }),
+        ROOT_DIR: PROJECT_ROOT,
       };
 
       await main(argv, env);
@@ -165,6 +165,7 @@ describe("CLI Routing", () => {
         ENV_FILE: createTmpEnv({
           DOCKER_TAG: "kevin-mind/nopo:local",
         }),
+        ROOT_DIR: PROJECT_ROOT,
       };
 
       await main(argv, env);
@@ -181,6 +182,7 @@ describe("CLI Routing", () => {
       const argv = ["node", "nopo", "lint", "help"];
       const env = {
         ENV_FILE: createTmpEnv({}),
+        ROOT_DIR: PROJECT_ROOT,
       };
 
       await main(argv, env);
@@ -201,6 +203,7 @@ describe("CLI Routing", () => {
         ENV_FILE: createTmpEnv({
           DOCKER_TAG: "kevin-mind/nopo:local",
         }),
+        ROOT_DIR: PROJECT_ROOT,
       };
 
       // Currently: Routes to BuildScript correctly
@@ -216,6 +219,7 @@ describe("CLI Routing", () => {
         ENV_FILE: createTmpEnv({
           DOCKER_TAG: "kevin-mind/nopo:local",
         }),
+        ROOT_DIR: PROJECT_ROOT,
       };
 
       // Should route to up script, not arbitrary command
@@ -227,6 +231,7 @@ describe("CLI Routing", () => {
       const argv = ["node", "nopo", "down"];
       const env = {
         ENV_FILE: createTmpEnv({}),
+        ROOT_DIR: PROJECT_ROOT,
       };
 
       // Should route to down script
@@ -237,6 +242,7 @@ describe("CLI Routing", () => {
       const argv = ["node", "nopo", "status"];
       const env = {
         ENV_FILE: createTmpEnv({}),
+        ROOT_DIR: PROJECT_ROOT,
       };
 
       // Should route to status script
@@ -249,6 +255,7 @@ describe("CLI Routing", () => {
       const argv = ["node", "nopo", "undefined-command"];
       const env = {
         ENV_FILE: createTmpEnv({}),
+        ROOT_DIR: PROJECT_ROOT,
       };
       const result = await main(argv, env);
       expect(result).toBeUndefined();
@@ -260,33 +267,24 @@ describe("CLI Routing", () => {
       const argv = ["node", "nopo", "test", "web"];
       const env = {
         ENV_FILE: createTmpEnv({}),
+        ROOT_DIR: PROJECT_ROOT,
       };
 
       // test is defined in web's nopo.yml
       await expect(main(argv, env)).resolves.not.toThrow();
     });
 
-    it("should route 'run lint' to RunScript (container execution)", async () => {
-      const argv = ["node", "nopo", "run", "lint"];
+    it("should route 'lint --context container' for container execution", async () => {
+      const argv = ["node", "nopo", "lint", "--context", "container"];
       const env = {
         ENV_FILE: createTmpEnv({}),
+        ROOT_DIR: PROJECT_ROOT,
       };
 
-      // Expected: Should route to RunScript for container execution
+      // Expected: Should route to CommandScript with container context override
+      // Note: May fail if lint script doesn't exist in fixtures
       await expect(main(argv, env)).resolves.not.toThrow();
-      // Note: May fail if lint script doesn't exist, but routing should be correct
     });
-
-    it("should route 'run lint web' to RunScript with targets (container execution)", async () => {
-      const argv = ["node", "nopo", "run", "lint", "web"];
-      const env = {
-        ENV_FILE: createTmpEnv({}),
-      };
-
-      // Expected: Should route to RunScript with script="lint", targets=["web"]
-      await expect(main(argv, env)).resolves.not.toThrow();
-      // Note: May fail if lint script doesn't exist, but routing should be correct
-    }, 30000); // 30 second timeout for Docker operations
   });
 
   describe("Command Routing Priority", () => {
@@ -297,21 +295,22 @@ describe("CLI Routing", () => {
         ENV_FILE: createTmpEnv({
           DOCKER_TAG: "kevin-mind/nopo:local",
         }),
+        ROOT_DIR: PROJECT_ROOT,
       };
 
-      // Should route to BuildScript, not IndexScript
+      // Should route to BuildScript, not CommandScript
       await expect(main(argv, env)).resolves.not.toThrow();
     }, 30000); // 30 second timeout for Docker operations
 
-    it("should handle 'run' prefix correctly for container execution", async () => {
-      const argv = ["node", "nopo", "run", "test"];
+    it("should handle arbitrary commands with --context flag", async () => {
+      const argv = ["node", "nopo", "test", "web", "--context", "host"];
       const env = {
         ENV_FILE: createTmpEnv({}),
+        ROOT_DIR: PROJECT_ROOT,
       };
 
-      // 'run' should route to RunScript for container execution
+      // 'test' with --context host should use CommandScript with host execution
       await expect(main(argv, env)).resolves.not.toThrow();
-      // Note: May fail if test script doesn't exist, but routing should be correct
     });
   });
 });

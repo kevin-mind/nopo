@@ -1,9 +1,8 @@
 import fs from "node:fs";
 import { describe, it, vi, expect, beforeEach } from "vitest";
 import BuildScript from "../../src/scripts/build.ts";
-import { createConfig } from "../../src/lib.ts";
 
-import { createTmpEnv, runScript } from "../utils.ts";
+import { createTmpEnv, runScript, createTestConfig } from "../utils.ts";
 
 vi.mock("../../src/git-info", () => ({
   GitInfo: {
@@ -40,7 +39,7 @@ describe("build", () => {
 
   it("builds all targets with default options", async () => {
     mockBuilder.mockResolvedValue("default");
-    const config = createConfig({
+    const config = createTestConfig({
       envFile: createTmpEnv({
         DOCKER_TAG: "kevin-mind/nopo:local",
       }),
@@ -84,7 +83,7 @@ describe("build", () => {
 
   it("builds with custom builder", async () => {
     mockBuilder.mockResolvedValue("custom-builder");
-    const config = createConfig({
+    const config = createTestConfig({
       envFile: createTmpEnv({
         DOCKER_TAG: "kevin-mind/nopo:local",
       }),
@@ -102,7 +101,7 @@ describe("build", () => {
 
   it("pushes images when DOCKER_PUSH is set", async () => {
     mockBuilder.mockResolvedValue("nopo-builder");
-    const config = createConfig({
+    const config = createTestConfig({
       envFile: createTmpEnv({
         DOCKER_TAG: "kevin-mind/nopo:local",
       }),
@@ -127,7 +126,7 @@ describe("build", () => {
     const baseTag = "kevin-mind/nopo:local";
 
     it("builds only base when specified", async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({
           DOCKER_TAG: baseTag,
         }),
@@ -151,7 +150,7 @@ describe("build", () => {
     });
 
     it("builds service with base as dependency", async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({
           DOCKER_TAG: baseTag,
         }),
@@ -175,7 +174,7 @@ describe("build", () => {
     });
 
     it("builds multiple services in parallel", async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({
           DOCKER_TAG: baseTag,
         }),
@@ -197,7 +196,7 @@ describe("build", () => {
     });
 
     it("throws error for unknown target", async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({
           DOCKER_TAG: baseTag,
         }),
@@ -210,7 +209,7 @@ describe("build", () => {
     });
 
     it("records service image tags in environment", async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({
           DOCKER_TAG: baseTag,
         }),
@@ -228,7 +227,7 @@ describe("build", () => {
 
   describe("no-cache option", () => {
     it("passes --no-cache to bake", async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({
           DOCKER_TAG: "kevin-mind/nopo:local",
         }),
@@ -245,7 +244,7 @@ describe("build", () => {
   describe("multi-platform builds", () => {
     it("includes platforms when DOCKER_PUSH is set", async () => {
       mockBuilder.mockResolvedValue("nopo-builder");
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({
           DOCKER_TAG: "kevin-mind/nopo:local",
         }),
@@ -278,7 +277,7 @@ describe("build", () => {
 
     it("does not include platforms for local builds", async () => {
       mockBuilder.mockResolvedValue("default");
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({
           DOCKER_TAG: "kevin-mind/nopo:local",
         }),
@@ -302,7 +301,7 @@ describe("build", () => {
 
     it("allows overriding platforms via DOCKER_PLATFORMS env var", async () => {
       mockBuilder.mockResolvedValue("nopo-builder");
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({
           DOCKER_TAG: "kevin-mind/nopo:local",
         }),
@@ -330,7 +329,7 @@ describe("build", () => {
 
     it("handles multiple custom platforms with spaces", async () => {
       mockBuilder.mockResolvedValue("nopo-builder");
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv({
           DOCKER_TAG: "kevin-mind/nopo:local",
         }),

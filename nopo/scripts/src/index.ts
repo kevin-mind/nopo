@@ -17,7 +17,6 @@ import Down from "./scripts/down.ts";
 import Env from "./scripts/env.ts";
 import List from "./scripts/list.ts";
 import Pull from "./scripts/pull.ts";
-import Run from "./scripts/run.ts";
 import Status from "./scripts/status.ts";
 import Up from "./scripts/up.ts";
 
@@ -28,7 +27,6 @@ const scripts: Record<string, typeof Script> = {
   env: Env,
   list: List,
   pull: Pull,
-  run: Run,
   status: Status,
   up: Up,
 };
@@ -240,6 +238,7 @@ export default async function main(
   const config: Config = createConfig({
     envFile: _env.ENV_FILE || undefined,
     silent: isSilentOutput,
+    rootDir: _env.ROOT_DIR || undefined,
   });
   const logger = new Logger(config);
   const environment = new Environment(config);

@@ -3,9 +3,8 @@ import fs from "node:fs";
 
 import EnvScript from "../../src/scripts/env.ts";
 import { Environment } from "../../src/parse-env.ts";
-import { createConfig } from "../../src/lib.ts";
 
-import { createTmpEnv, runScript, dockerTag } from "../utils.ts";
+import { createTmpEnv, runScript, dockerTag, createTestConfig } from "../utils.ts";
 import path from "node:path";
 
 vi.mock("../../src/git-info", () => ({
@@ -33,7 +32,7 @@ QUESTION: We could consider allowing "stateful" input where if you set the value
 describe("env", () => {
   it("prioritiszes file input over base tag", async () => {
     const testEnv = createTmpEnv({ DOCKER_TAG: dockerTag.fullTag });
-    const config = createConfig({
+    const config = createTestConfig({
       envFile: testEnv,
       processEnv: {},
       silent: true,
@@ -45,7 +44,7 @@ describe("env", () => {
 
   it("prioritizes environment over file input", async () => {
     const testEnv = createTmpEnv({ DOCKER_TAG: dockerTag.fullTag });
-    const config = createConfig({
+    const config = createTestConfig({
       envFile: testEnv,
       processEnv: { DOCKER_TAG: "registry/repo:tag" },
       silent: true,
@@ -58,7 +57,7 @@ describe("env", () => {
 
   it("extracts docker tag components from DOCKER_TAG", async () => {
     const testEnv = createTmpEnv({ DOCKER_TAG: dockerTag.fullTag });
-    const config = createConfig({
+    const config = createTestConfig({
       envFile: testEnv,
       processEnv: {},
       silent: true,
@@ -73,7 +72,7 @@ describe("env", () => {
 
   describe("error states", () => {
     it("Corrects invalid NODE_ENV to default on remote images", async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv(),
         processEnv: {
           NODE_ENV: "invalid",
@@ -88,7 +87,7 @@ describe("env", () => {
     });
 
     it("Corrects invalid DOCKER_TARGET to default on remote images", async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv(),
         processEnv: {
           DOCKER_TARGET: "invalid",
@@ -104,7 +103,7 @@ describe("env", () => {
 
   describe("defaults and inference", () => {
     it("uses default .env file when none is provided", async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: undefined,
         processEnv: {},
         silent: true,
@@ -114,7 +113,7 @@ describe("env", () => {
     });
 
     it('sets missing NODE_ENV and DOCKER_TARGET to "development" for local images', async () => {
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: createTmpEnv(),
         processEnv: {
           DOCKER_TAG: "kevin-mind/nopo:local",
@@ -129,7 +128,7 @@ describe("env", () => {
 
     it("uses base tag when no DOCKER_TAG is provided", async () => {
       const tmpFile = createTmpEnv();
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: tmpFile,
         processEnv: {},
         silent: true,
@@ -144,7 +143,7 @@ describe("env", () => {
     it("creates new .env file when none exists", async () => {
       const tmpFile = createTmpEnv();
       fs.rmSync(tmpFile);
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: tmpFile,
         processEnv: {},
         silent: true,
@@ -158,7 +157,7 @@ describe("env", () => {
         DOCKER_TAG: dockerTag.fullTag,
         NODE_ENV: "production",
       });
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: tmpFile,
         processEnv: {},
         silent: true,
@@ -172,7 +171,7 @@ describe("env", () => {
 
     it("sorts environment variables alphabetically in output file", async () => {
       const tmpFile = createTmpEnv();
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: tmpFile,
         processEnv: {},
         silent: true,
@@ -186,7 +185,7 @@ describe("env", () => {
 
     it('formats output as KEY="value" pairs', async () => {
       const tmpFile = createTmpEnv();
-      const config = createConfig({
+      const config = createTestConfig({
         envFile: tmpFile,
         processEnv: {
           NODE_ENV: "production",
