@@ -40,6 +40,7 @@ runs:
       shell: bash
       working-directory: ${{ inputs.dir }}
       env:
+        DEBUG_SCRIPT_ARGS: "1"
         service: ${{ inputs.service }}
         run: ${{ inputs.run }}
         tag: ${{ inputs.tag }}
