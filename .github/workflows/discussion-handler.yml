@@ -187,6 +187,7 @@ jobs:
         if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DISCUSSION_ID: ${{ needs.prepare.outputs.discussion_id }}
           REPLY_TO_ID: ${{ github.event.client_payload.comment_id }}
         run: |
           if [[ ! -f /tmp/discussion-response.md ]]; then
@@ -195,15 +196,16 @@ jobs:
           fi
 
           gh api graphql -f query='
-            mutation($replyToId: ID!, $body: String!) {
+            mutation($discussionId: ID!, $replyToId: ID!, $body: String!) {
               addDiscussionComment(input: {
+                discussionId: $discussionId
                 replyToId: $replyToId
                 body: $body
               }) {
                 comment { id }
               }
             }
-          ' -f replyToId="$REPLY_TO_ID" -F body=@/tmp/discussion-response.md
+          ' -f discussionId="$DISCUSSION_ID" -f replyToId="$REPLY_TO_ID" -F body=@/tmp/discussion-response.md
 
       - name: Add success reaction
         if: success()
@@ -226,6 +228,7 @@ jobs:
         if: failure()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DISCUSSION_ID: ${{ needs.prepare.outputs.discussion_id }}
           COMMENT_ID: ${{ github.event.client_payload.comment_id }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
@@ -243,15 +246,16 @@ jobs:
 
           # Post error as reply
           gh api graphql -f query='
-            mutation($replyToId: ID!, $body: String!) {
+            mutation($discussionId: ID!, $replyToId: ID!, $body: String!) {
               addDiscussionComment(input: {
+                discussionId: $discussionId
                 replyToId: $replyToId
                 body: $body
               }) {
                 comment { id }
               }
             }
-          ' -f replyToId="$COMMENT_ID" -f body="⚠️ **Failed to process your question**
+          ' -f discussionId="$DISCUSSION_ID" -f replyToId="$COMMENT_ID" -f body="⚠️ **Failed to process your question**
 
           See [workflow run]($RUN_URL) for details."
 
@@ -403,6 +407,7 @@ jobs:
         if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DISCUSSION_ID: ${{ needs.prepare.outputs.discussion_id }}
           REPLY_TO_ID: ${{ github.event.client_payload.comment_id }}
         run: |
           if [[ ! -f /tmp/discussion-plan-summary.md ]]; then
@@ -411,15 +416,16 @@ jobs:
           fi
 
           gh api graphql -f query='
-            mutation($replyToId: ID!, $body: String!) {
+            mutation($discussionId: ID!, $replyToId: ID!, $body: String!) {
               addDiscussionComment(input: {
+                discussionId: $discussionId
                 replyToId: $replyToId
                 body: $body
               }) {
                 comment { id }
               }
             }
-          ' -f replyToId="$REPLY_TO_ID" -F body=@/tmp/discussion-plan-summary.md
+          ' -f discussionId="$DISCUSSION_ID" -f replyToId="$REPLY_TO_ID" -F body=@/tmp/discussion-plan-summary.md
 
   #############################################################################
   # COMPLETE - Mark discussion thread as complete
