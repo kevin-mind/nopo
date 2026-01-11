@@ -68,18 +68,6 @@ jobs:
           echo "deploy=$deploy" >> $GITHUB_OUTPUT
           cat "$GITHUB_OUTPUT"
 
-  # Discover changed services (for filtering tests)
-  discover_changed:
-    permissions:
-      contents: read
-    uses: ./.github/workflows/_services.yml
-    with:
-      filter: changed
-      # For merge_group: compare against origin/main (base before merge)
-      # For push: compare against HEAD~1 (previous commit)
-      since: ${{ github.event_name == 'merge_group' && 'origin/main' || 'HEAD~1' }}
-      ref: ${{ github.sha }}
-
   # Discover buildable services (for build and deploy - URL map requires all services)
   discover_buildable:
     permissions:
