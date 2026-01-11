@@ -111,6 +111,10 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
         if (!willExecuteInContainer(runner, args)) return false;
         return (await hasDownContainer(runner, args.targets)) && isPull(runner);
       },
+      // Pass targets from CommandScript to PullScript
+      args: (parentArgs) => ({
+        targets: parentArgs.get("targets"),
+      }),
     },
   ];
 
