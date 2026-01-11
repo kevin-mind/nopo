@@ -131,6 +131,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           settings: ".claude/settings.json"
+          show_full_output: true
           prompt: |
             You are responding to a user's question on Discussion #${{ github.event.client_payload.discussion_number }}.
 
@@ -155,7 +156,16 @@ jobs:
 
             After completing your research, you MUST post your answer as a reply:
             ```
-            gh api graphql -f query='mutation($replyToId: ID!, $body: String!) { addDiscussionComment(input: { replyToId: $replyToId body: $body }) { comment { id } } }' -f replyToId="${{ github.event.client_payload.comment_id }}" -f body="<your detailed answer with code examples and citations>"
+            gh api graphql -f query='
+              mutation($replyToId: ID!, $body: String!) {
+                addDiscussionComment(input: {
+                  replyToId: $replyToId
+                  body: $body
+                }) {
+                  comment { id }
+                }
+              }
+            ' -f replyToId="${{ github.event.client_payload.comment_id }}" -f body="<your detailed answer with code examples and citations>"
             ```
 
             NEVER leave the discussion without a visible response - your analysis must be posted as a reply comment.
@@ -232,6 +242,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           settings: ".claude/settings.json"
+          show_full_output: true
           prompt: |
             A new discussion was created: **${{ github.event.client_payload.discussion_title }}**
 
@@ -252,7 +263,16 @@ jobs:
 
             For EACH major research area, you MUST post a separate comment (run this 2-3 times):
             ```
-            gh api graphql -f query='mutation($discussionId: ID!, $body: String!) { addDiscussionComment(input: { discussionId: $discussionId body: $body }) { comment { id } } }' -f discussionId="${{ needs.prepare.outputs.discussion_id }}" -f body="## Research: <Topic Name>
+            gh api graphql -f query='
+              mutation($discussionId: ID!, $body: String!) {
+                addDiscussionComment(input: {
+                  discussionId: $discussionId
+                  body: $body
+                }) {
+                  comment { id }
+                }
+              }
+            ' -f discussionId="${{ needs.prepare.outputs.discussion_id }}" -f body="## Research: <Topic Name>
 
             <your detailed research findings with code examples and citations>"
             ```
@@ -282,6 +302,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           settings: ".claude/settings.json"
+          show_full_output: true
           prompt: |
             A user requested a plan for Discussion #${{ github.event.client_payload.discussion_number }}.
 
