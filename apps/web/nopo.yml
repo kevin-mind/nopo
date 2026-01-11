@@ -23,6 +23,4 @@ commands:
     context: host
     commands:
       types: pnpm exec react-router typegen && pnpm exec tsc
-  test:
-    context: container
-    command: echo 'test'
+  test: echo 'test'
