@@ -68,19 +68,7 @@ jobs:
           echo "deploy=$deploy" >> $GITHUB_OUTPUT
           cat "$GITHUB_OUTPUT"
 
-  # Discover changed services (for filtering tests)
-  discover_changed:
-    permissions:
-      contents: read
-    uses: ./.github/workflows/_services.yml
-    with:
-      filter: changed
-      # For merge_group: compare against origin/main (base before merge)
-      # For push: compare against HEAD~1 (previous commit)
-      since: ${{ github.event_name == 'merge_group' && 'origin/main' || 'HEAD~1' }}
-      ref: ${{ github.sha }}
-
-  # Discover buildable services (for build and deploy - URL map requires all services)
+  # Discover buildable services (for build, test, and deploy)
   discover_buildable:
     permissions:
       contents: read
@@ -131,7 +119,7 @@ jobs:
       services: ${{ needs.discover_buildable.outputs.services }}
 
   test:
-    needs: [build, context, discover_changed]
+    needs: [build, context, discover_buildable]
     # Skip if build was skipped
     if: ${{ needs.build.result == 'success' }}
     permissions:
@@ -141,17 +129,16 @@ jobs:
     secrets: inherit
     with:
       tag: ${{ needs.build.outputs.tag }}
-      services: ${{ needs.discover_changed.outputs.services_json }}
+      services: ${{ needs.discover_buildable.outputs.services_json }}
 
   deploy_stage:
-    # Deploy all services if any changed (URL map requires all services to exist)
+    # Deploy all services every time (URL map requires all services to exist)
     # Skip if build was skipped (no buildable services)
     if: |
       needs.context.outputs.deploy == 'true' &&
-      needs.discover_changed.outputs.services_json != '[]' &&
       needs.discover_buildable.outputs.services_json != '[]' &&
       needs.build.result == 'success'
-    needs: [context, build, test, discover_changed, discover_buildable]
+    needs: [context, build, test, discover_buildable]
     permissions:
       contents: read
       packages: write
@@ -166,14 +153,13 @@ jobs:
       services: ${{ needs.discover_buildable.outputs.services_json }}
 
   deploy_prod:
-    # Deploy all services if any changed (URL map requires all services to exist)
+    # Deploy all services every time (URL map requires all services to exist)
     # Skip if build was skipped (no buildable services)
     if: |
       needs.context.outputs.deploy == 'true' &&
-      needs.discover_changed.outputs.services_json != '[]' &&
       needs.discover_buildable.outputs.services_json != '[]' &&
       needs.build.result == 'success'
-    needs: [context, build, deploy_stage, test, discover_changed, discover_buildable]
+    needs: [context, build, deploy_stage, test, discover_buildable]
     permissions:
       contents: read
       packages: write
