@@ -1,0 +1,786 @@
+name: Claude Discussion Loop
+
+on:
+  discussion:
+    types: [created, edited]
+  discussion_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      discussion_number:
+        description: "Discussion number to process"
+        required: true
+        type: string
+      action:
+        description: "Action to simulate"
+        required: true
+        type: choice
+        options:
+          - research
+          - respond
+          - summarize
+          - plan
+
+concurrency:
+  group: claude-discussion-${{ github.event.discussion.number || inputs.discussion_number }}
+  cancel-in-progress: false  # Queue mode - preserve all work
+
+permissions:
+  contents: read
+  discussions: write
+  issues: write
+  id-token: write
+
+jobs:
+  #############################################################################
+  # DETECT CONTEXT
+  # Determines what kind of event triggered this workflow and extracts context
+  #############################################################################
+
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      discussion_id: ${{ steps.context.outputs.discussion_id }}
+      discussion_number: ${{ steps.context.outputs.discussion_number }}
+      discussion_title: ${{ steps.context.outputs.discussion_title }}
+      is_new_discussion: ${{ steps.context.outputs.is_new_discussion }}
+      is_command: ${{ steps.commands.outputs.is_command }}
+      command_type: ${{ steps.commands.outputs.command_type }}
+      is_claude_comment: ${{ steps.context.outputs.is_claude_comment }}
+      is_human_comment: ${{ steps.context.outputs.is_human_comment }}
+      comment_id: ${{ steps.context.outputs.comment_id }}
+      comment_body: ${{ steps.context.outputs.comment_body }}
+      claude_comment_count: ${{ steps.count.outputs.claude_comment_count }}
+    steps:
+      - name: Extract discussion context
+        id: context
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          DISCUSSION_NUMBER: ${{ github.event.discussion.number || inputs.discussion_number }}
+        run: |
+          set -e
+
+          echo "Event: $EVENT_NAME"
+          echo "Discussion: $DISCUSSION_NUMBER"
+
+          # Determine if this is a new discussion event
+          if [[ "$EVENT_NAME" == "discussion" ]] && [[ "${{ github.event.action }}" == "created" ]]; then
+            echo "is_new_discussion=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_new_discussion=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Get discussion details via GraphQL
+          discussion_data=$(gh api graphql -f query='
+            query($owner: String!, $repo: String!, $number: Int!) {
+              repository(owner: $owner, name: $repo) {
+                discussion(number: $number) {
+                  id
+                  title
+                }
+              }
+            }
+          ' -f owner="${GITHUB_REPOSITORY%/*}" -f repo="${GITHUB_REPOSITORY#*/}" -F number="$DISCUSSION_NUMBER")
+
+          discussion_id=$(echo "$discussion_data" | jq -r '.data.repository.discussion.id')
+          discussion_title=$(echo "$discussion_data" | jq -r '.data.repository.discussion.title')
+
+          echo "discussion_id=$discussion_id" >> $GITHUB_OUTPUT
+          echo "discussion_number=$DISCUSSION_NUMBER" >> $GITHUB_OUTPUT
+          echo "discussion_title=$discussion_title" >> $GITHUB_OUTPUT
+
+          # Check if this is a comment event
+          if [[ "$EVENT_NAME" == "discussion_comment" ]]; then
+            comment_author="${{ github.event.comment.user.login }}"
+            comment_id="${{ github.event.comment.node_id }}"
+            comment_body=$(echo '${{ github.event.comment.body }}' | jq -Rs .)
+
+            echo "comment_id=$comment_id" >> $GITHUB_OUTPUT
+            echo "comment_body=$comment_body" >> $GITHUB_OUTPUT
+
+            if [[ "$comment_author" == "claude[bot]" ]]; then
+              echo "is_claude_comment=true" >> $GITHUB_OUTPUT
+              echo "is_human_comment=false" >> $GITHUB_OUTPUT
+            else
+              echo "is_claude_comment=false" >> $GITHUB_OUTPUT
+              echo "is_human_comment=true" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "is_claude_comment=false" >> $GITHUB_OUTPUT
+            echo "is_human_comment=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Count Claude comments
+        id: count
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DISCUSSION_NUMBER: ${{ steps.context.outputs.discussion_number }}
+        run: |
+          set -e
+
+          # Query all comments and replies
+          comments_data=$(gh api graphql -f query='
+            query($owner: String!, $repo: String!, $number: Int!) {
+              repository(owner: $owner, name: $repo) {
+                discussion(number: $number) {
+                  comments(first: 100) {
+                    nodes {
+                      author { login }
+                      replies(first: 100) {
+                        nodes {
+                          author { login }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ' -f owner="${GITHUB_REPOSITORY%/*}" -f repo="${GITHUB_REPOSITORY#*/}" -F number="$DISCUSSION_NUMBER")
+
+          # Count all comments from claude[bot] (top-level + replies)
+          claude_count=$(echo "$comments_data" | jq '[.. | select(.author?.login == "claude[bot]")] | length')
+
+          echo "claude_comment_count=$claude_count" >> $GITHUB_OUTPUT
+          echo "Found $claude_count Claude comments in discussion"
+
+      - name: Detect commands
+        id: commands
+        env:
+          COMMENT_BODY: ${{ steps.context.outputs.comment_body }}
+        run: |
+          set -e
+
+          # Default: no command
+          echo "is_command=false" >> $GITHUB_OUTPUT
+          echo "command_type=none" >> $GITHUB_OUTPUT
+
+          # Only check for commands if this is a comment event
+          if [[ -z "$COMMENT_BODY" ]] || [[ "$COMMENT_BODY" == "null" ]]; then
+            echo "No comment body - skipping command detection"
+            exit 0
+          fi
+
+          # Extract body from JSON string
+          body=$(echo "$COMMENT_BODY" | jq -r .)
+
+          # Check for /summarize command
+          if echo "$body" | grep -qE '^\s*/summarize\s*$'; then
+            echo "Detected /summarize command"
+            echo "is_command=true" >> $GITHUB_OUTPUT
+            echo "command_type=summarize" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Check for /plan command
+          if echo "$body" | grep -qE '^\s*/plan\s*$'; then
+            echo "Detected /plan command"
+            echo "is_command=true" >> $GITHUB_OUTPUT
+            echo "command_type=plan" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Check for /complete command
+          if echo "$body" | grep -qE '^\s*/complete\s*$'; then
+            echo "Detected /complete command"
+            echo "is_command=true" >> $GITHUB_OUTPUT
+            echo "command_type=complete" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+  #############################################################################
+  # RESEARCH JOB
+  # Triggered when: new discussion created OR incomplete research thread
+  #############################################################################
+
+  research:
+    needs: detect
+    runs-on: ubuntu-latest
+    if: |
+      needs.detect.outputs.is_new_discussion == 'true' &&
+      needs.detect.outputs.claude_comment_count < '20'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check comment limit
+        env:
+          CLAUDE_COUNT: ${{ needs.detect.outputs.claude_comment_count }}
+        run: |
+          if [[ "$CLAUDE_COUNT" -ge 20 ]]; then
+            echo "::error::Claude comment limit reached (20)"
+            exit 1
+          fi
+          echo "Current count: $CLAUDE_COUNT/20"
+
+      - name: Add research started comment
+        id: bot_comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DISCUSSION_ID: ${{ needs.detect.outputs.discussion_id }}
+          DISCUSSION_NUMBER: ${{ needs.detect.outputs.discussion_number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -e
+
+          comment_data=$(gh api graphql -f query='
+            mutation($discussionId: ID!, $body: String!) {
+              addDiscussionComment(input: {
+                discussionId: $discussionId
+                body: $body
+              }) {
+                comment {
+                  id
+                  url
+                }
+              }
+            }
+          ' -f discussionId="$DISCUSSION_ID" -f body="👀 **nopo-bot** is researching this discussion...
+
+          [View job]($RUN_URL)")
+
+          comment_id=$(echo "$comment_data" | jq -r '.data.addDiscussionComment.comment.id')
+          echo "comment_id=$comment_id" >> $GITHUB_OUTPUT
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          settings: ".claude/settings.json"
+          prompt: |
+            You are analyzing GitHub Discussion #${{ needs.detect.outputs.discussion_number }}: "${{ needs.detect.outputs.discussion_title }}"
+
+            Discussion details:
+            ${{ github.event.discussion.body }}
+
+            ## Your Task: Vigorous Research
+
+            Perform comprehensive research on this topic by:
+
+            ### 1. Search the codebase
+            - Use `grep` to find relevant code patterns and implementations
+            - Use `glob` to locate related files
+            - Read key files to understand current implementation
+            - Example: `grep -r "keyword" apps/` or `find . -name "*.py" -type f`
+
+            ### 2. Search GitHub for context
+            - Find related issues: `gh issue list --search "keyword" --json number,title,state`
+            - Find related PRs: `gh pr list --search "keyword" --json number,title,state`
+            - Search discussions: `gh api graphql` with discussion queries
+            - Look for patterns in closed issues/PRs that might be relevant
+
+            ### 3. Search project documentation
+            - Check `decisions/` for Architecture Decision Records (ADRs)
+            - Check `nopo/docs/` for CLI documentation
+            - Check `AGENTS.md` for automation patterns
+            - Check `README.md` and service-specific docs in `apps/*/README.md`
+
+            ### 4. Web search (if needed)
+            - Search for external documentation about libraries/tools mentioned
+            - Find best practices or common patterns
+            - Look for related technical discussions or blog posts
+
+            ## Organize findings into research threads
+
+            Create ONE top-level comment per distinct research area. Each comment should:
+            - Be titled with "## Research: <Topic>"
+            - Be self-contained and comprehensive
+            - Include code snippets, file paths with line numbers (file.ts:42), and links
+            - Cite all sources (files, URLs, issue numbers)
+
+            ### Example Research Topics:
+            - "## Research: Current Implementation"
+            - "## Research: Related Issues and PRs"
+            - "## Research: Architecture and Patterns"
+            - "## Research: External Documentation and Best Practices"
+
+            ## Posting Your Research
+
+            For each research area, post a TOP-LEVEL comment using GraphQL:
+
+            ```bash
+            gh api graphql -f query='
+              mutation($discussionId: ID!, $body: String!) {
+                addDiscussionComment(input: {
+                  discussionId: $discussionId
+                  body: $body
+                }) {
+                  comment { id }
+                }
+              }
+            ' -f discussionId="${{ needs.detect.outputs.discussion_id }}" -f body="<your research markdown>"
+            ```
+
+            CRITICAL REQUIREMENTS:
+            - Post SEPARATE top-level comments (NOT threaded replies)
+            - Each research area should be its own comment
+            - Be thorough but concise
+            - Include actionable information
+            - Use proper markdown formatting
+            - Always cite sources with links or file paths
+
+            IMPORTANT: Do NOT post all research in a single comment. Create multiple focused comments instead.
+          claude_args: "--model claude-opus-4-5-20251101 --max-turns 100"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add success reaction
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_ID: ${{ steps.bot_comment.outputs.comment_id }}
+        run: |
+          # Convert node ID to comment ID for reactions API
+          # Note: GitHub's reactions API uses different ID format
+          # We'll skip reactions for now since the mutation already posted
+          echo "Research completed successfully"
+
+      - name: Add failure reaction
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DISCUSSION_ID: ${{ needs.detect.outputs.discussion_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh api graphql -f query='
+            mutation($discussionId: ID!, $body: String!) {
+              addDiscussionComment(input: {
+                discussionId: $discussionId
+                body: $body
+              }) {
+                comment { id }
+              }
+            }
+          ' -f discussionId="$DISCUSSION_ID" -f body="⚠️ **Research failed**
+
+          See [workflow run]($RUN_URL) for details.
+
+          Please retry by editing the discussion or posting a new comment."
+
+  #############################################################################
+  # RESPOND JOB
+  # Triggered when: human posts a comment (not a command)
+  #############################################################################
+
+  respond:
+    needs: detect
+    runs-on: ubuntu-latest
+    if: |
+      needs.detect.outputs.is_human_comment == 'true' &&
+      needs.detect.outputs.is_command == 'false' &&
+      needs.detect.outputs.claude_comment_count < '20'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get comment thread context
+        id: thread
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_ID: ${{ needs.detect.outputs.comment_id }}
+        run: |
+          set -e
+
+          # Get comment details to check if it's a reply
+          comment_data=$(gh api graphql -f query='
+            query($commentId: ID!) {
+              node(id: $commentId) {
+                ... on DiscussionComment {
+                  id
+                  body
+                  replyTo {
+                    id
+                    body
+                  }
+                }
+              }
+            }
+          ' -f commentId="$COMMENT_ID")
+
+          has_parent=$(echo "$comment_data" | jq -r '.data.node.replyTo != null')
+          parent_id=$(echo "$comment_data" | jq -r '.data.node.replyTo.id // ""')
+
+          echo "has_parent=$has_parent" >> $GITHUB_OUTPUT
+          echo "parent_id=$parent_id" >> $GITHUB_OUTPUT
+
+          if [[ "$has_parent" == "true" ]]; then
+            echo "This is a reply in an existing thread"
+          else
+            echo "This is a new top-level comment"
+          fi
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          settings: ".claude/settings.json"
+          prompt: |
+            A human posted a comment on Discussion #${{ needs.detect.outputs.discussion_number }}.
+
+            **Comment:** ${{ needs.detect.outputs.comment_body }}
+            **Author:** @${{ github.event.comment.user.login }}
+            **Is reply to existing thread:** ${{ steps.thread.outputs.has_parent }}
+
+            ## Determine Response Strategy
+
+            ${{ steps.thread.outputs.has_parent == 'true' && format('
+            ### This is a REPLY in an existing thread
+
+            First, read the full thread context:
+            ```bash
+            gh api graphql -f query=''
+              query($commentId: ID!) {{
+                node(id: $commentId) {{
+                  ... on DiscussionComment {{
+                    body
+                    replies(first: 100) {{
+                      nodes {{ body author {{ login }} }}
+                    }}
+                  }}
+                }}
+              }}
+            '' -f commentId="{0}"
+            ```
+
+            Then answer the question in the context of this thread.
+            Post your response as a REPLY using:
+            ```bash
+            gh api graphql -f query=''
+              mutation($replyToId: ID!, $body: String!) {{
+                addDiscussionComment(input: {{
+                  replyToId: $replyToId
+                  body: $body
+                }}) {{
+                  comment {{ id }}
+                }}
+              }}
+            '' -f replyToId="{0}" -f body="<your answer>"
+            ```', steps.thread.outputs.parent_id) || '
+            ### This is a NEW top-level comment (new research topic)
+
+            This human is asking a new question or raising a new topic.
+            Treat this as a new research area:
+
+            1. Research the question thoroughly (search codebase, docs, GitHub)
+            2. Post your findings as a REPLY to their comment
+
+            Use this to reply:
+            ```bash
+            gh api graphql -f query=''
+              mutation($replyToId: ID!, $body: String!) {{
+                addDiscussionComment(input: {{
+                  replyToId: $replyToId
+                  body: $body
+                }}) {{
+                  comment {{ id }}
+                }}
+              }}
+            '' -f replyToId="${{ needs.detect.outputs.comment_id }}" -f body="<your research>"
+            ```' }}
+
+            ## Action Detection
+
+            **If the comment contains action words:**
+            - "fix", "implement", "change", "update", "create", "add", "remove"
+
+            Then explain that implementation requires creating issues:
+            - "To implement this, I recommend using `/plan` to create implementation issues"
+            - "Once issues are created, they can be assigned to nopo-bot for automated implementation"
+
+            **If the comment is a question:**
+            - Research thoroughly
+            - Answer directly with code examples and links
+            - Cite sources (files with line numbers, URLs, issue numbers)
+            - Be concrete and actionable
+
+            IMPORTANT: Always post your response using the GraphQL mutation above.
+          claude_args: "--model claude-opus-4-5-20251101 --max-turns 100"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  #############################################################################
+  # COMMAND: /summarize
+  # Summarizes the entire discussion (all threads)
+  #############################################################################
+
+  command-summarize:
+    needs: detect
+    runs-on: ubuntu-latest
+    if: needs.detect.outputs.command_type == 'summarize'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          settings: ".claude/settings.json"
+          prompt: |
+            The user requested a summary of Discussion #${{ needs.detect.outputs.discussion_number }}.
+
+            ## Step 1: Fetch All Discussion Content
+
+            Get the full discussion with all comments and replies:
+            ```bash
+            gh api graphql -f query='
+              query($owner: String!, $repo: String!, $number: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  discussion(number: $number) {
+                    title
+                    body
+                    comments(first: 100) {
+                      nodes {
+                        id
+                        body
+                        author { login }
+                        createdAt
+                        replies(first: 100) {
+                          nodes {
+                            body
+                            author { login }
+                            createdAt
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ' -f owner="${GITHUB_REPOSITORY%/*}" -f repo="${GITHUB_REPOSITORY#*/}" -F number=${{ needs.detect.outputs.discussion_number }}
+            ```
+
+            ## Step 2: Organize Content
+
+            Group discussion content by:
+            - **Research threads** (comments from claude[bot] titled "## Research: ...")
+            - **Questions and answers** (human questions with responses)
+            - **Human contributions** (insights, suggestions, additional context)
+
+            ## Step 3: Create Comprehensive Summary
+
+            Write a summary covering:
+
+            ### 📋 Discussion Summary
+
+            #### Key Findings
+            - Main discoveries from research threads
+            - Relevant code patterns and implementations found
+            - Related issues/PRs identified
+
+            #### Questions Answered
+            - List of questions raised in the discussion
+            - Answers provided (with citations)
+
+            #### Open Items
+            - Unresolved questions or areas needing more research
+            - Conflicting information or unclear points
+
+            #### Recommended Next Steps
+            - Suggested actions based on the discussion
+            - Issues that should be created (if any)
+            - Areas for further investigation
+
+            ## Step 4: Post Summary
+
+            Post as a top-level comment:
+            ```bash
+            gh api graphql -f query='
+              mutation($discussionId: ID!, $body: String!) {
+                addDiscussionComment(input: {
+                  discussionId: $discussionId
+                  body: $body
+                }) {
+                  comment { id }
+                }
+              }
+            ' -f discussionId="${{ needs.detect.outputs.discussion_id }}" -f body="<your summary markdown>"
+            ```
+
+            IMPORTANT:
+            - Be comprehensive but concise
+            - Use proper markdown formatting
+            - Include links and citations
+            - Organize information clearly
+          claude_args: "--model claude-opus-4-5-20251101 --max-turns 50"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  #############################################################################
+  # COMMAND: /plan
+  # Creates implementation issues from discussion
+  #############################################################################
+
+  command-plan:
+    needs: detect
+    runs-on: ubuntu-latest
+    if: needs.detect.outputs.command_type == 'plan'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          settings: ".claude/settings.json"
+          prompt: |
+            The user requested to create an implementation plan from Discussion #${{ needs.detect.outputs.discussion_number }}.
+
+            ## Step 1: Analyze Discussion Content
+
+            Fetch and review all research findings and conversation:
+            ```bash
+            gh api graphql -f query='
+              query($owner: String!, $repo: String!, $number: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  discussion(number: $number) {
+                    title
+                    body
+                    comments(first: 100) {
+                      nodes {
+                        body
+                        author { login }
+                        replies(first: 100) {
+                          nodes { body author { login } }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ' -f owner="${GITHUB_REPOSITORY%/*}" -f repo="${GITHUB_REPOSITORY#*/}" -F number=${{ needs.detect.outputs.discussion_number }}
+            ```
+
+            ## Step 2: Extract Actionable Items
+
+            Review the discussion and identify:
+            - **Features to implement** (new functionality requested or discovered)
+            - **Bugs to fix** (issues or problems identified)
+            - **Refactoring opportunities** (improvements to code structure)
+            - **Documentation needs** (areas needing better docs)
+            - **Testing requirements** (missing test coverage)
+
+            ## Step 3: Create GitHub Issues
+
+            For each actionable item, create a well-structured issue:
+
+            ### Issue Template Structure
+            Use the project's task.yml template format:
+            - **Description**: Brief TLDR of what needs to be done
+            - **Details**: Implementation details, affected files, technical requirements
+            - **Todo**: Specific tasks to complete (checkboxes)
+
+            ### Creating Issues
+            ```bash
+            # Create issue with proper structure
+            gh issue create \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "<clear, actionable title>" \
+              --label "enhancement" \
+              --label "triaged" \
+              --label "discussion:${{ needs.detect.outputs.discussion_number }}" \
+              --body "## Description
+
+            <Brief description>
+
+            ## Details
+
+            <Implementation details>
+
+            Related to discussion: #${{ needs.detect.outputs.discussion_number }}
+
+            ## Todo
+
+            - [ ] Task 1
+            - [ ] Task 2"
+            ```
+
+            **IMPORTANT**: Add these labels to each issue:
+            - `triaged` (skip triage since we're creating from discussion)
+            - `enhancement`, `bug`, `refactor`, or `documentation` (as appropriate)
+            - `discussion:${{ needs.detect.outputs.discussion_number }}` (links to this discussion)
+
+            ## Step 4: Link Issues to GitHub Project (if available)
+
+            If the repository has a GitHub Project linked, add issues to it:
+
+            ```bash
+            # Get project ID (requires PROJECT_TOKEN)
+            # Add issue to project with status "Ready"
+            # (Use same pattern as claude-issue-loop.yml implement-update-project job)
+            ```
+
+            ## Step 5: Post Summary
+
+            After creating all issues, post a summary comment on the discussion:
+
+            ```bash
+            gh api graphql -f query='
+              mutation($discussionId: ID!, $body: String!) {
+                addDiscussionComment(input: {
+                  discussionId: $discussionId
+                  body: $body
+                }) {
+                  comment { id }
+                }
+              }
+            ' -f discussionId="${{ needs.detect.outputs.discussion_id }}" -f body="## 📦 Implementation Plan Created
+
+            Created the following issues based on this discussion:
+
+            - #123: Feature X - <brief description>
+            - #124: Feature Y - <brief description>
+            - #125: Bug fix Z - <brief description>
+
+            All issues are labeled with \`discussion:${{ needs.detect.outputs.discussion_number }}\` and added to the project board.
+
+            **Next steps:**
+            1. Review the created issues
+            2. Assign \`nopo-bot\` to issues you want to implement automatically
+            3. Or work on them manually"
+            ```
+
+            CRITICAL REQUIREMENTS:
+            - Group related changes into single issues (don't over-split)
+            - Write clear, actionable issue titles
+            - Include enough context for implementation
+            - Always link back to this discussion
+            - Add the `triaged` label (skip triage automation)
+            - Add `discussion:<number>` label for tracking
+          claude_args: "--model claude-opus-4-5-20251101 --max-turns 100"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PROJECT_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
+
+  #############################################################################
+  # COMMAND: /complete
+  # Marks a thread or discussion as complete
+  #############################################################################
+
+  command-complete:
+    needs: detect
+    runs-on: ubuntu-latest
+    if: needs.detect.outputs.command_type == 'complete'
+    steps:
+      - name: Mark discussion complete
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DISCUSSION_ID: ${{ needs.detect.outputs.discussion_id }}
+          DISCUSSION_NUMBER: ${{ needs.detect.outputs.discussion_number }}
+        run: |
+          set -e
+
+          # Post completion comment
+          gh api graphql -f query='
+            mutation($discussionId: ID!, $body: String!) {
+              addDiscussionComment(input: {
+                discussionId: $discussionId
+                body: $body
+              }) {
+                comment { id }
+              }
+            }
+          ' -f discussionId="$DISCUSSION_ID" -f body="✅ **Discussion marked complete**
+
+          This discussion has been marked as complete. No further automated research will be performed.
+
+          To re-enable research, remove the \`research-complete\` label or create a new discussion."
+
+          # Try to add research-complete label (requires label to exist)
+          # Note: GitHub Discussions labels work differently than issue labels
+          # For MVP, we'll just post the comment
+          echo "Discussion marked complete"

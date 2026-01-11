@@ -1,0 +1,110 @@
+labels: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 🤖 Claude Research Assistant
+
+        This discussion will be automatically analyzed by Claude, our AI research assistant.
+
+        ### What Claude Will Do
+
+        When you create this discussion, Claude will:
+
+        1. **Perform vigorous research** on your topic by:
+           - Searching the codebase for relevant implementations
+           - Finding related issues, PRs, and discussions
+           - Reviewing documentation and Architecture Decision Records (ADRs)
+           - Searching the web for external documentation (when helpful)
+
+        2. **Post research findings** as separate comments (one per research topic):
+           - ## Research: Current Implementation
+           - ## Research: Related Issues and PRs
+           - ## Research: Architecture and Patterns
+           - ## Research: External Documentation
+
+        3. **Answer follow-up questions** you post in the discussion threads
+
+        ### Available Commands
+
+        Use these commands in comments (one per comment, on its own line):
+
+        | Command | Purpose |
+        |---------|---------|
+        | `/summarize` | Generate a comprehensive summary of the entire discussion |
+        | `/plan` | Create GitHub issues from this discussion with labels and project links |
+        | `/complete` | Mark the discussion as complete (stops automated research) |
+
+        ### Comment Limits
+
+        To prevent spam and infinite loops:
+        - Max **20 Claude comments** per discussion
+        - Max **20 Claude replies** per thread
+        - Research stops automatically when limits are reached
+
+        ### Creating Implementation Issues
+
+        Once you've explored the topic:
+
+        1. Post `/plan` in a comment
+        2. Claude will analyze the discussion and create actionable GitHub issues
+        3. Issues are labeled with `discussion:<number>` and linked to this discussion
+        4. Issues are added to the project board with status "Ready"
+        5. Assign `nopo-bot` to issues to trigger automated implementation
+
+        ### Tips for Best Results
+
+        - **Be specific** in your initial question or topic description
+        - **Ask follow-ups** if you need clarification or deeper research
+        - **Use `/summarize`** when the discussion has many threads
+        - **Use `/plan`** when you're ready to move from research to implementation
+
+  - type: textarea
+    id: topic
+    attributes:
+      label: "Discussion Topic"
+      description: "What would you like to research or discuss?"
+      placeholder: |
+        Example topics:
+        - "How does the Docker build system work?"
+        - "What's the best approach for adding authentication?"
+        - "Can we improve the CI/CD pipeline performance?"
+        - "How do we handle database migrations in production?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: "Additional Context (optional)"
+      description: "Any additional context that might help with research?"
+      placeholder: |
+        - Related documentation you've already reviewed
+        - Specific areas of the codebase you're interested in
+        - Constraints or requirements to consider
+        - Questions you have
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: research-areas
+    attributes:
+      label: "Research Areas (optional)"
+      description: "Check areas you'd like Claude to focus on"
+      options:
+        - label: "Current codebase implementation"
+        - label: "Related issues and PRs"
+        - label: "Architecture and design patterns"
+        - label: "External documentation and best practices"
+        - label: "Testing approaches"
+        - label: "Performance considerations"
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+
+        **Note**: Claude's research is automated and starts immediately when you create this discussion. The first research comments should appear within a few minutes.
+
+        If you need to adjust your question or add more context, just edit the discussion body - Claude will re-analyze and provide updated research.

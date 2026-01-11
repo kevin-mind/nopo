@@ -885,6 +885,251 @@ All PRs created by Claude automation must:
 
 ---
 
+## Discussion Automation
+
+GitHub Discussions are automated with Claude for research, Q&A, and project planning. Unlike issues/PRs, discussions don't involve code changes or CI, so the automation is simpler and focused on knowledge discovery.
+
+### Discussion Loop Overview
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   CREATE    │────►│  RESEARCH   │────►│   RESPOND   │
+│             │     │  (threads)  │     │  (ongoing)  │
+└─────────────┘     └─────────────┘     └─────────────┘
+      │                   │                   │
+      ▼                   ▼                   ▼
+ Discussion         Multiple threads    Answer questions
+ created            per topic           Continue research
+                                        Commands: /summarize, /plan
+```
+
+### Workflow File
+
+Discussion automation is handled by a single workflow:
+
+| File | Triggers | Purpose |
+|------|----------|---------|
+| `claude-discussion-loop.yml` | `discussion: [created, edited]`, `discussion_comment: [created]` | Research, respond, commands |
+
+### Jobs
+
+| Job | Trigger | Action |
+|-----|---------|--------|
+| **detect** | All events | Extracts context, counts comments, detects commands |
+| **research** | New discussion | Vigorous research, posts multiple top-level comments (one per topic) |
+| **respond** | Human comment | Answers questions in thread context |
+| **command-summarize** | `/summarize` | Creates comprehensive summary of all threads |
+| **command-plan** | `/plan` | Creates GitHub issues from discussion with labels and project links |
+| **command-complete** | `/complete` | Marks discussion as complete |
+
+### Research Behavior
+
+When a new discussion is created, Claude performs vigorous research:
+
+**Research Areas:**
+- **Codebase search**: `grep`, `glob`, and `read` to find relevant implementations
+- **GitHub search**: Related issues, PRs, and other discussions
+- **Documentation**: ADRs in `decisions/`, project docs, README files
+- **Web search**: External documentation and best practices (when needed)
+
+**Output Format:**
+- Creates multiple **top-level comments** (not threaded)
+- Each comment represents a distinct research topic
+- Format: `## Research: <Topic Name>`
+- Includes code snippets, file paths (file.ts:42), and citations
+
+**Example Research Threads:**
+- "## Research: Current Implementation"
+- "## Research: Related Issues and PRs"
+- "## Research: Architecture and Patterns"
+- "## Research: External Documentation"
+
+### Thread Structure
+
+GitHub Discussions support native threading via `replyTo` field:
+
+```
+Discussion: "How does the build system work?"
+├─ claude[bot]: "## Research: Docker Build Architecture" (top-level)
+│  ├─ claude[bot]: "Additional findings on multi-stage builds..." (reply)
+│  ├─ human: "What about caching?" (reply)
+│  └─ claude[bot]: "Cache layers use..." (reply to human)
+├─ claude[bot]: "## Research: CI Pipeline" (top-level)
+│  └─ claude[bot]: "GitHub Actions workflows..." (reply)
+└─ human: "Can you explain X?" (top-level)
+   └─ claude[bot]: "X works by..." (reply to human)
+```
+
+### Completeness Criteria
+
+A research thread is considered complete when ANY of:
+
+1. **Comment limit reached**: ≥20 comments in the thread (hard stop to prevent infinite loops)
+2. **Human marks complete**: `/complete` command posted
+3. **Claude determines complete**: No unanswered questions remain (Claude analyzes thread)
+
+When complete, the thread is ignored on future workflow runs.
+
+### Available Commands
+
+| Command | Trigger | Action |
+|---------|---------|--------|
+| `/summarize` | Standalone line in comment | Generates comprehensive summary of entire discussion (all threads, questions, findings) |
+| `/plan` | Standalone line in comment | Analyzes discussion, creates GitHub issues with `discussion:<number>` label, links to project |
+| `/complete` | Standalone line in comment | Marks discussion as complete, stops further automated research |
+
+**Command Format:**
+- Commands must be on their own line (e.g., `/summarize` not "Please `/summarize` this")
+- Commands are case-sensitive
+- Only one command per comment (first one wins)
+
+### Comment Limits
+
+To prevent infinite loops and spam:
+
+- **Global limit**: Max 20 Claude comments per discussion
+- **Thread limit**: Max 20 Claude replies per thread
+- When limit is reached, workflow exits gracefully
+- Limits reset only if discussion is edited or manually triggered
+
+### Human Interaction
+
+**To get Claude's help in a discussion:**
+
+1. **Create a discussion** → Claude automatically researches and posts findings
+2. **Post a question** → Claude answers in thread context
+3. **Post `/summarize`** → Get a comprehensive summary
+4. **Post `/plan`** → Create implementation issues from the discussion
+
+**To trigger implementation:**
+- Use `/plan` to create issues from discussion
+- Assign `nopo-bot` to created issues to trigger normal implementation flow
+- Issues are labeled `discussion:<number>` and linked back to discussion
+
+### Issue Creation via /plan
+
+When `/plan` is used, Claude:
+
+1. Analyzes all discussion content (research threads, questions, answers)
+2. Extracts actionable items (features, bugs, refactoring, docs)
+3. Groups related changes into logical issues
+4. Creates issues with:
+   - Clear, actionable titles
+   - Task.yml template structure (Description, Details, Todo checkboxes)
+   - Labels: `triaged`, `discussion:<number>`, and type (`enhancement`, `bug`, etc.)
+   - Link: "Related to discussion: #<number>"
+   - Project: Added to GitHub Project with status "Ready" (if available)
+
+**Example output:**
+```markdown
+## 📦 Implementation Plan Created
+
+Created the following issues based on this discussion:
+
+- #123: Add Docker build caching support
+- #124: Update CI pipeline documentation
+- #125: Refactor multi-stage build configuration
+
+All issues labeled with `discussion:42` and added to project board.
+```
+
+### Concurrency
+
+```yaml
+concurrency:
+  group: claude-discussion-${{ github.event.discussion.number }}
+  cancel-in-progress: false  # Queue mode
+```
+
+- One job at a time per discussion (prevents race conditions)
+- Queue mode preserves all work (no cancellation)
+- Simpler than PR automation (no draft/ready state transitions)
+
+### State Tracking
+
+**All state is derived from GitHub on each run:**
+- **Thread structure**: GraphQL `replyTo` field identifies parent/child relationships
+- **Comment counts**: Queried via GraphQL, no external storage
+- **Completion**: Detected by analyzing comment count, thread content, or `/complete` command
+- **No persistent state** between workflow runs (stateless design)
+
+### GraphQL Usage
+
+Discussion automation uses GraphQL for:
+
+**Reading:**
+```graphql
+query($owner: String!, $repo: String!, $number: Int!) {
+  repository(owner: $owner, name: $repo) {
+    discussion(number: $number) {
+      id
+      title
+      body
+      comments(first: 100) {
+        nodes {
+          id
+          body
+          author { login }
+          replyTo { id }
+          replies(first: 100) {
+            nodes { body author { login } }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+**Writing (top-level comment):**
+```graphql
+mutation($discussionId: ID!, $body: String!) {
+  addDiscussionComment(input: {
+    discussionId: $discussionId
+    body: $body
+  }) {
+    comment { id }
+  }
+}
+```
+
+**Writing (threaded reply):**
+```graphql
+mutation($replyToId: ID!, $body: String!) {
+  addDiscussionComment(input: {
+    replyToId: $replyToId
+    body: $body
+  }) {
+    comment { id }
+  }
+}
+```
+
+### Error Handling
+
+On workflow failure:
+- Posts error comment with workflow run link
+- Suggests retry by editing discussion or posting new comment
+- Gracefully exits if discussion is locked or deleted
+- Handles GraphQL pagination for large discussions (>100 comments)
+
+### When to Use Discussions vs Issues
+
+| Use Discussions | Use Issues |
+|-----------------|------------|
+| Open-ended research questions | Specific bugs or features |
+| Architecture discussions | Tasks with clear acceptance criteria |
+| "How does X work?" | "Implement Y" or "Fix Z" |
+| Exploring multiple approaches | Tracking implementation progress |
+| Knowledge sharing | Actionable work items |
+
+**Workflow:**
+1. Start with a **discussion** for research and exploration
+2. Use `/plan` to create **issues** for implementation
+3. Assign `nopo-bot` to issues to trigger automated development
+
+---
+
 ## Quick Reference Card
 
 ```bash
