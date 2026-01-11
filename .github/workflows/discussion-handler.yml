@@ -83,6 +83,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           settings: ".claude/settings.json"
+          show_full_output: true
           prompt: |
             You are summarizing Discussion #${{ github.event.client_payload.discussion_number }}.
 
@@ -92,7 +93,16 @@ jobs:
 
             After completing your analysis, you MUST post your summary as a comment:
             ```
-            gh api graphql -f query='mutation($discussionId: ID!, $body: String!) { addDiscussionComment(input: { discussionId: $discussionId body: $body }) { comment { id } } }' -f discussionId="${{ needs.prepare.outputs.discussion_id }}" -f body="## 📋 Discussion Summary
+            gh api graphql -f query='
+              mutation($discussionId: ID!, $body: String!) {
+                addDiscussionComment(input: {
+                  discussionId: $discussionId
+                  body: $body
+                }) {
+                  comment { id }
+                }
+              }
+            ' -f discussionId="${{ needs.prepare.outputs.discussion_id }}" -f body="## 📋 Discussion Summary
 
             <your organized summary with Key Findings, Questions Answered, Open Items, Next Steps>"
             ```
