@@ -120,30 +120,19 @@ jobs:
             - **Open Items**: Unresolved questions or pending topics
             - **Next Steps**: Recommended actions
 
-            ## IMPORTANT: Always Post Your Summary
+            ## Post Your Summary to the Discussion
 
-            After analyzing the discussion, you MUST post a comprehensive summary as a comment.
+            You MUST post your summary directly to the discussion by executing this command:
 
-            Post your summary by running:
             ```bash
             gh api graphql -f query='mutation($discussionId: ID!, $body: String!) { addDiscussionComment(input: { discussionId: $discussionId body: $body }) { comment { id } } }' \
               -f discussionId="${{ needs.prepare.outputs.discussion_id }}" \
-              -f body="## 📋 Discussion Summary
-
-            ### Key Findings
-            <your findings>
-
-            ### Questions Answered
-            <Q&A pairs>
-
-            ### Open Items
-            <unresolved items>
-
-            ### Next Steps
-            <recommended actions>"
+              -f body="Your complete summary text here"
             ```
 
-            NEVER leave the discussion without posting the summary - the summary must be visible as a comment.
+            Replace "Your complete summary text here" with your actual markdown-formatted summary.
+
+            DO NOT write the summary to a file. DO NOT save it anywhere. EXECUTE the gh api command above to post it directly.
           claude_args: "--model claude-opus-4-5-20251101 --max-turns 50"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -187,18 +176,19 @@ jobs:
             - Clear, actionable guidance
             - If they're asking for implementation, suggest: "Use `/plan` to create issues, then assign nopo-bot"
 
-            ## IMPORTANT: Always Post Your Response
+            ## Post Your Answer to the Discussion
 
-            After completing your research, you MUST post your answer as a reply.
+            You MUST post your answer directly to the discussion by executing this command:
 
-            Post your answer by running:
             ```bash
             gh api graphql -f query='mutation($replyToId: ID!, $body: String!) { addDiscussionComment(input: { replyToId: $replyToId body: $body }) { comment { id } } }' \
               -f replyToId="${{ github.event.client_payload.comment_id }}" \
-              -f body="<your detailed answer with code examples (file.ts:42) and citations>"
+              -f body="Your complete answer text here"
             ```
 
-            NEVER leave the discussion without a visible response - your analysis must be posted as a reply comment.
+            Replace "Your complete answer text here" with your actual detailed answer including code examples and citations.
+
+            DO NOT write the answer to a file. DO NOT save it anywhere. EXECUTE the gh api command above to post it directly.
           claude_args: "--model claude-opus-4-5-20251101 --max-turns 100"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -288,22 +278,19 @@ jobs:
 
             Identify major research areas and create one top-level comment for each area (e.g., Architecture, Implementation Patterns, Related Work, Code Examples).
 
-            ## IMPORTANT: Always Post Multiple Research Threads
+            ## Post Research Threads to the Discussion
 
-            For EACH major research area you identify, post a separate top-level comment.
+            For EACH major research area, you MUST post a separate comment by executing this command:
 
-            Post each research thread by running:
             ```bash
             gh api graphql -f query='mutation($discussionId: ID!, $body: String!) { addDiscussionComment(input: { discussionId: $discussionId body: $body }) { comment { id } } }' \
               -f discussionId="${{ needs.prepare.outputs.discussion_id }}" \
-              -f body="## Research: <Topic Name>
-
-            <your detailed research findings with code examples (file.ts:42) and citations>"
+              -f body="Your complete research thread text here"
             ```
 
-            Run this command 2-3 times with different research topics.
+            Replace "Your complete research thread text here" with your actual research findings. Run this command 2-3 times for different topics.
 
-            NEVER leave the discussion without posting research findings - your analysis must be visible as multiple top-level comments.
+            DO NOT write research to files. DO NOT save it anywhere. EXECUTE the gh api command multiple times to post each research thread directly.
           claude_args: "--model claude-opus-4-5-20251101 --max-turns 100"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -376,24 +363,19 @@ jobs:
               --label "discussion:${{ github.event.client_payload.discussion_number }}"
             ```
 
-            ## IMPORTANT: Always Post Summary
+            ## Post Summary to the Discussion
 
-            After creating issues, post a summary as a reply to the /plan command.
+            After creating issues, you MUST post a summary by executing this command:
 
-            Post your summary by running:
             ```bash
             gh api graphql -f query='mutation($replyToId: ID!, $body: String!) { addDiscussionComment(input: { replyToId: $replyToId body: $body }) { comment { id } } }' \
               -f replyToId="${{ github.event.client_payload.comment_id }}" \
-              -f body="## 📋 Created Issues
-
-            I've created the following issues based on this discussion:
-
-            - #<number> - <title>
-
-            Assign nopo-bot to any of these issues to have me implement them."
+              -f body="Your complete summary text here"
             ```
 
-            NEVER leave the discussion without posting the summary - it must be visible as a reply comment.
+            Replace "Your complete summary text here" with your actual summary listing all created issues.
+
+            DO NOT write the summary to a file. DO NOT save it anywhere. EXECUTE the gh api command above to post it directly.
           claude_args: "--model claude-opus-4-5-20251101 --max-turns 100"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
