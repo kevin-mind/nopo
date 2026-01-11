@@ -1,0 +1,297 @@
+name: Discussion Handler
+
+# Handles discussion events dispatched from discussion-dispatcher.yml
+# Uses repository_dispatch which IS supported by claude-code-action
+
+on:
+  repository_dispatch:
+    types: [discussion_event]
+
+permissions:
+  contents: read
+  discussions: write
+  issues: write
+
+jobs:
+  handle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add eyes reaction if responding
+        if: github.event.client_payload.action_type == 'respond'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_ID: ${{ github.event.client_payload.comment_id }}
+        run: |
+          set -e
+
+          # Add 👀 reaction
+          gh api graphql -f query='
+            mutation($subjectId: ID!) {
+              addReaction(input: {
+                subjectId: $subjectId
+                content: EYES
+              }) {
+                reaction { id }
+              }
+            }
+          ' -f subjectId="$COMMENT_ID"
+
+      - name: Get discussion ID
+        id: get_discussion_id
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DISCUSSION_NUMBER: ${{ github.event.client_payload.discussion_number }}
+        run: |
+          discussion_data=$(gh api graphql -f query='
+            query($owner: String!, $repo: String!, $number: Int!) {
+              repository(owner: $owner, name: $repo) {
+                discussion(number: $number) {
+                  id
+                }
+              }
+            }
+          ' -f owner="${GITHUB_REPOSITORY%/*}" -f repo="${GITHUB_REPOSITORY#*/}" -F number="$DISCUSSION_NUMBER")
+
+          discussion_id=$(echo "$discussion_data" | jq -r '.data.repository.discussion.id')
+          echo "discussion_id=$discussion_id" >> $GITHUB_OUTPUT
+
+      - name: Run Claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          settings: ".claude/settings.json"
+          prompt: |
+            ${{ github.event.client_payload.action_type == 'research' && format('
+            You are analyzing GitHub Discussion #{0}: "{1}"
+
+            Discussion body:
+            {2}
+
+            ## Your Task: Vigorous Research
+
+            Perform comprehensive research on this topic:
+
+            1. **Search the codebase**: Use grep, glob, read to find relevant code
+            2. **Search GitHub**: Find related issues, PRs, discussions (gh issue list, gh pr list, gh api graphql)
+            3. **Search documentation**: Check decisions/, nopo/docs/, README.md, AGENTS.md
+            4. **Web search if needed**: External docs and best practices
+
+            ## Post Research Threads
+
+            Create ONE top-level comment per research area using:
+            ```bash
+            gh api graphql -f query=''
+              mutation($discussionId: ID!, $body: String!) {{
+                addDiscussionComment(input: {{
+                  discussionId: $discussionId
+                  body: $body
+                }}) {{
+                  comment {{ id }}
+                }}
+              }}
+            '' -f discussionId="{3}" -f body="## Research: <Topic>
+
+            <your findings>"
+            ```
+
+            Format each as "## Research: <Topic Name>" with code snippets, file paths (file.ts:42), and citations.
+
+            CRITICAL: Post SEPARATE top-level comments, NOT one big comment.',
+            github.event.client_payload.discussion_number,
+            github.event.client_payload.discussion_title,
+            github.event.client_payload.discussion_body,
+            steps.get_discussion_id.outputs.discussion_id
+            ) || ''}}
+
+            ${{ github.event.client_payload.action_type == 'respond' && format('
+            A human posted: {0}
+            Author: @{1}
+            Discussion #{2}: "{3}"
+
+            Research their question thoroughly and post a reply:
+            ```bash
+            gh api graphql -f query=''
+              mutation($replyToId: ID!, $body: String!) {{
+                addDiscussionComment(input: {{
+                  replyToId: $replyToId
+                  body: $body
+                }}) {{
+                  comment {{ id }}
+                }}
+              }}
+            '' -f replyToId="{4}" -f body="<your answer>"
+            ```
+
+            Include code examples, file paths (file.ts:42), and citations.
+
+            If they request implementation, explain: "Use `/plan` to create issues, then assign nopo-bot for automated implementation."',
+            github.event.client_payload.comment_body,
+            github.event.client_payload.comment_author,
+            github.event.client_payload.discussion_number,
+            github.event.client_payload.discussion_title,
+            github.event.client_payload.comment_id
+            ) || ''}}
+
+            ${{ github.event.client_payload.action_type == 'summarize' && format('
+            Summarize Discussion #{0}.
+
+            Fetch all content:
+            ```bash
+            gh api graphql -f query=''
+              query($owner: String!, $repo: String!, $number: Int!) {{
+                repository(owner: $owner, name: $repo) {{
+                  discussion(number: $number) {{
+                    title body
+                    comments(first: 100) {{
+                      nodes {{
+                        body author {{ login }}
+                        replies(first: 100) {{
+                          nodes {{ body author {{ login }} }}
+                        }}
+                      }}
+                    }}
+                  }}
+                }}
+              }}
+            '' -f owner="${{GITHUB_REPOSITORY%/*}}" -f repo="${{GITHUB_REPOSITORY#*/}}" -F number={0}
+            ```
+
+            Post summary:
+            ```bash
+            gh api graphql -f query=''
+              mutation($discussionId: ID!, $body: String!) {{
+                addDiscussionComment(input: {{
+                  discussionId: $discussionId
+                  body: $body
+                }}) {{
+                  comment {{ id }}
+                }}
+              }}
+            '' -f discussionId="{1}" -f body="## 📋 Discussion Summary
+
+            ### Key Findings
+            <findings>
+
+            ### Questions Answered
+            <Q&A>
+
+            ### Open Items
+            <open>
+
+            ### Next Steps
+            <recommendations>"
+            ```',
+            github.event.client_payload.discussion_number,
+            steps.get_discussion_id.outputs.discussion_id
+            ) || ''}}
+
+            ${{ github.event.client_payload.action_type == 'plan' && format('
+            Create implementation issues from Discussion #{0}.
+
+            Fetch discussion, analyze, create issues:
+            ```bash
+            # Fetch discussion content first
+            # Then create issues:
+            gh issue create --title "<actionable title>" --label "enhancement" --label "triaged" --label "discussion:{0}" --body "## Description
+            <what>
+
+            Related to discussion: #{0}
+
+            ## Todo
+            - [ ] Task"
+            ```
+
+            Post summary:
+            ```bash
+            gh api graphql -f query=''
+              mutation($discussionId: ID!, $body: String!) {{
+                addDiscussionComment(input: {{
+                  discussionId: $discussionId
+                  body: $body
+                }}) {{
+                  comment {{ id }}
+                }}
+              }}
+            '' -f discussionId="{1}" -f body="## 📦 Implementation Plan
+
+            Created issues:
+            - #N: Title
+
+            All labeled discussion:{0}"
+            ```',
+            github.event.client_payload.discussion_number,
+            steps.get_discussion_id.outputs.discussion_id
+            ) || ''}}
+          claude_args: "--model claude-opus-4-5-20251101 --max-turns 100"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add success reaction
+        if: success() && github.event.client_payload.action_type == 'respond'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_ID: ${{ github.event.client_payload.comment_id }}
+        run: |
+          gh api graphql -f query='
+            mutation($subjectId: ID!) {
+              addReaction(input: {
+                subjectId: $subjectId
+                content: THUMBS_UP
+              }) {
+                reaction { id }
+              }
+            }
+          ' -f subjectId="$COMMENT_ID"
+
+      - name: Handle failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_ID: ${{ github.event.client_payload.comment_id }}
+          DISCUSSION_ID: ${{ steps.get_discussion_id.outputs.discussion_id }}
+          ACTION_TYPE: ${{ github.event.client_payload.action_type }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          # Add thumbs down if responding to comment
+          if [[ "$ACTION_TYPE" == "respond" ]] && [[ -n "$COMMENT_ID" ]]; then
+            gh api graphql -f query='
+              mutation($subjectId: ID!) {
+                addReaction(input: {
+                  subjectId: $subjectId
+                  content: THUMBS_DOWN
+                }) {
+                  reaction { id }
+                }
+              }
+            ' -f subjectId="$COMMENT_ID" || true
+
+            # Post error as reply
+            gh api graphql -f query='
+              mutation($replyToId: ID!, $body: String!) {
+                addDiscussionComment(input: {
+                  replyToId: $replyToId
+                  body: $body
+                }) {
+                  comment { id }
+                }
+              }
+            ' -f replyToId="$COMMENT_ID" -f body="⚠️ **Failed to process your question**
+
+            See [workflow run]($RUN_URL) for details."
+          else
+            # Post error as top-level comment
+            gh api graphql -f query='
+              mutation($discussionId: ID!, $body: String!) {
+                addDiscussionComment(input: {
+                  discussionId: $discussionId
+                  body: $body
+                }) {
+                  comment { id }
+                }
+              }
+            ' -f discussionId="$DISCUSSION_ID" -f body="⚠️ **Workflow failed**
+
+            See [workflow run]($RUN_URL) for details."
+          fi
