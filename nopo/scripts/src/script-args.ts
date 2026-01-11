@@ -46,19 +46,94 @@ export class ScriptArgs {
     // Build minimist options from schema
     const minimistOpts = this.buildMinimistOptions();
 
-    // Parse with minimist
-    const parsed = minimist(argv, minimistOpts);
+    // Build alias mapping for normalizing single-letter flags
+    // This works around minimist's quirky handling of single-letter flags
+    const singleLetterAliasToKey = new Map<string, string>();
+    for (const [key, config] of Object.entries(this.schema)) {
+      if (config.alias) {
+        for (const alias of config.alias) {
+          if (alias.length === 1) {
+            singleLetterAliasToKey.set(`-${alias}`, `--${key}`);
+          }
+        }
+      }
+    }
+
+    // Normalize argv: convert single-letter aliases to long form
+    // This ensures minimist respects the string/boolean type arrays
+    const normalizedArgv = argv.map((arg) => {
+      return singleLetterAliasToKey.get(arg) || arg;
+    });
+
+    // For string[] types, we need to manually collect values since minimist
+    // doesn't handle this well with aliases. Pre-process argv to collect them.
+    const arrayArgs = new Map<string, string[]>();
+    const processedArgv: string[] = [];
+
+    // Identify string[] args and their aliases
+    const arrayArgNames = new Set<string>();
+    const aliasToKey = new Map<string, string>();
+    for (const [key, config] of Object.entries(this.schema)) {
+      if (config.type === "string[]") {
+        arrayArgNames.add(key);
+        arrayArgs.set(key, []);
+        if (config.alias) {
+          for (const alias of config.alias) {
+            aliasToKey.set(alias.length === 1 ? `-${alias}` : `--${alias}`, key);
+          }
+        }
+        aliasToKey.set(`--${key}`, key);
+      }
+    }
+
+    // Pre-process normalized argv to collect string[] values
+    let i = 0;
+    while (i < normalizedArgv.length) {
+      const arg = normalizedArgv[i]!;
+
+      // Check if this is a string[] flag
+      const arrayKey = aliasToKey.get(arg);
+      if (arrayKey && i + 1 < normalizedArgv.length) {
+        // Collect the value
+        const values = arrayArgs.get(arrayKey)!;
+        values.push(normalizedArgv[i + 1]!);
+        i += 2; // Skip both flag and value
+      } else {
+        processedArgv.push(arg);
+        i++;
+      }
+    }
+
+    // Parse remaining args with minimist
+    const parsed = minimist(processedArgv, minimistOpts);
+
+    // Debug: log minimist config and result for debugging
+    if (process.env.DEBUG_SCRIPT_ARGS) {
+      console.log("minimistOpts:", JSON.stringify(minimistOpts, null, 2));
+      console.log("processedArgv:", processedArgv);
+      console.log("parsed:", parsed);
+    }
+
+    // Add collected array values to parsed result
+    for (const [key, values] of arrayArgs.entries()) {
+      if (values.length > 0) {
+        parsed[key] = values;
+      }
+    }
 
     // Extract and validate each arg
     for (const [key, config] of Object.entries(this.schema)) {
       const value = this.extractValue(key, config, parsed);
 
-      // Validate
-      if (config.validate) {
-        config.validate(value, this.runner);
-      }
+      // Only set if explicitly provided (not undefined)
+      if (value !== undefined) {
+        // Validate
+        if (config.validate) {
+          config.validate(value, this.runner);
+        }
 
-      this.values[key] = value;
+        this.values[key] = value;
+      }
     }
 
     return this;
@@ -147,33 +222,35 @@ export class ScriptArgs {
     const defaults: Record<string, any> = {};
 
     for (const [key, config] of Object.entries(this.schema)) {
-      // Type handling
-      if (config.type === "boolean") {
-        booleanArgs.push(key);
-      } else if (
-        config.type === "string" ||
-        config.type === "number" ||
-        config.type === "string[]"
-      ) {
-        stringArgs.push(key);
-      }
-
-      // Aliases
+      // Aliases - minimist expects alias -> key mapping (not key -> alias)
       if (config.alias && config.alias.length > 0) {
-        aliases[key] = config.alias.length === 1 ? config.alias[0]! : config.alias;
+        for (const alias of config.alias) {
+          aliases[alias] = key;
+        }
       }
 
-      // Defaults
-      if (config.default !== undefined) {
-        defaults[key] = config.default;
+      // Type handling
+      // For minimist to properly parse aliases, we need to add BOTH the key and all its aliases
+      // to the appropriate type array (string or boolean)
+      const allNames = [key, ...(config.alias || [])];
+
+      if (config.type === "boolean") {
+        booleanArgs.push(...allNames);
+      } else if (config.type === "string" || config.type === "number") {
+        stringArgs.push(...allNames);
       }
+      // Note: string[] is NOT added to stringArgs
+      // This allows minimist to collect multiple values naturally
+
+      // Defaults - don't pass defaults to minimist to avoid interference
+      // We handle defaults in get() method instead
     }
 
     return {
       boolean: booleanArgs.length > 0 ? booleanArgs : undefined,
       string: stringArgs.length > 0 ? stringArgs : undefined,
       alias: Object.keys(aliases).length > 0 ? aliases : undefined,
-      default: Object.keys(defaults).length > 0 ? defaults : undefined,
+      // Don't pass defaults to minimist
     };
   }
 

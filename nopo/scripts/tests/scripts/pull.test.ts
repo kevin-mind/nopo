@@ -24,21 +24,20 @@ vi.mock("node:net", () => ({
   },
 }));
 
-// Mock the exec property getter to return a mock function
-const mockExec = vi
-  .fn()
-  .mockResolvedValue({ stdout: "", stderr: "", exitCode: 0 });
-Object.defineProperty(PullScript.prototype, "exec", {
-  get: () => mockExec,
-  configurable: true,
-});
+// Mock docker-compose module - use vi.hoisted to avoid initialization issues
+const mockPullMany = vi.hoisted(() => vi.fn().mockResolvedValue({ exitCode: 0 }));
+vi.mock("docker-compose", () => ({
+  default: {
+    pullMany: mockPullMany(),
+  },
+}));
 
 describe("pull", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("pulls image with correct command", async () => {
+  it("skips pulling when no targets provided", async () => {
     const config = createTestConfig({
       envFile: createTmpEnv({
         DOCKER_TAG: "docker.io/kevin-mind/nopo:latest",
@@ -48,9 +47,8 @@ describe("pull", () => {
 
     await runScript(PullScript, config);
 
-    expect(mockExec).toHaveBeenCalledWith([
-      "docker compose -f nopo/docker/docker-compose.base.yml pull base --policy always",
-    ]);
+    // Should not call pullMany when no targets
+    expect(mockPullMany).not.toHaveBeenCalled();
   });
 
   it("has correct dependencies", () => {
