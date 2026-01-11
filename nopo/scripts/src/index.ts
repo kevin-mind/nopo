@@ -9,6 +9,7 @@ import {
 } from "./lib.ts";
 import { Environment } from "./parse-env.ts";
 import { loadProjectConfig } from "./config/index.ts";
+import { ScriptArgs } from "./script-args.ts";
 import process from "node:process";
 
 import Build from "./scripts/build.ts";
@@ -206,6 +207,18 @@ function printCommandHelp(
     console.log(chalk.white(`  ${description}\n`));
   }
   console.log(chalk.gray(`  Usage: nopo ${name} [options]\n`));
+
+  // If the script uses ScriptArgs, generate help from the schema
+  const argsTemplate = (ScriptClass as any).args as ScriptArgs | undefined;
+  if (argsTemplate) {
+    const help = argsTemplate.generateHelp();
+    if (help) {
+      console.log(chalk.cyan(chalk.bold("Options:\n")));
+      console.log(help);
+      console.log();
+    }
+  }
+
   return process.exit(0);
 }
 
