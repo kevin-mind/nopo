@@ -571,14 +571,12 @@ jobs:
             fi
           done
 
-      - name: Post research thread comments and dispatch investigators
+      - name: Post research thread comments
+        id: post_threads
         if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DISCUSSION_ID: ${{ needs.prepare.outputs.discussion_id }}
-          DISCUSSION_NUMBER: ${{ github.event.client_payload.discussion_number }}
-          DISCUSSION_TITLE: ${{ github.event.client_payload.discussion_title }}
-          DISCUSSION_BODY: ${{ github.event.client_payload.discussion_body }}
         run: |
           # Check if files exist
           if ! ls /tmp/research-thread-*.md 1> /dev/null 2>&1; then
@@ -591,7 +589,10 @@ jobs:
           file_count=$(ls /tmp/research-thread-*.md 2>/dev/null | wc -l)
           echo "Found $file_count research thread files"
 
-          # Post each research thread and dispatch investigation
+          # Post each research thread and collect comment IDs
+          comment_ids=""
+          comment_bodies=""
+
           for file in /tmp/research-thread-*.md; do
             if [[ -f "$file" ]]; then
               echo "Posting research thread: $file"
@@ -609,31 +610,65 @@ jobs:
               ' -f discussionId="$DISCUSSION_ID" -F body=@"$file")
 
               comment_id=$(echo "$comment_result" | jq -r '.data.addDiscussionComment.comment.id')
-              comment_body=$(cat "$file")
-
               echo "Posted comment: $comment_id"
 
-              # Dispatch respond event for this research thread
-              # (GitHub doesn't send webhooks for comments made by Actions, so we dispatch manually)
-              echo "Dispatching respond event for investigation..."
-              gh api repos/${{ github.repository }}/dispatches \
-                -f event_type=discussion_event \
-                -f 'client_payload[action_type]=respond' \
-                -F "client_payload[discussion_number]=$DISCUSSION_NUMBER" \
-                -f "client_payload[discussion_title]=$DISCUSSION_TITLE" \
-                -f "client_payload[discussion_body]=$DISCUSSION_BODY" \
-                -f "client_payload[comment_id]=$comment_id" \
-                -f "client_payload[comment_body]=$comment_body" \
-                -f "client_payload[comment_author]=github-actions[bot]"
+              # Store comment data for dispatch step
+              # Use base64 to safely encode the body
+              encoded_body=$(cat "$file" | base64 -w 0)
+              echo "${comment_id}:${encoded_body}" >> /tmp/posted_comments.txt
 
-              echo "Dispatched investigation for: $file"
-
-              # Delay between posts to avoid rate limiting
-              sleep 3
+              # Small delay between posts
+              sleep 2
             fi
           done
 
-          echo "Successfully posted and dispatched $file_count research threads"
+          echo "Successfully posted $file_count research threads"
+
+      - name: Dispatch investigation agents
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const path = '/tmp/posted_comments.txt';
+
+            if (!fs.existsSync(path)) {
+              console.log('No comments file found, skipping dispatch');
+              return;
+            }
+
+            const lines = fs.readFileSync(path, 'utf8').trim().split('\n');
+            console.log(`Dispatching ${lines.length} investigation agents...`);
+
+            for (const line of lines) {
+              const [commentId, encodedBody] = line.split(':');
+              const commentBody = Buffer.from(encodedBody, 'base64').toString('utf8');
+
+              console.log(`Dispatching for comment: ${commentId}`);
+
+              await github.rest.repos.createDispatchEvent({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                event_type: 'discussion_event',
+                client_payload: {
+                  action_type: 'respond',
+                  discussion_number: ${{ github.event.client_payload.discussion_number }},
+                  discussion_title: `${{ github.event.client_payload.discussion_title }}`,
+                  discussion_body: `${{ github.event.client_payload.discussion_body }}`,
+                  comment_id: commentId,
+                  comment_body: commentBody,
+                  comment_author: 'github-actions[bot]'
+                }
+              });
+
+              console.log(`Dispatched investigation for: ${commentId}`);
+
+              // Small delay between dispatches
+              await new Promise(r => setTimeout(r, 1000));
+            }
+
+            console.log('All investigation agents dispatched!');
 
       - name: Upload updated body
         if: always()
