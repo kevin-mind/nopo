@@ -32,8 +32,11 @@ endif
 		git worktree add "../nopo-issue-$(issue)" -b "claude/issue/$(issue)" origin/main 2>/dev/null || \
 		git worktree add "../nopo-issue-$(issue)" "claude/issue/$(issue)"; \
 	fi
+	@echo "Installing dependencies in worktree..."
+	@cd "../nopo-issue-$(issue)" && pnpm install
+	@echo ""
 	@echo "Worktree ready at ../nopo-issue-$(issue)"
-	@echo "Run: cd ../nopo-issue-$(issue) && pnpm install && claude"
+	@echo "Run: cd ../nopo-issue-$(issue) && claude"
 
 .PHONY: lint-terraform
 lint-terraform:
