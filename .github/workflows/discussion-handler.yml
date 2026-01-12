@@ -183,12 +183,49 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Find thread root comment
+        id: find_root
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DISCUSSION_ID: ${{ needs.prepare.outputs.discussion_id }}
+          COMMENT_ID: ${{ github.event.client_payload.comment_id }}
+        run: |
+          # Query the comment to see if it has a parent (replyTo)
+          comment_data=$(gh api graphql -f query='
+            query($commentId: ID!) {
+              node(id: $commentId) {
+                ... on DiscussionComment {
+                  id
+                  replyTo {
+                    id
+                    replyTo {
+                      id
+                    }
+                  }
+                }
+              }
+            }
+          ' -f commentId="$COMMENT_ID")
+
+          # Extract the root comment ID (walk up the replyTo chain)
+          root_id=$(echo "$comment_data" | jq -r '
+            .data.node
+            | if .replyTo.replyTo.id then .replyTo.replyTo.id
+              elif .replyTo.id then .replyTo.id
+              else .id
+              end
+          ')
+
+          echo "Original comment: $COMMENT_ID"
+          echo "Root comment: $root_id"
+          echo "root_comment_id=$root_id" >> $GITHUB_OUTPUT
+
       - name: Post response comment
         if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DISCUSSION_ID: ${{ needs.prepare.outputs.discussion_id }}
-          REPLY_TO_ID: ${{ github.event.client_payload.comment_id }}
+          REPLY_TO_ID: ${{ steps.find_root.outputs.root_comment_id }}
         run: |
           if [[ ! -f /tmp/discussion-response.md ]]; then
             echo "No response file found"
@@ -230,9 +267,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DISCUSSION_ID: ${{ needs.prepare.outputs.discussion_id }}
           COMMENT_ID: ${{ github.event.client_payload.comment_id }}
+          ROOT_COMMENT_ID: ${{ steps.find_root.outputs.root_comment_id }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          # Add thumbs down
+          # Add thumbs down to the original comment
           gh api graphql -f query='
             mutation($subjectId: ID!) {
               addReaction(input: {
@@ -244,7 +282,7 @@ jobs:
             }
           ' -f subjectId="$COMMENT_ID" || true
 
-          # Post error as reply
+          # Post error as reply to the root comment in the thread
           gh api graphql -f query='
             mutation($discussionId: ID!, $replyToId: ID!, $body: String!) {
               addDiscussionComment(input: {
@@ -255,7 +293,7 @@ jobs:
                 comment { id }
               }
             }
-          ' -f discussionId="$DISCUSSION_ID" -f replyToId="$COMMENT_ID" -f body="⚠️ **Failed to process your question**
+          ' -f discussionId="$DISCUSSION_ID" -f replyToId="${ROOT_COMMENT_ID:-$COMMENT_ID}" -f body="⚠️ **Failed to process your question**
 
           See [workflow run]($RUN_URL) for details."
 
@@ -403,12 +441,48 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Find thread root comment
+        id: find_root
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_ID: ${{ github.event.client_payload.comment_id }}
+        run: |
+          # Query the comment to see if it has a parent (replyTo)
+          comment_data=$(gh api graphql -f query='
+            query($commentId: ID!) {
+              node(id: $commentId) {
+                ... on DiscussionComment {
+                  id
+                  replyTo {
+                    id
+                    replyTo {
+                      id
+                    }
+                  }
+                }
+              }
+            }
+          ' -f commentId="$COMMENT_ID")
+
+          # Extract the root comment ID (walk up the replyTo chain)
+          root_id=$(echo "$comment_data" | jq -r '
+            .data.node
+            | if .replyTo.replyTo.id then .replyTo.replyTo.id
+              elif .replyTo.id then .replyTo.id
+              else .id
+              end
+          ')
+
+          echo "Original comment: $COMMENT_ID"
+          echo "Root comment: $root_id"
+          echo "root_comment_id=$root_id" >> $GITHUB_OUTPUT
+
       - name: Post plan summary comment
         if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DISCUSSION_ID: ${{ needs.prepare.outputs.discussion_id }}
-          REPLY_TO_ID: ${{ github.event.client_payload.comment_id }}
+          REPLY_TO_ID: ${{ steps.find_root.outputs.root_comment_id }}
         run: |
           if [[ ! -f /tmp/discussion-plan-summary.md ]]; then
             echo "No plan summary file found"

@@ -17,7 +17,28 @@
       "Bash(grep:*)",
       "Bash(echo:*)",
       "Bash(cd:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:techcrunch.com)",
+      "WebFetch(domain:theverge.com)",
+      "WebFetch(domain:arstechnica.com)",
+      "WebFetch(domain:hackernews.com)",
+      "WebFetch(domain:news.ycombinator.com)",
+      "WebFetch(domain:reddit.com)",
+      "WebFetch(domain:anthropic.com)",
+      "WebFetch(domain:openai.com)",
+      "WebFetch(domain:docs.anthropic.com)",
+      "WebFetch(domain:platform.openai.com)",
+      "WebFetch(domain:developer.mozilla.org)",
+      "WebFetch(domain:stackoverflow.com)",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:dev.to)",
+      "WebFetch(domain:npmjs.com)",
+      "WebFetch(domain:pypi.org)",
+      "WebFetch(domain:github.io)",
+      "WebFetch(domain:readthedocs.io)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   }
 }
