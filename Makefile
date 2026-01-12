@@ -32,8 +32,11 @@ endif
 		git worktree add "../nopo-issue-$(issue)" -b "claude/issue/$(issue)" origin/main 2>/dev/null || \
 		git worktree add "../nopo-issue-$(issue)" "claude/issue/$(issue)"; \
 	fi
-	@echo "Installing dependencies in worktree..."
-	@cd "../nopo-issue-$(issue)" && pnpm install
+	@echo "Setting up worktree..."
+	@cd "../nopo-issue-$(issue)" && \
+		. "$(HOME)/.nvm/nvm.sh" && nvm use 22 && \
+		pnpm install && \
+		make -C nopo/scripts init
 	@echo ""
 	@echo "Worktree ready at ../nopo-issue-$(issue)"
 	@echo "Run: cd ../nopo-issue-$(issue) && claude"
