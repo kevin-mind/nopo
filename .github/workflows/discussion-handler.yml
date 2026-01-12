@@ -575,7 +575,9 @@ jobs:
         id: post_threads
         if: always()
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Use PAT to post comments so GitHub fires webhooks
+          # (GITHUB_TOKEN comments don't trigger discussion_comment events)
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
           DISCUSSION_ID: ${{ needs.prepare.outputs.discussion_id }}
         run: |
           # Check if files exist
@@ -623,52 +625,7 @@ jobs:
           done
 
           echo "Successfully posted $file_count research threads"
-
-      - name: Dispatch investigation agents
-        if: always()
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require('fs');
-            const path = '/tmp/posted_comments.txt';
-
-            if (!fs.existsSync(path)) {
-              console.log('No comments file found, skipping dispatch');
-              return;
-            }
-
-            const lines = fs.readFileSync(path, 'utf8').trim().split('\n');
-            console.log(`Dispatching ${lines.length} investigation agents...`);
-
-            for (const line of lines) {
-              const [commentId, encodedBody] = line.split(':');
-              const commentBody = Buffer.from(encodedBody, 'base64').toString('utf8');
-
-              console.log(`Dispatching for comment: ${commentId}`);
-
-              await github.rest.repos.createDispatchEvent({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                event_type: 'discussion_event',
-                client_payload: {
-                  action_type: 'respond',
-                  discussion_number: ${{ github.event.client_payload.discussion_number }},
-                  discussion_title: `${{ github.event.client_payload.discussion_title }}`,
-                  discussion_body: `${{ github.event.client_payload.discussion_body }}`,
-                  comment_id: commentId,
-                  comment_body: commentBody,
-                  comment_author: 'github-actions[bot]'
-                }
-              });
-
-              console.log(`Dispatched investigation for: ${commentId}`);
-
-              // Small delay between dispatches
-              await new Promise(r => setTimeout(r, 1000));
-            }
-
-            console.log('All investigation agents dispatched!');
+          echo "Comments posted with PAT - webhooks will trigger dispatcher automatically"
 
       - name: Upload updated body
         if: always()
