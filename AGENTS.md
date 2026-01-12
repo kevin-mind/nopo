@@ -8,17 +8,18 @@ This document provides comprehensive guidance for AI coding agents working on th
 
 1. [Project Overview](#project-overview)
 2. [Getting Started](#getting-started)
-3. [Command Reference](#command-reference)
-4. [Development Workflow](#development-workflow)
-5. [Testing Philosophy](#testing-philosophy)
-6. [Code Quality](#code-quality)
-7. [Database & Migrations](#database--migrations)
-8. [Pull Request Guidelines](#pull-request-guidelines)
-9. [CI/CD Pipeline](#cicd-pipeline)
-10. [Architecture & Documentation](#architecture--documentation)
-11. [Conventions & Patterns](#conventions--patterns)
-12. [Tripwires & Anti-patterns](#tripwires--anti-patterns)
-13. [Claude Automation State Machine](#claude-automation-state-machine)
+3. [Git Worktrees (Parallel Development)](#git-worktrees-parallel-development)
+4. [Command Reference](#command-reference)
+5. [Development Workflow](#development-workflow)
+6. [Testing Philosophy](#testing-philosophy)
+7. [Code Quality](#code-quality)
+8. [Database & Migrations](#database--migrations)
+9. [Pull Request Guidelines](#pull-request-guidelines)
+10. [CI/CD Pipeline](#cicd-pipeline)
+11. [Architecture & Documentation](#architecture--documentation)
+12. [Conventions & Patterns](#conventions--patterns)
+13. [Tripwires & Anti-patterns](#tripwires--anti-patterns)
+14. [Claude Automation State Machine](#claude-automation-state-machine)
 
 ---
 
@@ -89,6 +90,106 @@ make up
 
 # Access the application at http://localhost
 ```
+
+---
+
+## Git Worktrees (Parallel Development)
+
+Git worktrees allow multiple independent working directories from a single repository, each with its own branch. This enables multiple Claude sessions to work on different issues simultaneously without conflicts.
+
+### Why Use Worktrees
+
+- **Parallel work**: Multiple Claude sessions can implement different issues at the same time
+- **Isolated environments**: Each worktree has its own working directory, preventing conflicts
+- **Shared git history**: All worktrees share the same `.git` database, keeping disk usage low
+- **Independent testing**: Run tests in one worktree while developing in another
+
+### Creating a Worktree
+
+Worktrees are created as sibling directories to avoid nesting within the main repo:
+
+```bash
+# Ensure you're in the main nopo directory
+cd /path/to/nopo
+
+# Fetch latest branches
+git fetch origin
+
+# Create a worktree for an issue (creates branch if it doesn't exist)
+git worktree add ../nopo-issue-123 claude/issue/123
+
+# Or create from an existing branch
+git worktree add ../nopo-issue-123 -b claude/issue/123 origin/main
+```
+
+This creates `../nopo-issue-123` as a separate working directory with its own checkout.
+
+### Naming Convention
+
+| Type | Pattern | Example |
+|------|---------|---------|
+| Worktree directory | `../nopo-issue-{N}` | `../nopo-issue-123` |
+| Branch name | `claude/issue/{N}` | `claude/issue/123` |
+
+This aligns with the branch naming used in CI workflows (`.github/workflows/claude-issue-loop.yml`).
+
+### Working in a Worktree
+
+```bash
+# Navigate to the worktree
+cd ../nopo-issue-123
+
+# Install dependencies (required for each worktree)
+pnpm install
+
+# Work normally - all git commands work as expected
+make up
+make test
+git add .
+git commit -m "feat: implement feature"
+git push origin claude/issue/123
+```
+
+### Cleanup
+
+```bash
+# Remove a worktree when done (from main repo or any worktree)
+git worktree remove ../nopo-issue-123
+
+# If files were left behind, force removal
+git worktree remove --force ../nopo-issue-123
+
+# Clean up stale worktree references
+git worktree prune
+
+# List all worktrees
+git worktree list
+```
+
+### Avoiding Conflicts
+
+Before starting work on a new issue:
+
+1. **Check for overlapping PRs**: `gh pr list --search "is:open"` to see what's in progress
+2. **Note potential conflicts**: If your changes might overlap with another PR, mention it in your PR description
+3. **Rebase regularly**: Keep your branch up to date with main to minimize merge conflicts
+   ```bash
+   git fetch origin
+   git rebase origin/main
+   ```
+
+### Known Limitations
+
+Claude Code has some open issues with worktree support. Be aware of these limitations:
+
+| Issue | Description | Workaround |
+|-------|-------------|------------|
+| [#17374](https://github.com/anthropics/claude-code/issues/17374) | Sandbox (bubblewrap) may fail due to `.git` file structure in worktrees | Use `--dangerously-skip-permissions` if sandbox fails |
+| [#16600](https://github.com/anthropics/claude-code/issues/16600) | Memory/CLAUDE.md traversal may not respect worktree boundaries | Ensure each worktree has its own context |
+| [#15776](https://github.com/anthropics/claude-code/issues/15776) | Session state may not persist correctly across worktrees | Start fresh sessions in each worktree |
+| [#2841](https://github.com/anthropics/claude-code/issues/2841) | Directory restrictions may prevent worktree access | Launch Claude Code from within the worktree directory |
+
+Check the linked issues for the latest status and workarounds.
 
 ---
 
@@ -1259,6 +1360,12 @@ make makemigrations backend # Create migration
 
 # E2E Testing
 make smoketest             # Run Playwright tests
+
+# Git Worktrees
+git worktree add ../nopo-issue-123 claude/issue/123  # Create worktree
+git worktree list                                     # List worktrees
+git worktree remove ../nopo-issue-123                 # Remove worktree
+git worktree prune                                    # Clean stale refs
 ```
 
 ---
