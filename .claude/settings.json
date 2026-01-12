@@ -19,5 +19,18 @@
       "Bash(cd:*)",
       "Bash(timeout:*)"
     ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/validate-worktree.sh"
+          }
+        ]
+      }
+    ]
   }
 }
