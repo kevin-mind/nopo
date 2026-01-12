@@ -45,7 +45,12 @@ jobs:
               commentBody = payload.comment.body;
               commentAuthor = payload.comment.user.login;
 
-              // Check for commands
+              // Check if this is a top-level comment (no parent)
+              // GitHub's discussion_comment webhook doesn't include reply info directly,
+              // so we check the comment's parent_id field (null = top-level)
+              const isTopLevel = !payload.comment.parent_id;
+
+              // Check for commands first (works for any author)
               const body = commentBody.trim();
               if (body === '/summarize') {
                 actionType = 'summarize';
@@ -53,11 +58,16 @@ jobs:
                 actionType = 'plan';
               } else if (body === '/complete') {
                 actionType = 'complete';
-              } else if (commentAuthor !== 'claude[bot]') {
+              } else if (commentAuthor !== 'claude[bot]' && commentAuthor !== 'nopo-bot') {
+                // Human comment - always respond
                 actionType = 'respond';
+              } else if (isTopLevel && commentBody.includes('## 🔍 Research:')) {
+                // Bot's top-level research thread - trigger investigation
+                actionType = 'respond';
+                console.log('Triggering response for bot research thread');
               } else {
-                // Skip claude's own comments
-                console.log('Skipping claude[bot] comment');
+                // Skip bot's reply comments (prevent infinite loop)
+                console.log('Skipping bot reply comment to prevent infinite loop');
                 return;
               }
             }

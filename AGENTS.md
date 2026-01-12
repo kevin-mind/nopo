@@ -892,57 +892,164 @@ GitHub Discussions are automated with Claude for research, Q&A, and project plan
 ### Discussion Loop Overview
 
 ```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   CREATE    │────►│  RESEARCH   │────►│   RESPOND   │
-│             │     │  (threads)  │     │  (ongoing)  │
-└─────────────┘     └─────────────┘     └─────────────┘
-      │                   │                   │
-      ▼                   ▼                   ▼
- Discussion         Multiple threads    Answer questions
- created            per topic           Continue research
-                                        Commands: /summarize, /plan
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   CREATE    │────►│  RESEARCH   │────►│   RESPOND   │────►│   UPDATE    │
+│             │     │ (questions) │     │(investigate)│     │(description)│
+└─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘
+      │                   │                   │                   │
+      ▼                   ▼                   ▼                   ▼
+ Discussion         Spawn threads      Answer threads      Living summary
+ created            for each Q         with findings       in description
 ```
 
-### Workflow File
+### Key Concept: Living Description
 
-Discussion automation is handled by a single workflow:
+The discussion description is a **living document** that always reflects the current state of knowledge. After every agent action:
+- Key findings are added
+- Answered questions are documented
+- Data tables are linked
+- Decisions are recorded
+- Open questions are tracked
+
+This makes the description the authoritative summary - no need to read all comments.
+
+### Workflow Files
 
 | File | Triggers | Purpose |
 |------|----------|---------|
-| `claude-discussion-loop.yml` | `discussion: [created, edited]`, `discussion_comment: [created]` | Research, respond, commands |
+| `discussion-dispatcher.yml` | `discussion: [created, edited]`, `discussion_comment: [created]` | Routes events to handler |
+| `discussion-handler.yml` | `repository_dispatch` | Executes research, respond, commands |
 
 ### Jobs
 
 | Job | Trigger | Action |
 |-----|---------|--------|
-| **detect** | All events | Extracts context, counts comments, detects commands |
-| **research** | New discussion | Vigorous research, posts multiple top-level comments (one per topic) |
-| **respond** | Human comment | Answers questions in thread context |
-| **command-summarize** | `/summarize` | Creates comprehensive summary of all threads |
-| **command-plan** | `/plan` | Creates GitHub issues from discussion with labels and project links |
-| **command-complete** | `/complete` | Marks discussion as complete |
+| **prepare** | All events | Gets discussion ID, uploads original body |
+| **research** | New discussion | Identifies questions, spawns research threads |
+| **respond** | Human or bot research comment | Investigates and answers with concise findings |
+| **summarize** | `/summarize` | Creates comprehensive summary |
+| **plan** | `/plan` | Creates GitHub issues from discussion |
+| **complete** | `/complete` | Marks discussion as complete |
+| **update-description** | After any action | Updates discussion body with new knowledge |
 
 ### Research Behavior
 
-When a new discussion is created, Claude performs vigorous research:
+When a new discussion is created, Claude **spawns research threads** (it doesn't do the research itself):
 
-**Research Areas:**
-- **Codebase search**: `grep`, `glob`, and `read` to find relevant implementations
-- **GitHub search**: Related issues, PRs, and other discussions
-- **Documentation**: ADRs in `decisions/`, project docs, README files
-- **Web search**: External documentation and best practices (when needed)
+1. Analyzes the discussion topic
+2. Identifies 3-7 distinct research questions
+3. Creates a top-level comment for each question
+4. Each comment triggers a separate investigation agent
 
-**Output Format:**
-- Creates multiple **top-level comments** (not threaded)
-- Each comment represents a distinct research topic
-- Format: `## Research: <Topic Name>`
-- Includes code snippets, file paths (file.ts:42), and citations
+**Research Thread Format:**
+```markdown
+## 🔍 Research: <Topic Name>
+
+**Question:** <The specific question to investigate>
+
+**Investigation Areas:**
+- Area 1 to explore
+- Area 2 to explore
+
+**Expected Deliverables:**
+- What information to find
+- What code examples to provide
+```
 
 **Example Research Threads:**
-- "## Research: Current Implementation"
-- "## Research: Related Issues and PRs"
-- "## Research: Architecture and Patterns"
-- "## Research: External Documentation"
+- "## 🔍 Research: Current Architecture" - How does it work?
+- "## 🔍 Research: Related Issues & PRs" - What prior work exists?
+- "## 🔍 Research: Implementation Approaches" - What are the options?
+
+### Response Format
+
+All responses must be **concise and scannable**:
+
+- **Under 1000 words** - focused and actionable
+- **Structured with headers** - easy to scan
+- **Visual-first** - diagrams, tables, lists over paragraphs
+
+```markdown
+## Context Summary
+> 1-2 sentence summary of what was investigated
+
+## Findings
+
+### <Finding 1>
+- Bullet points, not paragraphs
+- Code references: `path/file.ts:42`
+
+| Column 1 | Column 2 |
+|----------|----------|
+| Data     | Data     |
+
+## Code References
+- `src/module/file.ts:123` - Brief description
+
+## Diagram (if applicable)
+```mermaid
+graph LR
+  A[Component] --> B[Component]
+```
+
+## Next Steps
+- Actionable recommendation
+```
+
+### Trigger Rules (Preventing Infinite Loops)
+
+| Author | Comment Type | Action |
+|--------|--------------|--------|
+| Human | Any | Trigger respond |
+| Bot | Top-level research thread | Trigger respond (investigate) |
+| Bot | Reply to thread | Skip (prevent loop) |
+
+### Description Structure
+
+The discussion description follows a consistent structure:
+
+```markdown
+<Original user content - preserved exactly>
+
+---
+
+## Current State
+
+### Summary
+- High-level summary of current knowledge
+
+### Research Threads
+- 🔍 **Topic 1** - Status/summary
+- 🔍 **Topic 2** - Status/summary
+
+### Key Findings
+- Validated fact 1
+- Validated fact 2
+
+### Answered Questions
+- **Q: Question asked?** A: Brief answer
+
+### Data & Tables
+- [Table description](link-to-comment) - What it shows
+
+### Decisions
+- Decision made with rationale
+
+### Implementation Plan
+- #123 - Issue title
+- #124 - Issue title
+
+### Code References
+- `src/file.ts:123` - Description
+- `src/other.ts:456` - Description
+
+### Related Resources
+- #100 - Related issue
+- [External doc](url) - Description
+
+### Open Questions
+- Question still needing answers
+```
 
 ### Thread Structure
 
