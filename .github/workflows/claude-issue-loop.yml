@@ -277,29 +277,39 @@ jobs:
             # ============================================
             # PROJECT FIELD UPDATES - USE THESE COMMANDS
             # ============================================
-            # IMPORTANT: PROJECT_TOKEN secret with project:write scope is REQUIRED
+            # IMPORTANT: PROJECT_TOKEN secret with project:read and project:write scopes is REQUIRED
+            # The default GITHUB_TOKEN does NOT have access to GitHub Projects v2.
+            # If ITEM_ID is empty, it likely means PROJECT_TOKEN is missing or lacks permissions.
+            #
             # Field IDs (hardcoded for kevin-mind/nopo project):
             #   Priority: PVTSSF_lADOBBYMds4BMB5szg7bd4o (P0=79628723, P1=0a877460, P2=da944a9c)
             #   Size: PVTSSF_lADOBBYMds4BMB5szg7bd4s (XS=6c6483d2, S=f784b110, M=7515a9f1, L=817d0097, XL=db339eb2)
             #   Estimate: PVTF_lADOBBYMds4BMB5szg7bd4w (number field)
-
-            # First, get the project item ID for this issue:
-            ITEM_ID=$(gh api graphql -f query='query($owner: String!, $repo: String!, $number: Int!) { repository(owner: $owner, name: $repo) { issue(number: $number) { projectItems(first: 1) { nodes { id } } } } }' -f owner="$GITHUB_REPOSITORY_OWNER" -f repo="${GITHUB_REPOSITORY#*/}" -F number=${{ needs.triage-check.outputs.issue_number }} --jq '.data.repository.issue.projectItems.nodes[0].id')
             PROJECT_ID="PVT_kwDOBBYMds4BMB5s"
 
-            # Check if ITEM_ID was found (issue must be linked to project)
+            # First, get the project item ID for this issue:
+            ITEM_ID=$(gh api graphql -f query='query($owner: String!, $repo: String!, $number: Int!) { repository(owner: $owner, name: $repo) { issue(number: $number) { projectItems(first: 1) { nodes { id } } } } }' -f owner="$GITHUB_REPOSITORY_OWNER" -f repo="${GITHUB_REPOSITORY#*/}" -F number=${{ needs.triage-check.outputs.issue_number }} --jq '.data.repository.issue.projectItems.nodes[0].id' 2>/dev/null)
+
+            # Check if ITEM_ID was found
             if [[ -z "$ITEM_ID" ]]; then
-              echo "Warning: Issue is not linked to a project. Skipping project field updates."
+              echo "ERROR: Could not get project item ID. This usually means:"
+              echo "  1. PROJECT_TOKEN secret is missing or doesn't have 'project' scope"
+              echo "  2. Issue is not linked to the GitHub Project"
+              echo ""
+              echo "To fix: Create a fine-grained PAT with 'Projects: Read and write' permission"
+              echo "and save it as PROJECT_TOKEN in repository secrets."
+              echo ""
+              echo "Skipping project field updates."
             else
               echo "Found project item: $ITEM_ID"
 
-              # Set Priority (choose one: P0, P1, or P2)
-              gh api graphql -f query='mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) { updateProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: { singleSelectOptionId: $optionId } }) { projectV2Item { id } } }' -f projectId="$PROJECT_ID" -f itemId="$ITEM_ID" -f fieldId="PVTSSF_lADOBBYMds4BMB5szg7bd4o" -f optionId="da944a9c"  # P2
+              # Set Priority (choose one: P0=79628723, P1=0a877460, P2=da944a9c)
+              gh api graphql -f query='mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) { updateProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: { singleSelectOptionId: $optionId } }) { projectV2Item { id } } }' -f projectId="$PROJECT_ID" -f itemId="$ITEM_ID" -f fieldId="PVTSSF_lADOBBYMds4BMB5szg7bd4o" -f optionId="da944a9c"
 
-              # Set Size (choose one: XS, S, M, L, XL)
-              gh api graphql -f query='mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) { updateProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: { singleSelectOptionId: $optionId } }) { projectV2Item { id } } }' -f projectId="$PROJECT_ID" -f itemId="$ITEM_ID" -f fieldId="PVTSSF_lADOBBYMds4BMB5szg7bd4s" -f optionId="7515a9f1"  # M
+              # Set Size (choose one: XS=6c6483d2, S=f784b110, M=7515a9f1, L=817d0097, XL=db339eb2)
+              gh api graphql -f query='mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) { updateProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: { singleSelectOptionId: $optionId } }) { projectV2Item { id } } }' -f projectId="$PROJECT_ID" -f itemId="$ITEM_ID" -f fieldId="PVTSSF_lADOBBYMds4BMB5szg7bd4s" -f optionId="7515a9f1"
 
-              # Set Estimate (number of hours: 1, 2, 3, 5, 8, 13, 21)
+              # Set Estimate (hours: 1, 2, 3, 5, 8, 13, or 21)
               gh api graphql -f query='mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $number: Float!) { updateProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: { number: $number } }) { projectV2Item { id } } }' -f projectId="$PROJECT_ID" -f itemId="$ITEM_ID" -f fieldId="PVTF_lADOBBYMds4BMB5szg7bd4w" -F number=5
             fi
 
