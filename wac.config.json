@@ -6,6 +6,6 @@
     "# and run `pnpm run gwf:build` to regenerate this file."
   ],
   "dumpOptions": {
-    "lineWidth": 120
+    "lineWidth": -1
   }
 }
