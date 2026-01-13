@@ -9,7 +9,7 @@ export default {
   ],
   workspaces: {
     ".": {
-      entry: ["fly/scripts/*.js"],
+      entry: ["fly/scripts/*.js", ".github/workflows-ts/*.wac.ts"],
       ignoreBinaries: ["dev"],
       ignoreDependencies: ["tsx"],
       ignoreUnresolved: [".*\\+types.*"],

@@ -9,5 +9,5 @@
     { "path": "./packages/ui/tsconfig.json"}
   ],
   "exclude": ["node_modules", "packages", "apps", "nopo/scripts"],
-  "include": ["deploy"]
+  "include": ["deploy", ".github/workflows-ts"]
 }
