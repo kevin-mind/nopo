@@ -29,7 +29,10 @@ ifndef issue
 endif
 	@if [ ! -d "../nopo-issue-$(issue)" ]; then \
 		git fetch origin 2>/dev/null || true; \
-		if git show-ref --verify --quiet "refs/remotes/origin/claude/issue/$(issue)"; then \
+		if git show-ref --verify --quiet "refs/heads/claude/issue/$(issue)"; then \
+			echo "Branch claude/issue/$(issue) exists locally, using it..."; \
+			git worktree add "../nopo-issue-$(issue)" "claude/issue/$(issue)"; \
+		elif git show-ref --verify --quiet "refs/remotes/origin/claude/issue/$(issue)"; then \
 			echo "Branch claude/issue/$(issue) exists remotely, checking out and tracking..."; \
 			git worktree add "../nopo-issue-$(issue)" "claude/issue/$(issue)"; \
 		else \
