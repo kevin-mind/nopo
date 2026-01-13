@@ -212,25 +212,26 @@ jobs:
             - Add missing tasks you identify from analyzing the codebase
             - Each todo should be completable in a single commit
 
-            ### 4. SET PROJECT FIELDS
-            If the issue is linked to a project, update the following fields based on your assessment:
+            ### 4. SET PROJECT FIELDS (REQUIRED)
+            You MUST run the project field update commands from the Commands section below.
+            First assess the issue, then execute the GraphQL commands with appropriate option IDs:
 
-            #### Priority (P0/P1/P2)
-            - **P0**: Critical/blocking issues, security vulnerabilities, production outages
-            - **P1**: High priority features, important bugs, time-sensitive work
-            - **P2**: Normal priority enhancements, minor bugs, technical debt
+            #### Priority - Choose ONE:
+            - **P0** (optionId: 79628723): Critical/blocking, security vulnerabilities, production outages
+            - **P1** (optionId: 0a877460): High priority features, important bugs, time-sensitive
+            - **P2** (optionId: da944a9c): Normal enhancements, minor bugs, technical debt
 
-            #### Size (XS/S/M/L/XL)
-            - **XS**: < 1 hour, single file change, trivial fix
-            - **S**: 1-4 hours, few files, straightforward implementation
-            - **M**: 1-2 days, multiple files, moderate complexity
-            - **L**: 3-5 days, significant changes, cross-cutting concerns
-            - **XL**: 1+ week, major feature, architectural changes
+            #### Size - Choose ONE:
+            - **XS** (optionId: 6c6483d2): < 1 hour, single file, trivial
+            - **S** (optionId: f784b110): 1-4 hours, few files, straightforward
+            - **M** (optionId: 7515a9f1): 1-2 days, multiple files, moderate
+            - **L** (optionId: 817d0097): 3-5 days, significant changes
+            - **XL** (optionId: db339eb2): 1+ week, major feature
 
-            #### Estimate (number)
-            Estimated hours to complete. Use Fibonacci-like values: 1, 2, 3, 5, 8, 13, 21
+            #### Estimate - Choose ONE (hours):
+            1, 2, 3, 5, 8, 13, or 21
 
-            Use the GraphQL commands in the Commands section to update these fields.
+            After deciding, run the three GraphQL commands in the Commands section, replacing the optionId/number values with your choices.
 
             ### 5. CREATE SUB-ISSUES FOR PHASED WORK
             If the issue is large (Size L or XL) and has distinct implementation phases:
@@ -274,56 +275,25 @@ jobs:
             gh label create "topic:example_topic" --color "7057ff" --description "Related to example topic"
 
             # ============================================
-            # PROJECT FIELD UPDATES (requires GH_TOKEN with project:write scope)
+            # PROJECT FIELD UPDATES - USE THESE COMMANDS
             # ============================================
+            # Field IDs (hardcoded for kevin-mind/nopo project):
+            #   Priority: PVTSSF_lADOBBYMds4BMB5szg7bd4o (P0=79628723, P1=0a877460, P2=da944a9c)
+            #   Size: PVTSSF_lADOBBYMds4BMB5szg7bd4s (XS=6c6483d2, S=f784b110, M=7515a9f1, L=817d0097, XL=db339eb2)
+            #   Estimate: PVTF_lADOBBYMds4BMB5szg7bd4w (number field)
 
-            # Step 1: Get project item ID and project ID for this issue
-            gh api graphql -f query='
-              query($owner: String!, $repo: String!, $number: Int!) {
-                repository(owner: $owner, name: $repo) {
-                  issue(number: $number) {
-                    projectItems(first: 10) {
-                      nodes { id project { id } }
-                    }
-                  }
-                }
-              }
-            ' -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" -F number=${{ needs.triage-check.outputs.issue_number }}
+            # First, get the project item ID for this issue:
+            ITEM_ID=$(gh api graphql -f query='query($owner: String!, $repo: String!, $number: Int!) { repository(owner: $owner, name: $repo) { issue(number: $number) { projectItems(first: 1) { nodes { id } } } } }' -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" -F number=${{ needs.triage-check.outputs.issue_number }} --jq '.data.repository.issue.projectItems.nodes[0].id')
+            PROJECT_ID="PVT_kwDOBBYMds4BMB5s"
 
-            # Step 2: Get field IDs and option IDs from the project
-            # Replace PROJECT_ID with the actual project ID from step 1
-            gh api graphql -f query='
-              query($projectId: ID!) {
-                node(id: $projectId) {
-                  ... on ProjectV2 {
-                    fields(first: 20) {
-                      nodes {
-                        ... on ProjectV2SingleSelectField { id name options { id name } }
-                        ... on ProjectV2Field { id name dataType }
-                      }
-                    }
-                  }
-                }
-              }
-            ' -f projectId="PROJECT_ID"
+            # Set Priority (choose one: P0, P1, or P2)
+            gh api graphql -f query='mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) { updateProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: { singleSelectOptionId: $optionId } }) { projectV2Item { id } } }' -f projectId="$PROJECT_ID" -f itemId="$ITEM_ID" -f fieldId="PVTSSF_lADOBBYMds4BMB5szg7bd4o" -f optionId="da944a9c"  # P2
 
-            # Step 3: Update a single-select field (Priority, Size)
-            gh api graphql -f query='
-              mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
-                updateProjectV2ItemFieldValue(
-                  input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: { singleSelectOptionId: $optionId } }
-                ) { projectV2Item { id } }
-              }
-            ' -f projectId="PROJECT_ID" -f itemId="ITEM_ID" -f fieldId="FIELD_ID" -f optionId="OPTION_ID"
+            # Set Size (choose one: XS, S, M, L, XL)
+            gh api graphql -f query='mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) { updateProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: { singleSelectOptionId: $optionId } }) { projectV2Item { id } } }' -f projectId="$PROJECT_ID" -f itemId="$ITEM_ID" -f fieldId="PVTSSF_lADOBBYMds4BMB5szg7bd4s" -f optionId="7515a9f1"  # M
 
-            # Step 4: Update a number field (Estimate)
-            gh api graphql -f query='
-              mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $number: Float!) {
-                updateProjectV2ItemFieldValue(
-                  input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: { number: $number } }
-                ) { projectV2Item { id } }
-              }
-            ' -f projectId="PROJECT_ID" -f itemId="ITEM_ID" -f fieldId="FIELD_ID" -F number=8
+            # Set Estimate (number of hours: 1, 2, 3, 5, 8, 13, 21)
+            gh api graphql -f query='mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $number: Float!) { updateProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: { number: $number } }) { projectV2Item { id } } }' -f projectId="$PROJECT_ID" -f itemId="$ITEM_ID" -f fieldId="PVTF_lADOBBYMds4BMB5szg7bd4w" -F number=5
 
             # ============================================
             # SUB-ISSUE CREATION
