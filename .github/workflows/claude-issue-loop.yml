@@ -186,6 +186,7 @@ jobs:
             **How to determine values:**
             - **type**: Based on issue category (bug fix, new feature, docs update, etc.)
             - **priority**: Extract from "### Priority" section in issue body. If not specified, use `null`
+              (Note: priority is only used for project fields, NOT as a label)
             - **size**: Based on scope of work:
               - XS: < 1 hour, single file change
               - S: 1-3 hours, few files
@@ -342,10 +343,7 @@ jobs:
             LABELS="$LABELS,$TYPE"
           fi
 
-          # Add priority label
-          if [[ -n "$PRIORITY" && "$PRIORITY" != "null" ]]; then
-            LABELS="$LABELS,priority:$PRIORITY"
-          fi
+          # Note: priority is NOT added as a label - it's only set in project fields
 
           # Add needs-info label if needed
           if [[ "$NEEDS_INFO" == "true" ]]; then
