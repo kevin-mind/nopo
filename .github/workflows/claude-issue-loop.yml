@@ -23,7 +23,7 @@ on:
           - respond
 
 concurrency:
-  group: claude-issue-${{ github.event.issue.number || github.event.pull_request.number }}-${{ github.event.action }}
+  group: claude-issue-${{ github.event.issue.number || github.event.pull_request.number || github.event.inputs.issue_number }}-${{ github.event.action || github.event.inputs.action }}
   cancel-in-progress: false
 
 permissions:
@@ -41,21 +41,40 @@ jobs:
   triage-check:
     runs-on: ubuntu-latest
     if: |
-      github.event_name == 'issues' &&
-      (
-        ((github.event.action == 'opened' || github.event.action == 'edited') &&
-         !contains(github.event.issue.labels.*.name, 'triaged')) ||
-        (github.event.action == 'unlabeled' && github.event.label.name == 'triaged')
-      )
+      (github.event_name == 'issues' &&
+       (
+         ((github.event.action == 'opened' || github.event.action == 'edited') &&
+          !contains(github.event.issue.labels.*.name, 'triaged')) ||
+         (github.event.action == 'unlabeled' && github.event.label.name == 'triaged')
+       )
+      ) ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'triage')
     outputs:
       should_triage: ${{ steps.check.outputs.should_triage }}
+      issue_number: ${{ steps.check.outputs.issue_number }}
+      issue_title: ${{ steps.check.outputs.issue_title }}
+      issue_body: ${{ steps.check.outputs.issue_body }}
     steps:
       - name: Check if sub-issue
         id: check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_NUMBER: ${{ github.event.issue.number || github.event.inputs.issue_number }}
         run: |
+          echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
+
+          # Get issue details (needed for workflow_dispatch which doesn't have issue context)
+          issue_data=$(gh issue view "$ISSUE_NUMBER" --json title,body)
+          echo "issue_title=$(echo "$issue_data" | jq -r '.title')" >> $GITHUB_OUTPUT
+
+          # Store body in a file to handle multiline content
+          echo "$issue_data" | jq -r '.body' > /tmp/issue_body.txt
+          {
+            echo 'issue_body<<EOF'
+            cat /tmp/issue_body.txt
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+
           # Check if this issue has a parent (is a sub-issue)
           # Sub-issues should not be triaged - they're implementation tasks
           parent=$(gh api graphql \
@@ -87,7 +106,7 @@ jobs:
     runs-on: ubuntu-latest
     if: needs.triage-check.outputs.should_triage == 'true'
     concurrency:
-      group: claude-triage-${{ github.event.issue.number }}
+      group: claude-triage-${{ needs.triage-check.outputs.issue_number }}
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
@@ -96,7 +115,7 @@ jobs:
         id: bot_comment
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_NUMBER: ${{ needs.triage-check.outputs.issue_number }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -e
@@ -119,10 +138,10 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           settings: ".claude/settings.json"
           prompt: |
-            You are triaging issue #${{ github.event.issue.number }}: "${{ github.event.issue.title }}"
+            You are triaging issue #${{ needs.triage-check.outputs.issue_number }}: "${{ needs.triage-check.outputs.issue_title }}"
 
             Issue body:
-            ${{ github.event.issue.body }}
+            ${{ needs.triage-check.outputs.issue_body }}
 
             ## Issue Structure
             Issues follow this structure (from task.yml template):
@@ -163,7 +182,7 @@ jobs:
             - Check if this might be a duplicate
 
             ### 3. UPDATE THE ISSUE BODY
-            Use `gh issue edit ${{ github.event.issue.number }} --body "..."` to improve the issue:
+            Use `gh issue edit ${{ needs.triage-check.outputs.issue_number }} --body "..."` to improve the issue:
 
             **Description**: Improve clarity if needed, make it a concise TLDR
 
@@ -216,7 +235,7 @@ jobs:
             - Total estimated work exceeds 5 days
 
             **Sub-issue format:**
-            - Title: "[Sub] Phase N: <phase description> (parent #${{ github.event.issue.number }})"
+            - Title: "[Sub] Phase N: <phase description> (parent #${{ needs.triage-check.outputs.issue_number }})"
             - Body: Brief description + specific todo items for that phase
 
             ### 6. VALIDATE COMPLETENESS
@@ -226,16 +245,16 @@ jobs:
             ## Commands
             ```bash
             # View current issue
-            gh issue view ${{ github.event.issue.number }}
+            gh issue view ${{ needs.triage-check.outputs.issue_number }}
 
             # Update issue body (use heredoc for multiline)
-            gh issue edit ${{ github.event.issue.number }} --body "$(cat <<'EOF'
+            gh issue edit ${{ needs.triage-check.outputs.issue_number }} --body "$(cat <<'EOF'
             ... new body content ...
             EOF
             )"
 
             # Add labels
-            gh issue edit ${{ github.event.issue.number }} --add-label "enhancement"
+            gh issue edit ${{ needs.triage-check.outputs.issue_number }} --add-label "enhancement"
 
             # List existing topic labels
             gh label list --search "topic:" --json name --jq '.[].name'
@@ -258,7 +277,7 @@ jobs:
                   }
                 }
               }
-            ' -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" -F number=${{ github.event.issue.number }}
+            ' -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" -F number=${{ needs.triage-check.outputs.issue_number }}
 
             # Step 2: Get field IDs and option IDs from the project
             # Replace PROJECT_ID with the actual project ID from step 1
@@ -300,7 +319,7 @@ jobs:
             # ============================================
 
             # Step 1: Create a new issue for a phase
-            gh issue create --title "[Sub] Phase 1: Setup (parent #${{ github.event.issue.number }})" --body "Phase 1 tasks..."
+            gh issue create --title "[Sub] Phase 1: Setup (parent #${{ needs.triage-check.outputs.issue_number }})" --body "Phase 1 tasks..."
 
             # Step 2: Get the new issue's ID (from the URL returned by gh issue create)
             # Extract issue number from URL, then get its node ID:
@@ -336,7 +355,8 @@ jobs:
       - name: Add triaged label
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh issue edit ${{ github.event.issue.number }} --add-label "triaged"
+          ISSUE_NUMBER: ${{ needs.triage-check.outputs.issue_number }}
+        run: gh issue edit "$ISSUE_NUMBER" --add-label "triaged"
 
       - name: Add reaction on completion
         if: always()
