@@ -8,7 +8,6 @@ import {
   checkoutStep,
   setupNodeStep,
   setupDockerStep,
-  runDockerStep,
   smoketestStep,
   checkStep,
 } from './lib/steps'
