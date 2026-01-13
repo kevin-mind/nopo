@@ -896,7 +896,7 @@ All automation is consolidated into 3 workflow files, each handling a specific l
 
 | Action | Event | Condition |
 |--------|-------|-----------|
-| **Triage** | `issues: [opened, edited]` | No "triaged" label |
+| **Triage** | `issues: [opened, edited]` | No "triaged" label AND not a sub-issue |
 | **Implement** | `issues: [assigned]` | Assigned to `nopo-bot` |
 | **@claude Comment** | `issue_comment`, `pull_request_review_comment` | Contains `@claude`, not from Bot |
 | **Push to Draft** | `push` (non-main) | Ready PR exists for branch |
@@ -959,7 +959,7 @@ These actions **require human intervention**:
 
 | Agent | Actions |
 |-------|---------|
-| **Triage** | Labels, links similar issues, expands context, answers questions, adds "triaged" label |
+| **Triage** | Adds labels (type/priority/topic), sets project fields (Priority/Size/Estimate), creates sub-issues for phased work, links related issues, expands context, answers questions, adds "triaged" label |
 | **Implement** | Creates branch, implements todos, runs tests, creates draft PR with "Fixes #N" |
 | **@claude Comment** | Answers questions, provides explanations, suggests approaches (no code changes unless asked) |
 | **Push-to-Draft** | Converts ready PRs to draft on push, cancels in-flight reviews |
@@ -967,6 +967,26 @@ These actions **require human intervention**:
 | **CI-Pass** | Converts to ready → adds "review-ready" label → requests `nopo-bot` review → updates project status |
 | **Review** | Reviews code, submits batch review (ready PRs only) |
 | **Review Response** | Processes comments: if commits → draft + push (CI loop); if no commits → re-request review (stays in review loop) |
+
+### Triage Details
+
+The triage agent performs comprehensive issue preparation:
+
+**Labels:**
+- **Type**: `bug`, `enhancement`, `documentation`, `refactor`, `test`, `chore`
+- **Priority**: `priority:low`, `priority:medium`, `priority:high`, `priority:critical` (extracted from issue template)
+- **Topic**: `topic:*` labels based on content analysis (max 3 per issue)
+
+**Project Fields** (if issue is linked to a project):
+- **Priority**: P0 (critical), P1 (high), P2 (normal)
+- **Size**: XS (<1hr), S (1-4hr), M (1-2 days), L (3-5 days), XL (1+ week)
+- **Estimate**: Hours in Fibonacci values (1, 2, 3, 5, 8, 13, 21)
+
+**Sub-Issues for Phased Work:**
+- Large issues (Size L/XL) with distinct phases get sub-issues created
+- Sub-issues are linked to parent via GitHub's sub-issue feature
+- Sub-issues are NOT triaged (they're implementation tasks, not full tickets)
+- Format: `[Sub] Phase N: <description> (parent #<number>)`
 
 ### PR Requirements
 

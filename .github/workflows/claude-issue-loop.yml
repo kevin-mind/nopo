@@ -23,7 +23,7 @@ on:
           - respond
 
 concurrency:
-  group: claude-issue-${{ github.event.issue.number || github.event.pull_request.number }}-${{ github.event.action }}
+  group: claude-issue-${{ github.event.issue.number || github.event.pull_request.number || github.event.inputs.issue_number }}-${{ github.event.action || github.event.inputs.action }}
   cancel-in-progress: false
 
 permissions:
@@ -38,17 +38,75 @@ jobs:
   # or when 'triaged' label is removed to re-trigger triage)
   #############################################################################
 
-  triage:
+  triage-check:
     runs-on: ubuntu-latest
     if: |
-      github.event_name == 'issues' &&
-      (
-        ((github.event.action == 'opened' || github.event.action == 'edited') &&
-         !contains(github.event.issue.labels.*.name, 'triaged')) ||
-        (github.event.action == 'unlabeled' && github.event.label.name == 'triaged')
-      )
+      (github.event_name == 'issues' &&
+       (
+         ((github.event.action == 'opened' || github.event.action == 'edited') &&
+          !contains(github.event.issue.labels.*.name, 'triaged')) ||
+         (github.event.action == 'unlabeled' && github.event.label.name == 'triaged')
+       )
+      ) ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'triage')
+    outputs:
+      should_triage: ${{ steps.check.outputs.should_triage }}
+      issue_number: ${{ steps.check.outputs.issue_number }}
+      issue_title: ${{ steps.check.outputs.issue_title }}
+      issue_body: ${{ steps.check.outputs.issue_body }}
+    steps:
+      - name: Check if sub-issue
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number || github.event.inputs.issue_number }}
+        run: |
+          echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
+
+          # Get issue details (needed for workflow_dispatch which doesn't have issue context)
+          issue_data=$(gh issue view "$ISSUE_NUMBER" --json title,body)
+          echo "issue_title=$(echo "$issue_data" | jq -r '.title')" >> $GITHUB_OUTPUT
+
+          # Store body in a file to handle multiline content
+          echo "$issue_data" | jq -r '.body' > /tmp/issue_body.txt
+          {
+            echo 'issue_body<<EOF'
+            cat /tmp/issue_body.txt
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+
+          # Check if this issue has a parent (is a sub-issue)
+          # Sub-issues should not be triaged - they're implementation tasks
+          parent=$(gh api graphql \
+            -H "GraphQL-Features: sub_issues" \
+            -f query='
+              query($owner: String!, $repo: String!, $number: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  issue(number: $number) {
+                    parent { number }
+                  }
+                }
+              }
+            ' \
+            -f owner="${GITHUB_REPOSITORY_OWNER}" \
+            -f repo="${GITHUB_REPOSITORY#*/}" \
+            -F number="$ISSUE_NUMBER" \
+            --jq '.data.repository.issue.parent.number // empty' 2>/dev/null || echo "")
+
+          if [[ -n "$parent" ]]; then
+            echo "Issue #$ISSUE_NUMBER is a sub-issue of #$parent - skipping triage"
+            echo "should_triage=false" >> $GITHUB_OUTPUT
+          else
+            echo "Issue #$ISSUE_NUMBER is not a sub-issue - proceeding with triage"
+            echo "should_triage=true" >> $GITHUB_OUTPUT
+          fi
+
+  triage:
+    needs: triage-check
+    runs-on: ubuntu-latest
+    if: needs.triage-check.outputs.should_triage == 'true'
     concurrency:
-      group: claude-triage-${{ github.event.issue.number }}
+      group: claude-triage-${{ needs.triage-check.outputs.issue_number }}
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
@@ -57,7 +115,7 @@ jobs:
         id: bot_comment
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_NUMBER: ${{ needs.triage-check.outputs.issue_number }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -e
@@ -80,10 +138,10 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           settings: ".claude/settings.json"
           prompt: |
-            You are triaging issue #${{ github.event.issue.number }}: "${{ github.event.issue.title }}"
+            You are triaging issue #${{ needs.triage-check.outputs.issue_number }}: "${{ needs.triage-check.outputs.issue_title }}"
 
             Issue body:
-            ${{ github.event.issue.body }}
+            ${{ needs.triage-check.outputs.issue_body }}
 
             ## Issue Structure
             Issues follow this structure (from task.yml template):
@@ -95,9 +153,28 @@ jobs:
             ## Your Tasks
 
             ### 1. ADD LABELS
-            Add appropriate labels based on issue type:
+
+            #### Type Labels
+            Add ONE type label based on issue category:
             - 'bug', 'enhancement', 'documentation', 'refactor', 'test', 'chore'
-            - Priority labels if urgency is indicated
+
+            #### Priority Labels
+            Extract the priority from the issue body's "### Priority" section and add the corresponding label:
+            - Low → `priority:low`
+            - Medium → `priority:medium`
+            - High → `priority:high`
+            - Critical → `priority:critical`
+
+            If no Priority section exists, skip priority labeling.
+
+            #### Topic Labels (max 3)
+            Analyze the issue content (Description, Details, affected files) to classify by topic:
+            1. First, list existing `topic:*` labels: `gh label list --search "topic:" --json name --jq '.[].name'`
+            2. Match issue content against existing topics when possible
+            3. If a new topic is needed, create it: `gh label create "topic:<name>" --color "7057ff" --description "Related to <topic>"`
+               - Use lowercase with underscores (e.g., `topic:cli_core`, `topic:docker_builds`, `topic:claude_automation`)
+               - Only alphanumeric and underscores allowed in topic name
+            4. Add up to 3 topic labels total
 
             ### 2. SEARCH FOR RELATED CONTENT
             - Use `gh issue list` to find similar/related issues
@@ -105,7 +182,7 @@ jobs:
             - Check if this might be a duplicate
 
             ### 3. UPDATE THE ISSUE BODY
-            Use `gh issue edit ${{ github.event.issue.number }} --body "..."` to improve the issue:
+            Use `gh issue edit ${{ needs.triage-check.outputs.issue_number }} --body "..."` to improve the issue:
 
             **Description**: Improve clarity if needed, make it a concise TLDR
 
@@ -124,37 +201,162 @@ jobs:
             - Add missing tasks you identify from analyzing the codebase
             - Each todo should be completable in a single commit
 
-            ### 4. VALIDATE COMPLETENESS
+            ### 4. SET PROJECT FIELDS
+            If the issue is linked to a project, update the following fields based on your assessment:
+
+            #### Priority (P0/P1/P2)
+            - **P0**: Critical/blocking issues, security vulnerabilities, production outages
+            - **P1**: High priority features, important bugs, time-sensitive work
+            - **P2**: Normal priority enhancements, minor bugs, technical debt
+
+            #### Size (XS/S/M/L/XL)
+            - **XS**: < 1 hour, single file change, trivial fix
+            - **S**: 1-4 hours, few files, straightforward implementation
+            - **M**: 1-2 days, multiple files, moderate complexity
+            - **L**: 3-5 days, significant changes, cross-cutting concerns
+            - **XL**: 1+ week, major feature, architectural changes
+
+            #### Estimate (number)
+            Estimated hours to complete. Use Fibonacci-like values: 1, 2, 3, 5, 8, 13, 21
+
+            Use the GraphQL commands in the Commands section to update these fields.
+
+            ### 5. CREATE SUB-ISSUES FOR PHASED WORK
+            If the issue is large (Size L or XL) and has distinct implementation phases:
+            1. Identify clear phases in the Todo section (e.g., "Phase 1: Setup", "Phase 2: Core Implementation")
+            2. Create a sub-issue for each phase using `gh issue create`
+            3. Link each new issue as a sub-issue to this parent issue
+            4. Each sub-issue should have a focused scope completable in 1-3 days
+            5. Sub-issues do NOT need full triage structure - just a clear title and todo list
+
+            **When to create sub-issues:**
+            - Work naturally splits into sequential phases
+            - Different phases could be assigned to different implementers
+            - Total estimated work exceeds 5 days
+
+            **Sub-issue format:**
+            - Title: "[Sub] Phase N: <phase description> (parent #${{ needs.triage-check.outputs.issue_number }})"
+            - Body: Brief description + specific todo items for that phase
+
+            ### 6. VALIDATE COMPLETENESS
             - If critical info is missing, add 'needs-info' label
             - Ask clarifying questions in a comment
 
             ## Commands
             ```bash
             # View current issue
-            gh issue view ${{ github.event.issue.number }}
+            gh issue view ${{ needs.triage-check.outputs.issue_number }}
 
             # Update issue body (use heredoc for multiline)
-            gh issue edit ${{ github.event.issue.number }} --body "$(cat <<'EOF'
+            gh issue edit ${{ needs.triage-check.outputs.issue_number }} --body "$(cat <<'EOF'
             ... new body content ...
             EOF
             )"
 
             # Add labels
-            gh issue edit ${{ github.event.issue.number }} --add-label "enhancement"
+            gh issue edit ${{ needs.triage-check.outputs.issue_number }} --add-label "enhancement"
+
+            # List existing topic labels
+            gh label list --search "topic:" --json name --jq '.[].name'
+
+            # Create a new topic label (if needed)
+            gh label create "topic:example_topic" --color "7057ff" --description "Related to example topic"
+
+            # ============================================
+            # PROJECT FIELD UPDATES (requires GH_TOKEN with project:write scope)
+            # ============================================
+
+            # Step 1: Get project item ID and project ID for this issue
+            gh api graphql -f query='
+              query($owner: String!, $repo: String!, $number: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  issue(number: $number) {
+                    projectItems(first: 10) {
+                      nodes { id project { id } }
+                    }
+                  }
+                }
+              }
+            ' -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" -F number=${{ needs.triage-check.outputs.issue_number }}
+
+            # Step 2: Get field IDs and option IDs from the project
+            # Replace PROJECT_ID with the actual project ID from step 1
+            gh api graphql -f query='
+              query($projectId: ID!) {
+                node(id: $projectId) {
+                  ... on ProjectV2 {
+                    fields(first: 20) {
+                      nodes {
+                        ... on ProjectV2SingleSelectField { id name options { id name } }
+                        ... on ProjectV2Field { id name dataType }
+                      }
+                    }
+                  }
+                }
+              }
+            ' -f projectId="PROJECT_ID"
+
+            # Step 3: Update a single-select field (Priority, Size)
+            gh api graphql -f query='
+              mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+                updateProjectV2ItemFieldValue(
+                  input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: { singleSelectOptionId: $optionId } }
+                ) { projectV2Item { id } }
+              }
+            ' -f projectId="PROJECT_ID" -f itemId="ITEM_ID" -f fieldId="FIELD_ID" -f optionId="OPTION_ID"
+
+            # Step 4: Update a number field (Estimate)
+            gh api graphql -f query='
+              mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $number: Float!) {
+                updateProjectV2ItemFieldValue(
+                  input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: { number: $number } }
+                ) { projectV2Item { id } }
+              }
+            ' -f projectId="PROJECT_ID" -f itemId="ITEM_ID" -f fieldId="FIELD_ID" -F number=8
+
+            # ============================================
+            # SUB-ISSUE CREATION
+            # ============================================
+
+            # Step 1: Create a new issue for a phase
+            gh issue create --title "[Sub] Phase 1: Setup (parent #${{ needs.triage-check.outputs.issue_number }})" --body "Phase 1 tasks..."
+
+            # Step 2: Get the new issue's ID (from the URL returned by gh issue create)
+            # Extract issue number from URL, then get its node ID:
+            gh api graphql -f query='
+              query($owner: String!, $repo: String!, $number: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  issue(number: $number) { id }
+                }
+              }
+            ' -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" -F number=NEW_ISSUE_NUMBER
+
+            # Step 3: Link as sub-issue to parent
+            gh api graphql -H "GraphQL-Features: sub_issues" -f query='
+              mutation($parentId: ID!, $subIssueId: ID!) {
+                addSubIssue(input: { issueId: $parentId, subIssueId: $subIssueId }) {
+                  issue { title }
+                  subIssue { title }
+                }
+              }
+            ' -f parentId="PARENT_ISSUE_ID" -f subIssueId="NEW_ISSUE_ID"
             ```
 
             IMPORTANT:
             - DO NOT assign the issue to anyone
             - Focus on making the issue clear and actionable for implementation
             - Preserve the issue structure (Description, Details, Questions, Todo sections)
+            - Only create sub-issues if the work genuinely requires phased implementation
           claude_args: "--model claude-opus-4-5-20251101 --max-turns 50"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Add triaged label
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh issue edit ${{ github.event.issue.number }} --add-label "triaged"
+          ISSUE_NUMBER: ${{ needs.triage-check.outputs.issue_number }}
+        run: gh issue edit "$ISSUE_NUMBER" --add-label "triaged"
 
       - name: Add reaction on completion
         if: always()
