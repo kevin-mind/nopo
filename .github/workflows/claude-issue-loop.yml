@@ -277,23 +277,31 @@ jobs:
             # ============================================
             # PROJECT FIELD UPDATES - USE THESE COMMANDS
             # ============================================
+            # IMPORTANT: PROJECT_TOKEN secret with project:write scope is REQUIRED
             # Field IDs (hardcoded for kevin-mind/nopo project):
             #   Priority: PVTSSF_lADOBBYMds4BMB5szg7bd4o (P0=79628723, P1=0a877460, P2=da944a9c)
             #   Size: PVTSSF_lADOBBYMds4BMB5szg7bd4s (XS=6c6483d2, S=f784b110, M=7515a9f1, L=817d0097, XL=db339eb2)
             #   Estimate: PVTF_lADOBBYMds4BMB5szg7bd4w (number field)
 
             # First, get the project item ID for this issue:
-            ITEM_ID=$(gh api graphql -f query='query($owner: String!, $repo: String!, $number: Int!) { repository(owner: $owner, name: $repo) { issue(number: $number) { projectItems(first: 1) { nodes { id } } } } }' -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" -F number=${{ needs.triage-check.outputs.issue_number }} --jq '.data.repository.issue.projectItems.nodes[0].id')
+            ITEM_ID=$(gh api graphql -f query='query($owner: String!, $repo: String!, $number: Int!) { repository(owner: $owner, name: $repo) { issue(number: $number) { projectItems(first: 1) { nodes { id } } } } }' -f owner="$GITHUB_REPOSITORY_OWNER" -f repo="${GITHUB_REPOSITORY#*/}" -F number=${{ needs.triage-check.outputs.issue_number }} --jq '.data.repository.issue.projectItems.nodes[0].id')
             PROJECT_ID="PVT_kwDOBBYMds4BMB5s"
 
-            # Set Priority (choose one: P0, P1, or P2)
-            gh api graphql -f query='mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) { updateProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: { singleSelectOptionId: $optionId } }) { projectV2Item { id } } }' -f projectId="$PROJECT_ID" -f itemId="$ITEM_ID" -f fieldId="PVTSSF_lADOBBYMds4BMB5szg7bd4o" -f optionId="da944a9c"  # P2
+            # Check if ITEM_ID was found (issue must be linked to project)
+            if [[ -z "$ITEM_ID" ]]; then
+              echo "Warning: Issue is not linked to a project. Skipping project field updates."
+            else
+              echo "Found project item: $ITEM_ID"
 
-            # Set Size (choose one: XS, S, M, L, XL)
-            gh api graphql -f query='mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) { updateProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: { singleSelectOptionId: $optionId } }) { projectV2Item { id } } }' -f projectId="$PROJECT_ID" -f itemId="$ITEM_ID" -f fieldId="PVTSSF_lADOBBYMds4BMB5szg7bd4s" -f optionId="7515a9f1"  # M
+              # Set Priority (choose one: P0, P1, or P2)
+              gh api graphql -f query='mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) { updateProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: { singleSelectOptionId: $optionId } }) { projectV2Item { id } } }' -f projectId="$PROJECT_ID" -f itemId="$ITEM_ID" -f fieldId="PVTSSF_lADOBBYMds4BMB5szg7bd4o" -f optionId="da944a9c"  # P2
 
-            # Set Estimate (number of hours: 1, 2, 3, 5, 8, 13, 21)
-            gh api graphql -f query='mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $number: Float!) { updateProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: { number: $number } }) { projectV2Item { id } } }' -f projectId="$PROJECT_ID" -f itemId="$ITEM_ID" -f fieldId="PVTF_lADOBBYMds4BMB5szg7bd4w" -F number=5
+              # Set Size (choose one: XS, S, M, L, XL)
+              gh api graphql -f query='mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) { updateProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: { singleSelectOptionId: $optionId } }) { projectV2Item { id } } }' -f projectId="$PROJECT_ID" -f itemId="$ITEM_ID" -f fieldId="PVTSSF_lADOBBYMds4BMB5szg7bd4s" -f optionId="7515a9f1"  # M
+
+              # Set Estimate (number of hours: 1, 2, 3, 5, 8, 13, 21)
+              gh api graphql -f query='mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $number: Float!) { updateProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: { number: $number } }) { projectV2Item { id } } }' -f projectId="$PROJECT_ID" -f itemId="$ITEM_ID" -f fieldId="PVTF_lADOBBYMds4BMB5szg7bd4w" -F number=5
+            fi
 
             # ============================================
             # SUB-ISSUE CREATION
@@ -332,6 +340,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
+          # Required for project field update commands
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
 
       - name: Add triaged label
         env:
