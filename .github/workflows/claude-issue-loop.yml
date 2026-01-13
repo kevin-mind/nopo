@@ -67,7 +67,8 @@ jobs:
 
           # Get issue details (needed for workflow_dispatch which doesn't have issue context)
           issue_data=$(gh issue view "$ISSUE_NUMBER" --json title,body)
-          echo "issue_title=$(echo "$issue_data" | jq -r '.title')" >> $GITHUB_OUTPUT
+          issue_title=$(echo "$issue_data" | jq -r '.title')
+          echo "issue_title=$issue_title" >> $GITHUB_OUTPUT
 
           # Store body in a file to handle multiline content
           echo "$issue_data" | jq -r '.body' > /tmp/issue_body.txt
@@ -77,7 +78,15 @@ jobs:
             echo 'EOF'
           } >> $GITHUB_OUTPUT
 
-          # Check if this issue has a parent (is a sub-issue)
+          # Check 1: Title starts with [Sub] - this catches sub-issues immediately
+          # (before they're linked to parent, avoiding race condition)
+          if [[ "$issue_title" == "[Sub]"* ]]; then
+            echo "Issue #$ISSUE_NUMBER has [Sub] prefix - skipping triage"
+            echo "should_triage=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Check 2: Issue has a parent (is already linked as sub-issue)
           # Sub-issues should not be triaged - they're implementation tasks
           parent=$(gh api graphql \
             -H "GraphQL-Features: sub_issues" \
