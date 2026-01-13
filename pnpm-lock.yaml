@@ -17,6 +17,15 @@ importers:
       '@eslint/js':
         specifier: ^9.23.0
         version: 9.25.0
+      '@github-actions-workflow-ts/actions':
+        specifier: ^2.1.0
+        version: 2.1.0
+      '@github-actions-workflow-ts/cli':
+        specifier: ^2.1.0
+        version: 2.1.0
+      '@github-actions-workflow-ts/lib':
+        specifier: ^2.1.0
+        version: 2.1.0
       '@playwright/test':
         specifier: ^1.57.0
         version: 1.57.0
@@ -41,6 +50,9 @@ importers:
       globals:
         specifier: ^16.0.0
         version: 16.0.0
+      husky:
+        specifier: ^9.1.7
+        version: 9.1.7
       knip:
         specifier: ^5.63.1
         version: 5.63.1(@types/node@20.17.30)(typescript@5.8.3)
@@ -927,6 +939,19 @@ packages:
   '@eslint/plugin-kit@0.2.8':
     resolution: {integrity: sha512-ZAoA40rNMPwSm+AeHpCq8STiNAwzWLJuP8Xv4CHIc9wv/PSuExjMrmjfYNj682vW0OOiZ1HKxzvjQr9XZIisQA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@github-actions-workflow-ts/actions@2.1.0':
+    resolution: {integrity: sha512-F8e3nWQDZ1hNgBztfjgx5ODsZZrxRdld0RuxlTWSe1UWUzbke+xhXv3O5Byp3Dzl5y2P/KF3t9oNNyZIWN8xjQ==}
+    engines: {node: '>=18.0.0'}
+
+  '@github-actions-workflow-ts/cli@2.1.0':
+    resolution: {integrity: sha512-RoggUZv8xw7OFiwKOwQULBqZN7ZNarCBhwn8wVncYgkiGfgybBo82VMFLbN7VsLl54T1DWNK18Qilnu5BnqWNw==}
+    engines: {node: '>=18.0.0'}
+    hasBin: true
+
+  '@github-actions-workflow-ts/lib@2.1.0':
+    resolution: {integrity: sha512-I48xqsFGEmBIfmucLHANtW+3EM6IyBByBWSVIcCaz+d5x8V7qJiQJPhpU0/9ESatAyyzM61ylqWlfD4+sjO0BQ==}
+    engines: {node: '>=18.0.0'}
 
   '@hapi/hoek@9.3.0':
     resolution: {integrity: sha512-/c6rf4UJlmHlC9b5BaNvzAcFv7HZ2QHaV0D4/HNlBdvFnvQq8RI4kYdhyPCl7Xj+oWvTWQ8ujhqS53LIgAe6KQ==}
@@ -3300,6 +3325,11 @@ packages:
   human-signals@2.1.0:
     resolution: {integrity: sha512-B4FFZ6q/T2jhhksgkbEW3HBvWIfDW85snkQgawt07S7J5QXTk6BkNV+0yAeZrM5QpMAdYlocGoljn0sJ/WQkFw==}
     engines: {node: '>=10.17.0'}
+
+  husky@9.1.7:
+    resolution: {integrity: sha512-5gs5ytaNjBrh5Ow3zrvdUUY+0VxIuWVL4i9irt6friV+BqdCfmV11CQTWMiBYWHbXhco+J1kHfTOUkePhCDvMA==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   iconv-lite@0.4.24:
     resolution: {integrity: sha512-v3MXnZAcvnywkTUEZomIActle7RXXeedOR31wwl7VlyoXO4Qi9arvSenNQWne1TcRwhCL1HwLI21bEqdpj8/rA==}
@@ -6259,6 +6289,20 @@ snapshots:
       '@eslint/core': 0.13.0
       levn: 0.4.1
 
+  '@github-actions-workflow-ts/actions@2.1.0':
+    dependencies:
+      '@github-actions-workflow-ts/lib': 2.1.0
+
+  '@github-actions-workflow-ts/cli@2.1.0':
+    dependencies:
+      '@github-actions-workflow-ts/lib': 2.1.0
+      fast-glob: 3.3.3
+      js-yaml: 4.1.0
+      tsx: 4.19.3
+      yargs: 17.7.2
+
+  '@github-actions-workflow-ts/lib@2.1.0': {}
+
   '@hapi/hoek@9.3.0': {}
 
   '@hapi/topo@5.1.0':
@@ -8941,6 +8985,8 @@ snapshots:
   human-id@4.1.1: {}
 
   human-signals@2.1.0: {}
+
+  husky@9.1.7: {}
 
   iconv-lite@0.4.24:
     dependencies:
