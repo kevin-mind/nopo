@@ -40,5 +40,18 @@
       "WebFetch(domain:readthedocs.io)",
       "WebFetch(domain:raw.githubusercontent.com)"
     ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/validate-worktree.sh"
+          }
+        ]
+      }
+    ]
   }
 }

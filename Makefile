@@ -22,6 +22,25 @@ shell:
 %:
 	@if [ "$(FIRST_WORD)" = "$@" ]; then npx -y tsx ./nopo/scripts/bin.ts $(MAKECMDGOALS); fi
 
+.PHONY: worktree
+worktree:
+ifndef issue
+	$(error Usage: make worktree issue=123)
+endif
+	@if [ ! -d "../nopo-issue-$(issue)" ]; then \
+		git fetch origin 2>/dev/null || true; \
+		git worktree add "../nopo-issue-$(issue)" -b "claude/issue/$(issue)" origin/main 2>/dev/null || \
+		git worktree add "../nopo-issue-$(issue)" "claude/issue/$(issue)"; \
+	fi
+	@echo "Setting up worktree..."
+	@cd "../nopo-issue-$(issue)" && \
+		. "$(HOME)/.nvm/nvm.sh" && nvm use 22 && \
+		pnpm install && \
+		make -C nopo/scripts init
+	@echo ""
+	@echo "Worktree ready at ../nopo-issue-$(issue)"
+	@echo "Run: cd ../nopo-issue-$(issue) && claude"
+
 .PHONY: lint-terraform
 lint-terraform:
 	terraform fmt -recursive infrastructure/terraform
