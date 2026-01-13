@@ -55,6 +55,8 @@ jobs:
       issue_title: ${{ steps.check.outputs.issue_title }}
       issue_body: ${{ steps.check.outputs.issue_body }}
     steps:
+      - uses: actions/checkout@v4
+
       - name: Check if sub-issue
         id: check
         env:
