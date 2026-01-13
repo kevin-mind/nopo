@@ -25,10 +25,12 @@
     "start:workspace": "pnpm run -r start",
     "test:workspace": "pnpm run -r test",
     "publish:workspace": "pnpm publish -r",
-    "smoketest": "playwright test"
+    "smoketest": "playwright test",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.1",
+    "husky": "^9.1.7",
     "@github-actions-workflow-ts/actions": "^2.1.0",
     "@github-actions-workflow-ts/cli": "^2.1.0",
     "@github-actions-workflow-ts/lib": "^2.1.0",
