@@ -1,0 +1,573 @@
+import { NormalJob, Step, Workflow } from '@github-actions-workflow-ts/lib'
+import { checkoutStep, checkoutWithDepth } from './lib/steps'
+import { claudeReviewPermissions, defaultDefaults } from './lib/patterns'
+
+// =============================================================================
+// REVIEW REQUEST JOBS
+// =============================================================================
+
+// Add review started comment script
+const addReviewStartedCommentScript = `
+comment_url=$(gh pr comment "$PR_NUMBER" --body "👀 **nopo-bot** is reviewing this PR...
+
+[View job]($RUN_URL)" 2>&1)
+
+comment_id=$(echo "$comment_url" | grep -oP 'issuecomment-\\K\\d+' || true)
+echo "comment_id=$comment_id" >> $GITHUB_OUTPUT
+`.trim()
+
+// Extract linked issue script
+const extractLinkedIssueScript = `
+pr_body=$(gh pr view "$PR_NUMBER" --json body --jq '.body')
+issue_number=$(echo "$pr_body" | grep -oP 'Fixes #\\K\\d+' | head -1 || true)
+
+if [[ -n "$issue_number" ]]; then
+  echo "has_issue=true" >> $GITHUB_OUTPUT
+  echo "number=$issue_number" >> $GITHUB_OUTPUT
+
+  issue_body=$(gh issue view "$issue_number" --json body --jq '.body')
+  echo "body<<EOF" >> $GITHUB_OUTPUT
+  echo "$issue_body" >> $GITHUB_OUTPUT
+  echo "EOF" >> $GITHUB_OUTPUT
+else
+  echo "has_issue=false" >> $GITHUB_OUTPUT
+fi
+`.trim()
+
+// Request setup job
+const requestSetupJob = new NormalJob('request-setup', {
+  if: `github.event_name == 'pull_request' &&
+github.event.requested_reviewer.login == 'nopo-bot'`,
+  'runs-on': 'ubuntu-latest',
+  outputs: {
+    pr_branch: '${{ github.event.pull_request.head.ref }}',
+    pr_number: '${{ github.event.pull_request.number }}',
+    is_draft: '${{ github.event.pull_request.draft }}',
+    issue_number: '${{ steps.issue.outputs.number }}',
+    issue_body: '${{ steps.issue.outputs.body }}',
+    has_issue: '${{ steps.issue.outputs.has_issue }}',
+    bot_comment_id: '${{ steps.bot_comment.outputs.comment_id }}',
+  },
+})
+
+requestSetupJob.addSteps([
+  checkoutStep,
+  new Step({
+    name: 'Check if draft',
+    if: 'github.event.pull_request.draft == true',
+    run: `echo "::warning::PR #\${{ github.event.pull_request.number }} is a draft. Skipping review."
+exit 1`,
+  }),
+  new Step({
+    name: 'Add review started comment',
+    id: 'bot_comment',
+    env: {
+      GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
+      PR_NUMBER: '${{ github.event.pull_request.number }}',
+      RUN_URL: '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}',
+    },
+    run: addReviewStartedCommentScript,
+  }),
+  new Step({
+    name: 'Extract linked issue',
+    id: 'issue',
+    env: {
+      GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
+      PR_NUMBER: '${{ github.event.pull_request.number }}',
+    },
+    run: extractLinkedIssueScript,
+  }),
+])
+
+// Update project status to In review script
+const updateProjectStatusInReviewScript = `
+result=$(gh api graphql -f query='
+  query($owner: String!, $repo: String!, $number: Int!) {
+    repository(owner: $owner, name: $repo) {
+      issue(number: $number) {
+        projectItems(first: 10) {
+          nodes {
+            id
+            project { id }
+          }
+        }
+      }
+    }
+  }
+' -f owner="\${GITHUB_REPOSITORY_OWNER}" -f repo="\${GITHUB_REPOSITORY#*/}" -F number="$ISSUE_NUMBER")
+
+item_id=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0].id // empty')
+project_id=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0].project.id // empty')
+
+if [[ -z "$item_id" || -z "$project_id" ]]; then
+  echo "Issue not linked to a project - skipping status update"
+  exit 0
+fi
+
+fields=$(gh api graphql -f query='
+  query($projectId: ID!) {
+    node(id: $projectId) {
+      ... on ProjectV2 {
+        fields(first: 20) {
+          nodes {
+            ... on ProjectV2SingleSelectField {
+              id
+              name
+              options { id name }
+            }
+          }
+        }
+      }
+    }
+  }
+' -f projectId="$project_id")
+
+field_id=$(echo "$fields" | jq -r '.data.node.fields.nodes[] | select(.name == "Status") | .id')
+option_id=$(echo "$fields" | jq -r '.data.node.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "In review") | .id')
+
+if [[ -z "$field_id" || -z "$option_id" ]]; then
+  echo "Could not find Status field or In review option"
+  exit 0
+fi
+
+gh api graphql -f query='
+  mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+    updateProjectV2ItemFieldValue(
+      input: {
+        projectId: $projectId
+        itemId: $itemId
+        fieldId: $fieldId
+        value: { singleSelectOptionId: $optionId }
+      }
+    ) { projectV2Item { id } }
+  }
+' -f projectId="$project_id" -f itemId="$item_id" -f fieldId="$field_id" -f optionId="$option_id"
+
+echo "Updated project item to In review status"
+`.trim()
+
+// Request update project job
+const requestUpdateProjectJob = new NormalJob('request-update-project', {
+  needs: ['request-setup'],
+  if: "needs.request-setup.outputs.has_issue == 'true'",
+  'runs-on': 'ubuntu-latest',
+})
+
+requestUpdateProjectJob.addSteps([
+  new Step({
+    name: 'Update project status to In review',
+    env: {
+      GH_TOKEN: '${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}',
+      ISSUE_NUMBER: '${{ needs.request-setup.outputs.issue_number }}',
+    },
+    run: updateProjectStatusInReviewScript,
+  }),
+])
+
+// Review prompt
+const reviewPrompt = `You are reviewing PR #\${{ needs.request-setup.outputs.pr_number }} on behalf of nopo-bot.
+
+nopo-bot was requested as a reviewer, which triggers this automated review.
+You (claude[bot]) will perform the actual review and submit it.
+
+\${{ needs.request-setup.outputs.has_issue == 'true' && format('## Linked Issue #{0}
+
+{1}
+
+## Validation
+- CHECK ALL TODO ITEMS in the issue are addressed
+- VERIFY code follows CLAUDE.md guidelines
+- ENSURE tests cover the requirements
+
+', needs.request-setup.outputs.issue_number, needs.request-setup.outputs.issue_body) || '## No Linked Issue
+Performing standard code review.
+
+' }}
+## Step 1: View the Changes
+
+You are already checked out on the PR branch. To see changes:
+\`\`\`bash
+git fetch origin main
+git diff origin/main...HEAD           # Full diff
+git diff origin/main...HEAD --stat    # Summary of changed files
+\`\`\`
+
+## Step 2: Check Existing Review Comments
+
+Check for existing review comments using:
+\`\`\`bash
+gh pr view \${{ needs.request-setup.outputs.pr_number }} --comments
+\`\`\`
+
+For unresolved comment threads, decide if they should be resolved:
+- If the conversation is COMPLETE: Note it can be resolved
+- If changes were requested and made: Verify the fix
+- If more discussion needed: Leave unresolved
+
+## Step 3: Review the Code
+
+Read the changed files and perform a thorough review:
+- Code quality and best practices
+- Potential bugs or edge cases
+- Test coverage adequacy
+- Security considerations
+
+### CRITICAL: Edge Case Testing
+
+Don't just check if todos are addressed - verify the LOGIC is correct:
+
+1. **Trace through with examples**: Pick 2-3 realistic inputs and mentally
+   trace the code path. For example:
+   - What happens with empty input?
+   - What happens with the most common case?
+   - What happens at boundaries (first item, last item, max values)?
+
+2. **Test conflicting requirements**: If the feature has multiple options
+   (e.g., flags, filters), what happens when they interact?
+
+3. **Run the code if possible**: Use the CLI or test commands to verify
+   the feature actually works as intended, not just that it compiles.
+
+4. **Check for design flaws**: Does the implementation order of operations
+   make sense? Are filters applied at the right time?
+
+If you find a logic bug, request changes with a specific example showing
+the incorrect behavior.
+
+## Step 4: Submit Your Review
+
+Submit your review using \`gh pr review \${{ needs.request-setup.outputs.pr_number }}\` with ONE of:
+- \`--approve\` if ALL requirements met and code is good
+- \`--request-changes -b "reason"\` if changes are needed
+- \`--comment -b "feedback"\` if you have questions but no blocking issues
+
+IMPORTANT:
+- You may APPROVE but must NOT merge
+- A human will make the final merge decision`
+
+// Add reaction script
+const addReactionScript = `
+if [[ -z "$COMMENT_ID" ]]; then
+  echo "No bot comment ID found, skipping reaction"
+  exit 0
+fi
+
+if [[ "$SUCCESS" == "true" ]]; then
+  reaction="rocket"
+else
+  reaction="confused"
+fi
+gh api "/repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" \\
+  -f content="$reaction" || true
+`.trim()
+
+// Request review job
+const requestReviewJob = new NormalJob('request-review', {
+  needs: ['request-setup', 'request-update-project'],
+  if: "always() && needs.request-setup.result == 'success'",
+  'runs-on': 'ubuntu-latest',
+})
+
+requestReviewJob.addSteps([
+  new Step({
+    uses: 'actions/checkout@v4',
+    with: {
+      ref: '${{ needs.request-setup.outputs.pr_branch }}',
+      'fetch-depth': 0,
+    },
+  }),
+  new Step({
+    uses: 'anthropics/claude-code-action@v1',
+    with: {
+      claude_code_oauth_token: '${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}',
+      settings: '.claude/settings.json',
+      prompt: reviewPrompt,
+      claude_args: '--model claude-opus-4-5-20251101 --max-turns 50',
+    },
+    env: {
+      GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
+    },
+  }),
+  new Step({
+    name: 'Add reaction on completion',
+    if: 'always()',
+    env: {
+      GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
+      COMMENT_ID: '${{ needs.request-setup.outputs.bot_comment_id }}',
+      SUCCESS: "${{ job.status == 'success' }}",
+    },
+    run: addReactionScript,
+  }),
+  new Step({
+    name: 'Remove nopo-bot from requested reviewers',
+    if: 'always()',
+    env: {
+      GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
+      PR_NUMBER: '${{ needs.request-setup.outputs.pr_number }}',
+    },
+    run: `# Remove nopo-bot from requested reviewers so it can be re-requested later
+# This allows the CI-success workflow to trigger a new review cycle
+gh pr edit "$PR_NUMBER" --remove-reviewer "nopo-bot" || true
+echo "Removed nopo-bot from requested reviewers"`,
+  }),
+])
+
+// =============================================================================
+// REVIEW RESPONSE JOBS
+// =============================================================================
+
+// Response process prompt
+const responseProcessPrompt = `You just submitted a review on PR #\${{ github.event.pull_request.number }}.
+
+Your review state: \${{ github.event.review.state }}
+Your review body: \${{ github.event.review.body }}
+
+## Step 1: Get Your Review Comments
+
+Fetch the comments from your review:
+\`\`\`
+gh api /repos/\${{ github.repository }}/pulls/\${{ github.event.pull_request.number }}/comments
+\`\`\`
+
+Filter for comments from your review (review_id: \${{ github.event.review.id }}).
+
+## Step 2: Process Each Comment
+
+For each comment you made:
+
+### If it's a CHANGE REQUEST:
+1. Make the requested change to the code
+2. Commit with a clear message referencing the comment
+3. Reply to the comment noting the fix
+
+### If it's a QUESTION:
+- Questions will be answered by the PR author
+- No action needed now - wait for response
+
+## Step 3: Finalize
+
+After processing all comments, check if you made any commits:
+
+### If you made commits (code changes):
+Push the changes:
+\`\`\`
+git push origin \${{ github.event.pull_request.head.ref }}
+\`\`\`
+The push will automatically convert PR to draft and trigger CI.
+CI-pass will mark it ready and re-request nopo-bot as reviewer when CI is green.
+
+### If you made NO commits (only discussion/questions):
+Post a comment summarizing your analysis, then re-request nopo-bot as reviewer:
+\`\`\`
+gh pr comment \${{ github.event.pull_request.number }} --body "## Review Response Summary
+
+<your analysis of the review comments and what action was taken or why no action was needed>
+
+Re-requesting review to continue the loop."
+
+gh pr edit \${{ github.event.pull_request.number }} --add-reviewer "nopo-bot"
+\`\`\`
+
+IMPORTANT:
+- ALWAYS post a comment with your findings - never leave the PR without feedback
+- Make atomic commits for each change
+- Reference the comment in each commit message
+- Follow CLAUDE.md guidelines for all code changes`
+
+// Response process job
+const responseProcessJob = new NormalJob('response-process', {
+  if: `github.event_name == 'pull_request_review' &&
+github.event.review.user.login == 'claude[bot]' &&
+github.event.pull_request.draft == false &&
+(github.event.review.state == 'CHANGES_REQUESTED' || github.event.review.state == 'COMMENTED')`,
+  'runs-on': 'ubuntu-latest',
+})
+
+responseProcessJob.addSteps([
+  new Step({
+    uses: 'actions/checkout@v4',
+    with: {
+      ref: '${{ github.event.pull_request.head.ref }}',
+      'fetch-depth': 0,
+    },
+  }),
+  new Step({
+    name: 'Configure Git',
+    run: `git config --global user.name "Claude Bot"
+git config --global user.email "claude-bot@anthropic.com"`,
+  }),
+  new Step({
+    uses: 'anthropics/claude-code-action@v1',
+    with: {
+      claude_code_oauth_token: '${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}',
+      settings: '.claude/settings.json',
+      prompt: responseProcessPrompt,
+      claude_args: '--model claude-opus-4-5-20251101 --max-turns 50',
+    },
+    env: {
+      GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
+    },
+  }),
+])
+
+// =============================================================================
+// HUMAN REVIEW RESPONSE JOB
+// =============================================================================
+
+// Check if Claude-authored script
+const checkIfClaudeAuthoredScript = `
+# Only respond on Claude-authored PRs
+author=$(gh pr view "$PR_NUMBER" --json author --jq '.author.login')
+if [[ "$author" == "app/claude" || "$author" == "github-actions[bot]" ]]; then
+  echo "is_claude_pr=true" >> $GITHUB_OUTPUT
+else
+  echo "is_claude_pr=false" >> $GITHUB_OUTPUT
+  echo "Skipping - not a Claude-authored PR"
+fi
+`.trim()
+
+// Human review response prompt
+const humanReviewResponsePrompt = `A human reviewer (@\${{ github.event.review.user.login }}) submitted a review on PR #\${{ github.event.pull_request.number }}.
+
+Review state: \${{ github.event.review.state }}
+Review body: \${{ github.event.review.body }}
+
+## Step 1: Get the Review Comments
+
+Fetch comments from this review:
+\`\`\`
+gh api /repos/\${{ github.repository }}/pulls/\${{ github.event.pull_request.number }}/comments
+\`\`\`
+
+Filter for comments from review_id: \${{ github.event.review.id }}
+
+## Step 2: Process the Feedback
+
+**For CHANGES_REQUESTED reviews:**
+- Make each requested change to the code
+- Commit with a clear message referencing what was fixed
+- Reply to each comment noting the fix
+
+**For COMMENTED reviews (questions):**
+- Answer each question with a reply comment
+- If a question implies a needed change, make it
+
+## Step 3: Finalize
+
+After processing all feedback:
+
+### If you made commits (code changes):
+Push the changes:
+\`\`\`
+git push origin \${{ github.event.pull_request.head.ref }}
+\`\`\`
+The push will convert PR to draft and trigger CI.
+
+### If you only answered questions (no commits):
+Post a summary comment, then re-request nopo-bot for the next review cycle:
+\`\`\`
+gh pr edit \${{ github.event.pull_request.number }} --add-reviewer "nopo-bot"
+\`\`\`
+
+IMPORTANT:
+- Address ALL feedback from the human reviewer
+- Make atomic commits for each change
+- Follow CLAUDE.md guidelines`
+
+// Human review response job
+const humanReviewResponseJob = new NormalJob('human-review-response', {
+  if: `github.event_name == 'pull_request_review' &&
+github.event.review.user.login != 'claude[bot]' &&
+github.event.pull_request.draft == false &&
+(github.event.review.state == 'CHANGES_REQUESTED' || github.event.review.state == 'COMMENTED')`,
+  'runs-on': 'ubuntu-latest',
+})
+
+humanReviewResponseJob.addSteps([
+  new Step({
+    name: 'Check if PR is Claude-authored',
+    id: 'check_author',
+    env: {
+      GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
+      PR_NUMBER: '${{ github.event.pull_request.number }}',
+    },
+    run: checkIfClaudeAuthoredScript,
+  }),
+  new Step({
+    uses: 'actions/checkout@v4',
+    if: "steps.check_author.outputs.is_claude_pr == 'true'",
+    with: {
+      ref: '${{ github.event.pull_request.head.ref }}',
+      'fetch-depth': 0,
+    },
+  }),
+  new Step({
+    name: 'Configure Git',
+    if: "steps.check_author.outputs.is_claude_pr == 'true'",
+    run: `git config --global user.name "Claude Bot"
+git config --global user.email "claude-bot@anthropic.com"`,
+  }),
+  new Step({
+    uses: 'anthropics/claude-code-action@v1',
+    if: "steps.check_author.outputs.is_claude_pr == 'true'",
+    with: {
+      claude_code_oauth_token: '${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}',
+      settings: '.claude/settings.json',
+      prompt: humanReviewResponsePrompt,
+      claude_args: '--model claude-opus-4-5-20251101 --max-turns 50',
+    },
+    env: {
+      GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
+    },
+  }),
+])
+
+// =============================================================================
+// MAIN WORKFLOW
+// =============================================================================
+
+export const claudeReviewLoopWorkflow = new Workflow('claude-review-loop', {
+  name: 'Claude Review Loop',
+  on: {
+    pull_request: {
+      types: ['review_requested'],
+    },
+    pull_request_review: {
+      types: ['submitted'],
+    },
+    workflow_dispatch: {
+      inputs: {
+        pr_number: {
+          description: 'PR number to review',
+          required: true,
+          type: 'string',
+        },
+        action: {
+          description: 'Action to simulate',
+          required: true,
+          type: 'choice',
+          options: ['review', 'respond'],
+        },
+      },
+    },
+  },
+  // CRITICAL: This concurrency group MUST match push-convert-to-draft in claude-ci-loop.yml
+  // The shared group ensures pushes cancel in-flight review workflows.
+  // - Push uses cancel-in-progress: true (cancels reviews)
+  // - Review loop uses cancel-in-progress: false (queues, doesn't cancel itself)
+  // This prevents race conditions where review acts on stale code.
+  concurrency: {
+    group: 'claude-review-${{ github.event.pull_request.head.ref }}',
+    'cancel-in-progress': false,
+  },
+  permissions: claudeReviewPermissions,
+  defaults: defaultDefaults,
+})
+
+claudeReviewLoopWorkflow.addJobs([
+  requestSetupJob,
+  requestUpdateProjectJob,
+  requestReviewJob,
+  responseProcessJob,
+  humanReviewResponseJob,
+])
