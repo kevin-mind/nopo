@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# Build TypeScript workflow files to YAML
+pnpm run gwf:build
+
+# Stage generated YAML files if they changed
+git add .github/workflows/
