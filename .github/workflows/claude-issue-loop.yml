@@ -95,9 +95,28 @@ jobs:
             ## Your Tasks
 
             ### 1. ADD LABELS
-            Add appropriate labels based on issue type:
+
+            #### Type Labels
+            Add ONE type label based on issue category:
             - 'bug', 'enhancement', 'documentation', 'refactor', 'test', 'chore'
-            - Priority labels if urgency is indicated
+
+            #### Priority Labels
+            Extract the priority from the issue body's "### Priority" section and add the corresponding label:
+            - Low → `priority:low`
+            - Medium → `priority:medium`
+            - High → `priority:high`
+            - Critical → `priority:critical`
+
+            If no Priority section exists, skip priority labeling.
+
+            #### Topic Labels (max 3)
+            Analyze the issue content (Description, Details, affected files) to classify by topic:
+            1. First, list existing `topic:*` labels: `gh label list --search "topic:" --json name --jq '.[].name'`
+            2. Match issue content against existing topics when possible
+            3. If a new topic is needed, create it: `gh label create "topic:<name>" --color "7057ff" --description "Related to <topic>"`
+               - Use lowercase with underscores (e.g., `topic:cli_core`, `topic:docker_builds`, `topic:claude_automation`)
+               - Only alphanumeric and underscores allowed in topic name
+            4. Add up to 3 topic labels total
 
             ### 2. SEARCH FOR RELATED CONTENT
             - Use `gh issue list` to find similar/related issues
@@ -141,6 +160,12 @@ jobs:
 
             # Add labels
             gh issue edit ${{ github.event.issue.number }} --add-label "enhancement"
+
+            # List existing topic labels
+            gh label list --search "topic:" --json name --jq '.[].name'
+
+            # Create a new topic label (if needed)
+            gh label create "topic:example_topic" --color "7057ff" --description "Related to example topic"
             ```
 
             IMPORTANT:

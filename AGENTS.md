@@ -959,7 +959,7 @@ These actions **require human intervention**:
 
 | Agent | Actions |
 |-------|---------|
-| **Triage** | Labels, links similar issues, expands context, answers questions, adds "triaged" label |
+| **Triage** | Adds type/priority/topic labels, links similar issues, expands context, answers questions, adds "triaged" label |
 | **Implement** | Creates branch, implements todos, runs tests, creates draft PR with "Fixes #N" |
 | **@claude Comment** | Answers questions, provides explanations, suggests approaches (no code changes unless asked) |
 | **Push-to-Draft** | Converts ready PRs to draft on push, cancels in-flight reviews |
