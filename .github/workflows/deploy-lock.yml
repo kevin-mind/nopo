@@ -1,0 +1,123 @@
+name: Deploy Lock Management
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Action to perform"
+        required: true
+        type: choice
+        options:
+          - unlock
+          - lock
+      environment:
+        description: "Environment"
+        required: true
+        type: choice
+        options:
+          - stage
+          - prod
+      layer:
+        description: "Terraform layer"
+        required: true
+        type: choice
+        options:
+          - services
+          - infra
+      lock_id:
+        description: "Lock ID (required for unlock, get from error message)"
+        required: false
+        type: string
+
+permissions: {}
+
+env:
+  TERRAFORM_VERSION: "1.7.0"
+
+jobs:
+  manage-lock:
+    name: ${{ inputs.action }} ${{ inputs.environment }}/${{ inputs.layer }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        working-directory: infrastructure/terraform/environments/${{ inputs.environment }}/${{ inputs.layer }}
+        env:
+          TF_STATE_BUCKET: ${{ vars.TERRAFORM_STATE_BUCKET }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          LAYER: ${{ inputs.layer }}
+        run: |
+          terraform init -input=false \
+            -backend-config="bucket=${TF_STATE_BUCKET}" \
+            -backend-config="prefix=nopo/${ENVIRONMENT}/${LAYER}"
+
+      - name: Unlock Terraform State
+        if: inputs.action == 'unlock'
+        working-directory: infrastructure/terraform/environments/${{ inputs.environment }}/${{ inputs.layer }}
+        env:
+          LOCK_ID: ${{ inputs.lock_id }}
+        run: |
+          if [[ -z "${LOCK_ID}" ]]; then
+            echo "::error::Lock ID is required for unlock action. Get it from the error message."
+            exit 1
+          fi
+          echo "Force-unlocking state with lock ID: ${LOCK_ID}"
+          terraform force-unlock -force "${LOCK_ID}"
+          echo "State unlocked successfully"
+
+      - name: Lock Deployments (Create Lock File)
+        if: inputs.action == 'lock'
+        env:
+          TF_STATE_BUCKET: ${{ vars.TERRAFORM_STATE_BUCKET }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          LAYER: ${{ inputs.layer }}
+        run: |
+          LOCK_FILE="gs://${TF_STATE_BUCKET}/nopo/${ENVIRONMENT}/${LAYER}/deploy.lock"
+          LOCK_INFO="{\"locked_by\": \"${{ github.actor }}\", \"locked_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\", \"reason\": \"Manual deployment lock via workflow\", \"run_id\": \"${{ github.run_id }}\"}"
+
+          echo "${LOCK_INFO}" | gsutil cp - "${LOCK_FILE}"
+          echo "Deployment lock created at ${LOCK_FILE}"
+          echo ""
+          echo "To unlock, run this workflow again with action=unlock"
+          echo "Or delete the lock file: gsutil rm ${LOCK_FILE}"
+
+      - name: Check Lock Status
+        env:
+          TF_STATE_BUCKET: ${{ vars.TERRAFORM_STATE_BUCKET }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          LAYER: ${{ inputs.layer }}
+        run: |
+          LOCK_FILE="gs://${TF_STATE_BUCKET}/nopo/${ENVIRONMENT}/${LAYER}/deploy.lock"
+
+          if gsutil stat "${LOCK_FILE}" 2>/dev/null; then
+            echo "Manual deployment lock exists:"
+            gsutil cat "${LOCK_FILE}" | jq .
+          else
+            echo "No manual deployment lock"
+          fi
+
+          TF_LOCK_FILE="gs://${TF_STATE_BUCKET}/nopo/${ENVIRONMENT}/${LAYER}/default.tflock"
+          if gsutil stat "${TF_LOCK_FILE}" 2>/dev/null; then
+            echo ""
+            echo "Terraform state lock exists (may be stale):"
+            gsutil cat "${TF_LOCK_FILE}" || true
+          else
+            echo "No terraform state lock"
+          fi
