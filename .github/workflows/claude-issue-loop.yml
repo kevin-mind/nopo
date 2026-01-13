@@ -145,6 +145,7 @@ jobs:
           fi
 
       - uses: anthropics/claude-code-action@v1
+        id: claude_triage
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           settings: ".claude/settings.json"
@@ -163,29 +164,39 @@ jobs:
 
             ## Your Tasks
 
-            ### 1. ADD LABELS
+            ### 1. ANALYZE AND WRITE TRIAGE OUTPUT
+            Analyze the issue and write a JSON file with your triage decisions.
+            This file is the SINGLE SOURCE OF TRUTH for labels and project fields.
 
-            #### Type Labels
-            Add ONE type label based on issue category:
-            - 'bug', 'enhancement', 'documentation', 'refactor', 'test', 'chore'
+            **CRITICAL**: You MUST write this file FIRST before any other actions:
 
-            #### Priority Labels
-            Extract the priority from the issue body's "### Priority" section and add the corresponding label:
-            - Low → `priority:low`
-            - Medium → `priority:medium`
-            - High → `priority:high`
-            - Critical → `priority:critical`
+            ```bash
+            cat > triage-output.json << 'EOF'
+            {
+              "type": "<bug|enhancement|documentation|refactor|test|chore>",
+              "priority": "<low|medium|high|critical|null>",
+              "size": "<xs|s|m|l|xl>",
+              "estimate": <hours as number: 1, 2, 3, 5, 8, 13, or 21>,
+              "topics": ["topic_name_1", "topic_name_2"],
+              "needs_info": <true|false>
+            }
+            EOF
+            ```
 
-            If no Priority section exists, skip priority labeling.
-
-            #### Topic Labels (max 3)
-            Analyze the issue content (Description, Details, affected files) to classify by topic:
-            1. First, list existing `topic:*` labels: `gh label list --search "topic:" --json name --jq '.[].name'`
-            2. Match issue content against existing topics when possible
-            3. If a new topic is needed, create it: `gh label create "topic:<name>" --color "7057ff" --description "Related to <topic>"`
-               - Use lowercase with underscores (e.g., `topic:cli_core`, `topic:docker_builds`, `topic:claude_automation`)
-               - Only alphanumeric and underscores allowed in topic name
-            4. Add up to 3 topic labels total
+            **How to determine values:**
+            - **type**: Based on issue category (bug fix, new feature, docs update, etc.)
+            - **priority**: Extract from "### Priority" section in issue body. If not specified, use `null`
+            - **size**: Based on scope of work:
+              - XS: < 1 hour, single file change
+              - S: 1-3 hours, few files
+              - M: 3-8 hours, moderate complexity
+              - L: 8-21 hours, significant work
+              - XL: 21+ hours, major feature/refactor
+            - **estimate**: Hours of work (must match size: XS=1, S=2-3, M=5-8, L=13, XL=21)
+            - **topics**: 1-3 topic names (lowercase with underscores, e.g., "cli_core", "docker_builds")
+              - First check existing topics: `gh label list --search "topic:" --json name --jq '.[].name'`
+              - Reuse existing topics when applicable
+            - **needs_info**: true if critical information is missing
 
             ### 2. SEARCH FOR RELATED CONTENT
             - Use `gh issue list` to find similar/related issues
@@ -212,28 +223,7 @@ jobs:
             - Add missing tasks you identify from analyzing the codebase
             - Each todo should be completable in a single commit
 
-            ### 4. SET PROJECT FIELDS (REQUIRED)
-            You MUST run the project field update commands from the Commands section below.
-            First assess the issue, then execute the GraphQL commands with appropriate option IDs:
-
-            #### Priority - Choose ONE:
-            - **P0** (optionId: 79628723): Critical/blocking, security vulnerabilities, production outages
-            - **P1** (optionId: 0a877460): High priority features, important bugs, time-sensitive
-            - **P2** (optionId: da944a9c): Normal enhancements, minor bugs, technical debt
-
-            #### Size - Choose ONE:
-            - **XS** (optionId: 6c6483d2): < 1 hour, single file, trivial
-            - **S** (optionId: f784b110): 1-4 hours, few files, straightforward
-            - **M** (optionId: 7515a9f1): 1-2 days, multiple files, moderate
-            - **L** (optionId: 817d0097): 3-5 days, significant changes
-            - **XL** (optionId: db339eb2): 1+ week, major feature
-
-            #### Estimate - Choose ONE (hours):
-            1, 2, 3, 5, 8, 13, or 21
-
-            After deciding, run the three GraphQL commands in the Commands section, replacing the optionId/number values with your choices.
-
-            ### 5. CREATE SUB-ISSUES FOR PHASED WORK
+            ### 4. CREATE SUB-ISSUES FOR PHASED WORK
             If the issue is large (Size L or XL) and has distinct implementation phases:
             1. Identify clear phases in the Todo section (e.g., "Phase 1: Setup", "Phase 2: Core Implementation")
             2. Create a sub-issue for each phase using `gh issue create`
@@ -250,12 +240,27 @@ jobs:
             - Title: "[Sub] Phase N: <phase description> (parent #${{ needs.triage-check.outputs.issue_number }})"
             - Body: Brief description + specific todo items for that phase
 
-            ### 6. VALIDATE COMPLETENESS
-            - If critical info is missing, add 'needs-info' label
+            ### 5. VALIDATE COMPLETENESS
+            - If critical info is missing, set `needs_info: true` in the triage output
             - Ask clarifying questions in a comment
 
             ## Commands
             ```bash
+            # STEP 1: Write triage output file (DO THIS FIRST!)
+            cat > triage-output.json << 'EOF'
+            {
+              "type": "enhancement",
+              "priority": "medium",
+              "size": "m",
+              "estimate": 5,
+              "topics": ["cli_core", "docker_builds"],
+              "needs_info": false
+            }
+            EOF
+
+            # Verify the file was created correctly
+            cat triage-output.json
+
             # View current issue
             gh issue view ${{ needs.triage-check.outputs.issue_number }}
 
@@ -265,63 +270,17 @@ jobs:
             EOF
             )"
 
-            # Add labels
-            gh issue edit ${{ needs.triage-check.outputs.issue_number }} --add-label "enhancement"
-
-            # List existing topic labels
+            # List existing topic labels (to reuse existing topics)
             gh label list --search "topic:" --json name --jq '.[].name'
 
-            # Create a new topic label (if needed)
-            gh label create "topic:example_topic" --color "7057ff" --description "Related to example topic"
-
             # ============================================
-            # PROJECT FIELD UPDATES - USE THESE COMMANDS
-            # ============================================
-            # IMPORTANT: PROJECT_TOKEN secret with project:read and project:write scopes is REQUIRED
-            # The default GITHUB_TOKEN does NOT have access to GitHub Projects v2.
-            # If ITEM_ID is empty, it likely means PROJECT_TOKEN is missing or lacks permissions.
-            #
-            # Field IDs (hardcoded for kevin-mind/nopo project):
-            #   Priority: PVTSSF_lADOBBYMds4BMB5szg7bd4o (P0=79628723, P1=0a877460, P2=da944a9c)
-            #   Size: PVTSSF_lADOBBYMds4BMB5szg7bd4s (XS=6c6483d2, S=f784b110, M=7515a9f1, L=817d0097, XL=db339eb2)
-            #   Estimate: PVTF_lADOBBYMds4BMB5szg7bd4w (number field)
-            PROJECT_ID="PVT_kwDOBBYMds4BMB5s"
-
-            # First, get the project item ID for this issue:
-            ITEM_ID=$(gh api graphql -f query='query($owner: String!, $repo: String!, $number: Int!) { repository(owner: $owner, name: $repo) { issue(number: $number) { projectItems(first: 1) { nodes { id } } } } }' -f owner="$GITHUB_REPOSITORY_OWNER" -f repo="${GITHUB_REPOSITORY#*/}" -F number=${{ needs.triage-check.outputs.issue_number }} --jq '.data.repository.issue.projectItems.nodes[0].id' 2>/dev/null)
-
-            # Check if ITEM_ID was found
-            if [[ -z "$ITEM_ID" ]]; then
-              echo "ERROR: Could not get project item ID. This usually means:"
-              echo "  1. PROJECT_TOKEN secret is missing or doesn't have 'project' scope"
-              echo "  2. Issue is not linked to the GitHub Project"
-              echo ""
-              echo "To fix: Create a fine-grained PAT with 'Projects: Read and write' permission"
-              echo "and save it as PROJECT_TOKEN in repository secrets."
-              echo ""
-              echo "Skipping project field updates."
-            else
-              echo "Found project item: $ITEM_ID"
-
-              # Set Priority (choose one: P0=79628723, P1=0a877460, P2=da944a9c)
-              gh api graphql -f query='mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) { updateProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: { singleSelectOptionId: $optionId } }) { projectV2Item { id } } }' -f projectId="$PROJECT_ID" -f itemId="$ITEM_ID" -f fieldId="PVTSSF_lADOBBYMds4BMB5szg7bd4o" -f optionId="da944a9c"
-
-              # Set Size (choose one: XS=6c6483d2, S=f784b110, M=7515a9f1, L=817d0097, XL=db339eb2)
-              gh api graphql -f query='mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) { updateProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: { singleSelectOptionId: $optionId } }) { projectV2Item { id } } }' -f projectId="$PROJECT_ID" -f itemId="$ITEM_ID" -f fieldId="PVTSSF_lADOBBYMds4BMB5szg7bd4s" -f optionId="7515a9f1"
-
-              # Set Estimate (hours: 1, 2, 3, 5, 8, 13, or 21)
-              gh api graphql -f query='mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $number: Float!) { updateProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: { number: $number } }) { projectV2Item { id } } }' -f projectId="$PROJECT_ID" -f itemId="$ITEM_ID" -f fieldId="PVTF_lADOBBYMds4BMB5szg7bd4w" -F number=5
-            fi
-
-            # ============================================
-            # SUB-ISSUE CREATION
+            # SUB-ISSUE CREATION (only for L/XL issues)
             # ============================================
 
             # Step 1: Create a new issue for a phase
             gh issue create --title "[Sub] Phase 1: Setup (parent #${{ needs.triage-check.outputs.issue_number }})" --body "Phase 1 tasks..."
 
             # Step 2: Get the new issue's ID (from the URL returned by gh issue create)
-            # Extract issue number from URL, then get its node ID:
             gh api graphql -f query='
               query($owner: String!, $repo: String!, $number: Int!) {
                 repository(owner: $owner, name: $repo) {
@@ -342,6 +301,8 @@ jobs:
             ```
 
             IMPORTANT:
+            - You MUST write triage-output.json - the workflow depends on it!
+            - DO NOT add labels yourself - the workflow step reads your JSON and applies them
             - DO NOT assign the issue to anyone
             - Focus on making the issue clear and actionable for implementation
             - Preserve the issue structure (Description, Details, Questions, Todo sections)
@@ -349,16 +310,141 @@ jobs:
           claude_args: "--model claude-opus-4-5-20251101 --max-turns 50"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
-          # Required for project field update commands
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
 
-      - name: Add triaged label
+      - name: Apply labels and project fields from triage output
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ needs.triage-check.outputs.issue_number }}
-        run: gh issue edit "$ISSUE_NUMBER" --add-label "triaged"
+        run: |
+          # Read triage output from Claude
+          if [[ ! -f triage-output.json ]]; then
+            echo "ERROR: triage-output.json not found - Claude may not have created it"
+            echo "Applying minimal triaged label only"
+            gh issue edit "$ISSUE_NUMBER" --add-label "triaged"
+            exit 0
+          fi
+
+          echo "Reading triage output:"
+          cat triage-output.json
+
+          # Parse triage output
+          TYPE=$(jq -r '.type // empty' triage-output.json)
+          PRIORITY=$(jq -r '.priority // empty' triage-output.json)
+          SIZE=$(jq -r '.size // empty' triage-output.json)
+          ESTIMATE=$(jq -r '.estimate // 5' triage-output.json)
+          NEEDS_INFO=$(jq -r '.needs_info // false' triage-output.json)
+
+          # Build labels list
+          LABELS="triaged"
+
+          # Add type label
+          if [[ -n "$TYPE" && "$TYPE" != "null" ]]; then
+            LABELS="$LABELS,$TYPE"
+          fi
+
+          # Add priority label
+          if [[ -n "$PRIORITY" && "$PRIORITY" != "null" ]]; then
+            LABELS="$LABELS,priority:$PRIORITY"
+          fi
+
+          # Add needs-info label if needed
+          if [[ "$NEEDS_INFO" == "true" ]]; then
+            LABELS="$LABELS,needs-info"
+          fi
+
+          # Add topic labels (create if they don't exist)
+          TOPICS=$(jq -r '.topics[]? // empty' triage-output.json)
+          for topic in $TOPICS; do
+            topic_label="topic:$topic"
+            # Check if label exists, create if not
+            if ! gh label list --search "$topic_label" --json name --jq '.[].name' | grep -q "^$topic_label$"; then
+              echo "Creating new topic label: $topic_label"
+              gh label create "$topic_label" --color "7057ff" --description "Related to $topic" || true
+            fi
+            LABELS="$LABELS,$topic_label"
+          done
+
+          echo "Applying labels: $LABELS"
+          gh issue edit "$ISSUE_NUMBER" --add-label "$LABELS"
+
+          # =============================================
+          # Update project fields
+          # =============================================
+
+          # Map priority to project field option IDs
+          case "$PRIORITY" in
+            critical) PRIORITY_OPTION_ID="79628723" ;;  # P0
+            high)     PRIORITY_OPTION_ID="0a877460" ;;  # P1
+            *)        PRIORITY_OPTION_ID="da944a9c" ;;  # P2 (medium, low, or default)
+          esac
+
+          # Map size to project field option IDs
+          case "$SIZE" in
+            xs) SIZE_OPTION_ID="6c6483d2" ;;
+            s)  SIZE_OPTION_ID="f784b110" ;;
+            m)  SIZE_OPTION_ID="7515a9f1" ;;
+            l)  SIZE_OPTION_ID="817d0097" ;;
+            xl) SIZE_OPTION_ID="db339eb2" ;;
+            *)  SIZE_OPTION_ID="7515a9f1" ;;  # Default to M
+          esac
+
+          # Get project item ID
+          result=$(gh api graphql -f query='
+            query($owner: String!, $repo: String!, $number: Int!) {
+              repository(owner: $owner, name: $repo) {
+                issue(number: $number) {
+                  projectItems(first: 1) {
+                    nodes { id project { id } }
+                  }
+                }
+              }
+            }
+          ' -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" -F number="$ISSUE_NUMBER" 2>/dev/null || echo '{}')
+
+          ITEM_ID=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0].id // empty')
+          PROJECT_ID=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0].project.id // empty')
+
+          if [[ -z "$ITEM_ID" || "$ITEM_ID" == "null" ]]; then
+            echo "Issue not linked to a project - skipping project field updates"
+            exit 0
+          fi
+
+          echo "Updating project fields: Priority=$PRIORITY_OPTION_ID, Size=$SIZE_OPTION_ID, Estimate=$ESTIMATE"
+
+          # Update Priority field
+          gh api graphql -f query='
+            mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+              updateProjectV2ItemFieldValue(input: {
+                projectId: $projectId, itemId: $itemId, fieldId: $fieldId,
+                value: { singleSelectOptionId: $optionId }
+              }) { projectV2Item { id } }
+            }
+          ' -f projectId="$PROJECT_ID" -f itemId="$ITEM_ID" \
+            -f fieldId="PVTSSF_lADOBBYMds4BMB5szg7bd4o" -f optionId="$PRIORITY_OPTION_ID"
+
+          # Update Size field
+          gh api graphql -f query='
+            mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+              updateProjectV2ItemFieldValue(input: {
+                projectId: $projectId, itemId: $itemId, fieldId: $fieldId,
+                value: { singleSelectOptionId: $optionId }
+              }) { projectV2Item { id } }
+            }
+          ' -f projectId="$PROJECT_ID" -f itemId="$ITEM_ID" \
+            -f fieldId="PVTSSF_lADOBBYMds4BMB5szg7bd4s" -f optionId="$SIZE_OPTION_ID"
+
+          # Update Estimate field
+          gh api graphql -f query='
+            mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $number: Float!) {
+              updateProjectV2ItemFieldValue(input: {
+                projectId: $projectId, itemId: $itemId, fieldId: $fieldId,
+                value: { number: $number }
+              }) { projectV2Item { id } }
+            }
+          ' -f projectId="$PROJECT_ID" -f itemId="$ITEM_ID" \
+            -f fieldId="PVTF_lADOBBYMds4BMB5szg7bd4w" -F number="$ESTIMATE"
+
+          echo "Labels and project fields updated successfully from triage-output.json"
 
       - name: Add reaction on completion
         if: always()
