@@ -61,9 +61,10 @@ export const dockerTagStep = (
     version?: string;
     digest?: string;
   },
+  name?: string,
 ) =>
   new Step({
-    name: "Docker Tag",
+    name: name ?? "Docker Tag",
     id,
     uses: "./.github/actions-ts/docker-tag",
     with: opts,
@@ -90,9 +91,16 @@ export const checkStep = (json: string) =>
   });
 
 // Smoketest action
-export const smoketestStep = (publicUrl: string) =>
-  new Step({
+export const smoketestStep = (
+  publicUrl: string,
+  opts?: { name?: string; canary?: boolean },
+) => {
+  const withInput: Record<string, string | boolean> = { public_url: publicUrl };
+  if (opts?.name) withInput.name = opts.name;
+  if (opts?.canary !== undefined) withInput.canary = opts.canary;
+  return new Step({
     name: "Run smoketest",
     uses: "./.github/actions/smoketest",
-    with: { public_url: publicUrl },
+    with: withInput,
   });
+};

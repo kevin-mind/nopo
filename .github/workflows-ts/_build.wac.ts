@@ -1,5 +1,10 @@
 import { NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
-import { checkoutStep, setupNodeStep } from "./lib/steps";
+import {
+  checkoutStep,
+  setupNodeStep,
+  setupDockerStep,
+  dockerTagStep,
+} from "./lib/steps";
 import {
   buildPermissions,
   defaultDefaults,
@@ -36,26 +41,24 @@ buildJob.addSteps([
       tags: "type=sha\n",
     },
   }),
-  new Step({
-    name: "Input tag",
-    id: "input_tag",
-    uses: "./.github/actions-ts/docker-tag",
-    with: {
+  dockerTagStep(
+    "input_tag",
+    {
       registry: "ghcr.io",
       image: "${{ github.repository }}",
       version: "${{ steps.docker_meta.outputs.version }}",
     },
-  }),
-  new Step({
-    name: "Set up Docker",
-    id: "docker",
-    uses: "./.github/actions/setup-docker",
-    with: {
+    "Input tag",
+  ),
+  {
+    ...setupDockerStep({
       registry: "${{ inputs.push && 'ghcr.io' || '' }}",
       username: "${{ inputs.push && github.actor || '' }}",
       password: "${{ inputs.push && secrets.GITHUB_TOKEN || '' }}",
-    },
-  }),
+    }),
+    id: "docker",
+    name: "Set up Docker",
+  } as Step,
   new Step({
     name: "Build",
     id: "build",
@@ -94,18 +97,17 @@ service_digests=$(jq -c '[.[] | select(.name != "base" and .digest != null) | {k
 cat "$GITHUB_OUTPUT"
 `,
   }),
-  new Step({
-    name: "Output tag",
-    id: "output_tag",
-    uses: "./.github/actions-ts/docker-tag",
-    with: {
+  dockerTagStep(
+    "output_tag",
+    {
       registry: "${{ steps.input_tag.outputs.registry }}",
       image: "${{ steps.input_tag.outputs.image }}",
       version: "${{ steps.input_tag.outputs.version }}",
       digest:
         "${{ inputs.push && steps.build_info.outputs.base_digest || '' }}",
     },
-  }),
+    "Output tag",
+  ),
 ]);
 
 // Main workflow

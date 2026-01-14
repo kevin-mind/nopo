@@ -9,6 +9,7 @@ import {
   checkoutWithDepth,
   setupNodeStep,
   checkStep,
+  contextStep,
 } from "./lib/steps";
 import {
   buildPermissions,
@@ -34,11 +35,7 @@ const contextJob = new NormalJob("context", {
 contextJob.addSteps([
   checkoutWithDepth(0),
   setupNodeStep,
-  new Step({
-    name: "Context",
-    id: "context",
-    uses: "./.github/actions/context",
-  }),
+  contextStep("context"),
   new Step({
     name: "Push / Deploy",
     id: "push_deploy",

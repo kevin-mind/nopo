@@ -10,6 +10,8 @@ import {
   setupDockerStep,
   smoketestStep,
   checkStep,
+  contextStep,
+  runDockerStep,
 } from "./lib/steps";
 import {
   buildPermissions,
@@ -30,11 +32,7 @@ const contextJob = new NormalJob("context", {
 
 contextJob.addSteps([
   checkoutStep,
-  new Step({
-    name: "Context",
-    id: "context",
-    uses: "./.github/actions/context",
-  }),
+  contextStep("context"),
   new Step({
     name: "Get changed files",
     id: "changed_files",
@@ -120,10 +118,10 @@ smoketestJob.addSteps([
   checkoutStep,
   setupNodeStep,
   setupDockerStep(),
-  new Step({
+  {
+    ...runDockerStep(),
     name: "Up",
-    uses: "./.github/actions-ts/run-docker",
-  }),
+  } as Step,
   smoketestStep("http://localhost"),
 ]);
 

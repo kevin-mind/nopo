@@ -75,9 +75,7 @@ jobs:
           registry: ghcr.io
           image: ${{ github.repository }}
           version: ${{ steps.docker_meta.outputs.version }}
-      - name: Set up Docker
-        id: docker
-        uses: ./.github/actions/setup-docker
+      - uses: ./.github/actions/setup-docker
         with:
           registry: ${{ inputs.push && 'ghcr.io' || '' }}
           username: ${{ inputs.push && github.actor || '' }}

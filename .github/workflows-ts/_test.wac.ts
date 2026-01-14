@@ -1,5 +1,12 @@
 import { NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
-import { checkoutStep, setupNodeStep, setupUvStep } from "./lib/steps";
+import {
+  checkoutStep,
+  setupNodeStep,
+  setupUvStep,
+  setupDockerStep,
+  dockerTagStep,
+  runDockerStep,
+} from "./lib/steps";
 import {
   defaultDefaults,
   emptyPermissions,
@@ -31,33 +38,24 @@ testJob.addSteps([
   checkoutStep,
   setupNodeStep,
   setupUvStep,
-  new Step({
-    name: "Set up Docker",
-    uses: "./.github/actions/setup-docker",
-    with: {
+  {
+    ...setupDockerStep({
       registry: "ghcr.io",
       username: "${{ github.actor }}",
       password: "${{ secrets.GITHUB_TOKEN }}",
-    },
-  }),
-  new Step({
-    name: "Docker Tag",
-    id: "docker_tag",
-    uses: "./.github/actions-ts/docker-tag",
-    with: {
-      tag: "${{ inputs.tag }}",
-    },
-  }),
-  new Step({
-    name: "Run '${{ matrix.command }}'",
-    uses: "./.github/actions-ts/run-docker",
-    with: {
+    }),
+    name: "Set up Docker",
+  } as Step,
+  dockerTagStep("docker_tag", { tag: "${{ inputs.tag }}" }),
+  {
+    ...runDockerStep({
       tag: "${{ steps.docker_tag.outputs.tag }}",
       service: "${{ matrix.service }}",
       run: "${{ matrix.command }}",
       target: "${{ matrix.target }}",
-    },
-  }),
+    }),
+    name: "Run '${{ matrix.command }}'",
+  } as Step,
 ]);
 
 // Extendable job - tests that base image can be extended
@@ -70,22 +68,12 @@ extendableJob.addSteps([
   checkoutStep,
   setupNodeStep,
   setupUvStep,
-  new Step({
-    uses: "./.github/actions/setup-docker",
-    with: {
-      registry: "ghcr.io",
-      username: "${{ github.actor }}",
-      password: "${{ secrets.GITHUB_TOKEN }}",
-    },
+  setupDockerStep({
+    registry: "ghcr.io",
+    username: "${{ github.actor }}",
+    password: "${{ secrets.GITHUB_TOKEN }}",
   }),
-  new Step({
-    name: "Docker Tag",
-    id: "docker_tag",
-    uses: "./.github/actions-ts/docker-tag",
-    with: {
-      tag: "${{ inputs.tag }}",
-    },
-  }),
+  dockerTagStep("docker_tag", { tag: "${{ inputs.tag }}" }),
   new Step({
     name: "Get base image",
     env: {

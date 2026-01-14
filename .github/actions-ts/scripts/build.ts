@@ -40,8 +40,8 @@ async function build() {
     bundle: true,
     platform: 'node' as const,
     target: 'node20',
-    outfile: path.join(actionsDir, action, 'dist', 'index.js'),
-    format: 'esm' as const,
+    outfile: path.join(actionsDir, action, 'dist', 'index.cjs'),
+    format: 'cjs' as const,
     sourcemap: true,
     minify: false,
     // Bundle all dependencies into the output

@@ -1,5 +1,10 @@
 import { NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
-import { checkoutStep, setupNodeStep, setupDockerStep } from "./lib/steps";
+import {
+  checkoutStep,
+  setupNodeStep,
+  setupDockerStep,
+  smoketestStep,
+} from "./lib/steps";
 import { defaultDefaults, emptyPermissions } from "./lib/patterns";
 
 const GCP_REGION = "us-central1";
@@ -471,14 +476,12 @@ smoketestCanaryJob.needs([deployCanaryJob, runMigrationsJob, uploadAssetsJob]);
 smoketestCanaryJob.addSteps([
   checkoutStep,
   setupNodeStep,
-  new Step({
-    name: "Test Canary",
-    uses: "./.github/actions/smoketest",
-    with: {
-      public_url: "${{ needs.deploy_canary.outputs.public_url }}",
+  {
+    ...smoketestStep("${{ needs.deploy_canary.outputs.public_url }}", {
       canary: true,
-    },
-  }),
+    }),
+    name: "Test Canary",
+  } as Step,
 ]);
 
 // Promote job
