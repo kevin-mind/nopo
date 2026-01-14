@@ -2,6 +2,7 @@ import { NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
 import {
   checkoutStep,
   setupNodeStep,
+  setupNopoStep,
   dockerTagStep,
   extractBuildInfoStep,
 } from "./lib/steps";
@@ -33,6 +34,7 @@ const buildJob = new NormalJob("build", {
 buildJob.addSteps([
   checkoutStep,
   setupNodeStep,
+  setupNopoStep,
   new Step({
     name: "Docker meta",
     id: "docker_meta",

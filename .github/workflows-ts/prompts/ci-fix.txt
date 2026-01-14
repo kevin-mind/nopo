@@ -1,0 +1,9 @@
+The CI build failed for PR #{{PR_NUMBER}} on branch {{HEAD_BRANCH}}.
+
+1. Analyze the project to understand the build and test process (see CLAUDE.md).
+2. Run `make check` and `make test` to reproduce the failure.
+3. Fix the issue.
+4. Verify the fix by running tests again.
+5. Push the changes to the same branch.
+
+This is an automated CI fix loop - focus on fixing the specific failure.

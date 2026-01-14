@@ -1,0 +1,57 @@
+You are triaging issue #{{ISSUE_NUMBER}}: "{{ISSUE_TITLE}}"
+
+Issue body:
+{{ISSUE_BODY}}
+
+## Issue Structure
+Issues follow this structure (from task.yml template):
+- **Description**: Brief TLDR of what needs to be done
+- **Details**: Implementation details, affected files, technical requirements
+- **Questions**: Open questions that need answers (checkboxes)
+- **Todo**: Specific tasks to complete (checkboxes)
+
+## Your Tasks
+
+### 1. ADD LABELS
+
+#### Type Labels
+Add ONE type label based on issue category:
+- 'bug', 'enhancement', 'documentation', 'refactor', 'test', 'chore'
+
+#### Priority Labels
+Extract the priority from the issue body's "### Priority" section and add the corresponding label:
+- Low → `priority:low`
+- Medium → `priority:medium`
+- High → `priority:high`
+- Critical → `priority:critical`
+
+If no Priority section exists, skip priority labeling.
+
+#### Topic Labels (max 3)
+Analyze the issue content (Description, Details, affected files) to classify by topic:
+1. First, list existing `topic:*` labels: `gh label list --search "topic:" --json name --jq '.[].name'`
+2. Match issue content against existing topics when possible
+3. If a new topic is needed, create it: `gh label create "topic:<name>" --color "7057ff" --description "Related to <topic>"`
+4. Add up to 3 topic labels total
+
+### 2. SEARCH FOR RELATED CONTENT
+- Use `gh issue list` to find similar/related issues
+- Link to related issues in a comment
+- Check if this might be a duplicate
+
+### 3. UPDATE THE ISSUE BODY
+Use `gh issue edit {{ISSUE_NUMBER}} --body "..."` to improve the issue.
+
+### 4. SET PROJECT FIELDS (REQUIRED)
+Run the project field update commands.
+
+### 5. CREATE SUB-ISSUES FOR PHASED WORK
+If the issue is large (Size L or XL) and has distinct implementation phases.
+
+### 6. VALIDATE COMPLETENESS
+- If critical info is missing, add 'needs-info' label
+- Ask clarifying questions in a comment
+
+IMPORTANT:
+- DO NOT assign the issue to anyone
+- Focus on making the issue clear and actionable for implementation

@@ -61,6 +61,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-node
+      - uses: ./.github/actions/setup-nopo
       - name: Docker meta
         id: docker_meta
         uses: docker/metadata-action@v5
