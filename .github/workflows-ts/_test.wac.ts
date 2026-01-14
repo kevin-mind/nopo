@@ -1,4 +1,9 @@
-import { NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
+import {
+  NormalJob,
+  Step,
+  Workflow,
+  expressions,
+} from "@github-actions-workflow-ts/lib";
 import {
   checkoutStep,
   setupNodeStep,
@@ -15,10 +20,10 @@ import {
 // Test job with matrix strategy
 const testJob = new NormalJob("test", {
   "runs-on": "ubuntu-latest",
-  name: "[${{ matrix.service || 'host' }}] ${{ matrix.command }} (${{ matrix.target }})",
+  name: `[${expressions.expn("matrix.service || 'host'")}] ${expressions.expn("matrix.command")} (${expressions.expn("matrix.target")})`,
   strategy: {
     matrix: {
-      service: "${{ fromJson(inputs.services) }}",
+      service: expressions.expn("fromJson(inputs.services)"),
       command: ["test"],
       target: ["development", "production"],
       include: [
@@ -42,19 +47,19 @@ testJob.addSteps([
     uses: "./.github/actions/setup-docker",
     with: {
       registry: "ghcr.io",
-      username: "${{ github.actor }}",
-      password: "${{ secrets.GITHUB_TOKEN }}",
+      username: expressions.expn("github.actor"),
+      password: expressions.secret("GITHUB_TOKEN"),
     },
   }),
-  dockerTagStep("docker_tag", { tag: "${{ inputs.tag }}" }),
+  dockerTagStep("docker_tag", { tag: expressions.expn("inputs.tag") }),
   new Step({
-    name: "Run '${{ matrix.command }}'",
+    name: `Run '${expressions.expn("matrix.command")}'`,
     uses: "./.github/actions-ts/run-docker",
     with: {
-      tag: "${{ steps.docker_tag.outputs.tag }}",
-      service: "${{ matrix.service }}",
-      run: "${{ matrix.command }}",
-      target: "${{ matrix.target }}",
+      tag: expressions.expn("steps.docker_tag.outputs.tag"),
+      service: expressions.expn("matrix.service"),
+      run: expressions.expn("matrix.command"),
+      target: expressions.expn("matrix.target"),
     },
   }),
 ]);
@@ -71,15 +76,15 @@ extendableJob.addSteps([
   setupUvStep,
   setupDockerStep({
     registry: "ghcr.io",
-    username: "${{ github.actor }}",
-    password: "${{ secrets.GITHUB_TOKEN }}",
+    username: expressions.expn("github.actor"),
+    password: expressions.secret("GITHUB_TOKEN"),
   }),
-  dockerTagStep("docker_tag", { tag: "${{ inputs.tag }}" }),
+  dockerTagStep("docker_tag", { tag: expressions.expn("inputs.tag") }),
   new Step({
     name: "Get base image",
     env: {
-      DOCKER_TAG: "${{ steps.docker_tag.outputs.tag }}",
-      DOCKER_DIGEST: "${{ steps.docker_tag.outputs.digest }}",
+      DOCKER_TAG: expressions.expn("steps.docker_tag.outputs.tag"),
+      DOCKER_DIGEST: expressions.expn("steps.docker_tag.outputs.digest"),
     },
     run: `if [[ -n "$DOCKER_DIGEST" ]]; then
   echo "Digest present - pulling image from registry"
@@ -95,9 +100,9 @@ fi
   new Step({
     name: "Verify extendable base image",
     env: {
-      DOCKER_TAG: "${{ steps.docker_tag.outputs.tag }}",
+      DOCKER_TAG: expressions.expn("steps.docker_tag.outputs.tag"),
     },
-    run: './nopo/docker/tests/extendable.sh "${{ steps.docker_tag.outputs.tag }}"',
+    run: `./nopo/docker/tests/extendable.sh "${expressions.expn("steps.docker_tag.outputs.tag")}"`,
   }),
 ]);
 

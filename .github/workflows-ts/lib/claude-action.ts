@@ -1,4 +1,4 @@
-import { Step } from "@github-actions-workflow-ts/lib";
+import { expressions, Step } from "@github-actions-workflow-ts/lib";
 
 /**
  * Options for the Claude Code Action step.
@@ -38,7 +38,7 @@ export const claudeActionStep = (opts: ClaudeActionOptions): Step => {
     ...(opts.id && { id: opts.id }),
     uses: "anthropics/claude-code-action@v1",
     with: {
-      claude_code_oauth_token: "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}",
+      claude_code_oauth_token: expressions.secret("CLAUDE_CODE_OAUTH_TOKEN"),
       settings: opts.settings ?? ".claude/settings.json",
       prompt: opts.prompt,
       claude_args: args,
@@ -47,7 +47,7 @@ export const claudeActionStep = (opts: ClaudeActionOptions): Step => {
       ...(opts.assigneeTrigger && { assignee_trigger: opts.assigneeTrigger }),
     },
     env: {
-      GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      GITHUB_TOKEN: expressions.secret("GITHUB_TOKEN"),
     },
   });
 };

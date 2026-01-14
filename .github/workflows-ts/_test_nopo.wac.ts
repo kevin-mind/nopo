@@ -1,4 +1,9 @@
-import { NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
+import {
+  expressions,
+  NormalJob,
+  Step,
+  Workflow,
+} from "@github-actions-workflow-ts/lib";
 
 // Reusable steps
 const checkoutStep = new Step({
@@ -20,7 +25,7 @@ const setupNopoStep = new Step({
 // Build job - tests nopo CLI builds successfully (and fails when expected)
 const buildJob = new NormalJob("build", {
   "runs-on": "ubuntu-latest",
-  name: "[nopo] build (${{ matrix.expected }})",
+  name: `[nopo] build (${expressions.expn("matrix.expected")})`,
   strategy: {
     matrix: {
       expected: ["success", "failure"],
@@ -34,7 +39,7 @@ buildJob.addSteps([
   setupUvStep,
   new Step({
     name: "Monkeywrench nopo",
-    if: "${{ matrix.expected == 'failure' }}",
+    if: expressions.expn("matrix.expected == 'failure'"),
     run: "rm -f ./nopo/scripts/src/index.ts\n",
   }),
   new Step({
@@ -46,8 +51,8 @@ buildJob.addSteps([
   new Step({
     name: "Verify result",
     env: {
-      expected: "${{ matrix.expected }}",
-      actual: "${{ steps.nopo.outcome }}",
+      expected: expressions.expn("matrix.expected"),
+      actual: expressions.expn("steps.nopo.outcome"),
     },
     run: `if [[ "$expected" != "$actual" ]]; then
   echo "Expected build to result in $expected, but got $actual"
@@ -117,7 +122,7 @@ const e2eTests = [
 
 const e2eJob = new NormalJob("e2e", {
   "runs-on": "ubuntu-latest",
-  name: "[nopo] e2e: ${{ matrix.test.name }}",
+  name: `[nopo] e2e: ${expressions.expn("matrix.test.name")}`,
   strategy: {
     "fail-fast": false,
     matrix: {
@@ -132,11 +137,11 @@ e2eJob.addSteps([
   setupUvStep,
   setupNopoStep,
   new Step({
-    name: "Run ${{ matrix.test.name }}",
+    name: `Run ${expressions.expn("matrix.test.name")}`,
     "working-directory": "./nopo/fixtures",
     env: {
-      COMMAND: "${{ matrix.test.command }}",
-      EXPECT: "${{ matrix.test.expect }}",
+      COMMAND: expressions.expn("matrix.test.command"),
+      EXPECT: expressions.expn("matrix.test.expect"),
     },
     run: `echo "Running: $COMMAND"
 output=$($COMMAND 2>&1) || true

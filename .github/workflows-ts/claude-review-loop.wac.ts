@@ -1,4 +1,9 @@
-import { NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
+import {
+  NormalJob,
+  Step,
+  Workflow,
+  expressions,
+} from "@github-actions-workflow-ts/lib";
 import { ExtendedStep } from "./lib/enhanced-step";
 import { ExtendedNormalJob } from "./lib/enhanced-job";
 import { claudeReviewPermissions, defaultDefaults } from "./lib/patterns";
@@ -26,7 +31,7 @@ github.event.requested_reviewer.login == 'nopo-bot'`,
       id: "check_draft",
       name: "Check if draft",
       if: "github.event.pull_request.draft == true",
-      run: `echo "::warning::PR #\${{ github.event.pull_request.number }} is a draft. Skipping review."
+      run: `echo "::warning::PR #${expressions.expn("github.event.pull_request.number")} is a draft. Skipping review."
 exit 1`,
     }),
     // Step 2: Post status comment
@@ -34,9 +39,9 @@ exit 1`,
       id: "bot_comment",
       name: "gh pr comment",
       env: {
-        GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-        PR_NUMBER: "${{ github.event.pull_request.number }}",
-        BODY: "👀 **nopo-bot** is reviewing this PR...\n\n[View workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})",
+        GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+        PR_NUMBER: expressions.expn("github.event.pull_request.number"),
+        BODY: `👀 **nopo-bot** is reviewing this PR...\n\n[View workflow run](${expressions.expn("github.server_url")}/${expressions.expn("github.repository")}/actions/runs/${expressions.expn("github.run_id")})`,
       },
       run: `comment_url=$(gh pr comment "$PR_NUMBER" --body "$BODY" --repo "\$GITHUB_REPOSITORY" 2>&1)
 comment_id=$(echo "$comment_url" | grep -oE '[0-9]+$' || echo "")
@@ -48,8 +53,8 @@ echo "comment_id=$comment_id" >> \$GITHUB_OUTPUT`,
       id: "issue",
       name: "gh pr view (linked issue)",
       env: {
-        GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-        PR_NUMBER: "${{ github.event.pull_request.number }}",
+        GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+        PR_NUMBER: expressions.expn("github.event.pull_request.number"),
       },
       run: `pr_body=$(gh pr view "$PR_NUMBER" --repo "\$GITHUB_REPOSITORY" --json body --jq '.body')
 
@@ -80,9 +85,9 @@ fi`,
     }),
   ] as const,
   outputs: (steps) => ({
-    pr_branch: "${{ github.event.pull_request.head.ref }}",
-    pr_number: "${{ github.event.pull_request.number }}",
-    is_draft: "${{ github.event.pull_request.draft }}",
+    pr_branch: expressions.expn("github.event.pull_request.head.ref"),
+    pr_number: expressions.expn("github.event.pull_request.number"),
+    is_draft: expressions.expn("github.event.pull_request.draft"),
     issue_number: steps.issue.outputs.issue_number,
     issue_body: steps.issue.outputs.issue_body,
     has_issue: steps.issue.outputs.has_issue,
@@ -99,31 +104,19 @@ const requestUpdateProjectJob = new NormalJob("request-update-project", {
 
 requestUpdateProjectJob.addSteps([
   ghApiUpdateProjectStatus({
-    GH_TOKEN: "${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}",
-    ISSUE_NUMBER: "${{ needs.request-setup.outputs.issue_number }}",
+    GH_TOKEN: expressions.expn("secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN"),
+    ISSUE_NUMBER: expressions.expn("needs.request-setup.outputs.issue_number"),
     TARGET_STATUS: "In review",
   }),
 ]);
 
 // Review prompt
-const reviewPrompt = `You are reviewing PR #\${{ needs.request-setup.outputs.pr_number }} on behalf of nopo-bot.
+const reviewPrompt = `You are reviewing PR #${expressions.expn("needs.request-setup.outputs.pr_number")} on behalf of nopo-bot.
 
 nopo-bot was requested as a reviewer, which triggers this automated review.
 You (claude[bot]) will perform the actual review and submit it.
 
-\${{ needs.request-setup.outputs.has_issue == 'true' && format('## Linked Issue #{0}
-
-{1}
-
-## Validation
-- CHECK ALL TODO ITEMS in the issue are addressed
-- VERIFY code follows CLAUDE.md guidelines
-- ENSURE tests cover the requirements
-
-', needs.request-setup.outputs.issue_number, needs.request-setup.outputs.issue_body) || '## No Linked Issue
-Performing standard code review.
-
-' }}
+${expressions.expn("needs.request-setup.outputs.has_issue == 'true' && format('## Linked Issue #{0}\n\n{1}\n\n## Validation\n- CHECK ALL TODO ITEMS in the issue are addressed\n- VERIFY code follows CLAUDE.md guidelines\n- ENSURE tests cover the requirements\n\n', needs.request-setup.outputs.issue_number, needs.request-setup.outputs.issue_body) || '## No Linked Issue\nPerforming standard code review.\n\n'")}
 ## Step 1: View the Changes
 
 You are already checked out on the PR branch. To see changes:
@@ -137,7 +130,7 @@ git diff origin/main...HEAD --stat    # Summary of changed files
 
 Check for existing review comments using:
 \`\`\`bash
-gh pr view \${{ needs.request-setup.outputs.pr_number }} --comments
+gh pr view ${expressions.expn("needs.request-setup.outputs.pr_number")} --comments
 \`\`\`
 
 For unresolved comment threads, decide if they should be resolved:
@@ -177,7 +170,7 @@ the incorrect behavior.
 
 ## Step 4: Submit Your Review
 
-Submit your review using \`gh pr review \${{ needs.request-setup.outputs.pr_number }}\` with ONE of:
+Submit your review using \`gh pr review ${expressions.expn("needs.request-setup.outputs.pr_number")}\` with ONE of:
 - \`--approve\` if ALL requirements met and code is good
 - \`--request-changes -b "reason"\` if changes are needed
 - \`--comment -b "feedback"\` if you have questions but no blocking issues
@@ -198,7 +191,7 @@ requestReviewJob.addSteps([
   new Step({
     uses: "actions/checkout@v4",
     with: {
-      ref: "${{ needs.request-setup.outputs.pr_branch }}",
+      ref: expressions.expn("needs.request-setup.outputs.pr_branch"),
       "fetch-depth": 0,
     },
   }),
@@ -206,28 +199,28 @@ requestReviewJob.addSteps([
   new Step({
     uses: "anthropics/claude-code-action@v1",
     with: {
-      claude_code_oauth_token: "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}",
+      claude_code_oauth_token: expressions.secret("CLAUDE_CODE_OAUTH_TOKEN"),
       settings: ".claude/settings.json",
       prompt: reviewPrompt,
       claude_args: "--model claude-opus-4-5-20251101 --max-turns 50",
     },
     env: {
-      GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      GITHUB_TOKEN: expressions.secret("GITHUB_TOKEN"),
     },
   }),
   // Step 3: Add reaction on completion
   {
     ...ghApiAddReaction({
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-      COMMENT_ID: "${{ needs.request-setup.outputs.bot_comment_id }}",
+      GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+      COMMENT_ID: expressions.expn("needs.request-setup.outputs.bot_comment_id"),
       REACTION: "rocket",
     }),
     if: "success()",
   },
   {
     ...ghApiAddReaction({
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-      COMMENT_ID: "${{ needs.request-setup.outputs.bot_comment_id }}",
+      GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+      COMMENT_ID: expressions.expn("needs.request-setup.outputs.bot_comment_id"),
       REACTION: "eyes",
     }),
     if: "failure()",
@@ -235,8 +228,8 @@ requestReviewJob.addSteps([
   // Step 4: Remove nopo-bot from requested reviewers
   {
     ...ghPrEditRemoveReviewer({
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-      PR_NUMBER: "${{ needs.request-setup.outputs.pr_number }}",
+      GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+      PR_NUMBER: expressions.expn("needs.request-setup.outputs.pr_number"),
       REVIEWERS: "nopo-bot",
     }),
     if: "always()",
@@ -248,19 +241,19 @@ requestReviewJob.addSteps([
 // =============================================================================
 
 // Response process prompt
-const responseProcessPrompt = `You just submitted a review on PR #\${{ github.event.pull_request.number }}.
+const responseProcessPrompt = `You just submitted a review on PR #${expressions.expn("github.event.pull_request.number")}.
 
-Your review state: \${{ github.event.review.state }}
-Your review body: \${{ github.event.review.body }}
+Your review state: ${expressions.expn("github.event.review.state")}
+Your review body: ${expressions.expn("github.event.review.body")}
 
 ## Step 1: Get Your Review Comments
 
 Fetch the comments from your review:
 \`\`\`
-gh api /repos/\${{ github.repository }}/pulls/\${{ github.event.pull_request.number }}/comments
+gh api /repos/${expressions.expn("github.repository")}/pulls/${expressions.expn("github.event.pull_request.number")}/comments
 \`\`\`
 
-Filter for comments from your review (review_id: \${{ github.event.review.id }}).
+Filter for comments from your review (review_id: ${expressions.expn("github.event.review.id")}).
 
 ## Step 2: Process Each Comment
 
@@ -282,7 +275,7 @@ After processing all comments, check if you made any commits:
 ### If you made commits (code changes):
 Push the changes:
 \`\`\`
-git push origin \${{ github.event.pull_request.head.ref }}
+git push origin ${expressions.expn("github.event.pull_request.head.ref")}
 \`\`\`
 The push will automatically convert PR to draft and trigger CI.
 CI-pass will mark it ready and re-request nopo-bot as reviewer when CI is green.
@@ -290,13 +283,13 @@ CI-pass will mark it ready and re-request nopo-bot as reviewer when CI is green.
 ### If you made NO commits (only discussion/questions):
 Post a comment summarizing your analysis, then re-request nopo-bot as reviewer:
 \`\`\`
-gh pr comment \${{ github.event.pull_request.number }} --body "## Review Response Summary
+gh pr comment ${expressions.expn("github.event.pull_request.number")} --body "## Review Response Summary
 
 <your analysis of the review comments and what action was taken or why no action was needed>
 
 Re-requesting review to continue the loop."
 
-gh pr edit \${{ github.event.pull_request.number }} --add-reviewer "nopo-bot"
+gh pr edit ${expressions.expn("github.event.pull_request.number")} --add-reviewer "nopo-bot"
 \`\`\`
 
 IMPORTANT:
@@ -319,7 +312,7 @@ responseProcessJob.addSteps([
   new Step({
     uses: "actions/checkout@v4",
     with: {
-      ref: "${{ github.event.pull_request.head.ref }}",
+      ref: expressions.expn("github.event.pull_request.head.ref"),
       "fetch-depth": 0,
     },
   }),
@@ -332,13 +325,13 @@ responseProcessJob.addSteps([
   new Step({
     uses: "anthropics/claude-code-action@v1",
     with: {
-      claude_code_oauth_token: "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}",
+      claude_code_oauth_token: expressions.secret("CLAUDE_CODE_OAUTH_TOKEN"),
       settings: ".claude/settings.json",
       prompt: responseProcessPrompt,
       claude_args: "--model claude-opus-4-5-20251101 --max-turns 50",
     },
     env: {
-      GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      GITHUB_TOKEN: expressions.secret("GITHUB_TOKEN"),
     },
   }),
 ]);
@@ -348,19 +341,19 @@ responseProcessJob.addSteps([
 // =============================================================================
 
 // Human review response prompt
-const humanReviewResponsePrompt = `A human reviewer (@\${{ github.event.review.user.login }}) submitted a review on PR #\${{ github.event.pull_request.number }}.
+const humanReviewResponsePrompt = `A human reviewer (@${expressions.expn("github.event.review.user.login")}) submitted a review on PR #${expressions.expn("github.event.pull_request.number")}.
 
-Review state: \${{ github.event.review.state }}
-Review body: \${{ github.event.review.body }}
+Review state: ${expressions.expn("github.event.review.state")}
+Review body: ${expressions.expn("github.event.review.body")}
 
 ## Step 1: Get the Review Comments
 
 Fetch comments from this review:
 \`\`\`
-gh api /repos/\${{ github.repository }}/pulls/\${{ github.event.pull_request.number }}/comments
+gh api /repos/${expressions.expn("github.repository")}/pulls/${expressions.expn("github.event.pull_request.number")}/comments
 \`\`\`
 
-Filter for comments from review_id: \${{ github.event.review.id }}
+Filter for comments from review_id: ${expressions.expn("github.event.review.id")}
 
 ## Step 2: Process the Feedback
 
@@ -380,14 +373,14 @@ After processing all feedback:
 ### If you made commits (code changes):
 Push the changes:
 \`\`\`
-git push origin \${{ github.event.pull_request.head.ref }}
+git push origin ${expressions.expn("github.event.pull_request.head.ref")}
 \`\`\`
 The push will convert PR to draft and trigger CI.
 
 ### If you only answered questions (no commits):
 Post a summary comment, then re-request nopo-bot for the next review cycle:
 \`\`\`
-gh pr edit \${{ github.event.pull_request.number }} --add-reviewer "nopo-bot"
+gh pr edit ${expressions.expn("github.event.pull_request.number")} --add-reviewer "nopo-bot"
 \`\`\`
 
 IMPORTANT:
@@ -407,15 +400,15 @@ github.event.pull_request.draft == false &&
 humanReviewResponseJob.addSteps([
   // Step 1: Check if this is a Claude PR
   ghPrViewCheckClaude("check_author", {
-    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-    PR_NUMBER: "${{ github.event.pull_request.number }}",
+    GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+    PR_NUMBER: expressions.expn("github.event.pull_request.number"),
   }),
   // Step 2: Checkout PR branch (only for Claude PRs)
   new Step({
     uses: "actions/checkout@v4",
     if: "steps.check_author.outputs.is_claude_pr == 'true'",
     with: {
-      ref: "${{ github.event.pull_request.head.ref }}",
+      ref: expressions.expn("github.event.pull_request.head.ref"),
       "fetch-depth": 0,
     },
   }),
@@ -432,13 +425,13 @@ humanReviewResponseJob.addSteps([
     uses: "anthropics/claude-code-action@v1",
     if: "steps.check_author.outputs.is_claude_pr == 'true'",
     with: {
-      claude_code_oauth_token: "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}",
+      claude_code_oauth_token: expressions.secret("CLAUDE_CODE_OAUTH_TOKEN"),
       settings: ".claude/settings.json",
       prompt: humanReviewResponsePrompt,
       claude_args: "--model claude-opus-4-5-20251101 --max-turns 50",
     },
     env: {
-      GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      GITHUB_TOKEN: expressions.secret("GITHUB_TOKEN"),
     },
   }),
 ]);
@@ -478,7 +471,7 @@ export const claudeReviewLoopWorkflow = new Workflow("claude-review-loop", {
   // - Review loop uses cancel-in-progress: false (queues, doesn't cancel itself)
   // This prevents race conditions where review acts on stale code.
   concurrency: {
-    group: "claude-review-${{ github.event.pull_request.head.ref }}",
+    group: `claude-review-${expressions.expn("github.event.pull_request.head.ref")}`,
     "cancel-in-progress": false,
   },
   permissions: claudeReviewPermissions,

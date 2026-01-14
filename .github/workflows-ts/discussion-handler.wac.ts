@@ -1,4 +1,4 @@
-import { NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
+import { expressions, NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
 
 import { claudeActionStep } from "./lib/claude-action.js";
 import { discussionPermissions } from "./lib/patterns.js";
@@ -8,7 +8,7 @@ import { checkoutStep } from "./lib/steps.js";
 // PROMPTS
 // =============================================================================
 
-const SUMMARIZE_PROMPT = `You are summarizing Discussion #\${{ github.event.client_payload.discussion_number }}.
+const SUMMARIZE_PROMPT = `You are summarizing Discussion #${expressions.expn("github.event.client_payload.discussion_number")}.
 
 Fetch the full discussion content, analyze all comments, and organize into Key Findings, Questions Answered, Open Items, and Next Steps.
 
@@ -71,10 +71,10 @@ Structure (include all sections that have content):
 
 Write this to /tmp/discussion-updated-body.md`;
 
-const RESPOND_PROMPT = `You are investigating a research thread or answering a question on Discussion #\${{ github.event.client_payload.discussion_number }}.
+const RESPOND_PROMPT = `You are investigating a research thread or answering a question on Discussion #${expressions.expn("github.event.client_payload.discussion_number")}.
 
-**Comment to respond to:** \${{ github.event.client_payload.comment_body }}
-**Author:** @\${{ github.event.client_payload.comment_author }}
+**Comment to respond to:** ${expressions.expn("github.event.client_payload.comment_body")}
+**Author:** @${expressions.expn("github.event.client_payload.comment_author")}
 
 ## Your Task
 
@@ -144,10 +144,10 @@ Add findings to appropriate sections:
 - **Code References**: \`path/file.ts:123\` - Description
 - **Open Questions**: Remaining questions`;
 
-const RESEARCH_PROMPT = `A new discussion was created: **\${{ github.event.client_payload.discussion_title }}**
+const RESEARCH_PROMPT = `A new discussion was created: **${expressions.expn("github.event.client_payload.discussion_title")}**
 
 **Discussion body:**
-\${{ github.event.client_payload.discussion_body }}
+${expressions.expn("github.event.client_payload.discussion_body")}
 
 ## Your Task
 
@@ -242,7 +242,7 @@ cat > /tmp/discussion-updated-body.md << 'DESC_EOF'
 DESC_EOF
 \`\`\``;
 
-const PLAN_PROMPT = `A user requested a plan for Discussion #\${{ github.event.client_payload.discussion_number }}.
+const PLAN_PROMPT = `A user requested a plan for Discussion #${expressions.expn("github.event.client_payload.discussion_number")}.
 
 ## Your Task
 
@@ -254,7 +254,7 @@ const PLAN_PROMPT = `A user requested a plan for Discussion #\${{ github.event.c
 \`\`\`bash
 gh issue create \\
   --title "Your Issue Title" \\
-  --body "Related to discussion: #\${{ github.event.client_payload.discussion_number }}
+  --body "Related to discussion: #${expressions.expn("github.event.client_payload.discussion_number")}
 
 ## Context
 [Context from discussion]
@@ -262,7 +262,7 @@ gh issue create \\
 ## Tasks
 - [ ] Task 1
 - [ ] Task 2" \\
-  --label "discussion:\${{ github.event.client_payload.discussion_number }}"
+  --label "discussion:${expressions.expn("github.event.client_payload.discussion_number")}"
 \`\`\`
 
 ## IMPORTANT: Write Summary to File
@@ -601,17 +601,17 @@ const prepareJob = new NormalJob("prepare", {
     "id-token": "write",
   },
   outputs: {
-    discussion_id: "${{ steps.get_id.outputs.discussion_id }}",
-    discussion_body: "${{ steps.get_id.outputs.discussion_body }}",
-    action_type: "${{ github.event.client_payload.action_type }}",
+    discussion_id: expressions.expn("steps.get_id.outputs.discussion_id"),
+    discussion_body: expressions.expn("steps.get_id.outputs.discussion_body"),
+    action_type: expressions.expn("github.event.client_payload.action_type"),
   },
 }).addSteps([
   new Step({
     name: "Get discussion ID and body",
     id: "get_id",
     env: {
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-      DISCUSSION_NUMBER: "${{ github.event.client_payload.discussion_number }}",
+      GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+      DISCUSSION_NUMBER: expressions.expn("github.event.client_payload.discussion_number"),
     },
     run: GET_DISCUSSION_ID_SCRIPT,
   }),
@@ -628,8 +628,8 @@ const prepareJob = new NormalJob("prepare", {
     name: "Add eyes reaction if responding",
     if: "github.event.client_payload.action_type == 'respond'",
     env: {
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-      COMMENT_ID: "${{ github.event.client_payload.comment_id }}",
+      GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+      COMMENT_ID: expressions.expn("github.event.client_payload.comment_id"),
     },
     run: ADD_EYES_REACTION_SCRIPT,
   }),
@@ -655,15 +655,15 @@ const summarizeJob = new NormalJob("summarize", {
     showFullOutput: true,
     secretsTokenName: "CLAUDE_CODE_OAUTH_TOKEN",
     env: {
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
     },
   }),
   new Step({
     name: "Post summary comment",
     if: "always()",
     env: {
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-      DISCUSSION_ID: "${{ needs.prepare.outputs.discussion_id }}",
+      GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+      DISCUSSION_ID: expressions.expn("needs.prepare.outputs.discussion_id"),
     },
     run: POST_SUMMARY_COMMENT_SCRIPT,
   }),
@@ -690,16 +690,16 @@ const respondJob = new NormalJob("respond", {
     showFullOutput: true,
     secretsTokenName: "CLAUDE_CODE_OAUTH_TOKEN",
     env: {
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
     },
   }),
   new Step({
     name: "Find thread root comment",
     id: "find_root",
     env: {
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-      DISCUSSION_ID: "${{ needs.prepare.outputs.discussion_id }}",
-      COMMENT_ID: "${{ github.event.client_payload.comment_id }}",
+      GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+      DISCUSSION_ID: expressions.expn("needs.prepare.outputs.discussion_id"),
+      COMMENT_ID: expressions.expn("github.event.client_payload.comment_id"),
     },
     run: FIND_THREAD_ROOT_SCRIPT,
   }),
@@ -707,9 +707,9 @@ const respondJob = new NormalJob("respond", {
     name: "Post response comment",
     if: "always()",
     env: {
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-      DISCUSSION_ID: "${{ needs.prepare.outputs.discussion_id }}",
-      REPLY_TO_ID: "${{ steps.find_root.outputs.root_comment_id }}",
+      GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+      DISCUSSION_ID: expressions.expn("needs.prepare.outputs.discussion_id"),
+      REPLY_TO_ID: expressions.expn("steps.find_root.outputs.root_comment_id"),
     },
     run: POST_THREADED_RESPONSE_SCRIPT,
   }),
@@ -718,8 +718,8 @@ const respondJob = new NormalJob("respond", {
     name: "Add success reaction",
     if: "success()",
     env: {
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-      COMMENT_ID: "${{ github.event.client_payload.comment_id }}",
+      GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+      COMMENT_ID: expressions.expn("github.event.client_payload.comment_id"),
     },
     run: ADD_SUCCESS_REACTION_SCRIPT,
   }),
@@ -727,12 +727,12 @@ const respondJob = new NormalJob("respond", {
     name: "Handle failure",
     if: "failure()",
     env: {
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-      DISCUSSION_ID: "${{ needs.prepare.outputs.discussion_id }}",
-      COMMENT_ID: "${{ github.event.client_payload.comment_id }}",
-      ROOT_COMMENT_ID: "${{ steps.find_root.outputs.root_comment_id }}",
+      GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+      DISCUSSION_ID: expressions.expn("needs.prepare.outputs.discussion_id"),
+      COMMENT_ID: expressions.expn("github.event.client_payload.comment_id"),
+      ROOT_COMMENT_ID: expressions.expn("steps.find_root.outputs.root_comment_id"),
       RUN_URL:
-        "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+        `${expressions.expn("github.server_url")}/${expressions.expn("github.repository")}/actions/runs/${expressions.expn("github.run_id")}`,
     },
     run: HANDLE_RESPOND_FAILURE_SCRIPT,
   }),
@@ -758,7 +758,7 @@ const researchJob = new NormalJob("research", {
     showFullOutput: true,
     secretsTokenName: "CLAUDE_CODE_OAUTH_TOKEN",
     env: {
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
     },
   }),
   new Step({
@@ -773,8 +773,8 @@ const researchJob = new NormalJob("research", {
     env: {
       // Use PAT to post comments so GitHub fires webhooks
       // (GITHUB_TOKEN comments don't trigger discussion_comment events)
-      GH_TOKEN: "${{ secrets.PAT_TOKEN }}",
-      DISCUSSION_ID: "${{ needs.prepare.outputs.discussion_id }}",
+      GH_TOKEN: expressions.secret("PAT_TOKEN"),
+      DISCUSSION_ID: expressions.expn("needs.prepare.outputs.discussion_id"),
     },
     run: POST_RESEARCH_THREADS_SCRIPT,
   }),
@@ -802,15 +802,15 @@ const planJob = new NormalJob("plan", {
     showFullOutput: true,
     secretsTokenName: "CLAUDE_CODE_OAUTH_TOKEN",
     env: {
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
     },
   }),
   new Step({
     name: "Find thread root comment",
     id: "find_root",
     env: {
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-      COMMENT_ID: "${{ github.event.client_payload.comment_id }}",
+      GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+      COMMENT_ID: expressions.expn("github.event.client_payload.comment_id"),
     },
     run: FIND_THREAD_ROOT_SCRIPT,
   }),
@@ -818,9 +818,9 @@ const planJob = new NormalJob("plan", {
     name: "Post plan summary comment",
     if: "always()",
     env: {
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-      DISCUSSION_ID: "${{ needs.prepare.outputs.discussion_id }}",
-      REPLY_TO_ID: "${{ steps.find_root.outputs.root_comment_id }}",
+      GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+      DISCUSSION_ID: expressions.expn("needs.prepare.outputs.discussion_id"),
+      REPLY_TO_ID: expressions.expn("steps.find_root.outputs.root_comment_id"),
     },
     run: POST_PLAN_COMMENT_SCRIPT,
   }),
@@ -840,16 +840,16 @@ const completeJob = new NormalJob("complete", {
   new Step({
     name: "Add rocket reaction",
     env: {
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-      COMMENT_ID: "${{ github.event.client_payload.comment_id }}",
+      GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+      COMMENT_ID: expressions.expn("github.event.client_payload.comment_id"),
     },
     run: ADD_ROCKET_REACTION_SCRIPT,
   }),
   new Step({
     name: "Post completion message",
     env: {
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-      DISCUSSION_ID: "${{ needs.prepare.outputs.discussion_id }}",
+      GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+      DISCUSSION_ID: expressions.expn("needs.prepare.outputs.discussion_id"),
     },
     run: POST_COMPLETION_MESSAGE_SCRIPT,
   }),
@@ -876,8 +876,8 @@ const updateDescriptionJob = new NormalJob("update-description", {
   new Step({
     name: "Find and apply updated body",
     env: {
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-      DISCUSSION_ID: "${{ needs.prepare.outputs.discussion_id }}",
+      GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+      DISCUSSION_ID: expressions.expn("needs.prepare.outputs.discussion_id"),
     },
     run: UPDATE_DESCRIPTION_SCRIPT,
   }),

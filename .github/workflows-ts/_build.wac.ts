@@ -1,4 +1,9 @@
-import { NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
+import {
+  NormalJob,
+  Step,
+  Workflow,
+  expressions,
+} from "@github-actions-workflow-ts/lib";
 import { ExtendedStep } from "./lib/enhanced-step";
 import { ExtendedNormalJob } from "./lib/enhanced-job";
 import {
@@ -43,8 +48,8 @@ const buildJob = new ExtendedNormalJob("build", {
       uses: "./.github/actions-ts/docker-tag",
       with: {
         registry: "ghcr.io",
-        image: "${{ github.repository }}",
-        version: "${{ steps.docker_meta.outputs.version }}",
+        image: expressions.expn("github.repository"),
+        version: expressions.expn("steps.docker_meta.outputs.version"),
       },
       outputs: ["tag", "registry", "image", "version", "digest"] as const,
     }),
@@ -53,9 +58,9 @@ const buildJob = new ExtendedNormalJob("build", {
       name: "Set up Docker",
       uses: "./.github/actions/setup-docker",
       with: {
-        registry: "${{ inputs.push && 'ghcr.io' || '' }}",
-        username: "${{ inputs.push && github.actor || '' }}",
-        password: "${{ inputs.push && secrets.GITHUB_TOKEN || '' }}",
+        registry: expressions.expn("inputs.push && 'ghcr.io' || ''"),
+        username: expressions.expn("inputs.push && github.actor || ''"),
+        password: expressions.expn("inputs.push && secrets.GITHUB_TOKEN || ''"),
       },
       outputs: ["builder"] as const,
     }),
@@ -63,15 +68,15 @@ const buildJob = new ExtendedNormalJob("build", {
       id: "build",
       name: "Build",
       env: {
-        SERVICES: "${{ inputs.services }}",
-        DOCKER_TAG: "${{ steps.input_tag.outputs.tag }}",
-        DOCKER_PUSH: "${{ inputs.push }}",
-        DOCKER_BUILDER: "${{ steps.docker.outputs.builder }}",
+        SERVICES: expressions.expn("inputs.services"),
+        DOCKER_TAG: expressions.expn("steps.input_tag.outputs.tag"),
+        DOCKER_PUSH: expressions.expn("inputs.push"),
+        DOCKER_BUILDER: expressions.expn("steps.docker.outputs.builder"),
       },
       run: `if [[ -n "$SERVICES" ]]; then
-  nopo build --output \${{ env.build_output }} $SERVICES
+  nopo build --output ${expressions.env("build_output")} $SERVICES
 else
-  nopo build --output \${{ env.build_output }}
+  nopo build --output ${expressions.env("build_output")}
 fi`,
     }),
     new ExtendedStep({
@@ -79,7 +84,7 @@ fi`,
       name: "Extract build info",
       uses: "./.github/actions/extract-build-info",
       with: {
-        build_output: "${{ env.build_output }}",
+        build_output: expressions.env("build_output"),
       },
       outputs: ["base_digest", "service_tags", "service_digests"] as const,
     }),
@@ -88,10 +93,12 @@ fi`,
       name: "Output tag",
       uses: "./.github/actions-ts/docker-tag",
       with: {
-        registry: "${{ steps.input_tag.outputs.registry }}",
-        image: "${{ steps.input_tag.outputs.image }}",
-        version: "${{ steps.input_tag.outputs.version }}",
-        digest: "${{ inputs.push && steps.build_info.outputs.base_digest || '' }}",
+        registry: expressions.expn("steps.input_tag.outputs.registry"),
+        image: expressions.expn("steps.input_tag.outputs.image"),
+        version: expressions.expn("steps.input_tag.outputs.version"),
+        digest: expressions.expn(
+          "inputs.push && steps.build_info.outputs.base_digest || ''"
+        ),
       },
       outputs: ["tag", "registry", "image", "version", "digest"] as const,
     }),
@@ -129,31 +136,31 @@ export const buildWorkflow = new Workflow("_build", {
       outputs: {
         registry: {
           description: "The registry of the build",
-          value: "${{ jobs.build.outputs.registry }}",
+          value: expressions.expn("jobs.build.outputs.registry"),
         },
         image: {
           description: "The image of the build",
-          value: "${{ jobs.build.outputs.image }}",
+          value: expressions.expn("jobs.build.outputs.image"),
         },
         version: {
           description: "The version of the build",
-          value: "${{ jobs.build.outputs.version }}",
+          value: expressions.expn("jobs.build.outputs.version"),
         },
         digest: {
           description: "The digest of the build",
-          value: "${{ jobs.build.outputs.digest }}",
+          value: expressions.expn("jobs.build.outputs.digest"),
         },
         tag: {
           description: "The tag of the build",
-          value: "${{ jobs.build.outputs.tag }}",
+          value: expressions.expn("jobs.build.outputs.tag"),
         },
         service_tags: {
           description: "JSON object mapping service names to their image tags",
-          value: "${{ jobs.build.outputs.service_tags }}",
+          value: expressions.expn("jobs.build.outputs.service_tags"),
         },
         service_digests: {
           description: "JSON object mapping service names to their digests",
-          value: "${{ jobs.build.outputs.service_digests }}",
+          value: expressions.expn("jobs.build.outputs.service_digests"),
         },
       },
     },

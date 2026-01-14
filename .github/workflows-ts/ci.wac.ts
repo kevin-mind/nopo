@@ -3,6 +3,7 @@ import {
   ReusableWorkflowCallJob,
   Step,
   Workflow,
+  expressions,
 } from "@github-actions-workflow-ts/lib";
 import { ExtendedStep } from "./lib/enhanced-step";
 import { ExtendedNormalJob } from "./lib/enhanced-job";
@@ -55,7 +56,7 @@ backend_source:
       id: "debug",
       name: "Debug",
       run: `cat <<INNEREOF
-\${{ toJson(steps.changed_files.outputs) }}
+${expressions.expn("toJson(steps.changed_files.outputs)")}
 INNEREOF
 `,
     }),
@@ -79,32 +80,32 @@ const discoverJob = new ReusableWorkflowCallJob("discover", {
   uses: "./.github/workflows/_services.yml",
   with: {
     filter: "changed",
-    ref: "${{ github.event.pull_request.head.sha || github.sha }}",
+    ref: expressions.expn("github.event.pull_request.head.sha || github.sha"),
   },
 });
 
 // Build job - calls _build.yml reusable workflow
 const buildJob = new ReusableWorkflowCallJob("build", {
-  if: "${{ needs.discover.outputs.services != '' }}",
+  if: expressions.expn("needs.discover.outputs.services != ''"),
   permissions: buildPermissions,
   uses: "./.github/workflows/_build.yml",
   secrets: "inherit",
   with: {
-    push: "${{ needs.context.outputs.is_fork == 'false' }}",
-    services: "${{ needs.discover.outputs.services }}",
+    push: expressions.expn("needs.context.outputs.is_fork == 'false'"),
+    services: expressions.expn("needs.discover.outputs.services"),
   },
 });
 buildJob.needs([contextJob, discoverJob]);
 
 // Test job - calls _test.yml reusable workflow
 const testJob = new ReusableWorkflowCallJob("test", {
-  if: "${{ needs.build.result == 'success' && needs.discover.outputs.services_json != '[]' }}",
+  if: expressions.expn("needs.build.result == 'success' && needs.discover.outputs.services_json != '[]'"),
   permissions: testPermissions,
   uses: "./.github/workflows/_test.yml",
   secrets: "inherit",
   with: {
-    tag: "${{ needs.build.outputs.tag }}",
-    services: "${{ needs.discover.outputs.services_json }}",
+    tag: expressions.expn("needs.build.outputs.tag"),
+    services: expressions.expn("needs.discover.outputs.services_json"),
   },
 });
 testJob.needs([buildJob, contextJob, discoverJob]);
@@ -117,7 +118,7 @@ const testNopoJob = new ReusableWorkflowCallJob("test_nopo", {
 
 // Smoketest job - runs E2E tests
 const smoketestJob = new NormalJob("smoketest", {
-  if: "${{ needs.discover.outputs.services != '' }}",
+  if: expressions.expn("needs.discover.outputs.services != ''"),
   "runs-on": "ubuntu-latest",
   "timeout-minutes": 10,
 });
@@ -174,7 +175,7 @@ checksJob.needs([
   terraformJob,
 ]);
 
-checksJob.addSteps([checkoutStep, checkStep("${{ toJson(needs) }}")]);
+checksJob.addSteps([checkoutStep, checkStep(expressions.expn("toJson(needs)"))]);
 
 // Main workflow
 export const ciWorkflow = new Workflow("ci", {
@@ -185,7 +186,7 @@ export const ciWorkflow = new Workflow("ci", {
     },
   },
   concurrency: {
-    group: "${{ github.workflow }}-${{ github.event.pull_request.number }}",
+    group: `${expressions.expn("github.workflow")}-${expressions.expn("github.event.pull_request.number")}`,
     "cancel-in-progress": true,
   },
   permissions: emptyPermissions,

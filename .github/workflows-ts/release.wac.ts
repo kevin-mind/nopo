@@ -1,4 +1,5 @@
 import {
+  expressions,
   NormalJob,
   ReusableWorkflowCallJob,
   Step,
@@ -48,8 +49,8 @@ const contextJob = new ExtendedNormalJob("context", {
       id: "push_deploy",
       name: "Push / Deploy",
       env: {
-        event_name: "${{ github.event_name }}",
-        actor: "${{ github.event.sender.login }}",
+        event_name: expressions.expn("github.event_name"),
+        actor: expressions.expn("github.event.sender.login"),
         merge_actor: "github-merge-queue[bot]",
       },
       run: `push=false
@@ -88,13 +89,13 @@ const discoverBuildableJob = new ReusableWorkflowCallJob("discover_buildable", {
   uses: "./.github/workflows/_services.yml",
   with: {
     filter: "buildable",
-    ref: "${{ github.sha }}",
+    ref: expressions.expn("github.sha"),
   },
 });
 
 // Version job - runs changesets for semantic versioning
 const versionJob = new NormalJob("version", {
-  if: "${{ needs.context.outputs.event_name == 'push' }}",
+  if: expressions.expn("needs.context.outputs.event_name == 'push'"),
   "runs-on": "ubuntu-latest",
   permissions: versionPermissions,
 });
@@ -116,8 +117,8 @@ versionJob.addSteps([
       publish: "pnpm publish:workspace",
     },
     env: {
-      GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-      NPM_TOKEN: "${{ secrets.NPM_TOKEN }}",
+      GITHUB_TOKEN: expressions.secret("GITHUB_TOKEN"),
+      NPM_TOKEN: expressions.secret("NPM_TOKEN"),
     },
   }),
 ]);
@@ -128,8 +129,8 @@ const buildJob = new ReusableWorkflowCallJob("build", {
   uses: "./.github/workflows/_build.yml",
   secrets: "inherit",
   with: {
-    push: "${{ needs.context.outputs.push == 'true' }}",
-    services: "${{ needs.discover_buildable.outputs.services }}",
+    push: expressions.expn("needs.context.outputs.push == 'true'"),
+    services: expressions.expn("needs.discover_buildable.outputs.services"),
   },
 });
 buildJob.needs([contextJob, discoverBuildableJob]);
@@ -140,8 +141,8 @@ const testJob = new ReusableWorkflowCallJob("test", {
   uses: "./.github/workflows/_test.yml",
   secrets: "inherit",
   with: {
-    tag: "${{ needs.build.outputs.tag }}",
-    services: "${{ needs.discover_buildable.outputs.services_json }}",
+    tag: expressions.expn("needs.build.outputs.tag"),
+    services: expressions.expn("needs.discover_buildable.outputs.services_json"),
   },
 });
 testJob.needs([buildJob, contextJob, discoverBuildableJob]);
@@ -153,9 +154,9 @@ const deployStageJob = new ReusableWorkflowCallJob("deploy_stage", {
   secrets: "inherit",
   with: {
     environment: "stage",
-    version: "${{ needs.build.outputs.version }}",
-    digest: "${{ needs.build.outputs.digest }}",
-    services: "${{ needs.discover_buildable.outputs.services_json }}",
+    version: expressions.expn("needs.build.outputs.version"),
+    digest: expressions.expn("needs.build.outputs.digest"),
+    services: expressions.expn("needs.discover_buildable.outputs.services_json"),
   },
 });
 deployStageJob.needs([contextJob, buildJob, testJob, discoverBuildableJob]);
@@ -167,9 +168,9 @@ const deployProdJob = new ReusableWorkflowCallJob("deploy_prod", {
   secrets: "inherit",
   with: {
     environment: "prod",
-    version: "${{ needs.build.outputs.version }}",
-    digest: "${{ needs.build.outputs.digest }}",
-    services: "${{ needs.discover_buildable.outputs.services_json }}",
+    version: expressions.expn("needs.build.outputs.version"),
+    digest: expressions.expn("needs.build.outputs.digest"),
+    services: expressions.expn("needs.discover_buildable.outputs.services_json"),
   },
 });
 deployProdJob.needs([
@@ -187,7 +188,7 @@ const checksJob = new NormalJob("checks", {
 });
 checksJob.needs([buildJob, testJob, deployStageJob, deployProdJob]);
 
-checksJob.addSteps([checkoutStep, checkStep("${{ toJson(needs) }}")]);
+checksJob.addSteps([checkoutStep, checkStep(expressions.expn("toJson(needs)"))]);
 
 // Main workflow
 export const releaseWorkflow = new Workflow("release", {
@@ -199,8 +200,7 @@ export const releaseWorkflow = new Workflow("release", {
     merge_group: {},
   },
   concurrency: {
-    group:
-      "${{ github.workflow }}-${{ (github.event_name == 'merge_group' || github.event_name == 'push' && github.event.sender.login != 'github-merge-queue[bot]') && 'push' || 'pr' }}",
+    group: `${expressions.expn("github.workflow")}-${expressions.expn("(github.event_name == 'merge_group' || github.event_name == 'push' && github.event.sender.login != 'github-merge-queue[bot]') && 'push' || 'pr'")}`,
     "cancel-in-progress": true,
   },
   permissions: emptyPermissions,

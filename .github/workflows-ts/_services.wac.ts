@@ -1,4 +1,4 @@
-import { NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
+import { expressions, NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
 import { ExtendedStep } from "./lib/enhanced-step";
 import { ExtendedNormalJob } from "./lib/enhanced-job";
 import { defaultDefaults, readPermissions } from "./lib/patterns";
@@ -11,7 +11,7 @@ const discoverJob = new ExtendedNormalJob("discover", {
       id: "checkout",
       uses: "actions/checkout@v4",
       with: {
-        ref: "${{ inputs.ref }}",
+        ref: expressions.expn("inputs.ref"),
         "fetch-depth": 0,
       },
     }),
@@ -31,8 +31,8 @@ git fetch origin main:origin/main || true
       id: "discover",
       name: "Discover services",
       env: {
-        FILTER: "${{ inputs.filter }}",
-        SINCE: "${{ inputs.since }}",
+        FILTER: expressions.expn("inputs.filter"),
+        SINCE: expressions.expn("inputs.since"),
       },
       run: `echo "=== Service Discovery ==="
 echo "Filter: \${FILTER:-<none>}"
@@ -117,11 +117,11 @@ export const servicesWorkflow = new Workflow("_services", {
         services: {
           description:
             "Space-separated list of service names (for build targets)",
-          value: "${{ jobs.discover.outputs.services }}",
+          value: expressions.expn("jobs.discover.outputs.services"),
         },
         services_json: {
           description: "JSON array of service names",
-          value: "${{ jobs.discover.outputs.services_json }}",
+          value: expressions.expn("jobs.discover.outputs.services_json"),
         },
       },
     },

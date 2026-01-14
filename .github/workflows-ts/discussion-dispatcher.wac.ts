@@ -1,4 +1,4 @@
-import { NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
+import { expressions, NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
 import {
   defaultDefaults,
   discussionDispatcherPermissions,
@@ -85,7 +85,7 @@ dispatchJob.addSteps([
     name: "Dispatch to handler",
     uses: "actions/github-script@v7",
     with: {
-      "github-token": "${{ secrets.GITHUB_TOKEN }}",
+      "github-token": expressions.secret("GITHUB_TOKEN"),
       script: dispatchScript,
     },
   }),

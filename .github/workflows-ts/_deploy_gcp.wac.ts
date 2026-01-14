@@ -1,4 +1,9 @@
-import { NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
+import {
+  NormalJob,
+  Step,
+  Workflow,
+  expressions,
+} from "@github-actions-workflow-ts/lib";
 import { ExtendedStep } from "./lib/enhanced-step";
 import { ExtendedNormalJob } from "./lib/enhanced-job";
 import {
@@ -42,8 +47,8 @@ const contextJob = new NormalJob("context", {
   "runs-on": "ubuntu-latest",
   "timeout-minutes": 5,
   outputs: {
-    services: "${{ steps.services.outputs.services }}",
-    subdomain_prefix: "${{ steps.env_config.outputs.subdomain_prefix }}",
+    services: expressions.expn("steps.services.outputs.services"),
+    subdomain_prefix: expressions.expn("steps.env_config.outputs.subdomain_prefix"),
   },
 });
 
@@ -51,13 +56,13 @@ contextJob.addSteps([
   checkoutStep,
   setupNodeStep,
   validateServicesStep("services", {
-    services: "${{ inputs.services }}",
+    services: expressions.expn("inputs.services"),
   }),
   new Step({
     name: "Environment config",
     id: "env_config",
     env: {
-      ENVIRONMENT: "${{ inputs.environment }}",
+      ENVIRONMENT: expressions.expn("inputs.environment"),
     },
     run: `if [[ "$ENVIRONMENT" == "stage" ]]; then
   echo "subdomain_prefix=stage" >> "$GITHUB_OUTPUT"
@@ -72,7 +77,7 @@ fi
 const provisionInfraJob = new ExtendedNormalJob("provision_infra", {
   name: "Provision Infrastructure",
   "runs-on": "ubuntu-latest",
-  environment: "${{ inputs.environment }}",
+  environment: expressions.expn("inputs.environment"),
   "timeout-minutes": 20,
   permissions: {
     contents: "read" as const,
@@ -89,9 +94,10 @@ const provisionInfraJob = new ExtendedNormalJob("provision_infra", {
       name: "Authenticate to GCP",
       uses: "google-github-actions/auth@v2",
       with: {
-        workload_identity_provider:
-          "${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}",
-        service_account: "${{ secrets.GCP_SERVICE_ACCOUNT }}",
+        workload_identity_provider: expressions.secret(
+          "GCP_WORKLOAD_IDENTITY_PROVIDER",
+        ),
+        service_account: expressions.secret("GCP_SERVICE_ACCOUNT"),
       },
     }),
     new ExtendedStep({
@@ -107,11 +113,10 @@ const provisionInfraJob = new ExtendedNormalJob("provision_infra", {
       id: "init",
       name: "Terraform Init",
       env: {
-        TF_STATE_BUCKET: "${{ vars.TERRAFORM_STATE_BUCKET }}",
-        ENVIRONMENT: "${{ inputs.environment }}",
+        TF_STATE_BUCKET: expressions.var("TERRAFORM_STATE_BUCKET"),
+        ENVIRONMENT: expressions.expn("inputs.environment"),
       },
-      "working-directory":
-        "infrastructure/terraform/environments/${{ inputs.environment }}/infra",
+      "working-directory": `infrastructure/terraform/environments/${expressions.expn("inputs.environment")}/infra`,
       run: `terraform init -input=false \\
   -backend-config="bucket=\${TF_STATE_BUCKET}" \\
   -backend-config="prefix=nopo/\${ENVIRONMENT}/infra"
@@ -121,13 +126,12 @@ const provisionInfraJob = new ExtendedNormalJob("provision_infra", {
       id: "apply",
       name: "Terraform Apply",
       env: {
-        TF_VAR_project_id: "${{ vars.GCP_PROJECT_ID }}",
+        TF_VAR_project_id: expressions.var("GCP_PROJECT_ID"),
         TF_VAR_region: GCP_REGION,
-        TF_VAR_domain: "${{ vars.DOMAIN }}",
-        TF_VAR_supabase_database_url: "${{ secrets.SUPABASE_DATABASE_URL }}",
+        TF_VAR_domain: expressions.var("DOMAIN"),
+        TF_VAR_supabase_database_url: expressions.secret("SUPABASE_DATABASE_URL"),
       },
-      "working-directory":
-        "infrastructure/terraform/environments/${{ inputs.environment }}/infra",
+      "working-directory": `infrastructure/terraform/environments/${expressions.expn("inputs.environment")}/infra`,
       run: `# Apply infra changes (create/update registry, buckets, etc.)
 terraform apply -input=false -auto-approve
 
@@ -151,7 +155,7 @@ echo "static_bucket_name=\${static_bucket_name}" >> "$GITHUB_OUTPUT"
 const getCurrentStateJob = new ExtendedNormalJob("get_current_state", {
   name: "Get Current State",
   "runs-on": "ubuntu-latest",
-  environment: "${{ inputs.environment }}",
+  environment: expressions.expn("inputs.environment"),
   permissions: {
     contents: "read" as const,
     "id-token": "write" as const,
@@ -167,9 +171,10 @@ const getCurrentStateJob = new ExtendedNormalJob("get_current_state", {
       name: "Authenticate to GCP",
       uses: "google-github-actions/auth@v2",
       with: {
-        workload_identity_provider:
-          "${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}",
-        service_account: "${{ secrets.GCP_SERVICE_ACCOUNT }}",
+        workload_identity_provider: expressions.secret(
+          "GCP_WORKLOAD_IDENTITY_PROVIDER",
+        ),
+        service_account: expressions.secret("GCP_SERVICE_ACCOUNT"),
       },
     }),
     new ExtendedStep({
@@ -185,9 +190,11 @@ const getCurrentStateJob = new ExtendedNormalJob("get_current_state", {
       id: "images",
       name: "Build image variables",
       env: {
-        REGISTRY: "${{ needs.provision_infra.outputs.artifact_registry_url }}",
-        VERSION: "${{ inputs.version }}",
-        SERVICES: "${{ needs.context.outputs.services }}",
+        REGISTRY: expressions.expn(
+          "needs.provision_infra.outputs.artifact_registry_url",
+        ),
+        VERSION: expressions.expn("inputs.version"),
+        SERVICES: expressions.expn("needs.context.outputs.services"),
       },
       run: `services_array=$(echo "\${SERVICES}" | jq -c '.')
 
@@ -238,7 +245,7 @@ echo "  Canary web: \${canary_web_image:-<not deploying>}"
 
 // Push Images job (matrix)
 const pushImagesJob = new NormalJob("push_images", {
-  name: "Push ${{ matrix.service }}",
+  name: `Push ${expressions.expn("matrix.service")}`,
   "runs-on": "ubuntu-latest",
   "timeout-minutes": 15,
   permissions: {
@@ -247,7 +254,7 @@ const pushImagesJob = new NormalJob("push_images", {
   },
   strategy: {
     matrix: {
-      service: "${{ fromJson(needs.context.outputs.services) }}",
+      service: expressions.expn("fromJson(needs.context.outputs.services)"),
     },
   },
 });
@@ -257,16 +264,17 @@ pushImagesJob.addSteps([
   checkoutStep,
   setupDockerStep({
     registry: "ghcr.io",
-    username: "${{ github.actor }}",
-    password: "${{ secrets.GITHUB_TOKEN }}",
+    username: expressions.expn("github.actor"),
+    password: expressions.secret("GITHUB_TOKEN"),
   }),
   new Step({
     name: "Authenticate to GCP",
     uses: "google-github-actions/auth@v2",
     with: {
-      workload_identity_provider:
-        "${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}",
-      service_account: "${{ secrets.GCP_SERVICE_ACCOUNT }}",
+      workload_identity_provider: expressions.secret(
+        "GCP_WORKLOAD_IDENTITY_PROVIDER",
+      ),
+      service_account: expressions.secret("GCP_SERVICE_ACCOUNT"),
     },
   }),
   new Step({
@@ -275,10 +283,8 @@ pushImagesJob.addSteps([
   }),
   dockerPullTagPush(
     {
-      SOURCE_IMAGE:
-        "ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ inputs.version }}",
-      TARGET_IMAGE:
-        "${{ needs.provision_infra.outputs.artifact_registry_url }}/${{ matrix.service }}:${{ inputs.version }}",
+      SOURCE_IMAGE: `ghcr.io/${expressions.expn("github.repository")}-${expressions.expn("matrix.service")}:${expressions.expn("inputs.version")}`,
+      TARGET_IMAGE: `${expressions.expn("needs.provision_infra.outputs.artifact_registry_url")}/${expressions.expn("matrix.service")}:${expressions.expn("inputs.version")}`,
     },
     "Push to Artifact Registry",
   ),
@@ -289,8 +295,8 @@ const deployCanaryJob = new ExtendedNormalJob("deploy_canary", {
   name: "Deploy Canary",
   "runs-on": "ubuntu-latest",
   environment: {
-    name: "${{ inputs.environment }}",
-    url: "${{ steps.deploy.outputs.public_url }}",
+    name: expressions.expn("inputs.environment"),
+    url: expressions.expn("steps.deploy.outputs.public_url"),
   },
   permissions: {
     contents: "read" as const,
@@ -307,9 +313,10 @@ const deployCanaryJob = new ExtendedNormalJob("deploy_canary", {
       name: "Authenticate to GCP",
       uses: "google-github-actions/auth@v2",
       with: {
-        workload_identity_provider:
-          "${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}",
-        service_account: "${{ secrets.GCP_SERVICE_ACCOUNT }}",
+        workload_identity_provider: expressions.secret(
+          "GCP_WORKLOAD_IDENTITY_PROVIDER",
+        ),
+        service_account: expressions.secret("GCP_SERVICE_ACCOUNT"),
       },
     }),
     new ExtendedStep({
@@ -317,21 +324,27 @@ const deployCanaryJob = new ExtendedNormalJob("deploy_canary", {
       name: "Deploy Services (Canary)",
       uses: "./.github/actions/deploy-gcp",
       with: {
-        project_id: "${{ vars.GCP_PROJECT_ID }}",
+        project_id: expressions.var("GCP_PROJECT_ID"),
         region: GCP_REGION,
-        environment: "${{ inputs.environment }}",
-        domain: "${{ vars.DOMAIN }}",
-        subdomain_prefix: "${{ needs.context.outputs.subdomain_prefix }}",
-        terraform_state_bucket: "${{ vars.TERRAFORM_STATE_BUCKET }}",
-        stable_backend_image:
-          "${{ needs.get_current_state.outputs.stable_backend_image }}",
-        stable_web_image:
-          "${{ needs.get_current_state.outputs.stable_web_image }}",
-        canary_backend_image:
-          "${{ needs.get_current_state.outputs.canary_backend_image }}",
-        canary_web_image:
-          "${{ needs.get_current_state.outputs.canary_web_image }}",
-        supabase_database_url: "${{ secrets.SUPABASE_DATABASE_URL }}",
+        environment: expressions.expn("inputs.environment"),
+        domain: expressions.var("DOMAIN"),
+        subdomain_prefix: expressions.expn(
+          "needs.context.outputs.subdomain_prefix",
+        ),
+        terraform_state_bucket: expressions.var("TERRAFORM_STATE_BUCKET"),
+        stable_backend_image: expressions.expn(
+          "needs.get_current_state.outputs.stable_backend_image",
+        ),
+        stable_web_image: expressions.expn(
+          "needs.get_current_state.outputs.stable_web_image",
+        ),
+        canary_backend_image: expressions.expn(
+          "needs.get_current_state.outputs.canary_backend_image",
+        ),
+        canary_web_image: expressions.expn(
+          "needs.get_current_state.outputs.canary_web_image",
+        ),
+        supabase_database_url: expressions.secret("SUPABASE_DATABASE_URL"),
       },
       outputs: ["public_url"] as const,
     }),
@@ -343,7 +356,7 @@ const deployCanaryJob = new ExtendedNormalJob("deploy_canary", {
 
 // Upload Assets job (matrix)
 const uploadAssetsJob = new NormalJob("upload_assets", {
-  name: "Upload Assets ${{ matrix.service }}",
+  name: `Upload Assets ${expressions.expn("matrix.service")}`,
   "runs-on": "ubuntu-latest",
   permissions: {
     contents: "read" as const,
@@ -351,7 +364,7 @@ const uploadAssetsJob = new NormalJob("upload_assets", {
   },
   strategy: {
     matrix: {
-      service: "${{ fromJson(needs.context.outputs.services) }}",
+      service: expressions.expn("fromJson(needs.context.outputs.services)"),
     },
   },
 });
@@ -362,25 +375,27 @@ uploadAssetsJob.addSteps([
   setupNodeStep,
   setupDockerStep({
     registry: "ghcr.io",
-    username: "${{ github.actor }}",
-    password: "${{ secrets.GITHUB_TOKEN }}",
+    username: expressions.expn("github.actor"),
+    password: expressions.secret("GITHUB_TOKEN"),
   }),
   new Step({
     name: "Authenticate to GCP",
     uses: "google-github-actions/auth@v2",
     with: {
-      workload_identity_provider:
-        "${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}",
-      service_account: "${{ secrets.GCP_SERVICE_ACCOUNT }}",
+      workload_identity_provider: expressions.secret(
+        "GCP_WORKLOAD_IDENTITY_PROVIDER",
+      ),
+      service_account: expressions.secret("GCP_SERVICE_ACCOUNT"),
     },
   }),
   new Step({
     name: "Upload to GCS",
     env: {
-      GHCR_IMAGE:
-        "ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ inputs.version }}",
-      BUCKET_NAME: "${{ needs.provision_infra.outputs.static_bucket_name }}",
-      SERVICE: "${{ matrix.service }}",
+      GHCR_IMAGE: `ghcr.io/${expressions.expn("github.repository")}-${expressions.expn("matrix.service")}:${expressions.expn("inputs.version")}`,
+      BUCKET_NAME: expressions.expn(
+        "needs.provision_infra.outputs.static_bucket_name",
+      ),
+      SERVICE: expressions.expn("matrix.service"),
     },
     run: `# Extract service config
 service_config=$(make list -- --json --jq ".services.\\"\${SERVICE}\\"")
@@ -427,9 +442,10 @@ runMigrationsJob.addSteps([
     name: "Authenticate to GCP",
     uses: "google-github-actions/auth@v2",
     with: {
-      workload_identity_provider:
-        "${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}",
-      service_account: "${{ secrets.GCP_SERVICE_ACCOUNT }}",
+      workload_identity_provider: expressions.secret(
+        "GCP_WORKLOAD_IDENTITY_PROVIDER",
+      ),
+      service_account: expressions.secret("GCP_SERVICE_ACCOUNT"),
     },
   }),
   new Step({
@@ -439,10 +455,10 @@ runMigrationsJob.addSteps([
   new Step({
     name: "Check and Run Migrations",
     env: {
-      PROJECT_ID: "${{ vars.GCP_PROJECT_ID }}",
+      PROJECT_ID: expressions.var("GCP_PROJECT_ID"),
       REGION: GCP_REGION,
-      ENVIRONMENT: "${{ inputs.environment }}",
-      SERVICES: "${{ needs.context.outputs.services }}",
+      ENVIRONMENT: expressions.expn("inputs.environment"),
+      SERVICES: expressions.expn("needs.context.outputs.services"),
     },
     run: `services_payload=$(make list -- --json --jq '.services')
 for service in $(echo "\${SERVICES}" | jq -r '.[]'); do
@@ -473,7 +489,7 @@ smoketestCanaryJob.addSteps([
     name: "Test Canary",
     uses: "./.github/actions/smoketest",
     with: {
-      public_url: "${{ needs.deploy_canary.outputs.public_url }}",
+      public_url: expressions.expn("needs.deploy_canary.outputs.public_url"),
       canary: true,
     },
   }),
@@ -484,8 +500,8 @@ const promoteJob = new NormalJob("promote", {
   name: "Promote to Stable",
   "runs-on": "ubuntu-latest",
   environment: {
-    name: "${{ inputs.environment }}",
-    url: "https://${{ needs.context.outputs.subdomain_prefix && format('{0}.', needs.context.outputs.subdomain_prefix) || '' }}${{ vars.DOMAIN }}",
+    name: expressions.expn("inputs.environment"),
+    url: `https://${expressions.expn("needs.context.outputs.subdomain_prefix && format('{0}.', needs.context.outputs.subdomain_prefix) || ''")}${expressions.var("DOMAIN")}`,
   },
   permissions: {
     contents: "read" as const,
@@ -505,30 +521,37 @@ promoteJob.addSteps([
     name: "Authenticate to GCP",
     uses: "google-github-actions/auth@v2",
     with: {
-      workload_identity_provider:
-        "${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}",
-      service_account: "${{ secrets.GCP_SERVICE_ACCOUNT }}",
+      workload_identity_provider: expressions.secret(
+        "GCP_WORKLOAD_IDENTITY_PROVIDER",
+      ),
+      service_account: expressions.secret("GCP_SERVICE_ACCOUNT"),
     },
   }),
   new Step({
     name: "Deploy Services (Promote)",
     uses: "./.github/actions/deploy-gcp",
     with: {
-      project_id: "${{ vars.GCP_PROJECT_ID }}",
+      project_id: expressions.var("GCP_PROJECT_ID"),
       region: GCP_REGION,
-      environment: "${{ inputs.environment }}",
-      domain: "${{ vars.DOMAIN }}",
-      subdomain_prefix: "${{ needs.context.outputs.subdomain_prefix }}",
-      terraform_state_bucket: "${{ vars.TERRAFORM_STATE_BUCKET }}",
-      stable_backend_image:
-        "${{ needs.get_current_state.outputs.canary_backend_image }}",
-      stable_web_image:
-        "${{ needs.get_current_state.outputs.canary_web_image }}",
-      canary_backend_image:
-        "${{ needs.get_current_state.outputs.canary_backend_image }}",
-      canary_web_image:
-        "${{ needs.get_current_state.outputs.canary_web_image }}",
-      supabase_database_url: "${{ secrets.SUPABASE_DATABASE_URL }}",
+      environment: expressions.expn("inputs.environment"),
+      domain: expressions.var("DOMAIN"),
+      subdomain_prefix: expressions.expn(
+        "needs.context.outputs.subdomain_prefix",
+      ),
+      terraform_state_bucket: expressions.var("TERRAFORM_STATE_BUCKET"),
+      stable_backend_image: expressions.expn(
+        "needs.get_current_state.outputs.canary_backend_image",
+      ),
+      stable_web_image: expressions.expn(
+        "needs.get_current_state.outputs.canary_web_image",
+      ),
+      canary_backend_image: expressions.expn(
+        "needs.get_current_state.outputs.canary_backend_image",
+      ),
+      canary_web_image: expressions.expn(
+        "needs.get_current_state.outputs.canary_web_image",
+      ),
+      supabase_database_url: expressions.secret("SUPABASE_DATABASE_URL"),
     },
   }),
 ]);
@@ -543,7 +566,7 @@ const tagEnvironmentJob = new NormalJob("tag_environment", {
   },
   strategy: {
     matrix: {
-      service: "${{ fromJson(needs.context.outputs.services) }}",
+      service: expressions.expn("fromJson(needs.context.outputs.services)"),
     },
   },
 });
@@ -553,15 +576,13 @@ tagEnvironmentJob.addSteps([
   checkoutStep,
   setupDockerStep({
     registry: "ghcr.io",
-    username: "${{ github.actor }}",
-    password: "${{ secrets.GITHUB_TOKEN }}",
+    username: expressions.expn("github.actor"),
+    password: expressions.secret("GITHUB_TOKEN"),
   }),
   dockerPullTagPush(
     {
-      SOURCE_IMAGE:
-        "ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ inputs.version }}",
-      TARGET_IMAGE:
-        "ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ inputs.environment }}",
+      SOURCE_IMAGE: `ghcr.io/${expressions.expn("github.repository")}-${expressions.expn("matrix.service")}:${expressions.expn("inputs.version")}`,
+      TARGET_IMAGE: `ghcr.io/${expressions.expn("github.repository")}-${expressions.expn("matrix.service")}:${expressions.expn("inputs.environment")}`,
     },
     "Tag Image",
   ),
@@ -587,7 +608,7 @@ export const deployGcpWorkflow = new Workflow("_deploy_gcp", {
     },
   },
   concurrency: {
-    group: "deploy-${{ inputs.environment }}",
+    group: `deploy-${expressions.expn("inputs.environment")}`,
     "cancel-in-progress": false,
   },
   permissions: emptyPermissions,

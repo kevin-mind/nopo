@@ -1,4 +1,9 @@
-import { NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
+import {
+  NormalJob,
+  Step,
+  Workflow,
+  expressions,
+} from "@github-actions-workflow-ts/lib";
 import { ExtendedStep } from "./lib/enhanced-step";
 import { ExtendedNormalJob } from "./lib/enhanced-job";
 import { checkoutStep, checkoutWithDepth } from "./lib/steps";
@@ -15,9 +20,15 @@ import {
   ghApiCountComments,
   ghApiAddReaction,
   ghPrViewBranch,
+  parseTriageOutput,
+  ghIssueEditAddLabel,
+  ghApplyTopicLabels,
+  ghApiGetProjectItem,
+  ghApiUpdateProjectPriority,
+  ghApiUpdateProjectSize,
+  ghApiUpdateProjectEstimate,
 } from "./lib/cli/gh";
 import { gitConfig, gitCheckoutBranchWithDiff } from "./lib/cli/git";
-import { applyTriageSteps } from "./lib/triage-steps";
 
 // =============================================================================
 // TRIAGE JOBS
@@ -40,8 +51,10 @@ const triageCheckJob = new ExtendedNormalJob("triage-check", {
       id: "check",
       name: "gh api graphql (check sub-issue)",
       env: {
-        GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-        ISSUE_NUMBER: "${{ github.event.issue.number || github.event.inputs.issue_number }}",
+        GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+        ISSUE_NUMBER: expressions.expn(
+          "github.event.issue.number || github.event.inputs.issue_number"
+        ),
       },
       run: `repo_name="\${GITHUB_REPOSITORY#*/}"
 owner="\${GITHUB_REPOSITORY%/*}"
@@ -106,10 +119,10 @@ echo "issue_number=$ISSUE_NUMBER" >> \$GITHUB_OUTPUT
 });
 
 // Triage prompt - this is a large multiline string
-const triagePrompt = `You are triaging issue #\${{ needs.triage-check.outputs.issue_number }}: "\${{ needs.triage-check.outputs.issue_title }}"
+const triagePrompt = `You are triaging issue #${expressions.expn("needs.triage-check.outputs.issue_number")}: "${expressions.expn("needs.triage-check.outputs.issue_title")}"
 
 Issue body:
-\${{ needs.triage-check.outputs.issue_body }}
+${expressions.expn("needs.triage-check.outputs.issue_body")}
 
 ## Issue Structure
 Issues follow this structure (from task.yml template):
@@ -161,7 +174,7 @@ EOF
 - Check if this might be a duplicate
 
 ### 3. UPDATE THE ISSUE BODY
-Use \`gh issue edit \${{ needs.triage-check.outputs.issue_number }} --body "..."\` to improve the issue:
+Use \`gh issue edit ${expressions.expn("needs.triage-check.outputs.issue_number")} --body "..."\` to improve the issue:
 
 **Description**: Improve clarity if needed, make it a concise TLDR
 
@@ -194,7 +207,7 @@ If the issue is large (Size L or XL) and has distinct implementation phases:
 - Total estimated work exceeds 5 days
 
 **Sub-issue format:**
-- Title: "[Sub] Phase N: <phase description> (parent #\${{ needs.triage-check.outputs.issue_number }})"
+- Title: "[Sub] Phase N: <phase description> (parent #${expressions.expn("needs.triage-check.outputs.issue_number")})"
 - Body: Brief description + specific todo items for that phase
 
 ### 5. VALIDATE COMPLETENESS
@@ -219,10 +232,10 @@ EOF
 cat triage-output.json
 
 # View current issue
-gh issue view \${{ needs.triage-check.outputs.issue_number }}
+gh issue view ${expressions.expn("needs.triage-check.outputs.issue_number")}
 
 # Update issue body (use heredoc for multiline)
-gh issue edit \${{ needs.triage-check.outputs.issue_number }} --body "$(cat <<'EOF'
+gh issue edit ${expressions.expn("needs.triage-check.outputs.issue_number")} --body "$(cat <<'EOF'
 ... new body content ...
 EOF
 )"
@@ -235,7 +248,7 @@ gh label list --search "topic:" --json name --jq '.[].name'
 # ============================================
 
 # Step 1: Create a new issue for a phase
-gh issue create --title "[Sub] Phase 1: Setup (parent #\${{ needs.triage-check.outputs.issue_number }})" --body "Phase 1 tasks..."
+gh issue create --title "[Sub] Phase 1: Setup (parent #${expressions.expn("needs.triage-check.outputs.issue_number")})" --body "Phase 1 tasks..."
 
 # Step 2: Get the new issue's ID (from the URL returned by gh issue create)
 gh api graphql -f query='
@@ -271,7 +284,7 @@ const triageJob = new NormalJob("triage", {
   "runs-on": "ubuntu-latest",
   if: "needs.triage-check.outputs.should_triage == 'true'",
   concurrency: {
-    group: "claude-triage-${{ needs.triage-check.outputs.issue_number }}",
+    group: `claude-triage-${expressions.expn("needs.triage-check.outputs.issue_number")}`,
     "cancel-in-progress": true,
   },
 });
@@ -280,42 +293,92 @@ triageJob.addSteps([
   checkoutStep,
   // Step 1: Post status comment
   ghIssueComment("bot_comment", {
-    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-    ISSUE_NUMBER: "${{ needs.triage-check.outputs.issue_number }}",
-    BODY: "👀 **nopo-bot** is triaging this issue...\n\n[View workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})",
+    GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+    ISSUE_NUMBER: expressions.expn("needs.triage-check.outputs.issue_number"),
+    BODY: `👀 **nopo-bot** is triaging this issue...\n\n[View workflow run](${expressions.expn("github.server_url")}/${expressions.expn("github.repository")}/actions/runs/${expressions.expn("github.run_id")})`,
   }),
   // Step 2: Run Claude for triage
   new Step({
     uses: "anthropics/claude-code-action@v1",
     id: "claude_triage",
     with: {
-      claude_code_oauth_token: "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}",
+      claude_code_oauth_token: expressions.secret("CLAUDE_CODE_OAUTH_TOKEN"),
       settings: ".claude/settings.json",
       prompt: triagePrompt,
       claude_args: "--model claude-opus-4-5-20251101 --max-turns 50",
     },
     env: {
-      GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      GITHUB_TOKEN: expressions.secret("GITHUB_TOKEN"),
     },
   }),
-  // Step 3: Apply triage labels and update project fields
-  ...applyTriageSteps({
-    GH_TOKEN: "${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}",
-    ISSUE_NUMBER: "${{ needs.triage-check.outputs.issue_number }}",
+  // Step 3: Parse triage output JSON
+  parseTriageOutput("parse"),
+  // Step 4: Apply labels (only if output exists)
+  new Step({
+    ...ghIssueEditAddLabel({
+      GH_TOKEN: expressions.expn("secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN"),
+      ISSUE_NUMBER: expressions.expn("needs.triage-check.outputs.issue_number"),
+      LABELS: expressions.expn("steps.parse.outputs.labels"),
+    }),
+    if: "steps.parse.outputs.has_output == 'true'",
   }),
-  // Step 4: Add reaction on completion
+  // Step 5: Create and apply topic labels
+  new Step({
+    ...ghApplyTopicLabels({
+      GH_TOKEN: expressions.expn("secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN"),
+      ISSUE_NUMBER: expressions.expn("needs.triage-check.outputs.issue_number"),
+      TOPICS: expressions.expn("steps.parse.outputs.topics"),
+    }),
+    if: "steps.parse.outputs.has_output == 'true' && steps.parse.outputs.topics != ''",
+  }),
+  // Step 6: Get project item
+  ghApiGetProjectItem("project", {
+    GH_TOKEN: expressions.expn("secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN"),
+    ISSUE_NUMBER: expressions.expn("needs.triage-check.outputs.issue_number"),
+  }),
+  // Step 7: Update priority
+  new Step({
+    ...ghApiUpdateProjectPriority({
+      GH_TOKEN: expressions.expn("secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN"),
+      PROJECT_ID: expressions.expn("steps.project.outputs.project_id"),
+      ITEM_ID: expressions.expn("steps.project.outputs.item_id"),
+      PRIORITY: expressions.expn("steps.parse.outputs.priority"),
+    }),
+    if: "steps.project.outputs.has_project == 'true'",
+  }),
+  // Step 8: Update size
+  new Step({
+    ...ghApiUpdateProjectSize({
+      GH_TOKEN: expressions.expn("secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN"),
+      PROJECT_ID: expressions.expn("steps.project.outputs.project_id"),
+      ITEM_ID: expressions.expn("steps.project.outputs.item_id"),
+      SIZE: expressions.expn("steps.parse.outputs.size"),
+    }),
+    if: "steps.project.outputs.has_project == 'true'",
+  }),
+  // Step 9: Update estimate
+  new Step({
+    ...ghApiUpdateProjectEstimate({
+      GH_TOKEN: expressions.expn("secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN"),
+      PROJECT_ID: expressions.expn("steps.project.outputs.project_id"),
+      ITEM_ID: expressions.expn("steps.project.outputs.item_id"),
+      ESTIMATE: expressions.expn("steps.parse.outputs.estimate"),
+    }),
+    if: "steps.project.outputs.has_project == 'true'",
+  }),
+  // Step 10: Add reaction on completion
   {
     ...ghApiAddReaction({
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-      COMMENT_ID: "${{ steps.bot_comment.outputs.comment_id }}",
+      GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+      COMMENT_ID: expressions.expn("steps.bot_comment.outputs.comment_id"),
       REACTION: "rocket",
     }),
     if: "success()",
   },
   {
     ...ghApiAddReaction({
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-      COMMENT_ID: "${{ steps.bot_comment.outputs.comment_id }}",
+      GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+      COMMENT_ID: expressions.expn("steps.bot_comment.outputs.comment_id"),
       REACTION: "eyes",
     }),
     if: "failure()",
@@ -338,8 +401,8 @@ github.event.assignee.login == 'nopo-bot'`,
       id: "check_triaged",
       name: "gh issue view (check label)",
       env: {
-        GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-        ISSUE_NUMBER: "${{ github.event.issue.number }}",
+        GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+        ISSUE_NUMBER: expressions.expn("github.event.issue.number"),
         LABEL: "triaged",
       },
       run: `has_label=$(gh issue view "$ISSUE_NUMBER" --repo "\$GITHUB_REPOSITORY" --json labels --jq ".labels[].name" | grep -c "^\$LABEL\$" || true)
@@ -351,8 +414,8 @@ echo "has_label=$([[ "$has_label" -gt 0 ]] && echo "true" || echo "false")" >> \
       id: "check_status",
       name: "gh api graphql (check project status)",
       env: {
-        GH_TOKEN: "${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}",
-        ISSUE_NUMBER: "${{ github.event.issue.number }}",
+        GH_TOKEN: expressions.expn("secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN"),
+        ISSUE_NUMBER: expressions.expn("github.event.issue.number"),
       },
       run: `repo_name="\${GITHUB_REPOSITORY#*/}"
 owner="\${GITHUB_REPOSITORY%/*}"
@@ -395,8 +458,8 @@ fi`,
       id: "issue",
       name: "gh issue view (with comments)",
       env: {
-        GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-        ISSUE_NUMBER: "${{ github.event.issue.number }}",
+        GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+        ISSUE_NUMBER: expressions.expn("github.event.issue.number"),
       },
       run: `issue=$(gh issue view "$ISSUE_NUMBER" --repo "\$GITHUB_REPOSITORY" --json title,body,labels,comments)
 echo "title=$(echo "$issue" | jq -r '.title')" >> \$GITHUB_OUTPUT
@@ -418,9 +481,9 @@ echo "labels=$(echo "$issue" | jq -c '[.labels[].name]')" >> \$GITHUB_OUTPUT
       id: "bot_comment",
       name: "gh issue comment",
       env: {
-        GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-        ISSUE_NUMBER: "${{ github.event.issue.number }}",
-        BODY: "👀 **nopo-bot** is implementing this issue...\n\n[View workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})",
+        GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+        ISSUE_NUMBER: expressions.expn("github.event.issue.number"),
+        BODY: `👀 **nopo-bot** is implementing this issue...\n\n[View workflow run](${expressions.expn("github.server_url")}/${expressions.expn("github.repository")}/actions/runs/${expressions.expn("github.run_id")})`,
       },
       run: `comment_url=$(gh issue comment "$ISSUE_NUMBER" --body "$BODY" --repo "\$GITHUB_REPOSITORY" 2>&1)
 comment_id=$(echo "$comment_url" | grep -oE '[0-9]+$' || echo "")
@@ -432,8 +495,8 @@ echo "comment_id=$comment_id" >> \$GITHUB_OUTPUT`,
       id: "check_pr",
       name: "gh pr list (for issue)",
       env: {
-        GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-        ISSUE_NUMBER: "${{ github.event.issue.number }}",
+        GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+        ISSUE_NUMBER: expressions.expn("github.event.issue.number"),
       },
       run: `# Search for PRs that mention "Fixes #N" or "Closes #N"
 prs=$(gh pr list --repo "\$GITHUB_REPOSITORY" --state open --json number,headRefName,url,body)
@@ -458,8 +521,8 @@ fi`,
     }),
   ] as const,
   outputs: (steps) => ({
-    should_implement: "${{ steps.check_pr.outputs.has_pr == 'false' }}",
-    issue_title: "${{ github.event.issue.title }}",
+    should_implement: expressions.expn("steps.check_pr.outputs.has_pr == 'false'"),
+    issue_title: expressions.expn("github.event.issue.title"),
     issue_body: steps.issue.outputs.body,
     issue_comments: steps.issue.outputs.comments,
     bot_comment_id: steps.bot_comment.outputs.comment_id,
@@ -475,30 +538,30 @@ const implementUpdateProjectJob = new NormalJob("implement-update-project", {
 
 implementUpdateProjectJob.addSteps([
   ghApiUpdateProjectStatus({
-    GH_TOKEN: "${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}",
-    ISSUE_NUMBER: "${{ github.event.issue.number }}",
+    GH_TOKEN: expressions.expn("secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN"),
+    ISSUE_NUMBER: expressions.expn("github.event.issue.number"),
     TARGET_STATUS: "In progress",
   }),
 ]);
 
 // Implement prompt
-const implementPrompt = `Implement issue #\${{ github.event.issue.number }}: "\${{ needs.implement-check.outputs.issue_title }}"
+const implementPrompt = `Implement issue #${expressions.expn("github.event.issue.number")}: "${expressions.expn("needs.implement-check.outputs.issue_title")}"
 
-\${{ needs.implement-check.outputs.issue_body }}
+${expressions.expn("needs.implement-check.outputs.issue_body")}
 
-You are on branch \`\${{ steps.branch.outputs.name }}\`.
-\${{ steps.branch.outputs.existing_branch == 'true' && format('
+You are on branch \`${expressions.expn("steps.branch.outputs.name")}\`.
+${expressions.expn(`steps.branch.outputs.existing_branch == 'true' && format('
 ## ⚠️ EXISTING BRANCH - Previous work detected
 
 This branch already has changes from a previous implementation attempt:
-\`\`\`
+\\\`\\\`\\\`
 {0}
-\`\`\`
+\\\`\\\`\\\`
 
 **CRITICAL**: Review what is already done. Do NOT re-implement completed work.
 Start from the CURRENT state of the code and continue toward the goal.
 If an edit fails because the text is not found, the change may already be applied.
-', steps.branch.outputs.diff) || '' }}
+', steps.branch.outputs.diff) || ''`)}
 
 ## Instructions
 
@@ -512,7 +575,7 @@ If an edit fails because the text is not found, the change may already be applie
 8. Commit with a descriptive message
 9. Push to origin
 10. Create DRAFT PR with \`gh pr create --draft --reviewer nopo-bot\`
-    - Body MUST contain "Fixes #\${{ github.event.issue.number }}"
+    - Body MUST contain "Fixes #${expressions.expn("github.event.issue.number")}"
 
 If you notice conflicts with other open PRs, note them in the PR description.`;
 
@@ -533,14 +596,14 @@ implementJob.addSteps([
   }),
   // Step 3: Create or checkout branch (with diff for existing)
   gitCheckoutBranchWithDiff("branch", {
-    BRANCH_NAME: "claude/issue/${{ github.event.issue.number }}",
+    BRANCH_NAME: `claude/issue/${expressions.expn("github.event.issue.number")}`,
   }),
   // Step 4: Run Claude to implement
   new Step({
     uses: "anthropics/claude-code-action@v1",
     with: {
-      claude_code_oauth_token: "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}",
-      github_token: "${{ secrets.GITHUB_TOKEN }}",
+      claude_code_oauth_token: expressions.secret("CLAUDE_CODE_OAUTH_TOKEN"),
+      github_token: expressions.secret("GITHUB_TOKEN"),
       assignee_trigger: "nopo-bot",
       settings: ".claude/settings.json",
       show_full_output: "true",
@@ -548,7 +611,7 @@ implementJob.addSteps([
       claude_args: "--model claude-opus-4-5-20251101 --max-turns 200",
     },
     env: {
-      GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      GITHUB_TOKEN: expressions.secret("GITHUB_TOKEN"),
     },
   }),
   // Step 5: Salvage partial progress on failure
@@ -556,9 +619,9 @@ implementJob.addSteps([
     name: "Salvage partial progress",
     if: "failure()",
     env: {
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-      ISSUE_NUMBER: "${{ github.event.issue.number }}",
-      BRANCH_NAME: "${{ steps.branch.outputs.name }}",
+      GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+      ISSUE_NUMBER: expressions.expn("github.event.issue.number"),
+      BRANCH_NAME: expressions.expn("steps.branch.outputs.name"),
     },
     run: `# Check if there are uncommitted changes
 if ! git diff --quiet HEAD 2>/dev/null; then
@@ -582,16 +645,16 @@ fi`,
   // Step 6: Add reaction on completion
   {
     ...ghApiAddReaction({
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-      COMMENT_ID: "${{ needs.implement-check.outputs.bot_comment_id }}",
+      GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+      COMMENT_ID: expressions.expn("needs.implement-check.outputs.bot_comment_id"),
       REACTION: "rocket",
     }),
     if: "success()",
   },
   {
     ...ghApiAddReaction({
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-      COMMENT_ID: "${{ needs.implement-check.outputs.bot_comment_id }}",
+      GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+      COMMENT_ID: expressions.expn("needs.implement-check.outputs.bot_comment_id"),
       REACTION: "eyes",
     }),
     if: "failure()",
@@ -599,8 +662,8 @@ fi`,
   // Step 7: Unassign nopo-bot on failure
   {
     ...ghIssueEditRemoveAssignee({
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-      ISSUE_NUMBER: "${{ github.event.issue.number }}",
+      GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+      ISSUE_NUMBER: expressions.expn("github.event.issue.number"),
       ASSIGNEES: "nopo-bot",
     }),
     if: "failure()",
@@ -612,9 +675,9 @@ fi`,
 // =============================================================================
 
 // Comment prompt
-const commentPrompt = `You are responding to a question or request in a GitHub \${{ steps.pr_context.outputs.is_pr == 'true' && 'PR' || 'issue' }} comment.
+const commentPrompt = `You are responding to a question or request in a GitHub ${expressions.expn("steps.pr_context.outputs.is_pr == 'true' && 'PR' || 'issue'")} comment.
 
-\${{ steps.pr_context.outputs.is_pr == 'true' && format('This is PR #{0} on branch \`{1}\`. You are checked out on the PR branch with the code changes.', github.event.issue.number, steps.pr_context.outputs.branch) || format('This is issue #{0}. You are checked out on main.', github.event.issue.number) }}
+${expressions.expn("steps.pr_context.outputs.is_pr == 'true' && format('This is PR #{0} on branch `{1}`. You are checked out on the PR branch with the code changes.', github.event.issue.number, steps.pr_context.outputs.branch) || format('This is issue #{0}. You are checked out on main.', github.event.issue.number)")}
 
 ## Your Task
 
@@ -647,7 +710,7 @@ Focus on:
 
 After completing your analysis, you MUST post your response as a comment:
 \`\`\`
-gh issue comment \${{ github.event.issue.number }} --repo "$GITHUB_REPOSITORY" --body "## Response
+gh issue comment ${expressions.expn("github.event.issue.number")} --repo "$GITHUB_REPOSITORY" --body "## Response
 
 <your detailed response to the user's SPECIFIC question/request>"
 \`\`\`
@@ -665,16 +728,18 @@ github.event.comment.user.type != 'Bot'`,
 commentJob.addSteps([
   // Step 1: Post status comment
   ghIssueComment("bot_comment", {
-    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-    ISSUE_NUMBER:
-      "${{ github.event.issue.number || github.event.pull_request.number }}",
-    BODY: "👀 **nopo-bot** is responding to your request...\n\n[View workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})",
+    GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+    ISSUE_NUMBER: expressions.expn(
+      "github.event.issue.number || github.event.pull_request.number"
+    ),
+    BODY: `👀 **nopo-bot** is responding to your request...\n\n[View workflow run](${expressions.expn("github.server_url")}/${expressions.expn("github.repository")}/actions/runs/${expressions.expn("github.run_id")})`,
   }),
   // Step 2: Count Claude's previous comments (circuit breaker)
   ghApiCountComments("count_comments", {
-    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-    PR_NUMBER:
-      "${{ github.event.issue.number || github.event.pull_request.number }}",
+    GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+    PR_NUMBER: expressions.expn(
+      "github.event.issue.number || github.event.pull_request.number"
+    ),
     USER_LOGIN: "claude[bot]",
   }),
   // Step 3: Check comment limit
@@ -682,7 +747,7 @@ commentJob.addSteps([
     id: "check_limit",
     name: "Check comment limit",
     env: {
-      COMMENT_COUNT: "${{ steps.count_comments.outputs.count }}",
+      COMMENT_COUNT: expressions.expn("steps.count_comments.outputs.count"),
       MAX_COMMENTS: "50",
     },
     run: `if [[ "$COMMENT_COUNT" -ge "$MAX_COMMENTS" ]]; then
@@ -694,16 +759,16 @@ fi`,
   }),
   // Step 4: Get PR branch context
   ghPrViewBranch("pr_context", {
-    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-    IS_PR: "${{ github.event.issue.pull_request != '' }}",
-    PR_NUMBER: "${{ github.event.issue.number }}",
+    GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+    IS_PR: expressions.expn("github.event.issue.pull_request != ''"),
+    PR_NUMBER: expressions.expn("github.event.issue.number"),
   }),
   // Step 5: Checkout
   new Step({
     if: "steps.check_limit.outputs.exceeded == 'false'",
     uses: "actions/checkout@v4",
     with: {
-      ref: "${{ steps.pr_context.outputs.branch }}",
+      ref: expressions.expn("steps.pr_context.outputs.branch"),
       "fetch-depth": 0,
     },
   }),
@@ -712,29 +777,29 @@ fi`,
     if: "steps.check_limit.outputs.exceeded == 'false'",
     uses: "anthropics/claude-code-action@v1",
     with: {
-      claude_code_oauth_token: "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}",
+      claude_code_oauth_token: expressions.secret("CLAUDE_CODE_OAUTH_TOKEN"),
       settings: ".claude/settings.json",
       trigger_phrase: "@claude",
       prompt: commentPrompt,
       claude_args: "--model claude-opus-4-5-20251101 --max-turns 100",
     },
     env: {
-      GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      GITHUB_TOKEN: expressions.secret("GITHUB_TOKEN"),
     },
   }),
   // Step 7: Add reaction on completion
   {
     ...ghApiAddReaction({
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-      COMMENT_ID: "${{ steps.bot_comment.outputs.comment_id }}",
+      GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+      COMMENT_ID: expressions.expn("steps.bot_comment.outputs.comment_id"),
       REACTION: "rocket",
     }),
     if: "success()",
   },
   {
     ...ghApiAddReaction({
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-      COMMENT_ID: "${{ steps.bot_comment.outputs.comment_id }}",
+      GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+      COMMENT_ID: expressions.expn("steps.bot_comment.outputs.comment_id"),
       REACTION: "eyes",
     }),
     if: "failure()",

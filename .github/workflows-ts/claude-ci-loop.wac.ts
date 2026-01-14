@@ -1,4 +1,4 @@
-import { NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
+import { NormalJob, Step, Workflow, expressions } from "@github-actions-workflow-ts/lib";
 import { ExtendedStep } from "./lib/enhanced-step";
 import { ExtendedNormalJob } from "./lib/enhanced-job";
 import { claudeCIPermissions, defaultDefaults } from "./lib/patterns";
@@ -24,7 +24,7 @@ const pushConvertToDraftJob = new NormalJob("push-convert-to-draft", {
 !startsWith(github.ref_name, 'gh-readonly-queue/')`,
   "runs-on": "ubuntu-latest",
   concurrency: {
-    group: "claude-review-${{ github.ref_name }}",
+    group: `claude-review-${expressions.expn("github.ref_name")}`,
     "cancel-in-progress": true,
   },
 });
@@ -32,14 +32,14 @@ const pushConvertToDraftJob = new NormalJob("push-convert-to-draft", {
 pushConvertToDraftJob.addSteps([
   // Step 1: Find PR for this branch
   ghPrList("get_pr", {
-    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-    HEAD_BRANCH: "${{ github.ref_name }}",
+    GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+    HEAD_BRANCH: expressions.expn("github.ref_name"),
   }),
   // Step 2: Convert to draft if PR exists and is ready
   {
     ...ghPrReadyUndo({
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-      PR_NUMBER: "${{ steps.get_pr.outputs.number }}",
+      GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+      PR_NUMBER: expressions.expn("steps.get_pr.outputs.number"),
     }),
     if: "steps.get_pr.outputs.found == 'true' && steps.get_pr.outputs.is_draft == 'false'",
   },
@@ -59,8 +59,8 @@ const checkPRJob = new ExtendedNormalJob("check-pr", {
       id: "conclusion",
       name: "Determine conclusion",
       env: {
-        INPUT_CONCLUSION: "${{ inputs.conclusion }}",
-        EVENT_CONCLUSION: "${{ github.event.workflow_run.conclusion }}",
+        INPUT_CONCLUSION: expressions.expn("inputs.conclusion"),
+        EVENT_CONCLUSION: expressions.expn("github.event.workflow_run.conclusion"),
       },
       run: `if [[ -n "$INPUT_CONCLUSION" ]]; then
   echo "conclusion=$INPUT_CONCLUSION" >> \$GITHUB_OUTPUT
@@ -74,9 +74,9 @@ fi`,
       id: "check",
       name: "gh pr view (extended)",
       env: {
-        GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-        HEAD_BRANCH: "${{ github.event.workflow_run.head_branch }}",
-        PR_NUMBER: "${{ inputs.pr_number }}",
+        GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+        HEAD_BRANCH: expressions.expn("github.event.workflow_run.head_branch"),
+        PR_NUMBER: expressions.expn("inputs.pr_number"),
       },
       run: `# Determine how to find the PR
 if [[ -n "$PR_NUMBER" ]]; then
@@ -170,17 +170,17 @@ needs.check-pr.outputs.is_draft == 'false'`,
 
 failureConvertToDraftJob.addSteps([
   ghPrReadyUndo({
-    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-    PR_NUMBER: "${{ needs.check-pr.outputs.pr_number }}",
+    GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+    PR_NUMBER: expressions.expn("needs.check-pr.outputs.pr_number"),
   }),
   new Step({
     name: "Log conversion",
-    run: 'echo "Converted PR #${{ needs.check-pr.outputs.pr_number }} to draft due to CI failure"',
+    run: `echo "Converted PR #${expressions.expn("needs.check-pr.outputs.pr_number")} to draft due to CI failure"`,
   }),
 ]);
 
 // CI failure fix prompt
-const ciFailureFixPrompt = `The CI build failed for PR #\${{ needs.check-pr.outputs.pr_number }} on branch \${{ needs.check-pr.outputs.pr_head_branch }}.
+const ciFailureFixPrompt = `The CI build failed for PR #${expressions.expn("needs.check-pr.outputs.pr_number")} on branch ${expressions.expn("needs.check-pr.outputs.pr_head_branch")}.
 
 1. Analyze the project to understand the build and test process (see CLAUDE.md).
 2. Run \`make check\` and \`make test\` to reproduce the failure.
@@ -203,8 +203,8 @@ needs.check-pr.outputs.is_claude_pr == 'true'`,
 failureFixAndPushJob.addSteps([
   // Step 1: Count Claude's previous comments (circuit breaker)
   ghApiCountComments("count_comments", {
-    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-    PR_NUMBER: "${{ needs.check-pr.outputs.pr_number }}",
+    GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+    PR_NUMBER: expressions.expn("needs.check-pr.outputs.pr_number"),
     USER_LOGIN: "claude[bot]",
   }),
   // Step 2: Check comment limit
@@ -212,7 +212,7 @@ failureFixAndPushJob.addSteps([
     id: "check_limit",
     name: "Check comment limit",
     env: {
-      COMMENT_COUNT: "${{ steps.count_comments.outputs.count }}",
+      COMMENT_COUNT: expressions.expn("steps.count_comments.outputs.count"),
       MAX_COMMENTS: "50",
     },
     run: `if [[ "$COMMENT_COUNT" -ge "$MAX_COMMENTS" ]]; then
@@ -227,7 +227,7 @@ fi`,
     if: "steps.check_limit.outputs.exceeded == 'false'",
     uses: "actions/checkout@v4",
     with: {
-      ref: "${{ needs.check-pr.outputs.pr_head_branch }}",
+      ref: expressions.expn("needs.check-pr.outputs.pr_head_branch"),
       "fetch-depth": 0,
     },
   }),
@@ -244,19 +244,19 @@ fi`,
     if: "steps.check_limit.outputs.exceeded == 'false'",
     uses: "anthropics/claude-code-action@v1",
     with: {
-      claude_code_oauth_token: "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}",
+      claude_code_oauth_token: expressions.secret("CLAUDE_CODE_OAUTH_TOKEN"),
       settings: ".claude/settings.json",
       prompt: ciFailureFixPrompt,
       claude_args: "--model claude-opus-4-5-20251101 --max-turns 200",
     },
     env: {
-      GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      GITHUB_TOKEN: expressions.secret("GITHUB_TOKEN"),
     },
   }),
 ]);
 
 // CI failure suggest fixes prompt
-const ciFailureSuggestFixesPrompt = `The CI build failed for PR #\${{ needs.check-pr.outputs.pr_number }} on branch \${{ needs.check-pr.outputs.pr_head_branch }}.
+const ciFailureSuggestFixesPrompt = `The CI build failed for PR #${expressions.expn("needs.check-pr.outputs.pr_number")} on branch ${expressions.expn("needs.check-pr.outputs.pr_head_branch")}.
 
 This is a human-created PR, so DO NOT push any changes directly.
 
@@ -271,7 +271,7 @@ Instead:
 You MUST submit a PR review with your analysis. Use one of:
 \`\`\`
 # If you have specific fix suggestions:
-gh pr review \${{ needs.check-pr.outputs.pr_number }} --comment --body "## CI Failure Analysis
+gh pr review ${expressions.expn("needs.check-pr.outputs.pr_number")} --comment --body "## CI Failure Analysis
 
 **Root Cause:** <description>
 
@@ -279,7 +279,7 @@ gh pr review \${{ needs.check-pr.outputs.pr_number }} --comment --body "## CI Fa
 <specific code suggestions with file paths and line numbers>"
 
 # For inline comments on specific files/lines:
-gh api repos/$GITHUB_REPOSITORY/pulls/\${{ needs.check-pr.outputs.pr_number }}/comments \\
+gh api repos/$GITHUB_REPOSITORY/pulls/${expressions.expn("needs.check-pr.outputs.pr_number")}/comments \\
   -f body="suggestion" -f path="file.ts" -f line=42 -f side="RIGHT"
 \`\`\`
 
@@ -301,20 +301,20 @@ failureSuggestFixesJob.addSteps([
   new Step({
     uses: "actions/checkout@v4",
     with: {
-      ref: "${{ needs.check-pr.outputs.pr_head_branch }}",
+      ref: expressions.expn("needs.check-pr.outputs.pr_head_branch"),
       "fetch-depth": 0,
     },
   }),
   new Step({
     uses: "anthropics/claude-code-action@v1",
     with: {
-      claude_code_oauth_token: "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}",
+      claude_code_oauth_token: expressions.secret("CLAUDE_CODE_OAUTH_TOKEN"),
       settings: ".claude/settings.json",
       prompt: ciFailureSuggestFixesPrompt,
       claude_args: "--model claude-opus-4-5-20251101 --max-turns 200",
     },
     env: {
-      GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      GITHUB_TOKEN: expressions.secret("GITHUB_TOKEN"),
     },
   }),
 ]);
@@ -335,8 +335,8 @@ needs.check-pr.outputs.has_pr == 'true'`,
       id: "comments",
       name: "gh api graphql (unresolved comments)",
       env: {
-        GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-        PR_NUMBER: "${{ needs.check-pr.outputs.pr_number }}",
+        GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+        PR_NUMBER: expressions.expn("needs.check-pr.outputs.pr_number"),
       },
       run: `repo_name="\${GITHUB_REPOSITORY#*/}"
 owner="\${GITHUB_REPOSITORY%/*}"
@@ -369,11 +369,11 @@ echo "has_unresolved=$([[ "$unresolved_count" -gt 0 ]] && echo "true" || echo "f
       name: "gh pr comment",
       if: "steps.comments.outputs.has_unresolved == 'true'",
       env: {
-        GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-        PR_NUMBER: "${{ needs.check-pr.outputs.pr_number }}",
+        GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+        PR_NUMBER: expressions.expn("needs.check-pr.outputs.pr_number"),
         BODY: `⏸️ **CI passed but not moving to Review**
 
-There are **\${{ steps.comments.outputs.unresolved_count }} unresolved comment thread(s)** on this PR.
+There are **${expressions.expn("steps.comments.outputs.unresolved_count")} unresolved comment thread(s)** on this PR.
 
 Please resolve all comments before the PR can move to Review status.`,
       },
@@ -399,8 +399,8 @@ needs.success-check-comments.outputs.has_unresolved != 'true'`,
 
 successUpdateProjectJob.addSteps([
   ghApiUpdateProjectStatus({
-    GH_TOKEN: "${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}",
-    ISSUE_NUMBER: "${{ needs.check-pr.outputs.issue_number }}",
+    GH_TOKEN: expressions.expn("secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN"),
+    ISSUE_NUMBER: expressions.expn("needs.check-pr.outputs.issue_number"),
     TARGET_STATUS: "In review",
   }),
 ]);
@@ -418,19 +418,19 @@ needs.success-check-comments.outputs.has_unresolved != 'true'`,
 successReadyForReviewJob.addSteps([
   // Step 1: Mark PR as ready
   ghPrReady({
-    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-    PR_NUMBER: "${{ needs.check-pr.outputs.pr_number }}",
+    GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+    PR_NUMBER: expressions.expn("needs.check-pr.outputs.pr_number"),
   }),
   // Step 2: Add review-ready label
   ghPrEditAddLabel({
-    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-    PR_NUMBER: "${{ needs.check-pr.outputs.pr_number }}",
+    GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+    PR_NUMBER: expressions.expn("needs.check-pr.outputs.pr_number"),
     LABEL: "review-ready",
   }),
   // Step 3: Request nopo-bot as reviewer
   ghPrEditAddReviewer({
-    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-    PR_NUMBER: "${{ needs.check-pr.outputs.pr_number }}",
+    GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+    PR_NUMBER: expressions.expn("needs.check-pr.outputs.pr_number"),
     REVIEWERS: "nopo-bot",
   }),
 ]);
