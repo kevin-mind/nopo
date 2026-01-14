@@ -35,7 +35,7 @@ buildJob.addSteps([
   new Step({
     name: 'Input tag',
     id: 'input_tag',
-    uses: './.github/actions/docker-tag',
+    uses: './.github/actions-ts/docker-tag',
     with: {
       registry: 'ghcr.io',
       image: '${{ github.repository }}',
@@ -93,7 +93,7 @@ cat "$GITHUB_OUTPUT"
   new Step({
     name: 'Output tag',
     id: 'output_tag',
-    uses: './.github/actions/docker-tag',
+    uses: './.github/actions-ts/docker-tag',
     with: {
       registry: '${{ steps.input_tag.outputs.registry }}',
       image: '${{ steps.input_tag.outputs.image }}',

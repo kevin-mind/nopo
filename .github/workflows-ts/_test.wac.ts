@@ -39,14 +39,14 @@ testJob.addSteps([
   new Step({
     name: 'Docker Tag',
     id: 'docker_tag',
-    uses: './.github/actions/docker-tag',
+    uses: './.github/actions-ts/docker-tag',
     with: {
       tag: '${{ inputs.tag }}',
     },
   }),
   new Step({
     name: "Run '${{ matrix.command }}'",
-    uses: './.github/actions/run-docker',
+    uses: './.github/actions-ts/run-docker',
     with: {
       tag: '${{ steps.docker_tag.outputs.tag }}',
       service: '${{ matrix.service }}',
@@ -77,7 +77,7 @@ extendableJob.addSteps([
   new Step({
     name: 'Docker Tag',
     id: 'docker_tag',
-    uses: './.github/actions/docker-tag',
+    uses: './.github/actions-ts/docker-tag',
     with: {
       tag: '${{ inputs.tag }}',
     },

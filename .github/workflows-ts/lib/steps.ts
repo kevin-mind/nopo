@@ -51,7 +51,7 @@ export const contextStep = (id: string) =>
     uses: './.github/actions/context',
   })
 
-// Docker tag action
+// Docker tag action (TypeScript)
 export const dockerTagStep = (
   id: string,
   opts: {
@@ -65,11 +65,11 @@ export const dockerTagStep = (
   new Step({
     name: 'Docker Tag',
     id,
-    uses: './.github/actions/docker-tag',
+    uses: './.github/actions-ts/docker-tag',
     with: opts,
   })
 
-// Run docker action
+// Run docker action (TypeScript)
 export const runDockerStep = (opts?: {
   tag?: string
   service?: string
@@ -77,7 +77,7 @@ export const runDockerStep = (opts?: {
   target?: string
 }) =>
   new Step({
-    uses: './.github/actions/run-docker',
+    uses: './.github/actions-ts/run-docker',
     ...(opts && { with: opts }),
   })
 

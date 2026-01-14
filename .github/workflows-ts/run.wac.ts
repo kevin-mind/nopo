@@ -21,7 +21,7 @@ contextJob.addSteps([
   new Step({
     name: "App Names",
     id: "app_names",
-    uses: "./.github/actions/app-names",
+    uses: "./.github/actions-ts/app-names",
     with: {
       environment: "${{ inputs.environment }}",
       app: "${{ inputs.app }}",

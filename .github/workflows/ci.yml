@@ -101,7 +101,7 @@ jobs:
       - uses: ./.github/actions/setup-node
       - uses: ./.github/actions/setup-docker
       - name: Up
-        uses: ./.github/actions/run-docker
+        uses: ./.github/actions-ts/run-docker
       - name: Run smoketest
         uses: ./.github/actions/smoketest
         with:

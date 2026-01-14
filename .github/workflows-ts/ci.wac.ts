@@ -122,7 +122,7 @@ smoketestJob.addSteps([
   setupDockerStep(),
   new Step({
     name: 'Up',
-    uses: './.github/actions/run-docker',
+    uses: './.github/actions-ts/run-docker',
   }),
   smoketestStep('http://localhost'),
 ])
