@@ -105,13 +105,13 @@ const testNopoJob = new ReusableWorkflowCallJob("test_nopo", {
   uses: "./.github/workflows/_test_nopo.yml",
 });
 
-// Smoketest job - runs E2E tests
+// Smoketest job - runs E2E tests against built images
 const smoketestJob = new NormalJob("smoketest", {
-  if: "${{ needs.discover.outputs.services != '' }}",
+  if: "${{ needs.build.result == 'success' && needs.discover.outputs.services != '' }}",
   "runs-on": "ubuntu-latest",
   "timeout-minutes": 10,
 });
-smoketestJob.needs([contextJob, discoverJob]);
+smoketestJob.needs([contextJob, discoverJob, buildJob]);
 
 smoketestJob.addSteps([
   checkoutStep,
@@ -120,6 +120,9 @@ smoketestJob.addSteps([
   new Step({
     name: "Up",
     uses: "./.github/actions-ts/run-docker",
+    with: {
+      tag: "${{ needs.build.outputs.tag }}",
+    },
   }),
   smoketestStep("http://localhost"),
 ]);
