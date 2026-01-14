@@ -99,11 +99,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-node
-      - name: Setup nopo
-        uses: ./.github/actions/setup-nopo
       - uses: ./.github/actions/setup-docker
-      - name: Build images
-        run: nopo build
       - name: Start services
         run: make up
       - name: Run smoketest
