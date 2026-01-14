@@ -1,16 +1,32 @@
-import { NormalJob, Step, Workflow } from '@github-actions-workflow-ts/lib'
-import { checkoutStep, checkoutWithDepth } from './lib/steps'
-import { claudeIssuePermissions, defaultDefaults } from './lib/patterns'
-import { ISSUE_CONCURRENCY_EXPRESSION } from './lib/concurrency'
-import { scripts } from './lib/scripts'
+import { NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
+import { checkoutStep, checkoutWithDepth } from "./lib/steps";
+import { claudeIssuePermissions, defaultDefaults } from "./lib/patterns";
+import { ISSUE_CONCURRENCY_EXPRESSION } from "./lib/concurrency";
+import {
+  botStatusCommentStep,
+  checkPRForIssueStep,
+  getIssueWithCommentsStep,
+  updateProjectStatusStep,
+  createOrCheckoutBranchStep,
+} from "./lib/gh";
+import { applyTriageSteps } from "./lib/triage-steps";
+import {
+  checkSubIssueStep,
+  checkTriagedLabelStep,
+  checkProjectStatusForImplStep,
+  getPRBranchStep,
+  salvagePartialProgressStep,
+  unassignNopoBotStep,
+} from "./lib/issue-steps";
+import { checkClaudeCommentCountStep } from "./lib/ci-steps";
 
 // =============================================================================
 // TRIAGE JOBS
 // =============================================================================
 
 // Triage check job
-const triageCheckJob = new NormalJob('triage-check', {
-  'runs-on': 'ubuntu-latest',
+const triageCheckJob = new NormalJob("triage-check", {
+  "runs-on": "ubuntu-latest",
   if: `(github.event_name == 'issues' &&
  (
    ((github.event.action == 'opened' || github.event.action == 'edited') &&
@@ -20,20 +36,21 @@ const triageCheckJob = new NormalJob('triage-check', {
 ) ||
 (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'triage')`,
   outputs: {
-    should_triage: '${{ steps.check.outputs.should_triage }}',
-    issue_number: '${{ steps.check.outputs.issue_number }}',
-    issue_title: '${{ steps.check.outputs.issue_title }}',
-    issue_body: '${{ steps.check.outputs.issue_body }}',
+    should_triage: "${{ steps.check.outputs.should_triage }}",
+    issue_number: "${{ steps.check.outputs.issue_number }}",
+    issue_title: "${{ steps.check.outputs.issue_title }}",
+    issue_body: "${{ steps.check.outputs.issue_body }}",
   },
-})
+});
 
 triageCheckJob.addSteps([
   checkoutStep,
-  scripts.checkSubIssue('check', {
-    GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-    ISSUE_NUMBER: '${{ github.event.issue.number || github.event.inputs.issue_number }}',
+  checkSubIssueStep("check", {
+    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+    ISSUE_NUMBER:
+      "${{ github.event.issue.number || github.event.inputs.issue_number }}",
   }),
-])
+]);
 
 // Triage prompt - this is a large multiline string
 const triagePrompt = `You are triaging issue #\${{ needs.triage-check.outputs.issue_number }}: "\${{ needs.triage-check.outputs.issue_title }}"
@@ -193,112 +210,121 @@ IMPORTANT:
 - DO NOT assign the issue to anyone
 - Focus on making the issue clear and actionable for implementation
 - Preserve the issue structure (Description, Details, Questions, Todo sections)
-- Only create sub-issues if the work genuinely requires phased implementation`
+- Only create sub-issues if the work genuinely requires phased implementation`;
 
 // Triage job
-const triageJob = new NormalJob('triage', {
-  needs: ['triage-check'],
-  'runs-on': 'ubuntu-latest',
+const triageJob = new NormalJob("triage", {
+  needs: ["triage-check"],
+  "runs-on": "ubuntu-latest",
   if: "needs.triage-check.outputs.should_triage == 'true'",
   concurrency: {
-    group: 'claude-triage-${{ needs.triage-check.outputs.issue_number }}',
-    'cancel-in-progress': true,
+    group: "claude-triage-${{ needs.triage-check.outputs.issue_number }}",
+    "cancel-in-progress": true,
   },
-})
+});
 
 triageJob.addSteps([
   checkoutStep,
-  scripts.addBotComment('bot_comment', {
-    GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-    ISSUE_NUMBER: '${{ needs.triage-check.outputs.issue_number }}',
-    MESSAGE: '👀 **nopo-bot** is triaging this issue...',
-    RUN_URL: '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}',
+  botStatusCommentStep("bot_comment", {
+    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+    NUMBER: "${{ needs.triage-check.outputs.issue_number }}",
+    MESSAGE: "👀 **nopo-bot** is triaging this issue...",
+    RUN_URL:
+      "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
   }),
   new Step({
-    uses: 'anthropics/claude-code-action@v1',
-    id: 'claude_triage',
+    uses: "anthropics/claude-code-action@v1",
+    id: "claude_triage",
     with: {
-      claude_code_oauth_token: '${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}',
-      settings: '.claude/settings.json',
+      claude_code_oauth_token: "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}",
+      settings: ".claude/settings.json",
       prompt: triagePrompt,
-      claude_args: '--model claude-opus-4-5-20251101 --max-turns 50',
+      claude_args: "--model claude-opus-4-5-20251101 --max-turns 50",
     },
     env: {
-      GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
+      GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
     },
   }),
-  scripts.applyTriageLabels({
-    GH_TOKEN: '${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}',
-    ISSUE_NUMBER: '${{ needs.triage-check.outputs.issue_number }}',
+  // Apply triage labels and update project fields (replaces apply-triage-labels.sh)
+  ...applyTriageSteps({
+    GH_TOKEN: "${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}",
+    ISSUE_NUMBER: "${{ needs.triage-check.outputs.issue_number }}",
   }),
-  scripts.addReaction(
-    {
-      GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-      COMMENT_ID: '${{ steps.bot_comment.outputs.comment_id }}',
+  new Step({
+    name: "Add reaction on completion",
+    if: "always()",
+    env: {
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      COMMENT_ID: "${{ steps.bot_comment.outputs.comment_id }}",
       SUCCESS: "${{ job.status == 'success' }}",
     },
-    'always()'
-  ),
-])
+    run: `if [[ "$SUCCESS" == "true" ]]; then
+  gh api "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content="rocket"
+else
+  gh api "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content="eyes"
+fi`,
+  }),
+]);
 
 // =============================================================================
 // IMPLEMENT JOBS
 // =============================================================================
 
 // Implement check job
-const implementCheckJob = new NormalJob('implement-check', {
-  'runs-on': 'ubuntu-latest',
+const implementCheckJob = new NormalJob("implement-check", {
+  "runs-on": "ubuntu-latest",
   if: `github.event.action == 'assigned' &&
 github.event_name == 'issues' &&
 github.event.assignee.login == 'nopo-bot'`,
   outputs: {
-    should_implement: '${{ steps.check-pr.outputs.should_implement }}',
-    issue_title: '${{ github.event.issue.title }}',
-    issue_body: '${{ steps.issue.outputs.body }}',
-    bot_comment_id: '${{ steps.bot_comment.outputs.comment_id }}',
+    should_implement: "${{ steps.check-pr.outputs.should_implement }}",
+    issue_title: "${{ github.event.issue.title }}",
+    issue_body: "${{ steps.issue.outputs.body }}",
+    bot_comment_id: "${{ steps.bot_comment.outputs.comment_id }}",
   },
-})
+});
 
 implementCheckJob.addSteps([
   checkoutStep,
-  scripts.checkTriagedLabel({
-    GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-    ISSUE_NUMBER: '${{ github.event.issue.number }}',
+  checkTriagedLabelStep({
+    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+    ISSUE_NUMBER: "${{ github.event.issue.number }}",
   }),
-  scripts.checkProjectStatusForImpl({
-    GH_TOKEN: '${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}',
-    ISSUE_NUMBER: '${{ github.event.issue.number }}',
+  checkProjectStatusForImplStep({
+    GH_TOKEN: "${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}",
+    ISSUE_NUMBER: "${{ github.event.issue.number }}",
   }),
-  scripts.getIssueWithComments('issue', {
-    GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-    ISSUE_NUMBER: '${{ github.event.issue.number }}',
+  getIssueWithCommentsStep("issue", {
+    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+    ISSUE_NUMBER: "${{ github.event.issue.number }}",
   }),
-  scripts.addBotComment('bot_comment', {
-    GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-    ISSUE_NUMBER: '${{ github.event.issue.number }}',
-    MESSAGE: '👀 **nopo-bot** is implementing this issue...',
-    RUN_URL: '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}',
+  botStatusCommentStep("bot_comment", {
+    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+    NUMBER: "${{ github.event.issue.number }}",
+    MESSAGE: "👀 **nopo-bot** is implementing this issue...",
+    RUN_URL:
+      "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
   }),
-  scripts.checkExistingPR('check-pr', {
-    GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-    ISSUE_NUMBER: '${{ github.event.issue.number }}',
+  checkPRForIssueStep("check-pr", {
+    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+    ISSUE_NUMBER: "${{ github.event.issue.number }}",
   }),
-])
+]);
 
 // Implement update project job
-const implementUpdateProjectJob = new NormalJob('implement-update-project', {
-  needs: ['implement-check'],
+const implementUpdateProjectJob = new NormalJob("implement-update-project", {
+  needs: ["implement-check"],
   if: "needs.implement-check.outputs.should_implement == 'true'",
-  'runs-on': 'ubuntu-latest',
-})
+  "runs-on": "ubuntu-latest",
+});
 
 implementUpdateProjectJob.addSteps([
-  checkoutStep,
-  scripts.updateProjectStatusInProgress({
-    GH_TOKEN: '${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}',
-    ISSUE_NUMBER: '${{ github.event.issue.number }}',
+  updateProjectStatusStep({
+    GH_TOKEN: "${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}",
+    ISSUE_NUMBER: "${{ github.event.issue.number }}",
+    TARGET_STATUS: "In progress",
   }),
-])
+]);
 
 // Implement prompt
 const implementPrompt = `Implement issue #\${{ github.event.issue.number }}: "\${{ needs.implement-check.outputs.issue_title }}"
@@ -333,67 +359,73 @@ If an edit fails because the text is not found, the change may already be applie
 10. Create DRAFT PR with \`gh pr create --draft --reviewer nopo-bot\`
     - Body MUST contain "Fixes #\${{ github.event.issue.number }}"
 
-If you notice conflicts with other open PRs, note them in the PR description.`
+If you notice conflicts with other open PRs, note them in the PR description.`;
 
 // Implement job
-const implementJob = new NormalJob('implement', {
-  needs: ['implement-check', 'implement-update-project'],
+const implementJob = new NormalJob("implement", {
+  needs: ["implement-check", "implement-update-project"],
   if: "always() && needs.implement-check.outputs.should_implement == 'true'",
-  'runs-on': 'ubuntu-latest',
-})
+  "runs-on": "ubuntu-latest",
+});
 
 implementJob.addSteps([
   checkoutWithDepth(0),
   new Step({
-    name: 'Configure Git',
+    name: "Configure Git",
     run: `git config --global user.name "Claude Bot"
 git config --global user.email "claude-bot@anthropic.com"`,
   }),
-  scripts.createOrCheckoutBranch('branch', {
-    BRANCH_NAME: 'claude/issue/${{ github.event.issue.number }}',
+  createOrCheckoutBranchStep("branch", {
+    BRANCH_NAME: "claude/issue/${{ github.event.issue.number }}",
   }),
   new Step({
-    uses: 'anthropics/claude-code-action@v1',
+    uses: "anthropics/claude-code-action@v1",
     with: {
-      claude_code_oauth_token: '${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}',
-      github_token: '${{ secrets.GITHUB_TOKEN }}',
-      assignee_trigger: 'nopo-bot',
-      settings: '.claude/settings.json',
-      show_full_output: 'true',
+      claude_code_oauth_token: "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}",
+      github_token: "${{ secrets.GITHUB_TOKEN }}",
+      assignee_trigger: "nopo-bot",
+      settings: ".claude/settings.json",
+      show_full_output: "true",
       prompt: implementPrompt,
-      claude_args: '--model claude-opus-4-5-20251101 --max-turns 200',
+      claude_args: "--model claude-opus-4-5-20251101 --max-turns 200",
     },
     env: {
-      GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
+      GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
     },
   }),
-  scripts.salvagePartialProgress(
+  salvagePartialProgressStep(
     {
-      GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-      ISSUE_NUMBER: '${{ github.event.issue.number }}',
-      JOB_STATUS: '${{ job.status }}',
-      BRANCH_NAME: '${{ steps.branch.outputs.name }}',
-      GITHUB_SERVER_URL: '${{ github.server_url }}',
-      GITHUB_REPOSITORY: '${{ github.repository }}',
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      ISSUE_NUMBER: "${{ github.event.issue.number }}",
+      JOB_STATUS: "${{ job.status }}",
+      BRANCH_NAME: "${{ steps.branch.outputs.name }}",
+      GITHUB_SERVER_URL: "${{ github.server_url }}",
+      GITHUB_REPOSITORY: "${{ github.repository }}",
     },
-    'always()'
+    "always()",
   ),
-  scripts.addReaction(
-    {
-      GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-      COMMENT_ID: '${{ needs.implement-check.outputs.bot_comment_id }}',
+  new Step({
+    name: "Add reaction on completion",
+    if: "always()",
+    env: {
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      COMMENT_ID: "${{ needs.implement-check.outputs.bot_comment_id }}",
       SUCCESS: "${{ job.status == 'success' }}",
     },
-    'always()'
-  ),
-  scripts.unassignNopoBot(
+    run: `if [[ "$SUCCESS" == "true" ]]; then
+  gh api "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content="rocket"
+else
+  gh api "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content="eyes"
+fi`,
+  }),
+  unassignNopoBotStep(
     {
-      GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-      ISSUE_NUMBER: '${{ github.event.issue.number }}',
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      ISSUE_NUMBER: "${{ github.event.issue.number }}",
     },
-    'failure()'
+    "failure()",
   ),
-])
+]);
 
 // =============================================================================
 // COMMENT JOBS
@@ -440,101 +472,110 @@ gh issue comment \${{ github.event.issue.number }} --repo "$GITHUB_REPOSITORY" -
 <your detailed response to the user's SPECIFIC question/request>"
 \`\`\`
 
-NEVER leave the issue/PR without a visible response - your analysis must be posted as a comment.`
+NEVER leave the issue/PR without a visible response - your analysis must be posted as a comment.`;
 
 // Comment job
-const commentJob = new NormalJob('comment', {
-  'runs-on': 'ubuntu-latest',
+const commentJob = new NormalJob("comment", {
+  "runs-on": "ubuntu-latest",
   if: `(github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment') &&
 contains(github.event.comment.body, '@claude') &&
 github.event.comment.user.type != 'Bot'`,
-})
+});
 
 commentJob.addSteps([
-  scripts.addBotComment('bot_comment', {
-    GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-    ISSUE_NUMBER: '${{ github.event.issue.number || github.event.pull_request.number }}',
-    MESSAGE: '👀 **nopo-bot** is responding to your request...',
-    RUN_URL: '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}',
+  botStatusCommentStep("bot_comment", {
+    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+    NUMBER:
+      "${{ github.event.issue.number || github.event.pull_request.number }}",
+    MESSAGE: "👀 **nopo-bot** is responding to your request...",
+    RUN_URL:
+      "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
   }),
-  scripts.checkClaudeCommentCount({
-    GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-    PR_NUMBER: '${{ github.event.issue.number || github.event.pull_request.number }}',
+  checkClaudeCommentCountStep({
+    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+    PR_NUMBER:
+      "${{ github.event.issue.number || github.event.pull_request.number }}",
   }),
-  scripts.getPRBranch('pr_context', {
-    GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
+  getPRBranchStep("pr_context", {
+    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
     IS_PR: "${{ github.event.issue.pull_request != '' }}",
-    PR_NUMBER: '${{ github.event.issue.number }}',
+    PR_NUMBER: "${{ github.event.issue.number }}",
   }),
   new Step({
-    uses: 'actions/checkout@v4',
+    uses: "actions/checkout@v4",
     with: {
-      ref: '${{ steps.pr_context.outputs.branch }}',
-      'fetch-depth': 0,
+      ref: "${{ steps.pr_context.outputs.branch }}",
+      "fetch-depth": 0,
     },
   }),
   new Step({
-    uses: 'anthropics/claude-code-action@v1',
+    uses: "anthropics/claude-code-action@v1",
     with: {
-      claude_code_oauth_token: '${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}',
-      settings: '.claude/settings.json',
-      trigger_phrase: '@claude',
+      claude_code_oauth_token: "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}",
+      settings: ".claude/settings.json",
+      trigger_phrase: "@claude",
       prompt: commentPrompt,
-      claude_args: '--model claude-opus-4-5-20251101 --max-turns 100',
+      claude_args: "--model claude-opus-4-5-20251101 --max-turns 100",
     },
     env: {
-      GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
+      GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
     },
   }),
-  scripts.addReaction(
-    {
-      GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-      COMMENT_ID: '${{ steps.bot_comment.outputs.comment_id }}',
+  new Step({
+    name: "Add reaction on completion",
+    if: "always()",
+    env: {
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      COMMENT_ID: "${{ steps.bot_comment.outputs.comment_id }}",
       SUCCESS: "${{ job.status == 'success' }}",
     },
-    'always()'
-  ),
-])
+    run: `if [[ "$SUCCESS" == "true" ]]; then
+  gh api "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content="rocket"
+else
+  gh api "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content="eyes"
+fi`,
+  }),
+]);
 
 // =============================================================================
 // MAIN WORKFLOW
 // =============================================================================
 
-export const claudeIssueLoopWorkflow = new Workflow('claude-issue-loop', {
-  name: 'Claude Issue Loop',
+export const claudeIssueLoopWorkflow = new Workflow("claude-issue-loop", {
+  name: "Claude Issue Loop",
   on: {
     issues: {
-      types: ['opened', 'edited', 'assigned', 'unlabeled'],
+      types: ["opened", "edited", "assigned", "unlabeled"],
     },
     issue_comment: {
-      types: ['created'],
+      types: ["created"],
     },
     pull_request_review_comment: {
-      types: ['created'],
+      types: ["created"],
     },
     workflow_dispatch: {
       inputs: {
         issue_number: {
-          description: 'Issue number to process',
+          description: "Issue number to process",
           required: true,
-          type: 'string',
+          type: "string",
         },
         action: {
-          description: 'Action to simulate',
+          description: "Action to simulate",
           required: true,
-          type: 'choice',
-          options: ['triage', 'implement', 'respond'],
+          type: "choice",
+          options: ["triage", "implement", "respond"],
         },
       },
     },
   },
   concurrency: {
     group: ISSUE_CONCURRENCY_EXPRESSION,
-    'cancel-in-progress': false,
+    "cancel-in-progress": false,
   },
   permissions: claudeIssuePermissions,
   defaults: defaultDefaults,
-})
+});
 
 claudeIssueLoopWorkflow.addJobs([
   triageCheckJob,
@@ -543,4 +584,4 @@ claudeIssueLoopWorkflow.addJobs([
   implementUpdateProjectJob,
   implementJob,
   commentJob,
-])
+]);

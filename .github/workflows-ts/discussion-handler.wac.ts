@@ -1,8 +1,8 @@
-import { NormalJob, Step, Workflow } from '@github-actions-workflow-ts/lib'
+import { NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
 
-import { claudeActionStep } from './lib/claude-action.js'
-import { discussionPermissions } from './lib/patterns.js'
-import { checkoutStep } from './lib/steps.js'
+import { claudeActionStep } from "./lib/claude-action.js";
+import { discussionPermissions } from "./lib/patterns.js";
+import { checkoutStep } from "./lib/steps.js";
 
 // =============================================================================
 // PROMPTS
@@ -69,7 +69,7 @@ Structure (include all sections that have content):
 - Recommended actions (e.g., "Use /plan to create issues")
 \`\`\`
 
-Write this to /tmp/discussion-updated-body.md`
+Write this to /tmp/discussion-updated-body.md`;
 
 const RESPOND_PROMPT = `You are investigating a research thread or answering a question on Discussion #\${{ github.event.client_payload.discussion_number }}.
 
@@ -142,7 +142,7 @@ Add findings to appropriate sections:
 - **Answered Questions**: \`**Q:** Question? **A:** Answer\`
 - **Data & Tables**: Link to comment with table
 - **Code References**: \`path/file.ts:123\` - Description
-- **Open Questions**: Remaining questions`
+- **Open Questions**: Remaining questions`;
 
 const RESEARCH_PROMPT = `A new discussion was created: **\${{ github.event.client_payload.discussion_title }}**
 
@@ -240,7 +240,7 @@ cat > /tmp/discussion-updated-body.md << 'DESC_EOF'
 ### Open Questions
 - List main questions being investigated
 DESC_EOF
-\`\`\``
+\`\`\``;
 
 const PLAN_PROMPT = `A user requested a plan for Discussion #\${{ github.event.client_payload.discussion_number }}.
 
@@ -317,7 +317,7 @@ The following issues have been created to implement this:
 - Any remaining questions
 \`\`\`
 
-Write this to /tmp/discussion-updated-body.md`
+Write this to /tmp/discussion-updated-body.md`;
 
 // =============================================================================
 // GRAPHQL QUERIES
@@ -330,7 +330,7 @@ const GET_DISCUSSION_QUERY = `query($owner: String!, $repo: String!, $number: In
       body
     }
   }
-}`
+}`;
 
 const ADD_REACTION_MUTATION = `mutation($subjectId: ID!) {
   addReaction(input: {
@@ -339,7 +339,7 @@ const ADD_REACTION_MUTATION = `mutation($subjectId: ID!) {
   }) {
     reaction { id }
   }
-}`
+}`;
 
 const ADD_DISCUSSION_COMMENT_MUTATION = `mutation($discussionId: ID!, $body: String!) {
   addDiscussionComment(input: {
@@ -348,7 +348,7 @@ const ADD_DISCUSSION_COMMENT_MUTATION = `mutation($discussionId: ID!, $body: Str
   }) {
     comment { id }
   }
-}`
+}`;
 
 const ADD_THREADED_COMMENT_MUTATION = `mutation($discussionId: ID!, $replyToId: ID!, $body: String!) {
   addDiscussionComment(input: {
@@ -358,7 +358,7 @@ const ADD_THREADED_COMMENT_MUTATION = `mutation($discussionId: ID!, $replyToId: 
   }) {
     comment { id }
   }
-}`
+}`;
 
 const GET_COMMENT_PARENT_QUERY = `query($commentId: ID!) {
   node(id: $commentId) {
@@ -372,7 +372,7 @@ const GET_COMMENT_PARENT_QUERY = `query($commentId: ID!) {
       }
     }
   }
-}`
+}`;
 
 const UPDATE_DISCUSSION_BODY_MUTATION = `mutation($discussionId: ID!, $body: String!) {
   updateDiscussion(input: {
@@ -381,7 +381,7 @@ const UPDATE_DISCUSSION_BODY_MUTATION = `mutation($discussionId: ID!, $body: Str
   }) {
     discussion { id }
   }
-}`
+}`;
 
 // =============================================================================
 // SHELL SCRIPTS
@@ -395,11 +395,11 @@ discussion_id=$(echo "$discussion_data" | jq -r '.data.repository.discussion.id'
 echo "discussion_id=$discussion_id" >> $GITHUB_OUTPUT
 
 # Store body in a file to handle multiline content safely
-echo "$discussion_data" | jq -r '.data.repository.discussion.body' > /tmp/discussion-original-body.txt`
+echo "$discussion_data" | jq -r '.data.repository.discussion.body' > /tmp/discussion-original-body.txt`;
 
 const ADD_EYES_REACTION_SCRIPT = `gh api graphql -f query='
   ${ADD_REACTION_MUTATION}
-' -f subjectId="$COMMENT_ID"`
+' -f subjectId="$COMMENT_ID"`;
 
 const POST_SUMMARY_COMMENT_SCRIPT = `if [[ ! -f /tmp/discussion-summary.md ]]; then
   echo "No summary file found"
@@ -408,7 +408,7 @@ fi
 
 gh api graphql -f query='
   ${ADD_DISCUSSION_COMMENT_MUTATION}
-' -f discussionId="$DISCUSSION_ID" -F body=@/tmp/discussion-summary.md`
+' -f discussionId="$DISCUSSION_ID" -F body=@/tmp/discussion-summary.md`;
 
 const FIND_THREAD_ROOT_SCRIPT = `# Query the comment to see if it has a parent (replyTo)
 comment_data=$(gh api graphql -f query='
@@ -426,7 +426,7 @@ root_id=$(echo "$comment_data" | jq -r '
 
 echo "Original comment: $COMMENT_ID"
 echo "Root comment: $root_id"
-echo "root_comment_id=$root_id" >> $GITHUB_OUTPUT`
+echo "root_comment_id=$root_id" >> $GITHUB_OUTPUT`;
 
 const POST_THREADED_RESPONSE_SCRIPT = `if [[ ! -f /tmp/discussion-response.md ]]; then
   echo "No response file found"
@@ -435,7 +435,7 @@ fi
 
 gh api graphql -f query='
   ${ADD_THREADED_COMMENT_MUTATION}
-' -f discussionId="$DISCUSSION_ID" -f replyToId="$REPLY_TO_ID" -F body=@/tmp/discussion-response.md`
+' -f discussionId="$DISCUSSION_ID" -f replyToId="$REPLY_TO_ID" -F body=@/tmp/discussion-response.md`;
 
 const ADD_SUCCESS_REACTION_SCRIPT = `gh api graphql -f query='
   mutation($subjectId: ID!) {
@@ -446,7 +446,7 @@ const ADD_SUCCESS_REACTION_SCRIPT = `gh api graphql -f query='
       reaction { id }
     }
   }
-' -f subjectId="$COMMENT_ID"`
+' -f subjectId="$COMMENT_ID"`;
 
 const HANDLE_RESPOND_FAILURE_SCRIPT = `# Add thumbs down to the original comment
 gh api graphql -f query='
@@ -465,7 +465,7 @@ gh api graphql -f query='
   ${ADD_THREADED_COMMENT_MUTATION}
 ' -f discussionId="$DISCUSSION_ID" -f replyToId="\${ROOT_COMMENT_ID:-$COMMENT_ID}" -f body="⚠️ **Failed to process your question**
 
-See [workflow run]($RUN_URL) for details."`
+See [workflow run]($RUN_URL) for details."`;
 
 const DEBUG_LIST_FILES_SCRIPT = `echo "=== Files in /tmp ==="
 ls -la /tmp/research-thread-*.md 2>/dev/null || echo "No research-thread files found"
@@ -478,7 +478,7 @@ for file in /tmp/research-thread-*.md; do
     head -20 "$file"
     echo ""
   fi
-done`
+done`;
 
 const POST_RESEARCH_THREADS_SCRIPT = `# Check if files exist
 if ! ls /tmp/research-thread-*.md 1> /dev/null 2>&1; then
@@ -518,7 +518,7 @@ for file in /tmp/research-thread-*.md; do
 done
 
 echo "Successfully posted $file_count research threads"
-echo "Comments posted with PAT - webhooks will trigger dispatcher automatically"`
+echo "Comments posted with PAT - webhooks will trigger dispatcher automatically"`;
 
 const POST_PLAN_COMMENT_SCRIPT = `if [[ ! -f /tmp/discussion-plan-summary.md ]]; then
   echo "No plan summary file found"
@@ -527,7 +527,7 @@ fi
 
 gh api graphql -f query='
   ${ADD_THREADED_COMMENT_MUTATION}
-' -f discussionId="$DISCUSSION_ID" -f replyToId="$REPLY_TO_ID" -F body=@/tmp/discussion-plan-summary.md`
+' -f discussionId="$DISCUSSION_ID" -f replyToId="$REPLY_TO_ID" -F body=@/tmp/discussion-plan-summary.md`;
 
 const ADD_ROCKET_REACTION_SCRIPT = `gh api graphql -f query='
   mutation($subjectId: ID!) {
@@ -538,13 +538,13 @@ const ADD_ROCKET_REACTION_SCRIPT = `gh api graphql -f query='
       reaction { id }
     }
   }
-' -f subjectId="$COMMENT_ID"`
+' -f subjectId="$COMMENT_ID"`;
 
 const POST_COMPLETION_MESSAGE_SCRIPT = `gh api graphql -f query='
   ${ADD_DISCUSSION_COMMENT_MUTATION}
 ' -f discussionId="$DISCUSSION_ID" -f body="✅ **This discussion thread has been marked as complete.**
 
-If you have additional questions, feel free to post a new comment!"`
+If you have additional questions, feel free to post a new comment!"`;
 
 const UPDATE_DESCRIPTION_SCRIPT = `# Find any updated body file
 if [[ -d /tmp/updated-bodies ]]; then
@@ -562,340 +562,340 @@ gh api graphql -f query='
   ${UPDATE_DISCUSSION_BODY_MUTATION}
 ' -f discussionId="$DISCUSSION_ID" -F body=@"$updated_file"
 
-echo "✅ Discussion description updated"`
+echo "✅ Discussion description updated"`;
 
 // =============================================================================
 // SHARED STEPS
 // =============================================================================
 
 const downloadOriginalBodyStep = new Step({
-  name: 'Download original body',
-  uses: 'actions/download-artifact@v4',
+  name: "Download original body",
+  uses: "actions/download-artifact@v4",
   with: {
-    name: 'discussion-original-body',
-    path: '/tmp',
+    name: "discussion-original-body",
+    path: "/tmp",
   },
-})
+});
 
 const uploadUpdatedBodyStep = (suffix: string) =>
   new Step({
-    name: 'Upload updated body',
-    if: 'always()',
-    uses: 'actions/upload-artifact@v4',
+    name: "Upload updated body",
+    if: "always()",
+    uses: "actions/upload-artifact@v4",
     with: {
       name: `discussion-updated-body-${suffix}`,
-      path: '/tmp/discussion-updated-body.md',
-      'if-no-files-found': 'ignore',
+      path: "/tmp/discussion-updated-body.md",
+      "if-no-files-found": "ignore",
     },
-  })
+  });
 
 // =============================================================================
 // JOBS
 // =============================================================================
 
-const prepareJob = new NormalJob('prepare', {
-  'runs-on': 'ubuntu-latest',
+const prepareJob = new NormalJob("prepare", {
+  "runs-on": "ubuntu-latest",
   permissions: {
-    contents: 'read',
-    discussions: 'write',
-    'id-token': 'write',
+    contents: "read",
+    discussions: "write",
+    "id-token": "write",
   },
   outputs: {
-    discussion_id: '${{ steps.get_id.outputs.discussion_id }}',
-    discussion_body: '${{ steps.get_id.outputs.discussion_body }}',
-    action_type: '${{ github.event.client_payload.action_type }}',
+    discussion_id: "${{ steps.get_id.outputs.discussion_id }}",
+    discussion_body: "${{ steps.get_id.outputs.discussion_body }}",
+    action_type: "${{ github.event.client_payload.action_type }}",
   },
 }).addSteps([
   new Step({
-    name: 'Get discussion ID and body',
-    id: 'get_id',
+    name: "Get discussion ID and body",
+    id: "get_id",
     env: {
-      GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-      DISCUSSION_NUMBER: '${{ github.event.client_payload.discussion_number }}',
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      DISCUSSION_NUMBER: "${{ github.event.client_payload.discussion_number }}",
     },
     run: GET_DISCUSSION_ID_SCRIPT,
   }),
   new Step({
-    name: 'Upload original body',
-    uses: 'actions/upload-artifact@v4',
+    name: "Upload original body",
+    uses: "actions/upload-artifact@v4",
     with: {
-      name: 'discussion-original-body',
-      path: '/tmp/discussion-original-body.txt',
-      'retention-days': 1,
+      name: "discussion-original-body",
+      path: "/tmp/discussion-original-body.txt",
+      "retention-days": 1,
     },
   }),
   new Step({
-    name: 'Add eyes reaction if responding',
+    name: "Add eyes reaction if responding",
     if: "github.event.client_payload.action_type == 'respond'",
     env: {
-      GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-      COMMENT_ID: '${{ github.event.client_payload.comment_id }}',
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      COMMENT_ID: "${{ github.event.client_payload.comment_id }}",
     },
     run: ADD_EYES_REACTION_SCRIPT,
   }),
-])
+]);
 
-const summarizeJob = new NormalJob('summarize', {
-  needs: ['prepare'],
+const summarizeJob = new NormalJob("summarize", {
+  needs: ["prepare"],
   if: "github.event.client_payload.action_type == 'summarize'",
-  'runs-on': 'ubuntu-latest',
+  "runs-on": "ubuntu-latest",
   permissions: {
-    contents: 'read',
-    discussions: 'write',
-    'id-token': 'write',
+    contents: "read",
+    discussions: "write",
+    "id-token": "write",
   },
 }).addSteps([
   checkoutStep,
   downloadOriginalBodyStep,
   claudeActionStep({
-    id: 'claude',
+    id: "claude",
     prompt: SUMMARIZE_PROMPT,
     maxTurns: 50,
-    settings: '.claude/settings.json',
+    settings: ".claude/settings.json",
     showFullOutput: true,
-    secretsTokenName: 'CLAUDE_CODE_OAUTH_TOKEN',
+    secretsTokenName: "CLAUDE_CODE_OAUTH_TOKEN",
     env: {
-      GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
     },
   }),
   new Step({
-    name: 'Post summary comment',
-    if: 'always()',
+    name: "Post summary comment",
+    if: "always()",
     env: {
-      GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-      DISCUSSION_ID: '${{ needs.prepare.outputs.discussion_id }}',
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      DISCUSSION_ID: "${{ needs.prepare.outputs.discussion_id }}",
     },
     run: POST_SUMMARY_COMMENT_SCRIPT,
   }),
-  uploadUpdatedBodyStep('summarize'),
-])
+  uploadUpdatedBodyStep("summarize"),
+]);
 
-const respondJob = new NormalJob('respond', {
-  needs: ['prepare'],
+const respondJob = new NormalJob("respond", {
+  needs: ["prepare"],
   if: "github.event.client_payload.action_type == 'respond'",
-  'runs-on': 'ubuntu-latest',
+  "runs-on": "ubuntu-latest",
   permissions: {
-    contents: 'read',
-    discussions: 'write',
-    'id-token': 'write',
+    contents: "read",
+    discussions: "write",
+    "id-token": "write",
   },
 }).addSteps([
   checkoutStep,
   downloadOriginalBodyStep,
   claudeActionStep({
-    id: 'claude',
+    id: "claude",
     prompt: RESPOND_PROMPT,
     maxTurns: 100,
-    settings: '.claude/settings.json',
+    settings: ".claude/settings.json",
     showFullOutput: true,
-    secretsTokenName: 'CLAUDE_CODE_OAUTH_TOKEN',
+    secretsTokenName: "CLAUDE_CODE_OAUTH_TOKEN",
     env: {
-      GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
     },
   }),
   new Step({
-    name: 'Find thread root comment',
-    id: 'find_root',
+    name: "Find thread root comment",
+    id: "find_root",
     env: {
-      GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-      DISCUSSION_ID: '${{ needs.prepare.outputs.discussion_id }}',
-      COMMENT_ID: '${{ github.event.client_payload.comment_id }}',
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      DISCUSSION_ID: "${{ needs.prepare.outputs.discussion_id }}",
+      COMMENT_ID: "${{ github.event.client_payload.comment_id }}",
     },
     run: FIND_THREAD_ROOT_SCRIPT,
   }),
   new Step({
-    name: 'Post response comment',
-    if: 'always()',
+    name: "Post response comment",
+    if: "always()",
     env: {
-      GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-      DISCUSSION_ID: '${{ needs.prepare.outputs.discussion_id }}',
-      REPLY_TO_ID: '${{ steps.find_root.outputs.root_comment_id }}',
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      DISCUSSION_ID: "${{ needs.prepare.outputs.discussion_id }}",
+      REPLY_TO_ID: "${{ steps.find_root.outputs.root_comment_id }}",
     },
     run: POST_THREADED_RESPONSE_SCRIPT,
   }),
-  uploadUpdatedBodyStep('respond'),
+  uploadUpdatedBodyStep("respond"),
   new Step({
-    name: 'Add success reaction',
-    if: 'success()',
+    name: "Add success reaction",
+    if: "success()",
     env: {
-      GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-      COMMENT_ID: '${{ github.event.client_payload.comment_id }}',
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      COMMENT_ID: "${{ github.event.client_payload.comment_id }}",
     },
     run: ADD_SUCCESS_REACTION_SCRIPT,
   }),
   new Step({
-    name: 'Handle failure',
-    if: 'failure()',
+    name: "Handle failure",
+    if: "failure()",
     env: {
-      GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-      DISCUSSION_ID: '${{ needs.prepare.outputs.discussion_id }}',
-      COMMENT_ID: '${{ github.event.client_payload.comment_id }}',
-      ROOT_COMMENT_ID: '${{ steps.find_root.outputs.root_comment_id }}',
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      DISCUSSION_ID: "${{ needs.prepare.outputs.discussion_id }}",
+      COMMENT_ID: "${{ github.event.client_payload.comment_id }}",
+      ROOT_COMMENT_ID: "${{ steps.find_root.outputs.root_comment_id }}",
       RUN_URL:
-        '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}',
+        "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
     },
     run: HANDLE_RESPOND_FAILURE_SCRIPT,
   }),
-])
+]);
 
-const researchJob = new NormalJob('research', {
-  needs: ['prepare'],
+const researchJob = new NormalJob("research", {
+  needs: ["prepare"],
   if: "github.event.client_payload.action_type == 'research'",
-  'runs-on': 'ubuntu-latest',
+  "runs-on": "ubuntu-latest",
   permissions: {
-    contents: 'read',
-    discussions: 'write',
-    'id-token': 'write',
+    contents: "read",
+    discussions: "write",
+    "id-token": "write",
   },
 }).addSteps([
   checkoutStep,
   downloadOriginalBodyStep,
   claudeActionStep({
-    id: 'claude',
+    id: "claude",
     prompt: RESEARCH_PROMPT,
     maxTurns: 30,
-    settings: '.claude/settings.json',
+    settings: ".claude/settings.json",
     showFullOutput: true,
-    secretsTokenName: 'CLAUDE_CODE_OAUTH_TOKEN',
+    secretsTokenName: "CLAUDE_CODE_OAUTH_TOKEN",
     env: {
-      GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
     },
   }),
   new Step({
-    name: 'Debug - List created files',
-    if: 'always()',
+    name: "Debug - List created files",
+    if: "always()",
     run: DEBUG_LIST_FILES_SCRIPT,
   }),
   new Step({
-    name: 'Post research thread comments',
-    id: 'post_threads',
-    if: 'always()',
+    name: "Post research thread comments",
+    id: "post_threads",
+    if: "always()",
     env: {
       // Use PAT to post comments so GitHub fires webhooks
       // (GITHUB_TOKEN comments don't trigger discussion_comment events)
-      GH_TOKEN: '${{ secrets.PAT_TOKEN }}',
-      DISCUSSION_ID: '${{ needs.prepare.outputs.discussion_id }}',
+      GH_TOKEN: "${{ secrets.PAT_TOKEN }}",
+      DISCUSSION_ID: "${{ needs.prepare.outputs.discussion_id }}",
     },
     run: POST_RESEARCH_THREADS_SCRIPT,
   }),
-  uploadUpdatedBodyStep('research'),
-])
+  uploadUpdatedBodyStep("research"),
+]);
 
-const planJob = new NormalJob('plan', {
-  needs: ['prepare'],
+const planJob = new NormalJob("plan", {
+  needs: ["prepare"],
   if: "github.event.client_payload.action_type == 'plan'",
-  'runs-on': 'ubuntu-latest',
+  "runs-on": "ubuntu-latest",
   permissions: {
-    contents: 'read',
-    discussions: 'write',
-    issues: 'write',
-    'id-token': 'write',
+    contents: "read",
+    discussions: "write",
+    issues: "write",
+    "id-token": "write",
   },
 }).addSteps([
   checkoutStep,
   downloadOriginalBodyStep,
   claudeActionStep({
-    id: 'claude',
+    id: "claude",
     prompt: PLAN_PROMPT,
     maxTurns: 100,
-    settings: '.claude/settings.json',
+    settings: ".claude/settings.json",
     showFullOutput: true,
-    secretsTokenName: 'CLAUDE_CODE_OAUTH_TOKEN',
+    secretsTokenName: "CLAUDE_CODE_OAUTH_TOKEN",
     env: {
-      GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
     },
   }),
   new Step({
-    name: 'Find thread root comment',
-    id: 'find_root',
+    name: "Find thread root comment",
+    id: "find_root",
     env: {
-      GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-      COMMENT_ID: '${{ github.event.client_payload.comment_id }}',
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      COMMENT_ID: "${{ github.event.client_payload.comment_id }}",
     },
     run: FIND_THREAD_ROOT_SCRIPT,
   }),
   new Step({
-    name: 'Post plan summary comment',
-    if: 'always()',
+    name: "Post plan summary comment",
+    if: "always()",
     env: {
-      GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-      DISCUSSION_ID: '${{ needs.prepare.outputs.discussion_id }}',
-      REPLY_TO_ID: '${{ steps.find_root.outputs.root_comment_id }}',
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      DISCUSSION_ID: "${{ needs.prepare.outputs.discussion_id }}",
+      REPLY_TO_ID: "${{ steps.find_root.outputs.root_comment_id }}",
     },
     run: POST_PLAN_COMMENT_SCRIPT,
   }),
-  uploadUpdatedBodyStep('plan'),
-])
+  uploadUpdatedBodyStep("plan"),
+]);
 
-const completeJob = new NormalJob('complete', {
-  needs: ['prepare'],
+const completeJob = new NormalJob("complete", {
+  needs: ["prepare"],
   if: "github.event.client_payload.action_type == 'complete'",
-  'runs-on': 'ubuntu-latest',
+  "runs-on": "ubuntu-latest",
   permissions: {
-    contents: 'read',
-    discussions: 'write',
-    'id-token': 'write',
+    contents: "read",
+    discussions: "write",
+    "id-token": "write",
   },
 }).addSteps([
   new Step({
-    name: 'Add rocket reaction',
+    name: "Add rocket reaction",
     env: {
-      GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-      COMMENT_ID: '${{ github.event.client_payload.comment_id }}',
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      COMMENT_ID: "${{ github.event.client_payload.comment_id }}",
     },
     run: ADD_ROCKET_REACTION_SCRIPT,
   }),
   new Step({
-    name: 'Post completion message',
+    name: "Post completion message",
     env: {
-      GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-      DISCUSSION_ID: '${{ needs.prepare.outputs.discussion_id }}',
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      DISCUSSION_ID: "${{ needs.prepare.outputs.discussion_id }}",
     },
     run: POST_COMPLETION_MESSAGE_SCRIPT,
   }),
-])
+]);
 
-const updateDescriptionJob = new NormalJob('update-description', {
-  needs: ['prepare', 'summarize', 'respond', 'research', 'plan'],
-  if: 'always() && !cancelled()',
-  'runs-on': 'ubuntu-latest',
+const updateDescriptionJob = new NormalJob("update-description", {
+  needs: ["prepare", "summarize", "respond", "research", "plan"],
+  if: "always() && !cancelled()",
+  "runs-on": "ubuntu-latest",
   permissions: {
-    discussions: 'write',
+    discussions: "write",
   },
 }).addSteps([
   new Step({
-    name: 'Download updated body (try all sources)',
-    uses: 'actions/download-artifact@v4',
+    name: "Download updated body (try all sources)",
+    uses: "actions/download-artifact@v4",
     with: {
-      pattern: 'discussion-updated-body-*',
-      'merge-multiple': true,
-      path: '/tmp/updated-bodies',
+      pattern: "discussion-updated-body-*",
+      "merge-multiple": true,
+      path: "/tmp/updated-bodies",
     },
-    'continue-on-error': true,
+    "continue-on-error": true,
   }),
   new Step({
-    name: 'Find and apply updated body',
+    name: "Find and apply updated body",
     env: {
-      GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-      DISCUSSION_ID: '${{ needs.prepare.outputs.discussion_id }}',
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      DISCUSSION_ID: "${{ needs.prepare.outputs.discussion_id }}",
     },
     run: UPDATE_DESCRIPTION_SCRIPT,
   }),
-])
+]);
 
 // =============================================================================
 // WORKFLOW
 // =============================================================================
 
-const workflow = new Workflow('discussion-handler', {
-  name: 'Discussion Handler',
+const workflow = new Workflow("discussion-handler", {
+  name: "Discussion Handler",
   on: {
     repository_dispatch: {
-      types: ['discussion_event'],
+      types: ["discussion_event"],
     },
   },
   permissions: discussionPermissions,
-})
+});
 
 workflow.addJobs([
   prepareJob,
@@ -905,6 +905,6 @@ workflow.addJobs([
   planJob,
   completeJob,
   updateDescriptionJob,
-])
+]);
 
-export default workflow
+export default workflow;

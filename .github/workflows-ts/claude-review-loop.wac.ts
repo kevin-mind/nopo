@@ -1,61 +1,68 @@
-import { NormalJob, Step, Workflow } from '@github-actions-workflow-ts/lib'
-import { checkoutStep, checkoutWithDepth } from './lib/steps'
-import { claudeReviewPermissions, defaultDefaults } from './lib/patterns'
-import { scripts } from './lib/scripts'
+import { NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
+import { checkoutStep } from "./lib/steps";
+import { claudeReviewPermissions, defaultDefaults } from "./lib/patterns";
+import {
+  botStatusCommentStep,
+  extractLinkedIssueStep,
+  updateProjectStatusStep,
+  checkClaudePRStep,
+} from "./lib/gh";
 
 // =============================================================================
 // REVIEW REQUEST JOBS
 // =============================================================================
 
 // Request setup job
-const requestSetupJob = new NormalJob('request-setup', {
+const requestSetupJob = new NormalJob("request-setup", {
   if: `github.event_name == 'pull_request' &&
 github.event.requested_reviewer.login == 'nopo-bot'`,
-  'runs-on': 'ubuntu-latest',
+  "runs-on": "ubuntu-latest",
   outputs: {
-    pr_branch: '${{ github.event.pull_request.head.ref }}',
-    pr_number: '${{ github.event.pull_request.number }}',
-    is_draft: '${{ github.event.pull_request.draft }}',
-    issue_number: '${{ steps.issue.outputs.number }}',
-    issue_body: '${{ steps.issue.outputs.body }}',
-    has_issue: '${{ steps.issue.outputs.has_issue }}',
-    bot_comment_id: '${{ steps.bot_comment.outputs.comment_id }}',
+    pr_branch: "${{ github.event.pull_request.head.ref }}",
+    pr_number: "${{ github.event.pull_request.number }}",
+    is_draft: "${{ github.event.pull_request.draft }}",
+    issue_number: "${{ steps.issue.outputs.number }}",
+    issue_body: "${{ steps.issue.outputs.body }}",
+    has_issue: "${{ steps.issue.outputs.has_issue }}",
+    bot_comment_id: "${{ steps.bot_comment.outputs.comment_id }}",
   },
-})
+});
 
 requestSetupJob.addSteps([
   checkoutStep,
   new Step({
-    name: 'Check if draft',
-    if: 'github.event.pull_request.draft == true',
+    name: "Check if draft",
+    if: "github.event.pull_request.draft == true",
     run: `echo "::warning::PR #\${{ github.event.pull_request.number }} is a draft. Skipping review."
 exit 1`,
   }),
-  scripts.addBotComment('bot_comment', {
-    GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-    PR_NUMBER: '${{ github.event.pull_request.number }}',
-    MESSAGE: '👀 **nopo-bot** is reviewing this PR...',
-    RUN_URL: '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}',
+  botStatusCommentStep("bot_comment", {
+    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+    NUMBER: "${{ github.event.pull_request.number }}",
+    MESSAGE: "👀 **nopo-bot** is reviewing this PR...",
+    RUN_URL:
+      "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
   }),
-  scripts.extractLinkedIssue('issue', {
-    GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-    PR_NUMBER: '${{ github.event.pull_request.number }}',
+  extractLinkedIssueStep("issue", {
+    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+    PR_NUMBER: "${{ github.event.pull_request.number }}",
   }),
-])
+]);
 
 // Request update project job
-const requestUpdateProjectJob = new NormalJob('request-update-project', {
-  needs: ['request-setup'],
+const requestUpdateProjectJob = new NormalJob("request-update-project", {
+  needs: ["request-setup"],
   if: "needs.request-setup.outputs.has_issue == 'true'",
-  'runs-on': 'ubuntu-latest',
-})
+  "runs-on": "ubuntu-latest",
+});
 
 requestUpdateProjectJob.addSteps([
-  scripts.updateProjectStatusInReview({
-    GH_TOKEN: '${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}',
-    ISSUE_NUMBER: '${{ needs.request-setup.outputs.issue_number }}',
+  updateProjectStatusStep({
+    GH_TOKEN: "${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}",
+    ISSUE_NUMBER: "${{ needs.request-setup.outputs.issue_number }}",
+    TARGET_STATUS: "In review",
   }),
-])
+]);
 
 // Review prompt
 const reviewPrompt = `You are reviewing PR #\${{ needs.request-setup.outputs.pr_number }} on behalf of nopo-bot.
@@ -136,56 +143,62 @@ Submit your review using \`gh pr review \${{ needs.request-setup.outputs.pr_numb
 
 IMPORTANT:
 - You may APPROVE but must NOT merge
-- A human will make the final merge decision`
+- A human will make the final merge decision`;
 
 // Request review job
-const requestReviewJob = new NormalJob('request-review', {
-  needs: ['request-setup', 'request-update-project'],
+const requestReviewJob = new NormalJob("request-review", {
+  needs: ["request-setup", "request-update-project"],
   if: "always() && needs.request-setup.result == 'success'",
-  'runs-on': 'ubuntu-latest',
-})
+  "runs-on": "ubuntu-latest",
+});
 
 requestReviewJob.addSteps([
   new Step({
-    uses: 'actions/checkout@v4',
+    uses: "actions/checkout@v4",
     with: {
-      ref: '${{ needs.request-setup.outputs.pr_branch }}',
-      'fetch-depth': 0,
+      ref: "${{ needs.request-setup.outputs.pr_branch }}",
+      "fetch-depth": 0,
     },
   }),
   new Step({
-    uses: 'anthropics/claude-code-action@v1',
+    uses: "anthropics/claude-code-action@v1",
     with: {
-      claude_code_oauth_token: '${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}',
-      settings: '.claude/settings.json',
+      claude_code_oauth_token: "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}",
+      settings: ".claude/settings.json",
       prompt: reviewPrompt,
-      claude_args: '--model claude-opus-4-5-20251101 --max-turns 50',
+      claude_args: "--model claude-opus-4-5-20251101 --max-turns 50",
     },
     env: {
-      GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
+      GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
     },
   }),
-  scripts.addReaction(
-    {
-      GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-      COMMENT_ID: '${{ needs.request-setup.outputs.bot_comment_id }}',
+  new Step({
+    name: "Add reaction on completion",
+    if: "always()",
+    env: {
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      COMMENT_ID: "${{ needs.request-setup.outputs.bot_comment_id }}",
       SUCCESS: "${{ job.status == 'success' }}",
     },
-    'always()'
-  ),
+    run: `if [[ "$SUCCESS" == "true" ]]; then
+  gh api "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content="rocket"
+else
+  gh api "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content="eyes"
+fi`,
+  }),
   new Step({
-    name: 'Remove nopo-bot from requested reviewers',
-    if: 'always()',
+    name: "Remove nopo-bot from requested reviewers",
+    if: "always()",
     env: {
-      GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-      PR_NUMBER: '${{ needs.request-setup.outputs.pr_number }}',
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      PR_NUMBER: "${{ needs.request-setup.outputs.pr_number }}",
     },
     run: `# Remove nopo-bot from requested reviewers so it can be re-requested later
 # This allows the CI-success workflow to trigger a new review cycle
 gh pr edit "$PR_NUMBER" --remove-reviewer "nopo-bot" || true
 echo "Removed nopo-bot from requested reviewers"`,
   }),
-])
+]);
 
 // =============================================================================
 // REVIEW RESPONSE JOBS
@@ -247,43 +260,43 @@ IMPORTANT:
 - ALWAYS post a comment with your findings - never leave the PR without feedback
 - Make atomic commits for each change
 - Reference the comment in each commit message
-- Follow CLAUDE.md guidelines for all code changes`
+- Follow CLAUDE.md guidelines for all code changes`;
 
 // Response process job
-const responseProcessJob = new NormalJob('response-process', {
+const responseProcessJob = new NormalJob("response-process", {
   if: `github.event_name == 'pull_request_review' &&
 github.event.review.user.login == 'claude[bot]' &&
 github.event.pull_request.draft == false &&
 (github.event.review.state == 'CHANGES_REQUESTED' || github.event.review.state == 'COMMENTED')`,
-  'runs-on': 'ubuntu-latest',
-})
+  "runs-on": "ubuntu-latest",
+});
 
 responseProcessJob.addSteps([
   new Step({
-    uses: 'actions/checkout@v4',
+    uses: "actions/checkout@v4",
     with: {
-      ref: '${{ github.event.pull_request.head.ref }}',
-      'fetch-depth': 0,
+      ref: "${{ github.event.pull_request.head.ref }}",
+      "fetch-depth": 0,
     },
   }),
   new Step({
-    name: 'Configure Git',
+    name: "Configure Git",
     run: `git config --global user.name "Claude Bot"
 git config --global user.email "claude-bot@anthropic.com"`,
   }),
   new Step({
-    uses: 'anthropics/claude-code-action@v1',
+    uses: "anthropics/claude-code-action@v1",
     with: {
-      claude_code_oauth_token: '${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}',
-      settings: '.claude/settings.json',
+      claude_code_oauth_token: "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}",
+      settings: ".claude/settings.json",
       prompt: responseProcessPrompt,
-      claude_args: '--model claude-opus-4-5-20251101 --max-turns 50',
+      claude_args: "--model claude-opus-4-5-20251101 --max-turns 50",
     },
     env: {
-      GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
+      GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
     },
   }),
-])
+]);
 
 // =============================================================================
 // HUMAN REVIEW RESPONSE JOB
@@ -335,76 +348,76 @@ gh pr edit \${{ github.event.pull_request.number }} --add-reviewer "nopo-bot"
 IMPORTANT:
 - Address ALL feedback from the human reviewer
 - Make atomic commits for each change
-- Follow CLAUDE.md guidelines`
+- Follow CLAUDE.md guidelines`;
 
 // Human review response job
-const humanReviewResponseJob = new NormalJob('human-review-response', {
+const humanReviewResponseJob = new NormalJob("human-review-response", {
   if: `github.event_name == 'pull_request_review' &&
 github.event.review.user.login != 'claude[bot]' &&
 github.event.pull_request.draft == false &&
 (github.event.review.state == 'CHANGES_REQUESTED' || github.event.review.state == 'COMMENTED')`,
-  'runs-on': 'ubuntu-latest',
-})
+  "runs-on": "ubuntu-latest",
+});
 
 humanReviewResponseJob.addSteps([
-  scripts.checkClaudeAuthoredPR('check_author', {
-    GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-    PR_NUMBER: '${{ github.event.pull_request.number }}',
+  checkClaudePRStep("check_author", {
+    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+    PR_NUMBER: "${{ github.event.pull_request.number }}",
   }),
   new Step({
-    uses: 'actions/checkout@v4',
+    uses: "actions/checkout@v4",
     if: "steps.check_author.outputs.is_claude_pr == 'true'",
     with: {
-      ref: '${{ github.event.pull_request.head.ref }}',
-      'fetch-depth': 0,
+      ref: "${{ github.event.pull_request.head.ref }}",
+      "fetch-depth": 0,
     },
   }),
   new Step({
-    name: 'Configure Git',
+    name: "Configure Git",
     if: "steps.check_author.outputs.is_claude_pr == 'true'",
     run: `git config --global user.name "Claude Bot"
 git config --global user.email "claude-bot@anthropic.com"`,
   }),
   new Step({
-    uses: 'anthropics/claude-code-action@v1',
+    uses: "anthropics/claude-code-action@v1",
     if: "steps.check_author.outputs.is_claude_pr == 'true'",
     with: {
-      claude_code_oauth_token: '${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}',
-      settings: '.claude/settings.json',
+      claude_code_oauth_token: "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}",
+      settings: ".claude/settings.json",
       prompt: humanReviewResponsePrompt,
-      claude_args: '--model claude-opus-4-5-20251101 --max-turns 50',
+      claude_args: "--model claude-opus-4-5-20251101 --max-turns 50",
     },
     env: {
-      GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
+      GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
     },
   }),
-])
+]);
 
 // =============================================================================
 // MAIN WORKFLOW
 // =============================================================================
 
-export const claudeReviewLoopWorkflow = new Workflow('claude-review-loop', {
-  name: 'Claude Review Loop',
+export const claudeReviewLoopWorkflow = new Workflow("claude-review-loop", {
+  name: "Claude Review Loop",
   on: {
     pull_request: {
-      types: ['review_requested'],
+      types: ["review_requested"],
     },
     pull_request_review: {
-      types: ['submitted'],
+      types: ["submitted"],
     },
     workflow_dispatch: {
       inputs: {
         pr_number: {
-          description: 'PR number to review',
+          description: "PR number to review",
           required: true,
-          type: 'string',
+          type: "string",
         },
         action: {
-          description: 'Action to simulate',
+          description: "Action to simulate",
           required: true,
-          type: 'choice',
-          options: ['review', 'respond'],
+          type: "choice",
+          options: ["review", "respond"],
         },
       },
     },
@@ -415,12 +428,12 @@ export const claudeReviewLoopWorkflow = new Workflow('claude-review-loop', {
   // - Review loop uses cancel-in-progress: false (queues, doesn't cancel itself)
   // This prevents race conditions where review acts on stale code.
   concurrency: {
-    group: 'claude-review-${{ github.event.pull_request.head.ref }}',
-    'cancel-in-progress': false,
+    group: "claude-review-${{ github.event.pull_request.head.ref }}",
+    "cancel-in-progress": false,
   },
   permissions: claudeReviewPermissions,
   defaults: defaultDefaults,
-})
+});
 
 claudeReviewLoopWorkflow.addJobs([
   requestSetupJob,
@@ -428,4 +441,4 @@ claudeReviewLoopWorkflow.addJobs([
   requestReviewJob,
   responseProcessJob,
   humanReviewResponseJob,
-])
+]);

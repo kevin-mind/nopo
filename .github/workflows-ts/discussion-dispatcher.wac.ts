@@ -1,5 +1,8 @@
-import { NormalJob, Step, Workflow } from '@github-actions-workflow-ts/lib'
-import { defaultDefaults, discussionDispatcherPermissions } from './lib/patterns'
+import { NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
+import {
+  defaultDefaults,
+  discussionDispatcherPermissions,
+} from "./lib/patterns";
 
 // GitHub Script to dispatch discussion events to the handler workflow
 const dispatchScript = `
@@ -70,37 +73,40 @@ await github.rest.repos.createDispatchEvent({
 });
 
 console.log(\`Dispatched \${actionType} event for discussion #\${discussionNumber}\`);
-`.trim()
+`.trim();
 
 // Dispatch job
-const dispatchJob = new NormalJob('dispatch', {
-  'runs-on': 'ubuntu-latest',
-})
+const dispatchJob = new NormalJob("dispatch", {
+  "runs-on": "ubuntu-latest",
+});
 
 dispatchJob.addSteps([
   new Step({
-    name: 'Dispatch to handler',
-    uses: 'actions/github-script@v7',
+    name: "Dispatch to handler",
+    uses: "actions/github-script@v7",
     with: {
-      'github-token': '${{ secrets.GITHUB_TOKEN }}',
+      "github-token": "${{ secrets.GITHUB_TOKEN }}",
       script: dispatchScript,
     },
   }),
-])
+]);
 
 // Main workflow
-export const discussionDispatcherWorkflow = new Workflow('discussion-dispatcher', {
-  name: 'Discussion Event Dispatcher',
-  on: {
-    discussion: {
-      types: ['created', 'edited'],
+export const discussionDispatcherWorkflow = new Workflow(
+  "discussion-dispatcher",
+  {
+    name: "Discussion Event Dispatcher",
+    on: {
+      discussion: {
+        types: ["created", "edited"],
+      },
+      discussion_comment: {
+        types: ["created"],
+      },
     },
-    discussion_comment: {
-      types: ['created'],
-    },
+    permissions: discussionDispatcherPermissions,
+    defaults: defaultDefaults,
   },
-  permissions: discussionDispatcherPermissions,
-  defaults: defaultDefaults,
-})
+);
 
-discussionDispatcherWorkflow.addJobs([dispatchJob])
+discussionDispatcherWorkflow.addJobs([dispatchJob]);

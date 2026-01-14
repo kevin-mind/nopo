@@ -1,8 +1,23 @@
-#!/usr/bin/env bash
-# Detect stalled review requests where nopo-bot was requested but no review started
-# Inputs: DRY_RUN (optional, default false)
-set -euo pipefail
+/**
+ * Inline workflow steps for review loop operations.
+ * Replaces shell scripts with type-safe TypeScript step generators.
+ */
 
+import { Step } from "@github-actions-workflow-ts/lib";
+
+// =============================================================================
+// detect-stalled-reviews.sh
+// =============================================================================
+
+/**
+ * Detect stalled review requests where nopo-bot was requested but no review started.
+ * Posts diagnostic comments on PRs with stalled reviews.
+ */
+export function detectStalledReviewsStep(env: {
+  GH_TOKEN: string;
+  DRY_RUN: string;
+}): Step {
+  const script = `
 echo "Checking for PRs with stalled nopo-bot review requests..."
 
 # Get all open PRs with nopo-bot as requested reviewer
@@ -24,7 +39,7 @@ echo "$prs" | jq -c '.[]' | while read -r pr; do
   echo "PR #$pr_number has nopo-bot requested"
 
   # Check if there's a recent "reviewing" comment from nopo-bot
-  recent_comment=$(gh api "/repos/$GITHUB_REPOSITORY/issues/$pr_number/comments" \
+  recent_comment=$(gh api "/repos/$GITHUB_REPOSITORY/issues/$pr_number/comments" \\
     --jq '[.[] | select(.user.login == "github-actions[bot]" and (.body | contains("nopo-bot") and contains("reviewing")))] | sort_by(.created_at) | last // empty')
 
   if [[ -n "$recent_comment" ]]; then
@@ -35,7 +50,7 @@ echo "$prs" | jq -c '.[]' | while read -r pr; do
   fi
 
   # No recent reviewing comment - check if review was submitted
-  reviews=$(gh api "/repos/$GITHUB_REPOSITORY/pulls/$pr_number/reviews" \
+  reviews=$(gh api "/repos/$GITHUB_REPOSITORY/pulls/$pr_number/reviews" \\
     --jq '[.[] | select(.user.login == "claude[bot]")] | length')
 
   if [[ "$reviews" -gt 0 ]]; then
@@ -53,13 +68,13 @@ echo "$prs" | jq -c '.[]' | while read -r pr; do
 
   echo "  STALLED: $reason"
 
-  if [[ "${DRY_RUN:-false}" == "true" ]]; then
+  if [[ "\${DRY_RUN:-false}" == "true" ]]; then
     echo "  [DRY RUN] Would post comment to PR #$pr_number"
     continue
   fi
 
   # Check if we already posted a stalled notification recently (within 2 hours)
-  existing_notification=$(gh api "/repos/$GITHUB_REPOSITORY/issues/$pr_number/comments" \
+  existing_notification=$(gh api "/repos/$GITHUB_REPOSITORY/issues/$pr_number/comments" \\
     --jq '[.[] | select(.user.login == "github-actions[bot]" and (.body | contains("Review Request Stalled")))] | sort_by(.created_at) | last // empty')
 
   if [[ -n "$existing_notification" ]]; then
@@ -83,8 +98,8 @@ echo "$prs" | jq -c '.[]' | while read -r pr; do
 **Possible reason:** $reason
 
 **To retry:**
-1. Remove nopo-bot from reviewers: \`gh pr edit $pr_number --remove-reviewer nopo-bot\`
-2. Re-add nopo-bot: \`gh pr edit $pr_number --add-reviewer nopo-bot\`
+1. Remove nopo-bot from reviewers: \\\`gh pr edit $pr_number --remove-reviewer nopo-bot\\\`
+2. Re-add nopo-bot: \\\`gh pr edit $pr_number --add-reviewer nopo-bot\\\`
 
 Or check the [Actions tab](https://github.com/$GITHUB_REPOSITORY/actions/workflows/claude-review-loop.yml) for failed workflow runs.
 
@@ -94,3 +109,11 @@ _This is an automated diagnostic message._"
 done
 
 echo "Done checking for stalled reviews"
+`.trim();
+
+  return new Step({
+    name: "Check for stalled review requests",
+    env,
+    run: script,
+  });
+}

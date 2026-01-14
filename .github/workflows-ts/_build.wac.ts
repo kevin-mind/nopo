@@ -1,67 +1,71 @@
-import { NormalJob, Step, Workflow } from '@github-actions-workflow-ts/lib'
-import { checkoutStep, setupNodeStep } from './lib/steps'
-import { buildPermissions, defaultDefaults, emptyPermissions } from './lib/patterns'
+import { NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
+import { checkoutStep, setupNodeStep } from "./lib/steps";
+import {
+  buildPermissions,
+  defaultDefaults,
+  emptyPermissions,
+} from "./lib/patterns";
 
 // Build job
-const buildJob = new NormalJob('build', {
-  'runs-on': 'ubuntu-latest',
+const buildJob = new NormalJob("build", {
+  "runs-on": "ubuntu-latest",
   permissions: buildPermissions,
   outputs: {
-    registry: '${{ steps.output_tag.outputs.registry }}',
-    image: '${{ steps.output_tag.outputs.image }}',
-    version: '${{ steps.output_tag.outputs.version }}',
-    digest: '${{ steps.output_tag.outputs.digest }}',
-    tag: '${{ steps.output_tag.outputs.tag }}',
-    service_tags: '${{ steps.build_info.outputs.service_tags }}',
-    service_digests: '${{ steps.build_info.outputs.service_digests }}',
+    registry: "${{ steps.output_tag.outputs.registry }}",
+    image: "${{ steps.output_tag.outputs.image }}",
+    version: "${{ steps.output_tag.outputs.version }}",
+    digest: "${{ steps.output_tag.outputs.digest }}",
+    tag: "${{ steps.output_tag.outputs.tag }}",
+    service_tags: "${{ steps.build_info.outputs.service_tags }}",
+    service_digests: "${{ steps.build_info.outputs.service_digests }}",
   },
   env: {
-    build_output: 'build-output.json',
+    build_output: "build-output.json",
   },
-})
+});
 
 buildJob.addSteps([
   checkoutStep,
   setupNodeStep,
   new Step({
-    name: 'Docker meta',
-    id: 'docker_meta',
-    uses: 'docker/metadata-action@v5',
+    name: "Docker meta",
+    id: "docker_meta",
+    uses: "docker/metadata-action@v5",
     with: {
-      'bake-target': 'default',
-      tags: 'type=sha\n',
+      "bake-target": "default",
+      tags: "type=sha\n",
     },
   }),
   new Step({
-    name: 'Input tag',
-    id: 'input_tag',
-    uses: './.github/actions-ts/docker-tag',
+    name: "Input tag",
+    id: "input_tag",
+    uses: "./.github/actions-ts/docker-tag",
     with: {
-      registry: 'ghcr.io',
-      image: '${{ github.repository }}',
-      version: '${{ steps.docker_meta.outputs.version }}',
+      registry: "ghcr.io",
+      image: "${{ github.repository }}",
+      version: "${{ steps.docker_meta.outputs.version }}",
     },
   }),
   new Step({
-    name: 'Set up Docker',
-    id: 'docker',
-    uses: './.github/actions/setup-docker',
+    name: "Set up Docker",
+    id: "docker",
+    uses: "./.github/actions/setup-docker",
     with: {
       registry: "${{ inputs.push && 'ghcr.io' || '' }}",
-      username: '${{ inputs.push && github.actor || \'\' }}',
-      password: '${{ inputs.push && secrets.GITHUB_TOKEN || \'\' }}',
+      username: "${{ inputs.push && github.actor || '' }}",
+      password: "${{ inputs.push && secrets.GITHUB_TOKEN || '' }}",
     },
   }),
   new Step({
-    name: 'Build',
-    id: 'build',
+    name: "Build",
+    id: "build",
     env: {
-      DOCKER_BUILDER: '${{ steps.docker.outputs.builder }}',
-      DOCKER_TAG: '${{ steps.input_tag.outputs.tag }}',
+      DOCKER_BUILDER: "${{ steps.docker.outputs.builder }}",
+      DOCKER_TAG: "${{ steps.input_tag.outputs.tag }}",
       DOCKER_BUILD:
         "${{ format('{0}/actions/runs/{1}', github.event.repository.html_url, github.run_id) }}",
-      DOCKER_PUSH: '${{ inputs.push }}',
-      SERVICES: '${{ inputs.services }}',
+      DOCKER_PUSH: "${{ inputs.push }}",
+      SERVICES: "${{ inputs.services }}",
     },
     run: `if [[ -n "$SERVICES" ]]; then
   echo "Building specific services: $SERVICES"
@@ -73,10 +77,10 @@ fi
 `,
   }),
   new Step({
-    name: 'Extract build info',
-    id: 'build_info',
+    name: "Extract build info",
+    id: "build_info",
     env: {
-      build_output: '${{ env.build_output }}',
+      build_output: "${{ env.build_output }}",
     },
     run: `base_digest=$(jq -r '.[] | select(.name == "base") | .digest // ""' "$build_output")
 service_tags=$(jq -c '[.[] | select(.name != "base") | {key: .name, value: .tag}] | from_entries' "$build_output")
@@ -91,70 +95,72 @@ cat "$GITHUB_OUTPUT"
 `,
   }),
   new Step({
-    name: 'Output tag',
-    id: 'output_tag',
-    uses: './.github/actions-ts/docker-tag',
+    name: "Output tag",
+    id: "output_tag",
+    uses: "./.github/actions-ts/docker-tag",
     with: {
-      registry: '${{ steps.input_tag.outputs.registry }}',
-      image: '${{ steps.input_tag.outputs.image }}',
-      version: '${{ steps.input_tag.outputs.version }}',
-      digest: "${{ inputs.push && steps.build_info.outputs.base_digest || '' }}",
+      registry: "${{ steps.input_tag.outputs.registry }}",
+      image: "${{ steps.input_tag.outputs.image }}",
+      version: "${{ steps.input_tag.outputs.version }}",
+      digest:
+        "${{ inputs.push && steps.build_info.outputs.base_digest || '' }}",
     },
   }),
-])
+]);
 
 // Main workflow
-export const buildWorkflow = new Workflow('_build', {
-  name: 'Build',
+export const buildWorkflow = new Workflow("_build", {
+  name: "Build",
   on: {
     workflow_call: {
       inputs: {
         push: {
-          description: 'Whether to push the image',
+          description: "Whether to push the image",
           required: true,
-          type: 'boolean',
+          type: "boolean",
         },
         services: {
-          description: 'Space-separated list of services to build (empty = all buildable services)',
+          description:
+            "Space-separated list of services to build (empty = all buildable services)",
           required: false,
-          type: 'string',
-          default: '',
+          type: "string",
+          default: "",
         },
       },
       outputs: {
         registry: {
-          description: 'The registry of the build',
-          value: '${{ jobs.build.outputs.registry }}',
+          description: "The registry of the build",
+          value: "${{ jobs.build.outputs.registry }}",
         },
         image: {
-          description: 'The image of the build',
-          value: '${{ jobs.build.outputs.image }}',
+          description: "The image of the build",
+          value: "${{ jobs.build.outputs.image }}",
         },
         version: {
-          description: 'The version of the build',
-          value: '${{ jobs.build.outputs.version }}',
+          description: "The version of the build",
+          value: "${{ jobs.build.outputs.version }}",
         },
         digest: {
-          description: 'The digest of the build',
-          value: '${{ jobs.build.outputs.digest }}',
+          description: "The digest of the build",
+          value: "${{ jobs.build.outputs.digest }}",
         },
         tag: {
-          description: 'The tag of the build',
-          value: '${{ jobs.build.outputs.tag }}',
+          description: "The tag of the build",
+          value: "${{ jobs.build.outputs.tag }}",
         },
         service_tags: {
-          description: 'JSON object mapping service names to their image tags',
-          value: '${{ jobs.build.outputs.service_tags }}',
+          description: "JSON object mapping service names to their image tags",
+          value: "${{ jobs.build.outputs.service_tags }}",
         },
         service_digests: {
-          description: 'JSON object mapping service names to their digests',
-          value: '${{ jobs.build.outputs.service_digests }}',
+          description: "JSON object mapping service names to their digests",
+          value: "${{ jobs.build.outputs.service_digests }}",
         },
       },
     },
   },
   permissions: emptyPermissions,
   defaults: defaultDefaults,
-})
+});
 
-buildWorkflow.addJobs([buildJob])
+buildWorkflow.addJobs([buildJob]);

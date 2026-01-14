@@ -64,7 +64,52 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number || github.event.inputs.issue_number }}
-        run: bash .github/scripts/check-sub-issue.sh
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+        run: |-
+          echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
+
+          # Get issue details (needed for workflow_dispatch which doesn't have issue context)
+          issue_data=$(gh issue view "$ISSUE_NUMBER" --json "title,body")
+          issue_title=$(echo "$issue_data" | jq -r '.title')
+          echo "issue_title=$issue_title" >> $GITHUB_OUTPUT
+
+          # Store body in a file to handle multiline content
+          echo "$issue_data" | jq -r '.body' > /tmp/issue_body.txt
+          {
+            echo 'issue_body<<EOF'
+            cat /tmp/issue_body.txt
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+
+          # Check 1: Title starts with [Sub] - this catches sub-issues immediately
+          if [[ "$issue_title" == "[Sub]"* ]]; then
+            echo "Issue #$ISSUE_NUMBER has [Sub] prefix - skipping triage"
+            echo "should_triage=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Check 2: Issue has a parent (is already linked as sub-issue)
+          parent=$(gh api graphql \
+            -f query='query($owner: String!, $repo: String!, $number: Int!) {
+            repository(owner: $owner, name: $repo) {
+              issue(number: $number) {
+                parent { number }
+              }
+            }
+          }' \
+            -f owner="$GITHUB_REPOSITORY_OWNER" \
+            -f repo="${GITHUB_REPOSITORY#*/}" \
+            -F number="$ISSUE_NUMBER" \
+            -q '.data.repository.issue.parent.number // empty' \
+            -H "GraphQL-Features: sub_issues" 2>/dev/null || echo "")
+
+          if [[ -n "$parent" ]]; then
+            echo "Issue #$ISSUE_NUMBER is a sub-issue of #$parent - skipping triage"
+            echo "should_triage=false" >> $GITHUB_OUTPUT
+          else
+            echo "Issue #$ISSUE_NUMBER is not a sub-issue - proceeding with triage"
+            echo "should_triage=true" >> $GITHUB_OUTPUT
+          fi
   triage:
     needs:
       - triage-check
@@ -79,10 +124,23 @@ jobs:
         id: bot_comment
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ needs.triage-check.outputs.issue_number }}
+          NUMBER: ${{ needs.triage-check.outputs.issue_number }}
           MESSAGE: 👀 **nopo-bot** is triaging this issue...
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: bash .github/scripts/add-bot-comment.sh
+        run: |-
+          full_body="$MESSAGE
+
+          [View job]($RUN_URL)"
+
+          comment_url=$(gh issue comment "$NUMBER" --body "$full_body" 2>&1) || { echo "Failed to post comment: $comment_url"; exit 1; }
+
+          # Extract comment ID from URL
+          comment_id=$(echo "$comment_url" | grep -oP 'issuecomment-\K\d+' || true)
+          echo "comment_id=$comment_id" >> "$GITHUB_OUTPUT"
+
+          if [[ -z "$comment_id" ]]; then
+            echo "Warning: Comment ID not extracted"
+          fi
       - uses: anthropics/claude-code-action@v1
         id: claude_triage
         with:
@@ -250,19 +308,185 @@ jobs:
           claude_args: '--model claude-opus-4-5-20251101 --max-turns 50'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Apply labels and project fields from triage output
+      - name: Parse triage output
+        id: parse
+        run: |-
+          # Check if triage output exists
+          if [[ ! -f triage-output.json ]]; then
+            echo "WARNING: triage-output.json not found"
+            echo "has_output=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "has_output=true" >> "$GITHUB_OUTPUT"
+
+          # Parse triage output
+          TYPE=$(jq -r '.type // empty' triage-output.json)
+          PRIORITY=$(jq -r '.priority // empty' triage-output.json)
+          SIZE=$(jq -r '.size // empty' triage-output.json)
+          ESTIMATE=$(jq -r '.estimate // 5' triage-output.json)
+          NEEDS_INFO=$(jq -r '.needs_info // false' triage-output.json)
+          TOPICS=$(jq -r '.topics // [] | join(",")' triage-output.json)
+
+          # Build labels list
+          LABELS="triaged"
+          [[ -n "$TYPE" && "$TYPE" != "null" ]] && LABELS="$LABELS,$TYPE"
+          [[ "$NEEDS_INFO" == "true" ]] && LABELS="$LABELS,needs-info"
+
+          # Output parsed values
+          echo "type=$TYPE" >> "$GITHUB_OUTPUT"
+          echo "priority=$PRIORITY" >> "$GITHUB_OUTPUT"
+          echo "size=$SIZE" >> "$GITHUB_OUTPUT"
+          echo "estimate=$ESTIMATE" >> "$GITHUB_OUTPUT"
+          echo "needs_info=$NEEDS_INFO" >> "$GITHUB_OUTPUT"
+          echo "topics=$TOPICS" >> "$GITHUB_OUTPUT"
+          echo "labels=$LABELS" >> "$GITHUB_OUTPUT"
+
+          echo "Parsed: type=$TYPE priority=$PRIORITY size=$SIZE estimate=$ESTIMATE"
+      - name: Apply labels to issue
+        if: steps.parse.outputs.has_output == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ needs.triage-check.outputs.issue_number }}
+          LABELS: ${{ steps.parse.outputs.labels }}
+        run: |-
+          gh issue edit "$ISSUE_NUMBER" \
+            --add-label "$LABELS"
+      - name: Create and apply topic labels
+        if: steps.parse.outputs.has_output == 'true' && steps.parse.outputs.topics != ''
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ needs.triage-check.outputs.issue_number }}
+          TOPICS: ${{ steps.parse.outputs.topics }}
+        run: |-
+          IFS=',' read -ra TOPIC_ARRAY <<< "$TOPICS"
+          for topic in "${TOPIC_ARRAY[@]}"; do
+            [[ -z "$topic" ]] && continue
+            topic_label="topic:$topic"
+            gh label create "$topic_label" --color "7057ff" --description "Related to $topic" || true
+            gh issue edit "$ISSUE_NUMBER" \
+            --add-label "$topic_label" || true
+          done
+      - name: Get project item ID
+        id: project
         env:
           GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ needs.triage-check.outputs.issue_number }}
           GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
-        run: bash .github/scripts/apply-triage-labels.sh
+        run: |-
+          repo_name="${GITHUB_REPOSITORY#*/}"
+
+          result=$(gh api graphql \
+            -f query='query($owner: String!, $repo: String!, $number: Int!) {
+            repository(owner: $owner, name: $repo) {
+              issue(number: $number) {
+                projectItems(first: 1) {
+                  nodes { id project { id } }
+                }
+              }
+            }
+          }' \
+            -f owner="$GITHUB_REPOSITORY_OWNER" \
+            -f repo="$repo_name" \
+            -F number="$ISSUE_NUMBER" 2>/dev/null || echo '{}')
+
+          ITEM_ID=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0].id // empty')
+          PROJECT_ID=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0].project.id // empty')
+
+          if [[ -z "$ITEM_ID" || "$ITEM_ID" == "null" ]]; then
+            echo "Issue not linked to a project"
+            echo "has_project=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "has_project=true" >> "$GITHUB_OUTPUT"
+          echo "item_id=$ITEM_ID" >> "$GITHUB_OUTPUT"
+          echo "project_id=$PROJECT_ID" >> "$GITHUB_OUTPUT"
+      - name: Update project Priority
+        if: steps.project.outputs.has_project == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ needs.triage-check.outputs.issue_number }}
+          PROJECT_ID: ${{ steps.project.outputs.project_id }}
+          ITEM_ID: ${{ steps.project.outputs.item_id }}
+          PRIORITY: ${{ steps.parse.outputs.priority }}
+        run: |-
+          case "$PRIORITY" in
+            critical) OPTION_ID="79628723" ;;
+            high)     OPTION_ID="0a877460" ;;
+            *)        OPTION_ID="da944a9c" ;;
+          esac
+          gh api graphql \
+            -f query='mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+            updateProjectV2ItemFieldValue(input: {
+              projectId: $projectId, itemId: $itemId, fieldId: $fieldId,
+              value: { singleSelectOptionId: $optionId }
+            }) { projectV2Item { id } }
+          }' \
+            -f projectId="$PROJECT_ID" \
+            -f itemId="$ITEM_ID" \
+            -f fieldId="PVTSSF_lADOBBYMds4BMB5szg7bd4o" \
+            -f optionId="$OPTION_ID"
+      - name: Update project Size
+        if: steps.project.outputs.has_project == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ needs.triage-check.outputs.issue_number }}
+          PROJECT_ID: ${{ steps.project.outputs.project_id }}
+          ITEM_ID: ${{ steps.project.outputs.item_id }}
+          SIZE: ${{ steps.parse.outputs.size }}
+        run: |-
+          case "$SIZE" in
+            xs) OPTION_ID="6c6483d2" ;;
+            s)  OPTION_ID="f784b110" ;;
+            m)  OPTION_ID="7515a9f1" ;;
+            l)  OPTION_ID="817d0097" ;;
+            xl) OPTION_ID="db339eb2" ;;
+            *)  OPTION_ID="7515a9f1" ;;
+          esac
+          gh api graphql \
+            -f query='mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+            updateProjectV2ItemFieldValue(input: {
+              projectId: $projectId, itemId: $itemId, fieldId: $fieldId,
+              value: { singleSelectOptionId: $optionId }
+            }) { projectV2Item { id } }
+          }' \
+            -f projectId="$PROJECT_ID" \
+            -f itemId="$ITEM_ID" \
+            -f fieldId="PVTSSF_lADOBBYMds4BMB5szg7bd4s" \
+            -f optionId="$OPTION_ID"
+      - name: Update project Estimate
+        if: steps.project.outputs.has_project == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ needs.triage-check.outputs.issue_number }}
+          PROJECT_ID: ${{ steps.project.outputs.project_id }}
+          ITEM_ID: ${{ steps.project.outputs.item_id }}
+          ESTIMATE: ${{ steps.parse.outputs.estimate }}
+        run: |-
+          gh api graphql \
+            -f query='mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $number: Float!) {
+            updateProjectV2ItemFieldValue(input: {
+              projectId: $projectId, itemId: $itemId, fieldId: $fieldId,
+              value: { number: $number }
+            }) { projectV2Item { id } }
+          }' \
+            -f projectId="$PROJECT_ID" \
+            -f itemId="$ITEM_ID" \
+            -f fieldId="PVTF_lADOBBYMds4BMB5szg7bd4w" \
+            -F number="$ESTIMATE"
       - name: Add reaction on completion
         if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COMMENT_ID: ${{ steps.bot_comment.outputs.comment_id }}
           SUCCESS: ${{ job.status == 'success' }}
-        run: bash .github/scripts/add-reaction.sh
+        run: |-
+          if [[ "$SUCCESS" == "true" ]]; then
+            gh api "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content="rocket"
+          else
+            gh api "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content="eyes"
+          fi
   implement-check:
     runs-on: ubuntu-latest
     if: |-
@@ -280,46 +504,206 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
-        run: bash .github/scripts/check-triaged-label.sh
+        run: |-
+          has_triaged=$(gh issue view "$ISSUE_NUMBER" --json "labels" --jq '.labels[].name' | grep -c "^triaged$" || true)
+
+          if [[ "$has_triaged" -eq 0 ]]; then
+            gh issue comment "$ISSUE_NUMBER" --body "⚠️ Cannot start implementation - issue is missing the \`triaged\` label.
+
+          Please wait for triage to complete or manually add the \`triaged\` label, then re-assign nopo-bot."
+            gh issue edit "$ISSUE_NUMBER" \
+            --remove-assignee "nopo-bot"
+            echo "::error::Issue #$ISSUE_NUMBER is missing 'triaged' label"
+            exit 1
+          fi
       - name: Check project status allows implementation
         env:
           GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
-        run: bash .github/scripts/check-project-status-for-impl.sh
+        run: |-
+          repo_name="${GITHUB_REPOSITORY#*/}"
+
+          result=$(gh api graphql \
+            -f query='query($owner: String!, $repo: String!, $number: Int!) {
+            repository(owner: $owner, name: $repo) {
+              issue(number: $number) {
+                projectItems(first: 10) {
+                  nodes {
+                    fieldValueByName(name: "Status") {
+                      ... on ProjectV2ItemFieldSingleSelectValue {
+                        name
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }' \
+            -f owner="$GITHUB_REPOSITORY_OWNER" \
+            -f repo="$repo_name" \
+            -F number="$ISSUE_NUMBER" 2>/dev/null || echo '{}')
+
+          status=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0].fieldValueByName.name // empty')
+
+          if [[ -z "$status" ]]; then
+            echo "Issue not linked to a project - skipping status check"
+          elif [[ "$status" == "Ready" || "$status" == "In progress" ]]; then
+            echo "Issue status '$status' allows implementation - proceeding"
+          else
+            gh issue comment "$ISSUE_NUMBER" --body "⚠️ Cannot start implementation - issue status is **$status**.
+
+          Implementation requires status to be **Ready** or **In progress**.
+          Please move the issue to **Ready** status in the project board, then re-assign nopo-bot."
+            gh issue edit "$ISSUE_NUMBER" \
+            --remove-assignee "nopo-bot"
+            echo "::error::Issue #$ISSUE_NUMBER status is '$status', must be Ready or In progress"
+            exit 1
+          fi
       - name: Get issue with comments
         id: issue
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
-        run: bash .github/scripts/get-issue-with-comments.sh
+        run: |-
+          # Get issue body
+          gh issue view "$ISSUE_NUMBER" --json body --jq '.body' > /tmp/issue_body.txt
+
+          # Get recent comments for context
+          gh issue view "$ISSUE_NUMBER" --json comments \
+            --jq '.comments[-10:] | .[] | "---\n**\(.author.login)** (\(.createdAt)):\n\(.body)\n"' \
+            > /tmp/issue_comments.txt || true
+
+          # Combine body and comments
+          echo "body<<EOF" >> "$GITHUB_OUTPUT"
+          cat /tmp/issue_body.txt >> "$GITHUB_OUTPUT"
+          if [[ -s /tmp/issue_comments.txt ]]; then
+            echo "" >> "$GITHUB_OUTPUT"
+            echo "## Recent Comments" >> "$GITHUB_OUTPUT"
+            cat /tmp/issue_comments.txt >> "$GITHUB_OUTPUT"
+          fi
+          echo "EOF" >> "$GITHUB_OUTPUT"
       - name: Add bot status comment
         id: bot_comment
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          NUMBER: ${{ github.event.issue.number }}
           MESSAGE: 👀 **nopo-bot** is implementing this issue...
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: bash .github/scripts/add-bot-comment.sh
-      - name: Check if PR already exists
+        run: |-
+          full_body="$MESSAGE
+
+          [View job]($RUN_URL)"
+
+          comment_url=$(gh issue comment "$NUMBER" --body "$full_body" 2>&1) || { echo "Failed to post comment: $comment_url"; exit 1; }
+
+          # Extract comment ID from URL
+          comment_id=$(echo "$comment_url" | grep -oP 'issuecomment-\K\d+' || true)
+          echo "comment_id=$comment_id" >> "$GITHUB_OUTPUT"
+
+          if [[ -z "$comment_id" ]]; then
+            echo "Warning: Comment ID not extracted"
+          fi
+      - name: Check for existing PR
         id: check-pr
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
-        run: bash .github/scripts/check-existing-pr.sh
+        run: |-
+          existing_pr=$(gh pr list --search "Fixes #$ISSUE_NUMBER in:body" --json number --jq '.[0].number' || true)
+
+          if [[ -n "$existing_pr" && "$existing_pr" != "null" ]]; then
+            echo "PR #$existing_pr already exists for issue #$ISSUE_NUMBER"
+            echo "has_pr=true" >> "$GITHUB_OUTPUT"
+            echo "pr_number=$existing_pr" >> "$GITHUB_OUTPUT"
+          else
+            echo "No existing PR found for issue #$ISSUE_NUMBER"
+            echo "has_pr=false" >> "$GITHUB_OUTPUT"
+          fi
   implement-update-project:
     needs:
       - implement-check
     if: needs.implement-check.outputs.should_implement == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Update project status to In Progress
+      - name: Update project status to 'In progress'
         env:
           GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
+          TARGET_STATUS: In progress
           GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
-        run: bash .github/scripts/update-project-status-in-progress.sh
+        run: |-
+          repo_name="${GITHUB_REPOSITORY#*/}"
+
+          # Get the issue's project item
+          issue_data=$(gh api graphql -f query='
+            query($owner: String!, $repo: String!, $number: Int!) {
+              repository(owner: $owner, name: $repo) {
+                issue(number: $number) {
+                  id
+                  projectItems(first: 10) {
+                    nodes {
+                      id
+                      project { id }
+                    }
+                  }
+                }
+              }
+            }
+          ' -f owner="$GITHUB_REPOSITORY_OWNER" -f repo="$repo_name" -F number="$ISSUE_NUMBER")
+
+          item_id=$(echo "$issue_data" | jq -r '.data.repository.issue.projectItems.nodes[0].id // empty')
+          project_id=$(echo "$issue_data" | jq -r '.data.repository.issue.projectItems.nodes[0].project.id // empty')
+
+          if [[ -z "$item_id" || "$item_id" == "null" ]]; then
+            echo "Issue #$ISSUE_NUMBER not linked to any project"
+            exit 0
+          fi
+
+          echo "Found project item: $item_id in project: $project_id"
+
+          # Get Status field and target option IDs
+          fields=$(gh api graphql -f query='
+            query($projectId: ID!) {
+              node(id: $projectId) {
+                ... on ProjectV2 {
+                  fields(first: 20) {
+                    nodes {
+                      ... on ProjectV2SingleSelectField {
+                        id
+                        name
+                        options { id name }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ' -f projectId="$project_id")
+
+          field_id=$(echo "$fields" | jq -r '.data.node.fields.nodes[] | select(.name == "Status") | .id')
+          option_id=$(echo "$fields" | jq -r --arg status "$TARGET_STATUS" '.data.node.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == $status) | .id')
+
+          if [[ -z "$field_id" || -z "$option_id" ]]; then
+            echo "Could not find Status field or '$TARGET_STATUS' option"
+            exit 0
+          fi
+
+          # Update to target status
+          gh api graphql -f query='
+            mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+              updateProjectV2ItemFieldValue(
+                input: {
+                  projectId: $projectId
+                  itemId: $itemId
+                  fieldId: $fieldId
+                  value: { singleSelectOptionId: $optionId }
+                }
+              ) { projectV2Item { id } }
+            }
+          ' -f projectId="$project_id" -f itemId="$item_id" -f fieldId="$field_id" -f optionId="$option_id"
+
+          echo "Updated issue #$ISSUE_NUMBER to '$TARGET_STATUS' status"
   implement:
     needs:
       - implement-check
@@ -338,7 +722,23 @@ jobs:
         id: branch
         env:
           BRANCH_NAME: claude/issue/${{ github.event.issue.number }}
-        run: bash .github/scripts/create-or-checkout-branch.sh
+        run: |-
+          git fetch origin || true
+
+          if git show-ref --verify --quiet "refs/remotes/origin/$BRANCH_NAME"; then
+            echo "Branch exists on remote, checking out..."
+            git checkout "$BRANCH_NAME"
+            git pull origin "$BRANCH_NAME" || true
+            echo "branch_existed=true" >> "$GITHUB_OUTPUT"
+          elif git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
+            echo "Branch exists locally, checking out..."
+            git checkout "$BRANCH_NAME"
+            echo "branch_existed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Creating new branch: $BRANCH_NAME"
+            git checkout -b "$BRANCH_NAME"
+            echo "branch_existed=false" >> "$GITHUB_OUTPUT"
+          fi
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -392,20 +792,53 @@ jobs:
           BRANCH_NAME: ${{ steps.branch.outputs.name }}
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-        run: bash .github/scripts/salvage-partial-progress.sh
+        run: |-
+          # Check if there are uncommitted changes
+          if ! git diff --quiet HEAD 2>/dev/null; then
+            echo "Uncommitted changes detected - salvaging partial progress"
+
+            git add -A
+            git commit -m "WIP: Partial implementation of #$ISSUE_NUMBER
+
+          Implementation was interrupted ($JOB_STATUS).
+          See issue comments for details on what was completed."
+
+            git push origin HEAD
+
+            # Comment on issue explaining partial progress
+            gh issue comment "$ISSUE_NUMBER" --body "⚠️ **Implementation partially completed**
+
+          The job was interrupted before finishing. Progress has been saved to branch \`$BRANCH_NAME\`.
+
+          **Next steps:**
+          - Review the partial changes on the branch
+          - Re-assign nopo-bot to continue implementation
+
+          [View partial work](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/main...$BRANCH_NAME)"
+          else
+            echo "No uncommitted changes to salvage"
+          fi
       - name: Add reaction on completion
         if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COMMENT_ID: ${{ needs.implement-check.outputs.bot_comment_id }}
           SUCCESS: ${{ job.status == 'success' }}
-        run: bash .github/scripts/add-reaction.sh
+        run: |-
+          if [[ "$SUCCESS" == "true" ]]; then
+            gh api "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content="rocket"
+          else
+            gh api "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content="eyes"
+          fi
       - name: Unassign nopo-bot on failure
         if: failure()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
-        run: bash .github/scripts/unassign-nopo-bot.sh
+        run: |-
+          echo "Implementation failed - unassigning nopo-bot from issue #$ISSUE_NUMBER"
+          gh issue edit "$ISSUE_NUMBER" \
+            --remove-assignee "nopo-bot"
   comment:
     runs-on: ubuntu-latest
     if: |-
@@ -417,22 +850,59 @@ jobs:
         id: bot_comment
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+          NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
           MESSAGE: 👀 **nopo-bot** is responding to your request...
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: bash .github/scripts/add-bot-comment.sh
+        run: |-
+          full_body="$MESSAGE
+
+          [View job]($RUN_URL)"
+
+          comment_url=$(gh issue comment "$NUMBER" --body "$full_body" 2>&1) || { echo "Failed to post comment: $comment_url"; exit 1; }
+
+          # Extract comment ID from URL
+          comment_id=$(echo "$comment_url" | grep -oP 'issuecomment-\K\d+' || true)
+          echo "comment_id=$comment_id" >> "$GITHUB_OUTPUT"
+
+          if [[ -z "$comment_id" ]]; then
+            echo "Warning: Comment ID not extracted"
+          fi
       - name: Check Claude comment count
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
-        run: bash .github/scripts/check-claude-comment-count.sh
+        run: |-
+          MAX_COMMENTS="${MAX_COMMENTS:-20}"
+
+          # Count comments from claude[bot] on this PR
+          review_comments=$(gh api "/repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/comments" --jq '[.[] | select(.user.login == "claude[bot]")] | length')
+          issue_comments=$(gh api "/repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" --jq '[.[] | select(.user.login == "claude[bot]")] | length')
+          reviews=$(gh api "/repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/reviews" --jq '[.[] | select(.user.login == "claude[bot]")] | length')
+
+          total=$((review_comments + issue_comments + reviews))
+          echo "Claude has made $total comments/reviews on PR #$PR_NUMBER"
+
+          if [[ "$total" -gt "$MAX_COMMENTS" ]]; then
+            echo "::error::Claude has made over $MAX_COMMENTS comments on this PR. Stopping to prevent infinite loop."
+            exit 1
+          fi
       - name: Get PR branch (if PR comment)
         id: pr_context
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IS_PR: ${{ github.event.issue.pull_request != '' }}
           PR_NUMBER: ${{ github.event.issue.number }}
-        run: bash .github/scripts/get-pr-branch.sh
+        run: |-
+          if [[ "$IS_PR" == "true" ]]; then
+            pr_branch=$(gh pr view "$PR_NUMBER" --json "headRefName" --jq '.headRefName' --repo "$GITHUB_REPOSITORY")
+            echo "branch=$pr_branch" >> $GITHUB_OUTPUT
+            echo "is_pr=true" >> $GITHUB_OUTPUT
+            echo "Detected PR comment on branch: $pr_branch"
+          else
+            echo "branch=main" >> $GITHUB_OUTPUT
+            echo "is_pr=false" >> $GITHUB_OUTPUT
+            echo "Detected issue comment, using main branch"
+          fi
       - uses: actions/checkout@v4
         with:
           ref: ${{ steps.pr_context.outputs.branch }}
@@ -493,4 +963,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COMMENT_ID: ${{ steps.bot_comment.outputs.comment_id }}
           SUCCESS: ${{ job.status == 'success' }}
-        run: bash .github/scripts/add-reaction.sh
+        run: |-
+          if [[ "$SUCCESS" == "true" ]]; then
+            gh api "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content="rocket"
+          else
+            gh api "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content="eyes"
+          fi
