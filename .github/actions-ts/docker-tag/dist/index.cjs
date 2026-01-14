@@ -19821,9 +19821,6 @@ function getOptionalInput(name) {
   const value = core.getInput(name);
   return value === "" ? void 0 : value;
 }
-function getRequiredInput(name) {
-  return core.getInput(name, { required: true });
-}
 async function execCommand(command, args = [], options) {
   let stdout = "";
   let stderr = "";
@@ -19868,7 +19865,7 @@ function setOutputs(outputs) {
 function getInputs() {
   return {
     skipClean: getOptionalInput("skip_clean") !== void 0,
-    tag: getRequiredInput("tag"),
+    tag: getOptionalInput("tag"),
     registry: getOptionalInput("registry"),
     image: getOptionalInput("image"),
     version: getOptionalInput("version"),
@@ -19877,9 +19874,19 @@ function getInputs() {
     nodeEnv: getOptionalInput("node_env")
   };
 }
+function computeTag(inputs) {
+  if (inputs.tag) {
+    return inputs.tag;
+  }
+  if (inputs.registry && inputs.image && inputs.version) {
+    return `${inputs.registry}/${inputs.image}:${inputs.version}`;
+  }
+  return void 0;
+}
 async function run() {
   try {
     const inputs = getInputs();
+    const tag = computeTag(inputs);
     const envPath = path.join(process.cwd(), ".env");
     if (!inputs.skipClean && fs.existsSync(envPath)) {
       core2.info("Removing .env file");
@@ -19887,7 +19894,7 @@ async function run() {
     }
     const makeArgs = ["env"];
     const envVars = [];
-    if (inputs.tag) envVars.push(`DOCKER_TAG=${inputs.tag}`);
+    if (tag) envVars.push(`DOCKER_TAG=${tag}`);
     if (inputs.registry) envVars.push(`DOCKER_REGISTRY=${inputs.registry}`);
     if (inputs.image) envVars.push(`DOCKER_IMAGE=${inputs.image}`);
     if (inputs.version) envVars.push(`DOCKER_VERSION=${inputs.version}`);

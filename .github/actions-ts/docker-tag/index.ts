@@ -1,11 +1,11 @@
 import * as core from '@actions/core'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { execCommand, getOptionalInput, getRequiredInput, parseEnvFile, setOutputs } from '../lib/index.js'
+import { execCommand, getOptionalInput, parseEnvFile, setOutputs } from '../lib/index.js'
 
 interface DockerTagInputs {
   skipClean: boolean
-  tag: string
+  tag?: string
   registry?: string
   image?: string
   version?: string
@@ -27,7 +27,7 @@ interface DockerTagOutputs {
 function getInputs(): DockerTagInputs {
   return {
     skipClean: getOptionalInput('skip_clean') !== undefined,
-    tag: getRequiredInput('tag'),
+    tag: getOptionalInput('tag'),
     registry: getOptionalInput('registry'),
     image: getOptionalInput('image'),
     version: getOptionalInput('version'),
@@ -37,9 +37,22 @@ function getInputs(): DockerTagInputs {
   }
 }
 
+function computeTag(inputs: DockerTagInputs): string | undefined {
+  // If tag is provided, use it
+  if (inputs.tag) {
+    return inputs.tag
+  }
+  // Compute tag from registry/image/version
+  if (inputs.registry && inputs.image && inputs.version) {
+    return `${inputs.registry}/${inputs.image}:${inputs.version}`
+  }
+  return undefined
+}
+
 async function run(): Promise<void> {
   try {
     const inputs = getInputs()
+    const tag = computeTag(inputs)
 
     // Remove .env file unless skip_clean is set
     const envPath = path.join(process.cwd(), '.env')
@@ -52,7 +65,7 @@ async function run(): Promise<void> {
     const makeArgs = ['env']
     const envVars: string[] = []
 
-    if (inputs.tag) envVars.push(`DOCKER_TAG=${inputs.tag}`)
+    if (tag) envVars.push(`DOCKER_TAG=${tag}`)
     if (inputs.registry) envVars.push(`DOCKER_REGISTRY=${inputs.registry}`)
     if (inputs.image) envVars.push(`DOCKER_IMAGE=${inputs.image}`)
     if (inputs.version) envVars.push(`DOCKER_VERSION=${inputs.version}`)

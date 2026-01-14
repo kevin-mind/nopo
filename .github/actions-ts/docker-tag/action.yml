@@ -7,8 +7,8 @@ inputs:
     required: false
     default: ""
   tag:
-    description: The full docker tag to use
-    required: true
+    description: The full docker tag to use (computed from registry/image/version if not provided)
+    required: false
   registry:
     description: The registry to tag the image with
     required: false
