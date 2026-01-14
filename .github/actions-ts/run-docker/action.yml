@@ -1,0 +1,25 @@
+name: Docker Run Action (TypeScript)
+description: Run a command in a new container or on the host - TypeScript implementation
+
+inputs:
+  tag:
+    description: The tag of the image to run
+    required: true
+  service:
+    description: The service to run
+    required: false
+  run:
+    description: Command to run (e.g., test, check)
+    required: false
+  target:
+    description: Docker target to run (development|production)
+    required: false
+    default: production
+  dir:
+    description: Working directory to run commands from
+    required: false
+    default: "."
+
+runs:
+  using: node20
+  main: dist/index.js

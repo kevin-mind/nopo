@@ -48,6 +48,16 @@ jobs:
       - uses: ./.github/actions/setup-nopo
       - name: Run unit tests
         run: pnpm run --dir ./nopo/scripts test
+  actions:
+    runs-on: ubuntu-latest
+    name: '[actions] TypeScript actions'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-node
+      - name: Run TypeScript actions tests
+        run: pnpm run --filter @nopo/github-actions test
+      - name: Validate TypeScript actions build
+        run: pnpm run check:actions:root
   e2e:
     runs-on: ubuntu-latest
     name: '[nopo] e2e: ${{ matrix.test.name }}'

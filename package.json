@@ -17,6 +17,7 @@
     "check:types:root": "tsc --noEmit",
     "check:knip:root": "knip",
     "check:gwf:root": "pnpm run gwf:build && git diff --exit-code .github/workflows/",
+    "check:actions:root": "pnpm run --filter @nopo/github-actions build && git diff --exit-code .github/actions-ts/*/dist/",
     "gwf:build": "gwf build",
     "fix:workspace": "pnpm run -r \"/^fix:.*/\"",
     "fix:lint:root": "eslint --fix",

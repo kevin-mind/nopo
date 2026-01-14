@@ -74,6 +74,25 @@ unitJob.addSteps([
   }),
 ])
 
+// TypeScript Actions tests job
+const actionsJob = new NormalJob('actions', {
+  'runs-on': 'ubuntu-latest',
+  name: '[actions] TypeScript actions',
+})
+
+actionsJob.addSteps([
+  checkoutStep,
+  setupNodeStep,
+  new Step({
+    name: 'Run TypeScript actions tests',
+    run: 'pnpm run --filter @nopo/github-actions test',
+  }),
+  new Step({
+    name: 'Validate TypeScript actions build',
+    run: 'pnpm run check:actions:root',
+  }),
+])
+
 // E2E tests job
 const e2eTests = [
   { name: 'list services', command: 'nopo list', expect: 'minimal' },
@@ -136,4 +155,4 @@ export const testNopoWorkflow = new Workflow('_test_nopo', {
   },
 })
 
-testNopoWorkflow.addJobs([buildJob, unitJob, e2eJob])
+testNopoWorkflow.addJobs([buildJob, unitJob, actionsJob, e2eJob])

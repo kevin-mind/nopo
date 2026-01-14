@@ -16,10 +16,11 @@ This document provides comprehensive guidance for AI coding agents working on th
 8. [Database & Migrations](#database--migrations)
 9. [Pull Request Guidelines](#pull-request-guidelines)
 10. [CI/CD Pipeline](#cicd-pipeline)
-11. [Architecture & Documentation](#architecture--documentation)
-12. [Conventions & Patterns](#conventions--patterns)
-13. [Tripwires & Anti-patterns](#tripwires--anti-patterns)
-14. [Claude Automation State Machine](#claude-automation-state-machine)
+11. [GitHub Actions Development](#github-actions-development)
+12. [Architecture & Documentation](#architecture--documentation)
+13. [Conventions & Patterns](#conventions--patterns)
+14. [Tripwires & Anti-patterns](#tripwires--anti-patterns)
+15. [Claude Automation State Machine](#claude-automation-state-machine)
 
 ---
 
@@ -690,6 +691,108 @@ gh run list
 # Re-run failed checks
 gh run rerun <run-id>
 ```
+
+---
+
+## GitHub Actions Development
+
+### TypeScript Actions
+
+The project uses TypeScript for GitHub Actions to provide type safety and better tooling. TypeScript actions are located in `.github/actions-ts/`.
+
+#### Structure
+
+```
+.github/actions-ts/
+├── package.json              # Package configuration
+├── tsconfig.json             # TypeScript config
+├── vitest.config.ts          # Test configuration
+├── scripts/
+│   └── build.ts              # esbuild-based build script
+├── lib/
+│   ├── index.ts              # Shared utilities
+│   └── index.test.ts         # Utility tests
+├── docker-tag/               # Docker tag action
+│   ├── action.yml            # Action definition
+│   ├── index.ts              # Action implementation
+│   └── dist/                 # Bundled output (committed)
+├── app-names/                # App names action
+│   ├── action.yml
+│   ├── index.ts
+│   └── dist/
+└── run-docker/               # Run docker action
+    ├── action.yml
+    ├── index.ts
+    └── dist/
+```
+
+#### Creating a New TypeScript Action
+
+1. Create a new directory under `.github/actions-ts/`:
+   ```bash
+   mkdir .github/actions-ts/my-action
+   ```
+
+2. Create `action.yml`:
+   ```yaml
+   name: My Action
+   description: What my action does
+   inputs:
+     my_input:
+       description: Input description
+       required: true
+   outputs:
+     my_output:
+       description: Output description
+   runs:
+     using: node20
+     main: dist/index.js
+   ```
+
+3. Create `index.ts`:
+   ```typescript
+   import * as core from '@actions/core'
+   import { getRequiredInput, setOutputs } from '../lib/index.js'
+
+   async function run(): Promise<void> {
+     try {
+       const myInput = getRequiredInput('my_input')
+       // ... action logic
+       setOutputs({ my_output: 'result' })
+     } catch (error) {
+       if (error instanceof Error) {
+         core.setFailed(error.message)
+       }
+     }
+   }
+
+   run()
+   ```
+
+4. Build and test:
+   ```bash
+   pnpm run --filter @nopo/github-actions build
+   pnpm run --filter @nopo/github-actions test
+   ```
+
+5. Commit the `dist/` folder (required for GitHub Actions to run the bundled code)
+
+#### When to Use TypeScript vs Composite Actions
+
+| Use TypeScript Actions | Use Composite Actions |
+|------------------------|----------------------|
+| Complex logic (parsing, transformations) | Simple delegation to other actions |
+| Multiple outputs from computation | Single-step wrappers |
+| JSON/data manipulation | Environment setup |
+| Need unit testing | Simple bash scripts |
+| Shared utilities across actions | External action composition |
+
+#### CI Validation
+
+TypeScript actions are validated in CI:
+- Tests run via `pnpm run --filter @nopo/github-actions test`
+- Build is validated via `pnpm run check:actions:root`
+- Ensures `dist/` matches source code
 
 ---
 
