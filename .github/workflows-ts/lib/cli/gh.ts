@@ -997,6 +997,248 @@ echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
 }
 
 // =============================================================================
+// Triage Steps
+// =============================================================================
+
+/**
+ * Parse triage-output.json file
+ * @outputs has_output, type, priority, size, estimate, needs_info, topics, labels
+ */
+export function parseTriageOutput(id: string): Step {
+  return new Step({
+    id,
+    name: "Parse triage output",
+    run: `# Check if triage output exists
+if [[ ! -f triage-output.json ]]; then
+  echo "WARNING: triage-output.json not found"
+  echo "has_output=false" >> "$GITHUB_OUTPUT"
+  exit 0
+fi
+
+echo "has_output=true" >> "$GITHUB_OUTPUT"
+
+# Parse triage output
+TYPE=$(jq -r '.type // empty' triage-output.json)
+PRIORITY=$(jq -r '.priority // empty' triage-output.json)
+SIZE=$(jq -r '.size // empty' triage-output.json)
+ESTIMATE=$(jq -r '.estimate // 5' triage-output.json)
+NEEDS_INFO=$(jq -r '.needs_info // false' triage-output.json)
+TOPICS=$(jq -r '.topics // [] | join(",")' triage-output.json)
+
+# Build labels list
+LABELS="triaged"
+[[ -n "$TYPE" && "$TYPE" != "null" ]] && LABELS="$LABELS,$TYPE"
+[[ "$NEEDS_INFO" == "true" ]] && LABELS="$LABELS,needs-info"
+
+# Output parsed values
+echo "type=$TYPE" >> "$GITHUB_OUTPUT"
+echo "priority=$PRIORITY" >> "$GITHUB_OUTPUT"
+echo "size=$SIZE" >> "$GITHUB_OUTPUT"
+echo "estimate=$ESTIMATE" >> "$GITHUB_OUTPUT"
+echo "needs_info=$NEEDS_INFO" >> "$GITHUB_OUTPUT"
+echo "topics=$TOPICS" >> "$GITHUB_OUTPUT"
+echo "labels=$LABELS" >> "$GITHUB_OUTPUT"
+
+echo "Parsed: type=$TYPE priority=$PRIORITY size=$SIZE estimate=$ESTIMATE"`,
+  });
+}
+
+/**
+ * gh api graphql (get project item) - Get project item ID for an issue
+ * @outputs has_project, item_id, project_id
+ */
+export function ghApiGetProjectItem(
+  id: string,
+  env: {
+    GH_TOKEN: string;
+    ISSUE_NUMBER: string;
+  },
+): Step {
+  const query = `
+    query($owner: String!, $repo: String!, $number: Int!) {
+      repository(owner: $owner, name: $repo) {
+        issue(number: $number) {
+          projectItems(first: 1) {
+            nodes { id project { id } }
+          }
+        }
+      }
+    }
+  `;
+
+  return new Step({
+    id,
+    name: "gh api graphql (get project item)",
+    env,
+    run: `repo_name="\${GITHUB_REPOSITORY#*/}"
+owner="\${GITHUB_REPOSITORY%/*}"
+
+result=$(gh api graphql -f query='${query.trim()}' \
+  -f owner="$owner" \
+  -f repo="$repo_name" \
+  -F number="$ISSUE_NUMBER" 2>/dev/null || echo '{}')
+
+item_id=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0].id // empty')
+project_id=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0].project.id // empty')
+
+if [[ -z "$item_id" || "$item_id" == "null" ]]; then
+  echo "Issue #$ISSUE_NUMBER not linked to any project"
+  echo "has_project=false" >> "$GITHUB_OUTPUT"
+  exit 0
+fi
+
+echo "has_project=true" >> "$GITHUB_OUTPUT"
+echo "item_id=$item_id" >> "$GITHUB_OUTPUT"
+echo "project_id=$project_id" >> "$GITHUB_OUTPUT"`,
+  });
+}
+
+/**
+ * gh api graphql (update project priority) - Update issue's project Priority field
+ * Maps priority string (critical/high/etc) to option ID
+ * No outputs (action only)
+ */
+export function ghApiUpdateProjectPriority(env: {
+  GH_TOKEN: string;
+  PROJECT_ID: string;
+  ITEM_ID: string;
+  PRIORITY: string;
+}): Step {
+  // Hardcoded field ID and option IDs from project.ts
+  const FIELD_ID = "PVTSSF_lADOBBYMds4BMB5szg7bd4o";
+  const mutation = `
+    mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+      updateProjectV2ItemFieldValue(input: {
+        projectId: $projectId, itemId: $itemId, fieldId: $fieldId,
+        value: { singleSelectOptionId: $optionId }
+      }) { projectV2Item { id } }
+    }
+  `;
+
+  return new Step({
+    name: "gh api graphql (update project priority)",
+    env,
+    run: `# Map priority to option ID
+case "$PRIORITY" in
+  critical) OPTION_ID="79628723" ;;  # P0
+  high)     OPTION_ID="0a877460" ;;  # P1
+  *)        OPTION_ID="da944a9c" ;;  # P2
+esac
+
+gh api graphql -f query='${mutation.trim()}' \
+  -f projectId="$PROJECT_ID" \
+  -f itemId="$ITEM_ID" \
+  -f fieldId="${FIELD_ID}" \
+  -f optionId="$OPTION_ID"`,
+  });
+}
+
+/**
+ * gh api graphql (update project size) - Update issue's project Size field
+ * Maps size string (xs/s/m/l/xl) to option ID
+ * No outputs (action only)
+ */
+export function ghApiUpdateProjectSize(env: {
+  GH_TOKEN: string;
+  PROJECT_ID: string;
+  ITEM_ID: string;
+  SIZE: string;
+}): Step {
+  // Hardcoded field ID and option IDs from project.ts
+  const FIELD_ID = "PVTSSF_lADOBBYMds4BMB5szg7bd4s";
+  const mutation = `
+    mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+      updateProjectV2ItemFieldValue(input: {
+        projectId: $projectId, itemId: $itemId, fieldId: $fieldId,
+        value: { singleSelectOptionId: $optionId }
+      }) { projectV2Item { id } }
+    }
+  `;
+
+  return new Step({
+    name: "gh api graphql (update project size)",
+    env,
+    run: `# Map size to option ID
+case "$SIZE" in
+  xs) OPTION_ID="6c6483d2" ;;
+  s)  OPTION_ID="f784b110" ;;
+  m)  OPTION_ID="7515a9f1" ;;
+  l)  OPTION_ID="817d0097" ;;
+  xl) OPTION_ID="db339eb2" ;;
+  *)  OPTION_ID="7515a9f1" ;;  # Default to M
+esac
+
+gh api graphql -f query='${mutation.trim()}' \
+  -f projectId="$PROJECT_ID" \
+  -f itemId="$ITEM_ID" \
+  -f fieldId="${FIELD_ID}" \
+  -f optionId="$OPTION_ID"`,
+  });
+}
+
+/**
+ * gh api graphql (update project estimate) - Update issue's project Estimate field
+ * No outputs (action only)
+ */
+export function ghApiUpdateProjectEstimate(env: {
+  GH_TOKEN: string;
+  PROJECT_ID: string;
+  ITEM_ID: string;
+  ESTIMATE: string;
+}): Step {
+  // Hardcoded field ID from project.ts
+  const FIELD_ID = "PVTF_lADOBBYMds4BMB5szg7bd4w";
+  const mutation = `
+    mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $number: Float!) {
+      updateProjectV2ItemFieldValue(input: {
+        projectId: $projectId, itemId: $itemId, fieldId: $fieldId,
+        value: { number: $number }
+      }) { projectV2Item { id } }
+    }
+  `;
+
+  return new Step({
+    name: "gh api graphql (update project estimate)",
+    env,
+    run: `gh api graphql -f query='${mutation.trim()}' \
+  -f projectId="$PROJECT_ID" \
+  -f itemId="$ITEM_ID" \
+  -f fieldId="${FIELD_ID}" \
+  -F number="$ESTIMATE"`,
+  });
+}
+
+/**
+ * Create and apply topic labels - batch processes topic labels
+ * This is an exception to atomic pattern as it loops through topics
+ * No outputs (action only)
+ */
+export function ghApplyTopicLabels(env: {
+  GH_TOKEN: string;
+  ISSUE_NUMBER: string;
+  TOPICS: string;
+}): Step {
+  return new Step({
+    name: "Create and apply topic labels",
+    env,
+    run: `# Skip if no topics
+[[ -z "$TOPICS" ]] && exit 0
+
+IFS=',' read -ra TOPIC_ARRAY <<< "$TOPICS"
+for topic in "\${TOPIC_ARRAY[@]}"; do
+  [[ -z "$topic" ]] && continue
+  topic_label="topic:$topic"
+
+  # Create label if it doesn't exist (--force updates if exists)
+  gh label create "$topic_label" --color "7057ff" --description "Related to $topic" --repo "$GITHUB_REPOSITORY" --force || true
+
+  # Add label to issue
+  gh issue edit "$ISSUE_NUMBER" --add-label "$topic_label" --repo "$GITHUB_REPOSITORY" || true
+done`,
+  });
+}
+
+// =============================================================================
 // Batch Processing Steps (exceptions to atomic pattern)
 // =============================================================================
 
