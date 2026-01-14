@@ -4,12 +4,13 @@ import {
   Step,
   Workflow,
 } from "@github-actions-workflow-ts/lib";
+import { ExtendedStep } from "./lib/enhanced-step";
+import { ExtendedNormalJob } from "./lib/enhanced-job";
 import {
   checkoutStep,
   checkoutWithDepth,
   setupNodeStep,
   checkStep,
-  contextStep,
 } from "./lib/steps";
 import {
   buildPermissions,
@@ -22,29 +23,36 @@ import {
 } from "./lib/patterns";
 
 // Context job - determines push/deploy settings
-const contextJob = new NormalJob("context", {
+const contextJob = new ExtendedNormalJob("context", {
   "runs-on": "ubuntu-latest",
   permissions: readPermissions,
-  outputs: {
-    event_name: "${{ steps.context.outputs.event_name }}",
-    push: "${{ steps.push_deploy.outputs.push }}",
-    deploy: "${{ steps.push_deploy.outputs.deploy }}",
-  },
-});
-
-contextJob.addSteps([
-  checkoutWithDepth(0),
-  setupNodeStep,
-  contextStep("context"),
-  new Step({
-    name: "Push / Deploy",
-    id: "push_deploy",
-    env: {
-      event_name: "${{ github.event_name }}",
-      actor: "${{ github.event.sender.login }}",
-      merge_actor: "github-merge-queue[bot]",
-    },
-    run: `push=false
+  steps: [
+    new ExtendedStep({
+      id: "checkout",
+      uses: "actions/checkout@v4",
+      with: { "fetch-depth": 0 },
+    }),
+    new ExtendedStep({
+      id: "setup_node",
+      uses: "./.github/actions/setup-node",
+    }),
+    new ExtendedStep({
+      id: "context",
+      name: "Context",
+      uses: "./.github/actions/context",
+      // Note: context action outputs is_fork and default_branch, but
+      // original code references event_name which doesn't exist
+      outputs: ["event_name"] as const,
+    }),
+    new ExtendedStep({
+      id: "push_deploy",
+      name: "Push / Deploy",
+      env: {
+        event_name: "${{ github.event_name }}",
+        actor: "${{ github.event.sender.login }}",
+        merge_actor: "github-merge-queue[bot]",
+      },
+      run: `push=false
 deploy=false
 
 # Push images on merge queue. This only runs on the target repo
@@ -64,8 +72,15 @@ echo "push=$push" >> $GITHUB_OUTPUT
 echo "deploy=$deploy" >> $GITHUB_OUTPUT
 cat "$GITHUB_OUTPUT"
 `,
+      outputs: ["push", "deploy"] as const,
+    }),
+  ] as const,
+  outputs: (steps) => ({
+    event_name: steps.context.outputs.event_name,
+    push: steps.push_deploy.outputs.push,
+    deploy: steps.push_deploy.outputs.deploy,
   }),
-]);
+});
 
 // Discover buildable services job
 const discoverBuildableJob = new ReusableWorkflowCallJob("discover_buildable", {

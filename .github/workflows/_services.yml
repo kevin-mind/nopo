@@ -39,18 +39,21 @@ jobs:
       services: ${{ steps.discover.outputs.services }}
       services_json: ${{ steps.discover.outputs.services_json }}
     steps:
-      - uses: actions/checkout@v4
+      - id: checkout
+        uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref }}
           fetch-depth: 0
-      - name: Fetch origin/main for comparison
+      - id: fetch_main
+        name: Fetch origin/main for comparison
         if: inputs.since == 'origin/main' || inputs.since == ''
         run: |
           # Ensure origin/main is available for comparison
           git fetch origin main:origin/main || true
-      - uses: ./.github/actions/setup-node
-      - name: Discover services
-        id: discover
+      - id: setup_node
+        uses: ./.github/actions/setup-node
+      - id: discover
+        name: Discover services
         env:
           FILTER: ${{ inputs.filter }}
           SINCE: ${{ inputs.since }}

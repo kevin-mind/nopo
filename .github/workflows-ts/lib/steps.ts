@@ -1,6 +1,6 @@
 import { Step } from "@github-actions-workflow-ts/lib";
 
-// Checkout steps
+// Checkout step (simple, no outputs)
 export const checkoutStep = new Step({
   uses: "actions/checkout@v4",
 });

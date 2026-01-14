@@ -26,15 +26,17 @@ jobs:
       push: ${{ steps.push_deploy.outputs.push }}
       deploy: ${{ steps.push_deploy.outputs.deploy }}
     steps:
-      - uses: actions/checkout@v4
+      - id: checkout
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: ./.github/actions/setup-node
-      - name: Context
-        id: context
+      - id: setup_node
+        uses: ./.github/actions/setup-node
+      - id: context
+        name: Context
         uses: ./.github/actions/context
-      - name: Push / Deploy
-        id: push_deploy
+      - id: push_deploy
+        name: Push / Deploy
         env:
           event_name: ${{ github.event_name }}
           actor: ${{ github.event.sender.login }}

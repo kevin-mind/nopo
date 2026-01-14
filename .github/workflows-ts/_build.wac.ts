@@ -1,12 +1,6 @@
 import { NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
-import {
-  checkoutStep,
-  setupNodeStep,
-  setupNopoStep,
-  dockerTagStep,
-  extractBuildInfoStep,
-} from "./lib/steps";
-import { nopoBuild } from "./lib/cli/nopo";
+import { ExtendedStep } from "./lib/enhanced-step";
+import { ExtendedNormalJob } from "./lib/enhanced-job";
 import {
   buildPermissions,
   defaultDefaults,
@@ -14,80 +8,104 @@ import {
 } from "./lib/patterns";
 
 // Build job
-const buildJob = new NormalJob("build", {
+const buildJob = new ExtendedNormalJob("build", {
   "runs-on": "ubuntu-latest",
   permissions: buildPermissions,
-  outputs: {
-    registry: "${{ steps.output_tag.outputs.registry }}",
-    image: "${{ steps.output_tag.outputs.image }}",
-    version: "${{ steps.output_tag.outputs.version }}",
-    digest: "${{ steps.output_tag.outputs.digest }}",
-    tag: "${{ steps.output_tag.outputs.tag }}",
-    service_tags: "${{ steps.build_info.outputs.service_tags }}",
-    service_digests: "${{ steps.build_info.outputs.service_digests }}",
-  },
   env: {
     build_output: "build-output.json",
   },
+  steps: [
+    new ExtendedStep({
+      id: "checkout",
+      uses: "actions/checkout@v4",
+    }),
+    new ExtendedStep({
+      id: "setup_node",
+      uses: "./.github/actions/setup-node",
+    }),
+    new ExtendedStep({
+      id: "setup_nopo",
+      uses: "./.github/actions/setup-nopo",
+    }),
+    new ExtendedStep({
+      id: "docker_meta",
+      name: "Docker meta",
+      uses: "docker/metadata-action@v5",
+      with: {
+        "bake-target": "default",
+        tags: "type=sha\n",
+      },
+      outputs: ["version"] as const,
+    }),
+    new ExtendedStep({
+      id: "input_tag",
+      name: "Input tag",
+      uses: "./.github/actions-ts/docker-tag",
+      with: {
+        registry: "ghcr.io",
+        image: "${{ github.repository }}",
+        version: "${{ steps.docker_meta.outputs.version }}",
+      },
+      outputs: ["tag", "registry", "image", "version", "digest"] as const,
+    }),
+    new ExtendedStep({
+      id: "docker",
+      name: "Set up Docker",
+      uses: "./.github/actions/setup-docker",
+      with: {
+        registry: "${{ inputs.push && 'ghcr.io' || '' }}",
+        username: "${{ inputs.push && github.actor || '' }}",
+        password: "${{ inputs.push && secrets.GITHUB_TOKEN || '' }}",
+      },
+      outputs: ["builder"] as const,
+    }),
+    new ExtendedStep({
+      id: "build",
+      name: "Build",
+      env: {
+        SERVICES: "${{ inputs.services }}",
+        DOCKER_TAG: "${{ steps.input_tag.outputs.tag }}",
+        DOCKER_PUSH: "${{ inputs.push }}",
+        DOCKER_BUILDER: "${{ steps.docker.outputs.builder }}",
+      },
+      run: `if [[ -n "$SERVICES" ]]; then
+  nopo build --output \${{ env.build_output }} $SERVICES
+else
+  nopo build --output \${{ env.build_output }}
+fi`,
+    }),
+    new ExtendedStep({
+      id: "build_info",
+      name: "Extract build info",
+      uses: "./.github/actions/extract-build-info",
+      with: {
+        build_output: "${{ env.build_output }}",
+      },
+      outputs: ["base_digest", "service_tags", "service_digests"] as const,
+    }),
+    new ExtendedStep({
+      id: "output_tag",
+      name: "Output tag",
+      uses: "./.github/actions-ts/docker-tag",
+      with: {
+        registry: "${{ steps.input_tag.outputs.registry }}",
+        image: "${{ steps.input_tag.outputs.image }}",
+        version: "${{ steps.input_tag.outputs.version }}",
+        digest: "${{ inputs.push && steps.build_info.outputs.base_digest || '' }}",
+      },
+      outputs: ["tag", "registry", "image", "version", "digest"] as const,
+    }),
+  ] as const,
+  outputs: (steps) => ({
+    registry: steps.output_tag.outputs.registry,
+    image: steps.output_tag.outputs.image,
+    version: steps.output_tag.outputs.version,
+    digest: steps.output_tag.outputs.digest,
+    tag: steps.output_tag.outputs.tag,
+    service_tags: steps.build_info.outputs.service_tags,
+    service_digests: steps.build_info.outputs.service_digests,
+  }),
 });
-
-buildJob.addSteps([
-  checkoutStep,
-  setupNodeStep,
-  setupNopoStep,
-  new Step({
-    name: "Docker meta",
-    id: "docker_meta",
-    uses: "docker/metadata-action@v5",
-    with: {
-      "bake-target": "default",
-      tags: "type=sha\n",
-    },
-  }),
-  dockerTagStep(
-    "input_tag",
-    {
-      registry: "ghcr.io",
-      image: "${{ github.repository }}",
-      version: "${{ steps.docker_meta.outputs.version }}",
-    },
-    "Input tag",
-  ),
-  new Step({
-    name: "Set up Docker",
-    id: "docker",
-    uses: "./.github/actions/setup-docker",
-    with: {
-      registry: "${{ inputs.push && 'ghcr.io' || '' }}",
-      username: "${{ inputs.push && github.actor || '' }}",
-      password: "${{ inputs.push && secrets.GITHUB_TOKEN || '' }}",
-    },
-  }),
-  nopoBuild(
-    {
-      SERVICES: "${{ inputs.services }}",
-      DOCKER_TAG: "${{ steps.input_tag.outputs.tag }}",
-      DOCKER_PUSH: "${{ inputs.push }}",
-      DOCKER_BUILDER: "${{ steps.docker.outputs.builder }}",
-    },
-    { output: "${{ env.build_output }}" },
-    "Build",
-  ),
-  extractBuildInfoStep("build_info", {
-    build_output: "${{ env.build_output }}",
-  }),
-  dockerTagStep(
-    "output_tag",
-    {
-      registry: "${{ steps.input_tag.outputs.registry }}",
-      image: "${{ steps.input_tag.outputs.image }}",
-      version: "${{ steps.input_tag.outputs.version }}",
-      digest:
-        "${{ inputs.push && steps.build_info.outputs.base_digest || '' }}",
-    },
-    "Output tag",
-  ),
-]);
 
 // Main workflow
 export const buildWorkflow = new Workflow("_build", {

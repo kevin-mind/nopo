@@ -1,4 +1,6 @@
 import { NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
+import { ExtendedStep } from "./lib/enhanced-step";
+import { ExtendedNormalJob } from "./lib/enhanced-job";
 import { checkoutStep, checkoutWithDepth } from "./lib/steps";
 import { claudeIssuePermissions, defaultDefaults } from "./lib/patterns";
 import { ISSUE_CONCURRENCY_EXPRESSION } from "./lib/concurrency";
@@ -8,7 +10,6 @@ import {
   ghIssueViewWithComments,
   ghIssueEditRemoveAssignee,
   ghPrListForIssue,
-  ghApiCheckSubIssue,
   ghApiCheckProjectStatus,
   ghApiUpdateProjectStatus,
   ghApiCountComments,
@@ -23,7 +24,7 @@ import { applyTriageSteps } from "./lib/triage-steps";
 // =============================================================================
 
 // Triage check job
-const triageCheckJob = new NormalJob("triage-check", {
+const triageCheckJob = new ExtendedNormalJob("triage-check", {
   "runs-on": "ubuntu-latest",
   if: `(github.event_name == 'issues' &&
  (
@@ -33,22 +34,76 @@ const triageCheckJob = new NormalJob("triage-check", {
  )
 ) ||
 (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'triage')`,
-  outputs: {
-    should_triage: "${{ steps.check.outputs.should_triage }}",
-    issue_number: "${{ steps.check.outputs.issue_number }}",
-    issue_title: "${{ steps.check.outputs.issue_title }}",
-    issue_body: "${{ steps.check.outputs.issue_body }}",
-  },
-});
+  steps: [
+    // Step 1: Check if this is a sub-issue (shouldn't be triaged)
+    new ExtendedStep({
+      id: "check",
+      name: "gh api graphql (check sub-issue)",
+      env: {
+        GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+        ISSUE_NUMBER: "${{ github.event.issue.number || github.event.inputs.issue_number }}",
+      },
+      run: `repo_name="\${GITHUB_REPOSITORY#*/}"
+owner="\${GITHUB_REPOSITORY%/*}"
 
-triageCheckJob.addSteps([
-  // Step 1: Check if this is a sub-issue (shouldn't be triaged)
-  ghApiCheckSubIssue("check", {
-    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-    ISSUE_NUMBER:
-      "${{ github.event.issue.number || github.event.inputs.issue_number }}",
+result=$(gh api graphql -H "GraphQL-Features: sub_issues" -f query='
+  query($owner: String!, $repo: String!, $number: Int!) {
+    repository(owner: $owner, name: $repo) {
+      issue(number: $number) {
+        title
+        body
+        parent { number }
+      }
+    }
+  }
+' \\
+  -F owner="$owner" \\
+  -F repo="$repo_name" \\
+  -F number="$ISSUE_NUMBER" 2>/dev/null || echo '{"data":{"repository":{"issue":null}}}')
+
+issue=$(echo "$result" | jq -r '.data.repository.issue')
+
+if [[ -z "$issue" || "$issue" == "null" ]]; then
+  echo "is_sub_issue=false" >> \$GITHUB_OUTPUT
+  echo "should_triage=false" >> \$GITHUB_OUTPUT
+  echo "issue_title=" >> \$GITHUB_OUTPUT
+  {
+    echo 'issue_body<<EOF'
+    echo ''
+    echo 'EOF'
+  } >> \$GITHUB_OUTPUT
+  exit 0
+fi
+
+parent=$(echo "$issue" | jq -r '.parent.number // empty')
+title=$(echo "$issue" | jq -r '.title')
+body=$(echo "$issue" | jq -r '.body // ""')
+
+if [[ -n "$parent" ]]; then
+  echo "is_sub_issue=true" >> \$GITHUB_OUTPUT
+  echo "should_triage=false" >> \$GITHUB_OUTPUT
+else
+  echo "is_sub_issue=false" >> \$GITHUB_OUTPUT
+  echo "should_triage=true" >> \$GITHUB_OUTPUT
+fi
+
+echo "issue_title=$title" >> \$GITHUB_OUTPUT
+echo "issue_number=$ISSUE_NUMBER" >> \$GITHUB_OUTPUT
+{
+  echo 'issue_body<<EOF'
+  echo "$body"
+  echo 'EOF'
+} >> \$GITHUB_OUTPUT`,
+      outputs: ["should_triage", "issue_number", "issue_title", "issue_body", "is_sub_issue"] as const,
+    }),
+  ] as const,
+  outputs: (steps) => ({
+    should_triage: steps.check.outputs.should_triage,
+    issue_number: steps.check.outputs.issue_number,
+    issue_title: steps.check.outputs.issue_title,
+    issue_body: steps.check.outputs.issue_body,
   }),
-]);
+});
 
 // Triage prompt - this is a large multiline string
 const triagePrompt = `You are triaging issue #\${{ needs.triage-check.outputs.issue_number }}: "\${{ needs.triage-check.outputs.issue_title }}"
@@ -272,49 +327,144 @@ triageJob.addSteps([
 // =============================================================================
 
 // Implement check job
-const implementCheckJob = new NormalJob("implement-check", {
+const implementCheckJob = new ExtendedNormalJob("implement-check", {
   "runs-on": "ubuntu-latest",
   if: `github.event.action == 'assigned' &&
 github.event_name == 'issues' &&
 github.event.assignee.login == 'nopo-bot'`,
-  outputs: {
+  steps: [
+    // Step 1: Check if issue has triaged label
+    new ExtendedStep({
+      id: "check_triaged",
+      name: "gh issue view (check label)",
+      env: {
+        GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+        ISSUE_NUMBER: "${{ github.event.issue.number }}",
+        LABEL: "triaged",
+      },
+      run: `has_label=$(gh issue view "$ISSUE_NUMBER" --repo "\$GITHUB_REPOSITORY" --json labels --jq ".labels[].name" | grep -c "^\$LABEL\$" || true)
+echo "has_label=$([[ "$has_label" -gt 0 ]] && echo "true" || echo "false")" >> \$GITHUB_OUTPUT`,
+      outputs: ["has_label"] as const,
+    }),
+    // Step 2: Check project status allows implementation
+    new ExtendedStep({
+      id: "check_status",
+      name: "gh api graphql (check project status)",
+      env: {
+        GH_TOKEN: "${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}",
+        ISSUE_NUMBER: "${{ github.event.issue.number }}",
+      },
+      run: `repo_name="\${GITHUB_REPOSITORY#*/}"
+owner="\${GITHUB_REPOSITORY%/*}"
+
+result=$(gh api graphql -f query='
+  query($owner: String!, $repo: String!, $issue: Int!) {
+    repository(owner: $owner, name: $repo) {
+      issue(number: $issue) {
+        projectItems(first: 10) {
+          nodes {
+            fieldValueByName(name: "Status") {
+              ... on ProjectV2ItemFieldSingleSelectValue {
+                name
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+' \\
+  -F owner="$owner" \\
+  -F repo="$repo_name" \\
+  -F issue="$ISSUE_NUMBER" 2>/dev/null || echo '{}')
+
+status=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0].fieldValueByName.name // ""')
+
+echo "status=$status" >> \$GITHUB_OUTPUT
+
+# Can implement if status is empty, Ready, or Backlog
+if [[ -z "$status" || "$status" == "Ready" || "$status" == "Backlog" ]]; then
+  echo "can_implement=true" >> \$GITHUB_OUTPUT
+else
+  echo "can_implement=false" >> \$GITHUB_OUTPUT
+fi`,
+      outputs: ["status", "can_implement"] as const,
+    }),
+    // Step 3: Get issue details with comments
+    new ExtendedStep({
+      id: "issue",
+      name: "gh issue view (with comments)",
+      env: {
+        GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+        ISSUE_NUMBER: "${{ github.event.issue.number }}",
+      },
+      run: `issue=$(gh issue view "$ISSUE_NUMBER" --repo "\$GITHUB_REPOSITORY" --json title,body,labels,comments)
+echo "title=$(echo "$issue" | jq -r '.title')" >> \$GITHUB_OUTPUT
+{
+  echo 'body<<EOF'
+  echo "$issue" | jq -r '.body'
+  echo 'EOF'
+} >> \$GITHUB_OUTPUT
+echo "labels=$(echo "$issue" | jq -c '[.labels[].name]')" >> \$GITHUB_OUTPUT
+{
+  echo 'comments<<EOF'
+  echo "$issue" | jq -r '.comments[] | "---\\nAuthor: \\(.author.login)\\n\\(.body)\\n"'
+  echo 'EOF'
+} >> \$GITHUB_OUTPUT`,
+      outputs: ["title", "body", "labels", "comments"] as const,
+    }),
+    // Step 4: Post status comment
+    new ExtendedStep({
+      id: "bot_comment",
+      name: "gh issue comment",
+      env: {
+        GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+        ISSUE_NUMBER: "${{ github.event.issue.number }}",
+        BODY: "👀 **nopo-bot** is implementing this issue...\n\n[View workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})",
+      },
+      run: `comment_url=$(gh issue comment "$ISSUE_NUMBER" --body "$BODY" --repo "\$GITHUB_REPOSITORY" 2>&1)
+comment_id=$(echo "$comment_url" | grep -oE '[0-9]+$' || echo "")
+echo "comment_id=$comment_id" >> \$GITHUB_OUTPUT`,
+      outputs: ["comment_id"] as const,
+    }),
+    // Step 5: Check if PR already exists
+    new ExtendedStep({
+      id: "check_pr",
+      name: "gh pr list (for issue)",
+      env: {
+        GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+        ISSUE_NUMBER: "${{ github.event.issue.number }}",
+      },
+      run: `# Search for PRs that mention "Fixes #N" or "Closes #N"
+prs=$(gh pr list --repo "\$GITHUB_REPOSITORY" --state open --json number,headRefName,url,body)
+
+# Find PR that references this issue
+pr=$(echo "$prs" | jq -r --arg issue "$ISSUE_NUMBER" '
+  .[] | select(.body | test("(Fixes|Closes|Resolves) #" + $issue + "([^0-9]|$)"; "i"))
+' | head -1)
+
+if [[ -n "$pr" && "$pr" != "null" ]]; then
+  echo "has_pr=true" >> \$GITHUB_OUTPUT
+  echo "pr_number=$(echo "$pr" | jq -r '.number')" >> \$GITHUB_OUTPUT
+  echo "pr_branch=$(echo "$pr" | jq -r '.headRefName')" >> \$GITHUB_OUTPUT
+  echo "pr_url=$(echo "$pr" | jq -r '.url')" >> \$GITHUB_OUTPUT
+else
+  echo "has_pr=false" >> \$GITHUB_OUTPUT
+  echo "pr_number=" >> \$GITHUB_OUTPUT
+  echo "pr_branch=" >> \$GITHUB_OUTPUT
+  echo "pr_url=" >> \$GITHUB_OUTPUT
+fi`,
+      outputs: ["has_pr", "pr_number", "pr_branch", "pr_url"] as const,
+    }),
+  ] as const,
+  outputs: (steps) => ({
     should_implement: "${{ steps.check_pr.outputs.has_pr == 'false' }}",
     issue_title: "${{ github.event.issue.title }}",
-    issue_body: "${{ steps.issue.outputs.body }}",
-    issue_comments: "${{ steps.issue.outputs.comments }}",
-    bot_comment_id: "${{ steps.bot_comment.outputs.comment_id }}",
-  },
+    issue_body: steps.issue.outputs.body,
+    issue_comments: steps.issue.outputs.comments,
+    bot_comment_id: steps.bot_comment.outputs.comment_id,
+  }),
 });
-
-implementCheckJob.addSteps([
-  // Step 1: Check if issue has triaged label
-  ghIssueViewHasLabel("check_triaged", {
-    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-    ISSUE_NUMBER: "${{ github.event.issue.number }}",
-    LABEL: "triaged",
-  }),
-  // Step 2: Check project status allows implementation
-  ghApiCheckProjectStatus("check_status", {
-    GH_TOKEN: "${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}",
-    ISSUE_NUMBER: "${{ github.event.issue.number }}",
-  }),
-  // Step 3: Get issue details with comments
-  ghIssueViewWithComments("issue", {
-    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-    ISSUE_NUMBER: "${{ github.event.issue.number }}",
-  }),
-  // Step 4: Post status comment
-  ghIssueComment("bot_comment", {
-    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-    ISSUE_NUMBER: "${{ github.event.issue.number }}",
-    BODY: "👀 **nopo-bot** is implementing this issue...\n\n[View workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})",
-  }),
-  // Step 5: Check if PR already exists
-  ghPrListForIssue("check_pr", {
-    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-    ISSUE_NUMBER: "${{ github.event.issue.number }}",
-  }),
-]);
 
 // Implement update project job
 const implementUpdateProjectJob = new NormalJob("implement-update-project", {

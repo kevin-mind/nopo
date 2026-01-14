@@ -48,7 +48,8 @@ jobs:
       has_issue: ${{ steps.issue.outputs.has_issue }}
       bot_comment_id: ${{ steps.bot_comment.outputs.comment_id }}
     steps:
-      - name: Check if draft
+      - id: check_draft
+        name: Check if draft
         if: github.event.pull_request.draft == true
         run: |-
           echo "::warning::PR #${{ github.event.pull_request.number }} is a draft. Skipping review."

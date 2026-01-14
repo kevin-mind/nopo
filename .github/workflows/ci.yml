@@ -23,12 +23,13 @@ jobs:
     outputs:
       is_fork: ${{ steps.context.outputs.is_fork }}
     steps:
-      - uses: actions/checkout@v4
-      - name: Context
-        id: context
+      - id: checkout
+        uses: actions/checkout@v4
+      - id: context
+        name: Context
         uses: ./.github/actions/context
-      - name: Get changed files
-        id: changed_files
+      - id: changed_files
+        name: Get changed files
         uses: tj-actions/changed-files@ed68ef82c095e0d48ec87eccea555d944a631a4c
         with:
           files_yaml: |
@@ -39,12 +40,14 @@ jobs:
             backend_source:
               - apps/backend/**
               - "!apps/backend/src/*/migrations/**"
-      - name: Debug
+      - id: debug
+        name: Debug
         run: |
           cat <<INNEREOF
           ${{ toJson(steps.changed_files.outputs) }}
           INNEREOF
-      - name: Fail if migrations and source changed
+      - id: fail_check
+        name: Fail if migrations and source changed
         if: contains(steps.changed_files.outputs.changed_keys, 'backend_migrations') && contains(steps.changed_files.outputs.changed_keys, 'backend_source')
         run: |
           echo "Migrations and source files cannot be changed together"

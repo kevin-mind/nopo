@@ -289,8 +289,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   success-check-comments:
-    needs:
-      - check-pr
     if: |-
       (github.event.workflow_run.conclusion == 'success' || needs.check-pr.outputs.conclusion == 'success') &&
       needs.check-pr.outputs.has_pr == 'true'
@@ -308,22 +306,29 @@ jobs:
           repo_name="${GITHUB_REPOSITORY#*/}"
           owner="${GITHUB_REPOSITORY%/*}"
 
-          result=$(gh api graphql -f query='query($owner: String!, $repo: String!, $pr: Int!) {
-                repository(owner: $owner, name: $repo) {
-                  pullRequest(number: $pr) {
-                    reviewThreads(first: 100) {
-                      nodes {
-                        isResolved
-                      }
+          result=$(gh api graphql -f query='
+            query($owner: String!, $repo: String!, $pr: Int!) {
+              repository(owner: $owner, name: $repo) {
+                pullRequest(number: $pr) {
+                  reviewThreads(first: 100) {
+                    nodes {
+                      isResolved
                     }
                   }
                 }
-              }'   -F owner="$owner"   -F repo="$repo_name"   -F pr="$PR_NUMBER")
+              }
+            }
+          ' \
+            -F owner="$owner" \
+            -F repo="$repo_name" \
+            -F pr="$PR_NUMBER")
 
           unresolved_count=$(echo "$result" | jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length')
           echo "unresolved_count=$unresolved_count" >> $GITHUB_OUTPUT
           echo "has_unresolved=$([[ "$unresolved_count" -gt 0 ]] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
-      - name: gh pr comment
+      - id: notify
+        name: gh pr comment
+        if: steps.comments.outputs.has_unresolved == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ needs.check-pr.outputs.pr_number }}
@@ -337,6 +342,8 @@ jobs:
           comment_url=$(gh pr comment "$PR_NUMBER" --body "$BODY" --repo "$GITHUB_REPOSITORY" 2>&1)
           comment_id=$(echo "$comment_url" | grep -oE '[0-9]+$' || echo "")
           echo "comment_id=$comment_id" >> $GITHUB_OUTPUT
+    needs:
+      - null
   success-update-project:
     needs:
       - check-pr

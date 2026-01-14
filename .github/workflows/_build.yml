@@ -48,6 +48,8 @@ jobs:
       contents: read
       attestations: write
       id-token: write
+    env:
+      build_output: build-output.json
     outputs:
       registry: ${{ steps.output_tag.outputs.registry }}
       image: ${{ steps.output_tag.outputs.image }}
@@ -56,34 +58,36 @@ jobs:
       tag: ${{ steps.output_tag.outputs.tag }}
       service_tags: ${{ steps.build_info.outputs.service_tags }}
       service_digests: ${{ steps.build_info.outputs.service_digests }}
-    env:
-      build_output: build-output.json
     steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-node
-      - uses: ./.github/actions/setup-nopo
-      - name: Docker meta
-        id: docker_meta
+      - id: checkout
+        uses: actions/checkout@v4
+      - id: setup_node
+        uses: ./.github/actions/setup-node
+      - id: setup_nopo
+        uses: ./.github/actions/setup-nopo
+      - id: docker_meta
+        name: Docker meta
         uses: docker/metadata-action@v5
         with:
           bake-target: default
           tags: |
             type=sha
-      - name: Input tag
-        id: input_tag
+      - id: input_tag
+        name: Input tag
         uses: ./.github/actions-ts/docker-tag
         with:
           registry: ghcr.io
           image: ${{ github.repository }}
           version: ${{ steps.docker_meta.outputs.version }}
-      - name: Set up Docker
-        id: docker
+      - id: docker
+        name: Set up Docker
         uses: ./.github/actions/setup-docker
         with:
           registry: ${{ inputs.push && 'ghcr.io' || '' }}
           username: ${{ inputs.push && github.actor || '' }}
           password: ${{ inputs.push && secrets.GITHUB_TOKEN || '' }}
-      - name: Build
+      - id: build
+        name: Build
         env:
           SERVICES: ${{ inputs.services }}
           DOCKER_TAG: ${{ steps.input_tag.outputs.tag }}
@@ -95,13 +99,13 @@ jobs:
           else
             nopo build --output ${{ env.build_output }}
           fi
-      - name: Extract build info
-        id: build_info
+      - id: build_info
+        name: Extract build info
         uses: ./.github/actions/extract-build-info
         with:
           build_output: ${{ env.build_output }}
-      - name: Output tag
-        id: output_tag
+      - id: output_tag
+        name: Output tag
         uses: ./.github/actions-ts/docker-tag
         with:
           registry: ${{ steps.input_tag.outputs.registry }}

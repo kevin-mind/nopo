@@ -1,40 +1,40 @@
 import { NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
-import { setupNodeStep } from "./lib/steps";
+import { ExtendedStep } from "./lib/enhanced-step";
+import { ExtendedNormalJob } from "./lib/enhanced-job";
 import { defaultDefaults, readPermissions } from "./lib/patterns";
 
 // Discover job
-const discoverJob = new NormalJob("discover", {
+const discoverJob = new ExtendedNormalJob("discover", {
   "runs-on": "ubuntu-latest",
-  outputs: {
-    services: "${{ steps.discover.outputs.services }}",
-    services_json: "${{ steps.discover.outputs.services_json }}",
-  },
-});
-
-discoverJob.addSteps([
-  new Step({
-    uses: "actions/checkout@v4",
-    with: {
-      ref: "${{ inputs.ref }}",
-      "fetch-depth": 0,
-    },
-  }),
-  new Step({
-    name: "Fetch origin/main for comparison",
-    if: "inputs.since == 'origin/main' || inputs.since == ''",
-    run: `# Ensure origin/main is available for comparison
+  steps: [
+    new ExtendedStep({
+      id: "checkout",
+      uses: "actions/checkout@v4",
+      with: {
+        ref: "${{ inputs.ref }}",
+        "fetch-depth": 0,
+      },
+    }),
+    new ExtendedStep({
+      id: "fetch_main",
+      name: "Fetch origin/main for comparison",
+      if: "inputs.since == 'origin/main' || inputs.since == ''",
+      run: `# Ensure origin/main is available for comparison
 git fetch origin main:origin/main || true
 `,
-  }),
-  setupNodeStep,
-  new Step({
-    name: "Discover services",
-    id: "discover",
-    env: {
-      FILTER: "${{ inputs.filter }}",
-      SINCE: "${{ inputs.since }}",
-    },
-    run: `echo "=== Service Discovery ==="
+    }),
+    new ExtendedStep({
+      id: "setup_node",
+      uses: "./.github/actions/setup-node",
+    }),
+    new ExtendedStep({
+      id: "discover",
+      name: "Discover services",
+      env: {
+        FILTER: "${{ inputs.filter }}",
+        SINCE: "${{ inputs.since }}",
+      },
+      run: `echo "=== Service Discovery ==="
 echo "Filter: \${FILTER:-<none>}"
 echo "Since: \${SINCE:-<none>}"
 echo "Ref: \${GITHUB_REF:-main}"
@@ -78,8 +78,14 @@ if [[ "$count" == "0" ]]; then
   echo "::notice::No services matched the filter criteria"
 fi
 `,
+      outputs: ["services", "services_json"] as const,
+    }),
+  ] as const,
+  outputs: (steps) => ({
+    services: steps.discover.outputs.services,
+    services_json: steps.discover.outputs.services_json,
   }),
-]);
+});
 
 // Main workflow
 export const servicesWorkflow = new Workflow("_services", {

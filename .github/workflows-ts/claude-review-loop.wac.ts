@@ -1,9 +1,9 @@
 import { NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
-import { checkoutStep } from "./lib/steps";
+import { ExtendedStep } from "./lib/enhanced-step";
+import { ExtendedNormalJob } from "./lib/enhanced-job";
 import { claudeReviewPermissions, defaultDefaults } from "./lib/patterns";
 import {
   ghPrComment,
-  ghPrViewLinkedIssue,
   ghPrViewCheckClaude,
   ghPrEditRemoveReviewer,
   ghApiUpdateProjectStatus,
@@ -16,41 +16,79 @@ import { gitConfig } from "./lib/cli/git";
 // =============================================================================
 
 // Request setup job
-const requestSetupJob = new NormalJob("request-setup", {
+const requestSetupJob = new ExtendedNormalJob("request-setup", {
   if: `github.event_name == 'pull_request' &&
 github.event.requested_reviewer.login == 'nopo-bot'`,
   "runs-on": "ubuntu-latest",
-  outputs: {
+  steps: [
+    // Step 1: Check if draft PR (skip review)
+    new ExtendedStep({
+      id: "check_draft",
+      name: "Check if draft",
+      if: "github.event.pull_request.draft == true",
+      run: `echo "::warning::PR #\${{ github.event.pull_request.number }} is a draft. Skipping review."
+exit 1`,
+    }),
+    // Step 2: Post status comment
+    new ExtendedStep({
+      id: "bot_comment",
+      name: "gh pr comment",
+      env: {
+        GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+        PR_NUMBER: "${{ github.event.pull_request.number }}",
+        BODY: "👀 **nopo-bot** is reviewing this PR...\n\n[View workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})",
+      },
+      run: `comment_url=$(gh pr comment "$PR_NUMBER" --body "$BODY" --repo "\$GITHUB_REPOSITORY" 2>&1)
+comment_id=$(echo "$comment_url" | grep -oE '[0-9]+$' || echo "")
+echo "comment_id=$comment_id" >> \$GITHUB_OUTPUT`,
+      outputs: ["comment_id"] as const,
+    }),
+    // Step 3: Extract linked issue
+    new ExtendedStep({
+      id: "issue",
+      name: "gh pr view (linked issue)",
+      env: {
+        GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+        PR_NUMBER: "${{ github.event.pull_request.number }}",
+      },
+      run: `pr_body=$(gh pr view "$PR_NUMBER" --repo "\$GITHUB_REPOSITORY" --json body --jq '.body')
+
+# Extract issue number from PR body (Fixes #123 pattern)
+issue_number=$(echo "$pr_body" | grep -oE '(Fixes|Closes|Resolves) #[0-9]+' | head -1 | grep -oE '[0-9]+' || echo "")
+
+if [[ -n "$issue_number" ]]; then
+  echo "has_issue=true" >> \$GITHUB_OUTPUT
+  echo "issue_number=$issue_number" >> \$GITHUB_OUTPUT
+
+  # Fetch the linked issue body
+  issue_body=$(gh issue view "$issue_number" --repo "\$GITHUB_REPOSITORY" --json body --jq '.body')
+  {
+    echo 'issue_body<<EOF'
+    echo "$issue_body"
+    echo 'EOF'
+  } >> \$GITHUB_OUTPUT
+else
+  echo "has_issue=false" >> \$GITHUB_OUTPUT
+  echo "issue_number=" >> \$GITHUB_OUTPUT
+  {
+    echo 'issue_body<<EOF'
+    echo ''
+    echo 'EOF'
+  } >> \$GITHUB_OUTPUT
+fi`,
+      outputs: ["has_issue", "issue_number", "issue_body"] as const,
+    }),
+  ] as const,
+  outputs: (steps) => ({
     pr_branch: "${{ github.event.pull_request.head.ref }}",
     pr_number: "${{ github.event.pull_request.number }}",
     is_draft: "${{ github.event.pull_request.draft }}",
-    issue_number: "${{ steps.issue.outputs.issue_number }}",
-    issue_body: "${{ steps.issue.outputs.issue_body }}",
-    has_issue: "${{ steps.issue.outputs.has_issue }}",
-    bot_comment_id: "${{ steps.bot_comment.outputs.comment_id }}",
-  },
+    issue_number: steps.issue.outputs.issue_number,
+    issue_body: steps.issue.outputs.issue_body,
+    has_issue: steps.issue.outputs.has_issue,
+    bot_comment_id: steps.bot_comment.outputs.comment_id,
+  }),
 });
-
-requestSetupJob.addSteps([
-  // Step 1: Check if draft PR (skip review)
-  new Step({
-    name: "Check if draft",
-    if: "github.event.pull_request.draft == true",
-    run: `echo "::warning::PR #\${{ github.event.pull_request.number }} is a draft. Skipping review."
-exit 1`,
-  }),
-  // Step 2: Post status comment
-  ghPrComment("bot_comment", {
-    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-    PR_NUMBER: "${{ github.event.pull_request.number }}",
-    BODY: "👀 **nopo-bot** is reviewing this PR...\n\n[View workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})",
-  }),
-  // Step 3: Extract linked issue
-  ghPrViewLinkedIssue("issue", {
-    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-    PR_NUMBER: "${{ github.event.pull_request.number }}",
-  }),
-]);
 
 // Request update project job
 const requestUpdateProjectJob = new NormalJob("request-update-project", {

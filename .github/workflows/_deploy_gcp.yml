@@ -88,21 +88,23 @@ jobs:
     outputs:
       artifact_registry_url: ${{ steps.apply.outputs.artifact_registry_url }}
       static_bucket_name: ${{ steps.apply.outputs.static_bucket_name }}
-    needs:
-      - context
     steps:
-      - uses: actions/checkout@v4
-      - name: Authenticate to GCP
+      - id: checkout
+        uses: actions/checkout@v4
+      - id: auth
+        name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-      - name: Setup Terraform
+      - id: setup_terraform
+        name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.7.0
           terraform_wrapper: false
-      - name: Terraform Init
+      - id: init
+        name: Terraform Init
         env:
           TF_STATE_BUCKET: ${{ vars.TERRAFORM_STATE_BUCKET }}
           ENVIRONMENT: ${{ inputs.environment }}
@@ -111,8 +113,8 @@ jobs:
           terraform init -input=false \
             -backend-config="bucket=${TF_STATE_BUCKET}" \
             -backend-config="prefix=nopo/${ENVIRONMENT}/infra"
-      - name: Terraform Apply
-        id: apply
+      - id: apply
+        name: Terraform Apply
         env:
           TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID }}
           TF_VAR_region: us-central1
@@ -129,6 +131,8 @@ jobs:
 
           echo "artifact_registry_url=${artifact_registry_url}" >> "$GITHUB_OUTPUT"
           echo "static_bucket_name=${static_bucket_name}" >> "$GITHUB_OUTPUT"
+    needs:
+      - context
   get_current_state:
     name: Get Current State
     runs-on: ubuntu-latest
@@ -141,23 +145,23 @@ jobs:
       stable_web_image: ${{ steps.images.outputs.stable_web_image }}
       canary_backend_image: ${{ steps.images.outputs.canary_backend_image }}
       canary_web_image: ${{ steps.images.outputs.canary_web_image }}
-    needs:
-      - context
-      - provision_infra
     steps:
-      - uses: actions/checkout@v4
-      - name: Authenticate to GCP
+      - id: checkout
+        uses: actions/checkout@v4
+      - id: auth
+        name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-      - name: Setup Terraform
+      - id: setup_terraform
+        name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.7.0
           terraform_wrapper: false
-      - name: Build image variables
-        id: images
+      - id: images
+        name: Build image variables
         env:
           REGISTRY: ${{ needs.provision_infra.outputs.artifact_registry_url }}
           VERSION: ${{ inputs.version }}
@@ -193,6 +197,9 @@ jobs:
           echo "  Stable web: ${stable_web_image:-<not deploying>}"
           echo "  Canary backend: ${canary_backend_image:-<not deploying>}"
           echo "  Canary web: ${canary_web_image:-<not deploying>}"
+    needs:
+      - context
+      - provision_infra
   push_images:
     name: Push ${{ matrix.service }}
     runs-on: ubuntu-latest
@@ -239,20 +246,17 @@ jobs:
       id-token: write
     outputs:
       public_url: ${{ steps.deploy.outputs.public_url }}
-    needs:
-      - context
-      - provision_infra
-      - get_current_state
-      - push_images
     steps:
-      - uses: actions/checkout@v4
-      - name: Authenticate to GCP
+      - id: checkout
+        uses: actions/checkout@v4
+      - id: auth
+        name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-      - name: Deploy Services (Canary)
-        id: deploy
+      - id: deploy
+        name: Deploy Services (Canary)
         uses: ./.github/actions/deploy-gcp
         with:
           project_id: ${{ vars.GCP_PROJECT_ID }}
@@ -266,6 +270,11 @@ jobs:
           canary_backend_image: ${{ needs.get_current_state.outputs.canary_backend_image }}
           canary_web_image: ${{ needs.get_current_state.outputs.canary_web_image }}
           supabase_database_url: ${{ secrets.SUPABASE_DATABASE_URL }}
+    needs:
+      - context
+      - provision_infra
+      - get_current_state
+      - push_images
   upload_assets:
     name: Upload Assets ${{ matrix.service }}
     runs-on: ubuntu-latest

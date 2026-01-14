@@ -1,4 +1,6 @@
 import { NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
+import { ExtendedStep } from "./lib/enhanced-step";
+import { ExtendedNormalJob } from "./lib/enhanced-job";
 import {
   checkoutStep,
   setupNodeStep,
@@ -67,7 +69,7 @@ fi
 ]);
 
 // Provision Infrastructure job
-const provisionInfraJob = new NormalJob("provision_infra", {
+const provisionInfraJob = new ExtendedNormalJob("provision_infra", {
   name: "Provision Infrastructure",
   "runs-on": "ubuntu-latest",
   environment: "${{ inputs.environment }}",
@@ -76,57 +78,57 @@ const provisionInfraJob = new NormalJob("provision_infra", {
     contents: "read" as const,
     "id-token": "write" as const,
   },
-  outputs: {
-    artifact_registry_url: "${{ steps.apply.outputs.artifact_registry_url }}",
-    static_bucket_name: "${{ steps.apply.outputs.static_bucket_name }}",
-  },
-});
-provisionInfraJob.needs([contextJob]);
-
-provisionInfraJob.addSteps([
-  checkoutStep,
-  new Step({
-    name: "Authenticate to GCP",
-    uses: "google-github-actions/auth@v2",
-    with: {
-      workload_identity_provider:
-        "${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}",
-      service_account: "${{ secrets.GCP_SERVICE_ACCOUNT }}",
-    },
-  }),
-  new Step({
-    name: "Setup Terraform",
-    uses: "hashicorp/setup-terraform@v3",
-    with: {
-      terraform_version: TERRAFORM_VERSION,
-      terraform_wrapper: false,
-    },
-  }),
-  new Step({
-    name: "Terraform Init",
-    env: {
-      TF_STATE_BUCKET: "${{ vars.TERRAFORM_STATE_BUCKET }}",
-      ENVIRONMENT: "${{ inputs.environment }}",
-    },
-    "working-directory":
-      "infrastructure/terraform/environments/${{ inputs.environment }}/infra",
-    run: `terraform init -input=false \\
+  needs: [contextJob],
+  steps: [
+    new ExtendedStep({
+      id: "checkout",
+      uses: "actions/checkout@v4",
+    }),
+    new ExtendedStep({
+      id: "auth",
+      name: "Authenticate to GCP",
+      uses: "google-github-actions/auth@v2",
+      with: {
+        workload_identity_provider:
+          "${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}",
+        service_account: "${{ secrets.GCP_SERVICE_ACCOUNT }}",
+      },
+    }),
+    new ExtendedStep({
+      id: "setup_terraform",
+      name: "Setup Terraform",
+      uses: "hashicorp/setup-terraform@v3",
+      with: {
+        terraform_version: TERRAFORM_VERSION,
+        terraform_wrapper: false,
+      },
+    }),
+    new ExtendedStep({
+      id: "init",
+      name: "Terraform Init",
+      env: {
+        TF_STATE_BUCKET: "${{ vars.TERRAFORM_STATE_BUCKET }}",
+        ENVIRONMENT: "${{ inputs.environment }}",
+      },
+      "working-directory":
+        "infrastructure/terraform/environments/${{ inputs.environment }}/infra",
+      run: `terraform init -input=false \\
   -backend-config="bucket=\${TF_STATE_BUCKET}" \\
   -backend-config="prefix=nopo/\${ENVIRONMENT}/infra"
 `,
-  }),
-  new Step({
-    name: "Terraform Apply",
-    id: "apply",
-    env: {
-      TF_VAR_project_id: "${{ vars.GCP_PROJECT_ID }}",
-      TF_VAR_region: GCP_REGION,
-      TF_VAR_domain: "${{ vars.DOMAIN }}",
-      TF_VAR_supabase_database_url: "${{ secrets.SUPABASE_DATABASE_URL }}",
-    },
-    "working-directory":
-      "infrastructure/terraform/environments/${{ inputs.environment }}/infra",
-    run: `# Apply infra changes (create/update registry, buckets, etc.)
+    }),
+    new ExtendedStep({
+      id: "apply",
+      name: "Terraform Apply",
+      env: {
+        TF_VAR_project_id: "${{ vars.GCP_PROJECT_ID }}",
+        TF_VAR_region: GCP_REGION,
+        TF_VAR_domain: "${{ vars.DOMAIN }}",
+        TF_VAR_supabase_database_url: "${{ secrets.SUPABASE_DATABASE_URL }}",
+      },
+      "working-directory":
+        "infrastructure/terraform/environments/${{ inputs.environment }}/infra",
+      run: `# Apply infra changes (create/update registry, buckets, etc.)
 terraform apply -input=false -auto-approve
 
 # Capture outputs
@@ -136,11 +138,17 @@ static_bucket_name=$(terraform output -raw static_bucket_name)
 echo "artifact_registry_url=\${artifact_registry_url}" >> "$GITHUB_OUTPUT"
 echo "static_bucket_name=\${static_bucket_name}" >> "$GITHUB_OUTPUT"
 `,
+      outputs: ["artifact_registry_url", "static_bucket_name"] as const,
+    }),
+  ] as const,
+  outputs: (steps) => ({
+    artifact_registry_url: steps.apply.outputs.artifact_registry_url,
+    static_bucket_name: steps.apply.outputs.static_bucket_name,
   }),
-]);
+});
 
 // Get Current State job
-const getCurrentStateJob = new NormalJob("get_current_state", {
+const getCurrentStateJob = new ExtendedNormalJob("get_current_state", {
   name: "Get Current State",
   "runs-on": "ubuntu-latest",
   environment: "${{ inputs.environment }}",
@@ -148,43 +156,40 @@ const getCurrentStateJob = new NormalJob("get_current_state", {
     contents: "read" as const,
     "id-token": "write" as const,
   },
-  outputs: {
-    stable_backend_image: "${{ steps.images.outputs.stable_backend_image }}",
-    stable_web_image: "${{ steps.images.outputs.stable_web_image }}",
-    canary_backend_image: "${{ steps.images.outputs.canary_backend_image }}",
-    canary_web_image: "${{ steps.images.outputs.canary_web_image }}",
-  },
-});
-getCurrentStateJob.needs([contextJob, provisionInfraJob]);
-
-getCurrentStateJob.addSteps([
-  checkoutStep,
-  new Step({
-    name: "Authenticate to GCP",
-    uses: "google-github-actions/auth@v2",
-    with: {
-      workload_identity_provider:
-        "${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}",
-      service_account: "${{ secrets.GCP_SERVICE_ACCOUNT }}",
-    },
-  }),
-  new Step({
-    name: "Setup Terraform",
-    uses: "hashicorp/setup-terraform@v3",
-    with: {
-      terraform_version: TERRAFORM_VERSION,
-      terraform_wrapper: false,
-    },
-  }),
-  new Step({
-    name: "Build image variables",
-    id: "images",
-    env: {
-      REGISTRY: "${{ needs.provision_infra.outputs.artifact_registry_url }}",
-      VERSION: "${{ inputs.version }}",
-      SERVICES: "${{ needs.context.outputs.services }}",
-    },
-    run: `services_array=$(echo "\${SERVICES}" | jq -c '.')
+  needs: [contextJob, provisionInfraJob],
+  steps: [
+    new ExtendedStep({
+      id: "checkout",
+      uses: "actions/checkout@v4",
+    }),
+    new ExtendedStep({
+      id: "auth",
+      name: "Authenticate to GCP",
+      uses: "google-github-actions/auth@v2",
+      with: {
+        workload_identity_provider:
+          "${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}",
+        service_account: "${{ secrets.GCP_SERVICE_ACCOUNT }}",
+      },
+    }),
+    new ExtendedStep({
+      id: "setup_terraform",
+      name: "Setup Terraform",
+      uses: "hashicorp/setup-terraform@v3",
+      with: {
+        terraform_version: TERRAFORM_VERSION,
+        terraform_wrapper: false,
+      },
+    }),
+    new ExtendedStep({
+      id: "images",
+      name: "Build image variables",
+      env: {
+        REGISTRY: "${{ needs.provision_infra.outputs.artifact_registry_url }}",
+        VERSION: "${{ inputs.version }}",
+        SERVICES: "${{ needs.context.outputs.services }}",
+      },
+      run: `services_array=$(echo "\${SERVICES}" | jq -c '.')
 
 # Only set images for services we're actually deploying
 # For services not in the list, output empty string (Terraform will treat as null)
@@ -215,8 +220,21 @@ echo "  Stable web: \${stable_web_image:-<not deploying>}"
 echo "  Canary backend: \${canary_backend_image:-<not deploying>}"
 echo "  Canary web: \${canary_web_image:-<not deploying>}"
 `,
+      outputs: [
+        "stable_backend_image",
+        "stable_web_image",
+        "canary_backend_image",
+        "canary_web_image",
+      ] as const,
+    }),
+  ] as const,
+  outputs: (steps) => ({
+    stable_backend_image: steps.images.outputs.stable_backend_image,
+    stable_web_image: steps.images.outputs.stable_web_image,
+    canary_backend_image: steps.images.outputs.canary_backend_image,
+    canary_web_image: steps.images.outputs.canary_web_image,
   }),
-]);
+});
 
 // Push Images job (matrix)
 const pushImagesJob = new NormalJob("push_images", {
@@ -267,7 +285,7 @@ pushImagesJob.addSteps([
 ]);
 
 // Deploy Canary job
-const deployCanaryJob = new NormalJob("deploy_canary", {
+const deployCanaryJob = new ExtendedNormalJob("deploy_canary", {
   name: "Deploy Canary",
   "runs-on": "ubuntu-latest",
   environment: {
@@ -278,51 +296,50 @@ const deployCanaryJob = new NormalJob("deploy_canary", {
     contents: "read" as const,
     "id-token": "write" as const,
   },
-  outputs: {
-    public_url: "${{ steps.deploy.outputs.public_url }}",
-  },
+  needs: [contextJob, provisionInfraJob, getCurrentStateJob, pushImagesJob],
+  steps: [
+    new ExtendedStep({
+      id: "checkout",
+      uses: "actions/checkout@v4",
+    }),
+    new ExtendedStep({
+      id: "auth",
+      name: "Authenticate to GCP",
+      uses: "google-github-actions/auth@v2",
+      with: {
+        workload_identity_provider:
+          "${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}",
+        service_account: "${{ secrets.GCP_SERVICE_ACCOUNT }}",
+      },
+    }),
+    new ExtendedStep({
+      id: "deploy",
+      name: "Deploy Services (Canary)",
+      uses: "./.github/actions/deploy-gcp",
+      with: {
+        project_id: "${{ vars.GCP_PROJECT_ID }}",
+        region: GCP_REGION,
+        environment: "${{ inputs.environment }}",
+        domain: "${{ vars.DOMAIN }}",
+        subdomain_prefix: "${{ needs.context.outputs.subdomain_prefix }}",
+        terraform_state_bucket: "${{ vars.TERRAFORM_STATE_BUCKET }}",
+        stable_backend_image:
+          "${{ needs.get_current_state.outputs.stable_backend_image }}",
+        stable_web_image:
+          "${{ needs.get_current_state.outputs.stable_web_image }}",
+        canary_backend_image:
+          "${{ needs.get_current_state.outputs.canary_backend_image }}",
+        canary_web_image:
+          "${{ needs.get_current_state.outputs.canary_web_image }}",
+        supabase_database_url: "${{ secrets.SUPABASE_DATABASE_URL }}",
+      },
+      outputs: ["public_url"] as const,
+    }),
+  ] as const,
+  outputs: (steps) => ({
+    public_url: steps.deploy.outputs.public_url,
+  }),
 });
-deployCanaryJob.needs([
-  contextJob,
-  provisionInfraJob,
-  getCurrentStateJob,
-  pushImagesJob,
-]);
-
-deployCanaryJob.addSteps([
-  checkoutStep,
-  new Step({
-    name: "Authenticate to GCP",
-    uses: "google-github-actions/auth@v2",
-    with: {
-      workload_identity_provider:
-        "${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}",
-      service_account: "${{ secrets.GCP_SERVICE_ACCOUNT }}",
-    },
-  }),
-  new Step({
-    name: "Deploy Services (Canary)",
-    id: "deploy",
-    uses: "./.github/actions/deploy-gcp",
-    with: {
-      project_id: "${{ vars.GCP_PROJECT_ID }}",
-      region: GCP_REGION,
-      environment: "${{ inputs.environment }}",
-      domain: "${{ vars.DOMAIN }}",
-      subdomain_prefix: "${{ needs.context.outputs.subdomain_prefix }}",
-      terraform_state_bucket: "${{ vars.TERRAFORM_STATE_BUCKET }}",
-      stable_backend_image:
-        "${{ needs.get_current_state.outputs.stable_backend_image }}",
-      stable_web_image:
-        "${{ needs.get_current_state.outputs.stable_web_image }}",
-      canary_backend_image:
-        "${{ needs.get_current_state.outputs.canary_backend_image }}",
-      canary_web_image:
-        "${{ needs.get_current_state.outputs.canary_web_image }}",
-      supabase_database_url: "${{ secrets.SUPABASE_DATABASE_URL }}",
-    },
-  }),
-]);
 
 // Upload Assets job (matrix)
 const uploadAssetsJob = new NormalJob("upload_assets", {

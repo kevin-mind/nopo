@@ -67,15 +67,20 @@ jobs:
           repo_name="${GITHUB_REPOSITORY#*/}"
           owner="${GITHUB_REPOSITORY%/*}"
 
-          result=$(gh api graphql -H "GraphQL-Features: sub_issues" -f query='query($owner: String!, $repo: String!, $number: Int!) {
-                repository(owner: $owner, name: $repo) {
-                  issue(number: $number) {
-                    title
-                    body
-                    parent { number }
-                  }
+          result=$(gh api graphql -H "GraphQL-Features: sub_issues" -f query='
+            query($owner: String!, $repo: String!, $number: Int!) {
+              repository(owner: $owner, name: $repo) {
+                issue(number: $number) {
+                  title
+                  body
+                  parent { number }
                 }
-              }'   -F owner="$owner"   -F repo="$repo_name"   -F number="$ISSUE_NUMBER" 2>/dev/null || echo '{"data":{"repository":{"issue":null}}}')
+              }
+            }
+          ' \
+            -F owner="$owner" \
+            -F repo="$repo_name" \
+            -F number="$ISSUE_NUMBER" 2>/dev/null || echo '{"data":{"repository":{"issue":null}}}')
 
           issue=$(echo "$result" | jq -r '.data.repository.issue')
 
@@ -494,21 +499,26 @@ jobs:
           repo_name="${GITHUB_REPOSITORY#*/}"
           owner="${GITHUB_REPOSITORY%/*}"
 
-          result=$(gh api graphql -f query='query($owner: String!, $repo: String!, $issue: Int!) {
-                repository(owner: $owner, name: $repo) {
-                  issue(number: $issue) {
-                    projectItems(first: 10) {
-                      nodes {
-                        fieldValueByName(name: "Status") {
-                          ... on ProjectV2ItemFieldSingleSelectValue {
-                            name
-                          }
+          result=$(gh api graphql -f query='
+            query($owner: String!, $repo: String!, $issue: Int!) {
+              repository(owner: $owner, name: $repo) {
+                issue(number: $issue) {
+                  projectItems(first: 10) {
+                    nodes {
+                      fieldValueByName(name: "Status") {
+                        ... on ProjectV2ItemFieldSingleSelectValue {
+                          name
                         }
                       }
                     }
                   }
                 }
-              }'   -F owner="$owner"   -F repo="$repo_name"   -F issue="$ISSUE_NUMBER" 2>/dev/null || echo '{}')
+              }
+            }
+          ' \
+            -F owner="$owner" \
+            -F repo="$repo_name" \
+            -F issue="$ISSUE_NUMBER" 2>/dev/null || echo '{}')
 
           status=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0].fieldValueByName.name // ""')
 

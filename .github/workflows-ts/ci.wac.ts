@@ -4,13 +4,14 @@ import {
   Step,
   Workflow,
 } from "@github-actions-workflow-ts/lib";
+import { ExtendedStep } from "./lib/enhanced-step";
+import { ExtendedNormalJob } from "./lib/enhanced-job";
 import {
   checkoutStep,
   setupNodeStep,
   setupDockerStep,
   smoketestStep,
   checkStep,
-  contextStep,
 } from "./lib/steps";
 import {
   buildPermissions,
@@ -21,23 +22,26 @@ import {
 } from "./lib/patterns";
 
 // Context job - detects fork status and changed files
-const contextJob = new NormalJob("context", {
+const contextJob = new ExtendedNormalJob("context", {
   "runs-on": "ubuntu-latest",
   permissions: readPermissions,
-  outputs: {
-    is_fork: "${{ steps.context.outputs.is_fork }}",
-  },
-});
-
-contextJob.addSteps([
-  checkoutStep,
-  contextStep("context"),
-  new Step({
-    name: "Get changed files",
-    id: "changed_files",
-    uses: "tj-actions/changed-files@ed68ef82c095e0d48ec87eccea555d944a631a4c",
-    with: {
-      files_yaml: `github_actions:
+  steps: [
+    new ExtendedStep({
+      id: "checkout",
+      uses: "actions/checkout@v4",
+    }),
+    new ExtendedStep({
+      id: "context",
+      name: "Context",
+      uses: "./.github/actions/context",
+      outputs: ["is_fork", "default_branch"] as const,
+    }),
+    new ExtendedStep({
+      id: "changed_files",
+      name: "Get changed files",
+      uses: "tj-actions/changed-files@ed68ef82c095e0d48ec87eccea555d944a631a4c",
+      with: {
+        files_yaml: `github_actions:
   - .github/**
 backend_migrations:
   - apps/backend/src/*/migrations/**
@@ -45,23 +49,29 @@ backend_source:
   - apps/backend/**
   - "!apps/backend/src/*/migrations/**"
 `,
-    },
-  }),
-  new Step({
-    name: "Debug",
-    run: `cat <<INNEREOF
+      },
+    }),
+    new ExtendedStep({
+      id: "debug",
+      name: "Debug",
+      run: `cat <<INNEREOF
 \${{ toJson(steps.changed_files.outputs) }}
 INNEREOF
 `,
-  }),
-  new Step({
-    name: "Fail if migrations and source changed",
-    if: "contains(steps.changed_files.outputs.changed_keys, 'backend_migrations') && contains(steps.changed_files.outputs.changed_keys, 'backend_source')",
-    run: `echo "Migrations and source files cannot be changed together"
+    }),
+    new ExtendedStep({
+      id: "fail_check",
+      name: "Fail if migrations and source changed",
+      if: "contains(steps.changed_files.outputs.changed_keys, 'backend_migrations') && contains(steps.changed_files.outputs.changed_keys, 'backend_source')",
+      run: `echo "Migrations and source files cannot be changed together"
 exit 1
 `,
+    }),
+  ] as const,
+  outputs: (steps) => ({
+    is_fork: steps.context.outputs.is_fork,
   }),
-]);
+});
 
 // Discover job - calls _services.yml reusable workflow
 const discoverJob = new ReusableWorkflowCallJob("discover", {

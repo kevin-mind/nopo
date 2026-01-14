@@ -1,5 +1,6 @@
 import { NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
-import { checkoutStep } from "./lib/steps";
+import { ExtendedStep } from "./lib/enhanced-step";
+import { ExtendedNormalJob } from "./lib/enhanced-job";
 import { claudeCIPermissions, defaultDefaults } from "./lib/patterns";
 import {
   ghPrList,
@@ -8,9 +9,7 @@ import {
   ghPrEditAddReviewer,
   ghPrEditAddLabel,
   ghPrComment,
-  ghPrViewExtended,
   ghApiCountComments,
-  ghApiUnresolvedComments,
   ghApiUpdateProjectStatus,
 } from "./lib/cli/gh";
 import { gitConfig } from "./lib/cli/git";
@@ -51,44 +50,109 @@ pushConvertToDraftJob.addSteps([
 // =============================================================================
 
 // Check PR job - handles both workflow_run and workflow_dispatch
-const checkPRJob = new NormalJob("check-pr", {
+const checkPRJob = new ExtendedNormalJob("check-pr", {
   if: "github.event_name == 'workflow_run' || github.event_name == 'workflow_dispatch'",
   "runs-on": "ubuntu-latest",
-  outputs: {
-    has_pr: "${{ steps.check.outputs.has_pr }}",
-    is_claude_pr: "${{ steps.check.outputs.is_claude_pr }}",
-    is_draft: "${{ steps.check.outputs.is_draft }}",
-    pr_number: "${{ steps.check.outputs.pr_number }}",
-    pr_head_branch: "${{ steps.check.outputs.pr_head_branch }}",
-    pr_body: "${{ steps.check.outputs.pr_body }}",
-    has_issue: "${{ steps.check.outputs.has_issue }}",
-    issue_number: "${{ steps.check.outputs.issue_number }}",
-    conclusion: "${{ steps.conclusion.outputs.conclusion }}",
-  },
-});
-
-checkPRJob.addSteps([
-  // Step 1: Determine CI conclusion from inputs or event
-  new Step({
-    id: "conclusion",
-    name: "Determine conclusion",
-    env: {
-      INPUT_CONCLUSION: "${{ inputs.conclusion }}",
-      EVENT_CONCLUSION: "${{ github.event.workflow_run.conclusion }}",
-    },
-    run: `if [[ -n "$INPUT_CONCLUSION" ]]; then
-  echo "conclusion=$INPUT_CONCLUSION" >> $GITHUB_OUTPUT
+  steps: [
+    // Step 1: Determine CI conclusion from inputs or event
+    new ExtendedStep({
+      id: "conclusion",
+      name: "Determine conclusion",
+      env: {
+        INPUT_CONCLUSION: "${{ inputs.conclusion }}",
+        EVENT_CONCLUSION: "${{ github.event.workflow_run.conclusion }}",
+      },
+      run: `if [[ -n "$INPUT_CONCLUSION" ]]; then
+  echo "conclusion=$INPUT_CONCLUSION" >> \$GITHUB_OUTPUT
 else
-  echo "conclusion=$EVENT_CONCLUSION" >> $GITHUB_OUTPUT
+  echo "conclusion=$EVENT_CONCLUSION" >> \$GITHUB_OUTPUT
 fi`,
+      outputs: ["conclusion"] as const,
+    }),
+    // Step 2: Get PR details (supports both HEAD_BRANCH and PR_NUMBER lookup)
+    new ExtendedStep({
+      id: "check",
+      name: "gh pr view (extended)",
+      env: {
+        GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+        HEAD_BRANCH: "${{ github.event.workflow_run.head_branch }}",
+        PR_NUMBER: "${{ inputs.pr_number }}",
+      },
+      run: `# Determine how to find the PR
+if [[ -n "$PR_NUMBER" ]]; then
+  pr=$(gh pr view "$PR_NUMBER" --repo "\$GITHUB_REPOSITORY" --json number,isDraft,author,headRefName,body 2>/dev/null || echo "")
+elif [[ -n "$HEAD_BRANCH" ]]; then
+  pr=$(gh pr list --repo "\$GITHUB_REPOSITORY" --head "$HEAD_BRANCH" --json number,isDraft,author,headRefName,body --jq '.[0]' 2>/dev/null || echo "")
+else
+  echo "Either PR_NUMBER or HEAD_BRANCH must be provided"
+  exit 1
+fi
+
+# Check if PR was found
+if [[ -z "$pr" || "$pr" == "null" ]]; then
+  echo "has_pr=false" >> \$GITHUB_OUTPUT
+  echo "is_claude_pr=false" >> \$GITHUB_OUTPUT
+  echo "is_draft=false" >> \$GITHUB_OUTPUT
+  echo "pr_number=" >> \$GITHUB_OUTPUT
+  echo "pr_head_branch=" >> \$GITHUB_OUTPUT
+  echo "has_issue=false" >> \$GITHUB_OUTPUT
+  echo "issue_number=" >> \$GITHUB_OUTPUT
+  {
+    echo 'pr_body<<EOF'
+    echo ''
+    echo 'EOF'
+  } >> \$GITHUB_OUTPUT
+  exit 0
+fi
+
+# Extract PR fields
+pr_number=$(echo "$pr" | jq -r '.number')
+is_draft=$(echo "$pr" | jq -r '.isDraft')
+author=$(echo "$pr" | jq -r '.author.login')
+head_branch=$(echo "$pr" | jq -r '.headRefName')
+body=$(echo "$pr" | jq -r '.body // ""')
+
+# Check if Claude PR (author or branch pattern)
+is_claude_pr="false"
+if [[ "$author" == "claude[bot]" || "$head_branch" == claude/* ]]; then
+  is_claude_pr="true"
+fi
+
+# Extract issue number from PR body (Fixes #123 pattern)
+issue_number=$(echo "$body" | grep -oE '(Fixes|Closes|Resolves) #[0-9]+' | head -1 | grep -oE '[0-9]+' || echo "")
+has_issue="false"
+if [[ -n "$issue_number" ]]; then
+  has_issue="true"
+fi
+
+# Output all values
+echo "has_pr=true" >> \$GITHUB_OUTPUT
+echo "is_claude_pr=$is_claude_pr" >> \$GITHUB_OUTPUT
+echo "is_draft=$is_draft" >> \$GITHUB_OUTPUT
+echo "pr_number=$pr_number" >> \$GITHUB_OUTPUT
+echo "pr_head_branch=$head_branch" >> \$GITHUB_OUTPUT
+echo "has_issue=$has_issue" >> \$GITHUB_OUTPUT
+echo "issue_number=$issue_number" >> \$GITHUB_OUTPUT
+{
+  echo 'pr_body<<EOF'
+  echo "$body"
+  echo 'EOF'
+} >> \$GITHUB_OUTPUT`,
+      outputs: ["has_pr", "is_claude_pr", "is_draft", "pr_number", "pr_head_branch", "pr_body", "has_issue", "issue_number"] as const,
+    }),
+  ] as const,
+  outputs: (steps) => ({
+    has_pr: steps.check.outputs.has_pr,
+    is_claude_pr: steps.check.outputs.is_claude_pr,
+    is_draft: steps.check.outputs.is_draft,
+    pr_number: steps.check.outputs.pr_number,
+    pr_head_branch: steps.check.outputs.pr_head_branch,
+    pr_body: steps.check.outputs.pr_body,
+    has_issue: steps.check.outputs.has_issue,
+    issue_number: steps.check.outputs.issue_number,
+    conclusion: steps.conclusion.outputs.conclusion,
   }),
-  // Step 2: Get PR details (supports both HEAD_BRANCH and PR_NUMBER lookup)
-  ghPrViewExtended("check", {
-    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-    HEAD_BRANCH: "${{ github.event.workflow_run.head_branch }}",
-    PR_NUMBER: "${{ inputs.pr_number }}",
-  }),
-]);
+});
 
 // =============================================================================
 // CI FAILURE JOBS
@@ -260,37 +324,69 @@ failureSuggestFixesJob.addSteps([
 // =============================================================================
 
 // Success check comments job
-const successCheckCommentsJob = new NormalJob("success-check-comments", {
+const successCheckCommentsJob = new ExtendedNormalJob("success-check-comments", {
   needs: ["check-pr"],
   if: `(github.event.workflow_run.conclusion == 'success' || needs.check-pr.outputs.conclusion == 'success') &&
 needs.check-pr.outputs.has_pr == 'true'`,
   "runs-on": "ubuntu-latest",
-  outputs: {
-    has_unresolved: "${{ steps.comments.outputs.has_unresolved }}",
-    unresolved_count: "${{ steps.comments.outputs.unresolved_count }}",
-  },
-});
+  steps: [
+    // Step 1: Check for unresolved comments via GraphQL
+    new ExtendedStep({
+      id: "comments",
+      name: "gh api graphql (unresolved comments)",
+      env: {
+        GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+        PR_NUMBER: "${{ needs.check-pr.outputs.pr_number }}",
+      },
+      run: `repo_name="\${GITHUB_REPOSITORY#*/}"
+owner="\${GITHUB_REPOSITORY%/*}"
 
-successCheckCommentsJob.addSteps([
-  // Step 1: Check for unresolved comments via GraphQL
-  ghApiUnresolvedComments("comments", {
-    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-    PR_NUMBER: "${{ needs.check-pr.outputs.pr_number }}",
-  }),
-  // Step 2: Comment if there are unresolved threads
-  {
-    ...ghPrComment({
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-      PR_NUMBER: "${{ needs.check-pr.outputs.pr_number }}",
-      BODY: `⏸️ **CI passed but not moving to Review**
+result=$(gh api graphql -f query='
+  query($owner: String!, $repo: String!, $pr: Int!) {
+    repository(owner: $owner, name: $repo) {
+      pullRequest(number: $pr) {
+        reviewThreads(first: 100) {
+          nodes {
+            isResolved
+          }
+        }
+      }
+    }
+  }
+' \\
+  -F owner="$owner" \\
+  -F repo="$repo_name" \\
+  -F pr="$PR_NUMBER")
+
+unresolved_count=$(echo "$result" | jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length')
+echo "unresolved_count=$unresolved_count" >> \$GITHUB_OUTPUT
+echo "has_unresolved=$([[ "$unresolved_count" -gt 0 ]] && echo "true" || echo "false")" >> \$GITHUB_OUTPUT`,
+      outputs: ["has_unresolved", "unresolved_count"] as const,
+    }),
+    // Step 2: Comment if there are unresolved threads
+    new ExtendedStep({
+      id: "notify",
+      name: "gh pr comment",
+      if: "steps.comments.outputs.has_unresolved == 'true'",
+      env: {
+        GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+        PR_NUMBER: "${{ needs.check-pr.outputs.pr_number }}",
+        BODY: `⏸️ **CI passed but not moving to Review**
 
 There are **\${{ steps.comments.outputs.unresolved_count }} unresolved comment thread(s)** on this PR.
 
 Please resolve all comments before the PR can move to Review status.`,
+      },
+      run: `comment_url=$(gh pr comment "$PR_NUMBER" --body "$BODY" --repo "\$GITHUB_REPOSITORY" 2>&1)
+comment_id=$(echo "$comment_url" | grep -oE '[0-9]+$' || echo "")
+echo "comment_id=$comment_id" >> \$GITHUB_OUTPUT`,
     }),
-    if: "steps.comments.outputs.has_unresolved == 'true'",
-  },
-]);
+  ] as const,
+  outputs: (steps) => ({
+    has_unresolved: steps.comments.outputs.has_unresolved,
+    unresolved_count: steps.comments.outputs.unresolved_count,
+  }),
+});
 
 // Success update project job
 const successUpdateProjectJob = new NormalJob("success-update-project", {
