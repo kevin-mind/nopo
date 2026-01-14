@@ -1,0 +1,38 @@
+name: Extract Build Info
+description: Extract service tags and digests from nopo build output JSON
+
+inputs:
+  build_output:
+    description: Path to the build output JSON file
+    required: true
+
+outputs:
+  base_digest:
+    description: The digest of the base image
+    value: ${{ steps.extract.outputs.base_digest }}
+  service_tags:
+    description: JSON object mapping service names to their image tags
+    value: ${{ steps.extract.outputs.service_tags }}
+  service_digests:
+    description: JSON object mapping service names to their digests
+    value: ${{ steps.extract.outputs.service_digests }}
+
+runs:
+  using: composite
+  steps:
+    - name: Extract build info
+      id: extract
+      shell: bash
+      env:
+        BUILD_OUTPUT: ${{ inputs.build_output }}
+      run: |
+        base_digest=$(jq -r '.[] | select(.name == "base") | .digest // ""' "$BUILD_OUTPUT")
+        service_tags=$(jq -c '[.[] | select(.name != "base") | {key: .name, value: .tag}] | from_entries' "$BUILD_OUTPUT")
+        service_digests=$(jq -c '[.[] | select(.name != "base" and .digest != null) | {key: .name, value: .digest}] | from_entries' "$BUILD_OUTPUT")
+
+        {
+          echo "base_digest=${base_digest}"
+          echo "service_tags=${service_tags}"
+          echo "service_digests=${service_digests}"
+        } >> "$GITHUB_OUTPUT"
+        cat "$GITHUB_OUTPUT"

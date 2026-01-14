@@ -1,0 +1,41 @@
+name: Validate Services
+description: Validate and parse a JSON array of services
+
+inputs:
+  services:
+    description: JSON array of services to validate
+    required: true
+
+outputs:
+  services:
+    description: Validated JSON array of services
+    value: ${{ steps.validate.outputs.services }}
+  count:
+    description: Number of services in the array
+    value: ${{ steps.validate.outputs.count }}
+
+runs:
+  using: composite
+  steps:
+    - name: Validate services JSON
+      id: validate
+      shell: bash
+      env:
+        SERVICES: ${{ inputs.services }}
+      run: |
+        if [[ -z "$SERVICES" ]]; then
+          echo "::error::No services provided"
+          exit 1
+        fi
+
+        # Validate it's a JSON array
+        if ! echo "$SERVICES" | jq -e 'type == "array"' > /dev/null 2>&1; then
+          echo "::error::Invalid services JSON: $SERVICES"
+          exit 1
+        fi
+
+        services_json="$SERVICES"
+        count=$(echo "$services_json" | jq 'length')
+        echo "services=$services_json" >> "$GITHUB_OUTPUT"
+        echo "count=$count" >> "$GITHUB_OUTPUT"
+        echo "Deploying $count service(s): $services_json"

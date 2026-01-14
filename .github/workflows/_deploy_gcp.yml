@@ -62,27 +62,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-node
-      - name: Validate and use services
+      - name: Validate services
         id: services
-        env:
-          SERVICES: ${{ inputs.services }}
-        run: |
-          if [[ -z "$SERVICES" ]]; then
-            echo "::error::No services provided"
-            exit 1
-          fi
-
-          # Validate it's a JSON array
-          if ! echo "$SERVICES" | jq -e 'type == "array"' > /dev/null 2>&1; then
-            echo "::error::Invalid services JSON: $SERVICES"
-            exit 1
-          fi
-
-          services_json="$SERVICES"
-          count=$(echo "$services_json" | jq 'length')
-          echo "services=$services_json" >> "$GITHUB_OUTPUT"
-          echo "count=$count" >> "$GITHUB_OUTPUT"
-          echo "Deploying $count service(s): $services_json"
+        uses: ./.github/actions/validate-services
+        with:
+          services: ${{ inputs.services }}
       - name: Environment config
         id: env_config
         env:
@@ -238,12 +222,12 @@ jobs:
         run: gcloud auth configure-docker "us-central1-docker.pkg.dev" --quiet
       - name: Push to Artifact Registry
         env:
-          GHCR_IMAGE: ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ inputs.version }}
-          GCP_IMAGE: ${{ needs.provision_infra.outputs.artifact_registry_url }}/${{ matrix.service }}:${{ inputs.version }}
-        run: |
-          docker pull "${GHCR_IMAGE}"
-          docker tag "${GHCR_IMAGE}" "${GCP_IMAGE}"
-          docker push "${GCP_IMAGE}"
+          SOURCE_IMAGE: ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ inputs.version }}
+          TARGET_IMAGE: ${{ needs.provision_infra.outputs.artifact_registry_url }}/${{ matrix.service }}:${{ inputs.version }}
+        run: |-
+          docker pull "$SOURCE_IMAGE"
+          docker tag "$SOURCE_IMAGE" "$TARGET_IMAGE"
+          docker push "$TARGET_IMAGE"
   deploy_canary:
     name: Deploy Canary
     runs-on: ubuntu-latest
@@ -444,9 +428,9 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Tag Image
         env:
-          GHCR_VERSION: ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ inputs.version }}
-          GHCR_ENV: ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ inputs.environment }}
-        run: |
-          docker pull "${GHCR_VERSION}"
-          docker tag "${GHCR_VERSION}" "${GHCR_ENV}"
-          docker push "${GHCR_ENV}"
+          SOURCE_IMAGE: ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ inputs.version }}
+          TARGET_IMAGE: ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ inputs.environment }}
+        run: |-
+          docker pull "$SOURCE_IMAGE"
+          docker tag "$SOURCE_IMAGE" "$TARGET_IMAGE"
+          docker push "$TARGET_IMAGE"

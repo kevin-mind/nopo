@@ -1,5 +1,11 @@
 import { NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
-import { checkoutStep, setupNodeStep, setupDockerStep } from "./lib/steps";
+import {
+  checkoutStep,
+  setupNodeStep,
+  setupDockerStep,
+  validateServicesStep,
+} from "./lib/steps";
+import { dockerPullTagPush } from "./lib/cli/docker";
 import { defaultDefaults, emptyPermissions } from "./lib/patterns";
 
 const GCP_REGION = "us-central1";
@@ -42,29 +48,8 @@ const contextJob = new NormalJob("context", {
 contextJob.addSteps([
   checkoutStep,
   setupNodeStep,
-  new Step({
-    name: "Validate and use services",
-    id: "services",
-    env: {
-      SERVICES: "${{ inputs.services }}",
-    },
-    run: `if [[ -z "$SERVICES" ]]; then
-  echo "::error::No services provided"
-  exit 1
-fi
-
-# Validate it's a JSON array
-if ! echo "$SERVICES" | jq -e 'type == "array"' > /dev/null 2>&1; then
-  echo "::error::Invalid services JSON: $SERVICES"
-  exit 1
-fi
-
-services_json="$SERVICES"
-count=$(echo "$services_json" | jq 'length')
-echo "services=$services_json" >> "$GITHUB_OUTPUT"
-echo "count=$count" >> "$GITHUB_OUTPUT"
-echo "Deploying $count service(s): $services_json"
-`,
+  validateServicesStep("services", {
+    services: "${{ inputs.services }}",
   }),
   new Step({
     name: "Environment config",
@@ -270,19 +255,15 @@ pushImagesJob.addSteps([
     name: "Configure Docker",
     run: `gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet`,
   }),
-  new Step({
-    name: "Push to Artifact Registry",
-    env: {
-      GHCR_IMAGE:
+  dockerPullTagPush(
+    {
+      SOURCE_IMAGE:
         "ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ inputs.version }}",
-      GCP_IMAGE:
+      TARGET_IMAGE:
         "${{ needs.provision_infra.outputs.artifact_registry_url }}/${{ matrix.service }}:${{ inputs.version }}",
     },
-    run: `docker pull "\${GHCR_IMAGE}"
-docker tag "\${GHCR_IMAGE}" "\${GCP_IMAGE}"
-docker push "\${GCP_IMAGE}"
-`,
-  }),
+    "Push to Artifact Registry",
+  ),
 ]);
 
 // Deploy Canary job
@@ -558,19 +539,15 @@ tagEnvironmentJob.addSteps([
     username: "${{ github.actor }}",
     password: "${{ secrets.GITHUB_TOKEN }}",
   }),
-  new Step({
-    name: "Tag Image",
-    env: {
-      GHCR_VERSION:
+  dockerPullTagPush(
+    {
+      SOURCE_IMAGE:
         "ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ inputs.version }}",
-      GHCR_ENV:
+      TARGET_IMAGE:
         "ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ inputs.environment }}",
     },
-    run: `docker pull "\${GHCR_VERSION}"
-docker tag "\${GHCR_VERSION}" "\${GHCR_ENV}"
-docker push "\${GHCR_ENV}"
-`,
-  }),
+    "Tag Image",
+  ),
 ]);
 
 // Main workflow

@@ -1,5 +1,11 @@
 import { NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
-import { checkoutStep, setupNodeStep, dockerTagStep } from "./lib/steps";
+import {
+  checkoutStep,
+  setupNodeStep,
+  dockerTagStep,
+  extractBuildInfoStep,
+} from "./lib/steps";
+import { nopoBuild } from "./lib/cli/nopo";
 import {
   buildPermissions,
   defaultDefaults,
@@ -55,43 +61,18 @@ buildJob.addSteps([
       password: "${{ inputs.push && secrets.GITHUB_TOKEN || '' }}",
     },
   }),
-  new Step({
-    name: "Build",
-    id: "build",
-    env: {
-      DOCKER_BUILDER: "${{ steps.docker.outputs.builder }}",
-      DOCKER_TAG: "${{ steps.input_tag.outputs.tag }}",
-      DOCKER_BUILD:
-        "${{ format('{0}/actions/runs/{1}', github.event.repository.html_url, github.run_id) }}",
-      DOCKER_PUSH: "${{ inputs.push }}",
+  nopoBuild(
+    {
       SERVICES: "${{ inputs.services }}",
+      DOCKER_TAG: "${{ steps.input_tag.outputs.tag }}",
+      DOCKER_PUSH: "${{ inputs.push }}",
+      DOCKER_BUILDER: "${{ steps.docker.outputs.builder }}",
     },
-    run: `if [[ -n "$SERVICES" ]]; then
-  echo "Building specific services: $SERVICES"
-  make build -- $SERVICES --output \${{ env.build_output }}
-else
-  echo "Building all services"
-  make build -- --output \${{ env.build_output }}
-fi
-`,
-  }),
-  new Step({
-    name: "Extract build info",
-    id: "build_info",
-    env: {
-      build_output: "${{ env.build_output }}",
-    },
-    run: `base_digest=$(jq -r '.[] | select(.name == "base") | .digest // ""' "$build_output")
-service_tags=$(jq -c '[.[] | select(.name != "base") | {key: .name, value: .tag}] | from_entries' "$build_output")
-service_digests=$(jq -c '[.[] | select(.name != "base" and .digest != null) | {key: .name, value: .digest}] | from_entries' "$build_output")
-
-{
-  echo "base_digest=\${base_digest}"
-  echo "service_tags=\${service_tags}"
-  echo "service_digests=\${service_digests}"
-} >> "$GITHUB_OUTPUT"
-cat "$GITHUB_OUTPUT"
-`,
+    { output: "${{ env.build_output }}" },
+    "Build",
+  ),
+  extractBuildInfoStep("build_info", {
+    build_output: "${{ env.build_output }}",
   }),
   dockerTagStep(
     "output_tag",

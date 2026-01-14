@@ -104,3 +104,33 @@ export const smoketestStep = (
     with: withInput,
   });
 };
+
+// Extract build info action
+export const extractBuildInfoStep = (
+  id: string,
+  opts: {
+    build_output: string;
+  },
+  name?: string,
+) =>
+  new Step({
+    name: name ?? "Extract build info",
+    id,
+    uses: "./.github/actions/extract-build-info",
+    with: opts,
+  });
+
+// Validate services action
+export const validateServicesStep = (
+  id: string,
+  opts: {
+    services: string;
+  },
+  name?: string,
+) =>
+  new Step({
+    name: name ?? "Validate services",
+    id,
+    uses: "./.github/actions/validate-services",
+    with: opts,
+  });
