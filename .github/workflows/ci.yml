@@ -90,21 +90,22 @@ jobs:
       contents: read
     uses: ./.github/workflows/_test_nopo.yml
   smoketest:
-    if: ${{ needs.build.result == 'success' && needs.discover.outputs.services != '' }}
+    if: ${{ needs.discover.outputs.services != '' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     needs:
       - context
       - discover
-      - build
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-node
+      - name: Setup nopo
+        uses: ./.github/actions/setup-nopo
       - uses: ./.github/actions/setup-docker
-      - name: Up
-        uses: ./.github/actions-ts/run-docker
-        with:
-          tag: ${{ needs.build.outputs.tag }}
+      - name: Build images
+        run: nopo build
+      - name: Start services
+        run: make up
       - name: Run smoketest
         uses: ./.github/actions/smoketest
         with:

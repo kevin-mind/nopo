@@ -105,24 +105,29 @@ const testNopoJob = new ReusableWorkflowCallJob("test_nopo", {
   uses: "./.github/workflows/_test_nopo.yml",
 });
 
-// Smoketest job - runs E2E tests against built images
+// Smoketest job - builds locally and runs E2E tests
 const smoketestJob = new NormalJob("smoketest", {
-  if: "${{ needs.build.result == 'success' && needs.discover.outputs.services != '' }}",
+  if: "${{ needs.discover.outputs.services != '' }}",
   "runs-on": "ubuntu-latest",
-  "timeout-minutes": 10,
+  "timeout-minutes": 15,
 });
-smoketestJob.needs([contextJob, discoverJob, buildJob]);
+smoketestJob.needs([contextJob, discoverJob]);
 
 smoketestJob.addSteps([
   checkoutStep,
   setupNodeStep,
+  new Step({
+    name: "Setup nopo",
+    uses: "./.github/actions/setup-nopo",
+  }),
   setupDockerStep(),
   new Step({
-    name: "Up",
-    uses: "./.github/actions-ts/run-docker",
-    with: {
-      tag: "${{ needs.build.outputs.tag }}",
-    },
+    name: "Build images",
+    run: "nopo build",
+  }),
+  new Step({
+    name: "Start services",
+    run: "make up",
   }),
   smoketestStep("http://localhost"),
 ]);
