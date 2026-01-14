@@ -1,7 +1,7 @@
 import { NormalJob, Workflow } from "@github-actions-workflow-ts/lib";
 import { checkoutStep } from "./lib/steps";
 import { defaultDefaults, stalledReviewPermissions } from "./lib/patterns";
-import { detectStalledReviewsStep } from "./lib/review-steps";
+import { ghDetectStalledReviews } from "./lib/cli/gh";
 
 // Detect stalled reviews job
 const detectStalledReviewsJob = new NormalJob("detect-stalled-reviews", {
@@ -10,7 +10,7 @@ const detectStalledReviewsJob = new NormalJob("detect-stalled-reviews", {
 
 detectStalledReviewsJob.addSteps([
   checkoutStep,
-  detectStalledReviewsStep({
+  ghDetectStalledReviews({
     GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
     DRY_RUN: "${{ github.event.inputs.dry_run || 'false' }}",
   }),

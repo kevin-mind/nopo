@@ -2,11 +2,14 @@ import { NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
 import { checkoutStep } from "./lib/steps";
 import { claudeReviewPermissions, defaultDefaults } from "./lib/patterns";
 import {
-  botStatusCommentStep,
-  extractLinkedIssueStep,
-  updateProjectStatusStep,
-  checkClaudePRStep,
-} from "./lib/gh";
+  ghPrComment,
+  ghPrViewLinkedIssue,
+  ghPrViewCheckClaude,
+  ghPrEditRemoveReviewer,
+  ghApiUpdateProjectStatus,
+  ghApiAddReaction,
+} from "./lib/cli/gh";
+import { gitConfig } from "./lib/cli/git";
 
 // =============================================================================
 // REVIEW REQUEST JOBS
@@ -21,29 +24,29 @@ github.event.requested_reviewer.login == 'nopo-bot'`,
     pr_branch: "${{ github.event.pull_request.head.ref }}",
     pr_number: "${{ github.event.pull_request.number }}",
     is_draft: "${{ github.event.pull_request.draft }}",
-    issue_number: "${{ steps.issue.outputs.number }}",
-    issue_body: "${{ steps.issue.outputs.body }}",
+    issue_number: "${{ steps.issue.outputs.issue_number }}",
+    issue_body: "${{ steps.issue.outputs.issue_body }}",
     has_issue: "${{ steps.issue.outputs.has_issue }}",
     bot_comment_id: "${{ steps.bot_comment.outputs.comment_id }}",
   },
 });
 
 requestSetupJob.addSteps([
-  checkoutStep,
+  // Step 1: Check if draft PR (skip review)
   new Step({
     name: "Check if draft",
     if: "github.event.pull_request.draft == true",
     run: `echo "::warning::PR #\${{ github.event.pull_request.number }} is a draft. Skipping review."
 exit 1`,
   }),
-  botStatusCommentStep("bot_comment", {
+  // Step 2: Post status comment
+  ghPrComment("bot_comment", {
     GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-    NUMBER: "${{ github.event.pull_request.number }}",
-    MESSAGE: "👀 **nopo-bot** is reviewing this PR...",
-    RUN_URL:
-      "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+    PR_NUMBER: "${{ github.event.pull_request.number }}",
+    BODY: "👀 **nopo-bot** is reviewing this PR...\n\n[View workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})",
   }),
-  extractLinkedIssueStep("issue", {
+  // Step 3: Extract linked issue
+  ghPrViewLinkedIssue("issue", {
     GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
     PR_NUMBER: "${{ github.event.pull_request.number }}",
   }),
@@ -57,7 +60,7 @@ const requestUpdateProjectJob = new NormalJob("request-update-project", {
 });
 
 requestUpdateProjectJob.addSteps([
-  updateProjectStatusStep({
+  ghApiUpdateProjectStatus({
     GH_TOKEN: "${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}",
     ISSUE_NUMBER: "${{ needs.request-setup.outputs.issue_number }}",
     TARGET_STATUS: "In review",
@@ -153,6 +156,7 @@ const requestReviewJob = new NormalJob("request-review", {
 });
 
 requestReviewJob.addSteps([
+  // Step 1: Checkout PR branch
   new Step({
     uses: "actions/checkout@v4",
     with: {
@@ -160,6 +164,7 @@ requestReviewJob.addSteps([
       "fetch-depth": 0,
     },
   }),
+  // Step 2: Run Claude for review
   new Step({
     uses: "anthropics/claude-code-action@v1",
     with: {
@@ -172,32 +177,32 @@ requestReviewJob.addSteps([
       GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
     },
   }),
-  new Step({
-    name: "Add reaction on completion",
-    if: "always()",
-    env: {
+  // Step 3: Add reaction on completion
+  {
+    ...ghApiAddReaction({
       GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
       COMMENT_ID: "${{ needs.request-setup.outputs.bot_comment_id }}",
-      SUCCESS: "${{ job.status == 'success' }}",
-    },
-    run: `if [[ "$SUCCESS" == "true" ]]; then
-  gh api "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content="rocket"
-else
-  gh api "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content="eyes"
-fi`,
-  }),
-  new Step({
-    name: "Remove nopo-bot from requested reviewers",
-    if: "always()",
-    env: {
+      REACTION: "rocket",
+    }),
+    if: "success()",
+  },
+  {
+    ...ghApiAddReaction({
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      COMMENT_ID: "${{ needs.request-setup.outputs.bot_comment_id }}",
+      REACTION: "eyes",
+    }),
+    if: "failure()",
+  },
+  // Step 4: Remove nopo-bot from requested reviewers
+  {
+    ...ghPrEditRemoveReviewer({
       GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
       PR_NUMBER: "${{ needs.request-setup.outputs.pr_number }}",
-    },
-    run: `# Remove nopo-bot from requested reviewers so it can be re-requested later
-# This allows the CI-success workflow to trigger a new review cycle
-gh pr edit "$PR_NUMBER" --remove-reviewer "nopo-bot" || true
-echo "Removed nopo-bot from requested reviewers"`,
-  }),
+      REVIEWERS: "nopo-bot",
+    }),
+    if: "always()",
+  },
 ]);
 
 // =============================================================================
@@ -272,6 +277,7 @@ github.event.pull_request.draft == false &&
 });
 
 responseProcessJob.addSteps([
+  // Step 1: Checkout PR branch
   new Step({
     uses: "actions/checkout@v4",
     with: {
@@ -279,11 +285,12 @@ responseProcessJob.addSteps([
       "fetch-depth": 0,
     },
   }),
-  new Step({
-    name: "Configure Git",
-    run: `git config --global user.name "Claude Bot"
-git config --global user.email "claude-bot@anthropic.com"`,
+  // Step 2: Configure Git
+  gitConfig({
+    USER_NAME: "Claude Bot",
+    USER_EMAIL: "claude-bot@anthropic.com",
   }),
+  // Step 3: Run Claude to process review
   new Step({
     uses: "anthropics/claude-code-action@v1",
     with: {
@@ -360,10 +367,12 @@ github.event.pull_request.draft == false &&
 });
 
 humanReviewResponseJob.addSteps([
-  checkClaudePRStep("check_author", {
+  // Step 1: Check if this is a Claude PR
+  ghPrViewCheckClaude("check_author", {
     GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
     PR_NUMBER: "${{ github.event.pull_request.number }}",
   }),
+  // Step 2: Checkout PR branch (only for Claude PRs)
   new Step({
     uses: "actions/checkout@v4",
     if: "steps.check_author.outputs.is_claude_pr == 'true'",
@@ -372,12 +381,15 @@ humanReviewResponseJob.addSteps([
       "fetch-depth": 0,
     },
   }),
-  new Step({
-    name: "Configure Git",
+  // Step 3: Configure Git (only for Claude PRs)
+  {
+    ...gitConfig({
+      USER_NAME: "Claude Bot",
+      USER_EMAIL: "claude-bot@anthropic.com",
+    }),
     if: "steps.check_author.outputs.is_claude_pr == 'true'",
-    run: `git config --global user.name "Claude Bot"
-git config --global user.email "claude-bot@anthropic.com"`,
-  }),
+  },
+  // Step 4: Run Claude to respond (only for Claude PRs)
   new Step({
     uses: "anthropics/claude-code-action@v1",
     if: "steps.check_author.outputs.is_claude_pr == 'true'",

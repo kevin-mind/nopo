@@ -2,17 +2,18 @@ import { NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
 import { checkoutStep } from "./lib/steps";
 import { claudeCIPermissions, defaultDefaults } from "./lib/patterns";
 import {
-  updateProjectStatusStep,
-  markPRReadyStep,
-  requestPRReviewersStep,
-} from "./lib/gh";
-import {
-  checkClaudeCommentCountStep,
-  checkUnresolvedCommentsStep,
-  convertPRToDraftStep,
-  findPRForBranchStep,
-} from "./lib/ci-steps";
-import { ghPrReady } from "./lib/gh-cli";
+  ghPrList,
+  ghPrReady,
+  ghPrReadyUndo,
+  ghPrEditAddReviewer,
+  ghPrEditAddLabel,
+  ghPrComment,
+  ghPrViewExtended,
+  ghApiCountComments,
+  ghApiUnresolvedComments,
+  ghApiUpdateProjectStatus,
+} from "./lib/cli/gh";
+import { gitConfig } from "./lib/cli/git";
 
 // =============================================================================
 // PUSH JOBS
@@ -30,18 +31,26 @@ const pushConvertToDraftJob = new NormalJob("push-convert-to-draft", {
 });
 
 pushConvertToDraftJob.addSteps([
-  checkoutStep,
-  convertPRToDraftStep({
+  // Step 1: Find PR for this branch
+  ghPrList("get_pr", {
     GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
     HEAD_BRANCH: "${{ github.ref_name }}",
   }),
+  // Step 2: Convert to draft if PR exists and is ready
+  {
+    ...ghPrReadyUndo({
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+      PR_NUMBER: "${{ steps.get_pr.outputs.number }}",
+    }),
+    if: "steps.get_pr.outputs.found == 'true' && steps.get_pr.outputs.is_draft == 'false'",
+  },
 ]);
 
 // =============================================================================
 // CHECK PR JOB (shared info job)
 // =============================================================================
 
-// Check PR job
+// Check PR job - handles both workflow_run and workflow_dispatch
 const checkPRJob = new NormalJob("check-pr", {
   if: "github.event_name == 'workflow_run' || github.event_name == 'workflow_dispatch'",
   "runs-on": "ubuntu-latest",
@@ -54,17 +63,30 @@ const checkPRJob = new NormalJob("check-pr", {
     pr_body: "${{ steps.check.outputs.pr_body }}",
     has_issue: "${{ steps.check.outputs.has_issue }}",
     issue_number: "${{ steps.check.outputs.issue_number }}",
-    conclusion: "${{ steps.check.outputs.conclusion }}",
+    conclusion: "${{ steps.conclusion.outputs.conclusion }}",
   },
 });
 
 checkPRJob.addSteps([
-  checkoutStep,
-  findPRForBranchStep("check", {
+  // Step 1: Determine CI conclusion from inputs or event
+  new Step({
+    id: "conclusion",
+    name: "Determine conclusion",
+    env: {
+      INPUT_CONCLUSION: "${{ inputs.conclusion }}",
+      EVENT_CONCLUSION: "${{ github.event.workflow_run.conclusion }}",
+    },
+    run: `if [[ -n "$INPUT_CONCLUSION" ]]; then
+  echo "conclusion=$INPUT_CONCLUSION" >> $GITHUB_OUTPUT
+else
+  echo "conclusion=$EVENT_CONCLUSION" >> $GITHUB_OUTPUT
+fi`,
+  }),
+  // Step 2: Get PR details (supports both HEAD_BRANCH and PR_NUMBER lookup)
+  ghPrViewExtended("check", {
     GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
     HEAD_BRANCH: "${{ github.event.workflow_run.head_branch }}",
-    INPUT_PR_NUMBER: "${{ inputs.pr_number }}",
-    INPUT_CONCLUSION: "${{ inputs.conclusion }}",
+    PR_NUMBER: "${{ inputs.pr_number }}",
   }),
 ]);
 
@@ -83,14 +105,13 @@ needs.check-pr.outputs.is_draft == 'false'`,
 });
 
 failureConvertToDraftJob.addSteps([
+  ghPrReadyUndo({
+    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+    PR_NUMBER: "${{ needs.check-pr.outputs.pr_number }}",
+  }),
   new Step({
-    name: "Convert PR to draft",
-    env: {
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-      PR_NUMBER: "${{ needs.check-pr.outputs.pr_number }}",
-    },
-    run: `gh pr ready "$PR_NUMBER" --undo --repo "$GITHUB_REPOSITORY"
-echo "Converted PR #$PR_NUMBER to draft due to CI failure"`,
+    name: "Log conversion",
+    run: 'echo "Converted PR #${{ needs.check-pr.outputs.pr_number }} to draft due to CI failure"',
   }),
 ]);
 
@@ -116,24 +137,47 @@ needs.check-pr.outputs.is_claude_pr == 'true'`,
 });
 
 failureFixAndPushJob.addSteps([
-  checkoutStep,
-  checkClaudeCommentCountStep({
+  // Step 1: Count Claude's previous comments (circuit breaker)
+  ghApiCountComments("count_comments", {
     GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
     PR_NUMBER: "${{ needs.check-pr.outputs.pr_number }}",
+    USER_LOGIN: "claude[bot]",
   }),
+  // Step 2: Check comment limit
   new Step({
+    id: "check_limit",
+    name: "Check comment limit",
+    env: {
+      COMMENT_COUNT: "${{ steps.count_comments.outputs.count }}",
+      MAX_COMMENTS: "50",
+    },
+    run: `if [[ "$COMMENT_COUNT" -ge "$MAX_COMMENTS" ]]; then
+  echo "exceeded=true" >> $GITHUB_OUTPUT
+  echo "Claude has made $COMMENT_COUNT comments (max: $MAX_COMMENTS). Stopping to prevent infinite loop."
+else
+  echo "exceeded=false" >> $GITHUB_OUTPUT
+fi`,
+  }),
+  // Step 3: Checkout the PR branch
+  new Step({
+    if: "steps.check_limit.outputs.exceeded == 'false'",
     uses: "actions/checkout@v4",
     with: {
       ref: "${{ needs.check-pr.outputs.pr_head_branch }}",
       "fetch-depth": 0,
     },
   }),
+  // Step 4: Configure Git
+  {
+    ...gitConfig({
+      USER_NAME: "Claude Bot",
+      USER_EMAIL: "claude-bot@anthropic.com",
+    }),
+    if: "steps.check_limit.outputs.exceeded == 'false'",
+  },
+  // Step 5: Run Claude to fix the issue
   new Step({
-    name: "Configure Git",
-    run: `git config --global user.name "Claude Bot"
-git config --global user.email "claude-bot@anthropic.com"`,
-  }),
-  new Step({
+    if: "steps.check_limit.outputs.exceeded == 'false'",
     uses: "anthropics/claude-code-action@v1",
     with: {
       claude_code_oauth_token: "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}",
@@ -215,17 +259,6 @@ failureSuggestFixesJob.addSteps([
 // CI SUCCESS JOBS
 // =============================================================================
 
-// Comment if unresolved script (keep inline - simple)
-const commentIfUnresolvedScript = `
-echo "Skipping move to Review - $UNRESOLVED_COUNT unresolved comment thread(s)"
-
-gh pr comment "$PR_NUMBER" --body "⏸️ **CI passed but not moving to Review**
-
-There are **$UNRESOLVED_COUNT unresolved comment thread(s)** on this PR.
-
-Please resolve all comments before the PR can move to Review status."
-`.trim();
-
 // Success check comments job
 const successCheckCommentsJob = new NormalJob("success-check-comments", {
   needs: ["check-pr"],
@@ -239,21 +272,24 @@ needs.check-pr.outputs.has_pr == 'true'`,
 });
 
 successCheckCommentsJob.addSteps([
-  checkoutStep,
-  checkUnresolvedCommentsStep("comments", {
+  // Step 1: Check for unresolved comments via GraphQL
+  ghApiUnresolvedComments("comments", {
     GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
     PR_NUMBER: "${{ needs.check-pr.outputs.pr_number }}",
   }),
-  new Step({
-    name: "Comment if unresolved",
-    if: "steps.comments.outputs.has_unresolved == 'true'",
-    env: {
+  // Step 2: Comment if there are unresolved threads
+  {
+    ...ghPrComment({
       GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
       PR_NUMBER: "${{ needs.check-pr.outputs.pr_number }}",
-      UNRESOLVED_COUNT: "${{ steps.comments.outputs.unresolved_count }}",
-    },
-    run: commentIfUnresolvedScript,
-  }),
+      BODY: `⏸️ **CI passed but not moving to Review**
+
+There are **\${{ steps.comments.outputs.unresolved_count }} unresolved comment thread(s)** on this PR.
+
+Please resolve all comments before the PR can move to Review status.`,
+    }),
+    if: "steps.comments.outputs.has_unresolved == 'true'",
+  },
 ]);
 
 // Success update project job
@@ -266,8 +302,7 @@ needs.success-check-comments.outputs.has_unresolved != 'true'`,
 });
 
 successUpdateProjectJob.addSteps([
-  checkoutStep,
-  updateProjectStatusStep({
+  ghApiUpdateProjectStatus({
     GH_TOKEN: "${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}",
     ISSUE_NUMBER: "${{ needs.check-pr.outputs.issue_number }}",
     TARGET_STATUS: "In review",
@@ -285,19 +320,19 @@ needs.success-check-comments.outputs.has_unresolved != 'true'`,
 });
 
 successReadyForReviewJob.addSteps([
-  markPRReadyStep({
+  // Step 1: Mark PR as ready
+  ghPrReady({
     GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
     PR_NUMBER: "${{ needs.check-pr.outputs.pr_number }}",
   }),
-  new Step({
-    name: "Add review-ready label",
-    env: {
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
-      PR_NUMBER: "${{ needs.check-pr.outputs.pr_number }}",
-    },
-    run: 'gh pr edit "$PR_NUMBER" --add-label "review-ready" || true',
+  // Step 2: Add review-ready label
+  ghPrEditAddLabel({
+    GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
+    PR_NUMBER: "${{ needs.check-pr.outputs.pr_number }}",
+    LABEL: "review-ready",
   }),
-  requestPRReviewersStep({
+  // Step 3: Request nopo-bot as reviewer
+  ghPrEditAddReviewer({
     GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}",
     PR_NUMBER: "${{ needs.check-pr.outputs.pr_number }}",
     REVIEWERS: "nopo-bot",
