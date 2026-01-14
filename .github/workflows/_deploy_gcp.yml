@@ -383,7 +383,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-node
-      - name: Run smoketest
+      - name: Test Canary
         uses: ./.github/actions/smoketest
         with:
           public_url: ${{ needs.deploy_canary.outputs.public_url }}

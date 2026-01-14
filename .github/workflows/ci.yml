@@ -100,7 +100,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-node
       - uses: ./.github/actions/setup-docker
-      - uses: ./.github/actions-ts/run-docker
+      - name: Up
+        uses: ./.github/actions-ts/run-docker
       - name: Run smoketest
         uses: ./.github/actions/smoketest
         with:

@@ -11,7 +11,6 @@ import {
   smoketestStep,
   checkStep,
   contextStep,
-  runDockerStep,
 } from "./lib/steps";
 import {
   buildPermissions,
@@ -118,10 +117,10 @@ smoketestJob.addSteps([
   checkoutStep,
   setupNodeStep,
   setupDockerStep(),
-  {
-    ...runDockerStep(),
+  new Step({
     name: "Up",
-  } as Step,
+    uses: "./.github/actions-ts/run-docker",
+  }),
   smoketestStep("http://localhost"),
 ]);
 

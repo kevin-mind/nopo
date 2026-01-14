@@ -1,10 +1,5 @@
 import { NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
-import {
-  checkoutStep,
-  setupNodeStep,
-  setupDockerStep,
-  dockerTagStep,
-} from "./lib/steps";
+import { checkoutStep, setupNodeStep, dockerTagStep } from "./lib/steps";
 import {
   buildPermissions,
   defaultDefaults,
@@ -50,15 +45,16 @@ buildJob.addSteps([
     },
     "Input tag",
   ),
-  {
-    ...setupDockerStep({
+  new Step({
+    name: "Set up Docker",
+    id: "docker",
+    uses: "./.github/actions/setup-docker",
+    with: {
       registry: "${{ inputs.push && 'ghcr.io' || '' }}",
       username: "${{ inputs.push && github.actor || '' }}",
       password: "${{ inputs.push && secrets.GITHUB_TOKEN || '' }}",
-    }),
-    id: "docker",
-    name: "Set up Docker",
-  } as Step,
+    },
+  }),
   new Step({
     name: "Build",
     id: "build",

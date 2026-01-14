@@ -5,7 +5,6 @@ import {
   setupUvStep,
   setupDockerStep,
   dockerTagStep,
-  runDockerStep,
 } from "./lib/steps";
 import {
   defaultDefaults,
@@ -38,24 +37,26 @@ testJob.addSteps([
   checkoutStep,
   setupNodeStep,
   setupUvStep,
-  {
-    ...setupDockerStep({
+  new Step({
+    name: "Set up Docker",
+    uses: "./.github/actions/setup-docker",
+    with: {
       registry: "ghcr.io",
       username: "${{ github.actor }}",
       password: "${{ secrets.GITHUB_TOKEN }}",
-    }),
-    name: "Set up Docker",
-  } as Step,
+    },
+  }),
   dockerTagStep("docker_tag", { tag: "${{ inputs.tag }}" }),
-  {
-    ...runDockerStep({
+  new Step({
+    name: "Run '${{ matrix.command }}'",
+    uses: "./.github/actions-ts/run-docker",
+    with: {
       tag: "${{ steps.docker_tag.outputs.tag }}",
       service: "${{ matrix.service }}",
       run: "${{ matrix.command }}",
       target: "${{ matrix.target }}",
-    }),
-    name: "Run '${{ matrix.command }}'",
-  } as Step,
+    },
+  }),
 ]);
 
 // Extendable job - tests that base image can be extended
