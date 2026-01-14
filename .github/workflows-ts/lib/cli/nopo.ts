@@ -99,21 +99,5 @@ export function nopoBuild(
   });
 }
 
-/**
- * make -C ./nopo/scripts init - Build the nopo CLI.
- * Note: For most cases, use the setup-nopo action instead.
- */
-export function makeNopoInit(
-  id?: string,
-  opts?: {
-    continueOnError?: boolean;
-  },
-  name?: string,
-): Step {
-  return new Step({
-    ...(id && { id }),
-    name: name ?? "Build nopo CLI",
-    ...(opts?.continueOnError && { "continue-on-error": opts.continueOnError }),
-    run: "make -C ./nopo/scripts init",
-  });
-}
+// Note: For nopo CLI setup (build + global link), use setupNopoStep from lib/steps.ts
+// which uses the setup-nopo composite action.
