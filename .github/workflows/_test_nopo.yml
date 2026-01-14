@@ -58,6 +58,13 @@ jobs:
         run: pnpm run --filter @nopo/github-actions test
       - name: Validate TypeScript actions build
         run: pnpm run check:actions:root
+  shellcheck:
+    runs-on: ubuntu-latest
+    name: '[scripts] shellcheck'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run shellcheck
+        run: shellcheck .github/scripts/*.sh
   e2e:
     runs-on: ubuntu-latest
     name: '[nopo] e2e: ${{ matrix.test.name }}'

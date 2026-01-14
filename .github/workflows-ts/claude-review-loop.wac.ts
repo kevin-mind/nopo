@@ -1,38 +1,11 @@
 import { NormalJob, Step, Workflow } from '@github-actions-workflow-ts/lib'
 import { checkoutStep, checkoutWithDepth } from './lib/steps'
 import { claudeReviewPermissions, defaultDefaults } from './lib/patterns'
+import { scripts } from './lib/scripts'
 
 // =============================================================================
 // REVIEW REQUEST JOBS
 // =============================================================================
-
-// Add review started comment script
-const addReviewStartedCommentScript = `
-comment_url=$(gh pr comment "$PR_NUMBER" --body "👀 **nopo-bot** is reviewing this PR...
-
-[View job]($RUN_URL)" 2>&1)
-
-comment_id=$(echo "$comment_url" | grep -oP 'issuecomment-\\K\\d+' || true)
-echo "comment_id=$comment_id" >> $GITHUB_OUTPUT
-`.trim()
-
-// Extract linked issue script
-const extractLinkedIssueScript = `
-pr_body=$(gh pr view "$PR_NUMBER" --json body --jq '.body')
-issue_number=$(echo "$pr_body" | grep -oP 'Fixes #\\K\\d+' | head -1 || true)
-
-if [[ -n "$issue_number" ]]; then
-  echo "has_issue=true" >> $GITHUB_OUTPUT
-  echo "number=$issue_number" >> $GITHUB_OUTPUT
-
-  issue_body=$(gh issue view "$issue_number" --json body --jq '.body')
-  echo "body<<EOF" >> $GITHUB_OUTPUT
-  echo "$issue_body" >> $GITHUB_OUTPUT
-  echo "EOF" >> $GITHUB_OUTPUT
-else
-  echo "has_issue=false" >> $GITHUB_OUTPUT
-fi
-`.trim()
 
 // Request setup job
 const requestSetupJob = new NormalJob('request-setup', {
@@ -58,93 +31,17 @@ requestSetupJob.addSteps([
     run: `echo "::warning::PR #\${{ github.event.pull_request.number }} is a draft. Skipping review."
 exit 1`,
   }),
-  new Step({
-    name: 'Add review started comment',
-    id: 'bot_comment',
-    env: {
-      GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-      PR_NUMBER: '${{ github.event.pull_request.number }}',
-      RUN_URL: '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}',
-    },
-    run: addReviewStartedCommentScript,
+  scripts.addBotComment('bot_comment', {
+    GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
+    PR_NUMBER: '${{ github.event.pull_request.number }}',
+    MESSAGE: '👀 **nopo-bot** is reviewing this PR...',
+    RUN_URL: '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}',
   }),
-  new Step({
-    name: 'Extract linked issue',
-    id: 'issue',
-    env: {
-      GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-      PR_NUMBER: '${{ github.event.pull_request.number }}',
-    },
-    run: extractLinkedIssueScript,
+  scripts.extractLinkedIssue('issue', {
+    GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
+    PR_NUMBER: '${{ github.event.pull_request.number }}',
   }),
 ])
-
-// Update project status to In review script
-const updateProjectStatusInReviewScript = `
-result=$(gh api graphql -f query='
-  query($owner: String!, $repo: String!, $number: Int!) {
-    repository(owner: $owner, name: $repo) {
-      issue(number: $number) {
-        projectItems(first: 10) {
-          nodes {
-            id
-            project { id }
-          }
-        }
-      }
-    }
-  }
-' -f owner="\${GITHUB_REPOSITORY_OWNER}" -f repo="\${GITHUB_REPOSITORY#*/}" -F number="$ISSUE_NUMBER")
-
-item_id=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0].id // empty')
-project_id=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0].project.id // empty')
-
-if [[ -z "$item_id" || -z "$project_id" ]]; then
-  echo "Issue not linked to a project - skipping status update"
-  exit 0
-fi
-
-fields=$(gh api graphql -f query='
-  query($projectId: ID!) {
-    node(id: $projectId) {
-      ... on ProjectV2 {
-        fields(first: 20) {
-          nodes {
-            ... on ProjectV2SingleSelectField {
-              id
-              name
-              options { id name }
-            }
-          }
-        }
-      }
-    }
-  }
-' -f projectId="$project_id")
-
-field_id=$(echo "$fields" | jq -r '.data.node.fields.nodes[] | select(.name == "Status") | .id')
-option_id=$(echo "$fields" | jq -r '.data.node.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "In review") | .id')
-
-if [[ -z "$field_id" || -z "$option_id" ]]; then
-  echo "Could not find Status field or In review option"
-  exit 0
-fi
-
-gh api graphql -f query='
-  mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
-    updateProjectV2ItemFieldValue(
-      input: {
-        projectId: $projectId
-        itemId: $itemId
-        fieldId: $fieldId
-        value: { singleSelectOptionId: $optionId }
-      }
-    ) { projectV2Item { id } }
-  }
-' -f projectId="$project_id" -f itemId="$item_id" -f fieldId="$field_id" -f optionId="$option_id"
-
-echo "Updated project item to In review status"
-`.trim()
 
 // Request update project job
 const requestUpdateProjectJob = new NormalJob('request-update-project', {
@@ -154,13 +51,9 @@ const requestUpdateProjectJob = new NormalJob('request-update-project', {
 })
 
 requestUpdateProjectJob.addSteps([
-  new Step({
-    name: 'Update project status to In review',
-    env: {
-      GH_TOKEN: '${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}',
-      ISSUE_NUMBER: '${{ needs.request-setup.outputs.issue_number }}',
-    },
-    run: updateProjectStatusInReviewScript,
+  scripts.updateProjectStatusInReview({
+    GH_TOKEN: '${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}',
+    ISSUE_NUMBER: '${{ needs.request-setup.outputs.issue_number }}',
   }),
 ])
 
@@ -245,22 +138,6 @@ IMPORTANT:
 - You may APPROVE but must NOT merge
 - A human will make the final merge decision`
 
-// Add reaction script
-const addReactionScript = `
-if [[ -z "$COMMENT_ID" ]]; then
-  echo "No bot comment ID found, skipping reaction"
-  exit 0
-fi
-
-if [[ "$SUCCESS" == "true" ]]; then
-  reaction="rocket"
-else
-  reaction="confused"
-fi
-gh api "/repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" \\
-  -f content="$reaction" || true
-`.trim()
-
 // Request review job
 const requestReviewJob = new NormalJob('request-review', {
   needs: ['request-setup', 'request-update-project'],
@@ -288,16 +165,14 @@ requestReviewJob.addSteps([
       GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
     },
   }),
-  new Step({
-    name: 'Add reaction on completion',
-    if: 'always()',
-    env: {
+  scripts.addReaction(
+    {
       GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
       COMMENT_ID: '${{ needs.request-setup.outputs.bot_comment_id }}',
       SUCCESS: "${{ job.status == 'success' }}",
     },
-    run: addReactionScript,
-  }),
+    'always()'
+  ),
   new Step({
     name: 'Remove nopo-bot from requested reviewers',
     if: 'always()',
@@ -414,18 +289,6 @@ git config --global user.email "claude-bot@anthropic.com"`,
 // HUMAN REVIEW RESPONSE JOB
 // =============================================================================
 
-// Check if Claude-authored script
-const checkIfClaudeAuthoredScript = `
-# Only respond on Claude-authored PRs
-author=$(gh pr view "$PR_NUMBER" --json author --jq '.author.login')
-if [[ "$author" == "app/claude" || "$author" == "github-actions[bot]" ]]; then
-  echo "is_claude_pr=true" >> $GITHUB_OUTPUT
-else
-  echo "is_claude_pr=false" >> $GITHUB_OUTPUT
-  echo "Skipping - not a Claude-authored PR"
-fi
-`.trim()
-
 // Human review response prompt
 const humanReviewResponsePrompt = `A human reviewer (@\${{ github.event.review.user.login }}) submitted a review on PR #\${{ github.event.pull_request.number }}.
 
@@ -484,14 +347,9 @@ github.event.pull_request.draft == false &&
 })
 
 humanReviewResponseJob.addSteps([
-  new Step({
-    name: 'Check if PR is Claude-authored',
-    id: 'check_author',
-    env: {
-      GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-      PR_NUMBER: '${{ github.event.pull_request.number }}',
-    },
-    run: checkIfClaudeAuthoredScript,
+  scripts.checkClaudeAuthoredPR('check_author', {
+    GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
+    PR_NUMBER: '${{ github.event.pull_request.number }}',
   }),
   new Step({
     uses: 'actions/checkout@v4',

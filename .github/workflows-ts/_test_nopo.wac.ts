@@ -93,6 +93,20 @@ actionsJob.addSteps([
   }),
 ])
 
+// Shellcheck job - validates shell scripts
+const shellcheckJob = new NormalJob('shellcheck', {
+  'runs-on': 'ubuntu-latest',
+  name: '[scripts] shellcheck',
+})
+
+shellcheckJob.addSteps([
+  checkoutStep,
+  new Step({
+    name: 'Run shellcheck',
+    run: 'shellcheck .github/scripts/*.sh',
+  }),
+])
+
 // E2E tests job
 const e2eTests = [
   { name: 'list services', command: 'nopo list', expect: 'minimal' },
@@ -155,4 +169,4 @@ export const testNopoWorkflow = new Workflow('_test_nopo', {
   },
 })
 
-testNopoWorkflow.addJobs([buildJob, unitJob, actionsJob, e2eJob])
+testNopoWorkflow.addJobs([buildJob, unitJob, actionsJob, shellcheckJob, e2eJob])
