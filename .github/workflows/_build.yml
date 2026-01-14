@@ -91,9 +91,9 @@ jobs:
           DOCKER_BUILDER: ${{ steps.docker.outputs.builder }}
         run: |-
           if [[ -n "$SERVICES" ]]; then
-            nopo build -- $SERVICES --output ${{ env.build_output }}
+            nopo build --output ${{ env.build_output }} $SERVICES
           else
-            nopo build -- --output ${{ env.build_output }}
+            nopo build --output ${{ env.build_output }}
           fi
       - name: Extract build info
         id: build_info

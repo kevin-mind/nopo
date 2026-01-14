@@ -70,6 +70,8 @@ export function nopoCheck(
 
 /**
  * nopo build - Build service images.
+ *
+ * Note: --output must come BEFORE targets since nopo uses minimist parsing.
  */
 export function nopoBuild(
   env: {
@@ -91,9 +93,9 @@ export function nopoBuild(
     env,
     run: multilineString(
       'if [[ -n "$SERVICES" ]]; then',
-      `  nopo build -- $SERVICES ${args.join(" ")}`,
+      `  nopo build ${args.join(" ")} $SERVICES`,
       "else",
-      `  nopo build -- ${args.join(" ")}`,
+      `  nopo build ${args.join(" ")}`,
       "fi",
     ),
   });
