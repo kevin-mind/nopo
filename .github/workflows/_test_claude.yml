@@ -247,6 +247,21 @@ jobs:
             '{issue_number: $num, issue_title: $title, issue_body: $body, branch_name: $branch}')
           echo "json=$json" >> $GITHUB_OUTPUT
 
+      - name: Create branch for test
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ steps.issue.outputs.number }}
+        run: |
+          branch="claude/issue/$ISSUE_NUMBER"
+          # Create branch from main if it doesn't exist
+          if ! git ls-remote --heads origin "$branch" | grep -q "$branch"; then
+            git checkout -b "$branch"
+            git push origin "$branch"
+            echo "✓ Created branch $branch"
+          else
+            echo "Branch $branch already exists"
+          fi
+
   issue-implement-run:
     needs: issue-implement-setup
     if: needs.issue-implement-setup.result == 'success'
@@ -475,7 +490,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Cleanup test issues
+      - name: Cleanup test issues and branches
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TRIAGE_ISSUE: ${{ needs.issue-triage-setup.outputs.issue_number }}
@@ -486,6 +501,20 @@ jobs:
             if [[ -n "$issue" ]]; then
               echo "✓ Closing test issue #$issue"
               gh issue close "$issue" --reason "not planned" --comment "🧹 Test cleanup" || true
+
+              # Delete associated branch if it exists
+              branch="claude/issue/$issue"
+              if git ls-remote --heads origin "$branch" | grep -q "$branch"; then
+                echo "✓ Deleting branch $branch"
+                git push origin --delete "$branch" || true
+              fi
+
+              # Close any PRs from that branch
+              pr_num=$(gh pr list --head "$branch" --json number --jq '.[0].number' 2>/dev/null || echo "")
+              if [[ -n "$pr_num" ]]; then
+                echo "✓ Closing PR #$pr_num"
+                gh pr close "$pr_num" --comment "🧹 Test cleanup" || true
+              fi
             fi
           done
 
