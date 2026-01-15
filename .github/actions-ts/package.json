@@ -1,0 +1,28 @@
+{
+  "name": "@nopo/github-actions",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsx scripts/build.ts",
+    "build:watch": "tsx scripts/build.ts --watch",
+    "clean": "rm -rf */dist",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check:types": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.16.0",
+    "esbuild": "^0.24.2",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.1"
+  },
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "@actions/exec": "^1.1.1",
+    "@actions/github": "^6.0.0",
+    "@actions/glob": "^0.5.0",
+    "@actions/io": "^1.1.3"
+  }
+}

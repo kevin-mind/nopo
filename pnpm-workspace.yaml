@@ -2,6 +2,7 @@ packages:
   - nopo/scripts
   - packages/*
   - apps/*
+  - .github/actions-ts
 
 linkWorkspacePackages: true
 preferWorkspacePackages: true

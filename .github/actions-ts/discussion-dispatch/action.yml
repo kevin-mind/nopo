@@ -1,0 +1,19 @@
+name: Discussion Dispatch (TypeScript)
+description: Dispatch discussion events to the handler workflow - TypeScript implementation
+
+inputs:
+  github_token:
+    description: GitHub token for API calls
+    required: true
+
+outputs:
+  action_type:
+    description: The type of action dispatched (research, respond, summarize, plan, complete, or skipped)
+  discussion_number:
+    description: The discussion number
+  skipped:
+    description: Whether the event was skipped (true/false)
+
+runs:
+  using: node20
+  main: dist/index.cjs

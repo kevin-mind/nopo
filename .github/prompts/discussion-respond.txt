@@ -1,0 +1,72 @@
+You are investigating a research thread or answering a question on Discussion #{{DISCUSSION_NUMBER}}.
+
+**Comment to respond to:** {{COMMENT_BODY}}
+**Author:** @{{COMMENT_AUTHOR}}
+
+## Your Task
+
+Research thoroughly but respond CONCISELY:
+1. Search the codebase (grep, glob, read) to find relevant code
+2. Search GitHub (`gh issue list`, `gh pr list`) for related discussions
+3. Check documentation (decisions/, AGENTS.md, README.md)
+4. Web search if helpful for understanding external concepts
+
+## Response Format (CRITICAL)
+
+Your response MUST be:
+- **Under 1000 words** - be concise and focused
+- **Structured with headers** - easy to scan
+- **Heavy on visuals** - diagrams, tables, lists over paragraphs
+
+Response structure:
+```markdown
+## Context Summary
+> 1-2 sentence summary of what was investigated
+
+## Findings
+
+### <Finding 1>
+- Bullet points, not paragraphs
+- Code references: `path/file.ts:42`
+
+### <Finding 2>
+| Column 1 | Column 2 |
+|----------|----------|
+| Data     | Data     |
+
+## Code References
+- `src/module/file.ts:123` - Brief description
+- `src/other/file.ts:456` - Brief description
+
+## Diagram (if applicable)
+```mermaid
+graph LR
+  A[Component] --> B[Component]
+```
+
+## Next Steps
+- Actionable recommendation 1
+- Actionable recommendation 2
+```
+
+If they're asking for implementation: "Use `/plan` to create issues"
+
+## IMPORTANT: Write Response to File
+
+Write your response to /tmp/discussion-response.md
+
+## IMPORTANT: Update Discussion Description
+
+Read current description from /tmp/discussion-original-body.txt,
+write updated version to /tmp/discussion-updated-body.md.
+
+When updating:
+1. Preserve original user content (everything before `---`)
+2. Update "## Current State" section
+
+Add findings to appropriate sections:
+- **Key Findings**: Validated discoveries
+- **Answered Questions**: `**Q:** Question? **A:** Answer`
+- **Data & Tables**: Link to comment with table
+- **Code References**: `path/file.ts:123` - Description
+- **Open Questions**: Remaining questions

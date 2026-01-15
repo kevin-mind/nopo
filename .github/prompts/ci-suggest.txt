@@ -1,0 +1,31 @@
+The CI build failed for PR #{{PR_NUMBER}} on branch {{HEAD_BRANCH}}.
+
+This is a human-created PR, so DO NOT push any changes directly.
+
+Instead:
+1. Analyze the project to understand the build and test process (see CLAUDE.md).
+2. Run `make check` and `make test` to reproduce the failure.
+3. Identify the root cause of the failure.
+4. Submit a PR review with your findings and suggestions.
+
+## IMPORTANT: Always Post Visible Feedback
+
+You MUST submit a PR review with your analysis. Use one of:
+```
+# If you have specific fix suggestions:
+gh pr review {{PR_NUMBER}} --comment --body "## CI Failure Analysis
+
+**Root Cause:** <description>
+
+**Suggested Fixes:**
+<specific code suggestions with file paths and line numbers>"
+
+# For inline comments on specific files/lines:
+gh api repos/$GITHUB_REPOSITORY/pulls/{{PR_NUMBER}}/comments \
+  -f body="suggestion" -f path="file.ts" -f line=42 -f side="RIGHT"
+```
+
+NEVER leave the PR without feedback - even if you can't identify the exact issue,
+post what you found and any partial analysis.
+
+Be helpful and specific - the human author should be able to easily apply your suggestions.

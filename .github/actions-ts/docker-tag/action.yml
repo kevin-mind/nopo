@@ -1,0 +1,49 @@
+name: Docker Tag (TypeScript)
+description: Tag a Docker image - TypeScript implementation
+
+inputs:
+  skip_clean:
+    description: Skip removing the .env file before running the action
+    required: false
+    default: ""
+  tag:
+    description: The full docker tag to use (computed from registry/image/version if not provided)
+    required: false
+  registry:
+    description: The registry to tag the image with
+    required: false
+  image:
+    description: The image to tag
+    required: false
+  version:
+    description: The version to tag the image with
+    required: false
+  digest:
+    description: The digest to tag the image with
+    required: false
+  target:
+    description: The target to tag the image with
+    required: false
+  node_env:
+    description: The node environment to tag the image with
+    required: false
+
+outputs:
+  tag:
+    description: The full docker tag to use
+  registry:
+    description: The registry to tag the image with
+  image:
+    description: The image to tag
+  version:
+    description: The version to tag the image with
+  digest:
+    description: The digest to tag the image with
+  target:
+    description: The target to tag the image with
+  node_env:
+    description: The node environment to tag the image with
+
+runs:
+  using: node20
+  main: dist/index.cjs

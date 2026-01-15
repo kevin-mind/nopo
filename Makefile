@@ -49,6 +49,10 @@ endif
 	@echo "Worktree ready at ../nopo-issue-$(issue)"
 	@echo "Run: cd ../nopo-issue-$(issue) && claude"
 
+.PHONY: smoketest
+smoketest:
+	pnpm exec playwright test --reporter=list
+
 .PHONY: lint-terraform
 lint-terraform:
 	terraform fmt -recursive infrastructure/terraform

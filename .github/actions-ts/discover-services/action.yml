@@ -1,0 +1,20 @@
+name: Discover Services (TypeScript)
+description: Discover services in the monorepo based on filter and since criteria
+
+inputs:
+  filter:
+    description: Filter services by type (e.g., 'buildable', 'testable')
+    required: false
+  since:
+    description: Only include services changed since this ref (e.g., 'origin/main')
+    required: false
+
+outputs:
+  services:
+    description: Space-separated list of discovered service names
+  services_json:
+    description: JSON array of discovered service names
+
+runs:
+  using: node20
+  main: dist/index.cjs

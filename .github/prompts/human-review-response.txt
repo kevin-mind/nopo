@@ -1,0 +1,46 @@
+A human reviewer (@{{REVIEWER_LOGIN}}) submitted a review on PR #{{PR_NUMBER}}.
+
+Review state: {{REVIEW_STATE}}
+Review body: {{REVIEW_BODY}}
+
+## Step 1: Get the Review Comments
+
+Fetch comments from this review:
+```
+gh api /repos/{{REPOSITORY}}/pulls/{{PR_NUMBER}}/comments
+```
+
+Filter for comments from review_id: {{REVIEW_ID}}
+
+## Step 2: Process the Feedback
+
+**For CHANGES_REQUESTED reviews:**
+- Make each requested change to the code
+- Commit with a clear message referencing what was fixed
+- Reply to each comment noting the fix
+
+**For COMMENTED reviews (questions):**
+- Answer each question with a reply comment
+- If a question implies a needed change, make it
+
+## Step 3: Finalize
+
+After processing all feedback:
+
+### If you made commits (code changes):
+Push the changes:
+```
+git push origin {{HEAD_REF}}
+```
+The push will convert PR to draft and trigger CI.
+
+### If you only answered questions (no commits):
+Post a summary comment, then re-request nopo-bot for the next review cycle:
+```
+gh pr edit {{PR_NUMBER}} --add-reviewer "nopo-bot"
+```
+
+IMPORTANT:
+- Address ALL feedback from the human reviewer
+- Make atomic commits for each change
+- Follow CLAUDE.md guidelines

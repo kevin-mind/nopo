@@ -1,0 +1,20 @@
+name: App Names (TypeScript)
+description: Get app names based on existing fly/configs/*.toml files - TypeScript implementation
+
+inputs:
+  environment:
+    description: The environment to get app names for
+    required: false
+    default: "*"
+  app:
+    description: The app to get app names for
+    required: false
+    default: "*"
+
+outputs:
+  app_names:
+    description: The app names as a JSON array
+
+runs:
+  using: node20
+  main: dist/index.cjs
