@@ -1,0 +1,493 @@
+name: Claude
+'on':
+  workflow_call:
+    inputs:
+      job:
+        description: Job to run
+        required: true
+        type: string
+      # Issue inputs
+      issue_number:
+        type: string
+      issue_title:
+        type: string
+      issue_body:
+        type: string
+      # PR inputs
+      pr_number:
+        type: string
+      branch_name:
+        type: string
+      review_state:
+        type: string
+      review_body:
+        type: string
+      review_id:
+        type: string
+      reviewer_login:
+        type: string
+      issue_section:
+        type: string
+      # Discussion inputs
+      discussion_number:
+        type: string
+      discussion_title:
+        type: string
+      discussion_body:
+        type: string
+      comment_body:
+        type: string
+      comment_author:
+        type: string
+      # Comment context inputs
+      context_type:
+        type: string
+      context_description:
+        type: string
+      # Implement inputs
+      existing_branch_section:
+        type: string
+      # Run-claude options
+      status_comment:
+        type: string
+        default: 'false'
+      status_action:
+        type: string
+      reactions:
+        type: string
+        default: 'false'
+      # Testing
+      mock_mode:
+        type: string
+        default: 'false'
+  workflow_dispatch:
+    inputs:
+      job:
+        description: Job to run
+        required: true
+        type: choice
+        options:
+          - issue-triage
+          - issue-implement
+          - issue-comment
+          - ci-fix
+          - ci-suggest
+          - pr-review
+          - pr-response
+          - pr-human-response
+          - discussion-research
+          - discussion-respond
+          - discussion-summarize
+          - discussion-plan
+      issue_number:
+        description: Issue number (for issue-* jobs)
+        type: string
+      pr_number:
+        description: PR number (for pr-*, ci-* jobs)
+        type: string
+      branch_name:
+        description: Branch name (for implement, ci-*, pr-* jobs)
+        type: string
+      discussion_number:
+        description: Discussion number (for discussion-* jobs)
+        type: string
+      mock_mode:
+        description: Mock mode for testing (true/false)
+        type: string
+        default: 'false'
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+defaults:
+  run:
+    shell: bash
+jobs:
+  # ============================================================================
+  # ISSUE JOBS
+  # ============================================================================
+  issue-triage:
+    if: inputs.job == 'issue-triage'
+    runs-on: ubuntu-latest
+    steps:
+      - id: checkout
+        uses: actions/checkout@v4
+      - id: build_replacements
+        uses: ./.github/actions-ts/prompt-replacements
+        with:
+          pairs: |
+            ISSUE_NUMBER=${{ inputs.issue_number }}
+            ISSUE_TITLE=${{ inputs.issue_title }}
+            ISSUE_BODY=${{ inputs.issue_body }}
+      - id: claude
+        uses: ./.github/actions/run-claude
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt_file: .github/prompts/triage.txt
+          prompt_replacements: ${{ steps.build_replacements.outputs.json }}
+          max_turns: '50'
+          status_comment: ${{ inputs.status_comment }}
+          status_action: ${{ inputs.status_action }}
+          issue_or_pr_number: ${{ inputs.issue_number }}
+          reactions: ${{ inputs.reactions }}
+          mock_mode: ${{ inputs.mock_mode }}
+      - id: upload_artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: claude-triage-output
+          path: triage-output.json
+          retention-days: 1
+          if-no-files-found: ignore
+
+  issue-implement:
+    if: inputs.job == 'issue-implement'
+    runs-on: ubuntu-latest
+    steps:
+      - id: checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch_name }}
+          fetch-depth: 0
+      - id: git_config
+        name: git config
+        run: |
+          git config --global user.name "Claude Bot"
+          git config --global user.email "claude-bot@anthropic.com"
+      - id: build_replacements
+        uses: ./.github/actions-ts/prompt-replacements
+        with:
+          pairs: |
+            ISSUE_NUMBER=${{ inputs.issue_number }}
+            ISSUE_TITLE=${{ inputs.issue_title }}
+            ISSUE_BODY=${{ inputs.issue_body }}
+            BRANCH_NAME=${{ inputs.branch_name }}
+            EXISTING_BRANCH_SECTION=${{ inputs.existing_branch_section }}
+      - id: claude
+        uses: ./.github/actions/run-claude
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt_file: .github/prompts/implement.txt
+          prompt_replacements: ${{ steps.build_replacements.outputs.json }}
+          max_turns: '200'
+          show_full_output: 'true'
+          assignee_trigger: nopo-bot
+          mock_mode: ${{ inputs.mock_mode }}
+
+  issue-comment:
+    if: inputs.job == 'issue-comment'
+    runs-on: ubuntu-latest
+    steps:
+      - id: checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch_name || 'main' }}
+          fetch-depth: 0
+      - id: build_replacements
+        uses: ./.github/actions-ts/prompt-replacements
+        with:
+          pairs: |
+            CONTEXT_TYPE=${{ inputs.context_type }}
+            CONTEXT_DESCRIPTION=${{ inputs.context_description }}
+            ISSUE_NUMBER=${{ inputs.issue_number }}
+      - id: claude
+        uses: ./.github/actions/run-claude
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt_file: .github/prompts/comment.txt
+          prompt_replacements: ${{ steps.build_replacements.outputs.json }}
+          max_turns: '100'
+          trigger_phrase: '@claude'
+          status_comment: 'true'
+          status_action: responding to your request
+          issue_or_pr_number: ${{ inputs.issue_number }}
+          circuit_breaker: 'true'
+          circuit_breaker_max: '50'
+          reactions: 'true'
+          mock_mode: ${{ inputs.mock_mode }}
+
+  # ============================================================================
+  # CI JOBS
+  # ============================================================================
+  ci-fix:
+    if: inputs.job == 'ci-fix'
+    runs-on: ubuntu-latest
+    steps:
+      - id: checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch_name }}
+          fetch-depth: 0
+      - id: git_config
+        name: git config
+        run: |
+          git config --global user.name "Claude Bot"
+          git config --global user.email "claude-bot@anthropic.com"
+      - id: build_replacements
+        uses: ./.github/actions-ts/prompt-replacements
+        with:
+          pairs: |
+            PR_NUMBER=${{ inputs.pr_number }}
+            HEAD_BRANCH=${{ inputs.branch_name }}
+      - id: claude
+        uses: ./.github/actions/run-claude
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt_file: .github/prompts/ci-fix.txt
+          prompt_replacements: ${{ steps.build_replacements.outputs.json }}
+          max_turns: '200'
+          circuit_breaker: 'true'
+          circuit_breaker_max: '50'
+          mock_mode: ${{ inputs.mock_mode }}
+
+  ci-suggest:
+    if: inputs.job == 'ci-suggest'
+    runs-on: ubuntu-latest
+    steps:
+      - id: checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch_name }}
+          fetch-depth: 0
+      - id: build_replacements
+        uses: ./.github/actions-ts/prompt-replacements
+        with:
+          pairs: |
+            PR_NUMBER=${{ inputs.pr_number }}
+            HEAD_BRANCH=${{ inputs.branch_name }}
+      - id: claude
+        uses: ./.github/actions/run-claude
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt_file: .github/prompts/ci-suggest.txt
+          prompt_replacements: ${{ steps.build_replacements.outputs.json }}
+          max_turns: '200'
+          mock_mode: ${{ inputs.mock_mode }}
+
+  # ============================================================================
+  # PR REVIEW JOBS
+  # ============================================================================
+  pr-review:
+    if: inputs.job == 'pr-review'
+    runs-on: ubuntu-latest
+    steps:
+      - id: checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch_name }}
+          fetch-depth: 0
+      - id: build_replacements
+        uses: ./.github/actions-ts/prompt-replacements
+        with:
+          pairs: |
+            PR_NUMBER=${{ inputs.pr_number }}
+            ISSUE_SECTION=${{ inputs.issue_section }}
+      - id: claude
+        uses: ./.github/actions/run-claude
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt_file: .github/prompts/review.txt
+          prompt_replacements: ${{ steps.build_replacements.outputs.json }}
+          max_turns: '50'
+          mock_mode: ${{ inputs.mock_mode }}
+
+  pr-response:
+    if: inputs.job == 'pr-response'
+    runs-on: ubuntu-latest
+    steps:
+      - id: checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch_name }}
+          fetch-depth: 0
+      - id: git_config
+        name: git config
+        run: |
+          git config --global user.name "Claude Bot"
+          git config --global user.email "claude-bot@anthropic.com"
+      - id: build_replacements
+        uses: ./.github/actions-ts/prompt-replacements
+        with:
+          pairs: |
+            PR_NUMBER=${{ inputs.pr_number }}
+            REVIEW_STATE=${{ inputs.review_state }}
+            REVIEW_BODY=${{ inputs.review_body }}
+            REPOSITORY=${{ github.repository }}
+            REVIEW_ID=${{ inputs.review_id }}
+            HEAD_REF=${{ inputs.branch_name }}
+      - id: claude
+        uses: ./.github/actions/run-claude
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt_file: .github/prompts/review-response.txt
+          prompt_replacements: ${{ steps.build_replacements.outputs.json }}
+          max_turns: '50'
+          mock_mode: ${{ inputs.mock_mode }}
+
+  pr-human-response:
+    if: inputs.job == 'pr-human-response'
+    runs-on: ubuntu-latest
+    steps:
+      - id: checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch_name }}
+          fetch-depth: 0
+      - id: git_config
+        name: git config
+        run: |
+          git config --global user.name "Claude Bot"
+          git config --global user.email "claude-bot@anthropic.com"
+      - id: build_replacements
+        uses: ./.github/actions-ts/prompt-replacements
+        with:
+          pairs: |
+            REVIEWER_LOGIN=${{ inputs.reviewer_login }}
+            PR_NUMBER=${{ inputs.pr_number }}
+            REVIEW_STATE=${{ inputs.review_state }}
+            REVIEW_BODY=${{ inputs.review_body }}
+            REPOSITORY=${{ github.repository }}
+            REVIEW_ID=${{ inputs.review_id }}
+            HEAD_REF=${{ inputs.branch_name }}
+      - id: claude
+        uses: ./.github/actions/run-claude
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt_file: .github/prompts/human-review-response.txt
+          prompt_replacements: ${{ steps.build_replacements.outputs.json }}
+          max_turns: '50'
+          mock_mode: ${{ inputs.mock_mode }}
+
+  # ============================================================================
+  # DISCUSSION JOBS
+  # ============================================================================
+  discussion-research:
+    if: inputs.job == 'discussion-research'
+    runs-on: ubuntu-latest
+    steps:
+      - id: checkout
+        uses: actions/checkout@v4
+      - id: build_replacements
+        uses: ./.github/actions-ts/prompt-replacements
+        with:
+          pairs: |
+            DISCUSSION_TITLE=${{ inputs.discussion_title }}
+            DISCUSSION_BODY=${{ inputs.discussion_body }}
+      - id: claude
+        uses: ./.github/actions/run-claude
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt_file: .github/prompts/discussion-research.txt
+          prompt_replacements: ${{ steps.build_replacements.outputs.json }}
+          max_turns: '30'
+          show_full_output: 'true'
+          mock_mode: ${{ inputs.mock_mode }}
+      - id: upload_artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: claude-discussion-output
+          path: |
+            /tmp/research-thread-*.md
+            /tmp/discussion-updated-body.md
+          retention-days: 1
+          if-no-files-found: ignore
+
+  discussion-respond:
+    if: inputs.job == 'discussion-respond'
+    runs-on: ubuntu-latest
+    steps:
+      - id: checkout
+        uses: actions/checkout@v4
+      - id: build_replacements
+        uses: ./.github/actions-ts/prompt-replacements
+        with:
+          pairs: |
+            DISCUSSION_NUMBER=${{ inputs.discussion_number }}
+            COMMENT_BODY=${{ inputs.comment_body }}
+            COMMENT_AUTHOR=${{ inputs.comment_author }}
+      - id: claude
+        uses: ./.github/actions/run-claude
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt_file: .github/prompts/discussion-respond.txt
+          prompt_replacements: ${{ steps.build_replacements.outputs.json }}
+          max_turns: '100'
+          show_full_output: 'true'
+          mock_mode: ${{ inputs.mock_mode }}
+      - id: upload_artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: claude-discussion-output
+          path: |
+            /tmp/discussion-response.md
+            /tmp/discussion-updated-body.md
+          retention-days: 1
+          if-no-files-found: ignore
+
+  discussion-summarize:
+    if: inputs.job == 'discussion-summarize'
+    runs-on: ubuntu-latest
+    steps:
+      - id: checkout
+        uses: actions/checkout@v4
+      - id: build_replacements
+        uses: ./.github/actions-ts/prompt-replacements
+        with:
+          pairs: |
+            DISCUSSION_NUMBER=${{ inputs.discussion_number }}
+      - id: claude
+        uses: ./.github/actions/run-claude
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt_file: .github/prompts/discussion-summarize.txt
+          prompt_replacements: ${{ steps.build_replacements.outputs.json }}
+          max_turns: '50'
+          show_full_output: 'true'
+          mock_mode: ${{ inputs.mock_mode }}
+      - id: upload_artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: claude-discussion-output
+          path: /tmp/discussion-summary.md
+          retention-days: 1
+          if-no-files-found: ignore
+
+  discussion-plan:
+    if: inputs.job == 'discussion-plan'
+    runs-on: ubuntu-latest
+    steps:
+      - id: checkout
+        uses: actions/checkout@v4
+      - id: build_replacements
+        uses: ./.github/actions-ts/prompt-replacements
+        with:
+          pairs: |
+            DISCUSSION_NUMBER=${{ inputs.discussion_number }}
+      - id: claude
+        uses: ./.github/actions/run-claude
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt_file: .github/prompts/discussion-plan.txt
+          prompt_replacements: ${{ steps.build_replacements.outputs.json }}
+          max_turns: '100'
+          show_full_output: 'true'
+          mock_mode: ${{ inputs.mock_mode }}
+      - id: upload_artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: claude-discussion-output
+          path: /tmp/discussion-plan-summary.md
+          retention-days: 1
+          if-no-files-found: ignore

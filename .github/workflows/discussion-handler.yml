@@ -68,173 +68,139 @@ jobs:
             ' -f subjectId="$COMMENT_ID"
   summarize:
     if: github.event.client_payload.action_type == 'summarize'
+    uses: ./.github/workflows/_claude.yml
+    with:
+      job: discussion-summarize
+      discussion_number: ${{ github.event.client_payload.discussion_number }}
+    secrets: inherit
+    needs:
+      - prepare
+  summarize-post:
+    if: always() && github.event.client_payload.action_type == 'summarize'
     runs-on: ubuntu-latest
     permissions:
-      contents: read
       discussions: write
-      id-token: write
     steps:
-      - id: checkout
-        uses: actions/checkout@v4
-      - id: download_body
-        name: Download original body
+      - id: download_artifact
+        name: Download Claude output
         uses: actions/download-artifact@v4
         with:
-          name: discussion-original-body
+          name: claude-discussion-output
           path: /tmp
-      - id: build_summarize_replacements
-        uses: ./.github/actions-ts/prompt-replacements
-        with:
-          pairs: |
-            DISCUSSION_NUMBER=${{ github.event.client_payload.discussion_number }}
-      - id: claude
-        uses: ./.github/actions/run-claude
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt_file: .github/prompts/discussion-summarize.txt
-          prompt_replacements: ${{ steps.build_summarize_replacements.outputs.json }}
-          max_turns: '50'
-          show_full_output: 'true'
       - id: post_summary
         name: Post summary comment
-        if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DISCUSSION_ID: ${{ needs.prepare.outputs.discussion_id }}
-        run: |2-
-            if [[ ! -f /tmp/discussion-summary.md ]]; then
-              echo "No summary file found"
-              exit 1
-            fi
+        run: |
+          if [[ ! -f /tmp/discussion-summary.md ]]; then
+            echo "No summary file found"
+            exit 1
+          fi
 
-            gh api graphql -f query='
-              mutation($discussionId: ID!, $body: String!) {
-            addDiscussionComment(input: {
-              discussionId: $discussionId
-              body: $body
-            }) {
-              comment { id }
+          gh api graphql -f query='
+            mutation($discussionId: ID!, $body: String!) {
+              addDiscussionComment(input: {
+                discussionId: $discussionId
+                body: $body
+              }) {
+                comment { id }
+              }
             }
-          }
-            ' -f discussionId="$DISCUSSION_ID" -F body=@/tmp/discussion-summary.md
-      - id: upload_updated_body
-        name: Upload updated body
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: discussion-updated-body-summarize
-          path: /tmp/discussion-updated-body.md
-          if-no-files-found: ignore
+          ' -f discussionId="$DISCUSSION_ID" -F body=@/tmp/discussion-summary.md
     needs:
       - prepare
+      - summarize
   respond:
     if: github.event.client_payload.action_type == 'respond'
+    uses: ./.github/workflows/_claude.yml
+    with:
+      job: discussion-respond
+      discussion_number: ${{ github.event.client_payload.discussion_number }}
+      comment_body: ${{ github.event.client_payload.comment_body }}
+      comment_author: ${{ github.event.client_payload.comment_author }}
+    secrets: inherit
+    needs:
+      - prepare
+  respond-post:
+    if: always() && github.event.client_payload.action_type == 'respond'
     runs-on: ubuntu-latest
     permissions:
-      contents: read
       discussions: write
-      id-token: write
     steps:
-      - id: checkout
-        uses: actions/checkout@v4
-      - id: download_body
-        name: Download original body
+      - id: download_artifact
+        name: Download Claude output
         uses: actions/download-artifact@v4
         with:
-          name: discussion-original-body
+          name: claude-discussion-output
           path: /tmp
-      - id: build_respond_replacements
-        uses: ./.github/actions-ts/prompt-replacements
-        with:
-          pairs: |
-            DISCUSSION_NUMBER=${{ github.event.client_payload.discussion_number }}
-            COMMENT_BODY=${{ github.event.client_payload.comment_body }}
-            COMMENT_AUTHOR=${{ github.event.client_payload.comment_author }}
-      - id: claude
-        uses: ./.github/actions/run-claude
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt_file: .github/prompts/discussion-respond.txt
-          prompt_replacements: ${{ steps.build_respond_replacements.outputs.json }}
-          max_turns: '100'
-          show_full_output: 'true'
+        continue-on-error: true
       - id: find_root
         name: Find thread root comment
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DISCUSSION_ID: ${{ needs.prepare.outputs.discussion_id }}
           COMMENT_ID: ${{ github.event.client_payload.comment_id }}
-        run: |2-
-            # Query the comment to see if it has a parent (replyTo)
-            comment_data=$(gh api graphql -f query='
-              query($commentId: ID!) {
-            node(id: $commentId) {
-              ... on DiscussionComment {
-                id
-                replyTo {
+        run: |
+          # Query the comment to see if it has a parent (replyTo)
+          comment_data=$(gh api graphql -f query='
+            query($commentId: ID!) {
+              node(id: $commentId) {
+                ... on DiscussionComment {
                   id
                   replyTo {
                     id
+                    replyTo {
+                      id
+                    }
                   }
                 }
               }
             }
-          }
-            ' -f commentId="$COMMENT_ID")
+          ' -f commentId="$COMMENT_ID")
 
-            # Extract the root comment ID (walk up the replyTo chain)
-            root_id=$(echo "$comment_data" | jq -r '
-              .data.node
-              | if .replyTo.replyTo.id then .replyTo.replyTo.id
-                elif .replyTo.id then .replyTo.id
-                else .id
-                end
-            ')
+          # Extract the root comment ID (walk up the replyTo chain)
+          root_id=$(echo "$comment_data" | jq -r '
+            .data.node
+            | if .replyTo.replyTo.id then .replyTo.replyTo.id
+              elif .replyTo.id then .replyTo.id
+              else .id
+              end
+          ')
 
-            echo "Original comment: $COMMENT_ID"
-            echo "Root comment: $root_id"
-            echo "root_comment_id=$root_id" >> $GITHUB_OUTPUT
+          echo "Original comment: $COMMENT_ID"
+          echo "Root comment: $root_id"
+          echo "root_comment_id=$root_id" >> $GITHUB_OUTPUT
       - id: post_response
         name: Post response comment
-        if: always()
+        if: needs.respond.result == 'success'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DISCUSSION_ID: ${{ needs.prepare.outputs.discussion_id }}
           REPLY_TO_ID: ${{ steps.find_root.outputs.root_comment_id }}
-        run: |2-
-            if [[ ! -f /tmp/discussion-response.md ]]; then
-              echo "No response file found"
-              exit 1
-            fi
+        run: |
+          if [[ ! -f /tmp/discussion-response.md ]]; then
+            echo "No response file found"
+            exit 1
+          fi
 
-            gh api graphql -f query='
-              mutation($discussionId: ID!, $replyToId: ID!, $body: String!) {
-            addDiscussionComment(input: {
-              discussionId: $discussionId
-              replyToId: $replyToId
-              body: $body
-            }) {
-              comment { id }
+          gh api graphql -f query='
+            mutation($discussionId: ID!, $replyToId: ID!, $body: String!) {
+              addDiscussionComment(input: {
+                discussionId: $discussionId
+                replyToId: $replyToId
+                body: $body
+              }) {
+                comment { id }
+              }
             }
-          }
-            ' -f discussionId="$DISCUSSION_ID" -f replyToId="$REPLY_TO_ID" -F body=@/tmp/discussion-response.md
-      - id: upload_updated_body
-        name: Upload updated body
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: discussion-updated-body-respond
-          path: /tmp/discussion-updated-body.md
-          if-no-files-found: ignore
+          ' -f discussionId="$DISCUSSION_ID" -f replyToId="$REPLY_TO_ID" -F body=@/tmp/discussion-response.md
       - id: add_success
         name: Add success reaction
-        if: success()
+        if: needs.respond.result == 'success'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COMMENT_ID: ${{ github.event.client_payload.comment_id }}
-        run: |-
+        run: |
           gh api graphql -f query='
             mutation($subjectId: ID!) {
               addReaction(input: {
@@ -247,77 +213,68 @@ jobs:
           ' -f subjectId="$COMMENT_ID"
       - id: handle_failure
         name: Handle failure
-        if: failure()
+        if: needs.respond.result == 'failure'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DISCUSSION_ID: ${{ needs.prepare.outputs.discussion_id }}
           COMMENT_ID: ${{ github.event.client_payload.comment_id }}
           ROOT_COMMENT_ID: ${{ steps.find_root.outputs.root_comment_id }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |2-
-            # Add thumbs down to the original comment
-            gh api graphql -f query='
-              mutation($subjectId: ID!) {
-                addReaction(input: {
-                  subjectId: $subjectId
-                  content: THUMBS_DOWN
-                }) {
-                  reaction { id }
-                }
+        run: |
+          # Add thumbs down to the original comment
+          gh api graphql -f query='
+            mutation($subjectId: ID!) {
+              addReaction(input: {
+                subjectId: $subjectId
+                content: THUMBS_DOWN
+              }) {
+                reaction { id }
               }
-            ' -f subjectId="$COMMENT_ID" || true
-
-            # Post error as reply to the root comment in the thread
-            gh api graphql -f query='
-              mutation($discussionId: ID!, $replyToId: ID!, $body: String!) {
-            addDiscussionComment(input: {
-              discussionId: $discussionId
-              replyToId: $replyToId
-              body: $body
-            }) {
-              comment { id }
             }
-          }
-            ' -f discussionId="$DISCUSSION_ID" -f replyToId="${ROOT_COMMENT_ID:-$COMMENT_ID}" -f body="⚠️ **Failed to process your question**
+          ' -f subjectId="$COMMENT_ID" || true
 
-            See [workflow run]($RUN_URL) for details."
+          # Post error as reply to the root comment in the thread
+          gh api graphql -f query='
+            mutation($discussionId: ID!, $replyToId: ID!, $body: String!) {
+              addDiscussionComment(input: {
+                discussionId: $discussionId
+                replyToId: $replyToId
+                body: $body
+              }) {
+                comment { id }
+              }
+            }
+          ' -f discussionId="$DISCUSSION_ID" -f replyToId="${ROOT_COMMENT_ID:-$COMMENT_ID}" -f body="⚠️ **Failed to process your question**
+
+          See [workflow run]($RUN_URL) for details."
     needs:
       - prepare
+      - respond
   research:
     if: github.event.client_payload.action_type == 'research'
+    uses: ./.github/workflows/_claude.yml
+    with:
+      job: discussion-research
+      discussion_title: ${{ github.event.client_payload.discussion_title }}
+      discussion_body: ${{ github.event.client_payload.discussion_body }}
+    secrets: inherit
+    needs:
+      - prepare
+  research-post:
+    if: always() && github.event.client_payload.action_type == 'research'
     runs-on: ubuntu-latest
     permissions:
-      contents: read
       discussions: write
-      id-token: write
     steps:
-      - id: checkout
-        uses: actions/checkout@v4
-      - id: download_body
-        name: Download original body
+      - id: download_artifact
+        name: Download Claude output
         uses: actions/download-artifact@v4
         with:
-          name: discussion-original-body
+          name: claude-discussion-output
           path: /tmp
-      - id: build_research_replacements
-        uses: ./.github/actions-ts/prompt-replacements
-        with:
-          pairs: |
-            DISCUSSION_TITLE=${{ github.event.client_payload.discussion_title }}
-            DISCUSSION_BODY=${{ github.event.client_payload.discussion_body }}
-      - id: claude
-        uses: ./.github/actions/run-claude
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt_file: .github/prompts/discussion-research.txt
-          prompt_replacements: ${{ steps.build_research_replacements.outputs.json }}
-          max_turns: '30'
-          show_full_output: 'true'
       - id: debug_files
         name: Debug - List created files
-        if: always()
-        run: |-
+        run: |
           echo "=== Files in /tmp ==="
           ls -la /tmp/research-thread-*.md 2>/dev/null || echo "No research-thread files found"
           ls -la /tmp/discussion-*.md 2>/dev/null || echo "No discussion files found"
@@ -332,167 +289,136 @@ jobs:
           done
       - id: post_threads
         name: Post research thread comments
-        if: always()
+        if: needs.research.result == 'success'
         env:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
           DISCUSSION_ID: ${{ needs.prepare.outputs.discussion_id }}
-        run: |2-
-            # Check if files exist
-            if ! ls /tmp/research-thread-*.md 1> /dev/null 2>&1; then
-              echo "ERROR: No research thread files found!"
-              echo "The Claude agent should have created files like /tmp/research-thread-1.md"
-              exit 1
+        run: |
+          # Check if files exist
+          if ! ls /tmp/research-thread-*.md 1> /dev/null 2>&1; then
+            echo "ERROR: No research thread files found!"
+            echo "The Claude agent should have created files like /tmp/research-thread-1.md"
+            exit 1
+          fi
+
+          # Count files
+          file_count=$(ls /tmp/research-thread-*.md 2>/dev/null | wc -l)
+          echo "Found $file_count research thread files"
+
+          # Post each research thread and collect comment IDs
+          for file in /tmp/research-thread-*.md; do
+            if [[ -f "$file" ]]; then
+              echo "Posting research thread: $file"
+
+              # Post comment and capture the comment ID
+              comment_result=$(gh api graphql -f query='
+                mutation($discussionId: ID!, $body: String!) {
+                  addDiscussionComment(input: {
+                    discussionId: $discussionId
+                    body: $body
+                  }) {
+                    comment { id }
+                  }
+                }
+              ' -f discussionId="$DISCUSSION_ID" -F body=@"$file")
+
+              comment_id=$(echo "$comment_result" | jq -r '.data.addDiscussionComment.comment.id')
+              echo "Posted comment: $comment_id"
+
+              # Small delay between posts
+              sleep 2
             fi
+          done
 
-            # Count files
-            file_count=$(ls /tmp/research-thread-*.md 2>/dev/null | wc -l)
-            echo "Found $file_count research thread files"
-
-            # Post each research thread and collect comment IDs
-            comment_ids=""
-            comment_bodies=""
-
-            for file in /tmp/research-thread-*.md; do
-              if [[ -f "$file" ]]; then
-                echo "Posting research thread: $file"
-
-                # Post comment and capture the comment ID
-                comment_result=$(gh api graphql -f query='
-                  mutation($discussionId: ID!, $body: String!) {
-            addDiscussionComment(input: {
-              discussionId: $discussionId
-              body: $body
-            }) {
-              comment { id }
-            }
-          }
-                ' -f discussionId="$DISCUSSION_ID" -F body=@"$file")
-
-                comment_id=$(echo "$comment_result" | jq -r '.data.addDiscussionComment.comment.id')
-                echo "Posted comment: $comment_id"
-
-                # Store comment data for dispatch step
-                # Use base64 to safely encode the body
-                encoded_body=$(cat "$file" | base64 -w 0)
-                echo "${comment_id}:${encoded_body}" >> /tmp/posted_comments.txt
-
-                # Small delay between posts
-                sleep 2
-              fi
-            done
-
-            echo "Successfully posted $file_count research threads"
-            echo "Comments posted with PAT - webhooks will trigger dispatcher automatically"
-      - id: upload_updated_body
-        name: Upload updated body
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: discussion-updated-body-research
-          path: /tmp/discussion-updated-body.md
-          if-no-files-found: ignore
+          echo "Successfully posted $file_count research threads"
+          echo "Comments posted with PAT - webhooks will trigger dispatcher automatically"
     needs:
       - prepare
+      - research
   plan:
     if: github.event.client_payload.action_type == 'plan'
+    uses: ./.github/workflows/_claude.yml
+    with:
+      job: discussion-plan
+      discussion_number: ${{ github.event.client_payload.discussion_number }}
+    secrets: inherit
+    needs:
+      - prepare
+  plan-post:
+    if: always() && github.event.client_payload.action_type == 'plan'
     runs-on: ubuntu-latest
     permissions:
-      contents: read
       discussions: write
-      issues: write
-      id-token: write
     steps:
-      - id: checkout
-        uses: actions/checkout@v4
-      - id: download_body
-        name: Download original body
+      - id: download_artifact
+        name: Download Claude output
         uses: actions/download-artifact@v4
         with:
-          name: discussion-original-body
+          name: claude-discussion-output
           path: /tmp
-      - id: build_plan_replacements
-        uses: ./.github/actions-ts/prompt-replacements
-        with:
-          pairs: |
-            DISCUSSION_NUMBER=${{ github.event.client_payload.discussion_number }}
-      - id: claude
-        uses: ./.github/actions/run-claude
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt_file: .github/prompts/discussion-plan.txt
-          prompt_replacements: ${{ steps.build_plan_replacements.outputs.json }}
-          max_turns: '100'
-          show_full_output: 'true'
+        continue-on-error: true
       - id: find_root
         name: Find thread root comment
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COMMENT_ID: ${{ github.event.client_payload.comment_id }}
-        run: |2-
-            # Query the comment to see if it has a parent (replyTo)
-            comment_data=$(gh api graphql -f query='
-              query($commentId: ID!) {
-            node(id: $commentId) {
-              ... on DiscussionComment {
-                id
-                replyTo {
+        run: |
+          # Query the comment to see if it has a parent (replyTo)
+          comment_data=$(gh api graphql -f query='
+            query($commentId: ID!) {
+              node(id: $commentId) {
+                ... on DiscussionComment {
                   id
                   replyTo {
                     id
+                    replyTo {
+                      id
+                    }
                   }
                 }
               }
             }
-          }
-            ' -f commentId="$COMMENT_ID")
+          ' -f commentId="$COMMENT_ID")
 
-            # Extract the root comment ID (walk up the replyTo chain)
-            root_id=$(echo "$comment_data" | jq -r '
-              .data.node
-              | if .replyTo.replyTo.id then .replyTo.replyTo.id
-                elif .replyTo.id then .replyTo.id
-                else .id
-                end
-            ')
+          # Extract the root comment ID (walk up the replyTo chain)
+          root_id=$(echo "$comment_data" | jq -r '
+            .data.node
+            | if .replyTo.replyTo.id then .replyTo.replyTo.id
+              elif .replyTo.id then .replyTo.id
+              else .id
+              end
+          ')
 
-            echo "Original comment: $COMMENT_ID"
-            echo "Root comment: $root_id"
-            echo "root_comment_id=$root_id" >> $GITHUB_OUTPUT
+          echo "Original comment: $COMMENT_ID"
+          echo "Root comment: $root_id"
+          echo "root_comment_id=$root_id" >> $GITHUB_OUTPUT
       - id: post_plan
         name: Post plan summary comment
-        if: always()
+        if: needs.plan.result == 'success'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DISCUSSION_ID: ${{ needs.prepare.outputs.discussion_id }}
           REPLY_TO_ID: ${{ steps.find_root.outputs.root_comment_id }}
-        run: |2-
-            if [[ ! -f /tmp/discussion-plan-summary.md ]]; then
-              echo "No plan summary file found"
-              exit 1
-            fi
+        run: |
+          if [[ ! -f /tmp/discussion-plan-summary.md ]]; then
+            echo "No plan summary file found"
+            exit 1
+          fi
 
-            gh api graphql -f query='
-              mutation($discussionId: ID!, $replyToId: ID!, $body: String!) {
-            addDiscussionComment(input: {
-              discussionId: $discussionId
-              replyToId: $replyToId
-              body: $body
-            }) {
-              comment { id }
+          gh api graphql -f query='
+            mutation($discussionId: ID!, $replyToId: ID!, $body: String!) {
+              addDiscussionComment(input: {
+                discussionId: $discussionId
+                replyToId: $replyToId
+                body: $body
+              }) {
+                comment { id }
+              }
             }
-          }
-            ' -f discussionId="$DISCUSSION_ID" -f replyToId="$REPLY_TO_ID" -F body=@/tmp/discussion-plan-summary.md
-      - id: upload_updated_body
-        name: Upload updated body
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: discussion-updated-body-plan
-          path: /tmp/discussion-updated-body.md
-          if-no-files-found: ignore
+          ' -f discussionId="$DISCUSSION_ID" -f replyToId="$REPLY_TO_ID" -F body=@/tmp/discussion-plan-summary.md
     needs:
       - prepare
+      - plan
   complete:
     if: github.event.client_payload.action_type == 'complete'
     runs-on: ubuntu-latest
@@ -584,6 +510,10 @@ jobs:
     needs:
       - prepare
       - summarize
+      - summarize-post
       - respond
+      - respond-post
       - research
+      - research-post
       - plan
+      - plan-post

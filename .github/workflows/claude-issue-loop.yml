@@ -114,33 +114,31 @@ jobs:
             echo 'EOF'
           } >> $GITHUB_OUTPUT
   triage:
-    runs-on: ubuntu-latest
     if: needs.triage-check.outputs.should_triage == 'true'
     concurrency:
       group: claude-triage-${{ needs.triage-check.outputs.issue_number }}
       cancel-in-progress: true
+    uses: ./.github/workflows/_claude.yml
+    with:
+      job: issue-triage
+      issue_number: ${{ needs.triage-check.outputs.issue_number }}
+      issue_title: ${{ needs.triage-check.outputs.issue_title }}
+      issue_body: ${{ needs.triage-check.outputs.issue_body }}
+      status_comment: 'true'
+      status_action: triaging this issue
+      reactions: 'true'
+    secrets: inherit
+    needs:
+      - triage-check
+  triage-post:
+    runs-on: ubuntu-latest
+    if: always() && needs.triage.result == 'success'
     steps:
-      - id: checkout
-        uses: actions/checkout@v4
-      - id: build_triage_replacements
-        uses: ./.github/actions-ts/prompt-replacements
+      - id: download_artifact
+        uses: actions/download-artifact@v4
         with:
-          pairs: |
-            ISSUE_NUMBER=${{ needs.triage-check.outputs.issue_number }}
-            ISSUE_TITLE=${{ needs.triage-check.outputs.issue_title }}
-            ISSUE_BODY=${{ needs.triage-check.outputs.issue_body }}
-      - id: claude_triage
-        uses: ./.github/actions/run-claude
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt_file: .github/prompts/triage.txt
-          prompt_replacements: ${{ steps.build_triage_replacements.outputs.json }}
-          max_turns: '50'
-          status_comment: 'true'
-          status_action: triaging this issue
-          issue_or_pr_number: ${{ needs.triage-check.outputs.issue_number }}
-          reactions: 'true'
+          name: claude-triage-output
+          path: .
       - id: parse
         name: Parse triage output
         run: |-
@@ -316,6 +314,7 @@ jobs:
               -F number="$ESTIMATE"
     needs:
       - triage-check
+      - triage
   implement-check:
     runs-on: ubuntu-latest
     if: |-
@@ -513,9 +512,12 @@ jobs:
             echo "Updated project status to '$TARGET_STATUS'"
     needs:
       - implement-check
-  implement:
+  implement-setup:
     if: always() && needs.implement-check.outputs.should_implement == 'true'
     runs-on: ubuntu-latest
+    outputs:
+      branch_name: ${{ steps.branch.outputs.name }}
+      existing_branch_section: ${{ steps.branch.outputs.existing_branch_section }}
     steps:
       - id: checkout
         uses: actions/checkout@v4
@@ -533,100 +535,64 @@ jobs:
         name: git checkout -b (with diff)
         env:
           BRANCH_NAME: claude/issue/${{ github.event.issue.number }}
-        run: |2-
-                existing_branch="false"
-                diff=""
+        run: |
+          existing_branch="false"
+          diff=""
 
-                if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
-                  git checkout "$BRANCH_NAME"
-                  existing_branch="true"
-                  diff=$(git diff main.."$BRANCH_NAME" --stat 2>/dev/null || echo "")
-                elif git show-ref --verify --quiet "refs/remotes/origin/$BRANCH_NAME"; then
-                  git checkout -b "$BRANCH_NAME" "origin/$BRANCH_NAME"
-                  existing_branch="true"
-                  diff=$(git diff main.."$BRANCH_NAME" --stat 2>/dev/null || echo "")
-                else
-                  git checkout -b "$BRANCH_NAME"
-                  existing_branch="false"
-                fi
-
-                echo "name=$BRANCH_NAME" >> $GITHUB_OUTPUT
-                echo "existing_branch=$existing_branch" >> $GITHUB_OUTPUT
-                {
-            echo 'diff<<EOF'
-            echo "$diff"
-            echo 'EOF'
-          } >> $GITHUB_OUTPUT
-      - id: claude_implement
-        uses: ./.github/actions/run-claude
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt: |
-            Implement issue #${{ github.event.issue.number }}: "${{ needs.implement-check.outputs.issue_title }}"
-
-            ${{ needs.implement-check.outputs.issue_body }}
-
-            You are on branch `${{ steps.branch.outputs.name }}`.
-            ${{ steps.branch.outputs.existing_branch == 'true' && format('
-            ## ⚠️ EXISTING BRANCH - Previous work detected
-
-            This branch already has changes from a previous implementation attempt:
-            \`\`\`
-            {0}
-            \`\`\`
-
-            **CRITICAL**: Review what is already done. Do NOT re-implement completed work.
-            Start from the CURRENT state of the code and continue toward the goal.
-            If an edit fails because the text is not found, the change may already be applied.
-            ', steps.branch.outputs.diff) || '' }}
-
-            ## Instructions
-
-            1. Follow CLAUDE.md guidelines strictly
-            2. **FIRST: Run `git status` and `git log -3` to understand current branch state**
-            3. **Read each file before editing** - the Edit tool requires this
-            4. **If an edit fails, re-read the file** - it may already be modified
-            5. **Never repeat a failed edit** - if text not found, the change is likely done
-            6. Address Todo items that haven't been completed yet
-            7. Run `make check` and `make test` - fix any failures
-            8. Commit with a descriptive message
-            9. Push to origin
-            10. Create DRAFT PR with `gh pr create --draft --reviewer nopo-bot`
-                - Body MUST contain "Fixes #${{ github.event.issue.number }}"
-
-            If you notice conflicts with other open PRs, note them in the PR description.
-          max_turns: '200'
-          show_full_output: 'true'
-          assignee_trigger: nopo-bot
-      - id: salvage
-        name: Salvage partial progress
-        if: failure()
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-          BRANCH_NAME: ${{ steps.branch.outputs.name }}
-        run: |-
-          # Check if there are uncommitted changes
-          if ! git diff --quiet HEAD 2>/dev/null; then
-            git add -A
-            git commit -m "WIP: Partial implementation progress
-
-          Fixes #$ISSUE_NUMBER" || true
-            git push origin "$BRANCH_NAME" || true
-
-            # Create draft PR if it doesn't exist
-            existing_pr=$(gh pr list --head "$BRANCH_NAME" --json number --jq '.[0].number')
-            if [[ -z "$existing_pr" ]]; then
-              gh pr create --draft --title "WIP: Implementation for #$ISSUE_NUMBER" \
-                --body "Fixes #$ISSUE_NUMBER
-
-          **Note**: This is partial progress from an interrupted implementation." \
-                --reviewer nopo-bot || true
-            fi
+          if git show-ref --verify --quiet "refs/remotes/origin/$BRANCH_NAME"; then
+            git checkout -b "$BRANCH_NAME" "origin/$BRANCH_NAME"
+            existing_branch="true"
+            diff=$(git diff main.."$BRANCH_NAME" --stat 2>/dev/null || echo "")
+          else
+            git checkout -b "$BRANCH_NAME"
+            existing_branch="false"
+            # Push empty branch so _claude.yml can check it out
+            git push -u origin "$BRANCH_NAME"
           fi
+
+          echo "name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+
+          if [[ "$existing_branch" == "true" ]]; then
+            {
+              echo 'existing_branch_section<<EOF'
+              echo "## ⚠️ EXISTING BRANCH - Previous work detected"
+              echo ""
+              echo "This branch already has changes from a previous implementation attempt:"
+              echo "\`\`\`"
+              echo "$diff"
+              echo "\`\`\`"
+              echo ""
+              echo "**CRITICAL**: Review what is already done. Do NOT re-implement completed work."
+              echo "Start from the CURRENT state of the code and continue toward the goal."
+              echo "If an edit fails because the text is not found, the change may already be applied."
+              echo 'EOF'
+            } >> $GITHUB_OUTPUT
+          else
+            echo "existing_branch_section=" >> $GITHUB_OUTPUT
+          fi
+    needs:
+      - implement-check
+      - implement-update-project
+  implement:
+    if: always() && needs.implement-check.outputs.should_implement == 'true'
+    uses: ./.github/workflows/_claude.yml
+    with:
+      job: issue-implement
+      issue_number: ${{ github.event.issue.number }}
+      issue_title: ${{ needs.implement-check.outputs.issue_title }}
+      issue_body: ${{ needs.implement-check.outputs.issue_body }}
+      branch_name: ${{ needs.implement-setup.outputs.branch_name }}
+      existing_branch_section: ${{ needs.implement-setup.outputs.existing_branch_section }}
+    secrets: inherit
+    needs:
+      - implement-check
+      - implement-setup
+  implement-post:
+    if: always() && needs.implement-check.outputs.should_implement == 'true'
+    runs-on: ubuntu-latest
+    steps:
       - id: reaction_success
-        if: success()
+        if: needs.implement.result == 'success'
         name: gh api (add reaction)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -634,7 +600,7 @@ jobs:
           REACTION: rocket
         run: gh api "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content="$REACTION"
       - id: reaction_failure
-        if: failure()
+        if: needs.implement.result == 'failure'
         name: gh api (add reaction)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -642,7 +608,7 @@ jobs:
           REACTION: eyes
         run: gh api "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content="$REACTION"
       - id: unassign
-        if: failure()
+        if: needs.implement.result == 'failure'
         name: gh issue edit --remove-assignee
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -651,8 +617,9 @@ jobs:
         run: gh issue edit "$ISSUE_NUMBER" --remove-assignee "$ASSIGNEES" --repo "$GITHUB_REPOSITORY"
     needs:
       - implement-check
-      - implement-update-project
-  comment:
+      - implement-setup
+      - implement
+  comment-check:
     runs-on: ubuntu-latest
     if: |-
       (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'respond') ||
@@ -660,68 +627,49 @@ jobs:
        contains(github.event.comment.body, '@claude') &&
        github.event.comment.user.type != 'Bot' &&
        !contains(github.event.issue.labels.*.name, 'test:automation'))
+    outputs:
+      context_type: ${{ steps.context.outputs.context_type }}
+      context_description: ${{ steps.context.outputs.context_description }}
+      branch_name: ${{ steps.context.outputs.branch }}
+      issue_number: ${{ github.event.issue.number }}
     steps:
-      - id: pr_context
-        name: gh pr view (branch)
+      - id: context
+        name: Build comment context
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IS_PR: ${{ github.event.issue.pull_request != '' }}
-          PR_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |-
           if [[ "$IS_PR" == "true" ]]; then
-            branch=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefName --jq '.headRefName')
-            echo "is_pr=true" >> $GITHUB_OUTPUT
+            branch=$(gh pr view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefName --jq '.headRefName')
+            echo "context_type=PR" >> $GITHUB_OUTPUT
             echo "branch=$branch" >> $GITHUB_OUTPUT
-          else
-            echo "is_pr=false" >> $GITHUB_OUTPUT
-            echo "branch=main" >> $GITHUB_OUTPUT
-          fi
-      - id: checkout
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ steps.pr_context.outputs.branch }}
-          fetch-depth: 0
-      - id: build_comment_context
-        name: Build comment context
-        env:
-          IS_PR: ${{ steps.pr_context.outputs.is_pr }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-          PR_BRANCH: ${{ steps.pr_context.outputs.branch }}
-        run: |
-          if [[ "$IS_PR" == "true" ]]; then
-            echo "CONTEXT_TYPE=PR" >> $GITHUB_OUTPUT
             {
-              echo 'CONTEXT_DESCRIPTION<<EOF'
-              echo "This is PR #$ISSUE_NUMBER on branch \`$PR_BRANCH\`. You are checked out on the PR branch with the code changes."
+              echo 'context_description<<EOF'
+              echo "This is PR #$ISSUE_NUMBER on branch \`$branch\`. You are checked out on the PR branch with the code changes."
               echo 'EOF'
             } >> $GITHUB_OUTPUT
           else
-            echo "CONTEXT_TYPE=issue" >> $GITHUB_OUTPUT
+            echo "context_type=issue" >> $GITHUB_OUTPUT
+            echo "branch=main" >> $GITHUB_OUTPUT
             {
-              echo 'CONTEXT_DESCRIPTION<<EOF'
+              echo 'context_description<<EOF'
               echo "This is issue #$ISSUE_NUMBER. You are checked out on main."
               echo 'EOF'
             } >> $GITHUB_OUTPUT
           fi
-      - id: build_comment_replacements
-        uses: ./.github/actions-ts/prompt-replacements
-        with:
-          pairs: |
-            CONTEXT_TYPE=${{ steps.build_comment_context.outputs.CONTEXT_TYPE }}
-            CONTEXT_DESCRIPTION=${{ steps.build_comment_context.outputs.CONTEXT_DESCRIPTION }}
-            ISSUE_NUMBER=${{ github.event.issue.number }}
-      - id: claude_respond
-        uses: ./.github/actions/run-claude
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt_file: .github/prompts/comment.txt
-          prompt_replacements: ${{ steps.build_comment_replacements.outputs.json }}
-          max_turns: '100'
-          trigger_phrase: '@claude'
-          status_comment: 'true'
-          status_action: responding to your request
-          issue_or_pr_number: ${{ github.event.issue.number || github.event.pull_request.number }}
-          circuit_breaker: 'true'
-          circuit_breaker_max: '50'
-          reactions: 'true'
+  comment:
+    if: needs.comment-check.result == 'success'
+    uses: ./.github/workflows/_claude.yml
+    with:
+      job: issue-comment
+      context_type: ${{ needs.comment-check.outputs.context_type }}
+      context_description: ${{ needs.comment-check.outputs.context_description }}
+      branch_name: ${{ needs.comment-check.outputs.branch_name }}
+      issue_number: ${{ needs.comment-check.outputs.issue_number }}
+      status_comment: 'true'
+      status_action: responding to your request
+      reactions: 'true'
+    secrets: inherit
+    needs:
+      - comment-check

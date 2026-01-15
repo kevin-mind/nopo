@@ -118,38 +118,12 @@ jobs:
       (needs.failure-convert-to-draft.result == 'success' || needs.failure-convert-to-draft.result == 'skipped') &&
       needs.check-pr.outputs.has_pr == 'true' &&
       needs.check-pr.outputs.is_claude_pr == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - id: checkout
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.check-pr.outputs.pr_head_branch }}
-          fetch-depth: 0
-      - id: git_config
-        name: git config
-        env:
-          USER_NAME: Claude Bot
-          USER_EMAIL: claude-bot@anthropic.com
-        run: |-
-          git config --global user.name "$USER_NAME"
-          git config --global user.email "$USER_EMAIL"
-      - id: build_ci_fix_replacements
-        uses: ./.github/actions-ts/prompt-replacements
-        with:
-          pairs: |
-            PR_NUMBER=${{ needs.check-pr.outputs.pr_number }}
-            HEAD_BRANCH=${{ needs.check-pr.outputs.pr_head_branch }}
-      - id: claude_fix
-        uses: ./.github/actions/run-claude
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt_file: .github/prompts/ci-fix.txt
-          prompt_replacements: ${{ steps.build_ci_fix_replacements.outputs.json }}
-          max_turns: '200'
-          issue_or_pr_number: ${{ needs.check-pr.outputs.pr_number }}
-          circuit_breaker: 'true'
-          circuit_breaker_max: '50'
+    uses: ./.github/workflows/_claude.yml
+    with:
+      job: ci-fix
+      pr_number: ${{ needs.check-pr.outputs.pr_number }}
+      branch_name: ${{ needs.check-pr.outputs.pr_head_branch }}
+    secrets: inherit
     needs:
       - check-pr
       - failure-convert-to-draft
@@ -158,27 +132,12 @@ jobs:
       (github.event.workflow_run.conclusion == 'failure' || needs.check-pr.outputs.conclusion == 'failure') &&
       needs.check-pr.outputs.has_pr == 'true' &&
       needs.check-pr.outputs.is_claude_pr == 'false'
-    runs-on: ubuntu-latest
-    steps:
-      - id: checkout
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.check-pr.outputs.pr_head_branch }}
-          fetch-depth: 0
-      - id: build_ci_suggest_replacements
-        uses: ./.github/actions-ts/prompt-replacements
-        with:
-          pairs: |
-            PR_NUMBER=${{ needs.check-pr.outputs.pr_number }}
-            HEAD_BRANCH=${{ needs.check-pr.outputs.pr_head_branch }}
-      - id: claude_suggest
-        uses: ./.github/actions/run-claude
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt_file: .github/prompts/ci-suggest.txt
-          prompt_replacements: ${{ steps.build_ci_suggest_replacements.outputs.json }}
-          max_turns: '200'
+    uses: ./.github/workflows/_claude.yml
+    with:
+      job: ci-suggest
+      pr_number: ${{ needs.check-pr.outputs.pr_number }}
+      branch_name: ${{ needs.check-pr.outputs.pr_head_branch }}
+    secrets: inherit
     needs:
       - check-pr
   success-check-comments:

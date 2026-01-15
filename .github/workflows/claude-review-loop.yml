@@ -171,15 +171,12 @@ jobs:
                 echo "Updated project status to '$TARGET_STATUS'"
     needs:
       - request-setup
-  request-review:
+  request-build-issue-section:
     if: always() && needs.request-setup.result == 'success'
     runs-on: ubuntu-latest
+    outputs:
+      issue_section: ${{ steps.build_issue_section.outputs.ISSUE_SECTION }}
     steps:
-      - id: checkout
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.request-setup.outputs.pr_branch }}
-          fetch-depth: 0
       - id: build_issue_section
         name: Build ISSUE_SECTION
         env:
@@ -210,23 +207,28 @@ jobs:
               echo 'EOF'
             } >> $GITHUB_OUTPUT
           fi
-      - id: build_review_replacements
-        uses: ./.github/actions-ts/prompt-replacements
-        with:
-          pairs: |
-            PR_NUMBER=${{ needs.request-setup.outputs.pr_number }}
-            ISSUE_SECTION=${{ steps.build_issue_section.outputs.ISSUE_SECTION }}
-      - id: claude_review
-        uses: ./.github/actions/run-claude
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt_file: .github/prompts/review.txt
-          prompt_replacements: ${{ steps.build_review_replacements.outputs.json }}
-          max_turns: '50'
+    needs:
+      - request-setup
+  request-review:
+    if: always() && needs.request-setup.result == 'success'
+    uses: ./.github/workflows/_claude.yml
+    with:
+      job: pr-review
+      pr_number: ${{ needs.request-setup.outputs.pr_number }}
+      branch_name: ${{ needs.request-setup.outputs.pr_branch }}
+      issue_section: ${{ needs.request-build-issue-section.outputs.issue_section }}
+    secrets: inherit
+    needs:
+      - request-setup
+      - request-update-project
+      - request-build-issue-section
+  request-review-post:
+    if: always() && needs.request-setup.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
       - id: reaction_success
         name: gh api (add reaction)
-        if: success()
+        if: needs.request-review.result == 'success'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COMMENT_ID: ${{ needs.request-setup.outputs.bot_comment_id }}
@@ -234,7 +236,7 @@ jobs:
         run: gh api "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content="$REACTION"
       - id: reaction_failure
         name: gh api (add reaction)
-        if: failure()
+        if: needs.request-review.result == 'failure'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COMMENT_ID: ${{ needs.request-setup.outputs.bot_comment_id }}
@@ -242,7 +244,6 @@ jobs:
         run: gh api "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content="$REACTION"
       - id: remove_reviewer
         name: gh pr edit --remove-reviewer
-        if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ needs.request-setup.outputs.pr_number }}
@@ -250,53 +251,31 @@ jobs:
         run: gh pr edit "$PR_NUMBER" --remove-reviewer "$REVIEWERS" --repo "$GITHUB_REPOSITORY" || true
     needs:
       - request-setup
-      - request-update-project
+      - request-review
   response-process:
     if: |-
       github.event_name == 'pull_request_review' &&
       github.event.review.user.login == 'claude[bot]' &&
       github.event.pull_request.draft == false &&
       (github.event.review.state == 'CHANGES_REQUESTED' || github.event.review.state == 'COMMENTED')
-    runs-on: ubuntu-latest
-    steps:
-      - id: checkout
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          fetch-depth: 0
-      - id: git_config
-        name: git config
-        env:
-          USER_NAME: Claude Bot
-          USER_EMAIL: claude-bot@anthropic.com
-        run: |-
-          git config --global user.name "$USER_NAME"
-          git config --global user.email "$USER_EMAIL"
-      - id: build_response_replacements
-        uses: ./.github/actions-ts/prompt-replacements
-        with:
-          pairs: |
-            PR_NUMBER=${{ github.event.pull_request.number }}
-            REVIEW_STATE=${{ github.event.review.state }}
-            REVIEW_BODY=${{ github.event.review.body }}
-            REPOSITORY=${{ github.repository }}
-            REVIEW_ID=${{ github.event.review.id }}
-            HEAD_REF=${{ github.event.pull_request.head.ref }}
-      - id: claude_response
-        uses: ./.github/actions/run-claude
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt_file: .github/prompts/review-response.txt
-          prompt_replacements: ${{ steps.build_response_replacements.outputs.json }}
-          max_turns: '50'
-  human-review-response:
+    uses: ./.github/workflows/_claude.yml
+    with:
+      job: pr-response
+      pr_number: ${{ github.event.pull_request.number }}
+      branch_name: ${{ github.event.pull_request.head.ref }}
+      review_state: ${{ github.event.review.state }}
+      review_body: ${{ github.event.review.body }}
+      review_id: ${{ github.event.review.id }}
+    secrets: inherit
+  human-review-check:
     if: |-
       github.event_name == 'pull_request_review' &&
       github.event.review.user.login != 'claude[bot]' &&
       github.event.pull_request.draft == false &&
       (github.event.review.state == 'CHANGES_REQUESTED' || github.event.review.state == 'COMMENTED')
     runs-on: ubuntu-latest
+    outputs:
+      is_claude_pr: ${{ steps.check_author.outputs.is_claude_pr }}
     steps:
       - id: check_author
         name: gh pr view (check claude)
@@ -314,39 +293,17 @@ jobs:
           fi
 
           echo "is_claude_pr=$is_claude_pr" >> $GITHUB_OUTPUT
-      - id: checkout
-        if: steps.check_author.outputs.is_claude_pr == 'true'
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          fetch-depth: 0
-      - id: git_config
-        name: git config
-        if: steps.check_author.outputs.is_claude_pr == 'true'
-        env:
-          USER_NAME: Claude Bot
-          USER_EMAIL: claude-bot@anthropic.com
-        run: |-
-          git config --global user.name "$USER_NAME"
-          git config --global user.email "$USER_EMAIL"
-      - id: build_human_response_replacements
-        if: steps.check_author.outputs.is_claude_pr == 'true'
-        uses: ./.github/actions-ts/prompt-replacements
-        with:
-          pairs: |
-            REVIEWER_LOGIN=${{ github.event.review.user.login }}
-            PR_NUMBER=${{ github.event.pull_request.number }}
-            REVIEW_STATE=${{ github.event.review.state }}
-            REVIEW_BODY=${{ github.event.review.body }}
-            REPOSITORY=${{ github.repository }}
-            REVIEW_ID=${{ github.event.review.id }}
-            HEAD_REF=${{ github.event.pull_request.head.ref }}
-      - id: claude_human_response
-        if: steps.check_author.outputs.is_claude_pr == 'true'
-        uses: ./.github/actions/run-claude
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt_file: .github/prompts/human-review-response.txt
-          prompt_replacements: ${{ steps.build_human_response_replacements.outputs.json }}
-          max_turns: '50'
+  human-review-response:
+    if: needs.human-review-check.outputs.is_claude_pr == 'true'
+    uses: ./.github/workflows/_claude.yml
+    with:
+      job: pr-human-response
+      pr_number: ${{ github.event.pull_request.number }}
+      branch_name: ${{ github.event.pull_request.head.ref }}
+      reviewer_login: ${{ github.event.review.user.login }}
+      review_state: ${{ github.event.review.state }}
+      review_body: ${{ github.event.review.body }}
+      review_id: ${{ github.event.review.id }}
+    secrets: inherit
+    needs:
+      - human-review-check
