@@ -32,7 +32,7 @@ jobs:
         name: Get changed files
         uses: tj-actions/changed-files@ed68ef82c095e0d48ec87eccea555d944a631a4c
         with:
-          files_yaml: |
+          files_yaml: |-
             github_actions:
               - .github/**
             backend_migrations:
@@ -42,14 +42,14 @@ jobs:
               - "!apps/backend/src/*/migrations/**"
       - id: debug
         name: Debug
-        run: |
+        run: |-
           cat <<INNEREOF
-          ${{ toJson(steps.changed_files.outputs) }}
+            ${{ toJson(steps.changed_files.outputs) }}
           INNEREOF
       - id: fail_check
         name: Fail if migrations and source changed
         if: contains(steps.changed_files.outputs.changed_keys, 'backend_migrations') && contains(steps.changed_files.outputs.changed_keys, 'backend_source')
-        run: |
+        run: |-
           echo "Migrations and source files cannot be changed together"
           exit 1
   discover:
@@ -60,10 +60,13 @@ jobs:
       filter: changed
       ref: ${{ github.event.pull_request.head.sha || github.sha }}
   build:
+    needs:
+      - context
+      - discover
     if: ${{ needs.discover.outputs.services != '' }}
     permissions:
-      packages: write
       contents: read
+      packages: write
       attestations: write
       id-token: write
     uses: ./.github/workflows/_build.yml
@@ -71,14 +74,11 @@ jobs:
     with:
       push: ${{ needs.context.outputs.is_fork == 'false' }}
       services: ${{ needs.discover.outputs.services }}
-    needs:
-      - context
-      - discover
   test:
     if: ${{ needs.build.result == 'success' && needs.discover.outputs.services_json != '[]' }}
     permissions:
-      packages: read
       contents: read
+      packages: read
     uses: ./.github/workflows/_test.yml
     secrets: inherit
     with:
@@ -88,7 +88,7 @@ jobs:
       - build
       - context
       - discover
-  test_nopo:
+  testNopo:
     permissions:
       contents: read
     uses: ./.github/workflows/_test_nopo.yml
@@ -96,36 +96,52 @@ jobs:
     if: ${{ needs.discover.outputs.services != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs:
-      - context
-      - discover
     steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-node
-      - uses: ./.github/actions/setup-docker
-      - name: Up
-        uses: ./.github/actions/run-docker
-      - name: Run smoketest
+      - id: checkout
+        uses: actions/checkout@v4
+      - id: setup_node
+        uses: ./.github/actions/setup-node
+      - id: setup_docker
+        uses: ./.github/actions/setup-docker
+      - id: up
+        uses: ./.github/actions-ts/run-docker
+      - id: smoketest
+        name: Run smoketest
         uses: ./.github/actions/smoketest
         with:
           public_url: http://localhost
+    needs:
+      - context
+      - discover
   terraform:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - name: Setup Terraform
+      - id: checkout
+        uses: actions/checkout@v4
+      - id: setup_terraform
+        name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.7.0
-      - name: Lint and Format Terraform
+      - id: lint_terraform
+        name: Lint and Format Terraform
         run: make lint-terraform
-      - name: Check for uncommitted changes
+      - id: check_uncommitted
+        name: Check for uncommitted changes
         run: |
           git diff --exit-code
   checks:
     if: always()
     runs-on: ubuntu-latest
+    steps:
+      - id: checkout
+        uses: actions/checkout@v4
+      - id: check
+        name: Check
+        uses: ./.github/actions/check
+        with:
+          json: ${{ toJson(needs) }}
     needs:
       - context
       - discover
@@ -134,9 +150,3 @@ jobs:
       - test_nopo
       - smoketest
       - terraform
-    steps:
-      - uses: actions/checkout@v4
-      - name: Check
-        uses: ./.github/actions/check
-        with:
-          json: ${{ toJson(needs) }}

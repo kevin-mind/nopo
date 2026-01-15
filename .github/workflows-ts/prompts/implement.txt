@@ -3,6 +3,7 @@ Implement issue #{{ISSUE_NUMBER}}: "{{ISSUE_TITLE}}"
 {{ISSUE_BODY}}
 
 You are on branch `{{BRANCH_NAME}}`.
+{{EXISTING_BRANCH_SECTION}}
 
 ## Instructions
 

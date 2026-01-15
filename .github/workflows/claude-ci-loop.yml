@@ -57,7 +57,9 @@ jobs:
           echo "author=$(echo "$pr" | jq -r '.author.login // empty')" >> $GITHUB_OUTPUT
           echo "head_branch=$(echo "$pr" | jq -r '.headRefName // empty')" >> $GITHUB_OUTPUT
           echo "found=$([[ -n "$pr" && "$pr" != "null" ]] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
-      - name: gh pr ready --undo
+      - id: convert_to_draft
+        if: steps.get_pr.outputs.found == 'true' && steps.get_pr.outputs.is_draft == 'false'
+        name: gh pr ready --undo
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.get_pr.outputs.number }}
@@ -88,75 +90,13 @@ jobs:
             echo "conclusion=$EVENT_CONCLUSION" >> $GITHUB_OUTPUT
           fi
       - id: check
-        name: gh pr view (extended)
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
-          PR_NUMBER: ${{ inputs.pr_number }}
-        run: |-
-          # Determine how to find the PR
-          if [[ -n "$PR_NUMBER" ]]; then
-            pr=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json number,isDraft,author,headRefName,body 2>/dev/null || echo "")
-          elif [[ -n "$HEAD_BRANCH" ]]; then
-            pr=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$HEAD_BRANCH" --json number,isDraft,author,headRefName,body --jq '.[0]' 2>/dev/null || echo "")
-          else
-            echo "Either PR_NUMBER or HEAD_BRANCH must be provided"
-            exit 1
-          fi
-
-          # Check if PR was found
-          if [[ -z "$pr" || "$pr" == "null" ]]; then
-            echo "has_pr=false" >> $GITHUB_OUTPUT
-            echo "is_claude_pr=false" >> $GITHUB_OUTPUT
-            echo "is_draft=false" >> $GITHUB_OUTPUT
-            echo "pr_number=" >> $GITHUB_OUTPUT
-            echo "pr_head_branch=" >> $GITHUB_OUTPUT
-            echo "has_issue=false" >> $GITHUB_OUTPUT
-            echo "issue_number=" >> $GITHUB_OUTPUT
-            {
-              echo 'pr_body<<EOF'
-              echo ''
-              echo 'EOF'
-            } >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          # Extract PR fields
-          pr_number=$(echo "$pr" | jq -r '.number')
-          is_draft=$(echo "$pr" | jq -r '.isDraft')
-          author=$(echo "$pr" | jq -r '.author.login')
-          head_branch=$(echo "$pr" | jq -r '.headRefName')
-          body=$(echo "$pr" | jq -r '.body // ""')
-
-          # Check if Claude PR (author or branch pattern)
-          is_claude_pr="false"
-          if [[ "$author" == "claude[bot]" || "$head_branch" == claude/* ]]; then
-            is_claude_pr="true"
-          fi
-
-          # Extract issue number from PR body (Fixes #123 pattern)
-          issue_number=$(echo "$body" | grep -oE '(Fixes|Closes|Resolves) #[0-9]+' | head -1 | grep -oE '[0-9]+' || echo "")
-          has_issue="false"
-          if [[ -n "$issue_number" ]]; then
-            has_issue="true"
-          fi
-
-          # Output all values
-          echo "has_pr=true" >> $GITHUB_OUTPUT
-          echo "is_claude_pr=$is_claude_pr" >> $GITHUB_OUTPUT
-          echo "is_draft=$is_draft" >> $GITHUB_OUTPUT
-          echo "pr_number=$pr_number" >> $GITHUB_OUTPUT
-          echo "pr_head_branch=$head_branch" >> $GITHUB_OUTPUT
-          echo "has_issue=$has_issue" >> $GITHUB_OUTPUT
-          echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
-          {
-            echo 'pr_body<<EOF'
-            echo "$body"
-            echo 'EOF'
-          } >> $GITHUB_OUTPUT
+        name: PR view (extended)
+        uses: ./.github/actions-ts/pr-view-extended
+        with:
+          gh_token: ${{ secrets.GITHUB_TOKEN }}
+          head_branch: ${{ github.event.workflow_run.head_branch }}
+          pr_number: ${{ inputs.pr_number }}
   failure-convert-to-draft:
-    needs:
-      - check-pr
     if: |-
       (github.event.workflow_run.conclusion == 'failure' || needs.check-pr.outputs.conclusion == 'failure') &&
       needs.check-pr.outputs.has_pr == 'true' &&
@@ -164,17 +104,18 @@ jobs:
       needs.check-pr.outputs.is_draft == 'false'
     runs-on: ubuntu-latest
     steps:
-      - name: gh pr ready --undo
+      - id: convert_to_draft
+        name: gh pr ready --undo
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ needs.check-pr.outputs.pr_number }}
         run: gh pr ready "$PR_NUMBER" --undo --repo "$GITHUB_REPOSITORY"
-      - name: Log conversion
+      - id: log_conversion
+        name: Log conversion
         run: 'echo "Converted PR #${{ needs.check-pr.outputs.pr_number }} to draft due to CI failure"'
-  failure-fix-and-push:
     needs:
-      - check-pr
-      - failure-convert-to-draft
+      - null
+  failure-fix-and-push:
     if: |-
       (github.event.workflow_run.conclusion == 'failure' || needs.check-pr.outputs.conclusion == 'failure') &&
       (needs.failure-convert-to-draft.result == 'success' || needs.failure-convert-to-draft.result == 'skipped') &&
@@ -206,19 +147,23 @@ jobs:
           else
             echo "exceeded=false" >> $GITHUB_OUTPUT
           fi
-      - if: steps.check_limit.outputs.exceeded == 'false'
+      - id: checkout
+        if: steps.check_limit.outputs.exceeded == 'false'
         uses: actions/checkout@v4
         with:
           ref: ${{ needs.check-pr.outputs.pr_head_branch }}
           fetch-depth: 0
-      - name: git config
+      - id: git_config
+        if: steps.check_limit.outputs.exceeded == 'false'
+        name: git config
         env:
           USER_NAME: Claude Bot
           USER_EMAIL: claude-bot@anthropic.com
         run: |-
           git config --global user.name "$USER_NAME"
           git config --global user.email "$USER_EMAIL"
-      - if: steps.check_limit.outputs.exceeded == 'false'
+      - id: claude_fix
+        if: steps.check_limit.outputs.exceeded == 'false'
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -236,20 +181,23 @@ jobs:
           claude_args: '--model claude-opus-4-5-20251101 --max-turns 200'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  failure-suggest-fixes:
     needs:
-      - check-pr
+      - null
+      - null
+  failure-suggest-fixes:
     if: |-
       (github.event.workflow_run.conclusion == 'failure' || needs.check-pr.outputs.conclusion == 'failure') &&
       needs.check-pr.outputs.has_pr == 'true' &&
       needs.check-pr.outputs.is_claude_pr == 'false'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - id: checkout
+        uses: actions/checkout@v4
         with:
           ref: ${{ needs.check-pr.outputs.pr_head_branch }}
           fetch-depth: 0
-      - uses: anthropics/claude-code-action@v1
+      - id: claude_suggest
+        uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           settings: .claude/settings.json
@@ -288,6 +236,8 @@ jobs:
           claude_args: '--model claude-opus-4-5-20251101 --max-turns 200'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    needs:
+      - null
   success-check-comments:
     if: |-
       (github.event.workflow_run.conclusion == 'success' || needs.check-pr.outputs.conclusion == 'success') &&
@@ -345,82 +295,86 @@ jobs:
     needs:
       - null
   success-update-project:
-    needs:
-      - check-pr
-      - success-check-comments
     if: |-
       (github.event.workflow_run.conclusion == 'success' || needs.check-pr.outputs.conclusion == 'success') &&
       needs.check-pr.outputs.has_issue == 'true' &&
       needs.success-check-comments.outputs.has_unresolved != 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: gh api graphql (update project status)
+      - id: update_project
+        name: gh api graphql (update project status)
         env:
           GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ needs.check-pr.outputs.issue_number }}
           TARGET_STATUS: In review
-        run: |-
-          repo_name="${GITHUB_REPOSITORY#*/}"
-          owner="${GITHUB_REPOSITORY%/*}"
+        run: |2-
+            repo_name="${GITHUB_REPOSITORY#*/}"
+            owner="${GITHUB_REPOSITORY%/*}"
 
-          # Find the project item
-          result=$(gh api graphql -f query='query($owner: String!, $repo: String!, $issue: Int!) {
-                repository(owner: $owner, name: $repo) {
-                  issue(number: $issue) {
-                    projectItems(first: 10) {
-                      nodes {
-                        id
-                        project {
+            # Find the project item
+            result=$(gh api graphql -f query='query($owner: String!, $repo: String!, $issue: Int!) {
+            repository(owner: $owner, name: $repo) {
+              issue(number: $issue) {
+                projectItems(first: 10) {
+                  nodes {
+                    id
+                    project {
+                      id
+                      title
+                      field(name: "Status") {
+                        ... on ProjectV2SingleSelectField {
                           id
-                          title
-                          field(name: "Status") {
-                            ... on ProjectV2SingleSelectField {
-                              id
-                              options { id name }
-                            }
-                          }
+                          options { id name }
                         }
                       }
                     }
                   }
                 }
-              }'   -F owner="$owner"   -F repo="$repo_name"   -F issue="$ISSUE_NUMBER" 2>/dev/null || echo "{}")
+              }
+            }
+          }' \
+              -F owner="$owner" \
+              -F repo="$repo_name" \
+              -F issue="$ISSUE_NUMBER" 2>/dev/null || echo "{}")
 
-          # Extract project info
-          item=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0] // empty')
-          if [[ -z "$item" ]]; then
-            echo "No project item found for issue #$ISSUE_NUMBER"
-            exit 0
-          fi
+            # Extract project info
+            item=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0] // empty')
+            if [[ -z "$item" ]]; then
+              echo "No project item found for issue #$ISSUE_NUMBER"
+              exit 0
+            fi
 
-          item_id=$(echo "$item" | jq -r '.id')
-          project_id=$(echo "$item" | jq -r '.project.id')
-          field_id=$(echo "$item" | jq -r '.project.field.id')
-          option_id=$(echo "$item" | jq -r --arg status "$TARGET_STATUS" '.project.field.options[] | select(.name == $status) | .id')
+            item_id=$(echo "$item" | jq -r '.id')
+            project_id=$(echo "$item" | jq -r '.project.id')
+            field_id=$(echo "$item" | jq -r '.project.field.id')
+            option_id=$(echo "$item" | jq -r --arg status "$TARGET_STATUS" '.project.field.options[] | select(.name == $status) | .id')
 
-          if [[ -z "$option_id" ]]; then
-            echo "Status '$TARGET_STATUS' not found in project"
-            exit 0
-          fi
+            if [[ -z "$option_id" ]]; then
+              echo "Status '$TARGET_STATUS' not found in project"
+              exit 0
+            fi
 
-          # Update the status
-          gh api graphql -f query='mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
-                updateProjectV2ItemFieldValue(input: {
-                  projectId: $projectId
-                  itemId: $itemId
-                  fieldId: $fieldId
-                  value: { singleSelectOptionId: $optionId }
-                }) {
-                  projectV2Item { id }
-                }
-              }'   -F projectId="$project_id"   -F itemId="$item_id"   -F fieldId="$field_id"   -F optionId="$option_id"
+            # Update the status
+            gh api graphql -f query='mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+            updateProjectV2ItemFieldValue(input: {
+              projectId: $projectId
+              itemId: $itemId
+              fieldId: $fieldId
+              value: { singleSelectOptionId: $optionId }
+            }) {
+              projectV2Item { id }
+            }
+          }' \
+              -F projectId="$project_id" \
+              -F itemId="$item_id" \
+              -F fieldId="$field_id" \
+              -F optionId="$option_id"
 
-          echo "Updated project status to '$TARGET_STATUS'"
-  success-ready-for-review:
+            echo "Updated project status to '$TARGET_STATUS'"
     needs:
-      - check-pr
-      - success-check-comments
-      - success-update-project
+      - null
+      - null
+  success-ready-for-review:
     if: |-
       always() &&
       (github.event.workflow_run.conclusion == 'success' || needs.check-pr.outputs.conclusion == 'success') &&
@@ -428,20 +382,27 @@ jobs:
       needs.success-check-comments.outputs.has_unresolved != 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: gh pr ready
+      - id: mark_ready
+        name: gh pr ready
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ needs.check-pr.outputs.pr_number }}
         run: gh pr ready "$PR_NUMBER" --repo "$GITHUB_REPOSITORY"
-      - name: gh pr edit --add-label
+      - id: add_label
+        name: gh pr edit --add-label
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ needs.check-pr.outputs.pr_number }}
           LABEL: review-ready
         run: gh pr edit "$PR_NUMBER" --add-label "$LABEL" --repo "$GITHUB_REPOSITORY" || true
-      - name: gh pr edit --add-reviewer
+      - id: request_reviewer
+        name: gh pr edit --add-reviewer
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ needs.check-pr.outputs.pr_number }}
           REVIEWERS: nopo-bot
         run: gh pr edit "$PR_NUMBER" --add-reviewer "$REVIEWERS" --repo "$GITHUB_REPOSITORY"
+    needs:
+      - null
+      - null
+      - null

@@ -1,95 +1,27 @@
-import { expressions, NormalJob, Step, Workflow } from "@github-actions-workflow-ts/lib";
+import { expressions, Workflow } from "@github-actions-workflow-ts/lib";
+import { ExtendedNormalJob } from "./lib/enhanced-job.js";
+import { ExtendedStep } from "./lib/enhanced-step.js";
 import {
   defaultDefaults,
   discussionDispatcherPermissions,
-} from "./lib/patterns";
-
-// GitHub Script to dispatch discussion events to the handler workflow
-const dispatchScript = `
-const eventName = context.eventName;
-const payload = context.payload;
-
-// Determine action type
-let actionType = 'unknown';
-let discussionNumber, discussionTitle, discussionBody, commentId, commentBody, commentAuthor;
-
-if (eventName === 'discussion') {
-  discussionNumber = payload.discussion.number;
-  discussionTitle = payload.discussion.title;
-  discussionBody = payload.discussion.body;
-
-  if (payload.action === 'created') {
-    actionType = 'research';
-  }
-} else if (eventName === 'discussion_comment') {
-  discussionNumber = payload.discussion.number;
-  discussionTitle = payload.discussion.title;
-  discussionBody = payload.discussion.body;
-  commentId = payload.comment.node_id;
-  commentBody = payload.comment.body;
-  commentAuthor = payload.comment.user.login;
-
-  // Check if this is a top-level comment (no parent)
-  // GitHub's discussion_comment webhook doesn't include reply info directly,
-  // so we check the comment's parent_id field (null = top-level)
-  const isTopLevel = !payload.comment.parent_id;
-
-  // Check for commands first (works for any author)
-  const body = commentBody.trim();
-  if (body === '/summarize') {
-    actionType = 'summarize';
-  } else if (body === '/plan') {
-    actionType = 'plan';
-  } else if (body === '/complete') {
-    actionType = 'complete';
-  } else if (commentAuthor !== 'claude[bot]' && commentAuthor !== 'nopo-bot') {
-    // Human comment - always respond
-    actionType = 'respond';
-  } else if (isTopLevel && commentBody.includes('## 🔍 Research:')) {
-    // Bot's top-level research thread - trigger investigation
-    actionType = 'respond';
-    console.log('Triggering response for bot research thread');
-  } else {
-    // Skip bot's reply comments (prevent infinite loop)
-    console.log('Skipping bot reply comment to prevent infinite loop');
-    return;
-  }
-}
-
-// Dispatch to handler workflow
-await github.rest.repos.createDispatchEvent({
-  owner: context.repo.owner,
-  repo: context.repo.repo,
-  event_type: 'discussion_event',
-  client_payload: {
-    action_type: actionType,
-    discussion_number: discussionNumber,
-    discussion_title: discussionTitle,
-    discussion_body: discussionBody,
-    comment_id: commentId,
-    comment_body: commentBody,
-    comment_author: commentAuthor
-  }
-});
-
-console.log(\`Dispatched \${actionType} event for discussion #\${discussionNumber}\`);
-`.trim();
+} from "./lib/patterns.js";
+import { checkoutStep } from "./lib/steps.js";
 
 // Dispatch job
-const dispatchJob = new NormalJob("dispatch", {
+const dispatchJob = new ExtendedNormalJob("dispatch", {
   "runs-on": "ubuntu-latest",
+  steps: [
+    checkoutStep("checkout"),
+    new ExtendedStep({
+      id: "dispatch",
+      name: "Dispatch to handler",
+      uses: "./.github/actions-ts/discussion-dispatch",
+      with: {
+        github_token: expressions.secret("GITHUB_TOKEN"),
+      },
+    }),
+  ],
 });
-
-dispatchJob.addSteps([
-  new Step({
-    name: "Dispatch to handler",
-    uses: "actions/github-script@v7",
-    with: {
-      "github-token": expressions.secret("GITHUB_TOKEN"),
-      script: dispatchScript,
-    },
-  }),
-]);
 
 // Main workflow
 export const discussionDispatcherWorkflow = new Workflow(

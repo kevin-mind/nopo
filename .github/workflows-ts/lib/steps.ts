@@ -1,59 +1,86 @@
-import { Step } from "@github-actions-workflow-ts/lib";
+import { ExtendedStep } from "./enhanced-step";
 
-// Checkout step (simple, no outputs)
-export const checkoutStep = new Step({
-  uses: "actions/checkout@v4",
-});
+// Checkout step
+export function checkoutStep<const Id extends string>(
+  id: Id,
+  opts?: {
+    ref?: string;
+    fetchDepth?: number;
+    if?: string;
+    name?: string;
+  },
+) {
+  const withObj: Record<string, string | number> = {};
+  if (opts?.ref) withObj.ref = opts.ref;
+  if (opts?.fetchDepth !== undefined) withObj["fetch-depth"] = opts.fetchDepth;
 
-export const checkoutWithRef = (ref: string) =>
-  new Step({
+  return new ExtendedStep({
+    id,
+    ...(opts?.name && { name: opts.name }),
+    ...(opts?.if && { if: opts.if }),
     uses: "actions/checkout@v4",
-    with: { ref },
+    ...(Object.keys(withObj).length > 0 && { with: withObj }),
   });
-
-export const checkoutWithDepth = (fetchDepth: number, ref?: string) =>
-  new Step({
-    uses: "actions/checkout@v4",
-    with: {
-      ...(ref && { ref }),
-      "fetch-depth": fetchDepth,
-    },
-  });
+}
 
 // Setup steps
-export const setupNodeStep = new Step({
-  uses: "./.github/actions/setup-node",
-});
+export function setupNodeStep<const Id extends string>(id: Id) {
+  return new ExtendedStep({
+    id,
+    uses: "./.github/actions/setup-node",
+  });
+}
 
-export const setupUvStep = new Step({
-  uses: "./.github/actions/setup-uv",
-});
+export function setupUvStep<const Id extends string>(id: Id) {
+  return new ExtendedStep({
+    id,
+    uses: "./.github/actions/setup-uv",
+  });
+}
 
-export const setupNopoStep = new Step({
-  uses: "./.github/actions/setup-nopo",
-});
+export function setupNopoStep<const Id extends string>(id: Id) {
+  return new ExtendedStep({
+    id,
+    uses: "./.github/actions/setup-nopo",
+  });
+}
 
-export const setupDockerStep = (opts?: {
-  registry?: string;
-  username?: string;
-  password?: string;
-}) =>
-  new Step({
+export function setupDockerStep<const Id extends string>(
+  id: Id,
+  opts?: {
+    registry?: string;
+    username?: string;
+    password?: string;
+  },
+) {
+  return new ExtendedStep({
+    id,
     uses: "./.github/actions/setup-docker",
     ...(opts && { with: opts }),
   });
+}
 
 // Context action
-export const contextStep = (id: string) =>
-  new Step({
-    name: "Context",
+export function contextStep<
+  const Id extends string,
+  const Outputs extends readonly string[] | undefined = undefined,
+>(
+  id: Id,
+  opts?: {
+    outputs?: Outputs;
+  },
+) {
+  return new ExtendedStep<Id, Outputs>({
     id,
+    name: "Context",
     uses: "./.github/actions/context",
+    ...(opts?.outputs && { outputs: opts.outputs }),
   });
+}
 
 // Docker tag action (TypeScript)
-export const dockerTagStep = (
-  id: string,
+export function dockerTagStep<const Id extends string>(
+  id: Id,
   opts: {
     tag?: string;
     registry?: string;
@@ -62,75 +89,117 @@ export const dockerTagStep = (
     digest?: string;
   },
   name?: string,
-) =>
-  new Step({
-    name: name ?? "Docker Tag",
+) {
+  return new ExtendedStep({
     id,
+    name: name ?? "Docker Tag",
     uses: "./.github/actions-ts/docker-tag",
     with: opts,
   });
+}
 
 // Run docker action (TypeScript)
-export const runDockerStep = (opts?: {
-  tag?: string;
-  service?: string;
-  run?: string;
-  target?: string;
-}) =>
-  new Step({
+export function runDockerStep<const Id extends string>(
+  id: Id,
+  opts?: {
+    tag?: string;
+    service?: string;
+    run?: string;
+    target?: string;
+  },
+) {
+  return new ExtendedStep({
+    id,
     uses: "./.github/actions-ts/run-docker",
     ...(opts && { with: opts }),
   });
+}
 
 // Check action (for final status checks)
-export const checkStep = (json: string) =>
-  new Step({
+export function checkStep<const Id extends string>(id: Id, json: string) {
+  return new ExtendedStep({
+    id,
     name: "Check",
     uses: "./.github/actions/check",
     with: { json },
   });
+}
 
 // Smoketest action
-export const smoketestStep = (
+export function smoketestStep<const Id extends string>(
+  id: Id,
   publicUrl: string,
   opts?: { name?: string; canary?: boolean },
-) => {
+) {
   const withInput: Record<string, string | boolean> = { public_url: publicUrl };
   if (opts?.name) withInput.name = opts.name;
   if (opts?.canary !== undefined) withInput.canary = opts.canary;
-  return new Step({
+  return new ExtendedStep({
+    id,
     name: "Run smoketest",
     uses: "./.github/actions/smoketest",
     with: withInput,
   });
-};
+}
 
 // Extract build info action
-export const extractBuildInfoStep = (
-  id: string,
+export function extractBuildInfoStep<const Id extends string>(
+  id: Id,
   opts: {
     build_output: string;
   },
   name?: string,
-) =>
-  new Step({
-    name: name ?? "Extract build info",
+) {
+  return new ExtendedStep({
     id,
+    name: name ?? "Extract build info",
     uses: "./.github/actions/extract-build-info",
     with: opts,
   });
+}
 
 // Validate services action
-export const validateServicesStep = (
-  id: string,
+export function validateServicesStep<const Id extends string>(
+  id: Id,
   opts: {
     services: string;
   },
   name?: string,
-) =>
-  new Step({
-    name: name ?? "Validate services",
+) {
+  return new ExtendedStep({
     id,
+    name: name ?? "Validate services",
     uses: "./.github/actions/validate-services",
     with: opts,
   });
+}
+
+// PR view extended action (TypeScript)
+// Outputs: has_pr, is_claude_pr, is_draft, pr_number, pr_head_branch, pr_body, has_issue, issue_number
+export function prViewExtendedStep<const Id extends string>(
+  id: Id,
+  opts: {
+    gh_token: string;
+    head_branch?: string;
+    pr_number?: string;
+    repository?: string;
+  },
+  name?: string,
+) {
+  return new ExtendedStep({
+    id,
+    name: name ?? "PR view (extended)",
+    uses: "./.github/actions-ts/pr-view-extended",
+    with: opts,
+    outputs: [
+      "has_pr",
+      "is_claude_pr",
+      "is_draft",
+      "pr_number",
+      "pr_head_branch",
+      "pr_body",
+      "has_issue",
+      "issue_number",
+    ] as const,
+  });
+}

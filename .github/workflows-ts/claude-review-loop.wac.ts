@@ -1,20 +1,15 @@
 import {
-  NormalJob,
-  Step,
   Workflow,
   expressions,
+  echoKeyValue,
+  dedentString,
 } from "@github-actions-workflow-ts/lib";
+import { heredocOutput } from "./lib/cli/gh";
+import { loadPrompt } from "./lib/prompts";
 import { ExtendedStep } from "./lib/enhanced-step";
 import { ExtendedNormalJob } from "./lib/enhanced-job";
 import { claudeReviewPermissions, defaultDefaults } from "./lib/patterns";
-import {
-  ghPrComment,
-  ghPrViewCheckClaude,
-  ghPrEditRemoveReviewer,
-  ghApiUpdateProjectStatus,
-  ghApiAddReaction,
-} from "./lib/cli/gh";
-import { gitConfig } from "./lib/cli/git";
+import { checkoutStep } from "./lib/steps";
 
 // =============================================================================
 // REVIEW REQUEST JOBS
@@ -43,10 +38,12 @@ exit 1`,
         PR_NUMBER: expressions.expn("github.event.pull_request.number"),
         BODY: `👀 **nopo-bot** is reviewing this PR...\n\n[View workflow run](${expressions.expn("github.server_url")}/${expressions.expn("github.repository")}/actions/runs/${expressions.expn("github.run_id")})`,
       },
-      run: `comment_url=$(gh pr comment "$PR_NUMBER" --body "$BODY" --repo "\$GITHUB_REPOSITORY" 2>&1)
-comment_id=$(echo "$comment_url" | grep -oE '[0-9]+$' || echo "")
-echo "comment_id=$comment_id" >> \$GITHUB_OUTPUT`,
-      outputs: ["comment_id"] as const,
+      run: dedentString(`
+        comment_url=$(gh pr comment "$PR_NUMBER" --body "$BODY" --repo "$GITHUB_REPOSITORY" 2>&1)
+        comment_id=$(echo "$comment_url" | grep -oE '[0-9]+$' || echo "")
+        ${echoKeyValue.toGithubOutput("comment_id", "$comment_id")}
+      `),
+      outputs: ["comment_id"],
     }),
     // Step 3: Extract linked issue
     new ExtendedStep({
@@ -56,38 +53,32 @@ echo "comment_id=$comment_id" >> \$GITHUB_OUTPUT`,
         GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
         PR_NUMBER: expressions.expn("github.event.pull_request.number"),
       },
-      run: `pr_body=$(gh pr view "$PR_NUMBER" --repo "\$GITHUB_REPOSITORY" --json body --jq '.body')
+      run: dedentString(`
+        pr_body=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json body --jq '.body')
 
-# Extract issue number from PR body (Fixes #123 pattern)
-issue_number=$(echo "$pr_body" | grep -oE '(Fixes|Closes|Resolves) #[0-9]+' | head -1 | grep -oE '[0-9]+' || echo "")
+        # Extract issue number from PR body (Fixes #123 pattern)
+        issue_number=$(echo "$pr_body" | grep -oE '(Fixes|Closes|Resolves) #[0-9]+' | head -1 | grep -oE '[0-9]+' || echo "")
 
-if [[ -n "$issue_number" ]]; then
-  echo "has_issue=true" >> \$GITHUB_OUTPUT
-  echo "issue_number=$issue_number" >> \$GITHUB_OUTPUT
+        if [[ -n "$issue_number" ]]; then
+          ${echoKeyValue.toGithubOutput("has_issue", "true")}
+          ${echoKeyValue.toGithubOutput("issue_number", "$issue_number")}
 
-  # Fetch the linked issue body
-  issue_body=$(gh issue view "$issue_number" --repo "\$GITHUB_REPOSITORY" --json body --jq '.body')
-  {
-    echo 'issue_body<<EOF'
-    echo "$issue_body"
-    echo 'EOF'
-  } >> \$GITHUB_OUTPUT
-else
-  echo "has_issue=false" >> \$GITHUB_OUTPUT
-  echo "issue_number=" >> \$GITHUB_OUTPUT
-  {
-    echo 'issue_body<<EOF'
-    echo ''
-    echo 'EOF'
-  } >> \$GITHUB_OUTPUT
-fi`,
-      outputs: ["has_issue", "issue_number", "issue_body"] as const,
+          # Fetch the linked issue body
+          issue_body=$(gh issue view "$issue_number" --repo "$GITHUB_REPOSITORY" --json body --jq '.body')
+          ${heredocOutput("issue_body", "$issue_body")}
+        else
+          ${echoKeyValue.toGithubOutput("has_issue", "false")}
+          ${echoKeyValue.toGithubOutput("issue_number", "")}
+          ${heredocOutput("issue_body", "")}
+        fi
+      `),
+      outputs: ["has_issue", "issue_number", "issue_body"],
     }),
-  ] as const,
+  ],
   outputs: (steps) => ({
-    pr_branch: expressions.expn("github.event.pull_request.head.ref"),
-    pr_number: expressions.expn("github.event.pull_request.number"),
-    is_draft: expressions.expn("github.event.pull_request.draft"),
+    pr_branch: "github.event.pull_request.head.ref",
+    pr_number: "github.event.pull_request.number",
+    is_draft: "github.event.pull_request.draft",
     issue_number: steps.issue.outputs.issue_number,
     issue_body: steps.issue.outputs.issue_body,
     has_issue: steps.issue.outputs.has_issue,
@@ -96,345 +87,304 @@ fi`,
 });
 
 // Request update project job
-const requestUpdateProjectJob = new NormalJob("request-update-project", {
+// GraphQL queries for finding and updating project items
+const findItemQuery = `
+  query($owner: String!, $repo: String!, $issue: Int!) {
+    repository(owner: $owner, name: $repo) {
+      issue(number: $issue) {
+        projectItems(first: 10) {
+          nodes {
+            id
+            project {
+              id
+              title
+              field(name: "Status") {
+                ... on ProjectV2SingleSelectField {
+                  id
+                  options { id name }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+const updateMutation = `
+  mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+    updateProjectV2ItemFieldValue(input: {
+      projectId: $projectId
+      itemId: $itemId
+      fieldId: $fieldId
+      value: { singleSelectOptionId: $optionId }
+    }) {
+      projectV2Item { id }
+    }
+  }
+`;
+
+const requestUpdateProjectJob = new ExtendedNormalJob("request-update-project", {
   needs: ["request-setup"],
   if: "needs.request-setup.outputs.has_issue == 'true'",
   "runs-on": "ubuntu-latest",
+  steps: [
+    new ExtendedStep({
+      id: "update_project_status",
+      name: "gh api graphql (update project status)",
+      env: {
+        GH_TOKEN: expressions.expn("secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN"),
+        ISSUE_NUMBER: expressions.expn("needs.request-setup.outputs.issue_number"),
+        TARGET_STATUS: "In review",
+      },
+      run: dedentString(`
+        repo_name="\${GITHUB_REPOSITORY#*/}"
+        owner="\${GITHUB_REPOSITORY%/*}"
+
+        # Find the project item
+        result=$(gh api graphql -f query='${findItemQuery.trim()}' \\
+          -F owner="$owner" \\
+          -F repo="$repo_name" \\
+          -F issue="$ISSUE_NUMBER" 2>/dev/null || echo "{}")
+
+        # Extract project info
+        item=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0] // empty')
+        if [[ -z "$item" ]]; then
+          echo "No project item found for issue #$ISSUE_NUMBER"
+          exit 0
+        fi
+
+        item_id=$(echo "$item" | jq -r '.id')
+        project_id=$(echo "$item" | jq -r '.project.id')
+        field_id=$(echo "$item" | jq -r '.project.field.id')
+        option_id=$(echo "$item" | jq -r --arg status "$TARGET_STATUS" '.project.field.options[] | select(.name == $status) | .id')
+
+        if [[ -z "$option_id" ]]; then
+          echo "Status '$TARGET_STATUS' not found in project"
+          exit 0
+        fi
+
+        # Update the status
+        gh api graphql -f query='${updateMutation.trim()}' \\
+          -F projectId="$project_id" \\
+          -F itemId="$item_id" \\
+          -F fieldId="$field_id" \\
+          -F optionId="$option_id"
+
+        echo "Updated project status to '$TARGET_STATUS'"
+`),
+    }),
+  ],
 });
 
-requestUpdateProjectJob.addSteps([
-  ghApiUpdateProjectStatus({
-    GH_TOKEN: expressions.expn("secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN"),
-    ISSUE_NUMBER: expressions.expn("needs.request-setup.outputs.issue_number"),
-    TARGET_STATUS: "In review",
-  }),
-]);
-
 // Review prompt
-const reviewPrompt = `You are reviewing PR #${expressions.expn("needs.request-setup.outputs.pr_number")} on behalf of nopo-bot.
-
-nopo-bot was requested as a reviewer, which triggers this automated review.
-You (claude[bot]) will perform the actual review and submit it.
-
-${expressions.expn("needs.request-setup.outputs.has_issue == 'true' && format('## Linked Issue #{0}\n\n{1}\n\n## Validation\n- CHECK ALL TODO ITEMS in the issue are addressed\n- VERIFY code follows CLAUDE.md guidelines\n- ENSURE tests cover the requirements\n\n', needs.request-setup.outputs.issue_number, needs.request-setup.outputs.issue_body) || '## No Linked Issue\nPerforming standard code review.\n\n'")}
-## Step 1: View the Changes
-
-You are already checked out on the PR branch. To see changes:
-\`\`\`bash
-git fetch origin main
-git diff origin/main...HEAD           # Full diff
-git diff origin/main...HEAD --stat    # Summary of changed files
-\`\`\`
-
-## Step 2: Check Existing Review Comments
-
-Check for existing review comments using:
-\`\`\`bash
-gh pr view ${expressions.expn("needs.request-setup.outputs.pr_number")} --comments
-\`\`\`
-
-For unresolved comment threads, decide if they should be resolved:
-- If the conversation is COMPLETE: Note it can be resolved
-- If changes were requested and made: Verify the fix
-- If more discussion needed: Leave unresolved
-
-## Step 3: Review the Code
-
-Read the changed files and perform a thorough review:
-- Code quality and best practices
-- Potential bugs or edge cases
-- Test coverage adequacy
-- Security considerations
-
-### CRITICAL: Edge Case Testing
-
-Don't just check if todos are addressed - verify the LOGIC is correct:
-
-1. **Trace through with examples**: Pick 2-3 realistic inputs and mentally
-   trace the code path. For example:
-   - What happens with empty input?
-   - What happens with the most common case?
-   - What happens at boundaries (first item, last item, max values)?
-
-2. **Test conflicting requirements**: If the feature has multiple options
-   (e.g., flags, filters), what happens when they interact?
-
-3. **Run the code if possible**: Use the CLI or test commands to verify
-   the feature actually works as intended, not just that it compiles.
-
-4. **Check for design flaws**: Does the implementation order of operations
-   make sense? Are filters applied at the right time?
-
-If you find a logic bug, request changes with a specific example showing
-the incorrect behavior.
-
-## Step 4: Submit Your Review
-
-Submit your review using \`gh pr review ${expressions.expn("needs.request-setup.outputs.pr_number")}\` with ONE of:
-- \`--approve\` if ALL requirements met and code is good
-- \`--request-changes -b "reason"\` if changes are needed
-- \`--comment -b "feedback"\` if you have questions but no blocking issues
-
-IMPORTANT:
-- You may APPROVE but must NOT merge
-- A human will make the final merge decision`;
+const reviewPrompt = loadPrompt("review.txt", {
+  PR_NUMBER: expressions.expn("needs.request-setup.outputs.pr_number"),
+  ISSUE_SECTION: expressions.expn(
+    "needs.request-setup.outputs.has_issue == 'true' && format('## Linked Issue #{0}\\n\\n{1}\\n\\n## Validation\\n- CHECK ALL TODO ITEMS in the issue are addressed\\n- VERIFY code follows CLAUDE.md guidelines\\n- ENSURE tests cover the requirements\\n\\n', needs.request-setup.outputs.issue_number, needs.request-setup.outputs.issue_body) || '## No Linked Issue\\nPerforming standard code review.\\n\\n'"
+  ),
+});
 
 // Request review job
-const requestReviewJob = new NormalJob("request-review", {
+const requestReviewJob = new ExtendedNormalJob("request-review", {
   needs: ["request-setup", "request-update-project"],
   if: "always() && needs.request-setup.result == 'success'",
   "runs-on": "ubuntu-latest",
-});
-
-requestReviewJob.addSteps([
-  // Step 1: Checkout PR branch
-  new Step({
-    uses: "actions/checkout@v4",
-    with: {
+  steps: [
+    // Step 1: Checkout PR branch
+    checkoutStep("checkout", {
       ref: expressions.expn("needs.request-setup.outputs.pr_branch"),
-      "fetch-depth": 0,
-    },
-  }),
-  // Step 2: Run Claude for review
-  new Step({
-    uses: "anthropics/claude-code-action@v1",
-    with: {
-      claude_code_oauth_token: expressions.secret("CLAUDE_CODE_OAUTH_TOKEN"),
-      settings: ".claude/settings.json",
-      prompt: reviewPrompt,
-      claude_args: "--model claude-opus-4-5-20251101 --max-turns 50",
-    },
-    env: {
-      GITHUB_TOKEN: expressions.secret("GITHUB_TOKEN"),
-    },
-  }),
-  // Step 3: Add reaction on completion
-  {
-    ...ghApiAddReaction({
-      GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
-      COMMENT_ID: expressions.expn("needs.request-setup.outputs.bot_comment_id"),
-      REACTION: "rocket",
+      fetchDepth: 0,
     }),
-    if: "success()",
-  },
-  {
-    ...ghApiAddReaction({
-      GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
-      COMMENT_ID: expressions.expn("needs.request-setup.outputs.bot_comment_id"),
-      REACTION: "eyes",
+    // Step 2: Run Claude for review
+    new ExtendedStep({
+      id: "claude_review",
+      uses: "anthropics/claude-code-action@v1",
+      with: {
+        claude_code_oauth_token: expressions.secret("CLAUDE_CODE_OAUTH_TOKEN"),
+        settings: ".claude/settings.json",
+        prompt: reviewPrompt,
+        claude_args: "--model claude-opus-4-5-20251101 --max-turns 50",
+      },
+      env: {
+        GITHUB_TOKEN: expressions.secret("GITHUB_TOKEN"),
+      },
     }),
-    if: "failure()",
-  },
-  // Step 4: Remove nopo-bot from requested reviewers
-  {
-    ...ghPrEditRemoveReviewer({
-      GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
-      PR_NUMBER: expressions.expn("needs.request-setup.outputs.pr_number"),
-      REVIEWERS: "nopo-bot",
+    // Step 3: Add reaction on completion (success)
+    new ExtendedStep({
+      id: "reaction_success",
+      name: "gh api (add reaction)",
+      if: "success()",
+      env: {
+        GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+        COMMENT_ID: expressions.expn("needs.request-setup.outputs.bot_comment_id"),
+        REACTION: "rocket",
+      },
+      run: `gh api "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content="$REACTION"`,
     }),
-    if: "always()",
-  },
-]);
+    // Step 3b: Add reaction on completion (failure)
+    new ExtendedStep({
+      id: "reaction_failure",
+      name: "gh api (add reaction)",
+      if: "failure()",
+      env: {
+        GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+        COMMENT_ID: expressions.expn("needs.request-setup.outputs.bot_comment_id"),
+        REACTION: "eyes",
+      },
+      run: `gh api "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content="$REACTION"`,
+    }),
+    // Step 4: Remove nopo-bot from requested reviewers
+    new ExtendedStep({
+      id: "remove_reviewer",
+      name: "gh pr edit --remove-reviewer",
+      if: "always()",
+      env: {
+        GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+        PR_NUMBER: expressions.expn("needs.request-setup.outputs.pr_number"),
+        REVIEWERS: "nopo-bot",
+      },
+      run: `gh pr edit "$PR_NUMBER" --remove-reviewer "$REVIEWERS" --repo "$GITHUB_REPOSITORY" || true`,
+    }),
+  ],
+});
 
 // =============================================================================
 // REVIEW RESPONSE JOBS
 // =============================================================================
 
 // Response process prompt
-const responseProcessPrompt = `You just submitted a review on PR #${expressions.expn("github.event.pull_request.number")}.
-
-Your review state: ${expressions.expn("github.event.review.state")}
-Your review body: ${expressions.expn("github.event.review.body")}
-
-## Step 1: Get Your Review Comments
-
-Fetch the comments from your review:
-\`\`\`
-gh api /repos/${expressions.expn("github.repository")}/pulls/${expressions.expn("github.event.pull_request.number")}/comments
-\`\`\`
-
-Filter for comments from your review (review_id: ${expressions.expn("github.event.review.id")}).
-
-## Step 2: Process Each Comment
-
-For each comment you made:
-
-### If it's a CHANGE REQUEST:
-1. Make the requested change to the code
-2. Commit with a clear message referencing the comment
-3. Reply to the comment noting the fix
-
-### If it's a QUESTION:
-- Questions will be answered by the PR author
-- No action needed now - wait for response
-
-## Step 3: Finalize
-
-After processing all comments, check if you made any commits:
-
-### If you made commits (code changes):
-Push the changes:
-\`\`\`
-git push origin ${expressions.expn("github.event.pull_request.head.ref")}
-\`\`\`
-The push will automatically convert PR to draft and trigger CI.
-CI-pass will mark it ready and re-request nopo-bot as reviewer when CI is green.
-
-### If you made NO commits (only discussion/questions):
-Post a comment summarizing your analysis, then re-request nopo-bot as reviewer:
-\`\`\`
-gh pr comment ${expressions.expn("github.event.pull_request.number")} --body "## Review Response Summary
-
-<your analysis of the review comments and what action was taken or why no action was needed>
-
-Re-requesting review to continue the loop."
-
-gh pr edit ${expressions.expn("github.event.pull_request.number")} --add-reviewer "nopo-bot"
-\`\`\`
-
-IMPORTANT:
-- ALWAYS post a comment with your findings - never leave the PR without feedback
-- Make atomic commits for each change
-- Reference the comment in each commit message
-- Follow CLAUDE.md guidelines for all code changes`;
+const responseProcessPrompt = loadPrompt("review-response.txt", {
+  PR_NUMBER: expressions.expn("github.event.pull_request.number"),
+  REVIEW_STATE: expressions.expn("github.event.review.state"),
+  REVIEW_BODY: expressions.expn("github.event.review.body"),
+  REPOSITORY: expressions.expn("github.repository"),
+  REVIEW_ID: expressions.expn("github.event.review.id"),
+  HEAD_REF: expressions.expn("github.event.pull_request.head.ref"),
+});
 
 // Response process job
-const responseProcessJob = new NormalJob("response-process", {
+const responseProcessJob = new ExtendedNormalJob("response-process", {
   if: `github.event_name == 'pull_request_review' &&
 github.event.review.user.login == 'claude[bot]' &&
 github.event.pull_request.draft == false &&
 (github.event.review.state == 'CHANGES_REQUESTED' || github.event.review.state == 'COMMENTED')`,
   "runs-on": "ubuntu-latest",
-});
-
-responseProcessJob.addSteps([
-  // Step 1: Checkout PR branch
-  new Step({
-    uses: "actions/checkout@v4",
-    with: {
+  steps: [
+    // Step 1: Checkout PR branch
+    checkoutStep("checkout", {
       ref: expressions.expn("github.event.pull_request.head.ref"),
-      "fetch-depth": 0,
-    },
-  }),
-  // Step 2: Configure Git
-  gitConfig({
-    USER_NAME: "Claude Bot",
-    USER_EMAIL: "claude-bot@anthropic.com",
-  }),
-  // Step 3: Run Claude to process review
-  new Step({
-    uses: "anthropics/claude-code-action@v1",
-    with: {
-      claude_code_oauth_token: expressions.secret("CLAUDE_CODE_OAUTH_TOKEN"),
-      settings: ".claude/settings.json",
-      prompt: responseProcessPrompt,
-      claude_args: "--model claude-opus-4-5-20251101 --max-turns 50",
-    },
-    env: {
-      GITHUB_TOKEN: expressions.secret("GITHUB_TOKEN"),
-    },
-  }),
-]);
+      fetchDepth: 0,
+    }),
+    // Step 2: Configure Git
+    new ExtendedStep({
+      id: "git_config",
+      name: "git config",
+      env: {
+        USER_NAME: "Claude Bot",
+        USER_EMAIL: "claude-bot@anthropic.com",
+      },
+      run: `git config --global user.name "$USER_NAME"
+git config --global user.email "$USER_EMAIL"`,
+    }),
+    // Step 3: Run Claude to process review
+    new ExtendedStep({
+      id: "claude_response",
+      uses: "anthropics/claude-code-action@v1",
+      with: {
+        claude_code_oauth_token: expressions.secret("CLAUDE_CODE_OAUTH_TOKEN"),
+        settings: ".claude/settings.json",
+        prompt: responseProcessPrompt,
+        claude_args: "--model claude-opus-4-5-20251101 --max-turns 50",
+      },
+      env: {
+        GITHUB_TOKEN: expressions.secret("GITHUB_TOKEN"),
+      },
+    }),
+  ],
+});
 
 // =============================================================================
 // HUMAN REVIEW RESPONSE JOB
 // =============================================================================
 
 // Human review response prompt
-const humanReviewResponsePrompt = `A human reviewer (@${expressions.expn("github.event.review.user.login")}) submitted a review on PR #${expressions.expn("github.event.pull_request.number")}.
-
-Review state: ${expressions.expn("github.event.review.state")}
-Review body: ${expressions.expn("github.event.review.body")}
-
-## Step 1: Get the Review Comments
-
-Fetch comments from this review:
-\`\`\`
-gh api /repos/${expressions.expn("github.repository")}/pulls/${expressions.expn("github.event.pull_request.number")}/comments
-\`\`\`
-
-Filter for comments from review_id: ${expressions.expn("github.event.review.id")}
-
-## Step 2: Process the Feedback
-
-**For CHANGES_REQUESTED reviews:**
-- Make each requested change to the code
-- Commit with a clear message referencing what was fixed
-- Reply to each comment noting the fix
-
-**For COMMENTED reviews (questions):**
-- Answer each question with a reply comment
-- If a question implies a needed change, make it
-
-## Step 3: Finalize
-
-After processing all feedback:
-
-### If you made commits (code changes):
-Push the changes:
-\`\`\`
-git push origin ${expressions.expn("github.event.pull_request.head.ref")}
-\`\`\`
-The push will convert PR to draft and trigger CI.
-
-### If you only answered questions (no commits):
-Post a summary comment, then re-request nopo-bot for the next review cycle:
-\`\`\`
-gh pr edit ${expressions.expn("github.event.pull_request.number")} --add-reviewer "nopo-bot"
-\`\`\`
-
-IMPORTANT:
-- Address ALL feedback from the human reviewer
-- Make atomic commits for each change
-- Follow CLAUDE.md guidelines`;
+const humanReviewResponsePrompt = loadPrompt("human-review-response.txt", {
+  REVIEWER_LOGIN: expressions.expn("github.event.review.user.login"),
+  PR_NUMBER: expressions.expn("github.event.pull_request.number"),
+  REVIEW_STATE: expressions.expn("github.event.review.state"),
+  REVIEW_BODY: expressions.expn("github.event.review.body"),
+  REPOSITORY: expressions.expn("github.repository"),
+  REVIEW_ID: expressions.expn("github.event.review.id"),
+  HEAD_REF: expressions.expn("github.event.pull_request.head.ref"),
+});
 
 // Human review response job
-const humanReviewResponseJob = new NormalJob("human-review-response", {
+const humanReviewResponseJob = new ExtendedNormalJob("human-review-response", {
   if: `github.event_name == 'pull_request_review' &&
 github.event.review.user.login != 'claude[bot]' &&
 github.event.pull_request.draft == false &&
 (github.event.review.state == 'CHANGES_REQUESTED' || github.event.review.state == 'COMMENTED')`,
   "runs-on": "ubuntu-latest",
-});
+  steps: [
+    // Step 1: Check if this is a Claude PR
+    new ExtendedStep({
+      id: "check_author",
+      name: "gh pr view (check claude)",
+      env: {
+        GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
+        PR_NUMBER: expressions.expn("github.event.pull_request.number"),
+      },
+      run: dedentString(`
+        pr=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefName,author)
+        author=$(echo "$pr" | jq -r '.author.login')
+        head_branch=$(echo "$pr" | jq -r '.headRefName')
 
-humanReviewResponseJob.addSteps([
-  // Step 1: Check if this is a Claude PR
-  ghPrViewCheckClaude("check_author", {
-    GH_TOKEN: expressions.secret("GITHUB_TOKEN"),
-    PR_NUMBER: expressions.expn("github.event.pull_request.number"),
-  }),
-  // Step 2: Checkout PR branch (only for Claude PRs)
-  new Step({
-    uses: "actions/checkout@v4",
-    if: "steps.check_author.outputs.is_claude_pr == 'true'",
-    with: {
-      ref: expressions.expn("github.event.pull_request.head.ref"),
-      "fetch-depth": 0,
-    },
-  }),
-  // Step 3: Configure Git (only for Claude PRs)
-  {
-    ...gitConfig({
-      USER_NAME: "Claude Bot",
-      USER_EMAIL: "claude-bot@anthropic.com",
+        is_claude_pr="false"
+        if [[ "$author" == "claude[bot]" || "$head_branch" == claude/* ]]; then
+          is_claude_pr="true"
+        fi
+
+        ${echoKeyValue.toGithubOutput("is_claude_pr", "$is_claude_pr")}
+      `),
+      outputs: ["is_claude_pr"],
     }),
-    if: "steps.check_author.outputs.is_claude_pr == 'true'",
-  },
-  // Step 4: Run Claude to respond (only for Claude PRs)
-  new Step({
-    uses: "anthropics/claude-code-action@v1",
-    if: "steps.check_author.outputs.is_claude_pr == 'true'",
-    with: {
-      claude_code_oauth_token: expressions.secret("CLAUDE_CODE_OAUTH_TOKEN"),
-      settings: ".claude/settings.json",
-      prompt: humanReviewResponsePrompt,
-      claude_args: "--model claude-opus-4-5-20251101 --max-turns 50",
-    },
-    env: {
-      GITHUB_TOKEN: expressions.secret("GITHUB_TOKEN"),
-    },
-  }),
-]);
+    // Step 2: Checkout PR branch (only for Claude PRs)
+    checkoutStep("checkout", {
+      if: "steps.check_author.outputs.is_claude_pr == 'true'",
+      ref: expressions.expn("github.event.pull_request.head.ref"),
+      fetchDepth: 0,
+    }),
+    // Step 3: Configure Git (only for Claude PRs)
+    new ExtendedStep({
+      id: "git_config",
+      name: "git config",
+      if: "steps.check_author.outputs.is_claude_pr == 'true'",
+      env: {
+        USER_NAME: "Claude Bot",
+        USER_EMAIL: "claude-bot@anthropic.com",
+      },
+      run: `git config --global user.name "$USER_NAME"
+git config --global user.email "$USER_EMAIL"`,
+    }),
+    // Step 4: Run Claude to respond (only for Claude PRs)
+    new ExtendedStep({
+      id: "claude_human_response",
+      uses: "anthropics/claude-code-action@v1",
+      if: "steps.check_author.outputs.is_claude_pr == 'true'",
+      with: {
+        claude_code_oauth_token: expressions.secret("CLAUDE_CODE_OAUTH_TOKEN"),
+        settings: ".claude/settings.json",
+        prompt: humanReviewResponsePrompt,
+        claude_args: "--model claude-opus-4-5-20251101 --max-turns 50",
+      },
+      env: {
+        GITHUB_TOKEN: expressions.secret("GITHUB_TOKEN"),
+      },
+    }),
+  ],
+});
 
 // =============================================================================
 // MAIN WORKFLOW

@@ -60,22 +60,24 @@ jobs:
       services: ${{ steps.services.outputs.services }}
       subdomain_prefix: ${{ steps.env_config.outputs.subdomain_prefix }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-node
-      - name: Validate services
-        id: services
+      - id: checkout
+        uses: actions/checkout@v4
+      - id: setup_node
+        uses: ./.github/actions/setup-node
+      - id: services
+        name: Validate services
         uses: ./.github/actions/validate-services
         with:
           services: ${{ inputs.services }}
-      - name: Environment config
-        id: env_config
+      - id: env_config
+        name: Environment config
         env:
           ENVIRONMENT: ${{ inputs.environment }}
-        run: |
+        run: |-
           if [[ "$ENVIRONMENT" == "stage" ]]; then
-            echo "subdomain_prefix=stage" >> "$GITHUB_OUTPUT"
+            echo "subdomain_prefix=stage" >> $GITHUB_OUTPUT
           else
-            echo "subdomain_prefix=" >> "$GITHUB_OUTPUT"
+            echo "subdomain_prefix=" >> $GITHUB_OUTPUT
           fi
   provision_infra:
     name: Provision Infrastructure
@@ -121,7 +123,7 @@ jobs:
           TF_VAR_domain: ${{ vars.DOMAIN }}
           TF_VAR_supabase_database_url: ${{ secrets.SUPABASE_DATABASE_URL }}
         working-directory: infrastructure/terraform/environments/${{ inputs.environment }}/infra
-        run: |
+        run: |-
           # Apply infra changes (create/update registry, buckets, etc.)
           terraform apply -input=false -auto-approve
 
@@ -129,8 +131,8 @@ jobs:
           artifact_registry_url=$(terraform output -raw artifact_registry_url)
           static_bucket_name=$(terraform output -raw static_bucket_name)
 
-          echo "artifact_registry_url=${artifact_registry_url}" >> "$GITHUB_OUTPUT"
-          echo "static_bucket_name=${static_bucket_name}" >> "$GITHUB_OUTPUT"
+          echo "artifact_registry_url=$artifact_registry_url" >> $GITHUB_OUTPUT
+          echo "static_bucket_name=$static_bucket_name" >> $GITHUB_OUTPUT
     needs:
       - context
   get_current_state:
@@ -166,7 +168,7 @@ jobs:
           REGISTRY: ${{ needs.provision_infra.outputs.artifact_registry_url }}
           VERSION: ${{ inputs.version }}
           SERVICES: ${{ needs.context.outputs.services }}
-        run: |
+        run: |-
           services_array=$(echo "${SERVICES}" | jq -c '.')
 
           # Only set images for services we're actually deploying
@@ -187,10 +189,10 @@ jobs:
             canary_web_image=""
           fi
 
-          echo "stable_backend_image=${stable_backend_image}" >> "$GITHUB_OUTPUT"
-          echo "stable_web_image=${stable_web_image}" >> "$GITHUB_OUTPUT"
-          echo "canary_backend_image=${canary_backend_image}" >> "$GITHUB_OUTPUT"
-          echo "canary_web_image=${canary_web_image}" >> "$GITHUB_OUTPUT"
+          echo "stable_backend_image=$stable_backend_image" >> $GITHUB_OUTPUT
+          echo "stable_web_image=$stable_web_image" >> $GITHUB_OUTPUT
+          echo "canary_backend_image=$canary_backend_image" >> $GITHUB_OUTPUT
+          echo "canary_web_image=$canary_web_image" >> $GITHUB_OUTPUT
 
           echo "Images for deployment:"
           echo "  Stable backend: ${stable_backend_image:-<not deploying>}"
@@ -210,24 +212,26 @@ jobs:
     strategy:
       matrix:
         service: ${{ fromJson(needs.context.outputs.services) }}
-    needs:
-      - context
-      - provision_infra
     steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-docker
+      - id: checkout
+        uses: actions/checkout@v4
+      - id: setup_docker
+        uses: ./.github/actions/setup-docker
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Authenticate to GCP
+      - id: auth
+        name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-      - name: Configure Docker
+      - id: configure_docker
+        name: Configure Docker
         run: gcloud auth configure-docker "us-central1-docker.pkg.dev" --quiet
-      - name: Push to Artifact Registry
+      - id: push
+        name: Push to Artifact Registry
         env:
           SOURCE_IMAGE: ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ inputs.version }}
           TARGET_IMAGE: ${{ needs.provision_infra.outputs.artifact_registry_url }}/${{ matrix.service }}:${{ inputs.version }}
@@ -235,6 +239,9 @@ jobs:
           docker pull "$SOURCE_IMAGE"
           docker tag "$SOURCE_IMAGE" "$TARGET_IMAGE"
           docker push "$TARGET_IMAGE"
+    needs:
+      - context
+      - provision_infra
   deploy_canary:
     name: Deploy Canary
     runs-on: ubuntu-latest
@@ -284,28 +291,30 @@ jobs:
     strategy:
       matrix:
         service: ${{ fromJson(needs.context.outputs.services) }}
-    needs:
-      - context
-      - provision_infra
     steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-node
-      - uses: ./.github/actions/setup-docker
+      - id: checkout
+        uses: actions/checkout@v4
+      - id: setup_node
+        uses: ./.github/actions/setup-node
+      - id: setup_docker
+        uses: ./.github/actions/setup-docker
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Authenticate to GCP
+      - id: auth
+        name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-      - name: Upload to GCS
+      - id: upload
+        name: Upload to GCS
         env:
           GHCR_IMAGE: ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ inputs.version }}
           BUCKET_NAME: ${{ needs.provision_infra.outputs.static_bucket_name }}
           SERVICE: ${{ matrix.service }}
-        run: |
+        run: |-
           # Extract service config
           service_config=$(make list -- --json --jq ".services.\"${SERVICE}\"")
           static_path=$(echo "${service_config}" | jq -r '.static_path // empty')
@@ -329,32 +338,37 @@ jobs:
           fi
 
           docker rm "${CONTAINER_ID}" > /dev/null
+    needs:
+      - context
+      - provision_infra
   run_migrations:
     name: Database Migrations
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
-    needs:
-      - context
-      - deploy_canary
     steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-node
-      - name: Authenticate to GCP
+      - id: checkout
+        uses: actions/checkout@v4
+      - id: setup_node
+        uses: ./.github/actions/setup-node
+      - id: auth
+        name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-      - name: Setup Cloud SDK
+      - id: setup_gcloud
+        name: Setup Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
-      - name: Check and Run Migrations
+      - id: run_migrations
+        name: Check and Run Migrations
         env:
           PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
           REGION: us-central1
           ENVIRONMENT: ${{ inputs.environment }}
           SERVICES: ${{ needs.context.outputs.services }}
-        run: |
+        run: |-
           services_payload=$(make list -- --json --jq '.services')
           for service in $(echo "${SERVICES}" | jq -r '.[]'); do
             config=$(echo "${services_payload}" | jq -c --arg s "$service" '.[$s]')
@@ -366,21 +380,27 @@ jobs:
               gcloud run jobs execute "${JOB_NAME}" --project="${PROJECT_ID}" --region="${REGION}" --wait || true
             fi
           done
+    needs:
+      - context
+      - deploy_canary
   smoketest_canary:
     name: Smoketest Canary
     runs-on: ubuntu-latest
-    needs:
-      - deploy_canary
-      - run_migrations
-      - upload_assets
     steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-node
-      - name: Test Canary
+      - id: checkout
+        uses: actions/checkout@v4
+      - id: setup_node
+        uses: ./.github/actions/setup-node
+      - id: smoketest
+        name: Test Canary
         uses: ./.github/actions/smoketest
         with:
           public_url: ${{ needs.deploy_canary.outputs.public_url }}
           canary: true
+    needs:
+      - deploy_canary
+      - run_migrations
+      - upload_assets
   promote:
     name: Promote to Stable
     runs-on: ubuntu-latest
@@ -390,19 +410,17 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    needs:
-      - context
-      - deploy_canary
-      - smoketest_canary
-      - get_current_state
     steps:
-      - uses: actions/checkout@v4
-      - name: Authenticate to GCP
+      - id: checkout
+        uses: actions/checkout@v4
+      - id: auth
+        name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-      - name: Deploy Services (Promote)
+      - id: deploy
+        name: Deploy Services (Promote)
         uses: ./.github/actions/deploy-gcp
         with:
           project_id: ${{ vars.GCP_PROJECT_ID }}
@@ -416,26 +434,31 @@ jobs:
           canary_backend_image: ${{ needs.get_current_state.outputs.canary_backend_image }}
           canary_web_image: ${{ needs.get_current_state.outputs.canary_web_image }}
           supabase_database_url: ${{ secrets.SUPABASE_DATABASE_URL }}
+    needs:
+      - context
+      - deploy_canary
+      - smoketest_canary
+      - get_current_state
   tag_environment:
     name: Tag Environment
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
+      id-token: write
     strategy:
       matrix:
         service: ${{ fromJson(needs.context.outputs.services) }}
-    needs:
-      - context
-      - promote
     steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-docker
+      - id: checkout
+        uses: actions/checkout@v4
+      - id: setup_docker
+        uses: ./.github/actions/setup-docker
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Tag Image
+      - id: tag
+        name: Tag Image
         env:
           SOURCE_IMAGE: ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ inputs.version }}
           TARGET_IMAGE: ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ inputs.environment }}
@@ -443,3 +466,6 @@ jobs:
           docker pull "$SOURCE_IMAGE"
           docker tag "$SOURCE_IMAGE" "$TARGET_IMAGE"
           docker push "$TARGET_IMAGE"
+    needs:
+      - context
+      - promote

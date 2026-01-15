@@ -23,8 +23,10 @@ jobs:
   detect-stalled-reviews:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Detect stalled review requests
+      - id: checkout
+        uses: actions/checkout@v4
+      - id: detect-stalled
+        name: Detect stalled review requests
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}

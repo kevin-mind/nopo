@@ -1,4 +1,5 @@
-import { expressions, Step } from "@github-actions-workflow-ts/lib";
+import { expressions } from "@github-actions-workflow-ts/lib";
+import { ExtendedStep } from "./enhanced-step";
 
 /**
  * Options for the Claude Code Action step.
@@ -18,8 +19,6 @@ export interface ClaudeActionOptions {
   triggerPhrase?: string;
   /** Assignee that triggers action (e.g., "nopo-bot") */
   assigneeTrigger?: string;
-  /** Optional step ID */
-  id?: string;
   /** Optional step name */
   name?: string;
 }
@@ -27,15 +26,18 @@ export interface ClaudeActionOptions {
 /**
  * Creates a Claude Code Action step.
  */
-export const claudeActionStep = (opts: ClaudeActionOptions): Step => {
+export const claudeActionStep = <const Id extends string>(
+  id: Id,
+  opts: ClaudeActionOptions
+): ExtendedStep<Id> => {
   const args = [
     `--model ${opts.model ?? "claude-opus-4-5-20251101"}`,
     `--max-turns ${opts.maxTurns ?? 50}`,
   ].join(" ");
 
-  return new Step({
+  return new ExtendedStep({
     ...(opts.name && { name: opts.name }),
-    ...(opts.id && { id: opts.id }),
+    id,
     uses: "anthropics/claude-code-action@v1",
     with: {
       claude_code_oauth_token: expressions.secret("CLAUDE_CODE_OAUTH_TOKEN"),
@@ -59,9 +61,8 @@ export const claudeActions = {
   /**
    * Triage action with default configuration.
    */
-  triage: (prompt: string): Step =>
-    claudeActionStep({
-      id: "claude_triage",
+  triage: (prompt: string): ExtendedStep<"claude_triage"> =>
+    claudeActionStep("claude_triage", {
       prompt,
       maxTurns: 50,
     }),
@@ -69,9 +70,8 @@ export const claudeActions = {
   /**
    * Implementation action with default configuration.
    */
-  implement: (prompt: string): Step =>
-    claudeActionStep({
-      id: "claude_implement",
+  implement: (prompt: string): ExtendedStep<"claude_implement"> =>
+    claudeActionStep("claude_implement", {
       prompt,
       maxTurns: 100,
     }),
@@ -79,9 +79,8 @@ export const claudeActions = {
   /**
    * Comment response action.
    */
-  comment: (prompt: string): Step =>
-    claudeActionStep({
-      id: "claude_comment",
+  comment: (prompt: string): ExtendedStep<"claude_comment"> =>
+    claudeActionStep("claude_comment", {
       prompt,
       triggerPhrase: "@claude",
       maxTurns: 50,
@@ -90,9 +89,8 @@ export const claudeActions = {
   /**
    * Code review action.
    */
-  review: (prompt: string): Step =>
-    claudeActionStep({
-      id: "claude_review",
+  review: (prompt: string): ExtendedStep<"claude_review"> =>
+    claudeActionStep("claude_review", {
       prompt,
       maxTurns: 30,
     }),
@@ -100,9 +98,8 @@ export const claudeActions = {
   /**
    * CI fix action.
    */
-  ciFix: (prompt: string): Step =>
-    claudeActionStep({
-      id: "claude_ci_fix",
+  ciFix: (prompt: string): ExtendedStep<"claude_ci_fix"> =>
+    claudeActionStep("claude_ci_fix", {
       prompt,
       maxTurns: 50,
     }),
@@ -110,9 +107,8 @@ export const claudeActions = {
   /**
    * Discussion research action.
    */
-  discussionResearch: (prompt: string): Step =>
-    claudeActionStep({
-      id: "claude_discussion",
+  discussionResearch: (prompt: string): ExtendedStep<"claude_discussion"> =>
+    claudeActionStep("claude_discussion", {
       prompt,
       maxTurns: 30,
     }),

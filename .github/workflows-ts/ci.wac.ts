@@ -1,19 +1,10 @@
 import {
-  NormalJob,
   ReusableWorkflowCallJob,
-  Step,
-  Workflow,
+  dedentString,
   expressions,
 } from "@github-actions-workflow-ts/lib";
 import { ExtendedStep } from "./lib/enhanced-step";
-import { ExtendedNormalJob } from "./lib/enhanced-job";
-import {
-  checkoutStep,
-  setupNodeStep,
-  setupDockerStep,
-  smoketestStep,
-  checkStep,
-} from "./lib/steps";
+import { ExtendedNormalJob, needs, needsOutput } from "./lib/enhanced-job";
 import {
   buildPermissions,
   defaultDefaults,
@@ -21,54 +12,63 @@ import {
   readPermissions,
   testPermissions,
 } from "./lib/patterns";
+import {
+  checkoutStep,
+  checkStep,
+  contextStep,
+  runDockerStep,
+  setupDockerStep,
+  setupNodeStep,
+  smoketestStep,
+} from "./lib/steps";
+import { ExtendedWorkflow } from "./lib/enhanced-workflow";
 
 // Context job - detects fork status and changed files
 const contextJob = new ExtendedNormalJob("context", {
   "runs-on": "ubuntu-latest",
   permissions: readPermissions,
-  steps: [
-    new ExtendedStep({
-      id: "checkout",
-      uses: "actions/checkout@v4",
-    }),
-    new ExtendedStep({
-      id: "context",
-      name: "Context",
-      uses: "./.github/actions/context",
-      outputs: ["is_fork", "default_branch"] as const,
-    }),
-    new ExtendedStep({
+  steps: () => {
+    const changedFilesStep = new ExtendedStep({
       id: "changed_files",
       name: "Get changed files",
       uses: "tj-actions/changed-files@ed68ef82c095e0d48ec87eccea555d944a631a4c",
       with: {
-        files_yaml: `github_actions:
-  - .github/**
-backend_migrations:
-  - apps/backend/src/*/migrations/**
-backend_source:
-  - apps/backend/**
-  - "!apps/backend/src/*/migrations/**"
-`,
+        files_yaml: dedentString(`
+          github_actions:
+            - .github/**
+          backend_migrations:
+            - apps/backend/src/*/migrations/**
+          backend_source:
+            - apps/backend/**
+            - "!apps/backend/src/*/migrations/**"
+        `),
       },
-    }),
-    new ExtendedStep({
-      id: "debug",
-      name: "Debug",
-      run: `cat <<INNEREOF
-${expressions.expn("toJson(steps.changed_files.outputs)")}
-INNEREOF
-`,
-    }),
-    new ExtendedStep({
-      id: "fail_check",
-      name: "Fail if migrations and source changed",
-      if: "contains(steps.changed_files.outputs.changed_keys, 'backend_migrations') && contains(steps.changed_files.outputs.changed_keys, 'backend_source')",
-      run: `echo "Migrations and source files cannot be changed together"
-exit 1
-`,
-    }),
-  ] as const,
+      outputs: ["changed_keys", "changed_files"],
+    });
+    return [
+      checkoutStep("checkout"),
+      contextStep("context", { outputs: ["is_fork", "default_branch"] }),
+      changedFilesStep,
+      new ExtendedStep({
+        id: "debug",
+        name: "Debug",
+        run: dedentString(`
+          cat <<INNEREOF
+            ${expressions.expn(`toJson(steps.changed_files.outputs)`)}
+          INNEREOF
+        `),
+      }),
+      new ExtendedStep({
+        id: "fail_check",
+        name: "Fail if migrations and source changed",
+        if: `contains(${changedFilesStep.outputs.changed_keys}, 'backend_migrations') && contains(${changedFilesStep.outputs.changed_keys}, 'backend_source')`,
+        run: dedentString(`
+          echo "Migrations and source files cannot be changed together"
+          exit 1
+        `),
+      }),
+    ];
+  },
   outputs: (steps) => ({
     is_fork: steps.context.outputs.is_fork,
   }),
@@ -86,29 +86,29 @@ const discoverJob = new ReusableWorkflowCallJob("discover", {
 
 // Build job - calls _build.yml reusable workflow
 const buildJob = new ReusableWorkflowCallJob("build", {
-  if: expressions.expn("needs.discover.outputs.services != ''"),
+  needs: [contextJob.name, discoverJob.name],
+  if: expressions.expn(`${needsOutput(discoverJob, "services")} != ''`),
   permissions: buildPermissions,
   uses: "./.github/workflows/_build.yml",
   secrets: "inherit",
   with: {
-    push: expressions.expn("needs.context.outputs.is_fork == 'false'"),
-    services: expressions.expn("needs.discover.outputs.services"),
+    push: expressions.expn(`${needs(contextJob).outputs.is_fork} == 'false'`),
+    services: expressions.expn(needsOutput(discoverJob, "services")),
   },
 });
-buildJob.needs([contextJob, discoverJob]);
 
 // Test job - calls _test.yml reusable workflow
 const testJob = new ReusableWorkflowCallJob("test", {
-  if: expressions.expn("needs.build.result == 'success' && needs.discover.outputs.services_json != '[]'"),
+  if: expressions.expn(`needs.build.result == 'success' && ${needsOutput(discoverJob, "services_json")} != '[]'`),
   permissions: testPermissions,
   uses: "./.github/workflows/_test.yml",
   secrets: "inherit",
   with: {
-    tag: expressions.expn("needs.build.outputs.tag"),
-    services: expressions.expn("needs.discover.outputs.services_json"),
+    tag: expressions.expn(needsOutput(buildJob, "tag")),
+    services: expressions.expn(needsOutput(discoverJob, "services_json")),
   },
+  needs: [buildJob.name, contextJob.name, discoverJob.name],
 });
-testJob.needs([buildJob, contextJob, discoverJob]);
 
 // Test nopo job - calls _test_nopo.yml reusable workflow
 const testNopoJob = new ReusableWorkflowCallJob("test_nopo", {
@@ -117,68 +117,68 @@ const testNopoJob = new ReusableWorkflowCallJob("test_nopo", {
 });
 
 // Smoketest job - runs E2E tests
-const smoketestJob = new NormalJob("smoketest", {
-  if: expressions.expn("needs.discover.outputs.services != ''"),
+const smoketestJob = new ExtendedNormalJob("smoketest", {
+  if: expressions.expn(`${needsOutput(discoverJob, "services")} != ''`),
   "runs-on": "ubuntu-latest",
   "timeout-minutes": 10,
+  needs: [contextJob, discoverJob],
+  steps: [
+    checkoutStep("checkout"),
+    setupNodeStep("setup_node"),
+    setupDockerStep("setup_docker"),
+    runDockerStep("up"),
+    smoketestStep("smoketest", "http://localhost"),
+  ],
 });
-smoketestJob.needs([contextJob, discoverJob]);
-
-smoketestJob.addSteps([
-  checkoutStep,
-  setupNodeStep,
-  setupDockerStep(),
-  new Step({
-    name: "Up",
-    uses: "./.github/actions/run-docker",
-  }),
-  smoketestStep("http://localhost"),
-]);
 
 // Terraform job - validates terraform configs
-const terraformJob = new NormalJob("terraform", {
+const terraformJob = new ExtendedNormalJob("terraform", {
   "runs-on": "ubuntu-latest",
   "timeout-minutes": 5,
+  steps: [
+    checkoutStep("checkout"),
+    new ExtendedStep({
+      id: "setup_terraform",
+      name: "Setup Terraform",
+      uses: "hashicorp/setup-terraform@v3",
+      with: {
+        terraform_version: "1.7.0",
+      },
+    }),
+    new ExtendedStep({
+      id: "lint_terraform",
+      name: "Lint and Format Terraform",
+      run: "make lint-terraform",
+    }),
+    new ExtendedStep({
+      id: "check_uncommitted",
+      name: "Check for uncommitted changes",
+      run: "git diff --exit-code\n",
+    }),
+  ],
 });
-
-terraformJob.addSteps([
-  checkoutStep,
-  new Step({
-    name: "Setup Terraform",
-    uses: "hashicorp/setup-terraform@v3",
-    with: {
-      terraform_version: "1.7.0",
-    },
-  }),
-  new Step({
-    name: "Lint and Format Terraform",
-    run: "make lint-terraform",
-  }),
-  new Step({
-    name: "Check for uncommitted changes",
-    run: "git diff --exit-code\n",
-  }),
-]);
 
 // Checks job - aggregates all job results
-const checksJob = new NormalJob("checks", {
+const checksJob = new ExtendedNormalJob("checks", {
   if: "always()",
   "runs-on": "ubuntu-latest",
+  needs: [
+    contextJob,
+    discoverJob,
+    buildJob,
+    testJob,
+    testNopoJob,
+    smoketestJob,
+    terraformJob,
+  ],
+  steps: [
+    checkoutStep("checkout"),
+    checkStep("check", expressions.expn("toJson(needs)")),
+  ],
 });
-checksJob.needs([
-  contextJob,
-  discoverJob,
-  buildJob,
-  testJob,
-  testNopoJob,
-  smoketestJob,
-  terraformJob,
-]);
-
-checksJob.addSteps([checkoutStep, checkStep(expressions.expn("toJson(needs)"))]);
 
 // Main workflow
-export const ciWorkflow = new Workflow("ci", {
+export const ciWorkflow = new ExtendedWorkflow("ci", {
   name: "CI",
   on: {
     pull_request: {
@@ -194,15 +194,15 @@ export const ciWorkflow = new Workflow("ci", {
   env: {
     CI: "true",
   },
+  jobs: {
+    context: contextJob,
+    discover: discoverJob,
+    build: buildJob,
+    test: testJob,
+    testNopo: testNopoJob,
+    smoketest: smoketestJob,
+    terraform: terraformJob,
+    checks: checksJob,
+  },
 });
 
-ciWorkflow.addJobs([
-  contextJob,
-  discoverJob,
-  buildJob,
-  testJob,
-  testNopoJob,
-  smoketestJob,
-  terraformJob,
-  checksJob,
-]);

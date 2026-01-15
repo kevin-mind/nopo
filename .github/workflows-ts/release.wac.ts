@@ -1,18 +1,12 @@
 import {
+  dedentString,
+  echoKeyValue,
   expressions,
-  NormalJob,
   ReusableWorkflowCallJob,
-  Step,
   Workflow,
 } from "@github-actions-workflow-ts/lib";
 import { ExtendedStep } from "./lib/enhanced-step";
-import { ExtendedNormalJob } from "./lib/enhanced-job";
-import {
-  checkoutStep,
-  checkoutWithDepth,
-  setupNodeStep,
-  checkStep,
-} from "./lib/steps";
+import { ExtendedNormalJob, needs, needsOutput } from "./lib/enhanced-job";
 import {
   buildPermissions,
   defaultDefaults,
@@ -22,29 +16,19 @@ import {
   testPermissions,
   versionPermissions,
 } from "./lib/patterns";
+import { ExtendedWorkflow } from "./lib/enhanced-workflow";
+import { checkoutStep, checkStep, contextStep, setupNodeStep } from "./lib/steps";
 
 // Context job - determines push/deploy settings
 const contextJob = new ExtendedNormalJob("context", {
   "runs-on": "ubuntu-latest",
   permissions: readPermissions,
   steps: [
-    new ExtendedStep({
-      id: "checkout",
-      uses: "actions/checkout@v4",
-      with: { "fetch-depth": 0 },
-    }),
-    new ExtendedStep({
-      id: "setup_node",
-      uses: "./.github/actions/setup-node",
-    }),
-    new ExtendedStep({
-      id: "context",
-      name: "Context",
-      uses: "./.github/actions/context",
-      // Note: context action outputs is_fork and default_branch, but
-      // original code references event_name which doesn't exist
-      outputs: ["event_name"] as const,
-    }),
+    checkoutStep("checkout", { fetchDepth: 0 }),
+    setupNodeStep("setup_node"),
+    // Note: context action outputs is_fork and default_branch, but
+    // original code references event_name which doesn't exist
+    contextStep("context", { outputs: ["event_name"] }),
     new ExtendedStep({
       id: "push_deploy",
       name: "Push / Deploy",
@@ -53,29 +37,30 @@ const contextJob = new ExtendedNormalJob("context", {
         actor: expressions.expn("github.event.sender.login"),
         merge_actor: "github-merge-queue[bot]",
       },
-      run: `push=false
-deploy=false
+      run: dedentString(`
+        push=false
+        deploy=false
 
-# Push images on merge queue. This only runs on the target repo
-# so no need to check if it is a fork.
-if [[ "$event_name" == "merge_group" ]]; then
-  push=true
-  deploy=true
-# Push images on push events that were not sent by the merge queue bot
-# as merge queue commits are deployed before the PR is merged.
-elif [[ "$event_name" == "push" && "$actor" != "$merge_actor" ]]; then
-  push=true
-  deploy=true
-fi
+        # Push images on merge queue. This only runs on the target repo
+        # so no need to check if it is a fork.
+        if [[ "$event_name" == "merge_group" ]]; then
+          push=true
+          deploy=true
+        # Push images on push events that were not sent by the merge queue bot
+        # as merge queue commits are deployed before the PR is merged.
+        elif [[ "$event_name" == "push" && "$actor" != "$merge_actor" ]]; then
+          push=true
+          deploy=true
+        fi
 
-echo "event_name=$event_name"
-echo "push=$push" >> $GITHUB_OUTPUT
-echo "deploy=$deploy" >> $GITHUB_OUTPUT
-cat "$GITHUB_OUTPUT"
-`,
-      outputs: ["push", "deploy"] as const,
+        echo "event_name=$event_name"
+        ${echoKeyValue.toGithubOutput("push", "$push")}
+        ${echoKeyValue.toGithubOutput("deploy", "$deploy")}
+        cat "$GITHUB_OUTPUT"
+      `),
+      outputs: ["push", "deploy"],
     }),
-  ] as const,
+  ],
   outputs: (steps) => ({
     event_name: steps.context.outputs.event_name,
     push: steps.push_deploy.outputs.push,
@@ -94,34 +79,35 @@ const discoverBuildableJob = new ReusableWorkflowCallJob("discover_buildable", {
 });
 
 // Version job - runs changesets for semantic versioning
-const versionJob = new NormalJob("version", {
-  if: expressions.expn("needs.context.outputs.event_name == 'push'"),
+const versionJob = new ExtendedNormalJob("version", {
+  if: expressions.expn(`${needs(contextJob).outputs.event_name} == 'push'`),
   "runs-on": "ubuntu-latest",
   permissions: versionPermissions,
+  needs: [contextJob],
+  steps: [
+    checkoutStep("checkout"),
+    setupNodeStep("setup_node"),
+    new ExtendedStep({
+      id: "build",
+      name: "Build",
+      run: 'pnpm run --filter "./packages/*" build',
+    }),
+    new ExtendedStep({
+      id: "publish_versions",
+      name: "Create and publish versions",
+      uses: "changesets/action@v1",
+      with: {
+        commit: "chore: update versions",
+        title: "chore: update versions",
+        publish: "pnpm publish:workspace",
+      },
+      env: {
+        GITHUB_TOKEN: expressions.secret("GITHUB_TOKEN"),
+        NPM_TOKEN: expressions.secret("NPM_TOKEN"),
+      },
+    }),
+  ],
 });
-versionJob.needs([contextJob]);
-
-versionJob.addSteps([
-  checkoutStep,
-  setupNodeStep,
-  new Step({
-    name: "Build",
-    run: 'pnpm run --filter "./packages/*" build',
-  }),
-  new Step({
-    name: "Create and publish versions",
-    uses: "changesets/action@v1",
-    with: {
-      commit: "chore: update versions",
-      title: "chore: update versions",
-      publish: "pnpm publish:workspace",
-    },
-    env: {
-      GITHUB_TOKEN: expressions.secret("GITHUB_TOKEN"),
-      NPM_TOKEN: expressions.secret("NPM_TOKEN"),
-    },
-  }),
-]);
 
 // Build job
 const buildJob = new ReusableWorkflowCallJob("build", {
@@ -129,11 +115,11 @@ const buildJob = new ReusableWorkflowCallJob("build", {
   uses: "./.github/workflows/_build.yml",
   secrets: "inherit",
   with: {
-    push: expressions.expn("needs.context.outputs.push == 'true'"),
-    services: expressions.expn("needs.discover_buildable.outputs.services"),
+    push: expressions.expn(`${needs(contextJob).outputs.push} == 'true'`),
+    services: expressions.expn(needsOutput(discoverBuildableJob, "services")),
   },
+  needs: [contextJob.name, discoverBuildableJob.name],
 });
-buildJob.needs([contextJob, discoverBuildableJob]);
 
 // Test job
 const testJob = new ReusableWorkflowCallJob("test", {
@@ -141,11 +127,11 @@ const testJob = new ReusableWorkflowCallJob("test", {
   uses: "./.github/workflows/_test.yml",
   secrets: "inherit",
   with: {
-    tag: expressions.expn("needs.build.outputs.tag"),
-    services: expressions.expn("needs.discover_buildable.outputs.services_json"),
+    tag: expressions.expn(needsOutput(buildJob, "tag")),
+    services: expressions.expn(needsOutput(discoverBuildableJob, "services_json")),
   },
+  needs: [buildJob.name, contextJob.name, discoverBuildableJob.name],
 });
-testJob.needs([buildJob, contextJob, discoverBuildableJob]);
 
 // Deploy to staging job
 const deployStageJob = new ReusableWorkflowCallJob("deploy_stage", {
@@ -154,12 +140,12 @@ const deployStageJob = new ReusableWorkflowCallJob("deploy_stage", {
   secrets: "inherit",
   with: {
     environment: "stage",
-    version: expressions.expn("needs.build.outputs.version"),
-    digest: expressions.expn("needs.build.outputs.digest"),
-    services: expressions.expn("needs.discover_buildable.outputs.services_json"),
+    version: expressions.expn(needsOutput(buildJob, "version")),
+    digest: expressions.expn(needsOutput(buildJob, "digest")),
+    services: expressions.expn(needsOutput(discoverBuildableJob, "services_json")),
   },
+  needs: [contextJob.name, buildJob.name, testJob.name, discoverBuildableJob.name],
 });
-deployStageJob.needs([contextJob, buildJob, testJob, discoverBuildableJob]);
 
 // Deploy to production job
 const deployProdJob = new ReusableWorkflowCallJob("deploy_prod", {
@@ -168,30 +154,15 @@ const deployProdJob = new ReusableWorkflowCallJob("deploy_prod", {
   secrets: "inherit",
   with: {
     environment: "prod",
-    version: expressions.expn("needs.build.outputs.version"),
-    digest: expressions.expn("needs.build.outputs.digest"),
-    services: expressions.expn("needs.discover_buildable.outputs.services_json"),
+    version: expressions.expn(needsOutput(buildJob, "version")),
+    digest: expressions.expn(needsOutput(buildJob, "digest")),
+    services: expressions.expn(needsOutput(discoverBuildableJob, "services_json")),
   },
+  needs: [contextJob.name, buildJob.name, deployStageJob.name, testJob.name, discoverBuildableJob.name],
 });
-deployProdJob.needs([
-  contextJob,
-  buildJob,
-  deployStageJob,
-  testJob,
-  discoverBuildableJob,
-]);
-
-// Checks job - aggregates all job results
-const checksJob = new NormalJob("checks", {
-  if: "always()",
-  "runs-on": "ubuntu-latest",
-});
-checksJob.needs([buildJob, testJob, deployStageJob, deployProdJob]);
-
-checksJob.addSteps([checkoutStep, checkStep(expressions.expn("toJson(needs)"))]);
 
 // Main workflow
-export const releaseWorkflow = new Workflow("release", {
+export const releaseWorkflow = new ExtendedWorkflow("release", {
   name: "Release",
   on: {
     push: {
@@ -208,15 +179,23 @@ export const releaseWorkflow = new Workflow("release", {
   env: {
     CI: "true",
   },
+  jobs: {
+    context: contextJob,
+    discover_buildable: discoverBuildableJob,
+    version: versionJob,
+    build: buildJob,
+    test: testJob,
+    deploy_stage: deployStageJob,
+    deploy_prod: deployProdJob,
+    // Checks job - aggregates all job results
+    checks: new ExtendedNormalJob("checks", {
+      if: "always()",
+      "runs-on": "ubuntu-latest",
+      needs: [buildJob, testJob, deployStageJob, deployProdJob],
+      steps: [
+        checkoutStep("checkout"),
+        checkStep("check", expressions.expn("toJson(needs)")),
+      ],
+    }),
+  }
 });
-
-releaseWorkflow.addJobs([
-  contextJob,
-  discoverBuildableJob,
-  versionJob,
-  buildJob,
-  testJob,
-  deployStageJob,
-  deployProdJob,
-  checksJob,
-]);

@@ -8,7 +8,12 @@
  * - gitPush → git push
  */
 
-import { Step } from "@github-actions-workflow-ts/lib";
+import { echoKeyValue, dedentString, type GeneratedWorkflowTypes } from "@github-actions-workflow-ts/lib";
+import { ExtendedStep } from "../enhanced-step";
+import { heredocOutput } from "./gh";
+
+/** Optional step properties that can be added to any step (if, name override, etc.) */
+export type StepProps = Omit<GeneratedWorkflowTypes.Step, 'id' | 'run' | 'uses' | 'env' | 'with'>;
 
 // =============================================================================
 // git config
@@ -18,12 +23,16 @@ import { Step } from "@github-actions-workflow-ts/lib";
  * git config --global user.name/email - Configure git user
  * No outputs (action only)
  */
-export function gitConfig(env: { USER_NAME: string; USER_EMAIL: string }): Step {
-  return new Step({
+export function gitConfig(id: string, env: { USER_NAME: string; USER_EMAIL: string }, props?: StepProps): ExtendedStep<any, any> {
+  return new ExtendedStep({
+    id,
+    ...props,
     name: "git config",
     env,
-    run: `git config --global user.name "$USER_NAME"
-git config --global user.email "$USER_EMAIL"`,
+    run: dedentString(`
+      git config --global user.name "$USER_NAME"
+      git config --global user.email "$USER_EMAIL"
+    `),
   });
 }
 
@@ -40,22 +49,27 @@ export function gitCheckoutBranch(
   env: {
     BRANCH_NAME: string;
   },
-): Step {
-  return new Step({
+  props?: StepProps,
+): ExtendedStep<any, any> {
+  return new ExtendedStep({
     id,
+    ...props,
     name: "git checkout -b",
     env,
-    run: `if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
-  git checkout "$BRANCH_NAME"
-  echo "existed=true" >> $GITHUB_OUTPUT
-elif git show-ref --verify --quiet "refs/remotes/origin/$BRANCH_NAME"; then
-  git checkout -b "$BRANCH_NAME" "origin/$BRANCH_NAME"
-  echo "existed=true" >> $GITHUB_OUTPUT
-else
-  git checkout -b "$BRANCH_NAME"
-  echo "existed=false" >> $GITHUB_OUTPUT
-fi
-echo "name=$BRANCH_NAME" >> $GITHUB_OUTPUT`,
+    outputs: ["name", "existed"],
+    run: dedentString(`
+      if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
+        git checkout "$BRANCH_NAME"
+        ${echoKeyValue.toGithubOutput("existed", "true")}
+      elif git show-ref --verify --quiet "refs/remotes/origin/$BRANCH_NAME"; then
+        git checkout -b "$BRANCH_NAME" "origin/$BRANCH_NAME"
+        ${echoKeyValue.toGithubOutput("existed", "true")}
+      else
+        git checkout -b "$BRANCH_NAME"
+        ${echoKeyValue.toGithubOutput("existed", "false")}
+      fi
+      ${echoKeyValue.toGithubOutput("name", "$BRANCH_NAME")}
+    `),
   });
 }
 
@@ -68,34 +82,35 @@ export function gitCheckoutBranchWithDiff(
   env: {
     BRANCH_NAME: string;
   },
-): Step {
-  return new Step({
+  props?: StepProps,
+): ExtendedStep<any, any> {
+  return new ExtendedStep({
     id,
+    ...props,
     name: "git checkout -b (with diff)",
     env,
-    run: `existing_branch="false"
-diff=""
+    outputs: ["name", "existing_branch", "diff"],
+    run: dedentString(`
+      existing_branch="false"
+      diff=""
 
-if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
-  git checkout "$BRANCH_NAME"
-  existing_branch="true"
-  diff=$(git diff main.."$BRANCH_NAME" --stat 2>/dev/null || echo "")
-elif git show-ref --verify --quiet "refs/remotes/origin/$BRANCH_NAME"; then
-  git checkout -b "$BRANCH_NAME" "origin/$BRANCH_NAME"
-  existing_branch="true"
-  diff=$(git diff main.."$BRANCH_NAME" --stat 2>/dev/null || echo "")
-else
-  git checkout -b "$BRANCH_NAME"
-  existing_branch="false"
-fi
+      if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
+        git checkout "$BRANCH_NAME"
+        existing_branch="true"
+        diff=$(git diff main.."$BRANCH_NAME" --stat 2>/dev/null || echo "")
+      elif git show-ref --verify --quiet "refs/remotes/origin/$BRANCH_NAME"; then
+        git checkout -b "$BRANCH_NAME" "origin/$BRANCH_NAME"
+        existing_branch="true"
+        diff=$(git diff main.."$BRANCH_NAME" --stat 2>/dev/null || echo "")
+      else
+        git checkout -b "$BRANCH_NAME"
+        existing_branch="false"
+      fi
 
-echo "name=$BRANCH_NAME" >> $GITHUB_OUTPUT
-echo "existing_branch=$existing_branch" >> $GITHUB_OUTPUT
-{
-  echo 'diff<<EOF'
-  echo "$diff"
-  echo 'EOF'
-} >> $GITHUB_OUTPUT`,
+      ${echoKeyValue.toGithubOutput("name", "$BRANCH_NAME")}
+      ${echoKeyValue.toGithubOutput("existing_branch", "$existing_branch")}
+      ${heredocOutput("diff", 'echo "$diff"')}
+    `),
   });
 }
 
@@ -107,17 +122,20 @@ echo "existing_branch=$existing_branch" >> $GITHUB_OUTPUT
  * git status - Check working directory status
  * @outputs has_changes, is_clean
  */
-export function gitStatus(id: string): Step {
-  return new Step({
+export function gitStatus(id: string): ExtendedStep<any, any> {
+  return new ExtendedStep({
     id,
     name: "git status",
-    run: `if git diff --quiet HEAD 2>/dev/null; then
-  echo "has_changes=false" >> $GITHUB_OUTPUT
-  echo "is_clean=true" >> $GITHUB_OUTPUT
-else
-  echo "has_changes=true" >> $GITHUB_OUTPUT
-  echo "is_clean=false" >> $GITHUB_OUTPUT
-fi`,
+    outputs: ["has_changes", "is_clean"],
+    run: dedentString(`
+      if git diff --quiet HEAD 2>/dev/null; then
+        ${echoKeyValue.toGithubOutput("has_changes", "false")}
+        ${echoKeyValue.toGithubOutput("is_clean", "true")}
+      else
+        ${echoKeyValue.toGithubOutput("has_changes", "true")}
+        ${echoKeyValue.toGithubOutput("is_clean", "false")}
+      fi
+    `),
   });
 }
 
@@ -134,23 +152,22 @@ export function gitDiff(
   env?: {
     REF?: string;
   },
-): Step {
+): ExtendedStep<any, any> {
   const ref = env?.REF ? '"$REF"' : "HEAD";
 
-  return new Step({
+  return new ExtendedStep({
     id,
     name: "git diff",
     env,
-    run: `{
-  echo 'diff<<EOF'
-  git diff ${ref} --stat 2>/dev/null || echo ""
-  echo 'EOF'
-} >> $GITHUB_OUTPUT
-if git diff --quiet ${ref} 2>/dev/null; then
-  echo "has_changes=false" >> $GITHUB_OUTPUT
-else
-  echo "has_changes=true" >> $GITHUB_OUTPUT
-fi`,
+    outputs: ["diff", "has_changes"],
+    run: dedentString(`
+      ${heredocOutput("diff", `git diff ${ref} --stat 2>/dev/null || echo ""`)}
+      if git diff --quiet ${ref} 2>/dev/null; then
+        ${echoKeyValue.toGithubOutput("has_changes", "false")}
+      else
+        ${echoKeyValue.toGithubOutput("has_changes", "true")}
+      fi
+    `),
   });
 }
 
@@ -162,8 +179,9 @@ fi`,
  * git add -A - Stage all changes
  * No outputs (action only)
  */
-export function gitAddAll(): Step {
-  return new Step({
+export function gitAddAll(id: string): ExtendedStep<any, any> {
+  return new ExtendedStep({
+    id,
     name: "git add -A",
     run: `git add -A`,
   });
@@ -177,8 +195,9 @@ export function gitAddAll(): Step {
  * git commit - Create a commit
  * No outputs (action only)
  */
-export function gitCommit(env: { MESSAGE: string }): Step {
-  return new Step({
+export function gitCommit(id: string, env: { MESSAGE: string }): ExtendedStep<any, any> {
+  return new ExtendedStep({
+    id,
     name: "git commit",
     env,
     run: `git commit -m "$MESSAGE"`,
@@ -193,10 +212,11 @@ export function gitCommit(env: { MESSAGE: string }): Step {
  * git push - Push to remote
  * No outputs (action only)
  */
-export function gitPush(env?: { BRANCH?: string }): Step {
+export function gitPush(id: string, env?: { BRANCH?: string }): ExtendedStep<any, any> {
   const branch = env?.BRANCH ? '"$BRANCH"' : "HEAD";
 
-  return new Step({
+  return new ExtendedStep({
+    id,
     name: "git push",
     env,
     run: `git push origin ${branch}`,

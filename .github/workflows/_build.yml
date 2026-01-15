@@ -2,6 +2,10 @@
 # Do not edit directly. Instead, edit the corresponding .wac.ts file in .github/workflows-ts/
 # and run `pnpm run gwf:build` to regenerate this file.
 name: Build
+permissions: {}
+defaults:
+  run:
+    shell: bash
 'on':
   workflow_call:
     inputs:
@@ -36,16 +40,12 @@ name: Build
       service_digests:
         description: JSON object mapping service names to their digests
         value: ${{ jobs.build.outputs.service_digests }}
-permissions: {}
-defaults:
-  run:
-    shell: bash
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      packages: write
       contents: read
+      packages: write
       attestations: write
       id-token: write
     env:
@@ -78,14 +78,13 @@ jobs:
         with:
           registry: ghcr.io
           image: ${{ github.repository }}
-          version: ${{ steps.docker_meta.outputs.version }}
       - id: docker
         name: Set up Docker
         uses: ./.github/actions/setup-docker
         with:
-          registry: ${{ inputs.push && 'ghcr.io' || '' }}
-          username: ${{ inputs.push && github.actor || '' }}
-          password: ${{ inputs.push && secrets.GITHUB_TOKEN || '' }}
+          registry: ${{ ${{ inputs.push }} && ghcr.io ||  }}
+          username: ${{ ${{ inputs.push }} && ${{ github.actor }} ||  }}
+          password: ${{ ${{ inputs.push }} && ${{ secrets.GITHUB_TOKEN }} ||  }}
       - id: build
         name: Build
         env:

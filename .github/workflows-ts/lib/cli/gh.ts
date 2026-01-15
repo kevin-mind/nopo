@@ -8,7 +8,30 @@
  * - ghApiGraphql → gh api graphql
  */
 
-import { Step } from "@github-actions-workflow-ts/lib";
+import { echoKeyValue, dedentString, type GeneratedWorkflowTypes } from "@github-actions-workflow-ts/lib";
+import { ExtendedStep } from "../enhanced-step.js";
+
+/** Optional step properties that can be added to any step (if, name override, etc.) */
+export type StepProps = Omit<GeneratedWorkflowTypes.Step, 'id' | 'run' | 'uses' | 'env' | 'with'>;
+
+/**
+ * Helper for multi-line GitHub Actions outputs using heredoc syntax.
+ * Use this when the value may contain newlines.
+ */
+export function toGithubOutputMultiline(key: string, valueExpr: string): string {
+  return `${echoKeyValue.toGithubOutput(key, `"$(cat <<'EOF'\n\${${valueExpr}}\nEOF\n)"`)}`;
+}
+
+/**
+ * Simpler multi-line output using heredoc for variables.
+ */
+export function heredocOutput(key: string, content: string): string {
+  return `{
+  echo '${key}<<EOF'
+  ${content}
+  echo 'EOF'
+} >> $GITHUB_OUTPUT`;
+}
 
 // =============================================================================
 // gh pr - Pull Request Commands
@@ -25,20 +48,25 @@ export function ghPrList(
     HEAD_BRANCH?: string;
     STATE?: string;
   },
-): Step {
+  props?: StepProps,
+) {
   const headFilter = env.HEAD_BRANCH ? '--head "$HEAD_BRANCH"' : "";
   const stateFilter = env.STATE ? '--state "$STATE"' : "";
 
-  return new Step({
+  return new ExtendedStep({
     id,
+    ...props,
     name: "gh pr list",
     env,
-    run: `pr=$(gh pr list --repo "$GITHUB_REPOSITORY" ${headFilter} ${stateFilter} --json number,isDraft,author,headRefName --jq '.[0]')
-echo "number=$(echo "$pr" | jq -r '.number // empty')" >> $GITHUB_OUTPUT
-echo "is_draft=$(echo "$pr" | jq -r '.isDraft // empty')" >> $GITHUB_OUTPUT
-echo "author=$(echo "$pr" | jq -r '.author.login // empty')" >> $GITHUB_OUTPUT
-echo "head_branch=$(echo "$pr" | jq -r '.headRefName // empty')" >> $GITHUB_OUTPUT
-echo "found=$([[ -n "$pr" && "$pr" != "null" ]] && echo "true" || echo "false")" >> $GITHUB_OUTPUT`,
+    run: dedentString(`
+      pr=$(gh pr list --repo "$GITHUB_REPOSITORY" ${headFilter} ${stateFilter} --json number,isDraft,author,headRefName --jq '.[0]')
+      ${echoKeyValue.toGithubOutput("number", '$(echo "$pr" | jq -r \'.number // empty\')')}
+      ${echoKeyValue.toGithubOutput("is_draft", '$(echo "$pr" | jq -r \'.isDraft // empty\')')}
+      ${echoKeyValue.toGithubOutput("author", '$(echo "$pr" | jq -r \'.author.login // empty\')')}
+      ${echoKeyValue.toGithubOutput("head_branch", '$(echo "$pr" | jq -r \'.headRefName // empty\')')}
+      ${echoKeyValue.toGithubOutput("found", '$([[ -n "$pr" && "$pr" != "null" ]] && echo "true" || echo "false")')}
+    `),
+    outputs: ["number", "is_draft", "author", "head_branch", "found"],
   });
 }
 
@@ -52,21 +80,20 @@ export function ghPrView(
     GH_TOKEN: string;
     PR_NUMBER: string;
   },
-): Step {
-  return new Step({
+) {
+  return new ExtendedStep({
     id,
     name: "gh pr view",
     env,
-    run: `pr=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json number,isDraft,author,headRefName,body)
-echo "number=$(echo "$pr" | jq -r '.number')" >> $GITHUB_OUTPUT
-echo "is_draft=$(echo "$pr" | jq -r '.isDraft')" >> $GITHUB_OUTPUT
-echo "author=$(echo "$pr" | jq -r '.author.login')" >> $GITHUB_OUTPUT
-echo "head_branch=$(echo "$pr" | jq -r '.headRefName')" >> $GITHUB_OUTPUT
-{
-  echo 'body<<EOF'
-  echo "$pr" | jq -r '.body'
-  echo 'EOF'
-} >> $GITHUB_OUTPUT`,
+    run: dedentString(`
+      pr=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json number,isDraft,author,headRefName,body)
+      ${echoKeyValue.toGithubOutput("number", '$(echo "$pr" | jq -r \'.number\')')}
+      ${echoKeyValue.toGithubOutput("is_draft", '$(echo "$pr" | jq -r \'.isDraft\')')}
+      ${echoKeyValue.toGithubOutput("author", '$(echo "$pr" | jq -r \'.author.login\')')}
+      ${echoKeyValue.toGithubOutput("head_branch", '$(echo "$pr" | jq -r \'.headRefName\')')}
+      ${heredocOutput("body", 'echo "$pr" | jq -r \'.body\'')}
+    `),
+    outputs: ["number", "is_draft", "author", "head_branch", "body"],
   });
 }
 
@@ -74,8 +101,10 @@ echo "head_branch=$(echo "$pr" | jq -r '.headRefName')" >> $GITHUB_OUTPUT
  * gh pr ready - Mark PR as ready for review
  * No outputs (action only)
  */
-export function ghPrReady(env: { GH_TOKEN: string; PR_NUMBER: string }): Step {
-  return new Step({
+export function ghPrReady(id: string, env: { GH_TOKEN: string; PR_NUMBER: string }, props?: StepProps): ExtendedStep {
+  return new ExtendedStep({
+    id,
+    ...props,
     name: "gh pr ready",
     env,
     run: `gh pr ready "$PR_NUMBER" --repo "$GITHUB_REPOSITORY"`,
@@ -86,11 +115,13 @@ export function ghPrReady(env: { GH_TOKEN: string; PR_NUMBER: string }): Step {
  * gh pr ready --undo - Convert PR to draft
  * No outputs (action only)
  */
-export function ghPrReadyUndo(env: {
+export function ghPrReadyUndo(id: string, env: {
   GH_TOKEN: string;
   PR_NUMBER: string;
-}): Step {
-  return new Step({
+}, props?: StepProps): ExtendedStep {
+  return new ExtendedStep({
+    id,
+    ...props,
     name: "gh pr ready --undo",
     env,
     run: `gh pr ready "$PR_NUMBER" --undo --repo "$GITHUB_REPOSITORY"`,
@@ -101,12 +132,14 @@ export function ghPrReadyUndo(env: {
  * gh pr edit --add-reviewer - Add reviewers to PR
  * No outputs (action only)
  */
-export function ghPrEditAddReviewer(env: {
+export function ghPrEditAddReviewer(id: string, env: {
   GH_TOKEN: string;
   PR_NUMBER: string;
   REVIEWERS: string;
-}): Step {
-  return new Step({
+}, props?: StepProps): ExtendedStep {
+  return new ExtendedStep({
+    id,
+    ...props,
     name: "gh pr edit --add-reviewer",
     env,
     run: `gh pr edit "$PR_NUMBER" --add-reviewer "$REVIEWERS" --repo "$GITHUB_REPOSITORY"`,
@@ -117,12 +150,14 @@ export function ghPrEditAddReviewer(env: {
  * gh pr edit --add-label - Add label to PR
  * No outputs (action only)
  */
-export function ghPrEditAddLabel(env: {
+export function ghPrEditAddLabel(id: string, env: {
   GH_TOKEN: string;
   PR_NUMBER: string;
   LABEL: string;
-}): Step {
-  return new Step({
+}, props?: StepProps): ExtendedStep {
+  return new ExtendedStep({
+    id,
+    ...props,
     name: "gh pr edit --add-label",
     env,
     run: `gh pr edit "$PR_NUMBER" --add-label "$LABEL" --repo "$GITHUB_REPOSITORY" || true`,
@@ -131,33 +166,26 @@ export function ghPrEditAddLabel(env: {
 
 /**
  * gh pr comment - Post comment on PR
- * @outputs comment_id (if id is provided)
+ * @outputs comment_id
  */
 export function ghPrComment(
-  idOrEnv:
-    | string
-    | {
-        GH_TOKEN: string;
-        PR_NUMBER: string;
-        BODY: string;
-      },
-  envArg?: {
+  id: string,
+  env: {
     GH_TOKEN: string;
     PR_NUMBER: string;
     BODY: string;
   },
-): Step {
-  // Support both (id, env) and (env) signatures
-  const id = typeof idOrEnv === "string" ? idOrEnv : undefined;
-  const env = typeof idOrEnv === "string" ? envArg! : idOrEnv;
-
-  return new Step({
+): ExtendedStep {
+  return new ExtendedStep({
     id,
     name: "gh pr comment",
     env,
-    run: `comment_url=$(gh pr comment "$PR_NUMBER" --body "$BODY" --repo "$GITHUB_REPOSITORY" 2>&1)
-comment_id=$(echo "$comment_url" | grep -oE '[0-9]+$' || echo "")
-echo "comment_id=$comment_id" >> $GITHUB_OUTPUT`,
+    run: dedentString(`
+      comment_url=$(gh pr comment "$PR_NUMBER" --body "$BODY" --repo "$GITHUB_REPOSITORY" 2>&1)
+      comment_id=$(echo "$comment_url" | grep -oE '[0-9]+$' || echo "")
+      ${echoKeyValue.toGithubOutput("comment_id", "$comment_id")}
+    `),
+    outputs: ["comment_id"],
   });
 }
 
@@ -175,19 +203,18 @@ export function ghIssueView(
     GH_TOKEN: string;
     ISSUE_NUMBER: string;
   },
-): Step {
-  return new Step({
+) {
+  return new ExtendedStep({
     id,
     name: "gh issue view",
     env,
-    run: `issue=$(gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --json title,body,labels)
-echo "title=$(echo "$issue" | jq -r '.title')" >> $GITHUB_OUTPUT
-{
-  echo 'body<<EOF'
-  echo "$issue" | jq -r '.body'
-  echo 'EOF'
-} >> $GITHUB_OUTPUT
-echo "labels=$(echo "$issue" | jq -c '[.labels[].name]')" >> $GITHUB_OUTPUT`,
+    run: dedentString(`
+      issue=$(gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --json title,body,labels)
+      ${echoKeyValue.toGithubOutput("title", '$(echo "$issue" | jq -r \'.title\')')}
+      ${heredocOutput("body", 'echo "$issue" | jq -r \'.body\'')}
+      ${echoKeyValue.toGithubOutput("labels", '$(echo "$issue" | jq -c \'[.labels[].name]\')')}
+    `),
+    outputs: ["title", "body", "labels"],
   });
 }
 
@@ -202,13 +229,16 @@ export function ghIssueViewHasLabel(
     ISSUE_NUMBER: string;
     LABEL: string;
   },
-): Step {
-  return new Step({
+): ExtendedStep {
+  return new ExtendedStep({
     id,
     name: "gh issue view (check label)",
     env,
-    run: `has_label=$(gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --json labels --jq ".labels[].name" | grep -c "^$LABEL$" || true)
-echo "has_label=$([[ "$has_label" -gt 0 ]] && echo "true" || echo "false")" >> $GITHUB_OUTPUT`,
+    run: dedentString(`
+      has_label=$(gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --json labels --jq ".labels[].name" | grep -c "^$LABEL$" || true)
+      ${echoKeyValue.toGithubOutput("has_label", '$([[ "$has_label" -gt 0 ]] && echo "true" || echo "false")')}
+    `),
+    outputs: ["has_label"],
   });
 }
 
@@ -216,12 +246,14 @@ echo "has_label=$([[ "$has_label" -gt 0 ]] && echo "true" || echo "false")" >> $
  * gh issue edit --add-label - Add labels to issue
  * No outputs (action only)
  */
-export function ghIssueEditAddLabel(env: {
+export function ghIssueEditAddLabel(id: string, env: {
   GH_TOKEN: string;
   ISSUE_NUMBER: string;
   LABELS: string;
-}): Step {
-  return new Step({
+}, props?: StepProps): ExtendedStep {
+  return new ExtendedStep({
+    id,
+    ...props,
     name: "gh issue edit --add-label",
     env,
     run: `gh issue edit "$ISSUE_NUMBER" --add-label "$LABELS" --repo "$GITHUB_REPOSITORY"`,
@@ -232,12 +264,13 @@ export function ghIssueEditAddLabel(env: {
  * gh issue edit --remove-label - Remove labels from issue
  * No outputs (action only)
  */
-export function ghIssueEditRemoveLabel(env: {
+export function ghIssueEditRemoveLabel(id: string, env: {
   GH_TOKEN: string;
   ISSUE_NUMBER: string;
   LABELS: string;
-}): Step {
-  return new Step({
+}): ExtendedStep {
+  return new ExtendedStep({
+    id,
     name: "gh issue edit --remove-label",
     env,
     run: `gh issue edit "$ISSUE_NUMBER" --remove-label "$LABELS" --repo "$GITHUB_REPOSITORY"`,
@@ -248,12 +281,13 @@ export function ghIssueEditRemoveLabel(env: {
  * gh issue edit --add-assignee - Add assignees to issue
  * No outputs (action only)
  */
-export function ghIssueEditAddAssignee(env: {
+export function ghIssueEditAddAssignee(id: string, env: {
   GH_TOKEN: string;
   ISSUE_NUMBER: string;
   ASSIGNEES: string;
-}): Step {
-  return new Step({
+}): ExtendedStep {
+  return new ExtendedStep({
+    id,
     name: "gh issue edit --add-assignee",
     env,
     run: `gh issue edit "$ISSUE_NUMBER" --add-assignee "$ASSIGNEES" --repo "$GITHUB_REPOSITORY"`,
@@ -264,12 +298,14 @@ export function ghIssueEditAddAssignee(env: {
  * gh issue edit --remove-assignee - Remove assignees from issue
  * No outputs (action only)
  */
-export function ghIssueEditRemoveAssignee(env: {
+export function ghIssueEditRemoveAssignee(id: string, env: {
   GH_TOKEN: string;
   ISSUE_NUMBER: string;
   ASSIGNEES: string;
-}): Step {
-  return new Step({
+}, props?: StepProps): ExtendedStep {
+  return new ExtendedStep({
+    id,
+    ...props,
     name: "gh issue edit --remove-assignee",
     env,
     run: `gh issue edit "$ISSUE_NUMBER" --remove-assignee "$ASSIGNEES" --repo "$GITHUB_REPOSITORY"`,
@@ -287,14 +323,19 @@ export function ghIssueComment(
     ISSUE_NUMBER: string;
     BODY: string;
   },
-): Step {
-  return new Step({
+  props?: StepProps,
+) {
+  return new ExtendedStep({
     id,
+    ...props,
     name: "gh issue comment",
     env,
-    run: `comment_url=$(gh issue comment "$ISSUE_NUMBER" --body "$BODY" --repo "$GITHUB_REPOSITORY" 2>&1)
-comment_id=$(echo "$comment_url" | grep -oE '[0-9]+$' || echo "")
-echo "comment_id=$comment_id" >> $GITHUB_OUTPUT`,
+    run: dedentString(`
+      comment_url=$(gh issue comment "$ISSUE_NUMBER" --body "$BODY" --repo "$GITHUB_REPOSITORY" 2>&1)
+      comment_id=$(echo "$comment_url" | grep -oE '[0-9]+$' || echo "")
+      ${echoKeyValue.toGithubOutput("comment_id", "$comment_id")}
+    `),
+    outputs: ["comment_id"],
   });
 }
 
@@ -312,15 +353,18 @@ export function ghLabelList(
     GH_TOKEN: string;
     SEARCH?: string;
   },
-): Step {
+): ExtendedStep {
   const searchFilter = env.SEARCH ? '--search "$SEARCH"' : "";
 
-  return new Step({
+  return new ExtendedStep({
     id,
     name: "gh label list",
     env,
-    run: `labels=$(gh label list --repo "$GITHUB_REPOSITORY" ${searchFilter} --json name --jq '[.[].name]')
-echo "labels=$labels" >> $GITHUB_OUTPUT`,
+    run: dedentString(`
+      labels=$(gh label list --repo "$GITHUB_REPOSITORY" ${searchFilter} --json name --jq '[.[].name]')
+      ${echoKeyValue.toGithubOutput("labels", "$labels")}
+    `),
+    outputs: ["labels"],
   });
 }
 
@@ -328,16 +372,17 @@ echo "labels=$labels" >> $GITHUB_OUTPUT`,
  * gh label create - Create a label
  * No outputs (action only)
  */
-export function ghLabelCreate(env: {
+export function ghLabelCreate(id: string, env: {
   GH_TOKEN: string;
   NAME: string;
   DESCRIPTION?: string;
   COLOR?: string;
-}): Step {
+}): ExtendedStep {
   const descFlag = env.DESCRIPTION ? '--description "$DESCRIPTION"' : "";
   const colorFlag = env.COLOR ? '--color "$COLOR"' : "";
 
-  return new Step({
+  return new ExtendedStep({
+    id,
     name: "gh label create",
     env,
     run: `gh label create "$NAME" ${descFlag} ${colorFlag} --repo "$GITHUB_REPOSITORY" --force`,
@@ -363,7 +408,7 @@ export function ghApiGraphql(
     headers?: Record<string, string>;
     jq?: string;
   },
-): Step {
+): ExtendedStep {
   const variableFlags = opts?.variables
     ? Object.entries(opts.variables)
         .map(([k, v]) => `-F ${k}="${v}"`)
@@ -378,16 +423,15 @@ export function ghApiGraphql(
 
   const jqFlag = opts?.jq ? `--jq '${opts.jq}'` : "";
 
-  return new Step({
+  return new ExtendedStep({
     id,
     name: "gh api graphql",
     env,
-    run: `result=$(gh api graphql -f query="$QUERY" ${variableFlags} ${headerFlags} ${jqFlag})
-{
-  echo 'result<<EOF'
-  echo "$result"
-  echo 'EOF'
-} >> $GITHUB_OUTPUT`,
+    run: dedentString(`
+      result=$(gh api graphql -f query="$QUERY" ${variableFlags} ${headerFlags} ${jqFlag})
+      ${heredocOutput("result", 'echo "$result"')}
+    `),
+    outputs: ["result"],
   });
 }
 
@@ -404,19 +448,18 @@ export function ghApiGet(
   opts?: {
     jq?: string;
   },
-): Step {
+): ExtendedStep {
   const jqFlag = opts?.jq ? `--jq '${opts.jq}'` : "";
 
-  return new Step({
+  return new ExtendedStep({
     id,
     name: "gh api GET",
     env,
-    run: `result=$(gh api "$ENDPOINT" ${jqFlag})
-{
-  echo 'result<<EOF'
-  echo "$result"
-  echo 'EOF'
-} >> $GITHUB_OUTPUT`,
+    run: dedentString(`
+      result=$(gh api "$ENDPOINT" ${jqFlag})
+      ${heredocOutput("result", 'echo "$result"')}
+    `),
+    outputs: ["result"],
   });
 }
 
@@ -424,16 +467,17 @@ export function ghApiGet(
  * gh api (REST POST) - Make REST API POST request
  * No outputs (action only)
  */
-export function ghApiPost(env: {
+export function ghApiPost(id: string, env: {
   GH_TOKEN: string;
   ENDPOINT: string;
   FIELD?: string;
   VALUE?: string;
-}): Step {
+}): ExtendedStep {
   const fieldFlag =
     env.FIELD && env.VALUE ? `-f ${env.FIELD}="$VALUE"` : "";
 
-  return new Step({
+  return new ExtendedStep({
+    id,
     name: "gh api POST",
     env,
     run: `gh api "$ENDPOINT" ${fieldFlag}`,
@@ -444,12 +488,14 @@ export function ghApiPost(env: {
  * gh api (add reaction) - Add reaction to comment
  * No outputs (action only)
  */
-export function ghApiAddReaction(env: {
+export function ghApiAddReaction(id: string, env: {
   GH_TOKEN: string;
   COMMENT_ID: string;
   REACTION: string;
-}): Step {
-  return new Step({
+}, props?: StepProps): ExtendedStep {
+  return new ExtendedStep({
+    id,
+    ...props,
     name: "gh api (add reaction)",
     env,
     run: `gh api "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content="$REACTION"`,
@@ -467,16 +513,19 @@ export function ghApiCountComments(
     PR_NUMBER: string;
     USER_LOGIN: string;
   },
-): Step {
-  return new Step({
+) {
+  return new ExtendedStep({
     id,
     name: "gh api (count comments)",
     env,
-    run: `review_comments=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/comments" --jq "[.[] | select(.user.login == \\"$USER_LOGIN\\")] | length")
-issue_comments=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" --jq "[.[] | select(.user.login == \\"$USER_LOGIN\\")] | length")
-reviews=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/reviews" --jq "[.[] | select(.user.login == \\"$USER_LOGIN\\")] | length")
-total=$((review_comments + issue_comments + reviews))
-echo "count=$total" >> $GITHUB_OUTPUT`,
+    run: dedentString(`
+      review_comments=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/comments" --jq "[.[] | select(.user.login == \\"$USER_LOGIN\\")] | length")
+      issue_comments=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" --jq "[.[] | select(.user.login == \\"$USER_LOGIN\\")] | length")
+      reviews=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/reviews" --jq "[.[] | select(.user.login == \\"$USER_LOGIN\\")] | length")
+      total=$((review_comments + issue_comments + reviews))
+      ${echoKeyValue.toGithubOutput("count", "$total")}
+    `),
+    outputs: ["count"],
   });
 }
 
@@ -490,7 +539,7 @@ export function ghApiUnresolvedComments(
     GH_TOKEN: string;
     PR_NUMBER: string;
   },
-): Step {
+) {
   const query = `
     query($owner: String!, $repo: String!, $pr: Int!) {
       repository(owner: $owner, name: $repo) {
@@ -505,21 +554,24 @@ export function ghApiUnresolvedComments(
     }
   `;
 
-  return new Step({
+  return new ExtendedStep({
     id,
     name: "gh api graphql (unresolved comments)",
     env,
-    run: `repo_name="\${GITHUB_REPOSITORY#*/}"
-owner="\${GITHUB_REPOSITORY%/*}"
+    run: dedentString(`
+      repo_name="\${GITHUB_REPOSITORY#*/}"
+      owner="\${GITHUB_REPOSITORY%/*}"
 
-result=$(gh api graphql -f query='${query.trim()}' \
-  -F owner="$owner" \
-  -F repo="$repo_name" \
-  -F pr="$PR_NUMBER")
+      result=$(gh api graphql -f query='${query.trim()}' \\
+        -F owner="$owner" \\
+        -F repo="$repo_name" \\
+        -F pr="$PR_NUMBER")
 
-unresolved_count=$(echo "$result" | jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length')
-echo "unresolved_count=$unresolved_count" >> $GITHUB_OUTPUT
-echo "has_unresolved=$([[ "$unresolved_count" -gt 0 ]] && echo "true" || echo "false")" >> $GITHUB_OUTPUT`,
+      unresolved_count=$(echo "$result" | jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length')
+      ${echoKeyValue.toGithubOutput("unresolved_count", "$unresolved_count")}
+      ${echoKeyValue.toGithubOutput("has_unresolved", '$([[ "$unresolved_count" -gt 0 ]] && echo "true" || echo "false")')}
+    `),
+    outputs: ["has_unresolved", "unresolved_count"],
   });
 }
 
@@ -527,11 +579,11 @@ echo "has_unresolved=$([[ "$unresolved_count" -gt 0 ]] && echo "true" || echo "f
  * gh api graphql (update project status) - Update issue's project status field
  * No outputs (action only)
  */
-export function ghApiUpdateProjectStatus(env: {
+export function ghApiUpdateProjectStatus(id: string, env: {
   GH_TOKEN: string;
   ISSUE_NUMBER: string;
   TARGET_STATUS: string;
-}): Step {
+}, props?: StepProps) {
   // GraphQL queries for finding and updating project items
   const findItemQuery = `
     query($owner: String!, $repo: String!, $issue: Int!) {
@@ -570,43 +622,47 @@ export function ghApiUpdateProjectStatus(env: {
     }
   `;
 
-  return new Step({
+  return new ExtendedStep({
+    id,
+    ...props,
     name: "gh api graphql (update project status)",
     env,
-    run: `repo_name="\${GITHUB_REPOSITORY#*/}"
-owner="\${GITHUB_REPOSITORY%/*}"
+    run: dedentString(`
+      repo_name="\${GITHUB_REPOSITORY#*/}"
+      owner="\${GITHUB_REPOSITORY%/*}"
 
-# Find the project item
-result=$(gh api graphql -f query='${findItemQuery.trim()}' \
-  -F owner="$owner" \
-  -F repo="$repo_name" \
-  -F issue="$ISSUE_NUMBER" 2>/dev/null || echo "{}")
+      # Find the project item
+      result=$(gh api graphql -f query='${findItemQuery.trim()}' \\
+        -F owner="$owner" \\
+        -F repo="$repo_name" \\
+        -F issue="$ISSUE_NUMBER" 2>/dev/null || echo "{}")
 
-# Extract project info
-item=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0] // empty')
-if [[ -z "$item" ]]; then
-  echo "No project item found for issue #$ISSUE_NUMBER"
-  exit 0
-fi
+      # Extract project info
+      item=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0] // empty')
+      if [[ -z "$item" ]]; then
+        echo "No project item found for issue #$ISSUE_NUMBER"
+        exit 0
+      fi
 
-item_id=$(echo "$item" | jq -r '.id')
-project_id=$(echo "$item" | jq -r '.project.id')
-field_id=$(echo "$item" | jq -r '.project.field.id')
-option_id=$(echo "$item" | jq -r --arg status "$TARGET_STATUS" '.project.field.options[] | select(.name == $status) | .id')
+      item_id=$(echo "$item" | jq -r '.id')
+      project_id=$(echo "$item" | jq -r '.project.id')
+      field_id=$(echo "$item" | jq -r '.project.field.id')
+      option_id=$(echo "$item" | jq -r --arg status "$TARGET_STATUS" '.project.field.options[] | select(.name == $status) | .id')
 
-if [[ -z "$option_id" ]]; then
-  echo "Status '$TARGET_STATUS' not found in project"
-  exit 0
-fi
+      if [[ -z "$option_id" ]]; then
+        echo "Status '$TARGET_STATUS' not found in project"
+        exit 0
+      fi
 
-# Update the status
-gh api graphql -f query='${updateMutation.trim()}' \
-  -F projectId="$project_id" \
-  -F itemId="$item_id" \
-  -F fieldId="$field_id" \
-  -F optionId="$option_id"
+      # Update the status
+      gh api graphql -f query='${updateMutation.trim()}' \\
+        -F projectId="$project_id" \\
+        -F itemId="$item_id" \\
+        -F fieldId="$field_id" \\
+        -F optionId="$option_id"
 
-echo "Updated project status to '$TARGET_STATUS'"`,
+      echo "Updated project status to '$TARGET_STATUS'"
+    `),
   });
 }
 
@@ -620,24 +676,19 @@ export function ghIssueViewWithComments(
     GH_TOKEN: string;
     ISSUE_NUMBER: string;
   },
-): Step {
-  return new Step({
+) {
+  return new ExtendedStep({
     id,
     name: "gh issue view (with comments)",
     env,
-    run: `issue=$(gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --json title,body,labels,comments)
-echo "title=$(echo "$issue" | jq -r '.title')" >> $GITHUB_OUTPUT
-{
-  echo 'body<<EOF'
-  echo "$issue" | jq -r '.body'
-  echo 'EOF'
-} >> $GITHUB_OUTPUT
-echo "labels=$(echo "$issue" | jq -c '[.labels[].name]')" >> $GITHUB_OUTPUT
-{
-  echo 'comments<<EOF'
-  echo "$issue" | jq -r '.comments[] | "---\\nAuthor: \\(.author.login)\\n\\(.body)\\n"'
-  echo 'EOF'
-} >> $GITHUB_OUTPUT`,
+    run: dedentString(`
+      issue=$(gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --json title,body,labels,comments)
+      ${echoKeyValue.toGithubOutput("title", '$(echo "$issue" | jq -r \'.title\')')}
+      ${heredocOutput("body", 'echo "$issue" | jq -r \'.body\'')}
+      ${echoKeyValue.toGithubOutput("labels", '$(echo "$issue" | jq -c \'[.labels[].name]\')')}
+      ${heredocOutput("comments", 'echo "$issue" | jq -r \'.comments[] | "---\\nAuthor: \\(.author.login)\\n\\(.body)\\n"\'')}
+    `),
+    outputs: ["title", "body", "labels", "comments"],
   });
 }
 
@@ -651,36 +702,39 @@ export function ghPrListForIssue(
     GH_TOKEN: string;
     ISSUE_NUMBER: string;
   },
-): Step {
-  return new Step({
+) {
+  return new ExtendedStep({
     id,
     name: "gh pr list (for issue)",
     env,
-    run: `# Search for PRs that mention "Fixes #N" or "Closes #N"
-prs=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --json number,headRefName,url,body)
+    run: dedentString(`
+      # Search for PRs that mention "Fixes #N" or "Closes #N"
+      prs=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --json number,headRefName,url,body)
 
-# Find PR that references this issue
-pr=$(echo "$prs" | jq -r --arg issue "$ISSUE_NUMBER" '
-  .[] | select(.body | test("(Fixes|Closes|Resolves) #" + $issue + "([^0-9]|$)"; "i"))
-' | head -1)
+      # Find PR that references this issue
+      pr=$(echo "$prs" | jq -r --arg issue "$ISSUE_NUMBER" '
+        .[] | select(.body | test("(Fixes|Closes|Resolves) #" + $issue + "([^0-9]|$)"; "i"))
+      ' | head -1)
 
-if [[ -n "$pr" && "$pr" != "null" ]]; then
-  echo "has_pr=true" >> $GITHUB_OUTPUT
-  echo "pr_number=$(echo "$pr" | jq -r '.number')" >> $GITHUB_OUTPUT
-  echo "pr_branch=$(echo "$pr" | jq -r '.headRefName')" >> $GITHUB_OUTPUT
-  echo "pr_url=$(echo "$pr" | jq -r '.url')" >> $GITHUB_OUTPUT
-else
-  echo "has_pr=false" >> $GITHUB_OUTPUT
-  echo "pr_number=" >> $GITHUB_OUTPUT
-  echo "pr_branch=" >> $GITHUB_OUTPUT
-  echo "pr_url=" >> $GITHUB_OUTPUT
-fi`,
+      if [[ -n "$pr" && "$pr" != "null" ]]; then
+        ${echoKeyValue.toGithubOutput("has_pr", "true")}
+        ${echoKeyValue.toGithubOutput("pr_number", '$(echo "$pr" | jq -r \'.number\')')}
+        ${echoKeyValue.toGithubOutput("pr_branch", '$(echo "$pr" | jq -r \'.headRefName\')')}
+        ${echoKeyValue.toGithubOutput("pr_url", '$(echo "$pr" | jq -r \'.url\')')}
+      else
+        ${echoKeyValue.toGithubOutput("has_pr", "false")}
+        ${echoKeyValue.toGithubOutput("pr_number", "")}
+        ${echoKeyValue.toGithubOutput("pr_branch", "")}
+        ${echoKeyValue.toGithubOutput("pr_url", "")}
+      fi
+    `),
+    outputs: ["has_pr", "pr_number", "pr_branch", "pr_url"],
   });
 }
 
 /**
  * gh api graphql (check sub-issue) - Check if issue is a sub-issue (has parent)
- * @outputs is_sub_issue, should_triage, issue_title, issue_body
+ * @outputs is_sub_issue, should_triage, issue_title, issue_body, issue_number
  */
 export function ghApiCheckSubIssue(
   id: string,
@@ -688,7 +742,7 @@ export function ghApiCheckSubIssue(
     GH_TOKEN: string;
     ISSUE_NUMBER: string;
   },
-): Step {
+) {
   const query = `
     query($owner: String!, $repo: String!, $number: Int!) {
       repository(owner: $owner, name: $repo) {
@@ -701,51 +755,46 @@ export function ghApiCheckSubIssue(
     }
   `;
 
-  return new Step({
+  return new ExtendedStep({
     id,
     name: "gh api graphql (check sub-issue)",
     env,
-    run: `repo_name="\${GITHUB_REPOSITORY#*/}"
-owner="\${GITHUB_REPOSITORY%/*}"
+    run: dedentString(`
+      repo_name="\${GITHUB_REPOSITORY#*/}"
+      owner="\${GITHUB_REPOSITORY%/*}"
 
-result=$(gh api graphql -H "GraphQL-Features: sub_issues" -f query='${query.trim()}' \
-  -F owner="$owner" \
-  -F repo="$repo_name" \
-  -F number="$ISSUE_NUMBER" 2>/dev/null || echo '{"data":{"repository":{"issue":null}}}')
+      result=$(gh api graphql -H "GraphQL-Features: sub_issues" -f query='${query.trim()}' \\
+        -F owner="$owner" \\
+        -F repo="$repo_name" \\
+        -F number="$ISSUE_NUMBER" 2>/dev/null || echo '{"data":{"repository":{"issue":null}}}')
 
-issue=$(echo "$result" | jq -r '.data.repository.issue')
+      issue=$(echo "$result" | jq -r '.data.repository.issue')
 
-if [[ -z "$issue" || "$issue" == "null" ]]; then
-  echo "is_sub_issue=false" >> $GITHUB_OUTPUT
-  echo "should_triage=false" >> $GITHUB_OUTPUT
-  echo "issue_title=" >> $GITHUB_OUTPUT
-  {
-    echo 'issue_body<<EOF'
-    echo ''
-    echo 'EOF'
-  } >> $GITHUB_OUTPUT
-  exit 0
-fi
+      if [[ -z "$issue" || "$issue" == "null" ]]; then
+        ${echoKeyValue.toGithubOutput("is_sub_issue", "false")}
+        ${echoKeyValue.toGithubOutput("should_triage", "false")}
+        ${echoKeyValue.toGithubOutput("issue_title", "")}
+        ${heredocOutput("issue_body", "echo ''")}
+        exit 0
+      fi
 
-parent=$(echo "$issue" | jq -r '.parent.number // empty')
-title=$(echo "$issue" | jq -r '.title')
-body=$(echo "$issue" | jq -r '.body // ""')
+      parent=$(echo "$issue" | jq -r '.parent.number // empty')
+      title=$(echo "$issue" | jq -r '.title')
+      body=$(echo "$issue" | jq -r '.body // ""')
 
-if [[ -n "$parent" ]]; then
-  echo "is_sub_issue=true" >> $GITHUB_OUTPUT
-  echo "should_triage=false" >> $GITHUB_OUTPUT
-else
-  echo "is_sub_issue=false" >> $GITHUB_OUTPUT
-  echo "should_triage=true" >> $GITHUB_OUTPUT
-fi
+      if [[ -n "$parent" ]]; then
+        ${echoKeyValue.toGithubOutput("is_sub_issue", "true")}
+        ${echoKeyValue.toGithubOutput("should_triage", "false")}
+      else
+        ${echoKeyValue.toGithubOutput("is_sub_issue", "false")}
+        ${echoKeyValue.toGithubOutput("should_triage", "true")}
+      fi
 
-echo "issue_title=$title" >> $GITHUB_OUTPUT
-echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
-{
-  echo 'issue_body<<EOF'
-  echo "$body"
-  echo 'EOF'
-} >> $GITHUB_OUTPUT`,
+      ${echoKeyValue.toGithubOutput("issue_title", "$title")}
+      ${echoKeyValue.toGithubOutput("issue_number", "$ISSUE_NUMBER")}
+      ${heredocOutput("issue_body", 'echo "$body"')}
+    `),
+    outputs: ["is_sub_issue", "should_triage", "issue_title", "issue_body", "issue_number"],
   });
 }
 
@@ -759,7 +808,7 @@ export function ghApiCheckProjectStatus(
     GH_TOKEN: string;
     ISSUE_NUMBER: string;
   },
-): Step {
+) {
   const query = `
     query($owner: String!, $repo: String!, $issue: Int!) {
       repository(owner: $owner, name: $repo) {
@@ -778,28 +827,31 @@ export function ghApiCheckProjectStatus(
     }
   `;
 
-  return new Step({
+  return new ExtendedStep({
     id,
     name: "gh api graphql (check project status)",
     env,
-    run: `repo_name="\${GITHUB_REPOSITORY#*/}"
-owner="\${GITHUB_REPOSITORY%/*}"
+    run: dedentString(`
+      repo_name="\${GITHUB_REPOSITORY#*/}"
+      owner="\${GITHUB_REPOSITORY%/*}"
 
-result=$(gh api graphql -f query='${query.trim()}' \
-  -F owner="$owner" \
-  -F repo="$repo_name" \
-  -F issue="$ISSUE_NUMBER" 2>/dev/null || echo '{}')
+      result=$(gh api graphql -f query='${query.trim()}' \\
+        -F owner="$owner" \\
+        -F repo="$repo_name" \\
+        -F issue="$ISSUE_NUMBER" 2>/dev/null || echo '{}')
 
-status=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0].fieldValueByName.name // ""')
+      status=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0].fieldValueByName.name // ""')
 
-echo "status=$status" >> $GITHUB_OUTPUT
+      ${echoKeyValue.toGithubOutput("status", "$status")}
 
-# Can implement if status is empty, Ready, or Backlog
-if [[ -z "$status" || "$status" == "Ready" || "$status" == "Backlog" ]]; then
-  echo "can_implement=true" >> $GITHUB_OUTPUT
-else
-  echo "can_implement=false" >> $GITHUB_OUTPUT
-fi`,
+      # Can implement if status is empty, Ready, or Backlog
+      if [[ -z "$status" || "$status" == "Ready" || "$status" == "Backlog" ]]; then
+        ${echoKeyValue.toGithubOutput("can_implement", "true")}
+      else
+        ${echoKeyValue.toGithubOutput("can_implement", "false")}
+      fi
+    `),
+    outputs: ["status", "can_implement"],
   });
 }
 
@@ -814,19 +866,24 @@ export function ghPrViewBranch(
     IS_PR: string;
     PR_NUMBER: string;
   },
-): Step {
-  return new Step({
+  props?: StepProps,
+) {
+  return new ExtendedStep({
     id,
+    ...props,
     name: "gh pr view (branch)",
     env,
-    run: `if [[ "$IS_PR" == "true" ]]; then
-  branch=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefName --jq '.headRefName')
-  echo "is_pr=true" >> $GITHUB_OUTPUT
-  echo "branch=$branch" >> $GITHUB_OUTPUT
-else
-  echo "is_pr=false" >> $GITHUB_OUTPUT
-  echo "branch=main" >> $GITHUB_OUTPUT
-fi`,
+    run: dedentString(`
+      if [[ "$IS_PR" == "true" ]]; then
+        branch=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefName --jq '.headRefName')
+        ${echoKeyValue.toGithubOutput("is_pr", "true")}
+        ${echoKeyValue.toGithubOutput("branch", "$branch")}
+      else
+        ${echoKeyValue.toGithubOutput("is_pr", "false")}
+        ${echoKeyValue.toGithubOutput("branch", "main")}
+      fi
+    `),
+    outputs: ["is_pr", "branch"],
   });
 }
 
@@ -840,36 +897,31 @@ export function ghPrViewLinkedIssue(
     GH_TOKEN: string;
     PR_NUMBER: string;
   },
-): Step {
-  return new Step({
+) {
+  return new ExtendedStep({
     id,
     name: "gh pr view (linked issue)",
     env,
-    run: `pr_body=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json body --jq '.body')
+    run: dedentString(`
+      pr_body=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json body --jq '.body')
 
-# Extract issue number from PR body (Fixes #123 pattern)
-issue_number=$(echo "$pr_body" | grep -oE '(Fixes|Closes|Resolves) #[0-9]+' | head -1 | grep -oE '[0-9]+' || echo "")
+      # Extract issue number from PR body (Fixes #123 pattern)
+      issue_number=$(echo "$pr_body" | grep -oE '(Fixes|Closes|Resolves) #[0-9]+' | head -1 | grep -oE '[0-9]+' || echo "")
 
-if [[ -n "$issue_number" ]]; then
-  echo "has_issue=true" >> $GITHUB_OUTPUT
-  echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
+      if [[ -n "$issue_number" ]]; then
+        ${echoKeyValue.toGithubOutput("has_issue", "true")}
+        ${echoKeyValue.toGithubOutput("issue_number", "$issue_number")}
 
-  # Fetch the linked issue body
-  issue_body=$(gh issue view "$issue_number" --repo "$GITHUB_REPOSITORY" --json body --jq '.body')
-  {
-    echo 'issue_body<<EOF'
-    echo "$issue_body"
-    echo 'EOF'
-  } >> $GITHUB_OUTPUT
-else
-  echo "has_issue=false" >> $GITHUB_OUTPUT
-  echo "issue_number=" >> $GITHUB_OUTPUT
-  {
-    echo 'issue_body<<EOF'
-    echo ''
-    echo 'EOF'
-  } >> $GITHUB_OUTPUT
-fi`,
+        # Fetch the linked issue body
+        issue_body=$(gh issue view "$issue_number" --repo "$GITHUB_REPOSITORY" --json body --jq '.body')
+        ${heredocOutput("issue_body", 'echo "$issue_body"')}
+      else
+        ${echoKeyValue.toGithubOutput("has_issue", "false")}
+        ${echoKeyValue.toGithubOutput("issue_number", "")}
+        ${heredocOutput("issue_body", "echo ''")}
+      fi
+    `),
+    outputs: ["has_issue", "issue_number", "issue_body"],
   });
 }
 
@@ -883,21 +935,24 @@ export function ghPrViewCheckClaude(
     GH_TOKEN: string;
     PR_NUMBER: string;
   },
-): Step {
-  return new Step({
+) {
+  return new ExtendedStep({
     id,
     name: "gh pr view (check claude)",
     env,
-    run: `pr=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefName,author)
-author=$(echo "$pr" | jq -r '.author.login')
-head_branch=$(echo "$pr" | jq -r '.headRefName')
+    run: dedentString(`
+      pr=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefName,author)
+      author=$(echo "$pr" | jq -r '.author.login')
+      head_branch=$(echo "$pr" | jq -r '.headRefName')
 
-is_claude_pr="false"
-if [[ "$author" == "claude[bot]" || "$head_branch" == claude/* ]]; then
-  is_claude_pr="true"
-fi
+      is_claude_pr="false"
+      if [[ "$author" == "claude[bot]" || "$head_branch" == claude/* ]]; then
+        is_claude_pr="true"
+      fi
 
-echo "is_claude_pr=$is_claude_pr" >> $GITHUB_OUTPUT`,
+      ${echoKeyValue.toGithubOutput("is_claude_pr", "$is_claude_pr")}
+    `),
+    outputs: ["is_claude_pr"],
   });
 }
 
@@ -905,12 +960,13 @@ echo "is_claude_pr=$is_claude_pr" >> $GITHUB_OUTPUT`,
  * gh pr edit --remove-reviewer - Remove reviewer from PR
  * No outputs (action only)
  */
-export function ghPrEditRemoveReviewer(env: {
+export function ghPrEditRemoveReviewer(id: string, env: {
   GH_TOKEN: string;
   PR_NUMBER: string;
   REVIEWERS: string;
-}): Step {
-  return new Step({
+}) {
+  return new ExtendedStep({
+    id,
     name: "gh pr edit --remove-reviewer",
     env,
     run: `gh pr edit "$PR_NUMBER" --remove-reviewer "$REVIEWERS" --repo "$GITHUB_REPOSITORY" || true`,
@@ -928,71 +984,66 @@ export function ghPrViewExtended(
     HEAD_BRANCH?: string;
     PR_NUMBER?: string;
   },
-): Step {
-  return new Step({
+): ExtendedStep {
+  return new ExtendedStep({
     id,
     name: "gh pr view (extended)",
     env,
-    run: `# Determine how to find the PR
-if [[ -n "$PR_NUMBER" ]]; then
-  pr=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json number,isDraft,author,headRefName,body 2>/dev/null || echo "")
-elif [[ -n "$HEAD_BRANCH" ]]; then
-  pr=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$HEAD_BRANCH" --json number,isDraft,author,headRefName,body --jq '.[0]' 2>/dev/null || echo "")
-else
-  echo "Either PR_NUMBER or HEAD_BRANCH must be provided"
-  exit 1
-fi
+    run: dedentString(`
+      # Determine how to find the PR
+      if [[ -n "$PR_NUMBER" ]]; then
+        pr=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json number,isDraft,author,headRefName,body 2>/dev/null || echo "")
+      elif [[ -n "$HEAD_BRANCH" ]]; then
+        pr=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$HEAD_BRANCH" --json number,isDraft,author,headRefName,body --jq '.[0]' 2>/dev/null || echo "")
+      else
+        echo "Either PR_NUMBER or HEAD_BRANCH must be provided"
+        exit 1
+      fi
 
-# Check if PR was found
-if [[ -z "$pr" || "$pr" == "null" ]]; then
-  echo "has_pr=false" >> $GITHUB_OUTPUT
-  echo "is_claude_pr=false" >> $GITHUB_OUTPUT
-  echo "is_draft=false" >> $GITHUB_OUTPUT
-  echo "pr_number=" >> $GITHUB_OUTPUT
-  echo "pr_head_branch=" >> $GITHUB_OUTPUT
-  echo "has_issue=false" >> $GITHUB_OUTPUT
-  echo "issue_number=" >> $GITHUB_OUTPUT
-  {
-    echo 'pr_body<<EOF'
-    echo ''
-    echo 'EOF'
-  } >> $GITHUB_OUTPUT
-  exit 0
-fi
+      # Check if PR was found
+      if [[ -z "$pr" || "$pr" == "null" ]]; then
+        ${echoKeyValue.toGithubOutput("has_pr", "false")}
+        ${echoKeyValue.toGithubOutput("is_claude_pr", "false")}
+        ${echoKeyValue.toGithubOutput("is_draft", "false")}
+        ${echoKeyValue.toGithubOutput("pr_number", "")}
+        ${echoKeyValue.toGithubOutput("pr_head_branch", "")}
+        ${echoKeyValue.toGithubOutput("has_issue", "false")}
+        ${echoKeyValue.toGithubOutput("issue_number", "")}
+        ${heredocOutput("pr_body", "echo ''")}
+        exit 0
+      fi
 
-# Extract PR fields
-pr_number=$(echo "$pr" | jq -r '.number')
-is_draft=$(echo "$pr" | jq -r '.isDraft')
-author=$(echo "$pr" | jq -r '.author.login')
-head_branch=$(echo "$pr" | jq -r '.headRefName')
-body=$(echo "$pr" | jq -r '.body // ""')
+      # Extract PR fields
+      pr_number=$(echo "$pr" | jq -r '.number')
+      is_draft=$(echo "$pr" | jq -r '.isDraft')
+      author=$(echo "$pr" | jq -r '.author.login')
+      head_branch=$(echo "$pr" | jq -r '.headRefName')
+      body=$(echo "$pr" | jq -r '.body // ""')
 
-# Check if Claude PR (author or branch pattern)
-is_claude_pr="false"
-if [[ "$author" == "claude[bot]" || "$head_branch" == claude/* ]]; then
-  is_claude_pr="true"
-fi
+      # Check if Claude PR (author or branch pattern)
+      is_claude_pr="false"
+      if [[ "$author" == "claude[bot]" || "$head_branch" == claude/* ]]; then
+        is_claude_pr="true"
+      fi
 
-# Extract issue number from PR body (Fixes #123 pattern)
-issue_number=$(echo "$body" | grep -oE '(Fixes|Closes|Resolves) #[0-9]+' | head -1 | grep -oE '[0-9]+' || echo "")
-has_issue="false"
-if [[ -n "$issue_number" ]]; then
-  has_issue="true"
-fi
+      # Extract issue number from PR body (Fixes #123 pattern)
+      issue_number=$(echo "$body" | grep -oE '(Fixes|Closes|Resolves) #[0-9]+' | head -1 | grep -oE '[0-9]+' || echo "")
+      has_issue="false"
+      if [[ -n "$issue_number" ]]; then
+        has_issue="true"
+      fi
 
-# Output all values
-echo "has_pr=true" >> $GITHUB_OUTPUT
-echo "is_claude_pr=$is_claude_pr" >> $GITHUB_OUTPUT
-echo "is_draft=$is_draft" >> $GITHUB_OUTPUT
-echo "pr_number=$pr_number" >> $GITHUB_OUTPUT
-echo "pr_head_branch=$head_branch" >> $GITHUB_OUTPUT
-echo "has_issue=$has_issue" >> $GITHUB_OUTPUT
-echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
-{
-  echo 'pr_body<<EOF'
-  echo "$body"
-  echo 'EOF'
-} >> $GITHUB_OUTPUT`,
+      # Output all values
+      ${echoKeyValue.toGithubOutput("has_pr", "true")}
+      ${echoKeyValue.toGithubOutput("is_claude_pr", "$is_claude_pr")}
+      ${echoKeyValue.toGithubOutput("is_draft", "$is_draft")}
+      ${echoKeyValue.toGithubOutput("pr_number", "$pr_number")}
+      ${echoKeyValue.toGithubOutput("pr_head_branch", "$head_branch")}
+      ${echoKeyValue.toGithubOutput("has_issue", "$has_issue")}
+      ${echoKeyValue.toGithubOutput("issue_number", "$issue_number")}
+      ${heredocOutput("pr_body", 'echo "$body"')}
+    `),
+    outputs: ["has_pr", "is_claude_pr", "is_draft", "pr_number", "pr_head_branch", "pr_body", "has_issue", "issue_number"],
   });
 }
 
@@ -1004,42 +1055,46 @@ echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
  * Parse triage-output.json file
  * @outputs has_output, type, priority, size, estimate, needs_info, topics, labels
  */
-export function parseTriageOutput(id: string): Step {
-  return new Step({
+export function parseTriageOutput(id: string, props?: StepProps): ExtendedStep {
+  return new ExtendedStep({
     id,
+    ...props,
     name: "Parse triage output",
-    run: `# Check if triage output exists
-if [[ ! -f triage-output.json ]]; then
-  echo "WARNING: triage-output.json not found"
-  echo "has_output=false" >> "$GITHUB_OUTPUT"
-  exit 0
-fi
+    run: dedentString(`
+      # Check if triage output exists
+      if [[ ! -f triage-output.json ]]; then
+        echo "WARNING: triage-output.json not found"
+        ${echoKeyValue.toGithubOutput("has_output", "false")}
+        exit 0
+      fi
 
-echo "has_output=true" >> "$GITHUB_OUTPUT"
+      ${echoKeyValue.toGithubOutput("has_output", "true")}
 
-# Parse triage output
-TYPE=$(jq -r '.type // empty' triage-output.json)
-PRIORITY=$(jq -r '.priority // empty' triage-output.json)
-SIZE=$(jq -r '.size // empty' triage-output.json)
-ESTIMATE=$(jq -r '.estimate // 5' triage-output.json)
-NEEDS_INFO=$(jq -r '.needs_info // false' triage-output.json)
-TOPICS=$(jq -r '.topics // [] | join(",")' triage-output.json)
+      # Parse triage output
+      TYPE=$(jq -r '.type // empty' triage-output.json)
+      PRIORITY=$(jq -r '.priority // empty' triage-output.json)
+      SIZE=$(jq -r '.size // empty' triage-output.json)
+      ESTIMATE=$(jq -r '.estimate // 5' triage-output.json)
+      NEEDS_INFO=$(jq -r '.needs_info // false' triage-output.json)
+      TOPICS=$(jq -r '.topics // [] | join(",")' triage-output.json)
 
-# Build labels list
-LABELS="triaged"
-[[ -n "$TYPE" && "$TYPE" != "null" ]] && LABELS="$LABELS,$TYPE"
-[[ "$NEEDS_INFO" == "true" ]] && LABELS="$LABELS,needs-info"
+      # Build labels list
+      LABELS="triaged"
+      [[ -n "$TYPE" && "$TYPE" != "null" ]] && LABELS="$LABELS,$TYPE"
+      [[ "$NEEDS_INFO" == "true" ]] && LABELS="$LABELS,needs-info"
 
-# Output parsed values
-echo "type=$TYPE" >> "$GITHUB_OUTPUT"
-echo "priority=$PRIORITY" >> "$GITHUB_OUTPUT"
-echo "size=$SIZE" >> "$GITHUB_OUTPUT"
-echo "estimate=$ESTIMATE" >> "$GITHUB_OUTPUT"
-echo "needs_info=$NEEDS_INFO" >> "$GITHUB_OUTPUT"
-echo "topics=$TOPICS" >> "$GITHUB_OUTPUT"
-echo "labels=$LABELS" >> "$GITHUB_OUTPUT"
+      # Output parsed values
+      ${echoKeyValue.toGithubOutput("type", "$TYPE")}
+      ${echoKeyValue.toGithubOutput("priority", "$PRIORITY")}
+      ${echoKeyValue.toGithubOutput("size", "$SIZE")}
+      ${echoKeyValue.toGithubOutput("estimate", "$ESTIMATE")}
+      ${echoKeyValue.toGithubOutput("needs_info", "$NEEDS_INFO")}
+      ${echoKeyValue.toGithubOutput("topics", "$TOPICS")}
+      ${echoKeyValue.toGithubOutput("labels", "$LABELS")}
 
-echo "Parsed: type=$TYPE priority=$PRIORITY size=$SIZE estimate=$ESTIMATE"`,
+      echo "Parsed: type=$TYPE priority=$PRIORITY size=$SIZE estimate=$ESTIMATE"
+    `),
+    outputs: ["has_output", "type", "priority", "size", "estimate", "needs_info", "topics", "labels"],
   });
 }
 
@@ -1053,7 +1108,8 @@ export function ghApiGetProjectItem(
     GH_TOKEN: string;
     ISSUE_NUMBER: string;
   },
-): Step {
+  props?: StepProps,
+): ExtendedStep {
   const query = `
     query($owner: String!, $repo: String!, $number: Int!) {
       repository(owner: $owner, name: $repo) {
@@ -1066,30 +1122,34 @@ export function ghApiGetProjectItem(
     }
   `;
 
-  return new Step({
+  return new ExtendedStep({
     id,
+    ...props,
     name: "gh api graphql (get project item)",
     env,
-    run: `repo_name="\${GITHUB_REPOSITORY#*/}"
-owner="\${GITHUB_REPOSITORY%/*}"
+    run: dedentString(`
+      repo_name="\${GITHUB_REPOSITORY#*/}"
+      owner="\${GITHUB_REPOSITORY%/*}"
 
-result=$(gh api graphql -f query='${query.trim()}' \
-  -f owner="$owner" \
-  -f repo="$repo_name" \
-  -F number="$ISSUE_NUMBER" 2>/dev/null || echo '{}')
+      result=$(gh api graphql -f query='${query.trim()}' \\
+        -f owner="$owner" \\
+        -f repo="$repo_name" \\
+        -F number="$ISSUE_NUMBER" 2>/dev/null || echo '{}')
 
-item_id=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0].id // empty')
-project_id=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0].project.id // empty')
+      item_id=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0].id // empty')
+      project_id=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0].project.id // empty')
 
-if [[ -z "$item_id" || "$item_id" == "null" ]]; then
-  echo "Issue #$ISSUE_NUMBER not linked to any project"
-  echo "has_project=false" >> "$GITHUB_OUTPUT"
-  exit 0
-fi
+      if [[ -z "$item_id" || "$item_id" == "null" ]]; then
+        echo "Issue #$ISSUE_NUMBER not linked to any project"
+        ${echoKeyValue.toGithubOutput("has_project", "false")}
+        exit 0
+      fi
 
-echo "has_project=true" >> "$GITHUB_OUTPUT"
-echo "item_id=$item_id" >> "$GITHUB_OUTPUT"
-echo "project_id=$project_id" >> "$GITHUB_OUTPUT"`,
+      ${echoKeyValue.toGithubOutput("has_project", "true")}
+      ${echoKeyValue.toGithubOutput("item_id", "$item_id")}
+      ${echoKeyValue.toGithubOutput("project_id", "$project_id")}
+    `),
+    outputs: ["has_project", "item_id", "project_id"],
   });
 }
 
@@ -1098,12 +1158,12 @@ echo "project_id=$project_id" >> "$GITHUB_OUTPUT"`,
  * Maps priority string (critical/high/etc) to option ID
  * No outputs (action only)
  */
-export function ghApiUpdateProjectPriority(env: {
+export function ghApiUpdateProjectPriority(id: string, env: {
   GH_TOKEN: string;
   PROJECT_ID: string;
   ITEM_ID: string;
   PRIORITY: string;
-}): Step {
+}, props?: StepProps): ExtendedStep {
   // Hardcoded field ID and option IDs from project.ts
   const FIELD_ID = "PVTSSF_lADOBBYMds4BMB5szg7bd4o";
   const mutation = `
@@ -1115,21 +1175,25 @@ export function ghApiUpdateProjectPriority(env: {
     }
   `;
 
-  return new Step({
+  return new ExtendedStep({
+    id,
+    ...props,
     name: "gh api graphql (update project priority)",
     env,
-    run: `# Map priority to option ID
-case "$PRIORITY" in
-  critical) OPTION_ID="79628723" ;;  # P0
-  high)     OPTION_ID="0a877460" ;;  # P1
-  *)        OPTION_ID="da944a9c" ;;  # P2
-esac
+    run: dedentString(`
+      # Map priority to option ID
+      case "$PRIORITY" in
+        critical) OPTION_ID="79628723" ;;  # P0
+        high)     OPTION_ID="0a877460" ;;  # P1
+        *)        OPTION_ID="da944a9c" ;;  # P2
+      esac
 
-gh api graphql -f query='${mutation.trim()}' \
-  -f projectId="$PROJECT_ID" \
-  -f itemId="$ITEM_ID" \
-  -f fieldId="${FIELD_ID}" \
-  -f optionId="$OPTION_ID"`,
+      gh api graphql -f query='${mutation.trim()}' \\
+        -f projectId="$PROJECT_ID" \\
+        -f itemId="$ITEM_ID" \\
+        -f fieldId="${FIELD_ID}" \\
+        -f optionId="$OPTION_ID"
+    `),
   });
 }
 
@@ -1138,12 +1202,12 @@ gh api graphql -f query='${mutation.trim()}' \
  * Maps size string (xs/s/m/l/xl) to option ID
  * No outputs (action only)
  */
-export function ghApiUpdateProjectSize(env: {
+export function ghApiUpdateProjectSize(id: string, env: {
   GH_TOKEN: string;
   PROJECT_ID: string;
   ITEM_ID: string;
   SIZE: string;
-}): Step {
+}, props?: StepProps): ExtendedStep {
   // Hardcoded field ID and option IDs from project.ts
   const FIELD_ID = "PVTSSF_lADOBBYMds4BMB5szg7bd4s";
   const mutation = `
@@ -1155,24 +1219,28 @@ export function ghApiUpdateProjectSize(env: {
     }
   `;
 
-  return new Step({
+  return new ExtendedStep({
+    id,
+    ...props,
     name: "gh api graphql (update project size)",
     env,
-    run: `# Map size to option ID
-case "$SIZE" in
-  xs) OPTION_ID="6c6483d2" ;;
-  s)  OPTION_ID="f784b110" ;;
-  m)  OPTION_ID="7515a9f1" ;;
-  l)  OPTION_ID="817d0097" ;;
-  xl) OPTION_ID="db339eb2" ;;
-  *)  OPTION_ID="7515a9f1" ;;  # Default to M
-esac
+    run: dedentString(`
+      # Map size to option ID
+      case "$SIZE" in
+        xs) OPTION_ID="6c6483d2" ;;
+        s)  OPTION_ID="f784b110" ;;
+        m)  OPTION_ID="7515a9f1" ;;
+        l)  OPTION_ID="817d0097" ;;
+        xl) OPTION_ID="db339eb2" ;;
+        *)  OPTION_ID="7515a9f1" ;;  # Default to M
+      esac
 
-gh api graphql -f query='${mutation.trim()}' \
-  -f projectId="$PROJECT_ID" \
-  -f itemId="$ITEM_ID" \
-  -f fieldId="${FIELD_ID}" \
-  -f optionId="$OPTION_ID"`,
+      gh api graphql -f query='${mutation.trim()}' \\
+        -f projectId="$PROJECT_ID" \\
+        -f itemId="$ITEM_ID" \\
+        -f fieldId="${FIELD_ID}" \\
+        -f optionId="$OPTION_ID"
+    `),
   });
 }
 
@@ -1180,12 +1248,12 @@ gh api graphql -f query='${mutation.trim()}' \
  * gh api graphql (update project estimate) - Update issue's project Estimate field
  * No outputs (action only)
  */
-export function ghApiUpdateProjectEstimate(env: {
+export function ghApiUpdateProjectEstimate(id: string, env: {
   GH_TOKEN: string;
   PROJECT_ID: string;
   ITEM_ID: string;
   ESTIMATE: string;
-}): Step {
+}, props?: StepProps): ExtendedStep {
   // Hardcoded field ID from project.ts
   const FIELD_ID = "PVTF_lADOBBYMds4BMB5szg7bd4w";
   const mutation = `
@@ -1197,14 +1265,18 @@ export function ghApiUpdateProjectEstimate(env: {
     }
   `;
 
-  return new Step({
+  return new ExtendedStep({
+    id,
+    ...props,
     name: "gh api graphql (update project estimate)",
     env,
-    run: `gh api graphql -f query='${mutation.trim()}' \
-  -f projectId="$PROJECT_ID" \
-  -f itemId="$ITEM_ID" \
-  -f fieldId="${FIELD_ID}" \
-  -F number="$ESTIMATE"`,
+    run: dedentString(`
+      gh api graphql -f query='${mutation.trim()}' \\
+        -f projectId="$PROJECT_ID" \\
+        -f itemId="$ITEM_ID" \\
+        -f fieldId="${FIELD_ID}" \\
+        -F number="$ESTIMATE"
+    `),
   });
 }
 
@@ -1213,28 +1285,32 @@ export function ghApiUpdateProjectEstimate(env: {
  * This is an exception to atomic pattern as it loops through topics
  * No outputs (action only)
  */
-export function ghApplyTopicLabels(env: {
+export function ghApplyTopicLabels(id: string, env: {
   GH_TOKEN: string;
   ISSUE_NUMBER: string;
   TOPICS: string;
-}): Step {
-  return new Step({
+}, props?: StepProps): ExtendedStep {
+  return new ExtendedStep({
+    id,
+    ...props,
     name: "Create and apply topic labels",
     env,
-    run: `# Skip if no topics
-[[ -z "$TOPICS" ]] && exit 0
+    run: dedentString(`
+      # Skip if no topics
+      [[ -z "$TOPICS" ]] && exit 0
 
-IFS=',' read -ra TOPIC_ARRAY <<< "$TOPICS"
-for topic in "\${TOPIC_ARRAY[@]}"; do
-  [[ -z "$topic" ]] && continue
-  topic_label="topic:$topic"
+      IFS=',' read -ra TOPIC_ARRAY <<< "$TOPICS"
+      for topic in "\${TOPIC_ARRAY[@]}"; do
+        [[ -z "$topic" ]] && continue
+        topic_label="topic:$topic"
 
-  # Create label if it doesn't exist (--force updates if exists)
-  gh label create "$topic_label" --color "7057ff" --description "Related to $topic" --repo "$GITHUB_REPOSITORY" --force || true
+        # Create label if it doesn't exist (--force updates if exists)
+        gh label create "$topic_label" --color "7057ff" --description "Related to $topic" --repo "$GITHUB_REPOSITORY" --force || true
 
-  # Add label to issue
-  gh issue edit "$ISSUE_NUMBER" --add-label "$topic_label" --repo "$GITHUB_REPOSITORY" || true
-done`,
+        # Add label to issue
+        gh issue edit "$ISSUE_NUMBER" --add-label "$topic_label" --repo "$GITHUB_REPOSITORY" || true
+      done
+    `),
   });
 }
 
@@ -1248,10 +1324,10 @@ done`,
  * multiple PRs and making conditional API calls per PR.
  * No outputs (posts comments to stalled PRs)
  */
-export function ghDetectStalledReviews(env: {
+export function ghDetectStalledReviews(id: string, env: {
   GH_TOKEN: string;
   DRY_RUN: string;
-}): Step {
+}): ExtendedStep {
   const script = `
 echo "Checking for PRs with stalled nopo-bot review requests..."
 
@@ -1346,7 +1422,8 @@ done
 echo "Done checking for stalled reviews"
 `.trim();
 
-  return new Step({
+  return new ExtendedStep({
+    id,
     name: "Detect stalled review requests",
     env,
     run: script,
