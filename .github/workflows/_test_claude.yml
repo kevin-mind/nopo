@@ -789,8 +789,13 @@ jobs:
         run: |
           for issue in $TRIAGE_ISSUE $IMPLEMENT_ISSUE; do
             if [[ -n "$issue" ]]; then
-              echo "Closing test issue #$issue"
-              gh issue close "$issue" --reason "not planned" --comment "Test completed" || true
+              # Safety: only close issues with test:automation label
+              if gh issue view "$issue" --json labels --jq '.labels[].name' | grep -q "^test:automation$"; then
+                echo "✓ Closing test issue #$issue (has test:automation label)"
+                gh issue close "$issue" --reason "not planned" --comment "Test completed" || true
+              else
+                echo "⚠️ Skipping issue #$issue - missing test:automation label (safety protection)"
+              fi
             fi
           done
 

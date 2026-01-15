@@ -70,7 +70,8 @@ jobs:
         name: Transform to uppercase keys
         run: |
           # Transform all keys to uppercase for prompt replacements
-          json=$(echo '${{ inputs.context_json }}' | jq 'with_entries(.key |= ascii_upcase)')
+          # Use -c for compact single-line output (required for GITHUB_OUTPUT)
+          json=$(echo '${{ inputs.context_json }}' | jq -c 'with_entries(.key |= ascii_upcase)')
           echo "json=$json" >> $GITHUB_OUTPUT
 
   # ============================================================================
