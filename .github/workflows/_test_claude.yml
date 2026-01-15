@@ -11,16 +11,10 @@ on:
           - unit-tests
           - issue-triage
           - issue-implement
-          - issue-comment
           - ci-fix
           - ci-suggest
           - pr-review
-          - pr-response
-          - pr-human-response
           - discussion-research
-          - discussion-respond
-          - discussion-summarize
-          - discussion-plan
           - detect-event
       resource_number:
         description: 'Issue/PR/Discussion number (creates test resource if empty)'
@@ -37,16 +31,17 @@ on:
         default: true
 
 permissions:
-  contents: read
+  contents: write
   issues: write
   pull-requests: write
   discussions: write
   actions: write
+  id-token: write
 
+# ============================================================================
+# UNIT TESTS
+# ============================================================================
 jobs:
-  # ============================================================================
-  # UNIT TESTS
-  # ============================================================================
   unit-tests:
     if: inputs.job == 'unit-tests' || inputs.job == 'all'
     runs-on: ubuntu-latest
@@ -65,12 +60,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Test issue opened event
+      - name: Create test issue
         id: test_issue
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Create a test issue
           issue_url=$(gh issue create \
             --title "[TEST] Detect event test - $(date +%s)" \
             --body "Test issue for detect-event action" \
@@ -84,7 +78,6 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
         env:
-          # Simulate an issue opened event
           GITHUB_EVENT_NAME: issues
           GITHUB_EVENT_PATH: /tmp/test-event.json
 
@@ -92,9 +85,7 @@ jobs:
         run: |
           echo "Job: ${{ steps.detect.outputs.job }}"
           echo "Resource Type: ${{ steps.detect.outputs.resource_type }}"
-          echo "Resource Number: ${{ steps.detect.outputs.resource_number }}"
           echo "Skip: ${{ steps.detect.outputs.skip }}"
-          echo "Context JSON: ${{ steps.detect.outputs.context_json }}"
 
       - name: Cleanup test issue
         if: always()
@@ -105,14 +96,14 @@ jobs:
           gh issue close "$ISSUE_NUMBER" --reason "not planned" || true
 
   # ============================================================================
-  # ISSUE JOB TESTS
+  # ISSUE TRIAGE TEST (inline workflow_call)
   # ============================================================================
-  issue-triage-test:
+  issue-triage-setup:
     if: inputs.job == 'issue-triage' || inputs.job == 'all'
     runs-on: ubuntu-latest
     outputs:
-      test_issue_number: ${{ steps.issue.outputs.number }}
-      triggered_run_id: ${{ steps.trigger.outputs.run_id }}
+      context_json: ${{ steps.context.outputs.json }}
+      issue_number: ${{ steps.issue.outputs.number }}
     steps:
       - uses: actions/checkout@v4
 
@@ -124,10 +115,10 @@ jobs:
         run: |
           issue_url=$(gh issue create \
             --title "[TEST] Triage test - $(date +%s)" \
-            --body "Test issue with {braces} and \"quotes\" and \$variables
+            --body "Test issue for triage workflow.
 
           ## Description
-          This is an automated test issue to verify triage workflow.
+          This is an automated test issue.
 
           ## Priority
           Medium
@@ -137,7 +128,6 @@ jobs:
           - [ ] Test task 2" \
             --label "test:automation,skip-dispatch")
           echo "issue_number=${issue_url##*/}" >> $GITHUB_OUTPUT
-          echo "Created test issue: $issue_url"
 
       - name: Set issue number
         id: issue
@@ -148,91 +138,67 @@ jobs:
             echo "number=${{ steps.create.outputs.issue_number }}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Get issue data
-        id: issue_data
+      - name: Build context JSON
+        id: context
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ steps.issue.outputs.number }}
         run: |
           issue=$(gh issue view "$ISSUE_NUMBER" --json title,body)
-          echo "title=$(echo "$issue" | jq -r '.title')" >> $GITHUB_OUTPUT
-          echo "$issue" | jq -r '.body' > /tmp/issue_body.txt
+          title=$(echo "$issue" | jq -r '.title')
+          body=$(echo "$issue" | jq -r '.body')
 
-      - name: Trigger _claude.yml directly
-        id: trigger
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ steps.issue.outputs.number }}
-          ISSUE_TITLE: ${{ steps.issue_data.outputs.title }}
-          MOCK_MODE: ${{ inputs.mock_mode }}
-        run: |
-          echo "Triggering issue-triage for issue #$ISSUE_NUMBER"
-
-          # Read issue body from file
-          issue_body=$(cat /tmp/issue_body.txt)
-
-          # Build context JSON
-          context_json=$(jq -n \
+          json=$(jq -nc \
             --arg num "$ISSUE_NUMBER" \
-            --arg title "$ISSUE_TITLE" \
-            --arg body "$issue_body" \
+            --arg title "$title" \
+            --arg body "$body" \
             '{issue_number: $num, issue_title: $title, issue_body: $body}')
+          echo "json=$json" >> $GITHUB_OUTPUT
 
-          # Trigger _claude.yml directly (bypasses dispatcher)
-          gh workflow run _claude.yml \
-            -f job=issue-triage \
-            -f context_json="$context_json" \
-            -f mock_mode="$MOCK_MODE"
+  issue-triage-run:
+    needs: issue-triage-setup
+    if: needs.issue-triage-setup.result == 'success'
+    uses: ./.github/workflows/_claude.yml
+    with:
+      job: issue-triage
+      context_json: ${{ needs.issue-triage-setup.outputs.context_json }}
+      mock_mode: ${{ inputs.mock_mode }}
+    secrets: inherit
 
-          sleep 10
-
-          run_id=$(gh run list --workflow=_claude.yml --limit=1 --json databaseId --jq '.[0].databaseId')
-          echo "run_id=$run_id" >> $GITHUB_OUTPUT
-          echo "Triggered run: $run_id"
-
-      - name: Wait for workflow completion
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RUN_ID: ${{ steps.trigger.outputs.run_id }}
-        run: |
-          if [[ -z "$RUN_ID" ]]; then
-            echo "::warning::Could not find workflow run ID"
-            exit 0
-          fi
-
-          echo "Watching run $RUN_ID..."
-          timeout 600 gh run watch "$RUN_ID" --exit-status || {
-            conclusion=$(gh run view "$RUN_ID" --json conclusion --jq '.conclusion')
-            echo "Run conclusion: $conclusion"
-            if [[ "$conclusion" == "failure" ]]; then
-              gh run view "$RUN_ID" --log-failed | tail -100
-              exit 1
-            fi
-          }
-
+  issue-triage-verify:
+    needs: [issue-triage-setup, issue-triage-run]
+    if: always() && needs.issue-triage-setup.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
       - name: Verify triage results
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ steps.issue.outputs.number }}
+          ISSUE_NUMBER: ${{ needs.issue-triage-setup.outputs.issue_number }}
           MOCK_MODE: ${{ inputs.mock_mode }}
+          RUN_RESULT: ${{ needs.issue-triage-run.result }}
         run: |
-          echo "Verifying triage results for issue #$ISSUE_NUMBER"
+          echo "Run result: $RUN_RESULT"
+          echo "Verifying triage for issue #$ISSUE_NUMBER"
           issue_data=$(gh issue view "$ISSUE_NUMBER" --json labels,comments)
           echo "$issue_data" | jq .
 
-          if [[ "$MOCK_MODE" != "true" ]]; then
+          if [[ "$MOCK_MODE" != "true" && "$RUN_RESULT" == "success" ]]; then
             if echo "$issue_data" | jq -e '.labels[].name | select(. == "triaged")' > /dev/null 2>&1; then
               echo "✅ Issue has 'triaged' label"
             else
-              echo "::warning::Issue does not have 'triaged' label yet"
+              echo "⚠️ Issue does not have 'triaged' label"
             fi
           fi
 
-  issue-implement-test:
+  # ============================================================================
+  # ISSUE IMPLEMENT TEST (inline workflow_call)
+  # ============================================================================
+  issue-implement-setup:
     if: inputs.job == 'issue-implement' || inputs.job == 'all'
     runs-on: ubuntu-latest
     outputs:
-      test_issue_number: ${{ steps.issue.outputs.number }}
+      context_json: ${{ steps.context.outputs.json }}
+      issue_number: ${{ steps.issue.outputs.number }}
     steps:
       - uses: actions/checkout@v4
 
@@ -261,271 +227,163 @@ jobs:
             echo "number=${{ steps.create.outputs.issue_number }}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Get issue data
-        id: issue_data
+      - name: Build context JSON
+        id: context
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ steps.issue.outputs.number }}
         run: |
           issue=$(gh issue view "$ISSUE_NUMBER" --json title,body)
-          echo "title=$(echo "$issue" | jq -r '.title')" >> $GITHUB_OUTPUT
-          echo "$issue" | jq -r '.body' > /tmp/issue_body.txt
+          title=$(echo "$issue" | jq -r '.title')
+          body=$(echo "$issue" | jq -r '.body')
+          branch="claude/issue/$ISSUE_NUMBER"
 
-      - name: Trigger _claude.yml directly
-        id: trigger
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ steps.issue.outputs.number }}
-          ISSUE_TITLE: ${{ steps.issue_data.outputs.title }}
-          MOCK_MODE: ${{ inputs.mock_mode }}
-        run: |
-          issue_body=$(cat /tmp/issue_body.txt)
-          branch_name="claude/issue/$ISSUE_NUMBER"
-
-          context_json=$(jq -n \
+          json=$(jq -nc \
             --arg num "$ISSUE_NUMBER" \
-            --arg title "$ISSUE_TITLE" \
-            --arg body "$issue_body" \
-            --arg branch "$branch_name" \
+            --arg title "$title" \
+            --arg body "$body" \
+            --arg branch "$branch" \
             '{issue_number: $num, issue_title: $title, issue_body: $body, branch_name: $branch}')
+          echo "json=$json" >> $GITHUB_OUTPUT
 
-          gh workflow run _claude.yml \
-            -f job=issue-implement \
-            -f context_json="$context_json" \
-            -f mock_mode="$MOCK_MODE"
-
-          sleep 10
-          run_id=$(gh run list --workflow=_claude.yml --limit=1 --json databaseId --jq '.[0].databaseId')
-          echo "run_id=$run_id" >> $GITHUB_OUTPUT
-
-      - name: Wait for workflow completion
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RUN_ID: ${{ steps.trigger.outputs.run_id }}
-        run: |
-          [[ -z "$RUN_ID" ]] && exit 0
-          timeout 900 gh run watch "$RUN_ID" --exit-status || {
-            conclusion=$(gh run view "$RUN_ID" --json conclusion --jq '.conclusion')
-            [[ "$conclusion" == "failure" ]] && gh run view "$RUN_ID" --log-failed | tail -100 && exit 1
-          }
+  issue-implement-run:
+    needs: issue-implement-setup
+    if: needs.issue-implement-setup.result == 'success'
+    uses: ./.github/workflows/_claude.yml
+    with:
+      job: issue-implement
+      context_json: ${{ needs.issue-implement-setup.outputs.context_json }}
+      mock_mode: ${{ inputs.mock_mode }}
+    secrets: inherit
 
   # ============================================================================
-  # CI JOB TESTS
+  # CI FIX TEST (requires existing PR)
   # ============================================================================
-  ci-fix-test:
-    # Requires PR number - skip in 'all' mode unless resource provided
-    if: inputs.job == 'ci-fix' || (inputs.job == 'all' && inputs.resource_number != '')
+  ci-fix-setup:
+    if: (inputs.job == 'ci-fix' || inputs.job == 'all') && inputs.resource_number != ''
     runs-on: ubuntu-latest
+    outputs:
+      context_json: ${{ steps.context.outputs.json }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Get PR data
-        id: pr_data
+      - name: Build context JSON
+        id: context
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ inputs.resource_number }}
         run: |
           pr=$(gh pr view "$PR_NUMBER" --json headRefName)
-          echo "branch=$(echo "$pr" | jq -r '.headRefName')" >> $GITHUB_OUTPUT
+          branch=$(echo "$pr" | jq -r '.headRefName')
 
-      - name: Trigger _claude.yml directly
-        id: trigger
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ inputs.resource_number }}
-          BRANCH_NAME: ${{ steps.pr_data.outputs.branch }}
-          MOCK_MODE: ${{ inputs.mock_mode }}
-        run: |
-          context_json=$(jq -n \
+          json=$(jq -nc \
             --arg pr "$PR_NUMBER" \
-            --arg branch "$BRANCH_NAME" \
+            --arg branch "$branch" \
             '{pr_number: $pr, branch_name: $branch}')
+          echo "json=$json" >> $GITHUB_OUTPUT
 
-          gh workflow run _claude.yml \
-            -f job=ci-fix \
-            -f context_json="$context_json" \
-            -f mock_mode="$MOCK_MODE"
+  ci-fix-run:
+    needs: ci-fix-setup
+    if: needs.ci-fix-setup.result == 'success'
+    uses: ./.github/workflows/_claude.yml
+    with:
+      job: ci-fix
+      context_json: ${{ needs.ci-fix-setup.outputs.context_json }}
+      mock_mode: ${{ inputs.mock_mode }}
+    secrets: inherit
 
-          sleep 10
-          run_id=$(gh run list --workflow=_claude.yml --limit=1 --json databaseId --jq '.[0].databaseId')
-          echo "run_id=$run_id" >> $GITHUB_OUTPUT
-
-      - name: Wait for workflow completion
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RUN_ID: ${{ steps.trigger.outputs.run_id }}
-        run: |
-          [[ -z "$RUN_ID" ]] && exit 0
-          timeout 600 gh run watch "$RUN_ID" --exit-status || {
-            conclusion=$(gh run view "$RUN_ID" --json conclusion --jq '.conclusion')
-            [[ "$conclusion" == "failure" ]] && gh run view "$RUN_ID" --log-failed | tail -100 && exit 1
-          }
-
-  ci-suggest-test:
-    if: inputs.job == 'ci-suggest' || (inputs.job == 'all' && inputs.resource_number != '')
+  # ============================================================================
+  # CI SUGGEST TEST (requires existing PR)
+  # ============================================================================
+  ci-suggest-setup:
+    if: (inputs.job == 'ci-suggest' || inputs.job == 'all') && inputs.resource_number != ''
     runs-on: ubuntu-latest
+    outputs:
+      context_json: ${{ steps.context.outputs.json }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verify PR number provided
-        if: inputs.resource_number == ''
-        run: |
-          echo "::error::ci-suggest test requires a PR number (resource_number)"
-          exit 1
-
-      - name: Get PR data
-        id: pr_data
+      - name: Build context JSON
+        id: context
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ inputs.resource_number }}
         run: |
           pr=$(gh pr view "$PR_NUMBER" --json headRefName)
-          echo "branch=$(echo "$pr" | jq -r '.headRefName')" >> $GITHUB_OUTPUT
+          branch=$(echo "$pr" | jq -r '.headRefName')
 
-      - name: Trigger _claude.yml directly
-        id: trigger
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ inputs.resource_number }}
-          BRANCH_NAME: ${{ steps.pr_data.outputs.branch }}
-          MOCK_MODE: ${{ inputs.mock_mode }}
-        run: |
-          context_json=$(jq -n \
+          json=$(jq -nc \
             --arg pr "$PR_NUMBER" \
-            --arg branch "$BRANCH_NAME" \
+            --arg branch "$branch" \
             '{pr_number: $pr, branch_name: $branch}')
+          echo "json=$json" >> $GITHUB_OUTPUT
 
-          gh workflow run _claude.yml \
-            -f job=ci-suggest \
-            -f context_json="$context_json" \
-            -f mock_mode="$MOCK_MODE"
-
-          sleep 10
-          run_id=$(gh run list --workflow=_claude.yml --limit=1 --json databaseId --jq '.[0].databaseId')
-          echo "run_id=$run_id" >> $GITHUB_OUTPUT
-
-      - name: Wait for workflow completion
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RUN_ID: ${{ steps.trigger.outputs.run_id }}
-        run: |
-          [[ -z "$RUN_ID" ]] && exit 0
-          timeout 600 gh run watch "$RUN_ID" --exit-status || {
-            conclusion=$(gh run view "$RUN_ID" --json conclusion --jq '.conclusion')
-            [[ "$conclusion" == "failure" ]] && gh run view "$RUN_ID" --log-failed | tail -100 && exit 1
-          }
+  ci-suggest-run:
+    needs: ci-suggest-setup
+    if: needs.ci-suggest-setup.result == 'success'
+    uses: ./.github/workflows/_claude.yml
+    with:
+      job: ci-suggest
+      context_json: ${{ needs.ci-suggest-setup.outputs.context_json }}
+      mock_mode: ${{ inputs.mock_mode }}
+    secrets: inherit
 
   # ============================================================================
-  # PR REVIEW JOB TESTS
+  # PR REVIEW TEST (requires existing PR)
   # ============================================================================
-  pr-review-test:
-    if: inputs.job == 'pr-review' || (inputs.job == 'all' && inputs.resource_number != '')
+  pr-review-setup:
+    if: (inputs.job == 'pr-review' || inputs.job == 'all') && inputs.resource_number != ''
     runs-on: ubuntu-latest
+    outputs:
+      context_json: ${{ steps.context.outputs.json }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verify PR number provided
-        if: inputs.resource_number == ''
-        run: |
-          echo "::error::pr-review test requires a PR number (resource_number)"
-          exit 1
-
-      - name: Get PR data
-        id: pr_data
+      - name: Build context JSON
+        id: context
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ inputs.resource_number }}
         run: |
           pr=$(gh pr view "$PR_NUMBER" --json headRefName,body)
-          echo "branch=$(echo "$pr" | jq -r '.headRefName')" >> $GITHUB_OUTPUT
+          branch=$(echo "$pr" | jq -r '.headRefName')
 
           # Extract issue section from PR body if present
           body=$(echo "$pr" | jq -r '.body // ""')
+          issue_section=""
           if echo "$body" | grep -q "Fixes #"; then
             issue_num=$(echo "$body" | grep -oP 'Fixes #\K\d+' | head -1)
             if [[ -n "$issue_num" ]]; then
-              issue=$(gh issue view "$issue_num" --json body 2>/dev/null || echo '{}')
-              echo "$issue" | jq -r '.body // ""' > /tmp/issue_section.txt
-            else
-              echo "" > /tmp/issue_section.txt
+              issue_section=$(gh issue view "$issue_num" --json body --jq '.body // ""' 2>/dev/null || echo "")
             fi
-          else
-            echo "" > /tmp/issue_section.txt
           fi
 
-      - name: Trigger _claude.yml directly
-        id: trigger
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ inputs.resource_number }}
-          BRANCH_NAME: ${{ steps.pr_data.outputs.branch }}
-          MOCK_MODE: ${{ inputs.mock_mode }}
-        run: |
-          issue_section=$(cat /tmp/issue_section.txt)
-          context_json=$(jq -n \
+          json=$(jq -nc \
             --arg pr "$PR_NUMBER" \
-            --arg branch "$BRANCH_NAME" \
+            --arg branch "$branch" \
             --arg issue "$issue_section" \
             '{pr_number: $pr, branch_name: $branch, issue_section: $issue}')
+          echo "json=$json" >> $GITHUB_OUTPUT
 
-          gh workflow run _claude.yml \
-            -f job=pr-review \
-            -f context_json="$context_json" \
-            -f mock_mode="$MOCK_MODE"
-
-          sleep 10
-          run_id=$(gh run list --workflow=_claude.yml --limit=1 --json databaseId --jq '.[0].databaseId')
-          echo "run_id=$run_id" >> $GITHUB_OUTPUT
-
-      - name: Wait for workflow completion
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RUN_ID: ${{ steps.trigger.outputs.run_id }}
-        run: |
-          [[ -z "$RUN_ID" ]] && exit 0
-          timeout 600 gh run watch "$RUN_ID" --exit-status || {
-            conclusion=$(gh run view "$RUN_ID" --json conclusion --jq '.conclusion')
-            [[ "$conclusion" == "failure" ]] && gh run view "$RUN_ID" --log-failed | tail -100 && exit 1
-          }
-
-  pr-response-test:
-    if: inputs.job == 'pr-response' || (inputs.job == 'all' && inputs.resource_number != '')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Verify PR number provided
-        if: inputs.resource_number == ''
-        run: |
-          echo "::error::pr-response test requires a PR number (resource_number)"
-          exit 1
-      - name: Info
-        run: |
-          echo "pr-response test requires a PR with an existing review"
-          echo "This test is a placeholder - manual testing recommended"
-
-  pr-human-response-test:
-    if: inputs.job == 'pr-human-response' || (inputs.job == 'all' && inputs.resource_number != '')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Verify PR number provided
-        if: inputs.resource_number == ''
-        run: |
-          echo "::error::pr-human-response test requires a PR number (resource_number)"
-          exit 1
-      - name: Info
-        run: |
-          echo "pr-human-response test requires a PR with an existing human review"
-          echo "This test is a placeholder - manual testing recommended"
+  pr-review-run:
+    needs: pr-review-setup
+    if: needs.pr-review-setup.result == 'success'
+    uses: ./.github/workflows/_claude.yml
+    with:
+      job: pr-review
+      context_json: ${{ needs.pr-review-setup.outputs.context_json }}
+      mock_mode: ${{ inputs.mock_mode }}
+    secrets: inherit
 
   # ============================================================================
-  # DISCUSSION JOB TESTS
+  # DISCUSSION RESEARCH TEST (inline workflow_call)
   # ============================================================================
-  discussion-research-test:
+  discussion-research-setup:
     if: inputs.job == 'discussion-research' || inputs.job == 'all'
     runs-on: ubuntu-latest
     outputs:
-      test_discussion_number: ${{ steps.discussion.outputs.number }}
+      context_json: ${{ steps.context.outputs.json }}
+      discussion_number: ${{ steps.discussion.outputs.number }}
     steps:
       - uses: actions/checkout@v4
 
@@ -535,7 +393,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Create discussion using GraphQL
           result=$(gh api graphql -f query='
             mutation($repoId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
               createDiscussion(input: {
@@ -568,8 +425,8 @@ jobs:
             echo "number=${{ steps.create.outputs.discussion_number }}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Get discussion data
-        id: discussion_data
+      - name: Build context JSON
+        id: context
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DISCUSSION_NUMBER: ${{ steps.discussion.outputs.number }}
@@ -585,207 +442,42 @@ jobs:
             }
           ' -f owner="${GITHUB_REPOSITORY%/*}" -f repo="${GITHUB_REPOSITORY#*/}" -F number="$DISCUSSION_NUMBER")
 
-          echo "title=$(echo "$result" | jq -r '.data.repository.discussion.title')" >> $GITHUB_OUTPUT
-          echo "$result" | jq -r '.data.repository.discussion.body' > /tmp/discussion_body.txt
+          title=$(echo "$result" | jq -r '.data.repository.discussion.title')
+          body=$(echo "$result" | jq -r '.data.repository.discussion.body')
 
-      - name: Trigger _claude.yml directly
-        id: trigger
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DISCUSSION_NUMBER: ${{ steps.discussion.outputs.number }}
-          DISCUSSION_TITLE: ${{ steps.discussion_data.outputs.title }}
-          MOCK_MODE: ${{ inputs.mock_mode }}
-        run: |
-          discussion_body=$(cat /tmp/discussion_body.txt)
-          context_json=$(jq -n \
+          json=$(jq -nc \
             --arg num "$DISCUSSION_NUMBER" \
-            --arg title "$DISCUSSION_TITLE" \
-            --arg body "$discussion_body" \
+            --arg title "$title" \
+            --arg body "$body" \
             '{discussion_number: $num, discussion_title: $title, discussion_body: $body}')
+          echo "json=$json" >> $GITHUB_OUTPUT
 
-          gh workflow run _claude.yml \
-            -f job=discussion-research \
-            -f context_json="$context_json" \
-            -f mock_mode="$MOCK_MODE"
-
-          sleep 10
-          run_id=$(gh run list --workflow=_claude.yml --limit=1 --json databaseId --jq '.[0].databaseId')
-          echo "run_id=$run_id" >> $GITHUB_OUTPUT
-
-      - name: Wait for workflow completion
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RUN_ID: ${{ steps.trigger.outputs.run_id }}
-        run: |
-          [[ -z "$RUN_ID" ]] && exit 0
-          timeout 600 gh run watch "$RUN_ID" --exit-status || {
-            conclusion=$(gh run view "$RUN_ID" --json conclusion --jq '.conclusion')
-            [[ "$conclusion" == "failure" ]] && gh run view "$RUN_ID" --log-failed | tail -100 && exit 1
-          }
-
-  discussion-respond-test:
-    if: inputs.job == 'discussion-respond' || (inputs.job == 'all' && inputs.resource_number != '')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Verify discussion number provided
-        if: inputs.resource_number == ''
-        run: |
-          echo "::error::discussion-respond test requires a discussion number"
-          exit 1
-      - name: Info
-        run: |
-          echo "discussion-respond test requires an existing discussion with comments"
-          echo "This test is a placeholder - manual testing recommended"
-
-  discussion-summarize-test:
-    if: inputs.job == 'discussion-summarize' || (inputs.job == 'all' && inputs.resource_number != '')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Verify discussion number provided
-        if: inputs.resource_number == ''
-        run: |
-          echo "::error::discussion-summarize test requires a discussion number"
-          exit 1
-
-      - name: Trigger _claude.yml directly
-        id: trigger
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DISCUSSION_NUMBER: ${{ inputs.resource_number }}
-          MOCK_MODE: ${{ inputs.mock_mode }}
-        run: |
-          context_json=$(jq -n \
-            --arg num "$DISCUSSION_NUMBER" \
-            '{discussion_number: $num}')
-
-          gh workflow run _claude.yml \
-            -f job=discussion-summarize \
-            -f context_json="$context_json" \
-            -f mock_mode="$MOCK_MODE"
-
-          sleep 10
-          run_id=$(gh run list --workflow=_claude.yml --limit=1 --json databaseId --jq '.[0].databaseId')
-          echo "run_id=$run_id" >> $GITHUB_OUTPUT
-
-      - name: Wait for workflow completion
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RUN_ID: ${{ steps.trigger.outputs.run_id }}
-        run: |
-          [[ -z "$RUN_ID" ]] && exit 0
-          timeout 600 gh run watch "$RUN_ID" --exit-status || {
-            conclusion=$(gh run view "$RUN_ID" --json conclusion --jq '.conclusion')
-            [[ "$conclusion" == "failure" ]] && gh run view "$RUN_ID" --log-failed | tail -100 && exit 1
-          }
-
-  discussion-plan-test:
-    if: inputs.job == 'discussion-plan' || (inputs.job == 'all' && inputs.resource_number != '')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Verify discussion number provided
-        if: inputs.resource_number == ''
-        run: |
-          echo "::error::discussion-plan test requires a discussion number"
-          exit 1
-
-      - name: Trigger _claude.yml directly
-        id: trigger
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DISCUSSION_NUMBER: ${{ inputs.resource_number }}
-          MOCK_MODE: ${{ inputs.mock_mode }}
-        run: |
-          context_json=$(jq -n \
-            --arg num "$DISCUSSION_NUMBER" \
-            '{discussion_number: $num}')
-
-          gh workflow run _claude.yml \
-            -f job=discussion-plan \
-            -f context_json="$context_json" \
-            -f mock_mode="$MOCK_MODE"
-
-          sleep 10
-          run_id=$(gh run list --workflow=_claude.yml --limit=1 --json databaseId --jq '.[0].databaseId')
-          echo "run_id=$run_id" >> $GITHUB_OUTPUT
-
-      - name: Wait for workflow completion
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RUN_ID: ${{ steps.trigger.outputs.run_id }}
-        run: |
-          [[ -z "$RUN_ID" ]] && exit 0
-          timeout 600 gh run watch "$RUN_ID" --exit-status || {
-            conclusion=$(gh run view "$RUN_ID" --json conclusion --jq '.conclusion')
-            [[ "$conclusion" == "failure" ]] && gh run view "$RUN_ID" --log-failed | tail -100 && exit 1
-          }
-
-  # ============================================================================
-  # ISSUE COMMENT TEST
-  # ============================================================================
-  issue-comment-test:
-    if: inputs.job == 'issue-comment' || (inputs.job == 'all' && inputs.resource_number != '')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Verify issue number provided
-        if: inputs.resource_number == ''
-        run: |
-          echo "::error::issue-comment test requires an issue number"
-          exit 1
-
-      - name: Trigger _claude.yml directly
-        id: trigger
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ inputs.resource_number }}
-          MOCK_MODE: ${{ inputs.mock_mode }}
-        run: |
-          context_json=$(jq -n \
-            --arg num "$ISSUE_NUMBER" \
-            --arg type "issue" \
-            --arg desc "@claude What is the purpose of this issue?" \
-            '{issue_number: $num, context_type: $type, context_description: $desc}')
-
-          gh workflow run _claude.yml \
-            -f job=issue-comment \
-            -f context_json="$context_json" \
-            -f mock_mode="$MOCK_MODE"
-
-          sleep 10
-          run_id=$(gh run list --workflow=_claude.yml --limit=1 --json databaseId --jq '.[0].databaseId')
-          echo "run_id=$run_id" >> $GITHUB_OUTPUT
-
-      - name: Wait for workflow completion
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RUN_ID: ${{ steps.trigger.outputs.run_id }}
-        run: |
-          [[ -z "$RUN_ID" ]] && exit 0
-          timeout 600 gh run watch "$RUN_ID" --exit-status || {
-            conclusion=$(gh run view "$RUN_ID" --json conclusion --jq '.conclusion')
-            [[ "$conclusion" == "failure" ]] && gh run view "$RUN_ID" --log-failed | tail -100 && exit 1
-          }
+  discussion-research-run:
+    needs: discussion-research-setup
+    if: needs.discussion-research-setup.result == 'success'
+    uses: ./.github/workflows/_claude.yml
+    with:
+      job: discussion-research
+      context_json: ${{ needs.discussion-research-setup.outputs.context_json }}
+      mock_mode: ${{ inputs.mock_mode }}
+    secrets: inherit
 
   # ============================================================================
   # CLEANUP
   # ============================================================================
   cleanup-issue:
-    needs: [issue-triage-test, issue-implement-test]
+    needs: [issue-triage-setup, issue-triage-run, issue-implement-setup, issue-implement-run]
     if: |
       always() &&
       inputs.cleanup == true &&
-      inputs.resource_number == '' &&
-      (needs.issue-triage-test.outputs.test_issue_number != '' || needs.issue-implement-test.outputs.test_issue_number != '')
+      inputs.resource_number == ''
     runs-on: ubuntu-latest
     steps:
       - name: Cleanup test issues
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TRIAGE_ISSUE: ${{ needs.issue-triage-test.outputs.test_issue_number }}
-          IMPLEMENT_ISSUE: ${{ needs.issue-implement-test.outputs.test_issue_number }}
+          TRIAGE_ISSUE: ${{ needs.issue-triage-setup.outputs.issue_number }}
+          IMPLEMENT_ISSUE: ${{ needs.issue-implement-setup.outputs.issue_number }}
         run: |
           for issue in $TRIAGE_ISSUE $IMPLEMENT_ISSUE; do
             if [[ -n "$issue" ]]; then
@@ -800,18 +492,18 @@ jobs:
           done
 
   cleanup-discussion:
-    needs: [discussion-research-test]
+    needs: [discussion-research-setup, discussion-research-run]
     if: |
       always() &&
       inputs.cleanup == true &&
-      inputs.resource_number == '' &&
-      needs.discussion-research-test.outputs.test_discussion_number != ''
+      inputs.resource_number == ''
     runs-on: ubuntu-latest
     steps:
-      - name: Cleanup test discussion
+      - name: Note about discussion cleanup
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DISCUSSION_NUMBER: ${{ needs.discussion-research-test.outputs.test_discussion_number }}
+          DISCUSSION_NUMBER: ${{ needs.discussion-research-setup.outputs.discussion_number }}
         run: |
-          echo "Note: Discussion #$DISCUSSION_NUMBER created for testing"
-          echo "GitHub API doesn't support deleting discussions - manual cleanup may be needed"
+          if [[ -n "$DISCUSSION_NUMBER" ]]; then
+            echo "Note: Discussion #$DISCUSSION_NUMBER created for testing"
+            echo "GitHub API doesn't support deleting discussions - manual cleanup may be needed"
+          fi
