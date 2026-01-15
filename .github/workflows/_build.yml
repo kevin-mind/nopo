@@ -75,6 +75,7 @@ jobs:
         with:
           registry: ghcr.io
           image: ${{ github.repository }}
+          version: ${{ steps.docker_meta.outputs.version }}
       - id: docker
         name: Set up Docker
         uses: ./.github/actions/setup-docker
