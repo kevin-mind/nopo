@@ -474,21 +474,18 @@ jobs:
       inputs.resource_number == ''
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Cleanup test issues
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TRIAGE_ISSUE: ${{ needs.issue-triage-setup.outputs.issue_number }}
           IMPLEMENT_ISSUE: ${{ needs.issue-implement-setup.outputs.issue_number }}
         run: |
+          # Safe to close: resource_number=='' means these were created by this test run
           for issue in $TRIAGE_ISSUE $IMPLEMENT_ISSUE; do
             if [[ -n "$issue" ]]; then
-              # Safety: only close issues with test:automation label
-              if gh issue view "$issue" --json labels --jq '.labels[].name' | grep -q "^test:automation$"; then
-                echo "✓ Closing test issue #$issue (has test:automation label)"
-                gh issue close "$issue" --reason "not planned" --comment "Test completed" || true
-              else
-                echo "⚠️ Skipping issue #$issue - missing test:automation label (safety protection)"
-              fi
+              echo "✓ Closing test issue #$issue"
+              gh issue close "$issue" --reason "not planned" --comment "🧹 Test cleanup" || true
             fi
           done
 
@@ -500,11 +497,31 @@ jobs:
       inputs.resource_number == ''
     runs-on: ubuntu-latest
     steps:
-      - name: Note about discussion cleanup
+      - uses: actions/checkout@v4
+      - name: Close test discussion
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DISCUSSION_NUMBER: ${{ needs.discussion-research-setup.outputs.discussion_number }}
         run: |
           if [[ -n "$DISCUSSION_NUMBER" ]]; then
-            echo "Note: Discussion #$DISCUSSION_NUMBER created for testing"
-            echo "GitHub API doesn't support deleting discussions - manual cleanup may be needed"
+            echo "✓ Closing test discussion #$DISCUSSION_NUMBER"
+
+            # Get discussion ID
+            discussion_id=$(gh api graphql -f query='
+              query($owner: String!, $repo: String!, $number: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  discussion(number: $number) { id }
+                }
+              }
+            ' -f owner="${GITHUB_REPOSITORY%/*}" -f repo="${GITHUB_REPOSITORY#*/}" -F number="$DISCUSSION_NUMBER" \
+              --jq '.data.repository.discussion.id')
+
+            # Close the discussion
+            gh api graphql -f query='
+              mutation($id: ID!) {
+                closeDiscussion(input: { discussionId: $id, reason: OUTDATED }) {
+                  discussion { id }
+                }
+              }
+            ' -f id="$discussion_id" || echo "Warning: Could not close discussion"
           fi
