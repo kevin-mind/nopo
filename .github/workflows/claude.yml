@@ -1,4 +1,18 @@
 name: Claude
+run-name: >-
+  ${{
+    github.event_name == 'workflow_dispatch' && format('Claude - {0} #{1}', inputs.job, inputs.resource_number) ||
+    github.event_name == 'issues' && format('Claude - issue #{0}', github.event.issue.number) ||
+    github.event_name == 'issue_comment' && format('Claude - comment on #{0}', github.event.issue.number) ||
+    github.event_name == 'pull_request_review_comment' && format('Claude - review comment on PR #{0}', github.event.pull_request.number) ||
+    github.event_name == 'push' && format('Claude - push to {0}', github.ref_name) ||
+    github.event_name == 'workflow_run' && format('Claude - CI {0} for PR', github.event.workflow_run.conclusion) ||
+    github.event_name == 'pull_request' && format('Claude - PR #{0}', github.event.pull_request.number) ||
+    github.event_name == 'pull_request_review' && format('Claude - review on PR #{0}', github.event.pull_request.number) ||
+    github.event_name == 'discussion' && format('Claude - discussion #{0}', github.event.discussion.number) ||
+    github.event_name == 'discussion_comment' && format('Claude - discussion #{0}', github.event.discussion.number) ||
+    'Claude'
+  }}
 'on':
   issues:
     types:
