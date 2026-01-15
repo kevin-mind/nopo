@@ -296,7 +296,7 @@ jobs:
               -f fieldId="PVTSSF_lADOBBYMds4BMB5szg7bd4s" \
               -f optionId="$OPTION_ID"
       - id: update_estimate
-        if: steps.project.outputs.has_project == 'true'
+        if: steps.project.outputs.has_project == 'true' && steps.parse.outputs.estimate != ''
         name: gh api graphql (update project estimate)
         env:
           GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
