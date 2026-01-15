@@ -90,6 +90,16 @@ inputs:
     required: false
     default: "eyes"
 
+  # Mock mode configuration (for testing)
+  mock_mode:
+    description: Test mode - skip Claude API call and use mock responses
+    required: false
+    default: "false"
+  mock_response:
+    description: Mock response JSON to write to triage-output.json (used when mock_mode=true)
+    required: false
+    default: ""
+
 outputs:
   success:
     description: Whether Claude completed successfully
@@ -215,10 +225,28 @@ runs:
         echo "comment_id=$comment_id" >> "$GITHUB_OUTPUT"
         echo "should_run=$([[ "$skipped" == "false" ]] && echo "true" || echo "false")" >> "$GITHUB_OUTPUT"
 
-    # Step 3: Run Claude Code
-    - name: Run Claude
+    # Step 3: Run Claude Code (or mock)
+    - name: Run Claude (mock mode)
+      id: claude_mock
+      if: steps.setup.outputs.should_run == 'true' && inputs.mock_mode == 'true'
+      shell: bash
+      env:
+        MOCK_RESPONSE: ${{ inputs.mock_response }}
+      run: |
+        echo "Running in MOCK mode - skipping Claude API call"
+        if [[ -n "$MOCK_RESPONSE" ]]; then
+          echo "$MOCK_RESPONSE" > triage-output.json
+          echo "Wrote mock response to triage-output.json"
+          cat triage-output.json
+        else
+          echo "No mock response provided - creating default"
+          echo '{"type":"enhancement","priority":"medium","size":"m","estimate":5,"topics":["test"],"needs_info":false}' > triage-output.json
+        fi
+        echo "Mock execution complete"
+
+    - name: Run Claude (real mode)
       id: claude
-      if: steps.setup.outputs.should_run == 'true'
+      if: steps.setup.outputs.should_run == 'true' && inputs.mock_mode != 'true'
       uses: anthropics/claude-code-action@v1
       with:
         claude_code_oauth_token: ${{ inputs.claude_code_oauth_token }}
@@ -261,7 +289,7 @@ runs:
       run: |
         if [[ "${{ steps.setup.outputs.skipped }}" == "true" ]]; then
           echo "success=false" >> "$GITHUB_OUTPUT"
-        elif [[ "${{ steps.claude.outcome }}" == "success" ]]; then
+        elif [[ "${{ steps.claude.outcome }}" == "success" || "${{ steps.claude_mock.outcome }}" == "success" ]]; then
           echo "success=true" >> "$GITHUB_OUTPUT"
         else
           echo "success=false" >> "$GITHUB_OUTPUT"

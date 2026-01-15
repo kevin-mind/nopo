@@ -180,16 +180,49 @@ jobs:
         with:
           ref: ${{ needs.request-setup.outputs.pr_branch }}
           fetch-depth: 0
+      - id: build_issue_section
+        name: Build ISSUE_SECTION
+        env:
+          HAS_ISSUE: ${{ needs.request-setup.outputs.has_issue }}
+          ISSUE_NUMBER: ${{ needs.request-setup.outputs.issue_number }}
+          ISSUE_BODY: ${{ needs.request-setup.outputs.issue_body }}
+        run: |
+          if [[ "$HAS_ISSUE" == "true" ]]; then
+            {
+              echo 'ISSUE_SECTION<<EOF'
+              echo "## Linked Issue #$ISSUE_NUMBER"
+              echo ""
+              echo "$ISSUE_BODY"
+              echo ""
+              echo "## Validation"
+              echo "- CHECK ALL TODO ITEMS in the issue are addressed"
+              echo "- VERIFY code follows CLAUDE.md guidelines"
+              echo "- ENSURE tests cover the requirements"
+              echo ""
+              echo 'EOF'
+            } >> $GITHUB_OUTPUT
+          else
+            {
+              echo 'ISSUE_SECTION<<EOF'
+              echo "## No Linked Issue"
+              echo "Performing standard code review."
+              echo ""
+              echo 'EOF'
+            } >> $GITHUB_OUTPUT
+          fi
+      - id: build_review_replacements
+        uses: ./.github/actions-ts/prompt-replacements
+        with:
+          pairs: |
+            PR_NUMBER=${{ needs.request-setup.outputs.pr_number }}
+            ISSUE_SECTION=${{ steps.build_issue_section.outputs.ISSUE_SECTION }}
       - id: claude_review
         uses: ./.github/actions/run-claude
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/review.txt
-          prompt_replacements: |-
-            ${{ toJson(fromJson(format('{"PR_NUMBER": "{0}", "ISSUE_SECTION": "{1}"}',
-                      needs.request-setup.outputs.pr_number,
-                      needs.request-setup.outputs.has_issue == 'true' && format('## Linked Issue #{0}\n\n{1}\n\n## Validation\n- CHECK ALL TODO ITEMS in the issue are addressed\n- VERIFY code follows CLAUDE.md guidelines\n- ENSURE tests cover the requirements\n\n', needs.request-setup.outputs.issue_number, needs.request-setup.outputs.issue_body) || '## No Linked Issue\nPerforming standard code review.\n\n'))) }}
+          prompt_replacements: ${{ steps.build_review_replacements.outputs.json }}
           max_turns: '50'
       - id: reaction_success
         name: gh api (add reaction)
@@ -239,20 +272,23 @@ jobs:
         run: |-
           git config --global user.name "$USER_NAME"
           git config --global user.email "$USER_EMAIL"
+      - id: build_response_replacements
+        uses: ./.github/actions-ts/prompt-replacements
+        with:
+          pairs: |
+            PR_NUMBER=${{ github.event.pull_request.number }}
+            REVIEW_STATE=${{ github.event.review.state }}
+            REVIEW_BODY=${{ github.event.review.body }}
+            REPOSITORY=${{ github.repository }}
+            REVIEW_ID=${{ github.event.review.id }}
+            HEAD_REF=${{ github.event.pull_request.head.ref }}
       - id: claude_response
         uses: ./.github/actions/run-claude
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/review-response.txt
-          prompt_replacements: |-
-            ${{ toJson(fromJson(format('{"PR_NUMBER": "{0}", "REVIEW_STATE": "{1}", "REVIEW_BODY": "{2}", "REPOSITORY": "{3}", "REVIEW_ID": "{4}", "HEAD_REF": "{5}"}',
-                      github.event.pull_request.number,
-                      github.event.review.state,
-                      github.event.review.body,
-                      github.repository,
-                      github.event.review.id,
-                      github.event.pull_request.head.ref))) }}
+          prompt_replacements: ${{ steps.build_response_replacements.outputs.json }}
           max_turns: '50'
   human-review-response:
     if: |-
@@ -293,6 +329,18 @@ jobs:
         run: |-
           git config --global user.name "$USER_NAME"
           git config --global user.email "$USER_EMAIL"
+      - id: build_human_response_replacements
+        if: steps.check_author.outputs.is_claude_pr == 'true'
+        uses: ./.github/actions-ts/prompt-replacements
+        with:
+          pairs: |
+            REVIEWER_LOGIN=${{ github.event.review.user.login }}
+            PR_NUMBER=${{ github.event.pull_request.number }}
+            REVIEW_STATE=${{ github.event.review.state }}
+            REVIEW_BODY=${{ github.event.review.body }}
+            REPOSITORY=${{ github.repository }}
+            REVIEW_ID=${{ github.event.review.id }}
+            HEAD_REF=${{ github.event.pull_request.head.ref }}
       - id: claude_human_response
         if: steps.check_author.outputs.is_claude_pr == 'true'
         uses: ./.github/actions/run-claude
@@ -300,13 +348,5 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/human-review-response.txt
-          prompt_replacements: |-
-            ${{ toJson(fromJson(format('{"REVIEWER_LOGIN": "{0}", "PR_NUMBER": "{1}", "REVIEW_STATE": "{2}", "REVIEW_BODY": "{3}", "REPOSITORY": "{4}", "REVIEW_ID": "{5}", "HEAD_REF": "{6}"}',
-                      github.event.review.user.login,
-                      github.event.pull_request.number,
-                      github.event.review.state,
-                      github.event.review.body,
-                      github.repository,
-                      github.event.review.id,
-                      github.event.pull_request.head.ref))) }}
+          prompt_replacements: ${{ steps.build_human_response_replacements.outputs.json }}
           max_turns: '50'

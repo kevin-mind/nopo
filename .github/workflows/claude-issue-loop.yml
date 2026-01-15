@@ -41,14 +41,15 @@ jobs:
   triage-check:
     runs-on: ubuntu-latest
     if: |-
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'triage') ||
       (github.event_name == 'issues' &&
+       !contains(github.event.issue.labels.*.name, 'test:automation') &&
        (
          ((github.event.action == 'opened' || github.event.action == 'edited') &&
           !contains(github.event.issue.labels.*.name, 'triaged')) ||
          (github.event.action == 'unlabeled' && github.event.label.name == 'triaged')
        )
-      ) ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'triage')
+      )
     outputs:
       should_triage: ${{ steps.check.outputs.should_triage }}
       issue_number: ${{ steps.check.outputs.issue_number }}
@@ -121,13 +122,20 @@ jobs:
     steps:
       - id: checkout
         uses: actions/checkout@v4
+      - id: build_triage_replacements
+        uses: ./.github/actions-ts/prompt-replacements
+        with:
+          pairs: |
+            ISSUE_NUMBER=${{ needs.triage-check.outputs.issue_number }}
+            ISSUE_TITLE=${{ needs.triage-check.outputs.issue_title }}
+            ISSUE_BODY=${{ needs.triage-check.outputs.issue_body }}
       - id: claude_triage
         uses: ./.github/actions/run-claude
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/triage.txt
-          prompt_replacements: '${{ toJson(fromJson(format(''{"ISSUE_NUMBER": "{0}", "ISSUE_TITLE": "{1}", "ISSUE_BODY": "{2}"}'', needs.triage-check.outputs.issue_number, needs.triage-check.outputs.issue_title, needs.triage-check.outputs.issue_body))) }}'
+          prompt_replacements: ${{ steps.build_triage_replacements.outputs.json }}
           max_turns: '50'
           status_comment: 'true'
           status_action: triaging this issue
@@ -311,9 +319,11 @@ jobs:
   implement-check:
     runs-on: ubuntu-latest
     if: |-
-      github.event.action == 'assigned' &&
-      github.event_name == 'issues' &&
-      github.event.assignee.login == 'nopo-bot'
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'implement') ||
+      (github.event.action == 'assigned' &&
+       github.event_name == 'issues' &&
+       github.event.assignee.login == 'nopo-bot' &&
+       !contains(github.event.issue.labels.*.name, 'test:automation'))
     outputs:
       should_implement: ${{ steps.check_pr.outputs.has_pr == 'false' }}
       issue_title: ${{ github.event.issue.title }}
@@ -645,9 +655,11 @@ jobs:
   comment:
     runs-on: ubuntu-latest
     if: |-
-      (github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment') &&
-      contains(github.event.comment.body, '@claude') &&
-      github.event.comment.user.type != 'Bot'
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'respond') ||
+      ((github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment') &&
+       contains(github.event.comment.body, '@claude') &&
+       github.event.comment.user.type != 'Bot' &&
+       !contains(github.event.issue.labels.*.name, 'test:automation'))
     steps:
       - id: pr_context
         name: gh pr view (branch)
@@ -669,17 +681,42 @@ jobs:
         with:
           ref: ${{ steps.pr_context.outputs.branch }}
           fetch-depth: 0
+      - id: build_comment_context
+        name: Build comment context
+        env:
+          IS_PR: ${{ steps.pr_context.outputs.is_pr }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          PR_BRANCH: ${{ steps.pr_context.outputs.branch }}
+        run: |
+          if [[ "$IS_PR" == "true" ]]; then
+            echo "CONTEXT_TYPE=PR" >> $GITHUB_OUTPUT
+            {
+              echo 'CONTEXT_DESCRIPTION<<EOF'
+              echo "This is PR #$ISSUE_NUMBER on branch \`$PR_BRANCH\`. You are checked out on the PR branch with the code changes."
+              echo 'EOF'
+            } >> $GITHUB_OUTPUT
+          else
+            echo "CONTEXT_TYPE=issue" >> $GITHUB_OUTPUT
+            {
+              echo 'CONTEXT_DESCRIPTION<<EOF'
+              echo "This is issue #$ISSUE_NUMBER. You are checked out on main."
+              echo 'EOF'
+            } >> $GITHUB_OUTPUT
+          fi
+      - id: build_comment_replacements
+        uses: ./.github/actions-ts/prompt-replacements
+        with:
+          pairs: |
+            CONTEXT_TYPE=${{ steps.build_comment_context.outputs.CONTEXT_TYPE }}
+            CONTEXT_DESCRIPTION=${{ steps.build_comment_context.outputs.CONTEXT_DESCRIPTION }}
+            ISSUE_NUMBER=${{ github.event.issue.number }}
       - id: claude_respond
         uses: ./.github/actions/run-claude
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/comment.txt
-          prompt_replacements: |-
-            ${{ toJson(fromJson(format('{"CONTEXT_TYPE": "{0}", "CONTEXT_DESCRIPTION": "{1}", "ISSUE_NUMBER": "{2}"}',
-                      steps.pr_context.outputs.is_pr == 'true' && 'PR' || 'issue',
-                      steps.pr_context.outputs.is_pr == 'true' && format('This is PR #{0} on branch `{1}`. You are checked out on the PR branch with the code changes.', github.event.issue.number, steps.pr_context.outputs.branch) || format('This is issue #{0}. You are checked out on main.', github.event.issue.number),
-                      github.event.issue.number))) }}
+          prompt_replacements: ${{ steps.build_comment_replacements.outputs.json }}
           max_turns: '100'
           trigger_phrase: '@claude'
           status_comment: 'true'

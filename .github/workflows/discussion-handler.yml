@@ -82,13 +82,18 @@ jobs:
         with:
           name: discussion-original-body
           path: /tmp
+      - id: build_summarize_replacements
+        uses: ./.github/actions-ts/prompt-replacements
+        with:
+          pairs: |
+            DISCUSSION_NUMBER=${{ github.event.client_payload.discussion_number }}
       - id: claude
         uses: ./.github/actions/run-claude
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/discussion-summarize.txt
-          prompt_replacements: '${{ toJson(fromJson(format(''{"DISCUSSION_NUMBER": "{0}"}'', github.event.client_payload.discussion_number))) }}'
+          prompt_replacements: ${{ steps.build_summarize_replacements.outputs.json }}
           max_turns: '50'
           show_full_output: 'true'
       - id: post_summary
@@ -139,17 +144,20 @@ jobs:
         with:
           name: discussion-original-body
           path: /tmp
+      - id: build_respond_replacements
+        uses: ./.github/actions-ts/prompt-replacements
+        with:
+          pairs: |
+            DISCUSSION_NUMBER=${{ github.event.client_payload.discussion_number }}
+            COMMENT_BODY=${{ github.event.client_payload.comment_body }}
+            COMMENT_AUTHOR=${{ github.event.client_payload.comment_author }}
       - id: claude
         uses: ./.github/actions/run-claude
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/discussion-respond.txt
-          prompt_replacements: |-
-            ${{ toJson(fromJson(format('{"DISCUSSION_NUMBER": "{0}", "COMMENT_BODY": "{1}", "COMMENT_AUTHOR": "{2}"}',
-                      github.event.client_payload.discussion_number,
-                      github.event.client_payload.comment_body,
-                      github.event.client_payload.comment_author))) }}
+          prompt_replacements: ${{ steps.build_respond_replacements.outputs.json }}
           max_turns: '100'
           show_full_output: 'true'
       - id: find_root
@@ -291,16 +299,19 @@ jobs:
         with:
           name: discussion-original-body
           path: /tmp
+      - id: build_research_replacements
+        uses: ./.github/actions-ts/prompt-replacements
+        with:
+          pairs: |
+            DISCUSSION_TITLE=${{ github.event.client_payload.discussion_title }}
+            DISCUSSION_BODY=${{ github.event.client_payload.discussion_body }}
       - id: claude
         uses: ./.github/actions/run-claude
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/discussion-research.txt
-          prompt_replacements: |-
-            ${{ toJson(fromJson(format('{"DISCUSSION_TITLE": "{0}", "DISCUSSION_BODY": "{1}"}',
-                      github.event.client_payload.discussion_title,
-                      github.event.client_payload.discussion_body))) }}
+          prompt_replacements: ${{ steps.build_research_replacements.outputs.json }}
           max_turns: '30'
           show_full_output: 'true'
       - id: debug_files
@@ -399,13 +410,18 @@ jobs:
         with:
           name: discussion-original-body
           path: /tmp
+      - id: build_plan_replacements
+        uses: ./.github/actions-ts/prompt-replacements
+        with:
+          pairs: |
+            DISCUSSION_NUMBER=${{ github.event.client_payload.discussion_number }}
       - id: claude
         uses: ./.github/actions/run-claude
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/discussion-plan.txt
-          prompt_replacements: '${{ toJson(fromJson(format(''{"DISCUSSION_NUMBER": "{0}"}'', github.event.client_payload.discussion_number))) }}'
+          prompt_replacements: ${{ steps.build_plan_replacements.outputs.json }}
           max_turns: '100'
           show_full_output: 'true'
       - id: find_root

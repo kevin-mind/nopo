@@ -133,13 +133,19 @@ jobs:
         run: |-
           git config --global user.name "$USER_NAME"
           git config --global user.email "$USER_EMAIL"
+      - id: build_ci_fix_replacements
+        uses: ./.github/actions-ts/prompt-replacements
+        with:
+          pairs: |
+            PR_NUMBER=${{ needs.check-pr.outputs.pr_number }}
+            HEAD_BRANCH=${{ needs.check-pr.outputs.pr_head_branch }}
       - id: claude_fix
         uses: ./.github/actions/run-claude
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/ci-fix.txt
-          prompt_replacements: '${{ toJson(fromJson(format(''{"PR_NUMBER": "{0}", "HEAD_BRANCH": "{1}"}'', needs.check-pr.outputs.pr_number, needs.check-pr.outputs.pr_head_branch))) }}'
+          prompt_replacements: ${{ steps.build_ci_fix_replacements.outputs.json }}
           max_turns: '200'
           issue_or_pr_number: ${{ needs.check-pr.outputs.pr_number }}
           circuit_breaker: 'true'
@@ -159,13 +165,19 @@ jobs:
         with:
           ref: ${{ needs.check-pr.outputs.pr_head_branch }}
           fetch-depth: 0
+      - id: build_ci_suggest_replacements
+        uses: ./.github/actions-ts/prompt-replacements
+        with:
+          pairs: |
+            PR_NUMBER=${{ needs.check-pr.outputs.pr_number }}
+            HEAD_BRANCH=${{ needs.check-pr.outputs.pr_head_branch }}
       - id: claude_suggest
         uses: ./.github/actions/run-claude
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/ci-suggest.txt
-          prompt_replacements: '${{ toJson(fromJson(format(''{"PR_NUMBER": "{0}", "HEAD_BRANCH": "{1}"}'', needs.check-pr.outputs.pr_number, needs.check-pr.outputs.pr_head_branch))) }}'
+          prompt_replacements: ${{ steps.build_ci_suggest_replacements.outputs.json }}
           max_turns: '200'
     needs:
       - check-pr

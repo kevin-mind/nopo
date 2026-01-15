@@ -1,0 +1,169 @@
+name: Test Claude Automation
+on:
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: 'Test scenario'
+        required: true
+        type: choice
+        options:
+          - triage-dry-run
+          - triage-mock
+          - unit-tests
+      test_issue_number:
+        description: 'Issue number to test (for triage scenarios)'
+        required: false
+        type: string
+        default: ''
+      cleanup:
+        description: 'Clean up test data after test'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  issues: write
+  actions: write
+
+jobs:
+  unit-tests:
+    if: inputs.scenario == 'unit-tests'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-node
+      - name: Run GitHub Actions tests
+        run: pnpm run --filter @nopo/github-actions test
+
+  triage-test:
+    if: startsWith(inputs.scenario, 'triage-')
+    runs-on: ubuntu-latest
+    outputs:
+      test_issue_number: ${{ steps.issue.outputs.number }}
+      triggered_run_id: ${{ steps.trigger.outputs.run_id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create test issue
+        if: inputs.test_issue_number == ''
+        id: create
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          issue_url=$(gh issue create \
+            --title "[TEST] Automation test - $(date +%s)" \
+            --body "Test issue with {braces} and \"quotes\" and \$variables
+
+          ## Description
+          This is an automated test issue to verify triage workflow.
+
+          ## Priority
+          Medium
+
+          ## Todo
+          - [ ] Test task 1
+          - [ ] Test task 2" \
+            --label "test:automation")
+          echo "issue_number=${issue_url##*/}" >> $GITHUB_OUTPUT
+          echo "Created test issue: $issue_url"
+
+      - name: Set issue number
+        id: issue
+        run: |
+          if [[ -n "${{ inputs.test_issue_number }}" ]]; then
+            echo "number=${{ inputs.test_issue_number }}" >> $GITHUB_OUTPUT
+          else
+            echo "number=${{ steps.create.outputs.issue_number }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Trigger triage workflow
+        id: trigger
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ steps.issue.outputs.number }}
+          SCENARIO: ${{ inputs.scenario }}
+        run: |
+          echo "Triggering triage for issue #$ISSUE_NUMBER"
+
+          # Trigger the triage workflow
+          gh workflow run claude-issue-loop.yml \
+            -f issue_number="$ISSUE_NUMBER" \
+            -f action=triage
+
+          # Wait for the workflow to start
+          echo "Waiting for workflow to start..."
+          sleep 15
+
+          # Get the latest run ID
+          run_id=$(gh run list --workflow=claude-issue-loop.yml --limit=5 --json databaseId,headBranch,status \
+            --jq 'first | .databaseId')
+
+          echo "run_id=$run_id" >> $GITHUB_OUTPUT
+          echo "Triggered run: $run_id"
+
+      - name: Wait for workflow completion
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ steps.trigger.outputs.run_id }}
+        run: |
+          if [[ -z "$RUN_ID" ]]; then
+            echo "::warning::Could not find workflow run ID"
+            exit 0
+          fi
+
+          echo "Watching run $RUN_ID..."
+
+          # Wait up to 5 minutes for completion
+          timeout 300 gh run watch "$RUN_ID" --exit-status || {
+            exit_code=$?
+            echo "Run watch exited with code: $exit_code"
+
+            # Get the conclusion
+            conclusion=$(gh run view "$RUN_ID" --json conclusion --jq '.conclusion')
+            echo "Run conclusion: $conclusion"
+
+            if [[ "$conclusion" == "failure" ]]; then
+              echo "::error::Triage workflow failed"
+
+              # Get failure details
+              gh run view "$RUN_ID" --log-failed | tail -100
+
+              exit 1
+            fi
+          }
+
+      - name: Verify triage results
+        if: inputs.scenario == 'triage-mock' || inputs.scenario == 'triage-dry-run'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ steps.issue.outputs.number }}
+        run: |
+          echo "Verifying triage results for issue #$ISSUE_NUMBER"
+
+          # Check if issue was updated (has labels, comments, etc.)
+          issue_data=$(gh issue view "$ISSUE_NUMBER" --json labels,comments)
+
+          echo "Issue data:"
+          echo "$issue_data" | jq .
+
+          # Check for triaged label (only in mock/live mode, not dry-run)
+          if [[ "${{ inputs.scenario }}" != "triage-dry-run" ]]; then
+            if echo "$issue_data" | jq -e '.labels[].name | select(. == "triaged")' > /dev/null 2>&1; then
+              echo "Issue has 'triaged' label"
+            else
+              echo "::warning::Issue does not have 'triaged' label yet"
+            fi
+          fi
+
+  cleanup:
+    needs: triage-test
+    if: always() && inputs.cleanup == true && needs.triage-test.outputs.test_issue_number != '' && inputs.test_issue_number == ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cleanup test issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ needs.triage-test.outputs.test_issue_number }}
+        run: |
+          echo "Closing test issue #$ISSUE_NUMBER"
+          gh issue close "$ISSUE_NUMBER" --reason "not planned" --comment "Test completed - closing test issue" || true
