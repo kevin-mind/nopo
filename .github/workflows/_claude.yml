@@ -49,44 +49,48 @@ permissions:
 defaults:
   run:
     shell: bash
+
 jobs:
+  # ============================================================================
+  # CONTEXT - Transform input to prompt replacements format
+  # ============================================================================
+  context:
+    runs-on: ubuntu-latest
+    outputs:
+      prompt_replacements: ${{ steps.format.outputs.json }}
+      branch_name: ${{ steps.extract.outputs.branch_name }}
+    steps:
+      - id: extract
+        name: Extract branch_name for checkout
+        run: |
+          branch=$(echo '${{ inputs.context_json }}' | jq -r '.branch_name // "main"')
+          echo "branch_name=$branch" >> $GITHUB_OUTPUT
+
+      - id: format
+        name: Transform to uppercase keys
+        run: |
+          # Transform all keys to uppercase for prompt replacements
+          json=$(echo '${{ inputs.context_json }}' | jq 'with_entries(.key |= ascii_upcase)')
+          echo "json=$json" >> $GITHUB_OUTPUT
+
   # ============================================================================
   # ISSUE JOBS
   # ============================================================================
   issue-triage:
+    needs: context
     if: inputs.job == 'issue-triage'
     runs-on: ubuntu-latest
     steps:
-      - id: checkout
-        uses: actions/checkout@v4
-      - id: context
-        name: Parse context JSON
-        env:
-          CONTEXT_JSON: ${{ inputs.context_json }}
-        run: |
-          echo "issue_number=$(echo '${{ inputs.context_json }}' | jq -r '.issue_number')" >> $GITHUB_OUTPUT
-          echo "issue_title=$(echo '${{ inputs.context_json }}' | jq -r '.issue_title')" >> $GITHUB_OUTPUT
-          # Use file for body to handle multiline
-          echo '${{ inputs.context_json }}' | jq -r '.issue_body' > /tmp/issue_body.txt
-      - id: build_replacements
-        uses: ./.github/actions-ts/prompt-replacements
-        with:
-          pairs: |
-            ISSUE_NUMBER=${{ steps.context.outputs.issue_number }}
-            ISSUE_TITLE=${{ steps.context.outputs.issue_title }}
-          files: |
-            ISSUE_BODY=/tmp/issue_body.txt
-      - id: claude
-        uses: ./.github/actions/run-claude
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/run-claude
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/triage.txt
-          prompt_replacements: ${{ steps.build_replacements.outputs.json }}
+          prompt_replacements: ${{ needs.context.outputs.prompt_replacements }}
           max_turns: '50'
           mock_mode: ${{ inputs.mock_mode }}
-      - id: upload_artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: claude-triage-output
           path: triage-output.json
@@ -94,102 +98,73 @@ jobs:
           if-no-files-found: ignore
 
   issue-implement:
+    needs: context
     if: inputs.job == 'issue-implement'
     runs-on: ubuntu-latest
     steps:
-      - id: context
-        name: Parse context JSON
-        run: |
-          echo "issue_number=$(echo '${{ inputs.context_json }}' | jq -r '.issue_number')" >> $GITHUB_OUTPUT
-          echo "issue_title=$(echo '${{ inputs.context_json }}' | jq -r '.issue_title')" >> $GITHUB_OUTPUT
-          echo "branch_name=$(echo '${{ inputs.context_json }}' | jq -r '.branch_name')" >> $GITHUB_OUTPUT
-          # Use files for multiline content
-          echo '${{ inputs.context_json }}' | jq -r '.issue_body // ""' > /tmp/issue_body.txt
-          echo '${{ inputs.context_json }}' | jq -r '.existing_branch_section // ""' > /tmp/existing_branch.txt
-      - id: checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          ref: ${{ steps.context.outputs.branch_name }}
+          ref: ${{ needs.context.outputs.branch_name }}
           fetch-depth: 0
-      - id: git_config
-        name: git config
+      - name: git config
         run: |
           git config --global user.name "Claude Bot"
           git config --global user.email "claude-bot@anthropic.com"
-      - id: setup_branch
-        name: Setup branch (check if exists, get diff)
+      - id: augment
+        name: Check for existing branch work
         env:
-          BRANCH_NAME: ${{ steps.context.outputs.branch_name }}
+          BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
+          BASE_REPLACEMENTS: ${{ needs.context.outputs.prompt_replacements }}
         run: |
-          # Check if branch has any commits beyond main
+          # Check if branch has commits beyond main
           diff=$(git diff main.."$BRANCH_NAME" --stat 2>/dev/null || echo "")
           if [[ -n "$diff" ]]; then
-            {
-              echo '## ⚠️ EXISTING BRANCH - Previous work detected'
-              echo ''
-              echo 'This branch already has changes from a previous implementation attempt:'
-              echo '```'
-              echo "$diff"
-              echo '```'
-              echo ''
-              echo '**CRITICAL**: Review what is already done. Do NOT re-implement completed work.'
-              echo 'Start from the CURRENT state of the code and continue toward the goal.'
-              echo 'If an edit fails because the text is not found, the change may already be applied.'
-            } > /tmp/existing_branch.txt
+            section=$(cat <<'SECTION'
+          ## ⚠️ EXISTING BRANCH - Previous work detected
+
+          This branch already has changes from a previous implementation attempt:
+          ```
+          $diff
+          ```
+
+          **CRITICAL**: Review what is already done. Do NOT re-implement completed work.
+          Start from the CURRENT state of the code and continue toward the goal.
+          If an edit fails because the text is not found, the change may already be applied.
+          SECTION
+          )
+            section="${section//\$diff/$diff}"
+          else
+            section=""
           fi
-      - id: build_replacements
-        uses: ./.github/actions-ts/prompt-replacements
-        with:
-          pairs: |
-            ISSUE_NUMBER=${{ steps.context.outputs.issue_number }}
-            ISSUE_TITLE=${{ steps.context.outputs.issue_title }}
-            BRANCH_NAME=${{ steps.context.outputs.branch_name }}
-          files: |
-            ISSUE_BODY=/tmp/issue_body.txt
-            EXISTING_BRANCH_SECTION=/tmp/existing_branch.txt
-      - id: claude
-        uses: ./.github/actions/run-claude
+          # Add EXISTING_BRANCH_SECTION to replacements
+          json=$(echo "$BASE_REPLACEMENTS" | jq --arg section "$section" '. + {EXISTING_BRANCH_SECTION: $section}')
+          echo "json=$json" >> $GITHUB_OUTPUT
+      - uses: ./.github/actions/run-claude
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/implement.txt
-          prompt_replacements: ${{ steps.build_replacements.outputs.json }}
+          prompt_replacements: ${{ steps.augment.outputs.json }}
           max_turns: '200'
           show_full_output: 'true'
           assignee_trigger: nopo-bot
           mock_mode: ${{ inputs.mock_mode }}
 
   issue-comment:
+    needs: context
     if: inputs.job == 'issue-comment'
     runs-on: ubuntu-latest
     steps:
-      - id: context
-        name: Parse context JSON
-        run: |
-          echo "issue_number=$(echo '${{ inputs.context_json }}' | jq -r '.issue_number')" >> $GITHUB_OUTPUT
-          echo "context_type=$(echo '${{ inputs.context_json }}' | jq -r '.context_type')" >> $GITHUB_OUTPUT
-          echo "branch_name=$(echo '${{ inputs.context_json }}' | jq -r '.branch_name // "main"')" >> $GITHUB_OUTPUT
-          echo '${{ inputs.context_json }}' | jq -r '.context_description // ""' > /tmp/context_description.txt
-      - id: checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          ref: ${{ steps.context.outputs.branch_name }}
+          ref: ${{ needs.context.outputs.branch_name }}
           fetch-depth: 0
-      - id: build_replacements
-        uses: ./.github/actions-ts/prompt-replacements
-        with:
-          pairs: |
-            CONTEXT_TYPE=${{ steps.context.outputs.context_type }}
-            ISSUE_NUMBER=${{ steps.context.outputs.issue_number }}
-          files: |
-            CONTEXT_DESCRIPTION=/tmp/context_description.txt
-      - id: claude
-        uses: ./.github/actions/run-claude
+      - uses: ./.github/actions/run-claude
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/comment.txt
-          prompt_replacements: ${{ steps.build_replacements.outputs.json }}
+          prompt_replacements: ${{ needs.context.outputs.prompt_replacements }}
           max_turns: '100'
           trigger_phrase: '@claude'
           circuit_breaker: 'true'
@@ -200,69 +175,60 @@ jobs:
   # CI JOBS
   # ============================================================================
   ci-fix:
+    needs: context
     if: inputs.job == 'ci-fix'
     runs-on: ubuntu-latest
     steps:
-      - id: context
-        name: Parse context JSON
-        run: |
-          echo "pr_number=$(echo '${{ inputs.context_json }}' | jq -r '.pr_number')" >> $GITHUB_OUTPUT
-          echo "branch_name=$(echo '${{ inputs.context_json }}' | jq -r '.branch_name')" >> $GITHUB_OUTPUT
-      - id: checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          ref: ${{ steps.context.outputs.branch_name }}
+          ref: ${{ needs.context.outputs.branch_name }}
           fetch-depth: 0
-      - id: git_config
-        name: git config
+      - name: git config
         run: |
           git config --global user.name "Claude Bot"
           git config --global user.email "claude-bot@anthropic.com"
-      - id: build_replacements
-        uses: ./.github/actions-ts/prompt-replacements
-        with:
-          pairs: |
-            PR_NUMBER=${{ steps.context.outputs.pr_number }}
-            HEAD_BRANCH=${{ steps.context.outputs.branch_name }}
-      - id: claude
-        uses: ./.github/actions/run-claude
+      - id: augment
+        name: Add HEAD_BRANCH alias
+        env:
+          BASE_REPLACEMENTS: ${{ needs.context.outputs.prompt_replacements }}
+          BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
+        run: |
+          json=$(echo "$BASE_REPLACEMENTS" | jq --arg branch "$BRANCH_NAME" '. + {HEAD_BRANCH: $branch}')
+          echo "json=$json" >> $GITHUB_OUTPUT
+      - uses: ./.github/actions/run-claude
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/ci-fix.txt
-          prompt_replacements: ${{ steps.build_replacements.outputs.json }}
+          prompt_replacements: ${{ steps.augment.outputs.json }}
           max_turns: '200'
           circuit_breaker: 'true'
           circuit_breaker_max: '50'
           mock_mode: ${{ inputs.mock_mode }}
 
   ci-suggest:
+    needs: context
     if: inputs.job == 'ci-suggest'
     runs-on: ubuntu-latest
     steps:
-      - id: context
-        name: Parse context JSON
-        run: |
-          echo "pr_number=$(echo '${{ inputs.context_json }}' | jq -r '.pr_number')" >> $GITHUB_OUTPUT
-          echo "branch_name=$(echo '${{ inputs.context_json }}' | jq -r '.branch_name')" >> $GITHUB_OUTPUT
-      - id: checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          ref: ${{ steps.context.outputs.branch_name }}
+          ref: ${{ needs.context.outputs.branch_name }}
           fetch-depth: 0
-      - id: build_replacements
-        uses: ./.github/actions-ts/prompt-replacements
-        with:
-          pairs: |
-            PR_NUMBER=${{ steps.context.outputs.pr_number }}
-            HEAD_BRANCH=${{ steps.context.outputs.branch_name }}
-      - id: claude
-        uses: ./.github/actions/run-claude
+      - id: augment
+        name: Add HEAD_BRANCH alias
+        env:
+          BASE_REPLACEMENTS: ${{ needs.context.outputs.prompt_replacements }}
+          BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
+        run: |
+          json=$(echo "$BASE_REPLACEMENTS" | jq --arg branch "$BRANCH_NAME" '. + {HEAD_BRANCH: $branch}')
+          echo "json=$json" >> $GITHUB_OUTPUT
+      - uses: ./.github/actions/run-claude
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/ci-suggest.txt
-          prompt_replacements: ${{ steps.build_replacements.outputs.json }}
+          prompt_replacements: ${{ steps.augment.outputs.json }}
           max_turns: '200'
           mock_mode: ${{ inputs.mock_mode }}
 
@@ -270,122 +236,86 @@ jobs:
   # PR REVIEW JOBS
   # ============================================================================
   pr-review:
+    needs: context
     if: inputs.job == 'pr-review'
     runs-on: ubuntu-latest
     steps:
-      - id: context
-        name: Parse context JSON
-        run: |
-          echo "pr_number=$(echo '${{ inputs.context_json }}' | jq -r '.pr_number')" >> $GITHUB_OUTPUT
-          echo "branch_name=$(echo '${{ inputs.context_json }}' | jq -r '.branch_name')" >> $GITHUB_OUTPUT
-          echo '${{ inputs.context_json }}' | jq -r '.issue_section // ""' > /tmp/issue_section.txt
-      - id: checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          ref: ${{ steps.context.outputs.branch_name }}
+          ref: ${{ needs.context.outputs.branch_name }}
           fetch-depth: 0
-      - id: build_replacements
-        uses: ./.github/actions-ts/prompt-replacements
-        with:
-          pairs: |
-            PR_NUMBER=${{ steps.context.outputs.pr_number }}
-          files: |
-            ISSUE_SECTION=/tmp/issue_section.txt
-      - id: claude
-        uses: ./.github/actions/run-claude
+      - uses: ./.github/actions/run-claude
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/review.txt
-          prompt_replacements: ${{ steps.build_replacements.outputs.json }}
+          prompt_replacements: ${{ needs.context.outputs.prompt_replacements }}
           max_turns: '50'
           mock_mode: ${{ inputs.mock_mode }}
 
   pr-response:
+    needs: context
     if: inputs.job == 'pr-response'
     runs-on: ubuntu-latest
     steps:
-      - id: context
-        name: Parse context JSON
-        run: |
-          echo "pr_number=$(echo '${{ inputs.context_json }}' | jq -r '.pr_number')" >> $GITHUB_OUTPUT
-          echo "branch_name=$(echo '${{ inputs.context_json }}' | jq -r '.branch_name')" >> $GITHUB_OUTPUT
-          echo "review_state=$(echo '${{ inputs.context_json }}' | jq -r '.review_state')" >> $GITHUB_OUTPUT
-          echo "review_id=$(echo '${{ inputs.context_json }}' | jq -r '.review_id')" >> $GITHUB_OUTPUT
-          echo '${{ inputs.context_json }}' | jq -r '.review_body // ""' > /tmp/review_body.txt
-      - id: checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          ref: ${{ steps.context.outputs.branch_name }}
+          ref: ${{ needs.context.outputs.branch_name }}
           fetch-depth: 0
-      - id: git_config
-        name: git config
+      - name: git config
         run: |
           git config --global user.name "Claude Bot"
           git config --global user.email "claude-bot@anthropic.com"
-      - id: build_replacements
-        uses: ./.github/actions-ts/prompt-replacements
-        with:
-          pairs: |
-            PR_NUMBER=${{ steps.context.outputs.pr_number }}
-            REVIEW_STATE=${{ steps.context.outputs.review_state }}
-            REPOSITORY=${{ github.repository }}
-            REVIEW_ID=${{ steps.context.outputs.review_id }}
-            HEAD_REF=${{ steps.context.outputs.branch_name }}
-          files: |
-            REVIEW_BODY=/tmp/review_body.txt
-      - id: claude
-        uses: ./.github/actions/run-claude
+      - id: augment
+        name: Add REPOSITORY and HEAD_REF
+        env:
+          BASE_REPLACEMENTS: ${{ needs.context.outputs.prompt_replacements }}
+          BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
+        run: |
+          json=$(echo "$BASE_REPLACEMENTS" | jq \
+            --arg repo "${{ github.repository }}" \
+            --arg branch "$BRANCH_NAME" \
+            '. + {REPOSITORY: $repo, HEAD_REF: $branch}')
+          echo "json=$json" >> $GITHUB_OUTPUT
+      - uses: ./.github/actions/run-claude
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/review-response.txt
-          prompt_replacements: ${{ steps.build_replacements.outputs.json }}
+          prompt_replacements: ${{ steps.augment.outputs.json }}
           max_turns: '50'
           mock_mode: ${{ inputs.mock_mode }}
 
   pr-human-response:
+    needs: context
     if: inputs.job == 'pr-human-response'
     runs-on: ubuntu-latest
     steps:
-      - id: context
-        name: Parse context JSON
-        run: |
-          echo "pr_number=$(echo '${{ inputs.context_json }}' | jq -r '.pr_number')" >> $GITHUB_OUTPUT
-          echo "branch_name=$(echo '${{ inputs.context_json }}' | jq -r '.branch_name')" >> $GITHUB_OUTPUT
-          echo "reviewer_login=$(echo '${{ inputs.context_json }}' | jq -r '.reviewer_login')" >> $GITHUB_OUTPUT
-          echo "review_state=$(echo '${{ inputs.context_json }}' | jq -r '.review_state')" >> $GITHUB_OUTPUT
-          echo "review_id=$(echo '${{ inputs.context_json }}' | jq -r '.review_id')" >> $GITHUB_OUTPUT
-          echo '${{ inputs.context_json }}' | jq -r '.review_body // ""' > /tmp/review_body.txt
-      - id: checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          ref: ${{ steps.context.outputs.branch_name }}
+          ref: ${{ needs.context.outputs.branch_name }}
           fetch-depth: 0
-      - id: git_config
-        name: git config
+      - name: git config
         run: |
           git config --global user.name "Claude Bot"
           git config --global user.email "claude-bot@anthropic.com"
-      - id: build_replacements
-        uses: ./.github/actions-ts/prompt-replacements
-        with:
-          pairs: |
-            REVIEWER_LOGIN=${{ steps.context.outputs.reviewer_login }}
-            PR_NUMBER=${{ steps.context.outputs.pr_number }}
-            REVIEW_STATE=${{ steps.context.outputs.review_state }}
-            REPOSITORY=${{ github.repository }}
-            REVIEW_ID=${{ steps.context.outputs.review_id }}
-            HEAD_REF=${{ steps.context.outputs.branch_name }}
-          files: |
-            REVIEW_BODY=/tmp/review_body.txt
-      - id: claude
-        uses: ./.github/actions/run-claude
+      - id: augment
+        name: Add REPOSITORY and HEAD_REF
+        env:
+          BASE_REPLACEMENTS: ${{ needs.context.outputs.prompt_replacements }}
+          BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
+        run: |
+          json=$(echo "$BASE_REPLACEMENTS" | jq \
+            --arg repo "${{ github.repository }}" \
+            --arg branch "$BRANCH_NAME" \
+            '. + {REPOSITORY: $repo, HEAD_REF: $branch}')
+          echo "json=$json" >> $GITHUB_OUTPUT
+      - uses: ./.github/actions/run-claude
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/human-review-response.txt
-          prompt_replacements: ${{ steps.build_replacements.outputs.json }}
+          prompt_replacements: ${{ steps.augment.outputs.json }}
           max_turns: '50'
           mock_mode: ${{ inputs.mock_mode }}
 
@@ -393,36 +323,21 @@ jobs:
   # DISCUSSION JOBS
   # ============================================================================
   discussion-research:
+    needs: context
     if: inputs.job == 'discussion-research'
     runs-on: ubuntu-latest
     steps:
-      - id: context
-        name: Parse context JSON
-        run: |
-          echo "discussion_number=$(echo '${{ inputs.context_json }}' | jq -r '.discussion_number')" >> $GITHUB_OUTPUT
-          echo "discussion_title=$(echo '${{ inputs.context_json }}' | jq -r '.discussion_title')" >> $GITHUB_OUTPUT
-          echo '${{ inputs.context_json }}' | jq -r '.discussion_body // ""' > /tmp/discussion_body.txt
-      - id: checkout
-        uses: actions/checkout@v4
-      - id: build_replacements
-        uses: ./.github/actions-ts/prompt-replacements
-        with:
-          pairs: |
-            DISCUSSION_TITLE=${{ steps.context.outputs.discussion_title }}
-          files: |
-            DISCUSSION_BODY=/tmp/discussion_body.txt
-      - id: claude
-        uses: ./.github/actions/run-claude
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/run-claude
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/discussion-research.txt
-          prompt_replacements: ${{ steps.build_replacements.outputs.json }}
+          prompt_replacements: ${{ needs.context.outputs.prompt_replacements }}
           max_turns: '30'
           show_full_output: 'true'
           mock_mode: ${{ inputs.mock_mode }}
-      - id: upload_artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: claude-discussion-output
           path: |
@@ -432,37 +347,21 @@ jobs:
           if-no-files-found: ignore
 
   discussion-respond:
+    needs: context
     if: inputs.job == 'discussion-respond'
     runs-on: ubuntu-latest
     steps:
-      - id: context
-        name: Parse context JSON
-        run: |
-          echo "discussion_number=$(echo '${{ inputs.context_json }}' | jq -r '.discussion_number')" >> $GITHUB_OUTPUT
-          echo "comment_author=$(echo '${{ inputs.context_json }}' | jq -r '.comment_author')" >> $GITHUB_OUTPUT
-          echo '${{ inputs.context_json }}' | jq -r '.comment_body // ""' > /tmp/comment_body.txt
-      - id: checkout
-        uses: actions/checkout@v4
-      - id: build_replacements
-        uses: ./.github/actions-ts/prompt-replacements
-        with:
-          pairs: |
-            DISCUSSION_NUMBER=${{ steps.context.outputs.discussion_number }}
-            COMMENT_AUTHOR=${{ steps.context.outputs.comment_author }}
-          files: |
-            COMMENT_BODY=/tmp/comment_body.txt
-      - id: claude
-        uses: ./.github/actions/run-claude
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/run-claude
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/discussion-respond.txt
-          prompt_replacements: ${{ steps.build_replacements.outputs.json }}
+          prompt_replacements: ${{ needs.context.outputs.prompt_replacements }}
           max_turns: '100'
           show_full_output: 'true'
           mock_mode: ${{ inputs.mock_mode }}
-      - id: upload_artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: claude-discussion-output
           path: |
@@ -472,32 +371,21 @@ jobs:
           if-no-files-found: ignore
 
   discussion-summarize:
+    needs: context
     if: inputs.job == 'discussion-summarize'
     runs-on: ubuntu-latest
     steps:
-      - id: context
-        name: Parse context JSON
-        run: |
-          echo "discussion_number=$(echo '${{ inputs.context_json }}' | jq -r '.discussion_number')" >> $GITHUB_OUTPUT
-      - id: checkout
-        uses: actions/checkout@v4
-      - id: build_replacements
-        uses: ./.github/actions-ts/prompt-replacements
-        with:
-          pairs: |
-            DISCUSSION_NUMBER=${{ steps.context.outputs.discussion_number }}
-      - id: claude
-        uses: ./.github/actions/run-claude
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/run-claude
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/discussion-summarize.txt
-          prompt_replacements: ${{ steps.build_replacements.outputs.json }}
+          prompt_replacements: ${{ needs.context.outputs.prompt_replacements }}
           max_turns: '50'
           show_full_output: 'true'
           mock_mode: ${{ inputs.mock_mode }}
-      - id: upload_artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: claude-discussion-output
           path: /tmp/discussion-summary.md
@@ -505,32 +393,21 @@ jobs:
           if-no-files-found: ignore
 
   discussion-plan:
+    needs: context
     if: inputs.job == 'discussion-plan'
     runs-on: ubuntu-latest
     steps:
-      - id: context
-        name: Parse context JSON
-        run: |
-          echo "discussion_number=$(echo '${{ inputs.context_json }}' | jq -r '.discussion_number')" >> $GITHUB_OUTPUT
-      - id: checkout
-        uses: actions/checkout@v4
-      - id: build_replacements
-        uses: ./.github/actions-ts/prompt-replacements
-        with:
-          pairs: |
-            DISCUSSION_NUMBER=${{ steps.context.outputs.discussion_number }}
-      - id: claude
-        uses: ./.github/actions/run-claude
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/run-claude
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/discussion-plan.txt
-          prompt_replacements: ${{ steps.build_replacements.outputs.json }}
+          prompt_replacements: ${{ needs.context.outputs.prompt_replacements }}
           max_turns: '100'
           show_full_output: 'true'
           mock_mode: ${{ inputs.mock_mode }}
-      - id: upload_artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: claude-discussion-output
           path: /tmp/discussion-plan-summary.md
