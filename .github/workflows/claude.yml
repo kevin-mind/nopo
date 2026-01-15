@@ -92,9 +92,24 @@ defaults:
     shell: bash
 jobs:
   # ============================================================================
+  # DEBUG: Print github context
+  # ============================================================================
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print github context
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+        run: |
+          echo "::group::github context"
+          echo "$GITHUB_CONTEXT" | jq .
+          echo "::endgroup::"
+
+  # ============================================================================
   # STEP 1: DETECT EVENT
   # ============================================================================
   detect:
+    needs: debug
     runs-on: ubuntu-latest
     outputs:
       job: ${{ steps.detect.outputs.job || inputs.job }}
