@@ -87,7 +87,7 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
     return this.exec`docker buildx bake ${args}`;
   }
 
-  async builder(): Promise<string> {
+  async builder(): Promise<string | null> {
     const customBuilder = this.runner.config.processEnv.DOCKER_BUILDER;
     if (customBuilder) return customBuilder;
 
@@ -100,7 +100,9 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
       this.log(
         "Using default Docker builder for local development (faster builds)",
       );
-      return "default";
+      // Return null to let Docker use the current context's default builder
+      // This avoids context mismatch issues (e.g., desktop-linux vs default)
+      return null;
     }
 
     // CI: use or create nopo-builder with docker-container driver
@@ -264,13 +266,15 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
 
     this.log(`
       Building targets: ${args.targets.length > 0 ? args.targets.join(", ") : "all"}
-      - builder: "${builder}"
+      - builder: "${builder ?? "(current context default)"}"
       - push: "${push}"
       - no-cache: "${args.noCache}"
       - metadata-file: "${metadataFile}"
     `);
 
-    commandOptions.push("--builder", builder);
+    if (builder) {
+      commandOptions.push("--builder", builder);
+    }
     commandOptions.push("--metadata-file", metadataFile);
     if (push) commandOptions.push("--push");
     if (args.noCache) commandOptions.push("--no-cache");

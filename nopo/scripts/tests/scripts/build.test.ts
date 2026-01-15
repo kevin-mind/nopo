@@ -37,8 +37,9 @@ describe("build", () => {
     BuildScript.prototype.builder = mockBuilder;
   });
 
-  it("builds all targets with default options", async () => {
-    mockBuilder.mockResolvedValue("default");
+  it("builds all targets with default options (local development)", async () => {
+    // Local development returns null builder to use current context's default
+    mockBuilder.mockResolvedValue(null);
     const config = createTestConfig({
       envFile: createTmpEnv({
         DOCKER_TAG: "kevin-mind/nopo:local",
@@ -52,13 +53,13 @@ describe("build", () => {
 
     const firstCall = mockBake.mock.calls[0];
     expect(firstCall).toContain("--print");
-    expect(firstCall).toContain("--builder");
-    expect(firstCall).toContain("default");
+    // Should NOT contain --builder when builder is null (local development)
+    expect(firstCall).not.toContain("--builder");
 
     const secondCall = mockBake.mock.calls[1];
     expect(secondCall).not.toContain("--print");
-    expect(secondCall).toContain("--builder");
-    expect(secondCall).toContain("default");
+    // Should NOT contain --builder when builder is null (local development)
+    expect(secondCall).not.toContain("--builder");
 
     // Verify bake file is used in both calls
     expect(
@@ -276,7 +277,8 @@ describe("build", () => {
     });
 
     it("does not include platforms for local builds", async () => {
-      mockBuilder.mockResolvedValue("default");
+      // Local development returns null builder to use current context's default
+      mockBuilder.mockResolvedValue(null);
       const config = createTestConfig({
         envFile: createTmpEnv({
           DOCKER_TAG: "kevin-mind/nopo:local",

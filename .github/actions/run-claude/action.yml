@@ -1,0 +1,268 @@
+name: Run Claude
+description: Standardized Claude Code execution with status comments, circuit breakers, and reactions
+
+inputs:
+  # Prompt inputs (one of prompt or prompt_file is required)
+  prompt:
+    description: Direct prompt string (alternative to prompt_file)
+    required: false
+    default: ""
+  prompt_file:
+    description: Path to the prompt file (relative to repository root)
+    required: false
+    default: ""
+  prompt_replacements:
+    description: "JSON object of template replacements for prompt_file (e.g., '{\"ISSUE_NUMBER\": \"123\"}')"
+    required: false
+    default: "{}"
+  github_token:
+    description: GitHub token for API calls and Claude action
+    required: true
+  claude_code_oauth_token:
+    description: OAuth token for Claude Code
+    required: true
+
+  # Claude configuration
+  model:
+    description: Claude model to use
+    required: false
+    default: "claude-opus-4-5-20251101"
+  max_turns:
+    description: Maximum number of API round-trips
+    required: false
+    default: "50"
+  settings:
+    description: Path to settings file
+    required: false
+    default: ".claude/settings.json"
+  show_full_output:
+    description: Whether to show full Claude output
+    required: false
+    default: "false"
+  trigger_phrase:
+    description: Trigger phrase for @-mentions (e.g., "@claude")
+    required: false
+    default: ""
+  assignee_trigger:
+    description: Assignee that triggers action (e.g., "nopo-bot")
+    required: false
+    default: ""
+
+  # Status comment configuration
+  status_comment:
+    description: Whether to post a status comment
+    required: false
+    default: "false"
+  status_action:
+    description: Action verb for status comment (e.g., "triaging this issue", "implementing")
+    required: false
+    default: "working"
+  issue_or_pr_number:
+    description: Issue or PR number for status comment
+    required: false
+    default: ""
+
+  # Circuit breaker configuration
+  circuit_breaker:
+    description: Whether to enable circuit breaker
+    required: false
+    default: "false"
+  circuit_breaker_max:
+    description: Maximum comments before stopping
+    required: false
+    default: "50"
+  circuit_breaker_user:
+    description: User login to count comments for
+    required: false
+    default: "claude[bot]"
+
+  # Reactions configuration
+  reactions:
+    description: Whether to add reactions to status comment
+    required: false
+    default: "false"
+  success_reaction:
+    description: Reaction to add on success
+    required: false
+    default: "rocket"
+  failure_reaction:
+    description: Reaction to add on failure
+    required: false
+    default: "eyes"
+
+outputs:
+  success:
+    description: Whether Claude completed successfully
+    value: ${{ steps.result.outputs.success }}
+  skipped:
+    description: Whether execution was skipped (circuit breaker triggered)
+    value: ${{ steps.setup.outputs.skipped }}
+  comment_id:
+    description: ID of the status comment (if posted)
+    value: ${{ steps.setup.outputs.comment_id }}
+
+runs:
+  using: "composite"
+  steps:
+    # Step 1: Load and process prompt
+    - name: Load prompt
+      id: prompt
+      shell: bash
+      env:
+        PROMPT: ${{ inputs.prompt }}
+        PROMPT_FILE: ${{ inputs.prompt_file }}
+        PROMPT_REPLACEMENTS: ${{ inputs.prompt_replacements }}
+      run: |
+        prompt=""
+
+        # Use direct prompt if provided, otherwise load from file
+        if [[ -n "$PROMPT" ]]; then
+          prompt="$PROMPT"
+        elif [[ -n "$PROMPT_FILE" ]]; then
+          if [[ ! -f "$PROMPT_FILE" ]]; then
+            echo "Error: Prompt file not found: $PROMPT_FILE"
+            exit 1
+          fi
+          prompt=$(cat "$PROMPT_FILE")
+
+          # Apply template replacements from JSON (only for file-based prompts)
+          if [[ "$PROMPT_REPLACEMENTS" != "{}" ]]; then
+            while IFS='=' read -r key value; do
+              # Remove quotes from value if present
+              value="${value%\"}"
+              value="${value#\"}"
+              # Replace {{KEY}} with value
+              prompt="${prompt//\{\{$key\}\}/$value}"
+            done < <(echo "$PROMPT_REPLACEMENTS" | jq -r 'to_entries[] | "\(.key)=\(.value)"')
+          fi
+        else
+          echo "Error: Either prompt or prompt_file must be provided"
+          exit 1
+        fi
+
+        # Save prompt to a temp file to handle multiline content
+        prompt_temp=$(mktemp)
+        echo "$prompt" > "$prompt_temp"
+        echo "prompt_file=$prompt_temp" >> "$GITHUB_OUTPUT"
+
+    # Step 2: Pre-work (status comment + circuit breaker)
+    - name: Setup
+      id: setup
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+        STATUS_COMMENT: ${{ inputs.status_comment }}
+        STATUS_ACTION: ${{ inputs.status_action }}
+        ISSUE_OR_PR_NUMBER: ${{ inputs.issue_or_pr_number }}
+        CIRCUIT_BREAKER: ${{ inputs.circuit_breaker }}
+        CIRCUIT_BREAKER_MAX: ${{ inputs.circuit_breaker_max }}
+        CIRCUIT_BREAKER_USER: ${{ inputs.circuit_breaker_user }}
+        GITHUB_SERVER_URL: ${{ github.server_url }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        GITHUB_RUN_ID: ${{ github.run_id }}
+      run: |
+        skipped="false"
+        comment_id=""
+
+        # Post status comment if enabled
+        if [[ "$STATUS_COMMENT" == "true" && -n "$ISSUE_OR_PR_NUMBER" ]]; then
+          body="👀 **nopo-bot** is ${STATUS_ACTION}...
+
+        [View workflow run](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})"
+
+          comment_url=$(gh issue comment "$ISSUE_OR_PR_NUMBER" --body "$body" --repo "$GITHUB_REPOSITORY" 2>&1)
+          comment_id=$(echo "$comment_url" | grep -oE '[0-9]+$' || echo "")
+          echo "Posted status comment: $comment_id"
+        fi
+
+        # Check circuit breaker if enabled
+        if [[ "$CIRCUIT_BREAKER" == "true" && -n "$ISSUE_OR_PR_NUMBER" ]]; then
+          # Count comments from the specified user using GraphQL
+          repo_name="${GITHUB_REPOSITORY#*/}"
+          owner="${GITHUB_REPOSITORY%/*}"
+
+          result=$(gh api graphql -f query='
+            query($owner: String!, $repo: String!, $number: Int!) {
+              repository(owner: $owner, name: $repo) {
+                issueOrPullRequest(number: $number) {
+                  ... on Issue {
+                    comments(first: 100) {
+                      nodes { author { login } }
+                    }
+                  }
+                  ... on PullRequest {
+                    comments(first: 100) {
+                      nodes { author { login } }
+                    }
+                  }
+                }
+              }
+            }
+          ' \
+            -F owner="$owner" \
+            -F repo="$repo_name" \
+            -F number="$ISSUE_OR_PR_NUMBER" 2>/dev/null || echo '{}')
+
+          comment_count=$(echo "$result" | jq --arg user "$CIRCUIT_BREAKER_USER" '[.data.repository.issueOrPullRequest.comments.nodes[] | select(.author.login == $user)] | length')
+
+          if [[ "$comment_count" -ge "$CIRCUIT_BREAKER_MAX" ]]; then
+            echo "Circuit breaker triggered: $comment_count comments (max: $CIRCUIT_BREAKER_MAX)"
+            skipped="true"
+          fi
+        fi
+
+        echo "skipped=$skipped" >> "$GITHUB_OUTPUT"
+        echo "comment_id=$comment_id" >> "$GITHUB_OUTPUT"
+        echo "should_run=$([[ "$skipped" == "false" ]] && echo "true" || echo "false")" >> "$GITHUB_OUTPUT"
+
+    # Step 3: Run Claude Code
+    - name: Run Claude
+      id: claude
+      if: steps.setup.outputs.should_run == 'true'
+      uses: anthropics/claude-code-action@v1
+      with:
+        claude_code_oauth_token: ${{ inputs.claude_code_oauth_token }}
+        github_token: ${{ inputs.github_token }}
+        prompt_file: ${{ steps.prompt.outputs.prompt_file }}
+        settings: ${{ inputs.settings }}
+        claude_args: "--model ${{ inputs.model }} --max-turns ${{ inputs.max_turns }}"
+        show_full_output: ${{ inputs.show_full_output }}
+        trigger_phrase: ${{ inputs.trigger_phrase }}
+        assignee_trigger: ${{ inputs.assignee_trigger }}
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+
+    # Step 3: Post-work (reactions)
+    - name: Add success reaction
+      if: inputs.reactions == 'true' && steps.setup.outputs.comment_id != '' && success()
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+        COMMENT_ID: ${{ steps.setup.outputs.comment_id }}
+        REACTION: ${{ inputs.success_reaction }}
+      run: |
+        gh api "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content="$REACTION" || true
+
+    - name: Add failure reaction
+      if: inputs.reactions == 'true' && steps.setup.outputs.comment_id != '' && failure()
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+        COMMENT_ID: ${{ steps.setup.outputs.comment_id }}
+        REACTION: ${{ inputs.failure_reaction }}
+      run: |
+        gh api "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content="$REACTION" || true
+
+    # Step 4: Set result output
+    - name: Set result
+      id: result
+      if: always()
+      shell: bash
+      run: |
+        if [[ "${{ steps.setup.outputs.skipped }}" == "true" ]]; then
+          echo "success=false" >> "$GITHUB_OUTPUT"
+        elif [[ "${{ steps.claude.outcome }}" == "success" ]]; then
+          echo "success=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "success=false" >> "$GITHUB_OUTPUT"
+        fi

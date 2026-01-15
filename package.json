@@ -16,9 +16,8 @@
     "check:lint:root": "eslint",
     "check:types:root": "tsc --noEmit",
     "check:knip:root": "knip",
-    "check:gwf:root": "pnpm run gwf:build && git diff --exit-code .github/workflows/",
     "check:actions:root": "pnpm run --filter @nopo/github-actions build && git diff --exit-code .github/actions-ts/*/dist/",
-    "gwf:build": "gwf build",
+    "check:actionlint:root": "./scripts/actionlint.sh",
     "fix:workspace": "pnpm run -r \"/^fix:.*/\"",
     "fix:lint:root": "eslint --fix",
     "fix:knip:root": "knip --fix",
@@ -26,15 +25,10 @@
     "start:workspace": "pnpm run -r start",
     "test:workspace": "pnpm run -r test",
     "publish:workspace": "pnpm publish -r",
-    "smoketest": "playwright test",
-    "prepare": "husky"
+    "smoketest": "playwright test"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.1",
-    "husky": "^9.1.7",
-    "@github-actions-workflow-ts/actions": "^2.1.0",
-    "@github-actions-workflow-ts/cli": "^2.1.0",
-    "@github-actions-workflow-ts/lib": "^2.1.0",
     "@eslint/compat": "^1.2.8",
     "@eslint/js": "^9.23.0",
     "@playwright/test": "^1.57.0",
