@@ -1,0 +1,27 @@
+name: Claude Detect Event
+description: Analyzes GitHub event and determines which Claude job to run
+
+inputs:
+  github_token:
+    description: GitHub token for API calls
+    required: true
+
+outputs:
+  job:
+    description: Job to run (empty if no Claude call needed)
+  resource_type:
+    description: Type of resource (issue, pr, discussion)
+  resource_number:
+    description: Issue/PR/Discussion number
+  comment_id:
+    description: Comment ID if responding to a comment (for reaction)
+  context_json:
+    description: JSON blob with all context needed by the job
+  skip:
+    description: Whether to skip processing (true/false)
+  skip_reason:
+    description: Reason for skipping
+
+runs:
+  using: node20
+  main: dist/index.cjs

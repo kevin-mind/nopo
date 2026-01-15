@@ -1,0 +1,392 @@
+name: Claude
+'on':
+  issues:
+    types:
+      - opened
+      - edited
+      - assigned
+      - unlabeled
+  issue_comment:
+    types:
+      - created
+  pull_request_review_comment:
+    types:
+      - created
+  push:
+    branches-ignore:
+      - main
+      - 'gh-readonly-queue/**'
+  workflow_run:
+    workflows:
+      - CI
+      - Release
+    types:
+      - completed
+  pull_request:
+    types:
+      - review_requested
+  pull_request_review:
+    types:
+      - submitted
+  discussion:
+    types:
+      - created
+  discussion_comment:
+    types:
+      - created
+  workflow_dispatch:
+    inputs:
+      job:
+        description: Job to run
+        required: true
+        type: choice
+        options:
+          - issue-triage
+          - issue-implement
+          - issue-comment
+          - ci-fix
+          - ci-suggest
+          - pr-review
+          - pr-response
+          - pr-human-response
+          - discussion-research
+          - discussion-respond
+          - discussion-summarize
+          - discussion-plan
+      resource_number:
+        description: Issue/PR/Discussion number
+        required: true
+        type: string
+      context_json:
+        description: Context JSON for the job
+        required: false
+        type: string
+        default: '{}'
+      mock_mode:
+        description: Mock mode for testing
+        type: string
+        default: 'false'
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  discussions: write
+  actions: write
+  id-token: write
+defaults:
+  run:
+    shell: bash
+jobs:
+  # ============================================================================
+  # STEP 1: DETECT EVENT
+  # ============================================================================
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      job: ${{ steps.detect.outputs.job || inputs.job }}
+      resource_type: ${{ steps.detect.outputs.resource_type }}
+      resource_number: ${{ steps.detect.outputs.resource_number || inputs.resource_number }}
+      comment_id: ${{ steps.detect.outputs.comment_id }}
+      context_json: ${{ steps.detect.outputs.context_json || inputs.context_json }}
+      skip: ${{ steps.detect.outputs.skip }}
+      skip_reason: ${{ steps.detect.outputs.skip_reason }}
+    steps:
+      - id: checkout
+        uses: actions/checkout@v4
+      - id: detect
+        if: github.event_name != 'workflow_dispatch'
+        uses: ./.github/actions-ts/claude-detect-event
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+  # ============================================================================
+  # STEP 2: SIGNAL START
+  # ============================================================================
+  signal-start:
+    needs: detect
+    if: |
+      needs.detect.outputs.skip != 'true' &&
+      needs.detect.outputs.job != '' &&
+      needs.detect.outputs.job != 'push-to-draft' &&
+      needs.detect.outputs.job != 'ci-success' &&
+      needs.detect.outputs.job != 'discussion-complete'
+    runs-on: ubuntu-latest
+    outputs:
+      status_comment_id: ${{ steps.signal.outputs.status_comment_id }}
+    steps:
+      - id: checkout
+        uses: actions/checkout@v4
+      - id: signal
+        uses: ./.github/actions-ts/claude-signal-start
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          resource_type: ${{ needs.detect.outputs.resource_type }}
+          resource_number: ${{ needs.detect.outputs.resource_number }}
+          comment_id: ${{ needs.detect.outputs.comment_id }}
+          job: ${{ needs.detect.outputs.job }}
+
+  # ============================================================================
+  # STEP 3: RUN CLAUDE JOB
+  # ============================================================================
+  run-job:
+    needs:
+      - detect
+      - signal-start
+    if: |
+      needs.detect.outputs.skip != 'true' &&
+      needs.detect.outputs.job != '' &&
+      needs.detect.outputs.job != 'push-to-draft' &&
+      needs.detect.outputs.job != 'ci-success' &&
+      needs.detect.outputs.job != 'discussion-complete'
+    uses: ./.github/workflows/_claude.yml
+    with:
+      job: ${{ needs.detect.outputs.job }}
+      context_json: ${{ needs.detect.outputs.context_json }}
+      mock_mode: ${{ inputs.mock_mode || 'false' }}
+    secrets: inherit
+
+  # ============================================================================
+  # STEP 4: HANDLE RESULT
+  # ============================================================================
+  handle-result:
+    needs:
+      - detect
+      - signal-start
+      - run-job
+    if: |
+      always() &&
+      needs.detect.outputs.skip != 'true' &&
+      needs.detect.outputs.job != '' &&
+      needs.detect.outputs.job != 'push-to-draft' &&
+      needs.detect.outputs.job != 'ci-success' &&
+      needs.detect.outputs.job != 'discussion-complete'
+    runs-on: ubuntu-latest
+    steps:
+      - id: checkout
+        uses: actions/checkout@v4
+      - id: result
+        uses: ./.github/actions-ts/claude-handle-result
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          resource_type: ${{ needs.detect.outputs.resource_type }}
+          resource_number: ${{ needs.detect.outputs.resource_number }}
+          status_comment_id: ${{ needs.signal-start.outputs.status_comment_id }}
+          comment_id: ${{ needs.detect.outputs.comment_id }}
+          job: ${{ needs.detect.outputs.job }}
+          job_result: ${{ needs.run-job.result }}
+          run_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          context_json: ${{ needs.detect.outputs.context_json }}
+
+  # ============================================================================
+  # SPECIAL JOBS (No Claude call needed)
+  # ============================================================================
+
+  # Push to draft - just converts PR to draft
+  push-to-draft:
+    needs: detect
+    if: needs.detect.outputs.job == 'push-to-draft'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: claude-review-${{ needs.detect.outputs.resource_number }}
+      cancel-in-progress: true
+    steps:
+      - id: context
+        name: Parse context
+        env:
+          CONTEXT_JSON: ${{ needs.detect.outputs.context_json }}
+        run: |
+          echo "pr_number=$(echo '$CONTEXT_JSON' | jq -r '.pr_number')" >> $GITHUB_OUTPUT
+          echo "is_draft=$(echo '$CONTEXT_JSON' | jq -r '.is_draft')" >> $GITHUB_OUTPUT
+      - id: convert
+        name: gh pr ready --undo
+        if: steps.context.outputs.is_draft == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.context.outputs.pr_number }}
+        run: gh pr ready "$PR_NUMBER" --undo --repo "$GITHUB_REPOSITORY"
+
+  # CI success - marks PR ready for review
+  ci-success:
+    needs: detect
+    if: needs.detect.outputs.job == 'ci-success'
+    runs-on: ubuntu-latest
+    steps:
+      - id: context
+        name: Parse context
+        env:
+          CONTEXT_JSON: ${{ needs.detect.outputs.context_json }}
+        run: |
+          echo "pr_number=$(echo '$CONTEXT_JSON' | jq -r '.pr_number')" >> $GITHUB_OUTPUT
+          echo "is_claude_pr=$(echo '$CONTEXT_JSON' | jq -r '.is_claude_pr')" >> $GITHUB_OUTPUT
+          echo "issue_number=$(echo '$CONTEXT_JSON' | jq -r '.issue_number')" >> $GITHUB_OUTPUT
+      - id: check_comments
+        name: gh api graphql (unresolved comments)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.context.outputs.pr_number }}
+        run: |
+          repo_name="${GITHUB_REPOSITORY#*/}"
+          owner="${GITHUB_REPOSITORY%/*}"
+
+          result=$(gh api graphql -f query='
+            query($owner: String!, $repo: String!, $pr: Int!) {
+              repository(owner: $owner, name: $repo) {
+                pullRequest(number: $pr) {
+                  reviewThreads(first: 100) {
+                    nodes { isResolved }
+                  }
+                }
+              }
+            }
+          ' -F owner="$owner" -F repo="$repo_name" -F pr="$PR_NUMBER")
+
+          unresolved=$(echo "$result" | jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length')
+          echo "unresolved_count=$unresolved" >> $GITHUB_OUTPUT
+          echo "has_unresolved=$([[ "$unresolved" -gt 0 ]] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+      - id: notify_blocked
+        name: gh pr comment (blocked)
+        if: steps.check_comments.outputs.has_unresolved == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.context.outputs.pr_number }}
+          COUNT: ${{ steps.check_comments.outputs.unresolved_count }}
+        run: |
+          gh pr comment "$PR_NUMBER" --body "⏸️ **CI passed but not moving to Review**
+
+          There are **$COUNT unresolved comment thread(s)** on this PR.
+
+          Please resolve all comments before the PR can move to Review status." --repo "$GITHUB_REPOSITORY"
+      - id: update_project
+        name: gh api graphql (update project status)
+        if: steps.check_comments.outputs.has_unresolved != 'true' && steps.context.outputs.issue_number != ''
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ steps.context.outputs.issue_number }}
+          TARGET_STATUS: In review
+        run: |
+          repo_name="${GITHUB_REPOSITORY#*/}"
+          owner="${GITHUB_REPOSITORY%/*}"
+
+          result=$(gh api graphql -f query='query($owner: String!, $repo: String!, $issue: Int!) {
+            repository(owner: $owner, name: $repo) {
+              issue(number: $issue) {
+                projectItems(first: 10) {
+                  nodes {
+                    id
+                    project {
+                      id
+                      field(name: "Status") {
+                        ... on ProjectV2SingleSelectField {
+                          id
+                          options { id name }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }' -F owner="$owner" -F repo="$repo_name" -F issue="$ISSUE_NUMBER" 2>/dev/null || echo "{}")
+
+          item=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0] // empty')
+          [[ -z "$item" ]] && exit 0
+
+          item_id=$(echo "$item" | jq -r '.id')
+          project_id=$(echo "$item" | jq -r '.project.id')
+          field_id=$(echo "$item" | jq -r '.project.field.id')
+          option_id=$(echo "$item" | jq -r --arg status "$TARGET_STATUS" '.project.field.options[] | select(.name == $status) | .id')
+
+          [[ -z "$option_id" ]] && exit 0
+
+          gh api graphql -f query='mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+            updateProjectV2ItemFieldValue(input: {
+              projectId: $projectId, itemId: $itemId, fieldId: $fieldId,
+              value: { singleSelectOptionId: $optionId }
+            }) { projectV2Item { id } }
+          }' -F projectId="$project_id" -F itemId="$item_id" -F fieldId="$field_id" -F optionId="$option_id"
+      - id: mark_ready
+        name: gh pr ready
+        if: steps.check_comments.outputs.has_unresolved != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.context.outputs.pr_number }}
+        run: gh pr ready "$PR_NUMBER" --repo "$GITHUB_REPOSITORY"
+      - id: add_label
+        name: gh pr edit --add-label
+        if: steps.check_comments.outputs.has_unresolved != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.context.outputs.pr_number }}
+        run: gh pr edit "$PR_NUMBER" --add-label "review-ready" --repo "$GITHUB_REPOSITORY" || true
+      - id: request_review
+        name: gh pr edit --add-reviewer
+        if: steps.check_comments.outputs.has_unresolved != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.context.outputs.pr_number }}
+        run: gh pr edit "$PR_NUMBER" --add-reviewer "nopo-bot" --repo "$GITHUB_REPOSITORY"
+
+  # Discussion complete - just marks discussion as complete
+  discussion-complete:
+    needs: detect
+    if: needs.detect.outputs.job == 'discussion-complete'
+    runs-on: ubuntu-latest
+    steps:
+      - id: context
+        name: Parse context
+        env:
+          CONTEXT_JSON: ${{ needs.detect.outputs.context_json }}
+        run: |
+          echo "discussion_number=$(echo '$CONTEXT_JSON' | jq -r '.discussion_number')" >> $GITHUB_OUTPUT
+      - id: get_discussion_id
+        name: gh api graphql (get discussion ID)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DISCUSSION_NUMBER: ${{ steps.context.outputs.discussion_number }}
+        run: |
+          repo_name="${GITHUB_REPOSITORY#*/}"
+          owner="${GITHUB_REPOSITORY%/*}"
+
+          result=$(gh api graphql -f query='
+            query($owner: String!, $repo: String!, $number: Int!) {
+              repository(owner: $owner, name: $repo) {
+                discussion(number: $number) { id }
+              }
+            }
+          ' -f owner="$owner" -f repo="$repo_name" -F number="$DISCUSSION_NUMBER")
+
+          echo "discussion_id=$(echo "$result" | jq -r '.data.repository.discussion.id')" >> $GITHUB_OUTPUT
+      - id: add_reaction
+        name: gh api graphql (add rocket reaction)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_ID: ${{ needs.detect.outputs.comment_id }}
+        run: |
+          gh api graphql -f query='
+            mutation($subjectId: ID!) {
+              addReaction(input: {
+                subjectId: $subjectId
+                content: ROCKET
+              }) {
+                reaction { id }
+              }
+            }
+          ' -f subjectId="$COMMENT_ID"
+      - id: post_completion
+        name: gh api graphql (post completion comment)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DISCUSSION_ID: ${{ steps.get_discussion_id.outputs.discussion_id }}
+        run: |
+          gh api graphql -f query='
+            mutation($discussionId: ID!, $body: String!) {
+              addDiscussionComment(input: {
+                discussionId: $discussionId
+                body: $body
+              }) {
+                comment { id }
+              }
+            }
+          ' -f discussionId="$DISCUSSION_ID" -f body="✅ **This discussion thread has been marked as complete.**
+
+          If you have additional questions, feel free to post a new comment!"
