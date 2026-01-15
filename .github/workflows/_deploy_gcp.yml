@@ -439,7 +439,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write
+      packages: write
     strategy:
       matrix:
         service: ${{ fromJson(needs.context.outputs.services) }}
