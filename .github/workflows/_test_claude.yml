@@ -3,10 +3,11 @@ on:
   workflow_dispatch:
     inputs:
       job:
-        description: 'Job to test'
+        description: 'Job to test (all = run all tests)'
         required: true
         type: choice
         options:
+          - all
           - unit-tests
           - issue-triage
           - issue-implement
@@ -29,7 +30,7 @@ on:
       mock_mode:
         description: 'Mock mode (true = no real Claude calls)'
         type: string
-        default: 'true'
+        default: 'false'
       cleanup:
         description: 'Clean up test data after test'
         type: boolean
@@ -47,7 +48,7 @@ jobs:
   # UNIT TESTS
   # ============================================================================
   unit-tests:
-    if: inputs.job == 'unit-tests'
+    if: inputs.job == 'unit-tests' || inputs.job == 'all'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -59,7 +60,7 @@ jobs:
   # DETECT EVENT ACTION TEST
   # ============================================================================
   detect-event:
-    if: inputs.job == 'detect-event'
+    if: inputs.job == 'detect-event' || inputs.job == 'all'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -107,7 +108,7 @@ jobs:
   # ISSUE JOB TESTS
   # ============================================================================
   issue-triage-test:
-    if: inputs.job == 'issue-triage'
+    if: inputs.job == 'issue-triage' || inputs.job == 'all'
     runs-on: ubuntu-latest
     outputs:
       test_issue_number: ${{ steps.issue.outputs.number }}
@@ -228,7 +229,7 @@ jobs:
           fi
 
   issue-implement-test:
-    if: inputs.job == 'issue-implement'
+    if: inputs.job == 'issue-implement' || inputs.job == 'all'
     runs-on: ubuntu-latest
     outputs:
       test_issue_number: ${{ steps.issue.outputs.number }}
@@ -312,16 +313,11 @@ jobs:
   # CI JOB TESTS
   # ============================================================================
   ci-fix-test:
-    if: inputs.job == 'ci-fix'
+    # Requires PR number - skip in 'all' mode unless resource provided
+    if: inputs.job == 'ci-fix' || (inputs.job == 'all' && inputs.resource_number != '')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Verify PR number provided
-        if: inputs.resource_number == ''
-        run: |
-          echo "::error::ci-fix test requires a PR number (resource_number)"
-          exit 1
 
       - name: Get PR data
         id: pr_data
@@ -366,7 +362,7 @@ jobs:
           }
 
   ci-suggest-test:
-    if: inputs.job == 'ci-suggest'
+    if: inputs.job == 'ci-suggest' || (inputs.job == 'all' && inputs.resource_number != '')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -423,7 +419,7 @@ jobs:
   # PR REVIEW JOB TESTS
   # ============================================================================
   pr-review-test:
-    if: inputs.job == 'pr-review'
+    if: inputs.job == 'pr-review' || (inputs.job == 'all' && inputs.resource_number != '')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -493,7 +489,7 @@ jobs:
           }
 
   pr-response-test:
-    if: inputs.job == 'pr-response'
+    if: inputs.job == 'pr-response' || (inputs.job == 'all' && inputs.resource_number != '')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -508,7 +504,7 @@ jobs:
           echo "This test is a placeholder - manual testing recommended"
 
   pr-human-response-test:
-    if: inputs.job == 'pr-human-response'
+    if: inputs.job == 'pr-human-response' || (inputs.job == 'all' && inputs.resource_number != '')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -526,7 +522,7 @@ jobs:
   # DISCUSSION JOB TESTS
   # ============================================================================
   discussion-research-test:
-    if: inputs.job == 'discussion-research'
+    if: inputs.job == 'discussion-research' || inputs.job == 'all'
     runs-on: ubuntu-latest
     outputs:
       test_discussion_number: ${{ steps.discussion.outputs.number }}
@@ -628,7 +624,7 @@ jobs:
           }
 
   discussion-respond-test:
-    if: inputs.job == 'discussion-respond'
+    if: inputs.job == 'discussion-respond' || (inputs.job == 'all' && inputs.resource_number != '')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -643,7 +639,7 @@ jobs:
           echo "This test is a placeholder - manual testing recommended"
 
   discussion-summarize-test:
-    if: inputs.job == 'discussion-summarize'
+    if: inputs.job == 'discussion-summarize' || (inputs.job == 'all' && inputs.resource_number != '')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -685,7 +681,7 @@ jobs:
           }
 
   discussion-plan-test:
-    if: inputs.job == 'discussion-plan'
+    if: inputs.job == 'discussion-plan' || (inputs.job == 'all' && inputs.resource_number != '')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -730,7 +726,7 @@ jobs:
   # ISSUE COMMENT TEST
   # ============================================================================
   issue-comment-test:
-    if: inputs.job == 'issue-comment'
+    if: inputs.job == 'issue-comment' || (inputs.job == 'all' && inputs.resource_number != '')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

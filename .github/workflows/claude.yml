@@ -113,7 +113,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       job: ${{ steps.detect.outputs.job || inputs.job }}
-      resource_type: ${{ steps.detect.outputs.resource_type }}
+      resource_type: ${{ steps.detect.outputs.resource_type || steps.derive.outputs.resource_type }}
       resource_number: ${{ steps.detect.outputs.resource_number || inputs.resource_number }}
       comment_id: ${{ steps.detect.outputs.comment_id }}
       context_json: ${{ steps.detect.outputs.context_json || inputs.context_json }}
@@ -127,6 +127,18 @@ jobs:
         uses: ./.github/actions-ts/claude-detect-event
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      - id: derive
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          JOB: ${{ inputs.job }}
+        run: |
+          # Derive resource_type from job name for workflow_dispatch
+          case "$JOB" in
+            issue-*) echo "resource_type=issue" >> $GITHUB_OUTPUT ;;
+            ci-*|pr-*) echo "resource_type=pr" >> $GITHUB_OUTPUT ;;
+            discussion-*) echo "resource_type=discussion" >> $GITHUB_OUTPUT ;;
+            *) echo "resource_type=issue" >> $GITHUB_OUTPUT ;;
+          esac
 
   # ============================================================================
   # STEP 2: SIGNAL START
