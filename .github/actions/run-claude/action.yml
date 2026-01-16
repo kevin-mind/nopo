@@ -150,10 +150,13 @@ runs:
           exit 1
         fi
 
-        # Save prompt to a temp file to handle multiline content
-        prompt_temp=$(mktemp)
-        echo "$prompt" > "$prompt_temp"
-        echo "prompt_file=$prompt_temp" >> "$GITHUB_OUTPUT"
+        # Save prompt to environment file for multiline content
+        # Using heredoc delimiter for $GITHUB_OUTPUT
+        {
+          echo "prompt<<EOF_PROMPT_CONTENT"
+          echo "$prompt"
+          echo "EOF_PROMPT_CONTENT"
+        } >> "$GITHUB_OUTPUT"
 
     # Step 2: Pre-work (status comment + circuit breaker)
     - name: Setup
@@ -251,7 +254,7 @@ runs:
       with:
         claude_code_oauth_token: ${{ inputs.claude_code_oauth_token }}
         github_token: ${{ inputs.github_token }}
-        prompt_file: ${{ steps.prompt.outputs.prompt_file }}
+        prompt: ${{ steps.prompt.outputs.prompt }}
         settings: ${{ inputs.settings }}
         claude_args: "--model ${{ inputs.model }} --max-turns ${{ inputs.max_turns }}"
         show_full_output: ${{ inputs.show_full_output }}
