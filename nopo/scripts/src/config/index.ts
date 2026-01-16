@@ -53,7 +53,12 @@ const SubSubCommandSchema = z.union([
   z
     .string()
     .min(1)
-    .transform((cmd) => ({ command: cmd, env: undefined, dir: undefined, context: undefined })),
+    .transform((cmd) => ({
+      command: cmd,
+      env: undefined,
+      dir: undefined,
+      context: undefined,
+    })),
   SubSubCommandObjectSchema,
 ]);
 
@@ -213,12 +218,19 @@ const ProjectOsSchema = z.object({
     .default({}),
 });
 
+// Root service commands configuration (simplified - no dockerfile/image required)
+const RootCommandsSchema = z.object({
+  commands: CommandsSchema.default({}),
+});
+
 const ProjectConfigSchema = z.object({
   name: z.string().min(1),
   os: ProjectOsSchema.default({
     base: "node:22.16.0-slim",
   }),
   services: ServicesSchema.default({ dir: "./apps" }),
+  root_name: z.string().min(1).default("root"),
+  root: RootCommandsSchema.optional(),
 });
 
 type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
@@ -315,6 +327,7 @@ export interface NormalizedProjectConfig {
   configPath: string;
   os: NormalizedOsConfig;
   services: NormalizedServicesConfig;
+  rootName: string;
 }
 
 export function loadProjectConfig(
@@ -334,13 +347,24 @@ export function loadProjectConfig(
 
   const document = parseYamlFile(resolvedConfigPath);
   const parsed = ProjectConfigSchema.parse(document);
-  const services = normalizeServices(parsed.services, resolvedRoot);
+  const rootName = parsed.root_name;
+  const rootCommands = parsed.root
+    ? normalizeCommands(parsed.root.commands)
+    : {};
+  const services = normalizeServices(
+    parsed.services,
+    resolvedRoot,
+    rootName,
+    rootCommands,
+    resolvedConfigPath,
+  );
 
   return {
     name: parsed.name,
     configPath: resolvedConfigPath,
     os: normalizeOs(parsed.os),
     services,
+    rootName,
   };
 }
 
@@ -381,6 +405,9 @@ function normalizeBaseImage(
 function normalizeServices(
   servicesConfig: ProjectConfig["services"],
   rootDir: string,
+  rootName: string,
+  rootCommands: Record<string, NormalizedCommand>,
+  rootConfigPath: string,
 ): NormalizedServicesConfig {
   const entries: Record<string, NormalizedService> = {};
   const dir = path.resolve(rootDir, servicesConfig.dir);
@@ -391,7 +418,42 @@ function normalizeServices(
     );
   }
 
-  discoverServices(dir, entries, rootDir);
+  discoverServices(dir, entries, rootDir, rootName);
+
+  // Add the root service if it has commands
+  if (Object.keys(rootCommands).length > 0) {
+    if (entries[rootName]) {
+      throw new Error(
+        `Service "${rootName}" conflicts with root_name. Use a different root_name in nopo.yml.`,
+      );
+    }
+
+    entries[rootName] = {
+      id: rootName,
+      name: "Root",
+      description: "Root-level project commands",
+      staticPath: "",
+      infrastructure: {
+        cpu: "1",
+        memory: "512Mi",
+        port: 3000,
+        minInstances: 0,
+        maxInstances: 0,
+        hasDatabase: false,
+        runMigrations: false,
+      },
+      configPath: rootConfigPath,
+      image: undefined,
+      dependencies: [],
+      commands: rootCommands,
+      paths: {
+        root: rootDir,
+        dockerfile: undefined,
+        context: rootDir,
+      },
+    };
+  }
+
   const targets = Object.keys(entries).sort();
 
   return {
@@ -405,6 +467,7 @@ function discoverServices(
   servicesDir: string,
   entries: Record<string, NormalizedService>,
   projectRoot: string,
+  rootName: string,
 ): void {
   const children = fs.readdirSync(servicesDir, { withFileTypes: true });
 
@@ -424,6 +487,14 @@ function discoverServices(
     const parsed = ServiceFileSchema.parse(serviceDocument);
     const infrastructure = normalizeInfrastructure(parsed.infrastructure);
     const commands = normalizeCommands(parsed.commands);
+
+    // Validate that root cannot be in top-level service dependencies
+    if (parsed.dependencies.includes(rootName)) {
+      throw new Error(
+        `Service "${serviceId}" cannot depend on "${rootName}" at service level. ` +
+          `Root can only be specified in command-level dependencies.`,
+      );
+    }
 
     const normalized: NormalizedService = {
       id: serviceId,
