@@ -166,6 +166,55 @@ jobs:
           fetch-depth: 0
       - uses: actions/checkout@v4
         if: inputs.mock_mode == true
+      - name: Update project status to In Progress
+        if: inputs.mock_mode != true
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
+          CONTEXT_JSON: ${{ inputs.context_json }}
+        run: |
+          ISSUE_NUMBER=$(echo "$CONTEXT_JSON" | jq -r '.issue_number // empty')
+          [[ -z "$ISSUE_NUMBER" ]] && exit 0
+
+          repo_name="${GITHUB_REPOSITORY#*/}"
+          owner="${GITHUB_REPOSITORY%/*}"
+
+          result=$(gh api graphql -f query='query($owner: String!, $repo: String!, $issue: Int!) {
+            repository(owner: $owner, name: $repo) {
+              issue(number: $issue) {
+                projectItems(first: 10) {
+                  nodes {
+                    id
+                    project {
+                      id
+                      field(name: "Status") {
+                        ... on ProjectV2SingleSelectField {
+                          id
+                          options { id name }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }' -F owner="$owner" -F repo="$repo_name" -F issue="$ISSUE_NUMBER" 2>/dev/null || echo "{}")
+
+          item=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0] // empty')
+          [[ -z "$item" ]] && exit 0
+
+          item_id=$(echo "$item" | jq -r '.id')
+          project_id=$(echo "$item" | jq -r '.project.id')
+          field_id=$(echo "$item" | jq -r '.project.field.id')
+          option_id=$(echo "$item" | jq -r '.project.field.options[] | select(.name == "In Progress") | .id')
+
+          [[ -z "$option_id" ]] && exit 0
+
+          gh api graphql -f query='mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+            updateProjectV2ItemFieldValue(input: {
+              projectId: $projectId, itemId: $itemId, fieldId: $fieldId,
+              value: { singleSelectOptionId: $optionId }
+            }) { projectV2Item { id } }
+          }' -F projectId="$project_id" -F itemId="$item_id" -F fieldId="$field_id" -F optionId="$option_id"
       - name: git config
         if: inputs.mock_mode != true
         run: |
