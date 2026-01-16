@@ -206,7 +206,7 @@ jobs:
     with:
       job: ${{ needs.detect.outputs.job }}
       context_json: ${{ needs.detect.outputs.context_json }}
-      mock_mode: ${{ inputs.mock_mode || 'false' }}
+      mock_mode: ${{ inputs.mock_mode || false }}
     secrets: inherit
 
   # ============================================================================
