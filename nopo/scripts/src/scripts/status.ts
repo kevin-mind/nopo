@@ -35,7 +35,7 @@ export default class StatusScript extends Script {
           project: {
             name: project.name,
             configPath: project.configPath,
-            servicesDir: project.services.dir,
+            servicesDirs: project.services.dirs,
             serviceCount: project.services.targets.length,
           },
           os: {

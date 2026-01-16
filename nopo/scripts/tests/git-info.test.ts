@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { GitInfo } from "../src/git-info.ts";
 
 // We need to mock the $ function from lib.ts to test GitInfo without real git
@@ -36,7 +36,9 @@ describe("GitInfo", () => {
       vi.mocked($.sync)
         // First call: symbolic-ref fails
         .mockImplementationOnce(() => {
-          throw new Error("fatal: ref refs/remotes/origin/HEAD is not a symbolic ref");
+          throw new Error(
+            "fatal: ref refs/remotes/origin/HEAD is not a symbolic ref",
+          );
         })
         // Second call: rev-parse origin/main succeeds
         .mockReturnValueOnce({
@@ -50,7 +52,9 @@ describe("GitInfo", () => {
       vi.mocked($.sync)
         // First call: symbolic-ref fails
         .mockImplementationOnce(() => {
-          throw new Error("fatal: ref refs/remotes/origin/HEAD is not a symbolic ref");
+          throw new Error(
+            "fatal: ref refs/remotes/origin/HEAD is not a symbolic ref",
+          );
         })
         // Second call: rev-parse origin/main fails
         .mockImplementationOnce(() => {

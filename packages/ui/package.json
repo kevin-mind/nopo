@@ -21,15 +21,7 @@
     "./bem-components.css": "./css/bem-components.css"
   },
   "scripts": {
-    "clean": "rm -rf node_modules && rm -rf build",
-    "build": "vite build",
-    "dev": "vite build --watch",
-    "format": "yarn lint --fix",
-    "lint": "eslint",
-    "test:vitest": "vitest run --run",
-    "test:storybook": "test-storybook",
-    "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build": "vite build"
   },
   "devDependencies": {
     "@more/configs": "workspace:*",
