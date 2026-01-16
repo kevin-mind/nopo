@@ -96,6 +96,10 @@ jobs:
           - name: subcommand check:py
             command: nopo check py complex
             expect: FIXTURE_COMPLEX_CHECK_PY_SUCCESS
+          # Test: subcommand only in one service runs only on that service (no error)
+          - name: subcommand filter (only complex has compile:unique)
+            command: nopo compile unique
+            expect: FIXTURE_COMPLEX_COMPILE_UNIQUE_SUCCESS
     steps:
       - id: checkout
         uses: actions/checkout@v4

@@ -327,14 +327,25 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
       return;
     } else {
       // If no targets specified, filter to only services that have the command
-      const rootCommand = args.command.split(":")[0]!;
+      // Check for the full command path (including subcommand if present)
       targets = project.services.targets.filter((serviceId) => {
         const service = project.services.entries[serviceId];
-        return service && service.commands[rootCommand];
+        if (!service) return false;
+
+        const rootCommand = args.command.split(":")[0]!;
+        const cmd = service.commands[rootCommand];
+        if (!cmd) return false;
+
+        // If there's a subcommand, check that it exists too
+        if (args.subcommand) {
+          return !!(cmd.commands && cmd.commands[args.subcommand]);
+        }
+
+        return true;
       });
 
       if (targets.length === 0) {
-        throw new Error(`No services have command '${args.command}'`);
+        throw new Error(`No services have command '${commandPath}'`);
       }
     }
 
