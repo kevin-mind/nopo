@@ -115,7 +115,7 @@ runs:
     # Step 2: Run Claude Code (or mock)
     - name: Run Claude (mock mode)
       id: claude_mock
-      if: inputs.mock_mode == 'true'
+      if: inputs.mock_mode == 'true' || inputs.mock_mode == true
       shell: bash
       env:
         MOCK_RESPONSE: ${{ inputs.mock_response }}
@@ -133,7 +133,7 @@ runs:
 
     - name: Run Claude (real mode)
       id: claude
-      if: inputs.mock_mode != 'true'
+      if: inputs.mock_mode != 'true' && inputs.mock_mode != true
       uses: anthropics/claude-code-action@v1
       with:
         claude_code_oauth_token: ${{ inputs.claude_code_oauth_token }}
