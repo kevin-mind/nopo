@@ -24093,7 +24093,7 @@ async function handleIssueEvent(octokit, owner, repo) {
   }
   return emptyResult(true, `Unhandled issue action: ${action}`);
 }
-async function handleIssueCommentEvent() {
+async function handleIssueCommentEvent(octokit, owner, repo) {
   const { context } = github;
   const payload = context.payload;
   const comment = payload.comment;
@@ -24109,10 +24109,30 @@ async function handleIssueCommentEvent() {
   if (comment.user.type === "Bot") {
     return emptyResult(true, "Comment is from a bot");
   }
+  const isPr = !!issue.pull_request;
+  const hasImplementCommand = comment.body.split("\n").some((line) => line.trim() === "/implement");
+  if (hasImplementCommand && !isPr) {
+    const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
+    const branchName2 = `claude/issue/${issue.number}`;
+    await ensureBranchExists(branchName2);
+    return {
+      job: "issue-implement",
+      resourceType: "issue",
+      resourceNumber: String(issue.number),
+      commentId: String(comment.id),
+      contextJson: JSON.stringify({
+        issue_number: String(issue.number),
+        issue_title: details.title || issue.title,
+        issue_body: details.body || issue.body,
+        branch_name: branchName2
+      }),
+      skip: false,
+      skipReason: ""
+    };
+  }
   if (!comment.body.includes("@claude")) {
     return emptyResult(true, "Comment does not mention @claude");
   }
-  const isPr = !!issue.pull_request;
   let contextType = "issue";
   let branchName = "main";
   if (isPr) {
@@ -24465,7 +24485,7 @@ async function run() {
         result = await handleIssueEvent(octokit, owner, repo);
         break;
       case "issue_comment":
-        result = await handleIssueCommentEvent();
+        result = await handleIssueCommentEvent(octokit, owner, repo);
         break;
       case "pull_request_review_comment":
         result = await handlePullRequestReviewCommentEvent();

@@ -289,7 +289,11 @@ async function handleIssueEvent(
   return emptyResult(true, `Unhandled issue action: ${action}`)
 }
 
-async function handleIssueCommentEvent(): Promise<DetectionResult> {
+async function handleIssueCommentEvent(
+  octokit: ReturnType<typeof github.getOctokit>,
+  owner: string,
+  repo: string
+): Promise<DetectionResult> {
   const { context } = github
   const payload = context.payload
   const comment = payload.comment as {
@@ -300,6 +304,8 @@ async function handleIssueCommentEvent(): Promise<DetectionResult> {
   }
   const issue = payload.issue as {
     number: number
+    title: string
+    body: string
     labels: Array<{ name: string }>
     pull_request?: unknown
   }
@@ -321,12 +327,38 @@ async function handleIssueCommentEvent(): Promise<DetectionResult> {
     return emptyResult(true, 'Comment is from a bot')
   }
 
-  // Must contain @claude
+  // Check for /implement command (issues only, not PRs)
+  const isPr = !!issue.pull_request
+  const hasImplementCommand = comment.body.split('\n').some((line) => line.trim() === '/implement')
+
+  if (hasImplementCommand && !isPr) {
+    const details = await fetchIssueDetails(octokit, owner, repo, issue.number)
+    const branchName = `claude/issue/${issue.number}`
+
+    // Ensure the branch exists (create if not)
+    await ensureBranchExists(branchName)
+
+    return {
+      job: 'issue-implement',
+      resourceType: 'issue',
+      resourceNumber: String(issue.number),
+      commentId: String(comment.id),
+      contextJson: JSON.stringify({
+        issue_number: String(issue.number),
+        issue_title: details.title || issue.title,
+        issue_body: details.body || issue.body,
+        branch_name: branchName,
+      }),
+      skip: false,
+      skipReason: '',
+    }
+  }
+
+  // Must contain @claude for other comment handling
   if (!comment.body.includes('@claude')) {
     return emptyResult(true, 'Comment does not mention @claude')
   }
 
-  const isPr = !!issue.pull_request
   let contextType = 'issue'
   let branchName = 'main'
 
@@ -801,7 +833,7 @@ async function run(): Promise<void> {
         result = await handleIssueEvent(octokit, owner, repo)
         break
       case 'issue_comment':
-        result = await handleIssueCommentEvent()
+        result = await handleIssueCommentEvent(octokit, owner, repo)
         break
       case 'pull_request_review_comment':
         result = await handlePullRequestReviewCommentEvent()
