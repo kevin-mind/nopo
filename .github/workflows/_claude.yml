@@ -230,10 +230,6 @@ jobs:
         with:
           ref: ${{ needs.context.outputs.branch_name }}
           fetch-depth: 0
-      - name: git config
-        run: |
-          git config --global user.name "Claude Bot"
-          git config --global user.email "claude-bot@anthropic.com"
       - uses: ./.github/actions/run-claude
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -243,20 +239,6 @@ jobs:
           max_turns: '100'
           trigger_phrase: '@claude'
           mock_mode: ${{ inputs.mock_mode }}
-      - name: Save uncommitted work on failure
-        if: failure()
-        env:
-          BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
-        run: |
-          if [[ -n "$(git status --porcelain)" ]]; then
-            echo "Found uncommitted changes - saving work..."
-            git add -A
-            git commit -m "WIP: Save uncommitted work from failed @claude comment
-
-            Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            git push origin "$BRANCH_NAME"
-            echo "::warning::Uncommitted work was saved to branch $BRANCH_NAME"
-          fi
 
   # ============================================================================
   # CI JOBS
@@ -290,20 +272,6 @@ jobs:
           prompt_replacements: ${{ steps.augment.outputs.json }}
           max_turns: '200'
           mock_mode: ${{ inputs.mock_mode }}
-      - name: Save uncommitted work on failure
-        if: failure()
-        env:
-          BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
-        run: |
-          if [[ -n "$(git status --porcelain)" ]]; then
-            echo "Found uncommitted changes - saving work..."
-            git add -A
-            git commit -m "WIP: Save uncommitted work from failed CI fix
-
-            Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            git push origin "$BRANCH_NAME"
-            echo "::warning::Uncommitted work was saved to branch $BRANCH_NAME"
-          fi
 
   ci-suggest:
     needs: context
@@ -384,20 +352,6 @@ jobs:
           prompt_replacements: ${{ steps.augment.outputs.json }}
           max_turns: '50'
           mock_mode: ${{ inputs.mock_mode }}
-      - name: Save uncommitted work on failure
-        if: failure()
-        env:
-          BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
-        run: |
-          if [[ -n "$(git status --porcelain)" ]]; then
-            echo "Found uncommitted changes - saving work..."
-            git add -A
-            git commit -m "WIP: Save uncommitted work from failed PR response
-
-            Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            git push origin "$BRANCH_NAME"
-            echo "::warning::Uncommitted work was saved to branch $BRANCH_NAME"
-          fi
 
   pr-human-response:
     needs: context
@@ -431,20 +385,6 @@ jobs:
           prompt_replacements: ${{ steps.augment.outputs.json }}
           max_turns: '50'
           mock_mode: ${{ inputs.mock_mode }}
-      - name: Save uncommitted work on failure
-        if: failure()
-        env:
-          BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
-        run: |
-          if [[ -n "$(git status --porcelain)" ]]; then
-            echo "Found uncommitted changes - saving work..."
-            git add -A
-            git commit -m "WIP: Save uncommitted work from failed human review response
-
-            Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            git push origin "$BRANCH_NAME"
-            echo "::warning::Uncommitted work was saved to branch $BRANCH_NAME"
-          fi
 
   # ============================================================================
   # DISCUSSION JOBS
