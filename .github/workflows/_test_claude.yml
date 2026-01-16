@@ -274,10 +274,83 @@ jobs:
     secrets: inherit
 
   # ============================================================================
-  # CI FIX TEST (requires existing PR)
+  # PR PREPARE (creates test PR for ci-fix, ci-suggest, pr-review tests)
+  # ============================================================================
+  pr-prepare:
+    if: |
+      (inputs.job == 'ci-fix' || inputs.job == 'ci-suggest' || inputs.job == 'pr-review' || inputs.job == 'all') &&
+      inputs.resource_number == ''
+    runs-on: ubuntu-latest
+    outputs:
+      pr_number: ${{ steps.pr.outputs.number }}
+      issue_number: ${{ steps.issue.outputs.number }}
+      branch_name: ${{ steps.branch.outputs.name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create test issue
+        id: issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          issue_url=$(gh issue create \
+            --title "[TEST] PR test - $(date +%s)" \
+            --body "## Description
+          Test issue for PR workflow tests.
+
+          ## Todo
+          - [ ] Test task" \
+            --label "test:automation,skip-dispatch")
+          echo "number=${issue_url##*/}" >> $GITHUB_OUTPUT
+
+      - name: Create branch
+        id: branch
+        env:
+          ISSUE_NUMBER: ${{ steps.issue.outputs.number }}
+        run: |
+          branch="claude/issue/$ISSUE_NUMBER"
+          git checkout -b "$branch"
+          echo "name=$branch" >> $GITHUB_OUTPUT
+
+      - name: Make test change
+        run: |
+          # Add a test comment to a file
+          echo "" >> .github/workflows/_test_claude.yml
+          echo "# Test change for PR ${{ steps.issue.outputs.number }} - $(date +%s)" >> .github/workflows/_test_claude.yml
+          git add .github/workflows/_test_claude.yml
+          git commit -m "test: add test change for PR tests"
+          git push origin "${{ steps.branch.outputs.name }}"
+
+      - name: Create draft PR
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ steps.issue.outputs.number }}
+          BRANCH_NAME: ${{ steps.branch.outputs.name }}
+        run: |
+          pr_url=$(gh pr create \
+            --title "[TEST] PR for workflow tests" \
+            --body "Fixes #$ISSUE_NUMBER
+
+          Test PR for ci-fix, ci-suggest, and pr-review workflow tests." \
+            --head "$BRANCH_NAME" \
+            --draft)
+          echo "number=${pr_url##*/}" >> $GITHUB_OUTPUT
+
+  # ============================================================================
+  # CI FIX TEST
   # ============================================================================
   ci-fix-setup:
-    if: (inputs.job == 'ci-fix' || inputs.job == 'all') && inputs.resource_number != ''
+    needs: [pr-prepare]
+    if: |
+      always() &&
+      (inputs.job == 'ci-fix' || inputs.job == 'all') &&
+      (inputs.resource_number != '' || needs.pr-prepare.outputs.pr_number != '')
     runs-on: ubuntu-latest
     outputs:
       context_json: ${{ steps.context.outputs.json }}
@@ -288,7 +361,7 @@ jobs:
         id: context
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ inputs.resource_number }}
+          PR_NUMBER: ${{ inputs.resource_number || needs.pr-prepare.outputs.pr_number }}
         run: |
           pr=$(gh pr view "$PR_NUMBER" --json headRefName)
           branch=$(echo "$pr" | jq -r '.headRefName')
@@ -310,10 +383,14 @@ jobs:
     secrets: inherit
 
   # ============================================================================
-  # CI SUGGEST TEST (requires existing PR)
+  # CI SUGGEST TEST
   # ============================================================================
   ci-suggest-setup:
-    if: (inputs.job == 'ci-suggest' || inputs.job == 'all') && inputs.resource_number != ''
+    needs: [pr-prepare]
+    if: |
+      always() &&
+      (inputs.job == 'ci-suggest' || inputs.job == 'all') &&
+      (inputs.resource_number != '' || needs.pr-prepare.outputs.pr_number != '')
     runs-on: ubuntu-latest
     outputs:
       context_json: ${{ steps.context.outputs.json }}
@@ -324,7 +401,7 @@ jobs:
         id: context
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ inputs.resource_number }}
+          PR_NUMBER: ${{ inputs.resource_number || needs.pr-prepare.outputs.pr_number }}
         run: |
           pr=$(gh pr view "$PR_NUMBER" --json headRefName)
           branch=$(echo "$pr" | jq -r '.headRefName')
@@ -346,10 +423,14 @@ jobs:
     secrets: inherit
 
   # ============================================================================
-  # PR REVIEW TEST (requires existing PR)
+  # PR REVIEW TEST
   # ============================================================================
   pr-review-setup:
-    if: (inputs.job == 'pr-review' || inputs.job == 'all') && inputs.resource_number != ''
+    needs: [pr-prepare]
+    if: |
+      always() &&
+      (inputs.job == 'pr-review' || inputs.job == 'all') &&
+      (inputs.resource_number != '' || needs.pr-prepare.outputs.pr_number != '')
     runs-on: ubuntu-latest
     outputs:
       context_json: ${{ steps.context.outputs.json }}
@@ -360,7 +441,7 @@ jobs:
         id: context
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ inputs.resource_number }}
+          PR_NUMBER: ${{ inputs.resource_number || needs.pr-prepare.outputs.pr_number }}
         run: |
           pr=$(gh pr view "$PR_NUMBER" --json headRefName,body)
           branch=$(echo "$pr" | jq -r '.headRefName')
@@ -369,7 +450,7 @@ jobs:
           body=$(echo "$pr" | jq -r '.body // ""')
           issue_section=""
           if echo "$body" | grep -q "Fixes #"; then
-            issue_num=$(echo "$body" | grep -oP 'Fixes #\K\d+' | head -1)
+            issue_num=$(echo "$body" | grep -oE 'Fixes #[0-9]+' | head -1 | grep -oE '[0-9]+')
             if [[ -n "$issue_num" ]]; then
               issue_section=$(gh issue view "$issue_num" --json body --jq '.body // ""' 2>/dev/null || echo "")
             fi
@@ -554,4 +635,39 @@ jobs:
                 }
               }
             ' -f id="$discussion_id" || echo "Warning: Could not close discussion"
+          fi
+
+  cleanup-pr:
+    needs: [pr-prepare, ci-fix-run, ci-suggest-run, pr-review-run]
+    if: |
+      always() &&
+      inputs.cleanup == true &&
+      inputs.resource_number == '' &&
+      needs.pr-prepare.outputs.pr_number != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cleanup test PR and resources
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ needs.pr-prepare.outputs.pr_number }}
+          ISSUE_NUMBER: ${{ needs.pr-prepare.outputs.issue_number }}
+          BRANCH_NAME: ${{ needs.pr-prepare.outputs.branch_name }}
+        run: |
+          # Close PR
+          if [[ -n "$PR_NUMBER" ]]; then
+            echo "✓ Closing test PR #$PR_NUMBER"
+            gh pr close "$PR_NUMBER" --comment "🧹 Test cleanup" --delete-branch || true
+          fi
+
+          # Close issue
+          if [[ -n "$ISSUE_NUMBER" ]]; then
+            echo "✓ Closing test issue #$ISSUE_NUMBER"
+            gh issue close "$ISSUE_NUMBER" --reason "not planned" --comment "🧹 Test cleanup" || true
+          fi
+
+          # Delete branch if still exists
+          if [[ -n "$BRANCH_NAME" ]] && git ls-remote --heads origin "$BRANCH_NAME" | grep -q "$BRANCH_NAME"; then
+            echo "✓ Deleting branch $BRANCH_NAME"
+            git push origin --delete "$BRANCH_NAME" || true
           fi
