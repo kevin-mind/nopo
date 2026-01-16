@@ -205,7 +205,7 @@ jobs:
           item_id=$(echo "$item" | jq -r '.id')
           project_id=$(echo "$item" | jq -r '.project.id')
           field_id=$(echo "$item" | jq -r '.project.field.id')
-          option_id=$(echo "$item" | jq -r '.project.field.options[] | select(.name == "In Progress") | .id')
+          option_id=$(echo "$item" | jq -r '.project.field.options[] | select(.name == "In progress") | .id')
 
           [[ -z "$option_id" ]] && exit 0
 
