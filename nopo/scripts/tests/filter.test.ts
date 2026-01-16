@@ -27,6 +27,7 @@ function createMockService(
     name: "Test Service",
     description: "",
     staticPath: "build",
+    isPackage: false,
     infrastructure: {
       cpu: "1",
       memory: "512Mi",
@@ -57,6 +58,16 @@ describe("parseFilterExpression", () => {
   it("parses changed preset", () => {
     const result = parseFilterExpression("changed");
     expect(result).toEqual({ type: "preset", field: "changed" });
+  });
+
+  it("parses package preset", () => {
+    const result = parseFilterExpression("package");
+    expect(result).toEqual({ type: "preset", field: "package" });
+  });
+
+  it("parses service preset", () => {
+    const result = parseFilterExpression("service");
+    expect(result).toEqual({ type: "preset", field: "service" });
   });
 
   it("parses negation expression", () => {
@@ -169,6 +180,30 @@ describe("matchesFilter", () => {
       });
       const filter: FilterExpression = { type: "preset", field: "changed" };
       expect(matchesFilter(service, filter, context)).toBe(false);
+    });
+
+    it("matches package preset for packages (isPackage=true)", () => {
+      const pkg = createMockService({ isPackage: true });
+      const filter: FilterExpression = { type: "preset", field: "package" };
+      expect(matchesFilter(pkg, filter, context)).toBe(true);
+    });
+
+    it("does not match package preset for services (isPackage=false)", () => {
+      const service = createMockService({ isPackage: false });
+      const filter: FilterExpression = { type: "preset", field: "package" };
+      expect(matchesFilter(service, filter, context)).toBe(false);
+    });
+
+    it("matches service preset for services (isPackage=false)", () => {
+      const service = createMockService({ isPackage: false });
+      const filter: FilterExpression = { type: "preset", field: "service" };
+      expect(matchesFilter(service, filter, context)).toBe(true);
+    });
+
+    it("does not match service preset for packages (isPackage=true)", () => {
+      const pkg = createMockService({ isPackage: true });
+      const filter: FilterExpression = { type: "preset", field: "service" };
+      expect(matchesFilter(pkg, filter, context)).toBe(false);
     });
   });
 

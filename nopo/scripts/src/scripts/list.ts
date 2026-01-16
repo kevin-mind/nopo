@@ -167,6 +167,7 @@ export default class ListScript extends Script<ListCliArgs> {
     // Define columns
     const columns = [
       { key: "service", header: "SERVICE", width: 12 },
+      { key: "type", header: "TYPE", width: 8 },
       { key: "cpu", header: "CPU", width: 5 },
       { key: "memory", header: "MEMORY", width: 8 },
       { key: "port", header: "PORT", width: 6 },
@@ -197,18 +198,22 @@ export default class ListScript extends Script<ListCliArgs> {
     // Print rows
     for (const service of services) {
       const config = configs[service]!;
+      const typeLabel = config.is_package
+        ? chalk.blue("package")
+        : chalk.magenta("service");
       const row = [
         chalk.yellow(service.padEnd(columns[0]!.width)),
-        config.cpu.padEnd(columns[1]!.width),
-        config.memory.padEnd(columns[2]!.width),
-        String(config.port).padEnd(columns[3]!.width),
-        String(config.min_instances).padEnd(columns[4]!.width),
-        String(config.max_instances).padEnd(columns[5]!.width),
+        typeLabel.padEnd(columns[1]!.width + 9), // +9 for color codes
+        config.cpu.padEnd(columns[2]!.width),
+        config.memory.padEnd(columns[3]!.width),
+        String(config.port).padEnd(columns[4]!.width),
+        String(config.min_instances).padEnd(columns[5]!.width),
+        String(config.max_instances).padEnd(columns[6]!.width),
         (config.has_database ? chalk.green("yes") : chalk.gray("no")).padEnd(
-          columns[6]!.width + 9,
+          columns[7]!.width + 9,
         ), // +9 for color codes
         (config.run_migrations ? chalk.green("yes") : chalk.gray("no")).padEnd(
-          columns[7]!.width + 9,
+          columns[8]!.width + 9,
         ),
       ];
       this.runner.logger.log(row.join("  "));
@@ -238,6 +243,7 @@ export default class ListScript extends Script<ListCliArgs> {
 
       result[service] = {
         description: definition.description,
+        is_package: definition.isPackage,
         cpu: definition.infrastructure.cpu,
         memory: definition.infrastructure.memory,
         port: definition.infrastructure.port,
@@ -260,6 +266,7 @@ interface ProjectConfig {
 
 interface ServiceConfig {
   description?: string;
+  is_package: boolean;
   cpu: string;
   memory: string;
   port: number;

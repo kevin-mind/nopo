@@ -174,4 +174,157 @@ commands:
     expect(commandOnlyService?.paths.dockerfile).toBeUndefined();
     expect(commandOnlyService?.image).toBeUndefined();
   });
+
+  it("identifies packages (no runtime/infrastructure) vs services", () => {
+    const root = createProject({
+      rootConfig: `
+name: Mixed Project
+services:
+  dir: ./apps
+`,
+      services: {
+        // Service: has infrastructure
+        backend: `
+name: backend
+dockerfile: Dockerfile
+infrastructure:
+  port: 8080
+`,
+        // Package: no infrastructure, no runtime
+        ui: `
+name: ui
+description: Shared UI components
+commands:
+  compile: pnpm build
+`,
+      },
+    });
+
+    const config = loadProjectConfig(root);
+
+    // Backend is a service (has infrastructure)
+    const backend = config.services.entries.backend;
+    expect(backend).toBeDefined();
+    expect(backend?.isPackage).toBe(false);
+
+    // UI is a package (no infrastructure/runtime)
+    const ui = config.services.entries.ui;
+    expect(ui).toBeDefined();
+    expect(ui?.isPackage).toBe(true);
+  });
+
+  it("supports new runtime schema instead of infrastructure", () => {
+    const root = createProject({
+      rootConfig: `
+name: Runtime Schema
+services:
+  dir: ./apps
+`,
+      services: {
+        api: `
+name: api
+dockerfile: Dockerfile
+runtime:
+  command: node server.js
+  port: 3000
+  cpu: "2"
+  memory: "1Gi"
+`,
+      },
+    });
+
+    const config = loadProjectConfig(root);
+    const api = config.services.entries.api;
+
+    expect(api).toBeDefined();
+    expect(api?.isPackage).toBe(false);
+    expect(api?.runtime).toBeDefined();
+    expect(api?.runtime?.command).toBe("node server.js");
+    expect(api?.runtime?.port).toBe(3000);
+    // Infrastructure should be populated for backward compatibility
+    expect(api?.infrastructure.port).toBe(3000);
+    expect(api?.infrastructure.cpu).toBe("2");
+  });
+
+  it("supports new build schema", () => {
+    const root = createProject({
+      rootConfig: `
+name: Build Schema
+services:
+  dir: ./apps
+`,
+      services: {
+        web: `
+name: web
+build:
+  command: pnpm build
+  output:
+    - ./dist
+    - ./public
+  dockerfile: Dockerfile
+  packages:
+    - chromium
+  env:
+    NODE_ENV: production
+runtime:
+  port: 3000
+`,
+      },
+    });
+
+    const config = loadProjectConfig(root);
+    const web = config.services.entries.web;
+
+    expect(web).toBeDefined();
+    expect(web?.build).toBeDefined();
+    expect(web?.build?.command).toBe("pnpm build");
+    expect(web?.build?.output).toEqual(["./dist", "./public"]);
+    expect(web?.build?.dockerfile).toBe("Dockerfile");
+    expect(web?.build?.packages).toEqual(["chromium"]);
+    expect(web?.build?.env).toEqual({ NODE_ENV: "production" });
+  });
+
+  it("normalizes build.output from string to array", () => {
+    const root = createProject({
+      rootConfig: `
+name: Single Output
+services:
+  dir: ./apps
+`,
+      services: {
+        lib: `
+name: lib
+build:
+  command: pnpm build
+  output: ./dist
+`,
+      },
+    });
+
+    const config = loadProjectConfig(root);
+    const lib = config.services.entries.lib;
+
+    expect(lib?.build?.output).toEqual(["./dist"]);
+  });
+
+  it("rejects both runtime and infrastructure in same service", () => {
+    const root = createProject({
+      rootConfig: `
+name: Conflict
+services:
+  dir: ./apps
+`,
+      services: {
+        bad: `
+name: bad
+runtime:
+  port: 3000
+infrastructure:
+  port: 8080
+`,
+      },
+    });
+
+    expect(() => loadProjectConfig(root)).toThrow(/Cannot specify both.*runtime.*infrastructure/);
+  });
 });

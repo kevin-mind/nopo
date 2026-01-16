@@ -1,4 +1,9 @@
-import { isBuildableService, type NormalizedService } from "./config/index.ts";
+import {
+  isBuildableService,
+  isPackageService,
+  isRunnableService,
+  type NormalizedService,
+} from "./config/index.ts";
 import { GitInfo } from "./git-info.ts";
 import path from "node:path";
 
@@ -14,6 +19,8 @@ export type FilterExpression = {
  * Supported formats:
  * - "buildable"           -> preset filter (services that can be built)
  * - "changed"             -> preset filter (services with changed files)
+ * - "package"             -> preset filter (packages - build-only, no runtime)
+ * - "service"             -> preset filter (services - has runtime configuration)
  * - "!fieldname"          -> field does not exist
  * - "fieldname"           -> field exists
  * - "fieldname=value"     -> field equals value
@@ -25,6 +32,12 @@ export function parseFilterExpression(expr: string): FilterExpression {
   }
   if (expr === "changed") {
     return { type: "preset", field: "changed" };
+  }
+  if (expr === "package") {
+    return { type: "preset", field: "package" };
+  }
+  if (expr === "service") {
+    return { type: "preset", field: "service" };
   }
 
   // Negation: !fieldname
@@ -98,6 +111,12 @@ export function matchesFilter(
       }
       if (filter.field === "changed") {
         return hasChangedFiles(service, context);
+      }
+      if (filter.field === "package") {
+        return isPackageService(service);
+      }
+      if (filter.field === "service") {
+        return isRunnableService(service);
       }
       return true;
 
