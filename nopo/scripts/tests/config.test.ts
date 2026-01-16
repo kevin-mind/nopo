@@ -169,10 +169,9 @@ commands:
 
     // Should not throw - services can now exist without dockerfile/image
     const config = loadProjectConfig(root);
-    expect(config.services.entries["command-only"]).toBeDefined();
-    expect(
-      config.services.entries["command-only"].paths.dockerfile,
-    ).toBeUndefined();
-    expect(config.services.entries["command-only"].image).toBeUndefined();
+    const commandOnlyService = config.services.entries["command-only"];
+    expect(commandOnlyService).toBeDefined();
+    expect(commandOnlyService?.paths.dockerfile).toBeUndefined();
+    expect(commandOnlyService?.image).toBeUndefined();
   });
 });
