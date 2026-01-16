@@ -138,7 +138,7 @@ jobs:
             section=""
           fi
           # Add EXISTING_BRANCH_SECTION to replacements
-          json=$(echo "$BASE_REPLACEMENTS" | jq --arg section "$section" '. + {EXISTING_BRANCH_SECTION: $section}')
+          json=$(echo "$BASE_REPLACEMENTS" | jq -c --arg section "$section" '. + {EXISTING_BRANCH_SECTION: $section}')
           echo "json=$json" >> $GITHUB_OUTPUT
       - uses: ./.github/actions/run-claude
         with:
@@ -194,7 +194,7 @@ jobs:
           BASE_REPLACEMENTS: ${{ needs.context.outputs.prompt_replacements }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
-          json=$(echo "$BASE_REPLACEMENTS" | jq --arg branch "$BRANCH_NAME" '. + {HEAD_BRANCH: $branch}')
+          json=$(echo "$BASE_REPLACEMENTS" | jq -c --arg branch "$BRANCH_NAME" '. + {HEAD_BRANCH: $branch}')
           echo "json=$json" >> $GITHUB_OUTPUT
       - uses: ./.github/actions/run-claude
         with:
@@ -222,7 +222,7 @@ jobs:
           BASE_REPLACEMENTS: ${{ needs.context.outputs.prompt_replacements }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
-          json=$(echo "$BASE_REPLACEMENTS" | jq --arg branch "$BRANCH_NAME" '. + {HEAD_BRANCH: $branch}')
+          json=$(echo "$BASE_REPLACEMENTS" | jq -c --arg branch "$BRANCH_NAME" '. + {HEAD_BRANCH: $branch}')
           echo "json=$json" >> $GITHUB_OUTPUT
       - uses: ./.github/actions/run-claude
         with:
@@ -273,7 +273,7 @@ jobs:
           BASE_REPLACEMENTS: ${{ needs.context.outputs.prompt_replacements }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
-          json=$(echo "$BASE_REPLACEMENTS" | jq \
+          json=$(echo "$BASE_REPLACEMENTS" | jq -c \
             --arg repo "${{ github.repository }}" \
             --arg branch "$BRANCH_NAME" \
             '. + {REPOSITORY: $repo, HEAD_REF: $branch}')
@@ -306,7 +306,7 @@ jobs:
           BASE_REPLACEMENTS: ${{ needs.context.outputs.prompt_replacements }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
-          json=$(echo "$BASE_REPLACEMENTS" | jq \
+          json=$(echo "$BASE_REPLACEMENTS" | jq -c \
             --arg repo "${{ github.repository }}" \
             --arg branch "$BRANCH_NAME" \
             '. + {REPOSITORY: $repo, HEAD_REF: $branch}')
