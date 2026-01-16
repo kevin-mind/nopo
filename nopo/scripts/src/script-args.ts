@@ -4,7 +4,7 @@ import type { Runner } from "./lib.ts";
 /**
  * Configuration for a single argument
  */
-export interface ScriptArgConfig<T = any> {
+export interface ScriptArgConfig<T = unknown> {
   type: "string" | "boolean" | "number" | "string[]";
   description: string;
   alias?: string[];
@@ -19,7 +19,7 @@ export interface ScriptArgConfig<T = any> {
  */
 export class ScriptArgs {
   private schema: Record<string, ScriptArgConfig>;
-  private values: Record<string, any>;
+  private values: Record<string, unknown>;
   private runner?: Runner;
 
   constructor(schema: Record<string, ScriptArgConfig>, runner?: Runner) {
@@ -33,10 +33,7 @@ export class ScriptArgs {
    * Returns a new ScriptArgs instance with combined schema
    */
   extend(additionalSchema: Record<string, ScriptArgConfig>): ScriptArgs {
-    return new ScriptArgs(
-      { ...this.schema, ...additionalSchema },
-      this.runner,
-    );
+    return new ScriptArgs({ ...this.schema, ...additionalSchema }, this.runner);
   }
 
   /**
@@ -79,7 +76,10 @@ export class ScriptArgs {
         arrayArgs.set(key, []);
         if (config.alias) {
           for (const alias of config.alias) {
-            aliasToKey.set(alias.length === 1 ? `-${alias}` : `--${alias}`, key);
+            aliasToKey.set(
+              alias.length === 1 ? `-${alias}` : `--${alias}`,
+              key,
+            );
           }
         }
         aliasToKey.set(`--${key}`, key);
@@ -136,14 +136,14 @@ export class ScriptArgs {
    * Get parsed value with type safety
    * Returns the parsed value or the default if not set
    */
-  get<T = any>(key: string): T {
-    return this.values[key] ?? this.schema[key]?.default;
+  get<T = unknown>(key: string): T {
+    return (this.values[key] ?? this.schema[key]?.default) as T;
   }
 
   /**
    * Set value (for dependency arg overrides)
    */
-  set(key: string, value: any): void {
+  set(key: string, value: unknown): void {
     this.values[key] = value;
   }
 
@@ -207,12 +207,11 @@ export class ScriptArgs {
     boolean?: string[];
     string?: string[];
     alias?: Record<string, string | string[]>;
-    default?: Record<string, any>;
+    default?: Record<string, unknown>;
   } {
     const booleanArgs: string[] = [];
     const stringArgs: string[] = [];
     const aliases: Record<string, string | string[]> = {};
-    const defaults: Record<string, any> = {};
 
     for (const [key, config] of Object.entries(this.schema)) {
       // Aliases - minimist expects alias -> key mapping (not key -> alias)
@@ -254,7 +253,7 @@ export class ScriptArgs {
     key: string,
     config: ScriptArgConfig,
     parsed: ParsedArgs,
-  ): any {
+  ): unknown {
     const rawValue = parsed[key];
 
     if (rawValue === undefined) {

@@ -24006,14 +24006,18 @@ async function createFailureIssue(octokit, owner, repo, resourceType, resourceNu
 
 Another failure occurred for this job. Check the workflow run for details.`
     });
-    core2.info(`Added comment to existing failure issue #${existingIssue.number}`);
+    core2.info(
+      `Added comment to existing failure issue #${existingIssue.number}`
+    );
     return String(existingIssue.number);
   }
   let contextSection = "";
   if (contextJson && contextJson !== "{}") {
     try {
       const context = JSON.parse(contextJson);
-      const contextLines = Object.entries(context).map(([key, value]) => `- **${key}**: ${String(value).substring(0, 200)}${String(value).length > 200 ? "..." : ""}`).join("\n");
+      const contextLines = Object.entries(context).map(
+        ([key, value]) => `- **${key}**: ${String(value).substring(0, 200)}${String(value).length > 200 ? "..." : ""}`
+      ).join("\n");
       contextSection = `
 
 ## Context
@@ -24068,14 +24072,46 @@ async function run() {
     const success = jobResult === "success";
     core2.info(`Handling result for ${resourceType} #${resourceNumber}`);
     core2.info(`Job: ${job}, Result: ${jobResult}`);
-    await updateStatusComment(octokit, owner, repo, resourceType, statusCommentId, job, success, runUrl);
-    await addReactionToComment(octokit, owner, repo, statusCommentId, resourceType, success ? "rocket" : "thumbs_down");
+    await updateStatusComment(
+      octokit,
+      owner,
+      repo,
+      resourceType,
+      statusCommentId,
+      job,
+      success,
+      runUrl
+    );
+    await addReactionToComment(
+      octokit,
+      owner,
+      repo,
+      statusCommentId,
+      resourceType,
+      success ? "rocket" : "thumbs_down"
+    );
     if (commentId) {
-      await addReactionToComment(octokit, owner, repo, commentId, resourceType, success ? "rocket" : "thumbs_down");
+      await addReactionToComment(
+        octokit,
+        owner,
+        repo,
+        commentId,
+        resourceType,
+        success ? "rocket" : "thumbs_down"
+      );
     }
     let failureIssueNumber = "";
     if (!success && jobResult !== "skipped" && jobResult !== "cancelled") {
-      failureIssueNumber = await createFailureIssue(octokit, owner, repo, resourceType, resourceNumber, job, runUrl, contextJson);
+      failureIssueNumber = await createFailureIssue(
+        octokit,
+        owner,
+        repo,
+        resourceType,
+        resourceNumber,
+        job,
+        runUrl,
+        contextJson
+      );
     }
     setOutputs({
       failure_issue_number: failureIssueNumber
