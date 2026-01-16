@@ -172,8 +172,9 @@ jobs:
             echo "::error::Rebase failed due to conflicts. Please resolve conflicts manually before re-running."
             exit 1
           fi
-          # Use PAT to push so it triggers CI workflows
+          # Amend + push with PAT to trigger CI workflows
           gh auth setup-git
+          git commit --amend --no-edit
           git push origin "$BRANCH_NAME" --force-with-lease
       - id: augment
         name: Check for existing branch work
@@ -306,8 +307,9 @@ jobs:
             echo "::error::Rebase failed due to conflicts. Please resolve conflicts manually before re-running."
             exit 1
           fi
-          # Use PAT to push so it triggers CI workflows
+          # Amend + push with PAT to trigger CI workflows
           gh auth setup-git
+          git commit --amend --no-edit
           git push origin "$BRANCH_NAME" --force-with-lease
       - id: augment
         name: Add HEAD_BRANCH alias
