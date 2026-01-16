@@ -102,6 +102,9 @@ jobs:
     with:
       push: ${{ needs.context.outputs.push == 'true' }}
       services: ${{ needs.discover_buildable.outputs.services }}
+      # Multi-platform for production deployments
+      platforms: linux/amd64,linux/arm64
+      driver: docker-container
     needs:
       - context
       - discover_buildable

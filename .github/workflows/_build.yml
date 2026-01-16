@@ -15,6 +15,16 @@ defaults:
         required: false
         type: string
         default: ''
+      platforms:
+        description: Target platforms (e.g., linux/amd64,linux/arm64)
+        required: false
+        type: string
+        default: linux/amd64
+      driver:
+        description: Buildx driver (docker = builtin, docker-container = full buildx)
+        required: false
+        type: string
+        default: docker
     outputs:
       registry:
         description: The registry of the build
@@ -83,6 +93,7 @@ jobs:
           registry: ${{ inputs.push && 'ghcr.io' || '' }}
           username: ${{ inputs.push && github.actor || '' }}
           password: ${{ inputs.push && secrets.GITHUB_TOKEN || '' }}
+          driver: ${{ inputs.driver }}
       - id: build
         name: Build
         env:
@@ -90,6 +101,7 @@ jobs:
           DOCKER_TAG: ${{ steps.input_tag.outputs.tag }}
           DOCKER_PUSH: ${{ inputs.push }}
           DOCKER_BUILDER: ${{ steps.docker.outputs.builder }}
+          DOCKER_PLATFORMS: ${{ inputs.platforms }}
         run: |-
           if [[ -n "$SERVICES" ]]; then
             nopo build --output ${{ env.build_output }} $SERVICES
