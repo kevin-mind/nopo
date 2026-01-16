@@ -1,5 +1,5 @@
 import type { Plugin } from "vite";
-import path from "node:path";
+import { basename } from "node:path";
 import { createFilter } from "@rollup/pluginutils";
 
 // A map of variant values to class strings
@@ -74,7 +74,7 @@ export function cvaBEMPlugin(options: CVABEMPluginOptions = {}): Plugin {
 
       const css = generateBEMCSS(cvaVariants, componentPrefix);
 
-      const fileName = path.basename(outputPath);
+      const fileName = basename(outputPath);
 
       // Emit the CSS file as a build asset
       this.emitFile({
