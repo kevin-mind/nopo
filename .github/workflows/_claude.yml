@@ -91,6 +91,56 @@ jobs:
           prompt_replacements: ${{ needs.context.outputs.prompt_replacements }}
           max_turns: '50'
           mock_mode: ${{ inputs.mock_mode }}
+      - name: Apply triage labels
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ fromJson(inputs.context_json).issue_number }}
+        run: |
+          if [[ ! -f triage-output.json ]]; then
+            echo "No triage-output.json found - skipping label application"
+            exit 0
+          fi
+
+          echo "Applying labels from triage-output.json:"
+          cat triage-output.json
+
+          # Extract values from JSON
+          type=$(jq -r '.type // empty' triage-output.json)
+          priority=$(jq -r '.priority // empty' triage-output.json)
+          topics=$(jq -r '.topics[]? // empty' triage-output.json)
+
+          labels=""
+
+          # Add type label
+          if [[ -n "$type" && "$type" != "null" ]]; then
+            labels="$type"
+            echo "Adding type label: $type"
+          fi
+
+          # Add priority label (only if not null)
+          if [[ -n "$priority" && "$priority" != "null" ]]; then
+            labels="${labels:+$labels,}priority:$priority"
+            echo "Adding priority label: priority:$priority"
+          fi
+
+          # Add topic labels
+          for topic in $topics; do
+            if [[ -n "$topic" ]]; then
+              labels="${labels:+$labels,}topic:$topic"
+              echo "Adding topic label: topic:$topic"
+            fi
+          done
+
+          # Always add triaged label
+          labels="${labels:+$labels,}triaged"
+          echo "Adding triaged label"
+
+          # Apply all labels at once
+          if [[ -n "$labels" ]]; then
+            echo "Applying labels: $labels"
+            gh issue edit "$ISSUE_NUMBER" --add-label "$labels" || true
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: claude-triage-output
