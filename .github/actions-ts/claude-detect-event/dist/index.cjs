@@ -23959,11 +23959,29 @@ async function fetchIssueDetails(octokit, owner, repo, issueNumber) {
 async function fetchPrByBranch(owner, repo, branch) {
   const { stdout, exitCode } = await execCommand(
     "gh",
-    ["pr", "list", "--repo", `${owner}/${repo}`, "--head", branch, "--json", "number,isDraft,author,body", "--jq", ".[0]"],
+    [
+      "pr",
+      "list",
+      "--repo",
+      `${owner}/${repo}`,
+      "--head",
+      branch,
+      "--json",
+      "number,isDraft,author,body",
+      "--jq",
+      ".[0]"
+    ],
     { ignoreReturnCode: true }
   );
   if (exitCode !== 0 || !stdout || stdout === "null") {
-    return { hasPr: false, prNumber: "", isDraft: false, isClaudePr: false, author: "", body: "" };
+    return {
+      hasPr: false,
+      prNumber: "",
+      isDraft: false,
+      isClaudePr: false,
+      author: "",
+      body: ""
+    };
   }
   try {
     const pr = JSON.parse(stdout);
@@ -23978,7 +23996,14 @@ async function fetchPrByBranch(owner, repo, branch) {
       body: pr.body ?? ""
     };
   } catch {
-    return { hasPr: false, prNumber: "", isDraft: false, isClaudePr: false, author: "", body: "" };
+    return {
+      hasPr: false,
+      prNumber: "",
+      isDraft: false,
+      isClaudePr: false,
+      author: "",
+      body: ""
+    };
   }
 }
 async function extractIssueNumber(body) {
@@ -23986,9 +24011,18 @@ async function extractIssueNumber(body) {
   return match?.[1] ?? "";
 }
 async function ensureBranchExists(branch) {
-  const { exitCode } = await execCommand("git", ["ls-remote", "--heads", "origin", branch], { ignoreReturnCode: true });
+  const { exitCode } = await execCommand(
+    "git",
+    ["ls-remote", "--heads", "origin", branch],
+    { ignoreReturnCode: true }
+  );
   if (exitCode === 0) {
-    const { stdout } = await execCommand("git", ["ls-remote", "--heads", "origin", branch]);
+    const { stdout } = await execCommand("git", [
+      "ls-remote",
+      "--heads",
+      "origin",
+      branch
+    ]);
     if (stdout.includes(branch)) {
       core2.info(`Branch ${branch} exists`);
       return true;
@@ -23996,7 +24030,11 @@ async function ensureBranchExists(branch) {
   }
   core2.info(`Creating branch ${branch}`);
   await execCommand("git", ["checkout", "-b", branch]);
-  const { exitCode: pushCode } = await execCommand("git", ["push", "-u", "origin", branch], { ignoreReturnCode: true });
+  const { exitCode: pushCode } = await execCommand(
+    "git",
+    ["push", "-u", "origin", branch],
+    { ignoreReturnCode: true }
+  );
   if (pushCode !== 0) {
     core2.warning(`Failed to push branch ${branch}`);
     return false;
@@ -24005,7 +24043,11 @@ async function ensureBranchExists(branch) {
   return true;
 }
 async function checkBranchExists(branch) {
-  const { stdout } = await execCommand("git", ["ls-remote", "--heads", "origin", branch], { ignoreReturnCode: true });
+  const { stdout } = await execCommand(
+    "git",
+    ["ls-remote", "--heads", "origin", branch],
+    { ignoreReturnCode: true }
+  );
   return stdout.includes(branch);
 }
 async function buildIssueSection(octokit, owner, repo, prBody) {
@@ -24297,7 +24339,12 @@ async function handlePullRequestEvent(octokit, owner, repo) {
     if (pr.draft) {
       return emptyResult(true, "PR is a draft");
     }
-    const issueSection = await buildIssueSection(octokit, owner, repo, pr.body ?? "");
+    const issueSection = await buildIssueSection(
+      octokit,
+      owner,
+      repo,
+      pr.body ?? ""
+    );
     return {
       job: "pr-review",
       resourceType: "pr",

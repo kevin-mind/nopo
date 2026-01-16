@@ -2,17 +2,12 @@ import { describe, it, expect, afterEach } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import {
-  loadProjectConfig,
-  type NormalizedProjectConfig,
-} from "../../src/config/index.ts";
+import { loadProjectConfig } from "../../src/config/index.ts";
 import {
   resolveCommandDependencies,
   buildExecutionPlan,
   validateCommandTargets,
   resolveCommand,
-  type ExecutionPlan,
-  type CommandDependencySpec,
 } from "../../src/commands/index.ts";
 
 const tmpDirs: string[] = [];
@@ -1412,6 +1407,331 @@ commands:
       expect(() => resolveCommand(project, "lint:nonexistent", "web")).toThrow(
         /Command 'lint:nonexistent' not found/,
       );
+    });
+  });
+
+  describe("Root Service", () => {
+    it("creates root service when root commands are defined", () => {
+      const root = createProject({
+        rootConfig: `
+name: Test Project
+services:
+  dir: ./apps
+root:
+  commands:
+    lint:
+      command: eslint .
+    check:
+      commands:
+        types: tsc --noEmit
+        lint: eslint .
+`,
+        services: {
+          web: `
+name: web
+dockerfile: Dockerfile
+commands:
+  lint:
+    command: eslint .
+`,
+        },
+      });
+
+      const project = loadProjectConfig(root);
+
+      // Root service should exist
+      expect(project.services.entries.root).toBeDefined();
+      expect(project.services.entries.root?.id).toBe("root");
+      expect(project.services.entries.root?.name).toBe("Root");
+      expect(project.services.entries.root?.commands?.lint?.command).toBe(
+        "eslint .",
+      );
+
+      // Root should be in targets
+      expect(project.services.targets).toContain("root");
+      expect(project.rootName).toBe("root");
+    });
+
+    it("supports custom root_name", () => {
+      const root = createProject({
+        rootConfig: `
+name: Test Project
+services:
+  dir: ./apps
+root_name: workspace
+root:
+  commands:
+    lint:
+      command: eslint .
+`,
+        services: {
+          web: `
+name: web
+dockerfile: Dockerfile
+commands:
+  lint:
+    command: eslint .
+`,
+        },
+      });
+
+      const project = loadProjectConfig(root);
+
+      expect(project.rootName).toBe("workspace");
+      expect(project.services.entries.workspace).toBeDefined();
+      expect(project.services.entries.root).toBeUndefined();
+      expect(project.services.targets).toContain("workspace");
+    });
+
+    it("does not create root service when no root commands defined", () => {
+      const root = createProject({
+        rootConfig: `
+name: Test Project
+services:
+  dir: ./apps
+`,
+        services: {
+          web: `
+name: web
+dockerfile: Dockerfile
+commands:
+  lint:
+    command: eslint .
+`,
+        },
+      });
+
+      const project = loadProjectConfig(root);
+
+      expect(project.services.entries.root).toBeUndefined();
+      expect(project.services.targets).not.toContain("root");
+    });
+
+    it("throws when root_name conflicts with service name", () => {
+      const root = createProject({
+        rootConfig: `
+name: Test Project
+services:
+  dir: ./apps
+root_name: web
+root:
+  commands:
+    lint:
+      command: eslint .
+`,
+        services: {
+          web: `
+name: web
+dockerfile: Dockerfile
+commands:
+  lint:
+    command: eslint .
+`,
+        },
+      });
+
+      expect(() => loadProjectConfig(root)).toThrow(
+        /Service "web" conflicts with root_name/,
+      );
+    });
+
+    it("throws when service has root in top-level dependencies", () => {
+      const root = createProject({
+        rootConfig: `
+name: Test Project
+services:
+  dir: ./apps
+root:
+  commands:
+    lint:
+      command: eslint .
+`,
+        services: {
+          web: `
+name: web
+dockerfile: Dockerfile
+dependencies:
+  - root
+commands:
+  lint:
+    command: eslint .
+`,
+        },
+      });
+
+      expect(() => loadProjectConfig(root)).toThrow(
+        /Service "web" cannot depend on "root" at service level/,
+      );
+    });
+
+    it("allows root in command-level dependencies", () => {
+      const root = createProject({
+        rootConfig: `
+name: Test Project
+services:
+  dir: ./apps
+root:
+  commands:
+    lint:
+      command: eslint .
+`,
+        services: {
+          web: `
+name: web
+dockerfile: Dockerfile
+commands:
+  lint:
+    dependencies:
+      - root
+    command: eslint .
+`,
+        },
+      });
+
+      // Should not throw
+      const project = loadProjectConfig(root);
+      expect(
+        project.services.entries.web?.commands?.lint?.dependencies,
+      ).toEqual(["root"]);
+    });
+
+    it("resolves root commands correctly", () => {
+      const root = createProject({
+        rootConfig: `
+name: Test Project
+services:
+  dir: ./apps
+root:
+  commands:
+    check:
+      commands:
+        lint: eslint .
+        types: tsc --noEmit
+`,
+        services: {
+          web: `
+name: web
+dockerfile: Dockerfile
+commands:
+  lint:
+    command: eslint .
+`,
+        },
+      });
+
+      const project = loadProjectConfig(root);
+      const resolved = resolveCommand(project, "check", "root");
+
+      expect(resolved).toHaveLength(2);
+      expect(resolved).toContainEqual({
+        service: "root",
+        command: "check:lint",
+        executable: "eslint .",
+      });
+      expect(resolved).toContainEqual({
+        service: "root",
+        command: "check:types",
+        executable: "tsc --noEmit",
+      });
+    });
+
+    it("builds execution plan with root dependencies", () => {
+      const root = createProject({
+        rootConfig: `
+name: Test Project
+services:
+  dir: ./apps
+root:
+  commands:
+    lint:
+      command: eslint .
+`,
+        services: {
+          web: `
+name: web
+dockerfile: Dockerfile
+commands:
+  lint:
+    dependencies:
+      - root
+    command: eslint .
+`,
+        },
+      });
+
+      const project = loadProjectConfig(root);
+      const plan = buildExecutionPlan(project, "lint", ["web"]);
+
+      // Root lint should run before web lint
+      expect(plan.stages).toHaveLength(2);
+      expect(plan.stages[0]).toContainEqual(
+        expect.objectContaining({ service: "root", command: "lint" }),
+      );
+      expect(plan.stages[1]).toContainEqual(
+        expect.objectContaining({ service: "web", command: "lint" }),
+      );
+    });
+
+    it("can run root command directly", () => {
+      const root = createProject({
+        rootConfig: `
+name: Test Project
+services:
+  dir: ./apps
+root:
+  commands:
+    lint:
+      command: eslint .
+`,
+        services: {
+          web: `
+name: web
+dockerfile: Dockerfile
+commands:
+  lint:
+    command: eslint .
+`,
+        },
+      });
+
+      const project = loadProjectConfig(root);
+      const plan = buildExecutionPlan(project, "lint", ["root"]);
+
+      expect(plan.stages).toHaveLength(1);
+      expect(plan.stages[0]).toHaveLength(1);
+      expect(plan.stages[0]![0]).toMatchObject({
+        service: "root",
+        command: "lint",
+        executable: "eslint .",
+      });
+    });
+
+    it("root service path is project root directory", () => {
+      const root = createProject({
+        rootConfig: `
+name: Test Project
+services:
+  dir: ./apps
+root:
+  commands:
+    lint:
+      command: eslint .
+`,
+        services: {
+          web: `
+name: web
+dockerfile: Dockerfile
+commands:
+  lint:
+    command: eslint .
+`,
+        },
+      });
+
+      const project = loadProjectConfig(root);
+
+      // Root service path should be the project root, not apps/root
+      expect(project.services.entries.root?.paths.root).toBe(root);
     });
   });
 });

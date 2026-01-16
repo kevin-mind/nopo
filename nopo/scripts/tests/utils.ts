@@ -18,7 +18,9 @@ export const PROJECT_ROOT = path.resolve(__dirname, "..", "..", "..");
 // Fixtures root is 2 levels up from this file then into nopo/fixtures
 export const FIXTURES_ROOT = path.resolve(__dirname, "..", "..", "fixtures");
 
-export function createTestConfig(options: Parameters<typeof createConfig>[0] = {}) {
+export function createTestConfig(
+  options: Parameters<typeof createConfig>[0] = {},
+) {
   return createConfig({
     rootDir: PROJECT_ROOT,
     ...options,

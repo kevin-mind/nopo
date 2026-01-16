@@ -28,7 +28,10 @@ import type { CommandContext } from "../config/index.ts";
 /**
  * Check if any target container is down.
  */
-async function hasDownContainer(runner: Runner, targets: string[]): Promise<boolean> {
+async function hasDownContainer(
+  runner: Runner,
+  targets: string[],
+): Promise<boolean> {
   if (targets.length === 0) return false;
 
   const { data } = await compose.ps({
@@ -100,7 +103,9 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
         const args = CommandScript.parseArgs(runner, false);
         if (args.targets.length === 0) return false;
         if (!willExecuteInContainer(runner, args)) return false;
-        return (await hasDownContainer(runner, args.targets)) && isBuild(runner);
+        return (
+          (await hasDownContainer(runner, args.targets)) && isBuild(runner)
+        );
       },
     },
     {
@@ -125,7 +130,13 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
     isDependency: boolean,
   ): CommandScriptArgs {
     if (isDependency || runner.argv.length === 0) {
-      return { command: "", subcommand: undefined, targets: [], filters: [], explicitTargets: false };
+      return {
+        command: "",
+        subcommand: undefined,
+        targets: [],
+        filters: [],
+        explicitTargets: false,
+      };
     }
 
     const argv = runner.argv;
@@ -133,7 +144,13 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
 
     // Skip parsing if "help" is the script name (handled by main entry point)
     if (command === "help") {
-      return { command: "", subcommand: undefined, targets: [], filters: [], explicitTargets: false };
+      return {
+        command: "",
+        subcommand: undefined,
+        targets: [],
+        filters: [],
+        explicitTargets: false,
+      };
     }
 
     const remaining = argv.slice(1);
@@ -168,8 +185,7 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
     }
 
     // Get since value
-    const since =
-      typeof parsed.since === "string" ? parsed.since : undefined;
+    const since = typeof parsed.since === "string" ? parsed.since : undefined;
 
     // Use positional args (non-option args) for subcommand/target detection
     const positionalArgs: string[] = parsed._ || [];
@@ -256,7 +272,15 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
       targets = filteredTargets;
     }
 
-    return { command, subcommand, targets, filters, since, explicitTargets, contextOverride };
+    return {
+      command,
+      subcommand,
+      targets,
+      filters,
+      since,
+      explicitTargets,
+      contextOverride,
+    };
   }
 
   /**
@@ -328,7 +352,9 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
       );
 
       // Run all commands in this stage in parallel
-      await Promise.all(stage.map((task) => this.#executeTask(task, args.contextOverride)));
+      await Promise.all(
+        stage.map((task) => this.#executeTask(task, args.contextOverride)),
+      );
     }
   }
 
@@ -336,7 +362,10 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
    * Execute a single task (resolved command).
    * Routes to host or container execution based on context.
    */
-  async #executeTask(task: ResolvedCommand, contextOverride?: CommandContext): Promise<void> {
+  async #executeTask(
+    task: ResolvedCommand,
+    contextOverride?: CommandContext,
+  ): Promise<void> {
     const service = this.runner.config.project.services.entries[task.service];
     if (!service) {
       throw new Error(`Service '${task.service}' not found`);
@@ -359,7 +388,10 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
   /**
    * Execute a task on the host machine.
    */
-  async #executeOnHost(task: ResolvedCommand, serviceRoot: string): Promise<void> {
+  async #executeOnHost(
+    task: ResolvedCommand,
+    serviceRoot: string,
+  ): Promise<void> {
     // Resolve working directory
     const cwd = this.#resolveWorkingDirectory(task, serviceRoot);
 
@@ -384,7 +416,10 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
   /**
    * Execute a task in a Docker container.
    */
-  async #executeInContainer(task: ResolvedCommand, serviceRoot: string): Promise<void> {
+  async #executeInContainer(
+    task: ResolvedCommand,
+    serviceRoot: string,
+  ): Promise<void> {
     // Create a prefixed logger for this task
     const logPrefix = `${task.service}:${task.command}`;
 
@@ -395,7 +430,12 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
     const containerWorkdir = this.#resolveContainerWorkdir(task, serviceRoot);
 
     // Build and log the full docker compose command
-    const commandOptions = ["--rm", "--remove-orphans", "--workdir", containerWorkdir];
+    const commandOptions = [
+      "--rm",
+      "--remove-orphans",
+      "--workdir",
+      containerWorkdir,
+    ];
     const composeCmd = [
       "docker compose",
       "run",
