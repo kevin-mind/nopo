@@ -38,5 +38,11 @@ export default {
     "nopo/scripts": {
       entry: "bin.ts",
     },
+    ".github/actions-ts": {
+      entry: ["*/index.ts", "lib/index.ts"],
+      vitest: true,
+      ignore: ["*/dist/**"],
+      ignoreDependencies: ["@actions/glob", "@actions/io"],
+    },
   },
 } satisfies KnipConfig;
