@@ -3,14 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "scripts": {
-    "clean": "rm -rf node_modules && rm -f tsconfig.tsbuildinfo",
-    "check:types": "tsc --noEmit",
-    "check:lint": "eslint",
-    "fix:lint": "eslint --fix",
-    "generate:package": "plop --plopfile scripts/package.ts",
-    "generate:app": "plop --plopfile scripts/app.ts"
-  },
+  "scripts": {},
   "dependencies": {
     "plop": "^4.0.1"
   },

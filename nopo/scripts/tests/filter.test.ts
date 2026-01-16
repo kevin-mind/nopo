@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   parseFilterExpression,
   matchesFilter,
@@ -112,7 +112,9 @@ describe("getFieldValue", () => {
 
   it("returns undefined for non-existent field", () => {
     expect(getFieldValue(service, "nonexistent")).toBeUndefined();
-    expect(getFieldValue(service, "infrastructure.nonexistent")).toBeUndefined();
+    expect(
+      getFieldValue(service, "infrastructure.nonexistent"),
+    ).toBeUndefined();
   });
 
   it("returns undefined for invalid path on non-object", () => {
@@ -278,7 +280,9 @@ describe("applyFilters", () => {
   });
 
   it("filters by single expression", () => {
-    const filters: FilterExpression[] = [{ type: "preset", field: "buildable" }];
+    const filters: FilterExpression[] = [
+      { type: "preset", field: "buildable" },
+    ];
     const result = applyFilters(services, filters, context);
     expect(result).toHaveLength(2);
     expect(result.map((s) => s.id)).toEqual(["backend", "web"]);
@@ -334,13 +338,22 @@ describe("applyFiltersToNames", () => {
   });
 
   it("filters names by expression", () => {
-    const filters: FilterExpression[] = [{ type: "preset", field: "buildable" }];
-    const result = applyFiltersToNames(serviceNames, services, filters, context);
+    const filters: FilterExpression[] = [
+      { type: "preset", field: "buildable" },
+    ];
+    const result = applyFiltersToNames(
+      serviceNames,
+      services,
+      filters,
+      context,
+    );
     expect(result).toEqual(["backend", "web"]);
   });
 
   it("handles unknown service names gracefully", () => {
-    const filters: FilterExpression[] = [{ type: "preset", field: "buildable" }];
+    const filters: FilterExpression[] = [
+      { type: "preset", field: "buildable" },
+    ];
     const result = applyFiltersToNames(
       ["backend", "unknown"],
       services,

@@ -15,7 +15,7 @@ Run the following commands to identify dead code:
 
 ```bash
 # Check for unused exports and dependencies
-pnpm run check:knip:root
+nopo check root -- knip
 ```
 
 Review the output and:
