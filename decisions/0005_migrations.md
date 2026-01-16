@@ -102,7 +102,7 @@ includes a migration check step before running the actual migration job.
 To check for pending migrations locally:
 
 ```bash
-pnpm run --filter=@more/backend migrate:check
+nopo migrate check backend
 ```
 
 This uses Django's `migrate --check` command which exits with code 0 if no migrations are pending, or code 1 if there are unapplied migrations.
