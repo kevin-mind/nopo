@@ -163,7 +163,7 @@ jobs:
           git config --global user.email "claude-bot@anthropic.com"
       - name: Rebase onto main
         env:
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
           git fetch origin main
@@ -174,7 +174,9 @@ jobs:
           fi
           # Amend + push with PAT to trigger CI workflows
           # Only if branch has commits beyond main (don't amend main's commits)
-          gh auth setup-git
+          # Clear the GITHUB_TOKEN credential and use PAT instead
+          git config --unset-all http.https://github.com/.extraheader || true
+          git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$PAT_TOKEN" | base64)"
           if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
             git commit --amend --no-edit
             git push origin "$BRANCH_NAME" --force-with-lease
@@ -223,12 +225,14 @@ jobs:
       - name: Re-push with PAT to trigger CI
         if: success()
         env:
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
           # Amend + push with PAT to trigger CI workflows
           # Only if branch has commits beyond main (don't amend main's commits)
-          gh auth setup-git
+          # Clear the GITHUB_TOKEN credential and use PAT instead
+          git config --unset-all http.https://github.com/.extraheader || true
+          git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$PAT_TOKEN" | base64)"
           if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
             git commit --amend --no-edit
             git push origin "$BRANCH_NAME" --force-with-lease
@@ -238,7 +242,7 @@ jobs:
       - name: Save uncommitted work on failure
         if: failure()
         env:
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
           # Check for any uncommitted changes (staged or unstaged)
@@ -252,7 +256,9 @@ jobs:
 
             Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             # Use PAT to push so it triggers CI workflows
-            gh auth setup-git
+            # Clear the GITHUB_TOKEN credential and use PAT instead
+            git config --unset-all http.https://github.com/.extraheader || true
+            git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$PAT_TOKEN" | base64)"
             git push origin "$BRANCH_NAME"
             echo "::warning::Uncommitted work was saved to branch $BRANCH_NAME"
           else
@@ -280,12 +286,14 @@ jobs:
       - name: Re-push with PAT to trigger CI
         if: success()
         env:
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
           # Amend + push with PAT to trigger CI workflows
           # Only if branch has commits beyond main (don't amend main's commits)
-          gh auth setup-git
+          # Clear the GITHUB_TOKEN credential and use PAT instead
+          git config --unset-all http.https://github.com/.extraheader || true
+          git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$PAT_TOKEN" | base64)"
           if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
             git commit --amend --no-edit
             git push origin "$BRANCH_NAME" --force-with-lease
@@ -309,7 +317,7 @@ jobs:
           git config --global user.email "claude-bot@anthropic.com"
       - name: Rebase onto main
         env:
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
           git fetch origin main
@@ -320,7 +328,9 @@ jobs:
           fi
           # Amend + push with PAT to trigger CI workflows
           # Only if branch has commits beyond main (don't amend main's commits)
-          gh auth setup-git
+          # Clear the GITHUB_TOKEN credential and use PAT instead
+          git config --unset-all http.https://github.com/.extraheader || true
+          git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$PAT_TOKEN" | base64)"
           if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
             git commit --amend --no-edit
             git push origin "$BRANCH_NAME" --force-with-lease
@@ -346,12 +356,14 @@ jobs:
       - name: Re-push with PAT to trigger CI
         if: success()
         env:
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
           # Amend + push with PAT to trigger CI workflows
           # Only if branch has commits beyond main (don't amend main's commits)
-          gh auth setup-git
+          # Clear the GITHUB_TOKEN credential and use PAT instead
+          git config --unset-all http.https://github.com/.extraheader || true
+          git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$PAT_TOKEN" | base64)"
           if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
             git commit --amend --no-edit
             git push origin "$BRANCH_NAME" --force-with-lease
@@ -441,12 +453,14 @@ jobs:
       - name: Re-push with PAT to trigger CI
         if: success()
         env:
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
           # Amend + push with PAT to trigger CI workflows
           # Only if branch has commits beyond main (don't amend main's commits)
-          gh auth setup-git
+          # Clear the GITHUB_TOKEN credential and use PAT instead
+          git config --unset-all http.https://github.com/.extraheader || true
+          git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$PAT_TOKEN" | base64)"
           if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
             git commit --amend --no-edit
             git push origin "$BRANCH_NAME" --force-with-lease
@@ -487,12 +501,14 @@ jobs:
       - name: Re-push with PAT to trigger CI
         if: success()
         env:
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
           # Amend + push with PAT to trigger CI workflows
           # Only if branch has commits beyond main (don't amend main's commits)
-          gh auth setup-git
+          # Clear the GITHUB_TOKEN credential and use PAT instead
+          git config --unset-all http.https://github.com/.extraheader || true
+          git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$PAT_TOKEN" | base64)"
           if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
             git commit --amend --no-edit
             git push origin "$BRANCH_NAME" --force-with-lease
