@@ -80,7 +80,7 @@ export const chalk = new Chalk();
 // ============================================================================
 // Minimist replacement - Simple argument parser
 // ============================================================================
-interface ParsedArgs {
+export interface ParsedArgs {
   _: string[];
   [key: string]: string | boolean | undefined | string[];
 }
@@ -536,7 +536,7 @@ export function createConfig(options: CreateConfigOptions = {}): Config {
   };
 }
 
-type Color = "black" | "red" | "blue" | "yellow" | "green";
+type Color = "black" | "red" | "blue" | "yellow" | "green" | "cyan";
 
 export function createLogger(name: string, color: Color = "black") {
   return (chunk: Buffer, streamSource?: "stdout" | "stderr"): void => {
@@ -572,6 +572,7 @@ export class Logger {
 export interface ScriptDependency {
   class: typeof BaseScript;
   enabled: boolean | ((runner: Runner) => boolean | Promise<boolean>);
+  args?: (parentArgs: ScriptArgs) => Record<string, unknown>;
 }
 
 export abstract class BaseScript {
@@ -621,6 +622,8 @@ export class Script<TArgs = void> extends BaseScript {
 }
 
 export abstract class TargetScript<TArgs = void> extends BaseScript {
+  static args?: ScriptArgs;
+
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   static parseArgs(_runner: Runner, _isDependency: boolean): unknown {
     throw new Error("parseArgs must be implemented by TargetScript subclasses");

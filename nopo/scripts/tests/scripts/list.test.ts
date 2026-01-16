@@ -5,7 +5,7 @@ import ListScript from "../../src/scripts/list.ts";
 import { createTmpEnv, runScript, createTestConfig } from "../utils.ts";
 
 // Track mock calls for assertions
-const mockGetChangedFiles = vi.fn(() => ["apps/backend/src/index.ts"]);
+const mockGetChangedFiles = vi.fn((_ref?: string) => ["apps/backend/src/index.ts"]);
 const mockGetDefaultBranch = vi.fn(() => "main");
 
 vi.mock("../../src/git-info", () => ({
@@ -16,7 +16,7 @@ vi.mock("../../src/git-info", () => ({
       branch: "unknown",
       commit: "unknown",
     })),
-    getChangedFiles: (...args: unknown[]) => mockGetChangedFiles(...args),
+    getChangedFiles: (ref?: string) => mockGetChangedFiles(ref),
     getDefaultBranch: () => mockGetDefaultBranch(),
   },
 }));
