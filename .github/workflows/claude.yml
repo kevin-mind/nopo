@@ -206,7 +206,7 @@ jobs:
     with:
       job: ${{ needs.detect.outputs.job }}
       context_json: ${{ needs.detect.outputs.context_json }}
-      mock_mode: ${{ inputs.mock_mode || 'false' }}
+      mock_mode: ${{ inputs.mock_mode || false }}
     secrets: inherit
 
   # ============================================================================
@@ -270,6 +270,18 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.context.outputs.pr_number }}
         run: gh pr ready "$PR_NUMBER" --undo --repo "$GITHUB_REPOSITORY"
+      - id: remove_reviewer
+        name: Remove nopo-bot reviewer
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.context.outputs.pr_number }}
+        run: |
+          # Remove nopo-bot as reviewer to prevent stale reviews
+          # The reviewer will be re-added on CI success
+          gh api \
+            --method DELETE \
+            "/repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/requested_reviewers" \
+            -f 'reviewers[]=nopo-bot' 2>/dev/null || true
 
   # CI success - marks PR ready for review
   ci-success:
@@ -392,7 +404,9 @@ jobs:
         name: gh pr edit --add-reviewer
         if: steps.check_comments.outputs.has_unresolved != 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Use PAT_TOKEN to trigger the review_requested event
+          # GITHUB_TOKEN actions don't trigger new workflows
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
           PR_NUMBER: ${{ steps.context.outputs.pr_number }}
         run: gh pr edit "$PR_NUMBER" --add-reviewer "nopo-bot" --repo "$GITHUB_REPOSITORY"
 
