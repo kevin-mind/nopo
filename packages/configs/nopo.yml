@@ -1,0 +1,5 @@
+name: configs
+description: Shared ESLint, TypeScript, and Vite configurations
+
+commands:
+  clean: rm -rf node_modules
