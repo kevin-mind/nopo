@@ -121,9 +121,12 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
     const push = this.runner.config.processEnv.DOCKER_PUSH === "true";
     const bakeFile = this.generateBakeDefinition(args.targets, push);
 
-    // If no buildable targets, skip the build
+    // If no buildable targets, skip the build but still write output file if requested
     if (!bakeFile) {
       this.log("Build complete - no targets to build");
+      if (args.output) {
+        this.writeEmptyOutput(args.output);
+      }
       return;
     }
 
@@ -351,6 +354,14 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
     } catch {
       return null;
     }
+  }
+
+  private writeEmptyOutput(outputPath: string) {
+    const resolvedPath = path.isAbsolute(outputPath)
+      ? outputPath
+      : path.join(this.runner.config.root, outputPath);
+    fs.writeFileSync(resolvedPath, "[]", "utf-8");
+    this.log(`Empty build info written to: ${resolvedPath}`);
   }
 
   private async outputBuildInfo(targets: string[], outputPath?: string) {
