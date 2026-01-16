@@ -14,17 +14,17 @@ runs:
   steps:
     - name: Github
       shell: bash
+      env:
+        GITHUB_CONTEXT: ${{ toJSON(github) }}
       run: |
-        cat <<EOF
-        ${{ toJSON(github) }}
-        EOF
+        echo "$GITHUB_CONTEXT"
 
     - name: Job
       shell: bash
+      env:
+        JOB_CONTEXT: ${{ toJSON(job) }}
       run: |
-        cat <<EOF
-        ${{ toJSON(job) }}
-        EOF
+        echo "$JOB_CONTEXT"
 
     - name: Context
       id: context

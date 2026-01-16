@@ -62,16 +62,22 @@ jobs:
     steps:
       - id: extract
         name: Extract branch_name for checkout
+        env:
+          CONTEXT_JSON: ${{ inputs.context_json }}
         run: |
-          branch=$(echo '${{ inputs.context_json }}' | jq -r '.branch_name // "main"')
+          # Use env var to avoid shell injection from special characters in issue body
+          branch=$(echo "$CONTEXT_JSON" | jq -r '.branch_name // "main"')
           echo "branch_name=$branch" >> $GITHUB_OUTPUT
 
       - id: format
         name: Transform to uppercase keys
+        env:
+          CONTEXT_JSON: ${{ inputs.context_json }}
         run: |
           # Transform all keys to uppercase for prompt replacements
           # Use -c for compact single-line output (required for GITHUB_OUTPUT)
-          json=$(echo '${{ inputs.context_json }}' | jq -c 'with_entries(.key |= ascii_upcase)')
+          # Use env var to avoid shell injection from special characters in issue body
+          json=$(echo "$CONTEXT_JSON" | jq -c 'with_entries(.key |= ascii_upcase)')
           echo "json=$json" >> $GITHUB_OUTPUT
 
   # ============================================================================
