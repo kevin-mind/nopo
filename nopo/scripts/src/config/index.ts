@@ -53,7 +53,12 @@ const SubSubCommandSchema = z.union([
   z
     .string()
     .min(1)
-    .transform((cmd) => ({ command: cmd, env: undefined, dir: undefined, context: undefined })),
+    .transform((cmd) => ({
+      command: cmd,
+      env: undefined,
+      dir: undefined,
+      context: undefined,
+    })),
   SubSubCommandObjectSchema,
 ]);
 
@@ -159,16 +164,22 @@ const ServiceFileSchema = z
     commands: CommandsSchema,
   })
   .passthrough()
-  .refine((data) => data.dockerfile || data.image, {
-    message: "Either 'dockerfile' or 'image' must be specified",
-  })
   .refine((data) => !(data.dockerfile && data.image), {
     message: "Cannot specify both 'dockerfile' and 'image'",
   });
 
-const ServicesSchema = z.object({
-  dir: z.string().default("./apps"),
-});
+const ServicesSchema = z
+  .object({
+    dir: z.string().optional(),
+    dirs: z.array(z.string().min(1)).optional(),
+  })
+  .transform((data) => {
+    // Support both 'dir' (single) and 'dirs' (multiple)
+    if (data.dirs && data.dirs.length > 0) {
+      return { dirs: data.dirs };
+    }
+    return { dirs: [data.dir ?? "./apps"] };
+  });
 
 const DependencyVersionSchema = z
   .string()
@@ -213,12 +224,19 @@ const ProjectOsSchema = z.object({
     .default({}),
 });
 
+// Root service commands configuration (simplified - no dockerfile/image required)
+const RootCommandsSchema = z.object({
+  commands: CommandsSchema.default({}),
+});
+
 const ProjectConfigSchema = z.object({
   name: z.string().min(1),
   os: ProjectOsSchema.default({
     base: "node:22.16.0-slim",
   }),
-  services: ServicesSchema.default({ dir: "./apps" }),
+  services: ServicesSchema.default({}),
+  root_name: z.string().min(1).default("root"),
+  root: RootCommandsSchema.optional(),
 });
 
 type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
@@ -305,7 +323,7 @@ interface NormalizedOsConfig {
 }
 
 interface NormalizedServicesConfig {
-  dir: string;
+  dirs: string[];
   entries: Record<string, NormalizedService>;
   targets: string[];
 }
@@ -315,6 +333,7 @@ export interface NormalizedProjectConfig {
   configPath: string;
   os: NormalizedOsConfig;
   services: NormalizedServicesConfig;
+  rootName: string;
 }
 
 export function loadProjectConfig(
@@ -334,13 +353,24 @@ export function loadProjectConfig(
 
   const document = parseYamlFile(resolvedConfigPath);
   const parsed = ProjectConfigSchema.parse(document);
-  const services = normalizeServices(parsed.services, resolvedRoot);
+  const rootName = parsed.root_name;
+  const rootCommands = parsed.root
+    ? normalizeCommands(parsed.root.commands)
+    : {};
+  const services = normalizeServices(
+    parsed.services,
+    resolvedRoot,
+    rootName,
+    rootCommands,
+    resolvedConfigPath,
+  );
 
   return {
     name: parsed.name,
     configPath: resolvedConfigPath,
     os: normalizeOs(parsed.os),
     services,
+    rootName,
   };
 }
 
@@ -381,21 +411,64 @@ function normalizeBaseImage(
 function normalizeServices(
   servicesConfig: ProjectConfig["services"],
   rootDir: string,
+  rootName: string,
+  rootCommands: Record<string, NormalizedCommand>,
+  rootConfigPath: string,
 ): NormalizedServicesConfig {
   const entries: Record<string, NormalizedService> = {};
-  const dir = path.resolve(rootDir, servicesConfig.dir);
+  const resolvedDirs: string[] = [];
 
-  if (!fs.existsSync(dir)) {
-    throw new Error(
-      `Configured services.dir "${servicesConfig.dir}" does not exist (resolved to ${dir}).`,
-    );
+  for (const dir of servicesConfig.dirs) {
+    const resolvedDir = path.resolve(rootDir, dir);
+
+    if (!fs.existsSync(resolvedDir)) {
+      throw new Error(
+        `Configured services.dir "${dir}" does not exist (resolved to ${resolvedDir}).`,
+      );
+    }
+
+    resolvedDirs.push(resolvedDir);
+    discoverServices(resolvedDir, entries, rootDir, rootName);
   }
 
-  discoverServices(dir, entries, rootDir);
+  // Add the root service if it has commands
+  if (Object.keys(rootCommands).length > 0) {
+    if (entries[rootName]) {
+      throw new Error(
+        `Service "${rootName}" conflicts with root_name. Use a different root_name in nopo.yml.`,
+      );
+    }
+
+    entries[rootName] = {
+      id: rootName,
+      name: "Root",
+      description: "Root-level project commands",
+      staticPath: "",
+      infrastructure: {
+        cpu: "1",
+        memory: "512Mi",
+        port: 3000,
+        minInstances: 0,
+        maxInstances: 0,
+        hasDatabase: false,
+        runMigrations: false,
+      },
+      configPath: rootConfigPath,
+      image: undefined,
+      dependencies: [],
+      commands: rootCommands,
+      paths: {
+        root: rootDir,
+        dockerfile: undefined,
+        context: rootDir,
+      },
+    };
+  }
+
   const targets = Object.keys(entries).sort();
 
   return {
-    dir,
+    dirs: resolvedDirs,
     entries,
     targets,
   };
@@ -405,6 +478,7 @@ function discoverServices(
   servicesDir: string,
   entries: Record<string, NormalizedService>,
   projectRoot: string,
+  rootName: string,
 ): void {
   const children = fs.readdirSync(servicesDir, { withFileTypes: true });
 
@@ -414,16 +488,23 @@ function discoverServices(
     const serviceRoot = path.join(servicesDir, serviceId);
     const serviceConfigPath = path.join(serviceRoot, "nopo.yml");
 
+    // Skip directories without nopo.yml - they are not nopo services
     if (!fs.existsSync(serviceConfigPath)) {
-      throw new Error(
-        `Missing nopo.yml in ${serviceRoot}. Each service directory must define its own config.`,
-      );
+      continue;
     }
 
     const serviceDocument = parseYamlFile(serviceConfigPath);
     const parsed = ServiceFileSchema.parse(serviceDocument);
     const infrastructure = normalizeInfrastructure(parsed.infrastructure);
     const commands = normalizeCommands(parsed.commands);
+
+    // Validate that root cannot be in top-level service dependencies
+    if (parsed.dependencies.includes(rootName)) {
+      throw new Error(
+        `Service "${serviceId}" cannot depend on "${rootName}" at service level. ` +
+          `Root can only be specified in command-level dependencies.`,
+      );
+    }
 
     const normalized: NormalizedService = {
       id: serviceId,
@@ -504,10 +585,7 @@ function normalizeSubCommands(
         env: cmd.env,
         dir: cmd.dir,
         context: cmd.context,
-        commands: normalizeSubSubCommands(
-          cmd.commands,
-          `${parentPath}:${name}`,
-        ),
+        commands: normalizeSubSubCommands(cmd.commands),
       };
     }
   }
@@ -517,7 +595,6 @@ function normalizeSubCommands(
 
 function normalizeSubSubCommands(
   commands: Record<string, SubSubCommandInput> | undefined,
-  _parentPath: string,
 ): Record<string, NormalizedSubCommand> | undefined {
   if (!commands) return undefined;
 

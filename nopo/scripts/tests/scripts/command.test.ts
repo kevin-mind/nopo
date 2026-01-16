@@ -306,7 +306,12 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
       const logger = new Logger(config);
       const environment = new Environment(config);
       // "dev" command in complex fixture has context: container
-      const runner = new Runner(config, environment, ["dev", "complex"], logger);
+      const runner = new Runner(
+        config,
+        environment,
+        ["dev", "complex"],
+        logger,
+      );
 
       const args = CommandScript.parseArgs(runner, false);
       const script = new CommandScript(runner);
@@ -437,7 +442,12 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
       });
       const logger = new Logger(config);
       const environment = new Environment(config);
-      const runner = new Runner(config, environment, ["dev", "complex"], logger);
+      const runner = new Runner(
+        config,
+        environment,
+        ["dev", "complex"],
+        logger,
+      );
 
       const args = CommandScript.parseArgs(runner, false);
       const script = new CommandScript(runner);

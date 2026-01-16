@@ -10,7 +10,7 @@ import type {
 /**
  * Represents a command to execute on a specific service.
  */
-export interface CommandDependencySpec {
+interface CommandDependencySpec {
   service: string;
   command: string;
 }
@@ -31,7 +31,7 @@ export interface ResolvedCommand {
  * Represents an execution plan with stages that can be run in parallel.
  * Each stage contains commands that are independent of each other.
  */
-export interface ExecutionPlan {
+interface ExecutionPlan {
   stages: ResolvedCommand[][];
 }
 
