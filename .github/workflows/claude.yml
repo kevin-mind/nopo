@@ -187,14 +187,18 @@ jobs:
       needs.detect.outputs.job != 'ci-success' &&
       needs.detect.outputs.job != 'discussion-complete'
     # Concurrency: one Claude job per resource at a time
-    # - CI jobs (ci-fix, ci-suggest): cancel-in-progress (new CI failure obsoletes old fix attempt)
-    # - Triage (issue-triage): cancel-in-progress (edited issue should re-triage)
+    # - PR jobs (ci-fix, ci-suggest, pr-review, pr-response, pr-human-response): share group so push cancels them
+    # - Issue jobs: separate group per issue
+    # - Discussion jobs: separate group per discussion
+    # cancel-in-progress behavior:
+    # - CI jobs: cancel (new push/CI obsoletes old fix attempt)
+    # - Triage: cancel (edited issue should re-triage)
     # - Other jobs: queue (don't cancel work in progress)
     concurrency:
       group: >-
         ${{
-          contains(fromJSON('["ci-fix","ci-suggest"]'), needs.detect.outputs.job)
-          && format('claude-ci-{0}', needs.detect.outputs.resource_number)
+          needs.detect.outputs.resource_type == 'pr'
+          && format('claude-review-{0}', needs.detect.outputs.resource_number)
           || format('claude-resource-{0}-{1}', needs.detect.outputs.resource_type, needs.detect.outputs.resource_number)
         }}
       cancel-in-progress: ${{ contains(fromJSON('["ci-fix","ci-suggest","issue-triage"]'), needs.detect.outputs.job) }}
