@@ -54,7 +54,7 @@ jobs:
         uses: ./.github/actions/setup-nopo
       - id: run_tests
         name: Run unit tests
-        run: pnpm run --dir ./nopo/scripts test
+        run: nopo test nopo root
   actions:
     runs-on: ubuntu-latest
     name: '[actions] TypeScript actions'
@@ -63,12 +63,14 @@ jobs:
         uses: actions/checkout@v4
       - id: setup_node
         uses: ./.github/actions/setup-node
+      - id: setup_nopo
+        uses: ./.github/actions/setup-nopo
       - id: run_tests
         name: Run TypeScript actions tests
-        run: pnpm run --filter @nopo/github-actions test
+        run: nopo test actions root
       - id: validate_build
         name: Validate TypeScript actions build
-        run: pnpm run check:actions:root
+        run: nopo check actions root
   e2e:
     runs-on: ubuntu-latest
     name: '[nopo] e2e: ${{ matrix.test.name }}'

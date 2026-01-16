@@ -488,9 +488,9 @@ make check
 make fix
 
 # Specific tools
-nopo check root -- lint      # ESLint at root
-nopo check root -- types     # TypeScript at root
-nopo check root -- knip      # Dead code detection
+nopo check lint root      # ESLint at root
+nopo check types root     # TypeScript at root
+nopo check knip root      # Dead code detection
 uv tool run ruff check       # Python linting
 uv run mypy .                # Python type checking
 ```
@@ -771,8 +771,8 @@ The project uses TypeScript for GitHub Actions to provide type safety and better
 
 4. Build and test:
    ```bash
-   nopo compile root -- actions
-   nopo test root -- actions
+   nopo compile actions root
+   nopo test actions root
    ```
 
 5. Commit the `dist/` folder (required for GitHub Actions to run the bundled code)
@@ -790,8 +790,8 @@ The project uses TypeScript for GitHub Actions to provide type safety and better
 #### CI Validation
 
 TypeScript actions are validated in CI:
-- Tests run via `nopo test root -- actions`
-- Build is validated via `nopo check root -- actions`
+- Tests run via `nopo test actions root`
+- Build is validated via `nopo check actions root`
 - Ensures `dist/` matches source code
 
 ---

@@ -58,8 +58,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-node
+      - uses: ./.github/actions/setup-nopo
       - name: Run GitHub Actions tests
-        run: pnpm run --filter @nopo/github-actions test
+        run: nopo test actions root
 
   # ============================================================================
   # DETECT EVENT - Test event detection with mock event data

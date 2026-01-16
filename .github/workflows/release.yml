@@ -76,9 +76,11 @@ jobs:
         uses: actions/checkout@v4
       - id: setup_node
         uses: ./.github/actions/setup-node
+      - id: setup_nopo
+        uses: ./.github/actions/setup-nopo
       - id: build
-        name: Build
-        run: pnpm run --filter "./packages/*" build
+        name: Build packages
+        run: nopo compile ui
       - id: publish_versions
         name: Create and publish versions
         uses: changesets/action@v1
