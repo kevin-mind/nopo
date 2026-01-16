@@ -9,7 +9,9 @@ const DEFAULT_DEPENDENCIES: Record<string, string> = {
   curl: "",
 };
 
-const ServiceInfrastructureSchema = z.object({
+// Runtime configuration (previously called infrastructure)
+// Supports both "runtime" (preferred) and "infrastructure" (deprecated) keys
+const ServiceRuntimeSchema = z.object({
   cpu: z.string().default("1"),
   memory: z.string().default("512Mi"),
   port: z.number().int().positive().default(3000),
@@ -18,6 +20,31 @@ const ServiceInfrastructureSchema = z.object({
   has_database: z.boolean().default(false),
   run_migrations: z.boolean().default(false),
 });
+
+// Alias for backward compatibility
+const ServiceInfrastructureSchema = ServiceRuntimeSchema;
+
+// Build configuration for services/packages
+// - dockerfile: Path to Dockerfile (for services)
+// - command: Build command to run (for packages or services without Docker)
+// - output: Build output path(s) - string or array of strings
+// - packages: Workspace packages to include in Docker build
+// - env: Environment variables for the build
+const ServiceBuildSchema = z
+  .object({
+    dockerfile: z.string().optional(),
+    command: z.string().optional(),
+    output: z
+      .union([z.string(), z.array(z.string().min(1))])
+      .optional()
+      .transform((val) => {
+        if (val === undefined) return undefined;
+        return Array.isArray(val) ? val : [val];
+      }),
+    packages: z.array(z.string().min(1)).optional(),
+    env: z.record(z.string().min(1), z.string()).optional(),
+  })
+  .optional();
 
 // Command dependency specification:
 // - Array of strings: ["backend", "worker"] -> same command on each service
@@ -156,17 +183,53 @@ const ServiceFileSchema = z
   .object({
     name: z.string().min(1).optional(),
     description: z.string().optional(),
+    // Legacy field - prefer build.dockerfile
     dockerfile: z.string().optional(),
     image: z.string().optional(),
     static_path: z.string().default("build"),
-    infrastructure: ServiceInfrastructureSchema.default({}),
+    // Support both "runtime" (preferred) and "infrastructure" (deprecated)
+    runtime: ServiceRuntimeSchema.optional(),
+    infrastructure: ServiceInfrastructureSchema.optional(),
+    // Build configuration
+    build: ServiceBuildSchema,
     dependencies: ServiceDependenciesSchema,
     commands: CommandsSchema,
   })
   .passthrough()
-  .refine((data) => !(data.dockerfile && data.image), {
-    message: "Cannot specify both 'dockerfile' and 'image'",
-  });
+  .transform((data) => {
+    // Merge runtime and infrastructure (runtime takes precedence)
+    const runtimeConfig = data.runtime ?? data.infrastructure ?? {};
+
+    // Emit deprecation warning for "infrastructure" key
+    if (data.infrastructure && !data.runtime) {
+      console.warn(
+        `[nopo] Deprecation warning: 'infrastructure' is deprecated. Use 'runtime' instead.`,
+      );
+    }
+
+    // Emit deprecation warning for top-level "dockerfile" when build.dockerfile should be used
+    if (data.dockerfile && !data.build?.dockerfile) {
+      console.warn(
+        `[nopo] Deprecation warning: Top-level 'dockerfile' is deprecated. Use 'build.dockerfile' instead.`,
+      );
+    }
+
+    return {
+      ...data,
+      // Normalized runtime from either source
+      _normalizedRuntime: ServiceRuntimeSchema.parse(runtimeConfig),
+    };
+  })
+  .refine(
+    (data) => {
+      // Cannot specify both dockerfile and image
+      const dockerfile = data.build?.dockerfile ?? data.dockerfile;
+      return !(dockerfile && data.image);
+    },
+    {
+      message: "Cannot specify both 'dockerfile' and 'image'",
+    },
+  );
 
 const ServicesSchema = z
   .object({
@@ -279,16 +342,30 @@ export interface NormalizedCommand {
   commands?: Record<string, NormalizedSubCommand>;
 }
 
+// Build configuration for a normalized service
+export interface NormalizedBuild {
+  dockerfile?: string;
+  command?: string;
+  output?: string[];
+  packages?: string[];
+  env?: Record<string, string>;
+}
+
 export interface NormalizedService {
   id: string;
   name: string;
   description: string;
   staticPath: string;
+  /** @deprecated Use runtime instead */
   infrastructure: NormalizedServiceResources;
+  runtime: NormalizedServiceResources;
   configPath: string;
   image?: string;
   dependencies: string[];
   commands: Record<string, NormalizedCommand>;
+  /** Whether this is a package (no Docker) or a service (has Docker) */
+  isPackage: boolean;
+  build?: NormalizedBuild;
   paths: {
     root: string;
     dockerfile?: string;
@@ -439,24 +516,29 @@ function normalizeServices(
       );
     }
 
+    const rootRuntime = {
+      cpu: "1",
+      memory: "512Mi",
+      port: 3000,
+      minInstances: 0,
+      maxInstances: 0,
+      hasDatabase: false,
+      runMigrations: false,
+    };
+
     entries[rootName] = {
       id: rootName,
       name: "Root",
       description: "Root-level project commands",
       staticPath: "",
-      infrastructure: {
-        cpu: "1",
-        memory: "512Mi",
-        port: 3000,
-        minInstances: 0,
-        maxInstances: 0,
-        hasDatabase: false,
-        runMigrations: false,
-      },
+      infrastructure: rootRuntime,
+      runtime: rootRuntime,
       configPath: rootConfigPath,
       image: undefined,
       dependencies: [],
       commands: rootCommands,
+      isPackage: true, // Root is always a package (no Docker)
+      build: undefined,
       paths: {
         root: rootDir,
         dockerfile: undefined,
@@ -495,7 +577,7 @@ function discoverServices(
 
     const serviceDocument = parseYamlFile(serviceConfigPath);
     const parsed = ServiceFileSchema.parse(serviceDocument);
-    const infrastructure = normalizeInfrastructure(parsed.infrastructure);
+    const runtimeResources = normalizeInfrastructure(parsed._normalizedRuntime);
     const commands = normalizeCommands(parsed.commands);
 
     // Validate that root cannot be in top-level service dependencies
@@ -506,21 +588,45 @@ function discoverServices(
       );
     }
 
+    // Determine dockerfile path: prefer build.dockerfile, fall back to top-level dockerfile
+    const dockerfilePath = parsed.build?.dockerfile ?? parsed.dockerfile;
+    const resolvedDockerfile = dockerfilePath
+      ? path.resolve(serviceRoot, dockerfilePath)
+      : undefined;
+
+    // Determine if this is a package or service:
+    // - Has dockerfile or image: it's a service
+    // - Has only build.command (no dockerfile): it's a package
+    const hasDocker = !!(resolvedDockerfile || parsed.image);
+    const isPackage = !hasDocker;
+
+    // Build normalized build configuration
+    const normalizedBuild: NormalizedBuild | undefined = parsed.build
+      ? {
+          dockerfile: parsed.build.dockerfile,
+          command: parsed.build.command,
+          output: parsed.build.output,
+          packages: parsed.build.packages,
+          env: parsed.build.env,
+        }
+      : undefined;
+
     const normalized: NormalizedService = {
       id: serviceId,
       name: parsed.name ?? serviceId,
       description: parsed.description ?? "",
       staticPath: parsed.static_path,
-      infrastructure,
+      infrastructure: runtimeResources,
+      runtime: runtimeResources,
       configPath: serviceConfigPath,
       image: parsed.image,
       dependencies: parsed.dependencies,
       commands,
+      isPackage,
+      build: normalizedBuild,
       paths: {
         root: serviceRoot,
-        dockerfile: parsed.dockerfile
-          ? path.resolve(serviceRoot, parsed.dockerfile)
-          : undefined,
+        dockerfile: resolvedDockerfile,
         context: projectRoot,
       },
     };

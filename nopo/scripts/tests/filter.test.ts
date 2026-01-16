@@ -22,23 +22,27 @@ vi.mock("../src/git-info.ts", () => ({
 function createMockService(
   overrides: Partial<NormalizedService> = {},
 ): NormalizedService {
+  const defaultRuntime = {
+    cpu: "1",
+    memory: "512Mi",
+    port: 3000,
+    minInstances: 0,
+    maxInstances: 10,
+    hasDatabase: false,
+    runMigrations: false,
+  };
   return {
     id: "test",
     name: "Test Service",
     description: "",
     staticPath: "build",
-    infrastructure: {
-      cpu: "1",
-      memory: "512Mi",
-      port: 3000,
-      minInstances: 0,
-      maxInstances: 10,
-      hasDatabase: false,
-      runMigrations: false,
-    },
+    infrastructure: defaultRuntime,
+    runtime: defaultRuntime,
     configPath: "/path/to/nopo.yml",
     dependencies: [],
     commands: {},
+    isPackage: false,
+    build: undefined,
     paths: {
       root: "/project/apps/test",
       dockerfile: "/project/apps/test/Dockerfile",
@@ -89,16 +93,18 @@ describe("parseFilterExpression", () => {
 });
 
 describe("getFieldValue", () => {
+  const customRuntime = {
+    cpu: "2",
+    memory: "1Gi",
+    port: 8080,
+    minInstances: 1,
+    maxInstances: 5,
+    hasDatabase: true,
+    runMigrations: true,
+  };
   const service = createMockService({
-    infrastructure: {
-      cpu: "2",
-      memory: "1Gi",
-      port: 8080,
-      minInstances: 1,
-      maxInstances: 5,
-      hasDatabase: true,
-      runMigrations: true,
-    },
+    infrastructure: customRuntime,
+    runtime: customRuntime,
   });
 
   it("gets top-level field", () => {
