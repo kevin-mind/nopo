@@ -119,6 +119,33 @@ async function createFailureIssue(
 ): Promise<string> {
   const description = JOB_DESCRIPTIONS[job] ?? job
   const resourceLabel = resourceType === 'discussion' ? 'Discussion' : resourceType === 'pr' ? 'PR' : 'Issue'
+  const title = `[Claude Failure] ${description} for ${resourceLabel} #${resourceNumber}`
+
+  // Check for existing open failure issue with the same title
+  const { data: existingIssues } = await octokit.rest.issues.listForRepo({
+    owner,
+    repo,
+    labels: 'claude-failure',
+    state: 'open',
+    per_page: 100,
+  })
+
+  const existingIssue = existingIssues.find((issue) => issue.title === title)
+  if (existingIssue) {
+    // Add a comment to the existing issue instead of creating a new one
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: existingIssue.number,
+      body: `## Additional Failure
+
+**Workflow Run**: ${runUrl}
+
+Another failure occurred for this job. Check the workflow run for details.`,
+    })
+    core.info(`Added comment to existing failure issue #${existingIssue.number}`)
+    return String(existingIssue.number)
+  }
 
   let contextSection = ''
   if (contextJson && contextJson !== '{}') {
@@ -159,7 +186,7 @@ Claude failed while ${description}. Please investigate the workflow run logs for
   const { data: issue } = await octokit.rest.issues.create({
     owner,
     repo,
-    title: `[Claude Failure] ${description} for ${resourceLabel} #${resourceNumber}`,
+    title,
     body,
     labels: ['claude-failure', 'bug'],
   })

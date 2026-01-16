@@ -23986,6 +23986,29 @@ async function updateStatusComment(octokit, owner, repo, resourceType, statusCom
 async function createFailureIssue(octokit, owner, repo, resourceType, resourceNumber, job, runUrl, contextJson) {
   const description = JOB_DESCRIPTIONS[job] ?? job;
   const resourceLabel = resourceType === "discussion" ? "Discussion" : resourceType === "pr" ? "PR" : "Issue";
+  const title = `[Claude Failure] ${description} for ${resourceLabel} #${resourceNumber}`;
+  const { data: existingIssues } = await octokit.rest.issues.listForRepo({
+    owner,
+    repo,
+    labels: "claude-failure",
+    state: "open",
+    per_page: 100
+  });
+  const existingIssue = existingIssues.find((issue2) => issue2.title === title);
+  if (existingIssue) {
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: existingIssue.number,
+      body: `## Additional Failure
+
+**Workflow Run**: ${runUrl}
+
+Another failure occurred for this job. Check the workflow run for details.`
+    });
+    core2.info(`Added comment to existing failure issue #${existingIssue.number}`);
+    return String(existingIssue.number);
+  }
   let contextSection = "";
   if (contextJson && contextJson !== "{}") {
     try {
@@ -24020,7 +24043,7 @@ Claude failed while ${description}. Please investigate the workflow run logs for
   const { data: issue } = await octokit.rest.issues.create({
     owner,
     repo,
-    title: `[Claude Failure] ${description} for ${resourceLabel} #${resourceNumber}`,
+    title,
     body,
     labels: ["claude-failure", "bug"]
   });
