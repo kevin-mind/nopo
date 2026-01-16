@@ -219,7 +219,7 @@ export default class ListScript extends Script<ListCliArgs> {
     const project = this.runner.config.project;
     return {
       name: project.name,
-      services_dir: project.services.dir,
+      services_dirs: project.services.dirs,
     };
   }
 
@@ -252,7 +252,7 @@ export default class ListScript extends Script<ListCliArgs> {
 
 interface ProjectConfig {
   name: string;
-  services_dir: string;
+  services_dirs: string[];
 }
 
 interface ServiceConfig {

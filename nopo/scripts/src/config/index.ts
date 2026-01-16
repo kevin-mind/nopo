@@ -164,16 +164,22 @@ const ServiceFileSchema = z
     commands: CommandsSchema,
   })
   .passthrough()
-  .refine((data) => data.dockerfile || data.image, {
-    message: "Either 'dockerfile' or 'image' must be specified",
-  })
   .refine((data) => !(data.dockerfile && data.image), {
     message: "Cannot specify both 'dockerfile' and 'image'",
   });
 
-const ServicesSchema = z.object({
-  dir: z.string().default("./apps"),
-});
+const ServicesSchema = z
+  .object({
+    dir: z.string().optional(),
+    dirs: z.array(z.string().min(1)).optional(),
+  })
+  .transform((data) => {
+    // Support both 'dir' (single) and 'dirs' (multiple)
+    if (data.dirs && data.dirs.length > 0) {
+      return { dirs: data.dirs };
+    }
+    return { dirs: [data.dir ?? "./apps"] };
+  });
 
 const DependencyVersionSchema = z
   .string()
@@ -228,7 +234,7 @@ const ProjectConfigSchema = z.object({
   os: ProjectOsSchema.default({
     base: "node:22.16.0-slim",
   }),
-  services: ServicesSchema.default({ dir: "./apps" }),
+  services: ServicesSchema.default({}),
   root_name: z.string().min(1).default("root"),
   root: RootCommandsSchema.optional(),
 });
@@ -317,7 +323,7 @@ interface NormalizedOsConfig {
 }
 
 interface NormalizedServicesConfig {
-  dir: string;
+  dirs: string[];
   entries: Record<string, NormalizedService>;
   targets: string[];
 }
@@ -410,15 +416,20 @@ function normalizeServices(
   rootConfigPath: string,
 ): NormalizedServicesConfig {
   const entries: Record<string, NormalizedService> = {};
-  const dir = path.resolve(rootDir, servicesConfig.dir);
+  const resolvedDirs: string[] = [];
 
-  if (!fs.existsSync(dir)) {
-    throw new Error(
-      `Configured services.dir "${servicesConfig.dir}" does not exist (resolved to ${dir}).`,
-    );
+  for (const dir of servicesConfig.dirs) {
+    const resolvedDir = path.resolve(rootDir, dir);
+
+    if (!fs.existsSync(resolvedDir)) {
+      throw new Error(
+        `Configured services.dir "${dir}" does not exist (resolved to ${resolvedDir}).`,
+      );
+    }
+
+    resolvedDirs.push(resolvedDir);
+    discoverServices(resolvedDir, entries, rootDir, rootName);
   }
-
-  discoverServices(dir, entries, rootDir, rootName);
 
   // Add the root service if it has commands
   if (Object.keys(rootCommands).length > 0) {
@@ -457,7 +468,7 @@ function normalizeServices(
   const targets = Object.keys(entries).sort();
 
   return {
-    dir,
+    dirs: resolvedDirs,
     entries,
     targets,
   };
@@ -477,10 +488,9 @@ function discoverServices(
     const serviceRoot = path.join(servicesDir, serviceId);
     const serviceConfigPath = path.join(serviceRoot, "nopo.yml");
 
+    // Skip directories without nopo.yml - they are not nopo services
     if (!fs.existsSync(serviceConfigPath)) {
-      throw new Error(
-        `Missing nopo.yml in ${serviceRoot}. Each service directory must define its own config.`,
-      );
+      continue;
     }
 
     const serviceDocument = parseYamlFile(serviceConfigPath);

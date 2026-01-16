@@ -4,12 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsx scripts/build.ts",
-    "build:watch": "tsx scripts/build.ts --watch",
-    "clean": "rm -rf */dist",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "check:types": "tsc --noEmit"
+    "build": "tsx scripts/build.ts"
   },
   "devDependencies": {
     "@types/node": "^22.16.0",

@@ -10,12 +10,7 @@
     "build"
   ],
   "scripts": {
-    "build": "vite build",
-    "dev": "vite build --watch",
-    "clean": "rm -rf node_modules build",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "check:types": "tsc --noEmit"
+    "build": "vite build"
   },
   "devDependencies": {
     "@types/node": "^22.16.0",
