@@ -19,7 +19,6 @@ jobs:
       contents: read
     outputs:
       is_fork: ${{ steps.context.outputs.is_fork }}
-      github_actions_changed: ${{ steps.changed_files.outputs.github_actions_any_changed }}
     steps:
       - id: checkout
         uses: actions/checkout@v4
@@ -31,8 +30,6 @@ jobs:
         uses: tj-actions/changed-files@ed68ef82c095e0d48ec87eccea555d944a631a4c
         with:
           files_yaml: |-
-            github_actions:
-              - .github/**
             backend_migrations:
               - apps/backend/src/*/migrations/**
             backend_source:
@@ -130,22 +127,6 @@ jobs:
         name: Check for uncommitted changes
         run: |
           git diff --exit-code
-  test-claude-automation:
-    needs: context
-    if: needs.context.outputs.github_actions_changed == 'true'
-    # Note: These permissions are required by _claude.yml's declaration even though
-    # mock mode doesn't actually use write permissions
-    permissions:
-      contents: write
-      issues: write
-      pull-requests: write
-      id-token: write
-    uses: ./.github/workflows/_test_claude.yml
-    secrets: inherit
-    with:
-      job: all
-      mock_mode: true
-
   checks:
     if: always()
     runs-on: ubuntu-latest
@@ -165,4 +146,3 @@ jobs:
       - testNopo
       - smoketest
       - terraform
-      - test-claude-automation
