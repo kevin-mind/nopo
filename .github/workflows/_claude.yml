@@ -167,12 +167,11 @@ jobs:
         run: |
           git fetch origin main
           if ! git rebase origin/main; then
-            echo "::warning::Rebase failed - aborting and continuing with current branch state"
             git rebase --abort
-          else
-            # Force push rebased branch (safe for claude/* branches)
-            git push origin "$BRANCH_NAME" --force-with-lease || true
+            echo "::error::Rebase failed due to conflicts. Please resolve conflicts manually before re-running."
+            exit 1
           fi
+          git push origin "$BRANCH_NAME" --force-with-lease
       - id: augment
         name: Check for existing branch work
         env:
@@ -274,11 +273,11 @@ jobs:
         run: |
           git fetch origin main
           if ! git rebase origin/main; then
-            echo "::warning::Rebase failed - aborting and continuing with current branch state"
             git rebase --abort
-          else
-            git push origin "$BRANCH_NAME" --force-with-lease || true
+            echo "::error::Rebase failed due to conflicts. Please resolve conflicts manually before re-running."
+            exit 1
           fi
+          git push origin "$BRANCH_NAME" --force-with-lease
       - id: augment
         name: Add HEAD_BRANCH alias
         env:
