@@ -48,6 +48,7 @@ const config: ReturnType<typeof tseslint.config> = tseslint.config(
       "**/.node_modules/**",
       "**/node_modules/**",
       "**/.build/**",
+      "**/dist/**",
       ...workspaceIgnores,
     ],
   },

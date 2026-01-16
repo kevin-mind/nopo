@@ -15,6 +15,9 @@ export default function createEslintConfig(
     tseslint.configs.recommended,
     eslintPluginPrettier,
     {
+      ignores: ["**/dist/**", "**/build/**", "**/.build/**"],
+    },
+    {
       languageOptions: {
         globals: {
           ...globals.builtin,
