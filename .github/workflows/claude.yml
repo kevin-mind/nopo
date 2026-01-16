@@ -404,7 +404,9 @@ jobs:
         name: gh pr edit --add-reviewer
         if: steps.check_comments.outputs.has_unresolved != 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Use PAT_TOKEN to trigger the review_requested event
+          # GITHUB_TOKEN actions don't trigger new workflows
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
           PR_NUMBER: ${{ steps.context.outputs.pr_number }}
         run: gh pr edit "$PR_NUMBER" --add-reviewer "nopo-bot" --repo "$GITHUB_REPOSITORY"
 
