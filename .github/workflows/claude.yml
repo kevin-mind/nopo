@@ -91,6 +91,23 @@ permissions:
 defaults:
   run:
     shell: bash
+# ============================================================================
+# CONCURRENCY STRATEGY
+# ============================================================================
+# Per-resource concurrency is applied at the job level (run-job, special jobs)
+# because resource_number isn't known until after detect runs.
+#
+# Groups:
+# - claude-resource-{type}-{number}: One Claude job per resource at a time (queue)
+# - claude-review-{number}: Push cancels in-flight reviews (cancel)
+# - claude-ci-{number}: New CI events cancel old CI jobs (cancel)
+#
+# This allows:
+# - Multiple issues to be processed in parallel
+# - Serial processing within each issue/PR (prevents conflicts)
+# - Smart cancellation for events that obsolete previous work
+# ============================================================================
+
 jobs:
   # ============================================================================
   # STEP 1: DETECT EVENT
@@ -138,6 +155,10 @@ jobs:
       needs.detect.outputs.job != 'ci-success' &&
       needs.detect.outputs.job != 'discussion-complete'
     runs-on: ubuntu-latest
+    # Concurrency: queue signals per resource (don't cancel, just wait)
+    concurrency:
+      group: claude-signal-${{ needs.detect.outputs.resource_type }}-${{ needs.detect.outputs.resource_number }}
+      cancel-in-progress: false
     outputs:
       status_comment_id: ${{ steps.signal.outputs.status_comment_id }}
     steps:
@@ -165,6 +186,18 @@ jobs:
       needs.detect.outputs.job != 'push-to-draft' &&
       needs.detect.outputs.job != 'ci-success' &&
       needs.detect.outputs.job != 'discussion-complete'
+    # Concurrency: one Claude job per resource at a time
+    # - CI jobs (ci-fix, ci-suggest): cancel-in-progress (new CI failure obsoletes old fix attempt)
+    # - Triage (issue-triage): cancel-in-progress (edited issue should re-triage)
+    # - Other jobs: queue (don't cancel work in progress)
+    concurrency:
+      group: >-
+        ${{
+          contains(fromJSON('["ci-fix","ci-suggest"]'), needs.detect.outputs.job)
+          && format('claude-ci-{0}', needs.detect.outputs.resource_number)
+          || format('claude-resource-{0}-{1}', needs.detect.outputs.resource_type, needs.detect.outputs.resource_number)
+        }}
+      cancel-in-progress: ${{ contains(fromJSON('["ci-fix","ci-suggest","issue-triage"]'), needs.detect.outputs.job) }}
     uses: ./.github/workflows/_claude.yml
     with:
       job: ${{ needs.detect.outputs.job }}
@@ -188,6 +221,8 @@ jobs:
       needs.detect.outputs.job != 'ci-success' &&
       needs.detect.outputs.job != 'discussion-complete'
     runs-on: ubuntu-latest
+    # No concurrency here - serialization is handled by job dependency on run-job
+    # If run-job is cancelled, this still runs (always()) to report the cancellation
     steps:
       - id: checkout
         uses: actions/checkout@v4
@@ -237,6 +272,10 @@ jobs:
     needs: detect
     if: needs.detect.outputs.job == 'ci-success'
     runs-on: ubuntu-latest
+    # Concurrency: CI success can cancel previous CI success (latest status wins)
+    concurrency:
+      group: claude-ci-${{ needs.detect.outputs.resource_number }}
+      cancel-in-progress: true
     steps:
       - id: context
         name: Parse context
@@ -358,6 +397,10 @@ jobs:
     needs: detect
     if: needs.detect.outputs.job == 'discussion-complete'
     runs-on: ubuntu-latest
+    # Concurrency: queue per discussion (don't cancel commands)
+    concurrency:
+      group: claude-resource-discussion-${{ needs.detect.outputs.resource_number }}
+      cancel-in-progress: false
     steps:
       - id: context
         name: Parse context
