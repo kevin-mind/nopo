@@ -270,6 +270,18 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.context.outputs.pr_number }}
         run: gh pr ready "$PR_NUMBER" --undo --repo "$GITHUB_REPOSITORY"
+      - id: remove_reviewer
+        name: Remove nopo-bot reviewer
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.context.outputs.pr_number }}
+        run: |
+          # Remove nopo-bot as reviewer to prevent stale reviews
+          # The reviewer will be re-added on CI success
+          gh api \
+            --method DELETE \
+            "/repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/requested_reviewers" \
+            -f 'reviewers[]=nopo-bot' 2>/dev/null || true
 
   # CI success - marks PR ready for review
   ci-success:
