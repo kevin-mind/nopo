@@ -221,8 +221,8 @@ jobs:
         env:
           CONTEXT_JSON: ${{ needs.detect.outputs.context_json }}
         run: |
-          echo "pr_number=$(echo '$CONTEXT_JSON' | jq -r '.pr_number')" >> $GITHUB_OUTPUT
-          echo "is_draft=$(echo '$CONTEXT_JSON' | jq -r '.is_draft')" >> $GITHUB_OUTPUT
+          echo "pr_number=$(echo "$CONTEXT_JSON" | jq -r '.pr_number')" >> $GITHUB_OUTPUT
+          echo "is_draft=$(echo "$CONTEXT_JSON" | jq -r '.is_draft')" >> $GITHUB_OUTPUT
       - id: convert
         name: gh pr ready --undo
         if: steps.context.outputs.is_draft == 'false'
@@ -242,9 +242,9 @@ jobs:
         env:
           CONTEXT_JSON: ${{ needs.detect.outputs.context_json }}
         run: |
-          echo "pr_number=$(echo '$CONTEXT_JSON' | jq -r '.pr_number')" >> $GITHUB_OUTPUT
-          echo "is_claude_pr=$(echo '$CONTEXT_JSON' | jq -r '.is_claude_pr')" >> $GITHUB_OUTPUT
-          echo "issue_number=$(echo '$CONTEXT_JSON' | jq -r '.issue_number')" >> $GITHUB_OUTPUT
+          echo "pr_number=$(echo "$CONTEXT_JSON" | jq -r '.pr_number')" >> $GITHUB_OUTPUT
+          echo "is_claude_pr=$(echo "$CONTEXT_JSON" | jq -r '.is_claude_pr')" >> $GITHUB_OUTPUT
+          echo "issue_number=$(echo "$CONTEXT_JSON" | jq -r '.issue_number')" >> $GITHUB_OUTPUT
       - id: check_comments
         name: gh api graphql (unresolved comments)
         env:
@@ -363,7 +363,7 @@ jobs:
         env:
           CONTEXT_JSON: ${{ needs.detect.outputs.context_json }}
         run: |
-          echo "discussion_number=$(echo '$CONTEXT_JSON' | jq -r '.discussion_number')" >> $GITHUB_OUTPUT
+          echo "discussion_number=$(echo "$CONTEXT_JSON" | jq -r '.discussion_number')" >> $GITHUB_OUTPUT
       - id: get_discussion_id
         name: gh api graphql (get discussion ID)
         env:
