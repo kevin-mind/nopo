@@ -111,7 +111,7 @@ jobs:
           1. Remove nopo-bot from reviewers: \`gh pr edit $pr_number --remove-reviewer nopo-bot\`
           2. Re-add nopo-bot: \`gh pr edit $pr_number --add-reviewer nopo-bot\`
 
-          Or check the [Actions tab](https://github.com/$GITHUB_REPOSITORY/actions/workflows/claude-review-loop.yml) for failed workflow runs.
+          Or check the [Actions tab](https://github.com/$GITHUB_REPOSITORY/actions/workflows/claude.yml) for failed workflow runs.
 
           _This is an automated diagnostic message._"
 

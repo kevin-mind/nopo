@@ -54,7 +54,7 @@ jobs:
           tag: ${{ inputs.tag }}
       - id: run_command
         name: Run '${{ matrix.command }}'
-        uses: ./.github/actions-ts/run-docker
+        uses: ./.github/actions/run-docker
         with:
           tag: ${{ steps.docker_tag.outputs.tag }}
           service: ${{ matrix.service }}

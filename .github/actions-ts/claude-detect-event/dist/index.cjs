@@ -19736,10 +19736,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.error = error;
-    function warning(message, properties = {}) {
+    function warning2(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning;
+    exports2.warning = warning2;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
@@ -23985,6 +23985,29 @@ async function extractIssueNumber(body) {
   const match = body.match(/(?:Fixes|Closes|Resolves)\s+#(\d+)/i);
   return match?.[1] ?? "";
 }
+async function ensureBranchExists(branch) {
+  const { exitCode } = await execCommand("git", ["ls-remote", "--heads", "origin", branch], { ignoreReturnCode: true });
+  if (exitCode === 0) {
+    const { stdout } = await execCommand("git", ["ls-remote", "--heads", "origin", branch]);
+    if (stdout.includes(branch)) {
+      core2.info(`Branch ${branch} exists`);
+      return true;
+    }
+  }
+  core2.info(`Creating branch ${branch}`);
+  await execCommand("git", ["checkout", "-b", branch]);
+  const { exitCode: pushCode } = await execCommand("git", ["push", "-u", "origin", branch], { ignoreReturnCode: true });
+  if (pushCode !== 0) {
+    core2.warning(`Failed to push branch ${branch}`);
+    return false;
+  }
+  core2.info(`Created and pushed branch ${branch}`);
+  return true;
+}
+async function checkBranchExists(branch) {
+  const { stdout } = await execCommand("git", ["ls-remote", "--heads", "origin", branch], { ignoreReturnCode: true });
+  return stdout.includes(branch);
+}
 async function buildIssueSection(octokit, owner, repo, prBody) {
   const issueNumber = await extractIssueNumber(prBody);
   if (!issueNumber) {
@@ -24051,6 +24074,8 @@ async function handleIssueEvent(octokit, owner, repo) {
       return emptyResult(true, "Not assigned to nopo-bot");
     }
     const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
+    const branchName = `claude/issue/${issue.number}`;
+    await ensureBranchExists(branchName);
     return {
       job: "issue-implement",
       resourceType: "issue",
@@ -24060,9 +24085,7 @@ async function handleIssueEvent(octokit, owner, repo) {
         issue_number: String(issue.number),
         issue_title: details.title || issue.title,
         issue_body: details.body || issue.body,
-        branch_name: `claude/issue/${issue.number}`,
-        existing_branch_section: ""
-        // Will be determined by _claude.yml
+        branch_name: branchName
       }),
       skip: false,
       skipReason: ""
@@ -24091,7 +24114,6 @@ async function handleIssueCommentEvent() {
   }
   const isPr = !!issue.pull_request;
   let contextType = "issue";
-  let contextDescription = `This is issue #${issue.number}. You are checked out on main.`;
   let branchName = "main";
   if (isPr) {
     const { stdout } = await execCommand("gh", [
@@ -24107,8 +24129,13 @@ async function handleIssueCommentEvent() {
     ]);
     branchName = stdout.trim() || "main";
     contextType = "PR";
-    contextDescription = `This is PR #${issue.number} on branch \`${branchName}\`. You are checked out on the PR branch with the code changes.`;
+  } else {
+    const issueBranch = `claude/issue/${issue.number}`;
+    if (await checkBranchExists(issueBranch)) {
+      branchName = issueBranch;
+    }
   }
+  const contextDescription = branchName === "main" ? `This is ${contextType.toLowerCase()} #${issue.number}. You are checked out on main.` : `This is ${contextType} #${issue.number} on branch \`${branchName}\`. You are checked out on the ${isPr ? "PR" : "issue"} branch.`;
   return {
     job: "issue-comment",
     resourceType: isPr ? "pr" : "issue",

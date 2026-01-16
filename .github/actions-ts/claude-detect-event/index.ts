@@ -137,6 +137,38 @@ async function extractIssueNumber(body: string): Promise<string> {
   return match?.[1] ?? ''
 }
 
+async function ensureBranchExists(branch: string): Promise<boolean> {
+  // Check if branch exists remotely
+  const { exitCode } = await execCommand('git', ['ls-remote', '--heads', 'origin', branch], { ignoreReturnCode: true })
+
+  if (exitCode === 0) {
+    // Check if output contains the branch (ls-remote returns 0 even if no match)
+    const { stdout } = await execCommand('git', ['ls-remote', '--heads', 'origin', branch])
+    if (stdout.includes(branch)) {
+      core.info(`Branch ${branch} exists`)
+      return true
+    }
+  }
+
+  // Branch doesn't exist - create it
+  core.info(`Creating branch ${branch}`)
+  await execCommand('git', ['checkout', '-b', branch])
+  const { exitCode: pushCode } = await execCommand('git', ['push', '-u', 'origin', branch], { ignoreReturnCode: true })
+
+  if (pushCode !== 0) {
+    core.warning(`Failed to push branch ${branch}`)
+    return false
+  }
+
+  core.info(`Created and pushed branch ${branch}`)
+  return true
+}
+
+async function checkBranchExists(branch: string): Promise<boolean> {
+  const { stdout } = await execCommand('git', ['ls-remote', '--heads', 'origin', branch], { ignoreReturnCode: true })
+  return stdout.includes(branch)
+}
+
 async function buildIssueSection(
   octokit: ReturnType<typeof github.getOctokit>,
   owner: string,
@@ -233,6 +265,10 @@ async function handleIssueEvent(
     }
 
     const details = await fetchIssueDetails(octokit, owner, repo, issue.number)
+    const branchName = `claude/issue/${issue.number}`
+
+    // Ensure the branch exists (create if not)
+    await ensureBranchExists(branchName)
 
     return {
       job: 'issue-implement',
@@ -243,8 +279,7 @@ async function handleIssueEvent(
         issue_number: String(issue.number),
         issue_title: details.title || issue.title,
         issue_body: details.body || issue.body,
-        branch_name: `claude/issue/${issue.number}`,
-        existing_branch_section: '', // Will be determined by _claude.yml
+        branch_name: branchName,
       }),
       skip: false,
       skipReason: '',
@@ -293,7 +328,6 @@ async function handleIssueCommentEvent(): Promise<DetectionResult> {
 
   const isPr = !!issue.pull_request
   let contextType = 'issue'
-  let contextDescription = `This is issue #${issue.number}. You are checked out on main.`
   let branchName = 'main'
 
   if (isPr) {
@@ -311,8 +345,18 @@ async function handleIssueCommentEvent(): Promise<DetectionResult> {
     ])
     branchName = stdout.trim() || 'main'
     contextType = 'PR'
-    contextDescription = `This is PR #${issue.number} on branch \`${branchName}\`. You are checked out on the PR branch with the code changes.`
+  } else {
+    // Check if issue has a branch
+    const issueBranch = `claude/issue/${issue.number}`
+    if (await checkBranchExists(issueBranch)) {
+      branchName = issueBranch
+    }
   }
+
+  const contextDescription =
+    branchName === 'main'
+      ? `This is ${contextType.toLowerCase()} #${issue.number}. You are checked out on main.`
+      : `This is ${contextType} #${issue.number} on branch \`${branchName}\`. You are checked out on the ${isPr ? 'PR' : 'issue'} branch.`
 
   return {
     job: 'issue-comment',

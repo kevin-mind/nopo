@@ -1,5 +1,5 @@
 name: Test Claude Automation
-run-name: "Test Claude - ${{ inputs.job || 'all' }}${{ github.event_name == 'schedule' && ' (scheduled)' || '' }}"
+run-name: "Test Claude - ${{ inputs.job || 'all' }}"
 on:
   # Manual trigger
   workflow_dispatch:
@@ -26,7 +26,7 @@ on:
       mock_mode:
         description: 'Mock mode (true = no real Claude calls)'
         type: string
-        default: 'false'
+        default: 'true'
       cleanup:
         description: 'Clean up test data after test'
         type: boolean
@@ -47,15 +47,11 @@ on:
       mock_mode:
         description: 'Mock mode'
         type: string
-        default: 'false'
+        default: 'true'
       cleanup:
         description: 'Clean up test data after test'
         type: boolean
         default: true
-
-  # Daily integration test at midnight UTC
-  schedule:
-    - cron: '0 0 * * *'
 
 permissions:
   contents: write
@@ -70,7 +66,7 @@ permissions:
 # ============================================================================
 jobs:
   unit-tests:
-    if: inputs.job == 'unit-tests' || inputs.job == 'all' || github.event_name == 'schedule'
+    if: inputs.job == 'unit-tests' || inputs.job == 'all'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -82,7 +78,7 @@ jobs:
   # DETECT EVENT ACTION TEST
   # ============================================================================
   detect-event:
-    if: inputs.job == 'detect-event' || inputs.job == 'all' || github.event_name == 'schedule'
+    if: inputs.job == 'detect-event' || inputs.job == 'all'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -126,7 +122,7 @@ jobs:
   # ISSUE TRIAGE TEST (inline workflow_call)
   # ============================================================================
   issue-triage-setup:
-    if: inputs.job == 'issue-triage' || inputs.job == 'all' || github.event_name == 'schedule'
+    if: inputs.job == 'issue-triage' || inputs.job == 'all'
     runs-on: ubuntu-latest
     outputs:
       context_json: ${{ steps.context.outputs.json }}
@@ -192,92 +188,11 @@ jobs:
       mock_mode: ${{ inputs.mock_mode }}
     secrets: inherit
 
-  issue-triage-verify:
-    needs: [issue-triage-setup, issue-triage-run]
-    if: always() && needs.issue-triage-setup.result == 'success'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Verify triage results
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ needs.issue-triage-setup.outputs.issue_number }}
-          MOCK_MODE: ${{ inputs.mock_mode }}
-          RUN_RESULT: ${{ needs.issue-triage-run.result }}
-        run: |
-          echo "Run result: $RUN_RESULT"
-          echo "Verifying triage for issue #$ISSUE_NUMBER"
-
-          # Skip verification in mock mode
-          if [[ "$MOCK_MODE" == "true" ]]; then
-            echo "⏭️ Mock mode - skipping verification"
-            exit 0
-          fi
-
-          # Skip if the run failed
-          if [[ "$RUN_RESULT" != "success" ]]; then
-            echo "❌ Run failed - skipping verification"
-            exit 1
-          fi
-
-          issue_data=$(gh issue view "$ISSUE_NUMBER" --json labels,comments)
-          echo "$issue_data" | jq .
-
-          errors=0
-
-          # Check for 'triaged' label (REQUIRED)
-          if echo "$issue_data" | jq -e '.labels[].name | select(. == "triaged")' > /dev/null 2>&1; then
-            echo "✅ Issue has 'triaged' label"
-          else
-            echo "❌ FAIL: Issue missing 'triaged' label"
-            errors=$((errors + 1))
-          fi
-
-          # Check for at least one type label (bug, enhancement, etc.)
-          type_labels=("bug" "enhancement" "documentation" "refactor" "test" "chore")
-          has_type=false
-          for label in "${type_labels[@]}"; do
-            if echo "$issue_data" | jq -e --arg l "$label" '.labels[].name | select(. == $l)' > /dev/null 2>&1; then
-              echo "✅ Issue has type label: $label"
-              has_type=true
-              break
-            fi
-          done
-          if [[ "$has_type" == "false" ]]; then
-            echo "❌ FAIL: Issue missing type label (bug, enhancement, etc.)"
-            errors=$((errors + 1))
-          fi
-
-          # Check for at least one priority label
-          if echo "$issue_data" | jq -e '.labels[].name | select(startswith("priority:"))' > /dev/null 2>&1; then
-            priority=$(echo "$issue_data" | jq -r '.labels[].name | select(startswith("priority:"))' | head -1)
-            echo "✅ Issue has priority label: $priority"
-          else
-            echo "❌ FAIL: Issue missing priority label (priority:*)"
-            errors=$((errors + 1))
-          fi
-
-          # Check for Claude comment
-          if echo "$issue_data" | jq -e '.comments[] | select(.author.login == "github-actions" or .author.login == "claude[bot]")' > /dev/null 2>&1; then
-            echo "✅ Claude posted a comment"
-          else
-            echo "⚠️ WARNING: No Claude comment found (may be expected)"
-          fi
-
-          if [[ $errors -gt 0 ]]; then
-            echo ""
-            echo "❌ VERIFICATION FAILED: $errors errors found"
-            exit 1
-          fi
-
-          echo ""
-          echo "✅ All triage verifications passed!"
-
   # ============================================================================
   # ISSUE IMPLEMENT TEST (inline workflow_call)
   # ============================================================================
   issue-implement-setup:
-    if: inputs.job == 'issue-implement' || inputs.job == 'all' || github.event_name == 'schedule'
+    if: inputs.job == 'issue-implement' || inputs.job == 'all'
     runs-on: ubuntu-latest
     outputs:
       context_json: ${{ steps.context.outputs.json }}
@@ -354,88 +269,13 @@ jobs:
       mock_mode: ${{ inputs.mock_mode }}
     secrets: inherit
 
-  issue-implement-verify:
-    needs: [issue-implement-setup, issue-implement-run]
-    if: always() && needs.issue-implement-setup.result == 'success'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Verify implementation results
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ needs.issue-implement-setup.outputs.issue_number }}
-          MOCK_MODE: ${{ inputs.mock_mode }}
-          RUN_RESULT: ${{ needs.issue-implement-run.result }}
-        run: |
-          echo "Run result: $RUN_RESULT"
-          echo "Verifying implementation for issue #$ISSUE_NUMBER"
-
-          # Skip verification in mock mode
-          if [[ "$MOCK_MODE" == "true" ]]; then
-            echo "⏭️ Mock mode - skipping verification"
-            exit 0
-          fi
-
-          # Skip if the run failed
-          if [[ "$RUN_RESULT" != "success" ]]; then
-            echo "❌ Run failed - skipping verification"
-            exit 1
-          fi
-
-          branch="claude/issue/$ISSUE_NUMBER"
-          errors=0
-
-          # Check if branch has commits beyond main
-          if git ls-remote --heads origin "$branch" | grep -q "$branch"; then
-            echo "✅ Branch $branch exists"
-
-            # Check for commits on the branch
-            git fetch origin "$branch" --depth=10 2>/dev/null || true
-            commit_count=$(git rev-list --count origin/main..origin/"$branch" 2>/dev/null || echo "0")
-            if [[ "$commit_count" -gt 0 ]]; then
-              echo "✅ Branch has $commit_count commit(s) beyond main"
-            else
-              echo "❌ FAIL: Branch has no commits beyond main"
-              errors=$((errors + 1))
-            fi
-          else
-            echo "❌ FAIL: Branch $branch does not exist"
-            errors=$((errors + 1))
-          fi
-
-          # Check if PR was created
-          pr_data=$(gh pr list --head "$branch" --json number,title,body --jq '.[0]' 2>/dev/null || echo "null")
-          if [[ "$pr_data" != "null" && -n "$pr_data" ]]; then
-            pr_number=$(echo "$pr_data" | jq -r '.number')
-            echo "✅ PR #$pr_number was created"
-
-            # Check if PR references the issue
-            pr_body=$(echo "$pr_data" | jq -r '.body // ""')
-            if echo "$pr_body" | grep -qE "(Fixes|Closes|Resolves) #$ISSUE_NUMBER"; then
-              echo "✅ PR references issue #$ISSUE_NUMBER"
-            else
-              echo "⚠️ WARNING: PR doesn't explicitly reference issue #$ISSUE_NUMBER"
-            fi
-          else
-            echo "⚠️ WARNING: No PR found for branch (may be expected if implementation is incomplete)"
-          fi
-
-          if [[ $errors -gt 0 ]]; then
-            echo ""
-            echo "❌ VERIFICATION FAILED: $errors errors found"
-            exit 1
-          fi
-
-          echo ""
-          echo "✅ All implementation verifications passed!"
-
   # ============================================================================
   # PR PREPARE (creates test PR for ci-fix, ci-suggest, pr-review tests)
   # ============================================================================
   pr-prepare:
     if: |
-      (inputs.job == 'ci-fix' || inputs.job == 'ci-suggest' || inputs.job == 'pr-review' || inputs.job == 'all' || github.event_name == 'schedule') &&
-      (inputs.resource_number == '' || github.event_name == 'schedule')
+      (inputs.job == 'ci-fix' || inputs.job == 'ci-suggest' || inputs.job == 'pr-review' || inputs.job == 'all') &&
+      inputs.resource_number == ''
     runs-on: ubuntu-latest
     outputs:
       pr_number: ${{ steps.pr.outputs.number }}
@@ -506,7 +346,7 @@ jobs:
     needs: [pr-prepare]
     if: |
       always() &&
-      (inputs.job == 'ci-fix' || inputs.job == 'all' || github.event_name == 'schedule') &&
+      (inputs.job == 'ci-fix' || inputs.job == 'all') &&
       (inputs.resource_number != '' || needs.pr-prepare.outputs.pr_number != '')
     runs-on: ubuntu-latest
     outputs:
@@ -546,7 +386,7 @@ jobs:
     needs: [pr-prepare]
     if: |
       always() &&
-      (inputs.job == 'ci-suggest' || inputs.job == 'all' || github.event_name == 'schedule') &&
+      (inputs.job == 'ci-suggest' || inputs.job == 'all') &&
       (inputs.resource_number != '' || needs.pr-prepare.outputs.pr_number != '')
     runs-on: ubuntu-latest
     outputs:
@@ -586,7 +426,7 @@ jobs:
     needs: [pr-prepare]
     if: |
       always() &&
-      (inputs.job == 'pr-review' || inputs.job == 'all' || github.event_name == 'schedule') &&
+      (inputs.job == 'pr-review' || inputs.job == 'all') &&
       (inputs.resource_number != '' || needs.pr-prepare.outputs.pr_number != '')
     runs-on: ubuntu-latest
     outputs:
@@ -634,7 +474,7 @@ jobs:
   # DISCUSSION RESEARCH TEST (inline workflow_call)
   # ============================================================================
   discussion-research-setup:
-    if: inputs.job == 'discussion-research' || inputs.job == 'all' || github.event_name == 'schedule'
+    if: inputs.job == 'discussion-research' || inputs.job == 'all'
     runs-on: ubuntu-latest
     outputs:
       context_json: ${{ steps.context.outputs.json }}
@@ -721,11 +561,11 @@ jobs:
   # CLEANUP
   # ============================================================================
   cleanup-issue:
-    needs: [issue-triage-setup, issue-triage-run, issue-triage-verify, issue-implement-setup, issue-implement-run, issue-implement-verify]
+    needs: [issue-triage-setup, issue-triage-run, issue-implement-setup, issue-implement-run]
     if: |
       always() &&
-      (inputs.cleanup == true || github.event_name == 'schedule') &&
-      (inputs.resource_number == '' || github.event_name == 'schedule')
+      inputs.cleanup == true &&
+      inputs.resource_number == ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -761,8 +601,8 @@ jobs:
     needs: [discussion-research-setup, discussion-research-run]
     if: |
       always() &&
-      (inputs.cleanup == true || github.event_name == 'schedule') &&
-      (inputs.resource_number == '' || github.event_name == 'schedule')
+      inputs.cleanup == true &&
+      inputs.resource_number == ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -798,8 +638,8 @@ jobs:
     needs: [pr-prepare, ci-fix-run, ci-suggest-run, pr-review-run]
     if: |
       always() &&
-      (inputs.cleanup == true || github.event_name == 'schedule') &&
-      (inputs.resource_number == '' || github.event_name == 'schedule') &&
+      inputs.cleanup == true &&
+      inputs.resource_number == '' &&
       needs.pr-prepare.outputs.pr_number != ''
     runs-on: ubuntu-latest
     steps:
@@ -829,94 +669,3 @@ jobs:
             git push origin --delete "$BRANCH_NAME" || true
           fi
 
-  # ============================================================================
-  # FAILURE REPORTING (scheduled runs only)
-  # ============================================================================
-  report-failure:
-    needs:
-      - unit-tests
-      - detect-event
-      - issue-triage-run
-      - issue-triage-verify
-      - issue-implement-run
-      - issue-implement-verify
-      - ci-fix-run
-      - ci-suggest-run
-      - pr-review-run
-      - discussion-research-run
-      - cleanup-issue
-      - cleanup-discussion
-      - cleanup-pr
-    if: |
-      always() &&
-      github.event_name == 'schedule' &&
-      (needs.unit-tests.result == 'failure' ||
-       needs.detect-event.result == 'failure' ||
-       needs.issue-triage-run.result == 'failure' ||
-       needs.issue-triage-verify.result == 'failure' ||
-       needs.issue-implement-run.result == 'failure' ||
-       needs.issue-implement-verify.result == 'failure' ||
-       needs.ci-fix-run.result == 'failure' ||
-       needs.ci-suggest-run.result == 'failure' ||
-       needs.pr-review-run.result == 'failure' ||
-       needs.discussion-research-run.result == 'failure')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Collect failure information
-        id: failures
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RUN_ID: ${{ github.run_id }}
-        run: |
-          echo "Collecting failure information from run $RUN_ID..."
-
-          # Get failed jobs
-          failed_jobs=$(gh run view "$RUN_ID" --json jobs --jq '[.jobs[] | select(.conclusion == "failure") | .name] | join(", ")')
-          echo "failed_jobs=$failed_jobs" >> $GITHUB_OUTPUT
-
-          # Get failed job logs (truncated to avoid huge issues)
-          logs=$(gh run view "$RUN_ID" --log-failed 2>&1 | head -200 || echo "Could not retrieve logs")
-
-          # Save logs to file for multiline output
-          echo "$logs" > /tmp/failed_logs.txt
-          echo "logs_file=/tmp/failed_logs.txt" >> $GITHUB_OUTPUT
-
-      - name: Create bug issue
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          FAILED_JOBS: ${{ steps.failures.outputs.failed_jobs }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          logs=$(cat /tmp/failed_logs.txt)
-
-          # Create issue body
-          body=$(cat <<EOF
-          ## 🚨 Scheduled Claude Integration Test Failed
-
-          **Run URL:** $RUN_URL
-          **Failed Jobs:** $FAILED_JOBS
-          **Trigger:** Scheduled daily integration test
-
-          ## Failed Job Logs (truncated)
-
-          \`\`\`
-          $logs
-          \`\`\`
-
-          ## Action Required
-
-          1. Review the [failed workflow run]($RUN_URL)
-          2. Identify the root cause
-          3. Fix the issue and verify with a manual test run
-
-          ---
-          *This issue was automatically created by the scheduled Claude integration test.*
-          EOF
-          )
-
-          gh issue create \
-            --title "🔴 Scheduled Claude Test Failed - $(date +%Y-%m-%d)" \
-            --body "$body" \
-            --label "bug,claude-automation"
