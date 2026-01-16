@@ -1,26 +1,30 @@
-import * as core from '@actions/core'
-import * as github from '@actions/github'
-import { getOptionalInput, getRequiredInput, setOutputs } from '../lib/index.js'
+import * as core from "@actions/core";
+import * as github from "@actions/github";
+import {
+  getOptionalInput,
+  getRequiredInput,
+  setOutputs,
+} from "../lib/index.js";
 
-type ResourceType = 'issue' | 'pr' | 'discussion'
+type ResourceType = "issue" | "pr" | "discussion";
 
 const JOB_DESCRIPTIONS: Record<string, string> = {
-  'issue-triage': 'triaging issue',
-  'issue-implement': 'implementing issue',
-  'issue-comment': 'responding to comment',
-  'push-to-draft': 'converting PR to draft',
-  'ci-fix': 'fixing CI',
-  'ci-suggest': 'suggesting CI fixes',
-  'ci-success': 'marking PR ready',
-  'pr-review': 'reviewing PR',
-  'pr-response': 'responding to review',
-  'pr-human-response': 'addressing review',
-  'discussion-research': 'researching topic',
-  'discussion-respond': 'responding to question',
-  'discussion-summarize': 'summarizing discussion',
-  'discussion-plan': 'creating plan',
-  'discussion-complete': 'completing discussion',
-}
+  "issue-triage": "triaging issue",
+  "issue-implement": "implementing issue",
+  "issue-comment": "responding to comment",
+  "push-to-draft": "converting PR to draft",
+  "ci-fix": "fixing CI",
+  "ci-suggest": "suggesting CI fixes",
+  "ci-success": "marking PR ready",
+  "pr-review": "reviewing PR",
+  "pr-response": "responding to review",
+  "pr-human-response": "addressing review",
+  "discussion-research": "researching topic",
+  "discussion-respond": "responding to question",
+  "discussion-summarize": "summarizing discussion",
+  "discussion-plan": "creating plan",
+  "discussion-complete": "completing discussion",
+};
 
 async function addReactionToComment(
   octokit: ReturnType<typeof github.getOctokit>,
@@ -28,11 +32,11 @@ async function addReactionToComment(
   repo: string,
   commentId: string,
   resourceType: ResourceType,
-  reaction: 'rocket' | 'thumbs_down'
+  reaction: "rocket" | "thumbs_down",
 ): Promise<void> {
   try {
-    if (resourceType === 'discussion') {
-      const graphqlReaction = reaction === 'rocket' ? 'ROCKET' : 'THUMBS_DOWN'
+    if (resourceType === "discussion") {
+      const graphqlReaction = reaction === "rocket" ? "ROCKET" : "THUMBS_DOWN";
       await octokit.graphql(
         `
         mutation($subjectId: ID!) {
@@ -44,19 +48,19 @@ async function addReactionToComment(
           }
         }
       `,
-        { subjectId: commentId }
-      )
+        { subjectId: commentId },
+      );
     } else {
       await octokit.rest.reactions.createForIssueComment({
         owner,
         repo,
         comment_id: parseInt(commentId, 10),
-        content: reaction === 'rocket' ? 'rocket' : '-1',
-      })
+        content: reaction === "rocket" ? "rocket" : "-1",
+      });
     }
-    core.info(`Added ${reaction} reaction to comment ${commentId}`)
+    core.info(`Added ${reaction} reaction to comment ${commentId}`);
   } catch (error) {
-    core.warning(`Failed to add reaction to comment: ${error}`)
+    core.warning(`Failed to add reaction to comment: ${error}`);
   }
 }
 
@@ -68,18 +72,18 @@ async function updateStatusComment(
   statusCommentId: string,
   job: string,
   success: boolean,
-  runUrl: string
+  runUrl: string,
 ): Promise<void> {
-  const description = JOB_DESCRIPTIONS[job] ?? job
-  const emoji = success ? '✅' : '❌'
-  const status = success ? 'completed successfully' : 'failed'
+  const description = JOB_DESCRIPTIONS[job] ?? job;
+  const emoji = success ? "✅" : "❌";
+  const status = success ? "completed successfully" : "failed";
 
   const body = `${emoji} **nopo-bot** ${description} ${status}.
 
-[View workflow run](${runUrl})`
+[View workflow run](${runUrl})`;
 
   try {
-    if (resourceType === 'discussion') {
+    if (resourceType === "discussion") {
       await octokit.graphql(
         `
         mutation($commentId: ID!, $body: String!) {
@@ -91,19 +95,19 @@ async function updateStatusComment(
           }
         }
       `,
-        { commentId: statusCommentId, body }
-      )
+        { commentId: statusCommentId, body },
+      );
     } else {
       await octokit.rest.issues.updateComment({
         owner,
         repo,
         comment_id: parseInt(statusCommentId, 10),
         body,
-      })
+      });
     }
-    core.info(`Updated status comment ${statusCommentId}`)
+    core.info(`Updated status comment ${statusCommentId}`);
   } catch (error) {
-    core.warning(`Failed to update status comment: ${error}`)
+    core.warning(`Failed to update status comment: ${error}`);
   }
 }
 
@@ -115,22 +119,27 @@ async function createFailureIssue(
   resourceNumber: string,
   job: string,
   runUrl: string,
-  contextJson: string
+  contextJson: string,
 ): Promise<string> {
-  const description = JOB_DESCRIPTIONS[job] ?? job
-  const resourceLabel = resourceType === 'discussion' ? 'Discussion' : resourceType === 'pr' ? 'PR' : 'Issue'
-  const title = `[Claude Failure] ${description} for ${resourceLabel} #${resourceNumber}`
+  const description = JOB_DESCRIPTIONS[job] ?? job;
+  const resourceLabel =
+    resourceType === "discussion"
+      ? "Discussion"
+      : resourceType === "pr"
+        ? "PR"
+        : "Issue";
+  const title = `[Claude Failure] ${description} for ${resourceLabel} #${resourceNumber}`;
 
   // Check for existing open failure issue with the same title
   const { data: existingIssues } = await octokit.rest.issues.listForRepo({
     owner,
     repo,
-    labels: 'claude-failure',
-    state: 'open',
+    labels: "claude-failure",
+    state: "open",
     per_page: 100,
-  })
+  });
 
-  const existingIssue = existingIssues.find((issue) => issue.title === title)
+  const existingIssue = existingIssues.find((issue) => issue.title === title);
   if (existingIssue) {
     // Add a comment to the existing issue instead of creating a new one
     await octokit.rest.issues.createComment({
@@ -142,22 +151,27 @@ async function createFailureIssue(
 **Workflow Run**: ${runUrl}
 
 Another failure occurred for this job. Check the workflow run for details.`,
-    })
-    core.info(`Added comment to existing failure issue #${existingIssue.number}`)
-    return String(existingIssue.number)
+    });
+    core.info(
+      `Added comment to existing failure issue #${existingIssue.number}`,
+    );
+    return String(existingIssue.number);
   }
 
-  let contextSection = ''
-  if (contextJson && contextJson !== '{}') {
+  let contextSection = "";
+  if (contextJson && contextJson !== "{}") {
     try {
-      const context = JSON.parse(contextJson)
+      const context = JSON.parse(contextJson);
       const contextLines = Object.entries(context)
-        .map(([key, value]) => `- **${key}**: ${String(value).substring(0, 200)}${String(value).length > 200 ? '...' : ''}`)
-        .join('\n')
+        .map(
+          ([key, value]) =>
+            `- **${key}**: ${String(value).substring(0, 200)}${String(value).length > 200 ? "..." : ""}`,
+        )
+        .join("\n");
       contextSection = `
 
 ## Context
-${contextLines}`
+${contextLines}`;
     } catch {
       // Ignore JSON parse errors
     }
@@ -181,70 +195,102 @@ Claude failed while ${description}. Please investigate the workflow run logs for
 3. Re-trigger the automation if needed
 
 ---
-*This issue was automatically created by Claude automation.*`
+*This issue was automatically created by Claude automation.*`;
 
   const { data: issue } = await octokit.rest.issues.create({
     owner,
     repo,
     title,
     body,
-    labels: ['claude-failure', 'bug'],
-  })
+    labels: ["claude-failure", "bug"],
+  });
 
-  core.info(`Created failure issue #${issue.number}`)
-  return String(issue.number)
+  core.info(`Created failure issue #${issue.number}`);
+  return String(issue.number);
 }
 
 async function run(): Promise<void> {
   try {
-    const token = getRequiredInput('github_token')
-    const resourceType = getRequiredInput('resource_type') as ResourceType
-    const resourceNumber = getRequiredInput('resource_number')
-    const statusCommentId = getRequiredInput('status_comment_id')
-    const commentId = getOptionalInput('comment_id')
-    const job = getRequiredInput('job')
-    const jobResult = getRequiredInput('job_result')
-    const runUrl = getRequiredInput('run_url')
-    const contextJson = getOptionalInput('context_json') ?? '{}'
+    const token = getRequiredInput("github_token");
+    const resourceType = getRequiredInput("resource_type") as ResourceType;
+    const resourceNumber = getRequiredInput("resource_number");
+    const statusCommentId = getRequiredInput("status_comment_id");
+    const commentId = getOptionalInput("comment_id");
+    const job = getRequiredInput("job");
+    const jobResult = getRequiredInput("job_result");
+    const runUrl = getRequiredInput("run_url");
+    const contextJson = getOptionalInput("context_json") ?? "{}";
 
-    const octokit = github.getOctokit(token)
-    const { context } = github
-    const owner = context.repo.owner
-    const repo = context.repo.repo
+    const octokit = github.getOctokit(token);
+    const { context } = github;
+    const owner = context.repo.owner;
+    const repo = context.repo.repo;
 
-    const success = jobResult === 'success'
+    const success = jobResult === "success";
 
-    core.info(`Handling result for ${resourceType} #${resourceNumber}`)
-    core.info(`Job: ${job}, Result: ${jobResult}`)
+    core.info(`Handling result for ${resourceType} #${resourceNumber}`);
+    core.info(`Job: ${job}, Result: ${jobResult}`);
 
     // Update status comment
-    await updateStatusComment(octokit, owner, repo, resourceType, statusCommentId, job, success, runUrl)
+    await updateStatusComment(
+      octokit,
+      owner,
+      repo,
+      resourceType,
+      statusCommentId,
+      job,
+      success,
+      runUrl,
+    );
 
     // Add reaction to status comment
-    await addReactionToComment(octokit, owner, repo, statusCommentId, resourceType, success ? 'rocket' : 'thumbs_down')
+    await addReactionToComment(
+      octokit,
+      owner,
+      repo,
+      statusCommentId,
+      resourceType,
+      success ? "rocket" : "thumbs_down",
+    );
 
     // Add reaction to triggering comment if provided
     if (commentId) {
-      await addReactionToComment(octokit, owner, repo, commentId, resourceType, success ? 'rocket' : 'thumbs_down')
+      await addReactionToComment(
+        octokit,
+        owner,
+        repo,
+        commentId,
+        resourceType,
+        success ? "rocket" : "thumbs_down",
+      );
     }
 
-    let failureIssueNumber = ''
+    let failureIssueNumber = "";
 
     // Create failure issue if job failed
-    if (!success && jobResult !== 'skipped' && jobResult !== 'cancelled') {
-      failureIssueNumber = await createFailureIssue(octokit, owner, repo, resourceType, resourceNumber, job, runUrl, contextJson)
+    if (!success && jobResult !== "skipped" && jobResult !== "cancelled") {
+      failureIssueNumber = await createFailureIssue(
+        octokit,
+        owner,
+        repo,
+        resourceType,
+        resourceNumber,
+        job,
+        runUrl,
+        contextJson,
+      );
     }
 
     setOutputs({
       failure_issue_number: failureIssueNumber,
-    })
+    });
   } catch (error) {
     if (error instanceof Error) {
-      core.setFailed(error.message)
+      core.setFailed(error.message);
     } else {
-      core.setFailed('An unexpected error occurred')
+      core.setFailed("An unexpected error occurred");
     }
   }
 }
 
-run()
+run();

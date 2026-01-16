@@ -11,6 +11,10 @@ inputs:
   password:
     description: The password to use
     required: false
+  driver:
+    description: Buildx driver (docker = builtin, docker-container = full buildx)
+    required: false
+    default: docker
 
 outputs:
   builder:
@@ -20,12 +24,16 @@ outputs:
 runs:
   using: composite
   steps:
+    # QEMU only needed for multi-platform builds (docker-container driver)
     - name: Setup QEMU
+      if: inputs.driver == 'docker-container'
       uses: docker/setup-qemu-action@v3
 
     - name: Set up Docker Buildx
       id: buildx
       uses: docker/setup-buildx-action@v3
+      with:
+        driver: ${{ inputs.driver }}
 
     - name: Login Docker
       if: ${{ inputs.registry != '' && inputs.username != '' && inputs.password != '' }}

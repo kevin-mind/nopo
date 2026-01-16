@@ -12,6 +12,8 @@ commands:
     commands:
       dev: echo "FIXTURE_COMPLEX_COMPILE_DEV_SUCCESS"
       prod: echo "FIXTURE_COMPLEX_COMPILE_PROD_SUCCESS"
+      # This subcommand only exists in complex, not in minimal
+      unique: echo "FIXTURE_COMPLEX_COMPILE_UNIQUE_SUCCESS"
   # Example command with explicit container context
   dev:
     command: echo "FIXTURE_COMPLEX_DEV_SUCCESS"

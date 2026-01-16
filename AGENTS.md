@@ -226,14 +226,14 @@ make config validate -- --json --services-only
 
 ### Direct Tool Commands
 
-Use pnpm and uv directly when working with specific packages:
+Use nopo commands for most operations:
 
 ```bash
-# JavaScript/TypeScript packages
-pnpm install                          # Install all dependencies
-pnpm run -r build                     # Build all workspaces
-pnpm run --filter @more/ui test       # Test specific package
-pnpm run --filter @more/backend lint  # Lint specific package
+# Build and test operations
+nopo compile                          # Build all services
+nopo compile ui                       # Build specific service
+nopo test ui                          # Test specific package
+nopo lint backend                     # Lint specific package
 
 # Python packages (backend)
 uv sync --frozen                      # Sync Python dependencies
@@ -322,7 +322,7 @@ How we know we're done:
 
 # Run tests - they should FAIL initially
 make test backend
-pnpm run --filter @more/ui test
+nopo test ui
 ```
 
 #### 3. Verify Expected Failures
@@ -457,12 +457,12 @@ make test backend
 uv run python manage.py test src
 
 # Frontend tests
-pnpm run --filter @more/ui test
+nopo test ui
 
 # E2E tests (smoketest)
 make smoketest
 # or with custom URL:
-PUBLIC_URL=https://stage.example.com pnpm run smoketest
+PUBLIC_URL=https://stage.example.com nopo smoketest root
 ```
 
 ---
@@ -488,9 +488,9 @@ make check
 make fix
 
 # Specific tools
-pnpm run check:lint:root     # ESLint at root
-pnpm run check:types:root    # TypeScript at root
-pnpm run check:knip:root     # Dead code detection
+nopo check lint root      # ESLint at root
+nopo check types root     # TypeScript at root
+nopo check knip root      # Dead code detection
 uv tool run ruff check       # Python linting
 uv run mypy .                # Python type checking
 ```
@@ -771,8 +771,8 @@ The project uses TypeScript for GitHub Actions to provide type safety and better
 
 4. Build and test:
    ```bash
-   pnpm run --filter @nopo/github-actions build
-   pnpm run --filter @nopo/github-actions test
+   nopo compile actions root
+   nopo test actions root
    ```
 
 5. Commit the `dist/` folder (required for GitHub Actions to run the bundled code)
@@ -790,8 +790,8 @@ The project uses TypeScript for GitHub Actions to provide type safety and better
 #### CI Validation
 
 TypeScript actions are validated in CI:
-- Tests run via `pnpm run --filter @nopo/github-actions test`
-- Build is validated via `pnpm run check:actions:root`
+- Tests run via `nopo test actions root`
+- Build is validated via `nopo check actions root`
 - Ensures `dist/` matches source code
 
 ---

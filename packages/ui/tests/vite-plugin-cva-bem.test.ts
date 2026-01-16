@@ -177,7 +177,7 @@ describe("cvaBEMPlugin", () => {
 
       expect(mockConsoleLog).toHaveBeenCalledWith(
         expect.stringContaining(
-          "Generated BEM CSS for 1 components: build/bem-components.css",
+          "Generated BEM CSS for 1 components: bem-components.css",
         ),
       );
     });

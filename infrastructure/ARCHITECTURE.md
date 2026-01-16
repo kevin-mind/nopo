@@ -398,7 +398,7 @@ Services with `run_migrations: true` get two Cloud Run jobs:
 │                                                                 │
 │  Trigger: Automatically during deployment (before migrate job)  │
 │                                                                 │
-│  Command: pnpm run --filter=@more/backend migrate:check         │
+│  Command: nopo migrate check backend                            │
 │                                                                 │
 │  Exit Codes:                                                    │
 │    - 0: No pending migrations (skip migrate job)                │
@@ -424,7 +424,7 @@ Services with `run_migrations: true` get two Cloud Run jobs:
 │                                                                 │
 │  Trigger: Only runs if migrate-check indicates pending changes  │
 │                                                                 │
-│  Command: pnpm run --filter=@more/backend migrate               │
+│  Command: nopo migrate backend                                  │
 │                                                                 │
 │  Configuration:                                                 │
 │    - Same image as backend service                              │

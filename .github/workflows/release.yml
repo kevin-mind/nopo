@@ -76,9 +76,11 @@ jobs:
         uses: actions/checkout@v4
       - id: setup_node
         uses: ./.github/actions/setup-node
+      - id: setup_nopo
+        uses: ./.github/actions/setup-nopo
       - id: build
-        name: Build
-        run: pnpm run --filter "./packages/*" build
+        name: Build packages
+        run: nopo compile packages root
       - id: publish_versions
         name: Create and publish versions
         uses: changesets/action@v1
@@ -102,6 +104,9 @@ jobs:
     with:
       push: ${{ needs.context.outputs.push == 'true' }}
       services: ${{ needs.discover_buildable.outputs.services }}
+      # Multi-platform for production deployments
+      platforms: linux/amd64,linux/arm64
+      driver: docker-container
     needs:
       - context
       - discover_buildable
