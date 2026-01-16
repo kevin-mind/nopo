@@ -307,7 +307,7 @@ describe("ScriptArgs", () => {
 
   describe("validation", () => {
     it("should call validate function when parsing", () => {
-      let validatedValue: any;
+      let validatedValue: unknown;
 
       const schema: Record<string, ScriptArgConfig> = {
         port: {
@@ -316,7 +316,8 @@ describe("ScriptArgs", () => {
           default: 3000,
           validate: (value) => {
             validatedValue = value;
-            if (value < 1 || value > 65535) {
+            const v = value as number;
+            if (v < 1 || v > 65535) {
               throw new Error("Port must be between 1 and 65535");
             }
           },
@@ -337,7 +338,8 @@ describe("ScriptArgs", () => {
           description: "Port number",
           default: 3000,
           validate: (value) => {
-            if (value < 1 || value > 65535) {
+            const v = value as number;
+            if (v < 1 || v > 65535) {
               throw new Error("Port must be between 1 and 65535");
             }
           },

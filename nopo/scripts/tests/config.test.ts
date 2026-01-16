@@ -132,7 +132,7 @@ infrastructure: {}
     expect(worker?.infrastructure.port).toBe(3000);
   });
 
-  it("throws when a service directory is missing nopo.yml", () => {
+  it("skips directories without nopo.yml", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "nopo-config-"));
     tmpDirs.push(root);
     writeFile(
@@ -145,28 +145,33 @@ services:
     );
     fs.mkdirSync(path.join(root, "apps", "ghost"), { recursive: true });
 
-    expect(() => loadProjectConfig(root)).toThrow(
-      /Missing nopo\.yml in .*ghost/,
-    );
+    // Should not throw - directories without nopo.yml are silently skipped
+    const config = loadProjectConfig(root);
+    expect(config.services.entries["ghost"]).toBeUndefined();
   });
 
-  it("throws when neither dockerfile nor image is specified", () => {
+  it("allows services without dockerfile or image (command-only services)", () => {
     const root = createProject({
       rootConfig: `
-name: Missing Build Config
+name: Command Only Services
 services:
   dir: ./apps
 `,
       services: {
-        broken: `
-name: broken
-description: Missing build config
+        "command-only": `
+name: command-only
+description: Command-only service (no docker)
+commands:
+  test: echo hello
 `,
       },
     });
 
-    expect(() => loadProjectConfig(root)).toThrow(
-      /Either 'dockerfile' or 'image' must be specified/,
-    );
+    // Should not throw - services can now exist without dockerfile/image
+    const config = loadProjectConfig(root);
+    const commandOnlyService = config.services.entries["command-only"];
+    expect(commandOnlyService).toBeDefined();
+    expect(commandOnlyService?.paths.dockerfile).toBeUndefined();
+    expect(commandOnlyService?.image).toBeUndefined();
   });
 });
