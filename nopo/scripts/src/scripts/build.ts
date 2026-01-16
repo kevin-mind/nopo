@@ -121,6 +121,12 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
     const push = this.runner.config.processEnv.DOCKER_PUSH === "true";
     const bakeFile = this.generateBakeDefinition(args.targets, push);
 
+    // If no buildable targets, skip the build
+    if (!bakeFile) {
+      this.log("Build complete - no targets to build");
+      return;
+    }
+
     await this.runBake(bakeFile, args);
 
     if (args.output) {
@@ -131,7 +137,7 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
   private generateBakeDefinition(
     requestedTargets: string[],
     push: boolean,
-  ): string {
+  ): string | null {
     const env = this.runner.environment.env;
     const targets = this.runner.config.targets;
 
@@ -157,6 +163,12 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
       if (!buildableTargets.includes(target)) {
         this.log(`Skipping '${target}' - uses pre-built image`);
       }
+    }
+
+    // If no buildable targets remain after filtering, skip the build
+    if (buildTargets.length === 0) {
+      this.log("No buildable targets - skipping build");
+      return null;
     }
 
     const definition: BakeDefinition = {
