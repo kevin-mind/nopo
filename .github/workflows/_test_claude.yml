@@ -1,4 +1,5 @@
 name: Test Claude Automation
+run-name: "Test Claude - ${{ inputs.job }}"
 on:
   workflow_dispatch:
     inputs:
