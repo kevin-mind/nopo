@@ -168,8 +168,6 @@ jobs:
           prompt_replacements: ${{ needs.context.outputs.prompt_replacements }}
           max_turns: '100'
           trigger_phrase: '@claude'
-          circuit_breaker: 'true'
-          circuit_breaker_max: '50'
           mock_mode: ${{ inputs.mock_mode }}
 
   # ============================================================================
@@ -203,8 +201,6 @@ jobs:
           prompt_file: .github/prompts/ci-fix.txt
           prompt_replacements: ${{ steps.augment.outputs.json }}
           max_turns: '200'
-          circuit_breaker: 'true'
-          circuit_breaker_max: '50'
           mock_mode: ${{ inputs.mock_mode }}
 
   ci-suggest:

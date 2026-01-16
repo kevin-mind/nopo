@@ -1,5 +1,5 @@
 name: Run Claude
-description: Standardized Claude Code execution with status comments, circuit breakers, and reactions
+description: Load prompt and run Claude Code
 
 inputs:
   # Prompt inputs (one of prompt or prompt_file is required)
@@ -15,6 +15,8 @@ inputs:
     description: "JSON object of template replacements for prompt_file (e.g., '{\"ISSUE_NUMBER\": \"123\"}')"
     required: false
     default: "{}"
+
+  # Required tokens
   github_token:
     description: GitHub token for API calls and Claude action
     required: true
@@ -48,48 +50,6 @@ inputs:
     required: false
     default: ""
 
-  # Status comment configuration
-  status_comment:
-    description: Whether to post a status comment
-    required: false
-    default: "false"
-  status_action:
-    description: Action verb for status comment (e.g., "triaging this issue", "implementing")
-    required: false
-    default: "working"
-  issue_or_pr_number:
-    description: Issue or PR number for status comment
-    required: false
-    default: ""
-
-  # Circuit breaker configuration
-  circuit_breaker:
-    description: Whether to enable circuit breaker
-    required: false
-    default: "false"
-  circuit_breaker_max:
-    description: Maximum comments before stopping
-    required: false
-    default: "50"
-  circuit_breaker_user:
-    description: User login to count comments for
-    required: false
-    default: "claude[bot]"
-
-  # Reactions configuration
-  reactions:
-    description: Whether to add reactions to status comment
-    required: false
-    default: "false"
-  success_reaction:
-    description: Reaction to add on success
-    required: false
-    default: "rocket"
-  failure_reaction:
-    description: Reaction to add on failure
-    required: false
-    default: "eyes"
-
   # Mock mode configuration (for testing)
   mock_mode:
     description: Test mode - skip Claude API call and use mock responses
@@ -104,12 +64,6 @@ outputs:
   success:
     description: Whether Claude completed successfully
     value: ${{ steps.result.outputs.success }}
-  skipped:
-    description: Whether execution was skipped (circuit breaker triggered)
-    value: ${{ steps.setup.outputs.skipped }}
-  comment_id:
-    description: ID of the status comment (if posted)
-    value: ${{ steps.setup.outputs.comment_id }}
 
 runs:
   using: "composite"
@@ -158,80 +112,10 @@ runs:
           echo "EOF_PROMPT_CONTENT"
         } >> "$GITHUB_OUTPUT"
 
-    # Step 2: Pre-work (status comment + circuit breaker)
-    - name: Setup
-      id: setup
-      shell: bash
-      env:
-        GH_TOKEN: ${{ inputs.github_token }}
-        STATUS_COMMENT: ${{ inputs.status_comment }}
-        STATUS_ACTION: ${{ inputs.status_action }}
-        ISSUE_OR_PR_NUMBER: ${{ inputs.issue_or_pr_number }}
-        CIRCUIT_BREAKER: ${{ inputs.circuit_breaker }}
-        CIRCUIT_BREAKER_MAX: ${{ inputs.circuit_breaker_max }}
-        CIRCUIT_BREAKER_USER: ${{ inputs.circuit_breaker_user }}
-        GITHUB_SERVER_URL: ${{ github.server_url }}
-        GITHUB_REPOSITORY: ${{ github.repository }}
-        GITHUB_RUN_ID: ${{ github.run_id }}
-      run: |
-        skipped="false"
-        comment_id=""
-
-        # Post status comment if enabled
-        if [[ "$STATUS_COMMENT" == "true" && -n "$ISSUE_OR_PR_NUMBER" ]]; then
-          body="👀 **nopo-bot** is ${STATUS_ACTION}...
-
-        [View workflow run](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})"
-
-          comment_url=$(gh issue comment "$ISSUE_OR_PR_NUMBER" --body "$body" --repo "$GITHUB_REPOSITORY" 2>&1)
-          comment_id=$(echo "$comment_url" | grep -oE '[0-9]+$' || echo "")
-          echo "Posted status comment: $comment_id"
-        fi
-
-        # Check circuit breaker if enabled
-        if [[ "$CIRCUIT_BREAKER" == "true" && -n "$ISSUE_OR_PR_NUMBER" ]]; then
-          # Count comments from the specified user using GraphQL
-          repo_name="${GITHUB_REPOSITORY#*/}"
-          owner="${GITHUB_REPOSITORY%/*}"
-
-          result=$(gh api graphql -f query='
-            query($owner: String!, $repo: String!, $number: Int!) {
-              repository(owner: $owner, name: $repo) {
-                issueOrPullRequest(number: $number) {
-                  ... on Issue {
-                    comments(first: 100) {
-                      nodes { author { login } }
-                    }
-                  }
-                  ... on PullRequest {
-                    comments(first: 100) {
-                      nodes { author { login } }
-                    }
-                  }
-                }
-              }
-            }
-          ' \
-            -F owner="$owner" \
-            -F repo="$repo_name" \
-            -F number="$ISSUE_OR_PR_NUMBER" 2>/dev/null || echo '{}')
-
-          comment_count=$(echo "$result" | jq --arg user "$CIRCUIT_BREAKER_USER" '[.data.repository.issueOrPullRequest.comments.nodes[] | select(.author.login == $user)] | length')
-
-          if [[ "$comment_count" -ge "$CIRCUIT_BREAKER_MAX" ]]; then
-            echo "Circuit breaker triggered: $comment_count comments (max: $CIRCUIT_BREAKER_MAX)"
-            skipped="true"
-          fi
-        fi
-
-        echo "skipped=$skipped" >> "$GITHUB_OUTPUT"
-        echo "comment_id=$comment_id" >> "$GITHUB_OUTPUT"
-        echo "should_run=$([[ "$skipped" == "false" ]] && echo "true" || echo "false")" >> "$GITHUB_OUTPUT"
-
-    # Step 3: Run Claude Code (or mock)
+    # Step 2: Run Claude Code (or mock)
     - name: Run Claude (mock mode)
       id: claude_mock
-      if: steps.setup.outputs.should_run == 'true' && inputs.mock_mode == 'true'
+      if: inputs.mock_mode == 'true'
       shell: bash
       env:
         MOCK_RESPONSE: ${{ inputs.mock_response }}
@@ -249,7 +133,7 @@ runs:
 
     - name: Run Claude (real mode)
       id: claude
-      if: steps.setup.outputs.should_run == 'true' && inputs.mock_mode != 'true'
+      if: inputs.mock_mode != 'true'
       uses: anthropics/claude-code-action@v1
       with:
         claude_code_oauth_token: ${{ inputs.claude_code_oauth_token }}
@@ -263,36 +147,13 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
 
-    # Step 3: Post-work (reactions)
-    - name: Add success reaction
-      if: inputs.reactions == 'true' && steps.setup.outputs.comment_id != '' && success()
-      shell: bash
-      env:
-        GH_TOKEN: ${{ inputs.github_token }}
-        COMMENT_ID: ${{ steps.setup.outputs.comment_id }}
-        REACTION: ${{ inputs.success_reaction }}
-      run: |
-        gh api "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content="$REACTION" || true
-
-    - name: Add failure reaction
-      if: inputs.reactions == 'true' && steps.setup.outputs.comment_id != '' && failure()
-      shell: bash
-      env:
-        GH_TOKEN: ${{ inputs.github_token }}
-        COMMENT_ID: ${{ steps.setup.outputs.comment_id }}
-        REACTION: ${{ inputs.failure_reaction }}
-      run: |
-        gh api "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content="$REACTION" || true
-
-    # Step 4: Set result output
+    # Step 3: Set result output
     - name: Set result
       id: result
       if: always()
       shell: bash
       run: |
-        if [[ "${{ steps.setup.outputs.skipped }}" == "true" ]]; then
-          echo "success=false" >> "$GITHUB_OUTPUT"
-        elif [[ "${{ steps.claude.outcome }}" == "success" || "${{ steps.claude_mock.outcome }}" == "success" ]]; then
+        if [[ "${{ steps.claude.outcome }}" == "success" || "${{ steps.claude_mock.outcome }}" == "success" ]]; then
           echo "success=true" >> "$GITHUB_OUTPUT"
         else
           echo "success=false" >> "$GITHUB_OUTPUT"
