@@ -19868,12 +19868,14 @@ async function run() {
     core2.info("");
     const result = await execCommand("make", args);
     if (result.exitCode !== 0) {
-      throw new Error(`make list failed with exit code ${result.exitCode}: ${result.stderr}`);
+      throw new Error(
+        `make list failed with exit code ${result.exitCode}: ${result.stderr}`
+      );
     }
     let fullJson;
     try {
       fullJson = JSON.parse(result.stdout);
-    } catch (e) {
+    } catch {
       throw new Error(`Failed to parse JSON output: ${result.stdout}`);
     }
     const serviceNames = Object.keys(fullJson.services ?? {});
