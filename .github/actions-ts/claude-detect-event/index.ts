@@ -104,19 +104,28 @@ async function fetchPrByBranch(
   isClaudePr: boolean
   author: string
   body: string
+  title: string
+  labels: string[]
 }> {
   const { stdout, exitCode } = await execCommand(
     'gh',
-    ['pr', 'list', '--repo', `${owner}/${repo}`, '--head', branch, '--json', 'number,isDraft,author,body', '--jq', '.[0]'],
+    ['pr', 'list', '--repo', `${owner}/${repo}`, '--head', branch, '--json', 'number,isDraft,author,body,title,labels', '--jq', '.[0]'],
     { ignoreReturnCode: true }
   )
 
   if (exitCode !== 0 || !stdout || stdout === 'null') {
-    return { hasPr: false, prNumber: '', isDraft: false, isClaudePr: false, author: '', body: '' }
+    return { hasPr: false, prNumber: '', isDraft: false, isClaudePr: false, author: '', body: '', title: '', labels: [] }
   }
 
   try {
-    const pr = JSON.parse(stdout) as { number: number; isDraft: boolean; author: { login: string }; body: string }
+    const pr = JSON.parse(stdout) as {
+      number: number
+      isDraft: boolean
+      author: { login: string }
+      body: string
+      title: string
+      labels: Array<{ name: string }>
+    }
     const author = pr.author.login
     const isClaudePr = author === 'claude[bot]' || branch.startsWith('claude/')
     return {
@@ -126,10 +135,20 @@ async function fetchPrByBranch(
       isClaudePr,
       author,
       body: pr.body ?? '',
+      title: pr.title ?? '',
+      labels: (pr.labels ?? []).map((l) => l.name),
     }
   } catch {
-    return { hasPr: false, prNumber: '', isDraft: false, isClaudePr: false, author: '', body: '' }
+    return { hasPr: false, prNumber: '', isDraft: false, isClaudePr: false, author: '', body: '', title: '', labels: [] }
   }
+}
+
+function hasSkipLabel(labels: string[]): boolean {
+  return labels.some((l) => l === 'skip-dispatch' || l === 'test:automation')
+}
+
+function isTestResource(title: string): boolean {
+  return title.startsWith('[TEST]')
 }
 
 async function extractIssueNumber(body: string): Promise<string> {
@@ -216,6 +235,11 @@ async function handleIssueEvent(
     labels: Array<{ name: string }>
   }
 
+  // Check for [TEST] in title (circuit breaker for test automation)
+  if (isTestResource(issue.title)) {
+    return emptyResult(true, 'Issue title starts with [TEST]')
+  }
+
   // Check for test:automation label
   const hasTestLabel = issue.labels.some((l) => l.name === 'test:automation')
   if (hasTestLabel) {
@@ -223,8 +247,8 @@ async function handleIssueEvent(
   }
 
   // Check for skip-dispatch label
-  const hasSkipLabel = issue.labels.some((l) => l.name === 'skip-dispatch')
-  if (hasSkipLabel) {
+  const hasSkipLabelOnIssue = issue.labels.some((l) => l.name === 'skip-dispatch')
+  if (hasSkipLabelOnIssue) {
     return emptyResult(true, 'Issue has skip-dispatch label')
   }
 
@@ -310,6 +334,11 @@ async function handleIssueCommentEvent(
     pull_request?: unknown
   }
 
+  // Check for [TEST] in title (circuit breaker for test automation)
+  if (isTestResource(issue.title)) {
+    return emptyResult(true, 'Issue/PR title starts with [TEST]')
+  }
+
   // Check for test:automation label
   const hasTestLabel = issue.labels.some((l) => l.name === 'test:automation')
   if (hasTestLabel) {
@@ -317,8 +346,8 @@ async function handleIssueCommentEvent(
   }
 
   // Check for skip-dispatch label
-  const hasSkipLabel = issue.labels.some((l) => l.name === 'skip-dispatch')
-  if (hasSkipLabel) {
+  const hasSkipLabelOnIssue = issue.labels.some((l) => l.name === 'skip-dispatch')
+  if (hasSkipLabelOnIssue) {
     return emptyResult(true, 'Issue has skip-dispatch label')
   }
 
@@ -416,8 +445,14 @@ async function handlePullRequestReviewCommentEvent(): Promise<DetectionResult> {
   }
   const pr = payload.pull_request as {
     number: number
+    title: string
     head: { ref: string }
     labels: Array<{ name: string }>
+  }
+
+  // Check for [TEST] in title (circuit breaker for test automation)
+  if (isTestResource(pr.title)) {
+    return emptyResult(true, 'PR title starts with [TEST]')
   }
 
   // Check for test:automation label
@@ -427,8 +462,8 @@ async function handlePullRequestReviewCommentEvent(): Promise<DetectionResult> {
   }
 
   // Check for skip-dispatch label
-  const hasSkipLabel = pr.labels.some((l) => l.name === 'skip-dispatch')
-  if (hasSkipLabel) {
+  const hasSkipLabelOnPr = pr.labels.some((l) => l.name === 'skip-dispatch')
+  if (hasSkipLabelOnPr) {
     return emptyResult(true, 'PR has skip-dispatch label')
   }
 
@@ -473,12 +508,27 @@ async function handlePushEvent(): Promise<DetectionResult> {
     return emptyResult(true, 'Push to merge queue branch')
   }
 
+  // Skip test branches (circuit breaker for test automation)
+  if (branch.startsWith('test/')) {
+    return emptyResult(true, 'Push to test branch')
+  }
+
   const owner = context.repo.owner
   const repo = context.repo.repo
   const prInfo = await fetchPrByBranch(owner, repo, branch)
 
   if (!prInfo.hasPr) {
     return emptyResult(true, 'No PR found for branch')
+  }
+
+  // Check for skip labels on PR (circuit breaker for test automation)
+  if (hasSkipLabel(prInfo.labels)) {
+    return emptyResult(true, 'PR has skip-dispatch or test:automation label')
+  }
+
+  // Check for [TEST] in PR title (circuit breaker for test automation)
+  if (isTestResource(prInfo.title)) {
+    return emptyResult(true, 'PR title starts with [TEST]')
   }
 
   // Push-to-draft doesn't call Claude, but we still signal
@@ -508,12 +558,27 @@ async function handleWorkflowRunEvent(): Promise<DetectionResult> {
   const conclusion = workflowRun.conclusion
   const branch = workflowRun.head_branch
 
+  // Skip test branches (circuit breaker for test automation)
+  if (branch.startsWith('test/')) {
+    return emptyResult(true, 'Workflow run on test branch')
+  }
+
   const owner = context.repo.owner
   const repo = context.repo.repo
   const prInfo = await fetchPrByBranch(owner, repo, branch)
 
   if (!prInfo.hasPr) {
     return emptyResult(true, 'No PR found for workflow run branch')
+  }
+
+  // Check for skip labels on PR (circuit breaker for test automation)
+  if (hasSkipLabel(prInfo.labels)) {
+    return emptyResult(true, 'PR has skip-dispatch or test:automation label')
+  }
+
+  // Check for [TEST] in PR title (circuit breaker for test automation)
+  if (isTestResource(prInfo.title)) {
+    return emptyResult(true, 'PR title starts with [TEST]')
   }
 
   if (conclusion === 'failure') {
@@ -562,16 +627,22 @@ async function handlePullRequestEvent(
   const action = payload.action as string
   const pr = payload.pull_request as {
     number: number
+    title: string
     draft: boolean
     head: { ref: string }
     body: string
     labels: Array<{ name: string }>
   }
 
+  // Check for [TEST] in title (circuit breaker for test automation)
+  if (isTestResource(pr.title)) {
+    return emptyResult(true, 'PR title starts with [TEST]')
+  }
+
   // Check for skip-dispatch label
-  const hasSkipLabel = pr.labels.some((l) => l.name === 'skip-dispatch')
-  if (hasSkipLabel) {
-    return emptyResult(true, 'PR has skip-dispatch label')
+  const hasSkipLabelOnPr = pr.labels.some((l) => l.name === 'skip-dispatch' || l.name === 'test:automation')
+  if (hasSkipLabelOnPr) {
+    return emptyResult(true, 'PR has skip-dispatch or test:automation label')
   }
 
   if (action === 'review_requested') {
@@ -615,16 +686,22 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
   }
   const pr = payload.pull_request as {
     number: number
+    title: string
     draft: boolean
     head: { ref: string }
     author: { login: string }
     labels: Array<{ name: string }>
   }
 
+  // Check for [TEST] in title (circuit breaker for test automation)
+  if (isTestResource(pr.title)) {
+    return emptyResult(true, 'PR title starts with [TEST]')
+  }
+
   // Check for skip-dispatch label
-  const hasSkipLabel = pr.labels.some((l) => l.name === 'skip-dispatch')
-  if (hasSkipLabel) {
-    return emptyResult(true, 'PR has skip-dispatch label')
+  const hasSkipLabelOnPr = pr.labels.some((l) => l.name === 'skip-dispatch' || l.name === 'test:automation')
+  if (hasSkipLabelOnPr) {
+    return emptyResult(true, 'PR has skip-dispatch or test:automation label')
   }
 
   // Skip if PR is draft

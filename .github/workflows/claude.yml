@@ -30,6 +30,7 @@ run-name: >-
     branches-ignore:
       - main
       - 'gh-readonly-queue/**'
+      - 'test/**'  # Test automation branches
   workflow_run:
     workflows:
       - CI

@@ -234,7 +234,8 @@ jobs:
           issue=$(gh issue view "$ISSUE_NUMBER" --json title,body)
           title=$(echo "$issue" | jq -r '.title')
           body=$(echo "$issue" | jq -r '.body')
-          branch="claude/issue/$ISSUE_NUMBER"
+          # Use test/ prefix to avoid triggering claude.yml push handler
+          branch="test/claude/$ISSUE_NUMBER"
 
           json=$(jq -nc \
             --arg num "$ISSUE_NUMBER" \
@@ -249,7 +250,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ steps.issue.outputs.number }}
         run: |
-          branch="claude/issue/$ISSUE_NUMBER"
+          # Use test/ prefix to avoid triggering claude.yml push handler
+          branch="test/claude/$ISSUE_NUMBER"
           # Create branch from main if it doesn't exist
           if ! git ls-remote --heads origin "$branch" | grep -q "$branch"; then
             git checkout -b "$branch"
@@ -309,7 +311,8 @@ jobs:
         env:
           ISSUE_NUMBER: ${{ steps.issue.outputs.number }}
         run: |
-          branch="claude/issue/$ISSUE_NUMBER"
+          # Use test/ prefix to avoid triggering claude.yml push handler
+          branch="test/claude/$ISSUE_NUMBER"
           git checkout -b "$branch"
           echo "name=$branch" >> $GITHUB_OUTPUT
 
@@ -581,19 +584,20 @@ jobs:
               echo "✓ Closing test issue #$issue"
               gh issue close "$issue" --reason "not planned" --comment "🧹 Test cleanup" || true
 
-              # Delete associated branch if it exists
-              branch="claude/issue/$issue"
-              if git ls-remote --heads origin "$branch" | grep -q "$branch"; then
-                echo "✓ Deleting branch $branch"
-                git push origin --delete "$branch" || true
-              fi
+              # Delete associated branch if it exists (check both test/ and claude/ prefixes)
+              for branch in "test/claude/$issue" "claude/issue/$issue"; do
+                if git ls-remote --heads origin "$branch" | grep -q "$branch"; then
+                  echo "✓ Deleting branch $branch"
+                  git push origin --delete "$branch" || true
+                fi
 
-              # Close any PRs from that branch
-              pr_num=$(gh pr list --head "$branch" --json number --jq '.[0].number' 2>/dev/null || echo "")
-              if [[ -n "$pr_num" ]]; then
-                echo "✓ Closing PR #$pr_num"
-                gh pr close "$pr_num" --comment "🧹 Test cleanup" || true
-              fi
+                # Close any PRs from that branch
+                pr_num=$(gh pr list --head "$branch" --json number --jq '.[0].number' 2>/dev/null || echo "")
+                if [[ -n "$pr_num" ]]; then
+                  echo "✓ Closing PR #$pr_num"
+                  gh pr close "$pr_num" --comment "🧹 Test cleanup" || true
+                fi
+              done
             fi
           done
 

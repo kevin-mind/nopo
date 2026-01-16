@@ -23959,11 +23959,11 @@ async function fetchIssueDetails(octokit, owner, repo, issueNumber) {
 async function fetchPrByBranch(owner, repo, branch) {
   const { stdout, exitCode } = await execCommand(
     "gh",
-    ["pr", "list", "--repo", `${owner}/${repo}`, "--head", branch, "--json", "number,isDraft,author,body", "--jq", ".[0]"],
+    ["pr", "list", "--repo", `${owner}/${repo}`, "--head", branch, "--json", "number,isDraft,author,body,title,labels", "--jq", ".[0]"],
     { ignoreReturnCode: true }
   );
   if (exitCode !== 0 || !stdout || stdout === "null") {
-    return { hasPr: false, prNumber: "", isDraft: false, isClaudePr: false, author: "", body: "" };
+    return { hasPr: false, prNumber: "", isDraft: false, isClaudePr: false, author: "", body: "", title: "", labels: [] };
   }
   try {
     const pr = JSON.parse(stdout);
@@ -23975,11 +23975,19 @@ async function fetchPrByBranch(owner, repo, branch) {
       isDraft: pr.isDraft,
       isClaudePr,
       author,
-      body: pr.body ?? ""
+      body: pr.body ?? "",
+      title: pr.title ?? "",
+      labels: (pr.labels ?? []).map((l) => l.name)
     };
   } catch {
-    return { hasPr: false, prNumber: "", isDraft: false, isClaudePr: false, author: "", body: "" };
+    return { hasPr: false, prNumber: "", isDraft: false, isClaudePr: false, author: "", body: "", title: "", labels: [] };
   }
+}
+function hasSkipLabel(labels) {
+  return labels.some((l) => l === "skip-dispatch" || l === "test:automation");
+}
+function isTestResource(title) {
+  return title.startsWith("[TEST]");
 }
 async function extractIssueNumber(body) {
   const match = body.match(/(?:Fixes|Closes|Resolves)\s+#(\d+)/i);
@@ -24037,12 +24045,15 @@ async function handleIssueEvent(octokit, owner, repo) {
   const payload = context.payload;
   const action = payload.action;
   const issue = payload.issue;
+  if (isTestResource(issue.title)) {
+    return emptyResult(true, "Issue title starts with [TEST]");
+  }
   const hasTestLabel = issue.labels.some((l) => l.name === "test:automation");
   if (hasTestLabel) {
     return emptyResult(true, "Issue has test:automation label");
   }
-  const hasSkipLabel = issue.labels.some((l) => l.name === "skip-dispatch");
-  if (hasSkipLabel) {
+  const hasSkipLabelOnIssue = issue.labels.some((l) => l.name === "skip-dispatch");
+  if (hasSkipLabelOnIssue) {
     return emptyResult(true, "Issue has skip-dispatch label");
   }
   const hasTriagedLabel = issue.labels.some((l) => l.name === "triaged");
@@ -24098,12 +24109,15 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
   const payload = context.payload;
   const comment = payload.comment;
   const issue = payload.issue;
+  if (isTestResource(issue.title)) {
+    return emptyResult(true, "Issue/PR title starts with [TEST]");
+  }
   const hasTestLabel = issue.labels.some((l) => l.name === "test:automation");
   if (hasTestLabel) {
     return emptyResult(true, "Issue has test:automation label");
   }
-  const hasSkipLabel = issue.labels.some((l) => l.name === "skip-dispatch");
-  if (hasSkipLabel) {
+  const hasSkipLabelOnIssue = issue.labels.some((l) => l.name === "skip-dispatch");
+  if (hasSkipLabelOnIssue) {
     return emptyResult(true, "Issue has skip-dispatch label");
   }
   if (comment.user.type === "Bot") {
@@ -24176,12 +24190,15 @@ async function handlePullRequestReviewCommentEvent() {
   const payload = context.payload;
   const comment = payload.comment;
   const pr = payload.pull_request;
+  if (isTestResource(pr.title)) {
+    return emptyResult(true, "PR title starts with [TEST]");
+  }
   const hasTestLabel = pr.labels.some((l) => l.name === "test:automation");
   if (hasTestLabel) {
     return emptyResult(true, "PR has test:automation label");
   }
-  const hasSkipLabel = pr.labels.some((l) => l.name === "skip-dispatch");
-  if (hasSkipLabel) {
+  const hasSkipLabelOnPr = pr.labels.some((l) => l.name === "skip-dispatch");
+  if (hasSkipLabelOnPr) {
     return emptyResult(true, "PR has skip-dispatch label");
   }
   if (comment.user.type === "Bot") {
@@ -24215,11 +24232,20 @@ async function handlePushEvent() {
   if (branch.startsWith("gh-readonly-queue/")) {
     return emptyResult(true, "Push to merge queue branch");
   }
+  if (branch.startsWith("test/")) {
+    return emptyResult(true, "Push to test branch");
+  }
   const owner = context.repo.owner;
   const repo = context.repo.repo;
   const prInfo = await fetchPrByBranch(owner, repo, branch);
   if (!prInfo.hasPr) {
     return emptyResult(true, "No PR found for branch");
+  }
+  if (hasSkipLabel(prInfo.labels)) {
+    return emptyResult(true, "PR has skip-dispatch or test:automation label");
+  }
+  if (isTestResource(prInfo.title)) {
+    return emptyResult(true, "PR title starts with [TEST]");
   }
   return {
     job: "push-to-draft",
@@ -24241,11 +24267,20 @@ async function handleWorkflowRunEvent() {
   const workflowRun = payload.workflow_run;
   const conclusion = workflowRun.conclusion;
   const branch = workflowRun.head_branch;
+  if (branch.startsWith("test/")) {
+    return emptyResult(true, "Workflow run on test branch");
+  }
   const owner = context.repo.owner;
   const repo = context.repo.repo;
   const prInfo = await fetchPrByBranch(owner, repo, branch);
   if (!prInfo.hasPr) {
     return emptyResult(true, "No PR found for workflow run branch");
+  }
+  if (hasSkipLabel(prInfo.labels)) {
+    return emptyResult(true, "PR has skip-dispatch or test:automation label");
+  }
+  if (isTestResource(prInfo.title)) {
+    return emptyResult(true, "PR title starts with [TEST]");
   }
   if (conclusion === "failure") {
     const job = prInfo.isClaudePr ? "ci-fix" : "ci-suggest";
@@ -24285,9 +24320,12 @@ async function handlePullRequestEvent(octokit, owner, repo) {
   const payload = context.payload;
   const action = payload.action;
   const pr = payload.pull_request;
-  const hasSkipLabel = pr.labels.some((l) => l.name === "skip-dispatch");
-  if (hasSkipLabel) {
-    return emptyResult(true, "PR has skip-dispatch label");
+  if (isTestResource(pr.title)) {
+    return emptyResult(true, "PR title starts with [TEST]");
+  }
+  const hasSkipLabelOnPr = pr.labels.some((l) => l.name === "skip-dispatch" || l.name === "test:automation");
+  if (hasSkipLabelOnPr) {
+    return emptyResult(true, "PR has skip-dispatch or test:automation label");
   }
   if (action === "review_requested") {
     const requestedReviewer = payload.requested_reviewer;
@@ -24319,9 +24357,12 @@ async function handlePullRequestReviewEvent() {
   const payload = context.payload;
   const review = payload.review;
   const pr = payload.pull_request;
-  const hasSkipLabel = pr.labels.some((l) => l.name === "skip-dispatch");
-  if (hasSkipLabel) {
-    return emptyResult(true, "PR has skip-dispatch label");
+  if (isTestResource(pr.title)) {
+    return emptyResult(true, "PR title starts with [TEST]");
+  }
+  const hasSkipLabelOnPr = pr.labels.some((l) => l.name === "skip-dispatch" || l.name === "test:automation");
+  if (hasSkipLabelOnPr) {
+    return emptyResult(true, "PR has skip-dispatch or test:automation label");
   }
   if (pr.draft) {
     return emptyResult(true, "PR is a draft");
