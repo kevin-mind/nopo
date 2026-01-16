@@ -14,3 +14,41 @@ os:
 
 services:
   dir: ./apps
+
+root_name: root
+
+root:
+  commands:
+    compile:
+      commands:
+        workspace: pnpm run -r build
+    clean:
+      commands:
+        workspace: pnpm run -r clean
+        root: rm -rf .cache .config .bash_history .env .local .pnpm-store .venv/* node_modules && rm -f build-metadata.json || true
+    check:
+      commands:
+        workspace: pnpm run -r "/^check:.*/"
+        lint: eslint
+        types: tsc --noEmit
+        knip: knip
+        actions: pnpm run --filter @nopo/github-actions build && git diff --exit-code .github/actions-ts/*/dist/
+        actionlint: ./scripts/actionlint.sh
+    fix:
+      commands:
+        workspace: pnpm run -r "/^fix:.*/"
+        lint: eslint --fix
+        knip: knip --fix
+    dev:
+      command: pnpm -r dev
+    start:
+      command: pnpm run -r start
+    test:
+      commands:
+        workspace: pnpm run -r test
+        nopo: pnpm run --dir ./nopo/scripts test
+        actions: pnpm run --filter @nopo/github-actions test
+    publish:
+      command: pnpm publish -r
+    smoketest:
+      command: pnpm exec playwright test

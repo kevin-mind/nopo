@@ -155,12 +155,13 @@ describe("list", () => {
       const parsed = JSON.parse(output.trim()) as {
         services: Record<string, { cpu: string }>;
       };
-      // Should include directory services like backend, web, db, nginx
-      expect(Object.keys(parsed.services).length).toBe(4);
+      // Should include directory services like backend, web, db, nginx, and root
+      expect(Object.keys(parsed.services).length).toBe(5);
       expect(Object.keys(parsed.services)).toContain("backend");
       expect(Object.keys(parsed.services)).toContain("web");
       expect(Object.keys(parsed.services)).toContain("db");
       expect(Object.keys(parsed.services)).toContain("nginx");
+      expect(Object.keys(parsed.services)).toContain("root");
       // Each service should have config
       expect(parsed.services.backend!.cpu).toBeDefined();
 
@@ -558,7 +559,7 @@ describe("list", () => {
         ".services | length",
       ]);
 
-      expect(output.trim()).toBe("4");
+      expect(output.trim()).toBe("5");
       stdoutSpy.mockRestore();
     });
 
@@ -600,7 +601,7 @@ describe("list", () => {
         '.services | keys | join(",")',
       ]);
 
-      expect(output.trim()).toBe('"backend,db,nginx,web"');
+      expect(output.trim()).toBe('"backend,db,nginx,root,web"');
       stdoutSpy.mockRestore();
     });
 
