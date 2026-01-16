@@ -207,16 +207,71 @@ jobs:
         run: |
           echo "Run result: $RUN_RESULT"
           echo "Verifying triage for issue #$ISSUE_NUMBER"
+
+          # Skip verification in mock mode
+          if [[ "$MOCK_MODE" == "true" ]]; then
+            echo "⏭️ Mock mode - skipping verification"
+            exit 0
+          fi
+
+          # Skip if the run failed
+          if [[ "$RUN_RESULT" != "success" ]]; then
+            echo "❌ Run failed - skipping verification"
+            exit 1
+          fi
+
           issue_data=$(gh issue view "$ISSUE_NUMBER" --json labels,comments)
           echo "$issue_data" | jq .
 
-          if [[ "$MOCK_MODE" != "true" && "$RUN_RESULT" == "success" ]]; then
-            if echo "$issue_data" | jq -e '.labels[].name | select(. == "triaged")' > /dev/null 2>&1; then
-              echo "✅ Issue has 'triaged' label"
-            else
-              echo "⚠️ Issue does not have 'triaged' label"
-            fi
+          errors=0
+
+          # Check for 'triaged' label (REQUIRED)
+          if echo "$issue_data" | jq -e '.labels[].name | select(. == "triaged")' > /dev/null 2>&1; then
+            echo "✅ Issue has 'triaged' label"
+          else
+            echo "❌ FAIL: Issue missing 'triaged' label"
+            errors=$((errors + 1))
           fi
+
+          # Check for at least one type label (bug, enhancement, etc.)
+          type_labels=("bug" "enhancement" "documentation" "refactor" "test" "chore")
+          has_type=false
+          for label in "${type_labels[@]}"; do
+            if echo "$issue_data" | jq -e --arg l "$label" '.labels[].name | select(. == $l)' > /dev/null 2>&1; then
+              echo "✅ Issue has type label: $label"
+              has_type=true
+              break
+            fi
+          done
+          if [[ "$has_type" == "false" ]]; then
+            echo "❌ FAIL: Issue missing type label (bug, enhancement, etc.)"
+            errors=$((errors + 1))
+          fi
+
+          # Check for at least one priority label
+          if echo "$issue_data" | jq -e '.labels[].name | select(startswith("priority:"))' > /dev/null 2>&1; then
+            priority=$(echo "$issue_data" | jq -r '.labels[].name | select(startswith("priority:"))' | head -1)
+            echo "✅ Issue has priority label: $priority"
+          else
+            echo "❌ FAIL: Issue missing priority label (priority:*)"
+            errors=$((errors + 1))
+          fi
+
+          # Check for Claude comment
+          if echo "$issue_data" | jq -e '.comments[] | select(.author.login == "github-actions" or .author.login == "claude[bot]")' > /dev/null 2>&1; then
+            echo "✅ Claude posted a comment"
+          else
+            echo "⚠️ WARNING: No Claude comment found (may be expected)"
+          fi
+
+          if [[ $errors -gt 0 ]]; then
+            echo ""
+            echo "❌ VERIFICATION FAILED: $errors errors found"
+            exit 1
+          fi
+
+          echo ""
+          echo "✅ All triage verifications passed!"
 
   # ============================================================================
   # ISSUE IMPLEMENT TEST (inline workflow_call)
@@ -298,6 +353,81 @@ jobs:
       context_json: ${{ needs.issue-implement-setup.outputs.context_json }}
       mock_mode: ${{ inputs.mock_mode }}
     secrets: inherit
+
+  issue-implement-verify:
+    needs: [issue-implement-setup, issue-implement-run]
+    if: always() && needs.issue-implement-setup.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify implementation results
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ needs.issue-implement-setup.outputs.issue_number }}
+          MOCK_MODE: ${{ inputs.mock_mode }}
+          RUN_RESULT: ${{ needs.issue-implement-run.result }}
+        run: |
+          echo "Run result: $RUN_RESULT"
+          echo "Verifying implementation for issue #$ISSUE_NUMBER"
+
+          # Skip verification in mock mode
+          if [[ "$MOCK_MODE" == "true" ]]; then
+            echo "⏭️ Mock mode - skipping verification"
+            exit 0
+          fi
+
+          # Skip if the run failed
+          if [[ "$RUN_RESULT" != "success" ]]; then
+            echo "❌ Run failed - skipping verification"
+            exit 1
+          fi
+
+          branch="claude/issue/$ISSUE_NUMBER"
+          errors=0
+
+          # Check if branch has commits beyond main
+          if git ls-remote --heads origin "$branch" | grep -q "$branch"; then
+            echo "✅ Branch $branch exists"
+
+            # Check for commits on the branch
+            git fetch origin "$branch" --depth=10 2>/dev/null || true
+            commit_count=$(git rev-list --count origin/main..origin/"$branch" 2>/dev/null || echo "0")
+            if [[ "$commit_count" -gt 0 ]]; then
+              echo "✅ Branch has $commit_count commit(s) beyond main"
+            else
+              echo "❌ FAIL: Branch has no commits beyond main"
+              errors=$((errors + 1))
+            fi
+          else
+            echo "❌ FAIL: Branch $branch does not exist"
+            errors=$((errors + 1))
+          fi
+
+          # Check if PR was created
+          pr_data=$(gh pr list --head "$branch" --json number,title,body --jq '.[0]' 2>/dev/null || echo "null")
+          if [[ "$pr_data" != "null" && -n "$pr_data" ]]; then
+            pr_number=$(echo "$pr_data" | jq -r '.number')
+            echo "✅ PR #$pr_number was created"
+
+            # Check if PR references the issue
+            pr_body=$(echo "$pr_data" | jq -r '.body // ""')
+            if echo "$pr_body" | grep -qE "(Fixes|Closes|Resolves) #$ISSUE_NUMBER"; then
+              echo "✅ PR references issue #$ISSUE_NUMBER"
+            else
+              echo "⚠️ WARNING: PR doesn't explicitly reference issue #$ISSUE_NUMBER"
+            fi
+          else
+            echo "⚠️ WARNING: No PR found for branch (may be expected if implementation is incomplete)"
+          fi
+
+          if [[ $errors -gt 0 ]]; then
+            echo ""
+            echo "❌ VERIFICATION FAILED: $errors errors found"
+            exit 1
+          fi
+
+          echo ""
+          echo "✅ All implementation verifications passed!"
 
   # ============================================================================
   # PR PREPARE (creates test PR for ci-fix, ci-suggest, pr-review tests)
@@ -591,7 +721,7 @@ jobs:
   # CLEANUP
   # ============================================================================
   cleanup-issue:
-    needs: [issue-triage-setup, issue-triage-run, issue-implement-setup, issue-implement-run]
+    needs: [issue-triage-setup, issue-triage-run, issue-triage-verify, issue-implement-setup, issue-implement-run, issue-implement-verify]
     if: |
       always() &&
       (inputs.cleanup == true || github.event_name == 'schedule') &&
@@ -707,7 +837,9 @@ jobs:
       - unit-tests
       - detect-event
       - issue-triage-run
+      - issue-triage-verify
       - issue-implement-run
+      - issue-implement-verify
       - ci-fix-run
       - ci-suggest-run
       - pr-review-run
@@ -721,7 +853,9 @@ jobs:
       (needs.unit-tests.result == 'failure' ||
        needs.detect-event.result == 'failure' ||
        needs.issue-triage-run.result == 'failure' ||
+       needs.issue-triage-verify.result == 'failure' ||
        needs.issue-implement-run.result == 'failure' ||
+       needs.issue-implement-verify.result == 'failure' ||
        needs.ci-fix-run.result == 'failure' ||
        needs.ci-suggest-run.result == 'failure' ||
        needs.pr-review-run.result == 'failure' ||
