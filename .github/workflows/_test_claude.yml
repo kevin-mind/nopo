@@ -1,6 +1,7 @@
 name: Test Claude Automation
-run-name: "Test Claude - ${{ inputs.job }}"
+run-name: "Test Claude - ${{ inputs.job || 'all' }}${{ github.event_name == 'schedule' && ' (scheduled)' || '' }}"
 on:
+  # Manual trigger
   workflow_dispatch:
     inputs:
       job:
@@ -31,6 +32,31 @@ on:
         type: boolean
         default: true
 
+  # Called by CI workflow
+  workflow_call:
+    inputs:
+      job:
+        description: 'Job to test'
+        required: true
+        type: string
+      resource_number:
+        description: 'Issue/PR/Discussion number'
+        required: false
+        type: string
+        default: ''
+      mock_mode:
+        description: 'Mock mode'
+        type: string
+        default: 'false'
+      cleanup:
+        description: 'Clean up test data after test'
+        type: boolean
+        default: true
+
+  # Daily integration test at midnight UTC
+  schedule:
+    - cron: '0 0 * * *'
+
 permissions:
   contents: write
   issues: write
@@ -44,7 +70,7 @@ permissions:
 # ============================================================================
 jobs:
   unit-tests:
-    if: inputs.job == 'unit-tests' || inputs.job == 'all'
+    if: inputs.job == 'unit-tests' || inputs.job == 'all' || github.event_name == 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -56,7 +82,7 @@ jobs:
   # DETECT EVENT ACTION TEST
   # ============================================================================
   detect-event:
-    if: inputs.job == 'detect-event' || inputs.job == 'all'
+    if: inputs.job == 'detect-event' || inputs.job == 'all' || github.event_name == 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -100,7 +126,7 @@ jobs:
   # ISSUE TRIAGE TEST (inline workflow_call)
   # ============================================================================
   issue-triage-setup:
-    if: inputs.job == 'issue-triage' || inputs.job == 'all'
+    if: inputs.job == 'issue-triage' || inputs.job == 'all' || github.event_name == 'schedule'
     runs-on: ubuntu-latest
     outputs:
       context_json: ${{ steps.context.outputs.json }}
@@ -196,7 +222,7 @@ jobs:
   # ISSUE IMPLEMENT TEST (inline workflow_call)
   # ============================================================================
   issue-implement-setup:
-    if: inputs.job == 'issue-implement' || inputs.job == 'all'
+    if: inputs.job == 'issue-implement' || inputs.job == 'all' || github.event_name == 'schedule'
     runs-on: ubuntu-latest
     outputs:
       context_json: ${{ steps.context.outputs.json }}
@@ -278,8 +304,8 @@ jobs:
   # ============================================================================
   pr-prepare:
     if: |
-      (inputs.job == 'ci-fix' || inputs.job == 'ci-suggest' || inputs.job == 'pr-review' || inputs.job == 'all') &&
-      inputs.resource_number == ''
+      (inputs.job == 'ci-fix' || inputs.job == 'ci-suggest' || inputs.job == 'pr-review' || inputs.job == 'all' || github.event_name == 'schedule') &&
+      (inputs.resource_number == '' || github.event_name == 'schedule')
     runs-on: ubuntu-latest
     outputs:
       pr_number: ${{ steps.pr.outputs.number }}
@@ -350,7 +376,7 @@ jobs:
     needs: [pr-prepare]
     if: |
       always() &&
-      (inputs.job == 'ci-fix' || inputs.job == 'all') &&
+      (inputs.job == 'ci-fix' || inputs.job == 'all' || github.event_name == 'schedule') &&
       (inputs.resource_number != '' || needs.pr-prepare.outputs.pr_number != '')
     runs-on: ubuntu-latest
     outputs:
@@ -390,7 +416,7 @@ jobs:
     needs: [pr-prepare]
     if: |
       always() &&
-      (inputs.job == 'ci-suggest' || inputs.job == 'all') &&
+      (inputs.job == 'ci-suggest' || inputs.job == 'all' || github.event_name == 'schedule') &&
       (inputs.resource_number != '' || needs.pr-prepare.outputs.pr_number != '')
     runs-on: ubuntu-latest
     outputs:
@@ -430,7 +456,7 @@ jobs:
     needs: [pr-prepare]
     if: |
       always() &&
-      (inputs.job == 'pr-review' || inputs.job == 'all') &&
+      (inputs.job == 'pr-review' || inputs.job == 'all' || github.event_name == 'schedule') &&
       (inputs.resource_number != '' || needs.pr-prepare.outputs.pr_number != '')
     runs-on: ubuntu-latest
     outputs:
@@ -478,7 +504,7 @@ jobs:
   # DISCUSSION RESEARCH TEST (inline workflow_call)
   # ============================================================================
   discussion-research-setup:
-    if: inputs.job == 'discussion-research' || inputs.job == 'all'
+    if: inputs.job == 'discussion-research' || inputs.job == 'all' || github.event_name == 'schedule'
     runs-on: ubuntu-latest
     outputs:
       context_json: ${{ steps.context.outputs.json }}
@@ -568,8 +594,8 @@ jobs:
     needs: [issue-triage-setup, issue-triage-run, issue-implement-setup, issue-implement-run]
     if: |
       always() &&
-      inputs.cleanup == true &&
-      inputs.resource_number == ''
+      (inputs.cleanup == true || github.event_name == 'schedule') &&
+      (inputs.resource_number == '' || github.event_name == 'schedule')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -605,8 +631,8 @@ jobs:
     needs: [discussion-research-setup, discussion-research-run]
     if: |
       always() &&
-      inputs.cleanup == true &&
-      inputs.resource_number == ''
+      (inputs.cleanup == true || github.event_name == 'schedule') &&
+      (inputs.resource_number == '' || github.event_name == 'schedule')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -642,8 +668,8 @@ jobs:
     needs: [pr-prepare, ci-fix-run, ci-suggest-run, pr-review-run]
     if: |
       always() &&
-      inputs.cleanup == true &&
-      inputs.resource_number == '' &&
+      (inputs.cleanup == true || github.event_name == 'schedule') &&
+      (inputs.resource_number == '' || github.event_name == 'schedule') &&
       needs.pr-prepare.outputs.pr_number != ''
     runs-on: ubuntu-latest
     steps:
@@ -672,3 +698,91 @@ jobs:
             echo "✓ Deleting branch $BRANCH_NAME"
             git push origin --delete "$BRANCH_NAME" || true
           fi
+
+  # ============================================================================
+  # FAILURE REPORTING (scheduled runs only)
+  # ============================================================================
+  report-failure:
+    needs:
+      - unit-tests
+      - detect-event
+      - issue-triage-run
+      - issue-implement-run
+      - ci-fix-run
+      - ci-suggest-run
+      - pr-review-run
+      - discussion-research-run
+      - cleanup-issue
+      - cleanup-discussion
+      - cleanup-pr
+    if: |
+      always() &&
+      github.event_name == 'schedule' &&
+      (needs.unit-tests.result == 'failure' ||
+       needs.detect-event.result == 'failure' ||
+       needs.issue-triage-run.result == 'failure' ||
+       needs.issue-implement-run.result == 'failure' ||
+       needs.ci-fix-run.result == 'failure' ||
+       needs.ci-suggest-run.result == 'failure' ||
+       needs.pr-review-run.result == 'failure' ||
+       needs.discussion-research-run.result == 'failure')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Collect failure information
+        id: failures
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          echo "Collecting failure information from run $RUN_ID..."
+
+          # Get failed jobs
+          failed_jobs=$(gh run view "$RUN_ID" --json jobs --jq '[.jobs[] | select(.conclusion == "failure") | .name] | join(", ")')
+          echo "failed_jobs=$failed_jobs" >> $GITHUB_OUTPUT
+
+          # Get failed job logs (truncated to avoid huge issues)
+          logs=$(gh run view "$RUN_ID" --log-failed 2>&1 | head -200 || echo "Could not retrieve logs")
+
+          # Save logs to file for multiline output
+          echo "$logs" > /tmp/failed_logs.txt
+          echo "logs_file=/tmp/failed_logs.txt" >> $GITHUB_OUTPUT
+
+      - name: Create bug issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FAILED_JOBS: ${{ steps.failures.outputs.failed_jobs }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          logs=$(cat /tmp/failed_logs.txt)
+
+          # Create issue body
+          body=$(cat <<EOF
+          ## 🚨 Scheduled Claude Integration Test Failed
+
+          **Run URL:** $RUN_URL
+          **Failed Jobs:** $FAILED_JOBS
+          **Trigger:** Scheduled daily integration test
+
+          ## Failed Job Logs (truncated)
+
+          \`\`\`
+          $logs
+          \`\`\`
+
+          ## Action Required
+
+          1. Review the [failed workflow run]($RUN_URL)
+          2. Identify the root cause
+          3. Fix the issue and verify with a manual test run
+
+          ---
+          *This issue was automatically created by the scheduled Claude integration test.*
+          EOF
+          )
+
+          gh issue create \
+            --title "🔴 Scheduled Claude Test Failed - $(date +%Y-%m-%d)" \
+            --body "$body" \
+            --label "bug,claude-automation"

@@ -19,6 +19,7 @@ jobs:
       contents: read
     outputs:
       is_fork: ${{ steps.context.outputs.is_fork }}
+      github_actions_changed: ${{ steps.changed_files.outputs.github_actions_any_changed }}
     steps:
       - id: checkout
         uses: actions/checkout@v4
@@ -129,6 +130,23 @@ jobs:
         name: Check for uncommitted changes
         run: |
           git diff --exit-code
+  test-claude-automation:
+    needs: context
+    if: needs.context.outputs.github_actions_changed == 'true'
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      discussions: write
+      actions: write
+      id-token: write
+    uses: ./.github/workflows/_test_claude.yml
+    secrets: inherit
+    with:
+      job: all
+      mock_mode: 'true'
+      cleanup: true
+
   checks:
     if: always()
     runs-on: ubuntu-latest
@@ -148,3 +166,4 @@ jobs:
       - testNopo
       - smoketest
       - terraform
+      - test-claude-automation
