@@ -5,6 +5,7 @@ import { execCommand, getRequiredInput, setOutputs } from '../lib/index.js'
 type Job =
   | 'issue-triage'
   | 'issue-implement'
+  | 'issue-reopen'
   | 'issue-comment'
   | 'push-to-draft'
   | 'ci-fix'
@@ -229,6 +230,24 @@ async function handleIssueEvent(
   }
 
   const hasTriagedLabel = issue.labels.some((l) => l.name === 'triaged')
+
+  // Handle reopen: issue was reopened and has triaged label (i.e., fix didn't work)
+  if (action === 'reopened' && hasTriagedLabel) {
+    const details = await fetchIssueDetails(octokit, owner, repo, issue.number)
+    return {
+      job: 'issue-reopen',
+      resourceType: 'issue',
+      resourceNumber: String(issue.number),
+      commentId: '',
+      contextJson: JSON.stringify({
+        issue_number: String(issue.number),
+        issue_title: details.title || issue.title,
+        issue_body: details.body || issue.body,
+      }),
+      skip: false,
+      skipReason: '',
+    }
+  }
 
   // Handle triage: opened, edited (without triaged label), or unlabeled (removing triaged)
   if (action === 'opened' || action === 'edited' || (action === 'unlabeled' && (payload.label as { name: string })?.name === 'triaged')) {

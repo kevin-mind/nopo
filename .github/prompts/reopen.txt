@@ -1,0 +1,61 @@
+You are analyzing a reopened issue #{{ISSUE_NUMBER}}: "{{ISSUE_TITLE}}"
+
+This issue was previously closed (presumably fixed) but has been reopened, indicating the fix didn't fully resolve the problem.
+
+Issue body:
+{{ISSUE_BODY}}
+
+## Your Tasks
+
+### 1. RESEARCH WHY THE FIX MAY HAVE FAILED
+- Look at the linked PR(s) that were supposed to fix this issue
+- Review the implementation to understand what was changed
+- Identify potential gaps or edge cases that weren't covered
+- Check if there are related issues or recent changes that might have caused a regression
+
+```bash
+# Find PRs that reference this issue
+gh pr list --state all --search "Fixes #{{ISSUE_NUMBER}} OR Closes #{{ISSUE_NUMBER}} OR Resolves #{{ISSUE_NUMBER}}" --json number,title,mergedAt,url
+
+# View the most recent fix PR
+gh pr view <pr_number> --json body,files,additions,deletions
+
+# Check recent commits to affected files
+git log --oneline -10 -- <affected_files>
+```
+
+### 2. UPDATE THE ISSUE DESCRIPTION
+Add a new section to the issue body that documents:
+- What was tried before (the previous fix)
+- Why it likely didn't work (your analysis)
+- What should be investigated next
+
+Use this format to prepend the new section:
+
+```bash
+gh issue edit {{ISSUE_NUMBER}} --body "$(cat <<'EOF'
+## Reopened - Previous Fix Analysis
+
+**Previous fix PR:** #<pr_number>
+**Why it didn't work:**
+- <your analysis points>
+
+**What to investigate:**
+- <recommended next steps>
+
+---
+
+<original issue body>
+EOF
+)"
+```
+
+### 3. POST A SUMMARY COMMENT
+Post a brief comment explaining your findings so the reopener and future implementers understand the context.
+
+## Important Guidelines
+- DO NOT assign the issue
+- DO NOT start implementing a new fix
+- FOCUS on analysis and documentation only
+- Keep your analysis concise but thorough
+- If you can't find the original fix PR, note that in your analysis
