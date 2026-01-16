@@ -2,17 +2,12 @@ import { describe, it, expect, afterEach } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import {
-  loadProjectConfig,
-  type NormalizedProjectConfig,
-} from "../../src/config/index.ts";
+import { loadProjectConfig } from "../../src/config/index.ts";
 import {
   resolveCommandDependencies,
   buildExecutionPlan,
   validateCommandTargets,
   resolveCommand,
-  type ExecutionPlan,
-  type CommandDependencySpec,
 } from "../../src/commands/index.ts";
 
 const tmpDirs: string[] = [];

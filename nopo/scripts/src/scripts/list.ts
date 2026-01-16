@@ -1,5 +1,4 @@
 import { Script, type Runner, exec } from "../lib.ts";
-import type { NormalizedService } from "../config/index.ts";
 import {
   parseFilterExpression,
   matchesFilter,
@@ -83,7 +82,11 @@ export default class ListScript extends Script<ListCliArgs> {
       projectRoot: this.runner.config.root,
       since: args.since,
     };
-    const services = this.applyFilters(allServices, args.filters, filterContext);
+    const services = this.applyFilters(
+      allServices,
+      args.filters,
+      filterContext,
+    );
 
     // Validate --jq requires --json
     if (args.jqFilter && args.format !== "json") {

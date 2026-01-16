@@ -24006,7 +24006,14 @@ async function run() {
     if (commentId) {
       await addReactionToComment(octokit, owner, repo, commentId, resourceType);
     }
-    const statusCommentId = await createStatusComment(octokit, owner, repo, resourceType, resourceNumber, job);
+    const statusCommentId = await createStatusComment(
+      octokit,
+      owner,
+      repo,
+      resourceType,
+      resourceNumber,
+      job
+    );
     core2.info(`Created status comment: ${statusCommentId}`);
     setOutputs({
       status_comment_id: statusCommentId

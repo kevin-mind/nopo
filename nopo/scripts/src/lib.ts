@@ -1,6 +1,5 @@
 import path from "node:path";
 import { z } from "zod";
-import { fileURLToPath } from "node:url";
 import { spawn, spawnSync, type SpawnOptions } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -306,14 +305,14 @@ class ProcessPromiseImpl implements ProcessPromise {
       // Write input to stdin if provided
       if (options.input && this.proc.stdin) {
         this.proc.stdin.on("error", (err) => {
-          if ((err as any).code === "EPIPE") return;
+          if ((err as NodeJS.ErrnoException).code === "EPIPE") return;
           reject(new ProcessOutput(1, null, "", err.message));
         });
         try {
           this.proc.stdin.write(options.input);
           this.proc.stdin.end();
         } catch (err) {
-          if ((err as any).code === "EPIPE") return;
+          if ((err as NodeJS.ErrnoException).code === "EPIPE") return;
           reject(new ProcessOutput(1, null, "", (err as Error).message));
           return;
         }
@@ -496,8 +495,6 @@ $.sync = function execSync(
 // ============================================================================
 // Original lib.ts code starts here
 // ============================================================================
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 const defaultRoot = process.cwd();
 
 interface CreateConfigOptions {
@@ -719,14 +716,18 @@ export class Runner {
 
       try {
         // Check if script uses new ScriptArgs system
-        if ((ScriptToRun as any).args) {
+        if ((ScriptToRun as unknown as { args: unknown }).args) {
           // New ScriptArgs system
           const args = this.prepareScriptArgs(
             ScriptToRun,
             ScriptClass,
             isDependency,
           );
-          await (scriptInstance as any).fn(args);
+          await (
+            scriptInstance as unknown as {
+              fn: (args: unknown) => Promise<void>;
+            }
+          ).fn(args);
         } else if (this.isTargetScript(ScriptToRun)) {
           // Old parseArgs system for TargetScript
           const args = (ScriptToRun as typeof TargetScript).parseArgs(
@@ -825,7 +826,7 @@ export class Runner {
     isDependency: boolean,
   ): ScriptArgs {
     // Get script's arg schema
-    const argsTemplate = (ScriptToRun as any).args as ScriptArgs | undefined;
+    const argsTemplate = (ScriptToRun as unknown as { args?: ScriptArgs }).args;
 
     if (!argsTemplate) {
       // Script doesn't use args system (shouldn't happen, but handle gracefully)
@@ -837,29 +838,41 @@ export class Runner {
 
     if (isDependency) {
       // Find dependency definition in parent
-      const parentDeps = (ParentScript as any).dependencies || [];
-      const depDef = parentDeps.find((d: any) => d.class === ScriptToRun);
+      type DependencyDef = {
+        class: typeof BaseScript;
+        args?: (parentArgs: ScriptArgs) => Record<string, unknown>;
+      };
+      const parentDeps =
+        (ParentScript as unknown as { dependencies?: DependencyDef[] })
+          .dependencies || [];
+      const depDef = parentDeps.find((d) => d.class === ScriptToRun);
 
       if (depDef?.args) {
         // Parent overrides dependency args
         let parentArgs: ScriptArgs;
 
         // Check if parent uses new ScriptArgs system
-        if ((ParentScript as any).args) {
-          parentArgs = this.prepareScriptArgs(ParentScript, ParentScript, false);
+        if ((ParentScript as unknown as { args?: unknown }).args) {
+          parentArgs = this.prepareScriptArgs(
+            ParentScript,
+            ParentScript,
+            false,
+          );
         } else {
           // Parent uses old parseArgs system - create a bridge ScriptArgs
           parentArgs = new ScriptArgs({}, this);
 
           // If parent is TargetScript with old parseArgs, get its targets
           if (this.isTargetScript(ParentScript)) {
-            const parentParsedArgs = (ParentScript as typeof TargetScript).parseArgs(
-              this,
-              false,
-            );
+            const parentParsedArgs = (
+              ParentScript as typeof TargetScript
+            ).parseArgs(this, false);
             // Inject targets from old system
-            if ((parentParsedArgs as any).targets) {
-              parentArgs.set("targets", (parentParsedArgs as any).targets);
+            if ((parentParsedArgs as { targets?: string[] }).targets) {
+              parentArgs.set(
+                "targets",
+                (parentParsedArgs as { targets: string[] }).targets,
+              );
             }
           }
         }
