@@ -80,7 +80,7 @@ jobs:
         uses: ./.github/actions/setup-nopo
       - id: build
         name: Build packages
-        run: nopo compile ui
+        run: nopo compile packages root
       - id: publish_versions
         name: Create and publish versions
         uses: changesets/action@v1

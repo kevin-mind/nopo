@@ -30,6 +30,8 @@ root:
         actions:
           command: pnpm exec tsx scripts/build.ts
           dir: ./.github/actions-ts
+        # Build all packages (for npm publishing)
+        packages: pnpm run -r --filter "./packages/*" build
     # Root-level cleaning
     clean:
       commands:
