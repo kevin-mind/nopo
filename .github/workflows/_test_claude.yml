@@ -1,7 +1,7 @@
 name: Test Claude Automation
 run-name: "Test Claude - ${{ inputs.job || 'all' }}"
 on:
-  # Manual trigger
+  # Manual trigger for debugging
   workflow_dispatch:
     inputs:
       job:
@@ -11,26 +11,19 @@ on:
         options:
           - all
           - unit-tests
+          - detect-event
           - issue-triage
           - issue-implement
+          - issue-comment
           - ci-fix
           - ci-suggest
           - pr-review
+          - pr-response
+          - pr-human-response
           - discussion-research
-          - detect-event
-      resource_number:
-        description: 'Issue/PR/Discussion number (creates test resource if empty)'
-        required: false
-        type: string
-        default: ''
-      mock_mode:
-        description: 'Mock mode (true = no real Claude calls)'
-        type: boolean
-        default: true
-      cleanup:
-        description: 'Clean up test data after test'
-        type: boolean
-        default: true
+          - discussion-respond
+          - discussion-summarize
+          - discussion-plan
 
   # Called by CI workflow
   workflow_call:
@@ -39,32 +32,22 @@ on:
         description: 'Job to test'
         required: true
         type: string
-      resource_number:
-        description: 'Issue/PR/Discussion number'
-        required: false
-        type: string
-        default: ''
       mock_mode:
-        description: 'Mock mode'
-        type: boolean
-        default: true
-      cleanup:
-        description: 'Clean up test data after test'
+        description: 'Mock mode (always true in CI)'
         type: boolean
         default: true
 
+# Minimal permissions - we're not creating real resources
 permissions:
-  contents: write
-  issues: write
-  pull-requests: write
-  discussions: write
-  actions: write
-  id-token: write
+  contents: read
 
 # ============================================================================
-# UNIT TESTS
+# TEST JOBS
 # ============================================================================
 jobs:
+  # ============================================================================
+  # UNIT TESTS - Test TypeScript action logic directly
+  # ============================================================================
   unit-tests:
     if: inputs.job == 'unit-tests' || inputs.job == 'all'
     runs-on: ubuntu-latest
@@ -75,601 +58,179 @@ jobs:
         run: pnpm run --filter @nopo/github-actions test
 
   # ============================================================================
-  # DETECT EVENT ACTION TEST
+  # DETECT EVENT - Test event detection with mock event data
   # ============================================================================
   detect-event:
     if: inputs.job == 'detect-event' || inputs.job == 'all'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-node
 
-      - name: Create test issue
-        id: test_issue
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create mock issue event
         run: |
-          issue_url=$(gh issue create \
-            --title "[TEST] Detect event test - $(date +%s)" \
-            --body "Test issue for detect-event action" \
-            --label "test:automation,skip-dispatch")
-          issue_number="${issue_url##*/}"
-          echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
+          mkdir -p /tmp/test-events
+          cat > /tmp/test-events/issue-opened.json << 'EOF'
+          {
+            "action": "opened",
+            "issue": {
+              "number": 99999,
+              "title": "Mock test issue",
+              "body": "This is a mock issue for testing",
+              "labels": [],
+              "user": { "login": "test-user" }
+            },
+            "repository": {
+              "owner": { "login": "${{ github.repository_owner }}" },
+              "name": "${{ github.event.repository.name }}"
+            }
+          }
+          EOF
 
-      - name: Run detect-event action
-        id: detect
+      - name: Test issue-opened detection
+        id: detect-issue
         uses: ./.github/actions-ts/claude-detect-event
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
         env:
           GITHUB_EVENT_NAME: issues
-          GITHUB_EVENT_PATH: /tmp/test-event.json
+          GITHUB_EVENT_PATH: /tmp/test-events/issue-opened.json
 
-      - name: Verify detection outputs
+      - name: Verify issue detection
         run: |
-          echo "Job: ${{ steps.detect.outputs.job }}"
-          echo "Resource Type: ${{ steps.detect.outputs.resource_type }}"
-          echo "Skip: ${{ steps.detect.outputs.skip }}"
+          echo "Testing issue-opened event detection..."
+          echo "Job: ${{ steps.detect-issue.outputs.job }}"
+          echo "Resource Type: ${{ steps.detect-issue.outputs.resource_type }}"
+          echo "Skip: ${{ steps.detect-issue.outputs.skip }}"
 
-      - name: Cleanup test issue
-        if: always()
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ steps.test_issue.outputs.issue_number }}
-        run: |
-          gh issue close "$ISSUE_NUMBER" --reason "not planned" || true
-
-  # ============================================================================
-  # ISSUE TRIAGE TEST (inline workflow_call)
-  # ============================================================================
-  issue-triage-setup:
-    if: inputs.job == 'issue-triage' || inputs.job == 'all'
-    runs-on: ubuntu-latest
-    outputs:
-      context_json: ${{ steps.context.outputs.json }}
-      issue_number: ${{ steps.issue.outputs.number }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Create test issue
-        if: inputs.resource_number == ''
-        id: create
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          issue_url=$(gh issue create \
-            --title "[TEST] Triage test - $(date +%s)" \
-            --body "Test issue for triage workflow.
-
-          ## Description
-          This is an automated test issue.
-
-          ## Priority
-          Medium
-
-          ## Todo
-          - [ ] Test task 1
-          - [ ] Test task 2" \
-            --label "test:automation,skip-dispatch")
-          echo "issue_number=${issue_url##*/}" >> $GITHUB_OUTPUT
-
-      - name: Set issue number
-        id: issue
-        run: |
-          if [[ -n "${{ inputs.resource_number }}" ]]; then
-            echo "number=${{ inputs.resource_number }}" >> $GITHUB_OUTPUT
-          else
-            echo "number=${{ steps.create.outputs.issue_number }}" >> $GITHUB_OUTPUT
+          # Verify outputs
+          if [[ "${{ steps.detect-issue.outputs.resource_type }}" != "issue" ]]; then
+            echo "ERROR: Expected resource_type=issue"
+            exit 1
           fi
+          echo "✓ Issue detection passed"
 
-      - name: Build context JSON
-        id: context
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ steps.issue.outputs.number }}
-        run: |
-          issue=$(gh issue view "$ISSUE_NUMBER" --json title,body)
-          title=$(echo "$issue" | jq -r '.title')
-          body=$(echo "$issue" | jq -r '.body')
+  # ============================================================================
+  # WORKFLOW LOGIC TESTS - Test _claude.yml jobs with mock context
+  # Uses mock_mode=true so no real Claude calls or git operations happen
+  # ============================================================================
 
-          json=$(jq -nc \
-            --arg num "$ISSUE_NUMBER" \
-            --arg title "$title" \
-            --arg body "$body" \
-            '{issue_number: $num, issue_title: $title, issue_body: $body}')
-          echo "json=$json" >> $GITHUB_OUTPUT
-
-  issue-triage-run:
-    needs: issue-triage-setup
-    if: needs.issue-triage-setup.result == 'success'
+  # Test issue-triage job
+  issue-triage:
+    if: inputs.job == 'issue-triage' || inputs.job == 'all'
     uses: ./.github/workflows/_claude.yml
     with:
       job: issue-triage
-      context_json: ${{ needs.issue-triage-setup.outputs.context_json }}
-      mock_mode: ${{ inputs.mock_mode }}
+      context_json: '{"issue_number":"99999","issue_title":"Mock test issue","issue_body":"Test body for triage"}'
+      mock_mode: true
     secrets: inherit
 
-  # ============================================================================
-  # ISSUE IMPLEMENT TEST (inline workflow_call)
-  # ============================================================================
-  issue-implement-setup:
+  # Test issue-implement job
+  issue-implement:
     if: inputs.job == 'issue-implement' || inputs.job == 'all'
-    runs-on: ubuntu-latest
-    outputs:
-      context_json: ${{ steps.context.outputs.json }}
-      issue_number: ${{ steps.issue.outputs.number }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Create test issue
-        if: inputs.resource_number == ''
-        id: create
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          issue_url=$(gh issue create \
-            --title "[TEST] Implement test - $(date +%s)" \
-            --body "## Description
-          Add a test comment to AGENTS.md
-
-          ## Todo
-          - [ ] Add a comment at the end of AGENTS.md" \
-            --label "test:automation,skip-dispatch")
-          echo "issue_number=${issue_url##*/}" >> $GITHUB_OUTPUT
-
-      - name: Set issue number
-        id: issue
-        run: |
-          if [[ -n "${{ inputs.resource_number }}" ]]; then
-            echo "number=${{ inputs.resource_number }}" >> $GITHUB_OUTPUT
-          else
-            echo "number=${{ steps.create.outputs.issue_number }}" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Build context JSON
-        id: context
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ steps.issue.outputs.number }}
-        run: |
-          issue=$(gh issue view "$ISSUE_NUMBER" --json title,body)
-          title=$(echo "$issue" | jq -r '.title')
-          body=$(echo "$issue" | jq -r '.body')
-          # Use test/ prefix to avoid triggering claude.yml push handler
-          branch="test/claude/$ISSUE_NUMBER"
-
-          json=$(jq -nc \
-            --arg num "$ISSUE_NUMBER" \
-            --arg title "$title" \
-            --arg body "$body" \
-            --arg branch "$branch" \
-            '{issue_number: $num, issue_title: $title, issue_body: $body, branch_name: $branch}')
-          echo "json=$json" >> $GITHUB_OUTPUT
-
-      - name: Create branch for test
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ steps.issue.outputs.number }}
-        run: |
-          # Use test/ prefix to avoid triggering claude.yml push handler
-          branch="test/claude/$ISSUE_NUMBER"
-          # Create branch from main if it doesn't exist
-          if ! git ls-remote --heads origin "$branch" | grep -q "$branch"; then
-            git checkout -b "$branch"
-            git push origin "$branch"
-            echo "✓ Created branch $branch"
-          else
-            echo "Branch $branch already exists"
-          fi
-
-  issue-implement-run:
-    needs: issue-implement-setup
-    if: needs.issue-implement-setup.result == 'success'
     uses: ./.github/workflows/_claude.yml
     with:
       job: issue-implement
-      context_json: ${{ needs.issue-implement-setup.outputs.context_json }}
-      mock_mode: ${{ inputs.mock_mode }}
+      context_json: '{"issue_number":"99999","issue_title":"Mock implement test","issue_body":"## Todo\n- [ ] Test task","branch_name":"test/mock/99999","existing_branch":"false"}'
+      mock_mode: true
     secrets: inherit
 
-  # ============================================================================
-  # PR PREPARE (creates test PR for ci-fix, ci-suggest, pr-review tests)
-  # ============================================================================
-  pr-prepare:
-    if: |
-      (inputs.job == 'ci-fix' || inputs.job == 'ci-suggest' || inputs.job == 'pr-review' || inputs.job == 'all') &&
-      inputs.resource_number == ''
-    runs-on: ubuntu-latest
-    outputs:
-      pr_number: ${{ steps.pr.outputs.number }}
-      issue_number: ${{ steps.issue.outputs.number }}
-      branch_name: ${{ steps.branch.outputs.name }}
-    steps:
-      - uses: actions/checkout@v4
+  # Test issue-comment job
+  issue-comment:
+    if: inputs.job == 'issue-comment' || inputs.job == 'all'
+    uses: ./.github/workflows/_claude.yml
+    with:
+      job: issue-comment
+      context_json: '{"issue_number":"99999","context_type":"issue","context_description":"Mock issue for comment test"}'
+      mock_mode: true
+    secrets: inherit
 
-      - name: Configure git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Create test issue
-        id: issue
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          issue_url=$(gh issue create \
-            --title "[TEST] PR test - $(date +%s)" \
-            --body "## Description
-          Test issue for PR workflow tests.
-
-          ## Todo
-          - [ ] Test task" \
-            --label "test:automation,skip-dispatch")
-          echo "number=${issue_url##*/}" >> $GITHUB_OUTPUT
-
-      - name: Create branch
-        id: branch
-        env:
-          ISSUE_NUMBER: ${{ steps.issue.outputs.number }}
-        run: |
-          # Use test/ prefix to avoid triggering claude.yml push handler
-          branch="test/claude/$ISSUE_NUMBER"
-          git checkout -b "$branch"
-          echo "name=$branch" >> $GITHUB_OUTPUT
-
-      - name: Make test change
-        run: |
-          # Add a test file (not a workflow file, to avoid needing workflows permission)
-          echo "# Test change for PR ${{ steps.issue.outputs.number }} - $(date +%s)" > /tmp/test-change.md
-          mkdir -p .test
-          cp /tmp/test-change.md .test/test-change-${{ steps.issue.outputs.number }}.md
-          git add .test/
-          git commit -m "test: add test change for PR tests"
-          git push origin "${{ steps.branch.outputs.name }}"
-
-      - name: Create draft PR
-        id: pr
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ steps.issue.outputs.number }}
-          BRANCH_NAME: ${{ steps.branch.outputs.name }}
-        run: |
-          pr_url=$(gh pr create \
-            --title "[TEST] PR for workflow tests" \
-            --body "Fixes #$ISSUE_NUMBER
-
-          Test PR for ci-fix, ci-suggest, and pr-review workflow tests." \
-            --head "$BRANCH_NAME" \
-            --draft)
-          echo "number=${pr_url##*/}" >> $GITHUB_OUTPUT
-
-  # ============================================================================
-  # CI FIX TEST
-  # ============================================================================
-  ci-fix-setup:
-    needs: [pr-prepare]
-    if: |
-      always() &&
-      (inputs.job == 'ci-fix' || inputs.job == 'all') &&
-      (inputs.resource_number != '' || needs.pr-prepare.outputs.pr_number != '')
-    runs-on: ubuntu-latest
-    outputs:
-      context_json: ${{ steps.context.outputs.json }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build context JSON
-        id: context
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ inputs.resource_number || needs.pr-prepare.outputs.pr_number }}
-        run: |
-          pr=$(gh pr view "$PR_NUMBER" --json headRefName)
-          branch=$(echo "$pr" | jq -r '.headRefName')
-
-          json=$(jq -nc \
-            --arg pr "$PR_NUMBER" \
-            --arg branch "$branch" \
-            '{pr_number: $pr, branch_name: $branch}')
-          echo "json=$json" >> $GITHUB_OUTPUT
-
-  ci-fix-run:
-    needs: ci-fix-setup
-    if: needs.ci-fix-setup.result == 'success'
+  # Test ci-fix job
+  ci-fix:
+    if: inputs.job == 'ci-fix' || inputs.job == 'all'
     uses: ./.github/workflows/_claude.yml
     with:
       job: ci-fix
-      context_json: ${{ needs.ci-fix-setup.outputs.context_json }}
-      mock_mode: ${{ inputs.mock_mode }}
+      context_json: '{"pr_number":"99999","branch_name":"test/mock/99999"}'
+      mock_mode: true
     secrets: inherit
 
-  # ============================================================================
-  # CI SUGGEST TEST
-  # ============================================================================
-  ci-suggest-setup:
-    needs: [pr-prepare]
-    if: |
-      always() &&
-      (inputs.job == 'ci-suggest' || inputs.job == 'all') &&
-      (inputs.resource_number != '' || needs.pr-prepare.outputs.pr_number != '')
-    runs-on: ubuntu-latest
-    outputs:
-      context_json: ${{ steps.context.outputs.json }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build context JSON
-        id: context
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ inputs.resource_number || needs.pr-prepare.outputs.pr_number }}
-        run: |
-          pr=$(gh pr view "$PR_NUMBER" --json headRefName)
-          branch=$(echo "$pr" | jq -r '.headRefName')
-
-          json=$(jq -nc \
-            --arg pr "$PR_NUMBER" \
-            --arg branch "$branch" \
-            '{pr_number: $pr, branch_name: $branch}')
-          echo "json=$json" >> $GITHUB_OUTPUT
-
-  ci-suggest-run:
-    needs: ci-suggest-setup
-    if: needs.ci-suggest-setup.result == 'success'
+  # Test ci-suggest job
+  ci-suggest:
+    if: inputs.job == 'ci-suggest' || inputs.job == 'all'
     uses: ./.github/workflows/_claude.yml
     with:
       job: ci-suggest
-      context_json: ${{ needs.ci-suggest-setup.outputs.context_json }}
-      mock_mode: ${{ inputs.mock_mode }}
+      context_json: '{"pr_number":"99999","branch_name":"feature/mock-test"}'
+      mock_mode: true
     secrets: inherit
 
-  # ============================================================================
-  # PR REVIEW TEST
-  # ============================================================================
-  pr-review-setup:
-    needs: [pr-prepare]
-    if: |
-      always() &&
-      (inputs.job == 'pr-review' || inputs.job == 'all') &&
-      (inputs.resource_number != '' || needs.pr-prepare.outputs.pr_number != '')
-    runs-on: ubuntu-latest
-    outputs:
-      context_json: ${{ steps.context.outputs.json }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build context JSON
-        id: context
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ inputs.resource_number || needs.pr-prepare.outputs.pr_number }}
-        run: |
-          pr=$(gh pr view "$PR_NUMBER" --json headRefName,body)
-          branch=$(echo "$pr" | jq -r '.headRefName')
-
-          # Extract issue section from PR body if present
-          body=$(echo "$pr" | jq -r '.body // ""')
-          issue_section=""
-          if echo "$body" | grep -q "Fixes #"; then
-            issue_num=$(echo "$body" | grep -oE 'Fixes #[0-9]+' | head -1 | grep -oE '[0-9]+')
-            if [[ -n "$issue_num" ]]; then
-              issue_section=$(gh issue view "$issue_num" --json body --jq '.body // ""' 2>/dev/null || echo "")
-            fi
-          fi
-
-          json=$(jq -nc \
-            --arg pr "$PR_NUMBER" \
-            --arg branch "$branch" \
-            --arg issue "$issue_section" \
-            '{pr_number: $pr, branch_name: $branch, issue_section: $issue}')
-          echo "json=$json" >> $GITHUB_OUTPUT
-
-  pr-review-run:
-    needs: pr-review-setup
-    if: needs.pr-review-setup.result == 'success'
+  # Test pr-review job
+  pr-review:
+    if: inputs.job == 'pr-review' || inputs.job == 'all'
     uses: ./.github/workflows/_claude.yml
     with:
       job: pr-review
-      context_json: ${{ needs.pr-review-setup.outputs.context_json }}
-      mock_mode: ${{ inputs.mock_mode }}
+      context_json: '{"pr_number":"99999","branch_name":"test/mock/99999","issue_section":"Fixes #99998"}'
+      mock_mode: true
     secrets: inherit
 
-  # ============================================================================
-  # DISCUSSION RESEARCH TEST (inline workflow_call)
-  # ============================================================================
-  discussion-research-setup:
+  # Test pr-response job
+  pr-response:
+    if: inputs.job == 'pr-response' || inputs.job == 'all'
+    uses: ./.github/workflows/_claude.yml
+    with:
+      job: pr-response
+      context_json: '{"pr_number":"99999","branch_name":"test/mock/99999","review_state":"changes_requested","review_body":"Please fix the tests","review_id":"12345"}'
+      mock_mode: true
+    secrets: inherit
+
+  # Test pr-human-response job
+  pr-human-response:
+    if: inputs.job == 'pr-human-response' || inputs.job == 'all'
+    uses: ./.github/workflows/_claude.yml
+    with:
+      job: pr-human-response
+      context_json: '{"pr_number":"99999","branch_name":"test/mock/99999","reviewer_login":"test-reviewer","review_state":"changes_requested","review_body":"Human review feedback","review_id":"12346"}'
+      mock_mode: true
+    secrets: inherit
+
+  # Test discussion-research job
+  discussion-research:
     if: inputs.job == 'discussion-research' || inputs.job == 'all'
-    runs-on: ubuntu-latest
-    outputs:
-      context_json: ${{ steps.context.outputs.json }}
-      discussion_number: ${{ steps.discussion.outputs.number }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Create test discussion
-        if: inputs.resource_number == ''
-        id: create
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          result=$(gh api graphql -f query='
-            mutation($repoId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
-              createDiscussion(input: {
-                repositoryId: $repoId,
-                categoryId: $categoryId,
-                title: $title,
-                body: $body
-              }) {
-                discussion { number }
-              }
-            }
-          ' \
-            -f repoId="$(gh repo view --json id -q '.id')" \
-            -f categoryId="$(gh api graphql -f query='query($owner: String!, $repo: String!) { repository(owner: $owner, name: $repo) { discussionCategories(first: 1) { nodes { id } } } }' -f owner="${GITHUB_REPOSITORY%/*}" -f repo="${GITHUB_REPOSITORY#*/}" -q '.data.repository.discussionCategories.nodes[0].id')" \
-            -f title="[TEST] Research test - $(date +%s)" \
-            -f body="## Question
-          How does the Claude automation architecture work?
-
-          ## Context
-          I want to understand the workflow dispatch pattern.")
-
-          echo "discussion_number=$(echo "$result" | jq -r '.data.createDiscussion.discussion.number')" >> $GITHUB_OUTPUT
-
-      - name: Set discussion number
-        id: discussion
-        run: |
-          if [[ -n "${{ inputs.resource_number }}" ]]; then
-            echo "number=${{ inputs.resource_number }}" >> $GITHUB_OUTPUT
-          else
-            echo "number=${{ steps.create.outputs.discussion_number }}" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Build context JSON
-        id: context
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DISCUSSION_NUMBER: ${{ steps.discussion.outputs.number }}
-        run: |
-          result=$(gh api graphql -f query='
-            query($owner: String!, $repo: String!, $number: Int!) {
-              repository(owner: $owner, name: $repo) {
-                discussion(number: $number) {
-                  title
-                  body
-                }
-              }
-            }
-          ' -f owner="${GITHUB_REPOSITORY%/*}" -f repo="${GITHUB_REPOSITORY#*/}" -F number="$DISCUSSION_NUMBER")
-
-          title=$(echo "$result" | jq -r '.data.repository.discussion.title')
-          body=$(echo "$result" | jq -r '.data.repository.discussion.body')
-
-          json=$(jq -nc \
-            --arg num "$DISCUSSION_NUMBER" \
-            --arg title "$title" \
-            --arg body "$body" \
-            '{discussion_number: $num, discussion_title: $title, discussion_body: $body}')
-          echo "json=$json" >> $GITHUB_OUTPUT
-
-  discussion-research-run:
-    needs: discussion-research-setup
-    if: needs.discussion-research-setup.result == 'success'
     uses: ./.github/workflows/_claude.yml
     with:
       job: discussion-research
-      context_json: ${{ needs.discussion-research-setup.outputs.context_json }}
-      mock_mode: ${{ inputs.mock_mode }}
+      context_json: '{"discussion_number":"99999","discussion_title":"Mock research topic","discussion_body":"Research question for testing"}'
+      mock_mode: true
     secrets: inherit
 
-  # ============================================================================
-  # CLEANUP
-  # ============================================================================
-  cleanup-issue:
-    needs: [issue-triage-setup, issue-triage-run, issue-implement-setup, issue-implement-run]
-    if: |
-      always() &&
-      inputs.cleanup == true &&
-      inputs.resource_number == ''
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Cleanup test issues and branches
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TRIAGE_ISSUE: ${{ needs.issue-triage-setup.outputs.issue_number }}
-          IMPLEMENT_ISSUE: ${{ needs.issue-implement-setup.outputs.issue_number }}
-        run: |
-          # Safe to close: resource_number=='' means these were created by this test run
-          for issue in $TRIAGE_ISSUE $IMPLEMENT_ISSUE; do
-            if [[ -n "$issue" ]]; then
-              echo "✓ Closing test issue #$issue"
-              gh issue close "$issue" --reason "not planned" --comment "🧹 Test cleanup" || true
+  # Test discussion-respond job
+  discussion-respond:
+    if: inputs.job == 'discussion-respond' || inputs.job == 'all'
+    uses: ./.github/workflows/_claude.yml
+    with:
+      job: discussion-respond
+      context_json: '{"discussion_number":"99999","comment_body":"Test comment","comment_author":"test-user"}'
+      mock_mode: true
+    secrets: inherit
 
-              # Delete associated branch if it exists (check both test/ and claude/ prefixes)
-              for branch in "test/claude/$issue" "claude/issue/$issue"; do
-                if git ls-remote --heads origin "$branch" | grep -q "$branch"; then
-                  echo "✓ Deleting branch $branch"
-                  git push origin --delete "$branch" || true
-                fi
+  # Test discussion-summarize job
+  discussion-summarize:
+    if: inputs.job == 'discussion-summarize' || inputs.job == 'all'
+    uses: ./.github/workflows/_claude.yml
+    with:
+      job: discussion-summarize
+      context_json: '{"discussion_number":"99999"}'
+      mock_mode: true
+    secrets: inherit
 
-                # Close any PRs from that branch
-                pr_num=$(gh pr list --head "$branch" --json number --jq '.[0].number' 2>/dev/null || echo "")
-                if [[ -n "$pr_num" ]]; then
-                  echo "✓ Closing PR #$pr_num"
-                  gh pr close "$pr_num" --comment "🧹 Test cleanup" || true
-                fi
-              done
-            fi
-          done
-
-  cleanup-discussion:
-    needs: [discussion-research-setup, discussion-research-run]
-    if: |
-      always() &&
-      inputs.cleanup == true &&
-      inputs.resource_number == ''
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Close test discussion
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DISCUSSION_NUMBER: ${{ needs.discussion-research-setup.outputs.discussion_number }}
-        run: |
-          if [[ -n "$DISCUSSION_NUMBER" ]]; then
-            echo "✓ Closing test discussion #$DISCUSSION_NUMBER"
-
-            # Get discussion ID
-            discussion_id=$(gh api graphql -f query='
-              query($owner: String!, $repo: String!, $number: Int!) {
-                repository(owner: $owner, name: $repo) {
-                  discussion(number: $number) { id }
-                }
-              }
-            ' -f owner="${GITHUB_REPOSITORY%/*}" -f repo="${GITHUB_REPOSITORY#*/}" -F number="$DISCUSSION_NUMBER" \
-              --jq '.data.repository.discussion.id')
-
-            # Close the discussion
-            gh api graphql -f query='
-              mutation($id: ID!) {
-                closeDiscussion(input: { discussionId: $id, reason: OUTDATED }) {
-                  discussion { id }
-                }
-              }
-            ' -f id="$discussion_id" || echo "Warning: Could not close discussion"
-          fi
-
-  cleanup-pr:
-    needs: [pr-prepare, ci-fix-run, ci-suggest-run, pr-review-run]
-    if: |
-      always() &&
-      inputs.cleanup == true &&
-      inputs.resource_number == '' &&
-      needs.pr-prepare.outputs.pr_number != ''
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Cleanup test PR and resources
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ needs.pr-prepare.outputs.pr_number }}
-          ISSUE_NUMBER: ${{ needs.pr-prepare.outputs.issue_number }}
-          BRANCH_NAME: ${{ needs.pr-prepare.outputs.branch_name }}
-        run: |
-          # Close PR
-          if [[ -n "$PR_NUMBER" ]]; then
-            echo "✓ Closing test PR #$PR_NUMBER"
-            gh pr close "$PR_NUMBER" --comment "🧹 Test cleanup" --delete-branch || true
-          fi
-
-          # Close issue
-          if [[ -n "$ISSUE_NUMBER" ]]; then
-            echo "✓ Closing test issue #$ISSUE_NUMBER"
-            gh issue close "$ISSUE_NUMBER" --reason "not planned" --comment "🧹 Test cleanup" || true
-          fi
-
-          # Delete branch if still exists
-          if [[ -n "$BRANCH_NAME" ]] && git ls-remote --heads origin "$BRANCH_NAME" | grep -q "$BRANCH_NAME"; then
-            echo "✓ Deleting branch $BRANCH_NAME"
-            git push origin --delete "$BRANCH_NAME" || true
-          fi
-
+  # Test discussion-plan job
+  discussion-plan:
+    if: inputs.job == 'discussion-plan' || inputs.job == 'all'
+    uses: ./.github/workflows/_claude.yml
+    with:
+      job: discussion-plan
+      context_json: '{"discussion_number":"99999"}'
+      mock_mode: true
+    secrets: inherit

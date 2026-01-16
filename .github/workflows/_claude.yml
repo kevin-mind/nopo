@@ -92,7 +92,7 @@ jobs:
           max_turns: '50'
           mock_mode: ${{ inputs.mock_mode }}
       - name: Apply triage labels
-        if: always()
+        if: always() && inputs.mock_mode != true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ fromJson(inputs.context_json).issue_number }}
@@ -154,14 +154,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        if: inputs.mock_mode != true
         with:
           ref: ${{ needs.context.outputs.branch_name }}
           fetch-depth: 0
+      - uses: actions/checkout@v4
+        if: inputs.mock_mode == true
       - name: git config
+        if: inputs.mock_mode != true
         run: |
           git config --global user.name "Claude Bot"
           git config --global user.email "claude-bot@anthropic.com"
       - name: Rebase onto main
+        if: inputs.mock_mode != true
         env:
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
@@ -223,7 +228,7 @@ jobs:
           assignee_trigger: nopo-bot
           mock_mode: ${{ inputs.mock_mode }}
       - name: Re-push with PAT to trigger CI
-        if: success()
+        if: success() && inputs.mock_mode != true
         env:
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
@@ -240,7 +245,7 @@ jobs:
             echo "No commits beyond main - skipping push"
           fi
       - name: Save uncommitted work on failure
-        if: failure()
+        if: failure() && inputs.mock_mode != true
         env:
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
@@ -271,9 +276,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        if: inputs.mock_mode != true
         with:
           ref: ${{ needs.context.outputs.branch_name }}
           fetch-depth: 0
+      - uses: actions/checkout@v4
+        if: inputs.mock_mode == true
       - uses: ./.github/actions/run-claude
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -284,7 +292,7 @@ jobs:
           trigger_phrase: '@claude'
           mock_mode: ${{ inputs.mock_mode }}
       - name: Re-push with PAT to trigger CI
-        if: success()
+        if: success() && inputs.mock_mode != true
         env:
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
@@ -308,14 +316,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        if: inputs.mock_mode != true
         with:
           ref: ${{ needs.context.outputs.branch_name }}
           fetch-depth: 0
+      - uses: actions/checkout@v4
+        if: inputs.mock_mode == true
       - name: git config
+        if: inputs.mock_mode != true
         run: |
           git config --global user.name "Claude Bot"
           git config --global user.email "claude-bot@anthropic.com"
       - name: Rebase onto main
+        if: inputs.mock_mode != true
         env:
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
@@ -354,7 +367,7 @@ jobs:
           max_turns: '200'
           mock_mode: ${{ inputs.mock_mode }}
       - name: Re-push with PAT to trigger CI
-        if: success()
+        if: success() && inputs.mock_mode != true
         env:
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
@@ -377,9 +390,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        if: inputs.mock_mode != true
         with:
           ref: ${{ needs.context.outputs.branch_name }}
           fetch-depth: 0
+      - uses: actions/checkout@v4
+        if: inputs.mock_mode == true
       - id: augment
         name: Add HEAD_BRANCH alias
         env:
@@ -406,9 +422,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        if: inputs.mock_mode != true
         with:
           ref: ${{ needs.context.outputs.branch_name }}
           fetch-depth: 0
+      - uses: actions/checkout@v4
+        if: inputs.mock_mode == true
       - uses: ./.github/actions/run-claude
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -424,10 +443,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        if: inputs.mock_mode != true
         with:
           ref: ${{ needs.context.outputs.branch_name }}
           fetch-depth: 0
+      - uses: actions/checkout@v4
+        if: inputs.mock_mode == true
       - name: git config
+        if: inputs.mock_mode != true
         run: |
           git config --global user.name "Claude Bot"
           git config --global user.email "claude-bot@anthropic.com"
@@ -451,7 +474,7 @@ jobs:
           max_turns: '50'
           mock_mode: ${{ inputs.mock_mode }}
       - name: Re-push with PAT to trigger CI
-        if: success()
+        if: success() && inputs.mock_mode != true
         env:
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
@@ -472,10 +495,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        if: inputs.mock_mode != true
         with:
           ref: ${{ needs.context.outputs.branch_name }}
           fetch-depth: 0
+      - uses: actions/checkout@v4
+        if: inputs.mock_mode == true
       - name: git config
+        if: inputs.mock_mode != true
         run: |
           git config --global user.name "Claude Bot"
           git config --global user.email "claude-bot@anthropic.com"
@@ -499,7 +526,7 @@ jobs:
           max_turns: '50'
           mock_mode: ${{ inputs.mock_mode }}
       - name: Re-push with PAT to trigger CI
-        if: success()
+        if: success() && inputs.mock_mode != true
         env:
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}

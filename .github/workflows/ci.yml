@@ -134,18 +134,12 @@ jobs:
     needs: context
     if: needs.context.outputs.github_actions_changed == 'true'
     permissions:
-      contents: write
-      issues: write
-      pull-requests: write
-      discussions: write
-      actions: write
-      id-token: write
+      contents: read
     uses: ./.github/workflows/_test_claude.yml
     secrets: inherit
     with:
       job: all
       mock_mode: true
-      cleanup: true
 
   checks:
     if: always()
