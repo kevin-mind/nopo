@@ -220,9 +220,10 @@ jobs:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
-          # Re-push with PAT so the push event triggers CI workflows
-          # (GITHUB_TOKEN pushes don't trigger other workflows)
+          # Amend last commit to create new SHA, then push with PAT
+          # This triggers CI (GITHUB_TOKEN pushes don't trigger other workflows)
           gh auth setup-git
+          git commit --amend --no-edit
           git push origin "$BRANCH_NAME" --force-with-lease
       - name: Save uncommitted work on failure
         if: failure()
@@ -272,10 +273,11 @@ jobs:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
-          # Re-push with PAT so the push event triggers CI workflows
-          # Only pushes if there are commits to push (no-op otherwise)
+          # Amend last commit to create new SHA, then push with PAT
+          # This triggers CI (GITHUB_TOKEN pushes don't trigger other workflows)
           gh auth setup-git
-          git push origin "$BRANCH_NAME" --force-with-lease 2>/dev/null || true
+          git commit --amend --no-edit || true
+          git push origin "$BRANCH_NAME" --force-with-lease || true
 
   # ============================================================================
   # CI JOBS
@@ -329,9 +331,10 @@ jobs:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
-          # Re-push with PAT so the push event triggers CI workflows
-          # (GITHUB_TOKEN pushes don't trigger other workflows)
+          # Amend last commit to create new SHA, then push with PAT
+          # This triggers CI (GITHUB_TOKEN pushes don't trigger other workflows)
           gh auth setup-git
+          git commit --amend --no-edit
           git push origin "$BRANCH_NAME" --force-with-lease
 
   ci-suggest:
@@ -419,10 +422,11 @@ jobs:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
-          # Re-push with PAT so the push event triggers CI workflows
-          # Only pushes if there are commits to push (no-op otherwise)
+          # Amend last commit to create new SHA, then push with PAT
+          # This triggers CI (GITHUB_TOKEN pushes don't trigger other workflows)
           gh auth setup-git
-          git push origin "$BRANCH_NAME" --force-with-lease 2>/dev/null || true
+          git commit --amend --no-edit || true
+          git push origin "$BRANCH_NAME" --force-with-lease || true
 
   pr-human-response:
     needs: context
@@ -462,10 +466,11 @@ jobs:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
-          # Re-push with PAT so the push event triggers CI workflows
-          # Only pushes if there are commits to push (no-op otherwise)
+          # Amend last commit to create new SHA, then push with PAT
+          # This triggers CI (GITHUB_TOKEN pushes don't trigger other workflows)
           gh auth setup-git
-          git push origin "$BRANCH_NAME" --force-with-lease 2>/dev/null || true
+          git commit --amend --no-edit || true
+          git push origin "$BRANCH_NAME" --force-with-lease || true
 
   # ============================================================================
   # DISCUSSION JOBS
