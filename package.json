@@ -8,7 +8,9 @@
     "apps/*",
     "packages/*"
   ],
-  "scripts": {},
+  "scripts": {
+    "check:actions:root": "cd .github/actions-ts && pnpm exec tsx scripts/build.ts && git diff --exit-code */dist/"
+  },
   "devDependencies": {
     "@changesets/cli": "^2.29.1",
     "@eslint/compat": "^1.2.8",
