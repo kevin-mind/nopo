@@ -1104,8 +1104,9 @@ All PRs created by Claude automation must:
 ### Setup Requirements
 
 1. **CLAUDE_CODE_OAUTH_TOKEN secret**: OAuth token for Claude (uses subscription)
-2. **PROJECT_TOKEN secret** (optional): Fine-grained PAT with `project:write` for updating project status
-3. **GitHub Project** (optional): Project board with Status field - status updated via GraphQL if issue is linked
+2. **CLAUDE_PAT secret**: Personal Access Token with `repo` scope for git push operations. Required because `GITHUB_TOKEN` pushes don't trigger other workflows (GitHub security feature). This PAT is NOT given to Claude - it's only used by workflow steps after Claude finishes.
+3. **PROJECT_TOKEN secret** (optional): Fine-grained PAT with `project:write` for updating project status
+4. **GitHub Project** (optional): Project board with Status field - status updated via GraphQL if issue is linked
 
 ---
 

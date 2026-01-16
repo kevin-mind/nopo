@@ -163,6 +163,7 @@ jobs:
           git config --global user.email "claude-bot@anthropic.com"
       - name: Rebase onto main
         env:
+          GH_TOKEN: ${{ secrets.CLAUDE_PAT }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
           git fetch origin main
@@ -171,6 +172,8 @@ jobs:
             echo "::error::Rebase failed due to conflicts. Please resolve conflicts manually before re-running."
             exit 1
           fi
+          # Use PAT to push so it triggers CI workflows
+          gh auth setup-git
           git push origin "$BRANCH_NAME" --force-with-lease
       - id: augment
         name: Check for existing branch work
@@ -211,9 +214,20 @@ jobs:
           show_full_output: 'true'
           assignee_trigger: nopo-bot
           mock_mode: ${{ inputs.mock_mode }}
+      - name: Re-push with PAT to trigger CI
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.CLAUDE_PAT }}
+          BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
+        run: |
+          # Re-push with PAT so the push event triggers CI workflows
+          # (GITHUB_TOKEN pushes don't trigger other workflows)
+          gh auth setup-git
+          git push origin "$BRANCH_NAME" --force-with-lease
       - name: Save uncommitted work on failure
         if: failure()
         env:
+          GH_TOKEN: ${{ secrets.CLAUDE_PAT }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
           # Check for any uncommitted changes (staged or unstaged)
@@ -226,6 +240,8 @@ jobs:
             Review and clean up before continuing.
 
             Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            # Use PAT to push so it triggers CI workflows
+            gh auth setup-git
             git push origin "$BRANCH_NAME"
             echo "::warning::Uncommitted work was saved to branch $BRANCH_NAME"
           else
@@ -250,6 +266,16 @@ jobs:
           max_turns: '100'
           trigger_phrase: '@claude'
           mock_mode: ${{ inputs.mock_mode }}
+      - name: Re-push with PAT to trigger CI
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.CLAUDE_PAT }}
+          BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
+        run: |
+          # Re-push with PAT so the push event triggers CI workflows
+          # Only pushes if there are commits to push (no-op otherwise)
+          gh auth setup-git
+          git push origin "$BRANCH_NAME" --force-with-lease 2>/dev/null || true
 
   # ============================================================================
   # CI JOBS
@@ -269,6 +295,7 @@ jobs:
           git config --global user.email "claude-bot@anthropic.com"
       - name: Rebase onto main
         env:
+          GH_TOKEN: ${{ secrets.CLAUDE_PAT }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
           git fetch origin main
@@ -277,6 +304,8 @@ jobs:
             echo "::error::Rebase failed due to conflicts. Please resolve conflicts manually before re-running."
             exit 1
           fi
+          # Use PAT to push so it triggers CI workflows
+          gh auth setup-git
           git push origin "$BRANCH_NAME" --force-with-lease
       - id: augment
         name: Add HEAD_BRANCH alias
@@ -294,6 +323,16 @@ jobs:
           prompt_replacements: ${{ steps.augment.outputs.json }}
           max_turns: '200'
           mock_mode: ${{ inputs.mock_mode }}
+      - name: Re-push with PAT to trigger CI
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.CLAUDE_PAT }}
+          BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
+        run: |
+          # Re-push with PAT so the push event triggers CI workflows
+          # (GITHUB_TOKEN pushes don't trigger other workflows)
+          gh auth setup-git
+          git push origin "$BRANCH_NAME" --force-with-lease
 
   ci-suggest:
     needs: context
@@ -374,6 +413,16 @@ jobs:
           prompt_replacements: ${{ steps.augment.outputs.json }}
           max_turns: '50'
           mock_mode: ${{ inputs.mock_mode }}
+      - name: Re-push with PAT to trigger CI
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.CLAUDE_PAT }}
+          BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
+        run: |
+          # Re-push with PAT so the push event triggers CI workflows
+          # Only pushes if there are commits to push (no-op otherwise)
+          gh auth setup-git
+          git push origin "$BRANCH_NAME" --force-with-lease 2>/dev/null || true
 
   pr-human-response:
     needs: context
@@ -407,6 +456,16 @@ jobs:
           prompt_replacements: ${{ steps.augment.outputs.json }}
           max_turns: '50'
           mock_mode: ${{ inputs.mock_mode }}
+      - name: Re-push with PAT to trigger CI
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.CLAUDE_PAT }}
+          BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
+        run: |
+          # Re-push with PAT so the push event triggers CI workflows
+          # Only pushes if there are commits to push (no-op otherwise)
+          gh auth setup-git
+          git push origin "$BRANCH_NAME" --force-with-lease 2>/dev/null || true
 
   # ============================================================================
   # DISCUSSION JOBS
