@@ -585,10 +585,7 @@ function normalizeSubCommands(
         env: cmd.env,
         dir: cmd.dir,
         context: cmd.context,
-        commands: normalizeSubSubCommands(
-          cmd.commands,
-          `${parentPath}:${name}`,
-        ),
+        commands: normalizeSubSubCommands(cmd.commands),
       };
     }
   }
@@ -598,7 +595,6 @@ function normalizeSubCommands(
 
 function normalizeSubSubCommands(
   commands: Record<string, SubSubCommandInput> | undefined,
-  _parentPath: string,
 ): Record<string, NormalizedSubCommand> | undefined {
   if (!commands) return undefined;
 

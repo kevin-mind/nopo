@@ -5,7 +5,10 @@ import ListScript from "../../src/scripts/list.ts";
 import { createTmpEnv, runScript, createTestConfig } from "../utils.ts";
 
 // Track mock calls for assertions
-const mockGetChangedFiles = vi.fn((_ref?: string) => ["apps/backend/src/index.ts"]);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const mockGetChangedFiles = vi.fn((_ref?: string) => [
+  "apps/backend/src/index.ts",
+]);
 const mockGetDefaultBranch = vi.fn(() => "main");
 
 vi.mock("../../src/git-info", () => ({
@@ -32,7 +35,10 @@ describe("list", () => {
           return true;
         });
 
-      const config = createTestConfig({ envFile: createTmpEnv(), silent: true });
+      const config = createTestConfig({
+        envFile: createTmpEnv(),
+        silent: true,
+      });
       await runScript(ListScript, config, ["list", "--json"]);
 
       const parsed = JSON.parse(output.trim()) as {
@@ -54,7 +60,10 @@ describe("list", () => {
           return true;
         });
 
-      const config = createTestConfig({ envFile: createTmpEnv(), silent: true });
+      const config = createTestConfig({
+        envFile: createTmpEnv(),
+        silent: true,
+      });
       await runScript(ListScript, config, ["list", "-j"]);
 
       const parsed = JSON.parse(output.trim()) as {
@@ -75,7 +84,10 @@ describe("list", () => {
           return true;
         });
 
-      const config = createTestConfig({ envFile: createTmpEnv(), silent: true });
+      const config = createTestConfig({
+        envFile: createTmpEnv(),
+        silent: true,
+      });
       await runScript(ListScript, config, ["list", "--format", "json"]);
 
       const parsed = JSON.parse(output.trim()) as {
@@ -96,7 +108,10 @@ describe("list", () => {
           return true;
         });
 
-      const config = createTestConfig({ envFile: createTmpEnv(), silent: true });
+      const config = createTestConfig({
+        envFile: createTmpEnv(),
+        silent: true,
+      });
       await runScript(ListScript, config, ["list", "--csv"]);
 
       // CSV output is comma-separated service names
@@ -113,7 +128,10 @@ describe("list", () => {
           return true;
         });
 
-      const config = createTestConfig({ envFile: createTmpEnv(), silent: true });
+      const config = createTestConfig({
+        envFile: createTmpEnv(),
+        silent: true,
+      });
       await runScript(ListScript, config, ["list", "--format", "csv"]);
 
       expect(output.trim()).toMatch(/^[\w,]*$/);
@@ -129,7 +147,10 @@ describe("list", () => {
           return true;
         });
 
-      const config = createTestConfig({ envFile: createTmpEnv(), silent: true });
+      const config = createTestConfig({
+        envFile: createTmpEnv(),
+        silent: true,
+      });
       await runScript(ListScript, config, ["list", "--json"]);
 
       const parsed = JSON.parse(output.trim()) as {
@@ -149,7 +170,10 @@ describe("list", () => {
           return true;
         });
 
-      const config = createTestConfig({ envFile: createTmpEnv(), silent: true });
+      const config = createTestConfig({
+        envFile: createTmpEnv(),
+        silent: true,
+      });
       await runScript(ListScript, config, ["list", "--json"]);
 
       const parsed = JSON.parse(output.trim()) as {
@@ -179,7 +203,10 @@ describe("list", () => {
           return true;
         });
 
-      const config = createTestConfig({ envFile: createTmpEnv(), silent: true });
+      const config = createTestConfig({
+        envFile: createTmpEnv(),
+        silent: true,
+      });
       await runScript(ListScript, config, [
         "list",
         "--json",
@@ -208,7 +235,10 @@ describe("list", () => {
           return true;
         });
 
-      const config = createTestConfig({ envFile: createTmpEnv(), silent: true });
+      const config = createTestConfig({
+        envFile: createTmpEnv(),
+        silent: true,
+      });
       await runScript(ListScript, config, [
         "list",
         "--json",
@@ -236,7 +266,10 @@ describe("list", () => {
           return true;
         });
 
-      const config = createTestConfig({ envFile: createTmpEnv(), silent: true });
+      const config = createTestConfig({
+        envFile: createTmpEnv(),
+        silent: true,
+      });
       await runScript(ListScript, config, [
         "list",
         "--json",
@@ -265,7 +298,10 @@ describe("list", () => {
           return true;
         });
 
-      const config = createTestConfig({ envFile: createTmpEnv(), silent: true });
+      const config = createTestConfig({
+        envFile: createTmpEnv(),
+        silent: true,
+      });
       await runScript(ListScript, config, [
         "list",
         "--json",
@@ -294,7 +330,10 @@ describe("list", () => {
           return true;
         });
 
-      const config = createTestConfig({ envFile: createTmpEnv(), silent: true });
+      const config = createTestConfig({
+        envFile: createTmpEnv(),
+        silent: true,
+      });
       await runScript(ListScript, config, [
         "list",
         "--json",
@@ -323,7 +362,10 @@ describe("list", () => {
           return true;
         });
 
-      const config = createTestConfig({ envFile: createTmpEnv(), silent: true });
+      const config = createTestConfig({
+        envFile: createTmpEnv(),
+        silent: true,
+      });
       await runScript(ListScript, config, [
         "list",
         "--json",
@@ -350,7 +392,10 @@ describe("list", () => {
           return true;
         });
 
-      const config = createTestConfig({ envFile: createTmpEnv(), silent: true });
+      const config = createTestConfig({
+        envFile: createTmpEnv(),
+        silent: true,
+      });
       await runScript(ListScript, config, [
         "list",
         "--json",
@@ -374,7 +419,10 @@ describe("list", () => {
           return true;
         });
 
-      const config = createTestConfig({ envFile: createTmpEnv(), silent: true });
+      const config = createTestConfig({
+        envFile: createTmpEnv(),
+        silent: true,
+      });
       await runScript(ListScript, config, [
         "list",
         "--csv",
@@ -402,7 +450,10 @@ describe("list", () => {
           return true;
         });
 
-      const config = createTestConfig({ envFile: createTmpEnv(), silent: true });
+      const config = createTestConfig({
+        envFile: createTmpEnv(),
+        silent: true,
+      });
       await runScript(ListScript, config, [
         "list",
         "--json",
@@ -428,15 +479,17 @@ describe("list", () => {
       mockGetChangedFiles.mockReturnValueOnce(["apps/web/src/App.tsx"]);
       mockGetDefaultBranch.mockReturnValueOnce("main");
 
-      let output = "";
       const stdoutSpy = vi
         .spyOn(process.stdout, "write")
         .mockImplementation((chunk) => {
-          output += chunk;
+          void chunk;
           return true;
         });
 
-      const config = createTestConfig({ envFile: createTmpEnv(), silent: true });
+      const config = createTestConfig({
+        envFile: createTmpEnv(),
+        silent: true,
+      });
       await runScript(ListScript, config, [
         "list",
         "--json",
@@ -454,15 +507,17 @@ describe("list", () => {
       mockGetDefaultBranch.mockClear();
       mockGetChangedFiles.mockReturnValueOnce(["apps/backend/src/api.ts"]);
 
-      let output = "";
       const stdoutSpy = vi
         .spyOn(process.stdout, "write")
         .mockImplementation((chunk) => {
-          output += chunk;
+          void chunk;
           return true;
         });
 
-      const config = createTestConfig({ envFile: createTmpEnv(), silent: true });
+      const config = createTestConfig({
+        envFile: createTmpEnv(),
+        silent: true,
+      });
       await runScript(ListScript, config, [
         "list",
         "--json",
@@ -491,7 +546,10 @@ describe("list", () => {
           return true;
         });
 
-      const config = createTestConfig({ envFile: createTmpEnv(), silent: true });
+      const config = createTestConfig({
+        envFile: createTmpEnv(),
+        silent: true,
+      });
       await runScript(ListScript, config, [
         "list",
         "--json",
@@ -522,7 +580,10 @@ describe("list", () => {
           return true;
         });
 
-      const config = createTestConfig({ envFile: createTmpEnv(), silent: true });
+      const config = createTestConfig({
+        envFile: createTmpEnv(),
+        silent: true,
+      });
       await runScript(ListScript, config, [
         "list",
         "--json",
@@ -551,7 +612,10 @@ describe("list", () => {
           return true;
         });
 
-      const config = createTestConfig({ envFile: createTmpEnv(), silent: true });
+      const config = createTestConfig({
+        envFile: createTmpEnv(),
+        silent: true,
+      });
       await runScript(ListScript, config, [
         "list",
         "--json",
@@ -574,7 +638,10 @@ describe("list", () => {
           return true;
         });
 
-      const config = createTestConfig({ envFile: createTmpEnv(), silent: true });
+      const config = createTestConfig({
+        envFile: createTmpEnv(),
+        silent: true,
+      });
       await runScript(ListScript, config, [
         "list",
         "--json",
@@ -595,7 +662,10 @@ describe("list", () => {
           return true;
         });
 
-      const config = createTestConfig({ envFile: createTmpEnv(), silent: true });
+      const config = createTestConfig({
+        envFile: createTmpEnv(),
+        silent: true,
+      });
       await runScript(ListScript, config, [
         "list",
         "--json",
@@ -622,7 +692,10 @@ describe("list", () => {
           return true;
         });
 
-      const config = createTestConfig({ envFile: createTmpEnv(), silent: true });
+      const config = createTestConfig({
+        envFile: createTmpEnv(),
+        silent: true,
+      });
       await runScript(ListScript, config, [
         "list",
         "--json",
@@ -645,7 +718,10 @@ describe("list", () => {
           return true;
         });
 
-      const config = createTestConfig({ envFile: createTmpEnv(), silent: true });
+      const config = createTestConfig({
+        envFile: createTmpEnv(),
+        silent: true,
+      });
       await runScript(ListScript, config, [
         "list",
         "--json",
@@ -658,7 +734,10 @@ describe("list", () => {
     });
 
     it("throws error when --jq used without --json", async () => {
-      const config = createTestConfig({ envFile: createTmpEnv(), silent: true });
+      const config = createTestConfig({
+        envFile: createTmpEnv(),
+        silent: true,
+      });
 
       await expect(
         runScript(ListScript, config, ["list", "--jq", "length"]),
@@ -666,16 +745,24 @@ describe("list", () => {
     });
 
     it("throws error for invalid jq filter", async () => {
-      const config = createTestConfig({ envFile: createTmpEnv(), silent: true });
+      const config = createTestConfig({
+        envFile: createTmpEnv(),
+        silent: true,
+      });
 
       // We expect an error, but also want to prevent EPIPE from leaking due to broken pipe when process.stdout is closed.
       // So, temporarily stub process.stdout.write to a noop for this test.
       const originalWrite = process.stdout.write;
-      process.stdout.write = (() => true) as any;
+      process.stdout.write = (() => true) as typeof process.stdout.write;
 
       try {
         await expect(
-          runScript(ListScript, config, ["list", "--json", "--jq", "invalid[["]),
+          runScript(ListScript, config, [
+            "list",
+            "--json",
+            "--jq",
+            "invalid[[",
+          ]),
         ).rejects.toThrow("jq filter failed");
       } finally {
         process.stdout.write = originalWrite;
@@ -685,7 +772,10 @@ describe("list", () => {
 
   describe("validate", () => {
     it("completes successfully with --validate flag", async () => {
-      const config = createTestConfig({ envFile: createTmpEnv(), silent: true });
+      const config = createTestConfig({
+        envFile: createTmpEnv(),
+        silent: true,
+      });
       // Should not throw - validates config is valid
       await expect(
         runScript(ListScript, config, ["list", "--validate"]),
@@ -693,7 +783,10 @@ describe("list", () => {
     });
 
     it("completes successfully with -v shorthand", async () => {
-      const config = createTestConfig({ envFile: createTmpEnv(), silent: true });
+      const config = createTestConfig({
+        envFile: createTmpEnv(),
+        silent: true,
+      });
       await expect(
         runScript(ListScript, config, ["list", "-v"]),
       ).resolves.not.toThrow();
@@ -708,7 +801,10 @@ describe("list", () => {
           return true;
         });
 
-      const config = createTestConfig({ envFile: createTmpEnv(), silent: true });
+      const config = createTestConfig({
+        envFile: createTmpEnv(),
+        silent: true,
+      });
       await runScript(ListScript, config, ["list", "--validate"]);
 
       // --validate should not produce stdout output (logs go to logger)

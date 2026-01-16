@@ -25,7 +25,9 @@ vi.mock("node:net", () => ({
 }));
 
 // Mock docker-compose module - use vi.hoisted to avoid initialization issues
-const mockPullMany = vi.hoisted(() => vi.fn().mockResolvedValue({ exitCode: 0 }));
+const mockPullMany = vi.hoisted(() =>
+  vi.fn().mockResolvedValue({ exitCode: 0 }),
+);
 vi.mock("docker-compose", () => ({
   default: {
     pullMany: mockPullMany(),
