@@ -161,6 +161,18 @@ jobs:
         run: |
           git config --global user.name "Claude Bot"
           git config --global user.email "claude-bot@anthropic.com"
+      - name: Rebase onto main
+        env:
+          BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
+        run: |
+          git fetch origin main
+          if ! git rebase origin/main; then
+            echo "::warning::Rebase failed - aborting and continuing with current branch state"
+            git rebase --abort
+          else
+            # Force push rebased branch (safe for claude/* branches)
+            git push origin "$BRANCH_NAME" --force-with-lease || true
+          fi
       - id: augment
         name: Check for existing branch work
         env:
@@ -256,6 +268,17 @@ jobs:
         run: |
           git config --global user.name "Claude Bot"
           git config --global user.email "claude-bot@anthropic.com"
+      - name: Rebase onto main
+        env:
+          BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
+        run: |
+          git fetch origin main
+          if ! git rebase origin/main; then
+            echo "::warning::Rebase failed - aborting and continuing with current branch state"
+            git rebase --abort
+          else
+            git push origin "$BRANCH_NAME" --force-with-lease || true
+          fi
       - id: augment
         name: Add HEAD_BRANCH alias
         env:
