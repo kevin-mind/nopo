@@ -485,14 +485,14 @@ The tool follows this precedence for configuration:
 ### Build Errors
 
 - Ensure all dependencies are installed: `pnpm install`
-- Check TypeScript errors: `pnpm run check:types`
-- Clear build cache: `pnpm run clean && pnpm run build`
+- Check TypeScript errors: `nopo check root -- types`
+- Clear build cache: `nopo clean root && nopo compile root`
 
 ### CLI Not Found After Installation
 
 - Verify the package is properly linked: `pnpm ls -g nopo`
 - Check your PATH includes pnpm/npm global bin directory
-- Try rebuilding: `pnpm run build`
+- Try rebuilding: `nopo compile root -- nopo`
 
 ### Permission Errors
 
