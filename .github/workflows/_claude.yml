@@ -173,9 +173,14 @@ jobs:
             exit 1
           fi
           # Amend + push with PAT to trigger CI workflows
+          # Only if branch has commits beyond main (don't amend main's commits)
           gh auth setup-git
-          git commit --amend --no-edit
-          git push origin "$BRANCH_NAME" --force-with-lease
+          if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
+            git commit --amend --no-edit
+            git push origin "$BRANCH_NAME" --force-with-lease
+          else
+            echo "No commits beyond main - skipping push"
+          fi
       - id: augment
         name: Check for existing branch work
         env:
@@ -221,11 +226,15 @@ jobs:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
-          # Amend last commit to create new SHA, then push with PAT
-          # This triggers CI (GITHUB_TOKEN pushes don't trigger other workflows)
+          # Amend + push with PAT to trigger CI workflows
+          # Only if branch has commits beyond main (don't amend main's commits)
           gh auth setup-git
-          git commit --amend --no-edit
-          git push origin "$BRANCH_NAME" --force-with-lease
+          if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
+            git commit --amend --no-edit
+            git push origin "$BRANCH_NAME" --force-with-lease
+          else
+            echo "No commits beyond main - skipping push"
+          fi
       - name: Save uncommitted work on failure
         if: failure()
         env:
@@ -274,11 +283,13 @@ jobs:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
-          # Amend last commit to create new SHA, then push with PAT
-          # This triggers CI (GITHUB_TOKEN pushes don't trigger other workflows)
+          # Amend + push with PAT to trigger CI workflows
+          # Only if branch has commits beyond main (don't amend main's commits)
           gh auth setup-git
-          git commit --amend --no-edit || true
-          git push origin "$BRANCH_NAME" --force-with-lease || true
+          if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
+            git commit --amend --no-edit
+            git push origin "$BRANCH_NAME" --force-with-lease
+          fi
 
   # ============================================================================
   # CI JOBS
@@ -308,9 +319,14 @@ jobs:
             exit 1
           fi
           # Amend + push with PAT to trigger CI workflows
+          # Only if branch has commits beyond main (don't amend main's commits)
           gh auth setup-git
-          git commit --amend --no-edit
-          git push origin "$BRANCH_NAME" --force-with-lease
+          if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
+            git commit --amend --no-edit
+            git push origin "$BRANCH_NAME" --force-with-lease
+          else
+            echo "No commits beyond main - skipping push"
+          fi
       - id: augment
         name: Add HEAD_BRANCH alias
         env:
@@ -333,11 +349,15 @@ jobs:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
-          # Amend last commit to create new SHA, then push with PAT
-          # This triggers CI (GITHUB_TOKEN pushes don't trigger other workflows)
+          # Amend + push with PAT to trigger CI workflows
+          # Only if branch has commits beyond main (don't amend main's commits)
           gh auth setup-git
-          git commit --amend --no-edit
-          git push origin "$BRANCH_NAME" --force-with-lease
+          if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
+            git commit --amend --no-edit
+            git push origin "$BRANCH_NAME" --force-with-lease
+          else
+            echo "No commits beyond main - skipping push"
+          fi
 
   ci-suggest:
     needs: context
@@ -424,11 +444,13 @@ jobs:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
-          # Amend last commit to create new SHA, then push with PAT
-          # This triggers CI (GITHUB_TOKEN pushes don't trigger other workflows)
+          # Amend + push with PAT to trigger CI workflows
+          # Only if branch has commits beyond main (don't amend main's commits)
           gh auth setup-git
-          git commit --amend --no-edit || true
-          git push origin "$BRANCH_NAME" --force-with-lease || true
+          if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
+            git commit --amend --no-edit
+            git push origin "$BRANCH_NAME" --force-with-lease
+          fi
 
   pr-human-response:
     needs: context
@@ -468,11 +490,13 @@ jobs:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
-          # Amend last commit to create new SHA, then push with PAT
-          # This triggers CI (GITHUB_TOKEN pushes don't trigger other workflows)
+          # Amend + push with PAT to trigger CI workflows
+          # Only if branch has commits beyond main (don't amend main's commits)
           gh auth setup-git
-          git commit --amend --no-edit || true
-          git push origin "$BRANCH_NAME" --force-with-lease || true
+          if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
+            git commit --amend --no-edit
+            git push origin "$BRANCH_NAME" --force-with-lease
+          fi
 
   # ============================================================================
   # DISCUSSION JOBS
