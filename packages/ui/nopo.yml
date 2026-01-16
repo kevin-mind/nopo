@@ -14,10 +14,7 @@ commands:
   fix:
     commands:
       lint: pnpm exec eslint --fix
-  test:
-    commands:
-      vitest: pnpm exec vitest run --run
-      storybook: pnpm exec test-storybook
+  test: pnpm exec vitest run --run
   storybook:
     commands:
       dev: pnpm exec storybook dev -p 6006
