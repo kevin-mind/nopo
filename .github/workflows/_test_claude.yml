@@ -37,9 +37,13 @@ on:
         type: boolean
         default: true
 
-# Minimal permissions - we're not creating real resources
+# Note: These permissions are required by _claude.yml's declaration even though
+# mock mode doesn't actually use write permissions
 permissions:
-  contents: read
+  contents: write
+  issues: write
+  pull-requests: write
+  id-token: write
 
 # ============================================================================
 # TEST JOBS

@@ -133,8 +133,13 @@ jobs:
   test-claude-automation:
     needs: context
     if: needs.context.outputs.github_actions_changed == 'true'
+    # Note: These permissions are required by _claude.yml's declaration even though
+    # mock mode doesn't actually use write permissions
     permissions:
-      contents: read
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
     uses: ./.github/workflows/_test_claude.yml
     secrets: inherit
     with:
