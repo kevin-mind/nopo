@@ -3,6 +3,7 @@ description: Code generators using Plop
 
 commands:
   clean: rm -rf node_modules && rm -f tsconfig.tsbuildinfo
+  test: 'echo "No tests for plop package"'
   check:
     commands:
       types: pnpm exec tsc --noEmit
