@@ -319,10 +319,11 @@ jobs:
 
       - name: Make test change
         run: |
-          # Add a test comment to a file
-          echo "" >> .github/workflows/_test_claude.yml
-          echo "# Test change for PR ${{ steps.issue.outputs.number }} - $(date +%s)" >> .github/workflows/_test_claude.yml
-          git add .github/workflows/_test_claude.yml
+          # Add a test file (not a workflow file, to avoid needing workflows permission)
+          echo "# Test change for PR ${{ steps.issue.outputs.number }} - $(date +%s)" > /tmp/test-change.md
+          mkdir -p .test
+          cp /tmp/test-change.md .test/test-change-${{ steps.issue.outputs.number }}.md
+          git add .test/
           git commit -m "test: add test change for PR tests"
           git push origin "${{ steps.branch.outputs.name }}"
 
