@@ -163,7 +163,7 @@ jobs:
           git config --global user.email "claude-bot@anthropic.com"
       - name: Rebase onto main
         env:
-          GH_TOKEN: ${{ secrets.CLAUDE_PAT }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
           git fetch origin main
@@ -217,7 +217,7 @@ jobs:
       - name: Re-push with PAT to trigger CI
         if: success()
         env:
-          GH_TOKEN: ${{ secrets.CLAUDE_PAT }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
           # Re-push with PAT so the push event triggers CI workflows
@@ -227,7 +227,7 @@ jobs:
       - name: Save uncommitted work on failure
         if: failure()
         env:
-          GH_TOKEN: ${{ secrets.CLAUDE_PAT }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
           # Check for any uncommitted changes (staged or unstaged)
@@ -269,7 +269,7 @@ jobs:
       - name: Re-push with PAT to trigger CI
         if: success()
         env:
-          GH_TOKEN: ${{ secrets.CLAUDE_PAT }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
           # Re-push with PAT so the push event triggers CI workflows
@@ -295,7 +295,7 @@ jobs:
           git config --global user.email "claude-bot@anthropic.com"
       - name: Rebase onto main
         env:
-          GH_TOKEN: ${{ secrets.CLAUDE_PAT }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
           git fetch origin main
@@ -326,7 +326,7 @@ jobs:
       - name: Re-push with PAT to trigger CI
         if: success()
         env:
-          GH_TOKEN: ${{ secrets.CLAUDE_PAT }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
           # Re-push with PAT so the push event triggers CI workflows
@@ -416,7 +416,7 @@ jobs:
       - name: Re-push with PAT to trigger CI
         if: success()
         env:
-          GH_TOKEN: ${{ secrets.CLAUDE_PAT }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
           # Re-push with PAT so the push event triggers CI workflows
@@ -459,7 +459,7 @@ jobs:
       - name: Re-push with PAT to trigger CI
         if: success()
         env:
-          GH_TOKEN: ${{ secrets.CLAUDE_PAT }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
           # Re-push with PAT so the push event triggers CI workflows
