@@ -9,23 +9,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build:workspace": "pnpm run -r build",
-    "clean:workspace": "pnpm run -r clean",
-    "clean:root": "rm -rf .cache .config .bash_history .env .local .pnpm-store .venv/* node_modules && rm -f build-metadata.json || true",
-    "check:workspace": "pnpm run -r \"/^check:.*/\"",
-    "check:lint:root": "eslint",
-    "check:types:root": "tsc --noEmit",
-    "check:knip:root": "knip",
-    "check:actions:root": "pnpm run --filter @nopo/github-actions build && git diff --exit-code .github/actions-ts/*/dist/",
-    "check:actionlint:root": "./scripts/actionlint.sh",
-    "fix:workspace": "pnpm run -r \"/^fix:.*/\"",
-    "fix:lint:root": "eslint --fix",
-    "fix:knip:root": "knip --fix",
-    "dev:workspace": "pnpm -r dev",
-    "start:workspace": "pnpm run -r start",
-    "test:workspace": "pnpm run -r test",
-    "publish:workspace": "pnpm publish -r",
-    "smoketest": "playwright test"
+    "check:actions:root": "cd .github/actions-ts && pnpm exec tsx scripts/build.ts && git diff --exit-code */dist/"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.1",

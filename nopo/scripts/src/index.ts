@@ -96,7 +96,7 @@ function printServiceCommandsTable(): void {
     // Recursively collect commands into tree structure
     function collectCommands(
       serviceId: string,
-      commands: Record<string, any>,
+      commands: Record<string, unknown>,
       parentNode: Map<string, CommandNode>,
     ): void {
       for (const [commandName, command] of Object.entries(commands)) {
@@ -110,8 +110,9 @@ function printServiceCommandsTable(): void {
         node.services.add(serviceId);
 
         // Recursively collect sub-commands
-        if (command.commands) {
-          collectCommands(serviceId, command.commands, node.children);
+        const cmd = command as { commands?: Record<string, unknown> };
+        if (cmd.commands) {
+          collectCommands(serviceId, cmd.commands, node.children);
         }
       }
     }
@@ -131,7 +132,9 @@ function printServiceCommandsTable(): void {
 
     const commandHeader = "COMMAND";
     const servicesHeader = "SERVICES";
-    const header = chalk.cyan(chalk.bold(`  ${commandHeader.padEnd(25)}  ${servicesHeader}`));
+    const header = chalk.cyan(
+      chalk.bold(`  ${commandHeader.padEnd(25)}  ${servicesHeader}`),
+    );
     const separator = chalk.gray(`  ${"-".repeat(25)}  ${"-".repeat(40)}`);
 
     console.log(header);
@@ -164,7 +167,8 @@ function printServiceCommandsTable(): void {
           a[0].localeCompare(b[0]),
         );
 
-        const childPrefix = depth === 0 ? "" : prefix + (isLast ? "   " : "│  ");
+        const childPrefix =
+          depth === 0 ? "" : prefix + (isLast ? "   " : "│  ");
 
         childEntries.forEach(([childName, childNode], index) => {
           const isLastChild = index === childEntries.length - 1;
@@ -188,7 +192,7 @@ function printServiceCommandsTable(): void {
       const isLast = index === sortedCommands.length - 1;
       printCommandNode(name, node, "", isLast, 0);
     });
-  } catch (error) {
+  } catch {
     // Silently skip if we can't load the project config
     // This can happen if nopo.yml doesn't exist or is invalid
   }
@@ -209,7 +213,9 @@ function printCommandHelp(
   console.log(chalk.gray(`  Usage: nopo ${name} [options]\n`));
 
   // If the script uses ScriptArgs, generate help from the schema
-  const argsTemplate = (ScriptClass as any).args as ScriptArgs | undefined;
+  const argsTemplate = (
+    ScriptClass as unknown as { args: ScriptArgs | undefined }
+  ).args;
   if (argsTemplate) {
     const help = argsTemplate.generateHelp();
     if (help) {

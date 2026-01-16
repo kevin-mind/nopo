@@ -4,7 +4,12 @@ import fs from "node:fs";
 import EnvScript from "../../src/scripts/env.ts";
 import { Environment } from "../../src/parse-env.ts";
 
-import { createTmpEnv, runScript, dockerTag, createTestConfig } from "../utils.ts";
+import {
+  createTmpEnv,
+  runScript,
+  dockerTag,
+  createTestConfig,
+} from "../utils.ts";
 import path from "node:path";
 
 vi.mock("../../src/git-info", () => ({

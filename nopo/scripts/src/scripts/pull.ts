@@ -1,10 +1,4 @@
-import compose from "docker-compose";
-import {
-  TargetScript,
-  type ScriptDependency,
-  createLogger,
-  $,
-} from "../lib.ts";
+import { TargetScript, type ScriptDependency } from "../lib.ts";
 import EnvScript from "./env.ts";
 import { baseArgs } from "../args.ts";
 import type { ScriptArgs } from "../script-args.ts";
