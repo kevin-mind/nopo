@@ -3,9 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "scripts": {
-    "clean": "rm -rf node_modules"
-  },
+  "scripts": {},
   "devDependencies": {
     "@eslint/compat": "^1.2.8",
     "@eslint/js": "^9.23.0",

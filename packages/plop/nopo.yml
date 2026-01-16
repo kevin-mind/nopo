@@ -1,0 +1,16 @@
+name: plop
+description: Code generators using Plop
+
+commands:
+  clean: rm -rf node_modules && rm -f tsconfig.tsbuildinfo
+  check:
+    commands:
+      types: pnpm exec tsc --noEmit
+      lint: pnpm exec eslint
+  fix:
+    commands:
+      lint: pnpm exec eslint --fix
+  generate:
+    commands:
+      package: pnpm exec plop --plopfile scripts/package.ts
+      app: pnpm exec plop --plopfile scripts/app.ts
