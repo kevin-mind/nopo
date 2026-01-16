@@ -12,8 +12,8 @@ name: Claude Business Logic
         type: string
       mock_mode:
         description: Mock mode for testing
-        type: string
-        default: 'false'
+        type: boolean
+        default: false
   workflow_dispatch:
     inputs:
       job:
@@ -39,8 +39,8 @@ name: Claude Business Logic
         type: string
       mock_mode:
         description: Mock mode for testing
-        type: string
-        default: 'false'
+        type: boolean
+        default: false
 permissions:
   contents: write
   pull-requests: write

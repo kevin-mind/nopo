@@ -25,8 +25,8 @@ on:
         default: ''
       mock_mode:
         description: 'Mock mode (true = no real Claude calls)'
-        type: string
-        default: 'true'
+        type: boolean
+        default: true
       cleanup:
         description: 'Clean up test data after test'
         type: boolean
@@ -46,8 +46,8 @@ on:
         default: ''
       mock_mode:
         description: 'Mock mode'
-        type: string
-        default: 'true'
+        type: boolean
+        default: true
       cleanup:
         description: 'Clean up test data after test'
         type: boolean
