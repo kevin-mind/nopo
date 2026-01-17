@@ -5,12 +5,17 @@ import {
   type ScriptDependency,
   type Runner,
   $,
+  exec,
   type ProcessPromise,
   tmpfile,
   NOPO_APP_UID,
   NOPO_APP_GID,
 } from "../lib.ts";
-import { isBuildableService } from "../config/index.ts";
+import {
+  isBuildableService,
+  isPackageService,
+  type NormalizedService,
+} from "../config/index.ts";
 import EnvScript from "./env.ts";
 import { DockerTag } from "../docker-tag.ts";
 import { baseArgs } from "../args.ts";
@@ -112,6 +117,10 @@ export default class BuildScript extends TargetScript {
     const output = args.get<string | undefined>("output");
 
     const push = this.runner.config.processEnv.DOCKER_PUSH === "true";
+
+    // Build packages first (in dependency order), then build services
+    await this.buildPackages(targets);
+
     const bakeFile = this.generateBakeDefinition(targets, push);
 
     // If no buildable targets, skip the build but still write output file if requested
@@ -128,6 +137,230 @@ export default class BuildScript extends TargetScript {
     if (output) {
       await this.outputBuildInfo(targets, output);
     }
+  }
+
+  /**
+   * Build packages via docker run with volume mounts.
+   * Packages are built by running the base container with the project mounted,
+   * so artifacts persist to the host filesystem.
+   */
+  private async buildPackages(requestedTargets: string[]): Promise<void> {
+    const targets = this.runner.config.targets;
+
+    // Find all packages (targets without runtime configuration)
+    const allPackages = targets.filter((t) => {
+      const service = this.runner.getService(t);
+      return isPackageService(service) && service.build?.command;
+    });
+
+    if (allPackages.length === 0) {
+      return;
+    }
+
+    // Determine which packages to build
+    const packagesToConsider =
+      requestedTargets.length > 0
+        ? requestedTargets.filter((t) => allPackages.includes(t))
+        : allPackages;
+
+    // Also include packages that are dependencies of requested targets (services or packages)
+    const packagesWithDeps = this.resolvePackageDependencies(
+      requestedTargets.length > 0 ? requestedTargets : targets,
+      allPackages,
+    );
+
+    // Merge both: explicitly requested packages + dependency packages
+    const packagesToBuild = [
+      ...new Set([...packagesToConsider, ...packagesWithDeps]),
+    ];
+
+    if (packagesToBuild.length === 0) {
+      return;
+    }
+
+    // Sort packages in dependency order
+    const sortedPackages = this.sortPackagesByDependency(packagesToBuild);
+
+    this.log(
+      `Building ${sortedPackages.length} package(s): ${sortedPackages.join(", ")}`,
+    );
+
+    // Build each package via docker run
+    for (const packageName of sortedPackages) {
+      await this.buildPackage(packageName);
+    }
+  }
+
+  /**
+   * Resolve package dependencies for a set of targets.
+   * Returns all packages that are dependencies of the given targets.
+   */
+  private resolvePackageDependencies(
+    targets: string[],
+    allPackages: string[],
+  ): string[] {
+    const packageDeps = new Set<string>();
+    const visited = new Set<string>();
+
+    const collectDeps = (targetName: string) => {
+      if (visited.has(targetName)) return;
+      visited.add(targetName);
+
+      const service = this.runner.config.project.services.entries[targetName];
+      if (!service) return;
+
+      for (const dep of service.dependencies) {
+        if (allPackages.includes(dep)) {
+          packageDeps.add(dep);
+          // Recursively collect dependencies of this package
+          collectDeps(dep);
+        }
+      }
+    };
+
+    for (const target of targets) {
+      collectDeps(target);
+    }
+
+    return Array.from(packageDeps);
+  }
+
+  /**
+   * Sort packages by dependency order (dependencies first).
+   * Uses topological sort to ensure packages are built before their dependents.
+   */
+  private sortPackagesByDependency(packages: string[]): string[] {
+    const packageSet = new Set(packages);
+    const result: string[] = [];
+    const visited = new Set<string>();
+    const visiting = new Set<string>();
+
+    const visit = (name: string) => {
+      if (visited.has(name)) return;
+      if (visiting.has(name)) {
+        throw new Error(
+          `Circular dependency detected involving package '${name}'`,
+        );
+      }
+
+      visiting.add(name);
+
+      const service = this.runner.config.project.services.entries[name];
+      if (service) {
+        // Visit dependencies first (only those that are also packages to build)
+        for (const dep of service.dependencies) {
+          if (packageSet.has(dep)) {
+            visit(dep);
+          }
+        }
+      }
+
+      visiting.delete(name);
+      visited.add(name);
+      result.push(name);
+    };
+
+    for (const pkg of packages) {
+      visit(pkg);
+    }
+
+    return result;
+  }
+
+  /**
+   * Build a single package via docker run with volume mounts.
+   *
+   * The build works by:
+   * 1. Running the base Docker image
+   * 2. Mounting the project root to /app
+   * 3. Setting correct UID/GID for file permissions
+   * 4. Running the build command in the package directory
+   * 5. Artifacts are written to mounted volumes and persist to host
+   */
+  private async buildPackage(packageName: string): Promise<void> {
+    const service = this.runner.getService(packageName);
+    if (!service.build?.command) {
+      throw new Error(
+        `Package '${packageName}' has no build command configured`,
+      );
+    }
+
+    const baseTag = this.runner.environment.env.DOCKER_TAG;
+    if (!baseTag) {
+      throw new Error("DOCKER_TAG is required for package builds");
+    }
+
+    const projectRoot = this.runner.config.root;
+    const packageRelativePath = path.relative(projectRoot, service.paths.root);
+
+    this.log(`Building package '${packageName}'...`);
+
+    // Build the docker run command with volume mounts
+    const dockerArgs = this.buildDockerRunArgs(service, packageRelativePath);
+
+    try {
+      // Execute docker run with explicit args to handle spaces in command
+      const result = await exec("docker", dockerArgs, {
+        cwd: projectRoot,
+        env: this.env,
+        verbose: true,
+      });
+
+      if (result.exitCode !== 0) {
+        throw new Error(
+          `Package '${packageName}' build failed with exit code ${result.exitCode}\n${result.stderr}`,
+        );
+      }
+
+      this.log(`Package '${packageName}' built successfully`);
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new Error(
+          `Failed to build package '${packageName}': ${error.message}`,
+        );
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Build the docker run arguments for a package build.
+   */
+  private buildDockerRunArgs(
+    service: NormalizedService,
+    packageRelativePath: string,
+  ): string[] {
+    const baseTag = this.runner.environment.env.DOCKER_TAG;
+    const projectRoot = this.runner.config.root;
+
+    const args: string[] = [
+      "run",
+      "--rm",
+      // Mount the project root to /app
+      "-v",
+      `${projectRoot}:/app`,
+      // Set user for correct file permissions
+      "-u",
+      `${NOPO_APP_UID}:${NOPO_APP_GID}`,
+      // Set working directory to the package path
+      "-w",
+      `/app/${packageRelativePath}`,
+    ];
+
+    // Add build environment variables if specified
+    if (service.build?.env) {
+      for (const [key, value] of Object.entries(service.build.env)) {
+        args.push("-e", `${key}=${value}`);
+      }
+    }
+
+    // Add the base image
+    args.push(baseTag);
+
+    // Add the build command (run via sh -c to support complex commands)
+    args.push("sh", "-c", service.build!.command!);
+
+    return args;
   }
 
   private generateBakeDefinition(
