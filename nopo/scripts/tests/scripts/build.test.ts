@@ -172,6 +172,8 @@ describe("build", () => {
       expect(bakeDefinition.target.backend.contexts).toEqual({
         root: "target:root",
       });
+      // Verify NOPO_BASE_IMAGE is passed to service builds to resolve FROM correctly
+      expect(bakeDefinition.target.backend.args.NOPO_BASE_IMAGE).toBe("root");
     });
 
     it("builds multiple services in parallel", async () => {

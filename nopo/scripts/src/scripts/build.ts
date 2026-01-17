@@ -248,6 +248,7 @@ export default class BuildScript extends TargetScript {
           SERVICE_NAME: target,
           NOPO_APP_UID,
           NOPO_APP_GID,
+          NOPO_BASE_IMAGE: rootName,
         },
       };
 
