@@ -66,7 +66,9 @@ export default class ListScript extends Script {
 
     // Parse filter expressions from string[]
     const filterStrings = args.get<string[]>("filter") ?? [];
-    const filters: FilterExpression[] = filterStrings.map(parseFilterExpression);
+    const filters: FilterExpression[] = filterStrings.map(
+      parseFilterExpression,
+    );
 
     const since = args.get<string | undefined>("since");
     const jqFilter = args.get<string | undefined>("jq");

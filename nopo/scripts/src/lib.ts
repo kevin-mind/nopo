@@ -613,7 +613,6 @@ export class Script<TArgs = void> extends BaseScript {
   static args?: ScriptArgs;
   static parseArgs?(runner: Runner, isDependency: boolean): unknown;
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async fn(_args?: TArgs | unknown): Promise<void> {
     throw new Error("Not implemented");
   }
@@ -622,12 +621,10 @@ export class Script<TArgs = void> extends BaseScript {
 export abstract class TargetScript<TArgs = void> extends BaseScript {
   static args?: ScriptArgs;
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   static parseArgs(_runner: Runner, _isDependency: boolean): unknown {
     throw new Error("parseArgs must be implemented by TargetScript subclasses");
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async fn(_args?: TArgs | unknown): Promise<void> {
     throw new Error("Not implemented");
   }
@@ -858,7 +855,10 @@ export class Runner {
       // Find dependency definition in parent
       type DependencyDef = {
         class: typeof BaseScript;
-        args?: (parentArgs: ScriptArgs, runner: Runner) => Record<string, unknown>;
+        args?: (
+          parentArgs: ScriptArgs,
+          runner: Runner,
+        ) => Record<string, unknown>;
       };
       const parentDeps =
         (ParentScript as unknown as { dependencies?: DependencyDef[] })

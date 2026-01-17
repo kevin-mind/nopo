@@ -41,6 +41,17 @@ const config: ReturnType<typeof tseslint.config> = tseslint.config(
   eslintPluginPrettier,
   includeIgnoreFile(gitignorePath),
   {
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+        },
+      ],
+    },
+  },
+  {
     ignores: [
       "**/.react-router/**",
       "**/.vscode/**",

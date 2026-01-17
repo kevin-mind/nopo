@@ -5,7 +5,7 @@ import ListScript from "../../src/scripts/list.ts";
 import { createTmpEnv, runScript, createTestConfig } from "../utils.ts";
 
 // Track mock calls for assertions
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+
 const mockGetChangedFiles = vi.fn((_ref?: string) => [
   "apps/backend/src/index.ts",
 ]);
