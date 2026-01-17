@@ -5,4 +5,6 @@ os:
     image: alpine:3.19
 
 services:
-  dir: ./services
+  dirs:
+    - ./services
+    - ./packages

@@ -19,24 +19,24 @@ export type FilterExpression = {
  * Supported formats:
  * - "buildable"           -> preset filter (services that can be built)
  * - "changed"             -> preset filter (services with changed files)
- * - "package"             -> preset filter (packages - build-only, no runtime)
- * - "service"             -> preset filter (services - has runtime configuration)
+ * - "package"/"packages"  -> preset filter (packages - build-only, no runtime)
+ * - "service"/"services"  -> preset filter (services - has runtime configuration)
  * - "!fieldname"          -> field does not exist
  * - "fieldname"           -> field exists
  * - "fieldname=value"     -> field equals value
  */
 export function parseFilterExpression(expr: string): FilterExpression {
-  // Named presets
+  // Named presets (support both singular and plural forms)
   if (expr === "buildable") {
     return { type: "preset", field: "buildable" };
   }
   if (expr === "changed") {
     return { type: "preset", field: "changed" };
   }
-  if (expr === "package") {
+  if (expr === "package" || expr === "packages") {
     return { type: "preset", field: "package" };
   }
-  if (expr === "service") {
+  if (expr === "service" || expr === "services") {
     return { type: "preset", field: "service" };
   }
 

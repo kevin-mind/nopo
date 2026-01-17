@@ -23,6 +23,19 @@ export function createTestConfig(
 ) {
   return createConfig({
     rootDir: PROJECT_ROOT,
+    // Provide clean processEnv by default to isolate tests from real environment
+    processEnv: {},
+    ...options,
+  });
+}
+
+export function createFixtureConfig(
+  options: Omit<Parameters<typeof createConfig>[0], "rootDir"> = {},
+) {
+  return createConfig({
+    rootDir: FIXTURES_ROOT,
+    // Provide clean processEnv by default to isolate tests from real environment
+    processEnv: {},
     ...options,
   });
 }
