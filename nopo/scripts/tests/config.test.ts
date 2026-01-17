@@ -54,7 +54,7 @@ name: api
 description: Public API
 dockerfile: Dockerfile
 static_path: build
-infrastructure:
+runtime:
   cpu: "2"
   memory: "1Gi"
   port: 8080
@@ -73,7 +73,7 @@ infrastructure:
 
     const api = project.services.entries.api;
     expect(api).toBeDefined();
-    expect(api?.infrastructure.cpu).toBe("2");
+    expect(api?.runtime?.cpu).toBe("2");
     expect(api?.staticPath).toBe("build");
   });
 
@@ -89,7 +89,7 @@ services:
 name: db
 description: Database
 image: postgres:16
-infrastructure:
+runtime:
   port: 5432
 `,
       },
@@ -114,7 +114,7 @@ name: Defaults
         worker: `
 name: worker
 dockerfile: Dockerfile
-infrastructure: {}
+runtime: {}
 `,
       },
     });
@@ -128,8 +128,8 @@ infrastructure: {}
       jq: "",
       curl: "",
     });
-    expect(worker?.infrastructure.memory).toBe("512Mi");
-    expect(worker?.infrastructure.port).toBe(3000);
+    expect(worker?.runtime?.memory).toBe("512Mi");
+    expect(worker?.runtime?.port).toBe(3000);
   });
 
   it("skips directories without nopo.yml", () => {
@@ -173,5 +173,158 @@ commands:
     expect(commandOnlyService).toBeDefined();
     expect(commandOnlyService?.paths.dockerfile).toBeUndefined();
     expect(commandOnlyService?.image).toBeUndefined();
+  });
+
+  it("identifies packages (no runtime) vs services", () => {
+    const root = createProject({
+      rootConfig: `
+name: Mixed Project
+services:
+  dir: ./apps
+`,
+      services: {
+        // Service: has runtime
+        backend: `
+name: backend
+dockerfile: Dockerfile
+runtime:
+  port: 8080
+`,
+        // Package: no runtime
+        ui: `
+name: ui
+description: Shared UI components
+commands:
+  compile: pnpm build
+`,
+      },
+    });
+
+    const config = loadProjectConfig(root);
+
+    // Backend is a service (has runtime)
+    const backend = config.services.entries.backend;
+    expect(backend).toBeDefined();
+    expect(backend?.type).toBe("service");
+
+    // UI is a package (no runtime)
+    const ui = config.services.entries.ui;
+    expect(ui).toBeDefined();
+    expect(ui?.type).toBe("package");
+  });
+
+  it("supports runtime schema with command", () => {
+    const root = createProject({
+      rootConfig: `
+name: Runtime Schema
+services:
+  dir: ./apps
+`,
+      services: {
+        api: `
+name: api
+dockerfile: Dockerfile
+runtime:
+  command: node server.js
+  port: 3000
+  cpu: "2"
+  memory: "1Gi"
+`,
+      },
+    });
+
+    const config = loadProjectConfig(root);
+    const api = config.services.entries.api;
+
+    expect(api).toBeDefined();
+    expect(api?.type).toBe("service");
+    expect(api?.runtime).toBeDefined();
+    expect(api?.runtime?.command).toBe("node server.js");
+    expect(api?.runtime?.port).toBe(3000);
+    expect(api?.runtime?.cpu).toBe("2");
+  });
+
+  it("supports new build schema", () => {
+    const root = createProject({
+      rootConfig: `
+name: Build Schema
+services:
+  dir: ./apps
+`,
+      services: {
+        web: `
+name: web
+build:
+  command: pnpm build
+  output:
+    - ./dist
+    - ./public
+  dockerfile: Dockerfile
+  packages:
+    - chromium
+  env:
+    NODE_ENV: production
+runtime:
+  port: 3000
+`,
+      },
+    });
+
+    const config = loadProjectConfig(root);
+    const web = config.services.entries.web;
+
+    expect(web).toBeDefined();
+    expect(web?.build).toBeDefined();
+    expect(web?.build?.command).toBe("pnpm build");
+    expect(web?.build?.output).toEqual(["./dist", "./public"]);
+    expect(web?.build?.dockerfile).toBe("Dockerfile");
+    expect(web?.build?.packages).toEqual(["chromium"]);
+    expect(web?.build?.env).toEqual({ NODE_ENV: "production" });
+  });
+
+  it("normalizes build.output from string to array", () => {
+    const root = createProject({
+      rootConfig: `
+name: Single Output
+services:
+  dir: ./apps
+`,
+      services: {
+        lib: `
+name: lib
+build:
+  command: pnpm build
+  output: ./dist
+`,
+      },
+    });
+
+    const config = loadProjectConfig(root);
+    const lib = config.services.entries.lib;
+
+    expect(lib?.build?.output).toEqual(["./dist"]);
+  });
+
+  it("identifies services with image as services (not packages)", () => {
+    const root = createProject({
+      rootConfig: `
+name: Image Service
+services:
+  dir: ./apps
+`,
+      services: {
+        db: `
+name: db
+image: postgres:16
+`,
+      },
+    });
+
+    const config = loadProjectConfig(root);
+    const db = config.services.entries.db;
+
+    expect(db).toBeDefined();
+    expect(db?.type).toBe("service");
+    expect(db?.runtime).toBeUndefined();
   });
 });

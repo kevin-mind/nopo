@@ -27,7 +27,8 @@ function createMockService(
     name: "Test Service",
     description: "",
     staticPath: "build",
-    infrastructure: {
+    type: "service",
+    runtime: {
       cpu: "1",
       memory: "512Mi",
       port: 3000,
@@ -59,16 +60,26 @@ describe("parseFilterExpression", () => {
     expect(result).toEqual({ type: "preset", field: "changed" });
   });
 
+  it("parses package preset", () => {
+    const result = parseFilterExpression("package");
+    expect(result).toEqual({ type: "preset", field: "package" });
+  });
+
+  it("parses service preset", () => {
+    const result = parseFilterExpression("service");
+    expect(result).toEqual({ type: "preset", field: "service" });
+  });
+
   it("parses negation expression", () => {
     const result = parseFilterExpression("!image");
     expect(result).toEqual({ type: "not_exists", field: "image" });
   });
 
   it("parses equality expression", () => {
-    const result = parseFilterExpression("infrastructure.cpu=2");
+    const result = parseFilterExpression("runtime.cpu=2");
     expect(result).toEqual({
       type: "equals",
-      field: "infrastructure.cpu",
+      field: "runtime.cpu",
       value: "2",
     });
   });
@@ -90,7 +101,7 @@ describe("parseFilterExpression", () => {
 
 describe("getFieldValue", () => {
   const service = createMockService({
-    infrastructure: {
+    runtime: {
       cpu: "2",
       memory: "1Gi",
       port: 8080,
@@ -106,15 +117,13 @@ describe("getFieldValue", () => {
   });
 
   it("gets nested field with dot notation", () => {
-    expect(getFieldValue(service, "infrastructure.cpu")).toBe("2");
-    expect(getFieldValue(service, "infrastructure.hasDatabase")).toBe(true);
+    expect(getFieldValue(service, "runtime.cpu")).toBe("2");
+    expect(getFieldValue(service, "runtime.hasDatabase")).toBe(true);
   });
 
   it("returns undefined for non-existent field", () => {
     expect(getFieldValue(service, "nonexistent")).toBeUndefined();
-    expect(
-      getFieldValue(service, "infrastructure.nonexistent"),
-    ).toBeUndefined();
+    expect(getFieldValue(service, "runtime.nonexistent")).toBeUndefined();
   });
 
   it("returns undefined for invalid path on non-object", () => {
@@ -170,6 +179,30 @@ describe("matchesFilter", () => {
       const filter: FilterExpression = { type: "preset", field: "changed" };
       expect(matchesFilter(service, filter, context)).toBe(false);
     });
+
+    it("matches package preset for packages (type=package)", () => {
+      const pkg = createMockService({ type: "package", runtime: undefined });
+      const filter: FilterExpression = { type: "preset", field: "package" };
+      expect(matchesFilter(pkg, filter, context)).toBe(true);
+    });
+
+    it("does not match package preset for services (type=service)", () => {
+      const service = createMockService({ type: "service" });
+      const filter: FilterExpression = { type: "preset", field: "package" };
+      expect(matchesFilter(service, filter, context)).toBe(false);
+    });
+
+    it("matches service preset for services (type=service)", () => {
+      const service = createMockService({ type: "service" });
+      const filter: FilterExpression = { type: "preset", field: "service" };
+      expect(matchesFilter(service, filter, context)).toBe(true);
+    });
+
+    it("does not match service preset for packages (type=package)", () => {
+      const pkg = createMockService({ type: "package", runtime: undefined });
+      const filter: FilterExpression = { type: "preset", field: "service" };
+      expect(matchesFilter(pkg, filter, context)).toBe(false);
+    });
   });
 
   describe("exists filter", () => {
@@ -205,7 +238,7 @@ describe("matchesFilter", () => {
       const service = createMockService();
       const filter: FilterExpression = {
         type: "equals",
-        field: "infrastructure.cpu",
+        field: "runtime.cpu",
         value: "1",
       };
       expect(matchesFilter(service, filter, context)).toBe(true);
@@ -215,7 +248,7 @@ describe("matchesFilter", () => {
       const service = createMockService();
       const filter: FilterExpression = {
         type: "equals",
-        field: "infrastructure.cpu",
+        field: "runtime.cpu",
         value: "2",
       };
       expect(matchesFilter(service, filter, context)).toBe(false);
@@ -235,7 +268,7 @@ describe("matchesFilter", () => {
       const service = createMockService();
       const filter: FilterExpression = {
         type: "equals",
-        field: "infrastructure.port",
+        field: "runtime.port",
         value: "3000",
       };
       expect(matchesFilter(service, filter, context)).toBe(true);

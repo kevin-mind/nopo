@@ -1,6 +1,13 @@
 name: Complex Fixture Service
+description: A complex service with runtime configuration
 
 dockerfile: Dockerfile
+
+# Runtime config makes this a "service" (not a package)
+runtime:
+  cpu: "1"
+  memory: "256Mi"
+  port: 3000
 
 commands:
   test: echo "FIXTURE_COMPLEX_TEST_SUCCESS"

@@ -1,7 +1,7 @@
 name: nginx
 description: Nginx reverse proxy that routes traffic to backend services.
 image: nginx:latest
-infrastructure:
+runtime:
   cpu: "0.5"
   memory: "128Mi"
   port: 80

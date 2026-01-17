@@ -1,9 +1,19 @@
 name: Dependent Fixture Service
+description: A service that depends on both services and packages
 
 dockerfile: Dockerfile
 
+# Runtime config makes this a "service" (not a package)
+runtime:
+  cpu: "1"
+  memory: "256Mi"
+  port: 4000
+
+# Depends on both a service (minimal) and packages (shared, utils)
 dependencies:
   - minimal
+  - shared
+  - utils
 
 commands:
   test:

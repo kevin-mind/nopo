@@ -1,0 +1,8 @@
+name: Shared Package
+description: Shared utilities used by services
+
+# No runtime or image - this is a package
+commands:
+  test: echo "FIXTURE_SHARED_TEST_SUCCESS"
+  check: echo "FIXTURE_SHARED_CHECK_SUCCESS"
+  compile: echo "FIXTURE_SHARED_COMPILE_SUCCESS"
