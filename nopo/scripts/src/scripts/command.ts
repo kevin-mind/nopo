@@ -98,7 +98,7 @@ export default class CommandScript extends Script {
     filter: {
       type: "string",
       description: "Filter expression to select services",
-      alias: "F",
+      alias: ["F"],
       default: undefined as unknown as string,
     },
     since: {

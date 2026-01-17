@@ -858,7 +858,7 @@ export class Runner {
       // Find dependency definition in parent
       type DependencyDef = {
         class: typeof BaseScript;
-        args?: (parentArgs: ScriptArgs) => Record<string, unknown>;
+        args?: (parentArgs: ScriptArgs, runner: Runner) => Record<string, unknown>;
       };
       const parentDeps =
         (ParentScript as unknown as { dependencies?: DependencyDef[] })
