@@ -70,17 +70,15 @@ jobs:
       push: ${{ needs.context.outputs.is_fork == 'false' }}
       services: ${{ needs.discover.outputs.services }}
   test:
-    if: ${{ needs.build.result == 'success' && needs.discover.outputs.services_json != '[]' }}
+    if: ${{ needs.discover.outputs.services_json != '[]' }}
     permissions:
       contents: read
       packages: read
     uses: ./.github/workflows/_test.yml
     secrets: inherit
     with:
-      tag: ${{ needs.build.outputs.tag }}
       services: ${{ needs.discover.outputs.services_json }}
     needs:
-      - build
       - context
       - discover
   testNopo:
