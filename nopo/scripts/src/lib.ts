@@ -569,7 +569,7 @@ export class Logger {
 export interface ScriptDependency {
   class: typeof BaseScript;
   enabled: boolean | ((runner: Runner) => boolean | Promise<boolean>);
-  args?: (parentArgs: ScriptArgs) => Record<string, unknown>;
+  args?: (parentArgs: ScriptArgs, runner: Runner) => Record<string, unknown>;
 }
 
 export abstract class BaseScript {
@@ -762,6 +762,23 @@ export class Runner {
     return ScriptClass.prototype instanceof TargetScript;
   }
 
+  /**
+   * Get extra targets defined by a script (e.g., build script adds rootName)
+   */
+  private getExtraTargets(ScriptClass: typeof BaseScript): string[] {
+    const getExtraTargets = (
+      ScriptClass as unknown as {
+        getExtraTargets?: (runner: Runner) => string[];
+      }
+    ).getExtraTargets;
+
+    if (typeof getExtraTargets === "function") {
+      return getExtraTargets(this);
+    }
+
+    return [];
+  }
+
   private createScriptInstance(
     ScriptClass: typeof BaseScript,
     runner: Runner,
@@ -878,7 +895,7 @@ export class Runner {
           }
         }
 
-        const overrides = depDef.args(parentArgs);
+        const overrides = depDef.args(parentArgs, this);
 
         // Apply overrides (including targets!)
         for (const [key, value] of Object.entries(overrides)) {
@@ -895,11 +912,15 @@ export class Runner {
       if (this.isTargetScript(ScriptToRun)) {
         const TargetScriptClass = ScriptToRun as typeof TargetScript;
 
+        // Check for extra targets (e.g., build script adds rootName)
+        const extraTargets = this.getExtraTargets(TargetScriptClass);
+        const availableTargets = [...extraTargets, ...this.config.targets];
+
         // 1. Parse targets from positionals
         const parsed = parseTargetArgs(
           TargetScriptClass.name,
           this.argv.slice(1),
-          this.config.targets,
+          availableTargets,
           {
             supportsFilter: true,
             services: this.config.project.services.entries,

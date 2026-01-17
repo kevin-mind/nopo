@@ -13,13 +13,8 @@ import {
 import { isBuildableService } from "../config/index.ts";
 import EnvScript from "./env.ts";
 import { DockerTag } from "../docker-tag.ts";
-import { parseTargetArgs } from "../target-args.ts";
-
-type BuildCliArgs = {
-  targets: string[];
-  noCache: boolean;
-  output?: string;
-};
+import { baseArgs } from "../args.ts";
+import type { ScriptArgs } from "../script-args.ts";
 
 interface BakeTarget {
   context: string;
@@ -46,7 +41,7 @@ interface BakeDefinition {
 const SERVICE_IMAGE_SUFFIX = "_IMAGE";
 const DEFAULT_PLATFORMS = "linux/amd64,linux/arm64";
 
-export default class BuildScript extends TargetScript<BuildCliArgs> {
+export default class BuildScript extends TargetScript {
   static override name = "build";
   static override description = "Build root image and service images";
   static override dependencies: ScriptDependency[] = [
@@ -56,34 +51,25 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
     },
   ];
 
-  // Build uses old parseArgs pattern because it has a special root target
-  // (config.rootName) that isn't a regular service and needs custom handling
-  static override parseArgs(
-    runner: Runner,
-    isDependency: boolean,
-  ): BuildCliArgs {
-    // When run as dependency, return default args
-    if (isDependency || runner.argv[0] !== "build") {
-      return { targets: [], noCache: false };
-    }
+  static override args = baseArgs.extend({
+    "no-cache": {
+      type: "boolean",
+      description: "Build without using cache",
+      default: false,
+    },
+    output: {
+      type: "string",
+      description: "Path to write build info JSON",
+      default: undefined as unknown as string,
+    },
+  });
 
-    const rootName = runner.config.project.rootName;
-    const argv = runner.argv.slice(1);
-    const availableTargets = [rootName, ...runner.config.targets];
-    const parsed = parseTargetArgs("build", argv, availableTargets, {
-      boolean: ["no-cache"],
-      string: ["output"],
-      alias: { "no-cache": "noCache" },
-      supportsFilter: true,
-      preFilter: { type: "preset", field: "buildable" },
-      services: runner.config.project.services.entries,
-      projectRoot: runner.config.root,
-    });
-
-    const noCache = (parsed.options["no-cache"] as boolean) === true;
-    const output = parsed.options["output"] as string | undefined;
-
-    return { targets: parsed.targets, noCache, output };
+  /**
+   * Returns extra targets that should be valid for this script.
+   * Build script adds rootName (e.g., "root") as a valid target.
+   */
+  static getExtraTargets(runner: Runner): string[] {
+    return [runner.config.project.rootName];
   }
 
   async bake(...args: string[]): Promise<ProcessPromise> {
@@ -120,23 +106,27 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
     return builder;
   }
 
-  override async fn(args: BuildCliArgs) {
+  override async fn(args: ScriptArgs) {
+    const targets = args.get<string[]>("targets") ?? [];
+    const noCache = args.get<boolean>("no-cache") ?? false;
+    const output = args.get<string | undefined>("output");
+
     const push = this.runner.config.processEnv.DOCKER_PUSH === "true";
-    const bakeFile = this.generateBakeDefinition(args.targets, push);
+    const bakeFile = this.generateBakeDefinition(targets, push);
 
     // If no buildable targets, skip the build but still write output file if requested
     if (!bakeFile) {
       this.log("Build complete - no targets to build");
-      if (args.output) {
-        this.writeEmptyOutput(args.output);
+      if (output) {
+        this.writeEmptyOutput(output);
       }
       return;
     }
 
-    await this.runBake(bakeFile, args);
+    await this.runBake(bakeFile, targets, noCache);
 
-    if (args.output) {
-      await this.outputBuildInfo(args.targets, args.output);
+    if (output) {
+      await this.outputBuildInfo(targets, output);
     }
   }
 
@@ -273,7 +263,11 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
     return tmpfile("docker-bake.json", json);
   }
 
-  private async runBake(bakeFile: string, args: BuildCliArgs): Promise<string> {
+  private async runBake(
+    bakeFile: string,
+    targets: string[],
+    noCache: boolean,
+  ): Promise<string> {
     const commandOptions = ["-f", bakeFile, "--debug", "--progress=plain"];
 
     const push = this.runner.config.processEnv.DOCKER_PUSH === "true";
@@ -284,10 +278,10 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
       tmpfile("bake-metadata.json", "{}");
 
     this.log(`
-      Building targets: ${args.targets.length > 0 ? args.targets.join(", ") : "all"}
+      Building targets: ${targets.length > 0 ? targets.join(", ") : "all"}
       - builder: "${builder ?? "(current context default)"}"
       - push: "${push}"
-      - no-cache: "${args.noCache}"
+      - no-cache: "${noCache}"
       - metadata-file: "${metadataFile}"
     `);
 
@@ -296,7 +290,7 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
     }
     commandOptions.push("--metadata-file", metadataFile);
     if (push) commandOptions.push("--push");
-    if (args.noCache) commandOptions.push("--no-cache");
+    if (noCache) commandOptions.push("--no-cache");
 
     await this.bake(...commandOptions, "--print");
     await this.bake(...commandOptions);

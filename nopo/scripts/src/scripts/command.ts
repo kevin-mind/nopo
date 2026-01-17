@@ -1,7 +1,7 @@
 import path from "node:path";
 import compose from "docker-compose";
 import {
-  TargetScript,
+  Script,
   type ScriptDependency,
   type Runner,
   exec,
@@ -24,6 +24,7 @@ import {
   type FilterContext,
 } from "../filter.ts";
 import type { CommandContext } from "../config/index.ts";
+import { ScriptArgs } from "../script-args.ts";
 
 /**
  * Check if any target container is down.
@@ -89,9 +90,29 @@ function willExecuteInContainer(
   return false;
 }
 
-export default class CommandScript extends TargetScript<CommandScriptArgs> {
+export default class CommandScript extends Script {
   static override name = "";
   static override description = "Run a command defined in nopo.yml";
+
+  static override args = new ScriptArgs({
+    filter: {
+      type: "string",
+      description: "Filter expression to select services",
+      alias: "F",
+      default: undefined as unknown as string,
+    },
+    since: {
+      type: "string",
+      description: "Date reference for changed filter",
+      default: undefined as unknown as string,
+    },
+    context: {
+      type: "string",
+      description: "Execution context (host or container)",
+      default: undefined as unknown as string,
+    },
+  });
+
   static override dependencies: ScriptDependency[] = [
     {
       class: EnvScript,
@@ -100,7 +121,7 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
     {
       class: BuildScript,
       enabled: async (runner) => {
-        const args = CommandScript.parseArgs(runner, false);
+        const args = CommandScript.parseCommandArgs(runner);
         if (args.targets.length === 0) return false;
         if (!willExecuteInContainer(runner, args)) return false;
         return (
@@ -111,7 +132,7 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
     {
       class: PullScript,
       enabled: async (runner) => {
-        const args = CommandScript.parseArgs(runner, false);
+        const args = CommandScript.parseCommandArgs(runner);
         if (args.targets.length === 0) return false;
         if (!willExecuteInContainer(runner, args)) return false;
         if (!isPull(runner)) return false;
@@ -119,17 +140,18 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
         return true;
       },
       // Pass targets from CommandScript to PullScript
-      args: (parentArgs) => ({
-        targets: parentArgs.get("targets"),
+      args: (_parentArgs, runner) => ({
+        targets: CommandScript.parseCommandArgs(runner).targets,
       }),
     },
   ];
 
-  static override parseArgs(
-    runner: Runner,
-    isDependency: boolean,
-  ): CommandScriptArgs {
-    if (isDependency || runner.argv.length === 0) {
+  /**
+   * Parse command arguments including command name, subcommand, targets, and filters.
+   * This is a static helper used by both dependencies and fn().
+   */
+  static parseCommandArgs(runner: Runner): CommandScriptArgs {
+    if (runner.argv.length === 0) {
       return {
         command: "",
         subcommand: undefined,
@@ -303,24 +325,27 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
     return false;
   }
 
-  override async fn(args: CommandScriptArgs) {
-    if (!args.command) {
+  override async fn(_args: ScriptArgs) {
+    // Parse command-specific args (command, subcommand, targets, filters)
+    const cmdArgs = CommandScript.parseCommandArgs(this.runner);
+
+    if (!cmdArgs.command) {
       throw new Error("Command name is required");
     }
 
     const project = this.runner.config.project;
 
     // Build command path with optional subcommand
-    const commandPath = args.subcommand
-      ? `${args.command}:${args.subcommand}`
-      : args.command;
+    const commandPath = cmdArgs.subcommand
+      ? `${cmdArgs.command}:${cmdArgs.subcommand}`
+      : cmdArgs.command;
 
     let targets: string[];
-    if (args.targets.length > 0) {
+    if (cmdArgs.targets.length > 0) {
       // If explicit targets are specified, validate that all of them have the command
-      validateCommandTargets(project, args.command, args.targets);
-      targets = args.targets;
-    } else if (args.explicitTargets) {
+      validateCommandTargets(project, cmdArgs.command, cmdArgs.targets);
+      targets = cmdArgs.targets;
+    } else if (cmdArgs.explicitTargets) {
       // User explicitly provided targets but they were all filtered out
       // Don't fallback to all services - just run on zero targets (effectively a no-op)
       this.log(`No targets matched after filtering`);
@@ -332,13 +357,13 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
         const service = project.services.entries[serviceId];
         if (!service) return false;
 
-        const rootCommand = args.command.split(":")[0]!;
+        const rootCommand = cmdArgs.command.split(":")[0]!;
         const cmd = service.commands[rootCommand];
         if (!cmd) return false;
 
         // If there's a subcommand, check that it exists too
-        if (args.subcommand) {
-          return !!(cmd.commands && cmd.commands[args.subcommand]);
+        if (cmdArgs.subcommand) {
+          return !!(cmd.commands && cmd.commands[cmdArgs.subcommand]);
         }
 
         return true;
@@ -364,7 +389,7 @@ export default class CommandScript extends TargetScript<CommandScriptArgs> {
 
       // Run all commands in this stage in parallel
       await Promise.all(
-        stage.map((task) => this.#executeTask(task, args.contextOverride)),
+        stage.map((task) => this.#executeTask(task, cmdArgs.contextOverride)),
       );
     }
   }

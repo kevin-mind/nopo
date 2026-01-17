@@ -4,6 +4,7 @@ import { Runner, Logger, exec } from "../../src/lib.ts";
 import { Environment } from "../../src/parse-env.ts";
 import { createTmpEnv, createTestConfig, FIXTURES_ROOT } from "../utils.ts";
 import compose from "docker-compose";
+import { ScriptArgs } from "../../src/script-args.ts";
 
 // Mock the exec function
 vi.mock("../../src/lib.ts", async (importOriginal) => {
@@ -36,7 +37,7 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
       const environment = new Environment(config);
       const runner = new Runner(config, environment, ["build", "web"], logger);
 
-      const args = CommandScript.parseArgs(runner, false);
+      const args = CommandScript.parseCommandArgs(runner);
       expect(args).toEqual({
         command: "build",
         subcommand: undefined,
@@ -55,7 +56,7 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
       const environment = new Environment(config);
       const runner = new Runner(config, environment, ["build"], logger);
 
-      const args = CommandScript.parseArgs(runner, false);
+      const args = CommandScript.parseCommandArgs(runner);
       expect(args).toEqual({
         command: "build",
         subcommand: undefined,
@@ -79,7 +80,7 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
         logger,
       );
 
-      const args = CommandScript.parseArgs(runner, false);
+      const args = CommandScript.parseCommandArgs(runner);
       // "py" is recognized as a subcommand because it exists in backend's fix command
       expect(args).toEqual({
         command: "fix",
@@ -99,7 +100,7 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
       const environment = new Environment(config);
       const runner = new Runner(config, environment, ["fix", "py"], logger);
 
-      const args = CommandScript.parseArgs(runner, false);
+      const args = CommandScript.parseCommandArgs(runner);
       expect(args).toEqual({
         command: "fix",
         subcommand: "py",
@@ -126,7 +127,7 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
       // "invalid" is not a known subcommand, so it's treated as a target
       // and should fail validation
       expect(() => {
-        CommandScript.parseArgs(runner, false);
+        CommandScript.parseCommandArgs(runner);
       }).toThrow("Unknown target 'invalid'");
     });
 
@@ -143,7 +144,7 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
         logger,
       );
 
-      const args = CommandScript.parseArgs(runner, false);
+      const args = CommandScript.parseCommandArgs(runner);
       expect(args).toEqual({
         command: "build",
         subcommand: undefined,
@@ -181,10 +182,9 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
       const environment = new Environment(config);
       const runner = new Runner(config, environment, ["test", "web"], logger);
 
-      const args = CommandScript.parseArgs(runner, false);
       const script = new CommandScript(runner);
-
-      await script.fn(args);
+      // fn() parses command args internally, so we pass an empty ScriptArgs
+      await script.fn(new ScriptArgs({}, runner));
 
       expect(exec).toHaveBeenCalled();
       // Check that exec was called with the right command
@@ -211,10 +211,9 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
         logger,
       );
 
-      const args = CommandScript.parseArgs(runner, false);
       const script = new CommandScript(runner);
-
-      await script.fn(args);
+      // fn() parses command args internally, so we pass an empty ScriptArgs
+      await script.fn(new ScriptArgs({}, runner));
 
       // Should execute on both backend and web
       expect(exec).toHaveBeenCalledTimes(2);
@@ -234,10 +233,9 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
         logger,
       );
 
-      const args = CommandScript.parseArgs(runner, false);
       const script = new CommandScript(runner);
-
-      await expect(script.fn(args)).rejects.toThrow(
+      // fn() parses command args internally, so we pass an empty ScriptArgs
+      await expect(script.fn(new ScriptArgs({}, runner))).rejects.toThrow(
         /does not define command 'undefined-command'/,
       );
     });
@@ -253,7 +251,7 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
       const environment = new Environment(config);
       const runner = new Runner(config, environment, ["fix", "py"], logger);
 
-      const args = CommandScript.parseArgs(runner, false);
+      const args = CommandScript.parseCommandArgs(runner);
       expect(args.command).toBe("fix");
       expect(args.subcommand).toBe("py");
       expect(args.targets).toEqual([]);
@@ -273,7 +271,7 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
         logger,
       );
 
-      const args = CommandScript.parseArgs(runner, false);
+      const args = CommandScript.parseCommandArgs(runner);
       expect(args.command).toBe("fix");
       expect(args.subcommand).toBe("py");
       expect(args.targets).toEqual(["backend"]);
@@ -288,7 +286,7 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
       const environment = new Environment(config);
       const runner = new Runner(config, environment, ["build", "web"], logger);
 
-      const args = CommandScript.parseArgs(runner, false);
+      const args = CommandScript.parseCommandArgs(runner);
       // "web" is not a subcommand of "build", so treat as target
       expect(args.command).toBe("build");
       expect(args.subcommand).toBeUndefined();
@@ -313,10 +311,9 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
         logger,
       );
 
-      const args = CommandScript.parseArgs(runner, false);
       const script = new CommandScript(runner);
-
-      await script.fn(args);
+      // fn() parses command args internally, so we pass an empty ScriptArgs
+      await script.fn(new ScriptArgs({}, runner));
 
       // Should use docker-compose run, not exec
       expect(compose.run).toHaveBeenCalled();
@@ -348,11 +345,12 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
         logger,
       );
 
-      const args = CommandScript.parseArgs(runner, false);
+      const args = CommandScript.parseCommandArgs(runner);
       expect(args.contextOverride).toBe("container");
 
       const script = new CommandScript(runner);
-      await script.fn(args);
+      // fn() parses command args internally, so we pass an empty ScriptArgs
+      await script.fn(new ScriptArgs({}, runner));
 
       // Should use docker-compose run due to --context container flag
       expect(compose.run).toHaveBeenCalled();
@@ -383,11 +381,12 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
         logger,
       );
 
-      const args = CommandScript.parseArgs(runner, false);
+      const args = CommandScript.parseCommandArgs(runner);
       expect(args.contextOverride).toBe("host");
 
       const script = new CommandScript(runner);
-      await script.fn(args);
+      // fn() parses command args internally, so we pass an empty ScriptArgs
+      await script.fn(new ScriptArgs({}, runner));
 
       // Should use exec (host) due to --context host override
       expect(exec).toHaveBeenCalled();
@@ -417,10 +416,9 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
         logger,
       );
 
-      const args = CommandScript.parseArgs(runner, false);
       const script = new CommandScript(runner);
-
-      await script.fn(args);
+      // fn() parses command args internally, so we pass an empty ScriptArgs
+      await script.fn(new ScriptArgs({}, runner));
 
       // Subcommand should inherit container context from parent
       expect(compose.run).toHaveBeenCalled();
@@ -449,10 +447,9 @@ describe("CommandScript (run commands defined in nopo.yml)", () => {
         logger,
       );
 
-      const args = CommandScript.parseArgs(runner, false);
       const script = new CommandScript(runner);
-
-      await script.fn(args);
+      // fn() parses command args internally, so we pass an empty ScriptArgs
+      await script.fn(new ScriptArgs({}, runner));
 
       // Should set --workdir to container path (not host path)
       expect(compose.run).toHaveBeenCalledWith(
