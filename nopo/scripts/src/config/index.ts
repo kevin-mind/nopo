@@ -280,7 +280,7 @@ type ServiceRuntimeInput = z.infer<typeof ServiceRuntimeSchema>;
 type ServiceBuildInput = z.infer<typeof ServiceBuildSchema>;
 
 // Runtime resources (renamed from infrastructure, with optional command)
-export interface NormalizedServiceRuntime {
+interface NormalizedServiceRuntime {
   command?: string;
   cpu: string;
   memory: string;
@@ -292,7 +292,7 @@ export interface NormalizedServiceRuntime {
 }
 
 // Build configuration
-export interface NormalizedServiceBuild {
+interface NormalizedServiceBuild {
   command?: string;
   output?: string[];
   dockerfile?: string;
@@ -575,11 +575,12 @@ function discoverServices(
     const build = normalizeBuild(parsed.build, parsed.dockerfile);
 
     // A target is a "service" if it has runtime configuration or image, otherwise it's a "package"
-    const targetType: TargetType = parsed.runtime || parsed.image ? "service" : "package";
+    const targetType: TargetType =
+      parsed.runtime || parsed.image ? "service" : "package";
 
     // Determine dockerfile path (prefer build.dockerfile over legacy top-level)
     const dockerfilePath =
-      build?.dockerfile ?? parsed.dockerfile
+      (build?.dockerfile ?? parsed.dockerfile)
         ? path.resolve(serviceRoot, build?.dockerfile ?? parsed.dockerfile!)
         : undefined;
 

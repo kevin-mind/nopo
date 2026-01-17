@@ -123,9 +123,7 @@ describe("getFieldValue", () => {
 
   it("returns undefined for non-existent field", () => {
     expect(getFieldValue(service, "nonexistent")).toBeUndefined();
-    expect(
-      getFieldValue(service, "runtime.nonexistent"),
-    ).toBeUndefined();
+    expect(getFieldValue(service, "runtime.nonexistent")).toBeUndefined();
   });
 
   it("returns undefined for invalid path on non-object", () => {

@@ -199,9 +199,10 @@ export default class ListScript extends Script<ListCliArgs> {
     // Print rows
     for (const service of services) {
       const config = configs[service]!;
-      const typeLabel = config.type === "package"
-        ? chalk.blue("package")
-        : chalk.magenta("service");
+      const typeLabel =
+        config.type === "package"
+          ? chalk.blue("package")
+          : chalk.magenta("service");
       const row = [
         chalk.yellow(service.padEnd(columns[0]!.width)),
         typeLabel.padEnd(columns[1]!.width + 9), // +9 for color codes
