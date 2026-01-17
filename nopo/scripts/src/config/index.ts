@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { globSync } from "glob";
 import { parse as parseYaml } from "yaml";
 import { z } from "zod";
 
@@ -477,6 +478,98 @@ function normalizeBaseImage(
   return { from: fromImage };
 }
 
+/**
+ * Resolve directory patterns to actual directories.
+ * Supports glob patterns (e.g., "./apps/*") and exclusion patterns (prefixed with "!").
+ *
+ * @param patterns - Array of directory patterns, where patterns prefixed with "!" are exclusions
+ * @param rootDir - The project root directory for resolving relative paths
+ * @returns Array of resolved, unique directory paths
+ */
+function resolveDirectoryPatterns(
+  patterns: string[],
+  rootDir: string,
+): string[] {
+  const includeDirs = new Set<string>();
+  const excludePatterns: string[] = [];
+
+  // Separate include patterns from exclude patterns
+  for (const pattern of patterns) {
+    if (pattern.startsWith("!")) {
+      // Exclusion pattern - store for later filtering
+      excludePatterns.push(pattern.slice(1));
+    } else {
+      // Include pattern - could be literal path or glob
+      const isGlobPattern =
+        pattern.includes("*") || pattern.includes("?") || pattern.includes("[");
+
+      if (isGlobPattern) {
+        // Use glob to expand pattern
+        // Use mark: true to add trailing slash to directories, then filter
+        const matches = globSync(pattern, {
+          cwd: rootDir,
+          absolute: true,
+          mark: true,
+        });
+        for (const match of matches) {
+          // Only include directories (marked with trailing slash)
+          if (match.endsWith("/")) {
+            includeDirs.add(match.slice(0, -1)); // Remove trailing slash
+          } else if (fs.existsSync(match) && fs.statSync(match).isDirectory()) {
+            // Fallback: check if it's a directory without trailing slash
+            includeDirs.add(match);
+          }
+        }
+      } else {
+        // Literal directory path
+        const resolvedDir = path.resolve(rootDir, pattern);
+        if (!fs.existsSync(resolvedDir)) {
+          throw new Error(
+            `Configured services.dir "${pattern}" does not exist (resolved to ${resolvedDir}).`,
+          );
+        }
+        includeDirs.add(resolvedDir);
+      }
+    }
+  }
+
+  // Apply exclusion patterns
+  if (excludePatterns.length > 0) {
+    const excludeDirs = new Set<string>();
+    for (const pattern of excludePatterns) {
+      const isGlobPattern =
+        pattern.includes("*") || pattern.includes("?") || pattern.includes("[");
+
+      if (isGlobPattern) {
+        // Use mark: true to add trailing slash to directories, then filter
+        const matches = globSync(pattern, {
+          cwd: rootDir,
+          absolute: true,
+          mark: true,
+        });
+        for (const match of matches) {
+          // Only include directories (marked with trailing slash)
+          if (match.endsWith("/")) {
+            excludeDirs.add(match.slice(0, -1)); // Remove trailing slash
+          } else if (fs.existsSync(match) && fs.statSync(match).isDirectory()) {
+            // Fallback: check if it's a directory without trailing slash
+            excludeDirs.add(match);
+          }
+        }
+      } else {
+        excludeDirs.add(path.resolve(rootDir, pattern));
+      }
+    }
+
+    // Remove excluded directories
+    for (const dir of excludeDirs) {
+      includeDirs.delete(dir);
+    }
+  }
+
+  return Array.from(includeDirs).sort();
+}
+
 function normalizeServices(
   servicesConfig: ProjectConfig["services"],
   rootDir: string,
@@ -485,19 +578,13 @@ function normalizeServices(
   rootConfigPath: string,
 ): NormalizedServicesConfig {
   const entries: Record<string, NormalizedService> = {};
-  const resolvedDirs: string[] = [];
 
-  for (const dir of servicesConfig.dirs) {
-    const resolvedDir = path.resolve(rootDir, dir);
+  // Resolve directory patterns (including globs and exclusions)
+  const resolvedDirs = resolveDirectoryPatterns(servicesConfig.dirs, rootDir);
 
-    if (!fs.existsSync(resolvedDir)) {
-      throw new Error(
-        `Configured services.dir "${dir}" does not exist (resolved to ${resolvedDir}).`,
-      );
-    }
-
-    resolvedDirs.push(resolvedDir);
-    discoverServices(resolvedDir, entries, rootDir, rootName);
+  // Discover services in each resolved directory
+  for (const servicesDir of resolvedDirs) {
+    discoverServices(servicesDir, entries, rootDir, rootName);
   }
 
   // Add the root service if it has commands
@@ -604,8 +691,11 @@ function discoverServices(
     };
 
     if (entries[serviceId]) {
+      const existingPath = entries[serviceId]!.configPath;
       throw new Error(
-        `Duplicate service "${serviceId}" found. Service IDs must be unique.`,
+        `Duplicate service "${serviceId}" found at "${serviceConfigPath}". ` +
+          `A service with this ID already exists at "${existingPath}". ` +
+          `Service IDs must be unique across all service directories.`,
       );
     }
     entries[serviceId] = normalized;
