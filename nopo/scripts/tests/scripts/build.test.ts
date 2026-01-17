@@ -560,4 +560,157 @@ describe("build", () => {
       );
     });
   });
+
+  describe("virtual Dockerfiles", () => {
+    const baseTag = "kevin-mind/nopo:local";
+
+    it("generates inline Dockerfile for services without physical Dockerfile", async () => {
+      const config = createFixtureConfig({
+        envFile: createTmpEnv({
+          DOCKER_TAG: baseTag,
+        }),
+        silent: true,
+      });
+
+      await runScript(BuildScript, config, ["build", "virtual"]);
+
+      const bakeFilePath = mockBake?.mock.calls?.[0]?.find((arg: string) =>
+        arg.endsWith("docker-bake.json"),
+      );
+      expect(bakeFilePath).toBeDefined();
+
+      const bakeContent = fs.readFileSync(bakeFilePath, "utf-8");
+      const bakeDefinition = JSON.parse(bakeContent);
+
+      // Should have dockerfile_inline instead of dockerfile
+      expect(bakeDefinition.target.virtual).toBeDefined();
+      expect(bakeDefinition.target.virtual.dockerfile).toBeUndefined();
+      expect(bakeDefinition.target.virtual.dockerfile_inline).toBeDefined();
+    });
+
+    it("includes build command in generated Dockerfile", async () => {
+      const config = createFixtureConfig({
+        envFile: createTmpEnv({
+          DOCKER_TAG: baseTag,
+        }),
+        silent: true,
+      });
+
+      await runScript(BuildScript, config, ["build", "virtual"]);
+
+      const bakeFilePath = mockBake?.mock.calls?.[0]?.find((arg: string) =>
+        arg.endsWith("docker-bake.json"),
+      );
+      const bakeContent = fs.readFileSync(bakeFilePath, "utf-8");
+      const bakeDefinition = JSON.parse(bakeContent);
+
+      const dockerfile = bakeDefinition.target.virtual.dockerfile_inline;
+      expect(dockerfile).toContain('RUN echo "Building virtual package"');
+    });
+
+    it("includes OS packages in generated Dockerfile", async () => {
+      const config = createFixtureConfig({
+        envFile: createTmpEnv({
+          DOCKER_TAG: baseTag,
+        }),
+        silent: true,
+      });
+
+      await runScript(BuildScript, config, ["build", "virtual"]);
+
+      const bakeFilePath = mockBake?.mock.calls?.[0]?.find((arg: string) =>
+        arg.endsWith("docker-bake.json"),
+      );
+      const bakeContent = fs.readFileSync(bakeFilePath, "utf-8");
+      const bakeDefinition = JSON.parse(bakeContent);
+
+      const dockerfile = bakeDefinition.target.virtual.dockerfile_inline;
+      expect(dockerfile).toContain("RUN apk add --no-cache curl");
+    });
+
+    it("includes build environment variables in generated Dockerfile", async () => {
+      const config = createFixtureConfig({
+        envFile: createTmpEnv({
+          DOCKER_TAG: baseTag,
+        }),
+        silent: true,
+      });
+
+      await runScript(BuildScript, config, ["build", "virtual"]);
+
+      const bakeFilePath = mockBake?.mock.calls?.[0]?.find((arg: string) =>
+        arg.endsWith("docker-bake.json"),
+      );
+      const bakeContent = fs.readFileSync(bakeFilePath, "utf-8");
+      const bakeDefinition = JSON.parse(bakeContent);
+
+      const dockerfile = bakeDefinition.target.virtual.dockerfile_inline;
+      expect(dockerfile).toContain("ENV NODE_ENV=production");
+      expect(dockerfile).toContain("ENV BUILD_FLAG=enabled");
+    });
+
+    it("generates per-output COPY statements in final stage", async () => {
+      const config = createFixtureConfig({
+        envFile: createTmpEnv({
+          DOCKER_TAG: baseTag,
+        }),
+        silent: true,
+      });
+
+      await runScript(BuildScript, config, ["build", "virtual"]);
+
+      const bakeFilePath = mockBake?.mock.calls?.[0]?.find((arg: string) =>
+        arg.endsWith("docker-bake.json"),
+      );
+      const bakeContent = fs.readFileSync(bakeFilePath, "utf-8");
+      const bakeDefinition = JSON.parse(bakeContent);
+
+      const dockerfile = bakeDefinition.target.virtual.dockerfile_inline;
+      // Should have separate COPY for each output path
+      expect(dockerfile).toContain("COPY --from=virtual-build");
+      expect(dockerfile).toContain("${APP}/dist ${APP}/dist");
+      expect(dockerfile).toContain("${APP}/lib ${APP}/lib");
+    });
+
+    it("generates correct build and final stage names", async () => {
+      const config = createFixtureConfig({
+        envFile: createTmpEnv({
+          DOCKER_TAG: baseTag,
+        }),
+        silent: true,
+      });
+
+      await runScript(BuildScript, config, ["build", "virtual"]);
+
+      const bakeFilePath = mockBake?.mock.calls?.[0]?.find((arg: string) =>
+        arg.endsWith("docker-bake.json"),
+      );
+      const bakeContent = fs.readFileSync(bakeFilePath, "utf-8");
+      const bakeDefinition = JSON.parse(bakeContent);
+
+      const dockerfile = bakeDefinition.target.virtual.dockerfile_inline;
+      expect(dockerfile).toContain("FROM ${NOPO_BASE_IMAGE} AS virtual-build");
+      expect(dockerfile).toContain("FROM ${NOPO_BASE_IMAGE} AS virtual");
+    });
+
+    it("sets SERVICE_NAME environment variable in final stage", async () => {
+      const config = createFixtureConfig({
+        envFile: createTmpEnv({
+          DOCKER_TAG: baseTag,
+        }),
+        silent: true,
+      });
+
+      await runScript(BuildScript, config, ["build", "virtual"]);
+
+      const bakeFilePath = mockBake?.mock.calls?.[0]?.find((arg: string) =>
+        arg.endsWith("docker-bake.json"),
+      );
+      const bakeContent = fs.readFileSync(bakeFilePath, "utf-8");
+      const bakeDefinition = JSON.parse(bakeContent);
+
+      const dockerfile = bakeDefinition.target.virtual.dockerfile_inline;
+      expect(dockerfile).toContain("ENV SERVICE_NAME=${SERVICE_NAME}");
+    });
+  });
 });

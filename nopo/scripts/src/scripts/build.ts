@@ -14,7 +14,10 @@ import {
 import {
   isBuildableService,
   isPackageService,
+  isVirtualBuildableService,
+  requiresBuild,
   type NormalizedService,
+  type VirtualBuildableService,
 } from "../config/index.ts";
 import EnvScript from "./env.ts";
 import { DockerTag } from "../docker-tag.ts";
@@ -23,7 +26,8 @@ import type { ScriptArgs } from "../script-args.ts";
 
 interface BakeTarget {
   context: string;
-  dockerfile: string;
+  dockerfile?: string;
+  dockerfile_inline?: string;
   tags: string[];
   target?: string;
   args?: Record<string, string>;
@@ -374,10 +378,10 @@ export default class BuildScript extends TargetScript {
     // Multi-platform builds only work with registry push (type=docker doesn't support multi-platform)
     const platforms = push ? this.getPlatforms() : undefined;
 
-    // Filter to only buildable services (those with dockerfiles, not pre-built images)
+    // Filter to buildable services (physical dockerfile or virtual dockerfile)
     const buildableTargets = targets.filter((t) => {
       const service = this.runner.getService(t);
-      return isBuildableService(service);
+      return requiresBuild(service);
     });
 
     const allTargets = [rootName, ...buildableTargets];
@@ -454,36 +458,58 @@ export default class BuildScript extends TargetScript {
       if (!buildTargets.includes(target)) continue;
 
       const service = this.runner.getService(target);
-      if (!isBuildableService(service)) continue; // Type guard
-
       const serviceTag = this.serviceImageTag(target);
-      const dockerfile = service.paths.dockerfile;
-
-      if (!fs.existsSync(dockerfile)) {
-        throw new Error(`Target '${target}' is missing ${dockerfile}.`);
-      }
-
       const relativeContext =
         path.relative(this.runner.config.root, service.paths.context) || ".";
-      const relativeDockerfile =
-        path.relative(this.runner.config.root, dockerfile) || dockerfile;
 
-      definition.target[target] = {
-        context: relativeContext,
-        dockerfile: relativeDockerfile,
-        tags: [serviceTag],
-        ...(push ? {} : { output: ["type=docker"] }),
-        ...(platforms ? { platforms } : {}),
-        contexts: {
-          [rootName]: `target:${rootName}`,
-        },
-        args: {
-          SERVICE_NAME: target,
-          NOPO_APP_UID,
-          NOPO_APP_GID,
-          NOPO_BASE_IMAGE: rootName,
-        },
-      };
+      if (isBuildableService(service)) {
+        // Physical Dockerfile
+        const dockerfile = service.paths.dockerfile;
+
+        if (!fs.existsSync(dockerfile)) {
+          throw new Error(`Target '${target}' is missing ${dockerfile}.`);
+        }
+
+        const relativeDockerfile =
+          path.relative(this.runner.config.root, dockerfile) || dockerfile;
+
+        definition.target[target] = {
+          context: relativeContext,
+          dockerfile: relativeDockerfile,
+          tags: [serviceTag],
+          ...(push ? {} : { output: ["type=docker"] }),
+          ...(platforms ? { platforms } : {}),
+          contexts: {
+            [rootName]: `target:${rootName}`,
+          },
+          args: {
+            SERVICE_NAME: target,
+            NOPO_APP_UID,
+            NOPO_APP_GID,
+            NOPO_BASE_IMAGE: rootName,
+          },
+        };
+      } else if (isVirtualBuildableService(service)) {
+        // Virtual inline Dockerfile
+        const dockerfileInline = this.generateInlineDockerfile(service);
+
+        definition.target[target] = {
+          context: relativeContext,
+          dockerfile_inline: dockerfileInline,
+          tags: [serviceTag],
+          ...(push ? {} : { output: ["type=docker"] }),
+          ...(platforms ? { platforms } : {}),
+          contexts: {
+            [rootName]: `target:${rootName}`,
+          },
+          args: {
+            SERVICE_NAME: target,
+            NOPO_APP_UID,
+            NOPO_APP_GID,
+            NOPO_BASE_IMAGE: rootName,
+          },
+        };
+      }
 
       this.runner.environment.setExtraEnv(
         this.serviceEnvKey(target),
@@ -495,6 +521,104 @@ export default class BuildScript extends TargetScript {
 
     const json = JSON.stringify(definition, null, 2);
     return tmpfile("docker-bake.json", json);
+  }
+
+  /**
+   * Generate an inline Dockerfile for services without a physical Dockerfile.
+   * The generated Dockerfile follows the pattern:
+   * - Build stage: install packages, set env, copy files, run build command
+   * - Final stage: copy only the specified output paths
+   */
+  private generateInlineDockerfile(service: VirtualBuildableService): string {
+    const serviceName = service.id;
+    const build = service.build;
+
+    const lines: string[] = [];
+
+    // Header args
+    lines.push("ARG NOPO_BASE_IMAGE=base");
+    lines.push("ARG SERVICE_NAME");
+    lines.push("ARG NOPO_APP_UID");
+    lines.push("ARG NOPO_APP_GID");
+    lines.push("");
+
+    // Build stage
+    lines.push(`FROM \${NOPO_BASE_IMAGE} AS ${serviceName}-build`);
+    lines.push("");
+    lines.push("ARG NOPO_APP_UID");
+    lines.push("ARG NOPO_APP_GID");
+    lines.push("");
+
+    // Install OS packages if specified
+    if (build.packages && build.packages.length > 0) {
+      const packages = build.packages.join(" ");
+      lines.push("RUN apk add --no-cache " + packages);
+      lines.push("");
+    }
+
+    // Copy source files
+    lines.push("COPY --chown=${NOPO_APP_UID}:${NOPO_APP_GID} . .");
+    lines.push("");
+
+    // Set build environment variables
+    if (build.env && Object.keys(build.env).length > 0) {
+      for (const [key, value] of Object.entries(build.env)) {
+        lines.push(`ENV ${key}=${this.escapeDockerEnvValue(value)}`);
+      }
+      lines.push("");
+    }
+
+    // Run build command
+    lines.push(`RUN ${build.command}`);
+    lines.push("");
+
+    // Final stage
+    lines.push(`FROM \${NOPO_BASE_IMAGE} AS ${serviceName}`);
+    lines.push("");
+    lines.push("ARG SERVICE_NAME");
+    lines.push("ARG NOPO_APP_UID");
+    lines.push("ARG NOPO_APP_GID");
+    lines.push("");
+
+    // Copy only the specified output paths, or fallback to copying everything
+    if (build.output && build.output.length > 0) {
+      for (const outputPath of build.output) {
+        lines.push(
+          `COPY --from=${serviceName}-build --chown=\${NOPO_APP_UID}:\${NOPO_APP_GID} \${APP}/${outputPath} \${APP}/${outputPath}`,
+        );
+      }
+      // Also copy the home directory for dependencies
+      lines.push(
+        `COPY --from=${serviceName}-build --chown=\${NOPO_APP_UID}:\${NOPO_APP_GID} \${HOME} \${HOME}`,
+      );
+    } else {
+      // No output specified - copy everything (like traditional Dockerfile)
+      lines.push(
+        `COPY --from=${serviceName}-build --chown=\${NOPO_APP_UID}:\${NOPO_APP_GID} \${APP} \${APP}`,
+      );
+      lines.push(
+        `COPY --from=${serviceName}-build --chown=\${NOPO_APP_UID}:\${NOPO_APP_GID} \${HOME} \${HOME}`,
+      );
+    }
+    lines.push("");
+
+    // Set service name environment variable
+    lines.push("ENV SERVICE_NAME=${SERVICE_NAME}");
+    lines.push("");
+
+    return lines.join("\n");
+  }
+
+  /**
+   * Escape a value for use in a Dockerfile ENV statement.
+   * Wraps values containing spaces in quotes.
+   */
+  private escapeDockerEnvValue(value: string): string {
+    if (value.includes(" ") || value.includes("$") || value.includes('"')) {
+      // Escape quotes and wrap in quotes
+      return `"${value.replace(/"/g, '\\"')}"`;
+    }
+    return value;
   }
 
   private async runBake(

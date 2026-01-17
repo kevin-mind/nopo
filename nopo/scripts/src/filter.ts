@@ -1,5 +1,5 @@
 import {
-  isBuildableService,
+  requiresBuild,
   isPackageService,
   isRunnableService,
   type NormalizedService,
@@ -107,7 +107,7 @@ export function matchesFilter(
   switch (filter.type) {
     case "preset":
       if (filter.field === "buildable") {
-        return isBuildableService(service);
+        return requiresBuild(service);
       }
       if (filter.field === "changed") {
         return hasChangedFiles(service, context);
