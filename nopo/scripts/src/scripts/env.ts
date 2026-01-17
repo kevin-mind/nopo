@@ -7,6 +7,7 @@ export default class EnvScript extends Script {
 
   static override args = new ScriptArgs({});
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   override async fn(_args: ScriptArgs) {
     const { chalk } = this.runner.logger;
 
