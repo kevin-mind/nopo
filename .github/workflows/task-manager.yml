@@ -1,0 +1,405 @@
+name: Task Manager
+run-name: Task Manager - ${{ github.event_name == 'schedule' && 'Scheduled' || 'Manual' }}
+
+on:
+  schedule:
+    # Run every 30 minutes
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (no assignments)'
+        type: boolean
+        default: false
+      monthly_budget:
+        description: 'Monthly token budget'
+        type: number
+        default: 10000000
+      five_hour_budget:
+        description: 'Five-hour token budget'
+        type: number
+        default: 500000
+      tokens_per_run:
+        description: 'Estimated tokens per Claude run'
+        type: number
+        default: 100000
+
+permissions:
+  contents: read
+  issues: write
+  actions: read
+
+defaults:
+  run:
+    shell: bash
+
+# Only one task manager instance at a time
+concurrency:
+  group: task-manager
+  cancel-in-progress: false
+
+jobs:
+  manage-queue:
+    runs-on: ubuntu-latest
+    outputs:
+      monthly_usage: ${{ steps.budget.outputs.monthly_usage }}
+      five_hour_usage: ${{ steps.budget.outputs.five_hour_usage }}
+      monthly_budget: ${{ steps.budget.outputs.monthly_budget }}
+      five_hour_budget: ${{ steps.budget.outputs.five_hour_budget }}
+      under_budget: ${{ steps.budget.outputs.under_budget }}
+      assigned_issue: ${{ steps.assign.outputs.issue_number }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Calculate token budget usage
+        id: budget
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MONTHLY_BUDGET: ${{ inputs.monthly_budget || 10000000 }}
+          FIVE_HOUR_BUDGET: ${{ inputs.five_hour_budget || 500000 }}
+          TOKENS_PER_RUN: ${{ inputs.tokens_per_run || 100000 }}
+        run: |
+          echo "::group::Budget Configuration"
+          echo "Monthly budget: $MONTHLY_BUDGET tokens"
+          echo "Five-hour budget: $FIVE_HOUR_BUDGET tokens"
+          echo "Estimated tokens per run: $TOKENS_PER_RUN"
+          echo "::endgroup::"
+
+          # Get current time and calculate time boundaries
+          now=$(date -u +%s)
+          month_start=$(date -u -d "$(date -u +%Y-%m-01)" +%s)
+          five_hours_ago=$((now - 5 * 60 * 60))
+
+          # Convert to ISO8601 for GitHub API
+          month_start_iso=$(date -u -d "@$month_start" +%Y-%m-%dT%H:%M:%SZ)
+          five_hours_ago_iso=$(date -u -d "@$five_hours_ago" +%Y-%m-%dT%H:%M:%SZ)
+
+          echo "::group::Time Boundaries"
+          echo "Month start: $month_start_iso"
+          echo "Five hours ago: $five_hours_ago_iso"
+          echo "::endgroup::"
+
+          # Count Claude workflow runs this month (completed runs only)
+          monthly_runs=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/$GITHUB_REPOSITORY/actions/workflows/claude.yml/runs?status=completed&created=>=$month_start_iso&per_page=100" \
+            --jq '.total_count' 2>/dev/null || echo "0")
+
+          # Count Claude workflow runs in last 5 hours
+          five_hour_runs=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/$GITHUB_REPOSITORY/actions/workflows/claude.yml/runs?status=completed&created=>=$five_hours_ago_iso&per_page=100" \
+            --jq '.total_count' 2>/dev/null || echo "0")
+
+          echo "::group::Workflow Run Counts"
+          echo "Monthly runs: $monthly_runs"
+          echo "Five-hour runs: $five_hour_runs"
+          echo "::endgroup::"
+
+          # Calculate estimated token usage
+          monthly_usage=$((monthly_runs * TOKENS_PER_RUN))
+          five_hour_usage=$((five_hour_runs * TOKENS_PER_RUN))
+
+          echo "::group::Token Usage Estimates"
+          echo "Monthly usage: $monthly_usage tokens ($(printf "%.1f" $(echo "scale=1; $monthly_usage * 100 / $MONTHLY_BUDGET" | bc))%)"
+          echo "Five-hour usage: $five_hour_usage tokens ($(printf "%.1f" $(echo "scale=1; $five_hour_usage * 100 / $FIVE_HOUR_BUDGET" | bc))%)"
+          echo "::endgroup::"
+
+          # Determine if under budget
+          if [[ $monthly_usage -lt $MONTHLY_BUDGET && $five_hour_usage -lt $FIVE_HOUR_BUDGET ]]; then
+            under_budget="true"
+            echo "::notice::Under budget - eligible to assign new work"
+          else
+            under_budget="false"
+            if [[ $monthly_usage -ge $MONTHLY_BUDGET ]]; then
+              echo "::warning::Monthly budget exceeded ($monthly_usage >= $MONTHLY_BUDGET)"
+            fi
+            if [[ $five_hour_usage -ge $FIVE_HOUR_BUDGET ]]; then
+              echo "::warning::Five-hour budget exceeded ($five_hour_usage >= $FIVE_HOUR_BUDGET)"
+            fi
+          fi
+
+          # Set outputs
+          echo "monthly_usage=$monthly_usage" >> $GITHUB_OUTPUT
+          echo "five_hour_usage=$five_hour_usage" >> $GITHUB_OUTPUT
+          echo "monthly_budget=$MONTHLY_BUDGET" >> $GITHUB_OUTPUT
+          echo "five_hour_budget=$FIVE_HOUR_BUDGET" >> $GITHUB_OUTPUT
+          echo "under_budget=$under_budget" >> $GITHUB_OUTPUT
+          echo "monthly_runs=$monthly_runs" >> $GITHUB_OUTPUT
+          echo "five_hour_runs=$five_hour_runs" >> $GITHUB_OUTPUT
+
+          # Save data for burn down chart
+          cat > /tmp/budget-data.json << EOF
+          {
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "monthly": {
+              "runs": $monthly_runs,
+              "usage": $monthly_usage,
+              "budget": $MONTHLY_BUDGET,
+              "percentage": $(echo "scale=2; $monthly_usage * 100 / $MONTHLY_BUDGET" | bc)
+            },
+            "five_hour": {
+              "runs": $five_hour_runs,
+              "usage": $five_hour_usage,
+              "budget": $FIVE_HOUR_BUDGET,
+              "percentage": $(echo "scale=2; $five_hour_usage * 100 / $FIVE_HOUR_BUDGET" | bc)
+            },
+            "under_budget": $under_budget
+          }
+          EOF
+
+      - name: Find ready unassigned issue
+        id: find_issue
+        if: steps.budget.outputs.under_budget == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "::group::Searching for Ready issues"
+
+          repo_name="${GITHUB_REPOSITORY#*/}"
+          owner="${GITHUB_REPOSITORY%/*}"
+
+          # Query issues with project status via GraphQL
+          result=$(gh api graphql -f query='
+            query($owner: String!, $repo: String!) {
+              repository(owner: $owner, name: $repo) {
+                issues(first: 50, states: OPEN, orderBy: {field: CREATED_AT, direction: ASC}) {
+                  nodes {
+                    number
+                    title
+                    assignees(first: 1) { totalCount }
+                    labels(first: 10) {
+                      nodes { name }
+                    }
+                    projectItems(first: 5) {
+                      nodes {
+                        fieldValueByName(name: "Status") {
+                          ... on ProjectV2ItemFieldSingleSelectValue { name }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ' -f owner="$owner" -f repo="$repo_name")
+
+          # Find first unassigned issue with Status == "Ready"
+          issue=$(echo "$result" | jq -c '
+            [.data.repository.issues.nodes[] |
+             select(.assignees.totalCount == 0) |
+             select(.projectItems.nodes | any(.fieldValueByName.name == "Ready")) |
+             {number: .number, title: .title}
+            ] | first // null
+          ')
+
+          if [[ -n "$issue" && "$issue" != "null" ]]; then
+            issue_number=$(echo "$issue" | jq -r '.number')
+            issue_title=$(echo "$issue" | jq -r '.title')
+            echo "Found Ready issue: #$issue_number - $issue_title"
+            echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
+            echo "issue_title=$issue_title" >> $GITHUB_OUTPUT
+          else
+            echo "No Ready unassigned issues found"
+            echo "issue_number=" >> $GITHUB_OUTPUT
+          fi
+
+          echo "::endgroup::"
+
+      - name: Assign nopo-bot to issue
+        id: assign
+        if: steps.find_issue.outputs.issue_number != '' && inputs.dry_run != true
+        env:
+          # Use PAT_TOKEN to trigger the Claude workflow
+          # GITHUB_TOKEN actions don't trigger new workflows
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          ISSUE_NUMBER: ${{ steps.find_issue.outputs.issue_number }}
+          ISSUE_TITLE: ${{ steps.find_issue.outputs.issue_title }}
+        run: |
+          echo "::group::Assigning nopo-bot to issue #$ISSUE_NUMBER"
+
+          gh issue edit "$ISSUE_NUMBER" --add-assignee "nopo-bot" --repo "$GITHUB_REPOSITORY"
+
+          echo "::notice::Assigned nopo-bot to issue #$ISSUE_NUMBER: $ISSUE_TITLE"
+          echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
+
+          echo "::endgroup::"
+
+      - name: Dry run - would assign
+        if: steps.find_issue.outputs.issue_number != '' && inputs.dry_run == true
+        env:
+          ISSUE_NUMBER: ${{ steps.find_issue.outputs.issue_number }}
+          ISSUE_TITLE: ${{ steps.find_issue.outputs.issue_title }}
+        run: |
+          echo "::notice::[DRY RUN] Would assign nopo-bot to issue #$ISSUE_NUMBER: $ISSUE_TITLE"
+
+      - name: Generate burn down chart
+        id: chart
+        run: |
+          # Generate an SVG burn down chart
+          monthly_usage=${{ steps.budget.outputs.monthly_usage }}
+          monthly_budget=${{ steps.budget.outputs.monthly_budget }}
+          five_hour_usage=${{ steps.budget.outputs.five_hour_usage }}
+          five_hour_budget=${{ steps.budget.outputs.five_hour_budget }}
+
+          # Calculate percentages
+          monthly_pct=$(echo "scale=2; $monthly_usage * 100 / $monthly_budget" | bc)
+          five_hour_pct=$(echo "scale=2; $five_hour_usage * 100 / $five_hour_budget" | bc)
+
+          # Clamp to 100%
+          monthly_bar=$(echo "scale=0; if ($monthly_pct > 100) 100 else $monthly_pct / 1" | bc)
+          five_hour_bar=$(echo "scale=0; if ($five_hour_pct > 100) 100 else $five_hour_pct / 1" | bc)
+
+          # Calculate bar widths (max 300px)
+          monthly_width=$((monthly_bar * 3))
+          five_hour_width=$((five_hour_bar * 3))
+
+          # Determine bar colors
+          if [[ $monthly_bar -lt 50 ]]; then
+            monthly_color="#22c55e"  # green
+          elif [[ $monthly_bar -lt 80 ]]; then
+            monthly_color="#f59e0b"  # amber
+          else
+            monthly_color="#ef4444"  # red
+          fi
+
+          if [[ $five_hour_bar -lt 50 ]]; then
+            five_hour_color="#22c55e"  # green
+          elif [[ $five_hour_bar -lt 80 ]]; then
+            five_hour_color="#f59e0b"  # amber
+          else
+            five_hour_color="#ef4444"  # red
+          fi
+
+          # Format numbers with commas
+          format_number() {
+            echo "$1" | sed ':a;s/\B[0-9]\{3\}\>$/,&/;ta'
+          }
+
+          monthly_usage_fmt=$(format_number $monthly_usage)
+          monthly_budget_fmt=$(format_number $monthly_budget)
+          five_hour_usage_fmt=$(format_number $five_hour_usage)
+          five_hour_budget_fmt=$(format_number $five_hour_budget)
+
+          # Generate SVG
+          cat > /tmp/burn-down-chart.svg << EOF
+          <svg xmlns="http://www.w3.org/2000/svg" width="400" height="200" viewBox="0 0 400 200">
+            <style>
+              text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+              .title { font-size: 16px; font-weight: bold; fill: #1f2937; }
+              .label { font-size: 12px; fill: #6b7280; }
+              .value { font-size: 11px; fill: #374151; }
+              .timestamp { font-size: 10px; fill: #9ca3af; }
+            </style>
+
+            <!-- Background -->
+            <rect width="400" height="200" fill="#f9fafb" rx="8"/>
+
+            <!-- Title -->
+            <text x="20" y="30" class="title">Token Budget Usage</text>
+            <text x="20" y="48" class="timestamp">Generated: $(date -u +"%Y-%m-%d %H:%M UTC")</text>
+
+            <!-- Monthly Budget -->
+            <text x="20" y="80" class="label">Monthly Budget</text>
+            <rect x="20" y="88" width="300" height="20" fill="#e5e7eb" rx="4"/>
+            <rect x="20" y="88" width="$monthly_width" height="20" fill="$monthly_color" rx="4"/>
+            <text x="330" y="102" class="value">${monthly_pct}%</text>
+            <text x="20" y="120" class="value">${monthly_usage_fmt} / ${monthly_budget_fmt} tokens</text>
+
+            <!-- Five Hour Budget -->
+            <text x="20" y="145" class="label">5-Hour Budget</text>
+            <rect x="20" y="153" width="300" height="20" fill="#e5e7eb" rx="4"/>
+            <rect x="20" y="153" width="$five_hour_width" height="20" fill="$five_hour_color" rx="4"/>
+            <text x="330" y="167" class="value">${five_hour_pct}%</text>
+            <text x="20" y="185" class="value">${five_hour_usage_fmt} / ${five_hour_budget_fmt} tokens</text>
+          </svg>
+          EOF
+
+          echo "Chart generated at /tmp/burn-down-chart.svg"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: task-manager-data
+          path: |
+            /tmp/budget-data.json
+            /tmp/burn-down-chart.svg
+          retention-days: 30
+
+      - name: Summary
+        env:
+          MONTHLY_USAGE: ${{ steps.budget.outputs.monthly_usage }}
+          MONTHLY_BUDGET: ${{ steps.budget.outputs.monthly_budget }}
+          FIVE_HOUR_USAGE: ${{ steps.budget.outputs.five_hour_usage }}
+          FIVE_HOUR_BUDGET: ${{ steps.budget.outputs.five_hour_budget }}
+          UNDER_BUDGET: ${{ steps.budget.outputs.under_budget }}
+          ASSIGNED_ISSUE: ${{ steps.assign.outputs.issue_number }}
+          FOUND_ISSUE: ${{ steps.find_issue.outputs.issue_number }}
+          FOUND_TITLE: ${{ steps.find_issue.outputs.issue_title }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          # Calculate percentages
+          monthly_pct=$(echo "scale=1; $MONTHLY_USAGE * 100 / $MONTHLY_BUDGET" | bc)
+          five_hour_pct=$(echo "scale=1; $FIVE_HOUR_USAGE * 100 / $FIVE_HOUR_BUDGET" | bc)
+
+          # Determine status emoji
+          if [[ "$UNDER_BUDGET" == "true" ]]; then
+            status_emoji=":white_check_mark:"
+            status_text="Under budget"
+          else
+            status_emoji=":warning:"
+            status_text="Over budget"
+          fi
+
+          # Write summary
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## Task Manager Summary
+
+          ### Budget Status: $status_emoji $status_text
+
+          | Metric | Usage | Budget | Percentage |
+          |--------|-------|--------|------------|
+          | Monthly | $(printf "%'d" $MONTHLY_USAGE) tokens | $(printf "%'d" $MONTHLY_BUDGET) tokens | ${monthly_pct}% |
+          | 5-Hour | $(printf "%'d" $FIVE_HOUR_USAGE) tokens | $(printf "%'d" $FIVE_HOUR_BUDGET) tokens | ${five_hour_pct}% |
+
+          EOF
+
+          if [[ -n "$FOUND_ISSUE" ]]; then
+            if [[ "$DRY_RUN" == "true" ]]; then
+              cat >> $GITHUB_STEP_SUMMARY << EOF
+          ### :eyes: Dry Run
+
+          Would have assigned **nopo-bot** to issue [#$FOUND_ISSUE](${{ github.server_url }}/${{ github.repository }}/issues/$FOUND_ISSUE): $FOUND_TITLE
+
+          EOF
+            elif [[ -n "$ASSIGNED_ISSUE" ]]; then
+              cat >> $GITHUB_STEP_SUMMARY << EOF
+          ### :robot: Assignment
+
+          Assigned **nopo-bot** to issue [#$ASSIGNED_ISSUE](${{ github.server_url }}/${{ github.repository }}/issues/$ASSIGNED_ISSUE): $FOUND_TITLE
+
+          EOF
+            fi
+          elif [[ "$UNDER_BUDGET" == "true" ]]; then
+            cat >> $GITHUB_STEP_SUMMARY << EOF
+          ### :inbox_tray: Queue Empty
+
+          No unassigned issues with "Ready" status found.
+
+          EOF
+          else
+            cat >> $GITHUB_STEP_SUMMARY << EOF
+          ### :pause_button: Paused
+
+          Over budget - not assigning new work.
+
+          EOF
+          fi
+
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ---
+
+          :bar_chart: [Download burn down chart](artifacts)
+
+          EOF
