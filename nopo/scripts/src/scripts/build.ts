@@ -504,8 +504,8 @@ export default class BuildScript extends TargetScript {
           },
           args: {
             SERVICE_NAME: target,
-            NOPO_APP_UID,
-            NOPO_APP_GID,
+            // Note: NOPO_APP_UID and NOPO_APP_GID are inherited as ENV from base image
+            // Don't pass them as args to avoid Docker Buildx bake variable cycle errors
           },
         };
       }
@@ -530,6 +530,9 @@ export default class BuildScript extends TargetScript {
    *
    * Note: Uses the context name directly (e.g., "root") instead of an ARG to avoid
    * Docker Buildx bake "variable cycle" errors when the arg value matches a target name.
+   *
+   * NOPO_APP_UID and NOPO_APP_GID are inherited as ENV variables from the base image,
+   * so we don't need to declare them as ARGs.
    */
   private generateInlineDockerfile(
     service: VirtualBuildableService,
@@ -540,17 +543,9 @@ export default class BuildScript extends TargetScript {
 
     const lines: string[] = [];
 
-    // Header args - note: we don't use ARG for base image to avoid variable cycle
-    lines.push("ARG SERVICE_NAME");
-    lines.push("ARG NOPO_APP_UID");
-    lines.push("ARG NOPO_APP_GID");
-    lines.push("");
-
     // Build stage - use context name directly instead of ARG
+    // NOPO_APP_UID and NOPO_APP_GID are inherited as ENV from base image
     lines.push(`FROM ${baseContextName} AS ${serviceName}-build`);
-    lines.push("");
-    lines.push("ARG NOPO_APP_UID");
-    lines.push("ARG NOPO_APP_GID");
     lines.push("");
 
     // Install OS packages if specified
@@ -560,7 +555,7 @@ export default class BuildScript extends TargetScript {
       lines.push("");
     }
 
-    // Copy source files
+    // Copy source files - use ENV variables inherited from base image
     lines.push("COPY --chown=${NOPO_APP_UID}:${NOPO_APP_GID} . .");
     lines.push("");
 
@@ -580,8 +575,6 @@ export default class BuildScript extends TargetScript {
     lines.push(`FROM ${baseContextName} AS ${serviceName}`);
     lines.push("");
     lines.push("ARG SERVICE_NAME");
-    lines.push("ARG NOPO_APP_UID");
-    lines.push("ARG NOPO_APP_GID");
     lines.push("");
 
     // Copy only the specified output paths, or fallback to copying everything
