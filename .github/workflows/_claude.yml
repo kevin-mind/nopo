@@ -227,19 +227,37 @@ jobs:
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
           git fetch origin main
+
+          # Check if rebase is needed
+          if git merge-base --is-ancestor origin/main HEAD; then
+            echo "Branch is already up to date with main - skipping rebase"
+            exit 0
+          fi
+
+          # Store current HEAD to detect if rebase changed anything
+          head_before=$(git rev-parse HEAD)
+
           if ! git rebase origin/main; then
             git rebase --abort
             echo "::error::Rebase failed due to conflicts. Please resolve conflicts manually before re-running."
             exit 1
           fi
-          # Amend + push with PAT to trigger CI workflows
-          # Only if branch has commits beyond main (don't amend main's commits)
+
+          head_after=$(git rev-parse HEAD)
+
+          # Only push if rebase actually changed something
+          if [[ "$head_before" == "$head_after" ]]; then
+            echo "Rebase did not change HEAD - skipping push"
+            exit 0
+          fi
+
           # Clear the GITHUB_TOKEN credential and use PAT instead
           git config --unset-all http.https://github.com/.extraheader || true
           git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$PAT_TOKEN" | base64)"
+
           if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
-            git commit --amend --no-edit
             git push origin "$BRANCH_NAME" --force-with-lease
+            echo "Rebased and pushed changes"
           else
             echo "No commits beyond main - skipping push"
           fi
@@ -389,19 +407,37 @@ jobs:
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
           git fetch origin main
+
+          # Check if rebase is needed
+          if git merge-base --is-ancestor origin/main HEAD; then
+            echo "Branch is already up to date with main - skipping rebase"
+            exit 0
+          fi
+
+          # Store current HEAD to detect if rebase changed anything
+          head_before=$(git rev-parse HEAD)
+
           if ! git rebase origin/main; then
             git rebase --abort
             echo "::error::Rebase failed due to conflicts. Please resolve conflicts manually before re-running."
             exit 1
           fi
-          # Amend + push with PAT to trigger CI workflows
-          # Only if branch has commits beyond main (don't amend main's commits)
+
+          head_after=$(git rev-parse HEAD)
+
+          # Only push if rebase actually changed something
+          if [[ "$head_before" == "$head_after" ]]; then
+            echo "Rebase did not change HEAD - skipping push"
+            exit 0
+          fi
+
           # Clear the GITHUB_TOKEN credential and use PAT instead
           git config --unset-all http.https://github.com/.extraheader || true
           git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$PAT_TOKEN" | base64)"
+
           if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
-            git commit --amend --no-edit
             git push origin "$BRANCH_NAME" --force-with-lease
+            echo "Rebased and pushed changes"
           else
             echo "No commits beyond main - skipping push"
           fi
