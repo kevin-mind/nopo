@@ -11,14 +11,14 @@ on:
         description: 'Dry run (no assignments)'
         type: boolean
         default: false
-      monthly_budget:
-        description: 'Monthly token budget (input + output tokens)'
+      five_hour_limit:
+        description: 'Five-hour utilization limit (%)'
         type: number
-        default: 50000000
-      daily_budget:
-        description: 'Daily token budget (input + output tokens)'
+        default: 80
+      seven_day_limit:
+        description: 'Seven-day utilization limit (%)'
         type: number
-        default: 5000000
+        default: 80
 
 permissions:
   contents: read
@@ -38,153 +38,105 @@ jobs:
   manage-queue:
     runs-on: ubuntu-latest
     outputs:
-      monthly_usage: ${{ steps.budget.outputs.monthly_usage }}
-      daily_usage: ${{ steps.budget.outputs.daily_usage }}
-      monthly_budget: ${{ steps.budget.outputs.monthly_budget }}
-      daily_budget: ${{ steps.budget.outputs.daily_budget }}
-      under_budget: ${{ steps.budget.outputs.under_budget }}
+      five_hour_usage: ${{ steps.usage.outputs.five_hour_usage }}
+      seven_day_usage: ${{ steps.usage.outputs.seven_day_usage }}
+      under_limit: ${{ steps.usage.outputs.under_limit }}
       assigned_issue: ${{ steps.assign.outputs.issue_number }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Fetch Claude Code usage from Anthropic API
-        id: budget
+      - name: Fetch Claude Code usage from OAuth API
+        id: usage
         env:
-          ANTHROPIC_ADMIN_API_KEY: ${{ secrets.ANTHROPIC_ADMIN_API_KEY }}
-          MONTHLY_BUDGET: ${{ inputs.monthly_budget || 50000000 }}
-          DAILY_BUDGET: ${{ inputs.daily_budget || 5000000 }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          FIVE_HOUR_LIMIT: ${{ inputs.five_hour_limit || 80 }}
+          SEVEN_DAY_LIMIT: ${{ inputs.seven_day_limit || 80 }}
         run: |
-          echo "::group::Budget Configuration"
-          echo "Monthly budget: $MONTHLY_BUDGET tokens"
-          echo "Daily budget: $DAILY_BUDGET tokens"
+          echo "::group::Usage Limits Configuration"
+          echo "Five-hour limit: ${FIVE_HOUR_LIMIT}%"
+          echo "Seven-day limit: ${SEVEN_DAY_LIMIT}%"
           echo "::endgroup::"
 
-          # Check if API key is available
-          if [[ -z "$ANTHROPIC_ADMIN_API_KEY" ]]; then
-            echo "::error::ANTHROPIC_ADMIN_API_KEY secret is not set"
-            echo "Please add the Admin API key from https://console.anthropic.com/"
+          # Check if OAuth token is available
+          if [[ -z "$CLAUDE_CODE_OAUTH_TOKEN" ]]; then
+            echo "::error::CLAUDE_CODE_OAUTH_TOKEN secret is not set"
             exit 1
           fi
 
-          # Calculate date range
-          today=$(date -u +%Y-%m-%d)
-          month_start=$(date -u +%Y-%m-01)
+          # Fetch usage from OAuth API
+          echo "::group::Fetching Usage Data"
+          response=$(curl -s "https://api.anthropic.com/api/oauth/usage" \
+            -H "Accept: application/json" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $CLAUDE_CODE_OAUTH_TOKEN" \
+            -H "anthropic-beta: oauth-2025-04-20")
 
-          echo "::group::Date Range"
-          echo "Today: $today"
-          echo "Month start: $month_start"
-          echo "::endgroup::"
-
-          # Function to fetch usage for a specific date
-          fetch_usage() {
-            local date=$1
-            curl -s "https://api.anthropic.com/v1/organizations/usage_report/claude_code?starting_at=${date}&limit=1000" \
-              -H "X-Api-Key: $ANTHROPIC_ADMIN_API_KEY" \
-              -H "anthropic-version: 2023-06-01"
-          }
-
-          # Function to sum tokens from API response
-          sum_tokens() {
-            local response=$1
-            echo "$response" | jq '
-              [.data[]?.model_breakdown[]? |
-                (.tokens.input // 0) + (.tokens.output // 0)
-              ] | add // 0
-            '
-          }
-
-          # Fetch today's usage
-          echo "::group::Fetching Today's Usage"
-          today_response=$(fetch_usage "$today")
-
-          if echo "$today_response" | jq -e '.error' > /dev/null 2>&1; then
-            error_msg=$(echo "$today_response" | jq -r '.error.message // .error // "Unknown error"')
+          # Check for errors
+          if echo "$response" | jq -e '.error' > /dev/null 2>&1; then
+            error_msg=$(echo "$response" | jq -r '.error.message // .error // "Unknown error"')
             echo "::error::API error: $error_msg"
+            echo "Response: $response"
             exit 1
           fi
 
-          daily_usage=$(sum_tokens "$today_response")
-          echo "Today's usage: $daily_usage tokens"
+          echo "Raw response:"
+          echo "$response" | jq .
           echo "::endgroup::"
 
-          # Fetch monthly usage (iterate through each day)
-          echo "::group::Fetching Monthly Usage"
-          monthly_usage=0
-          current_date="$month_start"
+          # Extract usage percentages (multiply by 100 to get percentage)
+          five_hour_raw=$(echo "$response" | jq -r '.five_hour.utilization // 0')
+          seven_day_raw=$(echo "$response" | jq -r '.seven_day.utilization // 0')
+          seven_day_opus_raw=$(echo "$response" | jq -r '.seven_day_opus.utilization // 0')
 
-          while [[ "$current_date" < "$today" || "$current_date" == "$today" ]]; do
-            echo "Fetching usage for $current_date..."
-            day_response=$(fetch_usage "$current_date")
+          # Convert to percentage (API returns 0-1 range)
+          five_hour_pct=$(echo "scale=1; $five_hour_raw * 100" | bc)
+          seven_day_pct=$(echo "scale=1; $seven_day_raw * 100" | bc)
+          seven_day_opus_pct=$(echo "scale=1; $seven_day_opus_raw * 100" | bc)
 
-            if echo "$day_response" | jq -e '.error' > /dev/null 2>&1; then
-              echo "Warning: Could not fetch data for $current_date"
-            else
-              day_tokens=$(sum_tokens "$day_response")
-              monthly_usage=$((monthly_usage + day_tokens))
-              echo "  $current_date: $day_tokens tokens (cumulative: $monthly_usage)"
-            fi
-
-            # Increment date
-            current_date=$(date -u -d "$current_date + 1 day" +%Y-%m-%d)
-          done
-
-          echo "Total monthly usage: $monthly_usage tokens"
-          echo "::endgroup::"
-
-          # Calculate percentages
-          monthly_pct=$(echo "scale=2; $monthly_usage * 100 / $MONTHLY_BUDGET" | bc)
-          daily_pct=$(echo "scale=2; $daily_usage * 100 / $DAILY_BUDGET" | bc)
+          # Get reset times
+          five_hour_reset=$(echo "$response" | jq -r '.five_hour.resets_at // "N/A"')
+          seven_day_reset=$(echo "$response" | jq -r '.seven_day.resets_at // "N/A"')
 
           echo "::group::Usage Summary"
-          echo "Monthly: $monthly_usage / $MONTHLY_BUDGET tokens (${monthly_pct}%)"
-          echo "Daily: $daily_usage / $DAILY_BUDGET tokens (${daily_pct}%)"
+          echo "Five-hour usage: ${five_hour_pct}% (resets: $five_hour_reset)"
+          echo "Seven-day usage: ${seven_day_pct}% (resets: $seven_day_reset)"
+          echo "Seven-day Opus: ${seven_day_opus_pct}%"
           echo "::endgroup::"
 
-          # Determine if under budget
-          if [[ $monthly_usage -lt $MONTHLY_BUDGET && $daily_usage -lt $DAILY_BUDGET ]]; then
-            under_budget="true"
-            echo "::notice::Under budget - eligible to assign new work"
+          # Determine if under limit (compare integers to avoid bc issues)
+          five_hour_int=${five_hour_pct%.*}
+          seven_day_int=${seven_day_pct%.*}
+          five_hour_int=${five_hour_int:-0}
+          seven_day_int=${seven_day_int:-0}
+
+          if [[ $five_hour_int -lt $FIVE_HOUR_LIMIT && $seven_day_int -lt $SEVEN_DAY_LIMIT ]]; then
+            under_limit="true"
+            echo "::notice::Under usage limits - eligible to assign new work"
           else
-            under_budget="false"
-            if [[ $monthly_usage -ge $MONTHLY_BUDGET ]]; then
-              echo "::warning::Monthly budget exceeded ($monthly_usage >= $MONTHLY_BUDGET)"
+            under_limit="false"
+            if [[ $five_hour_int -ge $FIVE_HOUR_LIMIT ]]; then
+              echo "::warning::Five-hour limit reached (${five_hour_pct}% >= ${FIVE_HOUR_LIMIT}%)"
             fi
-            if [[ $daily_usage -ge $DAILY_BUDGET ]]; then
-              echo "::warning::Daily budget exceeded ($daily_usage >= $DAILY_BUDGET)"
+            if [[ $seven_day_int -ge $SEVEN_DAY_LIMIT ]]; then
+              echo "::warning::Seven-day limit reached (${seven_day_pct}% >= ${SEVEN_DAY_LIMIT}%)"
             fi
           fi
 
           # Set outputs
-          echo "monthly_usage=$monthly_usage" >> $GITHUB_OUTPUT
-          echo "daily_usage=$daily_usage" >> $GITHUB_OUTPUT
-          echo "monthly_budget=$MONTHLY_BUDGET" >> $GITHUB_OUTPUT
-          echo "daily_budget=$DAILY_BUDGET" >> $GITHUB_OUTPUT
-          echo "under_budget=$under_budget" >> $GITHUB_OUTPUT
+          echo "five_hour_usage=$five_hour_pct" >> $GITHUB_OUTPUT
+          echo "seven_day_usage=$seven_day_pct" >> $GITHUB_OUTPUT
+          echo "seven_day_opus_usage=$seven_day_opus_pct" >> $GITHUB_OUTPUT
+          echo "five_hour_reset=$five_hour_reset" >> $GITHUB_OUTPUT
+          echo "seven_day_reset=$seven_day_reset" >> $GITHUB_OUTPUT
+          echo "under_limit=$under_limit" >> $GITHUB_OUTPUT
 
-          # Save detailed data for artifacts
-          echo "$today_response" > /tmp/today-usage.json
-
-          cat > /tmp/budget-data.json << EOF
-          {
-            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-            "monthly": {
-              "usage": $monthly_usage,
-              "budget": $MONTHLY_BUDGET,
-              "percentage": $monthly_pct
-            },
-            "daily": {
-              "usage": $daily_usage,
-              "budget": $DAILY_BUDGET,
-              "percentage": $daily_pct
-            },
-            "under_budget": $under_budget
-          }
-          EOF
+          # Save response for artifacts
+          echo "$response" > /tmp/usage-response.json
 
       - name: Find ready unassigned issue
         id: find_issue
-        if: steps.budget.outputs.under_budget == 'true'
+        if: steps.usage.outputs.under_limit == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -267,60 +219,42 @@ jobs:
         run: |
           echo "::notice::[DRY RUN] Would assign nopo-bot to issue #$ISSUE_NUMBER: $ISSUE_TITLE"
 
-      - name: Generate burn down chart
+      - name: Generate usage chart
         id: chart
         run: |
-          # Generate an SVG burn down chart
-          monthly_usage=${{ steps.budget.outputs.monthly_usage }}
-          monthly_budget=${{ steps.budget.outputs.monthly_budget }}
-          daily_usage=${{ steps.budget.outputs.daily_usage }}
-          daily_budget=${{ steps.budget.outputs.daily_budget }}
+          five_hour=${{ steps.usage.outputs.five_hour_usage }}
+          seven_day=${{ steps.usage.outputs.seven_day_usage }}
+          seven_day_opus=${{ steps.usage.outputs.seven_day_opus_usage }}
 
           # Handle empty values
-          monthly_usage=${monthly_usage:-0}
-          daily_usage=${daily_usage:-0}
+          five_hour=${five_hour:-0}
+          seven_day=${seven_day:-0}
+          seven_day_opus=${seven_day_opus:-0}
 
-          # Calculate percentages
-          monthly_pct=$(echo "scale=2; $monthly_usage * 100 / $monthly_budget" | bc)
-          daily_pct=$(echo "scale=2; $daily_usage * 100 / $daily_budget" | bc)
+          # Calculate bar widths (max 300px, clamped to 100%)
+          five_hour_bar=$(echo "scale=0; if ($five_hour > 100) 100 else $five_hour / 1" | bc)
+          seven_day_bar=$(echo "scale=0; if ($seven_day > 100) 100 else $seven_day / 1" | bc)
 
-          # Clamp to 100%
-          monthly_bar=$(echo "scale=0; if ($monthly_pct > 100) 100 else $monthly_pct / 1" | bc)
-          daily_bar=$(echo "scale=0; if ($daily_pct > 100) 100 else $daily_pct / 1" | bc)
-
-          # Calculate bar widths (max 300px)
-          monthly_width=$((monthly_bar * 3))
-          daily_width=$((daily_bar * 3))
+          five_hour_width=$((five_hour_bar * 3))
+          seven_day_width=$((seven_day_bar * 3))
 
           # Determine bar colors
-          if [[ $monthly_bar -lt 50 ]]; then
-            monthly_color="#22c55e"  # green
-          elif [[ $monthly_bar -lt 80 ]]; then
-            monthly_color="#f59e0b"  # amber
-          else
-            monthly_color="#ef4444"  # red
-          fi
-
-          if [[ $daily_bar -lt 50 ]]; then
-            daily_color="#22c55e"  # green
-          elif [[ $daily_bar -lt 80 ]]; then
-            daily_color="#f59e0b"  # amber
-          else
-            daily_color="#ef4444"  # red
-          fi
-
-          # Format numbers with commas
-          format_number() {
-            echo "$1" | sed ':a;s/\B[0-9]\{3\}\>$/,&/;ta'
+          get_color() {
+            local pct=$1
+            if [[ $pct -lt 50 ]]; then
+              echo "#22c55e"  # green
+            elif [[ $pct -lt 80 ]]; then
+              echo "#f59e0b"  # amber
+            else
+              echo "#ef4444"  # red
+            fi
           }
 
-          monthly_usage_fmt=$(format_number $monthly_usage)
-          monthly_budget_fmt=$(format_number $monthly_budget)
-          daily_usage_fmt=$(format_number $daily_usage)
-          daily_budget_fmt=$(format_number $daily_budget)
+          five_hour_color=$(get_color $five_hour_bar)
+          seven_day_color=$(get_color $seven_day_bar)
 
           # Generate SVG
-          cat > /tmp/burn-down-chart.svg << EOF
+          cat > /tmp/usage-chart.svg << EOF
           <svg xmlns="http://www.w3.org/2000/svg" width="400" height="200" viewBox="0 0 400 200">
             <style>
               text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
@@ -334,78 +268,77 @@ jobs:
             <rect width="400" height="200" fill="#f9fafb" rx="8"/>
 
             <!-- Title -->
-            <text x="20" y="30" class="title">Claude Code Token Usage</text>
+            <text x="20" y="30" class="title">Claude Max Usage</text>
             <text x="20" y="48" class="timestamp">Generated: $(date -u +"%Y-%m-%d %H:%M UTC")</text>
 
-            <!-- Monthly Budget -->
-            <text x="20" y="80" class="label">Monthly Budget</text>
+            <!-- Five Hour Usage -->
+            <text x="20" y="80" class="label">5-Hour Window</text>
             <rect x="20" y="88" width="300" height="20" fill="#e5e7eb" rx="4"/>
-            <rect x="20" y="88" width="$monthly_width" height="20" fill="$monthly_color" rx="4"/>
-            <text x="330" y="102" class="value">${monthly_pct}%</text>
-            <text x="20" y="120" class="value">${monthly_usage_fmt} / ${monthly_budget_fmt} tokens</text>
+            <rect x="20" y="88" width="$five_hour_width" height="20" fill="$five_hour_color" rx="4"/>
+            <text x="330" y="102" class="value">${five_hour}%</text>
 
-            <!-- Daily Budget -->
-            <text x="20" y="145" class="label">Daily Budget</text>
-            <rect x="20" y="153" width="300" height="20" fill="#e5e7eb" rx="4"/>
-            <rect x="20" y="153" width="$daily_width" height="20" fill="$daily_color" rx="4"/>
-            <text x="330" y="167" class="value">${daily_pct}%</text>
-            <text x="20" y="185" class="value">${daily_usage_fmt} / ${daily_budget_fmt} tokens</text>
+            <!-- Seven Day Usage -->
+            <text x="20" y="135" class="label">7-Day Window</text>
+            <rect x="20" y="143" width="300" height="20" fill="#e5e7eb" rx="4"/>
+            <rect x="20" y="143" width="$seven_day_width" height="20" fill="$seven_day_color" rx="4"/>
+            <text x="330" y="157" class="value">${seven_day}%</text>
+
+            <!-- Opus info -->
+            <text x="20" y="185" class="timestamp">Opus 7-day: ${seven_day_opus}%</text>
           </svg>
           EOF
 
-          echo "Chart generated at /tmp/burn-down-chart.svg"
+          echo "Chart generated at /tmp/usage-chart.svg"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: task-manager-data
           path: |
-            /tmp/budget-data.json
-            /tmp/today-usage.json
-            /tmp/burn-down-chart.svg
+            /tmp/usage-response.json
+            /tmp/usage-chart.svg
           retention-days: 30
 
       - name: Summary
         env:
-          MONTHLY_USAGE: ${{ steps.budget.outputs.monthly_usage }}
-          MONTHLY_BUDGET: ${{ steps.budget.outputs.monthly_budget }}
-          DAILY_USAGE: ${{ steps.budget.outputs.daily_usage }}
-          DAILY_BUDGET: ${{ steps.budget.outputs.daily_budget }}
-          UNDER_BUDGET: ${{ steps.budget.outputs.under_budget }}
+          FIVE_HOUR: ${{ steps.usage.outputs.five_hour_usage }}
+          SEVEN_DAY: ${{ steps.usage.outputs.seven_day_usage }}
+          SEVEN_DAY_OPUS: ${{ steps.usage.outputs.seven_day_opus_usage }}
+          FIVE_HOUR_RESET: ${{ steps.usage.outputs.five_hour_reset }}
+          SEVEN_DAY_RESET: ${{ steps.usage.outputs.seven_day_reset }}
+          FIVE_HOUR_LIMIT: ${{ inputs.five_hour_limit || 80 }}
+          SEVEN_DAY_LIMIT: ${{ inputs.seven_day_limit || 80 }}
+          UNDER_LIMIT: ${{ steps.usage.outputs.under_limit }}
           ASSIGNED_ISSUE: ${{ steps.assign.outputs.issue_number }}
           FOUND_ISSUE: ${{ steps.find_issue.outputs.issue_number }}
           FOUND_TITLE: ${{ steps.find_issue.outputs.issue_title }}
           DRY_RUN: ${{ inputs.dry_run }}
         run: |
           # Handle empty values
-          MONTHLY_USAGE=${MONTHLY_USAGE:-0}
-          DAILY_USAGE=${DAILY_USAGE:-0}
-
-          # Calculate percentages
-          monthly_pct=$(echo "scale=1; $MONTHLY_USAGE * 100 / $MONTHLY_BUDGET" | bc)
-          daily_pct=$(echo "scale=1; $DAILY_USAGE * 100 / $DAILY_BUDGET" | bc)
+          FIVE_HOUR=${FIVE_HOUR:-0}
+          SEVEN_DAY=${SEVEN_DAY:-0}
 
           # Determine status emoji
-          if [[ "$UNDER_BUDGET" == "true" ]]; then
+          if [[ "$UNDER_LIMIT" == "true" ]]; then
             status_emoji=":white_check_mark:"
-            status_text="Under budget"
+            status_text="Under limits"
           else
             status_emoji=":warning:"
-            status_text="Over budget"
+            status_text="At capacity"
           fi
 
           # Write summary
           cat >> $GITHUB_STEP_SUMMARY << EOF
           ## Task Manager Summary
 
-          ### Budget Status: $status_emoji $status_text
+          ### Status: $status_emoji $status_text
 
-          | Metric | Usage | Budget | Percentage |
-          |--------|-------|--------|------------|
-          | Monthly | $(printf "%'d" $MONTHLY_USAGE) tokens | $(printf "%'d" $MONTHLY_BUDGET) tokens | ${monthly_pct}% |
-          | Daily | $(printf "%'d" $DAILY_USAGE) tokens | $(printf "%'d" $DAILY_BUDGET) tokens | ${daily_pct}% |
+          | Window | Usage | Limit | Resets |
+          |--------|-------|-------|--------|
+          | 5-Hour | ${FIVE_HOUR}% | ${FIVE_HOUR_LIMIT}% | $FIVE_HOUR_RESET |
+          | 7-Day | ${SEVEN_DAY}% | ${SEVEN_DAY_LIMIT}% | $SEVEN_DAY_RESET |
 
-          > Data source: [Anthropic Claude Code Usage API](https://platform.claude.com/docs/en/api/admin/usage_report/retrieve_claude_code)
+          > Opus 7-day: ${SEVEN_DAY_OPUS}%
 
           EOF
 
@@ -425,7 +358,7 @@ jobs:
 
           EOF
             fi
-          elif [[ "$UNDER_BUDGET" == "true" ]]; then
+          elif [[ "$UNDER_LIMIT" == "true" ]]; then
             cat >> $GITHUB_STEP_SUMMARY << EOF
           ### :inbox_tray: Queue Empty
 
@@ -436,7 +369,7 @@ jobs:
             cat >> $GITHUB_STEP_SUMMARY << EOF
           ### :pause_button: Paused
 
-          Over budget - not assigning new work.
+          Usage limits reached - not assigning new work.
 
           EOF
           fi
@@ -444,6 +377,6 @@ jobs:
           cat >> $GITHUB_STEP_SUMMARY << EOF
           ---
 
-          :bar_chart: [Download burn down chart](artifacts)
+          :bar_chart: [Download usage chart](artifacts)
 
           EOF
