@@ -689,8 +689,9 @@ describe("build", () => {
       const bakeDefinition = JSON.parse(bakeContent);
 
       const dockerfile = bakeDefinition.target.virtual["dockerfile-inline"];
-      expect(dockerfile).toContain("FROM ${NOPO_BASE_IMAGE} AS virtual-build");
-      expect(dockerfile).toContain("FROM ${NOPO_BASE_IMAGE} AS virtual");
+      // Uses context name directly instead of ARG to avoid variable cycle
+      expect(dockerfile).toContain("FROM root AS virtual-build");
+      expect(dockerfile).toContain("FROM root AS virtual");
     });
 
     it("sets SERVICE_NAME environment variable in final stage", async () => {

@@ -490,8 +490,8 @@ export default class BuildScript extends TargetScript {
           },
         };
       } else if (isVirtualBuildableService(service)) {
-        // Virtual inline Dockerfile
-        const dockerfileInline = this.generateInlineDockerfile(service);
+        // Virtual inline Dockerfile - pass rootName for direct context reference
+        const dockerfileInline = this.generateInlineDockerfile(service, rootName);
 
         definition.target[target] = {
           context: relativeContext,
@@ -506,7 +506,6 @@ export default class BuildScript extends TargetScript {
             SERVICE_NAME: target,
             NOPO_APP_UID,
             NOPO_APP_GID,
-            NOPO_BASE_IMAGE: rootName,
           },
         };
       }
@@ -528,22 +527,27 @@ export default class BuildScript extends TargetScript {
    * The generated Dockerfile follows the pattern:
    * - Build stage: install packages, set env, copy files, run build command
    * - Final stage: copy only the specified output paths
+   *
+   * Note: Uses the context name directly (e.g., "root") instead of an ARG to avoid
+   * Docker Buildx bake "variable cycle" errors when the arg value matches a target name.
    */
-  private generateInlineDockerfile(service: VirtualBuildableService): string {
+  private generateInlineDockerfile(
+    service: VirtualBuildableService,
+    baseContextName: string,
+  ): string {
     const serviceName = service.id;
     const build = service.build;
 
     const lines: string[] = [];
 
-    // Header args
-    lines.push("ARG NOPO_BASE_IMAGE=base");
+    // Header args - note: we don't use ARG for base image to avoid variable cycle
     lines.push("ARG SERVICE_NAME");
     lines.push("ARG NOPO_APP_UID");
     lines.push("ARG NOPO_APP_GID");
     lines.push("");
 
-    // Build stage
-    lines.push(`FROM \${NOPO_BASE_IMAGE} AS ${serviceName}-build`);
+    // Build stage - use context name directly instead of ARG
+    lines.push(`FROM ${baseContextName} AS ${serviceName}-build`);
     lines.push("");
     lines.push("ARG NOPO_APP_UID");
     lines.push("ARG NOPO_APP_GID");
@@ -572,8 +576,8 @@ export default class BuildScript extends TargetScript {
     lines.push(`RUN ${build.command}`);
     lines.push("");
 
-    // Final stage
-    lines.push(`FROM \${NOPO_BASE_IMAGE} AS ${serviceName}`);
+    // Final stage - use context name directly instead of ARG
+    lines.push(`FROM ${baseContextName} AS ${serviceName}`);
     lines.push("");
     lines.push("ARG SERVICE_NAME");
     lines.push("ARG NOPO_APP_UID");
