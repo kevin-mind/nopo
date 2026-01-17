@@ -5,6 +5,7 @@ import {
   type FilterExpression,
   type FilterContext,
 } from "../filter.ts";
+import type { TargetType } from "../config/index.ts";
 import process from "node:process";
 
 type ListCliArgs = {
@@ -198,7 +199,7 @@ export default class ListScript extends Script<ListCliArgs> {
     // Print rows
     for (const service of services) {
       const config = configs[service]!;
-      const typeLabel = config.is_package
+      const typeLabel = config.type === "package"
         ? chalk.blue("package")
         : chalk.magenta("service");
       const row = [
@@ -241,16 +242,18 @@ export default class ListScript extends Script<ListCliArgs> {
       const definition = entries[service];
       if (!definition) continue;
 
+      // Get runtime values with defaults for packages
+      const runtime = definition.runtime;
       result[service] = {
         description: definition.description,
-        is_package: definition.isPackage,
-        cpu: definition.infrastructure.cpu,
-        memory: definition.infrastructure.memory,
-        port: definition.infrastructure.port,
-        min_instances: definition.infrastructure.minInstances,
-        max_instances: definition.infrastructure.maxInstances,
-        has_database: definition.infrastructure.hasDatabase,
-        run_migrations: definition.infrastructure.runMigrations,
+        type: definition.type,
+        cpu: runtime?.cpu ?? "1",
+        memory: runtime?.memory ?? "512Mi",
+        port: runtime?.port ?? 3000,
+        min_instances: runtime?.minInstances ?? 0,
+        max_instances: runtime?.maxInstances ?? 10,
+        has_database: runtime?.hasDatabase ?? false,
+        run_migrations: runtime?.runMigrations ?? false,
         static_path: definition.staticPath,
       };
     }
@@ -266,7 +269,7 @@ interface ProjectConfig {
 
 interface ServiceConfig {
   description?: string;
-  is_package: boolean;
+  type: TargetType;
   cpu: string;
   memory: string;
   port: number;

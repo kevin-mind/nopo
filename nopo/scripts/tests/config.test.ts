@@ -54,7 +54,7 @@ name: api
 description: Public API
 dockerfile: Dockerfile
 static_path: build
-infrastructure:
+runtime:
   cpu: "2"
   memory: "1Gi"
   port: 8080
@@ -73,7 +73,7 @@ infrastructure:
 
     const api = project.services.entries.api;
     expect(api).toBeDefined();
-    expect(api?.infrastructure.cpu).toBe("2");
+    expect(api?.runtime?.cpu).toBe("2");
     expect(api?.staticPath).toBe("build");
   });
 
@@ -89,7 +89,7 @@ services:
 name: db
 description: Database
 image: postgres:16
-infrastructure:
+runtime:
   port: 5432
 `,
       },
@@ -114,7 +114,7 @@ name: Defaults
         worker: `
 name: worker
 dockerfile: Dockerfile
-infrastructure: {}
+runtime: {}
 `,
       },
     });
@@ -128,8 +128,8 @@ infrastructure: {}
       jq: "",
       curl: "",
     });
-    expect(worker?.infrastructure.memory).toBe("512Mi");
-    expect(worker?.infrastructure.port).toBe(3000);
+    expect(worker?.runtime?.memory).toBe("512Mi");
+    expect(worker?.runtime?.port).toBe(3000);
   });
 
   it("skips directories without nopo.yml", () => {
@@ -175,7 +175,7 @@ commands:
     expect(commandOnlyService?.image).toBeUndefined();
   });
 
-  it("identifies packages (no runtime/infrastructure) vs services", () => {
+  it("identifies packages (no runtime) vs services", () => {
     const root = createProject({
       rootConfig: `
 name: Mixed Project
@@ -183,14 +183,14 @@ services:
   dir: ./apps
 `,
       services: {
-        // Service: has infrastructure
+        // Service: has runtime
         backend: `
 name: backend
 dockerfile: Dockerfile
-infrastructure:
+runtime:
   port: 8080
 `,
-        // Package: no infrastructure, no runtime
+        // Package: no runtime
         ui: `
 name: ui
 description: Shared UI components
@@ -202,18 +202,18 @@ commands:
 
     const config = loadProjectConfig(root);
 
-    // Backend is a service (has infrastructure)
+    // Backend is a service (has runtime)
     const backend = config.services.entries.backend;
     expect(backend).toBeDefined();
-    expect(backend?.isPackage).toBe(false);
+    expect(backend?.type).toBe("service");
 
-    // UI is a package (no infrastructure/runtime)
+    // UI is a package (no runtime)
     const ui = config.services.entries.ui;
     expect(ui).toBeDefined();
-    expect(ui?.isPackage).toBe(true);
+    expect(ui?.type).toBe("package");
   });
 
-  it("supports new runtime schema instead of infrastructure", () => {
+  it("supports runtime schema with command", () => {
     const root = createProject({
       rootConfig: `
 name: Runtime Schema
@@ -237,13 +237,11 @@ runtime:
     const api = config.services.entries.api;
 
     expect(api).toBeDefined();
-    expect(api?.isPackage).toBe(false);
+    expect(api?.type).toBe("service");
     expect(api?.runtime).toBeDefined();
     expect(api?.runtime?.command).toBe("node server.js");
     expect(api?.runtime?.port).toBe(3000);
-    // Infrastructure should be populated for backward compatibility
-    expect(api?.infrastructure.port).toBe(3000);
-    expect(api?.infrastructure.cpu).toBe("2");
+    expect(api?.runtime?.cpu).toBe("2");
   });
 
   it("supports new build schema", () => {
@@ -307,24 +305,26 @@ build:
     expect(lib?.build?.output).toEqual(["./dist"]);
   });
 
-  it("rejects both runtime and infrastructure in same service", () => {
+  it("identifies services with image as services (not packages)", () => {
     const root = createProject({
       rootConfig: `
-name: Conflict
+name: Image Service
 services:
   dir: ./apps
 `,
       services: {
-        bad: `
-name: bad
-runtime:
-  port: 3000
-infrastructure:
-  port: 8080
+        db: `
+name: db
+image: postgres:16
 `,
       },
     });
 
-    expect(() => loadProjectConfig(root)).toThrow(/Cannot specify both.*runtime.*infrastructure/);
+    const config = loadProjectConfig(root);
+    const db = config.services.entries.db;
+
+    expect(db).toBeDefined();
+    expect(db?.type).toBe("service");
+    expect(db?.runtime).toBeUndefined();
   });
 });

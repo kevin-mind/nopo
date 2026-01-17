@@ -9,7 +9,10 @@ const DEFAULT_DEPENDENCIES: Record<string, string> = {
   curl: "",
 };
 
-// Runtime configuration for services (renamed from infrastructure)
+// Target type: "service" if it has runtime config, "package" if build-only
+export type TargetType = "package" | "service";
+
+// Runtime configuration for services
 // A target is a "service" if it has runtime config, otherwise it's a "package"
 const ServiceRuntimeSchema = z.object({
   command: z.string().optional(),
@@ -36,17 +39,6 @@ const ServiceBuildSchema = z.object({
   dockerfile: z.string().optional(),
   packages: z.array(z.string()).optional(), // OS packages to install
   env: z.record(z.string()).optional(),
-});
-
-// Legacy infrastructure schema (for backward compatibility)
-const ServiceInfrastructureSchema = z.object({
-  cpu: z.string().default("1"),
-  memory: z.string().default("512Mi"),
-  port: z.number().int().positive().default(3000),
-  min_instances: z.number().int().nonnegative().default(0),
-  max_instances: z.number().int().nonnegative().default(10),
-  has_database: z.boolean().default(false),
-  run_migrations: z.boolean().default(false),
 });
 
 // Command dependency specification:
@@ -192,10 +184,8 @@ const ServiceFileSchema = z
     static_path: z.string().default("build"),
     // New: build configuration
     build: ServiceBuildSchema.optional(),
-    // New: runtime configuration (services have this, packages don't)
+    // Runtime configuration (services have this, packages don't)
     runtime: ServiceRuntimeSchema.optional(),
-    // Legacy: infrastructure (backward compat, prefer runtime)
-    infrastructure: ServiceInfrastructureSchema.optional(),
     dependencies: ServiceDependenciesSchema,
     commands: CommandsSchema,
   })
@@ -211,16 +201,6 @@ const ServiceFileSchema = z
     {
       message:
         "Cannot specify both 'dockerfile' and 'image', or 'dockerfile' at both top-level and in 'build'",
-    },
-  )
-  .refine(
-    (data) => {
-      // Cannot specify both runtime and infrastructure (but allow neither for packages)
-      return !(data.runtime && data.infrastructure);
-    },
-    {
-      message:
-        "Cannot specify both 'runtime' and 'infrastructure'. Use 'runtime' (infrastructure is deprecated).",
     },
   );
 
@@ -296,7 +276,6 @@ const ProjectConfigSchema = z.object({
 });
 
 type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
-type ServiceInfrastructureInput = z.infer<typeof ServiceInfrastructureSchema>;
 type ServiceRuntimeInput = z.infer<typeof ServiceRuntimeSchema>;
 type ServiceBuildInput = z.infer<typeof ServiceBuildSchema>;
 
@@ -319,17 +298,6 @@ export interface NormalizedServiceBuild {
   dockerfile?: string;
   packages?: string[];
   env?: Record<string, string>;
-}
-
-// Legacy alias for backward compatibility
-interface NormalizedServiceResources {
-  cpu: string;
-  memory: string;
-  port: number;
-  minInstances: number;
-  maxInstances: number;
-  hasDatabase: boolean;
-  runMigrations: boolean;
 }
 
 // Command dependency types
@@ -364,14 +332,12 @@ export interface NormalizedService {
   name: string;
   description: string;
   staticPath: string;
-  /** Whether this target is a package (build-only, no runtime) */
-  isPackage: boolean;
+  /** Target type: "service" (has runtime) or "package" (build-only, no runtime) */
+  type: TargetType;
   /** Build configuration */
   build?: NormalizedServiceBuild;
   /** Runtime configuration (services only, packages have undefined) */
   runtime?: NormalizedServiceRuntime;
-  /** @deprecated Use runtime instead. Kept for backward compatibility. */
-  infrastructure: NormalizedServiceResources;
   configPath: string;
   image?: string;
   dependencies: string[];
@@ -402,7 +368,7 @@ export function isBuildableService(
  * Packages don't have runtime configuration and don't run as containers.
  */
 export function isPackageService(service: NormalizedService): boolean {
-  return service.isPackage;
+  return service.type === "package";
 }
 
 /**
@@ -410,7 +376,7 @@ export function isPackageService(service: NormalizedService): boolean {
  * Services have runtime concerns like ports, scaling, and databases.
  */
 export function isRunnableService(service: NormalizedService): boolean {
-  return !service.isPackage;
+  return service.type === "service";
 }
 
 interface NormalizedOsConfig {
@@ -547,18 +513,9 @@ function normalizeServices(
       name: "Root",
       description: "Root-level project commands",
       staticPath: "",
-      isPackage: true, // Root is a package (no runtime)
+      type: "package", // Root is a package (no runtime)
       build: undefined,
       runtime: undefined,
-      infrastructure: {
-        cpu: "1",
-        memory: "512Mi",
-        port: 3000,
-        minInstances: 0,
-        maxInstances: 0,
-        hasDatabase: false,
-        runMigrations: false,
-      },
       configPath: rootConfigPath,
       image: undefined,
       dependencies: [],
@@ -611,21 +568,14 @@ function discoverServices(
       );
     }
 
-    // Normalize runtime (prefer runtime over legacy infrastructure)
-    const runtime = normalizeRuntime(parsed.runtime, parsed.infrastructure);
+    // Normalize runtime configuration
+    const runtime = normalizeRuntime(parsed.runtime);
 
     // Normalize build configuration
     const build = normalizeBuild(parsed.build, parsed.dockerfile);
 
-    // Infrastructure for backward compatibility (from runtime or legacy infrastructure)
-    const infrastructure = normalizeInfrastructureCompat(
-      runtime,
-      parsed.infrastructure,
-    );
-
-    // A target is a package if it has no runtime configuration
-    // (and no legacy infrastructure with meaningful runtime values like image)
-    const isPackage = !parsed.runtime && !parsed.infrastructure && !parsed.image;
+    // A target is a "service" if it has runtime configuration or image, otherwise it's a "package"
+    const targetType: TargetType = parsed.runtime || parsed.image ? "service" : "package";
 
     // Determine dockerfile path (prefer build.dockerfile over legacy top-level)
     const dockerfilePath =
@@ -638,10 +588,9 @@ function discoverServices(
       name: parsed.name ?? serviceId,
       description: parsed.description ?? "",
       staticPath: parsed.static_path,
-      isPackage,
+      type: targetType,
       build,
       runtime,
-      infrastructure,
       configPath: serviceConfigPath,
       image: parsed.image,
       dependencies: parsed.dependencies,
@@ -662,61 +611,26 @@ function discoverServices(
   }
 }
 
-function normalizeInfrastructure(
-  infra: ServiceInfrastructureInput,
-): NormalizedServiceResources {
-  return {
-    cpu: infra.cpu,
-    memory: infra.memory,
-    port: infra.port,
-    minInstances: infra.min_instances,
-    maxInstances: infra.max_instances,
-    hasDatabase: infra.has_database,
-    runMigrations: infra.run_migrations,
-  };
-}
-
 /**
- * Normalize runtime configuration from new runtime schema or legacy infrastructure.
+ * Normalize runtime configuration.
  */
 function normalizeRuntime(
   runtime: ServiceRuntimeInput | undefined,
-  legacyInfra: ServiceInfrastructureInput | undefined,
 ): NormalizedServiceRuntime | undefined {
-  // If neither is provided, this is a package with no runtime
-  if (!runtime && !legacyInfra) {
+  if (!runtime) {
     return undefined;
   }
 
-  // Prefer runtime over legacy infrastructure
-  if (runtime) {
-    return {
-      command: runtime.command,
-      cpu: runtime.cpu,
-      memory: runtime.memory,
-      port: runtime.port,
-      minInstances: runtime.min_instances,
-      maxInstances: runtime.max_instances,
-      hasDatabase: runtime.has_database,
-      runMigrations: runtime.run_migrations,
-    };
-  }
-
-  // Fall back to legacy infrastructure (no command in legacy schema)
-  if (legacyInfra) {
-    return {
-      command: undefined,
-      cpu: legacyInfra.cpu,
-      memory: legacyInfra.memory,
-      port: legacyInfra.port,
-      minInstances: legacyInfra.min_instances,
-      maxInstances: legacyInfra.max_instances,
-      hasDatabase: legacyInfra.has_database,
-      runMigrations: legacyInfra.run_migrations,
-    };
-  }
-
-  return undefined;
+  return {
+    command: runtime.command,
+    cpu: runtime.cpu,
+    memory: runtime.memory,
+    port: runtime.port,
+    minInstances: runtime.min_instances,
+    maxInstances: runtime.max_instances,
+    hasDatabase: runtime.has_database,
+    runMigrations: runtime.run_migrations,
+  };
 }
 
 /**
@@ -744,43 +658,6 @@ function normalizeBuild(
     packages: build.packages,
     env: build.env,
   };
-}
-
-/**
- * Create backward-compatible infrastructure object from runtime or legacy infrastructure.
- */
-function normalizeInfrastructureCompat(
-  runtime: NormalizedServiceRuntime | undefined,
-  legacyInfra: ServiceInfrastructureInput | undefined,
-): NormalizedServiceResources {
-  // Default values for packages or services without runtime config
-  const defaults: NormalizedServiceResources = {
-    cpu: "1",
-    memory: "512Mi",
-    port: 3000,
-    minInstances: 0,
-    maxInstances: 10,
-    hasDatabase: false,
-    runMigrations: false,
-  };
-
-  if (runtime) {
-    return {
-      cpu: runtime.cpu,
-      memory: runtime.memory,
-      port: runtime.port,
-      minInstances: runtime.minInstances,
-      maxInstances: runtime.maxInstances,
-      hasDatabase: runtime.hasDatabase,
-      runMigrations: runtime.runMigrations,
-    };
-  }
-
-  if (legacyInfra) {
-    return normalizeInfrastructure(legacyInfra);
-  }
-
-  return defaults;
 }
 
 type CommandsInput = z.infer<typeof CommandsSchema>;

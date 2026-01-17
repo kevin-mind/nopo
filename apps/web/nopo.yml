@@ -2,7 +2,7 @@ name: web
 description: React Router front-end for Nopo.
 dockerfile: Dockerfile
 static_path: build/client
-infrastructure:
+runtime:
   cpu: "1"
   memory: "256Mi"
   port: 3000

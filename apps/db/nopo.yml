@@ -1,7 +1,7 @@
 name: db
 description: PostgreSQL database for persistent data storage.
 image: postgres:16
-infrastructure:
+runtime:
   cpu: "1"
   memory: "512Mi"
   port: 5432

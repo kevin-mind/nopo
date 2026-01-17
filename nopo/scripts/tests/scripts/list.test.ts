@@ -321,7 +321,7 @@ describe("list", () => {
       stdoutSpy.mockRestore();
     });
 
-    it("filters by field value with --filter infrastructure.hasDatabase=true", async () => {
+    it("filters by field value with --filter runtime.hasDatabase=true", async () => {
       let output = "";
       const stdoutSpy = vi
         .spyOn(process.stdout, "write")
@@ -338,7 +338,7 @@ describe("list", () => {
         "list",
         "--json",
         "--filter",
-        "infrastructure.hasDatabase=true",
+        "runtime.hasDatabase=true",
       ]);
 
       const parsed = JSON.parse(output.trim()) as {
@@ -372,7 +372,7 @@ describe("list", () => {
         "--filter",
         "buildable",
         "--filter",
-        "infrastructure.hasDatabase=true",
+        "runtime.hasDatabase=true",
       ]);
 
       const parsed = JSON.parse(output.trim()) as {
