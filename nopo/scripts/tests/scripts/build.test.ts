@@ -582,10 +582,10 @@ describe("build", () => {
       const bakeContent = fs.readFileSync(bakeFilePath, "utf-8");
       const bakeDefinition = JSON.parse(bakeContent);
 
-      // Should have dockerfile_inline instead of dockerfile
+      // Should have "dockerfile-inline" instead of "dockerfile"
       expect(bakeDefinition.target.virtual).toBeDefined();
       expect(bakeDefinition.target.virtual.dockerfile).toBeUndefined();
-      expect(bakeDefinition.target.virtual.dockerfile_inline).toBeDefined();
+      expect(bakeDefinition.target.virtual["dockerfile-inline"]).toBeDefined();
     });
 
     it("includes build command in generated Dockerfile", async () => {
@@ -604,7 +604,7 @@ describe("build", () => {
       const bakeContent = fs.readFileSync(bakeFilePath, "utf-8");
       const bakeDefinition = JSON.parse(bakeContent);
 
-      const dockerfile = bakeDefinition.target.virtual.dockerfile_inline;
+      const dockerfile = bakeDefinition.target.virtual["dockerfile-inline"];
       expect(dockerfile).toContain('RUN echo "Building virtual package"');
     });
 
@@ -624,7 +624,7 @@ describe("build", () => {
       const bakeContent = fs.readFileSync(bakeFilePath, "utf-8");
       const bakeDefinition = JSON.parse(bakeContent);
 
-      const dockerfile = bakeDefinition.target.virtual.dockerfile_inline;
+      const dockerfile = bakeDefinition.target.virtual["dockerfile-inline"];
       expect(dockerfile).toContain("RUN apk add --no-cache curl");
     });
 
@@ -644,7 +644,7 @@ describe("build", () => {
       const bakeContent = fs.readFileSync(bakeFilePath, "utf-8");
       const bakeDefinition = JSON.parse(bakeContent);
 
-      const dockerfile = bakeDefinition.target.virtual.dockerfile_inline;
+      const dockerfile = bakeDefinition.target.virtual["dockerfile-inline"];
       expect(dockerfile).toContain("ENV NODE_ENV=production");
       expect(dockerfile).toContain("ENV BUILD_FLAG=enabled");
     });
@@ -665,7 +665,7 @@ describe("build", () => {
       const bakeContent = fs.readFileSync(bakeFilePath, "utf-8");
       const bakeDefinition = JSON.parse(bakeContent);
 
-      const dockerfile = bakeDefinition.target.virtual.dockerfile_inline;
+      const dockerfile = bakeDefinition.target.virtual["dockerfile-inline"];
       // Should have separate COPY for each output path
       expect(dockerfile).toContain("COPY --from=virtual-build");
       expect(dockerfile).toContain("${APP}/dist ${APP}/dist");
@@ -688,7 +688,7 @@ describe("build", () => {
       const bakeContent = fs.readFileSync(bakeFilePath, "utf-8");
       const bakeDefinition = JSON.parse(bakeContent);
 
-      const dockerfile = bakeDefinition.target.virtual.dockerfile_inline;
+      const dockerfile = bakeDefinition.target.virtual["dockerfile-inline"];
       expect(dockerfile).toContain("FROM ${NOPO_BASE_IMAGE} AS virtual-build");
       expect(dockerfile).toContain("FROM ${NOPO_BASE_IMAGE} AS virtual");
     });
@@ -709,7 +709,7 @@ describe("build", () => {
       const bakeContent = fs.readFileSync(bakeFilePath, "utf-8");
       const bakeDefinition = JSON.parse(bakeContent);
 
-      const dockerfile = bakeDefinition.target.virtual.dockerfile_inline;
+      const dockerfile = bakeDefinition.target.virtual["dockerfile-inline"];
       expect(dockerfile).toContain("ENV SERVICE_NAME=${SERVICE_NAME}");
     });
   });

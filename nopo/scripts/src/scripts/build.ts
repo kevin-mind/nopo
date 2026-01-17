@@ -27,7 +27,7 @@ import type { ScriptArgs } from "../script-args.ts";
 interface BakeTarget {
   context: string;
   dockerfile?: string;
-  dockerfile_inline?: string;
+  "dockerfile-inline"?: string;
   tags: string[];
   target?: string;
   args?: Record<string, string>;
@@ -495,7 +495,7 @@ export default class BuildScript extends TargetScript {
 
         definition.target[target] = {
           context: relativeContext,
-          dockerfile_inline: dockerfileInline,
+          "dockerfile-inline": dockerfileInline,
           tags: [serviceTag],
           ...(push ? {} : { output: ["type=docker"] }),
           ...(platforms ? { platforms } : {}),
