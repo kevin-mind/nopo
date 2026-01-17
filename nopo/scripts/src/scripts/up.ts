@@ -9,7 +9,8 @@ import {
 import EnvScript from "./env.ts";
 import BuildScript from "./build.ts";
 import PullScript from "./pull.ts";
-import { parseTargetArgs } from "../target-args.ts";
+import { baseArgs } from "../args.ts";
+import type { ScriptArgs } from "../script-args.ts";
 
 export function isBuild({ config, environment }: Runner): boolean {
   const forceBuild = !!config.processEnv.DOCKER_BUILD;
@@ -21,11 +22,7 @@ export function isPull(runner: Runner): boolean {
   return !isBuild(runner);
 }
 
-type UpCliArgs = {
-  targets: string[];
-};
-
-export default class UpScript extends TargetScript<UpCliArgs> {
+export default class UpScript extends TargetScript {
   static override name = "up";
   static override description = "Start the services";
   static override dependencies: ScriptDependency[] = [
@@ -47,22 +44,9 @@ export default class UpScript extends TargetScript<UpCliArgs> {
     },
   ];
 
-  static override parseArgs(runner: Runner, isDependency: boolean): UpCliArgs {
-    // When run as dependency, return empty targets (all targets)
-    if (isDependency || runner.argv[0] !== "up") {
-      return { targets: [] };
-    }
+  static override args = baseArgs.extend({});
 
-    const argv = runner.argv.slice(1);
-    const parsed = parseTargetArgs("up", argv, runner.config.targets, {
-      supportsFilter: true,
-      services: runner.config.project.services.entries,
-      projectRoot: runner.config.root,
-    });
-    return { targets: parsed.targets };
-  }
-
-  override async fn(args: UpCliArgs) {
+  override async fn(args: ScriptArgs) {
     if (!this.runner.environment.env.DOCKER_TAG) {
       throw new Error("DOCKER_TAG is required but was empty");
     }
@@ -152,9 +136,11 @@ export default class UpScript extends TargetScript<UpCliArgs> {
       });
     }
 
+    const targets = args.get<string[]>("targets") ?? [];
+
     try {
-      if (args.targets.length > 0) {
-        await compose.upMany(args.targets, {
+      if (targets.length > 0) {
+        await compose.upMany(targets, {
           callback: createLogger("up"),
           commandOptions: ["--remove-orphans", "-d", "--no-build", "--wait"],
           env: this.env,
@@ -168,9 +154,7 @@ export default class UpScript extends TargetScript<UpCliArgs> {
       }
     } catch (error) {
       const servicesToLog =
-        args.targets.length > 0
-          ? args.targets
-          : Object.keys(data.config.services);
+        targets.length > 0 ? targets : Object.keys(data.config.services);
       await Promise.all(
         servicesToLog.map((service: string) =>
           compose.logs(service, {

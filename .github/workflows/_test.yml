@@ -94,7 +94,7 @@ jobs:
             docker pull "$DOCKER_TAG"
           else
             echo "No digest - building image locally"
-            make build base \
+            make build root \
               DOCKER_TAG="$DOCKER_TAG" \
               DOCKER_TARGET="development"
           fi

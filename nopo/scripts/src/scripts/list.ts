@@ -1,4 +1,4 @@
-import { Script, type Runner, exec } from "../lib.ts";
+import { Script, exec } from "../lib.ts";
 import {
   parseFilterExpression,
   matchesFilter,
@@ -7,95 +7,85 @@ import {
 } from "../filter.ts";
 import type { TargetType } from "../config/index.ts";
 import process from "node:process";
+import { ScriptArgs } from "../script-args.ts";
 
-type ListCliArgs = {
-  format: "text" | "json" | "csv";
-  filters: FilterExpression[];
-  since?: string;
-  jqFilter?: string;
-  validate: boolean;
-};
-
-export default class ListScript extends Script<ListCliArgs> {
+export default class ListScript extends Script {
   static override name = "list";
   static override description = "List discovered services";
 
-  static override parseArgs(
-    runner: Runner,
-    isDependency: boolean,
-  ): ListCliArgs {
-    if (isDependency || runner.argv[0] !== "list") {
-      return { format: "text", filters: [], validate: false };
-    }
+  static override args = new ScriptArgs({
+    format: {
+      type: "string",
+      description: "Output format (text, json, csv)",
+      alias: ["f"],
+      default: "text",
+    },
+    json: {
+      type: "boolean",
+      description: "Output as JSON (shortcut for --format json)",
+      alias: ["j"],
+      default: false,
+    },
+    csv: {
+      type: "boolean",
+      description: "Output as CSV (shortcut for --format csv)",
+      default: false,
+    },
+    filter: {
+      type: "string[]",
+      description: "Filter targets by expression",
+      alias: ["F"],
+      default: [],
+    },
+    since: {
+      type: "string",
+      description: "Filter changed files since git ref",
+      default: undefined,
+    },
+    jq: {
+      type: "string",
+      description: "jq filter expression for JSON output",
+      default: undefined,
+    },
+    validate: {
+      type: "boolean",
+      description: "Validate configuration only",
+      alias: ["v"],
+      default: false,
+    },
+  });
 
-    const argv = runner.argv.slice(1);
-    let format: "text" | "json" | "csv" = "text";
-    const filters: FilterExpression[] = [];
-    let since: string | undefined;
-    let jqFilter: string | undefined;
-    let validate = false;
+  override async fn(args: ScriptArgs) {
+    // Determine format: --json and --csv shortcuts take precedence
+    let format: "text" | "json" | "csv" = args.get<string>("format") as
+      | "text"
+      | "json"
+      | "csv";
+    if (args.get<boolean>("json")) format = "json";
+    if (args.get<boolean>("csv")) format = "csv";
 
-    for (let i = 0; i < argv.length; i++) {
-      const arg = argv[i];
-      if (arg === "--format" || arg === "-f") {
-        const formatArg = argv[i + 1];
-        if (formatArg === "json") {
-          format = "json";
-        } else if (formatArg === "csv") {
-          format = "csv";
-        } else if (formatArg === "text") {
-          format = "text";
-        }
-        i++;
-      } else if (arg === "--json" || arg === "-j") {
-        format = "json";
-      } else if (arg === "--csv") {
-        format = "csv";
-      } else if (arg === "--filter" || arg === "-F") {
-        const filterArg = argv[i + 1];
-        if (filterArg) {
-          filters.push(parseFilterExpression(filterArg));
-          i++;
-        }
-      } else if (arg === "--since") {
-        const sinceArg = argv[i + 1];
-        if (sinceArg) {
-          since = sinceArg;
-          i++;
-        }
-      } else if (arg === "--jq") {
-        const jqArg = argv[i + 1];
-        if (jqArg) {
-          jqFilter = jqArg;
-          i++;
-        }
-      } else if (arg === "--validate" || arg === "-v") {
-        validate = true;
-      }
-    }
+    // Parse filter expressions from string[]
+    const filterStrings = args.get<string[]>("filter") ?? [];
+    const filters: FilterExpression[] = filterStrings.map(parseFilterExpression);
 
-    return { format, filters, since, jqFilter, validate };
-  }
+    const since = args.get<string | undefined>("since");
+    const jqFilter = args.get<string | undefined>("jq");
+    const validate = args.get<boolean>("validate") ?? false;
 
-  override async fn(args: ListCliArgs) {
     const allServices = this.runner.config.targets;
     const filterContext: FilterContext = {
       projectRoot: this.runner.config.root,
-      since: args.since,
+      since,
     };
-    const services = this.applyFilters(
-      allServices,
-      args.filters,
-      filterContext,
-    );
+    const services = this.applyFilters(allServices, filters, filterContext);
 
     // Validate --jq requires --json
-    if (args.jqFilter && args.format !== "json") {
+    if (jqFilter && format !== "json") {
       throw new Error("--jq requires --json format");
     }
 
     // If --validate, just output success message (config already validated during load)
-    if (args.validate) {
+    if (validate) {
       const project = this.runner.config.project;
       this.runner.logger.log(
         `✓ Valid nopo.yml: ${project.name} (${services.length} services)`,
@@ -103,7 +93,7 @@ export default class ListScript extends Script<ListCliArgs> {
       return;
     }
 
-    if (args.format === "json") {
+    if (format === "json") {
       const output = {
         config: this.getProjectConfig(),
         services: this.getServicesWithConfig(services),
@@ -111,13 +101,13 @@ export default class ListScript extends Script<ListCliArgs> {
       const jsonOutput = JSON.stringify(output, null, 2);
 
       // Process through jq if filter provided
-      if (args.jqFilter) {
-        const result = await this.processJq(jsonOutput, args.jqFilter);
+      if (jqFilter) {
+        const result = await this.processJq(jsonOutput, jqFilter);
         process.stdout.write(result + "\n");
       } else {
         process.stdout.write(jsonOutput + "\n");
       }
-    } else if (args.format === "csv") {
+    } else if (format === "csv") {
       process.stdout.write(services.join(",") + "\n");
     } else {
       if (services.length === 0) {

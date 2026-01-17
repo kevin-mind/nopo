@@ -48,7 +48,7 @@ const DEFAULT_PLATFORMS = "linux/amd64,linux/arm64";
 
 export default class BuildScript extends TargetScript<BuildCliArgs> {
   static override name = "build";
-  static override description = "Build base image and service images";
+  static override description = "Build root image and service images";
   static override dependencies: ScriptDependency[] = [
     {
       class: EnvScript,
@@ -56,6 +56,8 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
     },
   ];
 
+  // Build uses old parseArgs pattern because it has a special root target
+  // (config.rootName) that isn't a regular service and needs custom handling
   static override parseArgs(
     runner: Runner,
     isDependency: boolean,
@@ -65,8 +67,9 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
       return { targets: [], noCache: false };
     }
 
+    const rootName = runner.config.project.rootName;
     const argv = runner.argv.slice(1);
-    const availableTargets = ["base", ...runner.config.targets];
+    const availableTargets = [rootName, ...runner.config.targets];
     const parsed = parseTargetArgs("build", argv, availableTargets, {
       boolean: ["no-cache"],
       string: ["output"],
@@ -143,6 +146,7 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
   ): string | null {
     const env = this.runner.environment.env;
     const targets = this.runner.config.targets;
+    const rootName = this.runner.config.project.rootName;
 
     // Multi-platform builds only work with registry push (type=docker doesn't support multi-platform)
     const platforms = push ? this.getPlatforms() : undefined;
@@ -153,11 +157,11 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
       return isBuildableService(service);
     });
 
-    const allTargets = ["base", ...buildableTargets];
+    const allTargets = [rootName, ...buildableTargets];
     const buildTargets =
       requestedTargets.length > 0
         ? requestedTargets.filter(
-            (t) => t === "base" || buildableTargets.includes(t),
+            (t) => t === rootName || buildableTargets.includes(t),
           )
         : allTargets;
 
@@ -183,11 +187,11 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
       target: {},
     };
 
-    const needsBase =
-      buildTargets.includes("base") ||
+    const needsRoot =
+      buildTargets.includes(rootName) ||
       buildTargets.some((t) => targets.includes(t));
-    if (needsBase) {
-      const baseDockerfile = path.join(
+    if (needsRoot) {
+      const rootDockerfile = path.join(
         this.runner.config.root,
         "nopo",
         "docker",
@@ -196,10 +200,10 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
       const isCI =
         process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
 
-      const baseArgs = this.getBaseBuildArgs();
-      definition.target.base = {
+      const rootArgs = this.getRootBuildArgs();
+      definition.target[rootName] = {
         context: ".",
-        dockerfile: path.relative(this.runner.config.root, baseDockerfile),
+        dockerfile: path.relative(this.runner.config.root, rootDockerfile),
         tags: [env.DOCKER_TAG],
         target: env.DOCKER_TARGET,
         ...(push ? {} : { output: ["type=docker"] }),
@@ -211,7 +215,7 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
             }
           : {}),
         args: {
-          ...baseArgs,
+          ...rootArgs,
           DOCKER_TARGET: env.DOCKER_TARGET,
           DOCKER_TAG: env.DOCKER_TAG,
           DOCKER_VERSION: env.DOCKER_VERSION,
@@ -248,7 +252,7 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
         ...(push ? {} : { output: ["type=docker"] }),
         ...(platforms ? { platforms } : {}),
         contexts: {
-          base: "target:base",
+          [rootName]: `target:${rootName}`,
         },
         args: {
           SERVICE_NAME: target,
@@ -315,7 +319,7 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
     return parsed.fullTag;
   }
 
-  private getBaseBuildArgs() {
+  private getRootBuildArgs() {
     const { base, dependencies, user } = this.runner.config.project.os;
     const packages = this.formatOsPackages(dependencies);
     const userHome = user.home || "/home/nopoapp";
@@ -368,8 +372,9 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
     const push = this.runner.config.processEnv.DOCKER_PUSH === "true";
     const env = this.runner.environment.env;
     const configTargets = this.runner.config.targets;
+    const rootName = this.runner.config.project.rootName;
 
-    const allTargets = ["base", ...configTargets];
+    const allTargets = [rootName, ...configTargets];
     const builtTargets = targets.length > 0 ? targets : allTargets;
 
     const images: Array<{
@@ -381,17 +386,17 @@ export default class BuildScript extends TargetScript<BuildCliArgs> {
       digest: string | null;
     }> = [];
 
-    if (builtTargets.includes("base")) {
-      const baseDigest = push
+    if (builtTargets.includes(rootName)) {
+      const rootDigest = push
         ? await this.getImageDigest(env.DOCKER_TAG)
         : null;
       images.push({
-        name: "base",
+        name: rootName,
         tag: env.DOCKER_TAG,
         registry: env.DOCKER_REGISTRY,
         image: env.DOCKER_IMAGE,
         version: env.DOCKER_VERSION,
-        digest: baseDigest,
+        digest: rootDigest,
       });
     }
 

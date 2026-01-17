@@ -24,7 +24,7 @@ nopo build --help
 
 ### Available Targets
 
-- `base` - The base image containing shared dependencies
+- `root` - The root image containing shared dependencies (configurable via `root_name` in `nopo.yml`)
 - Target names discovered from `apps/*/Dockerfile` (e.g., `backend`, `web`)
 
 ## Options
@@ -86,10 +86,10 @@ The `build` command automatically runs the following commands first:
 nopo build
 ```
 
-### Build only the base image
+### Build only the root image
 
 ```bash
-nopo build base
+nopo build root
 ```
 
 ### Build a specific target
@@ -193,7 +193,7 @@ When using `--output`, the command writes a JSON file with build information:
 ```json
 [
   {
-    "name": "base",
+    "name": "root",
     "tag": "kevin-mind/nopo:local",
     "registry": "",
     "image": "kevin-mind/nopo",

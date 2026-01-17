@@ -79,7 +79,7 @@ describe("build", () => {
     const bakeDefinition = JSON.parse(bakeContent);
 
     // For local builds (no push), output should be type=docker
-    expect(bakeDefinition.target.base.output).toEqual(["type=docker"]);
+    expect(bakeDefinition.target.root.output).toEqual(["type=docker"]);
   });
 
   it("builds with custom builder", async () => {
@@ -126,7 +126,7 @@ describe("build", () => {
   describe("target selection", () => {
     const baseTag = "kevin-mind/nopo:local";
 
-    it("builds only base when specified", async () => {
+    it("builds only root when specified", async () => {
       const config = createTestConfig({
         envFile: createTmpEnv({
           DOCKER_TAG: baseTag,
@@ -134,7 +134,7 @@ describe("build", () => {
         silent: true,
       });
 
-      await runScript(BuildScript, config, ["build", "base"]);
+      await runScript(BuildScript, config, ["build", "root"]);
 
       const bakeFilePath = mockBake?.mock.calls?.[0]?.find((arg: string) =>
         arg.endsWith("docker-bake.json"),
@@ -144,13 +144,13 @@ describe("build", () => {
       const bakeContent = fs.readFileSync(bakeFilePath, "utf-8");
       const bakeDefinition = JSON.parse(bakeContent);
 
-      expect(bakeDefinition.group.default.targets).toEqual(["base"]);
-      expect(bakeDefinition.target.base).toBeDefined();
+      expect(bakeDefinition.group.default.targets).toEqual(["root"]);
+      expect(bakeDefinition.target.root).toBeDefined();
       expect(bakeDefinition.target.backend).toBeUndefined();
       expect(bakeDefinition.target.web).toBeUndefined();
     });
 
-    it("builds service with base as dependency", async () => {
+    it("builds service with root as dependency", async () => {
       const config = createTestConfig({
         envFile: createTmpEnv({
           DOCKER_TAG: baseTag,
@@ -167,10 +167,10 @@ describe("build", () => {
       const bakeDefinition = JSON.parse(bakeContent);
 
       expect(bakeDefinition.group.default.targets).toEqual(["backend"]);
-      expect(bakeDefinition.target.base).toBeDefined();
+      expect(bakeDefinition.target.root).toBeDefined();
       expect(bakeDefinition.target.backend).toBeDefined();
       expect(bakeDefinition.target.backend.contexts).toEqual({
-        base: "target:base",
+        root: "target:root",
       });
     });
 
@@ -191,7 +191,7 @@ describe("build", () => {
       const bakeDefinition = JSON.parse(bakeContent);
 
       expect(bakeDefinition.group.default.targets).toEqual(["backend", "web"]);
-      expect(bakeDefinition.target.base).toBeDefined();
+      expect(bakeDefinition.target.root).toBeDefined();
       expect(bakeDefinition.target.backend).toBeDefined();
       expect(bakeDefinition.target.web).toBeDefined();
     });
@@ -266,7 +266,7 @@ describe("build", () => {
       const bakeDefinition = JSON.parse(bakeContent);
 
       // When pushing, platforms should be set to default multi-arch
-      expect(bakeDefinition.target.base.platforms).toEqual([
+      expect(bakeDefinition.target.root.platforms).toEqual([
         "linux/amd64",
         "linux/arm64",
       ]);
@@ -297,7 +297,7 @@ describe("build", () => {
       const bakeDefinition = JSON.parse(bakeContent);
 
       // For local builds, platforms should not be set (Docker type=docker doesn't support multi-platform)
-      expect(bakeDefinition.target.base.platforms).toBeUndefined();
+      expect(bakeDefinition.target.root.platforms).toBeUndefined();
       expect(bakeDefinition.target.backend.platforms).toBeUndefined();
     });
 
@@ -325,7 +325,7 @@ describe("build", () => {
       const bakeDefinition = JSON.parse(bakeContent);
 
       // Custom platforms should override the default
-      expect(bakeDefinition.target.base.platforms).toEqual(["linux/amd64"]);
+      expect(bakeDefinition.target.root.platforms).toEqual(["linux/amd64"]);
       expect(bakeDefinition.target.backend.platforms).toEqual(["linux/amd64"]);
     });
 
@@ -353,7 +353,7 @@ describe("build", () => {
       const bakeDefinition = JSON.parse(bakeContent);
 
       // Platforms should be trimmed and parsed correctly
-      expect(bakeDefinition.target.base.platforms).toEqual([
+      expect(bakeDefinition.target.root.platforms).toEqual([
         "linux/amd64",
         "linux/arm64",
         "linux/arm/v7",

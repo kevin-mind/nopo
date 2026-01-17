@@ -23,10 +23,10 @@ The build pipeline produces a reusable base image (`nopo:<tag>`) plus service
 layers that inherit from it. All builds use Docker Buildx Bake for parallel
 execution.
 
-- `nopo build` builds everything: base image + all discovered services (in parallel)
-- `nopo build base` builds only the base image
-- `nopo build backend` builds the backend service (base is built automatically as a dependency)
-- `nopo build backend web` builds both services in parallel (plus base)
+- `nopo build` builds everything: root image + all discovered services (in parallel)
+- `nopo build root` builds only the root image
+- `nopo build backend` builds the backend service (root is built automatically as a dependency)
+- `nopo build backend web` builds both services in parallel (plus root)
 
 Service image tags are recorded as `<SERVICE>_IMAGE` in `.env`. The `DOCKER_PUSH`
 flag controls whether images are pushed to the registry.

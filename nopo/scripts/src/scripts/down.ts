@@ -1,42 +1,23 @@
 import compose from "docker-compose";
-import { TargetScript, type Runner, createLogger } from "../lib.ts";
+import { TargetScript, type ScriptDependency, createLogger } from "../lib.ts";
 import EnvScript from "./env.ts";
-import { parseTargetArgs } from "../target-args.ts";
+import { baseArgs } from "../args.ts";
+import type { ScriptArgs } from "../script-args.ts";
 
-type DownCliArgs = {
-  targets: string[];
-};
-
-export default class DownScript extends TargetScript<DownCliArgs> {
-  static override dependencies = [
+export default class DownScript extends TargetScript {
+  static override name = "down";
+  static override description = "Bring down the containers";
+  static override dependencies: ScriptDependency[] = [
     {
       class: EnvScript,
       enabled: true,
     },
   ];
-  static override name = "down";
-  static override description = "Bring down the containers";
 
-  static override parseArgs(
-    runner: Runner,
-    isDependency: boolean,
-  ): DownCliArgs {
-    // When run as dependency, return empty targets (all targets)
-    if (isDependency || runner.argv[0] !== "down") {
-      return { targets: [] };
-    }
+  static override args = baseArgs.extend({});
 
-    const argv = runner.argv.slice(1);
-    const parsed = parseTargetArgs("down", argv, runner.config.targets, {
-      supportsFilter: true,
-      services: runner.config.project.services.entries,
-      projectRoot: runner.config.root,
-    });
-    return { targets: parsed.targets };
-  }
-
-  override async fn(args: DownCliArgs) {
-    const requestedTargets = args.targets;
+  override async fn(args: ScriptArgs) {
+    const requestedTargets = args.get<string[]>("targets") ?? [];
 
     if (requestedTargets.length > 0) {
       await compose.downMany(requestedTargets, {

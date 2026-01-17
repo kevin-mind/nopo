@@ -52,7 +52,7 @@ nopo build [targets...] [options]
 ```
 
 **Targets**: `backend`, `web`, `api` (discovered from `apps/*/Dockerfile`)
-**Special**: `base` - Build base image only
+**Special**: `root` - Build root image only
 
 | Option            | Description                   |
 | ----------------- | ----------------------------- |
@@ -64,7 +64,7 @@ nopo build [targets...] [options]
 ```bash
 nopo build                    # All targets
 nopo build backend web         # Specific targets
-nopo build base               # Base image only
+nopo build root               # Root image only
 nopo build --no-cache        # Without cache
 nopo build --output info.json   # Export metadata
 ```

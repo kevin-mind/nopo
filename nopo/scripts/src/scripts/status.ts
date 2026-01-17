@@ -1,6 +1,7 @@
 import compose from "docker-compose";
-import { Script } from "../lib.ts";
+import { Script, type ScriptDependency } from "../lib.ts";
 import EnvScript from "./env.ts";
+import { ScriptArgs } from "../script-args.ts";
 
 interface ServiceInfo {
   name: string;
@@ -9,16 +10,18 @@ interface ServiceInfo {
 }
 
 export default class StatusScript extends Script {
-  static override dependencies = [
+  static override name = "status";
+  static override description = "Check the status of the project and services";
+  static override dependencies: ScriptDependency[] = [
     {
       class: EnvScript,
       enabled: true,
     },
   ];
-  static override name = "status";
-  static override description = "Check the status of the project and services";
 
-  override async fn() {
+  static override args = new ScriptArgs({});
+
+  override async fn(_args: ScriptArgs) {
     const { data } = await compose.ps({
       cwd: this.runner.config.root,
     });

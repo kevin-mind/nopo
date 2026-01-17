@@ -610,6 +610,7 @@ export abstract class BaseScript {
 }
 
 export class Script<TArgs = void> extends BaseScript {
+  static args?: ScriptArgs;
   static parseArgs?(runner: Runner, isDependency: boolean): unknown;
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
