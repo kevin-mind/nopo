@@ -12,17 +12,13 @@ on:
         type: boolean
         default: false
       monthly_budget:
-        description: 'Monthly token budget'
+        description: 'Monthly token budget (input + output tokens)'
         type: number
-        default: 10000000
-      five_hour_budget:
-        description: 'Five-hour token budget'
+        default: 50000000
+      daily_budget:
+        description: 'Daily token budget (input + output tokens)'
         type: number
-        default: 500000
-      tokens_per_run:
-        description: 'Estimated tokens per Claude run'
-        type: number
-        default: 100000
+        default: 5000000
 
 permissions:
   contents: read
@@ -43,71 +39,110 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       monthly_usage: ${{ steps.budget.outputs.monthly_usage }}
-      five_hour_usage: ${{ steps.budget.outputs.five_hour_usage }}
+      daily_usage: ${{ steps.budget.outputs.daily_usage }}
       monthly_budget: ${{ steps.budget.outputs.monthly_budget }}
-      five_hour_budget: ${{ steps.budget.outputs.five_hour_budget }}
+      daily_budget: ${{ steps.budget.outputs.daily_budget }}
       under_budget: ${{ steps.budget.outputs.under_budget }}
       assigned_issue: ${{ steps.assign.outputs.issue_number }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Calculate token budget usage
+      - name: Fetch Claude Code usage from Anthropic API
         id: budget
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MONTHLY_BUDGET: ${{ inputs.monthly_budget || 10000000 }}
-          FIVE_HOUR_BUDGET: ${{ inputs.five_hour_budget || 500000 }}
-          TOKENS_PER_RUN: ${{ inputs.tokens_per_run || 100000 }}
+          ANTHROPIC_ADMIN_API_KEY: ${{ secrets.ANTHROPIC_ADMIN_API_KEY }}
+          MONTHLY_BUDGET: ${{ inputs.monthly_budget || 50000000 }}
+          DAILY_BUDGET: ${{ inputs.daily_budget || 5000000 }}
         run: |
           echo "::group::Budget Configuration"
           echo "Monthly budget: $MONTHLY_BUDGET tokens"
-          echo "Five-hour budget: $FIVE_HOUR_BUDGET tokens"
-          echo "Estimated tokens per run: $TOKENS_PER_RUN"
+          echo "Daily budget: $DAILY_BUDGET tokens"
           echo "::endgroup::"
 
-          # Get current time and calculate time boundaries
-          now=$(date -u +%s)
-          month_start=$(date -u -d "$(date -u +%Y-%m-01)" +%s)
-          five_hours_ago=$((now - 5 * 60 * 60))
+          # Check if API key is available
+          if [[ -z "$ANTHROPIC_ADMIN_API_KEY" ]]; then
+            echo "::error::ANTHROPIC_ADMIN_API_KEY secret is not set"
+            echo "Please add the Admin API key from https://console.anthropic.com/"
+            exit 1
+          fi
 
-          # Convert to ISO8601 for GitHub API
-          month_start_iso=$(date -u -d "@$month_start" +%Y-%m-%dT%H:%M:%SZ)
-          five_hours_ago_iso=$(date -u -d "@$five_hours_ago" +%Y-%m-%dT%H:%M:%SZ)
+          # Calculate date range
+          today=$(date -u +%Y-%m-%d)
+          month_start=$(date -u +%Y-%m-01)
 
-          echo "::group::Time Boundaries"
-          echo "Month start: $month_start_iso"
-          echo "Five hours ago: $five_hours_ago_iso"
+          echo "::group::Date Range"
+          echo "Today: $today"
+          echo "Month start: $month_start"
           echo "::endgroup::"
 
-          # Count Claude workflow runs this month (completed runs only)
-          monthly_runs=$(gh api \
-            -H "Accept: application/vnd.github+json" \
-            "/repos/$GITHUB_REPOSITORY/actions/workflows/claude.yml/runs?status=completed&created=>=$month_start_iso&per_page=100" \
-            --jq '.total_count' 2>/dev/null || echo "0")
+          # Function to fetch usage for a specific date
+          fetch_usage() {
+            local date=$1
+            curl -s "https://api.anthropic.com/v1/organizations/usage_report/claude_code?starting_at=${date}&limit=1000" \
+              -H "X-Api-Key: $ANTHROPIC_ADMIN_API_KEY" \
+              -H "anthropic-version: 2023-06-01"
+          }
 
-          # Count Claude workflow runs in last 5 hours
-          five_hour_runs=$(gh api \
-            -H "Accept: application/vnd.github+json" \
-            "/repos/$GITHUB_REPOSITORY/actions/workflows/claude.yml/runs?status=completed&created=>=$five_hours_ago_iso&per_page=100" \
-            --jq '.total_count' 2>/dev/null || echo "0")
+          # Function to sum tokens from API response
+          sum_tokens() {
+            local response=$1
+            echo "$response" | jq '
+              [.data[]?.model_breakdown[]? |
+                (.tokens.input // 0) + (.tokens.output // 0)
+              ] | add // 0
+            '
+          }
 
-          echo "::group::Workflow Run Counts"
-          echo "Monthly runs: $monthly_runs"
-          echo "Five-hour runs: $five_hour_runs"
+          # Fetch today's usage
+          echo "::group::Fetching Today's Usage"
+          today_response=$(fetch_usage "$today")
+
+          if echo "$today_response" | jq -e '.error' > /dev/null 2>&1; then
+            error_msg=$(echo "$today_response" | jq -r '.error.message // .error // "Unknown error"')
+            echo "::error::API error: $error_msg"
+            exit 1
+          fi
+
+          daily_usage=$(sum_tokens "$today_response")
+          echo "Today's usage: $daily_usage tokens"
           echo "::endgroup::"
 
-          # Calculate estimated token usage
-          monthly_usage=$((monthly_runs * TOKENS_PER_RUN))
-          five_hour_usage=$((five_hour_runs * TOKENS_PER_RUN))
+          # Fetch monthly usage (iterate through each day)
+          echo "::group::Fetching Monthly Usage"
+          monthly_usage=0
+          current_date="$month_start"
 
-          echo "::group::Token Usage Estimates"
-          echo "Monthly usage: $monthly_usage tokens ($(printf "%.1f" $(echo "scale=1; $monthly_usage * 100 / $MONTHLY_BUDGET" | bc))%)"
-          echo "Five-hour usage: $five_hour_usage tokens ($(printf "%.1f" $(echo "scale=1; $five_hour_usage * 100 / $FIVE_HOUR_BUDGET" | bc))%)"
+          while [[ "$current_date" < "$today" || "$current_date" == "$today" ]]; do
+            echo "Fetching usage for $current_date..."
+            day_response=$(fetch_usage "$current_date")
+
+            if echo "$day_response" | jq -e '.error' > /dev/null 2>&1; then
+              echo "Warning: Could not fetch data for $current_date"
+            else
+              day_tokens=$(sum_tokens "$day_response")
+              monthly_usage=$((monthly_usage + day_tokens))
+              echo "  $current_date: $day_tokens tokens (cumulative: $monthly_usage)"
+            fi
+
+            # Increment date
+            current_date=$(date -u -d "$current_date + 1 day" +%Y-%m-%d)
+          done
+
+          echo "Total monthly usage: $monthly_usage tokens"
+          echo "::endgroup::"
+
+          # Calculate percentages
+          monthly_pct=$(echo "scale=2; $monthly_usage * 100 / $MONTHLY_BUDGET" | bc)
+          daily_pct=$(echo "scale=2; $daily_usage * 100 / $DAILY_BUDGET" | bc)
+
+          echo "::group::Usage Summary"
+          echo "Monthly: $monthly_usage / $MONTHLY_BUDGET tokens (${monthly_pct}%)"
+          echo "Daily: $daily_usage / $DAILY_BUDGET tokens (${daily_pct}%)"
           echo "::endgroup::"
 
           # Determine if under budget
-          if [[ $monthly_usage -lt $MONTHLY_BUDGET && $five_hour_usage -lt $FIVE_HOUR_BUDGET ]]; then
+          if [[ $monthly_usage -lt $MONTHLY_BUDGET && $daily_usage -lt $DAILY_BUDGET ]]; then
             under_budget="true"
             echo "::notice::Under budget - eligible to assign new work"
           else
@@ -115,35 +150,33 @@ jobs:
             if [[ $monthly_usage -ge $MONTHLY_BUDGET ]]; then
               echo "::warning::Monthly budget exceeded ($monthly_usage >= $MONTHLY_BUDGET)"
             fi
-            if [[ $five_hour_usage -ge $FIVE_HOUR_BUDGET ]]; then
-              echo "::warning::Five-hour budget exceeded ($five_hour_usage >= $FIVE_HOUR_BUDGET)"
+            if [[ $daily_usage -ge $DAILY_BUDGET ]]; then
+              echo "::warning::Daily budget exceeded ($daily_usage >= $DAILY_BUDGET)"
             fi
           fi
 
           # Set outputs
           echo "monthly_usage=$monthly_usage" >> $GITHUB_OUTPUT
-          echo "five_hour_usage=$five_hour_usage" >> $GITHUB_OUTPUT
+          echo "daily_usage=$daily_usage" >> $GITHUB_OUTPUT
           echo "monthly_budget=$MONTHLY_BUDGET" >> $GITHUB_OUTPUT
-          echo "five_hour_budget=$FIVE_HOUR_BUDGET" >> $GITHUB_OUTPUT
+          echo "daily_budget=$DAILY_BUDGET" >> $GITHUB_OUTPUT
           echo "under_budget=$under_budget" >> $GITHUB_OUTPUT
-          echo "monthly_runs=$monthly_runs" >> $GITHUB_OUTPUT
-          echo "five_hour_runs=$five_hour_runs" >> $GITHUB_OUTPUT
 
-          # Save data for burn down chart
+          # Save detailed data for artifacts
+          echo "$today_response" > /tmp/today-usage.json
+
           cat > /tmp/budget-data.json << EOF
           {
             "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
             "monthly": {
-              "runs": $monthly_runs,
               "usage": $monthly_usage,
               "budget": $MONTHLY_BUDGET,
-              "percentage": $(echo "scale=2; $monthly_usage * 100 / $MONTHLY_BUDGET" | bc)
+              "percentage": $monthly_pct
             },
-            "five_hour": {
-              "runs": $five_hour_runs,
-              "usage": $five_hour_usage,
-              "budget": $FIVE_HOUR_BUDGET,
-              "percentage": $(echo "scale=2; $five_hour_usage * 100 / $FIVE_HOUR_BUDGET" | bc)
+            "daily": {
+              "usage": $daily_usage,
+              "budget": $DAILY_BUDGET,
+              "percentage": $daily_pct
             },
             "under_budget": $under_budget
           }
@@ -240,20 +273,24 @@ jobs:
           # Generate an SVG burn down chart
           monthly_usage=${{ steps.budget.outputs.monthly_usage }}
           monthly_budget=${{ steps.budget.outputs.monthly_budget }}
-          five_hour_usage=${{ steps.budget.outputs.five_hour_usage }}
-          five_hour_budget=${{ steps.budget.outputs.five_hour_budget }}
+          daily_usage=${{ steps.budget.outputs.daily_usage }}
+          daily_budget=${{ steps.budget.outputs.daily_budget }}
+
+          # Handle empty values
+          monthly_usage=${monthly_usage:-0}
+          daily_usage=${daily_usage:-0}
 
           # Calculate percentages
           monthly_pct=$(echo "scale=2; $monthly_usage * 100 / $monthly_budget" | bc)
-          five_hour_pct=$(echo "scale=2; $five_hour_usage * 100 / $five_hour_budget" | bc)
+          daily_pct=$(echo "scale=2; $daily_usage * 100 / $daily_budget" | bc)
 
           # Clamp to 100%
           monthly_bar=$(echo "scale=0; if ($monthly_pct > 100) 100 else $monthly_pct / 1" | bc)
-          five_hour_bar=$(echo "scale=0; if ($five_hour_pct > 100) 100 else $five_hour_pct / 1" | bc)
+          daily_bar=$(echo "scale=0; if ($daily_pct > 100) 100 else $daily_pct / 1" | bc)
 
           # Calculate bar widths (max 300px)
           monthly_width=$((monthly_bar * 3))
-          five_hour_width=$((five_hour_bar * 3))
+          daily_width=$((daily_bar * 3))
 
           # Determine bar colors
           if [[ $monthly_bar -lt 50 ]]; then
@@ -264,12 +301,12 @@ jobs:
             monthly_color="#ef4444"  # red
           fi
 
-          if [[ $five_hour_bar -lt 50 ]]; then
-            five_hour_color="#22c55e"  # green
-          elif [[ $five_hour_bar -lt 80 ]]; then
-            five_hour_color="#f59e0b"  # amber
+          if [[ $daily_bar -lt 50 ]]; then
+            daily_color="#22c55e"  # green
+          elif [[ $daily_bar -lt 80 ]]; then
+            daily_color="#f59e0b"  # amber
           else
-            five_hour_color="#ef4444"  # red
+            daily_color="#ef4444"  # red
           fi
 
           # Format numbers with commas
@@ -279,8 +316,8 @@ jobs:
 
           monthly_usage_fmt=$(format_number $monthly_usage)
           monthly_budget_fmt=$(format_number $monthly_budget)
-          five_hour_usage_fmt=$(format_number $five_hour_usage)
-          five_hour_budget_fmt=$(format_number $five_hour_budget)
+          daily_usage_fmt=$(format_number $daily_usage)
+          daily_budget_fmt=$(format_number $daily_budget)
 
           # Generate SVG
           cat > /tmp/burn-down-chart.svg << EOF
@@ -297,7 +334,7 @@ jobs:
             <rect width="400" height="200" fill="#f9fafb" rx="8"/>
 
             <!-- Title -->
-            <text x="20" y="30" class="title">Token Budget Usage</text>
+            <text x="20" y="30" class="title">Claude Code Token Usage</text>
             <text x="20" y="48" class="timestamp">Generated: $(date -u +"%Y-%m-%d %H:%M UTC")</text>
 
             <!-- Monthly Budget -->
@@ -307,12 +344,12 @@ jobs:
             <text x="330" y="102" class="value">${monthly_pct}%</text>
             <text x="20" y="120" class="value">${monthly_usage_fmt} / ${monthly_budget_fmt} tokens</text>
 
-            <!-- Five Hour Budget -->
-            <text x="20" y="145" class="label">5-Hour Budget</text>
+            <!-- Daily Budget -->
+            <text x="20" y="145" class="label">Daily Budget</text>
             <rect x="20" y="153" width="300" height="20" fill="#e5e7eb" rx="4"/>
-            <rect x="20" y="153" width="$five_hour_width" height="20" fill="$five_hour_color" rx="4"/>
-            <text x="330" y="167" class="value">${five_hour_pct}%</text>
-            <text x="20" y="185" class="value">${five_hour_usage_fmt} / ${five_hour_budget_fmt} tokens</text>
+            <rect x="20" y="153" width="$daily_width" height="20" fill="$daily_color" rx="4"/>
+            <text x="330" y="167" class="value">${daily_pct}%</text>
+            <text x="20" y="185" class="value">${daily_usage_fmt} / ${daily_budget_fmt} tokens</text>
           </svg>
           EOF
 
@@ -324,6 +361,7 @@ jobs:
           name: task-manager-data
           path: |
             /tmp/budget-data.json
+            /tmp/today-usage.json
             /tmp/burn-down-chart.svg
           retention-days: 30
 
@@ -331,17 +369,21 @@ jobs:
         env:
           MONTHLY_USAGE: ${{ steps.budget.outputs.monthly_usage }}
           MONTHLY_BUDGET: ${{ steps.budget.outputs.monthly_budget }}
-          FIVE_HOUR_USAGE: ${{ steps.budget.outputs.five_hour_usage }}
-          FIVE_HOUR_BUDGET: ${{ steps.budget.outputs.five_hour_budget }}
+          DAILY_USAGE: ${{ steps.budget.outputs.daily_usage }}
+          DAILY_BUDGET: ${{ steps.budget.outputs.daily_budget }}
           UNDER_BUDGET: ${{ steps.budget.outputs.under_budget }}
           ASSIGNED_ISSUE: ${{ steps.assign.outputs.issue_number }}
           FOUND_ISSUE: ${{ steps.find_issue.outputs.issue_number }}
           FOUND_TITLE: ${{ steps.find_issue.outputs.issue_title }}
           DRY_RUN: ${{ inputs.dry_run }}
         run: |
+          # Handle empty values
+          MONTHLY_USAGE=${MONTHLY_USAGE:-0}
+          DAILY_USAGE=${DAILY_USAGE:-0}
+
           # Calculate percentages
           monthly_pct=$(echo "scale=1; $MONTHLY_USAGE * 100 / $MONTHLY_BUDGET" | bc)
-          five_hour_pct=$(echo "scale=1; $FIVE_HOUR_USAGE * 100 / $FIVE_HOUR_BUDGET" | bc)
+          daily_pct=$(echo "scale=1; $DAILY_USAGE * 100 / $DAILY_BUDGET" | bc)
 
           # Determine status emoji
           if [[ "$UNDER_BUDGET" == "true" ]]; then
@@ -361,7 +403,9 @@ jobs:
           | Metric | Usage | Budget | Percentage |
           |--------|-------|--------|------------|
           | Monthly | $(printf "%'d" $MONTHLY_USAGE) tokens | $(printf "%'d" $MONTHLY_BUDGET) tokens | ${monthly_pct}% |
-          | 5-Hour | $(printf "%'d" $FIVE_HOUR_USAGE) tokens | $(printf "%'d" $FIVE_HOUR_BUDGET) tokens | ${five_hour_pct}% |
+          | Daily | $(printf "%'d" $DAILY_USAGE) tokens | $(printf "%'d" $DAILY_BUDGET) tokens | ${daily_pct}% |
+
+          > Data source: [Anthropic Claude Code Usage API](https://platform.claude.com/docs/en/api/admin/usage_report/retrieve_claude_code)
 
           EOF
 
