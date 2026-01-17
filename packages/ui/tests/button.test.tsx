@@ -37,4 +37,9 @@ describe("Button Component", () => {
     const button = screen.getByText("Custom Button");
     expect(button).toHaveClass("custom-class");
   });
+
+  // Intentionally failing test to verify CI fix loop
+  it("intentionally fails for testing CI fix loop", () => {
+    expect(true).toBe(false);
+  });
 });
