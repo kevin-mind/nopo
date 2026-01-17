@@ -1,10 +1,13 @@
 import { Script } from "../lib.ts";
+import { ScriptArgs } from "../script-args.ts";
 
 export default class EnvScript extends Script {
   static override name = "env";
   static override description = "Set up environment variables";
 
-  override async fn() {
+  static override args = new ScriptArgs({});
+
+  override async fn(_args: ScriptArgs) {
     const { chalk } = this.runner.logger;
 
     this.runner.environment.save();
