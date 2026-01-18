@@ -367,9 +367,8 @@ async function handleIssueEvent(
 
   // Handle triage: opened, edited (without triaged label), or unlabeled (removing triaged)
   // BUT only if nopo-bot is NOT assigned (if assigned, edited triggers iteration instead)
-  const assignees = (
-    payload.issue as { assignees?: Array<{ login: string }> }
-  ).assignees;
+  const assignees = (payload.issue as { assignees?: Array<{ login: string }> })
+    .assignees;
   const isNopoBotAssigned = assignees?.some((a) => a.login === "nopo-bot");
 
   if (
@@ -476,7 +475,10 @@ async function handleIssueEvent(
       };
     }
 
-    return emptyResult(true, "Issue edited but already triaged and not assigned to nopo-bot");
+    return emptyResult(
+      true,
+      "Issue edited but already triaged and not assigned to nopo-bot",
+    );
   }
 
   // Handle implement: assigned to nopo-bot

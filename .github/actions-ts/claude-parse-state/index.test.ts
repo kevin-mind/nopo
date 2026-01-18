@@ -363,7 +363,7 @@ describe("state transitions", () => {
 
   function recordFailure(
     state: IterationState,
-    failureType: "ci" | "workflow"
+    failureType: "ci" | "workflow",
   ): IterationState {
     return {
       ...state,
@@ -545,7 +545,7 @@ describe("breakpoint detection", () => {
     ciResult: string,
     consecutiveFailures: number,
     maxIterations = 10,
-    maxFailures = 5
+    maxFailures = 5,
   ): BreakpointResult {
     if (iteration >= maxIterations) {
       return {
