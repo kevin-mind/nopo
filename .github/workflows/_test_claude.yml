@@ -13,7 +13,9 @@ on:
           - unit-tests
           - detect-event
           - issue-triage
-          - issue-implement
+          - issue-iterate
+          - issue-iterate-complete
+          - issue-iterate-ci-failure
           - issue-comment
           - pr-review
           - pr-response
@@ -70,9 +72,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-node
 
-      - name: Create mock issue event
+      - name: Create mock issue events
         run: |
           mkdir -p /tmp/test-events
+
+          # Issue opened event
           cat > /tmp/test-events/issue-opened.json << 'EOF'
           {
             "action": "opened",
@@ -81,6 +85,65 @@ jobs:
               "title": "Mock test issue",
               "body": "This is a mock issue for testing",
               "labels": [],
+              "assignees": [],
+              "user": { "login": "test-user" }
+            },
+            "repository": {
+              "owner": { "login": "${{ github.repository_owner }}" },
+              "name": "${{ github.event.repository.name }}"
+            }
+          }
+          EOF
+
+          # Issue assigned event (to nopo-bot)
+          cat > /tmp/test-events/issue-assigned.json << 'EOF'
+          {
+            "action": "assigned",
+            "issue": {
+              "number": 99999,
+              "title": "Mock test issue",
+              "body": "This is a mock issue for testing",
+              "labels": [{"name": "triaged"}],
+              "assignees": [{"login": "nopo-bot"}],
+              "user": { "login": "test-user" }
+            },
+            "assignee": { "login": "nopo-bot" },
+            "repository": {
+              "owner": { "login": "${{ github.repository_owner }}" },
+              "name": "${{ github.event.repository.name }}"
+            }
+          }
+          EOF
+
+          # Issue edited event (with nopo-bot assigned - triggers iteration)
+          cat > /tmp/test-events/issue-edited-assigned.json << 'EOF'
+          {
+            "action": "edited",
+            "issue": {
+              "number": 99999,
+              "title": "Mock test issue",
+              "body": "This is a mock issue for testing - edited",
+              "labels": [{"name": "triaged"}],
+              "assignees": [{"login": "nopo-bot"}],
+              "user": { "login": "test-user" }
+            },
+            "repository": {
+              "owner": { "login": "${{ github.repository_owner }}" },
+              "name": "${{ github.event.repository.name }}"
+            }
+          }
+          EOF
+
+          # Issue edited event (without nopo-bot - triggers triage)
+          cat > /tmp/test-events/issue-edited-unassigned.json << 'EOF'
+          {
+            "action": "edited",
+            "issue": {
+              "number": 99999,
+              "title": "Mock test issue",
+              "body": "This is a mock issue for testing - edited",
+              "labels": [],
+              "assignees": [],
               "user": { "login": "test-user" }
             },
             "repository": {
@@ -91,7 +154,7 @@ jobs:
           EOF
 
       - name: Test issue-opened detection
-        id: detect-issue
+        id: detect-issue-opened
         uses: ./.github/actions-ts/claude-detect-event
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -99,19 +162,93 @@ jobs:
           GITHUB_EVENT_NAME: issues
           GITHUB_EVENT_PATH: /tmp/test-events/issue-opened.json
 
-      - name: Verify issue detection
+      - name: Verify issue-opened detection
         run: |
           echo "Testing issue-opened event detection..."
-          echo "Job: ${{ steps.detect-issue.outputs.job }}"
-          echo "Resource Type: ${{ steps.detect-issue.outputs.resource_type }}"
-          echo "Skip: ${{ steps.detect-issue.outputs.skip }}"
+          echo "Job: ${{ steps.detect-issue-opened.outputs.job }}"
+          echo "Resource Type: ${{ steps.detect-issue-opened.outputs.resource_type }}"
+          echo "Skip: ${{ steps.detect-issue-opened.outputs.skip }}"
 
-          # Verify outputs
-          if [[ "${{ steps.detect-issue.outputs.resource_type }}" != "issue" ]]; then
+          if [[ "${{ steps.detect-issue-opened.outputs.job }}" != "issue-triage" ]]; then
+            echo "ERROR: Expected job=issue-triage for opened event"
+            exit 1
+          fi
+          if [[ "${{ steps.detect-issue-opened.outputs.resource_type }}" != "issue" ]]; then
             echo "ERROR: Expected resource_type=issue"
             exit 1
           fi
-          echo "✓ Issue detection passed"
+          echo "✓ Issue-opened detection passed"
+
+      - name: Test issue-assigned detection
+        id: detect-issue-assigned
+        uses: ./.github/actions-ts/claude-detect-event
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          GITHUB_EVENT_NAME: issues
+          GITHUB_EVENT_PATH: /tmp/test-events/issue-assigned.json
+
+      - name: Verify issue-assigned detection
+        run: |
+          echo "Testing issue-assigned event detection..."
+          echo "Job: ${{ steps.detect-issue-assigned.outputs.job }}"
+          echo "Skip: ${{ steps.detect-issue-assigned.outputs.skip }}"
+
+          if [[ "${{ steps.detect-issue-assigned.outputs.job }}" != "issue-iterate" ]]; then
+            echo "ERROR: Expected job=issue-iterate for assigned to nopo-bot"
+            exit 1
+          fi
+          echo "✓ Issue-assigned detection passed"
+
+      - name: Test issue-edited with nopo-bot detection
+        id: detect-issue-edited-assigned
+        uses: ./.github/actions-ts/claude-detect-event
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          GITHUB_EVENT_NAME: issues
+          GITHUB_EVENT_PATH: /tmp/test-events/issue-edited-assigned.json
+
+      - name: Verify issue-edited with nopo-bot detection
+        run: |
+          echo "Testing issue-edited (with nopo-bot) event detection..."
+          echo "Job: ${{ steps.detect-issue-edited-assigned.outputs.job }}"
+          echo "Skip: ${{ steps.detect-issue-edited-assigned.outputs.skip }}"
+
+          if [[ "${{ steps.detect-issue-edited-assigned.outputs.job }}" != "issue-iterate" ]]; then
+            echo "ERROR: Expected job=issue-iterate for edited with nopo-bot assigned"
+            exit 1
+          fi
+          echo "✓ Issue-edited (with nopo-bot) detection passed"
+
+      - name: Test issue-edited without assignment detection
+        id: detect-issue-edited-unassigned
+        uses: ./.github/actions-ts/claude-detect-event
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          GITHUB_EVENT_NAME: issues
+          GITHUB_EVENT_PATH: /tmp/test-events/issue-edited-unassigned.json
+
+      - name: Verify issue-edited without assignment detection
+        run: |
+          echo "Testing issue-edited (without nopo-bot) event detection..."
+          echo "Job: ${{ steps.detect-issue-edited-unassigned.outputs.job }}"
+          echo "Skip: ${{ steps.detect-issue-edited-unassigned.outputs.skip }}"
+
+          if [[ "${{ steps.detect-issue-edited-unassigned.outputs.job }}" != "issue-triage" ]]; then
+            echo "ERROR: Expected job=issue-triage for edited without nopo-bot assigned"
+            exit 1
+          fi
+          echo "✓ Issue-edited (without nopo-bot) detection passed"
+
+      - name: Summary
+        run: |
+          echo "All detect-event tests passed!"
+          echo "- issue-opened → issue-triage ✓"
+          echo "- issue-assigned (nopo-bot) → issue-iterate ✓"
+          echo "- issue-edited (with nopo-bot) → issue-iterate ✓"
+          echo "- issue-edited (without nopo-bot, no triaged) → issue-triage ✓"
 
   # ============================================================================
   # WORKFLOW LOGIC TESTS - Test _claude.yml jobs with mock context
@@ -128,13 +265,35 @@ jobs:
       mock_mode: true
     secrets: inherit
 
-  # Test issue-implement job
-  issue-implement:
-    if: inputs.job == 'issue-implement' || inputs.job == 'all'
+  # Test issue-iterate job - first iteration (assigned trigger)
+  issue-iterate:
+    if: inputs.job == 'issue-iterate' || inputs.job == 'all'
     uses: ./.github/workflows/_claude.yml
     with:
-      job: issue-implement
-      context_json: '{"issue_number":"99999","issue_title":"Mock implement test","issue_body":"## Todo\n- [ ] Test task","branch_name":"test/mock/99999","existing_branch":"false"}'
+      job: issue-iterate
+      context_json: '{"issue_number":"99999","issue_title":"Mock iterate test","issue_body":"## Todo\n- [ ] Test task","branch_name":"test/mock/99999","existing_branch":"false","trigger_type":"assigned"}'
+      mock_mode: true
+    secrets: inherit
+
+  # Test issue-iterate with already complete state (should early exit)
+  issue-iterate-complete:
+    if: inputs.job == 'issue-iterate-complete' || inputs.job == 'all'
+    uses: ./.github/workflows/_claude.yml
+    with:
+      job: issue-iterate
+      # Note: In mock mode, state isn't actually read from issue body
+      # This tests that the job runs without errors with complete context
+      context_json: '{"issue_number":"99999","issue_title":"Mock complete test","issue_body":"## Todo\n- [x] Completed task","branch_name":"test/mock/99999","existing_branch":"true","trigger_type":"edited"}'
+      mock_mode: true
+    secrets: inherit
+
+  # Test issue-iterate with CI failure (edited trigger with failed CI state)
+  issue-iterate-ci-failure:
+    if: inputs.job == 'issue-iterate-ci-failure' || inputs.job == 'all'
+    uses: ./.github/workflows/_claude.yml
+    with:
+      job: issue-iterate
+      context_json: '{"issue_number":"99999","issue_title":"Mock CI failure test","issue_body":"## Todo\n- [ ] Fix errors","branch_name":"test/mock/99999","existing_branch":"true","trigger_type":"edited"}'
       mock_mode: true
     secrets: inherit
 

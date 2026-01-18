@@ -346,3 +346,278 @@ Content`;
     expect(parsed).toEqual(state);
   });
 });
+
+// Test state transition logic (without API calls)
+describe("state transitions", () => {
+  // Helper to simulate state transitions
+  function resetState(state: IterationState): IterationState {
+    return {
+      ...state,
+      consecutive_failures: 0,
+      failure_type: "",
+      last_failure_timestamp: "",
+      last_ci_result: "",
+      complete: false,
+    };
+  }
+
+  function recordFailure(
+    state: IterationState,
+    failureType: "ci" | "workflow"
+  ): IterationState {
+    return {
+      ...state,
+      consecutive_failures: state.consecutive_failures + 1,
+      failure_type: failureType,
+      last_failure_timestamp: new Date().toISOString(),
+    };
+  }
+
+  function markComplete(state: IterationState): IterationState {
+    return {
+      ...state,
+      complete: true,
+      consecutive_failures: 0,
+      failure_type: "",
+      last_failure_timestamp: "",
+    };
+  }
+
+  function incrementIteration(state: IterationState): IterationState {
+    return {
+      ...state,
+      iteration: state.iteration + 1,
+    };
+  }
+
+  describe("reset", () => {
+    it("clears failure state", () => {
+      const state: IterationState = {
+        iteration: 5,
+        branch: "claude/issue/42",
+        pr_number: "100",
+        last_ci_run: "999",
+        last_ci_result: "failure",
+        consecutive_failures: 3,
+        failure_type: "ci",
+        last_failure_timestamp: "2024-01-15T10:30:00Z",
+        complete: false,
+      };
+
+      const reset = resetState(state);
+      expect(reset.consecutive_failures).toBe(0);
+      expect(reset.failure_type).toBe("");
+      expect(reset.last_failure_timestamp).toBe("");
+      expect(reset.last_ci_result).toBe("");
+      expect(reset.complete).toBe(false);
+    });
+
+    it("preserves iteration count and PR info", () => {
+      const state: IterationState = {
+        iteration: 5,
+        branch: "claude/issue/42",
+        pr_number: "100",
+        last_ci_run: "999",
+        last_ci_result: "failure",
+        consecutive_failures: 3,
+        failure_type: "ci",
+        last_failure_timestamp: "2024-01-15T10:30:00Z",
+        complete: false,
+      };
+
+      const reset = resetState(state);
+      expect(reset.iteration).toBe(5);
+      expect(reset.branch).toBe("claude/issue/42");
+      expect(reset.pr_number).toBe("100");
+      expect(reset.last_ci_run).toBe("999");
+    });
+
+    it("clears complete flag to allow restart", () => {
+      const state: IterationState = {
+        iteration: 10,
+        branch: "claude/issue/42",
+        pr_number: "100",
+        last_ci_run: "999",
+        last_ci_result: "success",
+        consecutive_failures: 0,
+        failure_type: "",
+        last_failure_timestamp: "",
+        complete: true,
+      };
+
+      const reset = resetState(state);
+      expect(reset.complete).toBe(false);
+    });
+  });
+
+  describe("recordFailure", () => {
+    it("increments failure count", () => {
+      const state: IterationState = {
+        iteration: 3,
+        branch: "claude/issue/1",
+        pr_number: "10",
+        last_ci_run: "100",
+        last_ci_result: "failure",
+        consecutive_failures: 1,
+        failure_type: "ci",
+        last_failure_timestamp: "",
+        complete: false,
+      };
+
+      const failed = recordFailure(state, "ci");
+      expect(failed.consecutive_failures).toBe(2);
+      expect(failed.failure_type).toBe("ci");
+      expect(failed.last_failure_timestamp).not.toBe("");
+    });
+
+    it("tracks workflow failures separately", () => {
+      const state: IterationState = {
+        iteration: 3,
+        branch: "claude/issue/1",
+        pr_number: "10",
+        last_ci_run: "100",
+        last_ci_result: "pending",
+        consecutive_failures: 0,
+        failure_type: "",
+        last_failure_timestamp: "",
+        complete: false,
+      };
+
+      const failed = recordFailure(state, "workflow");
+      expect(failed.consecutive_failures).toBe(1);
+      expect(failed.failure_type).toBe("workflow");
+    });
+  });
+
+  describe("markComplete", () => {
+    it("sets complete flag and clears failures", () => {
+      const state: IterationState = {
+        iteration: 5,
+        branch: "claude/issue/1",
+        pr_number: "10",
+        last_ci_run: "100",
+        last_ci_result: "success",
+        consecutive_failures: 2,
+        failure_type: "ci",
+        last_failure_timestamp: "2024-01-15T10:30:00Z",
+        complete: false,
+      };
+
+      const completed = markComplete(state);
+      expect(completed.complete).toBe(true);
+      expect(completed.consecutive_failures).toBe(0);
+      expect(completed.failure_type).toBe("");
+      expect(completed.last_failure_timestamp).toBe("");
+    });
+  });
+
+  describe("incrementIteration", () => {
+    it("increments iteration counter", () => {
+      const state: IterationState = {
+        iteration: 3,
+        branch: "claude/issue/1",
+        pr_number: "10",
+        last_ci_run: "100",
+        last_ci_result: "",
+        consecutive_failures: 0,
+        failure_type: "",
+        last_failure_timestamp: "",
+        complete: false,
+      };
+
+      const incremented = incrementIteration(state);
+      expect(incremented.iteration).toBe(4);
+    });
+  });
+});
+
+// Test breakpoint detection logic
+describe("breakpoint detection", () => {
+  interface BreakpointResult {
+    shouldStop: boolean;
+    isCISuccess: boolean;
+    isBreakpoint: boolean;
+    reason: string;
+  }
+
+  function checkBreakpoints(
+    iteration: number,
+    ciResult: string,
+    consecutiveFailures: number,
+    maxIterations = 10,
+    maxFailures = 5
+  ): BreakpointResult {
+    if (iteration >= maxIterations) {
+      return {
+        shouldStop: true,
+        isCISuccess: false,
+        isBreakpoint: true,
+        reason: `Max iterations (${maxIterations}) reached`,
+      };
+    }
+
+    if (consecutiveFailures >= maxFailures) {
+      return {
+        shouldStop: true,
+        isCISuccess: false,
+        isBreakpoint: true,
+        reason: `Circuit breaker: ${consecutiveFailures} consecutive failures`,
+      };
+    }
+
+    if (ciResult === "success") {
+      return {
+        shouldStop: true,
+        isCISuccess: true,
+        isBreakpoint: false,
+        reason: "CI passed - ready for review",
+      };
+    }
+
+    return {
+      shouldStop: false,
+      isCISuccess: false,
+      isBreakpoint: false,
+      reason: "",
+    };
+  }
+
+  it("detects CI success as a stop condition (not breakpoint)", () => {
+    const result = checkBreakpoints(3, "success", 0);
+    expect(result.shouldStop).toBe(true);
+    expect(result.isCISuccess).toBe(true);
+    expect(result.isBreakpoint).toBe(false);
+  });
+
+  it("detects max iterations as breakpoint", () => {
+    const result = checkBreakpoints(10, "failure", 1);
+    expect(result.shouldStop).toBe(true);
+    expect(result.isBreakpoint).toBe(true);
+    expect(result.reason).toContain("Max iterations");
+  });
+
+  it("detects circuit breaker as breakpoint", () => {
+    const result = checkBreakpoints(3, "failure", 5);
+    expect(result.shouldStop).toBe(true);
+    expect(result.isBreakpoint).toBe(true);
+    expect(result.reason).toContain("Circuit breaker");
+  });
+
+  it("allows continuation when no breakpoint", () => {
+    const result = checkBreakpoints(3, "failure", 2);
+    expect(result.shouldStop).toBe(false);
+    expect(result.isBreakpoint).toBe(false);
+  });
+
+  it("respects custom max iterations", () => {
+    const result = checkBreakpoints(5, "failure", 1, 5);
+    expect(result.isBreakpoint).toBe(true);
+    expect(result.reason).toContain("Max iterations (5)");
+  });
+
+  it("respects custom max failures", () => {
+    const result = checkBreakpoints(3, "failure", 3, 10, 3);
+    expect(result.isBreakpoint).toBe(true);
+    expect(result.reason).toContain("3 consecutive failures");
+  });
+});
