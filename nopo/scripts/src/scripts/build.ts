@@ -533,6 +533,10 @@ export default class BuildScript extends TargetScript {
    *
    * NOPO_APP_UID and NOPO_APP_GID are inherited as ENV variables from the base image,
    * so we don't need to declare them as ARGs.
+   *
+   * IMPORTANT: When using dockerfile-inline with Docker Buildx bake, ${...} is interpreted
+   * as HCL variable interpolation. To use Dockerfile ARG/ENV variables, we must escape
+   * the dollar sign as $$ (e.g., $${NOPO_APP_UID} produces ${NOPO_APP_UID} in the Dockerfile).
    */
   private generateInlineDockerfile(
     service: VirtualBuildableService,
@@ -556,7 +560,8 @@ export default class BuildScript extends TargetScript {
     }
 
     // Copy source files - use ENV variables inherited from base image
-    lines.push("COPY --chown=${NOPO_APP_UID}:${NOPO_APP_GID} . .");
+    // $$ escapes the $ for HCL interpolation in dockerfile-inline
+    lines.push("COPY --chown=$${NOPO_APP_UID}:$${NOPO_APP_GID} . .");
     lines.push("");
 
     // Set build environment variables
@@ -578,29 +583,31 @@ export default class BuildScript extends TargetScript {
     lines.push("");
 
     // Copy only the specified output paths, or fallback to copying everything
+    // $$ escapes the $ for HCL interpolation in dockerfile-inline
     if (build.output && build.output.length > 0) {
       for (const outputPath of build.output) {
         lines.push(
-          `COPY --from=${serviceName}-build --chown=\${NOPO_APP_UID}:\${NOPO_APP_GID} \${APP}/${outputPath} \${APP}/${outputPath}`,
+          `COPY --from=${serviceName}-build --chown=$\${NOPO_APP_UID}:$\${NOPO_APP_GID} $\${APP}/${outputPath} $\${APP}/${outputPath}`,
         );
       }
       // Also copy the home directory for dependencies
       lines.push(
-        `COPY --from=${serviceName}-build --chown=\${NOPO_APP_UID}:\${NOPO_APP_GID} \${HOME} \${HOME}`,
+        `COPY --from=${serviceName}-build --chown=$\${NOPO_APP_UID}:$\${NOPO_APP_GID} $\${HOME} $\${HOME}`,
       );
     } else {
       // No output specified - copy everything (like traditional Dockerfile)
       lines.push(
-        `COPY --from=${serviceName}-build --chown=\${NOPO_APP_UID}:\${NOPO_APP_GID} \${APP} \${APP}`,
+        `COPY --from=${serviceName}-build --chown=$\${NOPO_APP_UID}:$\${NOPO_APP_GID} $\${APP} $\${APP}`,
       );
       lines.push(
-        `COPY --from=${serviceName}-build --chown=\${NOPO_APP_UID}:\${NOPO_APP_GID} \${HOME} \${HOME}`,
+        `COPY --from=${serviceName}-build --chown=$\${NOPO_APP_UID}:$\${NOPO_APP_GID} $\${HOME} $\${HOME}`,
       );
     }
     lines.push("");
 
     // Set service name environment variable
-    lines.push("ENV SERVICE_NAME=${SERVICE_NAME}");
+    // $$ escapes the $ for HCL interpolation in dockerfile-inline
+    lines.push("ENV SERVICE_NAME=$${SERVICE_NAME}");
     lines.push("");
 
     return lines.join("\n");
