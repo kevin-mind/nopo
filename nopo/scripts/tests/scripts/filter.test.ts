@@ -343,10 +343,9 @@ describe("filter", () => {
       };
       const services = Object.keys(parsed.services);
 
-      // Packages without dockerfiles are not buildable UNLESS they have build.command
-      // The 'virtual' package has build.command so it's buildable (via virtual Dockerfile)
-      // shared and utils don't have build.command so they're not buildable
-      expect(services).toEqual(["virtual"]);
+      // Packages without dockerfiles are buildable if they have build.command
+      // All three packages (shared, utils, virtual) have build.command so they're buildable
+      expect(services).toEqual(["shared", "utils", "virtual"]);
       stdoutSpy.mockRestore();
     });
 

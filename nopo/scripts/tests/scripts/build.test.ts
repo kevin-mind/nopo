@@ -407,8 +407,8 @@ describe("build", () => {
         (call) => call.command === "docker" && call.args[0] === "run",
       );
 
-      // Should have 2 docker run calls: shared and utils packages
-      expect(dockerRunCalls).toHaveLength(2);
+      // Should have 3 docker run calls: shared, utils, and virtual packages
+      expect(dockerRunCalls).toHaveLength(3);
 
       // First call should be for 'shared' (dependency of 'utils')
       const sharedCall = dockerRunCalls[0];
@@ -421,6 +421,10 @@ describe("build", () => {
       // Second call should be for 'utils'
       const utilsCall = dockerRunCalls[1];
       expect(utilsCall?.args).toContain('echo "FIXTURE_UTILS_BUILD_SUCCESS"');
+
+      // Third call should be for 'virtual'
+      const virtualCall = dockerRunCalls[2];
+      expect(virtualCall?.args).toContain('echo "Building virtual package"');
     });
 
     it("respects dependency ordering (dependencies built first)", async () => {
