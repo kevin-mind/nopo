@@ -24154,10 +24154,18 @@ async function run() {
       }
       let newBody = updateBodyWithState(currentBody, state);
       if (iterationMessage) {
+        let formattedMessage = iterationMessage;
+        if (lastCiResult === "failure") {
+          formattedMessage = `\u274C ${iterationMessage}`;
+        } else if (lastCiResult === "success") {
+          formattedMessage = `\u2705 ${iterationMessage}`;
+        } else if (lastCiResult === "cancelled") {
+          formattedMessage = `\u26A0\uFE0F ${iterationMessage}`;
+        }
         newBody = addIterationLogEntry(
           newBody,
           state.iteration,
-          iterationMessage,
+          formattedMessage,
           commitSha,
           runLink
         );
@@ -24230,7 +24238,7 @@ async function run() {
         newBody = addIterationLogEntry(
           newBody,
           state.iteration,
-          `\u274C ${failureType} failure: ${iterationMessage}`,
+          `${failureType} failure: ${iterationMessage}`,
           commitSha,
           runLink
         );
@@ -24293,11 +24301,19 @@ async function run() {
         core2.setFailed("Cannot mark complete: no existing state found");
         return;
       }
+      const runLink = getOptionalInput("run_link");
       state.complete = true;
       state.consecutive_failures = 0;
       state.failure_type = "";
       state.last_failure_timestamp = "";
-      const newBody = updateBodyWithState(currentBody, state);
+      let newBody = updateBodyWithState(currentBody, state);
+      newBody = addIterationLogEntry(
+        newBody,
+        state.iteration,
+        "\u2705 Complete",
+        void 0,
+        runLink
+      );
       await octokit.rest.issues.update({
         owner,
         repo,

@@ -359,10 +359,20 @@ async function run(): Promise<void> {
 
       // Add iteration log entry if message provided
       if (iterationMessage) {
+        // Add emoji based on CI result
+        let formattedMessage = iterationMessage;
+        if (lastCiResult === "failure") {
+          formattedMessage = `❌ ${iterationMessage}`;
+        } else if (lastCiResult === "success") {
+          formattedMessage = `✅ ${iterationMessage}`;
+        } else if (lastCiResult === "cancelled") {
+          formattedMessage = `⚠️ ${iterationMessage}`;
+        }
+
         newBody = addIterationLogEntry(
           newBody,
           state.iteration,
-          iterationMessage,
+          formattedMessage,
           commitSha,
           runLink,
         );
@@ -445,11 +455,12 @@ async function run(): Promise<void> {
       let newBody = updateBodyWithState(currentBody, state);
 
       // Add iteration log entry if message provided
+      // Note: No emoji here - this records that a failure was detected, not that this action failed
       if (iterationMessage) {
         newBody = addIterationLogEntry(
           newBody,
           state.iteration,
-          `❌ ${failureType} failure: ${iterationMessage}`,
+          `${failureType} failure: ${iterationMessage}`,
           commitSha,
           runLink,
         );
@@ -523,11 +534,22 @@ async function run(): Promise<void> {
         return;
       }
 
+      const runLink = getOptionalInput("run_link");
+
       state.complete = true;
       state.consecutive_failures = 0;
       state.failure_type = "";
       state.last_failure_timestamp = "";
-      const newBody = updateBodyWithState(currentBody, state);
+      let newBody = updateBodyWithState(currentBody, state);
+
+      // Add completion log entry
+      newBody = addIterationLogEntry(
+        newBody,
+        state.iteration,
+        "✅ Complete",
+        undefined,
+        runLink,
+      );
 
       await octokit.rest.issues.update({
         owner,

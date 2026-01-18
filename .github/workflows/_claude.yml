@@ -599,6 +599,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           issue_number: ${{ fromJson(inputs.context_json).issue_number }}
           action: complete
+          run_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
       # Write summary for CI success
       - name: Write success summary

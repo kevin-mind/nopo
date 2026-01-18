@@ -24231,7 +24231,10 @@ async function handleIssueEvent(octokit, owner, repo) {
         skipReason: ""
       };
     }
-    return emptyResult(true, "Issue edited but already triaged and not assigned to nopo-bot");
+    return emptyResult(
+      true,
+      "Issue edited but already triaged and not assigned to nopo-bot"
+    );
   }
   if (action === "assigned") {
     const assignee = payload.assignee;
