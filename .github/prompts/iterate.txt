@@ -58,20 +58,29 @@ First, analyze:
 4. Follow CLAUDE.md guidelines strictly
 5. Keep changes **small and focused** - one logical change per iteration
 
-### 4. Verify Locally BEFORE Pushing
+### 4. Verify Locally BEFORE Committing (CRITICAL)
 
-**ALWAYS run these checks before committing:**
+**ALWAYS run these commands before committing and after each significant code change:**
 ```bash
 make check    # Lint + type check all code
 make test     # Run all tests
+make fix      # Auto-fix formatting issues (also runs on pre-commit hook)
 ```
 
-**Do NOT push if these commands fail.** Fix any errors first.
+**STOP AND FIX if any command fails.** Do NOT commit broken code.
+
+**Workflow:**
+1. Make your code change
+2. Run `make check` - fix any errors
+3. Run `make test` - fix any failures
+4. Then commit (pre-commit hook runs `make fix` automatically)
+5. Push only after local verification passes
 
 This is critical because:
 - CI failures waste time and iteration count
 - Local verification catches issues faster
-- Each failed CI counts toward the retry limit
+- Each failed CI counts toward the retry limit (max 5)
+- The pre-commit hook will run `make fix` automatically
 
 ### 5. Commit and Push
 

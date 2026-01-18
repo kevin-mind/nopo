@@ -202,12 +202,44 @@ jobs:
           ---
           EOF
 
-      # Initialize state if this is first iteration (only if not already complete)
+      # ===== EARLY EXIT: CI is pending =====
+      # If CI is still running (pending), exit and wait for CI to complete.
+      # The ci-state workflow will update the issue when CI finishes, triggering the next iteration.
+      - id: early_exit_pending
+        name: Check if CI is pending
+        if: |
+          inputs.mock_mode != true &&
+          steps.early_exit_complete.outputs.early_exit != 'true' &&
+          steps.read_state.outputs.has_state == 'true' &&
+          steps.read_state.outputs.last_ci_result == 'pending' &&
+          fromJson(inputs.context_json).trigger_type != 'assigned'
+        run: |
+          echo "::notice::CI is still pending. Waiting for CI to complete before next iteration."
+          echo "early_exit=true" >> $GITHUB_OUTPUT
+
+      - name: Write pending summary
+        if: steps.early_exit_pending.outputs.early_exit == 'true'
+        env:
+          ITERATION: ${{ steps.read_state.outputs.iteration }}
+          ISSUE_NUMBER: ${{ fromJson(inputs.context_json).issue_number }}
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          # ⏳ Waiting for CI
+
+          Issue #$ISSUE_NUMBER iteration $ITERATION is waiting for CI to complete.
+
+          The ci-state workflow will update the issue when CI finishes, which will trigger the next iteration.
+
+          ---
+          EOF
+
+      # Initialize state if this is first iteration (only if not already complete or pending)
       - id: init_state
         name: Initialize iteration state
         if: |
           inputs.mock_mode != true &&
           steps.early_exit_complete.outputs.early_exit != 'true' &&
+          steps.early_exit_pending.outputs.early_exit != 'true' &&
           steps.read_state.outputs.has_state != 'true'
         uses: ./.github/actions-ts/claude-parse-state
         with:
@@ -223,6 +255,7 @@ jobs:
         if: |
           inputs.mock_mode != true &&
           steps.early_exit_complete.outputs.early_exit != 'true' &&
+          steps.early_exit_pending.outputs.early_exit != 'true' &&
           steps.read_state.outputs.has_state == 'true' &&
           fromJson(inputs.context_json).trigger_type == 'assigned'
         uses: ./.github/actions-ts/claude-parse-state
@@ -235,7 +268,9 @@ jobs:
       # Get effective state (from read, init, or reset)
       - id: state
         name: Determine effective state
-        if: steps.early_exit_complete.outputs.early_exit != 'true'
+        if: |
+          steps.early_exit_complete.outputs.early_exit != 'true' &&
+          steps.early_exit_pending.outputs.early_exit != 'true'
         env:
           # Prefer reset values when available (reset clears failures and complete)
           READ_ITERATION: ${{ steps.reset_state.outputs.iteration || steps.read_state.outputs.iteration || '0' }}
@@ -259,6 +294,7 @@ jobs:
         if: |
           inputs.mock_mode != true &&
           steps.early_exit_complete.outputs.early_exit != 'true' &&
+          steps.early_exit_pending.outputs.early_exit != 'true' &&
           steps.state.outputs.ci_result == 'failure' &&
           steps.state.outputs.consecutive_failures == steps.read_state.outputs.consecutive_failures
         uses: ./.github/actions-ts/claude-parse-state
@@ -282,6 +318,7 @@ jobs:
         if: |
           inputs.mock_mode != true &&
           steps.early_exit_complete.outputs.early_exit != 'true' &&
+          steps.early_exit_pending.outputs.early_exit != 'true' &&
           (steps.state.outputs.consecutive_failures != '0' || steps.record_ci_failure.outcome == 'success')
         env:
           # Use updated failure count if CI failure was just recorded
@@ -312,7 +349,9 @@ jobs:
       # Check for breakpoints and CI success
       - id: breakpoint
         name: Check breakpoints
-        if: steps.early_exit_complete.outputs.early_exit != 'true'
+        if: |
+          steps.early_exit_complete.outputs.early_exit != 'true' &&
+          steps.early_exit_pending.outputs.early_exit != 'true'
         env:
           ITERATION: ${{ steps.state.outputs.iteration }}
           CI_RESULT: ${{ steps.state.outputs.ci_result }}

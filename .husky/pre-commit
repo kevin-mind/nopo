@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+
+# Run make fix to auto-fix linting issues before commit
+# This prevents committing code that would fail CI
+
+make fix
