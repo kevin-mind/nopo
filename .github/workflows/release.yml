@@ -101,9 +101,9 @@ jobs:
             fi
           fi
 
-          # Convert arrays to JSON
-          issues_json=$(printf '%s\n' "${issues[@]}" | jq -R . | jq -s 'unique')
-          prs_json=$(printf '%s\n' "${prs[@]}" | jq -R . | jq -s 'unique')
+          # Convert arrays to JSON (compact format for GITHUB_OUTPUT)
+          issues_json=$(printf '%s\n' "${issues[@]}" | jq -R . | jq -sc 'unique')
+          prs_json=$(printf '%s\n' "${prs[@]}" | jq -R . | jq -sc 'unique')
           has_issues=$([[ ${#issues[@]} -gt 0 ]] && echo "true" || echo "false")
 
           echo "issues_json=$issues_json" >> "$GITHUB_OUTPUT"
