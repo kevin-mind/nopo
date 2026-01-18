@@ -27,13 +27,12 @@ flowchart TB
 
     subgraph Special["Special Jobs (No Claude)"]
         S1[push-to-draft]
-        S2[ci-success]
         S3[discussion-complete]
     end
 
     subgraph Controller["_claude.yml (Business Logic)"]
         C1[issue-triage]
-        C2[issue-implement]
+        C2[issue-iterate]
         C3[issue-comment]
         C6[pr-review]
         C7[pr-response]
@@ -114,16 +113,13 @@ Updates status based on outcome:
 flowchart LR
     subgraph Issues
         I1[opened/edited] --> |no 'triaged' label| J1[issue-triage]
-        I2[assigned to nopo-bot] --> J2[issue-implement]
+        I2[assigned to nopo-bot] --> J2[issue-iterate]
         I3[comment with @claude] --> J3[issue-comment]
+        I4[workflow_run completed] --> |Claude branch| J2[issue-iterate]
     end
 
     subgraph Push
         P1[push to branch] --> |has open PR| J4[push-to-draft]
-    end
-
-    subgraph CI["CI Events"]
-        C3[CI passed + Claude PR] --> J7[ci-success]
     end
 
     subgraph Reviews
@@ -149,15 +145,13 @@ stateDiagram-v2
 
     state "Issue Flow" as IssueFlow {
         Triage --> Ready: Labels Applied
-        Ready --> Implement: Assign nopo-bot
+        Ready --> Iterate: Assign nopo-bot
     }
 
-    Implement --> DraftPR: Create PR
-
-    state "CI Loop (Draft)" as CILoop {
-        DraftPR --> CIRunning: Push
-        CIRunning --> CIFix: CI Failed
-        CIFix --> CIRunning: Push Fix
+    state "Unified Iteration Loop" as IterationLoop {
+        Iterate --> DraftPR: Create PR + Push
+        DraftPR --> CIRunning: workflow_run
+        CIRunning --> Iterate: CI Failed (retry)
         CIRunning --> ReadyPR: CI Passed
     }
 
@@ -171,6 +165,31 @@ stateDiagram-v2
 
     Approved --> [*]: Human Merges
 ```
+
+### Iteration State (Stored in Issue Body)
+
+The `issue-iterate` job tracks state in an HTML comment in the issue body:
+
+```markdown
+<!-- CLAUDE_ITERATION
+iteration: 3
+branch: claude/issue/42
+pr_number: 123
+last_ci_run: 456789
+last_ci_result: failure
+consecutive_failures: 1
+failure_type: ci
+last_failure_timestamp: 2024-01-15T10:30:00Z
+complete: false
+-->
+```
+
+### Retry Logic
+
+- **Max retries**: Configurable via `vars.MAX_CLAUDE_RETRIES` (default: 5)
+- **Backoff**: Exponential with jitter (60s base, ±20% jitter, 15min cap)
+- **Triggers retry**: Both CI failures and workflow failures
+- **Circuit breaker**: Stops after max retries, adds `needs-human` label
 
 ## Concurrency Strategy
 
@@ -207,14 +226,14 @@ flowchart TB
 | Job | Trigger | Action |
 |-----|---------|--------|
 | `issue-triage` | Issue opened/edited without "triaged" label | Adds labels, sets project fields, creates sub-issues |
-| `issue-implement` | Issue assigned to nopo-bot | Creates branch, implements code, opens draft PR |
+| `issue-iterate` | Issue assigned to nopo-bot OR workflow_run completed | Unified iteration loop: implements code, fixes CI, handles completion |
 | `issue-comment` | Comment contains @claude | Answers questions, provides explanations |
 
-### CI Jobs
-
-| Job | Trigger | Action |
-|-----|---------|--------|
-| `ci-success` | CI passed on Claude PR | Marks ready, requests nopo-bot review |
+The `issue-iterate` job handles the entire implementation lifecycle:
+- **First iteration**: Creates branch, implements initial code, opens draft PR
+- **CI failure**: Reads CI logs, fixes issues, pushes fix
+- **CI success**: Marks PR ready for review, requests nopo-bot as reviewer
+- **Workflow failure**: Records failure, retries with exponential backoff
 
 ### PR Jobs
 
@@ -246,12 +265,15 @@ Each job receives context via `context_json`:
     "issue_title": "Bug: ...",
     "issue_body": "..."
   },
-  "issue-implement": {
+  "issue-iterate": {
     "issue_number": "123",
     "issue_title": "...",
     "issue_body": "...",
     "branch_name": "claude/issue/123",
-    "existing_branch": "false"
+    "existing_branch": "false",
+    "trigger_type": "assigned",
+    "ci_result": "",
+    "pr_number": ""
   },
   "pr-review": {
     "pr_number": "456",
@@ -266,6 +288,16 @@ Each job receives context via `context_json`:
 }
 ```
 
+For `issue-iterate` triggered by `workflow_run`:
+```json
+{
+  "trigger_type": "workflow_run",
+  "ci_result": "failure",
+  "ci_logs": "Error: Type 'string' is not assignable...",
+  "ci_run_id": "12345678"
+}
+```
+
 ## TypeScript Actions
 
 Custom actions in `.github/actions-ts/`:
@@ -273,8 +305,9 @@ Custom actions in `.github/actions-ts/`:
 | Action | Purpose |
 |--------|---------|
 | `claude-detect-event` | Analyzes GitHub event, determines job and context |
-| `claude-signal-start` | Adds reactions, creates status comments |
-| `claude-handle-result` | Updates status based on job result |
+| `claude-signal-start` | Adds reactions, creates status comments with iteration progress |
+| `claude-handle-result` | Updates status based on job result, triggers retries on failure |
+| `claude-parse-state` | Parses/updates iteration state from issue body |
 
 ## Actors
 

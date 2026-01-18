@@ -961,7 +961,7 @@ The iteration model unifies implementation and CI fixing into a single repeating
 │         │                              │                 │           │
 │         │                              │ • Max iterations│──────►STOP│
 │         │                              │                 │           │
-│         │                              │ • 3 failures    │──────►STOP│
+│         │                              │ • Max retries   │──────►STOP│
 │         │                              └────────┬────────┘           │
 │         │                                       │ no                  │
 │         │              workflow_run             │                    │
@@ -991,6 +991,8 @@ pr_number: 123
 last_ci_run: 456789
 last_ci_result: failure
 consecutive_failures: 1
+failure_type: ci
+last_failure_timestamp: 2024-01-15T10:30:00Z
 complete: false
 -->
 
@@ -1013,7 +1015,14 @@ complete: false
 |-----------|--------|-------|
 | CI passed | Mark PR ready, request review | `review-ready` |
 | Max iterations (10) | Post comment, exit | `needs-human` |
-| 3 consecutive CI failures | Circuit breaker | `needs-human` |
+| Max consecutive failures | Circuit breaker | `needs-human` |
+
+**Configurable retry count**: Set `vars.MAX_CLAUDE_RETRIES` GitHub variable (default: 5)
+
+**Retry logic**:
+- Exponential backoff with jitter (60s base, ±20% jitter, 15min cap)
+- Applies to both CI failures and workflow failures
+- Each failure is tracked with type (`ci` or `workflow`) and timestamp
 
 ### Draft/Ready State Machine
 
