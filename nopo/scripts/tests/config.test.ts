@@ -327,4 +327,265 @@ image: postgres:16
     expect(db?.type).toBe("service");
     expect(db?.runtime).toBeUndefined();
   });
+
+  describe("multi-directory discovery", () => {
+    it("discovers services from multiple directories", () => {
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), "nopo-config-"));
+      tmpDirs.push(root);
+
+      writeFile(
+        path.join(root, "nopo.yml"),
+        `
+name: Multi-Dir Project
+services:
+  dirs:
+    - ./apps
+    - ./packages
+`,
+      );
+
+      // Service in apps directory
+      writeFile(
+        path.join(root, "apps", "backend", "nopo.yml"),
+        `
+name: backend
+runtime:
+  port: 8080
+`,
+      );
+
+      // Package in packages directory
+      writeFile(
+        path.join(root, "packages", "ui", "nopo.yml"),
+        `
+name: ui
+commands:
+  compile: pnpm build
+`,
+      );
+
+      const config = loadProjectConfig(root);
+
+      expect(config.services.targets).toEqual(["backend", "ui"]);
+      expect(config.services.entries.backend?.type).toBe("service");
+      expect(config.services.entries.ui?.type).toBe("package");
+    });
+
+    it("discovers services using glob patterns", () => {
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), "nopo-config-"));
+      tmpDirs.push(root);
+
+      writeFile(
+        path.join(root, "nopo.yml"),
+        `
+name: Glob Pattern Project
+services:
+  dirs:
+    - "./projects/*"
+`,
+      );
+
+      // Create service parent directories matching glob pattern
+      // Each matched directory (projects/frontend, projects/backend) is then searched for services
+      writeFile(
+        path.join(root, "projects", "frontend", "web", "nopo.yml"),
+        `
+name: web
+runtime:
+  port: 3000
+`,
+      );
+
+      writeFile(
+        path.join(root, "projects", "backend", "api", "nopo.yml"),
+        `
+name: api
+runtime:
+  port: 8080
+`,
+      );
+
+      // Create a non-service directory (no nopo.yml) - should be skipped
+      fs.mkdirSync(path.join(root, "projects", "docs"), { recursive: true });
+      writeFile(path.join(root, "projects", "docs", "README.md"), "# Docs");
+
+      const config = loadProjectConfig(root);
+
+      // Should find services from within glob-matched parent directories
+      expect(config.services.targets).toEqual(["api", "web"]);
+    });
+
+    it("excludes directories using exclusion patterns", () => {
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), "nopo-config-"));
+      tmpDirs.push(root);
+
+      writeFile(
+        path.join(root, "nopo.yml"),
+        `
+name: Exclusion Pattern Project
+services:
+  dirs:
+    - ./apps
+    - ./packages
+    - "!./packages/internal"
+`,
+      );
+
+      // Services that should be included
+      writeFile(
+        path.join(root, "apps", "api", "nopo.yml"),
+        `
+name: api
+runtime:
+  port: 8080
+`,
+      );
+
+      writeFile(
+        path.join(root, "packages", "shared", "nopo.yml"),
+        `
+name: shared
+commands:
+  compile: pnpm build
+`,
+      );
+
+      // Service in excluded directory - should not be discovered
+      writeFile(
+        path.join(root, "packages", "internal", "secret", "nopo.yml"),
+        `
+name: secret
+commands:
+  test: echo secret
+`,
+      );
+
+      const config = loadProjectConfig(root);
+
+      // Should only find services NOT in excluded directories
+      expect(config.services.targets).toEqual(["api", "shared"]);
+      expect(config.services.entries.secret).toBeUndefined();
+    });
+
+    it("supports glob exclusion patterns", () => {
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), "nopo-config-"));
+      tmpDirs.push(root);
+
+      writeFile(
+        path.join(root, "nopo.yml"),
+        `
+name: Glob Exclusion Project
+services:
+  dirs:
+    - "./services/*"
+    - "!./services/test-*"
+`,
+      );
+
+      // Regular service parent directories (services/api and services/worker match the glob)
+      // Inside these we have actual service subdirectories
+      writeFile(
+        path.join(root, "services", "api", "main", "nopo.yml"),
+        `
+name: main
+runtime:
+  port: 8080
+`,
+      );
+
+      writeFile(
+        path.join(root, "services", "worker", "processor", "nopo.yml"),
+        `
+name: processor
+runtime:
+  port: 9000
+`,
+      );
+
+      // Test directories that should be excluded (services/test-api and services/test-worker)
+      writeFile(
+        path.join(root, "services", "test-api", "mock", "nopo.yml"),
+        `
+name: mock
+commands:
+  test: echo mock
+`,
+      );
+
+      writeFile(
+        path.join(root, "services", "test-worker", "stub", "nopo.yml"),
+        `
+name: stub
+commands:
+  test: echo stub
+`,
+      );
+
+      const config = loadProjectConfig(root);
+
+      // Should only find services from non-excluded directories
+      expect(config.services.targets).toEqual(["main", "processor"]);
+    });
+
+    it("throws error for duplicate service IDs across directories", () => {
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), "nopo-config-"));
+      tmpDirs.push(root);
+
+      writeFile(
+        path.join(root, "nopo.yml"),
+        `
+name: Duplicate ID Project
+services:
+  dirs:
+    - ./apps
+    - ./packages
+`,
+      );
+
+      // Same service name in both directories
+      writeFile(
+        path.join(root, "apps", "shared", "nopo.yml"),
+        `
+name: shared
+runtime:
+  port: 8080
+`,
+      );
+
+      writeFile(
+        path.join(root, "packages", "shared", "nopo.yml"),
+        `
+name: shared
+commands:
+  compile: pnpm build
+`,
+      );
+
+      expect(() => loadProjectConfig(root)).toThrow(
+        /Duplicate service "shared"/,
+      );
+      expect(() => loadProjectConfig(root)).toThrow(
+        /Service IDs must be unique/,
+      );
+    });
+
+    it("handles empty glob pattern results gracefully", () => {
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), "nopo-config-"));
+      tmpDirs.push(root);
+
+      writeFile(
+        path.join(root, "nopo.yml"),
+        `
+name: Empty Glob Project
+services:
+  dirs:
+    - "./nonexistent/*"
+`,
+      );
+
+      // No services exist - should not throw
+      const config = loadProjectConfig(root);
+      expect(config.services.targets).toEqual([]);
+    });
+  });
 });

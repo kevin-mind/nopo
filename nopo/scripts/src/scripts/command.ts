@@ -325,6 +325,7 @@ export default class CommandScript extends Script {
     return false;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   override async fn(_args: ScriptArgs) {
     // Parse command-specific args (command, subcommand, targets, filters)
     const cmdArgs = CommandScript.parseCommandArgs(this.runner);
