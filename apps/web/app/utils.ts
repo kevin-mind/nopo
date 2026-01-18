@@ -1,3 +1,4 @@
+// Utility functions for the web application
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
