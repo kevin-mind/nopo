@@ -668,8 +668,9 @@ describe("build", () => {
       const dockerfile = bakeDefinition.target.virtual["dockerfile-inline"];
       // Should have separate COPY for each output path
       expect(dockerfile).toContain("COPY --from=virtual-build");
-      expect(dockerfile).toContain("${APP}/dist ${APP}/dist");
-      expect(dockerfile).toContain("${APP}/lib ${APP}/lib");
+      // Dollar signs are escaped as $$ for HCL parsing in dockerfile-inline
+      expect(dockerfile).toContain("$${APP}/dist $${APP}/dist");
+      expect(dockerfile).toContain("$${APP}/lib $${APP}/lib");
     });
 
     it("generates correct build and final stage names", async () => {
@@ -711,7 +712,8 @@ describe("build", () => {
       const bakeDefinition = JSON.parse(bakeContent);
 
       const dockerfile = bakeDefinition.target.virtual["dockerfile-inline"];
-      expect(dockerfile).toContain("ENV SERVICE_NAME=${SERVICE_NAME}");
+      // Dollar signs are escaped as $$ for HCL parsing in dockerfile-inline
+      expect(dockerfile).toContain("ENV SERVICE_NAME=$${SERVICE_NAME}");
     });
   });
 });

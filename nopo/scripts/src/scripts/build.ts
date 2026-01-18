@@ -491,7 +491,10 @@ export default class BuildScript extends TargetScript {
         };
       } else if (isVirtualBuildableService(service)) {
         // Virtual inline Dockerfile - pass rootName for direct context reference
-        const dockerfileInline = this.generateInlineDockerfile(service, rootName);
+        const dockerfileInline = this.generateInlineDockerfile(
+          service,
+          rootName,
+        );
 
         definition.target[target] = {
           context: relativeContext,
