@@ -4,8 +4,6 @@ static_path: build/client
 
 build:
   command: pnpm install --frozen-lockfile && pnpm --filter @more/web build
-  output:
-    - build
   env:
     NODE_ENV: production
 runtime:
