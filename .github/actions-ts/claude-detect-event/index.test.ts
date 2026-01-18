@@ -19,7 +19,9 @@ interface DetectionResult {
 }
 
 function hasSkipLabel(labels: Array<{ name: string }>): boolean {
-  return labels.some((l) => l.name === "skip-dispatch" || l.name === "test:automation");
+  return labels.some(
+    (l) => l.name === "skip-dispatch" || l.name === "test:automation",
+  );
 }
 
 function isTestResource(title: string): boolean {
@@ -41,16 +43,26 @@ function detectIssueJob(
   action: string,
   issue: IssuePayload,
   assignee?: { login: string },
-  removedLabel?: string
+  removedLabel?: string,
 ): DetectionResult {
   // Check for [TEST] in title (circuit breaker)
   if (isTestResource(issue.title)) {
-    return { job: "", resourceType: "", skip: true, skipReason: "Issue title starts with [TEST]" };
+    return {
+      job: "",
+      resourceType: "",
+      skip: true,
+      skipReason: "Issue title starts with [TEST]",
+    };
   }
 
   // Check for skip labels
   if (hasSkipLabel(issue.labels)) {
-    return { job: "", resourceType: "", skip: true, skipReason: "Issue has skip-dispatch or test:automation label" };
+    return {
+      job: "",
+      resourceType: "",
+      skip: true,
+      skipReason: "Issue has skip-dispatch or test:automation label",
+    };
   }
 
   const hasTriaged = hasTriagedLabel(issue.labels);
@@ -59,36 +71,82 @@ function detectIssueJob(
   // Handle opened - always triage
   if (action === "opened") {
     if (hasTriaged) {
-      return { job: "", resourceType: "", skip: true, skipReason: "Issue already triaged" };
+      return {
+        job: "",
+        resourceType: "",
+        skip: true,
+        skipReason: "Issue already triaged",
+      };
     }
-    return { job: "issue-triage", resourceType: "issue", skip: false, skipReason: "" };
+    return {
+      job: "issue-triage",
+      resourceType: "issue",
+      skip: false,
+      skipReason: "",
+    };
   }
 
   // Handle unlabeled - re-triage if triaged label was removed
   if (action === "unlabeled" && removedLabel === "triaged") {
-    return { job: "issue-triage", resourceType: "issue", skip: false, skipReason: "" };
+    return {
+      job: "issue-triage",
+      resourceType: "issue",
+      skip: false,
+      skipReason: "",
+    };
   }
 
   // Handle edited - iteration if nopo-bot assigned, otherwise triage
   if (action === "edited") {
     if (nopoBotAssigned) {
-      return { job: "issue-iterate", resourceType: "issue", skip: false, skipReason: "" };
+      return {
+        job: "issue-iterate",
+        resourceType: "issue",
+        skip: false,
+        skipReason: "",
+      };
     }
     if (!hasTriaged) {
-      return { job: "issue-triage", resourceType: "issue", skip: false, skipReason: "" };
+      return {
+        job: "issue-triage",
+        resourceType: "issue",
+        skip: false,
+        skipReason: "",
+      };
     }
-    return { job: "", resourceType: "", skip: true, skipReason: "Issue edited but already triaged and not assigned to nopo-bot" };
+    return {
+      job: "",
+      resourceType: "",
+      skip: true,
+      skipReason:
+        "Issue edited but already triaged and not assigned to nopo-bot",
+    };
   }
 
   // Handle assigned - iterate if assigned to nopo-bot
   if (action === "assigned") {
     if (assignee?.login !== "nopo-bot") {
-      return { job: "", resourceType: "", skip: true, skipReason: "Not assigned to nopo-bot" };
+      return {
+        job: "",
+        resourceType: "",
+        skip: true,
+        skipReason: "Not assigned to nopo-bot",
+      };
     }
-    return { job: "issue-iterate", resourceType: "issue", skip: false, skipReason: "" };
+    return {
+      job: "issue-iterate",
+      resourceType: "issue",
+      skip: false,
+      skipReason: "",
+    };
   }
 
-  return { job: "", resourceType: "", skip: true, skipReason: `Unhandled issue action: ${action}` };
+  return {
+    job: "",
+    resourceType: "",
+    skip: true,
+    skipReason: `Unhandled issue action: ${action}`,
+  };
 }
 
 describe("hasSkipLabel", () => {
@@ -101,7 +159,9 @@ describe("hasSkipLabel", () => {
   });
 
   it("returns false for other labels", () => {
-    expect(hasSkipLabel([{ name: "bug" }, { name: "enhancement" }])).toBe(false);
+    expect(hasSkipLabel([{ name: "bug" }, { name: "enhancement" }])).toBe(
+      false,
+    );
   });
 
   it("returns false for empty labels", () => {
@@ -129,7 +189,9 @@ describe("isNopoBotAssigned", () => {
   });
 
   it("returns true when nopo-bot is among multiple assignees", () => {
-    expect(isNopoBotAssigned([{ login: "user1" }, { login: "nopo-bot" }])).toBe(true);
+    expect(isNopoBotAssigned([{ login: "user1" }, { login: "nopo-bot" }])).toBe(
+      true,
+    );
   });
 
   it("returns false when nopo-bot is not assigned", () => {
@@ -251,7 +313,7 @@ describe("detectIssueJob - assigned action", () => {
         body: "Description",
         labels: [{ name: "triaged" }],
       },
-      { login: "nopo-bot" }
+      { login: "nopo-bot" },
     );
     expect(result.job).toBe("issue-iterate");
     expect(result.skip).toBe(false);
@@ -266,7 +328,7 @@ describe("detectIssueJob - assigned action", () => {
         body: "Description",
         labels: [{ name: "triaged" }],
       },
-      { login: "human-user" }
+      { login: "human-user" },
     );
     expect(result.skip).toBe(true);
     expect(result.skipReason).toContain("Not assigned to nopo-bot");
@@ -284,7 +346,7 @@ describe("detectIssueJob - unlabeled action", () => {
         labels: [], // triaged label was removed
       },
       undefined,
-      "triaged"
+      "triaged",
     );
     expect(result.job).toBe("issue-triage");
     expect(result.skip).toBe(false);
@@ -300,7 +362,7 @@ describe("detectIssueJob - unlabeled action", () => {
         labels: [{ name: "triaged" }],
       },
       undefined,
-      "bug"
+      "bug",
     );
     expect(result.skip).toBe(true);
   });
