@@ -4,8 +4,16 @@ name: CI
     branches:
       - main
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  # Claude branches share concurrency with iterate job (sequential execution)
+  # Human PRs use standard CI concurrency (cancel old runs)
+  group: >-
+    ${{
+      startsWith(github.head_ref, 'claude/issue/')
+      && format('claude-work-{0}', github.head_ref)
+      || format('CI-{0}', github.event.pull_request.number)
+    }}
+  # Claude branches queue (don't cancel iterate), human PRs cancel old runs
+  cancel-in-progress: ${{ !startsWith(github.head_ref, 'claude/issue/') }}
 permissions: {}
 defaults:
   run:
