@@ -372,7 +372,7 @@ The `claude-parse-state` action supports the following operations:
 | Secret | Purpose |
 |--------|---------|
 | `CLAUDE_CODE_OAUTH_TOKEN` | OAuth token for Claude Code CLI |
-| `PAT_TOKEN` | Personal Access Token for git push (triggers workflows) |
+| `NOPO_BOT_PAT` | nopo-bot's Personal Access Token for git push and reviews (triggers workflows) |
 | `PROJECT_TOKEN` | (Optional) PAT for updating GitHub Project fields |
 
 ## Testing

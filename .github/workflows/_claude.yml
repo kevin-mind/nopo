@@ -584,8 +584,8 @@ jobs:
           steps.breakpoint.outputs.is_ci_success == 'true' &&
           steps.check_comments.outputs.has_unresolved != 'true'
         env:
-          # Use PAT_TOKEN to trigger the review_requested event
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          # Use NOPO_BOT_PAT to trigger the review_requested event
+          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
           PR_NUMBER: ${{ steps.get_pr_number.outputs.pr_number }}
         run: gh pr edit "$PR_NUMBER" --add-reviewer "nopo-bot" --repo "$GITHUB_REPOSITORY"
 
@@ -690,10 +690,11 @@ jobs:
           git config --global user.name "Claude Bot"
           git config --global user.email "claude-bot@anthropic.com"
 
-      - name: Rebase onto main
+      - id: rebase
+        name: Rebase onto main
         if: inputs.mock_mode != true && steps.breakpoint.outputs.should_stop != 'true'
         env:
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          NOPO_BOT_PAT: ${{ secrets.NOPO_BOT_PAT }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
           git fetch origin main
@@ -701,6 +702,7 @@ jobs:
           # Check if rebase is needed
           if git merge-base --is-ancestor origin/main HEAD; then
             echo "Branch is already up to date with main - skipping rebase"
+            echo "rebase_performed=false" >> $GITHUB_OUTPUT
             exit 0
           fi
 
@@ -718,24 +720,56 @@ jobs:
           # Only push if rebase actually changed something
           if [[ "$head_before" == "$head_after" ]]; then
             echo "Rebase did not change HEAD - skipping push"
+            echo "rebase_performed=false" >> $GITHUB_OUTPUT
             exit 0
           fi
 
           # Clear the GITHUB_TOKEN credential and use PAT instead
           git config --unset-all http.https://github.com/.extraheader || true
-          git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$PAT_TOKEN" | base64)"
+          git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$NOPO_BOT_PAT" | base64)"
 
           if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
             git push origin "$BRANCH_NAME" --force-with-lease
-            echo "Rebased and pushed changes"
+            echo "Rebased and pushed changes - exiting to let CI run"
+            echo "rebase_performed=true" >> $GITHUB_OUTPUT
           else
             echo "No commits beyond main - skipping push"
+            echo "rebase_performed=false" >> $GITHUB_OUTPUT
           fi
+
+      # ===== EARLY EXIT: Rebase was performed =====
+      # If we rebased, exit and let CI run on the rebased code.
+      # The CI result will trigger the next iteration via the edit-based loop.
+      - name: Write rebase summary
+        if: steps.rebase.outputs.rebase_performed == 'true'
+        env:
+          ITERATION: ${{ steps.state.outputs.iteration || '0' }}
+          ISSUE_NUMBER: ${{ fromJson(inputs.context_json).issue_number }}
+          BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          # 🔄 Rebased onto main
+
+          | Property | Value |
+          |----------|-------|
+          | **Issue** | [#$ISSUE_NUMBER](${{ github.server_url }}/${{ github.repository }}/issues/$ISSUE_NUMBER) |
+          | **Branch** | \`$BRANCH_NAME\` |
+          | **Iteration** | $ITERATION |
+
+          ## Status
+
+          Branch was behind main and has been rebased. Exiting to let CI run on the rebased code.
+
+          The next iteration will start automatically when CI completes.
+
+          ---
+
+          EOF
 
       # Increment iteration counter before running Claude
       - id: increment
         name: Increment iteration
-        if: inputs.mock_mode != true && steps.breakpoint.outputs.should_stop != 'true'
+        if: inputs.mock_mode != true && steps.breakpoint.outputs.should_stop != 'true' && steps.rebase.outputs.rebase_performed != 'true'
         uses: ./.github/actions-ts/claude-parse-state
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -744,7 +778,7 @@ jobs:
 
       # Write job summary to display iteration prominently in CI UI
       - name: Write iteration summary
-        if: steps.breakpoint.outputs.should_stop != 'true'
+        if: steps.breakpoint.outputs.should_stop != 'true' && steps.rebase.outputs.rebase_performed != 'true'
         env:
           ITERATION: ${{ steps.increment.outputs.iteration || steps.state.outputs.iteration || '1' }}
           ISSUE_NUMBER: ${{ fromJson(inputs.context_json).issue_number }}
@@ -786,7 +820,7 @@ jobs:
       # Build prompt replacements with iteration state
       - id: augment
         name: Build prompt replacements
-        if: steps.breakpoint.outputs.should_stop != 'true'
+        if: steps.breakpoint.outputs.should_stop != 'true' && steps.rebase.outputs.rebase_performed != 'true'
         env:
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
           BASE_REPLACEMENTS: ${{ needs.context.outputs.prompt_replacements }}
@@ -831,7 +865,7 @@ jobs:
           echo "json=$json" >> $GITHUB_OUTPUT
 
       - uses: ./.github/actions/run-claude
-        if: steps.breakpoint.outputs.should_stop != 'true'
+        if: steps.breakpoint.outputs.should_stop != 'true' && steps.rebase.outputs.rebase_performed != 'true'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -845,7 +879,7 @@ jobs:
       # Detect PR after Claude runs (Claude may have created one)
       - id: detect_pr
         name: Detect PR for branch
-        if: success() && inputs.mock_mode != true && steps.breakpoint.outputs.should_stop != 'true'
+        if: success() && inputs.mock_mode != true && steps.breakpoint.outputs.should_stop != 'true' && steps.rebase.outputs.rebase_performed != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
@@ -870,12 +904,12 @@ jobs:
       # Get commit SHA for iteration log
       - id: get_sha
         name: Get commit SHA
-        if: success() && inputs.mock_mode != true && steps.breakpoint.outputs.should_stop != 'true'
+        if: success() && inputs.mock_mode != true && steps.breakpoint.outputs.should_stop != 'true' && steps.rebase.outputs.rebase_performed != 'true'
         run: echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
 
       # Update state after Claude runs
       - name: Update iteration state
-        if: success() && inputs.mock_mode != true && steps.breakpoint.outputs.should_stop != 'true'
+        if: success() && inputs.mock_mode != true && steps.breakpoint.outputs.should_stop != 'true' && steps.rebase.outputs.rebase_performed != 'true'
         uses: ./.github/actions-ts/claude-parse-state
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -888,15 +922,15 @@ jobs:
           run_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
       - name: Re-push with PAT to trigger CI
-        if: success() && inputs.mock_mode != true && steps.breakpoint.outputs.should_stop != 'true'
+        if: success() && inputs.mock_mode != true && steps.breakpoint.outputs.should_stop != 'true' && steps.rebase.outputs.rebase_performed != 'true'
         env:
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          NOPO_BOT_PAT: ${{ secrets.NOPO_BOT_PAT }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
           # Amend + push with PAT to trigger CI workflows
           # Clear the GITHUB_TOKEN credential and use PAT instead
           git config --unset-all http.https://github.com/.extraheader || true
-          git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$PAT_TOKEN" | base64)"
+          git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$NOPO_BOT_PAT" | base64)"
           if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
             git commit --amend --no-edit
             git push origin "$BRANCH_NAME" --force-with-lease
@@ -905,9 +939,9 @@ jobs:
           fi
 
       - name: Save uncommitted work on failure
-        if: failure() && inputs.mock_mode != true && steps.breakpoint.outputs.should_stop != 'true'
+        if: failure() && inputs.mock_mode != true && steps.breakpoint.outputs.should_stop != 'true' && steps.rebase.outputs.rebase_performed != 'true'
         env:
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          NOPO_BOT_PAT: ${{ secrets.NOPO_BOT_PAT }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
           # Check for any uncommitted changes (staged or unstaged)
@@ -922,7 +956,7 @@ jobs:
             Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             # Use PAT to push so it triggers CI workflows
             git config --unset-all http.https://github.com/.extraheader || true
-            git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$PAT_TOKEN" | base64)"
+            git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$NOPO_BOT_PAT" | base64)"
             git push origin "$BRANCH_NAME"
             echo "::warning::Uncommitted work was saved to branch $BRANCH_NAME"
           else
@@ -953,14 +987,14 @@ jobs:
       - name: Re-push with PAT to trigger CI
         if: success() && inputs.mock_mode != true
         env:
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          NOPO_BOT_PAT: ${{ secrets.NOPO_BOT_PAT }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
           # Amend + push with PAT to trigger CI workflows
           # Only if branch has commits beyond main (don't amend main's commits)
           # Clear the GITHUB_TOKEN credential and use PAT instead
           git config --unset-all http.https://github.com/.extraheader || true
-          git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$PAT_TOKEN" | base64)"
+          git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$NOPO_BOT_PAT" | base64)"
           if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
             git commit --amend --no-edit
             git push origin "$BRANCH_NAME" --force-with-lease
@@ -992,8 +1026,8 @@ jobs:
       - name: Submit review with PAT
         if: always() && inputs.mock_mode != true
         env:
-          # Use PAT_TOKEN so review comes from a different account than PR author
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          # Use NOPO_BOT_PAT so review comes from a different account than PR author
+          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
           PR_NUMBER: ${{ fromJson(inputs.context_json).pr_number }}
         run: |
           if [[ ! -f review-output.json ]]; then
@@ -1078,14 +1112,14 @@ jobs:
       - name: Re-push with PAT to trigger CI
         if: success() && inputs.mock_mode != true
         env:
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          NOPO_BOT_PAT: ${{ secrets.NOPO_BOT_PAT }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
           # Amend + push with PAT to trigger CI workflows
           # Only if branch has commits beyond main (don't amend main's commits)
           # Clear the GITHUB_TOKEN credential and use PAT instead
           git config --unset-all http.https://github.com/.extraheader || true
-          git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$PAT_TOKEN" | base64)"
+          git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$NOPO_BOT_PAT" | base64)"
           if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
             git commit --amend --no-edit
             git push origin "$BRANCH_NAME" --force-with-lease
@@ -1130,14 +1164,14 @@ jobs:
       - name: Re-push with PAT to trigger CI
         if: success() && inputs.mock_mode != true
         env:
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          NOPO_BOT_PAT: ${{ secrets.NOPO_BOT_PAT }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
           # Amend + push with PAT to trigger CI workflows
           # Only if branch has commits beyond main (don't amend main's commits)
           # Clear the GITHUB_TOKEN credential and use PAT instead
           git config --unset-all http.https://github.com/.extraheader || true
-          git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$PAT_TOKEN" | base64)"
+          git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$NOPO_BOT_PAT" | base64)"
           if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
             git commit --amend --no-edit
             git push origin "$BRANCH_NAME" --force-with-lease

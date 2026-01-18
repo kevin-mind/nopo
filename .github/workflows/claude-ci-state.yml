@@ -53,7 +53,7 @@ jobs:
         if: steps.context.outputs.skip != 'true'
         uses: ./.github/actions-ts/claude-parse-state
         with:
-          github_token: ${{ secrets.PAT_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           issue_number: ${{ steps.context.outputs.issue_number }}
           action: update
           last_ci_run: ${{ steps.context.outputs.run_id }}

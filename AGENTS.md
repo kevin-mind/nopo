@@ -974,7 +974,7 @@ The iteration model uses **issue edits** as the continuation trigger. Each workf
 1. **`assigned` starts iteration**: Human assigns `nopo-bot` to issue
 2. **Claude implements** todos, creates draft PR, pushes
 3. **CI runs** and completes (success or failure)
-4. **`claude-ci-state.yml`** updates issue body with CI result (using PAT_TOKEN)
+4. **`claude-ci-state.yml`** updates issue body with CI result (using NOPO_BOT_PAT)
 5. **Issue edit triggers iteration**: The state update fires an `issues: edited` event
 6. **Iterate job** reads state from issue body, determines action:
    - **CI failed**: Claude fixes errors, pushes, updates state
@@ -1215,7 +1215,7 @@ All PRs created by Claude automation must:
 ### Setup Requirements
 
 1. **CLAUDE_CODE_OAUTH_TOKEN secret**: OAuth token for Claude (uses subscription)
-2. **PAT_TOKEN secret**: Personal Access Token with `repo` scope for git push operations. Required because `GITHUB_TOKEN` pushes don't trigger other workflows (GitHub security feature). This PAT is NOT given to Claude - it's only used by workflow steps after Claude finishes.
+2. **NOPO_BOT_PAT secret**: Personal Access Token for nopo-bot with `repo` scope for git push operations and reviews. Required because `GITHUB_TOKEN` pushes don't trigger other workflows (GitHub security feature). This PAT is NOT given to Claude - it's only used by workflow steps after Claude finishes.
 3. **PROJECT_TOKEN secret** (optional): Fine-grained PAT with `project:write` for updating project status
 4. **GitHub Project** (optional): Project board with Status field - status updated via GraphQL if issue is linked
 

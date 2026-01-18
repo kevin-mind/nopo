@@ -95,9 +95,9 @@ jobs:
         id: assign
         if: steps.find_issue.outputs.issue_number != '' && inputs.dry_run != true
         env:
-          # Use PAT_TOKEN to trigger the Claude workflow
+          # Use NOPO_BOT_PAT to trigger the Claude workflow
           # GITHUB_TOKEN actions don't trigger new workflows
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
           ISSUE_NUMBER: ${{ steps.find_issue.outputs.issue_number }}
           ISSUE_TITLE: ${{ steps.find_issue.outputs.issue_title }}
         run: |
