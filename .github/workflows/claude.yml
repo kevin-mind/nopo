@@ -13,6 +13,14 @@ run-name: >-
     github.event_name == 'discussion_comment' && format('Claude - discussion #{0}', github.event.discussion.number) ||
     'Claude'
   }}
+# Issue-edit-based iteration loop:
+# - `assigned` starts iteration
+# - `edited` continues iteration (triggered by state updates from CI or Claude)
+# - Loop ends when Claude determines work is complete and doesn't edit
+#
+# CI results flow through claude-ci-state.yml which updates issue state,
+# triggering an `edited` event that continues the iteration.
+
 'on':
   issues:
     types:
@@ -31,12 +39,8 @@ run-name: >-
       - main
       - 'gh-readonly-queue/**'
       - 'test/**'  # Test automation branches
-  workflow_run:
-    workflows:
-      - CI
-      - Release
-    types:
-      - completed
+  # Note: workflow_run for CI is handled by claude-ci-state.yml
+  # which updates issue state, triggering `issues: edited`
   pull_request:
     types:
       - review_requested
@@ -196,11 +200,11 @@ jobs:
       needs.detect.outputs.job != 'discussion-complete'
     # Concurrency: one Claude job per resource at a time
     # - PR jobs (pr-review, pr-response, pr-human-response): share group so push cancels them
-    # - Issue jobs: separate group per issue
+    # - Issue iteration jobs: separate group per issue, QUEUE mode (never cancel)
     # - Discussion jobs: separate group per discussion
     # cancel-in-progress behavior:
-    # - CI jobs: cancel (new push/CI obsoletes old fix attempt)
     # - Triage: cancel (edited issue should re-triage)
+    # - Issue iteration: QUEUE (don't cancel - each edit should be processed)
     # - Other jobs: queue (don't cancel work in progress)
     concurrency:
       group: >-
@@ -209,7 +213,7 @@ jobs:
           && format('claude-review-{0}', needs.detect.outputs.resource_number)
           || format('claude-resource-{0}-{1}', needs.detect.outputs.resource_type, needs.detect.outputs.resource_number)
         }}
-      cancel-in-progress: ${{ contains(fromJSON('["issue-triage"]'), needs.detect.outputs.job) }}
+      cancel-in-progress: ${{ needs.detect.outputs.job == 'issue-triage' }}
     uses: ./.github/workflows/_claude.yml
     with:
       job: ${{ needs.detect.outputs.job }}

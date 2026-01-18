@@ -9,7 +9,7 @@ inputs:
     description: Issue number to read/update state from
     required: true
   action:
-    description: Action to perform (read, init, update, increment, record_failure, clear_failure, complete)
+    description: Action to perform (read, init, update, increment, record_failure, clear_failure, complete, reset)
     required: true
   branch_name:
     description: Branch name (required for init)

@@ -24105,7 +24105,9 @@ async function handleIssueEvent(octokit, owner, repo) {
     return emptyResult(true, "Issue has skip-dispatch label");
   }
   const hasTriagedLabel = issue.labels.some((l) => l.name === "triaged");
-  if (action === "opened" || action === "edited" || action === "unlabeled" && payload.label?.name === "triaged") {
+  const assignees = payload.issue.assignees;
+  const isNopoBotAssigned = assignees?.some((a) => a.login === "nopo-bot");
+  if (action === "opened" || action === "unlabeled" && payload.label?.name === "triaged") {
     if (hasTriagedLabel && action !== "unlabeled") {
       return emptyResult(true, "Issue already triaged");
     }
@@ -24126,6 +24128,59 @@ async function handleIssueEvent(octokit, owner, repo) {
       skip: false,
       skipReason: ""
     };
+  }
+  if (action === "edited") {
+    if (isNopoBotAssigned) {
+      const details = await fetchIssueDetails(
+        octokit,
+        owner,
+        repo,
+        issue.number
+      );
+      const branchName = `claude/issue/${issue.number}`;
+      const branchExists = await checkBranchExists(branchName);
+      return {
+        job: "issue-iterate",
+        resourceType: "issue",
+        resourceNumber: String(issue.number),
+        commentId: "",
+        contextJson: JSON.stringify({
+          issue_number: String(issue.number),
+          issue_title: details.title || issue.title,
+          issue_body: details.body || issue.body,
+          branch_name: branchName,
+          existing_branch: branchExists ? "true" : "false",
+          trigger_type: "edited"
+        }),
+        skip: false,
+        skipReason: ""
+      };
+    }
+    if (!hasTriagedLabel) {
+      const details = await fetchIssueDetails(
+        octokit,
+        owner,
+        repo,
+        issue.number
+      );
+      if (details.isSubIssue) {
+        return emptyResult(true, "Issue is a sub-issue");
+      }
+      return {
+        job: "issue-triage",
+        resourceType: "issue",
+        resourceNumber: String(issue.number),
+        commentId: "",
+        contextJson: JSON.stringify({
+          issue_number: String(issue.number),
+          issue_title: details.title || issue.title,
+          issue_body: details.body || issue.body
+        }),
+        skip: false,
+        skipReason: ""
+      };
+    }
+    return emptyResult(true, "Issue edited but already triaged and not assigned to nopo-bot");
   }
   if (action === "assigned") {
     const assignee = payload.assignee;

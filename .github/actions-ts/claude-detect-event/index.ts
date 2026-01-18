@@ -300,9 +300,14 @@ async function handleIssueEvent(
   const hasTriagedLabel = issue.labels.some((l) => l.name === "triaged");
 
   // Handle triage: opened, edited (without triaged label), or unlabeled (removing triaged)
+  // BUT only if nopo-bot is NOT assigned (if assigned, edited triggers iteration instead)
+  const assignees = (
+    payload.issue as { assignees?: Array<{ login: string }> }
+  ).assignees;
+  const isNopoBotAssigned = assignees?.some((a) => a.login === "nopo-bot");
+
   if (
     action === "opened" ||
-    action === "edited" ||
     (action === "unlabeled" &&
       (payload.label as { name: string })?.name === "triaged")
   ) {
@@ -329,6 +334,69 @@ async function handleIssueEvent(
       skip: false,
       skipReason: "",
     };
+  }
+
+  // Handle edited: triggers iteration if nopo-bot is assigned, otherwise triage
+  if (action === "edited") {
+    // If nopo-bot is assigned, edited triggers iteration (issue-edit-based loop)
+    if (isNopoBotAssigned) {
+      const details = await fetchIssueDetails(
+        octokit,
+        owner,
+        repo,
+        issue.number,
+      );
+      const branchName = `claude/issue/${issue.number}`;
+
+      // Check if branch exists (don't create, iteration will handle that)
+      const branchExists = await checkBranchExists(branchName);
+
+      return {
+        job: "issue-iterate",
+        resourceType: "issue",
+        resourceNumber: String(issue.number),
+        commentId: "",
+        contextJson: JSON.stringify({
+          issue_number: String(issue.number),
+          issue_title: details.title || issue.title,
+          issue_body: details.body || issue.body,
+          branch_name: branchName,
+          existing_branch: branchExists ? "true" : "false",
+          trigger_type: "edited",
+        }),
+        skip: false,
+        skipReason: "",
+      };
+    }
+
+    // Not assigned to nopo-bot - check if needs triage
+    if (!hasTriagedLabel) {
+      const details = await fetchIssueDetails(
+        octokit,
+        owner,
+        repo,
+        issue.number,
+      );
+      if (details.isSubIssue) {
+        return emptyResult(true, "Issue is a sub-issue");
+      }
+
+      return {
+        job: "issue-triage",
+        resourceType: "issue",
+        resourceNumber: String(issue.number),
+        commentId: "",
+        contextJson: JSON.stringify({
+          issue_number: String(issue.number),
+          issue_title: details.title || issue.title,
+          issue_body: details.body || issue.body,
+        }),
+        skip: false,
+        skipReason: "",
+      };
+    }
+
+    return emptyResult(true, "Issue edited but already triaged and not assigned to nopo-bot");
   }
 
   // Handle implement: assigned to nopo-bot

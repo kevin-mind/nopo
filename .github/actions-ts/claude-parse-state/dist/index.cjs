@@ -24309,6 +24309,48 @@ async function run() {
       });
       return;
     }
+    if (action === "reset") {
+      if (!state) {
+        core2.setFailed("Cannot reset: no existing state found");
+        return;
+      }
+      const iterationMessage = getOptionalInput("iteration_message");
+      state.consecutive_failures = 0;
+      state.failure_type = "";
+      state.last_failure_timestamp = "";
+      state.complete = false;
+      state.last_ci_result = "";
+      let newBody = updateBodyWithState(currentBody, state);
+      if (iterationMessage) {
+        newBody = addIterationLogEntry(
+          newBody,
+          state.iteration,
+          `\u{1F504} ${iterationMessage}`
+        );
+      }
+      await octokit.rest.issues.update({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        body: newBody
+      });
+      core2.info(
+        `Reset failure state for issue #${issueNumber} (preserving iteration ${state.iteration})`
+      );
+      setOutputs({
+        has_state: "true",
+        iteration: String(state.iteration),
+        branch: state.branch,
+        pr_number: state.pr_number,
+        last_ci_run: state.last_ci_run,
+        last_ci_result: "",
+        consecutive_failures: "0",
+        failure_type: "",
+        last_failure_timestamp: "",
+        complete: "false"
+      });
+      return;
+    }
     core2.setFailed(`Unknown action: ${action}`);
   } catch (error) {
     if (error instanceof Error) {

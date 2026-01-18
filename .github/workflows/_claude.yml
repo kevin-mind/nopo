@@ -176,10 +176,39 @@ jobs:
           issue_number: ${{ fromJson(inputs.context_json).issue_number }}
           action: read
 
-      # Initialize state if this is first iteration
+      # ===== EARLY EXIT: Already complete =====
+      # If iteration is already complete, exit immediately WITHOUT editing the issue.
+      # This is how the edit-based loop closes cleanly.
+      - id: early_exit_complete
+        name: Check if already complete
+        if: inputs.mock_mode != true && steps.read_state.outputs.complete == 'true'
+        run: |
+          echo "::notice::Issue is already complete. Exiting without changes."
+          echo "early_exit=true" >> $GITHUB_OUTPUT
+
+      - name: Write complete summary
+        if: steps.early_exit_complete.outputs.early_exit == 'true'
+        env:
+          ITERATION: ${{ steps.read_state.outputs.iteration }}
+          ISSUE_NUMBER: ${{ fromJson(inputs.context_json).issue_number }}
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          # ✅ Already Complete
+
+          Issue #$ISSUE_NUMBER is already marked complete after $ITERATION iterations.
+
+          No further action needed. This edit triggered a check, but work is done.
+
+          ---
+          EOF
+
+      # Initialize state if this is first iteration (only if not already complete)
       - id: init_state
         name: Initialize iteration state
-        if: inputs.mock_mode != true && steps.read_state.outputs.has_state != 'true'
+        if: |
+          inputs.mock_mode != true &&
+          steps.early_exit_complete.outputs.early_exit != 'true' &&
+          steps.read_state.outputs.has_state != 'true'
         uses: ./.github/actions-ts/claude-parse-state
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -187,43 +216,57 @@ jobs:
           action: init
           branch_name: ${{ needs.context.outputs.branch_name }}
 
-      # Get effective state (from read or init)
+      # Reset failure state on re-assignment (human explicitly triggered restart)
+      # This allows resuming work after circuit breaker or getting stuck
+      - id: reset_state
+        name: Reset failure state on re-assignment
+        if: |
+          inputs.mock_mode != true &&
+          steps.early_exit_complete.outputs.early_exit != 'true' &&
+          steps.read_state.outputs.has_state == 'true' &&
+          fromJson(inputs.context_json).trigger_type == 'assigned'
+        uses: ./.github/actions-ts/claude-parse-state
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          issue_number: ${{ fromJson(inputs.context_json).issue_number }}
+          action: reset
+          iteration_message: "Reset by re-assignment - resuming iteration"
+
+      # Get effective state (from read, init, or reset)
       - id: state
         name: Determine effective state
+        if: steps.early_exit_complete.outputs.early_exit != 'true'
         env:
-          READ_ITERATION: ${{ steps.read_state.outputs.iteration || '0' }}
-          READ_CI_RESULT: ${{ steps.read_state.outputs.last_ci_result || '' }}
-          READ_FAILURES: ${{ steps.read_state.outputs.consecutive_failures || '0' }}
-          READ_COMPLETE: ${{ steps.read_state.outputs.complete || 'false' }}
-          TRIGGER_CI_RESULT: ${{ fromJson(inputs.context_json).ci_result || '' }}
+          # Prefer reset values when available (reset clears failures and complete)
+          READ_ITERATION: ${{ steps.reset_state.outputs.iteration || steps.read_state.outputs.iteration || '0' }}
+          READ_CI_RESULT: ${{ steps.reset_state.outputs.last_ci_result || steps.read_state.outputs.last_ci_result || '' }}
+          READ_FAILURES: ${{ steps.reset_state.outputs.consecutive_failures || steps.read_state.outputs.consecutive_failures || '0' }}
+          READ_COMPLETE: ${{ steps.reset_state.outputs.complete || steps.read_state.outputs.complete || 'false' }}
           TRIGGER_TYPE: ${{ fromJson(inputs.context_json).trigger_type || 'assigned' }}
         run: |
-          # Use trigger CI result if this is a workflow_run continuation
-          if [[ "$TRIGGER_TYPE" == "workflow_run" ]]; then
-            echo "ci_result=$TRIGGER_CI_RESULT" >> $GITHUB_OUTPUT
-          else
-            echo "ci_result=$READ_CI_RESULT" >> $GITHUB_OUTPUT
-          fi
-
+          # For edited trigger, use the CI result from issue state
+          # (CI state is updated by claude-ci-state.yml before triggering edit)
+          echo "ci_result=$READ_CI_RESULT" >> $GITHUB_OUTPUT
           echo "iteration=$READ_ITERATION" >> $GITHUB_OUTPUT
           echo "consecutive_failures=$READ_FAILURES" >> $GITHUB_OUTPUT
           echo "complete=$READ_COMPLETE" >> $GITHUB_OUTPUT
 
       # Record CI failure (increment consecutive_failures)
-      # This ONLY increments on CI failure, not on successful iterations
+      # This happens when state shows CI failed (updated by claude-ci-state.yml)
       - id: record_ci_failure
         name: Record CI failure
         if: |
           inputs.mock_mode != true &&
-          fromJson(inputs.context_json).trigger_type == 'workflow_run' &&
-          fromJson(inputs.context_json).ci_result == 'failure'
+          steps.early_exit_complete.outputs.early_exit != 'true' &&
+          steps.state.outputs.ci_result == 'failure' &&
+          steps.state.outputs.consecutive_failures == steps.read_state.outputs.consecutive_failures
         uses: ./.github/actions-ts/claude-parse-state
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           issue_number: ${{ fromJson(inputs.context_json).issue_number }}
           action: record_failure
           failure_type: ci
-          iteration_message: "CI failed - ${{ fromJson(inputs.context_json).ci_run_id }}"
+          iteration_message: "CI failed"
 
       # Re-read state after recording failure to get updated consecutive_failures
       - id: state_after_failure
@@ -234,7 +277,10 @@ jobs:
 
       # Exponential backoff with jitter for retries
       - name: Wait for backoff (retry delay)
-        if: inputs.mock_mode != true && (steps.state.outputs.consecutive_failures != '0' || steps.record_ci_failure.outcome == 'success')
+        if: |
+          inputs.mock_mode != true &&
+          steps.early_exit_complete.outputs.early_exit != 'true' &&
+          (steps.state.outputs.consecutive_failures != '0' || steps.record_ci_failure.outcome == 'success')
         env:
           # Use updated failure count if CI failure was just recorded
           FAILURES: ${{ steps.state_after_failure.outputs.consecutive_failures || steps.state.outputs.consecutive_failures }}
@@ -264,13 +310,12 @@ jobs:
       # Check for breakpoints and CI success
       - id: breakpoint
         name: Check breakpoints
+        if: steps.early_exit_complete.outputs.early_exit != 'true'
         env:
           ITERATION: ${{ steps.state.outputs.iteration }}
           CI_RESULT: ${{ steps.state.outputs.ci_result }}
           # Use updated failure count if CI failure was just recorded
           FAILURES: ${{ steps.state_after_failure.outputs.consecutive_failures || steps.state.outputs.consecutive_failures }}
-          COMPLETE: ${{ steps.state.outputs.complete }}
-          TRIGGER_TYPE: ${{ fromJson(inputs.context_json).trigger_type || 'assigned' }}
           MAX_ITERATIONS: '10'
           # Use GitHub variable for max retries, default to 5
           MAX_FAILURES: ${{ vars.MAX_CLAUDE_RETRIES || '5' }}
@@ -278,17 +323,17 @@ jobs:
           should_stop="false"
           stop_reason=""
           is_ci_success="false"
+          is_breakpoint="false"
 
-          if [[ "$COMPLETE" == "true" ]]; then
+          if [[ "$ITERATION" -ge "$MAX_ITERATIONS" ]]; then
             should_stop="true"
-            stop_reason="Iteration marked complete"
-          elif [[ "$ITERATION" -ge "$MAX_ITERATIONS" ]]; then
-            should_stop="true"
+            is_breakpoint="true"
             stop_reason="Max iterations ($MAX_ITERATIONS) reached"
           elif [[ "$FAILURES" -ge "$MAX_FAILURES" ]]; then
             should_stop="true"
+            is_breakpoint="true"
             stop_reason="Circuit breaker: $FAILURES consecutive failures (max: $MAX_FAILURES)"
-          elif [[ "$TRIGGER_TYPE" == "workflow_run" && "$CI_RESULT" == "success" ]]; then
+          elif [[ "$CI_RESULT" == "success" ]]; then
             # CI passed - this is a success case, not a breakpoint
             is_ci_success="true"
             should_stop="true"
@@ -298,23 +343,70 @@ jobs:
           echo "should_stop=$should_stop" >> $GITHUB_OUTPUT
           echo "stop_reason=$stop_reason" >> $GITHUB_OUTPUT
           echo "is_ci_success=$is_ci_success" >> $GITHUB_OUTPUT
+          echo "is_breakpoint=$is_breakpoint" >> $GITHUB_OUTPUT
 
-      # Add needs-human label if stopping due to breakpoint (not CI success)
-      - name: Add needs-human label
+      # Unassign nopo-bot on breakpoint (circuit breaker or max iterations)
+      # This ends the edit-based loop cleanly (no nopo-bot = no iteration on edit)
+      # NOTE: We use unassign instead of add-label because add-label triggers 'edited'
+      - name: Unassign nopo-bot on breakpoint
         if: |
           inputs.mock_mode != true &&
-          steps.breakpoint.outputs.should_stop == 'true' &&
-          steps.breakpoint.outputs.is_ci_success != 'true' &&
-          steps.state.outputs.complete != 'true'
+          steps.breakpoint.outputs.is_breakpoint == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ fromJson(inputs.context_json).issue_number }}
           REASON: ${{ steps.breakpoint.outputs.stop_reason }}
         run: |
-          gh issue edit "$ISSUE_NUMBER" --add-label "needs-human" --repo "$GITHUB_REPOSITORY" || true
+          # Unassign nopo-bot - this ends the loop cleanly
+          gh issue edit "$ISSUE_NUMBER" --remove-assignee "nopo-bot" --repo "$GITHUB_REPOSITORY" || true
+
+          # Post comment explaining the stop (comments don't trigger 'edited')
           gh issue comment "$ISSUE_NUMBER" --body "⚠️ **Iteration stopped**: $REASON
 
-          Please review and take manual action to continue." --repo "$GITHUB_REPOSITORY"
+          To resume iteration:
+          1. Review the issue and workflow logs
+          2. Fix any blocking issues
+          3. Re-assign \`nopo-bot\` to restart
+
+          The failure counter will be reset on re-assignment." --repo "$GITHUB_REPOSITORY"
+
+      # Write summary for breakpoint (circuit breaker, max iterations, etc)
+      - name: Write breakpoint summary
+        if: steps.breakpoint.outputs.is_breakpoint == 'true'
+        env:
+          ITERATION: ${{ steps.state.outputs.iteration || '0' }}
+          ISSUE_NUMBER: ${{ fromJson(inputs.context_json).issue_number }}
+          ISSUE_TITLE: ${{ fromJson(inputs.context_json).issue_title }}
+          FAILURES: ${{ steps.state_after_failure.outputs.consecutive_failures || steps.state.outputs.consecutive_failures || '0' }}
+          STOP_REASON: ${{ steps.breakpoint.outputs.stop_reason }}
+          BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          # ⚠️ Iteration Stopped
+
+          | Property | Value |
+          |----------|-------|
+          | **Issue** | [#$ISSUE_NUMBER](${{ github.server_url }}/${{ github.repository }}/issues/$ISSUE_NUMBER) - $ISSUE_TITLE |
+          | **Branch** | \`$BRANCH_NAME\` |
+          | **Total Iterations** | $ITERATION |
+          | **Consecutive Failures** | $FAILURES |
+
+          ## Stop Reason
+
+          $STOP_REASON
+
+          ## How to Resume
+
+          \`nopo-bot\` has been unassigned from the issue.
+
+          1. Review the issue and workflow logs for errors
+          2. Fix any blocking issues manually if needed
+          3. **Re-assign \`nopo-bot\`** to restart iteration
+             - This resets the failure count and resumes from the current iteration
+
+          ---
+
+          EOF
 
       # ===== CI SUCCESS HANDLING =====
       # When CI passes, mark PR ready and request review
@@ -451,6 +543,38 @@ jobs:
           issue_number: ${{ fromJson(inputs.context_json).issue_number }}
           action: complete
 
+      # Write summary for CI success
+      - name: Write success summary
+        if: steps.breakpoint.outputs.is_ci_success == 'true' && steps.check_comments.outputs.has_unresolved != 'true'
+        env:
+          ITERATION: ${{ steps.state.outputs.iteration || '0' }}
+          ISSUE_NUMBER: ${{ fromJson(inputs.context_json).issue_number }}
+          ISSUE_TITLE: ${{ fromJson(inputs.context_json).issue_title }}
+          PR_NUMBER: ${{ fromJson(inputs.context_json).pr_number }}
+          BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          # ✅ Implementation Complete
+
+          | Property | Value |
+          |----------|-------|
+          | **Issue** | [#$ISSUE_NUMBER](${{ github.server_url }}/${{ github.repository }}/issues/$ISSUE_NUMBER) - $ISSUE_TITLE |
+          | **PR** | [#$PR_NUMBER](${{ github.server_url }}/${{ github.repository }}/pull/$PR_NUMBER) |
+          | **Branch** | \`$BRANCH_NAME\` |
+          | **Total Iterations** | $ITERATION |
+
+          ## Status
+
+          CI passed! PR is now ready for review.
+
+          - ✅ PR converted to ready state
+          - ✅ Review requested from \`nopo-bot\`
+          - ✅ Label \`review-ready\` added
+
+          ---
+
+          EOF
+
       # Update project status to In Progress (first iteration only)
       - name: Update project status to In Progress
         if: inputs.mock_mode != true && steps.breakpoint.outputs.should_stop != 'true' && steps.state.outputs.iteration == '0'
@@ -559,6 +683,47 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           issue_number: ${{ fromJson(inputs.context_json).issue_number }}
           action: increment
+
+      # Write job summary to display iteration prominently in CI UI
+      - name: Write iteration summary
+        if: steps.breakpoint.outputs.should_stop != 'true'
+        env:
+          ITERATION: ${{ steps.increment.outputs.iteration || steps.state.outputs.iteration || '1' }}
+          ISSUE_NUMBER: ${{ fromJson(inputs.context_json).issue_number }}
+          ISSUE_TITLE: ${{ fromJson(inputs.context_json).issue_title }}
+          FAILURES: ${{ steps.state_after_failure.outputs.consecutive_failures || steps.state.outputs.consecutive_failures || '0' }}
+          TRIGGER_TYPE: ${{ fromJson(inputs.context_json).trigger_type }}
+          CI_RESULT: ${{ steps.state.outputs.ci_result }}
+          BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
+        run: |
+          # Build emoji based on trigger
+          if [[ "$TRIGGER_TYPE" == "assigned" ]]; then
+            trigger_emoji="🚀"
+            trigger_text="Initial implementation"
+          elif [[ "$CI_RESULT" == "failure" ]]; then
+            trigger_emoji="🔧"
+            trigger_text="CI fix attempt"
+          elif [[ "$CI_RESULT" == "success" ]]; then
+            trigger_emoji="✅"
+            trigger_text="CI passed - continuing"
+          else
+            trigger_emoji="🔄"
+            trigger_text="Iteration"
+          fi
+
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          # $trigger_emoji Iteration $ITERATION
+
+          | Property | Value |
+          |----------|-------|
+          | **Issue** | [#$ISSUE_NUMBER](${{ github.server_url }}/${{ github.repository }}/issues/$ISSUE_NUMBER) - $ISSUE_TITLE |
+          | **Branch** | \`$BRANCH_NAME\` |
+          | **Trigger** | $trigger_text |
+          | **Consecutive Failures** | $FAILURES |
+
+          ---
+
+          EOF
 
       # Build prompt replacements with iteration state
       - id: augment
