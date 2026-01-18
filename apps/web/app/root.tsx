@@ -1,3 +1,14 @@
+/**
+ * Root layout component for the React Router application.
+ *
+ * This module defines the application's root layout structure including:
+ * - HTML document wrapper with language and charset settings
+ * - Font preloading via Google Fonts (Inter)
+ * - Global error boundary for route errors
+ * - Scroll restoration and script injection
+ *
+ * @module root
+ */
 import {
   isRouteErrorResponse,
   Links,
