@@ -253,6 +253,7 @@ jobs:
 
       # Record CI failure (increment consecutive_failures)
       # This happens when state shows CI failed (updated by claude-ci-state.yml)
+      # Note: The CI run link is already added by claude-ci-state.yml update, this just records the failure count
       - id: record_ci_failure
         name: Record CI failure
         if: |
@@ -267,6 +268,7 @@ jobs:
           action: record_failure
           failure_type: ci
           iteration_message: "CI failed"
+          run_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
       # Re-read state after recording failure to get updated consecutive_failures
       - id: state_after_failure

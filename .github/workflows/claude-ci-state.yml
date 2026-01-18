@@ -58,7 +58,8 @@ jobs:
           action: update
           last_ci_run: ${{ steps.context.outputs.run_id }}
           last_ci_result: ${{ steps.context.outputs.conclusion }}
-          iteration_message: "CI ${{ steps.context.outputs.conclusion }} - Run #${{ steps.context.outputs.run_id }}"
+          iteration_message: "CI ${{ steps.context.outputs.conclusion }}"
+          run_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ steps.context.outputs.run_id }}
 
       - name: Log result
         if: steps.context.outputs.skip != 'true'

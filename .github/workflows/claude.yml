@@ -266,7 +266,8 @@ jobs:
           issue_number: ${{ fromJson(needs.detect.outputs.context_json).issue_number }}
           action: record_failure
           failure_type: workflow
-          iteration_message: "Workflow failed - ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          iteration_message: "Workflow failed"
+          run_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
       - id: check_retry
         name: Check if should retry
