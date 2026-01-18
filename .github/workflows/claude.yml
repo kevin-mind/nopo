@@ -57,11 +57,8 @@ run-name: >-
         type: choice
         options:
           - issue-triage
-          - issue-implement
           - issue-iterate
           - issue-comment
-          - ci-fix
-          - ci-suggest
           - pr-review
           - pr-response
           - pr-human-response
@@ -153,7 +150,6 @@ jobs:
       needs.detect.outputs.skip != 'true' &&
       needs.detect.outputs.job != '' &&
       needs.detect.outputs.job != 'push-to-draft' &&
-      needs.detect.outputs.job != 'ci-success' &&
       needs.detect.outputs.job != 'discussion-complete'
     runs-on: ubuntu-latest
     # Concurrency: queue signals per resource (don't cancel, just wait)
@@ -165,6 +161,15 @@ jobs:
     steps:
       - id: checkout
         uses: actions/checkout@v4
+      # Read iteration state for issue-iterate jobs to show progress
+      - id: read_state
+        name: Read iteration state
+        if: needs.detect.outputs.job == 'issue-iterate'
+        uses: ./.github/actions-ts/claude-parse-state
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          issue_number: ${{ fromJson(needs.detect.outputs.context_json).issue_number }}
+          action: read
       - id: signal
         uses: ./.github/actions-ts/claude-signal-start
         with:
@@ -173,6 +178,9 @@ jobs:
           resource_number: ${{ needs.detect.outputs.resource_number }}
           comment_id: ${{ needs.detect.outputs.comment_id }}
           job: ${{ needs.detect.outputs.job }}
+          iteration: ${{ steps.read_state.outputs.iteration }}
+          consecutive_failures: ${{ steps.read_state.outputs.consecutive_failures }}
+          max_retries: ${{ vars.MAX_CLAUDE_RETRIES || '5' }}
 
   # ============================================================================
   # STEP 3: RUN CLAUDE JOB
@@ -185,10 +193,9 @@ jobs:
       needs.detect.outputs.skip != 'true' &&
       needs.detect.outputs.job != '' &&
       needs.detect.outputs.job != 'push-to-draft' &&
-      needs.detect.outputs.job != 'ci-success' &&
       needs.detect.outputs.job != 'discussion-complete'
     # Concurrency: one Claude job per resource at a time
-    # - PR jobs (ci-fix, ci-suggest, pr-review, pr-response, pr-human-response): share group so push cancels them
+    # - PR jobs (pr-review, pr-response, pr-human-response): share group so push cancels them
     # - Issue jobs: separate group per issue
     # - Discussion jobs: separate group per discussion
     # cancel-in-progress behavior:
@@ -202,7 +209,7 @@ jobs:
           && format('claude-review-{0}', needs.detect.outputs.resource_number)
           || format('claude-resource-{0}-{1}', needs.detect.outputs.resource_type, needs.detect.outputs.resource_number)
         }}
-      cancel-in-progress: ${{ contains(fromJSON('["ci-fix","ci-suggest","issue-triage"]'), needs.detect.outputs.job) }}
+      cancel-in-progress: ${{ contains(fromJSON('["issue-triage"]'), needs.detect.outputs.job) }}
     uses: ./.github/workflows/_claude.yml
     with:
       job: ${{ needs.detect.outputs.job }}
@@ -223,7 +230,6 @@ jobs:
       needs.detect.outputs.skip != 'true' &&
       needs.detect.outputs.job != '' &&
       needs.detect.outputs.job != 'push-to-draft' &&
-      needs.detect.outputs.job != 'ci-success' &&
       needs.detect.outputs.job != 'discussion-complete'
     runs-on: ubuntu-latest
     # No concurrency here - serialization is handled by job dependency on run-job
@@ -243,6 +249,54 @@ jobs:
           job_result: ${{ needs.run-job.result }}
           run_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           context_json: ${{ needs.detect.outputs.context_json }}
+
+      # Record workflow failure for issue-iterate jobs and check if we should retry
+      - id: record_failure
+        name: Record workflow failure
+        if: |
+          needs.run-job.result == 'failure' &&
+          needs.detect.outputs.job == 'issue-iterate'
+        uses: ./.github/actions-ts/claude-parse-state
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          issue_number: ${{ fromJson(needs.detect.outputs.context_json).issue_number }}
+          action: record_failure
+          failure_type: workflow
+          iteration_message: "Workflow failed - ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      - id: check_retry
+        name: Check if should retry
+        if: |
+          needs.run-job.result == 'failure' &&
+          needs.detect.outputs.job == 'issue-iterate'
+        env:
+          FAILURES: ${{ steps.record_failure.outputs.consecutive_failures }}
+          MAX_FAILURES: ${{ vars.MAX_CLAUDE_RETRIES || '5' }}
+        run: |
+          if [[ "$FAILURES" -lt "$MAX_FAILURES" ]]; then
+            echo "should_retry=true" >> $GITHUB_OUTPUT
+            echo "Workflow failure $FAILURES/$MAX_FAILURES - will retry"
+          else
+            echo "should_retry=false" >> $GITHUB_OUTPUT
+            echo "Max retries ($MAX_FAILURES) reached - not retrying"
+          fi
+
+      - id: retry
+        name: Re-trigger workflow
+        if: steps.check_retry.outputs.should_retry == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          JOB: ${{ needs.detect.outputs.job }}
+          RESOURCE_NUMBER: ${{ needs.detect.outputs.resource_number }}
+          CONTEXT_JSON: ${{ needs.detect.outputs.context_json }}
+        run: |
+          echo "Re-triggering workflow for retry..."
+          gh workflow run claude.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            -f job="$JOB" \
+            -f resource_number="$RESOURCE_NUMBER" \
+            -f context_json="$CONTEXT_JSON"
+          echo "Workflow re-triggered successfully"
 
   # ============================================================================
   # SPECIAL JOBS (No Claude call needed)
@@ -283,133 +337,6 @@ jobs:
             --method DELETE \
             "/repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/requested_reviewers" \
             -f 'reviewers[]=nopo-bot' 2>/dev/null || true
-
-  # CI success - marks PR ready for review
-  ci-success:
-    needs: detect
-    if: needs.detect.outputs.job == 'ci-success'
-    runs-on: ubuntu-latest
-    # Concurrency: CI success can cancel previous CI success (latest status wins)
-    concurrency:
-      group: claude-ci-${{ needs.detect.outputs.resource_number }}
-      cancel-in-progress: true
-    steps:
-      - id: context
-        name: Parse context
-        env:
-          CONTEXT_JSON: ${{ needs.detect.outputs.context_json }}
-        run: |
-          echo "pr_number=$(echo "$CONTEXT_JSON" | jq -r '.pr_number')" >> $GITHUB_OUTPUT
-          echo "is_claude_pr=$(echo "$CONTEXT_JSON" | jq -r '.is_claude_pr')" >> $GITHUB_OUTPUT
-          echo "issue_number=$(echo "$CONTEXT_JSON" | jq -r '.issue_number')" >> $GITHUB_OUTPUT
-      - id: check_comments
-        name: gh api graphql (unresolved comments)
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ steps.context.outputs.pr_number }}
-        run: |
-          repo_name="${GITHUB_REPOSITORY#*/}"
-          owner="${GITHUB_REPOSITORY%/*}"
-
-          result=$(gh api graphql -f query='
-            query($owner: String!, $repo: String!, $pr: Int!) {
-              repository(owner: $owner, name: $repo) {
-                pullRequest(number: $pr) {
-                  reviewThreads(first: 100) {
-                    nodes { isResolved }
-                  }
-                }
-              }
-            }
-          ' -F owner="$owner" -F repo="$repo_name" -F pr="$PR_NUMBER")
-
-          unresolved=$(echo "$result" | jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length')
-          echo "unresolved_count=$unresolved" >> $GITHUB_OUTPUT
-          echo "has_unresolved=$([[ "$unresolved" -gt 0 ]] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
-      - id: notify_blocked
-        name: gh pr comment (blocked)
-        if: steps.check_comments.outputs.has_unresolved == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ steps.context.outputs.pr_number }}
-          COUNT: ${{ steps.check_comments.outputs.unresolved_count }}
-        run: |
-          gh pr comment "$PR_NUMBER" --body "⏸️ **CI passed but not moving to Review**
-
-          There are **$COUNT unresolved comment thread(s)** on this PR.
-
-          Please resolve all comments before the PR can move to Review status." --repo "$GITHUB_REPOSITORY"
-      - id: update_project
-        name: gh api graphql (update project status)
-        if: steps.check_comments.outputs.has_unresolved != 'true' && steps.context.outputs.issue_number != ''
-        env:
-          GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ steps.context.outputs.issue_number }}
-          TARGET_STATUS: In review
-        run: |
-          repo_name="${GITHUB_REPOSITORY#*/}"
-          owner="${GITHUB_REPOSITORY%/*}"
-
-          result=$(gh api graphql -f query='query($owner: String!, $repo: String!, $issue: Int!) {
-            repository(owner: $owner, name: $repo) {
-              issue(number: $issue) {
-                projectItems(first: 10) {
-                  nodes {
-                    id
-                    project {
-                      id
-                      field(name: "Status") {
-                        ... on ProjectV2SingleSelectField {
-                          id
-                          options { id name }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }' -F owner="$owner" -F repo="$repo_name" -F issue="$ISSUE_NUMBER" 2>/dev/null || echo "{}")
-
-          item=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0] // empty')
-          [[ -z "$item" ]] && exit 0
-
-          item_id=$(echo "$item" | jq -r '.id')
-          project_id=$(echo "$item" | jq -r '.project.id')
-          field_id=$(echo "$item" | jq -r '.project.field.id')
-          option_id=$(echo "$item" | jq -r --arg status "$TARGET_STATUS" '.project.field.options[] | select(.name == $status) | .id')
-
-          [[ -z "$option_id" ]] && exit 0
-
-          gh api graphql -f query='mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
-            updateProjectV2ItemFieldValue(input: {
-              projectId: $projectId, itemId: $itemId, fieldId: $fieldId,
-              value: { singleSelectOptionId: $optionId }
-            }) { projectV2Item { id } }
-          }' -F projectId="$project_id" -F itemId="$item_id" -F fieldId="$field_id" -F optionId="$option_id"
-      - id: mark_ready
-        name: gh pr ready
-        if: steps.check_comments.outputs.has_unresolved != 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ steps.context.outputs.pr_number }}
-        run: gh pr ready "$PR_NUMBER" --repo "$GITHUB_REPOSITORY"
-      - id: add_label
-        name: gh pr edit --add-label
-        if: steps.check_comments.outputs.has_unresolved != 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ steps.context.outputs.pr_number }}
-        run: gh pr edit "$PR_NUMBER" --add-label "review-ready" --repo "$GITHUB_REPOSITORY" || true
-      - id: request_review
-        name: gh pr edit --add-reviewer
-        if: steps.check_comments.outputs.has_unresolved != 'true'
-        env:
-          # Use PAT_TOKEN to trigger the review_requested event
-          # GITHUB_TOKEN actions don't trigger new workflows
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
-          PR_NUMBER: ${{ steps.context.outputs.pr_number }}
-        run: gh pr edit "$PR_NUMBER" --add-reviewer "nopo-bot" --repo "$GITHUB_REPOSITORY"
 
   # Discussion complete - just marks discussion as complete
   discussion-complete:

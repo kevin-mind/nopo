@@ -23903,12 +23903,9 @@ function setOutputs(outputs) {
 // claude-signal-start/index.ts
 var JOB_DESCRIPTIONS = {
   "issue-triage": "triaging this issue",
-  "issue-implement": "implementing this issue",
+  "issue-iterate": "iterating on this issue",
   "issue-comment": "responding to your request",
   "push-to-draft": "converting PR to draft",
-  "ci-fix": "fixing CI failures",
-  "ci-suggest": "suggesting CI fixes",
-  "ci-success": "marking PR as ready for review",
   "pr-review": "reviewing this PR",
   "pr-response": "responding to review feedback",
   "pr-human-response": "addressing your review feedback",
@@ -23947,10 +23944,25 @@ async function addReactionToComment(octokit, owner, repo, commentId, resourceTyp
     core2.warning(`Failed to add reaction to comment: ${error}`);
   }
 }
-async function createStatusComment(octokit, owner, repo, resourceType, resourceNumber, job) {
+async function createStatusComment(octokit, owner, repo, resourceType, resourceNumber, job, progress) {
   const description = JOB_DESCRIPTIONS[job] ?? job;
   const runUrl = `${process.env.GITHUB_SERVER_URL}/${owner}/${repo}/actions/runs/${process.env.GITHUB_RUN_ID}`;
-  const body = `\u{1F440} **nopo-bot** is ${description}...
+  let progressSection = "";
+  if (job === "issue-iterate" && progress) {
+    const iteration = progress.iteration ?? "0";
+    const failures = progress.consecutiveFailures ?? "0";
+    const maxRetries = progress.maxRetries ?? "5";
+    progressSection = `
+
+**Progress:**`;
+    progressSection += `
+- Iteration: ${iteration}`;
+    if (parseInt(failures, 10) > 0) {
+      progressSection += `
+- Retry attempt: ${failures}/${maxRetries}`;
+    }
+  }
+  const body = `\u{1F440} **nopo-bot** is ${description}...${progressSection}
 
 [View workflow run](${runUrl})`;
   if (resourceType === "discussion") {
@@ -23997,6 +24009,9 @@ async function run() {
     const resourceNumber = getRequiredInput("resource_number");
     const commentId = getOptionalInput("comment_id");
     const job = getRequiredInput("job");
+    const iteration = getOptionalInput("iteration");
+    const consecutiveFailures = getOptionalInput("consecutive_failures");
+    const maxRetries = getOptionalInput("max_retries");
     const octokit = github.getOctokit(token);
     const { context } = github;
     const owner = context.repo.owner;
@@ -24006,13 +24021,15 @@ async function run() {
     if (commentId) {
       await addReactionToComment(octokit, owner, repo, commentId, resourceType);
     }
+    const progress = iteration || consecutiveFailures || maxRetries ? { iteration, consecutiveFailures, maxRetries } : void 0;
     const statusCommentId = await createStatusComment(
       octokit,
       owner,
       repo,
       resourceType,
       resourceNumber,
-      job
+      job,
+      progress
     );
     core2.info(`Created status comment: ${statusCommentId}`);
     setOutputs({

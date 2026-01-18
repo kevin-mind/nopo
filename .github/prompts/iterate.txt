@@ -12,7 +12,19 @@ Implement issue #{{ISSUE_NUMBER}}: "{{ISSUE_TITLE}}"
 
 ## Instructions
 
-This is iteration {{ITERATION}} of the implementation loop. Your goal: make progress toward completing all Todo items in the issue.
+This is iteration {{ITERATION}} of the implementation loop. Your goal: make **incremental progress** toward completing the issue. **Do NOT try to complete everything at once.**
+
+### CRITICAL: Incremental Progress Only
+
+**You must NOT attempt to complete all Todo items in a single iteration.** Each iteration should:
+- Complete **ONE small, focused change** (one Todo item or a small logical unit)
+- **Verify locally using nopo commands** before pushing
+- Let CI run and trigger the next iteration
+
+This iterative approach allows for:
+- Early detection of issues
+- Easier debugging when things fail
+- Better tracking of progress
 
 ### 1. Understand Current State
 
@@ -25,13 +37,13 @@ First, analyze:
 
 **If previous CI failed (LAST_CI_RESULT = failure)**:
 - Focus on fixing the CI errors first
-- Run `make check` and `make test` locally to reproduce
+- Run `make check` and `make test` to reproduce the failure locally
 - Fix the issues, verify locally, then commit
 
 **If previous CI passed OR this is the first iteration**:
-- Work on the next unchecked Todo item in the issue
-- Focus on ONE logical change per iteration
-- Run `make check` and `make test` before committing
+- Pick the **next single unchecked Todo item** in the issue
+- Focus on completing **just that one item**
+- Do NOT try to complete multiple items at once
 
 **If all Todos appear done and CI passed**:
 - Verify all requirements are met
@@ -44,9 +56,24 @@ First, analyze:
 2. **If an edit fails, re-read the file** - it may already be modified
 3. **Never repeat a failed edit** - if text not found, the change is likely done
 4. Follow CLAUDE.md guidelines strictly
-5. Keep changes focused and incremental
+5. Keep changes **small and focused** - one logical change per iteration
 
-### 4. Commit and Push
+### 4. Verify Locally BEFORE Pushing
+
+**ALWAYS run these checks before committing:**
+```bash
+make check    # Lint + type check all code
+make test     # Run all tests
+```
+
+**Do NOT push if these commands fail.** Fix any errors first.
+
+This is critical because:
+- CI failures waste time and iteration count
+- Local verification catches issues faster
+- Each failed CI counts toward the retry limit
+
+### 5. Commit and Push
 
 - Commit with a descriptive message referencing the issue
 - Push to origin

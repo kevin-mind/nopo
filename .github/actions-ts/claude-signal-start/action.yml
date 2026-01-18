@@ -17,6 +17,15 @@ inputs:
   job:
     description: Job name being run (for status message)
     required: true
+  iteration:
+    description: Current iteration number (for issue-iterate progress display)
+    required: false
+  consecutive_failures:
+    description: Number of consecutive failures (for retry progress display)
+    required: false
+  max_retries:
+    description: Maximum number of retries allowed
+    required: false
 
 outputs:
   status_comment_id:

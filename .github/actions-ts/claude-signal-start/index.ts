@@ -10,12 +10,9 @@ type ResourceType = "issue" | "pr" | "discussion";
 
 const JOB_DESCRIPTIONS: Record<string, string> = {
   "issue-triage": "triaging this issue",
-  "issue-implement": "implementing this issue",
+  "issue-iterate": "iterating on this issue",
   "issue-comment": "responding to your request",
   "push-to-draft": "converting PR to draft",
-  "ci-fix": "fixing CI failures",
-  "ci-suggest": "suggesting CI fixes",
-  "ci-success": "marking PR as ready for review",
   "pr-review": "reviewing this PR",
   "pr-response": "responding to review feedback",
   "pr-human-response": "addressing your review feedback",
@@ -25,6 +22,12 @@ const JOB_DESCRIPTIONS: Record<string, string> = {
   "discussion-plan": "creating implementation plan",
   "discussion-complete": "marking discussion as complete",
 };
+
+interface ProgressInfo {
+  iteration?: string;
+  consecutiveFailures?: string;
+  maxRetries?: string;
+}
 
 async function addReactionToComment(
   octokit: ReturnType<typeof github.getOctokit>,
@@ -72,11 +75,27 @@ async function createStatusComment(
   resourceType: ResourceType,
   resourceNumber: string,
   job: string,
+  progress?: ProgressInfo,
 ): Promise<string> {
   const description = JOB_DESCRIPTIONS[job] ?? job;
   const runUrl = `${process.env.GITHUB_SERVER_URL}/${owner}/${repo}/actions/runs/${process.env.GITHUB_RUN_ID}`;
 
-  const body = `👀 **nopo-bot** is ${description}...
+  // Build progress section for iterate jobs
+  let progressSection = "";
+  if (job === "issue-iterate" && progress) {
+    const iteration = progress.iteration ?? "0";
+    const failures = progress.consecutiveFailures ?? "0";
+    const maxRetries = progress.maxRetries ?? "5";
+
+    progressSection = `\n\n**Progress:**`;
+    progressSection += `\n- Iteration: ${iteration}`;
+
+    if (parseInt(failures, 10) > 0) {
+      progressSection += `\n- Retry attempt: ${failures}/${maxRetries}`;
+    }
+  }
+
+  const body = `👀 **nopo-bot** is ${description}...${progressSection}
 
 [View workflow run](${runUrl})`;
 
@@ -140,6 +159,11 @@ async function run(): Promise<void> {
     const commentId = getOptionalInput("comment_id");
     const job = getRequiredInput("job");
 
+    // Optional progress info for iterate jobs
+    const iteration = getOptionalInput("iteration");
+    const consecutiveFailures = getOptionalInput("consecutive_failures");
+    const maxRetries = getOptionalInput("max_retries");
+
     const octokit = github.getOctokit(token);
     const { context } = github;
     const owner = context.repo.owner;
@@ -153,6 +177,12 @@ async function run(): Promise<void> {
       await addReactionToComment(octokit, owner, repo, commentId, resourceType);
     }
 
+    // Build progress info
+    const progress: ProgressInfo | undefined =
+      iteration || consecutiveFailures || maxRetries
+        ? { iteration, consecutiveFailures, maxRetries }
+        : undefined;
+
     // Create status comment
     const statusCommentId = await createStatusComment(
       octokit,
@@ -161,6 +191,7 @@ async function run(): Promise<void> {
       resourceType,
       resourceNumber,
       job,
+      progress,
     );
 
     core.info(`Created status comment: ${statusCommentId}`);

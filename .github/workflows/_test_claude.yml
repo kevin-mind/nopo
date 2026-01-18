@@ -15,8 +15,6 @@ on:
           - issue-triage
           - issue-implement
           - issue-comment
-          - ci-fix
-          - ci-suggest
           - pr-review
           - pr-response
           - pr-human-response
@@ -147,26 +145,6 @@ jobs:
     with:
       job: issue-comment
       context_json: '{"issue_number":"99999","context_type":"issue","context_description":"Mock issue for comment test"}'
-      mock_mode: true
-    secrets: inherit
-
-  # Test ci-fix job
-  ci-fix:
-    if: inputs.job == 'ci-fix' || inputs.job == 'all'
-    uses: ./.github/workflows/_claude.yml
-    with:
-      job: ci-fix
-      context_json: '{"pr_number":"99999","branch_name":"test/mock/99999"}'
-      mock_mode: true
-    secrets: inherit
-
-  # Test ci-suggest job
-  ci-suggest:
-    if: inputs.job == 'ci-suggest' || inputs.job == 'all'
-    uses: ./.github/workflows/_claude.yml
-    with:
-      job: ci-suggest
-      context_json: '{"pr_number":"99999","branch_name":"feature/mock-test"}'
       mock_mode: true
     secrets: inherit
 

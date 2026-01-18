@@ -10,12 +10,9 @@ type ResourceType = "issue" | "pr" | "discussion";
 
 const JOB_DESCRIPTIONS: Record<string, string> = {
   "issue-triage": "triaging issue",
-  "issue-implement": "implementing issue",
+  "issue-iterate": "iterating on issue",
   "issue-comment": "responding to comment",
   "push-to-draft": "converting PR to draft",
-  "ci-fix": "fixing CI",
-  "ci-suggest": "suggesting CI fixes",
-  "ci-success": "marking PR ready",
   "pr-review": "reviewing PR",
   "pr-response": "responding to review",
   "pr-human-response": "addressing review",

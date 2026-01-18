@@ -917,7 +917,7 @@ make check && make test && git push
 
 ## Claude Automation State Machine
 
-This project uses Claude AI agents for automated issue management with issue-based triggers. Race conditions between CI-fix and review loops are prevented using draft/ready PR states.
+This project uses Claude AI agents for automated issue management with issue-based triggers.
 
 ### Actors
 
@@ -1128,10 +1128,10 @@ These actions **require human intervention**:
 | Agent | Actions |
 |-------|---------|
 | **Triage** | Adds labels (type/priority/topic), sets project fields (Priority/Size/Estimate), creates sub-issues for phased work, links related issues, expands context, answers questions, adds "triaged" label |
-| **Iterate** | Unified implementation/CI-fix: reads issue state, implements/fixes code, runs tests, pushes. On CI success: marks PR ready, requests review |
+| **Iterate** | Unified implementation: reads issue state, implements/fixes code, runs tests, pushes. On CI success: marks PR ready, requests review |
 | **@claude Comment** | Answers questions, provides explanations, suggests approaches (no code changes unless asked) |
 | **Push-to-Draft** | Converts ready PRs to draft on push, cancels in-flight reviews |
-| **CI-Suggest** | Human PRs: suggests fixes via review comments (does not auto-fix) |
+| Human PRs: suggests fixes via review comments (does not auto-fix) |
 | **Review** | Reviews code, submits batch review (ready PRs only) |
 | **Review Response** | Processes comments: if commits → draft + push (iteration loop); if no commits → re-request review (stays in review loop) |
 

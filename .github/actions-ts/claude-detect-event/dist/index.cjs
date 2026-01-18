@@ -24336,58 +24336,24 @@ async function handleWorkflowRunEvent() {
     return emptyResult(true, "PR title starts with [TEST]");
   }
   const issueNumber = await extractIssueNumber(prInfo.body);
-  if (prInfo.isClaudePr && issueNumber) {
-    if (conclusion === "failure" || conclusion === "success") {
-      return {
-        job: "issue-iterate",
-        resourceType: "issue",
-        resourceNumber: issueNumber,
-        commentId: "",
-        contextJson: JSON.stringify({
-          issue_number: issueNumber,
-          pr_number: prInfo.prNumber,
-          branch_name: branch,
-          ci_run_id: runId,
-          ci_result: conclusion,
-          trigger_type: "workflow_run"
-        }),
-        skip: false,
-        skipReason: ""
-      };
-    }
-  }
-  if (conclusion === "failure") {
-    const job = prInfo.isClaudePr ? "ci-fix" : "ci-suggest";
-    return {
-      job,
-      resourceType: "pr",
-      resourceNumber: prInfo.prNumber,
-      commentId: "",
-      contextJson: JSON.stringify({
-        pr_number: prInfo.prNumber,
-        branch_name: branch
-      }),
-      skip: false,
-      skipReason: ""
-    };
-  }
-  if (conclusion === "success") {
-    return {
-      job: "ci-success",
-      resourceType: "pr",
-      resourceNumber: prInfo.prNumber,
-      commentId: "",
-      contextJson: JSON.stringify({
-        pr_number: prInfo.prNumber,
-        branch_name: branch,
-        is_claude_pr: prInfo.isClaudePr,
-        issue_number: issueNumber
-      }),
-      skip: false,
-      skipReason: ""
-    };
-  }
-  return emptyResult(true, `Workflow run conclusion: ${conclusion}`);
+  if (!prInfo.isClaudePr) return emptyResult(true, "PR is not a Claude PR");
+  if (!issueNumber) core2.setFailed("PR has no issue number");
+  return {
+    job: "issue-iterate",
+    resourceType: "issue",
+    resourceNumber: issueNumber,
+    commentId: "",
+    contextJson: JSON.stringify({
+      issue_number: issueNumber,
+      pr_number: prInfo.prNumber,
+      branch_name: branch,
+      ci_run_id: runId,
+      ci_result: conclusion,
+      trigger_type: "workflow_run"
+    }),
+    skip: false,
+    skipReason: ""
+  };
 }
 async function handlePullRequestEvent(octokit, owner, repo) {
   const { context } = github;

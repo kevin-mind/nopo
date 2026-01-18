@@ -9,7 +9,7 @@ inputs:
     description: Issue number to read/update state from
     required: true
   action:
-    description: Action to perform (read, init, update)
+    description: Action to perform (read, init, update, increment, record_failure, clear_failure, complete)
     required: true
   branch_name:
     description: Branch name (required for init)
@@ -23,8 +23,11 @@ inputs:
   last_ci_result:
     description: Last CI result - success, failure, pending (for update)
     required: false
+  failure_type:
+    description: Type of failure - ci, workflow (for record_failure)
+    required: false
   iteration_message:
-    description: Message to add to iteration log (for update)
+    description: Message to add to iteration log (for update, record_failure)
     required: false
 
 outputs:
@@ -39,7 +42,11 @@ outputs:
   last_ci_result:
     description: Last CI result (success, failure, pending)
   consecutive_failures:
-    description: Number of consecutive CI failures
+    description: Number of consecutive failures (CI or workflow)
+  failure_type:
+    description: Type of last failure (ci, workflow, or empty)
+  last_failure_timestamp:
+    description: ISO timestamp of last failure
   complete:
     description: Whether iteration is complete (true/false)
   has_state:

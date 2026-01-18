@@ -1,6 +1,10 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
-import { getRequiredInput, getOptionalInput, setOutputs } from "../lib/index.js";
+import {
+  getRequiredInput,
+  getOptionalInput,
+  setOutputs,
+} from "../lib/index.js";
 
 /**
  * State stored in issue body as HTML comment
@@ -12,12 +16,13 @@ interface IterationState {
   last_ci_run: string;
   last_ci_result: "success" | "failure" | "pending" | "";
   consecutive_failures: number;
+  failure_type: "ci" | "workflow" | "";
+  last_failure_timestamp: string;
   complete: boolean;
 }
 
 const STATE_MARKER_START = "<!-- CLAUDE_ITERATION";
 const STATE_MARKER_END = "-->";
-const PROGRESS_SECTION = "## Progress";
 const HISTORY_SECTION = "## Iteration History";
 
 /**
@@ -42,6 +47,8 @@ function parseState(body: string): IterationState | null {
     last_ci_run: "",
     last_ci_result: "",
     consecutive_failures: 0,
+    failure_type: "",
+    last_failure_timestamp: "",
     complete: false,
   };
 
@@ -74,6 +81,12 @@ function parseState(body: string): IterationState | null {
       case "consecutive_failures":
         state.consecutive_failures = parseInt(value, 10) || 0;
         break;
+      case "failure_type":
+        state.failure_type = value as IterationState["failure_type"];
+        break;
+      case "last_failure_timestamp":
+        state.last_failure_timestamp = value;
+        break;
       case "complete":
         state.complete = value === "true";
         break;
@@ -94,6 +107,8 @@ pr_number: ${state.pr_number}
 last_ci_run: ${state.last_ci_run}
 last_ci_result: ${state.last_ci_result}
 consecutive_failures: ${state.consecutive_failures}
+failure_type: ${state.failure_type}
+last_failure_timestamp: ${state.last_failure_timestamp}
 complete: ${state.complete}
 ${STATE_MARKER_END}`;
 }
@@ -117,7 +132,11 @@ function updateBodyWithState(body: string, state: IterationState): string {
   }
 
   // Replace existing state
-  return body.slice(0, startIdx) + stateBlock + body.slice(endIdx + STATE_MARKER_END.length);
+  return (
+    body.slice(0, startIdx) +
+    stateBlock +
+    body.slice(endIdx + STATE_MARKER_END.length)
+  );
 }
 
 /**
@@ -127,7 +146,7 @@ function addIterationLogEntry(
   body: string,
   iteration: number,
   message: string,
-  sha?: string
+  sha?: string,
 ): string {
   const historyIdx = body.indexOf(HISTORY_SECTION);
 
@@ -181,6 +200,8 @@ function getDefaultState(branchName: string): IterationState {
     last_ci_run: "",
     last_ci_result: "",
     consecutive_failures: 0,
+    failure_type: "",
+    last_failure_timestamp: "",
     complete: false,
   };
 }
@@ -218,6 +239,8 @@ async function run(): Promise<void> {
           last_ci_run: "",
           last_ci_result: "",
           consecutive_failures: "0",
+          failure_type: "",
+          last_failure_timestamp: "",
           complete: "false",
         });
         return;
@@ -231,6 +254,8 @@ async function run(): Promise<void> {
         last_ci_run: state.last_ci_run,
         last_ci_result: state.last_ci_result,
         consecutive_failures: String(state.consecutive_failures),
+        failure_type: state.failure_type,
+        last_failure_timestamp: state.last_failure_timestamp,
         complete: state.complete ? "true" : "false",
       });
       return;
@@ -249,6 +274,8 @@ async function run(): Promise<void> {
           last_ci_run: state.last_ci_run,
           last_ci_result: state.last_ci_result,
           consecutive_failures: String(state.consecutive_failures),
+          failure_type: state.failure_type,
+          last_failure_timestamp: state.last_failure_timestamp,
           complete: state.complete ? "true" : "false",
         });
         return;
@@ -265,7 +292,9 @@ async function run(): Promise<void> {
         body: newBody,
       });
 
-      core.info(`Initialized state for issue #${issueNumber} with branch ${branchName}`);
+      core.info(
+        `Initialized state for issue #${issueNumber} with branch ${branchName}`,
+      );
 
       setOutputs({
         has_state: "true",
@@ -275,6 +304,8 @@ async function run(): Promise<void> {
         last_ci_run: "",
         last_ci_result: "",
         consecutive_failures: "0",
+        failure_type: "",
+        last_failure_timestamp: "",
         complete: "false",
       });
       return;
@@ -289,7 +320,9 @@ async function run(): Promise<void> {
       // Update fields if provided
       const prNumber = getOptionalInput("pr_number");
       const lastCiRun = getOptionalInput("last_ci_run");
-      const lastCiResult = getOptionalInput("last_ci_result") as IterationState["last_ci_result"] | undefined;
+      const lastCiResult = getOptionalInput("last_ci_result") as
+        | IterationState["last_ci_result"]
+        | undefined;
       const iterationMessage = getOptionalInput("iteration_message");
 
       if (prNumber) {
@@ -303,13 +336,13 @@ async function run(): Promise<void> {
       if (lastCiResult) {
         // Update consecutive failures count
         if (lastCiResult === "failure") {
-          if (state.last_ci_result === "failure") {
-            state.consecutive_failures++;
-          } else {
-            state.consecutive_failures = 1;
-          }
+          state.consecutive_failures++;
+          state.failure_type = "ci";
+          state.last_failure_timestamp = new Date().toISOString();
         } else if (lastCiResult === "success") {
           state.consecutive_failures = 0;
+          state.failure_type = "";
+          state.last_failure_timestamp = "";
         }
         state.last_ci_result = lastCiResult;
       }
@@ -318,7 +351,11 @@ async function run(): Promise<void> {
 
       // Add iteration log entry if message provided
       if (iterationMessage) {
-        newBody = addIterationLogEntry(newBody, state.iteration, iterationMessage);
+        newBody = addIterationLogEntry(
+          newBody,
+          state.iteration,
+          iterationMessage,
+        );
       }
 
       await octokit.rest.issues.update({
@@ -338,6 +375,8 @@ async function run(): Promise<void> {
         last_ci_run: state.last_ci_run,
         last_ci_result: state.last_ci_result,
         consecutive_failures: String(state.consecutive_failures),
+        failure_type: state.failure_type,
+        last_failure_timestamp: state.last_failure_timestamp,
         complete: state.complete ? "true" : "false",
       });
       return;
@@ -359,7 +398,9 @@ async function run(): Promise<void> {
         body: newBody,
       });
 
-      core.info(`Incremented iteration to ${state.iteration} for issue #${issueNumber}`);
+      core.info(
+        `Incremented iteration to ${state.iteration} for issue #${issueNumber}`,
+      );
 
       setOutputs({
         has_state: "true",
@@ -369,6 +410,94 @@ async function run(): Promise<void> {
         last_ci_run: state.last_ci_run,
         last_ci_result: state.last_ci_result,
         consecutive_failures: String(state.consecutive_failures),
+        failure_type: state.failure_type,
+        last_failure_timestamp: state.last_failure_timestamp,
+        complete: state.complete ? "true" : "false",
+      });
+      return;
+    }
+
+    if (action === "record_failure") {
+      if (!state) {
+        core.setFailed("Cannot record failure: no existing state found");
+        return;
+      }
+
+      const failureType = getRequiredInput("failure_type") as "ci" | "workflow";
+      const iterationMessage = getOptionalInput("iteration_message");
+
+      state.consecutive_failures++;
+      state.failure_type = failureType;
+      state.last_failure_timestamp = new Date().toISOString();
+
+      let newBody = updateBodyWithState(currentBody, state);
+
+      // Add iteration log entry if message provided
+      if (iterationMessage) {
+        newBody = addIterationLogEntry(
+          newBody,
+          state.iteration,
+          `❌ ${failureType} failure: ${iterationMessage}`,
+        );
+      }
+
+      await octokit.rest.issues.update({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        body: newBody,
+      });
+
+      core.info(
+        `Recorded ${failureType} failure #${state.consecutive_failures} for issue #${issueNumber}`,
+      );
+
+      setOutputs({
+        has_state: "true",
+        iteration: String(state.iteration),
+        branch: state.branch,
+        pr_number: state.pr_number,
+        last_ci_run: state.last_ci_run,
+        last_ci_result: state.last_ci_result,
+        consecutive_failures: String(state.consecutive_failures),
+        failure_type: state.failure_type,
+        last_failure_timestamp: state.last_failure_timestamp,
+        complete: state.complete ? "true" : "false",
+      });
+      return;
+    }
+
+    if (action === "clear_failure") {
+      if (!state) {
+        core.setFailed("Cannot clear failure: no existing state found");
+        return;
+      }
+
+      state.consecutive_failures = 0;
+      state.failure_type = "";
+      state.last_failure_timestamp = "";
+
+      const newBody = updateBodyWithState(currentBody, state);
+
+      await octokit.rest.issues.update({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        body: newBody,
+      });
+
+      core.info(`Cleared failure state for issue #${issueNumber}`);
+
+      setOutputs({
+        has_state: "true",
+        iteration: String(state.iteration),
+        branch: state.branch,
+        pr_number: state.pr_number,
+        last_ci_run: state.last_ci_run,
+        last_ci_result: state.last_ci_result,
+        consecutive_failures: "0",
+        failure_type: "",
+        last_failure_timestamp: "",
         complete: state.complete ? "true" : "false",
       });
       return;
@@ -381,6 +510,9 @@ async function run(): Promise<void> {
       }
 
       state.complete = true;
+      state.consecutive_failures = 0;
+      state.failure_type = "";
+      state.last_failure_timestamp = "";
       const newBody = updateBodyWithState(currentBody, state);
 
       await octokit.rest.issues.update({
@@ -399,7 +531,9 @@ async function run(): Promise<void> {
         pr_number: state.pr_number,
         last_ci_run: state.last_ci_run,
         last_ci_result: state.last_ci_result,
-        consecutive_failures: String(state.consecutive_failures),
+        consecutive_failures: "0",
+        failure_type: "",
+        last_failure_timestamp: "",
         complete: "true",
       });
       return;

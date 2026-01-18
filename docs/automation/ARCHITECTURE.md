@@ -35,8 +35,6 @@ flowchart TB
         C1[issue-triage]
         C2[issue-implement]
         C3[issue-comment]
-        C4[ci-fix]
-        C5[ci-suggest]
         C6[pr-review]
         C7[pr-response]
         C8[pr-human-response]
@@ -125,8 +123,6 @@ flowchart LR
     end
 
     subgraph CI["CI Events"]
-        C1[CI failed + Claude PR] --> J5[ci-fix]
-        C2[CI failed + Human PR] --> J6[ci-suggest]
         C3[CI passed + Claude PR] --> J7[ci-success]
     end
 
@@ -218,8 +214,6 @@ flowchart TB
 
 | Job | Trigger | Action |
 |-----|---------|--------|
-| `ci-fix` | CI failed on Claude PR | Analyzes failures, fixes code, pushes |
-| `ci-suggest` | CI failed on Human PR | Posts review comments with fix suggestions |
 | `ci-success` | CI passed on Claude PR | Marks ready, requests nopo-bot review |
 
 ### PR Jobs
@@ -258,12 +252,6 @@ Each job receives context via `context_json`:
     "issue_body": "...",
     "branch_name": "claude/issue/123",
     "existing_branch": "false"
-  },
-  "ci-fix": {
-    "pr_number": "456",
-    "branch_name": "claude/issue/123",
-    "failed_jobs": ["build", "test"],
-    "run_url": "..."
   },
   "pr-review": {
     "pr_number": "456",

@@ -4,13 +4,9 @@ import { execCommand, getRequiredInput, setOutputs } from "../lib/index.js";
 
 type Job =
   | "issue-triage"
-  | "issue-implement"
   | "issue-iterate"
   | "issue-comment"
   | "push-to-draft"
-  | "ci-fix"
-  | "ci-suggest"
-  | "ci-success"
   | "pr-review"
   | "pr-response"
   | "pr-human-response"
@@ -647,63 +643,26 @@ async function handleWorkflowRunEvent(): Promise<DetectionResult> {
 
   const issueNumber = await extractIssueNumber(prInfo.body);
 
-  // For Claude PRs, use the unified iteration model
-  if (prInfo.isClaudePr && issueNumber) {
-    if (conclusion === "failure" || conclusion === "success") {
-      return {
-        job: "issue-iterate",
-        resourceType: "issue",
-        resourceNumber: issueNumber,
-        commentId: "",
-        contextJson: JSON.stringify({
-          issue_number: issueNumber,
-          pr_number: prInfo.prNumber,
-          branch_name: branch,
-          ci_run_id: runId,
-          ci_result: conclusion,
-          trigger_type: "workflow_run",
-        }),
-        skip: false,
-        skipReason: "",
-      };
-    }
-  }
+  if (!prInfo.isClaudePr) return emptyResult(true, "PR is not a Claude PR");
 
-  // Fallback to legacy jobs for non-Claude PRs or PRs without issue links
-  if (conclusion === "failure") {
-    const job: Job = prInfo.isClaudePr ? "ci-fix" : "ci-suggest";
-    return {
-      job,
-      resourceType: "pr",
-      resourceNumber: prInfo.prNumber,
-      commentId: "",
-      contextJson: JSON.stringify({
-        pr_number: prInfo.prNumber,
-        branch_name: branch,
-      }),
-      skip: false,
-      skipReason: "",
-    };
-  }
+  if (!issueNumber) core.setFailed("PR has no issue number");
 
-  if (conclusion === "success") {
-    return {
-      job: "ci-success",
-      resourceType: "pr",
-      resourceNumber: prInfo.prNumber,
-      commentId: "",
-      contextJson: JSON.stringify({
-        pr_number: prInfo.prNumber,
-        branch_name: branch,
-        is_claude_pr: prInfo.isClaudePr,
-        issue_number: issueNumber,
-      }),
-      skip: false,
-      skipReason: "",
-    };
-  }
-
-  return emptyResult(true, `Workflow run conclusion: ${conclusion}`);
+  return {
+    job: "issue-iterate",
+    resourceType: "issue",
+    resourceNumber: issueNumber,
+    commentId: "",
+    contextJson: JSON.stringify({
+      issue_number: issueNumber,
+      pr_number: prInfo.prNumber,
+      branch_name: branch,
+      ci_run_id: runId,
+      ci_result: conclusion,
+      trigger_type: "workflow_run",
+    }),
+    skip: false,
+    skipReason: "",
+  };
 }
 
 async function handlePullRequestEvent(

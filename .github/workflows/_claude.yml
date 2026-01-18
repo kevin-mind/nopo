@@ -22,11 +22,8 @@ name: Claude Business Logic
         type: choice
         options:
           - issue-triage
-          - issue-implement
           - issue-iterate
           - issue-comment
-          - ci-fix
-          - ci-suggest
           - pr-review
           - pr-response
           - pr-human-response
@@ -155,195 +152,6 @@ jobs:
           retention-days: 1
           if-no-files-found: ignore
 
-  issue-implement:
-    needs: context
-    if: inputs.job == 'issue-implement'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        if: inputs.mock_mode != true
-        with:
-          ref: ${{ needs.context.outputs.branch_name }}
-          fetch-depth: 0
-      - uses: actions/checkout@v4
-        if: inputs.mock_mode == true
-      - name: Update project status to In Progress
-        if: inputs.mock_mode != true
-        env:
-          GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
-          CONTEXT_JSON: ${{ inputs.context_json }}
-        run: |
-          ISSUE_NUMBER=$(echo "$CONTEXT_JSON" | jq -r '.issue_number // empty')
-          [[ -z "$ISSUE_NUMBER" ]] && exit 0
-
-          repo_name="${GITHUB_REPOSITORY#*/}"
-          owner="${GITHUB_REPOSITORY%/*}"
-
-          result=$(gh api graphql -f query='query($owner: String!, $repo: String!, $issue: Int!) {
-            repository(owner: $owner, name: $repo) {
-              issue(number: $issue) {
-                projectItems(first: 10) {
-                  nodes {
-                    id
-                    project {
-                      id
-                      field(name: "Status") {
-                        ... on ProjectV2SingleSelectField {
-                          id
-                          options { id name }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }' -F owner="$owner" -F repo="$repo_name" -F issue="$ISSUE_NUMBER" 2>/dev/null || echo "{}")
-
-          item=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0] // empty')
-          [[ -z "$item" ]] && exit 0
-
-          item_id=$(echo "$item" | jq -r '.id')
-          project_id=$(echo "$item" | jq -r '.project.id')
-          field_id=$(echo "$item" | jq -r '.project.field.id')
-          option_id=$(echo "$item" | jq -r '.project.field.options[] | select(.name == "In progress") | .id')
-
-          [[ -z "$option_id" ]] && exit 0
-
-          gh api graphql -f query='mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
-            updateProjectV2ItemFieldValue(input: {
-              projectId: $projectId, itemId: $itemId, fieldId: $fieldId,
-              value: { singleSelectOptionId: $optionId }
-            }) { projectV2Item { id } }
-          }' -F projectId="$project_id" -F itemId="$item_id" -F fieldId="$field_id" -F optionId="$option_id"
-      - name: git config
-        if: inputs.mock_mode != true
-        run: |
-          git config --global user.name "Claude Bot"
-          git config --global user.email "claude-bot@anthropic.com"
-      - name: Rebase onto main
-        if: inputs.mock_mode != true
-        env:
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
-          BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
-        run: |
-          git fetch origin main
-
-          # Check if rebase is needed
-          if git merge-base --is-ancestor origin/main HEAD; then
-            echo "Branch is already up to date with main - skipping rebase"
-            exit 0
-          fi
-
-          # Store current HEAD to detect if rebase changed anything
-          head_before=$(git rev-parse HEAD)
-
-          if ! git rebase origin/main; then
-            git rebase --abort
-            echo "::error::Rebase failed due to conflicts. Please resolve conflicts manually before re-running."
-            exit 1
-          fi
-
-          head_after=$(git rev-parse HEAD)
-
-          # Only push if rebase actually changed something
-          if [[ "$head_before" == "$head_after" ]]; then
-            echo "Rebase did not change HEAD - skipping push"
-            exit 0
-          fi
-
-          # Clear the GITHUB_TOKEN credential and use PAT instead
-          git config --unset-all http.https://github.com/.extraheader || true
-          git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$PAT_TOKEN" | base64)"
-
-          if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
-            git push origin "$BRANCH_NAME" --force-with-lease
-            echo "Rebased and pushed changes"
-          else
-            echo "No commits beyond main - skipping push"
-          fi
-      - id: augment
-        name: Check for existing branch work
-        env:
-          BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
-          BASE_REPLACEMENTS: ${{ needs.context.outputs.prompt_replacements }}
-        run: |
-          # Check if branch has commits beyond main
-          diff=$(git diff main.."$BRANCH_NAME" --stat 2>/dev/null || echo "")
-          if [[ -n "$diff" ]]; then
-            section=$(cat <<'SECTION'
-          ## ⚠️ EXISTING BRANCH - Previous work detected
-
-          This branch already has changes from a previous implementation attempt:
-          ```
-          $diff
-          ```
-
-          **CRITICAL**: Review what is already done. Do NOT re-implement completed work.
-          Start from the CURRENT state of the code and continue toward the goal.
-          If an edit fails because the text is not found, the change may already be applied.
-          SECTION
-          )
-            section="${section//\$diff/$diff}"
-          else
-            section=""
-          fi
-          # Add EXISTING_BRANCH_SECTION to replacements
-          json=$(echo "$BASE_REPLACEMENTS" | jq -c --arg section "$section" '. + {EXISTING_BRANCH_SECTION: $section}')
-          echo "json=$json" >> $GITHUB_OUTPUT
-      - uses: ./.github/actions/run-claude
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt_file: .github/prompts/implement.txt
-          prompt_replacements: ${{ steps.augment.outputs.json }}
-          max_turns: '200'
-          show_full_output: 'true'
-          assignee_trigger: nopo-bot
-          mock_mode: ${{ inputs.mock_mode }}
-      - name: Re-push with PAT to trigger CI
-        if: success() && inputs.mock_mode != true
-        env:
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
-          BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
-        run: |
-          # Amend + push with PAT to trigger CI workflows
-          # Only if branch has commits beyond main (don't amend main's commits)
-          # Clear the GITHUB_TOKEN credential and use PAT instead
-          git config --unset-all http.https://github.com/.extraheader || true
-          git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$PAT_TOKEN" | base64)"
-          if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
-            git commit --amend --no-edit
-            git push origin "$BRANCH_NAME" --force-with-lease
-          else
-            echo "No commits beyond main - skipping push"
-          fi
-      - name: Save uncommitted work on failure
-        if: failure() && inputs.mock_mode != true
-        env:
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
-          BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
-        run: |
-          # Check for any uncommitted changes (staged or unstaged)
-          if [[ -n "$(git status --porcelain)" ]]; then
-            echo "Found uncommitted changes - saving work..."
-            git add -A
-            git commit -m "WIP: Save uncommitted work from failed run
-
-            This commit preserves work that was not pushed before the job failed.
-            Review and clean up before continuing.
-
-            Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            # Use PAT to push so it triggers CI workflows
-            # Clear the GITHUB_TOKEN credential and use PAT instead
-            git config --unset-all http.https://github.com/.extraheader || true
-            git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$PAT_TOKEN" | base64)"
-            git push origin "$BRANCH_NAME"
-            echo "::warning::Uncommitted work was saved to branch $BRANCH_NAME"
-          else
-            echo "No uncommitted changes to save"
-          fi
-
   # Unified iteration job - handles both initial implementation and CI fix iterations
   issue-iterate:
     needs: context
@@ -401,6 +209,34 @@ jobs:
           echo "consecutive_failures=$READ_FAILURES" >> $GITHUB_OUTPUT
           echo "complete=$READ_COMPLETE" >> $GITHUB_OUTPUT
 
+      # Exponential backoff with jitter for retries
+      - name: Wait for backoff (retry delay)
+        if: inputs.mock_mode != true && steps.state.outputs.consecutive_failures != '0'
+        env:
+          FAILURES: ${{ steps.state.outputs.consecutive_failures }}
+          BASE_DELAY: '60'  # 60 seconds base delay
+        run: |
+          # Calculate exponential backoff: base * 2^(failures - 1)
+          # With ±20% jitter to prevent thundering herd
+          failures=${FAILURES:-0}
+          if [[ "$failures" -gt 0 ]]; then
+            exponent=$((failures - 1))
+            delay=$((BASE_DELAY * (1 << exponent)))
+            # Cap at 15 minutes
+            if [[ "$delay" -gt 900 ]]; then
+              delay=900
+            fi
+            # Add jitter: ±20%
+            jitter_range=$((delay / 5))
+            jitter=$(( (RANDOM % (jitter_range * 2 + 1)) - jitter_range ))
+            final_delay=$((delay + jitter))
+            if [[ "$final_delay" -lt 10 ]]; then
+              final_delay=10
+            fi
+            echo "Retry attempt $failures: waiting ${final_delay}s (base: ${delay}s, jitter: ${jitter}s)"
+            sleep "$final_delay"
+          fi
+
       # Check for breakpoints and CI success
       - id: breakpoint
         name: Check breakpoints
@@ -411,7 +247,8 @@ jobs:
           COMPLETE: ${{ steps.state.outputs.complete }}
           TRIGGER_TYPE: ${{ fromJson(inputs.context_json).trigger_type || 'assigned' }}
           MAX_ITERATIONS: '10'
-          MAX_FAILURES: '3'
+          # Use GitHub variable for max retries, default to 5
+          MAX_FAILURES: ${{ vars.MAX_CLAUDE_RETRIES || '5' }}
         run: |
           should_stop="false"
           stop_reason=""
@@ -425,7 +262,7 @@ jobs:
             stop_reason="Max iterations ($MAX_ITERATIONS) reached"
           elif [[ "$FAILURES" -ge "$MAX_FAILURES" ]]; then
             should_stop="true"
-            stop_reason="Circuit breaker: $FAILURES consecutive failures"
+            stop_reason="Circuit breaker: $FAILURES consecutive failures (max: $MAX_FAILURES)"
           elif [[ "$TRIGGER_TYPE" == "workflow_run" && "$CI_RESULT" == "success" ]]; then
             # CI passed - this is a success case, not a breakpoint
             is_ci_success="true"
@@ -845,130 +682,6 @@ jobs:
             git commit --amend --no-edit
             git push origin "$BRANCH_NAME" --force-with-lease
           fi
-
-  # ============================================================================
-  # CI JOBS
-  # ============================================================================
-  ci-fix:
-    needs: context
-    if: inputs.job == 'ci-fix'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        if: inputs.mock_mode != true
-        with:
-          ref: ${{ needs.context.outputs.branch_name }}
-          fetch-depth: 0
-      - uses: actions/checkout@v4
-        if: inputs.mock_mode == true
-      - name: git config
-        if: inputs.mock_mode != true
-        run: |
-          git config --global user.name "Claude Bot"
-          git config --global user.email "claude-bot@anthropic.com"
-      - name: Rebase onto main
-        if: inputs.mock_mode != true
-        env:
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
-          BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
-        run: |
-          git fetch origin main
-
-          # Check if rebase is needed
-          if git merge-base --is-ancestor origin/main HEAD; then
-            echo "Branch is already up to date with main - skipping rebase"
-            exit 0
-          fi
-
-          # Store current HEAD to detect if rebase changed anything
-          head_before=$(git rev-parse HEAD)
-
-          if ! git rebase origin/main; then
-            git rebase --abort
-            echo "::error::Rebase failed due to conflicts. Please resolve conflicts manually before re-running."
-            exit 1
-          fi
-
-          head_after=$(git rev-parse HEAD)
-
-          # Only push if rebase actually changed something
-          if [[ "$head_before" == "$head_after" ]]; then
-            echo "Rebase did not change HEAD - skipping push"
-            exit 0
-          fi
-
-          # Clear the GITHUB_TOKEN credential and use PAT instead
-          git config --unset-all http.https://github.com/.extraheader || true
-          git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$PAT_TOKEN" | base64)"
-
-          if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
-            git push origin "$BRANCH_NAME" --force-with-lease
-            echo "Rebased and pushed changes"
-          else
-            echo "No commits beyond main - skipping push"
-          fi
-      - id: augment
-        name: Add HEAD_BRANCH alias
-        env:
-          BASE_REPLACEMENTS: ${{ needs.context.outputs.prompt_replacements }}
-          BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
-        run: |
-          json=$(echo "$BASE_REPLACEMENTS" | jq -c --arg branch "$BRANCH_NAME" '. + {HEAD_BRANCH: $branch}')
-          echo "json=$json" >> $GITHUB_OUTPUT
-      - uses: ./.github/actions/run-claude
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt_file: .github/prompts/ci-fix.txt
-          prompt_replacements: ${{ steps.augment.outputs.json }}
-          max_turns: '200'
-          mock_mode: ${{ inputs.mock_mode }}
-      - name: Re-push with PAT to trigger CI
-        if: success() && inputs.mock_mode != true
-        env:
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
-          BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
-        run: |
-          # Amend + push with PAT to trigger CI workflows
-          # Only if branch has commits beyond main (don't amend main's commits)
-          # Clear the GITHUB_TOKEN credential and use PAT instead
-          git config --unset-all http.https://github.com/.extraheader || true
-          git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$PAT_TOKEN" | base64)"
-          if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
-            git commit --amend --no-edit
-            git push origin "$BRANCH_NAME" --force-with-lease
-          else
-            echo "No commits beyond main - skipping push"
-          fi
-
-  ci-suggest:
-    needs: context
-    if: inputs.job == 'ci-suggest'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        if: inputs.mock_mode != true
-        with:
-          ref: ${{ needs.context.outputs.branch_name }}
-          fetch-depth: 0
-      - uses: actions/checkout@v4
-        if: inputs.mock_mode == true
-      - id: augment
-        name: Add HEAD_BRANCH alias
-        env:
-          BASE_REPLACEMENTS: ${{ needs.context.outputs.prompt_replacements }}
-          BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
-        run: |
-          json=$(echo "$BASE_REPLACEMENTS" | jq -c --arg branch "$BRANCH_NAME" '. + {HEAD_BRANCH: $branch}')
-          echo "json=$json" >> $GITHUB_OUTPUT
-      - uses: ./.github/actions/run-claude
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt_file: .github/prompts/ci-suggest.txt
-          prompt_replacements: ${{ steps.augment.outputs.json }}
-          max_turns: '200'
-          mock_mode: ${{ inputs.mock_mode }}
 
   # ============================================================================
   # PR REVIEW JOBS
