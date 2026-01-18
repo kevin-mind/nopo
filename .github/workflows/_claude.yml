@@ -410,13 +410,29 @@ jobs:
 
       # ===== CI SUCCESS HANDLING =====
       # When CI passes, mark PR ready and request review
+      # Note: PR number comes from state (for edited trigger) or context_json (for workflow_run trigger)
+
+      - id: get_pr_number
+        name: Get PR number from state or context
+        if: steps.breakpoint.outputs.is_ci_success == 'true'
+        env:
+          STATE_PR: ${{ steps.read_state.outputs.pr_number }}
+          CONTEXT_PR: ${{ fromJson(inputs.context_json).pr_number }}
+        run: |
+          # Use state PR number first, fall back to context
+          pr="${STATE_PR:-$CONTEXT_PR}"
+          if [[ -z "$pr" ]]; then
+            echo "::error::No PR number found in state or context"
+            exit 1
+          fi
+          echo "pr_number=$pr" >> $GITHUB_OUTPUT
 
       - id: check_comments
         name: Check unresolved review comments
         if: inputs.mock_mode != true && steps.breakpoint.outputs.is_ci_success == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ fromJson(inputs.context_json).pr_number }}
+          PR_NUMBER: ${{ steps.get_pr_number.outputs.pr_number }}
         run: |
           repo_name="${GITHUB_REPOSITORY#*/}"
           owner="${GITHUB_REPOSITORY%/*}"
@@ -441,7 +457,7 @@ jobs:
         if: inputs.mock_mode != true && steps.breakpoint.outputs.is_ci_success == 'true' && steps.check_comments.outputs.has_unresolved == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ fromJson(inputs.context_json).pr_number }}
+          PR_NUMBER: ${{ steps.get_pr_number.outputs.pr_number }}
           COUNT: ${{ steps.check_comments.outputs.unresolved_count }}
         run: |
           gh pr comment "$PR_NUMBER" --body "⏸️ **CI passed but not moving to Review**
@@ -508,7 +524,7 @@ jobs:
           steps.check_comments.outputs.has_unresolved != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ fromJson(inputs.context_json).pr_number }}
+          PR_NUMBER: ${{ steps.get_pr_number.outputs.pr_number }}
         run: gh pr ready "$PR_NUMBER" --repo "$GITHUB_REPOSITORY"
 
       - name: Add review-ready label
@@ -518,7 +534,7 @@ jobs:
           steps.check_comments.outputs.has_unresolved != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ fromJson(inputs.context_json).pr_number }}
+          PR_NUMBER: ${{ steps.get_pr_number.outputs.pr_number }}
         run: gh pr edit "$PR_NUMBER" --add-label "review-ready" --repo "$GITHUB_REPOSITORY" || true
 
       - name: Request review
@@ -529,7 +545,7 @@ jobs:
         env:
           # Use PAT_TOKEN to trigger the review_requested event
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
-          PR_NUMBER: ${{ fromJson(inputs.context_json).pr_number }}
+          PR_NUMBER: ${{ steps.get_pr_number.outputs.pr_number }}
         run: gh pr edit "$PR_NUMBER" --add-reviewer "nopo-bot" --repo "$GITHUB_REPOSITORY"
 
       - name: Mark iteration complete
@@ -550,7 +566,7 @@ jobs:
           ITERATION: ${{ steps.state.outputs.iteration || '0' }}
           ISSUE_NUMBER: ${{ fromJson(inputs.context_json).issue_number }}
           ISSUE_TITLE: ${{ fromJson(inputs.context_json).issue_title }}
-          PR_NUMBER: ${{ fromJson(inputs.context_json).pr_number }}
+          PR_NUMBER: ${{ steps.get_pr_number.outputs.pr_number }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
           cat >> $GITHUB_STEP_SUMMARY << EOF
