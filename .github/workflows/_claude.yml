@@ -209,11 +209,35 @@ jobs:
           echo "consecutive_failures=$READ_FAILURES" >> $GITHUB_OUTPUT
           echo "complete=$READ_COMPLETE" >> $GITHUB_OUTPUT
 
+      # Record CI failure (increment consecutive_failures)
+      # This ONLY increments on CI failure, not on successful iterations
+      - id: record_ci_failure
+        name: Record CI failure
+        if: |
+          inputs.mock_mode != true &&
+          fromJson(inputs.context_json).trigger_type == 'workflow_run' &&
+          fromJson(inputs.context_json).ci_result == 'failure'
+        uses: ./.github/actions-ts/claude-parse-state
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          issue_number: ${{ fromJson(inputs.context_json).issue_number }}
+          action: record_failure
+          failure_type: ci
+          iteration_message: "CI failed - ${{ fromJson(inputs.context_json).ci_run_id }}"
+
+      # Re-read state after recording failure to get updated consecutive_failures
+      - id: state_after_failure
+        name: Get updated failure count
+        if: steps.record_ci_failure.outcome == 'success'
+        run: |
+          echo "consecutive_failures=${{ steps.record_ci_failure.outputs.consecutive_failures }}" >> $GITHUB_OUTPUT
+
       # Exponential backoff with jitter for retries
       - name: Wait for backoff (retry delay)
-        if: inputs.mock_mode != true && steps.state.outputs.consecutive_failures != '0'
+        if: inputs.mock_mode != true && (steps.state.outputs.consecutive_failures != '0' || steps.record_ci_failure.outcome == 'success')
         env:
-          FAILURES: ${{ steps.state.outputs.consecutive_failures }}
+          # Use updated failure count if CI failure was just recorded
+          FAILURES: ${{ steps.state_after_failure.outputs.consecutive_failures || steps.state.outputs.consecutive_failures }}
           BASE_DELAY: '60'  # 60 seconds base delay
         run: |
           # Calculate exponential backoff: base * 2^(failures - 1)
@@ -243,7 +267,8 @@ jobs:
         env:
           ITERATION: ${{ steps.state.outputs.iteration }}
           CI_RESULT: ${{ steps.state.outputs.ci_result }}
-          FAILURES: ${{ steps.state.outputs.consecutive_failures }}
+          # Use updated failure count if CI failure was just recorded
+          FAILURES: ${{ steps.state_after_failure.outputs.consecutive_failures || steps.state.outputs.consecutive_failures }}
           COMPLETE: ${{ steps.state.outputs.complete }}
           TRIGGER_TYPE: ${{ fromJson(inputs.context_json).trigger_type || 'assigned' }}
           MAX_ITERATIONS: '10'
@@ -544,7 +569,8 @@ jobs:
           BASE_REPLACEMENTS: ${{ needs.context.outputs.prompt_replacements }}
           ITERATION: ${{ steps.increment.outputs.iteration || steps.state.outputs.iteration }}
           CI_RESULT: ${{ steps.state.outputs.ci_result }}
-          FAILURES: ${{ steps.state.outputs.consecutive_failures }}
+          # Use updated failure count if CI failure was just recorded
+          FAILURES: ${{ steps.state_after_failure.outputs.consecutive_failures || steps.state.outputs.consecutive_failures }}
         run: |
           # Check for existing branch work
           diff=$(git diff main.."$BRANCH_NAME" --stat 2>/dev/null || echo "")
