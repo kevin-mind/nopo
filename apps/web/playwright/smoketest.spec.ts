@@ -16,4 +16,16 @@ test.describe("Smoketest", () => {
     // Verify the page title is set correctly
     await expect(page).toHaveTitle(/New React Router App/);
   });
+
+  test("header logo link has aria-label for accessibility", async ({
+    page,
+  }) => {
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.waitForLoadState("load");
+
+    // Verify the header logo link exists with the correct aria-label
+    const logoLink = page.getByRole("link", { name: "Go to homepage" });
+    await expect(logoLink).toBeVisible();
+    await expect(logoLink).toHaveAttribute("href", "/");
+  });
 });
