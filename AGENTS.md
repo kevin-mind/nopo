@@ -68,7 +68,7 @@ nopo/
 
 ### Prerequisites
 
-- Node.js 22.16+
+- Node.js 22.16+ (see [Node Version Management](#node-version-management) for auto-switching)
 - pnpm 10.11+
 - Docker and Docker Compose v2.20+
 - Python 3.12+ (for backend development)
@@ -91,6 +91,59 @@ make up
 
 # Access the application at http://localhost
 ```
+
+### Node Version Management
+
+This project uses Node.js 22. Version is managed through multiple files for different contexts:
+
+| File | Value | Purpose |
+|------|-------|---------|
+| `.nvmrc` | `22` | Local development (nvm/fnm auto-switch) |
+| `package.json` engines | `>=22.16` | Enforced during `pnpm install` |
+| `nopo.yml` os.base.image | `node:22.16.0-slim` | Docker base image |
+
+**Manual usage:**
+
+```bash
+nvm use       # Switch to project's Node version
+node -v       # Verify: should be v22.x.x
+```
+
+**Auto-switch setup (recommended):**
+
+Most Node version managers can automatically switch when you `cd` into the project:
+
+```bash
+# nvm (bash) - add to ~/.bashrc
+cdnvm() {
+  cd "$@" || return $?
+  if [[ -f .nvmrc && -r .nvmrc ]]; then
+    nvm use
+  fi
+}
+alias cd='cdnvm'
+
+# nvm (zsh) - add to ~/.zshrc
+autoload -U add-zsh-hook
+load-nvmrc() {
+  if [[ -f .nvmrc && -r .nvmrc ]]; then
+    nvm use
+  fi
+}
+add-zsh-hook chpwd load-nvmrc
+load-nvmrc
+
+# Oh My Zsh - enable the nvm plugin in ~/.zshrc
+plugins=(... nvm)
+
+# fnm - add to shell config
+eval "$(fnm env --use-on-cd)"
+```
+
+**Why `22` instead of `22.16` in .nvmrc?**
+- Local development gets the latest Node 22.x patches automatically
+- The `package.json` engines constraint (`>=22.16`) still enforces the minimum version
+- If your Node version is too old, `pnpm install` will fail with a clear error
 
 ---
 
