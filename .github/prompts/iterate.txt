@@ -82,13 +82,26 @@ This is critical because:
 - Each failed CI counts toward the retry limit (max 5)
 - The pre-commit hook will run `make fix` automatically
 
-### 5. Commit and Push
+### 5. Update Todo Progress
+
+After completing a Todo item, update the issue body to check it off:
+
+```bash
+# Read current issue body, update the checkbox, and save
+gh issue view {{ISSUE_NUMBER}} --json body -q '.body' > /tmp/issue_body.md
+# Edit /tmp/issue_body.md to change `- [ ] <item>` to `- [x] <item>`
+gh issue edit {{ISSUE_NUMBER}} --body-file /tmp/issue_body.md
+```
+
+This helps track progress and shows what's been accomplished.
+
+### 6. Commit and Push
 
 - Commit with a descriptive message referencing the issue
 - Push to origin
 - The workflow will handle the rest (CI, next iteration trigger)
 
-### 5. Create PR (First Iteration Only)
+### 7. Create PR (First Iteration Only)
 
 If no PR exists yet:
 ```bash
@@ -101,6 +114,8 @@ gh pr create --draft --reviewer nopo-bot \
 
 - Focus on ONE logical change per iteration
 - The workflow will automatically trigger the next iteration after CI completes
-- You do NOT need to update the issue body state - the workflow handles it
+- You do NOT need to update the iteration state block - the workflow handles it
+- **DO update Todo checkboxes** after completing each item (see section 5)
+- `make check` and `make test` are mandatory verification steps, NOT separate Todo items
 - If you're blocked and can't make progress, commit a comment explaining why
 - If you notice conflicts with other open PRs, note them in the PR description

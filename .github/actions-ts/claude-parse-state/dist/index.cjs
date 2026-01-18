@@ -23991,7 +23991,9 @@ function updateBodyWithState(body, state) {
 }
 function addIterationLogEntry(body, iteration, message, sha, runLink) {
   const historyIdx = body.indexOf(HISTORY_SECTION);
-  const shaCell = sha ? `[\`${sha.slice(0, 7)}\`](../../commit/${sha})` : "-";
+  const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+  const repo = process.env.GITHUB_REPOSITORY || "";
+  const shaCell = sha ? `[\`${sha.slice(0, 7)}\`](${serverUrl}/${repo}/commit/${sha})` : "-";
   const runCell = runLink ? `[Run](${runLink})` : "-";
   if (historyIdx === -1) {
     const entry2 = `| ${iteration} | ${message} | ${shaCell} | ${runCell} |`;
@@ -24238,7 +24240,7 @@ async function run() {
         newBody = addIterationLogEntry(
           newBody,
           state.iteration,
-          `${failureType} failure: ${iterationMessage}`,
+          `\u274C ${failureType} failure: ${iterationMessage}`,
           commitSha,
           runLink
         );
@@ -24374,6 +24376,42 @@ async function run() {
         failure_type: "",
         last_failure_timestamp: "",
         complete: "false"
+      });
+      return;
+    }
+    if (action === "log_event") {
+      if (!state) {
+        core2.setFailed("Cannot log event: no existing state found");
+        return;
+      }
+      const iterationMessage = getRequiredInput("iteration_message");
+      const commitSha = getOptionalInput("commit_sha");
+      const runLink = getOptionalInput("run_link");
+      const newBody = addIterationLogEntry(
+        currentBody,
+        state.iteration,
+        iterationMessage,
+        commitSha,
+        runLink
+      );
+      await octokit.rest.issues.update({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        body: newBody
+      });
+      core2.info(`Logged event for issue #${issueNumber}: ${iterationMessage}`);
+      setOutputs({
+        has_state: "true",
+        iteration: String(state.iteration),
+        branch: state.branch,
+        pr_number: state.pr_number,
+        last_ci_run: state.last_ci_run,
+        last_ci_result: state.last_ci_result,
+        consecutive_failures: String(state.consecutive_failures),
+        failure_type: state.failure_type,
+        last_failure_timestamp: state.last_failure_timestamp,
+        complete: state.complete ? "true" : "false"
       });
       return;
     }

@@ -23980,77 +23980,6 @@ async function updateStatusComment(octokit, owner, repo, resourceType, statusCom
     core2.warning(`Failed to update status comment: ${error}`);
   }
 }
-async function createFailureIssue(octokit, owner, repo, resourceType, resourceNumber, job, runUrl, contextJson) {
-  const description = JOB_DESCRIPTIONS[job] ?? job;
-  const resourceLabel = resourceType === "discussion" ? "Discussion" : resourceType === "pr" ? "PR" : "Issue";
-  const title = `[Claude Failure] ${description} for ${resourceLabel} #${resourceNumber}`;
-  const { data: existingIssues } = await octokit.rest.issues.listForRepo({
-    owner,
-    repo,
-    labels: "claude-failure",
-    state: "open",
-    per_page: 100
-  });
-  const existingIssue = existingIssues.find((issue2) => issue2.title === title);
-  if (existingIssue) {
-    await octokit.rest.issues.createComment({
-      owner,
-      repo,
-      issue_number: existingIssue.number,
-      body: `## Additional Failure
-
-**Workflow Run**: ${runUrl}
-
-Another failure occurred for this job. Check the workflow run for details.`
-    });
-    core2.info(
-      `Added comment to existing failure issue #${existingIssue.number}`
-    );
-    return String(existingIssue.number);
-  }
-  let contextSection = "";
-  if (contextJson && contextJson !== "{}") {
-    try {
-      const context = JSON.parse(contextJson);
-      const contextLines = Object.entries(context).map(
-        ([key, value]) => `- **${key}**: ${String(value).substring(0, 200)}${String(value).length > 200 ? "..." : ""}`
-      ).join("\n");
-      contextSection = `
-
-## Context
-${contextLines}`;
-    } catch {
-    }
-  }
-  const body = `## Claude Automation Failure
-
-**Job**: ${job}
-**${resourceLabel}**: #${resourceNumber}
-**Workflow Run**: ${runUrl}
-${contextSection}
-
-## Description
-
-Claude failed while ${description}. Please investigate the workflow run logs for details.
-
-## Next Steps
-
-1. Check the [workflow run](${runUrl}) for error details
-2. Fix the underlying issue
-3. Re-trigger the automation if needed
-
----
-*This issue was automatically created by Claude automation.*`;
-  const { data: issue } = await octokit.rest.issues.create({
-    owner,
-    repo,
-    title,
-    body,
-    labels: ["claude-failure", "bug"]
-  });
-  core2.info(`Created failure issue #${issue.number}`);
-  return String(issue.number);
-}
 async function run() {
   try {
     const token = getRequiredInput("github_token");
@@ -24061,7 +23990,6 @@ async function run() {
     const job = getRequiredInput("job");
     const jobResult = getRequiredInput("job_result");
     const runUrl = getRequiredInput("run_url");
-    const contextJson = getOptionalInput("context_json") ?? "{}";
     const octokit = github.getOctokit(token);
     const { context } = github;
     const owner = context.repo.owner;
@@ -24097,21 +24025,8 @@ async function run() {
         success ? "rocket" : "thumbs_down"
       );
     }
-    let failureIssueNumber = "";
-    if (!success && jobResult !== "skipped" && jobResult !== "cancelled") {
-      failureIssueNumber = await createFailureIssue(
-        octokit,
-        owner,
-        repo,
-        resourceType,
-        resourceNumber,
-        job,
-        runUrl,
-        contextJson
-      );
-    }
     setOutputs({
-      failure_issue_number: failureIssueNumber
+      failure_issue_number: ""
     });
   } catch (error) {
     if (error instanceof Error) {

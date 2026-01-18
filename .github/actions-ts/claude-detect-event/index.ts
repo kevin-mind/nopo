@@ -876,6 +876,9 @@ async function handlePullRequestEvent(
       pr.body ?? "",
     );
 
+    // Extract issue number for logging review events to iteration history
+    const issueNumber = await extractIssueNumber(pr.body ?? "");
+
     return {
       job: "pr-review",
       resourceType: "pr",
@@ -885,6 +888,7 @@ async function handlePullRequestEvent(
         pr_number: String(pr.number),
         branch_name: pr.head.ref,
         issue_section: issueSection,
+        issue_number: issueNumber,
       }),
       skip: false,
       skipReason: "",
@@ -937,6 +941,10 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
     return emptyResult(true, `Review state is ${state}`);
   }
 
+  // Extract issue number from branch name (claude/issue/XXX)
+  const branchMatch = pr.head.ref.match(/^claude\/issue\/(\d+)$/);
+  const issueNumber = branchMatch?.[1] ?? "";
+
   // Check if review is from Claude (pr-response) or human (pr-human-response)
   if (review.user.login === "claude[bot]") {
     return {
@@ -950,6 +958,7 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
         review_state: state,
         review_body: review.body ?? "",
         review_id: String(review.id),
+        issue_number: issueNumber,
       }),
       skip: false,
       skipReason: "",
@@ -975,6 +984,7 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
       review_state: state,
       review_body: review.body ?? "",
       review_id: String(review.id),
+      issue_number: issueNumber,
     }),
     skip: false,
     skipReason: "",

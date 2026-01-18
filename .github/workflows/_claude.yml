@@ -386,6 +386,19 @@ jobs:
           echo "is_ci_success=$is_ci_success" >> $GITHUB_OUTPUT
           echo "is_breakpoint=$is_breakpoint" >> $GITHUB_OUTPUT
 
+      # Log circuit breaker event to iteration history
+      - name: Log circuit breaker event
+        if: |
+          inputs.mock_mode != true &&
+          steps.breakpoint.outputs.is_breakpoint == 'true'
+        uses: ./.github/actions-ts/claude-parse-state
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          issue_number: ${{ fromJson(inputs.context_json).issue_number }}
+          action: log_event
+          iteration_message: "⚠️ ${{ steps.breakpoint.outputs.stop_reason }}"
+          run_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
       # Unassign nopo-bot on breakpoint (circuit breaker or max iterations)
       # This ends the edit-based loop cleanly (no nopo-bot = no iteration on edit)
       # NOTE: We use unassign instead of add-label because add-label triggers 'edited'
@@ -588,6 +601,20 @@ jobs:
           GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
           PR_NUMBER: ${{ steps.get_pr_number.outputs.pr_number }}
         run: gh pr edit "$PR_NUMBER" --add-reviewer "nopo-bot" --repo "$GITHUB_REPOSITORY"
+
+      # Log review requested event to iteration history
+      - name: Log review requested
+        if: |
+          inputs.mock_mode != true &&
+          steps.breakpoint.outputs.is_ci_success == 'true' &&
+          steps.check_comments.outputs.has_unresolved != 'true'
+        uses: ./.github/actions-ts/claude-parse-state
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          issue_number: ${{ fromJson(inputs.context_json).issue_number }}
+          action: log_event
+          iteration_message: "👁️ Review requested"
+          run_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
       - name: Mark iteration complete
         if: |
@@ -1066,6 +1093,20 @@ jobs:
           esac
 
           echo "Review submitted successfully"
+          echo "decision=$decision" >> "$GITHUB_OUTPUT"
+        id: submit_review
+
+      # Log review event to iteration history
+      - name: Log review submitted
+        if: always() && inputs.mock_mode != true && steps.submit_review.outputs.decision != ''
+        uses: ./.github/actions-ts/claude-parse-state
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          issue_number: ${{ fromJson(inputs.context_json).issue_number }}
+          action: log_event
+          iteration_message: "📝 Review: ${{ steps.submit_review.outputs.decision }}"
+          run_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
       - uses: actions/upload-artifact@v4
         with:
           name: claude-review-output

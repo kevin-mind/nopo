@@ -24504,6 +24504,7 @@ async function handlePullRequestEvent(octokit, owner, repo) {
       repo,
       pr.body ?? ""
     );
+    const issueNumber = await extractIssueNumber(pr.body ?? "");
     return {
       job: "pr-review",
       resourceType: "pr",
@@ -24512,7 +24513,8 @@ async function handlePullRequestEvent(octokit, owner, repo) {
       contextJson: JSON.stringify({
         pr_number: String(pr.number),
         branch_name: pr.head.ref,
-        issue_section: issueSection
+        issue_section: issueSection,
+        issue_number: issueNumber
       }),
       skip: false,
       skipReason: ""
@@ -24541,6 +24543,8 @@ async function handlePullRequestReviewEvent() {
   if (state !== "changes_requested" && state !== "commented") {
     return emptyResult(true, `Review state is ${state}`);
   }
+  const branchMatch = pr.head.ref.match(/^claude\/issue\/(\d+)$/);
+  const issueNumber = branchMatch?.[1] ?? "";
   if (review.user.login === "claude[bot]") {
     return {
       job: "pr-response",
@@ -24552,7 +24556,8 @@ async function handlePullRequestReviewEvent() {
         branch_name: pr.head.ref,
         review_state: state,
         review_body: review.body ?? "",
-        review_id: String(review.id)
+        review_id: String(review.id),
+        issue_number: issueNumber
       }),
       skip: false,
       skipReason: ""
@@ -24573,7 +24578,8 @@ async function handlePullRequestReviewEvent() {
       reviewer_login: review.user.login,
       review_state: state,
       review_body: review.body ?? "",
-      review_id: String(review.id)
+      review_id: String(review.id),
+      issue_number: issueNumber
     }),
     skip: false,
     skipReason: ""
