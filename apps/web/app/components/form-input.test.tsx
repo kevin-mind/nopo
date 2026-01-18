@@ -23,7 +23,9 @@ describe("FormInput Component", () => {
 
     const descriptionElement = document.getElementById(descriptionId!);
     expect(descriptionElement).toBeInTheDocument();
-    expect(descriptionElement).toHaveTextContent("Must be at least 8 characters");
+    expect(descriptionElement).toHaveTextContent(
+      "Must be at least 8 characters",
+    );
   });
 
   it("does not set aria-describedby when no description", () => {
