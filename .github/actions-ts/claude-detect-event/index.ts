@@ -4,12 +4,9 @@ import { execCommand, getRequiredInput, setOutputs } from "../lib/index.js";
 
 type Job =
   | "issue-triage"
-  | "issue-implement"
+  | "issue-iterate"
   | "issue-comment"
   | "push-to-draft"
-  | "ci-fix"
-  | "ci-suggest"
-  | "ci-success"
   | "pr-review"
   | "pr-response"
   | "pr-human-response"
@@ -42,6 +39,72 @@ function emptyResult(skip = false, skipReason = ""): DetectionResult {
     skip,
     skipReason,
   };
+}
+
+/**
+ * Fetch the project status for an issue
+ * Returns the status name or null if not in a project
+ */
+async function fetchProjectStatus(
+  octokit: ReturnType<typeof github.getOctokit>,
+  owner: string,
+  repo: string,
+  issueNumber: number,
+): Promise<string | null> {
+  try {
+    const result = await octokit.graphql<{
+      repository: {
+        issue: {
+          projectItems: {
+            nodes: Array<{
+              fieldValueByName: {
+                name: string;
+              } | null;
+            }>;
+          };
+        } | null;
+      };
+    }>(
+      `
+      query($owner: String!, $repo: String!, $number: Int!) {
+        repository(owner: $owner, name: $repo) {
+          issue(number: $number) {
+            projectItems(first: 10) {
+              nodes {
+                fieldValueByName(name: "Status") {
+                  ... on ProjectV2ItemFieldSingleSelectValue {
+                    name
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `,
+      { owner, repo, number: issueNumber },
+    );
+
+    const items = result.repository.issue?.projectItems.nodes ?? [];
+    for (const item of items) {
+      if (item.fieldValueByName?.name) {
+        return item.fieldValueByName.name;
+      }
+    }
+    return null;
+  } catch (error) {
+    core.warning(`Failed to fetch project status: ${error}`);
+    return null;
+  }
+}
+
+/**
+ * Check if project status indicates the issue should be skipped
+ */
+function shouldSkipProjectStatus(status: string | null): boolean {
+  if (!status) return false;
+  const skipStatuses = ["Backlog", "Done"];
+  return skipStatuses.includes(status);
 }
 
 async function fetchIssueDetails(
@@ -303,9 +366,14 @@ async function handleIssueEvent(
   const hasTriagedLabel = issue.labels.some((l) => l.name === "triaged");
 
   // Handle triage: opened, edited (without triaged label), or unlabeled (removing triaged)
+  // BUT only if nopo-bot is NOT assigned (if assigned, edited triggers iteration instead)
+  const assignees = (
+    payload.issue as { assignees?: Array<{ login: string }> }
+  ).assignees;
+  const isNopoBotAssigned = assignees?.some((a) => a.login === "nopo-bot");
+
   if (
     action === "opened" ||
-    action === "edited" ||
     (action === "unlabeled" &&
       (payload.label as { name: string })?.name === "triaged")
   ) {
@@ -334,11 +402,102 @@ async function handleIssueEvent(
     };
   }
 
+  // Handle edited: triggers iteration if nopo-bot is assigned, otherwise triage
+  if (action === "edited") {
+    // If nopo-bot is assigned, edited triggers iteration (issue-edit-based loop)
+    if (isNopoBotAssigned) {
+      // Check project status - skip if in Backlog or Done
+      const projectStatus = await fetchProjectStatus(
+        octokit,
+        owner,
+        repo,
+        issue.number,
+      );
+      if (shouldSkipProjectStatus(projectStatus)) {
+        return emptyResult(
+          true,
+          `Issue project status is '${projectStatus}' - skipping iteration`,
+        );
+      }
+
+      const details = await fetchIssueDetails(
+        octokit,
+        owner,
+        repo,
+        issue.number,
+      );
+      const branchName = `claude/issue/${issue.number}`;
+
+      // Check if branch exists (don't create, iteration will handle that)
+      const branchExists = await checkBranchExists(branchName);
+
+      return {
+        job: "issue-iterate",
+        resourceType: "issue",
+        resourceNumber: String(issue.number),
+        commentId: "",
+        contextJson: JSON.stringify({
+          issue_number: String(issue.number),
+          issue_title: details.title || issue.title,
+          issue_body: details.body || issue.body,
+          branch_name: branchName,
+          existing_branch: branchExists ? "true" : "false",
+          trigger_type: "edited",
+        }),
+        skip: false,
+        skipReason: "",
+      };
+    }
+
+    // Not assigned to nopo-bot - check if needs triage
+    if (!hasTriagedLabel) {
+      const details = await fetchIssueDetails(
+        octokit,
+        owner,
+        repo,
+        issue.number,
+      );
+      if (details.isSubIssue) {
+        return emptyResult(true, "Issue is a sub-issue");
+      }
+
+      return {
+        job: "issue-triage",
+        resourceType: "issue",
+        resourceNumber: String(issue.number),
+        commentId: "",
+        contextJson: JSON.stringify({
+          issue_number: String(issue.number),
+          issue_title: details.title || issue.title,
+          issue_body: details.body || issue.body,
+        }),
+        skip: false,
+        skipReason: "",
+      };
+    }
+
+    return emptyResult(true, "Issue edited but already triaged and not assigned to nopo-bot");
+  }
+
   // Handle implement: assigned to nopo-bot
   if (action === "assigned") {
     const assignee = payload.assignee as { login: string };
     if (assignee.login !== "nopo-bot") {
       return emptyResult(true, "Not assigned to nopo-bot");
+    }
+
+    // Check project status - skip if in Backlog or Done
+    const projectStatus = await fetchProjectStatus(
+      octokit,
+      owner,
+      repo,
+      issue.number,
+    );
+    if (shouldSkipProjectStatus(projectStatus)) {
+      return emptyResult(
+        true,
+        `Issue project status is '${projectStatus}' - skipping iteration`,
+      );
     }
 
     const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
@@ -347,8 +506,9 @@ async function handleIssueEvent(
     // Ensure the branch exists (create if not)
     await ensureBranchExists(branchName);
 
+    // Use the unified iteration model
     return {
-      job: "issue-implement",
+      job: "issue-iterate",
       resourceType: "issue",
       resourceNumber: String(issue.number),
       commentId: "",
@@ -357,6 +517,7 @@ async function handleIssueEvent(
         issue_title: details.title || issue.title,
         issue_body: details.body || issue.body,
         branch_name: branchName,
+        trigger_type: "assigned",
       }),
       skip: false,
       skipReason: "",
@@ -424,8 +585,9 @@ async function handleIssueCommentEvent(
     // Ensure the branch exists (create if not)
     await ensureBranchExists(branchName);
 
+    // Use the unified iteration model
     return {
-      job: "issue-implement",
+      job: "issue-iterate",
       resourceType: "issue",
       resourceNumber: String(issue.number),
       commentId: String(comment.id),
@@ -434,6 +596,7 @@ async function handleIssueCommentEvent(
         issue_title: details.title || issue.title,
         issue_body: details.body || issue.body,
         branch_name: branchName,
+        trigger_type: "implement_command",
       }),
       skip: false,
       skipReason: "",
@@ -610,10 +773,12 @@ async function handleWorkflowRunEvent(): Promise<DetectionResult> {
   const workflowRun = payload.workflow_run as {
     conclusion: string;
     head_branch: string;
+    id: number;
   };
 
   const conclusion = workflowRun.conclusion;
   const branch = workflowRun.head_branch;
+  const runId = String(workflowRun.id);
 
   // Skip test branches (circuit breaker for test automation)
   if (branch.startsWith("test/")) {
@@ -638,40 +803,28 @@ async function handleWorkflowRunEvent(): Promise<DetectionResult> {
     return emptyResult(true, "PR title starts with [TEST]");
   }
 
-  if (conclusion === "failure") {
-    const job: Job = prInfo.isClaudePr ? "ci-fix" : "ci-suggest";
-    return {
-      job,
-      resourceType: "pr",
-      resourceNumber: prInfo.prNumber,
-      commentId: "",
-      contextJson: JSON.stringify({
-        pr_number: prInfo.prNumber,
-        branch_name: branch,
-      }),
-      skip: false,
-      skipReason: "",
-    };
-  }
+  const issueNumber = await extractIssueNumber(prInfo.body);
 
-  if (conclusion === "success") {
-    return {
-      job: "ci-success",
-      resourceType: "pr",
-      resourceNumber: prInfo.prNumber,
-      commentId: "",
-      contextJson: JSON.stringify({
-        pr_number: prInfo.prNumber,
-        branch_name: branch,
-        is_claude_pr: prInfo.isClaudePr,
-        issue_number: await extractIssueNumber(prInfo.body),
-      }),
-      skip: false,
-      skipReason: "",
-    };
-  }
+  if (!prInfo.isClaudePr) return emptyResult(true, "PR is not a Claude PR");
 
-  return emptyResult(true, `Workflow run conclusion: ${conclusion}`);
+  if (!issueNumber) core.setFailed("PR has no issue number");
+
+  return {
+    job: "issue-iterate",
+    resourceType: "issue",
+    resourceNumber: issueNumber,
+    commentId: "",
+    contextJson: JSON.stringify({
+      issue_number: issueNumber,
+      pr_number: prInfo.prNumber,
+      branch_name: branch,
+      ci_run_id: runId,
+      ci_result: conclusion,
+      trigger_type: "workflow_run",
+    }),
+    skip: false,
+    skipReason: "",
+  };
 }
 
 async function handlePullRequestEvent(

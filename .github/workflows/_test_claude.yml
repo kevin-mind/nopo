@@ -11,12 +11,11 @@ on:
         options:
           - all
           - unit-tests
-          - detect-event
           - issue-triage
-          - issue-implement
+          - issue-iterate
+          - issue-iterate-complete
+          - issue-iterate-ci-failure
           - issue-comment
-          - ci-fix
-          - ci-suggest
           - pr-review
           - pr-response
           - pr-human-response
@@ -52,6 +51,9 @@ jobs:
   # ============================================================================
   # UNIT TESTS - Test TypeScript action logic directly
   # ============================================================================
+  # Note: Event detection logic is tested via unit tests in index.test.ts
+  # Workflow-level detection tests are not possible because @actions/github
+  # reads GITHUB_EVENT_NAME at module import time (before env overrides)
   unit-tests:
     if: inputs.job == 'unit-tests' || inputs.job == 'all'
     runs-on: ubuntu-latest
@@ -61,59 +63,6 @@ jobs:
       - uses: ./.github/actions/setup-nopo
       - name: Run GitHub Actions tests
         run: nopo test actions root
-
-  # ============================================================================
-  # DETECT EVENT - Test event detection with mock event data
-  # ============================================================================
-  detect-event:
-    if: inputs.job == 'detect-event' || inputs.job == 'all'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-node
-
-      - name: Create mock issue event
-        run: |
-          mkdir -p /tmp/test-events
-          cat > /tmp/test-events/issue-opened.json << 'EOF'
-          {
-            "action": "opened",
-            "issue": {
-              "number": 99999,
-              "title": "Mock test issue",
-              "body": "This is a mock issue for testing",
-              "labels": [],
-              "user": { "login": "test-user" }
-            },
-            "repository": {
-              "owner": { "login": "${{ github.repository_owner }}" },
-              "name": "${{ github.event.repository.name }}"
-            }
-          }
-          EOF
-
-      - name: Test issue-opened detection
-        id: detect-issue
-        uses: ./.github/actions-ts/claude-detect-event
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-        env:
-          GITHUB_EVENT_NAME: issues
-          GITHUB_EVENT_PATH: /tmp/test-events/issue-opened.json
-
-      - name: Verify issue detection
-        run: |
-          echo "Testing issue-opened event detection..."
-          echo "Job: ${{ steps.detect-issue.outputs.job }}"
-          echo "Resource Type: ${{ steps.detect-issue.outputs.resource_type }}"
-          echo "Skip: ${{ steps.detect-issue.outputs.skip }}"
-
-          # Verify outputs
-          if [[ "${{ steps.detect-issue.outputs.resource_type }}" != "issue" ]]; then
-            echo "ERROR: Expected resource_type=issue"
-            exit 1
-          fi
-          echo "✓ Issue detection passed"
 
   # ============================================================================
   # WORKFLOW LOGIC TESTS - Test _claude.yml jobs with mock context
@@ -130,13 +79,35 @@ jobs:
       mock_mode: true
     secrets: inherit
 
-  # Test issue-implement job
-  issue-implement:
-    if: inputs.job == 'issue-implement' || inputs.job == 'all'
+  # Test issue-iterate job - first iteration (assigned trigger)
+  issue-iterate:
+    if: inputs.job == 'issue-iterate' || inputs.job == 'all'
     uses: ./.github/workflows/_claude.yml
     with:
-      job: issue-implement
-      context_json: '{"issue_number":"99999","issue_title":"Mock implement test","issue_body":"## Todo\n- [ ] Test task","branch_name":"test/mock/99999","existing_branch":"false"}'
+      job: issue-iterate
+      context_json: '{"issue_number":"99999","issue_title":"Mock iterate test","issue_body":"## Todo\n- [ ] Test task","branch_name":"test/mock/99999","existing_branch":"false","trigger_type":"assigned"}'
+      mock_mode: true
+    secrets: inherit
+
+  # Test issue-iterate with already complete state (should early exit)
+  issue-iterate-complete:
+    if: inputs.job == 'issue-iterate-complete' || inputs.job == 'all'
+    uses: ./.github/workflows/_claude.yml
+    with:
+      job: issue-iterate
+      # Note: In mock mode, state isn't actually read from issue body
+      # This tests that the job runs without errors with complete context
+      context_json: '{"issue_number":"99999","issue_title":"Mock complete test","issue_body":"## Todo\n- [x] Completed task","branch_name":"test/mock/99999","existing_branch":"true","trigger_type":"edited"}'
+      mock_mode: true
+    secrets: inherit
+
+  # Test issue-iterate with CI failure (edited trigger with failed CI state)
+  issue-iterate-ci-failure:
+    if: inputs.job == 'issue-iterate-ci-failure' || inputs.job == 'all'
+    uses: ./.github/workflows/_claude.yml
+    with:
+      job: issue-iterate
+      context_json: '{"issue_number":"99999","issue_title":"Mock CI failure test","issue_body":"## Todo\n- [ ] Fix errors","branch_name":"test/mock/99999","existing_branch":"true","trigger_type":"edited"}'
       mock_mode: true
     secrets: inherit
 
@@ -147,26 +118,6 @@ jobs:
     with:
       job: issue-comment
       context_json: '{"issue_number":"99999","context_type":"issue","context_description":"Mock issue for comment test"}'
-      mock_mode: true
-    secrets: inherit
-
-  # Test ci-fix job
-  ci-fix:
-    if: inputs.job == 'ci-fix' || inputs.job == 'all'
-    uses: ./.github/workflows/_claude.yml
-    with:
-      job: ci-fix
-      context_json: '{"pr_number":"99999","branch_name":"test/mock/99999"}'
-      mock_mode: true
-    secrets: inherit
-
-  # Test ci-suggest job
-  ci-suggest:
-    if: inputs.job == 'ci-suggest' || inputs.job == 'all'
-    uses: ./.github/workflows/_claude.yml
-    with:
-      job: ci-suggest
-      context_json: '{"pr_number":"99999","branch_name":"feature/mock-test"}'
       mock_mode: true
     secrets: inherit
 

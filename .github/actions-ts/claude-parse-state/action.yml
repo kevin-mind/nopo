@@ -1,0 +1,63 @@
+name: Claude Parse Issue State
+description: Parses and updates iteration state from/to issue body
+
+inputs:
+  github_token:
+    description: GitHub token for API calls
+    required: true
+  issue_number:
+    description: Issue number to read/update state from
+    required: true
+  action:
+    description: Action to perform (read, init, update, increment, record_failure, clear_failure, complete, reset)
+    required: true
+  branch_name:
+    description: Branch name (required for init)
+    required: false
+  pr_number:
+    description: PR number (optional, for update)
+    required: false
+  last_ci_run:
+    description: Last CI run ID (for update)
+    required: false
+  last_ci_result:
+    description: Last CI result - success, failure, pending (for update)
+    required: false
+  failure_type:
+    description: Type of failure - ci, workflow (for record_failure)
+    required: false
+  iteration_message:
+    description: Message to add to iteration log (for update, record_failure)
+    required: false
+  commit_sha:
+    description: Commit SHA for iteration log entry
+    required: false
+  run_link:
+    description: Workflow run link for iteration log entry
+    required: false
+
+outputs:
+  iteration:
+    description: Current iteration number
+  branch:
+    description: Branch name for this issue
+  pr_number:
+    description: PR number if one exists
+  last_ci_run:
+    description: Last CI run ID
+  last_ci_result:
+    description: Last CI result (success, failure, pending)
+  consecutive_failures:
+    description: Number of consecutive failures (CI or workflow)
+  failure_type:
+    description: Type of last failure (ci, workflow, or empty)
+  last_failure_timestamp:
+    description: ISO timestamp of last failure
+  complete:
+    description: Whether iteration is complete (true/false)
+  has_state:
+    description: Whether state was found in issue body (true/false)
+
+runs:
+  using: node20
+  main: dist/index.cjs

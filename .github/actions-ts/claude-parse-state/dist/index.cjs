@@ -4262,18 +4262,18 @@ var require_webidl = __commonJS({
     webidl.errors.exception = function(message) {
       return new TypeError(`${message.header}: ${message.message}`);
     };
-    webidl.errors.conversionFailed = function(context) {
-      const plural = context.types.length === 1 ? "" : " one of";
-      const message = `${context.argument} could not be converted to${plural}: ${context.types.join(", ")}.`;
+    webidl.errors.conversionFailed = function(context2) {
+      const plural = context2.types.length === 1 ? "" : " one of";
+      const message = `${context2.argument} could not be converted to${plural}: ${context2.types.join(", ")}.`;
       return webidl.errors.exception({
-        header: context.prefix,
+        header: context2.prefix,
         message
       });
     };
-    webidl.errors.invalidArgument = function(context) {
+    webidl.errors.invalidArgument = function(context2) {
       return webidl.errors.exception({
-        header: context.prefix,
-        message: `"${context.value}" is an invalid ${context.type}.`
+        header: context2.prefix,
+        message: `"${context2.value}" is an invalid ${context2.type}.`
       });
     };
     webidl.brandCheck = function(V, I, opts = void 0) {
@@ -9599,15 +9599,15 @@ var require_api_request = __commonJS({
         }
         addSignal(this, signal);
       }
-      onConnect(abort, context) {
+      onConnect(abort, context2) {
         if (!this.callback) {
           throw new RequestAbortedError();
         }
         this.abort = abort;
-        this.context = context;
+        this.context = context2;
       }
       onHeaders(statusCode, rawHeaders, resume, statusMessage) {
-        const { callback, opaque, abort, context, responseHeaders, highWaterMark } = this;
+        const { callback, opaque, abort, context: context2, responseHeaders, highWaterMark } = this;
         const headers = responseHeaders === "raw" ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders);
         if (statusCode < 200) {
           if (this.onInfo) {
@@ -9634,7 +9634,7 @@ var require_api_request = __commonJS({
               trailers: this.trailers,
               opaque,
               body,
-              context
+              context: context2
             });
           }
         }
@@ -9754,15 +9754,15 @@ var require_api_stream = __commonJS({
         }
         addSignal(this, signal);
       }
-      onConnect(abort, context) {
+      onConnect(abort, context2) {
         if (!this.callback) {
           throw new RequestAbortedError();
         }
         this.abort = abort;
-        this.context = context;
+        this.context = context2;
       }
       onHeaders(statusCode, rawHeaders, resume, statusMessage) {
-        const { factory, opaque, context, callback, responseHeaders } = this;
+        const { factory, opaque, context: context2, callback, responseHeaders } = this;
         const headers = responseHeaders === "raw" ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders);
         if (statusCode < 200) {
           if (this.onInfo) {
@@ -9790,7 +9790,7 @@ var require_api_stream = __commonJS({
             statusCode,
             headers,
             opaque,
-            context
+            context: context2
           });
           if (!res || typeof res.write !== "function" || typeof res.end !== "function" || typeof res.on !== "function") {
             throw new InvalidReturnValueError("expected Writable");
@@ -9982,17 +9982,17 @@ var require_api_pipeline = __commonJS({
         this.res = null;
         addSignal(this, signal);
       }
-      onConnect(abort, context) {
+      onConnect(abort, context2) {
         const { ret, res } = this;
         assert(!res, "pipeline cannot be retried");
         if (ret.destroyed) {
           throw new RequestAbortedError();
         }
         this.abort = abort;
-        this.context = context;
+        this.context = context2;
       }
       onHeaders(statusCode, rawHeaders, resume) {
-        const { opaque, handler, context } = this;
+        const { opaque, handler, context: context2 } = this;
         if (statusCode < 200) {
           if (this.onInfo) {
             const headers = this.responseHeaders === "raw" ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders);
@@ -10010,7 +10010,7 @@ var require_api_pipeline = __commonJS({
             headers,
             opaque,
             body: this.res,
-            context
+            context: context2
           });
         } catch (err) {
           this.res.on("error", util.nop);
@@ -10094,7 +10094,7 @@ var require_api_upgrade = __commonJS({
         this.context = null;
         addSignal(this, signal);
       }
-      onConnect(abort, context) {
+      onConnect(abort, context2) {
         if (!this.callback) {
           throw new RequestAbortedError();
         }
@@ -10105,7 +10105,7 @@ var require_api_upgrade = __commonJS({
         throw new SocketError("bad upgrade", null);
       }
       onUpgrade(statusCode, rawHeaders, socket) {
-        const { callback, opaque, context } = this;
+        const { callback, opaque, context: context2 } = this;
         assert.strictEqual(statusCode, 101);
         removeSignal(this);
         this.callback = null;
@@ -10114,7 +10114,7 @@ var require_api_upgrade = __commonJS({
           headers,
           socket,
           opaque,
-          context
+          context: context2
         });
       }
       onError(err) {
@@ -10182,18 +10182,18 @@ var require_api_connect = __commonJS({
         this.abort = null;
         addSignal(this, signal);
       }
-      onConnect(abort, context) {
+      onConnect(abort, context2) {
         if (!this.callback) {
           throw new RequestAbortedError();
         }
         this.abort = abort;
-        this.context = context;
+        this.context = context2;
       }
       onHeaders() {
         throw new SocketError("bad connect", null);
       }
       onUpgrade(statusCode, rawHeaders, socket) {
-        const { callback, opaque, context } = this;
+        const { callback, opaque, context: context2 } = this;
         removeSignal(this);
         this.callback = null;
         let headers = rawHeaders;
@@ -10205,7 +10205,7 @@ var require_api_connect = __commonJS({
           headers,
           socket,
           opaque,
-          context
+          context: context2
         });
       }
       onError(err) {
@@ -19736,10 +19736,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.error = error;
-    function warning2(message, properties = {}) {
+    function warning(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning2;
+    exports2.warning = warning;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
@@ -20288,8 +20288,8 @@ var require_dist_node2 = __commonJS({
     function isKeyOperator(operator) {
       return operator === ";" || operator === "&" || operator === "?";
     }
-    function getValues(context, operator, key, modifier) {
-      var value = context[key], result = [];
+    function getValues(context2, operator, key, modifier) {
+      var value = context2[key], result = [];
       if (isDefined(value) && value !== "") {
         if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
           value = value.toString();
@@ -20353,7 +20353,7 @@ var require_dist_node2 = __commonJS({
         expand: expand.bind(null, template)
       };
     }
-    function expand(template, context) {
+    function expand(template, context2) {
       var operators = ["+", "#", ".", "/", ";", "?", "&"];
       template = template.replace(
         /\{([^\{\}]+)\}|([^\{\}]+)/g,
@@ -20367,7 +20367,7 @@ var require_dist_node2 = __commonJS({
             }
             expression.split(/,/g).forEach(function(variable) {
               var tmp = /([^:\*]*)(?::(\d+)|(\*))?/.exec(variable);
-              values.push(getValues(context, operator, tmp[1], tmp[2] || tmp[3]));
+              values.push(getValues(context2, operator, tmp[1], tmp[2] || tmp[3]));
             });
             if (operator && operator !== "+") {
               var separator = ",";
@@ -23878,7 +23878,7 @@ var require_github = __commonJS({
   }
 });
 
-// claude-signal-start/index.ts
+// claude-parse-state/index.ts
 var core2 = __toESM(require_core(), 1);
 var github = __toESM(require_github(), 1);
 
@@ -23900,141 +23900,468 @@ function setOutputs(outputs) {
   }
 }
 
-// claude-signal-start/index.ts
-var JOB_DESCRIPTIONS = {
-  "issue-triage": "triaging this issue",
-  "issue-iterate": "iterating on this issue",
-  "issue-comment": "responding to your request",
-  "push-to-draft": "converting PR to draft",
-  "pr-review": "reviewing this PR",
-  "pr-response": "responding to review feedback",
-  "pr-human-response": "addressing your review feedback",
-  "discussion-research": "researching this topic",
-  "discussion-respond": "responding to your question",
-  "discussion-summarize": "summarizing this discussion",
-  "discussion-plan": "creating implementation plan",
-  "discussion-complete": "marking discussion as complete"
-};
-async function addReactionToComment(octokit, owner, repo, commentId, resourceType) {
-  try {
-    if (resourceType === "discussion") {
-      await octokit.graphql(
-        `
-        mutation($subjectId: ID!) {
-          addReaction(input: {
-            subjectId: $subjectId
-            content: EYES
-          }) {
-            reaction { id }
-          }
-        }
-      `,
-        { subjectId: commentId }
-      );
-    } else {
-      await octokit.rest.reactions.createForIssueComment({
-        owner,
-        repo,
-        comment_id: parseInt(commentId, 10),
-        content: "eyes"
-      });
-    }
-    core2.info(`Added eyes reaction to comment ${commentId}`);
-  } catch (error) {
-    core2.warning(`Failed to add reaction to comment: ${error}`);
+// claude-parse-state/index.ts
+var STATE_MARKER_START = "<!-- CLAUDE_ITERATION";
+var STATE_MARKER_END = "-->";
+var HISTORY_SECTION = "## Iteration History";
+function parseState(body) {
+  const startIdx = body.indexOf(STATE_MARKER_START);
+  if (startIdx === -1) {
+    return null;
   }
+  const endIdx = body.indexOf(STATE_MARKER_END, startIdx);
+  if (endIdx === -1) {
+    return null;
+  }
+  const stateBlock = body.slice(startIdx + STATE_MARKER_START.length, endIdx);
+  const state = {
+    iteration: 0,
+    branch: "",
+    pr_number: "",
+    last_ci_run: "",
+    last_ci_result: "",
+    consecutive_failures: 0,
+    failure_type: "",
+    last_failure_timestamp: "",
+    complete: false
+  };
+  for (const line of stateBlock.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const colonIdx = trimmed.indexOf(":");
+    if (colonIdx === -1) continue;
+    const key = trimmed.slice(0, colonIdx).trim();
+    const value = trimmed.slice(colonIdx + 1).trim();
+    switch (key) {
+      case "iteration":
+        state.iteration = parseInt(value, 10) || 0;
+        break;
+      case "branch":
+        state.branch = value;
+        break;
+      case "pr_number":
+        state.pr_number = value;
+        break;
+      case "last_ci_run":
+        state.last_ci_run = value;
+        break;
+      case "last_ci_result":
+        state.last_ci_result = value;
+        break;
+      case "consecutive_failures":
+        state.consecutive_failures = parseInt(value, 10) || 0;
+        break;
+      case "failure_type":
+        state.failure_type = value;
+        break;
+      case "last_failure_timestamp":
+        state.last_failure_timestamp = value;
+        break;
+      case "complete":
+        state.complete = value === "true";
+        break;
+    }
+  }
+  return state;
 }
-async function createStatusComment(octokit, owner, repo, resourceType, resourceNumber, job, progress) {
-  const description = JOB_DESCRIPTIONS[job] ?? job;
-  const runUrl = `${process.env.GITHUB_SERVER_URL}/${owner}/${repo}/actions/runs/${process.env.GITHUB_RUN_ID}`;
-  let progressSection = "";
-  if (job === "issue-iterate" && progress) {
-    const iteration = progress.iteration ?? "0";
-    const failures = progress.consecutiveFailures ?? "0";
-    const maxRetries = progress.maxRetries ?? "5";
-    progressSection = `
+function serializeState(state) {
+  return `${STATE_MARKER_START}
+iteration: ${state.iteration}
+branch: ${state.branch}
+pr_number: ${state.pr_number}
+last_ci_run: ${state.last_ci_run}
+last_ci_result: ${state.last_ci_result}
+consecutive_failures: ${state.consecutive_failures}
+failure_type: ${state.failure_type}
+last_failure_timestamp: ${state.last_failure_timestamp}
+complete: ${state.complete}
+${STATE_MARKER_END}`;
+}
+function updateBodyWithState(body, state) {
+  const stateBlock = serializeState(state);
+  const startIdx = body.indexOf(STATE_MARKER_START);
+  if (startIdx === -1) {
+    return stateBlock + "\n\n" + body;
+  }
+  const endIdx = body.indexOf(STATE_MARKER_END, startIdx);
+  if (endIdx === -1) {
+    return stateBlock + "\n\n" + body;
+  }
+  return body.slice(0, startIdx) + stateBlock + body.slice(endIdx + STATE_MARKER_END.length);
+}
+function addIterationLogEntry(body, iteration, message, sha, runLink) {
+  const historyIdx = body.indexOf(HISTORY_SECTION);
+  const shaCell = sha ? `[\`${sha.slice(0, 7)}\`](../../commit/${sha})` : "-";
+  const runCell = runLink ? `[Run](${runLink})` : "-";
+  if (historyIdx === -1) {
+    const entry2 = `| ${iteration} | ${message} | ${shaCell} | ${runCell} |`;
+    const historyTable = `
 
-**Progress:**`;
-    progressSection += `
-- Iteration: ${iteration}`;
-    if (parseInt(failures, 10) > 0) {
-      progressSection += `
-- Retry attempt: ${failures}/${maxRetries}`;
+${HISTORY_SECTION}
+
+| # | Action | SHA | Run |
+|---|--------|-----|-----|
+${entry2}`;
+    return body + historyTable;
+  }
+  const lines = body.split("\n");
+  const historyLineIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
+  if (historyLineIdx === -1) {
+    return body;
+  }
+  let insertIdx = historyLineIdx + 1;
+  for (let i = historyLineIdx + 1; i < lines.length; i++) {
+    if (lines[i].startsWith("|")) {
+      insertIdx = i + 1;
+    } else if (lines[i].trim() !== "" && !lines[i].startsWith("|")) {
+      break;
     }
   }
-  const body = `\u{1F440} **nopo-bot** is ${description}...${progressSection}
-
-[View workflow run](${runUrl})`;
-  if (resourceType === "discussion") {
-    const discussionResult = await octokit.graphql(
-      `
-      query($owner: String!, $repo: String!, $number: Int!) {
-        repository(owner: $owner, name: $repo) {
-          discussion(number: $number) {
-            id
-          }
-        }
-      }
-    `,
-      { owner, repo, number: parseInt(resourceNumber, 10) }
-    );
-    const discussionId = discussionResult.repository.discussion.id;
-    const commentResult = await octokit.graphql(
-      `
-      mutation($discussionId: ID!, $body: String!) {
-        addDiscussionComment(input: {
-          discussionId: $discussionId
-          body: $body
-        }) {
-          comment { id }
-        }
-      }
-    `,
-      { discussionId, body }
-    );
-    return commentResult.addDiscussionComment.comment.id;
-  }
-  const { data: comment } = await octokit.rest.issues.createComment({
-    owner,
-    repo,
-    issue_number: parseInt(resourceNumber, 10),
-    body
-  });
-  return String(comment.id);
+  const entry = `| ${iteration} | ${message} | ${shaCell} | ${runCell} |`;
+  lines.splice(insertIdx, 0, entry);
+  return lines.join("\n");
+}
+function getDefaultState(branchName) {
+  return {
+    iteration: 0,
+    branch: branchName,
+    pr_number: "",
+    last_ci_run: "",
+    last_ci_result: "",
+    consecutive_failures: 0,
+    failure_type: "",
+    last_failure_timestamp: "",
+    complete: false
+  };
 }
 async function run() {
   try {
     const token = getRequiredInput("github_token");
-    const resourceType = getRequiredInput("resource_type");
-    const resourceNumber = getRequiredInput("resource_number");
-    const commentId = getOptionalInput("comment_id");
-    const job = getRequiredInput("job");
-    const iteration = getOptionalInput("iteration");
-    const consecutiveFailures = getOptionalInput("consecutive_failures");
-    const maxRetries = getOptionalInput("max_retries");
+    const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
+    const action = getRequiredInput("action");
     const octokit = github.getOctokit(token);
-    const { context } = github;
-    const owner = context.repo.owner;
-    const repo = context.repo.repo;
-    core2.info(`Signaling start for ${resourceType} #${resourceNumber}`);
-    core2.info(`Job: ${job}`);
-    if (commentId) {
-      await addReactionToComment(octokit, owner, repo, commentId, resourceType);
-    }
-    const progress = iteration || consecutiveFailures || maxRetries ? { iteration, consecutiveFailures, maxRetries } : void 0;
-    const statusCommentId = await createStatusComment(
-      octokit,
+    const { owner, repo } = github.context.repo;
+    const { data: issue } = await octokit.rest.issues.get({
       owner,
       repo,
-      resourceType,
-      resourceNumber,
-      job,
-      progress
-    );
-    core2.info(`Created status comment: ${statusCommentId}`);
-    setOutputs({
-      status_comment_id: statusCommentId
+      issue_number: issueNumber
     });
+    const currentBody = issue.body ?? "";
+    let state = parseState(currentBody);
+    const hasState = state !== null;
+    core2.info(`Action: ${action}, Has existing state: ${hasState}`);
+    if (action === "read") {
+      if (!state) {
+        setOutputs({
+          has_state: "false",
+          iteration: "0",
+          branch: "",
+          pr_number: "",
+          last_ci_run: "",
+          last_ci_result: "",
+          consecutive_failures: "0",
+          failure_type: "",
+          last_failure_timestamp: "",
+          complete: "false"
+        });
+        return;
+      }
+      setOutputs({
+        has_state: "true",
+        iteration: String(state.iteration),
+        branch: state.branch,
+        pr_number: state.pr_number,
+        last_ci_run: state.last_ci_run,
+        last_ci_result: state.last_ci_result,
+        consecutive_failures: String(state.consecutive_failures),
+        failure_type: state.failure_type,
+        last_failure_timestamp: state.last_failure_timestamp,
+        complete: state.complete ? "true" : "false"
+      });
+      return;
+    }
+    if (action === "init") {
+      const branchName = getRequiredInput("branch_name");
+      if (state) {
+        core2.info("State already exists, returning existing state");
+        setOutputs({
+          has_state: "true",
+          iteration: String(state.iteration),
+          branch: state.branch,
+          pr_number: state.pr_number,
+          last_ci_run: state.last_ci_run,
+          last_ci_result: state.last_ci_result,
+          consecutive_failures: String(state.consecutive_failures),
+          failure_type: state.failure_type,
+          last_failure_timestamp: state.last_failure_timestamp,
+          complete: state.complete ? "true" : "false"
+        });
+        return;
+      }
+      state = getDefaultState(branchName);
+      const newBody = updateBodyWithState(currentBody, state);
+      await octokit.rest.issues.update({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        body: newBody
+      });
+      core2.info(
+        `Initialized state for issue #${issueNumber} with branch ${branchName}`
+      );
+      setOutputs({
+        has_state: "true",
+        iteration: "0",
+        branch: branchName,
+        pr_number: "",
+        last_ci_run: "",
+        last_ci_result: "",
+        consecutive_failures: "0",
+        failure_type: "",
+        last_failure_timestamp: "",
+        complete: "false"
+      });
+      return;
+    }
+    if (action === "update") {
+      if (!state) {
+        core2.setFailed("Cannot update state: no existing state found");
+        return;
+      }
+      const prNumber = getOptionalInput("pr_number");
+      const lastCiRun = getOptionalInput("last_ci_run");
+      const lastCiResult = getOptionalInput("last_ci_result");
+      const iterationMessage = getOptionalInput("iteration_message");
+      const commitSha = getOptionalInput("commit_sha");
+      const runLink = getOptionalInput("run_link");
+      if (prNumber) {
+        state.pr_number = prNumber;
+      }
+      if (lastCiRun) {
+        state.last_ci_run = lastCiRun;
+      }
+      if (lastCiResult) {
+        if (lastCiResult === "failure") {
+          state.consecutive_failures++;
+          state.failure_type = "ci";
+          state.last_failure_timestamp = (/* @__PURE__ */ new Date()).toISOString();
+        } else if (lastCiResult === "success") {
+          state.consecutive_failures = 0;
+          state.failure_type = "";
+          state.last_failure_timestamp = "";
+        }
+        state.last_ci_result = lastCiResult;
+      }
+      let newBody = updateBodyWithState(currentBody, state);
+      if (iterationMessage) {
+        newBody = addIterationLogEntry(
+          newBody,
+          state.iteration,
+          iterationMessage,
+          commitSha,
+          runLink
+        );
+      }
+      await octokit.rest.issues.update({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        body: newBody
+      });
+      core2.info(`Updated state for issue #${issueNumber}`);
+      setOutputs({
+        has_state: "true",
+        iteration: String(state.iteration),
+        branch: state.branch,
+        pr_number: state.pr_number,
+        last_ci_run: state.last_ci_run,
+        last_ci_result: state.last_ci_result,
+        consecutive_failures: String(state.consecutive_failures),
+        failure_type: state.failure_type,
+        last_failure_timestamp: state.last_failure_timestamp,
+        complete: state.complete ? "true" : "false"
+      });
+      return;
+    }
+    if (action === "increment") {
+      if (!state) {
+        core2.setFailed("Cannot increment: no existing state found");
+        return;
+      }
+      state.iteration++;
+      const newBody = updateBodyWithState(currentBody, state);
+      await octokit.rest.issues.update({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        body: newBody
+      });
+      core2.info(
+        `Incremented iteration to ${state.iteration} for issue #${issueNumber}`
+      );
+      setOutputs({
+        has_state: "true",
+        iteration: String(state.iteration),
+        branch: state.branch,
+        pr_number: state.pr_number,
+        last_ci_run: state.last_ci_run,
+        last_ci_result: state.last_ci_result,
+        consecutive_failures: String(state.consecutive_failures),
+        failure_type: state.failure_type,
+        last_failure_timestamp: state.last_failure_timestamp,
+        complete: state.complete ? "true" : "false"
+      });
+      return;
+    }
+    if (action === "record_failure") {
+      if (!state) {
+        core2.setFailed("Cannot record failure: no existing state found");
+        return;
+      }
+      const failureType = getRequiredInput("failure_type");
+      const iterationMessage = getOptionalInput("iteration_message");
+      const commitSha = getOptionalInput("commit_sha");
+      const runLink = getOptionalInput("run_link");
+      state.consecutive_failures++;
+      state.failure_type = failureType;
+      state.last_failure_timestamp = (/* @__PURE__ */ new Date()).toISOString();
+      let newBody = updateBodyWithState(currentBody, state);
+      if (iterationMessage) {
+        newBody = addIterationLogEntry(
+          newBody,
+          state.iteration,
+          `\u274C ${failureType} failure: ${iterationMessage}`,
+          commitSha,
+          runLink
+        );
+      }
+      await octokit.rest.issues.update({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        body: newBody
+      });
+      core2.info(
+        `Recorded ${failureType} failure #${state.consecutive_failures} for issue #${issueNumber}`
+      );
+      setOutputs({
+        has_state: "true",
+        iteration: String(state.iteration),
+        branch: state.branch,
+        pr_number: state.pr_number,
+        last_ci_run: state.last_ci_run,
+        last_ci_result: state.last_ci_result,
+        consecutive_failures: String(state.consecutive_failures),
+        failure_type: state.failure_type,
+        last_failure_timestamp: state.last_failure_timestamp,
+        complete: state.complete ? "true" : "false"
+      });
+      return;
+    }
+    if (action === "clear_failure") {
+      if (!state) {
+        core2.setFailed("Cannot clear failure: no existing state found");
+        return;
+      }
+      state.consecutive_failures = 0;
+      state.failure_type = "";
+      state.last_failure_timestamp = "";
+      const newBody = updateBodyWithState(currentBody, state);
+      await octokit.rest.issues.update({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        body: newBody
+      });
+      core2.info(`Cleared failure state for issue #${issueNumber}`);
+      setOutputs({
+        has_state: "true",
+        iteration: String(state.iteration),
+        branch: state.branch,
+        pr_number: state.pr_number,
+        last_ci_run: state.last_ci_run,
+        last_ci_result: state.last_ci_result,
+        consecutive_failures: "0",
+        failure_type: "",
+        last_failure_timestamp: "",
+        complete: state.complete ? "true" : "false"
+      });
+      return;
+    }
+    if (action === "complete") {
+      if (!state) {
+        core2.setFailed("Cannot mark complete: no existing state found");
+        return;
+      }
+      state.complete = true;
+      state.consecutive_failures = 0;
+      state.failure_type = "";
+      state.last_failure_timestamp = "";
+      const newBody = updateBodyWithState(currentBody, state);
+      await octokit.rest.issues.update({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        body: newBody
+      });
+      core2.info(`Marked issue #${issueNumber} as complete`);
+      setOutputs({
+        has_state: "true",
+        iteration: String(state.iteration),
+        branch: state.branch,
+        pr_number: state.pr_number,
+        last_ci_run: state.last_ci_run,
+        last_ci_result: state.last_ci_result,
+        consecutive_failures: "0",
+        failure_type: "",
+        last_failure_timestamp: "",
+        complete: "true"
+      });
+      return;
+    }
+    if (action === "reset") {
+      if (!state) {
+        core2.setFailed("Cannot reset: no existing state found");
+        return;
+      }
+      const iterationMessage = getOptionalInput("iteration_message");
+      state.consecutive_failures = 0;
+      state.failure_type = "";
+      state.last_failure_timestamp = "";
+      state.complete = false;
+      state.last_ci_result = "";
+      let newBody = updateBodyWithState(currentBody, state);
+      if (iterationMessage) {
+        newBody = addIterationLogEntry(
+          newBody,
+          state.iteration,
+          `\u{1F504} ${iterationMessage}`
+        );
+      }
+      await octokit.rest.issues.update({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        body: newBody
+      });
+      core2.info(
+        `Reset failure state for issue #${issueNumber} (preserving iteration ${state.iteration})`
+      );
+      setOutputs({
+        has_state: "true",
+        iteration: String(state.iteration),
+        branch: state.branch,
+        pr_number: state.pr_number,
+        last_ci_run: state.last_ci_run,
+        last_ci_result: "",
+        consecutive_failures: "0",
+        failure_type: "",
+        last_failure_timestamp: "",
+        complete: "false"
+      });
+      return;
+    }
+    core2.setFailed(`Unknown action: ${action}`);
   } catch (error) {
     if (error instanceof Error) {
       core2.setFailed(error.message);

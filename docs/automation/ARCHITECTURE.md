@@ -27,16 +27,13 @@ flowchart TB
 
     subgraph Special["Special Jobs (No Claude)"]
         S1[push-to-draft]
-        S2[ci-success]
         S3[discussion-complete]
     end
 
     subgraph Controller["_claude.yml (Business Logic)"]
         C1[issue-triage]
-        C2[issue-implement]
+        C2[issue-iterate]
         C3[issue-comment]
-        C4[ci-fix]
-        C5[ci-suggest]
         C6[pr-review]
         C7[pr-response]
         C8[pr-human-response]
@@ -60,6 +57,7 @@ flowchart TB
 |------|---------|
 | `claude.yml` | **Unified Dispatcher** - Handles ALL triggers, routes to jobs |
 | `_claude.yml` | **Business Logic** - Contains all Claude job implementations |
+| `claude-ci-state.yml` | **CI Result Handler** - Updates issue state on CI completion (triggers iteration) |
 | `_test_claude.yml` | Tests Claude jobs with mock mode |
 | `claude-stalled-review.yml` | Scheduled job for stalled PR reviews |
 
@@ -116,18 +114,13 @@ Updates status based on outcome:
 flowchart LR
     subgraph Issues
         I1[opened/edited] --> |no 'triaged' label| J1[issue-triage]
-        I2[assigned to nopo-bot] --> J2[issue-implement]
+        I2[assigned to nopo-bot] --> J2[issue-iterate]
         I3[comment with @claude] --> J3[issue-comment]
+        I4[workflow_run completed] --> |Claude branch| J2[issue-iterate]
     end
 
     subgraph Push
         P1[push to branch] --> |has open PR| J4[push-to-draft]
-    end
-
-    subgraph CI["CI Events"]
-        C1[CI failed + Claude PR] --> J5[ci-fix]
-        C2[CI failed + Human PR] --> J6[ci-suggest]
-        C3[CI passed + Claude PR] --> J7[ci-success]
     end
 
     subgraph Reviews
@@ -153,16 +146,15 @@ stateDiagram-v2
 
     state "Issue Flow" as IssueFlow {
         Triage --> Ready: Labels Applied
-        Ready --> Implement: Assign nopo-bot
+        Ready --> Iterate: Assign nopo-bot
     }
 
-    Implement --> DraftPR: Create PR
-
-    state "CI Loop (Draft)" as CILoop {
-        DraftPR --> CIRunning: Push
-        CIRunning --> CIFix: CI Failed
-        CIFix --> CIRunning: Push Fix
-        CIRunning --> ReadyPR: CI Passed
+    state "Issue-Edit-Based Iteration Loop" as IterationLoop {
+        Iterate --> DraftPR: Create PR + Push
+        DraftPR --> CIRunning: CI Triggers
+        CIRunning --> StateUpdate: CI Completes
+        StateUpdate --> Iterate: issues:edited (CI failed)
+        StateUpdate --> ReadyPR: issues:edited (CI passed)
     }
 
     state "Review Loop (Ready)" as ReviewLoop {
@@ -176,6 +168,58 @@ stateDiagram-v2
     Approved --> [*]: Human Merges
 ```
 
+**Issue-Edit-Based Loop**: CI results flow through `claude-ci-state.yml` which updates the issue body. This edit triggers `issues: edited`, which starts the next iteration. The loop closes when Claude marks the issue complete and exits without editing.
+
+### Iteration State (Stored in Issue Body)
+
+The `issue-iterate` job tracks state in an HTML comment in the issue body:
+
+```markdown
+<!-- CLAUDE_ITERATION
+iteration: 3
+branch: claude/issue/42
+pr_number: 123
+last_ci_run: 456789
+last_ci_result: failure
+consecutive_failures: 1
+failure_type: ci
+last_failure_timestamp: 2024-01-15T10:30:00Z
+complete: false
+-->
+```
+
+### Retry Logic
+
+- **Max retries**: Configurable via `vars.MAX_CLAUDE_RETRIES` (default: 5)
+- **Backoff**: Exponential with jitter (60s base, ±20% jitter, 15min cap)
+- **Triggers retry**: Both CI failures and workflow failures
+- **Circuit breaker**: Stops after max retries, unassigns nopo-bot (labels would trigger edit loop)
+- **Success clears failures**: Successful CI pass resets `consecutive_failures` to 0
+
+### Restarting After Breakpoint
+
+When iteration stops (circuit breaker, max iterations, etc.), to restart:
+
+1. Review the issue and workflow logs
+2. Fix any blocking issues manually if needed
+3. **Re-assign `nopo-bot`** to the issue
+
+Re-assignment triggers a `reset` action:
+- Clears `consecutive_failures`, `failure_type`, `last_failure_timestamp`
+- Sets `complete` to false
+- Preserves iteration count and history
+- Logs the reset in the Iteration History table
+
+### Iteration Display
+
+Each workflow run displays iteration state in the GitHub Actions job summary:
+- Current iteration number
+- Issue and PR links
+- Consecutive failure count
+- Trigger type (initial, CI fix, CI success)
+
+This provides visibility into the iteration loop directly in the CI UI.
+
 ## Concurrency Strategy
 
 Concurrency groups prevent race conditions:
@@ -183,13 +227,12 @@ Concurrency groups prevent race conditions:
 ```mermaid
 flowchart TB
     subgraph "Per-Resource Groups"
-        G1["claude-resource-issue-{N}"]
+        G1["claude-resource-issue-{N}<br/>(triage: cancel, iterate: queue)"]
         G2["claude-resource-discussion-{N}"]
     end
 
     subgraph "PR-Specific Groups"
         G3["claude-review-{N}<br/>(push cancels reviews)"]
-        G4["claude-ci-{N}<br/>(new CI cancels old)"]
     end
 
     subgraph "Signal Groups"
@@ -199,10 +242,13 @@ flowchart TB
 
 | Group Pattern | Behavior | Use Case |
 |---------------|----------|----------|
-| `claude-resource-{type}-{N}` | Queue | Issue/discussion jobs |
+| `claude-resource-{type}-{N}` | Triage: Cancel, Iterate: Queue | Issue/discussion jobs |
 | `claude-review-{N}` | Cancel | Push cancels in-flight reviews |
-| `claude-ci-{N}` | Cancel | New CI obsoletes old fix attempts |
 | `claude-signal-{type}-{N}` | Queue | Status updates must complete |
+
+**Key behaviors:**
+- **Iteration uses queue mode**: Each `issues: edited` event is processed in order, ensuring no state updates are missed
+- **Triage uses cancel mode**: New edits cancel in-flight triage (re-triage with latest content)
 
 ## Job Descriptions
 
@@ -210,17 +256,16 @@ flowchart TB
 
 | Job | Trigger | Action |
 |-----|---------|--------|
-| `issue-triage` | Issue opened/edited without "triaged" label | Adds labels, sets project fields, creates sub-issues |
-| `issue-implement` | Issue assigned to nopo-bot | Creates branch, implements code, opens draft PR |
+| `issue-triage` | Issue opened/edited without "triaged" label (and nopo-bot not assigned) | Adds labels, sets project fields, creates sub-issues |
+| `issue-iterate` | Issue assigned to nopo-bot OR issues:edited (when nopo-bot assigned) | Unified iteration loop: implements code, fixes CI, handles completion |
 | `issue-comment` | Comment contains @claude | Answers questions, provides explanations |
 
-### CI Jobs
-
-| Job | Trigger | Action |
-|-----|---------|--------|
-| `ci-fix` | CI failed on Claude PR | Analyzes failures, fixes code, pushes |
-| `ci-suggest` | CI failed on Human PR | Posts review comments with fix suggestions |
-| `ci-success` | CI passed on Claude PR | Marks ready, requests nopo-bot review |
+The `issue-iterate` job handles the entire implementation lifecycle:
+- **First iteration** (`assigned`): Creates branch, implements initial code, opens draft PR
+- **CI failure** (`edited` with failed CI state): Reads CI logs, fixes issues, pushes fix
+- **CI success** (`edited` with success CI state): Marks PR ready for review, requests nopo-bot as reviewer
+- **Workflow failure**: Records failure in state, retries with exponential backoff
+- **Complete**: Exits without editing issue (loop closes cleanly)
 
 ### PR Jobs
 
@@ -252,18 +297,15 @@ Each job receives context via `context_json`:
     "issue_title": "Bug: ...",
     "issue_body": "..."
   },
-  "issue-implement": {
+  "issue-iterate": {
     "issue_number": "123",
     "issue_title": "...",
     "issue_body": "...",
     "branch_name": "claude/issue/123",
-    "existing_branch": "false"
-  },
-  "ci-fix": {
-    "pr_number": "456",
-    "branch_name": "claude/issue/123",
-    "failed_jobs": ["build", "test"],
-    "run_url": "..."
+    "existing_branch": "false",
+    "trigger_type": "assigned",
+    "ci_result": "",
+    "pr_number": ""
   },
   "pr-review": {
     "pr_number": "456",
@@ -278,6 +320,19 @@ Each job receives context via `context_json`:
 }
 ```
 
+For `issue-iterate` triggered by `issues: edited` (after CI state update):
+```json
+{
+  "trigger_type": "edited",
+  "issue_number": "123",
+  "issue_title": "...",
+  "issue_body": "...",
+  "branch_name": "claude/issue/123",
+  "existing_branch": "true"
+}
+```
+Note: CI result is read from issue body state (set by `claude-ci-state.yml`), not from context JSON.
+
 ## TypeScript Actions
 
 Custom actions in `.github/actions-ts/`:
@@ -285,8 +340,24 @@ Custom actions in `.github/actions-ts/`:
 | Action | Purpose |
 |--------|---------|
 | `claude-detect-event` | Analyzes GitHub event, determines job and context |
-| `claude-signal-start` | Adds reactions, creates status comments |
-| `claude-handle-result` | Updates status based on job result |
+| `claude-signal-start` | Adds reactions, creates status comments with iteration progress |
+| `claude-handle-result` | Updates status based on job result, triggers retries on failure |
+| `claude-parse-state` | Parses/updates iteration state from issue body |
+
+### claude-parse-state Actions
+
+The `claude-parse-state` action supports the following operations:
+
+| Action | Purpose |
+|--------|---------|
+| `read` | Read current state from issue body (does not modify) |
+| `init` | Initialize state for first iteration (no-op if state exists) |
+| `update` | Update specific fields (pr_number, last_ci_run, last_ci_result) |
+| `increment` | Increment iteration counter |
+| `record_failure` | Record a failure (increments consecutive_failures) |
+| `clear_failure` | Clear failure state without marking complete |
+| `complete` | Mark iteration as complete, clear failures |
+| `reset` | Reset for restart (clears failures, preserves iteration history) |
 
 ## Actors
 
