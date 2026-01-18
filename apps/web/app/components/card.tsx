@@ -4,6 +4,7 @@ import { cn } from "~/utils";
 export function Card({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
+      data-testid="card"
       className={cn(
         "w-full bg-gray-50 border border-gray-200 rounded-lg p-6 mb-4",
         className,
