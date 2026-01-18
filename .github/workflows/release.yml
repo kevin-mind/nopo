@@ -14,6 +14,157 @@ defaults:
 env:
   CI: 'true'
 jobs:
+  # ============================================================================
+  # ISSUE EXTRACTION - Find linked issue numbers for iteration logging
+  # Handles batched merge queue PRs by extracting all PR numbers
+  # ============================================================================
+  extract-issue:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      # JSON arrays to support batched merge queue PRs
+      issues_json: ${{ steps.extract.outputs.issues_json }}
+      prs_json: ${{ steps.extract.outputs.prs_json }}
+      has_issues: ${{ steps.extract.outputs.has_issues }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract issue numbers
+        id: extract
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          # shellcheck: disable=SC2153 - MERGE_GROUP_HEAD_REF is intentionally uppercase
+          MERGE_GROUP_HEAD_REF: ${{ github.event.merge_group.head_ref }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+        run: |
+          issues=()
+          prs=()
+
+          if [[ "$EVENT_NAME" == "merge_group" ]]; then
+            # Extract ALL PR numbers from merge queue branch
+            # Format: gh-readonly-queue/main/pr-123-abc123 or batched: pr-123-abc123-pr-456-def456
+            echo "Parsing merge queue head_ref: $MERGE_GROUP_HEAD_REF"
+
+            # Use grep to find all pr-N patterns
+            pr_numbers=$(echo "$MERGE_GROUP_HEAD_REF" | grep -oE 'pr-[0-9]+' | grep -oE '[0-9]+' || true)
+
+            for pr_num in $pr_numbers; do
+              echo "Processing PR #$pr_num"
+              prs+=("$pr_num")
+
+              # Get PR details to find linked issue
+              pr_data=$(gh pr view "$pr_num" --json body,headRefName 2>/dev/null || echo "{}")
+              if [[ "$pr_data" != "{}" ]]; then
+                head_ref=$(echo "$pr_data" | jq -r '.headRefName // empty')
+                body=$(echo "$pr_data" | jq -r '.body // empty')
+
+                # Check if it's a Claude PR by branch name
+                if [[ "$head_ref" =~ ^claude/issue/([0-9]+)$ ]]; then
+                  issue_num="${BASH_REMATCH[1]}"
+                  issues+=("$issue_num")
+                  echo "  Found issue $issue_num from Claude branch"
+                # Fall back to parsing PR body for "Fixes #N"
+                elif [[ "$body" =~ Fixes[[:space:]]*#([0-9]+) ]]; then
+                  issue_num="${BASH_REMATCH[1]}"
+                  issues+=("$issue_num")
+                  echo "  Found issue $issue_num from PR body"
+                else
+                  echo "  No linked issue found for PR #$pr_num"
+                fi
+              fi
+            done
+
+          elif [[ "$EVENT_NAME" == "push" ]]; then
+            # For push events, check commit message for issue references
+            if [[ "$COMMIT_MSG" =~ Fixes[[:space:]]*#([0-9]+) ]]; then
+              issues+=("${BASH_REMATCH[1]}")
+              echo "Found issue ${BASH_REMATCH[1]} from commit message"
+            elif [[ "$COMMIT_MSG" =~ \#([0-9]+) ]]; then
+              issues+=("${BASH_REMATCH[1]}")
+              echo "Found issue ${BASH_REMATCH[1]} from commit reference"
+            fi
+
+            # Try to find the merged PR
+            merged_pr=$(gh pr list --state merged --limit 1 --json number,headRefName -q '.[0]' 2>/dev/null || echo "{}")
+            if [[ -n "$merged_pr" && "$merged_pr" != "{}" ]]; then
+              pr_num=$(echo "$merged_pr" | jq -r '.number')
+              head_ref=$(echo "$merged_pr" | jq -r '.headRefName')
+              prs+=("$pr_num")
+
+              if [[ "$head_ref" =~ ^claude/issue/([0-9]+)$ ]]; then
+                # Prefer issue from branch name (more reliable)
+                issues=("${BASH_REMATCH[1]}")
+                echo "Found issue ${BASH_REMATCH[1]} from merged PR branch"
+              fi
+            fi
+          fi
+
+          # Convert arrays to JSON
+          issues_json=$(printf '%s\n' "${issues[@]}" | jq -R . | jq -s 'unique')
+          prs_json=$(printf '%s\n' "${prs[@]}" | jq -R . | jq -s 'unique')
+          has_issues=$([[ ${#issues[@]} -gt 0 ]] && echo "true" || echo "false")
+
+          echo "issues_json=$issues_json" >> "$GITHUB_OUTPUT"
+          echo "prs_json=$prs_json" >> "$GITHUB_OUTPUT"
+          echo "has_issues=$has_issues" >> "$GITHUB_OUTPUT"
+
+          echo "Summary: issues=$issues_json, prs=$prs_json, has_issues=$has_issues"
+
+  # ============================================================================
+  # LOG: ADDED TO QUEUE (merge_group start)
+  # Uses matrix to handle batched PRs with multiple issues
+  # ============================================================================
+  log-queue-entry:
+    if: github.event_name == 'merge_group' && needs.extract-issue.outputs.has_issues == 'true'
+    needs: extract-issue
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    strategy:
+      matrix:
+        issue: ${{ fromJson(needs.extract-issue.outputs.issues_json) }}
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log queue entry for issue #${{ matrix.issue }}
+        uses: ./.github/actions-ts/claude-parse-state
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          issue_number: ${{ matrix.issue }}
+          action: log_event
+          iteration_message: "🚀 Added to merge queue"
+          run_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+  # ============================================================================
+  # LOG: MERGED TO MAIN (push event - covers both merge queue and direct merges)
+  # Uses matrix to handle batched merges with multiple issues
+  # ============================================================================
+  log-merged:
+    if: github.event_name == 'push' && needs.extract-issue.outputs.has_issues == 'true'
+    needs: extract-issue
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    strategy:
+      matrix:
+        issue: ${{ fromJson(needs.extract-issue.outputs.issues_json) }}
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log merged event for issue #${{ matrix.issue }}
+        uses: ./.github/actions-ts/claude-parse-state
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          issue_number: ${{ matrix.issue }}
+          action: log_event
+          iteration_message: "🎉 Merged to main"
+          commit_sha: ${{ github.sha }}
+          run_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
   context:
     runs-on: ubuntu-latest
     permissions:
@@ -160,6 +311,85 @@ jobs:
       - deploy_stage
       - test
       - discover_buildable
+
+  # ============================================================================
+  # LOG: RELEASED TO PRODUCTION
+  # Uses matrix to handle multiple issues from batched merges
+  # ============================================================================
+  log-released:
+    if: always() && needs.deploy_prod.result == 'success' && needs.extract-issue.outputs.has_issues == 'true'
+    needs:
+      - extract-issue
+      - deploy_prod
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    strategy:
+      matrix:
+        issue: ${{ fromJson(needs.extract-issue.outputs.issues_json) }}
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log production release for issue #${{ matrix.issue }}
+        uses: ./.github/actions-ts/claude-parse-state
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          issue_number: ${{ matrix.issue }}
+          action: log_event
+          iteration_message: "🚢 Released to production"
+          commit_sha: ${{ github.sha }}
+          run_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+  # ============================================================================
+  # LOG: REMOVED FROM QUEUE (merge_group failure)
+  # Uses matrix to handle multiple issues from batched queue entries
+  # ============================================================================
+  log-queue-failure:
+    if: >-
+      always() &&
+      github.event_name == 'merge_group' &&
+      needs.extract-issue.outputs.has_issues == 'true' &&
+      (needs.build.result == 'failure' || needs.test.result == 'failure' || needs.deploy_stage.result == 'failure' || needs.deploy_prod.result == 'failure')
+    needs:
+      - extract-issue
+      - build
+      - test
+      - deploy_stage
+      - deploy_prod
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    strategy:
+      matrix:
+        issue: ${{ fromJson(needs.extract-issue.outputs.issues_json) }}
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Determine failure reason
+        id: failure
+        run: |
+          if [[ "${{ needs.build.result }}" == "failure" ]]; then
+            echo "reason=Build failed" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ needs.test.result }}" == "failure" ]]; then
+            echo "reason=Tests failed" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ needs.deploy_stage.result }}" == "failure" ]]; then
+            echo "reason=Stage deploy failed" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ needs.deploy_prod.result }}" == "failure" ]]; then
+            echo "reason=Prod deploy failed" >> "$GITHUB_OUTPUT"
+          else
+            echo "reason=Unknown failure" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Log queue removal for issue #${{ matrix.issue }}
+        uses: ./.github/actions-ts/claude-parse-state
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          issue_number: ${{ matrix.issue }}
+          action: log_event
+          iteration_message: "❌ Removed from queue: ${{ steps.failure.outputs.reason }}"
+          run_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
   checks:
     if: always()
     runs-on: ubuntu-latest

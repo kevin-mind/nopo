@@ -3,6 +3,7 @@ import { describe, it, expect } from "vitest";
 // We can only test pure functions without mocking - test the parsing logic
 const STATE_MARKER_START = "<!-- CLAUDE_ITERATION";
 const STATE_MARKER_END = "-->";
+const HISTORY_SECTION = "## Iteration History";
 
 interface IterationState {
   iteration: number;
@@ -624,8 +625,6 @@ describe("breakpoint detection", () => {
 
 // Test iteration history log entry formatting
 describe("addIterationLogEntry", () => {
-  const HISTORY_SECTION = "## Iteration History";
-
   function addIterationLogEntry(
     body: string,
     iteration: number,
@@ -633,8 +632,8 @@ describe("addIterationLogEntry", () => {
     sha?: string,
     runLink?: string,
   ): string {
-    const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
-    const repo = process.env.GITHUB_REPOSITORY || "test-owner/test-repo";
+    const serverUrl = "https://github.com";
+    const repo = "test-owner/test-repo";
 
     // Format SHA as a full GitHub link if provided
     const shaCell = sha
@@ -727,12 +726,13 @@ ${HISTORY_SECTION}
       "https://github.com/owner/repo/actions/runs/123",
     );
 
-    expect(result).toContain("[Run](https://github.com/owner/repo/actions/runs/123)");
+    expect(result).toContain(
+      "[Run](https://github.com/owner/repo/actions/runs/123)",
+    );
   });
 
   it("handles failure emoji prefix correctly", () => {
     const body = "## Description";
-    // The actual implementation adds emoji prefix in the caller
     const result = addIterationLogEntry(body, 1, "❌ ci failure: Build failed");
 
     expect(result).toContain("| 1 | ❌ ci failure: Build failed |");
@@ -747,7 +747,11 @@ ${HISTORY_SECTION}
 
   it("handles circuit breaker emoji prefix correctly", () => {
     const body = "## Description";
-    const result = addIterationLogEntry(body, 5, "🛑 Circuit breaker triggered");
+    const result = addIterationLogEntry(
+      body,
+      5,
+      "🛑 Circuit breaker triggered",
+    );
 
     expect(result).toContain("| 5 | 🛑 Circuit breaker triggered |");
   });
@@ -764,5 +768,90 @@ ${HISTORY_SECTION}
     const result = addIterationLogEntry(body, 2, "👀 Review requested");
 
     expect(result).toContain("| 2 | 👀 Review requested |");
+  });
+
+  it("handles release event messages with emojis", () => {
+    const body = "## Description\n\nContent";
+
+    // Test various release event messages
+    const events = [
+      { msg: "🚀 Added to merge queue", iteration: 1 },
+      { msg: "🎉 Merged to main", iteration: 1 },
+      { msg: "🚢 Released to production", iteration: 1 },
+      { msg: "❌ Removed from queue: Build failed", iteration: 1 },
+    ];
+
+    for (const event of events) {
+      const result = addIterationLogEntry(body, event.iteration, event.msg);
+      expect(result).toContain(`| ${event.iteration} | ${event.msg} |`);
+    }
+  });
+
+  it("preserves existing content when adding history", () => {
+    const body = `## Description
+
+This is important content.
+
+## Todo
+
+- [ ] Item 1
+- [ ] Item 2`;
+
+    const result = addIterationLogEntry(body, 1, "Started work");
+
+    expect(result).toContain("This is important content.");
+    expect(result).toContain("## Todo");
+    expect(result).toContain("- [ ] Item 1");
+  });
+
+  it("handles multiple entries in sequence", () => {
+    let body = "## Description\n\nContent";
+
+    // Simulate a full release flow
+    body = addIterationLogEntry(body, 1, "✅ CI success");
+    body = addIterationLogEntry(body, 1, "👁️ Review requested");
+    body = addIterationLogEntry(body, 1, "📝 Review: approve");
+    body = addIterationLogEntry(body, 1, "🚀 Added to merge queue");
+    body = addIterationLogEntry(body, 1, "🎉 Merged to main");
+    body = addIterationLogEntry(body, 1, "🚢 Released to production");
+
+    // All entries should be present in order
+    const lines = body.split("\n");
+    const historyStart = lines.findIndex((l) => l.includes(HISTORY_SECTION));
+    const tableLines = lines
+      .slice(historyStart)
+      .filter(
+        (l) =>
+          l.startsWith("| ") && !l.startsWith("| #") && !l.startsWith("|--"),
+      );
+
+    expect(tableLines).toHaveLength(6);
+    expect(tableLines[0]).toContain("CI success");
+    expect(tableLines[1]).toContain("Review requested");
+    expect(tableLines[2]).toContain("Review: approve");
+    expect(tableLines[3]).toContain("merge queue");
+    expect(tableLines[4]).toContain("Merged to main");
+    expect(tableLines[5]).toContain("Released to production");
+  });
+
+  it("handles SHA and run link together", () => {
+    const body = "## Description\n\nContent";
+    const sha = "fedcba9876543210";
+    const runLink = "https://github.com/owner/repo/actions/runs/999";
+
+    const result = addIterationLogEntry(
+      body,
+      1,
+      "🎉 Merged to main",
+      sha,
+      runLink,
+    );
+
+    expect(result).toContain(
+      "[`fedcba9`](https://github.com/test-owner/test-repo/commit/fedcba9876543210)",
+    );
+    expect(result).toContain(
+      "[Run](https://github.com/owner/repo/actions/runs/999)",
+    );
   });
 });
