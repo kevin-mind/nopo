@@ -930,15 +930,90 @@ This project uses Claude AI agents for automated issue management with issue-bas
 ### Overall Flow
 
 ```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌──────────┐
-│   TRIAGE    │────►│  IMPLEMENT  │────►│   CI LOOP   │────►│   REVIEW    │────►│   DONE   │
-│             │     │             │     │   (draft)   │     │    LOOP     │     │          │
-└─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘     └──────────┘
-      │                   │                   │                   │                   │
-      ▼                   ▼                   ▼                   ▼                   ▼
- Issue opened       Assign nopo-bot     CI fix loop        Request nopo-bot    Human merges
- or edited          to issue            until green        as reviewer
+┌─────────────┐     ┌─────────────────────────────────┐     ┌─────────────┐     ┌──────────┐
+│   TRIAGE    │────►│         ITERATION LOOP          │────►│   REVIEW    │────►│   DONE   │
+│             │     │   (unified implement + CI fix)  │     │    LOOP     │     │          │
+└─────────────┘     └─────────────────────────────────┘     └─────────────┘     └──────────┘
+      │                           │                               │                   │
+      ▼                           ▼                               ▼                   ▼
+ Issue opened              Assign nopo-bot                  Request nopo-bot    Human merges
+ or edited                 to issue                         as reviewer
 ```
+
+### Unified Iteration Model
+
+The iteration model unifies implementation and CI fixing into a single repeating cycle. Each workflow run represents one "iteration" of work. State is persisted in the **issue body** across runs.
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                          ITERATION LOOP                               │
+│                                                                       │
+│   ┌─────────────┐     ┌─────────────┐     ┌─────────────┐            │
+│   │    READ     │────►│    BUILD    │────►│  EVALUATE   │            │
+│   │ issue state │     │ Claude work │     │  CI result  │            │
+│   └─────────────┘     └─────────────┘     └──────┬──────┘            │
+│         ▲                                        │                    │
+│         │                                        ▼                    │
+│         │                              ┌─────────────────┐           │
+│         │                              │   BREAKPOINT?   │           │
+│         │                              │                 │           │
+│         │                              │ • CI passed     │──────►DONE│
+│         │                              │                 │           │
+│         │                              │ • Max iterations│──────►STOP│
+│         │                              │                 │           │
+│         │                              │ • 3 failures    │──────►STOP│
+│         │                              └────────┬────────┘           │
+│         │                                       │ no                  │
+│         │              workflow_run             │                    │
+│         └───────────────────────────────────────┘                    │
+│                                                                       │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+**How it works:**
+1. **First iteration** (issue assigned): Claude implements todos, creates draft PR, pushes
+2. **CI runs** and completes (success or failure)
+3. **`workflow_run` event** fires, triggering next iteration
+4. **Iterate job** reads state from issue body, determines action:
+   - **CI failed**: Claude fixes errors, pushes
+   - **CI passed**: Mark PR ready, request review (loop exits)
+5. Repeat until breakpoint (success, max iterations, or circuit breaker)
+
+### Issue Body State
+
+The issue body contains parseable state in an HTML comment:
+
+```markdown
+<!-- CLAUDE_ITERATION
+iteration: 3
+branch: claude/issue/42
+pr_number: 123
+last_ci_run: 456789
+last_ci_result: failure
+consecutive_failures: 1
+complete: false
+-->
+
+## Description
+
+<original issue content>
+
+## Iteration History
+
+| # | Action | SHA |
+|---|--------|-----|
+| 1 | Initial implementation | abc123 |
+| 2 | Added API endpoints | def456 |
+| 3 | Fixed type errors | ghi789 |
+```
+
+### Breakpoints
+
+| Condition | Action | Label |
+|-----------|--------|-------|
+| CI passed | Mark PR ready, request review | `review-ready` |
+| Max iterations (10) | Post comment, exit | `needs-human` |
+| 3 consecutive CI failures | Circuit breaker | `needs-human` |
 
 ### Draft/Ready State Machine
 
@@ -948,9 +1023,9 @@ PR state controls which automation loops can run, preventing race conditions. CI
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
 │                                                                                     │
 │  ┌───────────────────────────────────────┐    ┌───────────────────────────────────┐ │
-│  │            CI LOOP (draft)            │    │        REVIEW LOOP (ready)        │ │
+│  │         ITERATION LOOP (draft)        │    │        REVIEW LOOP (ready)        │ │
 │  │                                       │    │                                   │ │
-│  │         IMPLEMENT                     │    │                  ┌─────────────┐  │ │
+│  │         ITERATE                       │    │                  ┌─────────────┐  │ │
 │  │             │                         │    │     no commits   │   REVIEW    │  │ │
 │  │             │ create draft PR         │    │   ┌─────────────►│             │  │ │
 │  │             ▼                         │    │   │    ┌────────►│  submitted  │  │ │
@@ -963,7 +1038,7 @@ PR state controls which automation loops can run, preventing race conditions. CI
 │  │         │ fail                        │    │   └──────────────│ commits? ───┼───┼──┐
 │  │         ▼                             │    │                  │             │  │ │  │
 │  │  ┌─────────────┐                      │    │                  └─────────────┘  │ │  │
-│  │  │  CI-FIX     │                      │    │                                   │ │  │
+│  │  │  ITERATE    │                      │    │                                   │ │  │
 │  │  │             │                      │    │                                   │ │  │
 │  │  │ fix & push  │───┐                  │    │                                   │ │  │
 │  │  └─────────────┘   │                  │    │                                   │ │  │
@@ -979,32 +1054,21 @@ PR state controls which automation loops can run, preventing race conditions. CI
 ```
 
 **Two loops, one gateway:**
-1. **CI Loop** (draft PRs): `push → CI → fail → CI-fix → push` (repeats until green)
+1. **Iteration Loop** (draft PRs): `push → CI → fail → iterate (fix) → push` (repeats until green)
 2. **Review Loop** (ready PRs): `review → response` with two paths:
    - **No commits** (questions/discussion): re-request review → stays in review loop
-   - **Has commits** (changes made): convert to draft → push → CI loop
+   - **Has commits** (changes made): convert to draft → push → iteration loop
 3. **CI is the bridge**: Only code changes go through CI; pure discussion stays in review loop
-
-### Workflows (3 Loop Files)
-
-All automation is consolidated into 3 workflow files, each handling a specific loop:
-
-| File | Triggers | Purpose |
-|------|----------|---------|
-| `claude-issue-loop.yml` | `issues: [opened, edited, assigned]`, `issue_comment`, `pull_request_review_comment` | Triage, implement, @claude comments |
-| `claude-ci-loop.yml` | `push`, `workflow_run: [completed]` | Draft-on-push, CI failure fixes, CI success handling |
-| `claude-review-loop.yml` | `pull_request: [review_requested]`, `pull_request_review: [submitted]` | Review request and response |
 
 ### Trigger Details
 
 | Action | Event | Condition |
 |--------|-------|-----------|
 | **Triage** | `issues: [opened, edited]` | No "triaged" label AND not a sub-issue |
-| **Implement** | `issues: [assigned]` | Assigned to `nopo-bot` |
+| **Iterate** | `issues: [assigned]` | Assigned to `nopo-bot` (first iteration) |
+| **Iterate** | `workflow_run: [completed]` | CI completed on Claude PR with linked issue |
 | **@claude Comment** | `issue_comment`, `pull_request_review_comment` | Contains `@claude`, not from Bot |
 | **Push to Draft** | `push` (non-main) | Ready PR exists for branch |
-| **CI Fix** | `workflow_run: [completed]` | CI failed, Claude PR |
-| **CI Pass** | `workflow_run: [completed]` | CI passed, Claude PR |
 | **Review** | `pull_request: [review_requested]` | Reviewer is `nopo-bot`, PR is ready (not draft) |
 | **Review Response** | `pull_request_review: [submitted]` | Review by `claude[bot]`, PR is ready |
 
@@ -1015,7 +1079,8 @@ Concurrency groups prevent race conditions between loops:
 | Group | Workflows | Behavior |
 |-------|-----------|----------|
 | `claude-triage-{issue}` | Triage job | `cancel-in-progress: true` - edits cancel in-flight triage |
-| `claude-review-{branch}` | Push-to-draft, Review Loop | Push uses `cancel-in-progress: true` to cancel reviews; Review uses `false` to queue |
+| `claude-resource-issue-{number}` | Iterate job | `cancel-in-progress: false` - queues iterations |
+| `claude-review-{branch}` | Push-to-draft, Review Loop | Push uses `cancel-in-progress: true` to cancel reviews |
 
 **Critical:** The push-convert-to-draft job shares `claude-review-{branch}` with the review loop. When code is pushed, it cancels any in-flight review and converts the PR to draft. This prevents reviews from acting on stale code.
 
@@ -1063,13 +1128,12 @@ These actions **require human intervention**:
 | Agent | Actions |
 |-------|---------|
 | **Triage** | Adds labels (type/priority/topic), sets project fields (Priority/Size/Estimate), creates sub-issues for phased work, links related issues, expands context, answers questions, adds "triaged" label |
-| **Implement** | Creates branch, implements todos, runs tests, creates draft PR with "Fixes #N" |
+| **Iterate** | Unified implementation/CI-fix: reads issue state, implements/fixes code, runs tests, pushes. On CI success: marks PR ready, requests review |
 | **@claude Comment** | Answers questions, provides explanations, suggests approaches (no code changes unless asked) |
 | **Push-to-Draft** | Converts ready PRs to draft on push, cancels in-flight reviews |
-| **CI-Fix** | Claude PRs: fixes code → pushes. Human PRs: suggests fixes via review comments |
-| **CI-Pass** | Converts to ready → adds "review-ready" label → requests `nopo-bot` review → updates project status |
+| **CI-Suggest** | Human PRs: suggests fixes via review comments (does not auto-fix) |
 | **Review** | Reviews code, submits batch review (ready PRs only) |
-| **Review Response** | Processes comments: if commits → draft + push (CI loop); if no commits → re-request review (stays in review loop) |
+| **Review Response** | Processes comments: if commits → draft + push (iteration loop); if no commits → re-request review (stays in review loop) |
 
 ### Triage Details
 

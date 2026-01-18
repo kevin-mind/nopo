@@ -55,13 +55,28 @@ Don't just check if todos are addressed - verify the LOGIC is correct:
 If you find a logic bug, request changes with a specific example showing
 the incorrect behavior.
 
-## Step 4: Submit Your Review
+## Step 4: Write Your Review Decision
 
-Submit your review using `gh pr review {{PR_NUMBER}}` with ONE of:
-- `--approve` if ALL requirements met and code is good
-- `--request-changes -b "reason"` if changes are needed
-- `--comment -b "feedback"` if you have questions but no blocking issues
+DO NOT run `gh pr review` directly - you cannot approve your own PRs.
+
+Instead, write your review decision to `review-output.json`:
+
+```bash
+cat > review-output.json << 'EOF'
+{
+  "decision": "approve",
+  "body": "Your review summary here..."
+}
+EOF
+```
+
+The `decision` field must be one of:
+- `"approve"` - ALL requirements met and code is good
+- `"request_changes"` - Changes are needed (explain in body)
+- `"comment"` - Questions or feedback but no blocking issues
+
+The `body` field should contain your review summary.
 
 IMPORTANT:
-- You may APPROVE but must NOT merge
+- The workflow will submit the review on your behalf using a separate account
 - A human will make the final merge decision

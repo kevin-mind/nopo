@@ -4262,18 +4262,18 @@ var require_webidl = __commonJS({
     webidl.errors.exception = function(message) {
       return new TypeError(`${message.header}: ${message.message}`);
     };
-    webidl.errors.conversionFailed = function(context) {
-      const plural = context.types.length === 1 ? "" : " one of";
-      const message = `${context.argument} could not be converted to${plural}: ${context.types.join(", ")}.`;
+    webidl.errors.conversionFailed = function(context2) {
+      const plural = context2.types.length === 1 ? "" : " one of";
+      const message = `${context2.argument} could not be converted to${plural}: ${context2.types.join(", ")}.`;
       return webidl.errors.exception({
-        header: context.prefix,
+        header: context2.prefix,
         message
       });
     };
-    webidl.errors.invalidArgument = function(context) {
+    webidl.errors.invalidArgument = function(context2) {
       return webidl.errors.exception({
-        header: context.prefix,
-        message: `"${context.value}" is an invalid ${context.type}.`
+        header: context2.prefix,
+        message: `"${context2.value}" is an invalid ${context2.type}.`
       });
     };
     webidl.brandCheck = function(V, I, opts = void 0) {
@@ -9599,15 +9599,15 @@ var require_api_request = __commonJS({
         }
         addSignal(this, signal);
       }
-      onConnect(abort, context) {
+      onConnect(abort, context2) {
         if (!this.callback) {
           throw new RequestAbortedError();
         }
         this.abort = abort;
-        this.context = context;
+        this.context = context2;
       }
       onHeaders(statusCode, rawHeaders, resume, statusMessage) {
-        const { callback, opaque, abort, context, responseHeaders, highWaterMark } = this;
+        const { callback, opaque, abort, context: context2, responseHeaders, highWaterMark } = this;
         const headers = responseHeaders === "raw" ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders);
         if (statusCode < 200) {
           if (this.onInfo) {
@@ -9634,7 +9634,7 @@ var require_api_request = __commonJS({
               trailers: this.trailers,
               opaque,
               body,
-              context
+              context: context2
             });
           }
         }
@@ -9754,15 +9754,15 @@ var require_api_stream = __commonJS({
         }
         addSignal(this, signal);
       }
-      onConnect(abort, context) {
+      onConnect(abort, context2) {
         if (!this.callback) {
           throw new RequestAbortedError();
         }
         this.abort = abort;
-        this.context = context;
+        this.context = context2;
       }
       onHeaders(statusCode, rawHeaders, resume, statusMessage) {
-        const { factory, opaque, context, callback, responseHeaders } = this;
+        const { factory, opaque, context: context2, callback, responseHeaders } = this;
         const headers = responseHeaders === "raw" ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders);
         if (statusCode < 200) {
           if (this.onInfo) {
@@ -9790,7 +9790,7 @@ var require_api_stream = __commonJS({
             statusCode,
             headers,
             opaque,
-            context
+            context: context2
           });
           if (!res || typeof res.write !== "function" || typeof res.end !== "function" || typeof res.on !== "function") {
             throw new InvalidReturnValueError("expected Writable");
@@ -9982,17 +9982,17 @@ var require_api_pipeline = __commonJS({
         this.res = null;
         addSignal(this, signal);
       }
-      onConnect(abort, context) {
+      onConnect(abort, context2) {
         const { ret, res } = this;
         assert(!res, "pipeline cannot be retried");
         if (ret.destroyed) {
           throw new RequestAbortedError();
         }
         this.abort = abort;
-        this.context = context;
+        this.context = context2;
       }
       onHeaders(statusCode, rawHeaders, resume) {
-        const { opaque, handler, context } = this;
+        const { opaque, handler, context: context2 } = this;
         if (statusCode < 200) {
           if (this.onInfo) {
             const headers = this.responseHeaders === "raw" ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders);
@@ -10010,7 +10010,7 @@ var require_api_pipeline = __commonJS({
             headers,
             opaque,
             body: this.res,
-            context
+            context: context2
           });
         } catch (err) {
           this.res.on("error", util.nop);
@@ -10094,7 +10094,7 @@ var require_api_upgrade = __commonJS({
         this.context = null;
         addSignal(this, signal);
       }
-      onConnect(abort, context) {
+      onConnect(abort, context2) {
         if (!this.callback) {
           throw new RequestAbortedError();
         }
@@ -10105,7 +10105,7 @@ var require_api_upgrade = __commonJS({
         throw new SocketError("bad upgrade", null);
       }
       onUpgrade(statusCode, rawHeaders, socket) {
-        const { callback, opaque, context } = this;
+        const { callback, opaque, context: context2 } = this;
         assert.strictEqual(statusCode, 101);
         removeSignal(this);
         this.callback = null;
@@ -10114,7 +10114,7 @@ var require_api_upgrade = __commonJS({
           headers,
           socket,
           opaque,
-          context
+          context: context2
         });
       }
       onError(err) {
@@ -10182,18 +10182,18 @@ var require_api_connect = __commonJS({
         this.abort = null;
         addSignal(this, signal);
       }
-      onConnect(abort, context) {
+      onConnect(abort, context2) {
         if (!this.callback) {
           throw new RequestAbortedError();
         }
         this.abort = abort;
-        this.context = context;
+        this.context = context2;
       }
       onHeaders() {
         throw new SocketError("bad connect", null);
       }
       onUpgrade(statusCode, rawHeaders, socket) {
-        const { callback, opaque, context } = this;
+        const { callback, opaque, context: context2 } = this;
         removeSignal(this);
         this.callback = null;
         let headers = rawHeaders;
@@ -10205,7 +10205,7 @@ var require_api_connect = __commonJS({
           headers,
           socket,
           opaque,
-          context
+          context: context2
         });
       }
       onError(err) {
@@ -19736,10 +19736,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.error = error;
-    function warning2(message, properties = {}) {
+    function warning(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning2;
+    exports2.warning = warning;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
@@ -20288,8 +20288,8 @@ var require_dist_node2 = __commonJS({
     function isKeyOperator(operator) {
       return operator === ";" || operator === "&" || operator === "?";
     }
-    function getValues(context, operator, key, modifier) {
-      var value = context[key], result = [];
+    function getValues(context2, operator, key, modifier) {
+      var value = context2[key], result = [];
       if (isDefined(value) && value !== "") {
         if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
           value = value.toString();
@@ -20353,7 +20353,7 @@ var require_dist_node2 = __commonJS({
         expand: expand.bind(null, template)
       };
     }
-    function expand(template, context) {
+    function expand(template, context2) {
       var operators = ["+", "#", ".", "/", ";", "?", "&"];
       template = template.replace(
         /\{([^\{\}]+)\}|([^\{\}]+)/g,
@@ -20367,7 +20367,7 @@ var require_dist_node2 = __commonJS({
             }
             expression.split(/,/g).forEach(function(variable) {
               var tmp = /([^:\*]*)(?::(\d+)|(\*))?/.exec(variable);
-              values.push(getValues(context, operator, tmp[1], tmp[2] || tmp[3]));
+              values.push(getValues(context2, operator, tmp[1], tmp[2] || tmp[3]));
             });
             if (operator && operator !== "+") {
               var separator = ",";
@@ -23878,31 +23878,19 @@ var require_github = __commonJS({
   }
 });
 
-// claude-detect-event/index.ts
+// claude-parse-state/index.ts
 var core2 = __toESM(require_core(), 1);
 var github = __toESM(require_github(), 1);
 
 // lib/index.ts
 var core = __toESM(require_core(), 1);
 var exec = __toESM(require_exec(), 1);
+function getOptionalInput(name) {
+  const value = core.getInput(name);
+  return value === "" ? void 0 : value;
+}
 function getRequiredInput(name) {
   return core.getInput(name, { required: true });
-}
-async function execCommand(command, args = [], options) {
-  let stdout = "";
-  let stderr = "";
-  const exitCode = await exec.exec(command, args, {
-    ...options,
-    listeners: {
-      stdout: (data) => {
-        stdout += data.toString();
-      },
-      stderr: (data) => {
-        stderr += data.toString();
-      }
-    }
-  });
-  return { stdout: stdout.trim(), stderr: stderr.trim(), exitCode };
 }
 function setOutputs(outputs) {
   for (const [key, value] of Object.entries(outputs)) {
@@ -23912,744 +23900,308 @@ function setOutputs(outputs) {
   }
 }
 
-// claude-detect-event/index.ts
-function emptyResult(skip = false, skipReason = "") {
-  return {
-    job: "",
-    resourceType: "",
-    resourceNumber: "",
-    commentId: "",
-    contextJson: "{}",
-    skip,
-    skipReason
+// claude-parse-state/index.ts
+var STATE_MARKER_START = "<!-- CLAUDE_ITERATION";
+var STATE_MARKER_END = "-->";
+var HISTORY_SECTION = "## Iteration History";
+function parseState(body) {
+  const startIdx = body.indexOf(STATE_MARKER_START);
+  if (startIdx === -1) {
+    return null;
+  }
+  const endIdx = body.indexOf(STATE_MARKER_END, startIdx);
+  if (endIdx === -1) {
+    return null;
+  }
+  const stateBlock = body.slice(startIdx + STATE_MARKER_START.length, endIdx);
+  const state = {
+    iteration: 0,
+    branch: "",
+    pr_number: "",
+    last_ci_run: "",
+    last_ci_result: "",
+    consecutive_failures: 0,
+    complete: false
   };
-}
-async function fetchIssueDetails(octokit, owner, repo, issueNumber) {
-  const result = await octokit.graphql(
-    `
-    query($owner: String!, $repo: String!, $number: Int!) {
-      repository(owner: $owner, name: $repo) {
-        issue(number: $number) {
-          title
-          body
-          parent { number }
-        }
-      }
-    }
-  `,
-    {
-      owner,
-      repo,
-      number: issueNumber,
-      headers: {
-        "GraphQL-Features": "sub_issues"
-      }
-    }
-  );
-  const issue = result.repository.issue;
-  if (!issue) {
-    return { title: "", body: "", isSubIssue: false };
-  }
-  return {
-    title: issue.title,
-    body: issue.body ?? "",
-    isSubIssue: !!issue.parent
-  };
-}
-async function fetchPrByBranch(owner, repo, branch) {
-  const { stdout, exitCode } = await execCommand(
-    "gh",
-    [
-      "pr",
-      "list",
-      "--repo",
-      `${owner}/${repo}`,
-      "--head",
-      branch,
-      "--json",
-      "number,isDraft,author,body,title,labels",
-      "--jq",
-      ".[0]"
-    ],
-    { ignoreReturnCode: true }
-  );
-  if (exitCode !== 0 || !stdout || stdout === "null") {
-    return {
-      hasPr: false,
-      prNumber: "",
-      isDraft: false,
-      isClaudePr: false,
-      author: "",
-      body: "",
-      title: "",
-      labels: []
-    };
-  }
-  try {
-    const pr = JSON.parse(stdout);
-    const author = pr.author.login;
-    const isClaudePr = author === "claude[bot]" || branch.startsWith("claude/");
-    return {
-      hasPr: true,
-      prNumber: String(pr.number),
-      isDraft: pr.isDraft,
-      isClaudePr,
-      author,
-      body: pr.body ?? "",
-      title: pr.title ?? "",
-      labels: (pr.labels ?? []).map((l) => l.name)
-    };
-  } catch {
-    return {
-      hasPr: false,
-      prNumber: "",
-      isDraft: false,
-      isClaudePr: false,
-      author: "",
-      body: "",
-      title: "",
-      labels: []
-    };
-  }
-}
-function hasSkipLabel(labels) {
-  return labels.some((l) => l === "skip-dispatch" || l === "test:automation");
-}
-function isTestResource(title) {
-  return title.startsWith("[TEST]");
-}
-async function extractIssueNumber(body) {
-  const match = body.match(/(?:Fixes|Closes|Resolves)\s+#(\d+)/i);
-  return match?.[1] ?? "";
-}
-async function ensureBranchExists(branch) {
-  const { exitCode } = await execCommand(
-    "git",
-    ["ls-remote", "--heads", "origin", branch],
-    { ignoreReturnCode: true }
-  );
-  if (exitCode === 0) {
-    const { stdout } = await execCommand("git", [
-      "ls-remote",
-      "--heads",
-      "origin",
-      branch
-    ]);
-    if (stdout.includes(branch)) {
-      core2.info(`Branch ${branch} exists`);
-      return true;
+  for (const line of stateBlock.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const colonIdx = trimmed.indexOf(":");
+    if (colonIdx === -1) continue;
+    const key = trimmed.slice(0, colonIdx).trim();
+    const value = trimmed.slice(colonIdx + 1).trim();
+    switch (key) {
+      case "iteration":
+        state.iteration = parseInt(value, 10) || 0;
+        break;
+      case "branch":
+        state.branch = value;
+        break;
+      case "pr_number":
+        state.pr_number = value;
+        break;
+      case "last_ci_run":
+        state.last_ci_run = value;
+        break;
+      case "last_ci_result":
+        state.last_ci_result = value;
+        break;
+      case "consecutive_failures":
+        state.consecutive_failures = parseInt(value, 10) || 0;
+        break;
+      case "complete":
+        state.complete = value === "true";
+        break;
     }
   }
-  core2.info(`Creating branch ${branch}`);
-  await execCommand("git", ["checkout", "-b", branch]);
-  const { exitCode: pushCode } = await execCommand(
-    "git",
-    ["push", "-u", "origin", branch],
-    { ignoreReturnCode: true }
-  );
-  if (pushCode !== 0) {
-    core2.warning(`Failed to push branch ${branch}`);
-    return false;
-  }
-  core2.info(`Created and pushed branch ${branch}`);
-  return true;
+  return state;
 }
-async function checkBranchExists(branch) {
-  const { stdout } = await execCommand(
-    "git",
-    ["ls-remote", "--heads", "origin", branch],
-    { ignoreReturnCode: true }
-  );
-  return stdout.includes(branch);
+function serializeState(state) {
+  return `${STATE_MARKER_START}
+iteration: ${state.iteration}
+branch: ${state.branch}
+pr_number: ${state.pr_number}
+last_ci_run: ${state.last_ci_run}
+last_ci_result: ${state.last_ci_result}
+consecutive_failures: ${state.consecutive_failures}
+complete: ${state.complete}
+${STATE_MARKER_END}`;
 }
-async function buildIssueSection(octokit, owner, repo, prBody) {
-  const issueNumber = await extractIssueNumber(prBody);
-  if (!issueNumber) {
-    return "## No Linked Issue\nPerforming standard code review.\n";
+function updateBodyWithState(body, state) {
+  const stateBlock = serializeState(state);
+  const startIdx = body.indexOf(STATE_MARKER_START);
+  if (startIdx === -1) {
+    return stateBlock + "\n\n" + body;
   }
-  try {
-    const { data: issue } = await octokit.rest.issues.get({
-      owner,
-      repo,
-      issue_number: parseInt(issueNumber, 10)
-    });
-    return `## Linked Issue #${issueNumber}
+  const endIdx = body.indexOf(STATE_MARKER_END, startIdx);
+  if (endIdx === -1) {
+    return stateBlock + "\n\n" + body;
+  }
+  return body.slice(0, startIdx) + stateBlock + body.slice(endIdx + STATE_MARKER_END.length);
+}
+function addIterationLogEntry(body, iteration, message, sha) {
+  const historyIdx = body.indexOf(HISTORY_SECTION);
+  if (historyIdx === -1) {
+    const entry2 = `| ${iteration} | ${message} | ${sha || "-"} |`;
+    const historyTable = `
 
-${issue.body ?? ""}
+${HISTORY_SECTION}
 
-## Validation
-- CHECK ALL TODO ITEMS in the issue are addressed
-- VERIFY code follows CLAUDE.md guidelines
-- ENSURE tests cover the requirements
-`;
-  } catch {
-    return "## No Linked Issue\nPerforming standard code review.\n";
+| # | Action | SHA |
+|---|--------|-----|
+${entry2}`;
+    return body + historyTable;
   }
+  const lines = body.split("\n");
+  const historyLineIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
+  if (historyLineIdx === -1) {
+    return body;
+  }
+  let insertIdx = historyLineIdx + 1;
+  for (let i = historyLineIdx + 1; i < lines.length; i++) {
+    if (lines[i].startsWith("|")) {
+      insertIdx = i + 1;
+    } else if (lines[i].trim() !== "" && !lines[i].startsWith("|")) {
+      break;
+    }
+  }
+  const entry = `| ${iteration} | ${message} | ${sha || "-"} |`;
+  lines.splice(insertIdx, 0, entry);
+  return lines.join("\n");
 }
-async function handleIssueEvent(octokit, owner, repo) {
-  const { context } = github;
-  const payload = context.payload;
-  const action = payload.action;
-  const issue = payload.issue;
-  if (isTestResource(issue.title)) {
-    return emptyResult(true, "Issue title starts with [TEST]");
-  }
-  const hasTestLabel = issue.labels.some((l) => l.name === "test:automation");
-  if (hasTestLabel) {
-    return emptyResult(true, "Issue has test:automation label");
-  }
-  const hasSkipLabelOnIssue = issue.labels.some(
-    (l) => l.name === "skip-dispatch"
-  );
-  if (hasSkipLabelOnIssue) {
-    return emptyResult(true, "Issue has skip-dispatch label");
-  }
-  const hasTriagedLabel = issue.labels.some((l) => l.name === "triaged");
-  if (action === "opened" || action === "edited" || action === "unlabeled" && payload.label?.name === "triaged") {
-    if (hasTriagedLabel && action !== "unlabeled") {
-      return emptyResult(true, "Issue already triaged");
-    }
-    const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
-    if (details.isSubIssue) {
-      return emptyResult(true, "Issue is a sub-issue");
-    }
-    return {
-      job: "issue-triage",
-      resourceType: "issue",
-      resourceNumber: String(issue.number),
-      commentId: "",
-      contextJson: JSON.stringify({
-        issue_number: String(issue.number),
-        issue_title: details.title || issue.title,
-        issue_body: details.body || issue.body
-      }),
-      skip: false,
-      skipReason: ""
-    };
-  }
-  if (action === "assigned") {
-    const assignee = payload.assignee;
-    if (assignee.login !== "nopo-bot") {
-      return emptyResult(true, "Not assigned to nopo-bot");
-    }
-    const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
-    const branchName = `claude/issue/${issue.number}`;
-    await ensureBranchExists(branchName);
-    return {
-      job: "issue-iterate",
-      resourceType: "issue",
-      resourceNumber: String(issue.number),
-      commentId: "",
-      contextJson: JSON.stringify({
-        issue_number: String(issue.number),
-        issue_title: details.title || issue.title,
-        issue_body: details.body || issue.body,
-        branch_name: branchName,
-        trigger_type: "assigned"
-      }),
-      skip: false,
-      skipReason: ""
-    };
-  }
-  return emptyResult(true, `Unhandled issue action: ${action}`);
-}
-async function handleIssueCommentEvent(octokit, owner, repo) {
-  const { context } = github;
-  const payload = context.payload;
-  const comment = payload.comment;
-  const issue = payload.issue;
-  if (isTestResource(issue.title)) {
-    return emptyResult(true, "Issue/PR title starts with [TEST]");
-  }
-  const hasTestLabel = issue.labels.some((l) => l.name === "test:automation");
-  if (hasTestLabel) {
-    return emptyResult(true, "Issue has test:automation label");
-  }
-  const hasSkipLabelOnIssue = issue.labels.some(
-    (l) => l.name === "skip-dispatch"
-  );
-  if (hasSkipLabelOnIssue) {
-    return emptyResult(true, "Issue has skip-dispatch label");
-  }
-  if (comment.user.type === "Bot") {
-    return emptyResult(true, "Comment is from a bot");
-  }
-  const isPr = !!issue.pull_request;
-  const hasImplementCommand = comment.body.split("\n").some((line) => line.trim() === "/implement");
-  if (hasImplementCommand && !isPr) {
-    const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
-    const branchName2 = `claude/issue/${issue.number}`;
-    await ensureBranchExists(branchName2);
-    return {
-      job: "issue-iterate",
-      resourceType: "issue",
-      resourceNumber: String(issue.number),
-      commentId: String(comment.id),
-      contextJson: JSON.stringify({
-        issue_number: String(issue.number),
-        issue_title: details.title || issue.title,
-        issue_body: details.body || issue.body,
-        branch_name: branchName2,
-        trigger_type: "implement_command"
-      }),
-      skip: false,
-      skipReason: ""
-    };
-  }
-  if (!comment.body.includes("@claude")) {
-    return emptyResult(true, "Comment does not mention @claude");
-  }
-  let contextType = "issue";
-  let branchName = "main";
-  if (isPr) {
-    const { stdout } = await execCommand("gh", [
-      "pr",
-      "view",
-      String(issue.number),
-      "--repo",
-      process.env.GITHUB_REPOSITORY ?? "",
-      "--json",
-      "headRefName",
-      "--jq",
-      ".headRefName"
-    ]);
-    branchName = stdout.trim() || "main";
-    contextType = "PR";
-  } else {
-    const issueBranch = `claude/issue/${issue.number}`;
-    if (await checkBranchExists(issueBranch)) {
-      branchName = issueBranch;
-    }
-  }
-  const contextDescription = branchName === "main" ? `This is ${contextType.toLowerCase()} #${issue.number}. You are checked out on main.` : `This is ${contextType} #${issue.number} on branch \`${branchName}\`. You are checked out on the ${isPr ? "PR" : "issue"} branch.`;
+function getDefaultState(branchName) {
   return {
-    job: "issue-comment",
-    resourceType: isPr ? "pr" : "issue",
-    resourceNumber: String(issue.number),
-    commentId: String(comment.id),
-    contextJson: JSON.stringify({
-      issue_number: String(issue.number),
-      context_type: contextType,
-      context_description: contextDescription,
-      branch_name: branchName
-    }),
-    skip: false,
-    skipReason: ""
+    iteration: 0,
+    branch: branchName,
+    pr_number: "",
+    last_ci_run: "",
+    last_ci_result: "",
+    consecutive_failures: 0,
+    complete: false
   };
-}
-async function handlePullRequestReviewCommentEvent() {
-  const { context } = github;
-  const payload = context.payload;
-  const comment = payload.comment;
-  const pr = payload.pull_request;
-  if (isTestResource(pr.title)) {
-    return emptyResult(true, "PR title starts with [TEST]");
-  }
-  const hasTestLabel = pr.labels.some((l) => l.name === "test:automation");
-  if (hasTestLabel) {
-    return emptyResult(true, "PR has test:automation label");
-  }
-  const hasSkipLabelOnPr = pr.labels.some((l) => l.name === "skip-dispatch");
-  if (hasSkipLabelOnPr) {
-    return emptyResult(true, "PR has skip-dispatch label");
-  }
-  if (comment.user.type === "Bot") {
-    return emptyResult(true, "Comment is from a bot");
-  }
-  if (!comment.body.includes("@claude")) {
-    return emptyResult(true, "Comment does not mention @claude");
-  }
-  return {
-    job: "issue-comment",
-    resourceType: "pr",
-    resourceNumber: String(pr.number),
-    commentId: String(comment.id),
-    contextJson: JSON.stringify({
-      issue_number: String(pr.number),
-      context_type: "PR",
-      context_description: `This is PR #${pr.number} on branch \`${pr.head.ref}\`. You are checked out on the PR branch with the code changes.`,
-      branch_name: pr.head.ref
-    }),
-    skip: false,
-    skipReason: ""
-  };
-}
-async function handlePushEvent() {
-  const { context } = github;
-  const ref = context.ref;
-  const branch = ref.replace("refs/heads/", "");
-  if (branch === "main") {
-    return emptyResult(true, "Push to main branch");
-  }
-  if (branch.startsWith("gh-readonly-queue/")) {
-    return emptyResult(true, "Push to merge queue branch");
-  }
-  if (branch.startsWith("test/")) {
-    return emptyResult(true, "Push to test branch");
-  }
-  const owner = context.repo.owner;
-  const repo = context.repo.repo;
-  const prInfo = await fetchPrByBranch(owner, repo, branch);
-  if (!prInfo.hasPr) {
-    return emptyResult(true, "No PR found for branch");
-  }
-  if (hasSkipLabel(prInfo.labels)) {
-    return emptyResult(true, "PR has skip-dispatch or test:automation label");
-  }
-  if (isTestResource(prInfo.title)) {
-    return emptyResult(true, "PR title starts with [TEST]");
-  }
-  return {
-    job: "push-to-draft",
-    resourceType: "pr",
-    resourceNumber: prInfo.prNumber,
-    commentId: "",
-    contextJson: JSON.stringify({
-      pr_number: prInfo.prNumber,
-      branch_name: branch,
-      is_draft: prInfo.isDraft
-    }),
-    skip: false,
-    skipReason: ""
-  };
-}
-async function handleWorkflowRunEvent() {
-  const { context } = github;
-  const payload = context.payload;
-  const workflowRun = payload.workflow_run;
-  const conclusion = workflowRun.conclusion;
-  const branch = workflowRun.head_branch;
-  const runId = String(workflowRun.id);
-  if (branch.startsWith("test/")) {
-    return emptyResult(true, "Workflow run on test branch");
-  }
-  const owner = context.repo.owner;
-  const repo = context.repo.repo;
-  const prInfo = await fetchPrByBranch(owner, repo, branch);
-  if (!prInfo.hasPr) {
-    return emptyResult(true, "No PR found for workflow run branch");
-  }
-  if (hasSkipLabel(prInfo.labels)) {
-    return emptyResult(true, "PR has skip-dispatch or test:automation label");
-  }
-  if (isTestResource(prInfo.title)) {
-    return emptyResult(true, "PR title starts with [TEST]");
-  }
-  const issueNumber = await extractIssueNumber(prInfo.body);
-  if (prInfo.isClaudePr && issueNumber) {
-    if (conclusion === "failure" || conclusion === "success") {
-      return {
-        job: "issue-iterate",
-        resourceType: "issue",
-        resourceNumber: issueNumber,
-        commentId: "",
-        contextJson: JSON.stringify({
-          issue_number: issueNumber,
-          pr_number: prInfo.prNumber,
-          branch_name: branch,
-          ci_run_id: runId,
-          ci_result: conclusion,
-          trigger_type: "workflow_run"
-        }),
-        skip: false,
-        skipReason: ""
-      };
-    }
-  }
-  if (conclusion === "failure") {
-    const job = prInfo.isClaudePr ? "ci-fix" : "ci-suggest";
-    return {
-      job,
-      resourceType: "pr",
-      resourceNumber: prInfo.prNumber,
-      commentId: "",
-      contextJson: JSON.stringify({
-        pr_number: prInfo.prNumber,
-        branch_name: branch
-      }),
-      skip: false,
-      skipReason: ""
-    };
-  }
-  if (conclusion === "success") {
-    return {
-      job: "ci-success",
-      resourceType: "pr",
-      resourceNumber: prInfo.prNumber,
-      commentId: "",
-      contextJson: JSON.stringify({
-        pr_number: prInfo.prNumber,
-        branch_name: branch,
-        is_claude_pr: prInfo.isClaudePr,
-        issue_number: issueNumber
-      }),
-      skip: false,
-      skipReason: ""
-    };
-  }
-  return emptyResult(true, `Workflow run conclusion: ${conclusion}`);
-}
-async function handlePullRequestEvent(octokit, owner, repo) {
-  const { context } = github;
-  const payload = context.payload;
-  const action = payload.action;
-  const pr = payload.pull_request;
-  if (isTestResource(pr.title)) {
-    return emptyResult(true, "PR title starts with [TEST]");
-  }
-  const hasSkipLabelOnPr = pr.labels.some(
-    (l) => l.name === "skip-dispatch" || l.name === "test:automation"
-  );
-  if (hasSkipLabelOnPr) {
-    return emptyResult(true, "PR has skip-dispatch or test:automation label");
-  }
-  if (action === "review_requested") {
-    const requestedReviewer = payload.requested_reviewer;
-    if (requestedReviewer.login !== "nopo-bot") {
-      return emptyResult(true, "Reviewer is not nopo-bot");
-    }
-    if (pr.draft) {
-      return emptyResult(true, "PR is a draft");
-    }
-    const issueSection = await buildIssueSection(
-      octokit,
-      owner,
-      repo,
-      pr.body ?? ""
-    );
-    return {
-      job: "pr-review",
-      resourceType: "pr",
-      resourceNumber: String(pr.number),
-      commentId: "",
-      contextJson: JSON.stringify({
-        pr_number: String(pr.number),
-        branch_name: pr.head.ref,
-        issue_section: issueSection
-      }),
-      skip: false,
-      skipReason: ""
-    };
-  }
-  return emptyResult(true, `Unhandled PR action: ${action}`);
-}
-async function handlePullRequestReviewEvent() {
-  const { context } = github;
-  const payload = context.payload;
-  const review = payload.review;
-  const pr = payload.pull_request;
-  if (isTestResource(pr.title)) {
-    return emptyResult(true, "PR title starts with [TEST]");
-  }
-  const hasSkipLabelOnPr = pr.labels.some(
-    (l) => l.name === "skip-dispatch" || l.name === "test:automation"
-  );
-  if (hasSkipLabelOnPr) {
-    return emptyResult(true, "PR has skip-dispatch or test:automation label");
-  }
-  if (pr.draft) {
-    return emptyResult(true, "PR is a draft");
-  }
-  const state = review.state.toLowerCase();
-  if (state !== "changes_requested" && state !== "commented") {
-    return emptyResult(true, `Review state is ${state}`);
-  }
-  if (review.user.login === "claude[bot]") {
-    return {
-      job: "pr-response",
-      resourceType: "pr",
-      resourceNumber: String(pr.number),
-      commentId: "",
-      contextJson: JSON.stringify({
-        pr_number: String(pr.number),
-        branch_name: pr.head.ref,
-        review_state: state,
-        review_body: review.body ?? "",
-        review_id: String(review.id)
-      }),
-      skip: false,
-      skipReason: ""
-    };
-  }
-  const isClaudePr = pr.author.login === "claude[bot]" || pr.head.ref.startsWith("claude/");
-  if (!isClaudePr) {
-    return emptyResult(true, "Human review on non-Claude PR");
-  }
-  return {
-    job: "pr-human-response",
-    resourceType: "pr",
-    resourceNumber: String(pr.number),
-    commentId: "",
-    contextJson: JSON.stringify({
-      pr_number: String(pr.number),
-      branch_name: pr.head.ref,
-      reviewer_login: review.user.login,
-      review_state: state,
-      review_body: review.body ?? "",
-      review_id: String(review.id)
-    }),
-    skip: false,
-    skipReason: ""
-  };
-}
-async function handleDiscussionEvent() {
-  const { context } = github;
-  const payload = context.payload;
-  const action = payload.action;
-  const discussion = payload.discussion;
-  if (action === "created") {
-    return {
-      job: "discussion-research",
-      resourceType: "discussion",
-      resourceNumber: String(discussion.number),
-      commentId: "",
-      contextJson: JSON.stringify({
-        discussion_number: String(discussion.number),
-        discussion_title: discussion.title,
-        discussion_body: discussion.body ?? ""
-      }),
-      skip: false,
-      skipReason: ""
-    };
-  }
-  return emptyResult(true, `Unhandled discussion action: ${action}`);
-}
-async function handleDiscussionCommentEvent() {
-  const { context } = github;
-  const payload = context.payload;
-  const discussion = payload.discussion;
-  const comment = payload.comment;
-  const body = comment.body.trim();
-  const author = comment.user.login;
-  const isTopLevel = !comment.parent_id;
-  if (body === "/summarize") {
-    return {
-      job: "discussion-summarize",
-      resourceType: "discussion",
-      resourceNumber: String(discussion.number),
-      commentId: comment.node_id,
-      contextJson: JSON.stringify({
-        discussion_number: String(discussion.number)
-      }),
-      skip: false,
-      skipReason: ""
-    };
-  }
-  if (body === "/plan") {
-    return {
-      job: "discussion-plan",
-      resourceType: "discussion",
-      resourceNumber: String(discussion.number),
-      commentId: comment.node_id,
-      contextJson: JSON.stringify({
-        discussion_number: String(discussion.number)
-      }),
-      skip: false,
-      skipReason: ""
-    };
-  }
-  if (body === "/complete") {
-    return {
-      job: "discussion-complete",
-      resourceType: "discussion",
-      resourceNumber: String(discussion.number),
-      commentId: comment.node_id,
-      contextJson: JSON.stringify({
-        discussion_number: String(discussion.number)
-      }),
-      skip: false,
-      skipReason: ""
-    };
-  }
-  if (author !== "claude[bot]" && author !== "nopo-bot") {
-    return {
-      job: "discussion-respond",
-      resourceType: "discussion",
-      resourceNumber: String(discussion.number),
-      commentId: comment.node_id,
-      contextJson: JSON.stringify({
-        discussion_number: String(discussion.number),
-        comment_body: comment.body,
-        comment_author: author
-      }),
-      skip: false,
-      skipReason: ""
-    };
-  }
-  if (isTopLevel && comment.body.includes("## \u{1F50D} Research:")) {
-    return {
-      job: "discussion-respond",
-      resourceType: "discussion",
-      resourceNumber: String(discussion.number),
-      commentId: comment.node_id,
-      contextJson: JSON.stringify({
-        discussion_number: String(discussion.number),
-        comment_body: comment.body,
-        comment_author: author
-      }),
-      skip: false,
-      skipReason: ""
-    };
-  }
-  return emptyResult(true, "Bot reply comment - preventing infinite loop");
 }
 async function run() {
   try {
     const token = getRequiredInput("github_token");
+    const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
+    const action = getRequiredInput("action");
     const octokit = github.getOctokit(token);
-    const { context } = github;
-    const eventName = context.eventName;
-    const owner = context.repo.owner;
-    const repo = context.repo.repo;
-    process.env.GH_TOKEN = token;
-    core2.info(`Processing event: ${eventName}`);
-    let result;
-    switch (eventName) {
-      case "issues":
-        result = await handleIssueEvent(octokit, owner, repo);
-        break;
-      case "issue_comment":
-        result = await handleIssueCommentEvent(octokit, owner, repo);
-        break;
-      case "pull_request_review_comment":
-        result = await handlePullRequestReviewCommentEvent();
-        break;
-      case "push":
-        result = await handlePushEvent();
-        break;
-      case "workflow_run":
-        result = await handleWorkflowRunEvent();
-        break;
-      case "pull_request":
-        result = await handlePullRequestEvent(octokit, owner, repo);
-        break;
-      case "pull_request_review":
-        result = await handlePullRequestReviewEvent();
-        break;
-      case "discussion":
-        result = await handleDiscussionEvent();
-        break;
-      case "discussion_comment":
-        result = await handleDiscussionCommentEvent();
-        break;
-      default:
-        result = emptyResult(true, `Unhandled event: ${eventName}`);
-    }
-    if (result.skip) {
-      core2.info(`Skipping: ${result.skipReason}`);
-    } else {
-      core2.info(`Detected job: ${result.job}`);
-      core2.info(`Resource: ${result.resourceType} #${result.resourceNumber}`);
-    }
-    setOutputs({
-      job: result.job,
-      resource_type: result.resourceType,
-      resource_number: result.resourceNumber,
-      comment_id: result.commentId,
-      context_json: result.contextJson,
-      skip: result.skip ? "true" : "false",
-      skip_reason: result.skipReason
+    const { owner, repo } = github.context.repo;
+    const { data: issue } = await octokit.rest.issues.get({
+      owner,
+      repo,
+      issue_number: issueNumber
     });
+    const currentBody = issue.body ?? "";
+    let state = parseState(currentBody);
+    const hasState = state !== null;
+    core2.info(`Action: ${action}, Has existing state: ${hasState}`);
+    if (action === "read") {
+      if (!state) {
+        setOutputs({
+          has_state: "false",
+          iteration: "0",
+          branch: "",
+          pr_number: "",
+          last_ci_run: "",
+          last_ci_result: "",
+          consecutive_failures: "0",
+          complete: "false"
+        });
+        return;
+      }
+      setOutputs({
+        has_state: "true",
+        iteration: String(state.iteration),
+        branch: state.branch,
+        pr_number: state.pr_number,
+        last_ci_run: state.last_ci_run,
+        last_ci_result: state.last_ci_result,
+        consecutive_failures: String(state.consecutive_failures),
+        complete: state.complete ? "true" : "false"
+      });
+      return;
+    }
+    if (action === "init") {
+      const branchName = getRequiredInput("branch_name");
+      if (state) {
+        core2.info("State already exists, returning existing state");
+        setOutputs({
+          has_state: "true",
+          iteration: String(state.iteration),
+          branch: state.branch,
+          pr_number: state.pr_number,
+          last_ci_run: state.last_ci_run,
+          last_ci_result: state.last_ci_result,
+          consecutive_failures: String(state.consecutive_failures),
+          complete: state.complete ? "true" : "false"
+        });
+        return;
+      }
+      state = getDefaultState(branchName);
+      const newBody = updateBodyWithState(currentBody, state);
+      await octokit.rest.issues.update({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        body: newBody
+      });
+      core2.info(`Initialized state for issue #${issueNumber} with branch ${branchName}`);
+      setOutputs({
+        has_state: "true",
+        iteration: "0",
+        branch: branchName,
+        pr_number: "",
+        last_ci_run: "",
+        last_ci_result: "",
+        consecutive_failures: "0",
+        complete: "false"
+      });
+      return;
+    }
+    if (action === "update") {
+      if (!state) {
+        core2.setFailed("Cannot update state: no existing state found");
+        return;
+      }
+      const prNumber = getOptionalInput("pr_number");
+      const lastCiRun = getOptionalInput("last_ci_run");
+      const lastCiResult = getOptionalInput("last_ci_result");
+      const iterationMessage = getOptionalInput("iteration_message");
+      if (prNumber) {
+        state.pr_number = prNumber;
+      }
+      if (lastCiRun) {
+        state.last_ci_run = lastCiRun;
+      }
+      if (lastCiResult) {
+        if (lastCiResult === "failure") {
+          if (state.last_ci_result === "failure") {
+            state.consecutive_failures++;
+          } else {
+            state.consecutive_failures = 1;
+          }
+        } else if (lastCiResult === "success") {
+          state.consecutive_failures = 0;
+        }
+        state.last_ci_result = lastCiResult;
+      }
+      let newBody = updateBodyWithState(currentBody, state);
+      if (iterationMessage) {
+        newBody = addIterationLogEntry(newBody, state.iteration, iterationMessage);
+      }
+      await octokit.rest.issues.update({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        body: newBody
+      });
+      core2.info(`Updated state for issue #${issueNumber}`);
+      setOutputs({
+        has_state: "true",
+        iteration: String(state.iteration),
+        branch: state.branch,
+        pr_number: state.pr_number,
+        last_ci_run: state.last_ci_run,
+        last_ci_result: state.last_ci_result,
+        consecutive_failures: String(state.consecutive_failures),
+        complete: state.complete ? "true" : "false"
+      });
+      return;
+    }
+    if (action === "increment") {
+      if (!state) {
+        core2.setFailed("Cannot increment: no existing state found");
+        return;
+      }
+      state.iteration++;
+      const newBody = updateBodyWithState(currentBody, state);
+      await octokit.rest.issues.update({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        body: newBody
+      });
+      core2.info(`Incremented iteration to ${state.iteration} for issue #${issueNumber}`);
+      setOutputs({
+        has_state: "true",
+        iteration: String(state.iteration),
+        branch: state.branch,
+        pr_number: state.pr_number,
+        last_ci_run: state.last_ci_run,
+        last_ci_result: state.last_ci_result,
+        consecutive_failures: String(state.consecutive_failures),
+        complete: state.complete ? "true" : "false"
+      });
+      return;
+    }
+    if (action === "complete") {
+      if (!state) {
+        core2.setFailed("Cannot mark complete: no existing state found");
+        return;
+      }
+      state.complete = true;
+      const newBody = updateBodyWithState(currentBody, state);
+      await octokit.rest.issues.update({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        body: newBody
+      });
+      core2.info(`Marked issue #${issueNumber} as complete`);
+      setOutputs({
+        has_state: "true",
+        iteration: String(state.iteration),
+        branch: state.branch,
+        pr_number: state.pr_number,
+        last_ci_run: state.last_ci_run,
+        last_ci_result: state.last_ci_result,
+        consecutive_failures: String(state.consecutive_failures),
+        complete: "true"
+      });
+      return;
+    }
+    core2.setFailed(`Unknown action: ${action}`);
   } catch (error) {
     if (error instanceof Error) {
       core2.setFailed(error.message);

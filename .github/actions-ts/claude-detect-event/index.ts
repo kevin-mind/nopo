@@ -5,6 +5,7 @@ import { execCommand, getRequiredInput, setOutputs } from "../lib/index.js";
 type Job =
   | "issue-triage"
   | "issue-implement"
+  | "issue-iterate"
   | "issue-comment"
   | "push-to-draft"
   | "ci-fix"
@@ -347,8 +348,9 @@ async function handleIssueEvent(
     // Ensure the branch exists (create if not)
     await ensureBranchExists(branchName);
 
+    // Use the unified iteration model
     return {
-      job: "issue-implement",
+      job: "issue-iterate",
       resourceType: "issue",
       resourceNumber: String(issue.number),
       commentId: "",
@@ -357,6 +359,7 @@ async function handleIssueEvent(
         issue_title: details.title || issue.title,
         issue_body: details.body || issue.body,
         branch_name: branchName,
+        trigger_type: "assigned",
       }),
       skip: false,
       skipReason: "",
@@ -424,8 +427,9 @@ async function handleIssueCommentEvent(
     // Ensure the branch exists (create if not)
     await ensureBranchExists(branchName);
 
+    // Use the unified iteration model
     return {
-      job: "issue-implement",
+      job: "issue-iterate",
       resourceType: "issue",
       resourceNumber: String(issue.number),
       commentId: String(comment.id),
@@ -434,6 +438,7 @@ async function handleIssueCommentEvent(
         issue_title: details.title || issue.title,
         issue_body: details.body || issue.body,
         branch_name: branchName,
+        trigger_type: "implement_command",
       }),
       skip: false,
       skipReason: "",
@@ -610,10 +615,12 @@ async function handleWorkflowRunEvent(): Promise<DetectionResult> {
   const workflowRun = payload.workflow_run as {
     conclusion: string;
     head_branch: string;
+    id: number;
   };
 
   const conclusion = workflowRun.conclusion;
   const branch = workflowRun.head_branch;
+  const runId = String(workflowRun.id);
 
   // Skip test branches (circuit breaker for test automation)
   if (branch.startsWith("test/")) {
@@ -638,6 +645,31 @@ async function handleWorkflowRunEvent(): Promise<DetectionResult> {
     return emptyResult(true, "PR title starts with [TEST]");
   }
 
+  const issueNumber = await extractIssueNumber(prInfo.body);
+
+  // For Claude PRs, use the unified iteration model
+  if (prInfo.isClaudePr && issueNumber) {
+    if (conclusion === "failure" || conclusion === "success") {
+      return {
+        job: "issue-iterate",
+        resourceType: "issue",
+        resourceNumber: issueNumber,
+        commentId: "",
+        contextJson: JSON.stringify({
+          issue_number: issueNumber,
+          pr_number: prInfo.prNumber,
+          branch_name: branch,
+          ci_run_id: runId,
+          ci_result: conclusion,
+          trigger_type: "workflow_run",
+        }),
+        skip: false,
+        skipReason: "",
+      };
+    }
+  }
+
+  // Fallback to legacy jobs for non-Claude PRs or PRs without issue links
   if (conclusion === "failure") {
     const job: Job = prInfo.isClaudePr ? "ci-fix" : "ci-suggest";
     return {
@@ -664,7 +696,7 @@ async function handleWorkflowRunEvent(): Promise<DetectionResult> {
         pr_number: prInfo.prNumber,
         branch_name: branch,
         is_claude_pr: prInfo.isClaudePr,
-        issue_number: await extractIssueNumber(prInfo.body),
+        issue_number: issueNumber,
       }),
       skip: false,
       skipReason: "",

@@ -58,6 +58,7 @@ run-name: >-
         options:
           - issue-triage
           - issue-implement
+          - issue-iterate
           - issue-comment
           - ci-fix
           - ci-suggest

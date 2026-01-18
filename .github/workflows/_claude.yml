@@ -23,6 +23,7 @@ name: Claude Business Logic
         options:
           - issue-triage
           - issue-implement
+          - issue-iterate
           - issue-comment
           - ci-fix
           - ci-suggest
@@ -343,6 +344,471 @@ jobs:
             echo "No uncommitted changes to save"
           fi
 
+  # Unified iteration job - handles both initial implementation and CI fix iterations
+  issue-iterate:
+    needs: context
+    if: inputs.job == 'issue-iterate'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        if: inputs.mock_mode != true
+        with:
+          ref: ${{ needs.context.outputs.branch_name }}
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        if: inputs.mock_mode == true
+
+      # Read current iteration state from issue body
+      - id: read_state
+        name: Read iteration state
+        if: inputs.mock_mode != true
+        uses: ./.github/actions-ts/claude-parse-state
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          issue_number: ${{ fromJson(inputs.context_json).issue_number }}
+          action: read
+
+      # Initialize state if this is first iteration
+      - id: init_state
+        name: Initialize iteration state
+        if: inputs.mock_mode != true && steps.read_state.outputs.has_state != 'true'
+        uses: ./.github/actions-ts/claude-parse-state
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          issue_number: ${{ fromJson(inputs.context_json).issue_number }}
+          action: init
+          branch_name: ${{ needs.context.outputs.branch_name }}
+
+      # Get effective state (from read or init)
+      - id: state
+        name: Determine effective state
+        env:
+          READ_ITERATION: ${{ steps.read_state.outputs.iteration || '0' }}
+          READ_CI_RESULT: ${{ steps.read_state.outputs.last_ci_result || '' }}
+          READ_FAILURES: ${{ steps.read_state.outputs.consecutive_failures || '0' }}
+          READ_COMPLETE: ${{ steps.read_state.outputs.complete || 'false' }}
+          TRIGGER_CI_RESULT: ${{ fromJson(inputs.context_json).ci_result || '' }}
+          TRIGGER_TYPE: ${{ fromJson(inputs.context_json).trigger_type || 'assigned' }}
+        run: |
+          # Use trigger CI result if this is a workflow_run continuation
+          if [[ "$TRIGGER_TYPE" == "workflow_run" ]]; then
+            echo "ci_result=$TRIGGER_CI_RESULT" >> $GITHUB_OUTPUT
+          else
+            echo "ci_result=$READ_CI_RESULT" >> $GITHUB_OUTPUT
+          fi
+
+          echo "iteration=$READ_ITERATION" >> $GITHUB_OUTPUT
+          echo "consecutive_failures=$READ_FAILURES" >> $GITHUB_OUTPUT
+          echo "complete=$READ_COMPLETE" >> $GITHUB_OUTPUT
+
+      # Check for breakpoints and CI success
+      - id: breakpoint
+        name: Check breakpoints
+        env:
+          ITERATION: ${{ steps.state.outputs.iteration }}
+          CI_RESULT: ${{ steps.state.outputs.ci_result }}
+          FAILURES: ${{ steps.state.outputs.consecutive_failures }}
+          COMPLETE: ${{ steps.state.outputs.complete }}
+          TRIGGER_TYPE: ${{ fromJson(inputs.context_json).trigger_type || 'assigned' }}
+          MAX_ITERATIONS: '10'
+          MAX_FAILURES: '3'
+        run: |
+          should_stop="false"
+          stop_reason=""
+          is_ci_success="false"
+
+          if [[ "$COMPLETE" == "true" ]]; then
+            should_stop="true"
+            stop_reason="Iteration marked complete"
+          elif [[ "$ITERATION" -ge "$MAX_ITERATIONS" ]]; then
+            should_stop="true"
+            stop_reason="Max iterations ($MAX_ITERATIONS) reached"
+          elif [[ "$FAILURES" -ge "$MAX_FAILURES" ]]; then
+            should_stop="true"
+            stop_reason="Circuit breaker: $FAILURES consecutive failures"
+          elif [[ "$TRIGGER_TYPE" == "workflow_run" && "$CI_RESULT" == "success" ]]; then
+            # CI passed - this is a success case, not a breakpoint
+            is_ci_success="true"
+            should_stop="true"
+            stop_reason="CI passed - ready for review"
+          fi
+
+          echo "should_stop=$should_stop" >> $GITHUB_OUTPUT
+          echo "stop_reason=$stop_reason" >> $GITHUB_OUTPUT
+          echo "is_ci_success=$is_ci_success" >> $GITHUB_OUTPUT
+
+      # Add needs-human label if stopping due to breakpoint (not CI success)
+      - name: Add needs-human label
+        if: |
+          inputs.mock_mode != true &&
+          steps.breakpoint.outputs.should_stop == 'true' &&
+          steps.breakpoint.outputs.is_ci_success != 'true' &&
+          steps.state.outputs.complete != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ fromJson(inputs.context_json).issue_number }}
+          REASON: ${{ steps.breakpoint.outputs.stop_reason }}
+        run: |
+          gh issue edit "$ISSUE_NUMBER" --add-label "needs-human" --repo "$GITHUB_REPOSITORY" || true
+          gh issue comment "$ISSUE_NUMBER" --body "⚠️ **Iteration stopped**: $REASON
+
+          Please review and take manual action to continue." --repo "$GITHUB_REPOSITORY"
+
+      # ===== CI SUCCESS HANDLING =====
+      # When CI passes, mark PR ready and request review
+
+      - id: check_comments
+        name: Check unresolved review comments
+        if: inputs.mock_mode != true && steps.breakpoint.outputs.is_ci_success == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ fromJson(inputs.context_json).pr_number }}
+        run: |
+          repo_name="${GITHUB_REPOSITORY#*/}"
+          owner="${GITHUB_REPOSITORY%/*}"
+
+          result=$(gh api graphql -f query='
+            query($owner: String!, $repo: String!, $pr: Int!) {
+              repository(owner: $owner, name: $repo) {
+                pullRequest(number: $pr) {
+                  reviewThreads(first: 100) {
+                    nodes { isResolved }
+                  }
+                }
+              }
+            }
+          ' -F owner="$owner" -F repo="$repo_name" -F pr="$PR_NUMBER")
+
+          unresolved=$(echo "$result" | jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length')
+          echo "unresolved_count=$unresolved" >> $GITHUB_OUTPUT
+          echo "has_unresolved=$([[ "$unresolved" -gt 0 ]] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+
+      - name: Notify blocked by unresolved comments
+        if: inputs.mock_mode != true && steps.breakpoint.outputs.is_ci_success == 'true' && steps.check_comments.outputs.has_unresolved == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ fromJson(inputs.context_json).pr_number }}
+          COUNT: ${{ steps.check_comments.outputs.unresolved_count }}
+        run: |
+          gh pr comment "$PR_NUMBER" --body "⏸️ **CI passed but not moving to Review**
+
+          There are **$COUNT unresolved comment thread(s)** on this PR.
+
+          Please resolve all comments before the PR can move to Review status." --repo "$GITHUB_REPOSITORY"
+
+      - name: Update project status to In review
+        if: |
+          inputs.mock_mode != true &&
+          steps.breakpoint.outputs.is_ci_success == 'true' &&
+          steps.check_comments.outputs.has_unresolved != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ fromJson(inputs.context_json).issue_number }}
+          TARGET_STATUS: In review
+        run: |
+          repo_name="${GITHUB_REPOSITORY#*/}"
+          owner="${GITHUB_REPOSITORY%/*}"
+
+          result=$(gh api graphql -f query='query($owner: String!, $repo: String!, $issue: Int!) {
+            repository(owner: $owner, name: $repo) {
+              issue(number: $issue) {
+                projectItems(first: 10) {
+                  nodes {
+                    id
+                    project {
+                      id
+                      field(name: "Status") {
+                        ... on ProjectV2SingleSelectField {
+                          id
+                          options { id name }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }' -F owner="$owner" -F repo="$repo_name" -F issue="$ISSUE_NUMBER" 2>/dev/null || echo "{}")
+
+          item=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0] // empty')
+          [[ -z "$item" ]] && exit 0
+
+          item_id=$(echo "$item" | jq -r '.id')
+          project_id=$(echo "$item" | jq -r '.project.id')
+          field_id=$(echo "$item" | jq -r '.project.field.id')
+          option_id=$(echo "$item" | jq -r --arg status "$TARGET_STATUS" '.project.field.options[] | select(.name == $status) | .id')
+
+          [[ -z "$option_id" ]] && exit 0
+
+          gh api graphql -f query='mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+            updateProjectV2ItemFieldValue(input: {
+              projectId: $projectId, itemId: $itemId, fieldId: $fieldId,
+              value: { singleSelectOptionId: $optionId }
+            }) { projectV2Item { id } }
+          }' -F projectId="$project_id" -F itemId="$item_id" -F fieldId="$field_id" -F optionId="$option_id"
+
+      - name: Mark PR ready
+        if: |
+          inputs.mock_mode != true &&
+          steps.breakpoint.outputs.is_ci_success == 'true' &&
+          steps.check_comments.outputs.has_unresolved != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ fromJson(inputs.context_json).pr_number }}
+        run: gh pr ready "$PR_NUMBER" --repo "$GITHUB_REPOSITORY"
+
+      - name: Add review-ready label
+        if: |
+          inputs.mock_mode != true &&
+          steps.breakpoint.outputs.is_ci_success == 'true' &&
+          steps.check_comments.outputs.has_unresolved != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ fromJson(inputs.context_json).pr_number }}
+        run: gh pr edit "$PR_NUMBER" --add-label "review-ready" --repo "$GITHUB_REPOSITORY" || true
+
+      - name: Request review
+        if: |
+          inputs.mock_mode != true &&
+          steps.breakpoint.outputs.is_ci_success == 'true' &&
+          steps.check_comments.outputs.has_unresolved != 'true'
+        env:
+          # Use PAT_TOKEN to trigger the review_requested event
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          PR_NUMBER: ${{ fromJson(inputs.context_json).pr_number }}
+        run: gh pr edit "$PR_NUMBER" --add-reviewer "nopo-bot" --repo "$GITHUB_REPOSITORY"
+
+      - name: Mark iteration complete
+        if: |
+          inputs.mock_mode != true &&
+          steps.breakpoint.outputs.is_ci_success == 'true' &&
+          steps.check_comments.outputs.has_unresolved != 'true'
+        uses: ./.github/actions-ts/claude-parse-state
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          issue_number: ${{ fromJson(inputs.context_json).issue_number }}
+          action: complete
+
+      # Update project status to In Progress (first iteration only)
+      - name: Update project status to In Progress
+        if: inputs.mock_mode != true && steps.breakpoint.outputs.should_stop != 'true' && steps.state.outputs.iteration == '0'
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
+          CONTEXT_JSON: ${{ inputs.context_json }}
+        run: |
+          ISSUE_NUMBER=$(echo "$CONTEXT_JSON" | jq -r '.issue_number // empty')
+          [[ -z "$ISSUE_NUMBER" ]] && exit 0
+
+          repo_name="${GITHUB_REPOSITORY#*/}"
+          owner="${GITHUB_REPOSITORY%/*}"
+
+          result=$(gh api graphql -f query='query($owner: String!, $repo: String!, $issue: Int!) {
+            repository(owner: $owner, name: $repo) {
+              issue(number: $issue) {
+                projectItems(first: 10) {
+                  nodes {
+                    id
+                    project {
+                      id
+                      field(name: "Status") {
+                        ... on ProjectV2SingleSelectField {
+                          id
+                          options { id name }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }' -F owner="$owner" -F repo="$repo_name" -F issue="$ISSUE_NUMBER" 2>/dev/null || echo "{}")
+
+          item=$(echo "$result" | jq -r '.data.repository.issue.projectItems.nodes[0] // empty')
+          [[ -z "$item" ]] && exit 0
+
+          item_id=$(echo "$item" | jq -r '.id')
+          project_id=$(echo "$item" | jq -r '.project.id')
+          field_id=$(echo "$item" | jq -r '.project.field.id')
+          option_id=$(echo "$item" | jq -r '.project.field.options[] | select(.name == "In progress") | .id')
+
+          [[ -z "$option_id" ]] && exit 0
+
+          gh api graphql -f query='mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+            updateProjectV2ItemFieldValue(input: {
+              projectId: $projectId, itemId: $itemId, fieldId: $fieldId,
+              value: { singleSelectOptionId: $optionId }
+            }) { projectV2Item { id } }
+          }' -F projectId="$project_id" -F itemId="$item_id" -F fieldId="$field_id" -F optionId="$option_id"
+
+      - name: git config
+        if: inputs.mock_mode != true && steps.breakpoint.outputs.should_stop != 'true'
+        run: |
+          git config --global user.name "Claude Bot"
+          git config --global user.email "claude-bot@anthropic.com"
+
+      - name: Rebase onto main
+        if: inputs.mock_mode != true && steps.breakpoint.outputs.should_stop != 'true'
+        env:
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
+        run: |
+          git fetch origin main
+
+          # Check if rebase is needed
+          if git merge-base --is-ancestor origin/main HEAD; then
+            echo "Branch is already up to date with main - skipping rebase"
+            exit 0
+          fi
+
+          # Store current HEAD to detect if rebase changed anything
+          head_before=$(git rev-parse HEAD)
+
+          if ! git rebase origin/main; then
+            git rebase --abort
+            echo "::error::Rebase failed due to conflicts. Please resolve conflicts manually before re-running."
+            exit 1
+          fi
+
+          head_after=$(git rev-parse HEAD)
+
+          # Only push if rebase actually changed something
+          if [[ "$head_before" == "$head_after" ]]; then
+            echo "Rebase did not change HEAD - skipping push"
+            exit 0
+          fi
+
+          # Clear the GITHUB_TOKEN credential and use PAT instead
+          git config --unset-all http.https://github.com/.extraheader || true
+          git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$PAT_TOKEN" | base64)"
+
+          if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
+            git push origin "$BRANCH_NAME" --force-with-lease
+            echo "Rebased and pushed changes"
+          else
+            echo "No commits beyond main - skipping push"
+          fi
+
+      # Increment iteration counter before running Claude
+      - id: increment
+        name: Increment iteration
+        if: inputs.mock_mode != true && steps.breakpoint.outputs.should_stop != 'true'
+        uses: ./.github/actions-ts/claude-parse-state
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          issue_number: ${{ fromJson(inputs.context_json).issue_number }}
+          action: increment
+
+      # Build prompt replacements with iteration state
+      - id: augment
+        name: Build prompt replacements
+        if: steps.breakpoint.outputs.should_stop != 'true'
+        env:
+          BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
+          BASE_REPLACEMENTS: ${{ needs.context.outputs.prompt_replacements }}
+          ITERATION: ${{ steps.increment.outputs.iteration || steps.state.outputs.iteration }}
+          CI_RESULT: ${{ steps.state.outputs.ci_result }}
+          FAILURES: ${{ steps.state.outputs.consecutive_failures }}
+        run: |
+          # Check for existing branch work
+          diff=$(git diff main.."$BRANCH_NAME" --stat 2>/dev/null || echo "")
+          if [[ -n "$diff" ]]; then
+            section=$(cat <<'SECTION'
+          ## Existing Branch - Previous work detected
+
+          This branch already has changes from a previous implementation attempt:
+          ```
+          $diff
+          ```
+
+          **CRITICAL**: Review what is already done. Do NOT re-implement completed work.
+          Start from the CURRENT state of the code and continue toward the goal.
+          If an edit fails because the text is not found, the change may already be applied.
+          SECTION
+          )
+            section="${section//\$diff/$diff}"
+          else
+            section=""
+          fi
+
+          # Add all iteration context to replacements
+          json=$(echo "$BASE_REPLACEMENTS" | jq -c \
+            --arg section "$section" \
+            --arg iteration "$ITERATION" \
+            --arg ci_result "$CI_RESULT" \
+            --arg failures "$FAILURES" \
+            '. + {
+              EXISTING_BRANCH_SECTION: $section,
+              ITERATION: $iteration,
+              LAST_CI_RESULT: $ci_result,
+              CONSECUTIVE_FAILURES: $failures
+            }')
+          echo "json=$json" >> $GITHUB_OUTPUT
+
+      - uses: ./.github/actions/run-claude
+        if: steps.breakpoint.outputs.should_stop != 'true'
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt_file: .github/prompts/iterate.txt
+          prompt_replacements: ${{ steps.augment.outputs.json }}
+          max_turns: '200'
+          show_full_output: 'true'
+          assignee_trigger: nopo-bot
+          mock_mode: ${{ inputs.mock_mode }}
+
+      # Update state after Claude runs
+      - name: Update iteration state
+        if: success() && inputs.mock_mode != true && steps.breakpoint.outputs.should_stop != 'true'
+        uses: ./.github/actions-ts/claude-parse-state
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          issue_number: ${{ fromJson(inputs.context_json).issue_number }}
+          action: update
+          last_ci_result: pending
+          iteration_message: "Pushed changes"
+
+      - name: Re-push with PAT to trigger CI
+        if: success() && inputs.mock_mode != true && steps.breakpoint.outputs.should_stop != 'true'
+        env:
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
+        run: |
+          # Amend + push with PAT to trigger CI workflows
+          # Clear the GITHUB_TOKEN credential and use PAT instead
+          git config --unset-all http.https://github.com/.extraheader || true
+          git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$PAT_TOKEN" | base64)"
+          if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
+            git commit --amend --no-edit
+            git push origin "$BRANCH_NAME" --force-with-lease
+          else
+            echo "No commits beyond main - skipping push"
+          fi
+
+      - name: Save uncommitted work on failure
+        if: failure() && inputs.mock_mode != true && steps.breakpoint.outputs.should_stop != 'true'
+        env:
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
+        run: |
+          # Check for any uncommitted changes (staged or unstaged)
+          if [[ -n "$(git status --porcelain)" ]]; then
+            echo "Found uncommitted changes - saving work..."
+            git add -A
+            git commit -m "WIP: Save uncommitted work from failed run
+
+            This commit preserves work that was not pushed before the job failed.
+            Review and clean up before continuing.
+
+            Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            # Use PAT to push so it triggers CI workflows
+            git config --unset-all http.https://github.com/.extraheader || true
+            git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$PAT_TOKEN" | base64)"
+            git push origin "$BRANCH_NAME"
+            echo "::warning::Uncommitted work was saved to branch $BRANCH_NAME"
+          else
+            echo "No uncommitted changes to save"
+          fi
+
   issue-comment:
     needs: context
     if: inputs.job == 'issue-comment'
@@ -527,6 +993,55 @@ jobs:
           prompt_replacements: ${{ needs.context.outputs.prompt_replacements }}
           max_turns: '50'
           mock_mode: ${{ inputs.mock_mode }}
+      - name: Submit review with PAT
+        if: always() && inputs.mock_mode != true
+        env:
+          # Use PAT_TOKEN so review comes from a different account than PR author
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          PR_NUMBER: ${{ fromJson(inputs.context_json).pr_number }}
+        run: |
+          if [[ ! -f review-output.json ]]; then
+            echo "No review-output.json found - Claude may have submitted review directly or failed"
+            exit 0
+          fi
+
+          echo "Review output:"
+          cat review-output.json
+
+          decision=$(jq -r '.decision // empty' review-output.json)
+          body=$(jq -r '.body // empty' review-output.json)
+
+          if [[ -z "$decision" ]]; then
+            echo "::error::No decision found in review-output.json"
+            exit 1
+          fi
+
+          case "$decision" in
+            approve)
+              echo "Submitting APPROVE review..."
+              gh pr review "$PR_NUMBER" --approve --body "$body" --repo "$GITHUB_REPOSITORY"
+              ;;
+            request_changes)
+              echo "Submitting REQUEST_CHANGES review..."
+              gh pr review "$PR_NUMBER" --request-changes --body "$body" --repo "$GITHUB_REPOSITORY"
+              ;;
+            comment)
+              echo "Submitting COMMENT review..."
+              gh pr review "$PR_NUMBER" --comment --body "$body" --repo "$GITHUB_REPOSITORY"
+              ;;
+            *)
+              echo "::error::Invalid decision: $decision (expected: approve, request_changes, comment)"
+              exit 1
+              ;;
+          esac
+
+          echo "Review submitted successfully"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: claude-review-output
+          path: review-output.json
+          retention-days: 1
+          if-no-files-found: ignore
 
   pr-response:
     needs: context
