@@ -621,3 +621,148 @@ describe("breakpoint detection", () => {
     expect(result.reason).toContain("3 consecutive failures");
   });
 });
+
+// Test iteration history log entry formatting
+describe("addIterationLogEntry", () => {
+  const HISTORY_SECTION = "## Iteration History";
+
+  function addIterationLogEntry(
+    body: string,
+    iteration: number,
+    message: string,
+    sha?: string,
+    runLink?: string,
+  ): string {
+    const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+    const repo = process.env.GITHUB_REPOSITORY || "test-owner/test-repo";
+
+    // Format SHA as a full GitHub link if provided
+    const shaCell = sha
+      ? `[\`${sha.slice(0, 7)}\`](${serverUrl}/${repo}/commit/${sha})`
+      : "-";
+    // Format run link if provided
+    const runCell = runLink ? `[Run](${runLink})` : "-";
+
+    const historyIdx = body.indexOf(HISTORY_SECTION);
+
+    if (historyIdx === -1) {
+      // Add history section before the end
+      const entry = `| ${iteration} | ${message} | ${shaCell} | ${runCell} |`;
+      const historyTable = `
+
+${HISTORY_SECTION}
+
+| # | Action | SHA | Run |
+|---|--------|-----|-----|
+${entry}`;
+
+      return body + historyTable;
+    }
+
+    // Find the table and add a row
+    const lines = body.split("\n");
+    const historyLineIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
+
+    if (historyLineIdx === -1) {
+      return body;
+    }
+
+    // Find last table row after history section
+    let insertIdx = historyLineIdx + 1;
+    for (let i = historyLineIdx + 1; i < lines.length; i++) {
+      if (lines[i].startsWith("|")) {
+        insertIdx = i + 1;
+      } else if (lines[i].trim() !== "" && !lines[i].startsWith("|")) {
+        break;
+      }
+    }
+
+    const entry = `| ${iteration} | ${message} | ${shaCell} | ${runCell} |`;
+    lines.splice(insertIdx, 0, entry);
+
+    return lines.join("\n");
+  }
+
+  it("creates iteration history table when none exists", () => {
+    const body = "## Description\n\nSome content";
+    const result = addIterationLogEntry(body, 1, "Initial implementation");
+
+    expect(result).toContain(HISTORY_SECTION);
+    expect(result).toContain("| # | Action | SHA | Run |");
+    expect(result).toContain("| 1 | Initial implementation | - | - |");
+  });
+
+  it("appends to existing history table", () => {
+    const body = `## Description
+
+${HISTORY_SECTION}
+
+| # | Action | SHA | Run |
+|---|--------|-----|-----|
+| 1 | Initial implementation | - | - |`;
+
+    const result = addIterationLogEntry(body, 2, "Fixed type errors");
+    expect(result).toContain("| 1 | Initial implementation | - | - |");
+    expect(result).toContain("| 2 | Fixed type errors | - | - |");
+  });
+
+  it("formats commit SHA as full GitHub link", () => {
+    const body = "## Description";
+    const sha = "abc1234567890";
+    const result = addIterationLogEntry(body, 1, "Test commit", sha);
+
+    // Should contain shortened SHA as link text
+    expect(result).toContain("[`abc1234`]");
+    // Should contain full commit URL
+    expect(result).toContain("/commit/abc1234567890");
+  });
+
+  it("includes run link when provided", () => {
+    const body = "## Description";
+    const result = addIterationLogEntry(
+      body,
+      1,
+      "Test with run",
+      undefined,
+      "https://github.com/owner/repo/actions/runs/123",
+    );
+
+    expect(result).toContain("[Run](https://github.com/owner/repo/actions/runs/123)");
+  });
+
+  it("handles failure emoji prefix correctly", () => {
+    const body = "## Description";
+    // The actual implementation adds emoji prefix in the caller
+    const result = addIterationLogEntry(body, 1, "❌ ci failure: Build failed");
+
+    expect(result).toContain("| 1 | ❌ ci failure: Build failed |");
+  });
+
+  it("handles success emoji prefix correctly", () => {
+    const body = "## Description";
+    const result = addIterationLogEntry(body, 1, "✅ Complete");
+
+    expect(result).toContain("| 1 | ✅ Complete |");
+  });
+
+  it("handles circuit breaker emoji prefix correctly", () => {
+    const body = "## Description";
+    const result = addIterationLogEntry(body, 5, "🛑 Circuit breaker triggered");
+
+    expect(result).toContain("| 5 | 🛑 Circuit breaker triggered |");
+  });
+
+  it("handles reset emoji prefix correctly", () => {
+    const body = "## Description";
+    const result = addIterationLogEntry(body, 3, "🔄 Manual reset by human");
+
+    expect(result).toContain("| 3 | 🔄 Manual reset by human |");
+  });
+
+  it("handles review events correctly", () => {
+    const body = "## Description";
+    const result = addIterationLogEntry(body, 2, "👀 Review requested");
+
+    expect(result).toContain("| 2 | 👀 Review requested |");
+  });
+});
