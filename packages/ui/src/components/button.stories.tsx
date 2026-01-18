@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { expect, fn, userEvent, within } from "@storybook/test";
 import { Button } from "./button";
 
-const meta = {
+const meta: Meta<typeof Button> = {
   title: "Components/Button",
   component: Button,
   parameters: {
@@ -50,7 +50,7 @@ const meta = {
   args: {
     onClick: fn(),
   },
-} satisfies Meta<typeof Button>;
+};
 
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -131,8 +131,8 @@ export const Disabled: Story = {
 export const WithInteractions: Story = {
   args: {
     children: "Click me!",
-    "data-testid": "interactive-button",
   },
+  render: (args) => <Button {...args} data-testid="interactive-button" />,
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
     const button = canvas.getByTestId("interactive-button");
@@ -164,8 +164,8 @@ export const WithInteractions: Story = {
 export const MultipleClicks: Story = {
   args: {
     children: "Multiple clicks test",
-    "data-testid": "multiple-clicks-button",
   },
+  render: (args) => <Button {...args} data-testid="multiple-clicks-button" />,
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
     const button = canvas.getByTestId("multiple-clicks-button");
@@ -184,8 +184,8 @@ export const DisabledInteraction: Story = {
   args: {
     children: "Disabled button",
     disabled: true,
-    "data-testid": "disabled-button",
   },
+  render: (args) => <Button {...args} data-testid="disabled-button" />,
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
     const button = canvas.getByTestId("disabled-button");

@@ -1,7 +1,11 @@
 name: web
 description: React Router front-end for Nopo.
-dockerfile: Dockerfile
 static_path: build/client
+
+build:
+  command: pnpm install --frozen-lockfile && pnpm --filter @more/web build
+  env:
+    NODE_ENV: production
 runtime:
   cpu: "1"
   memory: "256Mi"

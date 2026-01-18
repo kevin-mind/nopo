@@ -358,10 +358,48 @@ interface BuildableService extends NormalizedService {
   };
 }
 
+/**
+ * Service that can generate a virtual Dockerfile from build config.
+ * Has build.command or build.output but no dockerfile.
+ */
+export interface VirtualBuildableService extends NormalizedService {
+  build: NormalizedServiceBuild & {
+    command: string; // Must have build command for virtual dockerfile
+  };
+  paths: {
+    root: string;
+    dockerfile: undefined;
+    context: string;
+  };
+}
+
+/**
+ * Check if a service uses a physical Dockerfile.
+ */
 export function isBuildableService(
   service: NormalizedService,
 ): service is BuildableService {
   return service.paths.dockerfile !== undefined;
+}
+
+/**
+ * Check if a service can generate a virtual inline Dockerfile.
+ * Services without dockerfile but with build.command can use virtual Dockerfiles.
+ */
+export function isVirtualBuildableService(
+  service: NormalizedService,
+): service is VirtualBuildableService {
+  return (
+    service.paths.dockerfile === undefined &&
+    service.build?.command !== undefined
+  );
+}
+
+/**
+ * Check if a service requires building (either physical or virtual Dockerfile).
+ */
+export function requiresBuild(service: NormalizedService): boolean {
+  return isBuildableService(service) || isVirtualBuildableService(service);
 }
 
 /**
