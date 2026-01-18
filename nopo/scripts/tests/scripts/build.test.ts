@@ -669,8 +669,13 @@ describe("build", () => {
       // Should have separate COPY for each output path
       expect(dockerfile).toContain("COPY --from=virtual-build");
       // Dollar signs are escaped as $$ for HCL parsing in dockerfile-inline
-      expect(dockerfile).toContain("$${APP}/dist $${APP}/dist");
-      expect(dockerfile).toContain("$${APP}/lib $${APP}/lib");
+      // Output paths include the relative service path (packages/virtual/)
+      expect(dockerfile).toContain(
+        "$${APP}/packages/virtual/dist $${APP}/packages/virtual/dist",
+      );
+      expect(dockerfile).toContain(
+        "$${APP}/packages/virtual/lib $${APP}/packages/virtual/lib",
+      );
     });
 
     it("generates correct build and final stage names", async () => {

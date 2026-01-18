@@ -491,9 +491,13 @@ export default class BuildScript extends TargetScript {
         };
       } else if (isVirtualBuildableService(service)) {
         // Virtual inline Dockerfile - pass rootName for direct context reference
+        // Compute the relative service path for output path resolution
+        const relativeServicePath =
+          path.relative(this.runner.config.root, service.paths.root) || ".";
         const dockerfileInline = this.generateInlineDockerfile(
           service,
           rootName,
+          relativeServicePath,
         );
 
         definition.target[target] = {
@@ -531,6 +535,10 @@ export default class BuildScript extends TargetScript {
    * - Build stage: install packages, set env, copy files, run build command
    * - Final stage: copy only the specified output paths
    *
+   * @param service - The service configuration
+   * @param baseContextName - The base context name (e.g., "root")
+   * @param relativeServicePath - Relative path from project root to service directory (e.g., "apps/web")
+   *
    * Note: Uses the context name directly (e.g., "root") instead of an ARG to avoid
    * Docker Buildx bake "variable cycle" errors when the arg value matches a target name.
    *
@@ -544,6 +552,7 @@ export default class BuildScript extends TargetScript {
   private generateInlineDockerfile(
     service: VirtualBuildableService,
     baseContextName: string,
+    relativeServicePath: string,
   ): string {
     const serviceName = service.id;
     const build = service.build;
@@ -587,10 +596,14 @@ export default class BuildScript extends TargetScript {
 
     // Copy only the specified output paths, or fallback to copying everything
     // $$ escapes the $ for HCL interpolation in dockerfile-inline
+    // Output paths are relative to the service directory, so we need to include
+    // the relative service path (e.g., "apps/web/build" instead of just "build")
     if (build.output && build.output.length > 0) {
       for (const outputPath of build.output) {
+        // Construct the full path: service relative path + output path
+        const fullOutputPath = path.posix.join(relativeServicePath, outputPath);
         lines.push(
-          `COPY --from=${serviceName}-build --chown=$\${NOPO_APP_UID}:$\${NOPO_APP_GID} $\${APP}/${outputPath} $\${APP}/${outputPath}`,
+          `COPY --from=${serviceName}-build --chown=$\${NOPO_APP_UID}:$\${NOPO_APP_GID} $\${APP}/${fullOutputPath} $\${APP}/${fullOutputPath}`,
         );
       }
       // Also copy the home directory for dependencies
