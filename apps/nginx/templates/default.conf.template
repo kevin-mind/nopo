@@ -49,13 +49,93 @@ server {
     }
 }
 
-# Default server - redirect to web.localhost
+# Default server - serve web app directly for backwards compatibility
+# This handles requests to bare 'localhost' without subdomain prefix
 server {
     listen 80 default_server;
     server_name localhost;
 
-    # For backwards compatibility, redirect root to web.localhost
+    include /etc/nginx/conf.d/apps.local*;
+
+    # Route API paths to backend for backwards compatibility
+    location /api {
+        proxy_pass ${BACKEND_PUBLIC_URL};
+
+        proxy_ssl_server_name on;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Traffic-Source public;
+        proxy_set_header X-Service-Origin $http_x_service_origin;
+        proxy_http_version 1.1;
+        proxy_cache_bypass $http_upgrade;
+        proxy_buffering off;
+    }
+
+    location /django {
+        proxy_pass ${BACKEND_PUBLIC_URL};
+
+        proxy_ssl_server_name on;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Traffic-Source public;
+        proxy_set_header X-Service-Origin $http_x_service_origin;
+        proxy_http_version 1.1;
+        proxy_cache_bypass $http_upgrade;
+        proxy_buffering off;
+    }
+
+    location /admin {
+        proxy_pass ${BACKEND_PUBLIC_URL};
+
+        proxy_ssl_server_name on;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Traffic-Source public;
+        proxy_set_header X-Service-Origin $http_x_service_origin;
+        proxy_http_version 1.1;
+        proxy_cache_bypass $http_upgrade;
+        proxy_buffering off;
+    }
+
+    location /static {
+        proxy_pass ${BACKEND_PUBLIC_URL};
+
+        proxy_ssl_server_name on;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Traffic-Source public;
+        proxy_set_header X-Service-Origin $http_x_service_origin;
+        proxy_http_version 1.1;
+        proxy_cache_bypass $http_upgrade;
+        proxy_buffering off;
+    }
+
+    # All other paths go to web frontend
     location / {
-        return 302 http://web.localhost:${DOCKER_PORT}$request_uri;
+        proxy_pass ${WEB_PUBLIC_URL};
+
+        proxy_ssl_server_name on;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Traffic-Source public;
+        proxy_set_header X-Service-Origin $http_x_service_origin;
+        proxy_http_version 1.1;
+        proxy_cache_bypass $http_upgrade;
+        proxy_buffering off;
     }
 }

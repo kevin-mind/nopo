@@ -306,7 +306,7 @@ type ServiceRoutesInput = z.infer<typeof ServiceRoutesSchema>;
 // - false: no routes at all (isolated service)
 // - { private: true }: ALL routes private (service-to-service only)
 // - { private: string[] }: specific paths private
-export type NormalizedServiceRoutes =
+type NormalizedServiceRoutes =
   | false // No routes at all
   | { private?: true | string[] }; // Optional private configuration
 
