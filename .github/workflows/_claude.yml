@@ -282,6 +282,7 @@ jobs:
           READ_CI_RESULT: ${{ steps.reset_state.outputs.last_ci_result || steps.read_state.outputs.last_ci_result || '' }}
           READ_FAILURES: ${{ steps.reset_state.outputs.consecutive_failures || steps.read_state.outputs.consecutive_failures || '0' }}
           READ_COMPLETE: ${{ steps.reset_state.outputs.complete || steps.read_state.outputs.complete || 'false' }}
+          READ_PHASE_ITERATION: ${{ steps.reset_state.outputs.phase_iteration || steps.read_state.outputs.phase_iteration || '0' }}
           TRIGGER_TYPE: ${{ fromJson(inputs.context_json).trigger_type || 'assigned' }}
         run: |
           # For edited trigger, use the CI result from issue state
@@ -290,6 +291,7 @@ jobs:
           echo "iteration=$READ_ITERATION" >> $GITHUB_OUTPUT
           echo "consecutive_failures=$READ_FAILURES" >> $GITHUB_OUTPUT
           echo "complete=$READ_COMPLETE" >> $GITHUB_OUTPUT
+          echo "phase_iteration=$READ_PHASE_ITERATION" >> $GITHUB_OUTPUT
 
       # Record CI failure (increment consecutive_failures)
       # This happens when state shows CI failed (updated by claude-ci-state.yml)
