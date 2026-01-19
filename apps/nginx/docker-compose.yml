@@ -17,6 +17,7 @@ services:
       WEB_PUBLIC_URL: ${WEB_PUBLIC_URL:-http://web:80}
       BACKEND_PUBLIC_URL: ${BACKEND_PUBLIC_URL:-http://backend:80}
       BACKEND_VITE_PUBLIC_URL: ${BACKEND_VITE_PUBLIC_URL:-http://backend:5173}
+      DOCKER_PORT: ${DOCKER_PORT:?}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost"]
       interval: 20s
