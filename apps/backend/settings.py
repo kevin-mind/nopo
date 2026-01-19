@@ -59,11 +59,15 @@ SITE_SCHEME = _parsed_site_url.scheme
 SITE_HOST = _parsed_site_url.hostname
 SITE_PORT = _parsed_site_url.port
 
+# ALLOWED_HOSTS supports subdomain patterns
+# The leading dot allows all subdomains (e.g., ".localhost" matches "api.localhost")
 ALLOWED_HOSTS = [
     f"{SITE_HOST}",
     f"{SITE_HOST}:{SITE_PORT}",
+    f".{SITE_HOST}",  # Allow all subdomains of the site host
     "0.0.0.0",
     "localhost",
+    ".localhost",  # Allow all subdomains of localhost (e.g., api.localhost)
     "127.0.0.1",
     ".fly.dev",
     ".app.github.dev",
@@ -73,6 +77,30 @@ CSRF_TRUSTED_ORIGINS = [
     SITE_URL,
 ]
 
+# CORS configuration for cross-subdomain requests
+# Required for subdomain-based routing where frontend (web.domain.com)
+# makes API calls to backend (api.domain.com)
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    # Allow all subdomains of the site host in production
+    rf"^https?://[\w-]+\.{SITE_HOST.replace('.', r'\.')}(:\d+)?$",
+    # Allow all localhost subdomains for local development
+    r"^https?://[\w-]+\.localhost(:\d+)?$",
+    # Allow localhost itself
+    r"^https?://localhost(:\d+)?$",
+]
+
+# Allow credentials (cookies) for cross-subdomain requests
+CORS_ALLOW_CREDENTIALS = True
+
+# Headers exposed to the browser
+CORS_EXPOSE_HEADERS = [
+    "Content-Type",
+    "X-CSRFToken",
+]
+
+# Preflight cache duration (1 hour)
+CORS_PREFLIGHT_MAX_AGE = 3600
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -81,6 +109,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     # Third party apps
+    "corsheaders",
     "rest_framework",
     "drf_spectacular",
     "django_filters",
@@ -92,6 +121,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "corsheaders.middleware.CorsMiddleware",  # Must be before CommonMiddleware
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
