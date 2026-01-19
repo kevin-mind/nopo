@@ -56,7 +56,7 @@ LOGGING = {
 SITE_URL = os.environ.get("SITE_URL", "http://localhost:80")
 _parsed_site_url = urlparse(SITE_URL)
 SITE_SCHEME = _parsed_site_url.scheme
-SITE_HOST = _parsed_site_url.hostname
+SITE_HOST = _parsed_site_url.hostname or "localhost"
 SITE_PORT = _parsed_site_url.port
 
 # ALLOWED_HOSTS supports subdomain patterns
