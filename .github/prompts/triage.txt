@@ -8,7 +8,9 @@ Issues follow this structure (from task.yml template):
 - **Description**: Brief TLDR of what needs to be done
 - **Details**: Implementation details, affected files, technical requirements
 - **Questions**: Open questions that need answers (checkboxes)
-- **Todo**: Specific tasks to complete (checkboxes)
+- **Phases**: For M/L/XL issues, break into phases (## Phase 1: Title, ## Phase 2: Title, etc.)
+  - Each phase has its own todos and ships as a separate PR
+  - For XS/S issues, a single "## Todo" section is fine
 
 ## Your Tasks
 
@@ -67,29 +69,68 @@ Use `gh issue edit {{ISSUE_NUMBER}} --body "..."` to improve the issue:
 - If questions exist, research and answer them (check the box and add answer)
 - Add new questions if you identify uncertainties
 
-**Todo**:
-- Break down vague tasks into specific, actionable items
-- Add missing tasks you identify from analyzing the codebase
-- Each todo should be completable in a single commit
+**Todo - PHASE-BASED STRUCTURE**:
+Break work into **phases** (up to 5) where each phase is independently shippable.
+This enables incremental PRs - Claude ships one PR per phase, merges, then continues.
 
-### 4. CREATE SUB-ISSUES FOR PHASED WORK
-If the issue is large (Size L or XL) and has distinct implementation phases:
-1. Identify clear phases in the Todo section (e.g., "Phase 1: Setup", "Phase 2: Core Implementation")
-2. Create a sub-issue for each phase using `gh issue create`
-3. Link each new issue as a sub-issue to this parent issue
-4. Each sub-issue should have a focused scope completable in 1-3 days
-5. Sub-issues do NOT need full triage structure - just a clear title and todo list
+**Phase structure format** (REQUIRED for M/L/XL issues):
+```markdown
+## Phase 1: <Phase Title>
+- [ ] Specific task 1
+- [ ] Specific task 2
 
-**When to create sub-issues:**
-- Work naturally splits into sequential phases
-- Different phases could be assigned to different implementers
-- Total estimated work exceeds 5 days
+## Phase 2: <Phase Title>
+- [ ] Specific task 3
+- [ ] Specific task 4
+```
 
-**Sub-issue format:**
-- Title: "[Sub] Phase N: <phase description> (parent #{{ISSUE_NUMBER}})"
-- Body: Brief description + specific todo items for that phase
+**Phase design principles:**
+- Each phase should be **independently shippable** (no broken states after merge)
+- Phase 1 often: schema changes, interfaces, types, config
+- Middle phases: core implementation, one feature at a time
+- Final phase: integration, cleanup, documentation
+- 2-5 phases is ideal; single-phase is fine for XS/S issues
 
-### 5. VALIDATE COMPLETENESS
+**Good phase breakdown example:**
+```markdown
+## Phase 1: Database Schema
+- [ ] Add new migration for user_preferences table
+- [ ] Create UserPreference model
+
+## Phase 2: API Endpoints
+- [ ] Add GET /api/preferences endpoint
+- [ ] Add PUT /api/preferences endpoint
+- [ ] Add unit tests for endpoints
+
+## Phase 3: Frontend Integration
+- [ ] Add preferences page component
+- [ ] Wire up API calls
+- [ ] Add E2E test for preferences flow
+```
+
+**Bad phase breakdown (avoid):**
+- Phases that can't be merged independently
+- Too granular (10+ phases)
+- Phases without clear completion criteria
+
+**If work cannot fit in 5 phases:**
+If the issue is too large to break into 5 or fewer phases, DO NOT create sub-issues.
+Instead, post a comment suggesting the user split the work into smaller, focused issues:
+
+```markdown
+This issue is too large to implement in 5 phases. I recommend splitting it into smaller issues:
+
+1. **Issue 1: <suggested title>** - <brief scope>
+2. **Issue 2: <suggested title>** - <brief scope>
+3. **Issue 3: <suggested title>** - <brief scope>
+
+Each of these can then be triaged and implemented independently with their own phase structure.
+Please close this issue and create the smaller issues, or narrow the scope of this issue.
+```
+
+Set `needs_info: true` in the triage output when suggesting a split.
+
+### 4. VALIDATE COMPLETENESS
 - If critical info is missing, set `needs_info: true` in the triage output
 - Ask clarifying questions in a comment
 
@@ -113,46 +154,45 @@ cat triage-output.json
 # View current issue
 gh issue view {{ISSUE_NUMBER}}
 
-# Update issue body (use heredoc for multiline)
+# Update issue body with PHASES (use heredoc for multiline)
 gh issue edit {{ISSUE_NUMBER}} --body "$(cat <<'EOF'
-... new body content ...
+## Description
+Brief TLDR of the issue.
+
+## Details
+Technical context, affected files, links to docs.
+
+## Questions
+- [x] Question 1? Answer here.
+
+## Phase 1: Schema & Setup
+- [ ] Task 1 for phase 1
+- [ ] Task 2 for phase 1
+
+## Phase 2: Core Implementation
+- [ ] Task 1 for phase 2
+- [ ] Task 2 for phase 2
+
+## Phase 3: Integration & Polish
+- [ ] Task 1 for phase 3
+- [ ] Task 2 for phase 3
 EOF
 )"
 
 # List existing topic labels (to reuse existing topics)
 gh label list --search "topic:" --json name --jq '.[].name'
 
-# ============================================
-# SUB-ISSUE CREATION (only for L/XL issues)
-# ============================================
-
-# Step 1: Create a new issue for a phase
-gh issue create --title "[Sub] Phase 1: Setup (parent #{{ISSUE_NUMBER}})" --body "Phase 1 tasks..."
-
-# Step 2: Get the new issue's ID (from the URL returned by gh issue create)
-gh api graphql -f query='
-  query($owner: String!, $repo: String!, $number: Int!) {
-    repository(owner: $owner, name: $repo) {
-      issue(number: $number) { id }
-    }
-  }
-' -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" -F number=NEW_ISSUE_NUMBER
-
-# Step 3: Link as sub-issue to parent
-gh api graphql -H "GraphQL-Features: sub_issues" -f query='
-  mutation($parentId: ID!, $subIssueId: ID!) {
-    addSubIssue(input: { issueId: $parentId, subIssueId: $subIssueId }) {
-      issue { title }
-      subIssue { title }
-    }
-  }
-' -f parentId="PARENT_ISSUE_ID" -f subIssueId="NEW_ISSUE_ID"
+# Post a comment (for suggesting splits or asking questions)
+gh issue comment {{ISSUE_NUMBER}} --body "Your comment here..."
 ```
 
 IMPORTANT:
 - You MUST write triage-output.json - the workflow step reads your JSON and applies them
 - DO NOT add labels yourself - the workflow step reads your JSON and applies them
 - DO NOT assign the issue to anyone
+- DO NOT create sub-issues - if work is too large, suggest the user split into smaller issues
 - Focus on making the issue clear and actionable for implementation
-- Preserve the issue structure (Description, Details, Questions, Todo sections)
-- Only create sub-issues if the work genuinely requires phased implementation
+- Use PHASES (## Phase N: Title) for M/L/XL issues - each phase ships as a separate PR
+- Keep phases independently shippable - no broken states between phases
+- Maximum 5 phases; if more needed, suggest splitting the issue
+- XS/S issues can use a single "## Todo" section instead of phases
