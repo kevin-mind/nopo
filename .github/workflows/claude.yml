@@ -125,7 +125,7 @@ jobs:
       resource_type: ${{ steps.detect.outputs.resource_type || steps.derive.outputs.resource_type }}
       resource_number: ${{ steps.detect.outputs.resource_number || inputs.resource_number }}
       comment_id: ${{ steps.detect.outputs.comment_id }}
-      context_json: ${{ steps.detect.outputs.context_json || inputs.context_json }}
+      context_json: ${{ steps.detect.outputs.context_json || steps.derive.outputs.context_json || inputs.context_json }}
       skip: ${{ steps.detect.outputs.skip }}
       skip_reason: ${{ steps.detect.outputs.skip_reason }}
     steps:
@@ -140,6 +140,9 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         env:
           JOB: ${{ inputs.job }}
+          RESOURCE_NUMBER: ${{ inputs.resource_number }}
+          CONTEXT_JSON: ${{ inputs.context_json }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Derive resource_type from job name for workflow_dispatch
           case "$JOB" in
@@ -148,6 +151,26 @@ jobs:
             discussion-*) echo "resource_type=discussion" >> $GITHUB_OUTPUT ;;
             *) echo "resource_type=issue" >> $GITHUB_OUTPUT ;;
           esac
+
+          # If context_json is empty/minimal and this is an issue job, fetch issue details
+          if [[ "$JOB" == issue-* ]]; then
+            # Check if context_json has issue_body (main required field)
+            has_body=$(echo "$CONTEXT_JSON" | jq -r '.issue_body // empty')
+            if [[ -z "$has_body" ]]; then
+              echo "Fetching issue details for #$RESOURCE_NUMBER..."
+              issue_data=$(gh issue view "$RESOURCE_NUMBER" --json title,body)
+              issue_title=$(echo "$issue_data" | jq -r '.title')
+              issue_body=$(echo "$issue_data" | jq -r '.body')
+
+              # Build context_json with issue details
+              context_json=$(jq -n \
+                --arg num "$RESOURCE_NUMBER" \
+                --arg title "$issue_title" \
+                --arg body "$issue_body" \
+                '{issue_number: $num, issue_title: $title, issue_body: $body}')
+              echo "context_json=$context_json" >> $GITHUB_OUTPUT
+            fi
+          fi
 
   # ============================================================================
   # STEP 2: SIGNAL START
