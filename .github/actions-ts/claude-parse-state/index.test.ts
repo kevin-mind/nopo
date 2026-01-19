@@ -17,6 +17,8 @@ interface IterationState {
   complete: boolean;
   phase_iteration: number;
   last_phase: number;
+  parent_issue: number;
+  phase_number: number;
 }
 
 interface PhaseInfo {
@@ -51,6 +53,8 @@ function parseState(body: string): IterationState | null {
     complete: false,
     phase_iteration: 0,
     last_phase: 0,
+    parent_issue: 0,
+    phase_number: 0,
   };
 
   for (const line of stateBlock.split("\n")) {
@@ -97,6 +101,12 @@ function parseState(body: string): IterationState | null {
       case "last_phase":
         state.last_phase = parseInt(value, 10) || 0;
         break;
+      case "parent_issue":
+        state.parent_issue = parseInt(value, 10) || 0;
+        break;
+      case "phase_number":
+        state.phase_number = parseInt(value, 10) || 0;
+        break;
     }
   }
 
@@ -116,6 +126,8 @@ last_failure_timestamp: ${state.last_failure_timestamp}
 complete: ${state.complete}
 phase_iteration: ${state.phase_iteration}
 last_phase: ${state.last_phase}
+parent_issue: ${state.parent_issue}
+phase_number: ${state.phase_number}
 ${STATE_MARKER_END}`;
 }
 
@@ -175,6 +187,8 @@ Issue content here`;
       complete: false,
       phase_iteration: 0,
       last_phase: 0,
+      parent_issue: 0,
+      phase_number: 0,
     });
   });
 
@@ -223,6 +237,8 @@ complete: false
       complete: false,
       phase_iteration: 0,
       last_phase: 0,
+      parent_issue: 0,
+      phase_number: 0,
     });
   });
 
@@ -260,6 +276,8 @@ describe("serializeState", () => {
       complete: false,
       phase_iteration: 0,
       last_phase: 0,
+      parent_issue: 0,
+      phase_number: 0,
     };
 
     const serialized = serializeState(state);
@@ -372,6 +390,8 @@ Content`;
       complete: false,
       phase_iteration: 3,
       last_phase: 2,
+      parent_issue: 0,
+      phase_number: 0,
     };
 
     const body = "Some content";
@@ -1617,5 +1637,429 @@ complete: false
     // "Write documentation" is unchecked and NOT manual, so phase is incomplete
     expect(result.current_phase_todos_done).toBe(false);
     expect(result.all_phases_done).toBe(false);
+  });
+});
+
+// Main issue state for orchestrating sub-issues
+const MAIN_STATE_MARKER_START = "<!-- CLAUDE_MAIN_STATE";
+const PHASES_SECTION = "## Phases";
+
+interface MainIssueState {
+  orchestration_iteration: number;
+  sub_issues: number[];
+  current_sub_issue: number;
+  sub_issue_status: Record<number, "pending" | "in_progress" | "merged">;
+  complete: boolean;
+}
+
+function getDefaultMainState(): MainIssueState {
+  return {
+    orchestration_iteration: 0,
+    sub_issues: [],
+    current_sub_issue: 0,
+    sub_issue_status: {},
+    complete: false,
+  };
+}
+
+function parseMainState(body: string): MainIssueState | null {
+  const startIdx = body.indexOf(MAIN_STATE_MARKER_START);
+  if (startIdx === -1) {
+    return null;
+  }
+
+  const endIdx = body.indexOf(STATE_MARKER_END, startIdx);
+  if (endIdx === -1) {
+    return null;
+  }
+
+  const stateBlock = body.slice(
+    startIdx + MAIN_STATE_MARKER_START.length,
+    endIdx,
+  );
+  const state: MainIssueState = getDefaultMainState();
+
+  for (const line of stateBlock.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    const colonIdx = trimmed.indexOf(":");
+    if (colonIdx === -1) continue;
+
+    const key = trimmed.slice(0, colonIdx).trim();
+    const value = trimmed.slice(colonIdx + 1).trim();
+
+    switch (key) {
+      case "orchestration_iteration":
+        state.orchestration_iteration = parseInt(value, 10) || 0;
+        break;
+      case "sub_issues":
+        state.sub_issues = value
+          .split(",")
+          .map((s) => parseInt(s.trim(), 10))
+          .filter((n) => !isNaN(n) && n > 0);
+        break;
+      case "current_sub_issue":
+        state.current_sub_issue = parseInt(value, 10) || 0;
+        break;
+      case "sub_issue_status":
+        try {
+          state.sub_issue_status = JSON.parse(value);
+        } catch {
+          state.sub_issue_status = {};
+        }
+        break;
+      case "complete":
+        state.complete = value === "true";
+        break;
+    }
+  }
+
+  return state;
+}
+
+function serializeMainState(state: MainIssueState): string {
+  return `${MAIN_STATE_MARKER_START}
+orchestration_iteration: ${state.orchestration_iteration}
+sub_issues: ${state.sub_issues.join(", ")}
+current_sub_issue: ${state.current_sub_issue}
+sub_issue_status: ${JSON.stringify(state.sub_issue_status)}
+complete: ${state.complete}
+${STATE_MARKER_END}`;
+}
+
+function updateBodyWithMainState(body: string, state: MainIssueState): string {
+  const stateBlock = serializeMainState(state);
+
+  const startIdx = body.indexOf(MAIN_STATE_MARKER_START);
+  if (startIdx === -1) {
+    return stateBlock + "\n\n" + body;
+  }
+
+  const endIdx = body.indexOf(STATE_MARKER_END, startIdx);
+  if (endIdx === -1) {
+    return stateBlock + "\n\n" + body;
+  }
+
+  return (
+    body.slice(0, startIdx) +
+    stateBlock +
+    body.slice(endIdx + STATE_MARKER_END.length)
+  );
+}
+
+function updatePhasesTable(
+  body: string,
+  subIssues: Array<{ number: number; title: string; status: string }>,
+): string {
+  const phasesIdx = body.indexOf(PHASES_SECTION);
+
+  const tableHeader = `| # | Sub-Issue | Status |
+|---|-----------|--------|`;
+  const tableRows = subIssues
+    .map((si, idx) => {
+      const statusEmoji =
+        si.status === "merged"
+          ? "✅"
+          : si.status === "in_progress"
+            ? "🔄"
+            : "⏸️";
+      return `| ${idx + 1} | #${si.number} - ${si.title} | ${statusEmoji} ${si.status} |`;
+    })
+    .join("\n");
+
+  const newTable = `${PHASES_SECTION}
+
+${tableHeader}
+${tableRows}`;
+
+  if (phasesIdx === -1) {
+    return body + "\n\n" + newTable;
+  }
+
+  const afterPhases = body.slice(phasesIdx + PHASES_SECTION.length);
+  const nextSectionMatch = afterPhases.match(/\n## /);
+  const endIdx = nextSectionMatch
+    ? phasesIdx + PHASES_SECTION.length + nextSectionMatch.index!
+    : body.length;
+
+  return body.slice(0, phasesIdx) + newTable + body.slice(endIdx);
+}
+
+describe("parseMainState", () => {
+  it("returns null when no main state marker exists", () => {
+    const body = "## Description\n\nSome issue content";
+    expect(parseMainState(body)).toBeNull();
+  });
+
+  it("parses main state from issue body", () => {
+    const body = `<!-- CLAUDE_MAIN_STATE
+orchestration_iteration: 2
+sub_issues: 456, 457, 458
+current_sub_issue: 457
+sub_issue_status: {"456":"merged","457":"in_progress","458":"pending"}
+complete: false
+-->
+
+## Description
+
+Main issue content`;
+
+    const state = parseMainState(body);
+    expect(state).toEqual({
+      orchestration_iteration: 2,
+      sub_issues: [456, 457, 458],
+      current_sub_issue: 457,
+      sub_issue_status: {
+        "456": "merged",
+        "457": "in_progress",
+        "458": "pending",
+      },
+      complete: false,
+    });
+  });
+
+  it("handles complete=true", () => {
+    const body = `<!-- CLAUDE_MAIN_STATE
+orchestration_iteration: 3
+sub_issues: 456, 457
+current_sub_issue: 457
+sub_issue_status: {"456":"merged","457":"merged"}
+complete: true
+-->`;
+
+    const state = parseMainState(body);
+    expect(state?.complete).toBe(true);
+  });
+
+  it("handles empty sub_issues", () => {
+    const body = `<!-- CLAUDE_MAIN_STATE
+orchestration_iteration: 0
+sub_issues:
+current_sub_issue: 0
+sub_issue_status: {}
+complete: false
+-->`;
+
+    const state = parseMainState(body);
+    expect(state).toEqual({
+      orchestration_iteration: 0,
+      sub_issues: [],
+      current_sub_issue: 0,
+      sub_issue_status: {},
+      complete: false,
+    });
+  });
+});
+
+describe("serializeMainState", () => {
+  it("serializes main state to HTML comment block", () => {
+    const state: MainIssueState = {
+      orchestration_iteration: 2,
+      sub_issues: [456, 457, 458],
+      current_sub_issue: 457,
+      sub_issue_status: {
+        456: "merged",
+        457: "in_progress",
+        458: "pending",
+      },
+      complete: false,
+    };
+
+    const serialized = serializeMainState(state);
+    expect(serialized).toContain("<!-- CLAUDE_MAIN_STATE");
+    expect(serialized).toContain("orchestration_iteration: 2");
+    expect(serialized).toContain("sub_issues: 456, 457, 458");
+    expect(serialized).toContain("current_sub_issue: 457");
+    expect(serialized).toContain("sub_issue_status:");
+    expect(serialized).toContain("-->");
+  });
+});
+
+describe("updateBodyWithMainState", () => {
+  it("prepends main state when none exists", () => {
+    const body = "## Description\n\nContent";
+    const state: MainIssueState = {
+      orchestration_iteration: 0,
+      sub_issues: [456],
+      current_sub_issue: 456,
+      sub_issue_status: { 456: "pending" },
+      complete: false,
+    };
+
+    const updated = updateBodyWithMainState(body, state);
+    expect(updated).toMatch(/^<!-- CLAUDE_MAIN_STATE/);
+    expect(updated).toContain("## Description");
+    expect(updated).toContain("Content");
+  });
+
+  it("replaces existing main state", () => {
+    const body = `<!-- CLAUDE_MAIN_STATE
+orchestration_iteration: 1
+sub_issues: 456
+current_sub_issue: 456
+sub_issue_status: {"456":"in_progress"}
+complete: false
+-->
+
+## Description
+
+Content`;
+
+    const state: MainIssueState = {
+      orchestration_iteration: 2,
+      sub_issues: [456, 457],
+      current_sub_issue: 457,
+      sub_issue_status: { 456: "merged", 457: "in_progress" },
+      complete: false,
+    };
+
+    const updated = updateBodyWithMainState(body, state);
+    expect(updated).toContain("orchestration_iteration: 2");
+    expect(updated).toContain("sub_issues: 456, 457");
+    expect(updated).toContain("## Description");
+    const matches = updated.match(/<!-- CLAUDE_MAIN_STATE/g);
+    expect(matches).toHaveLength(1);
+  });
+
+  it("roundtrips correctly", () => {
+    const state: MainIssueState = {
+      orchestration_iteration: 3,
+      sub_issues: [100, 101, 102],
+      current_sub_issue: 102,
+      sub_issue_status: { 100: "merged", 101: "merged", 102: "in_progress" },
+      complete: false,
+    };
+
+    const body = "Some content";
+    const updated = updateBodyWithMainState(body, state);
+    const parsed = parseMainState(updated);
+
+    expect(parsed).toEqual(state);
+  });
+});
+
+describe("updatePhasesTable", () => {
+  it("appends phases table when none exists", () => {
+    const body = "## Description\n\nContent";
+    const subIssues = [
+      { number: 456, title: "Phase 1 Setup", status: "merged" },
+      { number: 457, title: "Phase 2 Implementation", status: "in_progress" },
+      { number: 458, title: "Phase 3 Testing", status: "pending" },
+    ];
+
+    const updated = updatePhasesTable(body, subIssues);
+    expect(updated).toContain("## Phases");
+    expect(updated).toContain("| # | Sub-Issue | Status |");
+    expect(updated).toContain("| 1 | #456 - Phase 1 Setup | ✅ merged |");
+    expect(updated).toContain(
+      "| 2 | #457 - Phase 2 Implementation | 🔄 in_progress |",
+    );
+    expect(updated).toContain("| 3 | #458 - Phase 3 Testing | ⏸️ pending |");
+  });
+
+  it("replaces existing phases table", () => {
+    const body = `## Description
+
+Content
+
+## Phases
+
+| # | Sub-Issue | Status |
+|---|-----------|--------|
+| 1 | #456 - Phase 1 | ⏸️ pending |
+
+## Other Section`;
+
+    const subIssues = [
+      { number: 456, title: "Phase 1", status: "merged" },
+      { number: 457, title: "Phase 2", status: "in_progress" },
+    ];
+
+    const updated = updatePhasesTable(body, subIssues);
+    expect(updated).toContain("| 1 | #456 - Phase 1 | ✅ merged |");
+    expect(updated).toContain("| 2 | #457 - Phase 2 | 🔄 in_progress |");
+    expect(updated).toContain("## Other Section");
+    expect(updated).not.toContain("⏸️ pending");
+  });
+});
+
+// Test orchestration state transitions
+describe("orchestration state transitions", () => {
+  function advancePhase(
+    state: MainIssueState,
+    completedSubIssue: number,
+  ): MainIssueState {
+    const newState = { ...state };
+    newState.sub_issue_status = { ...state.sub_issue_status };
+
+    newState.sub_issue_status[completedSubIssue] = "merged";
+    newState.orchestration_iteration++;
+
+    const nextPending = newState.sub_issues.find(
+      (num) => newState.sub_issue_status[num] === "pending",
+    );
+
+    if (nextPending) {
+      newState.current_sub_issue = nextPending;
+      newState.sub_issue_status[nextPending] = "in_progress";
+    } else {
+      newState.complete = true;
+    }
+
+    return newState;
+  }
+
+  it("advances to next pending sub-issue", () => {
+    const state: MainIssueState = {
+      orchestration_iteration: 1,
+      sub_issues: [456, 457, 458],
+      current_sub_issue: 456,
+      sub_issue_status: {
+        456: "in_progress",
+        457: "pending",
+        458: "pending",
+      },
+      complete: false,
+    };
+
+    const advanced = advancePhase(state, 456);
+    expect(advanced.sub_issue_status[456]).toBe("merged");
+    expect(advanced.current_sub_issue).toBe(457);
+    expect(advanced.sub_issue_status[457]).toBe("in_progress");
+    expect(advanced.orchestration_iteration).toBe(2);
+    expect(advanced.complete).toBe(false);
+  });
+
+  it("marks complete when all sub-issues merged", () => {
+    const state: MainIssueState = {
+      orchestration_iteration: 2,
+      sub_issues: [456, 457],
+      current_sub_issue: 457,
+      sub_issue_status: {
+        456: "merged",
+        457: "in_progress",
+      },
+      complete: false,
+    };
+
+    const advanced = advancePhase(state, 457);
+    expect(advanced.sub_issue_status[457]).toBe("merged");
+    expect(advanced.complete).toBe(true);
+    expect(advanced.orchestration_iteration).toBe(3);
+  });
+
+  it("handles single sub-issue", () => {
+    const state: MainIssueState = {
+      orchestration_iteration: 0,
+      sub_issues: [456],
+      current_sub_issue: 456,
+      sub_issue_status: { 456: "in_progress" },
+      complete: false,
+    };
+
+    const advanced = advancePhase(state, 456);
+    expect(advanced.complete).toBe(true);
+    expect(advanced.orchestration_iteration).toBe(1);
   });
 });

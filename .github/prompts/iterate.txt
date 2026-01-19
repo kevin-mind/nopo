@@ -2,10 +2,13 @@ Implement issue #{{ISSUE_NUMBER}}: "{{ISSUE_TITLE}}"
 
 ## Current Iteration State
 - **Iteration**: {{ITERATION}}
-- **Current Phase**: {{CURRENT_PHASE}} of {{TOTAL_PHASES}}
 - **Previous CI Result**: {{LAST_CI_RESULT}}
 - **Consecutive Failures**: {{CONSECUTIVE_FAILURES}}
 - **Branch**: `{{BRANCH_NAME}}`
+{{#if PARENT_ISSUE}}
+- **Parent Issue**: #{{PARENT_ISSUE}}
+- **Phase Number**: {{PHASE_NUMBER}}
+{{/if}}
 
 {{ISSUE_BODY}}
 
@@ -13,31 +16,26 @@ Implement issue #{{ISSUE_NUMBER}}: "{{ISSUE_TITLE}}"
 
 ## Instructions
 
-This is iteration {{ITERATION}} of the implementation loop. Your goal: make **incremental progress** toward completing the **current phase**. **Do NOT try to complete everything at once.**
+This is iteration {{ITERATION}} of the implementation loop. Your goal: make **incremental progress** toward completing this issue. **Do NOT try to complete everything at once.**
 
-### CRITICAL: Phase-Based Implementation
+{{#if PARENT_ISSUE}}
+### Sub-Issue Context
 
-Issues are organized into **phases** (e.g., `## Phase 1: Setup`, `## Phase 2: Core`). Each phase ships as a **separate PR**.
+This is a **sub-issue** (Phase {{PHASE_NUMBER}}) of parent issue #{{PARENT_ISSUE}}. You are working on an independent phase that will be merged via its own PR.
 
-**You must ONLY work on the CURRENT PHASE (Phase {{CURRENT_PHASE}}).** Do NOT work on later phases until the current phase is merged.
-
-Each iteration should:
-- Complete **ONE small, focused change** from the current phase's todos
-- **Verify locally using nopo commands** before pushing
-- Let CI run and trigger the next iteration
-
-When **all todos in the current phase are done** and CI passes:
-- The workflow will mark the PR ready for review
-- Iteration will **STOP and wait for PR merge**
-- After merge, iteration resumes with the next phase
+**Important:**
+- Focus ONLY on the todos in this sub-issue
+- Branch: `claude/issue/{{PARENT_ISSUE}}/phase-{{PHASE_NUMBER}}`
+- PR must reference BOTH this sub-issue AND the parent issue
+- When complete, the orchestrator will automatically advance to the next phase
+{{/if}}
 
 ### 1. Understand Current State
 
 First, analyze:
 - `git status` and `git log -3` to see branch state
 - Previous CI result above (if any)
-- Which todos in **Phase {{CURRENT_PHASE}}** are checked vs unchecked
-- **IGNORE todos in other phases** - they are for future PRs
+- Which todos are checked vs unchecked
 
 ### 2. Determine What to Do
 
@@ -47,16 +45,14 @@ First, analyze:
 - Fix the issues, verify locally, then commit
 
 **If previous CI passed OR this is the first iteration**:
-- Look at **Phase {{CURRENT_PHASE}} ONLY**
-- Pick the **next single unchecked Todo item** in that phase
+- Look at the **Todo** section
+- Pick the **next single unchecked Todo item**
 - Focus on completing **just that one item**
-- Do NOT work on todos from other phases
 
-**If all Phase {{CURRENT_PHASE}} todos are done and CI passed**:
-- Verify all requirements for THIS PHASE are met
+**If all todos are done and CI passed**:
+- Verify all requirements are met
 - Ensure tests exist and pass
-- The workflow will handle marking the phase complete and requesting review
-- **DO NOT start working on the next phase** - wait for PR merge
+- The workflow will handle marking the PR ready and requesting review
 
 ### 3. Implementation Guidelines
 
@@ -90,19 +86,18 @@ This is critical because:
 - Each failed CI counts toward the retry limit (max 5)
 - The pre-commit hook will run `make fix` automatically
 
-### 5. Update Todo Progress (Current Phase Only)
+### 5. Update Todo Progress
 
-After completing a Todo item **in the current phase**, update the issue body to check it off:
+After completing a Todo item, update the issue body to check it off:
 
 ```bash
 # Read current issue body, update the checkbox, and save
 gh issue view {{ISSUE_NUMBER}} --json body -q '.body' > /tmp/issue_body.md
 # Edit /tmp/issue_body.md to change `- [ ] <item>` to `- [x] <item>`
-# ONLY check off items in Phase {{CURRENT_PHASE}}
 gh issue edit {{ISSUE_NUMBER}} --body-file /tmp/issue_body.md
 ```
 
-This helps track progress and shows what's been accomplished in the current phase.
+This helps track progress and shows what's been accomplished.
 
 ### 6. Commit and Push
 
@@ -113,21 +108,40 @@ This helps track progress and shows what's been accomplished in the current phas
 ### 7. Create PR (First Iteration Only)
 
 If no PR exists yet:
+
+{{#if PARENT_ISSUE}}
+```bash
+# For sub-issues: link both sub-issue AND parent
+gh pr create --draft --reviewer nopo-bot \
+  --title "{{ISSUE_TITLE}}" \
+  --body "$(cat <<'EOF'
+Fixes #{{ISSUE_NUMBER}}
+Related to #{{PARENT_ISSUE}}
+
+## Phase {{PHASE_NUMBER}}
+
+This PR implements phase {{PHASE_NUMBER}} of the parent issue.
+EOF
+)"
+```
+{{else}}
 ```bash
 gh pr create --draft --reviewer nopo-bot \
   --title "{{ISSUE_TITLE}}" \
   --body "Fixes #{{ISSUE_NUMBER}}"
 ```
+{{/if}}
 
 ## Important Notes
 
-- **ONLY work on Phase {{CURRENT_PHASE}}** - ignore todos in other phases
-- Focus on ONE logical change per iteration within the current phase
+- Focus on ONE logical change per iteration
 - The workflow will automatically trigger the next iteration after CI completes
 - You do NOT need to update the iteration state block - the workflow handles it
 - **DO update Todo checkboxes** after completing each item (see section 5)
 - `make check` and `make test` are mandatory verification steps, NOT separate Todo items
-- When current phase is complete: iteration STOPS, PR goes to review, wait for merge
-- After PR merge: iteration resumes automatically with the next phase
+- When all todos complete: iteration STOPS, PR goes to review, wait for merge
+{{#if PARENT_ISSUE}}
+- After PR merge: the orchestrator will advance to the next phase automatically
+{{/if}}
 - If you're blocked and can't make progress, commit a comment explaining why
 - If you notice conflicts with other open PRs, note them in the PR description

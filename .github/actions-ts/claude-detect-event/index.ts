@@ -5,6 +5,7 @@ import { execCommand, getRequiredInput, setOutputs } from "../lib/index.js";
 type Job =
   | "issue-triage"
   | "issue-iterate"
+  | "issue-orchestrate"
   | "issue-comment"
   | "push-to-draft"
   | "pr-review"
@@ -107,19 +108,30 @@ function shouldSkipProjectStatus(status: string | null): boolean {
   return skipStatuses.includes(status);
 }
 
+interface IssueDetails {
+  title: string;
+  body: string;
+  isSubIssue: boolean;
+  parentIssue: number; // 0 if not a sub-issue
+  subIssues: number[]; // Empty array if no sub-issues
+}
+
 async function fetchIssueDetails(
   octokit: ReturnType<typeof github.getOctokit>,
   owner: string,
   repo: string,
   issueNumber: number,
-): Promise<{ title: string; body: string; isSubIssue: boolean }> {
-  // Use GraphQL to check for parent (sub-issue detection)
+): Promise<IssueDetails> {
+  // Use GraphQL to check for parent and sub-issues
   const result = await octokit.graphql<{
     repository: {
       issue: {
         title: string;
         body: string;
         parent?: { number: number };
+        subIssues?: {
+          nodes: Array<{ number: number }>;
+        };
       } | null;
     };
   }>(
@@ -130,6 +142,9 @@ async function fetchIssueDetails(
           title
           body
           parent { number }
+          subIssues(first: 50) {
+            nodes { number }
+          }
         }
       }
     }
@@ -146,14 +161,34 @@ async function fetchIssueDetails(
 
   const issue = result.repository.issue;
   if (!issue) {
-    return { title: "", body: "", isSubIssue: false };
+    return {
+      title: "",
+      body: "",
+      isSubIssue: false,
+      parentIssue: 0,
+      subIssues: [],
+    };
   }
+
+  const subIssues =
+    issue.subIssues?.nodes?.map((n) => n.number).filter((n) => n > 0) ?? [];
 
   return {
     title: issue.title,
     body: issue.body ?? "",
     isSubIssue: !!issue.parent,
+    parentIssue: issue.parent?.number ?? 0,
+    subIssues,
   };
+}
+
+/**
+ * Extract phase number from sub-issue title
+ * Expected format: "[Phase N] Title (parent #XXX)"
+ */
+function extractPhaseNumber(title: string): number {
+  const match = title.match(/^\[Phase\s*(\d+)\]/i);
+  return match ? parseInt(match[1], 10) : 0;
 }
 
 async function fetchPrByBranch(
@@ -425,6 +460,53 @@ async function handleIssueEvent(
         repo,
         issue.number,
       );
+
+      // Check if this is a sub-issue (has parent) - route to iterate with parent context
+      if (details.isSubIssue) {
+        const phaseNumber = extractPhaseNumber(details.title);
+        const branchName = `claude/issue/${details.parentIssue}/phase-${phaseNumber || issue.number}`;
+        const branchExists = await checkBranchExists(branchName);
+
+        return {
+          job: "issue-iterate",
+          resourceType: "issue",
+          resourceNumber: String(issue.number),
+          commentId: "",
+          contextJson: JSON.stringify({
+            issue_number: String(issue.number),
+            issue_title: details.title || issue.title,
+            issue_body: details.body || issue.body,
+            branch_name: branchName,
+            existing_branch: branchExists ? "true" : "false",
+            trigger_type: "edited",
+            parent_issue: String(details.parentIssue),
+            phase_number: String(phaseNumber),
+          }),
+          skip: false,
+          skipReason: "",
+        };
+      }
+
+      // Check if this is a main issue with sub-issues - route to orchestrate
+      if (details.subIssues.length > 0) {
+        return {
+          job: "issue-orchestrate",
+          resourceType: "issue",
+          resourceNumber: String(issue.number),
+          commentId: "",
+          contextJson: JSON.stringify({
+            issue_number: String(issue.number),
+            issue_title: details.title || issue.title,
+            issue_body: details.body || issue.body,
+            sub_issues: details.subIssues.join(","),
+            trigger_type: "edited",
+          }),
+          skip: false,
+          skipReason: "",
+        };
+      }
+
+      // Regular issue without sub-issues
       const branchName = `claude/issue/${issue.number}`;
 
       // Check if branch exists (don't create, iteration will handle that)
@@ -503,12 +585,59 @@ async function handleIssueEvent(
     }
 
     const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
+
+    // Check if this is a sub-issue (has parent) - route to iterate with parent context
+    if (details.isSubIssue) {
+      const phaseNumber = extractPhaseNumber(details.title);
+      const branchName = `claude/issue/${details.parentIssue}/phase-${phaseNumber || issue.number}`;
+
+      // Ensure the branch exists (create if not)
+      await ensureBranchExists(branchName);
+
+      return {
+        job: "issue-iterate",
+        resourceType: "issue",
+        resourceNumber: String(issue.number),
+        commentId: "",
+        contextJson: JSON.stringify({
+          issue_number: String(issue.number),
+          issue_title: details.title || issue.title,
+          issue_body: details.body || issue.body,
+          branch_name: branchName,
+          trigger_type: "assigned",
+          parent_issue: String(details.parentIssue),
+          phase_number: String(phaseNumber),
+        }),
+        skip: false,
+        skipReason: "",
+      };
+    }
+
+    // Check if this is a main issue with sub-issues - route to orchestrate
+    if (details.subIssues.length > 0) {
+      return {
+        job: "issue-orchestrate",
+        resourceType: "issue",
+        resourceNumber: String(issue.number),
+        commentId: "",
+        contextJson: JSON.stringify({
+          issue_number: String(issue.number),
+          issue_title: details.title || issue.title,
+          issue_body: details.body || issue.body,
+          sub_issues: details.subIssues.join(","),
+          trigger_type: "assigned",
+        }),
+        skip: false,
+        skipReason: "",
+      };
+    }
+
+    // Regular issue without sub-issues - use the unified iteration model
     const branchName = `claude/issue/${issue.number}`;
 
     // Ensure the branch exists (create if not)
     await ensureBranchExists(branchName);
 
-    // Use the unified iteration model
     return {
       job: "issue-iterate",
       resourceType: "issue",

@@ -28,22 +28,51 @@ jobs:
           CONCLUSION: ${{ github.event.workflow_run.conclusion }}
           BRANCH: ${{ github.event.workflow_run.head_branch }}
           RUN_ID: ${{ github.event.workflow_run.id }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           echo "conclusion=$CONCLUSION" >> $GITHUB_OUTPUT
           echo "branch=$BRANCH" >> $GITHUB_OUTPUT
           echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
 
-          # Skip if not a Claude branch
-          if [[ ! "$BRANCH" =~ ^claude/issue/([0-9]+)$ ]]; then
+          # Check for sub-issue branch pattern: claude/issue/{parent}/phase-{N}
+          if [[ "$BRANCH" =~ ^claude/issue/([0-9]+)/phase-([0-9]+)$ ]]; then
+            parent_issue="${BASH_REMATCH[1]}"
+            phase_number="${BASH_REMATCH[2]}"
+            echo "branch_type=sub_issue" >> $GITHUB_OUTPUT
+            echo "parent_issue=$parent_issue" >> $GITHUB_OUTPUT
+            echo "phase_number=$phase_number" >> $GITHUB_OUTPUT
+
+            # Find sub-issue number from PR body (contains "Fixes #N")
+            pr_info=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$BRANCH" --json number,body --jq '.[0]' 2>/dev/null || echo "{}")
+            if [[ -n "$pr_info" && "$pr_info" != "{}" && "$pr_info" != "null" ]]; then
+              pr_body=$(echo "$pr_info" | jq -r '.body // ""')
+              # Extract sub-issue number from "Fixes #N" pattern
+              if [[ "$pr_body" =~ Fixes[[:space:]]*#([0-9]+) ]]; then
+                sub_issue="${BASH_REMATCH[1]}"
+                echo "issue_number=$sub_issue" >> $GITHUB_OUTPUT
+                echo "skip=false" >> $GITHUB_OUTPUT
+                exit 0
+              fi
+            fi
+
+            # Could not find sub-issue number from PR - skip
             echo "skip=true" >> $GITHUB_OUTPUT
-            echo "skip_reason=Not a Claude issue branch" >> $GITHUB_OUTPUT
+            echo "skip_reason=Could not extract sub-issue number from PR body" >> $GITHUB_OUTPUT
             exit 0
           fi
 
-          # Extract issue number from branch name
-          issue_number="${BASH_REMATCH[1]}"
-          echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
-          echo "skip=false" >> $GITHUB_OUTPUT
+          # Check for regular issue branch pattern: claude/issue/{N}
+          if [[ "$BRANCH" =~ ^claude/issue/([0-9]+)$ ]]; then
+            issue_number="${BASH_REMATCH[1]}"
+            echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
+            echo "branch_type=regular" >> $GITHUB_OUTPUT
+            echo "skip=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Not a Claude branch
+          echo "skip=true" >> $GITHUB_OUTPUT
+          echo "skip_reason=Not a Claude issue branch" >> $GITHUB_OUTPUT
 
       - name: Checkout
         if: steps.context.outputs.skip != 'true'

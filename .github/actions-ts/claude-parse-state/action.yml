@@ -9,7 +9,7 @@ inputs:
     description: Issue number to read/update state from
     required: true
   action:
-    description: Action to perform (read, init, update, increment, record_failure, clear_failure, complete, reset, log_event, update_log_entry, parse_phases)
+    description: Action to perform (read, init, update, increment, record_failure, clear_failure, complete, reset, log_event, update_log_entry, parse_phases, read_main, init_main, update_main, advance_phase, update_phases_table)
     required: true
   branch_name:
     description: Branch name (required for init)
@@ -37,6 +37,27 @@ inputs:
     required: false
   current_phase:
     description: Current phase number (for increment - detects phase change and resets phase_iteration)
+    required: false
+  parent_issue:
+    description: Parent issue number (for init - when initializing a sub-issue)
+    required: false
+  phase_number:
+    description: Phase number within parent (for init - when initializing a sub-issue)
+    required: false
+  sub_issues:
+    description: Comma-separated list of sub-issue numbers (for init_main)
+    required: false
+  current_sub_issue:
+    description: Current sub-issue number (for update_main)
+    required: false
+  sub_issue_status:
+    description: JSON object of sub-issue status (for update_main)
+    required: false
+  completed_sub_issue:
+    description: Sub-issue number that was completed (for advance_phase)
+    required: false
+  sub_issues_data:
+    description: JSON array of {number, title, status} for updating phases table
     required: false
 
 outputs:
@@ -74,6 +95,26 @@ outputs:
     description: Whether all phases are complete (for parse_phases action)
   current_phase_title:
     description: Title of the current phase (for parse_phases action)
+  parent_issue:
+    description: Parent issue number (for sub-issues)
+  phase_number:
+    description: Phase number within parent (for sub-issues)
+  has_main_state:
+    description: Whether main state was found in issue body (true/false)
+  orchestration_iteration:
+    description: Number of orchestration iterations
+  sub_issues:
+    description: Comma-separated list of sub-issue numbers
+  current_sub_issue:
+    description: Currently active sub-issue number
+  sub_issue_status:
+    description: JSON object mapping sub-issue numbers to status
+  main_complete:
+    description: Whether all sub-issues are merged (true/false)
+  next_sub_issue:
+    description: Next sub-issue to work on (for advance_phase action)
+  success:
+    description: Whether the operation succeeded (for update_phases_table)
 
 runs:
   using: node20

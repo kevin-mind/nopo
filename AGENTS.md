@@ -1069,6 +1069,81 @@ complete: false
 | 3 | Fixed type errors | ghi789 |
 ```
 
+### Sub-Issue Orchestration (Phased Work)
+
+For M/L/XL issues, work is broken into sub-issues (phases) that are implemented independently. This enables:
+- Each phase has its own branch, PR, and review cycle
+- Phases can be worked on sequentially with clear boundaries
+- Each merged PR represents completed, shippable work
+
+**Architecture:**
+```
+Main Issue #123                    Sub-Issues
+┌─────────────────────┐           ┌─────────────────────┐
+│ ## Description      │           │ #456 [Phase 1]      │
+│ High-level goal     │◄──────────│ - [x] Task 1        │
+│                     │           │ - [x] Task 2        │
+│ ## Approach         │           └─────────────────────┘
+│ Technical concept   │           ┌─────────────────────┐
+│                     │◄──────────│ #457 [Phase 2]      │
+│ ## Phases           │           │ - [ ] Task 3        │
+│ | # | Sub-Issue |   │           │ - [ ] Task 4        │
+│ | 1 | #456 ✅   |   │           └─────────────────────┘
+│ | 2 | #457 🔄   |   │           ┌─────────────────────┐
+│ | 3 | #458 ⏸️   |   │◄──────────│ #458 [Phase 3]      │
+└─────────────────────┘           │ - [ ] Task 5        │
+                                  └─────────────────────┘
+```
+
+**Main Issue State (`CLAUDE_MAIN_STATE`):**
+```yaml
+<!-- CLAUDE_MAIN_STATE
+orchestration_iteration: 3
+sub_issues: [456, 457, 458]
+current_sub_issue: 457
+sub_issue_status: {"456": "merged", "457": "in_progress", "458": "pending"}
+complete: false
+-->
+```
+
+**Sub-Issue State (`CLAUDE_ITERATION` enhanced):**
+Sub-issues use the same `CLAUDE_ITERATION` block as regular issues, with additional fields:
+```yaml
+<!-- CLAUDE_ITERATION
+iteration: 2
+branch: claude/issue/123/phase-2
+pr_number: 789
+parent_issue: 123
+phase_number: 2
+...
+-->
+```
+
+**Branch Naming:**
+| Issue Type | Branch Pattern | Example |
+|------------|----------------|---------|
+| Regular issue | `claude/issue/{N}` | `claude/issue/42` |
+| Sub-issue (phase) | `claude/issue/{parent}/phase-{N}` | `claude/issue/123/phase-2` |
+
+**Event Routing:**
+| Event | Condition | Job |
+|-------|-----------|-----|
+| Main issue assigned | Has sub-issues | `issue-orchestrate` |
+| Main issue edited | Has sub-issues | `issue-orchestrate` |
+| Sub-issue assigned | Has parent | `issue-iterate` (with parent context) |
+| Sub-issue edited | Has parent | `issue-iterate` (with parent context) |
+| Regular issue | No sub-issues, no parent | `issue-iterate` |
+
+**Orchestration Flow:**
+1. Human assigns `nopo-bot` to main issue
+2. Orchestrator reads main state, finds first pending sub-issue
+3. Orchestrator assigns `nopo-bot` to that sub-issue
+4. Sub-issue iterates independently until PR merged
+5. CI state update on merge triggers orchestrator
+6. Orchestrator advances to next pending sub-issue
+7. Repeat until all sub-issues merged
+8. Main issue marked complete
+
 ### Breakpoints
 
 | Condition | Action |
@@ -1160,8 +1235,10 @@ PR state controls which automation loops can run, preventing race conditions. CI
 | Action | Event | Condition |
 |--------|-------|-----------|
 | **Triage** | `issues: [opened, edited]` | No "triaged" label AND not a sub-issue AND nopo-bot not assigned |
-| **Iterate** | `issues: [assigned]` | Assigned to `nopo-bot` (first iteration) |
-| **Iterate** | `issues: [edited]` | `nopo-bot` is assigned (continuation via state update) |
+| **Iterate** | `issues: [assigned]` | Assigned to `nopo-bot`, regular issue OR sub-issue (first iteration) |
+| **Iterate** | `issues: [edited]` | `nopo-bot` is assigned, regular issue OR sub-issue (continuation via state update) |
+| **Orchestrate** | `issues: [assigned]` | Assigned to `nopo-bot`, main issue with sub-issues |
+| **Orchestrate** | `issues: [edited]` | `nopo-bot` is assigned, main issue with sub-issues |
 | **@claude Comment** | `issue_comment`, `pull_request_review_comment` | Contains `@claude`, not from Bot |
 | **Push to Draft** | `push` (non-main) | Ready PR exists for branch |
 | **Review** | `pull_request: [review_requested]` | Reviewer is `nopo-bot`, PR is ready (not draft) |
@@ -1228,7 +1305,8 @@ These actions **require human intervention**:
 | Agent | Actions |
 |-------|---------|
 | **Triage** | Adds labels (type/priority/topic), sets project fields (Priority/Size/Estimate), creates sub-issues for phased work, links related issues, expands context, answers questions, adds "triaged" label |
-| **Iterate** | Unified implementation: reads issue state, implements/fixes code, runs tests, pushes. On CI success: marks PR ready, requests review |
+| **Iterate** | Unified implementation: reads issue state, implements/fixes code, runs tests, pushes. On CI success: marks PR ready, requests review. For sub-issues: uses phase-specific branch naming |
+| **Orchestrate** | Manages phased work on main issues: reads main state, assigns nopo-bot to next pending sub-issue, updates phases table, marks complete when all phases merged |
 | **@claude Comment** | Answers questions, provides explanations, suggests approaches (no code changes unless asked) |
 | **Push-to-Draft** | Converts ready PRs to draft on push, cancels in-flight reviews |
 | Human PRs: suggests fixes via review comments (does not auto-fix) |
@@ -1250,10 +1328,12 @@ The triage agent performs comprehensive issue preparation:
 - **Estimate**: Hours in Fibonacci values (1, 2, 3, 5, 8, 13, 21)
 
 **Sub-Issues for Phased Work:**
-- Large issues (Size L/XL) with distinct phases get sub-issues created
-- Sub-issues are linked to parent via GitHub's sub-issue feature
+- M/L/XL issues with distinct phases get sub-issues created (2-5 phases max)
+- Sub-issues are linked to parent via GitHub's sub-issue feature (GraphQL `addSubIssue`)
 - Sub-issues are NOT triaged (they're implementation tasks, not full tickets)
-- Format: `[Sub] Phase N: <description> (parent #<number>)`
+- Title format: `[Phase N] <Phase Title>`
+- Body contains phase-specific todos and "Parent: #<number>" reference
+- If work cannot fit in 5 phases, triage suggests splitting into smaller issues
 
 ### PR Requirements
 

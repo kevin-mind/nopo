@@ -7,7 +7,8 @@ import {
 } from "../lib/index.js";
 
 /**
- * State stored in issue body as HTML comment
+ * State stored in sub-issue body as HTML comment (CLAUDE_ITERATION)
+ * Used for tracking iteration progress on individual sub-issues (phases)
  */
 interface IterationState {
   iteration: number;
@@ -22,6 +23,21 @@ interface IterationState {
   // Phase-specific iteration tracking
   phase_iteration: number; // Iterations within current phase (resets on phase change)
   last_phase: number; // Last known phase number (for detecting phase changes)
+  // Sub-issue context (links back to parent)
+  parent_issue: number; // Parent issue number (0 if not a sub-issue)
+  phase_number: number; // Phase number within parent (0 if not a sub-issue)
+}
+
+/**
+ * State stored in main issue body as HTML comment (CLAUDE_MAIN_STATE)
+ * Used for orchestrating work across multiple sub-issues
+ */
+interface MainIssueState {
+  orchestration_iteration: number; // How many times we've run orchestration
+  sub_issues: number[]; // Array of sub-issue numbers
+  current_sub_issue: number; // Currently active sub-issue
+  sub_issue_status: Record<number, "pending" | "in_progress" | "merged">; // Status of each sub-issue
+  complete: boolean; // Whether all sub-issues are merged
 }
 
 /**
@@ -36,8 +52,10 @@ interface PhaseInfo {
 }
 
 const STATE_MARKER_START = "<!-- CLAUDE_ITERATION";
+const MAIN_STATE_MARKER_START = "<!-- CLAUDE_MAIN_STATE";
 const STATE_MARKER_END = "-->";
 const HISTORY_SECTION = "## Iteration History";
+const PHASES_SECTION = "## Phases";
 
 /**
  * Count unchecked todos that are NOT manual tasks.
@@ -178,6 +196,8 @@ function parseState(body: string): IterationState | null {
     complete: false,
     phase_iteration: 0,
     last_phase: 0,
+    parent_issue: 0,
+    phase_number: 0,
   };
 
   for (const line of stateBlock.split("\n")) {
@@ -224,6 +244,12 @@ function parseState(body: string): IterationState | null {
       case "last_phase":
         state.last_phase = parseInt(value, 10) || 0;
         break;
+      case "parent_issue":
+        state.parent_issue = parseInt(value, 10) || 0;
+        break;
+      case "phase_number":
+        state.phase_number = parseInt(value, 10) || 0;
+        break;
     }
   }
 
@@ -246,6 +272,8 @@ last_failure_timestamp: ${state.last_failure_timestamp}
 complete: ${state.complete}
 phase_iteration: ${state.phase_iteration}
 last_phase: ${state.last_phase}
+parent_issue: ${state.parent_issue}
+phase_number: ${state.phase_number}
 ${STATE_MARKER_END}`;
 }
 
@@ -399,7 +427,11 @@ ${entry}`;
 /**
  * Get default state for initialization
  */
-function getDefaultState(branchName: string): IterationState {
+function getDefaultState(
+  branchName: string,
+  parentIssue = 0,
+  phaseNumber = 0,
+): IterationState {
   return {
     iteration: 0,
     branch: branchName,
@@ -412,7 +444,167 @@ function getDefaultState(branchName: string): IterationState {
     complete: false,
     phase_iteration: 0,
     last_phase: 0,
+    parent_issue: parentIssue,
+    phase_number: phaseNumber,
   };
+}
+
+/**
+ * Get default main state for orchestration
+ */
+function getDefaultMainState(): MainIssueState {
+  return {
+    orchestration_iteration: 0,
+    sub_issues: [],
+    current_sub_issue: 0,
+    sub_issue_status: {},
+    complete: false,
+  };
+}
+
+/**
+ * Parse main issue state from issue body
+ */
+function parseMainState(body: string): MainIssueState | null {
+  const startIdx = body.indexOf(MAIN_STATE_MARKER_START);
+  if (startIdx === -1) {
+    return null;
+  }
+
+  const endIdx = body.indexOf(STATE_MARKER_END, startIdx);
+  if (endIdx === -1) {
+    return null;
+  }
+
+  const stateBlock = body.slice(
+    startIdx + MAIN_STATE_MARKER_START.length,
+    endIdx,
+  );
+  const state: MainIssueState = getDefaultMainState();
+
+  for (const line of stateBlock.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    const colonIdx = trimmed.indexOf(":");
+    if (colonIdx === -1) continue;
+
+    const key = trimmed.slice(0, colonIdx).trim();
+    const value = trimmed.slice(colonIdx + 1).trim();
+
+    switch (key) {
+      case "orchestration_iteration":
+        state.orchestration_iteration = parseInt(value, 10) || 0;
+        break;
+      case "sub_issues":
+        // Parse comma-separated list of issue numbers
+        state.sub_issues = value
+          .split(",")
+          .map((s) => parseInt(s.trim(), 10))
+          .filter((n) => !isNaN(n) && n > 0);
+        break;
+      case "current_sub_issue":
+        state.current_sub_issue = parseInt(value, 10) || 0;
+        break;
+      case "sub_issue_status":
+        // Parse as JSON object
+        try {
+          state.sub_issue_status = JSON.parse(value);
+        } catch {
+          state.sub_issue_status = {};
+        }
+        break;
+      case "complete":
+        state.complete = value === "true";
+        break;
+    }
+  }
+
+  return state;
+}
+
+/**
+ * Serialize main state to HTML comment block
+ */
+function serializeMainState(state: MainIssueState): string {
+  return `${MAIN_STATE_MARKER_START}
+orchestration_iteration: ${state.orchestration_iteration}
+sub_issues: ${state.sub_issues.join(", ")}
+current_sub_issue: ${state.current_sub_issue}
+sub_issue_status: ${JSON.stringify(state.sub_issue_status)}
+complete: ${state.complete}
+${STATE_MARKER_END}`;
+}
+
+/**
+ * Update or insert main state in issue body
+ */
+function updateBodyWithMainState(body: string, state: MainIssueState): string {
+  const stateBlock = serializeMainState(state);
+
+  const startIdx = body.indexOf(MAIN_STATE_MARKER_START);
+  if (startIdx === -1) {
+    // No existing state - prepend it
+    return stateBlock + "\n\n" + body;
+  }
+
+  const endIdx = body.indexOf(STATE_MARKER_END, startIdx);
+  if (endIdx === -1) {
+    // Malformed - prepend new state
+    return stateBlock + "\n\n" + body;
+  }
+
+  // Replace existing state
+  return (
+    body.slice(0, startIdx) +
+    stateBlock +
+    body.slice(endIdx + STATE_MARKER_END.length)
+  );
+}
+
+/**
+ * Update or insert phases table in issue body
+ */
+function updatePhasesTable(
+  body: string,
+  subIssues: Array<{ number: number; title: string; status: string }>,
+): string {
+  const phasesIdx = body.indexOf(PHASES_SECTION);
+
+  // Build the phases table
+  const tableHeader = `| # | Sub-Issue | Status |
+|---|-----------|--------|`;
+  const tableRows = subIssues
+    .map((si, idx) => {
+      const statusEmoji =
+        si.status === "merged"
+          ? "✅"
+          : si.status === "in_progress"
+            ? "🔄"
+            : "⏸️";
+      return `| ${idx + 1} | #${si.number} - ${si.title} | ${statusEmoji} ${si.status} |`;
+    })
+    .join("\n");
+
+  const newTable = `${PHASES_SECTION}
+
+${tableHeader}
+${tableRows}`;
+
+  if (phasesIdx === -1) {
+    // No existing phases section - append it
+    return body + "\n\n" + newTable;
+  }
+
+  // Find the end of the phases section (next ## header or end of body)
+  const afterPhases = body.slice(phasesIdx + PHASES_SECTION.length);
+  const nextSectionMatch = afterPhases.match(/\n## /);
+  const endIdx = nextSectionMatch
+    ? phasesIdx + PHASES_SECTION.length + nextSectionMatch.index!
+    : body.length;
+
+  // Replace existing phases section
+  return body.slice(0, phasesIdx) + newTable + body.slice(endIdx);
 }
 
 async function run(): Promise<void> {
@@ -998,6 +1190,230 @@ async function run(): Promise<void> {
           : "false",
         all_phases_done: phaseInfo.all_phases_done ? "true" : "false",
         current_phase_title: phaseInfo.current_phase_title,
+      });
+      return;
+    }
+
+    // Main issue state actions (for orchestrating sub-issues)
+    if (action === "read_main") {
+      // Read main issue state
+      const mainState = parseMainState(currentBody);
+      if (!mainState) {
+        setOutputs({
+          has_main_state: "false",
+          orchestration_iteration: "0",
+          sub_issues: "",
+          current_sub_issue: "0",
+          sub_issue_status: "{}",
+          main_complete: "false",
+        });
+        return;
+      }
+
+      setOutputs({
+        has_main_state: "true",
+        orchestration_iteration: String(mainState.orchestration_iteration),
+        sub_issues: mainState.sub_issues.join(","),
+        current_sub_issue: String(mainState.current_sub_issue),
+        sub_issue_status: JSON.stringify(mainState.sub_issue_status),
+        main_complete: mainState.complete ? "true" : "false",
+      });
+      return;
+    }
+
+    if (action === "init_main") {
+      // Initialize main issue state with sub-issues
+      const subIssuesInput = getRequiredInput("sub_issues");
+      const subIssues = subIssuesInput
+        .split(",")
+        .map((s) => parseInt(s.trim(), 10))
+        .filter((n) => !isNaN(n) && n > 0);
+
+      if (subIssues.length === 0) {
+        core.setFailed("Cannot init_main: no valid sub-issues provided");
+        return;
+      }
+
+      // Check if main state already exists
+      let mainState = parseMainState(currentBody);
+      if (mainState) {
+        core.info("Main state already exists, returning existing state");
+        setOutputs({
+          has_main_state: "true",
+          orchestration_iteration: String(mainState.orchestration_iteration),
+          sub_issues: mainState.sub_issues.join(","),
+          current_sub_issue: String(mainState.current_sub_issue),
+          sub_issue_status: JSON.stringify(mainState.sub_issue_status),
+          main_complete: mainState.complete ? "true" : "false",
+        });
+        return;
+      }
+
+      // Initialize new main state
+      mainState = getDefaultMainState();
+      mainState.sub_issues = subIssues;
+      mainState.current_sub_issue = subIssues[0];
+      mainState.sub_issue_status = Object.fromEntries(
+        subIssues.map((num) => [num, "pending" as const]),
+      );
+
+      const newBody = updateBodyWithMainState(currentBody, mainState);
+
+      await octokit.rest.issues.update({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        body: newBody,
+      });
+
+      core.info(
+        `Initialized main state for issue #${issueNumber} with ${subIssues.length} sub-issues`,
+      );
+
+      setOutputs({
+        has_main_state: "true",
+        orchestration_iteration: "0",
+        sub_issues: subIssues.join(","),
+        current_sub_issue: String(subIssues[0]),
+        sub_issue_status: JSON.stringify(mainState.sub_issue_status),
+        main_complete: "false",
+      });
+      return;
+    }
+
+    if (action === "update_main") {
+      // Update main issue state
+      const mainState = parseMainState(currentBody);
+      if (!mainState) {
+        core.setFailed("Cannot update_main: no existing main state found");
+        return;
+      }
+
+      // Update fields if provided
+      const currentSubIssue = getOptionalInput("current_sub_issue");
+      const subIssueStatusInput = getOptionalInput("sub_issue_status");
+
+      if (currentSubIssue) {
+        mainState.current_sub_issue = parseInt(currentSubIssue, 10);
+      }
+
+      if (subIssueStatusInput) {
+        try {
+          mainState.sub_issue_status = JSON.parse(subIssueStatusInput);
+        } catch {
+          core.warning(
+            "Failed to parse sub_issue_status JSON, skipping update",
+          );
+        }
+      }
+
+      const newBody = updateBodyWithMainState(currentBody, mainState);
+
+      await octokit.rest.issues.update({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        body: newBody,
+      });
+
+      core.info(`Updated main state for issue #${issueNumber}`);
+
+      setOutputs({
+        has_main_state: "true",
+        orchestration_iteration: String(mainState.orchestration_iteration),
+        sub_issues: mainState.sub_issues.join(","),
+        current_sub_issue: String(mainState.current_sub_issue),
+        sub_issue_status: JSON.stringify(mainState.sub_issue_status),
+        main_complete: mainState.complete ? "true" : "false",
+      });
+      return;
+    }
+
+    if (action === "advance_phase") {
+      // Advance to the next sub-issue (phase) after current one is merged
+      const mainState = parseMainState(currentBody);
+      if (!mainState) {
+        core.setFailed("Cannot advance_phase: no existing main state found");
+        return;
+      }
+
+      const completedSubIssue = getRequiredInput("completed_sub_issue");
+      const completedNum = parseInt(completedSubIssue, 10);
+
+      // Mark the completed sub-issue as merged
+      mainState.sub_issue_status[completedNum] = "merged";
+      mainState.orchestration_iteration++;
+
+      // Find the next pending sub-issue
+      const nextPending = mainState.sub_issues.find(
+        (num) => mainState.sub_issue_status[num] === "pending",
+      );
+
+      if (nextPending) {
+        mainState.current_sub_issue = nextPending;
+        mainState.sub_issue_status[nextPending] = "in_progress";
+        core.info(
+          `Advanced from sub-issue #${completedNum} to #${nextPending}`,
+        );
+      } else {
+        // All sub-issues are merged
+        mainState.complete = true;
+        core.info(`All sub-issues complete for issue #${issueNumber}`);
+      }
+
+      const newBody = updateBodyWithMainState(currentBody, mainState);
+
+      await octokit.rest.issues.update({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        body: newBody,
+      });
+
+      setOutputs({
+        has_main_state: "true",
+        orchestration_iteration: String(mainState.orchestration_iteration),
+        sub_issues: mainState.sub_issues.join(","),
+        current_sub_issue: String(mainState.current_sub_issue),
+        sub_issue_status: JSON.stringify(mainState.sub_issue_status),
+        main_complete: mainState.complete ? "true" : "false",
+        next_sub_issue: nextPending ? String(nextPending) : "",
+      });
+      return;
+    }
+
+    if (action === "update_phases_table") {
+      // Update the phases table in the issue body
+      // Expects sub_issues_data as JSON array of {number, title, status}
+      const subIssuesDataInput = getRequiredInput("sub_issues_data");
+      let subIssuesData: Array<{
+        number: number;
+        title: string;
+        status: string;
+      }>;
+
+      try {
+        subIssuesData = JSON.parse(subIssuesDataInput);
+      } catch {
+        core.setFailed("Failed to parse sub_issues_data JSON");
+        return;
+      }
+
+      const newBody = updatePhasesTable(currentBody, subIssuesData);
+
+      await octokit.rest.issues.update({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        body: newBody,
+      });
+
+      core.info(
+        `Updated phases table for issue #${issueNumber} with ${subIssuesData.length} phases`,
+      );
+
+      setOutputs({
+        success: "true",
       });
       return;
     }

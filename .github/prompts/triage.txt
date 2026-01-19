@@ -8,9 +8,9 @@ Issues follow this structure (from task.yml template):
 - **Description**: Brief TLDR of what needs to be done
 - **Details**: Implementation details, affected files, technical requirements
 - **Questions**: Open questions that need answers (checkboxes)
-- **Phases**: For M/L/XL issues, break into phases (## Phase 1: Title, ## Phase 2: Title, etc.)
-  - Each phase has its own todos and ships as a separate PR
-  - For XS/S issues, a single "## Todo" section is fine
+- **Phases**: For M/L/XL issues, create separate sub-issues for each phase
+  - Each sub-issue has its own todos and ships as a separate PR
+  - For XS/S issues, a single "## Todo" section in the main issue is fine
 
 ## Your Tasks
 
@@ -69,49 +69,149 @@ Use `gh issue edit {{ISSUE_NUMBER}} --body "..."` to improve the issue:
 - If questions exist, research and answer them (check the box and add answer)
 - Add new questions if you identify uncertainties
 
-**Todo - PHASE-BASED STRUCTURE**:
-Break work into **phases** (up to 5) where each phase is independently shippable.
-This enables incremental PRs - Claude ships one PR per phase, merges, then continues.
+### 4. CREATE SUB-ISSUES FOR PHASES (M/L/XL issues only)
 
-**Phase structure format** (REQUIRED for M/L/XL issues):
-```markdown
-## Phase 1: <Phase Title>
-- [ ] Specific task 1
-- [ ] Specific task 2
-
-## Phase 2: <Phase Title>
-- [ ] Specific task 3
-- [ ] Specific task 4
-```
+For M/L/XL issues, create separate sub-issues for each phase. Each sub-issue becomes
+an independent unit of work with its own branch, PR, and iteration loop.
 
 **Phase design principles:**
 - Each phase should be **independently shippable** (no broken states after merge)
 - Phase 1 often: schema changes, interfaces, types, config
 - Middle phases: core implementation, one feature at a time
 - Final phase: integration, cleanup, documentation
-- 2-5 phases is ideal; single-phase is fine for XS/S issues
+- 2-5 phases is ideal; single-phase inline todos are fine for XS/S issues
 
-**Good phase breakdown example:**
-```markdown
-## Phase 1: Database Schema
+**Sub-issue format:**
+- Title: `[Phase N] <Phase Title>`
+- Body: Phase-specific todos as checkboxes
+
+**Example sub-issue creation:**
+```bash
+# Create Phase 1 sub-issue
+PHASE1=$(gh issue create \
+  --title "[Phase 1] Database Schema" \
+  --body "$(cat <<'EOF'
+## Description
+Set up database schema for user preferences.
+
+## Todo
 - [ ] Add new migration for user_preferences table
 - [ ] Create UserPreference model
+- [ ] Add model tests
 
-## Phase 2: API Endpoints
+Parent: #{{ISSUE_NUMBER}}
+EOF
+)" --json number --jq '.number')
+echo "Created sub-issue #$PHASE1"
+
+# Create Phase 2 sub-issue
+PHASE2=$(gh issue create \
+  --title "[Phase 2] API Endpoints" \
+  --body "$(cat <<'EOF'
+## Description
+Implement REST API endpoints for preferences.
+
+## Todo
 - [ ] Add GET /api/preferences endpoint
 - [ ] Add PUT /api/preferences endpoint
 - [ ] Add unit tests for endpoints
 
-## Phase 3: Frontend Integration
+Parent: #{{ISSUE_NUMBER}}
+EOF
+)" --json number --jq '.number')
+echo "Created sub-issue #$PHASE2"
+
+# Create Phase 3 sub-issue
+PHASE3=$(gh issue create \
+  --title "[Phase 3] Frontend Integration" \
+  --body "$(cat <<'EOF'
+## Description
+Add preferences UI and wire up to API.
+
+## Todo
 - [ ] Add preferences page component
 - [ ] Wire up API calls
 - [ ] Add E2E test for preferences flow
+
+Parent: #{{ISSUE_NUMBER}}
+EOF
+)" --json number --jq '.number')
+echo "Created sub-issue #$PHASE3"
 ```
 
-**Bad phase breakdown (avoid):**
-- Phases that can't be merged independently
-- Too granular (10+ phases)
-- Phases without clear completion criteria
+**Link sub-issues to parent using GraphQL:**
+```bash
+# Get the parent issue node ID
+PARENT_ID=$(gh api graphql -f query='
+  query($owner: String!, $repo: String!, $number: Int!) {
+    repository(owner: $owner, name: $repo) {
+      issue(number: $number) { id }
+    }
+  }
+' -f owner='{{REPO_OWNER}}' -f repo='{{REPO_NAME}}' -F number={{ISSUE_NUMBER}} --jq '.data.repository.issue.id')
+
+# Get sub-issue node IDs and link them
+for SUB_NUM in $PHASE1 $PHASE2 $PHASE3; do
+  SUB_ID=$(gh api graphql -f query='
+    query($owner: String!, $repo: String!, $number: Int!) {
+      repository(owner: $owner, name: $repo) {
+        issue(number: $number) { id }
+      }
+    }
+  ' -f owner='{{REPO_OWNER}}' -f repo='{{REPO_NAME}}' -F number=$SUB_NUM --jq '.data.repository.issue.id')
+
+  gh api graphql -f query='
+    mutation($parentId: ID!, $childId: ID!) {
+      addSubIssue(input: {issueId: $parentId, subIssueId: $childId}) {
+        issue { number }
+        subIssue { number }
+      }
+    }
+  ' -f parentId="$PARENT_ID" -f childId="$SUB_ID" \
+    -H "GraphQL-Features: sub_issues"
+
+  echo "Linked sub-issue #$SUB_NUM to parent #{{ISSUE_NUMBER}}"
+done
+```
+
+**Update main issue with phases table:**
+After creating sub-issues, update the main issue body to include:
+1. The original description/details/questions
+2. A phases table showing all sub-issues
+3. The CLAUDE_MAIN_STATE block
+
+```bash
+gh issue edit {{ISSUE_NUMBER}} --body "$(cat <<'EOF'
+## Description
+Brief TLDR of the issue.
+
+## Details
+Technical context, affected files, links to docs.
+
+## Approach
+High-level technical approach for the implementation.
+
+## Questions
+- [x] Question 1? Answer here.
+
+## Phases
+
+| # | Sub-Issue | Status |
+|---|-----------|--------|
+| 1 | #<PHASE1_NUM> | pending |
+| 2 | #<PHASE2_NUM> | pending |
+| 3 | #<PHASE3_NUM> | pending |
+
+<!-- CLAUDE_MAIN_STATE
+orchestration_iteration: 0
+sub_issues: [<PHASE1_NUM>, <PHASE2_NUM>, <PHASE3_NUM>]
+current_sub_issue: 0
+sub_issue_status: {}
+complete: false
+-->
+EOF
+)"
+```
 
 **If work cannot fit in 5 phases:**
 If the issue is too large to break into 5 or fewer phases, DO NOT create sub-issues.
@@ -124,17 +224,17 @@ This issue is too large to implement in 5 phases. I recommend splitting it into 
 2. **Issue 2: <suggested title>** - <brief scope>
 3. **Issue 3: <suggested title>** - <brief scope>
 
-Each of these can then be triaged and implemented independently with their own phase structure.
+Each of these can then be triaged and implemented independently with their own sub-issues.
 Please close this issue and create the smaller issues, or narrow the scope of this issue.
 ```
 
 Set `needs_info: true` in the triage output when suggesting a split.
 
-### 4. VALIDATE COMPLETENESS
+### 5. VALIDATE COMPLETENESS
 - If critical info is missing, set `needs_info: true` in the triage output
 - Ask clarifying questions in a comment
 
-## Commands
+## Commands Reference
 ```bash
 # STEP 1: Write triage output file (DO THIS FIRST!)
 cat > triage-output.json << 'EOF'
@@ -154,7 +254,7 @@ cat triage-output.json
 # View current issue
 gh issue view {{ISSUE_NUMBER}}
 
-# Update issue body with PHASES (use heredoc for multiline)
+# Update issue body (use heredoc for multiline)
 gh issue edit {{ISSUE_NUMBER}} --body "$(cat <<'EOF'
 ## Description
 Brief TLDR of the issue.
@@ -162,20 +262,15 @@ Brief TLDR of the issue.
 ## Details
 Technical context, affected files, links to docs.
 
+## Approach
+High-level technical approach.
+
 ## Questions
 - [x] Question 1? Answer here.
 
-## Phase 1: Schema & Setup
-- [ ] Task 1 for phase 1
-- [ ] Task 2 for phase 1
-
-## Phase 2: Core Implementation
-- [ ] Task 1 for phase 2
-- [ ] Task 2 for phase 2
-
-## Phase 3: Integration & Polish
-- [ ] Task 1 for phase 3
-- [ ] Task 2 for phase 3
+## Todo
+- [ ] Task 1
+- [ ] Task 2
 EOF
 )"
 
@@ -184,15 +279,32 @@ gh label list --search "topic:" --json name --jq '.[].name'
 
 # Post a comment (for suggesting splits or asking questions)
 gh issue comment {{ISSUE_NUMBER}} --body "Your comment here..."
+
+# Create a sub-issue (for M/L/XL issues with phases)
+gh issue create --title "[Phase 1] Title" --body "..." --json number --jq '.number'
+
+# Get issue node ID for GraphQL
+gh api graphql -f query='query($owner: String!, $repo: String!, $number: Int!) {
+  repository(owner: $owner, name: $repo) { issue(number: $number) { id } }
+}' -f owner='{{REPO_OWNER}}' -f repo='{{REPO_NAME}}' -F number=123 --jq '.data.repository.issue.id'
+
+# Link sub-issue to parent (requires sub_issues feature flag)
+gh api graphql -f query='mutation($parentId: ID!, $childId: ID!) {
+  addSubIssue(input: {issueId: $parentId, subIssueId: $childId}) {
+    issue { number }
+    subIssue { number }
+  }
+}' -f parentId="PARENT_NODE_ID" -f childId="CHILD_NODE_ID" \
+  -H "GraphQL-Features: sub_issues"
 ```
 
 IMPORTANT:
-- You MUST write triage-output.json - the workflow step reads your JSON and applies them
+- You MUST write triage-output.json - the workflow step reads your JSON and applies labels/fields
 - DO NOT add labels yourself - the workflow step reads your JSON and applies them
 - DO NOT assign the issue to anyone
-- DO NOT create sub-issues - if work is too large, suggest the user split into smaller issues
-- Focus on making the issue clear and actionable for implementation
-- Use PHASES (## Phase N: Title) for M/L/XL issues - each phase ships as a separate PR
-- Keep phases independently shippable - no broken states between phases
+- For XS/S issues: Use inline "## Todo" section with checkboxes
+- For M/L/XL issues: Create sub-issues for each phase (2-5 phases)
+- Each sub-issue title MUST start with `[Phase N]`
+- Link sub-issues to parent using the GraphQL addSubIssue mutation
+- Initialize CLAUDE_MAIN_STATE in main issue after creating sub-issues
 - Maximum 5 phases; if more needed, suggest splitting the issue
-- XS/S issues can use a single "## Todo" section instead of phases

@@ -62,6 +62,7 @@ run-name: >-
         options:
           - issue-triage
           - issue-iterate
+          - issue-orchestrate
           - issue-comment
           - pr-review
           - pr-response
@@ -202,18 +203,18 @@ jobs:
       needs.detect.outputs.job != 'push-to-draft' &&
       needs.detect.outputs.job != 'discussion-complete'
     # Concurrency: one Claude job per resource at a time
-    # - Issue iterate AND triage: share group with CI workflow (sequential execution)
+    # - Issue iterate, triage, orchestrate: share group with CI workflow (sequential execution)
     # - PR jobs (pr-review, pr-response, pr-human-response): share group so push cancels them
     # - Other issue jobs (comment): separate group per issue
     # - Discussion jobs: separate group per discussion
     # cancel-in-progress behavior:
-    # - Issue iterate: QUEUE (shares with CI, never cancel)
+    # - Issue iterate/orchestrate: QUEUE (shares with CI, never cancel)
     # - Triage: cancel (edited issue should re-triage)
     # - Other jobs: queue (don't cancel work in progress)
     concurrency:
       group: >-
         ${{
-          (needs.detect.outputs.job == 'issue-iterate' || needs.detect.outputs.job == 'issue-triage')
+          (needs.detect.outputs.job == 'issue-iterate' || needs.detect.outputs.job == 'issue-triage' || needs.detect.outputs.job == 'issue-orchestrate')
           && format('claude-work-claude/issue/{0}', needs.detect.outputs.resource_number)
           || needs.detect.outputs.resource_type == 'pr'
           && format('claude-review-{0}', needs.detect.outputs.resource_number)

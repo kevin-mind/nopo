@@ -23972,6 +23972,9 @@ async function fetchIssueDetails(octokit, owner, repo, issueNumber) {
           title
           body
           parent { number }
+          subIssues(first: 50) {
+            nodes { number }
+          }
         }
       }
     }
@@ -23987,13 +23990,26 @@ async function fetchIssueDetails(octokit, owner, repo, issueNumber) {
   );
   const issue = result.repository.issue;
   if (!issue) {
-    return { title: "", body: "", isSubIssue: false };
+    return {
+      title: "",
+      body: "",
+      isSubIssue: false,
+      parentIssue: 0,
+      subIssues: []
+    };
   }
+  const subIssues = issue.subIssues?.nodes?.map((n) => n.number).filter((n) => n > 0) ?? [];
   return {
     title: issue.title,
     body: issue.body ?? "",
-    isSubIssue: !!issue.parent
+    isSubIssue: !!issue.parent,
+    parentIssue: issue.parent?.number ?? 0,
+    subIssues
   };
+}
+function extractPhaseNumber(title) {
+  const match = title.match(/^\[Phase\s*(\d+)\]/i);
+  return match ? parseInt(match[1], 10) : 0;
 }
 async function fetchPrByBranch(owner, repo, branch) {
   const { stdout, exitCode } = await execCommand(
@@ -24188,6 +24204,46 @@ async function handleIssueEvent(octokit, owner, repo) {
         repo,
         issue.number
       );
+      if (details.isSubIssue) {
+        const phaseNumber = extractPhaseNumber(details.title);
+        const branchName2 = `claude/issue/${details.parentIssue}/phase-${phaseNumber || issue.number}`;
+        const branchExists2 = await checkBranchExists(branchName2);
+        return {
+          job: "issue-iterate",
+          resourceType: "issue",
+          resourceNumber: String(issue.number),
+          commentId: "",
+          contextJson: JSON.stringify({
+            issue_number: String(issue.number),
+            issue_title: details.title || issue.title,
+            issue_body: details.body || issue.body,
+            branch_name: branchName2,
+            existing_branch: branchExists2 ? "true" : "false",
+            trigger_type: "edited",
+            parent_issue: String(details.parentIssue),
+            phase_number: String(phaseNumber)
+          }),
+          skip: false,
+          skipReason: ""
+        };
+      }
+      if (details.subIssues.length > 0) {
+        return {
+          job: "issue-orchestrate",
+          resourceType: "issue",
+          resourceNumber: String(issue.number),
+          commentId: "",
+          contextJson: JSON.stringify({
+            issue_number: String(issue.number),
+            issue_title: details.title || issue.title,
+            issue_body: details.body || issue.body,
+            sub_issues: details.subIssues.join(","),
+            trigger_type: "edited"
+          }),
+          skip: false,
+          skipReason: ""
+        };
+      }
       const branchName = `claude/issue/${issue.number}`;
       const branchExists = await checkBranchExists(branchName);
       return {
@@ -24254,6 +24310,45 @@ async function handleIssueEvent(octokit, owner, repo) {
       );
     }
     const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
+    if (details.isSubIssue) {
+      const phaseNumber = extractPhaseNumber(details.title);
+      const branchName2 = `claude/issue/${details.parentIssue}/phase-${phaseNumber || issue.number}`;
+      await ensureBranchExists(branchName2);
+      return {
+        job: "issue-iterate",
+        resourceType: "issue",
+        resourceNumber: String(issue.number),
+        commentId: "",
+        contextJson: JSON.stringify({
+          issue_number: String(issue.number),
+          issue_title: details.title || issue.title,
+          issue_body: details.body || issue.body,
+          branch_name: branchName2,
+          trigger_type: "assigned",
+          parent_issue: String(details.parentIssue),
+          phase_number: String(phaseNumber)
+        }),
+        skip: false,
+        skipReason: ""
+      };
+    }
+    if (details.subIssues.length > 0) {
+      return {
+        job: "issue-orchestrate",
+        resourceType: "issue",
+        resourceNumber: String(issue.number),
+        commentId: "",
+        contextJson: JSON.stringify({
+          issue_number: String(issue.number),
+          issue_title: details.title || issue.title,
+          issue_body: details.body || issue.body,
+          sub_issues: details.subIssues.join(","),
+          trigger_type: "assigned"
+        }),
+        skip: false,
+        skipReason: ""
+      };
+    }
     const branchName = `claude/issue/${issue.number}`;
     await ensureBranchExists(branchName);
     return {
