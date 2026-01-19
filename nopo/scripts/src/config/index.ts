@@ -13,6 +13,25 @@ const DEFAULT_DEPENDENCIES: Record<string, string> = {
 // Target type: "service" if it has runtime config, "package" if build-only
 export type TargetType = "package" | "service";
 
+// Route configuration for services
+// - {} or omitted: all routes public
+// - { private: ["/path1", "/path2"] }: listed paths blocked from public traffic
+// - { private: true }: ALL routes private (service-to-service only)
+// - false: no routes at all (isolated service)
+const ServiceRoutesSchema = z
+  .union([
+    z.literal(false), // No routes at all
+    z.object({
+      private: z
+        .union([
+          z.literal(true), // All routes private
+          z.array(z.string().min(1)), // Specific paths private
+        ])
+        .optional(),
+    }),
+  ])
+  .optional();
+
 // Runtime configuration for services
 // A target is a "service" if it has runtime config, otherwise it's a "package"
 const ServiceRuntimeSchema = z.object({
@@ -24,6 +43,7 @@ const ServiceRuntimeSchema = z.object({
   max_instances: z.number().int().nonnegative().default(10),
   has_database: z.boolean().default(false),
   run_migrations: z.boolean().default(false),
+  routes: ServiceRoutesSchema,
 });
 
 // Build configuration for services and packages
@@ -279,6 +299,16 @@ const ProjectConfigSchema = z.object({
 type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
 type ServiceRuntimeInput = z.infer<typeof ServiceRuntimeSchema>;
 type ServiceBuildInput = z.infer<typeof ServiceBuildSchema>;
+type ServiceRoutesInput = z.infer<typeof ServiceRoutesSchema>;
+
+// Route configuration for services
+// - undefined: all routes public (default)
+// - false: no routes at all (isolated service)
+// - { private: true }: ALL routes private (service-to-service only)
+// - { private: string[] }: specific paths private
+export type NormalizedServiceRoutes =
+  | false // No routes at all
+  | { private?: true | string[] }; // Optional private configuration
 
 // Runtime resources (renamed from infrastructure, with optional command)
 interface NormalizedServiceRuntime {
@@ -290,6 +320,7 @@ interface NormalizedServiceRuntime {
   maxInstances: number;
   hasDatabase: boolean;
   runMigrations: boolean;
+  routes?: NormalizedServiceRoutes;
 }
 
 // Build configuration
@@ -743,6 +774,20 @@ function discoverServices(
 /**
  * Normalize runtime configuration.
  */
+function normalizeRoutes(
+  routes: ServiceRoutesInput,
+): NormalizedServiceRoutes | undefined {
+  if (routes === undefined) {
+    return undefined;
+  }
+  if (routes === false) {
+    return false;
+  }
+  return {
+    private: routes.private,
+  };
+}
+
 function normalizeRuntime(
   runtime: ServiceRuntimeInput | undefined,
 ): NormalizedServiceRuntime | undefined {
@@ -759,6 +804,7 @@ function normalizeRuntime(
     maxInstances: runtime.max_instances,
     hasDatabase: runtime.has_database,
     runMigrations: runtime.run_migrations,
+    routes: normalizeRoutes(runtime.routes),
   };
 }
 

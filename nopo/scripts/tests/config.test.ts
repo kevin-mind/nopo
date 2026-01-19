@@ -588,4 +588,133 @@ services:
       expect(config.services.targets).toEqual([]);
     });
   });
+
+  describe("runtime.routes schema", () => {
+    it("supports routes with private paths array", () => {
+      const root = createProject({
+        rootConfig: `
+name: Routes Project
+services:
+  dir: ./apps
+`,
+        services: {
+          api: `
+name: api
+dockerfile: Dockerfile
+runtime:
+  port: 3000
+  routes:
+    private:
+      - /admin
+      - /internal
+`,
+        },
+      });
+
+      const config = loadProjectConfig(root);
+      const api = config.services.entries.api;
+
+      expect(api?.runtime?.routes).toEqual({
+        private: ["/admin", "/internal"],
+      });
+    });
+
+    it("supports routes with private: true (all routes private)", () => {
+      const root = createProject({
+        rootConfig: `
+name: Private Service
+services:
+  dir: ./apps
+`,
+        services: {
+          internal: `
+name: internal
+dockerfile: Dockerfile
+runtime:
+  port: 3000
+  routes:
+    private: true
+`,
+        },
+      });
+
+      const config = loadProjectConfig(root);
+      const internal = config.services.entries.internal;
+
+      expect(internal?.runtime?.routes).toEqual({
+        private: true,
+      });
+    });
+
+    it("supports routes: false (no routes at all)", () => {
+      const root = createProject({
+        rootConfig: `
+name: Isolated Service
+services:
+  dir: ./apps
+`,
+        services: {
+          worker: `
+name: worker
+dockerfile: Dockerfile
+runtime:
+  port: 3000
+  routes: false
+`,
+        },
+      });
+
+      const config = loadProjectConfig(root);
+      const worker = config.services.entries.worker;
+
+      expect(worker?.runtime?.routes).toBe(false);
+    });
+
+    it("supports empty routes object (all routes public)", () => {
+      const root = createProject({
+        rootConfig: `
+name: Public Service
+services:
+  dir: ./apps
+`,
+        services: {
+          web: `
+name: web
+dockerfile: Dockerfile
+runtime:
+  port: 3000
+  routes: {}
+`,
+        },
+      });
+
+      const config = loadProjectConfig(root);
+      const web = config.services.entries.web;
+
+      expect(web?.runtime?.routes).toEqual({});
+    });
+
+    it("omits routes when not specified (default public)", () => {
+      const root = createProject({
+        rootConfig: `
+name: Default Routes
+services:
+  dir: ./apps
+`,
+        services: {
+          api: `
+name: api
+dockerfile: Dockerfile
+runtime:
+  port: 3000
+`,
+        },
+      });
+
+      const config = loadProjectConfig(root);
+      const api = config.services.entries.api;
+
+      expect(api?.runtime?.routes).toBeUndefined();
+    });
+  });
 });
