@@ -43,14 +43,8 @@ variable "canary_services" {
 }
 
 variable "default_service" {
-  description = "The default service for unmatched paths (typically 'web')"
+  description = "The default service for unmatched hosts (typically 'web')"
   type        = string
-}
-
-variable "db_services" {
-  description = "List of service keys that handle database/API routes"
-  type        = list(string)
-  default     = []
 }
 
 variable "static_backend_bucket_id" {

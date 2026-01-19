@@ -18,8 +18,13 @@
 
 locals {
   name_prefix = "nopo-${var.environment}"
-  fqdn        = var.subdomain_prefix != "" ? "${var.subdomain_prefix}.${var.domain}" : var.domain
-  public_url  = "https://${local.fqdn}"
+
+  # Base domain suffix for subdomains (e.g., "lenzhardt.org" or "staging.lenzhardt.org")
+  domain_suffix = var.subdomain_prefix != "" ? "${var.subdomain_prefix}.${var.domain}" : var.domain
+
+  # For backwards compatibility, keep fqdn pointing to web subdomain
+  fqdn       = "web.${local.domain_suffix}"
+  public_url = "https://${local.fqdn}"
 
   common_labels = {
     environment = var.environment
@@ -69,7 +74,15 @@ locals {
 
   # Service routing
   default_service = "web"
-  db_services     = ["backend"]
+
+  # Service keys (used for subdomain routing)
+  service_keys = keys(local.stable_services)
+
+  # Generate subdomain FQDNs for each service (e.g., "backend.lenzhardt.org", "web.lenzhardt.org")
+  service_fqdns = { for key in local.service_keys : key => "${key}.${local.domain_suffix}" }
+
+  # All FQDNs for SSL certificate
+  all_fqdns = values(local.service_fqdns)
 }
 
 # =============================================================================
@@ -541,147 +554,101 @@ resource "google_compute_backend_service" "canary" {
 }
 
 # =============================================================================
-# URL MAP with Header-Based Canary Routing
+# URL MAP with Host-Based and Header-Based Routing
 # =============================================================================
+
+# URL map for subdomain-based routing with header-based canary support
+#
+# Routing logic:
+# 1. Each service gets its own subdomain (e.g., backend.domain.com, web.domain.com)
+# 2. If X-Force-Canary: true header is present -> route to canary backend for that service
+# 3. Otherwise -> route to stable backend for that service
+#
+# Static files are served from a shared bucket at any subdomain's /static/ path
+# X-Traffic-Source: public header is injected to all public traffic
 
 resource "google_compute_url_map" "default" {
   project = var.project_id
   name    = "${local.name_prefix}-url-map"
 
+  # Default to stable default service (for unmatched hosts)
   default_service = google_compute_backend_service.stable[local.default_service].id
 
-  host_rule {
-    hosts        = [local.fqdn]
-    path_matcher = "main"
+  # Create a host rule for each service subdomain
+  dynamic "host_rule" {
+    for_each = local.service_fqdns
+    content {
+      hosts        = [host_rule.value]
+      path_matcher = host_rule.key
+    }
   }
 
-  path_matcher {
-    name            = "main"
-    default_service = google_compute_backend_service.stable[local.default_service].id
+  # Create a path matcher for each service with canary header support
+  dynamic "path_matcher" {
+    for_each = local.service_keys
+    content {
+      name            = path_matcher.value
+      default_service = google_compute_backend_service.stable[path_matcher.value].id
 
-    # Global: Static files (priority 1)
-    # Must be higher priority than canary default route (priority 5) to ensure
-    # static assets are always served from the bucket, regardless of canary header.
-    route_rules {
-      priority = 1
-      match_rules {
-        prefix_match = "/static/"
-      }
-      route_action {
-        url_rewrite {
-          path_prefix_rewrite = "/"
+      # Canary route: If X-Force-Canary header is present, route to canary backend
+      route_rules {
+        priority = 1
+        match_rules {
+          prefix_match = "/"
+          header_matches {
+            header_name = "X-Force-Canary"
+            exact_match = "true"
+          }
+        }
+        route_action {
+          weighted_backend_services {
+            backend_service = google_compute_backend_service.canary[path_matcher.value].id
+            weight          = 100
+            header_action {
+              request_headers_to_add {
+                header_name  = "X-Traffic-Source"
+                header_value = "public"
+                replace      = true
+              }
+            }
+          }
         }
       }
-      service = local.static_backend_bucket_id
-    }
 
-    # Canary: API routes (priority 2)
-    route_rules {
-      priority = 2
-      match_rules {
-        prefix_match = "/api/"
-        header_matches {
-          header_name = "X-Force-Canary"
-          exact_match = "true"
+      # Static files route (shared bucket, no canary)
+      route_rules {
+        priority = 2
+        match_rules {
+          prefix_match = "/static/"
+        }
+        route_action {
+          url_rewrite {
+            path_prefix_rewrite = "/"
+          }
+        }
+        service = local.static_backend_bucket_id
+      }
+
+      # Stable route: Default route to stable backend with X-Traffic-Source header
+      route_rules {
+        priority = 10
+        match_rules {
+          prefix_match = "/"
+        }
+        route_action {
+          weighted_backend_services {
+            backend_service = google_compute_backend_service.stable[path_matcher.value].id
+            weight          = 100
+            header_action {
+              request_headers_to_add {
+                header_name  = "X-Traffic-Source"
+                header_value = "public"
+                replace      = true
+              }
+            }
+          }
         }
       }
-      match_rules {
-        prefix_match = "/api"
-        header_matches {
-          header_name = "X-Force-Canary"
-          exact_match = "true"
-        }
-      }
-      service = google_compute_backend_service.canary["backend"].id
-    }
-
-    # Canary: Admin routes (priority 3)
-    route_rules {
-      priority = 3
-      match_rules {
-        prefix_match = "/admin/"
-        header_matches {
-          header_name = "X-Force-Canary"
-          exact_match = "true"
-        }
-      }
-      match_rules {
-        prefix_match = "/admin"
-        header_matches {
-          header_name = "X-Force-Canary"
-          exact_match = "true"
-        }
-      }
-      service = google_compute_backend_service.canary["backend"].id
-    }
-
-    # Canary: Django routes (priority 4)
-    route_rules {
-      priority = 4
-      match_rules {
-        prefix_match = "/django/"
-        header_matches {
-          header_name = "X-Force-Canary"
-          exact_match = "true"
-        }
-      }
-      match_rules {
-        prefix_match = "/django"
-        header_matches {
-          header_name = "X-Force-Canary"
-          exact_match = "true"
-        }
-      }
-      service = google_compute_backend_service.canary["backend"].id
-    }
-
-    # Canary: Default route (priority 5)
-    route_rules {
-      priority = 5
-      match_rules {
-        prefix_match = "/"
-        header_matches {
-          header_name = "X-Force-Canary"
-          exact_match = "true"
-        }
-      }
-      service = google_compute_backend_service.canary[local.default_service].id
-    }
-
-    # Stable: API routes (priority 11)
-    route_rules {
-      priority = 11
-      match_rules {
-        prefix_match = "/api/"
-      }
-      match_rules {
-        prefix_match = "/api"
-      }
-      service = google_compute_backend_service.stable["backend"].id
-    }
-
-    # Stable: Admin routes (priority 12)
-    route_rules {
-      priority = 12
-      match_rules {
-        prefix_match = "/admin/"
-      }
-      match_rules {
-        prefix_match = "/admin"
-      }
-      service = google_compute_backend_service.stable["backend"].id
-    }
-
-    # Stable: Django routes (priority 13)
-    route_rules {
-      priority = 13
-      match_rules {
-        prefix_match = "/django/"
-      }
-      match_rules {
-        prefix_match = "/django"
-      }
-      service = google_compute_backend_service.stable["backend"].id
     }
   }
 }

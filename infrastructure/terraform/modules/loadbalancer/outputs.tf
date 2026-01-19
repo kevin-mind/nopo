@@ -22,3 +22,8 @@ output "canary_header_value" {
   description = "The header value that triggers canary routing"
   value       = var.canary_header_value
 }
+
+output "service_fqdns" {
+  description = "Map of service keys to their subdomain FQDNs"
+  value       = local.service_fqdns
+}

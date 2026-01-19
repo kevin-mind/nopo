@@ -1,8 +1,15 @@
 locals {
-  fqdn = var.subdomain_prefix != "" ? "${var.subdomain_prefix}.${var.domain}" : var.domain
+  # Base domain suffix for subdomains (e.g., "lenzhardt.org" or "staging.lenzhardt.org")
+  domain_suffix = var.subdomain_prefix != "" ? "${var.subdomain_prefix}.${var.domain}" : var.domain
 
   # All service keys (stable and canary should have the same keys)
   service_keys = keys(var.stable_services)
+
+  # Generate subdomain FQDNs for each service (e.g., "api.lenzhardt.org", "web.lenzhardt.org")
+  service_fqdns = { for key in local.service_keys : key => "${key}.${local.domain_suffix}" }
+
+  # All FQDNs for SSL certificate (list of all service subdomains)
+  all_fqdns = values(local.service_fqdns)
 }
 
 # Reserve a static IP for the load balancer
@@ -80,202 +87,116 @@ resource "google_compute_backend_service" "canary" {
 }
 
 # ============================================================================
-# URL MAP with Header-Based Routing
+# URL MAP with Host-Based and Header-Based Routing
 # ============================================================================
 
-# URL map for routing with header-based canary support
+# URL map for subdomain-based routing with header-based canary support
 #
 # Routing logic:
-# 1. If X-Force-Canary: true header is present -> route to canary backends
-# 2. Otherwise -> route to stable backends
+# 1. Each service gets its own subdomain (e.g., api.domain.com, web.domain.com)
+# 2. If X-Force-Canary: true header is present -> route to canary backend for that service
+# 3. Otherwise -> route to stable backend for that service
 #
-# Path routing within each slot:
-# - /static/* -> Static bucket (shared between slots)
-# - /api/*, /admin/*, /django/* -> DB services (backend)
-# - /* -> Default service (web)
+# Static files are served from a shared bucket at any subdomain's /static/ path
 
 resource "google_compute_url_map" "default" {
   project = var.project_id
   name    = "${var.name_prefix}-url-map"
 
-  # Default to stable default service
+  # Default to stable default service (for unmatched hosts)
   default_service = google_compute_backend_service.stable[var.default_service].id
 
-  host_rule {
-    hosts        = [local.fqdn]
-    path_matcher = "main"
+  # Create a host rule for each service subdomain
+  dynamic "host_rule" {
+    for_each = local.service_fqdns
+    content {
+      hosts        = [host_rule.value]
+      path_matcher = host_rule.key
+    }
   }
 
-  path_matcher {
-    name            = "main"
-    default_service = google_compute_backend_service.stable[var.default_service].id
+  # Create a path matcher for each service with canary header support
+  dynamic "path_matcher" {
+    for_each = local.service_keys
+    content {
+      name            = path_matcher.value
+      default_service = google_compute_backend_service.stable[path_matcher.value].id
 
-    # ========================================================================
-    # CANARY ROUTES (Higher Priority - Check header first)
-    # ========================================================================
-
-    # Canary: Static files (shared bucket, no slot-specific routing needed)
-    # Static assets are hashed, so both slots can use the same bucket
-
-    # Canary: API routes
-    dynamic "route_rules" {
-      for_each = length(var.db_services) > 0 ? [1] : []
-      content {
+      # Canary route: If X-Force-Canary header is present, route to canary backend
+      route_rules {
         priority = 1
         match_rules {
-          prefix_match = "/api/"
+          prefix_match = "/"
           header_matches {
             header_name = var.canary_header_name
             exact_match = var.canary_header_value
           }
-        }
-        match_rules {
-          prefix_match = "/api"
-          header_matches {
-            header_name = var.canary_header_name
-            exact_match = var.canary_header_value
-          }
-        }
-        service = google_compute_backend_service.canary[var.db_services[0]].id
-      }
-    }
-
-    # Canary: Admin routes
-    dynamic "route_rules" {
-      for_each = length(var.db_services) > 0 ? [1] : []
-      content {
-        priority = 2
-        match_rules {
-          prefix_match = "/admin/"
-          header_matches {
-            header_name = var.canary_header_name
-            exact_match = var.canary_header_value
-          }
-        }
-        match_rules {
-          prefix_match = "/admin"
-          header_matches {
-            header_name = var.canary_header_name
-            exact_match = var.canary_header_value
-          }
-        }
-        service = google_compute_backend_service.canary[var.db_services[0]].id
-      }
-    }
-
-    # Canary: Django routes
-    dynamic "route_rules" {
-      for_each = length(var.db_services) > 0 ? [1] : []
-      content {
-        priority = 3
-        match_rules {
-          prefix_match = "/django/"
-          header_matches {
-            header_name = var.canary_header_name
-            exact_match = var.canary_header_value
-          }
-        }
-        match_rules {
-          prefix_match = "/django"
-          header_matches {
-            header_name = var.canary_header_name
-            exact_match = var.canary_header_value
-          }
-        }
-        service = google_compute_backend_service.canary[var.db_services[0]].id
-      }
-    }
-
-    # Canary: Default route (web) - catches all canary requests not matched above
-    route_rules {
-      priority = 4
-      match_rules {
-        prefix_match = "/"
-        header_matches {
-          header_name = var.canary_header_name
-          exact_match = var.canary_header_value
-        }
-      }
-      service = google_compute_backend_service.canary[var.default_service].id
-    }
-
-    # ========================================================================
-    # STABLE ROUTES (Lower Priority - Default when no canary header)
-    # ========================================================================
-
-    # Stable: Static files to bucket (shared between slots)
-    dynamic "route_rules" {
-      for_each = var.static_backend_bucket_id != null ? [1] : []
-      content {
-        priority = 10
-        match_rules {
-          prefix_match = "/static/"
         }
         route_action {
-          url_rewrite {
-            path_prefix_rewrite = "/"
+          weighted_backend_services {
+            backend_service = google_compute_backend_service.canary[path_matcher.value].id
+            weight          = 100
+            header_action {
+              request_headers_to_add {
+                header_name  = "X-Traffic-Source"
+                header_value = "public"
+                replace      = true
+              }
+            }
           }
         }
-        service = var.static_backend_bucket_id
+      }
+
+      # Static files route (shared bucket, no canary)
+      dynamic "route_rules" {
+        for_each = var.static_backend_bucket_id != null ? [1] : []
+        content {
+          priority = 2
+          match_rules {
+            prefix_match = "/static/"
+          }
+          route_action {
+            url_rewrite {
+              path_prefix_rewrite = "/"
+            }
+          }
+          service = var.static_backend_bucket_id
+        }
+      }
+
+      # Stable route: Default route to stable backend with X-Traffic-Source header
+      route_rules {
+        priority = 10
+        match_rules {
+          prefix_match = "/"
+        }
+        route_action {
+          weighted_backend_services {
+            backend_service = google_compute_backend_service.stable[path_matcher.value].id
+            weight          = 100
+            header_action {
+              request_headers_to_add {
+                header_name  = "X-Traffic-Source"
+                header_value = "public"
+                replace      = true
+              }
+            }
+          }
+        }
       }
     }
-
-    # Stable: API routes
-    dynamic "route_rules" {
-      for_each = length(var.db_services) > 0 ? [1] : []
-      content {
-        priority = 11
-        match_rules {
-          prefix_match = "/api/"
-        }
-        match_rules {
-          prefix_match = "/api"
-        }
-        service = google_compute_backend_service.stable[var.db_services[0]].id
-      }
-    }
-
-    # Stable: Admin routes
-    dynamic "route_rules" {
-      for_each = length(var.db_services) > 0 ? [1] : []
-      content {
-        priority = 12
-        match_rules {
-          prefix_match = "/admin/"
-        }
-        match_rules {
-          prefix_match = "/admin"
-        }
-        service = google_compute_backend_service.stable[var.db_services[0]].id
-      }
-    }
-
-    # Stable: Django routes
-    dynamic "route_rules" {
-      for_each = length(var.db_services) > 0 ? [1] : []
-      content {
-        priority = 13
-        match_rules {
-          prefix_match = "/django/"
-        }
-        match_rules {
-          prefix_match = "/django"
-        }
-        service = google_compute_backend_service.stable[var.db_services[0]].id
-      }
-    }
-
-    # Note: Stable default (/*) is handled by default_service above
   }
 }
 
-# Managed SSL certificate
+# Managed SSL certificate for all service subdomains
+# Note: For wildcard certificates, use google_certificate_manager_certificate with DNS authorization
+# For now, we list all service subdomains explicitly (supports up to 100 domains)
 resource "google_compute_managed_ssl_certificate" "default" {
   project = var.project_id
   name    = "${var.name_prefix}-ssl-cert"
 
   managed {
-    domains = [local.fqdn]
+    domains = local.all_fqdns
   }
 }
 
