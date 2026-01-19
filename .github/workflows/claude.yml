@@ -158,16 +158,10 @@ jobs:
             has_body=$(echo "$CONTEXT_JSON" | jq -r '.issue_body // empty')
             if [[ -z "$has_body" ]]; then
               echo "Fetching issue details for #$RESOURCE_NUMBER..."
-              issue_data=$(gh issue view "$RESOURCE_NUMBER" --json title,body)
-              issue_title=$(echo "$issue_data" | jq -r '.title')
-              issue_body=$(echo "$issue_data" | jq -r '.body')
-
-              # Build context_json with issue details
-              context_json=$(jq -n \
+              # Fetch issue data and build context_json in one jq command (handles escaping)
+              context_json=$(gh issue view "$RESOURCE_NUMBER" --json title,body | jq -c \
                 --arg num "$RESOURCE_NUMBER" \
-                --arg title "$issue_title" \
-                --arg body "$issue_body" \
-                '{issue_number: $num, issue_title: $title, issue_body: $body}')
+                '{issue_number: $num, issue_title: .title, issue_body: .body}')
               echo "context_json=$context_json" >> $GITHUB_OUTPUT
             fi
           fi
