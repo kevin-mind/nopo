@@ -9,7 +9,7 @@ inputs:
     description: Issue number to read/update state from
     required: true
   action:
-    description: Action to perform (read, init, update, increment, record_failure, clear_failure, complete, reset, log_event, parse_phases)
+    description: Action to perform (read, init, update, increment, record_failure, clear_failure, complete, reset, log_event, update_log_entry, parse_phases)
     required: true
   branch_name:
     description: Branch name (required for init)
@@ -35,6 +35,9 @@ inputs:
   run_link:
     description: Workflow run link for iteration log entry
     required: false
+  current_phase:
+    description: Current phase number (for increment - detects phase change and resets phase_iteration)
+    required: false
 
 outputs:
   iteration:
@@ -57,6 +60,10 @@ outputs:
     description: Whether iteration is complete (true/false)
   has_state:
     description: Whether state was found in issue body (true/false)
+  phase_iteration:
+    description: Iterations within current phase (resets on phase change)
+  last_phase:
+    description: Last known phase number (for detecting phase changes)
   current_phase:
     description: Current phase number (for parse_phases action)
   total_phases:

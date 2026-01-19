@@ -23976,7 +23976,9 @@ function parseState(body) {
     consecutive_failures: 0,
     failure_type: "",
     last_failure_timestamp: "",
-    complete: false
+    complete: false,
+    phase_iteration: 0,
+    last_phase: 0
   };
   for (const line of stateBlock.split("\n")) {
     const trimmed = line.trim();
@@ -24013,6 +24015,12 @@ function parseState(body) {
       case "complete":
         state.complete = value === "true";
         break;
+      case "phase_iteration":
+        state.phase_iteration = parseInt(value, 10) || 0;
+        break;
+      case "last_phase":
+        state.last_phase = parseInt(value, 10) || 0;
+        break;
     }
   }
   return state;
@@ -24028,6 +24036,8 @@ consecutive_failures: ${state.consecutive_failures}
 failure_type: ${state.failure_type}
 last_failure_timestamp: ${state.last_failure_timestamp}
 complete: ${state.complete}
+phase_iteration: ${state.phase_iteration}
+last_phase: ${state.last_phase}
 ${STATE_MARKER_END}`;
 }
 function updateBodyWithState(body, state) {
@@ -24041,6 +24051,43 @@ function updateBodyWithState(body, state) {
     return stateBlock + "\n\n" + body;
   }
   return body.slice(0, startIdx) + stateBlock + body.slice(endIdx + STATE_MARKER_END.length);
+}
+function updateIterationLogEntry(body, runLink, newMessage, sha) {
+  const historyIdx = body.indexOf(HISTORY_SECTION);
+  if (historyIdx === -1) {
+    return body;
+  }
+  const lines = body.split("\n");
+  const historyLineIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
+  if (historyLineIdx === -1) {
+    return body;
+  }
+  let foundIdx = -1;
+  for (let i = historyLineIdx + 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.startsWith("|") && line.includes(runLink)) {
+      foundIdx = i;
+      break;
+    } else if (line.trim() !== "" && !line.startsWith("|")) {
+      break;
+    }
+  }
+  if (foundIdx === -1) {
+    return body;
+  }
+  const existingRow = lines[foundIdx];
+  const match = existingRow.match(/^\|\s*(\d+)\s*\|/);
+  if (!match) {
+    return body;
+  }
+  const iteration = parseInt(match[1], 10);
+  const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+  const repo = process.env.GITHUB_REPOSITORY || "";
+  const shaCell = sha ? `[\`${sha.slice(0, 7)}\`](${serverUrl}/${repo}/commit/${sha})` : "-";
+  const runCell = `[Run](${runLink})`;
+  const newRow = `| ${iteration} | ${newMessage} | ${shaCell} | ${runCell} |`;
+  lines[foundIdx] = newRow;
+  return lines.join("\n");
 }
 function addIterationLogEntry(body, iteration, message, sha, runLink) {
   const historyIdx = body.indexOf(HISTORY_SECTION);
@@ -24086,7 +24133,9 @@ function getDefaultState(branchName) {
     consecutive_failures: 0,
     failure_type: "",
     last_failure_timestamp: "",
-    complete: false
+    complete: false,
+    phase_iteration: 0,
+    last_phase: 0
   };
 }
 async function run() {
@@ -24117,7 +24166,9 @@ async function run() {
           consecutive_failures: "0",
           failure_type: "",
           last_failure_timestamp: "",
-          complete: "false"
+          complete: "false",
+          phase_iteration: "0",
+          last_phase: "0"
         });
         return;
       }
@@ -24131,7 +24182,9 @@ async function run() {
         consecutive_failures: String(state.consecutive_failures),
         failure_type: state.failure_type,
         last_failure_timestamp: state.last_failure_timestamp,
-        complete: state.complete ? "true" : "false"
+        complete: state.complete ? "true" : "false",
+        phase_iteration: String(state.phase_iteration),
+        last_phase: String(state.last_phase)
       });
       return;
     }
@@ -24174,7 +24227,9 @@ async function run() {
         consecutive_failures: "0",
         failure_type: "",
         last_failure_timestamp: "",
-        complete: "false"
+        complete: "false",
+        phase_iteration: "0",
+        last_phase: "0"
       });
       return;
     }
@@ -24242,7 +24297,9 @@ async function run() {
         consecutive_failures: String(state.consecutive_failures),
         failure_type: state.failure_type,
         last_failure_timestamp: state.last_failure_timestamp,
-        complete: state.complete ? "true" : "false"
+        complete: state.complete ? "true" : "false",
+        phase_iteration: String(state.phase_iteration),
+        last_phase: String(state.last_phase)
       });
       return;
     }
@@ -24251,7 +24308,19 @@ async function run() {
         core2.setFailed("Cannot increment: no existing state found");
         return;
       }
+      const currentPhaseInput = getOptionalInput("current_phase");
+      const currentPhase = currentPhaseInput ? parseInt(currentPhaseInput, 10) : 0;
+      let phaseChanged = false;
+      if (currentPhase > 0 && currentPhase !== state.last_phase) {
+        core2.info(
+          `Phase changed from ${state.last_phase} to ${currentPhase}, resetting phase_iteration`
+        );
+        state.phase_iteration = 0;
+        state.last_phase = currentPhase;
+        phaseChanged = true;
+      }
       state.iteration++;
+      state.phase_iteration++;
       const newBody = updateBodyWithState(currentBody, state);
       await octokit.rest.issues.update({
         owner,
@@ -24260,7 +24329,7 @@ async function run() {
         body: newBody
       });
       core2.info(
-        `Incremented iteration to ${state.iteration} for issue #${issueNumber}`
+        `Incremented iteration to ${state.iteration} (phase ${state.last_phase}: ${state.phase_iteration}) for issue #${issueNumber}` + (phaseChanged ? " [phase changed]" : "")
       );
       setOutputs({
         has_state: "true",
@@ -24272,7 +24341,9 @@ async function run() {
         consecutive_failures: String(state.consecutive_failures),
         failure_type: state.failure_type,
         last_failure_timestamp: state.last_failure_timestamp,
-        complete: state.complete ? "true" : "false"
+        complete: state.complete ? "true" : "false",
+        phase_iteration: String(state.phase_iteration),
+        last_phase: String(state.last_phase)
       });
       return;
     }
@@ -24317,7 +24388,9 @@ async function run() {
         consecutive_failures: String(state.consecutive_failures),
         failure_type: state.failure_type,
         last_failure_timestamp: state.last_failure_timestamp,
-        complete: state.complete ? "true" : "false"
+        complete: state.complete ? "true" : "false",
+        phase_iteration: String(state.phase_iteration),
+        last_phase: String(state.last_phase)
       });
       return;
     }
@@ -24347,7 +24420,9 @@ async function run() {
         consecutive_failures: "0",
         failure_type: "",
         last_failure_timestamp: "",
-        complete: state.complete ? "true" : "false"
+        complete: state.complete ? "true" : "false",
+        phase_iteration: String(state.phase_iteration),
+        last_phase: String(state.last_phase)
       });
       return;
     }
@@ -24386,7 +24461,9 @@ async function run() {
         consecutive_failures: "0",
         failure_type: "",
         last_failure_timestamp: "",
-        complete: "true"
+        complete: "true",
+        phase_iteration: String(state.phase_iteration),
+        last_phase: String(state.last_phase)
       });
       return;
     }
@@ -24428,7 +24505,9 @@ async function run() {
         consecutive_failures: "0",
         failure_type: "",
         last_failure_timestamp: "",
-        complete: "false"
+        complete: "false",
+        phase_iteration: String(state.phase_iteration),
+        last_phase: String(state.last_phase)
       });
       return;
     }
@@ -24464,7 +24543,60 @@ async function run() {
         consecutive_failures: String(state.consecutive_failures),
         failure_type: state.failure_type,
         last_failure_timestamp: state.last_failure_timestamp,
-        complete: state.complete ? "true" : "false"
+        complete: state.complete ? "true" : "false",
+        phase_iteration: String(state.phase_iteration),
+        last_phase: String(state.last_phase)
+      });
+      return;
+    }
+    if (action === "update_log_entry") {
+      if (!state) {
+        core2.setFailed("Cannot update log entry: no existing state found");
+        return;
+      }
+      const runLink = getRequiredInput("run_link");
+      const iterationMessage = getRequiredInput("iteration_message");
+      const commitSha = getOptionalInput("commit_sha");
+      let newBody = updateIterationLogEntry(
+        currentBody,
+        runLink,
+        iterationMessage,
+        commitSha
+      );
+      if (newBody === currentBody) {
+        core2.info(
+          `No existing entry found for run link, adding new entry instead`
+        );
+        newBody = addIterationLogEntry(
+          currentBody,
+          state.iteration,
+          iterationMessage,
+          commitSha,
+          runLink
+        );
+      }
+      await octokit.rest.issues.update({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        body: newBody
+      });
+      core2.info(
+        `Updated log entry for issue #${issueNumber}: ${iterationMessage}`
+      );
+      setOutputs({
+        has_state: "true",
+        iteration: String(state.iteration),
+        branch: state.branch,
+        pr_number: state.pr_number,
+        last_ci_run: state.last_ci_run,
+        last_ci_result: state.last_ci_result,
+        consecutive_failures: String(state.consecutive_failures),
+        failure_type: state.failure_type,
+        last_failure_timestamp: state.last_failure_timestamp,
+        complete: state.complete ? "true" : "false",
+        phase_iteration: String(state.phase_iteration),
+        last_phase: String(state.last_phase)
       });
       return;
     }

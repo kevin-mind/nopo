@@ -19,6 +19,9 @@ interface IterationState {
   failure_type: "ci" | "workflow" | "";
   last_failure_timestamp: string;
   complete: boolean;
+  // Phase-specific iteration tracking
+  phase_iteration: number; // Iterations within current phase (resets on phase change)
+  last_phase: number; // Last known phase number (for detecting phase changes)
 }
 
 /**
@@ -154,6 +157,8 @@ function parseState(body: string): IterationState | null {
     failure_type: "",
     last_failure_timestamp: "",
     complete: false,
+    phase_iteration: 0,
+    last_phase: 0,
   };
 
   for (const line of stateBlock.split("\n")) {
@@ -194,6 +199,12 @@ function parseState(body: string): IterationState | null {
       case "complete":
         state.complete = value === "true";
         break;
+      case "phase_iteration":
+        state.phase_iteration = parseInt(value, 10) || 0;
+        break;
+      case "last_phase":
+        state.last_phase = parseInt(value, 10) || 0;
+        break;
     }
   }
 
@@ -214,6 +225,8 @@ consecutive_failures: ${state.consecutive_failures}
 failure_type: ${state.failure_type}
 last_failure_timestamp: ${state.last_failure_timestamp}
 complete: ${state.complete}
+phase_iteration: ${state.phase_iteration}
+last_phase: ${state.last_phase}
 ${STATE_MARKER_END}`;
 }
 
@@ -241,6 +254,67 @@ function updateBodyWithState(body: string, state: IterationState): string {
     stateBlock +
     body.slice(endIdx + STATE_MARKER_END.length)
   );
+}
+
+/**
+ * Update an existing entry in iteration history table by run link
+ * Returns the updated body, or the original body if not found
+ */
+function updateIterationLogEntry(
+  body: string,
+  runLink: string,
+  newMessage: string,
+  sha?: string,
+): string {
+  const historyIdx = body.indexOf(HISTORY_SECTION);
+  if (historyIdx === -1) {
+    return body; // No history section, return unchanged
+  }
+
+  const lines = body.split("\n");
+  const historyLineIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
+  if (historyLineIdx === -1) {
+    return body;
+  }
+
+  // Find the row containing this run link
+  let foundIdx = -1;
+  for (let i = historyLineIdx + 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.startsWith("|") && line.includes(runLink)) {
+      foundIdx = i;
+      break;
+    } else if (line.trim() !== "" && !line.startsWith("|")) {
+      break; // End of table
+    }
+  }
+
+  if (foundIdx === -1) {
+    return body; // Row not found, return unchanged
+  }
+
+  // Parse the existing row to extract iteration number
+  const existingRow = lines[foundIdx];
+  const match = existingRow.match(/^\|\s*(\d+)\s*\|/);
+  if (!match) {
+    return body; // Can't parse row, return unchanged
+  }
+
+  const iteration = parseInt(match[1], 10);
+
+  // Format SHA as a full GitHub link if provided
+  const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+  const repo = process.env.GITHUB_REPOSITORY || "";
+  const shaCell = sha
+    ? `[\`${sha.slice(0, 7)}\`](${serverUrl}/${repo}/commit/${sha})`
+    : "-";
+  const runCell = `[Run](${runLink})`;
+
+  // Build the new row
+  const newRow = `| ${iteration} | ${newMessage} | ${shaCell} | ${runCell} |`;
+  lines[foundIdx] = newRow;
+
+  return lines.join("\n");
 }
 
 /**
@@ -317,6 +391,8 @@ function getDefaultState(branchName: string): IterationState {
     failure_type: "",
     last_failure_timestamp: "",
     complete: false,
+    phase_iteration: 0,
+    last_phase: 0,
   };
 }
 
@@ -356,6 +432,8 @@ async function run(): Promise<void> {
           failure_type: "",
           last_failure_timestamp: "",
           complete: "false",
+          phase_iteration: "0",
+          last_phase: "0",
         });
         return;
       }
@@ -371,6 +449,8 @@ async function run(): Promise<void> {
         failure_type: state.failure_type,
         last_failure_timestamp: state.last_failure_timestamp,
         complete: state.complete ? "true" : "false",
+        phase_iteration: String(state.phase_iteration),
+        last_phase: String(state.last_phase),
       });
       return;
     }
@@ -421,6 +501,8 @@ async function run(): Promise<void> {
         failure_type: "",
         last_failure_timestamp: "",
         complete: "false",
+        phase_iteration: "0",
+        last_phase: "0",
       });
       return;
     }
@@ -506,6 +588,8 @@ async function run(): Promise<void> {
         failure_type: state.failure_type,
         last_failure_timestamp: state.last_failure_timestamp,
         complete: state.complete ? "true" : "false",
+        phase_iteration: String(state.phase_iteration),
+        last_phase: String(state.last_phase),
       });
       return;
     }
@@ -516,7 +600,27 @@ async function run(): Promise<void> {
         return;
       }
 
+      // Get current phase from input (optional - for phase change detection)
+      const currentPhaseInput = getOptionalInput("current_phase");
+      const currentPhase = currentPhaseInput
+        ? parseInt(currentPhaseInput, 10)
+        : 0;
+
+      // Check for phase change and reset phase_iteration if needed
+      let phaseChanged = false;
+      if (currentPhase > 0 && currentPhase !== state.last_phase) {
+        core.info(
+          `Phase changed from ${state.last_phase} to ${currentPhase}, resetting phase_iteration`,
+        );
+        state.phase_iteration = 0;
+        state.last_phase = currentPhase;
+        phaseChanged = true;
+      }
+
+      // Increment both total iteration and phase iteration
       state.iteration++;
+      state.phase_iteration++;
+
       const newBody = updateBodyWithState(currentBody, state);
 
       await octokit.rest.issues.update({
@@ -527,7 +631,8 @@ async function run(): Promise<void> {
       });
 
       core.info(
-        `Incremented iteration to ${state.iteration} for issue #${issueNumber}`,
+        `Incremented iteration to ${state.iteration} (phase ${state.last_phase}: ${state.phase_iteration}) for issue #${issueNumber}` +
+          (phaseChanged ? " [phase changed]" : ""),
       );
 
       setOutputs({
@@ -541,6 +646,8 @@ async function run(): Promise<void> {
         failure_type: state.failure_type,
         last_failure_timestamp: state.last_failure_timestamp,
         complete: state.complete ? "true" : "false",
+        phase_iteration: String(state.phase_iteration),
+        last_phase: String(state.last_phase),
       });
       return;
     }
@@ -595,6 +702,8 @@ async function run(): Promise<void> {
         failure_type: state.failure_type,
         last_failure_timestamp: state.last_failure_timestamp,
         complete: state.complete ? "true" : "false",
+        phase_iteration: String(state.phase_iteration),
+        last_phase: String(state.last_phase),
       });
       return;
     }
@@ -631,6 +740,8 @@ async function run(): Promise<void> {
         failure_type: "",
         last_failure_timestamp: "",
         complete: state.complete ? "true" : "false",
+        phase_iteration: String(state.phase_iteration),
+        last_phase: String(state.last_phase),
       });
       return;
     }
@@ -678,6 +789,8 @@ async function run(): Promise<void> {
         failure_type: "",
         last_failure_timestamp: "",
         complete: "true",
+        phase_iteration: String(state.phase_iteration),
+        last_phase: String(state.last_phase),
       });
       return;
     }
@@ -731,6 +844,8 @@ async function run(): Promise<void> {
         failure_type: "",
         last_failure_timestamp: "",
         complete: "false",
+        phase_iteration: String(state.phase_iteration),
+        last_phase: String(state.last_phase),
       });
       return;
     }
@@ -776,6 +891,71 @@ async function run(): Promise<void> {
         failure_type: state.failure_type,
         last_failure_timestamp: state.last_failure_timestamp,
         complete: state.complete ? "true" : "false",
+        phase_iteration: String(state.phase_iteration),
+        last_phase: String(state.last_phase),
+      });
+      return;
+    }
+
+    if (action === "update_log_entry") {
+      // Update an existing log entry in-place, identified by run_link
+      // If not found, falls back to adding a new entry
+      // Used for real-time progress: logs "Running..." at start, updates to final status on completion
+      if (!state) {
+        core.setFailed("Cannot update log entry: no existing state found");
+        return;
+      }
+
+      const runLink = getRequiredInput("run_link");
+      const iterationMessage = getRequiredInput("iteration_message");
+      const commitSha = getOptionalInput("commit_sha");
+
+      // Try to update existing entry by run_link
+      let newBody = updateIterationLogEntry(
+        currentBody,
+        runLink,
+        iterationMessage,
+        commitSha,
+      );
+
+      // If not found (body unchanged), fall back to adding new entry
+      if (newBody === currentBody) {
+        core.info(
+          `No existing entry found for run link, adding new entry instead`,
+        );
+        newBody = addIterationLogEntry(
+          currentBody,
+          state.iteration,
+          iterationMessage,
+          commitSha,
+          runLink,
+        );
+      }
+
+      await octokit.rest.issues.update({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        body: newBody,
+      });
+
+      core.info(
+        `Updated log entry for issue #${issueNumber}: ${iterationMessage}`,
+      );
+
+      setOutputs({
+        has_state: "true",
+        iteration: String(state.iteration),
+        branch: state.branch,
+        pr_number: state.pr_number,
+        last_ci_run: state.last_ci_run,
+        last_ci_result: state.last_ci_result,
+        consecutive_failures: String(state.consecutive_failures),
+        failure_type: state.failure_type,
+        last_failure_timestamp: state.last_failure_timestamp,
+        complete: state.complete ? "true" : "false",
+        phase_iteration: String(state.phase_iteration),
+        last_phase: String(state.last_phase),
       });
       return;
     }

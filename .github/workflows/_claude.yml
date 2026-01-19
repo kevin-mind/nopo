@@ -367,10 +367,11 @@ jobs:
           steps.early_exit_pending.outputs.early_exit != 'true'
         env:
           ITERATION: ${{ steps.state.outputs.iteration }}
+          PHASE_ITERATION: ${{ steps.state.outputs.phase_iteration }}
           CI_RESULT: ${{ steps.state.outputs.ci_result }}
           # Use updated failure count if CI failure was just recorded
           FAILURES: ${{ steps.state_after_failure.outputs.consecutive_failures || steps.state.outputs.consecutive_failures }}
-          MAX_ITERATIONS: '10'
+          MAX_PHASE_ITERATIONS: '10'
           # Use GitHub variable for max retries, default to 5
           MAX_FAILURES: ${{ vars.MAX_CLAUDE_RETRIES || '5' }}
           # Phase completion info
@@ -384,10 +385,14 @@ jobs:
           is_phase_complete="false"
           is_breakpoint="false"
 
-          if [[ "$ITERATION" -ge "$MAX_ITERATIONS" ]]; then
+          # Use phase_iteration for max iterations check (resets on phase change)
+          # Default to ITERATION if phase_iteration is not set (backwards compatibility)
+          phase_iter="${PHASE_ITERATION:-$ITERATION}"
+
+          if [[ "$phase_iter" -ge "$MAX_PHASE_ITERATIONS" ]]; then
             should_stop="true"
             is_breakpoint="true"
-            stop_reason="Max iterations ($MAX_ITERATIONS) reached"
+            stop_reason="Max iterations per phase ($MAX_PHASE_ITERATIONS) reached (Phase $CURRENT_PHASE, iteration $phase_iter)"
           elif [[ "$FAILURES" -ge "$MAX_FAILURES" ]]; then
             should_stop="true"
             is_breakpoint="true"
@@ -834,6 +839,7 @@ jobs:
           EOF
 
       # Increment iteration counter before running Claude
+      # Pass current_phase to detect phase changes and reset phase_iteration
       - id: increment
         name: Increment iteration
         if: inputs.mock_mode != true && steps.breakpoint.outputs.should_stop != 'true' && steps.rebase.outputs.rebase_performed != 'true'
@@ -842,12 +848,27 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           issue_number: ${{ fromJson(inputs.context_json).issue_number }}
           action: increment
+          current_phase: ${{ steps.parse_phases.outputs.current_phase }}
+
+      # Log work started - this entry will be updated in-place when work completes
+      - name: Log work started
+        if: inputs.mock_mode != true && steps.breakpoint.outputs.should_stop != 'true' && steps.rebase.outputs.rebase_performed != 'true'
+        uses: ./.github/actions-ts/claude-parse-state
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          issue_number: ${{ fromJson(inputs.context_json).issue_number }}
+          action: log_event
+          iteration_message: "⏳ Running..."
+          run_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
       # Write job summary to display iteration prominently in CI UI
       - name: Write iteration summary
         if: steps.breakpoint.outputs.should_stop != 'true' && steps.rebase.outputs.rebase_performed != 'true'
         env:
           ITERATION: ${{ steps.increment.outputs.iteration || steps.state.outputs.iteration || '1' }}
+          PHASE_ITERATION: ${{ steps.increment.outputs.phase_iteration || steps.state.outputs.phase_iteration || '1' }}
+          CURRENT_PHASE: ${{ steps.parse_phases.outputs.current_phase || '1' }}
+          TOTAL_PHASES: ${{ steps.parse_phases.outputs.total_phases || '1' }}
           ISSUE_NUMBER: ${{ fromJson(inputs.context_json).issue_number }}
           ISSUE_TITLE: ${{ fromJson(inputs.context_json).issue_title }}
           FAILURES: ${{ steps.state_after_failure.outputs.consecutive_failures || steps.state.outputs.consecutive_failures || '0' }}
@@ -871,12 +892,14 @@ jobs:
           fi
 
           cat >> $GITHUB_STEP_SUMMARY << EOF
-          # $trigger_emoji Iteration $ITERATION
+          # $trigger_emoji Iteration $ITERATION (Phase $CURRENT_PHASE: $PHASE_ITERATION/10)
 
           | Property | Value |
           |----------|-------|
           | **Issue** | [#$ISSUE_NUMBER](${{ github.server_url }}/${{ github.repository }}/issues/$ISSUE_NUMBER) - $ISSUE_TITLE |
           | **Branch** | \`$BRANCH_NAME\` |
+          | **Phase** | $CURRENT_PHASE of $TOTAL_PHASES |
+          | **Phase Iteration** | $PHASE_ITERATION / 10 |
           | **Trigger** | $trigger_text |
           | **Consecutive Failures** | $FAILURES |
 
@@ -991,7 +1014,16 @@ jobs:
           action: update
           last_ci_result: pending
           pr_number: ${{ steps.detect_pr.outputs.pr_number }}
-          iteration_message: "Pushed changes"
+
+      # Update the "Running..." log entry to show completion
+      - name: Update log entry with result
+        if: success() && inputs.mock_mode != true && steps.breakpoint.outputs.should_stop != 'true' && steps.rebase.outputs.rebase_performed != 'true'
+        uses: ./.github/actions-ts/claude-parse-state
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          issue_number: ${{ fromJson(inputs.context_json).issue_number }}
+          action: update_log_entry
+          iteration_message: "✅ Pushed changes"
           commit_sha: ${{ steps.get_sha.outputs.sha }}
           run_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 

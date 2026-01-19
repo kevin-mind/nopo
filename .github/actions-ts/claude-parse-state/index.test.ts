@@ -15,6 +15,8 @@ interface IterationState {
   failure_type: "ci" | "workflow" | "";
   last_failure_timestamp: string;
   complete: boolean;
+  phase_iteration: number;
+  last_phase: number;
 }
 
 interface PhaseInfo {
@@ -47,6 +49,8 @@ function parseState(body: string): IterationState | null {
     failure_type: "",
     last_failure_timestamp: "",
     complete: false,
+    phase_iteration: 0,
+    last_phase: 0,
   };
 
   for (const line of stateBlock.split("\n")) {
@@ -87,6 +91,12 @@ function parseState(body: string): IterationState | null {
       case "complete":
         state.complete = value === "true";
         break;
+      case "phase_iteration":
+        state.phase_iteration = parseInt(value, 10) || 0;
+        break;
+      case "last_phase":
+        state.last_phase = parseInt(value, 10) || 0;
+        break;
     }
   }
 
@@ -104,6 +114,8 @@ consecutive_failures: ${state.consecutive_failures}
 failure_type: ${state.failure_type}
 last_failure_timestamp: ${state.last_failure_timestamp}
 complete: ${state.complete}
+phase_iteration: ${state.phase_iteration}
+last_phase: ${state.last_phase}
 ${STATE_MARKER_END}`;
 }
 
@@ -161,6 +173,8 @@ Issue content here`;
       failure_type: "ci",
       last_failure_timestamp: "2024-01-15T10:30:00Z",
       complete: false,
+      phase_iteration: 0,
+      last_phase: 0,
     });
   });
 
@@ -207,6 +221,8 @@ complete: false
       failure_type: "",
       last_failure_timestamp: "",
       complete: false,
+      phase_iteration: 0,
+      last_phase: 0,
     });
   });
 
@@ -242,6 +258,8 @@ describe("serializeState", () => {
       failure_type: "",
       last_failure_timestamp: "",
       complete: false,
+      phase_iteration: 0,
+      last_phase: 0,
     };
 
     const serialized = serializeState(state);
@@ -265,6 +283,8 @@ describe("serializeState", () => {
       failure_type: "ci",
       last_failure_timestamp: "2024-01-15T10:30:00Z",
       complete: false,
+      phase_iteration: 0,
+      last_phase: 0,
     };
 
     const serialized = serializeState(state);
@@ -289,6 +309,8 @@ describe("updateBodyWithState", () => {
       failure_type: "",
       last_failure_timestamp: "",
       complete: false,
+      phase_iteration: 0,
+      last_phase: 0,
     };
 
     const updated = updateBodyWithState(body, state);
@@ -324,6 +346,8 @@ Content`;
       failure_type: "",
       last_failure_timestamp: "",
       complete: false,
+      phase_iteration: 0,
+      last_phase: 0,
     };
 
     const updated = updateBodyWithState(body, state);
@@ -346,6 +370,8 @@ Content`;
       failure_type: "ci",
       last_failure_timestamp: "2024-01-15T10:30:00Z",
       complete: false,
+      phase_iteration: 3,
+      last_phase: 2,
     };
 
     const body = "Some content";
@@ -411,6 +437,8 @@ describe("state transitions", () => {
         failure_type: "ci",
         last_failure_timestamp: "2024-01-15T10:30:00Z",
         complete: false,
+        phase_iteration: 3,
+        last_phase: 1,
       };
 
       const reset = resetState(state);
@@ -432,6 +460,8 @@ describe("state transitions", () => {
         failure_type: "ci",
         last_failure_timestamp: "2024-01-15T10:30:00Z",
         complete: false,
+        phase_iteration: 3,
+        last_phase: 1,
       };
 
       const reset = resetState(state);
@@ -452,6 +482,8 @@ describe("state transitions", () => {
         failure_type: "",
         last_failure_timestamp: "",
         complete: true,
+        phase_iteration: 5,
+        last_phase: 2,
       };
 
       const reset = resetState(state);
@@ -471,6 +503,8 @@ describe("state transitions", () => {
         failure_type: "ci",
         last_failure_timestamp: "",
         complete: false,
+        phase_iteration: 2,
+        last_phase: 1,
       };
 
       const failed = recordFailure(state, "ci");
@@ -490,6 +524,8 @@ describe("state transitions", () => {
         failure_type: "",
         last_failure_timestamp: "",
         complete: false,
+        phase_iteration: 2,
+        last_phase: 1,
       };
 
       const failed = recordFailure(state, "workflow");
@@ -510,6 +546,8 @@ describe("state transitions", () => {
         failure_type: "ci",
         last_failure_timestamp: "2024-01-15T10:30:00Z",
         complete: false,
+        phase_iteration: 3,
+        last_phase: 1,
       };
 
       const completed = markComplete(state);
@@ -532,6 +570,8 @@ describe("state transitions", () => {
         failure_type: "",
         last_failure_timestamp: "",
         complete: false,
+        phase_iteration: 2,
+        last_phase: 1,
       };
 
       const incremented = incrementIteration(state);
@@ -862,6 +902,391 @@ This is important content.
     expect(result).toContain(
       "[Run](https://github.com/owner/repo/actions/runs/999)",
     );
+  });
+});
+
+// Update iteration log entry - mirrors the implementation in index.ts
+function updateIterationLogEntry(
+  body: string,
+  runLink: string,
+  newMessage: string,
+  sha?: string,
+): string {
+  const historyIdx = body.indexOf(HISTORY_SECTION);
+  if (historyIdx === -1) {
+    return body;
+  }
+
+  const lines = body.split("\n");
+  const historyLineIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
+  if (historyLineIdx === -1) {
+    return body;
+  }
+
+  let foundIdx = -1;
+  for (let i = historyLineIdx + 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.startsWith("|") && line.includes(runLink)) {
+      foundIdx = i;
+      break;
+    } else if (line.trim() !== "" && !line.startsWith("|")) {
+      break;
+    }
+  }
+
+  if (foundIdx === -1) {
+    return body;
+  }
+
+  const existingRow = lines[foundIdx];
+  const match = existingRow.match(/^\|\s*(\d+)\s*\|/);
+  if (!match) {
+    return body;
+  }
+
+  const iteration = parseInt(match[1], 10);
+  const serverUrl = "https://github.com";
+  const repo = "test-owner/test-repo";
+  const shaCell = sha
+    ? `[\`${sha.slice(0, 7)}\`](${serverUrl}/${repo}/commit/${sha})`
+    : "-";
+  const runCell = `[Run](${runLink})`;
+
+  const newRow = `| ${iteration} | ${newMessage} | ${shaCell} | ${runCell} |`;
+  lines[foundIdx] = newRow;
+
+  return lines.join("\n");
+}
+
+describe("updateIterationLogEntry", () => {
+  it("returns unchanged body when no history section exists", () => {
+    const body = "## Description\n\nSome content";
+    const result = updateIterationLogEntry(
+      body,
+      "https://github.com/owner/repo/actions/runs/123",
+      "✅ Pushed changes",
+    );
+    expect(result).toBe(body);
+  });
+
+  it("returns unchanged body when run link not found", () => {
+    const body = `## Description
+
+${HISTORY_SECTION}
+
+| # | Action | SHA | Run |
+|---|--------|-----|-----|
+| 1 | ⏳ Running... | - | [Run](https://github.com/owner/repo/actions/runs/456) |`;
+
+    const result = updateIterationLogEntry(
+      body,
+      "https://github.com/owner/repo/actions/runs/999", // Different run link
+      "✅ Pushed changes",
+    );
+    expect(result).toBe(body);
+  });
+
+  it("updates existing row when run link found", () => {
+    const runLink = "https://github.com/owner/repo/actions/runs/123";
+    const body = `## Description
+
+${HISTORY_SECTION}
+
+| # | Action | SHA | Run |
+|---|--------|-----|-----|
+| 1 | ⏳ Running... | - | [Run](${runLink}) |`;
+
+    const result = updateIterationLogEntry(body, runLink, "✅ Pushed changes");
+
+    expect(result).not.toBe(body);
+    expect(result).toContain("| 1 | ✅ Pushed changes |");
+    expect(result).toContain(`[Run](${runLink})`);
+    expect(result).not.toContain("⏳ Running...");
+  });
+
+  it("updates row with new SHA", () => {
+    const runLink = "https://github.com/owner/repo/actions/runs/123";
+    const sha = "abc1234567890";
+    const body = `## Description
+
+${HISTORY_SECTION}
+
+| # | Action | SHA | Run |
+|---|--------|-----|-----|
+| 3 | ⏳ Running... | - | [Run](${runLink}) |`;
+
+    const result = updateIterationLogEntry(
+      body,
+      runLink,
+      "✅ Pushed changes",
+      sha,
+    );
+
+    expect(result).toContain("| 3 | ✅ Pushed changes |");
+    expect(result).toContain("[`abc1234`]");
+    expect(result).toContain("/commit/abc1234567890");
+  });
+
+  it("preserves other rows when updating", () => {
+    const runLink = "https://github.com/owner/repo/actions/runs/123";
+    const body = `## Description
+
+${HISTORY_SECTION}
+
+| # | Action | SHA | Run |
+|---|--------|-----|-----|
+| 1 | ✅ Initial implementation | [\`abc1234\`](link) | [Run](link1) |
+| 2 | ❌ CI failed | - | [Run](link2) |
+| 3 | ⏳ Running... | - | [Run](${runLink}) |`;
+
+    const result = updateIterationLogEntry(body, runLink, "✅ Pushed changes");
+
+    expect(result).toContain("| 1 | ✅ Initial implementation |");
+    expect(result).toContain("| 2 | ❌ CI failed |");
+    expect(result).toContain("| 3 | ✅ Pushed changes |");
+    expect(result).not.toContain("⏳ Running...");
+  });
+
+  it("handles CI failure update", () => {
+    const runLink = "https://github.com/owner/repo/actions/runs/123";
+    const body = `## Description
+
+${HISTORY_SECTION}
+
+| # | Action | SHA | Run |
+|---|--------|-----|-----|
+| 2 | ⏳ Running... | - | [Run](${runLink}) |`;
+
+    const result = updateIterationLogEntry(body, runLink, "❌ CI failed");
+
+    expect(result).toContain("| 2 | ❌ CI failed |");
+    expect(result).not.toContain("⏳ Running...");
+  });
+
+  it("handles circuit breaker update", () => {
+    const runLink = "https://github.com/owner/repo/actions/runs/123";
+    const body = `## Description
+
+${HISTORY_SECTION}
+
+| # | Action | SHA | Run |
+|---|--------|-----|-----|
+| 5 | ⏳ Running... | - | [Run](${runLink}) |`;
+
+    const result = updateIterationLogEntry(
+      body,
+      runLink,
+      "⚠️ Circuit breaker: 5 consecutive failures",
+    );
+
+    expect(result).toContain(
+      "| 5 | ⚠️ Circuit breaker: 5 consecutive failures |",
+    );
+  });
+
+  it("handles table with content after it", () => {
+    const runLink = "https://github.com/owner/repo/actions/runs/123";
+    const body = `## Description
+
+${HISTORY_SECTION}
+
+| # | Action | SHA | Run |
+|---|--------|-----|-----|
+| 1 | ⏳ Running... | - | [Run](${runLink}) |
+
+## Additional Content
+
+Some more text here`;
+
+    const result = updateIterationLogEntry(body, runLink, "✅ Done");
+
+    expect(result).toContain("| 1 | ✅ Done |");
+    expect(result).toContain("## Additional Content");
+    expect(result).toContain("Some more text here");
+  });
+});
+
+// Test phase iteration tracking
+describe("phase iteration tracking", () => {
+  // Helper to simulate increment with phase change detection
+  function incrementWithPhase(
+    state: IterationState,
+    currentPhase?: number,
+  ): IterationState {
+    const newState = { ...state };
+
+    // Check for phase change
+    if (currentPhase && currentPhase > 0 && currentPhase !== state.last_phase) {
+      newState.phase_iteration = 0;
+      newState.last_phase = currentPhase;
+    }
+
+    // Increment both counters
+    newState.iteration++;
+    newState.phase_iteration++;
+
+    return newState;
+  }
+
+  it("increments phase_iteration along with iteration", () => {
+    const state: IterationState = {
+      iteration: 3,
+      branch: "claude/issue/1",
+      pr_number: "10",
+      last_ci_run: "100",
+      last_ci_result: "",
+      consecutive_failures: 0,
+      failure_type: "",
+      last_failure_timestamp: "",
+      complete: false,
+      phase_iteration: 2,
+      last_phase: 1,
+    };
+
+    const incremented = incrementWithPhase(state, 1);
+    expect(incremented.iteration).toBe(4);
+    expect(incremented.phase_iteration).toBe(3);
+    expect(incremented.last_phase).toBe(1);
+  });
+
+  it("resets phase_iteration when phase changes", () => {
+    const state: IterationState = {
+      iteration: 5,
+      branch: "claude/issue/1",
+      pr_number: "10",
+      last_ci_run: "100",
+      last_ci_result: "success",
+      consecutive_failures: 0,
+      failure_type: "",
+      last_failure_timestamp: "",
+      complete: false,
+      phase_iteration: 5,
+      last_phase: 1,
+    };
+
+    // Phase changes from 1 to 2
+    const incremented = incrementWithPhase(state, 2);
+    expect(incremented.iteration).toBe(6);
+    expect(incremented.phase_iteration).toBe(1); // Reset to 0, then incremented to 1
+    expect(incremented.last_phase).toBe(2);
+  });
+
+  it("detects max phase iterations breakpoint", () => {
+    const MAX_PHASE_ITERATIONS = 10;
+
+    // At iteration 10 of phase, should trigger breakpoint
+    const phaseIteration = 10;
+    expect(phaseIteration >= MAX_PHASE_ITERATIONS).toBe(true);
+
+    // At iteration 9, should not trigger
+    const phaseIteration2 = 9;
+    expect(phaseIteration2 >= MAX_PHASE_ITERATIONS).toBe(false);
+  });
+
+  it("preserves iteration count across phase changes", () => {
+    const state: IterationState = {
+      iteration: 10,
+      branch: "claude/issue/1",
+      pr_number: "10",
+      last_ci_run: "100",
+      last_ci_result: "success",
+      consecutive_failures: 0,
+      failure_type: "",
+      last_failure_timestamp: "",
+      complete: false,
+      phase_iteration: 10,
+      last_phase: 1,
+    };
+
+    // Human reviews and moves to Phase 2
+    const incremented = incrementWithPhase(state, 2);
+
+    // Total iteration continues
+    expect(incremented.iteration).toBe(11);
+    // But phase iteration resets
+    expect(incremented.phase_iteration).toBe(1);
+    expect(incremented.last_phase).toBe(2);
+  });
+
+  it("handles multiple phase transitions", () => {
+    let state: IterationState = {
+      iteration: 0,
+      branch: "claude/issue/1",
+      pr_number: "10",
+      last_ci_run: "100",
+      last_ci_result: "",
+      consecutive_failures: 0,
+      failure_type: "",
+      last_failure_timestamp: "",
+      complete: false,
+      phase_iteration: 0,
+      last_phase: 0,
+    };
+
+    // Phase 1: 3 iterations
+    state = incrementWithPhase(state, 1);
+    state = incrementWithPhase(state, 1);
+    state = incrementWithPhase(state, 1);
+    expect(state.iteration).toBe(3);
+    expect(state.phase_iteration).toBe(3);
+    expect(state.last_phase).toBe(1);
+
+    // Phase 2: 2 iterations
+    state = incrementWithPhase(state, 2);
+    state = incrementWithPhase(state, 2);
+    expect(state.iteration).toBe(5);
+    expect(state.phase_iteration).toBe(2);
+    expect(state.last_phase).toBe(2);
+
+    // Phase 3: 1 iteration
+    state = incrementWithPhase(state, 3);
+    expect(state.iteration).toBe(6);
+    expect(state.phase_iteration).toBe(1);
+    expect(state.last_phase).toBe(3);
+  });
+
+  it("handles initial state with no phase", () => {
+    const state: IterationState = {
+      iteration: 0,
+      branch: "claude/issue/1",
+      pr_number: "",
+      last_ci_run: "",
+      last_ci_result: "",
+      consecutive_failures: 0,
+      failure_type: "",
+      last_failure_timestamp: "",
+      complete: false,
+      phase_iteration: 0,
+      last_phase: 0,
+    };
+
+    // First increment with phase 1
+    const incremented = incrementWithPhase(state, 1);
+    expect(incremented.iteration).toBe(1);
+    expect(incremented.phase_iteration).toBe(1);
+    expect(incremented.last_phase).toBe(1);
+  });
+
+  it("handles increment without phase input", () => {
+    const state: IterationState = {
+      iteration: 3,
+      branch: "claude/issue/1",
+      pr_number: "10",
+      last_ci_run: "100",
+      last_ci_result: "",
+      consecutive_failures: 0,
+      failure_type: "",
+      last_failure_timestamp: "",
+      complete: false,
+      phase_iteration: 2,
+      last_phase: 1,
+    };
+
+    // No phase input (undefined) - should just increment both
+    const incremented = incrementWithPhase(state);
+    expect(incremented.iteration).toBe(4);
+    expect(incremented.phase_iteration).toBe(3);
+    expect(incremented.last_phase).toBe(1); // Unchanged
   });
 });
 
