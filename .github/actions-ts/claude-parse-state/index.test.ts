@@ -774,6 +774,7 @@ ${HISTORY_SECTION}
     const body = "## Description\n\nContent";
 
     // Test various release event messages
+    // Verified by issue #3598 - release events are logged via release.yml workflow
     const events = [
       { msg: "🚀 Added to merge queue", iteration: 1 },
       { msg: "🎉 Merged to main", iteration: 1 },
