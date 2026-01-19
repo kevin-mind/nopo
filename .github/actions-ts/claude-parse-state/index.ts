@@ -810,6 +810,7 @@ async function run(): Promise<void> {
       state.last_failure_timestamp = "";
       state.complete = false;
       state.last_ci_result = "";
+      state.phase_iteration = 0; // Reset phase iteration count for fresh start
 
       let newBody = updateBodyWithState(currentBody, state);
 

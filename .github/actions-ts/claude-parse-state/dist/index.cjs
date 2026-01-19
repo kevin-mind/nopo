@@ -24478,6 +24478,7 @@ async function run() {
       state.last_failure_timestamp = "";
       state.complete = false;
       state.last_ci_result = "";
+      state.phase_iteration = 0;
       let newBody = updateBodyWithState(currentBody, state);
       if (iterationMessage) {
         newBody = addIterationLogEntry(

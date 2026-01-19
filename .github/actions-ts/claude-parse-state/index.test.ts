@@ -393,6 +393,7 @@ describe("state transitions", () => {
       last_failure_timestamp: "",
       last_ci_result: "",
       complete: false,
+      phase_iteration: 0, // Reset phase iteration count for fresh start
     };
   }
 
@@ -447,6 +448,7 @@ describe("state transitions", () => {
       expect(reset.last_failure_timestamp).toBe("");
       expect(reset.last_ci_result).toBe("");
       expect(reset.complete).toBe(false);
+      expect(reset.phase_iteration).toBe(0); // Phase iteration should be reset
     });
 
     it("preserves iteration count and PR info", () => {
