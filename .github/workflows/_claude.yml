@@ -396,15 +396,8 @@ jobs:
           # Default to ITERATION if phase_iteration is not set (backwards compatibility)
           phase_iter="${PHASE_ITERATION:-$ITERATION}"
 
-          if [[ "$phase_iter" -ge "$MAX_PHASE_ITERATIONS" ]]; then
-            should_stop="true"
-            is_breakpoint="true"
-            stop_reason="Max iterations per phase ($MAX_PHASE_ITERATIONS) reached (Phase $CURRENT_PHASE, iteration $phase_iter)"
-          elif [[ "$FAILURES" -ge "$MAX_FAILURES" ]]; then
-            should_stop="true"
-            is_breakpoint="true"
-            stop_reason="Circuit breaker: $FAILURES consecutive failures (max: $MAX_FAILURES)"
-          elif [[ "$CI_RESULT" == "success" && "$CURRENT_PHASE_DONE" == "true" ]]; then
+          # Check phase completion FIRST (success case) before circuit breakers
+          if [[ "$CI_RESULT" == "success" && "$CURRENT_PHASE_DONE" == "true" ]]; then
             # CI passed AND current phase todos are done - phase is complete
             is_phase_complete="true"
             should_stop="true"
@@ -413,6 +406,14 @@ jobs:
             else
               stop_reason="Phase $CURRENT_PHASE of $TOTAL_PHASES complete - ready for review"
             fi
+          elif [[ "$phase_iter" -ge "$MAX_PHASE_ITERATIONS" ]]; then
+            should_stop="true"
+            is_breakpoint="true"
+            stop_reason="Max iterations per phase ($MAX_PHASE_ITERATIONS) reached (Phase $CURRENT_PHASE, iteration $phase_iter)"
+          elif [[ "$FAILURES" -ge "$MAX_FAILURES" ]]; then
+            should_stop="true"
+            is_breakpoint="true"
+            stop_reason="Circuit breaker: $FAILURES consecutive failures (max: $MAX_FAILURES)"
           fi
 
           echo "should_stop=$should_stop" >> $GITHUB_OUTPUT
