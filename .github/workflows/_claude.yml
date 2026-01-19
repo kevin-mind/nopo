@@ -179,9 +179,14 @@ jobs:
       # ===== EARLY EXIT: Already complete =====
       # If iteration is already complete, exit immediately WITHOUT editing the issue.
       # This is how the edit-based loop closes cleanly.
+      # Exception: If trigger is 'assigned' (re-assignment), allow workflow to continue
+      # so the reset step can clear the complete flag and resume work.
       - id: early_exit_complete
         name: Check if already complete
-        if: inputs.mock_mode != true && steps.read_state.outputs.complete == 'true'
+        if: |
+          inputs.mock_mode != true &&
+          steps.read_state.outputs.complete == 'true' &&
+          fromJson(inputs.context_json).trigger_type != 'assigned'
         run: |
           echo "::notice::Issue is already complete. Exiting without changes."
           echo "early_exit=true" >> $GITHUB_OUTPUT
@@ -629,29 +634,49 @@ jobs:
           PR_NUMBER: ${{ steps.get_pr_number.outputs.pr_number }}
         run: gh pr edit "$PR_NUMBER" --add-reviewer "nopo-bot" --repo "$GITHUB_REPOSITORY"
 
-      # Log phase complete event to iteration history
+      # Log phase complete event to iteration history (when not all phases are done)
       - name: Log phase complete
         if: |
           inputs.mock_mode != true &&
           steps.breakpoint.outputs.is_phase_complete == 'true' &&
-          steps.check_comments.outputs.has_unresolved != 'true'
+          steps.check_comments.outputs.has_unresolved != 'true' &&
+          steps.parse_phases.outputs.all_phases_done != 'true'
         env:
           CURRENT_PHASE: ${{ steps.parse_phases.outputs.current_phase || '1' }}
           TOTAL_PHASES: ${{ steps.parse_phases.outputs.total_phases || '1' }}
-          ALL_PHASES_DONE: ${{ steps.parse_phases.outputs.all_phases_done || 'false' }}
         uses: ./.github/actions-ts/claude-parse-state
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           issue_number: ${{ fromJson(inputs.context_json).issue_number }}
           action: log_event
-          iteration_message: "👁️ Phase ${{ env.CURRENT_PHASE }}/${{ env.TOTAL_PHASES }} complete - review requested"
+          iteration_message: "✅ Phase ${{ env.CURRENT_PHASE }}/${{ env.TOTAL_PHASES }} complete - ready for review"
           run_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
+      # Log all phases complete event to iteration history
+      - name: Log all phases complete
+        if: |
+          inputs.mock_mode != true &&
+          steps.breakpoint.outputs.is_phase_complete == 'true' &&
+          steps.check_comments.outputs.has_unresolved != 'true' &&
+          steps.parse_phases.outputs.all_phases_done == 'true'
+        env:
+          TOTAL_PHASES: ${{ steps.parse_phases.outputs.total_phases || '1' }}
+        uses: ./.github/actions-ts/claude-parse-state
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          issue_number: ${{ fromJson(inputs.context_json).issue_number }}
+          action: log_event
+          iteration_message: "🎉 All ${{ env.TOTAL_PHASES }} phases complete - ready for final review"
+          run_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      # Only mark complete when ALL phases are done (not just current phase)
+      # When only current phase is done, we want to continue after merge/review
       - name: Mark iteration complete
         if: |
           inputs.mock_mode != true &&
           steps.breakpoint.outputs.is_phase_complete == 'true' &&
-          steps.check_comments.outputs.has_unresolved != 'true'
+          steps.check_comments.outputs.has_unresolved != 'true' &&
+          steps.parse_phases.outputs.all_phases_done == 'true'
         uses: ./.github/actions-ts/claude-parse-state
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
