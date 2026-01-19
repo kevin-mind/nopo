@@ -23904,6 +23904,18 @@ function setOutputs(outputs) {
 var STATE_MARKER_START = "<!-- CLAUDE_ITERATION";
 var STATE_MARKER_END = "-->";
 var HISTORY_SECTION = "## Iteration History";
+function countNonManualUncheckedTodos(content) {
+  const lines = content.split("\n");
+  let count = 0;
+  for (const line of lines) {
+    if (line.match(/- \[ \]/)) {
+      if (!line.includes("*(manual)*")) {
+        count++;
+      }
+    }
+  }
+  return count;
+}
 function parsePhases(body) {
   const phaseRegex = /^## Phase (\d+):\s*(.+)$/gm;
   const phases = [];
@@ -23916,7 +23928,7 @@ function parsePhases(body) {
     });
   }
   if (phases.length === 0) {
-    const uncheckedTodos = (body.match(/- \[ \]/g) || []).length;
+    const uncheckedTodos = countNonManualUncheckedTodos(body);
     return {
       current_phase: 1,
       total_phases: 1,
@@ -23932,7 +23944,7 @@ function parsePhases(body) {
     const nextPhase = phases[i + 1];
     const endIndex = nextPhase ? nextPhase.startIndex : body.length;
     const phaseContent = body.slice(phase.startIndex, endIndex);
-    const uncheckedCount = (phaseContent.match(/- \[ \]/g) || []).length;
+    const uncheckedCount = countNonManualUncheckedTodos(phaseContent);
     const checkedCount = (phaseContent.match(/- \[x\]/gi) || []).length;
     phaseCompletion.push({
       number: phase.number,

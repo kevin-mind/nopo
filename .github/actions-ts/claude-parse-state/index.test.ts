@@ -1292,6 +1292,20 @@ describe("phase iteration tracking", () => {
   });
 });
 
+// Count unchecked todos that are NOT manual tasks - mirrors the implementation in index.ts
+function countNonManualUncheckedTodos(content: string): number {
+  const lines = content.split("\n");
+  let count = 0;
+  for (const line of lines) {
+    if (line.match(/- \[ \]/)) {
+      if (!line.includes("*(manual)*")) {
+        count++;
+      }
+    }
+  }
+  return count;
+}
+
 // Phase parsing logic - mirrors the implementation in index.ts
 function parsePhases(body: string): PhaseInfo {
   const phaseRegex = /^## Phase (\d+):\s*(.+)$/gm;
@@ -1311,7 +1325,8 @@ function parsePhases(body: string): PhaseInfo {
   }
 
   if (phases.length === 0) {
-    const uncheckedTodos = (body.match(/- \[ \]/g) || []).length;
+    // Exclude manual tasks from unchecked count
+    const uncheckedTodos = countNonManualUncheckedTodos(body);
     return {
       current_phase: 1,
       total_phases: 1,
@@ -1334,7 +1349,8 @@ function parsePhases(body: string): PhaseInfo {
     const nextPhase = phases[i + 1];
     const endIndex = nextPhase ? nextPhase.startIndex : body.length;
     const phaseContent = body.slice(phase.startIndex, endIndex);
-    const uncheckedCount = (phaseContent.match(/- \[ \]/g) || []).length;
+    // Exclude manual tasks from unchecked count
+    const uncheckedCount = countNonManualUncheckedTodos(phaseContent);
 
     phaseCompletion.push({
       number: phase.number,
@@ -1553,5 +1569,53 @@ complete: false
 
     const result = parsePhases(body);
     expect(result.current_phase_title).toBe("API Endpoints");
+  });
+
+  it("treats manual tasks as complete (single phase)", () => {
+    const body = `## Description
+
+## Todo
+- [x] Implement feature
+- [x] Add tests
+- [ ] Test manually *(manual)*
+- [ ] Deploy to staging *(manual)*`;
+
+    const result = parsePhases(body);
+    // Manual tasks should not block completion
+    expect(result.current_phase_todos_done).toBe(true);
+    expect(result.all_phases_done).toBe(true);
+  });
+
+  it("treats manual tasks as complete (multi-phase)", () => {
+    const body = `## Description
+
+## Phase 1: Implementation
+- [x] Write code
+- [x] Add tests
+- [ ] Test locally *(manual)*
+
+## Phase 2: Deployment
+- [ ] Deploy to staging
+- [ ] Verify in staging *(manual)*`;
+
+    const result = parsePhases(body);
+    // Phase 1 should be done (manual task doesn't block)
+    expect(result.current_phase).toBe(2);
+    // Phase 2 has a non-manual unchecked task
+    expect(result.current_phase_todos_done).toBe(false);
+  });
+
+  it("correctly identifies incomplete phase with mix of manual and non-manual tasks", () => {
+    const body = `## Description
+
+## Todo
+- [x] Implement feature
+- [ ] Write documentation
+- [ ] Test manually *(manual)*`;
+
+    const result = parsePhases(body);
+    // "Write documentation" is unchecked and NOT manual, so phase is incomplete
+    expect(result.current_phase_todos_done).toBe(false);
+    expect(result.all_phases_done).toBe(false);
   });
 });

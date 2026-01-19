@@ -40,6 +40,25 @@ const STATE_MARKER_END = "-->";
 const HISTORY_SECTION = "## Iteration History";
 
 /**
+ * Count unchecked todos that are NOT manual tasks.
+ * Manual tasks are marked with *(manual)* and should not block phase completion.
+ */
+function countNonManualUncheckedTodos(content: string): number {
+  const lines = content.split("\n");
+  let count = 0;
+  for (const line of lines) {
+    // Check if line has an unchecked todo
+    if (line.match(/- \[ \]/)) {
+      // Skip if it's marked as manual
+      if (!line.includes("*(manual)*")) {
+        count++;
+      }
+    }
+  }
+  return count;
+}
+
+/**
  * Parse phases from issue body
  * Phases are defined as "## Phase N: Title" sections with checkbox todos
  */
@@ -63,8 +82,8 @@ function parsePhases(body: string): PhaseInfo {
 
   // If no phases found, treat the entire issue as a single phase
   if (phases.length === 0) {
-    // Check for any unchecked todos in the whole body
-    const uncheckedTodos = (body.match(/- \[ \]/g) || []).length;
+    // Check for any unchecked todos in the whole body (excluding manual tasks)
+    const uncheckedTodos = countNonManualUncheckedTodos(body);
     return {
       current_phase: 1,
       total_phases: 1,
@@ -93,8 +112,8 @@ function parsePhases(body: string): PhaseInfo {
     const endIndex = nextPhase ? nextPhase.startIndex : body.length;
     const phaseContent = body.slice(phase.startIndex, endIndex);
 
-    // Count checked and unchecked todos in this phase
-    const uncheckedCount = (phaseContent.match(/- \[ \]/g) || []).length;
+    // Count checked and unchecked todos in this phase (excluding manual tasks from unchecked)
+    const uncheckedCount = countNonManualUncheckedTodos(phaseContent);
     const checkedCount = (phaseContent.match(/- \[x\]/gi) || []).length;
 
     phaseCompletion.push({
