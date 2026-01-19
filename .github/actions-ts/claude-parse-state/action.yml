@@ -9,7 +9,7 @@ inputs:
     description: Issue number to read/update state from
     required: true
   action:
-    description: Action to perform (read, init, update, increment, record_failure, clear_failure, complete, reset)
+    description: Action to perform (read, init, update, increment, record_failure, clear_failure, complete, reset, log_event, parse_phases)
     required: true
   branch_name:
     description: Branch name (required for init)
@@ -57,6 +57,16 @@ outputs:
     description: Whether iteration is complete (true/false)
   has_state:
     description: Whether state was found in issue body (true/false)
+  current_phase:
+    description: Current phase number (for parse_phases action)
+  total_phases:
+    description: Total number of phases (for parse_phases action)
+  current_phase_todos_done:
+    description: Whether all todos in current phase are done (for parse_phases action)
+  all_phases_done:
+    description: Whether all phases are complete (for parse_phases action)
+  current_phase_title:
+    description: Title of the current phase (for parse_phases action)
 
 runs:
   using: node20

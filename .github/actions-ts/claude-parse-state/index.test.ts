@@ -17,6 +17,14 @@ interface IterationState {
   complete: boolean;
 }
 
+interface PhaseInfo {
+  current_phase: number;
+  total_phases: number;
+  current_phase_todos_done: boolean;
+  all_phases_done: boolean;
+  current_phase_title: string;
+}
+
 function parseState(body: string): IterationState | null {
   const startIdx = body.indexOf(STATE_MARKER_START);
   if (startIdx === -1) {
@@ -854,5 +862,269 @@ This is important content.
     expect(result).toContain(
       "[Run](https://github.com/owner/repo/actions/runs/999)",
     );
+  });
+});
+
+// Phase parsing logic - mirrors the implementation in index.ts
+function parsePhases(body: string): PhaseInfo {
+  const phaseRegex = /^## Phase (\d+):\s*(.+)$/gm;
+  const phases: Array<{
+    number: number;
+    title: string;
+    startIndex: number;
+  }> = [];
+
+  let match;
+  while ((match = phaseRegex.exec(body)) !== null) {
+    phases.push({
+      number: parseInt(match[1], 10),
+      title: match[2].trim(),
+      startIndex: match.index,
+    });
+  }
+
+  if (phases.length === 0) {
+    const uncheckedTodos = (body.match(/- \[ \]/g) || []).length;
+    return {
+      current_phase: 1,
+      total_phases: 1,
+      current_phase_todos_done: uncheckedTodos === 0,
+      all_phases_done: uncheckedTodos === 0,
+      current_phase_title: "Todo",
+    };
+  }
+
+  phases.sort((a, b) => a.number - b.number);
+
+  const phaseCompletion: Array<{
+    number: number;
+    title: string;
+    uncheckedCount: number;
+  }> = [];
+
+  for (let i = 0; i < phases.length; i++) {
+    const phase = phases[i];
+    const nextPhase = phases[i + 1];
+    const endIndex = nextPhase ? nextPhase.startIndex : body.length;
+    const phaseContent = body.slice(phase.startIndex, endIndex);
+    const uncheckedCount = (phaseContent.match(/- \[ \]/g) || []).length;
+
+    phaseCompletion.push({
+      number: phase.number,
+      title: phase.title,
+      uncheckedCount,
+    });
+  }
+
+  const currentPhaseData = phaseCompletion.find((p) => p.uncheckedCount > 0);
+  const currentPhase =
+    currentPhaseData?.number || phases[phases.length - 1].number;
+  const currentPhaseTitle =
+    currentPhaseData?.title || phases[phases.length - 1].title;
+
+  const currentPhaseInfo = phaseCompletion.find(
+    (p) => p.number === currentPhase,
+  );
+  const currentPhaseTodosDone = currentPhaseInfo
+    ? currentPhaseInfo.uncheckedCount === 0
+    : true;
+
+  const allPhasesDone = phaseCompletion.every((p) => p.uncheckedCount === 0);
+
+  return {
+    current_phase: currentPhase,
+    total_phases: phases.length,
+    current_phase_todos_done: currentPhaseTodosDone,
+    all_phases_done: allPhasesDone,
+    current_phase_title: currentPhaseTitle,
+  };
+}
+
+describe("parsePhases", () => {
+  it("treats issue without phases as single phase", () => {
+    const body = `## Description
+
+Some content
+
+## Todo
+- [ ] Task 1
+- [ ] Task 2`;
+
+    const result = parsePhases(body);
+    expect(result.current_phase).toBe(1);
+    expect(result.total_phases).toBe(1);
+    expect(result.current_phase_todos_done).toBe(false);
+    expect(result.all_phases_done).toBe(false);
+    expect(result.current_phase_title).toBe("Todo");
+  });
+
+  it("detects completed single-phase issue", () => {
+    const body = `## Description
+
+## Todo
+- [x] Task 1
+- [x] Task 2`;
+
+    const result = parsePhases(body);
+    expect(result.current_phase_todos_done).toBe(true);
+    expect(result.all_phases_done).toBe(true);
+  });
+
+  it("parses multiple phases", () => {
+    const body = `## Description
+
+## Phase 1: Setup
+- [ ] Task 1
+- [ ] Task 2
+
+## Phase 2: Implementation
+- [ ] Task 3
+- [ ] Task 4
+
+## Phase 3: Testing
+- [ ] Task 5`;
+
+    const result = parsePhases(body);
+    expect(result.total_phases).toBe(3);
+    expect(result.current_phase).toBe(1);
+    expect(result.current_phase_title).toBe("Setup");
+    expect(result.current_phase_todos_done).toBe(false);
+    expect(result.all_phases_done).toBe(false);
+  });
+
+  it("detects current phase as first incomplete phase", () => {
+    const body = `## Description
+
+## Phase 1: Setup
+- [x] Task 1
+- [x] Task 2
+
+## Phase 2: Implementation
+- [ ] Task 3
+- [x] Task 4
+
+## Phase 3: Testing
+- [ ] Task 5`;
+
+    const result = parsePhases(body);
+    expect(result.current_phase).toBe(2);
+    expect(result.current_phase_title).toBe("Implementation");
+    expect(result.current_phase_todos_done).toBe(false);
+  });
+
+  it("detects phase completion when all phase todos done", () => {
+    const body = `## Description
+
+## Phase 1: Setup
+- [x] Task 1
+- [x] Task 2
+
+## Phase 2: Implementation
+- [ ] Task 3
+- [ ] Task 4`;
+
+    const result = parsePhases(body);
+    expect(result.current_phase).toBe(2);
+    // Phase 1 is done, but current phase (2) is not
+    expect(result.current_phase_todos_done).toBe(false);
+  });
+
+  it("detects all phases done", () => {
+    const body = `## Description
+
+## Phase 1: Setup
+- [x] Task 1
+- [x] Task 2
+
+## Phase 2: Implementation
+- [x] Task 3
+- [x] Task 4
+
+## Phase 3: Testing
+- [x] Task 5`;
+
+    const result = parsePhases(body);
+    expect(result.current_phase).toBe(3); // Last phase when all done
+    expect(result.current_phase_todos_done).toBe(true);
+    expect(result.all_phases_done).toBe(true);
+  });
+
+  it("handles phases out of order in body", () => {
+    const body = `## Description
+
+## Phase 3: Testing
+- [ ] Task 5
+
+## Phase 1: Setup
+- [ ] Task 1
+
+## Phase 2: Implementation
+- [ ] Task 3`;
+
+    const result = parsePhases(body);
+    // Should sort by phase number, not position
+    expect(result.current_phase).toBe(1);
+    expect(result.total_phases).toBe(3);
+  });
+
+  it("handles phase with no todos", () => {
+    const body = `## Description
+
+## Phase 1: Planning
+This phase is just documentation.
+
+## Phase 2: Implementation
+- [ ] Task 1`;
+
+    const result = parsePhases(body);
+    // Phase 1 has no todos, so it's "done", current is Phase 2
+    expect(result.current_phase).toBe(2);
+  });
+
+  it("handles mixed case checkbox markers", () => {
+    const body = `## Phase 1: Setup
+- [x] Task 1
+- [X] Task 2
+
+## Phase 2: Implementation
+- [ ] Task 3`;
+
+    const result = parsePhases(body);
+    expect(result.current_phase).toBe(2);
+    // Both [x] and [X] should count as checked
+  });
+
+  it("handles state block before phases", () => {
+    const body = `<!-- CLAUDE_ITERATION
+iteration: 3
+branch: claude/issue/42
+complete: false
+-->
+
+## Description
+
+## Phase 1: Setup
+- [x] Task 1
+
+## Phase 2: Implementation
+- [ ] Task 2`;
+
+    const result = parsePhases(body);
+    expect(result.current_phase).toBe(2);
+    expect(result.total_phases).toBe(2);
+  });
+
+  it("returns correct title for current phase", () => {
+    const body = `## Phase 1: Database Schema
+- [x] Create migration
+
+## Phase 2: API Endpoints
+- [ ] Add GET endpoint
+
+## Phase 3: Frontend Integration
+- [ ] Add page component`;
+
+    const result = parsePhases(body);
+    expect(result.current_phase_title).toBe("API Endpoints");
   });
 });

@@ -346,7 +346,20 @@ jobs:
             sleep "$final_delay"
           fi
 
-      # Check for breakpoints and CI success
+      # Parse phase structure from issue body
+      - id: parse_phases
+        name: Parse phase structure
+        if: |
+          inputs.mock_mode != true &&
+          steps.early_exit_complete.outputs.early_exit != 'true' &&
+          steps.early_exit_pending.outputs.early_exit != 'true'
+        uses: ./.github/actions-ts/claude-parse-state
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          issue_number: ${{ fromJson(inputs.context_json).issue_number }}
+          action: parse_phases
+
+      # Check for breakpoints and phase completion
       - id: breakpoint
         name: Check breakpoints
         if: |
@@ -360,10 +373,15 @@ jobs:
           MAX_ITERATIONS: '10'
           # Use GitHub variable for max retries, default to 5
           MAX_FAILURES: ${{ vars.MAX_CLAUDE_RETRIES || '5' }}
+          # Phase completion info
+          CURRENT_PHASE_DONE: ${{ steps.parse_phases.outputs.current_phase_todos_done || 'false' }}
+          ALL_PHASES_DONE: ${{ steps.parse_phases.outputs.all_phases_done || 'false' }}
+          CURRENT_PHASE: ${{ steps.parse_phases.outputs.current_phase || '1' }}
+          TOTAL_PHASES: ${{ steps.parse_phases.outputs.total_phases || '1' }}
         run: |
           should_stop="false"
           stop_reason=""
-          is_ci_success="false"
+          is_phase_complete="false"
           is_breakpoint="false"
 
           if [[ "$ITERATION" -ge "$MAX_ITERATIONS" ]]; then
@@ -374,16 +392,20 @@ jobs:
             should_stop="true"
             is_breakpoint="true"
             stop_reason="Circuit breaker: $FAILURES consecutive failures (max: $MAX_FAILURES)"
-          elif [[ "$CI_RESULT" == "success" ]]; then
-            # CI passed - this is a success case, not a breakpoint
-            is_ci_success="true"
+          elif [[ "$CI_RESULT" == "success" && "$CURRENT_PHASE_DONE" == "true" ]]; then
+            # CI passed AND current phase todos are done - phase is complete
+            is_phase_complete="true"
             should_stop="true"
-            stop_reason="CI passed - ready for review"
+            if [[ "$ALL_PHASES_DONE" == "true" ]]; then
+              stop_reason="All phases complete (Phase $CURRENT_PHASE/$TOTAL_PHASES) - ready for final review"
+            else
+              stop_reason="Phase $CURRENT_PHASE of $TOTAL_PHASES complete - ready for review"
+            fi
           fi
 
           echo "should_stop=$should_stop" >> $GITHUB_OUTPUT
           echo "stop_reason=$stop_reason" >> $GITHUB_OUTPUT
-          echo "is_ci_success=$is_ci_success" >> $GITHUB_OUTPUT
+          echo "is_phase_complete=$is_phase_complete" >> $GITHUB_OUTPUT
           echo "is_breakpoint=$is_breakpoint" >> $GITHUB_OUTPUT
 
       # Log circuit breaker event to iteration history
@@ -468,7 +490,7 @@ jobs:
 
       - id: get_pr_number
         name: Get PR number from state or context
-        if: steps.breakpoint.outputs.is_ci_success == 'true'
+        if: steps.breakpoint.outputs.is_phase_complete == 'true'
         env:
           STATE_PR: ${{ steps.read_state.outputs.pr_number }}
           CONTEXT_PR: ${{ fromJson(inputs.context_json).pr_number }}
@@ -483,7 +505,7 @@ jobs:
 
       - id: check_comments
         name: Check unresolved review comments
-        if: inputs.mock_mode != true && steps.breakpoint.outputs.is_ci_success == 'true'
+        if: inputs.mock_mode != true && steps.breakpoint.outputs.is_phase_complete == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.get_pr_number.outputs.pr_number }}
@@ -508,7 +530,7 @@ jobs:
           echo "has_unresolved=$([[ "$unresolved" -gt 0 ]] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
 
       - name: Notify blocked by unresolved comments
-        if: inputs.mock_mode != true && steps.breakpoint.outputs.is_ci_success == 'true' && steps.check_comments.outputs.has_unresolved == 'true'
+        if: inputs.mock_mode != true && steps.breakpoint.outputs.is_phase_complete == 'true' && steps.check_comments.outputs.has_unresolved == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.get_pr_number.outputs.pr_number }}
@@ -523,7 +545,7 @@ jobs:
       - name: Update project status to In review
         if: |
           inputs.mock_mode != true &&
-          steps.breakpoint.outputs.is_ci_success == 'true' &&
+          steps.breakpoint.outputs.is_phase_complete == 'true' &&
           steps.check_comments.outputs.has_unresolved != 'true'
         env:
           GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
@@ -574,7 +596,7 @@ jobs:
       - name: Mark PR ready
         if: |
           inputs.mock_mode != true &&
-          steps.breakpoint.outputs.is_ci_success == 'true' &&
+          steps.breakpoint.outputs.is_phase_complete == 'true' &&
           steps.check_comments.outputs.has_unresolved != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -584,7 +606,7 @@ jobs:
       - name: Add review-ready label
         if: |
           inputs.mock_mode != true &&
-          steps.breakpoint.outputs.is_ci_success == 'true' &&
+          steps.breakpoint.outputs.is_phase_complete == 'true' &&
           steps.check_comments.outputs.has_unresolved != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -594,7 +616,7 @@ jobs:
       - name: Request review
         if: |
           inputs.mock_mode != true &&
-          steps.breakpoint.outputs.is_ci_success == 'true' &&
+          steps.breakpoint.outputs.is_phase_complete == 'true' &&
           steps.check_comments.outputs.has_unresolved != 'true'
         env:
           # Use NOPO_BOT_PAT to trigger the review_requested event
@@ -602,24 +624,28 @@ jobs:
           PR_NUMBER: ${{ steps.get_pr_number.outputs.pr_number }}
         run: gh pr edit "$PR_NUMBER" --add-reviewer "nopo-bot" --repo "$GITHUB_REPOSITORY"
 
-      # Log review requested event to iteration history
-      - name: Log review requested
+      # Log phase complete event to iteration history
+      - name: Log phase complete
         if: |
           inputs.mock_mode != true &&
-          steps.breakpoint.outputs.is_ci_success == 'true' &&
+          steps.breakpoint.outputs.is_phase_complete == 'true' &&
           steps.check_comments.outputs.has_unresolved != 'true'
+        env:
+          CURRENT_PHASE: ${{ steps.parse_phases.outputs.current_phase || '1' }}
+          TOTAL_PHASES: ${{ steps.parse_phases.outputs.total_phases || '1' }}
+          ALL_PHASES_DONE: ${{ steps.parse_phases.outputs.all_phases_done || 'false' }}
         uses: ./.github/actions-ts/claude-parse-state
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           issue_number: ${{ fromJson(inputs.context_json).issue_number }}
           action: log_event
-          iteration_message: "👁️ Review requested"
+          iteration_message: "👁️ Phase ${{ env.CURRENT_PHASE }}/${{ env.TOTAL_PHASES }} complete - review requested"
           run_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
       - name: Mark iteration complete
         if: |
           inputs.mock_mode != true &&
-          steps.breakpoint.outputs.is_ci_success == 'true' &&
+          steps.breakpoint.outputs.is_phase_complete == 'true' &&
           steps.check_comments.outputs.has_unresolved != 'true'
         uses: ./.github/actions-ts/claude-parse-state
         with:
@@ -628,18 +654,29 @@ jobs:
           action: complete
           run_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-      # Write summary for CI success
+      # Write summary for phase completion
       - name: Write success summary
-        if: steps.breakpoint.outputs.is_ci_success == 'true' && steps.check_comments.outputs.has_unresolved != 'true'
+        if: steps.breakpoint.outputs.is_phase_complete == 'true' && steps.check_comments.outputs.has_unresolved != 'true'
         env:
           ITERATION: ${{ steps.state.outputs.iteration || '0' }}
           ISSUE_NUMBER: ${{ fromJson(inputs.context_json).issue_number }}
           ISSUE_TITLE: ${{ fromJson(inputs.context_json).issue_title }}
           PR_NUMBER: ${{ steps.get_pr_number.outputs.pr_number }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
+          CURRENT_PHASE: ${{ steps.parse_phases.outputs.current_phase || '1' }}
+          TOTAL_PHASES: ${{ steps.parse_phases.outputs.total_phases || '1' }}
+          ALL_PHASES_DONE: ${{ steps.parse_phases.outputs.all_phases_done || 'false' }}
         run: |
+          if [[ "$ALL_PHASES_DONE" == "true" ]]; then
+            phase_status="All phases complete ($CURRENT_PHASE/$TOTAL_PHASES)"
+            next_step="PR is ready for final review and merge."
+          else
+            phase_status="Phase $CURRENT_PHASE of $TOTAL_PHASES complete"
+            next_step="After merge, iteration will resume with Phase $((CURRENT_PHASE + 1))."
+          fi
+
           cat >> $GITHUB_STEP_SUMMARY << EOF
-          # ✅ Implementation Complete
+          # ✅ Phase Complete
 
           | Property | Value |
           |----------|-------|
@@ -647,10 +684,13 @@ jobs:
           | **PR** | [#$PR_NUMBER](${{ github.server_url }}/${{ github.repository }}/pull/$PR_NUMBER) |
           | **Branch** | \`$BRANCH_NAME\` |
           | **Total Iterations** | $ITERATION |
+          | **Phase Status** | $phase_status |
 
           ## Status
 
-          CI passed! PR is now ready for review.
+          $phase_status! PR is now ready for review.
+
+          $next_step
 
           - ✅ PR converted to ready state
           - ✅ Review requested from \`nopo-bot\`
@@ -855,6 +895,9 @@ jobs:
           CI_RESULT: ${{ steps.state.outputs.ci_result }}
           # Use updated failure count if CI failure was just recorded
           FAILURES: ${{ steps.state_after_failure.outputs.consecutive_failures || steps.state.outputs.consecutive_failures }}
+          # Phase information
+          CURRENT_PHASE: ${{ steps.parse_phases.outputs.current_phase || '1' }}
+          TOTAL_PHASES: ${{ steps.parse_phases.outputs.total_phases || '1' }}
         run: |
           # Check for existing branch work
           diff=$(git diff main.."$BRANCH_NAME" --stat 2>/dev/null || echo "")
@@ -877,17 +920,21 @@ jobs:
             section=""
           fi
 
-          # Add all iteration context to replacements
+          # Add all iteration context to replacements (including phase info)
           json=$(echo "$BASE_REPLACEMENTS" | jq -c \
             --arg section "$section" \
             --arg iteration "$ITERATION" \
             --arg ci_result "$CI_RESULT" \
             --arg failures "$FAILURES" \
+            --arg current_phase "$CURRENT_PHASE" \
+            --arg total_phases "$TOTAL_PHASES" \
             '. + {
               EXISTING_BRANCH_SECTION: $section,
               ITERATION: $iteration,
               LAST_CI_RESULT: $ci_result,
-              CONSECUTIVE_FAILURES: $failures
+              CONSECUTIVE_FAILURES: $failures,
+              CURRENT_PHASE: $current_phase,
+              TOTAL_PHASES: $total_phases
             }')
           echo "json=$json" >> $GITHUB_OUTPUT
 

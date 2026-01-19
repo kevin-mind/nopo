@@ -21,9 +21,113 @@ interface IterationState {
   complete: boolean;
 }
 
+/**
+ * Phase information extracted from issue body
+ */
+interface PhaseInfo {
+  current_phase: number;
+  total_phases: number;
+  current_phase_todos_done: boolean;
+  all_phases_done: boolean;
+  current_phase_title: string;
+}
+
 const STATE_MARKER_START = "<!-- CLAUDE_ITERATION";
 const STATE_MARKER_END = "-->";
 const HISTORY_SECTION = "## Iteration History";
+
+/**
+ * Parse phases from issue body
+ * Phases are defined as "## Phase N: Title" sections with checkbox todos
+ */
+function parsePhases(body: string): PhaseInfo {
+  // Match "## Phase N: Title" headers
+  const phaseRegex = /^## Phase (\d+):\s*(.+)$/gm;
+  const phases: Array<{
+    number: number;
+    title: string;
+    startIndex: number;
+  }> = [];
+
+  let match;
+  while ((match = phaseRegex.exec(body)) !== null) {
+    phases.push({
+      number: parseInt(match[1], 10),
+      title: match[2].trim(),
+      startIndex: match.index,
+    });
+  }
+
+  // If no phases found, treat the entire issue as a single phase
+  if (phases.length === 0) {
+    // Check for any unchecked todos in the whole body
+    const uncheckedTodos = (body.match(/- \[ \]/g) || []).length;
+    return {
+      current_phase: 1,
+      total_phases: 1,
+      current_phase_todos_done: uncheckedTodos === 0,
+      all_phases_done: uncheckedTodos === 0,
+      current_phase_title: "Todo",
+    };
+  }
+
+  // Sort phases by number
+  phases.sort((a, b) => a.number - b.number);
+
+  // For each phase, extract todos and check completion
+  const phaseCompletion: Array<{
+    number: number;
+    title: string;
+    uncheckedCount: number;
+    checkedCount: number;
+  }> = [];
+
+  for (let i = 0; i < phases.length; i++) {
+    const phase = phases[i];
+    const nextPhase = phases[i + 1];
+
+    // Extract content between this phase header and the next (or end of body)
+    const endIndex = nextPhase ? nextPhase.startIndex : body.length;
+    const phaseContent = body.slice(phase.startIndex, endIndex);
+
+    // Count checked and unchecked todos in this phase
+    const uncheckedCount = (phaseContent.match(/- \[ \]/g) || []).length;
+    const checkedCount = (phaseContent.match(/- \[x\]/gi) || []).length;
+
+    phaseCompletion.push({
+      number: phase.number,
+      title: phase.title,
+      uncheckedCount,
+      checkedCount,
+    });
+  }
+
+  // Find current phase (first phase with unchecked todos)
+  const currentPhaseData = phaseCompletion.find((p) => p.uncheckedCount > 0);
+  const currentPhase =
+    currentPhaseData?.number || phases[phases.length - 1].number;
+  const currentPhaseTitle =
+    currentPhaseData?.title || phases[phases.length - 1].title;
+
+  // Check if current phase is done
+  const currentPhaseInfo = phaseCompletion.find(
+    (p) => p.number === currentPhase,
+  );
+  const currentPhaseTodosDone = currentPhaseInfo
+    ? currentPhaseInfo.uncheckedCount === 0
+    : true;
+
+  // Check if all phases are done
+  const allPhasesDone = phaseCompletion.every((p) => p.uncheckedCount === 0);
+
+  return {
+    current_phase: currentPhase,
+    total_phases: phases.length,
+    current_phase_todos_done: currentPhaseTodosDone,
+    all_phases_done: allPhasesDone,
+    current_phase_title: currentPhaseTitle,
+  };
+}
 
 /**
  * Parse state from issue body
@@ -672,6 +776,28 @@ async function run(): Promise<void> {
         failure_type: state.failure_type,
         last_failure_timestamp: state.last_failure_timestamp,
         complete: state.complete ? "true" : "false",
+      });
+      return;
+    }
+
+    if (action === "parse_phases") {
+      // Parse phase structure from issue body
+      // Returns current phase, total phases, and completion status
+      const phaseInfo = parsePhases(currentBody);
+
+      core.info(
+        `Parsed phases for issue #${issueNumber}: Phase ${phaseInfo.current_phase}/${phaseInfo.total_phases}, ` +
+          `current phase done: ${phaseInfo.current_phase_todos_done}, all done: ${phaseInfo.all_phases_done}`,
+      );
+
+      setOutputs({
+        current_phase: String(phaseInfo.current_phase),
+        total_phases: String(phaseInfo.total_phases),
+        current_phase_todos_done: phaseInfo.current_phase_todos_done
+          ? "true"
+          : "false",
+        all_phases_done: phaseInfo.all_phases_done ? "true" : "false",
+        current_phase_title: phaseInfo.current_phase_title,
       });
       return;
     }

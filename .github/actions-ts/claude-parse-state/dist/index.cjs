@@ -23904,6 +23904,59 @@ function setOutputs(outputs) {
 var STATE_MARKER_START = "<!-- CLAUDE_ITERATION";
 var STATE_MARKER_END = "-->";
 var HISTORY_SECTION = "## Iteration History";
+function parsePhases(body) {
+  const phaseRegex = /^## Phase (\d+):\s*(.+)$/gm;
+  const phases = [];
+  let match;
+  while ((match = phaseRegex.exec(body)) !== null) {
+    phases.push({
+      number: parseInt(match[1], 10),
+      title: match[2].trim(),
+      startIndex: match.index
+    });
+  }
+  if (phases.length === 0) {
+    const uncheckedTodos = (body.match(/- \[ \]/g) || []).length;
+    return {
+      current_phase: 1,
+      total_phases: 1,
+      current_phase_todos_done: uncheckedTodos === 0,
+      all_phases_done: uncheckedTodos === 0,
+      current_phase_title: "Todo"
+    };
+  }
+  phases.sort((a, b) => a.number - b.number);
+  const phaseCompletion = [];
+  for (let i = 0; i < phases.length; i++) {
+    const phase = phases[i];
+    const nextPhase = phases[i + 1];
+    const endIndex = nextPhase ? nextPhase.startIndex : body.length;
+    const phaseContent = body.slice(phase.startIndex, endIndex);
+    const uncheckedCount = (phaseContent.match(/- \[ \]/g) || []).length;
+    const checkedCount = (phaseContent.match(/- \[x\]/gi) || []).length;
+    phaseCompletion.push({
+      number: phase.number,
+      title: phase.title,
+      uncheckedCount,
+      checkedCount
+    });
+  }
+  const currentPhaseData = phaseCompletion.find((p) => p.uncheckedCount > 0);
+  const currentPhase = currentPhaseData?.number || phases[phases.length - 1].number;
+  const currentPhaseTitle = currentPhaseData?.title || phases[phases.length - 1].title;
+  const currentPhaseInfo = phaseCompletion.find(
+    (p) => p.number === currentPhase
+  );
+  const currentPhaseTodosDone = currentPhaseInfo ? currentPhaseInfo.uncheckedCount === 0 : true;
+  const allPhasesDone = phaseCompletion.every((p) => p.uncheckedCount === 0);
+  return {
+    current_phase: currentPhase,
+    total_phases: phases.length,
+    current_phase_todos_done: currentPhaseTodosDone,
+    all_phases_done: allPhasesDone,
+    current_phase_title: currentPhaseTitle
+  };
+}
 function parseState(body) {
   const startIdx = body.indexOf(STATE_MARKER_START);
   if (startIdx === -1) {
@@ -24412,6 +24465,20 @@ async function run() {
         failure_type: state.failure_type,
         last_failure_timestamp: state.last_failure_timestamp,
         complete: state.complete ? "true" : "false"
+      });
+      return;
+    }
+    if (action === "parse_phases") {
+      const phaseInfo = parsePhases(currentBody);
+      core2.info(
+        `Parsed phases for issue #${issueNumber}: Phase ${phaseInfo.current_phase}/${phaseInfo.total_phases}, current phase done: ${phaseInfo.current_phase_todos_done}, all done: ${phaseInfo.all_phases_done}`
+      );
+      setOutputs({
+        current_phase: String(phaseInfo.current_phase),
+        total_phases: String(phaseInfo.total_phases),
+        current_phase_todos_done: phaseInfo.current_phase_todos_done ? "true" : "false",
+        all_phases_done: phaseInfo.all_phases_done ? "true" : "false",
+        current_phase_title: phaseInfo.current_phase_title
       });
       return;
     }
