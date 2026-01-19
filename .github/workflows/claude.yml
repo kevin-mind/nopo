@@ -229,7 +229,14 @@ jobs:
     # - Triage: cancel (edited issue should re-triage)
     # - Other jobs: queue (don't cancel work in progress)
     concurrency:
-      group: claude-work-${{ needs.detect.outputs.resource_number }}
+      group: >-
+        ${{
+          (needs.detect.outputs.job == 'issue-iterate' || needs.detect.outputs.job == 'issue-triage' || needs.detect.outputs.job == 'issue-orchestrate')
+          && format('claude-work-claude/issue/{0}', needs.detect.outputs.resource_number)
+          || needs.detect.outputs.resource_type == 'pr'
+          && format('claude-review-{0}', needs.detect.outputs.resource_number)
+          || format('claude-resource-{0}-{1}', needs.detect.outputs.resource_type, needs.detect.outputs.resource_number)
+        }}
       cancel-in-progress: ${{ needs.detect.outputs.job == 'issue-triage' }}
     uses: ./.github/workflows/_claude.yml
     with:
