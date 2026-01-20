@@ -93,22 +93,33 @@ defaults:
 # ============================================================================
 # CONCURRENCY STRATEGY
 # ============================================================================
-# Per-resource concurrency is applied at the job level (run-job, special jobs)
-# because resource_number isn't known until after detect runs.
+# WORKFLOW-LEVEL: One Claude workflow at a time per resource (issue/PR/discussion)
+# This ensures NO concurrent Claude work on the same resource, period.
 #
-# Groups:
-# - claude-work-claude/issue/{number}: SHARED with CI workflow for iterate AND triage
-#   Ensures CI, iterate, and triage never run simultaneously (queue mode for iterate)
-#   Triage uses cancel-in-progress to restart on issue edits
-# - claude-resource-{type}-{number}: Other Claude jobs per resource (queue)
-# - claude-review-{number}: Push cancels in-flight reviews (cancel)
+# Groups derived from event context:
+# - Issues/comments: github.event.issue.number
+# - PRs/reviews: github.event.pull_request.number
+# - Push: branch name (maps to issue via claude/issue/{N} pattern)
+# - Discussions: github.event.discussion.number
+# - workflow_dispatch: inputs.resource_number
 #
-# This allows:
-# - Multiple issues to be processed in parallel
-# - Serial processing within each issue/PR (prevents conflicts)
-# - CI, triage, and iterate to run sequentially (no race conditions)
-# - Smart cancellation for events that obsolete previous work
+# cancel-in-progress: false (queue mode) - ensures all edits are processed
 # ============================================================================
+concurrency:
+  group: >-
+    claude-${{
+      github.event_name == 'issues' && format('issue-{0}', github.event.issue.number) ||
+      github.event_name == 'issue_comment' && format('issue-{0}', github.event.issue.number) ||
+      github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) ||
+      github.event_name == 'pull_request_review' && format('pr-{0}', github.event.pull_request.number) ||
+      github.event_name == 'pull_request_review_comment' && format('pr-{0}', github.event.pull_request.number) ||
+      github.event_name == 'push' && format('branch-{0}', github.ref_name) ||
+      github.event_name == 'discussion' && format('discussion-{0}', github.event.discussion.number) ||
+      github.event_name == 'discussion_comment' && format('discussion-{0}', github.event.discussion.number) ||
+      github.event_name == 'workflow_dispatch' && format('{0}-{1}', inputs.job, inputs.resource_number) ||
+      github.run_id
+    }}
+  cancel-in-progress: false
 
 jobs:
   # ============================================================================
