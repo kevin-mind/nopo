@@ -82,7 +82,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/run-claude
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/triage.txt
           prompt_replacements: ${{ needs.context.outputs.prompt_replacements }}
@@ -160,7 +160,7 @@ jobs:
         name: Read project state
         uses: ./.github/actions-ts/claude-parse-state
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           issue_number: ${{ fromJson(inputs.context_json).issue_number }}
           action: read
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
@@ -170,7 +170,7 @@ jobs:
         name: Get current phase from sub-issues
         uses: ./.github/actions-ts/claude-parse-state
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           issue_number: ${{ fromJson(inputs.context_json).issue_number }}
           action: get_current_phase
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
@@ -410,7 +410,7 @@ jobs:
           steps.read_state.outputs.has_state != 'true'
         uses: ./.github/actions-ts/claude-parse-state
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           issue_number: ${{ fromJson(inputs.context_json).issue_number }}
           action: update
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
@@ -430,7 +430,7 @@ jobs:
           fromJson(inputs.context_json).trigger_type == 'assigned'
         uses: ./.github/actions-ts/claude-parse-state
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           issue_number: ${{ fromJson(inputs.context_json).issue_number }}
           action: clear_failures
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
@@ -446,7 +446,7 @@ jobs:
           (steps.read_state.outputs.status == 'Blocked' || steps.read_state.outputs.status == 'Ready')
         uses: ./.github/actions-ts/claude-parse-state
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           issue_number: ${{ fromJson(inputs.context_json).issue_number }}
           action: update
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
@@ -461,7 +461,7 @@ jobs:
           fromJson(inputs.context_json).trigger_type == 'assigned'
         uses: ./.github/actions-ts/claude-parse-state
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           issue_number: ${{ fromJson(inputs.context_json).parent_issue || fromJson(inputs.context_json).issue_number }}
           action: append_history
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
@@ -499,7 +499,7 @@ jobs:
           steps.state.outputs.ci_result == 'failure'
         uses: ./.github/actions-ts/claude-parse-state
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           issue_number: ${{ fromJson(inputs.context_json).parent_issue || fromJson(inputs.context_json).issue_number }}
           action: record_failure
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
@@ -599,7 +599,7 @@ jobs:
           steps.breakpoint.outputs.is_breakpoint == 'true'
         uses: ./.github/actions-ts/claude-parse-state
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           issue_number: ${{ fromJson(inputs.context_json).parent_issue || fromJson(inputs.context_json).issue_number }}
           action: append_history
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
@@ -613,7 +613,7 @@ jobs:
           steps.breakpoint.outputs.is_breakpoint == 'true'
         uses: ./.github/actions-ts/claude-parse-state
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           issue_number: ${{ fromJson(inputs.context_json).parent_issue || fromJson(inputs.context_json).issue_number }}
           action: set_blocked
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
@@ -828,7 +828,7 @@ jobs:
           TOTAL_PHASES: ${{ steps.get_phase.outputs.total_phases || '1' }}
         uses: ./.github/actions-ts/claude-parse-state
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           issue_number: ${{ fromJson(inputs.context_json).parent_issue || fromJson(inputs.context_json).issue_number }}
           action: append_history
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
@@ -846,7 +846,7 @@ jobs:
           TOTAL_PHASES: ${{ steps.get_phase.outputs.total_phases || '1' }}
         uses: ./.github/actions-ts/claude-parse-state
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           issue_number: ${{ fromJson(inputs.context_json).parent_issue || fromJson(inputs.context_json).issue_number }}
           action: append_history
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
@@ -862,7 +862,7 @@ jobs:
           steps.get_phase.outputs.all_phases_done == 'true'
         uses: ./.github/actions-ts/claude-parse-state
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           issue_number: ${{ fromJson(inputs.context_json).parent_issue || fromJson(inputs.context_json).issue_number }}
           action: update
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
@@ -1053,7 +1053,7 @@ jobs:
         if: steps.breakpoint.outputs.should_stop != 'true' && steps.rebase.outputs.rebase_performed != 'true'
         uses: ./.github/actions-ts/claude-parse-state
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           issue_number: ${{ fromJson(inputs.context_json).parent_issue || fromJson(inputs.context_json).issue_number }}
           action: increment
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
@@ -1063,7 +1063,7 @@ jobs:
         if: steps.breakpoint.outputs.should_stop != 'true' && steps.rebase.outputs.rebase_performed != 'true'
         uses: ./.github/actions-ts/claude-parse-state
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           issue_number: ${{ fromJson(inputs.context_json).parent_issue || fromJson(inputs.context_json).issue_number }}
           action: append_history
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
@@ -1172,7 +1172,7 @@ jobs:
       - uses: ./.github/actions/run-claude
         if: steps.breakpoint.outputs.should_stop != 'true' && steps.rebase.outputs.rebase_performed != 'true'
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/iterate.txt
           prompt_replacements: ${{ steps.augment.outputs.json }}
@@ -1216,7 +1216,7 @@ jobs:
         if: success() && steps.breakpoint.outputs.should_stop != 'true' && steps.rebase.outputs.rebase_performed != 'true'
         uses: ./.github/actions-ts/claude-parse-state
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           issue_number: ${{ fromJson(inputs.context_json).parent_issue || fromJson(inputs.context_json).issue_number }}
           action: append_history
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
@@ -1278,7 +1278,7 @@ jobs:
           fetch-depth: 0
       - uses: ./.github/actions/run-claude
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/comment.txt
           prompt_replacements: ${{ needs.context.outputs.prompt_replacements }}
@@ -1313,7 +1313,7 @@ jobs:
         name: Read parent issue state
         uses: ./.github/actions-ts/claude-parse-state
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           issue_number: ${{ fromJson(inputs.context_json).issue_number }}
           action: read
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
@@ -1323,7 +1323,7 @@ jobs:
         name: Get current phase from sub-issues
         uses: ./.github/actions-ts/claude-parse-state
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           issue_number: ${{ fromJson(inputs.context_json).issue_number }}
           action: get_current_phase
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
@@ -1359,7 +1359,7 @@ jobs:
           steps.read_state.outputs.has_state != 'true'
         uses: ./.github/actions-ts/claude-parse-state
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           issue_number: ${{ fromJson(inputs.context_json).issue_number }}
           action: init_parent
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
@@ -1372,7 +1372,7 @@ jobs:
           steps.check_complete.outputs.early_exit != 'true'
         uses: ./.github/actions-ts/claude-parse-state
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           issue_number: ${{ fromJson(inputs.context_json).issue_number }}
           action: advance_phase
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
@@ -1399,7 +1399,7 @@ jobs:
           steps.advance.outputs.next_sub_issue != '0'
         uses: ./.github/actions-ts/claude-parse-state
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           issue_number: ${{ fromJson(inputs.context_json).issue_number }}
           action: append_history
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
@@ -1447,7 +1447,7 @@ jobs:
           fetch-depth: 0
       - uses: ./.github/actions/run-claude
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/review.txt
           prompt_replacements: ${{ needs.context.outputs.prompt_replacements }}
@@ -1503,7 +1503,7 @@ jobs:
         if: always() && steps.submit_review.outputs.decision != ''
         uses: ./.github/actions-ts/claude-parse-state
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           issue_number: ${{ fromJson(inputs.context_json).parent_issue || fromJson(inputs.context_json).issue_number }}
           action: append_history
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
@@ -1544,7 +1544,7 @@ jobs:
           echo "json=$json" >> $GITHUB_OUTPUT
       - uses: ./.github/actions/run-claude
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/review-response.txt
           prompt_replacements: ${{ steps.augment.outputs.json }}
@@ -1591,7 +1591,7 @@ jobs:
           echo "json=$json" >> $GITHUB_OUTPUT
       - uses: ./.github/actions/run-claude
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/human-review-response.txt
           prompt_replacements: ${{ steps.augment.outputs.json }}
@@ -1623,7 +1623,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/run-claude
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/discussion-research.txt
           prompt_replacements: ${{ needs.context.outputs.prompt_replacements }}
@@ -1646,7 +1646,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/run-claude
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/discussion-respond.txt
           prompt_replacements: ${{ needs.context.outputs.prompt_replacements }}
@@ -1669,7 +1669,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/run-claude
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/discussion-summarize.txt
           prompt_replacements: ${{ needs.context.outputs.prompt_replacements }}
@@ -1690,7 +1690,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/run-claude
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/discussion-plan.txt
           prompt_replacements: ${{ needs.context.outputs.prompt_replacements }}

@@ -131,7 +131,7 @@ jobs:
         if: github.event_name != 'workflow_dispatch'
         uses: ./.github/actions-ts/claude-detect-event
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
       - id: derive
         if: github.event_name == 'workflow_dispatch'
         env:
@@ -190,14 +190,14 @@ jobs:
         continue-on-error: true
         uses: ./.github/actions-ts/claude-parse-state
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           issue_number: ${{ fromJson(needs.detect.outputs.context_json).issue_number }}
           action: read
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
       - id: signal
         uses: ./.github/actions-ts/claude-signal-start
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           resource_type: ${{ needs.detect.outputs.resource_type }}
           resource_number: ${{ needs.detect.outputs.resource_number }}
           comment_id: ${{ needs.detect.outputs.comment_id }}
@@ -266,7 +266,7 @@ jobs:
       - id: result
         uses: ./.github/actions-ts/claude-handle-result
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           resource_type: ${{ needs.detect.outputs.resource_type }}
           resource_number: ${{ needs.detect.outputs.resource_number }}
           status_comment_id: ${{ needs.signal-start.outputs.status_comment_id }}
@@ -284,7 +284,7 @@ jobs:
           needs.detect.outputs.job == 'issue-iterate'
         uses: ./.github/actions-ts/claude-parse-state
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           issue_number: ${{ fromJson(needs.detect.outputs.context_json).issue_number }}
           action: record_failure
           failure_type: workflow
