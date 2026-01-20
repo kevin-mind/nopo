@@ -24184,6 +24184,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, stepw
   result.issue_number = parentIssue.number;
   const issueNodeId = parentIssue.node_id;
   core2.info(`Created parent issue #${parentIssue.number}`);
+  core2.info(`Issue node_id: ${issueNodeId}`);
   let projectFields = null;
   try {
     const projectResponse = await octokit.graphql(
@@ -24217,7 +24218,12 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, stepw
       }
     );
     const projectData = projectResponse.organization?.projectV2;
+    core2.info(`Project query result - org: ${owner}, projectNumber: ${projectNumber}`);
+    core2.info(`Project data: ${JSON.stringify(projectData)}`);
     projectFields = parseProjectFields(projectData);
+    if (projectFields) {
+      core2.info(`Parsed project fields - projectId: ${projectFields.projectId}`);
+    }
   } catch (error) {
     core2.warning(
       `Could not access project #${projectNumber}: ${error instanceof Error ? error.message : String(error)}`

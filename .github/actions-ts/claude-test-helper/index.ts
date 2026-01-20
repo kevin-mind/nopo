@@ -413,6 +413,7 @@ async function createFixture(
   result.issue_number = parentIssue.number;
   const issueNodeId = parentIssue.node_id; // Use node_id from REST API directly
   core.info(`Created parent issue #${parentIssue.number}`);
+  core.info(`Issue node_id: ${issueNodeId}`);
 
   // Get project fields for setting project values
   interface ProjectQueryResponse {
@@ -457,7 +458,12 @@ async function createFixture(
     );
 
     const projectData = projectResponse.organization?.projectV2;
+    core.info(`Project query result - org: ${owner}, projectNumber: ${projectNumber}`);
+    core.info(`Project data: ${JSON.stringify(projectData)}`);
     projectFields = parseProjectFields(projectData);
+    if (projectFields) {
+      core.info(`Parsed project fields - projectId: ${projectFields.projectId}`);
+    }
   } catch (error) {
     core.warning(
       `Could not access project #${projectNumber}: ${error instanceof Error ? error.message : String(error)}`,
@@ -493,38 +499,38 @@ async function createFixture(
               projectId: projectFields.projectId,
               itemId,
               fieldId: projectFields.statusFieldId,
-            value: { singleSelectOptionId: optionId },
+              value: { singleSelectOptionId: optionId },
+            });
+            core.info(`Set parent Status to ${statusValue}`);
+          }
+        }
+
+        // Set iteration if specified
+        if (fixture.parent_issue.project_fields.Iteration !== undefined) {
+          await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+            projectId: projectFields.projectId,
+            itemId,
+            fieldId: projectFields.iterationFieldId,
+            value: { number: fixture.parent_issue.project_fields.Iteration },
           });
-          core.info(`Set parent Status to ${statusValue}`);
+          core.info(
+            `Set parent Iteration to ${fixture.parent_issue.project_fields.Iteration}`,
+          );
+        }
+
+        // Set failures if specified
+        if (fixture.parent_issue.project_fields.Failures !== undefined) {
+          await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+            projectId: projectFields.projectId,
+            itemId,
+            fieldId: projectFields.failuresFieldId,
+            value: { number: fixture.parent_issue.project_fields.Failures },
+          });
+          core.info(
+            `Set parent Failures to ${fixture.parent_issue.project_fields.Failures}`,
+          );
         }
       }
-
-      // Set iteration if specified
-      if (fixture.parent_issue.project_fields.Iteration !== undefined) {
-        await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
-          projectId: projectFields.projectId,
-          itemId,
-          fieldId: projectFields.iterationFieldId,
-          value: { number: fixture.parent_issue.project_fields.Iteration },
-        });
-        core.info(
-          `Set parent Iteration to ${fixture.parent_issue.project_fields.Iteration}`,
-        );
-      }
-
-      // Set failures if specified
-      if (fixture.parent_issue.project_fields.Failures !== undefined) {
-        await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
-          projectId: projectFields.projectId,
-          itemId,
-          fieldId: projectFields.failuresFieldId,
-          value: { number: fixture.parent_issue.project_fields.Failures },
-        });
-        core.info(
-          `Set parent Failures to ${fixture.parent_issue.project_fields.Failures}`,
-        );
-      }
-    }
     } catch (error) {
       core.warning(
         `Failed to set project fields for parent issue: ${error instanceof Error ? error.message : String(error)}`,
