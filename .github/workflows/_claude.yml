@@ -1457,6 +1457,16 @@ jobs:
           else
             SUB_ISSUE="$CURRENT_SUB_ISSUE"
           fi
+
+          # Check if nopo-bot is already assigned
+          current_assignees=$(gh issue view "$SUB_ISSUE" --repo "$GITHUB_REPOSITORY" --json assignees -q '.assignees[].login')
+          if echo "$current_assignees" | grep -q "^nopo-bot$"; then
+            # Already assigned - unassign then re-assign to trigger the event
+            echo "nopo-bot already assigned to #$SUB_ISSUE - re-assigning to trigger iterate"
+            gh issue edit "$SUB_ISSUE" --remove-assignee nopo-bot --repo "$GITHUB_REPOSITORY"
+            sleep 1  # Brief pause to ensure event is processed
+          fi
+
           echo "Assigning nopo-bot to sub-issue #$SUB_ISSUE"
           gh issue edit "$SUB_ISSUE" --add-assignee nopo-bot --repo "$GITHUB_REPOSITORY"
 
