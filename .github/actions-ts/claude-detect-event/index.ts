@@ -595,7 +595,25 @@ async function handleIssueEvent(
       }
 
       // Check if this is a main issue with sub-issues - route to orchestrate
-      if (details.subIssues.length > 0) {
+      // First try GraphQL sub-issues, then fall back to parsing CLAUDE_MAIN_STATE
+      // (GraphQL may not have propagated sub-issues yet after triage creates them)
+      const hasMainState = details.body.includes("<!-- CLAUDE_MAIN_STATE");
+      let subIssueNumbers = details.subIssues;
+      if (subIssueNumbers.length === 0 && hasMainState) {
+        // Parse sub_issues from CLAUDE_MAIN_STATE: sub_issues: [123, 456]
+        const match = details.body.match(/sub_issues:\s*\[([^\]]+)\]/);
+        if (match) {
+          subIssueNumbers = match[1]
+            .split(",")
+            .map((s) => parseInt(s.trim(), 10))
+            .filter((n) => !isNaN(n) && n > 0);
+          core.info(
+            `Parsed sub-issues from CLAUDE_MAIN_STATE: ${subIssueNumbers.join(",")}`,
+          );
+        }
+      }
+
+      if (subIssueNumbers.length > 0) {
         return {
           job: "issue-orchestrate",
           resourceType: "issue",
@@ -605,7 +623,7 @@ async function handleIssueEvent(
             issue_number: String(issue.number),
             issue_title: details.title || issue.title,
             issue_body: details.body || issue.body,
-            sub_issues: details.subIssues.join(","),
+            sub_issues: subIssueNumbers.join(","),
             trigger_type: "edited",
             project_status: projectState?.status || "",
             project_iteration: String(projectState?.iteration || 0),
