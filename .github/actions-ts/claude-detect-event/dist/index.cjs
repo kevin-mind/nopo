@@ -24369,7 +24369,8 @@ async function handleIssueEvent(octokit, owner, repo) {
       repo,
       issue.number
     );
-    if (shouldSkipProjectState(projectState)) {
+    const terminalStatuses = ["Done", "Blocked", "Error"];
+    if (projectState?.status && terminalStatuses.includes(projectState.status)) {
       return emptyResult(
         true,
         `Issue project status is '${projectState?.status}' - skipping iteration`

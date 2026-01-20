@@ -680,13 +680,18 @@ async function handleIssueEvent(
     }
 
     // Check project state - skip if in terminal/blocked state
+    // Note: "Backlog" is allowed for assigned events (it's the initial state before state machine starts)
     const projectState = await fetchProjectState(
       octokit,
       owner,
       repo,
       issue.number,
     );
-    if (shouldSkipProjectState(projectState)) {
+    const terminalStatuses = ["Done", "Blocked", "Error"];
+    if (
+      projectState?.status &&
+      terminalStatuses.includes(projectState.status)
+    ) {
       return emptyResult(
         true,
         `Issue project status is '${projectState?.status}' - skipping iteration`,
