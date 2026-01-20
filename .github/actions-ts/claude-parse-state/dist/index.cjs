@@ -24085,6 +24085,18 @@ function parseProjectFields(projectData) {
   }
   return fields;
 }
+function findStatusOption(statusOptions, status) {
+  if (statusOptions[status]) {
+    return statusOptions[status];
+  }
+  const lowerStatus = status.toLowerCase();
+  for (const [name, id] of Object.entries(statusOptions)) {
+    if (name.toLowerCase() === lowerStatus) {
+      return id;
+    }
+  }
+  return void 0;
+}
 function getProjectItemId(projectItems, projectNumber) {
   const projectItem = projectItems.find(
     (item) => item.project?.number === projectNumber
@@ -24263,7 +24275,7 @@ async function run() {
         }
       }
       if (status) {
-        const optionId = projectFields.statusOptions[status];
+        const optionId = findStatusOption(projectFields.statusOptions, status);
         if (optionId) {
           await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
             projectId: projectFields.projectId,
@@ -24565,7 +24577,10 @@ async function run() {
         core2.setFailed("Failed to add parent issue to project");
         return;
       }
-      const statusOptionId = projectFields.statusOptions["In Progress"];
+      const statusOptionId = findStatusOption(
+        projectFields.statusOptions,
+        "In Progress"
+      );
       if (statusOptionId) {
         await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
           projectId: projectFields.projectId,
@@ -24623,7 +24638,10 @@ async function run() {
           subItemId = addResult.addProjectV2ItemById?.item?.id || null;
         }
         if (subItemId) {
-          const workingOptionId = projectFields.statusOptions["Working"];
+          const workingOptionId = findStatusOption(
+            projectFields.statusOptions,
+            "Working"
+          );
           if (workingOptionId) {
             await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
               projectId: projectFields.projectId,
@@ -24779,7 +24797,10 @@ async function run() {
             subItemId = addResult.addProjectV2ItemById?.item?.id || null;
           }
           if (subItemId) {
-            const workingOptionId = projectFields.statusOptions["Working"];
+            const workingOptionId = findStatusOption(
+              projectFields.statusOptions,
+              "Working"
+            );
             if (workingOptionId) {
               await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
                 projectId: projectFields.projectId,
@@ -24816,7 +24837,10 @@ async function run() {
         });
       } else {
         if (parentItemId) {
-          const doneOptionId = projectFields.statusOptions["Done"];
+          const doneOptionId = findStatusOption(
+            projectFields.statusOptions,
+            "Done"
+          );
           if (doneOptionId) {
             await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
               projectId: projectFields.projectId,
@@ -24878,7 +24902,10 @@ async function run() {
         );
         return;
       }
-      const blockedOptionId = projectFields.statusOptions["Blocked"];
+      const blockedOptionId = findStatusOption(
+        projectFields.statusOptions,
+        "Blocked"
+      );
       if (blockedOptionId) {
         await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
           projectId: projectFields.projectId,

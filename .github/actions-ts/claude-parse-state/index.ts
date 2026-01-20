@@ -289,6 +289,27 @@ function parseProjectFields(projectData: unknown): ProjectFields | null {
 }
 
 /**
+ * Case-insensitive lookup for status options
+ */
+function findStatusOption(
+  statusOptions: Record<string, string>,
+  status: string,
+): string | undefined {
+  // Try exact match first
+  if (statusOptions[status]) {
+    return statusOptions[status];
+  }
+  // Try case-insensitive match
+  const lowerStatus = status.toLowerCase();
+  for (const [name, id] of Object.entries(statusOptions)) {
+    if (name.toLowerCase() === lowerStatus) {
+      return id;
+    }
+  }
+  return undefined;
+}
+
+/**
  * Get project item ID for an issue
  */
 function getProjectItemId(
@@ -609,7 +630,7 @@ async function run(): Promise<void> {
 
       // Update Status field if provided
       if (status) {
-        const optionId = projectFields.statusOptions[status];
+        const optionId = findStatusOption(projectFields.statusOptions, status);
         if (optionId) {
           await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
             projectId: projectFields.projectId,
@@ -1054,7 +1075,10 @@ async function run(): Promise<void> {
       }
 
       // Set parent to In Progress, Iteration = 0, Failures = 0
-      const statusOptionId = projectFields.statusOptions["In Progress"];
+      const statusOptionId = findStatusOption(
+        projectFields.statusOptions,
+        "In Progress",
+      );
       if (statusOptionId) {
         await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
           projectId: projectFields.projectId,
@@ -1141,7 +1165,10 @@ async function run(): Promise<void> {
         }
 
         if (subItemId) {
-          const workingOptionId = projectFields.statusOptions["Working"];
+          const workingOptionId = findStatusOption(
+            projectFields.statusOptions,
+            "Working",
+          );
           if (workingOptionId) {
             await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
               projectId: projectFields.projectId,
@@ -1347,7 +1374,10 @@ async function run(): Promise<void> {
           }
 
           if (subItemId) {
-            const workingOptionId = projectFields.statusOptions["Working"];
+            const workingOptionId = findStatusOption(
+              projectFields.statusOptions,
+              "Working",
+            );
             if (workingOptionId) {
               await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
                 projectId: projectFields.projectId,
@@ -1390,7 +1420,10 @@ async function run(): Promise<void> {
       } else {
         // All phases done - mark parent as Done
         if (parentItemId) {
-          const doneOptionId = projectFields.statusOptions["Done"];
+          const doneOptionId = findStatusOption(
+            projectFields.statusOptions,
+            "Done",
+          );
           if (doneOptionId) {
             await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
               projectId: projectFields.projectId,
@@ -1479,7 +1512,10 @@ async function run(): Promise<void> {
         return;
       }
 
-      const blockedOptionId = projectFields.statusOptions["Blocked"];
+      const blockedOptionId = findStatusOption(
+        projectFields.statusOptions,
+        "Blocked",
+      );
       if (blockedOptionId) {
         await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
           projectId: projectFields.projectId,
