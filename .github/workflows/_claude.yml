@@ -1351,12 +1351,13 @@ jobs:
           ---
           EOF
 
-      # Initialize parent state if not in project
+      # Initialize parent state if not in project or if status is Backlog
+      # (Backlog means not yet started, so we need to initialize)
       - id: init_state
         name: Initialize parent issue state
         if: |
           steps.check_complete.outputs.early_exit != 'true' &&
-          steps.read_state.outputs.has_state != 'true'
+          (steps.read_state.outputs.has_state != 'true' || steps.read_state.outputs.status == 'Backlog')
         uses: ./.github/actions-ts/claude-parse-state
         with:
           github_token: ${{ secrets.NOPO_BOT_PAT }}
