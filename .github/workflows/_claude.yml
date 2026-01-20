@@ -80,9 +80,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Use NOPO_BOT_PAT so issue edits trigger orchestrate workflow
+      # (GITHUB_TOKEN edits don't trigger events to prevent infinite loops)
       - uses: ./.github/actions/run-claude
         with:
-          github_token: ${{ github.token }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/triage.txt
           prompt_replacements: ${{ needs.context.outputs.prompt_replacements }}
