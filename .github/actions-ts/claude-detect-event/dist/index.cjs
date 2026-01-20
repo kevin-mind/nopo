@@ -24112,6 +24112,9 @@ function hasE2ETestLabel(labels) {
     (l) => typeof l === "string" ? l === "_e2e" : l.name === "_e2e"
   );
 }
+function isInTestingMode(labels) {
+  return hasStepwiseTestLabel(labels) || hasE2ETestLabel(labels);
+}
 function isTestResource(title) {
   return title.startsWith("[TEST]");
 }
@@ -24194,11 +24197,11 @@ async function handleIssueEvent(octokit, owner, repo) {
   const payload = context.payload;
   const action = payload.action;
   const issue = payload.issue;
-  const isStepwiseTesting = hasStepwiseTestLabel(issue.labels);
+  const inTestingMode = isInTestingMode(issue.labels);
   if (shouldSkipTestResource(issue.title, issue.labels)) {
     return emptyResult(true, "Issue title starts with [TEST]");
   }
-  if (!isStepwiseTesting) {
+  if (!inTestingMode) {
     const hasTestLabel = issue.labels.some((l) => l.name === "test:automation");
     if (hasTestLabel) {
       return emptyResult(true, "Issue has test:automation label");
@@ -24449,11 +24452,11 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
   const payload = context.payload;
   const comment = payload.comment;
   const issue = payload.issue;
-  const isStepwiseTesting = hasStepwiseTestLabel(issue.labels);
+  const inTestingMode = isInTestingMode(issue.labels);
   if (shouldSkipTestResource(issue.title, issue.labels)) {
     return emptyResult(true, "Issue/PR title starts with [TEST]");
   }
-  if (!isStepwiseTesting) {
+  if (!inTestingMode) {
     const hasTestLabel = issue.labels.some((l) => l.name === "test:automation");
     if (hasTestLabel) {
       return emptyResult(true, "Issue has test:automation label");
@@ -24536,11 +24539,11 @@ async function handlePullRequestReviewCommentEvent() {
   const payload = context.payload;
   const comment = payload.comment;
   const pr = payload.pull_request;
-  const isStepwiseTesting = hasStepwiseTestLabel(pr.labels);
+  const inTestingMode = isInTestingMode(pr.labels);
   if (shouldSkipTestResource(pr.title, pr.labels)) {
     return emptyResult(true, "PR title starts with [TEST]");
   }
-  if (!isStepwiseTesting) {
+  if (!inTestingMode) {
     const hasTestLabel = pr.labels.some((l) => l.name === "test:automation");
     if (hasTestLabel) {
       return emptyResult(true, "PR has test:automation label");

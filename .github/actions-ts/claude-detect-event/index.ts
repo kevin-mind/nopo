@@ -341,12 +341,15 @@ function hasStepwiseTestLabel(
   );
 }
 
-function hasE2ETestLabel(
-  labels: Array<{ name: string }> | string[],
-): boolean {
+function hasE2ETestLabel(labels: Array<{ name: string }> | string[]): boolean {
   return labels.some((l) =>
     typeof l === "string" ? l === "_e2e" : l.name === "_e2e",
   );
+}
+
+function isInTestingMode(labels: Array<{ name: string }> | string[]): boolean {
+  // Either stepwise (_test) or E2E (_e2e) testing mode
+  return hasStepwiseTestLabel(labels) || hasE2ETestLabel(labels);
 }
 
 function isTestResource(title: string): boolean {
@@ -467,17 +470,17 @@ async function handleIssueEvent(
     labels: Array<{ name: string }>;
   };
 
-  // Check for _test label (stepwise testing mode) - allows bypassing circuit breakers
-  const isStepwiseTesting = hasStepwiseTestLabel(issue.labels);
+  // Check for testing mode (_test for stepwise, _e2e for E2E) - allows bypassing circuit breakers
+  const inTestingMode = isInTestingMode(issue.labels);
 
   // Check for [TEST] in title (circuit breaker for test automation)
-  // Skip unless _test label is present (stepwise testing mode)
+  // Skip unless in testing mode (_test or _e2e label present)
   if (shouldSkipTestResource(issue.title, issue.labels)) {
     return emptyResult(true, "Issue title starts with [TEST]");
   }
 
-  // Check for test:automation label (skip unless in stepwise testing mode)
-  if (!isStepwiseTesting) {
+  // Check for test:automation label (skip unless in testing mode)
+  if (!inTestingMode) {
     const hasTestLabel = issue.labels.some((l) => l.name === "test:automation");
     if (hasTestLabel) {
       return emptyResult(true, "Issue has test:automation label");
@@ -797,17 +800,17 @@ async function handleIssueCommentEvent(
     pull_request?: unknown;
   };
 
-  // Check for _test label (stepwise testing mode) - allows bypassing circuit breakers
-  const isStepwiseTesting = hasStepwiseTestLabel(issue.labels);
+  // Check for testing mode (_test for stepwise, _e2e for E2E) - allows bypassing circuit breakers
+  const inTestingMode = isInTestingMode(issue.labels);
 
   // Check for [TEST] in title (circuit breaker for test automation)
-  // Skip unless _test label is present (stepwise testing mode)
+  // Skip unless in testing mode (_test or _e2e label present)
   if (shouldSkipTestResource(issue.title, issue.labels)) {
     return emptyResult(true, "Issue/PR title starts with [TEST]");
   }
 
-  // Check for test:automation label (skip unless in stepwise testing mode)
-  if (!isStepwiseTesting) {
+  // Check for test:automation label (skip unless in testing mode)
+  if (!inTestingMode) {
     const hasTestLabel = issue.labels.some((l) => l.name === "test:automation");
     if (hasTestLabel) {
       return emptyResult(true, "Issue has test:automation label");
@@ -925,17 +928,17 @@ async function handlePullRequestReviewCommentEvent(): Promise<DetectionResult> {
     labels: Array<{ name: string }>;
   };
 
-  // Check for _test label (stepwise testing mode) - allows bypassing circuit breakers
-  const isStepwiseTesting = hasStepwiseTestLabel(pr.labels);
+  // Check for testing mode (_test for stepwise, _e2e for E2E) - allows bypassing circuit breakers
+  const inTestingMode = isInTestingMode(pr.labels);
 
   // Check for [TEST] in title (circuit breaker for test automation)
-  // Skip unless _test label is present (stepwise testing mode)
+  // Skip unless in testing mode (_test or _e2e label present)
   if (shouldSkipTestResource(pr.title, pr.labels)) {
     return emptyResult(true, "PR title starts with [TEST]");
   }
 
-  // Check for test:automation label (skip unless in stepwise testing mode)
-  if (!isStepwiseTesting) {
+  // Check for test:automation label (skip unless in testing mode)
+  if (!inTestingMode) {
     const hasTestLabel = pr.labels.some((l) => l.name === "test:automation");
     if (hasTestLabel) {
       return emptyResult(true, "PR has test:automation label");
