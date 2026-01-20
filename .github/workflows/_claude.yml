@@ -1365,11 +1365,14 @@ jobs:
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
           sub_issues: ${{ fromJson(inputs.context_json).sub_issues }}
 
-      # Advance to next phase if needed
+      # Advance to next phase if current phase is Done
+      # Only call advance_phase when current_phase_status == 'Done' (meaning
+      # get_current_phase found a sub-issue that just completed)
       - id: advance
         name: Advance to next phase
         if: |
-          steps.check_complete.outputs.early_exit != 'true'
+          steps.check_complete.outputs.early_exit != 'true' &&
+          steps.get_phase.outputs.current_phase_status == 'Done'
         uses: ./.github/actions-ts/claude-parse-state
         with:
           github_token: ${{ secrets.NOPO_BOT_PAT }}
@@ -1378,23 +1381,35 @@ jobs:
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
           completed_sub_issue: ${{ steps.get_phase.outputs.current_sub_issue }}
 
-      # Assign nopo-bot to next sub-issue
-      - name: Assign next sub-issue
+      # Assign nopo-bot to current or next sub-issue
+      # If advance ran, assign to next_sub_issue; otherwise assign to current_sub_issue
+      - name: Assign sub-issue
         if: |
           steps.check_complete.outputs.early_exit != 'true' &&
-          steps.advance.outputs.next_sub_issue != '' &&
-          steps.advance.outputs.next_sub_issue != '0'
+          (
+            (steps.advance.outputs.next_sub_issue != '' && steps.advance.outputs.next_sub_issue != '0') ||
+            (steps.get_phase.outputs.current_sub_issue != '' && steps.get_phase.outputs.current_sub_issue != '0')
+          )
         env:
           GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
-          SUB_ISSUE: ${{ steps.advance.outputs.next_sub_issue }}
+          # Use next_sub_issue if advance ran, otherwise use current_sub_issue
+          NEXT_SUB_ISSUE: ${{ steps.advance.outputs.next_sub_issue }}
+          CURRENT_SUB_ISSUE: ${{ steps.get_phase.outputs.current_sub_issue }}
         run: |
+          # Prefer next_sub_issue (from advance), fall back to current_sub_issue
+          if [[ -n "$NEXT_SUB_ISSUE" && "$NEXT_SUB_ISSUE" != "0" ]]; then
+            SUB_ISSUE="$NEXT_SUB_ISSUE"
+          else
+            SUB_ISSUE="$CURRENT_SUB_ISSUE"
+          fi
           echo "Assigning nopo-bot to sub-issue #$SUB_ISSUE"
           gh issue edit "$SUB_ISSUE" --add-assignee nopo-bot --repo "$GITHUB_REPOSITORY"
 
-      # Log phase advancement to parent iteration history
+      # Log phase advancement to parent iteration history (only if advance ran)
       - name: Log phase advancement
         if: |
           steps.check_complete.outputs.early_exit != 'true' &&
+          steps.get_phase.outputs.current_phase_status == 'Done' &&
           steps.advance.outputs.next_sub_issue != '' &&
           steps.advance.outputs.next_sub_issue != '0'
         uses: ./.github/actions-ts/claude-parse-state
@@ -1414,10 +1429,14 @@ jobs:
           ISSUE_NUMBER: ${{ fromJson(inputs.context_json).issue_number }}
           ISSUE_TITLE: ${{ fromJson(inputs.context_json).issue_title }}
           NEXT_SUB_ISSUE: ${{ steps.advance.outputs.next_sub_issue }}
+          CURRENT_SUB_ISSUE: ${{ steps.get_phase.outputs.current_sub_issue }}
           ITERATION: ${{ steps.read_state.outputs.iteration || '1' }}
         run: |
+          # Prefer next_sub_issue (from advance), fall back to current_sub_issue
           if [[ -n "$NEXT_SUB_ISSUE" && "$NEXT_SUB_ISSUE" != "0" ]]; then
-            status_msg="Assigned nopo-bot to sub-issue #$NEXT_SUB_ISSUE"
+            status_msg="Advanced to sub-issue #$NEXT_SUB_ISSUE"
+          elif [[ -n "$CURRENT_SUB_ISSUE" && "$CURRENT_SUB_ISSUE" != "0" ]]; then
+            status_msg="Continuing with sub-issue #$CURRENT_SUB_ISSUE"
           else
             status_msg="No pending sub-issues to assign"
           fi
