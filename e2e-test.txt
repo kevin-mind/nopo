@@ -1,0 +1,4 @@
+# E2E Test Log
+# This file is used by automated E2E tests to verify the Claude state machine.
+# Each test run adds a timestamped line below.
+

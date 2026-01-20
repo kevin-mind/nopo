@@ -1,11 +1,11 @@
 {
   "name": "single-phase-green",
-  "description": "Single sub-issue, CI passes first time - verifies happy path",
+  "description": "Single sub-issue, CI passes first time - verifies happy path with real code change",
   "job_type": "issue-iterate",
   "parent_issue": {
-    "title": "Implement simple feature",
-    "body": "## Description\n\nAdd a simple feature that should pass CI on first try.\n\n## Requirements\n\n- Add a single file with a function\n- Include basic tests\n\n## Acceptance Criteria\n\n- [ ] Feature implemented\n- [ ] Tests pass",
-    "labels": ["enhancement"],
+    "title": "Update e2e-test.txt",
+    "body": "## Description\n\nAdd a timestamped line to the e2e-test.txt file in the repository root. This is an automated test to verify the Claude state machine works end-to-end.\n\n## Requirements\n\n- Edit the file `e2e-test.txt` in the repository root\n- Add a new line with the current timestamp and test run identifier\n\n## Acceptance Criteria\n\n- [ ] e2e-test.txt updated with new line\n- [ ] PR created and merged",
+    "labels": ["test"],
     "project_fields": {
       "Status": "Backlog",
       "Iteration": 0,
@@ -14,8 +14,8 @@
   },
   "sub_issues": [
     {
-      "title": "Implement feature",
-      "body": "## Todos\n\n- [ ] Add feature code in src/feature.ts\n- [ ] Add tests in src/feature.test.ts\n\n## Testing\n\n- [ ] npm test passes",
+      "title": "Add line to e2e-test.txt",
+      "body": "## Todos\n\n- [ ] Edit `e2e-test.txt` in the repository root\n- [ ] Add a new line: `E2E test run: <current timestamp>`\n\n## Testing\n\n- [ ] File exists and has new content\n- [ ] CI passes (no tests to run for this change)",
       "project_fields": {
         "Status": "Ready"
       }
@@ -28,6 +28,6 @@
     "min_iteration": 1,
     "failures": 0
   },
-  "timeout": 300,
-  "poll_interval": 10
+  "timeout": 600,
+  "poll_interval": 15
 }
