@@ -110,6 +110,7 @@ jobs:
           fixture_json: ${{ needs.load-fixture.outputs.fixture }}
           github_token: ${{ env.GH_TOKEN }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+          stepwise_mode: ${{ inputs.mode == 'stepwise' }}
 
       - name: Output created resources
         run: |
@@ -121,23 +122,13 @@ jobs:
           echo "| **Sub-issues** | ${{ steps.create.outputs.sub_issue_numbers }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Branch** | ${{ steps.create.outputs.branch_name }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **PR** | ${{ steps.create.outputs.pr_number }} |" >> $GITHUB_STEP_SUMMARY
-
-  # Add _test label for stepwise mode
-  add-test-label:
-    needs: setup
-    if: inputs.cleanup_only != true && inputs.mode == 'stepwise'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Add _test label
-        run: |
-          gh issue edit ${{ needs.setup.outputs.issue_number }} \
-            --repo "$GITHUB_REPOSITORY" \
-            --add-label "_test"
-          echo "Added _test label to issue #${{ needs.setup.outputs.issue_number }}"
+          if [[ "${{ inputs.mode }}" == "stepwise" ]]; then
+            echo "| **Mode** | Stepwise (_test label added) |" >> $GITHUB_STEP_SUMMARY
+          fi
 
   # Trigger the state machine by assigning nopo-bot
   trigger:
-    needs: [setup, add-test-label]
+    needs: [setup]
     if: |
       always() &&
       inputs.cleanup_only != true &&

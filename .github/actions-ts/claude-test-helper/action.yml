@@ -18,6 +18,10 @@ inputs:
     description: 'GitHub Project number for state storage'
     required: false
     default: '1'
+  stepwise_mode:
+    description: 'Whether to add _test label for stepwise testing mode'
+    required: false
+    default: 'false'
 
 outputs:
   issue_number:

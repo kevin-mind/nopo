@@ -24116,7 +24116,7 @@ function parseProjectFields(projectData) {
   }
   return fields;
 }
-async function createFixture(octokit, owner, repo, fixture, projectNumber) {
+async function createFixture(octokit, owner, repo, fixture, projectNumber, stepwiseMode = false) {
   const result = {
     issue_number: 0,
     sub_issue_numbers: []
@@ -24170,6 +24170,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber) {
   const parentTitle = `[TEST] ${fixture.parent_issue.title}`;
   const parentLabels = [
     "test:automation",
+    ...stepwiseMode ? ["_test"] : [],
     ...fixture.parent_issue.labels || []
   ];
   core2.info(`Creating parent issue: ${parentTitle}`);
@@ -24261,7 +24262,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber) {
         repo,
         title: subTitle,
         body: subConfig.body,
-        labels: ["test:automation"]
+        labels: ["test:automation", ...stepwiseMode ? ["_test"] : []]
       });
       result.sub_issue_numbers.push(subIssue.number);
       core2.info(`Created sub-issue #${subIssue.number}`);
@@ -24399,7 +24400,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber) {
       owner,
       repo,
       issue_number: pr.number,
-      labels: ["test:automation"]
+      labels: ["test:automation", ...stepwiseMode ? ["_test"] : []]
     });
     if (fixture.pr.request_review) {
       try {
@@ -24804,6 +24805,7 @@ async function run() {
       getOptionalInput("project_number") || "1",
       10
     );
+    const stepwiseMode = getOptionalInput("stepwise_mode") === "true";
     const octokit = github.getOctokit(token);
     const { owner, repo } = github.context.repo;
     process.env.GH_TOKEN = token;
@@ -24817,7 +24819,8 @@ async function run() {
         owner,
         repo,
         fixture,
-        projectNumber
+        projectNumber,
+        stepwiseMode
       );
       setOutputs({
         issue_number: String(result.issue_number),

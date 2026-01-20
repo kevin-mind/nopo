@@ -301,6 +301,7 @@ async function createFixture(
   repo: string,
   fixture: TestFixture,
   projectNumber: number,
+  stepwiseMode: boolean = false,
 ): Promise<FixtureCreationResult> {
   const result: FixtureCreationResult = {
     issue_number: 0,
@@ -395,6 +396,7 @@ async function createFixture(
   const parentTitle = `[TEST] ${fixture.parent_issue.title}`;
   const parentLabels = [
     "test:automation",
+    ...(stepwiseMode ? ["_test"] : []),
     ...(fixture.parent_issue.labels || []),
   ];
 
@@ -525,7 +527,7 @@ async function createFixture(
         repo,
         title: subTitle,
         body: subConfig.body,
-        labels: ["test:automation"],
+        labels: ["test:automation", ...(stepwiseMode ? ["_test"] : [])],
       });
 
       result.sub_issue_numbers.push(subIssue.number);
@@ -708,12 +710,12 @@ async function createFixture(
     result.pr_number = pr.number;
     core.info(`Created PR #${pr.number}`);
 
-    // Add test:automation label to PR
+    // Add test:automation label (and _test for stepwise mode) to PR
     await octokit.rest.issues.addLabels({
       owner,
       repo,
       issue_number: pr.number,
-      labels: ["test:automation"],
+      labels: ["test:automation", ...(stepwiseMode ? ["_test"] : [])],
     });
 
     // Request review if specified
@@ -1317,6 +1319,7 @@ async function run(): Promise<void> {
       getOptionalInput("project_number") || "1",
       10,
     );
+    const stepwiseMode = getOptionalInput("stepwise_mode") === "true";
 
     const octokit = github.getOctokit(token);
     const { owner, repo } = github.context.repo;
@@ -1337,6 +1340,7 @@ async function run(): Promise<void> {
         repo,
         fixture,
         projectNumber,
+        stepwiseMode,
       );
 
       setOutputs({
