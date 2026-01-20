@@ -914,9 +914,13 @@ jobs:
 
           EOF
 
-      # Update project status to In Progress (first iteration only)
+      # Update project status to In Progress (first iteration only, parent issues only)
+      # Sub-issues should stay as "Working", not "In Progress"
       - name: Update project status to In Progress
-        if: steps.breakpoint.outputs.should_stop != 'true' && steps.state.outputs.iteration == '0'
+        if: |
+          steps.breakpoint.outputs.should_stop != 'true' &&
+          steps.state.outputs.iteration == '0' &&
+          fromJson(inputs.context_json).parent_issue == '0'
         env:
           GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
           CONTEXT_JSON: ${{ inputs.context_json }}
