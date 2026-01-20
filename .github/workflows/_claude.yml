@@ -1261,7 +1261,9 @@ jobs:
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
           # Amend + push with PAT to trigger CI workflows
-          # Use URL rewriting for simpler, more reliable auth
+          # First, remove any extraheader set by checkout (takes precedence over URL rewriting)
+          git config --local --unset-all http.https://github.com/.extraheader || true
+          # Use URL rewriting for PAT auth
           git config url."https://${NOPO_BOT_PAT}@github.com/".insteadOf "https://github.com/"
           if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
             git commit --amend --no-edit
@@ -1333,9 +1335,11 @@ jobs:
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
           # Amend + push with PAT to trigger CI workflows
-          # Only if branch has commits beyond main (don't amend main's commits)
-          # Use URL rewriting for simpler, more reliable auth
+          # First, remove any extraheader set by checkout (takes precedence over URL rewriting)
+          git config --local --unset-all http.https://github.com/.extraheader || true
+          # Use URL rewriting for PAT auth
           git config url."https://${NOPO_BOT_PAT}@github.com/".insteadOf "https://github.com/"
+          # Only if branch has commits beyond main (don't amend main's commits)
           if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
             git commit --amend --no-edit
             # Retry push up to 3 times with exponential backoff
@@ -1642,9 +1646,11 @@ jobs:
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
           # Amend + push with PAT to trigger CI workflows
-          # Only if branch has commits beyond main (don't amend main's commits)
-          # Use URL rewriting for simpler, more reliable auth
+          # First, remove any extraheader set by checkout (takes precedence over URL rewriting)
+          git config --local --unset-all http.https://github.com/.extraheader || true
+          # Use URL rewriting for PAT auth
           git config url."https://${NOPO_BOT_PAT}@github.com/".insteadOf "https://github.com/"
+          # Only if branch has commits beyond main (don't amend main's commits)
           if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
             git commit --amend --no-edit
             # Retry push up to 3 times with exponential backoff
@@ -1703,9 +1709,11 @@ jobs:
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
           # Amend + push with PAT to trigger CI workflows
-          # Only if branch has commits beyond main (don't amend main's commits)
-          # Use URL rewriting for simpler, more reliable auth
+          # First, remove any extraheader set by checkout (takes precedence over URL rewriting)
+          git config --local --unset-all http.https://github.com/.extraheader || true
+          # Use URL rewriting for PAT auth
           git config url."https://${NOPO_BOT_PAT}@github.com/".insteadOf "https://github.com/"
+          # Only if branch has commits beyond main (don't amend main's commits)
           if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
             git commit --amend --no-edit
             # Retry push up to 3 times with exponential backoff
