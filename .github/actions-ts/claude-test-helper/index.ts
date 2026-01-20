@@ -411,16 +411,11 @@ async function createFixture(
   });
 
   result.issue_number = parentIssue.number;
+  const issueNodeId = parentIssue.node_id; // Use node_id from REST API directly
   core.info(`Created parent issue #${parentIssue.number}`);
 
   // Get project fields for setting project values
   interface ProjectQueryResponse {
-    repository?: {
-      issue?: {
-        id?: string;
-        projectItems?: { nodes?: unknown[] };
-      };
-    };
     organization?: {
       projectV2?: unknown;
     };
@@ -428,22 +423,41 @@ async function createFixture(
 
   // Try to set project fields, but gracefully handle missing project access
   let projectFields: ProjectFields | null = null;
-  let issueNodeId: string | undefined;
 
   try {
     const projectResponse = await octokit.graphql<ProjectQueryResponse>(
-      GET_PROJECT_ITEM_QUERY,
+      `query GetProjectFields($org: String!, $projectNumber: Int!) {
+        organization(login: $org) {
+          projectV2(number: $projectNumber) {
+            id
+            fields(first: 20) {
+              nodes {
+                ... on ProjectV2SingleSelectField {
+                  id
+                  name
+                  options {
+                    id
+                    name
+                  }
+                }
+                ... on ProjectV2Field {
+                  id
+                  name
+                  dataType
+                }
+              }
+            }
+          }
+        }
+      }`,
       {
         org: owner,
-        repo,
-        issueNumber: parentIssue.number,
         projectNumber,
       },
     );
 
     const projectData = projectResponse.organization?.projectV2;
     projectFields = parseProjectFields(projectData);
-    issueNodeId = projectResponse.repository?.issue?.id;
   } catch (error) {
     core.warning(
       `Could not access project #${projectNumber}: ${error instanceof Error ? error.message : String(error)}`,
@@ -451,33 +465,34 @@ async function createFixture(
     core.warning("Continuing without project field setup");
   }
 
-  if (projectFields && fixture.parent_issue.project_fields && issueNodeId) {
-    // Add issue to project
-    interface AddItemResponse {
-      addProjectV2ItemById?: {
-        item?: { id?: string };
-      };
-    }
+  if (projectFields && fixture.parent_issue.project_fields) {
+    try {
+      // Add issue to project
+      interface AddItemResponse {
+        addProjectV2ItemById?: {
+          item?: { id?: string };
+        };
+      }
 
-    const addResult = await octokit.graphql<AddItemResponse>(
-      ADD_ISSUE_TO_PROJECT_MUTATION,
-      {
-        projectId: projectFields.projectId,
-        contentId: issueNodeId,
-      },
-    );
+      const addResult = await octokit.graphql<AddItemResponse>(
+        ADD_ISSUE_TO_PROJECT_MUTATION,
+        {
+          projectId: projectFields.projectId,
+          contentId: issueNodeId,
+        },
+      );
 
-    const itemId = addResult.addProjectV2ItemById?.item?.id;
-    if (itemId) {
-      // Set status if specified
-      const statusValue = fixture.parent_issue.project_fields.Status;
-      if (statusValue) {
-        const optionId = projectFields.statusOptions[statusValue];
-        if (optionId) {
-          await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
-            projectId: projectFields.projectId,
-            itemId,
-            fieldId: projectFields.statusFieldId,
+      const itemId = addResult.addProjectV2ItemById?.item?.id;
+      if (itemId) {
+        // Set status if specified
+        const statusValue = fixture.parent_issue.project_fields.Status;
+        if (statusValue) {
+          const optionId = projectFields.statusOptions[statusValue];
+          if (optionId) {
+            await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+              projectId: projectFields.projectId,
+              itemId,
+              fieldId: projectFields.statusFieldId,
             value: { singleSelectOptionId: optionId },
           });
           core.info(`Set parent Status to ${statusValue}`);
@@ -509,6 +524,11 @@ async function createFixture(
           `Set parent Failures to ${fixture.parent_issue.project_fields.Failures}`,
         );
       }
+    }
+    } catch (error) {
+      core.warning(
+        `Failed to set project fields for parent issue: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 

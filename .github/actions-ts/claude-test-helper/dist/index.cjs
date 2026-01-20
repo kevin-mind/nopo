@@ -24182,73 +24182,99 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, stepw
     labels: parentLabels
   });
   result.issue_number = parentIssue.number;
+  const issueNodeId = parentIssue.node_id;
   core2.info(`Created parent issue #${parentIssue.number}`);
   let projectFields = null;
-  let issueNodeId;
   try {
     const projectResponse = await octokit.graphql(
-      GET_PROJECT_ITEM_QUERY,
+      `query GetProjectFields($org: String!, $projectNumber: Int!) {
+        organization(login: $org) {
+          projectV2(number: $projectNumber) {
+            id
+            fields(first: 20) {
+              nodes {
+                ... on ProjectV2SingleSelectField {
+                  id
+                  name
+                  options {
+                    id
+                    name
+                  }
+                }
+                ... on ProjectV2Field {
+                  id
+                  name
+                  dataType
+                }
+              }
+            }
+          }
+        }
+      }`,
       {
         org: owner,
-        repo,
-        issueNumber: parentIssue.number,
         projectNumber
       }
     );
     const projectData = projectResponse.organization?.projectV2;
     projectFields = parseProjectFields(projectData);
-    issueNodeId = projectResponse.repository?.issue?.id;
   } catch (error) {
     core2.warning(
       `Could not access project #${projectNumber}: ${error instanceof Error ? error.message : String(error)}`
     );
     core2.warning("Continuing without project field setup");
   }
-  if (projectFields && fixture.parent_issue.project_fields && issueNodeId) {
-    const addResult = await octokit.graphql(
-      ADD_ISSUE_TO_PROJECT_MUTATION,
-      {
-        projectId: projectFields.projectId,
-        contentId: issueNodeId
-      }
-    );
-    const itemId = addResult.addProjectV2ItemById?.item?.id;
-    if (itemId) {
-      const statusValue = fixture.parent_issue.project_fields.Status;
-      if (statusValue) {
-        const optionId = projectFields.statusOptions[statusValue];
-        if (optionId) {
+  if (projectFields && fixture.parent_issue.project_fields) {
+    try {
+      const addResult = await octokit.graphql(
+        ADD_ISSUE_TO_PROJECT_MUTATION,
+        {
+          projectId: projectFields.projectId,
+          contentId: issueNodeId
+        }
+      );
+      const itemId = addResult.addProjectV2ItemById?.item?.id;
+      if (itemId) {
+        const statusValue = fixture.parent_issue.project_fields.Status;
+        if (statusValue) {
+          const optionId = projectFields.statusOptions[statusValue];
+          if (optionId) {
+            await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+              projectId: projectFields.projectId,
+              itemId,
+              fieldId: projectFields.statusFieldId,
+              value: { singleSelectOptionId: optionId }
+            });
+            core2.info(`Set parent Status to ${statusValue}`);
+          }
+        }
+        if (fixture.parent_issue.project_fields.Iteration !== void 0) {
           await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
             projectId: projectFields.projectId,
             itemId,
-            fieldId: projectFields.statusFieldId,
-            value: { singleSelectOptionId: optionId }
+            fieldId: projectFields.iterationFieldId,
+            value: { number: fixture.parent_issue.project_fields.Iteration }
           });
-          core2.info(`Set parent Status to ${statusValue}`);
+          core2.info(
+            `Set parent Iteration to ${fixture.parent_issue.project_fields.Iteration}`
+          );
+        }
+        if (fixture.parent_issue.project_fields.Failures !== void 0) {
+          await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+            projectId: projectFields.projectId,
+            itemId,
+            fieldId: projectFields.failuresFieldId,
+            value: { number: fixture.parent_issue.project_fields.Failures }
+          });
+          core2.info(
+            `Set parent Failures to ${fixture.parent_issue.project_fields.Failures}`
+          );
         }
       }
-      if (fixture.parent_issue.project_fields.Iteration !== void 0) {
-        await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
-          projectId: projectFields.projectId,
-          itemId,
-          fieldId: projectFields.iterationFieldId,
-          value: { number: fixture.parent_issue.project_fields.Iteration }
-        });
-        core2.info(
-          `Set parent Iteration to ${fixture.parent_issue.project_fields.Iteration}`
-        );
-      }
-      if (fixture.parent_issue.project_fields.Failures !== void 0) {
-        await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
-          projectId: projectFields.projectId,
-          itemId,
-          fieldId: projectFields.failuresFieldId,
-          value: { number: fixture.parent_issue.project_fields.Failures }
-        });
-        core2.info(
-          `Set parent Failures to ${fixture.parent_issue.project_fields.Failures}`
-        );
-      }
+    } catch (error) {
+      core2.warning(
+        `Failed to set project fields for parent issue: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
   if (fixture.sub_issues && fixture.sub_issues.length > 0) {
