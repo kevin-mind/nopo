@@ -24343,7 +24343,9 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, stepw
         );
         const subItemId = addResult.addProjectV2ItemById?.item?.id;
         if (subItemId && subConfig.project_fields.Status) {
-          const optionId = projectFields.statusOptions[subConfig.project_fields.Status];
+          const optionId = projectFields.statusOptions[subConfig.project_fields.Status] || Object.entries(projectFields.statusOptions).find(
+            ([name]) => name.toLowerCase() === subConfig.project_fields.Status.toLowerCase()
+          )?.[1];
           if (optionId) {
             await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
               projectId: projectFields.projectId,

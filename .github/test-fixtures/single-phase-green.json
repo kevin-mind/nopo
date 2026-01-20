@@ -7,7 +7,7 @@
     "body": "## Description\n\nAdd a simple feature that should pass CI on first try.\n\n## Requirements\n\n- Add a single file with a function\n- Include basic tests\n\n## Acceptance Criteria\n\n- [ ] Feature implemented\n- [ ] Tests pass",
     "labels": ["enhancement"],
     "project_fields": {
-      "Status": "In Progress",
+      "Status": "Backlog",
       "Iteration": 0,
       "Failures": 0
     }
@@ -17,7 +17,7 @@
       "title": "Implement feature",
       "body": "## Todos\n\n- [ ] Add feature code in src/feature.ts\n- [ ] Add tests in src/feature.test.ts\n\n## Testing\n\n- [ ] npm test passes",
       "project_fields": {
-        "Status": "Working"
+        "Status": "Ready"
       }
     }
   ],
