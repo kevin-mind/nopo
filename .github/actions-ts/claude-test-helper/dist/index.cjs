@@ -24218,11 +24218,15 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, stepw
       }
     );
     const projectData = projectResponse.organization?.projectV2;
-    core2.info(`Project query result - org: ${owner}, projectNumber: ${projectNumber}`);
+    core2.info(
+      `Project query result - org: ${owner}, projectNumber: ${projectNumber}`
+    );
     core2.info(`Project data: ${JSON.stringify(projectData)}`);
     projectFields = parseProjectFields(projectData);
     if (projectFields) {
-      core2.info(`Parsed project fields - projectId: ${projectFields.projectId}`);
+      core2.info(
+        `Parsed project fields - projectId: ${projectFields.projectId}`
+      );
     }
   } catch (error) {
     core2.warning(
@@ -24243,7 +24247,9 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, stepw
       if (itemId) {
         const statusValue = fixture.parent_issue.project_fields.Status;
         if (statusValue) {
-          const optionId = projectFields.statusOptions[statusValue];
+          const optionId = projectFields.statusOptions[statusValue] || Object.entries(projectFields.statusOptions).find(
+            ([name]) => name.toLowerCase() === statusValue.toLowerCase()
+          )?.[1];
           if (optionId) {
             await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
               projectId: projectFields.projectId,
@@ -24254,7 +24260,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, stepw
             core2.info(`Set parent Status to ${statusValue}`);
           }
         }
-        if (fixture.parent_issue.project_fields.Iteration !== void 0) {
+        if (fixture.parent_issue.project_fields.Iteration !== void 0 && projectFields.iterationFieldId) {
           await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
             projectId: projectFields.projectId,
             itemId,
@@ -24264,8 +24270,12 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, stepw
           core2.info(
             `Set parent Iteration to ${fixture.parent_issue.project_fields.Iteration}`
           );
+        } else if (fixture.parent_issue.project_fields.Iteration !== void 0) {
+          core2.warning(
+            "Iteration field not found in project - skipping Iteration update"
+          );
         }
-        if (fixture.parent_issue.project_fields.Failures !== void 0) {
+        if (fixture.parent_issue.project_fields.Failures !== void 0 && projectFields.failuresFieldId) {
           await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
             projectId: projectFields.projectId,
             itemId,
@@ -24274,6 +24284,10 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, stepw
           });
           core2.info(
             `Set parent Failures to ${fixture.parent_issue.project_fields.Failures}`
+          );
+        } else if (fixture.parent_issue.project_fields.Failures !== void 0) {
+          core2.warning(
+            "Failures field not found in project - skipping Failures update"
           );
         }
       }
