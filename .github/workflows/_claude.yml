@@ -524,7 +524,9 @@ jobs:
         uses: ./.github/actions-ts/claude-parse-state
         with:
           github_token: ${{ secrets.NOPO_BOT_PAT }}
-          issue_number: ${{ fromJson(inputs.context_json).parent_issue || fromJson(inputs.context_json).issue_number }}
+          # Record failure on sub-issue (or issue itself) - NOT parent
+          # This ensures circuit breaker reads/writes from same place
+          issue_number: ${{ fromJson(inputs.context_json).issue_number }}
           action: record_failure
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
 
@@ -1081,7 +1083,9 @@ jobs:
         uses: ./.github/actions-ts/claude-parse-state
         with:
           github_token: ${{ secrets.NOPO_BOT_PAT }}
-          issue_number: ${{ fromJson(inputs.context_json).parent_issue || fromJson(inputs.context_json).issue_number }}
+          # Increment on sub-issue (or issue itself) - NOT parent
+          # This ensures circuit breaker reads/writes from same place
+          issue_number: ${{ fromJson(inputs.context_json).issue_number }}
           action: increment
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
 
