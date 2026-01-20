@@ -1,0 +1,315 @@
+name: Test State Machine
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_name:
+        description: 'Test scenario to run'
+        required: true
+        type: choice
+        options:
+          # Issue jobs
+          - issue-triage
+          - issue-orchestrate
+          - issue-comment
+          - single-phase-green
+          - multi-phase-sequential
+          - ci-failure-recovery
+          - circuit-breaker
+          - phase-skip
+          # PR jobs
+          - pr-review
+          - pr-response
+          - pr-human-response
+          - review-changes-requested
+          # Discussion jobs
+          - discussion-research
+          - discussion-respond
+          - discussion-summarize
+          - discussion-plan
+      mode:
+        description: 'Test mode'
+        type: choice
+        default: stepwise
+        options:
+          - stepwise
+          - e2e
+      cleanup_only:
+        description: 'Only run cleanup (for debugging)'
+        type: boolean
+        default: false
+      issue_number:
+        description: 'Issue number for cleanup_only mode'
+        type: string
+        default: ''
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+
+env:
+  GH_TOKEN: ${{ secrets.NOPO_BOT_PAT || secrets.GITHUB_TOKEN }}
+
+jobs:
+  # Load the fixture configuration
+  load-fixture:
+    runs-on: ubuntu-latest
+    outputs:
+      fixture: ${{ steps.read.outputs.fixture }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read fixture file
+        id: read
+        run: |
+          fixture_file=".github/test-fixtures/${{ inputs.test_name }}.json"
+          if [[ ! -f "$fixture_file" ]]; then
+            echo "::error::Fixture file not found: $fixture_file"
+            exit 1
+          fi
+
+          # Read and output as single line JSON
+          fixture=$(cat "$fixture_file" | jq -c '.')
+          echo "fixture=$fixture" >> $GITHUB_OUTPUT
+          echo "Loaded fixture: ${{ inputs.test_name }}"
+
+  # Create test artifacts (issues, branches, PRs)
+  setup:
+    needs: load-fixture
+    if: inputs.cleanup_only != true
+    runs-on: ubuntu-latest
+    outputs:
+      issue_number: ${{ steps.create.outputs.issue_number }}
+      sub_issue_numbers: ${{ steps.create.outputs.sub_issue_numbers }}
+      branch_name: ${{ steps.create.outputs.branch_name }}
+      pr_number: ${{ steps.create.outputs.pr_number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build test helper action
+        run: |
+          cd .github/actions-ts
+          npm ci
+          npm run build
+
+      - name: Create test fixture
+        id: create
+        uses: ./.github/actions-ts/claude-test-helper
+        with:
+          action: create
+          fixture_json: ${{ needs.load-fixture.outputs.fixture }}
+          github_token: ${{ env.GH_TOKEN }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+
+      - name: Output created resources
+        run: |
+          echo "## Test Fixture Created" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Resource | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Parent Issue** | #${{ steps.create.outputs.issue_number }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Sub-issues** | ${{ steps.create.outputs.sub_issue_numbers }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Branch** | ${{ steps.create.outputs.branch_name }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **PR** | ${{ steps.create.outputs.pr_number }} |" >> $GITHUB_STEP_SUMMARY
+
+  # Add _test label for stepwise mode
+  add-test-label:
+    needs: setup
+    if: inputs.cleanup_only != true && inputs.mode == 'stepwise'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add _test label
+        run: |
+          gh issue edit ${{ needs.setup.outputs.issue_number }} \
+            --repo "$GITHUB_REPOSITORY" \
+            --add-label "_test"
+          echo "Added _test label to issue #${{ needs.setup.outputs.issue_number }}"
+
+  # Trigger the state machine by assigning nopo-bot
+  trigger:
+    needs: [setup, add-test-label]
+    if: |
+      always() &&
+      inputs.cleanup_only != true &&
+      needs.setup.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger state machine
+        run: |
+          echo "Triggering state machine for issue #${{ needs.setup.outputs.issue_number }}"
+
+          # Assign nopo-bot to trigger the state machine
+          gh issue edit ${{ needs.setup.outputs.issue_number }} \
+            --repo "$GITHUB_REPOSITORY" \
+            --add-assignee nopo-bot
+
+          echo "Assigned nopo-bot to issue #${{ needs.setup.outputs.issue_number }}"
+
+      - name: Wait for workflow to start
+        run: |
+          echo "Waiting for claude workflow to be triggered..."
+          sleep 10
+
+  # Wait for state machine and verify (E2E mode only)
+  verify:
+    needs: [load-fixture, setup, trigger]
+    if: |
+      always() &&
+      inputs.cleanup_only != true &&
+      inputs.mode == 'e2e' &&
+      needs.setup.result == 'success' &&
+      needs.trigger.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build test helper action
+        run: |
+          cd .github/actions-ts
+          npm ci
+          npm run build
+
+      - name: Wait for state machine to complete
+        env:
+          ISSUE_NUMBER: ${{ needs.setup.outputs.issue_number }}
+          FIXTURE_JSON: ${{ needs.load-fixture.outputs.fixture }}
+        run: |
+          timeout=$(echo "$FIXTURE_JSON" | jq -r '.timeout // 300')
+          poll_interval=$(echo "$FIXTURE_JSON" | jq -r '.poll_interval // 10')
+
+          echo "Waiting for state machine to complete..."
+          echo "Timeout: ${timeout}s, Poll interval: ${poll_interval}s"
+
+          start_time=$(date +%s)
+          while true; do
+            current_time=$(date +%s)
+            elapsed=$((current_time - start_time))
+
+            if [[ $elapsed -ge $timeout ]]; then
+              echo "::warning::Timeout reached after ${elapsed}s"
+              break
+            fi
+
+            # Check if issue is closed (indicates completion)
+            state=$(gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --json state -q '.state')
+            if [[ "$state" == "CLOSED" ]]; then
+              echo "Issue is closed - state machine likely completed"
+              break
+            fi
+
+            # Check if issue is blocked
+            labels=$(gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --json labels -q '.labels[].name')
+            # Note: We check Project Status, not labels - but labels can indicate state too
+
+            echo "Elapsed: ${elapsed}s - Issue state: $state"
+            sleep "$poll_interval"
+          done
+
+          # Give a bit more time for final state updates
+          sleep 5
+
+      - name: Verify outcome
+        id: verify
+        uses: ./.github/actions-ts/claude-test-helper
+        with:
+          action: verify
+          fixture_json: ${{ needs.load-fixture.outputs.fixture }}
+          issue_number: ${{ needs.setup.outputs.issue_number }}
+          github_token: ${{ env.GH_TOKEN }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+
+      - name: Output verification result
+        run: |
+          echo "## Verification Result" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ steps.verify.outputs.verification_passed }}" == "true" ]]; then
+            echo "### ✅ All checks passed!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Verification failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Errors:" >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            echo '${{ steps.verify.outputs.verification_errors }}' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # Cleanup test artifacts (always runs unless skipped)
+  cleanup:
+    needs: [setup, verify]
+    if: |
+      always() &&
+      (needs.setup.outputs.issue_number != '' || inputs.cleanup_only == true)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build test helper action
+        run: |
+          cd .github/actions-ts
+          npm ci
+          npm run build
+
+      - name: Determine issue number
+        id: issue
+        run: |
+          if [[ "${{ inputs.cleanup_only }}" == "true" ]]; then
+            issue_number="${{ inputs.issue_number }}"
+            if [[ -z "$issue_number" ]]; then
+              echo "::error::issue_number is required for cleanup_only mode"
+              exit 1
+            fi
+          else
+            issue_number="${{ needs.setup.outputs.issue_number }}"
+          fi
+          echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
+
+      - name: Cleanup test fixture
+        uses: ./.github/actions-ts/claude-test-helper
+        with:
+          action: cleanup
+          issue_number: ${{ steps.issue.outputs.issue_number }}
+          github_token: ${{ env.GH_TOKEN }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+
+      - name: Output cleanup result
+        run: |
+          echo "## Cleanup Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Cleaned up issue #${{ steps.issue.outputs.issue_number }} and related resources." >> $GITHUB_STEP_SUMMARY
+
+  # Summary job
+  summary:
+    needs: [setup, trigger, verify, cleanup]
+    if: always() && inputs.cleanup_only != true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate summary
+        run: |
+          echo "# State Machine Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Parameter | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Test** | ${{ inputs.test_name }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Mode** | ${{ inputs.mode }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Issue** | #${{ needs.setup.outputs.issue_number }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Job Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Setup | ${{ needs.setup.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Trigger | ${{ needs.trigger.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Verify | ${{ needs.verify.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Cleanup | ${{ needs.cleanup.result }} |" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ inputs.mode }}" == "stepwise" ]]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "---" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Stepwise Mode:** Check the claude workflow run triggered by this test to see the decision output." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The \`_test\` label prevents execution - only the decision is shown." >> $GITHUB_STEP_SUMMARY
+          fi

@@ -1,0 +1,47 @@
+{
+  "name": "multi-phase-sequential",
+  "description": "Three phases executed sequentially, each passes CI - verifies phase advancement",
+  "job_type": "issue-iterate",
+  "parent_issue": {
+    "title": "Multi-phase feature implementation",
+    "body": "## Description\n\nA complex feature broken into three phases.\n\n## Requirements\n\nPhase 1: Setup infrastructure\nPhase 2: Implement core logic\nPhase 3: Add polish and documentation\n\n## Acceptance Criteria\n\n- [ ] All three phases complete\n- [ ] Tests pass for each phase",
+    "labels": ["enhancement"],
+    "project_fields": {
+      "Status": "In Progress",
+      "Iteration": 0,
+      "Failures": 0
+    }
+  },
+  "sub_issues": [
+    {
+      "title": "Phase 1: Setup",
+      "body": "## Todos\n\n- [ ] Create directory structure\n- [ ] Add configuration files\n\n## Testing\n\n- [ ] Config validation passes",
+      "project_fields": {
+        "Status": "Working"
+      }
+    },
+    {
+      "title": "Phase 2: Core Implementation",
+      "body": "## Todos\n\n- [ ] Implement core business logic\n- [ ] Add unit tests\n\n## Testing\n\n- [ ] All unit tests pass",
+      "project_fields": {
+        "Status": "Ready"
+      }
+    },
+    {
+      "title": "Phase 3: Polish",
+      "body": "## Todos\n\n- [ ] Add documentation\n- [ ] Code cleanup\n\n## Testing\n\n- [ ] Lint passes",
+      "project_fields": {
+        "Status": "Ready"
+      }
+    }
+  ],
+  "expected": {
+    "parent_status": "Done",
+    "sub_issue_statuses": ["Done", "Done", "Done"],
+    "issue_state": "closed",
+    "min_iteration": 3,
+    "failures": 0
+  },
+  "timeout": 600,
+  "poll_interval": 15
+}

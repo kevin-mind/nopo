@@ -4262,18 +4262,18 @@ var require_webidl = __commonJS({
     webidl.errors.exception = function(message) {
       return new TypeError(`${message.header}: ${message.message}`);
     };
-    webidl.errors.conversionFailed = function(context) {
-      const plural = context.types.length === 1 ? "" : " one of";
-      const message = `${context.argument} could not be converted to${plural}: ${context.types.join(", ")}.`;
+    webidl.errors.conversionFailed = function(context2) {
+      const plural = context2.types.length === 1 ? "" : " one of";
+      const message = `${context2.argument} could not be converted to${plural}: ${context2.types.join(", ")}.`;
       return webidl.errors.exception({
-        header: context.prefix,
+        header: context2.prefix,
         message
       });
     };
-    webidl.errors.invalidArgument = function(context) {
+    webidl.errors.invalidArgument = function(context2) {
       return webidl.errors.exception({
-        header: context.prefix,
-        message: `"${context.value}" is an invalid ${context.type}.`
+        header: context2.prefix,
+        message: `"${context2.value}" is an invalid ${context2.type}.`
       });
     };
     webidl.brandCheck = function(V, I, opts = void 0) {
@@ -9599,15 +9599,15 @@ var require_api_request = __commonJS({
         }
         addSignal(this, signal);
       }
-      onConnect(abort, context) {
+      onConnect(abort, context2) {
         if (!this.callback) {
           throw new RequestAbortedError();
         }
         this.abort = abort;
-        this.context = context;
+        this.context = context2;
       }
       onHeaders(statusCode, rawHeaders, resume, statusMessage) {
-        const { callback, opaque, abort, context, responseHeaders, highWaterMark } = this;
+        const { callback, opaque, abort, context: context2, responseHeaders, highWaterMark } = this;
         const headers = responseHeaders === "raw" ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders);
         if (statusCode < 200) {
           if (this.onInfo) {
@@ -9634,7 +9634,7 @@ var require_api_request = __commonJS({
               trailers: this.trailers,
               opaque,
               body,
-              context
+              context: context2
             });
           }
         }
@@ -9754,15 +9754,15 @@ var require_api_stream = __commonJS({
         }
         addSignal(this, signal);
       }
-      onConnect(abort, context) {
+      onConnect(abort, context2) {
         if (!this.callback) {
           throw new RequestAbortedError();
         }
         this.abort = abort;
-        this.context = context;
+        this.context = context2;
       }
       onHeaders(statusCode, rawHeaders, resume, statusMessage) {
-        const { factory, opaque, context, callback, responseHeaders } = this;
+        const { factory, opaque, context: context2, callback, responseHeaders } = this;
         const headers = responseHeaders === "raw" ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders);
         if (statusCode < 200) {
           if (this.onInfo) {
@@ -9790,7 +9790,7 @@ var require_api_stream = __commonJS({
             statusCode,
             headers,
             opaque,
-            context
+            context: context2
           });
           if (!res || typeof res.write !== "function" || typeof res.end !== "function" || typeof res.on !== "function") {
             throw new InvalidReturnValueError("expected Writable");
@@ -9982,17 +9982,17 @@ var require_api_pipeline = __commonJS({
         this.res = null;
         addSignal(this, signal);
       }
-      onConnect(abort, context) {
+      onConnect(abort, context2) {
         const { ret, res } = this;
         assert(!res, "pipeline cannot be retried");
         if (ret.destroyed) {
           throw new RequestAbortedError();
         }
         this.abort = abort;
-        this.context = context;
+        this.context = context2;
       }
       onHeaders(statusCode, rawHeaders, resume) {
-        const { opaque, handler, context } = this;
+        const { opaque, handler, context: context2 } = this;
         if (statusCode < 200) {
           if (this.onInfo) {
             const headers = this.responseHeaders === "raw" ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders);
@@ -10010,7 +10010,7 @@ var require_api_pipeline = __commonJS({
             headers,
             opaque,
             body: this.res,
-            context
+            context: context2
           });
         } catch (err) {
           this.res.on("error", util.nop);
@@ -10094,7 +10094,7 @@ var require_api_upgrade = __commonJS({
         this.context = null;
         addSignal(this, signal);
       }
-      onConnect(abort, context) {
+      onConnect(abort, context2) {
         if (!this.callback) {
           throw new RequestAbortedError();
         }
@@ -10105,7 +10105,7 @@ var require_api_upgrade = __commonJS({
         throw new SocketError("bad upgrade", null);
       }
       onUpgrade(statusCode, rawHeaders, socket) {
-        const { callback, opaque, context } = this;
+        const { callback, opaque, context: context2 } = this;
         assert.strictEqual(statusCode, 101);
         removeSignal(this);
         this.callback = null;
@@ -10114,7 +10114,7 @@ var require_api_upgrade = __commonJS({
           headers,
           socket,
           opaque,
-          context
+          context: context2
         });
       }
       onError(err) {
@@ -10182,18 +10182,18 @@ var require_api_connect = __commonJS({
         this.abort = null;
         addSignal(this, signal);
       }
-      onConnect(abort, context) {
+      onConnect(abort, context2) {
         if (!this.callback) {
           throw new RequestAbortedError();
         }
         this.abort = abort;
-        this.context = context;
+        this.context = context2;
       }
       onHeaders() {
         throw new SocketError("bad connect", null);
       }
       onUpgrade(statusCode, rawHeaders, socket) {
-        const { callback, opaque, context } = this;
+        const { callback, opaque, context: context2 } = this;
         removeSignal(this);
         this.callback = null;
         let headers = rawHeaders;
@@ -10205,7 +10205,7 @@ var require_api_connect = __commonJS({
           headers,
           socket,
           opaque,
-          context
+          context: context2
         });
       }
       onError(err) {
@@ -20288,8 +20288,8 @@ var require_dist_node2 = __commonJS({
     function isKeyOperator(operator) {
       return operator === ";" || operator === "&" || operator === "?";
     }
-    function getValues(context, operator, key, modifier) {
-      var value = context[key], result = [];
+    function getValues(context2, operator, key, modifier) {
+      var value = context2[key], result = [];
       if (isDefined(value) && value !== "") {
         if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
           value = value.toString();
@@ -20353,7 +20353,7 @@ var require_dist_node2 = __commonJS({
         expand: expand.bind(null, template)
       };
     }
-    function expand(template, context) {
+    function expand(template, context2) {
       var operators = ["+", "#", ".", "/", ";", "?", "&"];
       template = template.replace(
         /\{([^\{\}]+)\}|([^\{\}]+)/g,
@@ -20367,7 +20367,7 @@ var require_dist_node2 = __commonJS({
             }
             expression.split(/,/g).forEach(function(variable) {
               var tmp = /([^:\*]*)(?::(\d+)|(\*))?/.exec(variable);
-              values.push(getValues(context, operator, tmp[1], tmp[2] || tmp[3]));
+              values.push(getValues(context2, operator, tmp[1], tmp[2] || tmp[3]));
             });
             if (operator && operator !== "+") {
               var separator = ",";
@@ -23878,31 +23878,19 @@ var require_github = __commonJS({
   }
 });
 
-// claude-detect-event/index.ts
+// claude-test-helper/index.ts
 var core2 = __toESM(require_core(), 1);
 var github = __toESM(require_github(), 1);
 
 // lib/index.ts
 var core = __toESM(require_core(), 1);
 var exec = __toESM(require_exec(), 1);
+function getOptionalInput(name) {
+  const value = core.getInput(name);
+  return value === "" ? void 0 : value;
+}
 function getRequiredInput(name) {
   return core.getInput(name, { required: true });
-}
-async function execCommand(command, args = [], options) {
-  let stdout = "";
-  let stderr = "";
-  const exitCode = await exec.exec(command, args, {
-    ...options,
-    listeners: {
-      stdout: (data) => {
-        stdout += data.toString();
-      },
-      stderr: (data) => {
-        stderr += data.toString();
-      }
-    }
-  });
-  return { stdout: stdout.trim(), stderr: stderr.trim(), exitCode };
 }
 function setOutputs(outputs) {
   for (const [key, value] of Object.entries(outputs)) {
@@ -23912,43 +23900,100 @@ function setOutputs(outputs) {
   }
 }
 
-// claude-detect-event/index.ts
-function emptyResult(skip = false, skipReason = "") {
-  return {
-    job: "",
-    resourceType: "",
-    resourceNumber: "",
-    commentId: "",
-    contextJson: "{}",
-    skip,
-    skipReason
-  };
-}
-async function fetchProjectState(octokit, owner, repo, issueNumber) {
-  try {
-    const result = await octokit.graphql(
-      `
-      query($owner: String!, $repo: String!, $number: Int!) {
-        repository(owner: $owner, name: $repo) {
-          issue(number: $number) {
-            projectItems(first: 10) {
-              nodes {
-                fieldValues(first: 20) {
-                  nodes {
-                    ... on ProjectV2ItemFieldSingleSelectValue {
+// claude-test-helper/index.ts
+var GET_PROJECT_ITEM_QUERY = `
+query GetProjectItem($org: String!, $projectNumber: Int!, $issueNumber: Int!, $repo: String!) {
+  repository(owner: $org, name: $repo) {
+    issue(number: $issueNumber) {
+      id
+      number
+      title
+      body
+      state
+      projectItems(first: 10) {
+        nodes {
+          id
+          project {
+            id
+            number
+          }
+          fieldValues(first: 20) {
+            nodes {
+              ... on ProjectV2ItemFieldSingleSelectValue {
+                name
+                field {
+                  ... on ProjectV2SingleSelectField {
+                    name
+                    id
+                    options {
+                      id
                       name
-                      field {
-                        ... on ProjectV2SingleSelectField {
-                          name
-                        }
-                      }
                     }
-                    ... on ProjectV2ItemFieldNumberValue {
-                      number
-                      field {
-                        ... on ProjectV2Field {
-                          name
-                        }
+                  }
+                }
+              }
+              ... on ProjectV2ItemFieldNumberValue {
+                number
+                field {
+                  ... on ProjectV2Field {
+                    name
+                    id
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  organization(login: $org) {
+    projectV2(number: $projectNumber) {
+      id
+      fields(first: 20) {
+        nodes {
+          ... on ProjectV2SingleSelectField {
+            id
+            name
+            options {
+              id
+              name
+            }
+          }
+          ... on ProjectV2Field {
+            id
+            name
+            dataType
+          }
+        }
+      }
+    }
+  }
+}
+`;
+var GET_SUB_ISSUES_QUERY = `
+query GetSubIssues($org: String!, $repo: String!, $parentNumber: Int!, $projectNumber: Int!) {
+  repository(owner: $org, name: $repo) {
+    issue(number: $parentNumber) {
+      id
+      subIssues(first: 20) {
+        nodes {
+          id
+          number
+          title
+          state
+          projectItems(first: 10) {
+            nodes {
+              project {
+                number
+              }
+              fieldValues(first: 20) {
+                nodes {
+                  ... on ProjectV2ItemFieldSingleSelectValue {
+                    name
+                    field {
+                      ... on ProjectV2SingleSelectField {
+                        name
                       }
                     }
                   }
@@ -23958,942 +24003,873 @@ async function fetchProjectState(octokit, owner, repo, issueNumber) {
           }
         }
       }
-    `,
-      { owner, repo, number: issueNumber }
-    );
-    const items = result.repository.issue?.projectItems.nodes ?? [];
-    if (items.length === 0) {
-      return null;
     }
-    const state = {
-      status: null,
-      iteration: 0,
-      failures: 0
-    };
-    const fieldValues = items[0]?.fieldValues?.nodes ?? [];
-    for (const fieldValue of fieldValues) {
-      const fieldName = fieldValue.field?.name;
-      if (fieldName === "Status" && fieldValue.name) {
-        state.status = fieldValue.name;
-      } else if (fieldName === "Iteration" && typeof fieldValue.number === "number") {
-        state.iteration = fieldValue.number;
-      } else if (fieldName === "Failures" && typeof fieldValue.number === "number") {
-        state.failures = fieldValue.number;
-      }
-    }
-    return state;
-  } catch (error) {
-    core2.warning(`Failed to fetch project state: ${error}`);
-    return null;
   }
 }
-function shouldSkipProjectState(state) {
-  if (!state || !state.status) return false;
-  const skipStatuses = ["Backlog", "Done", "Blocked", "Error"];
-  return skipStatuses.includes(state.status);
+`;
+var ADD_ISSUE_TO_PROJECT_MUTATION = `
+mutation AddIssueToProject($projectId: ID!, $contentId: ID!) {
+  addProjectV2ItemById(input: {
+    projectId: $projectId
+    contentId: $contentId
+  }) {
+    item {
+      id
+    }
+  }
 }
-function deriveBranch(parentIssueNumber, phaseNumber) {
-  return `claude/issue/${parentIssueNumber}/phase-${phaseNumber}`;
+`;
+var UPDATE_PROJECT_FIELD_MUTATION = `
+mutation UpdateProjectField($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
+  updateProjectV2ItemFieldValue(input: {
+    projectId: $projectId
+    itemId: $itemId
+    fieldId: $fieldId
+    value: $value
+  }) {
+    projectV2Item {
+      id
+    }
+  }
 }
-async function fetchIssueDetails(octokit, owner, repo, issueNumber) {
-  const result = await octokit.graphql(
-    `
-    query($owner: String!, $repo: String!, $number: Int!) {
-      repository(owner: $owner, name: $repo) {
-        issue(number: $number) {
-          title
-          body
-          parent { number }
-          subIssues(first: 50) {
-            nodes { number }
+`;
+var ADD_SUB_ISSUE_MUTATION = `
+mutation AddSubIssue($parentId: ID!, $subIssueId: ID!) {
+  addSubIssue(input: {
+    issueId: $parentId
+    subIssueId: $subIssueId
+  }) {
+    issue {
+      id
+    }
+    subIssue {
+      id
+    }
+  }
+}
+`;
+var GET_DISCUSSION_CATEGORIES_QUERY = `
+query GetDiscussionCategories($owner: String!, $repo: String!) {
+  repository(owner: $owner, name: $repo) {
+    id
+    discussionCategories(first: 20) {
+      nodes {
+        id
+        name
+        slug
+      }
+    }
+  }
+}
+`;
+var CREATE_DISCUSSION_MUTATION = `
+mutation CreateDiscussion($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
+  createDiscussion(input: {
+    repositoryId: $repositoryId
+    categoryId: $categoryId
+    title: $title
+    body: $body
+  }) {
+    discussion {
+      id
+      number
+      url
+    }
+  }
+}
+`;
+var ADD_DISCUSSION_COMMENT_MUTATION = `
+mutation AddDiscussionComment($discussionId: ID!, $body: String!) {
+  addDiscussionComment(input: {
+    discussionId: $discussionId
+    body: $body
+  }) {
+    comment {
+      id
+    }
+  }
+}
+`;
+function parseProjectFields(projectData) {
+  const project = projectData;
+  if (!project?.id || !project?.fields?.nodes) {
+    return null;
+  }
+  const fields = {
+    projectId: project.id,
+    statusFieldId: "",
+    statusOptions: {},
+    iterationFieldId: "",
+    failuresFieldId: ""
+  };
+  for (const field of project.fields.nodes) {
+    if (field.name === "Status" && field.options) {
+      fields.statusFieldId = field.id || "";
+      for (const option of field.options) {
+        fields.statusOptions[option.name] = option.id;
+      }
+    } else if (field.name === "Iteration") {
+      fields.iterationFieldId = field.id || "";
+    } else if (field.name === "Failures") {
+      fields.failuresFieldId = field.id || "";
+    }
+  }
+  return fields;
+}
+async function createFixture(octokit, owner, repo, fixture, projectNumber) {
+  const result = {
+    issue_number: 0,
+    sub_issue_numbers: []
+  };
+  if (!fixture.parent_issue) {
+    core2.info("No parent_issue in fixture - creating discussion-only fixture");
+    if (fixture.discussion) {
+      core2.info(`Creating discussion: ${fixture.discussion.title}`);
+      const categoriesResponse = await octokit.graphql(
+        GET_DISCUSSION_CATEGORIES_QUERY,
+        { owner, repo }
+      );
+      const repoId = categoriesResponse.repository?.id;
+      const categories = categoriesResponse.repository?.discussionCategories?.nodes || [];
+      const targetCategory = fixture.discussion.category || "general";
+      const category = categories.find(
+        (c) => c.slug === targetCategory || c.name.toLowerCase() === targetCategory.toLowerCase()
+      );
+      if (!repoId || !category) {
+        core2.warning(
+          `Could not find category "${targetCategory}" for discussion. Available: ${categories.map((c) => c.slug).join(", ")}`
+        );
+      } else {
+        const discussionResponse = await octokit.graphql(
+          CREATE_DISCUSSION_MUTATION,
+          {
+            repositoryId: repoId,
+            categoryId: category.id,
+            title: `[TEST] ${fixture.discussion.title}`,
+            body: fixture.discussion.body
+          }
+        );
+        const discussion = discussionResponse.createDiscussion?.discussion;
+        if (discussion) {
+          result.discussion_number = discussion.number;
+          core2.info(
+            `Created discussion #${discussion.number}: ${discussion.url}`
+          );
+          if (fixture.comment) {
+            await octokit.graphql(ADD_DISCUSSION_COMMENT_MUTATION, {
+              discussionId: discussion.id,
+              body: fixture.comment.body
+            });
+            core2.info("Added comment to discussion");
           }
         }
       }
     }
-  `,
+    return result;
+  }
+  const parentTitle = `[TEST] ${fixture.parent_issue.title}`;
+  const parentLabels = [
+    "test:automation",
+    ...fixture.parent_issue.labels || []
+  ];
+  core2.info(`Creating parent issue: ${parentTitle}`);
+  const { data: parentIssue } = await octokit.rest.issues.create({
+    owner,
+    repo,
+    title: parentTitle,
+    body: fixture.parent_issue.body,
+    labels: parentLabels
+  });
+  result.issue_number = parentIssue.number;
+  core2.info(`Created parent issue #${parentIssue.number}`);
+  const projectResponse = await octokit.graphql(
+    GET_PROJECT_ITEM_QUERY,
     {
-      owner,
+      org: owner,
       repo,
-      number: issueNumber,
-      headers: {
-        "GraphQL-Features": "sub_issues"
+      issueNumber: parentIssue.number,
+      projectNumber
+    }
+  );
+  const projectData = projectResponse.organization?.projectV2;
+  const projectFields = parseProjectFields(projectData);
+  if (projectFields && fixture.parent_issue.project_fields) {
+    const issueNodeId = projectResponse.repository?.issue?.id;
+    if (issueNodeId) {
+      const addResult = await octokit.graphql(
+        ADD_ISSUE_TO_PROJECT_MUTATION,
+        {
+          projectId: projectFields.projectId,
+          contentId: issueNodeId
+        }
+      );
+      const itemId = addResult.addProjectV2ItemById?.item?.id;
+      if (itemId) {
+        const statusValue = fixture.parent_issue.project_fields.Status;
+        if (statusValue) {
+          const optionId = projectFields.statusOptions[statusValue];
+          if (optionId) {
+            await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+              projectId: projectFields.projectId,
+              itemId,
+              fieldId: projectFields.statusFieldId,
+              value: { singleSelectOptionId: optionId }
+            });
+            core2.info(`Set parent Status to ${statusValue}`);
+          }
+        }
+        if (fixture.parent_issue.project_fields.Iteration !== void 0) {
+          await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+            projectId: projectFields.projectId,
+            itemId,
+            fieldId: projectFields.iterationFieldId,
+            value: { number: fixture.parent_issue.project_fields.Iteration }
+          });
+          core2.info(
+            `Set parent Iteration to ${fixture.parent_issue.project_fields.Iteration}`
+          );
+        }
+        if (fixture.parent_issue.project_fields.Failures !== void 0) {
+          await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+            projectId: projectFields.projectId,
+            itemId,
+            fieldId: projectFields.failuresFieldId,
+            value: { number: fixture.parent_issue.project_fields.Failures }
+          });
+          core2.info(
+            `Set parent Failures to ${fixture.parent_issue.project_fields.Failures}`
+          );
+        }
       }
     }
-  );
-  const issue = result.repository.issue;
-  if (!issue) {
-    return {
-      title: "",
-      body: "",
-      isSubIssue: false,
-      parentIssue: 0,
-      subIssues: []
-    };
   }
-  const subIssues = issue.subIssues?.nodes?.map((n) => n.number).filter((n) => n > 0) ?? [];
-  return {
-    title: issue.title,
-    body: issue.body ?? "",
-    isSubIssue: !!issue.parent,
-    parentIssue: issue.parent?.number ?? 0,
-    subIssues
-  };
-}
-function extractPhaseNumber(title) {
-  const match = title.match(/^\[Phase\s*(\d+)\]/i);
-  return match?.[1] ? parseInt(match[1], 10) : 0;
-}
-async function fetchPrByBranch(owner, repo, branch) {
-  const { stdout, exitCode } = await execCommand(
-    "gh",
-    [
-      "pr",
-      "list",
-      "--repo",
-      `${owner}/${repo}`,
-      "--head",
-      branch,
-      "--json",
-      "number,isDraft,author,body,title,labels",
-      "--jq",
-      ".[0]"
-    ],
-    { ignoreReturnCode: true }
-  );
-  if (exitCode !== 0 || !stdout || stdout === "null") {
-    return {
-      hasPr: false,
-      prNumber: "",
-      isDraft: false,
-      isClaudePr: false,
-      author: "",
-      body: "",
-      title: "",
-      labels: []
-    };
-  }
-  try {
-    const pr = JSON.parse(stdout);
-    const author = pr.author.login;
-    const isClaudePr = author === "claude[bot]" || branch.startsWith("claude/");
-    return {
-      hasPr: true,
-      prNumber: String(pr.number),
-      isDraft: pr.isDraft,
-      isClaudePr,
-      author,
-      body: pr.body ?? "",
-      title: pr.title ?? "",
-      labels: (pr.labels ?? []).map((l) => l.name)
-    };
-  } catch {
-    return {
-      hasPr: false,
-      prNumber: "",
-      isDraft: false,
-      isClaudePr: false,
-      author: "",
-      body: "",
-      title: "",
-      labels: []
-    };
-  }
-}
-function hasSkipLabel(labels) {
-  return labels.some((l) => l === "skip-dispatch" || l === "test:automation");
-}
-function isTestResource(title) {
-  return title.startsWith("[TEST]");
-}
-async function extractIssueNumber(body) {
-  const match = body.match(/(?:Fixes|Closes|Resolves)\s+#(\d+)/i);
-  return match?.[1] ?? "";
-}
-async function ensureBranchExists(branch) {
-  const { exitCode } = await execCommand(
-    "git",
-    ["ls-remote", "--heads", "origin", branch],
-    { ignoreReturnCode: true }
-  );
-  if (exitCode === 0) {
-    const { stdout } = await execCommand("git", [
-      "ls-remote",
-      "--heads",
-      "origin",
-      branch
-    ]);
-    if (stdout.includes(branch)) {
-      core2.info(`Branch ${branch} exists`);
-      return true;
+  if (fixture.sub_issues && fixture.sub_issues.length > 0) {
+    for (let i = 0; i < fixture.sub_issues.length; i++) {
+      const subConfig = fixture.sub_issues[i];
+      if (!subConfig) continue;
+      const subTitle = `[Phase ${i + 1}] ${subConfig.title} (parent #${parentIssue.number})`;
+      core2.info(`Creating sub-issue: ${subTitle}`);
+      const { data: subIssue } = await octokit.rest.issues.create({
+        owner,
+        repo,
+        title: subTitle,
+        body: subConfig.body,
+        labels: ["test:automation"]
+      });
+      result.sub_issue_numbers.push(subIssue.number);
+      core2.info(`Created sub-issue #${subIssue.number}`);
+      const { data: parentData } = await octokit.rest.issues.get({
+        owner,
+        repo,
+        issue_number: parentIssue.number
+      });
+      const { data: subData } = await octokit.rest.issues.get({
+        owner,
+        repo,
+        issue_number: subIssue.number
+      });
+      try {
+        await octokit.graphql(ADD_SUB_ISSUE_MUTATION, {
+          parentId: parentData.node_id,
+          subIssueId: subData.node_id
+        });
+        core2.info(
+          `Linked sub-issue #${subIssue.number} to parent #${parentIssue.number}`
+        );
+      } catch (error) {
+        core2.warning(`Failed to link sub-issue: ${error}`);
+      }
+      if (subConfig.project_fields && projectFields) {
+        const addResult = await octokit.graphql(
+          ADD_ISSUE_TO_PROJECT_MUTATION,
+          {
+            projectId: projectFields.projectId,
+            contentId: subData.node_id
+          }
+        );
+        const subItemId = addResult.addProjectV2ItemById?.item?.id;
+        if (subItemId && subConfig.project_fields.Status) {
+          const optionId = projectFields.statusOptions[subConfig.project_fields.Status];
+          if (optionId) {
+            await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+              projectId: projectFields.projectId,
+              itemId: subItemId,
+              fieldId: projectFields.statusFieldId,
+              value: { singleSelectOptionId: optionId }
+            });
+            core2.info(
+              `Set sub-issue #${subIssue.number} Status to ${subConfig.project_fields.Status}`
+            );
+          }
+        }
+      }
     }
   }
-  core2.info(`Creating branch ${branch}`);
-  await execCommand("git", ["checkout", "-b", branch]);
-  const { exitCode: pushCode } = await execCommand(
-    "git",
-    ["push", "-u", "origin", branch],
-    { ignoreReturnCode: true }
-  );
-  if (pushCode !== 0) {
-    core2.warning(`Failed to push branch ${branch}`);
-    return false;
-  }
-  core2.info(`Created and pushed branch ${branch}`);
-  return true;
-}
-async function checkBranchExists(branch) {
-  const { stdout } = await execCommand(
-    "git",
-    ["ls-remote", "--heads", "origin", branch],
-    { ignoreReturnCode: true }
-  );
-  return stdout.includes(branch);
-}
-async function buildIssueSection(octokit, owner, repo, prBody) {
-  const issueNumber = await extractIssueNumber(prBody);
-  if (!issueNumber) {
-    return "## No Linked Issue\nPerforming standard code review.\n";
-  }
-  try {
-    const { data: issue } = await octokit.rest.issues.get({
+  if (fixture.branch) {
+    const branchName = `test/${fixture.branch.name}`;
+    result.branch_name = branchName;
+    core2.info(`Creating branch: ${branchName}`);
+    const { data: baseBranch } = await octokit.rest.repos.getBranch({
       owner,
       repo,
-      issue_number: parseInt(issueNumber, 10)
+      branch: fixture.branch.from
     });
-    return `## Linked Issue #${issueNumber}
-
-${issue.body ?? ""}
-
-## Validation
-- CHECK ALL TODO ITEMS in the issue are addressed
-- VERIFY code follows CLAUDE.md guidelines
-- ENSURE tests cover the requirements
-`;
-  } catch {
-    return "## No Linked Issue\nPerforming standard code review.\n";
-  }
-}
-async function handleIssueEvent(octokit, owner, repo) {
-  const { context } = github;
-  const payload = context.payload;
-  const action = payload.action;
-  const issue = payload.issue;
-  if (isTestResource(issue.title)) {
-    return emptyResult(true, "Issue title starts with [TEST]");
-  }
-  const hasTestLabel = issue.labels.some((l) => l.name === "test:automation");
-  if (hasTestLabel) {
-    return emptyResult(true, "Issue has test:automation label");
-  }
-  const hasSkipLabelOnIssue = issue.labels.some(
-    (l) => l.name === "skip-dispatch"
-  );
-  if (hasSkipLabelOnIssue) {
-    return emptyResult(true, "Issue has skip-dispatch label");
-  }
-  const hasTriagedLabel = issue.labels.some((l) => l.name === "triaged");
-  const assignees = payload.issue.assignees;
-  const isNopoBotAssigned = assignees?.some((a) => a.login === "nopo-bot");
-  if (action === "opened" || action === "unlabeled" && payload.label?.name === "triaged") {
-    if (hasTriagedLabel && action !== "unlabeled") {
-      return emptyResult(true, "Issue already triaged");
-    }
-    const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
-    if (details.isSubIssue) {
-      return emptyResult(true, "Issue is a sub-issue");
-    }
-    return {
-      job: "issue-triage",
-      resourceType: "issue",
-      resourceNumber: String(issue.number),
-      commentId: "",
-      contextJson: JSON.stringify({
-        issue_number: String(issue.number),
-        issue_title: details.title || issue.title,
-        issue_body: details.body || issue.body
-      }),
-      skip: false,
-      skipReason: ""
-    };
-  }
-  if (action === "edited") {
-    if (isNopoBotAssigned) {
-      const projectState = await fetchProjectState(
-        octokit,
-        owner,
-        repo,
-        issue.number
-      );
-      if (shouldSkipProjectState(projectState)) {
-        return emptyResult(
-          true,
-          `Issue project status is '${projectState?.status}' - skipping iteration`
-        );
-      }
-      const details = await fetchIssueDetails(
-        octokit,
-        owner,
-        repo,
-        issue.number
-      );
-      if (details.isSubIssue) {
-        const phaseNumber = extractPhaseNumber(details.title);
-        const branchName2 = deriveBranch(
-          details.parentIssue,
-          phaseNumber || issue.number
-        );
-        const branchExists2 = await checkBranchExists(branchName2);
-        return {
-          job: "issue-iterate",
-          resourceType: "issue",
-          resourceNumber: String(issue.number),
-          commentId: "",
-          contextJson: JSON.stringify({
-            issue_number: String(issue.number),
-            issue_title: details.title || issue.title,
-            issue_body: details.body || issue.body,
-            branch_name: branchName2,
-            existing_branch: branchExists2 ? "true" : "false",
-            trigger_type: "edited",
-            parent_issue: String(details.parentIssue),
-            phase_number: String(phaseNumber),
-            project_status: projectState?.status || "",
-            project_iteration: String(projectState?.iteration || 0),
-            project_failures: String(projectState?.failures || 0)
-          }),
-          skip: false,
-          skipReason: ""
-        };
-      }
-      if (details.subIssues.length > 0) {
-        return {
-          job: "issue-orchestrate",
-          resourceType: "issue",
-          resourceNumber: String(issue.number),
-          commentId: "",
-          contextJson: JSON.stringify({
-            issue_number: String(issue.number),
-            issue_title: details.title || issue.title,
-            issue_body: details.body || issue.body,
-            sub_issues: details.subIssues.join(","),
-            trigger_type: "edited",
-            project_status: projectState?.status || "",
-            project_iteration: String(projectState?.iteration || 0),
-            project_failures: String(projectState?.failures || 0)
-          }),
-          skip: false,
-          skipReason: ""
-        };
-      }
-      const branchName = `claude/issue/${issue.number}`;
-      const branchExists = await checkBranchExists(branchName);
-      return {
-        job: "issue-iterate",
-        resourceType: "issue",
-        resourceNumber: String(issue.number),
-        commentId: "",
-        contextJson: JSON.stringify({
-          issue_number: String(issue.number),
-          issue_title: details.title || issue.title,
-          issue_body: details.body || issue.body,
-          branch_name: branchName,
-          existing_branch: branchExists ? "true" : "false",
-          trigger_type: "edited",
-          project_status: projectState?.status || "",
-          project_iteration: String(projectState?.iteration || 0),
-          project_failures: String(projectState?.failures || 0)
-        }),
-        skip: false,
-        skipReason: ""
-      };
-    }
-    if (!hasTriagedLabel) {
-      const details = await fetchIssueDetails(
-        octokit,
-        owner,
-        repo,
-        issue.number
-      );
-      if (details.isSubIssue) {
-        return emptyResult(true, "Issue is a sub-issue");
-      }
-      return {
-        job: "issue-triage",
-        resourceType: "issue",
-        resourceNumber: String(issue.number),
-        commentId: "",
-        contextJson: JSON.stringify({
-          issue_number: String(issue.number),
-          issue_title: details.title || issue.title,
-          issue_body: details.body || issue.body
-        }),
-        skip: false,
-        skipReason: ""
-      };
-    }
-    return emptyResult(
-      true,
-      "Issue edited but already triaged and not assigned to nopo-bot"
-    );
-  }
-  if (action === "assigned") {
-    const assignee = payload.assignee;
-    if (assignee.login !== "nopo-bot") {
-      return emptyResult(true, "Not assigned to nopo-bot");
-    }
-    const projectState = await fetchProjectState(
-      octokit,
+    await octokit.rest.git.createRef({
       owner,
       repo,
-      issue.number
-    );
-    if (shouldSkipProjectState(projectState)) {
-      return emptyResult(
-        true,
-        `Issue project status is '${projectState?.status}' - skipping iteration`
-      );
-    }
-    const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
-    if (details.isSubIssue) {
-      const phaseNumber = extractPhaseNumber(details.title);
-      const branchName2 = deriveBranch(
-        details.parentIssue,
-        phaseNumber || issue.number
-      );
-      await ensureBranchExists(branchName2);
-      return {
-        job: "issue-iterate",
-        resourceType: "issue",
-        resourceNumber: String(issue.number),
-        commentId: "",
-        contextJson: JSON.stringify({
-          issue_number: String(issue.number),
-          issue_title: details.title || issue.title,
-          issue_body: details.body || issue.body,
-          branch_name: branchName2,
-          trigger_type: "assigned",
-          parent_issue: String(details.parentIssue),
-          phase_number: String(phaseNumber),
-          project_status: projectState?.status || "",
-          project_iteration: String(projectState?.iteration || 0),
-          project_failures: String(projectState?.failures || 0)
-        }),
-        skip: false,
-        skipReason: ""
-      };
-    }
-    if (details.subIssues.length > 0) {
-      return {
-        job: "issue-orchestrate",
-        resourceType: "issue",
-        resourceNumber: String(issue.number),
-        commentId: "",
-        contextJson: JSON.stringify({
-          issue_number: String(issue.number),
-          issue_title: details.title || issue.title,
-          issue_body: details.body || issue.body,
-          sub_issues: details.subIssues.join(","),
-          trigger_type: "assigned",
-          project_status: projectState?.status || "",
-          project_iteration: String(projectState?.iteration || 0),
-          project_failures: String(projectState?.failures || 0)
-        }),
-        skip: false,
-        skipReason: ""
-      };
-    }
-    const branchName = `claude/issue/${issue.number}`;
-    await ensureBranchExists(branchName);
-    return {
-      job: "issue-iterate",
-      resourceType: "issue",
-      resourceNumber: String(issue.number),
-      commentId: "",
-      contextJson: JSON.stringify({
-        issue_number: String(issue.number),
-        issue_title: details.title || issue.title,
-        issue_body: details.body || issue.body,
-        branch_name: branchName,
-        trigger_type: "assigned",
-        project_status: projectState?.status || "",
-        project_iteration: String(projectState?.iteration || 0),
-        project_failures: String(projectState?.failures || 0)
-      }),
-      skip: false,
-      skipReason: ""
-    };
-  }
-  return emptyResult(true, `Unhandled issue action: ${action}`);
-}
-async function handleIssueCommentEvent(octokit, owner, repo) {
-  const { context } = github;
-  const payload = context.payload;
-  const comment = payload.comment;
-  const issue = payload.issue;
-  if (isTestResource(issue.title)) {
-    return emptyResult(true, "Issue/PR title starts with [TEST]");
-  }
-  const hasTestLabel = issue.labels.some((l) => l.name === "test:automation");
-  if (hasTestLabel) {
-    return emptyResult(true, "Issue has test:automation label");
-  }
-  const hasSkipLabelOnIssue = issue.labels.some(
-    (l) => l.name === "skip-dispatch"
-  );
-  if (hasSkipLabelOnIssue) {
-    return emptyResult(true, "Issue has skip-dispatch label");
-  }
-  if (comment.user.type === "Bot") {
-    return emptyResult(true, "Comment is from a bot");
-  }
-  const isPr = !!issue.pull_request;
-  const hasImplementCommand = comment.body.split("\n").some((line) => line.trim() === "/implement");
-  if (hasImplementCommand && !isPr) {
-    const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
-    const branchName2 = `claude/issue/${issue.number}`;
-    await ensureBranchExists(branchName2);
-    return {
-      job: "issue-iterate",
-      resourceType: "issue",
-      resourceNumber: String(issue.number),
-      commentId: String(comment.id),
-      contextJson: JSON.stringify({
-        issue_number: String(issue.number),
-        issue_title: details.title || issue.title,
-        issue_body: details.body || issue.body,
-        branch_name: branchName2,
-        trigger_type: "implement_command"
-      }),
-      skip: false,
-      skipReason: ""
-    };
-  }
-  if (!comment.body.includes("@claude")) {
-    return emptyResult(true, "Comment does not mention @claude");
-  }
-  let contextType = "issue";
-  let branchName = "main";
-  if (isPr) {
-    const { stdout } = await execCommand("gh", [
-      "pr",
-      "view",
-      String(issue.number),
-      "--repo",
-      process.env.GITHUB_REPOSITORY ?? "",
-      "--json",
-      "headRefName",
-      "--jq",
-      ".headRefName"
-    ]);
-    branchName = stdout.trim() || "main";
-    contextType = "PR";
-  } else {
-    const issueBranch = `claude/issue/${issue.number}`;
-    if (await checkBranchExists(issueBranch)) {
-      branchName = issueBranch;
+      ref: `refs/heads/${branchName}`,
+      sha: baseBranch.commit.sha
+    });
+    core2.info(`Created branch ${branchName} from ${fixture.branch.from}`);
+    if (fixture.branch.commits && fixture.branch.commits.length > 0) {
+      for (const commit of fixture.branch.commits) {
+        const { data: currentRef } = await octokit.rest.git.getRef({
+          owner,
+          repo,
+          ref: `heads/${branchName}`
+        });
+        const { data: currentCommit } = await octokit.rest.git.getCommit({
+          owner,
+          repo,
+          commit_sha: currentRef.object.sha
+        });
+        const treeItems = [];
+        for (const [path, content] of Object.entries(commit.files)) {
+          const { data: blob } = await octokit.rest.git.createBlob({
+            owner,
+            repo,
+            content: Buffer.from(content).toString("base64"),
+            encoding: "base64"
+          });
+          treeItems.push({
+            path,
+            mode: "100644",
+            type: "blob",
+            sha: blob.sha
+          });
+        }
+        const { data: newTree } = await octokit.rest.git.createTree({
+          owner,
+          repo,
+          base_tree: currentCommit.tree.sha,
+          tree: treeItems
+        });
+        const { data: newCommit } = await octokit.rest.git.createCommit({
+          owner,
+          repo,
+          message: commit.message,
+          tree: newTree.sha,
+          parents: [currentRef.object.sha]
+        });
+        await octokit.rest.git.updateRef({
+          owner,
+          repo,
+          ref: `heads/${branchName}`,
+          sha: newCommit.sha
+        });
+        core2.info(`Added commit: ${commit.message}`);
+      }
     }
   }
-  const contextDescription = branchName === "main" ? `This is ${contextType.toLowerCase()} #${issue.number}. You are checked out on main.` : `This is ${contextType} #${issue.number} on branch \`${branchName}\`. You are checked out on the ${isPr ? "PR" : "issue"} branch.`;
-  return {
-    job: "issue-comment",
-    resourceType: isPr ? "pr" : "issue",
-    resourceNumber: String(issue.number),
-    commentId: String(comment.id),
-    contextJson: JSON.stringify({
-      issue_number: String(issue.number),
-      context_type: contextType,
-      context_description: contextDescription,
-      branch_name: branchName
-    }),
-    skip: false,
-    skipReason: ""
-  };
-}
-async function handlePullRequestReviewCommentEvent() {
-  const { context } = github;
-  const payload = context.payload;
-  const comment = payload.comment;
-  const pr = payload.pull_request;
-  if (isTestResource(pr.title)) {
-    return emptyResult(true, "PR title starts with [TEST]");
-  }
-  const hasTestLabel = pr.labels.some((l) => l.name === "test:automation");
-  if (hasTestLabel) {
-    return emptyResult(true, "PR has test:automation label");
-  }
-  const hasSkipLabelOnPr = pr.labels.some((l) => l.name === "skip-dispatch");
-  if (hasSkipLabelOnPr) {
-    return emptyResult(true, "PR has skip-dispatch label");
-  }
-  if (comment.user.type === "Bot") {
-    return emptyResult(true, "Comment is from a bot");
-  }
-  if (!comment.body.includes("@claude")) {
-    return emptyResult(true, "Comment does not mention @claude");
-  }
-  return {
-    job: "issue-comment",
-    resourceType: "pr",
-    resourceNumber: String(pr.number),
-    commentId: String(comment.id),
-    contextJson: JSON.stringify({
-      issue_number: String(pr.number),
-      context_type: "PR",
-      context_description: `This is PR #${pr.number} on branch \`${pr.head.ref}\`. You are checked out on the PR branch with the code changes.`,
-      branch_name: pr.head.ref
-    }),
-    skip: false,
-    skipReason: ""
-  };
-}
-async function handlePushEvent() {
-  const { context } = github;
-  const ref = context.ref;
-  const branch = ref.replace("refs/heads/", "");
-  if (branch === "main") {
-    return emptyResult(true, "Push to main branch");
-  }
-  if (branch.startsWith("gh-readonly-queue/")) {
-    return emptyResult(true, "Push to merge queue branch");
-  }
-  if (branch.startsWith("test/")) {
-    return emptyResult(true, "Push to test branch");
-  }
-  const owner = context.repo.owner;
-  const repo = context.repo.repo;
-  const prInfo = await fetchPrByBranch(owner, repo, branch);
-  if (!prInfo.hasPr) {
-    return emptyResult(true, "No PR found for branch");
-  }
-  if (hasSkipLabel(prInfo.labels)) {
-    return emptyResult(true, "PR has skip-dispatch or test:automation label");
-  }
-  if (isTestResource(prInfo.title)) {
-    return emptyResult(true, "PR title starts with [TEST]");
-  }
-  return {
-    job: "push-to-draft",
-    resourceType: "pr",
-    resourceNumber: prInfo.prNumber,
-    commentId: "",
-    contextJson: JSON.stringify({
-      pr_number: prInfo.prNumber,
-      branch_name: branch,
-      is_draft: prInfo.isDraft
-    }),
-    skip: false,
-    skipReason: ""
-  };
-}
-async function handleWorkflowRunEvent() {
-  const { context } = github;
-  const payload = context.payload;
-  const workflowRun = payload.workflow_run;
-  const conclusion = workflowRun.conclusion;
-  const branch = workflowRun.head_branch;
-  const runId = String(workflowRun.id);
-  if (branch.startsWith("test/")) {
-    return emptyResult(true, "Workflow run on test branch");
-  }
-  const owner = context.repo.owner;
-  const repo = context.repo.repo;
-  const prInfo = await fetchPrByBranch(owner, repo, branch);
-  if (!prInfo.hasPr) {
-    return emptyResult(true, "No PR found for workflow run branch");
-  }
-  if (hasSkipLabel(prInfo.labels)) {
-    return emptyResult(true, "PR has skip-dispatch or test:automation label");
-  }
-  if (isTestResource(prInfo.title)) {
-    return emptyResult(true, "PR title starts with [TEST]");
-  }
-  const issueNumber = await extractIssueNumber(prInfo.body);
-  if (!prInfo.isClaudePr) return emptyResult(true, "PR is not a Claude PR");
-  if (!issueNumber) core2.setFailed("PR has no issue number");
-  return {
-    job: "issue-iterate",
-    resourceType: "issue",
-    resourceNumber: issueNumber,
-    commentId: "",
-    contextJson: JSON.stringify({
-      issue_number: issueNumber,
-      pr_number: prInfo.prNumber,
-      branch_name: branch,
-      ci_run_id: runId,
-      ci_result: conclusion,
-      trigger_type: "workflow_run"
-    }),
-    skip: false,
-    skipReason: ""
-  };
-}
-async function handlePullRequestEvent(octokit, owner, repo) {
-  const { context } = github;
-  const payload = context.payload;
-  const action = payload.action;
-  const pr = payload.pull_request;
-  if (isTestResource(pr.title)) {
-    return emptyResult(true, "PR title starts with [TEST]");
-  }
-  const hasSkipLabelOnPr = pr.labels.some(
-    (l) => l.name === "skip-dispatch" || l.name === "test:automation"
-  );
-  if (hasSkipLabelOnPr) {
-    return emptyResult(true, "PR has skip-dispatch or test:automation label");
-  }
-  if (action === "review_requested") {
-    const requestedReviewer = payload.requested_reviewer;
-    if (requestedReviewer.login !== "nopo-bot") {
-      return emptyResult(true, "Reviewer is not nopo-bot");
-    }
-    if (pr.draft) {
-      return emptyResult(true, "PR is a draft");
-    }
-    const issueSection = await buildIssueSection(
-      octokit,
+  if (fixture.pr && result.branch_name) {
+    core2.info(`Creating PR: ${fixture.pr.title}`);
+    const { data: pr } = await octokit.rest.pulls.create({
       owner,
       repo,
-      pr.body ?? ""
+      title: `[TEST] ${fixture.pr.title}`,
+      body: fixture.pr.body.replace(
+        "{ISSUE_NUMBER}",
+        String(result.issue_number)
+      ),
+      head: result.branch_name,
+      base: "main",
+      draft: fixture.pr.draft ?? true
+      // Default to draft
+    });
+    result.pr_number = pr.number;
+    core2.info(`Created PR #${pr.number}`);
+    await octokit.rest.issues.addLabels({
+      owner,
+      repo,
+      issue_number: pr.number,
+      labels: ["test:automation"]
+    });
+    if (fixture.pr.request_review) {
+      try {
+        await octokit.rest.pulls.requestReviewers({
+          owner,
+          repo,
+          pull_number: pr.number,
+          reviewers: ["nopo-bot"]
+        });
+        core2.info("Requested nopo-bot as reviewer");
+      } catch (error) {
+        core2.warning(`Failed to request reviewer: ${error}`);
+      }
+    }
+  }
+  if (fixture.comment && result.issue_number) {
+    core2.info("Adding comment to issue");
+    const { data: comment } = await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: result.issue_number,
+      body: fixture.comment.body
+    });
+    result.comment_id = String(comment.id);
+    core2.info(`Created comment ${comment.id}`);
+  }
+  if (fixture.review && result.pr_number) {
+    core2.info(`Submitting review with state: ${fixture.review.state}`);
+    const eventMap = {
+      approve: "APPROVE",
+      request_changes: "REQUEST_CHANGES",
+      comment: "COMMENT"
+    };
+    await octokit.rest.pulls.createReview({
+      owner,
+      repo,
+      pull_number: result.pr_number,
+      body: fixture.review.body,
+      event: eventMap[fixture.review.state]
+    });
+    core2.info("Review submitted");
+  }
+  if (fixture.discussion) {
+    core2.info(`Creating discussion: ${fixture.discussion.title}`);
+    const categoriesResponse = await octokit.graphql(
+      GET_DISCUSSION_CATEGORIES_QUERY,
+      { owner, repo }
     );
-    const issueNumber = await extractIssueNumber(pr.body ?? "");
-    return {
-      job: "pr-review",
-      resourceType: "pr",
-      resourceNumber: String(pr.number),
-      commentId: "",
-      contextJson: JSON.stringify({
-        pr_number: String(pr.number),
-        branch_name: pr.head.ref,
-        issue_section: issueSection,
-        issue_number: issueNumber
-      }),
-      skip: false,
-      skipReason: ""
-    };
+    const repoId = categoriesResponse.repository?.id;
+    const categories = categoriesResponse.repository?.discussionCategories?.nodes || [];
+    const targetCategory = fixture.discussion.category || "general";
+    const category = categories.find(
+      (c) => c.slug === targetCategory || c.name.toLowerCase() === targetCategory.toLowerCase()
+    );
+    if (!repoId || !category) {
+      core2.warning(
+        `Could not find category "${targetCategory}" for discussion. Available: ${categories.map((c) => c.slug).join(", ")}`
+      );
+    } else {
+      const discussionResponse = await octokit.graphql(
+        CREATE_DISCUSSION_MUTATION,
+        {
+          repositoryId: repoId,
+          categoryId: category.id,
+          title: `[TEST] ${fixture.discussion.title}`,
+          body: fixture.discussion.body
+        }
+      );
+      const discussion = discussionResponse.createDiscussion?.discussion;
+      if (discussion) {
+        result.discussion_number = discussion.number;
+        core2.info(
+          `Created discussion #${discussion.number}: ${discussion.url}`
+        );
+        if (fixture.comment) {
+          await octokit.graphql(ADD_DISCUSSION_COMMENT_MUTATION, {
+            discussionId: discussion.id,
+            body: fixture.comment.body
+          });
+          core2.info("Added comment to discussion");
+        }
+      }
+    }
   }
-  return emptyResult(true, `Unhandled PR action: ${action}`);
+  return result;
 }
-async function handlePullRequestReviewEvent() {
-  const { context } = github;
-  const payload = context.payload;
-  const review = payload.review;
-  const pr = payload.pull_request;
-  if (isTestResource(pr.title)) {
-    return emptyResult(true, "PR title starts with [TEST]");
+async function verifyFixture(octokit, owner, repo, issueNumber, fixture, projectNumber) {
+  const errors = [];
+  if (!fixture.expected) {
+    return { passed: true, errors: [] };
   }
-  const hasSkipLabelOnPr = pr.labels.some(
-    (l) => l.name === "skip-dispatch" || l.name === "test:automation"
+  const response = await octokit.graphql(
+    GET_PROJECT_ITEM_QUERY,
+    {
+      org: owner,
+      repo,
+      issueNumber,
+      projectNumber
+    }
   );
-  if (hasSkipLabelOnPr) {
-    return emptyResult(true, "PR has skip-dispatch or test:automation label");
+  const issue = response.repository?.issue;
+  if (!issue) {
+    errors.push({
+      field: "issue",
+      expected: "exists",
+      actual: "not found"
+    });
+    return { passed: false, errors };
   }
-  if (pr.draft) {
-    return emptyResult(true, "PR is a draft");
+  if (fixture.expected.issue_state) {
+    const actualState = issue.state?.toLowerCase() || "unknown";
+    if (actualState !== fixture.expected.issue_state) {
+      errors.push({
+        field: "issue_state",
+        expected: fixture.expected.issue_state,
+        actual: actualState
+      });
+    }
   }
-  const state = review.state.toLowerCase();
-  if (state !== "changes_requested" && state !== "commented") {
-    return emptyResult(true, `Review state is ${state}`);
+  if (fixture.expected.parent_status) {
+    const projectItems = issue.projectItems?.nodes || [];
+    const projectItem = projectItems.find(
+      (item) => item.project?.number === projectNumber
+    );
+    if (!projectItem) {
+      errors.push({
+        field: "parent_status",
+        expected: fixture.expected.parent_status,
+        actual: "not in project"
+      });
+    } else {
+      let actualStatus = "unknown";
+      for (const fieldValue of projectItem.fieldValues?.nodes || []) {
+        if (fieldValue.field?.name === "Status" && fieldValue.name) {
+          actualStatus = fieldValue.name;
+          break;
+        }
+      }
+      if (actualStatus !== fixture.expected.parent_status) {
+        errors.push({
+          field: "parent_status",
+          expected: fixture.expected.parent_status,
+          actual: actualStatus
+        });
+      }
+    }
   }
-  const branchMatch = pr.head.ref.match(/^claude\/issue\/(\d+)$/);
-  const issueNumber = branchMatch?.[1] ?? "";
-  if (review.user.login === "claude[bot]") {
-    return {
-      job: "pr-response",
-      resourceType: "pr",
-      resourceNumber: String(pr.number),
-      commentId: "",
-      contextJson: JSON.stringify({
-        pr_number: String(pr.number),
-        branch_name: pr.head.ref,
-        review_state: state,
-        review_body: review.body ?? "",
-        review_id: String(review.id),
-        issue_number: issueNumber
-      }),
-      skip: false,
-      skipReason: ""
-    };
+  if (fixture.expected.min_iteration !== void 0) {
+    const projectItems = issue.projectItems?.nodes || [];
+    const projectItem = projectItems.find(
+      (item) => item.project?.number === projectNumber
+    );
+    if (projectItem) {
+      let actualIteration = 0;
+      for (const fieldValue of projectItem.fieldValues?.nodes || []) {
+        if (fieldValue.field?.name === "Iteration" && typeof fieldValue.number === "number") {
+          actualIteration = fieldValue.number;
+          break;
+        }
+      }
+      if (actualIteration < fixture.expected.min_iteration) {
+        errors.push({
+          field: "min_iteration",
+          expected: `>= ${fixture.expected.min_iteration}`,
+          actual: String(actualIteration)
+        });
+      }
+    }
   }
-  const isClaudePr = pr.author.login === "claude[bot]" || pr.head.ref.startsWith("claude/");
-  if (!isClaudePr) {
-    return emptyResult(true, "Human review on non-Claude PR");
+  if (fixture.expected.failures !== void 0) {
+    const projectItems = issue.projectItems?.nodes || [];
+    const projectItem = projectItems.find(
+      (item) => item.project?.number === projectNumber
+    );
+    if (projectItem) {
+      let actualFailures = 0;
+      for (const fieldValue of projectItem.fieldValues?.nodes || []) {
+        if (fieldValue.field?.name === "Failures" && typeof fieldValue.number === "number") {
+          actualFailures = fieldValue.number;
+          break;
+        }
+      }
+      if (actualFailures !== fixture.expected.failures) {
+        errors.push({
+          field: "failures",
+          expected: String(fixture.expected.failures),
+          actual: String(actualFailures)
+        });
+      }
+    }
   }
-  return {
-    job: "pr-human-response",
-    resourceType: "pr",
-    resourceNumber: String(pr.number),
-    commentId: "",
-    contextJson: JSON.stringify({
-      pr_number: String(pr.number),
-      branch_name: pr.head.ref,
-      reviewer_login: review.user.login,
-      review_state: state,
-      review_body: review.body ?? "",
-      review_id: String(review.id),
+  if (fixture.expected.sub_issue_statuses && fixture.expected.sub_issue_statuses.length > 0) {
+    const subResponse = await octokit.graphql(
+      GET_SUB_ISSUES_QUERY,
+      {
+        org: owner,
+        repo,
+        parentNumber: issueNumber,
+        projectNumber
+      }
+    );
+    const subIssues = subResponse.repository?.issue?.subIssues?.nodes || [];
+    const sortedSubIssues = [...subIssues].sort(
+      (a, b) => (a.number || 0) - (b.number || 0)
+    );
+    for (let i = 0; i < fixture.expected.sub_issue_statuses.length; i++) {
+      const expectedStatus = fixture.expected.sub_issue_statuses[i];
+      if (!expectedStatus) continue;
+      const subIssue = sortedSubIssues[i];
+      if (!subIssue) {
+        errors.push({
+          field: `sub_issue_${i + 1}_status`,
+          expected: expectedStatus,
+          actual: "not found"
+        });
+        continue;
+      }
+      const projectItem = subIssue.projectItems?.nodes?.find(
+        (item) => item.project?.number === projectNumber
+      );
+      let actualStatus = "unknown";
+      if (projectItem) {
+        for (const fieldValue of projectItem.fieldValues?.nodes || []) {
+          if (fieldValue.field?.name === "Status" && fieldValue.name) {
+            actualStatus = fieldValue.name;
+            break;
+          }
+        }
+      }
+      if (actualStatus !== expectedStatus) {
+        errors.push({
+          field: `sub_issue_${i + 1}_status`,
+          expected: expectedStatus,
+          actual: actualStatus
+        });
+      }
+    }
+  }
+  if (fixture.expected.labels && fixture.expected.labels.length > 0) {
+    const { data: issueData } = await octokit.rest.issues.get({
+      owner,
+      repo,
       issue_number: issueNumber
-    }),
-    skip: false,
-    skipReason: ""
+    });
+    const actualLabels = issueData.labels.map(
+      (l) => typeof l === "string" ? l : l.name || ""
+    );
+    for (const expectedLabel of fixture.expected.labels) {
+      if (!actualLabels.includes(expectedLabel)) {
+        errors.push({
+          field: "labels",
+          expected: expectedLabel,
+          actual: `not found (has: ${actualLabels.join(", ")})`
+        });
+      }
+    }
+  }
+  if (fixture.expected.min_comments !== void 0) {
+    if (fixture.parent_issue) {
+      const { data: comments } = await octokit.rest.issues.listComments({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        per_page: 100
+      });
+      if (comments.length < fixture.expected.min_comments) {
+        errors.push({
+          field: "min_comments",
+          expected: `>= ${fixture.expected.min_comments}`,
+          actual: String(comments.length)
+        });
+      }
+    }
+    if (fixture.discussion) {
+      core2.info(
+        "Discussion verification not yet implemented - skipping discussion checks"
+      );
+    }
+  }
+  if (fixture.expected.pr_state) {
+    const { data: prs } = await octokit.rest.pulls.list({
+      owner,
+      repo,
+      state: "all",
+      per_page: 100
+    });
+    const testPr = prs.find(
+      (pr) => pr.body?.includes(`Fixes #${issueNumber}`) || pr.title.includes("[TEST]")
+    );
+    if (!testPr) {
+      errors.push({
+        field: "pr_state",
+        expected: fixture.expected.pr_state,
+        actual: "not found"
+      });
+    } else {
+      let actualState;
+      if (testPr.merged_at) {
+        actualState = "merged";
+      } else if (testPr.draft) {
+        actualState = "draft";
+      } else {
+        actualState = testPr.state;
+      }
+      if (actualState !== fixture.expected.pr_state) {
+        errors.push({
+          field: "pr_state",
+          expected: fixture.expected.pr_state,
+          actual: actualState
+        });
+      }
+    }
+  }
+  return {
+    passed: errors.length === 0,
+    errors
   };
 }
-async function handleDiscussionEvent() {
-  const { context } = github;
-  const payload = context.payload;
-  const action = payload.action;
-  const discussion = payload.discussion;
-  if (action === "created") {
-    return {
-      job: "discussion-research",
-      resourceType: "discussion",
-      resourceNumber: String(discussion.number),
-      commentId: "",
-      contextJson: JSON.stringify({
-        discussion_number: String(discussion.number),
-        discussion_title: discussion.title,
-        discussion_body: discussion.body ?? ""
-      }),
-      skip: false,
-      skipReason: ""
-    };
+async function cleanupFixture(octokit, owner, repo, issueNumber) {
+  core2.info(`Cleaning up test fixture for issue #${issueNumber}`);
+  const subResponse = await octokit.graphql(
+    GET_SUB_ISSUES_QUERY,
+    {
+      org: owner,
+      repo,
+      parentNumber: issueNumber,
+      projectNumber: 1
+    }
+  );
+  const subIssues = subResponse.repository?.issue?.subIssues?.nodes || [];
+  const { data: prs } = await octokit.rest.pulls.list({
+    owner,
+    repo,
+    state: "open",
+    per_page: 100
+  });
+  for (const pr of prs) {
+    if (pr.title.includes("[TEST]") && (pr.body?.includes(`#${issueNumber}`) || subIssues.some((sub) => pr.body?.includes(`#${sub.number}`)))) {
+      core2.info(`Closing PR #${pr.number}`);
+      await octokit.rest.pulls.update({
+        owner,
+        repo,
+        pull_number: pr.number,
+        state: "closed"
+      });
+      if (pr.head.ref.startsWith("test/")) {
+        try {
+          await octokit.rest.git.deleteRef({
+            owner,
+            repo,
+            ref: `heads/${pr.head.ref}`
+          });
+          core2.info(`Deleted branch ${pr.head.ref}`);
+        } catch (error) {
+          core2.warning(`Failed to delete branch ${pr.head.ref}: ${error}`);
+        }
+      }
+    }
   }
-  return emptyResult(true, `Unhandled discussion action: ${action}`);
-}
-async function handleDiscussionCommentEvent() {
-  const { context } = github;
-  const payload = context.payload;
-  const discussion = payload.discussion;
-  const comment = payload.comment;
-  const body = comment.body.trim();
-  const author = comment.user.login;
-  const isTopLevel = !comment.parent_id;
-  if (body === "/summarize") {
-    return {
-      job: "discussion-summarize",
-      resourceType: "discussion",
-      resourceNumber: String(discussion.number),
-      commentId: comment.node_id,
-      contextJson: JSON.stringify({
-        discussion_number: String(discussion.number)
-      }),
-      skip: false,
-      skipReason: ""
-    };
+  for (const subIssue of subIssues) {
+    if (subIssue.number) {
+      core2.info(`Closing sub-issue #${subIssue.number}`);
+      await octokit.rest.issues.update({
+        owner,
+        repo,
+        issue_number: subIssue.number,
+        state: "closed"
+      });
+    }
   }
-  if (body === "/plan") {
-    return {
-      job: "discussion-plan",
-      resourceType: "discussion",
-      resourceNumber: String(discussion.number),
-      commentId: comment.node_id,
-      contextJson: JSON.stringify({
-        discussion_number: String(discussion.number)
-      }),
-      skip: false,
-      skipReason: ""
-    };
+  core2.info(`Closing parent issue #${issueNumber}`);
+  await octokit.rest.issues.update({
+    owner,
+    repo,
+    issue_number: issueNumber,
+    state: "closed"
+  });
+  try {
+    const { data: refs } = await octokit.rest.git.listMatchingRefs({
+      owner,
+      repo,
+      ref: "heads/test/"
+    });
+    for (const ref of refs) {
+      if (ref.ref.includes(String(issueNumber))) {
+        core2.info(`Deleting orphaned branch ${ref.ref}`);
+        await octokit.rest.git.deleteRef({
+          owner,
+          repo,
+          ref: ref.ref.replace("refs/", "")
+        });
+      }
+    }
+  } catch (error) {
+    core2.warning(`Failed to cleanup orphaned branches: ${error}`);
   }
-  if (body === "/complete") {
-    return {
-      job: "discussion-complete",
-      resourceType: "discussion",
-      resourceNumber: String(discussion.number),
-      commentId: comment.node_id,
-      contextJson: JSON.stringify({
-        discussion_number: String(discussion.number)
-      }),
-      skip: false,
-      skipReason: ""
-    };
-  }
-  if (author !== "claude[bot]" && author !== "nopo-bot") {
-    return {
-      job: "discussion-respond",
-      resourceType: "discussion",
-      resourceNumber: String(discussion.number),
-      commentId: comment.node_id,
-      contextJson: JSON.stringify({
-        discussion_number: String(discussion.number),
-        comment_body: comment.body,
-        comment_author: author
-      }),
-      skip: false,
-      skipReason: ""
-    };
-  }
-  if (isTopLevel && comment.body.includes("## \u{1F50D} Research:")) {
-    return {
-      job: "discussion-respond",
-      resourceType: "discussion",
-      resourceNumber: String(discussion.number),
-      commentId: comment.node_id,
-      contextJson: JSON.stringify({
-        discussion_number: String(discussion.number),
-        comment_body: comment.body,
-        comment_author: author
-      }),
-      skip: false,
-      skipReason: ""
-    };
-  }
-  return emptyResult(true, "Bot reply comment - preventing infinite loop");
+  core2.info("Cleanup complete");
 }
 async function run() {
   try {
+    const action = getRequiredInput("action");
     const token = getRequiredInput("github_token");
+    const projectNumber = parseInt(
+      getOptionalInput("project_number") || "1",
+      10
+    );
     const octokit = github.getOctokit(token);
-    const { context } = github;
-    const eventName = context.eventName;
-    const owner = context.repo.owner;
-    const repo = context.repo.repo;
+    const { owner, repo } = github.context.repo;
     process.env.GH_TOKEN = token;
-    core2.info(`Processing event: ${eventName}`);
-    let result;
-    switch (eventName) {
-      case "issues":
-        result = await handleIssueEvent(octokit, owner, repo);
-        break;
-      case "issue_comment":
-        result = await handleIssueCommentEvent(octokit, owner, repo);
-        break;
-      case "pull_request_review_comment":
-        result = await handlePullRequestReviewCommentEvent();
-        break;
-      case "push":
-        result = await handlePushEvent();
-        break;
-      case "workflow_run":
-        result = await handleWorkflowRunEvent();
-        break;
-      case "pull_request":
-        result = await handlePullRequestEvent(octokit, owner, repo);
-        break;
-      case "pull_request_review":
-        result = await handlePullRequestReviewEvent();
-        break;
-      case "discussion":
-        result = await handleDiscussionEvent();
-        break;
-      case "discussion_comment":
-        result = await handleDiscussionCommentEvent();
-        break;
-      default:
-        result = emptyResult(true, `Unhandled event: ${eventName}`);
+    if (action === "create") {
+      const fixtureJson = getRequiredInput("fixture_json");
+      const fixture = JSON.parse(fixtureJson);
+      core2.info(`Creating test fixture: ${fixture.name}`);
+      core2.info(`Description: ${fixture.description}`);
+      const result = await createFixture(
+        octokit,
+        owner,
+        repo,
+        fixture,
+        projectNumber
+      );
+      setOutputs({
+        issue_number: String(result.issue_number),
+        sub_issue_numbers: JSON.stringify(result.sub_issue_numbers),
+        branch_name: result.branch_name || "",
+        pr_number: result.pr_number ? String(result.pr_number) : "",
+        discussion_number: result.discussion_number ? String(result.discussion_number) : "",
+        comment_id: result.comment_id || ""
+      });
+      core2.info("Fixture creation complete");
+      return;
     }
-    if (result.skip) {
-      core2.info(`Skipping: ${result.skipReason}`);
-    } else {
-      core2.info(`Detected job: ${result.job}`);
-      core2.info(`Resource: ${result.resourceType} #${result.resourceNumber}`);
+    if (action === "verify") {
+      const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
+      const fixtureJson = getRequiredInput("fixture_json");
+      const fixture = JSON.parse(fixtureJson);
+      core2.info(`Verifying fixture for issue #${issueNumber}`);
+      const result = await verifyFixture(
+        octokit,
+        owner,
+        repo,
+        issueNumber,
+        fixture,
+        projectNumber
+      );
+      if (result.passed) {
+        core2.info("All verifications passed!");
+      } else {
+        core2.warning(
+          `Verification failed with ${result.errors.length} errors:`
+        );
+        for (const error of result.errors) {
+          core2.warning(
+            `  ${error.field}: expected ${error.expected}, got ${error.actual}`
+          );
+        }
+      }
+      setOutputs({
+        verification_passed: String(result.passed),
+        verification_errors: JSON.stringify(result.errors)
+      });
+      if (!result.passed) {
+        core2.setFailed(
+          `Verification failed with ${result.errors.length} errors`
+        );
+      }
+      return;
     }
-    setOutputs({
-      job: result.job,
-      resource_type: result.resourceType,
-      resource_number: result.resourceNumber,
-      comment_id: result.commentId,
-      context_json: result.contextJson,
-      skip: result.skip ? "true" : "false",
-      skip_reason: result.skipReason
-    });
+    if (action === "cleanup") {
+      const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
+      await cleanupFixture(octokit, owner, repo, issueNumber);
+      setOutputs({
+        success: "true"
+      });
+      return;
+    }
+    core2.setFailed(`Unknown action: ${action}`);
   } catch (error) {
     if (error instanceof Error) {
       core2.setFailed(error.message);

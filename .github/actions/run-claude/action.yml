@@ -50,16 +50,6 @@ inputs:
     required: false
     default: ""
 
-  # Mock mode configuration (for testing)
-  mock_mode:
-    description: Test mode - skip Claude API call and use mock responses
-    required: false
-    default: "false"
-  mock_response:
-    description: Mock response JSON to write to triage-output.json (used when mock_mode=true)
-    required: false
-    default: ""
-
 outputs:
   success:
     description: Whether Claude completed successfully
@@ -112,28 +102,9 @@ runs:
           echo "EOF_PROMPT_CONTENT"
         } >> "$GITHUB_OUTPUT"
 
-    # Step 2: Run Claude Code (or mock)
-    - name: Run Claude (mock mode)
-      id: claude_mock
-      if: inputs.mock_mode == 'true' || inputs.mock_mode == true
-      shell: bash
-      env:
-        MOCK_RESPONSE: ${{ inputs.mock_response }}
-      run: |
-        echo "Running in MOCK mode - skipping Claude API call"
-        if [[ -n "$MOCK_RESPONSE" ]]; then
-          echo "$MOCK_RESPONSE" > triage-output.json
-          echo "Wrote mock response to triage-output.json"
-          cat triage-output.json
-        else
-          echo "No mock response provided - creating default"
-          echo '{"type":"enhancement","priority":"medium","size":"m","estimate":5,"topics":["test"],"needs_info":false}' > triage-output.json
-        fi
-        echo "Mock execution complete"
-
-    - name: Run Claude (real mode)
+    # Step 2: Run Claude Code
+    - name: Run Claude
       id: claude
-      if: inputs.mock_mode != 'true' && inputs.mock_mode != true
       uses: anthropics/claude-code-action@v1
       with:
         claude_code_oauth_token: ${{ inputs.claude_code_oauth_token }}
@@ -153,7 +124,7 @@ runs:
       if: always()
       shell: bash
       run: |
-        if [[ "${{ steps.claude.outcome }}" == "success" || "${{ steps.claude_mock.outcome }}" == "success" ]]; then
+        if [[ "${{ steps.claude.outcome }}" == "success" ]]; then
           echo "success=true" >> "$GITHUB_OUTPUT"
         else
           echo "success=false" >> "$GITHUB_OUTPUT"

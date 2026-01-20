@@ -1,0 +1,46 @@
+{
+  "name": "issue-orchestrate",
+  "description": "Parent issue with sub-issues - verifies orchestration advances phases correctly",
+  "job_type": "issue-orchestrate",
+  "parent_issue": {
+    "title": "Implement user authentication system",
+    "body": "## Description\n\nImplement a complete user authentication system with login, logout, and session management.\n\n## Requirements\n\n- Phase 1: Database schema for users\n- Phase 2: Login/logout API endpoints\n- Phase 3: Session management\n\n## Acceptance Criteria\n\n- [ ] Users can register\n- [ ] Users can log in\n- [ ] Sessions persist correctly",
+    "labels": ["enhancement", "triaged"],
+    "project_fields": {
+      "Status": "In Progress",
+      "Iteration": 0,
+      "Failures": 0
+    }
+  },
+  "sub_issues": [
+    {
+      "title": "Phase 1: User database schema",
+      "body": "## Todos\n\n- [x] Create User model\n- [x] Add migrations\n\n## Testing\n\n- [x] Model tests pass",
+      "project_fields": {
+        "Status": "Done"
+      }
+    },
+    {
+      "title": "Phase 2: Auth API endpoints",
+      "body": "## Todos\n\n- [ ] Login endpoint\n- [ ] Logout endpoint\n\n## Testing\n\n- [ ] API tests pass",
+      "project_fields": {
+        "Status": "Ready"
+      }
+    },
+    {
+      "title": "Phase 3: Session management",
+      "body": "## Todos\n\n- [ ] Session storage\n- [ ] Token refresh\n\n## Testing\n\n- [ ] Session tests pass",
+      "project_fields": {
+        "Status": "Ready"
+      }
+    }
+  ],
+  "expected": {
+    "parent_status": "Done",
+    "sub_issue_statuses": ["Done", "Done", "Done"],
+    "issue_state": "closed",
+    "min_iteration": 3
+  },
+  "timeout": 600,
+  "poll_interval": 15
+}

@@ -1,0 +1,47 @@
+{
+  "name": "phase-skip",
+  "description": "Phase 2 manually set to Done - verifies skipping phases works correctly",
+  "job_type": "issue-iterate",
+  "parent_issue": {
+    "title": "Multi-phase with phase skip",
+    "body": "## Description\n\nA multi-phase feature where phase 2 will be manually skipped.\n\n## Requirements\n\n- Phase 1: Setup\n- Phase 2: SKIPPED (manually set to Done)\n- Phase 3: Final implementation\n\n## Acceptance Criteria\n\n- [ ] Phase 1 completes\n- [ ] Phase 2 is skipped\n- [ ] Phase 3 completes",
+    "labels": ["enhancement"],
+    "project_fields": {
+      "Status": "In Progress",
+      "Iteration": 0,
+      "Failures": 0
+    }
+  },
+  "sub_issues": [
+    {
+      "title": "Phase 1: Setup",
+      "body": "## Todos\n\n- [ ] Create initial structure\n\n## Testing\n\n- [ ] Setup validates",
+      "project_fields": {
+        "Status": "Working"
+      }
+    },
+    {
+      "title": "Phase 2: SKIP THIS",
+      "body": "## Todos\n\n- [x] This phase is skipped\n\n## Testing\n\n- [x] N/A - skipped",
+      "project_fields": {
+        "Status": "Done"
+      }
+    },
+    {
+      "title": "Phase 3: Final",
+      "body": "## Todos\n\n- [ ] Implement final feature\n\n## Testing\n\n- [ ] Final tests pass",
+      "project_fields": {
+        "Status": "Ready"
+      }
+    }
+  ],
+  "expected": {
+    "parent_status": "Done",
+    "sub_issue_statuses": ["Done", "Done", "Done"],
+    "issue_state": "closed",
+    "min_iteration": 2,
+    "failures": 0
+  },
+  "timeout": 500,
+  "poll_interval": 10
+}

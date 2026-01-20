@@ -1,0 +1,18 @@
+{
+  "name": "discussion-respond",
+  "description": "Comment on existing discussion - verifies Claude responds in thread",
+  "job_type": "discussion-respond",
+  "discussion": {
+    "title": "Best practices for error handling",
+    "body": "What are the recommended patterns for error handling in this codebase?\n\n## Areas of Interest\n\n- API error responses\n- Frontend error boundaries\n- Logging errors",
+    "category": "q-a"
+  },
+  "comment": {
+    "body": "Can you explain specifically how API errors should be structured?"
+  },
+  "expected": {
+    "min_comments": 2
+  },
+  "timeout": 120,
+  "poll_interval": 10
+}

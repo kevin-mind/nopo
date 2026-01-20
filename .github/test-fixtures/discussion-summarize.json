@@ -1,0 +1,18 @@
+{
+  "name": "discussion-summarize",
+  "description": "/summarize command in discussion - verifies summary is generated",
+  "job_type": "discussion-summarize",
+  "discussion": {
+    "title": "Database migration strategy",
+    "body": "We need to discuss how to handle database migrations in production.\n\n## Topics\n\n- Zero-downtime migrations\n- Rollback strategies\n- Testing migrations",
+    "category": "ideas"
+  },
+  "comment": {
+    "body": "/summarize"
+  },
+  "expected": {
+    "min_comments": 2
+  },
+  "timeout": 180,
+  "poll_interval": 10
+}

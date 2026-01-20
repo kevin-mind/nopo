@@ -1,0 +1,51 @@
+{
+  "name": "pr-response",
+  "description": "Claude review submitted on PR - verifies response processing",
+  "job_type": "pr-response",
+  "parent_issue": {
+    "title": "Add logging utility",
+    "body": "## Description\n\nAdd a centralized logging utility for the application.\n\n## Requirements\n\n- Structured logging\n- Log levels\n\n## Acceptance Criteria\n\n- [ ] Logging works across app",
+    "labels": ["enhancement", "triaged"],
+    "project_fields": {
+      "Status": "In Progress",
+      "Iteration": 2,
+      "Failures": 0
+    }
+  },
+  "sub_issues": [
+    {
+      "title": "Implement logging utility",
+      "body": "## Todos\n\n- [x] Create logger module\n- [ ] Add log levels\n\n## Testing\n\n- [ ] Logger tests pass",
+      "project_fields": {
+        "Status": "Review"
+      }
+    }
+  ],
+  "branch": {
+    "name": "pr-response-test",
+    "from": "main",
+    "commits": [
+      {
+        "message": "feat: add logging utility",
+        "files": {
+          "test-files/logger.ts": "// Logger utility\nexport const logger = {\n  info: (msg: string) => console.log(`[INFO] ${msg}`),\n  error: (msg: string) => console.error(`[ERROR] ${msg}`),\n};\n"
+        }
+      }
+    ]
+  },
+  "pr": {
+    "title": "Add logging utility",
+    "body": "Fixes #{ISSUE_NUMBER}\n\n## Summary\n\nAdds centralized logging utility.",
+    "draft": false
+  },
+  "review": {
+    "state": "request_changes",
+    "body": "The implementation needs log levels. Please add debug and warn levels."
+  },
+  "expected": {
+    "pr_state": "draft",
+    "min_iteration": 3
+  },
+  "timeout": 300,
+  "poll_interval": 10
+}

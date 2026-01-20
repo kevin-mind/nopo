@@ -1,0 +1,33 @@
+{
+  "name": "ci-failure-recovery",
+  "description": "CI fails once, then passes - verifies failure count increments and resets",
+  "job_type": "issue-iterate",
+  "parent_issue": {
+    "title": "Feature with recoverable CI failure",
+    "body": "## Description\n\nA feature that will initially fail CI but can be fixed.\n\n## Requirements\n\n- Implement feature\n- Fix any CI failures\n\n## Acceptance Criteria\n\n- [ ] CI passes after fix\n- [ ] Failures count resets to 0",
+    "labels": ["enhancement"],
+    "project_fields": {
+      "Status": "In Progress",
+      "Iteration": 0,
+      "Failures": 0
+    }
+  },
+  "sub_issues": [
+    {
+      "title": "Implement feature with initial failure",
+      "body": "## Todos\n\n- [ ] Add initial code (will fail CI)\n- [ ] Fix CI issues\n\n## Testing\n\n- [ ] CI passes after fix",
+      "project_fields": {
+        "Status": "Working"
+      }
+    }
+  ],
+  "expected": {
+    "parent_status": "Done",
+    "sub_issue_statuses": ["Done"],
+    "issue_state": "closed",
+    "min_iteration": 2,
+    "failures": 0
+  },
+  "timeout": 400,
+  "poll_interval": 10
+}

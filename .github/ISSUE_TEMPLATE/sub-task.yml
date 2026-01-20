@@ -1,0 +1,33 @@
+name: Sub-Task
+description: A phase of work for a parent issue (created by Claude automation)
+title: "[Phase N]: "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Sub-Task Template
+        This template is for phases of a larger parent issue. Each sub-issue represents independently deployable work.
+
+  - type: textarea
+    id: todos
+    attributes:
+      label: Todos
+      description: Implementation tasks for this phase
+      placeholder: |
+        - [ ] Task 1
+        - [ ] Task 2
+        - [ ] Task 3
+    validations:
+      required: true
+
+  - type: textarea
+    id: testing
+    attributes:
+      label: Testing
+      description: Verification tasks to confirm the implementation
+      placeholder: |
+        - [ ] Test scenario 1
+        - [ ] Test scenario 2
+    validations:
+      required: false

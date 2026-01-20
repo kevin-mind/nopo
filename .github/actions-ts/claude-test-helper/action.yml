@@ -1,0 +1,42 @@
+name: Claude Test Helper
+description: Create, verify, and cleanup test fixtures for state machine testing
+
+inputs:
+  action:
+    description: 'Action to perform: create, verify, cleanup'
+    required: true
+  fixture_json:
+    description: 'JSON configuration for test scenario'
+    required: false
+  issue_number:
+    description: 'Issue number (for verify/cleanup)'
+    required: false
+  github_token:
+    description: 'GitHub token with repo access'
+    required: true
+  project_number:
+    description: 'GitHub Project number for state storage'
+    required: false
+    default: '1'
+
+outputs:
+  issue_number:
+    description: 'Created parent issue number'
+  sub_issue_numbers:
+    description: 'Created sub-issue numbers (JSON array)'
+  branch_name:
+    description: 'Created branch name'
+  pr_number:
+    description: 'Created PR number'
+  discussion_number:
+    description: 'Created discussion number'
+  comment_id:
+    description: 'Created comment ID'
+  verification_passed:
+    description: 'Whether verification passed (true/false)'
+  verification_errors:
+    description: 'JSON array of verification errors'
+
+runs:
+  using: node20
+  main: dist/index.cjs

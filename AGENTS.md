@@ -970,7 +970,7 @@ make check && make test && git push
 
 ## Claude Automation State Machine
 
-This project uses Claude AI agents for automated issue management with issue-based triggers. Race conditions between iteration and review loops are prevented using draft/ready PR states.
+This project uses Claude AI agents for automated issue management with GitHub Project fields for state storage. State is queryable via GraphQL and visible on the Project board. Race conditions between iteration and review loops are prevented using draft/ready PR states.
 
 ### Actors
 
@@ -980,210 +980,204 @@ This project uses Claude AI agents for automated issue management with issue-bas
 | **claude[bot]** | AI worker - performs implementations, submits reviews, responds to comments |
 | **Human** | Supervisor - assigns nopo-bot, requests reviews, merges approved PRs |
 
-### Overall Flow
+### Two-Level State Machine
+
+**Parent issues** track overall progress (big loop).
+**Sub-issues** track work cycle per phase (little loop).
+
+Each sub-issue is independently deployable - goes through full work → CI → review → merge cycle.
 
 ```
-┌─────────────┐     ┌─────────────────────────────────┐     ┌─────────────┐     ┌──────────┐
-│   TRIAGE    │────►│         ITERATION LOOP          │────►│   REVIEW    │────►│   DONE   │
-│             │     │   (unified implement + CI fix)  │     │    LOOP     │     │          │
-└─────────────┘     └─────────────────────────────────┘     └─────────────┘     └──────────┘
-      │                           │                               │                   │
-      ▼                           ▼                               ▼                   ▼
- Issue opened              Assign nopo-bot                  Request nopo-bot    Human merges
- or edited                 to issue                         as reviewer
+┌─────────────────────────────────────────────────────────────────────┐
+│                     PARENT ISSUE (Big Loop)                          │
+│                                                                      │
+│  Project Status:  Backlog | In Progress | Done | Blocked | Error    │
+│  Iteration:       number (global counter across all phases)         │
+│  Failures:        number (consecutive failure count)                │
+│                                                                      │
+│  Body:                                                               │
+│    ## Description       ← Context and requirements                  │
+│    ## Iteration History ← Full log across all phases                │
+└─────────────────────────────────────────────────────────────────────┘
+        │
+        │ has sub-issues (1 per phase)
+        ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                     SUB-ISSUE (Little Loop)                          │
+│                                                                      │
+│  Project Status:  Ready | Working | Review | Done                   │
+│  PR:              linked to this sub-issue                          │
+│  Branch:          claude/issue/{parent}/phase-{N}                   │
+│                                                                      │
+│  Body:                                                               │
+│    ## Todos    ← Implementation tasks                               │
+│    ## Testing  ← Verification tasks                                 │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-### Issue-Edit-Based Iteration Loop
+### Project Fields (Stored State)
 
-The iteration model uses **issue edits** as the continuation trigger. Each workflow run represents one "iteration" of work. State is persisted in the **issue body** across runs.
+Only 3 fields are stored in the GitHub Project:
+
+| Field Name | Type | Options |
+|------------|------|---------|
+| Status | Single Select | Backlog, In Progress, Ready, Working, Review, Done, Blocked, Error |
+| Iteration | Number | Global counter across all phases |
+| Failures | Number | Consecutive failure count |
+
+**Parent issue statuses:**
+- **Backlog**: Not yet assigned, waiting for work
+- **In Progress**: At least one sub-issue being worked on
+- **Done**: All sub-issues merged
+- **Blocked**: Circuit breaker triggered
+- **Error**: Unrecoverable failure
+
+**Sub-issue statuses:**
+- **Ready**: Waiting to be worked on (previous phases not done)
+- **Working**: Claude is implementing or fixing CI failures
+- **Review**: PR ready, waiting for review
+- **Done**: PR merged, phase complete
+
+### Derived State (Not Stored)
+
+Everything else is derived from context:
+
+| Derived | Source |
+|---------|--------|
+| Current phase | First sub-issue where Status != Done |
+| Branch | Convention: `claude/issue/{parent}/phase-{N}` |
+| PR | Linked to sub-issue via "Fixes #N" |
+| CI result | Workflow trigger context |
+| Parent complete | All sub-issues Status = Done |
+| Phase number | Sub-issue order |
+
+### State Transitions
 
 ```
-┌──────────────────────────────────────────────────────────────────────┐
-│                          ITERATION LOOP                               │
-│                                                                       │
-│   ┌─────────────┐     ┌─────────────┐     ┌─────────────┐            │
-│   │    READ     │────►│    BUILD    │────►│  EVALUATE   │            │
-│   │ issue state │     │ Claude work │     │  CI result  │            │
-│   └─────────────┘     └─────────────┘     └──────┬──────┘            │
-│         ▲                                        │                    │
-│         │                                        ▼                    │
-│         │                              ┌─────────────────┐           │
-│         │                              │   BREAKPOINT?   │           │
-│         │                              │                 │           │
-│         │                              │ • CI passed     │──────►DONE│
-│         │                              │                 │           │
-│         │                              │ • Max iterations│──────►STOP│
-│         │                              │                 │           │
-│         │                              │ • Max retries   │──────►STOP│
-│         │                              └────────┬────────┘           │
-│         │                                       │ no                  │
-│         │            issues: edited             │                    │
-│         └───────────────────────────────────────┘                    │
-│                                                                       │
-└──────────────────────────────────────────────────────────────────────┘
+PARENT ISSUE (Big Loop):
+┌─────────┐     assign      ┌─────────────┐   all phases   ┌──────┐
+│ Backlog │ ───────────────►│ In Progress │ ──────────────►│ Done │
+└─────────┘                 └─────────────┘   merged       └──────┘
+                                   │
+                                   │ max failures
+                                   ▼
+                            ┌─────────┐
+                            │ Blocked │ (re-assign to resume)
+                            └─────────┘
+
+SUB-ISSUE (Little Loop) - repeats for each phase:
+┌───────┐   iterate   ┌─────────┐   CI pass   ┌────────┐   merge   ┌──────┐
+│ Ready │ ───────────►│ Working │ ───────────►│ Review │ ────────►│ Done │
+└───────┘             └─────────┘             └────────┘          └──────┘
+                           │                       │
+                           │ CI fail               │ changes requested
+                           └───────────────────────┘ (back to Working)
 ```
 
-**How it works:**
-1. **`assigned` starts iteration**: Human assigns `nopo-bot` to issue
-2. **Claude implements** todos, creates draft PR, pushes
-3. **CI runs** and completes (success or failure)
-4. **`claude-ci-state.yml`** updates issue body with CI result (using NOPO_BOT_PAT)
-5. **Issue edit triggers iteration**: The state update fires an `issues: edited` event
-6. **Iterate job** reads state from issue body, determines action:
-   - **CI failed**: Claude fixes errors, pushes, updates state
-   - **CI passed**: Mark PR ready, request review, mark complete (loop exits)
-7. **Loop closes** when Claude marks complete and exits without editing
+### Issue Structure
 
-**Key insight:** The loop closes cleanly because:
-- On completion, the iteration job sets `complete: true` and **does not edit** the issue
-- If the job runs again on an already-complete issue, it exits immediately without changes
-- No nopo-bot assignment check needed - the `complete` flag is the authoritative state
+**Parent issues have NO todos** - they are for context and progress tracking.
+**Even single-phase work gets a sub-issue** - consistency in structure.
 
-### Issue Body State
-
-The issue body contains parseable state in an HTML comment:
-
+**Parent Issue Template:**
 ```markdown
-<!-- CLAUDE_ITERATION
-iteration: 3
-branch: claude/issue/42
-pr_number: 123
-last_ci_run: 456789
-last_ci_result: failure
-consecutive_failures: 1
-failure_type: ci
-last_failure_timestamp: 2024-01-15T10:30:00Z
-complete: false
--->
-
 ## Description
 
-<original issue content>
+<context and requirements>
+
+## Questions
+
+<clarifying questions, if any>
+
+---
 
 ## Iteration History
 
-| # | Action | SHA |
-|---|--------|-----|
-| 1 | Initial implementation | abc123 |
-| 2 | Added API endpoints | def456 |
-| 3 | Fixed type errors | ghi789 |
+| # | Phase | Action | SHA | CI |
+|---|-------|--------|-----|-----|
+| 1 | Phase 1 | Initial implementation | abc123 | ✅ |
+| 2 | Phase 1 | Fixed type errors | def456 | ❌ |
+| 3 | Phase 1 | Fixed CI | ghi789 | ✅ |
 ```
 
-### Sub-Issue Orchestration (Phased Work)
+**Sub-Issue Template:**
+```markdown
+## Todos
 
-For M/L/XL issues, work is broken into sub-issues (phases) that are implemented independently. This enables:
-- Each phase has its own branch, PR, and review cycle
-- Phases can be worked on sequentially with clear boundaries
-- Each merged PR represents completed, shippable work
+- [ ] Task 1
+- [ ] Task 2
+- [ ] Task 3
 
-**Architecture:**
-```
-Main Issue #123                    Sub-Issues
-┌─────────────────────┐           ┌─────────────────────┐
-│ ## Description      │           │ #456 [Phase 1]      │
-│ High-level goal     │◄──────────│ - [x] Task 1        │
-│                     │           │ - [x] Task 2        │
-│ ## Approach         │           └─────────────────────┘
-│ Technical concept   │           ┌─────────────────────┐
-│                     │◄──────────│ #457 [Phase 2]      │
-│ ## Phases           │           │ - [ ] Task 3        │
-│ | # | Sub-Issue |   │           │ - [ ] Task 4        │
-│ | 1 | #456 ✅   |   │           └─────────────────────┘
-│ | 2 | #457 🔄   |   │           ┌─────────────────────┐
-│ | 3 | #458 ⏸️   |   │◄──────────│ #458 [Phase 3]      │
-└─────────────────────┘           │ - [ ] Task 5        │
-                                  └─────────────────────┘
+## Testing
+
+- [ ] Test scenario 1
+- [ ] Test scenario 2
 ```
 
-**Main Issue State (`CLAUDE_MAIN_STATE`):**
-```yaml
-<!-- CLAUDE_MAIN_STATE
-orchestration_iteration: 3
-sub_issues: [456, 457, 458]
-current_sub_issue: 457
-sub_issue_status: {"456": "merged", "457": "in_progress", "458": "pending"}
-complete: false
--->
-```
+### Branch Naming
 
-**Sub-Issue State (`CLAUDE_ITERATION` enhanced):**
-Sub-issues use the same `CLAUDE_ITERATION` block as regular issues, with additional fields:
-```yaml
-<!-- CLAUDE_ITERATION
-iteration: 2
-branch: claude/issue/123/phase-2
-pr_number: 789
-parent_issue: 123
-phase_number: 2
-...
--->
-```
-
-**Branch Naming:**
 | Issue Type | Branch Pattern | Example |
 |------------|----------------|---------|
-| Regular issue | `claude/issue/{N}` | `claude/issue/42` |
+| Regular issue (single phase) | `claude/issue/{N}` | `claude/issue/42` |
 | Sub-issue (phase) | `claude/issue/{parent}/phase-{N}` | `claude/issue/123/phase-2` |
 
-**Event Routing:**
-| Event | Condition | Job |
-|-------|-----------|-----|
-| Main issue assigned | Has sub-issues | `issue-orchestrate` |
-| Main issue edited | Has sub-issues | `issue-orchestrate` |
-| Sub-issue assigned | Has parent | `issue-iterate` (with parent context) |
-| Sub-issue edited | Has parent | `issue-iterate` (with parent context) |
-| Regular issue | No sub-issues, no parent | `issue-iterate` |
+### Trigger Flow
 
-**Orchestration Flow:**
-1. Human assigns `nopo-bot` to main issue
-2. Orchestrator reads main state, finds first pending sub-issue
-3. Orchestrator assigns `nopo-bot` to that sub-issue
-4. Sub-issue iterates independently until PR merged
-5. CI state update on merge triggers orchestrator
-6. Orchestrator advances to next pending sub-issue
-7. Repeat until all sub-issues merged
-8. Main issue marked complete
+**Initialization (Parent Assigned):**
+1. Human assigns `nopo-bot` to parent issue
+2. `init-parent` job creates sub-issues if none exist
+3. Sets Parent Project: Status = In Progress, Iteration = 0, Failures = 0
+4. Sets first Sub-issue Project: Status = Working
+5. Appends to Parent History ("Initialized, {N} phases")
+6. History edit triggers iterate loop
+
+**Iteration Loop:**
+1. `issues: edited` on parent triggers `iterate` job
+2. State check (exits early if Done, Blocked, Error, or Review)
+3. Find current sub-issue (first where Status = Working)
+4. Claude implements next todo or fixes CI failure
+5. Push code to branch
+6. Increment Parent Iteration field
+7. Append to Parent History ("Phase {N}: pushed {sha}")
+8. CI runs automatically on push
+
+**CI Completion:**
+1. `workflow_run.completed` triggers `claude-ci-state.yml`
+2. On failure: increment Parent Failures, append history
+3. On success: clear Parent Failures, append history
+4. History edit triggers iterate (exits if Review status)
+
+**Phase Completion (PR Merged):**
+1. Set Sub-issue Project: Status = Done
+2. Close sub-issue
+3. Append to Parent History ("Phase {N}: merged")
+4. If more sub-issues: set next to Working, append history
+5. If all done: set Parent to Done, close parent
 
 ### Breakpoints
 
 | Condition | Action |
 |-----------|--------|
-| CI passed | Mark PR ready, request review, set `complete: true` |
-| Max iterations (10) | Unassign nopo-bot, post comment |
-| Max consecutive failures | Unassign nopo-bot, post comment (circuit breaker) |
-
-**Why unassign instead of labels?** Adding labels triggers an `issues: edited` event, which would cause infinite loops. Unassigning nopo-bot cleanly ends the loop without triggering additional events.
+| CI passed + todos done | Set sub-issue Status = Review, request review |
+| All phases Done | Set parent Status = Done, close parent |
+| Max consecutive failures | Set parent Status = Blocked, unassign nopo-bot |
 
 **Configurable retry count**: Set `vars.MAX_CLAUDE_RETRIES` GitHub variable (default: 5)
 
-**Retry logic**:
-- Exponential backoff with jitter (60s base, ±20% jitter, 15min cap)
-- Applies to both CI failures and workflow failures
-- Each failure is tracked with type (`ci` or `workflow`) and timestamp
-- Successful CI pass resets the failure counter to zero
+**Circuit breaker**: When Failures >= MAX_RETRIES, the parent is set to Blocked and nopo-bot is unassigned. This prevents infinite loops. To resume: human fixes issue and re-assigns nopo-bot (which clears Failures to 0).
 
-### Restarting After Breakpoint
+### Time Travel (Manual State Changes)
 
-When a breakpoint triggers (max iterations or circuit breaker), nopo-bot is unassigned and iteration stops. To restart:
+Because state is stored in Project fields, you can manually change state and the next iteration will see the new value.
 
-1. **Review the issue** and workflow logs to understand what's blocking progress
-2. **Fix any blocking issues** manually if needed (update issue description, fix code, etc.)
-3. **Re-assign `nopo-bot`** to the issue
-   - This triggers a `reset` which clears the failure counter and `complete` flag
-   - Iteration resumes from the current iteration number (preserves progress)
-   - The reset is logged in the issue's Iteration History table
-
-**What reset preserves:**
-- Iteration count (continues from where it left off)
-- Branch and PR links
-- Iteration history
-
-**What reset clears:**
-- Consecutive failures → 0
-- Complete flag → false
-- Last CI result → empty
-
-This allows humans to intervene, fix issues, and let Claude continue without losing context.
+| Change | Effect |
+|--------|--------|
+| Set `Failures` to 0 | Clear circuit breaker on next re-assign |
+| Set `Status` to "In Progress" + re-assign | Resume blocked issue |
+| Set `Iteration` to 0 | Reset iteration count |
+| Close a sub-issue | Skip to next phase |
+| Reopen a sub-issue | Go back to that phase |
+| Set sub-issue Status = "Done" | Skip that phase |
 
 ### Draft/Ready State Machine
 
@@ -1236,7 +1230,7 @@ PR state controls which automation loops can run, preventing race conditions. CI
 |--------|-------|-----------|
 | **Triage** | `issues: [opened, edited]` | No "triaged" label AND not a sub-issue AND nopo-bot not assigned |
 | **Iterate** | `issues: [assigned]` | Assigned to `nopo-bot`, regular issue OR sub-issue (first iteration) |
-| **Iterate** | `issues: [edited]` | `nopo-bot` is assigned, regular issue OR sub-issue (continuation via state update) |
+| **Iterate** | `issues: [edited]` | `nopo-bot` is assigned, parent Status not terminal (continuation via history append) |
 | **Orchestrate** | `issues: [assigned]` | Assigned to `nopo-bot`, main issue with sub-issues |
 | **Orchestrate** | `issues: [edited]` | `nopo-bot` is assigned, main issue with sub-issues |
 | **@claude Comment** | `issue_comment`, `pull_request_review_comment` | Contains `@claude`, not from Bot |
@@ -1244,7 +1238,7 @@ PR state controls which automation loops can run, preventing race conditions. CI
 | **Review** | `pull_request: [review_requested]` | Reviewer is `nopo-bot`, PR is ready (not draft) |
 | **Review Response** | `pull_request_review: [submitted]` | Review by `claude[bot]`, PR is ready |
 
-**CI result flow**: When CI completes, `claude-ci-state.yml` updates the issue body with the result. This edit triggers `issues: edited`, which starts the next iteration. This decouples CI handling from iteration logic.
+**CI result flow**: When CI completes, `claude-ci-state.yml` updates Project Failures field and appends to parent Iteration History. This edit triggers `issues: edited`, which starts the next iteration. This decouples CI handling from iteration logic.
 
 ### Concurrency Groups
 
@@ -1267,7 +1261,6 @@ The review loop only operates on **ready** PRs:
 
 1. **Review Request** (triggered by `review_requested` for `nopo-bot`)
    - Skips if PR is draft
-   - Updates project status to "In review"
    - Reviews code against issue requirements
    - Submits batch review (approve, request changes, or comment)
 
@@ -1305,11 +1298,10 @@ These actions **require human intervention**:
 | Agent | Actions |
 |-------|---------|
 | **Triage** | Adds labels (type/priority/topic), sets project fields (Priority/Size/Estimate), creates sub-issues for phased work, links related issues, expands context, answers questions, adds "triaged" label |
-| **Iterate** | Unified implementation: reads issue state, implements/fixes code, runs tests, pushes. On CI success: marks PR ready, requests review. For sub-issues: uses phase-specific branch naming |
-| **Orchestrate** | Manages phased work on main issues: reads main state, assigns nopo-bot to next pending sub-issue, updates phases table, marks complete when all phases merged |
+| **Iterate** | Reads Project state, implements/fixes code, pushes. On CI success + todos done: sets sub-issue Status = Review, requests review. Updates parent Iteration History. |
+| **Orchestrate** | Manages phased work on parent issues: reads Project state, advances sub-issues through phases, marks parent Done when all phases merged |
 | **@claude Comment** | Answers questions, provides explanations, suggests approaches (no code changes unless asked) |
 | **Push-to-Draft** | Converts ready PRs to draft on push, cancels in-flight reviews |
-| Human PRs: suggests fixes via review comments (does not auto-fix) |
 | **Review** | Reviews code, submits batch review (ready PRs only) |
 | **Review Response** | Processes comments: if commits → draft + push (iteration loop); if no commits → re-request review (stays in review loop) |
 
@@ -1331,17 +1323,17 @@ The triage agent performs comprehensive issue preparation:
 - M/L/XL issues with distinct phases get sub-issues created (2-5 phases max)
 - Sub-issues are linked to parent via GitHub's sub-issue feature (GraphQL `addSubIssue`)
 - Sub-issues are NOT triaged (they're implementation tasks, not full tickets)
-- Title format: `[Phase N] <Phase Title>`
-- Body contains phase-specific todos and "Parent: #<number>" reference
+- Title format: `[Phase N]: <Phase Title>`
+- Body contains phase-specific todos using sub-task.yml template
 - If work cannot fit in 5 phases, triage suggests splitting into smaller issues
 
 ### PR Requirements
 
 All PRs created by Claude automation must:
 
-1. Include `Fixes #N` in the body to link to the issue
+1. Include `Fixes #N` in the body to link to the sub-issue
 2. Pass CI checks before review
-3. Have all issue todos addressed
+3. Have all sub-issue todos addressed
 4. Have no unresolved review comments
 5. Be approved by Claude before human merge
 
@@ -1349,8 +1341,8 @@ All PRs created by Claude automation must:
 
 1. **CLAUDE_CODE_OAUTH_TOKEN secret**: OAuth token for Claude (uses subscription)
 2. **NOPO_BOT_PAT secret**: Personal Access Token for nopo-bot with `repo` scope for git push operations and reviews. Required because `GITHUB_TOKEN` pushes don't trigger other workflows (GitHub security feature). This PAT is NOT given to Claude - it's only used by workflow steps after Claude finishes.
-3. **PROJECT_TOKEN secret** (optional): Fine-grained PAT with `project:write` for updating project status
-4. **GitHub Project** (optional): Project board with Status field - status updated via GraphQL if issue is linked
+3. **PROJECT_NUMBER variable**: GitHub Project number for state storage (required for Project field-based state)
+4. **GitHub Project**: Project board with Status, Iteration, and Failures fields configured
 
 ---
 

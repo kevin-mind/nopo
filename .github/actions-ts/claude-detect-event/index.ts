@@ -43,24 +43,37 @@ function emptyResult(skip = false, skipReason = ""): DetectionResult {
 }
 
 /**
- * Fetch the project status for an issue
- * Returns the status name or null if not in a project
+ * Project state from GitHub Project custom fields
  */
-async function fetchProjectStatus(
+interface ProjectState {
+  status: string | null;
+  iteration: number;
+  failures: number;
+}
+
+/**
+ * Fetch the project state for an issue (Status, Iteration, Failures)
+ * Returns null if issue is not in a project
+ */
+async function fetchProjectState(
   octokit: ReturnType<typeof github.getOctokit>,
   owner: string,
   repo: string,
   issueNumber: number,
-): Promise<string | null> {
+): Promise<ProjectState | null> {
   try {
     const result = await octokit.graphql<{
       repository: {
         issue: {
           projectItems: {
             nodes: Array<{
-              fieldValueByName: {
-                name: string;
-              } | null;
+              fieldValues: {
+                nodes: Array<{
+                  name?: string;
+                  number?: number;
+                  field?: { name?: string };
+                }>;
+              };
             }>;
           };
         } | null;
@@ -72,9 +85,24 @@ async function fetchProjectStatus(
           issue(number: $number) {
             projectItems(first: 10) {
               nodes {
-                fieldValueByName(name: "Status") {
-                  ... on ProjectV2ItemFieldSingleSelectValue {
-                    name
+                fieldValues(first: 20) {
+                  nodes {
+                    ... on ProjectV2ItemFieldSingleSelectValue {
+                      name
+                      field {
+                        ... on ProjectV2SingleSelectField {
+                          name
+                        }
+                      }
+                    }
+                    ... on ProjectV2ItemFieldNumberValue {
+                      number
+                      field {
+                        ... on ProjectV2Field {
+                          name
+                        }
+                      }
+                    }
                   }
                 }
               }
@@ -87,25 +115,56 @@ async function fetchProjectStatus(
     );
 
     const items = result.repository.issue?.projectItems.nodes ?? [];
-    for (const item of items) {
-      if (item.fieldValueByName?.name) {
-        return item.fieldValueByName.name;
+    if (items.length === 0) {
+      return null;
+    }
+
+    // Parse fields from the first project item
+    const state: ProjectState = {
+      status: null,
+      iteration: 0,
+      failures: 0,
+    };
+
+    const fieldValues = items[0]?.fieldValues?.nodes ?? [];
+    for (const fieldValue of fieldValues) {
+      const fieldName = fieldValue.field?.name;
+      if (fieldName === "Status" && fieldValue.name) {
+        state.status = fieldValue.name;
+      } else if (
+        fieldName === "Iteration" &&
+        typeof fieldValue.number === "number"
+      ) {
+        state.iteration = fieldValue.number;
+      } else if (
+        fieldName === "Failures" &&
+        typeof fieldValue.number === "number"
+      ) {
+        state.failures = fieldValue.number;
       }
     }
-    return null;
+
+    return state;
   } catch (error) {
-    core.warning(`Failed to fetch project status: ${error}`);
+    core.warning(`Failed to fetch project state: ${error}`);
     return null;
   }
 }
 
 /**
- * Check if project status indicates the issue should be skipped
+ * Check if project state indicates the issue should be skipped
  */
-function shouldSkipProjectStatus(status: string | null): boolean {
-  if (!status) return false;
-  const skipStatuses = ["Backlog", "Done"];
-  return skipStatuses.includes(status);
+function shouldSkipProjectState(state: ProjectState | null): boolean {
+  if (!state || !state.status) return false;
+  const skipStatuses = ["Backlog", "Done", "Blocked", "Error"];
+  return skipStatuses.includes(state.status);
+}
+
+/**
+ * Derive branch name from parent issue and phase number
+ */
+function deriveBranch(parentIssueNumber: number, phaseNumber: number): string {
+  return `claude/issue/${parentIssueNumber}/phase-${phaseNumber}`;
 }
 
 interface IssueDetails {
@@ -188,7 +247,7 @@ async function fetchIssueDetails(
  */
 function extractPhaseNumber(title: string): number {
   const match = title.match(/^\[Phase\s*(\d+)\]/i);
-  return match ? parseInt(match[1], 10) : 0;
+  return match?.[1] ? parseInt(match[1], 10) : 0;
 }
 
 async function fetchPrByBranch(
@@ -440,17 +499,17 @@ async function handleIssueEvent(
   if (action === "edited") {
     // If nopo-bot is assigned, edited triggers iteration (issue-edit-based loop)
     if (isNopoBotAssigned) {
-      // Check project status - skip if in Backlog or Done
-      const projectStatus = await fetchProjectStatus(
+      // Check project state - skip if in terminal/blocked state
+      const projectState = await fetchProjectState(
         octokit,
         owner,
         repo,
         issue.number,
       );
-      if (shouldSkipProjectStatus(projectStatus)) {
+      if (shouldSkipProjectState(projectState)) {
         return emptyResult(
           true,
-          `Issue project status is '${projectStatus}' - skipping iteration`,
+          `Issue project status is '${projectState?.status}' - skipping iteration`,
         );
       }
 
@@ -464,7 +523,10 @@ async function handleIssueEvent(
       // Check if this is a sub-issue (has parent) - route to iterate with parent context
       if (details.isSubIssue) {
         const phaseNumber = extractPhaseNumber(details.title);
-        const branchName = `claude/issue/${details.parentIssue}/phase-${phaseNumber || issue.number}`;
+        const branchName = deriveBranch(
+          details.parentIssue,
+          phaseNumber || issue.number,
+        );
         const branchExists = await checkBranchExists(branchName);
 
         return {
@@ -481,6 +543,9 @@ async function handleIssueEvent(
             trigger_type: "edited",
             parent_issue: String(details.parentIssue),
             phase_number: String(phaseNumber),
+            project_status: projectState?.status || "",
+            project_iteration: String(projectState?.iteration || 0),
+            project_failures: String(projectState?.failures || 0),
           }),
           skip: false,
           skipReason: "",
@@ -500,6 +565,9 @@ async function handleIssueEvent(
             issue_body: details.body || issue.body,
             sub_issues: details.subIssues.join(","),
             trigger_type: "edited",
+            project_status: projectState?.status || "",
+            project_iteration: String(projectState?.iteration || 0),
+            project_failures: String(projectState?.failures || 0),
           }),
           skip: false,
           skipReason: "",
@@ -524,6 +592,9 @@ async function handleIssueEvent(
           branch_name: branchName,
           existing_branch: branchExists ? "true" : "false",
           trigger_type: "edited",
+          project_status: projectState?.status || "",
+          project_iteration: String(projectState?.iteration || 0),
+          project_failures: String(projectState?.failures || 0),
         }),
         skip: false,
         skipReason: "",
@@ -570,17 +641,17 @@ async function handleIssueEvent(
       return emptyResult(true, "Not assigned to nopo-bot");
     }
 
-    // Check project status - skip if in Backlog or Done
-    const projectStatus = await fetchProjectStatus(
+    // Check project state - skip if in terminal/blocked state
+    const projectState = await fetchProjectState(
       octokit,
       owner,
       repo,
       issue.number,
     );
-    if (shouldSkipProjectStatus(projectStatus)) {
+    if (shouldSkipProjectState(projectState)) {
       return emptyResult(
         true,
-        `Issue project status is '${projectStatus}' - skipping iteration`,
+        `Issue project status is '${projectState?.status}' - skipping iteration`,
       );
     }
 
@@ -589,7 +660,10 @@ async function handleIssueEvent(
     // Check if this is a sub-issue (has parent) - route to iterate with parent context
     if (details.isSubIssue) {
       const phaseNumber = extractPhaseNumber(details.title);
-      const branchName = `claude/issue/${details.parentIssue}/phase-${phaseNumber || issue.number}`;
+      const branchName = deriveBranch(
+        details.parentIssue,
+        phaseNumber || issue.number,
+      );
 
       // Ensure the branch exists (create if not)
       await ensureBranchExists(branchName);
@@ -607,6 +681,9 @@ async function handleIssueEvent(
           trigger_type: "assigned",
           parent_issue: String(details.parentIssue),
           phase_number: String(phaseNumber),
+          project_status: projectState?.status || "",
+          project_iteration: String(projectState?.iteration || 0),
+          project_failures: String(projectState?.failures || 0),
         }),
         skip: false,
         skipReason: "",
@@ -626,6 +703,9 @@ async function handleIssueEvent(
           issue_body: details.body || issue.body,
           sub_issues: details.subIssues.join(","),
           trigger_type: "assigned",
+          project_status: projectState?.status || "",
+          project_iteration: String(projectState?.iteration || 0),
+          project_failures: String(projectState?.failures || 0),
         }),
         skip: false,
         skipReason: "",
@@ -649,6 +729,9 @@ async function handleIssueEvent(
         issue_body: details.body || issue.body,
         branch_name: branchName,
         trigger_type: "assigned",
+        project_status: projectState?.status || "",
+        project_iteration: String(projectState?.iteration || 0),
+        project_failures: String(projectState?.failures || 0),
       }),
       skip: false,
       skipReason: "",

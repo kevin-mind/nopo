@@ -1,0 +1,52 @@
+{
+  "name": "pr-human-response",
+  "description": "Human review submitted on Claude PR - verifies Claude addresses feedback",
+  "job_type": "pr-human-response",
+  "parent_issue": {
+    "title": "Add rate limiting to API",
+    "body": "## Description\n\nImplement rate limiting to prevent abuse.\n\n## Requirements\n\n- Rate limit per IP\n- Configurable limits\n\n## Acceptance Criteria\n\n- [ ] Rate limiting works\n- [ ] Limits are configurable",
+    "labels": ["enhancement", "triaged"],
+    "project_fields": {
+      "Status": "In Progress",
+      "Iteration": 1,
+      "Failures": 0
+    }
+  },
+  "sub_issues": [
+    {
+      "title": "Implement rate limiting",
+      "body": "## Todos\n\n- [x] Add rate limit middleware\n- [ ] Make limits configurable\n\n## Testing\n\n- [ ] Rate limit tests pass",
+      "project_fields": {
+        "Status": "Review"
+      }
+    }
+  ],
+  "branch": {
+    "name": "pr-human-response-test",
+    "from": "main",
+    "commits": [
+      {
+        "message": "feat: add rate limiting middleware",
+        "files": {
+          "test-files/rate-limit.ts": "// Rate limiting\nconst LIMIT = 100;\nexport function checkRateLimit(ip: string): boolean {\n  // TODO: implement actual tracking\n  return true;\n}\n"
+        }
+      }
+    ]
+  },
+  "pr": {
+    "title": "Add rate limiting to API",
+    "body": "Fixes #{ISSUE_NUMBER}\n\n## Summary\n\nAdds rate limiting middleware.",
+    "draft": false
+  },
+  "review": {
+    "state": "request_changes",
+    "body": "The rate limit should be configurable via environment variable, not hardcoded.",
+    "reviewer": "human-reviewer"
+  },
+  "expected": {
+    "pr_state": "draft",
+    "min_iteration": 2
+  },
+  "timeout": 300,
+  "poll_interval": 10
+}

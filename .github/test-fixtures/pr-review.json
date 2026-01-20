@@ -1,0 +1,48 @@
+{
+  "name": "pr-review",
+  "description": "PR with nopo-bot requested as reviewer - verifies review is submitted",
+  "job_type": "pr-review",
+  "parent_issue": {
+    "title": "Add input validation to API",
+    "body": "## Description\n\nAdd input validation to prevent malformed requests.\n\n## Requirements\n\n- Validate all API inputs\n- Return proper error messages\n\n## Acceptance Criteria\n\n- [ ] All endpoints validate input\n- [ ] Error responses are clear",
+    "labels": ["enhancement", "triaged"],
+    "project_fields": {
+      "Status": "In Progress",
+      "Iteration": 1,
+      "Failures": 0
+    }
+  },
+  "sub_issues": [
+    {
+      "title": "Implement input validation",
+      "body": "## Todos\n\n- [x] Add validation middleware\n- [x] Add error handling\n\n## Testing\n\n- [x] Validation tests pass",
+      "project_fields": {
+        "Status": "Review"
+      }
+    }
+  ],
+  "branch": {
+    "name": "pr-review-test",
+    "from": "main",
+    "commits": [
+      {
+        "message": "feat: add input validation middleware",
+        "files": {
+          "test-files/validation.ts": "// Input validation\nexport function validateInput(data: unknown): boolean {\n  return data !== null && data !== undefined;\n}\n"
+        }
+      }
+    ]
+  },
+  "pr": {
+    "title": "Add input validation to API",
+    "body": "Fixes #{ISSUE_NUMBER}\n\n## Summary\n\nAdds input validation middleware for API endpoints.",
+    "draft": false,
+    "request_review": true
+  },
+  "expected": {
+    "pr_state": "open",
+    "min_comments": 1
+  },
+  "timeout": 180,
+  "poll_interval": 10
+}

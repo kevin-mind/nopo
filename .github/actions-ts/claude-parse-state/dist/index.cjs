@@ -23901,232 +23901,210 @@ function setOutputs(outputs) {
 }
 
 // claude-parse-state/index.ts
-var STATE_MARKER_START = "<!-- CLAUDE_ITERATION";
-var MAIN_STATE_MARKER_START = "<!-- CLAUDE_MAIN_STATE";
-var STATE_MARKER_END = "-->";
 var HISTORY_SECTION = "## Iteration History";
-var PHASES_SECTION = "## Phases";
-function countNonManualUncheckedTodos(content) {
-  const lines = content.split("\n");
-  let count = 0;
-  for (const line of lines) {
-    if (line.match(/- \[ \]/)) {
-      if (!line.includes("*(manual)*")) {
-        count++;
+var GET_PROJECT_ITEM_QUERY = `
+query GetProjectItem($org: String!, $projectNumber: Int!, $issueNumber: Int!, $repo: String!) {
+  repository(owner: $org, name: $repo) {
+    issue(number: $issueNumber) {
+      id
+      number
+      title
+      body
+      state
+      projectItems(first: 10) {
+        nodes {
+          id
+          project {
+            id
+            number
+          }
+          fieldValues(first: 20) {
+            nodes {
+              ... on ProjectV2ItemFieldSingleSelectValue {
+                name
+                field {
+                  ... on ProjectV2SingleSelectField {
+                    name
+                    id
+                    options {
+                      id
+                      name
+                    }
+                  }
+                }
+              }
+              ... on ProjectV2ItemFieldNumberValue {
+                number
+                field {
+                  ... on ProjectV2Field {
+                    name
+                    id
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
-  return count;
+  organization(login: $org) {
+    projectV2(number: $projectNumber) {
+      id
+      fields(first: 20) {
+        nodes {
+          ... on ProjectV2SingleSelectField {
+            id
+            name
+            options {
+              id
+              name
+            }
+          }
+          ... on ProjectV2Field {
+            id
+            name
+            dataType
+          }
+        }
+      }
+    }
+  }
 }
-function parsePhases(body) {
-  const phaseRegex = /^## Phase (\d+):\s*(.+)$/gm;
-  const phases = [];
-  let match;
-  while ((match = phaseRegex.exec(body)) !== null) {
-    phases.push({
-      number: parseInt(match[1], 10),
-      title: match[2].trim(),
-      startIndex: match.index
-    });
+`;
+var UPDATE_PROJECT_FIELD_MUTATION = `
+mutation UpdateProjectField($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
+  updateProjectV2ItemFieldValue(input: {
+    projectId: $projectId
+    itemId: $itemId
+    fieldId: $fieldId
+    value: $value
+  }) {
+    projectV2Item {
+      id
+    }
   }
-  if (phases.length === 0) {
-    const uncheckedTodos = countNonManualUncheckedTodos(body);
-    return {
-      current_phase: 1,
-      total_phases: 1,
-      current_phase_todos_done: uncheckedTodos === 0,
-      all_phases_done: uncheckedTodos === 0,
-      current_phase_title: "Todo"
-    };
+}
+`;
+var GET_SUB_ISSUES_QUERY = `
+query GetSubIssues($org: String!, $repo: String!, $parentNumber: Int!, $projectNumber: Int!) {
+  repository(owner: $org, name: $repo) {
+    issue(number: $parentNumber) {
+      id
+      subIssues(first: 20) {
+        nodes {
+          id
+          number
+          title
+          state
+          projectItems(first: 10) {
+            nodes {
+              project {
+                number
+              }
+              fieldValues(first: 20) {
+                nodes {
+                  ... on ProjectV2ItemFieldSingleSelectValue {
+                    name
+                    field {
+                      ... on ProjectV2SingleSelectField {
+                        name
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   }
-  phases.sort((a, b) => a.number - b.number);
-  const phaseCompletion = [];
-  for (let i = 0; i < phases.length; i++) {
-    const phase = phases[i];
-    const nextPhase = phases[i + 1];
-    const endIndex = nextPhase ? nextPhase.startIndex : body.length;
-    const phaseContent = body.slice(phase.startIndex, endIndex);
-    const uncheckedCount = countNonManualUncheckedTodos(phaseContent);
-    const checkedCount = (phaseContent.match(/- \[x\]/gi) || []).length;
-    phaseCompletion.push({
-      number: phase.number,
-      title: phase.title,
-      uncheckedCount,
-      checkedCount
-    });
+}
+`;
+var ADD_ISSUE_TO_PROJECT_MUTATION = `
+mutation AddIssueToProject($projectId: ID!, $contentId: ID!) {
+  addProjectV2ItemById(input: {
+    projectId: $projectId
+    contentId: $contentId
+  }) {
+    item {
+      id
+    }
   }
-  const currentPhaseData = phaseCompletion.find((p) => p.uncheckedCount > 0);
-  const currentPhase = currentPhaseData?.number || phases[phases.length - 1].number;
-  const currentPhaseTitle = currentPhaseData?.title || phases[phases.length - 1].title;
-  const currentPhaseInfo = phaseCompletion.find(
-    (p) => p.number === currentPhase
+}
+`;
+function parseProjectStateFromResponse(projectItems, projectNumber) {
+  const projectItem = projectItems.find(
+    (item) => item.project?.number === projectNumber
   );
-  const currentPhaseTodosDone = currentPhaseInfo ? currentPhaseInfo.uncheckedCount === 0 : true;
-  const allPhasesDone = phaseCompletion.every((p) => p.uncheckedCount === 0);
-  return {
-    current_phase: currentPhase,
-    total_phases: phases.length,
-    current_phase_todos_done: currentPhaseTodosDone,
-    all_phases_done: allPhasesDone,
-    current_phase_title: currentPhaseTitle
-  };
-}
-function parseState(body) {
-  const startIdx = body.indexOf(STATE_MARKER_START);
-  if (startIdx === -1) {
+  if (!projectItem) {
     return null;
   }
-  const endIdx = body.indexOf(STATE_MARKER_END, startIdx);
-  if (endIdx === -1) {
-    return null;
-  }
-  const stateBlock = body.slice(startIdx + STATE_MARKER_START.length, endIdx);
   const state = {
+    status: "Backlog",
     iteration: 0,
-    branch: "",
-    pr_number: "",
-    last_ci_run: "",
-    last_ci_result: "",
-    consecutive_failures: 0,
-    failure_type: "",
-    last_failure_timestamp: "",
-    complete: false,
-    phase_iteration: 0,
-    last_phase: 0,
-    parent_issue: 0,
-    phase_number: 0
+    failures: 0
   };
-  for (const line of stateBlock.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    const colonIdx = trimmed.indexOf(":");
-    if (colonIdx === -1) continue;
-    const key = trimmed.slice(0, colonIdx).trim();
-    const value = trimmed.slice(colonIdx + 1).trim();
-    switch (key) {
-      case "iteration":
-        state.iteration = parseInt(value, 10) || 0;
-        break;
-      case "branch":
-        state.branch = value;
-        break;
-      case "pr_number":
-        state.pr_number = value;
-        break;
-      case "last_ci_run":
-        state.last_ci_run = value;
-        break;
-      case "last_ci_result":
-        state.last_ci_result = value;
-        break;
-      case "consecutive_failures":
-        state.consecutive_failures = parseInt(value, 10) || 0;
-        break;
-      case "failure_type":
-        state.failure_type = value;
-        break;
-      case "last_failure_timestamp":
-        state.last_failure_timestamp = value;
-        break;
-      case "complete":
-        state.complete = value === "true";
-        break;
-      case "phase_iteration":
-        state.phase_iteration = parseInt(value, 10) || 0;
-        break;
-      case "last_phase":
-        state.last_phase = parseInt(value, 10) || 0;
-        break;
-      case "parent_issue":
-        state.parent_issue = parseInt(value, 10) || 0;
-        break;
-      case "phase_number":
-        state.phase_number = parseInt(value, 10) || 0;
-        break;
+  const fieldValues = projectItem.fieldValues?.nodes || [];
+  for (const fieldValue of fieldValues) {
+    const fieldName = fieldValue.field?.name;
+    if (fieldName === "Status" && fieldValue.name) {
+      state.status = fieldValue.name;
+    } else if (fieldName === "Iteration" && typeof fieldValue.number === "number") {
+      state.iteration = fieldValue.number;
+    } else if (fieldName === "Failures" && typeof fieldValue.number === "number") {
+      state.failures = fieldValue.number;
     }
   }
   return state;
 }
-function serializeState(state) {
-  return `${STATE_MARKER_START}
-iteration: ${state.iteration}
-branch: ${state.branch}
-pr_number: ${state.pr_number}
-last_ci_run: ${state.last_ci_run}
-last_ci_result: ${state.last_ci_result}
-consecutive_failures: ${state.consecutive_failures}
-failure_type: ${state.failure_type}
-last_failure_timestamp: ${state.last_failure_timestamp}
-complete: ${state.complete}
-phase_iteration: ${state.phase_iteration}
-last_phase: ${state.last_phase}
-parent_issue: ${state.parent_issue}
-phase_number: ${state.phase_number}
-${STATE_MARKER_END}`;
-}
-function updateBodyWithState(body, state) {
-  const stateBlock = serializeState(state);
-  const startIdx = body.indexOf(STATE_MARKER_START);
-  if (startIdx === -1) {
-    return stateBlock + "\n\n" + body;
+function parseProjectFields(projectData) {
+  const project = projectData;
+  if (!project?.id || !project?.fields?.nodes) {
+    return null;
   }
-  const endIdx = body.indexOf(STATE_MARKER_END, startIdx);
-  if (endIdx === -1) {
-    return stateBlock + "\n\n" + body;
-  }
-  return body.slice(0, startIdx) + stateBlock + body.slice(endIdx + STATE_MARKER_END.length);
-}
-function updateIterationLogEntry(body, runLink, newMessage, sha) {
-  const historyIdx = body.indexOf(HISTORY_SECTION);
-  if (historyIdx === -1) {
-    return body;
-  }
-  const lines = body.split("\n");
-  const historyLineIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
-  if (historyLineIdx === -1) {
-    return body;
-  }
-  let foundIdx = -1;
-  for (let i = historyLineIdx + 1; i < lines.length; i++) {
-    const line = lines[i];
-    if (line.startsWith("|") && line.includes(runLink)) {
-      foundIdx = i;
-      break;
-    } else if (line.trim() !== "" && !line.startsWith("|")) {
-      break;
+  const fields = {
+    projectId: project.id,
+    statusFieldId: "",
+    statusOptions: {},
+    iterationFieldId: "",
+    failuresFieldId: ""
+  };
+  for (const field of project.fields.nodes) {
+    if (field.name === "Status" && field.options) {
+      fields.statusFieldId = field.id || "";
+      for (const option of field.options) {
+        fields.statusOptions[option.name] = option.id;
+      }
+    } else if (field.name === "Iteration") {
+      fields.iterationFieldId = field.id || "";
+    } else if (field.name === "Failures") {
+      fields.failuresFieldId = field.id || "";
     }
   }
-  if (foundIdx === -1) {
-    return body;
-  }
-  const existingRow = lines[foundIdx];
-  const match = existingRow.match(/^\|\s*(\d+)\s*\|/);
-  if (!match) {
-    return body;
-  }
-  const iteration = parseInt(match[1], 10);
-  const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
-  const repo = process.env.GITHUB_REPOSITORY || "";
-  const shaCell = sha ? `[\`${sha.slice(0, 7)}\`](${serverUrl}/${repo}/commit/${sha})` : "-";
-  const runCell = `[Run](${runLink})`;
-  const newRow = `| ${iteration} | ${newMessage} | ${shaCell} | ${runCell} |`;
-  lines[foundIdx] = newRow;
-  return lines.join("\n");
+  return fields;
 }
-function addIterationLogEntry(body, iteration, message, sha, runLink) {
+function getProjectItemId(projectItems, projectNumber) {
+  const projectItem = projectItems.find(
+    (item) => item.project?.number === projectNumber
+  );
+  return projectItem?.id || null;
+}
+function addIterationLogEntry(body, iteration, phase, message, sha, runLink) {
   const historyIdx = body.indexOf(HISTORY_SECTION);
   const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
   const repo = process.env.GITHUB_REPOSITORY || "";
   const shaCell = sha ? `[\`${sha.slice(0, 7)}\`](${serverUrl}/${repo}/commit/${sha})` : "-";
   const runCell = runLink ? `[Run](${runLink})` : "-";
   if (historyIdx === -1) {
-    const entry2 = `| ${iteration} | ${message} | ${shaCell} | ${runCell} |`;
+    const entry2 = `| ${iteration} | ${phase} | ${message} | ${shaCell} | ${runCell} |`;
     const historyTable = `
 
 ${HISTORY_SECTION}
 
-| # | Action | SHA | Run |
-|---|--------|-----|-----|
+| # | Phase | Action | SHA | Run |
+|---|-------|--------|-----|-----|
 ${entry2}`;
     return body + historyTable;
   }
@@ -24137,515 +24115,345 @@ ${entry2}`;
   }
   let insertIdx = historyLineIdx + 1;
   for (let i = historyLineIdx + 1; i < lines.length; i++) {
-    if (lines[i].startsWith("|")) {
+    const line = lines[i];
+    if (!line) continue;
+    if (line.startsWith("|")) {
       insertIdx = i + 1;
-    } else if (lines[i].trim() !== "" && !lines[i].startsWith("|")) {
+    } else if (line.trim() !== "" && !line.startsWith("|")) {
       break;
     }
   }
-  const entry = `| ${iteration} | ${message} | ${shaCell} | ${runCell} |`;
+  const entry = `| ${iteration} | ${phase} | ${message} | ${shaCell} | ${runCell} |`;
   lines.splice(insertIdx, 0, entry);
   return lines.join("\n");
 }
-function getDefaultState(branchName, parentIssue = 0, phaseNumber = 0) {
-  return {
-    iteration: 0,
-    branch: branchName,
-    pr_number: "",
-    last_ci_run: "",
-    last_ci_result: "",
-    consecutive_failures: 0,
-    failure_type: "",
-    last_failure_timestamp: "",
-    complete: false,
-    phase_iteration: 0,
-    last_phase: 0,
-    parent_issue: parentIssue,
-    phase_number: phaseNumber
-  };
-}
-function getDefaultMainState() {
-  return {
-    orchestration_iteration: 0,
-    sub_issues: [],
-    current_sub_issue: 0,
-    sub_issue_status: {},
-    complete: false
-  };
-}
-function parseMainState(body) {
-  const startIdx = body.indexOf(MAIN_STATE_MARKER_START);
-  if (startIdx === -1) {
-    return null;
+function parseSubIssues(subIssuesData, projectNumber) {
+  const response = subIssuesData;
+  if (!response?.nodes) {
+    return [];
   }
-  const endIdx = body.indexOf(STATE_MARKER_END, startIdx);
-  if (endIdx === -1) {
-    return null;
-  }
-  const stateBlock = body.slice(
-    startIdx + MAIN_STATE_MARKER_START.length,
-    endIdx
-  );
-  const state = getDefaultMainState();
-  for (const line of stateBlock.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    const colonIdx = trimmed.indexOf(":");
-    if (colonIdx === -1) continue;
-    const key = trimmed.slice(0, colonIdx).trim();
-    const value = trimmed.slice(colonIdx + 1).trim();
-    switch (key) {
-      case "orchestration_iteration":
-        state.orchestration_iteration = parseInt(value, 10) || 0;
-        break;
-      case "sub_issues":
-        state.sub_issues = value.split(",").map((s) => parseInt(s.trim(), 10)).filter((n) => !isNaN(n) && n > 0);
-        break;
-      case "current_sub_issue":
-        state.current_sub_issue = parseInt(value, 10) || 0;
-        break;
-      case "sub_issue_status":
-        try {
-          state.sub_issue_status = JSON.parse(value);
-        } catch {
-          state.sub_issue_status = {};
+  return response.nodes.map((node) => {
+    let status = "Ready";
+    const projectItem = node.projectItems?.nodes?.find(
+      (item) => item.project?.number === projectNumber
+    );
+    if (projectItem?.fieldValues?.nodes) {
+      for (const fieldValue of projectItem.fieldValues.nodes) {
+        if (fieldValue.field?.name === "Status" && fieldValue.name) {
+          status = fieldValue.name;
+          break;
         }
-        break;
-      case "complete":
-        state.complete = value === "true";
-        break;
+      }
+    }
+    return {
+      number: node.number || 0,
+      title: node.title || "",
+      status,
+      state: node.state?.toLowerCase() || "open"
+    };
+  });
+}
+function deriveBranch(parentIssueNumber, phaseNumber) {
+  return `claude/issue/${parentIssueNumber}/phase-${phaseNumber}`;
+}
+function getCurrentPhase(subIssues) {
+  const sorted = [...subIssues].sort((a, b) => a.number - b.number);
+  for (let i = 0; i < sorted.length; i++) {
+    const subIssue = sorted[i];
+    if (!subIssue) continue;
+    if (subIssue.status !== "Done" && subIssue.state === "open") {
+      return {
+        phaseNumber: i + 1,
+        subIssueNumber: subIssue.number,
+        status: subIssue.status
+      };
     }
   }
-  return state;
-}
-function serializeMainState(state) {
-  return `${MAIN_STATE_MARKER_START}
-orchestration_iteration: ${state.orchestration_iteration}
-sub_issues: ${state.sub_issues.join(", ")}
-current_sub_issue: ${state.current_sub_issue}
-sub_issue_status: ${JSON.stringify(state.sub_issue_status)}
-complete: ${state.complete}
-${STATE_MARKER_END}`;
-}
-function updateBodyWithMainState(body, state) {
-  const stateBlock = serializeMainState(state);
-  const startIdx = body.indexOf(MAIN_STATE_MARKER_START);
-  if (startIdx === -1) {
-    return stateBlock + "\n\n" + body;
-  }
-  const endIdx = body.indexOf(STATE_MARKER_END, startIdx);
-  if (endIdx === -1) {
-    return stateBlock + "\n\n" + body;
-  }
-  return body.slice(0, startIdx) + stateBlock + body.slice(endIdx + STATE_MARKER_END.length);
-}
-function updatePhasesTable(body, subIssues) {
-  const phasesIdx = body.indexOf(PHASES_SECTION);
-  const tableHeader = `| # | Sub-Issue | Status |
-|---|-----------|--------|`;
-  const tableRows = subIssues.map((si, idx) => {
-    const statusEmoji = si.status === "merged" ? "\u2705" : si.status === "in_progress" ? "\u{1F504}" : "\u23F8\uFE0F";
-    return `| ${idx + 1} | #${si.number} - ${si.title} | ${statusEmoji} ${si.status} |`;
-  }).join("\n");
-  const newTable = `${PHASES_SECTION}
-
-${tableHeader}
-${tableRows}`;
-  if (phasesIdx === -1) {
-    return body + "\n\n" + newTable;
-  }
-  const afterPhases = body.slice(phasesIdx + PHASES_SECTION.length);
-  const nextSectionMatch = afterPhases.match(/\n## /);
-  const endIdx = nextSectionMatch ? phasesIdx + PHASES_SECTION.length + nextSectionMatch.index : body.length;
-  return body.slice(0, phasesIdx) + newTable + body.slice(endIdx);
+  return null;
 }
 async function run() {
   try {
     const token = getRequiredInput("github_token");
     const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
     const action = getRequiredInput("action");
+    const projectNumber = parseInt(
+      getOptionalInput("project_number") || "1",
+      10
+    );
     const octokit = github.getOctokit(token);
     const { owner, repo } = github.context.repo;
-    const { data: issue } = await octokit.rest.issues.get({
-      owner,
-      repo,
-      issue_number: issueNumber
-    });
-    const currentBody = issue.body ?? "";
-    let state = parseState(currentBody);
-    const hasState = state !== null;
-    core2.info(`Action: ${action}, Has existing state: ${hasState}`);
+    core2.info(
+      `Action: ${action}, Issue: #${issueNumber}, Project: ${projectNumber}`
+    );
     if (action === "read") {
+      const response = await octokit.graphql(
+        GET_PROJECT_ITEM_QUERY,
+        {
+          org: owner,
+          repo,
+          issueNumber,
+          projectNumber
+        }
+      );
+      const issue = response.repository?.issue;
+      if (!issue) {
+        core2.setFailed(`Issue #${issueNumber} not found`);
+        return;
+      }
+      const projectItems = issue.projectItems?.nodes || [];
+      const state = parseProjectStateFromResponse(projectItems, projectNumber);
       if (!state) {
         setOutputs({
           has_state: "false",
+          status: "",
           iteration: "0",
-          branch: "",
-          pr_number: "",
-          last_ci_run: "",
-          last_ci_result: "",
-          consecutive_failures: "0",
-          failure_type: "",
-          last_failure_timestamp: "",
-          complete: "false",
-          phase_iteration: "0",
-          last_phase: "0"
+          failures: "0"
         });
         return;
       }
       setOutputs({
         has_state: "true",
+        status: state.status,
         iteration: String(state.iteration),
-        branch: state.branch,
-        pr_number: state.pr_number,
-        last_ci_run: state.last_ci_run,
-        last_ci_result: state.last_ci_result,
-        consecutive_failures: String(state.consecutive_failures),
-        failure_type: state.failure_type,
-        last_failure_timestamp: state.last_failure_timestamp,
-        complete: state.complete ? "true" : "false",
-        phase_iteration: String(state.phase_iteration),
-        last_phase: String(state.last_phase)
-      });
-      return;
-    }
-    if (action === "init") {
-      const branchName = getRequiredInput("branch_name");
-      if (state) {
-        core2.info("State already exists, returning existing state");
-        setOutputs({
-          has_state: "true",
-          iteration: String(state.iteration),
-          branch: state.branch,
-          pr_number: state.pr_number,
-          last_ci_run: state.last_ci_run,
-          last_ci_result: state.last_ci_result,
-          consecutive_failures: String(state.consecutive_failures),
-          failure_type: state.failure_type,
-          last_failure_timestamp: state.last_failure_timestamp,
-          complete: state.complete ? "true" : "false"
-        });
-        return;
-      }
-      state = getDefaultState(branchName);
-      const newBody = updateBodyWithState(currentBody, state);
-      await octokit.rest.issues.update({
-        owner,
-        repo,
-        issue_number: issueNumber,
-        body: newBody
-      });
-      core2.info(
-        `Initialized state for issue #${issueNumber} with branch ${branchName}`
-      );
-      setOutputs({
-        has_state: "true",
-        iteration: "0",
-        branch: branchName,
-        pr_number: "",
-        last_ci_run: "",
-        last_ci_result: "",
-        consecutive_failures: "0",
-        failure_type: "",
-        last_failure_timestamp: "",
-        complete: "false",
-        phase_iteration: "0",
-        last_phase: "0"
+        failures: String(state.failures),
+        issue_body: issue.body || "",
+        issue_state: issue.state || ""
       });
       return;
     }
     if (action === "update") {
-      if (!state) {
-        core2.setFailed("Cannot update state: no existing state found");
+      const status = getOptionalInput("status");
+      const iteration = getOptionalInput("iteration");
+      const failures = getOptionalInput("failures");
+      const response = await octokit.graphql(
+        GET_PROJECT_ITEM_QUERY,
+        {
+          org: owner,
+          repo,
+          issueNumber,
+          projectNumber
+        }
+      );
+      const issue = response.repository?.issue;
+      const projectData = response.organization?.projectV2;
+      if (!issue || !projectData) {
+        core2.setFailed(`Issue #${issueNumber} or project not found`);
         return;
       }
-      const prNumber = getOptionalInput("pr_number");
-      const lastCiRun = getOptionalInput("last_ci_run");
-      const lastCiResult = getOptionalInput("last_ci_result");
-      const iterationMessage = getOptionalInput("iteration_message");
-      const commitSha = getOptionalInput("commit_sha");
-      const runLink = getOptionalInput("run_link");
-      if (prNumber) {
-        state.pr_number = prNumber;
+      const projectItems = issue.projectItems?.nodes || [];
+      const projectFields = parseProjectFields(projectData);
+      let itemId = getProjectItemId(projectItems, projectNumber);
+      if (!projectFields) {
+        core2.setFailed("Failed to parse project fields");
+        return;
       }
-      if (lastCiRun) {
-        state.last_ci_run = lastCiRun;
-      }
-      if (lastCiResult) {
-        if (lastCiResult === "failure") {
-          state.consecutive_failures++;
-          state.failure_type = "ci";
-          state.last_failure_timestamp = (/* @__PURE__ */ new Date()).toISOString();
-        } else if (lastCiResult === "success") {
-          state.consecutive_failures = 0;
-          state.failure_type = "";
-          state.last_failure_timestamp = "";
-        }
-        state.last_ci_result = lastCiResult;
-      }
-      let newBody = updateBodyWithState(currentBody, state);
-      if (iterationMessage) {
-        let formattedMessage = iterationMessage;
-        if (lastCiResult === "failure") {
-          formattedMessage = `\u274C ${iterationMessage}`;
-        } else if (lastCiResult === "success") {
-          formattedMessage = `\u2705 ${iterationMessage}`;
-        } else if (lastCiResult === "cancelled") {
-          formattedMessage = `\u26A0\uFE0F ${iterationMessage}`;
-        }
-        newBody = addIterationLogEntry(
-          newBody,
-          state.iteration,
-          formattedMessage,
-          commitSha,
-          runLink
+      if (!itemId) {
+        core2.info(`Adding issue #${issueNumber} to project ${projectNumber}`);
+        const addResult = await octokit.graphql(
+          ADD_ISSUE_TO_PROJECT_MUTATION,
+          {
+            projectId: projectFields.projectId,
+            contentId: issue.id
+          }
         );
+        itemId = addResult.addProjectV2ItemById?.item?.id || null;
+        if (!itemId) {
+          core2.setFailed("Failed to add issue to project");
+          return;
+        }
       }
-      await octokit.rest.issues.update({
-        owner,
-        repo,
-        issue_number: issueNumber,
-        body: newBody
-      });
-      core2.info(`Updated state for issue #${issueNumber}`);
+      if (status) {
+        const optionId = projectFields.statusOptions[status];
+        if (optionId) {
+          await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+            projectId: projectFields.projectId,
+            itemId,
+            fieldId: projectFields.statusFieldId,
+            value: { singleSelectOptionId: optionId }
+          });
+          core2.info(`Updated Status to ${status}`);
+        } else {
+          core2.warning(`Status option '${status}' not found in project`);
+        }
+      }
+      if (iteration !== void 0) {
+        await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+          projectId: projectFields.projectId,
+          itemId,
+          fieldId: projectFields.iterationFieldId,
+          value: { number: parseFloat(iteration) }
+        });
+        core2.info(`Updated Iteration to ${iteration}`);
+      }
+      if (failures !== void 0) {
+        await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+          projectId: projectFields.projectId,
+          itemId,
+          fieldId: projectFields.failuresFieldId,
+          value: { number: parseFloat(failures) }
+        });
+        core2.info(`Updated Failures to ${failures}`);
+      }
       setOutputs({
-        has_state: "true",
-        iteration: String(state.iteration),
-        branch: state.branch,
-        pr_number: state.pr_number,
-        last_ci_run: state.last_ci_run,
-        last_ci_result: state.last_ci_result,
-        consecutive_failures: String(state.consecutive_failures),
-        failure_type: state.failure_type,
-        last_failure_timestamp: state.last_failure_timestamp,
-        complete: state.complete ? "true" : "false",
-        phase_iteration: String(state.phase_iteration),
-        last_phase: String(state.last_phase)
+        success: "true"
       });
       return;
     }
     if (action === "increment") {
-      if (!state) {
-        core2.setFailed("Cannot increment: no existing state found");
+      const response = await octokit.graphql(
+        GET_PROJECT_ITEM_QUERY,
+        {
+          org: owner,
+          repo,
+          issueNumber,
+          projectNumber
+        }
+      );
+      const issue = response.repository?.issue;
+      const projectData = response.organization?.projectV2;
+      if (!issue || !projectData) {
+        core2.setFailed(`Issue #${issueNumber} or project not found`);
         return;
       }
-      const currentPhaseInput = getOptionalInput("current_phase");
-      const currentPhase = currentPhaseInput ? parseInt(currentPhaseInput, 10) : 0;
-      let phaseChanged = false;
-      if (currentPhase > 0 && currentPhase !== state.last_phase) {
-        core2.info(
-          `Phase changed from ${state.last_phase} to ${currentPhase}, resetting phase_iteration`
-        );
-        state.phase_iteration = 0;
-        state.last_phase = currentPhase;
-        phaseChanged = true;
-      }
-      state.iteration++;
-      state.phase_iteration++;
-      const newBody = updateBodyWithState(currentBody, state);
-      await octokit.rest.issues.update({
-        owner,
-        repo,
-        issue_number: issueNumber,
-        body: newBody
-      });
-      core2.info(
-        `Incremented iteration to ${state.iteration} (phase ${state.last_phase}: ${state.phase_iteration}) for issue #${issueNumber}` + (phaseChanged ? " [phase changed]" : "")
+      const projectItems = issue.projectItems?.nodes || [];
+      const projectFields = parseProjectFields(projectData);
+      const itemId = getProjectItemId(projectItems, projectNumber);
+      const currentState = parseProjectStateFromResponse(
+        projectItems,
+        projectNumber
       );
+      if (!projectFields || !itemId) {
+        core2.setFailed(
+          "Issue not in project or failed to parse project fields"
+        );
+        return;
+      }
+      const newIteration = (currentState?.iteration || 0) + 1;
+      await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+        projectId: projectFields.projectId,
+        itemId,
+        fieldId: projectFields.iterationFieldId,
+        value: { number: newIteration }
+      });
+      core2.info(`Incremented Iteration to ${newIteration}`);
       setOutputs({
-        has_state: "true",
-        iteration: String(state.iteration),
-        branch: state.branch,
-        pr_number: state.pr_number,
-        last_ci_run: state.last_ci_run,
-        last_ci_result: state.last_ci_result,
-        consecutive_failures: String(state.consecutive_failures),
-        failure_type: state.failure_type,
-        last_failure_timestamp: state.last_failure_timestamp,
-        complete: state.complete ? "true" : "false",
-        phase_iteration: String(state.phase_iteration),
-        last_phase: String(state.last_phase)
+        iteration: String(newIteration),
+        success: "true"
       });
       return;
     }
     if (action === "record_failure") {
-      if (!state) {
-        core2.setFailed("Cannot record failure: no existing state found");
+      const response = await octokit.graphql(
+        GET_PROJECT_ITEM_QUERY,
+        {
+          org: owner,
+          repo,
+          issueNumber,
+          projectNumber
+        }
+      );
+      const issue = response.repository?.issue;
+      const projectData = response.organization?.projectV2;
+      if (!issue || !projectData) {
+        core2.setFailed(`Issue #${issueNumber} or project not found`);
         return;
       }
-      const failureType = getRequiredInput("failure_type");
-      const iterationMessage = getOptionalInput("iteration_message");
-      const commitSha = getOptionalInput("commit_sha");
-      const runLink = getOptionalInput("run_link");
-      state.consecutive_failures++;
-      state.failure_type = failureType;
-      state.last_failure_timestamp = (/* @__PURE__ */ new Date()).toISOString();
-      let newBody = updateBodyWithState(currentBody, state);
-      if (iterationMessage) {
-        newBody = addIterationLogEntry(
-          newBody,
-          state.iteration,
-          `\u274C ${failureType} failure: ${iterationMessage}`,
-          commitSha,
-          runLink
+      const projectItems = issue.projectItems?.nodes || [];
+      const projectFields = parseProjectFields(projectData);
+      const itemId = getProjectItemId(projectItems, projectNumber);
+      const currentState = parseProjectStateFromResponse(
+        projectItems,
+        projectNumber
+      );
+      if (!projectFields || !itemId) {
+        core2.setFailed(
+          "Issue not in project or failed to parse project fields"
         );
+        return;
       }
-      await octokit.rest.issues.update({
-        owner,
-        repo,
-        issue_number: issueNumber,
-        body: newBody
+      const newFailures = (currentState?.failures || 0) + 1;
+      await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+        projectId: projectFields.projectId,
+        itemId,
+        fieldId: projectFields.failuresFieldId,
+        value: { number: newFailures }
       });
-      core2.info(
-        `Recorded ${failureType} failure #${state.consecutive_failures} for issue #${issueNumber}`
+      core2.info(`Incremented Failures to ${newFailures}`);
+      setOutputs({
+        failures: String(newFailures),
+        success: "true"
+      });
+      return;
+    }
+    if (action === "clear_failures") {
+      const response = await octokit.graphql(
+        GET_PROJECT_ITEM_QUERY,
+        {
+          org: owner,
+          repo,
+          issueNumber,
+          projectNumber
+        }
       );
-      setOutputs({
-        has_state: "true",
-        iteration: String(state.iteration),
-        branch: state.branch,
-        pr_number: state.pr_number,
-        last_ci_run: state.last_ci_run,
-        last_ci_result: state.last_ci_result,
-        consecutive_failures: String(state.consecutive_failures),
-        failure_type: state.failure_type,
-        last_failure_timestamp: state.last_failure_timestamp,
-        complete: state.complete ? "true" : "false",
-        phase_iteration: String(state.phase_iteration),
-        last_phase: String(state.last_phase)
-      });
-      return;
-    }
-    if (action === "clear_failure") {
-      if (!state) {
-        core2.setFailed("Cannot clear failure: no existing state found");
+      const issue = response.repository?.issue;
+      const projectData = response.organization?.projectV2;
+      if (!issue || !projectData) {
+        core2.setFailed(`Issue #${issueNumber} or project not found`);
         return;
       }
-      state.consecutive_failures = 0;
-      state.failure_type = "";
-      state.last_failure_timestamp = "";
-      const newBody = updateBodyWithState(currentBody, state);
-      await octokit.rest.issues.update({
-        owner,
-        repo,
-        issue_number: issueNumber,
-        body: newBody
-      });
-      core2.info(`Cleared failure state for issue #${issueNumber}`);
-      setOutputs({
-        has_state: "true",
-        iteration: String(state.iteration),
-        branch: state.branch,
-        pr_number: state.pr_number,
-        last_ci_run: state.last_ci_run,
-        last_ci_result: state.last_ci_result,
-        consecutive_failures: "0",
-        failure_type: "",
-        last_failure_timestamp: "",
-        complete: state.complete ? "true" : "false",
-        phase_iteration: String(state.phase_iteration),
-        last_phase: String(state.last_phase)
-      });
-      return;
-    }
-    if (action === "complete") {
-      if (!state) {
-        core2.setFailed("Cannot mark complete: no existing state found");
-        return;
-      }
-      const runLink = getOptionalInput("run_link");
-      state.complete = true;
-      state.consecutive_failures = 0;
-      state.failure_type = "";
-      state.last_failure_timestamp = "";
-      let newBody = updateBodyWithState(currentBody, state);
-      newBody = addIterationLogEntry(
-        newBody,
-        state.iteration,
-        "\u2705 Complete",
-        void 0,
-        runLink
-      );
-      await octokit.rest.issues.update({
-        owner,
-        repo,
-        issue_number: issueNumber,
-        body: newBody
-      });
-      core2.info(`Marked issue #${issueNumber} as complete`);
-      setOutputs({
-        has_state: "true",
-        iteration: String(state.iteration),
-        branch: state.branch,
-        pr_number: state.pr_number,
-        last_ci_run: state.last_ci_run,
-        last_ci_result: state.last_ci_result,
-        consecutive_failures: "0",
-        failure_type: "",
-        last_failure_timestamp: "",
-        complete: "true",
-        phase_iteration: String(state.phase_iteration),
-        last_phase: String(state.last_phase)
-      });
-      return;
-    }
-    if (action === "reset") {
-      if (!state) {
-        core2.setFailed("Cannot reset: no existing state found");
-        return;
-      }
-      const iterationMessage = getOptionalInput("iteration_message");
-      state.consecutive_failures = 0;
-      state.failure_type = "";
-      state.last_failure_timestamp = "";
-      state.complete = false;
-      state.last_ci_result = "";
-      state.phase_iteration = 0;
-      let newBody = updateBodyWithState(currentBody, state);
-      if (iterationMessage) {
-        newBody = addIterationLogEntry(
-          newBody,
-          state.iteration,
-          `\u{1F504} ${iterationMessage}`
+      const projectItems = issue.projectItems?.nodes || [];
+      const projectFields = parseProjectFields(projectData);
+      const itemId = getProjectItemId(projectItems, projectNumber);
+      if (!projectFields || !itemId) {
+        core2.setFailed(
+          "Issue not in project or failed to parse project fields"
         );
+        return;
       }
-      await octokit.rest.issues.update({
-        owner,
-        repo,
-        issue_number: issueNumber,
-        body: newBody
+      await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+        projectId: projectFields.projectId,
+        itemId,
+        fieldId: projectFields.failuresFieldId,
+        value: { number: 0 }
       });
-      core2.info(
-        `Reset failure state for issue #${issueNumber} (preserving iteration ${state.iteration})`
-      );
+      core2.info("Cleared Failures to 0");
       setOutputs({
-        has_state: "true",
-        iteration: String(state.iteration),
-        branch: state.branch,
-        pr_number: state.pr_number,
-        last_ci_run: state.last_ci_run,
-        last_ci_result: "",
-        consecutive_failures: "0",
-        failure_type: "",
-        last_failure_timestamp: "",
-        complete: "false",
-        phase_iteration: String(state.phase_iteration),
-        last_phase: String(state.last_phase)
+        failures: "0",
+        success: "true"
       });
       return;
     }
-    if (action === "log_event") {
-      if (!state) {
-        core2.setFailed("Cannot log event: no existing state found");
+    if (action === "append_history") {
+      const phase = getOptionalInput("phase") || "-";
+      const message = getRequiredInput("message");
+      const sha = getOptionalInput("commit_sha");
+      const runLink = getOptionalInput("run_link");
+      const response = await octokit.graphql(
+        GET_PROJECT_ITEM_QUERY,
+        {
+          org: owner,
+          repo,
+          issueNumber,
+          projectNumber
+        }
+      );
+      const issue = response.repository?.issue;
+      if (!issue) {
+        core2.setFailed(`Issue #${issueNumber} not found`);
         return;
       }
-      const iterationMessage = getRequiredInput("iteration_message");
-      const commitSha = getOptionalInput("commit_sha");
-      const runLink = getOptionalInput("run_link");
+      const projectItems = issue.projectItems?.nodes || [];
+      const currentState = parseProjectStateFromResponse(
+        projectItems,
+        projectNumber
+      );
+      const iteration = currentState?.iteration || 0;
       const newBody = addIterationLogEntry(
-        currentBody,
-        state.iteration,
-        iterationMessage,
-        commitSha,
+        issue.body || "",
+        iteration,
+        phase,
+        message,
+        sha,
         runLink
       );
       await octokit.rest.issues.update({
@@ -24654,255 +24462,433 @@ async function run() {
         issue_number: issueNumber,
         body: newBody
       });
-      core2.info(`Logged event for issue #${issueNumber}: ${iterationMessage}`);
+      core2.info(`Appended history entry: Phase ${phase}, ${message}`);
       setOutputs({
-        has_state: "true",
-        iteration: String(state.iteration),
-        branch: state.branch,
-        pr_number: state.pr_number,
-        last_ci_run: state.last_ci_run,
-        last_ci_result: state.last_ci_result,
-        consecutive_failures: String(state.consecutive_failures),
-        failure_type: state.failure_type,
-        last_failure_timestamp: state.last_failure_timestamp,
-        complete: state.complete ? "true" : "false",
-        phase_iteration: String(state.phase_iteration),
-        last_phase: String(state.last_phase)
+        success: "true"
       });
       return;
     }
-    if (action === "update_log_entry") {
-      if (!state) {
-        core2.setFailed("Cannot update log entry: no existing state found");
-        return;
-      }
-      const runLink = getRequiredInput("run_link");
-      const iterationMessage = getRequiredInput("iteration_message");
-      const commitSha = getOptionalInput("commit_sha");
-      let newBody = updateIterationLogEntry(
-        currentBody,
-        runLink,
-        iterationMessage,
-        commitSha
+    if (action === "get_current_phase") {
+      const parentNumber = parseInt(
+        getOptionalInput("parent_issue") || String(issueNumber),
+        10
       );
-      if (newBody === currentBody) {
-        core2.info(
-          `No existing entry found for run link, adding new entry instead`
-        );
-        newBody = addIterationLogEntry(
-          currentBody,
-          state.iteration,
-          iterationMessage,
-          commitSha,
-          runLink
-        );
-      }
-      await octokit.rest.issues.update({
-        owner,
-        repo,
-        issue_number: issueNumber,
-        body: newBody
-      });
-      core2.info(
-        `Updated log entry for issue #${issueNumber}: ${iterationMessage}`
+      const response = await octokit.graphql(
+        GET_SUB_ISSUES_QUERY,
+        {
+          org: owner,
+          repo,
+          parentNumber,
+          projectNumber
+        }
       );
-      setOutputs({
-        has_state: "true",
-        iteration: String(state.iteration),
-        branch: state.branch,
-        pr_number: state.pr_number,
-        last_ci_run: state.last_ci_run,
-        last_ci_result: state.last_ci_result,
-        consecutive_failures: String(state.consecutive_failures),
-        failure_type: state.failure_type,
-        last_failure_timestamp: state.last_failure_timestamp,
-        complete: state.complete ? "true" : "false",
-        phase_iteration: String(state.phase_iteration),
-        last_phase: String(state.last_phase)
-      });
-      return;
-    }
-    if (action === "parse_phases") {
-      const phaseInfo = parsePhases(currentBody);
-      core2.info(
-        `Parsed phases for issue #${issueNumber}: Phase ${phaseInfo.current_phase}/${phaseInfo.total_phases}, current phase done: ${phaseInfo.current_phase_todos_done}, all done: ${phaseInfo.all_phases_done}`
-      );
-      setOutputs({
-        current_phase: String(phaseInfo.current_phase),
-        total_phases: String(phaseInfo.total_phases),
-        current_phase_todos_done: phaseInfo.current_phase_todos_done ? "true" : "false",
-        all_phases_done: phaseInfo.all_phases_done ? "true" : "false",
-        current_phase_title: phaseInfo.current_phase_title
-      });
-      return;
-    }
-    if (action === "read_main") {
-      const mainState = parseMainState(currentBody);
-      if (!mainState) {
-        setOutputs({
-          has_main_state: "false",
-          orchestration_iteration: "0",
-          sub_issues: "",
-          current_sub_issue: "0",
-          sub_issue_status: "{}",
-          main_complete: "false"
-        });
-        return;
-      }
-      setOutputs({
-        has_main_state: "true",
-        orchestration_iteration: String(mainState.orchestration_iteration),
-        sub_issues: mainState.sub_issues.join(","),
-        current_sub_issue: String(mainState.current_sub_issue),
-        sub_issue_status: JSON.stringify(mainState.sub_issue_status),
-        main_complete: mainState.complete ? "true" : "false"
-      });
-      return;
-    }
-    if (action === "init_main") {
-      const subIssuesInput = getRequiredInput("sub_issues");
-      const subIssues = subIssuesInput.split(",").map((s) => parseInt(s.trim(), 10)).filter((n) => !isNaN(n) && n > 0);
+      const subIssuesData = response.repository?.issue?.subIssues;
+      const subIssues = parseSubIssues(subIssuesData, projectNumber);
       if (subIssues.length === 0) {
-        core2.setFailed("Cannot init_main: no valid sub-issues provided");
-        return;
-      }
-      let mainState = parseMainState(currentBody);
-      if (mainState) {
-        core2.info("Main state already exists, returning existing state");
         setOutputs({
-          has_main_state: "true",
-          orchestration_iteration: String(mainState.orchestration_iteration),
-          sub_issues: mainState.sub_issues.join(","),
-          current_sub_issue: String(mainState.current_sub_issue),
-          sub_issue_status: JSON.stringify(mainState.sub_issue_status),
-          main_complete: mainState.complete ? "true" : "false"
+          has_sub_issues: "false",
+          current_phase: "0",
+          current_sub_issue: "0",
+          total_phases: "0",
+          all_phases_done: "false"
         });
         return;
       }
-      mainState = getDefaultMainState();
-      mainState.sub_issues = subIssues;
-      mainState.current_sub_issue = subIssues[0];
-      mainState.sub_issue_status = Object.fromEntries(
-        subIssues.map((num) => [num, "pending"])
+      const currentPhase = getCurrentPhase(subIssues);
+      const allDone = subIssues.every(
+        (s) => s.status === "Done" || s.state === "closed"
       );
-      const newBody = updateBodyWithMainState(currentBody, mainState);
+      if (currentPhase) {
+        const branch = deriveBranch(parentNumber, currentPhase.phaseNumber);
+        setOutputs({
+          has_sub_issues: "true",
+          current_phase: String(currentPhase.phaseNumber),
+          current_sub_issue: String(currentPhase.subIssueNumber),
+          current_phase_status: currentPhase.status,
+          total_phases: String(subIssues.length),
+          all_phases_done: "false",
+          branch,
+          sub_issues: subIssues.map((s) => s.number).join(",")
+        });
+      } else {
+        setOutputs({
+          has_sub_issues: "true",
+          current_phase: String(subIssues.length),
+          current_sub_issue: "0",
+          current_phase_status: "Done",
+          total_phases: String(subIssues.length),
+          all_phases_done: String(allDone),
+          sub_issues: subIssues.map((s) => s.number).join(",")
+        });
+      }
+      return;
+    }
+    if (action === "init_parent") {
+      const subIssuesInput = getRequiredInput("sub_issues");
+      const subIssueNumbers = subIssuesInput.split(",").map((s) => parseInt(s.trim(), 10)).filter((n) => !isNaN(n) && n > 0);
+      if (subIssueNumbers.length === 0) {
+        core2.setFailed("No valid sub-issue numbers provided");
+        return;
+      }
+      const response = await octokit.graphql(
+        GET_PROJECT_ITEM_QUERY,
+        {
+          org: owner,
+          repo,
+          issueNumber,
+          projectNumber
+        }
+      );
+      const issue = response.repository?.issue;
+      const projectData = response.organization?.projectV2;
+      if (!issue || !projectData) {
+        core2.setFailed(`Issue #${issueNumber} or project not found`);
+        return;
+      }
+      const projectFields = parseProjectFields(projectData);
+      if (!projectFields) {
+        core2.setFailed("Failed to parse project fields");
+        return;
+      }
+      const projectItems = issue.projectItems?.nodes || [];
+      let itemId = getProjectItemId(projectItems, projectNumber);
+      if (!itemId) {
+        const addResult = await octokit.graphql(
+          ADD_ISSUE_TO_PROJECT_MUTATION,
+          {
+            projectId: projectFields.projectId,
+            contentId: issue.id
+          }
+        );
+        itemId = addResult.addProjectV2ItemById?.item?.id || null;
+      }
+      if (!itemId) {
+        core2.setFailed("Failed to add parent issue to project");
+        return;
+      }
+      const statusOptionId = projectFields.statusOptions["In Progress"];
+      if (statusOptionId) {
+        await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+          projectId: projectFields.projectId,
+          itemId,
+          fieldId: projectFields.statusFieldId,
+          value: { singleSelectOptionId: statusOptionId }
+        });
+      }
+      await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+        projectId: projectFields.projectId,
+        itemId,
+        fieldId: projectFields.iterationFieldId,
+        value: { number: 0 }
+      });
+      await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+        projectId: projectFields.projectId,
+        itemId,
+        fieldId: projectFields.failuresFieldId,
+        value: { number: 0 }
+      });
+      const newBody = addIterationLogEntry(
+        issue.body || "",
+        0,
+        "-",
+        `Initialized with ${subIssueNumbers.length} phases`
+      );
       await octokit.rest.issues.update({
         owner,
         repo,
         issue_number: issueNumber,
         body: newBody
       });
-      core2.info(
-        `Initialized main state for issue #${issueNumber} with ${subIssues.length} sub-issues`
+      const firstSubIssue = subIssueNumbers[0];
+      const subIssueResponse = await octokit.graphql(
+        GET_PROJECT_ITEM_QUERY,
+        {
+          org: owner,
+          repo,
+          issueNumber: firstSubIssue,
+          projectNumber
+        }
       );
-      setOutputs({
-        has_main_state: "true",
-        orchestration_iteration: "0",
-        sub_issues: subIssues.join(","),
-        current_sub_issue: String(subIssues[0]),
-        sub_issue_status: JSON.stringify(mainState.sub_issue_status),
-        main_complete: "false"
-      });
-      return;
-    }
-    if (action === "update_main") {
-      const mainState = parseMainState(currentBody);
-      if (!mainState) {
-        core2.setFailed("Cannot update_main: no existing main state found");
-        return;
-      }
-      const currentSubIssue = getOptionalInput("current_sub_issue");
-      const subIssueStatusInput = getOptionalInput("sub_issue_status");
-      if (currentSubIssue) {
-        mainState.current_sub_issue = parseInt(currentSubIssue, 10);
-      }
-      if (subIssueStatusInput) {
-        try {
-          mainState.sub_issue_status = JSON.parse(subIssueStatusInput);
-        } catch {
-          core2.warning(
-            "Failed to parse sub_issue_status JSON, skipping update"
+      const subIssue = subIssueResponse.repository?.issue;
+      if (subIssue) {
+        const subProjectItems = subIssue.projectItems?.nodes || [];
+        let subItemId = getProjectItemId(subProjectItems, projectNumber);
+        if (!subItemId) {
+          const addResult = await octokit.graphql(
+            ADD_ISSUE_TO_PROJECT_MUTATION,
+            {
+              projectId: projectFields.projectId,
+              contentId: subIssue.id
+            }
           );
+          subItemId = addResult.addProjectV2ItemById?.item?.id || null;
+        }
+        if (subItemId) {
+          const workingOptionId = projectFields.statusOptions["Working"];
+          if (workingOptionId) {
+            await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+              projectId: projectFields.projectId,
+              itemId: subItemId,
+              fieldId: projectFields.statusFieldId,
+              value: { singleSelectOptionId: workingOptionId }
+            });
+          }
         }
       }
-      const newBody = updateBodyWithMainState(currentBody, mainState);
-      await octokit.rest.issues.update({
-        owner,
-        repo,
-        issue_number: issueNumber,
-        body: newBody
-      });
-      core2.info(`Updated main state for issue #${issueNumber}`);
+      core2.info(
+        `Initialized parent #${issueNumber} with ${subIssueNumbers.length} sub-issues`
+      );
+      const branch = deriveBranch(issueNumber, 1);
       setOutputs({
-        has_main_state: "true",
-        orchestration_iteration: String(mainState.orchestration_iteration),
-        sub_issues: mainState.sub_issues.join(","),
-        current_sub_issue: String(mainState.current_sub_issue),
-        sub_issue_status: JSON.stringify(mainState.sub_issue_status),
-        main_complete: mainState.complete ? "true" : "false"
+        success: "true",
+        current_phase: "1",
+        current_sub_issue: String(firstSubIssue),
+        total_phases: String(subIssueNumbers.length),
+        branch
       });
       return;
     }
     if (action === "advance_phase") {
-      const mainState = parseMainState(currentBody);
-      if (!mainState) {
-        core2.setFailed("Cannot advance_phase: no existing main state found");
+      const completedSubIssue = parseInt(
+        getRequiredInput("completed_sub_issue"),
+        10
+      );
+      const parentIssue = parseInt(
+        getOptionalInput("parent_issue") || String(issueNumber),
+        10
+      );
+      const response = await octokit.graphql(
+        `
+        query GetParentAndSubIssues($org: String!, $repo: String!, $parentNumber: Int!, $projectNumber: Int!) {
+          repository(owner: $org, name: $repo) {
+            issue(number: $parentNumber) {
+              id
+              body
+              projectItems(first: 10) {
+                nodes {
+                  id
+                  project {
+                    number
+                  }
+                }
+              }
+              subIssues(first: 20) {
+                nodes {
+                  id
+                  number
+                  title
+                  state
+                  projectItems(first: 10) {
+                    nodes {
+                      id
+                      project {
+                        number
+                      }
+                      fieldValues(first: 20) {
+                        nodes {
+                          ... on ProjectV2ItemFieldSingleSelectValue {
+                            name
+                            field {
+                              ... on ProjectV2SingleSelectField {
+                                name
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          organization(login: $org) {
+            projectV2(number: $projectNumber) {
+              id
+              fields(first: 20) {
+                nodes {
+                  ... on ProjectV2SingleSelectField {
+                    id
+                    name
+                    options {
+                      id
+                      name
+                    }
+                  }
+                  ... on ProjectV2Field {
+                    id
+                    name
+                    dataType
+                  }
+                }
+              }
+            }
+          }
+        }
+      `,
+        {
+          org: owner,
+          repo,
+          parentNumber: parentIssue,
+          projectNumber
+        }
+      );
+      const parent = response.repository?.issue;
+      const projectData = response.organization?.projectV2;
+      if (!parent || !projectData) {
+        core2.setFailed(`Parent issue #${parentIssue} or project not found`);
         return;
       }
-      const completedSubIssue = getRequiredInput("completed_sub_issue");
-      const completedNum = parseInt(completedSubIssue, 10);
-      mainState.sub_issue_status[completedNum] = "merged";
-      mainState.orchestration_iteration++;
-      const nextPending = mainState.sub_issues.find(
-        (num) => mainState.sub_issue_status[num] === "pending"
-      );
-      if (nextPending) {
-        mainState.current_sub_issue = nextPending;
-        mainState.sub_issue_status[nextPending] = "in_progress";
-        core2.info(
-          `Advanced from sub-issue #${completedNum} to #${nextPending}`
-        );
-      } else {
-        mainState.complete = true;
-        core2.info(`All sub-issues complete for issue #${issueNumber}`);
+      const projectFields = parseProjectFields(projectData);
+      if (!projectFields) {
+        core2.setFailed("Failed to parse project fields");
+        return;
       }
-      const newBody = updateBodyWithMainState(currentBody, mainState);
-      await octokit.rest.issues.update({
-        owner,
-        repo,
-        issue_number: issueNumber,
-        body: newBody
-      });
-      setOutputs({
-        has_main_state: "true",
-        orchestration_iteration: String(mainState.orchestration_iteration),
-        sub_issues: mainState.sub_issues.join(","),
-        current_sub_issue: String(mainState.current_sub_issue),
-        sub_issue_status: JSON.stringify(mainState.sub_issue_status),
-        main_complete: mainState.complete ? "true" : "false",
-        next_sub_issue: nextPending ? String(nextPending) : ""
-      });
+      const subIssues = parseSubIssues(parent.subIssues, projectNumber);
+      const parentItems = parent.projectItems?.nodes || [];
+      const parentItemId = getProjectItemId(parentItems, projectNumber);
+      const completedIdx = subIssues.findIndex(
+        (s) => s.number === completedSubIssue
+      );
+      const completedSubIssueObj = subIssues[completedIdx];
+      if (completedIdx >= 0 && completedSubIssueObj) {
+        completedSubIssueObj.status = "Done";
+      }
+      const nextPhase = getCurrentPhase(subIssues);
+      if (nextPhase) {
+        const subIssueResponse = await octokit.graphql(
+          GET_PROJECT_ITEM_QUERY,
+          {
+            org: owner,
+            repo,
+            issueNumber: nextPhase.subIssueNumber,
+            projectNumber
+          }
+        );
+        const subIssue = subIssueResponse.repository?.issue;
+        if (subIssue) {
+          const subProjectItems = subIssue.projectItems?.nodes || [];
+          let subItemId = getProjectItemId(subProjectItems, projectNumber);
+          if (!subItemId) {
+            const addResult = await octokit.graphql(
+              ADD_ISSUE_TO_PROJECT_MUTATION,
+              {
+                projectId: projectFields.projectId,
+                contentId: subIssue.id
+              }
+            );
+            subItemId = addResult.addProjectV2ItemById?.item?.id || null;
+          }
+          if (subItemId) {
+            const workingOptionId = projectFields.statusOptions["Working"];
+            if (workingOptionId) {
+              await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+                projectId: projectFields.projectId,
+                itemId: subItemId,
+                fieldId: projectFields.statusFieldId,
+                value: { singleSelectOptionId: workingOptionId }
+              });
+            }
+          }
+        }
+        const newBody = addIterationLogEntry(
+          parent.body || "",
+          0,
+          // Will be overwritten by increment
+          `Phase ${nextPhase.phaseNumber}`,
+          `Started (after Phase ${completedIdx + 1} merged)`
+        );
+        await octokit.rest.issues.update({
+          owner,
+          repo,
+          issue_number: parentIssue,
+          body: newBody
+        });
+        const branch = deriveBranch(parentIssue, nextPhase.phaseNumber);
+        core2.info(
+          `Advanced to Phase ${nextPhase.phaseNumber} (sub-issue #${nextPhase.subIssueNumber})`
+        );
+        setOutputs({
+          success: "true",
+          next_phase: String(nextPhase.phaseNumber),
+          next_sub_issue: String(nextPhase.subIssueNumber),
+          all_phases_done: "false",
+          branch
+        });
+      } else {
+        if (parentItemId) {
+          const doneOptionId = projectFields.statusOptions["Done"];
+          if (doneOptionId) {
+            await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+              projectId: projectFields.projectId,
+              itemId: parentItemId,
+              fieldId: projectFields.statusFieldId,
+              value: { singleSelectOptionId: doneOptionId }
+            });
+          }
+        }
+        const newBody = addIterationLogEntry(
+          parent.body || "",
+          0,
+          "-",
+          "All phases complete"
+        );
+        await octokit.rest.issues.update({
+          owner,
+          repo,
+          issue_number: parentIssue,
+          body: newBody
+        });
+        await octokit.rest.issues.update({
+          owner,
+          repo,
+          issue_number: parentIssue,
+          state: "closed"
+        });
+        core2.info(`All phases complete for parent #${parentIssue}`);
+        setOutputs({
+          success: "true",
+          all_phases_done: "true"
+        });
+      }
       return;
     }
-    if (action === "update_phases_table") {
-      const subIssuesDataInput = getRequiredInput("sub_issues_data");
-      let subIssuesData;
-      try {
-        subIssuesData = JSON.parse(subIssuesDataInput);
-      } catch {
-        core2.setFailed("Failed to parse sub_issues_data JSON");
+    if (action === "set_blocked") {
+      const reason = getOptionalInput("reason") || "Max failures reached";
+      const response = await octokit.graphql(
+        GET_PROJECT_ITEM_QUERY,
+        {
+          org: owner,
+          repo,
+          issueNumber,
+          projectNumber
+        }
+      );
+      const issue = response.repository?.issue;
+      const projectData = response.organization?.projectV2;
+      if (!issue || !projectData) {
+        core2.setFailed(`Issue #${issueNumber} or project not found`);
         return;
       }
-      const newBody = updatePhasesTable(currentBody, subIssuesData);
-      await octokit.rest.issues.update({
-        owner,
-        repo,
-        issue_number: issueNumber,
-        body: newBody
-      });
-      core2.info(
-        `Updated phases table for issue #${issueNumber} with ${subIssuesData.length} phases`
-      );
+      const projectItems = issue.projectItems?.nodes || [];
+      const projectFields = parseProjectFields(projectData);
+      const itemId = getProjectItemId(projectItems, projectNumber);
+      if (!projectFields || !itemId) {
+        core2.setFailed(
+          "Issue not in project or failed to parse project fields"
+        );
+        return;
+      }
+      const blockedOptionId = projectFields.statusOptions["Blocked"];
+      if (blockedOptionId) {
+        await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+          projectId: projectFields.projectId,
+          itemId,
+          fieldId: projectFields.statusFieldId,
+          value: { singleSelectOptionId: blockedOptionId }
+        });
+      }
+      core2.info(`Set issue #${issueNumber} to Blocked: ${reason}`);
       setOutputs({
         success: "true"
       });

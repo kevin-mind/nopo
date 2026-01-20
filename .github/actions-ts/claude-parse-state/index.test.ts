@@ -303,6 +303,8 @@ describe("serializeState", () => {
       complete: false,
       phase_iteration: 0,
       last_phase: 0,
+      parent_issue: 0,
+      phase_number: 0,
     };
 
     const serialized = serializeState(state);
@@ -329,6 +331,8 @@ describe("updateBodyWithState", () => {
       complete: false,
       phase_iteration: 0,
       last_phase: 0,
+      parent_issue: 0,
+      phase_number: 0,
     };
 
     const updated = updateBodyWithState(body, state);
@@ -366,6 +370,8 @@ Content`;
       complete: false,
       phase_iteration: 0,
       last_phase: 0,
+      parent_issue: 0,
+      phase_number: 0,
     };
 
     const updated = updateBodyWithState(body, state);
@@ -460,6 +466,8 @@ describe("state transitions", () => {
         complete: false,
         phase_iteration: 3,
         last_phase: 1,
+        parent_issue: 0,
+        phase_number: 0,
       };
 
       const reset = resetState(state);
@@ -484,6 +492,8 @@ describe("state transitions", () => {
         complete: false,
         phase_iteration: 3,
         last_phase: 1,
+        parent_issue: 0,
+        phase_number: 0,
       };
 
       const reset = resetState(state);
@@ -506,6 +516,8 @@ describe("state transitions", () => {
         complete: true,
         phase_iteration: 5,
         last_phase: 2,
+        parent_issue: 0,
+        phase_number: 0,
       };
 
       const reset = resetState(state);
@@ -527,6 +539,8 @@ describe("state transitions", () => {
         complete: false,
         phase_iteration: 2,
         last_phase: 1,
+        parent_issue: 0,
+        phase_number: 0,
       };
 
       const failed = recordFailure(state, "ci");
@@ -548,6 +562,8 @@ describe("state transitions", () => {
         complete: false,
         phase_iteration: 2,
         last_phase: 1,
+        parent_issue: 0,
+        phase_number: 0,
       };
 
       const failed = recordFailure(state, "workflow");
@@ -570,6 +586,8 @@ describe("state transitions", () => {
         complete: false,
         phase_iteration: 3,
         last_phase: 1,
+        parent_issue: 0,
+        phase_number: 0,
       };
 
       const completed = markComplete(state);
@@ -594,6 +612,8 @@ describe("state transitions", () => {
         complete: false,
         phase_iteration: 2,
         last_phase: 1,
+        parent_issue: 0,
+        phase_number: 0,
       };
 
       const incremented = incrementIteration(state);
@@ -739,9 +759,11 @@ ${entry}`;
     // Find last table row after history section
     let insertIdx = historyLineIdx + 1;
     for (let i = historyLineIdx + 1; i < lines.length; i++) {
-      if (lines[i].startsWith("|")) {
+      const line = lines[i];
+      if (!line) continue;
+      if (line.startsWith("|")) {
         insertIdx = i + 1;
-      } else if (lines[i].trim() !== "" && !lines[i].startsWith("|")) {
+      } else if (line.trim() !== "" && !line.startsWith("|")) {
         break;
       }
     }
@@ -948,6 +970,7 @@ function updateIterationLogEntry(
   let foundIdx = -1;
   for (let i = historyLineIdx + 1; i < lines.length; i++) {
     const line = lines[i];
+    if (!line) continue;
     if (line.startsWith("|") && line.includes(runLink)) {
       foundIdx = i;
       break;
@@ -961,8 +984,11 @@ function updateIterationLogEntry(
   }
 
   const existingRow = lines[foundIdx];
+  if (!existingRow) {
+    return body;
+  }
   const match = existingRow.match(/^\|\s*(\d+)\s*\|/);
-  if (!match) {
+  if (!match?.[1]) {
     return body;
   }
 
@@ -1163,6 +1189,8 @@ describe("phase iteration tracking", () => {
       complete: false,
       phase_iteration: 2,
       last_phase: 1,
+      parent_issue: 0,
+      phase_number: 0,
     };
 
     const incremented = incrementWithPhase(state, 1);
@@ -1184,6 +1212,8 @@ describe("phase iteration tracking", () => {
       complete: false,
       phase_iteration: 5,
       last_phase: 1,
+      parent_issue: 0,
+      phase_number: 0,
     };
 
     // Phase changes from 1 to 2
@@ -1218,6 +1248,8 @@ describe("phase iteration tracking", () => {
       complete: false,
       phase_iteration: 10,
       last_phase: 1,
+      parent_issue: 0,
+      phase_number: 0,
     };
 
     // Human reviews and moves to Phase 2
@@ -1243,6 +1275,8 @@ describe("phase iteration tracking", () => {
       complete: false,
       phase_iteration: 0,
       last_phase: 0,
+      parent_issue: 0,
+      phase_number: 0,
     };
 
     // Phase 1: 3 iterations
@@ -1280,6 +1314,8 @@ describe("phase iteration tracking", () => {
       complete: false,
       phase_iteration: 0,
       last_phase: 0,
+      parent_issue: 0,
+      phase_number: 0,
     };
 
     // First increment with phase 1
@@ -1302,6 +1338,8 @@ describe("phase iteration tracking", () => {
       complete: false,
       phase_iteration: 2,
       last_phase: 1,
+      parent_issue: 0,
+      phase_number: 0,
     };
 
     // No phase input (undefined) - should just increment both
@@ -1337,9 +1375,12 @@ function parsePhases(body: string): PhaseInfo {
 
   let match;
   while ((match = phaseRegex.exec(body)) !== null) {
+    const phaseNum = match[1];
+    const phaseTitle = match[2];
+    if (!phaseNum || !phaseTitle) continue;
     phases.push({
-      number: parseInt(match[1], 10),
-      title: match[2].trim(),
+      number: parseInt(phaseNum, 10),
+      title: phaseTitle.trim(),
       startIndex: match.index,
     });
   }
@@ -1366,6 +1407,7 @@ function parsePhases(body: string): PhaseInfo {
 
   for (let i = 0; i < phases.length; i++) {
     const phase = phases[i];
+    if (!phase) continue;
     const nextPhase = phases[i + 1];
     const endIndex = nextPhase ? nextPhase.startIndex : body.length;
     const phaseContent = body.slice(phase.startIndex, endIndex);
@@ -1380,10 +1422,9 @@ function parsePhases(body: string): PhaseInfo {
   }
 
   const currentPhaseData = phaseCompletion.find((p) => p.uncheckedCount > 0);
-  const currentPhase =
-    currentPhaseData?.number || phases[phases.length - 1].number;
-  const currentPhaseTitle =
-    currentPhaseData?.title || phases[phases.length - 1].title;
+  const lastPhase = phases[phases.length - 1];
+  const currentPhase = currentPhaseData?.number || lastPhase?.number || 1;
+  const currentPhaseTitle = currentPhaseData?.title || lastPhase?.title || "";
 
   const currentPhaseInfo = phaseCompletion.find(
     (p) => p.number === currentPhase,

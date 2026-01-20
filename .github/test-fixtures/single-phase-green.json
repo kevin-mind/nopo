@@ -1,0 +1,33 @@
+{
+  "name": "single-phase-green",
+  "description": "Single sub-issue, CI passes first time - verifies happy path",
+  "job_type": "issue-iterate",
+  "parent_issue": {
+    "title": "Implement simple feature",
+    "body": "## Description\n\nAdd a simple feature that should pass CI on first try.\n\n## Requirements\n\n- Add a single file with a function\n- Include basic tests\n\n## Acceptance Criteria\n\n- [ ] Feature implemented\n- [ ] Tests pass",
+    "labels": ["enhancement"],
+    "project_fields": {
+      "Status": "In Progress",
+      "Iteration": 0,
+      "Failures": 0
+    }
+  },
+  "sub_issues": [
+    {
+      "title": "Implement feature",
+      "body": "## Todos\n\n- [ ] Add feature code in src/feature.ts\n- [ ] Add tests in src/feature.test.ts\n\n## Testing\n\n- [ ] npm test passes",
+      "project_fields": {
+        "Status": "Working"
+      }
+    }
+  ],
+  "expected": {
+    "parent_status": "Done",
+    "sub_issue_statuses": ["Done"],
+    "issue_state": "closed",
+    "min_iteration": 1,
+    "failures": 0
+  },
+  "timeout": 300,
+  "poll_interval": 10
+}

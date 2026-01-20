@@ -1,120 +1,100 @@
-name: Claude Parse Issue State
-description: Parses and updates iteration state from/to issue body
+name: Claude Project State
+description: Manages Claude automation state via GitHub Project fields
 
 inputs:
   github_token:
-    description: GitHub token for API calls
+    description: GitHub token for API calls (requires project read/write permissions)
     required: true
   issue_number:
     description: Issue number to read/update state from
     required: true
   action:
-    description: Action to perform (read, init, update, increment, record_failure, clear_failure, complete, reset, log_event, update_log_entry, parse_phases, read_main, init_main, update_main, advance_phase, update_phases_table)
+    description: |
+      Action to perform:
+      - read: Read project state (Status, Iteration, Failures)
+      - update: Update project fields (Status, Iteration, Failures)
+      - increment: Increment the Iteration counter
+      - record_failure: Increment the Failures counter
+      - clear_failures: Reset Failures to 0
+      - append_history: Append entry to Iteration History in parent issue body
+      - get_current_phase: Get current phase from sub-issues
+      - init_parent: Initialize parent issue with sub-issues
+      - advance_phase: Advance to next phase after current is merged
+      - set_blocked: Set issue status to Blocked (circuit breaker)
     required: true
-  branch_name:
-    description: Branch name (required for init)
+  project_number:
+    description: GitHub Project number (defaults to 1)
     required: false
-  pr_number:
-    description: PR number (optional, for update)
+    default: "1"
+  status:
+    description: Status value to set (for update action)
     required: false
-  last_ci_run:
-    description: Last CI run ID (for update)
+  iteration:
+    description: Iteration value to set (for update action)
     required: false
-  last_ci_result:
-    description: Last CI result - success, failure, pending (for update)
+  failures:
+    description: Failures value to set (for update action)
     required: false
-  failure_type:
-    description: Type of failure - ci, workflow (for record_failure)
+  phase:
+    description: Phase identifier for history entry (for append_history action)
     required: false
-  iteration_message:
-    description: Message to add to iteration log (for update, record_failure)
+  message:
+    description: Message for history entry (for append_history action)
     required: false
   commit_sha:
-    description: Commit SHA for iteration log entry
+    description: Commit SHA for history entry
     required: false
   run_link:
-    description: Workflow run link for iteration log entry
-    required: false
-  current_phase:
-    description: Current phase number (for increment - detects phase change and resets phase_iteration)
+    description: Workflow run link for history entry
     required: false
   parent_issue:
-    description: Parent issue number (for init - when initializing a sub-issue)
-    required: false
-  phase_number:
-    description: Phase number within parent (for init - when initializing a sub-issue)
+    description: Parent issue number (for get_current_phase, advance_phase)
     required: false
   sub_issues:
-    description: Comma-separated list of sub-issue numbers (for init_main)
-    required: false
-  current_sub_issue:
-    description: Current sub-issue number (for update_main)
-    required: false
-  sub_issue_status:
-    description: JSON object of sub-issue status (for update_main)
+    description: Comma-separated list of sub-issue numbers (for init_parent)
     required: false
   completed_sub_issue:
     description: Sub-issue number that was completed (for advance_phase)
     required: false
-  sub_issues_data:
-    description: JSON array of {number, title, status} for updating phases table
+  reason:
+    description: Reason for blocking (for set_blocked action)
     required: false
 
 outputs:
+  has_state:
+    description: Whether state was found in project (true/false)
+  status:
+    description: Current status value from project
   iteration:
     description: Current iteration number
-  branch:
-    description: Branch name for this issue
-  pr_number:
-    description: PR number if one exists
-  last_ci_run:
-    description: Last CI run ID
-  last_ci_result:
-    description: Last CI result (success, failure, pending)
-  consecutive_failures:
-    description: Number of consecutive failures (CI or workflow)
-  failure_type:
-    description: Type of last failure (ci, workflow, or empty)
-  last_failure_timestamp:
-    description: ISO timestamp of last failure
-  complete:
-    description: Whether iteration is complete (true/false)
-  has_state:
-    description: Whether state was found in issue body (true/false)
-  phase_iteration:
-    description: Iterations within current phase (resets on phase change)
-  last_phase:
-    description: Last known phase number (for detecting phase changes)
+  failures:
+    description: Current failures count
+  issue_body:
+    description: Current issue body content
+  issue_state:
+    description: Issue state (open/closed)
+  success:
+    description: Whether the operation succeeded (true/false)
+  has_sub_issues:
+    description: Whether parent has sub-issues (true/false)
   current_phase:
-    description: Current phase number (for parse_phases action)
+    description: Current phase number (1-indexed)
+  current_sub_issue:
+    description: Current sub-issue number
+  current_phase_status:
+    description: Status of current phase sub-issue
   total_phases:
-    description: Total number of phases (for parse_phases action)
-  current_phase_todos_done:
-    description: Whether all todos in current phase are done (for parse_phases action)
+    description: Total number of phases (sub-issues)
   all_phases_done:
-    description: Whether all phases are complete (for parse_phases action)
-  current_phase_title:
-    description: Title of the current phase (for parse_phases action)
-  parent_issue:
-    description: Parent issue number (for sub-issues)
-  phase_number:
-    description: Phase number within parent (for sub-issues)
-  has_main_state:
-    description: Whether main state was found in issue body (true/false)
-  orchestration_iteration:
-    description: Number of orchestration iterations
+    description: Whether all phases are complete (true/false)
+  branch:
+    description: Derived branch name for current phase
   sub_issues:
     description: Comma-separated list of sub-issue numbers
-  current_sub_issue:
-    description: Currently active sub-issue number
-  sub_issue_status:
-    description: JSON object mapping sub-issue numbers to status
-  main_complete:
-    description: Whether all sub-issues are merged (true/false)
+  next_phase:
+    description: Next phase number (for advance_phase)
   next_sub_issue:
-    description: Next sub-issue to work on (for advance_phase action)
-  success:
-    description: Whether the operation succeeded (for update_phases_table)
+    description: Next sub-issue number (for advance_phase)
 
 runs:
   using: node20

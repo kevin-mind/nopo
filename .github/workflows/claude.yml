@@ -80,10 +80,6 @@ run-name: >-
         required: false
         type: string
         default: '{}'
-      mock_mode:
-        description: Mock mode for testing
-        type: string
-        default: 'false'
 permissions:
   contents: write
   pull-requests: write
@@ -242,7 +238,6 @@ jobs:
     with:
       job: ${{ needs.detect.outputs.job }}
       context_json: ${{ needs.detect.outputs.context_json }}
-      mock_mode: ${{ inputs.mock_mode == 'true' }}
     secrets: inherit
 
   # ============================================================================

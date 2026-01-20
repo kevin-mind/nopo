@@ -9,6 +9,8 @@ body:
         ## Task Template
         Please fill out all sections below. Claude will use this information to triage and implement the task.
 
+        **Note:** Implementation tasks (todos) will be created as sub-issues during triage.
+
   - type: textarea
     id: description
     attributes:
@@ -37,18 +39,6 @@ body:
       placeholder: |
         - [ ] Question 1?
         - [ ] Question 2?
-
-  - type: textarea
-    id: todo
-    attributes:
-      label: Todo
-      description: Specific tasks to complete (Claude will expand these during triage)
-      placeholder: |
-        - [ ] Task 1
-        - [ ] Task 2
-        - [ ] Task 3
-    validations:
-      required: false
 
   - type: dropdown
     id: type
