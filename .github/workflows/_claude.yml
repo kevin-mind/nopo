@@ -1011,9 +1011,8 @@ jobs:
             exit 0
           fi
 
-          # Clear the GITHUB_TOKEN credential and use PAT instead
-          git config --unset-all http.https://github.com/.extraheader || true
-          git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$NOPO_BOT_PAT" | base64)"
+          # Use URL rewriting for simpler, more reliable auth
+          git config url."https://${NOPO_BOT_PAT}@github.com/".insteadOf "https://github.com/"
 
           if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
             git push origin "$BRANCH_NAME" --force-with-lease
@@ -1240,9 +1239,8 @@ jobs:
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
         run: |
           # Amend + push with PAT to trigger CI workflows
-          # Clear the GITHUB_TOKEN credential and use PAT instead
-          git config --unset-all http.https://github.com/.extraheader || true
-          git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$NOPO_BOT_PAT" | base64)"
+          # Use URL rewriting for simpler, more reliable auth
+          git config url."https://${NOPO_BOT_PAT}@github.com/".insteadOf "https://github.com/"
           if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
             git commit --amend --no-edit
             # Retry push up to 3 times with exponential backoff (handles transient network errors)
@@ -1279,9 +1277,8 @@ jobs:
             Review and clean up before continuing.
 
             Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            # Use PAT to push so it triggers CI workflows
-            git config --unset-all http.https://github.com/.extraheader || true
-            git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$NOPO_BOT_PAT" | base64)"
+            # Use URL rewriting for simpler, more reliable auth
+            git config url."https://${NOPO_BOT_PAT}@github.com/".insteadOf "https://github.com/"
             git push origin "$BRANCH_NAME"
             echo "::warning::Uncommitted work was saved to branch $BRANCH_NAME"
           else
@@ -1314,9 +1311,8 @@ jobs:
         run: |
           # Amend + push with PAT to trigger CI workflows
           # Only if branch has commits beyond main (don't amend main's commits)
-          # Clear the GITHUB_TOKEN credential and use PAT instead
-          git config --unset-all http.https://github.com/.extraheader || true
-          git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$NOPO_BOT_PAT" | base64)"
+          # Use URL rewriting for simpler, more reliable auth
+          git config url."https://${NOPO_BOT_PAT}@github.com/".insteadOf "https://github.com/"
           if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
             git commit --amend --no-edit
             # Retry push up to 3 times with exponential backoff
@@ -1613,9 +1609,8 @@ jobs:
         run: |
           # Amend + push with PAT to trigger CI workflows
           # Only if branch has commits beyond main (don't amend main's commits)
-          # Clear the GITHUB_TOKEN credential and use PAT instead
-          git config --unset-all http.https://github.com/.extraheader || true
-          git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$NOPO_BOT_PAT" | base64)"
+          # Use URL rewriting for simpler, more reliable auth
+          git config url."https://${NOPO_BOT_PAT}@github.com/".insteadOf "https://github.com/"
           if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
             git commit --amend --no-edit
             # Retry push up to 3 times with exponential backoff
@@ -1674,9 +1669,8 @@ jobs:
         run: |
           # Amend + push with PAT to trigger CI workflows
           # Only if branch has commits beyond main (don't amend main's commits)
-          # Clear the GITHUB_TOKEN credential and use PAT instead
-          git config --unset-all http.https://github.com/.extraheader || true
-          git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$NOPO_BOT_PAT" | base64)"
+          # Use URL rewriting for simpler, more reliable auth
+          git config url."https://${NOPO_BOT_PAT}@github.com/".insteadOf "https://github.com/"
           if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
             git commit --amend --no-edit
             # Retry push up to 3 times with exponential backoff
