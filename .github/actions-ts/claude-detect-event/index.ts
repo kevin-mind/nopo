@@ -153,10 +153,14 @@ async function fetchProjectState(
 
 /**
  * Check if project state indicates the issue should be skipped
+ * Note: "Backlog" is NOT a skip status - it's a valid initial state
+ * that allows the state machine to start
  */
 function shouldSkipProjectState(state: ProjectState | null): boolean {
   if (!state || !state.status) return false;
-  const skipStatuses = ["Backlog", "Done", "Blocked", "Error"];
+  // Only skip for terminal/blocked states
+  // "Backlog" is allowed as it's the initial state before state machine starts
+  const skipStatuses = ["Done", "Blocked", "Error"];
   return skipStatuses.includes(state.status);
 }
 

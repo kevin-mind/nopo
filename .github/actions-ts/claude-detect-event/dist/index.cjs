@@ -23989,7 +23989,7 @@ async function fetchProjectState(octokit, owner, repo, issueNumber) {
 }
 function shouldSkipProjectState(state) {
   if (!state || !state.status) return false;
-  const skipStatuses = ["Backlog", "Done", "Blocked", "Error"];
+  const skipStatuses = ["Done", "Blocked", "Error"];
   return skipStatuses.includes(state.status);
 }
 function deriveBranch(parentIssueNumber, phaseNumber) {
