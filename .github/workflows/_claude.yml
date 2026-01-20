@@ -82,7 +82,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/run-claude
         with:
-          github_token: ${{ secrets.NOPO_BOT_PAT }}
+          github_token: ${{ github.token }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/triage.txt
           prompt_replacements: ${{ needs.context.outputs.prompt_replacements }}
@@ -1176,7 +1176,7 @@ jobs:
       - uses: ./.github/actions/run-claude
         if: steps.breakpoint.outputs.should_stop != 'true' && steps.rebase.outputs.rebase_performed != 'true'
         with:
-          github_token: ${{ secrets.NOPO_BOT_PAT }}
+          github_token: ${{ github.token }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/iterate.txt
           prompt_replacements: ${{ steps.augment.outputs.json }}
@@ -1282,7 +1282,7 @@ jobs:
           fetch-depth: 0
       - uses: ./.github/actions/run-claude
         with:
-          github_token: ${{ secrets.NOPO_BOT_PAT }}
+          github_token: ${{ github.token }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/comment.txt
           prompt_replacements: ${{ needs.context.outputs.prompt_replacements }}
@@ -1471,7 +1471,7 @@ jobs:
           fetch-depth: 0
       - uses: ./.github/actions/run-claude
         with:
-          github_token: ${{ secrets.NOPO_BOT_PAT }}
+          github_token: ${{ github.token }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/review.txt
           prompt_replacements: ${{ needs.context.outputs.prompt_replacements }}
@@ -1568,7 +1568,7 @@ jobs:
           echo "json=$json" >> $GITHUB_OUTPUT
       - uses: ./.github/actions/run-claude
         with:
-          github_token: ${{ secrets.NOPO_BOT_PAT }}
+          github_token: ${{ github.token }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/review-response.txt
           prompt_replacements: ${{ steps.augment.outputs.json }}
@@ -1615,7 +1615,7 @@ jobs:
           echo "json=$json" >> $GITHUB_OUTPUT
       - uses: ./.github/actions/run-claude
         with:
-          github_token: ${{ secrets.NOPO_BOT_PAT }}
+          github_token: ${{ github.token }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/human-review-response.txt
           prompt_replacements: ${{ steps.augment.outputs.json }}
@@ -1647,7 +1647,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/run-claude
         with:
-          github_token: ${{ secrets.NOPO_BOT_PAT }}
+          github_token: ${{ github.token }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/discussion-research.txt
           prompt_replacements: ${{ needs.context.outputs.prompt_replacements }}
@@ -1670,7 +1670,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/run-claude
         with:
-          github_token: ${{ secrets.NOPO_BOT_PAT }}
+          github_token: ${{ github.token }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/discussion-respond.txt
           prompt_replacements: ${{ needs.context.outputs.prompt_replacements }}
@@ -1693,7 +1693,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/run-claude
         with:
-          github_token: ${{ secrets.NOPO_BOT_PAT }}
+          github_token: ${{ github.token }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/discussion-summarize.txt
           prompt_replacements: ${{ needs.context.outputs.prompt_replacements }}
@@ -1714,7 +1714,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/run-claude
         with:
-          github_token: ${{ secrets.NOPO_BOT_PAT }}
+          github_token: ${{ github.token }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/discussion-plan.txt
           prompt_replacements: ${{ needs.context.outputs.prompt_replacements }}
