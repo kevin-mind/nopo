@@ -135,6 +135,7 @@ query GetSubIssues($org: String!, $repo: String!, $parentNumber: Int!) {
   repository(owner: $org, name: $repo) {
     issue(number: $parentNumber) {
       id
+      body
       subIssues(first: 20) {
         nodes {
           id
@@ -559,6 +560,117 @@ function getCurrentPhase(subIssues: SubIssueInfo[]): {
 
   // All done or no sub-issues
   return null;
+}
+
+/**
+ * Count unchecked todos in issue body that are NOT manual tasks
+ * Manual tasks are marked with "*(manual)*" and are excluded
+ */
+function countNonManualUncheckedTodos(content: string): number {
+  const lines = content.split("\n");
+  let count = 0;
+  for (const line of lines) {
+    if (line.match(/- \[ \]/)) {
+      if (!line.includes("*(manual)*")) {
+        count++;
+      }
+    }
+  }
+  return count;
+}
+
+/**
+ * Phase info for issues with phased structure
+ */
+interface PhaseInfo {
+  current_phase: number;
+  total_phases: number;
+  current_phase_todos_done: boolean;
+  all_phases_done: boolean;
+  current_phase_title: string;
+}
+
+/**
+ * Parse phases from issue body
+ * If issue has "## Phase N:" sections, treat as multi-phase
+ * Otherwise, treat as single phase and check all todos
+ */
+function parsePhases(body: string): PhaseInfo {
+  const phaseRegex = /^## Phase (\d+):\s*(.+)$/gm;
+  const phases: Array<{
+    number: number;
+    title: string;
+    startIndex: number;
+  }> = [];
+
+  let match;
+  while ((match = phaseRegex.exec(body)) !== null) {
+    const phaseNum = match[1];
+    const phaseTitle = match[2];
+    if (!phaseNum || !phaseTitle) continue;
+    phases.push({
+      number: parseInt(phaseNum, 10),
+      title: phaseTitle.trim(),
+      startIndex: match.index,
+    });
+  }
+
+  if (phases.length === 0) {
+    // Single-phase issue: check all todos in body
+    const uncheckedTodos = countNonManualUncheckedTodos(body);
+    return {
+      current_phase: 1,
+      total_phases: 1,
+      current_phase_todos_done: uncheckedTodos === 0,
+      all_phases_done: uncheckedTodos === 0,
+      current_phase_title: "Todo",
+    };
+  }
+
+  phases.sort((a, b) => a.number - b.number);
+
+  const phaseCompletion: Array<{
+    number: number;
+    title: string;
+    uncheckedCount: number;
+  }> = [];
+
+  for (let i = 0; i < phases.length; i++) {
+    const phase = phases[i];
+    if (!phase) continue;
+    const nextPhase = phases[i + 1];
+    const endIndex = nextPhase ? nextPhase.startIndex : body.length;
+    const phaseContent = body.slice(phase.startIndex, endIndex);
+    const uncheckedCount = countNonManualUncheckedTodos(phaseContent);
+
+    phaseCompletion.push({
+      number: phase.number,
+      title: phase.title,
+      uncheckedCount,
+    });
+  }
+
+  const currentPhaseData = phaseCompletion.find((p) => p.uncheckedCount > 0);
+  const lastPhase = phases[phases.length - 1];
+  const currentPhase = currentPhaseData?.number || lastPhase?.number || 1;
+  const currentPhaseTitle = currentPhaseData?.title || lastPhase?.title || "";
+
+  const currentPhaseInfo = phaseCompletion.find(
+    (p) => p.number === currentPhase,
+  );
+  const currentPhaseTodosDone = currentPhaseInfo
+    ? currentPhaseInfo.uncheckedCount === 0
+    : true;
+
+  const allPhasesDone = phaseCompletion.every((p) => p.uncheckedCount === 0);
+
+  return {
+    current_phase: currentPhase,
+    total_phases: phases.length,
+    current_phase_todos_done: currentPhaseTodosDone,
+    all_phases_done: allPhasesDone,
+    current_phase_title: currentPhaseTitle,
+  };
 }
 
 async function run(): Promise<void> {
@@ -1131,6 +1243,7 @@ async function run(): Promise<void> {
       interface SubIssuesResponse {
         repository?: {
           issue?: {
+            body?: string;
             subIssues?: unknown;
           };
         };
@@ -1146,15 +1259,24 @@ async function run(): Promise<void> {
       );
 
       const subIssuesData = response.repository?.issue?.subIssues;
+      const issueBody = response.repository?.issue?.body || "";
       const subIssues = parseSubIssues(subIssuesData, projectNumber);
 
       if (subIssues.length === 0) {
+        // No sub-issues: parse todos from issue body to determine completion
+        const phaseInfo = parsePhases(issueBody);
+        core.info(
+          `No sub-issues found. Parsed body: current_phase=${phaseInfo.current_phase}, todos_done=${phaseInfo.current_phase_todos_done}`,
+        );
+
         setOutputs({
           has_sub_issues: "false",
-          current_phase: "0",
+          current_phase: String(phaseInfo.current_phase),
           current_sub_issue: "0",
-          total_phases: "0",
-          all_phases_done: "false",
+          total_phases: String(phaseInfo.total_phases),
+          current_phase_todos_done: String(phaseInfo.current_phase_todos_done),
+          all_phases_done: String(phaseInfo.all_phases_done),
+          current_phase_title: phaseInfo.current_phase_title,
         });
         return;
       }
@@ -1173,6 +1295,8 @@ async function run(): Promise<void> {
           current_sub_issue: String(currentPhase.subIssueNumber),
           current_phase_status: currentPhase.status,
           total_phases: String(subIssues.length),
+          // For issues with sub-issues, todos_done is based on sub-issue status
+          current_phase_todos_done: String(currentPhase.status === "Done"),
           all_phases_done: "false",
           branch: branch,
           sub_issues: subIssues.map((s) => s.number).join(","),
@@ -1184,6 +1308,7 @@ async function run(): Promise<void> {
           current_sub_issue: "0",
           current_phase_status: "Done",
           total_phases: String(subIssues.length),
+          current_phase_todos_done: "true",
           all_phases_done: String(allDone),
           sub_issues: subIssues.map((s) => s.number).join(","),
         });

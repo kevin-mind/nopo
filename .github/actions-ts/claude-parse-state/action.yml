@@ -100,6 +100,10 @@ outputs:
     description: Current sub-issue number
   current_phase_status:
     description: Status of current phase sub-issue
+  current_phase_todos_done:
+    description: Whether current phase todos are complete (true/false, parsed from issue body)
+  current_phase_title:
+    description: 'Title of current phase (from "## Phase N: Title" or "Todo" for single-phase)'
   total_phases:
     description: Total number of phases (sub-issues)
   all_phases_done:

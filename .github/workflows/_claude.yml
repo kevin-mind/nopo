@@ -211,7 +211,7 @@ jobs:
           CURRENT_PHASE: ${{ steps.get_phase.outputs.current_phase }}
           TOTAL_PHASES: ${{ steps.get_phase.outputs.total_phases }}
           CURRENT_PHASE_STATUS: ${{ steps.get_phase.outputs.current_phase_status }}
-          ALL_PHASES_DONE: ${{ steps.get_phase.outputs.all_phases_done }}
+          CURRENT_PHASE_TODOS_DONE: ${{ steps.get_phase.outputs.current_phase_todos_done }}
         run: |
           # Determine what action would be taken
           action="iterate"
@@ -229,9 +229,9 @@ jobs:
           elif [[ "$CURRENT_PHASE_STATUS" == "Review" && "$TRIGGER_TYPE" != "assigned" ]]; then
             action="skip"
             reason="In Review - waiting for review/merge"
-          elif [[ "$CI_RESULT" == "success" && "$ALL_PHASES_DONE" == "true" ]]; then
+          elif [[ "$CI_RESULT" == "success" && "$CURRENT_PHASE_TODOS_DONE" == "true" ]]; then
             action="complete"
-            reason="All phases done - would mark PR ready and request review"
+            reason="Phase todos done - would mark PR ready and request review"
           elif [[ "$CI_RESULT" == "failure" ]]; then
             action="fix_ci"
             reason="CI failed - would iterate to fix"
@@ -253,7 +253,7 @@ jobs:
             --arg current_phase "$CURRENT_PHASE" \
             --arg total_phases "$TOTAL_PHASES" \
             --arg current_phase_status "$CURRENT_PHASE_STATUS" \
-            --arg all_phases_done "$ALL_PHASES_DONE" \
+            --arg current_phase_todos_done "$CURRENT_PHASE_TODOS_DONE" \
             '{
               decision: {
                 action: $action,
@@ -276,7 +276,7 @@ jobs:
                 current_phase: $current_phase,
                 total_phases: $total_phases,
                 current_phase_status: $current_phase_status,
-                all_phases_done: $all_phases_done
+                current_phase_todos_done: $current_phase_todos_done
               }
             }')
 
@@ -317,7 +317,7 @@ jobs:
           |-------|-------|
           | **Current Phase** | $CURRENT_PHASE of $TOTAL_PHASES |
           | **Phase Status** | $CURRENT_PHASE_STATUS |
-          | **All Phases Done** | $ALL_PHASES_DONE |
+          | **Todos Done** | $CURRENT_PHASE_TODOS_DONE |
 
           ## Full Decision JSON
 
@@ -584,8 +584,8 @@ jobs:
           MAX_ITERATIONS: '100'
           # Use GitHub variable for max retries, default to 5
           MAX_FAILURES: ${{ vars.MAX_CLAUDE_RETRIES || '5' }}
-          # Phase completion info (from get_phase step - derived from sub-issues)
-          ALL_PHASES_DONE: ${{ steps.get_phase.outputs.all_phases_done || 'false' }}
+          # Phase completion info (from get_phase step - derived from sub-issues or issue body)
+          CURRENT_PHASE_TODOS_DONE: ${{ steps.get_phase.outputs.current_phase_todos_done || 'false' }}
           CURRENT_PHASE: ${{ steps.get_phase.outputs.current_phase || '1' }}
           TOTAL_PHASES: ${{ steps.get_phase.outputs.total_phases || '1' }}
         run: |
@@ -596,12 +596,12 @@ jobs:
 
           # Check phase completion FIRST (success case) before circuit breakers
           # Phase is complete when CI passes and all todos in current phase are done
-          # Note: current_phase_status from get_phase shows if phase is ready for review
-          if [[ "$CI_RESULT" == "success" && "$ALL_PHASES_DONE" == "true" ]]; then
-            # All phases complete
+          # For issues without sub-issues, this checks todos in the issue body
+          if [[ "$CI_RESULT" == "success" && "$CURRENT_PHASE_TODOS_DONE" == "true" ]]; then
+            # Current phase todos are complete
             is_phase_complete="true"
             should_stop="true"
-            stop_reason="All phases complete (Phase $CURRENT_PHASE/$TOTAL_PHASES) - ready for final review"
+            stop_reason="Phase $CURRENT_PHASE/$TOTAL_PHASES complete (todos done, CI passed) - ready for review"
           elif [[ "$ITERATION" -ge "$MAX_ITERATIONS" ]]; then
             should_stop="true"
             is_breakpoint="true"
