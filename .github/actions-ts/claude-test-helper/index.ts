@@ -1128,7 +1128,7 @@ async function verifyFixture(
       // For now, discussions are created but verification is not implemented
       // TODO: Implement discussion verification
       core.info(
-        "Discussion verification not yet implemented - skipping discussion checks"
+        "Discussion verification not yet implemented - skipping discussion checks",
       );
     }
   }
