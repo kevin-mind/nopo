@@ -131,7 +131,7 @@ mutation UpdateProjectField($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value
 `;
 
 const GET_SUB_ISSUES_QUERY = `
-query GetSubIssues($org: String!, $repo: String!, $parentNumber: Int!, $projectNumber: Int!) {
+query GetSubIssues($org: String!, $repo: String!, $parentNumber: Int!) {
   repository(owner: $org, name: $repo) {
     issue(number: $parentNumber) {
       id
@@ -926,7 +926,6 @@ async function run(): Promise<void> {
           org: owner,
           repo,
           parentNumber,
-          projectNumber,
         },
       );
 
