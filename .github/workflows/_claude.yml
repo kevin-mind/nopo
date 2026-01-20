@@ -455,7 +455,8 @@ jobs:
           status: Working
 
       # Ensure sub-issue status is Working when iterate starts
-      # This handles the case where triage adds sub-issue to project with default "In progress" status
+      # Triage should add sub-issues with "Ready" status, but this is a safety net
+      # in case the status is still "In progress" (default) or "Ready"
       - name: Set sub-issue status to Working
         if: |
           steps.stepwise_check.outputs.stepwise != 'true' &&

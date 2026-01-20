@@ -152,7 +152,7 @@ EOF
 echo "Created sub-issue #$PHASE3"
 ```
 
-**Link sub-issues to parent using GraphQL:**
+**Link sub-issues to parent and add to project with "Ready" status:**
 ```bash
 # Get the parent issue node ID
 PARENT_ID=$(gh api graphql -f query='
@@ -163,7 +163,31 @@ PARENT_ID=$(gh api graphql -f query='
   }
 ' -f owner='{{REPO_OWNER}}' -f repo='{{REPO_NAME}}' -F number={{ISSUE_NUMBER}} --jq '.data.repository.issue.id')
 
-# Get sub-issue node IDs and link them
+# Get project ID and Ready status option ID
+PROJECT_INFO=$(gh api graphql -f query='
+  query($org: String!, $projectNumber: Int!) {
+    organization(login: $org) {
+      projectV2(number: $projectNumber) {
+        id
+        fields(first: 20) {
+          nodes {
+            ... on ProjectV2SingleSelectField {
+              id
+              name
+              options { id name }
+            }
+          }
+        }
+      }
+    }
+  }
+' -f org='{{REPO_OWNER}}' -F projectNumber=1)
+
+PROJECT_ID=$(echo "$PROJECT_INFO" | jq -r '.data.organization.projectV2.id')
+STATUS_FIELD_ID=$(echo "$PROJECT_INFO" | jq -r '.data.organization.projectV2.fields.nodes[] | select(.name == "Status") | .id')
+READY_OPTION_ID=$(echo "$PROJECT_INFO" | jq -r '.data.organization.projectV2.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "Ready") | .id')
+
+# Get sub-issue node IDs, link to parent, add to project with "Ready" status
 for SUB_NUM in $PHASE1 $PHASE2 $PHASE3; do
   SUB_ID=$(gh api graphql -f query='
     query($owner: String!, $repo: String!, $number: Int!) {
@@ -173,6 +197,7 @@ for SUB_NUM in $PHASE1 $PHASE2 $PHASE3; do
     }
   ' -f owner='{{REPO_OWNER}}' -f repo='{{REPO_NAME}}' -F number=$SUB_NUM --jq '.data.repository.issue.id')
 
+  # Link sub-issue to parent
   gh api graphql -f query='
     mutation($parentId: ID!, $childId: ID!) {
       addSubIssue(input: {issueId: $parentId, subIssueId: $childId}) {
@@ -184,6 +209,31 @@ for SUB_NUM in $PHASE1 $PHASE2 $PHASE3; do
     -H "GraphQL-Features: sub_issues"
 
   echo "Linked sub-issue #$SUB_NUM to parent #{{ISSUE_NUMBER}}"
+
+  # Add sub-issue to project
+  ITEM_ID=$(gh api graphql -f query='
+    mutation($projectId: ID!, $contentId: ID!) {
+      addProjectV2ItemById(input: { projectId: $projectId, contentId: $contentId }) {
+        item { id }
+      }
+    }
+  ' -f projectId="$PROJECT_ID" -f contentId="$SUB_ID" --jq '.data.addProjectV2ItemById.item.id')
+
+  # Set sub-issue status to "Ready" (not default "In progress")
+  gh api graphql -f query='
+    mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+      updateProjectV2ItemFieldValue(input: {
+        projectId: $projectId
+        itemId: $itemId
+        fieldId: $fieldId
+        value: { singleSelectOptionId: $optionId }
+      }) {
+        projectV2Item { id }
+      }
+    }
+  ' -f projectId="$PROJECT_ID" -f itemId="$ITEM_ID" -f fieldId="$STATUS_FIELD_ID" -f optionId="$READY_OPTION_ID"
+
+  echo "Added sub-issue #$SUB_NUM to project with Ready status"
 done
 ```
 
