@@ -454,6 +454,26 @@ jobs:
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
           status: Working
 
+      # Ensure sub-issue status is Working when iterate starts
+      # This handles the case where triage adds sub-issue to project with default "In progress" status
+      - name: Set sub-issue status to Working
+        if: |
+          steps.stepwise_check.outputs.stepwise != 'true' &&
+          steps.early_exit_terminal.outputs.early_exit != 'true' &&
+          steps.early_exit_review.outputs.early_exit != 'true' &&
+          steps.read_state.outputs.has_state == 'true' &&
+          fromJson(inputs.context_json).parent_issue != '' &&
+          fromJson(inputs.context_json).parent_issue != '0' &&
+          steps.read_state.outputs.status != 'Working' &&
+          steps.read_state.outputs.status != 'Review'
+        uses: ./.github/actions-ts/claude-parse-state
+        with:
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
+          issue_number: ${{ fromJson(inputs.context_json).issue_number }}
+          action: update
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+          status: Working
+
       # Log re-assignment to parent iteration history
       - name: Log re-assignment
         if: |
