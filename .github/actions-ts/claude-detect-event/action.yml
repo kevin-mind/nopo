@@ -13,6 +13,8 @@ outputs:
     description: Type of resource (issue, pr, discussion)
   resource_number:
     description: Issue/PR/Discussion number
+  parent_issue:
+    description: Parent issue number for sub-issues (0 if not a sub-issue or not determined)
   comment_id:
     description: Comment ID if responding to a comment (for reaction)
   context_json:

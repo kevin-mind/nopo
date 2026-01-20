@@ -17,6 +17,8 @@ inputs:
       - record_failure: Increment the Failures counter
       - clear_failures: Reset Failures to 0
       - append_history: Append entry to Iteration History in parent issue body
+      - log_event: Alias for append_history (for backwards compatibility)
+      - update_history: Update existing history entry matching pattern (e.g., update "Running..." to result)
       - get_current_phase: Get current phase from sub-issues
       - init_parent: Initialize parent issue with sub-issues
       - advance_phase: Advance to next phase after current is merged
@@ -36,10 +38,16 @@ inputs:
     description: Failures value to set (for update action)
     required: false
   phase:
-    description: Phase identifier for history entry (for append_history action)
+    description: Phase identifier for history entry (for append_history/update_history actions)
     required: false
   message:
-    description: Message for history entry (for append_history action)
+    description: Message for history entry (for append_history/update_history actions)
+    required: false
+  iteration_message:
+    description: Alias for message (backwards compatibility)
+    required: false
+  match_pattern:
+    description: Pattern to match in existing history entry (for update_history action, defaults to "⏳")
     required: false
   commit_sha:
     description: Commit SHA for history entry
@@ -59,6 +67,9 @@ inputs:
   reason:
     description: Reason for blocking (for set_blocked action)
     required: false
+  failure_type:
+    description: Type of failure - ci or workflow (informational, for record_failure action)
+    required: false
 
 outputs:
   has_state:
@@ -69,12 +80,18 @@ outputs:
     description: Current iteration number
   failures:
     description: Current failures count
+  consecutive_failures:
+    description: Alias for failures (backwards compatibility)
+  pr_number:
+    description: PR number (if available, extracted from issue body)
   issue_body:
     description: Current issue body content
   issue_state:
     description: Issue state (open/closed)
   success:
     description: Whether the operation succeeded (true/false)
+  updated:
+    description: Whether an existing row was updated (for update_history, true/false)
   has_sub_issues:
     description: Whether parent has sub-issues (true/false)
   current_phase:

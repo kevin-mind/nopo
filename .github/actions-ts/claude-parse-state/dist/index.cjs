@@ -24103,12 +24103,16 @@ function getProjectItemId(projectItems, projectNumber) {
   );
   return projectItem?.id || null;
 }
-function addIterationLogEntry(body, iteration, phase, message, sha, runLink) {
-  const historyIdx = body.indexOf(HISTORY_SECTION);
+function formatHistoryCells(sha, runLink) {
   const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
   const repo = process.env.GITHUB_REPOSITORY || "";
   const shaCell = sha ? `[\`${sha.slice(0, 7)}\`](${serverUrl}/${repo}/commit/${sha})` : "-";
   const runCell = runLink ? `[Run](${runLink})` : "-";
+  return { shaCell, runCell };
+}
+function addIterationLogEntry(body, iteration, phase, message, sha, runLink) {
+  const historyIdx = body.indexOf(HISTORY_SECTION);
+  const { shaCell, runCell } = formatHistoryCells(sha, runLink);
   if (historyIdx === -1) {
     const entry2 = `| ${iteration} | ${phase} | ${message} | ${shaCell} | ${runCell} |`;
     const historyTable = `
@@ -24138,6 +24142,40 @@ ${entry2}`;
   const entry = `| ${iteration} | ${phase} | ${message} | ${shaCell} | ${runCell} |`;
   lines.splice(insertIdx, 0, entry);
   return lines.join("\n");
+}
+function updateIterationLogEntry(body, matchIteration, matchPhase, matchMessagePattern, newMessage, sha, runLink) {
+  const lines = body.split("\n");
+  const historyLineIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
+  if (historyLineIdx === -1) {
+    return { body, updated: false };
+  }
+  const tableRows = [];
+  for (let i = historyLineIdx + 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line) continue;
+    if (line.startsWith("|") && !line.startsWith("|---") && !line.startsWith("| #")) {
+      tableRows.push({ idx: i, line });
+    } else if (line.trim() !== "" && !line.startsWith("|")) {
+      break;
+    }
+  }
+  for (let i = tableRows.length - 1; i >= 0; i--) {
+    const row = tableRows[i];
+    if (!row) continue;
+    const cells = row.line.split("|").map((c) => c.trim());
+    const rowIteration = cells[1] || "";
+    const rowPhase = cells[2] || "";
+    const rowMessage = cells[3] || "";
+    if (rowIteration === String(matchIteration) && rowPhase === String(matchPhase) && rowMessage.includes(matchMessagePattern)) {
+      const { shaCell, runCell } = formatHistoryCells(sha, runLink);
+      const finalShaCell = sha ? shaCell : cells[4] || "-";
+      const finalRunCell = runLink ? runCell : cells[5] || "-";
+      const newRow = `| ${rowIteration} | ${rowPhase} | ${newMessage} | ${finalShaCell} | ${finalRunCell} |`;
+      lines[row.idx] = newRow;
+      return { body: lines.join("\n"), updated: true };
+    }
+  }
+  return { body, updated: false };
 }
 function parseSubIssues(subIssuesData, projectNumber) {
   const response = subIssuesData;
@@ -24219,7 +24257,9 @@ async function run() {
           has_state: "false",
           status: "",
           iteration: "0",
-          failures: "0"
+          failures: "0",
+          consecutive_failures: "0"
+          // Alias for backwards compatibility
         });
         return;
       }
@@ -24228,6 +24268,8 @@ async function run() {
         status: state.status,
         iteration: String(state.iteration),
         failures: String(state.failures),
+        consecutive_failures: String(state.failures),
+        // Alias for backwards compatibility
         issue_body: issue.body || "",
         issue_state: issue.state || ""
       });
@@ -24393,6 +24435,8 @@ async function run() {
       core2.info(`Incremented Failures to ${newFailures}`);
       setOutputs({
         failures: String(newFailures),
+        consecutive_failures: String(newFailures),
+        // Alias for backwards compatibility
         success: "true"
       });
       return;
@@ -24435,9 +24479,13 @@ async function run() {
       });
       return;
     }
-    if (action === "append_history") {
+    if (action === "append_history" || action === "log_event") {
       const phase = getOptionalInput("phase") || "-";
-      const message = getRequiredInput("message");
+      const message = getOptionalInput("message") || getOptionalInput("iteration_message") || "";
+      if (!message) {
+        core2.setFailed("message or iteration_message is required");
+        return;
+      }
       const sha = getOptionalInput("commit_sha");
       const runLink = getOptionalInput("run_link");
       const response = await octokit.graphql(
@@ -24478,6 +24526,82 @@ async function run() {
       setOutputs({
         success: "true"
       });
+      return;
+    }
+    if (action === "update_history") {
+      const phase = getOptionalInput("phase") || "-";
+      const message = getOptionalInput("message") || getOptionalInput("iteration_message") || "";
+      if (!message) {
+        core2.setFailed("message or iteration_message is required");
+        return;
+      }
+      const matchPattern = getOptionalInput("match_pattern") || "\u23F3";
+      const sha = getOptionalInput("commit_sha");
+      const runLink = getOptionalInput("run_link");
+      const response = await octokit.graphql(
+        GET_PROJECT_ITEM_QUERY,
+        {
+          org: owner,
+          repo,
+          issueNumber,
+          projectNumber
+        }
+      );
+      const issue = response.repository?.issue;
+      if (!issue) {
+        core2.setFailed(`Issue #${issueNumber} not found`);
+        return;
+      }
+      const projectItems = issue.projectItems?.nodes || [];
+      const currentState = parseProjectStateFromResponse(
+        projectItems,
+        projectNumber
+      );
+      const iteration = currentState?.iteration || 0;
+      const result = updateIterationLogEntry(
+        issue.body || "",
+        iteration,
+        phase,
+        matchPattern,
+        message,
+        sha,
+        runLink
+      );
+      if (result.updated) {
+        await octokit.rest.issues.update({
+          owner,
+          repo,
+          issue_number: issueNumber,
+          body: result.body
+        });
+        core2.info(`Updated history entry: Phase ${phase}, ${message}`);
+        setOutputs({
+          success: "true",
+          updated: "true"
+        });
+      } else {
+        const newBody = addIterationLogEntry(
+          issue.body || "",
+          iteration,
+          phase,
+          message,
+          sha,
+          runLink
+        );
+        await octokit.rest.issues.update({
+          owner,
+          repo,
+          issue_number: issueNumber,
+          body: newBody
+        });
+        core2.info(
+          `No matching row to update, appended history entry: Phase ${phase}, ${message}`
+        );
+        setOutputs({
+          success: "true",
+          updated: "false"
+        });
+      }
       return;
     }
     if (action === "get_current_phase") {

@@ -949,208 +949,258 @@ This is important content.
   });
 });
 
-// Update iteration log entry - mirrors the implementation in index.ts
+/**
+ * Update iteration log entry - mirrors the implementation in index.ts
+ * Matches by iteration, phase, and message pattern
+ */
 function updateIterationLogEntry(
   body: string,
-  runLink: string,
+  matchIteration: number,
+  matchPhase: number | string,
+  matchMessagePattern: string,
   newMessage: string,
   sha?: string,
-): string {
-  const historyIdx = body.indexOf(HISTORY_SECTION);
-  if (historyIdx === -1) {
-    return body;
-  }
-
+  runLink?: string,
+): { body: string; updated: boolean } {
   const lines = body.split("\n");
   const historyLineIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
+
   if (historyLineIdx === -1) {
-    return body;
+    return { body, updated: false };
   }
 
-  let foundIdx = -1;
+  // Find all table rows after history section
+  const tableRows: { idx: number; line: string }[] = [];
   for (let i = historyLineIdx + 1; i < lines.length; i++) {
     const line = lines[i];
     if (!line) continue;
-    if (line.startsWith("|") && line.includes(runLink)) {
-      foundIdx = i;
-      break;
+    if (
+      line.startsWith("|") &&
+      !line.startsWith("|---") &&
+      !line.startsWith("| #")
+    ) {
+      tableRows.push({ idx: i, line });
     } else if (line.trim() !== "" && !line.startsWith("|")) {
       break;
     }
   }
 
-  if (foundIdx === -1) {
-    return body;
+  // Search from most recent to oldest for a matching row
+  for (let i = tableRows.length - 1; i >= 0; i--) {
+    const row = tableRows[i];
+    if (!row) continue;
+
+    // Parse the row: | iteration | phase | message | sha | run |
+    const cells = row.line.split("|").map((c) => c.trim());
+    // cells[0] is empty (before first |), cells[1-5] are the actual values
+    const rowIteration = cells[1] || "";
+    const rowPhase = cells[2] || "";
+    const rowMessage = cells[3] || "";
+
+    // Check if this row matches our criteria
+    if (
+      rowIteration === String(matchIteration) &&
+      rowPhase === String(matchPhase) &&
+      rowMessage.includes(matchMessagePattern)
+    ) {
+      // Update this row
+      const serverUrl = "https://github.com";
+      const repo = "test-owner/test-repo";
+      const shaCell = sha
+        ? `[\`${sha.slice(0, 7)}\`](${serverUrl}/${repo}/commit/${sha})`
+        : "-";
+      // Preserve existing SHA and Run if not provided
+      const finalShaCell = sha ? shaCell : cells[4] || "-";
+      const finalRunCell = runLink ? `[Run](${runLink})` : cells[5] || "-";
+
+      const newRow = `| ${rowIteration} | ${rowPhase} | ${newMessage} | ${finalShaCell} | ${finalRunCell} |`;
+      lines[row.idx] = newRow;
+
+      return { body: lines.join("\n"), updated: true };
+    }
   }
 
-  const existingRow = lines[foundIdx];
-  if (!existingRow) {
-    return body;
-  }
-  const match = existingRow.match(/^\|\s*(\d+)\s*\|/);
-  if (!match?.[1]) {
-    return body;
-  }
-
-  const iteration = parseInt(match[1], 10);
-  const serverUrl = "https://github.com";
-  const repo = "test-owner/test-repo";
-  const shaCell = sha
-    ? `[\`${sha.slice(0, 7)}\`](${serverUrl}/${repo}/commit/${sha})`
-    : "-";
-  const runCell = `[Run](${runLink})`;
-
-  const newRow = `| ${iteration} | ${newMessage} | ${shaCell} | ${runCell} |`;
-  lines[foundIdx] = newRow;
-
-  return lines.join("\n");
+  return { body, updated: false };
 }
 
 describe("updateIterationLogEntry", () => {
   it("returns unchanged body when no history section exists", () => {
     const body = "## Description\n\nSome content";
-    const result = updateIterationLogEntry(
-      body,
-      "https://github.com/owner/repo/actions/runs/123",
-      "✅ Pushed changes",
-    );
-    expect(result).toBe(body);
+    const result = updateIterationLogEntry(body, 1, 1, "⏳", "CI ✅");
+    expect(result.updated).toBe(false);
+    expect(result.body).toBe(body);
   });
 
-  it("returns unchanged body when run link not found", () => {
+  it("returns unchanged body when no matching row found", () => {
     const body = `## Description
 
 ${HISTORY_SECTION}
 
-| # | Action | SHA | Run |
-|---|--------|-----|-----|
-| 1 | ⏳ Running... | - | [Run](https://github.com/owner/repo/actions/runs/456) |`;
+| # | Phase | Action | SHA | Run |
+|---|-------|--------|-----|-----|
+| 1 | 1 | ⏳ Running... | - | [Run](link) |`;
 
-    const result = updateIterationLogEntry(
-      body,
-      "https://github.com/owner/repo/actions/runs/999", // Different run link
-      "✅ Pushed changes",
-    );
-    expect(result).toBe(body);
+    // Looking for iteration 2, but only iteration 1 exists
+    const result = updateIterationLogEntry(body, 2, 1, "⏳", "CI ✅");
+    expect(result.updated).toBe(false);
+    expect(result.body).toBe(body);
   });
 
-  it("updates existing row when run link found", () => {
-    const runLink = "https://github.com/owner/repo/actions/runs/123";
+  it("updates existing row when match found", () => {
     const body = `## Description
 
 ${HISTORY_SECTION}
 
-| # | Action | SHA | Run |
-|---|--------|-----|-----|
-| 1 | ⏳ Running... | - | [Run](${runLink}) |`;
+| # | Phase | Action | SHA | Run |
+|---|-------|--------|-----|-----|
+| 1 | 1 | ⏳ Running... | - | [Run](link) |`;
 
-    const result = updateIterationLogEntry(body, runLink, "✅ Pushed changes");
+    const result = updateIterationLogEntry(body, 1, 1, "⏳", "CI ✅");
 
-    expect(result).not.toBe(body);
-    expect(result).toContain("| 1 | ✅ Pushed changes |");
-    expect(result).toContain(`[Run](${runLink})`);
-    expect(result).not.toContain("⏳ Running...");
+    expect(result.updated).toBe(true);
+    expect(result.body).toContain("| 1 | 1 | CI ✅ |");
+    expect(result.body).not.toContain("⏳ Running...");
+    // Should preserve the run link
+    expect(result.body).toContain("[Run](link)");
   });
 
   it("updates row with new SHA", () => {
-    const runLink = "https://github.com/owner/repo/actions/runs/123";
     const sha = "abc1234567890";
     const body = `## Description
 
 ${HISTORY_SECTION}
 
-| # | Action | SHA | Run |
-|---|--------|-----|-----|
-| 3 | ⏳ Running... | - | [Run](${runLink}) |`;
+| # | Phase | Action | SHA | Run |
+|---|-------|--------|-----|-----|
+| 3 | 2 | ⏳ Running... | - | [Run](link) |`;
 
-    const result = updateIterationLogEntry(
-      body,
-      runLink,
-      "✅ Pushed changes",
-      sha,
-    );
+    const result = updateIterationLogEntry(body, 3, 2, "⏳", "CI ✅", sha);
 
-    expect(result).toContain("| 3 | ✅ Pushed changes |");
-    expect(result).toContain("[`abc1234`]");
-    expect(result).toContain("/commit/abc1234567890");
+    expect(result.updated).toBe(true);
+    expect(result.body).toContain("| 3 | 2 | CI ✅ |");
+    expect(result.body).toContain("[`abc1234`]");
+    expect(result.body).toContain("/commit/abc1234567890");
   });
 
   it("preserves other rows when updating", () => {
-    const runLink = "https://github.com/owner/repo/actions/runs/123";
     const body = `## Description
 
 ${HISTORY_SECTION}
 
-| # | Action | SHA | Run |
-|---|--------|-----|-----|
-| 1 | ✅ Initial implementation | [\`abc1234\`](link) | [Run](link1) |
-| 2 | ❌ CI failed | - | [Run](link2) |
-| 3 | ⏳ Running... | - | [Run](${runLink}) |`;
+| # | Phase | Action | SHA | Run |
+|---|-------|--------|-----|-----|
+| 1 | 1 | Initial implementation | [\`abc1234\`](link) | [Run](link1) |
+| 2 | 1 | ❌ CI failed | - | [Run](link2) |
+| 3 | 1 | ⏳ Running... | - | [Run](link3) |`;
 
-    const result = updateIterationLogEntry(body, runLink, "✅ Pushed changes");
+    const result = updateIterationLogEntry(body, 3, 1, "⏳", "CI ✅");
 
-    expect(result).toContain("| 1 | ✅ Initial implementation |");
-    expect(result).toContain("| 2 | ❌ CI failed |");
-    expect(result).toContain("| 3 | ✅ Pushed changes |");
-    expect(result).not.toContain("⏳ Running...");
+    expect(result.updated).toBe(true);
+    expect(result.body).toContain("| 1 | 1 | Initial implementation |");
+    expect(result.body).toContain("| 2 | 1 | ❌ CI failed |");
+    expect(result.body).toContain("| 3 | 1 | CI ✅ |");
+    expect(result.body).not.toContain("⏳ Running...");
   });
 
   it("handles CI failure update", () => {
-    const runLink = "https://github.com/owner/repo/actions/runs/123";
     const body = `## Description
 
 ${HISTORY_SECTION}
 
-| # | Action | SHA | Run |
-|---|--------|-----|-----|
-| 2 | ⏳ Running... | - | [Run](${runLink}) |`;
+| # | Phase | Action | SHA | Run |
+|---|-------|--------|-----|-----|
+| 2 | 1 | ⏳ Running... | - | [Run](link) |`;
 
-    const result = updateIterationLogEntry(body, runLink, "❌ CI failed");
+    const result = updateIterationLogEntry(body, 2, 1, "⏳", "CI ❌");
 
-    expect(result).toContain("| 2 | ❌ CI failed |");
-    expect(result).not.toContain("⏳ Running...");
-  });
-
-  it("handles circuit breaker update", () => {
-    const runLink = "https://github.com/owner/repo/actions/runs/123";
-    const body = `## Description
-
-${HISTORY_SECTION}
-
-| # | Action | SHA | Run |
-|---|--------|-----|-----|
-| 5 | ⏳ Running... | - | [Run](${runLink}) |`;
-
-    const result = updateIterationLogEntry(
-      body,
-      runLink,
-      "⚠️ Circuit breaker: 5 consecutive failures",
-    );
-
-    expect(result).toContain(
-      "| 5 | ⚠️ Circuit breaker: 5 consecutive failures |",
-    );
+    expect(result.updated).toBe(true);
+    expect(result.body).toContain("| 2 | 1 | CI ❌ |");
+    expect(result.body).not.toContain("⏳ Running...");
   });
 
   it("handles table with content after it", () => {
-    const runLink = "https://github.com/owner/repo/actions/runs/123";
     const body = `## Description
 
 ${HISTORY_SECTION}
 
-| # | Action | SHA | Run |
-|---|--------|-----|-----|
-| 1 | ⏳ Running... | - | [Run](${runLink}) |
+| # | Phase | Action | SHA | Run |
+|---|-------|--------|-----|-----|
+| 1 | 1 | ⏳ Running... | - | [Run](link) |
 
 ## Additional Content
 
 Some more text here`;
 
-    const result = updateIterationLogEntry(body, runLink, "✅ Done");
+    const result = updateIterationLogEntry(body, 1, 1, "⏳", "CI ✅");
 
-    expect(result).toContain("| 1 | ✅ Done |");
-    expect(result).toContain("## Additional Content");
-    expect(result).toContain("Some more text here");
+    expect(result.updated).toBe(true);
+    expect(result.body).toContain("| 1 | 1 | CI ✅ |");
+    expect(result.body).toContain("## Additional Content");
+    expect(result.body).toContain("Some more text here");
+  });
+
+  it("matches most recent row when multiple rows have same iteration/phase", () => {
+    const body = `## Description
+
+${HISTORY_SECTION}
+
+| # | Phase | Action | SHA | Run |
+|---|-------|--------|-----|-----|
+| 1 | 1 | ⏳ Running... | - | [Run](link1) |
+| 1 | 1 | ⏳ Running... | - | [Run](link2) |`;
+
+    const result = updateIterationLogEntry(body, 1, 1, "⏳", "CI ✅");
+
+    expect(result.updated).toBe(true);
+    // Should update the LAST (most recent) matching row
+    const lines = result.body.split("\n");
+    const dataRows = lines.filter(
+      (l) => l.startsWith("|") && !l.startsWith("|---") && !l.startsWith("| #"),
+    );
+    expect(dataRows).toHaveLength(2);
+    expect(dataRows[0]).toContain("⏳ Running...");
+    expect(dataRows[1]).toContain("CI ✅");
+  });
+
+  it("can update run link along with message", () => {
+    const newRunLink = "https://github.com/owner/repo/actions/runs/999";
+    const body = `## Description
+
+${HISTORY_SECTION}
+
+| # | Phase | Action | SHA | Run |
+|---|-------|--------|-----|-----|
+| 1 | 1 | ⏳ Running... | - | [Run](oldlink) |`;
+
+    const result = updateIterationLogEntry(
+      body,
+      1,
+      1,
+      "⏳",
+      "CI ✅",
+      undefined,
+      newRunLink,
+    );
+
+    expect(result.updated).toBe(true);
+    expect(result.body).toContain("| 1 | 1 | CI ✅ |");
+    expect(result.body).toContain(`[Run](${newRunLink})`);
+    expect(result.body).not.toContain("[Run](oldlink)");
+  });
+
+  it("preserves existing run link when not provided", () => {
+    const body = `## Description
+
+${HISTORY_SECTION}
+
+| # | Phase | Action | SHA | Run |
+|---|-------|--------|-----|-----|
+| 1 | 1 | ⏳ Running... | - | [Run](existinglink) |`;
+
+    const result = updateIterationLogEntry(body, 1, 1, "⏳", "CI ✅");
+
+    expect(result.updated).toBe(true);
+    expect(result.body).toContain("[Run](existinglink)");
   });
 });
 

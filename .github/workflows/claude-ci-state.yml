@@ -22,17 +22,14 @@ permissions:
 jobs:
   update-state:
     runs-on: ubuntu-latest
-    # Concurrency: share group with Claude workflow to prevent race conditions
-    # Extract parent issue from branch name (claude/issue/{parent}/phase-{N} or claude/issue/{N})
+    # Concurrency: use branch name for serialization
+    # Note: Can't share exact group with claude.yml because GHA expressions don't have split()
+    # But using branch name still prevents concurrent CI state updates on same branch
     concurrency:
       group: >-
         ${{
-          contains(github.event.workflow_run.head_branch, '/phase-')
-          && format('claude-work-claude/issue/{0}',
-             split(github.event.workflow_run.head_branch, '/')[2])
-          || startsWith(github.event.workflow_run.head_branch, 'claude/issue/')
-          && format('claude-work-claude/issue/{0}',
-             split(github.event.workflow_run.head_branch, '/')[2])
+          startsWith(github.event.workflow_run.head_branch, 'claude/issue/')
+          && format('claude-ci-state-{0}', github.event.workflow_run.head_branch)
           || 'claude-ci-other'
         }}
       cancel-in-progress: false
@@ -116,18 +113,19 @@ jobs:
           project_number: ${{ vars.PROJECT_NUMBER }}
           action: clear_failures
 
-      # Append CI result to parent Iteration History (triggers iterate loop)
+      # Update "Running..." row in parent Iteration History with CI result (triggers iterate loop)
       - name: Log CI result to parent history
         if: steps.context.outputs.skip != 'true'
         uses: ./.github/actions-ts/claude-parse-state
         with:
           github_token: ${{ secrets.NOPO_BOT_PAT }}
           issue_number: ${{ steps.context.outputs.parent_issue }}
-          action: append_history
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+          action: update_history
           phase: ${{ steps.context.outputs.phase_number }}
-          message: >-
-            CI ${{ steps.context.outputs.conclusion == 'success' && '✅' || '❌' }}
-            [Run #${{ steps.context.outputs.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ steps.context.outputs.run_id }})
+          match_pattern: "⏳"
+          message: CI ${{ steps.context.outputs.conclusion == 'success' && '✅' || '❌' }}
+          run_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ steps.context.outputs.run_id }}
 
       - name: Log result
         if: steps.context.outputs.skip != 'true'

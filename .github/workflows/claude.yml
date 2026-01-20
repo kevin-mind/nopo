@@ -151,17 +151,17 @@ jobs:
             *) echo "resource_type=issue" >> $GITHUB_OUTPUT ;;
           esac
 
-          # If context_json is empty/minimal and this is an issue job, fetch issue details
+          # If CONTEXT_JSON is empty/minimal and this is an issue job, fetch issue details
           if [[ "$JOB" == issue-* ]]; then
-            # Check if context_json has issue_body (main required field)
+            # Check if CONTEXT_JSON has issue_body (main required field)
             has_body=$(echo "$CONTEXT_JSON" | jq -r '.issue_body // empty')
             if [[ -z "$has_body" ]]; then
               echo "Fetching issue details for #$RESOURCE_NUMBER..."
-              # Fetch issue data and build context_json in one jq command (handles escaping)
-              context_json=$(gh issue view "$RESOURCE_NUMBER" --json title,body | jq -c \
+              # Fetch issue data and build new_context in one jq command (handles escaping)
+              new_context=$(gh issue view "$RESOURCE_NUMBER" --json title,body | jq -c \
                 --arg num "$RESOURCE_NUMBER" \
                 '{issue_number: $num, issue_title: .title, issue_body: .body}')
-              echo "context_json=$context_json" >> $GITHUB_OUTPUT
+              echo "context_json=$new_context" >> $GITHUB_OUTPUT
             fi
           fi
 

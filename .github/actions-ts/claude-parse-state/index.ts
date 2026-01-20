@@ -328,6 +328,22 @@ function getProjectItemId(
 }
 
 /**
+ * Format cells for history table
+ */
+function formatHistoryCells(
+  sha?: string,
+  runLink?: string,
+): { shaCell: string; runCell: string } {
+  const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+  const repo = process.env.GITHUB_REPOSITORY || "";
+  const shaCell = sha
+    ? `[\`${sha.slice(0, 7)}\`](${serverUrl}/${repo}/commit/${sha})`
+    : "-";
+  const runCell = runLink ? `[Run](${runLink})` : "-";
+  return { shaCell, runCell };
+}
+
+/**
  * Add entry to iteration history table in parent issue body
  */
 function addIterationLogEntry(
@@ -340,14 +356,7 @@ function addIterationLogEntry(
 ): string {
   const historyIdx = body.indexOf(HISTORY_SECTION);
 
-  // Format SHA as a full GitHub link if provided
-  const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
-  const repo = process.env.GITHUB_REPOSITORY || "";
-  const shaCell = sha
-    ? `[\`${sha.slice(0, 7)}\`](${serverUrl}/${repo}/commit/${sha})`
-    : "-";
-  // Format run link if provided
-  const runCell = runLink ? `[Run](${runLink})` : "-";
+  const { shaCell, runCell } = formatHistoryCells(sha, runLink);
 
   if (historyIdx === -1) {
     // Add history section before the end
@@ -387,6 +396,76 @@ ${entry}`;
   lines.splice(insertIdx, 0, entry);
 
   return lines.join("\n");
+}
+
+/**
+ * Update the most recent history entry matching the criteria
+ * Used to update "Running..." entries with CI results
+ */
+function updateIterationLogEntry(
+  body: string,
+  matchIteration: number,
+  matchPhase: number | string,
+  matchMessagePattern: string,
+  newMessage: string,
+  sha?: string,
+  runLink?: string,
+): { body: string; updated: boolean } {
+  const lines = body.split("\n");
+  const historyLineIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
+
+  if (historyLineIdx === -1) {
+    return { body, updated: false };
+  }
+
+  // Find all table rows after history section
+  const tableRows: { idx: number; line: string }[] = [];
+  for (let i = historyLineIdx + 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line) continue;
+    if (
+      line.startsWith("|") &&
+      !line.startsWith("|---") &&
+      !line.startsWith("| #")
+    ) {
+      tableRows.push({ idx: i, line });
+    } else if (line.trim() !== "" && !line.startsWith("|")) {
+      break;
+    }
+  }
+
+  // Search from most recent to oldest for a matching row
+  for (let i = tableRows.length - 1; i >= 0; i--) {
+    const row = tableRows[i];
+    if (!row) continue;
+
+    // Parse the row: | iteration | phase | message | sha | run |
+    const cells = row.line.split("|").map((c) => c.trim());
+    // cells[0] is empty (before first |), cells[1-5] are the actual values
+    const rowIteration = cells[1] || "";
+    const rowPhase = cells[2] || "";
+    const rowMessage = cells[3] || "";
+
+    // Check if this row matches our criteria
+    if (
+      rowIteration === String(matchIteration) &&
+      rowPhase === String(matchPhase) &&
+      rowMessage.includes(matchMessagePattern)
+    ) {
+      // Update this row
+      const { shaCell, runCell } = formatHistoryCells(sha, runLink);
+      // Preserve existing SHA and Run if not provided
+      const finalShaCell = sha ? shaCell : cells[4] || "-";
+      const finalRunCell = runLink ? runCell : cells[5] || "-";
+
+      const newRow = `| ${rowIteration} | ${rowPhase} | ${newMessage} | ${finalShaCell} | ${finalRunCell} |`;
+      lines[row.idx] = newRow;
+
+      return { body: lines.join("\n"), updated: true };
+    }
+  }
+
+  return { body, updated: false };
 }
 
 /**
@@ -542,6 +621,7 @@ async function run(): Promise<void> {
           status: "",
           iteration: "0",
           failures: "0",
+          consecutive_failures: "0", // Alias for backwards compatibility
         });
         return;
       }
@@ -551,6 +631,7 @@ async function run(): Promise<void> {
         status: state.status,
         iteration: String(state.iteration),
         failures: String(state.failures),
+        consecutive_failures: String(state.failures), // Alias for backwards compatibility
         issue_body: issue.body || "",
         issue_state: issue.state || "",
       });
@@ -797,6 +878,7 @@ async function run(): Promise<void> {
 
       setOutputs({
         failures: String(newFailures),
+        consecutive_failures: String(newFailures), // Alias for backwards compatibility
         success: "true",
       });
       return;
@@ -861,10 +943,18 @@ async function run(): Promise<void> {
       return;
     }
 
-    // Append to iteration history action
-    if (action === "append_history") {
+    // Append to iteration history action (log_event is an alias for backwards compatibility)
+    if (action === "append_history" || action === "log_event") {
       const phase = getOptionalInput("phase") || "-";
-      const message = getRequiredInput("message");
+      // Support both message and iteration_message for backwards compatibility
+      const message =
+        getOptionalInput("message") ||
+        getOptionalInput("iteration_message") ||
+        "";
+      if (!message) {
+        core.setFailed("message or iteration_message is required");
+        return;
+      }
       const sha = getOptionalInput("commit_sha");
       const runLink = getOptionalInput("run_link");
 
@@ -923,6 +1013,111 @@ async function run(): Promise<void> {
       setOutputs({
         success: "true",
       });
+      return;
+    }
+
+    // Update existing history entry (used by CI to update "Running..." -> result)
+    if (action === "update_history") {
+      const phase = getOptionalInput("phase") || "-";
+      // Support both message and iteration_message for backwards compatibility
+      const message =
+        getOptionalInput("message") ||
+        getOptionalInput("iteration_message") ||
+        "";
+      if (!message) {
+        core.setFailed("message or iteration_message is required");
+        return;
+      }
+      const matchPattern = getOptionalInput("match_pattern") || "⏳";
+      const sha = getOptionalInput("commit_sha");
+      const runLink = getOptionalInput("run_link");
+
+      // Get current issue body and iteration
+      interface QueryResponse {
+        repository?: {
+          issue?: {
+            id?: string;
+            body?: string;
+            projectItems?: { nodes?: unknown[] };
+          };
+        };
+      }
+
+      const response = await octokit.graphql<QueryResponse>(
+        GET_PROJECT_ITEM_QUERY,
+        {
+          org: owner,
+          repo,
+          issueNumber,
+          projectNumber,
+        },
+      );
+
+      const issue = response.repository?.issue;
+      if (!issue) {
+        core.setFailed(`Issue #${issueNumber} not found`);
+        return;
+      }
+
+      const projectItems = issue.projectItems?.nodes || [];
+      const currentState = parseProjectStateFromResponse(
+        projectItems,
+        projectNumber,
+      );
+      const iteration = currentState?.iteration || 0;
+
+      // Try to update existing row
+      const result = updateIterationLogEntry(
+        issue.body || "",
+        iteration,
+        phase,
+        matchPattern,
+        message,
+        sha,
+        runLink,
+      );
+
+      if (result.updated) {
+        await octokit.rest.issues.update({
+          owner,
+          repo,
+          issue_number: issueNumber,
+          body: result.body,
+        });
+
+        core.info(`Updated history entry: Phase ${phase}, ${message}`);
+
+        setOutputs({
+          success: "true",
+          updated: "true",
+        });
+      } else {
+        // If no matching row found, append instead
+        const newBody = addIterationLogEntry(
+          issue.body || "",
+          iteration,
+          phase,
+          message,
+          sha,
+          runLink,
+        );
+
+        await octokit.rest.issues.update({
+          owner,
+          repo,
+          issue_number: issueNumber,
+          body: newBody,
+        });
+
+        core.info(
+          `No matching row to update, appended history entry: Phase ${phase}, ${message}`,
+        );
+
+        setOutputs({
+          success: "true",
+          updated: "false",
+        });
+      }
       return;
     }
 
