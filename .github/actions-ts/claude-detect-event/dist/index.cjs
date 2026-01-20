@@ -24102,8 +24102,19 @@ async function fetchPrByBranch(owner, repo, branch) {
 function hasSkipLabel(labels) {
   return labels.some((l) => l === "skip-dispatch" || l === "test:automation");
 }
+function hasStepwiseTestLabel(labels) {
+  return labels.some(
+    (l) => typeof l === "string" ? l === "_test" : l.name === "_test"
+  );
+}
 function isTestResource(title) {
   return title.startsWith("[TEST]");
+}
+function shouldSkipTestResource(title, labels) {
+  if (hasStepwiseTestLabel(labels)) {
+    return false;
+  }
+  return isTestResource(title);
 }
 async function extractIssueNumber(body) {
   const match = body.match(/(?:Fixes|Closes|Resolves)\s+#(\d+)/i);
@@ -24178,7 +24189,7 @@ async function handleIssueEvent(octokit, owner, repo) {
   const payload = context.payload;
   const action = payload.action;
   const issue = payload.issue;
-  if (isTestResource(issue.title)) {
+  if (shouldSkipTestResource(issue.title, issue.labels)) {
     return emptyResult(true, "Issue title starts with [TEST]");
   }
   const hasTestLabel = issue.labels.some((l) => l.name === "test:automation");
@@ -24430,7 +24441,7 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
   const payload = context.payload;
   const comment = payload.comment;
   const issue = payload.issue;
-  if (isTestResource(issue.title)) {
+  if (shouldSkipTestResource(issue.title, issue.labels)) {
     return emptyResult(true, "Issue/PR title starts with [TEST]");
   }
   const hasTestLabel = issue.labels.some((l) => l.name === "test:automation");
@@ -24514,7 +24525,7 @@ async function handlePullRequestReviewCommentEvent() {
   const payload = context.payload;
   const comment = payload.comment;
   const pr = payload.pull_request;
-  if (isTestResource(pr.title)) {
+  if (shouldSkipTestResource(pr.title, pr.labels)) {
     return emptyResult(true, "PR title starts with [TEST]");
   }
   const hasTestLabel = pr.labels.some((l) => l.name === "test:automation");
@@ -24568,7 +24579,7 @@ async function handlePushEvent() {
   if (hasSkipLabel(prInfo.labels)) {
     return emptyResult(true, "PR has skip-dispatch or test:automation label");
   }
-  if (isTestResource(prInfo.title)) {
+  if (shouldSkipTestResource(prInfo.title, prInfo.labels)) {
     return emptyResult(true, "PR title starts with [TEST]");
   }
   return {
@@ -24604,7 +24615,7 @@ async function handleWorkflowRunEvent() {
   if (hasSkipLabel(prInfo.labels)) {
     return emptyResult(true, "PR has skip-dispatch or test:automation label");
   }
-  if (isTestResource(prInfo.title)) {
+  if (shouldSkipTestResource(prInfo.title, prInfo.labels)) {
     return emptyResult(true, "PR title starts with [TEST]");
   }
   const issueNumber = await extractIssueNumber(prInfo.body);
@@ -24632,7 +24643,7 @@ async function handlePullRequestEvent(octokit, owner, repo) {
   const payload = context.payload;
   const action = payload.action;
   const pr = payload.pull_request;
-  if (isTestResource(pr.title)) {
+  if (shouldSkipTestResource(pr.title, pr.labels)) {
     return emptyResult(true, "PR title starts with [TEST]");
   }
   const hasSkipLabelOnPr = pr.labels.some(
@@ -24678,7 +24689,7 @@ async function handlePullRequestReviewEvent() {
   const payload = context.payload;
   const review = payload.review;
   const pr = payload.pull_request;
-  if (isTestResource(pr.title)) {
+  if (shouldSkipTestResource(pr.title, pr.labels)) {
     return emptyResult(true, "PR title starts with [TEST]");
   }
   const hasSkipLabelOnPr = pr.labels.some(

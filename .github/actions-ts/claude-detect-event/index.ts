@@ -333,8 +333,27 @@ function hasSkipLabel(labels: string[]): boolean {
   return labels.some((l) => l === "skip-dispatch" || l === "test:automation");
 }
 
+function hasStepwiseTestLabel(
+  labels: Array<{ name: string }> | string[],
+): boolean {
+  return labels.some((l) =>
+    typeof l === "string" ? l === "_test" : l.name === "_test",
+  );
+}
+
 function isTestResource(title: string): boolean {
   return title.startsWith("[TEST]");
+}
+
+function shouldSkipTestResource(
+  title: string,
+  labels: Array<{ name: string }> | string[],
+): boolean {
+  // Allow [TEST] resources through when _test label is present (stepwise testing)
+  if (hasStepwiseTestLabel(labels)) {
+    return false;
+  }
+  return isTestResource(title);
 }
 
 async function extractIssueNumber(body: string): Promise<string> {
@@ -439,7 +458,8 @@ async function handleIssueEvent(
   };
 
   // Check for [TEST] in title (circuit breaker for test automation)
-  if (isTestResource(issue.title)) {
+  // Skip unless _test label is present (stepwise testing mode)
+  if (shouldSkipTestResource(issue.title, issue.labels)) {
     return emptyResult(true, "Issue title starts with [TEST]");
   }
 
@@ -763,7 +783,8 @@ async function handleIssueCommentEvent(
   };
 
   // Check for [TEST] in title (circuit breaker for test automation)
-  if (isTestResource(issue.title)) {
+  // Skip unless _test label is present (stepwise testing mode)
+  if (shouldSkipTestResource(issue.title, issue.labels)) {
     return emptyResult(true, "Issue/PR title starts with [TEST]");
   }
 
@@ -885,7 +906,8 @@ async function handlePullRequestReviewCommentEvent(): Promise<DetectionResult> {
   };
 
   // Check for [TEST] in title (circuit breaker for test automation)
-  if (isTestResource(pr.title)) {
+  // Skip unless _test label is present (stepwise testing mode)
+  if (shouldSkipTestResource(pr.title, pr.labels)) {
     return emptyResult(true, "PR title starts with [TEST]");
   }
 
@@ -961,7 +983,8 @@ async function handlePushEvent(): Promise<DetectionResult> {
   }
 
   // Check for [TEST] in PR title (circuit breaker for test automation)
-  if (isTestResource(prInfo.title)) {
+  // Skip unless _test label is present (stepwise testing mode)
+  if (shouldSkipTestResource(prInfo.title, prInfo.labels)) {
     return emptyResult(true, "PR title starts with [TEST]");
   }
 
@@ -1013,7 +1036,8 @@ async function handleWorkflowRunEvent(): Promise<DetectionResult> {
   }
 
   // Check for [TEST] in PR title (circuit breaker for test automation)
-  if (isTestResource(prInfo.title)) {
+  // Skip unless _test label is present (stepwise testing mode)
+  if (shouldSkipTestResource(prInfo.title, prInfo.labels)) {
     return emptyResult(true, "PR title starts with [TEST]");
   }
 
@@ -1059,7 +1083,8 @@ async function handlePullRequestEvent(
   };
 
   // Check for [TEST] in title (circuit breaker for test automation)
-  if (isTestResource(pr.title)) {
+  // Skip unless _test label is present (stepwise testing mode)
+  if (shouldSkipTestResource(pr.title, pr.labels)) {
     return emptyResult(true, "PR title starts with [TEST]");
   }
 
@@ -1129,7 +1154,8 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
   };
 
   // Check for [TEST] in title (circuit breaker for test automation)
-  if (isTestResource(pr.title)) {
+  // Skip unless _test label is present (stepwise testing mode)
+  if (shouldSkipTestResource(pr.title, pr.labels)) {
     return emptyResult(true, "PR title starts with [TEST]");
   }
 

@@ -452,62 +452,62 @@ async function createFixture(
   if (projectFields && fixture.parent_issue.project_fields && issueNodeId) {
     // Add issue to project
     interface AddItemResponse {
-        addProjectV2ItemById?: {
-          item?: { id?: string };
-        };
+      addProjectV2ItemById?: {
+        item?: { id?: string };
+      };
+    }
+
+    const addResult = await octokit.graphql<AddItemResponse>(
+      ADD_ISSUE_TO_PROJECT_MUTATION,
+      {
+        projectId: projectFields.projectId,
+        contentId: issueNodeId,
+      },
+    );
+
+    const itemId = addResult.addProjectV2ItemById?.item?.id;
+    if (itemId) {
+      // Set status if specified
+      const statusValue = fixture.parent_issue.project_fields.Status;
+      if (statusValue) {
+        const optionId = projectFields.statusOptions[statusValue];
+        if (optionId) {
+          await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+            projectId: projectFields.projectId,
+            itemId,
+            fieldId: projectFields.statusFieldId,
+            value: { singleSelectOptionId: optionId },
+          });
+          core.info(`Set parent Status to ${statusValue}`);
+        }
       }
 
-      const addResult = await octokit.graphql<AddItemResponse>(
-        ADD_ISSUE_TO_PROJECT_MUTATION,
-        {
+      // Set iteration if specified
+      if (fixture.parent_issue.project_fields.Iteration !== undefined) {
+        await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
           projectId: projectFields.projectId,
-          contentId: issueNodeId,
-        },
-      );
-
-      const itemId = addResult.addProjectV2ItemById?.item?.id;
-      if (itemId) {
-        // Set status if specified
-        const statusValue = fixture.parent_issue.project_fields.Status;
-        if (statusValue) {
-          const optionId = projectFields.statusOptions[statusValue];
-          if (optionId) {
-            await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
-              projectId: projectFields.projectId,
-              itemId,
-              fieldId: projectFields.statusFieldId,
-              value: { singleSelectOptionId: optionId },
-            });
-            core.info(`Set parent Status to ${statusValue}`);
-          }
-        }
-
-        // Set iteration if specified
-        if (fixture.parent_issue.project_fields.Iteration !== undefined) {
-          await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
-            projectId: projectFields.projectId,
-            itemId,
-            fieldId: projectFields.iterationFieldId,
-            value: { number: fixture.parent_issue.project_fields.Iteration },
-          });
-          core.info(
-            `Set parent Iteration to ${fixture.parent_issue.project_fields.Iteration}`,
-          );
-        }
-
-        // Set failures if specified
-        if (fixture.parent_issue.project_fields.Failures !== undefined) {
-          await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
-            projectId: projectFields.projectId,
-            itemId,
-            fieldId: projectFields.failuresFieldId,
-            value: { number: fixture.parent_issue.project_fields.Failures },
-          });
-          core.info(
-            `Set parent Failures to ${fixture.parent_issue.project_fields.Failures}`,
-          );
-        }
+          itemId,
+          fieldId: projectFields.iterationFieldId,
+          value: { number: fixture.parent_issue.project_fields.Iteration },
+        });
+        core.info(
+          `Set parent Iteration to ${fixture.parent_issue.project_fields.Iteration}`,
+        );
       }
+
+      // Set failures if specified
+      if (fixture.parent_issue.project_fields.Failures !== undefined) {
+        await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+          projectId: projectFields.projectId,
+          itemId,
+          fieldId: projectFields.failuresFieldId,
+          value: { number: fixture.parent_issue.project_fields.Failures },
+        });
+        core.info(
+          `Set parent Failures to ${fixture.parent_issue.project_fields.Failures}`,
+        );
+      }
+    }
   }
 
   // Create sub-issues if specified
