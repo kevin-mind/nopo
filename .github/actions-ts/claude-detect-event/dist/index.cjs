@@ -24914,10 +24914,19 @@ async function run() {
       core2.info(`Detected job: ${result.job}`);
       core2.info(`Resource: ${result.resourceType} #${result.resourceNumber}`);
     }
+    let parentIssue = "0";
+    try {
+      const ctx = JSON.parse(result.contextJson);
+      if (ctx.parent_issue && ctx.parent_issue !== "0") {
+        parentIssue = ctx.parent_issue;
+      }
+    } catch {
+    }
     setOutputs({
       job: result.job,
       resource_type: result.resourceType,
       resource_number: result.resourceNumber,
+      parent_issue: parentIssue,
       comment_id: result.commentId,
       context_json: result.contextJson,
       skip: result.skip ? "true" : "false",

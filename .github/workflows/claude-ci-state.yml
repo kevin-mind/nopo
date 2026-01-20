@@ -22,6 +22,20 @@ permissions:
 jobs:
   update-state:
     runs-on: ubuntu-latest
+    # Concurrency: share group with Claude workflow to prevent race conditions
+    # Extract parent issue from branch name (claude/issue/{parent}/phase-{N} or claude/issue/{N})
+    concurrency:
+      group: >-
+        ${{
+          contains(github.event.workflow_run.head_branch, '/phase-')
+          && format('claude-work-claude/issue/{0}',
+             split(github.event.workflow_run.head_branch, '/')[2])
+          || startsWith(github.event.workflow_run.head_branch, 'claude/issue/')
+          && format('claude-work-claude/issue/{0}',
+             split(github.event.workflow_run.head_branch, '/')[2])
+          || 'claude-ci-other'
+        }}
+      cancel-in-progress: false
     steps:
       - name: Extract context
         id: context

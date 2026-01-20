@@ -1452,10 +1452,22 @@ async function run(): Promise<void> {
       core.info(`Resource: ${result.resourceType} #${result.resourceNumber}`);
     }
 
+    // Extract parent_issue from context_json for concurrency groups
+    let parentIssue = "0";
+    try {
+      const ctx = JSON.parse(result.contextJson);
+      if (ctx.parent_issue && ctx.parent_issue !== "0") {
+        parentIssue = ctx.parent_issue;
+      }
+    } catch {
+      // Ignore parse errors
+    }
+
     setOutputs({
       job: result.job,
       resource_type: result.resourceType,
       resource_number: result.resourceNumber,
+      parent_issue: parentIssue,
       comment_id: result.commentId,
       context_json: result.contextJson,
       skip: result.skip ? "true" : "false",

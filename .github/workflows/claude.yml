@@ -120,6 +120,9 @@ jobs:
       job: ${{ steps.detect.outputs.job || inputs.job }}
       resource_type: ${{ steps.detect.outputs.resource_type || steps.derive.outputs.resource_type }}
       resource_number: ${{ steps.detect.outputs.resource_number || inputs.resource_number }}
+      # For sub-issues, parent_issue is the parent issue number; for parent issues, it's "0"
+      # Use this for concurrency to group all work for a parent + its sub-issues together
+      parent_issue: ${{ steps.detect.outputs.parent_issue || steps.derive.outputs.parent_issue || '0' }}
       comment_id: ${{ steps.detect.outputs.comment_id }}
       context_json: ${{ steps.detect.outputs.context_json || steps.derive.outputs.context_json || inputs.context_json }}
       skip: ${{ steps.detect.outputs.skip }}
@@ -218,8 +221,9 @@ jobs:
       needs.detect.outputs.job != '' &&
       needs.detect.outputs.job != 'push-to-draft' &&
       needs.detect.outputs.job != 'discussion-complete'
-    # Concurrency: one Claude job per resource at a time
+    # Concurrency: one Claude job per parent issue at a time (includes all sub-issues)
     # - Issue iterate, triage, orchestrate: share group with CI workflow (sequential execution)
+    #   For sub-issues, use parent_issue number to group with parent
     # - PR jobs (pr-review, pr-response, pr-human-response): share group so push cancels them
     # - Other issue jobs (comment): separate group per issue
     # - Discussion jobs: separate group per discussion
@@ -231,7 +235,7 @@ jobs:
       group: >-
         ${{
           (needs.detect.outputs.job == 'issue-iterate' || needs.detect.outputs.job == 'issue-triage' || needs.detect.outputs.job == 'issue-orchestrate')
-          && format('claude-work-claude/issue/{0}', needs.detect.outputs.resource_number)
+          && format('claude-work-claude/issue/{0}', needs.detect.outputs.parent_issue != '0' && needs.detect.outputs.parent_issue || needs.detect.outputs.resource_number)
           || needs.detect.outputs.resource_type == 'pr'
           && format('claude-review-{0}', needs.detect.outputs.resource_number)
           || format('claude-resource-{0}-{1}', needs.detect.outputs.resource_type, needs.detect.outputs.resource_number)
