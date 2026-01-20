@@ -8,9 +8,9 @@ Issues follow this structure (from task.yml template):
 - **Description**: Brief TLDR of what needs to be done
 - **Details**: Implementation details, affected files, technical requirements
 - **Questions**: Open questions that need answers (checkboxes)
-- **Phases**: For M/L/XL issues, create separate sub-issues for each phase
+- **Phases**: ALL issues get sub-issues (even XS/S single-phase work)
   - Each sub-issue has its own todos and ships as a separate PR
-  - For XS/S issues, a single "## Todo" section in the main issue is fine
+  - Parent issues do NOT have todos - todos go in sub-issues only
 
 ## Your Tasks
 
@@ -69,17 +69,30 @@ Use `gh issue edit {{ISSUE_NUMBER}} --body "..."` to improve the issue:
 - If questions exist, research and answer them (check the box and add answer)
 - Add new questions if you identify uncertainties
 
-### 4. CREATE SUB-ISSUES FOR PHASES (M/L/XL issues only)
+### 4. CREATE SUB-ISSUES (REQUIRED FOR ALL ISSUES)
 
-For M/L/XL issues, create separate sub-issues for each phase. Each sub-issue becomes
-an independent unit of work with its own branch, PR, and iteration loop.
+**You MUST create at least one sub-issue for EVERY issue.** Sub-issues are where the
+actual work happens - they contain the todos, get branches, and produce PRs.
 
-**Phase design principles:**
+- **XS/S issues**: Create a single sub-issue with all todos
+- **M/L/XL issues**: Create 2-5 sub-issues, one per phase
+
+**Phase design principles (for multi-phase work):**
 - Each phase should be **independently shippable** (no broken states after merge)
 - Phase 1 often: schema changes, interfaces, types, config
 - Middle phases: core implementation, one feature at a time
 - Final phase: integration, cleanup, documentation
-- 2-5 phases is ideal; single-phase inline todos are fine for XS/S issues
+
+**Todo guidelines - IMPORTANT:**
+- Todos must be **specific implementation tasks**, not generic workflow steps
+- DO NOT include obvious things like:
+  - "Commit and push changes"
+  - "Create PR"
+  - "Run tests"
+  - "Ensure CI passes"
+  - "Merge PR"
+- These workflow steps happen for EVERY issue and are handled by the automation
+- Only include tasks that are UNIQUE to this specific issue
 
 **Sub-issue format:**
 - Title: `[Phase N] <Phase Title>`
@@ -255,6 +268,7 @@ cat triage-output.json
 gh issue view {{ISSUE_NUMBER}}
 
 # Update issue body (use heredoc for multiline)
+# NOTE: Parent issues should NOT have a Todo section - todos go in sub-issues
 gh issue edit {{ISSUE_NUMBER}} --body "$(cat <<'EOF'
 ## Description
 Brief TLDR of the issue.
@@ -268,9 +282,19 @@ High-level technical approach.
 ## Questions
 - [x] Question 1? Answer here.
 
-## Todo
-- [ ] Task 1
-- [ ] Task 2
+## Phases
+
+| # | Sub-Issue | Status |
+|---|-----------|--------|
+| 1 | #<PHASE1_NUM> | pending |
+
+<!-- CLAUDE_MAIN_STATE
+orchestration_iteration: 0
+sub_issues: [<PHASE1_NUM>]
+current_sub_issue: 0
+sub_issue_status: {}
+complete: false
+-->
 EOF
 )"
 
@@ -302,9 +326,10 @@ IMPORTANT:
 - You MUST write triage-output.json - the workflow step reads your JSON and applies labels/fields
 - DO NOT add labels yourself - the workflow step reads your JSON and applies them
 - DO NOT assign the issue to anyone
-- For XS/S issues: Use inline "## Todo" section with checkboxes
-- For M/L/XL issues: Create sub-issues for each phase (2-5 phases)
-- Each sub-issue title MUST start with `[Phase N]`
+- You MUST create at least one sub-issue for EVERY issue (even XS/S)
+- Parent issues should NOT have a "## Todo" section - todos go in sub-issues only
+- Each sub-issue title MUST start with `[Phase N]` (use `[Phase 1]` for single-phase work)
 - Link sub-issues to parent using the GraphQL addSubIssue mutation
 - Initialize CLAUDE_MAIN_STATE in main issue after creating sub-issues
 - Maximum 5 phases; if more needed, suggest splitting the issue
+- Todos must be specific implementation tasks, NOT generic workflow steps
