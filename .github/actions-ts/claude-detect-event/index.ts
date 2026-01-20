@@ -738,9 +738,11 @@ async function handleIssueEvent(
       };
     }
 
-    // For parent issues: require triaged label OR sub-issues before work can start
+    // For parent issues: require triaged label OR sub-issues OR CLAUDE_MAIN_STATE before work can start
+    // CLAUDE_MAIN_STATE indicates triage has written the body (sub-issues may still be propagating via GraphQL)
     // This prevents iterate from running before triage completes
-    if (!hasTriagedLabel && details.subIssues.length === 0) {
+    const hasMainState = details.body.includes("<!-- CLAUDE_MAIN_STATE");
+    if (!hasTriagedLabel && details.subIssues.length === 0 && !hasMainState) {
       return emptyResult(
         true,
         "Issue not triaged yet - waiting for triage to complete and create sub-issues",
@@ -748,7 +750,20 @@ async function handleIssueEvent(
     }
 
     // Check if this is a main issue with sub-issues - route to orchestrate
-    if (details.subIssues.length > 0) {
+    // First try GraphQL sub-issues, then fall back to parsing CLAUDE_MAIN_STATE
+    let subIssueNumbers = details.subIssues;
+    if (subIssueNumbers.length === 0 && hasMainState) {
+      // Parse sub_issues from CLAUDE_MAIN_STATE: sub_issues: [123, 456]
+      const match = details.body.match(/sub_issues:\s*\[([^\]]+)\]/);
+      if (match) {
+        subIssueNumbers = match[1]
+          .split(",")
+          .map((s) => parseInt(s.trim(), 10))
+          .filter((n) => !isNaN(n) && n > 0);
+      }
+    }
+
+    if (subIssueNumbers.length > 0) {
       return {
         job: "issue-orchestrate",
         resourceType: "issue",
@@ -758,7 +773,7 @@ async function handleIssueEvent(
           issue_number: String(issue.number),
           issue_title: details.title || issue.title,
           issue_body: details.body || issue.body,
-          sub_issues: details.subIssues.join(","),
+          sub_issues: subIssueNumbers.join(","),
           trigger_type: "assigned",
           project_status: projectState?.status || "",
           project_iteration: String(projectState?.iteration || 0),

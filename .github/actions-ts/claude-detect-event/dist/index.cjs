@@ -24405,13 +24405,21 @@ async function handleIssueEvent(octokit, owner, repo) {
         skipReason: ""
       };
     }
-    if (!hasTriagedLabel && details.subIssues.length === 0) {
+    const hasMainState = details.body.includes("<!-- CLAUDE_MAIN_STATE");
+    if (!hasTriagedLabel && details.subIssues.length === 0 && !hasMainState) {
       return emptyResult(
         true,
         "Issue not triaged yet - waiting for triage to complete and create sub-issues"
       );
     }
-    if (details.subIssues.length > 0) {
+    let subIssueNumbers = details.subIssues;
+    if (subIssueNumbers.length === 0 && hasMainState) {
+      const match = details.body.match(/sub_issues:\s*\[([^\]]+)\]/);
+      if (match) {
+        subIssueNumbers = match[1].split(",").map((s) => parseInt(s.trim(), 10)).filter((n) => !isNaN(n) && n > 0);
+      }
+    }
+    if (subIssueNumbers.length > 0) {
       return {
         job: "issue-orchestrate",
         resourceType: "issue",
@@ -24421,7 +24429,7 @@ async function handleIssueEvent(octokit, owner, repo) {
           issue_number: String(issue.number),
           issue_title: details.title || issue.title,
           issue_body: details.body || issue.body,
-          sub_issues: details.subIssues.join(","),
+          sub_issues: subIssueNumbers.join(","),
           trigger_type: "assigned",
           project_status: projectState?.status || "",
           project_iteration: String(projectState?.iteration || 0),
