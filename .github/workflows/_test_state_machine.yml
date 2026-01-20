@@ -247,6 +247,83 @@ jobs:
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
 
+      - name: Gather failure analysis
+        if: steps.verify.outputs.verification_passed != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
+          ISSUE_NUMBER: ${{ needs.setup.outputs.issue_number }}
+          SUB_ISSUE_NUMBERS: ${{ needs.setup.outputs.sub_issue_numbers }}
+        run: |
+          echo "## Failure Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Parent issue details
+          echo "### Parent Issue #$ISSUE_NUMBER" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --json number,title,state,body,assignees,labels,projectItems 2>/dev/null | jq '{
+            number: .number,
+            title: .title,
+            state: .state,
+            assignees: [.assignees[].login],
+            labels: [.labels[].name],
+            project_status: .projectItems[0].status.name
+          }' >> $GITHUB_STEP_SUMMARY || echo "Failed to fetch parent issue" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Sub-issues
+          if [[ -n "$SUB_ISSUE_NUMBERS" ]]; then
+            echo "### Sub-Issues" >> $GITHUB_STEP_SUMMARY
+            IFS=',' read -ra SUB_NUMS <<< "$SUB_ISSUE_NUMBERS"
+            for sub_num in "${SUB_NUMS[@]}"; do
+              sub_num=$(echo "$sub_num" | tr -d ' ')
+              echo "#### Sub-Issue #$sub_num" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              gh issue view "$sub_num" --repo "$GITHUB_REPOSITORY" --json number,title,state,assignees,projectItems 2>/dev/null | jq '{
+                number: .number,
+                title: .title,
+                state: .state,
+                assignees: [.assignees[].login],
+                project_status: .projectItems[0].status.name
+              }' >> $GITHUB_STEP_SUMMARY || echo "Failed to fetch sub-issue" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+            done
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Related PRs
+          echo "### Related PRs" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          gh pr list --repo "$GITHUB_REPOSITORY" --search "$ISSUE_NUMBER in:body" --json number,title,state,isDraft,headRefName 2>/dev/null | jq '.[] | {
+            number: .number,
+            title: .title,
+            state: .state,
+            draft: .isDraft,
+            branch: .headRefName
+          }' >> $GITHUB_STEP_SUMMARY || echo "No related PRs found" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Recent Claude workflow runs
+          echo "### Recent Claude Workflow Runs" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          gh run list --repo "$GITHUB_REPOSITORY" --workflow="Claude" --limit=10 --json databaseId,displayTitle,status,conclusion,createdAt 2>/dev/null | \
+            jq '.[] | select(.displayTitle | contains("#'"$ISSUE_NUMBER"'")) | {
+              run_id: .databaseId,
+              title: .displayTitle,
+              status: .status,
+              conclusion: .conclusion,
+              created: .createdAt
+            }' >> $GITHUB_STEP_SUMMARY || echo "Failed to fetch workflow runs" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Links for manual investigation
+          echo "### Investigation Links" >> $GITHUB_STEP_SUMMARY
+          echo "- [Parent Issue](https://github.com/$GITHUB_REPOSITORY/issues/$ISSUE_NUMBER)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Claude Workflow Runs](https://github.com/$GITHUB_REPOSITORY/actions/workflows/claude.yml?query=branch%3Amain)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Project Board](https://github.com/orgs/${GITHUB_REPOSITORY%/*}/projects/1)" >> $GITHUB_STEP_SUMMARY
+
   # Cleanup test artifacts (always runs unless skipped)
   cleanup:
     needs: [setup, verify]
