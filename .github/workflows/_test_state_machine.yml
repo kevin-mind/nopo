@@ -181,12 +181,16 @@ jobs:
       - name: Wait for state machine to complete
         env:
           ISSUE_NUMBER: ${{ needs.setup.outputs.issue_number }}
+          SUB_ISSUE_NUMBERS: ${{ needs.setup.outputs.sub_issue_numbers }}
           FIXTURE_JSON: ${{ needs.load-fixture.outputs.fixture }}
+          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
         run: |
           timeout=$(echo "$FIXTURE_JSON" | jq -r '.timeout // 300')
           poll_interval=$(echo "$FIXTURE_JSON" | jq -r '.poll_interval // 10')
 
           echo "Waiting for state machine to complete..."
+          echo "Parent issue: #$ISSUE_NUMBER"
+          echo "Sub-issues: $SUB_ISSUE_NUMBERS"
           echo "Timeout: ${timeout}s, Poll interval: ${poll_interval}s"
 
           start_time=$(date +%s)
@@ -199,18 +203,18 @@ jobs:
               break
             fi
 
-            # Check if issue is closed (indicates completion)
-            state=$(gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --json state -q '.state')
+            # Get issue details including project status
+            issue_data=$(gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --json state,title,projectItems 2>/dev/null || echo '{}')
+            state=$(echo "$issue_data" | jq -r '.state // "UNKNOWN"')
+            title=$(echo "$issue_data" | jq -r '.title // "Unknown"')
+            project_status=$(echo "$issue_data" | jq -r '.projectItems[0].fieldValueByName.name // "N/A"')
+
             if [[ "$state" == "CLOSED" ]]; then
-              echo "Issue is closed - state machine likely completed"
+              echo "Parent #$ISSUE_NUMBER closed - state machine likely completed"
               break
             fi
 
-            # Check if issue is blocked
-            labels=$(gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --json labels -q '.labels[].name')
-            # Note: We check Project Status, not labels - but labels can indicate state too
-
-            echo "Elapsed: ${elapsed}s - Issue state: $state"
+            echo "Elapsed: ${elapsed}s | Parent #$ISSUE_NUMBER: $state (Status: $project_status)"
             sleep "$poll_interval"
           done
 
