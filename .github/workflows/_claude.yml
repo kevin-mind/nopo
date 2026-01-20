@@ -156,6 +156,7 @@ jobs:
         with:
           ref: ${{ needs.context.outputs.branch_name }}
           fetch-depth: 0
+          persist-credentials: false  # Allow PAT to work for push
 
       # Read current project state (Status, Iteration, Failures)
       - id: read_state
@@ -1315,6 +1316,7 @@ jobs:
         with:
           ref: ${{ needs.context.outputs.branch_name }}
           fetch-depth: 0
+          persist-credentials: false  # Allow PAT to work for push
       - uses: ./.github/actions/run-claude
         with:
           github_token: ${{ github.token }}
@@ -1599,6 +1601,7 @@ jobs:
         with:
           ref: ${{ needs.context.outputs.branch_name }}
           fetch-depth: 0
+          persist-credentials: false  # Allow PAT to work for push
       - name: git config
         run: |
           git config --global user.name "Claude Bot"
@@ -1659,6 +1662,7 @@ jobs:
         with:
           ref: ${{ needs.context.outputs.branch_name }}
           fetch-depth: 0
+          persist-credentials: false  # Allow PAT to work for push
       - name: git config
         run: |
           git config --global user.name "Claude Bot"
