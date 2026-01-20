@@ -1245,7 +1245,20 @@ jobs:
           git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$NOPO_BOT_PAT" | base64)"
           if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
             git commit --amend --no-edit
-            git push origin "$BRANCH_NAME" --force-with-lease
+            # Retry push up to 3 times with exponential backoff (handles transient network errors)
+            for attempt in 1 2 3; do
+              if git push origin "$BRANCH_NAME" --force-with-lease; then
+                echo "Push succeeded on attempt $attempt"
+                exit 0
+              fi
+              if [[ $attempt -lt 3 ]]; then
+                delay=$((attempt * 10))
+                echo "Push failed on attempt $attempt, retrying in ${delay}s..."
+                sleep $delay
+              fi
+            done
+            echo "::error::Push failed after 3 attempts"
+            exit 1
           else
             echo "No commits beyond main - skipping push"
           fi
@@ -1306,7 +1319,20 @@ jobs:
           git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$NOPO_BOT_PAT" | base64)"
           if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
             git commit --amend --no-edit
-            git push origin "$BRANCH_NAME" --force-with-lease
+            # Retry push up to 3 times with exponential backoff
+            for attempt in 1 2 3; do
+              if git push origin "$BRANCH_NAME" --force-with-lease; then
+                echo "Push succeeded on attempt $attempt"
+                exit 0
+              fi
+              if [[ $attempt -lt 3 ]]; then
+                delay=$((attempt * 10))
+                echo "Push failed on attempt $attempt, retrying in ${delay}s..."
+                sleep $delay
+              fi
+            done
+            echo "::error::Push failed after 3 attempts"
+            exit 1
           fi
 
   # Orchestrate sub-issues for main issues with phases
@@ -1592,7 +1618,20 @@ jobs:
           git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$NOPO_BOT_PAT" | base64)"
           if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
             git commit --amend --no-edit
-            git push origin "$BRANCH_NAME" --force-with-lease
+            # Retry push up to 3 times with exponential backoff
+            for attempt in 1 2 3; do
+              if git push origin "$BRANCH_NAME" --force-with-lease; then
+                echo "Push succeeded on attempt $attempt"
+                exit 0
+              fi
+              if [[ $attempt -lt 3 ]]; then
+                delay=$((attempt * 10))
+                echo "Push failed on attempt $attempt, retrying in ${delay}s..."
+                sleep $delay
+              fi
+            done
+            echo "::error::Push failed after 3 attempts"
+            exit 1
           fi
 
   pr-human-response:
@@ -1640,7 +1679,20 @@ jobs:
           git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n "x-access-token:$NOPO_BOT_PAT" | base64)"
           if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
             git commit --amend --no-edit
-            git push origin "$BRANCH_NAME" --force-with-lease
+            # Retry push up to 3 times with exponential backoff
+            for attempt in 1 2 3; do
+              if git push origin "$BRANCH_NAME" --force-with-lease; then
+                echo "Push succeeded on attempt $attempt"
+                exit 0
+              fi
+              if [[ $attempt -lt 3 ]]; then
+                delay=$((attempt * 10))
+                echo "Push failed on attempt $attempt, retrying in ${delay}s..."
+                sleep $delay
+              fi
+            done
+            echo "::error::Push failed after 3 attempts"
+            exit 1
           fi
 
   # ============================================================================
