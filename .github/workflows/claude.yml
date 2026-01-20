@@ -183,14 +183,17 @@ jobs:
       - id: checkout
         uses: actions/checkout@v4
       # Read iteration state for issue-iterate jobs to show progress
+      # continue-on-error: project access may not be available (org projects need PAT)
       - id: read_state
         name: Read iteration state
         if: needs.detect.outputs.job == 'issue-iterate'
+        continue-on-error: true
         uses: ./.github/actions-ts/claude-parse-state
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           issue_number: ${{ fromJson(needs.detect.outputs.context_json).issue_number }}
           action: read
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
       - id: signal
         uses: ./.github/actions-ts/claude-signal-start
         with:
