@@ -127,11 +127,41 @@ jobs:
           message: CI ${{ steps.context.outputs.conclusion == 'success' && '✅' || '❌' }}
           run_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ steps.context.outputs.run_id }}
 
+      # For sub-issues: also edit the sub-issue to trigger iterate
+      # (Parent edit triggers orchestrate, but we need iterate on the sub-issue for PR ready logic)
+      - name: Trigger iterate on sub-issue
+        if: |
+          steps.context.outputs.skip != 'true' &&
+          steps.context.outputs.branch_type == 'sub_issue' &&
+          steps.context.outputs.issue_number != ''
+        env:
+          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
+          SUB_ISSUE: ${{ steps.context.outputs.issue_number }}
+          CONCLUSION: ${{ steps.context.outputs.conclusion }}
+          RUN_ID: ${{ steps.context.outputs.run_id }}
+        run: |
+          # Add CI result to sub-issue body to trigger iterate
+          # This small edit triggers the issues:edited event on the sub-issue
+          current_body=$(gh issue view "$SUB_ISSUE" --json body --jq '.body' --repo "$GITHUB_REPOSITORY")
+
+          # Check if there's already a CI status line and update it, or add one
+          ci_line="<!-- CI_STATUS: $CONCLUSION -->"
+          if echo "$current_body" | grep -q "<!-- CI_STATUS:"; then
+            # Update existing CI status
+            new_body=$(echo "$current_body" | sed "s/<!-- CI_STATUS: [a-z]* -->/$ci_line/")
+          else
+            # Append CI status (use printf for newlines)
+            new_body=$(printf '%s\n\n%s' "$current_body" "$ci_line")
+          fi
+
+          gh issue edit "$SUB_ISSUE" --body "$new_body" --repo "$GITHUB_REPOSITORY"
+          echo "Edited sub-issue #$SUB_ISSUE to trigger iterate workflow"
+
       - name: Log result
         if: steps.context.outputs.skip != 'true'
         run: |
           echo "Updated parent issue #${{ steps.context.outputs.parent_issue }} with CI result: ${{ steps.context.outputs.conclusion }}"
           if [[ -n "${{ steps.context.outputs.phase_number }}" ]]; then
             echo "Phase: ${{ steps.context.outputs.phase_number }}"
+            echo "Also edited sub-issue #${{ steps.context.outputs.issue_number }} to trigger iterate"
           fi
-          echo "This edit will trigger the iteration workflow"
