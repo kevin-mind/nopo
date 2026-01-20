@@ -24189,12 +24189,15 @@ async function handleIssueEvent(octokit, owner, repo) {
   const payload = context.payload;
   const action = payload.action;
   const issue = payload.issue;
+  const isStepwiseTesting = hasStepwiseTestLabel(issue.labels);
   if (shouldSkipTestResource(issue.title, issue.labels)) {
     return emptyResult(true, "Issue title starts with [TEST]");
   }
-  const hasTestLabel = issue.labels.some((l) => l.name === "test:automation");
-  if (hasTestLabel) {
-    return emptyResult(true, "Issue has test:automation label");
+  if (!isStepwiseTesting) {
+    const hasTestLabel = issue.labels.some((l) => l.name === "test:automation");
+    if (hasTestLabel) {
+      return emptyResult(true, "Issue has test:automation label");
+    }
   }
   const hasSkipLabelOnIssue = issue.labels.some(
     (l) => l.name === "skip-dispatch"
@@ -24441,12 +24444,15 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
   const payload = context.payload;
   const comment = payload.comment;
   const issue = payload.issue;
+  const isStepwiseTesting = hasStepwiseTestLabel(issue.labels);
   if (shouldSkipTestResource(issue.title, issue.labels)) {
     return emptyResult(true, "Issue/PR title starts with [TEST]");
   }
-  const hasTestLabel = issue.labels.some((l) => l.name === "test:automation");
-  if (hasTestLabel) {
-    return emptyResult(true, "Issue has test:automation label");
+  if (!isStepwiseTesting) {
+    const hasTestLabel = issue.labels.some((l) => l.name === "test:automation");
+    if (hasTestLabel) {
+      return emptyResult(true, "Issue has test:automation label");
+    }
   }
   const hasSkipLabelOnIssue = issue.labels.some(
     (l) => l.name === "skip-dispatch"
@@ -24525,12 +24531,15 @@ async function handlePullRequestReviewCommentEvent() {
   const payload = context.payload;
   const comment = payload.comment;
   const pr = payload.pull_request;
+  const isStepwiseTesting = hasStepwiseTestLabel(pr.labels);
   if (shouldSkipTestResource(pr.title, pr.labels)) {
     return emptyResult(true, "PR title starts with [TEST]");
   }
-  const hasTestLabel = pr.labels.some((l) => l.name === "test:automation");
-  if (hasTestLabel) {
-    return emptyResult(true, "PR has test:automation label");
+  if (!isStepwiseTesting) {
+    const hasTestLabel = pr.labels.some((l) => l.name === "test:automation");
+    if (hasTestLabel) {
+      return emptyResult(true, "PR has test:automation label");
+    }
   }
   const hasSkipLabelOnPr = pr.labels.some((l) => l.name === "skip-dispatch");
   if (hasSkipLabelOnPr) {

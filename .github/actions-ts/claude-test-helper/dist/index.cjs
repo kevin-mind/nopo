@@ -23972,7 +23972,7 @@ query GetProjectItem($org: String!, $projectNumber: Int!, $issueNumber: Int!, $r
 }
 `;
 var GET_SUB_ISSUES_QUERY = `
-query GetSubIssues($org: String!, $repo: String!, $parentNumber: Int!, $projectNumber: Int!) {
+query GetSubIssues($org: String!, $repo: String!, $parentNumber: Int!) {
   repository(owner: $org, name: $repo) {
     issue(number: $parentNumber) {
       id
@@ -24597,8 +24597,7 @@ async function verifyFixture(octokit, owner, repo, issueNumber, fixture, project
       {
         org: owner,
         repo,
-        parentNumber: issueNumber,
-        projectNumber
+        parentNumber: issueNumber
       }
     );
     const subIssues = subResponse.repository?.issue?.subIssues?.nodes || [];
@@ -24725,8 +24724,7 @@ async function cleanupFixture(octokit, owner, repo, issueNumber) {
     {
       org: owner,
       repo,
-      parentNumber: issueNumber,
-      projectNumber: 1
+      parentNumber: issueNumber
     }
   );
   const subIssues = subResponse.repository?.issue?.subIssues?.nodes || [];

@@ -85,7 +85,7 @@ query GetProjectItem($org: String!, $projectNumber: Int!, $issueNumber: Int!, $r
 `;
 
 const GET_SUB_ISSUES_QUERY = `
-query GetSubIssues($org: String!, $repo: String!, $parentNumber: Int!, $projectNumber: Int!) {
+query GetSubIssues($org: String!, $repo: String!, $parentNumber: Int!) {
   repository(owner: $org, name: $repo) {
     issue(number: $parentNumber) {
       id
@@ -1041,7 +1041,6 @@ async function verifyFixture(
         org: owner,
         repo,
         parentNumber: issueNumber,
-        projectNumber,
       },
     );
 
@@ -1220,7 +1219,6 @@ async function cleanupFixture(
       org: owner,
       repo,
       parentNumber: issueNumber,
-      projectNumber: 1,
     },
   );
 

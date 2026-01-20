@@ -457,16 +457,21 @@ async function handleIssueEvent(
     labels: Array<{ name: string }>;
   };
 
+  // Check for _test label (stepwise testing mode) - allows bypassing circuit breakers
+  const isStepwiseTesting = hasStepwiseTestLabel(issue.labels);
+
   // Check for [TEST] in title (circuit breaker for test automation)
   // Skip unless _test label is present (stepwise testing mode)
   if (shouldSkipTestResource(issue.title, issue.labels)) {
     return emptyResult(true, "Issue title starts with [TEST]");
   }
 
-  // Check for test:automation label
-  const hasTestLabel = issue.labels.some((l) => l.name === "test:automation");
-  if (hasTestLabel) {
-    return emptyResult(true, "Issue has test:automation label");
+  // Check for test:automation label (skip unless in stepwise testing mode)
+  if (!isStepwiseTesting) {
+    const hasTestLabel = issue.labels.some((l) => l.name === "test:automation");
+    if (hasTestLabel) {
+      return emptyResult(true, "Issue has test:automation label");
+    }
   }
 
   // Check for skip-dispatch label
@@ -782,16 +787,21 @@ async function handleIssueCommentEvent(
     pull_request?: unknown;
   };
 
+  // Check for _test label (stepwise testing mode) - allows bypassing circuit breakers
+  const isStepwiseTesting = hasStepwiseTestLabel(issue.labels);
+
   // Check for [TEST] in title (circuit breaker for test automation)
   // Skip unless _test label is present (stepwise testing mode)
   if (shouldSkipTestResource(issue.title, issue.labels)) {
     return emptyResult(true, "Issue/PR title starts with [TEST]");
   }
 
-  // Check for test:automation label
-  const hasTestLabel = issue.labels.some((l) => l.name === "test:automation");
-  if (hasTestLabel) {
-    return emptyResult(true, "Issue has test:automation label");
+  // Check for test:automation label (skip unless in stepwise testing mode)
+  if (!isStepwiseTesting) {
+    const hasTestLabel = issue.labels.some((l) => l.name === "test:automation");
+    if (hasTestLabel) {
+      return emptyResult(true, "Issue has test:automation label");
+    }
   }
 
   // Check for skip-dispatch label
@@ -905,16 +915,21 @@ async function handlePullRequestReviewCommentEvent(): Promise<DetectionResult> {
     labels: Array<{ name: string }>;
   };
 
+  // Check for _test label (stepwise testing mode) - allows bypassing circuit breakers
+  const isStepwiseTesting = hasStepwiseTestLabel(pr.labels);
+
   // Check for [TEST] in title (circuit breaker for test automation)
   // Skip unless _test label is present (stepwise testing mode)
   if (shouldSkipTestResource(pr.title, pr.labels)) {
     return emptyResult(true, "PR title starts with [TEST]");
   }
 
-  // Check for test:automation label
-  const hasTestLabel = pr.labels.some((l) => l.name === "test:automation");
-  if (hasTestLabel) {
-    return emptyResult(true, "PR has test:automation label");
+  // Check for test:automation label (skip unless in stepwise testing mode)
+  if (!isStepwiseTesting) {
+    const hasTestLabel = pr.labels.some((l) => l.name === "test:automation");
+    if (hasTestLabel) {
+      return emptyResult(true, "PR has test:automation label");
+    }
   }
 
   // Check for skip-dispatch label
