@@ -424,24 +424,34 @@ async function createFixture(
     };
   }
 
-  const projectResponse = await octokit.graphql<ProjectQueryResponse>(
-    GET_PROJECT_ITEM_QUERY,
-    {
-      org: owner,
-      repo,
-      issueNumber: parentIssue.number,
-      projectNumber,
-    },
-  );
+  // Try to set project fields, but gracefully handle missing project access
+  let projectFields: ProjectFields | null = null;
+  let issueNodeId: string | undefined;
 
-  const projectData = projectResponse.organization?.projectV2;
-  const projectFields = parseProjectFields(projectData);
+  try {
+    const projectResponse = await octokit.graphql<ProjectQueryResponse>(
+      GET_PROJECT_ITEM_QUERY,
+      {
+        org: owner,
+        repo,
+        issueNumber: parentIssue.number,
+        projectNumber,
+      },
+    );
 
-  if (projectFields && fixture.parent_issue.project_fields) {
+    const projectData = projectResponse.organization?.projectV2;
+    projectFields = parseProjectFields(projectData);
+    issueNodeId = projectResponse.repository?.issue?.id;
+  } catch (error) {
+    core.warning(
+      `Could not access project #${projectNumber}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    core.warning("Continuing without project field setup");
+  }
+
+  if (projectFields && fixture.parent_issue.project_fields && issueNodeId) {
     // Add issue to project
-    const issueNodeId = projectResponse.repository?.issue?.id;
-    if (issueNodeId) {
-      interface AddItemResponse {
+    interface AddItemResponse {
         addProjectV2ItemById?: {
           item?: { id?: string };
         };
@@ -498,7 +508,6 @@ async function createFixture(
           );
         }
       }
-    }
   }
 
   // Create sub-issues if specified
