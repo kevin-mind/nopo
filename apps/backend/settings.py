@@ -88,6 +88,7 @@ INSTALLED_APPS = [
     # Local apps
     "backend.mysite",
     "backend.todo",
+    "backend.authentication",
 ]
 
 MIDDLEWARE = [
