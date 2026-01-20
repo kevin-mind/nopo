@@ -705,6 +705,7 @@ async function handleIssueEvent(
     const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
 
     // Check if this is a sub-issue (has parent) - route to iterate with parent context
+    // Sub-issues don't need triaged label - they're created by triage
     if (details.isSubIssue) {
       const phaseNumber = extractPhaseNumber(details.title);
       const branchName = deriveBranch(
@@ -735,6 +736,15 @@ async function handleIssueEvent(
         skip: false,
         skipReason: "",
       };
+    }
+
+    // For parent issues: require triaged label OR sub-issues before work can start
+    // This prevents iterate from running before triage completes
+    if (!hasTriagedLabel && details.subIssues.length === 0) {
+      return emptyResult(
+        true,
+        "Issue not triaged yet - waiting for triage to complete and create sub-issues",
+      );
     }
 
     // Check if this is a main issue with sub-issues - route to orchestrate

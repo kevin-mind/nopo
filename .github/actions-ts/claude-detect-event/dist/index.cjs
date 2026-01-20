@@ -24405,6 +24405,12 @@ async function handleIssueEvent(octokit, owner, repo) {
         skipReason: ""
       };
     }
+    if (!hasTriagedLabel && details.subIssues.length === 0) {
+      return emptyResult(
+        true,
+        "Issue not triaged yet - waiting for triage to complete and create sub-issues"
+      );
+    }
     if (details.subIssues.length > 0) {
       return {
         job: "issue-orchestrate",
