@@ -1232,7 +1232,9 @@ jobs:
           run_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
       - name: Re-push with PAT to trigger CI
-        if: success() && steps.breakpoint.outputs.should_stop != 'true' && steps.rebase.outputs.rebase_performed != 'true'
+        # Run on success OR failure (not cancelled) to ensure CI always triggers for pushed code
+        # Even if run-claude fails on make check, we still want CI to evaluate the code
+        if: always() && steps.breakpoint.outputs.should_stop != 'true' && steps.rebase.outputs.rebase_performed != 'true' && !cancelled()
         env:
           NOPO_BOT_PAT: ${{ secrets.NOPO_BOT_PAT }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
@@ -1291,7 +1293,8 @@ jobs:
           max_turns: '100'
           trigger_phrase: '@claude'
       - name: Re-push with PAT to trigger CI
-        if: success()
+        # Run on success OR failure to ensure CI always triggers for pushed code
+        if: always() && !cancelled()
         env:
           NOPO_BOT_PAT: ${{ secrets.NOPO_BOT_PAT }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
@@ -1576,7 +1579,8 @@ jobs:
           prompt_replacements: ${{ steps.augment.outputs.json }}
           max_turns: '50'
       - name: Re-push with PAT to trigger CI
-        if: success()
+        # Run on success OR failure to ensure CI always triggers for pushed code
+        if: always() && !cancelled()
         env:
           NOPO_BOT_PAT: ${{ secrets.NOPO_BOT_PAT }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
@@ -1623,7 +1627,8 @@ jobs:
           prompt_replacements: ${{ steps.augment.outputs.json }}
           max_turns: '50'
       - name: Re-push with PAT to trigger CI
-        if: success()
+        # Run on success OR failure to ensure CI always triggers for pushed code
+        if: always() && !cancelled()
         env:
           NOPO_BOT_PAT: ${{ secrets.NOPO_BOT_PAT }}
           BRANCH_NAME: ${{ needs.context.outputs.branch_name }}
