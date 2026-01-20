@@ -1289,14 +1289,48 @@ async function run(): Promise<void> {
       if (currentPhase) {
         const branch = deriveBranch(parentNumber, currentPhase.phaseNumber);
 
+        // Fetch the current sub-issue's body to check if its todos are done
+        // This is the issue being actively worked on
+        interface SubIssueBodyResponse {
+          repository?: {
+            issue?: {
+              body?: string;
+            };
+          };
+        }
+
+        const subIssueResponse = await octokit.graphql<SubIssueBodyResponse>(
+          `query GetIssueBody($org: String!, $repo: String!, $issueNumber: Int!) {
+            repository(owner: $org, name: $repo) {
+              issue(number: $issueNumber) {
+                body
+              }
+            }
+          }`,
+          {
+            org: owner,
+            repo,
+            issueNumber: currentPhase.subIssueNumber,
+          },
+        );
+
+        const subIssueBody = subIssueResponse.repository?.issue?.body || "";
+        const subIssuePhaseInfo = parsePhases(subIssueBody);
+
+        core.info(
+          `Current sub-issue #${currentPhase.subIssueNumber}: todos_done=${subIssuePhaseInfo.current_phase_todos_done}`,
+        );
+
         setOutputs({
           has_sub_issues: "true",
           current_phase: String(currentPhase.phaseNumber),
           current_sub_issue: String(currentPhase.subIssueNumber),
           current_phase_status: currentPhase.status,
           total_phases: String(subIssues.length),
-          // For issues with sub-issues, todos_done is based on sub-issue status
-          current_phase_todos_done: String(currentPhase.status === "Done"),
+          // Parse sub-issue body to check if todos are done
+          current_phase_todos_done: String(
+            subIssuePhaseInfo.current_phase_todos_done,
+          ),
           all_phases_done: "false",
           branch: branch,
           sub_issues: subIssues.map((s) => s.number).join(","),

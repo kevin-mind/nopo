@@ -24711,14 +24711,35 @@ async function run() {
       );
       if (currentPhase) {
         const branch = deriveBranch(parentNumber, currentPhase.phaseNumber);
+        const subIssueResponse = await octokit.graphql(
+          `query GetIssueBody($org: String!, $repo: String!, $issueNumber: Int!) {
+            repository(owner: $org, name: $repo) {
+              issue(number: $issueNumber) {
+                body
+              }
+            }
+          }`,
+          {
+            org: owner,
+            repo,
+            issueNumber: currentPhase.subIssueNumber
+          }
+        );
+        const subIssueBody = subIssueResponse.repository?.issue?.body || "";
+        const subIssuePhaseInfo = parsePhases(subIssueBody);
+        core2.info(
+          `Current sub-issue #${currentPhase.subIssueNumber}: todos_done=${subIssuePhaseInfo.current_phase_todos_done}`
+        );
         setOutputs({
           has_sub_issues: "true",
           current_phase: String(currentPhase.phaseNumber),
           current_sub_issue: String(currentPhase.subIssueNumber),
           current_phase_status: currentPhase.status,
           total_phases: String(subIssues.length),
-          // For issues with sub-issues, todos_done is based on sub-issue status
-          current_phase_todos_done: String(currentPhase.status === "Done"),
+          // Parse sub-issue body to check if todos are done
+          current_phase_todos_done: String(
+            subIssuePhaseInfo.current_phase_todos_done
+          ),
           all_phases_done: "false",
           branch,
           sub_issues: subIssues.map((s) => s.number).join(",")
