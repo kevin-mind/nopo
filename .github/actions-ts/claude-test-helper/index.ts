@@ -393,10 +393,11 @@ async function createFixture(
   }
 
   // Create parent issue with [TEST] prefix and test:automation label
+  // Add _test for stepwise mode (detection only) or _e2e for E2E mode (full execution)
   const parentTitle = `[TEST] ${fixture.parent_issue.title}`;
   const parentLabels = [
     "test:automation",
-    ...(stepwiseMode ? ["_test"] : []),
+    ...(stepwiseMode ? ["_test"] : ["_e2e"]),
     ...(fixture.parent_issue.labels || []),
   ];
 
@@ -578,7 +579,7 @@ async function createFixture(
         repo,
         title: subTitle,
         body: subConfig.body,
-        labels: ["test:automation", ...(stepwiseMode ? ["_test"] : [])],
+        labels: ["test:automation", ...(stepwiseMode ? ["_test"] : ["_e2e"])],
       });
 
       result.sub_issue_numbers.push(subIssue.number);
@@ -761,12 +762,12 @@ async function createFixture(
     result.pr_number = pr.number;
     core.info(`Created PR #${pr.number}`);
 
-    // Add test:automation label (and _test for stepwise mode) to PR
+    // Add test:automation label and test mode label to PR
     await octokit.rest.issues.addLabels({
       owner,
       repo,
       issue_number: pr.number,
-      labels: ["test:automation", ...(stepwiseMode ? ["_test"] : [])],
+      labels: ["test:automation", ...(stepwiseMode ? ["_test"] : ["_e2e"])],
     });
 
     // Request review if specified

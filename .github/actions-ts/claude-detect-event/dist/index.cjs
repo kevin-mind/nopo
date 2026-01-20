@@ -24107,11 +24107,16 @@ function hasStepwiseTestLabel(labels) {
     (l) => typeof l === "string" ? l === "_test" : l.name === "_test"
   );
 }
+function hasE2ETestLabel(labels) {
+  return labels.some(
+    (l) => typeof l === "string" ? l === "_e2e" : l.name === "_e2e"
+  );
+}
 function isTestResource(title) {
   return title.startsWith("[TEST]");
 }
 function shouldSkipTestResource(title, labels) {
-  if (hasStepwiseTestLabel(labels)) {
+  if (hasStepwiseTestLabel(labels) || hasE2ETestLabel(labels)) {
     return false;
   }
   return isTestResource(title);

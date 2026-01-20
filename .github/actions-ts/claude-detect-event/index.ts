@@ -341,6 +341,14 @@ function hasStepwiseTestLabel(
   );
 }
 
+function hasE2ETestLabel(
+  labels: Array<{ name: string }> | string[],
+): boolean {
+  return labels.some((l) =>
+    typeof l === "string" ? l === "_e2e" : l.name === "_e2e",
+  );
+}
+
 function isTestResource(title: string): boolean {
   return title.startsWith("[TEST]");
 }
@@ -349,8 +357,10 @@ function shouldSkipTestResource(
   title: string,
   labels: Array<{ name: string }> | string[],
 ): boolean {
-  // Allow [TEST] resources through when _test label is present (stepwise testing)
-  if (hasStepwiseTestLabel(labels)) {
+  // Allow [TEST] resources through when _test or _e2e label is present
+  // _test = stepwise testing (detection only, no execution)
+  // _e2e = end-to-end testing (full execution)
+  if (hasStepwiseTestLabel(labels) || hasE2ETestLabel(labels)) {
     return false;
   }
   return isTestResource(title);
