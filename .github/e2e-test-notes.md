@@ -29,6 +29,14 @@ Run e2e test with multi-phase issue (multiple sub-issues) 3 times in a row witho
 - **Notes:** Still failing because of another type mismatch - `resource_number` was also `type: number`. First fix (issue_number) was not sufficient.
 
 ### Run 3
+- **Started:** 2026-01-21 05:51:58 UTC
+- **Run ID:** 21198880478
+- **Status:** completed
+- **Duration:** ~5s
+- **Result:** ❌ FAILED
+- **Notes:** Setup job failed - "Content already exists in this project". Leftover issues from Run 2 cleanup caused collision.
+
+### Run 4
 - **Started:** (pending)
 - **Status:** (pending)
 - **Duration:** -
@@ -50,6 +58,12 @@ Run e2e test with multi-phase issue (multiple sub-issues) 3 times in a row witho
 - **Symptom:** Same as Issue 1 - `run-state-machine` job absent
 - **Root Cause:** `resource_number` also declared as `type: number` with `default: 0` (number)
 - **Impact:** Same as Issue 1
+
+### Issue 3: Test fixture collision
+- **Severity:** Medium (test infrastructure only)
+- **Symptom:** "Content already exists in this project" error during setup
+- **Root Cause:** Run 3 tried to create test issues while Run 2's cleanup was still in progress, leaving orphaned issues
+- **Impact:** Test infrastructure issue, not state machine issue
 
 ---
 
