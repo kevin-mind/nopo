@@ -67,8 +67,8 @@ on:
       resource_number:
         description: Resource number (issue or PR number) for status comments
         required: false
-        type: number
-        default: 0
+        type: string
+        default: '0'
       comment_id:
         description: Comment ID that triggered this run (for reactions)
         required: false
