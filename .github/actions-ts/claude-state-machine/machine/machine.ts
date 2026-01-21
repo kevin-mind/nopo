@@ -13,6 +13,7 @@ import {
   emitCloseIssue,
   emitUnassign,
   emitCreateBranch,
+  emitCreatePR,
   emitRunClaude,
   emitRunClaudeFixCI,
   emitRunClaudeTriage,
@@ -267,6 +268,10 @@ export const claudeMachine = setup({
     }),
 
     // PR actions
+    createPR: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(context.pendingActions, emitCreatePR({ context })),
+    }),
     markPRReady: assign({
       pendingActions: ({ context }) =>
         accumulateActions(context.pendingActions, emitMarkReady({ context })),
@@ -632,8 +637,10 @@ export const claudeMachine = setup({
      */
     iterating: {
       // createBranch is first: prepares branch (create/checkout/rebase), may signal stop if rebased
+      // createPR is second: creates draft PR so CI will run on push (no-op if PR exists)
       entry: [
         "createBranch",
+        "createPR",
         "setWorking",
         "incrementIteration",
         "logIterating",
@@ -671,7 +678,13 @@ export const claudeMachine = setup({
      */
     iteratingFix: {
       // createBranch is first: ensures branch is up-to-date before fixing CI
-      entry: ["createBranch", "incrementIteration", "runClaudeFixCI"],
+      // createPR ensures draft PR exists (no-op if PR exists)
+      entry: [
+        "createBranch",
+        "createPR",
+        "incrementIteration",
+        "runClaudeFixCI",
+      ],
       on: {
         CI_SUCCESS: [
           {

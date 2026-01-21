@@ -304,9 +304,15 @@ export function emitCreateBranch({ context }: ActionContext): ActionResult {
 // ============================================================================
 
 /**
- * Emit action to create PR
+ * Emit action to create PR (as draft)
+ * Only emits if no PR already exists for this branch
  */
-function emitCreatePR({ context }: ActionContext): ActionResult {
+export function emitCreatePR({ context }: ActionContext): ActionResult {
+  // Don't create PR if one already exists
+  if (context.pr) {
+    return [];
+  }
+
   const branchName =
     context.branch ??
     deriveBranchName(context.issue.number, context.currentPhase ?? undefined);

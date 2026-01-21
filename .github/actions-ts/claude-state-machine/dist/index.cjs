@@ -32181,6 +32181,24 @@ function emitCreateBranch({ context: context2 }) {
     }
   ];
 }
+function emitCreatePR({ context: context2 }) {
+  if (context2.pr) {
+    return [];
+  }
+  const branchName = context2.branch ?? deriveBranchName(context2.issue.number, context2.currentPhase ?? void 0);
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  return [
+    {
+      type: "createPR",
+      title: context2.currentSubIssue?.title ?? context2.issue.title,
+      body: `Fixes #${issueNumber}`,
+      branchName,
+      baseBranch: "main",
+      draft: true,
+      issueNumber
+    }
+  ];
+}
 function emitMarkReady({ context: context2 }) {
   if (!context2.pr) {
     return [];
@@ -32922,6 +32940,9 @@ var claudeMachine = setup({
       )
     }),
     // PR actions
+    createPR: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitCreatePR({ context: context2 }))
+    }),
     markPRReady: assign({
       pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitMarkReady({ context: context2 }))
     }),
@@ -33254,8 +33275,10 @@ var claudeMachine = setup({
      */
     iterating: {
       // createBranch is first: prepares branch (create/checkout/rebase), may signal stop if rebased
+      // createPR is second: creates draft PR so CI will run on push (no-op if PR exists)
       entry: [
         "createBranch",
+        "createPR",
         "setWorking",
         "incrementIteration",
         "logIterating",
@@ -33292,7 +33315,8 @@ var claudeMachine = setup({
      */
     iteratingFix: {
       // createBranch is first: ensures branch is up-to-date before fixing CI
-      entry: ["createBranch", "incrementIteration", "runClaudeFixCI"],
+      // createPR ensures draft PR exists (no-op if PR exists)
+      entry: ["createBranch", "createPR", "incrementIteration", "runClaudeFixCI"],
       on: {
         CI_SUCCESS: [
           {
