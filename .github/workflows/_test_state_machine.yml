@@ -112,6 +112,7 @@ jobs:
           github_token: ${{ env.GH_TOKEN }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
           stepwise_mode: ${{ inputs.mode == 'stepwise' }}
+          dry_run_mode: ${{ inputs.mode == 'dry-run' }}
 
       - name: Output created resources
         run: |
@@ -125,6 +126,10 @@ jobs:
           echo "| **PR** | ${{ steps.create.outputs.pr_number }} |" >> $GITHUB_STEP_SUMMARY
           if [[ "${{ inputs.mode }}" == "stepwise" ]]; then
             echo "| **Mode** | Stepwise (_test label added) |" >> $GITHUB_STEP_SUMMARY
+          elif [[ "${{ inputs.mode }}" == "dry-run" ]]; then
+            echo "| **Mode** | Dry-run (no test mode label, workflows skip) |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| **Mode** | E2E (_e2e label added) |" >> $GITHUB_STEP_SUMMARY
           fi
 
   # Run state machine in dry-run mode (direct call, no real execution)

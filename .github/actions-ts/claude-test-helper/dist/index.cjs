@@ -24116,11 +24116,12 @@ function parseProjectFields(projectData) {
   }
   return fields;
 }
-async function createFixture(octokit, owner, repo, fixture, projectNumber, stepwiseMode = false) {
+async function createFixture(octokit, owner, repo, fixture, projectNumber, stepwiseMode = false, dryRunMode = false) {
   const result = {
     issue_number: 0,
     sub_issue_numbers: []
   };
+  const testModeLabel = dryRunMode ? [] : stepwiseMode ? ["_test"] : ["_e2e"];
   if (!fixture.parent_issue) {
     core2.info("No parent_issue in fixture - creating discussion-only fixture");
     if (fixture.discussion) {
@@ -24170,7 +24171,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, stepw
   const parentTitle = `[TEST] ${fixture.parent_issue.title}`;
   const parentLabels = [
     "test:automation",
-    ...stepwiseMode ? ["_test"] : ["_e2e"],
+    ...testModeLabel,
     ...fixture.parent_issue.labels || []
   ];
   core2.info(`Creating parent issue: ${parentTitle}`);
@@ -24308,7 +24309,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, stepw
         repo,
         title: subTitle,
         body: subConfig.body,
-        labels: ["test:automation", ...stepwiseMode ? ["_test"] : ["_e2e"]]
+        labels: ["test:automation", ...testModeLabel]
       });
       result.sub_issue_numbers.push(subIssue.number);
       core2.info(`Created sub-issue #${subIssue.number}`);
@@ -24448,7 +24449,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, stepw
       owner,
       repo,
       issue_number: pr.number,
-      labels: ["test:automation", ...stepwiseMode ? ["_test"] : ["_e2e"]]
+      labels: ["test:automation", ...testModeLabel]
     });
     if (fixture.pr.request_review) {
       try {
@@ -24854,6 +24855,7 @@ async function run() {
       10
     );
     const stepwiseMode = getOptionalInput("stepwise_mode") === "true";
+    const dryRunMode = getOptionalInput("dry_run_mode") === "true";
     const octokit = github.getOctokit(token);
     const { owner, repo } = github.context.repo;
     process.env.GH_TOKEN = token;
@@ -24868,7 +24870,8 @@ async function run() {
         repo,
         fixture,
         projectNumber,
-        stepwiseMode
+        stepwiseMode,
+        dryRunMode
       );
       setOutputs({
         issue_number: String(result.issue_number),

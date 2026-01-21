@@ -302,11 +302,18 @@ async function createFixture(
   fixture: TestFixture,
   projectNumber: number,
   stepwiseMode: boolean = false,
+  dryRunMode: boolean = false,
 ): Promise<FixtureCreationResult> {
   const result: FixtureCreationResult = {
     issue_number: 0,
     sub_issue_numbers: [],
   };
+
+  // Label strategy for test mode:
+  // - dry-run mode: just test:automation (workflows skip entirely)
+  // - stepwise mode: test:automation + _test (detection only, pause for verification)
+  // - e2e mode: test:automation + _e2e (full execution)
+  const testModeLabel = dryRunMode ? [] : stepwiseMode ? ["_test"] : ["_e2e"];
 
   // For discussion-only fixtures (no parent_issue), skip issue creation
   if (!fixture.parent_issue) {
@@ -393,11 +400,10 @@ async function createFixture(
   }
 
   // Create parent issue with [TEST] prefix and test:automation label
-  // Add _test for stepwise mode (detection only) or _e2e for E2E mode (full execution)
   const parentTitle = `[TEST] ${fixture.parent_issue.title}`;
   const parentLabels = [
     "test:automation",
-    ...(stepwiseMode ? ["_test"] : ["_e2e"]),
+    ...testModeLabel,
     ...(fixture.parent_issue.labels || []),
   ];
 
@@ -579,7 +585,7 @@ async function createFixture(
         repo,
         title: subTitle,
         body: subConfig.body,
-        labels: ["test:automation", ...(stepwiseMode ? ["_test"] : ["_e2e"])],
+        labels: ["test:automation", ...testModeLabel],
       });
 
       result.sub_issue_numbers.push(subIssue.number);
@@ -773,7 +779,7 @@ async function createFixture(
       owner,
       repo,
       issue_number: pr.number,
-      labels: ["test:automation", ...(stepwiseMode ? ["_test"] : ["_e2e"])],
+      labels: ["test:automation", ...testModeLabel],
     });
 
     // Request review if specified
@@ -1378,6 +1384,7 @@ async function run(): Promise<void> {
       10,
     );
     const stepwiseMode = getOptionalInput("stepwise_mode") === "true";
+    const dryRunMode = getOptionalInput("dry_run_mode") === "true";
 
     const octokit = github.getOctokit(token);
     const { owner, repo } = github.context.repo;
@@ -1399,6 +1406,7 @@ async function run(): Promise<void> {
         fixture,
         projectNumber,
         stepwiseMode,
+        dryRunMode,
       );
 
       setOutputs({
