@@ -255,7 +255,7 @@ jobs:
           GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
         run: |
           echo "Waiting for triage to complete on issue #$ISSUE_NUMBER..."
-          timeout=120  # 2 minutes for triage
+          timeout=300  # 5 minutes for triage (matrix jobs add overhead)
           poll_interval=5
           start_time=$(date +%s)
 
