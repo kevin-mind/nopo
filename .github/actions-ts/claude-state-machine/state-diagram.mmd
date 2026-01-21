@@ -1,0 +1,39 @@
+stateDiagram-v2
+    [*] --> detecting
+
+    detecting --> done: isAlreadyDone
+    detecting --> blocked: isBlocked
+    detecting --> error: isError
+    detecting --> processingCI: triggeredByCI
+    detecting --> processingReview: triggeredByReview
+    detecting --> initializing: needsSubIssues
+    detecting --> orchestrating: hasSubIssues
+    detecting --> reviewing: isInReview
+    detecting --> iterating: always
+    orchestrating --> done: allPhasesDone
+    orchestrating --> reviewing: currentPhaseInReview
+    orchestrating --> iterating: currentPhaseNeedsWork
+    orchestrating --> iterating: always
+    processingCI --> transitioningToReview: readyForReview
+    processingCI --> iterating: ciPassed
+    processingCI --> blocked: shouldBlock
+    processingCI --> iteratingFix: ciFailed
+    processingCI --> iterating: always
+    processingReview --> orchestrating: reviewApproved
+    processingReview --> iterating: reviewRequestedChanges
+    processingReview --> reviewing: always
+    iterating --> transitioningToReview: todosDone
+    iterating --> iterating
+    iterating --> blocked: maxFailuresReached
+    iterating --> iteratingFix
+    iterating --> [*]: final
+    iteratingFix --> transitioningToReview: todosDone
+    iteratingFix --> iterating
+    iteratingFix --> blocked: maxFailuresReached
+    iteratingFix --> iteratingFix
+    iteratingFix --> [*]: final
+    reviewing --> iterating
+    reviewing --> [*]: final
+    blocked --> [*]: final
+    error --> [*]: final
+    done --> [*]: final

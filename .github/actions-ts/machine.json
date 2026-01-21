@@ -1,0 +1,436 @@
+{
+  "name": "Claude Automation State Machine",
+  "description": "State machine for managing Claude automation workflow on GitHub issues",
+  "machine": {
+    "id": "claude-automation",
+    "initial": "detecting",
+    "states": {
+      "detecting": {
+        "entry": [
+          "logDetecting"
+        ],
+        "always": [
+          {
+            "target": "done",
+            "guard": "isAlreadyDone"
+          },
+          {
+            "target": "blocked",
+            "guard": "isBlocked"
+          },
+          {
+            "target": "error",
+            "guard": "isError"
+          },
+          {
+            "target": "processingCI",
+            "guard": "triggeredByCI"
+          },
+          {
+            "target": "processingReview",
+            "guard": "triggeredByReview"
+          },
+          {
+            "target": "initializing",
+            "guard": "needsSubIssues"
+          },
+          {
+            "target": "orchestrating",
+            "guard": "hasSubIssues"
+          },
+          {
+            "target": "reviewing",
+            "guard": "isInReview"
+          },
+          {
+            "target": "iterating"
+          }
+        ]
+      },
+      "initializing": {
+        "entry": [
+          "setInProgress"
+        ],
+        "always": [
+          {
+            "target": "orchestrating"
+          }
+        ]
+      },
+      "orchestrating": {
+        "always": [
+          {
+            "target": "done",
+            "guard": "allPhasesDone"
+          },
+          {
+            "target": "reviewing",
+            "guard": "currentPhaseInReview"
+          },
+          {
+            "target": "iterating",
+            "guard": "currentPhaseNeedsWork"
+          },
+          {
+            "target": "iterating"
+          }
+        ]
+      },
+      "processingCI": {
+        "always": [
+          {
+            "target": "transitioningToReview",
+            "guard": "readyForReview"
+          },
+          {
+            "target": "iterating",
+            "guard": "ciPassed",
+            "actions": [
+              "clearFailures"
+            ]
+          },
+          {
+            "target": "blocked",
+            "guard": "shouldBlock",
+            "actions": [
+              "blockIssue"
+            ]
+          },
+          {
+            "target": "iteratingFix",
+            "guard": "ciFailed",
+            "actions": [
+              "handleCIFailure"
+            ]
+          },
+          {
+            "target": "iterating"
+          }
+        ]
+      },
+      "processingReview": {
+        "always": [
+          {
+            "target": "orchestrating",
+            "guard": "reviewApproved"
+          },
+          {
+            "target": "iterating",
+            "guard": "reviewRequestedChanges",
+            "actions": [
+              "convertToDraft",
+              "setWorking"
+            ]
+          },
+          {
+            "target": "reviewing"
+          }
+        ]
+      },
+      "transitioningToReview": {
+        "entry": [
+          "transitionToReview"
+        ],
+        "always": [
+          {
+            "target": "reviewing"
+          }
+        ]
+      },
+      "iterating": {
+        "type": "final",
+        "entry": [
+          "setWorking",
+          "incrementIteration",
+          "logIterating",
+          "runClaude"
+        ],
+        "on": {
+          "CI_SUCCESS": [
+            {
+              "target": "transitioningToReview",
+              "guard": "todosDone"
+            },
+            {
+              "target": "iterating",
+              "actions": [
+                "clearFailures"
+              ]
+            }
+          ],
+          "CI_FAILURE": [
+            {
+              "target": "blocked",
+              "guard": "maxFailuresReached",
+              "actions": [
+                "blockIssue"
+              ]
+            },
+            {
+              "target": "iteratingFix",
+              "actions": [
+                "handleCIFailure"
+              ]
+            }
+          ]
+        }
+      },
+      "iteratingFix": {
+        "type": "final",
+        "entry": [
+          "incrementIteration",
+          "runClaudeFixCI"
+        ],
+        "on": {
+          "CI_SUCCESS": [
+            {
+              "target": "transitioningToReview",
+              "guard": "todosDone"
+            },
+            {
+              "target": "iterating",
+              "actions": [
+                "clearFailures"
+              ]
+            }
+          ],
+          "CI_FAILURE": [
+            {
+              "target": "blocked",
+              "guard": "maxFailuresReached",
+              "actions": [
+                "blockIssue"
+              ]
+            },
+            {
+              "target": "iteratingFix",
+              "actions": [
+                "handleCIFailure"
+              ]
+            }
+          ]
+        }
+      },
+      "reviewing": {
+        "type": "final",
+        "entry": [
+          "logReviewing"
+        ],
+        "on": {
+          "REVIEW_APPROVED": "orchestrating",
+          "REVIEW_CHANGES_REQUESTED": {
+            "target": "iterating",
+            "actions": [
+              "convertToDraft",
+              "setWorking"
+            ]
+          },
+          "REVIEW_COMMENTED": "reviewing"
+        }
+      },
+      "blocked": {
+        "type": "final",
+        "entry": [
+          "setBlocked",
+          "unassign"
+        ]
+      },
+      "error": {
+        "type": "final"
+      },
+      "done": {
+        "type": "final",
+        "entry": [
+          "setDone",
+          "closeIssue"
+        ]
+      }
+    }
+  },
+  "meta": {
+    "guards": [
+      {
+        "name": "isAlreadyDone",
+        "description": "Check if issue Project Status is Done"
+      },
+      {
+        "name": "isBlocked",
+        "description": "Check if issue Project Status is Blocked"
+      },
+      {
+        "name": "isError",
+        "description": "Check if issue Project Status is Error"
+      },
+      {
+        "name": "needsSubIssues",
+        "description": "Check if issue needs sub-issues but has none"
+      },
+      {
+        "name": "hasSubIssues",
+        "description": "Check if issue has sub-issues"
+      },
+      {
+        "name": "isInReview",
+        "description": "Check if current context is in review state"
+      },
+      {
+        "name": "allPhasesDone",
+        "description": "Check if all sub-issues have Status = Done"
+      },
+      {
+        "name": "currentPhaseNeedsWork",
+        "description": "Check if current sub-issue needs work"
+      },
+      {
+        "name": "currentPhaseInReview",
+        "description": "Check if current sub-issue is in review"
+      },
+      {
+        "name": "todosDone",
+        "description": "Check if all non-manual todos are completed"
+      },
+      {
+        "name": "maxFailuresReached",
+        "description": "Check if failures >= maxRetries"
+      },
+      {
+        "name": "ciPassed",
+        "description": "Check if CI result is success"
+      },
+      {
+        "name": "ciFailed",
+        "description": "Check if CI result is failure"
+      },
+      {
+        "name": "reviewApproved",
+        "description": "Check if review decision is APPROVED"
+      },
+      {
+        "name": "reviewRequestedChanges",
+        "description": "Check if review decision is CHANGES_REQUESTED"
+      },
+      {
+        "name": "readyForReview",
+        "description": "Check if CI passed, todos done, and has PR"
+      },
+      {
+        "name": "shouldContinueIterating",
+        "description": "Check if should continue iterating"
+      },
+      {
+        "name": "shouldBlock",
+        "description": "Check if should trigger circuit breaker"
+      },
+      {
+        "name": "hasPR",
+        "description": "Check if PR exists for current issue"
+      },
+      {
+        "name": "prIsDraft",
+        "description": "Check if PR is in draft state"
+      },
+      {
+        "name": "hasBranch",
+        "description": "Check if branch exists for current issue"
+      },
+      {
+        "name": "triggeredByCI",
+        "description": "Check if event triggered by workflow_run_completed"
+      },
+      {
+        "name": "triggeredByReview",
+        "description": "Check if event triggered by pr_review_submitted"
+      }
+    ],
+    "actions": [
+      {
+        "name": "logDetecting",
+        "description": "Log that machine is detecting initial state"
+      },
+      {
+        "name": "logIterating",
+        "description": "Log that machine is starting iteration"
+      },
+      {
+        "name": "logReviewing",
+        "description": "Log that PR is under review"
+      },
+      {
+        "name": "setWorking",
+        "description": "Set Project Status to Working"
+      },
+      {
+        "name": "setReview",
+        "description": "Set Project Status to Review"
+      },
+      {
+        "name": "setInProgress",
+        "description": "Set Project Status to In Progress"
+      },
+      {
+        "name": "setDone",
+        "description": "Set Project Status to Done"
+      },
+      {
+        "name": "setBlocked",
+        "description": "Set Project Status to Blocked"
+      },
+      {
+        "name": "incrementIteration",
+        "description": "Increment Iteration counter"
+      },
+      {
+        "name": "recordFailure",
+        "description": "Increment Failures counter"
+      },
+      {
+        "name": "clearFailures",
+        "description": "Reset Failures to 0"
+      },
+      {
+        "name": "closeIssue",
+        "description": "Close the issue as completed"
+      },
+      {
+        "name": "unassign",
+        "description": "Unassign the bot from the issue"
+      },
+      {
+        "name": "runClaude",
+        "description": "Run Claude CLI for implementation"
+      },
+      {
+        "name": "runClaudeFixCI",
+        "description": "Run Claude CLI to fix CI failures"
+      },
+      {
+        "name": "markPRReady",
+        "description": "Mark PR as ready for review"
+      },
+      {
+        "name": "requestReview",
+        "description": "Request reviewer on PR"
+      },
+      {
+        "name": "convertToDraft",
+        "description": "Convert PR to draft state"
+      },
+      {
+        "name": "transitionToReview",
+        "description": "Transition to review state (mark ready, request review)"
+      },
+      {
+        "name": "handleCIFailure",
+        "description": "Handle CI failure (record failure, run fix)"
+      },
+      {
+        "name": "blockIssue",
+        "description": "Block issue (set blocked, unassign)"
+      },
+      {
+        "name": "stopWithReason",
+        "description": "Stop execution with reason"
+      }
+    ]
+  }
+}

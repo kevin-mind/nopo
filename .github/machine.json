@@ -1,0 +1,242 @@
+{
+  "id": "claude-automation",
+  "version": "1.0.0",
+  "description": "Claude automation state machine for issue lifecycle management",
+  "generatedAt": "2026-01-21T00:16:55.646Z",
+  "config": {
+    "id": "claude-automation",
+    "initial": "detecting",
+    "states": {
+      "detecting": {
+        "entry": "logDetecting",
+        "always": [
+          {
+            "target": "done",
+            "guard": "isAlreadyDone"
+          },
+          {
+            "target": "blocked",
+            "guard": "isBlocked"
+          },
+          {
+            "target": "error",
+            "guard": "isError"
+          },
+          {
+            "target": "processingCI",
+            "guard": "triggeredByCI"
+          },
+          {
+            "target": "processingReview",
+            "guard": "triggeredByReview"
+          },
+          {
+            "target": "initializing",
+            "guard": "needsSubIssues"
+          },
+          {
+            "target": "orchestrating",
+            "guard": "hasSubIssues"
+          },
+          {
+            "target": "reviewing",
+            "guard": "isInReview"
+          },
+          {
+            "target": "iterating"
+          }
+        ]
+      },
+      "initializing": {
+        "entry": [
+          "setInProgress"
+        ],
+        "always": "orchestrating"
+      },
+      "orchestrating": {
+        "always": [
+          {
+            "target": "done",
+            "guard": "allPhasesDone"
+          },
+          {
+            "target": "reviewing",
+            "guard": "currentPhaseInReview"
+          },
+          {
+            "target": "iterating",
+            "guard": "currentPhaseNeedsWork"
+          },
+          {
+            "target": "iterating"
+          }
+        ]
+      },
+      "processingCI": {
+        "always": [
+          {
+            "target": "transitioningToReview",
+            "guard": "readyForReview"
+          },
+          {
+            "target": "iterating",
+            "guard": "ciPassed",
+            "actions": [
+              "clearFailures"
+            ]
+          },
+          {
+            "target": "blocked",
+            "guard": "shouldBlock",
+            "actions": [
+              "blockIssue"
+            ]
+          },
+          {
+            "target": "iteratingFix",
+            "guard": "ciFailed",
+            "actions": [
+              "handleCIFailure"
+            ]
+          },
+          {
+            "target": "iterating"
+          }
+        ]
+      },
+      "processingReview": {
+        "always": [
+          {
+            "target": "orchestrating",
+            "guard": "reviewApproved"
+          },
+          {
+            "target": "iterating",
+            "guard": "reviewRequestedChanges",
+            "actions": [
+              "convertToDraft",
+              "setWorking"
+            ]
+          },
+          {
+            "target": "reviewing"
+          }
+        ]
+      },
+      "transitioningToReview": {
+        "entry": [
+          "transitionToReview"
+        ],
+        "always": "reviewing"
+      },
+      "iterating": {
+        "entry": [
+          "setWorking",
+          "incrementIteration",
+          "logIterating",
+          "runClaude"
+        ],
+        "on": {
+          "CI_SUCCESS": [
+            {
+              "target": "transitioningToReview",
+              "guard": "todosDone"
+            },
+            {
+              "target": "iterating",
+              "actions": [
+                "clearFailures"
+              ]
+            }
+          ],
+          "CI_FAILURE": [
+            {
+              "target": "blocked",
+              "guard": "maxFailuresReached",
+              "actions": [
+                "blockIssue"
+              ]
+            },
+            {
+              "target": "iteratingFix",
+              "actions": [
+                "handleCIFailure"
+              ]
+            }
+          ]
+        },
+        "type": "final"
+      },
+      "iteratingFix": {
+        "entry": [
+          "incrementIteration",
+          "runClaudeFixCI"
+        ],
+        "on": {
+          "CI_SUCCESS": [
+            {
+              "target": "transitioningToReview",
+              "guard": "todosDone"
+            },
+            {
+              "target": "iterating",
+              "actions": [
+                "clearFailures"
+              ]
+            }
+          ],
+          "CI_FAILURE": [
+            {
+              "target": "blocked",
+              "guard": "maxFailuresReached",
+              "actions": [
+                "blockIssue"
+              ]
+            },
+            {
+              "target": "iteratingFix",
+              "actions": [
+                "handleCIFailure"
+              ]
+            }
+          ]
+        },
+        "type": "final"
+      },
+      "reviewing": {
+        "entry": [
+          "logReviewing"
+        ],
+        "on": {
+          "REVIEW_APPROVED": "orchestrating",
+          "REVIEW_CHANGES_REQUESTED": {
+            "target": "iterating",
+            "actions": [
+              "convertToDraft",
+              "setWorking"
+            ]
+          },
+          "REVIEW_COMMENTED": "reviewing"
+        },
+        "type": "final"
+      },
+      "blocked": {
+        "entry": [
+          "setBlocked",
+          "unassign"
+        ],
+        "type": "final"
+      },
+      "error": {
+        "type": "final"
+      },
+      "done": {
+        "entry": [
+          "setDone",
+          "closeIssue"
+        ],
+        "type": "final"
+      }
+    }
+  }
+}

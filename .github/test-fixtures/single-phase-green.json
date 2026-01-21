@@ -2,6 +2,7 @@
   "name": "single-phase-green",
   "description": "Single task, CI passes first time - verifies happy path including triage creating sub-issues",
   "job_type": "issue-iterate",
+  "trigger": "issue_assigned",
   "parent_issue": {
     "title": "Update e2e-test.txt",
     "body": "## Description\n\nAdd a timestamped line to the e2e-test.txt file in the repository root.\n\n## Requirements\n\n- Edit the file `e2e-test.txt` in the repository root\n- Add a new line with the current timestamp and test run identifier\n\n## Acceptance Criteria\n\n- [ ] e2e-test.txt updated with new line\n- [ ] PR created and merged",
@@ -17,6 +18,12 @@
     "issue_state": "closed",
     "min_iteration": 1,
     "failures": 0
+  },
+  "expected_machine": {
+    "final_state": "iterating",
+    "contains_actions": ["setWorking", "incrementIteration", "runClaude"],
+    "stopped_early": "true",
+    "stop_reason": "run_claude_executed"
   },
   "timeout": 900,
   "poll_interval": 15

@@ -2,14 +2,18 @@
   "name": "circuit-breaker",
   "description": "CI fails MAX_RETRIES times, triggers circuit breaker - verifies blocking behavior",
   "job_type": "issue-iterate",
+  "trigger": "workflow_run_completed",
+  "trigger_context": {
+    "ci_result": "failure"
+  },
   "parent_issue": {
     "title": "Feature with persistent CI failures",
     "body": "## Description\n\nA feature that will repeatedly fail CI and trigger the circuit breaker.\n\n## Requirements\n\n- This is expected to fail and block\n\n## Acceptance Criteria\n\n- [ ] Circuit breaker triggers after max failures\n- [ ] nopo-bot is unassigned",
     "labels": ["enhancement"],
     "project_fields": {
       "Status": "In Progress",
-      "Iteration": 0,
-      "Failures": 0
+      "Iteration": 4,
+      "Failures": 4
     }
   },
   "sub_issues": [
@@ -26,6 +30,12 @@
     "sub_issue_statuses": ["Working"],
     "issue_state": "open",
     "failures": 5
+  },
+  "expected_machine": {
+    "final_state": "blocked",
+    "contains_actions": ["recordFailure", "setBlocked", "unassign"],
+    "stopped_early": "true",
+    "stop_reason": "blocked"
   },
   "timeout": 900,
   "poll_interval": 20

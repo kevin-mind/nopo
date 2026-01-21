@@ -1,0 +1,145 @@
+name: Claude Runner
+
+# Reusable workflow that runs the Claude state machine for an issue.
+# This workflow encapsulates all the logic for determining what actions
+# to take based on the current state and trigger event.
+
+on:
+  workflow_call:
+    inputs:
+      trigger:
+        description: Event trigger type (issue_assigned, issue_edited, workflow_run_completed, pr_review_submitted, etc.)
+        required: true
+        type: string
+      issue_number:
+        description: Issue number to process
+        required: true
+        type: number
+      ci_result:
+        description: CI result (success, failure) - required for workflow_run_completed trigger
+        required: false
+        type: string
+      ci_run_url:
+        description: CI run URL - for workflow_run_completed trigger
+        required: false
+        type: string
+      ci_commit_sha:
+        description: CI commit SHA - for workflow_run_completed trigger
+        required: false
+        type: string
+      review_decision:
+        description: Review decision (APPROVED, CHANGES_REQUESTED, COMMENTED) - for pr_review_submitted trigger
+        required: false
+        type: string
+      reviewer:
+        description: Reviewer username - for pr_review_submitted trigger
+        required: false
+        type: string
+      dry_run:
+        description: Run in dry-run mode (log actions without executing)
+        required: false
+        type: boolean
+        default: false
+    outputs:
+      final_state:
+        description: Final state after machine execution
+        value: ${{ jobs.run-state-machine.outputs.final_state }}
+      success:
+        description: Whether execution completed successfully
+        value: ${{ jobs.run-state-machine.outputs.success }}
+      actions:
+        description: JSON array of actions that were executed
+        value: ${{ jobs.run-state-machine.outputs.actions }}
+      stopped_early:
+        description: Whether execution stopped early
+        value: ${{ jobs.run-state-machine.outputs.stopped_early }}
+      stop_reason:
+        description: Reason for stopping early (if applicable)
+        value: ${{ jobs.run-state-machine.outputs.stop_reason }}
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+
+jobs:
+  run-state-machine:
+    runs-on: ubuntu-latest
+    outputs:
+      final_state: ${{ steps.machine.outputs.final_state }}
+      success: ${{ steps.machine.outputs.success }}
+      actions: ${{ steps.machine.outputs.actions }}
+      stopped_early: ${{ steps.machine.outputs.stopped_early }}
+      stop_reason: ${{ steps.machine.outputs.stop_reason }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Install Claude CLI only when not in dry-run mode
+      # The CLI is required for runClaude actions
+      - name: Install Claude CLI
+        if: ${{ !inputs.dry_run }}
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Run State Machine
+        id: machine
+        uses: ./.github/actions-ts/claude-state-machine
+        with:
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+          issue_number: ${{ inputs.issue_number }}
+          trigger: ${{ inputs.trigger }}
+          ci_result: ${{ inputs.ci_result }}
+          ci_run_url: ${{ inputs.ci_run_url }}
+          ci_commit_sha: ${{ inputs.ci_commit_sha }}
+          review_decision: ${{ inputs.review_decision }}
+          reviewer: ${{ inputs.reviewer }}
+          max_retries: ${{ vars.MAX_CLAUDE_RETRIES || '5' }}
+          dry_run: ${{ inputs.dry_run && 'true' || 'false' }}
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+      - name: Write summary
+        if: always()
+        env:
+          FINAL_STATE: ${{ steps.machine.outputs.final_state }}
+          SUCCESS: ${{ steps.machine.outputs.success }}
+          ACTIONS: ${{ steps.machine.outputs.actions }}
+          STOPPED_EARLY: ${{ steps.machine.outputs.stopped_early }}
+          STOP_REASON: ${{ steps.machine.outputs.stop_reason }}
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
+          TRIGGER: ${{ inputs.trigger }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          dry_run_badge=""
+          if [[ "$DRY_RUN" == "true" ]]; then
+            dry_run_badge=" (DRY RUN)"
+          fi
+
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          # Claude State Machine${dry_run_badge}
+
+          | Property | Value |
+          |----------|-------|
+          | **Issue** | [#${ISSUE_NUMBER}](${{ github.server_url }}/${{ github.repository }}/issues/${ISSUE_NUMBER}) |
+          | **Trigger** | \`${TRIGGER}\` |
+          | **Final State** | \`${FINAL_STATE}\` |
+          | **Success** | ${SUCCESS} |
+          | **Stopped Early** | ${STOPPED_EARLY} |
+          | **Stop Reason** | ${STOP_REASON:-N/A} |
+
+          ## Actions Executed
+
+          \`\`\`json
+          ${ACTIONS}
+          \`\`\`
+
+          ---
+          EOF

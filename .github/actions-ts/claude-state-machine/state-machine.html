@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claude Automation State Machine</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      overflow-x: auto;
+    }
+    .mermaid {
+      display: flex;
+      justify-content: center;
+    }
+    .controls {
+      margin-bottom: 20px;
+    }
+    button {
+      padding: 8px 16px;
+      margin-right: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #f0f0f0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Claude Automation State Machine</h1>
+  <p class="subtitle">XState v5 state machine for GitHub issue automation</p>
+
+  <div class="controls">
+    <button onclick="zoomIn()">Zoom In</button>
+    <button onclick="zoomOut()">Zoom Out</button>
+    <button onclick="resetZoom()">Reset</button>
+    <button onclick="downloadSVG()">Download SVG</button>
+  </div>
+
+  <div class="container">
+    <pre class="mermaid" id="diagram">
+stateDiagram-v2
+    [*] --> detecting
+
+    detecting --> done: isAlreadyDone
+    detecting --> blocked: isBlocked
+    detecting --> error: isError
+    detecting --> processingCI: triggeredByCI
+    detecting --> processingReview: triggeredByReview
+    detecting --> initializing: needsSubIssues
+    detecting --> orchestrating: hasSubIssues
+    detecting --> reviewing: isInReview
+    detecting --> iterating
+    orchestrating --> done: allPhasesDone
+    orchestrating --> reviewing: currentPhaseInReview
+    orchestrating --> iterating: currentPhaseNeedsWork
+    orchestrating --> iterating
+    processingCI --> transitioningToReview: readyForReview
+    processingCI --> iterating: ciPassed
+    processingCI --> blocked: shouldBlock
+    processingCI --> iteratingFix: ciFailed
+    processingCI --> iterating
+    processingReview --> orchestrating: reviewApproved
+    processingReview --> iterating: reviewRequestedChanges
+    processingReview --> reviewing
+    iterating --> transitioningToReview: CI_SUCCESS [todosDone]
+    iterating --> iterating: CI_SUCCESS
+    iterating --> blocked: CI_FAILURE [maxFailuresReached]
+    iterating --> iteratingFix: CI_FAILURE
+    iterating --> [*]
+    iteratingFix --> transitioningToReview: CI_SUCCESS [todosDone]
+    iteratingFix --> iterating: CI_SUCCESS
+    iteratingFix --> blocked: CI_FAILURE [maxFailuresReached]
+    iteratingFix --> iteratingFix: CI_FAILURE
+    iteratingFix --> [*]
+    reviewing --> orchestrating: REVIEW_APPROVED
+    reviewing --> iterating: REVIEW_CHANGES_REQUESTED
+    reviewing --> reviewing: REVIEW_COMMENTED
+    reviewing --> [*]
+    blocked --> [*]
+    error --> [*]
+    done --> [*]
+    </pre>
+  </div>
+
+  <script>
+    let scale = 1;
+    const diagram = document.getElementById('diagram');
+
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'default',
+      securityLevel: 'loose'
+    });
+
+    function zoomIn() {
+      scale *= 1.2;
+      diagram.style.transform = `scale(${scale})`;
+    }
+
+    function zoomOut() {
+      scale *= 0.8;
+      diagram.style.transform = `scale(${scale})`;
+    }
+
+    function resetZoom() {
+      scale = 1;
+      diagram.style.transform = 'scale(1)';
+    }
+
+    function downloadSVG() {
+      const svg = diagram.querySelector('svg');
+      if (svg) {
+        const svgData = new XMLSerializer().serializeToString(svg);
+        const blob = new Blob([svgData], { type: 'image/svg+xml' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'claude-state-machine.svg';
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    }
+  </script>
+</body>
+</html>

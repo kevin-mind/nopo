@@ -30,8 +30,9 @@ on:
       mode:
         description: 'Test mode'
         type: choice
-        default: stepwise
+        default: dry-run
         options:
+          - dry-run
           - stepwise
           - e2e
       cleanup_only:
@@ -126,12 +127,120 @@ jobs:
             echo "| **Mode** | Stepwise (_test label added) |" >> $GITHUB_STEP_SUMMARY
           fi
 
-  # Trigger the state machine by assigning nopo-bot
+  # Run state machine in dry-run mode (direct call, no real execution)
+  run-dry-run:
+    needs: [load-fixture, setup]
+    if: |
+      always() &&
+      inputs.cleanup_only != true &&
+      inputs.mode == 'dry-run' &&
+      needs.setup.result == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      actions: ${{ steps.machine.outputs.actions }}
+      final_state: ${{ steps.machine.outputs.final_state }}
+      success: ${{ steps.machine.outputs.success }}
+      stopped_early: ${{ steps.machine.outputs.stopped_early }}
+      stop_reason: ${{ steps.machine.outputs.stop_reason }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Build actions
+        run: |
+          cd .github/actions-ts
+          pnpm install --frozen-lockfile
+          pnpm run build
+
+      - name: Determine trigger type and context
+        id: trigger
+        env:
+          FIXTURE_JSON: ${{ needs.load-fixture.outputs.fixture }}
+        run: |
+          # Extract trigger type from fixture or default based on job_type
+          job_type=$(echo "$FIXTURE_JSON" | jq -r '.job_type // "issue-iterate"')
+          trigger=$(echo "$FIXTURE_JSON" | jq -r '.trigger // empty')
+
+          if [[ -z "$trigger" ]]; then
+            case "$job_type" in
+              issue-triage)
+                trigger="issue_opened"
+                ;;
+              issue-iterate|issue-orchestrate)
+                trigger="issue_assigned"
+                ;;
+              pr-review)
+                trigger="pr_review_requested"
+                ;;
+              pr-response|pr-human-response)
+                trigger="pr_review_submitted"
+                ;;
+              *)
+                trigger="issue_assigned"
+                ;;
+            esac
+          fi
+
+          # Extract trigger context (ci_result, review_decision, etc.)
+          ci_result=$(echo "$FIXTURE_JSON" | jq -r '.trigger_context.ci_result // empty')
+          review_decision=$(echo "$FIXTURE_JSON" | jq -r '.trigger_context.review_decision // empty')
+          reviewer=$(echo "$FIXTURE_JSON" | jq -r '.trigger_context.reviewer // empty')
+
+          echo "trigger=$trigger" >> $GITHUB_OUTPUT
+          echo "ci_result=$ci_result" >> $GITHUB_OUTPUT
+          echo "review_decision=$review_decision" >> $GITHUB_OUTPUT
+          echo "reviewer=$reviewer" >> $GITHUB_OUTPUT
+          echo "Determined trigger: $trigger, ci_result: $ci_result, review_decision: $review_decision"
+
+      - name: Run State Machine (dry-run)
+        id: machine
+        uses: ./.github/actions-ts/claude-state-machine
+        with:
+          github_token: ${{ env.GH_TOKEN }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+          issue_number: ${{ needs.setup.outputs.issue_number }}
+          trigger: ${{ steps.trigger.outputs.trigger }}
+          ci_result: ${{ steps.trigger.outputs.ci_result }}
+          review_decision: ${{ steps.trigger.outputs.review_decision }}
+          reviewer: ${{ steps.trigger.outputs.reviewer }}
+          dry_run: 'true'
+
+      - name: Output dry-run results
+        env:
+          ACTIONS: ${{ steps.machine.outputs.actions }}
+          FINAL_STATE: ${{ steps.machine.outputs.final_state }}
+          SUCCESS: ${{ steps.machine.outputs.success }}
+          STOPPED_EARLY: ${{ steps.machine.outputs.stopped_early }}
+          STOP_REASON: ${{ steps.machine.outputs.stop_reason }}
+        run: |
+          echo "## State Machine Dry-Run Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Final State** | \`${FINAL_STATE}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Success** | ${SUCCESS} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Stopped Early** | ${STOPPED_EARLY} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Stop Reason** | ${STOP_REASON:-N/A} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Actions (would be executed)" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo "$ACTIONS" | jq '.' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  # Trigger the state machine by assigning nopo-bot (stepwise/e2e modes only)
   trigger:
     needs: [setup]
     if: |
       always() &&
       inputs.cleanup_only != true &&
+      inputs.mode != 'dry-run' &&
       needs.setup.result == 'success'
     runs-on: ubuntu-latest
     steps:
@@ -324,9 +433,99 @@ jobs:
           echo "- [Claude Workflow Runs](https://github.com/$GITHUB_REPOSITORY/actions/workflows/claude.yml?query=branch%3Amain)" >> $GITHUB_STEP_SUMMARY
           echo "- [Project Board](https://github.com/orgs/${GITHUB_REPOSITORY%/*}/projects/1)" >> $GITHUB_STEP_SUMMARY
 
+  # Verify dry-run results against expected values (dry-run mode only)
+  verify-dry-run:
+    needs: [load-fixture, setup, run-dry-run]
+    if: |
+      always() &&
+      inputs.cleanup_only != true &&
+      inputs.mode == 'dry-run' &&
+      needs.run-dry-run.result == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      passed: ${{ steps.verify.outputs.passed }}
+      errors: ${{ steps.verify.outputs.errors }}
+    steps:
+      - name: Verify state machine outputs
+        id: verify
+        env:
+          ACTIONS: ${{ needs.run-dry-run.outputs.actions }}
+          FINAL_STATE: ${{ needs.run-dry-run.outputs.final_state }}
+          SUCCESS: ${{ needs.run-dry-run.outputs.success }}
+          STOPPED_EARLY: ${{ needs.run-dry-run.outputs.stopped_early }}
+          STOP_REASON: ${{ needs.run-dry-run.outputs.stop_reason }}
+          FIXTURE_JSON: ${{ needs.load-fixture.outputs.fixture }}
+        run: |
+          errors=""
+          passed="true"
+
+          # Extract expected values from fixture (if specified)
+          expected_final_state=$(echo "$FIXTURE_JSON" | jq -r '.expected_machine.final_state // empty')
+          expected_actions=$(echo "$FIXTURE_JSON" | jq -r '.expected_machine.actions // empty')
+          expected_contains_actions=$(echo "$FIXTURE_JSON" | jq -r '.expected_machine.contains_actions // empty')
+          expected_stopped_early=$(echo "$FIXTURE_JSON" | jq -r '.expected_machine.stopped_early // empty')
+          expected_stop_reason=$(echo "$FIXTURE_JSON" | jq -r '.expected_machine.stop_reason // empty')
+
+          # Verify final state (if expected)
+          if [[ -n "$expected_final_state" ]]; then
+            if [[ "$FINAL_STATE" != "$expected_final_state" ]]; then
+              errors="$errors\n- final_state: expected '$expected_final_state', got '$FINAL_STATE'"
+              passed="false"
+            fi
+          fi
+
+          # Verify stopped_early (if expected)
+          if [[ -n "$expected_stopped_early" ]]; then
+            if [[ "$STOPPED_EARLY" != "$expected_stopped_early" ]]; then
+              errors="$errors\n- stopped_early: expected '$expected_stopped_early', got '$STOPPED_EARLY'"
+              passed="false"
+            fi
+          fi
+
+          # Verify stop_reason (if expected)
+          if [[ -n "$expected_stop_reason" ]]; then
+            if [[ "$STOP_REASON" != "$expected_stop_reason" ]]; then
+              errors="$errors\n- stop_reason: expected '$expected_stop_reason', got '$STOP_REASON'"
+              passed="false"
+            fi
+          fi
+
+          # Verify actions contain expected action types (if specified)
+          if [[ -n "$expected_contains_actions" && "$expected_contains_actions" != "null" ]]; then
+            for action_type in $(echo "$expected_contains_actions" | jq -r '.[]'); do
+              if ! echo "$ACTIONS" | jq -e ".[] | select(.type == \"$action_type\")" > /dev/null 2>&1; then
+                errors="$errors\n- actions: expected to contain '$action_type' but didn't"
+                passed="false"
+              fi
+            done
+          fi
+
+          # Basic sanity check: success should be true in dry-run mode
+          if [[ "$SUCCESS" != "true" ]]; then
+            errors="$errors\n- success: expected 'true' in dry-run mode, got '$SUCCESS'"
+            passed="false"
+          fi
+
+          echo "passed=$passed" >> $GITHUB_OUTPUT
+          echo "errors=$errors" >> $GITHUB_OUTPUT
+
+          # Output verification result
+          echo "## Dry-Run Verification" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [[ "$passed" == "true" ]]; then
+            echo "### ✅ All verifications passed!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Verification failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Errors:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo -e "$errors" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
   # Cleanup test artifacts (always runs unless skipped)
   cleanup:
-    needs: [setup, verify]
+    needs: [setup, verify, run-dry-run, verify-dry-run]
     if: |
       always() &&
       (needs.setup.outputs.issue_number != '' || inputs.cleanup_only == true)
@@ -378,11 +577,14 @@ jobs:
 
   # Summary job
   summary:
-    needs: [setup, trigger, verify, cleanup]
+    needs: [setup, trigger, verify, run-dry-run, verify-dry-run, cleanup]
     if: always() && inputs.cleanup_only != true
     runs-on: ubuntu-latest
     steps:
       - name: Generate summary
+        env:
+          ACTIONS: ${{ needs.run-dry-run.outputs.actions }}
+          FINAL_STATE: ${{ needs.run-dry-run.outputs.final_state }}
         run: |
           echo "# State Machine Test Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -392,13 +594,34 @@ jobs:
           echo "| **Mode** | ${{ inputs.mode }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Issue** | #${{ needs.setup.outputs.issue_number }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ inputs.mode }}" == "dry-run" ]]; then
+            echo "## State Machine Results" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+            echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| **Final State** | \`${FINAL_STATE:-N/A}\` |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Actions" >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            echo "$ACTIONS" | jq '.' 2>/dev/null || echo "[]" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+
           echo "## Job Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| Setup | ${{ needs.setup.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Trigger | ${{ needs.trigger.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Verify | ${{ needs.verify.result }} |" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ inputs.mode }}" == "dry-run" ]]; then
+            echo "| Run Dry-Run | ${{ needs.run-dry-run.result }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| Verify Dry-Run | ${{ needs.verify-dry-run.result }} |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Trigger | ${{ needs.trigger.result }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| Verify | ${{ needs.verify.result }} |" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "| Cleanup | ${{ needs.cleanup.result }} |" >> $GITHUB_STEP_SUMMARY
 
           if [[ "${{ inputs.mode }}" == "stepwise" ]]; then
@@ -408,4 +631,13 @@ jobs:
             echo "**Stepwise Mode:** Check the claude workflow run triggered by this test to see the decision output." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "The \`_test\` label prevents execution - only the decision is shown." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [[ "${{ inputs.mode }}" == "dry-run" ]]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "---" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Dry-Run Mode:** State machine ran in dry-run mode - no real mutations occurred." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Actions shown above are what _would_ be executed in a real run." >> $GITHUB_STEP_SUMMARY
           fi

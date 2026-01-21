@@ -1,0 +1,59 @@
+name: Claude State Machine
+description: TypeScript state machine for Claude automation workflows
+
+inputs:
+  github_token:
+    description: GitHub token for API operations
+    required: true
+  issue_number:
+    description: Issue number to process
+    required: true
+  project_number:
+    description: GitHub Project number
+    required: true
+  trigger:
+    description: Event trigger type (issue_assigned, issue_edited, workflow_run_completed, pr_review_submitted, etc.)
+    required: true
+  ci_result:
+    description: CI result (success, failure, cancelled) - required for workflow_run_completed trigger
+    required: false
+  ci_run_url:
+    description: CI run URL - optional for workflow_run_completed trigger
+    required: false
+  ci_commit_sha:
+    description: CI commit SHA - optional for workflow_run_completed trigger
+    required: false
+  review_decision:
+    description: Review decision (APPROVED, CHANGES_REQUESTED, COMMENTED) - required for pr_review_submitted trigger
+    required: false
+  reviewer:
+    description: Reviewer username - optional for pr_review_submitted trigger
+    required: false
+  max_retries:
+    description: Maximum number of CI failures before blocking
+    required: false
+    default: "5"
+  bot_username:
+    description: Username of the bot account
+    required: false
+    default: "nopo-bot"
+  dry_run:
+    description: Run in dry-run mode (no mutations)
+    required: false
+    default: "false"
+
+outputs:
+  actions:
+    description: JSON array of actions that were executed
+  final_state:
+    description: Final state of the machine after execution
+  success:
+    description: Whether all actions executed successfully
+  stopped_early:
+    description: Whether execution stopped early
+  stop_reason:
+    description: Reason for stopping early (if applicable)
+
+runs:
+  using: node20
+  main: dist/index.cjs

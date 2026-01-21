@@ -259,6 +259,73 @@ jobs:
     secrets: inherit
 
   # ============================================================================
+  # STEP 3.5: VALIDATE STATE MACHINE (Parallel dry-run for issue-iterate)
+  # ============================================================================
+  # Run the state machine in dry-run mode to validate its decisions against
+  # the existing implementation. This job runs in PARALLEL with run-job.
+  validate-state-machine:
+    needs:
+      - detect
+      - signal-start
+    if: |
+      needs.detect.outputs.skip != 'true' &&
+      needs.detect.outputs.job == 'issue-iterate'
+    runs-on: ubuntu-latest
+    # No concurrency - this is informational and runs in parallel
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run State Machine (dry-run)
+        id: machine
+        uses: ./.github/actions-ts/claude-state-machine
+        with:
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+          issue_number: ${{ fromJson(needs.detect.outputs.context_json).issue_number }}
+          trigger: ${{ fromJson(needs.detect.outputs.context_json).trigger_type || 'issue_assigned' }}
+          ci_result: ${{ fromJson(needs.detect.outputs.context_json).ci_result }}
+          ci_run_url: ${{ fromJson(needs.detect.outputs.context_json).ci_run_url }}
+          max_retries: ${{ vars.MAX_CLAUDE_RETRIES || '5' }}
+          dry_run: 'true'
+
+      - name: Write validation summary
+        if: always()
+        env:
+          FINAL_STATE: ${{ steps.machine.outputs.final_state }}
+          SUCCESS: ${{ steps.machine.outputs.success }}
+          ACTIONS: ${{ steps.machine.outputs.actions }}
+          STOPPED_EARLY: ${{ steps.machine.outputs.stopped_early }}
+          STOP_REASON: ${{ steps.machine.outputs.stop_reason }}
+          ISSUE_NUMBER: ${{ fromJson(needs.detect.outputs.context_json).issue_number }}
+          TRIGGER: ${{ fromJson(needs.detect.outputs.context_json).trigger_type || 'issue_assigned' }}
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          # State Machine Validation (dry-run)
+
+          | Property | Value |
+          |----------|-------|
+          | **Issue** | [#${ISSUE_NUMBER}](${{ github.server_url }}/${{ github.repository }}/issues/${ISSUE_NUMBER}) |
+          | **Trigger** | \`${TRIGGER}\` |
+          | **Final State** | \`${FINAL_STATE}\` |
+          | **Success** | ${SUCCESS} |
+          | **Stopped Early** | ${STOPPED_EARLY} |
+          | **Stop Reason** | ${STOP_REASON:-N/A} |
+
+          ## Actions (would be executed)
+
+          \`\`\`json
+          ${ACTIONS}
+          \`\`\`
+
+          ---
+
+          _This is a **dry-run** validation. The state machine ran but did not execute any actions._
+          _Compare this output with the actual job result to validate state machine behavior._
+
+          EOF
+
+  # ============================================================================
   # STEP 4: HANDLE RESULT
   # ============================================================================
   handle-result:
