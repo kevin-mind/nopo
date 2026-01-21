@@ -243,14 +243,18 @@ jobs:
           max_turns: "50"
 
       # Create draft PR after Claude pushes (if no PR exists)
-      # PR creation triggers CI - needed because CI only runs on pull_request events
+      # PR is created with GITHUB_TOKEN so it's owned by github-actions[bot]
+      # PR creation triggers CI via pull_request:opened event
       - name: Create draft PR if needed
+        id: create_pr
         if: matrix.action.type == 'runClaude' && matrix.action.worktree && !inputs.dry_run
         env:
-          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
+          GH_TOKEN: ${{ github.token }}
           BRANCH_NAME: ${{ matrix.action.worktree || inputs.branch }}
           ISSUE_NUMBER: ${{ matrix.action.issueNumber }}
         run: |
+          echo "pr_created=false" >> $GITHUB_OUTPUT
+
           # Check if we have commits beyond main
           if [[ $(git rev-list origin/main..HEAD --count) -eq 0 ]]; then
             echo "No commits beyond main - skipping PR creation"
@@ -267,7 +271,7 @@ jobs:
           # Get issue title for PR title
           issue_title=$(gh issue view "$ISSUE_NUMBER" --json title --jq '.title')
 
-          # Create draft PR
+          # Create draft PR (owned by github-actions[bot])
           echo "Creating draft PR for branch $BRANCH_NAME"
           gh pr create \
             --draft \
@@ -276,19 +280,20 @@ jobs:
             --title "$issue_title" \
             --body "Fixes #$ISSUE_NUMBER"
 
-      # Re-push after Claude to trigger CI (if PR already existed)
+          echo "pr_created=true" >> $GITHUB_OUTPUT
+
+      # Re-push with NOPO_BOT_PAT to trigger CI
+      # This is ONLY needed if PR already existed (PR creation triggers CI for new PRs)
+      # The final push MUST be from NOPO_BOT_PAT, otherwise CI won't trigger
       - name: Re-push with PAT to trigger CI
-        if: matrix.action.type == 'runClaude' && matrix.action.worktree && !inputs.dry_run
+        if: matrix.action.type == 'runClaude' && matrix.action.worktree && !inputs.dry_run && steps.create_pr.outputs.pr_created != 'true'
         continue-on-error: true
         env:
-          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
           NOPO_BOT_PAT: ${{ secrets.NOPO_BOT_PAT }}
           BRANCH_NAME: ${{ matrix.action.worktree || inputs.branch }}
         run: |
-          # Check if PR exists (if we just created it, CI is already triggered)
-          existing_pr=$(gh pr list --head "$BRANCH_NAME" --json number --jq '.[0].number // empty' 2>/dev/null || true)
-
           if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
+            # Amend commit to change hash, then force push with PAT to trigger CI
             git commit --amend --no-edit
             for attempt in 1 2 3; do
               if git push origin "$BRANCH_NAME" --force-with-lease; then
