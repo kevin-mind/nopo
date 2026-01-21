@@ -284,9 +284,9 @@ function emitLogCIFailure({ context }: ActionContext): ActionResult {
 // ============================================================================
 
 /**
- * Emit action to create branch
+ * Emit action to create/prepare branch (idempotent with rebase)
  */
-function emitCreateBranch({ context }: ActionContext): ActionResult {
+export function emitCreateBranch({ context }: ActionContext): ActionResult {
   const branchName =
     context.branch ??
     deriveBranchName(context.issue.number, context.currentPhase ?? undefined);

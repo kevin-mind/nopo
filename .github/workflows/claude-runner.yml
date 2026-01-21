@@ -1,14 +1,13 @@
 name: Claude Runner
 
 # Reusable workflow that runs the Claude state machine for an issue.
-# This workflow:
-# 1. Parses issue state and runs the XState machine to derive actions
-# 2. Executes actions using appropriate tokens (code vs review)
+# Architecture:
+# 1. derive-actions: Runs state machine to derive actions, formats as matrix
+# 2. exec-state-actions: Matrix job (max-parallel: 1) executes each action in isolation
 #
 # Two-token architecture:
 # - github_code_token (NOPO_BOT_PAT): For code operations (push, PR, project fields)
 # - github_review_token (CLAUDE_REVIEWER_PAT): For review operations (submit reviews)
-# Each action specifies which token to use via its 'token' field.
 
 on:
   workflow_call:
@@ -82,22 +81,16 @@ on:
     outputs:
       final_state:
         description: Final state after machine execution
-        value: ${{ jobs.run-state-machine.outputs.final_state }}
+        value: ${{ jobs.derive-actions.outputs.final_state }}
       success:
         description: Whether execution completed successfully
-        value: ${{ jobs.run-state-machine.outputs.success }}
+        value: ${{ jobs.exec-state-actions.result == 'success' || jobs.derive-actions.outputs.action_count == '0' }}
       actions_json:
-        description: JSON array of actions that were derived/executed
-        value: ${{ jobs.run-state-machine.outputs.actions_json }}
+        description: JSON array of actions that were derived
+        value: ${{ jobs.derive-actions.outputs.actions_json }}
       action_count:
         description: Number of actions derived
-        value: ${{ jobs.run-state-machine.outputs.action_count }}
-      stopped_early:
-        description: Whether execution stopped early
-        value: ${{ jobs.run-state-machine.outputs.stopped_early }}
-      stop_reason:
-        description: Reason for stopping early (if applicable)
-        value: ${{ jobs.run-state-machine.outputs.stop_reason }}
+        value: ${{ jobs.derive-actions.outputs.action_count }}
 
 permissions:
   contents: write
@@ -106,38 +99,30 @@ permissions:
   id-token: write
 
 jobs:
-  run-state-machine:
+  # ============================================================================
+  # Phase 1: Derive Actions
+  # Runs the state machine to determine what actions to execute
+  # ============================================================================
+  derive-actions:
     runs-on: ubuntu-latest
     outputs:
       final_state: ${{ steps.machine.outputs.final_state }}
-      success: ${{ steps.executor.outputs.success }}
       actions_json: ${{ steps.machine.outputs.actions_json }}
       action_count: ${{ steps.machine.outputs.action_count }}
-      stopped_early: ${{ steps.executor.outputs.stopped_early }}
-      stop_reason: ${{ steps.executor.outputs.stop_reason }}
+      actions_matrix: ${{ steps.format.outputs.matrix }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          # For comments, checkout the branch if provided; otherwise default to main
           ref: ${{ inputs.branch || 'main' }}
-          fetch-depth: 0
-          persist-credentials: false  # Allow PAT to work for push
+          fetch-depth: 1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
 
-      # Install Claude CLI only when not in dry-run mode
-      # The CLI is required for runClaude actions
-      - name: Install Claude CLI
-        if: ${{ !inputs.dry_run }}
-        run: npm install -g @anthropic-ai/claude-code
-
-      # Step 1: Run state machine to derive actions
-      # Uses NOPO_BOT_PAT for reading issue/project state
       - name: Derive Actions (State Machine)
         id: machine
         uses: ./.github/actions-ts/claude-state-machine
@@ -156,111 +141,117 @@ jobs:
           branch: ${{ inputs.branch }}
           max_retries: ${{ vars.MAX_CLAUDE_RETRIES || '5' }}
 
-      # Step 2: Execute derived actions
-      # Uses two tokens:
-      # - NOPO_BOT_PAT (code): push, PR, project field updates
-      # - CLAUDE_REVIEWER_PAT (review): submit PR reviews
-      - name: Execute Actions
-        id: executor
-        if: steps.machine.outputs.action_count != '0'
-        uses: ./.github/actions-ts/claude-state-executor
-        with:
-          github_code_token: ${{ secrets.NOPO_BOT_PAT }}
-          github_review_token: ${{ secrets.CLAUDE_REVIEWER_PAT }}
-          actions_json: ${{ steps.machine.outputs.actions_json }}
-          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
-          # Status signaling context
-          job: ${{ inputs.job }}
-          resource_type: ${{ inputs.resource_type }}
-          resource_number: ${{ inputs.resource_number || inputs.issue_number }}
-          comment_id: ${{ inputs.comment_id }}
-          run_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          dry_run: ${{ inputs.dry_run && 'true' || 'false' }}
+      - name: Format Actions Matrix
+        id: format
         env:
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-
-      # Post-processing for triage: Apply labels from triage-output.json
-      - name: Apply triage labels
-        if: inputs.trigger == 'issue_triage' && !inputs.dry_run
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ inputs.issue_number }}
+          ACTIONS_JSON: ${{ steps.machine.outputs.actions_json }}
+          ACTION_COUNT: ${{ steps.machine.outputs.action_count }}
         run: |
-          if [[ ! -f triage-output.json ]]; then
-            echo "No triage-output.json found - skipping label application"
+          if [[ "$ACTION_COUNT" == "0" || -z "$ACTIONS_JSON" || "$ACTIONS_JSON" == "[]" ]]; then
+            echo "No actions to execute"
+            echo "matrix=[]" >> $GITHUB_OUTPUT
             exit 0
           fi
 
-          echo "Applying labels from triage-output.json:"
-          cat triage-output.json
+          # Add index to each action for ordering/identification
+          matrix=$(echo "$ACTIONS_JSON" | jq -c '[to_entries | .[] | .value + {index: .key}]')
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
+          echo "Formatted matrix with ${ACTION_COUNT} actions"
 
-          # Extract values from JSON
-          type=$(jq -r '.type // empty' triage-output.json)
-          priority=$(jq -r '.priority // empty' triage-output.json)
-          topics=$(jq -r '.topics[]? // empty' triage-output.json)
-
-          labels=""
-
-          # Add type label
-          if [[ -n "$type" && "$type" != "null" ]]; then
-            labels="$type"
-            echo "Adding type label: $type"
+      - name: Write Derivation Summary
+        if: always()
+        env:
+          FINAL_STATE: ${{ steps.machine.outputs.final_state }}
+          ACTION_COUNT: ${{ steps.machine.outputs.action_count }}
+          ACTIONS_JSON: ${{ steps.machine.outputs.actions_json }}
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
+          TRIGGER: ${{ inputs.trigger }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          dry_run_badge=""
+          if [[ "$DRY_RUN" == "true" ]]; then
+            dry_run_badge=" (DRY RUN)"
           fi
 
-          # Add priority label (only if not null)
-          if [[ -n "$priority" && "$priority" != "null" ]]; then
-            labels="${labels:+$labels,}priority:$priority"
-            echo "Adding priority label: priority:$priority"
-          fi
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          # Claude State Machine - Derivation${dry_run_badge}
 
-          # Add topic labels
-          for topic in $topics; do
-            if [[ -n "$topic" ]]; then
-              labels="${labels:+$labels,}topic:$topic"
-              echo "Adding topic label: topic:$topic"
-            fi
-          done
+          | Property | Value |
+          |----------|-------|
+          | **Issue** | [#${ISSUE_NUMBER}](${{ github.server_url }}/${{ github.repository }}/issues/${ISSUE_NUMBER}) |
+          | **Trigger** | \`${TRIGGER}\` |
+          | **Final State** | \`${FINAL_STATE}\` |
+          | **Actions Derived** | ${ACTION_COUNT} |
 
-          # Always add triaged label
-          labels="${labels:+$labels,}triaged"
-          echo "Adding triaged label"
+          ## Actions
 
-          # Apply all labels at once
-          if [[ -n "$labels" ]]; then
-            echo "Applying labels: $labels"
-            gh issue edit "$ISSUE_NUMBER" --add-label "$labels" || true
-          fi
+          \`\`\`json
+          ${ACTIONS_JSON}
+          \`\`\`
 
-      # Upload triage output artifact for debugging
-      - name: Upload triage output
-        if: inputs.trigger == 'issue_triage' && !inputs.dry_run
-        uses: actions/upload-artifact@v4
+          ---
+          EOF
+
+  # ============================================================================
+  # Phase 2: Execute Actions
+  # Matrix job that executes each action in isolation with max-parallel: 1
+  # ============================================================================
+  exec-state-actions:
+    needs: [derive-actions]
+    if: needs.derive-actions.outputs.action_count != '0' && needs.derive-actions.outputs.actions_matrix != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 1
+      fail-fast: true
+      matrix:
+        action: ${{ fromJson(needs.derive-actions.outputs.actions_matrix) }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-          name: claude-triage-output
-          path: triage-output.json
-          retention-days: 1
-          if-no-files-found: ignore
+          # For branch-dependent actions, checkout the appropriate branch
+          ref: ${{ matrix.action.worktree || inputs.branch || 'main' }}
+          fetch-depth: 0
+          persist-credentials: false
 
-      # Post-processing for comments: Re-push with PAT to trigger CI
-      # Claude Code pushes using GITHUB_TOKEN which doesn't trigger workflows
-      # We amend and re-push with PAT so CI runs on the changes
+      - name: Configure git for PAT
+        env:
+          NOPO_BOT_PAT: ${{ secrets.NOPO_BOT_PAT }}
+        run: |
+          git config --local --unset-all http.https://github.com/.extraheader || true
+          git config url."https://${NOPO_BOT_PAT}@github.com/".insteadOf "https://github.com/"
+          git config user.name "nopo-bot"
+          git config user.email "nopo-bot@users.noreply.github.com"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Execute runClaude actions via the run-claude action for rich logging
+      - name: Run Claude
+        if: matrix.action.type == 'runClaude' && !inputs.dry_run
+        uses: ./.github/actions/run-claude
+        with:
+          prompt: ${{ matrix.action.prompt }}
+          prompt_file: ${{ matrix.action.promptFile }}
+          prompt_replacements: ${{ toJson(matrix.action.promptVars) }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          model: "claude-opus-4-5-20251101"
+          max_turns: "50"
+
+      # Re-push after Claude to trigger CI
       - name: Re-push with PAT to trigger CI
-        if: inputs.trigger == 'issue_comment' && inputs.branch && !inputs.dry_run
-        # Run on success OR failure to ensure CI always triggers for pushed code
+        if: matrix.action.type == 'runClaude' && matrix.action.worktree && !inputs.dry_run
         continue-on-error: true
         env:
           NOPO_BOT_PAT: ${{ secrets.NOPO_BOT_PAT }}
-          BRANCH_NAME: ${{ inputs.branch }}
+          BRANCH_NAME: ${{ matrix.action.worktree || inputs.branch }}
         run: |
-          # Amend + push with PAT to trigger CI workflows
-          # First, remove any extraheader set by checkout (takes precedence over URL rewriting)
-          git config --local --unset-all http.https://github.com/.extraheader || true
-          # Use URL rewriting for PAT auth
-          git config url."https://${NOPO_BOT_PAT}@github.com/".insteadOf "https://github.com/"
-          # Only if branch has commits beyond main (don't amend main's commits)
           if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
             git commit --amend --no-edit
-            # Retry push up to 3 times with exponential backoff
             for attempt in 1 2 3; do
               if git push origin "$BRANCH_NAME" --force-with-lease; then
                 echo "Push succeeded on attempt $attempt"
@@ -278,19 +269,85 @@ jobs:
             echo "No commits beyond main - skipping re-push"
           fi
 
-      - name: Write summary
+      # Execute all non-Claude actions via the state executor
+      - name: Execute Action
+        if: matrix.action.type != 'runClaude'
+        uses: ./.github/actions-ts/claude-state-executor
+        with:
+          github_code_token: ${{ secrets.NOPO_BOT_PAT }}
+          github_review_token: ${{ secrets.CLAUDE_REVIEWER_PAT }}
+          # Wrap single action in array for executor
+          actions_json: ${{ format('[{0}]', toJson(matrix.action)) }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+          job: ${{ inputs.job }}
+          resource_type: ${{ inputs.resource_type }}
+          resource_number: ${{ inputs.resource_number || inputs.issue_number }}
+          comment_id: ${{ inputs.comment_id }}
+          run_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          dry_run: ${{ inputs.dry_run && 'true' || 'false' }}
+
+      # Post-processing for triage: Apply labels from triage-output.json
+      - name: Apply triage labels
+        if: matrix.action.type == 'runClaude' && inputs.trigger == 'issue_triage' && !inputs.dry_run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
+        run: |
+          if [[ ! -f triage-output.json ]]; then
+            echo "No triage-output.json found - skipping label application"
+            exit 0
+          fi
+
+          echo "Applying labels from triage-output.json:"
+          cat triage-output.json
+
+          type=$(jq -r '.type // empty' triage-output.json)
+          priority=$(jq -r '.priority // empty' triage-output.json)
+          topics=$(jq -r '.topics[]? // empty' triage-output.json)
+
+          labels=""
+
+          if [[ -n "$type" && "$type" != "null" ]]; then
+            labels="$type"
+            echo "Adding type label: $type"
+          fi
+
+          if [[ -n "$priority" && "$priority" != "null" ]]; then
+            labels="${labels:+$labels,}priority:$priority"
+            echo "Adding priority label: priority:$priority"
+          fi
+
+          for topic in $topics; do
+            if [[ -n "$topic" ]]; then
+              labels="${labels:+$labels,}topic:$topic"
+              echo "Adding topic label: topic:$topic"
+            fi
+          done
+
+          labels="${labels:+$labels,}triaged"
+          echo "Adding triaged label"
+
+          if [[ -n "$labels" ]]; then
+            echo "Applying labels: $labels"
+            gh issue edit "$ISSUE_NUMBER" --add-label "$labels" || true
+          fi
+
+      # Upload triage output artifact for debugging
+      - name: Upload triage output
+        if: matrix.action.type == 'runClaude' && inputs.trigger == 'issue_triage' && !inputs.dry_run
+        uses: actions/upload-artifact@v4
+        with:
+          name: claude-triage-output
+          path: triage-output.json
+          retention-days: 1
+          if-no-files-found: ignore
+
+      - name: Write Action Summary
         if: always()
         env:
-          FINAL_STATE: ${{ steps.machine.outputs.final_state }}
-          ACTION_COUNT: ${{ steps.machine.outputs.action_count }}
-          ACTIONS_JSON: ${{ steps.machine.outputs.actions_json }}
-          SUCCESS: ${{ steps.executor.outputs.success || 'true' }}
-          STOPPED_EARLY: ${{ steps.executor.outputs.stopped_early || 'false' }}
-          STOP_REASON: ${{ steps.executor.outputs.stop_reason }}
-          ACTIONS_EXECUTED: ${{ steps.executor.outputs.actions_executed || '0' }}
-          ACTIONS_FAILED: ${{ steps.executor.outputs.actions_failed || '0' }}
+          ACTION_TYPE: ${{ matrix.action.type }}
+          ACTION_INDEX: ${{ matrix.action.index }}
           ISSUE_NUMBER: ${{ inputs.issue_number }}
-          TRIGGER: ${{ inputs.trigger }}
           DRY_RUN: ${{ inputs.dry_run }}
         run: |
           dry_run_badge=""
@@ -299,25 +356,13 @@ jobs:
           fi
 
           cat >> $GITHUB_STEP_SUMMARY << EOF
-          # Claude State Machine${dry_run_badge}
+          # Action ${ACTION_INDEX}: ${ACTION_TYPE}${dry_run_badge}
 
           | Property | Value |
           |----------|-------|
           | **Issue** | [#${ISSUE_NUMBER}](${{ github.server_url }}/${{ github.repository }}/issues/${ISSUE_NUMBER}) |
-          | **Trigger** | \`${TRIGGER}\` |
-          | **Final State** | \`${FINAL_STATE}\` |
-          | **Actions Derived** | ${ACTION_COUNT} |
-          | **Actions Executed** | ${ACTIONS_EXECUTED} |
-          | **Actions Failed** | ${ACTIONS_FAILED} |
-          | **Success** | ${SUCCESS} |
-          | **Stopped Early** | ${STOPPED_EARLY} |
-          | **Stop Reason** | ${STOP_REASON:-N/A} |
-
-          ## Actions
-
-          \`\`\`json
-          ${ACTIONS_JSON}
-          \`\`\`
+          | **Action Type** | \`${ACTION_TYPE}\` |
+          | **Index** | ${ACTION_INDEX} |
 
           ---
           EOF

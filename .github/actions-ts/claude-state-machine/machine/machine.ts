@@ -12,6 +12,7 @@ import {
   emitClearFailures,
   emitCloseIssue,
   emitUnassign,
+  emitCreateBranch,
   emitRunClaude,
   emitRunClaudeFixCI,
   emitRunClaudeTriage,
@@ -227,6 +228,12 @@ export const claudeMachine = setup({
     unassign: assign({
       pendingActions: ({ context }) =>
         accumulateActions(context.pendingActions, emitUnassign({ context })),
+    }),
+
+    // Git actions
+    createBranch: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(context.pendingActions, emitCreateBranch({ context })),
     }),
 
     // Claude actions
@@ -598,10 +605,11 @@ export const claudeMachine = setup({
           guard: "reviewApproved",
         },
         // Changes requested -> iterate to address
+        // NOTE: setWorking is NOT included here because iterating entry already calls it
         {
           target: "iterating",
           guard: "reviewRequestedChanges",
-          actions: ["convertToDraft", "setWorking"],
+          actions: ["convertToDraft"],
         },
         // Just commented -> stay in review
         { target: "reviewing" },
@@ -620,7 +628,8 @@ export const claudeMachine = setup({
      * Claude is working on implementation
      */
     iterating: {
-      entry: ["setWorking", "incrementIteration", "logIterating", "runClaude"],
+      // createBranch is first: prepares branch (create/checkout/rebase), may signal stop if rebased
+      entry: ["createBranch", "setWorking", "incrementIteration", "logIterating", "runClaude"],
       on: {
         CI_SUCCESS: [
           {
@@ -652,7 +661,8 @@ export const claudeMachine = setup({
      * Claude is fixing CI failures
      */
     iteratingFix: {
-      entry: ["incrementIteration", "runClaudeFixCI"],
+      // createBranch is first: ensures branch is up-to-date before fixing CI
+      entry: ["createBranch", "incrementIteration", "runClaudeFixCI"],
       on: {
         CI_SUCCESS: [
           {
@@ -686,9 +696,10 @@ export const claudeMachine = setup({
       entry: ["logReviewing"],
       on: {
         REVIEW_APPROVED: "orchestrating",
+        // NOTE: setWorking NOT included - iterating entry already calls it
         REVIEW_CHANGES_REQUESTED: {
           target: "iterating",
-          actions: ["convertToDraft", "setWorking"],
+          actions: ["convertToDraft"],
         },
         REVIEW_COMMENTED: "reviewing",
       },
@@ -697,9 +708,9 @@ export const claudeMachine = setup({
 
     /**
      * Circuit breaker triggered
+     * NOTE: Entry actions removed - blockIssue action already emits setBlocked + unassign
      */
     blocked: {
-      entry: ["setBlocked", "unassign"],
       type: "final",
     },
 

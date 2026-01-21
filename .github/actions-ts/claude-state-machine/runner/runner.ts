@@ -209,7 +209,8 @@ async function executeAction(
     case "removeReviewer":
       return executeRemoveReviewer(action, actionCtx);
 
-    // Claude actions
+    // Claude actions - handled directly by workflow via run-claude action
+    // The executor should never receive runClaude actions (workflow filters them)
     case "runClaude":
       return executeRunClaude(action, actionCtx);
 
@@ -311,6 +312,30 @@ export async function executeActions(
 
     try {
       const result = await executeAction(validatedAction, ctx);
+
+      // Check if createBranch signaled to stop (rebased and pushed)
+      const branchResult = result as { shouldStop?: boolean };
+      if (
+        validatedAction.type === "createBranch" &&
+        branchResult.shouldStop
+      ) {
+        results.push({
+          action: validatedAction,
+          success: true,
+          skipped: false,
+          result,
+          durationMs: Date.now() - actionStartTime,
+        });
+
+        // Stop processing - CI will re-trigger with rebased branch
+        stoppedEarly = true;
+        stopReason = "branch_rebased_and_pushed";
+        core.info(
+          "Stopping after branch rebase - CI will re-trigger with up-to-date branch",
+        );
+        break;
+      }
+
       results.push({
         action: validatedAction,
         success: true,

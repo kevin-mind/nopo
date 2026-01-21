@@ -29176,28 +29176,127 @@ async function executeRemoveReviewer(action, ctx) {
 var core4 = __toESM(require_core(), 1);
 var exec3 = __toESM(require_exec(), 1);
 async function executeCreateBranch(action, ctx) {
-  const checkResult = await ctx.octokit.rest.repos.getBranch({
+  const result = {
+    created: false,
+    checkedOut: false,
+    rebased: false,
+    pushed: false,
+    shouldStop: false
+  };
+  core4.info(`Fetching latest from origin...`);
+  await exec3.exec("git", ["fetch", "origin"], { ignoreReturnCode: true });
+  const remoteBranchExists = await ctx.octokit.rest.repos.getBranch({
     owner: ctx.owner,
     repo: ctx.repo,
     branch: action.branchName
-  }).catch(() => null);
-  if (checkResult) {
-    core4.info(`Branch ${action.branchName} already exists`);
-    return { created: false };
+  }).then(() => true).catch(() => false);
+  if (!remoteBranchExists) {
+    core4.info(
+      `Branch ${action.branchName} doesn't exist remotely, creating from ${action.baseBranch}`
+    );
+    const baseRef = await ctx.octokit.rest.git.getRef({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      ref: `heads/${action.baseBranch}`
+    });
+    await ctx.octokit.rest.git.createRef({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      ref: `refs/heads/${action.branchName}`,
+      sha: baseRef.data.object.sha
+    });
+    result.created = true;
+    core4.info(`Created remote branch ${action.branchName}`);
+    await exec3.exec("git", ["fetch", "origin"], { ignoreReturnCode: true });
   }
-  const baseRef = await ctx.octokit.rest.git.getRef({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    ref: `heads/${action.baseBranch}`
-  });
-  await ctx.octokit.rest.git.createRef({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    ref: `refs/heads/${action.branchName}`,
-    sha: baseRef.data.object.sha
-  });
-  core4.info(`Created branch ${action.branchName} from ${action.baseBranch}`);
-  return { created: true };
+  let checkoutExitCode = await exec3.exec(
+    "git",
+    ["checkout", action.branchName],
+    { ignoreReturnCode: true }
+  );
+  if (checkoutExitCode !== 0) {
+    checkoutExitCode = await exec3.exec(
+      "git",
+      ["checkout", "-b", action.branchName, `origin/${action.branchName}`],
+      { ignoreReturnCode: true }
+    );
+    if (checkoutExitCode !== 0) {
+      checkoutExitCode = await exec3.exec(
+        "git",
+        [
+          "checkout",
+          "-b",
+          action.branchName,
+          `origin/${action.baseBranch}`
+        ],
+        { ignoreReturnCode: true }
+      );
+    }
+  }
+  if (checkoutExitCode !== 0) {
+    throw new Error(`Failed to checkout branch ${action.branchName}`);
+  }
+  result.checkedOut = true;
+  core4.info(`Checked out branch ${action.branchName}`);
+  await exec3.exec(
+    "git",
+    ["branch", "--set-upstream-to", `origin/${action.branchName}`],
+    { ignoreReturnCode: true }
+  );
+  let commitsCount = "";
+  await exec3.exec(
+    "git",
+    [
+      "rev-list",
+      "--count",
+      `HEAD..origin/${action.baseBranch}`
+    ],
+    {
+      ignoreReturnCode: true,
+      listeners: {
+        stdout: (data) => {
+          commitsCount += data.toString();
+        }
+      }
+    }
+  );
+  const commitsBehind = parseInt(commitsCount.trim(), 10) || 0;
+  if (commitsBehind > 0) {
+    core4.info(
+      `Branch is ${commitsBehind} commits behind origin/${action.baseBranch}, attempting rebase...`
+    );
+    const rebaseExitCode = await exec3.exec(
+      "git",
+      ["rebase", `origin/${action.baseBranch}`],
+      { ignoreReturnCode: true }
+    );
+    if (rebaseExitCode !== 0) {
+      core4.warning(
+        `Rebase failed, aborting and continuing with current state`
+      );
+      await exec3.exec("git", ["rebase", "--abort"], { ignoreReturnCode: true });
+      return result;
+    }
+    result.rebased = true;
+    core4.info(`Successfully rebased on origin/${action.baseBranch}`);
+    const pushExitCode = await exec3.exec(
+      "git",
+      ["push", "origin", action.branchName, "--force-with-lease"],
+      { ignoreReturnCode: true }
+    );
+    if (pushExitCode === 0) {
+      result.pushed = true;
+      result.shouldStop = true;
+      core4.info(
+        `Pushed rebased changes. Stopping execution - CI will re-trigger with up-to-date branch.`
+      );
+    } else {
+      core4.warning(`Failed to push rebased changes, continuing anyway`);
+    }
+  } else {
+    core4.info(`Branch is up-to-date with origin/${action.baseBranch}`);
+  }
+  return result;
 }
 async function executeGitPush(action, _ctx) {
   const args = ["push", "origin", action.branchName];
@@ -29836,7 +29935,8 @@ async function executeAction(action, ctx) {
       return executeSubmitReview(action, actionCtx);
     case "removeReviewer":
       return executeRemoveReviewer(action, actionCtx);
-    // Claude actions
+    // Claude actions - handled directly by workflow via run-claude action
+    // The executor should never receive runClaude actions (workflow filters them)
     case "runClaude":
       return executeRunClaude(action, actionCtx);
     // Discussion actions
@@ -29915,6 +30015,22 @@ async function executeActions(actions, ctx, options = {}) {
     }
     try {
       const result = await executeAction(validatedAction, ctx);
+      const branchResult = result;
+      if (validatedAction.type === "createBranch" && branchResult.shouldStop) {
+        results.push({
+          action: validatedAction,
+          success: true,
+          skipped: false,
+          result,
+          durationMs: Date.now() - actionStartTime
+        });
+        stoppedEarly = true;
+        stopReason = "branch_rebased_and_pushed";
+        core8.info(
+          "Stopping after branch rebase - CI will re-trigger with up-to-date branch"
+        );
+        break;
+      }
       results.push({
         action: validatedAction,
         success: true,
