@@ -1249,6 +1249,165 @@ async function verifyFixture(
     }
   }
 
+  // Check all sub-issues are closed
+  if (fixture.expected.all_sub_issues_closed) {
+    interface SubIssuesResponse {
+      repository?: {
+        issue?: {
+          subIssues?: {
+            nodes?: Array<{
+              number?: number;
+              state?: string;
+            }>;
+          };
+        };
+      };
+    }
+
+    const subResponse = await octokit.graphql<SubIssuesResponse>(
+      GET_SUB_ISSUES_QUERY,
+      {
+        org: owner,
+        repo,
+        parentNumber: issueNumber,
+      },
+    );
+
+    const subIssues = subResponse.repository?.issue?.subIssues?.nodes || [];
+
+    for (let i = 0; i < subIssues.length; i++) {
+      const subIssue = subIssues[i];
+      if (subIssue?.number) {
+        const { data: subIssueData } = await octokit.rest.issues.get({
+          owner,
+          repo,
+          issue_number: subIssue.number,
+        });
+        if (subIssueData.state !== "closed") {
+          errors.push({
+            field: `sub_issue_${i + 1}_closed`,
+            expected: "closed",
+            actual: subIssueData.state,
+          });
+        }
+      }
+    }
+  }
+
+  // Check sub-issue todos are done (checkboxes checked)
+  if (fixture.expected.sub_issues_todos_done) {
+    interface SubIssuesResponse {
+      repository?: {
+        issue?: {
+          subIssues?: {
+            nodes?: Array<{
+              number?: number;
+            }>;
+          };
+        };
+      };
+    }
+
+    const subResponse = await octokit.graphql<SubIssuesResponse>(
+      GET_SUB_ISSUES_QUERY,
+      {
+        org: owner,
+        repo,
+        parentNumber: issueNumber,
+      },
+    );
+
+    const subIssues = subResponse.repository?.issue?.subIssues?.nodes || [];
+
+    for (let i = 0; i < subIssues.length; i++) {
+      const subIssue = subIssues[i];
+      if (subIssue?.number) {
+        const { data: subIssueData } = await octokit.rest.issues.get({
+          owner,
+          repo,
+          issue_number: subIssue.number,
+        });
+        const body = subIssueData.body || "";
+        const unchecked = (body.match(/- \[ \]/g) || []).length;
+        if (unchecked > 0) {
+          errors.push({
+            field: `sub_issue_${i + 1}_todos`,
+            expected: "all checked",
+            actual: `${unchecked} unchecked`,
+          });
+        }
+      }
+    }
+  }
+
+  // Check iteration history has expected log entries
+  if (fixture.expected.history_contains) {
+    const { data: issueData } = await octokit.rest.issues.get({
+      owner,
+      repo,
+      issue_number: issueNumber,
+    });
+    const body = issueData.body || "";
+    for (const pattern of fixture.expected.history_contains) {
+      if (!body.includes(pattern)) {
+        errors.push({
+          field: "iteration_history",
+          expected: `contains "${pattern}"`,
+          actual: "not found",
+        });
+      }
+    }
+  }
+
+  // Check each sub-issue has a merged PR
+  if (fixture.expected.sub_issues_have_merged_pr) {
+    interface SubIssuesResponse {
+      repository?: {
+        issue?: {
+          subIssues?: {
+            nodes?: Array<{
+              number?: number;
+            }>;
+          };
+        };
+      };
+    }
+
+    const subResponse = await octokit.graphql<SubIssuesResponse>(
+      GET_SUB_ISSUES_QUERY,
+      {
+        org: owner,
+        repo,
+        parentNumber: issueNumber,
+      },
+    );
+
+    const subIssues = subResponse.repository?.issue?.subIssues?.nodes || [];
+
+    const { data: allPrs } = await octokit.rest.pulls.list({
+      owner,
+      repo,
+      state: "all",
+      per_page: 100,
+    });
+
+    for (let i = 0; i < subIssues.length; i++) {
+      const subIssue = subIssues[i];
+      if (subIssue?.number) {
+        const pr = allPrs.find(
+          (p) => p.body?.includes(`Fixes #${subIssue.number}`) && p.merged_at,
+        );
+        if (!pr) {
+          errors.push({
+            field: `sub_issue_${i + 1}_pr`,
+            expected: "merged PR",
+            actual: "no merged PR found",
+          });
+        }
+      }
+    }
+  }
+
   return {
     passed: errors.length === 0,
     errors,

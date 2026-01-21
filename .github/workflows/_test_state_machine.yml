@@ -246,6 +246,43 @@ jobs:
       needs.setup.result == 'success'
     runs-on: ubuntu-latest
     steps:
+      # Wait for triage to complete before assigning nopo-bot (E2E mode only)
+      # Triage triggers automatically on issues:opened for issues with _e2e label
+      - name: Wait for triage to complete
+        if: inputs.mode == 'e2e'
+        env:
+          ISSUE_NUMBER: ${{ needs.setup.outputs.issue_number }}
+          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
+        run: |
+          echo "Waiting for triage to complete on issue #$ISSUE_NUMBER..."
+          timeout=120  # 2 minutes for triage
+          poll_interval=5
+          start_time=$(date +%s)
+
+          while true; do
+            current_time=$(date +%s)
+            elapsed=$((current_time - start_time))
+
+            if [[ $elapsed -ge $timeout ]]; then
+              echo "::error::Triage timeout after ${elapsed}s"
+              exit 1
+            fi
+
+            issue_data=$(gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
+              --json labels,body 2>/dev/null || echo '{}')
+
+            has_triaged=$(echo "$issue_data" | jq '[.labels[]?.name] | any(. == "triaged")' 2>/dev/null || echo "false")
+            has_state=$(echo "$issue_data" | jq '.body | contains("CLAUDE_MAIN_STATE")' 2>/dev/null || echo "false")
+
+            if [[ "$has_triaged" == "true" ]] || [[ "$has_state" == "true" ]]; then
+              echo "✅ Triage completed after ${elapsed}s"
+              break
+            fi
+
+            echo "⏳ Waiting for triage... (${elapsed}/${timeout}s)"
+            sleep $poll_interval
+          done
+
       - name: Trigger state machine
         run: |
           echo "Triggering state machine for issue #${{ needs.setup.outputs.issue_number }}"

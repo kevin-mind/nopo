@@ -150,6 +150,14 @@ export interface ExpectedOutcome {
   labels?: string[];
   /** Expected discussion comment count (minimum) */
   min_comments?: number;
+  /** Whether all sub-issues should be closed */
+  all_sub_issues_closed?: boolean;
+  /** Whether all sub-issue todos (checkboxes) should be checked */
+  sub_issues_todos_done?: boolean;
+  /** Strings that should appear in the iteration history */
+  history_contains?: string[];
+  /** Whether each sub-issue should have a merged PR */
+  sub_issues_have_merged_pr?: boolean;
 }
 
 /**

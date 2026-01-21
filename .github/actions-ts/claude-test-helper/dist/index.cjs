@@ -24762,6 +24762,113 @@ async function verifyFixture(octokit, owner, repo, issueNumber, fixture, project
       }
     }
   }
+  if (fixture.expected.all_sub_issues_closed) {
+    const subResponse = await octokit.graphql(
+      GET_SUB_ISSUES_QUERY,
+      {
+        org: owner,
+        repo,
+        parentNumber: issueNumber
+      }
+    );
+    const subIssues = subResponse.repository?.issue?.subIssues?.nodes || [];
+    for (let i = 0; i < subIssues.length; i++) {
+      const subIssue = subIssues[i];
+      if (subIssue?.number) {
+        const { data: subIssueData } = await octokit.rest.issues.get({
+          owner,
+          repo,
+          issue_number: subIssue.number
+        });
+        if (subIssueData.state !== "closed") {
+          errors.push({
+            field: `sub_issue_${i + 1}_closed`,
+            expected: "closed",
+            actual: subIssueData.state
+          });
+        }
+      }
+    }
+  }
+  if (fixture.expected.sub_issues_todos_done) {
+    const subResponse = await octokit.graphql(
+      GET_SUB_ISSUES_QUERY,
+      {
+        org: owner,
+        repo,
+        parentNumber: issueNumber
+      }
+    );
+    const subIssues = subResponse.repository?.issue?.subIssues?.nodes || [];
+    for (let i = 0; i < subIssues.length; i++) {
+      const subIssue = subIssues[i];
+      if (subIssue?.number) {
+        const { data: subIssueData } = await octokit.rest.issues.get({
+          owner,
+          repo,
+          issue_number: subIssue.number
+        });
+        const body = subIssueData.body || "";
+        const unchecked = (body.match(/- \[ \]/g) || []).length;
+        if (unchecked > 0) {
+          errors.push({
+            field: `sub_issue_${i + 1}_todos`,
+            expected: "all checked",
+            actual: `${unchecked} unchecked`
+          });
+        }
+      }
+    }
+  }
+  if (fixture.expected.history_contains) {
+    const { data: issueData } = await octokit.rest.issues.get({
+      owner,
+      repo,
+      issue_number: issueNumber
+    });
+    const body = issueData.body || "";
+    for (const pattern of fixture.expected.history_contains) {
+      if (!body.includes(pattern)) {
+        errors.push({
+          field: "iteration_history",
+          expected: `contains "${pattern}"`,
+          actual: "not found"
+        });
+      }
+    }
+  }
+  if (fixture.expected.sub_issues_have_merged_pr) {
+    const subResponse = await octokit.graphql(
+      GET_SUB_ISSUES_QUERY,
+      {
+        org: owner,
+        repo,
+        parentNumber: issueNumber
+      }
+    );
+    const subIssues = subResponse.repository?.issue?.subIssues?.nodes || [];
+    const { data: allPrs } = await octokit.rest.pulls.list({
+      owner,
+      repo,
+      state: "all",
+      per_page: 100
+    });
+    for (let i = 0; i < subIssues.length; i++) {
+      const subIssue = subIssues[i];
+      if (subIssue?.number) {
+        const pr = allPrs.find(
+          (p) => p.body?.includes(`Fixes #${subIssue.number}`) && p.merged_at
+        );
+        if (!pr) {
+          errors.push({
+            field: `sub_issue_${i + 1}_pr`,
+            expected: "merged PR",
+            actual: "no merged PR found"
+          });
+        }
+      }
+    }
+  }
   return {
     passed: errors.length === 0,
     errors
