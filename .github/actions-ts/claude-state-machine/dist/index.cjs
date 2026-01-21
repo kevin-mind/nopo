@@ -31967,7 +31967,7 @@ async function enrichSubIssuesWithPRs(octokit, owner, repo, parentIssueNumber, s
 }
 async function buildMachineContext(octokit, event, projectNumber, options = {}) {
   const { owner, repo } = event;
-  const trigger = eventToTrigger(event);
+  const trigger = options.triggerOverride ?? eventToTrigger(event);
   let issueNumber;
   if ("issueNumber" in event) {
     issueNumber = event.issueNumber;
@@ -33546,7 +33546,8 @@ async function run() {
       botUsername,
       commentContextType: commentContextType || null,
       commentContextDescription,
-      branch: inputBranch
+      branch: inputBranch,
+      triggerOverride: trigger
     });
     if (!context2) {
       core2.setFailed(

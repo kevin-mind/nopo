@@ -485,10 +485,15 @@ export async function buildMachineContext(
     commentContextType?: "Issue" | "PR" | null;
     commentContextDescription?: string | null;
     branch?: string | null;
+    // Override trigger - use this instead of deriving from event
+    // This is needed because some triggers (issue_triage, issue_orchestrate)
+    // use a different event type internally but need to preserve their trigger
+    triggerOverride?: TriggerType | null;
   } = {},
 ): Promise<MachineContext | null> {
   const { owner, repo } = event;
-  const trigger = eventToTrigger(event);
+  // Use trigger override if provided, otherwise derive from event
+  const trigger = options.triggerOverride ?? eventToTrigger(event);
 
   // Determine the issue number from the event
   let issueNumber: number | undefined;

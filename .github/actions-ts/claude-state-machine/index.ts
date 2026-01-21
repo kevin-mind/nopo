@@ -285,12 +285,15 @@ async function run(): Promise<void> {
     });
 
     // Build machine context
+    // Pass the original trigger as override to preserve it
+    // (some triggers like issue_triage use issue_edited event internally)
     const context = await buildMachineContext(octokit, event, projectNumber, {
       maxRetries,
       botUsername,
       commentContextType: commentContextType || null,
       commentContextDescription,
       branch: inputBranch,
+      triggerOverride: trigger,
     });
 
     if (!context) {
