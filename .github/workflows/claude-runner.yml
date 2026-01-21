@@ -270,6 +270,10 @@ jobs:
           fi
 
       # Execute all non-Claude actions via the state executor
+      # NOTE: Signaling inputs (job, resource_type, etc.) intentionally omitted
+      # Status comments are disabled - use history table instead to avoid:
+      # 1. Cluttering the comment feed
+      # 2. Triggering issue_comment events that interfere with state machine
       - name: Execute Action
         if: matrix.action.type != 'runClaude'
         uses: ./.github/actions-ts/claude-state-executor
@@ -279,11 +283,6 @@ jobs:
           # Wrap single action in array for executor
           actions_json: ${{ format('[{0}]', toJson(matrix.action)) }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
-          job: ${{ inputs.job }}
-          resource_type: ${{ inputs.resource_type }}
-          resource_number: ${{ inputs.resource_number || inputs.issue_number }}
-          comment_id: ${{ inputs.comment_id }}
-          run_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           dry_run: ${{ inputs.dry_run && 'true' || 'false' }}
 
       # Post-processing for triage: Apply labels from triage-output.json

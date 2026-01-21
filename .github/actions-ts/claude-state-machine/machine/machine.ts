@@ -233,7 +233,10 @@ export const claudeMachine = setup({
     // Git actions
     createBranch: assign({
       pendingActions: ({ context }) =>
-        accumulateActions(context.pendingActions, emitCreateBranch({ context })),
+        accumulateActions(
+          context.pendingActions,
+          emitCreateBranch({ context }),
+        ),
     }),
 
     // Claude actions
@@ -629,7 +632,13 @@ export const claudeMachine = setup({
      */
     iterating: {
       // createBranch is first: prepares branch (create/checkout/rebase), may signal stop if rebased
-      entry: ["createBranch", "setWorking", "incrementIteration", "logIterating", "runClaude"],
+      entry: [
+        "createBranch",
+        "setWorking",
+        "incrementIteration",
+        "logIterating",
+        "runClaude",
+      ],
       on: {
         CI_SUCCESS: [
           {

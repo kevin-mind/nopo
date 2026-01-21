@@ -105,12 +105,7 @@ export async function executeCreateBranch(
       // Last resort: create from local base branch
       checkoutExitCode = await exec.exec(
         "git",
-        [
-          "checkout",
-          "-b",
-          action.branchName,
-          `origin/${action.baseBranch}`,
-        ],
+        ["checkout", "-b", action.branchName, `origin/${action.baseBranch}`],
         { ignoreReturnCode: true },
       );
     }
@@ -135,11 +130,7 @@ export async function executeCreateBranch(
   let commitsCount = "";
   await exec.exec(
     "git",
-    [
-      "rev-list",
-      "--count",
-      `HEAD..origin/${action.baseBranch}`,
-    ],
+    ["rev-list", "--count", `HEAD..origin/${action.baseBranch}`],
     {
       ignoreReturnCode: true,
       listeners: {
@@ -165,9 +156,7 @@ export async function executeCreateBranch(
 
     if (rebaseExitCode !== 0) {
       // Rebase failed, abort and continue without rebase
-      core.warning(
-        `Rebase failed, aborting and continuing with current state`,
-      );
+      core.warning(`Rebase failed, aborting and continuing with current state`);
       await exec.exec("git", ["rebase", "--abort"], { ignoreReturnCode: true });
       // Continue without rebasing - let CI catch any conflicts
       return result;

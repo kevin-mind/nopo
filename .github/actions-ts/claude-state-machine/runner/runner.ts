@@ -315,10 +315,7 @@ export async function executeActions(
 
       // Check if createBranch signaled to stop (rebased and pushed)
       const branchResult = result as { shouldStop?: boolean };
-      if (
-        validatedAction.type === "createBranch" &&
-        branchResult.shouldStop
-      ) {
+      if (validatedAction.type === "createBranch" && branchResult.shouldStop) {
         results.push({
           action: validatedAction,
           success: true,
