@@ -45,6 +45,14 @@ Run e2e test with multi-phase issue (multiple sub-issues) 3 times in a row witho
 - **Notes:** `run-state-machine` job now runs (type fixes worked!) but fails with ZodError - schema status values don't match GitHub Project. Schema has "In Progress" but GitHub returns "In progress".
 
 ### Run 5
+- **Started:** 2026-01-21 06:03:17 UTC
+- **Run ID:** 21199107593
+- **Status:** completed
+- **Duration:** ~1 min
+- **Result:** ❌ FAILED
+- **Notes:** "Input required and not supplied: github_review_token" - the executor requires review token even for non-review actions.
+
+### Run 6
 - **Started:** (pending)
 - **Status:** (pending)
 - **Duration:** -
@@ -79,6 +87,12 @@ Run e2e test with multi-phase issue (multiple sub-issues) 3 times in a row witho
 - **Root Cause:** Schema defined statuses as "In Progress" and "Review" but GitHub Project uses "In progress" and "In review" (different case/wording)
 - **Impact:** State machine fails to parse issue context
 
+### Issue 5: Required github_review_token
+- **Severity:** Critical (blocks executor for non-review actions)
+- **Symptom:** "Input required and not supplied: github_review_token"
+- **Root Cause:** `claude-state-executor` marked `github_review_token` as required, but non-review actions don't need it
+- **Impact:** All executor runs fail if CLAUDE_REVIEWER_PAT secret is not available
+
 ---
 
 ## Fixes Applied
@@ -98,6 +112,12 @@ Run e2e test with multi-phase issue (multiple sub-issues) 3 times in a row witho
 - **Changes:**
   - `"In Progress"` → `"In progress"` (lowercase 'p')
   - `"Review"` → `"In review"` (added 'In ' prefix)
+- **Applied:** 2026-01-21
+
+### Fix 4: Make github_review_token optional
+- **Files:**
+  - `.github/actions-ts/claude-state-executor/action.yml` - changed `required: true` to `required: false` with default `""`
+  - `.github/actions-ts/claude-state-executor/index.ts` - changed from `getRequiredInput` to `getOptionalInput`
 - **Applied:** 2026-01-21
 
 ---

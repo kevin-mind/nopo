@@ -58,7 +58,8 @@ async function run(): Promise<void> {
   try {
     // Parse inputs - two tokens for different operations
     const codeToken = getRequiredInput("github_code_token");
-    const reviewToken = getRequiredInput("github_review_token");
+    // Review token is optional - only needed for submit_review actions
+    const reviewToken = getOptionalInput("github_review_token") || "";
     const actionsJson = getRequiredInput("actions_json");
     const projectNumber = parseInt(getRequiredInput("project_number"), 10);
     const dryRun = getOptionalInput("dry_run") === "true";

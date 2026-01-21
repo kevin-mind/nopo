@@ -7,7 +7,8 @@ inputs:
     required: true
   github_review_token:
     description: GitHub PAT for review operations (claude-reviewer) - submit reviews
-    required: true
+    required: false
+    default: ""
   actions_json:
     description: JSON array of actions to execute
     required: true

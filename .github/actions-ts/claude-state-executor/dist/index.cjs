@@ -30082,7 +30082,7 @@ Action: ${JSON.stringify(parsed[i])}`
 async function run() {
   try {
     const codeToken = getRequiredInput("github_code_token");
-    const reviewToken = getRequiredInput("github_review_token");
+    const reviewToken = getOptionalInput("github_review_token") || "";
     const actionsJson = getRequiredInput("actions_json");
     const projectNumber = parseInt(getRequiredInput("project_number"), 10);
     const dryRun = getOptionalInput("dry_run") === "true";
