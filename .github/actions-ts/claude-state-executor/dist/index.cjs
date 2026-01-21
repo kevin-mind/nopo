@@ -29260,9 +29260,9 @@ function getPromptFromAction(action) {
 async function executeRunClaude(action, ctx) {
   const args = [
     "--print",
-    // Print output to stdout
-    "-y"
-    // Auto-accept prompts (skip permission confirmations)
+    // Print output to stdout (non-interactive mode)
+    "--dangerously-skip-permissions"
+    // Skip all permission prompts (for CI/automated runs)
   ];
   const prompt = getPromptFromAction(action);
   args.push("--prompt", prompt);

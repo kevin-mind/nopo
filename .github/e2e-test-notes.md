@@ -93,12 +93,20 @@ Run e2e test with multi-phase issue (multiple sub-issues) 3 times in a row witho
 - **Notes:** Worktree fix worked (using `/home/runner/work/nopo/nopo`), but Claude CLI failed with "error: unknown option '--yes'". The executor was using `--yes` but Claude CLI uses `-y` for auto-accept.
 
 ### Run 11
+- **Started:** 2026-01-21 06:44:32 UTC
+- **Run ID:** 21199986998
+- **Status:** completed
+- **Duration:** ~11 min
+- **Result:** ❌ FAILED
+- **Notes:** Claude CLI failed with "error: unknown option '-y'". The `-y` flag also doesn't exist - Claude CLI uses `--dangerously-skip-permissions` for auto-accept.
+
+### Run 12
 - **Started:** (pending)
 - **Run ID:** (pending)
 - **Status:** (pending)
 - **Duration:** -
 - **Result:** (pending)
-- **Notes:** After fix to change `--yes` to `-y` in claude.ts executor.
+- **Notes:** After fix to change `-y` to `--dangerously-skip-permissions` in claude.ts executor.
 
 ---
 
@@ -165,6 +173,12 @@ Run e2e test with multi-phase issue (multiple sub-issues) 3 times in a row witho
 - **Root Cause:** The executor used `--yes` flag but Claude CLI uses `-y` for auto-accept/skip permission confirmations.
 - **Impact:** Claude can't run because it fails with invalid CLI argument.
 
+### Issue 11: Claude CLI -y flag also doesn't exist
+- **Severity:** Critical (blocks Claude execution)
+- **Symptom:** "error: unknown option '-y'" when running Claude CLI
+- **Root Cause:** Neither `--yes` nor `-y` exist in Claude CLI. The correct flag is `--dangerously-skip-permissions`.
+- **Impact:** Claude can't run because it fails with invalid CLI argument.
+
 ---
 
 ## Fixes Applied
@@ -214,6 +228,12 @@ Run e2e test with multi-phase issue (multiple sub-issues) 3 times in a row witho
 ### Fix 8: Change Claude CLI flag from --yes to -y
 - **File:** `.github/actions-ts/claude-state-machine/runner/executors/claude.ts`
 - **Change:** `"--yes"` → `"-y"` in the args array for Claude CLI execution
+- **Applied:** 2026-01-21
+- **Result:** ❌ Did not work - `-y` also doesn't exist
+
+### Fix 9: Change Claude CLI flag to --dangerously-skip-permissions
+- **File:** `.github/actions-ts/claude-state-machine/runner/executors/claude.ts`
+- **Change:** `"-y"` → `"--dangerously-skip-permissions"` - the actual flag used by Claude CLI to skip permission prompts
 - **Applied:** 2026-01-21
 
 ---

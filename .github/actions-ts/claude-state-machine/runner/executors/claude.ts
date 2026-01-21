@@ -84,8 +84,8 @@ export async function executeRunClaude(
   ctx: RunnerContext,
 ): Promise<ClaudeRunResult> {
   const args: string[] = [
-    "--print", // Print output to stdout
-    "-y", // Auto-accept prompts (skip permission confirmations)
+    "--print", // Print output to stdout (non-interactive mode)
+    "--dangerously-skip-permissions", // Skip all permission prompts (for CI/automated runs)
   ];
 
   // Get the prompt (from direct string or file)

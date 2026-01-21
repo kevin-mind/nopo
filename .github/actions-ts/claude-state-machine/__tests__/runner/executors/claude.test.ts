@@ -61,7 +61,7 @@ describe("executeRunClaude", () => {
       "claude",
       expect.arrayContaining([
         "--print",
-        "-y",
+        "--dangerously-skip-permissions",
         "--prompt",
         "Implement feature",
       ]),
