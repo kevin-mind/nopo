@@ -29223,12 +29223,7 @@ async function executeCreateBranch(action, ctx) {
     if (checkoutExitCode !== 0) {
       checkoutExitCode = await exec3.exec(
         "git",
-        [
-          "checkout",
-          "-b",
-          action.branchName,
-          `origin/${action.baseBranch}`
-        ],
+        ["checkout", "-b", action.branchName, `origin/${action.baseBranch}`],
         { ignoreReturnCode: true }
       );
     }
@@ -29246,11 +29241,7 @@ async function executeCreateBranch(action, ctx) {
   let commitsCount = "";
   await exec3.exec(
     "git",
-    [
-      "rev-list",
-      "--count",
-      `HEAD..origin/${action.baseBranch}`
-    ],
+    ["rev-list", "--count", `HEAD..origin/${action.baseBranch}`],
     {
       ignoreReturnCode: true,
       listeners: {
@@ -29271,9 +29262,7 @@ async function executeCreateBranch(action, ctx) {
       { ignoreReturnCode: true }
     );
     if (rebaseExitCode !== 0) {
-      core4.warning(
-        `Rebase failed, aborting and continuing with current state`
-      );
+      core4.warning(`Rebase failed, aborting and continuing with current state`);
       await exec3.exec("git", ["rebase", "--abort"], { ignoreReturnCode: true });
       return result;
     }
