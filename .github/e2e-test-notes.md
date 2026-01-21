@@ -63,10 +63,18 @@ Run e2e test with multi-phase issue (multiple sub-issues) 3 times in a row witho
 ### Run 7
 - **Started:** 2026-01-21 06:09:41 UTC
 - **Run ID:** 21199243277
-- **Status:** completed
-- **Duration:** ~2 min (before failure)
+- **Status:** cancelled
+- **Duration:** ~7 min (before cancellation)
 - **Result:** ❌ FAILED
 - **Notes:** Claude workflow for issue #3743 failed with "Parameter token or opts.auth is required". The executor creates Octokit with empty reviewToken on line 131 even when the token is not provided.
+
+### Run 8
+- **Started:** 2026-01-21 06:16:58 UTC
+- **Run ID:** 21199403390
+- **Status:** (in progress)
+- **Duration:** -
+- **Result:** (pending)
+- **Notes:** After fix for Octokit token handling, triggered with correct fix in place.
 
 ---
 
