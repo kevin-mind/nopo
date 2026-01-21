@@ -71,10 +71,10 @@ Run e2e test with multi-phase issue (multiple sub-issues) 3 times in a row witho
 ### Run 8
 - **Started:** 2026-01-21 06:16:58 UTC
 - **Run ID:** 21199403390
-- **Status:** (in progress)
-- **Duration:** -
-- **Result:** (pending)
-- **Notes:** After fix for Octokit token handling, triggered with correct fix in place.
+- **Status:** completed
+- **Duration:** ~2 min
+- **Result:** ❌ FAILED
+- **Notes:** Claude workflow for issue #3748 failed with "Invalid trigger type: assigned". The claude-detect-event outputs `trigger_type: "assigned"` but the state machine schema expects `"issue_assigned"`.
 
 ---
 
@@ -123,6 +123,12 @@ Run e2e test with multi-phase issue (multiple sub-issues) 3 times in a row witho
 - **Root Cause:** `github.getOctokit(reviewToken)` called even when `reviewToken` is empty string. Octokit requires a valid token.
 - **Impact:** All executor runs fail when CLAUDE_REVIEWER_PAT secret is not available (even for non-review actions)
 
+### Issue 8: Trigger type mismatch between detect-event and state machine
+- **Severity:** Critical (blocks state machine)
+- **Symptom:** "Invalid trigger type: assigned" error
+- **Root Cause:** `claude-detect-event` outputs `trigger_type: "assigned"` but the state machine schema expects `"issue_assigned"`. Same issue for `"edited"` → `"issue_edited"` and `"workflow_run"` → `"workflow_run_completed"`.
+- **Impact:** State machine fails to parse trigger type, blocking all actions.
+
 ---
 
 ## Fixes Applied
@@ -153,6 +159,15 @@ Run e2e test with multi-phase issue (multiple sub-issues) 3 times in a row witho
 ### Fix 5: Conditional Octokit creation for review token
 - **File:** `.github/actions-ts/claude-state-executor/index.ts`
 - **Change:** `const reviewOctokit = github.getOctokit(reviewToken)` → `const reviewOctokit = reviewToken ? github.getOctokit(reviewToken) : undefined`
+- **Applied:** 2026-01-21
+
+### Fix 6: Align trigger types between detect-event and state machine schema
+- **File:** `.github/actions-ts/claude-detect-event/index.ts`
+- **Changes:**
+  - `trigger_type: "assigned"` → `trigger_type: "issue_assigned"`
+  - `trigger_type: "edited"` → `trigger_type: "issue_edited"`
+  - `trigger_type: "workflow_run"` → `trigger_type: "workflow_run_completed"`
+  - `trigger_type: "implement_command"` → `trigger_type: "issue_comment"`
 - **Applied:** 2026-01-21
 
 ---

@@ -24276,7 +24276,7 @@ async function handleIssueEvent(octokit, owner, repo) {
             issue_body: details.body || issue.body,
             branch_name: branchName2,
             existing_branch: branchExists2 ? "true" : "false",
-            trigger_type: "edited",
+            trigger_type: "issue_edited",
             parent_issue: String(details.parentIssue),
             phase_number: String(phaseNumber),
             project_status: projectState?.status || "",
@@ -24309,7 +24309,7 @@ async function handleIssueEvent(octokit, owner, repo) {
             issue_title: details.title || issue.title,
             issue_body: details.body || issue.body,
             sub_issues: subIssueNumbers.join(","),
-            trigger_type: "edited",
+            trigger_type: "issue_edited",
             project_status: projectState?.status || "",
             project_iteration: String(projectState?.iteration || 0),
             project_failures: String(projectState?.failures || 0)
@@ -24331,7 +24331,7 @@ async function handleIssueEvent(octokit, owner, repo) {
           issue_body: details.body || issue.body,
           branch_name: branchName,
           existing_branch: branchExists ? "true" : "false",
-          trigger_type: "edited",
+          trigger_type: "issue_edited",
           project_status: projectState?.status || "",
           project_iteration: String(projectState?.iteration || 0),
           project_failures: String(projectState?.failures || 0)
@@ -24405,7 +24405,7 @@ async function handleIssueEvent(octokit, owner, repo) {
           issue_title: details.title || issue.title,
           issue_body: details.body || issue.body,
           branch_name: branchName2,
-          trigger_type: "assigned",
+          trigger_type: "issue_assigned",
           parent_issue: String(details.parentIssue),
           phase_number: String(phaseNumber),
           project_status: projectState?.status || "",
@@ -24441,7 +24441,7 @@ async function handleIssueEvent(octokit, owner, repo) {
           issue_title: details.title || issue.title,
           issue_body: details.body || issue.body,
           sub_issues: subIssueNumbers.join(","),
-          trigger_type: "assigned",
+          trigger_type: "issue_assigned",
           project_status: projectState?.status || "",
           project_iteration: String(projectState?.iteration || 0),
           project_failures: String(projectState?.failures || 0)
@@ -24462,7 +24462,7 @@ async function handleIssueEvent(octokit, owner, repo) {
         issue_title: details.title || issue.title,
         issue_body: details.body || issue.body,
         branch_name: branchName,
-        trigger_type: "assigned",
+        trigger_type: "issue_assigned",
         project_status: projectState?.status || "",
         project_iteration: String(projectState?.iteration || 0),
         project_failures: String(projectState?.failures || 0)
@@ -24513,7 +24513,7 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
         issue_title: details.title || issue.title,
         issue_body: details.body || issue.body,
         branch_name: branchName2,
-        trigger_type: "implement_command"
+        trigger_type: "issue_comment"
       }),
       skip: false,
       skipReason: ""
@@ -24677,7 +24677,7 @@ async function handleWorkflowRunEvent() {
       branch_name: branch,
       ci_run_url: ciRunUrl,
       ci_result: conclusion,
-      trigger_type: "workflow_run"
+      trigger_type: "workflow_run_completed"
     }),
     skip: false,
     skipReason: ""
