@@ -242,16 +242,6 @@ jobs:
           model: "claude-opus-4-5-20251101"
           max_turns: "50"
 
-      # NOTE: PR creation is handled by the createPR action in the state machine
-      # It runs after runClaude as a separate matrix job
-      # Claude pushes with NOPO_BOT_PAT which triggers CI on existing PRs
-      # For new PRs, createPR triggers CI via pull_request:opened event
-
-      # Execute all non-Claude actions via the state executor
-      # NOTE: Signaling inputs (job, resource_type, etc.) intentionally omitted
-      # Status comments are disabled - use history table instead to avoid:
-      # 1. Cluttering the comment feed
-      # 2. Triggering issue_comment events that interfere with state machine
       - name: Execute Action
         if: matrix.action.type != 'runClaude'
         uses: ./.github/actions-ts/claude-state-executor
