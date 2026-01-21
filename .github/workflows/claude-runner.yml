@@ -242,14 +242,52 @@ jobs:
           model: "claude-opus-4-5-20251101"
           max_turns: "50"
 
-      # Re-push after Claude to trigger CI
+      # Create draft PR after Claude pushes (if no PR exists)
+      # PR creation triggers CI - needed because CI only runs on pull_request events
+      - name: Create draft PR if needed
+        if: matrix.action.type == 'runClaude' && matrix.action.worktree && !inputs.dry_run
+        env:
+          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
+          BRANCH_NAME: ${{ matrix.action.worktree || inputs.branch }}
+          ISSUE_NUMBER: ${{ matrix.action.issueNumber }}
+        run: |
+          # Check if we have commits beyond main
+          if [[ $(git rev-list origin/main..HEAD --count) -eq 0 ]]; then
+            echo "No commits beyond main - skipping PR creation"
+            exit 0
+          fi
+
+          # Check if PR already exists for this branch
+          existing_pr=$(gh pr list --head "$BRANCH_NAME" --json number --jq '.[0].number // empty')
+          if [[ -n "$existing_pr" ]]; then
+            echo "PR #$existing_pr already exists for branch $BRANCH_NAME"
+            exit 0
+          fi
+
+          # Get issue title for PR title
+          issue_title=$(gh issue view "$ISSUE_NUMBER" --json title --jq '.title')
+
+          # Create draft PR
+          echo "Creating draft PR for branch $BRANCH_NAME"
+          gh pr create \
+            --draft \
+            --head "$BRANCH_NAME" \
+            --base main \
+            --title "$issue_title" \
+            --body "Fixes #$ISSUE_NUMBER"
+
+      # Re-push after Claude to trigger CI (if PR already existed)
       - name: Re-push with PAT to trigger CI
         if: matrix.action.type == 'runClaude' && matrix.action.worktree && !inputs.dry_run
         continue-on-error: true
         env:
+          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
           NOPO_BOT_PAT: ${{ secrets.NOPO_BOT_PAT }}
           BRANCH_NAME: ${{ matrix.action.worktree || inputs.branch }}
         run: |
+          # Check if PR exists (if we just created it, CI is already triggered)
+          existing_pr=$(gh pr list --head "$BRANCH_NAME" --json number --jq '.[0].number // empty' 2>/dev/null || true)
+
           if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
             git commit --amend --no-edit
             for attempt in 1 2 3; do
