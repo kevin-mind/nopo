@@ -1,4 +1,8 @@
-import type { MachineContext, Action, ProjectStatus } from "../schemas/index.js";
+import type {
+  MachineContext,
+  Action,
+  ProjectStatus,
+} from "../schemas/index.js";
 import { deriveBranchName } from "../parser/index.js";
 
 /**
@@ -112,7 +116,9 @@ export function emitSetError({ context }: ActionContext): ActionResult {
 /**
  * Emit action to increment iteration counter
  */
-export function emitIncrementIteration({ context }: ActionContext): ActionResult {
+export function emitIncrementIteration({
+  context,
+}: ActionContext): ActionResult {
   return [
     {
       type: "incrementIteration",
@@ -282,7 +288,8 @@ export function emitLogCIFailure({ context }: ActionContext): ActionResult {
  */
 export function emitCreateBranch({ context }: ActionContext): ActionResult {
   const branchName =
-    context.branch ?? deriveBranchName(context.issue.number, context.currentPhase ?? undefined);
+    context.branch ??
+    deriveBranchName(context.issue.number, context.currentPhase ?? undefined);
   return [
     {
       type: "createBranch",
@@ -301,7 +308,8 @@ export function emitCreateBranch({ context }: ActionContext): ActionResult {
  */
 export function emitCreatePR({ context }: ActionContext): ActionResult {
   const branchName =
-    context.branch ?? deriveBranchName(context.issue.number, context.currentPhase ?? undefined);
+    context.branch ??
+    deriveBranchName(context.issue.number, context.currentPhase ?? undefined);
   const issueNumber = context.currentSubIssue?.number ?? context.issue.number;
 
   return [
@@ -389,7 +397,8 @@ export function emitMergePR({ context }: ActionContext): ActionResult {
 export function emitRunClaude({ context }: ActionContext): ActionResult {
   const issueNumber = context.currentSubIssue?.number ?? context.issue.number;
   const branchName =
-    context.branch ?? deriveBranchName(context.issue.number, context.currentPhase ?? undefined);
+    context.branch ??
+    deriveBranchName(context.issue.number, context.currentPhase ?? undefined);
 
   const prompt = `Implement the requirements for issue #${issueNumber}.
 Work on branch ${branchName}.
@@ -430,7 +439,9 @@ Review the CI logs and fix the failing tests or build errors.`;
 /**
  * Emit action to run Claude for review response
  */
-export function emitRunClaudeReviewResponse({ context }: ActionContext): ActionResult {
+export function emitRunClaudeReviewResponse({
+  context,
+}: ActionContext): ActionResult {
   const issueNumber = context.currentSubIssue?.number ?? context.issue.number;
 
   const prompt = `Address the review feedback for issue #${issueNumber}.
@@ -468,7 +479,11 @@ export function emitStop(_ctx: ActionContext, reason: string): ActionResult {
 /**
  * Emit log action
  */
-export function emitLog(_ctx: ActionContext, message: string, level: "debug" | "info" | "warning" | "error" = "info"): ActionResult {
+export function emitLog(
+  _ctx: ActionContext,
+  message: string,
+  level: "debug" | "info" | "warning" | "error" = "info",
+): ActionResult {
   return [
     {
       type: "log",
@@ -497,7 +512,9 @@ export function emitNoOp(_ctx: ActionContext, reason?: string): ActionResult {
 /**
  * Emit actions for transitioning to review state
  */
-export function emitTransitionToReview({ context }: ActionContext): ActionResult {
+export function emitTransitionToReview({
+  context,
+}: ActionContext): ActionResult {
   const actions: Action[] = [];
 
   // Clear failures on success
@@ -547,7 +564,12 @@ export function emitBlockIssue({ context }: ActionContext): ActionResult {
   actions.push(...emitUnassign({ context }));
 
   // Log
-  actions.push(...emitAppendHistory({ context }, `🚫 Blocked: Max failures reached (${context.issue.failures})`));
+  actions.push(
+    ...emitAppendHistory(
+      { context },
+      `🚫 Blocked: Max failures reached (${context.issue.failures})`,
+    ),
+  );
 
   // Block action
   actions.push(...emitBlock({ context }));

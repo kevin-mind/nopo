@@ -42,13 +42,17 @@ function exportMachine(): ExportedMachine {
   // Process states for export
   const states: Record<string, ExportedState> = {};
 
-  const statesConfig = config.states as Record<string, unknown> || {};
+  const statesConfig = (config.states as Record<string, unknown>) || {};
 
   for (const [stateName, stateConfig] of Object.entries(statesConfig)) {
     const state = stateConfig as {
       type?: string;
       entry?: string | string[];
-      always?: Array<{ target?: string; guard?: string; actions?: string | string[] }>;
+      always?: Array<{
+        target?: string;
+        guard?: string;
+        actions?: string | string[];
+      }>;
       on?: Record<string, unknown>;
     };
 
@@ -66,7 +70,9 @@ function exportMachine(): ExportedMachine {
 
     if (state.always) {
       // Handle always as array or single transition
-      const alwaysArray = Array.isArray(state.always) ? state.always : [state.always];
+      const alwaysArray = Array.isArray(state.always)
+        ? state.always
+        : [state.always];
       exportedState.always = alwaysArray.map((t) => {
         // Handle string shorthand (just a target state)
         if (typeof t === "string") {
@@ -76,7 +82,9 @@ function exportMachine(): ExportedMachine {
           target: t.target,
           guard: t.guard,
           actions: t.actions
-            ? (Array.isArray(t.actions) ? t.actions : [t.actions])
+            ? Array.isArray(t.actions)
+              ? t.actions
+              : [t.actions]
             : undefined,
         };
       });
@@ -90,8 +98,8 @@ function exportMachine(): ExportedMachine {
   }
 
   return {
-    id: config.id as string || "claude-automation",
-    initial: config.initial as string || "detecting",
+    id: (config.id as string) || "claude-automation",
+    initial: (config.initial as string) || "detecting",
     states,
     guards: guardNames,
     actions: actionNames,
@@ -174,7 +182,8 @@ function getActionDescription(name: string): string {
     markPRReady: "Mark PR as ready for review",
     requestReview: "Request reviewer on PR",
     convertToDraft: "Convert PR to draft state",
-    transitionToReview: "Transition to review state (mark ready, request review)",
+    transitionToReview:
+      "Transition to review state (mark ready, request review)",
     handleCIFailure: "Handle CI failure (record failure, run fix)",
     blockIssue: "Block issue (set blocked, unassign)",
     stopWithReason: "Stop execution with reason",

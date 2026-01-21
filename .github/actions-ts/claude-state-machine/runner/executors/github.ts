@@ -235,7 +235,9 @@ export async function executeUpdateHistory(
       body: result.body,
     });
 
-    core.info(`Updated history: Phase ${action.matchPhase}, ${action.newMessage}`);
+    core.info(
+      `Updated history: Phase ${action.matchPhase}, ${action.newMessage}`,
+    );
   } else {
     core.info(`No matching history entry found to update`);
   }
@@ -394,7 +396,9 @@ export async function executeCreatePR(
     draft: action.draft,
   });
 
-  core.info(`Created PR #${response.data.number} for issue #${action.issueNumber}`);
+  core.info(
+    `Created PR #${response.data.number} for issue #${action.issueNumber}`,
+  );
   return { prNumber: response.data.number };
 }
 
@@ -462,7 +466,9 @@ export async function executeRequestReview(
     reviewers: [action.reviewer],
   });
 
-  core.info(`Requested review from ${action.reviewer} on PR #${action.prNumber}`);
+  core.info(
+    `Requested review from ${action.reviewer} on PR #${action.prNumber}`,
+  );
   return { requested: true };
 }
 

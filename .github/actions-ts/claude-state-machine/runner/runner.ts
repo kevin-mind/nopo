@@ -1,7 +1,11 @@
 import type { GitHub } from "@actions/github/lib/utils.js";
 import * as core from "@actions/core";
 import type { Action, ActionType } from "../schemas/index.js";
-import { ActionSchema, isTerminalAction, shouldStopOnError } from "../schemas/index.js";
+import {
+  ActionSchema,
+  isTerminalAction,
+  shouldStopOnError,
+} from "../schemas/index.js";
 
 // Import executors
 import {
@@ -289,7 +293,10 @@ export function createRunnerContext(
     owner,
     repo,
     projectNumber,
-    serverUrl: options.serverUrl || process.env.GITHUB_SERVER_URL || "https://github.com",
+    serverUrl:
+      options.serverUrl ||
+      process.env.GITHUB_SERVER_URL ||
+      "https://github.com",
     dryRun: options.dryRun,
   };
 }
@@ -303,7 +310,9 @@ export function logRunnerSummary(result: RunnerResult): void {
   core.info("=".repeat(60));
   core.info(`Total actions: ${result.results.length}`);
   core.info(`Successful: ${result.results.filter((r) => r.success).length}`);
-  core.info(`Failed: ${result.results.filter((r) => !r.success && !r.skipped).length}`);
+  core.info(
+    `Failed: ${result.results.filter((r) => !r.success && !r.skipped).length}`,
+  );
   core.info(`Skipped: ${result.results.filter((r) => r.skipped).length}`);
   core.info(`Total duration: ${result.totalDurationMs}ms`);
   if (result.stoppedEarly) {
@@ -319,7 +328,9 @@ export function logRunnerSummary(result: RunnerResult): void {
         ? "SUCCESS"
         : "FAILED";
     const duration = `${actionResult.durationMs}ms`;
-    core.info(`  ${status.padEnd(8)} ${actionResult.action.type.padEnd(25)} ${duration}`);
+    core.info(
+      `  ${status.padEnd(8)} ${actionResult.action.type.padEnd(25)} ${duration}`,
+    );
     if (actionResult.error) {
       core.error(`    Error: ${actionResult.error.message}`);
     }
@@ -333,13 +344,18 @@ export function filterActions<T extends ActionType>(
   actions: Action[],
   type: T,
 ): Extract<Action, { type: T }>[] {
-  return actions.filter((a) => a.type === type) as Extract<Action, { type: T }>[];
+  return actions.filter((a) => a.type === type) as Extract<
+    Action,
+    { type: T }
+  >[];
 }
 
 /**
  * Count actions by type
  */
-export function countActionsByType(actions: Action[]): Record<ActionType, number> {
+export function countActionsByType(
+  actions: Action[],
+): Record<ActionType, number> {
   const counts: Partial<Record<ActionType, number>> = {};
   for (const action of actions) {
     counts[action.type] = (counts[action.type] || 0) + 1;

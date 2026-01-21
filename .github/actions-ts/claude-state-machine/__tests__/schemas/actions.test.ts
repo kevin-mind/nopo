@@ -31,7 +31,11 @@ import {
 
 describe("UpdateProjectStatusActionSchema", () => {
   test("parses valid action", () => {
-    const action = { type: "updateProjectStatus", issueNumber: 123, status: "Working" };
+    const action = {
+      type: "updateProjectStatus",
+      issueNumber: 123,
+      status: "Working",
+    };
     expect(UpdateProjectStatusActionSchema.parse(action)).toEqual(action);
   });
 
@@ -51,7 +55,7 @@ describe("UpdateProjectStatusActionSchema", () => {
         type: "updateProjectStatus",
         issueNumber: 1,
         status: "InvalidStatus",
-      })
+      }),
     ).toThrow();
   });
 
@@ -61,7 +65,7 @@ describe("UpdateProjectStatusActionSchema", () => {
         type: "updateProjectStatus",
         issueNumber: 0,
         status: "Working",
-      })
+      }),
     ).toThrow();
   });
 });
@@ -83,7 +87,9 @@ describe("RecordFailureActionSchema", () => {
     const types = ["ci", "workflow", "review"];
     for (const failureType of types) {
       const action = { type: "recordFailure", issueNumber: 1, failureType };
-      expect(RecordFailureActionSchema.parse(action).failureType).toBe(failureType);
+      expect(RecordFailureActionSchema.parse(action).failureType).toBe(
+        failureType,
+      );
     }
   });
 });
@@ -114,7 +120,7 @@ describe("CreateSubIssuesActionSchema", () => {
         type: "createSubIssues",
         parentIssueNumber: 1,
         phases: [],
-      })
+      }),
     ).toThrow();
   });
 
@@ -124,7 +130,7 @@ describe("CreateSubIssuesActionSchema", () => {
         type: "createSubIssues",
         parentIssueNumber: 1,
         phases: [{ title: "", body: "Body" }],
-      })
+      }),
     ).toThrow();
   });
 });
@@ -137,7 +143,11 @@ describe("CloseIssueActionSchema", () => {
   });
 
   test("accepts not_planned reason", () => {
-    const action = { type: "closeIssue", issueNumber: 50, reason: "not_planned" };
+    const action = {
+      type: "closeIssue",
+      issueNumber: 50,
+      reason: "not_planned",
+    };
     expect(CloseIssueActionSchema.parse(action).reason).toBe("not_planned");
   });
 });
@@ -209,7 +219,7 @@ describe("UnassignUserActionSchema", () => {
         type: "unassignUser",
         issueNumber: 1,
         username: "",
-      })
+      }),
     ).toThrow();
   });
 });
@@ -222,8 +232,14 @@ describe("CreateBranchActionSchema", () => {
   });
 
   test("accepts custom base branch", () => {
-    const action = { type: "createBranch", branchName: "hotfix", baseBranch: "release/1.0" };
-    expect(CreateBranchActionSchema.parse(action).baseBranch).toBe("release/1.0");
+    const action = {
+      type: "createBranch",
+      branchName: "hotfix",
+      baseBranch: "release/1.0",
+    };
+    expect(CreateBranchActionSchema.parse(action).baseBranch).toBe(
+      "release/1.0",
+    );
   });
 });
 
@@ -283,7 +299,11 @@ describe("MarkPRReadyActionSchema", () => {
 
 describe("RequestReviewActionSchema", () => {
   test("parses valid action", () => {
-    const action = { type: "requestReview", prNumber: 42, reviewer: "nopo-bot" };
+    const action = {
+      type: "requestReview",
+      prNumber: 42,
+      reviewer: "nopo-bot",
+    };
     expect(RequestReviewActionSchema.parse(action)).toEqual(action);
   });
 });
@@ -332,7 +352,9 @@ describe("RunClaudeActionSchema", () => {
       issueNumber: 1,
       worktree: "/tmp/worktree-123",
     };
-    expect(RunClaudeActionSchema.parse(action).worktree).toBe("/tmp/worktree-123");
+    expect(RunClaudeActionSchema.parse(action).worktree).toBe(
+      "/tmp/worktree-123",
+    );
   });
 
   test("rejects empty prompt", () => {
@@ -341,7 +363,7 @@ describe("RunClaudeActionSchema", () => {
         type: "runClaude",
         prompt: "",
         issueNumber: 1,
-      })
+      }),
     ).toThrow();
   });
 });
@@ -353,13 +375,19 @@ describe("StopActionSchema", () => {
   });
 
   test("rejects empty reason", () => {
-    expect(() => StopActionSchema.parse({ type: "stop", reason: "" })).toThrow();
+    expect(() =>
+      StopActionSchema.parse({ type: "stop", reason: "" }),
+    ).toThrow();
   });
 });
 
 describe("BlockActionSchema", () => {
   test("parses valid action", () => {
-    const action = { type: "block", issueNumber: 1, reason: "Max retries exceeded" };
+    const action = {
+      type: "block",
+      issueNumber: 1,
+      reason: "Max retries exceeded",
+    };
     expect(BlockActionSchema.parse(action)).toEqual(action);
   });
 });
@@ -406,13 +434,15 @@ describe("ActionSchema (discriminated union)", () => {
   });
 
   test("rejects unknown action type", () => {
-    expect(() => ActionSchema.parse({ type: "unknownAction", data: "test" })).toThrow();
+    expect(() =>
+      ActionSchema.parse({ type: "unknownAction", data: "test" }),
+    ).toThrow();
   });
 
   test("validates action-specific fields", () => {
     // This should fail because status is required for updateProjectStatus
     expect(() =>
-      ActionSchema.parse({ type: "updateProjectStatus", issueNumber: 1 })
+      ActionSchema.parse({ type: "updateProjectStatus", issueNumber: 1 }),
     ).toThrow();
   });
 });
@@ -433,7 +463,10 @@ describe("ACTION_TYPES constant", () => {
 
 describe("createAction helper", () => {
   test("creates typed action", () => {
-    const action = createAction("updateProjectStatus", { issueNumber: 1, status: "Working" });
+    const action = createAction("updateProjectStatus", {
+      issueNumber: 1,
+      status: "Working",
+    });
     expect(action.type).toBe("updateProjectStatus");
     expect(action.issueNumber).toBe(1);
     expect(action.status).toBe("Working");
@@ -458,13 +491,21 @@ describe("isTerminalAction", () => {
   });
 
   test("returns true for block action", () => {
-    const action = { type: "block" as const, issueNumber: 1, reason: "Max failures" };
+    const action = {
+      type: "block" as const,
+      issueNumber: 1,
+      reason: "Max failures",
+    };
     expect(isTerminalAction(action)).toBe(true);
   });
 
   test("returns false for other actions", () => {
     const actions = [
-      { type: "updateProjectStatus" as const, issueNumber: 1, status: "Working" as const },
+      {
+        type: "updateProjectStatus" as const,
+        issueNumber: 1,
+        status: "Working" as const,
+      },
       { type: "runClaude" as const, prompt: "Test", issueNumber: 1 },
       { type: "noop" as const },
     ];
@@ -476,7 +517,13 @@ describe("isTerminalAction", () => {
 
 describe("shouldStopOnError", () => {
   test("returns true for critical actions", () => {
-    const criticalTypes = ["runClaude", "createPR", "mergePR", "createSubIssues", "block"];
+    const criticalTypes = [
+      "runClaude",
+      "createPR",
+      "mergePR",
+      "createSubIssues",
+      "block",
+    ];
     for (const type of criticalTypes) {
       expect(shouldStopOnError(type as any)).toBe(true);
     }

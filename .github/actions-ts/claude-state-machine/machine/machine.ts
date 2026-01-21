@@ -89,16 +89,20 @@ export const claudeMachine = setup({
     hasSubIssues: ({ context }) => guards.hasSubIssues({ context }),
     isInReview: ({ context }) => guards.isInReview({ context }),
     allPhasesDone: ({ context }) => guards.allPhasesDone({ context }),
-    currentPhaseNeedsWork: ({ context }) => guards.currentPhaseNeedsWork({ context }),
-    currentPhaseInReview: ({ context }) => guards.currentPhaseInReview({ context }),
+    currentPhaseNeedsWork: ({ context }) =>
+      guards.currentPhaseNeedsWork({ context }),
+    currentPhaseInReview: ({ context }) =>
+      guards.currentPhaseInReview({ context }),
     todosDone: ({ context }) => guards.todosDone({ context }),
     maxFailuresReached: ({ context }) => guards.maxFailuresReached({ context }),
     ciPassed: ({ context }) => guards.ciPassed({ context }),
     ciFailed: ({ context }) => guards.ciFailed({ context }),
     reviewApproved: ({ context }) => guards.reviewApproved({ context }),
-    reviewRequestedChanges: ({ context }) => guards.reviewRequestedChanges({ context }),
+    reviewRequestedChanges: ({ context }) =>
+      guards.reviewRequestedChanges({ context }),
     readyForReview: ({ context }) => guards.readyForReview({ context }),
-    shouldContinueIterating: ({ context }) => guards.shouldContinueIterating({ context }),
+    shouldContinueIterating: ({ context }) =>
+      guards.shouldContinueIterating({ context }),
     shouldBlock: ({ context }) => guards.shouldBlock({ context }),
     hasPR: ({ context }) => guards.hasPR({ context }),
     prIsDraft: ({ context }) => guards.prIsDraft({ context }),
@@ -119,7 +123,10 @@ export const claudeMachine = setup({
       pendingActions: ({ context }) =>
         accumulateActions(
           context.pendingActions,
-          emitLog({ context }, `Starting iteration ${context.issue.iteration + 1}`),
+          emitLog(
+            { context },
+            `Starting iteration ${context.issue.iteration + 1}`,
+          ),
         ),
     }),
     logReviewing: assign({
@@ -141,7 +148,10 @@ export const claudeMachine = setup({
     }),
     setInProgress: assign({
       pendingActions: ({ context }) =>
-        accumulateActions(context.pendingActions, emitSetInProgress({ context })),
+        accumulateActions(
+          context.pendingActions,
+          emitSetInProgress({ context }),
+        ),
     }),
     setDone: assign({
       pendingActions: ({ context }) =>
@@ -162,11 +172,17 @@ export const claudeMachine = setup({
     }),
     recordFailure: assign({
       pendingActions: ({ context }) =>
-        accumulateActions(context.pendingActions, emitRecordFailure({ context })),
+        accumulateActions(
+          context.pendingActions,
+          emitRecordFailure({ context }),
+        ),
     }),
     clearFailures: assign({
       pendingActions: ({ context }) =>
-        accumulateActions(context.pendingActions, emitClearFailures({ context })),
+        accumulateActions(
+          context.pendingActions,
+          emitClearFailures({ context }),
+        ),
     }),
 
     // Issue actions
@@ -186,7 +202,10 @@ export const claudeMachine = setup({
     }),
     runClaudeFixCI: assign({
       pendingActions: ({ context }) =>
-        accumulateActions(context.pendingActions, emitRunClaudeFixCI({ context })),
+        accumulateActions(
+          context.pendingActions,
+          emitRunClaudeFixCI({ context }),
+        ),
     }),
 
     // PR actions
@@ -196,11 +215,17 @@ export const claudeMachine = setup({
     }),
     requestReview: assign({
       pendingActions: ({ context }) =>
-        accumulateActions(context.pendingActions, emitRequestReview({ context })),
+        accumulateActions(
+          context.pendingActions,
+          emitRequestReview({ context }),
+        ),
     }),
     convertToDraft: assign({
       pendingActions: ({ context }) =>
-        accumulateActions(context.pendingActions, emitConvertToDraft({ context })),
+        accumulateActions(
+          context.pendingActions,
+          emitConvertToDraft({ context }),
+        ),
     }),
 
     // Compound actions
@@ -226,7 +251,10 @@ export const claudeMachine = setup({
     // Stop action
     stopWithReason: assign({
       pendingActions: ({ context }, params: { reason: string }) =>
-        accumulateActions(context.pendingActions, emitStop({ context }, params.reason)),
+        accumulateActions(
+          context.pendingActions,
+          emitStop({ context }, params.reason),
+        ),
     }),
   },
 }).createMachine({

@@ -4,7 +4,9 @@ import { claudeMachine, getTriggerEvent } from "../../machine/machine.js";
 import type { MachineContext } from "../../schemas/index.js";
 
 // Helper to create minimal context
-function createContext(overrides: Partial<MachineContext> = {}): MachineContext {
+function createContext(
+  overrides: Partial<MachineContext> = {},
+): MachineContext {
   const base: MachineContext = {
     trigger: "issue_assigned",
     owner: "test-owner",
@@ -62,7 +64,9 @@ function runMachine(context: MachineContext) {
 describe("claudeMachine", () => {
   describe("Initial state detection", () => {
     test("transitions to done when status is Done", () => {
-      const context = createContext({ issue: { projectStatus: "Done" } } as any);
+      const context = createContext({
+        issue: { projectStatus: "Done" },
+      } as any);
       const { state, actions } = runMachine(context);
       expect(state).toBe("done");
       // Should have setDone and closeIssue actions
@@ -72,7 +76,9 @@ describe("claudeMachine", () => {
     });
 
     test("transitions to blocked when status is Blocked", () => {
-      const context = createContext({ issue: { projectStatus: "Blocked" } } as any);
+      const context = createContext({
+        issue: { projectStatus: "Blocked" },
+      } as any);
       const { state, actions } = runMachine(context);
       expect(state).toBe("blocked");
       const actionTypes = actions.map((a) => a.type);
@@ -81,13 +87,17 @@ describe("claudeMachine", () => {
     });
 
     test("transitions to error when status is Error", () => {
-      const context = createContext({ issue: { projectStatus: "Error" } } as any);
+      const context = createContext({
+        issue: { projectStatus: "Error" },
+      } as any);
       const { state } = runMachine(context);
       expect(state).toBe("error");
     });
 
     test("transitions to iterating for normal issue", () => {
-      const context = createContext({ issue: { projectStatus: "Working" } } as any);
+      const context = createContext({
+        issue: { projectStatus: "Working" },
+      } as any);
       const { state, actions } = runMachine(context);
       expect(state).toBe("iterating");
       const actionTypes = actions.map((a) => a.type);
@@ -97,7 +107,9 @@ describe("claudeMachine", () => {
     });
 
     test("transitions to reviewing when status is Review", () => {
-      const context = createContext({ issue: { projectStatus: "Review" } } as any);
+      const context = createContext({
+        issue: { projectStatus: "Review" },
+      } as any);
       const { state } = runMachine(context);
       expect(state).toBe("reviewing");
     });
@@ -259,8 +271,26 @@ describe("claudeMachine", () => {
           projectStatus: "In Progress",
           hasSubIssues: true,
           subIssues: [
-            { number: 1, title: "Phase 1", state: "CLOSED", body: "", projectStatus: "Done", branch: null, pr: null, todos: { total: 1, completed: 1, uncheckedNonManual: 0 } },
-            { number: 2, title: "Phase 2", state: "CLOSED", body: "", projectStatus: "Done", branch: null, pr: null, todos: { total: 1, completed: 1, uncheckedNonManual: 0 } },
+            {
+              number: 1,
+              title: "Phase 1",
+              state: "CLOSED",
+              body: "",
+              projectStatus: "Done",
+              branch: null,
+              pr: null,
+              todos: { total: 1, completed: 1, uncheckedNonManual: 0 },
+            },
+            {
+              number: 2,
+              title: "Phase 2",
+              state: "CLOSED",
+              body: "",
+              projectStatus: "Done",
+              branch: null,
+              pr: null,
+              todos: { total: 1, completed: 1, uncheckedNonManual: 0 },
+            },
           ],
         },
       } as any);
@@ -274,8 +304,26 @@ describe("claudeMachine", () => {
           projectStatus: "In Progress",
           hasSubIssues: true,
           subIssues: [
-            { number: 1, title: "Phase 1", state: "OPEN", body: "", projectStatus: "Working", branch: null, pr: null, todos: { total: 1, completed: 0, uncheckedNonManual: 1 } },
-            { number: 2, title: "Phase 2", state: "OPEN", body: "", projectStatus: "Ready", branch: null, pr: null, todos: { total: 1, completed: 0, uncheckedNonManual: 1 } },
+            {
+              number: 1,
+              title: "Phase 1",
+              state: "OPEN",
+              body: "",
+              projectStatus: "Working",
+              branch: null,
+              pr: null,
+              todos: { total: 1, completed: 0, uncheckedNonManual: 1 },
+            },
+            {
+              number: 2,
+              title: "Phase 2",
+              state: "OPEN",
+              body: "",
+              projectStatus: "Ready",
+              branch: null,
+              pr: null,
+              todos: { total: 1, completed: 0, uncheckedNonManual: 1 },
+            },
           ],
         },
         currentSubIssue: {
@@ -299,8 +347,26 @@ describe("claudeMachine", () => {
           projectStatus: "In Progress",
           hasSubIssues: true,
           subIssues: [
-            { number: 1, title: "Phase 1", state: "OPEN", body: "", projectStatus: "Review", branch: null, pr: null, todos: { total: 1, completed: 1, uncheckedNonManual: 0 } },
-            { number: 2, title: "Phase 2", state: "OPEN", body: "", projectStatus: "Ready", branch: null, pr: null, todos: { total: 1, completed: 0, uncheckedNonManual: 1 } },
+            {
+              number: 1,
+              title: "Phase 1",
+              state: "OPEN",
+              body: "",
+              projectStatus: "Review",
+              branch: null,
+              pr: null,
+              todos: { total: 1, completed: 1, uncheckedNonManual: 0 },
+            },
+            {
+              number: 2,
+              title: "Phase 2",
+              state: "OPEN",
+              body: "",
+              projectStatus: "Ready",
+              branch: null,
+              pr: null,
+              todos: { total: 1, completed: 0, uncheckedNonManual: 1 },
+            },
           ],
         },
         currentSubIssue: {
@@ -321,7 +387,9 @@ describe("claudeMachine", () => {
 
   describe("Action accumulation", () => {
     test("accumulates multiple actions during transitions", () => {
-      const context = createContext({ issue: { projectStatus: "Working" } } as any);
+      const context = createContext({
+        issue: { projectStatus: "Working" },
+      } as any);
       const { actions } = runMachine(context);
       // Should have log, setWorking, incrementIteration, and runClaude actions
       expect(actions.length).toBeGreaterThan(2);
@@ -332,7 +400,9 @@ describe("claudeMachine", () => {
         issue: { number: 123, projectStatus: "Working" },
       } as any);
       const { actions } = runMachine(context);
-      const updateAction = actions.find((a) => a.type === "updateProjectStatus");
+      const updateAction = actions.find(
+        (a) => a.type === "updateProjectStatus",
+      );
       expect(updateAction).toBeDefined();
       expect((updateAction as any).issueNumber).toBe(123);
     });
@@ -369,7 +439,9 @@ describe("getTriggerEvent", () => {
       trigger: "pr_review_submitted",
       reviewDecision: "CHANGES_REQUESTED",
     });
-    expect(getTriggerEvent(context)).toEqual({ type: "REVIEW_CHANGES_REQUESTED" });
+    expect(getTriggerEvent(context)).toEqual({
+      type: "REVIEW_CHANGES_REQUESTED",
+    });
   });
 
   test("returns REVIEW_COMMENTED for comment review", () => {

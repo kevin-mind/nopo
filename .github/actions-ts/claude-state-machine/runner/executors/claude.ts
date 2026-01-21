@@ -10,7 +10,7 @@ import type { RunnerContext } from "../runner.js";
 /**
  * Result of running Claude
  */
-export interface ClaudeRunResult {
+interface ClaudeRunResult {
   success: boolean;
   exitCode: number;
   output: string;
@@ -20,7 +20,7 @@ export interface ClaudeRunResult {
 /**
  * Options for running Claude
  */
-export interface ClaudeOptions {
+interface ClaudeOptions {
   prompt: string;
   worktree?: string;
   timeout?: number; // in milliseconds

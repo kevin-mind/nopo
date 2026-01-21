@@ -137,7 +137,8 @@ export function formatHistoryCells(
   runLink?: string,
   repoUrl?: string,
 ): { shaCell: string; runCell: string } {
-  const serverUrl = repoUrl || process.env.GITHUB_SERVER_URL || "https://github.com";
+  const serverUrl =
+    repoUrl || process.env.GITHUB_SERVER_URL || "https://github.com";
   const repo = process.env.GITHUB_REPOSITORY || "";
   const fullRepoUrl = repo ? `${serverUrl}/${repo}` : serverUrl;
 
@@ -167,7 +168,10 @@ export function createHistoryRow(
 /**
  * Create the full history table (header + rows)
  */
-export function createHistoryTable(entries: HistoryEntry[], repoUrl?: string): string {
+export function createHistoryTable(
+  entries: HistoryEntry[],
+  repoUrl?: string,
+): string {
   const rows = entries.map((entry) =>
     createHistoryRow(
       entry.iteration,
@@ -200,7 +204,14 @@ export function addHistoryEntry(
 ): string {
   const historyIdx = body.indexOf(HISTORY_SECTION);
 
-  const newRow = createHistoryRow(iteration, phase, message, sha, runLink, repoUrl);
+  const newRow = createHistoryRow(
+    iteration,
+    phase,
+    message,
+    sha,
+    runLink,
+    repoUrl,
+  );
 
   if (historyIdx === -1) {
     // Add history section at the end

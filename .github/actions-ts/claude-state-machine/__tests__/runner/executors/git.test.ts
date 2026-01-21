@@ -27,7 +27,10 @@ import {
   fetch,
   rebase,
 } from "../../../runner/executors/git.js";
-import type { CreateBranchAction, GitPushAction } from "../../../schemas/index.js";
+import type {
+  CreateBranchAction,
+  GitPushAction,
+} from "../../../schemas/index.js";
 import type { RunnerContext } from "../../../runner/runner.js";
 
 // Create mock context
@@ -62,7 +65,7 @@ describe("executeCreateBranch", () => {
   test("creates new branch when it doesn't exist", async () => {
     // Branch doesn't exist
     vi.mocked(ctx.octokit.rest.repos.getBranch).mockRejectedValueOnce(
-      new Error("Not found")
+      new Error("Not found"),
     );
 
     // Get base branch SHA
@@ -142,7 +145,7 @@ describe("executeGitPush", () => {
     expect(exec.exec).toHaveBeenCalledWith(
       "git",
       ["push", "origin", "feature/test"],
-      expect.any(Object)
+      expect.any(Object),
     );
   });
 
@@ -160,7 +163,7 @@ describe("executeGitPush", () => {
     expect(exec.exec).toHaveBeenCalledWith(
       "git",
       ["push", "origin", "feature/test", "--force"],
-      expect.any(Object)
+      expect.any(Object),
     );
   });
 
@@ -193,7 +196,7 @@ describe("checkoutBranch", () => {
     expect(exec.exec).toHaveBeenCalledWith(
       "git",
       ["checkout", "feature/test"],
-      expect.any(Object)
+      expect.any(Object),
     );
   });
 
@@ -233,7 +236,7 @@ describe("createOrCheckoutBranch", () => {
     expect(exec.exec).toHaveBeenLastCalledWith(
       "git",
       ["checkout", "-b", "new-branch", "origin/main"],
-      expect.any(Object)
+      expect.any(Object),
     );
   });
 
@@ -253,12 +256,14 @@ describe("getCurrentBranch", () => {
   });
 
   test("returns current branch name", async () => {
-    vi.mocked(exec.exec).mockImplementationOnce(async (_cmd, _args, options) => {
-      if (options?.listeners?.stdout) {
-        options.listeners.stdout(Buffer.from("main\n"));
-      }
-      return 0;
-    });
+    vi.mocked(exec.exec).mockImplementationOnce(
+      async (_cmd, _args, options) => {
+        if (options?.listeners?.stdout) {
+          options.listeners.stdout(Buffer.from("main\n"));
+        }
+        return 0;
+      },
+    );
 
     const result = await getCurrentBranch();
 
@@ -266,7 +271,7 @@ describe("getCurrentBranch", () => {
     expect(exec.exec).toHaveBeenCalledWith(
       "git",
       ["rev-parse", "--abbrev-ref", "HEAD"],
-      expect.any(Object)
+      expect.any(Object),
     );
   });
 
@@ -285,12 +290,14 @@ describe("getCurrentSha", () => {
   });
 
   test("returns current SHA", async () => {
-    vi.mocked(exec.exec).mockImplementationOnce(async (_cmd, _args, options) => {
-      if (options?.listeners?.stdout) {
-        options.listeners.stdout(Buffer.from("abc123def456\n"));
-      }
-      return 0;
-    });
+    vi.mocked(exec.exec).mockImplementationOnce(
+      async (_cmd, _args, options) => {
+        if (options?.listeners?.stdout) {
+          options.listeners.stdout(Buffer.from("abc123def456\n"));
+        }
+        return 0;
+      },
+    );
 
     const result = await getCurrentSha();
 
@@ -298,7 +305,7 @@ describe("getCurrentSha", () => {
     expect(exec.exec).toHaveBeenCalledWith(
       "git",
       ["rev-parse", "HEAD"],
-      expect.any(Object)
+      expect.any(Object),
     );
   });
 
@@ -317,12 +324,14 @@ describe("hasUncommittedChanges", () => {
   });
 
   test("returns true when there are changes", async () => {
-    vi.mocked(exec.exec).mockImplementationOnce(async (_cmd, _args, options) => {
-      if (options?.listeners?.stdout) {
-        options.listeners.stdout(Buffer.from("M file.txt\n"));
-      }
-      return 0;
-    });
+    vi.mocked(exec.exec).mockImplementationOnce(
+      async (_cmd, _args, options) => {
+        if (options?.listeners?.stdout) {
+          options.listeners.stdout(Buffer.from("M file.txt\n"));
+        }
+        return 0;
+      },
+    );
 
     const result = await hasUncommittedChanges();
 
@@ -330,17 +339,19 @@ describe("hasUncommittedChanges", () => {
     expect(exec.exec).toHaveBeenCalledWith(
       "git",
       ["status", "--porcelain"],
-      expect.any(Object)
+      expect.any(Object),
     );
   });
 
   test("returns false when there are no changes", async () => {
-    vi.mocked(exec.exec).mockImplementationOnce(async (_cmd, _args, options) => {
-      if (options?.listeners?.stdout) {
-        options.listeners.stdout(Buffer.from(""));
-      }
-      return 0;
-    });
+    vi.mocked(exec.exec).mockImplementationOnce(
+      async (_cmd, _args, options) => {
+        if (options?.listeners?.stdout) {
+          options.listeners.stdout(Buffer.from(""));
+        }
+        return 0;
+      },
+    );
 
     const result = await hasUncommittedChanges();
 
@@ -362,7 +373,7 @@ describe("stageAllChanges", () => {
     expect(exec.exec).toHaveBeenCalledWith(
       "git",
       ["add", "-A"],
-      expect.any(Object)
+      expect.any(Object),
     );
   });
 
@@ -389,7 +400,7 @@ describe("commit", () => {
     expect(exec.exec).toHaveBeenCalledWith(
       "git",
       ["commit", "-m", "Test commit message"],
-      expect.any(Object)
+      expect.any(Object),
     );
   });
 
@@ -416,7 +427,7 @@ describe("fetch", () => {
     expect(exec.exec).toHaveBeenCalledWith(
       "git",
       ["fetch", "origin"],
-      expect.any(Object)
+      expect.any(Object),
     );
   });
 
@@ -428,7 +439,7 @@ describe("fetch", () => {
     expect(exec.exec).toHaveBeenCalledWith(
       "git",
       ["fetch", "upstream"],
-      expect.any(Object)
+      expect.any(Object),
     );
   });
 
@@ -455,7 +466,7 @@ describe("rebase", () => {
     expect(exec.exec).toHaveBeenCalledWith(
       "git",
       ["rebase", "origin/main"],
-      expect.any(Object)
+      expect.any(Object),
     );
   });
 

@@ -49,7 +49,12 @@ function parseTrigger(input: string): TriggerType {
  */
 function parseCIResult(input: string | undefined): CIResult | null {
   if (!input) return null;
-  const validResults: CIResult[] = ["success", "failure", "cancelled", "skipped"];
+  const validResults: CIResult[] = [
+    "success",
+    "failure",
+    "cancelled",
+    "skipped",
+  ];
   if (validResults.includes(input as CIResult)) {
     return input as CIResult;
   }
@@ -193,7 +198,9 @@ async function run(): Promise<void> {
     const ciResult = parseCIResult(getOptionalInput("ci_result"));
     const ciRunUrl = getOptionalInput("ci_run_url") || null;
     const ciCommitSha = getOptionalInput("ci_commit_sha") || null;
-    const reviewDecision = parseReviewDecision(getOptionalInput("review_decision"));
+    const reviewDecision = parseReviewDecision(
+      getOptionalInput("review_decision"),
+    );
     const reviewer = getOptionalInput("reviewer") || null;
     const maxRetries = parseInt(getOptionalInput("max_retries") || "5", 10);
     const botUsername = getOptionalInput("bot_username") || "nopo-bot";
@@ -225,13 +232,17 @@ async function run(): Promise<void> {
     });
 
     if (!context) {
-      core.setFailed(`Failed to build machine context for issue #${issueNumber}`);
+      core.setFailed(
+        `Failed to build machine context for issue #${issueNumber}`,
+      );
       return;
     }
 
     core.info(`Context built successfully`);
     core.info(`Issue status: ${context.issue.projectStatus}`);
-    core.info(`Sub-issues: ${context.issue.hasSubIssues ? context.issue.subIssues.length : 0}`);
+    core.info(
+      `Sub-issues: ${context.issue.hasSubIssues ? context.issue.subIssues.length : 0}`,
+    );
     core.info(`Current phase: ${context.currentPhase || "N/A"}`);
 
     // Create and run the state machine
@@ -249,9 +260,15 @@ async function run(): Promise<void> {
     core.info(`Pending actions: ${pendingActions.length}`);
 
     // Create runner context
-    const runnerContext = createRunnerContext(octokit, owner, repo, projectNumber, {
-      dryRun,
-    });
+    const runnerContext = createRunnerContext(
+      octokit,
+      owner,
+      repo,
+      projectNumber,
+      {
+        dryRun,
+      },
+    );
 
     // Execute the actions
     const result = await executeActions(pendingActions, runnerContext);

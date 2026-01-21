@@ -15,11 +15,13 @@ export async function executeCreateBranch(
   ctx: RunnerContext,
 ): Promise<{ created: boolean }> {
   // Check if branch already exists
-  const checkResult = await ctx.octokit.rest.repos.getBranch({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    branch: action.branchName,
-  }).catch(() => null);
+  const checkResult = await ctx.octokit.rest.repos
+    .getBranch({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      branch: action.branchName,
+    })
+    .catch(() => null);
 
   if (checkResult) {
     core.info(`Branch ${action.branchName} already exists`);
@@ -147,14 +149,18 @@ export async function createOrCheckoutBranch(
 export async function getCurrentBranch(): Promise<string | null> {
   let stdout = "";
 
-  const exitCode = await exec.exec("git", ["rev-parse", "--abbrev-ref", "HEAD"], {
-    ignoreReturnCode: true,
-    listeners: {
-      stdout: (data) => {
-        stdout += data.toString();
+  const exitCode = await exec.exec(
+    "git",
+    ["rev-parse", "--abbrev-ref", "HEAD"],
+    {
+      ignoreReturnCode: true,
+      listeners: {
+        stdout: (data) => {
+          stdout += data.toString();
+        },
       },
     },
-  });
+  );
 
   if (exitCode !== 0) {
     return null;

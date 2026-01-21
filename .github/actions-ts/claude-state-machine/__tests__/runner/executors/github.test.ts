@@ -317,7 +317,9 @@ describe("executeUnassignUser", () => {
   });
 
   test("unassigns user from issue", async () => {
-    vi.mocked(ctx.octokit.rest.issues.removeAssignees).mockResolvedValueOnce({} as any);
+    vi.mocked(ctx.octokit.rest.issues.removeAssignees).mockResolvedValueOnce(
+      {} as any,
+    );
 
     const action: UnassignUserAction = {
       type: "unassignUser",
@@ -407,7 +409,7 @@ describe("executeCreateSubIssues", () => {
     };
 
     await expect(executeCreateSubIssues(action, ctx)).rejects.toThrow(
-      "Parent issue #999 not found"
+      "Parent issue #999 not found",
     );
   });
 });
@@ -491,7 +493,7 @@ describe("executeConvertPRToDraft", () => {
     };
 
     await expect(executeConvertPRToDraft(action, ctx)).rejects.toThrow(
-      "PR #999 not found"
+      "PR #999 not found",
     );
   });
 });
@@ -536,7 +538,9 @@ describe("executeRequestReview", () => {
   });
 
   test("requests reviewer for PR", async () => {
-    vi.mocked(ctx.octokit.rest.pulls.requestReviewers).mockResolvedValueOnce({} as any);
+    vi.mocked(ctx.octokit.rest.pulls.requestReviewers).mockResolvedValueOnce(
+      {} as any,
+    );
 
     const action: RequestReviewAction = {
       type: "requestReview",

@@ -67,7 +67,9 @@ function generateMermaidDiagram(): string {
           const actions = transition.actions
             ? ` [${Array.isArray(transition.actions) ? transition.actions.join(", ") : transition.actions}]`
             : "";
-          lines.push(`    ${stateName} --> ${transition.target}${guard}${actions}`);
+          lines.push(
+            `    ${stateName} --> ${transition.target}${guard}${actions}`,
+          );
         }
       }
     }
@@ -83,7 +85,9 @@ function generateMermaidDiagram(): string {
           for (const transition of eventConfig) {
             if (transition.target) {
               const guard = transition.guard ? ` [${transition.guard}]` : "";
-              lines.push(`    ${stateName} --> ${transition.target}: ${eventName}${guard}`);
+              lines.push(
+                `    ${stateName} --> ${transition.target}: ${eventName}${guard}`,
+              );
             }
           }
         } else if (eventConfig && typeof eventConfig === "object") {
@@ -141,7 +145,9 @@ function generateStateTable(): string {
     const state = stateConfig as StateNode;
     const type = state.type === "final" ? "final" : "normal";
     const entry = state.entry
-      ? (Array.isArray(state.entry) ? state.entry.join(", ") : state.entry)
+      ? Array.isArray(state.entry)
+        ? state.entry.join(", ")
+        : state.entry
       : "-";
     rows.push(`| ${stateName} | ${type} | ${entry} |`);
   }
@@ -179,7 +185,9 @@ function generateTransitionList(): string {
             }
           }
         } else if (eventConfig?.target) {
-          const guard = eventConfig.guard ? ` (guard: ${eventConfig.guard})` : "";
+          const guard = eventConfig.guard
+            ? ` (guard: ${eventConfig.guard})`
+            : "";
           transitions.push(`- on ${event} → **${eventConfig.target}**${guard}`);
         }
       }

@@ -121,11 +121,25 @@ const scenarios: Record<string, Partial<MachineContext>> = {
       body: "## Todos\n- [x] Task",
       projectStatus: "Working",
       branch: "claude/issue/123",
-      pr: { number: 42, state: "OPEN", isDraft: true, title: "PR", headRef: "feature", baseRef: "main" },
+      pr: {
+        number: 42,
+        state: "OPEN",
+        isDraft: true,
+        title: "PR",
+        headRef: "feature",
+        baseRef: "main",
+      },
       todos: { total: 1, completed: 1, uncheckedNonManual: 0 },
     },
     hasPR: true,
-    pr: { number: 42, state: "OPEN", isDraft: true, title: "PR", headRef: "feature", baseRef: "main" },
+    pr: {
+      number: 42,
+      state: "OPEN",
+      isDraft: true,
+      title: "PR",
+      headRef: "feature",
+      baseRef: "main",
+    },
   },
 
   "ci-failure": {
@@ -228,7 +242,14 @@ const scenarios: Record<string, Partial<MachineContext>> = {
       hasSubIssues: false,
       history: [],
     },
-    pr: { number: 42, state: "OPEN", isDraft: false, title: "PR", headRef: "feature", baseRef: "main" },
+    pr: {
+      number: 42,
+      state: "OPEN",
+      isDraft: false,
+      title: "PR",
+      headRef: "feature",
+      baseRef: "main",
+    },
     hasPR: true,
   },
 
@@ -338,7 +359,10 @@ function runMachine(context: MachineContext) {
   };
 }
 
-function printResult(result: ReturnType<typeof runMachine>, context: MachineContext) {
+function printResult(
+  result: ReturnType<typeof runMachine>,
+  context: MachineContext,
+) {
   console.log("\n" + "=".repeat(60));
   console.log("STATE MACHINE INSPECTION");
   console.log("=".repeat(60));
@@ -358,7 +382,9 @@ function printResult(result: ReturnType<typeof runMachine>, context: MachineCont
   }
   if (context.currentSubIssue) {
     console.log(`   Current Sub-Issue: #${context.currentSubIssue.number}`);
-    console.log(`   Sub-Issue Todos: ${context.currentSubIssue.todos.completed}/${context.currentSubIssue.todos.total}`);
+    console.log(
+      `   Sub-Issue Todos: ${context.currentSubIssue.todos.completed}/${context.currentSubIssue.todos.total}`,
+    );
   }
 
   console.log("\n📤 RESULT:");
@@ -381,7 +407,9 @@ function printResult(result: ReturnType<typeof runMachine>, context: MachineCont
         console.log(`     → status: ${action.status}`);
       }
       if ("message" in action) {
-        console.log(`     → message: ${(action.message as string).slice(0, 50)}...`);
+        console.log(
+          `     → message: ${(action.message as string).slice(0, 50)}...`,
+        );
       }
       if ("reason" in action) {
         console.log(`     → reason: ${action.reason}`);
@@ -397,7 +425,8 @@ function listScenarios() {
   console.log("=".repeat(40));
   for (const [name, config] of Object.entries(scenarios)) {
     const trigger = config.trigger || "issue_assigned";
-    const status = (config.issue as Record<string, unknown>)?.projectStatus || "In Progress";
+    const status =
+      (config.issue as Record<string, unknown>)?.projectStatus || "In Progress";
     console.log(`  ${name.padEnd(25)} trigger=${trigger}, status=${status}`);
   }
   console.log("\nUsage: pnpm tsx scripts/inspect-state.ts --scenario <name>");

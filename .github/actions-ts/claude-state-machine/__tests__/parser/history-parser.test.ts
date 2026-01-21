@@ -34,13 +34,15 @@ describe("parseHistoryRow", () => {
   });
 
   test("parses row with markdown link for SHA", () => {
-    const row = "| 2 | Phase 1 | Pushed code | [`abc1234`](https://github.com/o/r/commit/abc1234) | - |";
+    const row =
+      "| 2 | Phase 1 | Pushed code | [`abc1234`](https://github.com/o/r/commit/abc1234) | - |";
     const result = parseHistoryRow(row);
     expect(result?.sha).toBe("abc1234");
   });
 
   test("parses row with run link", () => {
-    const row = "| 3 | Phase 2 | CI passed | - | [Run](https://github.com/runs/123) |";
+    const row =
+      "| 3 | Phase 2 | CI passed | - | [Run](https://github.com/runs/123) |";
     const result = parseHistoryRow(row);
     expect(result?.runLink).toBe("https://github.com/runs/123");
   });
@@ -163,7 +165,10 @@ describe("formatHistoryCells", () => {
   });
 
   test("formats run link", () => {
-    const { runCell } = formatHistoryCells(undefined, "https://example.com/run");
+    const { runCell } = formatHistoryCells(
+      undefined,
+      "https://example.com/run",
+    );
     expect(runCell).toBe("[Run](https://example.com/run)");
   });
 
@@ -174,14 +179,25 @@ describe("formatHistoryCells", () => {
   });
 
   test("uses provided repo URL", () => {
-    const { shaCell } = formatHistoryCells("abc123", undefined, "https://custom.com");
+    const { shaCell } = formatHistoryCells(
+      "abc123",
+      undefined,
+      "https://custom.com",
+    );
     expect(shaCell).toContain("https://custom.com");
   });
 });
 
 describe("createHistoryRow", () => {
   test("creates formatted row", () => {
-    const row = createHistoryRow(5, "Phase 2", "Completed work", undefined, undefined, "https://test.com");
+    const row = createHistoryRow(
+      5,
+      "Phase 2",
+      "Completed work",
+      undefined,
+      undefined,
+      "https://test.com",
+    );
     expect(row).toContain("| 5 |");
     expect(row).toContain("| Phase 2 |");
     expect(row).toContain("| Completed work |");
@@ -197,7 +213,13 @@ describe("createHistoryTable", () => {
   test("creates full table with header", () => {
     const entries = [
       { iteration: 1, phase: "1", action: "Started", sha: null, runLink: null },
-      { iteration: 2, phase: "1", action: "Done", sha: "abc123", runLink: null },
+      {
+        iteration: 2,
+        phase: "1",
+        action: "Done",
+        sha: "abc123",
+        runLink: null,
+      },
     ];
     const table = createHistoryTable(entries);
     expect(table).toContain("## Iteration History");
@@ -231,14 +253,23 @@ describe("addHistoryEntry", () => {
   });
 
   test("includes SHA when provided", () => {
-    const body = "## Iteration History\n\n| # | Phase | Action | SHA | Run |\n|---|-------|--------|-----|-----|";
+    const body =
+      "## Iteration History\n\n| # | Phase | Action | SHA | Run |\n|---|-------|--------|-----|-----|";
     const result = addHistoryEntry(body, 1, "1", "Pushed", "abc123def");
     expect(result).toContain("[`abc123d`]");
   });
 
   test("includes run link when provided", () => {
-    const body = "## Iteration History\n\n| # | Phase | Action | SHA | Run |\n|---|-------|--------|-----|-----|";
-    const result = addHistoryEntry(body, 1, "1", "CI done", undefined, "https://run.url");
+    const body =
+      "## Iteration History\n\n| # | Phase | Action | SHA | Run |\n|---|-------|--------|-----|-----|";
+    const result = addHistoryEntry(
+      body,
+      1,
+      "1",
+      "CI done",
+      undefined,
+      "https://run.url",
+    );
     expect(result).toContain("[Run](https://run.url)");
   });
 });
@@ -257,7 +288,7 @@ describe("updateHistoryEntry", () => {
       1,
       "Phase 1",
       "In progress",
-      "Completed"
+      "Completed",
     );
     expect(updated).toBe(true);
     expect(newBody).toContain("| 1 | Phase 1 | Completed |");
@@ -279,7 +310,7 @@ describe("updateHistoryEntry", () => {
       "Working",
       "Done",
       "abc123",
-      "https://run.url"
+      "https://run.url",
     );
     expect(updated).toBe(true);
     expect(newBody).toContain("Done");
@@ -300,7 +331,7 @@ describe("updateHistoryEntry", () => {
       99,
       "Phase 99",
       "Not found",
-      "New message"
+      "New message",
     );
     expect(updated).toBe(false);
     expect(newBody).toBe(body);
@@ -319,7 +350,7 @@ describe("updateHistoryEntry", () => {
       1,
       "1",
       "Working",
-      "Updated"
+      "Updated",
     );
     expect(updated).toBe(true);
     expect(newBody).toContain("abc1234");
@@ -339,7 +370,7 @@ describe("updateHistoryEntry", () => {
       2,
       "1",
       "Working",
-      "Updated"
+      "Updated",
     );
     expect(updated).toBe(true);
     // First row should be unchanged

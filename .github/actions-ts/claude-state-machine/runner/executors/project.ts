@@ -241,9 +241,15 @@ function parseProjectState(
     const fieldName = fieldValue.field?.name;
     if (fieldName === "Status" && fieldValue.name) {
       status = fieldValue.name as ProjectStatus;
-    } else if (fieldName === "Iteration" && typeof fieldValue.number === "number") {
+    } else if (
+      fieldName === "Iteration" &&
+      typeof fieldValue.number === "number"
+    ) {
       iteration = fieldValue.number;
-    } else if (fieldName === "Failures" && typeof fieldValue.number === "number") {
+    } else if (
+      fieldName === "Failures" &&
+      typeof fieldValue.number === "number"
+    ) {
       failures = fieldValue.number;
     }
   }
@@ -260,12 +266,15 @@ async function getOrAddProjectItem(
   projectFields: ProjectFields;
   currentState: ProjectState;
 }> {
-  const response = await octokit.graphql<QueryResponse>(GET_PROJECT_ITEM_QUERY, {
-    org: ctx.owner,
-    repo: ctx.repo,
-    issueNumber,
-    projectNumber: ctx.projectNumber,
-  });
+  const response = await octokit.graphql<QueryResponse>(
+    GET_PROJECT_ITEM_QUERY,
+    {
+      org: ctx.owner,
+      repo: ctx.repo,
+      issueNumber,
+      projectNumber: ctx.projectNumber,
+    },
+  );
 
   const issue = response.repository?.issue;
   const projectData = response.organization;
@@ -340,7 +349,9 @@ export async function executeUpdateProjectStatus(
     value: { singleSelectOptionId: optionId },
   });
 
-  core.info(`Updated Status to ${action.status} for issue #${action.issueNumber}`);
+  core.info(
+    `Updated Status to ${action.status} for issue #${action.issueNumber}`,
+  );
   return { updated: true, previousStatus: currentState.status };
 }
 
@@ -366,7 +377,9 @@ export async function executeIncrementIteration(
     value: { number: newIteration },
   });
 
-  core.info(`Incremented Iteration to ${newIteration} for issue #${action.issueNumber}`);
+  core.info(
+    `Incremented Iteration to ${newIteration} for issue #${action.issueNumber}`,
+  );
   return { newIteration };
 }
 
@@ -392,7 +405,9 @@ export async function executeRecordFailure(
     value: { number: newFailures },
   });
 
-  core.info(`Incremented Failures to ${newFailures} for issue #${action.issueNumber}`);
+  core.info(
+    `Incremented Failures to ${newFailures} for issue #${action.issueNumber}`,
+  );
   return { newFailures };
 }
 

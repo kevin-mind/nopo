@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { TriggerTypeSchema, ReviewDecisionSchema, CIResultSchema } from "./state.js";
+import {
+  TriggerTypeSchema,
+  ReviewDecisionSchema,
+  CIResultSchema,
+} from "./state.js";
 
 /**
  * Base event properties shared by all GitHub events
@@ -167,7 +171,9 @@ export type EventType = GitHubEvent["type"];
 /**
  * Map event type to trigger type
  */
-export function eventToTrigger(event: GitHubEvent): z.infer<typeof TriggerTypeSchema> {
+export function eventToTrigger(
+  event: GitHubEvent,
+): z.infer<typeof TriggerTypeSchema> {
   return event.type as z.infer<typeof TriggerTypeSchema>;
 }
 

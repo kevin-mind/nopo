@@ -33,7 +33,11 @@ async function generateDiagram(): Promise<string> {
 
   if (config.states) {
     for (const [stateName, stateConfig] of Object.entries(config.states)) {
-      if (stateConfig && typeof stateConfig === "object" && "on" in stateConfig) {
+      if (
+        stateConfig &&
+        typeof stateConfig === "object" &&
+        "on" in stateConfig
+      ) {
         const on = stateConfig.on as Record<string, unknown>;
         for (const [, targetConfig] of Object.entries(on)) {
           if (Array.isArray(targetConfig)) {
@@ -44,10 +48,14 @@ async function generateDiagram(): Promise<string> {
                 lines.push(`    ${stateName} --> ${transition.target}${label}`);
               }
             }
-          } else if (typeof targetConfig === "object" && targetConfig !== null) {
+          } else if (
+            typeof targetConfig === "object" &&
+            targetConfig !== null
+          ) {
             const target = (targetConfig as { target?: string }).target;
             if (target) {
-              const guardName = (targetConfig as { guard?: string }).guard || "";
+              const guardName =
+                (targetConfig as { guard?: string }).guard || "";
               const label = guardName ? `: ${guardName}` : "";
               lines.push(`    ${stateName} --> ${target}${label}`);
             }
@@ -56,8 +64,14 @@ async function generateDiagram(): Promise<string> {
       }
 
       // Check for 'always' transitions
-      if (stateConfig && typeof stateConfig === "object" && "always" in stateConfig) {
-        const always = stateConfig.always as Array<{ target?: string; guard?: string }> | { target?: string; guard?: string };
+      if (
+        stateConfig &&
+        typeof stateConfig === "object" &&
+        "always" in stateConfig
+      ) {
+        const always = stateConfig.always as
+          | Array<{ target?: string; guard?: string }>
+          | { target?: string; guard?: string };
         const alwaysArray = Array.isArray(always) ? always : [always];
         for (const transition of alwaysArray) {
           if (transition.target) {
@@ -69,7 +83,12 @@ async function generateDiagram(): Promise<string> {
       }
 
       // Mark final states
-      if (stateConfig && typeof stateConfig === "object" && "type" in stateConfig && stateConfig.type === "final") {
+      if (
+        stateConfig &&
+        typeof stateConfig === "object" &&
+        "type" in stateConfig &&
+        stateConfig.type === "final"
+      ) {
         lines.push(`    ${stateName} --> [*]: final`);
       }
     }
@@ -86,7 +105,8 @@ async function exportMachineJson(): Promise<string> {
   const exportData = {
     id: claudeMachine.config.id,
     version: "1.0.0",
-    description: "Claude automation state machine for issue lifecycle management",
+    description:
+      "Claude automation state machine for issue lifecycle management",
     generatedAt: new Date().toISOString(),
     config: claudeMachine.config,
   };

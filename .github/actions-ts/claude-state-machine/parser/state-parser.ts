@@ -23,7 +23,7 @@ type Octokit = InstanceType<typeof GitHub>;
 // ============================================================================
 
 const GET_ISSUE_WITH_PROJECT_QUERY = `
-query GetIssueWithProject($owner: String!, $repo: String!, $issueNumber: Int!, $projectNumber: Int!) {
+query GetIssueWithProject($owner: String!, $repo: String!, $issueNumber: Int!) {
   repository(owner: $owner, name: $repo) {
     issue(number: $issueNumber) {
       id
@@ -222,9 +222,15 @@ function parseProjectState(
     const fieldName = fieldValue.field?.name;
     if (fieldName === "Status" && fieldValue.name) {
       status = fieldValue.name as ProjectStatus;
-    } else if (fieldName === "Iteration" && typeof fieldValue.number === "number") {
+    } else if (
+      fieldName === "Iteration" &&
+      typeof fieldValue.number === "number"
+    ) {
       iteration = fieldValue.number;
-    } else if (fieldName === "Failures" && typeof fieldValue.number === "number") {
+    } else if (
+      fieldName === "Failures" &&
+      typeof fieldValue.number === "number"
+    ) {
       failures = fieldValue.number;
     }
   }
@@ -330,11 +336,14 @@ export async function getPRForBranch(
   headRef: string,
 ): Promise<LinkedPR | null> {
   try {
-    const response = await octokit.graphql<PRResponse>(GET_PR_FOR_BRANCH_QUERY, {
-      owner,
-      repo,
-      headRef,
-    });
+    const response = await octokit.graphql<PRResponse>(
+      GET_PR_FOR_BRANCH_QUERY,
+      {
+        owner,
+        repo,
+        headRef,
+      },
+    );
 
     const pr = response.repository?.pullRequests?.nodes?.[0];
     if (!pr || !pr.number) {
@@ -370,7 +379,6 @@ export async function fetchIssueState(
       owner,
       repo,
       issueNumber,
-      projectNumber,
     },
   );
 

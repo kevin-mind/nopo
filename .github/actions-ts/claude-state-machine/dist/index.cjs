@@ -13051,7 +13051,7 @@ var require_fetch = __commonJS({
         this.emit("terminated", error3);
       }
     };
-    function fetch2(input, init = {}) {
+    function fetch(input, init = {}) {
       webidl.argumentLengthCheck(arguments, 1, { header: "globalThis.fetch" });
       const p = createDeferredPromise();
       let requestObject;
@@ -13981,7 +13981,7 @@ var require_fetch = __commonJS({
       }
     }
     module2.exports = {
-      fetch: fetch2,
+      fetch,
       Fetch,
       fetching,
       finalizeAndReportTiming
@@ -17237,7 +17237,7 @@ var require_undici = __commonJS({
     module2.exports.getGlobalDispatcher = getGlobalDispatcher;
     if (util2.nodeMajor > 16 || util2.nodeMajor === 16 && util2.nodeMinor >= 8) {
       let fetchImpl = null;
-      module2.exports.fetch = async function fetch2(resource) {
+      module2.exports.fetch = async function fetch(resource) {
         if (!fetchImpl) {
           fetchImpl = require_fetch().fetch;
         }
@@ -20713,16 +20713,16 @@ var require_dist_node5 = __commonJS({
       let headers = {};
       let status;
       let url;
-      let { fetch: fetch2 } = globalThis;
+      let { fetch } = globalThis;
       if ((_b = requestOptions.request) == null ? void 0 : _b.fetch) {
-        fetch2 = requestOptions.request.fetch;
+        fetch = requestOptions.request.fetch;
       }
-      if (!fetch2) {
+      if (!fetch) {
         throw new Error(
           "fetch is not set. Please pass a fetch implementation as new Octokit({ request: { fetch }}). Learn more at https://github.com/octokit/octokit.js/#fetch-missing"
         );
       }
-      return fetch2(requestOptions.url, {
+      return fetch(requestOptions.url, {
         method: requestOptions.method,
         body: requestOptions.body,
         redirect: (_c = requestOptions.request) == null ? void 0 : _c.redirect,
@@ -27006,60 +27006,6 @@ function setOutputs(outputs) {
   }
 }
 
-// claude-state-machine/parser/todo-parser.ts
-var TODO_PATTERNS = {
-  // Matches: - [ ] text or - [x] text or - [X] text
-  checkbox: /^(\s*)-\s*\[([ xX])\]\s*(.+)$/,
-  // Matches: *(manual)* anywhere in the line
-  manual: /\*\(manual\)\*/i
-};
-function parseTodoLine(line) {
-  const match = line.match(TODO_PATTERNS.checkbox);
-  if (!match) {
-    return null;
-  }
-  const checkMark = match[2];
-  const text = match[3]?.trim() || "";
-  return {
-    text,
-    checked: checkMark?.toLowerCase() === "x",
-    isManual: TODO_PATTERNS.manual.test(line)
-  };
-}
-function parseTodos(body) {
-  const lines = body.split("\n");
-  const todos = [];
-  for (const line of lines) {
-    const todo = parseTodoLine(line);
-    if (todo) {
-      todos.push(todo);
-    }
-  }
-  return todos;
-}
-function calculateTodoStats(todos) {
-  let total = 0;
-  let completed = 0;
-  let uncheckedNonManual = 0;
-  for (const todo of todos) {
-    total++;
-    if (todo.checked) {
-      completed++;
-    } else if (!todo.isManual) {
-      uncheckedNonManual++;
-    }
-  }
-  return {
-    total,
-    completed,
-    uncheckedNonManual
-  };
-}
-function parseTodoStats(body) {
-  const todos = parseTodos(body);
-  return calculateTodoStats(todos);
-}
-
 // claude-state-machine/parser/history-parser.ts
 var HISTORY_SECTION = "## Iteration History";
 var TABLE_HEADER = "| # | Phase | Action | SHA | Run |";
@@ -27144,7 +27090,14 @@ function createHistoryRow(iteration, phase, message, sha, runLink, repoUrl) {
 }
 function addHistoryEntry(body, iteration, phase, message, sha, runLink, repoUrl) {
   const historyIdx = body.indexOf(HISTORY_SECTION);
-  const newRow = createHistoryRow(iteration, phase, message, sha, runLink, repoUrl);
+  const newRow = createHistoryRow(
+    iteration,
+    phase,
+    message,
+    sha,
+    runLink,
+    repoUrl
+  );
   if (historyIdx === -1) {
     const historyTable = `
 
@@ -31323,7 +31276,12 @@ var TriggerTypeSchema = external_exports.enum([
   "workflow_run_completed",
   "issue_comment"
 ]);
-var CIResultSchema = external_exports.enum(["success", "failure", "cancelled", "skipped"]);
+var CIResultSchema = external_exports.enum([
+  "success",
+  "failure",
+  "cancelled",
+  "skipped"
+]);
 var ReviewDecisionSchema = external_exports.enum([
   "APPROVED",
   "CHANGES_REQUESTED",
@@ -31654,9 +31612,63 @@ function eventToTrigger(event) {
   return event.type;
 }
 
+// claude-state-machine/parser/todo-parser.ts
+var TODO_PATTERNS = {
+  // Matches: - [ ] text or - [x] text or - [X] text
+  checkbox: /^(\s*)-\s*\[([ xX])\]\s*(.+)$/,
+  // Matches: *(manual)* anywhere in the line
+  manual: /\*\(manual\)\*/i
+};
+function parseTodoLine(line) {
+  const match = line.match(TODO_PATTERNS.checkbox);
+  if (!match) {
+    return null;
+  }
+  const checkMark = match[2];
+  const text = match[3]?.trim() || "";
+  return {
+    text,
+    checked: checkMark?.toLowerCase() === "x",
+    isManual: TODO_PATTERNS.manual.test(line)
+  };
+}
+function parseTodos(body) {
+  const lines = body.split("\n");
+  const todos = [];
+  for (const line of lines) {
+    const todo = parseTodoLine(line);
+    if (todo) {
+      todos.push(todo);
+    }
+  }
+  return todos;
+}
+function calculateTodoStats(todos) {
+  let total = 0;
+  let completed = 0;
+  let uncheckedNonManual = 0;
+  for (const todo of todos) {
+    total++;
+    if (todo.checked) {
+      completed++;
+    } else if (!todo.isManual) {
+      uncheckedNonManual++;
+    }
+  }
+  return {
+    total,
+    completed,
+    uncheckedNonManual
+  };
+}
+function parseTodoStats(body) {
+  const todos = parseTodos(body);
+  return calculateTodoStats(todos);
+}
+
 // claude-state-machine/parser/state-parser.ts
 var GET_ISSUE_WITH_PROJECT_QUERY = `
-query GetIssueWithProject($owner: String!, $repo: String!, $issueNumber: Int!, $projectNumber: Int!) {
+query GetIssueWithProject($owner: String!, $repo: String!, $issueNumber: Int!) {
   repository(owner: $owner, name: $repo) {
     issue(number: $issueNumber) {
       id
@@ -31840,11 +31852,14 @@ async function checkBranchExists(octokit, owner, repo, branchName) {
 }
 async function getPRForBranch(octokit, owner, repo, headRef) {
   try {
-    const response = await octokit.graphql(GET_PR_FOR_BRANCH_QUERY, {
-      owner,
-      repo,
-      headRef
-    });
+    const response = await octokit.graphql(
+      GET_PR_FOR_BRANCH_QUERY,
+      {
+        owner,
+        repo,
+        headRef
+      }
+    );
     const pr = response.repository?.pullRequests?.nodes?.[0];
     if (!pr || !pr.number) {
       return null;
@@ -31867,8 +31882,7 @@ async function fetchIssueState(octokit, owner, repo, issueNumber, projectNumber)
     {
       owner,
       repo,
-      issueNumber,
-      projectNumber
+      issueNumber
     }
   );
   const issue = response.repository?.issue;
@@ -32005,6 +32019,251 @@ async function buildMachineContext(octokit, event, projectNumber, options = {}) 
     maxRetries: options.maxRetries,
     botUsername: options.botUsername
   });
+}
+
+// claude-state-machine/machine/actions.ts
+function emitSetWorking({ context: context2 }) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  return [
+    {
+      type: "updateProjectStatus",
+      issueNumber,
+      status: "Working"
+    }
+  ];
+}
+function emitSetReview({ context: context2 }) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  return [
+    {
+      type: "updateProjectStatus",
+      issueNumber,
+      status: "Review"
+    }
+  ];
+}
+function emitSetInProgress({ context: context2 }) {
+  return [
+    {
+      type: "updateProjectStatus",
+      issueNumber: context2.issue.number,
+      status: "In Progress"
+    }
+  ];
+}
+function emitSetDone({ context: context2 }) {
+  return [
+    {
+      type: "updateProjectStatus",
+      issueNumber: context2.issue.number,
+      status: "Done"
+    }
+  ];
+}
+function emitSetBlocked({ context: context2 }) {
+  return [
+    {
+      type: "updateProjectStatus",
+      issueNumber: context2.issue.number,
+      status: "Blocked"
+    }
+  ];
+}
+function emitIncrementIteration({
+  context: context2
+}) {
+  return [
+    {
+      type: "incrementIteration",
+      issueNumber: context2.issue.number
+    }
+  ];
+}
+function emitRecordFailure({ context: context2 }) {
+  return [
+    {
+      type: "recordFailure",
+      issueNumber: context2.issue.number,
+      failureType: "ci"
+    }
+  ];
+}
+function emitClearFailures({ context: context2 }) {
+  return [
+    {
+      type: "clearFailures",
+      issueNumber: context2.issue.number
+    }
+  ];
+}
+function emitCloseIssue({ context: context2 }) {
+  return [
+    {
+      type: "closeIssue",
+      issueNumber: context2.issue.number,
+      reason: "completed"
+    }
+  ];
+}
+function emitUnassign({ context: context2 }) {
+  return [
+    {
+      type: "unassignUser",
+      issueNumber: context2.issue.number,
+      username: context2.botUsername
+    }
+  ];
+}
+function emitBlock({ context: context2 }) {
+  return [
+    {
+      type: "block",
+      issueNumber: context2.issue.number,
+      reason: `Max failures (${context2.maxRetries}) reached`
+    }
+  ];
+}
+function emitAppendHistory({ context: context2 }, message, phase) {
+  const phaseStr = phase ?? context2.currentPhase ?? "-";
+  return [
+    {
+      type: "appendHistory",
+      issueNumber: context2.issue.number,
+      phase: String(phaseStr),
+      message,
+      commitSha: context2.ciCommitSha ?? void 0,
+      runLink: context2.ciRunUrl ?? void 0
+    }
+  ];
+}
+function emitLogCIFailure({ context: context2 }) {
+  return [
+    {
+      type: "updateHistory",
+      issueNumber: context2.issue.number,
+      matchIteration: context2.issue.iteration,
+      matchPhase: String(context2.currentPhase ?? "-"),
+      matchPattern: "\u23F3",
+      newMessage: "\u274C CI Failed",
+      commitSha: context2.ciCommitSha ?? void 0,
+      runLink: context2.ciRunUrl ?? void 0
+    }
+  ];
+}
+function emitMarkReady({ context: context2 }) {
+  if (!context2.pr) {
+    return [];
+  }
+  return [
+    {
+      type: "markPRReady",
+      prNumber: context2.pr.number
+    }
+  ];
+}
+function emitConvertToDraft({ context: context2 }) {
+  if (!context2.pr) {
+    return [];
+  }
+  return [
+    {
+      type: "convertPRToDraft",
+      prNumber: context2.pr.number
+    }
+  ];
+}
+function emitRequestReview({ context: context2 }) {
+  if (!context2.pr) {
+    return [];
+  }
+  return [
+    {
+      type: "requestReview",
+      prNumber: context2.pr.number,
+      reviewer: context2.botUsername
+    }
+  ];
+}
+function emitRunClaude({ context: context2 }) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const branchName = context2.branch ?? deriveBranchName(context2.issue.number, context2.currentPhase ?? void 0);
+  const prompt = `Implement the requirements for issue #${issueNumber}.
+Work on branch ${branchName}.
+Ensure all tests pass before pushing.`;
+  return [
+    {
+      type: "runClaude",
+      prompt,
+      issueNumber,
+      worktree: context2.branch ?? void 0
+    }
+  ];
+}
+function emitRunClaudeFixCI({ context: context2 }) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const prompt = `Fix the CI failures for issue #${issueNumber}.
+CI run: ${context2.ciRunUrl ?? "N/A"}
+Commit: ${context2.ciCommitSha ?? "N/A"}
+
+Review the CI logs and fix the failing tests or build errors.`;
+  return [
+    {
+      type: "runClaude",
+      prompt,
+      issueNumber,
+      worktree: context2.branch ?? void 0
+    }
+  ];
+}
+function emitStop(_ctx, reason) {
+  return [
+    {
+      type: "stop",
+      reason
+    }
+  ];
+}
+function emitLog(_ctx, message, level = "info") {
+  return [
+    {
+      type: "log",
+      level,
+      message
+    }
+  ];
+}
+function emitTransitionToReview({
+  context: context2
+}) {
+  const actions = [];
+  if (context2.issue.failures > 0) {
+    actions.push(...emitClearFailures({ context: context2 }));
+  }
+  if (context2.pr?.isDraft) {
+    actions.push(...emitMarkReady({ context: context2 }));
+  }
+  actions.push(...emitSetReview({ context: context2 }));
+  actions.push(...emitRequestReview({ context: context2 }));
+  return actions;
+}
+function emitHandleCIFailure({ context: context2 }) {
+  const actions = [];
+  actions.push(...emitRecordFailure({ context: context2 }));
+  actions.push(...emitLogCIFailure({ context: context2 }));
+  return actions;
+}
+function emitBlockIssue({ context: context2 }) {
+  const actions = [];
+  actions.push(...emitSetBlocked({ context: context2 }));
+  actions.push(...emitUnassign({ context: context2 }));
+  actions.push(
+    ...emitAppendHistory(
+      { context: context2 },
+      `\u{1F6AB} Blocked: Max failures reached (${context2.issue.failures})`
+    )
+  );
+  actions.push(...emitBlock({ context: context2 }));
+  return actions;
 }
 
 // claude-state-machine/machine/guards.ts
@@ -32183,242 +32442,6 @@ var guards = {
   shouldBlock
 };
 
-// claude-state-machine/machine/actions.ts
-function emitSetWorking({ context: context2 }) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  return [
-    {
-      type: "updateProjectStatus",
-      issueNumber,
-      status: "Working"
-    }
-  ];
-}
-function emitSetReview({ context: context2 }) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  return [
-    {
-      type: "updateProjectStatus",
-      issueNumber,
-      status: "Review"
-    }
-  ];
-}
-function emitSetInProgress({ context: context2 }) {
-  return [
-    {
-      type: "updateProjectStatus",
-      issueNumber: context2.issue.number,
-      status: "In Progress"
-    }
-  ];
-}
-function emitSetDone({ context: context2 }) {
-  return [
-    {
-      type: "updateProjectStatus",
-      issueNumber: context2.issue.number,
-      status: "Done"
-    }
-  ];
-}
-function emitSetBlocked({ context: context2 }) {
-  return [
-    {
-      type: "updateProjectStatus",
-      issueNumber: context2.issue.number,
-      status: "Blocked"
-    }
-  ];
-}
-function emitIncrementIteration({ context: context2 }) {
-  return [
-    {
-      type: "incrementIteration",
-      issueNumber: context2.issue.number
-    }
-  ];
-}
-function emitRecordFailure({ context: context2 }) {
-  return [
-    {
-      type: "recordFailure",
-      issueNumber: context2.issue.number,
-      failureType: "ci"
-    }
-  ];
-}
-function emitClearFailures({ context: context2 }) {
-  return [
-    {
-      type: "clearFailures",
-      issueNumber: context2.issue.number
-    }
-  ];
-}
-function emitCloseIssue({ context: context2 }) {
-  return [
-    {
-      type: "closeIssue",
-      issueNumber: context2.issue.number,
-      reason: "completed"
-    }
-  ];
-}
-function emitUnassign({ context: context2 }) {
-  return [
-    {
-      type: "unassignUser",
-      issueNumber: context2.issue.number,
-      username: context2.botUsername
-    }
-  ];
-}
-function emitBlock({ context: context2 }) {
-  return [
-    {
-      type: "block",
-      issueNumber: context2.issue.number,
-      reason: `Max failures (${context2.maxRetries}) reached`
-    }
-  ];
-}
-function emitAppendHistory({ context: context2 }, message, phase) {
-  const phaseStr = phase ?? context2.currentPhase ?? "-";
-  return [
-    {
-      type: "appendHistory",
-      issueNumber: context2.issue.number,
-      phase: String(phaseStr),
-      message,
-      commitSha: context2.ciCommitSha ?? void 0,
-      runLink: context2.ciRunUrl ?? void 0
-    }
-  ];
-}
-function emitLogCIFailure({ context: context2 }) {
-  return [
-    {
-      type: "updateHistory",
-      issueNumber: context2.issue.number,
-      matchIteration: context2.issue.iteration,
-      matchPhase: String(context2.currentPhase ?? "-"),
-      matchPattern: "\u23F3",
-      newMessage: "\u274C CI Failed",
-      commitSha: context2.ciCommitSha ?? void 0,
-      runLink: context2.ciRunUrl ?? void 0
-    }
-  ];
-}
-function emitMarkReady({ context: context2 }) {
-  if (!context2.pr) {
-    return [];
-  }
-  return [
-    {
-      type: "markPRReady",
-      prNumber: context2.pr.number
-    }
-  ];
-}
-function emitConvertToDraft({ context: context2 }) {
-  if (!context2.pr) {
-    return [];
-  }
-  return [
-    {
-      type: "convertPRToDraft",
-      prNumber: context2.pr.number
-    }
-  ];
-}
-function emitRequestReview({ context: context2 }) {
-  if (!context2.pr) {
-    return [];
-  }
-  return [
-    {
-      type: "requestReview",
-      prNumber: context2.pr.number,
-      reviewer: context2.botUsername
-    }
-  ];
-}
-function emitRunClaude({ context: context2 }) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  const branchName = context2.branch ?? deriveBranchName(context2.issue.number, context2.currentPhase ?? void 0);
-  const prompt = `Implement the requirements for issue #${issueNumber}.
-Work on branch ${branchName}.
-Ensure all tests pass before pushing.`;
-  return [
-    {
-      type: "runClaude",
-      prompt,
-      issueNumber,
-      worktree: context2.branch ?? void 0
-    }
-  ];
-}
-function emitRunClaudeFixCI({ context: context2 }) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  const prompt = `Fix the CI failures for issue #${issueNumber}.
-CI run: ${context2.ciRunUrl ?? "N/A"}
-Commit: ${context2.ciCommitSha ?? "N/A"}
-
-Review the CI logs and fix the failing tests or build errors.`;
-  return [
-    {
-      type: "runClaude",
-      prompt,
-      issueNumber,
-      worktree: context2.branch ?? void 0
-    }
-  ];
-}
-function emitStop(_ctx, reason) {
-  return [
-    {
-      type: "stop",
-      reason
-    }
-  ];
-}
-function emitLog(_ctx, message, level = "info") {
-  return [
-    {
-      type: "log",
-      level,
-      message
-    }
-  ];
-}
-function emitTransitionToReview({ context: context2 }) {
-  const actions = [];
-  if (context2.issue.failures > 0) {
-    actions.push(...emitClearFailures({ context: context2 }));
-  }
-  if (context2.pr?.isDraft) {
-    actions.push(...emitMarkReady({ context: context2 }));
-  }
-  actions.push(...emitSetReview({ context: context2 }));
-  actions.push(...emitRequestReview({ context: context2 }));
-  return actions;
-}
-function emitHandleCIFailure({ context: context2 }) {
-  const actions = [];
-  actions.push(...emitRecordFailure({ context: context2 }));
-  actions.push(...emitLogCIFailure({ context: context2 }));
-  return actions;
-}
-function emitBlockIssue({ context: context2 }) {
-  const actions = [];
-  actions.push(...emitSetBlocked({ context: context2 }));
-  actions.push(...emitUnassign({ context: context2 }));
-  actions.push(...emitAppendHistory({ context: context2 }, `\u{1F6AB} Blocked: Max failures reached (${context2.issue.failures})`));
-  actions.push(...emitBlock({ context: context2 }));
-  return actions;
-}
-
 // claude-state-machine/machine/machine.ts
 function accumulateActions(existingActions, newActions) {
   return [...existingActions, ...newActions];
@@ -32465,7 +32488,10 @@ var claudeMachine = setup({
     logIterating: assign({
       pendingActions: ({ context: context2 }) => accumulateActions(
         context2.pendingActions,
-        emitLog({ context: context2 }, `Starting iteration ${context2.issue.iteration + 1}`)
+        emitLog(
+          { context: context2 },
+          `Starting iteration ${context2.issue.iteration + 1}`
+        )
       )
     }),
     logReviewing: assign({
@@ -32482,7 +32508,10 @@ var claudeMachine = setup({
       pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitSetReview({ context: context2 }))
     }),
     setInProgress: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitSetInProgress({ context: context2 }))
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitSetInProgress({ context: context2 })
+      )
     }),
     setDone: assign({
       pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitSetDone({ context: context2 }))
@@ -32498,10 +32527,16 @@ var claudeMachine = setup({
       )
     }),
     recordFailure: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitRecordFailure({ context: context2 }))
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitRecordFailure({ context: context2 })
+      )
     }),
     clearFailures: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitClearFailures({ context: context2 }))
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitClearFailures({ context: context2 })
+      )
     }),
     // Issue actions
     closeIssue: assign({
@@ -32515,17 +32550,26 @@ var claudeMachine = setup({
       pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitRunClaude({ context: context2 }))
     }),
     runClaudeFixCI: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitRunClaudeFixCI({ context: context2 }))
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitRunClaudeFixCI({ context: context2 })
+      )
     }),
     // PR actions
     markPRReady: assign({
       pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitMarkReady({ context: context2 }))
     }),
     requestReview: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitRequestReview({ context: context2 }))
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitRequestReview({ context: context2 })
+      )
     }),
     convertToDraft: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitConvertToDraft({ context: context2 }))
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitConvertToDraft({ context: context2 })
+      )
     }),
     // Compound actions
     transitionToReview: assign({
@@ -32545,7 +32589,10 @@ var claudeMachine = setup({
     }),
     // Stop action
     stopWithReason: assign({
-      pendingActions: ({ context: context2 }, params) => accumulateActions(context2.pendingActions, emitStop({ context: context2 }, params.reason))
+      pendingActions: ({ context: context2 }, params) => accumulateActions(
+        context2.pendingActions,
+        emitStop({ context: context2 }, params.reason)
+      )
     })
   }
 }).createMachine({
@@ -32924,12 +32971,15 @@ function parseProjectState2(projectItems, projectNumber) {
   return { status, iteration, failures };
 }
 async function getOrAddProjectItem(octokit, ctx, issueNumber) {
-  const response = await octokit.graphql(GET_PROJECT_ITEM_QUERY, {
-    org: ctx.owner,
-    repo: ctx.repo,
-    issueNumber,
-    projectNumber: ctx.projectNumber
-  });
+  const response = await octokit.graphql(
+    GET_PROJECT_ITEM_QUERY,
+    {
+      org: ctx.owner,
+      repo: ctx.repo,
+      issueNumber,
+      projectNumber: ctx.projectNumber
+    }
+  );
   const issue = response.repository?.issue;
   const projectData = response.organization;
   if (!issue || !projectData?.projectV2) {
@@ -32975,7 +33025,9 @@ async function executeUpdateProjectStatus(action, ctx) {
     fieldId: projectFields.statusFieldId,
     value: { singleSelectOptionId: optionId }
   });
-  core2.info(`Updated Status to ${action.status} for issue #${action.issueNumber}`);
+  core2.info(
+    `Updated Status to ${action.status} for issue #${action.issueNumber}`
+  );
   return { updated: true, previousStatus: currentState.status };
 }
 async function executeIncrementIteration(action, ctx) {
@@ -32991,7 +33043,9 @@ async function executeIncrementIteration(action, ctx) {
     fieldId: projectFields.iterationFieldId,
     value: { number: newIteration }
   });
-  core2.info(`Incremented Iteration to ${newIteration} for issue #${action.issueNumber}`);
+  core2.info(
+    `Incremented Iteration to ${newIteration} for issue #${action.issueNumber}`
+  );
   return { newIteration };
 }
 async function executeRecordFailure(action, ctx) {
@@ -33007,7 +33061,9 @@ async function executeRecordFailure(action, ctx) {
     fieldId: projectFields.failuresFieldId,
     value: { number: newFailures }
   });
-  core2.info(`Incremented Failures to ${newFailures} for issue #${action.issueNumber}`);
+  core2.info(
+    `Incremented Failures to ${newFailures} for issue #${action.issueNumber}`
+  );
   return { newFailures };
 }
 async function executeClearFailures(action, ctx) {
@@ -33182,7 +33238,9 @@ async function executeUpdateHistory(action, ctx) {
       issue_number: action.issueNumber,
       body: result.body
     });
-    core3.info(`Updated history: Phase ${action.matchPhase}, ${action.newMessage}`);
+    core3.info(
+      `Updated history: Phase ${action.matchPhase}, ${action.newMessage}`
+    );
   } else {
     core3.info(`No matching history entry found to update`);
   }
@@ -33282,7 +33340,9 @@ Fixes #${action.issueNumber}`;
     base: action.baseBranch,
     draft: action.draft
   });
-  core3.info(`Created PR #${response.data.number} for issue #${action.issueNumber}`);
+  core3.info(
+    `Created PR #${response.data.number} for issue #${action.issueNumber}`
+  );
   return { prNumber: response.data.number };
 }
 async function executeConvertPRToDraft(action, ctx) {
@@ -33320,7 +33380,9 @@ async function executeRequestReview(action, ctx) {
     pull_number: action.prNumber,
     reviewers: [action.reviewer]
   });
-  core3.info(`Requested review from ${action.reviewer} on PR #${action.prNumber}`);
+  core3.info(
+    `Requested review from ${action.reviewer} on PR #${action.prNumber}`
+  );
   return { requested: true };
 }
 async function executeMergePR(action, ctx) {
@@ -33625,7 +33687,9 @@ function logRunnerSummary(result) {
   core6.info("=".repeat(60));
   core6.info(`Total actions: ${result.results.length}`);
   core6.info(`Successful: ${result.results.filter((r) => r.success).length}`);
-  core6.info(`Failed: ${result.results.filter((r) => !r.success && !r.skipped).length}`);
+  core6.info(
+    `Failed: ${result.results.filter((r) => !r.success && !r.skipped).length}`
+  );
   core6.info(`Skipped: ${result.results.filter((r) => r.skipped).length}`);
   core6.info(`Total duration: ${result.totalDurationMs}ms`);
   if (result.stoppedEarly) {
@@ -33635,7 +33699,9 @@ function logRunnerSummary(result) {
   for (const actionResult of result.results) {
     const status = actionResult.skipped ? "SKIPPED" : actionResult.success ? "SUCCESS" : "FAILED";
     const duration = `${actionResult.durationMs}ms`;
-    core6.info(`  ${status.padEnd(8)} ${actionResult.action.type.padEnd(25)} ${duration}`);
+    core6.info(
+      `  ${status.padEnd(8)} ${actionResult.action.type.padEnd(25)} ${duration}`
+    );
     if (actionResult.error) {
       core6.error(`    Error: ${actionResult.error.message}`);
     }
@@ -33661,7 +33727,12 @@ function parseTrigger(input) {
 }
 function parseCIResult(input) {
   if (!input) return null;
-  const validResults = ["success", "failure", "cancelled", "skipped"];
+  const validResults = [
+    "success",
+    "failure",
+    "cancelled",
+    "skipped"
+  ];
   if (validResults.includes(input)) {
     return input;
   }
@@ -33771,7 +33842,9 @@ async function run() {
     const ciResult = parseCIResult(getOptionalInput("ci_result"));
     const ciRunUrl = getOptionalInput("ci_run_url") || null;
     const ciCommitSha = getOptionalInput("ci_commit_sha") || null;
-    const reviewDecision = parseReviewDecision(getOptionalInput("review_decision"));
+    const reviewDecision = parseReviewDecision(
+      getOptionalInput("review_decision")
+    );
     const reviewer = getOptionalInput("reviewer") || null;
     const maxRetries = parseInt(getOptionalInput("max_retries") || "5", 10);
     const botUsername = getOptionalInput("bot_username") || "nopo-bot";
@@ -33795,12 +33868,16 @@ async function run() {
       botUsername
     });
     if (!context2) {
-      core7.setFailed(`Failed to build machine context for issue #${issueNumber}`);
+      core7.setFailed(
+        `Failed to build machine context for issue #${issueNumber}`
+      );
       return;
     }
     core7.info(`Context built successfully`);
     core7.info(`Issue status: ${context2.issue.projectStatus}`);
-    core7.info(`Sub-issues: ${context2.issue.hasSubIssues ? context2.issue.subIssues.length : 0}`);
+    core7.info(
+      `Sub-issues: ${context2.issue.hasSubIssues ? context2.issue.subIssues.length : 0}`
+    );
     core7.info(`Current phase: ${context2.currentPhase || "N/A"}`);
     const actor = createActor(claudeMachine, { input: context2 });
     actor.start();
@@ -33809,9 +33886,15 @@ async function run() {
     const pendingActions = snapshot.context.pendingActions;
     core7.info(`Machine final state: ${finalState}`);
     core7.info(`Pending actions: ${pendingActions.length}`);
-    const runnerContext = createRunnerContext(octokit, owner, repo, projectNumber, {
-      dryRun
-    });
+    const runnerContext = createRunnerContext(
+      octokit,
+      owner,
+      repo,
+      projectNumber,
+      {
+        dryRun
+      }
+    );
     const result = await executeActions(pendingActions, runnerContext);
     logRunnerSummary(result);
     setOutputs({

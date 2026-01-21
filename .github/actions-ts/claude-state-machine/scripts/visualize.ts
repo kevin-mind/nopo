@@ -72,7 +72,9 @@ function generateMermaidDiagram(): string {
           for (const transition of eventConfig) {
             if (transition.target) {
               const guard = transition.guard ? ` [${transition.guard}]` : "";
-              lines.push(`    ${stateName} --> ${transition.target}: ${eventName}${guard}`);
+              lines.push(
+                `    ${stateName} --> ${transition.target}: ${eventName}${guard}`,
+              );
             }
           }
         } else if (eventConfig && typeof eventConfig === "object") {
@@ -215,7 +217,12 @@ console.log(`Generated: ${outputPath}`);
 
 if (args.includes("--open")) {
   const platform = process.platform;
-  const cmd = platform === "darwin" ? "open" : platform === "win32" ? "start" : "xdg-open";
+  const cmd =
+    platform === "darwin"
+      ? "open"
+      : platform === "win32"
+        ? "start"
+        : "xdg-open";
   try {
     execSync(`${cmd} "${outputPath}"`);
     console.log("Opened in browser");

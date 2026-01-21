@@ -97,7 +97,10 @@ export function areNonManualTodosDone(body: string): boolean {
 /**
  * Extract todos from a specific section of the body
  */
-export function parseTodosInSection(body: string, sectionHeader: string): TodoItem[] {
+export function parseTodosInSection(
+  body: string,
+  sectionHeader: string,
+): TodoItem[] {
   const lines = body.split("\n");
   const sectionRegex = new RegExp(`^##\\s+${escapeRegex(sectionHeader)}`, "i");
 

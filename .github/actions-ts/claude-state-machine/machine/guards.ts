@@ -68,8 +68,9 @@ export function needsSubIssues({ context }: GuardContext): boolean {
 export function allPhasesDone({ context }: GuardContext): boolean {
   if (!context.issue.hasSubIssues) {
     // Single-phase: check todos
-    return context.issue.subIssues.length === 0 &&
-           context.currentSubIssue === null;
+    return (
+      context.issue.subIssues.length === 0 && context.currentSubIssue === null
+    );
   }
 
   // Multi-phase: check all sub-issues
@@ -100,8 +101,10 @@ export function currentPhaseNeedsWork({ context }: GuardContext): boolean {
     const status = context.currentSubIssue.projectStatus;
     return status === "Working" || status === "Ready";
   }
-  return context.issue.projectStatus === "Working" ||
-         context.issue.projectStatus === "In Progress";
+  return (
+    context.issue.projectStatus === "Working" ||
+    context.issue.projectStatus === "In Progress"
+  );
 }
 
 /**

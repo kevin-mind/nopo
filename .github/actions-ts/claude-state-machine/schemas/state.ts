@@ -137,7 +137,12 @@ export type TriggerType = z.infer<typeof TriggerTypeSchema>;
 /**
  * CI result from a workflow run
  */
-export const CIResultSchema = z.enum(["success", "failure", "cancelled", "skipped"]);
+export const CIResultSchema = z.enum([
+  "success",
+  "failure",
+  "cancelled",
+  "skipped",
+]);
 
 export type CIResult = z.infer<typeof CIResultSchema>;
 
@@ -202,12 +207,13 @@ export type MachineContext = z.infer<typeof MachineContextSchema>;
 /**
  * Partial context for creating from parsed data
  */
-export const PartialMachineContextSchema = MachineContextSchema.partial().required({
-  trigger: true,
-  owner: true,
-  repo: true,
-  issue: true,
-});
+export const PartialMachineContextSchema =
+  MachineContextSchema.partial().required({
+    trigger: true,
+    owner: true,
+    repo: true,
+    issue: true,
+  });
 
 export type PartialMachineContext = z.infer<typeof PartialMachineContextSchema>;
 

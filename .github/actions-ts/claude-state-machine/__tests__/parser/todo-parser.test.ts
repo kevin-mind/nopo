@@ -92,9 +92,21 @@ describe("parseTodos", () => {
 `;
     const todos = parseTodos(body);
     expect(todos).toHaveLength(3);
-    expect(todos[0]).toEqual({ text: "First task", checked: false, isManual: false });
-    expect(todos[1]).toEqual({ text: "Second task", checked: true, isManual: false });
-    expect(todos[2]).toEqual({ text: "Third task *(manual)*", checked: false, isManual: true });
+    expect(todos[0]).toEqual({
+      text: "First task",
+      checked: false,
+      isManual: false,
+    });
+    expect(todos[1]).toEqual({
+      text: "Second task",
+      checked: true,
+      isManual: false,
+    });
+    expect(todos[2]).toEqual({
+      text: "Third task *(manual)*",
+      checked: false,
+      isManual: true,
+    });
   });
 
   test("handles empty body", () => {
@@ -366,7 +378,11 @@ describe("updateTodoInBody", () => {
 
   test("handles special regex characters in todo text", () => {
     const body = "- [ ] Task with (parentheses) and [brackets]";
-    const result = updateTodoInBody(body, "Task with (parentheses) and [brackets]", true);
+    const result = updateTodoInBody(
+      body,
+      "Task with (parentheses) and [brackets]",
+      true,
+    );
     expect(result).toBe("- [x] Task with (parentheses) and [brackets]");
   });
 

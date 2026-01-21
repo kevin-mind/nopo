@@ -152,9 +152,7 @@ describe("executeActions", () => {
   });
 
   test("handles invalid action", async () => {
-    const actions = [
-      { type: "invalidType" as any },
-    ];
+    const actions = [{ type: "invalidType" as any }];
 
     const result = await executeActions(actions, ctx);
 
@@ -198,7 +196,7 @@ describe("executeActions", () => {
     // Check that "Executing action:" was not called
     const calls = vi.mocked(core.info).mock.calls;
     const hasExecutingLog = calls.some((call) =>
-      call[0]?.toString().startsWith("Executing action:")
+      call[0]?.toString().startsWith("Executing action:"),
     );
     expect(hasExecutingLog).toBe(false);
   });
@@ -302,7 +300,9 @@ describe("logRunnerSummary", () => {
 
     logRunnerSummary(result);
 
-    expect(core.info).toHaveBeenCalledWith(expect.stringContaining("Runner Summary"));
+    expect(core.info).toHaveBeenCalledWith(
+      expect.stringContaining("Runner Summary"),
+    );
     expect(core.info).toHaveBeenCalledWith("Total actions: 2");
     expect(core.info).toHaveBeenCalledWith("Successful: 2");
     expect(core.info).toHaveBeenCalledWith("Failed: 0");

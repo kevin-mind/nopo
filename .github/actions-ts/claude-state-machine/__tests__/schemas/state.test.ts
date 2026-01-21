@@ -22,7 +22,13 @@ import {
 
 describe("ProjectStatusSchema", () => {
   test("accepts valid parent statuses", () => {
-    const parentStatuses = ["Backlog", "In Progress", "Done", "Blocked", "Error"];
+    const parentStatuses = [
+      "Backlog",
+      "In Progress",
+      "Done",
+      "Blocked",
+      "Error",
+    ];
     for (const status of parentStatuses) {
       expect(ProjectStatusSchema.parse(status)).toBe(status);
     }
@@ -94,11 +100,19 @@ describe("TodoStatsSchema", () => {
   });
 
   test("rejects negative values", () => {
-    expect(() => TodoStatsSchema.parse({ total: -1, completed: 0, uncheckedNonManual: 0 })).toThrow();
+    expect(() =>
+      TodoStatsSchema.parse({ total: -1, completed: 0, uncheckedNonManual: 0 }),
+    ).toThrow();
   });
 
   test("rejects non-integer values", () => {
-    expect(() => TodoStatsSchema.parse({ total: 1.5, completed: 0, uncheckedNonManual: 0 })).toThrow();
+    expect(() =>
+      TodoStatsSchema.parse({
+        total: 1.5,
+        completed: 0,
+        uncheckedNonManual: 0,
+      }),
+    ).toThrow();
   });
 });
 
@@ -133,7 +147,7 @@ describe("HistoryEntrySchema", () => {
         action: "Test",
         sha: null,
         runLink: null,
-      })
+      }),
     ).toThrow();
   });
 });
@@ -172,7 +186,7 @@ describe("LinkedPRSchema", () => {
         title: "Test",
         headRef: "test",
         baseRef: "main",
-      })
+      }),
     ).toThrow();
   });
 });
@@ -253,8 +267,20 @@ describe("ParentIssueSchema", () => {
 
   test("accepts history entries", () => {
     const history = [
-      { iteration: 1, phase: "Phase 1", action: "Started", sha: null, runLink: null },
-      { iteration: 2, phase: "Phase 1", action: "Pushed", sha: "abc123", runLink: "https://example.com" },
+      {
+        iteration: 1,
+        phase: "Phase 1",
+        action: "Started",
+        sha: null,
+        runLink: null,
+      },
+      {
+        iteration: 2,
+        phase: "Phase 1",
+        action: "Pushed",
+        sha: "abc123",
+        runLink: "https://example.com",
+      },
     ];
     const parent = { ...validParentIssue, history };
     expect(ParentIssueSchema.parse(parent).history).toHaveLength(2);
@@ -294,7 +320,12 @@ describe("CIResultSchema", () => {
 
 describe("ReviewDecisionSchema", () => {
   test("accepts all review decisions", () => {
-    const decisions = ["APPROVED", "CHANGES_REQUESTED", "COMMENTED", "DISMISSED"];
+    const decisions = [
+      "APPROVED",
+      "CHANGES_REQUESTED",
+      "COMMENTED",
+      "DISMISSED",
+    ];
     for (const decision of decisions) {
       expect(ReviewDecisionSchema.parse(decision)).toBe(decision);
     }
@@ -386,7 +417,9 @@ describe("MachineContextSchema", () => {
       reviewDecision: "APPROVED",
       reviewerId: "reviewer-user",
     };
-    expect(MachineContextSchema.parse(reviewContext).reviewDecision).toBe("APPROVED");
+    expect(MachineContextSchema.parse(reviewContext).reviewDecision).toBe(
+      "APPROVED",
+    );
   });
 
   test("rejects empty owner", () => {
@@ -394,7 +427,7 @@ describe("MachineContextSchema", () => {
       MachineContextSchema.parse({
         ...minimalContext,
         owner: "",
-      })
+      }),
     ).toThrow();
   });
 
@@ -403,7 +436,7 @@ describe("MachineContextSchema", () => {
       MachineContextSchema.parse({
         ...minimalContext,
         repo: "",
-      })
+      }),
     ).toThrow();
   });
 });

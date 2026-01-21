@@ -65,12 +65,12 @@ export type ClearFailuresAction = z.infer<typeof ClearFailuresActionSchema>;
 /**
  * Phase definition for creating sub-issues
  */
-export const PhaseDefinitionSchema = z.object({
+const PhaseDefinitionSchema = z.object({
   title: z.string().min(1),
   body: z.string(),
 });
 
-export type PhaseDefinition = z.infer<typeof PhaseDefinitionSchema>;
+type PhaseDefinition = z.infer<typeof PhaseDefinitionSchema>;
 
 /**
  * Create sub-issues for phased work
@@ -127,7 +127,7 @@ export type UpdateHistoryAction = z.infer<typeof UpdateHistoryActionSchema>;
 /**
  * Update the issue body
  */
-export const UpdateIssueBodyActionSchema = BaseActionSchema.extend({
+const UpdateIssueBodyActionSchema = BaseActionSchema.extend({
   type: z.literal("updateIssueBody"),
   issueNumber: z.number().int().positive(),
   body: z.string(),
@@ -275,7 +275,7 @@ export const StopActionSchema = BaseActionSchema.extend({
   reason: z.string().min(1),
 });
 
-export type StopAction = z.infer<typeof StopActionSchema>;
+type StopAction = z.infer<typeof StopActionSchema>;
 
 /**
  * Block an issue (circuit breaker)
@@ -297,7 +297,7 @@ export const LogActionSchema = BaseActionSchema.extend({
   message: z.string(),
 });
 
-export type LogAction = z.infer<typeof LogActionSchema>;
+type LogAction = z.infer<typeof LogActionSchema>;
 
 /**
  * No-op action (do nothing)
@@ -307,7 +307,7 @@ export const NoOpActionSchema = BaseActionSchema.extend({
   reason: z.string().optional(),
 });
 
-export type NoOpAction = z.infer<typeof NoOpActionSchema>;
+type NoOpAction = z.infer<typeof NoOpActionSchema>;
 
 // ============================================================================
 // Discriminated Union of All Actions
@@ -353,9 +353,9 @@ export type Action = z.infer<typeof ActionSchema>;
 /**
  * Array of actions to execute
  */
-export const ActionArraySchema = z.array(ActionSchema);
+const ActionArraySchema = z.array(ActionSchema);
 
-export type ActionArray = z.infer<typeof ActionArraySchema>;
+type ActionArray = z.infer<typeof ActionArraySchema>;
 
 /**
  * Extract the action type string

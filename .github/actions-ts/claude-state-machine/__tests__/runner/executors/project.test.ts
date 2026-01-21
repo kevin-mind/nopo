@@ -132,7 +132,7 @@ describe("executeUpdateProjectStatus", () => {
   test("updates project status successfully", async () => {
     // First call: get project item
     vi.mocked(ctx.octokit.graphql).mockResolvedValueOnce(
-      createProjectItemResponse({ status: "Working" })
+      createProjectItemResponse({ status: "Working" }),
     );
     // Second call: update field
     vi.mocked(ctx.octokit.graphql).mockResolvedValueOnce({
@@ -154,7 +154,7 @@ describe("executeUpdateProjectStatus", () => {
 
   test("returns false when status option not found", async () => {
     vi.mocked(ctx.octokit.graphql).mockResolvedValueOnce(
-      createProjectItemResponse({})
+      createProjectItemResponse({}),
     );
 
     const action: UpdateProjectStatusAction = {
@@ -189,7 +189,11 @@ describe("executeUpdateProjectStatus", () => {
                   { id: "opt-review", name: "Review" },
                 ],
               },
-              { id: "iteration-field-id", name: "Iteration", dataType: "NUMBER" },
+              {
+                id: "iteration-field-id",
+                name: "Iteration",
+                dataType: "NUMBER",
+              },
               { id: "failures-field-id", name: "Failures", dataType: "NUMBER" },
             ],
           },
@@ -231,7 +235,7 @@ describe("executeIncrementIteration", () => {
 
   test("increments iteration successfully", async () => {
     vi.mocked(ctx.octokit.graphql).mockResolvedValueOnce(
-      createProjectItemResponse({ iteration: 5 })
+      createProjectItemResponse({ iteration: 5 }),
     );
     vi.mocked(ctx.octokit.graphql).mockResolvedValueOnce({
       updateProjectV2ItemFieldValue: { projectV2Item: { id: "item-id-456" } },
@@ -257,7 +261,7 @@ describe("executeIncrementIteration", () => {
 
   test("starts from 0 when no previous iteration", async () => {
     vi.mocked(ctx.octokit.graphql).mockResolvedValueOnce(
-      createProjectItemResponse({ iteration: 0 })
+      createProjectItemResponse({ iteration: 0 }),
     );
     vi.mocked(ctx.octokit.graphql).mockResolvedValueOnce({
       updateProjectV2ItemFieldValue: { projectV2Item: { id: "item-id-456" } },
@@ -284,7 +288,7 @@ describe("executeRecordFailure", () => {
 
   test("records failure by incrementing count", async () => {
     vi.mocked(ctx.octokit.graphql).mockResolvedValueOnce(
-      createProjectItemResponse({ failures: 2 })
+      createProjectItemResponse({ failures: 2 }),
     );
     vi.mocked(ctx.octokit.graphql).mockResolvedValueOnce({
       updateProjectV2ItemFieldValue: { projectV2Item: { id: "item-id-456" } },
@@ -307,7 +311,7 @@ describe("executeRecordFailure", () => {
 
   test("accepts failure type", async () => {
     vi.mocked(ctx.octokit.graphql).mockResolvedValueOnce(
-      createProjectItemResponse({ failures: 0 })
+      createProjectItemResponse({ failures: 0 }),
     );
     vi.mocked(ctx.octokit.graphql).mockResolvedValueOnce({
       updateProjectV2ItemFieldValue: { projectV2Item: { id: "item-id-456" } },
@@ -335,7 +339,7 @@ describe("executeClearFailures", () => {
 
   test("clears failures by setting to 0", async () => {
     vi.mocked(ctx.octokit.graphql).mockResolvedValueOnce(
-      createProjectItemResponse({ failures: 5 })
+      createProjectItemResponse({ failures: 5 }),
     );
     vi.mocked(ctx.octokit.graphql).mockResolvedValueOnce({
       updateProjectV2ItemFieldValue: { projectV2Item: { id: "item-id-456" } },
@@ -367,7 +371,7 @@ describe("executeBlock", () => {
 
   test("blocks issue by setting status to Blocked", async () => {
     vi.mocked(ctx.octokit.graphql).mockResolvedValueOnce(
-      createProjectItemResponse({ status: "Working" })
+      createProjectItemResponse({ status: "Working" }),
     );
     vi.mocked(ctx.octokit.graphql).mockResolvedValueOnce({
       updateProjectV2ItemFieldValue: { projectV2Item: { id: "item-id-456" } },
@@ -418,7 +422,11 @@ describe("executeBlock", () => {
                   // No "Blocked" option
                 ],
               },
-              { id: "iteration-field-id", name: "Iteration", dataType: "NUMBER" },
+              {
+                id: "iteration-field-id",
+                name: "Iteration",
+                dataType: "NUMBER",
+              },
               { id: "failures-field-id", name: "Failures", dataType: "NUMBER" },
             ],
           },
@@ -426,7 +434,9 @@ describe("executeBlock", () => {
       },
     };
 
-    vi.mocked(ctx.octokit.graphql).mockResolvedValueOnce(responseWithoutBlocked);
+    vi.mocked(ctx.octokit.graphql).mockResolvedValueOnce(
+      responseWithoutBlocked,
+    );
 
     const action: BlockAction = {
       type: "block",

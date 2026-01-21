@@ -59,10 +59,15 @@ describe("executeRunClaude", () => {
     expect(result.exitCode).toBe(0);
     expect(exec.exec).toHaveBeenCalledWith(
       "claude",
-      expect.arrayContaining(["--print", "--yes", "--prompt", "Implement feature"]),
+      expect.arrayContaining([
+        "--print",
+        "--yes",
+        "--prompt",
+        "Implement feature",
+      ]),
       expect.objectContaining({
         ignoreReturnCode: true,
-      })
+      }),
     );
   });
 
@@ -88,7 +93,7 @@ describe("executeRunClaude", () => {
         "--allowedTools",
         "Bash",
       ]),
-      expect.any(Object)
+      expect.any(Object),
     );
   });
 
@@ -109,7 +114,7 @@ describe("executeRunClaude", () => {
       expect.any(Array),
       expect.objectContaining({
         cwd: "/tmp/worktree-123",
-      })
+      }),
     );
   });
 
@@ -133,7 +138,7 @@ describe("executeRunClaude", () => {
           GITHUB_SERVER_URL: "https://github.com",
           CI: "true",
         }),
-      })
+      }),
     );
   });
 
@@ -181,7 +186,11 @@ describe("isClaudeAvailable", () => {
     const result = await isClaudeAvailable();
 
     expect(result).toBe(true);
-    expect(exec.exec).toHaveBeenCalledWith("which", ["claude"], expect.any(Object));
+    expect(exec.exec).toHaveBeenCalledWith(
+      "which",
+      ["claude"],
+      expect.any(Object),
+    );
   });
 
   test("returns false when claude is not available", async () => {
@@ -207,12 +216,14 @@ describe("getClaudeVersion", () => {
   });
 
   test("returns version when available", async () => {
-    vi.mocked(exec.exec).mockImplementationOnce(async (_cmd, _args, options) => {
-      if (options?.listeners?.stdout) {
-        options.listeners.stdout(Buffer.from("claude-code v1.0.0\n"));
-      }
-      return 0;
-    });
+    vi.mocked(exec.exec).mockImplementationOnce(
+      async (_cmd, _args, options) => {
+        if (options?.listeners?.stdout) {
+          options.listeners.stdout(Buffer.from("claude-code v1.0.0\n"));
+        }
+        return 0;
+      },
+    );
 
     const result = await getClaudeVersion();
 
@@ -220,7 +231,7 @@ describe("getClaudeVersion", () => {
     expect(exec.exec).toHaveBeenCalledWith(
       "claude",
       ["--version"],
-      expect.any(Object)
+      expect.any(Object),
     );
   });
 
@@ -247,7 +258,7 @@ describe("buildImplementationPrompt", () => {
       123,
       "Add new feature",
       "## Description\n\nImplement X",
-      "claude/issue/123"
+      "claude/issue/123",
     );
 
     expect(prompt).toContain("#123");
@@ -264,7 +275,7 @@ describe("buildCIFixPrompt", () => {
     const prompt = buildCIFixPrompt(
       123,
       "https://github.com/runs/456",
-      "abc123"
+      "abc123",
     );
 
     expect(prompt).toContain("#123");
@@ -286,7 +297,7 @@ describe("buildReviewResponsePrompt", () => {
     const prompt = buildReviewResponsePrompt(
       123,
       "CHANGES_REQUESTED",
-      "reviewer-user"
+      "reviewer-user",
     );
 
     expect(prompt).toContain("#123");

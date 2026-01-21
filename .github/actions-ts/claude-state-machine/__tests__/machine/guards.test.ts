@@ -37,7 +37,9 @@ import {
 import type { MachineContext } from "../../schemas/index.js";
 
 // Helper to create minimal context
-function createContext(overrides: Partial<MachineContext> = {}): MachineContext {
+function createContext(
+  overrides: Partial<MachineContext> = {},
+): MachineContext {
   const base: MachineContext = {
     trigger: "issue_assigned",
     owner: "test-owner",
@@ -83,53 +85,71 @@ function createContext(overrides: Partial<MachineContext> = {}): MachineContext 
 describe("Terminal State Guards", () => {
   describe("isAlreadyDone", () => {
     test("returns true when status is Done", () => {
-      const context = createContext({ issue: { projectStatus: "Done" } } as any);
+      const context = createContext({
+        issue: { projectStatus: "Done" },
+      } as any);
       expect(isAlreadyDone({ context })).toBe(true);
     });
 
     test("returns false for other statuses", () => {
-      const context = createContext({ issue: { projectStatus: "Working" } } as any);
+      const context = createContext({
+        issue: { projectStatus: "Working" },
+      } as any);
       expect(isAlreadyDone({ context })).toBe(false);
     });
   });
 
   describe("isBlocked", () => {
     test("returns true when status is Blocked", () => {
-      const context = createContext({ issue: { projectStatus: "Blocked" } } as any);
+      const context = createContext({
+        issue: { projectStatus: "Blocked" },
+      } as any);
       expect(isBlocked({ context })).toBe(true);
     });
 
     test("returns false for other statuses", () => {
-      const context = createContext({ issue: { projectStatus: "In Progress" } } as any);
+      const context = createContext({
+        issue: { projectStatus: "In Progress" },
+      } as any);
       expect(isBlocked({ context })).toBe(false);
     });
   });
 
   describe("isError", () => {
     test("returns true when status is Error", () => {
-      const context = createContext({ issue: { projectStatus: "Error" } } as any);
+      const context = createContext({
+        issue: { projectStatus: "Error" },
+      } as any);
       expect(isError({ context })).toBe(true);
     });
   });
 
   describe("isTerminal", () => {
     test("returns true for Done", () => {
-      const context = createContext({ issue: { projectStatus: "Done" } } as any);
+      const context = createContext({
+        issue: { projectStatus: "Done" },
+      } as any);
       expect(isTerminal({ context })).toBe(true);
     });
 
     test("returns true for Blocked", () => {
-      const context = createContext({ issue: { projectStatus: "Blocked" } } as any);
+      const context = createContext({
+        issue: { projectStatus: "Blocked" },
+      } as any);
       expect(isTerminal({ context })).toBe(true);
     });
 
     test("returns true for Error", () => {
-      const context = createContext({ issue: { projectStatus: "Error" } } as any);
+      const context = createContext({
+        issue: { projectStatus: "Error" },
+      } as any);
       expect(isTerminal({ context })).toBe(true);
     });
 
     test("returns false for non-terminal statuses", () => {
-      const context = createContext({ issue: { projectStatus: "Working" } } as any);
+      const context = createContext({
+        issue: { projectStatus: "Working" },
+      } as any);
       expect(isTerminal({ context })).toBe(false);
     });
   });
@@ -161,8 +181,26 @@ describe("Sub-Issue Guards", () => {
         issue: {
           hasSubIssues: true,
           subIssues: [
-            { number: 1, title: "Phase 1", state: "CLOSED", body: "", projectStatus: "Done", branch: null, pr: null, todos: { total: 1, completed: 1, uncheckedNonManual: 0 } },
-            { number: 2, title: "Phase 2", state: "OPEN", body: "", projectStatus: "Done", branch: null, pr: null, todos: { total: 1, completed: 1, uncheckedNonManual: 0 } },
+            {
+              number: 1,
+              title: "Phase 1",
+              state: "CLOSED",
+              body: "",
+              projectStatus: "Done",
+              branch: null,
+              pr: null,
+              todos: { total: 1, completed: 1, uncheckedNonManual: 0 },
+            },
+            {
+              number: 2,
+              title: "Phase 2",
+              state: "OPEN",
+              body: "",
+              projectStatus: "Done",
+              branch: null,
+              pr: null,
+              todos: { total: 1, completed: 1, uncheckedNonManual: 0 },
+            },
           ],
         },
       } as any);
@@ -174,8 +212,26 @@ describe("Sub-Issue Guards", () => {
         issue: {
           hasSubIssues: true,
           subIssues: [
-            { number: 1, title: "Phase 1", state: "CLOSED", body: "", projectStatus: "Done", branch: null, pr: null, todos: { total: 1, completed: 1, uncheckedNonManual: 0 } },
-            { number: 2, title: "Phase 2", state: "OPEN", body: "", projectStatus: "Working", branch: null, pr: null, todos: { total: 1, completed: 0, uncheckedNonManual: 1 } },
+            {
+              number: 1,
+              title: "Phase 1",
+              state: "CLOSED",
+              body: "",
+              projectStatus: "Done",
+              branch: null,
+              pr: null,
+              todos: { total: 1, completed: 1, uncheckedNonManual: 0 },
+            },
+            {
+              number: 2,
+              title: "Phase 2",
+              state: "OPEN",
+              body: "",
+              projectStatus: "Working",
+              branch: null,
+              pr: null,
+              todos: { total: 1, completed: 0, uncheckedNonManual: 1 },
+            },
           ],
         },
       } as any);
@@ -187,7 +243,16 @@ describe("Sub-Issue Guards", () => {
         issue: {
           hasSubIssues: true,
           subIssues: [
-            { number: 1, title: "Phase 1", state: "CLOSED", body: "", projectStatus: "Working", branch: null, pr: null, todos: { total: 1, completed: 1, uncheckedNonManual: 0 } },
+            {
+              number: 1,
+              title: "Phase 1",
+              state: "CLOSED",
+              body: "",
+              projectStatus: "Working",
+              branch: null,
+              pr: null,
+              todos: { total: 1, completed: 1, uncheckedNonManual: 0 },
+            },
           ],
         },
       } as any);
@@ -490,12 +555,18 @@ describe("Branch Guards", () => {
 
   describe("needsBranch", () => {
     test("returns true when no branch but branch name provided", () => {
-      const context = createContext({ hasBranch: false, branch: "feature/test" });
+      const context = createContext({
+        hasBranch: false,
+        branch: "feature/test",
+      });
       expect(needsBranch({ context })).toBe(true);
     });
 
     test("returns false when branch already exists", () => {
-      const context = createContext({ hasBranch: true, branch: "feature/test" });
+      const context = createContext({
+        hasBranch: true,
+        branch: "feature/test",
+      });
       expect(needsBranch({ context })).toBe(false);
     });
 
