@@ -1,9 +1,9 @@
 name: Claude State Machine
-description: TypeScript state machine for Claude automation workflows
+description: Run state machine to derive actions from issue state (does not execute actions)
 
 inputs:
   github_token:
-    description: GitHub token for API operations
+    description: GitHub token for API operations (read-only)
     required: true
   issue_number:
     description: Issue number to process
@@ -29,6 +29,15 @@ inputs:
   reviewer:
     description: Reviewer username - optional for pr_review_submitted trigger
     required: false
+  comment_context_type:
+    description: Context type (Issue or PR) - optional for issue_comment trigger
+    required: false
+  comment_context_description:
+    description: Context description - optional for issue_comment trigger
+    required: false
+  branch:
+    description: Branch name for the work - optional, derived from issue number if not provided
+    required: false
   max_retries:
     description: Maximum number of CI failures before blocking
     required: false
@@ -37,22 +46,16 @@ inputs:
     description: Username of the bot account
     required: false
     default: "nopo-bot"
-  dry_run:
-    description: Run in dry-run mode (no mutations)
-    required: false
-    default: "false"
 
 outputs:
-  actions:
-    description: JSON array of actions that were executed
+  actions_json:
+    description: JSON array of actions to execute (pass to claude-state-executor)
   final_state:
-    description: Final state of the machine after execution
-  success:
-    description: Whether all actions executed successfully
-  stopped_early:
-    description: Whether execution stopped early
-  stop_reason:
-    description: Reason for stopping early (if applicable)
+    description: Final state of the machine after processing
+  context_json:
+    description: Full machine context as JSON (for debugging)
+  action_count:
+    description: Number of actions derived
 
 runs:
   using: node20

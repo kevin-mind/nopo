@@ -2,10 +2,24 @@ import { z } from "zod";
 import { ProjectStatusSchema } from "./state.js";
 
 /**
+ * Token type for action execution
+ *
+ * - `code`: For code operations (push, PR creation, project fields, etc.)
+ *           Uses NOPO_BOT_PAT - the account that writes code
+ * - `review`: For review operations (submitting PR reviews)
+ *             Uses CLAUDE_REVIEWER_PAT - a separate account that can review bot's PRs
+ */
+export const TokenTypeSchema = z.enum(["code", "review"]);
+
+export type TokenType = z.infer<typeof TokenTypeSchema>;
+
+/**
  * Base action fields shared by all actions
  */
 const BaseActionSchema = z.object({
   id: z.string().uuid().optional(),
+  /** Which token to use for this action (defaults to 'code') */
+  token: TokenTypeSchema.default("code"),
 });
 
 // ============================================================================
@@ -157,6 +171,18 @@ export const UnassignUserActionSchema = BaseActionSchema.extend({
 
 export type UnassignUserAction = z.infer<typeof UnassignUserActionSchema>;
 
+/**
+ * Assign a user to an issue
+ * Used by orchestration to trigger iteration on sub-issues
+ */
+export const AssignUserActionSchema = BaseActionSchema.extend({
+  type: z.literal("assignUser"),
+  issueNumber: z.number().int().positive(),
+  username: z.string().min(1),
+});
+
+export type AssignUserAction = z.infer<typeof AssignUserActionSchema>;
+
 // ============================================================================
 // Git Actions
 // ============================================================================
@@ -246,22 +272,131 @@ export const MergePRActionSchema = BaseActionSchema.extend({
 
 export type MergePRAction = z.infer<typeof MergePRActionSchema>;
 
+/**
+ * Submit a PR review (approve, request changes, or comment)
+ */
+export const SubmitReviewActionSchema = BaseActionSchema.extend({
+  type: z.literal("submitReview"),
+  prNumber: z.number().int().positive(),
+  decision: z.enum(["approve", "request_changes", "comment"]),
+  body: z.string(),
+});
+
+export type SubmitReviewAction = z.infer<typeof SubmitReviewActionSchema>;
+
+/**
+ * Remove a reviewer from a PR
+ * Used when converting PR to draft to clear stale review requests
+ */
+export const RemoveReviewerActionSchema = BaseActionSchema.extend({
+  type: z.literal("removeReviewer"),
+  prNumber: z.number().int().positive(),
+  reviewer: z.string().min(1),
+});
+
+export type RemoveReviewerAction = z.infer<typeof RemoveReviewerActionSchema>;
+
 // ============================================================================
 // Claude Actions
 // ============================================================================
 
 /**
  * Run Claude to work on an issue
+ *
+ * Note: Either `prompt` or `promptFile` must be provided at runtime.
+ * This is validated by the executor since Zod refinements can't be
+ * used with discriminated unions.
  */
 export const RunClaudeActionSchema = BaseActionSchema.extend({
   type: z.literal("runClaude"),
-  prompt: z.string().min(1),
+  /** Direct prompt string - either prompt or promptFile must be provided */
+  prompt: z.string().min(1).optional(),
+  /** Path to prompt file (relative to repo root) - will be read and substituted */
+  promptFile: z.string().min(1).optional(),
+  /** Template variables for prompt file substitution */
+  promptVars: z.record(z.string()).optional(),
   issueNumber: z.number().int().positive(),
   allowedTools: z.array(z.string()).optional(),
   worktree: z.string().optional(),
 });
 
 export type RunClaudeAction = z.infer<typeof RunClaudeActionSchema>;
+
+// ============================================================================
+// Discussion Actions
+// ============================================================================
+
+/**
+ * Add a comment to a GitHub Discussion
+ * Supports threading via replyToNodeId
+ */
+export const AddDiscussionCommentActionSchema = BaseActionSchema.extend({
+  type: z.literal("addDiscussionComment"),
+  discussionNodeId: z.string().min(1),
+  body: z.string().min(1),
+  /** If provided, this comment is a reply to another comment */
+  replyToNodeId: z.string().optional(),
+});
+
+export type AddDiscussionCommentAction = z.infer<
+  typeof AddDiscussionCommentActionSchema
+>;
+
+/**
+ * Update the body of a GitHub Discussion
+ * Used for maintaining the "living document" pattern
+ */
+export const UpdateDiscussionBodyActionSchema = BaseActionSchema.extend({
+  type: z.literal("updateDiscussionBody"),
+  discussionNodeId: z.string().min(1),
+  newBody: z.string().min(1),
+});
+
+export type UpdateDiscussionBodyAction = z.infer<
+  typeof UpdateDiscussionBodyActionSchema
+>;
+
+/**
+ * Add a reaction to a discussion or comment
+ */
+export const AddDiscussionReactionActionSchema = BaseActionSchema.extend({
+  type: z.literal("addDiscussionReaction"),
+  /** Node ID of the discussion or comment */
+  subjectId: z.string().min(1),
+  content: z.enum([
+    "THUMBS_UP",
+    "THUMBS_DOWN",
+    "LAUGH",
+    "HOORAY",
+    "CONFUSED",
+    "HEART",
+    "ROCKET",
+    "EYES",
+  ]),
+});
+
+export type AddDiscussionReactionAction = z.infer<
+  typeof AddDiscussionReactionActionSchema
+>;
+
+/**
+ * Create issues from a discussion (for /plan command)
+ */
+export const CreateIssuesFromDiscussionActionSchema = BaseActionSchema.extend({
+  type: z.literal("createIssuesFromDiscussion"),
+  discussionNumber: z.number().int().positive(),
+  issues: z.array(
+    z.object({
+      title: z.string().min(1),
+      body: z.string(),
+      labels: z.array(z.string()).default([]),
+    }),
+  ),
+});
+
+export type CreateIssuesFromDiscussionAction = z.infer<
+  typeof CreateIssuesFromDiscussionActionSchema
+>;
 
 // ============================================================================
 // Control Flow Actions
@@ -330,6 +465,7 @@ export const ActionSchema = z.discriminatedUnion("type", [
   UpdateIssueBodyActionSchema,
   AddCommentActionSchema,
   UnassignUserActionSchema,
+  AssignUserActionSchema,
   // Git actions
   CreateBranchActionSchema,
   GitPushActionSchema,
@@ -339,8 +475,15 @@ export const ActionSchema = z.discriminatedUnion("type", [
   MarkPRReadyActionSchema,
   RequestReviewActionSchema,
   MergePRActionSchema,
+  SubmitReviewActionSchema,
+  RemoveReviewerActionSchema,
   // Claude actions
   RunClaudeActionSchema,
+  // Discussion actions
+  AddDiscussionCommentActionSchema,
+  UpdateDiscussionBodyActionSchema,
+  AddDiscussionReactionActionSchema,
+  CreateIssuesFromDiscussionActionSchema,
   // Control flow actions
   StopActionSchema,
   BlockActionSchema,
@@ -377,6 +520,7 @@ export const ACTION_TYPES = [
   "updateIssueBody",
   "addComment",
   "unassignUser",
+  "assignUser",
   "createBranch",
   "gitPush",
   "createPR",
@@ -384,7 +528,13 @@ export const ACTION_TYPES = [
   "markPRReady",
   "requestReview",
   "mergePR",
+  "submitReview",
+  "removeReviewer",
   "runClaude",
+  "addDiscussionComment",
+  "updateDiscussionBody",
+  "addDiscussionReaction",
+  "createIssuesFromDiscussion",
   "stop",
   "block",
   "log",

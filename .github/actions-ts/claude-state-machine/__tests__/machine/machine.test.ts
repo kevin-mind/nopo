@@ -2,52 +2,7 @@ import { describe, test, expect } from "vitest";
 import { createActor } from "xstate";
 import { claudeMachine, getTriggerEvent } from "../../machine/machine.js";
 import type { MachineContext } from "../../schemas/index.js";
-
-// Helper to create minimal context
-function createContext(
-  overrides: Partial<MachineContext> = {},
-): MachineContext {
-  const base: MachineContext = {
-    trigger: "issue_assigned",
-    owner: "test-owner",
-    repo: "test-repo",
-    issue: {
-      number: 1,
-      title: "Test Issue",
-      state: "OPEN",
-      body: "Test body",
-      projectStatus: "In Progress",
-      iteration: 0,
-      failures: 0,
-      assignees: ["nopo-bot"],
-      labels: [],
-      subIssues: [],
-      hasSubIssues: false,
-      history: [],
-    },
-    parentIssue: null,
-    currentPhase: null,
-    totalPhases: 0,
-    currentSubIssue: null,
-    ciResult: null,
-    ciRunUrl: null,
-    ciCommitSha: null,
-    reviewDecision: null,
-    reviewerId: null,
-    branch: null,
-    hasBranch: false,
-    pr: null,
-    hasPR: false,
-    maxRetries: 5,
-    botUsername: "nopo-bot",
-  };
-
-  return {
-    ...base,
-    ...overrides,
-    issue: { ...base.issue, ...(overrides.issue as any) },
-  };
-}
+import { createContext } from "../fixtures/index.js";
 
 // Helper to run the machine and get final state
 function runMachine(context: MachineContext) {
@@ -228,8 +183,12 @@ describe("claudeMachine", () => {
         issue: { projectStatus: "Review", hasSubIssues: true, subIssues: [] },
       } as any);
       const { state } = runMachine(context);
-      // After orchestrating, should reach done since all sub-issues are empty (edge case)
-      expect(["orchestrating", "done", "iterating"]).toContain(state);
+      // After orchestrating with empty sub-issues, goes to orchestrationComplete
+      expect([
+        "orchestrating",
+        "orchestrationComplete",
+        "orchestrationRunning",
+      ]).toContain(state);
     });
 
     test("processes review changes requested and iterates", () => {
@@ -264,8 +223,164 @@ describe("claudeMachine", () => {
     });
   });
 
+  describe("Triage triggered transitions", () => {
+    test("transitions to triaging when triggered by issue_triage", () => {
+      const context = createContext({
+        trigger: "issue_triage",
+        issue: {
+          number: 123,
+          title: "New feature request",
+          body: "## Description\n\nImplement X feature",
+          projectStatus: null,
+        },
+      } as any);
+      const { state, actions } = runMachine(context);
+      expect(state).toBe("triaging");
+      const actionTypes = actions.map((a) => a.type);
+      expect(actionTypes).toContain("log");
+      expect(actionTypes).toContain("runClaude");
+    });
+
+    test("emits runClaude with promptFile for triage", () => {
+      const context = createContext({
+        trigger: "issue_triage",
+        issue: {
+          number: 456,
+          title: "Bug report",
+          body: "## Description\n\nSomething is broken",
+          projectStatus: null,
+        },
+        owner: "test-owner",
+        repo: "test-repo",
+      } as any);
+      const { actions } = runMachine(context);
+      const runClaudeAction = actions.find((a) => a.type === "runClaude") as any;
+      expect(runClaudeAction).toBeDefined();
+      expect(runClaudeAction.promptFile).toBe(".github/prompts/triage.txt");
+      expect(runClaudeAction.promptVars).toEqual({
+        ISSUE_NUMBER: "456",
+        ISSUE_TITLE: "Bug report",
+        ISSUE_BODY: "## Description\n\nSomething is broken",
+        REPO_OWNER: "test-owner",
+        REPO_NAME: "test-repo",
+      });
+      expect(runClaudeAction.issueNumber).toBe(456);
+    });
+
+    test("does not triage when already done", () => {
+      const context = createContext({
+        trigger: "issue_triage",
+        issue: { projectStatus: "Done" },
+      } as any);
+      const { state } = runMachine(context);
+      // Done takes precedence over triage
+      expect(state).toBe("done");
+    });
+
+    test("does not triage when blocked", () => {
+      const context = createContext({
+        trigger: "issue_triage",
+        issue: { projectStatus: "Blocked" },
+      } as any);
+      const { state } = runMachine(context);
+      // Blocked takes precedence over triage
+      expect(state).toBe("blocked");
+    });
+  });
+
+  describe("Comment triggered transitions", () => {
+    test("transitions to commenting when triggered by issue_comment", () => {
+      const context = createContext({
+        trigger: "issue_comment",
+        issue: {
+          number: 123,
+          title: "Feature request",
+          body: "## Description\n\nImplement feature",
+          projectStatus: "Working",
+        },
+        commentContextType: "Issue",
+        commentContextDescription: "This is issue #123 about implementing feature X.",
+      } as any);
+      const { state, actions } = runMachine(context);
+      expect(state).toBe("commenting");
+      const actionTypes = actions.map((a) => a.type);
+      expect(actionTypes).toContain("log");
+      expect(actionTypes).toContain("runClaude");
+    });
+
+    test("emits runClaude with promptFile for comment", () => {
+      const context = createContext({
+        trigger: "issue_comment",
+        issue: {
+          number: 456,
+          title: "Bug fix PR",
+          body: "Fixes a bug",
+          projectStatus: "Review",
+        },
+        branch: "claude/issue/456",
+        commentContextType: "PR",
+        commentContextDescription: "This is PR #789 fixing bug in authentication.",
+      } as any);
+      const { actions } = runMachine(context);
+      const runClaudeAction = actions.find((a) => a.type === "runClaude") as any;
+      expect(runClaudeAction).toBeDefined();
+      expect(runClaudeAction.promptFile).toBe(".github/prompts/comment.txt");
+      expect(runClaudeAction.promptVars).toEqual({
+        ISSUE_NUMBER: "456",
+        CONTEXT_TYPE: "PR",
+        CONTEXT_DESCRIPTION: "This is PR #789 fixing bug in authentication.",
+      });
+      expect(runClaudeAction.issueNumber).toBe(456);
+      expect(runClaudeAction.worktree).toBe("claude/issue/456");
+    });
+
+    test("uses default context values when not provided", () => {
+      const context = createContext({
+        trigger: "issue_comment",
+        issue: {
+          number: 789,
+          projectStatus: "Working",
+        },
+        commentContextType: null,
+        commentContextDescription: null,
+      } as any);
+      const { actions } = runMachine(context);
+      const runClaudeAction = actions.find((a) => a.type === "runClaude") as any;
+      expect(runClaudeAction).toBeDefined();
+      expect(runClaudeAction.promptVars).toEqual({
+        ISSUE_NUMBER: "789",
+        CONTEXT_TYPE: "Issue",
+        CONTEXT_DESCRIPTION: "This is issue #789.",
+      });
+    });
+
+    test("does not comment when already done", () => {
+      const context = createContext({
+        trigger: "issue_comment",
+        issue: { projectStatus: "Done" },
+        commentContextType: "Issue",
+        commentContextDescription: "Test",
+      } as any);
+      const { state } = runMachine(context);
+      // Done takes precedence over comment
+      expect(state).toBe("done");
+    });
+
+    test("does not comment when blocked", () => {
+      const context = createContext({
+        trigger: "issue_comment",
+        issue: { projectStatus: "Blocked" },
+        commentContextType: "Issue",
+        commentContextDescription: "Test",
+      } as any);
+      const { state } = runMachine(context);
+      // Blocked takes precedence over comment
+      expect(state).toBe("blocked");
+    });
+  });
+
   describe("Multi-phase orchestration", () => {
-    test("transitions to done when all phases are done", () => {
+    test("transitions to orchestrationComplete when all phases are done", () => {
       const context = createContext({
         issue: {
           projectStatus: "In Progress",
@@ -294,11 +409,15 @@ describe("claudeMachine", () => {
           ],
         },
       } as any);
-      const { state } = runMachine(context);
-      expect(state).toBe("done");
+      const { state, actions } = runMachine(context);
+      expect(state).toBe("orchestrationComplete");
+      // Should emit completion actions
+      const actionTypes = actions.map((a) => a.type);
+      expect(actionTypes).toContain("updateProjectStatus");
+      expect(actionTypes).toContain("closeIssue");
     });
 
-    test("transitions to iterating when current phase needs work", () => {
+    test("transitions to orchestrationRunning when current phase needs work", () => {
       const context = createContext({
         issue: {
           projectStatus: "In Progress",
@@ -336,12 +455,18 @@ describe("claudeMachine", () => {
           pr: null,
           todos: { total: 1, completed: 0, uncheckedNonManual: 1 },
         },
+        currentPhase: 1,
+        totalPhases: 2,
       } as any);
-      const { state } = runMachine(context);
-      expect(state).toBe("iterating");
+      const { state, actions } = runMachine(context);
+      expect(state).toBe("orchestrationRunning");
+      // Should emit orchestration actions including assignUser
+      const actionTypes = actions.map((a) => a.type);
+      expect(actionTypes).toContain("assignUser");
+      expect(actionTypes).toContain("stop");
     });
 
-    test("transitions to reviewing when current phase is in review", () => {
+    test("transitions to orchestrationWaiting when current phase is in review", () => {
       const context = createContext({
         issue: {
           projectStatus: "In Progress",
@@ -380,8 +505,12 @@ describe("claudeMachine", () => {
           todos: { total: 1, completed: 1, uncheckedNonManual: 0 },
         },
       } as any);
-      const { state } = runMachine(context);
-      expect(state).toBe("reviewing");
+      const { state, actions } = runMachine(context);
+      expect(state).toBe("orchestrationWaiting");
+      // Should emit stop action with waiting reason
+      const stopAction = actions.find((a) => a.type === "stop") as any;
+      expect(stopAction).toBeDefined();
+      expect(stopAction.reason).toContain("review");
     });
   });
 
@@ -462,11 +591,21 @@ describe("getTriggerEvent", () => {
     expect(getTriggerEvent(context)).toEqual({ type: "START" });
   });
 
+  test("returns START for issue_triage", () => {
+    const context = createContext({ trigger: "issue_triage" });
+    expect(getTriggerEvent(context)).toEqual({ type: "START" });
+  });
+
   test("returns START for workflow_run without result", () => {
     const context = createContext({
       trigger: "workflow_run_completed",
       ciResult: null,
     });
+    expect(getTriggerEvent(context)).toEqual({ type: "START" });
+  });
+
+  test("returns START for issue_comment", () => {
+    const context = createContext({ trigger: "issue_comment" });
     expect(getTriggerEvent(context)).toEqual({ type: "START" });
   });
 });

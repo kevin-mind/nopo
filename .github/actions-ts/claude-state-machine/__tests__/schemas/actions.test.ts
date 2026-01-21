@@ -11,6 +11,7 @@ import {
   UpdateHistoryActionSchema,
   AddCommentActionSchema,
   UnassignUserActionSchema,
+  AssignUserActionSchema,
   CreateBranchActionSchema,
   GitPushActionSchema,
   CreatePRActionSchema,
@@ -36,7 +37,7 @@ describe("UpdateProjectStatusActionSchema", () => {
       issueNumber: 123,
       status: "Working",
     };
-    expect(UpdateProjectStatusActionSchema.parse(action)).toEqual(action);
+    expect(UpdateProjectStatusActionSchema.parse(action)).toMatchObject(action);
   });
 
   test("accepts optional id", () => {
@@ -73,14 +74,14 @@ describe("UpdateProjectStatusActionSchema", () => {
 describe("IncrementIterationActionSchema", () => {
   test("parses valid action", () => {
     const action = { type: "incrementIteration", issueNumber: 42 };
-    expect(IncrementIterationActionSchema.parse(action)).toEqual(action);
+    expect(IncrementIterationActionSchema.parse(action)).toMatchObject(action);
   });
 });
 
 describe("RecordFailureActionSchema", () => {
   test("parses action without failure type", () => {
     const action = { type: "recordFailure", issueNumber: 1 };
-    expect(RecordFailureActionSchema.parse(action)).toEqual(action);
+    expect(RecordFailureActionSchema.parse(action)).toMatchObject(action);
   });
 
   test("accepts failure types", () => {
@@ -97,7 +98,7 @@ describe("RecordFailureActionSchema", () => {
 describe("ClearFailuresActionSchema", () => {
   test("parses valid action", () => {
     const action = { type: "clearFailures", issueNumber: 99 };
-    expect(ClearFailuresActionSchema.parse(action)).toEqual(action);
+    expect(ClearFailuresActionSchema.parse(action)).toMatchObject(action);
   });
 });
 
@@ -111,7 +112,7 @@ describe("CreateSubIssuesActionSchema", () => {
         { title: "Phase 2", body: "## Todos\n- [ ] Task 2" },
       ],
     };
-    expect(CreateSubIssuesActionSchema.parse(action)).toEqual(action);
+    expect(CreateSubIssuesActionSchema.parse(action)).toMatchObject(action);
   });
 
   test("requires at least one phase", () => {
@@ -160,7 +161,7 @@ describe("AppendHistoryActionSchema", () => {
       phase: "Phase 1",
       message: "Started implementation",
     };
-    expect(AppendHistoryActionSchema.parse(action)).toEqual(action);
+    expect(AppendHistoryActionSchema.parse(action)).toMatchObject(action);
   });
 
   test("accepts optional commitSha and runLink", () => {
@@ -188,7 +189,7 @@ describe("UpdateHistoryActionSchema", () => {
       matchPattern: "In progress",
       newMessage: "Completed",
     };
-    expect(UpdateHistoryActionSchema.parse(action)).toEqual(action);
+    expect(UpdateHistoryActionSchema.parse(action)).toMatchObject(action);
   });
 });
 
@@ -199,7 +200,7 @@ describe("AddCommentActionSchema", () => {
       issueNumber: 123,
       body: "This is a comment",
     };
-    expect(AddCommentActionSchema.parse(action)).toEqual(action);
+    expect(AddCommentActionSchema.parse(action)).toMatchObject(action);
   });
 });
 
@@ -210,7 +211,7 @@ describe("UnassignUserActionSchema", () => {
       issueNumber: 1,
       username: "nopo-bot",
     };
-    expect(UnassignUserActionSchema.parse(action)).toEqual(action);
+    expect(UnassignUserActionSchema.parse(action)).toMatchObject(action);
   });
 
   test("rejects empty username", () => {
@@ -219,6 +220,37 @@ describe("UnassignUserActionSchema", () => {
         type: "unassignUser",
         issueNumber: 1,
         username: "",
+      }),
+    ).toThrow();
+  });
+});
+
+describe("AssignUserActionSchema", () => {
+  test("parses valid action", () => {
+    const action = {
+      type: "assignUser",
+      issueNumber: 42,
+      username: "nopo-bot",
+    };
+    expect(AssignUserActionSchema.parse(action)).toMatchObject(action);
+  });
+
+  test("rejects empty username", () => {
+    expect(() =>
+      AssignUserActionSchema.parse({
+        type: "assignUser",
+        issueNumber: 1,
+        username: "",
+      }),
+    ).toThrow();
+  });
+
+  test("rejects non-positive issue number", () => {
+    expect(() =>
+      AssignUserActionSchema.parse({
+        type: "assignUser",
+        issueNumber: 0,
+        username: "nopo-bot",
       }),
     ).toThrow();
   });
@@ -286,14 +318,14 @@ describe("CreatePRActionSchema", () => {
 describe("ConvertPRToDraftActionSchema", () => {
   test("parses valid action", () => {
     const action = { type: "convertPRToDraft", prNumber: 42 };
-    expect(ConvertPRToDraftActionSchema.parse(action)).toEqual(action);
+    expect(ConvertPRToDraftActionSchema.parse(action)).toMatchObject(action);
   });
 });
 
 describe("MarkPRReadyActionSchema", () => {
   test("parses valid action", () => {
     const action = { type: "markPRReady", prNumber: 42 };
-    expect(MarkPRReadyActionSchema.parse(action)).toEqual(action);
+    expect(MarkPRReadyActionSchema.parse(action)).toMatchObject(action);
   });
 });
 
@@ -304,7 +336,7 @@ describe("RequestReviewActionSchema", () => {
       prNumber: 42,
       reviewer: "nopo-bot",
     };
-    expect(RequestReviewActionSchema.parse(action)).toEqual(action);
+    expect(RequestReviewActionSchema.parse(action)).toMatchObject(action);
   });
 });
 
@@ -331,7 +363,7 @@ describe("RunClaudeActionSchema", () => {
       prompt: "Implement the feature",
       issueNumber: 123,
     };
-    expect(RunClaudeActionSchema.parse(action)).toEqual(action);
+    expect(RunClaudeActionSchema.parse(action)).toMatchObject(action);
   });
 
   test("accepts allowed tools", () => {
@@ -371,7 +403,7 @@ describe("RunClaudeActionSchema", () => {
 describe("StopActionSchema", () => {
   test("parses valid action", () => {
     const action = { type: "stop", reason: "All tasks completed" };
-    expect(StopActionSchema.parse(action)).toEqual(action);
+    expect(StopActionSchema.parse(action)).toMatchObject(action);
   });
 
   test("rejects empty reason", () => {
@@ -388,7 +420,7 @@ describe("BlockActionSchema", () => {
       issueNumber: 1,
       reason: "Max retries exceeded",
     };
-    expect(BlockActionSchema.parse(action)).toEqual(action);
+    expect(BlockActionSchema.parse(action)).toMatchObject(action);
   });
 });
 
@@ -456,8 +488,8 @@ describe("ACTION_TYPES constant", () => {
   });
 
   test("has correct length", () => {
-    // Count of all action types
-    expect(ACTION_TYPES.length).toBe(23);
+    // Count of all action types (including assignUser, submitReview, removeReviewer, discussion actions)
+    expect(ACTION_TYPES.length).toBe(30);
   });
 });
 

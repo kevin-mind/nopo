@@ -7,19 +7,12 @@ import {
   setOutputs,
 } from "../lib/index.js";
 import type {
-  MachineContext,
   TriggerType,
   CIResult,
   ReviewDecision,
-  Action,
 } from "./schemas/index.js";
 import { buildMachineContext } from "./parser/index.js";
-import { claudeMachine, getTriggerEvent } from "./machine/index.js";
-import {
-  executeActions,
-  createRunnerContext,
-  logRunnerSummary,
-} from "./runner/index.js";
+import { claudeMachine } from "./machine/index.js";
 import type { GitHubEvent } from "./schemas/index.js";
 
 /**
@@ -30,11 +23,16 @@ function parseTrigger(input: string): TriggerType {
     "issue_assigned",
     "issue_edited",
     "issue_closed",
+    "issue_triage",
+    "issue_orchestrate",
+    "issue_comment",
     "pr_review_requested",
     "pr_review_submitted",
+    "pr_review",
+    "pr_response",
+    "pr_human_response",
     "pr_push",
     "workflow_run_completed",
-    "issue_comment",
   ];
 
   if (validTriggers.includes(input as TriggerType)) {
@@ -180,13 +178,73 @@ function buildEventFromInputs(
         isPR: false,
       };
 
+    case "issue_triage":
+      // Triage uses issue_edited event type internally
+      return {
+        ...base,
+        type: "issue_edited",
+        issueNumber,
+      };
+
+    case "issue_orchestrate":
+      // Orchestrate uses issue_edited event type internally
+      return {
+        ...base,
+        type: "issue_edited",
+        issueNumber,
+      };
+
+    case "pr_review":
+      // Bot is requested to review a PR
+      return {
+        ...base,
+        type: "pr_review_requested",
+        prNumber: 0, // Will be derived from branch
+        issueNumber,
+        requestedReviewer: "nopo-bot",
+        headRef: "",
+        baseRef: "main",
+        isDraft: false,
+      };
+
+    case "pr_response":
+      // Bot responding to its own review
+      return {
+        ...base,
+        type: "pr_review_submitted",
+        prNumber: 0,
+        issueNumber,
+        reviewId: 0,
+        reviewer: "claude[bot]", // Response to bot's own review
+        decision: options.reviewDecision || "CHANGES_REQUESTED",
+        headRef: "",
+        baseRef: "main",
+      };
+
+    case "pr_human_response":
+      // Bot responding to human review
+      return {
+        ...base,
+        type: "pr_review_submitted",
+        prNumber: 0,
+        issueNumber,
+        reviewId: 0,
+        reviewer: options.reviewer || "", // Human reviewer
+        decision: options.reviewDecision || "CHANGES_REQUESTED",
+        headRef: "",
+        baseRef: "main",
+      };
+
     default:
       throw new Error(`Unsupported trigger type: ${trigger}`);
   }
 }
 
 /**
- * Run the state machine and execute resulting actions
+ * Run the state machine to derive actions from issue state
+ *
+ * This action only derives actions - it does not execute them.
+ * Pass the output actions_json to claude-state-executor to execute.
  */
 async function run(): Promise<void> {
   try {
@@ -202,15 +260,20 @@ async function run(): Promise<void> {
       getOptionalInput("review_decision"),
     );
     const reviewer = getOptionalInput("reviewer") || null;
+    const commentContextType = getOptionalInput("comment_context_type") as
+      | "Issue"
+      | "PR"
+      | undefined;
+    const commentContextDescription =
+      getOptionalInput("comment_context_description") || null;
+    const inputBranch = getOptionalInput("branch") || null;
     const maxRetries = parseInt(getOptionalInput("max_retries") || "5", 10);
     const botUsername = getOptionalInput("bot_username") || "nopo-bot";
-    const dryRun = getOptionalInput("dry_run") === "true";
 
     core.info(`Claude State Machine starting...`);
     core.info(`Issue: #${issueNumber}`);
     core.info(`Project: ${projectNumber}`);
     core.info(`Trigger: ${trigger}`);
-    core.info(`Dry run: ${dryRun}`);
 
     // Create octokit
     const octokit = github.getOctokit(token);
@@ -229,6 +292,9 @@ async function run(): Promise<void> {
     const context = await buildMachineContext(octokit, event, projectNumber, {
       maxRetries,
       botUsername,
+      commentContextType: commentContextType || null,
+      commentContextDescription,
+      branch: inputBranch,
     });
 
     if (!context) {
@@ -257,37 +323,21 @@ async function run(): Promise<void> {
     const pendingActions = snapshot.context.pendingActions;
 
     core.info(`Machine final state: ${finalState}`);
-    core.info(`Pending actions: ${pendingActions.length}`);
+    core.info(`Derived actions: ${pendingActions.length}`);
 
-    // Create runner context
-    const runnerContext = createRunnerContext(
-      octokit,
-      owner,
-      repo,
-      projectNumber,
-      {
-        dryRun,
-      },
-    );
-
-    // Execute the actions
-    const result = await executeActions(pendingActions, runnerContext);
-
-    // Log summary
-    logRunnerSummary(result);
-
-    // Set outputs
-    setOutputs({
-      actions: JSON.stringify(pendingActions.map((a: Action) => a.type)),
-      final_state: finalState,
-      success: String(result.success),
-      stopped_early: String(result.stoppedEarly),
-      stop_reason: result.stopReason || "",
-    });
-
-    if (!result.success) {
-      core.setFailed(`Some actions failed. Check the logs for details.`);
+    // Log action types
+    if (pendingActions.length > 0) {
+      const actionTypes = pendingActions.map((a) => a.type);
+      core.info(`Action types: ${actionTypes.join(", ")}`);
     }
+
+    // Set outputs (actions as full JSON for executor)
+    setOutputs({
+      actions_json: JSON.stringify(pendingActions),
+      final_state: finalState,
+      context_json: JSON.stringify(context),
+      action_count: String(pendingActions.length),
+    });
 
     // Stop the actor
     actor.stop();

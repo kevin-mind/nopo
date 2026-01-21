@@ -6,11 +6,14 @@ import type {
   UpdateIssueBodyAction,
   AddCommentAction,
   UnassignUserAction,
+  AssignUserAction,
   CreatePRAction,
   ConvertPRToDraftAction,
   MarkPRReadyAction,
   RequestReviewAction,
   MergePRAction,
+  SubmitReviewAction,
+  RemoveReviewerAction,
   CreateSubIssuesAction,
 } from "../../schemas/index.js";
 import { addHistoryEntry, updateHistoryEntry } from "../../parser/index.js";
@@ -300,6 +303,25 @@ export async function executeUnassignUser(
 }
 
 /**
+ * Assign a user to an issue
+ * Used by orchestration to trigger iteration workflows on sub-issues
+ */
+export async function executeAssignUser(
+  action: AssignUserAction,
+  ctx: RunnerContext,
+): Promise<{ assigned: boolean }> {
+  await ctx.octokit.rest.issues.addAssignees({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    issue_number: action.issueNumber,
+    assignees: [action.username],
+  });
+
+  core.info(`Assigned ${action.username} to issue #${action.issueNumber}`);
+  return { assigned: true };
+}
+
+/**
  * Create sub-issues for phased work
  */
 export async function executeCreateSubIssues(
@@ -488,4 +510,68 @@ export async function executeMergePR(
 
   core.info(`Merged PR #${action.prNumber}`);
   return { merged: response.data.merged, sha: response.data.sha };
+}
+
+/**
+ * Submit a PR review
+ *
+ * Uses the GitHub REST API to submit a PR review with the specified
+ * decision (approve, request_changes, or comment).
+ */
+export async function executeSubmitReview(
+  action: SubmitReviewAction,
+  ctx: RunnerContext,
+): Promise<{ submitted: boolean; decision: string }> {
+  // Map our decision to GitHub's event type
+  const eventMap: Record<string, "APPROVE" | "REQUEST_CHANGES" | "COMMENT"> = {
+    approve: "APPROVE",
+    request_changes: "REQUEST_CHANGES",
+    comment: "COMMENT",
+  };
+
+  const event = eventMap[action.decision];
+  if (!event) {
+    throw new Error(`Invalid review decision: ${action.decision}`);
+  }
+
+  await ctx.octokit.rest.pulls.createReview({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    pull_number: action.prNumber,
+    event,
+    body: action.body,
+  });
+
+  core.info(`Submitted ${action.decision} review on PR #${action.prNumber}`);
+  return { submitted: true, decision: action.decision };
+}
+
+/**
+ * Remove a reviewer from a PR
+ * Used when converting PR to draft to clear stale review requests
+ */
+export async function executeRemoveReviewer(
+  action: RemoveReviewerAction,
+  ctx: RunnerContext,
+): Promise<{ removed: boolean }> {
+  try {
+    await ctx.octokit.rest.pulls.removeRequestedReviewers({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      pull_number: action.prNumber,
+      reviewers: [action.reviewer],
+    });
+
+    core.info(`Removed reviewer ${action.reviewer} from PR #${action.prNumber}`);
+    return { removed: true };
+  } catch (error) {
+    // Don't fail if reviewer wasn't requested (404 error)
+    if (error instanceof Error && error.message.includes("404")) {
+      core.info(
+        `Reviewer ${action.reviewer} was not a requested reviewer on PR #${action.prNumber}`,
+      );
+      return { removed: false };
+    }
+    throw error;
+  }
 }

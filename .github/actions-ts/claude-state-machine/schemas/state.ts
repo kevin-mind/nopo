@@ -122,14 +122,31 @@ export type ParentIssue = z.infer<typeof ParentIssueSchema>;
  * GitHub event trigger types that can start the state machine
  */
 export const TriggerTypeSchema = z.enum([
+  // Issue triggers
   "issue_assigned",
   "issue_edited",
   "issue_closed",
+  "issue_triage",
+  "issue_orchestrate",
+  "issue_comment",
+  // PR triggers
   "pr_review_requested",
   "pr_review_submitted",
+  "pr_review",
+  "pr_response",
+  "pr_human_response",
   "pr_push",
+  // Workflow triggers
   "workflow_run_completed",
-  "issue_comment",
+  // Release triggers
+  "release_queue_entry",
+  "release_merged",
+  "release_deployed",
+  "release_queue_failure",
+  // Discussion triggers
+  "discussion_created",
+  "discussion_comment",
+  "discussion_command",
 ]);
 
 export type TriggerType = z.infer<typeof TriggerTypeSchema>;
@@ -197,6 +214,46 @@ export const MachineContextSchema = z.object({
   pr: LinkedPRSchema.nullable(),
   hasPR: z.boolean(),
 
+  // Comment info (if triggered by issue_comment)
+  commentContextType: z.enum(["Issue", "PR"]).nullable().default(null),
+  commentContextDescription: z.string().nullable().default(null),
+
+  // Release info (if triggered by release_* events)
+  releaseEvent: z
+    .object({
+      type: z.enum(["queue_entry", "merged", "deployed", "queue_failure"]),
+      commitSha: z.string().optional(),
+      failureReason: z.string().optional(),
+      services: z.array(z.string()).optional(),
+    })
+    .nullable()
+    .default(null),
+
+  // Discussion info (if triggered by discussion_* events)
+  discussion: z
+    .object({
+      number: z.number().int().positive(),
+      nodeId: z.string(),
+      title: z.string(),
+      body: z.string(),
+      commentCount: z.number().int().min(0).default(0),
+      researchThreads: z
+        .array(
+          z.object({
+            nodeId: z.string(),
+            topic: z.string(),
+            replyCount: z.number().int().min(0),
+          }),
+        )
+        .default([]),
+      command: z.enum(["summarize", "plan", "complete"]).optional(),
+      commentId: z.string().optional(),
+      commentBody: z.string().optional(),
+      commentAuthor: z.string().optional(),
+    })
+    .nullable()
+    .default(null),
+
   // Config
   maxRetries: z.number().int().positive().default(5),
   botUsername: z.string().default("nopo-bot"),
@@ -207,7 +264,7 @@ export type MachineContext = z.infer<typeof MachineContextSchema>;
 /**
  * Partial context for creating from parsed data
  */
-export const PartialMachineContextSchema =
+const PartialMachineContextSchema =
   MachineContextSchema.partial().required({
     trigger: true,
     owner: true,
@@ -215,12 +272,12 @@ export const PartialMachineContextSchema =
     issue: true,
   });
 
-export type PartialMachineContext = z.infer<typeof PartialMachineContextSchema>;
+type PartialMachineContext = z.infer<typeof PartialMachineContextSchema>;
 
 /**
  * Default values for optional context fields
  */
-export const DEFAULT_CONTEXT_VALUES: Partial<MachineContext> = {
+const DEFAULT_CONTEXT_VALUES: Partial<MachineContext> = {
   parentIssue: null,
   currentPhase: null,
   totalPhases: 0,
@@ -234,6 +291,10 @@ export const DEFAULT_CONTEXT_VALUES: Partial<MachineContext> = {
   hasBranch: false,
   pr: null,
   hasPR: false,
+  commentContextType: null,
+  commentContextDescription: null,
+  releaseEvent: null,
+  discussion: null,
   maxRetries: 5,
   botUsername: "nopo-bot",
 };

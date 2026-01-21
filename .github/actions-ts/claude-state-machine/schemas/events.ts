@@ -21,40 +21,40 @@ const BaseEventSchema = z.object({
 /**
  * Issue assigned event
  */
-export const IssueAssignedEventSchema = BaseEventSchema.extend({
+const IssueAssignedEventSchema = BaseEventSchema.extend({
   type: z.literal("issue_assigned"),
   issueNumber: z.number().int().positive(),
   assignee: z.string().min(1),
 });
 
-export type IssueAssignedEvent = z.infer<typeof IssueAssignedEventSchema>;
+type IssueAssignedEvent = z.infer<typeof IssueAssignedEventSchema>;
 
 /**
  * Issue edited event
  */
-export const IssueEditedEventSchema = BaseEventSchema.extend({
+const IssueEditedEventSchema = BaseEventSchema.extend({
   type: z.literal("issue_edited"),
   issueNumber: z.number().int().positive(),
   changedField: z.enum(["body", "title", "labels", "assignees"]).optional(),
 });
 
-export type IssueEditedEvent = z.infer<typeof IssueEditedEventSchema>;
+type IssueEditedEvent = z.infer<typeof IssueEditedEventSchema>;
 
 /**
  * Issue closed event
  */
-export const IssueClosedEventSchema = BaseEventSchema.extend({
+const IssueClosedEventSchema = BaseEventSchema.extend({
   type: z.literal("issue_closed"),
   issueNumber: z.number().int().positive(),
   stateReason: z.enum(["completed", "not_planned"]).optional(),
 });
 
-export type IssueClosedEvent = z.infer<typeof IssueClosedEventSchema>;
+type IssueClosedEvent = z.infer<typeof IssueClosedEventSchema>;
 
 /**
  * Issue comment event
  */
-export const IssueCommentEventSchema = BaseEventSchema.extend({
+const IssueCommentEventSchema = BaseEventSchema.extend({
   type: z.literal("issue_comment"),
   issueNumber: z.number().int().positive(),
   commentId: z.number().int().positive(),
@@ -63,7 +63,7 @@ export const IssueCommentEventSchema = BaseEventSchema.extend({
   isPR: z.boolean().default(false),
 });
 
-export type IssueCommentEvent = z.infer<typeof IssueCommentEventSchema>;
+type IssueCommentEvent = z.infer<typeof IssueCommentEventSchema>;
 
 // ============================================================================
 // PR Events
@@ -72,7 +72,7 @@ export type IssueCommentEvent = z.infer<typeof IssueCommentEventSchema>;
 /**
  * PR review requested event
  */
-export const PRReviewRequestedEventSchema = BaseEventSchema.extend({
+const PRReviewRequestedEventSchema = BaseEventSchema.extend({
   type: z.literal("pr_review_requested"),
   prNumber: z.number().int().positive(),
   issueNumber: z.number().int().positive().optional(),
@@ -82,14 +82,14 @@ export const PRReviewRequestedEventSchema = BaseEventSchema.extend({
   isDraft: z.boolean(),
 });
 
-export type PRReviewRequestedEvent = z.infer<
+type PRReviewRequestedEvent = z.infer<
   typeof PRReviewRequestedEventSchema
 >;
 
 /**
  * PR review submitted event
  */
-export const PRReviewSubmittedEventSchema = BaseEventSchema.extend({
+const PRReviewSubmittedEventSchema = BaseEventSchema.extend({
   type: z.literal("pr_review_submitted"),
   prNumber: z.number().int().positive(),
   issueNumber: z.number().int().positive().optional(),
@@ -101,14 +101,14 @@ export const PRReviewSubmittedEventSchema = BaseEventSchema.extend({
   baseRef: z.string().default("main"),
 });
 
-export type PRReviewSubmittedEvent = z.infer<
+type PRReviewSubmittedEvent = z.infer<
   typeof PRReviewSubmittedEventSchema
 >;
 
 /**
  * PR push event (push to a branch with an open PR)
  */
-export const PRPushEventSchema = BaseEventSchema.extend({
+const PRPushEventSchema = BaseEventSchema.extend({
   type: z.literal("pr_push"),
   prNumber: z.number().int().positive(),
   issueNumber: z.number().int().positive().optional(),
@@ -118,7 +118,7 @@ export const PRPushEventSchema = BaseEventSchema.extend({
   isNowDraft: z.boolean(),
 });
 
-export type PRPushEvent = z.infer<typeof PRPushEventSchema>;
+type PRPushEvent = z.infer<typeof PRPushEventSchema>;
 
 // ============================================================================
 // Workflow Events
@@ -127,7 +127,7 @@ export type PRPushEvent = z.infer<typeof PRPushEventSchema>;
 /**
  * Workflow run completed event
  */
-export const WorkflowRunCompletedEventSchema = BaseEventSchema.extend({
+const WorkflowRunCompletedEventSchema = BaseEventSchema.extend({
   type: z.literal("workflow_run_completed"),
   workflowName: z.string().min(1),
   runId: z.number().int().positive(),
@@ -139,7 +139,7 @@ export const WorkflowRunCompletedEventSchema = BaseEventSchema.extend({
   prNumber: z.number().int().positive().optional(),
 });
 
-export type WorkflowRunCompletedEvent = z.infer<
+type WorkflowRunCompletedEvent = z.infer<
   typeof WorkflowRunCompletedEventSchema
 >;
 
@@ -150,7 +150,7 @@ export type WorkflowRunCompletedEvent = z.infer<
 /**
  * All possible event types as a discriminated union
  */
-export const GitHubEventSchema = z.discriminatedUnion("type", [
+const GitHubEventSchema = z.discriminatedUnion("type", [
   IssueAssignedEventSchema,
   IssueEditedEventSchema,
   IssueClosedEventSchema,
@@ -166,7 +166,7 @@ export type GitHubEvent = z.infer<typeof GitHubEventSchema>;
 /**
  * Extract event type from union
  */
-export type EventType = GitHubEvent["type"];
+type EventType = GitHubEvent["type"];
 
 /**
  * Map event type to trigger type
@@ -180,7 +180,7 @@ export function eventToTrigger(
 /**
  * Extract issue number from any event that has one
  */
-export function getIssueNumber(event: GitHubEvent): number | undefined {
+function getIssueNumber(event: GitHubEvent): number | undefined {
   if ("issueNumber" in event) {
     return event.issueNumber;
   }
@@ -190,7 +190,7 @@ export function getIssueNumber(event: GitHubEvent): number | undefined {
 /**
  * Extract PR number from any event that has one
  */
-export function getPRNumber(event: GitHubEvent): number | undefined {
+function getPRNumber(event: GitHubEvent): number | undefined {
   if ("prNumber" in event) {
     return event.prNumber;
   }
@@ -200,20 +200,20 @@ export function getPRNumber(event: GitHubEvent): number | undefined {
 /**
  * Check if event is issue-related
  */
-export function isIssueEvent(event: GitHubEvent): boolean {
+function isIssueEvent(event: GitHubEvent): boolean {
   return event.type.startsWith("issue_");
 }
 
 /**
  * Check if event is PR-related
  */
-export function isPREvent(event: GitHubEvent): boolean {
+function isPREvent(event: GitHubEvent): boolean {
   return event.type.startsWith("pr_");
 }
 
 /**
  * Check if event is workflow-related
  */
-export function isWorkflowEvent(event: GitHubEvent): boolean {
+function isWorkflowEvent(event: GitHubEvent): boolean {
   return event.type.startsWith("workflow_");
 }

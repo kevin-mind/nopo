@@ -30,57 +30,12 @@ import {
   triggeredByEdit,
   triggeredByCI,
   triggeredByReview,
+  triggeredByTriage,
   readyForReview,
   shouldContinueIterating,
   shouldBlock,
 } from "../../machine/guards.js";
-import type { MachineContext } from "../../schemas/index.js";
-
-// Helper to create minimal context
-function createContext(
-  overrides: Partial<MachineContext> = {},
-): MachineContext {
-  const base: MachineContext = {
-    trigger: "issue_assigned",
-    owner: "test-owner",
-    repo: "test-repo",
-    issue: {
-      number: 1,
-      title: "Test Issue",
-      state: "OPEN",
-      body: "Test body",
-      projectStatus: "In Progress",
-      iteration: 0,
-      failures: 0,
-      assignees: ["nopo-bot"],
-      labels: [],
-      subIssues: [],
-      hasSubIssues: false,
-      history: [],
-    },
-    parentIssue: null,
-    currentPhase: null,
-    totalPhases: 0,
-    currentSubIssue: null,
-    ciResult: null,
-    ciRunUrl: null,
-    ciCommitSha: null,
-    reviewDecision: null,
-    reviewerId: null,
-    branch: null,
-    hasBranch: false,
-    pr: null,
-    hasPR: false,
-    maxRetries: 5,
-    botUsername: "nopo-bot",
-  };
-
-  return {
-    ...base,
-    ...overrides,
-    issue: { ...base.issue, ...overrides.issue },
-  };
-}
+import { createContext } from "../fixtures/index.js";
 
 describe("Terminal State Guards", () => {
   describe("isAlreadyDone", () => {
@@ -640,6 +595,18 @@ describe("Trigger Guards", () => {
     test("returns true for pr_review_submitted trigger", () => {
       const context = createContext({ trigger: "pr_review_submitted" });
       expect(triggeredByReview({ context })).toBe(true);
+    });
+  });
+
+  describe("triggeredByTriage", () => {
+    test("returns true for issue_triage trigger", () => {
+      const context = createContext({ trigger: "issue_triage" });
+      expect(triggeredByTriage({ context })).toBe(true);
+    });
+
+    test("returns false for other triggers", () => {
+      const context = createContext({ trigger: "issue_assigned" });
+      expect(triggeredByTriage({ context })).toBe(false);
     });
   });
 });

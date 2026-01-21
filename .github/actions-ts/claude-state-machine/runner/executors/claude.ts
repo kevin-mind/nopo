@@ -1,5 +1,7 @@
 import * as core from "@actions/core";
 import * as exec from "@actions/exec";
+import * as fs from "fs";
+import * as path from "path";
 import type { RunClaudeAction } from "../../schemas/index.js";
 import type { RunnerContext } from "../runner.js";
 
@@ -29,6 +31,46 @@ interface ClaudeOptions {
 }
 
 /**
+ * Substitute template variables in a string
+ * Replaces {{VAR_NAME}} with the corresponding value from vars
+ */
+function substituteVars(template: string, vars: Record<string, string>): string {
+  return template.replace(/\{\{([^}]+)\}\}/g, (match, varName) => {
+    const trimmedName = varName.trim();
+    return vars[trimmedName] ?? match; // Keep original if not found
+  });
+}
+
+/**
+ * Get the prompt string from action (either directly or from file)
+ */
+function getPromptFromAction(action: RunClaudeAction): string {
+  if (action.prompt) {
+    // Direct prompt provided
+    let prompt = action.prompt;
+    if (action.promptVars) {
+      prompt = substituteVars(prompt, action.promptVars);
+    }
+    return prompt;
+  }
+
+  if (action.promptFile) {
+    // Read from file
+    const promptPath = path.resolve(process.cwd(), action.promptFile);
+    if (!fs.existsSync(promptPath)) {
+      throw new Error(`Prompt file not found: ${action.promptFile}`);
+    }
+    let prompt = fs.readFileSync(promptPath, "utf-8");
+    if (action.promptVars) {
+      prompt = substituteVars(prompt, action.promptVars);
+    }
+    return prompt;
+  }
+
+  throw new Error("Either prompt or promptFile must be provided");
+}
+
+/**
  * Run Claude Code CLI
  *
  * This invokes the Claude Code CLI (claude) with the specified prompt.
@@ -43,8 +85,9 @@ export async function executeRunClaude(
     "--yes", // Auto-accept prompts
   ];
 
-  // Add the prompt
-  args.push("--prompt", action.prompt);
+  // Get the prompt (from direct string or file)
+  const prompt = getPromptFromAction(action);
+  args.push("--prompt", prompt);
 
   // Add allowed tools if specified
   if (action.allowedTools && action.allowedTools.length > 0) {

@@ -1,6 +1,6 @@
 import type { GitHub } from "@actions/github/lib/utils.js";
 import * as core from "@actions/core";
-import type { Action, ActionType } from "../schemas/index.js";
+import type { Action, ActionType, TokenType } from "../schemas/index.js";
 import {
   ActionSchema,
   isTerminalAction,
@@ -22,15 +22,31 @@ import {
   executeUpdateIssueBody,
   executeAddComment,
   executeUnassignUser,
+  executeAssignUser,
   executeCreateSubIssues,
   executeCreatePR,
   executeConvertPRToDraft,
   executeMarkPRReady,
   executeRequestReview,
   executeMergePR,
+  executeSubmitReview,
+  executeRemoveReviewer,
 } from "./executors/github.js";
 import { executeCreateBranch, executeGitPush } from "./executors/git.js";
 import { executeRunClaude } from "./executors/claude.js";
+import {
+  executeAddDiscussionComment,
+  executeUpdateDiscussionBody,
+  executeAddDiscussionReaction,
+  executeCreateIssuesFromDiscussion,
+} from "./executors/discussions.js";
+import {
+  signalStart,
+  signalEnd,
+  type ResourceType,
+  type ProgressInfo,
+  type JobResult,
+} from "./signaler.js";
 
 type Octokit = InstanceType<typeof GitHub>;
 
@@ -40,9 +56,16 @@ type Octokit = InstanceType<typeof GitHub>;
 
 /**
  * Context for action execution
+ *
+ * Supports two octokits for different token types:
+ * - octokit (code token): For code operations (push, PR, project fields)
+ * - reviewOctokit (review token): For review operations (submit reviews)
  */
 export interface RunnerContext {
+  /** Primary octokit for code operations (push, PR, project fields) */
   octokit: Octokit;
+  /** Optional octokit for review operations (submit reviews) */
+  reviewOctokit?: Octokit;
   owner: string;
   repo: string;
   projectNumber: number;
@@ -51,9 +74,42 @@ export interface RunnerContext {
 }
 
 /**
+ * Extended context for signaled execution
+ * Includes all information needed for status comments
+ */
+export interface SignaledRunnerContext extends RunnerContext {
+  /** Resource type for status comments */
+  resourceType: ResourceType;
+  /** Issue or PR number */
+  resourceNumber: number;
+  /** Job name for status messages */
+  job: string;
+  /** URL to the workflow run */
+  runUrl: string;
+  /** Comment ID that triggered this run (for reactions) */
+  triggerCommentId?: string;
+  /** Progress info for iteration display */
+  progress?: ProgressInfo;
+}
+
+// Re-export types from signaler
+export type { ResourceType, ProgressInfo, JobResult };
+
+/**
+ * Get the appropriate octokit based on the action's token field
+ */
+function getOctokitForAction(action: Action, ctx: RunnerContext): Octokit {
+  const tokenType: TokenType = action.token || "code";
+  if (tokenType === "review" && ctx.reviewOctokit) {
+    return ctx.reviewOctokit;
+  }
+  return ctx.octokit;
+}
+
+/**
  * Result of executing a single action
  */
-export interface ActionResult {
+interface ActionResult {
   action: Action;
   success: boolean;
   skipped: boolean;
@@ -76,7 +132,7 @@ export interface RunnerResult {
 /**
  * Options for the runner
  */
-export interface RunnerOptions {
+interface RunnerOptions {
   stopOnError?: boolean;
   logActions?: boolean;
 }
@@ -87,61 +143,85 @@ export interface RunnerOptions {
 
 /**
  * Execute a single action
+ *
+ * Creates a context with the appropriate octokit based on action.token
  */
 async function executeAction(
   action: Action,
   ctx: RunnerContext,
 ): Promise<unknown> {
+  // Create a context with the appropriate octokit for this action
+  const actionCtx: RunnerContext = {
+    ...ctx,
+    octokit: getOctokitForAction(action, ctx),
+  };
+
   switch (action.type) {
     // Project field actions
     case "updateProjectStatus":
-      return executeUpdateProjectStatus(action, ctx);
+      return executeUpdateProjectStatus(action, actionCtx);
     case "incrementIteration":
-      return executeIncrementIteration(action, ctx);
+      return executeIncrementIteration(action, actionCtx);
     case "recordFailure":
-      return executeRecordFailure(action, ctx);
+      return executeRecordFailure(action, actionCtx);
     case "clearFailures":
-      return executeClearFailures(action, ctx);
+      return executeClearFailures(action, actionCtx);
     case "block":
-      return executeBlock(action, ctx);
+      return executeBlock(action, actionCtx);
 
     // Issue actions
     case "closeIssue":
-      return executeCloseIssue(action, ctx);
+      return executeCloseIssue(action, actionCtx);
     case "appendHistory":
-      return executeAppendHistory(action, ctx);
+      return executeAppendHistory(action, actionCtx);
     case "updateHistory":
-      return executeUpdateHistory(action, ctx);
+      return executeUpdateHistory(action, actionCtx);
     case "updateIssueBody":
-      return executeUpdateIssueBody(action, ctx);
+      return executeUpdateIssueBody(action, actionCtx);
     case "addComment":
-      return executeAddComment(action, ctx);
+      return executeAddComment(action, actionCtx);
     case "unassignUser":
-      return executeUnassignUser(action, ctx);
+      return executeUnassignUser(action, actionCtx);
+    case "assignUser":
+      return executeAssignUser(action, actionCtx);
     case "createSubIssues":
-      return executeCreateSubIssues(action, ctx);
+      return executeCreateSubIssues(action, actionCtx);
 
     // Git actions
     case "createBranch":
-      return executeCreateBranch(action, ctx);
+      return executeCreateBranch(action, actionCtx);
     case "gitPush":
-      return executeGitPush(action, ctx);
+      return executeGitPush(action, actionCtx);
 
     // PR actions
     case "createPR":
-      return executeCreatePR(action, ctx);
+      return executeCreatePR(action, actionCtx);
     case "convertPRToDraft":
-      return executeConvertPRToDraft(action, ctx);
+      return executeConvertPRToDraft(action, actionCtx);
     case "markPRReady":
-      return executeMarkPRReady(action, ctx);
+      return executeMarkPRReady(action, actionCtx);
     case "requestReview":
-      return executeRequestReview(action, ctx);
+      return executeRequestReview(action, actionCtx);
     case "mergePR":
-      return executeMergePR(action, ctx);
+      return executeMergePR(action, actionCtx);
+    case "submitReview":
+      return executeSubmitReview(action, actionCtx);
+    case "removeReviewer":
+      return executeRemoveReviewer(action, actionCtx);
 
     // Claude actions
     case "runClaude":
-      return executeRunClaude(action, ctx);
+      return executeRunClaude(action, actionCtx);
+
+    // Discussion actions
+    case "addDiscussionComment":
+      return executeAddDiscussionComment(action, actionCtx);
+    case "updateDiscussionBody":
+      return executeUpdateDiscussionBody(action, actionCtx);
+    case "addDiscussionReaction":
+      return executeAddDiscussionReaction(action, actionCtx);
+    case "createIssuesFromDiscussion":
+      return executeCreateIssuesFromDiscussion(action, actionCtx);
 
     // Control flow actions
     case "stop":
@@ -286,10 +366,16 @@ export function createRunnerContext(
   owner: string,
   repo: string,
   projectNumber: number,
-  options: { dryRun?: boolean; serverUrl?: string } = {},
+  options: {
+    dryRun?: boolean;
+    serverUrl?: string;
+    /** Octokit for review operations (uses different token) */
+    reviewOctokit?: Octokit;
+  } = {},
 ): RunnerContext {
   return {
     octokit,
+    reviewOctokit: options.reviewOctokit,
     owner,
     repo,
     projectNumber,
@@ -361,4 +447,129 @@ export function countActionsByType(
     counts[action.type] = (counts[action.type] || 0) + 1;
   }
   return counts as Record<ActionType, number>;
+}
+
+// ============================================================================
+// Signaled Execution
+// ============================================================================
+
+/**
+ * Result of signaled execution
+ * Includes the status comment ID for reference
+ */
+export interface SignaledRunnerResult extends RunnerResult {
+  /** ID of the status comment created (string for discussions, numeric string for issues/PRs) */
+  statusCommentId: string;
+}
+
+/**
+ * Execute actions with automatic status signaling
+ *
+ * 1. Posts a "loading" status comment before execution
+ * 2. Executes all actions
+ * 3. Updates the status comment with success/failure/cancelled
+ *
+ * This replaces the separate signal-start and handle-result jobs.
+ */
+export async function runWithSignaling(
+  actions: Action[],
+  ctx: SignaledRunnerContext,
+  options: RunnerOptions = {},
+): Promise<SignaledRunnerResult> {
+  let statusCommentId = "";
+
+  // Skip signaling for dry run
+  if (ctx.dryRun) {
+    core.info("[DRY RUN] Skipping status signaling");
+    const result = await executeActions(actions, ctx, options);
+    return { ...result, statusCommentId: "" };
+  }
+
+  try {
+    // 1. Signal start - post "loading" status comment
+    statusCommentId = await signalStart(
+      {
+        octokit: ctx.octokit,
+        owner: ctx.owner,
+        repo: ctx.repo,
+        resourceType: ctx.resourceType,
+        resourceNumber: ctx.resourceNumber,
+        job: ctx.job,
+        runUrl: ctx.runUrl,
+        triggerCommentId: ctx.triggerCommentId,
+      },
+      ctx.progress,
+    );
+  } catch (error) {
+    // Don't fail the run if we can't create a status comment
+    core.warning(`Failed to create status comment: ${error}`);
+  }
+
+  // 2. Execute all actions
+  const result = await executeActions(actions, ctx, options);
+
+  // 3. Signal end - update status comment with result
+  if (statusCommentId !== "") {
+    try {
+      const jobResult: JobResult = result.success ? "success" : "failure";
+      await signalEnd(
+        {
+          octokit: ctx.octokit,
+          owner: ctx.owner,
+          repo: ctx.repo,
+          resourceType: ctx.resourceType,
+          resourceNumber: ctx.resourceNumber,
+          job: ctx.job,
+          runUrl: ctx.runUrl,
+          triggerCommentId: ctx.triggerCommentId,
+        },
+        statusCommentId,
+        jobResult,
+      );
+    } catch (error) {
+      core.warning(`Failed to update status comment: ${error}`);
+    }
+  }
+
+  return { ...result, statusCommentId };
+}
+
+/**
+ * Create a signaled runner context from GitHub action inputs
+ */
+export function createSignaledRunnerContext(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  projectNumber: number,
+  resourceType: ResourceType,
+  resourceNumber: number,
+  job: string,
+  runUrl: string,
+  options: {
+    dryRun?: boolean;
+    serverUrl?: string;
+    reviewOctokit?: Octokit;
+    triggerCommentId?: string;
+    progress?: ProgressInfo;
+  } = {},
+): SignaledRunnerContext {
+  return {
+    octokit,
+    reviewOctokit: options.reviewOctokit,
+    owner,
+    repo,
+    projectNumber,
+    serverUrl:
+      options.serverUrl ||
+      process.env.GITHUB_SERVER_URL ||
+      "https://github.com",
+    dryRun: options.dryRun,
+    resourceType,
+    resourceNumber,
+    job,
+    runUrl,
+    triggerCommentId: options.triggerCommentId,
+    progress: options.progress,
+  };
 }

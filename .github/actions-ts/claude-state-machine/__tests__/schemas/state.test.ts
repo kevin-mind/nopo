@@ -364,6 +364,10 @@ describe("MachineContextSchema", () => {
     hasBranch: false,
     pr: null,
     hasPR: false,
+    commentContextType: null,
+    commentContextDescription: null,
+    releaseEvent: null,
+    discussion: null,
     maxRetries: 5,
     botUsername: "nopo-bot",
   };

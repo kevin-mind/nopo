@@ -14,12 +14,19 @@ import {
   emitUnassign,
   emitRunClaude,
   emitRunClaudeFixCI,
+  emitRunClaudeTriage,
+  emitRunClaudeComment,
+  emitRunClaudePRReview,
+  emitRunClaudePRResponse,
+  emitRunClaudePRHumanResponse,
   emitMarkReady,
   emitRequestReview,
   emitConvertToDraft,
   emitTransitionToReview,
   emitHandleCIFailure,
   emitBlockIssue,
+  emitOrchestrate,
+  emitAllPhasesDone,
   emitLog,
   emitStop,
 } from "./actions.js";
@@ -27,14 +34,14 @@ import {
 /**
  * Extended context that includes accumulated actions
  */
-export interface MachineContextWithActions extends MachineContext {
+interface MachineContextWithActions extends MachineContext {
   pendingActions: Action[];
 }
 
 /**
  * Machine events
  */
-export type MachineEvent =
+type MachineEvent =
   | { type: "START" }
   | { type: "CI_SUCCESS" }
   | { type: "CI_FAILURE" }
@@ -47,7 +54,7 @@ export type MachineEvent =
 /**
  * State machine output - the actions to execute
  */
-export interface MachineOutput {
+interface MachineOutput {
   actions: Action[];
   finalState: string;
 }
@@ -109,6 +116,16 @@ export const claudeMachine = setup({
     hasBranch: ({ context }) => guards.hasBranch({ context }),
     triggeredByCI: ({ context }) => guards.triggeredByCI({ context }),
     triggeredByReview: ({ context }) => guards.triggeredByReview({ context }),
+    triggeredByTriage: ({ context }) => guards.triggeredByTriage({ context }),
+    triggeredByComment: ({ context }) => guards.triggeredByComment({ context }),
+    triggeredByOrchestrate: ({ context }) =>
+      guards.triggeredByOrchestrate({ context }),
+    triggeredByPRReview: ({ context }) =>
+      guards.triggeredByPRReview({ context }),
+    triggeredByPRResponse: ({ context }) =>
+      guards.triggeredByPRResponse({ context }),
+    triggeredByPRHumanResponse: ({ context }) =>
+      guards.triggeredByPRHumanResponse({ context }),
   },
   actions: {
     // Log actions
@@ -134,6 +151,20 @@ export const claudeMachine = setup({
         accumulateActions(
           context.pendingActions,
           emitLog({ context }, "PR is under review"),
+        ),
+    }),
+    logTriaging: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(
+          context.pendingActions,
+          emitLog({ context }, `Triaging issue #${context.issue.number}`),
+        ),
+    }),
+    logCommenting: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(
+          context.pendingActions,
+          emitLog({ context }, `Responding to comment on #${context.issue.number}`),
         ),
     }),
 
@@ -207,6 +238,20 @@ export const claudeMachine = setup({
           emitRunClaudeFixCI({ context }),
         ),
     }),
+    runClaudeTriage: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(
+          context.pendingActions,
+          emitRunClaudeTriage({ context }),
+        ),
+    }),
+    runClaudeComment: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(
+          context.pendingActions,
+          emitRunClaudeComment({ context }),
+        ),
+    }),
 
     // PR actions
     markPRReady: assign({
@@ -225,6 +270,41 @@ export const claudeMachine = setup({
         accumulateActions(
           context.pendingActions,
           emitConvertToDraft({ context }),
+        ),
+    }),
+    runClaudePRReview: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(
+          context.pendingActions,
+          emitRunClaudePRReview({ context }),
+        ),
+    }),
+    runClaudePRResponse: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(
+          context.pendingActions,
+          emitRunClaudePRResponse({ context }),
+        ),
+    }),
+    runClaudePRHumanResponse: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(
+          context.pendingActions,
+          emitRunClaudePRHumanResponse({ context }),
+        ),
+    }),
+    logPRReviewing: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(
+          context.pendingActions,
+          emitLog({ context }, `Reviewing PR #${context.pr?.number ?? "unknown"}`),
+        ),
+    }),
+    logPRResponding: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(
+          context.pendingActions,
+          emitLog({ context }, `Responding to review on PR #${context.pr?.number ?? "unknown"}`),
         ),
     }),
 
@@ -246,6 +326,32 @@ export const claudeMachine = setup({
     blockIssue: assign({
       pendingActions: ({ context }) =>
         accumulateActions(context.pendingActions, emitBlockIssue({ context })),
+    }),
+
+    // Orchestration actions
+    orchestrate: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(
+          context.pendingActions,
+          emitOrchestrate({ context }),
+        ),
+    }),
+    allPhasesDone: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(
+          context.pendingActions,
+          emitAllPhasesDone({ context }),
+        ),
+    }),
+    logOrchestrating: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(
+          context.pendingActions,
+          emitLog(
+            { context },
+            `Orchestrating issue #${context.issue.number} (phase ${context.currentPhase}/${context.totalPhases})`,
+          ),
+        ),
     }),
 
     // Stop action
@@ -276,12 +382,42 @@ export const claudeMachine = setup({
         { target: "done", guard: "isAlreadyDone" },
         { target: "blocked", guard: "isBlocked" },
         { target: "error", guard: "isError" },
+        // Check if this is a triage request
+        {
+          target: "triaging",
+          guard: "triggeredByTriage",
+        },
+        // Check if this is a comment (@claude mention)
+        {
+          target: "commenting",
+          guard: "triggeredByComment",
+        },
+        // Check if this is an orchestration request
+        {
+          target: "orchestrating",
+          guard: "triggeredByOrchestrate",
+        },
+        // Check if this is a PR review request (bot should review)
+        {
+          target: "prReviewing",
+          guard: "triggeredByPRReview",
+        },
+        // Check if this is a PR response (bot responds to bot's review)
+        {
+          target: "prResponding",
+          guard: "triggeredByPRResponse",
+        },
+        // Check if this is a PR human response (bot responds to human's review)
+        {
+          target: "prRespondingHuman",
+          guard: "triggeredByPRHumanResponse",
+        },
         // Check if this is a CI completion event
         {
           target: "processingCI",
           guard: "triggeredByCI",
         },
-        // Check if this is a review event
+        // Check if this is a review submission event (for orchestration)
         {
           target: "processingReview",
           guard: "triggeredByReview",
@@ -297,6 +433,53 @@ export const claudeMachine = setup({
     },
 
     /**
+     * Triage an issue - analyze, label, create sub-issues
+     */
+    triaging: {
+      entry: ["logTriaging", "runClaudeTriage"],
+      type: "final",
+    },
+
+    /**
+     * Respond to a comment (@claude mention)
+     */
+    commenting: {
+      entry: ["logCommenting", "runClaudeComment"],
+      type: "final",
+    },
+
+    /**
+     * Bot reviews a PR
+     *
+     * Claude analyzes the PR and writes review-output.json.
+     * The runner then submits the review via GitHub API.
+     */
+    prReviewing: {
+      entry: ["logPRReviewing", "runClaudePRReview"],
+      type: "final",
+    },
+
+    /**
+     * Bot responds to its own (or another bot's) review feedback
+     *
+     * Claude addresses review comments and pushes changes.
+     */
+    prResponding: {
+      entry: ["logPRResponding", "runClaudePRResponse"],
+      type: "final",
+    },
+
+    /**
+     * Bot responds to human review feedback
+     *
+     * Claude addresses human reviewer's comments and pushes changes.
+     */
+    prRespondingHuman: {
+      entry: ["logPRResponding", "runClaudePRHumanResponse"],
+      type: "final",
+    },
+
+    /**
      * Create sub-issues for phased work
      */
     initializing: {
@@ -305,16 +488,64 @@ export const claudeMachine = setup({
     },
 
     /**
-     * Manage multi-phase work
+     * Manage multi-phase work (parent issue orchestration)
+     *
+     * This state handles parent issues with sub-issues:
+     * - If all phases done: emit completion actions
+     * - If current phase in review: wait (no-op, review completion triggers next run)
+     * - Otherwise: emit orchestration actions (init, advance, assign sub-issue)
+     *
+     * After emitting actions, this becomes a final state because:
+     * - Sub-issue iteration happens in a separate workflow run
+     * - Orchestration triggers sub-issue assignment which triggers iteration
      */
     orchestrating: {
+      entry: ["logOrchestrating"],
       always: [
-        { target: "done", guard: "allPhasesDone" },
-        { target: "reviewing", guard: "currentPhaseInReview" },
-        { target: "iterating", guard: "currentPhaseNeedsWork" },
-        // If no specific state, start working
-        { target: "iterating" },
+        // All phases complete - mark parent done
+        {
+          target: "orchestrationComplete",
+          guard: "allPhasesDone",
+        },
+        // Current phase is in review - wait for review to complete
+        {
+          target: "orchestrationWaiting",
+          guard: "currentPhaseInReview",
+        },
+        // Otherwise, run orchestration (init, advance, assign)
+        {
+          target: "orchestrationRunning",
+        },
       ],
+    },
+
+    /**
+     * Orchestration running - emits actions and stops
+     */
+    orchestrationRunning: {
+      entry: ["orchestrate"],
+      type: "final",
+    },
+
+    /**
+     * Waiting for current phase review to complete
+     */
+    orchestrationWaiting: {
+      entry: [
+        {
+          type: "stopWithReason",
+          params: { reason: "Waiting for review on current phase" },
+        },
+      ],
+      type: "final",
+    },
+
+    /**
+     * All phases complete
+     */
+    orchestrationComplete: {
+      entry: ["allPhasesDone"],
+      type: "final",
     },
 
     /**
@@ -516,4 +747,4 @@ export function getTriggerEvent(context: MachineContext): MachineEvent {
 /**
  * Type for the machine
  */
-export type ClaudeMachine = typeof claudeMachine;
+type ClaudeMachine = typeof claudeMachine;

@@ -133,6 +133,9 @@ jobs:
           fi
 
   # Run state machine in dry-run mode (direct call, no real execution)
+  # In the new architecture:
+  # - State machine derives actions (no execution)
+  # - Executor would execute them (dry_run=true skips actual execution)
   run-dry-run:
     needs: [load-fixture, setup]
     if: |
@@ -142,11 +145,9 @@ jobs:
       needs.setup.result == 'success'
     runs-on: ubuntu-latest
     outputs:
-      actions: ${{ steps.machine.outputs.actions }}
+      actions_json: ${{ steps.machine.outputs.actions_json }}
       final_state: ${{ steps.machine.outputs.final_state }}
-      success: ${{ steps.machine.outputs.success }}
-      stopped_early: ${{ steps.machine.outputs.stopped_early }}
-      stop_reason: ${{ steps.machine.outputs.stop_reason }}
+      action_count: ${{ steps.machine.outputs.action_count }}
     steps:
       - uses: actions/checkout@v4
 
@@ -204,7 +205,8 @@ jobs:
           echo "reviewer=$reviewer" >> $GITHUB_OUTPUT
           echo "Determined trigger: $trigger, ci_result: $ci_result, review_decision: $review_decision"
 
-      - name: Run State Machine (dry-run)
+      # State machine now only derives actions (no execution)
+      - name: Derive Actions (State Machine)
         id: machine
         uses: ./.github/actions-ts/claude-state-machine
         with:
@@ -215,28 +217,23 @@ jobs:
           ci_result: ${{ steps.trigger.outputs.ci_result }}
           review_decision: ${{ steps.trigger.outputs.review_decision }}
           reviewer: ${{ steps.trigger.outputs.reviewer }}
-          dry_run: 'true'
 
       - name: Output dry-run results
         env:
-          ACTIONS: ${{ steps.machine.outputs.actions }}
+          ACTIONS_JSON: ${{ steps.machine.outputs.actions_json }}
           FINAL_STATE: ${{ steps.machine.outputs.final_state }}
-          SUCCESS: ${{ steps.machine.outputs.success }}
-          STOPPED_EARLY: ${{ steps.machine.outputs.stopped_early }}
-          STOP_REASON: ${{ steps.machine.outputs.stop_reason }}
+          ACTION_COUNT: ${{ steps.machine.outputs.action_count }}
         run: |
           echo "## State Machine Dry-Run Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| **Final State** | \`${FINAL_STATE}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Success** | ${SUCCESS} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Stopped Early** | ${STOPPED_EARLY} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Stop Reason** | ${STOP_REASON:-N/A} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Action Count** | ${ACTION_COUNT} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Actions (would be executed)" >> $GITHUB_STEP_SUMMARY
           echo '```json' >> $GITHUB_STEP_SUMMARY
-          echo "$ACTIONS" | jq '.' >> $GITHUB_STEP_SUMMARY
+          echo "$ACTIONS_JSON" | jq '.' >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   # Trigger the state machine by assigning nopo-bot (stepwise/e2e modes only)
@@ -454,11 +451,9 @@ jobs:
       - name: Verify state machine outputs
         id: verify
         env:
-          ACTIONS: ${{ needs.run-dry-run.outputs.actions }}
+          ACTIONS_JSON: ${{ needs.run-dry-run.outputs.actions_json }}
           FINAL_STATE: ${{ needs.run-dry-run.outputs.final_state }}
-          SUCCESS: ${{ needs.run-dry-run.outputs.success }}
-          STOPPED_EARLY: ${{ needs.run-dry-run.outputs.stopped_early }}
-          STOP_REASON: ${{ needs.run-dry-run.outputs.stop_reason }}
+          ACTION_COUNT: ${{ needs.run-dry-run.outputs.action_count }}
           FIXTURE_JSON: ${{ needs.load-fixture.outputs.fixture }}
         run: |
           errors=""
@@ -466,10 +461,8 @@ jobs:
 
           # Extract expected values from fixture (if specified)
           expected_final_state=$(echo "$FIXTURE_JSON" | jq -r '.expected_machine.final_state // empty')
-          expected_actions=$(echo "$FIXTURE_JSON" | jq -r '.expected_machine.actions // empty')
           expected_contains_actions=$(echo "$FIXTURE_JSON" | jq -r '.expected_machine.contains_actions // empty')
-          expected_stopped_early=$(echo "$FIXTURE_JSON" | jq -r '.expected_machine.stopped_early // empty')
-          expected_stop_reason=$(echo "$FIXTURE_JSON" | jq -r '.expected_machine.stop_reason // empty')
+          expected_action_count=$(echo "$FIXTURE_JSON" | jq -r '.expected_machine.action_count // empty')
 
           # Verify final state (if expected)
           if [[ -n "$expected_final_state" ]]; then
@@ -479,18 +472,10 @@ jobs:
             fi
           fi
 
-          # Verify stopped_early (if expected)
-          if [[ -n "$expected_stopped_early" ]]; then
-            if [[ "$STOPPED_EARLY" != "$expected_stopped_early" ]]; then
-              errors="$errors\n- stopped_early: expected '$expected_stopped_early', got '$STOPPED_EARLY'"
-              passed="false"
-            fi
-          fi
-
-          # Verify stop_reason (if expected)
-          if [[ -n "$expected_stop_reason" ]]; then
-            if [[ "$STOP_REASON" != "$expected_stop_reason" ]]; then
-              errors="$errors\n- stop_reason: expected '$expected_stop_reason', got '$STOP_REASON'"
+          # Verify action count (if expected)
+          if [[ -n "$expected_action_count" ]]; then
+            if [[ "$ACTION_COUNT" != "$expected_action_count" ]]; then
+              errors="$errors\n- action_count: expected '$expected_action_count', got '$ACTION_COUNT'"
               passed="false"
             fi
           fi
@@ -498,17 +483,11 @@ jobs:
           # Verify actions contain expected action types (if specified)
           if [[ -n "$expected_contains_actions" && "$expected_contains_actions" != "null" ]]; then
             for action_type in $(echo "$expected_contains_actions" | jq -r '.[]'); do
-              if ! echo "$ACTIONS" | jq -e ".[] | select(.type == \"$action_type\")" > /dev/null 2>&1; then
+              if ! echo "$ACTIONS_JSON" | jq -e ".[] | select(.type == \"$action_type\")" > /dev/null 2>&1; then
                 errors="$errors\n- actions: expected to contain '$action_type' but didn't"
                 passed="false"
               fi
             done
-          fi
-
-          # Basic sanity check: success should be true in dry-run mode
-          if [[ "$SUCCESS" != "true" ]]; then
-            errors="$errors\n- success: expected 'true' in dry-run mode, got '$SUCCESS'"
-            passed="false"
           fi
 
           echo "passed=$passed" >> $GITHUB_OUTPUT
@@ -588,8 +567,9 @@ jobs:
     steps:
       - name: Generate summary
         env:
-          ACTIONS: ${{ needs.run-dry-run.outputs.actions }}
+          ACTIONS_JSON: ${{ needs.run-dry-run.outputs.actions_json }}
           FINAL_STATE: ${{ needs.run-dry-run.outputs.final_state }}
+          ACTION_COUNT: ${{ needs.run-dry-run.outputs.action_count }}
         run: |
           echo "# State Machine Test Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -606,10 +586,11 @@ jobs:
             echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
             echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
             echo "| **Final State** | \`${FINAL_STATE:-N/A}\` |" >> $GITHUB_STEP_SUMMARY
+            echo "| **Action Count** | ${ACTION_COUNT:-0} |" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### Actions" >> $GITHUB_STEP_SUMMARY
             echo '```json' >> $GITHUB_STEP_SUMMARY
-            echo "$ACTIONS" | jq '.' 2>/dev/null || echo "[]" >> $GITHUB_STEP_SUMMARY
+            echo "$ACTIONS_JSON" | jq '.' 2>/dev/null || echo "[]" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
           fi
@@ -642,7 +623,7 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "---" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Dry-Run Mode:** State machine ran in dry-run mode - no real mutations occurred." >> $GITHUB_STEP_SUMMARY
+            echo "**Dry-Run Mode:** State machine derived actions without executing them." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Actions shown above are what _would_ be executed in a real run." >> $GITHUB_STEP_SUMMARY
           fi

@@ -130,13 +130,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Log queue entry for issue #${{ matrix.issue }}
-        uses: ./.github/actions-ts/claude-parse-state
+        uses: ./.github/actions-ts/claude-state-executor
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          issue_number: ${{ matrix.issue }}
-          action: log_event
-          iteration_message: "🚀 Added to merge queue"
-          run_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          github_code_token: ${{ secrets.GITHUB_TOKEN }}
+          github_review_token: ${{ secrets.GITHUB_TOKEN }}
+          project_number: ${{ vars.PROJECT_NUMBER }}
+          actions_json: |
+            [
+              {
+                "type": "appendHistory",
+                "issueNumber": ${{ matrix.issue }},
+                "phase": "-",
+                "message": "🚀 Added to merge queue",
+                "runLink": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              }
+            ]
 
   # ============================================================================
   # LOG: MERGED TO MAIN (push event - covers both merge queue and direct merges)
@@ -156,14 +164,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Log merged event for issue #${{ matrix.issue }}
-        uses: ./.github/actions-ts/claude-parse-state
+        uses: ./.github/actions-ts/claude-state-executor
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          issue_number: ${{ matrix.issue }}
-          action: log_event
-          iteration_message: "🎉 Merged to main"
-          commit_sha: ${{ github.sha }}
-          run_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          github_code_token: ${{ secrets.GITHUB_TOKEN }}
+          github_review_token: ${{ secrets.GITHUB_TOKEN }}
+          project_number: ${{ vars.PROJECT_NUMBER }}
+          actions_json: |
+            [
+              {
+                "type": "appendHistory",
+                "issueNumber": ${{ matrix.issue }},
+                "phase": "-",
+                "message": "🎉 Merged to main",
+                "commitSha": "${{ github.sha }}",
+                "runLink": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              }
+            ]
 
   context:
     runs-on: ubuntu-latest
@@ -332,14 +348,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Log production release for issue #${{ matrix.issue }}
-        uses: ./.github/actions-ts/claude-parse-state
+        uses: ./.github/actions-ts/claude-state-executor
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          issue_number: ${{ matrix.issue }}
-          action: log_event
-          iteration_message: "🚢 Released to production"
-          commit_sha: ${{ github.sha }}
-          run_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          github_code_token: ${{ secrets.GITHUB_TOKEN }}
+          github_review_token: ${{ secrets.GITHUB_TOKEN }}
+          project_number: ${{ vars.PROJECT_NUMBER }}
+          actions_json: |
+            [
+              {
+                "type": "appendHistory",
+                "issueNumber": ${{ matrix.issue }},
+                "phase": "-",
+                "message": "🚢 Released to production",
+                "commitSha": "${{ github.sha }}",
+                "runLink": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              }
+            ]
 
   # ============================================================================
   # LOG: REMOVED FROM QUEUE (merge_group failure)
@@ -382,13 +406,21 @@ jobs:
             echo "reason=Unknown failure" >> "$GITHUB_OUTPUT"
           fi
       - name: Log queue removal for issue #${{ matrix.issue }}
-        uses: ./.github/actions-ts/claude-parse-state
+        uses: ./.github/actions-ts/claude-state-executor
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          issue_number: ${{ matrix.issue }}
-          action: log_event
-          iteration_message: "❌ Removed from queue: ${{ steps.failure.outputs.reason }}"
-          run_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          github_code_token: ${{ secrets.GITHUB_TOKEN }}
+          github_review_token: ${{ secrets.GITHUB_TOKEN }}
+          project_number: ${{ vars.PROJECT_NUMBER }}
+          actions_json: |
+            [
+              {
+                "type": "appendHistory",
+                "issueNumber": ${{ matrix.issue }},
+                "phase": "-",
+                "message": "❌ Removed from queue: ${{ steps.failure.outputs.reason }}",
+                "runLink": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              }
+            ]
 
   checks:
     if: always()

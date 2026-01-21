@@ -1,8 +1,14 @@
 name: Claude Runner
 
 # Reusable workflow that runs the Claude state machine for an issue.
-# This workflow encapsulates all the logic for determining what actions
-# to take based on the current state and trigger event.
+# This workflow:
+# 1. Parses issue state and runs the XState machine to derive actions
+# 2. Executes actions using appropriate tokens (code vs review)
+#
+# Two-token architecture:
+# - github_code_token (NOPO_BOT_PAT): For code operations (push, PR, project fields)
+# - github_review_token (CLAUDE_REVIEWER_PAT): For review operations (submit reviews)
+# Each action specifies which token to use via its 'token' field.
 
 on:
   workflow_call:
@@ -35,6 +41,39 @@ on:
         description: Reviewer username - for pr_review_submitted trigger
         required: false
         type: string
+      comment_context_type:
+        description: Context type (Issue or PR) - for issue_comment trigger
+        required: false
+        type: string
+      comment_context_description:
+        description: Context description - for issue_comment trigger
+        required: false
+        type: string
+      branch:
+        description: Branch name for the work - for issue_comment trigger
+        required: false
+        type: string
+      # Status signaling inputs
+      job:
+        description: Job name for status comments (e.g., 'issue-iterate', 'pr-review')
+        required: false
+        type: string
+        default: ''
+      resource_type:
+        description: Resource type for status comments ('issue' or 'pr')
+        required: false
+        type: string
+        default: 'issue'
+      resource_number:
+        description: Resource number (issue or PR number) for status comments
+        required: false
+        type: number
+        default: 0
+      comment_id:
+        description: Comment ID that triggered this run (for reactions)
+        required: false
+        type: string
+        default: ''
       dry_run:
         description: Run in dry-run mode (log actions without executing)
         required: false
@@ -47,9 +86,12 @@ on:
       success:
         description: Whether execution completed successfully
         value: ${{ jobs.run-state-machine.outputs.success }}
-      actions:
-        description: JSON array of actions that were executed
-        value: ${{ jobs.run-state-machine.outputs.actions }}
+      actions_json:
+        description: JSON array of actions that were derived/executed
+        value: ${{ jobs.run-state-machine.outputs.actions_json }}
+      action_count:
+        description: Number of actions derived
+        value: ${{ jobs.run-state-machine.outputs.action_count }}
       stopped_early:
         description: Whether execution stopped early
         value: ${{ jobs.run-state-machine.outputs.stopped_early }}
@@ -68,14 +110,20 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       final_state: ${{ steps.machine.outputs.final_state }}
-      success: ${{ steps.machine.outputs.success }}
-      actions: ${{ steps.machine.outputs.actions }}
-      stopped_early: ${{ steps.machine.outputs.stopped_early }}
-      stop_reason: ${{ steps.machine.outputs.stop_reason }}
+      success: ${{ steps.executor.outputs.success }}
+      actions_json: ${{ steps.machine.outputs.actions_json }}
+      action_count: ${{ steps.machine.outputs.action_count }}
+      stopped_early: ${{ steps.executor.outputs.stopped_early }}
+      stop_reason: ${{ steps.executor.outputs.stop_reason }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # For comments, checkout the branch if provided; otherwise default to main
+          ref: ${{ inputs.branch || 'main' }}
+          fetch-depth: 0
+          persist-credentials: false  # Allow PAT to work for push
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -88,7 +136,9 @@ jobs:
         if: ${{ !inputs.dry_run }}
         run: npm install -g @anthropic-ai/claude-code
 
-      - name: Run State Machine
+      # Step 1: Run state machine to derive actions
+      # Uses NOPO_BOT_PAT for reading issue/project state
+      - name: Derive Actions (State Machine)
         id: machine
         uses: ./.github/actions-ts/claude-state-machine
         with:
@@ -101,19 +151,144 @@ jobs:
           ci_commit_sha: ${{ inputs.ci_commit_sha }}
           review_decision: ${{ inputs.review_decision }}
           reviewer: ${{ inputs.reviewer }}
+          comment_context_type: ${{ inputs.comment_context_type }}
+          comment_context_description: ${{ inputs.comment_context_description }}
+          branch: ${{ inputs.branch }}
           max_retries: ${{ vars.MAX_CLAUDE_RETRIES || '5' }}
+
+      # Step 2: Execute derived actions
+      # Uses two tokens:
+      # - NOPO_BOT_PAT (code): push, PR, project field updates
+      # - CLAUDE_REVIEWER_PAT (review): submit PR reviews
+      - name: Execute Actions
+        id: executor
+        if: steps.machine.outputs.action_count != '0'
+        uses: ./.github/actions-ts/claude-state-executor
+        with:
+          github_code_token: ${{ secrets.NOPO_BOT_PAT }}
+          github_review_token: ${{ secrets.CLAUDE_REVIEWER_PAT }}
+          actions_json: ${{ steps.machine.outputs.actions_json }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+          # Status signaling context
+          job: ${{ inputs.job }}
+          resource_type: ${{ inputs.resource_type }}
+          resource_number: ${{ inputs.resource_number || inputs.issue_number }}
+          comment_id: ${{ inputs.comment_id }}
+          run_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           dry_run: ${{ inputs.dry_run && 'true' || 'false' }}
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+      # Post-processing for triage: Apply labels from triage-output.json
+      - name: Apply triage labels
+        if: inputs.trigger == 'issue_triage' && !inputs.dry_run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
+        run: |
+          if [[ ! -f triage-output.json ]]; then
+            echo "No triage-output.json found - skipping label application"
+            exit 0
+          fi
+
+          echo "Applying labels from triage-output.json:"
+          cat triage-output.json
+
+          # Extract values from JSON
+          type=$(jq -r '.type // empty' triage-output.json)
+          priority=$(jq -r '.priority // empty' triage-output.json)
+          topics=$(jq -r '.topics[]? // empty' triage-output.json)
+
+          labels=""
+
+          # Add type label
+          if [[ -n "$type" && "$type" != "null" ]]; then
+            labels="$type"
+            echo "Adding type label: $type"
+          fi
+
+          # Add priority label (only if not null)
+          if [[ -n "$priority" && "$priority" != "null" ]]; then
+            labels="${labels:+$labels,}priority:$priority"
+            echo "Adding priority label: priority:$priority"
+          fi
+
+          # Add topic labels
+          for topic in $topics; do
+            if [[ -n "$topic" ]]; then
+              labels="${labels:+$labels,}topic:$topic"
+              echo "Adding topic label: topic:$topic"
+            fi
+          done
+
+          # Always add triaged label
+          labels="${labels:+$labels,}triaged"
+          echo "Adding triaged label"
+
+          # Apply all labels at once
+          if [[ -n "$labels" ]]; then
+            echo "Applying labels: $labels"
+            gh issue edit "$ISSUE_NUMBER" --add-label "$labels" || true
+          fi
+
+      # Upload triage output artifact for debugging
+      - name: Upload triage output
+        if: inputs.trigger == 'issue_triage' && !inputs.dry_run
+        uses: actions/upload-artifact@v4
+        with:
+          name: claude-triage-output
+          path: triage-output.json
+          retention-days: 1
+          if-no-files-found: ignore
+
+      # Post-processing for comments: Re-push with PAT to trigger CI
+      # Claude Code pushes using GITHUB_TOKEN which doesn't trigger workflows
+      # We amend and re-push with PAT so CI runs on the changes
+      - name: Re-push with PAT to trigger CI
+        if: inputs.trigger == 'issue_comment' && inputs.branch && !inputs.dry_run
+        # Run on success OR failure to ensure CI always triggers for pushed code
+        continue-on-error: true
+        env:
+          NOPO_BOT_PAT: ${{ secrets.NOPO_BOT_PAT }}
+          BRANCH_NAME: ${{ inputs.branch }}
+        run: |
+          # Amend + push with PAT to trigger CI workflows
+          # First, remove any extraheader set by checkout (takes precedence over URL rewriting)
+          git config --local --unset-all http.https://github.com/.extraheader || true
+          # Use URL rewriting for PAT auth
+          git config url."https://${NOPO_BOT_PAT}@github.com/".insteadOf "https://github.com/"
+          # Only if branch has commits beyond main (don't amend main's commits)
+          if [[ $(git rev-list origin/main..HEAD --count) -gt 0 ]]; then
+            git commit --amend --no-edit
+            # Retry push up to 3 times with exponential backoff
+            for attempt in 1 2 3; do
+              if git push origin "$BRANCH_NAME" --force-with-lease; then
+                echo "Push succeeded on attempt $attempt"
+                exit 0
+              fi
+              if [[ $attempt -lt 3 ]]; then
+                delay=$((attempt * 10))
+                echo "Push failed on attempt $attempt, retrying in ${delay}s..."
+                sleep $delay
+              fi
+            done
+            echo "::error::Push failed after 3 attempts"
+            exit 1
+          else
+            echo "No commits beyond main - skipping re-push"
+          fi
 
       - name: Write summary
         if: always()
         env:
           FINAL_STATE: ${{ steps.machine.outputs.final_state }}
-          SUCCESS: ${{ steps.machine.outputs.success }}
-          ACTIONS: ${{ steps.machine.outputs.actions }}
-          STOPPED_EARLY: ${{ steps.machine.outputs.stopped_early }}
-          STOP_REASON: ${{ steps.machine.outputs.stop_reason }}
+          ACTION_COUNT: ${{ steps.machine.outputs.action_count }}
+          ACTIONS_JSON: ${{ steps.machine.outputs.actions_json }}
+          SUCCESS: ${{ steps.executor.outputs.success || 'true' }}
+          STOPPED_EARLY: ${{ steps.executor.outputs.stopped_early || 'false' }}
+          STOP_REASON: ${{ steps.executor.outputs.stop_reason }}
+          ACTIONS_EXECUTED: ${{ steps.executor.outputs.actions_executed || '0' }}
+          ACTIONS_FAILED: ${{ steps.executor.outputs.actions_failed || '0' }}
           ISSUE_NUMBER: ${{ inputs.issue_number }}
           TRIGGER: ${{ inputs.trigger }}
           DRY_RUN: ${{ inputs.dry_run }}
@@ -131,14 +306,17 @@ jobs:
           | **Issue** | [#${ISSUE_NUMBER}](${{ github.server_url }}/${{ github.repository }}/issues/${ISSUE_NUMBER}) |
           | **Trigger** | \`${TRIGGER}\` |
           | **Final State** | \`${FINAL_STATE}\` |
+          | **Actions Derived** | ${ACTION_COUNT} |
+          | **Actions Executed** | ${ACTIONS_EXECUTED} |
+          | **Actions Failed** | ${ACTIONS_FAILED} |
           | **Success** | ${SUCCESS} |
           | **Stopped Early** | ${STOPPED_EARLY} |
           | **Stop Reason** | ${STOP_REASON:-N/A} |
 
-          ## Actions Executed
+          ## Actions
 
           \`\`\`json
-          ${ACTIONS}
+          ${ACTIONS_JSON}
           \`\`\`
 
           ---

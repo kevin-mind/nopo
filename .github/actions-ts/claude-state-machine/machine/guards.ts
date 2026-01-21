@@ -4,7 +4,7 @@ import { isTerminalStatus } from "../schemas/index.js";
 /**
  * Guard context type for XState
  */
-export interface GuardContext {
+interface GuardContext {
   context: MachineContext;
 }
 
@@ -80,6 +80,53 @@ export function allPhasesDone({ context }: GuardContext): boolean {
 }
 
 // ============================================================================
+// Orchestration Guards
+// ============================================================================
+
+/**
+ * Check if parent issue needs initialization (status is Backlog or null)
+ */
+export function needsParentInit({ context }: GuardContext): boolean {
+  return (
+    context.issue.hasSubIssues &&
+    (context.issue.projectStatus === null ||
+      context.issue.projectStatus === "Backlog")
+  );
+}
+
+/**
+ * Check if current phase is complete (todos done) and ready to advance
+ * This means the current sub-issue's work is done and we should move to next phase
+ */
+export function currentPhaseComplete({ context }: GuardContext): boolean {
+  if (!context.currentSubIssue) {
+    return false;
+  }
+  // Phase is complete when todos are done
+  return context.currentSubIssue.todos.uncheckedNonManual === 0;
+}
+
+/**
+ * Check if there is a next phase after the current one
+ */
+export function hasNextPhase({ context }: GuardContext): boolean {
+  if (!context.issue.hasSubIssues || context.currentPhase === null) {
+    return false;
+  }
+  return context.currentPhase < context.totalPhases;
+}
+
+/**
+ * Check if current sub-issue needs assignment (nopo-bot not assigned)
+ */
+export function subIssueNeedsAssignment({ context }: GuardContext): boolean {
+  // Can't check sub-issue assignees directly from parent context
+  // The assignment is always needed as the orchestrate workflow will handle
+  // re-assignment if already assigned
+  return context.currentSubIssue !== null;
+}
+
+// ============================================================================
 // Phase State Guards
 // ============================================================================
 
@@ -110,7 +157,7 @@ export function currentPhaseNeedsWork({ context }: GuardContext): boolean {
 /**
  * Check if current phase is in review
  */
-export function currentPhaseInReview({ context }: GuardContext): boolean {
+function currentPhaseInReview({ context }: GuardContext): boolean {
   return isInReview({ context });
 }
 
@@ -133,7 +180,7 @@ export function todosDone({ context }: GuardContext): boolean {
 /**
  * Check if there are uncompleted todos
  */
-export function hasPendingTodos({ context }: GuardContext): boolean {
+function hasPendingTodos({ context }: GuardContext): boolean {
   return !todosDone({ context });
 }
 
@@ -308,8 +355,50 @@ export function triggeredByReview({ context }: GuardContext): boolean {
 /**
  * Check if triggered by review request
  */
-export function triggeredByReviewRequest({ context }: GuardContext): boolean {
+function triggeredByReviewRequest({ context }: GuardContext): boolean {
   return context.trigger === "pr_review_requested";
+}
+
+/**
+ * Check if triggered by triage request
+ */
+export function triggeredByTriage({ context }: GuardContext): boolean {
+  return context.trigger === "issue_triage";
+}
+
+/**
+ * Check if triggered by issue comment (@claude mention)
+ */
+export function triggeredByComment({ context }: GuardContext): boolean {
+  return context.trigger === "issue_comment";
+}
+
+/**
+ * Check if triggered by orchestration request
+ */
+export function triggeredByOrchestrate({ context }: GuardContext): boolean {
+  return context.trigger === "issue_orchestrate";
+}
+
+/**
+ * Check if triggered by PR review request (bot should review the PR)
+ */
+export function triggeredByPRReview({ context }: GuardContext): boolean {
+  return context.trigger === "pr_review";
+}
+
+/**
+ * Check if triggered by PR response (bot should respond to bot's review)
+ */
+export function triggeredByPRResponse({ context }: GuardContext): boolean {
+  return context.trigger === "pr_response";
+}
+
+/**
+ * Check if triggered by PR human response (bot should respond to human's review)
+ */
+export function triggeredByPRHumanResponse({ context }: GuardContext): boolean {
+  return context.trigger === "pr_human_response";
 }
 
 // ============================================================================
@@ -350,6 +439,11 @@ export const guards = {
   hasSubIssues,
   needsSubIssues,
   allPhasesDone,
+  // Orchestration guards
+  needsParentInit,
+  currentPhaseComplete,
+  hasNextPhase,
+  subIssueNeedsAssignment,
   // Phase state guards
   isInReview,
   currentPhaseNeedsWork,
@@ -385,10 +479,16 @@ export const guards = {
   triggeredByCI,
   triggeredByReview,
   triggeredByReviewRequest,
+  triggeredByTriage,
+  triggeredByComment,
+  triggeredByOrchestrate,
+  triggeredByPRReview,
+  triggeredByPRResponse,
+  triggeredByPRHumanResponse,
   // Composite guards
   readyForReview,
   shouldContinueIterating,
   shouldBlock,
 };
 
-export type GuardName = keyof typeof guards;
+type GuardName = keyof typeof guards;

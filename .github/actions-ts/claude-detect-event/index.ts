@@ -1127,6 +1127,10 @@ async function handleWorkflowRunEvent(): Promise<DetectionResult> {
 
   if (!issueNumber) core.setFailed("PR has no issue number");
 
+  // Construct CI run URL
+  const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+  const ciRunUrl = `${serverUrl}/${owner}/${repo}/actions/runs/${runId}`;
+
   return {
     job: "issue-iterate",
     resourceType: "issue",
@@ -1136,7 +1140,7 @@ async function handleWorkflowRunEvent(): Promise<DetectionResult> {
       issue_number: issueNumber,
       pr_number: prInfo.prNumber,
       branch_name: branch,
-      ci_run_id: runId,
+      ci_run_url: ciRunUrl,
       ci_result: conclusion,
       trigger_type: "workflow_run",
     }),

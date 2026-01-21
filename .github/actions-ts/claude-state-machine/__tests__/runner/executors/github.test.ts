@@ -15,6 +15,7 @@ import {
   executeUpdateIssueBody,
   executeAddComment,
   executeUnassignUser,
+  executeAssignUser,
   executeCreateSubIssues,
   executeCreatePR,
   executeConvertPRToDraft,
@@ -29,6 +30,7 @@ import type {
   UpdateIssueBodyAction,
   AddCommentAction,
   UnassignUserAction,
+  AssignUserAction,
   CreateSubIssuesAction,
   CreatePRAction,
   ConvertPRToDraftAction,
@@ -48,6 +50,7 @@ function createMockContext(): RunnerContext {
           update: vi.fn(),
           createComment: vi.fn(),
           removeAssignees: vi.fn(),
+          addAssignees: vi.fn(),
         },
         pulls: {
           create: vi.fn(),
@@ -334,6 +337,37 @@ describe("executeUnassignUser", () => {
       owner: "test-owner",
       repo: "test-repo",
       issue_number: 123,
+      assignees: ["nopo-bot"],
+    });
+  });
+});
+
+describe("executeAssignUser", () => {
+  let ctx: RunnerContext;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    ctx = createMockContext();
+  });
+
+  test("assigns user to issue", async () => {
+    vi.mocked(ctx.octokit.rest.issues.addAssignees).mockResolvedValueOnce(
+      {} as any,
+    );
+
+    const action: AssignUserAction = {
+      type: "assignUser",
+      issueNumber: 42,
+      username: "nopo-bot",
+    };
+
+    const result = await executeAssignUser(action, ctx);
+
+    expect(result.assigned).toBe(true);
+    expect(ctx.octokit.rest.issues.addAssignees).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      issue_number: 42,
       assignees: ["nopo-bot"],
     });
   });

@@ -8,20 +8,20 @@ import { deriveBranchName } from "../parser/index.js";
 /**
  * Action context type for XState actions
  */
-export interface ActionContext {
+interface ActionContext {
   context: MachineContext;
 }
 
 /**
  * Action result - actions to execute
  */
-export type ActionResult = Action[];
+type ActionResult = Action[];
 
 /**
  * Accumulated actions during machine execution
  * XState will collect these via assign
  */
-export interface ActionsAccumulator {
+interface ActionsAccumulator {
   actions: Action[];
 }
 
@@ -99,7 +99,7 @@ export function emitSetBlocked({ context }: ActionContext): ActionResult {
 /**
  * Emit action to set status to Error
  */
-export function emitSetError({ context }: ActionContext): ActionResult {
+function emitSetError({ context }: ActionContext): ActionResult {
   return [
     {
       type: "updateProjectStatus",
@@ -172,7 +172,7 @@ export function emitCloseIssue({ context }: ActionContext): ActionResult {
 /**
  * Emit action to close current sub-issue
  */
-export function emitCloseSubIssue({ context }: ActionContext): ActionResult {
+function emitCloseSubIssue({ context }: ActionContext): ActionResult {
   if (!context.currentSubIssue) {
     return [];
   }
@@ -201,7 +201,7 @@ export function emitUnassign({ context }: ActionContext): ActionResult {
 /**
  * Emit action to block the issue
  */
-export function emitBlock({ context }: ActionContext): ActionResult {
+function emitBlock({ context }: ActionContext): ActionResult {
   return [
     {
       type: "block",
@@ -218,7 +218,7 @@ export function emitBlock({ context }: ActionContext): ActionResult {
 /**
  * Emit action to append to iteration history
  */
-export function emitAppendHistory(
+function emitAppendHistory(
   { context }: ActionContext,
   message: string,
   phase?: string | number,
@@ -239,14 +239,14 @@ export function emitAppendHistory(
 /**
  * Emit action to log CI start
  */
-export function emitLogCIStart({ context }: ActionContext): ActionResult {
+function emitLogCIStart({ context }: ActionContext): ActionResult {
   return emitAppendHistory({ context }, "⏳ CI Running...");
 }
 
 /**
  * Emit action to log CI success
  */
-export function emitLogCISuccess({ context }: ActionContext): ActionResult {
+function emitLogCISuccess({ context }: ActionContext): ActionResult {
   return [
     {
       type: "updateHistory",
@@ -264,7 +264,7 @@ export function emitLogCISuccess({ context }: ActionContext): ActionResult {
 /**
  * Emit action to log CI failure
  */
-export function emitLogCIFailure({ context }: ActionContext): ActionResult {
+function emitLogCIFailure({ context }: ActionContext): ActionResult {
   return [
     {
       type: "updateHistory",
@@ -286,7 +286,7 @@ export function emitLogCIFailure({ context }: ActionContext): ActionResult {
 /**
  * Emit action to create branch
  */
-export function emitCreateBranch({ context }: ActionContext): ActionResult {
+function emitCreateBranch({ context }: ActionContext): ActionResult {
   const branchName =
     context.branch ??
     deriveBranchName(context.issue.number, context.currentPhase ?? undefined);
@@ -306,7 +306,7 @@ export function emitCreateBranch({ context }: ActionContext): ActionResult {
 /**
  * Emit action to create PR
  */
-export function emitCreatePR({ context }: ActionContext): ActionResult {
+function emitCreatePR({ context }: ActionContext): ActionResult {
   const branchName =
     context.branch ??
     deriveBranchName(context.issue.number, context.currentPhase ?? undefined);
@@ -374,7 +374,7 @@ export function emitRequestReview({ context }: ActionContext): ActionResult {
 /**
  * Emit action to merge PR
  */
-export function emitMergePR({ context }: ActionContext): ActionResult {
+function emitMergePR({ context }: ActionContext): ActionResult {
   if (!context.pr) {
     return [];
   }
@@ -439,7 +439,7 @@ Review the CI logs and fix the failing tests or build errors.`;
 /**
  * Emit action to run Claude for review response
  */
-export function emitRunClaudeReviewResponse({
+function emitRunClaudeReviewResponse({
   context,
 }: ActionContext): ActionResult {
   const issueNumber = context.currentSubIssue?.number ?? context.issue.number;
@@ -458,6 +458,405 @@ Make the requested changes and push the updates.`;
       worktree: context.branch ?? undefined,
     },
   ];
+}
+
+/**
+ * Emit action to run Claude for issue triage
+ *
+ * Uses the triage prompt file with template variables substituted.
+ * Claude will analyze the issue, write triage-output.json, create sub-issues,
+ * and update the issue body.
+ */
+export function emitRunClaudeTriage({ context }: ActionContext): ActionResult {
+  const issueNumber = context.issue.number;
+
+  // The triage prompt uses these template variables
+  const promptVars: Record<string, string> = {
+    ISSUE_NUMBER: String(issueNumber),
+    ISSUE_TITLE: context.issue.title,
+    ISSUE_BODY: context.issue.body,
+    REPO_OWNER: context.owner,
+    REPO_NAME: context.repo,
+  };
+
+  return [
+    {
+      type: "runClaude",
+      promptFile: ".github/prompts/triage.txt",
+      promptVars,
+      issueNumber,
+    },
+  ];
+}
+
+/**
+ * Emit action to run Claude for issue/PR comment response
+ *
+ * Uses the comment prompt file with template variables substituted.
+ * Claude will respond to the @claude mention and optionally make code changes.
+ */
+export function emitRunClaudeComment({ context }: ActionContext): ActionResult {
+  const issueNumber = context.issue.number;
+
+  // The comment prompt uses these template variables
+  const promptVars: Record<string, string> = {
+    ISSUE_NUMBER: String(issueNumber),
+    CONTEXT_TYPE: context.commentContextType ?? "Issue",
+    CONTEXT_DESCRIPTION:
+      context.commentContextDescription ??
+      `This is issue #${issueNumber}.`,
+  };
+
+  return [
+    {
+      type: "runClaude",
+      promptFile: ".github/prompts/comment.txt",
+      promptVars,
+      issueNumber,
+      worktree: context.branch ?? undefined,
+    },
+  ];
+}
+
+// ============================================================================
+// PR Review Actions
+// ============================================================================
+
+/**
+ * Emit action to run Claude to review a PR
+ *
+ * Uses the review prompt file with template variables substituted.
+ * Claude will review the code and write review-output.json which is then
+ * submitted as a PR review.
+ */
+export function emitRunClaudePRReview({ context }: ActionContext): ActionResult {
+  const issueNumber = context.currentSubIssue?.number ?? context.issue.number;
+  const prNumber = context.pr?.number;
+
+  if (!prNumber) {
+    return [
+      { type: "log", level: "warning", message: "No PR found for review" },
+    ];
+  }
+
+  // The review prompt uses these template variables
+  const promptVars: Record<string, string> = {
+    PR_NUMBER: String(prNumber),
+    ISSUE_NUMBER: String(issueNumber),
+    PR_TITLE: context.pr?.title ?? "",
+    HEAD_REF: context.pr?.headRef ?? context.branch ?? "",
+    BASE_REF: context.pr?.baseRef ?? "main",
+    REPO_OWNER: context.owner,
+    REPO_NAME: context.repo,
+  };
+
+  return [
+    {
+      type: "runClaude",
+      promptFile: ".github/prompts/review.txt",
+      promptVars,
+      issueNumber,
+      worktree: context.branch ?? undefined,
+    },
+  ];
+}
+
+/**
+ * Emit action to run Claude to respond to (bot's) review feedback
+ *
+ * Uses the review-response prompt file. Claude will address the review
+ * comments and make code changes.
+ */
+export function emitRunClaudePRResponse({
+  context,
+}: ActionContext): ActionResult {
+  const issueNumber = context.currentSubIssue?.number ?? context.issue.number;
+  const prNumber = context.pr?.number;
+
+  if (!prNumber) {
+    return [
+      { type: "log", level: "warning", message: "No PR found for response" },
+    ];
+  }
+
+  // The review-response prompt uses these template variables
+  const promptVars: Record<string, string> = {
+    PR_NUMBER: String(prNumber),
+    ISSUE_NUMBER: String(issueNumber),
+    HEAD_REF: context.pr?.headRef ?? context.branch ?? "",
+    BASE_REF: context.pr?.baseRef ?? "main",
+    REPO_OWNER: context.owner,
+    REPO_NAME: context.repo,
+    REVIEW_DECISION: context.reviewDecision ?? "N/A",
+    REVIEWER: context.reviewerId ?? "N/A",
+  };
+
+  return [
+    {
+      type: "runClaude",
+      promptFile: ".github/prompts/review-response.txt",
+      promptVars,
+      issueNumber,
+      worktree: context.branch ?? undefined,
+    },
+  ];
+}
+
+/**
+ * Emit action to run Claude to respond to human's review feedback
+ *
+ * Uses the human-review-response prompt file. Claude will address the
+ * human reviewer's comments and make code changes.
+ */
+export function emitRunClaudePRHumanResponse({
+  context,
+}: ActionContext): ActionResult {
+  const issueNumber = context.currentSubIssue?.number ?? context.issue.number;
+  const prNumber = context.pr?.number;
+
+  if (!prNumber) {
+    return [
+      {
+        type: "log",
+        level: "warning",
+        message: "No PR found for human response",
+      },
+    ];
+  }
+
+  // The human-review-response prompt uses these template variables
+  const promptVars: Record<string, string> = {
+    PR_NUMBER: String(prNumber),
+    ISSUE_NUMBER: String(issueNumber),
+    HEAD_REF: context.pr?.headRef ?? context.branch ?? "",
+    BASE_REF: context.pr?.baseRef ?? "main",
+    REPO_OWNER: context.owner,
+    REPO_NAME: context.repo,
+    REVIEW_DECISION: context.reviewDecision ?? "N/A",
+    REVIEWER: context.reviewerId ?? "N/A",
+  };
+
+  return [
+    {
+      type: "runClaude",
+      promptFile: ".github/prompts/human-review-response.txt",
+      promptVars,
+      issueNumber,
+      worktree: context.branch ?? undefined,
+    },
+  ];
+}
+
+// ============================================================================
+// Orchestration Actions
+// ============================================================================
+
+/**
+ * Emit action to assign nopo-bot to current sub-issue
+ * This triggers the iteration workflow on the sub-issue
+ */
+export function emitAssignToSubIssue({ context }: ActionContext): ActionResult {
+  if (!context.currentSubIssue) {
+    return [];
+  }
+  return [
+    {
+      type: "assignUser",
+      issueNumber: context.currentSubIssue.number,
+      username: context.botUsername,
+    },
+  ];
+}
+
+/**
+ * Emit actions to initialize parent issue for orchestration
+ * Sets parent to "In Progress" and first sub-issue to "Working"
+ */
+export function emitInitializeParent({ context }: ActionContext): ActionResult {
+  const actions: Action[] = [];
+
+  // Set parent to "In Progress"
+  actions.push({
+    type: "updateProjectStatus",
+    issueNumber: context.issue.number,
+    status: "In Progress" as ProjectStatus,
+  });
+
+  // Set first sub-issue to "Working"
+  const firstSubIssue = context.issue.subIssues[0];
+  if (firstSubIssue) {
+    actions.push({
+      type: "updateProjectStatus",
+      issueNumber: firstSubIssue.number,
+      status: "Working" as ProjectStatus,
+    });
+  }
+
+  // Log initialization
+  actions.push({
+    type: "appendHistory",
+    issueNumber: context.issue.number,
+    phase: "1",
+    message: `🚀 Initialized with ${context.issue.subIssues.length} phase(s)`,
+  });
+
+  return actions;
+}
+
+/**
+ * Emit actions to advance to next phase
+ * Marks current phase Done, sets next phase to Working
+ */
+export function emitAdvancePhase({ context }: ActionContext): ActionResult {
+  const actions: Action[] = [];
+
+  if (!context.currentSubIssue || context.currentPhase === null) {
+    return actions;
+  }
+
+  // Mark current sub-issue as Done
+  actions.push({
+    type: "updateProjectStatus",
+    issueNumber: context.currentSubIssue.number,
+    status: "Done" as ProjectStatus,
+  });
+
+  // Close current sub-issue
+  actions.push({
+    type: "closeIssue",
+    issueNumber: context.currentSubIssue.number,
+    reason: "completed" as const,
+  });
+
+  // Find next sub-issue
+  const nextPhase = context.currentPhase + 1;
+  const nextSubIssue = context.issue.subIssues[nextPhase - 1]; // 0-indexed
+
+  if (nextSubIssue) {
+    // Set next sub-issue to Working
+    actions.push({
+      type: "updateProjectStatus",
+      issueNumber: nextSubIssue.number,
+      status: "Working" as ProjectStatus,
+    });
+
+    // Log phase advancement
+    actions.push({
+      type: "appendHistory",
+      issueNumber: context.issue.number,
+      phase: String(nextPhase),
+      message: `⏭️ Phase ${nextPhase} started`,
+    });
+  }
+
+  return actions;
+}
+
+/**
+ * Emit actions for complete orchestration flow
+ * Handles initialization, phase advancement, and sub-issue assignment
+ */
+export function emitOrchestrate({ context }: ActionContext): ActionResult {
+  const actions: Action[] = [];
+
+  // Log that we're orchestrating
+  actions.push({
+    type: "log",
+    level: "info",
+    message: `Orchestrating issue #${context.issue.number} with ${context.issue.subIssues.length} phases`,
+  });
+
+  // Check if parent needs initialization
+  const needsInit =
+    context.issue.projectStatus === null ||
+    context.issue.projectStatus === "Backlog";
+
+  if (needsInit) {
+    actions.push(...emitInitializeParent({ context }));
+  }
+
+  // Check if current phase is complete and needs advancement
+  // Phase is complete when todos are done
+  const phaseComplete =
+    context.currentSubIssue &&
+    context.currentSubIssue.todos.uncheckedNonManual === 0;
+
+  if (phaseComplete && context.currentPhase !== null) {
+    const hasNext = context.currentPhase < context.totalPhases;
+    if (hasNext) {
+      actions.push(...emitAdvancePhase({ context }));
+    }
+  }
+
+  // Determine which sub-issue to assign
+  // After advancement, we need to find the new current sub-issue
+  let subIssueToAssign = context.currentSubIssue;
+
+  if (phaseComplete && context.currentPhase !== null) {
+    const nextPhase = context.currentPhase + 1;
+    if (nextPhase <= context.totalPhases) {
+      subIssueToAssign = context.issue.subIssues[nextPhase - 1] ?? null;
+    } else {
+      subIssueToAssign = null; // All phases done
+    }
+  }
+
+  // Assign nopo-bot to the sub-issue to trigger iteration
+  if (subIssueToAssign) {
+    actions.push({
+      type: "assignUser",
+      issueNumber: subIssueToAssign.number,
+      username: context.botUsername,
+    });
+  }
+
+  // Stop after orchestration
+  actions.push({
+    type: "stop",
+    reason: subIssueToAssign
+      ? `Assigned to sub-issue #${subIssueToAssign.number}`
+      : "All phases complete",
+  });
+
+  return actions;
+}
+
+/**
+ * Emit actions when all phases are done
+ */
+export function emitAllPhasesDone({ context }: ActionContext): ActionResult {
+  const actions: Action[] = [];
+
+  // Log completion
+  actions.push({
+    type: "log",
+    level: "info",
+    message: `All phases complete for issue #${context.issue.number}`,
+  });
+
+  // Set parent to Done
+  actions.push({
+    type: "updateProjectStatus",
+    issueNumber: context.issue.number,
+    status: "Done" as ProjectStatus,
+  });
+
+  // Close parent issue
+  actions.push({
+    type: "closeIssue",
+    issueNumber: context.issue.number,
+    reason: "completed" as const,
+  });
+
+  // Append final history entry
+  actions.push({
+    type: "appendHistory",
+    issueNumber: context.issue.number,
+    phase: "-",
+    message: "✅ All phases complete",
+  });
+
+  return actions;
 }
 
 // ============================================================================
@@ -496,7 +895,7 @@ export function emitLog(
 /**
  * Emit no-op action
  */
-export function emitNoOp(_ctx: ActionContext, reason?: string): ActionResult {
+function emitNoOp(_ctx: ActionContext, reason?: string): ActionResult {
   return [
     {
       type: "noop",
@@ -580,7 +979,7 @@ export function emitBlockIssue({ context }: ActionContext): ActionResult {
 /**
  * Export all action emitters as a record for XState
  */
-export const machineActions = {
+const machineActions = {
   // Project status
   emitSetWorking,
   emitSetReview,
@@ -614,6 +1013,14 @@ export const machineActions = {
   emitRunClaude,
   emitRunClaudeFixCI,
   emitRunClaudeReviewResponse,
+  emitRunClaudeTriage,
+  emitRunClaudeComment,
+  // Orchestration
+  emitAssignToSubIssue,
+  emitInitializeParent,
+  emitAdvancePhase,
+  emitOrchestrate,
+  emitAllPhasesDone,
   // Control flow
   emitStop,
   emitLog,
@@ -624,4 +1031,4 @@ export const machineActions = {
   emitBlockIssue,
 };
 
-export type MachineActionName = keyof typeof machineActions;
+type MachineActionName = keyof typeof machineActions;

@@ -21,7 +21,7 @@
   },
   "expected_machine": {
     "final_state": "iterating",
-    "contains_actions": ["setWorking", "incrementIteration", "runClaude"],
+    "contains_actions": ["updateProjectStatus", "incrementIteration", "runClaude"],
     "stopped_early": "true",
     "stop_reason": "run_claude_executed"
   },

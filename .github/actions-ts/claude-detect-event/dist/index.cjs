@@ -24664,6 +24664,8 @@ async function handleWorkflowRunEvent() {
   const issueNumber = await extractIssueNumber(prInfo.body);
   if (!prInfo.isClaudePr) return emptyResult(true, "PR is not a Claude PR");
   if (!issueNumber) core2.setFailed("PR has no issue number");
+  const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+  const ciRunUrl = `${serverUrl}/${owner}/${repo}/actions/runs/${runId}`;
   return {
     job: "issue-iterate",
     resourceType: "issue",
@@ -24673,7 +24675,7 @@ async function handleWorkflowRunEvent() {
       issue_number: issueNumber,
       pr_number: prInfo.prNumber,
       branch_name: branch,
-      ci_run_id: runId,
+      ci_run_url: ciRunUrl,
       ci_result: conclusion,
       trigger_type: "workflow_run"
     }),

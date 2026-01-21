@@ -482,6 +482,9 @@ export async function buildMachineContext(
   options: {
     maxRetries?: number;
     botUsername?: string;
+    commentContextType?: "Issue" | "PR" | null;
+    commentContextDescription?: string | null;
+    branch?: string | null;
   } = {},
 ): Promise<MachineContext | null> {
   const { owner, repo } = event;
@@ -572,10 +575,12 @@ export async function buildMachineContext(
     ciCommitSha,
     reviewDecision,
     reviewerId,
-    branch,
+    branch: options.branch || branch,
     hasBranch,
     pr,
     hasPR: pr !== null,
+    commentContextType: options.commentContextType ?? null,
+    commentContextDescription: options.commentContextDescription ?? null,
     maxRetries: options.maxRetries,
     botUsername: options.botUsername,
   });
@@ -584,7 +589,7 @@ export async function buildMachineContext(
 /**
  * Simple context builder for testing
  */
-export function buildTestContext(
+function buildTestContext(
   issue: ParentIssue,
   trigger: TriggerType,
   owner: string = "test-owner",
