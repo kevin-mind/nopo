@@ -61,7 +61,7 @@ describe("executeRunClaude", () => {
       "claude",
       expect.arrayContaining([
         "--print",
-        "--yes",
+        "-y",
         "--prompt",
         "Implement feature",
       ]),

@@ -85,7 +85,7 @@ export async function executeRunClaude(
 ): Promise<ClaudeRunResult> {
   const args: string[] = [
     "--print", // Print output to stdout
-    "--yes", // Auto-accept prompts
+    "-y", // Auto-accept prompts (skip permission confirmations)
   ];
 
   // Get the prompt (from direct string or file)

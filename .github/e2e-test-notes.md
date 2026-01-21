@@ -79,10 +79,26 @@ Run e2e test with multi-phase issue (multiple sub-issues) 3 times in a row witho
 ### Run 9
 - **Started:** 2026-01-21 06:22:33 UTC
 - **Run ID:** 21199521085
-- **Status:** (in progress)
+- **Status:** completed
+- **Duration:** ~13 min (timeout)
+- **Result:** ❌ FAILED
+- **Notes:** Claude execution failed with "The cwd: claude/issue/3751/phase-1 does not exist!". The `worktree` field was set to the branch NAME, but the executor was using it as a directory PATH.
+
+### Run 10
+- **Started:** 2026-01-21 06:35:21 UTC
+- **Run ID:** 21199794834
+- **Status:** completed
+- **Duration:** ~5 min
+- **Result:** ❌ FAILED
+- **Notes:** Worktree fix worked (using `/home/runner/work/nopo/nopo`), but Claude CLI failed with "error: unknown option '--yes'". The executor was using `--yes` but Claude CLI uses `-y` for auto-accept.
+
+### Run 11
+- **Started:** (pending)
+- **Run ID:** (pending)
+- **Status:** (pending)
 - **Duration:** -
 - **Result:** (pending)
-- **Notes:** After fix for trigger type alignment between detect-event and state machine.
+- **Notes:** After fix to change `--yes` to `-y` in claude.ts executor.
 
 ---
 
@@ -143,6 +159,12 @@ Run e2e test with multi-phase issue (multiple sub-issues) 3 times in a row witho
 - **Root Cause:** `runClaude` action sets `worktree: context.branch` (e.g., `claude/issue/3751/phase-1`), but this is a branch NAME being used as a working directory PATH. The checkout action places code at repo root, not in a subdirectory matching the branch name.
 - **Impact:** Claude can't run because it tries to use a non-existent directory.
 
+### Issue 10: Claude CLI --yes flag doesn't exist
+- **Severity:** Critical (blocks Claude execution)
+- **Symptom:** "error: unknown option '--yes'" when running Claude CLI
+- **Root Cause:** The executor used `--yes` flag but Claude CLI uses `-y` for auto-accept/skip permission confirmations.
+- **Impact:** Claude can't run because it fails with invalid CLI argument.
+
 ---
 
 ## Fixes Applied
@@ -187,6 +209,11 @@ Run e2e test with multi-phase issue (multiple sub-issues) 3 times in a row witho
 ### Fix 7: Remove worktree from runClaude actions
 - **File:** `.github/actions-ts/claude-state-machine/machine/actions.ts`
 - **Change:** Removed `worktree: context.branch ?? undefined` from all runClaude action emitters. The checkout action places code at repo root (which is `process.cwd()` in the executor), so no worktree path is needed.
+- **Applied:** 2026-01-21
+
+### Fix 8: Change Claude CLI flag from --yes to -y
+- **File:** `.github/actions-ts/claude-state-machine/runner/executors/claude.ts`
+- **Change:** `"--yes"` → `"-y"` in the args array for Claude CLI execution
 - **Applied:** 2026-01-21
 
 ---
