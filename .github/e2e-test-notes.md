@@ -101,12 +101,20 @@ Run e2e test with multi-phase issue (multiple sub-issues) 3 times in a row witho
 - **Notes:** Claude CLI failed with "error: unknown option '-y'". The `-y` flag also doesn't exist - Claude CLI uses `--dangerously-skip-permissions` for auto-accept.
 
 ### Run 12
+- **Started:** 2026-01-21 06:59:28 UTC
+- **Run ID:** 21200299560
+- **Status:** completed
+- **Duration:** ~7 min
+- **Result:** ❌ FAILED
+- **Notes:** Claude CLI failed with "error: unknown option '--prompt'". The prompt should be passed as a positional argument, not a named option.
+
+### Run 13
 - **Started:** (pending)
 - **Run ID:** (pending)
 - **Status:** (pending)
 - **Duration:** -
 - **Result:** (pending)
-- **Notes:** After fix to change `-y` to `--dangerously-skip-permissions` in claude.ts executor.
+- **Notes:** After fix to pass prompt as positional argument instead of `--prompt`.
 
 ---
 
@@ -179,6 +187,12 @@ Run e2e test with multi-phase issue (multiple sub-issues) 3 times in a row witho
 - **Root Cause:** Neither `--yes` nor `-y` exist in Claude CLI. The correct flag is `--dangerously-skip-permissions`.
 - **Impact:** Claude can't run because it fails with invalid CLI argument.
 
+### Issue 12: Claude CLI --prompt flag doesn't exist
+- **Severity:** Critical (blocks Claude execution)
+- **Symptom:** "error: unknown option '--prompt'" when running Claude CLI
+- **Root Cause:** The executor used `--prompt <text>` but Claude CLI expects the prompt as a positional argument at the end of the command.
+- **Impact:** Claude can't run because it fails with invalid CLI argument.
+
 ---
 
 ## Fixes Applied
@@ -234,6 +248,11 @@ Run e2e test with multi-phase issue (multiple sub-issues) 3 times in a row witho
 ### Fix 9: Change Claude CLI flag to --dangerously-skip-permissions
 - **File:** `.github/actions-ts/claude-state-machine/runner/executors/claude.ts`
 - **Change:** `"-y"` → `"--dangerously-skip-permissions"` - the actual flag used by Claude CLI to skip permission prompts
+- **Applied:** 2026-01-21
+
+### Fix 10: Pass prompt as positional argument
+- **File:** `.github/actions-ts/claude-state-machine/runner/executors/claude.ts`
+- **Change:** Removed `"--prompt", prompt` and added `prompt` as the last element in args array. Claude CLI expects the prompt as a positional argument, not a named option.
 - **Applied:** 2026-01-21
 
 ---

@@ -88,16 +88,16 @@ export async function executeRunClaude(
     "--dangerously-skip-permissions", // Skip all permission prompts (for CI/automated runs)
   ];
 
-  // Get the prompt (from direct string or file)
-  const prompt = getPromptFromAction(action);
-  args.push("--prompt", prompt);
-
   // Add allowed tools if specified
   if (action.allowedTools && action.allowedTools.length > 0) {
     for (const tool of action.allowedTools) {
       args.push("--allowedTools", tool);
     }
   }
+
+  // Add the prompt as a positional argument (must be last)
+  const prompt = getPromptFromAction(action);
+  args.push(prompt);
 
   let stdout = "";
   let stderr = "";
@@ -107,7 +107,7 @@ export async function executeRunClaude(
 
   core.info(`Running Claude for issue #${action.issueNumber}`);
   core.info(`Working directory: ${cwd}`);
-  core.debug(`Prompt: ${action.prompt.slice(0, 200)}...`);
+  core.debug(`Prompt: ${prompt.slice(0, 200)}...`);
 
   try {
     const exitCode = await exec.exec("claude", args, {

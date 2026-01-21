@@ -2,7 +2,7 @@
   "id": "claude-automation",
   "version": "1.0.0",
   "description": "Claude automation state machine for issue lifecycle management",
-  "generatedAt": "2026-01-21T06:59:00.479Z",
+  "generatedAt": "2026-01-21T07:08:01.112Z",
   "config": {
     "id": "claude-automation",
     "initial": "detecting",

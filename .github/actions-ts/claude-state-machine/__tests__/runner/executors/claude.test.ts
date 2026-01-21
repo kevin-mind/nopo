@@ -62,8 +62,7 @@ describe("executeRunClaude", () => {
       expect.arrayContaining([
         "--print",
         "--dangerously-skip-permissions",
-        "--prompt",
-        "Implement feature",
+        "Implement feature", // Prompt as positional argument (last)
       ]),
       expect.objectContaining({
         ignoreReturnCode: true,

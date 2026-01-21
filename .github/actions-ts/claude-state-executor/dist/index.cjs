@@ -29264,19 +29264,19 @@ async function executeRunClaude(action, ctx) {
     "--dangerously-skip-permissions"
     // Skip all permission prompts (for CI/automated runs)
   ];
-  const prompt = getPromptFromAction(action);
-  args.push("--prompt", prompt);
   if (action.allowedTools && action.allowedTools.length > 0) {
     for (const tool of action.allowedTools) {
       args.push("--allowedTools", tool);
     }
   }
+  const prompt = getPromptFromAction(action);
+  args.push(prompt);
   let stdout = "";
   let stderr = "";
   const cwd = action.worktree || process.cwd();
   core5.info(`Running Claude for issue #${action.issueNumber}`);
   core5.info(`Working directory: ${cwd}`);
-  core5.debug(`Prompt: ${action.prompt.slice(0, 200)}...`);
+  core5.debug(`Prompt: ${prompt.slice(0, 200)}...`);
   try {
     const exitCode = await exec5.exec("claude", args, {
       cwd,
