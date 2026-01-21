@@ -33274,14 +33274,17 @@ var claudeMachine = setup({
      * Claude is working on implementation
      */
     iterating: {
-      // createBranch is first: prepares branch (create/checkout/rebase), may signal stop if rebased
-      // NOTE: PR creation happens in workflow after Claude pushes (can't create PR without commits)
+      // createBranch: prepares branch (create/checkout/rebase), may signal stop if rebased
+      // runClaude: Claude implements, commits, pushes (with NOPO_BOT_PAT)
+      // createPR: creates draft PR if none exists (triggers CI via opened event)
+      // If PR already exists, Claude's push triggers CI via synchronize event
       entry: [
         "createBranch",
         "setWorking",
         "incrementIteration",
         "logIterating",
-        "runClaude"
+        "runClaude",
+        "createPR"
       ],
       on: {
         CI_SUCCESS: [
@@ -33313,8 +33316,10 @@ var claudeMachine = setup({
      * Claude is fixing CI failures
      */
     iteratingFix: {
-      // createBranch is first: ensures branch is up-to-date before fixing CI
-      entry: ["createBranch", "incrementIteration", "runClaudeFixCI"],
+      // createBranch: ensures branch is up-to-date before fixing CI
+      // runClaudeFixCI: Claude fixes, commits, pushes (with NOPO_BOT_PAT)
+      // createPR: creates draft PR if none exists (shouldn't happen in fix flow, but safe)
+      entry: ["createBranch", "incrementIteration", "runClaudeFixCI", "createPR"],
       on: {
         CI_SUCCESS: [
           {
