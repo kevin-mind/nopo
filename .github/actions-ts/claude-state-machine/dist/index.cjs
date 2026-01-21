@@ -32215,8 +32215,8 @@ Ensure all tests pass before pushing.`;
     {
       type: "runClaude",
       prompt,
-      issueNumber,
-      worktree: context2.branch ?? void 0
+      issueNumber
+      // worktree intentionally omitted - checkout happens at repo root to the correct branch
     }
   ];
 }
@@ -32231,8 +32231,8 @@ Review the CI logs and fix the failing tests or build errors.`;
     {
       type: "runClaude",
       prompt,
-      issueNumber,
-      worktree: context2.branch ?? void 0
+      issueNumber
+      // worktree intentionally omitted - checkout happens at repo root to the correct branch
     }
   ];
 }
@@ -32266,8 +32266,8 @@ function emitRunClaudeComment({ context: context2 }) {
       type: "runClaude",
       promptFile: ".github/prompts/comment.txt",
       promptVars,
-      issueNumber,
-      worktree: context2.branch ?? void 0
+      issueNumber
+      // worktree intentionally omitted - checkout happens at repo root to the correct branch
     }
   ];
 }
@@ -32295,8 +32295,8 @@ function emitRunClaudePRReview({
       type: "runClaude",
       promptFile: ".github/prompts/review.txt",
       promptVars,
-      issueNumber,
-      worktree: context2.branch ?? void 0
+      issueNumber
+      // worktree intentionally omitted - checkout happens at repo root to the correct branch
     }
   ];
 }
@@ -32325,8 +32325,8 @@ function emitRunClaudePRResponse({
       type: "runClaude",
       promptFile: ".github/prompts/review-response.txt",
       promptVars,
-      issueNumber,
-      worktree: context2.branch ?? void 0
+      issueNumber
+      // worktree intentionally omitted - checkout happens at repo root to the correct branch
     }
   ];
 }
@@ -32359,8 +32359,8 @@ function emitRunClaudePRHumanResponse({
       type: "runClaude",
       promptFile: ".github/prompts/human-review-response.txt",
       promptVars,
-      issueNumber,
-      worktree: context2.branch ?? void 0
+      issueNumber
+      // worktree intentionally omitted - checkout happens at repo root to the correct branch
     }
   ];
 }

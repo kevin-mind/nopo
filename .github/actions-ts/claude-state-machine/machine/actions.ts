@@ -409,7 +409,7 @@ Ensure all tests pass before pushing.`;
       type: "runClaude",
       prompt,
       issueNumber,
-      worktree: context.branch ?? undefined,
+      // worktree intentionally omitted - checkout happens at repo root to the correct branch
     },
   ];
 }
@@ -431,7 +431,7 @@ Review the CI logs and fix the failing tests or build errors.`;
       type: "runClaude",
       prompt,
       issueNumber,
-      worktree: context.branch ?? undefined,
+      // worktree intentionally omitted - checkout happens at repo root to the correct branch
     },
   ];
 }
@@ -453,7 +453,7 @@ Make the requested changes and push the updates.`;
       type: "runClaude",
       prompt,
       issueNumber,
-      worktree: context.branch ?? undefined,
+      // worktree intentionally omitted - checkout happens at repo root to the correct branch
     },
   ];
 }
@@ -510,7 +510,7 @@ export function emitRunClaudeComment({ context }: ActionContext): ActionResult {
       promptFile: ".github/prompts/comment.txt",
       promptVars,
       issueNumber,
-      worktree: context.branch ?? undefined,
+      // worktree intentionally omitted - checkout happens at repo root to the correct branch
     },
   ];
 }
@@ -555,7 +555,7 @@ export function emitRunClaudePRReview({
       promptFile: ".github/prompts/review.txt",
       promptVars,
       issueNumber,
-      worktree: context.branch ?? undefined,
+      // worktree intentionally omitted - checkout happens at repo root to the correct branch
     },
   ];
 }
@@ -596,7 +596,7 @@ export function emitRunClaudePRResponse({
       promptFile: ".github/prompts/review-response.txt",
       promptVars,
       issueNumber,
-      worktree: context.branch ?? undefined,
+      // worktree intentionally omitted - checkout happens at repo root to the correct branch
     },
   ];
 }
@@ -641,7 +641,7 @@ export function emitRunClaudePRHumanResponse({
       promptFile: ".github/prompts/human-review-response.txt",
       promptVars,
       issueNumber,
-      worktree: context.branch ?? undefined,
+      // worktree intentionally omitted - checkout happens at repo root to the correct branch
     },
   ];
 }

@@ -341,7 +341,8 @@ describe("claudeMachine", () => {
         CONTEXT_DESCRIPTION: "This is PR #789 fixing bug in authentication.",
       });
       expect(runClaudeAction.issueNumber).toBe(456);
-      expect(runClaudeAction.worktree).toBe("claude/issue/456");
+      // worktree is intentionally not set - checkout happens at repo root to the correct branch
+      expect(runClaudeAction.worktree).toBeUndefined();
     });
 
     test("uses default context values when not provided", () => {

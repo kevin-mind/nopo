@@ -71,10 +71,18 @@ Run e2e test with multi-phase issue (multiple sub-issues) 3 times in a row witho
 ### Run 8
 - **Started:** 2026-01-21 06:16:58 UTC
 - **Run ID:** 21199403390
-- **Status:** completed
-- **Duration:** ~2 min
+- **Status:** cancelled
+- **Duration:** ~6 min (before cancellation)
 - **Result:** ❌ FAILED
 - **Notes:** Claude workflow for issue #3748 failed with "Invalid trigger type: assigned". The claude-detect-event outputs `trigger_type: "assigned"` but the state machine schema expects `"issue_assigned"`.
+
+### Run 9
+- **Started:** 2026-01-21 06:22:33 UTC
+- **Run ID:** 21199521085
+- **Status:** (in progress)
+- **Duration:** -
+- **Result:** (pending)
+- **Notes:** After fix for trigger type alignment between detect-event and state machine.
 
 ---
 
@@ -129,6 +137,12 @@ Run e2e test with multi-phase issue (multiple sub-issues) 3 times in a row witho
 - **Root Cause:** `claude-detect-event` outputs `trigger_type: "assigned"` but the state machine schema expects `"issue_assigned"`. Same issue for `"edited"` → `"issue_edited"` and `"workflow_run"` → `"workflow_run_completed"`.
 - **Impact:** State machine fails to parse trigger type, blocking all actions.
 
+### Issue 9: runClaude worktree set to branch name instead of path
+- **Severity:** Critical (blocks Claude execution)
+- **Symptom:** "The cwd: claude/issue/3751/phase-1 does not exist!" error
+- **Root Cause:** `runClaude` action sets `worktree: context.branch` (e.g., `claude/issue/3751/phase-1`), but this is a branch NAME being used as a working directory PATH. The checkout action places code at repo root, not in a subdirectory matching the branch name.
+- **Impact:** Claude can't run because it tries to use a non-existent directory.
+
 ---
 
 ## Fixes Applied
@@ -168,6 +182,11 @@ Run e2e test with multi-phase issue (multiple sub-issues) 3 times in a row witho
   - `trigger_type: "edited"` → `trigger_type: "issue_edited"`
   - `trigger_type: "workflow_run"` → `trigger_type: "workflow_run_completed"`
   - `trigger_type: "implement_command"` → `trigger_type: "issue_comment"`
+- **Applied:** 2026-01-21
+
+### Fix 7: Remove worktree from runClaude actions
+- **File:** `.github/actions-ts/claude-state-machine/machine/actions.ts`
+- **Change:** Removed `worktree: context.branch ?? undefined` from all runClaude action emitters. The checkout action places code at repo root (which is `process.cwd()` in the executor), so no worktree path is needed.
 - **Applied:** 2026-01-21
 
 ---
