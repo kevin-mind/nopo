@@ -52,7 +52,7 @@ export function emitSetReview({ context }: ActionContext): ActionResult {
     {
       type: "updateProjectStatus",
       issueNumber,
-      status: "Review" as ProjectStatus,
+      status: "In review" as ProjectStatus,
     },
   ];
 }
@@ -65,7 +65,7 @@ export function emitSetInProgress({ context }: ActionContext): ActionResult {
     {
       type: "updateProjectStatus",
       issueNumber: context.issue.number,
-      status: "In Progress" as ProjectStatus,
+      status: "In progress" as ProjectStatus,
     },
   ];
 }
@@ -439,9 +439,7 @@ Review the CI logs and fix the failing tests or build errors.`;
 /**
  * Emit action to run Claude for review response
  */
-function emitRunClaudeReviewResponse({
-  context,
-}: ActionContext): ActionResult {
+function emitRunClaudeReviewResponse({ context }: ActionContext): ActionResult {
   const issueNumber = context.currentSubIssue?.number ?? context.issue.number;
 
   const prompt = `Address the review feedback for issue #${issueNumber}.
@@ -503,8 +501,7 @@ export function emitRunClaudeComment({ context }: ActionContext): ActionResult {
     ISSUE_NUMBER: String(issueNumber),
     CONTEXT_TYPE: context.commentContextType ?? "Issue",
     CONTEXT_DESCRIPTION:
-      context.commentContextDescription ??
-      `This is issue #${issueNumber}.`,
+      context.commentContextDescription ?? `This is issue #${issueNumber}.`,
   };
 
   return [
@@ -529,7 +526,9 @@ export function emitRunClaudeComment({ context }: ActionContext): ActionResult {
  * Claude will review the code and write review-output.json which is then
  * submitted as a PR review.
  */
-export function emitRunClaudePRReview({ context }: ActionContext): ActionResult {
+export function emitRunClaudePRReview({
+  context,
+}: ActionContext): ActionResult {
   const issueNumber = context.currentSubIssue?.number ?? context.issue.number;
   const prNumber = context.pr?.number;
 
@@ -670,16 +669,16 @@ export function emitAssignToSubIssue({ context }: ActionContext): ActionResult {
 
 /**
  * Emit actions to initialize parent issue for orchestration
- * Sets parent to "In Progress" and first sub-issue to "Working"
+ * Sets parent to "In progress" and first sub-issue to "Working"
  */
 export function emitInitializeParent({ context }: ActionContext): ActionResult {
   const actions: Action[] = [];
 
-  // Set parent to "In Progress"
+  // Set parent to "In progress"
   actions.push({
     type: "updateProjectStatus",
     issueNumber: context.issue.number,
-    status: "In Progress" as ProjectStatus,
+    status: "In progress" as ProjectStatus,
   });
 
   // Set first sub-issue to "Working"

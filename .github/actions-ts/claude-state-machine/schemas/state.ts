@@ -3,15 +3,19 @@ import { z } from "zod";
 /**
  * Project field values for Status single-select field
  *
- * Parent issues use: Backlog, In Progress, Done, Blocked, Error
- * Sub-issues use: Ready, Working, Review, Done
+ * NOTE: These must match the exact option names in the GitHub Project.
+ * GitHub project has: Backlog, In progress, Ready, Working, In review, Done
+ * (note lowercase "progress" and "In review" not "Review")
+ *
+ * Parent issues use: Backlog, In progress, Done, Blocked, Error
+ * Sub-issues use: Ready, Working, In review, Done
  */
 export const ProjectStatusSchema = z.enum([
   "Backlog",
-  "In Progress",
+  "In progress",
   "Ready",
   "Working",
-  "Review",
+  "In review",
   "Done",
   "Blocked",
   "Error",
@@ -264,13 +268,12 @@ export type MachineContext = z.infer<typeof MachineContextSchema>;
 /**
  * Partial context for creating from parsed data
  */
-const PartialMachineContextSchema =
-  MachineContextSchema.partial().required({
-    trigger: true,
-    owner: true,
-    repo: true,
-    issue: true,
-  });
+const PartialMachineContextSchema = MachineContextSchema.partial().required({
+  trigger: true,
+  owner: true,
+  repo: true,
+  issue: true,
+});
 
 type PartialMachineContext = z.infer<typeof PartialMachineContextSchema>;
 
@@ -324,7 +327,7 @@ export function isTerminalStatus(status: ProjectStatus): boolean {
 export function isParentStatus(status: ProjectStatus): boolean {
   return (
     status === "Backlog" ||
-    status === "In Progress" ||
+    status === "In progress" ||
     status === "Done" ||
     status === "Blocked" ||
     status === "Error"
@@ -338,7 +341,7 @@ export function isSubIssueStatus(status: ProjectStatus): boolean {
   return (
     status === "Ready" ||
     status === "Working" ||
-    status === "Review" ||
+    status === "In review" ||
     status === "Done"
   );
 }

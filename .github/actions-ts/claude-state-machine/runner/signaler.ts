@@ -216,12 +216,14 @@ export async function signalStart(
   // Create status comment based on resource type
   if (ctx.resourceType === "discussion") {
     // Get discussion ID first
-    const discussionResult =
-      await ctx.octokit.graphql<DiscussionIdResponse>(GET_DISCUSSION_ID_QUERY, {
+    const discussionResult = await ctx.octokit.graphql<DiscussionIdResponse>(
+      GET_DISCUSSION_ID_QUERY,
+      {
         owner: ctx.owner,
         repo: ctx.repo,
         number: ctx.resourceNumber,
-      });
+      },
+    );
 
     const discussionId = discussionResult.repository?.discussion?.id;
     if (!discussionId) {

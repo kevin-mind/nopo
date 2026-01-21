@@ -27948,10 +27948,10 @@ var NEVER = INVALID;
 // claude-state-machine/schemas/state.ts
 var ProjectStatusSchema = external_exports.enum([
   "Backlog",
-  "In Progress",
+  "In progress",
   "Ready",
   "Working",
-  "Review",
+  "In review",
   "Done",
   "Blocked",
   "Error"
@@ -29157,7 +29157,9 @@ async function executeRemoveReviewer(action, ctx) {
       pull_number: action.prNumber,
       reviewers: [action.reviewer]
     });
-    core3.info(`Removed reviewer ${action.reviewer} from PR #${action.prNumber}`);
+    core3.info(
+      `Removed reviewer ${action.reviewer} from PR #${action.prNumber}`
+    );
     return { removed: true };
   } catch (error3) {
     if (error3 instanceof Error && error3.message.includes("404")) {
@@ -29677,11 +29679,14 @@ async function signalStart(ctx, progress) {
     );
   }
   if (ctx.resourceType === "discussion") {
-    const discussionResult = await ctx.octokit.graphql(GET_DISCUSSION_ID_QUERY2, {
-      owner: ctx.owner,
-      repo: ctx.repo,
-      number: ctx.resourceNumber
-    });
+    const discussionResult = await ctx.octokit.graphql(
+      GET_DISCUSSION_ID_QUERY2,
+      {
+        owner: ctx.owner,
+        repo: ctx.repo,
+        number: ctx.resourceNumber
+      }
+    );
     const discussionId = discussionResult.repository?.discussion?.id;
     if (!discussionId) {
       throw new Error(`Discussion #${ctx.resourceNumber} not found`);
@@ -30083,7 +30088,10 @@ async function run() {
     const dryRun = getOptionalInput("dry_run") === "true";
     const job = getOptionalInput("job") || "";
     const resourceTypeInput = getOptionalInput("resource_type") || "issue";
-    const resourceNumber = parseInt(getOptionalInput("resource_number") || "0", 10);
+    const resourceNumber = parseInt(
+      getOptionalInput("resource_number") || "0",
+      10
+    );
     const commentId = getOptionalInput("comment_id") || "";
     const runUrl = getOptionalInput("run_url") || "";
     const resourceType = resourceTypeInput === "pr" ? "pr" : "issue";
@@ -30122,7 +30130,9 @@ async function run() {
       },
       {}
     );
-    core9.info(`Token usage: code=${tokenUsage.code || 0}, review=${tokenUsage.review || 0}`);
+    core9.info(
+      `Token usage: code=${tokenUsage.code || 0}, review=${tokenUsage.review || 0}`
+    );
     const codeOctokit = github.getOctokit(codeToken);
     const reviewOctokit = github.getOctokit(reviewToken);
     const { owner, repo } = github.context.repo;
@@ -30159,7 +30169,9 @@ async function run() {
     }
     logRunnerSummary(result);
     const executed = result.results.filter((r) => !r.skipped).length;
-    const failed = result.results.filter((r) => !r.success && !r.skipped).length;
+    const failed = result.results.filter(
+      (r) => !r.success && !r.skipped
+    ).length;
     const skipped = result.results.filter((r) => r.skipped).length;
     const resultsForOutput = result.results.map((r) => ({
       action: r.action.type,

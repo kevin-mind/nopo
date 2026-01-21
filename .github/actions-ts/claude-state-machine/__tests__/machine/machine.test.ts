@@ -63,7 +63,7 @@ describe("claudeMachine", () => {
 
     test("transitions to reviewing when status is Review", () => {
       const context = createContext({
-        issue: { projectStatus: "Review" },
+        issue: { projectStatus: "In review" },
       } as any);
       const { state } = runMachine(context);
       expect(state).toBe("reviewing");
@@ -180,7 +180,7 @@ describe("claudeMachine", () => {
       const context = createContext({
         trigger: "pr_review_submitted",
         reviewDecision: "APPROVED",
-        issue: { projectStatus: "Review", hasSubIssues: true, subIssues: [] },
+        issue: { projectStatus: "In review", hasSubIssues: true, subIssues: [] },
       } as any);
       const { state } = runMachine(context);
       // After orchestrating with empty sub-issues, goes to orchestrationComplete
@@ -195,7 +195,7 @@ describe("claudeMachine", () => {
       const context = createContext({
         trigger: "pr_review_submitted",
         reviewDecision: "CHANGES_REQUESTED",
-        issue: { projectStatus: "Review" },
+        issue: { projectStatus: "In review" },
         pr: {
           number: 42,
           state: "OPEN",
@@ -216,7 +216,7 @@ describe("claudeMachine", () => {
       const context = createContext({
         trigger: "pr_review_submitted",
         reviewDecision: "COMMENTED",
-        issue: { projectStatus: "Review" },
+        issue: { projectStatus: "In review" },
       } as any);
       const { state } = runMachine(context);
       expect(state).toBe("reviewing");
@@ -254,7 +254,9 @@ describe("claudeMachine", () => {
         repo: "test-repo",
       } as any);
       const { actions } = runMachine(context);
-      const runClaudeAction = actions.find((a) => a.type === "runClaude") as any;
+      const runClaudeAction = actions.find(
+        (a) => a.type === "runClaude",
+      ) as any;
       expect(runClaudeAction).toBeDefined();
       expect(runClaudeAction.promptFile).toBe(".github/prompts/triage.txt");
       expect(runClaudeAction.promptVars).toEqual({
@@ -299,7 +301,8 @@ describe("claudeMachine", () => {
           projectStatus: "Working",
         },
         commentContextType: "Issue",
-        commentContextDescription: "This is issue #123 about implementing feature X.",
+        commentContextDescription:
+          "This is issue #123 about implementing feature X.",
       } as any);
       const { state, actions } = runMachine(context);
       expect(state).toBe("commenting");
@@ -315,14 +318,17 @@ describe("claudeMachine", () => {
           number: 456,
           title: "Bug fix PR",
           body: "Fixes a bug",
-          projectStatus: "Review",
+          projectStatus: "In review",
         },
         branch: "claude/issue/456",
         commentContextType: "PR",
-        commentContextDescription: "This is PR #789 fixing bug in authentication.",
+        commentContextDescription:
+          "This is PR #789 fixing bug in authentication.",
       } as any);
       const { actions } = runMachine(context);
-      const runClaudeAction = actions.find((a) => a.type === "runClaude") as any;
+      const runClaudeAction = actions.find(
+        (a) => a.type === "runClaude",
+      ) as any;
       expect(runClaudeAction).toBeDefined();
       expect(runClaudeAction.promptFile).toBe(".github/prompts/comment.txt");
       expect(runClaudeAction.promptVars).toEqual({
@@ -345,7 +351,9 @@ describe("claudeMachine", () => {
         commentContextDescription: null,
       } as any);
       const { actions } = runMachine(context);
-      const runClaudeAction = actions.find((a) => a.type === "runClaude") as any;
+      const runClaudeAction = actions.find(
+        (a) => a.type === "runClaude",
+      ) as any;
       expect(runClaudeAction).toBeDefined();
       expect(runClaudeAction.promptVars).toEqual({
         ISSUE_NUMBER: "789",
@@ -383,7 +391,7 @@ describe("claudeMachine", () => {
     test("transitions to orchestrationComplete when all phases are done", () => {
       const context = createContext({
         issue: {
-          projectStatus: "In Progress",
+          projectStatus: "In progress",
           hasSubIssues: true,
           subIssues: [
             {
@@ -420,7 +428,7 @@ describe("claudeMachine", () => {
     test("transitions to orchestrationRunning when current phase needs work", () => {
       const context = createContext({
         issue: {
-          projectStatus: "In Progress",
+          projectStatus: "In progress",
           hasSubIssues: true,
           subIssues: [
             {
@@ -469,7 +477,7 @@ describe("claudeMachine", () => {
     test("transitions to orchestrationWaiting when current phase is in review", () => {
       const context = createContext({
         issue: {
-          projectStatus: "In Progress",
+          projectStatus: "In progress",
           hasSubIssues: true,
           subIssues: [
             {
@@ -477,7 +485,7 @@ describe("claudeMachine", () => {
               title: "Phase 1",
               state: "OPEN",
               body: "",
-              projectStatus: "Review",
+              projectStatus: "In review",
               branch: null,
               pr: null,
               todos: { total: 1, completed: 1, uncheckedNonManual: 0 },
@@ -499,7 +507,7 @@ describe("claudeMachine", () => {
           title: "Phase 1",
           state: "OPEN",
           body: "",
-          projectStatus: "Review",
+          projectStatus: "In review",
           branch: null,
           pr: null,
           todos: { total: 1, completed: 1, uncheckedNonManual: 0 },

@@ -305,7 +305,7 @@ function parseSubIssue(
 /**
  * Check if a branch exists
  */
-export async function checkBranchExists(
+async function checkBranchExists(
   octokit: Octokit,
   owner: string,
   repo: string,
@@ -329,7 +329,7 @@ export async function checkBranchExists(
 /**
  * Get PR for a branch
  */
-export async function getPRForBranch(
+async function getPRForBranch(
   octokit: Octokit,
   owner: string,
   repo: string,
@@ -366,7 +366,7 @@ export async function getPRForBranch(
 /**
  * Fetch full issue state from GitHub
  */
-export async function fetchIssueState(
+async function fetchIssueState(
   octokit: Octokit,
   owner: string,
   repo: string,
@@ -430,7 +430,7 @@ export async function fetchIssueState(
 /**
  * Find current phase from sub-issues
  */
-export function findCurrentPhase(
+function findCurrentPhase(
   subIssues: SubIssue[],
 ): { phase: number; subIssue: SubIssue } | null {
   for (let i = 0; i < subIssues.length; i++) {
@@ -446,7 +446,7 @@ export function findCurrentPhase(
 /**
  * Enrich sub-issues with PR information
  */
-export async function enrichSubIssuesWithPRs(
+async function enrichSubIssuesWithPRs(
   octokit: Octokit,
   owner: string,
   repo: string,

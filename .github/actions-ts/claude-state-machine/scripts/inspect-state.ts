@@ -27,7 +27,7 @@ const scenarios: Record<string, Partial<MachineContext>> = {
       title: "Test Issue",
       state: "OPEN",
       body: "## Todos\n- [ ] Task 1",
-      projectStatus: "In Progress",
+      projectStatus: "In progress",
       iteration: 0,
       failures: 0,
       assignees: ["nopo-bot"],
@@ -45,7 +45,7 @@ const scenarios: Record<string, Partial<MachineContext>> = {
       title: "Parent Issue",
       state: "OPEN",
       body: "",
-      projectStatus: "In Progress",
+      projectStatus: "In progress",
       iteration: 0,
       failures: 0,
       assignees: ["nopo-bot"],
@@ -213,7 +213,7 @@ const scenarios: Record<string, Partial<MachineContext>> = {
       title: "Test",
       state: "OPEN",
       body: "",
-      projectStatus: "Review",
+      projectStatus: "In review",
       iteration: 2,
       failures: 0,
       assignees: ["nopo-bot"],
@@ -233,7 +233,7 @@ const scenarios: Record<string, Partial<MachineContext>> = {
       title: "Test",
       state: "OPEN",
       body: "",
-      projectStatus: "Review",
+      projectStatus: "In review",
       iteration: 2,
       failures: 0,
       assignees: ["nopo-bot"],
@@ -305,7 +305,7 @@ function createBaseContext(): MachineContext {
       title: "Test Issue",
       state: "OPEN",
       body: "",
-      projectStatus: "In Progress",
+      projectStatus: "In progress",
       iteration: 0,
       failures: 0,
       assignees: ["nopo-bot"],
@@ -426,7 +426,7 @@ function listScenarios() {
   for (const [name, config] of Object.entries(scenarios)) {
     const trigger = config.trigger || "issue_assigned";
     const status =
-      (config.issue as Record<string, unknown>)?.projectStatus || "In Progress";
+      (config.issue as Record<string, unknown>)?.projectStatus || "In progress";
     console.log(`  ${name.padEnd(25)} trigger=${trigger}, status=${status}`);
   }
   console.log("\nUsage: pnpm tsx scripts/inspect-state.ts --scenario <name>");

@@ -31119,10 +31119,10 @@ var NEVER = INVALID;
 // claude-state-machine/schemas/state.ts
 var ProjectStatusSchema = external_exports.enum([
   "Backlog",
-  "In Progress",
+  "In progress",
   "Ready",
   "Working",
-  "Review",
+  "In review",
   "Done",
   "Blocked",
   "Error"
@@ -32059,7 +32059,7 @@ function emitSetReview({ context: context2 }) {
     {
       type: "updateProjectStatus",
       issueNumber,
-      status: "Review"
+      status: "In review"
     }
   ];
 }
@@ -32068,7 +32068,7 @@ function emitSetInProgress({ context: context2 }) {
     {
       type: "updateProjectStatus",
       issueNumber: context2.issue.number,
-      status: "In Progress"
+      status: "In progress"
     }
   ];
 }
@@ -32271,7 +32271,9 @@ function emitRunClaudeComment({ context: context2 }) {
     }
   ];
 }
-function emitRunClaudePRReview({ context: context2 }) {
+function emitRunClaudePRReview({
+  context: context2
+}) {
   const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
   const prNumber = context2.pr?.number;
   if (!prNumber) {
@@ -32367,7 +32369,7 @@ function emitInitializeParent({ context: context2 }) {
   actions.push({
     type: "updateProjectStatus",
     issueNumber: context2.issue.number,
-    status: "In Progress"
+    status: "In progress"
   });
   const firstSubIssue = context2.issue.subIssues[0];
   if (firstSubIssue) {
@@ -32581,16 +32583,16 @@ function subIssueNeedsAssignment({ context: context2 }) {
 }
 function isInReview({ context: context2 }) {
   if (context2.currentSubIssue) {
-    return context2.currentSubIssue.projectStatus === "Review";
+    return context2.currentSubIssue.projectStatus === "In review";
   }
-  return context2.issue.projectStatus === "Review";
+  return context2.issue.projectStatus === "In review";
 }
 function currentPhaseNeedsWork({ context: context2 }) {
   if (context2.currentSubIssue) {
     const status = context2.currentSubIssue.projectStatus;
     return status === "Working" || status === "Ready";
   }
-  return context2.issue.projectStatus === "Working" || context2.issue.projectStatus === "In Progress";
+  return context2.issue.projectStatus === "Working" || context2.issue.projectStatus === "In progress";
 }
 function currentPhaseInReview({ context: context2 }) {
   return isInReview({ context: context2 });
@@ -32829,7 +32831,10 @@ var claudeMachine = setup({
     logCommenting: assign({
       pendingActions: ({ context: context2 }) => accumulateActions(
         context2.pendingActions,
-        emitLog({ context: context2 }, `Responding to comment on #${context2.issue.number}`)
+        emitLog(
+          { context: context2 },
+          `Responding to comment on #${context2.issue.number}`
+        )
       )
     }),
     // Status actions
@@ -32936,13 +32941,19 @@ var claudeMachine = setup({
     logPRReviewing: assign({
       pendingActions: ({ context: context2 }) => accumulateActions(
         context2.pendingActions,
-        emitLog({ context: context2 }, `Reviewing PR #${context2.pr?.number ?? "unknown"}`)
+        emitLog(
+          { context: context2 },
+          `Reviewing PR #${context2.pr?.number ?? "unknown"}`
+        )
       )
     }),
     logPRResponding: assign({
       pendingActions: ({ context: context2 }) => accumulateActions(
         context2.pendingActions,
-        emitLog({ context: context2 }, `Responding to review on PR #${context2.pr?.number ?? "unknown"}`)
+        emitLog(
+          { context: context2 },
+          `Responding to review on PR #${context2.pr?.number ?? "unknown"}`
+        )
       )
     }),
     // Compound actions
@@ -32963,10 +32974,7 @@ var claudeMachine = setup({
     }),
     // Orchestration actions
     orchestrate: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitOrchestrate({ context: context2 })
-      )
+      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitOrchestrate({ context: context2 }))
     }),
     allPhasesDone: assign({
       pendingActions: ({ context: context2 }) => accumulateActions(

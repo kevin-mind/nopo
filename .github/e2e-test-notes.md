@@ -37,6 +37,14 @@ Run e2e test with multi-phase issue (multiple sub-issues) 3 times in a row witho
 - **Notes:** Setup job failed - "Content already exists in this project". Leftover issues from Run 2 cleanup caused collision.
 
 ### Run 4
+- **Started:** 2026-01-21 05:54:19 UTC
+- **Run ID:** 21198926816
+- **Status:** completed
+- **Duration:** ~10 min (timeout)
+- **Result:** ❌ FAILED
+- **Notes:** `run-state-machine` job now runs (type fixes worked!) but fails with ZodError - schema status values don't match GitHub Project. Schema has "In Progress" but GitHub returns "In progress".
+
+### Run 5
 - **Started:** (pending)
 - **Status:** (pending)
 - **Duration:** -
@@ -65,6 +73,12 @@ Run e2e test with multi-phase issue (multiple sub-issues) 3 times in a row witho
 - **Root Cause:** Run 3 tried to create test issues while Run 2's cleanup was still in progress, leaving orphaned issues
 - **Impact:** Test infrastructure issue, not state machine issue
 
+### Issue 4: Schema status value mismatch
+- **Severity:** Critical (blocks state machine execution)
+- **Symptom:** ZodError "Invalid enum value. Expected ... received 'In progress'"
+- **Root Cause:** Schema defined statuses as "In Progress" and "Review" but GitHub Project uses "In progress" and "In review" (different case/wording)
+- **Impact:** State machine fails to parse issue context
+
 ---
 
 ## Fixes Applied
@@ -77,6 +91,13 @@ Run e2e test with multi-phase issue (multiple sub-issues) 3 times in a row witho
 ### Fix 2: Change resource_number type from number to string
 - **File:** `.github/workflows/claude-runner.yml`
 - **Change:** `resource_number: type: number, default: 0` → `resource_number: type: string, default: '0'`
+- **Applied:** 2026-01-21
+
+### Fix 3: Align schema status values with GitHub Project
+- **File:** `.github/actions-ts/claude-state-machine/schemas/state.ts`
+- **Changes:**
+  - `"In Progress"` → `"In progress"` (lowercase 'p')
+  - `"Review"` → `"In review"` (added 'In ' prefix)
 - **Applied:** 2026-01-21
 
 ---

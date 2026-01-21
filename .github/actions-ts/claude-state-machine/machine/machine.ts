@@ -164,7 +164,10 @@ export const claudeMachine = setup({
       pendingActions: ({ context }) =>
         accumulateActions(
           context.pendingActions,
-          emitLog({ context }, `Responding to comment on #${context.issue.number}`),
+          emitLog(
+            { context },
+            `Responding to comment on #${context.issue.number}`,
+          ),
         ),
     }),
 
@@ -297,14 +300,20 @@ export const claudeMachine = setup({
       pendingActions: ({ context }) =>
         accumulateActions(
           context.pendingActions,
-          emitLog({ context }, `Reviewing PR #${context.pr?.number ?? "unknown"}`),
+          emitLog(
+            { context },
+            `Reviewing PR #${context.pr?.number ?? "unknown"}`,
+          ),
         ),
     }),
     logPRResponding: assign({
       pendingActions: ({ context }) =>
         accumulateActions(
           context.pendingActions,
-          emitLog({ context }, `Responding to review on PR #${context.pr?.number ?? "unknown"}`),
+          emitLog(
+            { context },
+            `Responding to review on PR #${context.pr?.number ?? "unknown"}`,
+          ),
         ),
     }),
 
@@ -331,10 +340,7 @@ export const claudeMachine = setup({
     // Orchestration actions
     orchestrate: assign({
       pendingActions: ({ context }) =>
-        accumulateActions(
-          context.pendingActions,
-          emitOrchestrate({ context }),
-        ),
+        accumulateActions(context.pendingActions, emitOrchestrate({ context })),
     }),
     allPhasesDone: assign({
       pendingActions: ({ context }) =>

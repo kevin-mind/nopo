@@ -99,7 +99,7 @@ function createProjectItemResponse(options: {
               name: "Status",
               options: [
                 { id: "opt-working", name: "Working" },
-                { id: "opt-review", name: "Review" },
+                { id: "opt-review", name: "In review" },
                 { id: "opt-done", name: "Done" },
                 { id: "opt-blocked", name: "Blocked" },
               ],
@@ -142,7 +142,7 @@ describe("executeUpdateProjectStatus", () => {
     const action: UpdateProjectStatusAction = {
       type: "updateProjectStatus",
       issueNumber: 123,
-      status: "Review",
+      status: "In review",
     };
 
     const result = await executeUpdateProjectStatus(action, ctx);
@@ -186,7 +186,7 @@ describe("executeUpdateProjectStatus", () => {
                 name: "Status",
                 options: [
                   { id: "opt-working", name: "Working" },
-                  { id: "opt-review", name: "Review" },
+                  { id: "opt-review", name: "In review" },
                 ],
               },
               {

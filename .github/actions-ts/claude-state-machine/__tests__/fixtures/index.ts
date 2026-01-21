@@ -44,7 +44,7 @@ export const DEFAULT_PARENT_ISSUE: ParentIssue = {
   title: "Test Issue",
   state: "OPEN",
   body: "Test body",
-  projectStatus: "In Progress",
+  projectStatus: "In progress",
   iteration: 0,
   failures: 0,
   assignees: ["nopo-bot"],
@@ -271,7 +271,7 @@ export function createReviewContext(
   return createContext({
     trigger: "pr_review_submitted",
     reviewDecision: decision,
-    issue: { projectStatus: "Review" },
+    issue: { projectStatus: "In review" },
     ...overrides,
   });
 }
@@ -304,7 +304,7 @@ export function createMultiPhaseContext(
 
   return createContext({
     issue: {
-      projectStatus: "In Progress",
+      projectStatus: "In progress",
       subIssues,
     },
     currentPhase: currentPhaseIndex >= 0 ? currentPhaseIndex + 1 : null,

@@ -5,4 +5,4 @@ export {} from // Individual action emitters
 "./actions.js";
 
 // Machine
-export { claudeMachine, getTriggerEvent } from "./machine.js";
+export { claudeMachine,  } from "./machine.js";

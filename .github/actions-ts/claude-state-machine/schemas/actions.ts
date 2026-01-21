@@ -9,7 +9,7 @@ import { ProjectStatusSchema } from "./state.js";
  * - `review`: For review operations (submitting PR reviews)
  *             Uses CLAUDE_REVIEWER_PAT - a separate account that can review bot's PRs
  */
-export const TokenTypeSchema = z.enum(["code", "review"]);
+const TokenTypeSchema = z.enum(["code", "review"]);
 
 export type TokenType = z.infer<typeof TokenTypeSchema>;
 
@@ -275,7 +275,7 @@ export type MergePRAction = z.infer<typeof MergePRActionSchema>;
 /**
  * Submit a PR review (approve, request changes, or comment)
  */
-export const SubmitReviewActionSchema = BaseActionSchema.extend({
+const SubmitReviewActionSchema = BaseActionSchema.extend({
   type: z.literal("submitReview"),
   prNumber: z.number().int().positive(),
   decision: z.enum(["approve", "request_changes", "comment"]),
@@ -288,7 +288,7 @@ export type SubmitReviewAction = z.infer<typeof SubmitReviewActionSchema>;
  * Remove a reviewer from a PR
  * Used when converting PR to draft to clear stale review requests
  */
-export const RemoveReviewerActionSchema = BaseActionSchema.extend({
+const RemoveReviewerActionSchema = BaseActionSchema.extend({
   type: z.literal("removeReviewer"),
   prNumber: z.number().int().positive(),
   reviewer: z.string().min(1),
@@ -330,7 +330,7 @@ export type RunClaudeAction = z.infer<typeof RunClaudeActionSchema>;
  * Add a comment to a GitHub Discussion
  * Supports threading via replyToNodeId
  */
-export const AddDiscussionCommentActionSchema = BaseActionSchema.extend({
+const AddDiscussionCommentActionSchema = BaseActionSchema.extend({
   type: z.literal("addDiscussionComment"),
   discussionNodeId: z.string().min(1),
   body: z.string().min(1),
@@ -346,7 +346,7 @@ export type AddDiscussionCommentAction = z.infer<
  * Update the body of a GitHub Discussion
  * Used for maintaining the "living document" pattern
  */
-export const UpdateDiscussionBodyActionSchema = BaseActionSchema.extend({
+const UpdateDiscussionBodyActionSchema = BaseActionSchema.extend({
   type: z.literal("updateDiscussionBody"),
   discussionNodeId: z.string().min(1),
   newBody: z.string().min(1),
@@ -359,7 +359,7 @@ export type UpdateDiscussionBodyAction = z.infer<
 /**
  * Add a reaction to a discussion or comment
  */
-export const AddDiscussionReactionActionSchema = BaseActionSchema.extend({
+const AddDiscussionReactionActionSchema = BaseActionSchema.extend({
   type: z.literal("addDiscussionReaction"),
   /** Node ID of the discussion or comment */
   subjectId: z.string().min(1),
@@ -382,7 +382,7 @@ export type AddDiscussionReactionAction = z.infer<
 /**
  * Create issues from a discussion (for /plan command)
  */
-export const CreateIssuesFromDiscussionActionSchema = BaseActionSchema.extend({
+const CreateIssuesFromDiscussionActionSchema = BaseActionSchema.extend({
   type: z.literal("createIssuesFromDiscussion"),
   discussionNumber: z.number().int().positive(),
   issues: z.array(

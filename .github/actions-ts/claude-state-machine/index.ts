@@ -6,11 +6,7 @@ import {
   getOptionalInput,
   setOutputs,
 } from "../lib/index.js";
-import type {
-  TriggerType,
-  CIResult,
-  ReviewDecision,
-} from "./schemas/index.js";
+import type { TriggerType, CIResult, ReviewDecision } from "./schemas/index.js";
 import { buildMachineContext } from "./parser/index.js";
 import { claudeMachine } from "./machine/index.js";
 import type { GitHubEvent } from "./schemas/index.js";

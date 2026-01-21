@@ -377,7 +377,7 @@ export async function executeCreateIssuesFromDiscussion(
 /**
  * Helper to get discussion node ID from discussion number
  */
-export async function getDiscussionNodeId(
+async function getDiscussionNodeId(
   ctx: RunnerContext,
   discussionNumber: number,
 ): Promise<string> {

@@ -77,7 +77,7 @@ export interface RunnerContext {
  * Extended context for signaled execution
  * Includes all information needed for status comments
  */
-export interface SignaledRunnerContext extends RunnerContext {
+interface SignaledRunnerContext extends RunnerContext {
   /** Resource type for status comments */
   resourceType: ResourceType;
   /** Issue or PR number */
@@ -93,7 +93,7 @@ export interface SignaledRunnerContext extends RunnerContext {
 }
 
 // Re-export types from signaler
-export type { ResourceType, ProgressInfo, JobResult };
+export type { ResourceType,   };
 
 /**
  * Get the appropriate octokit based on the action's token field
@@ -457,7 +457,7 @@ export function countActionsByType(
  * Result of signaled execution
  * Includes the status comment ID for reference
  */
-export interface SignaledRunnerResult extends RunnerResult {
+interface SignaledRunnerResult extends RunnerResult {
   /** ID of the status comment created (string for discussions, numeric string for issues/PRs) */
   statusCommentId: string;
 }

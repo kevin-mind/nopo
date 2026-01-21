@@ -562,7 +562,9 @@ export async function executeRemoveReviewer(
       reviewers: [action.reviewer],
     });
 
-    core.info(`Removed reviewer ${action.reviewer} from PR #${action.prNumber}`);
+    core.info(
+      `Removed reviewer ${action.reviewer} from PR #${action.prNumber}`,
+    );
     return { removed: true };
   } catch (error) {
     // Don't fail if reviewer wasn't requested (404 error)

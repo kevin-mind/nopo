@@ -86,7 +86,7 @@ export function allPhasesDone({ context }: GuardContext): boolean {
 /**
  * Check if parent issue needs initialization (status is Backlog or null)
  */
-export function needsParentInit({ context }: GuardContext): boolean {
+function needsParentInit({ context }: GuardContext): boolean {
   return (
     context.issue.hasSubIssues &&
     (context.issue.projectStatus === null ||
@@ -98,7 +98,7 @@ export function needsParentInit({ context }: GuardContext): boolean {
  * Check if current phase is complete (todos done) and ready to advance
  * This means the current sub-issue's work is done and we should move to next phase
  */
-export function currentPhaseComplete({ context }: GuardContext): boolean {
+function currentPhaseComplete({ context }: GuardContext): boolean {
   if (!context.currentSubIssue) {
     return false;
   }
@@ -109,7 +109,7 @@ export function currentPhaseComplete({ context }: GuardContext): boolean {
 /**
  * Check if there is a next phase after the current one
  */
-export function hasNextPhase({ context }: GuardContext): boolean {
+function hasNextPhase({ context }: GuardContext): boolean {
   if (!context.issue.hasSubIssues || context.currentPhase === null) {
     return false;
   }
@@ -119,7 +119,7 @@ export function hasNextPhase({ context }: GuardContext): boolean {
 /**
  * Check if current sub-issue needs assignment (nopo-bot not assigned)
  */
-export function subIssueNeedsAssignment({ context }: GuardContext): boolean {
+function subIssueNeedsAssignment({ context }: GuardContext): boolean {
   // Can't check sub-issue assignees directly from parent context
   // The assignment is always needed as the orchestrate workflow will handle
   // re-assignment if already assigned
@@ -135,9 +135,9 @@ export function subIssueNeedsAssignment({ context }: GuardContext): boolean {
  */
 export function isInReview({ context }: GuardContext): boolean {
   if (context.currentSubIssue) {
-    return context.currentSubIssue.projectStatus === "Review";
+    return context.currentSubIssue.projectStatus === "In review";
   }
-  return context.issue.projectStatus === "Review";
+  return context.issue.projectStatus === "In review";
 }
 
 /**
@@ -150,7 +150,7 @@ export function currentPhaseNeedsWork({ context }: GuardContext): boolean {
   }
   return (
     context.issue.projectStatus === "Working" ||
-    context.issue.projectStatus === "In Progress"
+    context.issue.projectStatus === "In progress"
   );
 }
 
@@ -369,35 +369,35 @@ export function triggeredByTriage({ context }: GuardContext): boolean {
 /**
  * Check if triggered by issue comment (@claude mention)
  */
-export function triggeredByComment({ context }: GuardContext): boolean {
+function triggeredByComment({ context }: GuardContext): boolean {
   return context.trigger === "issue_comment";
 }
 
 /**
  * Check if triggered by orchestration request
  */
-export function triggeredByOrchestrate({ context }: GuardContext): boolean {
+function triggeredByOrchestrate({ context }: GuardContext): boolean {
   return context.trigger === "issue_orchestrate";
 }
 
 /**
  * Check if triggered by PR review request (bot should review the PR)
  */
-export function triggeredByPRReview({ context }: GuardContext): boolean {
+function triggeredByPRReview({ context }: GuardContext): boolean {
   return context.trigger === "pr_review";
 }
 
 /**
  * Check if triggered by PR response (bot should respond to bot's review)
  */
-export function triggeredByPRResponse({ context }: GuardContext): boolean {
+function triggeredByPRResponse({ context }: GuardContext): boolean {
   return context.trigger === "pr_response";
 }
 
 /**
  * Check if triggered by PR human response (bot should respond to human's review)
  */
-export function triggeredByPRHumanResponse({ context }: GuardContext): boolean {
+function triggeredByPRHumanResponse({ context }: GuardContext): boolean {
   return context.trigger === "pr_human_response";
 }
 

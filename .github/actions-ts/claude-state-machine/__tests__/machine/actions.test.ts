@@ -11,7 +11,7 @@ import { createContext } from "../fixtures/index.js";
 
 describe("Orchestration action emitters", () => {
   describe("emitInitializeParent", () => {
-    test("sets parent to In Progress and first sub-issue to Working", () => {
+    test("sets parent to In progress and first sub-issue to Working", () => {
       const context = createContext({
         issue: {
           number: 100,
@@ -46,11 +46,11 @@ describe("Orchestration action emitters", () => {
 
       expect(actions).toHaveLength(3);
 
-      // First action: set parent to In Progress
+      // First action: set parent to In progress
       expect(actions[0]).toEqual({
         type: "updateProjectStatus",
         issueNumber: 100,
-        status: "In Progress",
+        status: "In progress",
       });
 
       // Second action: set first sub-issue to Working
@@ -75,7 +75,7 @@ describe("Orchestration action emitters", () => {
       const context = createContext({
         issue: {
           number: 100,
-          projectStatus: "In Progress",
+          projectStatus: "In progress",
           hasSubIssues: true,
           subIssues: [
             {
@@ -221,7 +221,7 @@ describe("Orchestration action emitters", () => {
       const context = createContext({
         issue: {
           number: 100,
-          projectStatus: "In Progress",
+          projectStatus: "In progress",
           hasSubIssues: true,
           subIssues: [
             {
@@ -283,7 +283,7 @@ describe("Orchestration action emitters", () => {
       const context = createContext({
         issue: {
           number: 100,
-          projectStatus: "In Progress",
+          projectStatus: "In progress",
           hasSubIssues: true,
           subIssues: [
             {
@@ -330,7 +330,7 @@ describe("Orchestration action emitters", () => {
       const context = createContext({
         issue: {
           number: 100,
-          projectStatus: "In Progress",
+          projectStatus: "In progress",
           hasSubIssues: true,
           subIssues: [
             {

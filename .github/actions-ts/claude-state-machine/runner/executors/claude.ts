@@ -34,7 +34,10 @@ interface ClaudeOptions {
  * Substitute template variables in a string
  * Replaces {{VAR_NAME}} with the corresponding value from vars
  */
-function substituteVars(template: string, vars: Record<string, string>): string {
+function substituteVars(
+  template: string,
+  vars: Record<string, string>,
+): string {
   return template.replace(/\{\{([^}]+)\}\}/g, (match, varName) => {
     const trimmedName = varName.trim();
     return vars[trimmedName] ?? match; // Keep original if not found

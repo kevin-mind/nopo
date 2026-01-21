@@ -25,7 +25,7 @@ export {
 // Action schemas
 export {
   // Schema definitions
-  TokenTypeSchema,
+  
   ActionSchema,
 
   // Types

@@ -1,7 +1,14 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
-import { getRequiredInput, getOptionalInput, setOutputs } from "../lib/index.js";
-import type { Action, TokenType } from "../claude-state-machine/schemas/index.js";
+import {
+  getRequiredInput,
+  getOptionalInput,
+  setOutputs,
+} from "../lib/index.js";
+import type {
+  Action,
+  TokenType,
+} from "../claude-state-machine/schemas/index.js";
 import { ActionSchema } from "../claude-state-machine/schemas/index.js";
 import {
   executeActions,
@@ -59,12 +66,16 @@ async function run(): Promise<void> {
     // Signaling inputs (optional)
     const job = getOptionalInput("job") || "";
     const resourceTypeInput = getOptionalInput("resource_type") || "issue";
-    const resourceNumber = parseInt(getOptionalInput("resource_number") || "0", 10);
+    const resourceNumber = parseInt(
+      getOptionalInput("resource_number") || "0",
+      10,
+    );
     const commentId = getOptionalInput("comment_id") || "";
     const runUrl = getOptionalInput("run_url") || "";
 
     // Validate resource type
-    const resourceType: ResourceType = resourceTypeInput === "pr" ? "pr" : "issue";
+    const resourceType: ResourceType =
+      resourceTypeInput === "pr" ? "pr" : "issue";
 
     // Determine if signaling is enabled (requires job and resource_number)
     const signalingEnabled = job !== "" && resourceNumber > 0;
@@ -110,7 +121,9 @@ async function run(): Promise<void> {
       },
       {} as Record<TokenType, number>,
     );
-    core.info(`Token usage: code=${tokenUsage.code || 0}, review=${tokenUsage.review || 0}`);
+    core.info(
+      `Token usage: code=${tokenUsage.code || 0}, review=${tokenUsage.review || 0}`,
+    );
 
     // Create octokits for both tokens
     const codeOctokit = github.getOctokit(codeToken);
@@ -160,7 +173,9 @@ async function run(): Promise<void> {
 
     // Calculate stats
     const executed = result.results.filter((r) => !r.skipped).length;
-    const failed = result.results.filter((r) => !r.success && !r.skipped).length;
+    const failed = result.results.filter(
+      (r) => !r.success && !r.skipped,
+    ).length;
     const skipped = result.results.filter((r) => r.skipped).length;
 
     // Prepare results for output (strip non-serializable error objects)

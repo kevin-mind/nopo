@@ -64,7 +64,7 @@ describe("Terminal State Guards", () => {
 
     test("returns false for other statuses", () => {
       const context = createContext({
-        issue: { projectStatus: "In Progress" },
+        issue: { projectStatus: "In progress" },
       } as any);
       expect(isBlocked({ context })).toBe(false);
     });
@@ -225,7 +225,7 @@ describe("Phase State Guards", () => {
           title: "Phase 1",
           state: "OPEN",
           body: "",
-          projectStatus: "Review",
+          projectStatus: "In review",
           branch: null,
           pr: null,
           todos: { total: 0, completed: 0, uncheckedNonManual: 0 },
@@ -236,7 +236,7 @@ describe("Phase State Guards", () => {
 
     test("returns true when issue status is Review (no sub-issue)", () => {
       const context = createContext({
-        issue: { projectStatus: "Review" },
+        issue: { projectStatus: "In review" },
         currentSubIssue: null,
       } as any);
       expect(isInReview({ context })).toBe(true);

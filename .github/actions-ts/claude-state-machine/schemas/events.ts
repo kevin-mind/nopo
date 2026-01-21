@@ -82,9 +82,7 @@ const PRReviewRequestedEventSchema = BaseEventSchema.extend({
   isDraft: z.boolean(),
 });
 
-type PRReviewRequestedEvent = z.infer<
-  typeof PRReviewRequestedEventSchema
->;
+type PRReviewRequestedEvent = z.infer<typeof PRReviewRequestedEventSchema>;
 
 /**
  * PR review submitted event
@@ -101,9 +99,7 @@ const PRReviewSubmittedEventSchema = BaseEventSchema.extend({
   baseRef: z.string().default("main"),
 });
 
-type PRReviewSubmittedEvent = z.infer<
-  typeof PRReviewSubmittedEventSchema
->;
+type PRReviewSubmittedEvent = z.infer<typeof PRReviewSubmittedEventSchema>;
 
 /**
  * PR push event (push to a branch with an open PR)
