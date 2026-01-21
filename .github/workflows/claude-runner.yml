@@ -20,7 +20,7 @@ on:
       issue_number:
         description: Issue number to process
         required: true
-        type: number
+        type: string
       ci_result:
         description: CI result (success, failure) - required for workflow_run_completed trigger
         required: false
