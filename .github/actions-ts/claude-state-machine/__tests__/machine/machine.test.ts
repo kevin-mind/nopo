@@ -180,7 +180,11 @@ describe("claudeMachine", () => {
       const context = createContext({
         trigger: "pr_review_submitted",
         reviewDecision: "APPROVED",
-        issue: { projectStatus: "In review", hasSubIssues: true, subIssues: [] },
+        issue: {
+          projectStatus: "In review",
+          hasSubIssues: true,
+          subIssues: [],
+        },
       } as any);
       const { state } = runMachine(context);
       // After orchestrating with empty sub-issues, goes to orchestrationComplete

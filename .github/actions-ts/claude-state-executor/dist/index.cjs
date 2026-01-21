@@ -30134,7 +30134,7 @@ async function run() {
       `Token usage: code=${tokenUsage.code || 0}, review=${tokenUsage.review || 0}`
     );
     const codeOctokit = github.getOctokit(codeToken);
-    const reviewOctokit = github.getOctokit(reviewToken);
+    const reviewOctokit = reviewToken ? github.getOctokit(reviewToken) : void 0;
     const { owner, repo } = github.context.repo;
     let result;
     if (signalingEnabled) {

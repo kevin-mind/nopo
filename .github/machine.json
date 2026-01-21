@@ -2,7 +2,7 @@
   "id": "claude-automation",
   "version": "1.0.0",
   "description": "Claude automation state machine for issue lifecycle management",
-  "generatedAt": "2026-01-21T00:16:55.646Z",
+  "generatedAt": "2026-01-21T06:12:52.487Z",
   "config": {
     "id": "claude-automation",
     "initial": "detecting",
@@ -21,6 +21,30 @@
           {
             "target": "error",
             "guard": "isError"
+          },
+          {
+            "target": "triaging",
+            "guard": "triggeredByTriage"
+          },
+          {
+            "target": "commenting",
+            "guard": "triggeredByComment"
+          },
+          {
+            "target": "orchestrating",
+            "guard": "triggeredByOrchestrate"
+          },
+          {
+            "target": "prReviewing",
+            "guard": "triggeredByPRReview"
+          },
+          {
+            "target": "prResponding",
+            "guard": "triggeredByPRResponse"
+          },
+          {
+            "target": "prRespondingHuman",
+            "guard": "triggeredByPRHumanResponse"
           },
           {
             "target": "processingCI",
@@ -47,6 +71,41 @@
           }
         ]
       },
+      "triaging": {
+        "entry": [
+          "logTriaging",
+          "runClaudeTriage"
+        ],
+        "type": "final"
+      },
+      "commenting": {
+        "entry": [
+          "logCommenting",
+          "runClaudeComment"
+        ],
+        "type": "final"
+      },
+      "prReviewing": {
+        "entry": [
+          "logPRReviewing",
+          "runClaudePRReview"
+        ],
+        "type": "final"
+      },
+      "prResponding": {
+        "entry": [
+          "logPRResponding",
+          "runClaudePRResponse"
+        ],
+        "type": "final"
+      },
+      "prRespondingHuman": {
+        "entry": [
+          "logPRResponding",
+          "runClaudePRHumanResponse"
+        ],
+        "type": "final"
+      },
       "initializing": {
         "entry": [
           "setInProgress"
@@ -54,23 +113,45 @@
         "always": "orchestrating"
       },
       "orchestrating": {
+        "entry": [
+          "logOrchestrating"
+        ],
         "always": [
           {
-            "target": "done",
+            "target": "orchestrationComplete",
             "guard": "allPhasesDone"
           },
           {
-            "target": "reviewing",
+            "target": "orchestrationWaiting",
             "guard": "currentPhaseInReview"
           },
           {
-            "target": "iterating",
-            "guard": "currentPhaseNeedsWork"
-          },
-          {
-            "target": "iterating"
+            "target": "orchestrationRunning"
           }
         ]
+      },
+      "orchestrationRunning": {
+        "entry": [
+          "orchestrate"
+        ],
+        "type": "final"
+      },
+      "orchestrationWaiting": {
+        "entry": [
+          {
+            "type": "stopWithReason",
+            "params": {
+              "reason": "Waiting for review on current phase"
+            }
+          }
+        ],
+        "type": "final"
+      },
+      "orchestrationComplete": {
+        "entry": [
+          "allPhasesDone"
+        ],
+        "type": "final"
       },
       "processingCI": {
         "always": [

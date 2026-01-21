@@ -10,7 +10,7 @@ type Octokit = InstanceType<typeof GitHub>;
 export type ResourceType = "issue" | "pr" | "discussion";
 export type JobResult = "success" | "failure" | "cancelled";
 
-export interface SignalContext {
+interface SignalContext {
   octokit: Octokit;
   owner: string;
   repo: string;

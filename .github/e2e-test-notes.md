@@ -53,11 +53,20 @@ Run e2e test with multi-phase issue (multiple sub-issues) 3 times in a row witho
 - **Notes:** "Input required and not supplied: github_review_token" - the executor requires review token even for non-review actions.
 
 ### Run 6
-- **Started:** (pending)
-- **Status:** (pending)
-- **Duration:** -
-- **Result:** -
-- **Notes:** -
+- **Started:** 2026-01-21 06:07:12 UTC
+- **Run ID:** 21199189907
+- **Status:** completed
+- **Duration:** ~40s
+- **Result:** ❌ FAILED
+- **Notes:** Setup failed - "Content already exists in this project". Leftover issues from Run 5 (or created by Run 6 before failure) not cleaned up properly. Test infrastructure race condition.
+
+### Run 7
+- **Started:** 2026-01-21 06:09:41 UTC
+- **Run ID:** 21199243277
+- **Status:** completed
+- **Duration:** ~2 min (before failure)
+- **Result:** ❌ FAILED
+- **Notes:** Claude workflow for issue #3743 failed with "Parameter token or opts.auth is required". The executor creates Octokit with empty reviewToken on line 131 even when the token is not provided.
 
 ---
 
@@ -93,6 +102,19 @@ Run e2e test with multi-phase issue (multiple sub-issues) 3 times in a row witho
 - **Root Cause:** `claude-state-executor` marked `github_review_token` as required, but non-review actions don't need it
 - **Impact:** All executor runs fail if CLAUDE_REVIEWER_PAT secret is not available
 
+### Issue 6: Test helper doesn't handle project item collisions
+- **Severity:** Medium (test infrastructure)
+- **Symptom:** "Content already exists in this project" error during setup
+- **Root Cause:** When creating sub-issues with parent links, GitHub may auto-add them to project. Test helper then fails trying to add the same item.
+- **Impact:** Test flakiness - requires manual cleanup between runs
+- **Workaround:** Manual cleanup of test issues before each run
+
+### Issue 7: Octokit creation with empty review token
+- **Severity:** Critical (blocks executor)
+- **Symptom:** "Parameter token or opts.auth is required" error
+- **Root Cause:** `github.getOctokit(reviewToken)` called even when `reviewToken` is empty string. Octokit requires a valid token.
+- **Impact:** All executor runs fail when CLAUDE_REVIEWER_PAT secret is not available (even for non-review actions)
+
 ---
 
 ## Fixes Applied
@@ -118,6 +140,11 @@ Run e2e test with multi-phase issue (multiple sub-issues) 3 times in a row witho
 - **Files:**
   - `.github/actions-ts/claude-state-executor/action.yml` - changed `required: true` to `required: false` with default `""`
   - `.github/actions-ts/claude-state-executor/index.ts` - changed from `getRequiredInput` to `getOptionalInput`
+- **Applied:** 2026-01-21
+
+### Fix 5: Conditional Octokit creation for review token
+- **File:** `.github/actions-ts/claude-state-executor/index.ts`
+- **Change:** `const reviewOctokit = github.getOctokit(reviewToken)` → `const reviewOctokit = reviewToken ? github.getOctokit(reviewToken) : undefined`
 - **Applied:** 2026-01-21
 
 ---

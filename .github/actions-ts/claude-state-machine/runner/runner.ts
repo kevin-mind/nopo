@@ -93,7 +93,7 @@ interface SignaledRunnerContext extends RunnerContext {
 }
 
 // Re-export types from signaler
-export type { ResourceType,   };
+export type { ResourceType };
 
 /**
  * Get the appropriate octokit based on the action's token field

@@ -126,9 +126,12 @@ async function run(): Promise<void> {
       `Token usage: code=${tokenUsage.code || 0}, review=${tokenUsage.review || 0}`,
     );
 
-    // Create octokits for both tokens
+    // Create octokits - code token is required, review token is optional
     const codeOctokit = github.getOctokit(codeToken);
-    const reviewOctokit = github.getOctokit(reviewToken);
+    // Only create review octokit if token is provided (needed for submit_review actions)
+    const reviewOctokit = reviewToken
+      ? github.getOctokit(reviewToken)
+      : undefined;
     const { owner, repo } = github.context.repo;
 
     // Execute with or without signaling based on inputs

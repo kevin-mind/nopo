@@ -35,16 +35,29 @@ stateDiagram-v2
     detecting --> done: isAlreadyDone
     detecting --> blocked: isBlocked
     detecting --> error: isError
+    detecting --> triaging: triggeredByTriage
+    detecting --> commenting: triggeredByComment
+    detecting --> orchestrating: triggeredByOrchestrate
+    detecting --> prReviewing: triggeredByPRReview
+    detecting --> prResponding: triggeredByPRResponse
+    detecting --> prRespondingHuman: triggeredByPRHumanResponse
     detecting --> processingCI: triggeredByCI
     detecting --> processingReview: triggeredByReview
     detecting --> initializing: needsSubIssues
     detecting --> orchestrating: hasSubIssues
     detecting --> reviewing: isInReview
     detecting --> iterating: always
-    orchestrating --> done: allPhasesDone
-    orchestrating --> reviewing: currentPhaseInReview
-    orchestrating --> iterating: currentPhaseNeedsWork
-    orchestrating --> iterating: always
+    triaging --> [*]: final
+    commenting --> [*]: final
+    prReviewing --> [*]: final
+    prResponding --> [*]: final
+    prRespondingHuman --> [*]: final
+    orchestrating --> orchestrationComplete: allPhasesDone
+    orchestrating --> orchestrationWaiting: currentPhaseInReview
+    orchestrating --> orchestrationRunning: always
+    orchestrationRunning --> [*]: final
+    orchestrationWaiting --> [*]: final
+    orchestrationComplete --> [*]: final
     processingCI --> transitioningToReview: readyForReview
     processingCI --> iterating: ciPassed
     processingCI --> blocked: shouldBlock
