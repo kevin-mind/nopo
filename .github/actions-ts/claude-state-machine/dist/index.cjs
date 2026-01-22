@@ -32575,8 +32575,6 @@ function emitHandleCIFailure({ context: context2 }) {
 }
 function emitBlockIssue({ context: context2 }) {
   const actions = [];
-  actions.push(...emitSetBlocked({ context: context2 }));
-  actions.push(...emitUnassign({ context: context2 }));
   actions.push(
     ...emitAppendHistory(
       { context: context2 },
@@ -33385,9 +33383,9 @@ var claudeMachine = setup({
     },
     /**
      * Circuit breaker triggered
-     * NOTE: Entry actions removed - blockIssue action already emits setBlocked + unassign
      */
     blocked: {
+      entry: ["setBlocked", "unassign"],
       type: "final"
     },
     /**

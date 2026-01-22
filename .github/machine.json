@@ -2,7 +2,7 @@
   "id": "claude-automation",
   "version": "1.0.0",
   "description": "Claude automation state machine for issue lifecycle management",
-  "generatedAt": "2026-01-21T14:32:04.261Z",
+  "generatedAt": "2026-01-22T00:21:57.727Z",
   "config": {
     "id": "claude-automation",
     "initial": "detecting",
@@ -195,8 +195,7 @@
             "target": "iterating",
             "guard": "reviewRequestedChanges",
             "actions": [
-              "convertToDraft",
-              "setWorking"
+              "convertToDraft"
             ]
           },
           {
@@ -212,10 +211,12 @@
       },
       "iterating": {
         "entry": [
+          "createBranch",
           "setWorking",
           "incrementIteration",
           "logIterating",
-          "runClaude"
+          "runClaude",
+          "createPR"
         ],
         "on": {
           "CI_SUCCESS": [
@@ -250,8 +251,10 @@
       },
       "iteratingFix": {
         "entry": [
+          "createBranch",
           "incrementIteration",
-          "runClaudeFixCI"
+          "runClaudeFixCI",
+          "createPR"
         ],
         "on": {
           "CI_SUCCESS": [
@@ -293,8 +296,7 @@
           "REVIEW_CHANGES_REQUESTED": {
             "target": "iterating",
             "actions": [
-              "convertToDraft",
-              "setWorking"
+              "convertToDraft"
             ]
           },
           "REVIEW_COMMENTED": "reviewing"
