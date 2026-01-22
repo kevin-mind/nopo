@@ -134,7 +134,7 @@ jobs:
         with:
           github_code_token: ${{ secrets.GITHUB_TOKEN }}
           github_review_token: ${{ secrets.GITHUB_TOKEN }}
-          project_number: ${{ vars.PROJECT_NUMBER }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
           actions_json: |
             [
               {
@@ -168,7 +168,7 @@ jobs:
         with:
           github_code_token: ${{ secrets.GITHUB_TOKEN }}
           github_review_token: ${{ secrets.GITHUB_TOKEN }}
-          project_number: ${{ vars.PROJECT_NUMBER }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
           actions_json: |
             [
               {
@@ -352,7 +352,7 @@ jobs:
         with:
           github_code_token: ${{ secrets.GITHUB_TOKEN }}
           github_review_token: ${{ secrets.GITHUB_TOKEN }}
-          project_number: ${{ vars.PROJECT_NUMBER }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
           actions_json: |
             [
               {
@@ -410,7 +410,7 @@ jobs:
         with:
           github_code_token: ${{ secrets.GITHUB_TOKEN }}
           github_review_token: ${{ secrets.GITHUB_TOKEN }}
-          project_number: ${{ vars.PROJECT_NUMBER }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
           actions_json: |
             [
               {
