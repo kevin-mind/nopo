@@ -21,13 +21,28 @@ describe("HISTORY_SECTION constant", () => {
 });
 
 describe("parseHistoryRow", () => {
-  test("parses a basic row", () => {
+  test("parses a basic row (old format)", () => {
     const row = "| 1 | Phase 1 | Initial implementation | abc123 | - |";
     const result = parseHistoryRow(row);
     expect(result).toEqual({
       iteration: 1,
       phase: "Phase 1",
       action: "Initial implementation",
+      timestamp: null,
+      sha: "abc123",
+      runLink: null,
+    });
+  });
+
+  test("parses row with new format (timestamp column)", () => {
+    const row =
+      "| 1 | Phase 1 | Initial implementation | Jan 22 19:04 | abc123 | - |";
+    const result = parseHistoryRow(row);
+    expect(result).toEqual({
+      iteration: 1,
+      phase: "Phase 1",
+      action: "Initial implementation",
+      timestamp: "Jan 22 19:04",
       sha: "abc123",
       runLink: null,
     });
@@ -50,6 +65,7 @@ describe("parseHistoryRow", () => {
   test("handles dash for missing values", () => {
     const row = "| 1 | Init | Started | - | - |";
     const result = parseHistoryRow(row);
+    expect(result?.timestamp).toBeNull();
     expect(result?.sha).toBeNull();
     expect(result?.runLink).toBeNull();
   });
@@ -212,19 +228,27 @@ describe("createHistoryRow", () => {
 describe("createHistoryTable", () => {
   test("creates full table with header", () => {
     const entries = [
-      { iteration: 1, phase: "1", action: "Started", sha: null, runLink: null },
+      {
+        iteration: 1,
+        phase: "1",
+        action: "Started",
+        timestamp: null,
+        sha: null,
+        runLink: null,
+      },
       {
         iteration: 2,
         phase: "1",
         action: "Done",
+        timestamp: "Jan 22 19:04",
         sha: "abc123",
         runLink: null,
       },
     ];
     const table = createHistoryTable(entries);
     expect(table).toContain("## Iteration History");
-    expect(table).toContain("| # | Phase | Action | SHA | Run |");
-    expect(table).toContain("|---|-------|--------|-----|-----|");
+    expect(table).toContain("| # | Phase | Action | Time | SHA | Run |");
+    expect(table).toContain("|---|-------|--------|------|-----|-----|");
     expect(table).toContain("| 1 | 1 | Started |");
     expect(table).toContain("| 2 | 1 | Done |");
   });
@@ -235,9 +259,9 @@ describe("addHistoryEntry", () => {
     const body = `
 ## Iteration History
 
-| # | Phase | Action | SHA | Run |
-|---|-------|--------|-----|-----|
-| 1 | Phase 1 | First | - | - |
+| # | Phase | Action | Time | SHA | Run |
+|---|-------|--------|------|-----|-----|
+| 1 | Phase 1 | First | - | - | - |
 `;
     const result = addHistoryEntry(body, 2, "Phase 1", "Second");
     expect(result).toContain("| 1 | Phase 1 | First |");
@@ -248,29 +272,52 @@ describe("addHistoryEntry", () => {
     const body = "## Description\n\nSome text";
     const result = addHistoryEntry(body, 1, "Init", "Started");
     expect(result).toContain("## Iteration History");
-    expect(result).toContain("| # | Phase | Action | SHA | Run |");
+    expect(result).toContain("| # | Phase | Action | Time | SHA | Run |");
     expect(result).toContain("| 1 | Init | Started |");
   });
 
   test("includes SHA when provided", () => {
     const body =
-      "## Iteration History\n\n| # | Phase | Action | SHA | Run |\n|---|-------|--------|-----|-----|";
-    const result = addHistoryEntry(body, 1, "1", "Pushed", "abc123def");
+      "## Iteration History\n\n| # | Phase | Action | Time | SHA | Run |\n|---|-------|--------|------|-----|-----|";
+    // addHistoryEntry(body, iteration, phase, message, timestamp, sha, runLink, repoUrl)
+    const result = addHistoryEntry(
+      body,
+      1,
+      "1",
+      "Pushed",
+      undefined,
+      "abc123def",
+    );
     expect(result).toContain("[`abc123d`]");
   });
 
   test("includes run link when provided", () => {
     const body =
-      "## Iteration History\n\n| # | Phase | Action | SHA | Run |\n|---|-------|--------|-----|-----|";
+      "## Iteration History\n\n| # | Phase | Action | Time | SHA | Run |\n|---|-------|--------|------|-----|-----|";
+    // addHistoryEntry(body, iteration, phase, message, timestamp, sha, runLink, repoUrl)
     const result = addHistoryEntry(
       body,
       1,
       "1",
       "CI done",
       undefined,
+      undefined,
       "https://run.url",
     );
     expect(result).toContain("[Run](https://run.url)");
+  });
+
+  test("includes timestamp when provided", () => {
+    const body =
+      "## Iteration History\n\n| # | Phase | Action | Time | SHA | Run |\n|---|-------|--------|------|-----|-----|";
+    const result = addHistoryEntry(
+      body,
+      1,
+      "1",
+      "Started",
+      "2026-01-22T19:04:52Z",
+    );
+    expect(result).toContain("| Jan 22 19:04 |");
   });
 });
 
@@ -279,9 +326,9 @@ describe("updateHistoryEntry", () => {
     const body = `
 ## Iteration History
 
-| # | Phase | Action | SHA | Run |
-|---|-------|--------|-----|-----|
-| 1 | Phase 1 | In progress | - | - |
+| # | Phase | Action | Time | SHA | Run |
+|---|-------|--------|------|-----|-----|
+| 1 | Phase 1 | In progress | - | - | - |
 `;
     const { body: newBody, updated } = updateHistoryEntry(
       body,
@@ -299,16 +346,18 @@ describe("updateHistoryEntry", () => {
     const body = `
 ## Iteration History
 
-| # | Phase | Action | SHA | Run |
-|---|-------|--------|-----|-----|
-| 2 | 1 | In progress | - | - |
+| # | Phase | Action | Time | SHA | Run |
+|---|-------|--------|------|-----|-----|
+| 2 | 1 | In progress | - | - | - |
 `;
+    // updateHistoryEntry(body, iteration, phase, pattern, newMessage, timestamp, sha, runLink, repoUrl)
     const { body: newBody, updated } = updateHistoryEntry(
       body,
       2,
       "1",
       "In progress",
       "Done",
+      undefined,
       "abc123",
       "https://run.url",
     );
@@ -322,9 +371,9 @@ describe("updateHistoryEntry", () => {
     const body = `
 ## Iteration History
 
-| # | Phase | Action | SHA | Run |
-|---|-------|--------|-----|-----|
-| 1 | Phase 1 | Action | - | - |
+| # | Phase | Action | Time | SHA | Run |
+|---|-------|--------|------|-----|-----|
+| 1 | Phase 1 | Action | - | - | - |
 `;
     const { body: newBody, updated } = updateHistoryEntry(
       body,
@@ -341,9 +390,9 @@ describe("updateHistoryEntry", () => {
     const body = `
 ## Iteration History
 
-| # | Phase | Action | SHA | Run |
-|---|-------|--------|-----|-----|
-| 1 | 1 | In progress | [\`abc1234\`](url) | - |
+| # | Phase | Action | Time | SHA | Run |
+|---|-------|--------|------|-----|-----|
+| 1 | 1 | In progress | - | [\`abc1234\`](url) | - |
 `;
     const { body: newBody, updated } = updateHistoryEntry(
       body,
@@ -360,10 +409,10 @@ describe("updateHistoryEntry", () => {
     const body = `
 ## Iteration History
 
-| # | Phase | Action | SHA | Run |
-|---|-------|--------|-----|-----|
-| 1 | 1 | In progress | - | - |
-| 2 | 1 | In progress | - | - |
+| # | Phase | Action | Time | SHA | Run |
+|---|-------|--------|------|-----|-----|
+| 1 | 1 | In progress | - | - | - |
+| 2 | 1 | In progress | - | - | - |
 `;
     const { body: newBody, updated } = updateHistoryEntry(
       body,
@@ -379,6 +428,25 @@ describe("updateHistoryEntry", () => {
     const row2 = lines.find((l) => l.includes("| 2 | 1 |"));
     expect(row1).toContain("In progress");
     expect(row2).toContain("Updated");
+  });
+
+  test("preserves existing timestamp if not provided", () => {
+    const body = `
+## Iteration History
+
+| # | Phase | Action | Time | SHA | Run |
+|---|-------|--------|------|-----|-----|
+| 1 | 1 | In progress | Jan 22 19:04 | - | - |
+`;
+    const { body: newBody, updated } = updateHistoryEntry(
+      body,
+      1,
+      "1",
+      "In progress",
+      "Updated",
+    );
+    expect(updated).toBe(true);
+    expect(newBody).toContain("Jan 22 19:04");
   });
 });
 

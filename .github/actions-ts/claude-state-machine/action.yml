@@ -46,6 +46,9 @@ inputs:
     description: Username of the bot account
     required: false
     default: "nopo-bot"
+  workflow_started_at:
+    description: ISO 8601 timestamp of when the workflow started (defaults to current time)
+    required: false
 
 outputs:
   actions_json:

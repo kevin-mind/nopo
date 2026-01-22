@@ -27028,14 +27028,25 @@ function parseShaCell(cell) {
 }
 function parseHistoryRow(row) {
   const cells = row.split("|").map((c) => c.trim());
-  if (cells.length < 6) {
+  const dataCells = cells.filter((c, i) => i > 0 && i < cells.length - 1);
+  const hasTimestampColumn = dataCells.length >= 6;
+  if (dataCells.length < 5) {
     return null;
   }
-  const iterationStr = cells[1];
-  const phase = cells[2];
-  const action = cells[3];
-  const shaCell = cells[4];
-  const runCell = cells[5];
+  const iterationStr = dataCells[0];
+  const phase = dataCells[1];
+  const action = dataCells[2];
+  let timestampCell;
+  let shaCell;
+  let runCell;
+  if (hasTimestampColumn) {
+    timestampCell = dataCells[3];
+    shaCell = dataCells[4];
+    runCell = dataCells[5];
+  } else {
+    shaCell = dataCells[3];
+    runCell = dataCells[4];
+  }
   if (!iterationStr || iterationStr === "#" || iterationStr.startsWith("---") || !phase || !action) {
     return null;
   }
@@ -27043,10 +27054,12 @@ function parseHistoryRow(row) {
   if (isNaN(iteration)) {
     return null;
   }
+  const timestamp = timestampCell && timestampCell !== "-" ? timestampCell : null;
   return {
     iteration,
     phase,
     action,
+    timestamp,
     sha: shaCell ? parseShaCell(shaCell) : null,
     runLink: runCell ? parseMarkdownLink(runCell) : null
   };
@@ -31142,6 +31155,7 @@ var HistoryEntrySchema = external_exports.object({
   iteration: external_exports.number().int().min(0),
   phase: external_exports.string(),
   action: external_exports.string(),
+  timestamp: external_exports.string().nullable(),
   sha: external_exports.string().nullable(),
   runLink: external_exports.string().nullable()
 });
@@ -31242,6 +31256,9 @@ var MachineContextSchema = external_exports.object({
   ciResult: CIResultSchema.nullable(),
   ciRunUrl: external_exports.string().nullable(),
   ciCommitSha: external_exports.string().nullable(),
+  // Workflow timing
+  /** ISO 8601 timestamp of when the workflow started */
+  workflowStartedAt: external_exports.string().nullable(),
   // Review result (if triggered by pr_review_submitted)
   reviewDecision: ReviewDecisionSchema.nullable(),
   reviewerId: external_exports.string().nullable(),
@@ -31292,6 +31309,7 @@ var DEFAULT_CONTEXT_VALUES = {
   ciResult: null,
   ciRunUrl: null,
   ciCommitSha: null,
+  workflowStartedAt: null,
   reviewDecision: null,
   reviewerId: null,
   branch: null,
@@ -31369,6 +31387,8 @@ var AppendHistoryActionSchema = BaseActionSchema.extend({
   issueNumber: external_exports.number().int().positive(),
   phase: external_exports.string(),
   message: external_exports.string(),
+  /** ISO 8601 timestamp of when the workflow started */
+  timestamp: external_exports.string().optional(),
   commitSha: external_exports.string().optional(),
   runLink: external_exports.string().optional()
 });
@@ -31379,6 +31399,8 @@ var UpdateHistoryActionSchema = BaseActionSchema.extend({
   matchPhase: external_exports.string(),
   matchPattern: external_exports.string(),
   newMessage: external_exports.string(),
+  /** ISO 8601 timestamp (optional - preserves existing if not provided) */
+  timestamp: external_exports.string().optional(),
   commitSha: external_exports.string().optional(),
   runLink: external_exports.string().optional()
 });
@@ -32018,6 +32040,7 @@ async function buildMachineContext(octokit, event, projectNumber, options = {}) 
     ciResult,
     ciRunUrl,
     ciCommitSha,
+    workflowStartedAt: options.workflowStartedAt ?? null,
     reviewDecision,
     reviewerId,
     branch,
@@ -32154,6 +32177,7 @@ function emitAppendHistory({ context: context2 }, message, phase) {
       issueNumber: context2.issue.number,
       phase: String(phaseStr),
       message,
+      timestamp: context2.workflowStartedAt ?? void 0,
       commitSha: context2.ciCommitSha ?? void 0,
       runLink: context2.ciRunUrl ?? void 0
     }
@@ -32169,6 +32193,7 @@ function emitLogCIFailure({ context: context2 }) {
       matchPhase: String(context2.currentPhase ?? "-"),
       matchPattern: "\u23F3",
       newMessage: "\u274C CI Failed",
+      timestamp: context2.workflowStartedAt ?? void 0,
       commitSha: context2.ciCommitSha ?? void 0,
       runLink: context2.ciRunUrl ?? void 0
     }
@@ -32494,7 +32519,8 @@ function emitInitializeParent({ context: context2 }) {
     token: "code",
     issueNumber: context2.issue.number,
     phase: "1",
-    message: `\u{1F680} Initialized with ${context2.issue.subIssues.length} phase(s)`
+    message: `\u{1F680} Initialized with ${context2.issue.subIssues.length} phase(s)`,
+    timestamp: context2.workflowStartedAt ?? void 0
   });
   return actions;
 }
@@ -32529,7 +32555,8 @@ function emitAdvancePhase({ context: context2 }) {
       token: "code",
       issueNumber: context2.issue.number,
       phase: String(nextPhase),
-      message: `\u23ED\uFE0F Phase ${nextPhase} started`
+      message: `\u23ED\uFE0F Phase ${nextPhase} started`,
+      timestamp: context2.workflowStartedAt ?? void 0
     });
   }
   return actions;
@@ -32597,7 +32624,8 @@ function emitAllPhasesDone({ context: context2 }) {
     token: "code",
     issueNumber: context2.issue.number,
     phase: "-",
-    message: "\u2705 All phases complete"
+    message: "\u2705 All phases complete",
+    timestamp: context2.workflowStartedAt ?? void 0
   });
   return actions;
 }
@@ -32682,6 +32710,7 @@ function emitHistoryToBothIssues({
     issueNumber: targetIssue,
     phase,
     message,
+    timestamp: context2.workflowStartedAt ?? void 0,
     commitSha,
     runLink
   });
@@ -32694,6 +32723,7 @@ function emitHistoryToBothIssues({
       // Same phase column - shows which phase this came from
       message,
       // Same message - no prefix needed, phase column provides context
+      timestamp: context2.workflowStartedAt ?? void 0,
       commitSha,
       runLink
     });
@@ -33965,6 +33995,7 @@ async function run() {
     const inputBranch = getOptionalInput("branch") || null;
     const maxRetries = parseInt(getOptionalInput("max_retries") || "5", 10);
     const botUsername = getOptionalInput("bot_username") || "nopo-bot";
+    const workflowStartedAt = getOptionalInput("workflow_started_at") || (/* @__PURE__ */ new Date()).toISOString();
     core2.info(`Claude State Machine starting...`);
     core2.info(`Issue: #${issueNumber}`);
     core2.info(`Project: ${projectNumber}`);
@@ -33985,8 +34016,9 @@ async function run() {
       commentContextDescription,
       branch: inputBranch,
       triggerOverride: trigger,
-      ciRunUrl
+      ciRunUrl,
       // Pass through for merge queue/release logging
+      workflowStartedAt
     });
     if (!context2) {
       core2.setFailed(

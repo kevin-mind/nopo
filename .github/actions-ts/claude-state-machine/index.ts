@@ -367,6 +367,9 @@ async function run(): Promise<void> {
     const inputBranch = getOptionalInput("branch") || null;
     const maxRetries = parseInt(getOptionalInput("max_retries") || "5", 10);
     const botUsername = getOptionalInput("bot_username") || "nopo-bot";
+    // Workflow start time - use input if provided, otherwise use current time
+    const workflowStartedAt =
+      getOptionalInput("workflow_started_at") || new Date().toISOString();
 
     core.info(`Claude State Machine starting...`);
     core.info(`Issue: #${issueNumber}`);
@@ -397,6 +400,7 @@ async function run(): Promise<void> {
       branch: inputBranch,
       triggerOverride: trigger,
       ciRunUrl, // Pass through for merge queue/release logging
+      workflowStartedAt,
     });
 
     if (!context) {

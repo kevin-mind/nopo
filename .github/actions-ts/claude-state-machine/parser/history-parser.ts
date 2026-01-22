@@ -8,8 +8,8 @@ export const HISTORY_SECTION = "## Iteration History";
 /**
  * Table header row
  */
-const TABLE_HEADER = "| # | Phase | Action | SHA | Run |";
-const TABLE_SEPARATOR = "|---|-------|--------|-----|-----|";
+const TABLE_HEADER = "| # | Phase | Action | Time | SHA | Run |";
+const TABLE_SEPARATOR = "|---|-------|--------|------|-----|-----|";
 
 /**
  * Parse a markdown link to extract URL
@@ -44,21 +44,41 @@ function parseShaCell(cell: string): string | null {
 
 /**
  * Parse a table row into a HistoryEntry
+ * Supports both old format (5 columns) and new format (6 columns with timestamp)
  */
 export function parseHistoryRow(row: string): HistoryEntry | null {
   // Split by | and clean up
   const cells = row.split("|").map((c) => c.trim());
 
-  // cells[0] is empty (before first |), cells[1-5] are the actual values
-  if (cells.length < 6) {
+  // cells[0] is empty (before first |), cells[last] may be empty (after last |)
+  // Old format: | # | Phase | Action | SHA | Run | → 7 cells after split
+  // New format: | # | Phase | Action | Time | SHA | Run | → 8 cells after split
+  // Filter out empty cells at start and end for accurate count
+  const dataCells = cells.filter((c, i) => i > 0 && i < cells.length - 1);
+  const hasTimestampColumn = dataCells.length >= 6;
+
+  if (dataCells.length < 5) {
     return null;
   }
 
-  const iterationStr = cells[1];
-  const phase = cells[2];
-  const action = cells[3];
-  const shaCell = cells[4];
-  const runCell = cells[5];
+  const iterationStr = dataCells[0];
+  const phase = dataCells[1];
+  const action = dataCells[2];
+
+  let timestampCell: string | undefined;
+  let shaCell: string | undefined;
+  let runCell: string | undefined;
+
+  if (hasTimestampColumn) {
+    // New format with timestamp: #, Phase, Action, Time, SHA, Run
+    timestampCell = dataCells[3];
+    shaCell = dataCells[4];
+    runCell = dataCells[5];
+  } else {
+    // Old format without timestamp: #, Phase, Action, SHA, Run
+    shaCell = dataCells[3];
+    runCell = dataCells[4];
+  }
 
   // Skip header and separator rows
   if (
@@ -76,10 +96,15 @@ export function parseHistoryRow(row: string): HistoryEntry | null {
     return null;
   }
 
+  // Parse timestamp - it's stored as display format like "Jan 22 19:04"
+  const timestamp =
+    timestampCell && timestampCell !== "-" ? timestampCell : null;
+
   return {
     iteration,
     phase,
     action,
+    timestamp,
     sha: shaCell ? parseShaCell(shaCell) : null,
     runLink: runCell ? parseMarkdownLink(runCell) : null,
   };
@@ -130,6 +155,43 @@ export function getLatestHistoryEntry(body: string): HistoryEntry | null {
 }
 
 /**
+ * Format timestamp for display in history table
+ * Input: ISO 8601 timestamp (e.g., "2026-01-22T19:04:52Z")
+ * Output: Compact format (e.g., "Jan 22 19:04")
+ */
+function formatTimestamp(isoTimestamp?: string): string {
+  if (!isoTimestamp) return "-";
+
+  try {
+    const date = new Date(isoTimestamp);
+    if (isNaN(date.getTime())) return "-";
+
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+    const month = months[date.getUTCMonth()];
+    const day = date.getUTCDate();
+    const hours = String(date.getUTCHours()).padStart(2, "0");
+    const minutes = String(date.getUTCMinutes()).padStart(2, "0");
+
+    return `${month} ${day} ${hours}:${minutes}`;
+  } catch {
+    return "-";
+  }
+}
+
+/**
  * Format cells for history table (with links)
  */
 export function formatHistoryCells(
@@ -157,12 +219,14 @@ export function createHistoryRow(
   iteration: number,
   phase: string | number,
   message: string,
+  timestamp?: string,
   sha?: string,
   runLink?: string,
   repoUrl?: string,
 ): string {
+  const timeCell = formatTimestamp(timestamp);
   const { shaCell, runCell } = formatHistoryCells(sha, runLink, repoUrl);
-  return `| ${iteration} | ${phase} | ${message} | ${shaCell} | ${runCell} |`;
+  return `| ${iteration} | ${phase} | ${message} | ${timeCell} | ${shaCell} | ${runCell} |`;
 }
 
 /**
@@ -177,6 +241,7 @@ export function createHistoryTable(
       entry.iteration,
       entry.phase,
       entry.action,
+      entry.timestamp ?? undefined,
       entry.sha ?? undefined,
       entry.runLink ?? undefined,
       repoUrl,
@@ -198,6 +263,7 @@ export function addHistoryEntry(
   iteration: number,
   phase: string | number,
   message: string,
+  timestamp?: string,
   sha?: string,
   runLink?: string,
   repoUrl?: string,
@@ -208,6 +274,7 @@ export function addHistoryEntry(
     iteration,
     phase,
     message,
+    timestamp,
     sha,
     runLink,
     repoUrl,
@@ -259,6 +326,7 @@ export function updateHistoryEntry(
   matchPhase: string | number,
   matchPattern: string,
   newMessage: string,
+  timestamp?: string,
   sha?: string,
   runLink?: string,
   repoUrl?: string,
@@ -291,13 +359,27 @@ export function updateHistoryEntry(
     const row = tableRows[i];
     if (!row) continue;
 
-    // Parse the row
+    // Parse the row - support both old and new formats
     const cells = row.line.split("|").map((c) => c.trim());
+    const hasTimestampColumn = cells.length >= 7;
+
     const rowIteration = cells[1] || "";
     const rowPhase = cells[2] || "";
     const rowMessage = cells[3] || "";
-    const existingSha = cells[4] || "-";
-    const existingRun = cells[5] || "-";
+
+    let existingTime: string;
+    let existingSha: string;
+    let existingRun: string;
+
+    if (hasTimestampColumn) {
+      existingTime = cells[4] || "-";
+      existingSha = cells[5] || "-";
+      existingRun = cells[6] || "-";
+    } else {
+      existingTime = "-";
+      existingSha = cells[4] || "-";
+      existingRun = cells[5] || "-";
+    }
 
     // Check if this row matches our criteria
     if (
@@ -306,13 +388,15 @@ export function updateHistoryEntry(
       rowMessage.includes(matchPattern)
     ) {
       // Update this row
+      const timeCell = timestamp ? formatTimestamp(timestamp) : existingTime;
       const { shaCell, runCell } = formatHistoryCells(sha, runLink, repoUrl);
 
-      // Preserve existing SHA and Run if not provided
+      // Preserve existing values if not provided
+      const finalTimeCell = timestamp ? timeCell : existingTime;
       const finalShaCell = sha ? shaCell : existingSha;
       const finalRunCell = runLink ? runCell : existingRun;
 
-      const newRow = `| ${rowIteration} | ${rowPhase} | ${newMessage} | ${finalShaCell} | ${finalRunCell} |`;
+      const newRow = `| ${rowIteration} | ${rowPhase} | ${newMessage} | ${finalTimeCell} | ${finalShaCell} | ${finalRunCell} |`;
       lines[row.idx] = newRow;
 
       return { body: lines.join("\n"), updated: true };

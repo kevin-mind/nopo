@@ -157,6 +157,7 @@ export function createHistoryEntry(
     iteration: 1,
     phase: "1",
     action: "Test action",
+    timestamp: null,
     sha: null,
     runLink: null,
     ...overrides,
@@ -181,6 +182,7 @@ export function createContext(
     ciResult?: CIResult | null;
     ciRunUrl?: string | null;
     ciCommitSha?: string | null;
+    workflowStartedAt?: string | null;
     reviewDecision?: ReviewDecision | null;
     reviewerId?: string | null;
     branch?: string | null;
@@ -222,6 +224,7 @@ export function createContext(
     ciResult: overrides.ciResult ?? null,
     ciRunUrl: overrides.ciRunUrl ?? null,
     ciCommitSha: overrides.ciCommitSha ?? null,
+    workflowStartedAt: overrides.workflowStartedAt ?? null,
     reviewDecision: overrides.reviewDecision ?? null,
     reviewerId: overrides.reviewerId ?? null,
     branch: overrides.branch ?? null,

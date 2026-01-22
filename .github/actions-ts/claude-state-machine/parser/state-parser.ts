@@ -510,6 +510,8 @@ export async function buildMachineContext(
     triggerOverride?: TriggerType | null;
     // CI run URL - can be passed through for workflow_dispatch triggers
     ciRunUrl?: string | null;
+    // ISO 8601 timestamp of when the workflow started
+    workflowStartedAt?: string | null;
   } = {},
 ): Promise<MachineContext | null> {
   const { owner, repo } = event;
@@ -648,6 +650,7 @@ export async function buildMachineContext(
     ciResult,
     ciRunUrl,
     ciCommitSha,
+    workflowStartedAt: options.workflowStartedAt ?? null,
     reviewDecision,
     reviewerId,
     branch,

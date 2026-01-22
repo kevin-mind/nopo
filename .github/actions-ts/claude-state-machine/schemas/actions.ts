@@ -128,6 +128,8 @@ export const AppendHistoryActionSchema = BaseActionSchema.extend({
   issueNumber: z.number().int().positive(),
   phase: z.string(),
   message: z.string(),
+  /** ISO 8601 timestamp of when the workflow started */
+  timestamp: z.string().optional(),
   commitSha: z.string().optional(),
   runLink: z.string().optional(),
 });
@@ -144,6 +146,8 @@ export const UpdateHistoryActionSchema = BaseActionSchema.extend({
   matchPhase: z.string(),
   matchPattern: z.string(),
   newMessage: z.string(),
+  /** ISO 8601 timestamp (optional - preserves existing if not provided) */
+  timestamp: z.string().optional(),
   commitSha: z.string().optional(),
   runLink: z.string().optional(),
 });

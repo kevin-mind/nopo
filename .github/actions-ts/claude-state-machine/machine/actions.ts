@@ -205,6 +205,7 @@ function emitAppendHistory(
       issueNumber: context.issue.number,
       phase: String(phaseStr),
       message,
+      timestamp: context.workflowStartedAt ?? undefined,
       commitSha: context.ciCommitSha ?? undefined,
       runLink: context.ciRunUrl ?? undefined,
     },
@@ -224,6 +225,7 @@ function emitLogCIFailure({ context }: ActionContext): ActionResult {
       matchPhase: String(context.currentPhase ?? "-"),
       matchPattern: "⏳",
       newMessage: "❌ CI Failed",
+      timestamp: context.workflowStartedAt ?? undefined,
       commitSha: context.ciCommitSha ?? undefined,
       runLink: context.ciRunUrl ?? undefined,
     },
@@ -721,6 +723,7 @@ export function emitInitializeParent({ context }: ActionContext): ActionResult {
     issueNumber: context.issue.number,
     phase: "1",
     message: `🚀 Initialized with ${context.issue.subIssues.length} phase(s)`,
+    timestamp: context.workflowStartedAt ?? undefined,
   });
 
   return actions;
@@ -773,6 +776,7 @@ export function emitAdvancePhase({ context }: ActionContext): ActionResult {
       issueNumber: context.issue.number,
       phase: String(nextPhase),
       message: `⏭️ Phase ${nextPhase} started`,
+      timestamp: context.workflowStartedAt ?? undefined,
     });
   }
 
@@ -878,6 +882,7 @@ export function emitAllPhasesDone({ context }: ActionContext): ActionResult {
     issueNumber: context.issue.number,
     phase: "-",
     message: "✅ All phases complete",
+    timestamp: context.workflowStartedAt ?? undefined,
   });
 
   return actions;
@@ -1046,6 +1051,7 @@ function emitHistoryToBothIssues({
     issueNumber: targetIssue,
     phase,
     message,
+    timestamp: context.workflowStartedAt ?? undefined,
     commitSha,
     runLink,
   });
@@ -1059,6 +1065,7 @@ function emitHistoryToBothIssues({
       issueNumber: parentIssue,
       phase, // Same phase column - shows which phase this came from
       message, // Same message - no prefix needed, phase column provides context
+      timestamp: context.workflowStartedAt ?? undefined,
       commitSha,
       runLink,
     });

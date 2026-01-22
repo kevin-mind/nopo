@@ -27971,6 +27971,7 @@ var HistoryEntrySchema = external_exports.object({
   iteration: external_exports.number().int().min(0),
   phase: external_exports.string(),
   action: external_exports.string(),
+  timestamp: external_exports.string().nullable(),
   sha: external_exports.string().nullable(),
   runLink: external_exports.string().nullable()
 });
@@ -28071,6 +28072,9 @@ var MachineContextSchema = external_exports.object({
   ciResult: CIResultSchema.nullable(),
   ciRunUrl: external_exports.string().nullable(),
   ciCommitSha: external_exports.string().nullable(),
+  // Workflow timing
+  /** ISO 8601 timestamp of when the workflow started */
+  workflowStartedAt: external_exports.string().nullable(),
   // Review result (if triggered by pr_review_submitted)
   reviewDecision: ReviewDecisionSchema.nullable(),
   reviewerId: external_exports.string().nullable(),
@@ -28168,6 +28172,8 @@ var AppendHistoryActionSchema = BaseActionSchema.extend({
   issueNumber: external_exports.number().int().positive(),
   phase: external_exports.string(),
   message: external_exports.string(),
+  /** ISO 8601 timestamp of when the workflow started */
+  timestamp: external_exports.string().optional(),
   commitSha: external_exports.string().optional(),
   runLink: external_exports.string().optional()
 });
@@ -28178,6 +28184,8 @@ var UpdateHistoryActionSchema = BaseActionSchema.extend({
   matchPhase: external_exports.string(),
   matchPattern: external_exports.string(),
   newMessage: external_exports.string(),
+  /** ISO 8601 timestamp (optional - preserves existing if not provided) */
+  timestamp: external_exports.string().optional(),
   commitSha: external_exports.string().optional(),
   runLink: external_exports.string().optional()
 });
@@ -28675,8 +28683,36 @@ var core3 = __toESM(require_core(), 1);
 
 // claude-state-machine/parser/history-parser.ts
 var HISTORY_SECTION = "## Iteration History";
-var TABLE_HEADER = "| # | Phase | Action | SHA | Run |";
-var TABLE_SEPARATOR = "|---|-------|--------|-----|-----|";
+var TABLE_HEADER = "| # | Phase | Action | Time | SHA | Run |";
+var TABLE_SEPARATOR = "|---|-------|--------|------|-----|-----|";
+function formatTimestamp(isoTimestamp) {
+  if (!isoTimestamp) return "-";
+  try {
+    const date = new Date(isoTimestamp);
+    if (isNaN(date.getTime())) return "-";
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec"
+    ];
+    const month = months[date.getUTCMonth()];
+    const day = date.getUTCDate();
+    const hours = String(date.getUTCHours()).padStart(2, "0");
+    const minutes = String(date.getUTCMinutes()).padStart(2, "0");
+    return `${month} ${day} ${hours}:${minutes}`;
+  } catch {
+    return "-";
+  }
+}
 function formatHistoryCells(sha, runLink, repoUrl) {
   const serverUrl = repoUrl || process.env.GITHUB_SERVER_URL || "https://github.com";
   const repo = process.env.GITHUB_REPOSITORY || "";
@@ -28685,16 +28721,18 @@ function formatHistoryCells(sha, runLink, repoUrl) {
   const runCell = runLink ? `[Run](${runLink})` : "-";
   return { shaCell, runCell };
 }
-function createHistoryRow(iteration, phase, message, sha, runLink, repoUrl) {
+function createHistoryRow(iteration, phase, message, timestamp, sha, runLink, repoUrl) {
+  const timeCell = formatTimestamp(timestamp);
   const { shaCell, runCell } = formatHistoryCells(sha, runLink, repoUrl);
-  return `| ${iteration} | ${phase} | ${message} | ${shaCell} | ${runCell} |`;
+  return `| ${iteration} | ${phase} | ${message} | ${timeCell} | ${shaCell} | ${runCell} |`;
 }
-function addHistoryEntry(body, iteration, phase, message, sha, runLink, repoUrl) {
+function addHistoryEntry(body, iteration, phase, message, timestamp, sha, runLink, repoUrl) {
   const historyIdx = body.indexOf(HISTORY_SECTION);
   const newRow = createHistoryRow(
     iteration,
     phase,
     message,
+    timestamp,
     sha,
     runLink,
     repoUrl
@@ -28727,7 +28765,7 @@ ${newRow}`;
   lines.splice(insertIdx, 0, newRow);
   return lines.join("\n");
 }
-function updateHistoryEntry(body, matchIteration, matchPhase, matchPattern, newMessage, sha, runLink, repoUrl) {
+function updateHistoryEntry(body, matchIteration, matchPhase, matchPattern, newMessage, timestamp, sha, runLink, repoUrl) {
   const lines = body.split("\n");
   const historyLineIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
   if (historyLineIdx === -1) {
@@ -28747,16 +28785,29 @@ function updateHistoryEntry(body, matchIteration, matchPhase, matchPattern, newM
     const row = tableRows[i];
     if (!row) continue;
     const cells = row.line.split("|").map((c) => c.trim());
+    const hasTimestampColumn = cells.length >= 7;
     const rowIteration = cells[1] || "";
     const rowPhase = cells[2] || "";
     const rowMessage = cells[3] || "";
-    const existingSha = cells[4] || "-";
-    const existingRun = cells[5] || "-";
+    let existingTime;
+    let existingSha;
+    let existingRun;
+    if (hasTimestampColumn) {
+      existingTime = cells[4] || "-";
+      existingSha = cells[5] || "-";
+      existingRun = cells[6] || "-";
+    } else {
+      existingTime = "-";
+      existingSha = cells[4] || "-";
+      existingRun = cells[5] || "-";
+    }
     if (rowIteration === String(matchIteration) && rowPhase === String(matchPhase) && rowMessage.includes(matchPattern)) {
+      const timeCell = timestamp ? formatTimestamp(timestamp) : existingTime;
       const { shaCell, runCell } = formatHistoryCells(sha, runLink, repoUrl);
+      const finalTimeCell = timestamp ? timeCell : existingTime;
       const finalShaCell = sha ? shaCell : existingSha;
       const finalRunCell = runLink ? runCell : existingRun;
-      const newRow = `| ${rowIteration} | ${rowPhase} | ${newMessage} | ${finalShaCell} | ${finalRunCell} |`;
+      const newRow = `| ${rowIteration} | ${rowPhase} | ${newMessage} | ${finalTimeCell} | ${finalShaCell} | ${finalRunCell} |`;
       lines[row.idx] = newRow;
       return { body: lines.join("\n"), updated: true };
     }
@@ -28858,6 +28909,7 @@ async function executeAppendHistory(action, ctx) {
     iteration,
     action.phase,
     action.message,
+    action.timestamp,
     action.commitSha,
     action.runLink,
     repoUrl
@@ -28888,6 +28940,7 @@ async function executeUpdateHistory(action, ctx) {
     action.matchPhase,
     action.matchPattern,
     action.newMessage,
+    action.timestamp,
     action.commitSha,
     action.runLink,
     repoUrl
@@ -28911,6 +28964,7 @@ async function executeUpdateHistory(action, ctx) {
       action.matchIteration,
       action.matchPhase,
       action.newMessage,
+      action.timestamp,
       action.commitSha,
       action.runLink,
       repoUrl

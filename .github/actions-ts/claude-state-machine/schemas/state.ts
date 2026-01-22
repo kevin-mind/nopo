@@ -65,6 +65,7 @@ export const HistoryEntrySchema = z.object({
   iteration: z.number().int().min(0),
   phase: z.string(),
   action: z.string(),
+  timestamp: z.string().nullable(),
   sha: z.string().nullable(),
   runLink: z.string().nullable(),
 });
@@ -214,6 +215,10 @@ export const MachineContextSchema = z.object({
   ciRunUrl: z.string().nullable(),
   ciCommitSha: z.string().nullable(),
 
+  // Workflow timing
+  /** ISO 8601 timestamp of when the workflow started */
+  workflowStartedAt: z.string().nullable(),
+
   // Review result (if triggered by pr_review_submitted)
   reviewDecision: ReviewDecisionSchema.nullable(),
   reviewerId: z.string().nullable(),
@@ -295,6 +300,7 @@ const DEFAULT_CONTEXT_VALUES: Partial<MachineContext> = {
   ciResult: null,
   ciRunUrl: null,
   ciCommitSha: null,
+  workflowStartedAt: null,
   reviewDecision: null,
   reviewerId: null,
   branch: null,
