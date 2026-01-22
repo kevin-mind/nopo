@@ -198,8 +198,8 @@ jobs:
               echo "parent_issue=$linked_issue" >> $GITHUB_OUTPUT
 
               # Build context with the linked issue number (not PR number)
-              issue_info=$(gh issue view "$linked_issue" --json title,body)
-              new_context=$(echo "$issue_info" | jq -c \
+              # Pipe directly to jq to avoid newline escaping issues with shell variables
+              new_context=$(gh issue view "$linked_issue" --json title,body | jq -c \
                 --arg num "$linked_issue" \
                 --arg pr_num "$RESOURCE_NUMBER" \
                 '{issue_number: $num, pr_number: $pr_num, issue_title: .title, issue_body: .body}')
