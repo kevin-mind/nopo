@@ -29078,6 +29078,20 @@ async function executeCreateSubIssues(action, ctx) {
   return { subIssueNumbers };
 }
 async function executeCreatePR(action, ctx) {
+  const existingPRs = await ctx.octokit.rest.pulls.list({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    head: `${ctx.owner}:${action.branchName}`,
+    base: action.baseBranch,
+    state: "open"
+  });
+  if (existingPRs.data.length > 0) {
+    const existingPR = existingPRs.data[0];
+    core3.info(
+      `PR #${existingPR.number} already exists for branch ${action.branchName}`
+    );
+    return { prNumber: existingPR.number };
+  }
   const body = `${action.body}
 
 Fixes #${action.issueNumber}`;

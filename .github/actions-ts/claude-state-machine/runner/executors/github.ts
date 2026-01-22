@@ -400,12 +400,29 @@ export async function executeCreateSubIssues(
 // ============================================================================
 
 /**
- * Create a pull request
+ * Create a pull request (or find existing one for branch)
  */
 export async function executeCreatePR(
   action: CreatePRAction,
   ctx: RunnerContext,
 ): Promise<{ prNumber: number }> {
+  // First check if a PR already exists for this branch
+  const existingPRs = await ctx.octokit.rest.pulls.list({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    head: `${ctx.owner}:${action.branchName}`,
+    base: action.baseBranch,
+    state: "open",
+  });
+
+  if (existingPRs.data.length > 0) {
+    const existingPR = existingPRs.data[0];
+    core.info(
+      `PR #${existingPR.number} already exists for branch ${action.branchName}`,
+    );
+    return { prNumber: existingPR.number };
+  }
+
   const body = `${action.body}\n\nFixes #${action.issueNumber}`;
 
   const response = await ctx.octokit.rest.pulls.create({

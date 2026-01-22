@@ -53,6 +53,7 @@ function createMockContext(): RunnerContext {
           addAssignees: vi.fn(),
         },
         pulls: {
+          list: vi.fn(),
           create: vi.fn(),
           requestReviewers: vi.fn(),
           merge: vi.fn(),
@@ -457,6 +458,10 @@ describe("executeCreatePR", () => {
   });
 
   test("creates draft PR with issue link", async () => {
+    // No existing PR
+    vi.mocked(ctx.octokit.rest.pulls.list).mockResolvedValueOnce({
+      data: [],
+    } as any);
     vi.mocked(ctx.octokit.rest.pulls.create).mockResolvedValueOnce({
       data: { number: 42 },
     } as any);
@@ -474,6 +479,13 @@ describe("executeCreatePR", () => {
     const result = await executeCreatePR(action, ctx);
 
     expect(result.prNumber).toBe(42);
+    expect(ctx.octokit.rest.pulls.list).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      head: "test-owner:fix/bug-123",
+      base: "main",
+      state: "open",
+    });
     expect(ctx.octokit.rest.pulls.create).toHaveBeenCalledWith({
       owner: "test-owner",
       repo: "test-repo",
@@ -483,6 +495,29 @@ describe("executeCreatePR", () => {
       base: "main",
       draft: true,
     });
+  });
+
+  test("returns existing PR instead of creating new one", async () => {
+    // Existing PR found
+    vi.mocked(ctx.octokit.rest.pulls.list).mockResolvedValueOnce({
+      data: [{ number: 99 }],
+    } as any);
+
+    const action: CreatePRAction = {
+      type: "createPR",
+      title: "Fix bug",
+      body: "This PR fixes a bug",
+      branchName: "fix/bug-123",
+      baseBranch: "main",
+      draft: true,
+      issueNumber: 123,
+    };
+
+    const result = await executeCreatePR(action, ctx);
+
+    expect(result.prNumber).toBe(99);
+    expect(ctx.octokit.rest.pulls.list).toHaveBeenCalled();
+    expect(ctx.octokit.rest.pulls.create).not.toHaveBeenCalled();
   });
 });
 
