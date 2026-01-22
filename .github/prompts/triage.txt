@@ -237,11 +237,10 @@ for SUB_NUM in $PHASE1 $PHASE2 $PHASE3; do
 done
 ```
 
-**Update main issue with phases table:**
+**Update main issue body:**
 After creating sub-issues, update the main issue body to include:
 1. The original description/details/questions
-2. A phases table showing all sub-issues
-3. The CLAUDE_MAIN_STATE block
+2. The CLAUDE_MAIN_STATE block (sub-issues are visible in GitHub's sub-issues list)
 
 ```bash
 gh issue edit {{ISSUE_NUMBER}} --body "$(cat <<'EOF'
@@ -256,14 +255,6 @@ High-level technical approach for the implementation.
 
 ## Questions
 - [x] Question 1? Answer here.
-
-## Phases
-
-| # | Sub-Issue | Status |
-|---|-----------|--------|
-| 1 | #<PHASE1_NUM> | pending |
-| 2 | #<PHASE2_NUM> | pending |
-| 3 | #<PHASE3_NUM> | pending |
 
 <!-- CLAUDE_MAIN_STATE
 orchestration_iteration: 0
@@ -318,7 +309,6 @@ cat triage-output.json
 gh issue view {{ISSUE_NUMBER}}
 
 # Update issue body (use heredoc for multiline)
-# NOTE: Parent issues should NOT have a Todo section - todos go in sub-issues
 gh issue edit {{ISSUE_NUMBER}} --body "$(cat <<'EOF'
 ## Description
 Brief TLDR of the issue.
@@ -331,12 +321,6 @@ High-level technical approach.
 
 ## Questions
 - [x] Question 1? Answer here.
-
-## Phases
-
-| # | Sub-Issue | Status |
-|---|-----------|--------|
-| 1 | #<PHASE1_NUM> | pending |
 
 <!-- CLAUDE_MAIN_STATE
 orchestration_iteration: 0
