@@ -49,6 +49,10 @@ inputs:
     description: Assignee that triggers action (e.g., "nopo-bot")
     required: false
     default: ""
+  allowed_bots:
+    description: Comma-separated list of bot usernames allowed to trigger this action (e.g., "github-actions,dependabot")
+    required: false
+    default: ""
 
 outputs:
   success:
@@ -115,6 +119,7 @@ runs:
         show_full_output: ${{ inputs.show_full_output }}
         trigger_phrase: ${{ inputs.trigger_phrase }}
         assignee_trigger: ${{ inputs.assignee_trigger }}
+        allowed_bots: ${{ inputs.allowed_bots }}
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
 

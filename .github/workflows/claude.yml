@@ -479,6 +479,7 @@ jobs:
           prompt_replacements: ${{ needs.discussion-context.outputs.prompt_replacements }}
           max_turns: '30'
           show_full_output: 'true'
+          allowed_bots: 'github-actions'
       - uses: actions/upload-artifact@v4
         with:
           name: claude-discussion-output
@@ -506,6 +507,7 @@ jobs:
           prompt_replacements: ${{ needs.discussion-context.outputs.prompt_replacements }}
           max_turns: '100'
           show_full_output: 'true'
+          allowed_bots: 'github-actions'
       - uses: actions/upload-artifact@v4
         with:
           name: claude-discussion-output
@@ -533,6 +535,7 @@ jobs:
           prompt_replacements: ${{ needs.discussion-context.outputs.prompt_replacements }}
           max_turns: '50'
           show_full_output: 'true'
+          allowed_bots: 'github-actions'
       - uses: actions/upload-artifact@v4
         with:
           name: claude-discussion-output
@@ -558,6 +561,7 @@ jobs:
           prompt_replacements: ${{ needs.discussion-context.outputs.prompt_replacements }}
           max_turns: '100'
           show_full_output: 'true'
+          allowed_bots: 'github-actions'
       - uses: actions/upload-artifact@v4
         with:
           name: claude-discussion-output
