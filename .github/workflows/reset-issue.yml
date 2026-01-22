@@ -1,0 +1,54 @@
+name: Reset Issue
+
+# Reset an issue and its sub-issues to initial state
+# - Re-opens closed issues
+# - Sets parent issue status to "Backlog"
+# - Sets sub-issue status to "Ready"
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number to reset'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Reset Issue
+        uses: ./.github/actions-ts/claude-test-helper
+        with:
+          action: reset
+          issue_number: ${{ inputs.issue_number }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+
+      - name: Write Summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          # Issue Reset Complete
+
+          | Property | Value |
+          |----------|-------|
+          | **Issue** | [#${{ inputs.issue_number }}](${{ github.server_url }}/${{ github.repository }}/issues/${{ inputs.issue_number }}) |
+          | **Status** | Reset to initial state |
+
+          The issue and any sub-issues have been:
+          - Re-opened (if closed)
+          - Parent status set to **Backlog**
+          - Sub-issue statuses set to **Ready**
+          EOF

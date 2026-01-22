@@ -1558,6 +1558,264 @@ async function cleanupFixture(
   core.info("Cleanup complete");
 }
 
+/**
+ * Reset an issue to initial state (re-open and set to Backlog/Ready)
+ *
+ * This is useful for recovering from accidentally closed issues or
+ * restarting work on an issue.
+ */
+async function resetIssue(
+  octokit: ReturnType<typeof github.getOctokit>,
+  owner: string,
+  repo: string,
+  issueNumber: number,
+  projectNumber: number,
+): Promise<{ reset_count: number }> {
+  core.info(`Resetting issue #${issueNumber} to initial state`);
+  let resetCount = 0;
+
+  // Get project fields
+  interface ProjectQueryResponse {
+    organization?: {
+      projectV2?: unknown;
+    };
+  }
+
+  let projectFields: ProjectFields | null = null;
+
+  try {
+    const projectResponse = await octokit.graphql<ProjectQueryResponse>(
+      `query GetProjectFields($org: String!, $projectNumber: Int!) {
+        organization(login: $org) {
+          projectV2(number: $projectNumber) {
+            id
+            fields(first: 20) {
+              nodes {
+                ... on ProjectV2SingleSelectField {
+                  id
+                  name
+                  options {
+                    id
+                    name
+                  }
+                }
+                ... on ProjectV2Field {
+                  id
+                  name
+                  dataType
+                }
+              }
+            }
+          }
+        }
+      }`,
+      {
+        org: owner,
+        projectNumber,
+      },
+    );
+
+    const projectData = projectResponse.organization?.projectV2;
+    projectFields = parseProjectFields(projectData);
+  } catch (error) {
+    core.warning(
+      `Could not access project #${projectNumber}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  // Get parent issue and re-open it
+  const { data: issue } = await octokit.rest.issues.get({
+    owner,
+    repo,
+    issue_number: issueNumber,
+  });
+
+  if (issue.state === "closed") {
+    core.info(`Re-opening parent issue #${issueNumber}`);
+    await octokit.rest.issues.update({
+      owner,
+      repo,
+      issue_number: issueNumber,
+      state: "open",
+    });
+    resetCount++;
+  }
+
+  // Set parent status to Backlog
+  if (projectFields) {
+    await setIssueProjectStatus(
+      octokit,
+      owner,
+      repo,
+      issueNumber,
+      "Backlog",
+      projectFields,
+    );
+    core.info(`Set parent issue #${issueNumber} status to Backlog`);
+  }
+
+  // Get sub-issues
+  interface SubIssuesResponse {
+    repository?: {
+      issue?: {
+        subIssues?: {
+          nodes?: Array<{
+            number?: number;
+            state?: string;
+          }>;
+        };
+      };
+    };
+  }
+
+  const subResponse = await octokit.graphql<SubIssuesResponse>(
+    GET_SUB_ISSUES_QUERY,
+    {
+      org: owner,
+      repo,
+      parentNumber: issueNumber,
+    },
+  );
+
+  const subIssues = subResponse.repository?.issue?.subIssues?.nodes || [];
+
+  // Re-open and reset each sub-issue
+  for (const subIssue of subIssues) {
+    if (subIssue.number) {
+      const { data: subIssueData } = await octokit.rest.issues.get({
+        owner,
+        repo,
+        issue_number: subIssue.number,
+      });
+
+      if (subIssueData.state === "closed") {
+        core.info(`Re-opening sub-issue #${subIssue.number}`);
+        await octokit.rest.issues.update({
+          owner,
+          repo,
+          issue_number: subIssue.number,
+          state: "open",
+        });
+        resetCount++;
+      }
+
+      // Set sub-issue status to Ready
+      if (projectFields) {
+        await setIssueProjectStatus(
+          octokit,
+          owner,
+          repo,
+          subIssue.number,
+          "Ready",
+          projectFields,
+        );
+        core.info(`Set sub-issue #${subIssue.number} status to Ready`);
+      }
+    }
+  }
+
+  core.info(
+    `Reset complete: ${resetCount} issues re-opened, statuses updated`,
+  );
+  return { reset_count: resetCount };
+}
+
+/**
+ * Helper to set issue project status
+ */
+async function setIssueProjectStatus(
+  octokit: ReturnType<typeof github.getOctokit>,
+  owner: string,
+  repo: string,
+  issueNumber: number,
+  status: string,
+  projectFields: ProjectFields,
+): Promise<void> {
+  // Get issue node ID
+  const { data: issue } = await octokit.rest.issues.get({
+    owner,
+    repo,
+    issue_number: issueNumber,
+  });
+
+  const issueNodeId = issue.node_id;
+
+  // Check if issue is in project, add if not
+  interface ProjectItemsResponse {
+    repository?: {
+      issue?: {
+        projectItems?: {
+          nodes?: Array<{
+            id?: string;
+            project?: { number?: number };
+          }>;
+        };
+      };
+    };
+  }
+
+  const projectItemsResponse = await octokit.graphql<ProjectItemsResponse>(
+    `query GetIssueProjectItems($owner: String!, $repo: String!, $issueNumber: Int!) {
+      repository(owner: $owner, name: $repo) {
+        issue(number: $issueNumber) {
+          projectItems(first: 10) {
+            nodes {
+              id
+              project { number }
+            }
+          }
+        }
+      }
+    }`,
+    { owner, repo, issueNumber },
+  );
+
+  const projectItems =
+    projectItemsResponse.repository?.issue?.projectItems?.nodes || [];
+  let projectItemId = projectItems.find(
+    (item) => item.project?.number === parseInt(projectFields.projectId, 10),
+  )?.id;
+
+  // If not in project, add it
+  if (!projectItemId) {
+    interface AddItemResponse {
+      addProjectV2ItemById?: {
+        item?: { id?: string };
+      };
+    }
+
+    const addResult = await octokit.graphql<AddItemResponse>(
+      ADD_ISSUE_TO_PROJECT_MUTATION,
+      {
+        projectId: projectFields.projectId,
+        contentId: issueNodeId,
+      },
+    );
+    projectItemId = addResult.addProjectV2ItemById?.item?.id;
+  }
+
+  if (!projectItemId) {
+    core.warning(`Could not get project item ID for issue #${issueNumber}`);
+    return;
+  }
+
+  // Set status
+  const optionId =
+    projectFields.statusOptions[status] ||
+    Object.entries(projectFields.statusOptions).find(
+      ([name]) => name.toLowerCase() === status.toLowerCase(),
+    )?.[1];
+
+  if (optionId) {
+    await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+      projectId: projectFields.projectId,
+      itemId: projectItemId,
+      fieldId: projectFields.statusFieldId,
+      value: { singleSelectOptionId: optionId },
+    });
+  }
+}
+
 async function run(): Promise<void> {
   try {
     const action = getRequiredInput("action");
@@ -1656,6 +1914,24 @@ async function run(): Promise<void> {
 
       setOutputs({
         success: "true",
+      });
+      return;
+    }
+
+    if (action === "reset") {
+      const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
+
+      const result = await resetIssue(
+        octokit,
+        owner,
+        repo,
+        issueNumber,
+        projectNumber,
+      );
+
+      setOutputs({
+        success: "true",
+        reset_count: String(result.reset_count),
       });
       return;
     }
