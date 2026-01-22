@@ -14,12 +14,28 @@ const TokenTypeSchema = z.enum(["code", "review"]);
 export type TokenType = z.infer<typeof TokenTypeSchema>;
 
 /**
+ * Artifact definition for passing files between matrix jobs
+ */
+const ArtifactSchema = z.object({
+  /** Unique name for the artifact (used for upload/download matching) */
+  name: z.string(),
+  /** Path to the file (relative to workspace) */
+  path: z.string(),
+});
+
+export type Artifact = z.infer<typeof ArtifactSchema>;
+
+/**
  * Base action fields shared by all actions
  */
 const BaseActionSchema = z.object({
   id: z.string().uuid().optional(),
   /** Which token to use for this action (defaults to 'code') */
   token: TokenTypeSchema.default("code"),
+  /** Artifact this action produces (will be uploaded after execution) */
+  producesArtifact: ArtifactSchema.optional(),
+  /** Artifact this action consumes (will be downloaded before execution) */
+  consumesArtifact: ArtifactSchema.optional(),
 });
 
 // ============================================================================

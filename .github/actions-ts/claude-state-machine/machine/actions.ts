@@ -522,19 +522,27 @@ export function emitRunClaudeTriage({ context }: ActionContext): ActionResult {
     REPO_NAME: context.repo,
   };
 
+  const triageArtifact = {
+    name: "claude-triage-output",
+    path: "triage-output.json",
+  };
+
   return [
     {
       type: "runClaude",
       promptFile: ".github/prompts/triage.txt",
       promptVars,
       issueNumber,
+      // Upload triage-output.json after Claude creates it
+      producesArtifact: triageArtifact,
     },
     // Apply labels and project fields from triage-output.json
-    // This runs after Claude creates the file
+    // Downloads the artifact before execution
     {
       type: "applyTriageOutput",
       issueNumber,
       filePath: "triage-output.json",
+      consumesArtifact: triageArtifact,
     },
   ];
 }

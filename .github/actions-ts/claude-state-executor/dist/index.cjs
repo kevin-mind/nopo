@@ -28115,10 +28115,20 @@ var PartialMachineContextSchema = MachineContextSchema.partial().required({
 
 // claude-state-machine/schemas/actions.ts
 var TokenTypeSchema = external_exports.enum(["code", "review"]);
+var ArtifactSchema = external_exports.object({
+  /** Unique name for the artifact (used for upload/download matching) */
+  name: external_exports.string(),
+  /** Path to the file (relative to workspace) */
+  path: external_exports.string()
+});
 var BaseActionSchema = external_exports.object({
   id: external_exports.string().uuid().optional(),
   /** Which token to use for this action (defaults to 'code') */
-  token: TokenTypeSchema.default("code")
+  token: TokenTypeSchema.default("code"),
+  /** Artifact this action produces (will be uploaded after execution) */
+  producesArtifact: ArtifactSchema.optional(),
+  /** Artifact this action consumes (will be downloaded before execution) */
+  consumesArtifact: ArtifactSchema.optional()
 });
 var UpdateProjectStatusActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("updateProjectStatus"),

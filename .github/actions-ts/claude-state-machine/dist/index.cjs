@@ -31316,10 +31316,20 @@ function isTerminalStatus(status) {
 
 // claude-state-machine/schemas/actions.ts
 var TokenTypeSchema = external_exports.enum(["code", "review"]);
+var ArtifactSchema = external_exports.object({
+  /** Unique name for the artifact (used for upload/download matching) */
+  name: external_exports.string(),
+  /** Path to the file (relative to workspace) */
+  path: external_exports.string()
+});
 var BaseActionSchema = external_exports.object({
   id: external_exports.string().uuid().optional(),
   /** Which token to use for this action (defaults to 'code') */
-  token: TokenTypeSchema.default("code")
+  token: TokenTypeSchema.default("code"),
+  /** Artifact this action produces (will be uploaded after execution) */
+  producesArtifact: ArtifactSchema.optional(),
+  /** Artifact this action consumes (will be downloaded before execution) */
+  consumesArtifact: ArtifactSchema.optional()
 });
 var UpdateProjectStatusActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("updateProjectStatus"),
@@ -32318,19 +32328,26 @@ function emitRunClaudeTriage({ context: context2 }) {
     REPO_OWNER: context2.owner,
     REPO_NAME: context2.repo
   };
+  const triageArtifact = {
+    name: "claude-triage-output",
+    path: "triage-output.json"
+  };
   return [
     {
       type: "runClaude",
       promptFile: ".github/prompts/triage.txt",
       promptVars,
-      issueNumber
+      issueNumber,
+      // Upload triage-output.json after Claude creates it
+      producesArtifact: triageArtifact
     },
     // Apply labels and project fields from triage-output.json
-    // This runs after Claude creates the file
+    // Downloads the artifact before execution
     {
       type: "applyTriageOutput",
       issueNumber,
-      filePath: "triage-output.json"
+      filePath: "triage-output.json",
+      consumesArtifact: triageArtifact
     }
   ];
 }

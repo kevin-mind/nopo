@@ -244,13 +244,22 @@ jobs:
           model: "claude-opus-4-5-20251101"
           max_turns: "50"
 
-      # Download triage output artifact for applyTriageOutput action
-      - name: Download triage output
-        if: matrix.action.type == 'applyTriageOutput'
+      # Upload artifact if action produces one (runs after runClaude)
+      - name: Upload artifact
+        if: matrix.action.producesArtifact && !inputs.dry_run
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.action.producesArtifact.name }}
+          path: ${{ matrix.action.producesArtifact.path }}
+          retention-days: 1
+          if-no-files-found: error
+
+      # Download artifact if action consumes one (runs before executor)
+      - name: Download artifact
+        if: matrix.action.consumesArtifact
         uses: actions/download-artifact@v4
         with:
-          name: claude-triage-output
-          # Downloads to current directory (triage-output.json)
+          name: ${{ matrix.action.consumesArtifact.name }}
 
       - name: Execute Action
         if: matrix.action.type != 'runClaude'
@@ -262,16 +271,6 @@ jobs:
           actions_json: ${{ format('[{0}]', toJson(matrix.action)) }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
           dry_run: ${{ inputs.dry_run && 'true' || 'false' }}
-
-      # Upload triage output artifact for debugging
-      - name: Upload triage output
-        if: matrix.action.type == 'runClaude' && inputs.trigger == 'issue_triage' && !inputs.dry_run
-        uses: actions/upload-artifact@v4
-        with:
-          name: claude-triage-output
-          path: triage-output.json
-          retention-days: 1
-          if-no-files-found: ignore
 
       - name: Write Action Summary
         if: always()
