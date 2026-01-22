@@ -256,10 +256,11 @@ jobs:
           dry_run: ${{ inputs.dry_run && 'true' || 'false' }}
 
       # Post-processing for triage: Apply labels and project fields from triage-output.json
+      # Uses NOPO_BOT_PAT for project access (CLAUDE_REVIEWER_PAT lacks project scope)
       - name: Apply triage labels and project fields
         if: matrix.action.type == 'runClaude' && inputs.trigger == 'issue_triage' && !inputs.dry_run
         env:
-          GH_TOKEN: ${{ secrets.CLAUDE_REVIEWER_PAT }}
+          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
           ISSUE_NUMBER: ${{ inputs.issue_number }}
           PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER || '1' }}
         run: |
@@ -286,8 +287,13 @@ jobs:
           fi
           for topic in $topics; do
             if [[ -n "$topic" ]]; then
-              labels="${labels:+$labels,}topic:$topic"
-              echo "Adding topic label: topic:$topic"
+              # Don't double-add topic: prefix if already present
+              if [[ "$topic" == topic:* ]]; then
+                labels="${labels:+$labels,}$topic"
+              else
+                labels="${labels:+$labels,}topic:$topic"
+              fi
+              echo "Adding topic label: $topic"
             fi
           done
           labels="${labels:+$labels,}triaged"
