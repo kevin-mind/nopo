@@ -24244,8 +24244,17 @@ async function handleIssueEvent(octokit, owner, repo) {
   }
   if (action === "edited") {
     const sender = payload.sender?.login;
-    if (sender === "nopo-bot" || sender === "claude[bot]") {
-      return emptyResult(true, `Edit made by bot (${sender}) - skipping`);
+    const botAccounts = [
+      "nopo-bot",
+      "nopo-reviewer",
+      "claude[bot]",
+      "github-actions[bot]"
+    ];
+    if (botAccounts.includes(sender)) {
+      return emptyResult(
+        true,
+        `Edit made by bot/automated account (${sender}) - use workflow dispatch to continue`
+      );
     }
     if (isNopoBotAssigned) {
       const projectState = await fetchProjectState(

@@ -546,11 +546,21 @@ async function handleIssueEvent(
 
   // Handle edited: triggers iteration if nopo-bot is assigned, otherwise triage
   if (action === "edited") {
-    // Skip if the edit was made by a bot (nopo-bot or claude[bot])
+    // Skip if the edit was made by a bot or automated account
     // This prevents the workflow from re-triggering when the state machine updates the issue
+    // Use explicit workflow dispatch (e.g., from CI completion) to continue iteration
     const sender = (payload.sender as { login: string; type?: string })?.login;
-    if (sender === "nopo-bot" || sender === "claude[bot]") {
-      return emptyResult(true, `Edit made by bot (${sender}) - skipping`);
+    const botAccounts = [
+      "nopo-bot",
+      "nopo-reviewer",
+      "claude[bot]",
+      "github-actions[bot]",
+    ];
+    if (botAccounts.includes(sender)) {
+      return emptyResult(
+        true,
+        `Edit made by bot/automated account (${sender}) - use workflow dispatch to continue`,
+      );
     }
 
     // If nopo-bot is assigned, edited triggers iteration (issue-edit-based loop)
