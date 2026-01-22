@@ -398,68 +398,89 @@ function emitMergePR({ context }: ActionContext): ActionResult {
 // ============================================================================
 
 /**
- * Emit action to run Claude for implementation
+ * Build prompt variables for the iterate.txt template
  */
-export function emitRunClaude({ context }: ActionContext): ActionResult {
+function buildIteratePromptVars(
+  context: MachineContext,
+  ciResultOverride?: string,
+): Record<string, string> {
   const issueNumber = context.currentSubIssue?.number ?? context.issue.number;
+  const issueTitle = context.currentSubIssue?.title ?? context.issue.title;
+  const issueBody = context.currentSubIssue?.body ?? context.issue.body;
   const branchName =
     context.branch ??
     deriveBranchName(context.issue.number, context.currentPhase ?? undefined);
+  const iteration = context.issue.iteration;
+  const failures = context.issue.failures;
+  const ciResult = ciResultOverride ?? context.ciResult ?? "first";
 
-  const prompt = `Implement the requirements for issue #${issueNumber}.
-Work on branch ${branchName}.
-Ensure all tests pass before pushing.`;
+  // Build conditional sections as complete strings
+  // The template has {{#if PARENT_ISSUE}} blocks that simple string replacement won't handle
+  const isSubIssue = context.parentIssue !== null && context.currentPhase !== null;
+  const parentIssueNumber = context.parentIssue?.number ?? "";
+  const phaseNumber = context.currentPhase ?? "";
+
+  return {
+    ISSUE_NUMBER: String(issueNumber),
+    ISSUE_TITLE: issueTitle,
+    ITERATION: String(iteration),
+    LAST_CI_RESULT: ciResult,
+    CONSECUTIVE_FAILURES: String(failures),
+    BRANCH_NAME: branchName,
+    PARENT_ISSUE: isSubIssue ? String(parentIssueNumber) : "",
+    PHASE_NUMBER: isSubIssue ? String(phaseNumber) : "",
+    ISSUE_BODY: issueBody,
+    EXISTING_BRANCH_SECTION: context.hasBranch
+      ? "## Existing Branch\nThis branch already exists with previous work. Review the git history and continue from where it left off."
+      : "",
+    REPO_OWNER: context.owner,
+    REPO_NAME: context.repo,
+  };
+}
+
+/**
+ * Emit action to run Claude for implementation
+ *
+ * Uses the iterate.txt prompt file with template variables substituted.
+ * Claude will implement the issue requirements, update todos, and push changes.
+ */
+export function emitRunClaude({ context }: ActionContext): ActionResult {
+  const issueNumber = context.currentSubIssue?.number ?? context.issue.number;
+  const promptVars = buildIteratePromptVars(context);
 
   return [
     {
       type: "runClaude",
-      prompt,
+      promptFile: ".github/prompts/iterate.txt",
+      promptVars,
       issueNumber,
-      // worktree intentionally omitted - checkout happens at repo root to the correct branch
     },
   ];
 }
 
 /**
  * Emit action to run Claude for CI fix
+ *
+ * Uses the same iterate.txt prompt with ciResult set to "failure".
+ * The prompt already handles CI fix logic based on LAST_CI_RESULT.
  */
 export function emitRunClaudeFixCI({ context }: ActionContext): ActionResult {
   const issueNumber = context.currentSubIssue?.number ?? context.issue.number;
+  const promptVars = buildIteratePromptVars(context, "failure");
 
-  const prompt = `Fix the CI failures for issue #${issueNumber}.
-CI run: ${context.ciRunUrl ?? "N/A"}
+  // Add CI-specific info to the existing branch section
+  promptVars.EXISTING_BRANCH_SECTION = `## CI Failure Context
+CI Run: ${context.ciRunUrl ?? "N/A"}
 Commit: ${context.ciCommitSha ?? "N/A"}
 
-Review the CI logs and fix the failing tests or build errors.`;
+Review the CI logs at the link above and fix the failing tests or build errors.`;
 
   return [
     {
       type: "runClaude",
-      prompt,
+      promptFile: ".github/prompts/iterate.txt",
+      promptVars,
       issueNumber,
-      // worktree intentionally omitted - checkout happens at repo root to the correct branch
-    },
-  ];
-}
-
-/**
- * Emit action to run Claude for review response
- */
-function emitRunClaudeReviewResponse({ context }: ActionContext): ActionResult {
-  const issueNumber = context.currentSubIssue?.number ?? context.issue.number;
-
-  const prompt = `Address the review feedback for issue #${issueNumber}.
-Review decision: ${context.reviewDecision ?? "N/A"}
-Reviewer: ${context.reviewerId ?? "N/A"}
-
-Make the requested changes and push the updates.`;
-
-  return [
-    {
-      type: "runClaude",
-      prompt,
-      issueNumber,
-      // worktree intentionally omitted - checkout happens at repo root to the correct branch
     },
   ];
 }
@@ -1017,7 +1038,6 @@ const machineActions = {
   // Claude
   emitRunClaude,
   emitRunClaudeFixCI,
-  emitRunClaudeReviewResponse,
   emitRunClaudeTriage,
   emitRunClaudeComment,
   // Orchestration

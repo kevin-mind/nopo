@@ -32233,34 +32233,58 @@ function emitRequestReview({ context: context2 }) {
     }
   ];
 }
+function buildIteratePromptVars(context2, ciResultOverride) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const issueTitle = context2.currentSubIssue?.title ?? context2.issue.title;
+  const issueBody = context2.currentSubIssue?.body ?? context2.issue.body;
+  const branchName = context2.branch ?? deriveBranchName(context2.issue.number, context2.currentPhase ?? void 0);
+  const iteration = context2.issue.iteration;
+  const failures = context2.issue.failures;
+  const ciResult = ciResultOverride ?? context2.ciResult ?? "first";
+  const isSubIssue = context2.parentIssue !== null && context2.currentPhase !== null;
+  const parentIssueNumber = context2.parentIssue?.number ?? "";
+  const phaseNumber = context2.currentPhase ?? "";
+  return {
+    ISSUE_NUMBER: String(issueNumber),
+    ISSUE_TITLE: issueTitle,
+    ITERATION: String(iteration),
+    LAST_CI_RESULT: ciResult,
+    CONSECUTIVE_FAILURES: String(failures),
+    BRANCH_NAME: branchName,
+    PARENT_ISSUE: isSubIssue ? String(parentIssueNumber) : "",
+    PHASE_NUMBER: isSubIssue ? String(phaseNumber) : "",
+    ISSUE_BODY: issueBody,
+    EXISTING_BRANCH_SECTION: context2.hasBranch ? "## Existing Branch\nThis branch already exists with previous work. Review the git history and continue from where it left off." : "",
+    REPO_OWNER: context2.owner,
+    REPO_NAME: context2.repo
+  };
+}
 function emitRunClaude({ context: context2 }) {
   const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  const branchName = context2.branch ?? deriveBranchName(context2.issue.number, context2.currentPhase ?? void 0);
-  const prompt = `Implement the requirements for issue #${issueNumber}.
-Work on branch ${branchName}.
-Ensure all tests pass before pushing.`;
+  const promptVars = buildIteratePromptVars(context2);
   return [
     {
       type: "runClaude",
-      prompt,
+      promptFile: ".github/prompts/iterate.txt",
+      promptVars,
       issueNumber
-      // worktree intentionally omitted - checkout happens at repo root to the correct branch
     }
   ];
 }
 function emitRunClaudeFixCI({ context: context2 }) {
   const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  const prompt = `Fix the CI failures for issue #${issueNumber}.
-CI run: ${context2.ciRunUrl ?? "N/A"}
+  const promptVars = buildIteratePromptVars(context2, "failure");
+  promptVars.EXISTING_BRANCH_SECTION = `## CI Failure Context
+CI Run: ${context2.ciRunUrl ?? "N/A"}
 Commit: ${context2.ciCommitSha ?? "N/A"}
 
-Review the CI logs and fix the failing tests or build errors.`;
+Review the CI logs at the link above and fix the failing tests or build errors.`;
   return [
     {
       type: "runClaude",
-      prompt,
+      promptFile: ".github/prompts/iterate.txt",
+      promptVars,
       issueNumber
-      // worktree intentionally omitted - checkout happens at repo root to the correct branch
     }
   ];
 }
@@ -33312,7 +33336,12 @@ var claudeMachine = setup({
      * Claude is fixing CI failures
      */
     iteratingFix: {
-      entry: ["createBranch", "incrementIteration", "runClaudeFixCI", "createPR"],
+      entry: [
+        "createBranch",
+        "incrementIteration",
+        "runClaudeFixCI",
+        "createPR"
+      ],
       on: {
         CI_SUCCESS: [
           {

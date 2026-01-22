@@ -675,7 +675,12 @@ export const claudeMachine = setup({
      * Claude is fixing CI failures
      */
     iteratingFix: {
-      entry: ["createBranch", "incrementIteration", "runClaudeFixCI", "createPR"],
+      entry: [
+        "createBranch",
+        "incrementIteration",
+        "runClaudeFixCI",
+        "createPR",
+      ],
       on: {
         CI_SUCCESS: [
           {
