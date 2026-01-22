@@ -1,0 +1,14 @@
+{
+  "description": "Mock phase 1 infrastructure setup fixture for issue #3859",
+  "phase": 1,
+  "type": "infrastructure-setup",
+  "config": {
+    "automation_enabled": true,
+    "iteration_tracking": true,
+    "ci_integration": true
+  },
+  "expected_outcomes": [
+    "Mock configuration file created",
+    "Setup verification passes"
+  ]
+}
