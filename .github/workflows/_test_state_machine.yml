@@ -53,6 +53,7 @@ permissions:
   contents: write
   pull-requests: write
   issues: write
+  actions: write
   id-token: write
 
 env:
@@ -253,11 +254,12 @@ jobs:
     steps:
       # Dispatch triage via workflow_dispatch (E2E mode only)
       # Issue triggers were removed to use explicit workflow dispatch instead
+      # Use GITHUB_TOKEN for workflow dispatch (PAT may not have workflow scope)
       - name: Dispatch triage workflow
         if: inputs.mode == 'e2e'
         env:
           ISSUE_NUMBER: ${{ needs.setup.outputs.issue_number }}
-          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           echo "Dispatching triage workflow for issue #$ISSUE_NUMBER..."
           gh workflow run claude.yml \
@@ -334,6 +336,7 @@ jobs:
         env:
           ISSUE_NUMBER: ${{ needs.setup.outputs.issue_number }}
           GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
+          GH_TOKEN_WORKFLOW: ${{ github.token }}
         run: |
           echo "Triggering state machine for issue #$ISSUE_NUMBER"
 
@@ -344,7 +347,8 @@ jobs:
           echo "✅ Assigned nopo-bot to issue #$ISSUE_NUMBER"
 
           # Dispatch orchestrate workflow (since issues:assigned trigger is removed)
-          gh workflow run claude.yml \
+          # Use GITHUB_TOKEN for workflow dispatch (PAT may not have workflow scope)
+          GH_TOKEN="$GH_TOKEN_WORKFLOW" gh workflow run claude.yml \
             --repo "$GITHUB_REPOSITORY" \
             -f action=orchestrate \
             -f resource_number="$ISSUE_NUMBER"
