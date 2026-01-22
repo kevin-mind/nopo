@@ -195,14 +195,28 @@ jobs:
               fi
 
               echo "Found linked issue #$linked_issue"
-              echo "parent_issue=$linked_issue" >> $GITHUB_OUTPUT
 
-              # Build context with the linked issue number (not PR number)
+              # Check if linked issue is a sub-issue by looking for "Parent: #N" in its body
+              linked_issue_body=$(gh issue view "$linked_issue" --json body --jq '.body')
+              parent_from_sub=$(echo "$linked_issue_body" | grep -oE 'Parent: #[0-9]+' | head -1 | grep -oE '[0-9]+' || echo "")
+
+              if [[ -n "$parent_from_sub" ]]; then
+                echo "Linked issue #$linked_issue is a sub-issue of parent #$parent_from_sub"
+                parent_issue="$parent_from_sub"
+              else
+                echo "Linked issue #$linked_issue is a parent issue"
+                parent_issue="$linked_issue"
+              fi
+
+              echo "parent_issue=$parent_issue" >> $GITHUB_OUTPUT
+
+              # Build context with the PARENT issue number (not sub-issue or PR number)
+              # The state machine needs the parent to understand the phase structure
               # Use heredoc for multiline output to preserve JSON integrity
               {
                 echo "context_json<<EOF"
-                gh issue view "$linked_issue" --json title,body | jq -c \
-                  --arg num "$linked_issue" \
+                gh issue view "$parent_issue" --json title,body | jq -c \
+                  --arg num "$parent_issue" \
                   --arg pr_num "$RESOURCE_NUMBER" \
                   '{issue_number: $num, pr_number: $pr_num, issue_title: .title, issue_body: .body}'
                 echo "EOF"
