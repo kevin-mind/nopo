@@ -27008,6 +27008,86 @@ function setOutputs(outputs) {
 
 // claude-state-machine/parser/history-parser.ts
 var HISTORY_SECTION = "## Iteration History";
+var HEADER_COLUMNS = [
+  { key: "time", value: "Time" },
+  { key: "iteration", value: "#" },
+  { key: "phase", value: "Phase" },
+  { key: "action", value: "Action" },
+  { key: "sha", value: "SHA" },
+  { key: "run", value: "Run" }
+];
+function buildValueToKeyMap() {
+  const map = /* @__PURE__ */ new Map();
+  for (const col of HEADER_COLUMNS) {
+    map.set(col.value, col.key);
+  }
+  return map;
+}
+function parseHeaderRow(headerRow, valueToKeyMap) {
+  const cells = headerRow.split("|").map((c) => c.trim()).filter((c, i, arr) => i > 0 && i < arr.length - 1 && c !== "");
+  const keys = [];
+  const unmatched = [];
+  for (const cell of cells) {
+    const key = valueToKeyMap.get(cell);
+    if (key) {
+      keys.push(key);
+    } else {
+      keys.push(null);
+      unmatched.push(cell);
+    }
+  }
+  return { keys, unmatched };
+}
+function parseDataRow(row, columnKeys) {
+  const cells = row.split("|").map((c) => c.trim()).filter((c, i, arr) => i > 0 && i < arr.length - 1);
+  const data = {};
+  for (let i = 0; i < columnKeys.length && i < cells.length; i++) {
+    const key = columnKeys[i];
+    if (key) {
+      data[key] = cells[i];
+    }
+  }
+  return data;
+}
+function parseTable(body) {
+  const lines = body.split("\n");
+  const historyIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
+  if (historyIdx === -1) {
+    return null;
+  }
+  const valueToKeyMap = buildValueToKeyMap();
+  let headerKeys = [];
+  let unmatchedHeaders = [];
+  const rows = [];
+  let foundHeader = false;
+  for (let i = historyIdx + 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line) continue;
+    if (line.startsWith("##") && !line.includes(HISTORY_SECTION)) {
+      break;
+    }
+    if (!line.startsWith("|")) {
+      continue;
+    }
+    if (line.includes("---")) {
+      continue;
+    }
+    if (!foundHeader) {
+      const parsed = parseHeaderRow(line, valueToKeyMap);
+      headerKeys = parsed.keys;
+      unmatchedHeaders = parsed.unmatched;
+      foundHeader = true;
+      continue;
+    }
+    const rowData = parseDataRow(line, headerKeys);
+    rows.push(rowData);
+  }
+  return {
+    headerKeys: headerKeys.filter((k) => k !== null),
+    rows,
+    unmatchedHeaders
+  };
+}
 function parseMarkdownLink(text) {
   const match = text.match(/\[.*?\]\((.*?)\)/);
   return match?.[1] ?? null;
@@ -27026,61 +27106,34 @@ function parseShaCell(cell) {
   }
   return null;
 }
-function parseHistoryRow(row) {
-  const cells = row.split("|").map((c) => c.trim());
-  const dataCells = cells.filter((c, i) => i > 0 && i < cells.length - 1);
-  const hasTimestampColumn = dataCells.length >= 6;
-  if (dataCells.length < 5) {
-    return null;
-  }
-  const iterationStr = dataCells[0];
-  const phase = dataCells[1];
-  const action = dataCells[2];
-  let timestampCell;
-  let shaCell;
-  let runCell;
-  if (hasTimestampColumn) {
-    timestampCell = dataCells[3];
-    shaCell = dataCells[4];
-    runCell = dataCells[5];
-  } else {
-    shaCell = dataCells[3];
-    runCell = dataCells[4];
-  }
-  if (!iterationStr || iterationStr === "#" || iterationStr.startsWith("---") || !phase || !action) {
-    return null;
-  }
+function rowDataToHistoryEntry(data) {
+  const iterationStr = data.iteration;
+  if (!iterationStr) return null;
   const iteration = parseInt(iterationStr, 10);
-  if (isNaN(iteration)) {
-    return null;
-  }
-  const timestamp = timestampCell && timestampCell !== "-" ? timestampCell : null;
+  if (isNaN(iteration)) return null;
+  const timestamp = data.time && data.time !== "-" ? data.time : null;
   return {
     iteration,
-    phase,
-    action,
+    phase: data.phase || "",
+    action: data.action || "",
     timestamp,
-    sha: shaCell ? parseShaCell(shaCell) : null,
-    runLink: runCell ? parseMarkdownLink(runCell) : null
+    sha: data.sha ? parseShaCell(data.sha) : null,
+    runLink: data.run ? parseMarkdownLink(data.run) : null
   };
 }
 function parseHistory(body) {
-  const lines = body.split("\n");
-  const historyIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
-  if (historyIdx === -1) {
+  const parsed = parseTable(body);
+  if (!parsed) {
     return [];
   }
+  if (parsed.unmatchedHeaders.length > 0) {
+    console.warn(
+      `[history-parser] Unmatched table headers (will be dropped): ${parsed.unmatchedHeaders.join(", ")}`
+    );
+  }
   const entries = [];
-  for (let i = historyIdx + 1; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line) continue;
-    if (line.startsWith("##") && !line.includes(HISTORY_SECTION)) {
-      break;
-    }
-    if (!line.startsWith("|")) {
-      continue;
-    }
-    const entry = parseHistoryRow(line);
+  for (const row of parsed.rows) {
+    const entry = rowDataToHistoryEntry(row);
     if (entry) {
       entries.push(entry);
     }

@@ -34,9 +34,10 @@ describe("parseHistoryRow", () => {
     });
   });
 
-  test("parses row with new format (timestamp column)", () => {
+  test("parses row with new format (timestamp first column)", () => {
+    // New format: | Time | # | Phase | Action | SHA | Run |
     const row =
-      "| 1 | Phase 1 | Initial implementation | Jan 22 19:04 | abc123 | - |";
+      "| Jan 22 19:04 | 1 | Phase 1 | Initial implementation | abc123 | - |";
     const result = parseHistoryRow(row);
     expect(result).toEqual({
       iteration: 1,
@@ -247,10 +248,10 @@ describe("createHistoryTable", () => {
     ];
     const table = createHistoryTable(entries);
     expect(table).toContain("## Iteration History");
-    expect(table).toContain("| # | Phase | Action | Time | SHA | Run |");
-    expect(table).toContain("|---|-------|--------|------|-----|-----|");
-    expect(table).toContain("| 1 | 1 | Started |");
-    expect(table).toContain("| 2 | 1 | Done |");
+    // New format: Time is first column
+    expect(table).toContain("| Time | # | Phase | Action | SHA | Run |");
+    expect(table).toContain("| - | 1 | 1 | Started |");
+    expect(table).toContain("| Jan 22 19:04 | 2 | 1 | Done |");
   });
 });
 
@@ -272,8 +273,9 @@ describe("addHistoryEntry", () => {
     const body = "## Description\n\nSome text";
     const result = addHistoryEntry(body, 1, "Init", "Started");
     expect(result).toContain("## Iteration History");
-    expect(result).toContain("| # | Phase | Action | Time | SHA | Run |");
-    expect(result).toContain("| 1 | Init | Started |");
+    // New format: Time is first column
+    expect(result).toContain("| Time | # | Phase | Action | SHA | Run |");
+    expect(result).toContain("| - | 1 | Init | Started |");
   });
 
   test("includes SHA when provided", () => {

@@ -5,123 +5,137 @@ import type { HistoryEntry } from "../schemas/index.js";
  */
 export const HISTORY_SECTION = "## Iteration History";
 
-/**
- * Table header row
- */
-const TABLE_HEADER = "| # | Phase | Action | Time | SHA | Run |";
-const TABLE_SEPARATOR = "|---|-------|--------|------|-----|-----|";
+// ============================================================================
+// Schema Definition
+// ============================================================================
 
 /**
- * Parse a markdown link to extract URL
+ * Column definition for history table
+ * - key: internal identifier used in row data objects
+ * - value: display text shown in table header (case-sensitive matching)
  */
-function parseMarkdownLink(text: string): string | null {
-  const match = text.match(/\[.*?\]\((.*?)\)/);
-  return match?.[1] ?? null;
+interface HeaderColumn {
+  key: string;
+  value: string;
 }
 
 /**
- * Parse a SHA cell - could be a link or just text
+ * Table schema - defines column order and display names
+ * To modify table structure, just change this array.
  */
-function parseShaCell(cell: string): string | null {
-  if (cell === "-" || cell.trim() === "") {
-    return null;
-  }
+const HEADER_COLUMNS: HeaderColumn[] = [
+  { key: "time", value: "Time" },
+  { key: "iteration", value: "#" },
+  { key: "phase", value: "Phase" },
+  { key: "action", value: "Action" },
+  { key: "sha", value: "SHA" },
+  { key: "run", value: "Run" },
+];
 
-  // Try to extract from markdown link like [`abc123`](url)
-  const linkMatch = cell.match(/\[`?([a-f0-9]+)`?\]/i);
-  if (linkMatch) {
-    return linkMatch[1] ?? null;
-  }
-
-  // Plain SHA
-  const shaMatch = cell.match(/^[a-f0-9]+$/i);
-  if (shaMatch) {
-    return cell;
-  }
-
-  return null;
+/**
+ * Row data as key-value map
+ */
+interface RowData {
+  time?: string;
+  iteration?: string;
+  phase?: string;
+  action?: string;
+  sha?: string;
+  run?: string;
+  [key: string]: string | undefined;
 }
 
 /**
- * Parse a table row into a HistoryEntry
- * Supports both old format (5 columns) and new format (6 columns with timestamp)
+ * Parsed table representation
  */
-export function parseHistoryRow(row: string): HistoryEntry | null {
-  // Split by | and clean up
-  const cells = row.split("|").map((c) => c.trim());
+interface ParsedTable {
+  headerKeys: string[]; // Column keys in order found in table
+  rows: RowData[];
+  unmatchedHeaders: string[]; // Headers that couldn't be mapped (for error logging)
+}
 
-  // cells[0] is empty (before first |), cells[last] may be empty (after last |)
-  // Old format: | # | Phase | Action | SHA | Run | → 7 cells after split
-  // New format: | # | Phase | Action | Time | SHA | Run | → 8 cells after split
-  // Filter out empty cells at start and end for accurate count
-  const dataCells = cells.filter((c, i) => i > 0 && i < cells.length - 1);
-  const hasTimestampColumn = dataCells.length >= 6;
+// ============================================================================
+// Table Parsing
+// ============================================================================
 
-  if (dataCells.length < 5) {
-    return null;
+/**
+ * Build a map from display value to key for header parsing
+ */
+function buildValueToKeyMap(): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const col of HEADER_COLUMNS) {
+    map.set(col.value, col.key);
   }
-
-  const iterationStr = dataCells[0];
-  const phase = dataCells[1];
-  const action = dataCells[2];
-
-  let timestampCell: string | undefined;
-  let shaCell: string | undefined;
-  let runCell: string | undefined;
-
-  if (hasTimestampColumn) {
-    // New format with timestamp: #, Phase, Action, Time, SHA, Run
-    timestampCell = dataCells[3];
-    shaCell = dataCells[4];
-    runCell = dataCells[5];
-  } else {
-    // Old format without timestamp: #, Phase, Action, SHA, Run
-    shaCell = dataCells[3];
-    runCell = dataCells[4];
-  }
-
-  // Skip header and separator rows
-  if (
-    !iterationStr ||
-    iterationStr === "#" ||
-    iterationStr.startsWith("---") ||
-    !phase ||
-    !action
-  ) {
-    return null;
-  }
-
-  const iteration = parseInt(iterationStr, 10);
-  if (isNaN(iteration)) {
-    return null;
-  }
-
-  // Parse timestamp - it's stored as display format like "Jan 22 19:04"
-  const timestamp =
-    timestampCell && timestampCell !== "-" ? timestampCell : null;
-
-  return {
-    iteration,
-    phase,
-    action,
-    timestamp,
-    sha: shaCell ? parseShaCell(shaCell) : null,
-    runLink: runCell ? parseMarkdownLink(runCell) : null,
-  };
+  return map;
 }
 
 /**
- * Parse all history entries from an issue body
+ * Parse the header row to determine column positions and keys
+ * Returns array of keys in column order, or null for unmatched columns
  */
-export function parseHistory(body: string): HistoryEntry[] {
+function parseHeaderRow(
+  headerRow: string,
+  valueToKeyMap: Map<string, string>,
+): { keys: (string | null)[]; unmatched: string[] } {
+  const cells = headerRow
+    .split("|")
+    .map((c) => c.trim())
+    .filter((c, i, arr) => i > 0 && i < arr.length - 1 && c !== "");
+
+  const keys: (string | null)[] = [];
+  const unmatched: string[] = [];
+
+  for (const cell of cells) {
+    const key = valueToKeyMap.get(cell);
+    if (key) {
+      keys.push(key);
+    } else {
+      keys.push(null); // Unknown column, will be dropped
+      unmatched.push(cell);
+    }
+  }
+
+  return { keys, unmatched };
+}
+
+/**
+ * Parse a data row using the column key mapping
+ */
+function parseDataRow(row: string, columnKeys: (string | null)[]): RowData {
+  const cells = row
+    .split("|")
+    .map((c) => c.trim())
+    .filter((c, i, arr) => i > 0 && i < arr.length - 1);
+
+  const data: RowData = {};
+
+  for (let i = 0; i < columnKeys.length && i < cells.length; i++) {
+    const key = columnKeys[i];
+    if (key) {
+      // Only include mapped columns (drop unknown ones)
+      data[key] = cells[i];
+    }
+  }
+
+  return data;
+}
+
+/**
+ * Parse the history table from issue body into structured data
+ */
+function parseTable(body: string): ParsedTable | null {
   const lines = body.split("\n");
   const historyIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
 
   if (historyIdx === -1) {
-    return [];
+    return null;
   }
 
-  const entries: HistoryEntry[] = [];
+  const valueToKeyMap = buildValueToKeyMap();
+  let headerKeys: (string | null)[] = [];
+  let unmatchedHeaders: string[] = [];
+  const rows: RowData[] = [];
+  let foundHeader = false;
 
   for (let i = historyIdx + 1; i < lines.length; i++) {
     const line = lines[i];
@@ -137,22 +151,74 @@ export function parseHistory(body: string): HistoryEntry[] {
       continue;
     }
 
-    const entry = parseHistoryRow(line);
-    if (entry) {
-      entries.push(entry);
+    // Skip separator rows
+    if (line.includes("---")) {
+      continue;
     }
+
+    // First table row should be header
+    if (!foundHeader) {
+      const parsed = parseHeaderRow(line, valueToKeyMap);
+      headerKeys = parsed.keys;
+      unmatchedHeaders = parsed.unmatched;
+      foundHeader = true;
+      continue;
+    }
+
+    // Data rows
+    const rowData = parseDataRow(line, headerKeys);
+    rows.push(rowData);
   }
 
-  return entries;
+  return {
+    headerKeys: headerKeys.filter((k): k is string => k !== null),
+    rows,
+    unmatchedHeaders,
+  };
+}
+
+// ============================================================================
+// Table Serialization
+// ============================================================================
+
+/**
+ * Generate table header row from schema
+ */
+function generateHeaderRow(): string {
+  const cells = HEADER_COLUMNS.map((col) => col.value);
+  return `| ${cells.join(" | ")} |`;
 }
 
 /**
- * Get the latest history entry
+ * Generate table separator row from schema
  */
-export function getLatestHistoryEntry(body: string): HistoryEntry | null {
-  const entries = parseHistory(body);
-  return entries.length > 0 ? entries[entries.length - 1]! : null;
+function generateSeparatorRow(): string {
+  const cells = HEADER_COLUMNS.map(() => "---");
+  return `|${cells.join("|")}|`;
 }
+
+/**
+ * Serialize a row data object to table row string
+ */
+function serializeRow(data: RowData): string {
+  const cells = HEADER_COLUMNS.map((col) => data[col.key] ?? "-");
+  return `| ${cells.join(" | ")} |`;
+}
+
+/**
+ * Serialize full table from rows
+ */
+function serializeTable(rows: RowData[]): string {
+  const headerRow = generateHeaderRow();
+  const separatorRow = generateSeparatorRow();
+  const dataRows = rows.map(serializeRow);
+
+  return [headerRow, separatorRow, ...dataRows].join("\n");
+}
+
+// ============================================================================
+// Timestamp Formatting
+// ============================================================================
 
 /**
  * Format timestamp for display in history table
@@ -191,6 +257,41 @@ function formatTimestamp(isoTimestamp?: string): string {
   }
 }
 
+// ============================================================================
+// Cell Formatting Helpers
+// ============================================================================
+
+/**
+ * Parse a markdown link to extract URL
+ */
+function parseMarkdownLink(text: string): string | null {
+  const match = text.match(/\[.*?\]\((.*?)\)/);
+  return match?.[1] ?? null;
+}
+
+/**
+ * Parse a SHA cell - could be a link or just text
+ */
+function parseShaCell(cell: string): string | null {
+  if (cell === "-" || cell.trim() === "") {
+    return null;
+  }
+
+  // Try to extract from markdown link like [`abc123`](url)
+  const linkMatch = cell.match(/\[`?([a-f0-9]+)`?\]/i);
+  if (linkMatch) {
+    return linkMatch[1] ?? null;
+  }
+
+  // Plain SHA
+  const shaMatch = cell.match(/^[a-f0-9]+$/i);
+  if (shaMatch) {
+    return cell;
+  }
+
+  return null;
+}
+
 /**
  * Format cells for history table (with links)
  */
@@ -212,6 +313,130 @@ export function formatHistoryCells(
   return { shaCell, runCell };
 }
 
+// ============================================================================
+// Public API - Parsing
+// ============================================================================
+
+/**
+ * Convert RowData to HistoryEntry
+ */
+function rowDataToHistoryEntry(data: RowData): HistoryEntry | null {
+  const iterationStr = data.iteration;
+  if (!iterationStr) return null;
+
+  const iteration = parseInt(iterationStr, 10);
+  if (isNaN(iteration)) return null;
+
+  const timestamp = data.time && data.time !== "-" ? data.time : null;
+
+  return {
+    iteration,
+    phase: data.phase || "",
+    action: data.action || "",
+    timestamp,
+    sha: data.sha ? parseShaCell(data.sha) : null,
+    runLink: data.run ? parseMarkdownLink(data.run) : null,
+  };
+}
+
+/**
+ * Parse a table row into a HistoryEntry (for backward compatibility)
+ */
+export function parseHistoryRow(row: string): HistoryEntry | null {
+  const valueToKeyMap = buildValueToKeyMap();
+
+  // Try to detect if this is a header row
+  const cells = row
+    .split("|")
+    .map((c) => c.trim())
+    .filter((c, i, arr) => i > 0 && i < arr.length - 1 && c !== "");
+
+  // Skip header and separator rows
+  if (cells.some((c) => valueToKeyMap.has(c)) || row.includes("---")) {
+    return null;
+  }
+
+  // Try to parse as new format first (Time first)
+  const newFormatKeys = HEADER_COLUMNS.map((c) => c.key);
+  const newData = parseDataRow(row, newFormatKeys);
+
+  // Check if it looks like new format (time is not a number)
+  const firstCell = cells[0] || "";
+  if (!/^\d+$/.test(firstCell)) {
+    // New format: Time, #, Phase, Action, SHA, Run
+    return rowDataToHistoryEntry(newData);
+  }
+
+  // Old format: #, Phase, Action, SHA, Run (no time column)
+  const oldFormatKeys = ["iteration", "phase", "action", "sha", "run"];
+  const oldData = parseDataRow(row, oldFormatKeys);
+  return rowDataToHistoryEntry(oldData);
+}
+
+/**
+ * Parse all history entries from an issue body
+ */
+export function parseHistory(body: string): HistoryEntry[] {
+  const parsed = parseTable(body);
+
+  if (!parsed) {
+    return [];
+  }
+
+  // Log unmatched headers as warnings
+  if (parsed.unmatchedHeaders.length > 0) {
+    console.warn(
+      `[history-parser] Unmatched table headers (will be dropped): ${parsed.unmatchedHeaders.join(", ")}`,
+    );
+  }
+
+  const entries: HistoryEntry[] = [];
+  for (const row of parsed.rows) {
+    const entry = rowDataToHistoryEntry(row);
+    if (entry) {
+      entries.push(entry);
+    }
+  }
+
+  return entries;
+}
+
+/**
+ * Get the latest history entry
+ */
+export function getLatestHistoryEntry(body: string): HistoryEntry | null {
+  const entries = parseHistory(body);
+  return entries.length > 0 ? entries[entries.length - 1]! : null;
+}
+
+// ============================================================================
+// Public API - Creating/Updating
+// ============================================================================
+
+/**
+ * Create row data from entry parameters
+ */
+function createRowData(
+  iteration: number,
+  phase: string | number,
+  message: string,
+  timestamp?: string,
+  sha?: string,
+  runLink?: string,
+  repoUrl?: string,
+): RowData {
+  const { shaCell, runCell } = formatHistoryCells(sha, runLink, repoUrl);
+
+  return {
+    time: formatTimestamp(timestamp),
+    iteration: String(iteration),
+    phase: String(phase),
+    action: message,
+    sha: shaCell,
+    run: runCell,
+  };
+}
+
 /**
  * Create a new history entry row
  */
@@ -224,39 +449,51 @@ export function createHistoryRow(
   runLink?: string,
   repoUrl?: string,
 ): string {
-  const timeCell = formatTimestamp(timestamp);
-  const { shaCell, runCell } = formatHistoryCells(sha, runLink, repoUrl);
-  return `| ${iteration} | ${phase} | ${message} | ${timeCell} | ${shaCell} | ${runCell} |`;
+  const data = createRowData(
+    iteration,
+    phase,
+    message,
+    timestamp,
+    sha,
+    runLink,
+    repoUrl,
+  );
+  return serializeRow(data);
 }
 
 /**
  * Create the full history table (header + rows)
+ * Note: HistoryEntry.timestamp is already in display format, not ISO
  */
 export function createHistoryTable(
   entries: HistoryEntry[],
   repoUrl?: string,
 ): string {
-  const rows = entries.map((entry) =>
-    createHistoryRow(
-      entry.iteration,
-      entry.phase,
-      entry.action,
-      entry.timestamp ?? undefined,
+  const rows = entries.map((entry) => {
+    const { shaCell, runCell } = formatHistoryCells(
       entry.sha ?? undefined,
       entry.runLink ?? undefined,
       repoUrl,
-    ),
-  );
+    );
+
+    return {
+      time: entry.timestamp ?? "-",
+      iteration: String(entry.iteration),
+      phase: entry.phase,
+      action: entry.action,
+      sha: shaCell,
+      run: runCell,
+    };
+  });
 
   return `${HISTORY_SECTION}
 
-${TABLE_HEADER}
-${TABLE_SEPARATOR}
-${rows.join("\n")}`;
+${serializeTable(rows)}`;
 }
 
 /**
  * Add a history entry to an issue body
+ * Handles migration from old table formats automatically
  */
 export function addHistoryEntry(
   body: string,
@@ -268,9 +505,7 @@ export function addHistoryEntry(
   runLink?: string,
   repoUrl?: string,
 ): string {
-  const historyIdx = body.indexOf(HISTORY_SECTION);
-
-  const newRow = createHistoryRow(
+  const newRowData = createRowData(
     iteration,
     phase,
     message,
@@ -280,41 +515,76 @@ export function addHistoryEntry(
     repoUrl,
   );
 
+  const historyIdx = body.indexOf(HISTORY_SECTION);
+
   if (historyIdx === -1) {
-    // Add history section at the end
-    const historyTable = `
+    // No history section - create new one
+    const table = serializeTable([newRowData]);
+    return `${body}
 
 ${HISTORY_SECTION}
 
-${TABLE_HEADER}
-${TABLE_SEPARATOR}
-${newRow}`;
-
-    return body + historyTable;
+${table}`;
   }
 
-  // Find the last table row after history section
+  // Parse existing table
+  const parsed = parseTable(body);
+
+  if (!parsed) {
+    // Couldn't parse, just append
+    const table = serializeTable([newRowData]);
+    return `${body}
+
+${HISTORY_SECTION}
+
+${table}`;
+  }
+
+  // Log unmatched headers
+  if (parsed.unmatchedHeaders.length > 0) {
+    console.warn(
+      `[history-parser] Unmatched table headers during add (will be dropped): ${parsed.unmatchedHeaders.join(", ")}`,
+    );
+  }
+
+  // Convert existing rows to proper format and add new row
+  const existingRows: RowData[] = parsed.rows.map((row) => {
+    // Fill in missing keys with "-"
+    const normalized: RowData = {};
+    for (const col of HEADER_COLUMNS) {
+      normalized[col.key] = row[col.key] ?? "-";
+    }
+    return normalized;
+  });
+
+  const allRows = [...existingRows, newRowData];
+
+  // Find where the history section ends to preserve content after it
   const lines = body.split("\n");
   const historyLineIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
 
-  if (historyLineIdx === -1) {
-    return body;
-  }
-
-  // Find last table row
-  let insertIdx = historyLineIdx + 1;
+  // Find end of table
+  let tableEndIdx = historyLineIdx + 1;
   for (let i = historyLineIdx + 1; i < lines.length; i++) {
     const line = lines[i];
-    if (!line) continue;
-    if (line.startsWith("|")) {
-      insertIdx = i + 1;
-    } else if (line.trim() !== "" && !line.startsWith("|")) {
+    if (!line || line.startsWith("|")) {
+      tableEndIdx = i + 1;
+    } else if (line.trim() !== "") {
       break;
     }
   }
 
-  lines.splice(insertIdx, 0, newRow);
-  return lines.join("\n");
+  // Rebuild body with new table
+  const beforeHistory = lines.slice(0, historyLineIdx).join("\n");
+  const afterTable = lines.slice(tableEndIdx).join("\n");
+  const newTable = serializeTable(allRows);
+
+  const parts = [beforeHistory, HISTORY_SECTION, "", newTable];
+  if (afterTable.trim()) {
+    parts.push("", afterTable);
+  }
+
+  return parts.join("\n");
 }
 
 /**
@@ -331,80 +601,100 @@ export function updateHistoryEntry(
   runLink?: string,
   repoUrl?: string,
 ): { body: string; updated: boolean } {
-  const lines = body.split("\n");
-  const historyLineIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
+  const parsed = parseTable(body);
 
-  if (historyLineIdx === -1) {
+  if (!parsed || parsed.rows.length === 0) {
     return { body, updated: false };
   }
 
-  // Find all table rows after history section
-  const tableRows: { idx: number; line: string }[] = [];
-  for (let i = historyLineIdx + 1; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line) continue;
+  // Log unmatched headers
+  if (parsed.unmatchedHeaders.length > 0) {
+    console.warn(
+      `[history-parser] Unmatched table headers during update (will be dropped): ${parsed.unmatchedHeaders.join(", ")}`,
+    );
+  }
+
+  // Find matching row (search from end for most recent)
+  let matchIdx = -1;
+  for (let i = parsed.rows.length - 1; i >= 0; i--) {
+    const row = parsed.rows[i];
+    if (!row) continue;
+
+    const rowIteration = row.iteration || "";
+    const rowPhase = row.phase || "";
+    const rowAction = row.action || "";
+
     if (
-      line.startsWith("|") &&
-      !line.startsWith("|---") &&
-      !line.startsWith("| #")
+      rowIteration === String(matchIteration) &&
+      rowPhase === String(matchPhase) &&
+      rowAction.includes(matchPattern)
     ) {
-      tableRows.push({ idx: i, line });
-    } else if (line.trim() !== "" && !line.startsWith("|")) {
+      matchIdx = i;
       break;
     }
   }
 
-  // Search from most recent to oldest for a matching row
-  for (let i = tableRows.length - 1; i >= 0; i--) {
-    const row = tableRows[i];
-    if (!row) continue;
+  if (matchIdx === -1) {
+    return { body, updated: false };
+  }
 
-    // Parse the row - support both old and new formats
-    const cells = row.line.split("|").map((c) => c.trim());
-    const hasTimestampColumn = cells.length >= 7;
+  // Update the matched row
+  const existingRow = parsed.rows[matchIdx]!;
+  const { shaCell, runCell } = formatHistoryCells(sha, runLink, repoUrl);
 
-    const rowIteration = cells[1] || "";
-    const rowPhase = cells[2] || "";
-    const rowMessage = cells[3] || "";
+  const updatedRow: RowData = {
+    time: timestamp ? formatTimestamp(timestamp) : (existingRow.time ?? "-"),
+    iteration: existingRow.iteration,
+    phase: existingRow.phase,
+    action: newMessage,
+    sha: sha ? shaCell : (existingRow.sha ?? "-"),
+    run: runLink ? runCell : (existingRow.run ?? "-"),
+  };
 
-    let existingTime: string;
-    let existingSha: string;
-    let existingRun: string;
-
-    if (hasTimestampColumn) {
-      existingTime = cells[4] || "-";
-      existingSha = cells[5] || "-";
-      existingRun = cells[6] || "-";
-    } else {
-      existingTime = "-";
-      existingSha = cells[4] || "-";
-      existingRun = cells[5] || "-";
+  // Normalize all rows and apply update
+  const normalizedRows: RowData[] = parsed.rows.map((row, idx) => {
+    if (idx === matchIdx) {
+      return updatedRow;
     }
+    // Normalize existing row
+    const normalized: RowData = {};
+    for (const col of HEADER_COLUMNS) {
+      normalized[col.key] = row[col.key] ?? "-";
+    }
+    return normalized;
+  });
 
-    // Check if this row matches our criteria
-    if (
-      rowIteration === String(matchIteration) &&
-      rowPhase === String(matchPhase) &&
-      rowMessage.includes(matchPattern)
-    ) {
-      // Update this row
-      const timeCell = timestamp ? formatTimestamp(timestamp) : existingTime;
-      const { shaCell, runCell } = formatHistoryCells(sha, runLink, repoUrl);
+  // Rebuild body
+  const lines = body.split("\n");
+  const historyLineIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
 
-      // Preserve existing values if not provided
-      const finalTimeCell = timestamp ? timeCell : existingTime;
-      const finalShaCell = sha ? shaCell : existingSha;
-      const finalRunCell = runLink ? runCell : existingRun;
-
-      const newRow = `| ${rowIteration} | ${rowPhase} | ${newMessage} | ${finalTimeCell} | ${finalShaCell} | ${finalRunCell} |`;
-      lines[row.idx] = newRow;
-
-      return { body: lines.join("\n"), updated: true };
+  // Find end of table
+  let tableEndIdx = historyLineIdx + 1;
+  for (let i = historyLineIdx + 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line || line.startsWith("|")) {
+      tableEndIdx = i + 1;
+    } else if (line.trim() !== "") {
+      break;
     }
   }
 
-  return { body, updated: false };
+  // Rebuild body with updated table
+  const beforeHistory = lines.slice(0, historyLineIdx).join("\n");
+  const afterTable = lines.slice(tableEndIdx).join("\n");
+  const newTable = serializeTable(normalizedRows);
+
+  const parts = [beforeHistory, HISTORY_SECTION, "", newTable];
+  if (afterTable.trim()) {
+    parts.push("", afterTable);
+  }
+
+  return { body: parts.join("\n"), updated: true };
 }
+
+// ============================================================================
+// Public API - Querying
+// ============================================================================
 
 /**
  * Find history entries matching a pattern

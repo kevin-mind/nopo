@@ -28683,8 +28683,104 @@ var core3 = __toESM(require_core(), 1);
 
 // claude-state-machine/parser/history-parser.ts
 var HISTORY_SECTION = "## Iteration History";
-var TABLE_HEADER = "| # | Phase | Action | Time | SHA | Run |";
-var TABLE_SEPARATOR = "|---|-------|--------|------|-----|-----|";
+var HEADER_COLUMNS = [
+  { key: "time", value: "Time" },
+  { key: "iteration", value: "#" },
+  { key: "phase", value: "Phase" },
+  { key: "action", value: "Action" },
+  { key: "sha", value: "SHA" },
+  { key: "run", value: "Run" }
+];
+function buildValueToKeyMap() {
+  const map = /* @__PURE__ */ new Map();
+  for (const col of HEADER_COLUMNS) {
+    map.set(col.value, col.key);
+  }
+  return map;
+}
+function parseHeaderRow(headerRow, valueToKeyMap) {
+  const cells = headerRow.split("|").map((c) => c.trim()).filter((c, i, arr) => i > 0 && i < arr.length - 1 && c !== "");
+  const keys = [];
+  const unmatched = [];
+  for (const cell of cells) {
+    const key = valueToKeyMap.get(cell);
+    if (key) {
+      keys.push(key);
+    } else {
+      keys.push(null);
+      unmatched.push(cell);
+    }
+  }
+  return { keys, unmatched };
+}
+function parseDataRow(row, columnKeys) {
+  const cells = row.split("|").map((c) => c.trim()).filter((c, i, arr) => i > 0 && i < arr.length - 1);
+  const data = {};
+  for (let i = 0; i < columnKeys.length && i < cells.length; i++) {
+    const key = columnKeys[i];
+    if (key) {
+      data[key] = cells[i];
+    }
+  }
+  return data;
+}
+function parseTable(body) {
+  const lines = body.split("\n");
+  const historyIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
+  if (historyIdx === -1) {
+    return null;
+  }
+  const valueToKeyMap = buildValueToKeyMap();
+  let headerKeys = [];
+  let unmatchedHeaders = [];
+  const rows = [];
+  let foundHeader = false;
+  for (let i = historyIdx + 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line) continue;
+    if (line.startsWith("##") && !line.includes(HISTORY_SECTION)) {
+      break;
+    }
+    if (!line.startsWith("|")) {
+      continue;
+    }
+    if (line.includes("---")) {
+      continue;
+    }
+    if (!foundHeader) {
+      const parsed = parseHeaderRow(line, valueToKeyMap);
+      headerKeys = parsed.keys;
+      unmatchedHeaders = parsed.unmatched;
+      foundHeader = true;
+      continue;
+    }
+    const rowData = parseDataRow(line, headerKeys);
+    rows.push(rowData);
+  }
+  return {
+    headerKeys: headerKeys.filter((k) => k !== null),
+    rows,
+    unmatchedHeaders
+  };
+}
+function generateHeaderRow() {
+  const cells = HEADER_COLUMNS.map((col) => col.value);
+  return `| ${cells.join(" | ")} |`;
+}
+function generateSeparatorRow() {
+  const cells = HEADER_COLUMNS.map(() => "---");
+  return `|${cells.join("|")}|`;
+}
+function serializeRow(data) {
+  const cells = HEADER_COLUMNS.map((col) => data[col.key] ?? "-");
+  return `| ${cells.join(" | ")} |`;
+}
+function serializeTable(rows) {
+  const headerRow = generateHeaderRow();
+  const separatorRow = generateSeparatorRow();
+  const dataRows = rows.map(serializeRow);
+  return [headerRow, separatorRow, ...dataRows].join("\n");
+}
 function formatTimestamp(isoTimestamp) {
   if (!isoTimestamp) return "-";
   try {
@@ -28721,14 +28817,19 @@ function formatHistoryCells(sha, runLink, repoUrl) {
   const runCell = runLink ? `[Run](${runLink})` : "-";
   return { shaCell, runCell };
 }
-function createHistoryRow(iteration, phase, message, timestamp, sha, runLink, repoUrl) {
-  const timeCell = formatTimestamp(timestamp);
+function createRowData(iteration, phase, message, timestamp, sha, runLink, repoUrl) {
   const { shaCell, runCell } = formatHistoryCells(sha, runLink, repoUrl);
-  return `| ${iteration} | ${phase} | ${message} | ${timeCell} | ${shaCell} | ${runCell} |`;
+  return {
+    time: formatTimestamp(timestamp),
+    iteration: String(iteration),
+    phase: String(phase),
+    action: message,
+    sha: shaCell,
+    run: runCell
+  };
 }
 function addHistoryEntry(body, iteration, phase, message, timestamp, sha, runLink, repoUrl) {
-  const historyIdx = body.indexOf(HISTORY_SECTION);
-  const newRow = createHistoryRow(
+  const newRowData = createRowData(
     iteration,
     phase,
     message,
@@ -28737,82 +28838,121 @@ function addHistoryEntry(body, iteration, phase, message, timestamp, sha, runLin
     runLink,
     repoUrl
   );
+  const historyIdx = body.indexOf(HISTORY_SECTION);
   if (historyIdx === -1) {
-    const historyTable = `
+    const table = serializeTable([newRowData]);
+    return `${body}
 
 ${HISTORY_SECTION}
 
-${TABLE_HEADER}
-${TABLE_SEPARATOR}
-${newRow}`;
-    return body + historyTable;
+${table}`;
   }
+  const parsed = parseTable(body);
+  if (!parsed) {
+    const table = serializeTable([newRowData]);
+    return `${body}
+
+${HISTORY_SECTION}
+
+${table}`;
+  }
+  if (parsed.unmatchedHeaders.length > 0) {
+    console.warn(
+      `[history-parser] Unmatched table headers during add (will be dropped): ${parsed.unmatchedHeaders.join(", ")}`
+    );
+  }
+  const existingRows = parsed.rows.map((row) => {
+    const normalized = {};
+    for (const col of HEADER_COLUMNS) {
+      normalized[col.key] = row[col.key] ?? "-";
+    }
+    return normalized;
+  });
+  const allRows = [...existingRows, newRowData];
   const lines = body.split("\n");
   const historyLineIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
-  if (historyLineIdx === -1) {
-    return body;
-  }
-  let insertIdx = historyLineIdx + 1;
+  let tableEndIdx = historyLineIdx + 1;
   for (let i = historyLineIdx + 1; i < lines.length; i++) {
     const line = lines[i];
-    if (!line) continue;
-    if (line.startsWith("|")) {
-      insertIdx = i + 1;
-    } else if (line.trim() !== "" && !line.startsWith("|")) {
+    if (!line || line.startsWith("|")) {
+      tableEndIdx = i + 1;
+    } else if (line.trim() !== "") {
       break;
     }
   }
-  lines.splice(insertIdx, 0, newRow);
-  return lines.join("\n");
+  const beforeHistory = lines.slice(0, historyLineIdx).join("\n");
+  const afterTable = lines.slice(tableEndIdx).join("\n");
+  const newTable = serializeTable(allRows);
+  const parts = [beforeHistory, HISTORY_SECTION, "", newTable];
+  if (afterTable.trim()) {
+    parts.push("", afterTable);
+  }
+  return parts.join("\n");
 }
 function updateHistoryEntry(body, matchIteration, matchPhase, matchPattern, newMessage, timestamp, sha, runLink, repoUrl) {
-  const lines = body.split("\n");
-  const historyLineIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
-  if (historyLineIdx === -1) {
+  const parsed = parseTable(body);
+  if (!parsed || parsed.rows.length === 0) {
     return { body, updated: false };
   }
-  const tableRows = [];
-  for (let i = historyLineIdx + 1; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line) continue;
-    if (line.startsWith("|") && !line.startsWith("|---") && !line.startsWith("| #")) {
-      tableRows.push({ idx: i, line });
-    } else if (line.trim() !== "" && !line.startsWith("|")) {
+  if (parsed.unmatchedHeaders.length > 0) {
+    console.warn(
+      `[history-parser] Unmatched table headers during update (will be dropped): ${parsed.unmatchedHeaders.join(", ")}`
+    );
+  }
+  let matchIdx = -1;
+  for (let i = parsed.rows.length - 1; i >= 0; i--) {
+    const row = parsed.rows[i];
+    if (!row) continue;
+    const rowIteration = row.iteration || "";
+    const rowPhase = row.phase || "";
+    const rowAction = row.action || "";
+    if (rowIteration === String(matchIteration) && rowPhase === String(matchPhase) && rowAction.includes(matchPattern)) {
+      matchIdx = i;
       break;
     }
   }
-  for (let i = tableRows.length - 1; i >= 0; i--) {
-    const row = tableRows[i];
-    if (!row) continue;
-    const cells = row.line.split("|").map((c) => c.trim());
-    const hasTimestampColumn = cells.length >= 7;
-    const rowIteration = cells[1] || "";
-    const rowPhase = cells[2] || "";
-    const rowMessage = cells[3] || "";
-    let existingTime;
-    let existingSha;
-    let existingRun;
-    if (hasTimestampColumn) {
-      existingTime = cells[4] || "-";
-      existingSha = cells[5] || "-";
-      existingRun = cells[6] || "-";
-    } else {
-      existingTime = "-";
-      existingSha = cells[4] || "-";
-      existingRun = cells[5] || "-";
+  if (matchIdx === -1) {
+    return { body, updated: false };
+  }
+  const existingRow = parsed.rows[matchIdx];
+  const { shaCell, runCell } = formatHistoryCells(sha, runLink, repoUrl);
+  const updatedRow = {
+    time: timestamp ? formatTimestamp(timestamp) : existingRow.time ?? "-",
+    iteration: existingRow.iteration,
+    phase: existingRow.phase,
+    action: newMessage,
+    sha: sha ? shaCell : existingRow.sha ?? "-",
+    run: runLink ? runCell : existingRow.run ?? "-"
+  };
+  const normalizedRows = parsed.rows.map((row, idx) => {
+    if (idx === matchIdx) {
+      return updatedRow;
     }
-    if (rowIteration === String(matchIteration) && rowPhase === String(matchPhase) && rowMessage.includes(matchPattern)) {
-      const timeCell = timestamp ? formatTimestamp(timestamp) : existingTime;
-      const { shaCell, runCell } = formatHistoryCells(sha, runLink, repoUrl);
-      const finalTimeCell = timestamp ? timeCell : existingTime;
-      const finalShaCell = sha ? shaCell : existingSha;
-      const finalRunCell = runLink ? runCell : existingRun;
-      const newRow = `| ${rowIteration} | ${rowPhase} | ${newMessage} | ${finalTimeCell} | ${finalShaCell} | ${finalRunCell} |`;
-      lines[row.idx] = newRow;
-      return { body: lines.join("\n"), updated: true };
+    const normalized = {};
+    for (const col of HEADER_COLUMNS) {
+      normalized[col.key] = row[col.key] ?? "-";
+    }
+    return normalized;
+  });
+  const lines = body.split("\n");
+  const historyLineIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
+  let tableEndIdx = historyLineIdx + 1;
+  for (let i = historyLineIdx + 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line || line.startsWith("|")) {
+      tableEndIdx = i + 1;
+    } else if (line.trim() !== "") {
+      break;
     }
   }
-  return { body, updated: false };
+  const beforeHistory = lines.slice(0, historyLineIdx).join("\n");
+  const afterTable = lines.slice(tableEndIdx).join("\n");
+  const newTable = serializeTable(normalizedRows);
+  const parts = [beforeHistory, HISTORY_SECTION, "", newTable];
+  if (afterTable.trim()) {
+    parts.push("", afterTable);
+  }
+  return { body: parts.join("\n"), updated: true };
 }
 
 // claude-state-machine/runner/executors/github.ts
