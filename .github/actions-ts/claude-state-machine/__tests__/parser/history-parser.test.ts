@@ -538,3 +538,273 @@ describe("hasHistoryEntry", () => {
     expect(hasHistoryEntry("No history section", "Pattern")).toBe(false);
   });
 });
+
+// ============================================================================
+// Schema Migration Tests
+// ============================================================================
+
+describe("schema migration", () => {
+  describe("column addition (old table missing Time column)", () => {
+    const oldFormatTable = `## Description
+
+Some description text.
+
+## Iteration History
+
+| # | Phase | Action | SHA | Run |
+|---|-------|--------|-----|-----|
+| 1 | 1 | Started task | - | - |
+| 2 | 1 | Pushed code | abc123 | [Run](https://example.com/run/1) |
+`;
+
+    test("addHistoryEntry migrates old format to new format with Time column", () => {
+      const result = addHistoryEntry(oldFormatTable, 3, "1", "CI passed");
+
+      // Should have new header format with Time first
+      expect(result).toContain("| Time | # | Phase | Action | SHA | Run |");
+
+      // Old rows should be migrated with "-" for missing Time column
+      expect(result).toContain("| - | 1 | 1 | Started task |");
+      expect(result).toContain("| - | 2 | 1 | Pushed code |");
+
+      // New row should also have "-" for Time (no timestamp provided)
+      expect(result).toContain("| - | 3 | 1 | CI passed |");
+
+      // SHA and Run links should be preserved
+      expect(result).toContain("abc123");
+      expect(result).toContain("[Run](https://example.com/run/1)");
+    });
+
+    test("updateHistoryEntry migrates old format to new format with Time column", () => {
+      const { body: result, updated } = updateHistoryEntry(
+        oldFormatTable,
+        2,
+        "1",
+        "Pushed code",
+        "Code reviewed",
+      );
+
+      expect(updated).toBe(true);
+
+      // Should have new header format with Time first
+      expect(result).toContain("| Time | # | Phase | Action | SHA | Run |");
+
+      // Old rows should be migrated with "-" for missing Time column
+      expect(result).toContain("| - | 1 | 1 | Started task |");
+
+      // Updated row should have new message
+      expect(result).toContain("| - | 2 | 1 | Code reviewed |");
+
+      // Should NOT contain old message
+      expect(result).not.toContain("Pushed code");
+    });
+  });
+
+  describe("column removal (table has unknown extra column)", () => {
+    const tableWithExtraColumn = `## Iteration History
+
+| Time | # | Phase | Action | Priority | SHA | Run |
+|------|---|-------|--------|----------|-----|-----|
+| Jan 1 10:00 | 1 | 1 | Started | High | - | - |
+| Jan 1 11:00 | 2 | 1 | Completed | Medium | def456 | [Run](https://example.com) |
+`;
+
+    test("addHistoryEntry drops unknown 'Priority' column", () => {
+      const result = addHistoryEntry(
+        tableWithExtraColumn,
+        3,
+        "2",
+        "New phase",
+        "2026-01-22T12:00:00Z",
+      );
+
+      // Should have schema-defined header (no Priority column)
+      expect(result).toContain("| Time | # | Phase | Action | SHA | Run |");
+      expect(result).not.toContain("Priority");
+      expect(result).not.toContain("High");
+      expect(result).not.toContain("Medium");
+
+      // Existing data should be preserved (except dropped column)
+      expect(result).toContain("| Jan 1 10:00 | 1 | 1 | Started |");
+      expect(result).toContain("| Jan 1 11:00 | 2 | 1 | Completed |");
+      expect(result).toContain("def456");
+      expect(result).toContain("[Run](https://example.com)");
+
+      // New entry should be added
+      expect(result).toContain("| Jan 22 12:00 | 3 | 2 | New phase |");
+    });
+
+    test("updateHistoryEntry drops unknown column during migration", () => {
+      const { body: result, updated } = updateHistoryEntry(
+        tableWithExtraColumn,
+        1,
+        "1",
+        "Started",
+        "Updated message",
+      );
+
+      expect(updated).toBe(true);
+
+      // Should have schema-defined header (no Priority column)
+      expect(result).toContain("| Time | # | Phase | Action | SHA | Run |");
+      expect(result).not.toContain("Priority");
+
+      // Updated row should have new message
+      expect(result).toContain("| Jan 1 10:00 | 1 | 1 | Updated message |");
+    });
+  });
+
+  describe("column reordering (table has columns in wrong order)", () => {
+    const reorderedTable = `## Iteration History
+
+| Action | Phase | # | Run | SHA | Time |
+|--------|-------|---|-----|-----|------|
+| Task one | 1 | 1 | - | - | Jan 5 09:00 |
+| Task two | 1 | 2 | [Run](https://run.url) | xyz789 | Jan 5 10:00 |
+`;
+
+    test("addHistoryEntry reorders columns to match schema", () => {
+      const result = addHistoryEntry(reorderedTable, 3, "2", "Task three");
+
+      // Should have schema-defined column order: Time, #, Phase, Action, SHA, Run
+      expect(result).toContain("| Time | # | Phase | Action | SHA | Run |");
+
+      // Existing data should be reordered correctly
+      // Row 1: Time=Jan 5 09:00, #=1, Phase=1, Action=Task one, SHA=-, Run=-
+      expect(result).toContain("| Jan 5 09:00 | 1 | 1 | Task one | - | - |");
+
+      // Row 2: Time=Jan 5 10:00, #=2, Phase=1, Action=Task two, SHA=xyz789, Run=[Run](...)
+      expect(result).toContain("| Jan 5 10:00 | 2 | 1 | Task two |");
+      expect(result).toContain("xyz789");
+      expect(result).toContain("[Run](https://run.url)");
+
+      // New row should be in correct order
+      expect(result).toContain("| - | 3 | 2 | Task three |");
+    });
+
+    test("updateHistoryEntry reorders columns to match schema", () => {
+      const { body: result, updated } = updateHistoryEntry(
+        reorderedTable,
+        2,
+        "1",
+        "Task two",
+        "Updated task two",
+      );
+
+      expect(updated).toBe(true);
+
+      // Should have schema-defined column order
+      expect(result).toContain("| Time | # | Phase | Action | SHA | Run |");
+
+      // First row should be reordered correctly
+      expect(result).toContain("| Jan 5 09:00 | 1 | 1 | Task one | - | - |");
+
+      // Updated row should have new message in correct column order
+      expect(result).toContain("| Jan 5 10:00 | 2 | 1 | Updated task two |");
+      expect(result).toContain("xyz789");
+      expect(result).toContain("[Run](https://run.url)");
+    });
+  });
+
+  describe("combined migration scenarios", () => {
+    test("handles table with missing column AND wrong order", () => {
+      // Table has: Action, #, Phase, SHA, Run (missing Time, wrong order)
+      const messyTable = `## Iteration History
+
+| Action | # | Phase | SHA | Run |
+|--------|---|-------|-----|-----|
+| First action | 1 | 1 | - | - |
+| Second action | 2 | 1 | abc123 | [Run](https://run.url) |
+`;
+
+      const result = addHistoryEntry(
+        messyTable,
+        3,
+        "2",
+        "Third action",
+        "2026-01-22T15:30:00Z",
+      );
+
+      // Should have correct schema order with Time added
+      expect(result).toContain("| Time | # | Phase | Action | SHA | Run |");
+
+      // Existing rows should have Time filled with "-"
+      expect(result).toContain("| - | 1 | 1 | First action | - | - |");
+      expect(result).toContain("| - | 2 | 1 | Second action |");
+
+      // New row should have timestamp
+      expect(result).toContain("| Jan 22 15:30 | 3 | 2 | Third action |");
+    });
+
+    test("handles table with extra column AND wrong order", () => {
+      // Table has: Status, Action, #, Phase, Priority, SHA, Run (extra columns, wrong order)
+      const messyTable = `## Iteration History
+
+| Status | Action | # | Phase | Priority | SHA | Run | Time |
+|--------|--------|---|-------|----------|-----|-----|------|
+| Done | Task A | 1 | 1 | P1 | - | - | Jan 1 08:00 |
+`;
+
+      const result = addHistoryEntry(messyTable, 2, "1", "Task B");
+
+      // Should have correct schema order (Status and Priority dropped)
+      expect(result).toContain("| Time | # | Phase | Action | SHA | Run |");
+
+      // Unknown columns should be dropped
+      expect(result).not.toContain("Status");
+      expect(result).not.toContain("Priority");
+      expect(result).not.toContain("Done");
+      expect(result).not.toContain("P1");
+
+      // Known data should be preserved and reordered
+      expect(result).toContain("| Jan 1 08:00 | 1 | 1 | Task A | - | - |");
+      expect(result).toContain("| - | 2 | 1 | Task B |");
+    });
+
+    test("preserves content after history section during migration", () => {
+      const bodyWithContentAfter = `## Description
+
+Issue description here.
+
+## Iteration History
+
+| # | Phase | Action | SHA | Run |
+|---|-------|--------|-----|-----|
+| 1 | 1 | Started | - | - |
+
+## Notes
+
+Some additional notes here.
+
+## References
+
+- Link 1
+- Link 2
+`;
+
+      const result = addHistoryEntry(
+        bodyWithContentAfter,
+        2,
+        "1",
+        "Continued",
+        "2026-01-22T16:00:00Z",
+      );
+
+      // Description should be preserved
+      expect(result).toContain("## Description");
+      expect(result).toContain("Issue description here.");
+
+      // History should be migrated
+      expect(result).toContain("| Time | # | Phase | Action | SHA | Run |");
+      expect(result).toContain("| - | 1 | 1 | Started |");
+      expect(result).toContain("| Jan 22 16:00 | 2 | 1 | Continued |");
+
+      // Content after history should be preserved
+      expect(result).toContain("## Notes");
+      expect(result).toContain("Some additional notes here.");
+      expect(result).toContain("## References");
+      expect(result).toContain("- Link 1");
+      expect(result).toContain("- Link 2");
+    });
+  });
+});
