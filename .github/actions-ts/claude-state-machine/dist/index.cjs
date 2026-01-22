@@ -31507,6 +31507,11 @@ var NoOpActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("noop"),
   reason: external_exports.string().optional()
 });
+var ApplyTriageOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyTriageOutput"),
+  issueNumber: external_exports.number().int().positive(),
+  filePath: external_exports.string().default("triage-output.json")
+});
 var ActionSchema = external_exports.discriminatedUnion("type", [
   // Project field actions
   UpdateProjectStatusActionSchema,
@@ -31544,7 +31549,9 @@ var ActionSchema = external_exports.discriminatedUnion("type", [
   StopActionSchema,
   BlockActionSchema,
   LogActionSchema,
-  NoOpActionSchema
+  NoOpActionSchema,
+  // Triage actions
+  ApplyTriageOutputActionSchema
 ]);
 var ActionArraySchema = external_exports.array(ActionSchema);
 

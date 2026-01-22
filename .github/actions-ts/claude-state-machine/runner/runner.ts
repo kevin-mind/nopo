@@ -40,6 +40,7 @@ import {
   executeAddDiscussionReaction,
   executeCreateIssuesFromDiscussion,
 } from "./executors/discussions.js";
+import { executeApplyTriageOutput } from "./executors/triage.js";
 import {
   signalStart,
   signalEnd,
@@ -223,6 +224,10 @@ async function executeAction(
       return executeAddDiscussionReaction(action, actionCtx);
     case "createIssuesFromDiscussion":
       return executeCreateIssuesFromDiscussion(action, actionCtx);
+
+    // Triage actions
+    case "applyTriageOutput":
+      return executeApplyTriageOutput(action, actionCtx);
 
     // Control flow actions
     case "stop":

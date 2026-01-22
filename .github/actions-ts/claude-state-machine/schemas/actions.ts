@@ -445,6 +445,24 @@ export const NoOpActionSchema = BaseActionSchema.extend({
 type NoOpAction = z.infer<typeof NoOpActionSchema>;
 
 // ============================================================================
+// Triage Actions
+// ============================================================================
+
+/**
+ * Apply triage output from triage-output.json
+ * Applies labels and project fields based on Claude's triage decisions
+ */
+export const ApplyTriageOutputActionSchema = BaseActionSchema.extend({
+  type: z.literal("applyTriageOutput"),
+  issueNumber: z.number().int().positive(),
+  filePath: z.string().default("triage-output.json"),
+});
+
+export type ApplyTriageOutputAction = z.infer<
+  typeof ApplyTriageOutputActionSchema
+>;
+
+// ============================================================================
 // Discriminated Union of All Actions
 // ============================================================================
 
@@ -489,6 +507,8 @@ export const ActionSchema = z.discriminatedUnion("type", [
   BlockActionSchema,
   LogActionSchema,
   NoOpActionSchema,
+  // Triage actions
+  ApplyTriageOutputActionSchema,
 ]);
 
 export type Action = z.infer<typeof ActionSchema>;

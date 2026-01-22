@@ -182,7 +182,7 @@ var require_file_command = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.prepareKeyValueMessage = exports2.issueFileCommand = void 0;
     var crypto = __importStar(require("crypto"));
-    var fs2 = __importStar(require("fs"));
+    var fs3 = __importStar(require("fs"));
     var os = __importStar(require("os"));
     var utils_1 = require_utils();
     function issueFileCommand(command, message) {
@@ -190,10 +190,10 @@ var require_file_command = __commonJS({
       if (!filePath) {
         throw new Error(`Unable to find environment variable for file command ${command}`);
       }
-      if (!fs2.existsSync(filePath)) {
+      if (!fs3.existsSync(filePath)) {
         throw new Error(`Missing file at path: ${filePath}`);
       }
-      fs2.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
+      fs3.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
         encoding: "utf8"
       });
     }
@@ -17586,12 +17586,12 @@ var require_lib = __commonJS({
             throw new Error("Client has already been disposed.");
           }
           const parsedUrl = new URL(requestUrl);
-          let info9 = this._prepareRequest(verb, parsedUrl, headers);
+          let info10 = this._prepareRequest(verb, parsedUrl, headers);
           const maxTries = this._allowRetries && RetryableHttpVerbs.includes(verb) ? this._maxRetries + 1 : 1;
           let numTries = 0;
           let response;
           do {
-            response = yield this.requestRaw(info9, data);
+            response = yield this.requestRaw(info10, data);
             if (response && response.message && response.message.statusCode === HttpCodes.Unauthorized) {
               let authenticationHandler;
               for (const handler of this.handlers) {
@@ -17601,7 +17601,7 @@ var require_lib = __commonJS({
                 }
               }
               if (authenticationHandler) {
-                return authenticationHandler.handleAuthentication(this, info9, data);
+                return authenticationHandler.handleAuthentication(this, info10, data);
               } else {
                 return response;
               }
@@ -17624,8 +17624,8 @@ var require_lib = __commonJS({
                   }
                 }
               }
-              info9 = this._prepareRequest(verb, parsedRedirectUrl, headers);
-              response = yield this.requestRaw(info9, data);
+              info10 = this._prepareRequest(verb, parsedRedirectUrl, headers);
+              response = yield this.requestRaw(info10, data);
               redirectsRemaining--;
             }
             if (!response.message.statusCode || !HttpResponseRetryCodes.includes(response.message.statusCode)) {
@@ -17654,7 +17654,7 @@ var require_lib = __commonJS({
        * @param info
        * @param data
        */
-      requestRaw(info9, data) {
+      requestRaw(info10, data) {
         return __awaiter(this, void 0, void 0, function* () {
           return new Promise((resolve2, reject) => {
             function callbackForResult(err, res) {
@@ -17666,7 +17666,7 @@ var require_lib = __commonJS({
                 resolve2(res);
               }
             }
-            this.requestRawWithCallback(info9, data, callbackForResult);
+            this.requestRawWithCallback(info10, data, callbackForResult);
           });
         });
       }
@@ -17676,12 +17676,12 @@ var require_lib = __commonJS({
        * @param data
        * @param onResult
        */
-      requestRawWithCallback(info9, data, onResult) {
+      requestRawWithCallback(info10, data, onResult) {
         if (typeof data === "string") {
-          if (!info9.options.headers) {
-            info9.options.headers = {};
+          if (!info10.options.headers) {
+            info10.options.headers = {};
           }
-          info9.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
+          info10.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
         }
         let callbackCalled = false;
         function handleResult2(err, res) {
@@ -17690,7 +17690,7 @@ var require_lib = __commonJS({
             onResult(err, res);
           }
         }
-        const req = info9.httpModule.request(info9.options, (msg) => {
+        const req = info10.httpModule.request(info10.options, (msg) => {
           const res = new HttpClientResponse(msg);
           handleResult2(void 0, res);
         });
@@ -17702,7 +17702,7 @@ var require_lib = __commonJS({
           if (socket) {
             socket.end();
           }
-          handleResult2(new Error(`Request timeout: ${info9.options.path}`));
+          handleResult2(new Error(`Request timeout: ${info10.options.path}`));
         });
         req.on("error", function(err) {
           handleResult2(err);
@@ -17738,27 +17738,27 @@ var require_lib = __commonJS({
         return this._getProxyAgentDispatcher(parsedUrl, proxyUrl);
       }
       _prepareRequest(method, requestUrl, headers) {
-        const info9 = {};
-        info9.parsedUrl = requestUrl;
-        const usingSsl = info9.parsedUrl.protocol === "https:";
-        info9.httpModule = usingSsl ? https : http;
+        const info10 = {};
+        info10.parsedUrl = requestUrl;
+        const usingSsl = info10.parsedUrl.protocol === "https:";
+        info10.httpModule = usingSsl ? https : http;
         const defaultPort = usingSsl ? 443 : 80;
-        info9.options = {};
-        info9.options.host = info9.parsedUrl.hostname;
-        info9.options.port = info9.parsedUrl.port ? parseInt(info9.parsedUrl.port) : defaultPort;
-        info9.options.path = (info9.parsedUrl.pathname || "") + (info9.parsedUrl.search || "");
-        info9.options.method = method;
-        info9.options.headers = this._mergeHeaders(headers);
+        info10.options = {};
+        info10.options.host = info10.parsedUrl.hostname;
+        info10.options.port = info10.parsedUrl.port ? parseInt(info10.parsedUrl.port) : defaultPort;
+        info10.options.path = (info10.parsedUrl.pathname || "") + (info10.parsedUrl.search || "");
+        info10.options.method = method;
+        info10.options.headers = this._mergeHeaders(headers);
         if (this.userAgent != null) {
-          info9.options.headers["user-agent"] = this.userAgent;
+          info10.options.headers["user-agent"] = this.userAgent;
         }
-        info9.options.agent = this._getAgent(info9.parsedUrl);
+        info10.options.agent = this._getAgent(info10.parsedUrl);
         if (this.handlers) {
           for (const handler of this.handlers) {
-            handler.prepareRequest(info9.options);
+            handler.prepareRequest(info10.options);
           }
         }
-        return info9;
+        return info10;
       }
       _mergeHeaders(headers) {
         if (this.requestOptions && this.requestOptions.headers) {
@@ -18510,12 +18510,12 @@ var require_io_util = __commonJS({
     var _a;
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getCmdPath = exports2.tryGetExecutablePath = exports2.isRooted = exports2.isDirectory = exports2.exists = exports2.READONLY = exports2.UV_FS_O_EXLOCK = exports2.IS_WINDOWS = exports2.unlink = exports2.symlink = exports2.stat = exports2.rmdir = exports2.rm = exports2.rename = exports2.readlink = exports2.readdir = exports2.open = exports2.mkdir = exports2.lstat = exports2.copyFile = exports2.chmod = void 0;
-    var fs2 = __importStar(require("fs"));
+    var fs3 = __importStar(require("fs"));
     var path2 = __importStar(require("path"));
-    _a = fs2.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
+    _a = fs3.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
     exports2.IS_WINDOWS = process.platform === "win32";
     exports2.UV_FS_O_EXLOCK = 268435456;
-    exports2.READONLY = fs2.constants.O_RDONLY;
+    exports2.READONLY = fs3.constants.O_RDONLY;
     function exists(fsPath) {
       return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -19740,18 +19740,18 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.error = error3;
-    function warning6(message, properties = {}) {
+    function warning7(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning6;
+    exports2.warning = warning7;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.notice = notice;
-    function info9(message) {
+    function info10(message) {
       process.stdout.write(message + os.EOL);
     }
-    exports2.info = info9;
+    exports2.info = info10;
     function startGroup(name) {
       (0, command_1.issue)("group", name);
     }
@@ -23883,7 +23883,7 @@ var require_github = __commonJS({
 });
 
 // claude-state-executor/index.ts
-var core9 = __toESM(require_core(), 1);
+var core10 = __toESM(require_core(), 1);
 var github = __toESM(require_github(), 1);
 
 // lib/index.ts
@@ -28306,6 +28306,11 @@ var NoOpActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("noop"),
   reason: external_exports.string().optional()
 });
+var ApplyTriageOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyTriageOutput"),
+  issueNumber: external_exports.number().int().positive(),
+  filePath: external_exports.string().default("triage-output.json")
+});
 var ActionSchema = external_exports.discriminatedUnion("type", [
   // Project field actions
   UpdateProjectStatusActionSchema,
@@ -28343,7 +28348,9 @@ var ActionSchema = external_exports.discriminatedUnion("type", [
   StopActionSchema,
   BlockActionSchema,
   LogActionSchema,
-  NoOpActionSchema
+  NoOpActionSchema,
+  // Triage actions
+  ApplyTriageOutputActionSchema
 ]);
 var ActionArraySchema = external_exports.array(ActionSchema);
 function isTerminalAction(action) {
@@ -28441,7 +28448,7 @@ var GitHubEventSchema = external_exports.discriminatedUnion("type", [
 ]);
 
 // claude-state-machine/runner/runner.ts
-var core8 = __toESM(require_core(), 1);
+var core9 = __toESM(require_core(), 1);
 
 // claude-state-machine/runner/executors/project.ts
 var core2 = __toESM(require_core(), 1);
@@ -29641,8 +29648,188 @@ async function executeCreateIssuesFromDiscussion(action, ctx) {
   return { issueNumbers };
 }
 
-// claude-state-machine/runner/signaler.ts
+// claude-state-machine/runner/executors/triage.ts
 var core7 = __toESM(require_core(), 1);
+var fs2 = __toESM(require("fs"), 1);
+async function executeApplyTriageOutput(action, ctx) {
+  const { issueNumber, filePath } = action;
+  if (!fs2.existsSync(filePath)) {
+    core7.info(`No triage output file found at ${filePath} - skipping`);
+    return { applied: false };
+  }
+  let triageOutput;
+  try {
+    const content = fs2.readFileSync(filePath, "utf-8");
+    triageOutput = JSON.parse(content);
+    core7.info(`Triage output: ${JSON.stringify(triageOutput)}`);
+  } catch (error3) {
+    core7.warning(`Failed to parse triage output: ${error3}`);
+    return { applied: false };
+  }
+  if (ctx.dryRun) {
+    core7.info(`[DRY RUN] Would apply triage output to issue #${issueNumber}`);
+    return { applied: true };
+  }
+  const labels = [];
+  if (triageOutput.type && triageOutput.type !== "null") {
+    labels.push(triageOutput.type);
+    core7.info(`Adding type label: ${triageOutput.type}`);
+  }
+  if (triageOutput.topics) {
+    for (const topic of triageOutput.topics) {
+      if (topic) {
+        const label = topic.startsWith("topic:") ? topic : `topic:${topic}`;
+        labels.push(label);
+        core7.info(`Adding topic label: ${label}`);
+      }
+    }
+  }
+  labels.push("triaged");
+  core7.info("Adding triaged label");
+  if (labels.length > 0) {
+    try {
+      await ctx.octokit.rest.issues.addLabels({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: issueNumber,
+        labels
+      });
+      core7.info(`Applied labels: ${labels.join(", ")}`);
+    } catch (error3) {
+      core7.warning(`Failed to apply labels: ${error3}`);
+    }
+  }
+  await applyProjectFields(ctx, issueNumber, triageOutput);
+  return { applied: true };
+}
+async function applyProjectFields(ctx, issueNumber, triageOutput) {
+  try {
+    const issueQuery = `
+      query($owner: String!, $repo: String!, $issueNumber: Int!) {
+        repository(owner: $owner, name: $repo) {
+          issue(number: $issueNumber) {
+            id
+            projectItems(first: 10) {
+              nodes {
+                id
+                project { number }
+              }
+            }
+          }
+        }
+      }
+    `;
+    const issueResult = await ctx.octokit.graphql(issueQuery, {
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issueNumber
+    });
+    const projectItem = issueResult.repository.issue.projectItems.nodes.find(
+      (item) => item.project.number === ctx.projectNumber
+    );
+    if (!projectItem) {
+      core7.info(`Issue #${issueNumber} not in project ${ctx.projectNumber}`);
+      return;
+    }
+    const projectQuery = `
+      query($owner: String!, $projectNumber: Int!) {
+        organization(login: $owner) {
+          projectV2(number: $projectNumber) {
+            id
+            fields(first: 30) {
+              nodes {
+                ... on ProjectV2SingleSelectField {
+                  id
+                  name
+                  options { id name }
+                }
+                ... on ProjectV2Field {
+                  id
+                  name
+                  dataType
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+    const projectResult = await ctx.octokit.graphql(projectQuery, {
+      owner: ctx.owner,
+      projectNumber: ctx.projectNumber
+    });
+    const project = projectResult.organization.projectV2;
+    const fields = project.fields.nodes;
+    const priorityField = fields.find((f) => f.name === "Priority");
+    const sizeField = fields.find((f) => f.name === "Size");
+    const estimateField = fields.find((f) => f.name === "Estimate");
+    if (priorityField?.options && triageOutput.priority && triageOutput.priority !== "null") {
+      const option = priorityField.options.find(
+        (o) => o.name.toLowerCase() === triageOutput.priority?.toLowerCase()
+      );
+      if (option) {
+        await updateProjectField(
+          ctx,
+          project.id,
+          projectItem.id,
+          priorityField.id,
+          { singleSelectOptionId: option.id }
+        );
+        core7.info(`Set Priority to ${option.name}`);
+      }
+    }
+    if (sizeField?.options && triageOutput.size) {
+      const option = sizeField.options.find(
+        (o) => o.name.toLowerCase() === triageOutput.size?.toLowerCase()
+      );
+      if (option) {
+        await updateProjectField(
+          ctx,
+          project.id,
+          projectItem.id,
+          sizeField.id,
+          { singleSelectOptionId: option.id }
+        );
+        core7.info(`Set Size to ${option.name}`);
+      }
+    }
+    if (estimateField && triageOutput.estimate) {
+      await updateProjectField(
+        ctx,
+        project.id,
+        projectItem.id,
+        estimateField.id,
+        { number: triageOutput.estimate }
+      );
+      core7.info(`Set Estimate to ${triageOutput.estimate}`);
+    }
+  } catch (error3) {
+    core7.warning(`Failed to apply project fields: ${error3}`);
+  }
+}
+async function updateProjectField(ctx, projectId, itemId, fieldId, value) {
+  const mutation = `
+    mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
+      updateProjectV2ItemFieldValue(input: {
+        projectId: $projectId
+        itemId: $itemId
+        fieldId: $fieldId
+        value: $value
+      }) {
+        projectV2Item { id }
+      }
+    }
+  `;
+  await ctx.octokit.graphql(mutation, {
+    projectId,
+    itemId,
+    fieldId,
+    value
+  });
+}
+
+// claude-state-machine/runner/signaler.ts
+var core8 = __toESM(require_core(), 1);
 var JOB_DESCRIPTIONS = {
   // Issue jobs
   "issue-triage": "triaging this issue",
@@ -29731,9 +29918,9 @@ async function addReactionToComment(octokit, owner, repo, commentId, resourceTyp
         content: reaction
       });
     }
-    core7.debug(`Added ${reaction} reaction to comment ${commentId}`);
+    core8.debug(`Added ${reaction} reaction to comment ${commentId}`);
   } catch (error3) {
-    core7.warning(`Failed to add reaction to comment: ${error3}`);
+    core8.warning(`Failed to add reaction to comment: ${error3}`);
   }
 }
 async function signalStart(ctx, progress) {
@@ -29787,7 +29974,7 @@ async function signalStart(ctx, progress) {
     if (!commentId) {
       throw new Error("Failed to create discussion comment");
     }
-    core7.info(`Created status comment: ${commentId}`);
+    core8.info(`Created status comment: ${commentId}`);
     return commentId;
   }
   const { data: comment } = await ctx.octokit.rest.issues.createComment({
@@ -29796,7 +29983,7 @@ async function signalStart(ctx, progress) {
     issue_number: ctx.resourceNumber,
     body
   });
-  core7.info(`Created status comment: ${comment.id}`);
+  core8.info(`Created status comment: ${comment.id}`);
   return String(comment.id);
 }
 async function signalEnd(ctx, statusCommentId, result) {
@@ -29838,9 +30025,9 @@ async function signalEnd(ctx, statusCommentId, result) {
         body
       });
     }
-    core7.info(`Updated status comment ${statusCommentId} to ${result}`);
+    core8.info(`Updated status comment ${statusCommentId} to ${result}`);
   } catch (error3) {
-    core7.warning(`Failed to update status comment: ${error3}`);
+    core8.warning(`Failed to update status comment: ${error3}`);
   }
   await addReactionToComment(
     ctx.octokit,
@@ -29937,27 +30124,30 @@ async function executeAction(action, ctx) {
       return executeAddDiscussionReaction(action, actionCtx);
     case "createIssuesFromDiscussion":
       return executeCreateIssuesFromDiscussion(action, actionCtx);
+    // Triage actions
+    case "applyTriageOutput":
+      return executeApplyTriageOutput(action, actionCtx);
     // Control flow actions
     case "stop":
-      core8.info(`Stopping: ${action.reason}`);
+      core9.info(`Stopping: ${action.reason}`);
       return { stopped: true, reason: action.reason };
     case "log":
       switch (action.level) {
         case "debug":
-          core8.debug(action.message);
+          core9.debug(action.message);
           break;
         case "warning":
-          core8.warning(action.message);
+          core9.warning(action.message);
           break;
         case "error":
-          core8.error(action.message);
+          core9.error(action.message);
           break;
         default:
-          core8.info(action.message);
+          core9.info(action.message);
       }
       return { logged: true };
     case "noop":
-      core8.debug(`No-op: ${action.reason || "no reason given"}`);
+      core9.debug(`No-op: ${action.reason || "no reason given"}`);
       return { noop: true };
     default:
       throw new Error(`Unknown action type: ${action.type}`);
@@ -29973,7 +30163,7 @@ async function executeActions(actions, ctx, options = {}) {
     const actionStartTime = Date.now();
     const parseResult = ActionSchema.safeParse(action);
     if (!parseResult.success) {
-      core8.error(`Invalid action: ${JSON.stringify(action)}`);
+      core9.error(`Invalid action: ${JSON.stringify(action)}`);
       results.push({
         action,
         success: false,
@@ -29990,10 +30180,10 @@ async function executeActions(actions, ctx, options = {}) {
     }
     const validatedAction = parseResult.data;
     if (logActions) {
-      core8.info(`Executing action: ${validatedAction.type}`);
+      core9.info(`Executing action: ${validatedAction.type}`);
     }
     if (ctx.dryRun) {
-      core8.info(`[DRY RUN] Would execute: ${validatedAction.type}`);
+      core9.info(`[DRY RUN] Would execute: ${validatedAction.type}`);
       results.push({
         action: validatedAction,
         success: true,
@@ -30015,7 +30205,7 @@ async function executeActions(actions, ctx, options = {}) {
         });
         stoppedEarly = true;
         stopReason = "branch_rebased_and_pushed";
-        core8.info(
+        core9.info(
           "Stopping after branch rebase - CI will re-trigger with up-to-date branch"
         );
         break;
@@ -30034,7 +30224,7 @@ async function executeActions(actions, ctx, options = {}) {
       }
     } catch (error3) {
       const err = error3 instanceof Error ? error3 : new Error(String(error3));
-      core8.error(`Action failed: ${validatedAction.type} - ${err.message}`);
+      core9.error(`Action failed: ${validatedAction.type} - ${err.message}`);
       results.push({
         action: validatedAction,
         success: false,
@@ -30069,35 +30259,35 @@ function createRunnerContext(octokit, owner, repo, projectNumber, options = {}) 
   };
 }
 function logRunnerSummary(result) {
-  core8.info("=".repeat(60));
-  core8.info("Runner Summary");
-  core8.info("=".repeat(60));
-  core8.info(`Total actions: ${result.results.length}`);
-  core8.info(`Successful: ${result.results.filter((r) => r.success).length}`);
-  core8.info(
+  core9.info("=".repeat(60));
+  core9.info("Runner Summary");
+  core9.info("=".repeat(60));
+  core9.info(`Total actions: ${result.results.length}`);
+  core9.info(`Successful: ${result.results.filter((r) => r.success).length}`);
+  core9.info(
     `Failed: ${result.results.filter((r) => !r.success && !r.skipped).length}`
   );
-  core8.info(`Skipped: ${result.results.filter((r) => r.skipped).length}`);
-  core8.info(`Total duration: ${result.totalDurationMs}ms`);
+  core9.info(`Skipped: ${result.results.filter((r) => r.skipped).length}`);
+  core9.info(`Total duration: ${result.totalDurationMs}ms`);
   if (result.stoppedEarly) {
-    core8.info(`Stopped early: ${result.stopReason}`);
+    core9.info(`Stopped early: ${result.stopReason}`);
   }
-  core8.info("=".repeat(60));
+  core9.info("=".repeat(60));
   for (const actionResult of result.results) {
     const status = actionResult.skipped ? "SKIPPED" : actionResult.success ? "SUCCESS" : "FAILED";
     const duration = `${actionResult.durationMs}ms`;
-    core8.info(
+    core9.info(
       `  ${status.padEnd(8)} ${actionResult.action.type.padEnd(25)} ${duration}`
     );
     if (actionResult.error) {
-      core8.error(`    Error: ${actionResult.error.message}`);
+      core9.error(`    Error: ${actionResult.error.message}`);
     }
   }
 }
 async function runWithSignaling(actions, ctx, options = {}) {
   let statusCommentId = "";
   if (ctx.dryRun) {
-    core8.info("[DRY RUN] Skipping status signaling");
+    core9.info("[DRY RUN] Skipping status signaling");
     const result2 = await executeActions(actions, ctx, options);
     return { ...result2, statusCommentId: "" };
   }
@@ -30116,7 +30306,7 @@ async function runWithSignaling(actions, ctx, options = {}) {
       ctx.progress
     );
   } catch (error3) {
-    core8.warning(`Failed to create status comment: ${error3}`);
+    core9.warning(`Failed to create status comment: ${error3}`);
   }
   const result = await executeActions(actions, ctx, options);
   if (statusCommentId !== "") {
@@ -30137,7 +30327,7 @@ async function runWithSignaling(actions, ctx, options = {}) {
         jobResult
       );
     } catch (error3) {
-      core8.warning(`Failed to update status comment: ${error3}`);
+      core9.warning(`Failed to update status comment: ${error3}`);
     }
   }
   return { ...result, statusCommentId };
@@ -30201,18 +30391,18 @@ async function run() {
     const runUrl = getOptionalInput("run_url") || "";
     const resourceType = resourceTypeInput === "pr" ? "pr" : "issue";
     const signalingEnabled = job !== "" && resourceNumber > 0;
-    core9.info(`Claude State Executor starting...`);
-    core9.info(`Project: ${projectNumber}`);
-    core9.info(`Dry run: ${dryRun}`);
-    core9.info(`Signaling: ${signalingEnabled ? "enabled" : "disabled"}`);
+    core10.info(`Claude State Executor starting...`);
+    core10.info(`Project: ${projectNumber}`);
+    core10.info(`Dry run: ${dryRun}`);
+    core10.info(`Signaling: ${signalingEnabled ? "enabled" : "disabled"}`);
     if (signalingEnabled) {
-      core9.info(`  Job: ${job}`);
-      core9.info(`  Resource: ${resourceType} #${resourceNumber}`);
+      core10.info(`  Job: ${job}`);
+      core10.info(`  Resource: ${resourceType} #${resourceNumber}`);
     }
     const actions = parseActions(actionsJson);
-    core9.info(`Actions to execute: ${actions.length}`);
+    core10.info(`Actions to execute: ${actions.length}`);
     if (actions.length === 0) {
-      core9.info("No actions to execute");
+      core10.info("No actions to execute");
       setOutputs({
         success: "true",
         stopped_early: "false",
@@ -30226,7 +30416,7 @@ async function run() {
       return;
     }
     const actionTypes = actions.map((a) => a.type);
-    core9.info(`Action types: ${actionTypes.join(", ")}`);
+    core10.info(`Action types: ${actionTypes.join(", ")}`);
     const tokenUsage = actions.reduce(
       (acc, a) => {
         const token = a.token || "code";
@@ -30235,7 +30425,7 @@ async function run() {
       },
       {}
     );
-    core9.info(
+    core10.info(
       `Token usage: code=${tokenUsage.code || 0}, review=${tokenUsage.review || 0}`
     );
     const codeOctokit = github.getOctokit(codeToken);
@@ -30296,13 +30486,13 @@ async function run() {
       results_json: JSON.stringify(resultsForOutput)
     });
     if (!result.success) {
-      core9.setFailed(`${failed} action(s) failed. Check the logs for details.`);
+      core10.setFailed(`${failed} action(s) failed. Check the logs for details.`);
     }
   } catch (error3) {
     if (error3 instanceof Error) {
-      core9.setFailed(error3.message);
+      core10.setFailed(error3.message);
     } else {
-      core9.setFailed("An unexpected error occurred");
+      core10.setFailed("An unexpected error occurred");
     }
   }
 }
