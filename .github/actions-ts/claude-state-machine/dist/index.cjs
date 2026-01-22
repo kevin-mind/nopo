@@ -32324,6 +32324,13 @@ function emitRunClaudeTriage({ context: context2 }) {
       promptFile: ".github/prompts/triage.txt",
       promptVars,
       issueNumber
+    },
+    // Apply labels and project fields from triage-output.json
+    // This runs after Claude creates the file
+    {
+      type: "applyTriageOutput",
+      issueNumber,
+      filePath: "triage-output.json"
     }
   ];
 }

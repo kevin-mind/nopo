@@ -255,17 +255,6 @@ jobs:
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
           dry_run: ${{ inputs.dry_run && 'true' || 'false' }}
 
-      # Post-processing for triage: Apply labels and project fields from triage-output.json
-      # Uses the state executor with applyTriageOutput action (testable, type-safe)
-      - name: Apply triage output
-        if: matrix.action.type == 'runClaude' && inputs.trigger == 'issue_triage' && !inputs.dry_run
-        uses: ./.github/actions-ts/claude-state-executor
-        with:
-          github_code_token: ${{ secrets.NOPO_BOT_PAT }}
-          actions_json: '[{"type": "applyTriageOutput", "issueNumber": ${{ inputs.issue_number }}, "filePath": "triage-output.json"}]'
-          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
-          dry_run: 'false'
-
       # Upload triage output artifact for debugging
       - name: Upload triage output
         if: matrix.action.type == 'runClaude' && inputs.trigger == 'issue_triage' && !inputs.dry_run
