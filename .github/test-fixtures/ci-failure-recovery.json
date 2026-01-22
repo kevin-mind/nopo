@@ -18,7 +18,7 @@
       "title": "Implement feature with initial failure",
       "body": "## Todos\n\n- [ ] Add initial code (will fail CI)\n- [ ] Fix CI issues\n\n## Testing\n\n- [ ] CI passes after fix",
       "project_fields": {
-        "Status": "Working"
+        "Status": "In progress"
       }
     }
   ],

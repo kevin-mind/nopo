@@ -35,7 +35,7 @@ describe("UpdateProjectStatusActionSchema", () => {
     const action = {
       type: "updateProjectStatus",
       issueNumber: 123,
-      status: "Working",
+      status: "In progress",
     };
     expect(UpdateProjectStatusActionSchema.parse(action)).toMatchObject(action);
   });
@@ -65,7 +65,7 @@ describe("UpdateProjectStatusActionSchema", () => {
       UpdateProjectStatusActionSchema.parse({
         type: "updateProjectStatus",
         issueNumber: 0,
-        status: "Working",
+        status: "In progress",
       }),
     ).toThrow();
   });
@@ -455,7 +455,7 @@ describe("NoOpActionSchema", () => {
 describe("ActionSchema (discriminated union)", () => {
   test("discriminates by type field", () => {
     const actions = [
-      { type: "updateProjectStatus", issueNumber: 1, status: "Working" },
+      { type: "updateProjectStatus", issueNumber: 1, status: "In progress" },
       { type: "incrementIteration", issueNumber: 1 },
       { type: "stop", reason: "Done" },
       { type: "noop" },
@@ -497,11 +497,11 @@ describe("createAction helper", () => {
   test("creates typed action", () => {
     const action = createAction("updateProjectStatus", {
       issueNumber: 1,
-      status: "Working",
+      status: "In progress",
     });
     expect(action.type).toBe("updateProjectStatus");
     expect(action.issueNumber).toBe(1);
-    expect(action.status).toBe("Working");
+    expect(action.status).toBe("In progress");
   });
 
   test("creates stop action", () => {
@@ -536,7 +536,7 @@ describe("isTerminalAction", () => {
       {
         type: "updateProjectStatus" as const,
         issueNumber: 1,
-        status: "Working" as const,
+        status: "In progress" as const,
       },
       { type: "runClaude" as const, prompt: "Test", issueNumber: 1 },
       { type: "noop" as const },

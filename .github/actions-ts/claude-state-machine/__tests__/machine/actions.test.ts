@@ -11,7 +11,7 @@ import { createContext } from "../fixtures/index.js";
 
 describe("Orchestration action emitters", () => {
   describe("emitInitializeParent", () => {
-    test("sets parent to In progress and first sub-issue to Working", () => {
+    test("sets parent to In progress and first sub-issue to In progress", () => {
       const context = createContext({
         issue: {
           number: 100,
@@ -53,11 +53,11 @@ describe("Orchestration action emitters", () => {
         status: "In progress",
       });
 
-      // Second action: set first sub-issue to Working
+      // Second action: set first sub-issue to In progress
       expect(actions[1]).toEqual({
         type: "updateProjectStatus",
         issueNumber: 101,
-        status: "Working",
+        status: "In progress",
       });
 
       // Third action: append history
@@ -71,7 +71,7 @@ describe("Orchestration action emitters", () => {
   });
 
   describe("emitAdvancePhase", () => {
-    test("marks current phase Done and sets next to Working", () => {
+    test("marks current phase Done and sets next to In progress", () => {
       const context = createContext({
         issue: {
           number: 100,
@@ -83,7 +83,7 @@ describe("Orchestration action emitters", () => {
               title: "Phase 1",
               state: "OPEN",
               body: "",
-              projectStatus: "Working",
+              projectStatus: "In progress",
               branch: null,
               pr: null,
               todos: { total: 1, completed: 1, uncheckedNonManual: 0 },
@@ -105,7 +105,7 @@ describe("Orchestration action emitters", () => {
           title: "Phase 1",
           state: "OPEN",
           body: "",
-          projectStatus: "Working",
+          projectStatus: "In progress",
           branch: null,
           pr: null,
           todos: { total: 1, completed: 1, uncheckedNonManual: 0 },
@@ -132,11 +132,11 @@ describe("Orchestration action emitters", () => {
         reason: "completed",
       });
 
-      // Set next to Working
+      // Set next to In progress
       expect(actions[2]).toEqual({
         type: "updateProjectStatus",
         issueNumber: 102,
-        status: "Working",
+        status: "In progress",
       });
 
       // Append history
@@ -229,7 +229,7 @@ describe("Orchestration action emitters", () => {
               title: "Phase 1",
               state: "OPEN",
               body: "",
-              projectStatus: "Working",
+              projectStatus: "In progress",
               branch: null,
               pr: null,
               todos: { total: 1, completed: 1, uncheckedNonManual: 0 },
@@ -251,7 +251,7 @@ describe("Orchestration action emitters", () => {
           title: "Phase 1",
           state: "OPEN",
           body: "",
-          projectStatus: "Working",
+          projectStatus: "In progress",
           branch: null,
           pr: null,
           todos: { total: 1, completed: 1, uncheckedNonManual: 0 },
@@ -263,13 +263,15 @@ describe("Orchestration action emitters", () => {
 
       const actions = emitOrchestrate({ context });
 
-      // Should advance phase (mark 101 Done, set 102 Working)
+      // Should advance phase (mark 101 Done, set 102 In progress)
       // and assign to the new sub-issue (102)
       const updateActions = actions.filter(
         (a) => a.type === "updateProjectStatus",
       ) as any[];
       const doneAction = updateActions.find((a) => a.status === "Done");
-      const workingAction = updateActions.find((a) => a.status === "Working");
+      const workingAction = updateActions.find(
+        (a) => a.status === "In progress",
+      );
 
       expect(doneAction?.issueNumber).toBe(101);
       expect(workingAction?.issueNumber).toBe(102);
@@ -291,7 +293,7 @@ describe("Orchestration action emitters", () => {
               title: "Phase 1",
               state: "OPEN",
               body: "",
-              projectStatus: "Working",
+              projectStatus: "In progress",
               branch: null,
               pr: null,
               todos: { total: 3, completed: 1, uncheckedNonManual: 2 },
@@ -303,7 +305,7 @@ describe("Orchestration action emitters", () => {
           title: "Phase 1",
           state: "OPEN",
           body: "",
-          projectStatus: "Working",
+          projectStatus: "In progress",
           branch: null,
           pr: null,
           todos: { total: 3, completed: 1, uncheckedNonManual: 2 },
@@ -378,7 +380,7 @@ describe("Orchestration action emitters", () => {
           title: "Phase 1",
           state: "OPEN",
           body: "",
-          projectStatus: "Working",
+          projectStatus: "In progress",
           branch: null,
           pr: null,
           todos: { total: 1, completed: 0, uncheckedNonManual: 1 },

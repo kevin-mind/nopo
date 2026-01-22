@@ -31121,7 +31121,6 @@ var ProjectStatusSchema = external_exports.enum([
   "Backlog",
   "In progress",
   "Ready",
-  "Working",
   "In review",
   "Done",
   "Blocked",
@@ -32066,7 +32065,7 @@ function emitSetWorking({ context: context2 }) {
     {
       type: "updateProjectStatus",
       issueNumber,
-      status: "Working"
+      status: "In progress"
     }
   ];
 }
@@ -32473,7 +32472,7 @@ function emitInitializeParent({ context: context2 }) {
     actions.push({
       type: "updateProjectStatus",
       issueNumber: firstSubIssue.number,
-      status: "Working"
+      status: "In progress"
     });
   }
   actions.push({
@@ -32505,7 +32504,7 @@ function emitAdvancePhase({ context: context2 }) {
     actions.push({
       type: "updateProjectStatus",
       issueNumber: nextSubIssue.number,
-      status: "Working"
+      status: "In progress"
     });
     actions.push({
       type: "appendHistory",
@@ -32687,9 +32686,9 @@ function isInReview({ context: context2 }) {
 function currentPhaseNeedsWork({ context: context2 }) {
   if (context2.currentSubIssue) {
     const status = context2.currentSubIssue.projectStatus;
-    return status === "Working" || status === "Ready";
+    return status === "In progress" || status === "Ready";
   }
-  return context2.issue.projectStatus === "Working" || context2.issue.projectStatus === "In progress";
+  return context2.issue.projectStatus === "In progress";
 }
 function currentPhaseInReview({ context: context2 }) {
   return isInReview({ context: context2 });

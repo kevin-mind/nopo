@@ -54,7 +54,7 @@ function createProjectItemResponse(options: {
   const {
     issueId = "issue-id-123",
     itemId = "item-id-456",
-    status = "Working",
+    status = "In progress",
     iteration = 0,
     failures = 0,
   } = options;
@@ -98,7 +98,7 @@ function createProjectItemResponse(options: {
               id: "status-field-id",
               name: "Status",
               options: [
-                { id: "opt-working", name: "Working" },
+                { id: "opt-working", name: "In progress" },
                 { id: "opt-review", name: "In review" },
                 { id: "opt-done", name: "Done" },
                 { id: "opt-blocked", name: "Blocked" },
@@ -132,7 +132,7 @@ describe("executeUpdateProjectStatus", () => {
   test("updates project status successfully", async () => {
     // First call: get project item
     vi.mocked(ctx.octokit.graphql).mockResolvedValueOnce(
-      createProjectItemResponse({ status: "Working" }),
+      createProjectItemResponse({ status: "In progress" }),
     );
     // Second call: update field
     vi.mocked(ctx.octokit.graphql).mockResolvedValueOnce({
@@ -148,7 +148,7 @@ describe("executeUpdateProjectStatus", () => {
     const result = await executeUpdateProjectStatus(action, ctx);
 
     expect(result.updated).toBe(true);
-    expect(result.previousStatus).toBe("Working");
+    expect(result.previousStatus).toBe("In progress");
     expect(ctx.octokit.graphql).toHaveBeenCalledTimes(2);
   });
 
@@ -185,7 +185,7 @@ describe("executeUpdateProjectStatus", () => {
                 id: "status-field-id",
                 name: "Status",
                 options: [
-                  { id: "opt-working", name: "Working" },
+                  { id: "opt-working", name: "In progress" },
                   { id: "opt-review", name: "In review" },
                 ],
               },
@@ -215,7 +215,7 @@ describe("executeUpdateProjectStatus", () => {
     const action: UpdateProjectStatusAction = {
       type: "updateProjectStatus",
       issueNumber: 123,
-      status: "Working",
+      status: "In progress",
     };
 
     const result = await executeUpdateProjectStatus(action, ctx);
@@ -371,7 +371,7 @@ describe("executeBlock", () => {
 
   test("blocks issue by setting status to Blocked", async () => {
     vi.mocked(ctx.octokit.graphql).mockResolvedValueOnce(
-      createProjectItemResponse({ status: "Working" }),
+      createProjectItemResponse({ status: "In progress" }),
     );
     vi.mocked(ctx.octokit.graphql).mockResolvedValueOnce({
       updateProjectV2ItemFieldValue: { projectV2Item: { id: "item-id-456" } },
@@ -418,7 +418,7 @@ describe("executeBlock", () => {
                 id: "status-field-id",
                 name: "Status",
                 options: [
-                  { id: "opt-working", name: "Working" },
+                  { id: "opt-working", name: "In progress" },
                   // No "Blocked" option
                 ],
               },

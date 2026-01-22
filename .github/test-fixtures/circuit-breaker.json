@@ -21,13 +21,13 @@
       "title": "Implement failing feature",
       "body": "## Todos\n\n- [ ] Add code that will always fail CI\n\n## Testing\n\n- [ ] This should fail and trigger circuit breaker",
       "project_fields": {
-        "Status": "Working"
+        "Status": "In progress"
       }
     }
   ],
   "expected": {
     "parent_status": "Blocked",
-    "sub_issue_statuses": ["Working"],
+    "sub_issue_statuses": ["In progress"],
     "issue_state": "open",
     "failures": 5
   },

@@ -54,7 +54,7 @@ describe("claudeMachine", () => {
 
     test("transitions to iterating for normal issue", () => {
       const context = createContext({
-        issue: { projectStatus: "Working" },
+        issue: { projectStatus: "In progress" },
       } as any);
       const { state, actions } = runMachine(context);
       expect(state).toBe("iterating");
@@ -78,13 +78,13 @@ describe("claudeMachine", () => {
       const context = createContext({
         trigger: "workflow_run_completed",
         ciResult: "success",
-        issue: { projectStatus: "Working" },
+        issue: { projectStatus: "In progress" },
         currentSubIssue: {
           number: 1,
           title: "Phase 1",
           state: "OPEN",
           body: "",
-          projectStatus: "Working",
+          projectStatus: "In progress",
           branch: null,
           pr: null,
           todos: { total: 3, completed: 3, uncheckedNonManual: 0 },
@@ -111,13 +111,13 @@ describe("claudeMachine", () => {
       const context = createContext({
         trigger: "workflow_run_completed",
         ciResult: "success",
-        issue: { projectStatus: "Working", failures: 2 },
+        issue: { projectStatus: "In progress", failures: 2 },
         currentSubIssue: {
           number: 1,
           title: "Phase 1",
           state: "OPEN",
           body: "",
-          projectStatus: "Working",
+          projectStatus: "In progress",
           branch: null,
           pr: null,
           todos: { total: 3, completed: 1, uncheckedNonManual: 2 },
@@ -133,13 +133,13 @@ describe("claudeMachine", () => {
       const context = createContext({
         trigger: "workflow_run_completed",
         ciResult: "failure",
-        issue: { projectStatus: "Working", failures: 2 },
+        issue: { projectStatus: "In progress", failures: 2 },
         currentSubIssue: {
           number: 1,
           title: "Phase 1",
           state: "OPEN",
           body: "",
-          projectStatus: "Working",
+          projectStatus: "In progress",
           branch: null,
           pr: null,
           todos: { total: 3, completed: 1, uncheckedNonManual: 2 },
@@ -156,14 +156,14 @@ describe("claudeMachine", () => {
       const context = createContext({
         trigger: "workflow_run_completed",
         ciResult: "failure",
-        issue: { projectStatus: "Working", failures: 5 },
+        issue: { projectStatus: "In progress", failures: 5 },
         maxRetries: 5,
         currentSubIssue: {
           number: 1,
           title: "Phase 1",
           state: "OPEN",
           body: "",
-          projectStatus: "Working",
+          projectStatus: "In progress",
           branch: null,
           pr: null,
           todos: { total: 3, completed: 1, uncheckedNonManual: 2 },
@@ -305,7 +305,7 @@ describe("claudeMachine", () => {
           number: 123,
           title: "Feature request",
           body: "## Description\n\nImplement feature",
-          projectStatus: "Working",
+          projectStatus: "In progress",
         },
         commentContextType: "Issue",
         commentContextDescription:
@@ -353,7 +353,7 @@ describe("claudeMachine", () => {
         trigger: "issue_comment",
         issue: {
           number: 789,
-          projectStatus: "Working",
+          projectStatus: "In progress",
         },
         commentContextType: null,
         commentContextDescription: null,
@@ -444,7 +444,7 @@ describe("claudeMachine", () => {
               title: "Phase 1",
               state: "OPEN",
               body: "",
-              projectStatus: "Working",
+              projectStatus: "In progress",
               branch: null,
               pr: null,
               todos: { total: 1, completed: 0, uncheckedNonManual: 1 },
@@ -466,7 +466,7 @@ describe("claudeMachine", () => {
           title: "Phase 1",
           state: "OPEN",
           body: "",
-          projectStatus: "Working",
+          projectStatus: "In progress",
           branch: null,
           pr: null,
           todos: { total: 1, completed: 0, uncheckedNonManual: 1 },
@@ -533,7 +533,7 @@ describe("claudeMachine", () => {
   describe("Action accumulation", () => {
     test("accumulates multiple actions during transitions", () => {
       const context = createContext({
-        issue: { projectStatus: "Working" },
+        issue: { projectStatus: "In progress" },
       } as any);
       const { actions } = runMachine(context);
       // Should have log, setWorking, incrementIteration, and runClaude actions
@@ -542,7 +542,7 @@ describe("claudeMachine", () => {
 
     test("includes issue number in actions", () => {
       const context = createContext({
-        issue: { number: 123, projectStatus: "Working" },
+        issue: { number: 123, projectStatus: "In progress" },
       } as any);
       const { actions } = runMachine(context);
       const updateAction = actions.find(

@@ -301,13 +301,13 @@ describe("updateHistoryEntry", () => {
 
 | # | Phase | Action | SHA | Run |
 |---|-------|--------|-----|-----|
-| 2 | 1 | Working | - | - |
+| 2 | 1 | In progress | - | - |
 `;
     const { body: newBody, updated } = updateHistoryEntry(
       body,
       2,
       "1",
-      "Working",
+      "In progress",
       "Done",
       "abc123",
       "https://run.url",
@@ -343,13 +343,13 @@ describe("updateHistoryEntry", () => {
 
 | # | Phase | Action | SHA | Run |
 |---|-------|--------|-----|-----|
-| 1 | 1 | Working | [\`abc1234\`](url) | - |
+| 1 | 1 | In progress | [\`abc1234\`](url) | - |
 `;
     const { body: newBody, updated } = updateHistoryEntry(
       body,
       1,
       "1",
-      "Working",
+      "In progress",
       "Updated",
     );
     expect(updated).toBe(true);
@@ -362,14 +362,14 @@ describe("updateHistoryEntry", () => {
 
 | # | Phase | Action | SHA | Run |
 |---|-------|--------|-----|-----|
-| 1 | 1 | Working | - | - |
-| 2 | 1 | Working | - | - |
+| 1 | 1 | In progress | - | - |
+| 2 | 1 | In progress | - | - |
 `;
     const { body: newBody, updated } = updateHistoryEntry(
       body,
       2,
       "1",
-      "Working",
+      "In progress",
       "Updated",
     );
     expect(updated).toBe(true);
@@ -377,7 +377,7 @@ describe("updateHistoryEntry", () => {
     const lines = newBody.split("\n");
     const row1 = lines.find((l) => l.includes("| 1 | 1 |"));
     const row2 = lines.find((l) => l.includes("| 2 | 1 |"));
-    expect(row1).toContain("Working");
+    expect(row1).toContain("In progress");
     expect(row2).toContain("Updated");
   });
 });

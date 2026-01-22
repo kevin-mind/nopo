@@ -167,7 +167,7 @@ function getActionDescription(name: string): string {
     logDetecting: "Log that machine is detecting initial state",
     logIterating: "Log that machine is starting iteration",
     logReviewing: "Log that PR is under review",
-    setWorking: "Set Project Status to Working",
+    setWorking: "Set Project Status to In progress",
     setReview: "Set Project Status to Review",
     setInProgress: "Set Project Status to In Progress",
     setDone: "Set Project Status to Done",

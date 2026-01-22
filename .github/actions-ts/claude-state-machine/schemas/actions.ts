@@ -23,7 +23,7 @@ const ArtifactSchema = z.object({
   path: z.string(),
 });
 
-export type Artifact = z.infer<typeof ArtifactSchema>;
+type Artifact = z.infer<typeof ArtifactSchema>;
 
 /**
  * Base action fields shared by all actions
@@ -468,15 +468,13 @@ type NoOpAction = z.infer<typeof NoOpActionSchema>;
  * Apply triage output from triage-output.json
  * Applies labels and project fields based on Claude's triage decisions
  */
-export const ApplyTriageOutputActionSchema = BaseActionSchema.extend({
+const ApplyTriageOutputActionSchema = BaseActionSchema.extend({
   type: z.literal("applyTriageOutput"),
   issueNumber: z.number().int().positive(),
   filePath: z.string().default("triage-output.json"),
 });
 
-export type ApplyTriageOutputAction = z.infer<
-  typeof ApplyTriageOutputActionSchema
->;
+type ApplyTriageOutputAction = z.infer<typeof ApplyTriageOutputActionSchema>;
 
 // ============================================================================
 // Discriminated Union of All Actions

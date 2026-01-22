@@ -119,7 +119,7 @@ stateDiagram-v2
 | Guard | Description |
 |-------|-------------|
 | `allPhasesDone` | All sub-issues Status = Done |
-| `currentPhaseNeedsWork` | Current sub-issue Status = Working/Ready |
+| `currentPhaseNeedsWork` | Current sub-issue Status = In progress/Ready |
 | `currentPhaseInReview` | Current sub-issue Status = Review |
 | `isInReview` | Current context is in review state |
 
@@ -163,7 +163,7 @@ The state machine accumulates typed actions that the runner executes sequentiall
 ### Project Field Actions
 | Action | Description |
 |--------|-------------|
-| `updateProjectStatus` | Set Status field (Working, Review, Done, etc.) |
+| `updateProjectStatus` | Set Status field (In progress, In review, Done, etc.) |
 | `incrementIteration` | Increment Iteration field by 1 |
 | `recordFailure` | Increment Failures field by 1 |
 | `clearFailures` | Reset Failures to 0 |

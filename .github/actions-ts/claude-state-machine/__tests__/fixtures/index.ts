@@ -33,7 +33,7 @@ export const DEFAULT_SUB_ISSUE: SubIssue = {
   title: "Test Sub-Issue",
   state: "OPEN",
   body: "",
-  projectStatus: "Working",
+  projectStatus: "In progress",
   branch: null,
   pr: null,
   todos: DEFAULT_TODO_STATS,
@@ -228,7 +228,7 @@ export function createNewIssueContext(
 ): MachineContext {
   return createContext({
     trigger: "issue_assigned",
-    issue: { projectStatus: "Working" },
+    issue: { projectStatus: "In progress" },
     ...overrides,
   });
 }
@@ -242,7 +242,7 @@ export function createCISuccessContext(
   return createContext({
     trigger: "workflow_run_completed",
     ciResult: "success",
-    issue: { projectStatus: "Working" },
+    issue: { projectStatus: "In progress" },
     ...overrides,
   });
 }
@@ -256,7 +256,7 @@ export function createCIFailureContext(
   return createContext({
     trigger: "workflow_run_completed",
     ciResult: "failure",
-    issue: { projectStatus: "Working" },
+    issue: { projectStatus: "In progress" },
     ...overrides,
   });
 }

@@ -3,7 +3,7 @@ description: Create, verify, and cleanup test fixtures for state machine testing
 
 inputs:
   action:
-    description: 'Action to perform: create, verify, cleanup, reset'
+    description: 'Action to perform: create, verify, cleanup, reset, close, delete'
     required: true
   fixture_json:
     description: 'JSON configuration for test scenario'
@@ -45,9 +45,13 @@ outputs:
   verification_errors:
     description: 'JSON array of verification errors'
   success:
-    description: 'Whether cleanup/reset succeeded'
+    description: 'Whether cleanup/reset/close/delete succeeded'
   reset_count:
     description: 'Number of issues re-opened during reset'
+  close_count:
+    description: 'Number of issues closed during close action'
+  delete_count:
+    description: 'Number of issues deleted during delete action'
 
 runs:
   using: node20

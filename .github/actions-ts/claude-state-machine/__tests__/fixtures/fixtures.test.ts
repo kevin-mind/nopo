@@ -134,7 +134,7 @@ describe("Factory functions produce valid schemas", () => {
       const result = ParentIssueSchema.safeParse(
         createParentIssue({
           subIssues: [
-            { title: "Phase 1", projectStatus: "Working" },
+            { title: "Phase 1", projectStatus: "In progress" },
             { title: "Phase 2", projectStatus: "Ready" },
           ],
         }),
@@ -197,12 +197,12 @@ describe("Factory functions produce valid schemas", () => {
           issue: {
             subIssues: [
               { number: 1, projectStatus: "Done", state: "CLOSED" },
-              { number: 2, projectStatus: "Working", state: "OPEN" },
+              { number: 2, projectStatus: "In progress", state: "OPEN" },
               { number: 3, projectStatus: "Ready", state: "OPEN" },
             ],
           },
           currentPhase: 2,
-          currentSubIssue: { number: 2, projectStatus: "Working" },
+          currentSubIssue: { number: 2, projectStatus: "In progress" },
         }),
       );
       expect(result.success).toBe(true);
@@ -215,7 +215,7 @@ describe("Scenario fixtures validate against schemas", () => {
     const result = MachineContextSchema.safeParse(createNewIssueContext());
     expect(result.success).toBe(true);
     expect(result.data?.trigger).toBe("issue_assigned");
-    expect(result.data?.issue.projectStatus).toBe("Working");
+    expect(result.data?.issue.projectStatus).toBe("In progress");
   });
 
   test("createCISuccessContext is valid", () => {
@@ -253,7 +253,7 @@ describe("Scenario fixtures validate against schemas", () => {
     const result = MachineContextSchema.safeParse(
       createMultiPhaseContext([
         { projectStatus: "Done", state: "CLOSED" },
-        { projectStatus: "Working", state: "OPEN" },
+        { projectStatus: "In progress", state: "OPEN" },
         { projectStatus: "Ready", state: "OPEN" },
       ]),
     );

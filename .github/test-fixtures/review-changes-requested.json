@@ -17,7 +17,7 @@
       "title": "Implement feature with review needed",
       "body": "## Todos\n\n- [ ] Add initial implementation\n- [ ] Address review feedback\n\n## Testing\n\n- [ ] CI passes\n- [ ] Review approved",
       "project_fields": {
-        "Status": "Working"
+        "Status": "In progress"
       }
     }
   ],

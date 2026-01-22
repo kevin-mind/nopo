@@ -35,7 +35,7 @@ describe("ProjectStatusSchema", () => {
   });
 
   test("accepts valid sub-issue statuses", () => {
-    const subIssueStatuses = ["Ready", "Working", "In review", "Done"];
+    const subIssueStatuses = ["Ready", "In progress", "In review", "Done"];
     for (const status of subIssueStatuses) {
       expect(ProjectStatusSchema.parse(status)).toBe(status);
     }
@@ -197,7 +197,7 @@ describe("SubIssueSchema", () => {
     title: "[Phase 1]: Initial setup",
     state: "OPEN",
     body: "## Todos\n- [ ] Task 1",
-    projectStatus: "Working",
+    projectStatus: "In progress",
     branch: "claude/issue/100/phase-1",
     pr: null,
     todos: { total: 1, completed: 0, uncheckedNonManual: 1 },
@@ -252,7 +252,7 @@ describe("ParentIssueSchema", () => {
       title: "[Phase 1]: Setup",
       state: "OPEN",
       body: "## Todos\n- [ ] Task",
-      projectStatus: "Working",
+      projectStatus: "In progress",
       branch: "claude/issue/100/phase-1",
       pr: null,
       todos: { total: 1, completed: 0, uncheckedNonManual: 1 },
@@ -483,7 +483,7 @@ describe("createMachineContext", () => {
         title: "Test Issue",
         state: "OPEN" as const,
         body: "Body",
-        projectStatus: "Working" as const,
+        projectStatus: "In progress" as const,
         iteration: 5,
         failures: 2,
         assignees: ["nopo-bot"],
@@ -512,7 +512,7 @@ describe("isTerminalStatus", () => {
     expect(isTerminalStatus("Backlog")).toBe(false);
     expect(isTerminalStatus("In progress")).toBe(false);
     expect(isTerminalStatus("Ready")).toBe(false);
-    expect(isTerminalStatus("Working")).toBe(false);
+    expect(isTerminalStatus("In progress")).toBe(false);
     expect(isTerminalStatus("In review")).toBe(false);
   });
 });
@@ -528,7 +528,7 @@ describe("isParentStatus", () => {
 
   test("returns false for sub-issue only statuses", () => {
     expect(isParentStatus("Ready")).toBe(false);
-    expect(isParentStatus("Working")).toBe(false);
+    // Note: "In progress" is true for BOTH parent and sub-issue (shared status)
     expect(isParentStatus("In review")).toBe(false);
   });
 });
@@ -536,14 +536,14 @@ describe("isParentStatus", () => {
 describe("isSubIssueStatus", () => {
   test("returns true for sub-issue statuses", () => {
     expect(isSubIssueStatus("Ready")).toBe(true);
-    expect(isSubIssueStatus("Working")).toBe(true);
+    expect(isSubIssueStatus("In progress")).toBe(true);
     expect(isSubIssueStatus("In review")).toBe(true);
     expect(isSubIssueStatus("Done")).toBe(true);
   });
 
   test("returns false for parent-only statuses", () => {
     expect(isSubIssueStatus("Backlog")).toBe(false);
-    expect(isSubIssueStatus("In progress")).toBe(false);
+    // Note: "In progress" is true for BOTH parent and sub-issue (shared status)
     expect(isSubIssueStatus("Blocked")).toBe(false);
     expect(isSubIssueStatus("Error")).toBe(false);
   });

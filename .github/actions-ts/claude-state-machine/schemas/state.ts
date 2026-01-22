@@ -4,17 +4,16 @@ import { z } from "zod";
  * Project field values for Status single-select field
  *
  * NOTE: These must match the exact option names in the GitHub Project.
- * GitHub project has: Backlog, In progress, Ready, Working, In review, Done
+ * GitHub project has: Backlog, In progress, Ready, In review, Done, Blocked, Error
  * (note lowercase "progress" and "In review" not "Review")
  *
  * Parent issues use: Backlog, In progress, Done, Blocked, Error
- * Sub-issues use: Ready, Working, In review, Done
+ * Sub-issues use: Ready, In progress, In review, Done
  */
 export const ProjectStatusSchema = z.enum([
   "Backlog",
   "In progress",
   "Ready",
-  "Working",
   "In review",
   "Done",
   "Blocked",
@@ -340,7 +339,7 @@ export function isParentStatus(status: ProjectStatus): boolean {
 export function isSubIssueStatus(status: ProjectStatus): boolean {
   return (
     status === "Ready" ||
-    status === "Working" ||
+    status === "In progress" ||
     status === "In review" ||
     status === "Done"
   );

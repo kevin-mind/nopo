@@ -1714,10 +1714,285 @@ async function resetIssue(
     }
   }
 
-  core.info(
-    `Reset complete: ${resetCount} issues re-opened, statuses updated`,
-  );
+  core.info(`Reset complete: ${resetCount} issues re-opened, statuses updated`);
   return { reset_count: resetCount };
+}
+
+/**
+ * Close an issue and all its sub-issues, setting statuses to Done
+ *
+ * This is useful for quickly closing an issue tree without going through
+ * the normal workflow.
+ */
+async function closeIssueAndSubIssues(
+  octokit: ReturnType<typeof github.getOctokit>,
+  owner: string,
+  repo: string,
+  issueNumber: number,
+  projectNumber: number,
+): Promise<{ close_count: number }> {
+  core.info(`Closing issue #${issueNumber} and all sub-issues`);
+  let closeCount = 0;
+
+  // Get project fields
+  interface ProjectQueryResponse {
+    organization?: {
+      projectV2?: unknown;
+    };
+  }
+
+  let projectFields: ProjectFields | null = null;
+
+  try {
+    const projectResponse = await octokit.graphql<ProjectQueryResponse>(
+      `query GetProjectFields($org: String!, $projectNumber: Int!) {
+        organization(login: $org) {
+          projectV2(number: $projectNumber) {
+            id
+            fields(first: 20) {
+              nodes {
+                ... on ProjectV2SingleSelectField {
+                  id
+                  name
+                  options {
+                    id
+                    name
+                  }
+                }
+                ... on ProjectV2Field {
+                  id
+                  name
+                  dataType
+                }
+              }
+            }
+          }
+        }
+      }`,
+      {
+        org: owner,
+        projectNumber,
+      },
+    );
+
+    const projectData = projectResponse.organization?.projectV2;
+    projectFields = parseProjectFields(projectData);
+  } catch (error) {
+    core.warning(
+      `Could not access project #${projectNumber}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  // Get sub-issues first
+  interface SubIssuesResponse {
+    repository?: {
+      issue?: {
+        subIssues?: {
+          nodes?: Array<{
+            number?: number;
+            state?: string;
+          }>;
+        };
+      };
+    };
+  }
+
+  const subResponse = await octokit.graphql<SubIssuesResponse>(
+    GET_SUB_ISSUES_QUERY,
+    {
+      org: owner,
+      repo,
+      parentNumber: issueNumber,
+    },
+  );
+
+  const subIssues = subResponse.repository?.issue?.subIssues?.nodes || [];
+
+  // Close all sub-issues first
+  for (const subIssue of subIssues) {
+    if (subIssue.number) {
+      // Set status to Done
+      if (projectFields) {
+        await setIssueProjectStatus(
+          octokit,
+          owner,
+          repo,
+          subIssue.number,
+          "Done",
+          projectFields,
+        );
+        core.info(`Set sub-issue #${subIssue.number} status to Done`);
+      }
+
+      // Close if open
+      const { data: subIssueData } = await octokit.rest.issues.get({
+        owner,
+        repo,
+        issue_number: subIssue.number,
+      });
+
+      if (subIssueData.state === "open") {
+        core.info(`Closing sub-issue #${subIssue.number}`);
+        await octokit.rest.issues.update({
+          owner,
+          repo,
+          issue_number: subIssue.number,
+          state: "closed",
+          state_reason: "completed",
+        });
+        closeCount++;
+      }
+    }
+  }
+
+  // Set parent status to Done
+  if (projectFields) {
+    await setIssueProjectStatus(
+      octokit,
+      owner,
+      repo,
+      issueNumber,
+      "Done",
+      projectFields,
+    );
+    core.info(`Set parent issue #${issueNumber} status to Done`);
+  }
+
+  // Close parent issue
+  const { data: issue } = await octokit.rest.issues.get({
+    owner,
+    repo,
+    issue_number: issueNumber,
+  });
+
+  if (issue.state === "open") {
+    core.info(`Closing parent issue #${issueNumber}`);
+    await octokit.rest.issues.update({
+      owner,
+      repo,
+      issue_number: issueNumber,
+      state: "closed",
+      state_reason: "completed",
+    });
+    closeCount++;
+  }
+
+  return { close_count: closeCount };
+}
+
+/**
+ * Delete an issue and all its sub-issues
+ *
+ * IMPORTANT: This permanently deletes the issues and cannot be undone!
+ * Only works for issues with the _e2e label to prevent accidental deletion
+ * of real issues.
+ */
+async function deleteIssueAndSubIssues(
+  octokit: ReturnType<typeof github.getOctokit>,
+  owner: string,
+  repo: string,
+  issueNumber: number,
+): Promise<{ delete_count: number }> {
+  core.info(`Deleting issue #${issueNumber} and all sub-issues`);
+  let deleteCount = 0;
+
+  // SAFETY CHECK: Verify the issue has the _e2e label
+  const { data: issue } = await octokit.rest.issues.get({
+    owner,
+    repo,
+    issue_number: issueNumber,
+  });
+
+  const labels = issue.labels.map((l) =>
+    typeof l === "string" ? l : l.name || "",
+  );
+
+  if (!labels.includes("_e2e")) {
+    throw new Error(
+      `SAFETY: Refusing to delete issue #${issueNumber} - it does not have the _e2e label. ` +
+        `Labels found: [${labels.join(", ")}]. ` +
+        `Only issues with the _e2e label can be deleted to prevent accidentally deleting real issues.`,
+    );
+  }
+
+  // Get sub-issues
+  interface SubIssuesResponse {
+    repository?: {
+      issue?: {
+        subIssues?: {
+          nodes?: Array<{
+            number?: number;
+            node_id?: string;
+          }>;
+        };
+      };
+    };
+  }
+
+  const subResponse = await octokit.graphql<SubIssuesResponse>(
+    `query GetSubIssues($org: String!, $repo: String!, $parentNumber: Int!) {
+      repository(owner: $org, name: $repo) {
+        issue(number: $parentNumber) {
+          subIssues(first: 20) {
+            nodes {
+              number
+              node_id: id
+            }
+          }
+        }
+      }
+    }`,
+    {
+      org: owner,
+      repo,
+      parentNumber: issueNumber,
+    },
+  );
+
+  const subIssues = subResponse.repository?.issue?.subIssues?.nodes || [];
+
+  // Delete all sub-issues first
+  for (const subIssue of subIssues) {
+    if (subIssue.node_id) {
+      core.info(`Deleting sub-issue #${subIssue.number}`);
+      try {
+        await octokit.graphql(
+          `mutation DeleteIssue($issueId: ID!) {
+            deleteIssue(input: { issueId: $issueId }) {
+              clientMutationId
+            }
+          }`,
+          { issueId: subIssue.node_id },
+        );
+        deleteCount++;
+      } catch (error) {
+        core.warning(
+          `Failed to delete sub-issue #${subIssue.number}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+  }
+
+  // Delete parent issue
+  core.info(`Deleting parent issue #${issueNumber}`);
+  try {
+    await octokit.graphql(
+      `mutation DeleteIssue($issueId: ID!) {
+        deleteIssue(input: { issueId: $issueId }) {
+          clientMutationId
+        }
+      }`,
+      { issueId: issue.node_id },
+    );
+    deleteCount++;
+  } catch (error) {
+    core.warning(
+      `Failed to delete parent issue #${issueNumber}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    throw error;
+  }
+
+  return { delete_count: deleteCount };
 }
 
 /**
@@ -1932,6 +2207,41 @@ async function run(): Promise<void> {
       setOutputs({
         success: "true",
         reset_count: String(result.reset_count),
+      });
+      return;
+    }
+
+    if (action === "close") {
+      const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
+
+      const result = await closeIssueAndSubIssues(
+        octokit,
+        owner,
+        repo,
+        issueNumber,
+        projectNumber,
+      );
+
+      setOutputs({
+        success: "true",
+        close_count: String(result.close_count),
+      });
+      return;
+    }
+
+    if (action === "delete") {
+      const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
+
+      const result = await deleteIssueAndSubIssues(
+        octokit,
+        owner,
+        repo,
+        issueNumber,
+      );
+
+      setOutputs({
+        success: "true",
+        delete_count: String(result.delete_count),
       });
       return;
     }

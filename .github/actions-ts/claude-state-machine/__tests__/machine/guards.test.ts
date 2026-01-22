@@ -48,7 +48,7 @@ describe("Terminal State Guards", () => {
 
     test("returns false for other statuses", () => {
       const context = createContext({
-        issue: { projectStatus: "Working" },
+        issue: { projectStatus: "In progress" },
       } as any);
       expect(isAlreadyDone({ context })).toBe(false);
     });
@@ -103,7 +103,7 @@ describe("Terminal State Guards", () => {
 
     test("returns false for non-terminal statuses", () => {
       const context = createContext({
-        issue: { projectStatus: "Working" },
+        issue: { projectStatus: "In progress" },
       } as any);
       expect(isTerminal({ context })).toBe(false);
     });
@@ -182,7 +182,7 @@ describe("Sub-Issue Guards", () => {
               title: "Phase 2",
               state: "OPEN",
               body: "",
-              projectStatus: "Working",
+              projectStatus: "In progress",
               branch: null,
               pr: null,
               todos: { total: 1, completed: 0, uncheckedNonManual: 1 },
@@ -203,7 +203,7 @@ describe("Sub-Issue Guards", () => {
               title: "Phase 1",
               state: "CLOSED",
               body: "",
-              projectStatus: "Working",
+              projectStatus: "In progress",
               branch: null,
               pr: null,
               todos: { total: 1, completed: 1, uncheckedNonManual: 0 },
@@ -244,7 +244,7 @@ describe("Phase State Guards", () => {
 
     test("returns false when not in review", () => {
       const context = createContext({
-        issue: { projectStatus: "Working" },
+        issue: { projectStatus: "In progress" },
         currentSubIssue: null,
       } as any);
       expect(isInReview({ context })).toBe(false);
@@ -252,14 +252,14 @@ describe("Phase State Guards", () => {
   });
 
   describe("currentPhaseNeedsWork", () => {
-    test("returns true when currentSubIssue status is Working", () => {
+    test("returns true when currentSubIssue status is In progress", () => {
       const context = createContext({
         currentSubIssue: {
           number: 1,
           title: "Phase 1",
           state: "OPEN",
           body: "",
-          projectStatus: "Working",
+          projectStatus: "In progress",
           branch: null,
           pr: null,
           todos: { total: 1, completed: 0, uncheckedNonManual: 1 },
@@ -284,9 +284,9 @@ describe("Phase State Guards", () => {
       expect(currentPhaseNeedsWork({ context })).toBe(true);
     });
 
-    test("returns true when issue status is Working (no sub-issue)", () => {
+    test("returns true when issue status is In progress (no sub-issue)", () => {
       const context = createContext({
-        issue: { projectStatus: "Working" },
+        issue: { projectStatus: "In progress" },
         currentSubIssue: null,
       } as any);
       expect(currentPhaseNeedsWork({ context })).toBe(true);
@@ -303,7 +303,7 @@ describe("Todo Guards", () => {
           title: "Phase 1",
           state: "OPEN",
           body: "",
-          projectStatus: "Working",
+          projectStatus: "In progress",
           branch: null,
           pr: null,
           todos: { total: 3, completed: 2, uncheckedNonManual: 0 },
@@ -319,7 +319,7 @@ describe("Todo Guards", () => {
           title: "Phase 1",
           state: "OPEN",
           body: "",
-          projectStatus: "Working",
+          projectStatus: "In progress",
           branch: null,
           pr: null,
           todos: { total: 3, completed: 1, uncheckedNonManual: 2 },
@@ -621,7 +621,7 @@ describe("Composite Guards", () => {
           title: "Phase 1",
           state: "OPEN",
           body: "",
-          projectStatus: "Working",
+          projectStatus: "In progress",
           branch: null,
           pr: null,
           todos: { total: 3, completed: 3, uncheckedNonManual: 0 },
@@ -638,7 +638,7 @@ describe("Composite Guards", () => {
           title: "Phase 1",
           state: "OPEN",
           body: "",
-          projectStatus: "Working",
+          projectStatus: "In progress",
           branch: null,
           pr: null,
           todos: { total: 3, completed: 1, uncheckedNonManual: 2 },
@@ -655,7 +655,7 @@ describe("Composite Guards", () => {
           title: "Phase 1",
           state: "OPEN",
           body: "",
-          projectStatus: "Working",
+          projectStatus: "In progress",
           branch: null,
           pr: null,
           todos: { total: 3, completed: 3, uncheckedNonManual: 0 },

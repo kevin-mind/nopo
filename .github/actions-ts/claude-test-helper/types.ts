@@ -7,13 +7,13 @@
 
 /**
  * Project status values used in the state machine
+ * NOTE: These must match the exact values in the GitHub Project
  */
 export type ProjectStatus =
   | "Backlog"
-  | "In Progress"
+  | "In progress"
   | "Ready"
-  | "Working"
-  | "Review"
+  | "In review"
   | "Done"
   | "Blocked"
   | "Error";

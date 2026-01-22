@@ -101,7 +101,7 @@ describe("claude-test-helper types", () => {
 
       const subIssueStatuses: ProjectStatus[] = [
         "Ready",
-        "Working",
+        "In progress",
         "Review",
         "Done",
       ];
@@ -130,14 +130,14 @@ describe("claude-test-helper types", () => {
         body: "Body",
         labels: ["bug"],
         project_fields: {
-          Status: "Working",
+          Status: "In progress",
           Iteration: 5,
           Failures: 2,
         },
       };
 
       expect(config.labels).toHaveLength(1);
-      expect(config.project_fields?.Status).toBe("Working");
+      expect(config.project_fields?.Status).toBe("In progress");
     });
   });
 
@@ -157,11 +157,11 @@ describe("claude-test-helper types", () => {
         title: "Phase 1",
         body: "Content",
         project_fields: {
-          Status: "Working",
+          Status: "In progress",
         },
       };
 
-      expect(config.project_fields?.Status).toBe("Working");
+      expect(config.project_fields?.Status).toBe("In progress");
     });
   });
 
@@ -248,7 +248,7 @@ describe("fixture validation", () => {
           title: "Implement feature",
           body: "## Todos\n\n- [ ] Add feature code\n- [ ] Add tests",
           project_fields: {
-            Status: "Working",
+            Status: "In progress",
           },
         },
       ],
@@ -282,7 +282,7 @@ describe("fixture validation", () => {
           title: "Implement failing feature",
           body: "## Todos\n\n- [ ] Add broken code",
           project_fields: {
-            Status: "Working",
+            Status: "In progress",
           },
         },
       ],
@@ -315,7 +315,7 @@ describe("fixture validation", () => {
         {
           title: "Phase 1: Setup",
           body: "## Todos\n\n- [ ] Setup infrastructure",
-          project_fields: { Status: "Working" },
+          project_fields: { Status: "In progress" },
         },
         {
           title: "Phase 2: Core",

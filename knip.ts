@@ -39,7 +39,7 @@ export default {
       entry: "bin.ts",
     },
     ".github/actions-ts": {
-      entry: ["*/index.ts", "lib/index.ts"],
+      entry: ["*/index.ts", "lib/index.ts", "scripts/*.ts", "*/scripts/*.ts"],
       vitest: true,
       ignore: ["*/dist/**"],
       ignoreDependencies: ["@actions/glob", "@actions/io"],

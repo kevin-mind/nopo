@@ -30,7 +30,7 @@ interface ActionsAccumulator {
 // ============================================================================
 
 /**
- * Emit action to set status to Working
+ * Emit action to set status to In progress (for sub-issues being worked on)
  */
 export function emitSetWorking({ context }: ActionContext): ActionResult {
   const issueNumber = context.currentSubIssue?.number ?? context.issue.number;
@@ -38,7 +38,7 @@ export function emitSetWorking({ context }: ActionContext): ActionResult {
     {
       type: "updateProjectStatus",
       issueNumber,
-      status: "Working" as ProjectStatus,
+      status: "In progress" as ProjectStatus,
     },
   ];
 }
@@ -729,7 +729,7 @@ export function emitAssignToSubIssue({ context }: ActionContext): ActionResult {
 
 /**
  * Emit actions to initialize parent issue for orchestration
- * Sets parent to "In progress" and first sub-issue to "Working"
+ * Sets parent to "In progress" and first sub-issue to "In progress"
  */
 export function emitInitializeParent({ context }: ActionContext): ActionResult {
   const actions: Action[] = [];
@@ -741,13 +741,13 @@ export function emitInitializeParent({ context }: ActionContext): ActionResult {
     status: "In progress" as ProjectStatus,
   });
 
-  // Set first sub-issue to "Working"
+  // Set first sub-issue to "In progress"
   const firstSubIssue = context.issue.subIssues[0];
   if (firstSubIssue) {
     actions.push({
       type: "updateProjectStatus",
       issueNumber: firstSubIssue.number,
-      status: "Working" as ProjectStatus,
+      status: "In progress" as ProjectStatus,
     });
   }
 
@@ -764,7 +764,7 @@ export function emitInitializeParent({ context }: ActionContext): ActionResult {
 
 /**
  * Emit actions to advance to next phase
- * Marks current phase Done, sets next phase to Working
+ * Marks current phase Done, sets next phase to In progress
  */
 export function emitAdvancePhase({ context }: ActionContext): ActionResult {
   const actions: Action[] = [];
@@ -792,11 +792,11 @@ export function emitAdvancePhase({ context }: ActionContext): ActionResult {
   const nextSubIssue = context.issue.subIssues[nextPhase - 1]; // 0-indexed
 
   if (nextSubIssue) {
-    // Set next sub-issue to Working
+    // Set next sub-issue to In progress
     actions.push({
       type: "updateProjectStatus",
       issueNumber: nextSubIssue.number,
-      status: "Working" as ProjectStatus,
+      status: "In progress" as ProjectStatus,
     });
 
     // Log phase advancement

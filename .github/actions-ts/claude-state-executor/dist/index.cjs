@@ -27950,7 +27950,6 @@ var ProjectStatusSchema = external_exports.enum([
   "Backlog",
   "In progress",
   "Ready",
-  "Working",
   "In review",
   "Done",
   "Blocked",
