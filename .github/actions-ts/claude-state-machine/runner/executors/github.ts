@@ -173,9 +173,8 @@ export async function executeAppendHistory(
 
   const currentBody = response.repository?.issue?.body || "";
 
-  // Get current iteration (we don't have it in the action, so we'll use 0 as default)
-  // In a real implementation, this would come from the context
-  const iteration = 0;
+  // Use iteration from action if provided, otherwise default to 0
+  const iteration = action.iteration ?? 0;
 
   const repoUrl = `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}`;
   // Auto-generate timestamp if not provided

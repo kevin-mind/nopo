@@ -28170,6 +28170,8 @@ var CloseIssueActionSchema = BaseActionSchema.extend({
 var AppendHistoryActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("appendHistory"),
   issueNumber: external_exports.number().int().positive(),
+  /** Iteration number from project field */
+  iteration: external_exports.number().int().min(0).optional(),
   phase: external_exports.string(),
   message: external_exports.string(),
   /** ISO 8601 timestamp of when the workflow started */
@@ -29042,7 +29044,7 @@ async function executeAppendHistory(action, ctx) {
     }
   );
   const currentBody = response.repository?.issue?.body || "";
-  const iteration = 0;
+  const iteration = action.iteration ?? 0;
   const repoUrl = `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}`;
   const timestamp = action.timestamp || (/* @__PURE__ */ new Date()).toISOString();
   const newBody = addHistoryEntry(

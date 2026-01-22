@@ -126,6 +126,8 @@ export type CloseIssueAction = z.infer<typeof CloseIssueActionSchema>;
 export const AppendHistoryActionSchema = BaseActionSchema.extend({
   type: z.literal("appendHistory"),
   issueNumber: z.number().int().positive(),
+  /** Iteration number from project field */
+  iteration: z.number().int().min(0).optional(),
   phase: z.string(),
   message: z.string(),
   /** ISO 8601 timestamp of when the workflow started */

@@ -31438,6 +31438,8 @@ var CloseIssueActionSchema = BaseActionSchema.extend({
 var AppendHistoryActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("appendHistory"),
   issueNumber: external_exports.number().int().positive(),
+  /** Iteration number from project field */
+  iteration: external_exports.number().int().min(0).optional(),
   phase: external_exports.string(),
   message: external_exports.string(),
   /** ISO 8601 timestamp of when the workflow started */
@@ -32228,6 +32230,7 @@ function emitAppendHistory({ context: context2 }, message, phase) {
       type: "appendHistory",
       token: "code",
       issueNumber: context2.issue.number,
+      iteration: context2.iteration,
       phase: String(phaseStr),
       message,
       timestamp: context2.workflowStartedAt ?? void 0,
@@ -32571,6 +32574,7 @@ function emitInitializeParent({ context: context2 }) {
     type: "appendHistory",
     token: "code",
     issueNumber: context2.issue.number,
+    iteration: context2.iteration,
     phase: "1",
     message: `\u{1F680} Initialized with ${context2.issue.subIssues.length} phase(s)`,
     timestamp: context2.workflowStartedAt ?? void 0
@@ -32607,6 +32611,7 @@ function emitAdvancePhase({ context: context2 }) {
       type: "appendHistory",
       token: "code",
       issueNumber: context2.issue.number,
+      iteration: context2.iteration,
       phase: String(nextPhase),
       message: `\u23ED\uFE0F Phase ${nextPhase} started`,
       timestamp: context2.workflowStartedAt ?? void 0
@@ -32676,6 +32681,7 @@ function emitAllPhasesDone({ context: context2 }) {
     type: "appendHistory",
     token: "code",
     issueNumber: context2.issue.number,
+    iteration: context2.iteration,
     phase: "-",
     message: "\u2705 All phases complete",
     timestamp: context2.workflowStartedAt ?? void 0
@@ -32761,6 +32767,7 @@ function emitHistoryToBothIssues({
     type: "appendHistory",
     token: "code",
     issueNumber: targetIssue,
+    iteration: context2.iteration,
     phase,
     message,
     timestamp: context2.workflowStartedAt ?? void 0,
@@ -32772,6 +32779,7 @@ function emitHistoryToBothIssues({
       type: "appendHistory",
       token: "code",
       issueNumber: parentIssue,
+      iteration: context2.iteration,
       phase,
       // Same phase column - shows which phase this came from
       message,
@@ -34032,10 +34040,12 @@ function buildEventFromInputs(owner, repo, trigger, issueNumber, options) {
 }
 async function run() {
   try {
+    const mode = getOptionalInput("mode") || "derive";
     const token = getRequiredInput("github_token");
     const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
     const projectNumber = parseInt(getRequiredInput("project_number"), 10);
-    const trigger = parseTrigger(getRequiredInput("trigger"));
+    const triggerInput = mode === "context" ? getOptionalInput("trigger") || "issue_edited" : getRequiredInput("trigger");
+    const trigger = parseTrigger(triggerInput);
     const ciResult = parseCIResult(getOptionalInput("ci_result"));
     const ciRunUrl = getOptionalInput("ci_run_url") || null;
     const ciCommitSha = getOptionalInput("ci_commit_sha") || null;
@@ -34050,6 +34060,7 @@ async function run() {
     const botUsername = getOptionalInput("bot_username") || "nopo-bot";
     const workflowStartedAt = getOptionalInput("workflow_started_at") || (/* @__PURE__ */ new Date()).toISOString();
     core2.info(`Claude State Machine starting...`);
+    core2.info(`Mode: ${mode}`);
     core2.info(`Issue: #${issueNumber}`);
     core2.info(`Project: ${projectNumber}`);
     core2.info(`Trigger: ${trigger}`);
@@ -34085,6 +34096,24 @@ async function run() {
       `Sub-issues: ${context2.issue.hasSubIssues ? context2.issue.subIssues.length : 0}`
     );
     core2.info(`Current phase: ${context2.currentPhase || "N/A"}`);
+    core2.info(`Iteration: ${context2.iteration}`);
+    const iteration = String(context2.iteration);
+    const phase = context2.currentPhase !== null ? String(context2.currentPhase) : "-";
+    const parentIssueNumber = String(context2.parentIssue?.number || context2.issue.number);
+    if (mode === "context") {
+      core2.info("Context-only mode - skipping state machine");
+      setOutputs({
+        actions_json: "[]",
+        final_state: "context_only",
+        transition_name: "Context Only",
+        context_json: JSON.stringify(context2),
+        action_count: "0",
+        iteration,
+        phase,
+        parent_issue_number: parentIssueNumber
+      });
+      return;
+    }
     const actor = createActor(claudeMachine, { input: context2 });
     actor.start();
     const snapshot = actor.getSnapshot();
@@ -34103,7 +34132,10 @@ async function run() {
       final_state: finalState,
       transition_name: transitionName,
       context_json: JSON.stringify(context2),
-      action_count: String(pendingActions.length)
+      action_count: String(pendingActions.length),
+      iteration,
+      phase,
+      parent_issue_number: parentIssueNumber
     });
     actor.stop();
   } catch (error) {

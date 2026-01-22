@@ -347,10 +347,15 @@ function buildEventFromInputs(
 async function run(): Promise<void> {
   try {
     // Parse inputs
+    const mode = getOptionalInput("mode") || "derive";
     const token = getRequiredInput("github_token");
     const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
     const projectNumber = parseInt(getRequiredInput("project_number"), 10);
-    const trigger = parseTrigger(getRequiredInput("trigger"));
+    // Trigger is required for derive mode, optional for context mode
+    const triggerInput = mode === "context"
+      ? getOptionalInput("trigger") || "issue_edited"
+      : getRequiredInput("trigger");
+    const trigger = parseTrigger(triggerInput);
     const ciResult = parseCIResult(getOptionalInput("ci_result"));
     const ciRunUrl = getOptionalInput("ci_run_url") || null;
     const ciCommitSha = getOptionalInput("ci_commit_sha") || null;
@@ -372,6 +377,7 @@ async function run(): Promise<void> {
       getOptionalInput("workflow_started_at") || new Date().toISOString();
 
     core.info(`Claude State Machine starting...`);
+    core.info(`Mode: ${mode}`);
     core.info(`Issue: #${issueNumber}`);
     core.info(`Project: ${projectNumber}`);
     core.info(`Trigger: ${trigger}`);
@@ -416,6 +422,28 @@ async function run(): Promise<void> {
       `Sub-issues: ${context.issue.hasSubIssues ? context.issue.subIssues.length : 0}`,
     );
     core.info(`Current phase: ${context.currentPhase || "N/A"}`);
+    core.info(`Iteration: ${context.iteration}`);
+
+    // Extract commonly needed context values
+    const iteration = String(context.iteration);
+    const phase = context.currentPhase !== null ? String(context.currentPhase) : "-";
+    const parentIssueNumber = String(context.parentIssue?.number || context.issue.number);
+
+    // Context-only mode: return context without running state machine
+    if (mode === "context") {
+      core.info("Context-only mode - skipping state machine");
+      setOutputs({
+        actions_json: "[]",
+        final_state: "context_only",
+        transition_name: "Context Only",
+        context_json: JSON.stringify(context),
+        action_count: "0",
+        iteration,
+        phase,
+        parent_issue_number: parentIssueNumber,
+      });
+      return;
+    }
 
     // Create and run the state machine
     const actor = createActor(claudeMachine, { input: context });
@@ -448,6 +476,9 @@ async function run(): Promise<void> {
       transition_name: transitionName,
       context_json: JSON.stringify(context),
       action_count: String(pendingActions.length),
+      iteration,
+      phase,
+      parent_issue_number: parentIssueNumber,
     });
 
     // Stop the actor

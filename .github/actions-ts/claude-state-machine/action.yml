@@ -2,6 +2,10 @@ name: Claude State Machine
 description: Run state machine to derive actions from issue state (does not execute actions)
 
 inputs:
+  mode:
+    description: 'Operation mode: "derive" runs full state machine, "context" only fetches context'
+    required: false
+    default: "derive"
   github_token:
     description: GitHub token for API operations (read-only)
     required: true
@@ -61,6 +65,12 @@ outputs:
     description: Full machine context as JSON (for debugging)
   action_count:
     description: Number of actions derived
+  iteration:
+    description: Current iteration number from project field
+  phase:
+    description: Current phase number (or "-" if no phases)
+  parent_issue_number:
+    description: Parent issue number (same as issue_number if no parent)
 
 runs:
   using: node20

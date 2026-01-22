@@ -111,10 +111,39 @@ permissions:
 
 jobs:
   # ============================================================================
-  # Phase 0: Log Run Start
+  # Phase 0a: Derive Context
+  # Fetches issue context (iteration, phase) for use in logging
+  # ============================================================================
+  derive-context:
+    runs-on: ubuntu-latest
+    outputs:
+      iteration: ${{ steps.context.outputs.iteration }}
+      phase: ${{ steps.context.outputs.phase }}
+      parent_issue_number: ${{ steps.context.outputs.parent_issue_number }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Fetch Context
+        id: context
+        uses: ./.github/actions-ts/claude-state-machine
+        with:
+          mode: context
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+          issue_number: ${{ inputs.issue_number }}
+
+  # ============================================================================
+  # Phase 0b: Log Run Start
   # Appends history entry with loading emoji and workflow link
   # ============================================================================
   log-run-start:
+    needs: [derive-context]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -133,8 +162,9 @@ jobs:
           actions_json: |
             [{
               "type": "appendHistory",
-              "issueNumber": ${{ inputs.parent_issue_number || inputs.issue_number }},
-              "phase": "-",
+              "issueNumber": ${{ needs.derive-context.outputs.parent_issue_number || inputs.parent_issue_number || inputs.issue_number }},
+              "iteration": ${{ needs.derive-context.outputs.iteration || 0 }},
+              "phase": "${{ needs.derive-context.outputs.phase || '-' }}",
               "message": "⏳ running...",
               "runLink": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }]
@@ -145,7 +175,7 @@ jobs:
   # Runs the state machine to determine what actions to execute
   # ============================================================================
   derive-actions:
-    needs: [log-run-start]
+    needs: [log-run-start, derive-context]
     runs-on: ubuntu-latest
     outputs:
       final_state: ${{ steps.machine.outputs.final_state }}
@@ -153,6 +183,9 @@ jobs:
       actions_json: ${{ steps.machine.outputs.actions_json }}
       action_count: ${{ steps.machine.outputs.action_count }}
       actions_matrix: ${{ steps.format.outputs.matrix }}
+      iteration: ${{ steps.machine.outputs.iteration }}
+      phase: ${{ steps.machine.outputs.phase }}
+      parent_issue_number: ${{ steps.machine.outputs.parent_issue_number }}
 
     steps:
       - name: Checkout repository
@@ -401,7 +434,7 @@ jobs:
   # Updates history entry with outcome
   # ============================================================================
   log-run-end:
-    needs: [log-run-start, derive-actions, exec-state-actions]
+    needs: [derive-context, log-run-start, derive-actions, exec-state-actions]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -448,9 +481,9 @@ jobs:
           actions_json: |
             [{
               "type": "updateHistory",
-              "issueNumber": ${{ inputs.parent_issue_number || inputs.issue_number }},
-              "matchIteration": 0,
-              "matchPhase": "-",
+              "issueNumber": ${{ needs.derive-context.outputs.parent_issue_number || inputs.parent_issue_number || inputs.issue_number }},
+              "matchIteration": ${{ needs.derive-context.outputs.iteration || 0 }},
+              "matchPhase": "${{ needs.derive-context.outputs.phase || '-' }}",
               "matchPattern": "⏳ running...",
               "newMessage": "${{ steps.outcome.outputs.emoji }} ${{ steps.outcome.outputs.transition }}",
               "runLink": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
