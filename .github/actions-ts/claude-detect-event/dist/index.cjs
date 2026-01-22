@@ -24843,6 +24843,95 @@ async function handleDiscussionEvent() {
   }
   return emptyResult(true, `Unhandled discussion action: ${action}`);
 }
+async function handleMergeGroupEvent(octokit, owner, repo) {
+  const { context } = github;
+  const payload = context.payload;
+  const mergeGroup = payload.merge_group;
+  const headRef = mergeGroup.head_ref;
+  const prMatches = headRef.match(/pr-(\d+)/g);
+  if (!prMatches || prMatches.length === 0) {
+    return emptyResult(true, "No PR found in merge queue branch");
+  }
+  const prMatch = prMatches[0].match(/pr-(\d+)/);
+  if (!prMatch || !prMatch[1]) {
+    return emptyResult(
+      true,
+      "Could not parse PR number from merge queue branch"
+    );
+  }
+  const prNumber = parseInt(prMatch[1], 10);
+  const prInfo = await fetchPrByBranch(owner, repo, `claude/issue/${prNumber}`);
+  let issueNumber = "";
+  if (prInfo.hasPr && prInfo.body) {
+    issueNumber = await extractIssueNumber(prInfo.body);
+  }
+  if (!issueNumber) {
+    const branchMatch = headRef.match(/claude\/issue\/(\d+)/);
+    if (branchMatch?.[1]) {
+      issueNumber = branchMatch[1];
+    }
+  }
+  if (!issueNumber) {
+    const { stdout, exitCode } = await execCommand(
+      "gh",
+      [
+        "pr",
+        "view",
+        String(prNumber),
+        "--repo",
+        `${owner}/${repo}`,
+        "--json",
+        "body,headRefName",
+        "--jq",
+        "."
+      ],
+      { ignoreReturnCode: true }
+    );
+    if (exitCode === 0 && stdout) {
+      try {
+        const prData = JSON.parse(stdout);
+        issueNumber = await extractIssueNumber(prData.body || "");
+        if (!issueNumber && prData.headRefName) {
+          const match = prData.headRefName.match(/^claude\/issue\/(\d+)/);
+          if (match?.[1]) {
+            issueNumber = match[1];
+          }
+        }
+      } catch {
+      }
+    }
+  }
+  if (!issueNumber) {
+    return emptyResult(true, "Could not find linked issue for merge queue PR");
+  }
+  const details = await fetchIssueDetails(
+    octokit,
+    owner,
+    repo,
+    parseInt(issueNumber, 10)
+  );
+  const parentIssue = details.isSubIssue ? String(details.parentIssue) : issueNumber;
+  const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+  const runId = process.env.GITHUB_RUN_ID || "";
+  const ciRunUrl = `${serverUrl}/${owner}/${repo}/actions/runs/${runId}`;
+  return {
+    job: "merge-queue-logging",
+    resourceType: "issue",
+    resourceNumber: issueNumber,
+    commentId: "",
+    contextJson: JSON.stringify({
+      issue_number: issueNumber,
+      parent_issue: parentIssue,
+      pr_number: String(prNumber),
+      trigger_type: "merge_queue_entered",
+      ci_run_url: ciRunUrl,
+      head_ref: headRef,
+      head_sha: mergeGroup.head_sha
+    }),
+    skip: false,
+    skipReason: ""
+  };
+}
 async function handleDiscussionCommentEvent() {
   const { context } = github;
   const payload = context.payload;
@@ -24960,6 +25049,9 @@ async function run() {
         break;
       case "discussion_comment":
         result = await handleDiscussionCommentEvent();
+        break;
+      case "merge_group":
+        result = await handleMergeGroupEvent(octokit, owner, repo);
         break;
       default:
         result = emptyResult(true, `Unhandled event: ${eventName}`);

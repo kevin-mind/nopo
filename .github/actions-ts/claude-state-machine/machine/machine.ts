@@ -31,6 +31,12 @@ import {
   emitAllPhasesDone,
   emitLog,
   emitStop,
+  // Merge queue logging actions
+  emitMergeQueueEntry,
+  emitMergeQueueFailure,
+  emitMerged,
+  emitDeployedStage,
+  emitDeployedProd,
 } from "./actions.js";
 
 /**
@@ -120,6 +126,17 @@ export const claudeMachine = setup({
       guards.triggeredByPRResponse({ context }),
     triggeredByPRHumanResponse: ({ context }) =>
       guards.triggeredByPRHumanResponse({ context }),
+    // Merge queue logging guards
+    triggeredByMergeQueueEntry: ({ context }) =>
+      guards.triggeredByMergeQueueEntry({ context }),
+    triggeredByMergeQueueFailure: ({ context }) =>
+      guards.triggeredByMergeQueueFailure({ context }),
+    triggeredByPRMerged: ({ context }) =>
+      guards.triggeredByPRMerged({ context }),
+    triggeredByDeployedStage: ({ context }) =>
+      guards.triggeredByDeployedStage({ context }),
+    triggeredByDeployedProd: ({ context }) =>
+      guards.triggeredByDeployedProd({ context }),
     needsTriage: ({ context }) => guards.needsTriage({ context }),
   },
   actions: {
@@ -383,6 +400,40 @@ export const claudeMachine = setup({
           emitStop({ context }, params.reason),
         ),
     }),
+
+    // Merge queue logging actions
+    logMergeQueueEntry: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(
+          context.pendingActions,
+          emitMergeQueueEntry({ context }),
+        ),
+    }),
+    logMergeQueueFailure: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(
+          context.pendingActions,
+          emitMergeQueueFailure({ context }),
+        ),
+    }),
+    logMerged: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(context.pendingActions, emitMerged({ context })),
+    }),
+    logDeployedStage: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(
+          context.pendingActions,
+          emitDeployedStage({ context }),
+        ),
+    }),
+    logDeployedProd: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(
+          context.pendingActions,
+          emitDeployedProd({ context }),
+        ),
+    }),
   },
 }).createMachine({
   id: "claude-automation",
@@ -403,6 +454,18 @@ export const claudeMachine = setup({
         { target: "done", guard: "isAlreadyDone" },
         { target: "blocked", guard: "isBlocked" },
         { target: "error", guard: "isError" },
+        // Merge queue logging events (handle early, they're log-only)
+        {
+          target: "mergeQueueLogging",
+          guard: "triggeredByMergeQueueEntry",
+        },
+        {
+          target: "mergeQueueFailureLogging",
+          guard: "triggeredByMergeQueueFailure",
+        },
+        { target: "mergedLogging", guard: "triggeredByPRMerged" },
+        { target: "deployedStageLogging", guard: "triggeredByDeployedStage" },
+        { target: "deployedProdLogging", guard: "triggeredByDeployedProd" },
         // Check if this is a triage request
         {
           target: "triaging",
@@ -737,6 +800,52 @@ export const claudeMachine = setup({
      * Unrecoverable error
      */
     error: {
+      type: "final",
+    },
+
+    // =========================================================================
+    // Merge Queue Logging States
+    // =========================================================================
+    // These states handle logging of merge queue, merge, and deployment events
+    // They emit history entries to both sub-issue AND parent issue for visibility
+
+    /**
+     * Log merge queue entry event
+     */
+    mergeQueueLogging: {
+      entry: ["logMergeQueueEntry"],
+      type: "final",
+    },
+
+    /**
+     * Log merge queue failure event
+     */
+    mergeQueueFailureLogging: {
+      entry: ["logMergeQueueFailure"],
+      type: "final",
+    },
+
+    /**
+     * Log PR merged event
+     */
+    mergedLogging: {
+      entry: ["logMerged"],
+      type: "final",
+    },
+
+    /**
+     * Log stage deployment event
+     */
+    deployedStageLogging: {
+      entry: ["logDeployedStage"],
+      type: "final",
+    },
+
+    /**
+     * Log production deployment event
+     */
+    deployedProdLogging: {
+      entry: ["logDeployedProd"],
       type: "final",
     },
 

@@ -117,6 +117,63 @@ interface WorkflowRunCompletedEvent extends BaseEvent {
 }
 
 // ============================================================================
+// Merge Queue Logging Events
+// ============================================================================
+
+/**
+ * Merge queue entry event - PR added to merge queue
+ */
+interface MergeQueueEnteredEvent extends BaseEvent {
+  type: "merge_queue_entered";
+  prNumber: number;
+  issueNumber: number;
+  parentIssueNumber?: number;
+  headRef: string;
+}
+
+/**
+ * Merge queue failure event - PR removed from queue due to failure
+ */
+interface MergeQueueFailedEvent extends BaseEvent {
+  type: "merge_queue_failed";
+  prNumber: number;
+  issueNumber: number;
+  parentIssueNumber?: number;
+  failureReason: string;
+}
+
+/**
+ * PR merged event - PR merged to main
+ */
+interface PRMergedEvent extends BaseEvent {
+  type: "pr_merged";
+  prNumber: number;
+  issueNumber: number;
+  parentIssueNumber?: number;
+  commitSha: string;
+}
+
+/**
+ * Stage deployment event - deployed to staging
+ */
+interface DeployedStageEvent extends BaseEvent {
+  type: "deployed_stage";
+  issueNumber: number;
+  parentIssueNumber?: number;
+  commitSha: string;
+}
+
+/**
+ * Production deployment event - released to production
+ */
+interface DeployedProdEvent extends BaseEvent {
+  type: "deployed_prod";
+  issueNumber: number;
+  parentIssueNumber?: number;
+  commitSha: string;
+}
+
+// ============================================================================
 // Union Type of All Events
 // ============================================================================
 
@@ -131,7 +188,12 @@ export type GitHubEvent =
   | PRReviewRequestedEvent
   | PRReviewSubmittedEvent
   | PRPushEvent
-  | WorkflowRunCompletedEvent;
+  | WorkflowRunCompletedEvent
+  | MergeQueueEnteredEvent
+  | MergeQueueFailedEvent
+  | PRMergedEvent
+  | DeployedStageEvent
+  | DeployedProdEvent;
 
 /**
  * Map event type to trigger type

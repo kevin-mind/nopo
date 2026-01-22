@@ -9,6 +9,7 @@ run-name: >-
     github.event_name == 'pull_request' && format('Claude - PR #{0}', github.event.pull_request.number) ||
     github.event_name == 'pull_request_review' && format('Claude - review on PR #{0}', github.event.pull_request.number) ||
     github.event_name == 'workflow_run' && format('Claude - CI {0} on {1}', github.event.workflow_run.conclusion, github.event.workflow_run.head_branch) ||
+    github.event_name == 'merge_group' && format('Claude - merge queue {0}', github.event.merge_group.head_ref) ||
     github.event_name == 'discussion' && format('Claude - discussion #{0}', github.event.discussion.number) ||
     github.event_name == 'discussion_comment' && format('Claude - discussion #{0}', github.event.discussion.number) ||
     'Claude'
@@ -60,6 +61,9 @@ run-name: >-
   discussion_comment:
     types:
       - created
+  merge_group:
+    types:
+      - checks_requested
   workflow_dispatch:
     inputs:
       action:
@@ -72,6 +76,10 @@ run-name: >-
           - triage
           - orchestrate
           - review
+          - merged
+          - deployed_stage
+          - deployed_prod
+          - queue_failure
           - discussion-research
           - discussion-respond
           - discussion-summarize
@@ -90,6 +98,21 @@ run-name: >-
         required: false
         type: boolean
         default: true
+      failure_reason:
+        description: Failure reason for queue_failure action
+        required: false
+        type: string
+        default: ''
+      commit_sha:
+        description: Commit SHA for merged/deployed actions
+        required: false
+        type: string
+        default: ''
+      run_url:
+        description: Run URL for logging
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: write
@@ -128,6 +151,7 @@ concurrency:
       github.event_name == 'pull_request_review_comment' && format('pr-{0}', github.event.pull_request.number) ||
       github.event_name == 'push' && format('branch-{0}', github.ref_name) ||
       github.event_name == 'workflow_run' && format('branch-{0}', github.event.workflow_run.head_branch) ||
+      github.event_name == 'merge_group' && format('merge-queue-{0}', github.event.merge_group.head_ref) ||
       github.event_name == 'discussion' && format('discussion-{0}', github.event.discussion.number) ||
       github.event_name == 'discussion_comment' && format('discussion-{0}', github.event.discussion.number) ||
       github.event_name == 'workflow_dispatch' && format('{0}-{1}', inputs.action, inputs.resource_number) ||
@@ -180,6 +204,54 @@ jobs:
             orchestrate)
               echo "job=issue-orchestrate" >> $GITHUB_OUTPUT
               echo "resource_type=issue" >> $GITHUB_OUTPUT
+              ;;
+            merged)
+              echo "job=merge-queue-logging" >> $GITHUB_OUTPUT
+              echo "resource_type=issue" >> $GITHUB_OUTPUT
+              new_context=$(jq -n -c \
+                --arg num "$RESOURCE_NUMBER" \
+                --arg trigger "pr_merged" \
+                --arg sha "${{ inputs.commit_sha }}" \
+                --arg url "${{ inputs.run_url }}" \
+                '{issue_number: $num, trigger_type: $trigger, ci_commit_sha: $sha, ci_run_url: $url}')
+              echo "context_json=$new_context" >> $GITHUB_OUTPUT
+              exit 0
+              ;;
+            deployed_stage)
+              echo "job=merge-queue-logging" >> $GITHUB_OUTPUT
+              echo "resource_type=issue" >> $GITHUB_OUTPUT
+              new_context=$(jq -n -c \
+                --arg num "$RESOURCE_NUMBER" \
+                --arg trigger "deployed_stage" \
+                --arg sha "${{ inputs.commit_sha }}" \
+                --arg url "${{ inputs.run_url }}" \
+                '{issue_number: $num, trigger_type: $trigger, ci_commit_sha: $sha, ci_run_url: $url}')
+              echo "context_json=$new_context" >> $GITHUB_OUTPUT
+              exit 0
+              ;;
+            deployed_prod)
+              echo "job=merge-queue-logging" >> $GITHUB_OUTPUT
+              echo "resource_type=issue" >> $GITHUB_OUTPUT
+              new_context=$(jq -n -c \
+                --arg num "$RESOURCE_NUMBER" \
+                --arg trigger "deployed_prod" \
+                --arg sha "${{ inputs.commit_sha }}" \
+                --arg url "${{ inputs.run_url }}" \
+                '{issue_number: $num, trigger_type: $trigger, ci_commit_sha: $sha, ci_run_url: $url}')
+              echo "context_json=$new_context" >> $GITHUB_OUTPUT
+              exit 0
+              ;;
+            queue_failure)
+              echo "job=merge-queue-logging" >> $GITHUB_OUTPUT
+              echo "resource_type=issue" >> $GITHUB_OUTPUT
+              new_context=$(jq -n -c \
+                --arg num "$RESOURCE_NUMBER" \
+                --arg trigger "merge_queue_failed" \
+                --arg reason "${{ inputs.failure_reason }}" \
+                --arg url "${{ inputs.run_url }}" \
+                '{issue_number: $num, trigger_type: $trigger, failure_reason: $reason, ci_run_url: $url}')
+              echo "context_json=$new_context" >> $GITHUB_OUTPUT
+              exit 0
               ;;
             review)
               echo "job=pr-review" >> $GITHUB_OUTPUT
@@ -294,6 +366,7 @@ jobs:
           needs.detect.outputs.job == 'pr-review' && 'pr_review' ||
           needs.detect.outputs.job == 'pr-response' && 'pr_response' ||
           needs.detect.outputs.job == 'pr-human-response' && 'pr_human_response' ||
+          needs.detect.outputs.job == 'merge-queue-logging' && fromJson(needs.detect.outputs.context_json).trigger_type ||
           fromJson(needs.detect.outputs.context_json).trigger_type || 'issue_assigned'
         }}
       issue_number: ${{ fromJson(needs.detect.outputs.context_json).issue_number }}

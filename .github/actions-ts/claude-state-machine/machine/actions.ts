@@ -989,3 +989,123 @@ export function emitBlockIssue({ context }: ActionContext): ActionResult {
 
   return actions;
 }
+
+// ============================================================================
+// Dual-Logging Helper for Merge Queue Events
+// ============================================================================
+
+/**
+ * Helper to emit history entries to both sub-issue AND parent issue
+ *
+ * When working on a sub-issue, this ensures the parent issue also gets
+ * visibility into all activity. The phase column provides context about
+ * which sub-issue the entry came from.
+ */
+function emitHistoryToBothIssues({
+  context,
+  message,
+  commitSha,
+  runLink,
+}: {
+  context: MachineContext;
+  message: string;
+  commitSha?: string;
+  runLink?: string;
+}): Action[] {
+  const actions: Action[] = [];
+  const targetIssue = context.currentSubIssue?.number ?? context.issue.number;
+  const parentIssue = context.parentIssue?.number ?? context.issue.number;
+  const phase = String(context.currentPhase ?? "-");
+
+  // Always log to target issue (sub-issue or parent if no sub-issues)
+  actions.push({
+    type: "appendHistory",
+    token: "code",
+    issueNumber: targetIssue,
+    phase,
+    message,
+    commitSha,
+    runLink,
+  });
+
+  // If target is a sub-issue, ALSO log identical entry to parent
+  // Parent gets full visibility of all sub-issue activity
+  if (targetIssue !== parentIssue) {
+    actions.push({
+      type: "appendHistory",
+      token: "code",
+      issueNumber: parentIssue,
+      phase, // Same phase column - shows which phase this came from
+      message, // Same message - no prefix needed, phase column provides context
+      commitSha,
+      runLink,
+    });
+  }
+
+  return actions;
+}
+
+// ============================================================================
+// Merge Queue Logging Actions
+// ============================================================================
+
+/**
+ * Emit action to log merge queue entry
+ */
+export function emitMergeQueueEntry({ context }: ActionContext): ActionResult {
+  return emitHistoryToBothIssues({
+    context,
+    message: "🚀 Added to merge queue",
+    runLink: context.ciRunUrl ?? undefined,
+  });
+}
+
+/**
+ * Emit action to log merge queue failure
+ */
+export function emitMergeQueueFailure({
+  context,
+}: ActionContext): ActionResult {
+  const reason = context.releaseEvent?.failureReason ?? "Unknown failure";
+  return emitHistoryToBothIssues({
+    context,
+    message: `❌ Removed from queue: ${reason}`,
+    runLink: context.ciRunUrl ?? undefined,
+  });
+}
+
+/**
+ * Emit action to log PR merged
+ */
+export function emitMerged({ context }: ActionContext): ActionResult {
+  return emitHistoryToBothIssues({
+    context,
+    message: "🎉 Merged to main",
+    commitSha: context.ciCommitSha ?? undefined,
+    runLink: context.ciRunUrl ?? undefined,
+  });
+}
+
+/**
+ * Emit action to log stage deployment
+ */
+export function emitDeployedStage({ context }: ActionContext): ActionResult {
+  return emitHistoryToBothIssues({
+    context,
+    message: "🧪 Deployed to stage",
+    commitSha: context.ciCommitSha ?? undefined,
+    runLink: context.ciRunUrl ?? undefined,
+  });
+}
+
+/**
+ * Emit action to log production deployment
+ */
+export function emitDeployedProd({ context }: ActionContext): ActionResult {
+  return emitHistoryToBothIssues({
+    context,
+    message: "🚢 Released to production",
+    commitSha: context.ciCommitSha ?? undefined,
+    runLink: context.ciRunUrl ?? undefined,
+  });
+}

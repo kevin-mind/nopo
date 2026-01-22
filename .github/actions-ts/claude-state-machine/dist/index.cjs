@@ -31196,11 +31196,17 @@ var TriggerTypeSchema = external_exports.enum([
   "pr_push",
   // Workflow triggers
   "workflow_run_completed",
-  // Release triggers
+  // Release triggers (legacy - kept for backwards compatibility)
   "release_queue_entry",
   "release_merged",
   "release_deployed",
   "release_queue_failure",
+  // Merge queue logging triggers
+  "merge_queue_entered",
+  "merge_queue_failed",
+  "pr_merged",
+  "deployed_stage",
+  "deployed_prod",
   // Discussion triggers
   "discussion_created",
   "discussion_comment",
@@ -31952,6 +31958,33 @@ async function buildMachineContext(octokit, event, projectNumber, options = {}) 
     reviewDecision = event.decision;
     reviewerId = event.reviewer;
   }
+  let releaseEvent = null;
+  if (event.type === "merge_queue_entered") {
+    releaseEvent = { type: "queue_entry" };
+  } else if (event.type === "merge_queue_failed") {
+    releaseEvent = {
+      type: "queue_failure",
+      failureReason: event.failureReason
+    };
+  } else if (event.type === "pr_merged") {
+    releaseEvent = {
+      type: "merged",
+      commitSha: event.commitSha
+    };
+    ciCommitSha = event.commitSha;
+  } else if (event.type === "deployed_stage") {
+    releaseEvent = {
+      type: "deployed",
+      commitSha: event.commitSha
+    };
+    ciCommitSha = event.commitSha;
+  } else if (event.type === "deployed_prod") {
+    releaseEvent = {
+      type: "deployed",
+      commitSha: event.commitSha
+    };
+    ciCommitSha = event.commitSha;
+  }
   return createMachineContext({
     trigger,
     owner,
@@ -31973,6 +32006,7 @@ async function buildMachineContext(octokit, event, projectNumber, options = {}) 
     hasPR: pr !== null,
     commentContextType: options.commentContextType ?? null,
     commentContextDescription: options.commentContextDescription ?? null,
+    releaseEvent,
     maxRetries: options.maxRetries,
     botUsername: options.botUsername
   });
@@ -32599,6 +32633,81 @@ function emitBlockIssue({ context: context2 }) {
   actions.push(...emitBlock({ context: context2 }));
   return actions;
 }
+function emitHistoryToBothIssues({
+  context: context2,
+  message,
+  commitSha,
+  runLink
+}) {
+  const actions = [];
+  const targetIssue = context2.currentSubIssue?.number ?? context2.issue.number;
+  const parentIssue = context2.parentIssue?.number ?? context2.issue.number;
+  const phase = String(context2.currentPhase ?? "-");
+  actions.push({
+    type: "appendHistory",
+    token: "code",
+    issueNumber: targetIssue,
+    phase,
+    message,
+    commitSha,
+    runLink
+  });
+  if (targetIssue !== parentIssue) {
+    actions.push({
+      type: "appendHistory",
+      token: "code",
+      issueNumber: parentIssue,
+      phase,
+      // Same phase column - shows which phase this came from
+      message,
+      // Same message - no prefix needed, phase column provides context
+      commitSha,
+      runLink
+    });
+  }
+  return actions;
+}
+function emitMergeQueueEntry({ context: context2 }) {
+  return emitHistoryToBothIssues({
+    context: context2,
+    message: "\u{1F680} Added to merge queue",
+    runLink: context2.ciRunUrl ?? void 0
+  });
+}
+function emitMergeQueueFailure({
+  context: context2
+}) {
+  const reason = context2.releaseEvent?.failureReason ?? "Unknown failure";
+  return emitHistoryToBothIssues({
+    context: context2,
+    message: `\u274C Removed from queue: ${reason}`,
+    runLink: context2.ciRunUrl ?? void 0
+  });
+}
+function emitMerged({ context: context2 }) {
+  return emitHistoryToBothIssues({
+    context: context2,
+    message: "\u{1F389} Merged to main",
+    commitSha: context2.ciCommitSha ?? void 0,
+    runLink: context2.ciRunUrl ?? void 0
+  });
+}
+function emitDeployedStage({ context: context2 }) {
+  return emitHistoryToBothIssues({
+    context: context2,
+    message: "\u{1F9EA} Deployed to stage",
+    commitSha: context2.ciCommitSha ?? void 0,
+    runLink: context2.ciRunUrl ?? void 0
+  });
+}
+function emitDeployedProd({ context: context2 }) {
+  return emitHistoryToBothIssues({
+    context: context2,
+    message: "\u{1F6A2} Released to production",
+    commitSha: context2.ciCommitSha ?? void 0,
+    runLink: context2.ciRunUrl ?? void 0
+  });
+}
 
 // claude-state-machine/machine/guards.ts
 function isAlreadyDone({ context: context2 }) {
@@ -32752,6 +32861,21 @@ function triggeredByPRResponse({ context: context2 }) {
 function triggeredByPRHumanResponse({ context: context2 }) {
   return context2.trigger === "pr_human_response";
 }
+function triggeredByMergeQueueEntry({ context: context2 }) {
+  return context2.trigger === "merge_queue_entered";
+}
+function triggeredByMergeQueueFailure({ context: context2 }) {
+  return context2.trigger === "merge_queue_failed";
+}
+function triggeredByPRMerged({ context: context2 }) {
+  return context2.trigger === "pr_merged";
+}
+function triggeredByDeployedStage({ context: context2 }) {
+  return context2.trigger === "deployed_stage";
+}
+function triggeredByDeployedProd({ context: context2 }) {
+  return context2.trigger === "deployed_prod";
+}
 function needsTriage({ context: context2 }) {
   return !context2.issue.labels.includes("triaged");
 }
@@ -32823,6 +32947,12 @@ var guards = {
   triggeredByPRReview,
   triggeredByPRResponse,
   triggeredByPRHumanResponse,
+  // Merge queue logging guards
+  triggeredByMergeQueueEntry,
+  triggeredByMergeQueueFailure,
+  triggeredByPRMerged,
+  triggeredByDeployedStage,
+  triggeredByDeployedProd,
   // Triage guards
   needsTriage,
   isTriaged,
@@ -32872,6 +33002,12 @@ var claudeMachine = setup({
     triggeredByPRReview: ({ context: context2 }) => guards.triggeredByPRReview({ context: context2 }),
     triggeredByPRResponse: ({ context: context2 }) => guards.triggeredByPRResponse({ context: context2 }),
     triggeredByPRHumanResponse: ({ context: context2 }) => guards.triggeredByPRHumanResponse({ context: context2 }),
+    // Merge queue logging guards
+    triggeredByMergeQueueEntry: ({ context: context2 }) => guards.triggeredByMergeQueueEntry({ context: context2 }),
+    triggeredByMergeQueueFailure: ({ context: context2 }) => guards.triggeredByMergeQueueFailure({ context: context2 }),
+    triggeredByPRMerged: ({ context: context2 }) => guards.triggeredByPRMerged({ context: context2 }),
+    triggeredByDeployedStage: ({ context: context2 }) => guards.triggeredByDeployedStage({ context: context2 }),
+    triggeredByDeployedProd: ({ context: context2 }) => guards.triggeredByDeployedProd({ context: context2 }),
     needsTriage: ({ context: context2 }) => guards.needsTriage({ context: context2 })
   },
   actions: {
@@ -33088,6 +33224,34 @@ var claudeMachine = setup({
         context2.pendingActions,
         emitStop({ context: context2 }, params.reason)
       )
+    }),
+    // Merge queue logging actions
+    logMergeQueueEntry: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitMergeQueueEntry({ context: context2 })
+      )
+    }),
+    logMergeQueueFailure: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitMergeQueueFailure({ context: context2 })
+      )
+    }),
+    logMerged: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitMerged({ context: context2 }))
+    }),
+    logDeployedStage: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitDeployedStage({ context: context2 })
+      )
+    }),
+    logDeployedProd: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitDeployedProd({ context: context2 })
+      )
     })
   }
 }).createMachine({
@@ -33108,6 +33272,18 @@ var claudeMachine = setup({
         { target: "done", guard: "isAlreadyDone" },
         { target: "blocked", guard: "isBlocked" },
         { target: "error", guard: "isError" },
+        // Merge queue logging events (handle early, they're log-only)
+        {
+          target: "mergeQueueLogging",
+          guard: "triggeredByMergeQueueEntry"
+        },
+        {
+          target: "mergeQueueFailureLogging",
+          guard: "triggeredByMergeQueueFailure"
+        },
+        { target: "mergedLogging", guard: "triggeredByPRMerged" },
+        { target: "deployedStageLogging", guard: "triggeredByDeployedStage" },
+        { target: "deployedProdLogging", guard: "triggeredByDeployedProd" },
         // Check if this is a triage request
         {
           target: "triaging",
@@ -33426,6 +33602,46 @@ var claudeMachine = setup({
     error: {
       type: "final"
     },
+    // =========================================================================
+    // Merge Queue Logging States
+    // =========================================================================
+    // These states handle logging of merge queue, merge, and deployment events
+    // They emit history entries to both sub-issue AND parent issue for visibility
+    /**
+     * Log merge queue entry event
+     */
+    mergeQueueLogging: {
+      entry: ["logMergeQueueEntry"],
+      type: "final"
+    },
+    /**
+     * Log merge queue failure event
+     */
+    mergeQueueFailureLogging: {
+      entry: ["logMergeQueueFailure"],
+      type: "final"
+    },
+    /**
+     * Log PR merged event
+     */
+    mergedLogging: {
+      entry: ["logMerged"],
+      type: "final"
+    },
+    /**
+     * Log stage deployment event
+     */
+    deployedStageLogging: {
+      entry: ["logDeployedStage"],
+      type: "final"
+    },
+    /**
+     * Log production deployment event
+     */
+    deployedProdLogging: {
+      entry: ["logDeployedProd"],
+      type: "final"
+    },
     /**
      * All work complete
      */
@@ -33461,6 +33677,12 @@ function getTransitionName(finalState) {
     blocked: "Blocked",
     error: "Error",
     done: "Done",
+    // Merge queue logging states
+    mergeQueueLogging: "Log Queue Entry",
+    mergeQueueFailureLogging: "Log Queue Failure",
+    mergedLogging: "Log Merged",
+    deployedStageLogging: "Log Stage Deploy",
+    deployedProdLogging: "Log Prod Deploy",
     // Early detection states
     alreadyDone: "Already Done",
     alreadyBlocked: "Already Blocked"
@@ -33481,7 +33703,13 @@ function parseTrigger(input) {
     "pr_response",
     "pr_human_response",
     "pr_push",
-    "workflow_run_completed"
+    "workflow_run_completed",
+    // Merge queue logging triggers
+    "merge_queue_entered",
+    "merge_queue_failed",
+    "pr_merged",
+    "deployed_stage",
+    "deployed_prod"
   ];
   if (validTriggers.includes(input)) {
     return input;
@@ -33641,6 +33869,46 @@ function buildEventFromInputs(owner, repo, trigger, issueNumber, options) {
         decision: options.reviewDecision || "CHANGES_REQUESTED",
         headRef: "",
         baseRef: "main"
+      };
+    // Merge queue logging triggers
+    case "merge_queue_entered":
+      return {
+        ...base,
+        type: "merge_queue_entered",
+        prNumber: 0,
+        // Will be in context
+        issueNumber,
+        headRef: ""
+      };
+    case "merge_queue_failed":
+      return {
+        ...base,
+        type: "merge_queue_failed",
+        prNumber: 0,
+        issueNumber,
+        failureReason: options.ciRunUrl ? "See run link for details" : "Unknown failure"
+      };
+    case "pr_merged":
+      return {
+        ...base,
+        type: "pr_merged",
+        prNumber: 0,
+        issueNumber,
+        commitSha: options.ciCommitSha || ""
+      };
+    case "deployed_stage":
+      return {
+        ...base,
+        type: "deployed_stage",
+        issueNumber,
+        commitSha: options.ciCommitSha || ""
+      };
+    case "deployed_prod":
+      return {
+        ...base,
+        type: "deployed_prod",
+        issueNumber,
+        commitSha: options.ciCommitSha || ""
       };
     default:
       throw new Error(`Unsupported trigger type: ${trigger}`);

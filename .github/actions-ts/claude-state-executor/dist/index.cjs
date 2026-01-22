@@ -28025,11 +28025,17 @@ var TriggerTypeSchema = external_exports.enum([
   "pr_push",
   // Workflow triggers
   "workflow_run_completed",
-  // Release triggers
+  // Release triggers (legacy - kept for backwards compatibility)
   "release_queue_entry",
   "release_merged",
   "release_deployed",
   "release_queue_failure",
+  // Merge queue logging triggers
+  "merge_queue_entered",
+  "merge_queue_failed",
+  "pr_merged",
+  "deployed_stage",
+  "deployed_prod",
   // Discussion triggers
   "discussion_created",
   "discussion_comment",

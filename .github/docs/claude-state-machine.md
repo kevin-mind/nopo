@@ -35,6 +35,11 @@ stateDiagram-v2
     detecting --> done: isAlreadyDone
     detecting --> blocked: isBlocked
     detecting --> error: isError
+    detecting --> mergeQueueLogging: triggeredByMergeQueueEntry
+    detecting --> mergeQueueFailureLogging: triggeredByMergeQueueFailure
+    detecting --> mergedLogging: triggeredByPRMerged
+    detecting --> deployedStageLogging: triggeredByDeployedStage
+    detecting --> deployedProdLogging: triggeredByDeployedProd
     detecting --> triaging: triggeredByTriage
     detecting --> commenting: triggeredByComment
     detecting --> orchestrating: triggeredByOrchestrate
@@ -81,6 +86,11 @@ stateDiagram-v2
     reviewing --> [*]: final
     blocked --> [*]: final
     error --> [*]: final
+    mergeQueueLogging --> [*]: final
+    mergeQueueFailureLogging --> [*]: final
+    mergedLogging --> [*]: final
+    deployedStageLogging --> [*]: final
+    deployedProdLogging --> [*]: final
     done --> [*]: final
 ```
 

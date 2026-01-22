@@ -2,7 +2,7 @@
   "id": "claude-automation",
   "version": "1.0.0",
   "description": "Claude automation state machine for issue lifecycle management",
-  "generatedAt": "2026-01-22T15:19:27.904Z",
+  "generatedAt": "2026-01-22T18:39:36.943Z",
   "config": {
     "id": "claude-automation",
     "initial": "detecting",
@@ -21,6 +21,26 @@
           {
             "target": "error",
             "guard": "isError"
+          },
+          {
+            "target": "mergeQueueLogging",
+            "guard": "triggeredByMergeQueueEntry"
+          },
+          {
+            "target": "mergeQueueFailureLogging",
+            "guard": "triggeredByMergeQueueFailure"
+          },
+          {
+            "target": "mergedLogging",
+            "guard": "triggeredByPRMerged"
+          },
+          {
+            "target": "deployedStageLogging",
+            "guard": "triggeredByDeployedStage"
+          },
+          {
+            "target": "deployedProdLogging",
+            "guard": "triggeredByDeployedProd"
           },
           {
             "target": "triaging",
@@ -306,6 +326,36 @@
         "type": "final"
       },
       "error": {
+        "type": "final"
+      },
+      "mergeQueueLogging": {
+        "entry": [
+          "logMergeQueueEntry"
+        ],
+        "type": "final"
+      },
+      "mergeQueueFailureLogging": {
+        "entry": [
+          "logMergeQueueFailure"
+        ],
+        "type": "final"
+      },
+      "mergedLogging": {
+        "entry": [
+          "logMerged"
+        ],
+        "type": "final"
+      },
+      "deployedStageLogging": {
+        "entry": [
+          "logDeployedStage"
+        ],
+        "type": "final"
+      },
+      "deployedProdLogging": {
+        "entry": [
+          "logDeployedProd"
+        ],
         "type": "final"
       },
       "done": {

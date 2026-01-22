@@ -46,6 +46,13 @@ function getTransitionName(finalState: string): string {
     error: "Error",
     done: "Done",
 
+    // Merge queue logging states
+    mergeQueueLogging: "Log Queue Entry",
+    mergeQueueFailureLogging: "Log Queue Failure",
+    mergedLogging: "Log Merged",
+    deployedStageLogging: "Log Stage Deploy",
+    deployedProdLogging: "Log Prod Deploy",
+
     // Early detection states
     alreadyDone: "Already Done",
     alreadyBlocked: "Already Blocked",
@@ -72,6 +79,12 @@ function parseTrigger(input: string): TriggerType {
     "pr_human_response",
     "pr_push",
     "workflow_run_completed",
+    // Merge queue logging triggers
+    "merge_queue_entered",
+    "merge_queue_failed",
+    "pr_merged",
+    "deployed_stage",
+    "deployed_prod",
   ];
 
   if (validTriggers.includes(input as TriggerType)) {
@@ -272,6 +285,52 @@ function buildEventFromInputs(
         decision: options.reviewDecision || "CHANGES_REQUESTED",
         headRef: "",
         baseRef: "main",
+      };
+
+    // Merge queue logging triggers
+    case "merge_queue_entered":
+      return {
+        ...base,
+        type: "merge_queue_entered",
+        prNumber: 0, // Will be in context
+        issueNumber,
+        headRef: "",
+      };
+
+    case "merge_queue_failed":
+      return {
+        ...base,
+        type: "merge_queue_failed",
+        prNumber: 0,
+        issueNumber,
+        failureReason: options.ciRunUrl
+          ? "See run link for details"
+          : "Unknown failure",
+      };
+
+    case "pr_merged":
+      return {
+        ...base,
+        type: "pr_merged",
+        prNumber: 0,
+        issueNumber,
+        commitSha: options.ciCommitSha || "",
+      };
+
+    case "deployed_stage":
+      return {
+        ...base,
+        type: "deployed_stage",
+        issueNumber,
+        commitSha: options.ciCommitSha || "",
+      };
+
+    case "deployed_prod":
+      return {
+        ...base,
+        type: "deployed_prod",
+        issueNumber,
+        commitSha: options.ciCommitSha || "",
       };
 
     default:

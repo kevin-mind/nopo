@@ -399,6 +399,45 @@ function triggeredByPRHumanResponse({ context }: GuardContext): boolean {
 }
 
 // ============================================================================
+// Merge Queue Logging Guards
+// ============================================================================
+
+/**
+ * Check if triggered by merge queue entry
+ */
+function triggeredByMergeQueueEntry({ context }: GuardContext): boolean {
+  return context.trigger === "merge_queue_entered";
+}
+
+/**
+ * Check if triggered by merge queue failure
+ */
+function triggeredByMergeQueueFailure({ context }: GuardContext): boolean {
+  return context.trigger === "merge_queue_failed";
+}
+
+/**
+ * Check if triggered by PR merged event
+ */
+function triggeredByPRMerged({ context }: GuardContext): boolean {
+  return context.trigger === "pr_merged";
+}
+
+/**
+ * Check if triggered by stage deployment
+ */
+function triggeredByDeployedStage({ context }: GuardContext): boolean {
+  return context.trigger === "deployed_stage";
+}
+
+/**
+ * Check if triggered by production deployment
+ */
+function triggeredByDeployedProd({ context }: GuardContext): boolean {
+  return context.trigger === "deployed_prod";
+}
+
+// ============================================================================
 // Triage Guards
 // ============================================================================
 
@@ -500,6 +539,12 @@ export const guards = {
   triggeredByPRReview,
   triggeredByPRResponse,
   triggeredByPRHumanResponse,
+  // Merge queue logging guards
+  triggeredByMergeQueueEntry,
+  triggeredByMergeQueueFailure,
+  triggeredByPRMerged,
+  triggeredByDeployedStage,
+  triggeredByDeployedProd,
   // Triage guards
   needsTriage,
   isTriaged,

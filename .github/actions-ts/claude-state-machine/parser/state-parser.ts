@@ -568,6 +568,35 @@ export async function buildMachineContext(
     reviewerId = event.reviewer;
   }
 
+  // Extract release/merge queue event data
+  let releaseEvent = null;
+  if (event.type === "merge_queue_entered") {
+    releaseEvent = { type: "queue_entry" as const };
+  } else if (event.type === "merge_queue_failed") {
+    releaseEvent = {
+      type: "queue_failure" as const,
+      failureReason: event.failureReason,
+    };
+  } else if (event.type === "pr_merged") {
+    releaseEvent = {
+      type: "merged" as const,
+      commitSha: event.commitSha,
+    };
+    ciCommitSha = event.commitSha;
+  } else if (event.type === "deployed_stage") {
+    releaseEvent = {
+      type: "deployed" as const,
+      commitSha: event.commitSha,
+    };
+    ciCommitSha = event.commitSha;
+  } else if (event.type === "deployed_prod") {
+    releaseEvent = {
+      type: "deployed" as const,
+      commitSha: event.commitSha,
+    };
+    ciCommitSha = event.commitSha;
+  }
+
   return createMachineContext({
     trigger,
     owner,
@@ -588,6 +617,7 @@ export async function buildMachineContext(
     hasPR: pr !== null,
     commentContextType: options.commentContextType ?? null,
     commentContextDescription: options.commentContextDescription ?? null,
+    releaseEvent,
     maxRetries: options.maxRetries,
     botUsername: options.botUsername,
   });

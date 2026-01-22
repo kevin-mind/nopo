@@ -112,74 +112,34 @@ jobs:
 
           echo "Summary: issues=$issues_json, prs=$prs_json, has_issues=$has_issues"
 
-  # ============================================================================
-  # LOG: ADDED TO QUEUE (merge_group start)
-  # Uses matrix to handle batched PRs with multiple issues
-  # ============================================================================
-  log-queue-entry:
-    if: github.event_name == 'merge_group' && needs.extract-issue.outputs.has_issues == 'true'
-    needs: extract-issue
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      issues: write
-    strategy:
-      matrix:
-        issue: ${{ fromJson(needs.extract-issue.outputs.issues_json) }}
-      fail-fast: false
-    steps:
-      - uses: actions/checkout@v4
-      - name: Log queue entry for issue #${{ matrix.issue }}
-        uses: ./.github/actions-ts/claude-state-executor
-        with:
-          github_code_token: ${{ secrets.GITHUB_TOKEN }}
-          github_review_token: ${{ secrets.GITHUB_TOKEN }}
-          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
-          actions_json: |
-            [
-              {
-                "type": "appendHistory",
-                "issueNumber": ${{ matrix.issue }},
-                "phase": "-",
-                "message": "🚀 Added to merge queue",
-                "runLink": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-              }
-            ]
+  # NOTE: log-queue-entry removed - now handled by claude.yml's merge_group trigger
 
   # ============================================================================
   # LOG: MERGED TO MAIN (push event - covers both merge queue and direct merges)
-  # Uses matrix to handle batched merges with multiple issues
+  # Triggers Claude workflow for each linked issue
   # ============================================================================
   log-merged:
     if: github.event_name == 'push' && needs.extract-issue.outputs.has_issues == 'true'
     needs: extract-issue
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      issues: write
+      actions: write
     strategy:
       matrix:
         issue: ${{ fromJson(needs.extract-issue.outputs.issues_json) }}
       fail-fast: false
     steps:
-      - uses: actions/checkout@v4
-      - name: Log merged event for issue #${{ matrix.issue }}
-        uses: ./.github/actions-ts/claude-state-executor
-        with:
-          github_code_token: ${{ secrets.GITHUB_TOKEN }}
-          github_review_token: ${{ secrets.GITHUB_TOKEN }}
-          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
-          actions_json: |
-            [
-              {
-                "type": "appendHistory",
-                "issueNumber": ${{ matrix.issue }},
-                "phase": "-",
-                "message": "🎉 Merged to main",
-                "commitSha": "${{ github.sha }}",
-                "runLink": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-              }
-            ]
+      - name: Trigger Claude for merged logging (issue #${{ matrix.issue }})
+        env:
+          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
+        run: |
+          gh workflow run claude.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            -f action=merged \
+            -f resource_number=${{ matrix.issue }} \
+            -f commit_sha=${{ github.sha }} \
+            -f run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            -f continue=false
 
   context:
     runs-on: ubuntu-latest
@@ -330,7 +290,7 @@ jobs:
 
   # ============================================================================
   # LOG: RELEASED TO PRODUCTION
-  # Uses matrix to handle multiple issues from batched merges
+  # Triggers Claude workflow for each linked issue
   # ============================================================================
   log-released:
     if: always() && needs.deploy_prod.result == 'success' && needs.extract-issue.outputs.has_issues == 'true'
@@ -339,35 +299,27 @@ jobs:
       - deploy_prod
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      issues: write
+      actions: write
     strategy:
       matrix:
         issue: ${{ fromJson(needs.extract-issue.outputs.issues_json) }}
       fail-fast: false
     steps:
-      - uses: actions/checkout@v4
-      - name: Log production release for issue #${{ matrix.issue }}
-        uses: ./.github/actions-ts/claude-state-executor
-        with:
-          github_code_token: ${{ secrets.GITHUB_TOKEN }}
-          github_review_token: ${{ secrets.GITHUB_TOKEN }}
-          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
-          actions_json: |
-            [
-              {
-                "type": "appendHistory",
-                "issueNumber": ${{ matrix.issue }},
-                "phase": "-",
-                "message": "🚢 Released to production",
-                "commitSha": "${{ github.sha }}",
-                "runLink": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-              }
-            ]
+      - name: Trigger Claude for production release logging (issue #${{ matrix.issue }})
+        env:
+          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
+        run: |
+          gh workflow run claude.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            -f action=deployed_prod \
+            -f resource_number=${{ matrix.issue }} \
+            -f commit_sha=${{ github.sha }} \
+            -f run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            -f continue=false
 
   # ============================================================================
   # LOG: REMOVED FROM QUEUE (merge_group failure)
-  # Uses matrix to handle multiple issues from batched queue entries
+  # Triggers Claude workflow for each linked issue
   # ============================================================================
   log-queue-failure:
     if: >-
@@ -383,14 +335,12 @@ jobs:
       - deploy_prod
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      issues: write
+      actions: write
     strategy:
       matrix:
         issue: ${{ fromJson(needs.extract-issue.outputs.issues_json) }}
       fail-fast: false
     steps:
-      - uses: actions/checkout@v4
       - name: Determine failure reason
         id: failure
         run: |
@@ -405,22 +355,17 @@ jobs:
           else
             echo "reason=Unknown failure" >> "$GITHUB_OUTPUT"
           fi
-      - name: Log queue removal for issue #${{ matrix.issue }}
-        uses: ./.github/actions-ts/claude-state-executor
-        with:
-          github_code_token: ${{ secrets.GITHUB_TOKEN }}
-          github_review_token: ${{ secrets.GITHUB_TOKEN }}
-          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
-          actions_json: |
-            [
-              {
-                "type": "appendHistory",
-                "issueNumber": ${{ matrix.issue }},
-                "phase": "-",
-                "message": "❌ Removed from queue: ${{ steps.failure.outputs.reason }}",
-                "runLink": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-              }
-            ]
+      - name: Trigger Claude for queue failure logging (issue #${{ matrix.issue }})
+        env:
+          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
+        run: |
+          gh workflow run claude.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            -f action=queue_failure \
+            -f resource_number=${{ matrix.issue }} \
+            -f failure_reason="${{ steps.failure.outputs.reason }}" \
+            -f run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            -f continue=false
 
   checks:
     if: always()
