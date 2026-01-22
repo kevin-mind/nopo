@@ -32347,14 +32347,8 @@ function emitRunClaudeTriage({ context: context2 }) {
       issueNumber,
       filePath: "triage-output.json",
       consumesArtifact: triageArtifact
-    },
-    // Append history entry for triage completion
-    {
-      type: "appendHistory",
-      issueNumber,
-      phase: "-",
-      message: "\u{1F3F7}\uFE0F Triaged"
     }
+    // Note: History entry is handled by workflow bookend logging
   ];
 }
 function emitRunClaudeComment({ context: context2 }) {

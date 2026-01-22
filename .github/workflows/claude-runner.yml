@@ -100,10 +100,40 @@ permissions:
 
 jobs:
   # ============================================================================
+  # Phase 0: Log Run Start
+  # Appends history entry with loading emoji and workflow link
+  # ============================================================================
+  log-run-start:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Append history entry
+        uses: ./.github/actions-ts/claude-state-executor
+        with:
+          github_code_token: ${{ secrets.NOPO_BOT_PAT }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+          actions_json: |
+            [{
+              "type": "appendHistory",
+              "issueNumber": ${{ inputs.issue_number }},
+              "phase": "-",
+              "message": "⏳ [${{ inputs.trigger }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+            }]
+          dry_run: ${{ inputs.dry_run && 'true' || 'false' }}
+
+  # ============================================================================
   # Phase 1: Derive Actions
   # Runs the state machine to determine what actions to execute
   # ============================================================================
   derive-actions:
+    needs: [log-run-start]
     runs-on: ubuntu-latest
     outputs:
       final_state: ${{ steps.machine.outputs.final_state }}
@@ -296,3 +326,53 @@ jobs:
 
           ---
           EOF
+
+  # ============================================================================
+  # Phase 3: Log Run End
+  # Updates history entry with outcome
+  # ============================================================================
+  log-run-end:
+    needs: [log-run-start, derive-actions, exec-state-actions]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Determine outcome
+        id: outcome
+        env:
+          DERIVE_RESULT: ${{ needs.derive-actions.result }}
+          EXEC_RESULT: ${{ needs.exec-state-actions.result }}
+          ACTION_COUNT: ${{ needs.derive-actions.outputs.action_count }}
+        run: |
+          if [[ "$DERIVE_RESULT" == "cancelled" || "$EXEC_RESULT" == "cancelled" ]]; then
+            echo "emoji=⚠️" >> $GITHUB_OUTPUT
+            echo "status=Cancelled" >> $GITHUB_OUTPUT
+          elif [[ "$DERIVE_RESULT" == "success" && ("$EXEC_RESULT" == "success" || "$EXEC_RESULT" == "skipped" || "$ACTION_COUNT" == "0") ]]; then
+            echo "emoji=✅" >> $GITHUB_OUTPUT
+            echo "status=Done" >> $GITHUB_OUTPUT
+          else
+            echo "emoji=❌" >> $GITHUB_OUTPUT
+            echo "status=Failed" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update history entry
+        uses: ./.github/actions-ts/claude-state-executor
+        with:
+          github_code_token: ${{ secrets.NOPO_BOT_PAT }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+          actions_json: |
+            [{
+              "type": "updateHistory",
+              "issueNumber": ${{ inputs.issue_number }},
+              "matchPhase": "-",
+              "matchPattern": "⏳",
+              "newMessage": "${{ steps.outcome.outputs.emoji }} [${{ inputs.trigger }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) - ${{ steps.outcome.outputs.status }}"
+            }]
+          dry_run: ${{ inputs.dry_run && 'true' || 'false' }}

@@ -544,13 +544,7 @@ export function emitRunClaudeTriage({ context }: ActionContext): ActionResult {
       filePath: "triage-output.json",
       consumesArtifact: triageArtifact,
     },
-    // Append history entry for triage completion
-    {
-      type: "appendHistory",
-      issueNumber,
-      phase: "-",
-      message: "🏷️ Triaged",
-    },
+    // Note: History entry is handled by workflow bookend logging
   ];
 }
 
