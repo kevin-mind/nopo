@@ -342,18 +342,15 @@ jobs:
             -f continue=false
 
   # ============================================================================
-  # LOG: REMOVED FROM QUEUE (merge_group failure)
-  # Triggers Claude workflow for each linked issue
+  # LOG: REMOVED FROM QUEUE (merge_group failure or cancellation)
+  # Triggers Claude workflow for each linked issue when release doesn't succeed
   # ============================================================================
   log-queue-failure:
     if: >-
       always() &&
       github.event_name == 'merge_group' &&
       needs.extract-issue.outputs.has_issues == 'true' &&
-      (needs.build.result == 'failure' || needs.build.result == 'cancelled' ||
-       needs.test.result == 'failure' || needs.test.result == 'cancelled' ||
-       needs.deploy_stage.result == 'failure' || needs.deploy_stage.result == 'cancelled' ||
-       needs.deploy_prod.result == 'failure' || needs.deploy_prod.result == 'cancelled')
+      (needs.build.result != 'success' || needs.test.result != 'success' || needs.deploy_stage.result != 'success' || needs.deploy_prod.result != 'success')
     needs:
       - extract-issue
       - build
@@ -368,28 +365,6 @@ jobs:
         issue: ${{ fromJson(needs.extract-issue.outputs.issues_json) }}
       fail-fast: false
     steps:
-      - name: Determine failure reason
-        id: failure
-        run: |
-          if [[ "${{ needs.build.result }}" == "failure" ]]; then
-            echo "reason=Build failed" >> "$GITHUB_OUTPUT"
-          elif [[ "${{ needs.build.result }}" == "cancelled" ]]; then
-            echo "reason=Build cancelled" >> "$GITHUB_OUTPUT"
-          elif [[ "${{ needs.test.result }}" == "failure" ]]; then
-            echo "reason=Tests failed" >> "$GITHUB_OUTPUT"
-          elif [[ "${{ needs.test.result }}" == "cancelled" ]]; then
-            echo "reason=Tests cancelled" >> "$GITHUB_OUTPUT"
-          elif [[ "${{ needs.deploy_stage.result }}" == "failure" ]]; then
-            echo "reason=Stage deploy failed" >> "$GITHUB_OUTPUT"
-          elif [[ "${{ needs.deploy_stage.result }}" == "cancelled" ]]; then
-            echo "reason=Stage deploy cancelled" >> "$GITHUB_OUTPUT"
-          elif [[ "${{ needs.deploy_prod.result }}" == "failure" ]]; then
-            echo "reason=Prod deploy failed" >> "$GITHUB_OUTPUT"
-          elif [[ "${{ needs.deploy_prod.result }}" == "cancelled" ]]; then
-            echo "reason=Prod deploy cancelled" >> "$GITHUB_OUTPUT"
-          else
-            echo "reason=Unknown failure" >> "$GITHUB_OUTPUT"
-          fi
       - name: Trigger Claude for queue failure logging (issue #${{ matrix.issue }})
         env:
           GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
@@ -398,7 +373,6 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             -f action=queue_failure \
             -f resource_number=${{ matrix.issue }} \
-            -f failure_reason="${{ steps.failure.outputs.reason }}" \
             -f run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             -f continue=false
 
