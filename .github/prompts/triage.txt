@@ -69,6 +69,11 @@ Parent: #{{ISSUE_NUMBER}}" \
 - Specific implementation tasks only
 - NO generic workflow steps (commit, PR, test, merge)
 
+**Add triaged label (skip triage on sub-issue):**
+```bash
+gh issue edit $PHASE1 --add-label "triaged"
+```
+
 **Link to parent:**
 ```bash
 PARENT_ID=$(gh api graphql -f query='query($owner: String!, $repo: String!, $number: Int!) {
