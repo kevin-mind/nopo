@@ -35,6 +35,7 @@ const scenarios: Record<string, Partial<MachineContext>> = {
       subIssues: [],
       hasSubIssues: false,
       history: [],
+      todos: { total: 1, completed: 0, uncheckedNonManual: 1 },
     },
   },
 
@@ -64,6 +65,7 @@ const scenarios: Record<string, Partial<MachineContext>> = {
       ],
       hasSubIssues: true,
       history: [],
+      todos: { total: 0, completed: 0, uncheckedNonManual: 0 },
     },
   },
 
@@ -84,6 +86,7 @@ const scenarios: Record<string, Partial<MachineContext>> = {
       subIssues: [],
       hasSubIssues: false,
       history: [],
+      todos: { total: 1, completed: 0, uncheckedNonManual: 1 },
     },
     currentSubIssue: {
       number: 123,
@@ -113,6 +116,7 @@ const scenarios: Record<string, Partial<MachineContext>> = {
       subIssues: [],
       hasSubIssues: false,
       history: [],
+      todos: { total: 1, completed: 1, uncheckedNonManual: 0 },
     },
     currentSubIssue: {
       number: 123,
@@ -160,6 +164,7 @@ const scenarios: Record<string, Partial<MachineContext>> = {
       subIssues: [],
       hasSubIssues: false,
       history: [],
+      todos: { total: 0, completed: 0, uncheckedNonManual: 0 },
     },
     currentSubIssue: {
       number: 123,
@@ -189,6 +194,7 @@ const scenarios: Record<string, Partial<MachineContext>> = {
       subIssues: [],
       hasSubIssues: false,
       history: [],
+      todos: { total: 0, completed: 0, uncheckedNonManual: 0 },
     },
     currentSubIssue: {
       number: 123,
@@ -221,6 +227,7 @@ const scenarios: Record<string, Partial<MachineContext>> = {
       subIssues: [],
       hasSubIssues: false,
       history: [],
+      todos: { total: 0, completed: 0, uncheckedNonManual: 0 },
     },
   },
 
@@ -241,6 +248,7 @@ const scenarios: Record<string, Partial<MachineContext>> = {
       subIssues: [],
       hasSubIssues: false,
       history: [],
+      todos: { total: 0, completed: 0, uncheckedNonManual: 0 },
     },
     pr: {
       number: 42,
@@ -269,6 +277,7 @@ const scenarios: Record<string, Partial<MachineContext>> = {
       subIssues: [],
       hasSubIssues: false,
       history: [],
+      todos: { total: 0, completed: 0, uncheckedNonManual: 0 },
     },
   },
 
@@ -287,6 +296,7 @@ const scenarios: Record<string, Partial<MachineContext>> = {
       subIssues: [],
       hasSubIssues: false,
       history: [],
+      todos: { total: 0, completed: 0, uncheckedNonManual: 0 },
     },
   },
 };
@@ -313,6 +323,7 @@ function createBaseContext(): MachineContext {
       subIssues: [],
       hasSubIssues: false,
       history: [],
+      todos: { total: 0, completed: 0, uncheckedNonManual: 0 },
     },
     parentIssue: null,
     currentPhase: null,
