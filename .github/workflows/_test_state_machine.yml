@@ -332,6 +332,8 @@ jobs:
           pnpm run build
 
       - name: Wait for state machine to complete
+        # Step timeout allows cancellation to work - set slightly higher than fixture timeout
+        timeout-minutes: 30
         env:
           ISSUE_NUMBER: ${{ needs.setup.outputs.issue_number }}
           SUB_ISSUE_NUMBERS: ${{ needs.setup.outputs.sub_issue_numbers }}
@@ -368,7 +370,8 @@ jobs:
             fi
 
             echo "Elapsed: ${elapsed}s | Parent #$ISSUE_NUMBER: $state (Status: $project_status)"
-            sleep "$poll_interval"
+            sleep "$poll_interval" &
+            wait $! || break  # Break if sleep is interrupted (cancellation)
           done
 
           # Give a bit more time for final state updates
