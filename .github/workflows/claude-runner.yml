@@ -284,6 +284,56 @@ jobs:
           model: "claude-opus-4-5-20251101"
           max_turns: "50"
 
+      # Submit review if Claude wrote review-output.json (for review token actions)
+      - name: Submit Review
+        if: matrix.action.type == 'runClaude' && matrix.action.token == 'review' && !inputs.dry_run
+        env:
+          GH_TOKEN: ${{ secrets.CLAUDE_REVIEWER_PAT }}
+          PR_NUMBER: ${{ matrix.action.promptVars.PR_NUMBER }}
+        run: |
+          if [[ ! -f review-output.json ]]; then
+            echo "::warning::review-output.json not found - Claude may not have written a review"
+            exit 0
+          fi
+
+          # Read and validate the review output
+          decision=$(jq -r '.decision // empty' review-output.json)
+          body=$(jq -r '.body // empty' review-output.json)
+
+          if [[ -z "$decision" ]]; then
+            echo "::warning::No decision in review-output.json"
+            cat review-output.json
+            exit 0
+          fi
+
+          echo "Submitting review with decision: $decision"
+
+          # Map decision to GitHub event type
+          case "$decision" in
+            approve|APPROVE)
+              event="APPROVE"
+              ;;
+            request_changes|REQUEST_CHANGES|changes_requested|CHANGES_REQUESTED)
+              event="REQUEST_CHANGES"
+              ;;
+            comment|COMMENT)
+              event="COMMENT"
+              ;;
+            *)
+              echo "::error::Invalid review decision: $decision"
+              exit 1
+              ;;
+          esac
+
+          # Submit the review
+          gh api \
+            --method POST \
+            "/repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/reviews" \
+            -f event="$event" \
+            -f body="$body"
+
+          echo "✅ Review submitted: $event"
+
       # Upload artifact if action produces one (runs after runClaude)
       - name: Upload artifact
         if: matrix.action.producesArtifact && !inputs.dry_run
