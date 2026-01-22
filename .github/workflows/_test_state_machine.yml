@@ -263,28 +263,56 @@ jobs:
           timeout=300  # 5 minutes for triage (matrix jobs add overhead)
           poll_interval=5
           start_time=$(date +%s)
+          iteration=0
 
           while true; do
             current_time=$(date +%s)
             elapsed=$((current_time - start_time))
+            iteration=$((iteration + 1))
 
             if [[ $elapsed -ge $timeout ]]; then
               echo "::error::Triage timeout after ${elapsed}s"
               exit 1
             fi
 
-            issue_data=$(gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
-              --json labels,body 2>/dev/null || echo '{}')
+            # Get full issue state
+            issue_json=$(gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
+              --json state,title,body,labels,assignees,projectItems 2>/dev/null || echo '{}')
 
-            has_triaged=$(echo "$issue_data" | jq '[.labels[]?.name] | any(. == "triaged")' 2>/dev/null || echo "false")
-            has_state=$(echo "$issue_data" | jq '.body | contains("CLAUDE_MAIN_STATE")' 2>/dev/null || echo "false")
+            state=$(echo "$issue_json" | jq -r '.state // "UNKNOWN"')
+            labels=$(echo "$issue_json" | jq -c '[.labels[]?.name] // []')
+            assignees=$(echo "$issue_json" | jq -c '[.assignees[]?.login] // []')
+            project_status=$(echo "$issue_json" | jq -r '.projectItems[0].fieldValueByName.name // "N/A"')
+            has_triaged=$(echo "$issue_json" | jq '[.labels[]?.name] | any(. == "triaged")' 2>/dev/null || echo "false")
+            has_state=$(echo "$issue_json" | jq '.body | contains("CLAUDE_MAIN_STATE")' 2>/dev/null || echo "false")
+
+            # Build state object
+            state_obj=$(jq -n \
+              --arg elapsed "${elapsed}s" \
+              --arg timeout "${timeout}s" \
+              --arg poll "$iteration" \
+              --arg issue "#$ISSUE_NUMBER" \
+              --arg state "$state" \
+              --arg status "$project_status" \
+              --argjson labels "$labels" \
+              --argjson assignees "$assignees" \
+              --arg has_triaged "$has_triaged" \
+              --arg has_state "$has_state" \
+              '{
+                meta: { elapsed: $elapsed, timeout: $timeout, poll: ($poll | tonumber), phase: "triage" },
+                issue: { number: $issue, state: $state, status: $status, labels: $labels, assignees: $assignees },
+                checks: { has_triaged_label: ($has_triaged == "true"), has_claude_state: ($has_state == "true") }
+              }')
+
+            echo "::group::⏳ Triage Poll $iteration - ${elapsed}s/${timeout}s"
+            echo "$state_obj" | jq '.'
+            echo "::endgroup::"
 
             if [[ "$has_triaged" == "true" ]] || [[ "$has_state" == "true" ]]; then
               echo "✅ Triage completed after ${elapsed}s"
               break
             fi
 
-            echo "⏳ Waiting for triage... (${elapsed}/${timeout}s)"
             sleep $poll_interval
           done
 
