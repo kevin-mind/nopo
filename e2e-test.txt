@@ -2,3 +2,4 @@
 # This file is used by automated E2E tests to verify the Claude state machine.
 # Each test run adds a timestamped line below.
 
+Test run 2026-01-22-143855 - Single-phase green test
