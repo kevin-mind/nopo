@@ -369,6 +369,11 @@ jobs:
               break
             fi
 
+            if [[ "$state" == "UNKNOWN" ]]; then
+              echo "::warning::Parent #$ISSUE_NUMBER not found - may have been deleted"
+              break
+            fi
+
             echo "Elapsed: ${elapsed}s | Parent #$ISSUE_NUMBER: $state (Status: $project_status)"
             sleep "$poll_interval" &
             wait $! || break  # Break if sleep is interrupted (cancellation)
