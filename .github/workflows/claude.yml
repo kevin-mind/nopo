@@ -181,6 +181,30 @@ jobs:
             review)
               echo "job=pr-review" >> $GITHUB_OUTPUT
               echo "resource_type=pr" >> $GITHUB_OUTPUT
+
+              # For review action, we need to extract the linked issue from the PR body
+              echo "Fetching PR #$RESOURCE_NUMBER details..."
+              pr_body=$(gh pr view "$RESOURCE_NUMBER" --json body --jq '.body')
+
+              # Extract issue number from "Fixes #N" pattern
+              linked_issue=$(echo "$pr_body" | grep -oE 'Fixes #[0-9]+' | head -1 | grep -oE '[0-9]+' || echo "")
+
+              if [[ -z "$linked_issue" ]]; then
+                echo "::error::Could not find linked issue (Fixes #N) in PR body"
+                exit 1
+              fi
+
+              echo "Found linked issue #$linked_issue"
+              echo "parent_issue=$linked_issue" >> $GITHUB_OUTPUT
+
+              # Build context with the linked issue number (not PR number)
+              issue_info=$(gh issue view "$linked_issue" --json title,body)
+              new_context=$(echo "$issue_info" | jq -c \
+                --arg num "$linked_issue" \
+                --arg pr_num "$RESOURCE_NUMBER" \
+                '{issue_number: $num, pr_number: $pr_num, issue_title: .title, issue_body: .body}')
+              echo "context_json=$new_context" >> $GITHUB_OUTPUT
+              exit 0
               ;;
             discussion-research|discussion-respond|discussion-summarize|discussion-plan)
               echo "job=$ACTION" >> $GITHUB_OUTPUT
