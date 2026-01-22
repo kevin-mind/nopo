@@ -88,6 +88,11 @@ on:
         required: false
         type: boolean
         default: true
+      skip_bookend_logs:
+        description: Skip log-run-start/end jobs (use for logging-only triggers like merge queue)
+        required: false
+        type: boolean
+        default: false
     outputs:
       final_state:
         description: Final state after machine execution
@@ -145,6 +150,7 @@ jobs:
   # ============================================================================
   log-run-start:
     needs: [derive-context]
+    if: ${{ !inputs.skip_bookend_logs }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -436,7 +442,7 @@ jobs:
   # ============================================================================
   log-run-end:
     needs: [derive-context, log-run-start, derive-actions, exec-state-actions]
-    if: always()
+    if: ${{ always() && !inputs.skip_bookend_logs }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

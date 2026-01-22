@@ -397,6 +397,8 @@ jobs:
       comment_id: ${{ needs.detect.outputs.comment_id }}
       dry_run: false
       continue: ${{ inputs.continue != false && inputs.continue != 'false' }}
+      # Skip bookend logs for logging-only triggers (merge queue, deployed, etc.)
+      skip_bookend_logs: ${{ needs.detect.outputs.job == 'merge-queue-logging' }}
     secrets: inherit
 
   # NOTE: handle-failure job was removed as part of state machine consolidation
