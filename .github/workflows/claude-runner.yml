@@ -137,6 +137,7 @@ jobs:
           github_token: ${{ secrets.NOPO_BOT_PAT }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
           issue_number: ${{ inputs.issue_number }}
+          trigger: ${{ inputs.trigger }}
 
   # ============================================================================
   # Phase 0b: Log Run Start
