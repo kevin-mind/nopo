@@ -291,11 +291,12 @@ jobs:
           allowed_bots: "github-actions"
 
       # Submit review if Claude wrote review-output.json (for review token actions)
-      # Uses NOPO_BOT_PAT which has repo scope for review submission
+      # CLAUDE_REVIEWER_PAT must be for a different user than the PR author (nopo-bot)
+      # to avoid "Cannot approve your own pull request" error
       - name: Submit Review
         if: matrix.action.type == 'runClaude' && matrix.action.token == 'review' && !inputs.dry_run
         env:
-          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
+          GH_TOKEN: ${{ secrets.CLAUDE_REVIEWER_PAT }}
           PR_NUMBER: ${{ matrix.action.promptVars.PR_NUMBER }}
         run: |
           if [[ ! -f review-output.json ]]; then
