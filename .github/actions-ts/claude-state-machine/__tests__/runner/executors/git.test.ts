@@ -76,6 +76,25 @@ describe("executeCreateBranch", () => {
     // Create branch succeeds
     vi.mocked(ctx.octokit.rest.git.createRef).mockResolvedValueOnce({} as any);
 
+    // Mock git commands:
+    // 1. Initial fetch
+    // 2. Fetch after branch creation
+    // 3. Checkout branch (succeeds)
+    // 4. Set upstream
+    // 5. Check commits behind
+    vi.mocked(exec.exec)
+      .mockResolvedValueOnce(0) // git fetch origin (initial)
+      .mockResolvedValueOnce(0) // git fetch origin (after create)
+      .mockResolvedValueOnce(0) // git checkout feature/new
+      .mockResolvedValueOnce(0) // git branch --set-upstream-to
+      .mockImplementationOnce(async (_cmd, _args, options) => {
+        // git rev-list --count (0 commits behind)
+        if (options?.listeners?.stdout) {
+          options.listeners.stdout(Buffer.from("0\n"));
+        }
+        return 0;
+      });
+
     const action: CreateBranchAction = {
       type: "createBranch",
       branchName: "feature/new",
@@ -108,6 +127,23 @@ describe("executeCreateBranch", () => {
     vi.mocked(ctx.octokit.rest.repos.getBranch).mockResolvedValueOnce({
       data: {},
     } as any);
+
+    // Mock git commands:
+    // 1. Initial fetch
+    // 2. Checkout branch (succeeds - branch exists)
+    // 3. Set upstream
+    // 4. Check commits behind
+    vi.mocked(exec.exec)
+      .mockResolvedValueOnce(0) // git fetch origin
+      .mockResolvedValueOnce(0) // git checkout feature/existing
+      .mockResolvedValueOnce(0) // git branch --set-upstream-to
+      .mockImplementationOnce(async (_cmd, _args, options) => {
+        // git rev-list --count (0 commits behind)
+        if (options?.listeners?.stdout) {
+          options.listeners.stdout(Buffer.from("0\n"));
+        }
+        return 0;
+      });
 
     const action: CreateBranchAction = {
       type: "createBranch",

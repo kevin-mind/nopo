@@ -978,15 +978,11 @@ export function emitHandleCIFailure({ context }: ActionContext): ActionResult {
 
 /**
  * Emit actions for blocking the issue
+ * Note: setBlocked and unassign are NOT included here because they are
+ * entry actions on the blocked state - this prevents duplicates
  */
 export function emitBlockIssue({ context }: ActionContext): ActionResult {
   const actions: Action[] = [];
-
-  // Set status to Blocked
-  actions.push(...emitSetBlocked({ context }));
-
-  // Unassign bot
-  actions.push(...emitUnassign({ context }));
 
   // Log
   actions.push(

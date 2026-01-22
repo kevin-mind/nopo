@@ -726,9 +726,9 @@ export const claudeMachine = setup({
 
     /**
      * Circuit breaker triggered
-     * NOTE: Entry actions removed - blockIssue action already emits setBlocked + unassign
      */
     blocked: {
+      entry: ["setBlocked", "unassign"],
       type: "final",
     },
 
