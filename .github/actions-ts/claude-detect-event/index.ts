@@ -546,6 +546,13 @@ async function handleIssueEvent(
 
   // Handle edited: triggers iteration if nopo-bot is assigned, otherwise triage
   if (action === "edited") {
+    // Skip if the edit was made by a bot (nopo-bot or claude[bot])
+    // This prevents the workflow from re-triggering when the state machine updates the issue
+    const sender = (payload.sender as { login: string; type?: string })?.login;
+    if (sender === "nopo-bot" || sender === "claude[bot]") {
+      return emptyResult(true, `Edit made by bot (${sender}) - skipping`);
+    }
+
     // If nopo-bot is assigned, edited triggers iteration (issue-edit-based loop)
     if (isNopoBotAssigned) {
       // Check project state - skip if in terminal/blocked state

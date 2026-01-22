@@ -28913,7 +28913,9 @@ async function executeUpdateHistory(action, ctx) {
       issue_number: action.issueNumber,
       body: newBody
     });
-    core3.info(`Added new history entry: Phase ${action.matchPhase}, ${action.newMessage}`);
+    core3.info(
+      `Added new history entry: Phase ${action.matchPhase}, ${action.newMessage}`
+    );
   }
   return { updated: true };
 }

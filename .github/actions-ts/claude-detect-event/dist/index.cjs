@@ -24243,6 +24243,10 @@ async function handleIssueEvent(octokit, owner, repo) {
     };
   }
   if (action === "edited") {
+    const sender = payload.sender?.login;
+    if (sender === "nopo-bot" || sender === "claude[bot]") {
+      return emptyResult(true, `Edit made by bot (${sender}) - skipping`);
+    }
     if (isNopoBotAssigned) {
       const projectState = await fetchProjectState(
         octokit,

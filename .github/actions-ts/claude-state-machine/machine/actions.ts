@@ -540,7 +540,12 @@ export function emitRunClaudePRReview({
 
   if (!prNumber) {
     return [
-      { type: "log", token: "code", level: "warning", message: "No PR found for review" },
+      {
+        type: "log",
+        token: "code",
+        level: "warning",
+        message: "No PR found for review",
+      },
     ];
   }
 
@@ -581,7 +586,12 @@ export function emitRunClaudePRResponse({
 
   if (!prNumber) {
     return [
-      { type: "log", token: "code", level: "warning", message: "No PR found for response" },
+      {
+        type: "log",
+        token: "code",
+        level: "warning",
+        message: "No PR found for response",
+      },
     ];
   }
 

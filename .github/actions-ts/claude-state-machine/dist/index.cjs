@@ -32313,7 +32313,12 @@ function emitRunClaudePRReview({
   const prNumber = context2.pr?.number;
   if (!prNumber) {
     return [
-      { type: "log", token: "code", level: "warning", message: "No PR found for review" }
+      {
+        type: "log",
+        token: "code",
+        level: "warning",
+        message: "No PR found for review"
+      }
     ];
   }
   const promptVars = {
@@ -32343,7 +32348,12 @@ function emitRunClaudePRResponse({
   const prNumber = context2.pr?.number;
   if (!prNumber) {
     return [
-      { type: "log", token: "code", level: "warning", message: "No PR found for response" }
+      {
+        type: "log",
+        token: "code",
+        level: "warning",
+        message: "No PR found for response"
+      }
     ];
   }
   const promptVars = {

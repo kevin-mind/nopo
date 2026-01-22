@@ -507,7 +507,10 @@ describe("createAction helper", () => {
   });
 
   test("creates stop action", () => {
-    const action = createAction("stop", { token: "code", reason: "Test complete" });
+    const action = createAction("stop", {
+      token: "code",
+      reason: "Test complete",
+    });
     expect(action.type).toBe("stop");
     expect(action.reason).toBe("Test complete");
   });
@@ -520,7 +523,11 @@ describe("createAction helper", () => {
 
 describe("isTerminalAction", () => {
   test("returns true for stop action", () => {
-    const action = { type: "stop" as const, token: "code" as const, reason: "Done" };
+    const action = {
+      type: "stop" as const,
+      token: "code" as const,
+      reason: "Done",
+    };
     expect(isTerminalAction(action)).toBe(true);
   });
 
@@ -542,7 +549,12 @@ describe("isTerminalAction", () => {
         issueNumber: 1,
         status: "In progress" as const,
       },
-      { type: "runClaude" as const, token: "code" as const, promptFile: ".github/prompts/test.txt", issueNumber: 1 },
+      {
+        type: "runClaude" as const,
+        token: "code" as const,
+        promptFile: ".github/prompts/test.txt",
+        issueNumber: 1,
+      },
       { type: "noop" as const, token: "code" as const },
     ];
     for (const action of actions) {

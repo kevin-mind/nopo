@@ -265,7 +265,9 @@ export async function executeUpdateHistory(
       body: newBody,
     });
 
-    core.info(`Added new history entry: Phase ${action.matchPhase}, ${action.newMessage}`);
+    core.info(
+      `Added new history entry: Phase ${action.matchPhase}, ${action.newMessage}`,
+    );
   }
 
   return { updated: true };
