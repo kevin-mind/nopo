@@ -52,6 +52,7 @@ export {
   type SubmitReviewAction,
   type RemoveReviewerAction,
   type RunClaudeAction,
+  type ApplyTriageOutputAction,
   type BlockAction,
   type AddDiscussionCommentAction,
   type UpdateDiscussionBodyAction,

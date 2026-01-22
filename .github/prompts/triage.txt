@@ -39,6 +39,10 @@ Improve the issue with `gh issue edit {{ISSUE_NUMBER}} --body "..."`:
 - **Approach**: High-level implementation strategy
 - **Questions**: Answer existing questions, add new ones if needed
 
+**IMPORTANT: Preserve existing sections!** If the issue body contains any of these, keep them unchanged:
+- `## Iteration History` - This table tracks automation history, NEVER modify or remove it
+- HTML comments like `<!-- ... -->` - These may contain automation state
+
 ## Task 4: Create Sub-Issues
 
 **Every issue needs at least one sub-issue.** Sub-issues contain todos and produce PRs.
@@ -108,30 +112,6 @@ ITEM_ID=$(gh api graphql -f query='mutation($projectId: ID!, $contentId: ID!) {
 gh api graphql -f query='mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
   updateProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: { singleSelectOptionId: $optionId } }) { projectV2Item { id } }
 }' -f projectId="$PROJECT_ID" -f itemId="$ITEM_ID" -f fieldId="$STATUS_FIELD_ID" -f optionId="$READY_OPTION_ID"
-```
-
-## Task 5: Update Main Issue with State
-
-```bash
-gh issue edit {{ISSUE_NUMBER}} --body "## Description
-TLDR here.
-
-## Details
-Technical context.
-
-## Approach
-Implementation strategy.
-
-## Questions
-- [x] Answered question
-
-<!-- CLAUDE_MAIN_STATE
-orchestration_iteration: 0
-sub_issues: [$PHASE1]
-current_sub_issue: 0
-sub_issue_status: {}
-complete: false
--->"
 ```
 
 ## Rules

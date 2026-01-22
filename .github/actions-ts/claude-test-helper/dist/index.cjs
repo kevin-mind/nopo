@@ -24343,9 +24343,10 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, stepw
           }
         );
         const subItemId = addResult.addProjectV2ItemById?.item?.id;
-        if (subItemId && subConfig.project_fields.Status) {
-          const optionId = projectFields.statusOptions[subConfig.project_fields.Status] || Object.entries(projectFields.statusOptions).find(
-            ([name]) => name.toLowerCase() === subConfig.project_fields.Status.toLowerCase()
+        const subStatus = subConfig.project_fields?.Status;
+        if (subItemId && subStatus) {
+          const optionId = projectFields.statusOptions[subStatus] || Object.entries(projectFields.statusOptions).find(
+            ([name]) => name.toLowerCase() === subStatus.toLowerCase()
           )?.[1];
           if (optionId) {
             await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
@@ -24355,7 +24356,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, stepw
               value: { singleSelectOptionId: optionId }
             });
             core2.info(
-              `Set sub-issue #${subIssue.number} Status to ${subConfig.project_fields.Status}`
+              `Set sub-issue #${subIssue.number} Status to ${subStatus}`
             );
           }
         }

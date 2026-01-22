@@ -497,6 +497,7 @@ describe("ACTION_TYPES constant", () => {
 describe("createAction helper", () => {
   test("creates typed action", () => {
     const action = createAction("updateProjectStatus", {
+      token: "code",
       issueNumber: 1,
       status: "In progress",
     });
@@ -506,26 +507,27 @@ describe("createAction helper", () => {
   });
 
   test("creates stop action", () => {
-    const action = createAction("stop", { reason: "Test complete" });
+    const action = createAction("stop", { token: "code", reason: "Test complete" });
     expect(action.type).toBe("stop");
     expect(action.reason).toBe("Test complete");
   });
 
   test("creates noop action", () => {
-    const action = createAction("noop", {});
+    const action = createAction("noop", { token: "code" });
     expect(action.type).toBe("noop");
   });
 });
 
 describe("isTerminalAction", () => {
   test("returns true for stop action", () => {
-    const action = { type: "stop" as const, reason: "Done" };
+    const action = { type: "stop" as const, token: "code" as const, reason: "Done" };
     expect(isTerminalAction(action)).toBe(true);
   });
 
   test("returns true for block action", () => {
     const action = {
       type: "block" as const,
+      token: "code" as const,
       issueNumber: 1,
       reason: "Max failures",
     };
@@ -536,11 +538,12 @@ describe("isTerminalAction", () => {
     const actions = [
       {
         type: "updateProjectStatus" as const,
+        token: "code" as const,
         issueNumber: 1,
         status: "In progress" as const,
       },
-      { type: "runClaude" as const, prompt: "Test", issueNumber: 1 },
-      { type: "noop" as const },
+      { type: "runClaude" as const, token: "code" as const, promptFile: ".github/prompts/test.txt", issueNumber: 1 },
+      { type: "noop" as const, token: "code" as const },
     ];
     for (const action of actions) {
       expect(isTerminalAction(action)).toBe(false);

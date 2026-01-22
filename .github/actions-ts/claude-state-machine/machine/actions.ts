@@ -133,6 +133,7 @@ export function emitClearFailures({ context }: ActionContext): ActionResult {
   return [
     {
       type: "clearFailures",
+      token: "code",
       issueNumber: context.issue.number,
     },
   ];
@@ -149,6 +150,7 @@ export function emitCloseIssue({ context }: ActionContext): ActionResult {
   return [
     {
       type: "closeIssue",
+      token: "code",
       issueNumber: context.issue.number,
       reason: "completed" as const,
     },
@@ -162,6 +164,7 @@ export function emitUnassign({ context }: ActionContext): ActionResult {
   return [
     {
       type: "unassignUser",
+      token: "code",
       issueNumber: context.issue.number,
       username: context.botUsername,
     },
@@ -175,6 +178,7 @@ function emitBlock({ context }: ActionContext): ActionResult {
   return [
     {
       type: "block",
+      token: "code",
       issueNumber: context.issue.number,
       reason: `Max failures (${context.maxRetries}) reached`,
     },
@@ -197,6 +201,7 @@ function emitAppendHistory(
   return [
     {
       type: "appendHistory",
+      token: "code",
       issueNumber: context.issue.number,
       phase: String(phaseStr),
       message,
@@ -213,6 +218,7 @@ function emitLogCIFailure({ context }: ActionContext): ActionResult {
   return [
     {
       type: "updateHistory",
+      token: "code",
       issueNumber: context.issue.number,
       matchIteration: context.issue.iteration,
       matchPhase: String(context.currentPhase ?? "-"),
@@ -238,6 +244,7 @@ export function emitCreateBranch({ context }: ActionContext): ActionResult {
   return [
     {
       type: "createBranch",
+      token: "code",
       branchName,
       baseBranch: "main",
     },
@@ -266,6 +273,7 @@ export function emitCreatePR({ context }: ActionContext): ActionResult {
   return [
     {
       type: "createPR",
+      token: "code",
       title: context.currentSubIssue?.title ?? context.issue.title,
       body: `Fixes #${issueNumber}`,
       branchName,
@@ -286,6 +294,7 @@ export function emitMarkReady({ context }: ActionContext): ActionResult {
   return [
     {
       type: "markPRReady",
+      token: "code",
       prNumber: context.pr.number,
     },
   ];
@@ -301,6 +310,7 @@ export function emitConvertToDraft({ context }: ActionContext): ActionResult {
   return [
     {
       type: "convertPRToDraft",
+      token: "code",
       prNumber: context.pr.number,
     },
   ];
@@ -316,6 +326,7 @@ export function emitRequestReview({ context }: ActionContext): ActionResult {
   return [
     {
       type: "requestReview",
+      token: "code",
       prNumber: context.pr.number,
       reviewer: context.botUsername,
     },
@@ -398,6 +409,7 @@ export function emitRunClaude({ context }: ActionContext): ActionResult {
   return [
     {
       type: "runClaude",
+      token: "code",
       promptFile: ".github/prompts/iterate.txt",
       promptVars,
       issueNumber,
@@ -425,6 +437,7 @@ Review the CI logs at the link above and fix the failing tests or build errors.`
   return [
     {
       type: "runClaude",
+      token: "code",
       promptFile: ".github/prompts/iterate.txt",
       promptVars,
       issueNumber,
@@ -459,6 +472,7 @@ export function emitRunClaudeTriage({ context }: ActionContext): ActionResult {
   return [
     {
       type: "runClaude",
+      token: "code",
       promptFile: ".github/prompts/triage.txt",
       promptVars,
       issueNumber,
@@ -469,6 +483,7 @@ export function emitRunClaudeTriage({ context }: ActionContext): ActionResult {
     // Downloads the artifact before execution
     {
       type: "applyTriageOutput",
+      token: "code",
       issueNumber,
       filePath: "triage-output.json",
       consumesArtifact: triageArtifact,
@@ -497,6 +512,7 @@ export function emitRunClaudeComment({ context }: ActionContext): ActionResult {
   return [
     {
       type: "runClaude",
+      token: "code",
       promptFile: ".github/prompts/comment.txt",
       promptVars,
       issueNumber,
@@ -524,7 +540,7 @@ export function emitRunClaudePRReview({
 
   if (!prNumber) {
     return [
-      { type: "log", level: "warning", message: "No PR found for review" },
+      { type: "log", token: "code", level: "warning", message: "No PR found for review" },
     ];
   }
 
@@ -542,6 +558,7 @@ export function emitRunClaudePRReview({
   return [
     {
       type: "runClaude",
+      token: "review",
       promptFile: ".github/prompts/review.txt",
       promptVars,
       issueNumber,
@@ -564,7 +581,7 @@ export function emitRunClaudePRResponse({
 
   if (!prNumber) {
     return [
-      { type: "log", level: "warning", message: "No PR found for response" },
+      { type: "log", token: "code", level: "warning", message: "No PR found for response" },
     ];
   }
 
@@ -583,6 +600,7 @@ export function emitRunClaudePRResponse({
   return [
     {
       type: "runClaude",
+      token: "code",
       promptFile: ".github/prompts/review-response.txt",
       promptVars,
       issueNumber,
@@ -607,6 +625,7 @@ export function emitRunClaudePRHumanResponse({
     return [
       {
         type: "log",
+        token: "code",
         level: "warning",
         message: "No PR found for human response",
       },
@@ -628,6 +647,7 @@ export function emitRunClaudePRHumanResponse({
   return [
     {
       type: "runClaude",
+      token: "code",
       promptFile: ".github/prompts/human-review-response.txt",
       promptVars,
       issueNumber,
@@ -651,6 +671,7 @@ export function emitAssignToSubIssue({ context }: ActionContext): ActionResult {
   return [
     {
       type: "assignUser",
+      token: "code",
       issueNumber: context.currentSubIssue.number,
       username: context.botUsername,
     },
@@ -667,6 +688,7 @@ export function emitInitializeParent({ context }: ActionContext): ActionResult {
   // Set parent to "In progress"
   actions.push({
     type: "updateProjectStatus",
+    token: "code",
     issueNumber: context.issue.number,
     status: "In progress" as ProjectStatus,
   });
@@ -676,6 +698,7 @@ export function emitInitializeParent({ context }: ActionContext): ActionResult {
   if (firstSubIssue) {
     actions.push({
       type: "updateProjectStatus",
+      token: "code",
       issueNumber: firstSubIssue.number,
       status: "In progress" as ProjectStatus,
     });
@@ -684,6 +707,7 @@ export function emitInitializeParent({ context }: ActionContext): ActionResult {
   // Log initialization
   actions.push({
     type: "appendHistory",
+    token: "code",
     issueNumber: context.issue.number,
     phase: "1",
     message: `🚀 Initialized with ${context.issue.subIssues.length} phase(s)`,
@@ -706,6 +730,7 @@ export function emitAdvancePhase({ context }: ActionContext): ActionResult {
   // Mark current sub-issue as Done
   actions.push({
     type: "updateProjectStatus",
+    token: "code",
     issueNumber: context.currentSubIssue.number,
     status: "Done" as ProjectStatus,
   });
@@ -713,6 +738,7 @@ export function emitAdvancePhase({ context }: ActionContext): ActionResult {
   // Close current sub-issue
   actions.push({
     type: "closeIssue",
+    token: "code",
     issueNumber: context.currentSubIssue.number,
     reason: "completed" as const,
   });
@@ -725,6 +751,7 @@ export function emitAdvancePhase({ context }: ActionContext): ActionResult {
     // Set next sub-issue to In progress
     actions.push({
       type: "updateProjectStatus",
+      token: "code",
       issueNumber: nextSubIssue.number,
       status: "In progress" as ProjectStatus,
     });
@@ -732,6 +759,7 @@ export function emitAdvancePhase({ context }: ActionContext): ActionResult {
     // Log phase advancement
     actions.push({
       type: "appendHistory",
+      token: "code",
       issueNumber: context.issue.number,
       phase: String(nextPhase),
       message: `⏭️ Phase ${nextPhase} started`,
@@ -751,6 +779,7 @@ export function emitOrchestrate({ context }: ActionContext): ActionResult {
   // Log that we're orchestrating
   actions.push({
     type: "log",
+    token: "code",
     level: "info",
     message: `Orchestrating issue #${context.issue.number} with ${context.issue.subIssues.length} phases`,
   });
@@ -793,6 +822,7 @@ export function emitOrchestrate({ context }: ActionContext): ActionResult {
   if (subIssueToAssign) {
     actions.push({
       type: "assignUser",
+      token: "code",
       issueNumber: subIssueToAssign.number,
       username: context.botUsername,
     });
@@ -801,6 +831,7 @@ export function emitOrchestrate({ context }: ActionContext): ActionResult {
   // Stop after orchestration
   actions.push({
     type: "stop",
+    token: "code",
     reason: subIssueToAssign
       ? `Assigned to sub-issue #${subIssueToAssign.number}`
       : "All phases complete",
@@ -818,6 +849,7 @@ export function emitAllPhasesDone({ context }: ActionContext): ActionResult {
   // Log completion
   actions.push({
     type: "log",
+    token: "code",
     level: "info",
     message: `All phases complete for issue #${context.issue.number}`,
   });
@@ -825,6 +857,7 @@ export function emitAllPhasesDone({ context }: ActionContext): ActionResult {
   // Set parent to Done
   actions.push({
     type: "updateProjectStatus",
+    token: "code",
     issueNumber: context.issue.number,
     status: "Done" as ProjectStatus,
   });
@@ -832,6 +865,7 @@ export function emitAllPhasesDone({ context }: ActionContext): ActionResult {
   // Close parent issue
   actions.push({
     type: "closeIssue",
+    token: "code",
     issueNumber: context.issue.number,
     reason: "completed" as const,
   });
@@ -839,6 +873,7 @@ export function emitAllPhasesDone({ context }: ActionContext): ActionResult {
   // Append final history entry
   actions.push({
     type: "appendHistory",
+    token: "code",
     issueNumber: context.issue.number,
     phase: "-",
     message: "✅ All phases complete",
@@ -858,6 +893,7 @@ export function emitStop(_ctx: ActionContext, reason: string): ActionResult {
   return [
     {
       type: "stop",
+      token: "code",
       reason,
     },
   ];
@@ -874,6 +910,7 @@ export function emitLog(
   return [
     {
       type: "log",
+      token: "code",
       level,
       message,
     },

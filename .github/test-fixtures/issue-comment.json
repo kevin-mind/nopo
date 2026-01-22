@@ -1,14 +1,15 @@
 {
   "name": "issue-comment",
-  "description": "@claude comment on issue - verifies Claude responds to questions",
+  "description": "@claude comment on issue - verifies Claude responds to questions after triage",
   "job_type": "issue-comment",
+  "trigger": "issue_assigned",
   "parent_issue": {
     "title": "Refactor database connection pooling",
     "body": "## Description\n\nThe current database connection pooling has performance issues under high load.\n\n## Requirements\n\n- Analyze current implementation\n- Propose improvements\n\n## Acceptance Criteria\n\n- [ ] Connection pool is optimized",
-    "labels": ["enhancement", "triaged"],
+    "labels": [],
     "project_fields": {
-      "Status": "In Progress",
-      "Iteration": 1,
+      "Status": "Backlog",
+      "Iteration": 0,
       "Failures": 0
     }
   },
@@ -19,6 +20,6 @@
     "issue_state": "open",
     "min_comments": 2
   },
-  "timeout": 120,
-  "poll_interval": 5
+  "timeout": 300,
+  "poll_interval": 10
 }

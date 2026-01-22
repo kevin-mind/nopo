@@ -464,6 +464,10 @@ const ApplyTriageOutputActionSchema = BaseActionSchema.extend({
   filePath: z.string().default("triage-output.json"),
 });
 
+export type ApplyTriageOutputAction = z.infer<
+  typeof ApplyTriageOutputActionSchema
+>;
+
 // ============================================================================
 // Discriminated Union of All Actions
 // ============================================================================

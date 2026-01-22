@@ -24295,7 +24295,7 @@ async function handleIssueEvent(octokit, owner, repo) {
       let subIssueNumbers = details.subIssues;
       if (subIssueNumbers.length === 0 && hasMainState) {
         const match = details.body.match(/sub_issues:\s*\[([^\]]+)\]/);
-        if (match) {
+        if (match?.[1]) {
           subIssueNumbers = match[1].split(",").map((s) => parseInt(s.trim(), 10)).filter((n) => !isNaN(n) && n > 0);
           core2.info(
             `Parsed sub-issues from CLAUDE_MAIN_STATE: ${subIssueNumbers.join(",")}`
@@ -24434,7 +24434,7 @@ async function handleIssueEvent(octokit, owner, repo) {
     let subIssueNumbers = details.subIssues;
     if (subIssueNumbers.length === 0 && hasMainState) {
       const match = details.body.match(/sub_issues:\s*\[([^\]]+)\]/);
-      if (match) {
+      if (match?.[1]) {
         subIssueNumbers = match[1].split(",").map((s) => parseInt(s.trim(), 10)).filter((n) => !isNaN(n) && n > 0);
       }
     }

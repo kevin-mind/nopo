@@ -49,6 +49,7 @@ describe("Orchestration action emitters", () => {
       // First action: set parent to In progress
       expect(actions[0]).toEqual({
         type: "updateProjectStatus",
+        token: "code",
         issueNumber: 100,
         status: "In progress",
       });
@@ -56,6 +57,7 @@ describe("Orchestration action emitters", () => {
       // Second action: set first sub-issue to In progress
       expect(actions[1]).toEqual({
         type: "updateProjectStatus",
+        token: "code",
         issueNumber: 101,
         status: "In progress",
       });
@@ -121,6 +123,7 @@ describe("Orchestration action emitters", () => {
       // Mark current Done
       expect(actions[0]).toEqual({
         type: "updateProjectStatus",
+        token: "code",
         issueNumber: 101,
         status: "Done",
       });
@@ -128,6 +131,7 @@ describe("Orchestration action emitters", () => {
       // Close current
       expect(actions[1]).toEqual({
         type: "closeIssue",
+        token: "code",
         issueNumber: 101,
         reason: "completed",
       });
@@ -135,6 +139,7 @@ describe("Orchestration action emitters", () => {
       // Set next to In progress
       expect(actions[2]).toEqual({
         type: "updateProjectStatus",
+        token: "code",
         issueNumber: 102,
         status: "In progress",
       });
@@ -413,6 +418,7 @@ describe("Orchestration action emitters", () => {
       expect(actions).toHaveLength(1);
       expect(actions[0]).toEqual({
         type: "assignUser",
+        token: "code",
         issueNumber: 101,
         username: "nopo-bot",
       });

@@ -14,6 +14,7 @@ describe("claude-test-helper types", () => {
       const fixture: TestFixture = {
         name: "minimal-test",
         description: "A minimal test fixture",
+        job_type: "issue-iterate",
         parent_issue: {
           title: "Test Issue",
           body: "Test body content",
@@ -21,19 +22,20 @@ describe("claude-test-helper types", () => {
       };
 
       expect(fixture.name).toBe("minimal-test");
-      expect(fixture.parent_issue.title).toBe("Test Issue");
+      expect(fixture.parent_issue?.title).toBe("Test Issue");
     });
 
     it("should accept fixture with all fields", () => {
       const fixture: TestFixture = {
         name: "full-test",
         description: "A full test fixture",
+        job_type: "issue-iterate",
         parent_issue: {
           title: "Parent Issue",
           body: "Parent body",
           labels: ["enhancement", "priority:high"],
           project_fields: {
-            Status: "In Progress",
+            Status: "In progress",
             Iteration: 0,
             Failures: 0,
           },
@@ -93,7 +95,7 @@ describe("claude-test-helper types", () => {
     it("should accept all valid status values", () => {
       const parentStatuses: ProjectStatus[] = [
         "Backlog",
-        "In Progress",
+        "In progress",
         "Done",
         "Blocked",
         "Error",
@@ -102,7 +104,7 @@ describe("claude-test-helper types", () => {
       const subIssueStatuses: ProjectStatus[] = [
         "Ready",
         "In progress",
-        "Review",
+        "In review",
         "Done",
       ];
 
@@ -234,11 +236,12 @@ describe("fixture validation", () => {
     const fixture: TestFixture = {
       name: "single-phase-green",
       description: "Single sub-issue, CI passes first time",
+      job_type: "issue-iterate",
       parent_issue: {
         title: "Implement simple feature",
         body: "## Description\n\nAdd a simple feature.",
         project_fields: {
-          Status: "In Progress",
+          Status: "In progress",
           Iteration: 0,
           Failures: 0,
         },
@@ -268,11 +271,12 @@ describe("fixture validation", () => {
     const fixture: TestFixture = {
       name: "circuit-breaker",
       description: "CI fails MAX_RETRIES times, triggers circuit breaker",
+      job_type: "issue-iterate",
       parent_issue: {
         title: "Feature with failing tests",
         body: "## Description\n\nA feature that will fail CI.",
         project_fields: {
-          Status: "In Progress",
+          Status: "In progress",
           Iteration: 0,
           Failures: 0,
         },
@@ -302,11 +306,12 @@ describe("fixture validation", () => {
     const fixture: TestFixture = {
       name: "multi-phase-sequential",
       description: "Three phases executed sequentially",
+      job_type: "issue-orchestrate",
       parent_issue: {
         title: "Multi-phase feature",
         body: "## Description\n\nA complex feature in three phases.",
         project_fields: {
-          Status: "In Progress",
+          Status: "In progress",
           Iteration: 0,
           Failures: 0,
         },

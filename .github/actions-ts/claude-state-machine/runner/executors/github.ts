@@ -242,10 +242,33 @@ export async function executeUpdateHistory(
       `Updated history: Phase ${action.matchPhase}, ${action.newMessage}`,
     );
   } else {
-    core.info(`No matching history entry found to update`);
+    // No matching entry found - add a new record instead
+    // This handles cases where the entry doesn't exist yet or table is missing
+    core.info(
+      `No matching history entry found - adding new entry for Phase ${action.matchPhase}`,
+    );
+
+    const newBody = addHistoryEntry(
+      currentBody,
+      action.matchIteration,
+      action.matchPhase,
+      action.newMessage,
+      action.commitSha,
+      action.runLink,
+      repoUrl,
+    );
+
+    await ctx.octokit.rest.issues.update({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: action.issueNumber,
+      body: newBody,
+    });
+
+    core.info(`Added new history entry: Phase ${action.matchPhase}, ${action.newMessage}`);
   }
 
-  return { updated: result.updated };
+  return { updated: true };
 }
 
 /**
@@ -415,8 +438,8 @@ export async function executeCreatePR(
     state: "open",
   });
 
-  if (existingPRs.data.length > 0) {
-    const existingPR = existingPRs.data[0];
+  const existingPR = existingPRs.data[0];
+  if (existingPR) {
     core.info(
       `PR #${existingPR.number} already exists for branch ${action.branchName}`,
     );

@@ -28895,9 +28895,27 @@ async function executeUpdateHistory(action, ctx) {
       `Updated history: Phase ${action.matchPhase}, ${action.newMessage}`
     );
   } else {
-    core3.info(`No matching history entry found to update`);
+    core3.info(
+      `No matching history entry found - adding new entry for Phase ${action.matchPhase}`
+    );
+    const newBody = addHistoryEntry(
+      currentBody,
+      action.matchIteration,
+      action.matchPhase,
+      action.newMessage,
+      action.commitSha,
+      action.runLink,
+      repoUrl
+    );
+    await ctx.octokit.rest.issues.update({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: action.issueNumber,
+      body: newBody
+    });
+    core3.info(`Added new history entry: Phase ${action.matchPhase}, ${action.newMessage}`);
   }
-  return { updated: result.updated };
+  return { updated: true };
 }
 async function executeUpdateIssueBody(action, ctx) {
   await ctx.octokit.rest.issues.update({
@@ -28998,8 +29016,8 @@ async function executeCreatePR(action, ctx) {
     base: action.baseBranch,
     state: "open"
   });
-  if (existingPRs.data.length > 0) {
-    const existingPR = existingPRs.data[0];
+  const existingPR = existingPRs.data[0];
+  if (existingPR) {
     core3.info(
       `PR #${existingPR.number} already exists for branch ${action.branchName}`
     );

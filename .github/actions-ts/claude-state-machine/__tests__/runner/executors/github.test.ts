@@ -273,8 +273,14 @@ describe("executeUpdateHistory", () => {
 
     const result = await executeUpdateHistory(action, ctx);
 
-    expect(result.updated).toBe(false);
-    expect(ctx.octokit.rest.issues.update).not.toHaveBeenCalled();
+    // When no matching entry is found, we now add a new entry instead
+    expect(result.updated).toBe(true);
+    expect(ctx.octokit.rest.issues.update).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      issue_number: 123,
+      body: expect.stringContaining("| 99 | 99 | Updated |"),
+    });
   });
 });
 

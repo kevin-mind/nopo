@@ -1,50 +1,24 @@
 {
   "name": "review-changes-requested",
-  "description": "Review requests changes - verifies PR goes back to draft and iteration continues",
+  "description": "Review requests changes - verifies PR goes back to draft and iteration continues after triage creates sub-issues",
   "job_type": "issue-iterate",
+  "trigger": "issue_assigned",
   "parent_issue": {
     "title": "Feature requiring review changes",
     "body": "## Description\n\nA feature that will pass CI but require changes during review.\n\n## Requirements\n\n- Implement initial feature\n- Address review feedback\n\n## Acceptance Criteria\n\n- [ ] Initial implementation passes CI\n- [ ] Review changes are addressed\n- [ ] Final review approves",
-    "labels": ["enhancement"],
+    "labels": [],
     "project_fields": {
-      "Status": "In Progress",
+      "Status": "Backlog",
       "Iteration": 0,
       "Failures": 0
     }
   },
-  "sub_issues": [
-    {
-      "title": "Implement feature with review needed",
-      "body": "## Todos\n\n- [ ] Add initial implementation\n- [ ] Address review feedback\n\n## Testing\n\n- [ ] CI passes\n- [ ] Review approved",
-      "project_fields": {
-        "Status": "In progress"
-      }
-    }
-  ],
-  "branch": {
-    "name": "review-test",
-    "from": "main",
-    "commits": [
-      {
-        "message": "feat: add initial feature implementation",
-        "files": {
-          "test-files/review-feature.ts": "// Initial implementation\nexport const feature = () => {\n  console.log('Hello');\n};\n"
-        }
-      }
-    ]
-  },
-  "pr": {
-    "title": "Add review test feature",
-    "body": "Fixes #{ISSUE_NUMBER}\n\n## Summary\n\nAdds initial feature implementation for review testing.",
-    "draft": false
-  },
   "expected": {
     "parent_status": "Done",
-    "sub_issue_statuses": ["Done"],
-    "pr_state": "merged",
     "issue_state": "closed",
-    "min_iteration": 2
+    "min_iteration": 2,
+    "all_sub_issues_closed": true
   },
-  "timeout": 600,
+  "timeout": 900,
   "poll_interval": 15
 }

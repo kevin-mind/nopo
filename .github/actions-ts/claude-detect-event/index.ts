@@ -609,7 +609,7 @@ async function handleIssueEvent(
       if (subIssueNumbers.length === 0 && hasMainState) {
         // Parse sub_issues from CLAUDE_MAIN_STATE: sub_issues: [123, 456]
         const match = details.body.match(/sub_issues:\s*\[([^\]]+)\]/);
-        if (match) {
+        if (match?.[1]) {
           subIssueNumbers = match[1]
             .split(",")
             .map((s) => parseInt(s.trim(), 10))
@@ -787,7 +787,7 @@ async function handleIssueEvent(
     if (subIssueNumbers.length === 0 && hasMainState) {
       // Parse sub_issues from CLAUDE_MAIN_STATE: sub_issues: [123, 456]
       const match = details.body.match(/sub_issues:\s*\[([^\]]+)\]/);
-      if (match) {
+      if (match?.[1]) {
         subIssueNumbers = match[1]
           .split(",")
           .map((s) => parseInt(s.trim(), 10))

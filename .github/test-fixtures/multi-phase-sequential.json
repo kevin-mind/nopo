@@ -1,47 +1,27 @@
 {
   "name": "multi-phase-sequential",
-  "description": "Three phases executed sequentially, each passes CI - verifies phase advancement",
+  "description": "Three phases executed sequentially - verifies triage creates sub-issues and phase advancement works",
   "job_type": "issue-iterate",
+  "trigger": "issue_assigned",
   "parent_issue": {
     "title": "Multi-phase feature implementation",
-    "body": "## Description\n\nA complex feature broken into three phases.\n\n## Requirements\n\nPhase 1: Setup infrastructure\nPhase 2: Implement core logic\nPhase 3: Add polish and documentation\n\n## Acceptance Criteria\n\n- [ ] All three phases complete\n- [ ] Tests pass for each phase",
-    "labels": ["enhancement"],
+    "body": "## Description\n\nA complex feature broken into three phases for testing the phased workflow automation.\n\n## Requirements\n\n- Phase 1: Setup infrastructure (mock task)\n- Phase 2: Implement core logic (mock task)\n- Phase 3: Add polish and documentation (mock task)\n\n## Acceptance Criteria\n\n- [ ] All three phases complete\n- [ ] Tests pass for each phase",
+    "labels": [],
     "project_fields": {
-      "Status": "In Progress",
+      "Status": "Backlog",
       "Iteration": 0,
       "Failures": 0
     }
   },
-  "sub_issues": [
-    {
-      "title": "Phase 1: Setup",
-      "body": "## Todos\n\n- [ ] Create directory structure\n- [ ] Add configuration files\n\n## Testing\n\n- [ ] Config validation passes",
-      "project_fields": {
-        "Status": "In progress"
-      }
-    },
-    {
-      "title": "Phase 2: Core Implementation",
-      "body": "## Todos\n\n- [ ] Implement core business logic\n- [ ] Add unit tests\n\n## Testing\n\n- [ ] All unit tests pass",
-      "project_fields": {
-        "Status": "Ready"
-      }
-    },
-    {
-      "title": "Phase 3: Polish",
-      "body": "## Todos\n\n- [ ] Add documentation\n- [ ] Code cleanup\n\n## Testing\n\n- [ ] Lint passes",
-      "project_fields": {
-        "Status": "Ready"
-      }
-    }
-  ],
   "expected": {
     "parent_status": "Done",
-    "sub_issue_statuses": ["Done", "Done", "Done"],
     "issue_state": "closed",
     "min_iteration": 3,
-    "failures": 0
+    "failures": 0,
+    "all_sub_issues_closed": true,
+    "sub_issues_todos_done": true,
+    "sub_issues_have_merged_pr": true
   },
-  "timeout": 600,
+  "timeout": 900,
   "poll_interval": 15
 }

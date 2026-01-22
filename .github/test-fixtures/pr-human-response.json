@@ -1,26 +1,18 @@
 {
   "name": "pr-human-response",
-  "description": "Human review submitted on Claude PR - verifies Claude addresses feedback",
+  "description": "Human review submitted on Claude PR - verifies Claude addresses feedback after triage creates sub-issues",
   "job_type": "pr-human-response",
+  "trigger": "issue_assigned",
   "parent_issue": {
     "title": "Add rate limiting to API",
     "body": "## Description\n\nImplement rate limiting to prevent abuse.\n\n## Requirements\n\n- Rate limit per IP\n- Configurable limits\n\n## Acceptance Criteria\n\n- [ ] Rate limiting works\n- [ ] Limits are configurable",
-    "labels": ["enhancement", "triaged"],
+    "labels": [],
     "project_fields": {
-      "Status": "In Progress",
-      "Iteration": 1,
+      "Status": "Backlog",
+      "Iteration": 0,
       "Failures": 0
     }
   },
-  "sub_issues": [
-    {
-      "title": "Implement rate limiting",
-      "body": "## Todos\n\n- [x] Add rate limit middleware\n- [ ] Make limits configurable\n\n## Testing\n\n- [ ] Rate limit tests pass",
-      "project_fields": {
-        "Status": "Review"
-      }
-    }
-  ],
   "branch": {
     "name": "pr-human-response-test",
     "from": "main",
@@ -47,6 +39,6 @@
     "pr_state": "draft",
     "min_iteration": 2
   },
-  "timeout": 300,
-  "poll_interval": 10
+  "timeout": 600,
+  "poll_interval": 15
 }

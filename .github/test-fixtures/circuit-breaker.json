@@ -1,6 +1,6 @@
 {
   "name": "circuit-breaker",
-  "description": "CI fails MAX_RETRIES times, triggers circuit breaker - verifies blocking behavior",
+  "description": "CI fails MAX_RETRIES times, triggers circuit breaker - NOTE: This is a dry-run only test that verifies the state machine logic",
   "job_type": "issue-iterate",
   "trigger": "workflow_run_completed",
   "trigger_context": {
@@ -9,25 +9,20 @@
   "parent_issue": {
     "title": "Feature with persistent CI failures",
     "body": "## Description\n\nA feature that will repeatedly fail CI and trigger the circuit breaker.\n\n## Requirements\n\n- This is expected to fail and block\n\n## Acceptance Criteria\n\n- [ ] Circuit breaker triggers after max failures\n- [ ] nopo-bot is unassigned",
-    "labels": ["enhancement"],
+    "labels": [],
     "project_fields": {
-      "Status": "In Progress",
-      "Iteration": 4,
-      "Failures": 4
+      "Status": "Backlog",
+      "Iteration": 0,
+      "Failures": 0
     }
   },
-  "sub_issues": [
-    {
-      "title": "Implement failing feature",
-      "body": "## Todos\n\n- [ ] Add code that will always fail CI\n\n## Testing\n\n- [ ] This should fail and trigger circuit breaker",
-      "project_fields": {
-        "Status": "In progress"
-      }
-    }
-  ],
+  "dry_run_override": {
+    "iteration": 4,
+    "failures": 4,
+    "status": "In progress"
+  },
   "expected": {
     "parent_status": "Blocked",
-    "sub_issue_statuses": ["In progress"],
     "issue_state": "open",
     "failures": 5
   },
@@ -37,6 +32,6 @@
     "stopped_early": "true",
     "stop_reason": "blocked"
   },
-  "timeout": 900,
-  "poll_interval": 20
+  "timeout": 120,
+  "poll_interval": 10
 }

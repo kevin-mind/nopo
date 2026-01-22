@@ -32051,6 +32051,7 @@ function emitClearFailures({ context: context2 }) {
   return [
     {
       type: "clearFailures",
+      token: "code",
       issueNumber: context2.issue.number
     }
   ];
@@ -32059,6 +32060,7 @@ function emitCloseIssue({ context: context2 }) {
   return [
     {
       type: "closeIssue",
+      token: "code",
       issueNumber: context2.issue.number,
       reason: "completed"
     }
@@ -32068,6 +32070,7 @@ function emitUnassign({ context: context2 }) {
   return [
     {
       type: "unassignUser",
+      token: "code",
       issueNumber: context2.issue.number,
       username: context2.botUsername
     }
@@ -32077,6 +32080,7 @@ function emitBlock({ context: context2 }) {
   return [
     {
       type: "block",
+      token: "code",
       issueNumber: context2.issue.number,
       reason: `Max failures (${context2.maxRetries}) reached`
     }
@@ -32087,6 +32091,7 @@ function emitAppendHistory({ context: context2 }, message, phase) {
   return [
     {
       type: "appendHistory",
+      token: "code",
       issueNumber: context2.issue.number,
       phase: String(phaseStr),
       message,
@@ -32099,6 +32104,7 @@ function emitLogCIFailure({ context: context2 }) {
   return [
     {
       type: "updateHistory",
+      token: "code",
       issueNumber: context2.issue.number,
       matchIteration: context2.issue.iteration,
       matchPhase: String(context2.currentPhase ?? "-"),
@@ -32114,6 +32120,7 @@ function emitCreateBranch({ context: context2 }) {
   return [
     {
       type: "createBranch",
+      token: "code",
       branchName,
       baseBranch: "main"
     }
@@ -32128,6 +32135,7 @@ function emitCreatePR({ context: context2 }) {
   return [
     {
       type: "createPR",
+      token: "code",
       title: context2.currentSubIssue?.title ?? context2.issue.title,
       body: `Fixes #${issueNumber}`,
       branchName,
@@ -32144,6 +32152,7 @@ function emitMarkReady({ context: context2 }) {
   return [
     {
       type: "markPRReady",
+      token: "code",
       prNumber: context2.pr.number
     }
   ];
@@ -32155,6 +32164,7 @@ function emitConvertToDraft({ context: context2 }) {
   return [
     {
       type: "convertPRToDraft",
+      token: "code",
       prNumber: context2.pr.number
     }
   ];
@@ -32166,6 +32176,7 @@ function emitRequestReview({ context: context2 }) {
   return [
     {
       type: "requestReview",
+      token: "code",
       prNumber: context2.pr.number,
       reviewer: context2.botUsername
     }
@@ -32217,6 +32228,7 @@ function emitRunClaude({ context: context2 }) {
   return [
     {
       type: "runClaude",
+      token: "code",
       promptFile: ".github/prompts/iterate.txt",
       promptVars,
       issueNumber
@@ -32234,6 +32246,7 @@ Review the CI logs at the link above and fix the failing tests or build errors.`
   return [
     {
       type: "runClaude",
+      token: "code",
       promptFile: ".github/prompts/iterate.txt",
       promptVars,
       issueNumber
@@ -32256,6 +32269,7 @@ function emitRunClaudeTriage({ context: context2 }) {
   return [
     {
       type: "runClaude",
+      token: "code",
       promptFile: ".github/prompts/triage.txt",
       promptVars,
       issueNumber,
@@ -32266,6 +32280,7 @@ function emitRunClaudeTriage({ context: context2 }) {
     // Downloads the artifact before execution
     {
       type: "applyTriageOutput",
+      token: "code",
       issueNumber,
       filePath: "triage-output.json",
       consumesArtifact: triageArtifact
@@ -32283,6 +32298,7 @@ function emitRunClaudeComment({ context: context2 }) {
   return [
     {
       type: "runClaude",
+      token: "code",
       promptFile: ".github/prompts/comment.txt",
       promptVars,
       issueNumber
@@ -32297,7 +32313,7 @@ function emitRunClaudePRReview({
   const prNumber = context2.pr?.number;
   if (!prNumber) {
     return [
-      { type: "log", level: "warning", message: "No PR found for review" }
+      { type: "log", token: "code", level: "warning", message: "No PR found for review" }
     ];
   }
   const promptVars = {
@@ -32312,6 +32328,7 @@ function emitRunClaudePRReview({
   return [
     {
       type: "runClaude",
+      token: "review",
       promptFile: ".github/prompts/review.txt",
       promptVars,
       issueNumber
@@ -32326,7 +32343,7 @@ function emitRunClaudePRResponse({
   const prNumber = context2.pr?.number;
   if (!prNumber) {
     return [
-      { type: "log", level: "warning", message: "No PR found for response" }
+      { type: "log", token: "code", level: "warning", message: "No PR found for response" }
     ];
   }
   const promptVars = {
@@ -32342,6 +32359,7 @@ function emitRunClaudePRResponse({
   return [
     {
       type: "runClaude",
+      token: "code",
       promptFile: ".github/prompts/review-response.txt",
       promptVars,
       issueNumber
@@ -32358,6 +32376,7 @@ function emitRunClaudePRHumanResponse({
     return [
       {
         type: "log",
+        token: "code",
         level: "warning",
         message: "No PR found for human response"
       }
@@ -32376,6 +32395,7 @@ function emitRunClaudePRHumanResponse({
   return [
     {
       type: "runClaude",
+      token: "code",
       promptFile: ".github/prompts/human-review-response.txt",
       promptVars,
       issueNumber
@@ -32387,6 +32407,7 @@ function emitInitializeParent({ context: context2 }) {
   const actions = [];
   actions.push({
     type: "updateProjectStatus",
+    token: "code",
     issueNumber: context2.issue.number,
     status: "In progress"
   });
@@ -32394,12 +32415,14 @@ function emitInitializeParent({ context: context2 }) {
   if (firstSubIssue) {
     actions.push({
       type: "updateProjectStatus",
+      token: "code",
       issueNumber: firstSubIssue.number,
       status: "In progress"
     });
   }
   actions.push({
     type: "appendHistory",
+    token: "code",
     issueNumber: context2.issue.number,
     phase: "1",
     message: `\u{1F680} Initialized with ${context2.issue.subIssues.length} phase(s)`
@@ -32413,11 +32436,13 @@ function emitAdvancePhase({ context: context2 }) {
   }
   actions.push({
     type: "updateProjectStatus",
+    token: "code",
     issueNumber: context2.currentSubIssue.number,
     status: "Done"
   });
   actions.push({
     type: "closeIssue",
+    token: "code",
     issueNumber: context2.currentSubIssue.number,
     reason: "completed"
   });
@@ -32426,11 +32451,13 @@ function emitAdvancePhase({ context: context2 }) {
   if (nextSubIssue) {
     actions.push({
       type: "updateProjectStatus",
+      token: "code",
       issueNumber: nextSubIssue.number,
       status: "In progress"
     });
     actions.push({
       type: "appendHistory",
+      token: "code",
       issueNumber: context2.issue.number,
       phase: String(nextPhase),
       message: `\u23ED\uFE0F Phase ${nextPhase} started`
@@ -32442,6 +32469,7 @@ function emitOrchestrate({ context: context2 }) {
   const actions = [];
   actions.push({
     type: "log",
+    token: "code",
     level: "info",
     message: `Orchestrating issue #${context2.issue.number} with ${context2.issue.subIssues.length} phases`
   });
@@ -32468,12 +32496,14 @@ function emitOrchestrate({ context: context2 }) {
   if (subIssueToAssign) {
     actions.push({
       type: "assignUser",
+      token: "code",
       issueNumber: subIssueToAssign.number,
       username: context2.botUsername
     });
   }
   actions.push({
     type: "stop",
+    token: "code",
     reason: subIssueToAssign ? `Assigned to sub-issue #${subIssueToAssign.number}` : "All phases complete"
   });
   return actions;
@@ -32482,21 +32512,25 @@ function emitAllPhasesDone({ context: context2 }) {
   const actions = [];
   actions.push({
     type: "log",
+    token: "code",
     level: "info",
     message: `All phases complete for issue #${context2.issue.number}`
   });
   actions.push({
     type: "updateProjectStatus",
+    token: "code",
     issueNumber: context2.issue.number,
     status: "Done"
   });
   actions.push({
     type: "closeIssue",
+    token: "code",
     issueNumber: context2.issue.number,
     reason: "completed"
   });
   actions.push({
     type: "appendHistory",
+    token: "code",
     issueNumber: context2.issue.number,
     phase: "-",
     message: "\u2705 All phases complete"
@@ -32507,6 +32541,7 @@ function emitStop(_ctx, reason) {
   return [
     {
       type: "stop",
+      token: "code",
       reason
     }
   ];
@@ -32515,6 +32550,7 @@ function emitLog(_ctx, message, level = "info") {
   return [
     {
       type: "log",
+      token: "code",
       level,
       message
     }

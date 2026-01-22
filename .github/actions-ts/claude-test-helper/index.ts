@@ -635,14 +635,13 @@ async function createFixture(
         );
 
         const subItemId = addResult.addProjectV2ItemById?.item?.id;
-        if (subItemId && subConfig.project_fields.Status) {
+        const subStatus = subConfig.project_fields?.Status;
+        if (subItemId && subStatus) {
           // Case-insensitive lookup for status option
           const optionId =
-            projectFields.statusOptions[subConfig.project_fields.Status] ||
+            projectFields.statusOptions[subStatus] ||
             Object.entries(projectFields.statusOptions).find(
-              ([name]) =>
-                name.toLowerCase() ===
-                subConfig.project_fields.Status!.toLowerCase(),
+              ([name]) => name.toLowerCase() === subStatus.toLowerCase(),
             )?.[1];
           if (optionId) {
             await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
@@ -652,7 +651,7 @@ async function createFixture(
               value: { singleSelectOptionId: optionId },
             });
             core.info(
-              `Set sub-issue #${subIssue.number} Status to ${subConfig.project_fields.Status}`,
+              `Set sub-issue #${subIssue.number} Status to ${subStatus}`,
             );
           }
         }

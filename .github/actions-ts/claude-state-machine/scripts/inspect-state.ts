@@ -329,6 +329,10 @@ function createBaseContext(): MachineContext {
     hasPR: false,
     maxRetries: 5,
     botUsername: "nopo-bot",
+    discussion: null,
+    commentContextType: null,
+    commentContextDescription: null,
+    releaseEvent: null,
   };
 }
 
@@ -479,8 +483,9 @@ Examples:
 let context: MachineContext;
 
 const scenarioIdx = args.indexOf("--scenario");
-if (scenarioIdx !== -1 && args[scenarioIdx + 1]) {
-  const scenarioName = args[scenarioIdx + 1];
+const scenarioArg = args[scenarioIdx + 1];
+if (scenarioIdx !== -1 && scenarioArg) {
+  const scenarioName = scenarioArg;
   const scenario = scenarios[scenarioName];
   if (!scenario) {
     console.error(`Unknown scenario: ${scenarioName}`);

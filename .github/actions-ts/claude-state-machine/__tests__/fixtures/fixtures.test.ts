@@ -140,7 +140,7 @@ describe("Factory functions produce valid schemas", () => {
         }),
       );
       expect(result.success).toBe(true);
-      expect(result.data?.subIssues[0].title).toBe("Phase 1");
+      expect(result.data?.subIssues[0]?.title).toBe("Phase 1");
     });
   });
 
