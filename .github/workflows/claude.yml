@@ -30,7 +30,8 @@ run-name: >-
   issues:
     types:
       - opened
-      - edited
+      # NOTE: 'edited' removed to reduce noise - using workflow_dispatch for manual control
+      # - edited
       - assigned
       - unlabeled
   issue_comment:
