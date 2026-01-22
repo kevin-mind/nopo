@@ -101,6 +101,7 @@ permissions:
   contents: write
   pull-requests: write
   issues: write
+  actions: write  # Required for gh workflow run (retrigger)
   id-token: write
 
 jobs:
