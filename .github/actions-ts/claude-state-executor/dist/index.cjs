@@ -29044,12 +29044,13 @@ async function executeAppendHistory(action, ctx) {
   const currentBody = response.repository?.issue?.body || "";
   const iteration = 0;
   const repoUrl = `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}`;
+  const timestamp = action.timestamp || (/* @__PURE__ */ new Date()).toISOString();
   const newBody = addHistoryEntry(
     currentBody,
     iteration,
     action.phase,
     action.message,
-    action.timestamp,
+    timestamp,
     action.commitSha,
     action.runLink,
     repoUrl
@@ -29099,12 +29100,13 @@ async function executeUpdateHistory(action, ctx) {
     core3.info(
       `No matching history entry found - adding new entry for Phase ${action.matchPhase}`
     );
+    const timestamp = action.timestamp || (/* @__PURE__ */ new Date()).toISOString();
     const newBody = addHistoryEntry(
       currentBody,
       action.matchIteration,
       action.matchPhase,
       action.newMessage,
-      action.timestamp,
+      timestamp,
       action.commitSha,
       action.runLink,
       repoUrl

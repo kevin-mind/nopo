@@ -178,12 +178,14 @@ export async function executeAppendHistory(
   const iteration = 0;
 
   const repoUrl = `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}`;
+  // Auto-generate timestamp if not provided
+  const timestamp = action.timestamp || new Date().toISOString();
   const newBody = addHistoryEntry(
     currentBody,
     iteration,
     action.phase,
     action.message,
-    action.timestamp,
+    timestamp,
     action.commitSha,
     action.runLink,
     repoUrl,
@@ -250,12 +252,14 @@ export async function executeUpdateHistory(
       `No matching history entry found - adding new entry for Phase ${action.matchPhase}`,
     );
 
+    // Auto-generate timestamp for new entries if not provided
+    const timestamp = action.timestamp || new Date().toISOString();
     const newBody = addHistoryEntry(
       currentBody,
       action.matchIteration,
       action.matchPhase,
       action.newMessage,
-      action.timestamp,
+      timestamp,
       action.commitSha,
       action.runLink,
       repoUrl,
