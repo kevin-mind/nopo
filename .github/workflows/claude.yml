@@ -198,12 +198,15 @@ jobs:
               echo "parent_issue=$linked_issue" >> $GITHUB_OUTPUT
 
               # Build context with the linked issue number (not PR number)
-              # Pipe directly to jq to avoid newline escaping issues with shell variables
-              new_context=$(gh issue view "$linked_issue" --json title,body | jq -c \
-                --arg num "$linked_issue" \
-                --arg pr_num "$RESOURCE_NUMBER" \
-                '{issue_number: $num, pr_number: $pr_num, issue_title: .title, issue_body: .body}')
-              echo "context_json=$new_context" >> $GITHUB_OUTPUT
+              # Use heredoc for multiline output to preserve JSON integrity
+              {
+                echo "context_json<<EOF"
+                gh issue view "$linked_issue" --json title,body | jq -c \
+                  --arg num "$linked_issue" \
+                  --arg pr_num "$RESOURCE_NUMBER" \
+                  '{issue_number: $num, pr_number: $pr_num, issue_title: .title, issue_body: .body}'
+                echo "EOF"
+              } >> $GITHUB_OUTPUT
               exit 0
               ;;
             discussion-research|discussion-respond|discussion-summarize|discussion-plan)
