@@ -394,3 +394,53 @@ jobs:
               "runLink": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }]
           dry_run: ${{ inputs.dry_run && 'true' || 'false' }}
+
+  # ============================================================================
+  # Phase 4: Check and Retrigger
+  # If not in terminal state and didn't run Claude, retrigger to continue loop
+  # ============================================================================
+  check-retrigger:
+    needs: [derive-actions, exec-state-actions, log-run-end]
+    if: |
+      always() &&
+      needs.exec-state-actions.result == 'success' &&
+      !inputs.dry_run
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if should continue
+        id: check
+        env:
+          FINAL_STATE: ${{ needs.derive-actions.outputs.final_state }}
+          ACTIONS_JSON: ${{ needs.derive-actions.outputs.actions_json }}
+        run: |
+          # Don't retrigger if we just ran Claude (waiting for push → CI)
+          if echo "$ACTIONS_JSON" | jq -e 'map(select(.type == "runClaude")) | length > 0' > /dev/null 2>&1; then
+            echo "Ran runClaude, waiting for CI completion"
+            echo "should_retrigger=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Don't retrigger for terminal states
+          case "$FINAL_STATE" in
+            done|blocked|error|alreadyDone|alreadyBlocked|terminal)
+              echo "Terminal state: $FINAL_STATE"
+              echo "should_retrigger=false" >> $GITHUB_OUTPUT
+              ;;
+            *)
+              echo "Non-terminal state: $FINAL_STATE, will retrigger"
+              echo "should_retrigger=true" >> $GITHUB_OUTPUT
+              ;;
+          esac
+
+      - name: Retrigger workflow
+        if: steps.check.outputs.should_retrigger == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
+          REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
+        run: |
+          echo "Retriggering workflow for issue #${ISSUE_NUMBER}"
+          gh workflow run claude.yml \
+            --repo "$REPO" \
+            -f action=auto \
+            -f resource_number="$ISSUE_NUMBER"
