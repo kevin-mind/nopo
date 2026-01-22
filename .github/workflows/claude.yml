@@ -311,7 +311,7 @@ jobs:
       resource_number: ${{ needs.detect.outputs.resource_number }}
       comment_id: ${{ needs.detect.outputs.comment_id }}
       dry_run: false
-      continue: ${{ inputs.continue == '' && true || inputs.continue }}
+      continue: ${{ inputs.continue != false && inputs.continue != 'false' }}
     secrets: inherit
 
   # NOTE: handle-failure job was removed as part of state machine consolidation
