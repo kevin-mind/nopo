@@ -59,7 +59,7 @@ export const DEFAULT_PARENT_ISSUE: ParentIssue = {
   iteration: 0,
   failures: 0,
   assignees: ["nopo-bot"],
-  labels: [],
+  labels: ["triaged"],
   subIssues: [],
   hasSubIssues: false,
   history: [],

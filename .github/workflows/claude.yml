@@ -84,6 +84,11 @@ run-name: >-
         required: false
         type: string
         default: '{}'
+      continue:
+        description: Continue to next state (true) or stop after this iteration (false)
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -306,6 +311,7 @@ jobs:
       resource_number: ${{ needs.detect.outputs.resource_number }}
       comment_id: ${{ needs.detect.outputs.comment_id }}
       dry_run: false
+      continue: ${{ inputs.continue == '' && true || inputs.continue }}
     secrets: inherit
 
   # NOTE: handle-failure job was removed as part of state machine consolidation

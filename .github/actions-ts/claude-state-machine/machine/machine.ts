@@ -120,6 +120,7 @@ export const claudeMachine = setup({
       guards.triggeredByPRResponse({ context }),
     triggeredByPRHumanResponse: ({ context }) =>
       guards.triggeredByPRHumanResponse({ context }),
+    needsTriage: ({ context }) => guards.needsTriage({ context }),
   },
   actions: {
     // Log actions
@@ -434,6 +435,12 @@ export const claudeMachine = setup({
         {
           target: "processingReview",
           guard: "triggeredByReview",
+        },
+        // Check if issue needs triage (no "triaged" label)
+        // This ensures untriaged issues get triaged before any work begins
+        {
+          target: "triaging",
+          guard: "needsTriage",
         },
         // Check for multi-phase work
         { target: "initializing", guard: "needsSubIssues" },

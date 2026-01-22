@@ -83,6 +83,11 @@ on:
         required: false
         type: boolean
         default: false
+      continue:
+        description: Continue to next state (true) or stop after this iteration (false)
+        required: false
+        type: boolean
+        default: true
     outputs:
       final_state:
         description: Final state after machine execution
@@ -493,9 +498,15 @@ jobs:
           GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
           REPO: ${{ github.repository }}
           ISSUE_NUMBER: ${{ inputs.issue_number }}
+          CONTINUE: ${{ inputs.continue }}
         run: |
-          echo "Retriggering workflow for issue #${ISSUE_NUMBER}"
-          gh workflow run claude.yml \
-            --repo "$REPO" \
-            -f action=auto \
-            -f resource_number="$ISSUE_NUMBER"
+          if [[ "$CONTINUE" == "true" ]]; then
+            echo "Retriggering workflow for issue #${ISSUE_NUMBER}"
+            gh workflow run claude.yml \
+              --repo "$REPO" \
+              -f action=auto \
+              -f resource_number="$ISSUE_NUMBER"
+          else
+            echo "::notice::Would retrigger workflow for issue #${ISSUE_NUMBER} (continue=false, skipped)"
+            echo "To continue, manually dispatch with: gh workflow run claude.yml -f action=auto -f resource_number=$ISSUE_NUMBER"
+          fi

@@ -399,6 +399,24 @@ function triggeredByPRHumanResponse({ context }: GuardContext): boolean {
 }
 
 // ============================================================================
+// Triage Guards
+// ============================================================================
+
+/**
+ * Check if the issue needs triage (doesn't have "triaged" label)
+ */
+function needsTriage({ context }: GuardContext): boolean {
+  return !context.issue.labels.includes("triaged");
+}
+
+/**
+ * Check if the issue has been triaged (has "triaged" label)
+ */
+function isTriaged({ context }: GuardContext): boolean {
+  return context.issue.labels.includes("triaged");
+}
+
+// ============================================================================
 // Composite Guards
 // ============================================================================
 
@@ -482,6 +500,9 @@ export const guards = {
   triggeredByPRReview,
   triggeredByPRResponse,
   triggeredByPRHumanResponse,
+  // Triage guards
+  needsTriage,
+  isTriaged,
   // Composite guards
   readyForReview,
   shouldContinueIterating,

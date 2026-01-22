@@ -71,6 +71,31 @@ describe("claudeMachine", () => {
       const { state } = runMachine(context);
       expect(state).toBe("reviewing");
     });
+
+    test("transitions to triaging for untriaged issue", () => {
+      const context = createContext({
+        issue: { projectStatus: "In progress", labels: [] },
+      });
+      const { state, actions } = runMachine(context);
+      expect(state).toBe("triaging");
+      const actionTypes = actions.map((a) => a.type);
+      expect(actionTypes).toContain("runClaude");
+      // Verify runClaude action uses triage prompt file
+      const runClaudeAction = actions.find((a) => a.type === "runClaude");
+      if (runClaudeAction?.type === "runClaude") {
+        expect(runClaudeAction.promptFile).toContain("triage");
+      } else {
+        expect.fail("runClaude action not found");
+      }
+    });
+
+    test("triaged issue proceeds to iteration", () => {
+      const context = createContext({
+        issue: { projectStatus: "In progress", labels: ["triaged"] },
+      });
+      const { state } = runMachine(context);
+      expect(state).toBe("iterating");
+    });
   });
 
   describe("CI triggered transitions", () => {

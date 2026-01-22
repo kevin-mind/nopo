@@ -43,6 +43,7 @@ stateDiagram-v2
     detecting --> prRespondingHuman: triggeredByPRHumanResponse
     detecting --> processingCI: triggeredByCI
     detecting --> processingReview: triggeredByReview
+    detecting --> triaging: needsTriage
     detecting --> initializing: needsSubIssues
     detecting --> orchestrating: hasSubIssues
     detecting --> reviewing: isInReview

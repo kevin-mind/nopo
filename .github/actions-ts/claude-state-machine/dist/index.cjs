@@ -32757,6 +32757,12 @@ function triggeredByPRResponse({ context: context2 }) {
 function triggeredByPRHumanResponse({ context: context2 }) {
   return context2.trigger === "pr_human_response";
 }
+function needsTriage({ context: context2 }) {
+  return !context2.issue.labels.includes("triaged");
+}
+function isTriaged({ context: context2 }) {
+  return context2.issue.labels.includes("triaged");
+}
 function readyForReview({ context: context2 }) {
   return ciPassed({ context: context2 }) && todosDone({ context: context2 });
 }
@@ -32822,6 +32828,9 @@ var guards = {
   triggeredByPRReview,
   triggeredByPRResponse,
   triggeredByPRHumanResponse,
+  // Triage guards
+  needsTriage,
+  isTriaged,
   // Composite guards
   readyForReview,
   shouldContinueIterating,
@@ -32867,7 +32876,8 @@ var claudeMachine = setup({
     triggeredByOrchestrate: ({ context: context2 }) => guards.triggeredByOrchestrate({ context: context2 }),
     triggeredByPRReview: ({ context: context2 }) => guards.triggeredByPRReview({ context: context2 }),
     triggeredByPRResponse: ({ context: context2 }) => guards.triggeredByPRResponse({ context: context2 }),
-    triggeredByPRHumanResponse: ({ context: context2 }) => guards.triggeredByPRHumanResponse({ context: context2 })
+    triggeredByPRHumanResponse: ({ context: context2 }) => guards.triggeredByPRHumanResponse({ context: context2 }),
+    needsTriage: ({ context: context2 }) => guards.needsTriage({ context: context2 })
   },
   actions: {
     // Log actions
@@ -33136,6 +33146,12 @@ var claudeMachine = setup({
         {
           target: "processingReview",
           guard: "triggeredByReview"
+        },
+        // Check if issue needs triage (no "triaged" label)
+        // This ensures untriaged issues get triaged before any work begins
+        {
+          target: "triaging",
+          guard: "needsTriage"
         },
         // Check for multi-phase work
         { target: "initializing", guard: "needsSubIssues" },
