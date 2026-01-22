@@ -112,7 +112,31 @@ jobs:
 
           echo "Summary: issues=$issues_json, prs=$prs_json, has_issues=$has_issues"
 
-  # NOTE: log-queue-entry removed - now handled by claude.yml's merge_group trigger
+  # ============================================================================
+  # LOG: ADDED TO MERGE QUEUE (merge_group event)
+  # Triggers Claude workflow for each linked issue
+  # ============================================================================
+  log-queue-entry:
+    if: github.event_name == 'merge_group' && needs.extract-issue.outputs.has_issues == 'true'
+    needs: extract-issue
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    strategy:
+      matrix:
+        issue: ${{ fromJson(needs.extract-issue.outputs.issues_json) }}
+      fail-fast: false
+    steps:
+      - name: Trigger Claude for queue entry logging (issue #${{ matrix.issue }})
+        env:
+          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
+        run: |
+          gh workflow run claude.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            -f action=queue_entry \
+            -f resource_number=${{ matrix.issue }} \
+            -f run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            -f continue=false
 
   # ============================================================================
   # LOG: MERGED TO MAIN (push event - covers both merge queue and direct merges)

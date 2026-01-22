@@ -1416,60 +1416,46 @@ async function handleMergeGroupEvent(
 
   const prNumber = parseInt(prMatch[1], 10);
 
-  // Fetch PR to find linked issue
-  const prInfo = await fetchPrByBranch(owner, repo, `claude/issue/${prNumber}`);
-
-  // Try to extract issue from PR body via "Fixes #N" pattern
+  // Fetch PR directly by number to find linked issue and branch
   let issueNumber = "";
-  if (prInfo.hasPr && prInfo.body) {
-    issueNumber = await extractIssueNumber(prInfo.body);
-  }
+  let prBranch = "";
+  const { stdout, exitCode } = await execCommand(
+    "gh",
+    [
+      "pr",
+      "view",
+      String(prNumber),
+      "--repo",
+      `${owner}/${repo}`,
+      "--json",
+      "body,headRefName",
+      "--jq",
+      ".",
+    ],
+    { ignoreReturnCode: true },
+  );
 
-  // If no issue found from PR body, try the branch pattern
-  if (!issueNumber) {
-    // Check if branch follows claude/issue/N pattern
-    const branchMatch = headRef.match(/claude\/issue\/(\d+)/);
-    if (branchMatch?.[1]) {
-      issueNumber = branchMatch[1];
-    }
-  }
+  if (exitCode === 0 && stdout) {
+    try {
+      const prData = JSON.parse(stdout) as {
+        body: string;
+        headRefName: string;
+      };
+      prBranch = prData.headRefName || "";
 
-  // Last resort: fetch PR directly by number
-  if (!issueNumber) {
-    const { stdout, exitCode } = await execCommand(
-      "gh",
-      [
-        "pr",
-        "view",
-        String(prNumber),
-        "--repo",
-        `${owner}/${repo}`,
-        "--json",
-        "body,headRefName",
-        "--jq",
-        ".",
-      ],
-      { ignoreReturnCode: true },
-    );
+      // Try to extract issue from PR body via "Fixes #N" pattern
+      issueNumber = await extractIssueNumber(prData.body || "");
 
-    if (exitCode === 0 && stdout) {
-      try {
-        const prData = JSON.parse(stdout) as {
-          body: string;
-          headRefName: string;
-        };
-        issueNumber = await extractIssueNumber(prData.body || "");
-
-        // Check branch for claude/issue/N
-        if (!issueNumber && prData.headRefName) {
-          const match = prData.headRefName.match(/^claude\/issue\/(\d+)/);
-          if (match?.[1]) {
-            issueNumber = match[1];
-          }
+      // If no issue found from PR body, try the branch pattern
+      if (!issueNumber && prBranch) {
+        // Check for claude/issue/N or claude/issue/N/phase-M
+        const match = prBranch.match(/^claude\/issue\/(\d+)/);
+        if (match?.[1]) {
+          issueNumber = match[1];
         }
-      } catch {
-        // Ignore parse errors
       }
+    } catch {
+      // Ignore parse errors
     }
   }
 

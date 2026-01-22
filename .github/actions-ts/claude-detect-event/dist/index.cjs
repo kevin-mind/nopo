@@ -24860,45 +24860,35 @@ async function handleMergeGroupEvent(octokit, owner, repo) {
     );
   }
   const prNumber = parseInt(prMatch[1], 10);
-  const prInfo = await fetchPrByBranch(owner, repo, `claude/issue/${prNumber}`);
   let issueNumber = "";
-  if (prInfo.hasPr && prInfo.body) {
-    issueNumber = await extractIssueNumber(prInfo.body);
-  }
-  if (!issueNumber) {
-    const branchMatch = headRef.match(/claude\/issue\/(\d+)/);
-    if (branchMatch?.[1]) {
-      issueNumber = branchMatch[1];
-    }
-  }
-  if (!issueNumber) {
-    const { stdout, exitCode } = await execCommand(
-      "gh",
-      [
-        "pr",
-        "view",
-        String(prNumber),
-        "--repo",
-        `${owner}/${repo}`,
-        "--json",
-        "body,headRefName",
-        "--jq",
-        "."
-      ],
-      { ignoreReturnCode: true }
-    );
-    if (exitCode === 0 && stdout) {
-      try {
-        const prData = JSON.parse(stdout);
-        issueNumber = await extractIssueNumber(prData.body || "");
-        if (!issueNumber && prData.headRefName) {
-          const match = prData.headRefName.match(/^claude\/issue\/(\d+)/);
-          if (match?.[1]) {
-            issueNumber = match[1];
-          }
+  let prBranch = "";
+  const { stdout, exitCode } = await execCommand(
+    "gh",
+    [
+      "pr",
+      "view",
+      String(prNumber),
+      "--repo",
+      `${owner}/${repo}`,
+      "--json",
+      "body,headRefName",
+      "--jq",
+      "."
+    ],
+    { ignoreReturnCode: true }
+  );
+  if (exitCode === 0 && stdout) {
+    try {
+      const prData = JSON.parse(stdout);
+      prBranch = prData.headRefName || "";
+      issueNumber = await extractIssueNumber(prData.body || "");
+      if (!issueNumber && prBranch) {
+        const match = prBranch.match(/^claude\/issue\/(\d+)/);
+        if (match?.[1]) {
+          issueNumber = match[1];
         }
-      } catch {
       }
+    } catch {
     }
   }
   if (!issueNumber) {
