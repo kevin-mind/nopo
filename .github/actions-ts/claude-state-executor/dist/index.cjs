@@ -28964,6 +28964,9 @@ query GetIssueBody($owner: String!, $repo: String!, $issueNumber: Int!) {
     issue(number: $issueNumber) {
       id
       body
+      parent {
+        number
+      }
     }
   }
 }
@@ -29044,6 +29047,7 @@ async function executeAppendHistory(action, ctx) {
     }
   );
   const currentBody = response.repository?.issue?.body || "";
+  const parentNumber = response.repository?.issue?.parent?.number;
   const iteration = action.iteration ?? 0;
   const repoUrl = `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}`;
   const timestamp = action.timestamp || (/* @__PURE__ */ new Date()).toISOString();
@@ -29064,6 +29068,34 @@ async function executeAppendHistory(action, ctx) {
     body: newBody
   });
   core3.info(`Appended history: Phase ${action.phase}, ${action.message}`);
+  if (parentNumber) {
+    const parentResponse = await ctx.octokit.graphql(
+      GET_ISSUE_BODY_QUERY,
+      {
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issueNumber: parentNumber
+      }
+    );
+    const parentBody = parentResponse.repository?.issue?.body || "";
+    const newParentBody = addHistoryEntry(
+      parentBody,
+      iteration,
+      action.phase,
+      action.message,
+      timestamp,
+      action.commitSha,
+      action.runLink,
+      repoUrl
+    );
+    await ctx.octokit.rest.issues.update({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: parentNumber,
+      body: newParentBody
+    });
+    core3.info(`Also appended to parent issue #${parentNumber}`);
+  }
   return { appended: true };
 }
 async function executeUpdateHistory(action, ctx) {
@@ -29076,14 +29108,16 @@ async function executeUpdateHistory(action, ctx) {
     }
   );
   const currentBody = response.repository?.issue?.body || "";
+  const parentNumber = response.repository?.issue?.parent?.number;
   const repoUrl = `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}`;
+  const timestamp = action.timestamp || (/* @__PURE__ */ new Date()).toISOString();
   const result = updateHistoryEntry(
     currentBody,
     action.matchIteration,
     action.matchPhase,
     action.matchPattern,
     action.newMessage,
-    action.timestamp,
+    timestamp,
     action.commitSha,
     action.runLink,
     repoUrl
@@ -29102,7 +29136,6 @@ async function executeUpdateHistory(action, ctx) {
     core3.info(
       `No matching history entry found - adding new entry for Phase ${action.matchPhase}`
     );
-    const timestamp = action.timestamp || (/* @__PURE__ */ new Date()).toISOString();
     const newBody = addHistoryEntry(
       currentBody,
       action.matchIteration,
@@ -29122,6 +29155,55 @@ async function executeUpdateHistory(action, ctx) {
     core3.info(
       `Added new history entry: Phase ${action.matchPhase}, ${action.newMessage}`
     );
+  }
+  if (parentNumber) {
+    const parentResponse = await ctx.octokit.graphql(
+      GET_ISSUE_BODY_QUERY,
+      {
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issueNumber: parentNumber
+      }
+    );
+    const parentBody = parentResponse.repository?.issue?.body || "";
+    const parentResult = updateHistoryEntry(
+      parentBody,
+      action.matchIteration,
+      action.matchPhase,
+      action.matchPattern,
+      action.newMessage,
+      timestamp,
+      action.commitSha,
+      action.runLink,
+      repoUrl
+    );
+    if (parentResult.updated) {
+      await ctx.octokit.rest.issues.update({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: parentNumber,
+        body: parentResult.body
+      });
+      core3.info(`Also updated parent issue #${parentNumber}`);
+    } else {
+      const newParentBody = addHistoryEntry(
+        parentBody,
+        action.matchIteration,
+        action.matchPhase,
+        action.newMessage,
+        timestamp,
+        action.commitSha,
+        action.runLink,
+        repoUrl
+      );
+      await ctx.octokit.rest.issues.update({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: parentNumber,
+        body: newParentBody
+      });
+      core3.info(`Added new entry to parent issue #${parentNumber}`);
+    }
   }
   return { updated: true };
 }

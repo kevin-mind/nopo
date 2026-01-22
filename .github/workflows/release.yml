@@ -114,56 +114,81 @@ jobs:
 
   # ============================================================================
   # LOG: ADDED TO MERGE QUEUE (merge_group event)
-  # Triggers Claude workflow for each linked issue
+  # Calls executor directly with appendHistory action
   # ============================================================================
   log-queue-entry:
     if: github.event_name == 'merge_group' && needs.extract-issue.outputs.has_issues == 'true'
     needs: extract-issue
     runs-on: ubuntu-latest
     permissions:
-      actions: write
+      issues: write
     strategy:
       matrix:
         issue: ${{ fromJson(needs.extract-issue.outputs.issues_json) }}
       fail-fast: false
     steps:
-      - name: Trigger Claude for queue entry logging (issue #${{ matrix.issue }})
-        env:
-          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
-        run: |
-          gh workflow run claude.yml \
-            --repo "$GITHUB_REPOSITORY" \
-            -f action=queue_entry \
-            -f resource_number=${{ matrix.issue }} \
-            -f run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-            -f continue=false
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Log queue entry (issue #${{ matrix.issue }})
+        uses: ./.github/actions-ts/claude-state-executor
+        with:
+          github_code_token: ${{ secrets.NOPO_BOT_PAT }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+          actions_json: |
+            [{
+              "type": "appendHistory",
+              "issueNumber": ${{ matrix.issue }},
+              "iteration": 0,
+              "phase": "-",
+              "message": "⏳ Merge queue",
+              "runLink": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }]
 
   # ============================================================================
   # LOG: MERGED TO MAIN (push event - covers both merge queue and direct merges)
-  # Triggers Claude workflow for each linked issue
+  # Calls executor directly with updateHistory action
   # ============================================================================
   log-merged:
     if: github.event_name == 'push' && needs.extract-issue.outputs.has_issues == 'true'
     needs: extract-issue
     runs-on: ubuntu-latest
     permissions:
-      actions: write
+      issues: write
     strategy:
       matrix:
         issue: ${{ fromJson(needs.extract-issue.outputs.issues_json) }}
       fail-fast: false
     steps:
-      - name: Trigger Claude for merged logging (issue #${{ matrix.issue }})
-        env:
-          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
-        run: |
-          gh workflow run claude.yml \
-            --repo "$GITHUB_REPOSITORY" \
-            -f action=merged \
-            -f resource_number=${{ matrix.issue }} \
-            -f commit_sha=${{ github.sha }} \
-            -f run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-            -f continue=false
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Log merged (issue #${{ matrix.issue }})
+        uses: ./.github/actions-ts/claude-state-executor
+        with:
+          github_code_token: ${{ secrets.NOPO_BOT_PAT }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+          actions_json: |
+            [{
+              "type": "updateHistory",
+              "issueNumber": ${{ matrix.issue }},
+              "matchIteration": 0,
+              "matchPhase": "-",
+              "matchPattern": "⏳ Merge queue",
+              "newMessage": "🚢 Merge queue",
+              "commitSha": "${{ github.sha }}",
+              "runLink": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }]
 
   context:
     runs-on: ubuntu-latest
@@ -314,7 +339,7 @@ jobs:
 
   # ============================================================================
   # LOG: DEPLOYED TO STAGE
-  # Triggers Claude workflow for each linked issue
+  # Calls executor directly with appendHistory action
   # ============================================================================
   log-stage-deployed:
     if: always() && needs.deploy_stage.result == 'success' && needs.extract-issue.outputs.has_issues == 'true'
@@ -323,27 +348,39 @@ jobs:
       - deploy_stage
     runs-on: ubuntu-latest
     permissions:
-      actions: write
+      issues: write
     strategy:
       matrix:
         issue: ${{ fromJson(needs.extract-issue.outputs.issues_json) }}
       fail-fast: false
     steps:
-      - name: Trigger Claude for stage deploy logging (issue #${{ matrix.issue }})
-        env:
-          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
-        run: |
-          gh workflow run claude.yml \
-            --repo "$GITHUB_REPOSITORY" \
-            -f action=deployed_stage \
-            -f resource_number=${{ matrix.issue }} \
-            -f commit_sha=${{ github.sha }} \
-            -f run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-            -f continue=false
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Log stage deploy (issue #${{ matrix.issue }})
+        uses: ./.github/actions-ts/claude-state-executor
+        with:
+          github_code_token: ${{ secrets.NOPO_BOT_PAT }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+          actions_json: |
+            [{
+              "type": "appendHistory",
+              "issueNumber": ${{ matrix.issue }},
+              "iteration": 0,
+              "phase": "-",
+              "message": "🧪 Deployed to stage",
+              "commitSha": "${{ github.sha }}",
+              "runLink": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }]
 
   # ============================================================================
   # LOG: RELEASED TO PRODUCTION
-  # Triggers Claude workflow for each linked issue
+  # Calls executor directly with appendHistory action
   # ============================================================================
   log-released:
     if: always() && needs.deploy_prod.result == 'success' && needs.extract-issue.outputs.has_issues == 'true'
@@ -352,27 +389,39 @@ jobs:
       - deploy_prod
     runs-on: ubuntu-latest
     permissions:
-      actions: write
+      issues: write
     strategy:
       matrix:
         issue: ${{ fromJson(needs.extract-issue.outputs.issues_json) }}
       fail-fast: false
     steps:
-      - name: Trigger Claude for production release logging (issue #${{ matrix.issue }})
-        env:
-          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
-        run: |
-          gh workflow run claude.yml \
-            --repo "$GITHUB_REPOSITORY" \
-            -f action=deployed_prod \
-            -f resource_number=${{ matrix.issue }} \
-            -f commit_sha=${{ github.sha }} \
-            -f run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-            -f continue=false
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Log production release (issue #${{ matrix.issue }})
+        uses: ./.github/actions-ts/claude-state-executor
+        with:
+          github_code_token: ${{ secrets.NOPO_BOT_PAT }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+          actions_json: |
+            [{
+              "type": "appendHistory",
+              "issueNumber": ${{ matrix.issue }},
+              "iteration": 0,
+              "phase": "-",
+              "message": "🚢 Released to production",
+              "commitSha": "${{ github.sha }}",
+              "runLink": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }]
 
   # ============================================================================
   # LOG: REMOVED FROM QUEUE (merge_group failure or cancellation)
-  # Triggers Claude workflow for each linked issue when release doesn't succeed
+  # Calls executor directly with updateHistory action
   # ============================================================================
   log-queue-failure:
     if: >-
@@ -388,22 +437,35 @@ jobs:
       - deploy_prod
     runs-on: ubuntu-latest
     permissions:
-      actions: write
+      issues: write
     strategy:
       matrix:
         issue: ${{ fromJson(needs.extract-issue.outputs.issues_json) }}
       fail-fast: false
     steps:
-      - name: Trigger Claude for queue failure logging (issue #${{ matrix.issue }})
-        env:
-          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
-        run: |
-          gh workflow run claude.yml \
-            --repo "$GITHUB_REPOSITORY" \
-            -f action=queue_failure \
-            -f resource_number=${{ matrix.issue }} \
-            -f run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-            -f continue=false
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Log queue failure (issue #${{ matrix.issue }})
+        uses: ./.github/actions-ts/claude-state-executor
+        with:
+          github_code_token: ${{ secrets.NOPO_BOT_PAT }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+          actions_json: |
+            [{
+              "type": "updateHistory",
+              "issueNumber": ${{ matrix.issue }},
+              "matchIteration": 0,
+              "matchPhase": "-",
+              "matchPattern": "⏳ Merge queue",
+              "newMessage": "❌ Merge queue",
+              "runLink": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }]
 
   checks:
     if: always()

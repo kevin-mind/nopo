@@ -29,6 +29,9 @@ query GetIssueBody($owner: String!, $repo: String!, $issueNumber: Int!) {
     issue(number: $issueNumber) {
       id
       body
+      parent {
+        number
+      }
     }
   }
 }
@@ -104,6 +107,9 @@ interface IssueBodyResponse {
     issue?: {
       id?: string;
       body?: string;
+      parent?: {
+        number?: number;
+      };
     };
   };
 }
@@ -156,12 +162,13 @@ export async function executeCloseIssue(
 
 /**
  * Append to iteration history
+ * If the issue is a sub-issue (has a parent), logs to both the issue and its parent
  */
 export async function executeAppendHistory(
   action: AppendHistoryAction,
   ctx: RunnerContext,
 ): Promise<{ appended: boolean }> {
-  // Get current issue body
+  // Get current issue body and parent info
   const response = await ctx.octokit.graphql<IssueBodyResponse>(
     GET_ISSUE_BODY_QUERY,
     {
@@ -172,6 +179,7 @@ export async function executeAppendHistory(
   );
 
   const currentBody = response.repository?.issue?.body || "";
+  const parentNumber = response.repository?.issue?.parent?.number;
 
   // Use iteration from action if provided, otherwise default to 0
   const iteration = action.iteration ?? 0;
@@ -198,17 +206,52 @@ export async function executeAppendHistory(
   });
 
   core.info(`Appended history: Phase ${action.phase}, ${action.message}`);
+
+  // If this is a sub-issue, also log to parent
+  if (parentNumber) {
+    const parentResponse = await ctx.octokit.graphql<IssueBodyResponse>(
+      GET_ISSUE_BODY_QUERY,
+      {
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issueNumber: parentNumber,
+      },
+    );
+
+    const parentBody = parentResponse.repository?.issue?.body || "";
+    const newParentBody = addHistoryEntry(
+      parentBody,
+      iteration,
+      action.phase,
+      action.message,
+      timestamp,
+      action.commitSha,
+      action.runLink,
+      repoUrl,
+    );
+
+    await ctx.octokit.rest.issues.update({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: parentNumber,
+      body: newParentBody,
+    });
+
+    core.info(`Also appended to parent issue #${parentNumber}`);
+  }
+
   return { appended: true };
 }
 
 /**
  * Update an existing history entry
+ * If the issue is a sub-issue (has a parent), updates both the issue and its parent
  */
 export async function executeUpdateHistory(
   action: UpdateHistoryAction,
   ctx: RunnerContext,
 ): Promise<{ updated: boolean }> {
-  // Get current issue body
+  // Get current issue body and parent info
   const response = await ctx.octokit.graphql<IssueBodyResponse>(
     GET_ISSUE_BODY_QUERY,
     {
@@ -219,7 +262,11 @@ export async function executeUpdateHistory(
   );
 
   const currentBody = response.repository?.issue?.body || "";
+  const parentNumber = response.repository?.issue?.parent?.number;
   const repoUrl = `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}`;
+
+  // Auto-generate timestamp for new entries if not provided
+  const timestamp = action.timestamp || new Date().toISOString();
 
   const result = updateHistoryEntry(
     currentBody,
@@ -227,7 +274,7 @@ export async function executeUpdateHistory(
     action.matchPhase,
     action.matchPattern,
     action.newMessage,
-    action.timestamp,
+    timestamp,
     action.commitSha,
     action.runLink,
     repoUrl,
@@ -251,8 +298,6 @@ export async function executeUpdateHistory(
       `No matching history entry found - adding new entry for Phase ${action.matchPhase}`,
     );
 
-    // Auto-generate timestamp for new entries if not provided
-    const timestamp = action.timestamp || new Date().toISOString();
     const newBody = addHistoryEntry(
       currentBody,
       action.matchIteration,
@@ -274,6 +319,62 @@ export async function executeUpdateHistory(
     core.info(
       `Added new history entry: Phase ${action.matchPhase}, ${action.newMessage}`,
     );
+  }
+
+  // If this is a sub-issue, also update parent
+  if (parentNumber) {
+    const parentResponse = await ctx.octokit.graphql<IssueBodyResponse>(
+      GET_ISSUE_BODY_QUERY,
+      {
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issueNumber: parentNumber,
+      },
+    );
+
+    const parentBody = parentResponse.repository?.issue?.body || "";
+
+    const parentResult = updateHistoryEntry(
+      parentBody,
+      action.matchIteration,
+      action.matchPhase,
+      action.matchPattern,
+      action.newMessage,
+      timestamp,
+      action.commitSha,
+      action.runLink,
+      repoUrl,
+    );
+
+    if (parentResult.updated) {
+      await ctx.octokit.rest.issues.update({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: parentNumber,
+        body: parentResult.body,
+      });
+      core.info(`Also updated parent issue #${parentNumber}`);
+    } else {
+      // Add new entry to parent if no match found
+      const newParentBody = addHistoryEntry(
+        parentBody,
+        action.matchIteration,
+        action.matchPhase,
+        action.newMessage,
+        timestamp,
+        action.commitSha,
+        action.runLink,
+        repoUrl,
+      );
+
+      await ctx.octokit.rest.issues.update({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: parentNumber,
+        body: newParentBody,
+      });
+      core.info(`Added new entry to parent issue #${parentNumber}`);
+    }
   }
 
   return { updated: true };

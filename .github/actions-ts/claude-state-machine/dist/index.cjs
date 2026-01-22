@@ -32740,152 +32740,97 @@ function emitBlockIssue({ context: context2 }) {
   actions.push(...emitBlock({ context: context2 }));
   return actions;
 }
-function emitHistoryToBothIssues({
-  context: context2,
-  message,
-  commitSha,
-  runLink
-}) {
-  const actions = [];
-  const isTriggeredOnSubIssue = context2.parentIssue !== null;
-  let targetIssue;
-  let parentIssue;
-  let phase;
-  if (isTriggeredOnSubIssue) {
-    targetIssue = context2.issue.number;
-    parentIssue = context2.parentIssue.number;
-    const phaseIndex = context2.parentIssue.subIssues.findIndex(
-      (s) => s.number === context2.issue.number
-    );
-    phase = phaseIndex >= 0 ? String(phaseIndex + 1) : "-";
-  } else {
-    targetIssue = context2.currentSubIssue?.number ?? context2.issue.number;
-    parentIssue = context2.issue.number;
-    phase = String(context2.currentPhase ?? "-");
-  }
+function emitMergeQueueEntry({ context: context2 }) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const phase = String(context2.currentPhase ?? "-");
   const iteration = context2.issue.iteration ?? 0;
-  actions.push({
-    type: "appendHistory",
-    token: "code",
-    issueNumber: targetIssue,
-    iteration,
-    phase,
-    message,
-    timestamp: context2.workflowStartedAt ?? void 0,
-    commitSha,
-    runLink
-  });
-  if (targetIssue !== parentIssue) {
-    actions.push({
+  return [
+    {
       type: "appendHistory",
       token: "code",
-      issueNumber: parentIssue,
+      issueNumber,
       iteration,
       phase,
-      // Same phase column - shows which phase this came from
-      message,
-      // Same message - no prefix needed, phase column provides context
+      message: "\u23F3 Merge queue",
       timestamp: context2.workflowStartedAt ?? void 0,
-      commitSha,
-      runLink
-    });
-  }
-  return actions;
-}
-function emitUpdateHistoryToBothIssues({
-  context: context2,
-  matchPattern,
-  newMessage,
-  commitSha,
-  runLink
-}) {
-  const actions = [];
-  const isTriggeredOnSubIssue = context2.parentIssue !== null;
-  let targetIssue;
-  let parentIssue;
-  let phase;
-  if (isTriggeredOnSubIssue) {
-    targetIssue = context2.issue.number;
-    parentIssue = context2.parentIssue.number;
-    const phaseIndex = context2.parentIssue.subIssues.findIndex(
-      (s) => s.number === context2.issue.number
-    );
-    phase = phaseIndex >= 0 ? String(phaseIndex + 1) : "-";
-  } else {
-    targetIssue = context2.currentSubIssue?.number ?? context2.issue.number;
-    parentIssue = context2.issue.number;
-    phase = String(context2.currentPhase ?? "-");
-  }
-  const iteration = context2.issue.iteration ?? 0;
-  actions.push({
-    type: "updateHistory",
-    token: "code",
-    issueNumber: targetIssue,
-    matchIteration: iteration,
-    matchPhase: phase,
-    matchPattern,
-    newMessage,
-    timestamp: context2.workflowStartedAt ?? void 0,
-    commitSha,
-    runLink
-  });
-  if (targetIssue !== parentIssue) {
-    actions.push({
-      type: "updateHistory",
-      token: "code",
-      issueNumber: parentIssue,
-      matchIteration: iteration,
-      matchPhase: phase,
-      matchPattern,
-      newMessage,
-      timestamp: context2.workflowStartedAt ?? void 0,
-      commitSha,
-      runLink
-    });
-  }
-  return actions;
-}
-function emitMergeQueueEntry({ context: context2 }) {
-  return emitHistoryToBothIssues({
-    context: context2,
-    message: "\u23F3 Merge queue",
-    runLink: context2.ciRunUrl ?? void 0
-  });
+      runLink: context2.ciRunUrl ?? void 0
+    }
+  ];
 }
 function emitMergeQueueFailure({
   context: context2
 }) {
-  return emitUpdateHistoryToBothIssues({
-    context: context2,
-    matchPattern: "\u23F3 Merge queue",
-    newMessage: "\u274C Merge queue",
-    runLink: context2.ciRunUrl ?? void 0
-  });
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const phase = String(context2.currentPhase ?? "-");
+  const iteration = context2.issue.iteration ?? 0;
+  return [
+    {
+      type: "updateHistory",
+      token: "code",
+      issueNumber,
+      matchIteration: iteration,
+      matchPhase: phase,
+      matchPattern: "\u23F3 Merge queue",
+      newMessage: "\u274C Merge queue",
+      timestamp: context2.workflowStartedAt ?? void 0,
+      runLink: context2.ciRunUrl ?? void 0
+    }
+  ];
 }
 function emitMerged({ context: context2 }) {
-  return emitUpdateHistoryToBothIssues({
-    context: context2,
-    matchPattern: "\u23F3 Merge queue",
-    newMessage: "\u{1F6A2} Merge queue",
-    commitSha: context2.ciCommitSha ?? void 0,
-    runLink: context2.ciRunUrl ?? void 0
-  });
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const phase = String(context2.currentPhase ?? "-");
+  const iteration = context2.issue.iteration ?? 0;
+  return [
+    {
+      type: "updateHistory",
+      token: "code",
+      issueNumber,
+      matchIteration: iteration,
+      matchPhase: phase,
+      matchPattern: "\u23F3 Merge queue",
+      newMessage: "\u{1F6A2} Merge queue",
+      timestamp: context2.workflowStartedAt ?? void 0,
+      commitSha: context2.ciCommitSha ?? void 0,
+      runLink: context2.ciRunUrl ?? void 0
+    }
+  ];
 }
 function emitDeployedStage({ context: context2 }) {
-  return emitHistoryToBothIssues({
-    context: context2,
-    message: "\u{1F9EA} Deployed to stage",
-    commitSha: context2.ciCommitSha ?? void 0,
-    runLink: context2.ciRunUrl ?? void 0
-  });
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const phase = String(context2.currentPhase ?? "-");
+  const iteration = context2.issue.iteration ?? 0;
+  return [
+    {
+      type: "appendHistory",
+      token: "code",
+      issueNumber,
+      iteration,
+      phase,
+      message: "\u{1F9EA} Deployed to stage",
+      timestamp: context2.workflowStartedAt ?? void 0,
+      commitSha: context2.ciCommitSha ?? void 0,
+      runLink: context2.ciRunUrl ?? void 0
+    }
+  ];
 }
 function emitDeployedProd({ context: context2 }) {
-  return emitHistoryToBothIssues({
-    context: context2,
-    message: "\u{1F6A2} Released to production",
-    commitSha: context2.ciCommitSha ?? void 0,
-    runLink: context2.ciRunUrl ?? void 0
-  });
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const phase = String(context2.currentPhase ?? "-");
+  const iteration = context2.issue.iteration ?? 0;
+  return [
+    {
+      type: "appendHistory",
+      token: "code",
+      issueNumber,
+      iteration,
+      phase,
+      message: "\u{1F6A2} Released to production",
+      timestamp: context2.workflowStartedAt ?? void 0,
+      commitSha: context2.ciCommitSha ?? void 0,
+      runLink: context2.ciRunUrl ?? void 0
+    }
+  ];
 }
 
 // claude-state-machine/machine/guards.ts

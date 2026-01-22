@@ -1000,174 +1000,32 @@ export function emitBlockIssue({ context }: ActionContext): ActionResult {
 }
 
 // ============================================================================
-// Dual-Logging Helper for Merge Queue Events
-// ============================================================================
-
-/**
- * Helper to emit history entries to both sub-issue AND parent issue
- *
- * When working on a sub-issue, this ensures the parent issue also gets
- * visibility into all activity. The phase column provides context about
- * which sub-issue the entry came from.
- */
-function emitHistoryToBothIssues({
-  context,
-  message,
-  commitSha,
-  runLink,
-}: {
-  context: MachineContext;
-  message: string;
-  commitSha?: string;
-  runLink?: string;
-}): Action[] {
-  const actions: Action[] = [];
-
-  // Determine target and parent issues
-  // When triggered on a sub-issue: context.issue is the sub-issue, context.parentIssue is the parent
-  // When triggered on a parent: context.issue is the parent, context.currentSubIssue is the active phase
-  const isTriggeredOnSubIssue = context.parentIssue !== null;
-
-  let targetIssue: number;
-  let parentIssue: number;
-  let phase: string;
-
-  if (isTriggeredOnSubIssue) {
-    // Triggered on a sub-issue (e.g., merge queue for sub-issue's PR)
-    targetIssue = context.issue.number;
-    parentIssue = context.parentIssue.number;
-    // Find which phase this sub-issue represents in the parent
-    const phaseIndex = context.parentIssue.subIssues.findIndex(
-      (s) => s.number === context.issue.number,
-    );
-    phase = phaseIndex >= 0 ? String(phaseIndex + 1) : "-";
-  } else {
-    // Triggered on a parent issue
-    targetIssue = context.currentSubIssue?.number ?? context.issue.number;
-    parentIssue = context.issue.number;
-    phase = String(context.currentPhase ?? "-");
-  }
-
-  const iteration = context.issue.iteration ?? 0;
-
-  // Always log to target issue (sub-issue or parent if no sub-issues)
-  actions.push({
-    type: "appendHistory",
-    token: "code",
-    issueNumber: targetIssue,
-    iteration,
-    phase,
-    message,
-    timestamp: context.workflowStartedAt ?? undefined,
-    commitSha,
-    runLink,
-  });
-
-  // If target is a sub-issue, ALSO log identical entry to parent
-  // Parent gets full visibility of all sub-issue activity
-  if (targetIssue !== parentIssue) {
-    actions.push({
-      type: "appendHistory",
-      token: "code",
-      issueNumber: parentIssue,
-      iteration,
-      phase, // Same phase column - shows which phase this came from
-      message, // Same message - no prefix needed, phase column provides context
-      timestamp: context.workflowStartedAt ?? undefined,
-      commitSha,
-      runLink,
-    });
-  }
-
-  return actions;
-}
-
-// ============================================================================
 // Merge Queue Logging Actions
 // ============================================================================
-
-/**
- * Helper to emit updateHistory to both sub-issue AND parent issue
- */
-function emitUpdateHistoryToBothIssues({
-  context,
-  matchPattern,
-  newMessage,
-  commitSha,
-  runLink,
-}: {
-  context: MachineContext;
-  matchPattern: string;
-  newMessage: string;
-  commitSha?: string;
-  runLink?: string;
-}): Action[] {
-  const actions: Action[] = [];
-
-  // Determine target and parent issues (same logic as emitHistoryToBothIssues)
-  const isTriggeredOnSubIssue = context.parentIssue !== null;
-
-  let targetIssue: number;
-  let parentIssue: number;
-  let phase: string;
-
-  if (isTriggeredOnSubIssue) {
-    targetIssue = context.issue.number;
-    parentIssue = context.parentIssue.number;
-    const phaseIndex = context.parentIssue.subIssues.findIndex(
-      (s) => s.number === context.issue.number,
-    );
-    phase = phaseIndex >= 0 ? String(phaseIndex + 1) : "-";
-  } else {
-    targetIssue = context.currentSubIssue?.number ?? context.issue.number;
-    parentIssue = context.issue.number;
-    phase = String(context.currentPhase ?? "-");
-  }
-
-  const iteration = context.issue.iteration ?? 0;
-
-  // Update on target issue
-  actions.push({
-    type: "updateHistory",
-    token: "code",
-    issueNumber: targetIssue,
-    matchIteration: iteration,
-    matchPhase: phase,
-    matchPattern,
-    newMessage,
-    timestamp: context.workflowStartedAt ?? undefined,
-    commitSha,
-    runLink,
-  });
-
-  // If target is a sub-issue, ALSO update on parent
-  if (targetIssue !== parentIssue) {
-    actions.push({
-      type: "updateHistory",
-      token: "code",
-      issueNumber: parentIssue,
-      matchIteration: iteration,
-      matchPhase: phase,
-      matchPattern,
-      newMessage,
-      timestamp: context.workflowStartedAt ?? undefined,
-      commitSha,
-      runLink,
-    });
-  }
-
-  return actions;
-}
+// Note: The executor (executeAppendHistory/executeUpdateHistory) automatically
+// handles dual-logging to parent issues when the target is a sub-issue.
+// These actions just need to emit a single action targeting the issue number.
 
 /**
  * Emit action to log merge queue entry (pending state)
  */
 export function emitMergeQueueEntry({ context }: ActionContext): ActionResult {
-  return emitHistoryToBothIssues({
-    context,
-    message: "⏳ Merge queue",
-    runLink: context.ciRunUrl ?? undefined,
-  });
+  const issueNumber = context.currentSubIssue?.number ?? context.issue.number;
+  const phase = String(context.currentPhase ?? "-");
+  const iteration = context.issue.iteration ?? 0;
+
+  return [
+    {
+      type: "appendHistory",
+      token: "code",
+      issueNumber,
+      iteration,
+      phase,
+      message: "⏳ Merge queue",
+      timestamp: context.workflowStartedAt ?? undefined,
+      runLink: context.ciRunUrl ?? undefined,
+    },
+  ];
 }
 
 /**
@@ -1176,47 +1034,91 @@ export function emitMergeQueueEntry({ context }: ActionContext): ActionResult {
 export function emitMergeQueueFailure({
   context,
 }: ActionContext): ActionResult {
-  return emitUpdateHistoryToBothIssues({
-    context,
-    matchPattern: "⏳ Merge queue",
-    newMessage: "❌ Merge queue",
-    runLink: context.ciRunUrl ?? undefined,
-  });
+  const issueNumber = context.currentSubIssue?.number ?? context.issue.number;
+  const phase = String(context.currentPhase ?? "-");
+  const iteration = context.issue.iteration ?? 0;
+
+  return [
+    {
+      type: "updateHistory",
+      token: "code",
+      issueNumber,
+      matchIteration: iteration,
+      matchPhase: phase,
+      matchPattern: "⏳ Merge queue",
+      newMessage: "❌ Merge queue",
+      timestamp: context.workflowStartedAt ?? undefined,
+      runLink: context.ciRunUrl ?? undefined,
+    },
+  ];
 }
 
 /**
  * Emit action to update merge queue entry to merged
  */
 export function emitMerged({ context }: ActionContext): ActionResult {
-  return emitUpdateHistoryToBothIssues({
-    context,
-    matchPattern: "⏳ Merge queue",
-    newMessage: "🚢 Merge queue",
-    commitSha: context.ciCommitSha ?? undefined,
-    runLink: context.ciRunUrl ?? undefined,
-  });
+  const issueNumber = context.currentSubIssue?.number ?? context.issue.number;
+  const phase = String(context.currentPhase ?? "-");
+  const iteration = context.issue.iteration ?? 0;
+
+  return [
+    {
+      type: "updateHistory",
+      token: "code",
+      issueNumber,
+      matchIteration: iteration,
+      matchPhase: phase,
+      matchPattern: "⏳ Merge queue",
+      newMessage: "🚢 Merge queue",
+      timestamp: context.workflowStartedAt ?? undefined,
+      commitSha: context.ciCommitSha ?? undefined,
+      runLink: context.ciRunUrl ?? undefined,
+    },
+  ];
 }
 
 /**
  * Emit action to log stage deployment
  */
 export function emitDeployedStage({ context }: ActionContext): ActionResult {
-  return emitHistoryToBothIssues({
-    context,
-    message: "🧪 Deployed to stage",
-    commitSha: context.ciCommitSha ?? undefined,
-    runLink: context.ciRunUrl ?? undefined,
-  });
+  const issueNumber = context.currentSubIssue?.number ?? context.issue.number;
+  const phase = String(context.currentPhase ?? "-");
+  const iteration = context.issue.iteration ?? 0;
+
+  return [
+    {
+      type: "appendHistory",
+      token: "code",
+      issueNumber,
+      iteration,
+      phase,
+      message: "🧪 Deployed to stage",
+      timestamp: context.workflowStartedAt ?? undefined,
+      commitSha: context.ciCommitSha ?? undefined,
+      runLink: context.ciRunUrl ?? undefined,
+    },
+  ];
 }
 
 /**
  * Emit action to log production deployment
  */
 export function emitDeployedProd({ context }: ActionContext): ActionResult {
-  return emitHistoryToBothIssues({
-    context,
-    message: "🚢 Released to production",
-    commitSha: context.ciCommitSha ?? undefined,
-    runLink: context.ciRunUrl ?? undefined,
-  });
+  const issueNumber = context.currentSubIssue?.number ?? context.issue.number;
+  const phase = String(context.currentPhase ?? "-");
+  const iteration = context.issue.iteration ?? 0;
+
+  return [
+    {
+      type: "appendHistory",
+      token: "code",
+      issueNumber,
+      iteration,
+      phase,
+      message: "🚢 Released to production",
+      timestamp: context.workflowStartedAt ?? undefined,
+      commitSha: context.ciCommitSha ?? undefined,
+      runLink: context.ciRunUrl ?? undefined,
+    },
+  ];
 }
