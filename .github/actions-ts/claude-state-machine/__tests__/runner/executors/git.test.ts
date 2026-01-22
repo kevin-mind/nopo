@@ -76,6 +76,27 @@ describe("executeCreateBranch", () => {
     // Create branch succeeds
     vi.mocked(ctx.octokit.rest.git.createRef).mockResolvedValueOnce({} as any);
 
+    // Mock git exec calls:
+    // 1. git fetch origin (initial)
+    // 2. git fetch origin (after create)
+    // 3. git checkout (try existing local branch - fails)
+    // 4. git checkout -b from remote (succeeds)
+    // 5. git branch --set-upstream-to
+    // 6. git rev-list --count (check commits behind)
+    vi.mocked(exec.exec)
+      .mockResolvedValueOnce(0) // fetch
+      .mockResolvedValueOnce(0) // fetch after create
+      .mockResolvedValueOnce(1) // checkout existing fails
+      .mockResolvedValueOnce(0) // checkout -b from remote succeeds
+      .mockResolvedValueOnce(0) // set-upstream-to
+      .mockImplementationOnce(async (_cmd, _args, options) => {
+        // rev-list --count returns 0 (up to date)
+        if (options?.listeners?.stdout) {
+          options.listeners.stdout(Buffer.from("0\n"));
+        }
+        return 0;
+      });
+
     const action: CreateBranchAction = {
       type: "createBranch",
       branchName: "feature/new",
@@ -108,6 +129,23 @@ describe("executeCreateBranch", () => {
     vi.mocked(ctx.octokit.rest.repos.getBranch).mockResolvedValueOnce({
       data: {},
     } as any);
+
+    // Mock git exec calls:
+    // 1. git fetch origin (initial)
+    // 2. git checkout (try existing local branch - succeeds)
+    // 3. git branch --set-upstream-to
+    // 4. git rev-list --count (check commits behind)
+    vi.mocked(exec.exec)
+      .mockResolvedValueOnce(0) // fetch
+      .mockResolvedValueOnce(0) // checkout existing succeeds
+      .mockResolvedValueOnce(0) // set-upstream-to
+      .mockImplementationOnce(async (_cmd, _args, options) => {
+        // rev-list --count returns 0 (up to date)
+        if (options?.listeners?.stdout) {
+          options.listeners.stdout(Buffer.from("0\n"));
+        }
+        return 0;
+      });
 
     const action: CreateBranchAction = {
       type: "createBranch",

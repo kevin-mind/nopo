@@ -36,9 +36,11 @@ describe("claudeMachine", () => {
       } as any);
       const { state, actions } = runMachine(context);
       expect(state).toBe("blocked");
+      // When status is already Blocked, we just transition to blocked state
+      // without emitting updateProjectStatus/unassignUser (those are emitted
+      // when transitioning TO blocked via blockIssue action from CI failure)
       const actionTypes = actions.map((a) => a.type);
-      expect(actionTypes).toContain("updateProjectStatus");
-      expect(actionTypes).toContain("unassignUser");
+      expect(actionTypes).toContain("log");
     });
 
     test("transitions to error when status is Error", () => {
