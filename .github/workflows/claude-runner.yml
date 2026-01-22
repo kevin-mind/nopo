@@ -483,9 +483,12 @@ jobs:
 
           # Don't retrigger for terminal states or states waiting for external events
           # - reviewing: waiting for pull_request_review:submitted event
-          # - triaged: waiting for issues:assigned event (orchestrate)
+          # - triaged: waiting for issues:assigned event (orchestrate assigns sub-issue)
+          # - orchestrationRunning: waiting for issues:assigned event (sub-issue iteration)
+          # - orchestrationWaiting: waiting for pull_request_review:submitted event
+          # - orchestrationComplete: all phases done, no more work needed
           case "$FINAL_STATE" in
-            done|blocked|error|alreadyDone|alreadyBlocked|terminal|reviewing|triaged)
+            done|blocked|error|alreadyDone|alreadyBlocked|terminal|reviewing|triaged|orchestrationRunning|orchestrationWaiting|orchestrationComplete)
               echo "Terminal/waiting state: $FINAL_STATE, no retrigger needed"
               echo "should_retrigger=false" >> $GITHUB_OUTPUT
               ;;
