@@ -481,10 +481,12 @@ jobs:
             exit 0
           fi
 
-          # Don't retrigger for terminal states
+          # Don't retrigger for terminal states or states waiting for external events
+          # - reviewing: waiting for pull_request_review:submitted event
+          # - triaged: waiting for issues:assigned event (orchestrate)
           case "$FINAL_STATE" in
-            done|blocked|error|alreadyDone|alreadyBlocked|terminal)
-              echo "Terminal state: $FINAL_STATE"
+            done|blocked|error|alreadyDone|alreadyBlocked|terminal|reviewing|triaged)
+              echo "Terminal/waiting state: $FINAL_STATE, no retrigger needed"
               echo "should_retrigger=false" >> $GITHUB_OUTPUT
               ;;
             *)
