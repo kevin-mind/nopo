@@ -239,6 +239,7 @@ describe("ParentIssueSchema", () => {
     subIssues: [],
     hasSubIssues: false,
     history: [],
+    todos: { total: 0, completed: 0, uncheckedNonManual: 0 },
   };
 
   test("parses valid parent issue", () => {
@@ -349,6 +350,7 @@ describe("MachineContextSchema", () => {
       subIssues: [],
       hasSubIssues: false,
       history: [],
+      todos: { total: 0, completed: 0, uncheckedNonManual: 0 },
     },
     parentIssue: null,
     currentPhase: null,
@@ -463,6 +465,7 @@ describe("createMachineContext", () => {
         subIssues: [],
         hasSubIssues: false,
         history: [],
+        todos: { total: 0, completed: 0, uncheckedNonManual: 0 },
       },
     };
     const context = createMachineContext(partial);
@@ -490,6 +493,7 @@ describe("createMachineContext", () => {
         subIssues: [],
         hasSubIssues: false,
         history: [],
+        todos: { total: 2, completed: 1, uncheckedNonManual: 1 },
       },
       ciResult: "failure" as const,
       maxRetries: 10,

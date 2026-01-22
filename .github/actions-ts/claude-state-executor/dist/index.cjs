@@ -28004,7 +28004,9 @@ var ParentIssueSchema = external_exports.object({
   labels: external_exports.array(external_exports.string()),
   subIssues: external_exports.array(SubIssueSchema),
   hasSubIssues: external_exports.boolean(),
-  history: external_exports.array(HistoryEntrySchema)
+  history: external_exports.array(HistoryEntrySchema),
+  /** Todos parsed from the issue body - used when this is a sub-issue triggered directly */
+  todos: TodoStatsSchema
 });
 var TriggerTypeSchema = external_exports.enum([
   // Issue triggers

@@ -407,6 +407,7 @@ async function fetchIssueState(
 
   const body = issue.body || "";
   const history = parseHistory(body);
+  const todos = parseTodoStats(body);
 
   return {
     number: issue.number || issueNumber,
@@ -422,6 +423,7 @@ async function fetchIssueState(
     subIssues,
     hasSubIssues: subIssues.length > 0,
     history,
+    todos,
   };
 }
 

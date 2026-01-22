@@ -169,9 +169,9 @@ export function todosDone({ context }: GuardContext): boolean {
   if (context.currentSubIssue) {
     return context.currentSubIssue.todos.uncheckedNonManual === 0;
   }
-  // For non-sub-issue work, we need to check the issue body
-  // This would need the issue's own todos parsed
-  return false;
+  // When triggered directly on a sub-issue (e.g., CI completion),
+  // currentSubIssue is null but the issue itself has todos
+  return context.issue.todos.uncheckedNonManual === 0;
 }
 
 /**

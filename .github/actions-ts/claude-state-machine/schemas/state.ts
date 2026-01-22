@@ -103,6 +103,7 @@ export type SubIssue = z.infer<typeof SubIssueSchema>;
 
 /**
  * Parent issue state - the main issue being worked on
+ * Note: This is also used for sub-issues when they are the trigger target
  */
 export const ParentIssueSchema = z.object({
   number: z.number().int().positive(),
@@ -117,6 +118,8 @@ export const ParentIssueSchema = z.object({
   subIssues: z.array(SubIssueSchema),
   hasSubIssues: z.boolean(),
   history: z.array(HistoryEntrySchema),
+  /** Todos parsed from the issue body - used when this is a sub-issue triggered directly */
+  todos: TodoStatsSchema,
 });
 
 export type ParentIssue = z.infer<typeof ParentIssueSchema>;

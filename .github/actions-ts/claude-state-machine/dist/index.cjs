@@ -31175,7 +31175,9 @@ var ParentIssueSchema = external_exports.object({
   labels: external_exports.array(external_exports.string()),
   subIssues: external_exports.array(SubIssueSchema),
   hasSubIssues: external_exports.boolean(),
-  history: external_exports.array(HistoryEntrySchema)
+  history: external_exports.array(HistoryEntrySchema),
+  /** Todos parsed from the issue body - used when this is a sub-issue triggered directly */
+  todos: TodoStatsSchema
 });
 var TriggerTypeSchema = external_exports.enum([
   // Issue triggers
@@ -31856,6 +31858,7 @@ async function fetchIssueState(octokit, owner, repo, issueNumber, projectNumber)
   }
   const body = issue.body || "";
   const history = parseHistory(body);
+  const todos = parseTodoStats(body);
   return {
     number: issue.number || issueNumber,
     title: issue.title || "",
@@ -31868,7 +31871,8 @@ async function fetchIssueState(octokit, owner, repo, issueNumber, projectNumber)
     labels: issue.labels?.nodes?.map((l) => l.name || "").filter(Boolean) || [],
     subIssues,
     hasSubIssues: subIssues.length > 0,
-    history
+    history,
+    todos
   };
 }
 function findCurrentPhase(subIssues) {
@@ -32666,7 +32670,7 @@ function todosDone({ context: context2 }) {
   if (context2.currentSubIssue) {
     return context2.currentSubIssue.todos.uncheckedNonManual === 0;
   }
-  return false;
+  return context2.issue.todos.uncheckedNonManual === 0;
 }
 function hasPendingTodos({ context: context2 }) {
   return !todosDone({ context: context2 });

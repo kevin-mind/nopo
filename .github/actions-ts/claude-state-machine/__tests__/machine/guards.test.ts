@@ -328,9 +328,25 @@ describe("Todo Guards", () => {
       expect(todosDone({ context })).toBe(false);
     });
 
-    test("returns false when no currentSubIssue", () => {
-      const context = createContext({ currentSubIssue: null });
-      expect(todosDone({ context })).toBe(false);
+    test("falls back to issue.todos when no currentSubIssue", () => {
+      // When triggered directly on a sub-issue (e.g., CI completion),
+      // currentSubIssue is null but the issue itself has todos
+      const contextWithTodos = createContext({
+        currentSubIssue: null,
+        issue: {
+          todos: { total: 2, completed: 1, uncheckedNonManual: 1 },
+        },
+      });
+      expect(todosDone({ context: contextWithTodos })).toBe(false);
+
+      // If issue's todos are all done, returns true
+      const contextDone = createContext({
+        currentSubIssue: null,
+        issue: {
+          todos: { total: 2, completed: 2, uncheckedNonManual: 0 },
+        },
+      });
+      expect(todosDone({ context: contextDone })).toBe(true);
     });
   });
 });

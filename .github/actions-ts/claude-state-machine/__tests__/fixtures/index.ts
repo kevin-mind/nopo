@@ -63,6 +63,7 @@ export const DEFAULT_PARENT_ISSUE: ParentIssue = {
   subIssues: [],
   hasSubIssues: false,
   history: [],
+  todos: DEFAULT_TODO_STATS,
 };
 
 export const DEFAULT_PR: LinkedPR = {
@@ -118,7 +119,7 @@ export function createSubIssue(
  * Create a valid ParentIssue object
  */
 export function createParentIssue(
-  overrides: ParentIssueOverride & { number?: number } = {},
+  overrides: ParentIssueOverride & { number?: number; todos?: Partial<TodoStats> } = {},
 ): ParentIssue {
   const subIssues =
     overrides.subIssues?.map((s, i) =>
@@ -136,6 +137,10 @@ export function createParentIssue(
     ...overrides,
     subIssues,
     hasSubIssues,
+    todos: {
+      ...DEFAULT_TODO_STATS,
+      ...(overrides.todos || {}),
+    },
   };
 }
 
