@@ -350,7 +350,10 @@ jobs:
       always() &&
       github.event_name == 'merge_group' &&
       needs.extract-issue.outputs.has_issues == 'true' &&
-      (needs.build.result == 'failure' || needs.test.result == 'failure' || needs.deploy_stage.result == 'failure' || needs.deploy_prod.result == 'failure')
+      (needs.build.result == 'failure' || needs.build.result == 'cancelled' ||
+       needs.test.result == 'failure' || needs.test.result == 'cancelled' ||
+       needs.deploy_stage.result == 'failure' || needs.deploy_stage.result == 'cancelled' ||
+       needs.deploy_prod.result == 'failure' || needs.deploy_prod.result == 'cancelled')
     needs:
       - extract-issue
       - build
@@ -370,12 +373,20 @@ jobs:
         run: |
           if [[ "${{ needs.build.result }}" == "failure" ]]; then
             echo "reason=Build failed" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ needs.build.result }}" == "cancelled" ]]; then
+            echo "reason=Build cancelled" >> "$GITHUB_OUTPUT"
           elif [[ "${{ needs.test.result }}" == "failure" ]]; then
             echo "reason=Tests failed" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ needs.test.result }}" == "cancelled" ]]; then
+            echo "reason=Tests cancelled" >> "$GITHUB_OUTPUT"
           elif [[ "${{ needs.deploy_stage.result }}" == "failure" ]]; then
             echo "reason=Stage deploy failed" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ needs.deploy_stage.result }}" == "cancelled" ]]; then
+            echo "reason=Stage deploy cancelled" >> "$GITHUB_OUTPUT"
           elif [[ "${{ needs.deploy_prod.result }}" == "failure" ]]; then
             echo "reason=Prod deploy failed" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ needs.deploy_prod.result }}" == "cancelled" ]]; then
+            echo "reason=Prod deploy cancelled" >> "$GITHUB_OUTPUT"
           else
             echo "reason=Unknown failure" >> "$GITHUB_OUTPUT"
           fi
