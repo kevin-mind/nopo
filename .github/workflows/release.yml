@@ -313,6 +313,35 @@ jobs:
       - discover_buildable
 
   # ============================================================================
+  # LOG: DEPLOYED TO STAGE
+  # Triggers Claude workflow for each linked issue
+  # ============================================================================
+  log-stage-deployed:
+    if: always() && needs.deploy_stage.result == 'success' && needs.extract-issue.outputs.has_issues == 'true'
+    needs:
+      - extract-issue
+      - deploy_stage
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    strategy:
+      matrix:
+        issue: ${{ fromJson(needs.extract-issue.outputs.issues_json) }}
+      fail-fast: false
+    steps:
+      - name: Trigger Claude for stage deploy logging (issue #${{ matrix.issue }})
+        env:
+          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
+        run: |
+          gh workflow run claude.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            -f action=deployed_stage \
+            -f resource_number=${{ matrix.issue }} \
+            -f commit_sha=${{ github.sha }} \
+            -f run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            -f continue=false
+
+  # ============================================================================
   # LOG: RELEASED TO PRODUCTION
   # Triggers Claude workflow for each linked issue
   # ============================================================================
