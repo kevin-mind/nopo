@@ -28,16 +28,13 @@ run-name: >-
 
 'on':
   # External triggers we respond to:
-  # - Assignment (human assigns nopo-bot to issue)
   # - CI completion (workflow_run)
   # - Review requests/responses (pull_request, pull_request_review)
   # - Comments (issue_comment, pull_request_review_comment)
   # - Discussions
   #
-  # NOTE: Issue edited/opened/unlabeled removed - use workflow_dispatch for manual control
-  issues:
-    types:
-      - assigned
+  # NOTE: issues:assigned removed for step-by-step testing with continue=false
+  # Re-add when ready for full automation: issues: types: [assigned]
   issue_comment:
     types:
       - created
