@@ -100,10 +100,50 @@ permissions:
 
 jobs:
   # ============================================================================
+  # Phase 0: Log Run Start
+  # Immediately logs that a workflow run started (for tracking)
+  # ============================================================================
+  log-run-start:
+    runs-on: ubuntu-latest
+    outputs:
+      comment_id: ${{ steps.log.outputs.comment_id }}
+    steps:
+      - name: Log workflow start
+        id: log
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.NOPO_BOT_PAT }}
+          script: |
+            const trigger = '${{ inputs.trigger }}';
+            const issueNumber = parseInt('${{ inputs.issue_number }}', 10);
+            const runUrl = '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}';
+            const runNumber = '${{ github.run_number }}';
+            const dryRun = '${{ inputs.dry_run }}' === 'true';
+
+            const dryRunBadge = dryRun ? ' 🧪 DRY RUN' : '';
+            const body = `⏳ **Workflow Run #${runNumber} Started**${dryRunBadge}\n\n` +
+              `| Property | Value |\n` +
+              `|----------|-------|\n` +
+              `| **Trigger** | \`${trigger}\` |\n` +
+              `| **Run** | [#${runNumber}](${runUrl}) |\n` +
+              `| **Status** | Running... |`;
+
+            const { data: comment } = await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: body
+            });
+
+            core.setOutput('comment_id', comment.id);
+            console.log(`Created tracking comment ${comment.id} on issue #${issueNumber}`);
+
+  # ============================================================================
   # Phase 1: Derive Actions
   # Runs the state machine to determine what actions to execute
   # ============================================================================
   derive-actions:
+    needs: [log-run-start]
     runs-on: ubuntu-latest
     outputs:
       final_state: ${{ steps.machine.outputs.final_state }}
@@ -197,7 +237,7 @@ jobs:
   # Matrix job that executes each action in isolation with max-parallel: 1
   # ============================================================================
   exec-state-actions:
-    needs: [derive-actions]
+    needs: [log-run-start, derive-actions]
     if: needs.derive-actions.outputs.action_count != '0' && needs.derive-actions.outputs.actions_matrix != '[]'
     runs-on: ubuntu-latest
     strategy:
@@ -296,3 +336,83 @@ jobs:
 
           ---
           EOF
+
+  # ============================================================================
+  # Phase 3: Log Run End
+  # Updates the tracking comment with the final outcome (runs always)
+  # ============================================================================
+  log-run-end:
+    runs-on: ubuntu-latest
+    needs: [log-run-start, derive-actions, exec-state-actions]
+    if: always()
+    steps:
+      - name: Log workflow end
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.NOPO_BOT_PAT }}
+          script: |
+            const commentId = parseInt('${{ needs.log-run-start.outputs.comment_id }}', 10);
+            const issueNumber = parseInt('${{ inputs.issue_number }}', 10);
+            const trigger = '${{ inputs.trigger }}';
+            const runUrl = '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}';
+            const runNumber = '${{ github.run_number }}';
+            const dryRun = '${{ inputs.dry_run }}' === 'true';
+
+            // Determine outcome from job results
+            const deriveResult = '${{ needs.derive-actions.result }}';
+            const execResult = '${{ needs.exec-state-actions.result }}';
+            const actionCount = '${{ needs.derive-actions.outputs.action_count }}';
+            const finalState = '${{ needs.derive-actions.outputs.final_state }}';
+
+            // Success if derive succeeded AND (exec succeeded OR no actions to execute)
+            const success = deriveResult === 'success' &&
+              (execResult === 'success' || execResult === 'skipped' || actionCount === '0');
+            const cancelled = deriveResult === 'cancelled' || execResult === 'cancelled';
+
+            let emoji, status;
+            if (cancelled) {
+              emoji = '⚠️';
+              status = 'Cancelled';
+            } else if (success) {
+              emoji = '✅';
+              status = 'Completed';
+            } else {
+              emoji = '❌';
+              status = 'Failed';
+            }
+
+            const dryRunBadge = dryRun ? ' 🧪 DRY RUN' : '';
+
+            // Build additional info based on available data
+            let additionalInfo = '';
+            if (finalState) {
+              additionalInfo += `| **Final State** | \`${finalState}\` |\n`;
+            }
+            if (actionCount && actionCount !== '0') {
+              additionalInfo += `| **Actions** | ${actionCount} |\n`;
+            }
+
+            const body = `${emoji} **Workflow Run #${runNumber} ${status}**${dryRunBadge}\n\n` +
+              `| Property | Value |\n` +
+              `|----------|-------|\n` +
+              `| **Trigger** | \`${trigger}\` |\n` +
+              `| **Run** | [#${runNumber}](${runUrl}) |\n` +
+              `| **Status** | ${status} |\n` +
+              additionalInfo;
+
+            if (!commentId || isNaN(commentId)) {
+              console.log('No comment ID available, skipping update');
+              return;
+            }
+
+            try {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: commentId,
+                body: body
+              });
+              console.log(`Updated tracking comment ${commentId} with status: ${status}`);
+            } catch (error) {
+              console.log(`Failed to update comment ${commentId}: ${error.message}`);
+            }
