@@ -244,6 +244,14 @@ jobs:
           model: "claude-opus-4-5-20251101"
           max_turns: "50"
 
+      # Download triage output artifact for applyTriageOutput action
+      - name: Download triage output
+        if: matrix.action.type == 'applyTriageOutput'
+        uses: actions/download-artifact@v4
+        with:
+          name: claude-triage-output
+          # Downloads to current directory (triage-output.json)
+
       - name: Execute Action
         if: matrix.action.type != 'runClaude'
         uses: ./.github/actions-ts/claude-state-executor

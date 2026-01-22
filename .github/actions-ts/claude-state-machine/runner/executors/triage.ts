@@ -28,10 +28,12 @@ export async function executeApplyTriageOutput(
 ): Promise<{ applied: boolean }> {
   const { issueNumber, filePath } = action;
 
-  // Check if file exists
+  // Check if file exists - fail if missing (artifact should have been downloaded)
   if (!fs.existsSync(filePath)) {
-    core.info(`No triage output file found at ${filePath} - skipping`);
-    return { applied: false };
+    throw new Error(
+      `Triage output file not found at ${filePath}. ` +
+        `Ensure the runClaude action created the file and it was uploaded as an artifact.`,
+    );
   }
 
   // Read and parse the file

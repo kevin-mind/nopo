@@ -29654,8 +29654,9 @@ var fs2 = __toESM(require("fs"), 1);
 async function executeApplyTriageOutput(action, ctx) {
   const { issueNumber, filePath } = action;
   if (!fs2.existsSync(filePath)) {
-    core7.info(`No triage output file found at ${filePath} - skipping`);
-    return { applied: false };
+    throw new Error(
+      `Triage output file not found at ${filePath}. Ensure the runClaude action created the file and it was uploaded as an artifact.`
+    );
   }
   let triageOutput;
   try {
