@@ -1,20 +1,18 @@
-# actionlint configuration
+# Actionlint configuration
 # https://github.com/rhysd/actionlint/blob/main/docs/config.md
 
 self-hosted-runner:
   labels: []
 
-# Ignore patterns are regular expressions matching error messages
-# SC2086: Double quote to prevent globbing (often intentional with GHA expressions)
-# SC2016: Expressions don't expand in single quotes (intentional for literal $ in heredocs)
-# SC2129: Consider using { cmd1; cmd2; } >> file (style preference)
-# SC2012: Use find instead of ls (style preference)
-# SC2034: Variable appears unused (false positives with GITHUB_OUTPUT)
+config-variables: null
+
+# Configuration for file paths with ignore patterns
 paths:
   .github/workflows/**/*.yml:
     ignore:
-      - 'shellcheck reported issue in this script: SC2086:.+'
-      - 'shellcheck reported issue in this script: SC2016:.+'
-      - 'shellcheck reported issue in this script: SC2129:.+'
-      - 'shellcheck reported issue in this script: SC2012:.+'
-      - 'shellcheck reported issue in this script: SC2034:.+'
+      # jobs.<job_id>.result is valid in workflow outputs but actionlint's schema doesn't include it
+      # https://docs.github.com/en/actions/using-workflows/reusing-workflows#using-outputs-from-a-reusable-workflow
+      - 'property "result" is not defined in object type'
+      # Ignore shellcheck info and style level hints - only report warning/error
+      - 'SC\d+:info:'
+      - 'SC\d+:style:'

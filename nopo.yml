@@ -49,7 +49,7 @@ root:
         types: pnpm exec tsc --noEmit
         knip: pnpm exec knip
         actions:
-          command: pnpm exec tsx scripts/build.ts && pnpm exec tsx scripts/generate-docs.ts && git diff --exit-code .github/actions-ts/*/dist/ .github/docs/ .github/machine.json
+          command: pnpm exec tsx scripts/build.ts && pnpm exec tsx scripts/generate-docs.ts && git diff --exit-code */dist/ ../docs/
           dir: ./.github/actions-ts
         actionlint: ./scripts/actionlint.sh
         nopo:

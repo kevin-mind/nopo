@@ -52,6 +52,7 @@ describe("executeRunClaude", () => {
 
     const action: RunClaudeAction = {
       type: "runClaude",
+      token: "code",
       prompt: "Implement feature",
       issueNumber: 123,
     };
@@ -78,6 +79,7 @@ describe("executeRunClaude", () => {
 
     const action: RunClaudeAction = {
       type: "runClaude",
+      token: "code",
       prompt: "Test",
       issueNumber: 1,
       allowedTools: ["Read", "Write", "Bash"],
@@ -104,6 +106,7 @@ describe("executeRunClaude", () => {
 
     const action: RunClaudeAction = {
       type: "runClaude",
+      token: "code",
       prompt: "Test",
       issueNumber: 1,
       worktree: "/tmp/worktree-123",
@@ -125,6 +128,7 @@ describe("executeRunClaude", () => {
 
     const action: RunClaudeAction = {
       type: "runClaude",
+      token: "code",
       prompt: "Test",
       issueNumber: 1,
     };
@@ -149,6 +153,7 @@ describe("executeRunClaude", () => {
 
     const action: RunClaudeAction = {
       type: "runClaude",
+      token: "code",
       prompt: "Test",
       issueNumber: 1,
     };
@@ -165,6 +170,7 @@ describe("executeRunClaude", () => {
 
     const action: RunClaudeAction = {
       type: "runClaude",
+      token: "code",
       prompt: "Test",
       issueNumber: 1,
     };

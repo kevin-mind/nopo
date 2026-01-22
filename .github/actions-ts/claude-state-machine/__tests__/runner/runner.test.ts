@@ -94,7 +94,7 @@ describe("executeActions", () => {
   });
 
   test("executes noop action successfully", async () => {
-    const actions: Action[] = [{ type: "noop" }];
+    const actions: Action[] = [{ type: "noop", token: "code" }];
 
     const result = await executeActions(actions, ctx);
 
@@ -106,10 +106,15 @@ describe("executeActions", () => {
 
   test("executes log action with different levels", async () => {
     const actions: Action[] = [
-      { type: "log", level: "debug", message: "Debug message" },
-      { type: "log", level: "info", message: "Info message" },
-      { type: "log", level: "warning", message: "Warning message" },
-      { type: "log", level: "error", message: "Error message" },
+      { type: "log", token: "code", level: "debug", message: "Debug message" },
+      { type: "log", token: "code", level: "info", message: "Info message" },
+      {
+        type: "log",
+        token: "code",
+        level: "warning",
+        message: "Warning message",
+      },
+      { type: "log", token: "code", level: "error", message: "Error message" },
     ];
 
     const result = await executeActions(actions, ctx);
@@ -125,8 +130,8 @@ describe("executeActions", () => {
     });
 
     const actions: Action[] = [
-      { type: "noop", reason: "Test" },
-      { type: "log", level: "info", message: "Test" },
+      { type: "noop", token: "code", reason: "Test" },
+      { type: "log", token: "code", level: "info", message: "Test" },
     ];
 
     const result = await executeActions(actions, dryRunCtx);
@@ -138,9 +143,9 @@ describe("executeActions", () => {
 
   test("stops execution on stop action", async () => {
     const actions: Action[] = [
-      { type: "noop" },
-      { type: "stop", reason: "Done" },
-      { type: "noop" }, // Should not execute
+      { type: "noop", token: "code" },
+      { type: "stop", token: "code", reason: "Done" },
+      { type: "noop", token: "code" }, // Should not execute
     ];
 
     const result = await executeActions(actions, ctx);
@@ -167,8 +172,13 @@ describe("executeActions", () => {
 
   test("continues on non-critical error with stopOnError=false", async () => {
     const actions: Action[] = [
-      { type: "noop" },
-      { type: "log", level: "info", message: "Continued after error" },
+      { type: "noop", token: "code" },
+      {
+        type: "log",
+        token: "code",
+        level: "info",
+        message: "Continued after error",
+      },
     ];
 
     const result = await executeActions(actions, ctx, { stopOnError: false });
@@ -179,7 +189,7 @@ describe("executeActions", () => {
 
   test("logs actions when logActions=true", async () => {
     const core = await import("@actions/core");
-    const actions: Action[] = [{ type: "noop" }];
+    const actions: Action[] = [{ type: "noop", token: "code" }];
 
     await executeActions(actions, ctx, { logActions: true });
 
@@ -190,7 +200,7 @@ describe("executeActions", () => {
     const core = await import("@actions/core");
     vi.clearAllMocks();
 
-    const actions: Action[] = [{ type: "noop" }];
+    const actions: Action[] = [{ type: "noop", token: "code" }];
 
     await executeActions(actions, ctx, { logActions: false });
 
@@ -203,7 +213,7 @@ describe("executeActions", () => {
   });
 
   test("tracks execution duration", async () => {
-    const actions: Action[] = [{ type: "noop" }];
+    const actions: Action[] = [{ type: "noop", token: "code" }];
 
     const result = await executeActions(actions, ctx);
 
@@ -222,11 +232,11 @@ describe("executeActions", () => {
 
 describe("filterActions", () => {
   const actions: Action[] = [
-    { type: "noop" },
-    { type: "log", level: "info", message: "Test 1" },
-    { type: "noop", reason: "Another noop" },
-    { type: "log", level: "debug", message: "Test 2" },
-    { type: "stop", reason: "Done" },
+    { type: "noop", token: "code" },
+    { type: "log", token: "code", level: "info", message: "Test 1" },
+    { type: "noop", token: "code", reason: "Another noop" },
+    { type: "log", token: "code", level: "debug", message: "Test 2" },
+    { type: "stop", token: "code", reason: "Done" },
   ];
 
   test("filters actions by type", () => {
@@ -250,11 +260,11 @@ describe("filterActions", () => {
 describe("countActionsByType", () => {
   test("counts actions by type", () => {
     const actions: Action[] = [
-      { type: "noop" },
-      { type: "log", level: "info", message: "Test 1" },
-      { type: "noop", reason: "Another" },
-      { type: "log", level: "debug", message: "Test 2" },
-      { type: "stop", reason: "Done" },
+      { type: "noop", token: "code" },
+      { type: "log", token: "code", level: "info", message: "Test 1" },
+      { type: "noop", token: "code", reason: "Another" },
+      { type: "log", token: "code", level: "debug", message: "Test 2" },
+      { type: "stop", token: "code", reason: "Done" },
     ];
 
     const counts = countActionsByType(actions);
@@ -283,13 +293,18 @@ describe("logRunnerSummary", () => {
       success: true,
       results: [
         {
-          action: { type: "noop" },
+          action: { type: "noop", token: "code" },
           success: true,
           skipped: false,
           durationMs: 10,
         },
         {
-          action: { type: "log", level: "info", message: "Test" },
+          action: {
+            type: "log",
+            token: "code",
+            level: "info",
+            message: "Test",
+          },
           success: true,
           skipped: false,
           durationMs: 5,
@@ -316,7 +331,7 @@ describe("logRunnerSummary", () => {
       success: false,
       results: [
         {
-          action: { type: "noop" },
+          action: { type: "noop", token: "code" },
           success: false,
           skipped: false,
           error: new Error("Test error"),
@@ -340,7 +355,7 @@ describe("logRunnerSummary", () => {
       success: true,
       results: [
         {
-          action: { type: "noop" },
+          action: { type: "noop", token: "code" },
           success: true,
           skipped: true,
           durationMs: 0,

@@ -92,6 +92,7 @@ describe("executeCloseIssue", () => {
 
     const action: CloseIssueAction = {
       type: "closeIssue",
+      token: "code",
       issueNumber: 123,
       reason: "completed",
     };
@@ -115,6 +116,7 @@ describe("executeCloseIssue", () => {
 
     const action: CloseIssueAction = {
       type: "closeIssue",
+      token: "code",
       issueNumber: 123,
       reason: "not_planned",
     };
@@ -156,6 +158,7 @@ describe("executeAppendHistory", () => {
 
     const action: AppendHistoryAction = {
       type: "appendHistory",
+      token: "code",
       issueNumber: 123,
       phase: "Phase 1",
       message: "Started implementation",
@@ -187,6 +190,7 @@ describe("executeAppendHistory", () => {
 
     const action: AppendHistoryAction = {
       type: "appendHistory",
+      token: "code",
       issueNumber: 123,
       phase: "Phase 1",
       message: "Pushed code",
@@ -232,6 +236,7 @@ describe("executeUpdateHistory", () => {
 
     const action: UpdateHistoryAction = {
       type: "updateHistory",
+      token: "code",
       issueNumber: 123,
       matchIteration: 1,
       matchPhase: "1",
@@ -258,6 +263,7 @@ describe("executeUpdateHistory", () => {
 
     const action: UpdateHistoryAction = {
       type: "updateHistory",
+      token: "code",
       issueNumber: 123,
       matchIteration: 99,
       matchPhase: "99",
@@ -287,6 +293,7 @@ describe("executeUpdateIssueBody", () => {
 
     const action: UpdateIssueBodyAction = {
       type: "updateIssueBody",
+      token: "code",
       issueNumber: 123,
       body: "New body content",
     };
@@ -318,6 +325,7 @@ describe("executeAddComment", () => {
 
     const action: AddCommentAction = {
       type: "addComment",
+      token: "code",
       issueNumber: 123,
       body: "This is a comment",
     };
@@ -349,6 +357,7 @@ describe("executeUnassignUser", () => {
 
     const action: UnassignUserAction = {
       type: "unassignUser",
+      token: "code",
       issueNumber: 123,
       username: "nopo-bot",
     };
@@ -380,6 +389,7 @@ describe("executeAssignUser", () => {
 
     const action: AssignUserAction = {
       type: "assignUser",
+      token: "code",
       issueNumber: 42,
       username: "nopo-bot",
     };
@@ -438,6 +448,7 @@ describe("executeCreateSubIssues", () => {
 
     const action: CreateSubIssuesAction = {
       type: "createSubIssues",
+      token: "code",
       parentIssueNumber: 100,
       phases: [
         { title: "Setup", body: "## Todos\n- [ ] Task 1" },
@@ -461,6 +472,7 @@ describe("executeCreateSubIssues", () => {
 
     const action: CreateSubIssuesAction = {
       type: "createSubIssues",
+      token: "code",
       parentIssueNumber: 999,
       phases: [{ title: "Test", body: "Body" }],
     };
@@ -490,6 +502,7 @@ describe("executeCreatePR", () => {
 
     const action: CreatePRAction = {
       type: "createPR",
+      token: "code",
       title: "Fix bug",
       body: "This PR fixes a bug",
       branchName: "fix/bug-123",
@@ -527,6 +540,7 @@ describe("executeCreatePR", () => {
 
     const action: CreatePRAction = {
       type: "createPR",
+      token: "code",
       title: "Fix bug",
       body: "This PR fixes a bug",
       branchName: "fix/bug-123",
@@ -565,6 +579,7 @@ describe("executeConvertPRToDraft", () => {
 
     const action: ConvertPRToDraftAction = {
       type: "convertPRToDraft",
+      token: "code",
       prNumber: 42,
     };
 
@@ -580,6 +595,7 @@ describe("executeConvertPRToDraft", () => {
 
     const action: ConvertPRToDraftAction = {
       type: "convertPRToDraft",
+      token: "code",
       prNumber: 999,
     };
 
@@ -611,6 +627,7 @@ describe("executeMarkPRReady", () => {
 
     const action: MarkPRReadyAction = {
       type: "markPRReady",
+      token: "code",
       prNumber: 42,
     };
 
@@ -635,6 +652,7 @@ describe("executeRequestReview", () => {
 
     const action: RequestReviewAction = {
       type: "requestReview",
+      token: "code",
       prNumber: 42,
       reviewer: "nopo-bot",
     };
@@ -666,6 +684,7 @@ describe("executeMergePR", () => {
 
     const action: MergePRAction = {
       type: "mergePR",
+      token: "code",
       prNumber: 42,
       mergeMethod: "squash",
     };
@@ -689,6 +708,7 @@ describe("executeMergePR", () => {
 
     const action: MergePRAction = {
       type: "mergePR",
+      token: "code",
       prNumber: 42,
       mergeMethod: "merge",
     };
@@ -710,6 +730,7 @@ describe("executeMergePR", () => {
 
     const action: MergePRAction = {
       type: "mergePR",
+      token: "code",
       prNumber: 42,
       mergeMethod: "rebase",
     };

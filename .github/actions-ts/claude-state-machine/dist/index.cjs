@@ -31979,6 +31979,7 @@ function emitSetWorking({ context: context2 }) {
   return [
     {
       type: "updateProjectStatus",
+      token: "code",
       issueNumber,
       status: "In progress"
     }
@@ -31989,6 +31990,7 @@ function emitSetReview({ context: context2 }) {
   return [
     {
       type: "updateProjectStatus",
+      token: "code",
       issueNumber,
       status: "In review"
     }
@@ -31998,6 +32000,7 @@ function emitSetInProgress({ context: context2 }) {
   return [
     {
       type: "updateProjectStatus",
+      token: "code",
       issueNumber: context2.issue.number,
       status: "In progress"
     }
@@ -32007,6 +32010,7 @@ function emitSetDone({ context: context2 }) {
   return [
     {
       type: "updateProjectStatus",
+      token: "code",
       issueNumber: context2.issue.number,
       status: "Done"
     }
@@ -32016,6 +32020,7 @@ function emitSetBlocked({ context: context2 }) {
   return [
     {
       type: "updateProjectStatus",
+      token: "code",
       issueNumber: context2.issue.number,
       status: "Blocked"
     }
@@ -32027,6 +32032,7 @@ function emitIncrementIteration({
   return [
     {
       type: "incrementIteration",
+      token: "code",
       issueNumber: context2.issue.number
     }
   ];
@@ -32035,6 +32041,7 @@ function emitRecordFailure({ context: context2 }) {
   return [
     {
       type: "recordFailure",
+      token: "code",
       issueNumber: context2.issue.number,
       failureType: "ci"
     }

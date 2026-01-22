@@ -29,6 +29,7 @@ export function emitSetWorking({ context }: ActionContext): ActionResult {
   return [
     {
       type: "updateProjectStatus",
+      token: "code",
       issueNumber,
       status: "In progress" as ProjectStatus,
     },
@@ -43,6 +44,7 @@ export function emitSetReview({ context }: ActionContext): ActionResult {
   return [
     {
       type: "updateProjectStatus",
+      token: "code",
       issueNumber,
       status: "In review" as ProjectStatus,
     },
@@ -56,6 +58,7 @@ export function emitSetInProgress({ context }: ActionContext): ActionResult {
   return [
     {
       type: "updateProjectStatus",
+      token: "code",
       issueNumber: context.issue.number,
       status: "In progress" as ProjectStatus,
     },
@@ -69,6 +72,7 @@ export function emitSetDone({ context }: ActionContext): ActionResult {
   return [
     {
       type: "updateProjectStatus",
+      token: "code",
       issueNumber: context.issue.number,
       status: "Done" as ProjectStatus,
     },
@@ -82,6 +86,7 @@ export function emitSetBlocked({ context }: ActionContext): ActionResult {
   return [
     {
       type: "updateProjectStatus",
+      token: "code",
       issueNumber: context.issue.number,
       status: "Blocked" as ProjectStatus,
     },
@@ -101,6 +106,7 @@ export function emitIncrementIteration({
   return [
     {
       type: "incrementIteration",
+      token: "code",
       issueNumber: context.issue.number,
     },
   ];
@@ -113,6 +119,7 @@ export function emitRecordFailure({ context }: ActionContext): ActionResult {
   return [
     {
       type: "recordFailure",
+      token: "code",
       issueNumber: context.issue.number,
       failureType: "ci" as const,
     },

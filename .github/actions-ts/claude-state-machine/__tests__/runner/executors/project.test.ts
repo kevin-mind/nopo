@@ -149,6 +149,7 @@ describe("executeUpdateProjectStatus", () => {
 
     const action: UpdateProjectStatusAction = {
       type: "updateProjectStatus",
+      token: "code",
       issueNumber: 123,
       status: "In review",
     };
@@ -167,6 +168,7 @@ describe("executeUpdateProjectStatus", () => {
 
     const action: UpdateProjectStatusAction = {
       type: "updateProjectStatus",
+      token: "code",
       issueNumber: 123,
       // Using a status that won't exist in project options
       status: "NonexistentStatus" as UpdateProjectStatusAction["status"],
@@ -223,6 +225,7 @@ describe("executeUpdateProjectStatus", () => {
 
     const action: UpdateProjectStatusAction = {
       type: "updateProjectStatus",
+      token: "code",
       issueNumber: 123,
       status: "In progress",
     };
@@ -252,6 +255,7 @@ describe("executeIncrementIteration", () => {
 
     const action: IncrementIterationAction = {
       type: "incrementIteration",
+      token: "code",
       issueNumber: 123,
     };
 
@@ -278,6 +282,7 @@ describe("executeIncrementIteration", () => {
 
     const action: IncrementIterationAction = {
       type: "incrementIteration",
+      token: "code",
       issueNumber: 123,
     };
 
@@ -305,6 +310,7 @@ describe("executeRecordFailure", () => {
 
     const action: RecordFailureAction = {
       type: "recordFailure",
+      token: "code",
       issueNumber: 123,
     };
 
@@ -328,6 +334,7 @@ describe("executeRecordFailure", () => {
 
     const action: RecordFailureAction = {
       type: "recordFailure",
+      token: "code",
       issueNumber: 123,
       failureType: "ci",
     };
@@ -356,6 +363,7 @@ describe("executeClearFailures", () => {
 
     const action: ClearFailuresAction = {
       type: "clearFailures",
+      token: "code",
       issueNumber: 123,
     };
 
@@ -388,6 +396,7 @@ describe("executeBlock", () => {
 
     const action: BlockAction = {
       type: "block",
+      token: "code",
       issueNumber: 123,
       reason: "Max retries exceeded",
     };
@@ -449,6 +458,7 @@ describe("executeBlock", () => {
 
     const action: BlockAction = {
       type: "block",
+      token: "code",
       issueNumber: 123,
       reason: "Test",
     };

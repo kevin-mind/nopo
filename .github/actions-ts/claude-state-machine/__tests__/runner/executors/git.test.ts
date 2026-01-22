@@ -102,6 +102,7 @@ describe("executeCreateBranch", () => {
 
     const action: CreateBranchAction = {
       type: "createBranch",
+      token: "code",
       branchName: "feature/new",
       baseBranch: "main",
     };
@@ -148,6 +149,7 @@ describe("executeCreateBranch", () => {
 
     const action: CreateBranchAction = {
       type: "createBranch",
+      token: "code",
       branchName: "feature/existing",
       baseBranch: "main",
     };
@@ -172,6 +174,7 @@ describe("executeGitPush", () => {
 
     const action: GitPushAction = {
       type: "gitPush",
+      token: "code",
       branchName: "feature/test",
       force: false,
     };
@@ -191,6 +194,7 @@ describe("executeGitPush", () => {
 
     const action: GitPushAction = {
       type: "gitPush",
+      token: "code",
       branchName: "feature/test",
       force: true,
     };
@@ -209,6 +213,7 @@ describe("executeGitPush", () => {
 
     const action: GitPushAction = {
       type: "gitPush",
+      token: "code",
       branchName: "feature/test",
       force: false,
     };
