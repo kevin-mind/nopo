@@ -23,8 +23,6 @@ const ArtifactSchema = z.object({
   path: z.string(),
 });
 
-type Artifact = z.infer<typeof ArtifactSchema>;
-
 /**
  * Base action fields shared by all actions
  */
@@ -99,8 +97,6 @@ const PhaseDefinitionSchema = z.object({
   title: z.string().min(1),
   body: z.string(),
 });
-
-type PhaseDefinition = z.infer<typeof PhaseDefinitionSchema>;
 
 /**
  * Create sub-issues for phased work
@@ -426,8 +422,6 @@ export const StopActionSchema = BaseActionSchema.extend({
   reason: z.string().min(1),
 });
 
-type StopAction = z.infer<typeof StopActionSchema>;
-
 /**
  * Block an issue (circuit breaker)
  */
@@ -448,8 +442,6 @@ export const LogActionSchema = BaseActionSchema.extend({
   message: z.string(),
 });
 
-type LogAction = z.infer<typeof LogActionSchema>;
-
 /**
  * No-op action (do nothing)
  */
@@ -457,8 +449,6 @@ export const NoOpActionSchema = BaseActionSchema.extend({
   type: z.literal("noop"),
   reason: z.string().optional(),
 });
-
-type NoOpAction = z.infer<typeof NoOpActionSchema>;
 
 // ============================================================================
 // Triage Actions
@@ -473,8 +463,6 @@ const ApplyTriageOutputActionSchema = BaseActionSchema.extend({
   issueNumber: z.number().int().positive(),
   filePath: z.string().default("triage-output.json"),
 });
-
-type ApplyTriageOutputAction = z.infer<typeof ApplyTriageOutputActionSchema>;
 
 // ============================================================================
 // Discriminated Union of All Actions
@@ -526,13 +514,6 @@ export const ActionSchema = z.discriminatedUnion("type", [
 ]);
 
 export type Action = z.infer<typeof ActionSchema>;
-
-/**
- * Array of actions to execute
- */
-const ActionArraySchema = z.array(ActionSchema);
-
-type ActionArray = z.infer<typeof ActionArraySchema>;
 
 /**
  * Extract the action type string

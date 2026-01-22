@@ -6,9 +6,7 @@ import type {
   ProjectStatus,
   IssueState,
   PRState,
-  HistoryEntry,
   LinkedPR,
-  TodoStats,
   TriggerType,
   GitHubEvent,
 } from "../schemas/index.js";
@@ -588,39 +586,5 @@ export async function buildMachineContext(
     commentContextDescription: options.commentContextDescription ?? null,
     maxRetries: options.maxRetries,
     botUsername: options.botUsername,
-  });
-}
-
-/**
- * Simple context builder for testing
- */
-function buildTestContext(
-  issue: ParentIssue,
-  trigger: TriggerType,
-  owner: string = "test-owner",
-  repo: string = "test-repo",
-  overrides: Partial<MachineContext> = {},
-): MachineContext {
-  const currentPhaseInfo = findCurrentPhase(issue.subIssues);
-
-  return createMachineContext({
-    trigger,
-    owner,
-    repo,
-    issue,
-    parentIssue: null,
-    currentPhase: currentPhaseInfo?.phase ?? null,
-    totalPhases: issue.subIssues.length || 1,
-    currentSubIssue: currentPhaseInfo?.subIssue ?? null,
-    ciResult: null,
-    ciRunUrl: null,
-    ciCommitSha: null,
-    reviewDecision: null,
-    reviewerId: null,
-    branch: deriveBranchName(issue.number, currentPhaseInfo?.phase),
-    hasBranch: false,
-    pr: null,
-    hasPR: false,
-    ...overrides,
   });
 }

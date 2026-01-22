@@ -6,7 +6,7 @@ import {
   emitAllPhasesDone,
   emitAssignToSubIssue,
 } from "../../machine/actions.js";
-import type { MachineContext } from "../../schemas/index.js";
+import type { UpdateProjectStatusAction } from "../../schemas/actions.js";
 import { createContext } from "../fixtures/index.js";
 
 describe("Orchestration action emitters", () => {
@@ -40,7 +40,7 @@ describe("Orchestration action emitters", () => {
             },
           ],
         },
-      } as any);
+      });
 
       const actions = emitInitializeParent({ context });
 
@@ -112,7 +112,7 @@ describe("Orchestration action emitters", () => {
         },
         currentPhase: 1,
         totalPhases: 2,
-      } as any);
+      });
 
       const actions = emitAdvancePhase({ context });
 
@@ -157,7 +157,7 @@ describe("Orchestration action emitters", () => {
         },
         currentSubIssue: null,
         currentPhase: null,
-      } as any);
+      });
 
       const actions = emitAdvancePhase({ context });
 
@@ -198,7 +198,7 @@ describe("Orchestration action emitters", () => {
         currentPhase: 1,
         totalPhases: 1,
         botUsername: "nopo-bot",
-      } as any);
+      });
 
       const actions = emitOrchestrate({ context });
 
@@ -212,9 +212,13 @@ describe("Orchestration action emitters", () => {
       expect(actionTypes).toContain("stop");
 
       // Check assignUser action
-      const assignAction = actions.find((a) => a.type === "assignUser") as any;
-      expect(assignAction.issueNumber).toBe(101);
-      expect(assignAction.username).toBe("nopo-bot");
+      const assignAction = actions.find((a) => a.type === "assignUser");
+      if (assignAction?.type === "assignUser") {
+        expect(assignAction.issueNumber).toBe(101);
+        expect(assignAction.username).toBe("nopo-bot");
+      } else {
+        expect.fail("assignUser action not found");
+      }
     });
 
     test("advances phase when current phase is complete", () => {
@@ -259,15 +263,15 @@ describe("Orchestration action emitters", () => {
         currentPhase: 1,
         totalPhases: 2,
         botUsername: "nopo-bot",
-      } as any);
+      });
 
       const actions = emitOrchestrate({ context });
 
       // Should advance phase (mark 101 Done, set 102 In progress)
       // and assign to the new sub-issue (102)
       const updateActions = actions.filter(
-        (a) => a.type === "updateProjectStatus",
-      ) as any[];
+        (a): a is UpdateProjectStatusAction => a.type === "updateProjectStatus",
+      );
       const doneAction = updateActions.find((a) => a.status === "Done");
       const workingAction = updateActions.find(
         (a) => a.status === "In progress",
@@ -277,8 +281,12 @@ describe("Orchestration action emitters", () => {
       expect(workingAction?.issueNumber).toBe(102);
 
       // Should assign to next sub-issue
-      const assignAction = actions.find((a) => a.type === "assignUser") as any;
-      expect(assignAction.issueNumber).toBe(102);
+      const assignAction = actions.find((a) => a.type === "assignUser");
+      if (assignAction?.type === "assignUser") {
+        expect(assignAction.issueNumber).toBe(102);
+      } else {
+        expect.fail("assignUser action not found");
+      }
     });
 
     test("assigns current sub-issue when no advancement needed", () => {
@@ -313,13 +321,17 @@ describe("Orchestration action emitters", () => {
         currentPhase: 1,
         totalPhases: 1,
         botUsername: "nopo-bot",
-      } as any);
+      });
 
       const actions = emitOrchestrate({ context });
 
       // Should NOT advance (todos not done), just assign current sub-issue
-      const assignAction = actions.find((a) => a.type === "assignUser") as any;
-      expect(assignAction.issueNumber).toBe(101);
+      const assignAction = actions.find((a) => a.type === "assignUser");
+      if (assignAction?.type === "assignUser") {
+        expect(assignAction.issueNumber).toBe(101);
+      } else {
+        expect.fail("assignUser action not found");
+      }
 
       // Should not have closeIssue for current sub-issue
       const closeActions = actions.filter((a) => a.type === "closeIssue");
@@ -347,7 +359,7 @@ describe("Orchestration action emitters", () => {
             },
           ],
         },
-      } as any);
+      });
 
       const actions = emitAllPhasesDone({ context });
 
@@ -361,14 +373,22 @@ describe("Orchestration action emitters", () => {
       // Check updateProjectStatus sets to Done
       const statusAction = actions.find(
         (a) => a.type === "updateProjectStatus",
-      ) as any;
-      expect(statusAction.issueNumber).toBe(100);
-      expect(statusAction.status).toBe("Done");
+      );
+      if (statusAction?.type === "updateProjectStatus") {
+        expect(statusAction.issueNumber).toBe(100);
+        expect(statusAction.status).toBe("Done");
+      } else {
+        expect.fail("updateProjectStatus action not found");
+      }
 
       // Check closeIssue
-      const closeAction = actions.find((a) => a.type === "closeIssue") as any;
-      expect(closeAction.issueNumber).toBe(100);
-      expect(closeAction.reason).toBe("completed");
+      const closeAction = actions.find((a) => a.type === "closeIssue");
+      if (closeAction?.type === "closeIssue") {
+        expect(closeAction.issueNumber).toBe(100);
+        expect(closeAction.reason).toBe("completed");
+      } else {
+        expect.fail("closeIssue action not found");
+      }
     });
   });
 
@@ -386,7 +406,7 @@ describe("Orchestration action emitters", () => {
           todos: { total: 1, completed: 0, uncheckedNonManual: 1 },
         },
         botUsername: "nopo-bot",
-      } as any);
+      });
 
       const actions = emitAssignToSubIssue({ context });
 
@@ -402,7 +422,7 @@ describe("Orchestration action emitters", () => {
       const context = createContext({
         currentSubIssue: null,
         botUsername: "nopo-bot",
-      } as any);
+      });
 
       const actions = emitAssignToSubIssue({ context });
 

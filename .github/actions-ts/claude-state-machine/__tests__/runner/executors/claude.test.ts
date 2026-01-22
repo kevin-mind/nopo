@@ -23,12 +23,15 @@ import {
   buildReviewResponsePrompt,
 } from "../../../runner/executors/claude.js";
 import type { RunClaudeAction } from "../../../schemas/index.js";
+import type { GitHub } from "@actions/github/lib/utils.js";
 import type { RunnerContext } from "../../../runner/runner.js";
+
+type Octokit = InstanceType<typeof GitHub>;
 
 // Create mock context
 function createMockContext(): RunnerContext {
   return {
-    octokit: {} as any,
+    octokit: {} as unknown as Octokit,
     owner: "test-owner",
     repo: "test-repo",
     projectNumber: 1,

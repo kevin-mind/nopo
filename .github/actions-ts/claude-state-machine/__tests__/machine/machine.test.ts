@@ -21,7 +21,7 @@ describe("claudeMachine", () => {
     test("transitions to done when status is Done", () => {
       const context = createContext({
         issue: { projectStatus: "Done" },
-      } as any);
+      });
       const { state, actions } = runMachine(context);
       expect(state).toBe("done");
       // Should have setDone and closeIssue actions
@@ -33,7 +33,7 @@ describe("claudeMachine", () => {
     test("transitions to blocked when status is Blocked", () => {
       const context = createContext({
         issue: { projectStatus: "Blocked" },
-      } as any);
+      });
       const { state, actions } = runMachine(context);
       expect(state).toBe("blocked");
       // When already blocked, no actions are emitted (to avoid redundant updates)
@@ -47,7 +47,7 @@ describe("claudeMachine", () => {
     test("transitions to error when status is Error", () => {
       const context = createContext({
         issue: { projectStatus: "Error" },
-      } as any);
+      });
       const { state } = runMachine(context);
       expect(state).toBe("error");
     });
@@ -55,7 +55,7 @@ describe("claudeMachine", () => {
     test("transitions to iterating for normal issue", () => {
       const context = createContext({
         issue: { projectStatus: "In progress" },
-      } as any);
+      });
       const { state, actions } = runMachine(context);
       expect(state).toBe("iterating");
       const actionTypes = actions.map((a) => a.type);
@@ -67,7 +67,7 @@ describe("claudeMachine", () => {
     test("transitions to reviewing when status is Review", () => {
       const context = createContext({
         issue: { projectStatus: "In review" },
-      } as any);
+      });
       const { state } = runMachine(context);
       expect(state).toBe("reviewing");
     });
@@ -98,7 +98,7 @@ describe("claudeMachine", () => {
           headRef: "feature",
           baseRef: "main",
         },
-      } as any);
+      });
       const { state, actions } = runMachine(context);
       expect(state).toBe("reviewing");
       const actionTypes = actions.map((a) => a.type);
@@ -122,7 +122,7 @@ describe("claudeMachine", () => {
           pr: null,
           todos: { total: 3, completed: 1, uncheckedNonManual: 2 },
         },
-      } as any);
+      });
       const { state, actions } = runMachine(context);
       expect(state).toBe("iterating");
       const actionTypes = actions.map((a) => a.type);
@@ -144,7 +144,7 @@ describe("claudeMachine", () => {
           pr: null,
           todos: { total: 3, completed: 1, uncheckedNonManual: 2 },
         },
-      } as any);
+      });
       const { state, actions } = runMachine(context);
       expect(state).toBe("iteratingFix");
       const actionTypes = actions.map((a) => a.type);
@@ -168,7 +168,7 @@ describe("claudeMachine", () => {
           pr: null,
           todos: { total: 3, completed: 1, uncheckedNonManual: 2 },
         },
-      } as any);
+      });
       const { state, actions } = runMachine(context);
       expect(state).toBe("blocked");
       const actionTypes = actions.map((a) => a.type);
@@ -188,7 +188,7 @@ describe("claudeMachine", () => {
           hasSubIssues: true,
           subIssues: [],
         },
-      } as any);
+      });
       const { state } = runMachine(context);
       // After orchestrating with empty sub-issues, goes to orchestrationComplete
       expect([
@@ -211,7 +211,7 @@ describe("claudeMachine", () => {
           headRef: "feature",
           baseRef: "main",
         },
-      } as any);
+      });
       const { state, actions } = runMachine(context);
       expect(state).toBe("iterating");
       const actionTypes = actions.map((a) => a.type);
@@ -224,7 +224,7 @@ describe("claudeMachine", () => {
         trigger: "pr_review_submitted",
         reviewDecision: "COMMENTED",
         issue: { projectStatus: "In review" },
-      } as any);
+      });
       const { state } = runMachine(context);
       expect(state).toBe("reviewing");
     });
@@ -240,7 +240,7 @@ describe("claudeMachine", () => {
           body: "## Description\n\nImplement X feature",
           projectStatus: null,
         },
-      } as any);
+      });
       const { state, actions } = runMachine(context);
       expect(state).toBe("triaging");
       const actionTypes = actions.map((a) => a.type);
@@ -259,28 +259,29 @@ describe("claudeMachine", () => {
         },
         owner: "test-owner",
         repo: "test-repo",
-      } as any);
-      const { actions } = runMachine(context);
-      const runClaudeAction = actions.find(
-        (a) => a.type === "runClaude",
-      ) as any;
-      expect(runClaudeAction).toBeDefined();
-      expect(runClaudeAction.promptFile).toBe(".github/prompts/triage.txt");
-      expect(runClaudeAction.promptVars).toEqual({
-        ISSUE_NUMBER: "456",
-        ISSUE_TITLE: "Bug report",
-        ISSUE_BODY: "## Description\n\nSomething is broken",
-        REPO_OWNER: "test-owner",
-        REPO_NAME: "test-repo",
       });
-      expect(runClaudeAction.issueNumber).toBe(456);
+      const { actions } = runMachine(context);
+      const runClaudeAction = actions.find((a) => a.type === "runClaude");
+      if (runClaudeAction?.type === "runClaude") {
+        expect(runClaudeAction.promptFile).toBe(".github/prompts/triage.txt");
+        expect(runClaudeAction.promptVars).toEqual({
+          ISSUE_NUMBER: "456",
+          ISSUE_TITLE: "Bug report",
+          ISSUE_BODY: "## Description\n\nSomething is broken",
+          REPO_OWNER: "test-owner",
+          REPO_NAME: "test-repo",
+        });
+        expect(runClaudeAction.issueNumber).toBe(456);
+      } else {
+        expect.fail("runClaude action not found");
+      }
     });
 
     test("does not triage when already done", () => {
       const context = createContext({
         trigger: "issue_triage",
         issue: { projectStatus: "Done" },
-      } as any);
+      });
       const { state } = runMachine(context);
       // Done takes precedence over triage
       expect(state).toBe("done");
@@ -290,7 +291,7 @@ describe("claudeMachine", () => {
       const context = createContext({
         trigger: "issue_triage",
         issue: { projectStatus: "Blocked" },
-      } as any);
+      });
       const { state } = runMachine(context);
       // Blocked takes precedence over triage
       expect(state).toBe("blocked");
@@ -310,7 +311,7 @@ describe("claudeMachine", () => {
         commentContextType: "Issue",
         commentContextDescription:
           "This is issue #123 about implementing feature X.",
-      } as any);
+      });
       const { state, actions } = runMachine(context);
       expect(state).toBe("commenting");
       const actionTypes = actions.map((a) => a.type);
@@ -331,21 +332,22 @@ describe("claudeMachine", () => {
         commentContextType: "PR",
         commentContextDescription:
           "This is PR #789 fixing bug in authentication.",
-      } as any);
-      const { actions } = runMachine(context);
-      const runClaudeAction = actions.find(
-        (a) => a.type === "runClaude",
-      ) as any;
-      expect(runClaudeAction).toBeDefined();
-      expect(runClaudeAction.promptFile).toBe(".github/prompts/comment.txt");
-      expect(runClaudeAction.promptVars).toEqual({
-        ISSUE_NUMBER: "456",
-        CONTEXT_TYPE: "PR",
-        CONTEXT_DESCRIPTION: "This is PR #789 fixing bug in authentication.",
       });
-      expect(runClaudeAction.issueNumber).toBe(456);
-      // worktree is intentionally not set - checkout happens at repo root to the correct branch
-      expect(runClaudeAction.worktree).toBeUndefined();
+      const { actions } = runMachine(context);
+      const runClaudeAction = actions.find((a) => a.type === "runClaude");
+      if (runClaudeAction?.type === "runClaude") {
+        expect(runClaudeAction.promptFile).toBe(".github/prompts/comment.txt");
+        expect(runClaudeAction.promptVars).toEqual({
+          ISSUE_NUMBER: "456",
+          CONTEXT_TYPE: "PR",
+          CONTEXT_DESCRIPTION: "This is PR #789 fixing bug in authentication.",
+        });
+        expect(runClaudeAction.issueNumber).toBe(456);
+        // worktree is intentionally not set - checkout happens at repo root to the correct branch
+        expect(runClaudeAction.worktree).toBeUndefined();
+      } else {
+        expect.fail("runClaude action not found");
+      }
     });
 
     test("uses default context values when not provided", () => {
@@ -357,17 +359,18 @@ describe("claudeMachine", () => {
         },
         commentContextType: null,
         commentContextDescription: null,
-      } as any);
-      const { actions } = runMachine(context);
-      const runClaudeAction = actions.find(
-        (a) => a.type === "runClaude",
-      ) as any;
-      expect(runClaudeAction).toBeDefined();
-      expect(runClaudeAction.promptVars).toEqual({
-        ISSUE_NUMBER: "789",
-        CONTEXT_TYPE: "Issue",
-        CONTEXT_DESCRIPTION: "This is issue #789.",
       });
+      const { actions } = runMachine(context);
+      const runClaudeAction = actions.find((a) => a.type === "runClaude");
+      if (runClaudeAction?.type === "runClaude") {
+        expect(runClaudeAction.promptVars).toEqual({
+          ISSUE_NUMBER: "789",
+          CONTEXT_TYPE: "Issue",
+          CONTEXT_DESCRIPTION: "This is issue #789.",
+        });
+      } else {
+        expect.fail("runClaude action not found");
+      }
     });
 
     test("does not comment when already done", () => {
@@ -376,7 +379,7 @@ describe("claudeMachine", () => {
         issue: { projectStatus: "Done" },
         commentContextType: "Issue",
         commentContextDescription: "Test",
-      } as any);
+      });
       const { state } = runMachine(context);
       // Done takes precedence over comment
       expect(state).toBe("done");
@@ -388,7 +391,7 @@ describe("claudeMachine", () => {
         issue: { projectStatus: "Blocked" },
         commentContextType: "Issue",
         commentContextDescription: "Test",
-      } as any);
+      });
       const { state } = runMachine(context);
       // Blocked takes precedence over comment
       expect(state).toBe("blocked");
@@ -424,7 +427,7 @@ describe("claudeMachine", () => {
             },
           ],
         },
-      } as any);
+      });
       const { state, actions } = runMachine(context);
       expect(state).toBe("orchestrationComplete");
       // Should emit completion actions
@@ -473,7 +476,7 @@ describe("claudeMachine", () => {
         },
         currentPhase: 1,
         totalPhases: 2,
-      } as any);
+      });
       const { state, actions } = runMachine(context);
       expect(state).toBe("orchestrationRunning");
       // Should emit orchestration actions including assignUser
@@ -520,13 +523,16 @@ describe("claudeMachine", () => {
           pr: null,
           todos: { total: 1, completed: 1, uncheckedNonManual: 0 },
         },
-      } as any);
+      });
       const { state, actions } = runMachine(context);
       expect(state).toBe("orchestrationWaiting");
       // Should emit stop action with waiting reason
-      const stopAction = actions.find((a) => a.type === "stop") as any;
-      expect(stopAction).toBeDefined();
-      expect(stopAction.reason).toContain("review");
+      const stopAction = actions.find((a) => a.type === "stop");
+      if (stopAction?.type === "stop") {
+        expect(stopAction.reason).toContain("review");
+      } else {
+        expect.fail("stop action not found");
+      }
     });
   });
 
@@ -534,7 +540,7 @@ describe("claudeMachine", () => {
     test("accumulates multiple actions during transitions", () => {
       const context = createContext({
         issue: { projectStatus: "In progress" },
-      } as any);
+      });
       const { actions } = runMachine(context);
       // Should have log, setWorking, incrementIteration, and runClaude actions
       expect(actions.length).toBeGreaterThan(2);
@@ -543,13 +549,16 @@ describe("claudeMachine", () => {
     test("includes issue number in actions", () => {
       const context = createContext({
         issue: { number: 123, projectStatus: "In progress" },
-      } as any);
+      });
       const { actions } = runMachine(context);
       const updateAction = actions.find(
         (a) => a.type === "updateProjectStatus",
       );
-      expect(updateAction).toBeDefined();
-      expect((updateAction as any).issueNumber).toBe(123);
+      if (updateAction?.type === "updateProjectStatus") {
+        expect(updateAction.issueNumber).toBe(123);
+      } else {
+        expect.fail("updateProjectStatus action not found");
+      }
     });
   });
 });

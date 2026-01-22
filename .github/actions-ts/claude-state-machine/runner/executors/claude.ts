@@ -20,17 +20,6 @@ interface ClaudeRunResult {
 }
 
 /**
- * Options for running Claude
- */
-interface ClaudeOptions {
-  prompt: string;
-  worktree?: string;
-  timeout?: number; // in milliseconds
-  maxTurns?: number;
-  allowedTools?: string[];
-}
-
-/**
  * Substitute template variables in a string
  * Replaces {{VAR_NAME}} with the corresponding value from vars
  */

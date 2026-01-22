@@ -373,27 +373,3 @@ export async function executeCreateIssuesFromDiscussion(
 
   return { issueNumbers };
 }
-
-/**
- * Helper to get discussion node ID from discussion number
- */
-async function getDiscussionNodeId(
-  ctx: RunnerContext,
-  discussionNumber: number,
-): Promise<string> {
-  const response = await ctx.octokit.graphql<DiscussionIdResponse>(
-    GET_DISCUSSION_ID_QUERY,
-    {
-      owner: ctx.owner,
-      repo: ctx.repo,
-      number: discussionNumber,
-    },
-  );
-
-  const nodeId = response.repository?.discussion?.id;
-  if (!nodeId) {
-    throw new Error(`Discussion #${discussionNumber} not found`);
-  }
-
-  return nodeId;
-}

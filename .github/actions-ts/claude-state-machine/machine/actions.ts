@@ -17,14 +17,6 @@ interface ActionContext {
  */
 type ActionResult = Action[];
 
-/**
- * Accumulated actions during machine execution
- * XState will collect these via assign
- */
-interface ActionsAccumulator {
-  actions: Action[];
-}
-
 // ============================================================================
 // Project Status Actions
 // ============================================================================
@@ -96,19 +88,6 @@ export function emitSetBlocked({ context }: ActionContext): ActionResult {
   ];
 }
 
-/**
- * Emit action to set status to Error
- */
-function emitSetError({ context }: ActionContext): ActionResult {
-  return [
-    {
-      type: "updateProjectStatus",
-      issueNumber: context.issue.number,
-      status: "Error" as ProjectStatus,
-    },
-  ];
-}
-
 // ============================================================================
 // Iteration/Failure Actions
 // ============================================================================
@@ -170,22 +149,6 @@ export function emitCloseIssue({ context }: ActionContext): ActionResult {
 }
 
 /**
- * Emit action to close current sub-issue
- */
-function emitCloseSubIssue({ context }: ActionContext): ActionResult {
-  if (!context.currentSubIssue) {
-    return [];
-  }
-  return [
-    {
-      type: "closeIssue",
-      issueNumber: context.currentSubIssue.number,
-      reason: "completed" as const,
-    },
-  ];
-}
-
-/**
  * Emit action to unassign bot from issue
  */
 export function emitUnassign({ context }: ActionContext): ActionResult {
@@ -230,31 +193,6 @@ function emitAppendHistory(
       issueNumber: context.issue.number,
       phase: String(phaseStr),
       message,
-      commitSha: context.ciCommitSha ?? undefined,
-      runLink: context.ciRunUrl ?? undefined,
-    },
-  ];
-}
-
-/**
- * Emit action to log CI start
- */
-function emitLogCIStart({ context }: ActionContext): ActionResult {
-  return emitAppendHistory({ context }, "⏳ CI Running...");
-}
-
-/**
- * Emit action to log CI success
- */
-function emitLogCISuccess({ context }: ActionContext): ActionResult {
-  return [
-    {
-      type: "updateHistory",
-      issueNumber: context.issue.number,
-      matchIteration: context.issue.iteration,
-      matchPhase: String(context.currentPhase ?? "-"),
-      matchPattern: "⏳",
-      newMessage: "✅ CI Passed",
       commitSha: context.ciCommitSha ?? undefined,
       runLink: context.ciRunUrl ?? undefined,
     },
@@ -373,22 +311,6 @@ export function emitRequestReview({ context }: ActionContext): ActionResult {
       type: "requestReview",
       prNumber: context.pr.number,
       reviewer: context.botUsername,
-    },
-  ];
-}
-
-/**
- * Emit action to merge PR
- */
-function emitMergePR({ context }: ActionContext): ActionResult {
-  if (!context.pr) {
-    return [];
-  }
-  return [
-    {
-      type: "mergePR",
-      prNumber: context.pr.number,
-      mergeMethod: "squash" as const,
     },
   ];
 }
@@ -952,18 +874,6 @@ export function emitLog(
   ];
 }
 
-/**
- * Emit no-op action
- */
-function emitNoOp(_ctx: ActionContext, reason?: string): ActionResult {
-  return [
-    {
-      type: "noop",
-      reason,
-    },
-  ];
-}
-
 // ============================================================================
 // Compound Actions
 // ============================================================================
@@ -1035,59 +945,3 @@ export function emitBlockIssue({ context }: ActionContext): ActionResult {
 
   return actions;
 }
-
-/**
- * Export all action emitters as a record for XState
- */
-const machineActions = {
-  // Project status
-  emitSetWorking,
-  emitSetReview,
-  emitSetInProgress,
-  emitSetDone,
-  emitSetBlocked,
-  emitSetError,
-  // Iteration/failure
-  emitIncrementIteration,
-  emitRecordFailure,
-  emitClearFailures,
-  // Issue
-  emitCloseIssue,
-  emitCloseSubIssue,
-  emitUnassign,
-  emitBlock,
-  // History
-  emitAppendHistory,
-  emitLogCIStart,
-  emitLogCISuccess,
-  emitLogCIFailure,
-  // Git/branch
-  emitCreateBranch,
-  // PR
-  emitCreatePR,
-  emitMarkReady,
-  emitConvertToDraft,
-  emitRequestReview,
-  emitMergePR,
-  // Claude
-  emitRunClaude,
-  emitRunClaudeFixCI,
-  emitRunClaudeTriage,
-  emitRunClaudeComment,
-  // Orchestration
-  emitAssignToSubIssue,
-  emitInitializeParent,
-  emitAdvancePhase,
-  emitOrchestrate,
-  emitAllPhasesDone,
-  // Control flow
-  emitStop,
-  emitLog,
-  emitNoOp,
-  // Compound
-  emitTransitionToReview,
-  emitHandleCIFailure,
-  emitBlockIssue,
-};
-
-type MachineActionName = keyof typeof machineActions;

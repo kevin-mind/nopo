@@ -19,6 +19,17 @@ import type {
 } from "../../schemas/index.js";
 
 // ============================================================================
+// Override Types - Allow partial nested objects in test fixtures
+// ============================================================================
+
+/**
+ * ParentIssue override type that allows partial sub-issues
+ */
+type ParentIssueOverride = Omit<Partial<ParentIssue>, "subIssues"> & {
+  subIssues?: Array<Partial<SubIssue>>;
+};
+
+// ============================================================================
 // Default Values
 // ============================================================================
 
@@ -107,7 +118,7 @@ export function createSubIssue(
  * Create a valid ParentIssue object
  */
 export function createParentIssue(
-  overrides: Partial<ParentIssue> & { number?: number } = {},
+  overrides: ParentIssueOverride & { number?: number } = {},
 ): ParentIssue {
   const subIssues =
     overrides.subIssues?.map((s, i) =>
@@ -154,8 +165,8 @@ export function createContext(
     trigger?: TriggerType;
     owner?: string;
     repo?: string;
-    issue?: Partial<ParentIssue>;
-    parentIssue?: Partial<ParentIssue> | null;
+    issue?: ParentIssueOverride;
+    parentIssue?: ParentIssueOverride | null;
     currentPhase?: number | null;
     totalPhases?: number;
     currentSubIssue?: Partial<SubIssue> | null;

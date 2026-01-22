@@ -201,15 +201,11 @@ export async function executeGitPush(
     args.push("--force");
   }
 
-  let stdout = "";
   let stderr = "";
 
   const exitCode = await exec.exec("git", args, {
     ignoreReturnCode: true,
     listeners: {
-      stdout: (data) => {
-        stdout += data.toString();
-      },
       stderr: (data) => {
         stderr += data.toString();
       },

@@ -31,22 +31,30 @@ import type {
   CreateBranchAction,
   GitPushAction,
 } from "../../../schemas/index.js";
+import type { GitHub } from "@actions/github/lib/utils.js";
 import type { RunnerContext } from "../../../runner/runner.js";
+
+type Octokit = InstanceType<typeof GitHub>;
+
+// Create a mock Octokit with the methods we need
+function createMockOctokit() {
+  return {
+    rest: {
+      repos: {
+        getBranch: vi.fn(),
+      },
+      git: {
+        getRef: vi.fn(),
+        createRef: vi.fn(),
+      },
+    },
+  } as unknown as Octokit;
+}
 
 // Create mock context
 function createMockContext(): RunnerContext {
   return {
-    octokit: {
-      rest: {
-        repos: {
-          getBranch: vi.fn(),
-        },
-        git: {
-          getRef: vi.fn(),
-          createRef: vi.fn(),
-        },
-      },
-    } as any,
+    octokit: createMockOctokit(),
     owner: "test-owner",
     repo: "test-repo",
     projectNumber: 1,
@@ -71,10 +79,12 @@ describe("executeCreateBranch", () => {
     // Get base branch SHA
     vi.mocked(ctx.octokit.rest.git.getRef).mockResolvedValueOnce({
       data: { object: { sha: "abc123" } },
-    } as any);
+    } as Awaited<ReturnType<typeof ctx.octokit.rest.git.getRef>>);
 
     // Create branch succeeds
-    vi.mocked(ctx.octokit.rest.git.createRef).mockResolvedValueOnce({} as any);
+    vi.mocked(ctx.octokit.rest.git.createRef).mockResolvedValueOnce(
+      {} as Awaited<ReturnType<typeof ctx.octokit.rest.git.createRef>>,
+    );
 
     // Mock git exec calls (fetch, checkout, set upstream, rev-list)
     vi.mocked(exec.exec)
@@ -121,7 +131,7 @@ describe("executeCreateBranch", () => {
     // Branch exists remotely
     vi.mocked(ctx.octokit.rest.repos.getBranch).mockResolvedValueOnce({
       data: {},
-    } as any);
+    } as Awaited<ReturnType<typeof ctx.octokit.rest.repos.getBranch>>);
 
     // Mock git exec calls (fetch, checkout, set upstream, rev-list)
     vi.mocked(exec.exec)

@@ -38,28 +38,38 @@ import type {
   RequestReviewAction,
   MergePRAction,
 } from "../../../schemas/index.js";
+import type { GitHub } from "@actions/github/lib/utils.js";
 import type { RunnerContext } from "../../../runner/runner.js";
+
+type Octokit = InstanceType<typeof GitHub>;
+
+// Create a mock Octokit with the methods we need
+function createMockOctokit() {
+  return {
+    graphql: vi.fn(),
+    rest: {
+      issues: {
+        update: vi.fn(),
+        createComment: vi.fn(),
+        removeAssignees: vi.fn(),
+        addAssignees: vi.fn(),
+        get: vi.fn(),
+        create: vi.fn(),
+      },
+      pulls: {
+        list: vi.fn(),
+        create: vi.fn(),
+        requestReviewers: vi.fn(),
+        merge: vi.fn(),
+      },
+    },
+  } as unknown as Octokit;
+}
 
 // Create mock context with properly typed octokit
 function createMockContext(): RunnerContext {
   return {
-    octokit: {
-      graphql: vi.fn(),
-      rest: {
-        issues: {
-          update: vi.fn(),
-          createComment: vi.fn(),
-          removeAssignees: vi.fn(),
-          addAssignees: vi.fn(),
-        },
-        pulls: {
-          list: vi.fn(),
-          create: vi.fn(),
-          requestReviewers: vi.fn(),
-          merge: vi.fn(),
-        },
-      },
-    } as any,
+    octokit: createMockOctokit(),
     owner: "test-owner",
     repo: "test-repo",
     projectNumber: 1,
@@ -76,7 +86,9 @@ describe("executeCloseIssue", () => {
   });
 
   test("closes issue with completed reason", async () => {
-    vi.mocked(ctx.octokit.rest.issues.update).mockResolvedValueOnce({} as any);
+    vi.mocked(ctx.octokit.rest.issues.update).mockResolvedValueOnce(
+      {} as never,
+    );
 
     const action: CloseIssueAction = {
       type: "closeIssue",
@@ -97,7 +109,9 @@ describe("executeCloseIssue", () => {
   });
 
   test("closes issue with not_planned reason", async () => {
-    vi.mocked(ctx.octokit.rest.issues.update).mockResolvedValueOnce({} as any);
+    vi.mocked(ctx.octokit.rest.issues.update).mockResolvedValueOnce(
+      {} as never,
+    );
 
     const action: CloseIssueAction = {
       type: "closeIssue",
@@ -136,7 +150,9 @@ describe("executeAppendHistory", () => {
         },
       },
     });
-    vi.mocked(ctx.octokit.rest.issues.update).mockResolvedValueOnce({} as any);
+    vi.mocked(ctx.octokit.rest.issues.update).mockResolvedValueOnce(
+      {} as never,
+    );
 
     const action: AppendHistoryAction = {
       type: "appendHistory",
@@ -165,7 +181,9 @@ describe("executeAppendHistory", () => {
         },
       },
     });
-    vi.mocked(ctx.octokit.rest.issues.update).mockResolvedValueOnce({} as any);
+    vi.mocked(ctx.octokit.rest.issues.update).mockResolvedValueOnce(
+      {} as never,
+    );
 
     const action: AppendHistoryAction = {
       type: "appendHistory",
@@ -208,7 +226,9 @@ describe("executeUpdateHistory", () => {
         },
       },
     });
-    vi.mocked(ctx.octokit.rest.issues.update).mockResolvedValueOnce({} as any);
+    vi.mocked(ctx.octokit.rest.issues.update).mockResolvedValueOnce(
+      {} as never,
+    );
 
     const action: UpdateHistoryAction = {
       type: "updateHistory",
@@ -261,7 +281,9 @@ describe("executeUpdateIssueBody", () => {
   });
 
   test("updates issue body", async () => {
-    vi.mocked(ctx.octokit.rest.issues.update).mockResolvedValueOnce({} as any);
+    vi.mocked(ctx.octokit.rest.issues.update).mockResolvedValueOnce(
+      {} as never,
+    );
 
     const action: UpdateIssueBodyAction = {
       type: "updateIssueBody",
@@ -292,7 +314,7 @@ describe("executeAddComment", () => {
   test("adds comment to issue", async () => {
     vi.mocked(ctx.octokit.rest.issues.createComment).mockResolvedValueOnce({
       data: { id: 456 },
-    } as any);
+    } as never);
 
     const action: AddCommentAction = {
       type: "addComment",
@@ -322,7 +344,7 @@ describe("executeUnassignUser", () => {
 
   test("unassigns user from issue", async () => {
     vi.mocked(ctx.octokit.rest.issues.removeAssignees).mockResolvedValueOnce(
-      {} as any,
+      {} as never,
     );
 
     const action: UnassignUserAction = {
@@ -353,7 +375,7 @@ describe("executeAssignUser", () => {
 
   test("assigns user to issue", async () => {
     vi.mocked(ctx.octokit.rest.issues.addAssignees).mockResolvedValueOnce(
-      {} as any,
+      {} as never,
     );
 
     const action: AssignUserAction = {
@@ -461,10 +483,10 @@ describe("executeCreatePR", () => {
     // No existing PR
     vi.mocked(ctx.octokit.rest.pulls.list).mockResolvedValueOnce({
       data: [],
-    } as any);
+    } as never);
     vi.mocked(ctx.octokit.rest.pulls.create).mockResolvedValueOnce({
       data: { number: 42 },
-    } as any);
+    } as never);
 
     const action: CreatePRAction = {
       type: "createPR",
@@ -501,7 +523,7 @@ describe("executeCreatePR", () => {
     // Existing PR found
     vi.mocked(ctx.octokit.rest.pulls.list).mockResolvedValueOnce({
       data: [{ number: 99 }],
-    } as any);
+    } as never);
 
     const action: CreatePRAction = {
       type: "createPR",
@@ -608,7 +630,7 @@ describe("executeRequestReview", () => {
 
   test("requests reviewer for PR", async () => {
     vi.mocked(ctx.octokit.rest.pulls.requestReviewers).mockResolvedValueOnce(
-      {} as any,
+      {} as never,
     );
 
     const action: RequestReviewAction = {
@@ -640,7 +662,7 @@ describe("executeMergePR", () => {
   test("merges PR with squash", async () => {
     vi.mocked(ctx.octokit.rest.pulls.merge).mockResolvedValueOnce({
       data: { merged: true, sha: "merge-sha-123" },
-    } as any);
+    } as never);
 
     const action: MergePRAction = {
       type: "mergePR",
@@ -663,7 +685,7 @@ describe("executeMergePR", () => {
   test("merges PR with merge method", async () => {
     vi.mocked(ctx.octokit.rest.pulls.merge).mockResolvedValueOnce({
       data: { merged: true, sha: "merge-sha-456" },
-    } as any);
+    } as never);
 
     const action: MergePRAction = {
       type: "mergePR",
@@ -684,7 +706,7 @@ describe("executeMergePR", () => {
   test("merges PR with rebase", async () => {
     vi.mocked(ctx.octokit.rest.pulls.merge).mockResolvedValueOnce({
       data: { merged: true, sha: "rebase-sha-789" },
-    } as any);
+    } as never);
 
     const action: MergePRAction = {
       type: "mergePR",

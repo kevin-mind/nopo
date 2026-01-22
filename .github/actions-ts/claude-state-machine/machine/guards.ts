@@ -56,7 +56,7 @@ export function hasSubIssues({ context }: GuardContext): boolean {
  * Check if the issue needs sub-issues created
  * (This would be determined by issue content/labels - placeholder for now)
  */
-export function needsSubIssues({ context }: GuardContext): boolean {
+export function needsSubIssues(_guardContext: GuardContext): boolean {
   // For now, we don't auto-create sub-issues
   // This could check for specific labels or issue content
   return false;
@@ -487,5 +487,3 @@ export const guards = {
   shouldContinueIterating,
   shouldBlock,
 };
-
-type GuardName = keyof typeof guards;

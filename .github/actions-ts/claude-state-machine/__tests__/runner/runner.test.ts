@@ -1,4 +1,4 @@
-import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, test, expect, vi, beforeEach } from "vitest";
 import type { Action } from "../../schemas/index.js";
 
 // Mock @actions/core
@@ -152,7 +152,8 @@ describe("executeActions", () => {
   });
 
   test("handles invalid action", async () => {
-    const actions = [{ type: "invalidType" as any }];
+    // Intentionally using an invalid action type to test error handling
+    const actions = [{ type: "invalidType" } as unknown as Action];
 
     const result = await executeActions(actions, ctx);
 

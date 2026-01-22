@@ -28,6 +28,7 @@ import {
   isTerminalAction,
   shouldStopOnError,
   ACTION_TYPES,
+  type ActionType,
 } from "../../schemas/actions.js";
 
 describe("UpdateProjectStatusActionSchema", () => {
@@ -549,7 +550,7 @@ describe("isTerminalAction", () => {
 
 describe("shouldStopOnError", () => {
   test("returns true for critical actions", () => {
-    const criticalTypes = [
+    const criticalTypes: ActionType[] = [
       "runClaude",
       "createPR",
       "mergePR",
@@ -557,12 +558,12 @@ describe("shouldStopOnError", () => {
       "block",
     ];
     for (const type of criticalTypes) {
-      expect(shouldStopOnError(type as any)).toBe(true);
+      expect(shouldStopOnError(type)).toBe(true);
     }
   });
 
   test("returns false for non-critical actions", () => {
-    const nonCriticalTypes = [
+    const nonCriticalTypes: ActionType[] = [
       "updateProjectStatus",
       "incrementIteration",
       "appendHistory",
@@ -570,7 +571,7 @@ describe("shouldStopOnError", () => {
       "noop",
     ];
     for (const type of nonCriticalTypes) {
-      expect(shouldStopOnError(type as any)).toBe(false);
+      expect(shouldStopOnError(type)).toBe(false);
     }
   });
 });

@@ -1143,7 +1143,12 @@ async function handleWorkflowRunEvent(): Promise<DetectionResult> {
 
   // Fetch issue details to check if it's a sub-issue
   const octokit = github.getOctokit(getRequiredInput("github_token"));
-  const details = await fetchIssueDetails(octokit, owner, repo, Number(issueNumber));
+  const details = await fetchIssueDetails(
+    octokit,
+    owner,
+    repo,
+    Number(issueNumber),
+  );
 
   // Construct CI run URL
   const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";

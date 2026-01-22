@@ -17,7 +17,6 @@ import {
   isTerminalStatus,
   isParentStatus,
   isSubIssueStatus,
-  type ProjectStatus,
 } from "../../schemas/state.js";
 
 describe("ProjectStatusSchema", () => {

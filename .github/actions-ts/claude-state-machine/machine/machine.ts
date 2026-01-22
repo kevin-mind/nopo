@@ -1,4 +1,4 @@
-import { setup, assign, fromPromise } from "xstate";
+import { setup, assign } from "xstate";
 import type { MachineContext, Action } from "../schemas/index.js";
 import { guards } from "./guards.js";
 import {
@@ -52,14 +52,6 @@ type MachineEvent =
   | { type: "REVIEW_COMMENTED" }
   | { type: "PR_MERGED" }
   | { type: "CONTINUE" };
-
-/**
- * State machine output - the actions to execute
- */
-interface MachineOutput {
-  actions: Action[];
-  finalState: string;
-}
 
 /**
  * Helper to accumulate actions into context
@@ -778,8 +770,3 @@ export function getTriggerEvent(context: MachineContext): MachineEvent {
       return { type: "START" };
   }
 }
-
-/**
- * Type for the machine
- */
-type ClaudeMachine = typeof claudeMachine;

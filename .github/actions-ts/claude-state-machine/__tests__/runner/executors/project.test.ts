@@ -22,20 +22,28 @@ import type {
   ClearFailuresAction,
   BlockAction,
 } from "../../../schemas/index.js";
+import type { GitHub } from "@actions/github/lib/utils.js";
 import type { RunnerContext } from "../../../runner/runner.js";
+
+type Octokit = InstanceType<typeof GitHub>;
+
+// Create a mock Octokit with the methods we need
+function createMockOctokit() {
+  return {
+    graphql: vi.fn(),
+    rest: {
+      issues: {},
+      pulls: {},
+      repos: {},
+      git: {},
+    },
+  } as unknown as Octokit;
+}
 
 // Create mock context with properly typed octokit
 function createMockContext(): RunnerContext {
   return {
-    octokit: {
-      graphql: vi.fn(),
-      rest: {
-        issues: {},
-        pulls: {},
-        repos: {},
-        git: {},
-      },
-    } as any,
+    octokit: createMockOctokit(),
     owner: "test-owner",
     repo: "test-repo",
     projectNumber: 1,
@@ -160,7 +168,8 @@ describe("executeUpdateProjectStatus", () => {
     const action: UpdateProjectStatusAction = {
       type: "updateProjectStatus",
       issueNumber: 123,
-      status: "NonexistentStatus" as any,
+      // Using a status that won't exist in project options
+      status: "NonexistentStatus" as UpdateProjectStatusAction["status"],
     };
 
     const result = await executeUpdateProjectStatus(action, ctx);

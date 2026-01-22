@@ -24673,7 +24673,12 @@ async function handleWorkflowRunEvent() {
   if (!prInfo.isClaudePr) return emptyResult(true, "PR is not a Claude PR");
   if (!issueNumber) core2.setFailed("PR has no issue number");
   const octokit = github.getOctokit(getRequiredInput("github_token"));
-  const details = await fetchIssueDetails(octokit, owner, repo, Number(issueNumber));
+  const details = await fetchIssueDetails(
+    octokit,
+    owner,
+    repo,
+    Number(issueNumber)
+  );
   const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
   const ciRunUrl = `${serverUrl}/${owner}/${repo}/actions/runs/${runId}`;
   return {

@@ -266,15 +266,14 @@ export type MachineContext = z.infer<typeof MachineContextSchema>;
 
 /**
  * Partial context for creating from parsed data
+ * Required: trigger, owner, repo, issue
+ * All other fields are optional and will use defaults
  */
-const PartialMachineContextSchema = MachineContextSchema.partial().required({
-  trigger: true,
-  owner: true,
-  repo: true,
-  issue: true,
-});
-
-type PartialMachineContext = z.infer<typeof PartialMachineContextSchema>;
+type PartialMachineContext = Pick<
+  MachineContext,
+  "trigger" | "owner" | "repo" | "issue"
+> &
+  Partial<Omit<MachineContext, "trigger" | "owner" | "repo" | "issue">>;
 
 /**
  * Default values for optional context fields

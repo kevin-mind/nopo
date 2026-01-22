@@ -42,14 +42,14 @@ describe("Terminal State Guards", () => {
     test("returns true when status is Done", () => {
       const context = createContext({
         issue: { projectStatus: "Done" },
-      } as any);
+      });
       expect(isAlreadyDone({ context })).toBe(true);
     });
 
     test("returns false for other statuses", () => {
       const context = createContext({
         issue: { projectStatus: "In progress" },
-      } as any);
+      });
       expect(isAlreadyDone({ context })).toBe(false);
     });
   });
@@ -58,14 +58,14 @@ describe("Terminal State Guards", () => {
     test("returns true when status is Blocked", () => {
       const context = createContext({
         issue: { projectStatus: "Blocked" },
-      } as any);
+      });
       expect(isBlocked({ context })).toBe(true);
     });
 
     test("returns false for other statuses", () => {
       const context = createContext({
         issue: { projectStatus: "In progress" },
-      } as any);
+      });
       expect(isBlocked({ context })).toBe(false);
     });
   });
@@ -74,7 +74,7 @@ describe("Terminal State Guards", () => {
     test("returns true when status is Error", () => {
       const context = createContext({
         issue: { projectStatus: "Error" },
-      } as any);
+      });
       expect(isError({ context })).toBe(true);
     });
   });
@@ -83,28 +83,28 @@ describe("Terminal State Guards", () => {
     test("returns true for Done", () => {
       const context = createContext({
         issue: { projectStatus: "Done" },
-      } as any);
+      });
       expect(isTerminal({ context })).toBe(true);
     });
 
     test("returns true for Blocked", () => {
       const context = createContext({
         issue: { projectStatus: "Blocked" },
-      } as any);
+      });
       expect(isTerminal({ context })).toBe(true);
     });
 
     test("returns true for Error", () => {
       const context = createContext({
         issue: { projectStatus: "Error" },
-      } as any);
+      });
       expect(isTerminal({ context })).toBe(true);
     });
 
     test("returns false for non-terminal statuses", () => {
       const context = createContext({
         issue: { projectStatus: "In progress" },
-      } as any);
+      });
       expect(isTerminal({ context })).toBe(false);
     });
   });
@@ -113,12 +113,12 @@ describe("Terminal State Guards", () => {
 describe("Sub-Issue Guards", () => {
   describe("hasSubIssues", () => {
     test("returns true when hasSubIssues flag is true", () => {
-      const context = createContext({ issue: { hasSubIssues: true } } as any);
+      const context = createContext({ issue: { hasSubIssues: true } });
       expect(hasSubIssues({ context })).toBe(true);
     });
 
     test("returns false when hasSubIssues flag is false", () => {
-      const context = createContext({ issue: { hasSubIssues: false } } as any);
+      const context = createContext({ issue: { hasSubIssues: false } });
       expect(hasSubIssues({ context })).toBe(false);
     });
   });
@@ -158,7 +158,7 @@ describe("Sub-Issue Guards", () => {
             },
           ],
         },
-      } as any);
+      });
       expect(allPhasesDone({ context })).toBe(true);
     });
 
@@ -189,7 +189,7 @@ describe("Sub-Issue Guards", () => {
             },
           ],
         },
-      } as any);
+      });
       expect(allPhasesDone({ context })).toBe(false);
     });
 
@@ -210,7 +210,7 @@ describe("Sub-Issue Guards", () => {
             },
           ],
         },
-      } as any);
+      });
       expect(allPhasesDone({ context })).toBe(true);
     });
   });
@@ -238,7 +238,7 @@ describe("Phase State Guards", () => {
       const context = createContext({
         issue: { projectStatus: "In review" },
         currentSubIssue: null,
-      } as any);
+      });
       expect(isInReview({ context })).toBe(true);
     });
 
@@ -246,7 +246,7 @@ describe("Phase State Guards", () => {
       const context = createContext({
         issue: { projectStatus: "In progress" },
         currentSubIssue: null,
-      } as any);
+      });
       expect(isInReview({ context })).toBe(false);
     });
   });
@@ -288,7 +288,7 @@ describe("Phase State Guards", () => {
       const context = createContext({
         issue: { projectStatus: "In progress" },
         currentSubIssue: null,
-      } as any);
+      });
       expect(currentPhaseNeedsWork({ context })).toBe(true);
     });
   });
@@ -374,7 +374,7 @@ describe("Failure Guards", () => {
       const context = createContext({
         issue: { failures: 5 },
         maxRetries: 5,
-      } as any);
+      });
       expect(maxFailuresReached({ context })).toBe(true);
     });
 
@@ -382,7 +382,7 @@ describe("Failure Guards", () => {
       const context = createContext({
         issue: { failures: 10 },
         maxRetries: 5,
-      } as any);
+      });
       expect(maxFailuresReached({ context })).toBe(true);
     });
 
@@ -390,19 +390,19 @@ describe("Failure Guards", () => {
       const context = createContext({
         issue: { failures: 3 },
         maxRetries: 5,
-      } as any);
+      });
       expect(maxFailuresReached({ context })).toBe(false);
     });
   });
 
   describe("hasFailures", () => {
     test("returns true when failures > 0", () => {
-      const context = createContext({ issue: { failures: 1 } } as any);
+      const context = createContext({ issue: { failures: 1 } });
       expect(hasFailures({ context })).toBe(true);
     });
 
     test("returns false when failures is 0", () => {
-      const context = createContext({ issue: { failures: 0 } } as any);
+      const context = createContext({ issue: { failures: 0 } });
       expect(hasFailures({ context })).toBe(false);
     });
   });
@@ -538,7 +538,7 @@ describe("Assignment Guards", () => {
       const context = createContext({
         issue: { assignees: ["nopo-bot", "other-user"] },
         botUsername: "nopo-bot",
-      } as any);
+      });
       expect(botIsAssigned({ context })).toBe(true);
     });
 
@@ -546,19 +546,19 @@ describe("Assignment Guards", () => {
       const context = createContext({
         issue: { assignees: ["other-user"] },
         botUsername: "nopo-bot",
-      } as any);
+      });
       expect(botIsAssigned({ context })).toBe(false);
     });
   });
 
   describe("isFirstIteration", () => {
     test("returns true when iteration is 0", () => {
-      const context = createContext({ issue: { iteration: 0 } } as any);
+      const context = createContext({ issue: { iteration: 0 } });
       expect(isFirstIteration({ context })).toBe(true);
     });
 
     test("returns false when iteration > 0", () => {
-      const context = createContext({ issue: { iteration: 1 } } as any);
+      const context = createContext({ issue: { iteration: 1 } });
       expect(isFirstIteration({ context })).toBe(false);
     });
   });
@@ -671,7 +671,7 @@ describe("Composite Guards", () => {
         ciResult: "failure",
         issue: { failures: 2 },
         maxRetries: 5,
-      } as any);
+      });
       expect(shouldContinueIterating({ context })).toBe(true);
     });
 
@@ -680,7 +680,7 @@ describe("Composite Guards", () => {
         ciResult: "failure",
         issue: { failures: 5 },
         maxRetries: 5,
-      } as any);
+      });
       expect(shouldContinueIterating({ context })).toBe(false);
     });
 
@@ -689,7 +689,7 @@ describe("Composite Guards", () => {
         ciResult: "success",
         issue: { failures: 0 },
         maxRetries: 5,
-      } as any);
+      });
       expect(shouldContinueIterating({ context })).toBe(false);
     });
   });
@@ -700,7 +700,7 @@ describe("Composite Guards", () => {
         ciResult: "failure",
         issue: { failures: 5 },
         maxRetries: 5,
-      } as any);
+      });
       expect(shouldBlock({ context })).toBe(true);
     });
 
@@ -709,7 +709,7 @@ describe("Composite Guards", () => {
         ciResult: "failure",
         issue: { failures: 3 },
         maxRetries: 5,
-      } as any);
+      });
       expect(shouldBlock({ context })).toBe(false);
     });
   });

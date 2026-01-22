@@ -31276,12 +31276,6 @@ var MachineContextSchema = external_exports.object({
   maxRetries: external_exports.number().int().positive().default(5),
   botUsername: external_exports.string().default("nopo-bot")
 });
-var PartialMachineContextSchema = MachineContextSchema.partial().required({
-  trigger: true,
-  owner: true,
-  repo: true,
-  issue: true
-});
 var DEFAULT_CONTEXT_VALUES = {
   parentIssue: null,
   currentPhase: null,
@@ -31562,87 +31556,8 @@ var ActionSchema = external_exports.discriminatedUnion("type", [
   // Triage actions
   ApplyTriageOutputActionSchema
 ]);
-var ActionArraySchema = external_exports.array(ActionSchema);
 
 // claude-state-machine/schemas/events.ts
-var BaseEventSchema = external_exports.object({
-  owner: external_exports.string().min(1),
-  repo: external_exports.string().min(1),
-  timestamp: external_exports.string().datetime().optional()
-});
-var IssueAssignedEventSchema = BaseEventSchema.extend({
-  type: external_exports.literal("issue_assigned"),
-  issueNumber: external_exports.number().int().positive(),
-  assignee: external_exports.string().min(1)
-});
-var IssueEditedEventSchema = BaseEventSchema.extend({
-  type: external_exports.literal("issue_edited"),
-  issueNumber: external_exports.number().int().positive(),
-  changedField: external_exports.enum(["body", "title", "labels", "assignees"]).optional()
-});
-var IssueClosedEventSchema = BaseEventSchema.extend({
-  type: external_exports.literal("issue_closed"),
-  issueNumber: external_exports.number().int().positive(),
-  stateReason: external_exports.enum(["completed", "not_planned"]).optional()
-});
-var IssueCommentEventSchema = BaseEventSchema.extend({
-  type: external_exports.literal("issue_comment"),
-  issueNumber: external_exports.number().int().positive(),
-  commentId: external_exports.number().int().positive(),
-  commentBody: external_exports.string(),
-  author: external_exports.string().min(1),
-  isPR: external_exports.boolean().default(false)
-});
-var PRReviewRequestedEventSchema = BaseEventSchema.extend({
-  type: external_exports.literal("pr_review_requested"),
-  prNumber: external_exports.number().int().positive(),
-  issueNumber: external_exports.number().int().positive().optional(),
-  requestedReviewer: external_exports.string().min(1),
-  headRef: external_exports.string().min(1),
-  baseRef: external_exports.string().default("main"),
-  isDraft: external_exports.boolean()
-});
-var PRReviewSubmittedEventSchema = BaseEventSchema.extend({
-  type: external_exports.literal("pr_review_submitted"),
-  prNumber: external_exports.number().int().positive(),
-  issueNumber: external_exports.number().int().positive().optional(),
-  reviewId: external_exports.number().int().positive(),
-  reviewer: external_exports.string().min(1),
-  decision: ReviewDecisionSchema,
-  body: external_exports.string().optional(),
-  headRef: external_exports.string().min(1),
-  baseRef: external_exports.string().default("main")
-});
-var PRPushEventSchema = BaseEventSchema.extend({
-  type: external_exports.literal("pr_push"),
-  prNumber: external_exports.number().int().positive(),
-  issueNumber: external_exports.number().int().positive().optional(),
-  headRef: external_exports.string().min(1),
-  commitSha: external_exports.string().min(1),
-  wasDraft: external_exports.boolean(),
-  isNowDraft: external_exports.boolean()
-});
-var WorkflowRunCompletedEventSchema = BaseEventSchema.extend({
-  type: external_exports.literal("workflow_run_completed"),
-  workflowName: external_exports.string().min(1),
-  runId: external_exports.number().int().positive(),
-  runUrl: external_exports.string().url(),
-  headRef: external_exports.string().min(1),
-  headSha: external_exports.string().min(1),
-  result: CIResultSchema,
-  issueNumber: external_exports.number().int().positive().optional(),
-  prNumber: external_exports.number().int().positive().optional()
-});
-var GitHubEventSchema = external_exports.discriminatedUnion("type", [
-  IssueAssignedEventSchema,
-  IssueEditedEventSchema,
-  IssueClosedEventSchema,
-  IssueCommentEventSchema,
-  PRReviewRequestedEventSchema,
-  PRReviewSubmittedEventSchema,
-  PRPushEventSchema,
-  WorkflowRunCompletedEventSchema
-]);
 function eventToTrigger(event) {
   return event.type;
 }
@@ -32649,7 +32564,7 @@ function isTerminal({ context: context2 }) {
 function hasSubIssues({ context: context2 }) {
   return context2.issue.hasSubIssues;
 }
-function needsSubIssues({ context: context2 }) {
+function needsSubIssues(_guardContext) {
   return false;
 }
 function allPhasesDone({ context: context2 }) {
