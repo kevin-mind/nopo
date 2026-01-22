@@ -29007,6 +29007,12 @@ async function executeCreateSubIssues(action, ctx) {
       parentId,
       childId: issueId
     });
+    await ctx.octokit.rest.issues.addLabels({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: issueNumber,
+      labels: ["triaged"]
+    });
     subIssueNumbers.push(issueNumber);
     core3.info(`Created sub-issue #${issueNumber} for phase ${i + 1}`);
   }

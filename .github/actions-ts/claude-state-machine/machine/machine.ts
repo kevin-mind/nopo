@@ -165,6 +165,13 @@ export const claudeMachine = setup({
           ),
         ),
     }),
+    logWaitingForReview: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(
+          context.pendingActions,
+          emitLog({ context }, "Waiting for review on current phase"),
+        ),
+    }),
 
     // Status actions
     setWorking: assign({
@@ -551,12 +558,7 @@ export const claudeMachine = setup({
      * Waiting for current phase review to complete
      */
     orchestrationWaiting: {
-      entry: [
-        {
-          type: "stopWithReason",
-          params: { reason: "Waiting for review on current phase" },
-        },
-      ],
+      entry: ["logWaitingForReview"],
       type: "final",
     },
 

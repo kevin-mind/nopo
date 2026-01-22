@@ -53,6 +53,7 @@ function createMockOctokit() {
         createComment: vi.fn(),
         removeAssignees: vi.fn(),
         addAssignees: vi.fn(),
+        addLabels: vi.fn(),
         get: vi.fn(),
         create: vi.fn(),
       },

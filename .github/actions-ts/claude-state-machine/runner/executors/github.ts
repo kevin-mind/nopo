@@ -413,6 +413,15 @@ export async function executeCreateSubIssues(
       childId: issueId,
     });
 
+    // Add "triaged" label to skip triage step when assigned
+    // Sub-issues inherit context from parent and don't need separate triage
+    await ctx.octokit.rest.issues.addLabels({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: issueNumber,
+      labels: ["triaged"],
+    });
+
     subIssueNumbers.push(issueNumber);
     core.info(`Created sub-issue #${issueNumber} for phase ${i + 1}`);
   }

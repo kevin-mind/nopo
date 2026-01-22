@@ -507,7 +507,6 @@ describe("claudeMachine", () => {
       // Should emit orchestration actions including assignUser
       const actionTypes = actions.map((a) => a.type);
       expect(actionTypes).toContain("assignUser");
-      expect(actionTypes).toContain("stop");
     });
 
     test("transitions to orchestrationWaiting when current phase is in review", () => {
@@ -551,13 +550,11 @@ describe("claudeMachine", () => {
       });
       const { state, actions } = runMachine(context);
       expect(state).toBe("orchestrationWaiting");
-      // Should emit stop action with waiting reason
-      const stopAction = actions.find((a) => a.type === "stop");
-      if (stopAction?.type === "stop") {
-        expect(stopAction.reason).toContain("review");
-      } else {
-        expect.fail("stop action not found");
-      }
+      // Should emit log action about waiting for review
+      const logAction = actions.find(
+        (a) => a.type === "log" && a.message?.includes("review"),
+      );
+      expect(logAction).toBeDefined();
     });
   });
 

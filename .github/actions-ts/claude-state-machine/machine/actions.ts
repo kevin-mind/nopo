@@ -838,15 +838,6 @@ export function emitOrchestrate({ context }: ActionContext): ActionResult {
     });
   }
 
-  // Stop after orchestration
-  actions.push({
-    type: "stop",
-    token: "code",
-    reason: subIssueToAssign
-      ? `Assigned to sub-issue #${subIssueToAssign.number}`
-      : "All phases complete",
-  });
-
   return actions;
 }
 

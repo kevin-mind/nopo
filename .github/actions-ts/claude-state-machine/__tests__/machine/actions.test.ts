@@ -209,12 +209,11 @@ describe("Orchestration action emitters", () => {
 
       const actionTypes = actions.map((a) => a.type);
 
-      // Should log, initialize parent, assign sub-issue, and stop
+      // Should log, initialize parent, and assign sub-issue
       expect(actionTypes).toContain("log");
       expect(actionTypes).toContain("updateProjectStatus");
       expect(actionTypes).toContain("appendHistory");
       expect(actionTypes).toContain("assignUser");
-      expect(actionTypes).toContain("stop");
 
       // Check assignUser action
       const assignAction = actions.find((a) => a.type === "assignUser");

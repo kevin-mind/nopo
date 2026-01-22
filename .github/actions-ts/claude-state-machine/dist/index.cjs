@@ -32516,11 +32516,6 @@ function emitOrchestrate({ context: context2 }) {
       username: context2.botUsername
     });
   }
-  actions.push({
-    type: "stop",
-    token: "code",
-    reason: subIssueToAssign ? `Assigned to sub-issue #${subIssueToAssign.number}` : "All phases complete"
-  });
   return actions;
 }
 function emitAllPhasesDone({ context: context2 }) {
@@ -32917,6 +32912,12 @@ var claudeMachine = setup({
         )
       )
     }),
+    logWaitingForReview: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitLog({ context: context2 }, "Waiting for review on current phase")
+      )
+    }),
     // Status actions
     setWorking: assign({
       pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitSetWorking({ context: context2 }))
@@ -33253,12 +33254,7 @@ var claudeMachine = setup({
      * Waiting for current phase review to complete
      */
     orchestrationWaiting: {
-      entry: [
-        {
-          type: "stopWithReason",
-          params: { reason: "Waiting for review on current phase" }
-        }
-      ],
+      entry: ["logWaitingForReview"],
       type: "final"
     },
     /**
