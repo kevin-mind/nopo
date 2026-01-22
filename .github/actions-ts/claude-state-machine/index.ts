@@ -396,6 +396,7 @@ async function run(): Promise<void> {
       commentContextDescription,
       branch: inputBranch,
       triggerOverride: trigger,
+      ciRunUrl, // Pass through for merge queue/release logging
     });
 
     if (!context) {

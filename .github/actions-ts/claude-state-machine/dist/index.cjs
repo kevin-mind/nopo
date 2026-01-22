@@ -31644,6 +31644,9 @@ query GetIssueWithProject($owner: String!, $repo: String!, $issueNumber: Int!) {
           name
         }
       }
+      parent {
+        number
+      }
       projectItems(first: 10) {
         nodes {
           id
@@ -31865,20 +31868,24 @@ async function fetchIssueState(octokit, owner, repo, issueNumber, projectNumber)
   const body = issue.body || "";
   const history = parseHistory(body);
   const todos = parseTodoStats(body);
+  const parentIssueNumber = issue.parent?.number ?? null;
   return {
-    number: issue.number || issueNumber,
-    title: issue.title || "",
-    state: issue.state?.toUpperCase() || "OPEN",
-    body,
-    projectStatus: status,
-    iteration,
-    failures,
-    assignees: issue.assignees?.nodes?.map((a) => a.login || "").filter(Boolean) || [],
-    labels: issue.labels?.nodes?.map((l) => l.name || "").filter(Boolean) || [],
-    subIssues,
-    hasSubIssues: subIssues.length > 0,
-    history,
-    todos
+    issue: {
+      number: issue.number || issueNumber,
+      title: issue.title || "",
+      state: issue.state?.toUpperCase() || "OPEN",
+      body,
+      projectStatus: status,
+      iteration,
+      failures,
+      assignees: issue.assignees?.nodes?.map((a) => a.login || "").filter(Boolean) || [],
+      labels: issue.labels?.nodes?.map((l) => l.name || "").filter(Boolean) || [],
+      subIssues,
+      hasSubIssues: subIssues.length > 0,
+      history,
+      todos
+    },
+    parentIssueNumber
   };
 }
 function findCurrentPhase(subIssues) {
@@ -31918,15 +31925,29 @@ async function buildMachineContext(octokit, event, projectNumber, options = {}) 
   if (!issueNumber) {
     return null;
   }
-  const issue = await fetchIssueState(
+  const issueResult = await fetchIssueState(
     octokit,
     owner,
     repo,
     issueNumber,
     projectNumber
   );
-  if (!issue) {
+  if (!issueResult) {
     return null;
+  }
+  const { issue, parentIssueNumber } = issueResult;
+  let parentIssue = null;
+  if (parentIssueNumber) {
+    const parentResult = await fetchIssueState(
+      octokit,
+      owner,
+      repo,
+      parentIssueNumber,
+      projectNumber
+    );
+    if (parentResult) {
+      parentIssue = parentResult.issue;
+    }
   }
   if (issue.hasSubIssues) {
     issue.subIssues = await enrichSubIssuesWithPRs(
@@ -31945,7 +31966,7 @@ async function buildMachineContext(octokit, event, projectNumber, options = {}) 
   const hasBranch2 = await checkBranchExists(octokit, owner, repo, branch);
   const pr = hasBranch2 ? await getPRForBranch(octokit, owner, repo, branch) : null;
   let ciResult = null;
-  let ciRunUrl = null;
+  let ciRunUrl = options.ciRunUrl ?? null;
   let ciCommitSha = null;
   if (event.type === "workflow_run_completed") {
     ciResult = event.result;
@@ -31990,8 +32011,7 @@ async function buildMachineContext(octokit, event, projectNumber, options = {}) 
     owner,
     repo,
     issue,
-    parentIssue: null,
-    // TODO: Support sub-issue triggers
+    parentIssue,
     currentPhase,
     totalPhases: issue.subIssues.length || 1,
     currentSubIssue,
@@ -32640,9 +32660,22 @@ function emitHistoryToBothIssues({
   runLink
 }) {
   const actions = [];
-  const targetIssue = context2.currentSubIssue?.number ?? context2.issue.number;
-  const parentIssue = context2.parentIssue?.number ?? context2.issue.number;
-  const phase = String(context2.currentPhase ?? "-");
+  const isTriggeredOnSubIssue = context2.parentIssue !== null;
+  let targetIssue;
+  let parentIssue;
+  let phase;
+  if (isTriggeredOnSubIssue) {
+    targetIssue = context2.issue.number;
+    parentIssue = context2.parentIssue.number;
+    const phaseIndex = context2.parentIssue.subIssues.findIndex(
+      (s) => s.number === context2.issue.number
+    );
+    phase = phaseIndex >= 0 ? String(phaseIndex + 1) : "-";
+  } else {
+    targetIssue = context2.currentSubIssue?.number ?? context2.issue.number;
+    parentIssue = context2.issue.number;
+    phase = String(context2.currentPhase ?? "-");
+  }
   actions.push({
     type: "appendHistory",
     token: "code",
@@ -33951,7 +33984,9 @@ async function run() {
       commentContextType: commentContextType || null,
       commentContextDescription,
       branch: inputBranch,
-      triggerOverride: trigger
+      triggerOverride: trigger,
+      ciRunUrl
+      // Pass through for merge queue/release logging
     });
     if (!context2) {
       core2.setFailed(

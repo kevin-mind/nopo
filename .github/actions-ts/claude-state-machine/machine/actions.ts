@@ -1013,9 +1013,31 @@ function emitHistoryToBothIssues({
   runLink?: string;
 }): Action[] {
   const actions: Action[] = [];
-  const targetIssue = context.currentSubIssue?.number ?? context.issue.number;
-  const parentIssue = context.parentIssue?.number ?? context.issue.number;
-  const phase = String(context.currentPhase ?? "-");
+
+  // Determine target and parent issues
+  // When triggered on a sub-issue: context.issue is the sub-issue, context.parentIssue is the parent
+  // When triggered on a parent: context.issue is the parent, context.currentSubIssue is the active phase
+  const isTriggeredOnSubIssue = context.parentIssue !== null;
+
+  let targetIssue: number;
+  let parentIssue: number;
+  let phase: string;
+
+  if (isTriggeredOnSubIssue) {
+    // Triggered on a sub-issue (e.g., merge queue for sub-issue's PR)
+    targetIssue = context.issue.number;
+    parentIssue = context.parentIssue.number;
+    // Find which phase this sub-issue represents in the parent
+    const phaseIndex = context.parentIssue.subIssues.findIndex(
+      (s) => s.number === context.issue.number,
+    );
+    phase = phaseIndex >= 0 ? String(phaseIndex + 1) : "-";
+  } else {
+    // Triggered on a parent issue
+    targetIssue = context.currentSubIssue?.number ?? context.issue.number;
+    parentIssue = context.issue.number;
+    phase = String(context.currentPhase ?? "-");
+  }
 
   // Always log to target issue (sub-issue or parent if no sub-issues)
   actions.push({

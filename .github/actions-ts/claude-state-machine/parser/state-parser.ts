@@ -39,6 +39,9 @@ query GetIssueWithProject($owner: String!, $repo: String!, $issueNumber: Int!) {
           name
         }
       }
+      parent {
+        number
+      }
       projectItems(first: 10) {
         nodes {
           id
@@ -165,6 +168,7 @@ interface IssueResponse {
       state?: string;
       assignees?: { nodes?: Array<{ login?: string }> };
       labels?: { nodes?: Array<{ name?: string }> };
+      parent?: { number?: number } | null;
       projectItems?: { nodes?: ProjectItemNode[] };
       subIssues?: { nodes?: SubIssueNode[] };
     };
@@ -362,6 +366,14 @@ async function getPRForBranch(
 }
 
 /**
+ * Result from fetching issue state, includes parent issue number if this is a sub-issue
+ */
+interface FetchIssueResult {
+  issue: ParentIssue;
+  parentIssueNumber: number | null;
+}
+
+/**
  * Fetch full issue state from GitHub
  */
 async function fetchIssueState(
@@ -370,7 +382,7 @@ async function fetchIssueState(
   repo: string,
   issueNumber: number,
   projectNumber: number,
-): Promise<ParentIssue | null> {
+): Promise<FetchIssueResult | null> {
   const response = await octokit.graphql<IssueResponse>(
     GET_ISSUE_WITH_PROJECT_QUERY,
     {
@@ -409,21 +421,28 @@ async function fetchIssueState(
   const history = parseHistory(body);
   const todos = parseTodoStats(body);
 
+  // Check if this issue is a sub-issue (has a parent)
+  const parentIssueNumber = issue.parent?.number ?? null;
+
   return {
-    number: issue.number || issueNumber,
-    title: issue.title || "",
-    state: (issue.state?.toUpperCase() || "OPEN") as IssueState,
-    body,
-    projectStatus: status,
-    iteration,
-    failures,
-    assignees:
-      issue.assignees?.nodes?.map((a) => a.login || "").filter(Boolean) || [],
-    labels: issue.labels?.nodes?.map((l) => l.name || "").filter(Boolean) || [],
-    subIssues,
-    hasSubIssues: subIssues.length > 0,
-    history,
-    todos,
+    issue: {
+      number: issue.number || issueNumber,
+      title: issue.title || "",
+      state: (issue.state?.toUpperCase() || "OPEN") as IssueState,
+      body,
+      projectStatus: status,
+      iteration,
+      failures,
+      assignees:
+        issue.assignees?.nodes?.map((a) => a.login || "").filter(Boolean) || [],
+      labels:
+        issue.labels?.nodes?.map((l) => l.name || "").filter(Boolean) || [],
+      subIssues,
+      hasSubIssues: subIssues.length > 0,
+      history,
+      todos,
+    },
+    parentIssueNumber,
   };
 }
 
@@ -489,6 +508,8 @@ export async function buildMachineContext(
     // This is needed because some triggers (issue_triage, issue_orchestrate)
     // use a different event type internally but need to preserve their trigger
     triggerOverride?: TriggerType | null;
+    // CI run URL - can be passed through for workflow_dispatch triggers
+    ciRunUrl?: string | null;
   } = {},
 ): Promise<MachineContext | null> {
   const { owner, repo } = event;
@@ -508,7 +529,7 @@ export async function buildMachineContext(
   }
 
   // Fetch the main issue
-  const issue = await fetchIssueState(
+  const issueResult = await fetchIssueState(
     octokit,
     owner,
     repo,
@@ -516,8 +537,25 @@ export async function buildMachineContext(
     projectNumber,
   );
 
-  if (!issue) {
+  if (!issueResult) {
     return null;
+  }
+
+  const { issue, parentIssueNumber } = issueResult;
+
+  // If this issue has a parent (it's a sub-issue), fetch the parent issue too
+  let parentIssue: ParentIssue | null = null;
+  if (parentIssueNumber) {
+    const parentResult = await fetchIssueState(
+      octokit,
+      owner,
+      repo,
+      parentIssueNumber,
+      projectNumber,
+    );
+    if (parentResult) {
+      parentIssue = parentResult.issue;
+    }
   }
 
   // Enrich sub-issues with PR information
@@ -551,8 +589,9 @@ export async function buildMachineContext(
     : null;
 
   // Extract CI result if this is a workflow run event
+  // Also accept ciRunUrl from options (for workflow_dispatch triggers)
   let ciResult = null;
-  let ciRunUrl = null;
+  let ciRunUrl = options.ciRunUrl ?? null;
   let ciCommitSha = null;
   if (event.type === "workflow_run_completed") {
     ciResult = event.result;
@@ -602,7 +641,7 @@ export async function buildMachineContext(
     owner,
     repo,
     issue,
-    parentIssue: null, // TODO: Support sub-issue triggers
+    parentIssue,
     currentPhase,
     totalPhases: issue.subIssues.length || 1,
     currentSubIssue,
