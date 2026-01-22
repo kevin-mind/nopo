@@ -251,8 +251,22 @@ jobs:
       needs.setup.result == 'success'
     runs-on: ubuntu-latest
     steps:
+      # Dispatch triage via workflow_dispatch (E2E mode only)
+      # Issue triggers were removed to use explicit workflow dispatch instead
+      - name: Dispatch triage workflow
+        if: inputs.mode == 'e2e'
+        env:
+          ISSUE_NUMBER: ${{ needs.setup.outputs.issue_number }}
+          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
+        run: |
+          echo "Dispatching triage workflow for issue #$ISSUE_NUMBER..."
+          gh workflow run claude.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            -f action=triage \
+            -f resource_number="$ISSUE_NUMBER"
+          echo "✅ Triage workflow dispatched"
+
       # Wait for triage to complete before assigning nopo-bot (E2E mode only)
-      # Triage triggers automatically on issues:opened for issues with _e2e label
       - name: Wait for triage to complete
         if: inputs.mode == 'e2e'
         env:
@@ -317,15 +331,24 @@ jobs:
           done
 
       - name: Trigger state machine
+        env:
+          ISSUE_NUMBER: ${{ needs.setup.outputs.issue_number }}
+          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
         run: |
-          echo "Triggering state machine for issue #${{ needs.setup.outputs.issue_number }}"
+          echo "Triggering state machine for issue #$ISSUE_NUMBER"
 
-          # Assign nopo-bot to trigger the state machine
-          gh issue edit ${{ needs.setup.outputs.issue_number }} \
+          # Assign nopo-bot (required for state machine to proceed)
+          gh issue edit "$ISSUE_NUMBER" \
             --repo "$GITHUB_REPOSITORY" \
             --add-assignee nopo-bot
+          echo "✅ Assigned nopo-bot to issue #$ISSUE_NUMBER"
 
-          echo "Assigned nopo-bot to issue #${{ needs.setup.outputs.issue_number }}"
+          # Dispatch orchestrate workflow (since issues:assigned trigger is removed)
+          gh workflow run claude.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            -f action=orchestrate \
+            -f resource_number="$ISSUE_NUMBER"
+          echo "✅ Orchestrate workflow dispatched"
 
       - name: Wait for workflow to start
         run: |
