@@ -1141,6 +1141,10 @@ async function handleWorkflowRunEvent(): Promise<DetectionResult> {
 
   if (!issueNumber) core.setFailed("PR has no issue number");
 
+  // Fetch issue details to check if it's a sub-issue
+  const octokit = github.getOctokit(getRequiredInput("github_token"));
+  const details = await fetchIssueDetails(octokit, owner, repo, Number(issueNumber));
+
   // Construct CI run URL
   const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
   const ciRunUrl = `${serverUrl}/${owner}/${repo}/actions/runs/${runId}`;
@@ -1157,6 +1161,7 @@ async function handleWorkflowRunEvent(): Promise<DetectionResult> {
       ci_run_url: ciRunUrl,
       ci_result: conclusion,
       trigger_type: "workflow_run_completed",
+      parent_issue: String(details.parentIssue),
     }),
     skip: false,
     skipReason: "",

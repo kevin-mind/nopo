@@ -129,7 +129,7 @@ jobs:
               "type": "appendHistory",
               "issueNumber": ${{ inputs.parent_issue_number || inputs.issue_number }},
               "phase": "-",
-              "message": "⏳ ${{ inputs.trigger }}",
+              "message": "⏳ running...",
               "runLink": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }]
           dry_run: ${{ inputs.dry_run && 'true' || 'false' }}
@@ -356,7 +356,9 @@ jobs:
           DERIVE_RESULT: ${{ needs.derive-actions.result }}
           EXEC_RESULT: ${{ needs.exec-state-actions.result }}
           ACTION_COUNT: ${{ needs.derive-actions.outputs.action_count }}
+          ACTIONS_JSON: ${{ needs.derive-actions.outputs.actions_json }}
         run: |
+          # Determine emoji and status
           if [[ "$DERIVE_RESULT" == "cancelled" || "$EXEC_RESULT" == "cancelled" ]]; then
             echo "emoji=⚠️" >> $GITHUB_OUTPUT
             echo "status=Cancelled" >> $GITHUB_OUTPUT
@@ -366,6 +368,14 @@ jobs:
           else
             echo "emoji=❌" >> $GITHUB_OUTPUT
             echo "status=Failed" >> $GITHUB_OUTPUT
+          fi
+
+          # Extract action types for summary (e.g., "runClaude, createPR")
+          if [[ -n "$ACTIONS_JSON" && "$ACTIONS_JSON" != "[]" ]]; then
+            action_types=$(echo "$ACTIONS_JSON" | jq -r '[.[].type] | unique | join(", ")')
+            echo "actions=$action_types" >> $GITHUB_OUTPUT
+          else
+            echo "actions=no actions" >> $GITHUB_OUTPUT
           fi
 
       - name: Update history entry
@@ -379,8 +389,8 @@ jobs:
               "issueNumber": ${{ inputs.parent_issue_number || inputs.issue_number }},
               "matchIteration": 0,
               "matchPhase": "-",
-              "matchPattern": "⏳ ${{ inputs.trigger }}",
-              "newMessage": "${{ steps.outcome.outputs.emoji }} ${{ inputs.trigger }} - ${{ steps.outcome.outputs.status }}",
+              "matchPattern": "⏳ running...",
+              "newMessage": "${{ steps.outcome.outputs.emoji }} ${{ steps.outcome.outputs.actions }}",
               "runLink": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }]
           dry_run: ${{ inputs.dry_run && 'true' || 'false' }}
