@@ -379,7 +379,7 @@ jobs:
               "issueNumber": ${{ inputs.parent_issue_number || inputs.issue_number }},
               "matchIteration": 0,
               "matchPhase": "-",
-              "matchPattern": "⏳",
+              "matchPattern": "⏳ ${{ inputs.trigger }}",
               "newMessage": "${{ steps.outcome.outputs.emoji }} ${{ inputs.trigger }} - ${{ steps.outcome.outputs.status }}",
               "runLink": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }]

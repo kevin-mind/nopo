@@ -516,10 +516,17 @@ async function handleIssueEvent(
       return emptyResult(true, "Issue already triaged");
     }
 
-    // Check if sub-issue
+    // Check if sub-issue - either by parent relationship OR by title pattern
+    // Title pattern check handles race condition when parent relationship isn't set yet
     const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
-    if (details.isSubIssue) {
-      return emptyResult(true, "Issue is a sub-issue");
+    const hasPhaseTitle = /^\[Phase \d+\]/.test(issue.title);
+    if (details.isSubIssue || hasPhaseTitle) {
+      return emptyResult(
+        true,
+        details.isSubIssue
+          ? "Issue is a sub-issue"
+          : "Issue has phase title pattern",
+      );
     }
 
     return {
@@ -669,8 +676,15 @@ async function handleIssueEvent(
         repo,
         issue.number,
       );
-      if (details.isSubIssue) {
-        return emptyResult(true, "Issue is a sub-issue");
+      // Check for sub-issue or phase title pattern
+      const hasPhaseTitle = /^\[Phase \d+\]/.test(issue.title);
+      if (details.isSubIssue || hasPhaseTitle) {
+        return emptyResult(
+          true,
+          details.isSubIssue
+            ? "Issue is a sub-issue"
+            : "Issue has phase title pattern",
+        );
       }
 
       return {

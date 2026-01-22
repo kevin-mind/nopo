@@ -24221,8 +24221,12 @@ async function handleIssueEvent(octokit, owner, repo) {
       return emptyResult(true, "Issue already triaged");
     }
     const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
-    if (details.isSubIssue) {
-      return emptyResult(true, "Issue is a sub-issue");
+    const hasPhaseTitle = /^\[Phase \d+\]/.test(issue.title);
+    if (details.isSubIssue || hasPhaseTitle) {
+      return emptyResult(
+        true,
+        details.isSubIssue ? "Issue is a sub-issue" : "Issue has phase title pattern"
+      );
     }
     return {
       job: "issue-triage",
@@ -24347,8 +24351,12 @@ async function handleIssueEvent(octokit, owner, repo) {
         repo,
         issue.number
       );
-      if (details.isSubIssue) {
-        return emptyResult(true, "Issue is a sub-issue");
+      const hasPhaseTitle = /^\[Phase \d+\]/.test(issue.title);
+      if (details.isSubIssue || hasPhaseTitle) {
+        return emptyResult(
+          true,
+          details.isSubIssue ? "Issue is a sub-issue" : "Issue has phase title pattern"
+        );
       }
       return {
         job: "issue-triage",
