@@ -536,10 +536,12 @@ export async function buildMachineContext(
   const currentPhase = currentPhaseInfo?.phase ?? null;
   const currentSubIssue = currentPhaseInfo?.subIssue ?? null;
 
-  // Determine branch
-  const branch = currentPhase
+  // Determine branch - use provided branch if available (e.g., from CI completion event)
+  // Otherwise derive from issue number and phase
+  const derivedBranch = currentPhase
     ? deriveBranchName(issueNumber, currentPhase)
     : deriveBranchName(issueNumber);
+  const branch = options.branch || derivedBranch;
 
   const hasBranch = await checkBranchExists(octokit, owner, repo, branch);
 
@@ -580,7 +582,7 @@ export async function buildMachineContext(
     ciCommitSha,
     reviewDecision,
     reviewerId,
-    branch: options.branch || branch,
+    branch,
     hasBranch,
     pr,
     hasPR: pr !== null,

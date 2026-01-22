@@ -119,7 +119,10 @@ export function createSubIssue(
  * Create a valid ParentIssue object
  */
 export function createParentIssue(
-  overrides: ParentIssueOverride & { number?: number; todos?: Partial<TodoStats> } = {},
+  overrides: ParentIssueOverride & {
+    number?: number;
+    todos?: Partial<TodoStats>;
+  } = {},
 ): ParentIssue {
   const subIssues =
     overrides.subIssues?.map((s, i) =>

@@ -31934,7 +31934,8 @@ async function buildMachineContext(octokit, event, projectNumber, options = {}) 
   const currentPhaseInfo = findCurrentPhase(issue.subIssues);
   const currentPhase = currentPhaseInfo?.phase ?? null;
   const currentSubIssue = currentPhaseInfo?.subIssue ?? null;
-  const branch = currentPhase ? deriveBranchName(issueNumber, currentPhase) : deriveBranchName(issueNumber);
+  const derivedBranch = currentPhase ? deriveBranchName(issueNumber, currentPhase) : deriveBranchName(issueNumber);
+  const branch = options.branch || derivedBranch;
   const hasBranch2 = await checkBranchExists(octokit, owner, repo, branch);
   const pr = hasBranch2 ? await getPRForBranch(octokit, owner, repo, branch) : null;
   let ciResult = null;
@@ -31966,7 +31967,7 @@ async function buildMachineContext(octokit, event, projectNumber, options = {}) 
     ciCommitSha,
     reviewDecision,
     reviewerId,
-    branch: options.branch || branch,
+    branch,
     hasBranch: hasBranch2,
     pr,
     hasPR: pr !== null,
