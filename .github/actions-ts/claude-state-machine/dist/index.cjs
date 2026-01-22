@@ -19752,22 +19752,22 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       process.stdout.write(message + os.EOL);
     }
     exports2.info = info2;
-    function startGroup(name) {
+    function startGroup2(name) {
       (0, command_1.issue)("group", name);
     }
-    exports2.startGroup = startGroup;
-    function endGroup() {
+    exports2.startGroup = startGroup2;
+    function endGroup2() {
       (0, command_1.issue)("endgroup");
     }
-    exports2.endGroup = endGroup;
+    exports2.endGroup = endGroup2;
     function group(name, fn) {
       return __awaiter(this, void 0, void 0, function* () {
-        startGroup(name);
+        startGroup2(name);
         let result;
         try {
           result = yield fn();
         } finally {
-          endGroup();
+          endGroup2();
         }
         return result;
       });
@@ -34104,6 +34104,9 @@ async function run() {
     );
     if (mode === "context") {
       core2.info("Context-only mode - skipping state machine");
+      core2.startGroup("Context JSON");
+      core2.info(JSON.stringify(context2, null, 2));
+      core2.endGroup();
       setOutputs({
         actions_json: "[]",
         final_state: "context_only",

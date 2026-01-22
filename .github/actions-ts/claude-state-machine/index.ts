@@ -436,6 +436,12 @@ async function run(): Promise<void> {
     // Context-only mode: return context without running state machine
     if (mode === "context") {
       core.info("Context-only mode - skipping state machine");
+
+      // Log full context JSON for debugging visibility
+      core.startGroup("Context JSON");
+      core.info(JSON.stringify(context, null, 2));
+      core.endGroup();
+
       setOutputs({
         actions_json: "[]",
         final_state: "context_only",
