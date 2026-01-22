@@ -32763,11 +32763,12 @@ function emitHistoryToBothIssues({
     parentIssue = context2.issue.number;
     phase = String(context2.currentPhase ?? "-");
   }
+  const iteration = context2.issue.iteration ?? 0;
   actions.push({
     type: "appendHistory",
     token: "code",
     issueNumber: targetIssue,
-    iteration: context2.iteration,
+    iteration,
     phase,
     message,
     timestamp: context2.workflowStartedAt ?? void 0,
@@ -32779,7 +32780,7 @@ function emitHistoryToBothIssues({
       type: "appendHistory",
       token: "code",
       issueNumber: parentIssue,
-      iteration: context2.iteration,
+      iteration,
       phase,
       // Same phase column - shows which phase this came from
       message,
@@ -32791,27 +32792,81 @@ function emitHistoryToBothIssues({
   }
   return actions;
 }
+function emitUpdateHistoryToBothIssues({
+  context: context2,
+  matchPattern,
+  newMessage,
+  commitSha,
+  runLink
+}) {
+  const actions = [];
+  const isTriggeredOnSubIssue = context2.parentIssue !== null;
+  let targetIssue;
+  let parentIssue;
+  let phase;
+  if (isTriggeredOnSubIssue) {
+    targetIssue = context2.issue.number;
+    parentIssue = context2.parentIssue.number;
+    const phaseIndex = context2.parentIssue.subIssues.findIndex(
+      (s) => s.number === context2.issue.number
+    );
+    phase = phaseIndex >= 0 ? String(phaseIndex + 1) : "-";
+  } else {
+    targetIssue = context2.currentSubIssue?.number ?? context2.issue.number;
+    parentIssue = context2.issue.number;
+    phase = String(context2.currentPhase ?? "-");
+  }
+  const iteration = context2.issue.iteration ?? 0;
+  actions.push({
+    type: "updateHistory",
+    token: "code",
+    issueNumber: targetIssue,
+    matchIteration: iteration,
+    matchPhase: phase,
+    matchPattern,
+    newMessage,
+    timestamp: context2.workflowStartedAt ?? void 0,
+    commitSha,
+    runLink
+  });
+  if (targetIssue !== parentIssue) {
+    actions.push({
+      type: "updateHistory",
+      token: "code",
+      issueNumber: parentIssue,
+      matchIteration: iteration,
+      matchPhase: phase,
+      matchPattern,
+      newMessage,
+      timestamp: context2.workflowStartedAt ?? void 0,
+      commitSha,
+      runLink
+    });
+  }
+  return actions;
+}
 function emitMergeQueueEntry({ context: context2 }) {
   return emitHistoryToBothIssues({
     context: context2,
-    message: "\u{1F680} Added to merge queue",
+    message: "\u23F3 Merge queue",
     runLink: context2.ciRunUrl ?? void 0
   });
 }
 function emitMergeQueueFailure({
   context: context2
 }) {
-  const reason = context2.releaseEvent?.failureReason ?? "Unknown failure";
-  return emitHistoryToBothIssues({
+  return emitUpdateHistoryToBothIssues({
     context: context2,
-    message: `\u274C Removed from queue: ${reason}`,
+    matchPattern: "\u23F3 Merge queue",
+    newMessage: "\u274C Merge queue",
     runLink: context2.ciRunUrl ?? void 0
   });
 }
 function emitMerged({ context: context2 }) {
-  return emitHistoryToBothIssues({
+  return emitUpdateHistoryToBothIssues({
     context: context2,
-    message: "\u{1F389} Merged to main",
+    matchPattern: "\u23F3 Merge queue",
+    newMessage: "\u{1F6A2} Merge queue",
     commitSha: context2.ciCommitSha ?? void 0,
     runLink: context2.ciRunUrl ?? void 0
   });

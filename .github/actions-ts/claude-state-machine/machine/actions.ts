@@ -1048,12 +1048,14 @@ function emitHistoryToBothIssues({
     phase = String(context.currentPhase ?? "-");
   }
 
+  const iteration = context.issue.iteration ?? 0;
+
   // Always log to target issue (sub-issue or parent if no sub-issues)
   actions.push({
     type: "appendHistory",
     token: "code",
     issueNumber: targetIssue,
-    iteration: context.iteration,
+    iteration,
     phase,
     message,
     timestamp: context.workflowStartedAt ?? undefined,
@@ -1068,7 +1070,7 @@ function emitHistoryToBothIssues({
       type: "appendHistory",
       token: "code",
       issueNumber: parentIssue,
-      iteration: context.iteration,
+      iteration,
       phase, // Same phase column - shows which phase this came from
       message, // Same message - no prefix needed, phase column provides context
       timestamp: context.workflowStartedAt ?? undefined,
@@ -1085,37 +1087,111 @@ function emitHistoryToBothIssues({
 // ============================================================================
 
 /**
- * Emit action to log merge queue entry
+ * Helper to emit updateHistory to both sub-issue AND parent issue
+ */
+function emitUpdateHistoryToBothIssues({
+  context,
+  matchPattern,
+  newMessage,
+  commitSha,
+  runLink,
+}: {
+  context: MachineContext;
+  matchPattern: string;
+  newMessage: string;
+  commitSha?: string;
+  runLink?: string;
+}): Action[] {
+  const actions: Action[] = [];
+
+  // Determine target and parent issues (same logic as emitHistoryToBothIssues)
+  const isTriggeredOnSubIssue = context.parentIssue !== null;
+
+  let targetIssue: number;
+  let parentIssue: number;
+  let phase: string;
+
+  if (isTriggeredOnSubIssue) {
+    targetIssue = context.issue.number;
+    parentIssue = context.parentIssue.number;
+    const phaseIndex = context.parentIssue.subIssues.findIndex(
+      (s) => s.number === context.issue.number,
+    );
+    phase = phaseIndex >= 0 ? String(phaseIndex + 1) : "-";
+  } else {
+    targetIssue = context.currentSubIssue?.number ?? context.issue.number;
+    parentIssue = context.issue.number;
+    phase = String(context.currentPhase ?? "-");
+  }
+
+  const iteration = context.issue.iteration ?? 0;
+
+  // Update on target issue
+  actions.push({
+    type: "updateHistory",
+    token: "code",
+    issueNumber: targetIssue,
+    matchIteration: iteration,
+    matchPhase: phase,
+    matchPattern,
+    newMessage,
+    timestamp: context.workflowStartedAt ?? undefined,
+    commitSha,
+    runLink,
+  });
+
+  // If target is a sub-issue, ALSO update on parent
+  if (targetIssue !== parentIssue) {
+    actions.push({
+      type: "updateHistory",
+      token: "code",
+      issueNumber: parentIssue,
+      matchIteration: iteration,
+      matchPhase: phase,
+      matchPattern,
+      newMessage,
+      timestamp: context.workflowStartedAt ?? undefined,
+      commitSha,
+      runLink,
+    });
+  }
+
+  return actions;
+}
+
+/**
+ * Emit action to log merge queue entry (pending state)
  */
 export function emitMergeQueueEntry({ context }: ActionContext): ActionResult {
   return emitHistoryToBothIssues({
     context,
-    message: "🚀 Added to merge queue",
+    message: "⏳ Merge queue",
     runLink: context.ciRunUrl ?? undefined,
   });
 }
 
 /**
- * Emit action to log merge queue failure
+ * Emit action to update merge queue entry to failed
  */
 export function emitMergeQueueFailure({
   context,
 }: ActionContext): ActionResult {
-  const reason = context.releaseEvent?.failureReason ?? "Unknown failure";
-  return emitHistoryToBothIssues({
+  return emitUpdateHistoryToBothIssues({
     context,
-    message: `❌ Removed from queue: ${reason}`,
+    matchPattern: "⏳ Merge queue",
+    newMessage: "❌ Merge queue",
     runLink: context.ciRunUrl ?? undefined,
   });
 }
 
 /**
- * Emit action to log PR merged
+ * Emit action to update merge queue entry to merged
  */
 export function emitMerged({ context }: ActionContext): ActionResult {
-  return emitHistoryToBothIssues({
+  return emitUpdateHistoryToBothIssues({
     context,
-    message: "🎉 Merged to main",
+    matchPattern: "⏳ Merge queue",
+    newMessage: "🚢 Merge queue",
     commitSha: context.ciCommitSha ?? undefined,
     runLink: context.ciRunUrl ?? undefined,
   });
