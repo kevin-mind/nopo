@@ -34096,10 +34096,12 @@ async function run() {
       `Sub-issues: ${context2.issue.hasSubIssues ? context2.issue.subIssues.length : 0}`
     );
     core2.info(`Current phase: ${context2.currentPhase || "N/A"}`);
-    core2.info(`Iteration: ${context2.iteration}`);
-    const iteration = String(context2.iteration);
+    core2.info(`Iteration: ${context2.issue.iteration}`);
+    const iteration = String(context2.issue.iteration ?? 0);
     const phase = context2.currentPhase !== null ? String(context2.currentPhase) : "-";
-    const parentIssueNumber = String(context2.parentIssue?.number || context2.issue.number);
+    const parentIssueNumber = String(
+      context2.parentIssue?.number || context2.issue.number
+    );
     if (mode === "context") {
       core2.info("Context-only mode - skipping state machine");
       setOutputs({

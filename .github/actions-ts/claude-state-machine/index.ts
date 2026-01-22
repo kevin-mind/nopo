@@ -352,9 +352,10 @@ async function run(): Promise<void> {
     const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
     const projectNumber = parseInt(getRequiredInput("project_number"), 10);
     // Trigger is required for derive mode, optional for context mode
-    const triggerInput = mode === "context"
-      ? getOptionalInput("trigger") || "issue_edited"
-      : getRequiredInput("trigger");
+    const triggerInput =
+      mode === "context"
+        ? getOptionalInput("trigger") || "issue_edited"
+        : getRequiredInput("trigger");
     const trigger = parseTrigger(triggerInput);
     const ciResult = parseCIResult(getOptionalInput("ci_result"));
     const ciRunUrl = getOptionalInput("ci_run_url") || null;
@@ -422,12 +423,15 @@ async function run(): Promise<void> {
       `Sub-issues: ${context.issue.hasSubIssues ? context.issue.subIssues.length : 0}`,
     );
     core.info(`Current phase: ${context.currentPhase || "N/A"}`);
-    core.info(`Iteration: ${context.iteration}`);
+    core.info(`Iteration: ${context.issue.iteration}`);
 
     // Extract commonly needed context values
-    const iteration = String(context.iteration);
-    const phase = context.currentPhase !== null ? String(context.currentPhase) : "-";
-    const parentIssueNumber = String(context.parentIssue?.number || context.issue.number);
+    const iteration = String(context.issue.iteration ?? 0);
+    const phase =
+      context.currentPhase !== null ? String(context.currentPhase) : "-";
+    const parentIssueNumber = String(
+      context.parentIssue?.number || context.issue.number,
+    );
 
     // Context-only mode: return context without running state machine
     if (mode === "context") {
