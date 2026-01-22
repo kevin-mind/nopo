@@ -343,29 +343,76 @@ jobs:
           timeout=$(echo "$FIXTURE_JSON" | jq -r '.timeout // 300')
           poll_interval=$(echo "$FIXTURE_JSON" | jq -r '.poll_interval // 10')
 
-          echo "Waiting for state machine to complete..."
-          echo "Parent issue: #$ISSUE_NUMBER"
-          echo "Sub-issues: $SUB_ISSUE_NUMBERS"
-          echo "Timeout: ${timeout}s, Poll interval: ${poll_interval}s"
+          # Parse history table from issue body into JSON array
+          parse_history() {
+            local body="$1"
+            echo "$body" | awk '
+              /## Iteration History/,/^##[^#]|^$/ {
+                if (/^\|[^-]/ && !/^\| #/) {
+                  gsub(/^\||\|$/, "")
+                  n = split($0, cols, "|")
+                  if (n >= 4) {
+                    gsub(/^[ \t]+|[ \t]+$/, "", cols[1])
+                    gsub(/^[ \t]+|[ \t]+$/, "", cols[2])
+                    gsub(/^[ \t]+|[ \t]+$/, "", cols[3])
+                    gsub(/^[ \t]+|[ \t]+$/, "", cols[4])
+                    printf "{\"iteration\":%s,\"phase\":\"%s\",\"action\":\"%s\",\"sha\":\"%s\"}\n", cols[1], cols[2], cols[3], cols[4]
+                  }
+                }
+              }
+            ' | jq -s '.'
+          }
 
           start_time=$(date +%s)
+          iteration=0
+
           while true; do
             current_time=$(date +%s)
             elapsed=$((current_time - start_time))
+            iteration=$((iteration + 1))
 
             if [[ $elapsed -ge $timeout ]]; then
               echo "::warning::Timeout reached after ${elapsed}s"
               break
             fi
 
-            # Get issue details including project status
-            issue_data=$(gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --json state,title,projectItems 2>/dev/null || echo '{}')
-            state=$(echo "$issue_data" | jq -r '.state // "UNKNOWN"')
-            title=$(echo "$issue_data" | jq -r '.title // "Unknown"')
-            project_status=$(echo "$issue_data" | jq -r '.projectItems[0].fieldValueByName.name // "N/A"')
+            # Get full issue details
+            issue_json=$(gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --json state,title,body,labels,assignees,projectItems 2>/dev/null || echo '{}')
+            state=$(echo "$issue_json" | jq -r '.state // "UNKNOWN"')
+            title=$(echo "$issue_json" | jq -r '.title // "Unknown"')
+            body=$(echo "$issue_json" | jq -r '.body // ""')
+            labels=$(echo "$issue_json" | jq -c '[.labels[]?.name] // []')
+            assignees=$(echo "$issue_json" | jq -c '[.assignees[]?.login] // []')
+            project_status=$(echo "$issue_json" | jq -r '.projectItems[0].fieldValueByName.name // "N/A"')
+
+            # Parse history from body
+            history=$(parse_history "$body")
+
+            # Build state object
+            state_obj=$(jq -n \
+              --arg elapsed "${elapsed}s" \
+              --arg timeout "${timeout}s" \
+              --arg poll "$iteration" \
+              --arg issue "#$ISSUE_NUMBER" \
+              --arg title "$title" \
+              --arg state "$state" \
+              --arg status "$project_status" \
+              --argjson labels "$labels" \
+              --argjson assignees "$assignees" \
+              --argjson history "$history" \
+              '{
+                meta: { elapsed: $elapsed, timeout: $timeout, poll: ($poll | tonumber) },
+                issue: { number: $issue, title: $title, state: $state, status: $status, labels: $labels, assignees: $assignees },
+                history: $history
+              }')
+
+            # Clear screen and print state (GitHub Actions compatible)
+            echo "::group::Poll $iteration - Elapsed: ${elapsed}s"
+            echo "$state_obj" | jq '.'
+            echo "::endgroup::"
 
             if [[ "$state" == "CLOSED" ]]; then
-              echo "Parent #$ISSUE_NUMBER closed - state machine likely completed"
+              echo "✅ Parent #$ISSUE_NUMBER closed - state machine completed"
               break
             fi
 
@@ -374,13 +421,14 @@ jobs:
               break
             fi
 
-            echo "Elapsed: ${elapsed}s | Parent #$ISSUE_NUMBER: $state (Status: $project_status)"
             sleep "$poll_interval" &
-            wait $! || break  # Break if sleep is interrupted (cancellation)
+            wait $! || break
           done
 
-          # Give a bit more time for final state updates
-          sleep 5
+          # Final state
+          echo "::group::Final State"
+          echo "$state_obj" | jq '.'
+          echo "::endgroup::"
 
       - name: Verify outcome
         id: verify
