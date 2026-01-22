@@ -1,14 +1,11 @@
 Implement issue #{{ISSUE_NUMBER}}: "{{ISSUE_TITLE}}"
 
-## Current Iteration State
+## Current State
 - **Iteration**: {{ITERATION}}
 - **Previous CI Result**: {{LAST_CI_RESULT}}
 - **Consecutive Failures**: {{CONSECUTIVE_FAILURES}}
 - **Branch**: `{{BRANCH_NAME}}`
-{{#if PARENT_ISSUE}}
-- **Parent Issue**: #{{PARENT_ISSUE}}
-- **Phase Number**: {{PHASE_NUMBER}}
-{{/if}}
+{{PARENT_CONTEXT}}
 
 {{ISSUE_BODY}}
 
@@ -16,132 +13,64 @@ Implement issue #{{ISSUE_NUMBER}}: "{{ISSUE_TITLE}}"
 
 ## Instructions
 
-This is iteration {{ITERATION}} of the implementation loop. Your goal: make **incremental progress** toward completing this issue. **Do NOT try to complete everything at once.**
+This is iteration {{ITERATION}}. Make **incremental progress** - do NOT try to complete everything at once.
 
-{{#if PARENT_ISSUE}}
-### Sub-Issue Context
+### 1. Assess Current State
 
-This is a **sub-issue** (Phase {{PHASE_NUMBER}}) of parent issue #{{PARENT_ISSUE}}. You are working on an independent phase that will be merged via its own PR.
-
-**Important:**
-- Focus ONLY on the todos in this sub-issue
-- Branch: `claude/issue/{{PARENT_ISSUE}}/phase-{{PHASE_NUMBER}}`
-- PR must reference BOTH this sub-issue AND the parent issue
-- When complete, the orchestrator will automatically advance to the next phase
-{{/if}}
-
-### 1. Understand Current State
-
-First, analyze:
-- `git status` and `git log -3` to see branch state
-- Previous CI result above (if any)
-- Which todos are checked vs unchecked
-
-### 2. Determine What to Do
-
-**If previous CI failed (LAST_CI_RESULT = failure)**:
-- Focus on fixing the CI errors first
-- Run `make check` and `make test` to reproduce the failure locally
-- Fix the issues, verify locally, then commit
-
-**If previous CI passed OR this is the first iteration**:
-- Look at the **Todo** section
-- Pick the **next single unchecked Todo item**
-- Focus on completing **just that one item**
-
-**If all todos are done and CI passed**:
-- Verify all requirements are met
-- Ensure tests exist and pass
-- The workflow will handle marking the PR ready and requesting review
-
-### 3. Implementation Guidelines
-
-1. **Read each file before editing** - the Edit tool requires this
-2. **If an edit fails, re-read the file** - it may already be modified
-3. **Never repeat a failed edit** - if text not found, the change is likely done
-4. Follow CLAUDE.md guidelines strictly
-5. Keep changes **small and focused** - one logical change per iteration
-
-### 4. Verify Locally BEFORE Committing (CRITICAL)
-
-**ALWAYS run these commands before committing and after each significant code change:**
 ```bash
-make check    # Lint + type check all code
-make test     # Run all tests
-make fix      # Auto-fix formatting issues (also runs on pre-commit hook)
+git status && git log --oneline -3
 ```
 
-**STOP AND FIX if any command fails.** Do NOT commit broken code.
+Check which todos are done vs pending.
 
-**Workflow:**
-1. Make your code change
-2. Run `make check` - fix any errors
-3. Run `make test` - fix any failures
-4. Then commit (pre-commit hook runs `make fix` automatically)
-5. Push only after local verification passes
+### 2. Determine Action
 
-This is critical because:
-- CI failures waste time and iteration count
-- Local verification catches issues faster
-- Each failed CI counts toward the retry limit (max 5)
-- The pre-commit hook will run `make fix` automatically
+**If CI failed** (`LAST_CI_RESULT = failure`):
+- Run `make check && make test` to reproduce locally
+- Fix the issues, verify, commit
+
+**If CI passed or first iteration**:
+- Pick the **next unchecked todo**
+- Complete **just that one item**
+
+**If all todos done and CI passed**:
+- Workflow handles marking PR ready and requesting review
+
+### 3. Implementation
+
+1. Read files before editing
+2. Follow CLAUDE.md guidelines
+3. Keep changes small and focused
+
+### 4. Verify Before Committing
+
+```bash
+make check && make test
+```
+
+**STOP if any command fails.** Fix before committing.
 
 ### 5. Update Todo Progress
 
-After completing a Todo item, update the issue body to check it off:
-
+After completing a todo, update the issue:
 ```bash
-# Read current issue body, update the checkbox, and save
 gh issue view {{ISSUE_NUMBER}} --json body -q '.body' > /tmp/issue_body.md
-# Edit /tmp/issue_body.md to change `- [ ] <item>` to `- [x] <item>`
+# Edit to change `- [ ] item` to `- [x] item`
 gh issue edit {{ISSUE_NUMBER}} --body-file /tmp/issue_body.md
 ```
 
-This helps track progress and shows what's been accomplished.
-
 ### 6. Commit and Push
 
-- Commit with a descriptive message referencing the issue
-- Push to origin
-- The workflow will handle the rest (CI, next iteration trigger)
+Commit with descriptive message, push to origin. Workflow handles the rest.
 
 ### 7. Create PR (First Iteration Only)
 
-If no PR exists yet:
+If no PR exists:
+{{PR_CREATE_COMMAND}}
 
-{{#if PARENT_ISSUE}}
-```bash
-# For sub-issues: link both sub-issue AND parent
-gh pr create --draft --reviewer nopo-bot \
-  --title "{{ISSUE_TITLE}}" \
-  --body "$(cat <<'EOF'
-Fixes #{{ISSUE_NUMBER}}
-Related to #{{PARENT_ISSUE}}
-
-## Phase {{PHASE_NUMBER}}
-
-This PR implements phase {{PHASE_NUMBER}} of the parent issue.
-EOF
-)"
-```
-{{else}}
-```bash
-gh pr create --draft --reviewer nopo-bot \
-  --title "{{ISSUE_TITLE}}" \
-  --body "Fixes #{{ISSUE_NUMBER}}"
-```
-{{/if}}
-
-## Important Notes
+## Notes
 
 - Focus on ONE logical change per iteration
-- The workflow will automatically trigger the next iteration after CI completes
-- You do NOT need to update the iteration state block - the workflow handles it
-- **DO update Todo checkboxes** after completing each item (see section 5)
-- `make check` and `make test` are mandatory verification steps, NOT separate Todo items
-- When all todos complete: iteration STOPS, PR goes to review, wait for merge
-{{#if PARENT_ISSUE}}
-- After PR merge: the orchestrator will advance to the next phase automatically
-{{/if}}
-- If you're blocked and can't make progress, commit a comment explaining why
-- If you notice conflicts with other open PRs, note them in the PR description
+- Workflow triggers next iteration after CI
+- Update todo checkboxes after completing each
+- If blocked, commit a comment explaining why

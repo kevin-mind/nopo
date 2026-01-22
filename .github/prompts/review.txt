@@ -1,82 +1,54 @@
-You are reviewing PR #{{PR_NUMBER}} on behalf of nopo-bot.
+Review PR #{{PR_NUMBER}} for issue #{{ISSUE_NUMBER}}
 
-nopo-bot was requested as a reviewer, which triggers this automated review.
-You (claude[bot]) will perform the actual review and submit it.
+Branch: `{{HEAD_REF}}` → `{{BASE_REF}}`
 
-{{ISSUE_SECTION}}
-## Step 1: View the Changes
+## Step 1: View Changes
 
-You are already checked out on the PR branch. To see changes:
 ```bash
 git fetch origin main
+git diff origin/main...HEAD --stat    # Summary
 git diff origin/main...HEAD           # Full diff
-git diff origin/main...HEAD --stat    # Summary of changed files
 ```
 
-## Step 2: Check Existing Review Comments
+## Step 2: Check Existing Comments
 
-Check for existing review comments using:
 ```bash
 gh pr view {{PR_NUMBER}} --comments
 ```
 
-For unresolved comment threads, decide if they should be resolved:
-- If the conversation is COMPLETE: Note it can be resolved
-- If changes were requested and made: Verify the fix
-- If more discussion needed: Leave unresolved
-
 ## Step 3: Review the Code
 
-Read the changed files and perform a thorough review:
+Read changed files and check:
 - Code quality and best practices
 - Potential bugs or edge cases
-- Test coverage adequacy
+- Test coverage
 - Security considerations
 
-### CRITICAL: Edge Case Testing
+### Edge Case Testing
 
-Don't just check if todos are addressed - verify the LOGIC is correct:
+Don't just check if todos are done - verify the LOGIC:
 
-1. **Trace through with examples**: Pick 2-3 realistic inputs and mentally
-   trace the code path. For example:
-   - What happens with empty input?
-   - What happens with the most common case?
-   - What happens at boundaries (first item, last item, max values)?
+1. **Trace examples**: What happens with empty input? Common case? Boundaries?
+2. **Test interactions**: If multiple options exist, what happens when combined?
+3. **Run if possible**: Use CLI or tests to verify behavior
+4. **Check design**: Does the implementation order make sense?
 
-2. **Test conflicting requirements**: If the feature has multiple options
-   (e.g., flags, filters), what happens when they interact?
+## Step 4: Write Review Decision
 
-3. **Run the code if possible**: Use the CLI or test commands to verify
-   the feature actually works as intended, not just that it compiles.
-
-4. **Check for design flaws**: Does the implementation order of operations
-   make sense? Are filters applied at the right time?
-
-If you find a logic bug, request changes with a specific example showing
-the incorrect behavior.
-
-## Step 4: Write Your Review Decision
-
-DO NOT run `gh pr review` directly - you cannot approve your own PRs.
-
-Instead, write your review decision to `review-output.json`:
+Write your decision to `review-output.json`:
 
 ```bash
 cat > review-output.json << 'EOF'
 {
   "decision": "approve",
-  "body": "Your review summary here..."
+  "body": "Your review summary..."
 }
 EOF
 ```
 
-The `decision` field must be one of:
-- `"approve"` - ALL requirements met and code is good
-- `"request_changes"` - Changes are needed (explain in body)
-- `"comment"` - Questions or feedback but no blocking issues
+Decision values:
+- `"approve"` - All requirements met
+- `"request_changes"` - Changes needed (explain in body)
+- `"comment"` - Feedback but no blocking issues
 
-The `body` field should contain your review summary.
-
-IMPORTANT:
-- The workflow will submit the review on your behalf using a separate account
-- A human will make the final merge decision
+The workflow submits the review using a separate account.

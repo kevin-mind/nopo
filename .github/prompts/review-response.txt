@@ -1,56 +1,43 @@
-You just submitted a review on PR #{{PR_NUMBER}}.
+Address review feedback on PR #{{PR_NUMBER}}
 
-Your review state: {{REVIEW_STATE}}
-Your review body: {{REVIEW_BODY}}
+Reviewer: @{{REVIEWER}}
+Decision: {{REVIEW_DECISION}}
+Branch: `{{HEAD_REF}}`
 
-## Step 1: Get Your Review Comments
+## Step 1: Get Review Comments
 
-Fetch the comments from your review:
+```bash
+gh api /repos/{{REPO_OWNER}}/{{REPO_NAME}}/pulls/{{PR_NUMBER}}/comments
+gh pr view {{PR_NUMBER}} --comments
 ```
-gh api /repos/{{REPOSITORY}}/pulls/{{PR_NUMBER}}/comments
-```
 
-Filter for comments from your review (review_id: {{REVIEW_ID}}).
+## Step 2: Process Feedback
 
-## Step 2: Process Each Comment
+**For each comment:**
 
-For each comment you made:
-
-### If it's a CHANGE REQUEST:
-1. Make the requested change to the code
-2. Commit with a clear message referencing the comment
-3. Reply to the comment noting the fix
-
-### If it's a QUESTION:
-- Questions will be answered by the PR author
-- No action needed now - wait for response
+- **Change request**: Make the fix, commit, reply noting the fix
+- **Question**: Answer with a reply comment; make change if implied
 
 ## Step 3: Finalize
 
-After processing all comments, check if you made any commits:
-
-### If you made commits (code changes):
-Push the changes:
-```
+**If you made commits:**
+```bash
 git push origin {{HEAD_REF}}
 ```
-The push will automatically convert PR to draft and trigger CI.
-CI-pass will mark it ready and re-request nopo-bot as reviewer when CI is green.
+Push converts PR to draft and triggers CI. CI-pass marks it ready.
 
-### If you made NO commits (only discussion/questions):
-Post a comment summarizing your analysis, then re-request nopo-bot as reviewer:
-```
-gh pr comment {{PR_NUMBER}} --body "## Review Response Summary
+**If no commits (only discussion):**
+```bash
+gh pr comment {{PR_NUMBER}} --body "## Review Response
 
-<your analysis of the review comments and what action was taken or why no action was needed>
-
-Re-requesting review to continue the loop."
+<summary of analysis and actions taken>"
 
 gh pr edit {{PR_NUMBER}} --add-reviewer "nopo-bot"
 ```
 
-IMPORTANT:
-- ALWAYS post a comment with your findings - never leave the PR without feedback
-- Make atomic commits for each change
-- Reference the comment in each commit message
-- Follow CLAUDE.md guidelines for all code changes
+## Rules
+
+- Address ALL feedback
+- Atomic commits for each change
+- Always post a summary comment
+- Follow CLAUDE.md guidelines

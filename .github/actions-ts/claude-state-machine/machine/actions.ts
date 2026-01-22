@@ -414,11 +414,33 @@ function buildIteratePromptVars(
   const failures = context.issue.failures;
   const ciResult = ciResultOverride ?? context.ciResult ?? "first";
 
-  // Build conditional sections as complete strings
-  // The template has {{#if PARENT_ISSUE}} blocks that simple string replacement won't handle
-  const isSubIssue = context.parentIssue !== null && context.currentPhase !== null;
-  const parentIssueNumber = context.parentIssue?.number ?? "";
-  const phaseNumber = context.currentPhase ?? "";
+  const isSubIssue =
+    context.parentIssue !== null && context.currentPhase !== null;
+  const parentIssueNumber = context.parentIssue?.number;
+  const phaseNumber = context.currentPhase;
+
+  // Generate conditional sections as complete strings
+  const parentContext = isSubIssue
+    ? `- **Parent Issue**: #${parentIssueNumber}
+- **Phase**: ${phaseNumber}
+
+> This is a sub-issue. Focus only on todos here. PR must reference both this issue and parent.`
+    : "";
+
+  const prCreateCommand = isSubIssue
+    ? `\`\`\`bash
+gh pr create --draft --reviewer nopo-bot \\
+  --title "${issueTitle}" \\
+  --body "Fixes #${issueNumber}
+Related to #${parentIssueNumber}
+
+Phase ${phaseNumber} of parent issue."
+\`\`\``
+    : `\`\`\`bash
+gh pr create --draft --reviewer nopo-bot \\
+  --title "${issueTitle}" \\
+  --body "Fixes #${issueNumber}"
+\`\`\``;
 
   return {
     ISSUE_NUMBER: String(issueNumber),
@@ -427,14 +449,10 @@ function buildIteratePromptVars(
     LAST_CI_RESULT: ciResult,
     CONSECUTIVE_FAILURES: String(failures),
     BRANCH_NAME: branchName,
-    PARENT_ISSUE: isSubIssue ? String(parentIssueNumber) : "",
-    PHASE_NUMBER: isSubIssue ? String(phaseNumber) : "",
     ISSUE_BODY: issueBody,
-    EXISTING_BRANCH_SECTION: context.hasBranch
-      ? "## Existing Branch\nThis branch already exists with previous work. Review the git history and continue from where it left off."
-      : "",
-    REPO_OWNER: context.owner,
-    REPO_NAME: context.repo,
+    PARENT_CONTEXT: parentContext,
+    PR_CREATE_COMMAND: prCreateCommand,
+    EXISTING_BRANCH_SECTION: "",
   };
 }
 
