@@ -230,8 +230,8 @@ jobs:
           node-version: '22'
 
       # Execute runClaude actions via the run-claude action for rich logging
-      # Triage uses CLAUDE_REVIEWER_PAT (nopo-reviewer) for issue operations
-      # Other operations use NOPO_BOT_PAT (nopo-bot) for code operations
+      # Uses NOPO_BOT_PAT for all Claude runs (needs repo scope for permission checks)
+      # CLAUDE_REVIEWER_PAT is used only for post-processing (labels, project fields)
       - name: Run Claude
         if: matrix.action.type == 'runClaude' && !inputs.dry_run
         uses: ./.github/actions/run-claude
@@ -239,7 +239,7 @@ jobs:
           prompt: ${{ matrix.action.prompt }}
           prompt_file: ${{ matrix.action.promptFile }}
           prompt_replacements: ${{ toJson(matrix.action.promptVars) }}
-          github_token: ${{ inputs.trigger == 'issue_triage' && secrets.CLAUDE_REVIEWER_PAT || secrets.NOPO_BOT_PAT }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           model: "claude-opus-4-5-20251101"
           max_turns: "50"
