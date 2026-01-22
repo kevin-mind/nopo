@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "test-feature",
+  "description": "Test feature for automation workflow validation",
+  "version": "1.0.0",
+  "phases": [
+    {
+      "id": 1,
+      "name": "Setup",
+      "description": "Create directory structure and configuration files"
+    },
+    {
+      "id": 2,
+      "name": "Implementation",
+      "description": "Implement core logic"
+    },
+    {
+      "id": 3,
+      "name": "Polish",
+      "description": "Add polish and documentation"
+    }
+  ],
+  "metadata": {
+    "created": "2026-01-22",
+    "testIssue": 3851,
+    "automation": true
+  }
+}
