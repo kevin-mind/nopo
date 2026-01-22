@@ -1416,6 +1416,9 @@ async function verifyFixture(
 
 /**
  * Cleanup a test fixture
+ *
+ * SAFETY: Only cleans up issues that have the `_e2e` label to prevent
+ * accidentally closing real issues.
  */
 async function cleanupFixture(
   octokit: ReturnType<typeof github.getOctokit>,
@@ -1424,6 +1427,27 @@ async function cleanupFixture(
   issueNumber: number,
 ): Promise<void> {
   core.info(`Cleaning up test fixture for issue #${issueNumber}`);
+
+  // SAFETY CHECK: Verify the issue has the _e2e label before proceeding
+  const { data: issue } = await octokit.rest.issues.get({
+    owner,
+    repo,
+    issue_number: issueNumber,
+  });
+
+  const labels = issue.labels.map((l) =>
+    typeof l === "string" ? l : l.name || "",
+  );
+
+  if (!labels.includes("_e2e")) {
+    throw new Error(
+      `SAFETY: Refusing to cleanup issue #${issueNumber} - it does not have the _e2e label. ` +
+        `Labels found: [${labels.join(", ")}]. ` +
+        `Only issues with the _e2e label can be cleaned up to prevent accidentally closing real issues.`,
+    );
+  }
+
+  core.info(`Safety check passed: Issue #${issueNumber} has _e2e label`);
 
   // Get sub-issues first
   interface SubIssuesResponse {
