@@ -213,15 +213,17 @@ jobs:
 
               echo "parent_issue=$parent_issue" >> $GITHUB_OUTPUT
 
-              # Build context with the PARENT issue number (not sub-issue or PR number)
-              # The state machine needs the parent to understand the phase structure
+              # Build context with the LINKED issue number (sub-issue, not parent)
+              # The state machine needs the sub-issue to find the correct PR
+              # (the PR is linked to the sub-issue via "Fixes #N")
               # Use heredoc for multiline output to preserve JSON integrity
               {
                 echo "context_json<<EOF"
-                gh issue view "$parent_issue" --json title,body | jq -c \
-                  --arg num "$parent_issue" \
+                gh issue view "$linked_issue" --json title,body | jq -c \
+                  --arg num "$linked_issue" \
                   --arg pr_num "$RESOURCE_NUMBER" \
-                  '{issue_number: $num, pr_number: $pr_num, issue_title: .title, issue_body: .body}'
+                  --arg parent "$parent_issue" \
+                  '{issue_number: $num, pr_number: $pr_num, parent_issue: $parent, issue_title: .title, issue_body: .body}'
                 echo "EOF"
               } >> $GITHUB_OUTPUT
               exit 0
