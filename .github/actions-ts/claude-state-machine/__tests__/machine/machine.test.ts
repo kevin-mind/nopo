@@ -36,9 +36,12 @@ describe("claudeMachine", () => {
       } as any);
       const { state, actions } = runMachine(context);
       expect(state).toBe("blocked");
+      // When already blocked, no actions are emitted (to avoid redundant updates)
+      // The blockIssue action emits setBlocked+unassign only when transitioning TO blocked
       const actionTypes = actions.map((a) => a.type);
-      expect(actionTypes).toContain("updateProjectStatus");
-      expect(actionTypes).toContain("unassignUser");
+      expect(actionTypes).toContain("log"); // Only the detecting log
+      expect(actionTypes).not.toContain("updateProjectStatus");
+      expect(actionTypes).not.toContain("unassignUser");
     });
 
     test("transitions to error when status is Error", () => {

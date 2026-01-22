@@ -63,7 +63,7 @@ describe("executeCreateBranch", () => {
   });
 
   test("creates new branch when it doesn't exist", async () => {
-    // Branch doesn't exist
+    // Branch doesn't exist remotely
     vi.mocked(ctx.octokit.rest.repos.getBranch).mockRejectedValueOnce(
       new Error("Not found"),
     );
@@ -75,6 +75,20 @@ describe("executeCreateBranch", () => {
 
     // Create branch succeeds
     vi.mocked(ctx.octokit.rest.git.createRef).mockResolvedValueOnce({} as any);
+
+    // Mock git exec calls (fetch, checkout, set upstream, rev-list)
+    vi.mocked(exec.exec)
+      .mockResolvedValueOnce(0) // git fetch origin (first)
+      .mockResolvedValueOnce(0) // git fetch origin (after createRef)
+      .mockResolvedValueOnce(0) // git checkout feature/new
+      .mockResolvedValueOnce(0) // git branch --set-upstream-to
+      .mockImplementationOnce(async (_cmd, _args, options) => {
+        // git rev-list --count - branch is up to date
+        if (options?.listeners?.stdout) {
+          options.listeners.stdout(Buffer.from("0\n"));
+        }
+        return 0;
+      });
 
     const action: CreateBranchAction = {
       type: "createBranch",
@@ -104,10 +118,23 @@ describe("executeCreateBranch", () => {
   });
 
   test("does not create branch when it already exists", async () => {
-    // Branch exists
+    // Branch exists remotely
     vi.mocked(ctx.octokit.rest.repos.getBranch).mockResolvedValueOnce({
       data: {},
     } as any);
+
+    // Mock git exec calls (fetch, checkout, set upstream, rev-list)
+    vi.mocked(exec.exec)
+      .mockResolvedValueOnce(0) // git fetch origin
+      .mockResolvedValueOnce(0) // git checkout feature/existing
+      .mockResolvedValueOnce(0) // git branch --set-upstream-to
+      .mockImplementationOnce(async (_cmd, _args, options) => {
+        // git rev-list --count - branch is up to date
+        if (options?.listeners?.stdout) {
+          options.listeners.stdout(Buffer.from("0\n"));
+        }
+        return 0;
+      });
 
     const action: CreateBranchAction = {
       type: "createBranch",
