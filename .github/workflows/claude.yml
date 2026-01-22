@@ -246,14 +246,15 @@ jobs:
     # - Issue jobs: one Claude job per parent issue at a time (includes all sub-issues)
     # - PR jobs: share group so push cancels in-flight reviews
     # - CI follow-up (workflow_run): separate group to not compete with issue edits
+    # Job-level concurrency uses "claude-job-" prefix to avoid deadlock with workflow-level "claude-" groups
     concurrency:
       group: >-
         ${{
           (needs.detect.outputs.job == 'pr-review' || needs.detect.outputs.job == 'pr-response' || needs.detect.outputs.job == 'pr-human-response')
-          && format('claude-review-{0}', needs.detect.outputs.resource_number)
+          && format('claude-job-review-{0}', needs.detect.outputs.resource_number)
           || github.event_name == 'workflow_run'
-          && format('claude-ci-{0}', github.event.workflow_run.head_branch)
-          || format('claude-work-claude/issue/{0}', needs.detect.outputs.parent_issue != '0' && needs.detect.outputs.parent_issue || needs.detect.outputs.resource_number)
+          && format('claude-job-ci-{0}', github.event.workflow_run.head_branch)
+          || format('claude-job-issue-{0}', needs.detect.outputs.parent_issue != '0' && needs.detect.outputs.parent_issue || needs.detect.outputs.resource_number)
         }}
       cancel-in-progress: false
     uses: ./.github/workflows/claude-runner.yml
@@ -311,8 +312,9 @@ jobs:
     needs: detect
     if: needs.detect.outputs.job == 'push-to-draft'
     runs-on: ubuntu-latest
+    # Use "claude-job-" prefix to avoid deadlock with workflow-level concurrency
     concurrency:
-      group: claude-review-${{ needs.detect.outputs.resource_number }}
+      group: claude-job-review-${{ needs.detect.outputs.resource_number }}
       cancel-in-progress: true
     steps:
       - id: context
