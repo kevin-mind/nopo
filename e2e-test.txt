@@ -2,3 +2,4 @@
 # This file is used by automated E2E tests to verify the Claude state machine.
 # Each test run adds a timestamped line below.
 
+2026-01-22T01:27:25Z - Issue #3828 Phase 1 test run
