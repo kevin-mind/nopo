@@ -247,6 +247,8 @@ jobs:
           fromJson(needs.detect.outputs.context_json).trigger_type || 'issue_assigned'
         }}
       issue_number: ${{ fromJson(needs.detect.outputs.context_json).issue_number }}
+      # For history entries - always use parent issue (or self if no parent)
+      parent_issue_number: ${{ needs.detect.outputs.parent_issue != '0' && needs.detect.outputs.parent_issue || fromJson(needs.detect.outputs.context_json).issue_number }}
       ci_result: ${{ fromJson(needs.detect.outputs.context_json).ci_result || '' }}
       ci_run_url: ${{ fromJson(needs.detect.outputs.context_json).ci_run_url || '' }}
       ci_commit_sha: ${{ fromJson(needs.detect.outputs.context_json).ci_commit_sha || '' }}
