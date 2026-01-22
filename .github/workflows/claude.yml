@@ -27,14 +27,17 @@ run-name: >-
 # - `discussion_comment:created` triggers respond (or commands like /summarize, /plan)
 
 'on':
-  # NOTE: Issue triggers (opened, edited, assigned, unlabeled) removed for manual control
-  # Use workflow_dispatch to start, then workflow self-triggers via retrigger mechanism
-  #
-  # Kept triggers are external actions we can't control:
+  # External triggers we respond to:
+  # - Assignment (human assigns nopo-bot to issue)
   # - CI completion (workflow_run)
   # - Review requests/responses (pull_request, pull_request_review)
   # - Comments (issue_comment, pull_request_review_comment)
   # - Discussions
+  #
+  # NOTE: Issue edited/opened/unlabeled removed - use workflow_dispatch for manual control
+  issues:
+    types:
+      - assigned
   issue_comment:
     types:
       - created
