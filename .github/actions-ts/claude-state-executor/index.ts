@@ -205,6 +205,14 @@ async function run(): Promise<void> {
 
     if (!result.success) {
       core.setFailed(`${failed} action(s) failed. Check the logs for details.`);
+    } else if (result.stoppedEarly) {
+      // Fail when stopped early to trigger fail-fast on matrix jobs
+      // This prevents subsequent actions from running when we've signaled
+      // that execution should stop (e.g., branch rebased and pushed)
+      core.setFailed(
+        `Stopped early: ${result.stopReason || "unknown reason"}. ` +
+          `Subsequent matrix jobs will be cancelled.`,
+      );
     }
   } catch (error) {
     if (error instanceof Error) {

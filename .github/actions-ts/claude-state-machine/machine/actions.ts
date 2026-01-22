@@ -758,10 +758,9 @@ export function emitOrchestrate({ context }: ActionContext): ActionResult {
   }
 
   // Check if current phase is complete and needs advancement
-  // Phase is complete when todos are done
+  // Phase is complete when the sub-issue is CLOSED (happens when PR is merged)
   const phaseComplete =
-    context.currentSubIssue &&
-    context.currentSubIssue.todos.uncheckedNonManual === 0;
+    context.currentSubIssue && context.currentSubIssue.state === "CLOSED";
 
   if (phaseComplete && context.currentPhase !== null) {
     const hasNext = context.currentPhase < context.totalPhases;

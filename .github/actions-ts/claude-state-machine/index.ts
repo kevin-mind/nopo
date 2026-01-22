@@ -12,6 +12,49 @@ import { claudeMachine } from "./machine/index.js";
 import type { GitHubEvent } from "./schemas/index.js";
 
 /**
+ * Map final state to a human-readable transition name.
+ * This gives meaningful labels to action sets in the UI.
+ */
+function getTransitionName(finalState: string): string {
+  const stateNames: Record<string, string> = {
+    // Triage flow
+    triaging: "Triage",
+
+    // Comment flow
+    commenting: "Comment",
+
+    // PR review flows
+    prReviewing: "PR Review",
+    prResponding: "PR Response",
+    prRespondingHuman: "PR Human Response",
+
+    // Orchestration flows
+    orchestrationRunning: "Orchestrate",
+    orchestrationWaiting: "Wait (Review)",
+    orchestrationComplete: "Complete Phases",
+
+    // Iteration flows
+    iterating: "Iterate",
+    iteratingFix: "Fix CI",
+
+    // Review/transition flows
+    reviewing: "In Review",
+    transitioningToReview: "Request Review",
+
+    // Terminal states
+    blocked: "Blocked",
+    error: "Error",
+    done: "Done",
+
+    // Early detection states
+    alreadyDone: "Already Done",
+    alreadyBlocked: "Already Blocked",
+  };
+
+  return stateNames[finalState] || finalState;
+}
+
+/**
  * Parse trigger type from input
  */
 function parseTrigger(input: string): TriggerType {
@@ -321,7 +364,11 @@ async function run(): Promise<void> {
     const finalState = String(snapshot.value);
     const pendingActions = snapshot.context.pendingActions;
 
+    // Get transition name for human-readable output
+    const transitionName = getTransitionName(finalState);
+
     core.info(`Machine final state: ${finalState}`);
+    core.info(`Transition: ${transitionName}`);
     core.info(`Derived actions: ${pendingActions.length}`);
 
     // Log action types
@@ -334,6 +381,7 @@ async function run(): Promise<void> {
     setOutputs({
       actions_json: JSON.stringify(pendingActions),
       final_state: finalState,
+      transition_name: transitionName,
       context_json: JSON.stringify(context),
       action_count: String(pendingActions.length),
     });

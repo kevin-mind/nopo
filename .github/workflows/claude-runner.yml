@@ -143,6 +143,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       final_state: ${{ steps.machine.outputs.final_state }}
+      transition_name: ${{ steps.machine.outputs.transition_name }}
       actions_json: ${{ steps.machine.outputs.actions_json }}
       action_count: ${{ steps.machine.outputs.action_count }}
       actions_matrix: ${{ steps.format.outputs.matrix }}
@@ -198,6 +199,7 @@ jobs:
         if: always()
         env:
           FINAL_STATE: ${{ steps.machine.outputs.final_state }}
+          TRANSITION_NAME: ${{ steps.machine.outputs.transition_name }}
           ACTION_COUNT: ${{ steps.machine.outputs.action_count }}
           ACTIONS_JSON: ${{ steps.machine.outputs.actions_json }}
           ISSUE_NUMBER: ${{ inputs.issue_number }}
@@ -210,12 +212,13 @@ jobs:
           fi
 
           cat >> $GITHUB_STEP_SUMMARY << EOF
-          # Claude State Machine - Derivation${dry_run_badge}
+          # Claude State Machine - ${TRANSITION_NAME}${dry_run_badge}
 
           | Property | Value |
           |----------|-------|
           | **Issue** | [#${ISSUE_NUMBER}](${{ github.server_url }}/${{ github.repository }}/issues/${ISSUE_NUMBER}) |
           | **Trigger** | \`${TRIGGER}\` |
+          | **Transition** | **${TRANSITION_NAME}** |
           | **Final State** | \`${FINAL_STATE}\` |
           | **Actions Derived** | ${ACTION_COUNT} |
 
@@ -298,6 +301,7 @@ jobs:
           name: ${{ matrix.action.consumesArtifact.name }}
 
       - name: Execute Action
+        id: execute
         if: matrix.action.type != 'runClaude'
         uses: ./.github/actions-ts/claude-state-executor
         with:
@@ -356,7 +360,7 @@ jobs:
           DERIVE_RESULT: ${{ needs.derive-actions.result }}
           EXEC_RESULT: ${{ needs.exec-state-actions.result }}
           ACTION_COUNT: ${{ needs.derive-actions.outputs.action_count }}
-          ACTIONS_JSON: ${{ needs.derive-actions.outputs.actions_json }}
+          TRANSITION_NAME: ${{ needs.derive-actions.outputs.transition_name }}
         run: |
           # Determine emoji and status
           if [[ "$DERIVE_RESULT" == "cancelled" || "$EXEC_RESULT" == "cancelled" ]]; then
@@ -370,12 +374,11 @@ jobs:
             echo "status=Failed" >> $GITHUB_OUTPUT
           fi
 
-          # Extract action types for summary (e.g., "runClaude, createPR")
-          if [[ -n "$ACTIONS_JSON" && "$ACTIONS_JSON" != "[]" ]]; then
-            action_types=$(echo "$ACTIONS_JSON" | jq -r '[.[].type] | unique | join(", ")')
-            echo "actions=$action_types" >> $GITHUB_OUTPUT
+          # Use transition name for summary (e.g., "Iterate", "Triage", "Fix CI")
+          if [[ -n "$TRANSITION_NAME" ]]; then
+            echo "transition=$TRANSITION_NAME" >> $GITHUB_OUTPUT
           else
-            echo "actions=no actions" >> $GITHUB_OUTPUT
+            echo "transition=unknown" >> $GITHUB_OUTPUT
           fi
 
       - name: Update history entry
@@ -390,7 +393,7 @@ jobs:
               "matchIteration": 0,
               "matchPhase": "-",
               "matchPattern": "⏳ running...",
-              "newMessage": "${{ steps.outcome.outputs.emoji }} ${{ steps.outcome.outputs.actions }}",
+              "newMessage": "${{ steps.outcome.outputs.emoji }} ${{ steps.outcome.outputs.transition }}",
               "runLink": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }]
           dry_run: ${{ inputs.dry_run && 'true' || 'false' }}

@@ -221,7 +221,7 @@ describe("Orchestration action emitters", () => {
       }
     });
 
-    test("advances phase when current phase is complete", () => {
+    test("advances phase when current phase is complete (sub-issue CLOSED)", () => {
       const context = createContext({
         issue: {
           number: 100,
@@ -231,9 +231,9 @@ describe("Orchestration action emitters", () => {
             {
               number: 101,
               title: "Phase 1",
-              state: "OPEN",
+              state: "CLOSED", // Phase is complete when sub-issue is CLOSED (PR merged)
               body: "",
-              projectStatus: "In progress",
+              projectStatus: "Done",
               branch: null,
               pr: null,
               todos: { total: 1, completed: 1, uncheckedNonManual: 0 },
@@ -253,9 +253,9 @@ describe("Orchestration action emitters", () => {
         currentSubIssue: {
           number: 101,
           title: "Phase 1",
-          state: "OPEN",
+          state: "CLOSED", // Phase is complete when sub-issue is CLOSED (PR merged)
           body: "",
-          projectStatus: "In progress",
+          projectStatus: "Done",
           branch: null,
           pr: null,
           todos: { total: 1, completed: 1, uncheckedNonManual: 0 },

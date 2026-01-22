@@ -30420,6 +30420,10 @@ async function run() {
     });
     if (!result.success) {
       core10.setFailed(`${failed} action(s) failed. Check the logs for details.`);
+    } else if (result.stoppedEarly) {
+      core10.setFailed(
+        `Stopped early: ${result.stopReason || "unknown reason"}. Subsequent matrix jobs will be cancelled.`
+      );
     }
   } catch (error3) {
     if (error3 instanceof Error) {

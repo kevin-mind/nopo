@@ -32442,7 +32442,7 @@ function emitOrchestrate({ context: context2 }) {
   if (needsInit) {
     actions.push(...emitInitializeParent({ context: context2 }));
   }
-  const phaseComplete = context2.currentSubIssue && context2.currentSubIssue.todos.uncheckedNonManual === 0;
+  const phaseComplete = context2.currentSubIssue && context2.currentSubIssue.state === "CLOSED";
   if (phaseComplete && context2.currentPhase !== null) {
     const hasNext = context2.currentPhase < context2.totalPhases;
     if (hasNext) {
@@ -33367,6 +33367,36 @@ var claudeMachine = setup({
 });
 
 // claude-state-machine/index.ts
+function getTransitionName(finalState) {
+  const stateNames = {
+    // Triage flow
+    triaging: "Triage",
+    // Comment flow
+    commenting: "Comment",
+    // PR review flows
+    prReviewing: "PR Review",
+    prResponding: "PR Response",
+    prRespondingHuman: "PR Human Response",
+    // Orchestration flows
+    orchestrationRunning: "Orchestrate",
+    orchestrationWaiting: "Wait (Review)",
+    orchestrationComplete: "Complete Phases",
+    // Iteration flows
+    iterating: "Iterate",
+    iteratingFix: "Fix CI",
+    // Review/transition flows
+    reviewing: "In Review",
+    transitioningToReview: "Request Review",
+    // Terminal states
+    blocked: "Blocked",
+    error: "Error",
+    done: "Done",
+    // Early detection states
+    alreadyDone: "Already Done",
+    alreadyBlocked: "Already Blocked"
+  };
+  return stateNames[finalState] || finalState;
+}
 function parseTrigger(input) {
   const validTriggers = [
     "issue_assigned",
@@ -33602,7 +33632,9 @@ async function run() {
     const snapshot = actor.getSnapshot();
     const finalState = String(snapshot.value);
     const pendingActions = snapshot.context.pendingActions;
+    const transitionName = getTransitionName(finalState);
     core2.info(`Machine final state: ${finalState}`);
+    core2.info(`Transition: ${transitionName}`);
     core2.info(`Derived actions: ${pendingActions.length}`);
     if (pendingActions.length > 0) {
       const actionTypes = pendingActions.map((a) => a.type);
@@ -33611,6 +33643,7 @@ async function run() {
     setOutputs({
       actions_json: JSON.stringify(pendingActions),
       final_state: finalState,
+      transition_name: transitionName,
       context_json: JSON.stringify(context2),
       action_count: String(pendingActions.length)
     });
