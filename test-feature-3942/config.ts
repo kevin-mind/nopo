@@ -11,11 +11,13 @@ export interface TestFeatureConfig {
 
 export const defaultConfig: TestFeatureConfig = {
   enabled: true,
-  name: 'test-feature-3942',
-  version: '1.0.0',
+  name: "test-feature-3942",
+  version: "1.0.0",
 };
 
-export function getConfig(overrides?: Partial<TestFeatureConfig>): TestFeatureConfig {
+export function getConfig(
+  overrides?: Partial<TestFeatureConfig>,
+): TestFeatureConfig {
   return {
     ...defaultConfig,
     ...overrides,
