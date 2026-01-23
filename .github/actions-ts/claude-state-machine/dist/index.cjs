@@ -32318,7 +32318,7 @@ function emitRequestReview({ context: context2 }) {
       type: "requestReview",
       token: "code",
       prNumber: context2.pr.number,
-      reviewer: context2.botUsername
+      reviewer: "nopo-reviewer"
     }
   ];
 }

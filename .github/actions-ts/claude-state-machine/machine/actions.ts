@@ -321,6 +321,8 @@ export function emitConvertToDraft({ context }: ActionContext): ActionResult {
 
 /**
  * Emit action to request review
+ * Note: Uses nopo-reviewer account, not botUsername (nopo-bot),
+ * because GitHub doesn't allow PR authors to request themselves as reviewers.
  */
 export function emitRequestReview({ context }: ActionContext): ActionResult {
   if (!context.pr) {
@@ -331,7 +333,7 @@ export function emitRequestReview({ context }: ActionContext): ActionResult {
       type: "requestReview",
       token: "code",
       prNumber: context.pr.number,
-      reviewer: context.botUsername,
+      reviewer: "nopo-reviewer",
     },
   ];
 }
