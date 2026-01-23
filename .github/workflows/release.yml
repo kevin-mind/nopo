@@ -302,8 +302,9 @@ jobs:
   # LOG: DEPLOYING TO STAGE (start of deploy)
   # ============================================================================
   log-stage-deploy-start:
-    if: needs.extract-issue.outputs.has_issues == 'true'
+    if: needs.context.outputs.deploy == 'true' && needs.extract-issue.outputs.has_issues == 'true'
     needs:
+      - context
       - extract-issue
       - test
     runs-on: ubuntu-latest
@@ -361,8 +362,9 @@ jobs:
   # LOG: DEPLOYING TO PROD (start of deploy)
   # ============================================================================
   log-prod-deploy-start:
-    if: needs.extract-issue.outputs.has_issues == 'true' && needs.deploy_stage.result == 'success'
+    if: needs.context.outputs.deploy == 'true' && needs.extract-issue.outputs.has_issues == 'true' && needs.deploy_stage.result == 'success'
     needs:
+      - context
       - extract-issue
       - deploy_stage
     runs-on: ubuntu-latest
@@ -422,8 +424,9 @@ jobs:
   # Updates the "⏳ Deploying to stage" entry to show success
   # ============================================================================
   log-stage-deployed:
-    if: always() && needs.deploy_stage.result == 'success' && needs.extract-issue.outputs.has_issues == 'true'
+    if: always() && needs.context.outputs.deploy == 'true' && needs.deploy_stage.result == 'success' && needs.extract-issue.outputs.has_issues == 'true'
     needs:
+      - context
       - extract-issue
       - deploy_stage
       - log-stage-deploy-start
@@ -465,8 +468,9 @@ jobs:
   # Updates the "⏳ Deploying to stage" entry to show failure
   # ============================================================================
   log-stage-deploy-failed:
-    if: always() && needs.deploy_stage.result == 'failure' && needs.extract-issue.outputs.has_issues == 'true'
+    if: always() && needs.context.outputs.deploy == 'true' && needs.deploy_stage.result == 'failure' && needs.extract-issue.outputs.has_issues == 'true'
     needs:
+      - context
       - extract-issue
       - deploy_stage
       - log-stage-deploy-start
@@ -507,8 +511,9 @@ jobs:
   # Updates the "⏳ Deploying to prod" entry to show success
   # ============================================================================
   log-released:
-    if: always() && needs.deploy_prod.result == 'success' && needs.extract-issue.outputs.has_issues == 'true'
+    if: always() && needs.context.outputs.deploy == 'true' && needs.deploy_prod.result == 'success' && needs.extract-issue.outputs.has_issues == 'true'
     needs:
+      - context
       - extract-issue
       - deploy_prod
       - log-prod-deploy-start
@@ -550,8 +555,9 @@ jobs:
   # Updates the "⏳ Deploying to prod" entry to show failure
   # ============================================================================
   log-prod-deploy-failed:
-    if: always() && needs.deploy_prod.result == 'failure' && needs.extract-issue.outputs.has_issues == 'true'
+    if: always() && needs.context.outputs.deploy == 'true' && needs.deploy_prod.result == 'failure' && needs.extract-issue.outputs.has_issues == 'true'
     needs:
+      - context
       - extract-issue
       - deploy_prod
       - log-prod-deploy-start
