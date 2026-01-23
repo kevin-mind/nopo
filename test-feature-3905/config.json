@@ -1,0 +1,11 @@
+{
+  "name": "test-feature-3905",
+  "description": "Mock configuration for E2E test issue #3905",
+  "created": "2026-01-23",
+  "phase": 1,
+  "enabled": true,
+  "settings": {
+    "maxRetries": 3,
+    "timeout": 30000
+  }
+}
