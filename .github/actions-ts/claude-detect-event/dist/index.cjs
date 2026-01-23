@@ -24525,7 +24525,10 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
     const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
     if (details.isSubIssue) {
       const phaseNumber = extractPhaseNumber(details.title);
-      const branchName3 = deriveBranch(details.parentIssue, phaseNumber || issue.number);
+      const branchName3 = deriveBranch(
+        details.parentIssue,
+        phaseNumber || issue.number
+      );
       const branchExists = await checkBranchExists(branchName3);
       if (!branchExists) {
         await ensureBranchExists(branchName3);
