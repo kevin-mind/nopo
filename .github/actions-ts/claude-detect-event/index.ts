@@ -914,14 +914,67 @@ async function handleIssueCommentEvent(
     return emptyResult(true, "Comment is from a bot");
   }
 
-  // Check for /implement command (issues only, not PRs)
+  // Check for /implement or /continue command (issues only, not PRs)
   const isPr = !!issue.pull_request;
   const hasImplementCommand = comment.body
     .split("\n")
     .some((line) => line.trim() === "/implement");
+  const hasContinueCommand = comment.body
+    .split("\n")
+    .some((line) => line.trim() === "/continue");
 
-  if (hasImplementCommand && !isPr) {
+  if ((hasImplementCommand || hasContinueCommand) && !isPr) {
     const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
+
+    // Check if this is a sub-issue
+    if (details.isSubIssue) {
+      const phaseNumber = extractPhaseNumber(details.title);
+      const branchName = deriveBranch(details.parentIssue, phaseNumber || issue.number);
+      const branchExists = await checkBranchExists(branchName);
+
+      if (!branchExists) {
+        await ensureBranchExists(branchName);
+      }
+
+      return {
+        job: "issue-iterate",
+        resourceType: "issue",
+        resourceNumber: String(issue.number),
+        commentId: String(comment.id),
+        contextJson: JSON.stringify({
+          issue_number: String(issue.number),
+          issue_title: details.title || issue.title,
+          issue_body: details.body || issue.body,
+          branch_name: branchName,
+          trigger_type: "issue_comment",
+          parent_issue: String(details.parentIssue),
+          phase_number: String(phaseNumber),
+        }),
+        skip: false,
+        skipReason: "",
+      };
+    }
+
+    // Check if this is a parent issue with sub-issues - route to orchestrate
+    if (details.subIssues.length > 0) {
+      return {
+        job: "issue-orchestrate",
+        resourceType: "issue",
+        resourceNumber: String(issue.number),
+        commentId: String(comment.id),
+        contextJson: JSON.stringify({
+          issue_number: String(issue.number),
+          issue_title: details.title || issue.title,
+          issue_body: details.body || issue.body,
+          sub_issues: details.subIssues.join(","),
+          trigger_type: "issue_comment",
+        }),
+        skip: false,
+        skipReason: "",
+      };
+    }
+
+    // Regular issue without sub-issues
     const branchName = `claude/issue/${issue.number}`;
 
     // Ensure the branch exists (create if not)

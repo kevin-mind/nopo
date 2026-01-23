@@ -24520,8 +24520,51 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
   }
   const isPr = !!issue.pull_request;
   const hasImplementCommand = comment.body.split("\n").some((line) => line.trim() === "/implement");
-  if (hasImplementCommand && !isPr) {
+  const hasContinueCommand = comment.body.split("\n").some((line) => line.trim() === "/continue");
+  if ((hasImplementCommand || hasContinueCommand) && !isPr) {
     const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
+    if (details.isSubIssue) {
+      const phaseNumber = extractPhaseNumber(details.title);
+      const branchName3 = deriveBranch(details.parentIssue, phaseNumber || issue.number);
+      const branchExists = await checkBranchExists(branchName3);
+      if (!branchExists) {
+        await ensureBranchExists(branchName3);
+      }
+      return {
+        job: "issue-iterate",
+        resourceType: "issue",
+        resourceNumber: String(issue.number),
+        commentId: String(comment.id),
+        contextJson: JSON.stringify({
+          issue_number: String(issue.number),
+          issue_title: details.title || issue.title,
+          issue_body: details.body || issue.body,
+          branch_name: branchName3,
+          trigger_type: "issue_comment",
+          parent_issue: String(details.parentIssue),
+          phase_number: String(phaseNumber)
+        }),
+        skip: false,
+        skipReason: ""
+      };
+    }
+    if (details.subIssues.length > 0) {
+      return {
+        job: "issue-orchestrate",
+        resourceType: "issue",
+        resourceNumber: String(issue.number),
+        commentId: String(comment.id),
+        contextJson: JSON.stringify({
+          issue_number: String(issue.number),
+          issue_title: details.title || issue.title,
+          issue_body: details.body || issue.body,
+          sub_issues: details.subIssues.join(","),
+          trigger_type: "issue_comment"
+        }),
+        skip: false,
+        skipReason: ""
+      };
+    }
     const branchName2 = `claude/issue/${issue.number}`;
     await ensureBranchExists(branchName2);
     return {

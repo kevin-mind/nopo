@@ -1,7 +1,7 @@
 name: Claude
 run-name: >-
   ${{
-    github.event_name == 'workflow_dispatch' && format('Claude - {0} #{1}', inputs.action, inputs.resource_number) ||
+    github.event_name == 'workflow_dispatch' && format('Claude - #{0}', inputs.resource_number) ||
     github.event_name == 'issues' && format('Claude - issue #{0}', github.event.issue.number) ||
     github.event_name == 'issue_comment' && format('Claude - comment on #{0}', github.event.issue.number) ||
     github.event_name == 'pull_request_review_comment' && format('Claude - review comment on PR #{0}', github.event.pull_request.number) ||
@@ -60,58 +60,18 @@ run-name: >-
   discussion_comment:
     types:
       - created
-  # Note: merge_group events are handled by release.yml which calls this workflow
-  # via workflow_dispatch with action=queue_entry and the correct run_url
+  # Note: merge_group/deploy logging is handled directly by release.yml calling the executor
   workflow_dispatch:
     inputs:
-      action:
-        description: Action to run (auto detects from resource state)
-        required: false
-        type: choice
-        default: auto
-        options:
-          - auto
-          - triage
-          - orchestrate
-          - review
-          - queue_entry
-          - merged
-          - deployed_stage
-          - deployed_prod
-          - queue_failure
-          - discussion-research
-          - discussion-respond
-          - discussion-summarize
-          - discussion-plan
       resource_number:
         description: Issue, PR, or Discussion number
         required: true
         type: string
-      context_json:
-        description: Context JSON for discussion jobs
-        required: false
-        type: string
-        default: '{}'
       continue:
         description: Continue to next state (true) or stop after this iteration (false)
         required: false
         type: boolean
         default: true
-      failure_reason:
-        description: Failure reason for queue_failure action
-        required: false
-        type: string
-        default: ''
-      commit_sha:
-        description: Commit SHA for merged/deployed actions
-        required: false
-        type: string
-        default: ''
-      run_url:
-        description: Run URL for logging
-        required: false
-        type: string
-        default: ''
 
 permissions:
   contents: write
@@ -152,7 +112,7 @@ concurrency:
       github.event_name == 'workflow_run' && format('branch-{0}', github.event.workflow_run.head_branch) ||
       github.event_name == 'discussion' && format('discussion-{0}', github.event.discussion.number) ||
       github.event_name == 'discussion_comment' && format('discussion-{0}', github.event.discussion.number) ||
-      github.event_name == 'workflow_dispatch' && format('{0}-{1}', inputs.action, inputs.resource_number) ||
+      github.event_name == 'workflow_dispatch' && format('issue-{0}', inputs.resource_number) ||
       github.run_id
     }}
   cancel-in-progress: false
@@ -185,144 +145,26 @@ jobs:
       - id: derive
         if: github.event_name == 'workflow_dispatch'
         env:
-          ACTION: ${{ inputs.action }}
           RESOURCE_NUMBER: ${{ inputs.resource_number }}
-          CONTEXT_JSON: ${{ inputs.context_json }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Map action input to job name
-          # - auto: detect from resource state (not implemented here, state machine handles)
-          # - triage/orchestrate/review: explicit job names
-          # - discussion-*: discussion jobs
-          case "$ACTION" in
-            triage)
-              echo "job=issue-triage" >> $GITHUB_OUTPUT
-              echo "resource_type=issue" >> $GITHUB_OUTPUT
-              ;;
-            orchestrate)
-              echo "job=issue-orchestrate" >> $GITHUB_OUTPUT
-              echo "resource_type=issue" >> $GITHUB_OUTPUT
-              ;;
-            queue_entry)
-              echo "job=merge-queue-logging" >> $GITHUB_OUTPUT
-              echo "resource_type=issue" >> $GITHUB_OUTPUT
-              new_context=$(jq -n -c \
-                --arg num "$RESOURCE_NUMBER" \
-                --arg trigger "merge_queue_entered" \
-                --arg url "${{ inputs.run_url }}" \
-                '{issue_number: $num, trigger_type: $trigger, ci_run_url: $url}')
-              echo "context_json=$new_context" >> $GITHUB_OUTPUT
-              exit 0
-              ;;
-            merged)
-              echo "job=merge-queue-logging" >> $GITHUB_OUTPUT
-              echo "resource_type=issue" >> $GITHUB_OUTPUT
-              new_context=$(jq -n -c \
-                --arg num "$RESOURCE_NUMBER" \
-                --arg trigger "pr_merged" \
-                --arg sha "${{ inputs.commit_sha }}" \
-                --arg url "${{ inputs.run_url }}" \
-                '{issue_number: $num, trigger_type: $trigger, ci_commit_sha: $sha, ci_run_url: $url}')
-              echo "context_json=$new_context" >> $GITHUB_OUTPUT
-              exit 0
-              ;;
-            deployed_stage)
-              echo "job=merge-queue-logging" >> $GITHUB_OUTPUT
-              echo "resource_type=issue" >> $GITHUB_OUTPUT
-              new_context=$(jq -n -c \
-                --arg num "$RESOURCE_NUMBER" \
-                --arg trigger "deployed_stage" \
-                --arg sha "${{ inputs.commit_sha }}" \
-                --arg url "${{ inputs.run_url }}" \
-                '{issue_number: $num, trigger_type: $trigger, ci_commit_sha: $sha, ci_run_url: $url}')
-              echo "context_json=$new_context" >> $GITHUB_OUTPUT
-              exit 0
-              ;;
-            deployed_prod)
-              echo "job=merge-queue-logging" >> $GITHUB_OUTPUT
-              echo "resource_type=issue" >> $GITHUB_OUTPUT
-              new_context=$(jq -n -c \
-                --arg num "$RESOURCE_NUMBER" \
-                --arg trigger "deployed_prod" \
-                --arg sha "${{ inputs.commit_sha }}" \
-                --arg url "${{ inputs.run_url }}" \
-                '{issue_number: $num, trigger_type: $trigger, ci_commit_sha: $sha, ci_run_url: $url}')
-              echo "context_json=$new_context" >> $GITHUB_OUTPUT
-              exit 0
-              ;;
-            queue_failure)
-              echo "job=merge-queue-logging" >> $GITHUB_OUTPUT
-              echo "resource_type=issue" >> $GITHUB_OUTPUT
-              new_context=$(jq -n -c \
-                --arg num "$RESOURCE_NUMBER" \
-                --arg trigger "merge_queue_failed" \
-                --arg reason "${{ inputs.failure_reason }}" \
-                --arg url "${{ inputs.run_url }}" \
-                '{issue_number: $num, trigger_type: $trigger, failure_reason: $reason, ci_run_url: $url}')
-              echo "context_json=$new_context" >> $GITHUB_OUTPUT
-              exit 0
-              ;;
-            review)
-              echo "job=pr-review" >> $GITHUB_OUTPUT
-              echo "resource_type=pr" >> $GITHUB_OUTPUT
+          # For workflow_dispatch, let the state machine decide what to do based on issue state
+          echo "job=issue-iterate" >> $GITHUB_OUTPUT
+          echo "resource_type=issue" >> $GITHUB_OUTPUT
 
-              # For review action, we need to extract the linked issue from the PR body
-              echo "Fetching PR #$RESOURCE_NUMBER details..."
-              pr_body=$(gh pr view "$RESOURCE_NUMBER" --json body --jq '.body')
+          # Check if this issue is a sub-issue by looking for "Parent: #N" in its body
+          issue_body=$(gh issue view "$RESOURCE_NUMBER" --json body --jq '.body')
+          parent_from_sub=$(echo "$issue_body" | grep -oE 'Parent: #[0-9]+' | head -1 | grep -oE '[0-9]+' || echo "")
 
-              # Extract issue number from "Fixes #N" pattern
-              linked_issue=$(echo "$pr_body" | grep -oE 'Fixes #[0-9]+' | head -1 | grep -oE '[0-9]+' || echo "")
+          if [[ -n "$parent_from_sub" ]]; then
+            echo "Issue #$RESOURCE_NUMBER is a sub-issue of parent #$parent_from_sub"
+            echo "parent_issue=$parent_from_sub" >> $GITHUB_OUTPUT
+          else
+            echo "Issue #$RESOURCE_NUMBER is a parent issue"
+            echo "parent_issue=0" >> $GITHUB_OUTPUT
+          fi
 
-              if [[ -z "$linked_issue" ]]; then
-                echo "::error::Could not find linked issue (Fixes #N) in PR body"
-                exit 1
-              fi
-
-              echo "Found linked issue #$linked_issue"
-
-              # Check if linked issue is a sub-issue by looking for "Parent: #N" in its body
-              linked_issue_body=$(gh issue view "$linked_issue" --json body --jq '.body')
-              parent_from_sub=$(echo "$linked_issue_body" | grep -oE 'Parent: #[0-9]+' | head -1 | grep -oE '[0-9]+' || echo "")
-
-              if [[ -n "$parent_from_sub" ]]; then
-                echo "Linked issue #$linked_issue is a sub-issue of parent #$parent_from_sub"
-                parent_issue="$parent_from_sub"
-              else
-                echo "Linked issue #$linked_issue is a parent issue"
-                parent_issue="$linked_issue"
-              fi
-
-              echo "parent_issue=$parent_issue" >> $GITHUB_OUTPUT
-
-              # Build context with the LINKED issue number (sub-issue, not parent)
-              # The state machine needs the sub-issue to find the correct PR
-              # (the PR is linked to the sub-issue via "Fixes #N")
-              # Use heredoc for multiline output to preserve JSON integrity
-              {
-                echo "context_json<<EOF"
-                gh issue view "$linked_issue" --json title,body | jq -c \
-                  --arg num "$linked_issue" \
-                  --arg pr_num "$RESOURCE_NUMBER" \
-                  --arg parent "$parent_issue" \
-                  '{issue_number: $num, pr_number: $pr_num, parent_issue: $parent, issue_title: .title, issue_body: .body}'
-                echo "EOF"
-              } >> $GITHUB_OUTPUT
-              exit 0
-              ;;
-            discussion-research|discussion-respond|discussion-summarize|discussion-plan)
-              echo "job=$ACTION" >> $GITHUB_OUTPUT
-              echo "resource_type=discussion" >> $GITHUB_OUTPUT
-              echo "context_json=$CONTEXT_JSON" >> $GITHUB_OUTPUT
-              exit 0
-              ;;
-            auto|*)
-              # For 'auto', default to issue-iterate and let state machine figure it out
-              echo "job=issue-iterate" >> $GITHUB_OUTPUT
-              echo "resource_type=issue" >> $GITHUB_OUTPUT
-              ;;
-          esac
-
-          # Fetch issue/PR details for context
+          # Fetch issue details for context
           echo "Fetching details for #$RESOURCE_NUMBER..."
           new_context=$(gh issue view "$RESOURCE_NUMBER" --json title,body | jq -c \
             --arg num "$RESOURCE_NUMBER" \
