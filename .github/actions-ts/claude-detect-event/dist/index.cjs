@@ -24835,6 +24835,8 @@ async function handlePullRequestReviewEvent() {
         pr_number: String(pr.number),
         branch_name: pr.head.ref,
         review_state: state,
+        review_decision: "APPROVED",
+        // Uppercase for state machine
         review_id: String(review.id),
         issue_number: issueNumber2
       }),
