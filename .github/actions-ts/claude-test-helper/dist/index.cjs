@@ -24302,15 +24302,31 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, stepw
     for (let i = 0; i < fixture.sub_issues.length; i++) {
       const subConfig = fixture.sub_issues[i];
       if (!subConfig) continue;
-      const subTitle = `[Phase ${i + 1}] ${subConfig.title} (parent #${parentIssue.number})`;
+      const subTitle = `[Phase ${i + 1}] ${subConfig.title}`;
       core2.info(`Creating sub-issue: ${subTitle}`);
+      const bodyWithParent = subConfig.body.replace(
+        /\{PARENT_NUMBER\}/g,
+        String(parentIssue.number)
+      );
       const { data: subIssue } = await octokit.rest.issues.create({
         owner,
         repo,
         title: subTitle,
-        body: subConfig.body,
-        labels: ["test:automation", ...testModeLabel]
+        body: bodyWithParent,
+        labels: ["test:automation", "triaged", ...testModeLabel]
       });
+      const finalBody = bodyWithParent.replace(
+        /\{ISSUE_NUMBER\}/g,
+        String(subIssue.number)
+      );
+      if (finalBody !== bodyWithParent) {
+        await octokit.rest.issues.update({
+          owner,
+          repo,
+          issue_number: subIssue.number,
+          body: finalBody
+        });
+      }
       result.sub_issue_numbers.push(subIssue.number);
       core2.info(`Created sub-issue #${subIssue.number}`);
       const { data: parentData } = await octokit.rest.issues.get({

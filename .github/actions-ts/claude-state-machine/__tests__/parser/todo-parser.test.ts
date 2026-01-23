@@ -56,6 +56,25 @@ describe("parseTodoLine", () => {
     expect(result?.isManual).toBe(true);
   });
 
+  test("parses [Manual] prefix as manual todo", () => {
+    const result = parseTodoLine("- [ ] [Manual] Verify in production");
+    expect(result).toEqual({
+      text: "[Manual] Verify in production",
+      checked: false,
+      isManual: true,
+    });
+  });
+
+  test("parses [Manual] prefix with different casing", () => {
+    const result = parseTodoLine("- [ ] [MANUAL] Test something");
+    expect(result?.isManual).toBe(true);
+  });
+
+  test("parses [manual] prefix lowercase", () => {
+    const result = parseTodoLine("- [ ] [manual] Human review needed");
+    expect(result?.isManual).toBe(true);
+  });
+
   test("handles indented todos", () => {
     const result = parseTodoLine("    - [ ] Nested task");
     expect(result).toEqual({

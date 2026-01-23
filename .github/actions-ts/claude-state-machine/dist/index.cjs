@@ -31651,8 +31651,9 @@ function eventToTrigger(event) {
 var TODO_PATTERNS = {
   // Matches: - [ ] text or - [x] text or - [X] text
   checkbox: /^(\s*)-\s*\[([ xX])\]\s*(.+)$/,
-  // Matches: *(manual)* anywhere in the line
-  manual: /\*\(manual\)\*/i
+  // Matches: [Manual] prefix or *(manual)* anywhere in the line
+  // [Manual] is the preferred format, *(manual)* is legacy
+  manual: /\[Manual\]|\*\(manual\)\*/i
 };
 function parseTodoLine(line) {
   const match = line.match(TODO_PATTERNS.checkbox);

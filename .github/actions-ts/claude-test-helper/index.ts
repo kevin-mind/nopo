@@ -576,17 +576,38 @@ async function createFixture(
       const subConfig = fixture.sub_issues[i];
       if (!subConfig) continue;
 
-      const subTitle = `[Phase ${i + 1}] ${subConfig.title} (parent #${parentIssue.number})`;
+      const subTitle = `[Phase ${i + 1}] ${subConfig.title}`;
 
       core.info(`Creating sub-issue: ${subTitle}`);
+
+      // Replace placeholders in body - {PARENT_NUMBER} is known, {ISSUE_NUMBER} will be the sub-issue number
+      // We'll update the body after creation to replace {ISSUE_NUMBER}
+      const bodyWithParent = subConfig.body.replace(
+        /\{PARENT_NUMBER\}/g,
+        String(parentIssue.number),
+      );
 
       const { data: subIssue } = await octokit.rest.issues.create({
         owner,
         repo,
         title: subTitle,
-        body: subConfig.body,
-        labels: ["test:automation", ...testModeLabel],
+        body: bodyWithParent,
+        labels: ["test:automation", "triaged", ...testModeLabel],
       });
+
+      // Now update body to replace {ISSUE_NUMBER} with actual sub-issue number
+      const finalBody = bodyWithParent.replace(
+        /\{ISSUE_NUMBER\}/g,
+        String(subIssue.number),
+      );
+      if (finalBody !== bodyWithParent) {
+        await octokit.rest.issues.update({
+          owner,
+          repo,
+          issue_number: subIssue.number,
+          body: finalBody,
+        });
+      }
 
       result.sub_issue_numbers.push(subIssue.number);
       core.info(`Created sub-issue #${subIssue.number}`);

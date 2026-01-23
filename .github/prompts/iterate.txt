@@ -33,6 +33,12 @@ Check which todos are done vs pending.
 - Pick the **next unchecked todo**
 - Complete **just that one item**
 
+**If next todo has `[Manual]` prefix**:
+- These require human action (testing, verification, etc.)
+- **EXIT IMMEDIATELY** - do not attempt to complete it
+- Output: "Waiting for human to complete manual todo: [todo text]"
+- A human will complete the task, check it off, and re-trigger the workflow
+
 **If all todos done and CI passed**:
 - Workflow handles marking PR ready and requesting review
 

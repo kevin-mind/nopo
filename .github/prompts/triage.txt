@@ -68,6 +68,9 @@ Parent: #{{ISSUE_NUMBER}}" \
 **Todo guidelines:**
 - Specific implementation tasks only
 - NO generic workflow steps (commit, PR, test, merge)
+- Use `[Manual]` prefix for tasks requiring human action (e.g., `- [ ] [Manual] Verify in production`)
+  - Examples: manual testing, verification, deployment checks, human review
+  - Claude will skip these and wait for a human to complete and re-trigger
 
 **Add triaged label (skip triage on sub-issue):**
 ```bash
