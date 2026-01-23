@@ -192,7 +192,7 @@ jobs:
     concurrency:
       group: >-
         ${{
-          (needs.detect.outputs.job == 'pr-review' || needs.detect.outputs.job == 'pr-response' || needs.detect.outputs.job == 'pr-human-response')
+          (needs.detect.outputs.job == 'pr-review' || needs.detect.outputs.job == 'pr-review-approved' || needs.detect.outputs.job == 'pr-response' || needs.detect.outputs.job == 'pr-human-response')
           && format('claude-job-review-{0}', needs.detect.outputs.resource_number)
           || github.event_name == 'workflow_run'
           && format('claude-job-ci-{0}', github.event.workflow_run.head_branch)
@@ -215,6 +215,7 @@ jobs:
           needs.detect.outputs.job == 'issue-comment' && 'issue_comment' ||
           needs.detect.outputs.job == 'issue-orchestrate' && 'issue_orchestrate' ||
           needs.detect.outputs.job == 'pr-review' && 'pr_review' ||
+          needs.detect.outputs.job == 'pr-review-approved' && 'pr_review_approved' ||
           needs.detect.outputs.job == 'pr-response' && 'pr_response' ||
           needs.detect.outputs.job == 'pr-human-response' && 'pr_human_response' ||
           needs.detect.outputs.job == 'merge-queue-logging' && fromJson(needs.detect.outputs.context_json).trigger_type ||

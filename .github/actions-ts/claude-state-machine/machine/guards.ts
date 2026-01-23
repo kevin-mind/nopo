@@ -398,6 +398,14 @@ function triggeredByPRHumanResponse({ context }: GuardContext): boolean {
   return context.trigger === "pr_human_response";
 }
 
+/**
+ * Check if triggered by PR review approved (Claude approved the PR via nopo-reviewer)
+ * This triggers orchestration to merge the PR
+ */
+function triggeredByPRReviewApproved({ context }: GuardContext): boolean {
+  return context.trigger === "pr_review_approved";
+}
+
 // ============================================================================
 // Merge Queue Logging Guards
 // ============================================================================
@@ -539,6 +547,7 @@ export const guards = {
   triggeredByPRReview,
   triggeredByPRResponse,
   triggeredByPRHumanResponse,
+  triggeredByPRReviewApproved,
   // Merge queue logging guards
   triggeredByMergeQueueEntry,
   triggeredByMergeQueueFailure,

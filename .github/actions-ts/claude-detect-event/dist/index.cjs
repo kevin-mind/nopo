@@ -24823,6 +24823,25 @@ async function handlePullRequestReviewEvent() {
     return emptyResult(true, "PR is a draft");
   }
   const state = review.state.toLowerCase();
+  if (state === "approved" && review.user.login === "nopo-reviewer") {
+    const branchMatch2 = pr.head.ref.match(/^claude\/issue\/(\d+)/);
+    const issueNumber2 = branchMatch2?.[1] ?? "";
+    return {
+      job: "pr-review-approved",
+      resourceType: "pr",
+      resourceNumber: String(pr.number),
+      commentId: "",
+      contextJson: JSON.stringify({
+        pr_number: String(pr.number),
+        branch_name: pr.head.ref,
+        review_state: state,
+        review_id: String(review.id),
+        issue_number: issueNumber2
+      }),
+      skip: false,
+      skipReason: ""
+    };
+  }
   if (state !== "changes_requested" && state !== "commented") {
     return emptyResult(true, `Review state is ${state}`);
   }

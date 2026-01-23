@@ -1357,7 +1357,31 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
 
   const state = review.state.toLowerCase();
 
-  // Only handle changes_requested or commented states
+  // Handle approved state from nopo-reviewer (Claude's review account)
+  // This triggers orchestration to merge the PR
+  if (state === "approved" && review.user.login === "nopo-reviewer") {
+    // Extract issue number from branch name (claude/issue/XXX or claude/issue/XXX/phase-N)
+    const branchMatch = pr.head.ref.match(/^claude\/issue\/(\d+)/);
+    const issueNumber = branchMatch?.[1] ?? "";
+
+    return {
+      job: "pr-review-approved",
+      resourceType: "pr",
+      resourceNumber: String(pr.number),
+      commentId: "",
+      contextJson: JSON.stringify({
+        pr_number: String(pr.number),
+        branch_name: pr.head.ref,
+        review_state: state,
+        review_id: String(review.id),
+        issue_number: issueNumber,
+      }),
+      skip: false,
+      skipReason: "",
+    };
+  }
+
+  // Only handle changes_requested or commented states for other reviews
   if (state !== "changes_requested" && state !== "commented") {
     return emptyResult(true, `Review state is ${state}`);
   }

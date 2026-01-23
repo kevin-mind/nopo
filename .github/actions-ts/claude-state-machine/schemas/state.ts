@@ -140,6 +140,7 @@ export const TriggerTypeSchema = z.enum([
   "pr_review_requested",
   "pr_review_submitted",
   "pr_review",
+  "pr_review_approved",
   "pr_response",
   "pr_human_response",
   "pr_push",

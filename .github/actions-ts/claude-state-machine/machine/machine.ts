@@ -126,6 +126,8 @@ export const claudeMachine = setup({
       guards.triggeredByPRResponse({ context }),
     triggeredByPRHumanResponse: ({ context }) =>
       guards.triggeredByPRHumanResponse({ context }),
+    triggeredByPRReviewApproved: ({ context }) =>
+      guards.triggeredByPRReviewApproved({ context }),
     // Merge queue logging guards
     triggeredByMergeQueueEntry: ({ context }) =>
       guards.triggeredByMergeQueueEntry({ context }),
@@ -495,6 +497,11 @@ export const claudeMachine = setup({
         {
           target: "prRespondingHuman",
           guard: "triggeredByPRHumanResponse",
+        },
+        // Check if this is a PR review approval (Claude approved via nopo-reviewer)
+        {
+          target: "processingReview",
+          guard: "triggeredByPRReviewApproved",
         },
         // Check if this is a CI completion event
         {

@@ -31258,6 +31258,7 @@ var TriggerTypeSchema = external_exports.enum([
   "pr_review_requested",
   "pr_review_submitted",
   "pr_review",
+  "pr_review_approved",
   "pr_response",
   "pr_human_response",
   "pr_push",
@@ -32984,6 +32985,9 @@ function triggeredByPRResponse({ context: context2 }) {
 function triggeredByPRHumanResponse({ context: context2 }) {
   return context2.trigger === "pr_human_response";
 }
+function triggeredByPRReviewApproved({ context: context2 }) {
+  return context2.trigger === "pr_review_approved";
+}
 function triggeredByMergeQueueEntry({ context: context2 }) {
   return context2.trigger === "merge_queue_entered";
 }
@@ -33070,6 +33074,7 @@ var guards = {
   triggeredByPRReview,
   triggeredByPRResponse,
   triggeredByPRHumanResponse,
+  triggeredByPRReviewApproved,
   // Merge queue logging guards
   triggeredByMergeQueueEntry,
   triggeredByMergeQueueFailure,
@@ -33125,6 +33130,7 @@ var claudeMachine = setup({
     triggeredByPRReview: ({ context: context2 }) => guards.triggeredByPRReview({ context: context2 }),
     triggeredByPRResponse: ({ context: context2 }) => guards.triggeredByPRResponse({ context: context2 }),
     triggeredByPRHumanResponse: ({ context: context2 }) => guards.triggeredByPRHumanResponse({ context: context2 }),
+    triggeredByPRReviewApproved: ({ context: context2 }) => guards.triggeredByPRReviewApproved({ context: context2 }),
     // Merge queue logging guards
     triggeredByMergeQueueEntry: ({ context: context2 }) => guards.triggeredByMergeQueueEntry({ context: context2 }),
     triggeredByMergeQueueFailure: ({ context: context2 }) => guards.triggeredByMergeQueueFailure({ context: context2 }),
@@ -33436,6 +33442,11 @@ var claudeMachine = setup({
         {
           target: "prRespondingHuman",
           guard: "triggeredByPRHumanResponse"
+        },
+        // Check if this is a PR review approval (Claude approved via nopo-reviewer)
+        {
+          target: "processingReview",
+          guard: "triggeredByPRReviewApproved"
         },
         // Check if this is a CI completion event
         {
