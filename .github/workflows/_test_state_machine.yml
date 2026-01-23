@@ -264,7 +264,6 @@ jobs:
           echo "Dispatching triage workflow for issue #$ISSUE_NUMBER..."
           gh workflow run claude.yml \
             --repo "$GITHUB_REPOSITORY" \
-            -f action=triage \
             -f resource_number="$ISSUE_NUMBER"
           echo "✅ Triage workflow dispatched"
 
@@ -350,8 +349,8 @@ jobs:
           # Use GITHUB_TOKEN for workflow dispatch (PAT may not have workflow scope)
           GH_TOKEN="$GH_TOKEN_WORKFLOW" gh workflow run claude.yml \
             --repo "$GITHUB_REPOSITORY" \
-            -f action=orchestrate \
-            -f resource_number="$ISSUE_NUMBER"
+            -f resource_number="$ISSUE_NUMBER" \
+            -f continue=true
           echo "✅ Orchestrate workflow dispatched"
 
       - name: Wait for workflow to start
