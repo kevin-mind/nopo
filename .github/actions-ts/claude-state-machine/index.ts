@@ -260,6 +260,20 @@ function buildEventFromInputs(
         isDraft: false,
       };
 
+    case "pr_review_approved":
+      // Claude approved a PR via nopo-reviewer - trigger merge
+      return {
+        ...base,
+        type: "pr_review_submitted",
+        prNumber: 0,
+        issueNumber,
+        reviewId: 0,
+        reviewer: "nopo-reviewer",
+        decision: "APPROVED",
+        headRef: "",
+        baseRef: "main",
+      };
+
     case "pr_response":
       // Bot responding to its own review
       return {

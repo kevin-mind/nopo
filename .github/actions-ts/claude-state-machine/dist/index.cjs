@@ -33996,6 +33996,18 @@ function buildEventFromInputs(owner, repo, trigger, issueNumber, options) {
         baseRef: "main",
         isDraft: false
       };
+    case "pr_review_approved":
+      return {
+        ...base,
+        type: "pr_review_submitted",
+        prNumber: 0,
+        issueNumber,
+        reviewId: 0,
+        reviewer: "nopo-reviewer",
+        decision: "APPROVED",
+        headRef: "",
+        baseRef: "main"
+      };
     case "pr_response":
       return {
         ...base,
