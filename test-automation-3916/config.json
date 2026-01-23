@@ -1,0 +1,10 @@
+{
+  "name": "automation-test-3916",
+  "description": "Mock configuration file for testing Phase 1 automation",
+  "phase": 1,
+  "parent_issue": 3914,
+  "settings": {
+    "enabled": true,
+    "retries": 3
+  }
+}
