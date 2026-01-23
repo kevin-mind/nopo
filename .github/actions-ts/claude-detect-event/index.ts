@@ -929,7 +929,10 @@ async function handleIssueCommentEvent(
     // Check if this is a sub-issue
     if (details.isSubIssue) {
       const phaseNumber = extractPhaseNumber(details.title);
-      const branchName = deriveBranch(details.parentIssue, phaseNumber || issue.number);
+      const branchName = deriveBranch(
+        details.parentIssue,
+        phaseNumber || issue.number,
+      );
       const branchExists = await checkBranchExists(branchName);
 
       if (!branchExists) {
