@@ -1360,9 +1360,17 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
   // Handle approved state from nopo-reviewer (Claude's review account)
   // This triggers orchestration to merge the PR
   if (state === "approved" && review.user.login === "nopo-reviewer") {
-    // Extract issue number from branch name (claude/issue/XXX or claude/issue/XXX/phase-N)
+    // Extract linked issue number from PR body (Fixes #N, Closes #N, Resolves #N)
+    // This is more reliable than branch name for sub-issues
+    const prBody = pr.body ?? "";
+    const linkedIssueMatch = prBody.match(
+      /(?:fixes|closes|resolves)\s+#(\d+)/i,
+    );
+    const issueNumber = linkedIssueMatch?.[1] ?? "";
+
+    // Also extract parent issue from branch name for context
     const branchMatch = pr.head.ref.match(/^claude\/issue\/(\d+)/);
-    const issueNumber = branchMatch?.[1] ?? "";
+    const parentIssue = branchMatch?.[1] ?? "";
 
     return {
       job: "pr-review-approved",
@@ -1376,6 +1384,7 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
         review_decision: "APPROVED", // Uppercase for state machine
         review_id: String(review.id),
         issue_number: issueNumber,
+        parent_issue: parentIssue,
       }),
       skip: false,
       skipReason: "",

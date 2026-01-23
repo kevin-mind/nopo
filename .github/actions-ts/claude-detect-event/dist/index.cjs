@@ -24824,8 +24824,13 @@ async function handlePullRequestReviewEvent() {
   }
   const state = review.state.toLowerCase();
   if (state === "approved" && review.user.login === "nopo-reviewer") {
+    const prBody = pr.body ?? "";
+    const linkedIssueMatch = prBody.match(
+      /(?:fixes|closes|resolves)\s+#(\d+)/i
+    );
+    const issueNumber2 = linkedIssueMatch?.[1] ?? "";
     const branchMatch2 = pr.head.ref.match(/^claude\/issue\/(\d+)/);
-    const issueNumber2 = branchMatch2?.[1] ?? "";
+    const parentIssue = branchMatch2?.[1] ?? "";
     return {
       job: "pr-review-approved",
       resourceType: "pr",
@@ -24838,7 +24843,8 @@ async function handlePullRequestReviewEvent() {
         review_decision: "APPROVED",
         // Uppercase for state machine
         review_id: String(review.id),
-        issue_number: issueNumber2
+        issue_number: issueNumber2,
+        parent_issue: parentIssue
       }),
       skip: false,
       skipReason: ""
