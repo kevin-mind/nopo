@@ -1002,12 +1002,12 @@ export function emitBlockIssue({ context }: ActionContext): ActionResult {
 // ============================================================================
 // Merge Queue Logging Actions
 // ============================================================================
-// Note: The executor (executeAppendHistory/executeUpdateHistory) automatically
-// handles dual-logging to parent issues when the target is a sub-issue.
-// These actions just need to emit a single action targeting the issue number.
+// Note: These are now called directly from release.yml via the executor.
+// The state machine paths are kept for consistency but are effectively dead code.
+// The executor automatically handles dual-logging to parent issues.
 
 /**
- * Emit action to log merge queue entry (pending state)
+ * Emit action to log merge queue entry
  */
 export function emitMergeQueueEntry({ context }: ActionContext): ActionResult {
   const issueNumber = context.currentSubIssue?.number ?? context.issue.number;
@@ -1021,7 +1021,7 @@ export function emitMergeQueueEntry({ context }: ActionContext): ActionResult {
       issueNumber,
       iteration,
       phase,
-      message: "⏳ Merge queue",
+      message: "🚀 Entered queue",
       timestamp: context.workflowStartedAt ?? undefined,
       runLink: context.ciRunUrl ?? undefined,
     },
@@ -1029,7 +1029,7 @@ export function emitMergeQueueEntry({ context }: ActionContext): ActionResult {
 }
 
 /**
- * Emit action to update merge queue entry to failed
+ * Emit action to log queue exit due to failure
  */
 export function emitMergeQueueFailure({
   context,
@@ -1040,13 +1040,12 @@ export function emitMergeQueueFailure({
 
   return [
     {
-      type: "updateHistory",
+      type: "appendHistory",
       token: "code",
       issueNumber,
-      matchIteration: iteration,
-      matchPhase: phase,
-      matchPattern: "⏳ Merge queue",
-      newMessage: "❌ Merge queue",
+      iteration,
+      phase,
+      message: "❌ Removed from queue",
       timestamp: context.workflowStartedAt ?? undefined,
       runLink: context.ciRunUrl ?? undefined,
     },
@@ -1054,7 +1053,7 @@ export function emitMergeQueueFailure({
 }
 
 /**
- * Emit action to update merge queue entry to merged
+ * Emit action to log PR merged
  */
 export function emitMerged({ context }: ActionContext): ActionResult {
   const issueNumber = context.currentSubIssue?.number ?? context.issue.number;
@@ -1063,13 +1062,12 @@ export function emitMerged({ context }: ActionContext): ActionResult {
 
   return [
     {
-      type: "updateHistory",
+      type: "appendHistory",
       token: "code",
       issueNumber,
-      matchIteration: iteration,
-      matchPhase: phase,
-      matchPattern: "⏳ Merge queue",
-      newMessage: "🚢 Merge queue",
+      iteration,
+      phase,
+      message: "🚢 Merged",
       timestamp: context.workflowStartedAt ?? undefined,
       commitSha: context.ciCommitSha ?? undefined,
       runLink: context.ciRunUrl ?? undefined,
@@ -1078,7 +1076,7 @@ export function emitMerged({ context }: ActionContext): ActionResult {
 }
 
 /**
- * Emit action to log stage deployment
+ * Emit action to log stage deployment success
  */
 export function emitDeployedStage({ context }: ActionContext): ActionResult {
   const issueNumber = context.currentSubIssue?.number ?? context.issue.number;
@@ -1092,7 +1090,7 @@ export function emitDeployedStage({ context }: ActionContext): ActionResult {
       issueNumber,
       iteration,
       phase,
-      message: "🧪 Deployed to stage",
+      message: "✅ Deployed to stage",
       timestamp: context.workflowStartedAt ?? undefined,
       commitSha: context.ciCommitSha ?? undefined,
       runLink: context.ciRunUrl ?? undefined,
@@ -1101,7 +1099,7 @@ export function emitDeployedStage({ context }: ActionContext): ActionResult {
 }
 
 /**
- * Emit action to log production deployment
+ * Emit action to log production deployment success
  */
 export function emitDeployedProd({ context }: ActionContext): ActionResult {
   const issueNumber = context.currentSubIssue?.number ?? context.issue.number;
@@ -1115,7 +1113,7 @@ export function emitDeployedProd({ context }: ActionContext): ActionResult {
       issueNumber,
       iteration,
       phase,
-      message: "🚢 Released to production",
+      message: "✅ Released to production",
       timestamp: context.workflowStartedAt ?? undefined,
       commitSha: context.ciCommitSha ?? undefined,
       runLink: context.ciRunUrl ?? undefined,

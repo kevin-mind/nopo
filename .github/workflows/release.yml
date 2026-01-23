@@ -113,8 +113,8 @@ jobs:
           echo "Summary: issues=$issues_json, prs=$prs_json, has_issues=$has_issues"
 
   # ============================================================================
-  # LOG: ADDED TO MERGE QUEUE (merge_group event)
-  # Calls executor directly with appendHistory action
+  # LOG: ENTERED MERGE QUEUE (merge_group event)
+  # Simple append - no update pattern for queue entry
   # ============================================================================
   log-queue-entry:
     if: github.event_name == 'merge_group' && needs.extract-issue.outputs.has_issues == 'true'
@@ -146,13 +146,13 @@ jobs:
               "issueNumber": ${{ matrix.issue }},
               "iteration": 0,
               "phase": "-",
-              "message": "⏳ Merge queue",
+              "message": "🚀 Entered queue",
               "runLink": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }]
 
   # ============================================================================
   # LOG: MERGED TO MAIN (push event - covers both merge queue and direct merges)
-  # Calls executor directly with updateHistory action
+  # Simple append - separate entry from queue entry
   # ============================================================================
   log-merged:
     if: github.event_name == 'push' && needs.extract-issue.outputs.has_issues == 'true'
@@ -180,12 +180,11 @@ jobs:
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
           actions_json: |
             [{
-              "type": "updateHistory",
+              "type": "appendHistory",
               "issueNumber": ${{ matrix.issue }},
-              "matchIteration": 0,
-              "matchPhase": "-",
-              "matchPattern": "⏳ Merge queue",
-              "newMessage": "🚢 Merge queue",
+              "iteration": 0,
+              "phase": "-",
+              "message": "🚢 Merged",
               "commitSha": "${{ github.sha }}",
               "runLink": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }]
@@ -299,6 +298,45 @@ jobs:
       - build
       - context
       - discover_buildable
+  # ============================================================================
+  # LOG: DEPLOYING TO STAGE (start of deploy)
+  # ============================================================================
+  log-stage-deploy-start:
+    if: needs.extract-issue.outputs.has_issues == 'true'
+    needs:
+      - extract-issue
+      - test
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    strategy:
+      matrix:
+        issue: ${{ fromJson(needs.extract-issue.outputs.issues_json) }}
+      fail-fast: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Log stage deploy start (issue #${{ matrix.issue }})
+        uses: ./.github/actions-ts/claude-state-executor
+        with:
+          github_code_token: ${{ secrets.NOPO_BOT_PAT }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+          actions_json: |
+            [{
+              "type": "appendHistory",
+              "issueNumber": ${{ matrix.issue }},
+              "iteration": 0,
+              "phase": "-",
+              "message": "⏳ Deploying to stage",
+              "runLink": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }]
+
   deploy_stage:
     permissions:
       contents: read
@@ -317,32 +355,13 @@ jobs:
       - build
       - test
       - discover_buildable
-  deploy_prod:
-    permissions:
-      contents: read
-      packages: write
-      attestations: write
-      id-token: write
-    uses: ./.github/workflows/_deploy_gcp.yml
-    secrets: inherit
-    with:
-      environment: prod
-      version: ${{ needs.build.outputs.version }}
-      digest: ${{ needs.build.outputs.digest }}
-      services: ${{ needs.discover_buildable.outputs.services_json }}
-    needs:
-      - context
-      - build
-      - deploy_stage
-      - test
-      - discover_buildable
+      - log-stage-deploy-start
 
   # ============================================================================
-  # LOG: DEPLOYED TO STAGE
-  # Calls executor directly with appendHistory action
+  # LOG: DEPLOYING TO PROD (start of deploy)
   # ============================================================================
-  log-stage-deployed:
-    if: always() && needs.deploy_stage.result == 'success' && needs.extract-issue.outputs.has_issues == 'true'
+  log-prod-deploy-start:
+    if: needs.extract-issue.outputs.has_issues == 'true' && needs.deploy_stage.result == 'success'
     needs:
       - extract-issue
       - deploy_stage
@@ -362,7 +381,7 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Log stage deploy (issue #${{ matrix.issue }})
+      - name: Log prod deploy start (issue #${{ matrix.issue }})
         uses: ./.github/actions-ts/claude-state-executor
         with:
           github_code_token: ${{ secrets.NOPO_BOT_PAT }}
@@ -373,20 +392,126 @@ jobs:
               "issueNumber": ${{ matrix.issue }},
               "iteration": 0,
               "phase": "-",
-              "message": "🧪 Deployed to stage",
+              "message": "⏳ Deploying to prod",
+              "runLink": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }]
+
+  deploy_prod:
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+    uses: ./.github/workflows/_deploy_gcp.yml
+    secrets: inherit
+    with:
+      environment: prod
+      version: ${{ needs.build.outputs.version }}
+      digest: ${{ needs.build.outputs.digest }}
+      services: ${{ needs.discover_buildable.outputs.services_json }}
+    needs:
+      - context
+      - build
+      - deploy_stage
+      - test
+      - discover_buildable
+      - log-prod-deploy-start
+
+  # ============================================================================
+  # LOG: STAGE DEPLOY SUCCESS
+  # Updates the "⏳ Deploying to stage" entry to show success
+  # ============================================================================
+  log-stage-deployed:
+    if: always() && needs.deploy_stage.result == 'success' && needs.extract-issue.outputs.has_issues == 'true'
+    needs:
+      - extract-issue
+      - deploy_stage
+      - log-stage-deploy-start
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    strategy:
+      matrix:
+        issue: ${{ fromJson(needs.extract-issue.outputs.issues_json) }}
+      fail-fast: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Log stage deploy success (issue #${{ matrix.issue }})
+        uses: ./.github/actions-ts/claude-state-executor
+        with:
+          github_code_token: ${{ secrets.NOPO_BOT_PAT }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+          actions_json: |
+            [{
+              "type": "updateHistory",
+              "issueNumber": ${{ matrix.issue }},
+              "matchIteration": 0,
+              "matchPhase": "-",
+              "matchPattern": "⏳ Deploying to stage",
+              "newMessage": "✅ Deployed to stage",
               "commitSha": "${{ github.sha }}",
               "runLink": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }]
 
   # ============================================================================
-  # LOG: RELEASED TO PRODUCTION
-  # Calls executor directly with appendHistory action
+  # LOG: STAGE DEPLOY FAILED
+  # Updates the "⏳ Deploying to stage" entry to show failure
+  # ============================================================================
+  log-stage-deploy-failed:
+    if: always() && needs.deploy_stage.result == 'failure' && needs.extract-issue.outputs.has_issues == 'true'
+    needs:
+      - extract-issue
+      - deploy_stage
+      - log-stage-deploy-start
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    strategy:
+      matrix:
+        issue: ${{ fromJson(needs.extract-issue.outputs.issues_json) }}
+      fail-fast: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Log stage deploy failure (issue #${{ matrix.issue }})
+        uses: ./.github/actions-ts/claude-state-executor
+        with:
+          github_code_token: ${{ secrets.NOPO_BOT_PAT }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+          actions_json: |
+            [{
+              "type": "updateHistory",
+              "issueNumber": ${{ matrix.issue }},
+              "matchIteration": 0,
+              "matchPhase": "-",
+              "matchPattern": "⏳ Deploying to stage",
+              "newMessage": "❌ Stage deploy failed",
+              "runLink": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }]
+
+  # ============================================================================
+  # LOG: PROD DEPLOY SUCCESS
+  # Updates the "⏳ Deploying to prod" entry to show success
   # ============================================================================
   log-released:
     if: always() && needs.deploy_prod.result == 'success' && needs.extract-issue.outputs.has_issues == 'true'
     needs:
       - extract-issue
       - deploy_prod
+      - log-prod-deploy-start
     runs-on: ubuntu-latest
     permissions:
       issues: write
@@ -410,18 +535,61 @@ jobs:
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
           actions_json: |
             [{
-              "type": "appendHistory",
+              "type": "updateHistory",
               "issueNumber": ${{ matrix.issue }},
-              "iteration": 0,
-              "phase": "-",
-              "message": "🚢 Released to production",
+              "matchIteration": 0,
+              "matchPhase": "-",
+              "matchPattern": "⏳ Deploying to prod",
+              "newMessage": "✅ Released to production",
               "commitSha": "${{ github.sha }}",
               "runLink": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }]
 
   # ============================================================================
-  # LOG: REMOVED FROM QUEUE (merge_group failure or cancellation)
-  # Calls executor directly with updateHistory action
+  # LOG: PROD DEPLOY FAILED
+  # Updates the "⏳ Deploying to prod" entry to show failure
+  # ============================================================================
+  log-prod-deploy-failed:
+    if: always() && needs.deploy_prod.result == 'failure' && needs.extract-issue.outputs.has_issues == 'true'
+    needs:
+      - extract-issue
+      - deploy_prod
+      - log-prod-deploy-start
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    strategy:
+      matrix:
+        issue: ${{ fromJson(needs.extract-issue.outputs.issues_json) }}
+      fail-fast: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Log prod deploy failure (issue #${{ matrix.issue }})
+        uses: ./.github/actions-ts/claude-state-executor
+        with:
+          github_code_token: ${{ secrets.NOPO_BOT_PAT }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+          actions_json: |
+            [{
+              "type": "updateHistory",
+              "issueNumber": ${{ matrix.issue }},
+              "matchIteration": 0,
+              "matchPhase": "-",
+              "matchPattern": "⏳ Deploying to prod",
+              "newMessage": "❌ Prod deploy failed",
+              "runLink": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }]
+
+  # ============================================================================
+  # LOG: REMOVED FROM QUEUE (merge_group failure)
+  # Appends entry when PR is removed from queue due to failure
   # ============================================================================
   log-queue-failure:
     if: >-
@@ -458,12 +626,11 @@ jobs:
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
           actions_json: |
             [{
-              "type": "updateHistory",
+              "type": "appendHistory",
               "issueNumber": ${{ matrix.issue }},
-              "matchIteration": 0,
-              "matchPhase": "-",
-              "matchPattern": "⏳ Merge queue",
-              "newMessage": "❌ Merge queue",
+              "iteration": 0,
+              "phase": "-",
+              "message": "❌ Removed from queue",
               "runLink": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }]
 

@@ -32751,7 +32751,7 @@ function emitMergeQueueEntry({ context: context2 }) {
       issueNumber,
       iteration,
       phase,
-      message: "\u23F3 Merge queue",
+      message: "\u{1F680} Entered queue",
       timestamp: context2.workflowStartedAt ?? void 0,
       runLink: context2.ciRunUrl ?? void 0
     }
@@ -32765,13 +32765,12 @@ function emitMergeQueueFailure({
   const iteration = context2.issue.iteration ?? 0;
   return [
     {
-      type: "updateHistory",
+      type: "appendHistory",
       token: "code",
       issueNumber,
-      matchIteration: iteration,
-      matchPhase: phase,
-      matchPattern: "\u23F3 Merge queue",
-      newMessage: "\u274C Merge queue",
+      iteration,
+      phase,
+      message: "\u274C Removed from queue",
       timestamp: context2.workflowStartedAt ?? void 0,
       runLink: context2.ciRunUrl ?? void 0
     }
@@ -32783,13 +32782,12 @@ function emitMerged({ context: context2 }) {
   const iteration = context2.issue.iteration ?? 0;
   return [
     {
-      type: "updateHistory",
+      type: "appendHistory",
       token: "code",
       issueNumber,
-      matchIteration: iteration,
-      matchPhase: phase,
-      matchPattern: "\u23F3 Merge queue",
-      newMessage: "\u{1F6A2} Merge queue",
+      iteration,
+      phase,
+      message: "\u{1F6A2} Merged",
       timestamp: context2.workflowStartedAt ?? void 0,
       commitSha: context2.ciCommitSha ?? void 0,
       runLink: context2.ciRunUrl ?? void 0
@@ -32807,7 +32805,7 @@ function emitDeployedStage({ context: context2 }) {
       issueNumber,
       iteration,
       phase,
-      message: "\u{1F9EA} Deployed to stage",
+      message: "\u2705 Deployed to stage",
       timestamp: context2.workflowStartedAt ?? void 0,
       commitSha: context2.ciCommitSha ?? void 0,
       runLink: context2.ciRunUrl ?? void 0
@@ -32825,7 +32823,7 @@ function emitDeployedProd({ context: context2 }) {
       issueNumber,
       iteration,
       phase,
-      message: "\u{1F6A2} Released to production",
+      message: "\u2705 Released to production",
       timestamp: context2.workflowStartedAt ?? void 0,
       commitSha: context2.ciCommitSha ?? void 0,
       runLink: context2.ciRunUrl ?? void 0
