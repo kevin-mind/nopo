@@ -6,6 +6,8 @@ export default {
     "packages/configs/**",
     "**/.react-router/**",
     "**/+types/**",
+    // Test feature files created by Claude automation
+    "test-feature-*/**",
   ],
   workspaces: {
     ".": {
