@@ -2,7 +2,7 @@
   "id": "claude-automation",
   "version": "1.0.0",
   "description": "Claude automation state machine for issue lifecycle management",
-  "generatedAt": "2026-01-23T17:16:15.466Z",
+  "generatedAt": "2026-01-23T17:25:17.692Z",
   "config": {
     "id": "claude-automation",
     "initial": "detecting",
@@ -212,7 +212,10 @@
         "always": [
           {
             "target": "orchestrating",
-            "guard": "reviewApproved"
+            "guard": "reviewApproved",
+            "actions": [
+              "mergePR"
+            ]
           },
           {
             "target": "iterating",

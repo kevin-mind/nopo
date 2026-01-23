@@ -338,6 +338,24 @@ export function emitRequestReview({ context }: ActionContext): ActionResult {
   ];
 }
 
+/**
+ * Emit action to merge PR
+ * Called when review is approved and PR is ready to merge
+ */
+export function emitMergePR({ context }: ActionContext): ActionResult {
+  if (!context.pr) {
+    return [];
+  }
+  return [
+    {
+      type: "mergePR",
+      token: "code",
+      prNumber: context.pr.number,
+      mergeMethod: "squash",
+    },
+  ];
+}
+
 // ============================================================================
 // Claude Actions
 // ============================================================================

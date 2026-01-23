@@ -24,6 +24,7 @@ import {
   emitMarkReady,
   emitRequestReview,
   emitConvertToDraft,
+  emitMergePR,
   emitTransitionToReview,
   emitHandleCIFailure,
   emitBlockIssue,
@@ -308,6 +309,10 @@ export const claudeMachine = setup({
           context.pendingActions,
           emitConvertToDraft({ context }),
         ),
+    }),
+    mergePR: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(context.pendingActions, emitMergePR({ context })),
     }),
     runClaudePRReview: assign({
       pendingActions: ({ context }) =>
@@ -678,10 +683,11 @@ export const claudeMachine = setup({
      */
     processingReview: {
       always: [
-        // Approved -> orchestrate (will advance phase or complete)
+        // Approved -> merge PR and orchestrate (will advance phase or complete)
         {
           target: "orchestrating",
           guard: "reviewApproved",
+          actions: ["mergePR"],
         },
         // Changes requested -> iterate to address
         // NOTE: setWorking is NOT included here because iterating entry already calls it

@@ -32324,6 +32324,19 @@ function emitRequestReview({ context: context2 }) {
     }
   ];
 }
+function emitMergePR({ context: context2 }) {
+  if (!context2.pr) {
+    return [];
+  }
+  return [
+    {
+      type: "mergePR",
+      token: "code",
+      prNumber: context2.pr.number,
+      mergeMethod: "squash"
+    }
+  ];
+}
 function buildIteratePromptVars(context2, ciResultOverride) {
   const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
   const issueTitle = context2.currentSubIssue?.title ?? context2.issue.title;
@@ -33276,6 +33289,9 @@ var claudeMachine = setup({
         emitConvertToDraft({ context: context2 })
       )
     }),
+    mergePR: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitMergePR({ context: context2 }))
+    }),
     runClaudePRReview: assign({
       pendingActions: ({ context: context2 }) => accumulateActions(
         context2.pendingActions,
@@ -33611,10 +33627,11 @@ var claudeMachine = setup({
      */
     processingReview: {
       always: [
-        // Approved -> orchestrate (will advance phase or complete)
+        // Approved -> merge PR and orchestrate (will advance phase or complete)
         {
           target: "orchestrating",
-          guard: "reviewApproved"
+          guard: "reviewApproved",
+          actions: ["mergePR"]
         },
         // Changes requested -> iterate to address
         // NOTE: setWorking is NOT included here because iterating entry already calls it
