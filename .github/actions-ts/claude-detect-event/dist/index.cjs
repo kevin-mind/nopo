@@ -24774,8 +24774,9 @@ async function handlePullRequestEvent(octokit, owner, repo) {
   }
   if (action === "review_requested") {
     const requestedReviewer = payload.requested_reviewer;
-    if (requestedReviewer.login !== "nopo-bot") {
-      return emptyResult(true, "Reviewer is not nopo-bot");
+    const validReviewers = ["nopo-bot", "nopo-reviewer"];
+    if (!validReviewers.includes(requestedReviewer.login)) {
+      return emptyResult(true, "Reviewer is not nopo-bot or nopo-reviewer");
     }
     if (pr.draft) {
       return emptyResult(true, "PR is a draft");
