@@ -280,11 +280,13 @@ export const RequestReviewActionSchema = BaseActionSchema.extend({
 export type RequestReviewAction = z.infer<typeof RequestReviewActionSchema>;
 
 /**
- * Merge a PR
+ * Mark a PR as ready for merge (human action required)
+ * Adds "ready-to-merge" label and updates iteration history
  */
 export const MergePRActionSchema = BaseActionSchema.extend({
   type: z.literal("mergePR"),
   prNumber: z.number().int().positive(),
+  issueNumber: z.number().int().positive(),
   mergeMethod: z.enum(["merge", "squash", "rebase"]).default("squash"),
 });
 

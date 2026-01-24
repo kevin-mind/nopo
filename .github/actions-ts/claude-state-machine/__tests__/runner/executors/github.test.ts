@@ -684,71 +684,129 @@ describe("executeMergePR", () => {
     ctx = createMockContext();
   });
 
-  test("merges PR with squash", async () => {
-    vi.mocked(ctx.octokit.rest.pulls.merge).mockResolvedValueOnce({
-      data: { merged: true, sha: "merge-sha-123" },
-    } as never);
+  test("marks PR as ready for merge by adding label and history entry", async () => {
+    const existingBody = "## Description\n\nSome text";
+
+    // Mock adding label
+    vi.mocked(ctx.octokit.rest.issues.addLabels).mockResolvedValueOnce(
+      {} as never,
+    );
+
+    // Mock getting issue body
+    vi.mocked(ctx.octokit.graphql).mockResolvedValueOnce({
+      repository: {
+        issue: {
+          id: "issue-id",
+          body: existingBody,
+        },
+      },
+    });
+
+    // Mock updating issue body
+    vi.mocked(ctx.octokit.rest.issues.update).mockResolvedValueOnce(
+      {} as never,
+    );
 
     const action: MergePRAction = {
       type: "mergePR",
       token: "code",
       prNumber: 42,
+      issueNumber: 123,
       mergeMethod: "squash",
     };
 
     const result = await executeMergePR(action, ctx);
 
-    expect(result.merged).toBe(true);
-    expect(result.sha).toBe("merge-sha-123");
-    expect(ctx.octokit.rest.pulls.merge).toHaveBeenCalledWith({
+    expect(result.markedReady).toBe(true);
+
+    // Should add "ready-to-merge" label
+    expect(ctx.octokit.rest.issues.addLabels).toHaveBeenCalledWith({
       owner: "test-owner",
       repo: "test-repo",
-      pull_number: 42,
-      merge_method: "squash",
+      issue_number: 42, // PRs use issue numbers for labels
+      labels: ["ready-to-merge"],
     });
+
+    // Should update issue body with history entry
+    expect(ctx.octokit.rest.issues.update).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      issue_number: 123,
+      body: expect.stringContaining("## Iteration History"),
+    });
+
+    // Should NOT actually merge the PR
+    expect(ctx.octokit.rest.pulls.merge).not.toHaveBeenCalled();
   });
 
-  test("merges PR with merge method", async () => {
-    vi.mocked(ctx.octokit.rest.pulls.merge).mockResolvedValueOnce({
-      data: { merged: true, sha: "merge-sha-456" },
-    } as never);
+  test("continues even if label addition fails", async () => {
+    const existingBody = "## Description\n\nSome text";
+
+    // Mock label addition failure
+    vi.mocked(ctx.octokit.rest.issues.addLabels).mockRejectedValueOnce(
+      new Error("Label error"),
+    );
+
+    // Mock getting issue body
+    vi.mocked(ctx.octokit.graphql).mockResolvedValueOnce({
+      repository: {
+        issue: {
+          id: "issue-id",
+          body: existingBody,
+        },
+      },
+    });
+
+    // Mock updating issue body
+    vi.mocked(ctx.octokit.rest.issues.update).mockResolvedValueOnce(
+      {} as never,
+    );
 
     const action: MergePRAction = {
       type: "mergePR",
       token: "code",
       prNumber: 42,
-      mergeMethod: "merge",
+      issueNumber: 123,
+      mergeMethod: "squash",
     };
 
-    await executeMergePR(action, ctx);
+    const result = await executeMergePR(action, ctx);
 
-    expect(ctx.octokit.rest.pulls.merge).toHaveBeenCalledWith({
-      owner: "test-owner",
-      repo: "test-repo",
-      pull_number: 42,
-      merge_method: "merge",
-    });
+    // Should still succeed and update history
+    expect(result.markedReady).toBe(true);
+    expect(ctx.octokit.rest.issues.update).toHaveBeenCalled();
   });
 
-  test("merges PR with rebase", async () => {
-    vi.mocked(ctx.octokit.rest.pulls.merge).mockResolvedValueOnce({
-      data: { merged: true, sha: "rebase-sha-789" },
-    } as never);
+  test("includes run link in history entry when available", async () => {
+    const existingBody = "## Description\n\nSome text";
+    ctx.runUrl = "https://github.com/owner/repo/actions/runs/12345";
+
+    vi.mocked(ctx.octokit.rest.issues.addLabels).mockResolvedValueOnce(
+      {} as never,
+    );
+    vi.mocked(ctx.octokit.graphql).mockResolvedValueOnce({
+      repository: {
+        issue: {
+          id: "issue-id",
+          body: existingBody,
+        },
+      },
+    });
+    vi.mocked(ctx.octokit.rest.issues.update).mockResolvedValueOnce(
+      {} as never,
+    );
 
     const action: MergePRAction = {
       type: "mergePR",
       token: "code",
       prNumber: 42,
-      mergeMethod: "rebase",
+      issueNumber: 123,
+      mergeMethod: "squash",
     };
 
     await executeMergePR(action, ctx);
 
-    expect(ctx.octokit.rest.pulls.merge).toHaveBeenCalledWith({
-      owner: "test-owner",
-      repo: "test-repo",
-      pull_number: 42,
-      merge_method: "rebase",
-    });
+    const updateCall = vi.mocked(ctx.octokit.rest.issues.update).mock.calls[0];
+    expect(updateCall?.[0]?.body).toContain("🔀 Ready for merge");
   });
 });

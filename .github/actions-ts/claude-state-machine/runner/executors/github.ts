@@ -653,21 +653,72 @@ export async function executeRequestReview(
 }
 
 /**
- * Merge a PR
+ * Mark a PR as ready for merge
+ *
+ * This does NOT actually merge the PR - merging is a human action.
+ * Instead, it:
+ * 1. Adds a "ready-to-merge" label to the PR
+ * 2. Adds an iteration history entry indicating readiness
+ *
+ * The E2E test runner has its own logic to simulate the human merge action.
  */
 export async function executeMergePR(
   action: MergePRAction,
   ctx: RunnerContext,
-): Promise<{ merged: boolean; sha: string }> {
-  const response = await ctx.octokit.rest.pulls.merge({
+): Promise<{ markedReady: boolean }> {
+  const label = "ready-to-merge";
+
+  // Add "ready-to-merge" label to the PR
+  try {
+    await ctx.octokit.rest.issues.addLabels({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: action.prNumber, // PRs use issue numbers for labels
+      labels: [label],
+    });
+    core.info(`Added "${label}" label to PR #${action.prNumber}`);
+  } catch (error) {
+    core.warning(`Failed to add label: ${error}`);
+  }
+
+  // Get the issue body to add history entry
+  const response = await ctx.octokit.graphql<IssueBodyResponse>(
+    GET_ISSUE_BODY_QUERY,
+    {
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issueNumber: action.issueNumber,
+    },
+  );
+
+  const currentBody = response.repository?.issue?.body || "";
+  const repoUrl = `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}`;
+  const timestamp = new Date().toISOString();
+  const runLink = ctx.runUrl;
+
+  // Add history entry indicating PR is ready for merge
+  const newBody = addHistoryEntry(
+    currentBody,
+    0, // iteration (0 = orchestration level)
+    "-", // phase (dash = orchestration)
+    "🔀 Ready for merge",
+    timestamp,
+    undefined, // no SHA
+    runLink,
+    repoUrl,
+  );
+
+  await ctx.octokit.rest.issues.update({
     owner: ctx.owner,
     repo: ctx.repo,
-    pull_number: action.prNumber,
-    merge_method: action.mergeMethod,
+    issue_number: action.issueNumber,
+    body: newBody,
   });
 
-  core.info(`Merged PR #${action.prNumber}`);
-  return { merged: response.data.merged, sha: response.data.sha };
+  core.info(
+    `PR #${action.prNumber} marked ready for merge (human action required)`,
+  );
+  return { markedReady: true };
 }
 
 /**

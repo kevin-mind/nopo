@@ -1,0 +1,75 @@
+name: 'Claude Test Runner'
+description: 'Intelligent E2E test runner with state prediction, exponential backoff polling, and self-healing diagnostics'
+
+inputs:
+  action:
+    description: 'Action to perform: run | diagnose | wait | status | validate'
+    required: true
+  fixture_json:
+    description: 'Test fixture JSON configuration'
+    required: false
+  issue_number:
+    description: 'Issue number to test'
+    required: true
+  github_token:
+    description: 'GitHub token with repo and project access'
+    required: true
+  project_number:
+    description: 'GitHub Project number'
+    required: false
+    default: '1'
+  target_status:
+    description: 'Target status to wait for (for wait action)'
+    required: false
+  timeout:
+    description: 'Timeout in seconds (default: 300)'
+    required: false
+    default: '300'
+  cleanup_on_failure:
+    description: 'Whether to trigger cleanup on test failure'
+    required: false
+    default: 'false'
+
+outputs:
+  status:
+    description: 'Result status: done | timeout | error'
+  suggested_fix:
+    description: 'Actionable fix suggestion if test failed'
+  diagnosis:
+    description: 'Detailed failure analysis'
+  phases_completed:
+    description: 'Number of phases completed successfully'
+  total_duration_ms:
+    description: 'Total test duration in milliseconds'
+  # Additional outputs for status action
+  iteration:
+    description: 'Current iteration count'
+  failures:
+    description: 'Current failure count'
+  bot_assigned:
+    description: 'Whether nopo-bot is assigned'
+  pr_number:
+    description: 'PR number if exists'
+  pr_state:
+    description: 'PR state if exists'
+  branch_exists:
+    description: 'Whether the issue branch exists'
+  unchecked_todos:
+    description: 'Number of unchecked todos'
+  predicted_state:
+    description: 'Predicted next state'
+  predicted_status:
+    description: 'Predicted next status'
+  workflow_status:
+    description: 'Latest workflow run status'
+  # Validate action outputs
+  valid:
+    description: 'Whether fixture is valid (for validate action)'
+  errors:
+    description: 'Validation errors (for validate action)'
+  warnings:
+    description: 'Validation warnings (for validate action)'
+
+runs:
+  using: node20
+  main: dist/index.cjs
