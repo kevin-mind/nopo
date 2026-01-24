@@ -17,7 +17,6 @@ import {
 } from "../lib/index.js";
 import type { TestFixture } from "./src/types.js";
 import { runTest, diagnose, waitForStatus } from "./src/runner.js";
-import { formatDiagnosis } from "./src/diagnostics.js";
 import { validateFixture, formatValidationResult } from "./src/validate.js";
 import {
   fetchGitHubState,
@@ -25,7 +24,6 @@ import {
   buildContextFromState,
 } from "./src/github-state.js";
 import { predictNextState } from "./src/predictor.js";
-import { diagnoseFailure } from "./src/diagnostics.js";
 
 /**
  * Trigger cleanup for an issue when test fails

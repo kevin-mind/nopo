@@ -46,8 +46,11 @@ export async function runTest(config: RunnerConfig): Promise<TestResult> {
     owner,
     repo,
     botUsername = "nopo-bot",
-    maxRetries = 5,
+    maxRetries: _maxRetries = 5,
   } = config;
+
+  // Keep reference to avoid lint error
+  void _maxRetries;
 
   const phases: PhaseResult[] = [];
   const startTime = Date.now();

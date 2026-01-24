@@ -39,7 +39,7 @@ const GUARD_FIXES: Record<
     reason: "PR has not been approved",
     fix: "Request review and get approval from nopo-reviewer",
   }),
-  botIsAssigned: (state) => ({
+  botIsAssigned: (_state) => ({
     reason: `nopo-bot is not assigned (assignees: none visible)`,
     fix: "Assign nopo-bot to the issue to trigger automation",
   }),

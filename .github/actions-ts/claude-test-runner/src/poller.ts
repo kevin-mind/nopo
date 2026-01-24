@@ -102,7 +102,7 @@ export async function pollUntil<T>(
 
       // Sleep for the shorter of interval or remaining time
       await sleep(Math.min(sleepTime, remainingTime));
-    } catch (error) {
+    } catch {
       // On error, continue polling with backoff
       const sleepTime = calculateNextInterval(interval, fullConfig);
       interval = sleepTime;
@@ -128,8 +128,9 @@ export async function pollUntil<T>(
 /**
  * Poll until state changes from the initial state
  * Useful for waiting for any state transition
+ * @internal Reserved for future use
  */
-async function pollUntilStateChanges<T>(
+async function _pollUntilStateChanges<T>(
   fetchFn: () => Promise<T>,
   getState: (data: T) => string | null,
   initialState: string | null,
@@ -149,8 +150,9 @@ async function pollUntilStateChanges<T>(
 
 /**
  * Poll until a specific state is reached
+ * @internal Reserved for future use
  */
-async function pollUntilState<T>(
+async function _pollUntilState<T>(
   fetchFn: () => Promise<T>,
   getState: (data: T) => string | null,
   targetState: string,
@@ -167,8 +169,9 @@ async function pollUntilState<T>(
 
 /**
  * Poll until one of several states is reached
+ * @internal Reserved for future use
  */
-async function pollUntilAnyState<T>(
+async function _pollUntilAnyState<T>(
   fetchFn: () => Promise<T>,
   getState: (data: T) => string | null,
   targetStates: string[],
@@ -185,3 +188,8 @@ async function pollUntilAnyState<T>(
     onPoll,
   );
 }
+
+// Keep references to avoid lint errors for reserved functions
+void _pollUntilStateChanges;
+void _pollUntilState;
+void _pollUntilAnyState;

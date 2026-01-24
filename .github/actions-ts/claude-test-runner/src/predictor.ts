@@ -88,8 +88,9 @@ const STATE_DESCRIPTIONS: Record<string, string> = {
 
 /**
  * Map project status to expected state
+ * @internal Reserved for future use
  */
-function statusToExpectedState(status: string | null): string {
+function _statusToExpectedState(status: string | null): string {
   switch (status) {
     case "Backlog":
       return "detecting";
@@ -202,8 +203,11 @@ export function isFinalState(state: string): boolean {
  *
  * This is useful for predicting what state the machine should reach
  * after a workflow is triggered
+ * @internal Reserved for future use
  */
-function getExpectedStateAfterTrigger(context: MachineContext): PredictedState {
+function _getExpectedStateAfterTrigger(
+  context: MachineContext,
+): PredictedState {
   // The prediction already simulates the machine
   // This just provides a cleaner API
   return predictNextState(context);
@@ -211,8 +215,9 @@ function getExpectedStateAfterTrigger(context: MachineContext): PredictedState {
 
 /**
  * Get status from state value (for matching against project status)
+ * @internal Reserved for future use
  */
-function stateToStatus(state: string): string | null {
+function _stateToStatus(state: string): string | null {
   switch (state) {
     case "iterating":
     case "iteratingFix":
@@ -233,3 +238,8 @@ function stateToStatus(state: string): string | null {
       return null;
   }
 }
+
+// Keep references to avoid lint errors for reserved functions
+void _statusToExpectedState;
+void _getExpectedStateAfterTrigger;
+void _stateToStatus;

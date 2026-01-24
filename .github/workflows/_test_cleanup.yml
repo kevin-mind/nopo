@@ -1,0 +1,72 @@
+# Test cleanup workflow
+#
+# Called by claude-test-runner when tests fail to clean up test issues
+# Can also be triggered manually for cleanup
+
+name: Test Cleanup
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number to clean up'
+        required: true
+        type: string
+      action:
+        description: 'Cleanup action: close | cleanup | delete'
+        required: false
+        default: 'close'
+        type: choice
+        options:
+          - close
+          - cleanup
+          - delete
+
+  # Allow calling from other workflows
+  workflow_call:
+    inputs:
+      issue_number:
+        description: 'Issue number to clean up'
+        required: true
+        type: string
+      action:
+        description: 'Cleanup action: close | cleanup | delete'
+        required: false
+        default: 'close'
+        type: string
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+          cache-dependency-path: '.github/actions-ts/package-lock.json'
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: .github/actions-ts
+
+      - name: Run cleanup
+        uses: ./.github/actions-ts/claude-test-helper
+        with:
+          action: ${{ inputs.action }}
+          issue_number: ${{ inputs.issue_number }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+
+      - name: Report result
+        run: |
+          echo "Cleanup complete for issue #${{ inputs.issue_number }}"
+          echo "Action: ${{ inputs.action }}"

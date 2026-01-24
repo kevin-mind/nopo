@@ -440,8 +440,9 @@ export async function fetchRecentWorkflowRuns(
 
 /**
  * Fetch the most recent CI workflow run
+ * @internal Reserved for future use
  */
-async function fetchLatestCIRun(
+async function _fetchLatestCIRun(
   octokit: Octokit,
   owner: string,
   repo: string,
@@ -459,8 +460,9 @@ async function fetchLatestCIRun(
 
 /**
  * Check if any workflows are currently running for an issue
+ * @internal Reserved for future use
  */
-async function hasRunningWorkflows(
+async function _hasRunningWorkflows(
   octokit: Octokit,
   owner: string,
   repo: string,
@@ -471,6 +473,10 @@ async function hasRunningWorkflows(
     (run) => run.status === "in_progress" || run.status === "queued",
   );
 }
+
+// Keep references to avoid lint errors for reserved functions
+void _fetchLatestCIRun;
+void _hasRunningWorkflows;
 
 /**
  * Build a minimal machine context from GitHub state

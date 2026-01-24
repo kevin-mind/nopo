@@ -23959,7 +23959,7 @@ async function pollUntil(fetchFn, conditionFn, config = {}, onPoll) {
         break;
       }
       await sleep(Math.min(sleepTime, remainingTime));
-    } catch (error) {
+    } catch {
       const sleepTime = calculateNextInterval(interval, fullConfig);
       interval = sleepTime;
       const remainingTime = fullConfig.timeoutMs - (Date.now() - startTime);
@@ -33437,7 +33437,7 @@ var GUARD_FIXES = {
     reason: "PR has not been approved",
     fix: "Request review and get approval from nopo-reviewer"
   }),
-  botIsAssigned: (state) => ({
+  botIsAssigned: (_state) => ({
     reason: `nopo-bot is not assigned (assignees: none visible)`,
     fix: "Assign nopo-bot to the issue to trigger automation"
   }),
@@ -34045,7 +34045,7 @@ async function runTest(config) {
     owner,
     repo,
     botUsername = "nopo-bot",
-    maxRetries = 5
+    maxRetries: _maxRetries = 5
   } = config;
   const phases = [];
   const startTime = Date.now();

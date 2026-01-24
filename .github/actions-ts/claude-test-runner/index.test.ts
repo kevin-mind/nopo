@@ -1,12 +1,8 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { pollUntil, DEFAULT_POLLER_CONFIG } from "./src/poller.js";
-import {
-  predictNextState,
-  isTerminalState,
-  isFinalState,
-} from "./src/predictor.js";
+import { pollUntil } from "./src/poller.js";
+import { isTerminalState, isFinalState } from "./src/predictor.js";
 import { diagnoseFailure, formatDiagnosis } from "./src/diagnostics.js";
 import { deriveBranchName, buildContextFromState } from "./src/github-state.js";
 import {
