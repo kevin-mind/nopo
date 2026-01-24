@@ -105,7 +105,7 @@ stateDiagram-v2
 | `processingCI` | Handles CI completion events | None |
 | `processingReview` | Handles review submission events | None |
 | `awaitingMerge` | PR approved, waiting for human to merge | `logAwaitingMerge` |
-| `processingMerge` | Handles PR merged events | `logMerged`, `setDone`, `closeIssue` |
+| `processingMerge` | Handles PR merged events | `logMerged`, `setDone` |
 | `transitioningToReview` | Transitions from working to review | `transitionToReview` |
 | `iterating` | Claude is working on implementation | `setWorking`, `incrementIteration`, `runClaude` |
 | `iteratingFix` | Claude is fixing CI failures | `incrementIteration`, `runClaudeFixCI` |

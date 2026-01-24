@@ -723,10 +723,11 @@ export const claudeMachine = setup({
 
     /**
      * Processing a merged PR
-     * Closes the sub-issue and advances to orchestrating
+     * Sets status to Done and advances to orchestrating
+     * Note: Issue is auto-closed by GitHub via "Fixes #N" in PR body
      */
     processingMerge: {
-      entry: ["logMerged", "setDone", "closeIssue"],
+      entry: ["logMerged", "setDone"],
       always: "orchestrating",
     },
 
