@@ -37,7 +37,7 @@ stateDiagram-v2
     detecting --> error: isError
     detecting --> mergeQueueLogging: triggeredByMergeQueueEntry
     detecting --> mergeQueueFailureLogging: triggeredByMergeQueueFailure
-    detecting --> mergedLogging: triggeredByPRMerged
+    detecting --> processingMerge: triggeredByPRMerged
     detecting --> deployedStageLogging: triggeredByDeployedStage
     detecting --> deployedProdLogging: triggeredByDeployedProd
     detecting --> triaging: triggeredByTriage
@@ -70,9 +70,10 @@ stateDiagram-v2
     processingCI --> blocked: shouldBlock
     processingCI --> iteratingFix: ciFailed
     processingCI --> iterating: always
-    processingReview --> orchestrating: reviewApproved
+    processingReview --> awaitingMerge: reviewApproved
     processingReview --> iterating: reviewRequestedChanges
     processingReview --> reviewing: always
+    awaitingMerge --> [*]: final
     iterating --> transitioningToReview: todosDone
     iterating --> iterating
     iterating --> blocked: maxFailuresReached
