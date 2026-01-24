@@ -296,9 +296,15 @@ jobs:
               exit 1
             fi
 
-            # Get full issue state - use --jq for compact JSON output
-            issue_json=$(gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
-              --json state,title,body,labels,assignees,projectItems --jq '.' 2>/dev/null || echo '{}')
+            # Get full issue state - pipe through jq -c for compact JSON
+            issue_tmp=$(mktemp)
+            if gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
+              --json state,title,body,labels,assignees,projectItems 2>/dev/null | jq -c '.' > "$issue_tmp" 2>/dev/null; then
+              issue_json=$(cat "$issue_tmp")
+            else
+              issue_json='{}'
+            fi
+            rm -f "$issue_tmp"
 
             # Validate issue_json before parsing
             if ! printf '%s' "$issue_json" | jq -e '.' >/dev/null 2>&1; then
@@ -494,9 +500,16 @@ jobs:
               break
             fi
 
-            # Get full issue details - use --jq to get compact JSON output
-            # gh --json outputs pretty-printed JSON which can cause issues when piped through echo
-            issue_json=$(gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --json state,title,body,labels,assignees,projectItems --jq '.' 2>/dev/null || echo '{}')
+            # Get full issue details
+            # Pipe through jq -c for compact single-line JSON
+            # Use temp file to avoid subshell variable scoping issues
+            issue_tmp=$(mktemp)
+            if gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --json state,title,body,labels,assignees,projectItems 2>/dev/null | jq -c '.' > "$issue_tmp" 2>/dev/null; then
+              issue_json=$(cat "$issue_tmp")
+            else
+              issue_json='{}'
+            fi
+            rm -f "$issue_tmp"
 
             # Debug: check if issue_json is valid before parsing
             if ! printf '%s' "$issue_json" | jq -e '.' >/dev/null 2>&1; then
@@ -526,8 +539,13 @@ jobs:
             fi
 
             # Search for PRs with ready-to-merge label
-            # Use --jq for compact output
-            pr_list=$(gh pr list --repo "$GITHUB_REPOSITORY" --label "ready-to-merge" --json number,state,body --jq '.' 2>/dev/null || echo '[]')
+            pr_tmp=$(mktemp)
+            if gh pr list --repo "$GITHUB_REPOSITORY" --label "ready-to-merge" --json number,state,body 2>/dev/null | jq -c '.' > "$pr_tmp" 2>/dev/null; then
+              pr_list=$(cat "$pr_tmp")
+            else
+              pr_list='[]'
+            fi
+            rm -f "$pr_tmp"
             for pr_row in $(printf '%s' "$pr_list" | jq -c '.[]'); do
               pr_num=$(printf '%s' "$pr_row" | jq -r '.number')
               pr_state=$(printf '%s' "$pr_row" | jq -r '.state')
