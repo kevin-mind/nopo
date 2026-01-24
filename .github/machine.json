@@ -1,14 +1,14 @@
 {
-  "name": "Claude Automation State Machine",
-  "description": "State machine for managing Claude automation workflow on GitHub issues",
-  "machine": {
+  "id": "claude-automation",
+  "version": "1.0.0",
+  "description": "Claude automation state machine for issue lifecycle management",
+  "generatedAt": "2026-01-24T20:50:43.247Z",
+  "config": {
     "id": "claude-automation",
     "initial": "detecting",
     "states": {
       "detecting": {
-        "entry": [
-          "logDetecting"
-        ],
+        "entry": "logDetecting",
         "always": [
           {
             "target": "done",
@@ -100,49 +100,45 @@
         ]
       },
       "triaging": {
-        "type": "final",
         "entry": [
           "logTriaging",
           "runClaudeTriage"
-        ]
+        ],
+        "type": "final"
       },
       "commenting": {
-        "type": "final",
         "entry": [
           "logCommenting",
           "runClaudeComment"
-        ]
+        ],
+        "type": "final"
       },
       "prReviewing": {
-        "type": "final",
         "entry": [
           "logPRReviewing",
           "runClaudePRReview"
-        ]
+        ],
+        "type": "final"
       },
       "prResponding": {
-        "type": "final",
         "entry": [
           "logPRResponding",
           "runClaudePRResponse"
-        ]
+        ],
+        "type": "final"
       },
       "prRespondingHuman": {
-        "type": "final",
         "entry": [
           "logPRResponding",
           "runClaudePRHumanResponse"
-        ]
+        ],
+        "type": "final"
       },
       "initializing": {
         "entry": [
           "setInProgress"
         ],
-        "always": [
-          {
-            "target": "orchestrating"
-          }
-        ]
+        "always": "orchestrating"
       },
       "orchestrating": {
         "entry": [
@@ -163,22 +159,22 @@
         ]
       },
       "orchestrationRunning": {
-        "type": "final",
         "entry": [
           "orchestrate"
-        ]
+        ],
+        "type": "final"
       },
       "orchestrationWaiting": {
-        "type": "final",
         "entry": [
           "logWaitingForReview"
-        ]
+        ],
+        "type": "final"
       },
       "orchestrationComplete": {
-        "type": "final",
         "entry": [
           "allPhasesDone"
-        ]
+        ],
+        "type": "final"
       },
       "processingCI": {
         "always": [
@@ -234,10 +230,10 @@
         ]
       },
       "awaitingMerge": {
-        "type": "final",
         "entry": [
           "logAwaitingMerge"
-        ]
+        ],
+        "type": "final"
       },
       "processingMerge": {
         "entry": [
@@ -245,24 +241,15 @@
           "setDone",
           "closeIssue"
         ],
-        "always": [
-          {
-            "target": "orchestrating"
-          }
-        ]
+        "always": "orchestrating"
       },
       "transitioningToReview": {
         "entry": [
           "transitionToReview"
         ],
-        "always": [
-          {
-            "target": "reviewing"
-          }
-        ]
+        "always": "reviewing"
       },
       "iterating": {
-        "type": "final",
         "entry": [
           "createBranch",
           "setWorking",
@@ -299,10 +286,10 @@
               ]
             }
           ]
-        }
+        },
+        "type": "final"
       },
       "iteratingFix": {
-        "type": "final",
         "entry": [
           "createBranch",
           "incrementIteration",
@@ -337,10 +324,10 @@
               ]
             }
           ]
-        }
+        },
+        "type": "final"
       },
       "reviewing": {
-        "type": "final",
         "entry": [
           "logReviewing"
         ],
@@ -353,7 +340,8 @@
             ]
           },
           "REVIEW_COMMENTED": "reviewing"
-        }
+        },
+        "type": "final"
       },
       "blocked": {
         "type": "final"
@@ -362,368 +350,42 @@
         "type": "final"
       },
       "mergeQueueLogging": {
-        "type": "final",
         "entry": [
           "logMergeQueueEntry"
-        ]
+        ],
+        "type": "final"
       },
       "mergeQueueFailureLogging": {
-        "type": "final",
         "entry": [
           "logMergeQueueFailure"
-        ]
+        ],
+        "type": "final"
       },
       "mergedLogging": {
-        "type": "final",
         "entry": [
           "logMerged"
-        ]
+        ],
+        "type": "final"
       },
       "deployedStageLogging": {
-        "type": "final",
         "entry": [
           "logDeployedStage"
-        ]
+        ],
+        "type": "final"
       },
       "deployedProdLogging": {
-        "type": "final",
         "entry": [
           "logDeployedProd"
-        ]
+        ],
+        "type": "final"
       },
       "done": {
-        "type": "final",
         "entry": [
           "setDone",
           "closeIssue"
-        ]
+        ],
+        "type": "final"
       }
     }
-  },
-  "meta": {
-    "guards": [
-      {
-        "name": "isAlreadyDone",
-        "description": "Check if issue Project Status is Done"
-      },
-      {
-        "name": "isBlocked",
-        "description": "Check if issue Project Status is Blocked"
-      },
-      {
-        "name": "isError",
-        "description": "Check if issue Project Status is Error"
-      },
-      {
-        "name": "needsSubIssues",
-        "description": "Check if issue needs sub-issues but has none"
-      },
-      {
-        "name": "hasSubIssues",
-        "description": "Check if issue has sub-issues"
-      },
-      {
-        "name": "isInReview",
-        "description": "Check if current context is in review state"
-      },
-      {
-        "name": "allPhasesDone",
-        "description": "Check if all sub-issues have Status = Done"
-      },
-      {
-        "name": "currentPhaseNeedsWork",
-        "description": "Check if current sub-issue needs work"
-      },
-      {
-        "name": "currentPhaseInReview",
-        "description": "Check if current sub-issue is in review"
-      },
-      {
-        "name": "todosDone",
-        "description": "Check if all non-manual todos are completed"
-      },
-      {
-        "name": "maxFailuresReached",
-        "description": "Check if failures >= maxRetries"
-      },
-      {
-        "name": "ciPassed",
-        "description": "Check if CI result is success"
-      },
-      {
-        "name": "ciFailed",
-        "description": "Check if CI result is failure"
-      },
-      {
-        "name": "reviewApproved",
-        "description": "Check if review decision is APPROVED"
-      },
-      {
-        "name": "reviewRequestedChanges",
-        "description": "Check if review decision is CHANGES_REQUESTED"
-      },
-      {
-        "name": "readyForReview",
-        "description": "Check if CI passed, todos done, and has PR"
-      },
-      {
-        "name": "shouldContinueIterating",
-        "description": "Check if should continue iterating"
-      },
-      {
-        "name": "shouldBlock",
-        "description": "Check if should trigger circuit breaker"
-      },
-      {
-        "name": "hasPR",
-        "description": "Check if PR exists for current issue"
-      },
-      {
-        "name": "prIsDraft",
-        "description": "Check if PR is in draft state"
-      },
-      {
-        "name": "hasBranch",
-        "description": "Check if branch exists for current issue"
-      },
-      {
-        "name": "triggeredByCI",
-        "description": "Check if event triggered by workflow_run_completed"
-      },
-      {
-        "name": "triggeredByReview",
-        "description": "Check if event triggered by pr_review_submitted"
-      },
-      {
-        "name": "triggeredByTriage",
-        "description": "Guard: triggeredByTriage"
-      },
-      {
-        "name": "triggeredByComment",
-        "description": "Guard: triggeredByComment"
-      },
-      {
-        "name": "triggeredByOrchestrate",
-        "description": "Guard: triggeredByOrchestrate"
-      },
-      {
-        "name": "triggeredByPRReview",
-        "description": "Guard: triggeredByPRReview"
-      },
-      {
-        "name": "triggeredByPRResponse",
-        "description": "Guard: triggeredByPRResponse"
-      },
-      {
-        "name": "triggeredByPRHumanResponse",
-        "description": "Guard: triggeredByPRHumanResponse"
-      },
-      {
-        "name": "triggeredByPRReviewApproved",
-        "description": "Guard: triggeredByPRReviewApproved"
-      },
-      {
-        "name": "triggeredByMergeQueueEntry",
-        "description": "Guard: triggeredByMergeQueueEntry"
-      },
-      {
-        "name": "triggeredByMergeQueueFailure",
-        "description": "Guard: triggeredByMergeQueueFailure"
-      },
-      {
-        "name": "triggeredByPRMerged",
-        "description": "Guard: triggeredByPRMerged"
-      },
-      {
-        "name": "triggeredByDeployedStage",
-        "description": "Guard: triggeredByDeployedStage"
-      },
-      {
-        "name": "triggeredByDeployedProd",
-        "description": "Guard: triggeredByDeployedProd"
-      },
-      {
-        "name": "needsTriage",
-        "description": "Guard: needsTriage"
-      }
-    ],
-    "actions": [
-      {
-        "name": "logDetecting",
-        "description": "Log that machine is detecting initial state"
-      },
-      {
-        "name": "logIterating",
-        "description": "Log that machine is starting iteration"
-      },
-      {
-        "name": "logReviewing",
-        "description": "Log that PR is under review"
-      },
-      {
-        "name": "logTriaging",
-        "description": "Action: logTriaging"
-      },
-      {
-        "name": "logCommenting",
-        "description": "Action: logCommenting"
-      },
-      {
-        "name": "logWaitingForReview",
-        "description": "Action: logWaitingForReview"
-      },
-      {
-        "name": "logAwaitingMerge",
-        "description": "Action: logAwaitingMerge"
-      },
-      {
-        "name": "setWorking",
-        "description": "Set Project Status to In progress"
-      },
-      {
-        "name": "setReview",
-        "description": "Set Project Status to Review"
-      },
-      {
-        "name": "setInProgress",
-        "description": "Set Project Status to In Progress"
-      },
-      {
-        "name": "setDone",
-        "description": "Set Project Status to Done"
-      },
-      {
-        "name": "setBlocked",
-        "description": "Set Project Status to Blocked"
-      },
-      {
-        "name": "incrementIteration",
-        "description": "Increment Iteration counter"
-      },
-      {
-        "name": "recordFailure",
-        "description": "Increment Failures counter"
-      },
-      {
-        "name": "clearFailures",
-        "description": "Reset Failures to 0"
-      },
-      {
-        "name": "closeIssue",
-        "description": "Close the issue as completed"
-      },
-      {
-        "name": "unassign",
-        "description": "Unassign the bot from the issue"
-      },
-      {
-        "name": "createBranch",
-        "description": "Action: createBranch"
-      },
-      {
-        "name": "runClaude",
-        "description": "Run Claude CLI for implementation"
-      },
-      {
-        "name": "runClaudeFixCI",
-        "description": "Run Claude CLI to fix CI failures"
-      },
-      {
-        "name": "runClaudeTriage",
-        "description": "Action: runClaudeTriage"
-      },
-      {
-        "name": "runClaudeComment",
-        "description": "Action: runClaudeComment"
-      },
-      {
-        "name": "createPR",
-        "description": "Action: createPR"
-      },
-      {
-        "name": "markPRReady",
-        "description": "Mark PR as ready for review"
-      },
-      {
-        "name": "requestReview",
-        "description": "Request reviewer on PR"
-      },
-      {
-        "name": "convertToDraft",
-        "description": "Convert PR to draft state"
-      },
-      {
-        "name": "mergePR",
-        "description": "Action: mergePR"
-      },
-      {
-        "name": "runClaudePRReview",
-        "description": "Action: runClaudePRReview"
-      },
-      {
-        "name": "runClaudePRResponse",
-        "description": "Action: runClaudePRResponse"
-      },
-      {
-        "name": "runClaudePRHumanResponse",
-        "description": "Action: runClaudePRHumanResponse"
-      },
-      {
-        "name": "logPRReviewing",
-        "description": "Action: logPRReviewing"
-      },
-      {
-        "name": "logPRResponding",
-        "description": "Action: logPRResponding"
-      },
-      {
-        "name": "transitionToReview",
-        "description": "Transition to review state (mark ready, request review)"
-      },
-      {
-        "name": "handleCIFailure",
-        "description": "Handle CI failure (record failure, run fix)"
-      },
-      {
-        "name": "blockIssue",
-        "description": "Block issue (set blocked, unassign)"
-      },
-      {
-        "name": "orchestrate",
-        "description": "Action: orchestrate"
-      },
-      {
-        "name": "allPhasesDone",
-        "description": "Action: allPhasesDone"
-      },
-      {
-        "name": "logOrchestrating",
-        "description": "Action: logOrchestrating"
-      },
-      {
-        "name": "stopWithReason",
-        "description": "Stop execution with reason"
-      },
-      {
-        "name": "logMergeQueueEntry",
-        "description": "Action: logMergeQueueEntry"
-      },
-      {
-        "name": "logMergeQueueFailure",
-        "description": "Action: logMergeQueueFailure"
-      },
-      {
-        "name": "logMerged",
-        "description": "Action: logMerged"
-      },
-      {
-        "name": "logDeployedStage",
-        "description": "Action: logDeployedStage"
-      },
-      {
-        "name": "logDeployedProd",
-        "description": "Action: logDeployedProd"
-      }
-    ]
   }
 }
