@@ -77,8 +77,9 @@ jobs:
             exit 1
           fi
 
-          # Read and output as single line JSON
-          fixture=$(cat "$fixture_file" | jq -c '.')
+          # Read fixture and base64 encode to avoid delimiter issues
+          # GitHub Actions has issues with special characters in outputs
+          fixture=$(cat "$fixture_file" | jq -c '.' | base64 -w0)
           echo "fixture=$fixture" >> $GITHUB_OUTPUT
           echo "Loaded fixture: ${{ inputs.test_name }}"
 
@@ -174,8 +175,11 @@ jobs:
       - name: Determine trigger type and context
         id: trigger
         env:
-          FIXTURE_JSON: ${{ needs.load-fixture.outputs.fixture }}
+          FIXTURE_B64: ${{ needs.load-fixture.outputs.fixture }}
         run: |
+          # Decode base64 fixture
+          FIXTURE_JSON=$(echo "$FIXTURE_B64" | base64 -d)
+
           # Extract trigger type from fixture or default based on job_type
           job_type=$(echo "$FIXTURE_JSON" | jq -r '.job_type // "issue-iterate"')
           trigger=$(echo "$FIXTURE_JSON" | jq -r '.trigger // empty')
@@ -391,9 +395,12 @@ jobs:
         env:
           ISSUE_NUMBER: ${{ needs.setup.outputs.issue_number }}
           SUB_ISSUE_NUMBERS: ${{ needs.setup.outputs.sub_issue_numbers }}
-          FIXTURE_JSON: ${{ needs.load-fixture.outputs.fixture }}
+          FIXTURE_B64: ${{ needs.load-fixture.outputs.fixture }}
           GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
         run: |
+          # Decode base64 fixture
+          FIXTURE_JSON=$(echo "$FIXTURE_B64" | base64 -d)
+
           timeout=$(echo "$FIXTURE_JSON" | jq -r '.timeout // 300')
           poll_interval=$(echo "$FIXTURE_JSON" | jq -r '.poll_interval // 10')
 
@@ -698,8 +705,11 @@ jobs:
           ACTIONS_JSON: ${{ needs.run-dry-run.outputs.actions_json }}
           FINAL_STATE: ${{ needs.run-dry-run.outputs.final_state }}
           ACTION_COUNT: ${{ needs.run-dry-run.outputs.action_count }}
-          FIXTURE_JSON: ${{ needs.load-fixture.outputs.fixture }}
+          FIXTURE_B64: ${{ needs.load-fixture.outputs.fixture }}
         run: |
+          # Decode base64 fixture
+          FIXTURE_JSON=$(echo "$FIXTURE_B64" | base64 -d)
+
           errors=""
           passed="true"
 
