@@ -520,6 +520,11 @@ jobs:
             # Parse history from body
             history=$(parse_history "$body")
 
+            # Debug: validate inputs before building state object
+            echo "::debug::labels=$labels"
+            echo "::debug::assignees=$assignees"
+            echo "::debug::history=$history"
+
             # Build state object
             state_obj=$(jq -n \
               --arg elapsed "${elapsed}s" \
