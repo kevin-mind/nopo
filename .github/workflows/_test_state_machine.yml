@@ -399,36 +399,44 @@ jobs:
 
           # Parse history table from issue body into JSON array
           # Table format: | Time | # | Phase | Action | SHA | Run |
-          # Returns JSON array of history entries
+          # Returns JSON array of history entries (always valid JSON)
           parse_history() {
             local body="$1"
-            local tmpfile
-            tmpfile=$(mktemp)
 
-            # Extract table rows (skip header and separator)
-            echo "$body" | grep -E '^\|[^-]' | grep -v 'Time' > "$tmpfile" || true
+            # Approach: use jq to build the array directly from extracted data
+            # This avoids all the shell/subshell issues
 
-            # Build JSON array from rows
-            local result="[]"
-            while IFS='|' read -r _ time iter phase action sha run _; do
-              # Trim whitespace
-              iter=$(echo "$iter" | xargs 2>/dev/null || echo "")
-              phase=$(echo "$phase" | xargs 2>/dev/null || echo "")
-              action=$(echo "$action" | xargs 2>/dev/null || echo "")
-              sha=$(echo "$sha" | xargs 2>/dev/null || echo "")
+            # First, check if there's a history table at all
+            if ! echo "$body" | grep -q '## Iteration History'; then
+              echo "[]"
+              return 0
+            fi
 
-              # Skip if iteration is empty
-              if [[ -n "$iter" ]]; then
-                # Build JSON object and append to result
-                local obj
-                obj=$(jq -n --arg iter "$iter" --arg phase "$phase" --arg action "$action" --arg sha "$sha" \
-                  '{iteration: ($iter | tonumber? // 0), phase: $phase, action: $action, sha: $sha}' 2>/dev/null || echo '{}')
-                result=$(echo "$result" | jq --argjson obj "$obj" '. + [$obj]' 2>/dev/null || echo "$result")
-              fi
-            done < "$tmpfile"
+            # Extract just the data rows (skip header with "Time" and separator with "---")
+            local rows
+            rows=$(echo "$body" | grep -E '^\|' | grep -v 'Time' | grep -v '\-\-\-' || echo "")
 
-            rm -f "$tmpfile"
-            echo "$result"
+            if [[ -z "$rows" ]]; then
+              echo "[]"
+              return 0
+            fi
+
+            # Use jq with raw input to parse the pipe-delimited rows
+            echo "$rows" | jq -Rs '
+              split("\n") |
+              map(select(length > 0)) |
+              map(
+                split("|") |
+                map(gsub("^\\s+|\\s+$"; "")) |
+                select(length >= 6) |
+                {
+                  iteration: (.[2] | tonumber? // 0),
+                  phase: .[3],
+                  action: .[4],
+                  sha: .[5]
+                }
+              )
+            ' 2>/dev/null || echo "[]"
           }
 
           # Simulate human merge action when PR has "ready-to-merge" label
