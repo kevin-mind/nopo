@@ -402,21 +402,33 @@ jobs:
           # Returns JSON array of history entries
           parse_history() {
             local body="$1"
-            # Extract just the history table rows (skip header and separator)
-            # Use grep to find table rows, then process with simple field extraction
-            echo "$body" | grep -E '^\|[^-]' | grep -v 'Time' | while IFS='|' read -r _ time iter phase action sha run _; do
+            local tmpfile
+            tmpfile=$(mktemp)
+
+            # Extract table rows (skip header and separator)
+            echo "$body" | grep -E '^\|[^-]' | grep -v 'Time' > "$tmpfile" || true
+
+            # Build JSON array from rows
+            local result="[]"
+            while IFS='|' read -r _ time iter phase action sha run _; do
               # Trim whitespace
-              iter=$(echo "$iter" | xargs)
-              phase=$(echo "$phase" | xargs)
-              action=$(echo "$action" | xargs)
-              sha=$(echo "$sha" | xargs)
+              iter=$(echo "$iter" | xargs 2>/dev/null || echo "")
+              phase=$(echo "$phase" | xargs 2>/dev/null || echo "")
+              action=$(echo "$action" | xargs 2>/dev/null || echo "")
+              sha=$(echo "$sha" | xargs 2>/dev/null || echo "")
+
               # Skip if iteration is empty
               if [[ -n "$iter" ]]; then
-                # Output JSON object (jq will handle escaping)
-                jq -n --arg iter "$iter" --arg phase "$phase" --arg action "$action" --arg sha "$sha" \
-                  '{iteration: ($iter | tonumber? // 0), phase: $phase, action: $action, sha: $sha}'
+                # Build JSON object and append to result
+                local obj
+                obj=$(jq -n --arg iter "$iter" --arg phase "$phase" --arg action "$action" --arg sha "$sha" \
+                  '{iteration: ($iter | tonumber? // 0), phase: $phase, action: $action, sha: $sha}' 2>/dev/null || echo '{}')
+                result=$(echo "$result" | jq --argjson obj "$obj" '. + [$obj]' 2>/dev/null || echo "$result")
               fi
-            done | jq -s '. // []'
+            done < "$tmpfile"
+
+            rm -f "$tmpfile"
+            echo "$result"
           }
 
           # Simulate human merge action when PR has "ready-to-merge" label
