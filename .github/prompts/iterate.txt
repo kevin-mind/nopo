@@ -7,6 +7,12 @@ Implement issue #{{ISSUE_NUMBER}}: "{{ISSUE_TITLE}}"
 - **Branch**: `{{BRANCH_NAME}}`
 {{PARENT_CONTEXT}}
 
+## Previous Agent Notes
+
+{{AGENT_NOTES}}
+
+---
+
 {{ISSUE_BODY}}
 
 {{EXISTING_BRANCH_SECTION}}
@@ -80,3 +86,28 @@ If no PR exists:
 - Workflow triggers next iteration after CI
 - Update todo checkboxes after completing each
 - If blocked, commit a comment explaining why
+
+### Save Notes for Future Iterations
+
+Before finishing, save any important discoveries or decisions for future iterations by writing to `/tmp/claude-notes.json`:
+
+```json
+{
+  "issue_number": {{ISSUE_NUMBER}},
+  "run_id": 0,
+  "timestamp": "",
+  "agent": "iterate",
+  "phase": {{ITERATION}},
+  "notes": [
+    "Note 1: Implementation detail or discovery",
+    "Note 2: Trade-off or decision made"
+  ]
+}
+```
+
+Good notes include:
+- Implementation details not obvious from code
+- Trade-offs and why a specific approach was chosen
+- Roadblocks encountered and how resolved
+- Relevant discoveries about the codebase
+- Known issues or concerns for future work

@@ -293,7 +293,7 @@ describe("addHistoryEntry", () => {
     expect(result).toContain("[`abc123d`]");
   });
 
-  test("includes run link when provided", () => {
+  test("includes run link with run_id as link text when URL contains run_id", () => {
     const body =
       "## Iteration History\n\n| # | Phase | Action | Time | SHA | Run |\n|---|-------|--------|------|-----|-----|";
     // addHistoryEntry(body, iteration, phase, message, timestamp, sha, runLink, repoUrl)
@@ -304,9 +304,101 @@ describe("addHistoryEntry", () => {
       "CI done",
       undefined,
       undefined,
-      "https://run.url",
+      "https://github.com/owner/repo/actions/runs/12345678901",
     );
-    expect(result).toContain("[Run](https://run.url)");
+    expect(result).toContain(
+      "[12345678901](https://github.com/owner/repo/actions/runs/12345678901)",
+    );
+  });
+
+  test("falls back to [Run] format when URL does not contain run_id", () => {
+    const body =
+      "## Iteration History\n\n| # | Phase | Action | Time | SHA | Run |\n|---|-------|--------|------|-----|-----|";
+    // addHistoryEntry(body, iteration, phase, message, timestamp, sha, runLink, repoUrl)
+    const result = addHistoryEntry(
+      body,
+      1,
+      "1",
+      "CI done",
+      undefined,
+      undefined,
+      "https://some-other-url.com/run",
+    );
+    expect(result).toContain("[Run](https://some-other-url.com/run)");
+  });
+
+  test("deduplicates entries with same run_id by appending action with arrow separator", () => {
+    const runUrl = "https://github.com/owner/repo/actions/runs/12345678901";
+    const body = `
+## Iteration History
+
+| Time | # | Phase | Action | SHA | Run |
+|---|---|---|---|---|---|
+| Jan 22 19:04 | 1 | Phase 1 | ⏳ running... | - | [12345678901](${runUrl}) |
+`;
+    const result = addHistoryEntry(
+      body,
+      1,
+      "Phase 1",
+      "✅ Done",
+      "2026-01-22T19:10:00Z",
+      undefined,
+      runUrl,
+    );
+
+    // Should have one row with combined actions
+    expect(result).toContain("⏳ running... → ✅ Done");
+    // Should only have one run ID reference (deduplicated)
+    const lines = result
+      .split("\n")
+      .filter(
+        (l) => l.startsWith("|") && !l.includes("---") && !l.includes("Time"),
+      );
+    expect(lines.length).toBe(1);
+    // Should update timestamp to latest
+    expect(result).toContain("Jan 22 19:10");
+  });
+
+  test("creates new row when run_id is different", () => {
+    const runUrl1 = "https://github.com/owner/repo/actions/runs/12345678901";
+    const runUrl2 = "https://github.com/owner/repo/actions/runs/99999999999";
+    const body = `
+## Iteration History
+
+| Time | # | Phase | Action | SHA | Run |
+|---|---|---|---|---|---|
+| Jan 22 19:04 | 1 | Phase 1 | ⏳ running... | - | [12345678901](${runUrl1}) |
+`;
+    const result = addHistoryEntry(
+      body,
+      1,
+      "Phase 1",
+      "New run",
+      undefined,
+      undefined,
+      runUrl2,
+    );
+
+    // Should have two separate rows
+    expect(result).toContain("[12345678901]");
+    expect(result).toContain("[99999999999]");
+    expect(result).not.toContain("→");
+  });
+
+  test("creates new row when no runLink provided", () => {
+    const body = `
+## Iteration History
+
+| Time | # | Phase | Action | SHA | Run |
+|---|---|---|---|---|---|
+| Jan 22 19:04 | 1 | Phase 1 | First | - | - |
+`;
+    const result = addHistoryEntry(body, 1, "Phase 1", "Second");
+
+    // Should have two separate rows (no deduplication without run_id)
+    expect(result).toContain("| First |");
+    expect(result).toContain("| Second |");
+    expect(result).not.toContain("→");
   });
 
   test("includes timestamp when provided", () => {

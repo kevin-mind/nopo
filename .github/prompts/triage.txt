@@ -2,6 +2,12 @@ Triage issue #{{ISSUE_NUMBER}}: "{{ISSUE_TITLE}}"
 
 {{ISSUE_BODY}}
 
+## Previous Agent Notes
+
+{{AGENT_NOTES}}
+
+---
+
 ## Task 1: Write triage-output.json
 
 **Write this file FIRST** - the workflow reads it to apply labels and project fields.
@@ -130,3 +136,21 @@ gh api graphql -f query='mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, 
 - Every issue needs sub-issues (even XS/S)
 - Max 5 phases; if more needed, suggest splitting
 - Sub-issue titles: `[Phase N] Title`
+
+## Save Notes for Future Agents
+
+Before finishing, save any important discoveries by writing to `/tmp/claude-notes.json`:
+
+```json
+{
+  "issue_number": {{ISSUE_NUMBER}},
+  "run_id": 0,
+  "timestamp": "",
+  "agent": "triage",
+  "phase": 0,
+  "notes": [
+    "Note 1: Key finding from codebase exploration",
+    "Note 2: Decision made about phasing"
+  ]
+}
+```

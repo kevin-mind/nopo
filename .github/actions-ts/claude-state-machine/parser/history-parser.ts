@@ -270,6 +270,42 @@ function parseMarkdownLink(text: string): string | null {
 }
 
 /**
+ * Extract run ID from a GitHub Actions run URL
+ * Input: https://github.com/owner/repo/actions/runs/12345678901
+ * Output: "12345678901"
+ */
+function extractRunIdFromUrl(url: string): string | null {
+  const match = url.match(/\/actions\/runs\/(\d+)/);
+  return match?.[1] ?? null;
+}
+
+/**
+ * Parse run ID from a Run cell
+ * Cell formats:
+ *   - New format: [12345678901](url) - returns "12345678901"
+ *   - Old format: [Run](url) - extracts from URL
+ */
+function parseRunIdFromCell(cell: string): string | null {
+  if (cell === "-" || cell.trim() === "") {
+    return null;
+  }
+
+  // Try to extract link text (new format: [runId](url))
+  const linkTextMatch = cell.match(/\[(\d+)\]/);
+  if (linkTextMatch) {
+    return linkTextMatch[1] ?? null;
+  }
+
+  // Old format: [Run](url) - extract from URL
+  const url = parseMarkdownLink(cell);
+  if (url) {
+    return extractRunIdFromUrl(url);
+  }
+
+  return null;
+}
+
+/**
  * Parse a SHA cell - could be a link or just text
  */
 function parseShaCell(cell: string): string | null {
@@ -294,6 +330,7 @@ function parseShaCell(cell: string): string | null {
 
 /**
  * Format cells for history table (with links)
+ * Run cell format: [runId](url) for deduplication by run_id
  */
 export function formatHistoryCells(
   sha?: string,
@@ -308,7 +345,18 @@ export function formatHistoryCells(
   const shaCell = sha
     ? `[\`${sha.slice(0, 7)}\`](${fullRepoUrl}/commit/${sha})`
     : "-";
-  const runCell = runLink ? `[Run](${runLink})` : "-";
+
+  // Use run ID as link text for deduplication
+  let runCell = "-";
+  if (runLink) {
+    const runId = extractRunIdFromUrl(runLink);
+    if (runId) {
+      runCell = `[${runId}](${runLink})`;
+    } else {
+      // Fallback to old format if no run ID found
+      runCell = `[Run](${runLink})`;
+    }
+  }
 
   return { shaCell, runCell };
 }
@@ -494,6 +542,10 @@ ${serializeTable(rows)}`;
 /**
  * Add a history entry to an issue body
  * Handles migration from old table formats automatically
+ *
+ * Deduplication: If a row with the same run_id already exists,
+ * the new message is appended to that row's action with " → " separator
+ * instead of creating a new row.
  */
 export function addHistoryEntry(
   body: string,
@@ -514,6 +566,9 @@ export function addHistoryEntry(
     runLink,
     repoUrl,
   );
+
+  // Extract run_id from the new entry for deduplication
+  const newRunId = runLink ? extractRunIdFromUrl(runLink) : null;
 
   const historyIdx = body.indexOf(HISTORY_SECTION);
 
@@ -547,7 +602,7 @@ ${table}`;
     );
   }
 
-  // Convert existing rows to proper format and add new row
+  // Convert existing rows to proper format
   const existingRows: RowData[] = parsed.rows.map((row) => {
     // Fill in missing keys with "-"
     const normalized: RowData = {};
@@ -557,7 +612,49 @@ ${table}`;
     return normalized;
   });
 
-  const allRows = [...existingRows, newRowData];
+  // Check for deduplication: if a row with the same run_id exists, update it
+  let allRows: RowData[];
+  let matchIdx = -1;
+
+  if (newRunId) {
+    // Search for existing row with same run_id
+    matchIdx = existingRows.findIndex((row) => {
+      const existingRunId = parseRunIdFromCell(row.run ?? "");
+      return existingRunId === newRunId;
+    });
+  }
+
+  if (matchIdx !== -1) {
+    // Found existing row with same run_id - append action
+    const existingRow = existingRows[matchIdx]!;
+    const existingAction = existingRow.action ?? "";
+    const newAction = existingAction
+      ? `${existingAction} → ${message}`
+      : message;
+
+    // Update the existing row with appended action and new SHA if provided
+    const updatedRow: RowData = {
+      ...existingRow,
+      action: newAction,
+    };
+
+    // Update SHA if new one provided (use latest)
+    if (sha && newRowData.sha !== "-") {
+      updatedRow.sha = newRowData.sha;
+    }
+
+    // Update timestamp to latest
+    if (newRowData.time && newRowData.time !== "-") {
+      updatedRow.time = newRowData.time;
+    }
+
+    allRows = existingRows.map((row, idx) =>
+      idx === matchIdx ? updatedRow : row,
+    );
+  } else {
+    // No matching run_id - add new row
+    allRows = [...existingRows, newRowData];
+  }
 
   // Find where the history section ends to preserve content after it
   const lines = body.split("\n");
