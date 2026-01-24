@@ -417,6 +417,21 @@ jobs:
             ' | jq -s '.'
           }
 
+          # Simulate human merge action when PR has "ready-to-merge" label
+          simulate_merge() {
+            local pr_number="$1"
+            echo "🔀 Simulating human merge for PR #$pr_number..."
+
+            # Try to merge the PR
+            if gh pr merge "$pr_number" --repo "$GITHUB_REPOSITORY" --squash --admin 2>/dev/null; then
+              echo "✅ Successfully merged PR #$pr_number"
+              return 0
+            else
+              echo "::warning::Failed to merge PR #$pr_number"
+              return 1
+            fi
+          }
+
           start_time=$(date +%s)
           iteration=0
 
@@ -438,6 +453,21 @@ jobs:
             labels=$(echo "$issue_json" | jq -c '[.labels[]?.name] // []')
             assignees=$(echo "$issue_json" | jq -c '[.assignees[]?.login] // []')
             project_status=$(echo "$issue_json" | jq -r '.projectItems[0].fieldValueByName.name // "N/A"')
+
+            # Check for PRs with "ready-to-merge" label and simulate human merge
+            pr_list=$(gh pr list --repo "$GITHUB_REPOSITORY" --search "$ISSUE_NUMBER in:body" --json number,state,labels 2>/dev/null || echo '[]')
+            for pr_row in $(echo "$pr_list" | jq -c '.[]'); do
+              pr_num=$(echo "$pr_row" | jq -r '.number')
+              pr_state=$(echo "$pr_row" | jq -r '.state')
+              has_ready_label=$(echo "$pr_row" | jq '[.labels[].name] | any(. == "ready-to-merge")')
+
+              if [[ "$pr_state" == "OPEN" && "$has_ready_label" == "true" ]]; then
+                echo "::notice::PR #$pr_num has ready-to-merge label - simulating human merge"
+                simulate_merge "$pr_num"
+                # Wait for merge to propagate
+                sleep 5
+              fi
+            done
 
             # Parse history from body
             history=$(parse_history "$body")
