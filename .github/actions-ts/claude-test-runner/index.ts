@@ -1,0 +1,342 @@
+/**
+ * Claude Test Runner - Intelligent E2E test runner for Claude state machine
+ *
+ * Features:
+ * - State prediction via XState machine
+ * - Exponential backoff polling
+ * - Self-healing diagnostics with actionable fixes
+ * - Automatic cleanup on failure
+ */
+
+import * as core from "@actions/core";
+import * as github from "@actions/github";
+import {
+  getRequiredInput,
+  getOptionalInput,
+  setOutputs,
+} from "../lib/index.js";
+import type { TestFixture } from "./src/types.js";
+import { runTest, diagnose, waitForStatus } from "./src/runner.js";
+import { validateFixture, formatValidationResult } from "./src/validate.js";
+import {
+  fetchGitHubState,
+  fetchRecentWorkflowRuns,
+  buildContextFromState,
+} from "./src/github-state.js";
+import { predictNextState } from "./src/predictor.js";
+
+/**
+ * Trigger cleanup for an issue when test fails
+ */
+async function triggerCleanup(
+  octokit: ReturnType<typeof github.getOctokit>,
+  owner: string,
+  repo: string,
+  issueNumber: number,
+): Promise<void> {
+  core.info(`Triggering cleanup for issue #${issueNumber}`);
+
+  try {
+    // Use the test-helper action's close functionality via workflow dispatch
+    // This will close the issue and all sub-issues
+    await octokit.rest.actions.createWorkflowDispatch({
+      owner,
+      repo,
+      workflow_id: "_test_cleanup.yml",
+      ref: "main",
+      inputs: {
+        issue_number: String(issueNumber),
+        action: "close",
+      },
+    });
+    core.info("Cleanup workflow triggered");
+  } catch (error) {
+    // If cleanup workflow doesn't exist, try direct close via API
+    core.warning(`Could not trigger cleanup workflow: ${error}`);
+    core.info("Attempting direct close via API...");
+
+    try {
+      await octokit.rest.issues.update({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        state: "closed",
+        state_reason: "not_planned",
+      });
+      core.info(`Closed issue #${issueNumber} directly`);
+    } catch (closeError) {
+      core.warning(`Failed to close issue: ${closeError}`);
+    }
+  }
+}
+
+async function run(): Promise<void> {
+  try {
+    const action = getRequiredInput("action");
+    const token = getRequiredInput("github_token");
+    const projectNumber = parseInt(
+      getOptionalInput("project_number") || "1",
+      10,
+    );
+    const cleanupOnFailure = getOptionalInput("cleanup_on_failure") === "true";
+
+    const octokit = github.getOctokit(token);
+    const { owner, repo } = github.context.repo;
+
+    // Run action
+    if (action === "run") {
+      const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
+      const fixtureJson = getOptionalInput("fixture_json");
+
+      const fixture: TestFixture = fixtureJson
+        ? JSON.parse(fixtureJson)
+        : { name: "manual", description: "Manual test run" };
+
+      core.info(`=== Claude Test Runner ===`);
+      core.info(`Action: run`);
+      core.info(`Issue: #${issueNumber}`);
+      core.info(`Fixture: ${fixture.name}`);
+
+      const result = await runTest({
+        fixture,
+        issueNumber,
+        projectNumber,
+        octokit,
+        owner,
+        repo,
+      });
+
+      // Set outputs
+      setOutputs({
+        status: result.status,
+        suggested_fix: result.suggestedFix || "",
+        diagnosis: result.diagnosis || "",
+        phases_completed: String(result.phases.filter((p) => p.success).length),
+        total_duration_ms: String(result.totalDurationMs),
+      });
+
+      // Handle failure
+      if (result.status !== "done") {
+        core.warning(`Test failed: ${result.diagnosis}`);
+        core.warning(`Suggested fix: ${result.suggestedFix}`);
+
+        // Trigger cleanup if enabled
+        if (cleanupOnFailure) {
+          await triggerCleanup(octokit, owner, repo, issueNumber);
+        }
+
+        core.setFailed(`Test failed: ${result.diagnosis}`);
+      } else {
+        core.info(`Test passed! Completed ${result.phases.length} phases`);
+      }
+
+      return;
+    }
+
+    // Diagnose action
+    if (action === "diagnose") {
+      const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
+      const fixtureJson = getOptionalInput("fixture_json");
+
+      const fixture: TestFixture = fixtureJson
+        ? JSON.parse(fixtureJson)
+        : { name: "manual", description: "Manual diagnosis" };
+
+      core.info(`=== Claude Test Runner ===`);
+      core.info(`Action: diagnose`);
+      core.info(`Issue: #${issueNumber}`);
+
+      const result = await diagnose({
+        fixture,
+        issueNumber,
+        projectNumber,
+        octokit,
+        owner,
+        repo,
+      });
+
+      setOutputs({
+        status: result.status,
+        suggested_fix: result.suggestedFix || "",
+        diagnosis: result.diagnosis || "",
+        phases_completed: "0",
+        total_duration_ms: String(result.totalDurationMs),
+      });
+
+      core.info(`\nDiagnosis Result:`);
+      core.info(`Status: ${result.status}`);
+      if (result.suggestedFix) {
+        core.info(`Suggested Fix: ${result.suggestedFix}`);
+      }
+      if (result.diagnosis) {
+        core.info(`Diagnosis: ${result.diagnosis}`);
+      }
+
+      return;
+    }
+
+    // Wait action
+    if (action === "wait") {
+      const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
+      const targetStatus = getRequiredInput("target_status");
+      const fixtureJson = getOptionalInput("fixture_json");
+
+      const fixture: TestFixture = fixtureJson
+        ? JSON.parse(fixtureJson)
+        : {
+            name: "wait",
+            description: "Wait for status",
+            timeout: parseInt(getOptionalInput("timeout") || "300", 10),
+          };
+
+      core.info(`=== Claude Test Runner ===`);
+      core.info(`Action: wait`);
+      core.info(`Issue: #${issueNumber}`);
+      core.info(`Target Status: ${targetStatus}`);
+
+      const result = await waitForStatus(
+        {
+          fixture,
+          issueNumber,
+          projectNumber,
+          octokit,
+          owner,
+          repo,
+        },
+        targetStatus,
+      );
+
+      setOutputs({
+        status: result.status,
+        suggested_fix: result.suggestedFix || "",
+        diagnosis: result.diagnosis || "",
+        phases_completed: "0",
+        total_duration_ms: String(result.totalDurationMs),
+      });
+
+      if (result.status !== "done") {
+        if (cleanupOnFailure) {
+          await triggerCleanup(octokit, owner, repo, issueNumber);
+        }
+        core.setFailed(
+          `Failed to reach status '${targetStatus}': ${result.diagnosis}`,
+        );
+      } else {
+        core.info(`Issue reached status '${targetStatus}'`);
+      }
+
+      return;
+    }
+
+    // Status action - quick status check
+    if (action === "status") {
+      const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
+
+      core.info(`=== Claude Test Runner ===`);
+      core.info(`Action: status`);
+      core.info(`Issue: #${issueNumber}`);
+
+      const state = await fetchGitHubState(
+        octokit,
+        owner,
+        repo,
+        issueNumber,
+        projectNumber,
+      );
+
+      const workflowRuns = await fetchRecentWorkflowRuns(
+        octokit,
+        owner,
+        repo,
+        issueNumber,
+      );
+
+      const context = buildContextFromState(state, owner, repo);
+      const predicted = predictNextState(context);
+
+      setOutputs({
+        status: state.projectStatus || "unknown",
+        iteration: String(state.iteration),
+        failures: String(state.failures),
+        bot_assigned: String(state.botAssigned),
+        pr_number: state.prNumber ? String(state.prNumber) : "",
+        pr_state: state.prState || "",
+        branch_exists: String(state.branchExists),
+        unchecked_todos: String(state.uncheckedTodos),
+        predicted_state: predicted.expectedState,
+        predicted_status: predicted.expectedStatus || "",
+        workflow_status:
+          workflowRuns.length > 0
+            ? workflowRuns[0]?.status || "unknown"
+            : "none",
+      });
+
+      core.info(`\nCurrent State:`);
+      core.info(`  Status: ${state.projectStatus || "unknown"}`);
+      core.info(`  Iteration: ${state.iteration}`);
+      core.info(`  Failures: ${state.failures}`);
+      core.info(`  Bot Assigned: ${state.botAssigned}`);
+      core.info(
+        `  PR: ${state.prNumber ? `#${state.prNumber} (${state.prState})` : "none"}`,
+      );
+      core.info(`  Branch: ${state.branch || "none"}`);
+      core.info(`  Unchecked Todos: ${state.uncheckedTodos}`);
+      core.info(`\nPrediction:`);
+      core.info(`  Expected State: ${predicted.expectedState}`);
+      core.info(
+        `  Expected Status: ${predicted.expectedStatus || "unchanged"}`,
+      );
+      core.info(`  Description: ${predicted.description}`);
+
+      return;
+    }
+
+    // Validate action - validate fixture against schema
+    if (action === "validate") {
+      const fixtureJson = getRequiredInput("fixture_json");
+
+      core.info(`=== Claude Test Runner ===`);
+      core.info(`Action: validate`);
+
+      let fixture: unknown;
+      try {
+        fixture = JSON.parse(fixtureJson);
+      } catch (error) {
+        core.setFailed(`Invalid JSON: ${error}`);
+        setOutputs({
+          valid: "false",
+          errors: `Invalid JSON: ${error}`,
+          warnings: "",
+        });
+        return;
+      }
+
+      const result = validateFixture(fixture);
+      const formatted = formatValidationResult("fixture", result);
+
+      core.info(`\n${formatted}`);
+
+      setOutputs({
+        valid: String(result.valid),
+        errors: result.errors.map((e) => `${e.path}: ${e.message}`).join("; "),
+        warnings: result.warnings.join("; "),
+      });
+
+      if (!result.valid) {
+        core.setFailed(`Fixture validation failed`);
+      }
+
+      return;
+    }
+
+    core.setFailed(`Unknown action: ${action}`);
+  } catch (error) {
+    if (error instanceof Error) {
+      core.setFailed(error.message);
+    } else {
+      core.setFailed("An unexpected error occurred");
+    }
+  }
+}
+
+run();

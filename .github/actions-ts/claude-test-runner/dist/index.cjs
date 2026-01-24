@@ -182,7 +182,7 @@ var require_file_command = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.prepareKeyValueMessage = exports2.issueFileCommand = void 0;
     var crypto = __importStar(require("crypto"));
-    var fs3 = __importStar(require("fs"));
+    var fs = __importStar(require("fs"));
     var os = __importStar(require("os"));
     var utils_1 = require_utils();
     function issueFileCommand(command, message) {
@@ -190,10 +190,10 @@ var require_file_command = __commonJS({
       if (!filePath) {
         throw new Error(`Unable to find environment variable for file command ${command}`);
       }
-      if (!fs3.existsSync(filePath)) {
+      if (!fs.existsSync(filePath)) {
         throw new Error(`Missing file at path: ${filePath}`);
       }
-      fs3.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
+      fs.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
         encoding: "utf8"
       });
     }
@@ -335,44 +335,44 @@ var require_tunnel = __commonJS({
       return agent;
     }
     function TunnelingAgent(options) {
-      var self = this;
-      self.options = options || {};
-      self.proxyOptions = self.options.proxy || {};
-      self.maxSockets = self.options.maxSockets || http.Agent.defaultMaxSockets;
-      self.requests = [];
-      self.sockets = [];
-      self.on("free", function onFree(socket, host, port, localAddress) {
+      var self2 = this;
+      self2.options = options || {};
+      self2.proxyOptions = self2.options.proxy || {};
+      self2.maxSockets = self2.options.maxSockets || http.Agent.defaultMaxSockets;
+      self2.requests = [];
+      self2.sockets = [];
+      self2.on("free", function onFree(socket, host, port, localAddress) {
         var options2 = toOptions(host, port, localAddress);
-        for (var i = 0, len = self.requests.length; i < len; ++i) {
-          var pending = self.requests[i];
+        for (var i = 0, len = self2.requests.length; i < len; ++i) {
+          var pending = self2.requests[i];
           if (pending.host === options2.host && pending.port === options2.port) {
-            self.requests.splice(i, 1);
+            self2.requests.splice(i, 1);
             pending.request.onSocket(socket);
             return;
           }
         }
         socket.destroy();
-        self.removeSocket(socket);
+        self2.removeSocket(socket);
       });
     }
     util2.inherits(TunnelingAgent, events.EventEmitter);
     TunnelingAgent.prototype.addRequest = function addRequest(req, host, port, localAddress) {
-      var self = this;
-      var options = mergeOptions({ request: req }, self.options, toOptions(host, port, localAddress));
-      if (self.sockets.length >= this.maxSockets) {
-        self.requests.push(options);
+      var self2 = this;
+      var options = mergeOptions({ request: req }, self2.options, toOptions(host, port, localAddress));
+      if (self2.sockets.length >= this.maxSockets) {
+        self2.requests.push(options);
         return;
       }
-      self.createSocket(options, function(socket) {
+      self2.createSocket(options, function(socket) {
         socket.on("free", onFree);
         socket.on("close", onCloseOrRemove);
         socket.on("agentRemove", onCloseOrRemove);
         req.onSocket(socket);
         function onFree() {
-          self.emit("free", socket, options);
+          self2.emit("free", socket, options);
         }
         function onCloseOrRemove(err) {
-          self.removeSocket(socket);
+          self2.removeSocket(socket);
           socket.removeListener("free", onFree);
           socket.removeListener("close", onCloseOrRemove);
           socket.removeListener("agentRemove", onCloseOrRemove);
@@ -380,10 +380,10 @@ var require_tunnel = __commonJS({
       });
     };
     TunnelingAgent.prototype.createSocket = function createSocket(options, cb) {
-      var self = this;
+      var self2 = this;
       var placeholder = {};
-      self.sockets.push(placeholder);
-      var connectOptions = mergeOptions({}, self.proxyOptions, {
+      self2.sockets.push(placeholder);
+      var connectOptions = mergeOptions({}, self2.proxyOptions, {
         method: "CONNECT",
         path: options.host + ":" + options.port,
         agent: false,
@@ -398,8 +398,8 @@ var require_tunnel = __commonJS({
         connectOptions.headers = connectOptions.headers || {};
         connectOptions.headers["Proxy-Authorization"] = "Basic " + new Buffer(connectOptions.proxyAuth).toString("base64");
       }
-      debug4("making CONNECT request");
-      var connectReq = self.request(connectOptions);
+      debug2("making CONNECT request");
+      var connectReq = self2.request(connectOptions);
       connectReq.useChunkedEncodingByDefault = false;
       connectReq.once("response", onResponse);
       connectReq.once("upgrade", onUpgrade);
@@ -418,41 +418,41 @@ var require_tunnel = __commonJS({
         connectReq.removeAllListeners();
         socket.removeAllListeners();
         if (res.statusCode !== 200) {
-          debug4(
+          debug2(
             "tunneling socket could not be established, statusCode=%d",
             res.statusCode
           );
           socket.destroy();
-          var error3 = new Error("tunneling socket could not be established, statusCode=" + res.statusCode);
-          error3.code = "ECONNRESET";
-          options.request.emit("error", error3);
-          self.removeSocket(placeholder);
+          var error = new Error("tunneling socket could not be established, statusCode=" + res.statusCode);
+          error.code = "ECONNRESET";
+          options.request.emit("error", error);
+          self2.removeSocket(placeholder);
           return;
         }
         if (head.length > 0) {
-          debug4("got illegal response body from proxy");
+          debug2("got illegal response body from proxy");
           socket.destroy();
-          var error3 = new Error("got illegal response body from proxy");
-          error3.code = "ECONNRESET";
-          options.request.emit("error", error3);
-          self.removeSocket(placeholder);
+          var error = new Error("got illegal response body from proxy");
+          error.code = "ECONNRESET";
+          options.request.emit("error", error);
+          self2.removeSocket(placeholder);
           return;
         }
-        debug4("tunneling connection has established");
-        self.sockets[self.sockets.indexOf(placeholder)] = socket;
+        debug2("tunneling connection has established");
+        self2.sockets[self2.sockets.indexOf(placeholder)] = socket;
         return cb(socket);
       }
       function onError(cause) {
         connectReq.removeAllListeners();
-        debug4(
+        debug2(
           "tunneling socket could not be established, cause=%s\n",
           cause.message,
           cause.stack
         );
-        var error3 = new Error("tunneling socket could not be established, cause=" + cause.message);
-        error3.code = "ECONNRESET";
-        options.request.emit("error", error3);
-        self.removeSocket(placeholder);
+        var error = new Error("tunneling socket could not be established, cause=" + cause.message);
+        error.code = "ECONNRESET";
+        options.request.emit("error", error);
+        self2.removeSocket(placeholder);
       }
     };
     TunnelingAgent.prototype.removeSocket = function removeSocket(socket) {
@@ -469,15 +469,15 @@ var require_tunnel = __commonJS({
       }
     };
     function createSecureSocket(options, cb) {
-      var self = this;
-      TunnelingAgent.prototype.createSocket.call(self, options, function(socket) {
+      var self2 = this;
+      TunnelingAgent.prototype.createSocket.call(self2, options, function(socket) {
         var hostHeader = options.request.getHeader("host");
-        var tlsOptions = mergeOptions({}, self.options, {
+        var tlsOptions = mergeOptions({}, self2.options, {
           socket,
           servername: hostHeader ? hostHeader.replace(/:.*$/, "") : options.host
         });
         var secureSocket = tls.connect(0, tlsOptions);
-        self.sockets[self.sockets.indexOf(socket)] = secureSocket;
+        self2.sockets[self2.sockets.indexOf(socket)] = secureSocket;
         cb(secureSocket);
       });
     }
@@ -506,9 +506,9 @@ var require_tunnel = __commonJS({
       }
       return target;
     }
-    var debug4;
+    var debug2;
     if (process.env.NODE_DEBUG && /\btunnel\b/.test(process.env.NODE_DEBUG)) {
-      debug4 = function() {
+      debug2 = function() {
         var args = Array.prototype.slice.call(arguments);
         if (typeof args[0] === "string") {
           args[0] = "TUNNEL: " + args[0];
@@ -518,10 +518,10 @@ var require_tunnel = __commonJS({
         console.error.apply(console, args);
       };
     } else {
-      debug4 = function() {
+      debug2 = function() {
       };
     }
-    exports2.debug = debug4;
+    exports2.debug = debug2;
   }
 });
 
@@ -996,14 +996,14 @@ var require_util = __commonJS({
         }
         const port = url.port != null ? url.port : url.protocol === "https:" ? 443 : 80;
         let origin = url.origin != null ? url.origin : `${url.protocol}//${url.hostname}:${port}`;
-        let path2 = url.path != null ? url.path : `${url.pathname || ""}${url.search || ""}`;
+        let path = url.path != null ? url.path : `${url.pathname || ""}${url.search || ""}`;
         if (origin.endsWith("/")) {
           origin = origin.substring(0, origin.length - 1);
         }
-        if (path2 && !path2.startsWith("/")) {
-          path2 = `/${path2}`;
+        if (path && !path.startsWith("/")) {
+          path = `/${path}`;
         }
-        url = new URL(origin + path2);
+        url = new URL(origin + path);
       }
       return url;
     }
@@ -1580,7 +1580,7 @@ var require_HeaderParser = __commonJS({
     function HeaderParser(cfg) {
       EventEmitter.call(this);
       cfg = cfg || {};
-      const self = this;
+      const self2 = this;
       this.nread = 0;
       this.maxed = false;
       this.npairs = 0;
@@ -1591,18 +1591,18 @@ var require_HeaderParser = __commonJS({
       this.finished = false;
       this.ss = new StreamSearch(B_DCRLF);
       this.ss.on("info", function(isMatch, data, start, end) {
-        if (data && !self.maxed) {
-          if (self.nread + end - start >= self.maxHeaderSize) {
-            end = self.maxHeaderSize - self.nread + start;
-            self.nread = self.maxHeaderSize;
-            self.maxed = true;
+        if (data && !self2.maxed) {
+          if (self2.nread + end - start >= self2.maxHeaderSize) {
+            end = self2.maxHeaderSize - self2.nread + start;
+            self2.nread = self2.maxHeaderSize;
+            self2.maxed = true;
           } else {
-            self.nread += end - start;
+            self2.nread += end - start;
           }
-          self.buffer += data.toString("binary", start, end);
+          self2.buffer += data.toString("binary", start, end);
         }
         if (isMatch) {
-          self._finish();
+          self2._finish();
         }
       });
     }
@@ -1707,34 +1707,34 @@ var require_Dicer = __commonJS({
       this._ignoreData = false;
       this._partOpts = { highWaterMark: cfg.partHwm };
       this._pause = false;
-      const self = this;
+      const self2 = this;
       this._hparser = new HeaderParser(cfg);
       this._hparser.on("header", function(header) {
-        self._inHeader = false;
-        self._part.emit("header", header);
+        self2._inHeader = false;
+        self2._part.emit("header", header);
       });
     }
     inherits(Dicer, WritableStream);
     Dicer.prototype.emit = function(ev) {
       if (ev === "finish" && !this._realFinish) {
         if (!this._finished) {
-          const self = this;
+          const self2 = this;
           process.nextTick(function() {
-            self.emit("error", new Error("Unexpected end of multipart data"));
-            if (self._part && !self._ignoreData) {
-              const type = self._isPreamble ? "Preamble" : "Part";
-              self._part.emit("error", new Error(type + " terminated early due to unexpected end of multipart data"));
-              self._part.push(null);
+            self2.emit("error", new Error("Unexpected end of multipart data"));
+            if (self2._part && !self2._ignoreData) {
+              const type = self2._isPreamble ? "Preamble" : "Part";
+              self2._part.emit("error", new Error(type + " terminated early due to unexpected end of multipart data"));
+              self2._part.push(null);
               process.nextTick(function() {
-                self._realFinish = true;
-                self.emit("finish");
-                self._realFinish = false;
+                self2._realFinish = true;
+                self2.emit("finish");
+                self2._realFinish = false;
               });
               return;
             }
-            self._realFinish = true;
-            self.emit("finish");
-            self._realFinish = false;
+            self2._realFinish = true;
+            self2.emit("finish");
+            self2._realFinish = false;
           });
         }
       } else {
@@ -1778,10 +1778,10 @@ var require_Dicer = __commonJS({
       this._hparser = void 0;
     };
     Dicer.prototype.setBoundary = function(boundary) {
-      const self = this;
+      const self2 = this;
       this._bparser = new StreamSearch("\r\n--" + boundary);
       this._bparser.on("info", function(isMatch, data, start, end) {
-        self._oninfo(isMatch, data, start, end);
+        self2._oninfo(isMatch, data, start, end);
       });
     };
     Dicer.prototype._ignore = function() {
@@ -1793,7 +1793,7 @@ var require_Dicer = __commonJS({
     };
     Dicer.prototype._oninfo = function(isMatch, data, start, end) {
       let buf;
-      const self = this;
+      const self2 = this;
       let i = 0;
       let r;
       let shouldWriteMore = true;
@@ -1816,10 +1816,10 @@ var require_Dicer = __commonJS({
           }
           this.reset();
           this._finished = true;
-          if (self._parts === 0) {
-            self._realFinish = true;
-            self.emit("finish");
-            self._realFinish = false;
+          if (self2._parts === 0) {
+            self2._realFinish = true;
+            self2.emit("finish");
+            self2._realFinish = false;
           }
         }
         if (this._dashes) {
@@ -1832,7 +1832,7 @@ var require_Dicer = __commonJS({
       if (!this._part) {
         this._part = new PartStream(this._partOpts);
         this._part._read = function(n) {
-          self._unpause();
+          self2._unpause();
         };
         if (this._isPreamble && this.listenerCount("preamble") !== 0) {
           this.emit("preamble", this._part);
@@ -1872,13 +1872,13 @@ var require_Dicer = __commonJS({
           if (start !== end) {
             ++this._parts;
             this._part.on("end", function() {
-              if (--self._parts === 0) {
-                if (self._finished) {
-                  self._realFinish = true;
-                  self.emit("finish");
-                  self._realFinish = false;
+              if (--self2._parts === 0) {
+                if (self2._finished) {
+                  self2._realFinish = true;
+                  self2.emit("finish");
+                  self2._realFinish = false;
                 } else {
-                  self._unpause();
+                  self2._unpause();
                 }
               }
             });
@@ -2617,20 +2617,20 @@ var require_parseParams = __commonJS({
 var require_basename = __commonJS({
   "../../node_modules/.pnpm/@fastify+busboy@2.1.1/node_modules/@fastify/busboy/lib/utils/basename.js"(exports2, module2) {
     "use strict";
-    module2.exports = function basename(path2) {
-      if (typeof path2 !== "string") {
+    module2.exports = function basename(path) {
+      if (typeof path !== "string") {
         return "";
       }
-      for (var i = path2.length - 1; i >= 0; --i) {
-        switch (path2.charCodeAt(i)) {
+      for (var i = path.length - 1; i >= 0; --i) {
+        switch (path.charCodeAt(i)) {
           case 47:
           // '/'
           case 92:
-            path2 = path2.slice(i + 1);
-            return path2 === ".." || path2 === "." ? "" : path2;
+            path = path.slice(i + 1);
+            return path === ".." || path === "." ? "" : path;
         }
       }
-      return path2 === ".." || path2 === "." ? "" : path2;
+      return path === ".." || path === "." ? "" : path;
     };
   }
 });
@@ -2655,7 +2655,7 @@ var require_multipart = __commonJS({
     function Multipart(boy, cfg) {
       let i;
       let len;
-      const self = this;
+      const self2 = this;
       let boundary;
       const limits = cfg.limits;
       const isPartAFile = cfg.isPartAFile || ((fieldName, contentType, fileName) => contentType === "application/octet-stream" || fileName !== void 0);
@@ -2672,7 +2672,7 @@ var require_multipart = __commonJS({
       function checkFinished() {
         if (nends === 0 && finished && !boy._done) {
           finished = false;
-          self.end();
+          self2.end();
         }
       }
       if (typeof boundary !== "string") {
@@ -2705,16 +2705,16 @@ var require_multipart = __commonJS({
       };
       this.parser = new Dicer(parserCfg);
       this.parser.on("drain", function() {
-        self._needDrain = false;
-        if (self._cb && !self._pause) {
-          const cb = self._cb;
-          self._cb = void 0;
+        self2._needDrain = false;
+        if (self2._cb && !self2._pause) {
+          const cb = self2._cb;
+          self2._cb = void 0;
           cb();
         }
       }).on("part", function onPart(part) {
-        if (++self._nparts > partsLimit) {
-          self.parser.removeListener("part", onPart);
-          self.parser.on("part", skipPart);
+        if (++self2._nparts > partsLimit) {
+          self2.parser.removeListener("part", onPart);
+          self2.parser.on("part", skipPart);
           boy.hitPartsLimit = true;
           boy.emit("partsLimit");
           return skipPart(part);
@@ -2784,7 +2784,7 @@ var require_multipart = __commonJS({
             }
             ++nfiles;
             if (boy.listenerCount("file") === 0) {
-              self.parser._ignore();
+              self2.parser._ignore();
               return;
             }
             ++nends;
@@ -2792,22 +2792,22 @@ var require_multipart = __commonJS({
             curFile = file;
             file.on("end", function() {
               --nends;
-              self._pause = false;
+              self2._pause = false;
               checkFinished();
-              if (self._cb && !self._needDrain) {
-                const cb = self._cb;
-                self._cb = void 0;
+              if (self2._cb && !self2._needDrain) {
+                const cb = self2._cb;
+                self2._cb = void 0;
                 cb();
               }
             });
             file._read = function(n) {
-              if (!self._pause) {
+              if (!self2._pause) {
                 return;
               }
-              self._pause = false;
-              if (self._cb && !self._needDrain) {
-                const cb = self._cb;
-                self._cb = void 0;
+              self2._pause = false;
+              if (self2._cb && !self2._needDrain) {
+                const cb = self2._cb;
+                self2._cb = void 0;
                 cb();
               }
             };
@@ -2824,7 +2824,7 @@ var require_multipart = __commonJS({
                 file.emit("limit");
                 return;
               } else if (!file.push(data)) {
-                self._pause = true;
+                self2._pause = true;
               }
               file.bytesRead = nsize;
             };
@@ -2890,13 +2890,13 @@ var require_multipart = __commonJS({
       }
     };
     Multipart.prototype.end = function() {
-      const self = this;
-      if (self.parser.writable) {
-        self.parser.end();
-      } else if (!self._boy._done) {
+      const self2 = this;
+      if (self2.parser.writable) {
+        self2.parser.end();
+      } else if (!self2._boy._done) {
         process.nextTick(function() {
-          self._boy._done = true;
-          self._boy.emit("finish");
+          self2._boy._done = true;
+          self2._boy.emit("finish");
         });
       }
     };
@@ -4023,8 +4023,8 @@ var require_util2 = __commonJS({
     function createDeferredPromise() {
       let res;
       let rej;
-      const promise = new Promise((resolve2, reject) => {
-        res = resolve2;
+      const promise = new Promise((resolve, reject) => {
+        res = resolve;
         rej = reject;
       });
       return { promise, resolve: res, reject: rej };
@@ -5528,8 +5528,8 @@ Content-Type: ${value.type || "application/octet-stream"}\r
                 });
               }
             });
-            const busboyResolve = new Promise((resolve2, reject) => {
-              busboy.on("finish", resolve2);
+            const busboyResolve = new Promise((resolve, reject) => {
+              busboy.on("finish", resolve);
               busboy.on("error", (err) => reject(new TypeError(err)));
             });
             if (this.body !== null) for await (const chunk of consumeBody(this[kState].body)) busboy.write(chunk);
@@ -5579,7 +5579,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
         throw new TypeError("Body is unusable");
       }
       const promise = createDeferredPromise();
-      const errorSteps = (error3) => promise.reject(error3);
+      const errorSteps = (error) => promise.reject(error);
       const successSteps = (data) => {
         try {
           promise.resolve(convertBytesToJSValue(data));
@@ -5660,7 +5660,7 @@ var require_request = __commonJS({
     }
     var Request = class _Request {
       constructor(origin, {
-        path: path2,
+        path,
         method,
         body,
         headers,
@@ -5674,11 +5674,11 @@ var require_request = __commonJS({
         throwOnError,
         expectContinue
       }, handler) {
-        if (typeof path2 !== "string") {
+        if (typeof path !== "string") {
           throw new InvalidArgumentError("path must be a string");
-        } else if (path2[0] !== "/" && !(path2.startsWith("http://") || path2.startsWith("https://")) && method !== "CONNECT") {
+        } else if (path[0] !== "/" && !(path.startsWith("http://") || path.startsWith("https://")) && method !== "CONNECT") {
           throw new InvalidArgumentError("path must be an absolute URL or start with a slash");
-        } else if (invalidPathRegex.exec(path2) !== null) {
+        } else if (invalidPathRegex.exec(path) !== null) {
           throw new InvalidArgumentError("invalid request path");
         }
         if (typeof method !== "string") {
@@ -5741,7 +5741,7 @@ var require_request = __commonJS({
         this.completed = false;
         this.aborted = false;
         this.upgrade = upgrade || null;
-        this.path = query ? util2.buildURL(path2, query) : path2;
+        this.path = query ? util2.buildURL(path, query) : path;
         this.origin = origin;
         this.idempotent = idempotent == null ? method === "HEAD" || method === "GET" : idempotent;
         this.blocking = blocking == null ? false : blocking;
@@ -5865,16 +5865,16 @@ var require_request = __commonJS({
           this.onError(err);
         }
       }
-      onError(error3) {
+      onError(error) {
         this.onFinally();
         if (channels.error.hasSubscribers) {
-          channels.error.publish({ request: this, error: error3 });
+          channels.error.publish({ request: this, error });
         }
         if (this.aborted) {
           return;
         }
         this.aborted = true;
-        return this[kHandler].onError(error3);
+        return this[kHandler].onError(error);
       }
       onFinally() {
         if (this.errorHandler) {
@@ -6063,9 +6063,9 @@ var require_dispatcher_base = __commonJS({
       }
       close(callback) {
         if (callback === void 0) {
-          return new Promise((resolve2, reject) => {
+          return new Promise((resolve, reject) => {
             this.close((err, data) => {
-              return err ? reject(err) : resolve2(data);
+              return err ? reject(err) : resolve(data);
             });
           });
         }
@@ -6103,12 +6103,12 @@ var require_dispatcher_base = __commonJS({
           err = null;
         }
         if (callback === void 0) {
-          return new Promise((resolve2, reject) => {
+          return new Promise((resolve, reject) => {
             this.destroy(err, (err2, data) => {
               return err2 ? (
                 /* istanbul ignore next: should never error */
                 reject(err2)
-              ) : resolve2(data);
+              ) : resolve(data);
             });
           });
         }
@@ -6737,8 +6737,8 @@ var require_RedirectHandler = __commonJS({
       onUpgrade(statusCode, headers, socket) {
         this.handler.onUpgrade(statusCode, headers, socket);
       }
-      onError(error3) {
-        this.handler.onError(error3);
+      onError(error) {
+        this.handler.onError(error);
       }
       onHeaders(statusCode, headers, resume, statusText) {
         this.location = this.history.length >= this.maxRedirections || util2.isDisturbed(this.opts.body) ? null : parseLocation(statusCode, headers);
@@ -6749,9 +6749,9 @@ var require_RedirectHandler = __commonJS({
           return this.handler.onHeaders(statusCode, headers, resume, statusText);
         }
         const { origin, pathname, search } = util2.parseURL(new URL(this.location, this.opts.origin && new URL(this.opts.path, this.opts.origin)));
-        const path2 = search ? `${pathname}${search}` : pathname;
+        const path = search ? `${pathname}${search}` : pathname;
         this.opts.headers = cleanRequestHeaders(this.opts.headers, statusCode === 303, this.opts.origin !== origin);
-        this.opts.path = path2;
+        this.opts.path = path;
         this.opts.origin = origin;
         this.opts.maxRedirections = 0;
         this.opts.query = null;
@@ -7168,16 +7168,16 @@ var require_client = __commonJS({
         return this[kNeedDrain] < 2;
       }
       async [kClose]() {
-        return new Promise((resolve2) => {
+        return new Promise((resolve) => {
           if (!this[kSize]) {
-            resolve2(null);
+            resolve(null);
           } else {
-            this[kClosedResolve] = resolve2;
+            this[kClosedResolve] = resolve;
           }
         });
       }
       async [kDestroy](err) {
-        return new Promise((resolve2) => {
+        return new Promise((resolve) => {
           const requests = this[kQueue].splice(this[kPendingIdx]);
           for (let i = 0; i < requests.length; i++) {
             const request = requests[i];
@@ -7188,7 +7188,7 @@ var require_client = __commonJS({
               this[kClosedResolve]();
               this[kClosedResolve] = null;
             }
-            resolve2();
+            resolve();
           };
           if (this[kHTTP2Session] != null) {
             util2.destroy(this[kHTTP2Session], err);
@@ -7768,7 +7768,7 @@ var require_client = __commonJS({
         });
       }
       try {
-        const socket = await new Promise((resolve2, reject) => {
+        const socket = await new Promise((resolve, reject) => {
           client[kConnector]({
             host,
             hostname,
@@ -7780,7 +7780,7 @@ var require_client = __commonJS({
             if (err) {
               reject(err);
             } else {
-              resolve2(socket2);
+              resolve(socket2);
             }
           });
         });
@@ -7991,7 +7991,7 @@ var require_client = __commonJS({
         writeH2(client, client[kHTTP2Session], request);
         return;
       }
-      const { body, method, path: path2, host, upgrade, headers, blocking, reset } = request;
+      const { body, method, path, host, upgrade, headers, blocking, reset } = request;
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH";
       if (body && typeof body.read === "function") {
         body.read(0);
@@ -8041,7 +8041,7 @@ var require_client = __commonJS({
       if (blocking) {
         socket[kBlocking] = true;
       }
-      let header = `${method} ${path2} HTTP/1.1\r
+      let header = `${method} ${path} HTTP/1.1\r
 `;
       if (typeof host === "string") {
         header += `host: ${host}\r
@@ -8104,7 +8104,7 @@ upgrade: ${upgrade}\r
       return true;
     }
     function writeH2(client, session, request) {
-      const { body, method, path: path2, host, upgrade, expectContinue, signal, headers: reqHeaders } = request;
+      const { body, method, path, host, upgrade, expectContinue, signal, headers: reqHeaders } = request;
       let headers;
       if (typeof reqHeaders === "string") headers = Request[kHTTP2CopyHeaders](reqHeaders.trim());
       else headers = reqHeaders;
@@ -8147,7 +8147,7 @@ upgrade: ${upgrade}\r
         });
         return true;
       }
-      headers[HTTP2_HEADER_PATH] = path2;
+      headers[HTTP2_HEADER_PATH] = path;
       headers[HTTP2_HEADER_SCHEME] = "https";
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH";
       if (body && typeof body.read === "function") {
@@ -8404,12 +8404,12 @@ upgrade: ${upgrade}\r
           cb();
         }
       }
-      const waitForDrain = () => new Promise((resolve2, reject) => {
+      const waitForDrain = () => new Promise((resolve, reject) => {
         assert(callback === null);
         if (socket[kError]) {
           reject(socket[kError]);
         } else {
-          callback = resolve2;
+          callback = resolve;
         }
       });
       if (client[kHTTPConnVersion] === "h2") {
@@ -8754,8 +8754,8 @@ var require_pool_base = __commonJS({
         if (this[kQueue].isEmpty()) {
           return Promise.all(this[kClients].map((c) => c.close()));
         } else {
-          return new Promise((resolve2) => {
-            this[kClosedResolve] = resolve2;
+          return new Promise((resolve) => {
+            this[kClosedResolve] = resolve;
           });
         }
       }
@@ -8879,7 +8879,7 @@ var require_pool = __commonJS({
         this[kOptions] = { ...util2.deepClone(options), connect, allowH2 };
         this[kOptions].interceptors = options.interceptors ? { ...options.interceptors } : void 0;
         this[kFactory] = factory;
-        this.on("connectionError", (origin2, targets, error3) => {
+        this.on("connectionError", (origin2, targets, error) => {
           for (const target of targets) {
             const idx = this[kClients].indexOf(target);
             if (idx !== -1) {
@@ -9333,7 +9333,7 @@ var require_readable = __commonJS({
         if (this.closed) {
           return Promise.resolve(null);
         }
-        return new Promise((resolve2, reject) => {
+        return new Promise((resolve, reject) => {
           const signalListenerCleanup = signal ? util2.addAbortListener(signal, () => {
             this.destroy();
           }) : noop;
@@ -9342,7 +9342,7 @@ var require_readable = __commonJS({
             if (signal && signal.aborted) {
               reject(signal.reason || Object.assign(new Error("The operation was aborted"), { name: "AbortError" }));
             } else {
-              resolve2(null);
+              resolve(null);
             }
           }).on("error", noop).on("data", function(chunk) {
             limit -= chunk.length;
@@ -9353,22 +9353,22 @@ var require_readable = __commonJS({
         });
       }
     };
-    function isLocked(self) {
-      return self[kBody] && self[kBody].locked === true || self[kConsume];
+    function isLocked(self2) {
+      return self2[kBody] && self2[kBody].locked === true || self2[kConsume];
     }
-    function isUnusable(self) {
-      return util2.isDisturbed(self) || isLocked(self);
+    function isUnusable(self2) {
+      return util2.isDisturbed(self2) || isLocked(self2);
     }
     async function consume(stream, type) {
       if (isUnusable(stream)) {
         throw new TypeError("unusable");
       }
       assert(!stream[kConsume]);
-      return new Promise((resolve2, reject) => {
+      return new Promise((resolve, reject) => {
         stream[kConsume] = {
           type,
           stream,
-          resolve: resolve2,
+          resolve,
           reject,
           length: 0,
           body: []
@@ -9403,12 +9403,12 @@ var require_readable = __commonJS({
       }
     }
     function consumeEnd(consume2) {
-      const { type, body, resolve: resolve2, stream, length } = consume2;
+      const { type, body, resolve, stream, length } = consume2;
       try {
         if (type === "text") {
-          resolve2(toUSVString(Buffer.concat(body)));
+          resolve(toUSVString(Buffer.concat(body)));
         } else if (type === "json") {
-          resolve2(JSON.parse(Buffer.concat(body)));
+          resolve(JSON.parse(Buffer.concat(body)));
         } else if (type === "arrayBuffer") {
           const dst = new Uint8Array(length);
           let pos = 0;
@@ -9416,12 +9416,12 @@ var require_readable = __commonJS({
             dst.set(buf, pos);
             pos += buf.byteLength;
           }
-          resolve2(dst.buffer);
+          resolve(dst.buffer);
         } else if (type === "blob") {
           if (!Blob2) {
             Blob2 = require("buffer").Blob;
           }
-          resolve2(new Blob2(body, { type: stream[kContentType] }));
+          resolve(new Blob2(body, { type: stream[kContentType] }));
         }
         consumeFinish(consume2);
       } catch (err) {
@@ -9501,40 +9501,40 @@ var require_abort_signal = __commonJS({
     var { RequestAbortedError } = require_errors();
     var kListener = Symbol("kListener");
     var kSignal = Symbol("kSignal");
-    function abort(self) {
-      if (self.abort) {
-        self.abort();
+    function abort(self2) {
+      if (self2.abort) {
+        self2.abort();
       } else {
-        self.onError(new RequestAbortedError());
+        self2.onError(new RequestAbortedError());
       }
     }
-    function addSignal(self, signal) {
-      self[kSignal] = null;
-      self[kListener] = null;
+    function addSignal(self2, signal) {
+      self2[kSignal] = null;
+      self2[kListener] = null;
       if (!signal) {
         return;
       }
       if (signal.aborted) {
-        abort(self);
+        abort(self2);
         return;
       }
-      self[kSignal] = signal;
-      self[kListener] = () => {
-        abort(self);
+      self2[kSignal] = signal;
+      self2[kListener] = () => {
+        abort(self2);
       };
-      addAbortListener(self[kSignal], self[kListener]);
+      addAbortListener(self2[kSignal], self2[kListener]);
     }
-    function removeSignal(self) {
-      if (!self[kSignal]) {
+    function removeSignal(self2) {
+      if (!self2[kSignal]) {
         return;
       }
-      if ("removeEventListener" in self[kSignal]) {
-        self[kSignal].removeEventListener("abort", self[kListener]);
+      if ("removeEventListener" in self2[kSignal]) {
+        self2[kSignal].removeEventListener("abort", self2[kListener]);
       } else {
-        self[kSignal].removeListener("abort", self[kListener]);
+        self2[kSignal].removeListener("abort", self2[kListener]);
       }
-      self[kSignal] = null;
-      self[kListener] = null;
+      self2[kSignal] = null;
+      self2[kListener] = null;
     }
     module2.exports = {
       addSignal,
@@ -9676,9 +9676,9 @@ var require_api_request = __commonJS({
     };
     function request(opts, callback) {
       if (callback === void 0) {
-        return new Promise((resolve2, reject) => {
+        return new Promise((resolve, reject) => {
           request.call(this, opts, (err, data) => {
-            return err ? reject(err) : resolve2(data);
+            return err ? reject(err) : resolve(data);
           });
         });
       }
@@ -9851,9 +9851,9 @@ var require_api_stream = __commonJS({
     };
     function stream(opts, factory, callback) {
       if (callback === void 0) {
-        return new Promise((resolve2, reject) => {
+        return new Promise((resolve, reject) => {
           stream.call(this, opts, factory, (err, data) => {
-            return err ? reject(err) : resolve2(data);
+            return err ? reject(err) : resolve(data);
           });
         });
       }
@@ -10134,9 +10134,9 @@ var require_api_upgrade = __commonJS({
     };
     function upgrade(opts, callback) {
       if (callback === void 0) {
-        return new Promise((resolve2, reject) => {
+        return new Promise((resolve, reject) => {
           upgrade.call(this, opts, (err, data) => {
-            return err ? reject(err) : resolve2(data);
+            return err ? reject(err) : resolve(data);
           });
         });
       }
@@ -10225,9 +10225,9 @@ var require_api_connect = __commonJS({
     };
     function connect(opts, callback) {
       if (callback === void 0) {
-        return new Promise((resolve2, reject) => {
+        return new Promise((resolve, reject) => {
           connect.call(this, opts, (err, data) => {
-            return err ? reject(err) : resolve2(data);
+            return err ? reject(err) : resolve(data);
           });
         });
       }
@@ -10387,20 +10387,20 @@ var require_mock_utils = __commonJS({
       }
       return true;
     }
-    function safeUrl(path2) {
-      if (typeof path2 !== "string") {
-        return path2;
+    function safeUrl(path) {
+      if (typeof path !== "string") {
+        return path;
       }
-      const pathSegments = path2.split("?");
+      const pathSegments = path.split("?");
       if (pathSegments.length !== 2) {
-        return path2;
+        return path;
       }
       const qp = new URLSearchParams(pathSegments.pop());
       qp.sort();
       return [...pathSegments, qp.toString()].join("?");
     }
-    function matchKey(mockDispatch2, { path: path2, method, body, headers }) {
-      const pathMatch = matchValue(mockDispatch2.path, path2);
+    function matchKey(mockDispatch2, { path, method, body, headers }) {
+      const pathMatch = matchValue(mockDispatch2.path, path);
       const methodMatch = matchValue(mockDispatch2.method, method);
       const bodyMatch = typeof mockDispatch2.body !== "undefined" ? matchValue(mockDispatch2.body, body) : true;
       const headersMatch = matchHeaders(mockDispatch2, headers);
@@ -10418,7 +10418,7 @@ var require_mock_utils = __commonJS({
     function getMockDispatch(mockDispatches, key) {
       const basePath = key.query ? buildURL(key.path, key.query) : key.path;
       const resolvedPath = typeof basePath === "string" ? safeUrl(basePath) : basePath;
-      let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path: path2 }) => matchValue(safeUrl(path2), resolvedPath));
+      let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path }) => matchValue(safeUrl(path), resolvedPath));
       if (matchedMockDispatches.length === 0) {
         throw new MockNotMatchedError(`Mock dispatch not matched for path '${resolvedPath}'`);
       }
@@ -10455,9 +10455,9 @@ var require_mock_utils = __commonJS({
       }
     }
     function buildKey(opts) {
-      const { path: path2, method, body, headers, query } = opts;
+      const { path, method, body, headers, query } = opts;
       return {
-        path: path2,
+        path,
         method,
         body,
         headers,
@@ -10488,13 +10488,13 @@ var require_mock_utils = __commonJS({
       if (mockDispatch2.data.callback) {
         mockDispatch2.data = { ...mockDispatch2.data, ...mockDispatch2.data.callback(opts) };
       }
-      const { data: { statusCode, data, headers, trailers, error: error3 }, delay, persist } = mockDispatch2;
+      const { data: { statusCode, data, headers, trailers, error }, delay, persist } = mockDispatch2;
       const { timesInvoked, times } = mockDispatch2;
       mockDispatch2.consumed = !persist && timesInvoked >= times;
       mockDispatch2.pending = timesInvoked < times;
-      if (error3 !== null) {
+      if (error !== null) {
         deleteMockDispatch(this[kDispatches], key);
-        handler.onError(error3);
+        handler.onError(error);
         return true;
       }
       if (typeof delay === "number" && delay > 0) {
@@ -10532,19 +10532,19 @@ var require_mock_utils = __commonJS({
         if (agent.isMockActive) {
           try {
             mockDispatch.call(this, opts, handler);
-          } catch (error3) {
-            if (error3 instanceof MockNotMatchedError) {
+          } catch (error) {
+            if (error instanceof MockNotMatchedError) {
               const netConnect = agent[kGetNetConnect]();
               if (netConnect === false) {
-                throw new MockNotMatchedError(`${error3.message}: subsequent request to origin ${origin} was not allowed (net.connect disabled)`);
+                throw new MockNotMatchedError(`${error.message}: subsequent request to origin ${origin} was not allowed (net.connect disabled)`);
               }
               if (checkNetConnect(netConnect, origin)) {
                 originalDispatch.call(this, opts, handler);
               } else {
-                throw new MockNotMatchedError(`${error3.message}: subsequent request to origin ${origin} was not allowed (net.connect is not enabled for this origin)`);
+                throw new MockNotMatchedError(`${error.message}: subsequent request to origin ${origin} was not allowed (net.connect is not enabled for this origin)`);
               }
             } else {
-              throw error3;
+              throw error;
             }
           }
         } else {
@@ -10707,11 +10707,11 @@ var require_mock_interceptor = __commonJS({
       /**
        * Mock an undici request with a defined error.
        */
-      replyWithError(error3) {
-        if (typeof error3 === "undefined") {
+      replyWithError(error) {
+        if (typeof error === "undefined") {
           throw new InvalidArgumentError("error must be defined");
         }
-        const newMockDispatch = addMockDispatch(this[kDispatches], this[kDispatchKey], { error: error3 });
+        const newMockDispatch = addMockDispatch(this[kDispatches], this[kDispatchKey], { error });
         return new MockScope(newMockDispatch);
       }
       /**
@@ -10906,10 +10906,10 @@ var require_pending_interceptors_formatter = __commonJS({
       }
       format(pendingInterceptors) {
         const withPrettyHeaders = pendingInterceptors.map(
-          ({ method, path: path2, data: { statusCode }, persist, times, timesInvoked, origin }) => ({
+          ({ method, path, data: { statusCode }, persist, times, timesInvoked, origin }) => ({
             Method: method,
             Origin: origin,
-            Path: path2,
+            Path: path,
             "Status code": statusCode,
             Persistent: persist ? "\u2705" : "\u274C",
             Invocations: timesInvoked,
@@ -12161,11 +12161,11 @@ var require_response = __commonJS({
       };
     }
     function makeNetworkError(reason) {
-      const isError = isErrorLike(reason);
+      const isError2 = isErrorLike(reason);
       return makeResponse({
         type: "error",
         status: 0,
-        error: isError ? reason : new Error(reason ? String(reason) : reason),
+        error: isError2 ? reason : new Error(reason ? String(reason) : reason),
         aborted: reason && reason.name === "AbortError"
       });
     }
@@ -12394,15 +12394,15 @@ var require_request2 = __commonJS({
           signal = input[kSignal];
         }
         const origin = this[kRealm].settingsObject.origin;
-        let window = "client";
+        let window2 = "client";
         if (request.window?.constructor?.name === "EnvironmentSettingsObject" && sameOrigin(request.window, origin)) {
-          window = request.window;
+          window2 = request.window;
         }
         if (init.window != null) {
-          throw new TypeError(`'window' option '${window}' must be null`);
+          throw new TypeError(`'window' option '${window2}' must be null`);
         }
         if ("window" in init) {
-          window = "no-window";
+          window2 = "no-window";
         }
         request = makeRequest({
           // URL request’s URL.
@@ -12417,7 +12417,7 @@ var require_request2 = __commonJS({
           // client This’s relevant settings object.
           client: this[kRealm].settingsObject,
           // window window.
-          window,
+          window: window2,
           // priority request’s priority.
           priority: request.priority,
           // origin request’s origin. The propagation of the origin is only significant for navigation requests
@@ -13038,17 +13038,17 @@ var require_fetch = __commonJS({
         this.emit("terminated", reason);
       }
       // https://fetch.spec.whatwg.org/#fetch-controller-abort
-      abort(error3) {
+      abort(error) {
         if (this.state !== "ongoing") {
           return;
         }
         this.state = "aborted";
-        if (!error3) {
-          error3 = new DOMException2("The operation was aborted.", "AbortError");
+        if (!error) {
+          error = new DOMException2("The operation was aborted.", "AbortError");
         }
-        this.serializedAbortReason = error3;
-        this.connection?.destroy(error3);
-        this.emit("terminated", error3);
+        this.serializedAbortReason = error;
+        this.connection?.destroy(error);
+        this.emit("terminated", error);
       }
     };
     function fetch(input, init = {}) {
@@ -13152,13 +13152,13 @@ var require_fetch = __commonJS({
         performance.markResourceTiming(timingInfo, originalURL.href, initiatorType, globalThis2, cacheState);
       }
     }
-    function abortFetch(p, request, responseObject, error3) {
-      if (!error3) {
-        error3 = new DOMException2("The operation was aborted.", "AbortError");
+    function abortFetch(p, request, responseObject, error) {
+      if (!error) {
+        error = new DOMException2("The operation was aborted.", "AbortError");
       }
-      p.reject(error3);
+      p.reject(error);
       if (request.body != null && isReadable(request.body?.stream)) {
-        request.body.stream.cancel(error3).catch((err) => {
+        request.body.stream.cancel(error).catch((err) => {
           if (err.code === "ERR_INVALID_STATE") {
             return;
           }
@@ -13170,7 +13170,7 @@ var require_fetch = __commonJS({
       }
       const response = responseObject[kState];
       if (response.body != null && isReadable(response.body?.stream)) {
-        response.body.stream.cancel(error3).catch((err) => {
+        response.body.stream.cancel(error).catch((err) => {
           if (err.code === "ERR_INVALID_STATE") {
             return;
           }
@@ -13849,7 +13849,7 @@ var require_fetch = __commonJS({
       async function dispatch({ body }) {
         const url = requestCurrentURL(request);
         const agent = fetchParams.controller.dispatcher;
-        return new Promise((resolve2, reject) => agent.dispatch(
+        return new Promise((resolve, reject) => agent.dispatch(
           {
             path: url.pathname + url.search,
             origin: url.origin,
@@ -13925,7 +13925,7 @@ var require_fetch = __commonJS({
                   }
                 }
               }
-              resolve2({
+              resolve({
                 status,
                 statusText,
                 headersList: headers[kHeadersList],
@@ -13950,13 +13950,13 @@ var require_fetch = __commonJS({
               fetchParams.controller.ended = true;
               this.body.push(null);
             },
-            onError(error3) {
+            onError(error) {
               if (this.abort) {
                 fetchParams.controller.off("terminated", this.abort);
               }
-              this.body?.destroy(error3);
-              fetchParams.controller.terminate(error3);
-              reject(error3);
+              this.body?.destroy(error);
+              fetchParams.controller.terminate(error);
+              reject(error);
             },
             onUpgrade(status, headersList, socket) {
               if (status !== 101) {
@@ -13968,7 +13968,7 @@ var require_fetch = __commonJS({
                 const val = headersList[n + 1].toString("latin1");
                 headers[kHeadersList].append(key, val);
               }
-              resolve2({
+              resolve({
                 status,
                 statusText: STATUS_CODES[status],
                 headersList: headers[kHeadersList],
@@ -14422,8 +14422,8 @@ var require_util4 = __commonJS({
                   }
                   fr[kResult] = result;
                   fireAProgressEvent("load", fr);
-                } catch (error3) {
-                  fr[kError] = error3;
+                } catch (error) {
+                  fr[kError] = error;
                   fireAProgressEvent("error", fr);
                 }
                 if (fr[kState] !== "loading") {
@@ -14432,13 +14432,13 @@ var require_util4 = __commonJS({
               });
               break;
             }
-          } catch (error3) {
+          } catch (error) {
             if (fr[kAborted]) {
               return;
             }
             queueMicrotask(() => {
               fr[kState] = "done";
-              fr[kError] = error3;
+              fr[kError] = error;
               fireAProgressEvent("error", fr);
               if (fr[kState] !== "loading") {
                 fireAProgressEvent("loadend", fr);
@@ -15201,8 +15201,8 @@ var require_cache = __commonJS({
        * @returns {requestResponseList}
        */
       #batchCacheOperations(operations) {
-        const cache = this.#relevantRequestResponseList;
-        const backupCache = [...cache];
+        const cache2 = this.#relevantRequestResponseList;
+        const backupCache = [...cache2];
         const addedItems = [];
         const resultList = [];
         try {
@@ -15229,9 +15229,9 @@ var require_cache = __commonJS({
                 return [];
               }
               for (const requestResponse of requestResponses) {
-                const idx = cache.indexOf(requestResponse);
+                const idx = cache2.indexOf(requestResponse);
                 assert(idx !== -1);
-                cache.splice(idx, 1);
+                cache2.splice(idx, 1);
               }
             } else if (operation.type === "put") {
               if (operation.response == null) {
@@ -15261,11 +15261,11 @@ var require_cache = __commonJS({
               }
               requestResponses = this.#queryCache(operation.request);
               for (const requestResponse of requestResponses) {
-                const idx = cache.indexOf(requestResponse);
+                const idx = cache2.indexOf(requestResponse);
                 assert(idx !== -1);
-                cache.splice(idx, 1);
+                cache2.splice(idx, 1);
               }
-              cache.push([operation.request, operation.response]);
+              cache2.push([operation.request, operation.response]);
               addedItems.push([operation.request, operation.response]);
             }
             resultList.push([operation.request, operation.response]);
@@ -15405,13 +15405,13 @@ var require_cachestorage = __commonJS({
         if (options.cacheName != null) {
           if (this.#caches.has(options.cacheName)) {
             const cacheList = this.#caches.get(options.cacheName);
-            const cache = new Cache(kConstruct, cacheList);
-            return await cache.match(request, options);
+            const cache2 = new Cache(kConstruct, cacheList);
+            return await cache2.match(request, options);
           }
         } else {
           for (const cacheList of this.#caches.values()) {
-            const cache = new Cache(kConstruct, cacheList);
-            const response = await cache.match(request, options);
+            const cache2 = new Cache(kConstruct, cacheList);
+            const response = await cache2.match(request, options);
             if (response !== void 0) {
               return response;
             }
@@ -15439,12 +15439,12 @@ var require_cachestorage = __commonJS({
         webidl.argumentLengthCheck(arguments, 1, { header: "CacheStorage.open" });
         cacheName = webidl.converters.DOMString(cacheName);
         if (this.#caches.has(cacheName)) {
-          const cache2 = this.#caches.get(cacheName);
-          return new Cache(kConstruct, cache2);
+          const cache3 = this.#caches.get(cacheName);
+          return new Cache(kConstruct, cache3);
         }
-        const cache = [];
-        this.#caches.set(cacheName, cache);
-        return new Cache(kConstruct, cache);
+        const cache2 = [];
+        this.#caches.set(cacheName, cache2);
+        return new Cache(kConstruct, cache2);
       }
       /**
        * @see https://w3c.github.io/ServiceWorker/#cache-storage-delete
@@ -15529,8 +15529,8 @@ var require_util6 = __commonJS({
         }
       }
     }
-    function validateCookiePath(path2) {
-      for (const char of path2) {
+    function validateCookiePath(path) {
+      for (const char of path) {
         const code = char.charCodeAt(0);
         if (code < 33 || char === ";") {
           throw new Error("Invalid cookie path");
@@ -16438,11 +16438,11 @@ var require_connection = __commonJS({
         });
       }
     }
-    function onSocketError(error3) {
+    function onSocketError(error) {
       const { ws } = this;
       ws[kReadyState] = states.CLOSING;
       if (channels.socketError.hasSubscribers) {
-        channels.socketError.publish(error3);
+        channels.socketError.publish(error);
       }
       this.destroy();
     }
@@ -17210,11 +17210,11 @@ var require_undici = __commonJS({
           if (typeof opts.path !== "string") {
             throw new InvalidArgumentError("invalid opts.path");
           }
-          let path2 = opts.path;
+          let path = opts.path;
           if (!opts.path.startsWith("/")) {
-            path2 = `/${path2}`;
+            path = `/${path}`;
           }
-          url = new URL(util2.parseOrigin(url).origin + path2);
+          url = new URL(util2.parseOrigin(url).origin + path);
         } else {
           if (!opts) {
             opts = typeof url === "object" ? url : {};
@@ -17322,11 +17322,11 @@ var require_lib = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve2) {
-          resolve2(value);
+        return value instanceof P ? value : new P(function(resolve) {
+          resolve(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve2, reject) {
+      return new (P || (P = Promise))(function(resolve, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -17342,7 +17342,7 @@ var require_lib = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -17428,26 +17428,26 @@ var require_lib = __commonJS({
       }
       readBody() {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve2) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve) => __awaiter(this, void 0, void 0, function* () {
             let output = Buffer.alloc(0);
             this.message.on("data", (chunk) => {
               output = Buffer.concat([output, chunk]);
             });
             this.message.on("end", () => {
-              resolve2(output.toString());
+              resolve(output.toString());
             });
           }));
         });
       }
       readBodyBuffer() {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve2) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve) => __awaiter(this, void 0, void 0, function* () {
             const chunks = [];
             this.message.on("data", (chunk) => {
               chunks.push(chunk);
             });
             this.message.on("end", () => {
-              resolve2(Buffer.concat(chunks));
+              resolve(Buffer.concat(chunks));
             });
           }));
         });
@@ -17586,12 +17586,12 @@ var require_lib = __commonJS({
             throw new Error("Client has already been disposed.");
           }
           const parsedUrl = new URL(requestUrl);
-          let info10 = this._prepareRequest(verb, parsedUrl, headers);
+          let info3 = this._prepareRequest(verb, parsedUrl, headers);
           const maxTries = this._allowRetries && RetryableHttpVerbs.includes(verb) ? this._maxRetries + 1 : 1;
           let numTries = 0;
           let response;
           do {
-            response = yield this.requestRaw(info10, data);
+            response = yield this.requestRaw(info3, data);
             if (response && response.message && response.message.statusCode === HttpCodes.Unauthorized) {
               let authenticationHandler;
               for (const handler of this.handlers) {
@@ -17601,7 +17601,7 @@ var require_lib = __commonJS({
                 }
               }
               if (authenticationHandler) {
-                return authenticationHandler.handleAuthentication(this, info10, data);
+                return authenticationHandler.handleAuthentication(this, info3, data);
               } else {
                 return response;
               }
@@ -17624,8 +17624,8 @@ var require_lib = __commonJS({
                   }
                 }
               }
-              info10 = this._prepareRequest(verb, parsedRedirectUrl, headers);
-              response = yield this.requestRaw(info10, data);
+              info3 = this._prepareRequest(verb, parsedRedirectUrl, headers);
+              response = yield this.requestRaw(info3, data);
               redirectsRemaining--;
             }
             if (!response.message.statusCode || !HttpResponseRetryCodes.includes(response.message.statusCode)) {
@@ -17654,19 +17654,19 @@ var require_lib = __commonJS({
        * @param info
        * @param data
        */
-      requestRaw(info10, data) {
+      requestRaw(info3, data) {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve2, reject) => {
+          return new Promise((resolve, reject) => {
             function callbackForResult(err, res) {
               if (err) {
                 reject(err);
               } else if (!res) {
                 reject(new Error("Unknown error"));
               } else {
-                resolve2(res);
+                resolve(res);
               }
             }
-            this.requestRawWithCallback(info10, data, callbackForResult);
+            this.requestRawWithCallback(info3, data, callbackForResult);
           });
         });
       }
@@ -17676,12 +17676,12 @@ var require_lib = __commonJS({
        * @param data
        * @param onResult
        */
-      requestRawWithCallback(info10, data, onResult) {
+      requestRawWithCallback(info3, data, onResult) {
         if (typeof data === "string") {
-          if (!info10.options.headers) {
-            info10.options.headers = {};
+          if (!info3.options.headers) {
+            info3.options.headers = {};
           }
-          info10.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
+          info3.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
         }
         let callbackCalled = false;
         function handleResult2(err, res) {
@@ -17690,7 +17690,7 @@ var require_lib = __commonJS({
             onResult(err, res);
           }
         }
-        const req = info10.httpModule.request(info10.options, (msg) => {
+        const req = info3.httpModule.request(info3.options, (msg) => {
           const res = new HttpClientResponse(msg);
           handleResult2(void 0, res);
         });
@@ -17702,7 +17702,7 @@ var require_lib = __commonJS({
           if (socket) {
             socket.end();
           }
-          handleResult2(new Error(`Request timeout: ${info10.options.path}`));
+          handleResult2(new Error(`Request timeout: ${info3.options.path}`));
         });
         req.on("error", function(err) {
           handleResult2(err);
@@ -17738,27 +17738,27 @@ var require_lib = __commonJS({
         return this._getProxyAgentDispatcher(parsedUrl, proxyUrl);
       }
       _prepareRequest(method, requestUrl, headers) {
-        const info10 = {};
-        info10.parsedUrl = requestUrl;
-        const usingSsl = info10.parsedUrl.protocol === "https:";
-        info10.httpModule = usingSsl ? https : http;
+        const info3 = {};
+        info3.parsedUrl = requestUrl;
+        const usingSsl = info3.parsedUrl.protocol === "https:";
+        info3.httpModule = usingSsl ? https : http;
         const defaultPort = usingSsl ? 443 : 80;
-        info10.options = {};
-        info10.options.host = info10.parsedUrl.hostname;
-        info10.options.port = info10.parsedUrl.port ? parseInt(info10.parsedUrl.port) : defaultPort;
-        info10.options.path = (info10.parsedUrl.pathname || "") + (info10.parsedUrl.search || "");
-        info10.options.method = method;
-        info10.options.headers = this._mergeHeaders(headers);
+        info3.options = {};
+        info3.options.host = info3.parsedUrl.hostname;
+        info3.options.port = info3.parsedUrl.port ? parseInt(info3.parsedUrl.port) : defaultPort;
+        info3.options.path = (info3.parsedUrl.pathname || "") + (info3.parsedUrl.search || "");
+        info3.options.method = method;
+        info3.options.headers = this._mergeHeaders(headers);
         if (this.userAgent != null) {
-          info10.options.headers["user-agent"] = this.userAgent;
+          info3.options.headers["user-agent"] = this.userAgent;
         }
-        info10.options.agent = this._getAgent(info10.parsedUrl);
+        info3.options.agent = this._getAgent(info3.parsedUrl);
         if (this.handlers) {
           for (const handler of this.handlers) {
-            handler.prepareRequest(info10.options);
+            handler.prepareRequest(info3.options);
           }
         }
-        return info10;
+        return info3;
       }
       _mergeHeaders(headers) {
         if (this.requestOptions && this.requestOptions.headers) {
@@ -17845,12 +17845,12 @@ var require_lib = __commonJS({
         return __awaiter(this, void 0, void 0, function* () {
           retryNumber = Math.min(ExponentialBackoffCeiling, retryNumber);
           const ms = ExponentialBackoffTimeSlice * Math.pow(2, retryNumber);
-          return new Promise((resolve2) => setTimeout(() => resolve2(), ms));
+          return new Promise((resolve) => setTimeout(() => resolve(), ms));
         });
       }
       _processResponse(res, options) {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve2, reject) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
             const statusCode = res.message.statusCode || 0;
             const response = {
               statusCode,
@@ -17858,7 +17858,7 @@ var require_lib = __commonJS({
               headers: {}
             };
             if (statusCode === HttpCodes.NotFound) {
-              resolve2(response);
+              resolve(response);
             }
             function dateTimeDeserializer(key, value) {
               if (typeof value === "string") {
@@ -17897,7 +17897,7 @@ var require_lib = __commonJS({
               err.result = response.result;
               reject(err);
             } else {
-              resolve2(response);
+              resolve(response);
             }
           }));
         });
@@ -17914,11 +17914,11 @@ var require_auth = __commonJS({
     "use strict";
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve2) {
-          resolve2(value);
+        return value instanceof P ? value : new P(function(resolve) {
+          resolve(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve2, reject) {
+      return new (P || (P = Promise))(function(resolve, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -17934,7 +17934,7 @@ var require_auth = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18018,11 +18018,11 @@ var require_oidc_utils = __commonJS({
     "use strict";
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve2) {
-          resolve2(value);
+        return value instanceof P ? value : new P(function(resolve) {
+          resolve(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve2, reject) {
+      return new (P || (P = Promise))(function(resolve, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18038,7 +18038,7 @@ var require_oidc_utils = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18074,12 +18074,12 @@ var require_oidc_utils = __commonJS({
         var _a;
         return __awaiter(this, void 0, void 0, function* () {
           const httpclient = _OidcClient.createHttpClient();
-          const res = yield httpclient.getJson(id_token_url).catch((error3) => {
+          const res = yield httpclient.getJson(id_token_url).catch((error) => {
             throw new Error(`Failed to get ID Token. 
  
-        Error Code : ${error3.statusCode}
+        Error Code : ${error.statusCode}
  
-        Error Message: ${error3.message}`);
+        Error Message: ${error.message}`);
           });
           const id_token = (_a = res.result) === null || _a === void 0 ? void 0 : _a.value;
           if (!id_token) {
@@ -18100,8 +18100,8 @@ var require_oidc_utils = __commonJS({
             const id_token = yield _OidcClient.getCall(id_token_url);
             (0, core_1.setSecret)(id_token);
             return id_token;
-          } catch (error3) {
-            throw new Error(`Error message: ${error3.message}`);
+          } catch (error) {
+            throw new Error(`Error message: ${error.message}`);
           }
         });
       }
@@ -18116,11 +18116,11 @@ var require_summary = __commonJS({
     "use strict";
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve2) {
-          resolve2(value);
+        return value instanceof P ? value : new P(function(resolve) {
+          resolve(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve2, reject) {
+      return new (P || (P = Promise))(function(resolve, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18136,7 +18136,7 @@ var require_summary = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18437,7 +18437,7 @@ var require_path_utils = __commonJS({
     };
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.toPlatformPath = exports2.toWin32Path = exports2.toPosixPath = void 0;
-    var path2 = __importStar(require("path"));
+    var path = __importStar(require("path"));
     function toPosixPath(pth) {
       return pth.replace(/[\\]/g, "/");
     }
@@ -18447,7 +18447,7 @@ var require_path_utils = __commonJS({
     }
     exports2.toWin32Path = toWin32Path;
     function toPlatformPath(pth) {
-      return pth.replace(/[/\\]/g, path2.sep);
+      return pth.replace(/[/\\]/g, path.sep);
     }
     exports2.toPlatformPath = toPlatformPath;
   }
@@ -18482,11 +18482,11 @@ var require_io_util = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve2) {
-          resolve2(value);
+        return value instanceof P ? value : new P(function(resolve) {
+          resolve(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve2, reject) {
+      return new (P || (P = Promise))(function(resolve, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18502,7 +18502,7 @@ var require_io_util = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18510,12 +18510,12 @@ var require_io_util = __commonJS({
     var _a;
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getCmdPath = exports2.tryGetExecutablePath = exports2.isRooted = exports2.isDirectory = exports2.exists = exports2.READONLY = exports2.UV_FS_O_EXLOCK = exports2.IS_WINDOWS = exports2.unlink = exports2.symlink = exports2.stat = exports2.rmdir = exports2.rm = exports2.rename = exports2.readlink = exports2.readdir = exports2.open = exports2.mkdir = exports2.lstat = exports2.copyFile = exports2.chmod = void 0;
-    var fs3 = __importStar(require("fs"));
-    var path2 = __importStar(require("path"));
-    _a = fs3.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
+    var fs = __importStar(require("fs"));
+    var path = __importStar(require("path"));
+    _a = fs.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
     exports2.IS_WINDOWS = process.platform === "win32";
     exports2.UV_FS_O_EXLOCK = 268435456;
-    exports2.READONLY = fs3.constants.O_RDONLY;
+    exports2.READONLY = fs.constants.O_RDONLY;
     function exists(fsPath) {
       return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -18560,7 +18560,7 @@ var require_io_util = __commonJS({
         }
         if (stats && stats.isFile()) {
           if (exports2.IS_WINDOWS) {
-            const upperExt = path2.extname(filePath).toUpperCase();
+            const upperExt = path.extname(filePath).toUpperCase();
             if (extensions.some((validExt) => validExt.toUpperCase() === upperExt)) {
               return filePath;
             }
@@ -18584,11 +18584,11 @@ var require_io_util = __commonJS({
           if (stats && stats.isFile()) {
             if (exports2.IS_WINDOWS) {
               try {
-                const directory = path2.dirname(filePath);
-                const upperName = path2.basename(filePath).toUpperCase();
+                const directory = path.dirname(filePath);
+                const upperName = path.basename(filePath).toUpperCase();
                 for (const actualName of yield exports2.readdir(directory)) {
                   if (upperName === actualName.toUpperCase()) {
-                    filePath = path2.join(directory, actualName);
+                    filePath = path.join(directory, actualName);
                     break;
                   }
                 }
@@ -18655,11 +18655,11 @@ var require_io = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve2) {
-          resolve2(value);
+        return value instanceof P ? value : new P(function(resolve) {
+          resolve(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve2, reject) {
+      return new (P || (P = Promise))(function(resolve, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18675,7 +18675,7 @@ var require_io = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18683,7 +18683,7 @@ var require_io = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.findInPath = exports2.which = exports2.mkdirP = exports2.rmRF = exports2.mv = exports2.cp = void 0;
     var assert_1 = require("assert");
-    var path2 = __importStar(require("path"));
+    var path = __importStar(require("path"));
     var ioUtil = __importStar(require_io_util());
     function cp(source, dest, options = {}) {
       return __awaiter(this, void 0, void 0, function* () {
@@ -18692,7 +18692,7 @@ var require_io = __commonJS({
         if (destStat && destStat.isFile() && !force) {
           return;
         }
-        const newDest = destStat && destStat.isDirectory() && copySourceDirectory ? path2.join(dest, path2.basename(source)) : dest;
+        const newDest = destStat && destStat.isDirectory() && copySourceDirectory ? path.join(dest, path.basename(source)) : dest;
         if (!(yield ioUtil.exists(source))) {
           throw new Error(`no such file or directory: ${source}`);
         }
@@ -18704,7 +18704,7 @@ var require_io = __commonJS({
             yield cpDirRecursive(source, newDest, 0, force);
           }
         } else {
-          if (path2.relative(source, newDest) === "") {
+          if (path.relative(source, newDest) === "") {
             throw new Error(`'${newDest}' and '${source}' are the same file`);
           }
           yield copyFile(source, newDest, force);
@@ -18717,7 +18717,7 @@ var require_io = __commonJS({
         if (yield ioUtil.exists(dest)) {
           let destExists = true;
           if (yield ioUtil.isDirectory(dest)) {
-            dest = path2.join(dest, path2.basename(source));
+            dest = path.join(dest, path.basename(source));
             destExists = yield ioUtil.exists(dest);
           }
           if (destExists) {
@@ -18728,7 +18728,7 @@ var require_io = __commonJS({
             }
           }
         }
-        yield mkdirP(path2.dirname(dest));
+        yield mkdirP(path.dirname(dest));
         yield ioUtil.rename(source, dest);
       });
     }
@@ -18776,9 +18776,9 @@ var require_io = __commonJS({
           }
           return result;
         }
-        const matches = yield findInPath(tool);
-        if (matches && matches.length > 0) {
-          return matches[0];
+        const matches2 = yield findInPath(tool);
+        if (matches2 && matches2.length > 0) {
+          return matches2[0];
         }
         return "";
       });
@@ -18791,7 +18791,7 @@ var require_io = __commonJS({
         }
         const extensions = [];
         if (ioUtil.IS_WINDOWS && process.env["PATHEXT"]) {
-          for (const extension of process.env["PATHEXT"].split(path2.delimiter)) {
+          for (const extension of process.env["PATHEXT"].split(path.delimiter)) {
             if (extension) {
               extensions.push(extension);
             }
@@ -18804,25 +18804,25 @@ var require_io = __commonJS({
           }
           return [];
         }
-        if (tool.includes(path2.sep)) {
+        if (tool.includes(path.sep)) {
           return [];
         }
         const directories = [];
         if (process.env.PATH) {
-          for (const p of process.env.PATH.split(path2.delimiter)) {
+          for (const p of process.env.PATH.split(path.delimiter)) {
             if (p) {
               directories.push(p);
             }
           }
         }
-        const matches = [];
+        const matches2 = [];
         for (const directory of directories) {
-          const filePath = yield ioUtil.tryGetExecutablePath(path2.join(directory, tool), extensions);
+          const filePath = yield ioUtil.tryGetExecutablePath(path.join(directory, tool), extensions);
           if (filePath) {
-            matches.push(filePath);
+            matches2.push(filePath);
           }
         }
-        return matches;
+        return matches2;
       });
     }
     exports2.findInPath = findInPath;
@@ -18903,11 +18903,11 @@ var require_toolrunner = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve2) {
-          resolve2(value);
+        return value instanceof P ? value : new P(function(resolve) {
+          resolve(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve2, reject) {
+      return new (P || (P = Promise))(function(resolve, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18923,7 +18923,7 @@ var require_toolrunner = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18933,7 +18933,7 @@ var require_toolrunner = __commonJS({
     var os = __importStar(require("os"));
     var events = __importStar(require("events"));
     var child = __importStar(require("child_process"));
-    var path2 = __importStar(require("path"));
+    var path = __importStar(require("path"));
     var io = __importStar(require_io());
     var ioUtil = __importStar(require_io_util());
     var timers_1 = require("timers");
@@ -19148,10 +19148,10 @@ var require_toolrunner = __commonJS({
       exec() {
         return __awaiter(this, void 0, void 0, function* () {
           if (!ioUtil.isRooted(this.toolPath) && (this.toolPath.includes("/") || IS_WINDOWS && this.toolPath.includes("\\"))) {
-            this.toolPath = path2.resolve(process.cwd(), this.options.cwd || process.cwd(), this.toolPath);
+            this.toolPath = path.resolve(process.cwd(), this.options.cwd || process.cwd(), this.toolPath);
           }
           this.toolPath = yield io.which(this.toolPath, true);
-          return new Promise((resolve2, reject) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
             this._debug(`exec tool: ${this.toolPath}`);
             this._debug("arguments:");
             for (const arg of this.args) {
@@ -19223,7 +19223,7 @@ var require_toolrunner = __commonJS({
               this._debug(`STDIO streams have closed for tool '${this.toolPath}'`);
               state.CheckComplete();
             });
-            state.on("done", (error3, exitCode) => {
+            state.on("done", (error, exitCode) => {
               if (stdbuffer.length > 0) {
                 this.emit("stdline", stdbuffer);
               }
@@ -19231,10 +19231,10 @@ var require_toolrunner = __commonJS({
                 this.emit("errline", errbuffer);
               }
               cp.removeAllListeners();
-              if (error3) {
-                reject(error3);
+              if (error) {
+                reject(error);
               } else {
-                resolve2(exitCode);
+                resolve(exitCode);
               }
             });
             if (this.options.input) {
@@ -19327,14 +19327,14 @@ var require_toolrunner = __commonJS({
         this.emit("debug", message);
       }
       _setResult() {
-        let error3;
+        let error;
         if (this.processExited) {
           if (this.processError) {
-            error3 = new Error(`There was an error when attempting to execute the process '${this.toolPath}'. This may indicate the process failed to start. Error: ${this.processError}`);
+            error = new Error(`There was an error when attempting to execute the process '${this.toolPath}'. This may indicate the process failed to start. Error: ${this.processError}`);
           } else if (this.processExitCode !== 0 && !this.options.ignoreReturnCode) {
-            error3 = new Error(`The process '${this.toolPath}' failed with exit code ${this.processExitCode}`);
+            error = new Error(`The process '${this.toolPath}' failed with exit code ${this.processExitCode}`);
           } else if (this.processStderr && this.options.failOnStdErr) {
-            error3 = new Error(`The process '${this.toolPath}' failed because one or more lines were written to the STDERR stream`);
+            error = new Error(`The process '${this.toolPath}' failed because one or more lines were written to the STDERR stream`);
           }
         }
         if (this.timeout) {
@@ -19342,7 +19342,7 @@ var require_toolrunner = __commonJS({
           this.timeout = null;
         }
         this.done = true;
-        this.emit("done", error3, this.processExitCode);
+        this.emit("done", error, this.processExitCode);
       }
       static HandleTimeout(state) {
         if (state.done) {
@@ -19387,11 +19387,11 @@ var require_exec = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve2) {
-          resolve2(value);
+        return value instanceof P ? value : new P(function(resolve) {
+          resolve(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve2, reject) {
+      return new (P || (P = Promise))(function(resolve, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -19407,7 +19407,7 @@ var require_exec = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -19416,7 +19416,7 @@ var require_exec = __commonJS({
     exports2.getExecOutput = exports2.exec = void 0;
     var string_decoder_1 = require("string_decoder");
     var tr = __importStar(require_toolrunner());
-    function exec7(commandLine, args, options) {
+    function exec3(commandLine, args, options) {
       return __awaiter(this, void 0, void 0, function* () {
         const commandArgs = tr.argStringToArray(commandLine);
         if (commandArgs.length === 0) {
@@ -19428,7 +19428,7 @@ var require_exec = __commonJS({
         return runner.exec();
       });
     }
-    exports2.exec = exec7;
+    exports2.exec = exec3;
     function getExecOutput(commandLine, args, options) {
       var _a, _b;
       return __awaiter(this, void 0, void 0, function* () {
@@ -19451,7 +19451,7 @@ var require_exec = __commonJS({
           }
         };
         const listeners = Object.assign(Object.assign({}, options === null || options === void 0 ? void 0 : options.listeners), { stdout: stdOutListener, stderr: stdErrListener });
-        const exitCode = yield exec7(commandLine, args, Object.assign(Object.assign({}, options), { listeners }));
+        const exitCode = yield exec3(commandLine, args, Object.assign(Object.assign({}, options), { listeners }));
         stdout += stdoutDecoder.end();
         stderr += stderrDecoder.end();
         return {
@@ -19498,11 +19498,11 @@ var require_platform = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve2) {
-          resolve2(value);
+        return value instanceof P ? value : new P(function(resolve) {
+          resolve(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve2, reject) {
+      return new (P || (P = Promise))(function(resolve, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -19518,7 +19518,7 @@ var require_platform = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -19529,12 +19529,12 @@ var require_platform = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getDetails = exports2.isLinux = exports2.isMacOS = exports2.isWindows = exports2.arch = exports2.platform = void 0;
     var os_1 = __importDefault(require("os"));
-    var exec7 = __importStar(require_exec());
+    var exec3 = __importStar(require_exec());
     var getWindowsInfo = () => __awaiter(void 0, void 0, void 0, function* () {
-      const { stdout: version } = yield exec7.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Version"', void 0, {
+      const { stdout: version } = yield exec3.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Version"', void 0, {
         silent: true
       });
-      const { stdout: name } = yield exec7.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Caption"', void 0, {
+      const { stdout: name } = yield exec3.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Caption"', void 0, {
         silent: true
       });
       return {
@@ -19544,7 +19544,7 @@ var require_platform = __commonJS({
     });
     var getMacOsInfo = () => __awaiter(void 0, void 0, void 0, function* () {
       var _a, _b, _c, _d;
-      const { stdout } = yield exec7.getExecOutput("sw_vers", void 0, {
+      const { stdout } = yield exec3.getExecOutput("sw_vers", void 0, {
         silent: true
       });
       const version = (_b = (_a = stdout.match(/ProductVersion:\s*(.+)/)) === null || _a === void 0 ? void 0 : _a[1]) !== null && _b !== void 0 ? _b : "";
@@ -19555,7 +19555,7 @@ var require_platform = __commonJS({
       };
     });
     var getLinuxInfo = () => __awaiter(void 0, void 0, void 0, function* () {
-      const { stdout } = yield exec7.getExecOutput("lsb_release", ["-i", "-r", "-s"], {
+      const { stdout } = yield exec3.getExecOutput("lsb_release", ["-i", "-r", "-s"], {
         silent: true
       });
       const [name, version] = stdout.trim().split("\n");
@@ -19617,11 +19617,11 @@ var require_core = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve2) {
-          resolve2(value);
+        return value instanceof P ? value : new P(function(resolve) {
+          resolve(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve2, reject) {
+      return new (P || (P = Promise))(function(resolve, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -19637,7 +19637,7 @@ var require_core = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -19648,7 +19648,7 @@ var require_core = __commonJS({
     var file_command_1 = require_file_command();
     var utils_1 = require_utils();
     var os = __importStar(require("os"));
-    var path2 = __importStar(require("path"));
+    var path = __importStar(require("path"));
     var oidc_utils_1 = require_oidc_utils();
     var ExitCode;
     (function(ExitCode2) {
@@ -19676,7 +19676,7 @@ var require_core = __commonJS({
       } else {
         (0, command_1.issueCommand)("add-path", {}, inputPath);
       }
-      process.env["PATH"] = `${inputPath}${path2.delimiter}${process.env["PATH"]}`;
+      process.env["PATH"] = `${inputPath}${path.delimiter}${process.env["PATH"]}`;
     }
     exports2.addPath = addPath;
     function getInput2(name, options) {
@@ -19725,33 +19725,33 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     exports2.setCommandEcho = setCommandEcho;
     function setFailed2(message) {
       process.exitCode = ExitCode.Failure;
-      error3(message);
+      error(message);
     }
     exports2.setFailed = setFailed2;
     function isDebug() {
       return process.env["RUNNER_DEBUG"] === "1";
     }
     exports2.isDebug = isDebug;
-    function debug4(message) {
+    function debug2(message) {
       (0, command_1.issueCommand)("debug", {}, message);
     }
-    exports2.debug = debug4;
-    function error3(message, properties = {}) {
+    exports2.debug = debug2;
+    function error(message, properties = {}) {
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.error = error3;
-    function warning8(message, properties = {}) {
+    exports2.error = error;
+    function warning3(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning8;
+    exports2.warning = warning3;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.notice = notice;
-    function info10(message) {
+    function info3(message) {
       process.stdout.write(message + os.EOL);
     }
-    exports2.info = info10;
+    exports2.info = info3;
     function startGroup(name) {
       (0, command_1.issue)("group", name);
     }
@@ -19832,8 +19832,8 @@ var require_context = __commonJS({
           if ((0, fs_1.existsSync)(process.env.GITHUB_EVENT_PATH)) {
             this.payload = JSON.parse((0, fs_1.readFileSync)(process.env.GITHUB_EVENT_PATH, { encoding: "utf8" }));
           } else {
-            const path2 = process.env.GITHUB_EVENT_PATH;
-            process.stdout.write(`GITHUB_EVENT_PATH ${path2} does not exist${os_1.EOL}`);
+            const path = process.env.GITHUB_EVENT_PATH;
+            process.stdout.write(`GITHUB_EVENT_PATH ${path} does not exist${os_1.EOL}`);
           }
         }
         this.eventName = process.env.GITHUB_EVENT_NAME;
@@ -19905,11 +19905,11 @@ var require_utils3 = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve2) {
-          resolve2(value);
+        return value instanceof P ? value : new P(function(resolve) {
+          resolve(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve2, reject) {
+      return new (P || (P = Promise))(function(resolve, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -19925,7 +19925,7 @@ var require_utils3 = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -20041,8 +20041,8 @@ var require_add = __commonJS({
       }
       if (kind === "error") {
         hook = function(method, options) {
-          return Promise.resolve().then(method.bind(null, options)).catch(function(error3) {
-            return orig(error3, options);
+          return Promise.resolve().then(method.bind(null, options)).catch(function(error) {
+            return orig(error, options);
           });
         };
       }
@@ -20250,11 +20250,11 @@ var require_dist_node2 = __commonJS({
       return variableName.replace(/(?:^\W+)|(?:(?<!\W)\W+$)/g, "").split(/,/);
     }
     function extractUrlVariableNames(url) {
-      const matches = url.match(urlVariableRegex);
-      if (!matches) {
+      const matches2 = url.match(urlVariableRegex);
+      if (!matches2) {
         return [];
       }
-      return matches.map(removeNonChars).reduce((a, b) => a.concat(b), []);
+      return matches2.map(removeNonChars).reduce((a, b) => a.concat(b), []);
     }
     function omit(object, keysToOmit) {
       const result = { __proto__: null };
@@ -20705,7 +20705,7 @@ var require_dist_node5 = __commonJS({
     }
     function fetchWrapper(requestOptions) {
       var _a, _b, _c, _d;
-      const log = requestOptions.request && requestOptions.request.log ? requestOptions.request.log : console;
+      const log2 = requestOptions.request && requestOptions.request.log ? requestOptions.request.log : console;
       const parseSuccessResponseBody = ((_a = requestOptions.request) == null ? void 0 : _a.parseSuccessResponseBody) !== false;
       if (isPlainObject(requestOptions.body) || Array.isArray(requestOptions.body)) {
         requestOptions.body = JSON.stringify(requestOptions.body);
@@ -20738,9 +20738,9 @@ var require_dist_node5 = __commonJS({
           headers[keyAndValue[0]] = keyAndValue[1];
         }
         if ("deprecation" in headers) {
-          const matches = headers.link && headers.link.match(/<([^<>]+)>; rel="deprecation"/);
-          const deprecationLink = matches && matches.pop();
-          log.warn(
+          const matches2 = headers.link && headers.link.match(/<([^<>]+)>; rel="deprecation"/);
+          const deprecationLink = matches2 && matches2.pop();
+          log2.warn(
             `[@octokit/request] "${requestOptions.method} ${requestOptions.url}" is deprecated. It is scheduled to be removed on ${headers.sunset}${deprecationLink ? `. See ${deprecationLink}` : ""}`
           );
         }
@@ -20774,7 +20774,7 @@ var require_dist_node5 = __commonJS({
         }
         if (status >= 400) {
           const data = await getResponseData(response);
-          const error3 = new import_request_error.RequestError(toErrorMessage(data), status, {
+          const error = new import_request_error.RequestError(toErrorMessage(data), status, {
             response: {
               url,
               status,
@@ -20783,7 +20783,7 @@ var require_dist_node5 = __commonJS({
             },
             request: requestOptions
           });
-          throw error3;
+          throw error;
         }
         return parseSuccessResponseBody ? await getResponseData(response) : response.body;
       }).then((data) => {
@@ -20793,17 +20793,17 @@ var require_dist_node5 = __commonJS({
           headers,
           data
         };
-      }).catch((error3) => {
-        if (error3 instanceof import_request_error.RequestError)
-          throw error3;
-        else if (error3.name === "AbortError")
-          throw error3;
-        let message = error3.message;
-        if (error3.name === "TypeError" && "cause" in error3) {
-          if (error3.cause instanceof Error) {
-            message = error3.cause.message;
-          } else if (typeof error3.cause === "string") {
-            message = error3.cause;
+      }).catch((error) => {
+        if (error instanceof import_request_error.RequestError)
+          throw error;
+        else if (error.name === "AbortError")
+          throw error;
+        let message = error.message;
+        if (error.name === "TypeError" && "cause" in error) {
+          if (error.cause instanceof Error) {
+            message = error.cause.message;
+          } else if (typeof error.cause === "string") {
+            message = error.cause;
           }
         }
         throw new import_request_error.RequestError(message, 500, {
@@ -23310,9 +23310,9 @@ var require_dist_node9 = __commonJS({
       set(target, methodName, value) {
         return target.cache[methodName] = value;
       },
-      get({ octokit, scope, cache }, methodName) {
-        if (cache[methodName]) {
-          return cache[methodName];
+      get({ octokit, scope, cache: cache2 }, methodName) {
+        if (cache2[methodName]) {
+          return cache2[methodName];
         }
         const method = endpointMethodsMap.get(scope).get(methodName);
         if (!method) {
@@ -23320,7 +23320,7 @@ var require_dist_node9 = __commonJS({
         }
         const { endpointDefaults, decorations } = method;
         if (decorations) {
-          cache[methodName] = decorate(
+          cache2[methodName] = decorate(
             octokit,
             scope,
             methodName,
@@ -23328,9 +23328,9 @@ var require_dist_node9 = __commonJS({
             decorations
           );
         } else {
-          cache[methodName] = octokit.request.defaults(endpointDefaults);
+          cache2[methodName] = octokit.request.defaults(endpointDefaults);
         }
-        return cache[methodName];
+        return cache2[methodName];
       }
     };
     function endpointsToMethods(octokit) {
@@ -23475,9 +23475,9 @@ var require_dist_node10 = __commonJS({
                 /<([^<>]+)>;\s*rel="next"/
               ) || [])[1];
               return { value: normalizedResponse };
-            } catch (error3) {
-              if (error3.status !== 409)
-                throw error3;
+            } catch (error) {
+              if (error.status !== 409)
+                throw error;
               url = "";
               return {
                 value: {
@@ -23882,8 +23882,8 @@ var require_github = __commonJS({
   }
 });
 
-// claude-state-executor/index.ts
-var core10 = __toESM(require_core(), 1);
+// claude-test-runner/index.ts
+var core3 = __toESM(require_core(), 1);
 var github = __toESM(require_github(), 1);
 
 // lib/index.ts
@@ -23902,6 +23902,3181 @@ function setOutputs(outputs) {
       core.setOutput(key, value);
     }
   }
+}
+
+// claude-test-runner/src/runner.ts
+var core2 = __toESM(require_core(), 1);
+
+// claude-test-runner/src/poller.ts
+var DEFAULT_POLLER_CONFIG = {
+  initialIntervalMs: 5e3,
+  maxIntervalMs: 6e4,
+  multiplier: 1.5,
+  jitterFactor: 0.1,
+  timeoutMs: 3e5
+  // 5 minutes default
+};
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+function calculateNextInterval(currentInterval, config) {
+  let nextInterval = currentInterval * config.multiplier;
+  nextInterval = Math.min(nextInterval, config.maxIntervalMs);
+  const jitterRange = nextInterval * config.jitterFactor;
+  const jitter = (Math.random() * 2 - 1) * jitterRange;
+  nextInterval = Math.max(1e3, nextInterval + jitter);
+  return nextInterval;
+}
+async function pollUntil(fetchFn, conditionFn, config = {}, onPoll) {
+  const fullConfig = {
+    ...DEFAULT_POLLER_CONFIG,
+    ...config
+  };
+  const startTime = Date.now();
+  let attempts = 0;
+  let interval = fullConfig.initialIntervalMs;
+  let lastData = null;
+  while (Date.now() - startTime < fullConfig.timeoutMs) {
+    attempts++;
+    try {
+      const data = await fetchFn();
+      lastData = data;
+      if (onPoll) {
+        onPoll(data, attempts, Date.now() - startTime);
+      }
+      if (conditionFn(data)) {
+        return {
+          success: true,
+          data,
+          attempts,
+          totalTimeMs: Date.now() - startTime
+        };
+      }
+      const sleepTime = calculateNextInterval(interval, fullConfig);
+      interval = sleepTime;
+      const remainingTime = fullConfig.timeoutMs - (Date.now() - startTime);
+      if (remainingTime <= 0) {
+        break;
+      }
+      await sleep(Math.min(sleepTime, remainingTime));
+    } catch {
+      const sleepTime = calculateNextInterval(interval, fullConfig);
+      interval = sleepTime;
+      const remainingTime = fullConfig.timeoutMs - (Date.now() - startTime);
+      if (remainingTime <= 0) {
+        break;
+      }
+      await sleep(Math.min(sleepTime, remainingTime));
+    }
+  }
+  return {
+    success: false,
+    data: lastData,
+    attempts,
+    totalTimeMs: Date.now() - startTime
+  };
+}
+
+// ../../node_modules/.pnpm/xstate@5.25.1/node_modules/xstate/dev/dist/xstate-dev.esm.js
+function getGlobal() {
+  if (typeof globalThis !== "undefined") {
+    return globalThis;
+  }
+  if (typeof self !== "undefined") {
+    return self;
+  }
+  if (typeof window !== "undefined") {
+    return window;
+  }
+  if (typeof global !== "undefined") {
+    return global;
+  }
+}
+function getDevTools() {
+  const w = getGlobal();
+  if (w.__xstate__) {
+    return w.__xstate__;
+  }
+  return void 0;
+}
+var devToolsAdapter = (service) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+  const devTools = getDevTools();
+  if (devTools) {
+    devTools.register(service);
+  }
+};
+
+// ../../node_modules/.pnpm/xstate@5.25.1/node_modules/xstate/dist/raise-f5c7cb5b.esm.js
+var Mailbox = class {
+  constructor(_process) {
+    this._process = _process;
+    this._active = false;
+    this._current = null;
+    this._last = null;
+  }
+  start() {
+    this._active = true;
+    this.flush();
+  }
+  clear() {
+    if (this._current) {
+      this._current.next = null;
+      this._last = this._current;
+    }
+  }
+  enqueue(event) {
+    const enqueued = {
+      value: event,
+      next: null
+    };
+    if (this._current) {
+      this._last.next = enqueued;
+      this._last = enqueued;
+      return;
+    }
+    this._current = enqueued;
+    this._last = enqueued;
+    if (this._active) {
+      this.flush();
+    }
+  }
+  flush() {
+    while (this._current) {
+      const consumed = this._current;
+      this._process(consumed.value);
+      this._current = consumed.next;
+    }
+    this._last = null;
+  }
+};
+var STATE_DELIMITER = ".";
+var TARGETLESS_KEY = "";
+var NULL_EVENT = "";
+var STATE_IDENTIFIER = "#";
+var WILDCARD = "*";
+var XSTATE_INIT = "xstate.init";
+var XSTATE_ERROR = "xstate.error";
+var XSTATE_STOP = "xstate.stop";
+function createAfterEvent(delayRef, id) {
+  return {
+    type: `xstate.after.${delayRef}.${id}`
+  };
+}
+function createDoneStateEvent(id, output) {
+  return {
+    type: `xstate.done.state.${id}`,
+    output
+  };
+}
+function createDoneActorEvent(invokeId, output) {
+  return {
+    type: `xstate.done.actor.${invokeId}`,
+    output,
+    actorId: invokeId
+  };
+}
+function createErrorActorEvent(id, error) {
+  return {
+    type: `xstate.error.actor.${id}`,
+    error,
+    actorId: id
+  };
+}
+function createInitEvent(input) {
+  return {
+    type: XSTATE_INIT,
+    input
+  };
+}
+function reportUnhandledError(err) {
+  setTimeout(() => {
+    throw err;
+  });
+}
+var symbolObservable = (() => typeof Symbol === "function" && Symbol.observable || "@@observable")();
+function matchesState(parentStateId, childStateId) {
+  const parentStateValue = toStateValue(parentStateId);
+  const childStateValue = toStateValue(childStateId);
+  if (typeof childStateValue === "string") {
+    if (typeof parentStateValue === "string") {
+      return childStateValue === parentStateValue;
+    }
+    return false;
+  }
+  if (typeof parentStateValue === "string") {
+    return parentStateValue in childStateValue;
+  }
+  return Object.keys(parentStateValue).every((key) => {
+    if (!(key in childStateValue)) {
+      return false;
+    }
+    return matchesState(parentStateValue[key], childStateValue[key]);
+  });
+}
+function toStatePath(stateId) {
+  if (isArray(stateId)) {
+    return stateId;
+  }
+  const result = [];
+  let segment = "";
+  for (let i = 0; i < stateId.length; i++) {
+    const char = stateId.charCodeAt(i);
+    switch (char) {
+      // \
+      case 92:
+        segment += stateId[i + 1];
+        i++;
+        continue;
+      // .
+      case 46:
+        result.push(segment);
+        segment = "";
+        continue;
+    }
+    segment += stateId[i];
+  }
+  result.push(segment);
+  return result;
+}
+function toStateValue(stateValue) {
+  if (isMachineSnapshot(stateValue)) {
+    return stateValue.value;
+  }
+  if (typeof stateValue !== "string") {
+    return stateValue;
+  }
+  const statePath = toStatePath(stateValue);
+  return pathToStateValue(statePath);
+}
+function pathToStateValue(statePath) {
+  if (statePath.length === 1) {
+    return statePath[0];
+  }
+  const value = {};
+  let marker = value;
+  for (let i = 0; i < statePath.length - 1; i++) {
+    if (i === statePath.length - 2) {
+      marker[statePath[i]] = statePath[i + 1];
+    } else {
+      const previous = marker;
+      marker = {};
+      previous[statePath[i]] = marker;
+    }
+  }
+  return value;
+}
+function mapValues(collection, iteratee) {
+  const result = {};
+  const collectionKeys = Object.keys(collection);
+  for (let i = 0; i < collectionKeys.length; i++) {
+    const key = collectionKeys[i];
+    result[key] = iteratee(collection[key], key, collection, i);
+  }
+  return result;
+}
+function toArrayStrict(value) {
+  if (isArray(value)) {
+    return value;
+  }
+  return [value];
+}
+function toArray(value) {
+  if (value === void 0) {
+    return [];
+  }
+  return toArrayStrict(value);
+}
+function resolveOutput(mapper, context2, event, self2) {
+  if (typeof mapper === "function") {
+    return mapper({
+      context: context2,
+      event,
+      self: self2
+    });
+  }
+  return mapper;
+}
+function isArray(value) {
+  return Array.isArray(value);
+}
+function isErrorActorEvent(event) {
+  return event.type.startsWith("xstate.error.actor");
+}
+function toTransitionConfigArray(configLike) {
+  return toArrayStrict(configLike).map((transitionLike) => {
+    if (typeof transitionLike === "undefined" || typeof transitionLike === "string") {
+      return {
+        target: transitionLike
+      };
+    }
+    return transitionLike;
+  });
+}
+function normalizeTarget(target) {
+  if (target === void 0 || target === TARGETLESS_KEY) {
+    return void 0;
+  }
+  return toArray(target);
+}
+function toObserver(nextHandler, errorHandler, completionHandler) {
+  const isObserver = typeof nextHandler === "object";
+  const self2 = isObserver ? nextHandler : void 0;
+  return {
+    next: (isObserver ? nextHandler.next : nextHandler)?.bind(self2),
+    error: (isObserver ? nextHandler.error : errorHandler)?.bind(self2),
+    complete: (isObserver ? nextHandler.complete : completionHandler)?.bind(self2)
+  };
+}
+function createInvokeId(stateNodeId, index) {
+  return `${index}.${stateNodeId}`;
+}
+function resolveReferencedActor(machine, src) {
+  const match = src.match(/^xstate\.invoke\.(\d+)\.(.*)/);
+  if (!match) {
+    return machine.implementations.actors[src];
+  }
+  const [, indexStr, nodeId] = match;
+  const node = machine.getStateNodeById(nodeId);
+  const invokeConfig = node.config.invoke;
+  return (Array.isArray(invokeConfig) ? invokeConfig[indexStr] : invokeConfig).src;
+}
+function matchesEventDescriptor(eventType, descriptor) {
+  if (descriptor === eventType) {
+    return true;
+  }
+  if (descriptor === WILDCARD) {
+    return true;
+  }
+  if (!descriptor.endsWith(".*")) {
+    return false;
+  }
+  const partialEventTokens = descriptor.split(".");
+  const eventTokens = eventType.split(".");
+  for (let tokenIndex = 0; tokenIndex < partialEventTokens.length; tokenIndex++) {
+    const partialEventToken = partialEventTokens[tokenIndex];
+    const eventToken = eventTokens[tokenIndex];
+    if (partialEventToken === "*") {
+      const isLastToken = tokenIndex === partialEventTokens.length - 1;
+      return isLastToken;
+    }
+    if (partialEventToken !== eventToken) {
+      return false;
+    }
+  }
+  return true;
+}
+function createScheduledEventId(actorRef, id) {
+  return `${actorRef.sessionId}.${id}`;
+}
+var idCounter = 0;
+function createSystem(rootActor, options) {
+  const children = /* @__PURE__ */ new Map();
+  const keyedActors = /* @__PURE__ */ new Map();
+  const reverseKeyedActors = /* @__PURE__ */ new WeakMap();
+  const inspectionObservers = /* @__PURE__ */ new Set();
+  const timerMap = {};
+  const {
+    clock,
+    logger
+  } = options;
+  const scheduler = {
+    schedule: (source, target, event, delay, id = Math.random().toString(36).slice(2)) => {
+      const scheduledEvent = {
+        source,
+        target,
+        event,
+        delay,
+        id,
+        startedAt: Date.now()
+      };
+      const scheduledEventId = createScheduledEventId(source, id);
+      system._snapshot._scheduledEvents[scheduledEventId] = scheduledEvent;
+      const timeout = clock.setTimeout(() => {
+        delete timerMap[scheduledEventId];
+        delete system._snapshot._scheduledEvents[scheduledEventId];
+        system._relay(source, target, event);
+      }, delay);
+      timerMap[scheduledEventId] = timeout;
+    },
+    cancel: (source, id) => {
+      const scheduledEventId = createScheduledEventId(source, id);
+      const timeout = timerMap[scheduledEventId];
+      delete timerMap[scheduledEventId];
+      delete system._snapshot._scheduledEvents[scheduledEventId];
+      if (timeout !== void 0) {
+        clock.clearTimeout(timeout);
+      }
+    },
+    cancelAll: (actorRef) => {
+      for (const scheduledEventId in system._snapshot._scheduledEvents) {
+        const scheduledEvent = system._snapshot._scheduledEvents[scheduledEventId];
+        if (scheduledEvent.source === actorRef) {
+          scheduler.cancel(actorRef, scheduledEvent.id);
+        }
+      }
+    }
+  };
+  const sendInspectionEvent = (event) => {
+    if (!inspectionObservers.size) {
+      return;
+    }
+    const resolvedInspectionEvent = {
+      ...event,
+      rootId: rootActor.sessionId
+    };
+    inspectionObservers.forEach((observer) => observer.next?.(resolvedInspectionEvent));
+  };
+  const system = {
+    _snapshot: {
+      _scheduledEvents: (options?.snapshot && options.snapshot.scheduler) ?? {}
+    },
+    _bookId: () => `x:${idCounter++}`,
+    _register: (sessionId, actorRef) => {
+      children.set(sessionId, actorRef);
+      return sessionId;
+    },
+    _unregister: (actorRef) => {
+      children.delete(actorRef.sessionId);
+      const systemId = reverseKeyedActors.get(actorRef);
+      if (systemId !== void 0) {
+        keyedActors.delete(systemId);
+        reverseKeyedActors.delete(actorRef);
+      }
+    },
+    get: (systemId) => {
+      return keyedActors.get(systemId);
+    },
+    getAll: () => {
+      return Object.fromEntries(keyedActors.entries());
+    },
+    _set: (systemId, actorRef) => {
+      const existing = keyedActors.get(systemId);
+      if (existing && existing !== actorRef) {
+        throw new Error(`Actor with system ID '${systemId}' already exists.`);
+      }
+      keyedActors.set(systemId, actorRef);
+      reverseKeyedActors.set(actorRef, systemId);
+    },
+    inspect: (observerOrFn) => {
+      const observer = toObserver(observerOrFn);
+      inspectionObservers.add(observer);
+      return {
+        unsubscribe() {
+          inspectionObservers.delete(observer);
+        }
+      };
+    },
+    _sendInspectionEvent: sendInspectionEvent,
+    _relay: (source, target, event) => {
+      system._sendInspectionEvent({
+        type: "@xstate.event",
+        sourceRef: source,
+        actorRef: target,
+        event
+      });
+      target._send(event);
+    },
+    scheduler,
+    getSnapshot: () => {
+      return {
+        _scheduledEvents: {
+          ...system._snapshot._scheduledEvents
+        }
+      };
+    },
+    start: () => {
+      const scheduledEvents = system._snapshot._scheduledEvents;
+      system._snapshot._scheduledEvents = {};
+      for (const scheduledId in scheduledEvents) {
+        const {
+          source,
+          target,
+          event,
+          delay,
+          id
+        } = scheduledEvents[scheduledId];
+        scheduler.schedule(source, target, event, delay, id);
+      }
+    },
+    _clock: clock,
+    _logger: logger
+  };
+  return system;
+}
+var executingCustomAction = false;
+var $$ACTOR_TYPE = 1;
+var ProcessingStatus = /* @__PURE__ */ function(ProcessingStatus2) {
+  ProcessingStatus2[ProcessingStatus2["NotStarted"] = 0] = "NotStarted";
+  ProcessingStatus2[ProcessingStatus2["Running"] = 1] = "Running";
+  ProcessingStatus2[ProcessingStatus2["Stopped"] = 2] = "Stopped";
+  return ProcessingStatus2;
+}({});
+var defaultOptions = {
+  clock: {
+    setTimeout: (fn, ms) => {
+      return setTimeout(fn, ms);
+    },
+    clearTimeout: (id) => {
+      return clearTimeout(id);
+    }
+  },
+  logger: console.log.bind(console),
+  devTools: false
+};
+var Actor = class {
+  /**
+   * Creates a new actor instance for the given logic with the provided options,
+   * if any.
+   *
+   * @param logic The logic to create an actor from
+   * @param options Actor options
+   */
+  constructor(logic, options) {
+    this.logic = logic;
+    this._snapshot = void 0;
+    this.clock = void 0;
+    this.options = void 0;
+    this.id = void 0;
+    this.mailbox = new Mailbox(this._process.bind(this));
+    this.observers = /* @__PURE__ */ new Set();
+    this.eventListeners = /* @__PURE__ */ new Map();
+    this.logger = void 0;
+    this._processingStatus = ProcessingStatus.NotStarted;
+    this._parent = void 0;
+    this._syncSnapshot = void 0;
+    this.ref = void 0;
+    this._actorScope = void 0;
+    this.systemId = void 0;
+    this.sessionId = void 0;
+    this.system = void 0;
+    this._doneEvent = void 0;
+    this.src = void 0;
+    this._deferred = [];
+    const resolvedOptions = {
+      ...defaultOptions,
+      ...options
+    };
+    const {
+      clock,
+      logger,
+      parent,
+      syncSnapshot,
+      id,
+      systemId,
+      inspect
+    } = resolvedOptions;
+    this.system = parent ? parent.system : createSystem(this, {
+      clock,
+      logger
+    });
+    if (inspect && !parent) {
+      this.system.inspect(toObserver(inspect));
+    }
+    this.sessionId = this.system._bookId();
+    this.id = id ?? this.sessionId;
+    this.logger = options?.logger ?? this.system._logger;
+    this.clock = options?.clock ?? this.system._clock;
+    this._parent = parent;
+    this._syncSnapshot = syncSnapshot;
+    this.options = resolvedOptions;
+    this.src = resolvedOptions.src ?? logic;
+    this.ref = this;
+    this._actorScope = {
+      self: this,
+      id: this.id,
+      sessionId: this.sessionId,
+      logger: this.logger,
+      defer: (fn) => {
+        this._deferred.push(fn);
+      },
+      system: this.system,
+      stopChild: (child) => {
+        if (child._parent !== this) {
+          throw new Error(`Cannot stop child actor ${child.id} of ${this.id} because it is not a child`);
+        }
+        child._stop();
+      },
+      emit: (emittedEvent) => {
+        const listeners = this.eventListeners.get(emittedEvent.type);
+        const wildcardListener = this.eventListeners.get("*");
+        if (!listeners && !wildcardListener) {
+          return;
+        }
+        const allListeners = [...listeners ? listeners.values() : [], ...wildcardListener ? wildcardListener.values() : []];
+        for (const handler of allListeners) {
+          try {
+            handler(emittedEvent);
+          } catch (err) {
+            reportUnhandledError(err);
+          }
+        }
+      },
+      actionExecutor: (action) => {
+        const exec3 = () => {
+          this._actorScope.system._sendInspectionEvent({
+            type: "@xstate.action",
+            actorRef: this,
+            action: {
+              type: action.type,
+              params: action.params
+            }
+          });
+          if (!action.exec) {
+            return;
+          }
+          const saveExecutingCustomAction = executingCustomAction;
+          try {
+            executingCustomAction = true;
+            action.exec(action.info, action.params);
+          } finally {
+            executingCustomAction = saveExecutingCustomAction;
+          }
+        };
+        if (this._processingStatus === ProcessingStatus.Running) {
+          exec3();
+        } else {
+          this._deferred.push(exec3);
+        }
+      }
+    };
+    this.send = this.send.bind(this);
+    this.system._sendInspectionEvent({
+      type: "@xstate.actor",
+      actorRef: this
+    });
+    if (systemId) {
+      this.systemId = systemId;
+      this.system._set(systemId, this);
+    }
+    this._initState(options?.snapshot ?? options?.state);
+    if (systemId && this._snapshot.status !== "active") {
+      this.system._unregister(this);
+    }
+  }
+  _initState(persistedState) {
+    try {
+      this._snapshot = persistedState ? this.logic.restoreSnapshot ? this.logic.restoreSnapshot(persistedState, this._actorScope) : persistedState : this.logic.getInitialSnapshot(this._actorScope, this.options?.input);
+    } catch (err) {
+      this._snapshot = {
+        status: "error",
+        output: void 0,
+        error: err
+      };
+    }
+  }
+  update(snapshot, event) {
+    this._snapshot = snapshot;
+    let deferredFn;
+    while (deferredFn = this._deferred.shift()) {
+      try {
+        deferredFn();
+      } catch (err) {
+        this._deferred.length = 0;
+        this._snapshot = {
+          ...snapshot,
+          status: "error",
+          error: err
+        };
+      }
+    }
+    switch (this._snapshot.status) {
+      case "active":
+        for (const observer of this.observers) {
+          try {
+            observer.next?.(snapshot);
+          } catch (err) {
+            reportUnhandledError(err);
+          }
+        }
+        break;
+      case "done":
+        for (const observer of this.observers) {
+          try {
+            observer.next?.(snapshot);
+          } catch (err) {
+            reportUnhandledError(err);
+          }
+        }
+        this._stopProcedure();
+        this._complete();
+        this._doneEvent = createDoneActorEvent(this.id, this._snapshot.output);
+        if (this._parent) {
+          this.system._relay(this, this._parent, this._doneEvent);
+        }
+        break;
+      case "error":
+        this._error(this._snapshot.error);
+        break;
+    }
+    this.system._sendInspectionEvent({
+      type: "@xstate.snapshot",
+      actorRef: this,
+      event,
+      snapshot
+    });
+  }
+  /**
+   * Subscribe an observer to an actor’s snapshot values.
+   *
+   * @remarks
+   * The observer will receive the actor’s snapshot value when it is emitted.
+   * The observer can be:
+   *
+   * - A plain function that receives the latest snapshot, or
+   * - An observer object whose `.next(snapshot)` method receives the latest
+   *   snapshot
+   *
+   * @example
+   *
+   * ```ts
+   * // Observer as a plain function
+   * const subscription = actor.subscribe((snapshot) => {
+   *   console.log(snapshot);
+   * });
+   * ```
+   *
+   * @example
+   *
+   * ```ts
+   * // Observer as an object
+   * const subscription = actor.subscribe({
+   *   next(snapshot) {
+   *     console.log(snapshot);
+   *   },
+   *   error(err) {
+   *     // ...
+   *   },
+   *   complete() {
+   *     // ...
+   *   }
+   * });
+   * ```
+   *
+   * The return value of `actor.subscribe(observer)` is a subscription object
+   * that has an `.unsubscribe()` method. You can call
+   * `subscription.unsubscribe()` to unsubscribe the observer:
+   *
+   * @example
+   *
+   * ```ts
+   * const subscription = actor.subscribe((snapshot) => {
+   *   // ...
+   * });
+   *
+   * // Unsubscribe the observer
+   * subscription.unsubscribe();
+   * ```
+   *
+   * When the actor is stopped, all of its observers will automatically be
+   * unsubscribed.
+   *
+   * @param observer - Either a plain function that receives the latest
+   *   snapshot, or an observer object whose `.next(snapshot)` method receives
+   *   the latest snapshot
+   */
+  subscribe(nextListenerOrObserver, errorListener, completeListener) {
+    const observer = toObserver(nextListenerOrObserver, errorListener, completeListener);
+    if (this._processingStatus !== ProcessingStatus.Stopped) {
+      this.observers.add(observer);
+    } else {
+      switch (this._snapshot.status) {
+        case "done":
+          try {
+            observer.complete?.();
+          } catch (err) {
+            reportUnhandledError(err);
+          }
+          break;
+        case "error": {
+          const err = this._snapshot.error;
+          if (!observer.error) {
+            reportUnhandledError(err);
+          } else {
+            try {
+              observer.error(err);
+            } catch (err2) {
+              reportUnhandledError(err2);
+            }
+          }
+          break;
+        }
+      }
+    }
+    return {
+      unsubscribe: () => {
+        this.observers.delete(observer);
+      }
+    };
+  }
+  on(type, handler) {
+    let listeners = this.eventListeners.get(type);
+    if (!listeners) {
+      listeners = /* @__PURE__ */ new Set();
+      this.eventListeners.set(type, listeners);
+    }
+    const wrappedHandler = handler.bind(void 0);
+    listeners.add(wrappedHandler);
+    return {
+      unsubscribe: () => {
+        listeners.delete(wrappedHandler);
+      }
+    };
+  }
+  /** Starts the Actor from the initial state */
+  start() {
+    if (this._processingStatus === ProcessingStatus.Running) {
+      return this;
+    }
+    if (this._syncSnapshot) {
+      this.subscribe({
+        next: (snapshot) => {
+          if (snapshot.status === "active") {
+            this.system._relay(this, this._parent, {
+              type: `xstate.snapshot.${this.id}`,
+              snapshot
+            });
+          }
+        },
+        error: () => {
+        }
+      });
+    }
+    this.system._register(this.sessionId, this);
+    if (this.systemId) {
+      this.system._set(this.systemId, this);
+    }
+    this._processingStatus = ProcessingStatus.Running;
+    const initEvent = createInitEvent(this.options.input);
+    this.system._sendInspectionEvent({
+      type: "@xstate.event",
+      sourceRef: this._parent,
+      actorRef: this,
+      event: initEvent
+    });
+    const status = this._snapshot.status;
+    switch (status) {
+      case "done":
+        this.update(this._snapshot, initEvent);
+        return this;
+      case "error":
+        this._error(this._snapshot.error);
+        return this;
+    }
+    if (!this._parent) {
+      this.system.start();
+    }
+    if (this.logic.start) {
+      try {
+        this.logic.start(this._snapshot, this._actorScope);
+      } catch (err) {
+        this._snapshot = {
+          ...this._snapshot,
+          status: "error",
+          error: err
+        };
+        this._error(err);
+        return this;
+      }
+    }
+    this.update(this._snapshot, initEvent);
+    if (this.options.devTools) {
+      this.attachDevTools();
+    }
+    this.mailbox.start();
+    return this;
+  }
+  _process(event) {
+    let nextState;
+    let caughtError;
+    try {
+      nextState = this.logic.transition(this._snapshot, event, this._actorScope);
+    } catch (err) {
+      caughtError = {
+        err
+      };
+    }
+    if (caughtError) {
+      const {
+        err
+      } = caughtError;
+      this._snapshot = {
+        ...this._snapshot,
+        status: "error",
+        error: err
+      };
+      this._error(err);
+      return;
+    }
+    this.update(nextState, event);
+    if (event.type === XSTATE_STOP) {
+      this._stopProcedure();
+      this._complete();
+    }
+  }
+  _stop() {
+    if (this._processingStatus === ProcessingStatus.Stopped) {
+      return this;
+    }
+    this.mailbox.clear();
+    if (this._processingStatus === ProcessingStatus.NotStarted) {
+      this._processingStatus = ProcessingStatus.Stopped;
+      return this;
+    }
+    this.mailbox.enqueue({
+      type: XSTATE_STOP
+    });
+    return this;
+  }
+  /** Stops the Actor and unsubscribe all listeners. */
+  stop() {
+    if (this._parent) {
+      throw new Error("A non-root actor cannot be stopped directly.");
+    }
+    return this._stop();
+  }
+  _complete() {
+    for (const observer of this.observers) {
+      try {
+        observer.complete?.();
+      } catch (err) {
+        reportUnhandledError(err);
+      }
+    }
+    this.observers.clear();
+    this.eventListeners.clear();
+  }
+  _reportError(err) {
+    if (!this.observers.size) {
+      if (!this._parent) {
+        reportUnhandledError(err);
+      }
+      this.eventListeners.clear();
+      return;
+    }
+    let reportError = false;
+    for (const observer of this.observers) {
+      const errorListener = observer.error;
+      reportError ||= !errorListener;
+      try {
+        errorListener?.(err);
+      } catch (err2) {
+        reportUnhandledError(err2);
+      }
+    }
+    this.observers.clear();
+    this.eventListeners.clear();
+    if (reportError) {
+      reportUnhandledError(err);
+    }
+  }
+  _error(err) {
+    this._stopProcedure();
+    this._reportError(err);
+    if (this._parent) {
+      this.system._relay(this, this._parent, createErrorActorEvent(this.id, err));
+    }
+  }
+  // TODO: atm children don't belong entirely to the actor so
+  // in a way - it's not even super aware of them
+  // so we can't stop them from here but we really should!
+  // right now, they are being stopped within the machine's transition
+  // but that could throw and leave us with "orphaned" active actors
+  _stopProcedure() {
+    if (this._processingStatus !== ProcessingStatus.Running) {
+      return this;
+    }
+    this.system.scheduler.cancelAll(this);
+    this.mailbox.clear();
+    this.mailbox = new Mailbox(this._process.bind(this));
+    this._processingStatus = ProcessingStatus.Stopped;
+    this.system._unregister(this);
+    return this;
+  }
+  /** @internal */
+  _send(event) {
+    if (this._processingStatus === ProcessingStatus.Stopped) {
+      return;
+    }
+    this.mailbox.enqueue(event);
+  }
+  /**
+   * Sends an event to the running Actor to trigger a transition.
+   *
+   * @param event The event to send
+   */
+  send(event) {
+    this.system._relay(void 0, this, event);
+  }
+  attachDevTools() {
+    const {
+      devTools
+    } = this.options;
+    if (devTools) {
+      const resolvedDevToolsAdapter = typeof devTools === "function" ? devTools : devToolsAdapter;
+      resolvedDevToolsAdapter(this);
+    }
+  }
+  toJSON() {
+    return {
+      xstate$$type: $$ACTOR_TYPE,
+      id: this.id
+    };
+  }
+  /**
+   * Obtain the internal state of the actor, which can be persisted.
+   *
+   * @remarks
+   * The internal state can be persisted from any actor, not only machines.
+   *
+   * Note that the persisted state is not the same as the snapshot from
+   * {@link Actor.getSnapshot}. Persisted state represents the internal state of
+   * the actor, while snapshots represent the actor's last emitted value.
+   *
+   * Can be restored with {@link ActorOptions.state}
+   * @see https://stately.ai/docs/persistence
+   */
+  getPersistedSnapshot(options) {
+    return this.logic.getPersistedSnapshot(this._snapshot, options);
+  }
+  [symbolObservable]() {
+    return this;
+  }
+  /**
+   * Read an actor’s snapshot synchronously.
+   *
+   * @remarks
+   * The snapshot represent an actor's last emitted value.
+   *
+   * When an actor receives an event, its internal state may change. An actor
+   * may emit a snapshot when a state transition occurs.
+   *
+   * Note that some actors, such as callback actors generated with
+   * `fromCallback`, will not emit snapshots.
+   * @see {@link Actor.subscribe} to subscribe to an actor’s snapshot values.
+   * @see {@link Actor.getPersistedSnapshot} to persist the internal state of an actor (which is more than just a snapshot).
+   */
+  getSnapshot() {
+    return this._snapshot;
+  }
+};
+function createActor(logic, ...[options]) {
+  return new Actor(logic, options);
+}
+function resolveCancel(_, snapshot, actionArgs, actionParams, {
+  sendId
+}) {
+  const resolvedSendId = typeof sendId === "function" ? sendId(actionArgs, actionParams) : sendId;
+  return [snapshot, {
+    sendId: resolvedSendId
+  }, void 0];
+}
+function executeCancel(actorScope, params) {
+  actorScope.defer(() => {
+    actorScope.system.scheduler.cancel(actorScope.self, params.sendId);
+  });
+}
+function cancel(sendId) {
+  function cancel2(_args, _params) {
+  }
+  cancel2.type = "xstate.cancel";
+  cancel2.sendId = sendId;
+  cancel2.resolve = resolveCancel;
+  cancel2.execute = executeCancel;
+  return cancel2;
+}
+function resolveSpawn(actorScope, snapshot, actionArgs, _actionParams, {
+  id,
+  systemId,
+  src,
+  input,
+  syncSnapshot
+}) {
+  const logic = typeof src === "string" ? resolveReferencedActor(snapshot.machine, src) : src;
+  const resolvedId = typeof id === "function" ? id(actionArgs) : id;
+  let actorRef;
+  let resolvedInput = void 0;
+  if (logic) {
+    resolvedInput = typeof input === "function" ? input({
+      context: snapshot.context,
+      event: actionArgs.event,
+      self: actorScope.self
+    }) : input;
+    actorRef = createActor(logic, {
+      id: resolvedId,
+      src,
+      parent: actorScope.self,
+      syncSnapshot,
+      systemId,
+      input: resolvedInput
+    });
+  }
+  return [cloneMachineSnapshot(snapshot, {
+    children: {
+      ...snapshot.children,
+      [resolvedId]: actorRef
+    }
+  }), {
+    id,
+    systemId,
+    actorRef,
+    src,
+    input: resolvedInput
+  }, void 0];
+}
+function executeSpawn(actorScope, {
+  actorRef
+}) {
+  if (!actorRef) {
+    return;
+  }
+  actorScope.defer(() => {
+    if (actorRef._processingStatus === ProcessingStatus.Stopped) {
+      return;
+    }
+    actorRef.start();
+  });
+}
+function spawnChild(...[src, {
+  id,
+  systemId,
+  input,
+  syncSnapshot = false
+} = {}]) {
+  function spawnChild2(_args, _params) {
+  }
+  spawnChild2.type = "xstate.spawnChild";
+  spawnChild2.id = id;
+  spawnChild2.systemId = systemId;
+  spawnChild2.src = src;
+  spawnChild2.input = input;
+  spawnChild2.syncSnapshot = syncSnapshot;
+  spawnChild2.resolve = resolveSpawn;
+  spawnChild2.execute = executeSpawn;
+  return spawnChild2;
+}
+function resolveStop(_, snapshot, args, actionParams, {
+  actorRef
+}) {
+  const actorRefOrString = typeof actorRef === "function" ? actorRef(args, actionParams) : actorRef;
+  const resolvedActorRef = typeof actorRefOrString === "string" ? snapshot.children[actorRefOrString] : actorRefOrString;
+  let children = snapshot.children;
+  if (resolvedActorRef) {
+    children = {
+      ...children
+    };
+    delete children[resolvedActorRef.id];
+  }
+  return [cloneMachineSnapshot(snapshot, {
+    children
+  }), resolvedActorRef, void 0];
+}
+function unregisterRecursively(actorScope, actorRef) {
+  const snapshot = actorRef.getSnapshot();
+  if (snapshot && "children" in snapshot) {
+    for (const child of Object.values(snapshot.children)) {
+      unregisterRecursively(actorScope, child);
+    }
+  }
+  actorScope.system._unregister(actorRef);
+}
+function executeStop(actorScope, actorRef) {
+  if (!actorRef) {
+    return;
+  }
+  unregisterRecursively(actorScope, actorRef);
+  if (actorRef._processingStatus !== ProcessingStatus.Running) {
+    actorScope.stopChild(actorRef);
+    return;
+  }
+  actorScope.defer(() => {
+    actorScope.stopChild(actorRef);
+  });
+}
+function stopChild(actorRef) {
+  function stop2(_args, _params) {
+  }
+  stop2.type = "xstate.stopChild";
+  stop2.actorRef = actorRef;
+  stop2.resolve = resolveStop;
+  stop2.execute = executeStop;
+  return stop2;
+}
+function evaluateGuard(guard, context2, event, snapshot) {
+  const {
+    machine
+  } = snapshot;
+  const isInline = typeof guard === "function";
+  const resolved = isInline ? guard : machine.implementations.guards[typeof guard === "string" ? guard : guard.type];
+  if (!isInline && !resolved) {
+    throw new Error(`Guard '${typeof guard === "string" ? guard : guard.type}' is not implemented.'.`);
+  }
+  if (typeof resolved !== "function") {
+    return evaluateGuard(resolved, context2, event, snapshot);
+  }
+  const guardArgs = {
+    context: context2,
+    event
+  };
+  const guardParams = isInline || typeof guard === "string" ? void 0 : "params" in guard ? typeof guard.params === "function" ? guard.params({
+    context: context2,
+    event
+  }) : guard.params : void 0;
+  if (!("check" in resolved)) {
+    return resolved(guardArgs, guardParams);
+  }
+  const builtinGuard = resolved;
+  return builtinGuard.check(
+    snapshot,
+    guardArgs,
+    resolved
+    // this holds all params
+  );
+}
+var isAtomicStateNode = (stateNode) => stateNode.type === "atomic" || stateNode.type === "final";
+function getChildren(stateNode) {
+  return Object.values(stateNode.states).filter((sn) => sn.type !== "history");
+}
+function getProperAncestors(stateNode, toStateNode) {
+  const ancestors = [];
+  if (toStateNode === stateNode) {
+    return ancestors;
+  }
+  let m = stateNode.parent;
+  while (m && m !== toStateNode) {
+    ancestors.push(m);
+    m = m.parent;
+  }
+  return ancestors;
+}
+function getAllStateNodes(stateNodes) {
+  const nodeSet = new Set(stateNodes);
+  const adjList = getAdjList(nodeSet);
+  for (const s of nodeSet) {
+    if (s.type === "compound" && (!adjList.get(s) || !adjList.get(s).length)) {
+      getInitialStateNodesWithTheirAncestors(s).forEach((sn) => nodeSet.add(sn));
+    } else {
+      if (s.type === "parallel") {
+        for (const child of getChildren(s)) {
+          if (child.type === "history") {
+            continue;
+          }
+          if (!nodeSet.has(child)) {
+            const initialStates = getInitialStateNodesWithTheirAncestors(child);
+            for (const initialStateNode of initialStates) {
+              nodeSet.add(initialStateNode);
+            }
+          }
+        }
+      }
+    }
+  }
+  for (const s of nodeSet) {
+    let m = s.parent;
+    while (m) {
+      nodeSet.add(m);
+      m = m.parent;
+    }
+  }
+  return nodeSet;
+}
+function getValueFromAdj(baseNode, adjList) {
+  const childStateNodes = adjList.get(baseNode);
+  if (!childStateNodes) {
+    return {};
+  }
+  if (baseNode.type === "compound") {
+    const childStateNode = childStateNodes[0];
+    if (childStateNode) {
+      if (isAtomicStateNode(childStateNode)) {
+        return childStateNode.key;
+      }
+    } else {
+      return {};
+    }
+  }
+  const stateValue = {};
+  for (const childStateNode of childStateNodes) {
+    stateValue[childStateNode.key] = getValueFromAdj(childStateNode, adjList);
+  }
+  return stateValue;
+}
+function getAdjList(stateNodes) {
+  const adjList = /* @__PURE__ */ new Map();
+  for (const s of stateNodes) {
+    if (!adjList.has(s)) {
+      adjList.set(s, []);
+    }
+    if (s.parent) {
+      if (!adjList.has(s.parent)) {
+        adjList.set(s.parent, []);
+      }
+      adjList.get(s.parent).push(s);
+    }
+  }
+  return adjList;
+}
+function getStateValue(rootNode, stateNodes) {
+  const config = getAllStateNodes(stateNodes);
+  return getValueFromAdj(rootNode, getAdjList(config));
+}
+function isInFinalState(stateNodeSet, stateNode) {
+  if (stateNode.type === "compound") {
+    return getChildren(stateNode).some((s) => s.type === "final" && stateNodeSet.has(s));
+  }
+  if (stateNode.type === "parallel") {
+    return getChildren(stateNode).every((sn) => isInFinalState(stateNodeSet, sn));
+  }
+  return stateNode.type === "final";
+}
+var isStateId = (str) => str[0] === STATE_IDENTIFIER;
+function getCandidates(stateNode, receivedEventType) {
+  const candidates = stateNode.transitions.get(receivedEventType) || [...stateNode.transitions.keys()].filter((eventDescriptor) => matchesEventDescriptor(receivedEventType, eventDescriptor)).sort((a, b) => b.length - a.length).flatMap((key) => stateNode.transitions.get(key));
+  return candidates;
+}
+function getDelayedTransitions(stateNode) {
+  const afterConfig = stateNode.config.after;
+  if (!afterConfig) {
+    return [];
+  }
+  const mutateEntryExit = (delay) => {
+    const afterEvent = createAfterEvent(delay, stateNode.id);
+    const eventType = afterEvent.type;
+    stateNode.entry.push(raise(afterEvent, {
+      id: eventType,
+      delay
+    }));
+    stateNode.exit.push(cancel(eventType));
+    return eventType;
+  };
+  const delayedTransitions = Object.keys(afterConfig).flatMap((delay) => {
+    const configTransition = afterConfig[delay];
+    const resolvedTransition = typeof configTransition === "string" ? {
+      target: configTransition
+    } : configTransition;
+    const resolvedDelay = Number.isNaN(+delay) ? delay : +delay;
+    const eventType = mutateEntryExit(resolvedDelay);
+    return toArray(resolvedTransition).map((transition) => ({
+      ...transition,
+      event: eventType,
+      delay: resolvedDelay
+    }));
+  });
+  return delayedTransitions.map((delayedTransition) => {
+    const {
+      delay
+    } = delayedTransition;
+    return {
+      ...formatTransition(stateNode, delayedTransition.event, delayedTransition),
+      delay
+    };
+  });
+}
+function formatTransition(stateNode, descriptor, transitionConfig) {
+  const normalizedTarget = normalizeTarget(transitionConfig.target);
+  const reenter = transitionConfig.reenter ?? false;
+  const target = resolveTarget(stateNode, normalizedTarget);
+  const transition = {
+    ...transitionConfig,
+    actions: toArray(transitionConfig.actions),
+    guard: transitionConfig.guard,
+    target,
+    source: stateNode,
+    reenter,
+    eventType: descriptor,
+    toJSON: () => ({
+      ...transition,
+      source: `#${stateNode.id}`,
+      target: target ? target.map((t) => `#${t.id}`) : void 0
+    })
+  };
+  return transition;
+}
+function formatTransitions(stateNode) {
+  const transitions = /* @__PURE__ */ new Map();
+  if (stateNode.config.on) {
+    for (const descriptor of Object.keys(stateNode.config.on)) {
+      if (descriptor === NULL_EVENT) {
+        throw new Error('Null events ("") cannot be specified as a transition key. Use `always: { ... }` instead.');
+      }
+      const transitionsConfig = stateNode.config.on[descriptor];
+      transitions.set(descriptor, toTransitionConfigArray(transitionsConfig).map((t) => formatTransition(stateNode, descriptor, t)));
+    }
+  }
+  if (stateNode.config.onDone) {
+    const descriptor = `xstate.done.state.${stateNode.id}`;
+    transitions.set(descriptor, toTransitionConfigArray(stateNode.config.onDone).map((t) => formatTransition(stateNode, descriptor, t)));
+  }
+  for (const invokeDef of stateNode.invoke) {
+    if (invokeDef.onDone) {
+      const descriptor = `xstate.done.actor.${invokeDef.id}`;
+      transitions.set(descriptor, toTransitionConfigArray(invokeDef.onDone).map((t) => formatTransition(stateNode, descriptor, t)));
+    }
+    if (invokeDef.onError) {
+      const descriptor = `xstate.error.actor.${invokeDef.id}`;
+      transitions.set(descriptor, toTransitionConfigArray(invokeDef.onError).map((t) => formatTransition(stateNode, descriptor, t)));
+    }
+    if (invokeDef.onSnapshot) {
+      const descriptor = `xstate.snapshot.${invokeDef.id}`;
+      transitions.set(descriptor, toTransitionConfigArray(invokeDef.onSnapshot).map((t) => formatTransition(stateNode, descriptor, t)));
+    }
+  }
+  for (const delayedTransition of stateNode.after) {
+    let existing = transitions.get(delayedTransition.eventType);
+    if (!existing) {
+      existing = [];
+      transitions.set(delayedTransition.eventType, existing);
+    }
+    existing.push(delayedTransition);
+  }
+  return transitions;
+}
+function formatInitialTransition(stateNode, _target) {
+  const resolvedTarget = typeof _target === "string" ? stateNode.states[_target] : _target ? stateNode.states[_target.target] : void 0;
+  if (!resolvedTarget && _target) {
+    throw new Error(
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions, @typescript-eslint/no-base-to-string
+      `Initial state node "${_target}" not found on parent state node #${stateNode.id}`
+    );
+  }
+  const transition = {
+    source: stateNode,
+    actions: !_target || typeof _target === "string" ? [] : toArray(_target.actions),
+    eventType: null,
+    reenter: false,
+    target: resolvedTarget ? [resolvedTarget] : [],
+    toJSON: () => ({
+      ...transition,
+      source: `#${stateNode.id}`,
+      target: resolvedTarget ? [`#${resolvedTarget.id}`] : []
+    })
+  };
+  return transition;
+}
+function resolveTarget(stateNode, targets) {
+  if (targets === void 0) {
+    return void 0;
+  }
+  return targets.map((target) => {
+    if (typeof target !== "string") {
+      return target;
+    }
+    if (isStateId(target)) {
+      return stateNode.machine.getStateNodeById(target);
+    }
+    const isInternalTarget = target[0] === STATE_DELIMITER;
+    if (isInternalTarget && !stateNode.parent) {
+      return getStateNodeByPath(stateNode, target.slice(1));
+    }
+    const resolvedTarget = isInternalTarget ? stateNode.key + target : target;
+    if (stateNode.parent) {
+      try {
+        const targetStateNode = getStateNodeByPath(stateNode.parent, resolvedTarget);
+        return targetStateNode;
+      } catch (err) {
+        throw new Error(`Invalid transition definition for state node '${stateNode.id}':
+${err.message}`);
+      }
+    } else {
+      throw new Error(`Invalid target: "${target}" is not a valid target from the root node. Did you mean ".${target}"?`);
+    }
+  });
+}
+function resolveHistoryDefaultTransition(stateNode) {
+  const normalizedTarget = normalizeTarget(stateNode.config.target);
+  if (!normalizedTarget) {
+    return stateNode.parent.initial;
+  }
+  return {
+    target: normalizedTarget.map((t) => typeof t === "string" ? getStateNodeByPath(stateNode.parent, t) : t)
+  };
+}
+function isHistoryNode(stateNode) {
+  return stateNode.type === "history";
+}
+function getInitialStateNodesWithTheirAncestors(stateNode) {
+  const states = getInitialStateNodes(stateNode);
+  for (const initialState of states) {
+    for (const ancestor of getProperAncestors(initialState, stateNode)) {
+      states.add(ancestor);
+    }
+  }
+  return states;
+}
+function getInitialStateNodes(stateNode) {
+  const set = /* @__PURE__ */ new Set();
+  function iter(descStateNode) {
+    if (set.has(descStateNode)) {
+      return;
+    }
+    set.add(descStateNode);
+    if (descStateNode.type === "compound") {
+      iter(descStateNode.initial.target[0]);
+    } else if (descStateNode.type === "parallel") {
+      for (const child of getChildren(descStateNode)) {
+        iter(child);
+      }
+    }
+  }
+  iter(stateNode);
+  return set;
+}
+function getStateNode(stateNode, stateKey) {
+  if (isStateId(stateKey)) {
+    return stateNode.machine.getStateNodeById(stateKey);
+  }
+  if (!stateNode.states) {
+    throw new Error(`Unable to retrieve child state '${stateKey}' from '${stateNode.id}'; no child states exist.`);
+  }
+  const result = stateNode.states[stateKey];
+  if (!result) {
+    throw new Error(`Child state '${stateKey}' does not exist on '${stateNode.id}'`);
+  }
+  return result;
+}
+function getStateNodeByPath(stateNode, statePath) {
+  if (typeof statePath === "string" && isStateId(statePath)) {
+    try {
+      return stateNode.machine.getStateNodeById(statePath);
+    } catch {
+    }
+  }
+  const arrayStatePath = toStatePath(statePath).slice();
+  let currentStateNode = stateNode;
+  while (arrayStatePath.length) {
+    const key = arrayStatePath.shift();
+    if (!key.length) {
+      break;
+    }
+    currentStateNode = getStateNode(currentStateNode, key);
+  }
+  return currentStateNode;
+}
+function getStateNodes(stateNode, stateValue) {
+  if (typeof stateValue === "string") {
+    const childStateNode = stateNode.states[stateValue];
+    if (!childStateNode) {
+      throw new Error(`State '${stateValue}' does not exist on '${stateNode.id}'`);
+    }
+    return [stateNode, childStateNode];
+  }
+  const childStateKeys = Object.keys(stateValue);
+  const childStateNodes = childStateKeys.map((subStateKey) => getStateNode(stateNode, subStateKey)).filter(Boolean);
+  return [stateNode.machine.root, stateNode].concat(childStateNodes, childStateKeys.reduce((allSubStateNodes, subStateKey) => {
+    const subStateNode = getStateNode(stateNode, subStateKey);
+    if (!subStateNode) {
+      return allSubStateNodes;
+    }
+    const subStateNodes = getStateNodes(subStateNode, stateValue[subStateKey]);
+    return allSubStateNodes.concat(subStateNodes);
+  }, []));
+}
+function transitionAtomicNode(stateNode, stateValue, snapshot, event) {
+  const childStateNode = getStateNode(stateNode, stateValue);
+  const next = childStateNode.next(snapshot, event);
+  if (!next || !next.length) {
+    return stateNode.next(snapshot, event);
+  }
+  return next;
+}
+function transitionCompoundNode(stateNode, stateValue, snapshot, event) {
+  const subStateKeys = Object.keys(stateValue);
+  const childStateNode = getStateNode(stateNode, subStateKeys[0]);
+  const next = transitionNode(childStateNode, stateValue[subStateKeys[0]], snapshot, event);
+  if (!next || !next.length) {
+    return stateNode.next(snapshot, event);
+  }
+  return next;
+}
+function transitionParallelNode(stateNode, stateValue, snapshot, event) {
+  const allInnerTransitions = [];
+  for (const subStateKey of Object.keys(stateValue)) {
+    const subStateValue = stateValue[subStateKey];
+    if (!subStateValue) {
+      continue;
+    }
+    const subStateNode = getStateNode(stateNode, subStateKey);
+    const innerTransitions = transitionNode(subStateNode, subStateValue, snapshot, event);
+    if (innerTransitions) {
+      allInnerTransitions.push(...innerTransitions);
+    }
+  }
+  if (!allInnerTransitions.length) {
+    return stateNode.next(snapshot, event);
+  }
+  return allInnerTransitions;
+}
+function transitionNode(stateNode, stateValue, snapshot, event) {
+  if (typeof stateValue === "string") {
+    return transitionAtomicNode(stateNode, stateValue, snapshot, event);
+  }
+  if (Object.keys(stateValue).length === 1) {
+    return transitionCompoundNode(stateNode, stateValue, snapshot, event);
+  }
+  return transitionParallelNode(stateNode, stateValue, snapshot, event);
+}
+function getHistoryNodes(stateNode) {
+  return Object.keys(stateNode.states).map((key) => stateNode.states[key]).filter((sn) => sn.type === "history");
+}
+function isDescendant(childStateNode, parentStateNode) {
+  let marker = childStateNode;
+  while (marker.parent && marker.parent !== parentStateNode) {
+    marker = marker.parent;
+  }
+  return marker.parent === parentStateNode;
+}
+function hasIntersection(s1, s2) {
+  const set1 = new Set(s1);
+  const set2 = new Set(s2);
+  for (const item of set1) {
+    if (set2.has(item)) {
+      return true;
+    }
+  }
+  for (const item of set2) {
+    if (set1.has(item)) {
+      return true;
+    }
+  }
+  return false;
+}
+function removeConflictingTransitions(enabledTransitions, stateNodeSet, historyValue) {
+  const filteredTransitions = /* @__PURE__ */ new Set();
+  for (const t1 of enabledTransitions) {
+    let t1Preempted = false;
+    const transitionsToRemove = /* @__PURE__ */ new Set();
+    for (const t2 of filteredTransitions) {
+      if (hasIntersection(computeExitSet([t1], stateNodeSet, historyValue), computeExitSet([t2], stateNodeSet, historyValue))) {
+        if (isDescendant(t1.source, t2.source)) {
+          transitionsToRemove.add(t2);
+        } else {
+          t1Preempted = true;
+          break;
+        }
+      }
+    }
+    if (!t1Preempted) {
+      for (const t3 of transitionsToRemove) {
+        filteredTransitions.delete(t3);
+      }
+      filteredTransitions.add(t1);
+    }
+  }
+  return Array.from(filteredTransitions);
+}
+function findLeastCommonAncestor(stateNodes) {
+  const [head, ...tail] = stateNodes;
+  for (const ancestor of getProperAncestors(head, void 0)) {
+    if (tail.every((sn) => isDescendant(sn, ancestor))) {
+      return ancestor;
+    }
+  }
+}
+function getEffectiveTargetStates(transition, historyValue) {
+  if (!transition.target) {
+    return [];
+  }
+  const targets = /* @__PURE__ */ new Set();
+  for (const targetNode of transition.target) {
+    if (isHistoryNode(targetNode)) {
+      if (historyValue[targetNode.id]) {
+        for (const node of historyValue[targetNode.id]) {
+          targets.add(node);
+        }
+      } else {
+        for (const node of getEffectiveTargetStates(resolveHistoryDefaultTransition(targetNode), historyValue)) {
+          targets.add(node);
+        }
+      }
+    } else {
+      targets.add(targetNode);
+    }
+  }
+  return [...targets];
+}
+function getTransitionDomain(transition, historyValue) {
+  const targetStates = getEffectiveTargetStates(transition, historyValue);
+  if (!targetStates) {
+    return;
+  }
+  if (!transition.reenter && targetStates.every((target) => target === transition.source || isDescendant(target, transition.source))) {
+    return transition.source;
+  }
+  const lca = findLeastCommonAncestor(targetStates.concat(transition.source));
+  if (lca) {
+    return lca;
+  }
+  if (transition.reenter) {
+    return;
+  }
+  return transition.source.machine.root;
+}
+function computeExitSet(transitions, stateNodeSet, historyValue) {
+  const statesToExit = /* @__PURE__ */ new Set();
+  for (const t of transitions) {
+    if (t.target?.length) {
+      const domain = getTransitionDomain(t, historyValue);
+      if (t.reenter && t.source === domain) {
+        statesToExit.add(domain);
+      }
+      for (const stateNode of stateNodeSet) {
+        if (isDescendant(stateNode, domain)) {
+          statesToExit.add(stateNode);
+        }
+      }
+    }
+  }
+  return [...statesToExit];
+}
+function areStateNodeCollectionsEqual(prevStateNodes, nextStateNodeSet) {
+  if (prevStateNodes.length !== nextStateNodeSet.size) {
+    return false;
+  }
+  for (const node of prevStateNodes) {
+    if (!nextStateNodeSet.has(node)) {
+      return false;
+    }
+  }
+  return true;
+}
+function microstep(transitions, currentSnapshot, actorScope, event, isInitial, internalQueue) {
+  if (!transitions.length) {
+    return currentSnapshot;
+  }
+  const mutStateNodeSet = new Set(currentSnapshot._nodes);
+  let historyValue = currentSnapshot.historyValue;
+  const filteredTransitions = removeConflictingTransitions(transitions, mutStateNodeSet, historyValue);
+  let nextState = currentSnapshot;
+  if (!isInitial) {
+    [nextState, historyValue] = exitStates(nextState, event, actorScope, filteredTransitions, mutStateNodeSet, historyValue, internalQueue, actorScope.actionExecutor);
+  }
+  nextState = resolveActionsAndContext(nextState, event, actorScope, filteredTransitions.flatMap((t) => t.actions), internalQueue, void 0);
+  nextState = enterStates(nextState, event, actorScope, filteredTransitions, mutStateNodeSet, internalQueue, historyValue, isInitial);
+  const nextStateNodes = [...mutStateNodeSet];
+  if (nextState.status === "done") {
+    nextState = resolveActionsAndContext(nextState, event, actorScope, nextStateNodes.sort((a, b) => b.order - a.order).flatMap((state) => state.exit), internalQueue, void 0);
+  }
+  try {
+    if (historyValue === currentSnapshot.historyValue && areStateNodeCollectionsEqual(currentSnapshot._nodes, mutStateNodeSet)) {
+      return nextState;
+    }
+    return cloneMachineSnapshot(nextState, {
+      _nodes: nextStateNodes,
+      historyValue
+    });
+  } catch (e) {
+    throw e;
+  }
+}
+function getMachineOutput(snapshot, event, actorScope, rootNode, rootCompletionNode) {
+  if (rootNode.output === void 0) {
+    return;
+  }
+  const doneStateEvent = createDoneStateEvent(rootCompletionNode.id, rootCompletionNode.output !== void 0 && rootCompletionNode.parent ? resolveOutput(rootCompletionNode.output, snapshot.context, event, actorScope.self) : void 0);
+  return resolveOutput(rootNode.output, snapshot.context, doneStateEvent, actorScope.self);
+}
+function enterStates(currentSnapshot, event, actorScope, filteredTransitions, mutStateNodeSet, internalQueue, historyValue, isInitial) {
+  let nextSnapshot = currentSnapshot;
+  const statesToEnter = /* @__PURE__ */ new Set();
+  const statesForDefaultEntry = /* @__PURE__ */ new Set();
+  computeEntrySet(filteredTransitions, historyValue, statesForDefaultEntry, statesToEnter);
+  if (isInitial) {
+    statesForDefaultEntry.add(currentSnapshot.machine.root);
+  }
+  const completedNodes = /* @__PURE__ */ new Set();
+  for (const stateNodeToEnter of [...statesToEnter].sort((a, b) => a.order - b.order)) {
+    mutStateNodeSet.add(stateNodeToEnter);
+    const actions = [];
+    actions.push(...stateNodeToEnter.entry);
+    for (const invokeDef of stateNodeToEnter.invoke) {
+      actions.push(spawnChild(invokeDef.src, {
+        ...invokeDef,
+        syncSnapshot: !!invokeDef.onSnapshot
+      }));
+    }
+    if (statesForDefaultEntry.has(stateNodeToEnter)) {
+      const initialActions = stateNodeToEnter.initial.actions;
+      actions.push(...initialActions);
+    }
+    nextSnapshot = resolveActionsAndContext(nextSnapshot, event, actorScope, actions, internalQueue, stateNodeToEnter.invoke.map((invokeDef) => invokeDef.id));
+    if (stateNodeToEnter.type === "final") {
+      const parent = stateNodeToEnter.parent;
+      let ancestorMarker = parent?.type === "parallel" ? parent : parent?.parent;
+      let rootCompletionNode = ancestorMarker || stateNodeToEnter;
+      if (parent?.type === "compound") {
+        internalQueue.push(createDoneStateEvent(parent.id, stateNodeToEnter.output !== void 0 ? resolveOutput(stateNodeToEnter.output, nextSnapshot.context, event, actorScope.self) : void 0));
+      }
+      while (ancestorMarker?.type === "parallel" && !completedNodes.has(ancestorMarker) && isInFinalState(mutStateNodeSet, ancestorMarker)) {
+        completedNodes.add(ancestorMarker);
+        internalQueue.push(createDoneStateEvent(ancestorMarker.id));
+        rootCompletionNode = ancestorMarker;
+        ancestorMarker = ancestorMarker.parent;
+      }
+      if (ancestorMarker) {
+        continue;
+      }
+      nextSnapshot = cloneMachineSnapshot(nextSnapshot, {
+        status: "done",
+        output: getMachineOutput(nextSnapshot, event, actorScope, nextSnapshot.machine.root, rootCompletionNode)
+      });
+    }
+  }
+  return nextSnapshot;
+}
+function computeEntrySet(transitions, historyValue, statesForDefaultEntry, statesToEnter) {
+  for (const t of transitions) {
+    const domain = getTransitionDomain(t, historyValue);
+    for (const s of t.target || []) {
+      if (!isHistoryNode(s) && // if the target is different than the source then it will *definitely* be entered
+      (t.source !== s || // we know that the domain can't lie within the source
+      // if it's different than the source then it's outside of it and it means that the target has to be entered as well
+      t.source !== domain || // reentering transitions always enter the target, even if it's the source itself
+      t.reenter)) {
+        statesToEnter.add(s);
+        statesForDefaultEntry.add(s);
+      }
+      addDescendantStatesToEnter(s, historyValue, statesForDefaultEntry, statesToEnter);
+    }
+    const targetStates = getEffectiveTargetStates(t, historyValue);
+    for (const s of targetStates) {
+      const ancestors = getProperAncestors(s, domain);
+      if (domain?.type === "parallel") {
+        ancestors.push(domain);
+      }
+      addAncestorStatesToEnter(statesToEnter, historyValue, statesForDefaultEntry, ancestors, !t.source.parent && t.reenter ? void 0 : domain);
+    }
+  }
+}
+function addDescendantStatesToEnter(stateNode, historyValue, statesForDefaultEntry, statesToEnter) {
+  if (isHistoryNode(stateNode)) {
+    if (historyValue[stateNode.id]) {
+      const historyStateNodes = historyValue[stateNode.id];
+      for (const s of historyStateNodes) {
+        statesToEnter.add(s);
+        addDescendantStatesToEnter(s, historyValue, statesForDefaultEntry, statesToEnter);
+      }
+      for (const s of historyStateNodes) {
+        addProperAncestorStatesToEnter(s, stateNode.parent, statesToEnter, historyValue, statesForDefaultEntry);
+      }
+    } else {
+      const historyDefaultTransition = resolveHistoryDefaultTransition(stateNode);
+      for (const s of historyDefaultTransition.target) {
+        statesToEnter.add(s);
+        if (historyDefaultTransition === stateNode.parent?.initial) {
+          statesForDefaultEntry.add(stateNode.parent);
+        }
+        addDescendantStatesToEnter(s, historyValue, statesForDefaultEntry, statesToEnter);
+      }
+      for (const s of historyDefaultTransition.target) {
+        addProperAncestorStatesToEnter(s, stateNode.parent, statesToEnter, historyValue, statesForDefaultEntry);
+      }
+    }
+  } else {
+    if (stateNode.type === "compound") {
+      const [initialState] = stateNode.initial.target;
+      if (!isHistoryNode(initialState)) {
+        statesToEnter.add(initialState);
+        statesForDefaultEntry.add(initialState);
+      }
+      addDescendantStatesToEnter(initialState, historyValue, statesForDefaultEntry, statesToEnter);
+      addProperAncestorStatesToEnter(initialState, stateNode, statesToEnter, historyValue, statesForDefaultEntry);
+    } else {
+      if (stateNode.type === "parallel") {
+        for (const child of getChildren(stateNode).filter((sn) => !isHistoryNode(sn))) {
+          if (![...statesToEnter].some((s) => isDescendant(s, child))) {
+            if (!isHistoryNode(child)) {
+              statesToEnter.add(child);
+              statesForDefaultEntry.add(child);
+            }
+            addDescendantStatesToEnter(child, historyValue, statesForDefaultEntry, statesToEnter);
+          }
+        }
+      }
+    }
+  }
+}
+function addAncestorStatesToEnter(statesToEnter, historyValue, statesForDefaultEntry, ancestors, reentrancyDomain) {
+  for (const anc of ancestors) {
+    if (!reentrancyDomain || isDescendant(anc, reentrancyDomain)) {
+      statesToEnter.add(anc);
+    }
+    if (anc.type === "parallel") {
+      for (const child of getChildren(anc).filter((sn) => !isHistoryNode(sn))) {
+        if (![...statesToEnter].some((s) => isDescendant(s, child))) {
+          statesToEnter.add(child);
+          addDescendantStatesToEnter(child, historyValue, statesForDefaultEntry, statesToEnter);
+        }
+      }
+    }
+  }
+}
+function addProperAncestorStatesToEnter(stateNode, toStateNode, statesToEnter, historyValue, statesForDefaultEntry) {
+  addAncestorStatesToEnter(statesToEnter, historyValue, statesForDefaultEntry, getProperAncestors(stateNode, toStateNode));
+}
+function exitStates(currentSnapshot, event, actorScope, transitions, mutStateNodeSet, historyValue, internalQueue, _actionExecutor) {
+  let nextSnapshot = currentSnapshot;
+  const statesToExit = computeExitSet(transitions, mutStateNodeSet, historyValue);
+  statesToExit.sort((a, b) => b.order - a.order);
+  let changedHistory;
+  for (const exitStateNode of statesToExit) {
+    for (const historyNode of getHistoryNodes(exitStateNode)) {
+      let predicate;
+      if (historyNode.history === "deep") {
+        predicate = (sn) => isAtomicStateNode(sn) && isDescendant(sn, exitStateNode);
+      } else {
+        predicate = (sn) => {
+          return sn.parent === exitStateNode;
+        };
+      }
+      changedHistory ??= {
+        ...historyValue
+      };
+      changedHistory[historyNode.id] = Array.from(mutStateNodeSet).filter(predicate);
+    }
+  }
+  for (const s of statesToExit) {
+    nextSnapshot = resolveActionsAndContext(nextSnapshot, event, actorScope, [...s.exit, ...s.invoke.map((def) => stopChild(def.id))], internalQueue, void 0);
+    mutStateNodeSet.delete(s);
+  }
+  return [nextSnapshot, changedHistory || historyValue];
+}
+function getAction(machine, actionType) {
+  return machine.implementations.actions[actionType];
+}
+function resolveAndExecuteActionsWithContext(currentSnapshot, event, actorScope, actions, extra, retries) {
+  const {
+    machine
+  } = currentSnapshot;
+  let intermediateSnapshot = currentSnapshot;
+  for (const action of actions) {
+    const isInline = typeof action === "function";
+    const resolvedAction = isInline ? action : (
+      // the existing type of `.actions` assumes non-nullable `TExpressionAction`
+      // it's fine to cast this here to get a common type and lack of errors in the rest of the code
+      // our logic below makes sure that we call those 2 "variants" correctly
+      getAction(machine, typeof action === "string" ? action : action.type)
+    );
+    const actionArgs = {
+      context: intermediateSnapshot.context,
+      event,
+      self: actorScope.self,
+      system: actorScope.system
+    };
+    const actionParams = isInline || typeof action === "string" ? void 0 : "params" in action ? typeof action.params === "function" ? action.params({
+      context: intermediateSnapshot.context,
+      event
+    }) : action.params : void 0;
+    if (!resolvedAction || !("resolve" in resolvedAction)) {
+      actorScope.actionExecutor({
+        type: typeof action === "string" ? action : typeof action === "object" ? action.type : action.name || "(anonymous)",
+        info: actionArgs,
+        params: actionParams,
+        exec: resolvedAction
+      });
+      continue;
+    }
+    const builtinAction = resolvedAction;
+    const [nextState, params, actions2] = builtinAction.resolve(
+      actorScope,
+      intermediateSnapshot,
+      actionArgs,
+      actionParams,
+      resolvedAction,
+      // this holds all params
+      extra
+    );
+    intermediateSnapshot = nextState;
+    if ("retryResolve" in builtinAction) {
+      retries?.push([builtinAction, params]);
+    }
+    if ("execute" in builtinAction) {
+      actorScope.actionExecutor({
+        type: builtinAction.type,
+        info: actionArgs,
+        params,
+        exec: builtinAction.execute.bind(null, actorScope, params)
+      });
+    }
+    if (actions2) {
+      intermediateSnapshot = resolveAndExecuteActionsWithContext(intermediateSnapshot, event, actorScope, actions2, extra, retries);
+    }
+  }
+  return intermediateSnapshot;
+}
+function resolveActionsAndContext(currentSnapshot, event, actorScope, actions, internalQueue, deferredActorIds) {
+  const retries = deferredActorIds ? [] : void 0;
+  const nextState = resolveAndExecuteActionsWithContext(currentSnapshot, event, actorScope, actions, {
+    internalQueue,
+    deferredActorIds
+  }, retries);
+  retries?.forEach(([builtinAction, params]) => {
+    builtinAction.retryResolve(actorScope, nextState, params);
+  });
+  return nextState;
+}
+function macrostep(snapshot, event, actorScope, internalQueue) {
+  let nextSnapshot = snapshot;
+  const microstates = [];
+  function addMicrostate(microstate, event2, transitions) {
+    actorScope.system._sendInspectionEvent({
+      type: "@xstate.microstep",
+      actorRef: actorScope.self,
+      event: event2,
+      snapshot: microstate,
+      _transitions: transitions
+    });
+    microstates.push(microstate);
+  }
+  if (event.type === XSTATE_STOP) {
+    nextSnapshot = cloneMachineSnapshot(stopChildren(nextSnapshot, event, actorScope), {
+      status: "stopped"
+    });
+    addMicrostate(nextSnapshot, event, []);
+    return {
+      snapshot: nextSnapshot,
+      microstates
+    };
+  }
+  let nextEvent = event;
+  if (nextEvent.type !== XSTATE_INIT) {
+    const currentEvent = nextEvent;
+    const isErr = isErrorActorEvent(currentEvent);
+    const transitions = selectTransitions(currentEvent, nextSnapshot);
+    if (isErr && !transitions.length) {
+      nextSnapshot = cloneMachineSnapshot(snapshot, {
+        status: "error",
+        error: currentEvent.error
+      });
+      addMicrostate(nextSnapshot, currentEvent, []);
+      return {
+        snapshot: nextSnapshot,
+        microstates
+      };
+    }
+    nextSnapshot = microstep(
+      transitions,
+      snapshot,
+      actorScope,
+      nextEvent,
+      false,
+      // isInitial
+      internalQueue
+    );
+    addMicrostate(nextSnapshot, currentEvent, transitions);
+  }
+  let shouldSelectEventlessTransitions = true;
+  while (nextSnapshot.status === "active") {
+    let enabledTransitions = shouldSelectEventlessTransitions ? selectEventlessTransitions(nextSnapshot, nextEvent) : [];
+    const previousState = enabledTransitions.length ? nextSnapshot : void 0;
+    if (!enabledTransitions.length) {
+      if (!internalQueue.length) {
+        break;
+      }
+      nextEvent = internalQueue.shift();
+      enabledTransitions = selectTransitions(nextEvent, nextSnapshot);
+    }
+    nextSnapshot = microstep(enabledTransitions, nextSnapshot, actorScope, nextEvent, false, internalQueue);
+    shouldSelectEventlessTransitions = nextSnapshot !== previousState;
+    addMicrostate(nextSnapshot, nextEvent, enabledTransitions);
+  }
+  if (nextSnapshot.status !== "active") {
+    stopChildren(nextSnapshot, nextEvent, actorScope);
+  }
+  return {
+    snapshot: nextSnapshot,
+    microstates
+  };
+}
+function stopChildren(nextState, event, actorScope) {
+  return resolveActionsAndContext(nextState, event, actorScope, Object.values(nextState.children).map((child) => stopChild(child)), [], void 0);
+}
+function selectTransitions(event, nextState) {
+  return nextState.machine.getTransitionData(nextState, event);
+}
+function selectEventlessTransitions(nextState, event) {
+  const enabledTransitionSet = /* @__PURE__ */ new Set();
+  const atomicStates = nextState._nodes.filter(isAtomicStateNode);
+  for (const stateNode of atomicStates) {
+    loop: for (const s of [stateNode].concat(getProperAncestors(stateNode, void 0))) {
+      if (!s.always) {
+        continue;
+      }
+      for (const transition of s.always) {
+        if (transition.guard === void 0 || evaluateGuard(transition.guard, nextState.context, event, nextState)) {
+          enabledTransitionSet.add(transition);
+          break loop;
+        }
+      }
+    }
+  }
+  return removeConflictingTransitions(Array.from(enabledTransitionSet), new Set(nextState._nodes), nextState.historyValue);
+}
+function resolveStateValue(rootNode, stateValue) {
+  const allStateNodes = getAllStateNodes(getStateNodes(rootNode, stateValue));
+  return getStateValue(rootNode, [...allStateNodes]);
+}
+function isMachineSnapshot(value) {
+  return !!value && typeof value === "object" && "machine" in value && "value" in value;
+}
+var machineSnapshotMatches = function matches(testValue) {
+  return matchesState(testValue, this.value);
+};
+var machineSnapshotHasTag = function hasTag(tag) {
+  return this.tags.has(tag);
+};
+var machineSnapshotCan = function can(event) {
+  const transitionData = this.machine.getTransitionData(this, event);
+  return !!transitionData?.length && // Check that at least one transition is not forbidden
+  transitionData.some((t) => t.target !== void 0 || t.actions.length);
+};
+var machineSnapshotToJSON = function toJSON() {
+  const {
+    _nodes: nodes,
+    tags,
+    machine,
+    getMeta: getMeta2,
+    toJSON: toJSON2,
+    can: can2,
+    hasTag: hasTag2,
+    matches: matches2,
+    ...jsonValues
+  } = this;
+  return {
+    ...jsonValues,
+    tags: Array.from(tags)
+  };
+};
+var machineSnapshotGetMeta = function getMeta() {
+  return this._nodes.reduce((acc, stateNode) => {
+    if (stateNode.meta !== void 0) {
+      acc[stateNode.id] = stateNode.meta;
+    }
+    return acc;
+  }, {});
+};
+function createMachineSnapshot(config, machine) {
+  return {
+    status: config.status,
+    output: config.output,
+    error: config.error,
+    machine,
+    context: config.context,
+    _nodes: config._nodes,
+    value: getStateValue(machine.root, config._nodes),
+    tags: new Set(config._nodes.flatMap((sn) => sn.tags)),
+    children: config.children,
+    historyValue: config.historyValue || {},
+    matches: machineSnapshotMatches,
+    hasTag: machineSnapshotHasTag,
+    can: machineSnapshotCan,
+    getMeta: machineSnapshotGetMeta,
+    toJSON: machineSnapshotToJSON
+  };
+}
+function cloneMachineSnapshot(snapshot, config = {}) {
+  return createMachineSnapshot({
+    ...snapshot,
+    ...config
+  }, snapshot.machine);
+}
+function serializeHistoryValue(historyValue) {
+  if (typeof historyValue !== "object" || historyValue === null) {
+    return {};
+  }
+  const result = {};
+  for (const key in historyValue) {
+    const value = historyValue[key];
+    if (Array.isArray(value)) {
+      result[key] = value.map((item) => ({
+        id: item.id
+      }));
+    }
+  }
+  return result;
+}
+function getPersistedSnapshot(snapshot, options) {
+  const {
+    _nodes: nodes,
+    tags,
+    machine,
+    children,
+    context: context2,
+    can: can2,
+    hasTag: hasTag2,
+    matches: matches2,
+    getMeta: getMeta2,
+    toJSON: toJSON2,
+    ...jsonValues
+  } = snapshot;
+  const childrenJson = {};
+  for (const id in children) {
+    const child = children[id];
+    childrenJson[id] = {
+      snapshot: child.getPersistedSnapshot(options),
+      src: child.src,
+      systemId: child.systemId,
+      syncSnapshot: child._syncSnapshot
+    };
+  }
+  const persisted = {
+    ...jsonValues,
+    context: persistContext(context2),
+    children: childrenJson,
+    historyValue: serializeHistoryValue(jsonValues.historyValue)
+  };
+  return persisted;
+}
+function persistContext(contextPart) {
+  let copy;
+  for (const key in contextPart) {
+    const value = contextPart[key];
+    if (value && typeof value === "object") {
+      if ("sessionId" in value && "send" in value && "ref" in value) {
+        copy ??= Array.isArray(contextPart) ? contextPart.slice() : {
+          ...contextPart
+        };
+        copy[key] = {
+          xstate$$type: $$ACTOR_TYPE,
+          id: value.id
+        };
+      } else {
+        const result = persistContext(value);
+        if (result !== value) {
+          copy ??= Array.isArray(contextPart) ? contextPart.slice() : {
+            ...contextPart
+          };
+          copy[key] = result;
+        }
+      }
+    }
+  }
+  return copy ?? contextPart;
+}
+function resolveRaise(_, snapshot, args, actionParams, {
+  event: eventOrExpr,
+  id,
+  delay
+}, {
+  internalQueue
+}) {
+  const delaysMap = snapshot.machine.implementations.delays;
+  if (typeof eventOrExpr === "string") {
+    throw new Error(
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      `Only event objects may be used with raise; use raise({ type: "${eventOrExpr}" }) instead`
+    );
+  }
+  const resolvedEvent = typeof eventOrExpr === "function" ? eventOrExpr(args, actionParams) : eventOrExpr;
+  let resolvedDelay;
+  if (typeof delay === "string") {
+    const configDelay = delaysMap && delaysMap[delay];
+    resolvedDelay = typeof configDelay === "function" ? configDelay(args, actionParams) : configDelay;
+  } else {
+    resolvedDelay = typeof delay === "function" ? delay(args, actionParams) : delay;
+  }
+  if (typeof resolvedDelay !== "number") {
+    internalQueue.push(resolvedEvent);
+  }
+  return [snapshot, {
+    event: resolvedEvent,
+    id,
+    delay: resolvedDelay
+  }, void 0];
+}
+function executeRaise(actorScope, params) {
+  const {
+    event,
+    delay,
+    id
+  } = params;
+  if (typeof delay === "number") {
+    actorScope.defer(() => {
+      const self2 = actorScope.self;
+      actorScope.system.scheduler.schedule(self2, self2, event, delay, id);
+    });
+    return;
+  }
+}
+function raise(eventOrExpr, options) {
+  function raise2(_args, _params) {
+  }
+  raise2.type = "xstate.raise";
+  raise2.event = eventOrExpr;
+  raise2.id = options?.id;
+  raise2.delay = options?.delay;
+  raise2.resolve = resolveRaise;
+  raise2.execute = executeRaise;
+  return raise2;
+}
+
+// ../../node_modules/.pnpm/xstate@5.25.1/node_modules/xstate/actors/dist/xstate-actors.esm.js
+function fromTransition(transition, initialContext) {
+  return {
+    config: transition,
+    transition: (snapshot, event, actorScope) => {
+      return {
+        ...snapshot,
+        context: transition(snapshot.context, event, actorScope)
+      };
+    },
+    getInitialSnapshot: (_, input) => {
+      return {
+        status: "active",
+        output: void 0,
+        error: void 0,
+        context: typeof initialContext === "function" ? initialContext({
+          input
+        }) : initialContext
+      };
+    },
+    getPersistedSnapshot: (snapshot) => snapshot,
+    restoreSnapshot: (snapshot) => snapshot
+  };
+}
+var emptyLogic = fromTransition((_) => void 0, void 0);
+
+// ../../node_modules/.pnpm/xstate@5.25.1/node_modules/xstate/dist/assign-37a2fc1e.esm.js
+function createSpawner(actorScope, {
+  machine,
+  context: context2
+}, event, spawnedChildren) {
+  const spawn = (src, options) => {
+    if (typeof src === "string") {
+      const logic = resolveReferencedActor(machine, src);
+      if (!logic) {
+        throw new Error(`Actor logic '${src}' not implemented in machine '${machine.id}'`);
+      }
+      const actorRef = createActor(logic, {
+        id: options?.id,
+        parent: actorScope.self,
+        syncSnapshot: options?.syncSnapshot,
+        input: typeof options?.input === "function" ? options.input({
+          context: context2,
+          event,
+          self: actorScope.self
+        }) : options?.input,
+        src,
+        systemId: options?.systemId
+      });
+      spawnedChildren[actorRef.id] = actorRef;
+      return actorRef;
+    } else {
+      const actorRef = createActor(src, {
+        id: options?.id,
+        parent: actorScope.self,
+        syncSnapshot: options?.syncSnapshot,
+        input: options?.input,
+        src,
+        systemId: options?.systemId
+      });
+      return actorRef;
+    }
+  };
+  return (src, options) => {
+    const actorRef = spawn(src, options);
+    spawnedChildren[actorRef.id] = actorRef;
+    actorScope.defer(() => {
+      if (actorRef._processingStatus === ProcessingStatus.Stopped) {
+        return;
+      }
+      actorRef.start();
+    });
+    return actorRef;
+  };
+}
+function resolveAssign(actorScope, snapshot, actionArgs, actionParams, {
+  assignment
+}) {
+  if (!snapshot.context) {
+    throw new Error("Cannot assign to undefined `context`. Ensure that `context` is defined in the machine config.");
+  }
+  const spawnedChildren = {};
+  const assignArgs = {
+    context: snapshot.context,
+    event: actionArgs.event,
+    spawn: createSpawner(actorScope, snapshot, actionArgs.event, spawnedChildren),
+    self: actorScope.self,
+    system: actorScope.system
+  };
+  let partialUpdate = {};
+  if (typeof assignment === "function") {
+    partialUpdate = assignment(assignArgs, actionParams);
+  } else {
+    for (const key of Object.keys(assignment)) {
+      const propAssignment = assignment[key];
+      partialUpdate[key] = typeof propAssignment === "function" ? propAssignment(assignArgs, actionParams) : propAssignment;
+    }
+  }
+  const updatedContext = Object.assign({}, snapshot.context, partialUpdate);
+  return [cloneMachineSnapshot(snapshot, {
+    context: updatedContext,
+    children: Object.keys(spawnedChildren).length ? {
+      ...snapshot.children,
+      ...spawnedChildren
+    } : snapshot.children
+  }), void 0, void 0];
+}
+function assign(assignment) {
+  function assign2(_args, _params) {
+  }
+  assign2.type = "xstate.assign";
+  assign2.assignment = assignment;
+  assign2.resolve = resolveAssign;
+  return assign2;
+}
+
+// ../../node_modules/.pnpm/xstate@5.25.1/node_modules/xstate/dist/StateMachine-6c48f805.esm.js
+var cache = /* @__PURE__ */ new WeakMap();
+function memo(object, key, fn) {
+  let memoizedData = cache.get(object);
+  if (!memoizedData) {
+    memoizedData = {
+      [key]: fn()
+    };
+    cache.set(object, memoizedData);
+  } else if (!(key in memoizedData)) {
+    memoizedData[key] = fn();
+  }
+  return memoizedData[key];
+}
+var EMPTY_OBJECT = {};
+var toSerializableAction = (action) => {
+  if (typeof action === "string") {
+    return {
+      type: action
+    };
+  }
+  if (typeof action === "function") {
+    if ("resolve" in action) {
+      return {
+        type: action.type
+      };
+    }
+    return {
+      type: action.name
+    };
+  }
+  return action;
+};
+var StateNode = class _StateNode {
+  constructor(config, options) {
+    this.config = config;
+    this.key = void 0;
+    this.id = void 0;
+    this.type = void 0;
+    this.path = void 0;
+    this.states = void 0;
+    this.history = void 0;
+    this.entry = void 0;
+    this.exit = void 0;
+    this.parent = void 0;
+    this.machine = void 0;
+    this.meta = void 0;
+    this.output = void 0;
+    this.order = -1;
+    this.description = void 0;
+    this.tags = [];
+    this.transitions = void 0;
+    this.always = void 0;
+    this.parent = options._parent;
+    this.key = options._key;
+    this.machine = options._machine;
+    this.path = this.parent ? this.parent.path.concat(this.key) : [];
+    this.id = this.config.id || [this.machine.id, ...this.path].join(STATE_DELIMITER);
+    this.type = this.config.type || (this.config.states && Object.keys(this.config.states).length ? "compound" : this.config.history ? "history" : "atomic");
+    this.description = this.config.description;
+    this.order = this.machine.idMap.size;
+    this.machine.idMap.set(this.id, this);
+    this.states = this.config.states ? mapValues(this.config.states, (stateConfig, key) => {
+      const stateNode = new _StateNode(stateConfig, {
+        _parent: this,
+        _key: key,
+        _machine: this.machine
+      });
+      return stateNode;
+    }) : EMPTY_OBJECT;
+    if (this.type === "compound" && !this.config.initial) {
+      throw new Error(`No initial state specified for compound state node "#${this.id}". Try adding { initial: "${Object.keys(this.states)[0]}" } to the state config.`);
+    }
+    this.history = this.config.history === true ? "shallow" : this.config.history || false;
+    this.entry = toArray(this.config.entry).slice();
+    this.exit = toArray(this.config.exit).slice();
+    this.meta = this.config.meta;
+    this.output = this.type === "final" || !this.parent ? this.config.output : void 0;
+    this.tags = toArray(config.tags).slice();
+  }
+  /** @internal */
+  _initialize() {
+    this.transitions = formatTransitions(this);
+    if (this.config.always) {
+      this.always = toTransitionConfigArray(this.config.always).map((t) => formatTransition(this, NULL_EVENT, t));
+    }
+    Object.keys(this.states).forEach((key) => {
+      this.states[key]._initialize();
+    });
+  }
+  /** The well-structured state node definition. */
+  get definition() {
+    return {
+      id: this.id,
+      key: this.key,
+      version: this.machine.version,
+      type: this.type,
+      initial: this.initial ? {
+        target: this.initial.target,
+        source: this,
+        actions: this.initial.actions.map(toSerializableAction),
+        eventType: null,
+        reenter: false,
+        toJSON: () => ({
+          target: this.initial.target.map((t) => `#${t.id}`),
+          source: `#${this.id}`,
+          actions: this.initial.actions.map(toSerializableAction),
+          eventType: null
+        })
+      } : void 0,
+      history: this.history,
+      states: mapValues(this.states, (state) => {
+        return state.definition;
+      }),
+      on: this.on,
+      transitions: [...this.transitions.values()].flat().map((t) => ({
+        ...t,
+        actions: t.actions.map(toSerializableAction)
+      })),
+      entry: this.entry.map(toSerializableAction),
+      exit: this.exit.map(toSerializableAction),
+      meta: this.meta,
+      order: this.order || -1,
+      output: this.output,
+      invoke: this.invoke,
+      description: this.description,
+      tags: this.tags
+    };
+  }
+  /** @internal */
+  toJSON() {
+    return this.definition;
+  }
+  /** The logic invoked as actors by this state node. */
+  get invoke() {
+    return memo(this, "invoke", () => toArray(this.config.invoke).map((invokeConfig, i) => {
+      const {
+        src,
+        systemId
+      } = invokeConfig;
+      const resolvedId = invokeConfig.id ?? createInvokeId(this.id, i);
+      const sourceName = typeof src === "string" ? src : `xstate.invoke.${createInvokeId(this.id, i)}`;
+      return {
+        ...invokeConfig,
+        src: sourceName,
+        id: resolvedId,
+        systemId,
+        toJSON() {
+          const {
+            onDone,
+            onError,
+            ...invokeDefValues
+          } = invokeConfig;
+          return {
+            ...invokeDefValues,
+            type: "xstate.invoke",
+            src: sourceName,
+            id: resolvedId
+          };
+        }
+      };
+    }));
+  }
+  /** The mapping of events to transitions. */
+  get on() {
+    return memo(this, "on", () => {
+      const transitions = this.transitions;
+      return [...transitions].flatMap(([descriptor, t]) => t.map((t2) => [descriptor, t2])).reduce((map, [descriptor, transition]) => {
+        map[descriptor] = map[descriptor] || [];
+        map[descriptor].push(transition);
+        return map;
+      }, {});
+    });
+  }
+  get after() {
+    return memo(this, "delayedTransitions", () => getDelayedTransitions(this));
+  }
+  get initial() {
+    return memo(this, "initial", () => formatInitialTransition(this, this.config.initial));
+  }
+  /** @internal */
+  next(snapshot, event) {
+    const eventType = event.type;
+    const actions = [];
+    let selectedTransition;
+    const candidates = memo(this, `candidates-${eventType}`, () => getCandidates(this, eventType));
+    for (const candidate of candidates) {
+      const {
+        guard
+      } = candidate;
+      const resolvedContext = snapshot.context;
+      let guardPassed = false;
+      try {
+        guardPassed = !guard || evaluateGuard(guard, resolvedContext, event, snapshot);
+      } catch (err) {
+        const guardType = typeof guard === "string" ? guard : typeof guard === "object" ? guard.type : void 0;
+        throw new Error(`Unable to evaluate guard ${guardType ? `'${guardType}' ` : ""}in transition for event '${eventType}' in state node '${this.id}':
+${err.message}`);
+      }
+      if (guardPassed) {
+        actions.push(...candidate.actions);
+        selectedTransition = candidate;
+        break;
+      }
+    }
+    return selectedTransition ? [selectedTransition] : void 0;
+  }
+  /** All the event types accepted by this state node and its descendants. */
+  get events() {
+    return memo(this, "events", () => {
+      const {
+        states
+      } = this;
+      const events = new Set(this.ownEvents);
+      if (states) {
+        for (const stateId of Object.keys(states)) {
+          const state = states[stateId];
+          if (state.states) {
+            for (const event of state.events) {
+              events.add(`${event}`);
+            }
+          }
+        }
+      }
+      return Array.from(events);
+    });
+  }
+  /**
+   * All the events that have transitions directly from this state node.
+   *
+   * Excludes any inert events.
+   */
+  get ownEvents() {
+    const keys = Object.keys(Object.fromEntries(this.transitions));
+    const events = new Set(keys.filter((descriptor) => {
+      return this.transitions.get(descriptor).some((transition) => !(!transition.target && !transition.actions.length && !transition.reenter));
+    }));
+    return Array.from(events);
+  }
+};
+var STATE_IDENTIFIER2 = "#";
+var StateMachine = class _StateMachine {
+  constructor(config, implementations) {
+    this.config = config;
+    this.version = void 0;
+    this.schemas = void 0;
+    this.implementations = void 0;
+    this.__xstatenode = true;
+    this.idMap = /* @__PURE__ */ new Map();
+    this.root = void 0;
+    this.id = void 0;
+    this.states = void 0;
+    this.events = void 0;
+    this.id = config.id || "(machine)";
+    this.implementations = {
+      actors: implementations?.actors ?? {},
+      actions: implementations?.actions ?? {},
+      delays: implementations?.delays ?? {},
+      guards: implementations?.guards ?? {}
+    };
+    this.version = this.config.version;
+    this.schemas = this.config.schemas;
+    this.transition = this.transition.bind(this);
+    this.getInitialSnapshot = this.getInitialSnapshot.bind(this);
+    this.getPersistedSnapshot = this.getPersistedSnapshot.bind(this);
+    this.restoreSnapshot = this.restoreSnapshot.bind(this);
+    this.start = this.start.bind(this);
+    this.root = new StateNode(config, {
+      _key: this.id,
+      _machine: this
+    });
+    this.root._initialize();
+    this.states = this.root.states;
+    this.events = this.root.events;
+  }
+  /**
+   * Clones this state machine with the provided implementations.
+   *
+   * @param implementations Options (`actions`, `guards`, `actors`, `delays`) to
+   *   recursively merge with the existing options.
+   * @returns A new `StateMachine` instance with the provided implementations.
+   */
+  provide(implementations) {
+    const {
+      actions,
+      guards: guards2,
+      actors,
+      delays
+    } = this.implementations;
+    return new _StateMachine(this.config, {
+      actions: {
+        ...actions,
+        ...implementations.actions
+      },
+      guards: {
+        ...guards2,
+        ...implementations.guards
+      },
+      actors: {
+        ...actors,
+        ...implementations.actors
+      },
+      delays: {
+        ...delays,
+        ...implementations.delays
+      }
+    });
+  }
+  resolveState(config) {
+    const resolvedStateValue = resolveStateValue(this.root, config.value);
+    const nodeSet = getAllStateNodes(getStateNodes(this.root, resolvedStateValue));
+    return createMachineSnapshot({
+      _nodes: [...nodeSet],
+      context: config.context || {},
+      children: {},
+      status: isInFinalState(nodeSet, this.root) ? "done" : config.status || "active",
+      output: config.output,
+      error: config.error,
+      historyValue: config.historyValue
+    }, this);
+  }
+  /**
+   * Determines the next snapshot given the current `snapshot` and received
+   * `event`. Calculates a full macrostep from all microsteps.
+   *
+   * @param snapshot The current snapshot
+   * @param event The received event
+   */
+  transition(snapshot, event, actorScope) {
+    return macrostep(snapshot, event, actorScope, []).snapshot;
+  }
+  /**
+   * Determines the next state given the current `state` and `event`. Calculates
+   * a microstep.
+   *
+   * @param state The current state
+   * @param event The received event
+   */
+  microstep(snapshot, event, actorScope) {
+    return macrostep(snapshot, event, actorScope, []).microstates;
+  }
+  getTransitionData(snapshot, event) {
+    return transitionNode(this.root, snapshot.value, snapshot, event) || [];
+  }
+  /**
+   * The initial state _before_ evaluating any microsteps. This "pre-initial"
+   * state is provided to initial actions executed in the initial state.
+   */
+  getPreInitialState(actorScope, initEvent, internalQueue) {
+    const {
+      context: context2
+    } = this.config;
+    const preInitial = createMachineSnapshot({
+      context: typeof context2 !== "function" && context2 ? context2 : {},
+      _nodes: [this.root],
+      children: {},
+      status: "active"
+    }, this);
+    if (typeof context2 === "function") {
+      const assignment = ({
+        spawn,
+        event,
+        self: self2
+      }) => context2({
+        spawn,
+        input: event.input,
+        self: self2
+      });
+      return resolveActionsAndContext(preInitial, initEvent, actorScope, [assign(assignment)], internalQueue, void 0);
+    }
+    return preInitial;
+  }
+  /**
+   * Returns the initial `State` instance, with reference to `self` as an
+   * `ActorRef`.
+   */
+  getInitialSnapshot(actorScope, input) {
+    const initEvent = createInitEvent(input);
+    const internalQueue = [];
+    const preInitialState = this.getPreInitialState(actorScope, initEvent, internalQueue);
+    const nextState = microstep([{
+      target: [...getInitialStateNodes(this.root)],
+      source: this.root,
+      reenter: true,
+      actions: [],
+      eventType: null,
+      toJSON: null
+      // TODO: fix
+    }], preInitialState, actorScope, initEvent, true, internalQueue);
+    const {
+      snapshot: macroState
+    } = macrostep(nextState, initEvent, actorScope, internalQueue);
+    return macroState;
+  }
+  start(snapshot) {
+    Object.values(snapshot.children).forEach((child) => {
+      if (child.getSnapshot().status === "active") {
+        child.start();
+      }
+    });
+  }
+  getStateNodeById(stateId) {
+    const fullPath = toStatePath(stateId);
+    const relativePath = fullPath.slice(1);
+    const resolvedStateId = isStateId(fullPath[0]) ? fullPath[0].slice(STATE_IDENTIFIER2.length) : fullPath[0];
+    const stateNode = this.idMap.get(resolvedStateId);
+    if (!stateNode) {
+      throw new Error(`Child state node '#${resolvedStateId}' does not exist on machine '${this.id}'`);
+    }
+    return getStateNodeByPath(stateNode, relativePath);
+  }
+  get definition() {
+    return this.root.definition;
+  }
+  toJSON() {
+    return this.definition;
+  }
+  getPersistedSnapshot(snapshot, options) {
+    return getPersistedSnapshot(snapshot, options);
+  }
+  restoreSnapshot(snapshot, _actorScope) {
+    const children = {};
+    const snapshotChildren = snapshot.children;
+    Object.keys(snapshotChildren).forEach((actorId) => {
+      const actorData = snapshotChildren[actorId];
+      const childState = actorData.snapshot;
+      const src = actorData.src;
+      const logic = typeof src === "string" ? resolveReferencedActor(this, src) : src;
+      if (!logic) {
+        return;
+      }
+      const actorRef = createActor(logic, {
+        id: actorId,
+        parent: _actorScope.self,
+        syncSnapshot: actorData.syncSnapshot,
+        snapshot: childState,
+        src,
+        systemId: actorData.systemId
+      });
+      children[actorId] = actorRef;
+    });
+    function resolveHistoryReferencedState(root, referenced) {
+      if (referenced instanceof StateNode) {
+        return referenced;
+      }
+      try {
+        return root.machine.getStateNodeById(referenced.id);
+      } catch {
+      }
+    }
+    function reviveHistoryValue(root, historyValue) {
+      if (!historyValue || typeof historyValue !== "object") {
+        return {};
+      }
+      const revived = {};
+      for (const key in historyValue) {
+        const arr = historyValue[key];
+        for (const item of arr) {
+          const resolved = resolveHistoryReferencedState(root, item);
+          if (!resolved) {
+            continue;
+          }
+          revived[key] ??= [];
+          revived[key].push(resolved);
+        }
+      }
+      return revived;
+    }
+    const revivedHistoryValue = reviveHistoryValue(this.root, snapshot.historyValue);
+    const restoredSnapshot = createMachineSnapshot({
+      ...snapshot,
+      children,
+      _nodes: Array.from(getAllStateNodes(getStateNodes(this.root, snapshot.value))),
+      historyValue: revivedHistoryValue
+    }, this);
+    const seen = /* @__PURE__ */ new Set();
+    function reviveContext(contextPart, children2) {
+      if (seen.has(contextPart)) {
+        return;
+      }
+      seen.add(contextPart);
+      for (const key in contextPart) {
+        const value = contextPart[key];
+        if (value && typeof value === "object") {
+          if ("xstate$$type" in value && value.xstate$$type === $$ACTOR_TYPE) {
+            contextPart[key] = children2[value.id];
+            continue;
+          }
+          reviveContext(value, children2);
+        }
+      }
+    }
+    reviveContext(restoredSnapshot.context, children);
+    return restoredSnapshot;
+  }
+};
+
+// ../../node_modules/.pnpm/xstate@5.25.1/node_modules/xstate/dist/log-ce14fc9a.esm.js
+function resolveEmit(_, snapshot, args, actionParams, {
+  event: eventOrExpr
+}) {
+  const resolvedEvent = typeof eventOrExpr === "function" ? eventOrExpr(args, actionParams) : eventOrExpr;
+  return [snapshot, {
+    event: resolvedEvent
+  }, void 0];
+}
+function executeEmit(actorScope, {
+  event
+}) {
+  actorScope.defer(() => actorScope.emit(event));
+}
+function emit(eventOrExpr) {
+  function emit2(_args, _params) {
+  }
+  emit2.type = "xstate.emit";
+  emit2.event = eventOrExpr;
+  emit2.resolve = resolveEmit;
+  emit2.execute = executeEmit;
+  return emit2;
+}
+var SpecialTargets = /* @__PURE__ */ function(SpecialTargets2) {
+  SpecialTargets2["Parent"] = "#_parent";
+  SpecialTargets2["Internal"] = "#_internal";
+  return SpecialTargets2;
+}({});
+function resolveSendTo(actorScope, snapshot, args, actionParams, {
+  to,
+  event: eventOrExpr,
+  id,
+  delay
+}, extra) {
+  const delaysMap = snapshot.machine.implementations.delays;
+  if (typeof eventOrExpr === "string") {
+    throw new Error(
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      `Only event objects may be used with sendTo; use sendTo({ type: "${eventOrExpr}" }) instead`
+    );
+  }
+  const resolvedEvent = typeof eventOrExpr === "function" ? eventOrExpr(args, actionParams) : eventOrExpr;
+  let resolvedDelay;
+  if (typeof delay === "string") {
+    const configDelay = delaysMap && delaysMap[delay];
+    resolvedDelay = typeof configDelay === "function" ? configDelay(args, actionParams) : configDelay;
+  } else {
+    resolvedDelay = typeof delay === "function" ? delay(args, actionParams) : delay;
+  }
+  const resolvedTarget = typeof to === "function" ? to(args, actionParams) : to;
+  let targetActorRef;
+  if (typeof resolvedTarget === "string") {
+    if (resolvedTarget === SpecialTargets.Parent) {
+      targetActorRef = actorScope.self._parent;
+    } else if (resolvedTarget === SpecialTargets.Internal) {
+      targetActorRef = actorScope.self;
+    } else if (resolvedTarget.startsWith("#_")) {
+      targetActorRef = snapshot.children[resolvedTarget.slice(2)];
+    } else {
+      targetActorRef = extra.deferredActorIds?.includes(resolvedTarget) ? resolvedTarget : snapshot.children[resolvedTarget];
+    }
+    if (!targetActorRef) {
+      throw new Error(`Unable to send event to actor '${resolvedTarget}' from machine '${snapshot.machine.id}'.`);
+    }
+  } else {
+    targetActorRef = resolvedTarget || actorScope.self;
+  }
+  return [snapshot, {
+    to: targetActorRef,
+    targetId: typeof resolvedTarget === "string" ? resolvedTarget : void 0,
+    event: resolvedEvent,
+    id,
+    delay: resolvedDelay
+  }, void 0];
+}
+function retryResolveSendTo(_, snapshot, params) {
+  if (typeof params.to === "string") {
+    params.to = snapshot.children[params.to];
+  }
+}
+function executeSendTo(actorScope, params) {
+  actorScope.defer(() => {
+    const {
+      to,
+      event,
+      delay,
+      id
+    } = params;
+    if (typeof delay === "number") {
+      actorScope.system.scheduler.schedule(actorScope.self, to, event, delay, id);
+      return;
+    }
+    actorScope.system._relay(
+      actorScope.self,
+      // at this point, in a deferred task, it should already be mutated by retryResolveSendTo
+      // if it initially started as a string
+      to,
+      event.type === XSTATE_ERROR ? createErrorActorEvent(actorScope.self.id, event.data) : event
+    );
+  });
+}
+function sendTo(to, eventOrExpr, options) {
+  function sendTo2(_args, _params) {
+  }
+  sendTo2.type = "xstate.sendTo";
+  sendTo2.to = to;
+  sendTo2.event = eventOrExpr;
+  sendTo2.id = options?.id;
+  sendTo2.delay = options?.delay;
+  sendTo2.resolve = resolveSendTo;
+  sendTo2.retryResolve = retryResolveSendTo;
+  sendTo2.execute = executeSendTo;
+  return sendTo2;
+}
+function sendParent(event, options) {
+  return sendTo(SpecialTargets.Parent, event, options);
+}
+function resolveEnqueueActions(actorScope, snapshot, args, actionParams, {
+  collect
+}) {
+  const actions = [];
+  const enqueue = function enqueue2(action) {
+    actions.push(action);
+  };
+  enqueue.assign = (...args2) => {
+    actions.push(assign(...args2));
+  };
+  enqueue.cancel = (...args2) => {
+    actions.push(cancel(...args2));
+  };
+  enqueue.raise = (...args2) => {
+    actions.push(raise(...args2));
+  };
+  enqueue.sendTo = (...args2) => {
+    actions.push(sendTo(...args2));
+  };
+  enqueue.sendParent = (...args2) => {
+    actions.push(sendParent(...args2));
+  };
+  enqueue.spawnChild = (...args2) => {
+    actions.push(spawnChild(...args2));
+  };
+  enqueue.stopChild = (...args2) => {
+    actions.push(stopChild(...args2));
+  };
+  enqueue.emit = (...args2) => {
+    actions.push(emit(...args2));
+  };
+  collect({
+    context: args.context,
+    event: args.event,
+    enqueue,
+    check: (guard) => evaluateGuard(guard, snapshot.context, args.event, snapshot),
+    self: actorScope.self,
+    system: actorScope.system
+  }, actionParams);
+  return [snapshot, void 0, actions];
+}
+function enqueueActions(collect) {
+  function enqueueActions2(_args, _params) {
+  }
+  enqueueActions2.type = "xstate.enqueueActions";
+  enqueueActions2.collect = collect;
+  enqueueActions2.resolve = resolveEnqueueActions;
+  return enqueueActions2;
+}
+function resolveLog(_, snapshot, actionArgs, actionParams, {
+  value,
+  label
+}) {
+  return [snapshot, {
+    value: typeof value === "function" ? value(actionArgs, actionParams) : value,
+    label
+  }, void 0];
+}
+function executeLog({
+  logger
+}, {
+  value,
+  label
+}) {
+  if (label) {
+    logger(label, value);
+  } else {
+    logger(value);
+  }
+}
+function log(value = ({
+  context: context2,
+  event
+}) => ({
+  context: context2,
+  event
+}), label) {
+  function log2(_args, _params) {
+  }
+  log2.type = "xstate.log";
+  log2.value = value;
+  log2.label = label;
+  log2.resolve = resolveLog;
+  log2.execute = executeLog;
+  return log2;
+}
+
+// ../../node_modules/.pnpm/xstate@5.25.1/node_modules/xstate/dist/xstate.esm.js
+function createMachine(config, implementations) {
+  return new StateMachine(config, implementations);
+}
+function setup({
+  schemas,
+  actors,
+  actions,
+  guards: guards2,
+  delays
+}) {
+  return {
+    assign,
+    sendTo,
+    raise,
+    log,
+    cancel,
+    stopChild,
+    enqueueActions,
+    emit,
+    spawnChild,
+    createStateConfig: (config) => config,
+    createAction: (fn) => fn,
+    createMachine: (config) => createMachine({
+      ...config,
+      schemas
+    }, {
+      actors,
+      actions,
+      guards: guards2,
+      delays
+    }),
+    extend: (extended) => setup({
+      schemas,
+      actors,
+      actions: {
+        ...actions,
+        ...extended.actions
+      },
+      guards: {
+        ...guards2,
+        ...extended.guards
+      },
+      delays: {
+        ...delays,
+        ...extended.delays
+      }
+    })
+  };
 }
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/external.js
@@ -24200,8 +27375,8 @@ var ZodError = class _ZodError extends Error {
       return issue.message;
     };
     const fieldErrors = { _errors: [] };
-    const processError = (error3) => {
-      for (const issue of error3.issues) {
+    const processError = (error) => {
+      for (const issue of error.issues) {
         if (issue.code === "invalid_union") {
           issue.unionErrors.map(processError);
         } else if (issue.code === "invalid_return_type") {
@@ -24264,8 +27439,8 @@ var ZodError = class _ZodError extends Error {
   }
 };
 ZodError.create = (issues) => {
-  const error3 = new ZodError(issues);
-  return error3;
+  const error = new ZodError(issues);
+  return error;
 };
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/locales/en.js
@@ -24382,8 +27557,8 @@ function getErrorMap() {
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
-  const { data, path: path2, errorMaps, issueData } = params;
-  const fullPath = [...path2, ...issueData.path || []];
+  const { data, path, errorMaps, issueData } = params;
+  const fullPath = [...path, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
     path: fullPath
@@ -24499,11 +27674,11 @@ var errorUtil;
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
-  constructor(parent, value, path2, key) {
+  constructor(parent, value, path, key) {
     this._cachedPath = [];
     this.parent = parent;
     this.data = value;
-    this._path = path2;
+    this._path = path;
     this._key = key;
   }
   get path() {
@@ -24529,8 +27704,8 @@ var handleResult = (ctx, result) => {
       get error() {
         if (this._error)
           return this._error;
-        const error3 = new ZodError(ctx.common.issues);
-        this._error = error3;
+        const error = new ZodError(ctx.common.issues);
+        this._error = error;
         return this._error;
       }
     };
@@ -27185,25 +30360,25 @@ var ZodFunction = class _ZodFunction extends ZodType {
       });
       return INVALID;
     }
-    function makeArgsIssue(args, error3) {
+    function makeArgsIssue(args, error) {
       return makeIssue({
         data: args,
         path: ctx.path,
         errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap(), en_default].filter((x) => !!x),
         issueData: {
           code: ZodIssueCode.invalid_arguments,
-          argumentsError: error3
+          argumentsError: error
         }
       });
     }
-    function makeReturnsIssue(returns, error3) {
+    function makeReturnsIssue(returns, error) {
       return makeIssue({
         data: returns,
         path: ctx.path,
         errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap(), en_default].filter((x) => !!x),
         issueData: {
           code: ZodIssueCode.invalid_return_type,
-          returnTypeError: error3
+          returnTypeError: error
         }
       });
     }
@@ -27212,15 +30387,15 @@ var ZodFunction = class _ZodFunction extends ZodType {
     if (this._def.returns instanceof ZodPromise) {
       const me = this;
       return OK(async function(...args) {
-        const error3 = new ZodError([]);
+        const error = new ZodError([]);
         const parsedArgs = await me._def.args.parseAsync(args, params).catch((e) => {
-          error3.addIssue(makeArgsIssue(args, e));
-          throw error3;
+          error.addIssue(makeArgsIssue(args, e));
+          throw error;
         });
         const result = await Reflect.apply(fn, this, parsedArgs);
         const parsedReturns = await me._def.returns._def.type.parseAsync(result, params).catch((e) => {
-          error3.addIssue(makeReturnsIssue(result, e));
-          throw error3;
+          error.addIssue(makeReturnsIssue(result, e));
+          throw error;
         });
         return parsedReturns;
       });
@@ -28118,6 +31293,9 @@ var MachineContextSchema = external_exports.object({
   maxRetries: external_exports.number().int().positive().default(5),
   botUsername: external_exports.string().default("nopo-bot")
 });
+function isTerminalStatus(status) {
+  return status === "Done" || status === "Blocked" || status === "Error";
+}
 
 // claude-state-machine/schemas/actions.ts
 var TokenTypeSchema = external_exports.enum(["code", "review"]);
@@ -28375,30 +31553,2171 @@ var ActionSchema = external_exports.discriminatedUnion("type", [
   // Triage actions
   ApplyTriageOutputActionSchema
 ]);
-function isTerminalAction(action) {
-  return action.type === "stop" || action.type === "block";
+
+// claude-state-machine/machine/guards.ts
+function isAlreadyDone({ context: context2 }) {
+  return context2.issue.projectStatus === "Done";
 }
-function shouldStopOnError(actionType) {
-  const criticalActions = [
-    "runClaude",
-    "createPR",
-    "mergePR",
-    "createSubIssues",
-    "block"
+function isBlocked({ context: context2 }) {
+  return context2.issue.projectStatus === "Blocked";
+}
+function isError({ context: context2 }) {
+  return context2.issue.projectStatus === "Error";
+}
+function isTerminal({ context: context2 }) {
+  const status = context2.issue.projectStatus;
+  return status !== null && isTerminalStatus(status);
+}
+function hasSubIssues({ context: context2 }) {
+  return context2.issue.hasSubIssues;
+}
+function needsSubIssues(_guardContext) {
+  return false;
+}
+function allPhasesDone({ context: context2 }) {
+  if (!context2.issue.hasSubIssues) {
+    return context2.issue.subIssues.length === 0 && context2.currentSubIssue === null;
+  }
+  return context2.issue.subIssues.every(
+    (s) => s.projectStatus === "Done" || s.state === "CLOSED"
+  );
+}
+function needsParentInit({ context: context2 }) {
+  return context2.issue.hasSubIssues && (context2.issue.projectStatus === null || context2.issue.projectStatus === "Backlog");
+}
+function currentPhaseComplete({ context: context2 }) {
+  if (!context2.currentSubIssue) {
+    return false;
+  }
+  return context2.currentSubIssue.todos.uncheckedNonManual === 0;
+}
+function hasNextPhase({ context: context2 }) {
+  if (!context2.issue.hasSubIssues || context2.currentPhase === null) {
+    return false;
+  }
+  return context2.currentPhase < context2.totalPhases;
+}
+function subIssueNeedsAssignment({ context: context2 }) {
+  return context2.currentSubIssue !== null;
+}
+function isInReview({ context: context2 }) {
+  if (context2.currentSubIssue) {
+    return context2.currentSubIssue.projectStatus === "In review";
+  }
+  return context2.issue.projectStatus === "In review";
+}
+function currentPhaseNeedsWork({ context: context2 }) {
+  if (context2.currentSubIssue) {
+    const status = context2.currentSubIssue.projectStatus;
+    return status === "In progress" || status === "Ready";
+  }
+  return context2.issue.projectStatus === "In progress";
+}
+function currentPhaseInReview({ context: context2 }) {
+  return isInReview({ context: context2 });
+}
+function todosDone({ context: context2 }) {
+  if (context2.currentSubIssue) {
+    return context2.currentSubIssue.todos.uncheckedNonManual === 0;
+  }
+  return context2.issue.todos.uncheckedNonManual === 0;
+}
+function hasPendingTodos({ context: context2 }) {
+  return !todosDone({ context: context2 });
+}
+function ciPassed({ context: context2 }) {
+  return context2.ciResult === "success";
+}
+function ciFailed({ context: context2 }) {
+  return context2.ciResult === "failure";
+}
+function ciCancelled({ context: context2 }) {
+  return context2.ciResult === "cancelled";
+}
+function maxFailuresReached({ context: context2 }) {
+  return context2.issue.failures >= context2.maxRetries;
+}
+function hasFailures({ context: context2 }) {
+  return context2.issue.failures > 0;
+}
+function reviewApproved({ context: context2 }) {
+  return context2.reviewDecision === "APPROVED";
+}
+function reviewRequestedChanges({ context: context2 }) {
+  return context2.reviewDecision === "CHANGES_REQUESTED";
+}
+function reviewCommented({ context: context2 }) {
+  return context2.reviewDecision === "COMMENTED";
+}
+function hasPR({ context: context2 }) {
+  return context2.hasPR && context2.pr !== null;
+}
+function prIsDraft({ context: context2 }) {
+  return context2.pr?.isDraft === true;
+}
+function prIsReady({ context: context2 }) {
+  return context2.pr !== null && !context2.pr.isDraft;
+}
+function prIsMerged({ context: context2 }) {
+  return context2.pr?.state === "MERGED";
+}
+function hasBranch({ context: context2 }) {
+  return context2.hasBranch;
+}
+function needsBranch({ context: context2 }) {
+  return !context2.hasBranch && context2.branch !== null;
+}
+function botIsAssigned({ context: context2 }) {
+  return context2.issue.assignees.includes(context2.botUsername);
+}
+function isFirstIteration({ context: context2 }) {
+  return context2.issue.iteration === 0;
+}
+function triggeredByAssignment({ context: context2 }) {
+  return context2.trigger === "issue_assigned";
+}
+function triggeredByEdit({ context: context2 }) {
+  return context2.trigger === "issue_edited";
+}
+function triggeredByCI({ context: context2 }) {
+  return context2.trigger === "workflow_run_completed";
+}
+function triggeredByReview({ context: context2 }) {
+  return context2.trigger === "pr_review_submitted";
+}
+function triggeredByReviewRequest({ context: context2 }) {
+  return context2.trigger === "pr_review_requested";
+}
+function triggeredByTriage({ context: context2 }) {
+  return context2.trigger === "issue_triage";
+}
+function triggeredByComment({ context: context2 }) {
+  return context2.trigger === "issue_comment";
+}
+function triggeredByOrchestrate({ context: context2 }) {
+  return context2.trigger === "issue_orchestrate";
+}
+function triggeredByPRReview({ context: context2 }) {
+  return context2.trigger === "pr_review";
+}
+function triggeredByPRResponse({ context: context2 }) {
+  return context2.trigger === "pr_response";
+}
+function triggeredByPRHumanResponse({ context: context2 }) {
+  return context2.trigger === "pr_human_response";
+}
+function triggeredByPRReviewApproved({ context: context2 }) {
+  return context2.trigger === "pr_review_approved";
+}
+function triggeredByMergeQueueEntry({ context: context2 }) {
+  return context2.trigger === "merge_queue_entered";
+}
+function triggeredByMergeQueueFailure({ context: context2 }) {
+  return context2.trigger === "merge_queue_failed";
+}
+function triggeredByPRMerged({ context: context2 }) {
+  return context2.trigger === "pr_merged";
+}
+function triggeredByDeployedStage({ context: context2 }) {
+  return context2.trigger === "deployed_stage";
+}
+function triggeredByDeployedProd({ context: context2 }) {
+  return context2.trigger === "deployed_prod";
+}
+function needsTriage({ context: context2 }) {
+  return !context2.issue.labels.includes("triaged");
+}
+function isTriaged({ context: context2 }) {
+  return context2.issue.labels.includes("triaged");
+}
+function readyForReview({ context: context2 }) {
+  return ciPassed({ context: context2 }) && todosDone({ context: context2 });
+}
+function shouldContinueIterating({ context: context2 }) {
+  return ciFailed({ context: context2 }) && !maxFailuresReached({ context: context2 });
+}
+function shouldBlock({ context: context2 }) {
+  return ciFailed({ context: context2 }) && maxFailuresReached({ context: context2 });
+}
+var guards = {
+  // Terminal state guards
+  isAlreadyDone,
+  isBlocked,
+  isError,
+  isTerminal,
+  // Sub-issue guards
+  hasSubIssues,
+  needsSubIssues,
+  allPhasesDone,
+  // Orchestration guards
+  needsParentInit,
+  currentPhaseComplete,
+  hasNextPhase,
+  subIssueNeedsAssignment,
+  // Phase state guards
+  isInReview,
+  currentPhaseNeedsWork,
+  currentPhaseInReview,
+  // Todo guards
+  todosDone,
+  hasPendingTodos,
+  // CI guards
+  ciPassed,
+  ciFailed,
+  ciCancelled,
+  // Failure guards
+  maxFailuresReached,
+  hasFailures,
+  // Review guards
+  reviewApproved,
+  reviewRequestedChanges,
+  reviewCommented,
+  // PR guards
+  hasPR,
+  prIsDraft,
+  prIsReady,
+  prIsMerged,
+  // Branch guards
+  hasBranch,
+  needsBranch,
+  // Assignment guards
+  botIsAssigned,
+  isFirstIteration,
+  // Trigger guards
+  triggeredByAssignment,
+  triggeredByEdit,
+  triggeredByCI,
+  triggeredByReview,
+  triggeredByReviewRequest,
+  triggeredByTriage,
+  triggeredByComment,
+  triggeredByOrchestrate,
+  triggeredByPRReview,
+  triggeredByPRResponse,
+  triggeredByPRHumanResponse,
+  triggeredByPRReviewApproved,
+  // Merge queue logging guards
+  triggeredByMergeQueueEntry,
+  triggeredByMergeQueueFailure,
+  triggeredByPRMerged,
+  triggeredByDeployedStage,
+  triggeredByDeployedProd,
+  // Triage guards
+  needsTriage,
+  isTriaged,
+  // Composite guards
+  readyForReview,
+  shouldContinueIterating,
+  shouldBlock
+};
+
+// claude-state-machine/parser/todo-parser.ts
+var TODO_PATTERNS = {
+  // Matches: - [ ] text or - [x] text or - [X] text
+  checkbox: /^(\s*)-\s*\[([ xX])\]\s*(.+)$/,
+  // Matches: [Manual] prefix or *(manual)* anywhere in the line
+  // [Manual] is the preferred format, *(manual)* is legacy
+  manual: /\[Manual\]|\*\(manual\)\*/i
+};
+function parseTodoLine(line) {
+  const match = line.match(TODO_PATTERNS.checkbox);
+  if (!match) {
+    return null;
+  }
+  const checkMark = match[2];
+  const text = match[3]?.trim() || "";
+  return {
+    text,
+    checked: checkMark?.toLowerCase() === "x",
+    isManual: TODO_PATTERNS.manual.test(line)
+  };
+}
+function parseTodos(body) {
+  const lines = body.split("\n");
+  const todos = [];
+  for (const line of lines) {
+    const todo = parseTodoLine(line);
+    if (todo) {
+      todos.push(todo);
+    }
+  }
+  return todos;
+}
+function calculateTodoStats(todos) {
+  let total = 0;
+  let completed = 0;
+  let uncheckedNonManual = 0;
+  for (const todo of todos) {
+    total++;
+    if (todo.checked) {
+      completed++;
+    } else if (!todo.isManual) {
+      uncheckedNonManual++;
+    }
+  }
+  return {
+    total,
+    completed,
+    uncheckedNonManual
+  };
+}
+function parseTodoStats(body) {
+  const todos = parseTodos(body);
+  return calculateTodoStats(todos);
+}
+
+// claude-state-machine/parser/state-parser.ts
+function deriveBranchName(parentIssueNumber, phaseNumber) {
+  if (phaseNumber !== void 0 && phaseNumber > 0) {
+    return `claude/issue/${parentIssueNumber}/phase-${phaseNumber}`;
+  }
+  return `claude/issue/${parentIssueNumber}`;
+}
+
+// claude-state-machine/machine/actions.ts
+function emitSetWorking({ context: context2 }) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  return [
+    {
+      type: "updateProjectStatus",
+      token: "code",
+      issueNumber,
+      status: "In progress"
+    }
   ];
-  return criticalActions.includes(actionType);
+}
+function emitSetReview({ context: context2 }) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  return [
+    {
+      type: "updateProjectStatus",
+      token: "code",
+      issueNumber,
+      status: "In review"
+    }
+  ];
+}
+function emitSetInProgress({ context: context2 }) {
+  return [
+    {
+      type: "updateProjectStatus",
+      token: "code",
+      issueNumber: context2.issue.number,
+      status: "In progress"
+    }
+  ];
+}
+function emitSetDone({ context: context2 }) {
+  return [
+    {
+      type: "updateProjectStatus",
+      token: "code",
+      issueNumber: context2.issue.number,
+      status: "Done"
+    }
+  ];
+}
+function emitSetBlocked({ context: context2 }) {
+  return [
+    {
+      type: "updateProjectStatus",
+      token: "code",
+      issueNumber: context2.issue.number,
+      status: "Blocked"
+    }
+  ];
+}
+function emitIncrementIteration({
+  context: context2
+}) {
+  return [
+    {
+      type: "incrementIteration",
+      token: "code",
+      issueNumber: context2.issue.number
+    }
+  ];
+}
+function emitRecordFailure({ context: context2 }) {
+  return [
+    {
+      type: "recordFailure",
+      token: "code",
+      issueNumber: context2.issue.number,
+      failureType: "ci"
+    }
+  ];
+}
+function emitClearFailures({ context: context2 }) {
+  return [
+    {
+      type: "clearFailures",
+      token: "code",
+      issueNumber: context2.issue.number
+    }
+  ];
+}
+function emitCloseIssue({ context: context2 }) {
+  return [
+    {
+      type: "closeIssue",
+      token: "code",
+      issueNumber: context2.issue.number,
+      reason: "completed"
+    }
+  ];
+}
+function emitUnassign({ context: context2 }) {
+  return [
+    {
+      type: "unassignUser",
+      token: "code",
+      issueNumber: context2.issue.number,
+      username: context2.botUsername
+    }
+  ];
+}
+function emitBlock({ context: context2 }) {
+  return [
+    {
+      type: "block",
+      token: "code",
+      issueNumber: context2.issue.number,
+      reason: `Max failures (${context2.maxRetries}) reached`
+    }
+  ];
+}
+function emitAppendHistory({ context: context2 }, message, phase) {
+  const phaseStr = phase ?? context2.currentPhase ?? "-";
+  return [
+    {
+      type: "appendHistory",
+      token: "code",
+      issueNumber: context2.issue.number,
+      iteration: context2.iteration,
+      phase: String(phaseStr),
+      message,
+      timestamp: context2.workflowStartedAt ?? void 0,
+      commitSha: context2.ciCommitSha ?? void 0,
+      runLink: context2.ciRunUrl ?? void 0
+    }
+  ];
+}
+function emitLogCIFailure({ context: context2 }) {
+  return [
+    {
+      type: "updateHistory",
+      token: "code",
+      issueNumber: context2.issue.number,
+      matchIteration: context2.issue.iteration,
+      matchPhase: String(context2.currentPhase ?? "-"),
+      matchPattern: "\u23F3",
+      newMessage: "\u274C CI Failed",
+      timestamp: context2.workflowStartedAt ?? void 0,
+      commitSha: context2.ciCommitSha ?? void 0,
+      runLink: context2.ciRunUrl ?? void 0
+    }
+  ];
+}
+function emitCreateBranch({ context: context2 }) {
+  const branchName = context2.branch ?? deriveBranchName(context2.issue.number, context2.currentPhase ?? void 0);
+  return [
+    {
+      type: "createBranch",
+      token: "code",
+      branchName,
+      baseBranch: "main"
+    }
+  ];
+}
+function emitCreatePR({ context: context2 }) {
+  if (context2.pr) {
+    return [];
+  }
+  const branchName = context2.branch ?? deriveBranchName(context2.issue.number, context2.currentPhase ?? void 0);
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  return [
+    {
+      type: "createPR",
+      token: "code",
+      title: context2.currentSubIssue?.title ?? context2.issue.title,
+      body: `Fixes #${issueNumber}`,
+      branchName,
+      baseBranch: "main",
+      draft: true,
+      issueNumber
+    }
+  ];
+}
+function emitMarkReady({ context: context2 }) {
+  if (!context2.pr) {
+    return [];
+  }
+  return [
+    {
+      type: "markPRReady",
+      token: "code",
+      prNumber: context2.pr.number
+    }
+  ];
+}
+function emitConvertToDraft({ context: context2 }) {
+  if (!context2.pr) {
+    return [];
+  }
+  return [
+    {
+      type: "convertPRToDraft",
+      token: "code",
+      prNumber: context2.pr.number
+    }
+  ];
+}
+function emitRequestReview({ context: context2 }) {
+  if (!context2.pr) {
+    return [];
+  }
+  return [
+    {
+      type: "requestReview",
+      token: "code",
+      prNumber: context2.pr.number,
+      reviewer: "nopo-reviewer"
+    }
+  ];
+}
+function emitMergePR({ context: context2 }) {
+  if (!context2.pr) {
+    return [];
+  }
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  return [
+    {
+      type: "mergePR",
+      token: "code",
+      prNumber: context2.pr.number,
+      issueNumber,
+      mergeMethod: "squash"
+    }
+  ];
+}
+function buildIteratePromptVars(context2, ciResultOverride) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const issueTitle = context2.currentSubIssue?.title ?? context2.issue.title;
+  const issueBody = context2.currentSubIssue?.body ?? context2.issue.body;
+  const branchName = context2.branch ?? deriveBranchName(context2.issue.number, context2.currentPhase ?? void 0);
+  const iteration = context2.issue.iteration;
+  const failures = context2.issue.failures;
+  const ciResult = ciResultOverride ?? context2.ciResult ?? "first";
+  const isSubIssue = context2.parentIssue !== null && context2.currentPhase !== null;
+  const parentIssueNumber = context2.parentIssue?.number;
+  const phaseNumber = context2.currentPhase;
+  const parentContext = isSubIssue ? `- **Parent Issue**: #${parentIssueNumber}
+- **Phase**: ${phaseNumber}
+
+> This is a sub-issue. Focus only on todos here. PR must reference both this issue and parent.` : "";
+  const prCreateCommand = isSubIssue ? `\`\`\`bash
+gh pr create --draft --reviewer nopo-bot \\
+  --title "${issueTitle}" \\
+  --body "Fixes #${issueNumber}
+Related to #${parentIssueNumber}
+
+Phase ${phaseNumber} of parent issue."
+\`\`\`` : `\`\`\`bash
+gh pr create --draft --reviewer nopo-bot \\
+  --title "${issueTitle}" \\
+  --body "Fixes #${issueNumber}"
+\`\`\``;
+  return {
+    ISSUE_NUMBER: String(issueNumber),
+    ISSUE_TITLE: issueTitle,
+    ITERATION: String(iteration),
+    LAST_CI_RESULT: ciResult,
+    CONSECUTIVE_FAILURES: String(failures),
+    BRANCH_NAME: branchName,
+    ISSUE_BODY: issueBody,
+    PARENT_CONTEXT: parentContext,
+    PR_CREATE_COMMAND: prCreateCommand,
+    EXISTING_BRANCH_SECTION: ""
+  };
+}
+function emitRunClaude({ context: context2 }) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const promptVars = buildIteratePromptVars(context2);
+  return [
+    {
+      type: "runClaude",
+      token: "code",
+      promptFile: ".github/prompts/iterate.txt",
+      promptVars,
+      issueNumber
+    }
+  ];
+}
+function emitRunClaudeFixCI({ context: context2 }) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const promptVars = buildIteratePromptVars(context2, "failure");
+  promptVars.EXISTING_BRANCH_SECTION = `## CI Failure Context
+CI Run: ${context2.ciRunUrl ?? "N/A"}
+Commit: ${context2.ciCommitSha ?? "N/A"}
+
+Review the CI logs at the link above and fix the failing tests or build errors.`;
+  return [
+    {
+      type: "runClaude",
+      token: "code",
+      promptFile: ".github/prompts/iterate.txt",
+      promptVars,
+      issueNumber
+    }
+  ];
+}
+function emitRunClaudeTriage({ context: context2 }) {
+  const issueNumber = context2.issue.number;
+  const promptVars = {
+    ISSUE_NUMBER: String(issueNumber),
+    ISSUE_TITLE: context2.issue.title,
+    ISSUE_BODY: context2.issue.body,
+    REPO_OWNER: context2.owner,
+    REPO_NAME: context2.repo
+  };
+  const triageArtifact = {
+    name: "claude-triage-output",
+    path: "triage-output.json"
+  };
+  return [
+    {
+      type: "runClaude",
+      token: "code",
+      promptFile: ".github/prompts/triage.txt",
+      promptVars,
+      issueNumber,
+      // Upload triage-output.json after Claude creates it
+      producesArtifact: triageArtifact
+    },
+    // Apply labels and project fields from triage-output.json
+    // Downloads the artifact before execution
+    {
+      type: "applyTriageOutput",
+      token: "code",
+      issueNumber,
+      filePath: "triage-output.json",
+      consumesArtifact: triageArtifact
+    }
+    // Note: History entry is handled by workflow bookend logging
+  ];
+}
+function emitRunClaudeComment({ context: context2 }) {
+  const issueNumber = context2.issue.number;
+  const promptVars = {
+    ISSUE_NUMBER: String(issueNumber),
+    CONTEXT_TYPE: context2.commentContextType ?? "Issue",
+    CONTEXT_DESCRIPTION: context2.commentContextDescription ?? `This is issue #${issueNumber}.`
+  };
+  return [
+    {
+      type: "runClaude",
+      token: "code",
+      promptFile: ".github/prompts/comment.txt",
+      promptVars,
+      issueNumber
+      // worktree intentionally omitted - checkout happens at repo root to the correct branch
+    }
+  ];
+}
+function emitRunClaudePRReview({
+  context: context2
+}) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const prNumber = context2.pr?.number;
+  if (!prNumber) {
+    return [
+      {
+        type: "log",
+        token: "code",
+        level: "warning",
+        message: "No PR found for review"
+      }
+    ];
+  }
+  const promptVars = {
+    PR_NUMBER: String(prNumber),
+    ISSUE_NUMBER: String(issueNumber),
+    PR_TITLE: context2.pr?.title ?? "",
+    HEAD_REF: context2.pr?.headRef ?? context2.branch ?? "",
+    BASE_REF: context2.pr?.baseRef ?? "main",
+    REPO_OWNER: context2.owner,
+    REPO_NAME: context2.repo
+  };
+  return [
+    {
+      type: "runClaude",
+      token: "review",
+      promptFile: ".github/prompts/review.txt",
+      promptVars,
+      issueNumber
+      // worktree intentionally omitted - checkout happens at repo root to the correct branch
+    }
+  ];
+}
+function emitRunClaudePRResponse({
+  context: context2
+}) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const prNumber = context2.pr?.number;
+  if (!prNumber) {
+    return [
+      {
+        type: "log",
+        token: "code",
+        level: "warning",
+        message: "No PR found for response"
+      }
+    ];
+  }
+  const promptVars = {
+    PR_NUMBER: String(prNumber),
+    ISSUE_NUMBER: String(issueNumber),
+    HEAD_REF: context2.pr?.headRef ?? context2.branch ?? "",
+    BASE_REF: context2.pr?.baseRef ?? "main",
+    REPO_OWNER: context2.owner,
+    REPO_NAME: context2.repo,
+    REVIEW_DECISION: context2.reviewDecision ?? "N/A",
+    REVIEWER: context2.reviewerId ?? "N/A"
+  };
+  return [
+    {
+      type: "runClaude",
+      token: "code",
+      promptFile: ".github/prompts/review-response.txt",
+      promptVars,
+      issueNumber
+      // worktree intentionally omitted - checkout happens at repo root to the correct branch
+    }
+  ];
+}
+function emitRunClaudePRHumanResponse({
+  context: context2
+}) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const prNumber = context2.pr?.number;
+  if (!prNumber) {
+    return [
+      {
+        type: "log",
+        token: "code",
+        level: "warning",
+        message: "No PR found for human response"
+      }
+    ];
+  }
+  const promptVars = {
+    PR_NUMBER: String(prNumber),
+    ISSUE_NUMBER: String(issueNumber),
+    HEAD_REF: context2.pr?.headRef ?? context2.branch ?? "",
+    BASE_REF: context2.pr?.baseRef ?? "main",
+    REPO_OWNER: context2.owner,
+    REPO_NAME: context2.repo,
+    REVIEW_DECISION: context2.reviewDecision ?? "N/A",
+    REVIEWER: context2.reviewerId ?? "N/A"
+  };
+  return [
+    {
+      type: "runClaude",
+      token: "code",
+      promptFile: ".github/prompts/human-review-response.txt",
+      promptVars,
+      issueNumber
+      // worktree intentionally omitted - checkout happens at repo root to the correct branch
+    }
+  ];
+}
+function emitInitializeParent({ context: context2 }) {
+  const actions = [];
+  actions.push({
+    type: "updateProjectStatus",
+    token: "code",
+    issueNumber: context2.issue.number,
+    status: "In progress"
+  });
+  const firstSubIssue = context2.issue.subIssues[0];
+  if (firstSubIssue) {
+    actions.push({
+      type: "updateProjectStatus",
+      token: "code",
+      issueNumber: firstSubIssue.number,
+      status: "In progress"
+    });
+  }
+  actions.push({
+    type: "appendHistory",
+    token: "code",
+    issueNumber: context2.issue.number,
+    iteration: context2.iteration,
+    phase: "1",
+    message: `\u{1F680} Initialized with ${context2.issue.subIssues.length} phase(s)`,
+    timestamp: context2.workflowStartedAt ?? void 0
+  });
+  return actions;
+}
+function emitAdvancePhase({ context: context2 }) {
+  const actions = [];
+  if (!context2.currentSubIssue || context2.currentPhase === null) {
+    return actions;
+  }
+  actions.push({
+    type: "updateProjectStatus",
+    token: "code",
+    issueNumber: context2.currentSubIssue.number,
+    status: "Done"
+  });
+  actions.push({
+    type: "closeIssue",
+    token: "code",
+    issueNumber: context2.currentSubIssue.number,
+    reason: "completed"
+  });
+  const nextPhase = context2.currentPhase + 1;
+  const nextSubIssue = context2.issue.subIssues[nextPhase - 1];
+  if (nextSubIssue) {
+    actions.push({
+      type: "updateProjectStatus",
+      token: "code",
+      issueNumber: nextSubIssue.number,
+      status: "In progress"
+    });
+    actions.push({
+      type: "appendHistory",
+      token: "code",
+      issueNumber: context2.issue.number,
+      iteration: context2.iteration,
+      phase: String(nextPhase),
+      message: `\u23ED\uFE0F Phase ${nextPhase} started`,
+      timestamp: context2.workflowStartedAt ?? void 0
+    });
+  }
+  return actions;
+}
+function emitOrchestrate({ context: context2 }) {
+  const actions = [];
+  actions.push({
+    type: "log",
+    token: "code",
+    level: "info",
+    message: `Orchestrating issue #${context2.issue.number} with ${context2.issue.subIssues.length} phases`
+  });
+  const needsInit = context2.issue.projectStatus === null || context2.issue.projectStatus === "Backlog";
+  if (needsInit) {
+    actions.push(...emitInitializeParent({ context: context2 }));
+  }
+  const phaseComplete = context2.currentSubIssue && context2.currentSubIssue.state === "CLOSED";
+  if (phaseComplete && context2.currentPhase !== null) {
+    const hasNext = context2.currentPhase < context2.totalPhases;
+    if (hasNext) {
+      actions.push(...emitAdvancePhase({ context: context2 }));
+    }
+  }
+  let subIssueToAssign = context2.currentSubIssue;
+  if (phaseComplete && context2.currentPhase !== null) {
+    const nextPhase = context2.currentPhase + 1;
+    if (nextPhase <= context2.totalPhases) {
+      subIssueToAssign = context2.issue.subIssues[nextPhase - 1] ?? null;
+    } else {
+      subIssueToAssign = null;
+    }
+  }
+  if (subIssueToAssign) {
+    actions.push({
+      type: "assignUser",
+      token: "code",
+      issueNumber: subIssueToAssign.number,
+      username: context2.botUsername
+    });
+  }
+  return actions;
+}
+function emitAllPhasesDone({ context: context2 }) {
+  const actions = [];
+  actions.push({
+    type: "log",
+    token: "code",
+    level: "info",
+    message: `All phases complete for issue #${context2.issue.number}`
+  });
+  actions.push({
+    type: "updateProjectStatus",
+    token: "code",
+    issueNumber: context2.issue.number,
+    status: "Done"
+  });
+  actions.push({
+    type: "closeIssue",
+    token: "code",
+    issueNumber: context2.issue.number,
+    reason: "completed"
+  });
+  actions.push({
+    type: "appendHistory",
+    token: "code",
+    issueNumber: context2.issue.number,
+    iteration: context2.iteration,
+    phase: "-",
+    message: "\u2705 All phases complete",
+    timestamp: context2.workflowStartedAt ?? void 0
+  });
+  return actions;
+}
+function emitStop(_ctx, reason) {
+  return [
+    {
+      type: "stop",
+      token: "code",
+      reason
+    }
+  ];
+}
+function emitLog(_ctx, message, level = "info") {
+  return [
+    {
+      type: "log",
+      token: "code",
+      level,
+      message
+    }
+  ];
+}
+function emitTransitionToReview({
+  context: context2
+}) {
+  const actions = [];
+  if (context2.issue.failures > 0) {
+    actions.push(...emitClearFailures({ context: context2 }));
+  }
+  if (context2.pr?.isDraft) {
+    actions.push(...emitMarkReady({ context: context2 }));
+  }
+  actions.push(...emitSetReview({ context: context2 }));
+  actions.push(...emitRequestReview({ context: context2 }));
+  return actions;
+}
+function emitHandleCIFailure({ context: context2 }) {
+  const actions = [];
+  actions.push(...emitRecordFailure({ context: context2 }));
+  actions.push(...emitLogCIFailure({ context: context2 }));
+  return actions;
+}
+function emitBlockIssue({ context: context2 }) {
+  const actions = [];
+  actions.push(...emitSetBlocked({ context: context2 }));
+  actions.push(...emitUnassign({ context: context2 }));
+  actions.push(
+    ...emitAppendHistory(
+      { context: context2 },
+      `\u{1F6AB} Blocked: Max failures reached (${context2.issue.failures})`
+    )
+  );
+  actions.push(...emitBlock({ context: context2 }));
+  return actions;
+}
+function emitMergeQueueEntry({ context: context2 }) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const phase = String(context2.currentPhase ?? "-");
+  const iteration = context2.issue.iteration ?? 0;
+  return [
+    {
+      type: "appendHistory",
+      token: "code",
+      issueNumber,
+      iteration,
+      phase,
+      message: "\u{1F680} Entered queue",
+      timestamp: context2.workflowStartedAt ?? void 0,
+      runLink: context2.ciRunUrl ?? void 0
+    }
+  ];
+}
+function emitMergeQueueFailure({
+  context: context2
+}) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const phase = String(context2.currentPhase ?? "-");
+  const iteration = context2.issue.iteration ?? 0;
+  return [
+    {
+      type: "appendHistory",
+      token: "code",
+      issueNumber,
+      iteration,
+      phase,
+      message: "\u274C Removed from queue",
+      timestamp: context2.workflowStartedAt ?? void 0,
+      runLink: context2.ciRunUrl ?? void 0
+    }
+  ];
+}
+function emitMerged({ context: context2 }) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const phase = String(context2.currentPhase ?? "-");
+  const iteration = context2.issue.iteration ?? 0;
+  return [
+    {
+      type: "appendHistory",
+      token: "code",
+      issueNumber,
+      iteration,
+      phase,
+      message: "\u{1F6A2} Merged",
+      timestamp: context2.workflowStartedAt ?? void 0,
+      commitSha: context2.ciCommitSha ?? void 0,
+      runLink: context2.ciRunUrl ?? void 0
+    }
+  ];
+}
+function emitDeployedStage({ context: context2 }) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const phase = String(context2.currentPhase ?? "-");
+  const iteration = context2.issue.iteration ?? 0;
+  return [
+    {
+      type: "appendHistory",
+      token: "code",
+      issueNumber,
+      iteration,
+      phase,
+      message: "\u2705 Deployed to stage",
+      timestamp: context2.workflowStartedAt ?? void 0,
+      commitSha: context2.ciCommitSha ?? void 0,
+      runLink: context2.ciRunUrl ?? void 0
+    }
+  ];
+}
+function emitDeployedProd({ context: context2 }) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const phase = String(context2.currentPhase ?? "-");
+  const iteration = context2.issue.iteration ?? 0;
+  return [
+    {
+      type: "appendHistory",
+      token: "code",
+      issueNumber,
+      iteration,
+      phase,
+      message: "\u2705 Released to production",
+      timestamp: context2.workflowStartedAt ?? void 0,
+      commitSha: context2.ciCommitSha ?? void 0,
+      runLink: context2.ciRunUrl ?? void 0
+    }
+  ];
 }
 
-// claude-state-machine/runner/runner.ts
-var core9 = __toESM(require_core(), 1);
+// claude-state-machine/machine/machine.ts
+function accumulateActions(existingActions, newActions) {
+  return [...existingActions, ...newActions];
+}
+var claudeMachine = setup({
+  types: {
+    context: {},
+    events: {},
+    input: {}
+  },
+  guards: {
+    isAlreadyDone: ({ context: context2 }) => guards.isAlreadyDone({ context: context2 }),
+    isBlocked: ({ context: context2 }) => guards.isBlocked({ context: context2 }),
+    isError: ({ context: context2 }) => guards.isError({ context: context2 }),
+    needsSubIssues: ({ context: context2 }) => guards.needsSubIssues({ context: context2 }),
+    hasSubIssues: ({ context: context2 }) => guards.hasSubIssues({ context: context2 }),
+    isInReview: ({ context: context2 }) => guards.isInReview({ context: context2 }),
+    allPhasesDone: ({ context: context2 }) => guards.allPhasesDone({ context: context2 }),
+    currentPhaseNeedsWork: ({ context: context2 }) => guards.currentPhaseNeedsWork({ context: context2 }),
+    currentPhaseInReview: ({ context: context2 }) => guards.currentPhaseInReview({ context: context2 }),
+    todosDone: ({ context: context2 }) => guards.todosDone({ context: context2 }),
+    maxFailuresReached: ({ context: context2 }) => guards.maxFailuresReached({ context: context2 }),
+    ciPassed: ({ context: context2 }) => guards.ciPassed({ context: context2 }),
+    ciFailed: ({ context: context2 }) => guards.ciFailed({ context: context2 }),
+    reviewApproved: ({ context: context2 }) => guards.reviewApproved({ context: context2 }),
+    reviewRequestedChanges: ({ context: context2 }) => guards.reviewRequestedChanges({ context: context2 }),
+    readyForReview: ({ context: context2 }) => guards.readyForReview({ context: context2 }),
+    shouldContinueIterating: ({ context: context2 }) => guards.shouldContinueIterating({ context: context2 }),
+    shouldBlock: ({ context: context2 }) => guards.shouldBlock({ context: context2 }),
+    hasPR: ({ context: context2 }) => guards.hasPR({ context: context2 }),
+    prIsDraft: ({ context: context2 }) => guards.prIsDraft({ context: context2 }),
+    hasBranch: ({ context: context2 }) => guards.hasBranch({ context: context2 }),
+    triggeredByCI: ({ context: context2 }) => guards.triggeredByCI({ context: context2 }),
+    triggeredByReview: ({ context: context2 }) => guards.triggeredByReview({ context: context2 }),
+    triggeredByTriage: ({ context: context2 }) => guards.triggeredByTriage({ context: context2 }),
+    triggeredByComment: ({ context: context2 }) => guards.triggeredByComment({ context: context2 }),
+    triggeredByOrchestrate: ({ context: context2 }) => guards.triggeredByOrchestrate({ context: context2 }),
+    triggeredByPRReview: ({ context: context2 }) => guards.triggeredByPRReview({ context: context2 }),
+    triggeredByPRResponse: ({ context: context2 }) => guards.triggeredByPRResponse({ context: context2 }),
+    triggeredByPRHumanResponse: ({ context: context2 }) => guards.triggeredByPRHumanResponse({ context: context2 }),
+    triggeredByPRReviewApproved: ({ context: context2 }) => guards.triggeredByPRReviewApproved({ context: context2 }),
+    // Merge queue logging guards
+    triggeredByMergeQueueEntry: ({ context: context2 }) => guards.triggeredByMergeQueueEntry({ context: context2 }),
+    triggeredByMergeQueueFailure: ({ context: context2 }) => guards.triggeredByMergeQueueFailure({ context: context2 }),
+    triggeredByPRMerged: ({ context: context2 }) => guards.triggeredByPRMerged({ context: context2 }),
+    triggeredByDeployedStage: ({ context: context2 }) => guards.triggeredByDeployedStage({ context: context2 }),
+    triggeredByDeployedProd: ({ context: context2 }) => guards.triggeredByDeployedProd({ context: context2 }),
+    needsTriage: ({ context: context2 }) => guards.needsTriage({ context: context2 })
+  },
+  actions: {
+    // Log actions
+    logDetecting: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitLog({ context: context2 }, "Detecting initial state")
+      )
+    }),
+    logIterating: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitLog(
+          { context: context2 },
+          `Starting iteration ${context2.issue.iteration + 1}`
+        )
+      )
+    }),
+    logReviewing: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitLog({ context: context2 }, "PR is under review")
+      )
+    }),
+    logTriaging: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitLog({ context: context2 }, `Triaging issue #${context2.issue.number}`)
+      )
+    }),
+    logCommenting: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitLog(
+          { context: context2 },
+          `Responding to comment on #${context2.issue.number}`
+        )
+      )
+    }),
+    logWaitingForReview: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitLog({ context: context2 }, "Waiting for review on current phase")
+      )
+    }),
+    // Status actions
+    setWorking: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitSetWorking({ context: context2 }))
+    }),
+    setReview: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitSetReview({ context: context2 }))
+    }),
+    setInProgress: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitSetInProgress({ context: context2 })
+      )
+    }),
+    setDone: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitSetDone({ context: context2 }))
+    }),
+    setBlocked: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitSetBlocked({ context: context2 }))
+    }),
+    // Iteration actions
+    incrementIteration: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitIncrementIteration({ context: context2 })
+      )
+    }),
+    recordFailure: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitRecordFailure({ context: context2 })
+      )
+    }),
+    clearFailures: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitClearFailures({ context: context2 })
+      )
+    }),
+    // Issue actions
+    closeIssue: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitCloseIssue({ context: context2 }))
+    }),
+    unassign: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitUnassign({ context: context2 }))
+    }),
+    // Git actions
+    createBranch: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitCreateBranch({ context: context2 })
+      )
+    }),
+    // Claude actions
+    runClaude: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitRunClaude({ context: context2 }))
+    }),
+    runClaudeFixCI: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitRunClaudeFixCI({ context: context2 })
+      )
+    }),
+    runClaudeTriage: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitRunClaudeTriage({ context: context2 })
+      )
+    }),
+    runClaudeComment: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitRunClaudeComment({ context: context2 })
+      )
+    }),
+    // PR actions
+    createPR: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitCreatePR({ context: context2 }))
+    }),
+    markPRReady: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitMarkReady({ context: context2 }))
+    }),
+    requestReview: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitRequestReview({ context: context2 })
+      )
+    }),
+    convertToDraft: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitConvertToDraft({ context: context2 })
+      )
+    }),
+    mergePR: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitMergePR({ context: context2 }))
+    }),
+    runClaudePRReview: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitRunClaudePRReview({ context: context2 })
+      )
+    }),
+    runClaudePRResponse: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitRunClaudePRResponse({ context: context2 })
+      )
+    }),
+    runClaudePRHumanResponse: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitRunClaudePRHumanResponse({ context: context2 })
+      )
+    }),
+    logPRReviewing: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitLog(
+          { context: context2 },
+          `Reviewing PR #${context2.pr?.number ?? "unknown"}`
+        )
+      )
+    }),
+    logPRResponding: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitLog(
+          { context: context2 },
+          `Responding to review on PR #${context2.pr?.number ?? "unknown"}`
+        )
+      )
+    }),
+    // Compound actions
+    transitionToReview: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitTransitionToReview({ context: context2 })
+      )
+    }),
+    handleCIFailure: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitHandleCIFailure({ context: context2 })
+      )
+    }),
+    blockIssue: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitBlockIssue({ context: context2 }))
+    }),
+    // Orchestration actions
+    orchestrate: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitOrchestrate({ context: context2 }))
+    }),
+    allPhasesDone: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitAllPhasesDone({ context: context2 })
+      )
+    }),
+    logOrchestrating: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitLog(
+          { context: context2 },
+          `Orchestrating issue #${context2.issue.number} (phase ${context2.currentPhase}/${context2.totalPhases})`
+        )
+      )
+    }),
+    // Stop action
+    stopWithReason: assign({
+      pendingActions: ({ context: context2 }, params) => accumulateActions(
+        context2.pendingActions,
+        emitStop({ context: context2 }, params.reason)
+      )
+    }),
+    // Merge queue logging actions
+    logMergeQueueEntry: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitMergeQueueEntry({ context: context2 })
+      )
+    }),
+    logMergeQueueFailure: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitMergeQueueFailure({ context: context2 })
+      )
+    }),
+    logMerged: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitMerged({ context: context2 }))
+    }),
+    logDeployedStage: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitDeployedStage({ context: context2 })
+      )
+    }),
+    logDeployedProd: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitDeployedProd({ context: context2 })
+      )
+    })
+  }
+}).createMachine({
+  id: "claude-automation",
+  initial: "detecting",
+  context: ({ input }) => ({
+    ...input,
+    pendingActions: []
+  }),
+  states: {
+    /**
+     * Initial state - determine what to do based on context
+     */
+    detecting: {
+      entry: "logDetecting",
+      always: [
+        // Check terminal states first
+        { target: "done", guard: "isAlreadyDone" },
+        { target: "blocked", guard: "isBlocked" },
+        { target: "error", guard: "isError" },
+        // Merge queue logging events (handle early, they're log-only)
+        {
+          target: "mergeQueueLogging",
+          guard: "triggeredByMergeQueueEntry"
+        },
+        {
+          target: "mergeQueueFailureLogging",
+          guard: "triggeredByMergeQueueFailure"
+        },
+        { target: "mergedLogging", guard: "triggeredByPRMerged" },
+        { target: "deployedStageLogging", guard: "triggeredByDeployedStage" },
+        { target: "deployedProdLogging", guard: "triggeredByDeployedProd" },
+        // Check if this is a triage request
+        {
+          target: "triaging",
+          guard: "triggeredByTriage"
+        },
+        // Check if this is a comment (@claude mention)
+        {
+          target: "commenting",
+          guard: "triggeredByComment"
+        },
+        // Check if this is an orchestration request
+        {
+          target: "orchestrating",
+          guard: "triggeredByOrchestrate"
+        },
+        // Check if this is a PR review request (bot should review)
+        {
+          target: "prReviewing",
+          guard: "triggeredByPRReview"
+        },
+        // Check if this is a PR response (bot responds to bot's review)
+        {
+          target: "prResponding",
+          guard: "triggeredByPRResponse"
+        },
+        // Check if this is a PR human response (bot responds to human's review)
+        {
+          target: "prRespondingHuman",
+          guard: "triggeredByPRHumanResponse"
+        },
+        // Check if this is a PR review approval (Claude approved via nopo-reviewer)
+        {
+          target: "processingReview",
+          guard: "triggeredByPRReviewApproved"
+        },
+        // Check if this is a CI completion event
+        {
+          target: "processingCI",
+          guard: "triggeredByCI"
+        },
+        // Check if this is a review submission event (for orchestration)
+        {
+          target: "processingReview",
+          guard: "triggeredByReview"
+        },
+        // Check if issue needs triage (no "triaged" label)
+        // This ensures untriaged issues get triaged before any work begins
+        {
+          target: "triaging",
+          guard: "needsTriage"
+        },
+        // Check for multi-phase work
+        { target: "initializing", guard: "needsSubIssues" },
+        { target: "orchestrating", guard: "hasSubIssues" },
+        // Check current state
+        { target: "reviewing", guard: "isInReview" },
+        // Default to iterating
+        { target: "iterating" }
+      ]
+    },
+    /**
+     * Triage an issue - analyze, label, create sub-issues
+     */
+    triaging: {
+      entry: ["logTriaging", "runClaudeTriage"],
+      type: "final"
+    },
+    /**
+     * Respond to a comment (@claude mention)
+     */
+    commenting: {
+      entry: ["logCommenting", "runClaudeComment"],
+      type: "final"
+    },
+    /**
+     * Bot reviews a PR
+     *
+     * Claude analyzes the PR and writes review-output.json.
+     * The runner then submits the review via GitHub API.
+     */
+    prReviewing: {
+      entry: ["logPRReviewing", "runClaudePRReview"],
+      type: "final"
+    },
+    /**
+     * Bot responds to its own (or another bot's) review feedback
+     *
+     * Claude addresses review comments and pushes changes.
+     */
+    prResponding: {
+      entry: ["logPRResponding", "runClaudePRResponse"],
+      type: "final"
+    },
+    /**
+     * Bot responds to human review feedback
+     *
+     * Claude addresses human reviewer's comments and pushes changes.
+     */
+    prRespondingHuman: {
+      entry: ["logPRResponding", "runClaudePRHumanResponse"],
+      type: "final"
+    },
+    /**
+     * Create sub-issues for phased work
+     */
+    initializing: {
+      entry: ["setInProgress"],
+      always: "orchestrating"
+    },
+    /**
+     * Manage multi-phase work (parent issue orchestration)
+     *
+     * This state handles parent issues with sub-issues:
+     * - If all phases done: emit completion actions
+     * - If current phase in review: wait (no-op, review completion triggers next run)
+     * - Otherwise: emit orchestration actions (init, advance, assign sub-issue)
+     *
+     * After emitting actions, this becomes a final state because:
+     * - Sub-issue iteration happens in a separate workflow run
+     * - Orchestration triggers sub-issue assignment which triggers iteration
+     */
+    orchestrating: {
+      entry: ["logOrchestrating"],
+      always: [
+        // All phases complete - mark parent done
+        {
+          target: "orchestrationComplete",
+          guard: "allPhasesDone"
+        },
+        // Current phase is in review - wait for review to complete
+        {
+          target: "orchestrationWaiting",
+          guard: "currentPhaseInReview"
+        },
+        // Otherwise, run orchestration (init, advance, assign)
+        {
+          target: "orchestrationRunning"
+        }
+      ]
+    },
+    /**
+     * Orchestration running - emits actions and stops
+     */
+    orchestrationRunning: {
+      entry: ["orchestrate"],
+      type: "final"
+    },
+    /**
+     * Waiting for current phase review to complete
+     */
+    orchestrationWaiting: {
+      entry: ["logWaitingForReview"],
+      type: "final"
+    },
+    /**
+     * All phases complete
+     */
+    orchestrationComplete: {
+      entry: ["allPhasesDone"],
+      type: "final"
+    },
+    /**
+     * Process CI completion
+     */
+    processingCI: {
+      always: [
+        // CI passed and todos done -> go to review
+        {
+          target: "transitioningToReview",
+          guard: "readyForReview"
+        },
+        // CI passed but todos not done -> continue iterating
+        {
+          target: "iterating",
+          guard: "ciPassed",
+          actions: ["clearFailures"]
+        },
+        // CI failed and max failures -> block
+        {
+          target: "blocked",
+          guard: "shouldBlock",
+          actions: ["blockIssue"]
+        },
+        // CI failed -> iterate to fix
+        {
+          target: "iteratingFix",
+          guard: "ciFailed",
+          actions: ["handleCIFailure"]
+        },
+        // Fallback
+        { target: "iterating" }
+      ]
+    },
+    /**
+     * Process review submission
+     */
+    processingReview: {
+      always: [
+        // Approved -> merge PR and orchestrate (will advance phase or complete)
+        {
+          target: "orchestrating",
+          guard: "reviewApproved",
+          actions: ["mergePR"]
+        },
+        // Changes requested -> iterate to address
+        // NOTE: setWorking is NOT included here because iterating entry already calls it
+        {
+          target: "iterating",
+          guard: "reviewRequestedChanges",
+          actions: ["convertToDraft"]
+        },
+        // Just commented -> stay in review
+        { target: "reviewing" }
+      ]
+    },
+    /**
+     * Transitioning to review state
+     */
+    transitioningToReview: {
+      entry: ["transitionToReview"],
+      always: "reviewing"
+    },
+    /**
+     * Claude is working on implementation
+     */
+    iterating: {
+      entry: [
+        "createBranch",
+        "setWorking",
+        "incrementIteration",
+        "logIterating",
+        "runClaude",
+        "createPR"
+      ],
+      on: {
+        CI_SUCCESS: [
+          {
+            target: "transitioningToReview",
+            guard: "todosDone"
+          },
+          {
+            target: "iterating",
+            actions: ["clearFailures"]
+          }
+        ],
+        CI_FAILURE: [
+          {
+            target: "blocked",
+            guard: "maxFailuresReached",
+            actions: ["blockIssue"]
+          },
+          {
+            target: "iteratingFix",
+            actions: ["handleCIFailure"]
+          }
+        ]
+      },
+      // Auto-stop after entry actions (no event-driven transitions in initial run)
+      type: "final"
+    },
+    /**
+     * Claude is fixing CI failures
+     */
+    iteratingFix: {
+      entry: [
+        "createBranch",
+        "incrementIteration",
+        "runClaudeFixCI",
+        "createPR"
+      ],
+      on: {
+        CI_SUCCESS: [
+          {
+            target: "transitioningToReview",
+            guard: "todosDone"
+          },
+          {
+            target: "iterating",
+            actions: ["clearFailures"]
+          }
+        ],
+        CI_FAILURE: [
+          {
+            target: "blocked",
+            guard: "maxFailuresReached",
+            actions: ["blockIssue"]
+          },
+          {
+            target: "iteratingFix",
+            actions: ["handleCIFailure"]
+          }
+        ]
+      },
+      type: "final"
+    },
+    /**
+     * PR is under review
+     */
+    reviewing: {
+      entry: ["logReviewing"],
+      on: {
+        REVIEW_APPROVED: "orchestrating",
+        // NOTE: setWorking NOT included - iterating entry already calls it
+        REVIEW_CHANGES_REQUESTED: {
+          target: "iterating",
+          actions: ["convertToDraft"]
+        },
+        REVIEW_COMMENTED: "reviewing"
+      },
+      type: "final"
+    },
+    /**
+     * Circuit breaker triggered
+     * NOTE: Entry actions removed - blockIssue action already emits setBlocked + unassign
+     */
+    blocked: {
+      type: "final"
+    },
+    /**
+     * Unrecoverable error
+     */
+    error: {
+      type: "final"
+    },
+    // =========================================================================
+    // Merge Queue Logging States
+    // =========================================================================
+    // These states handle logging of merge queue, merge, and deployment events
+    // They emit history entries to both sub-issue AND parent issue for visibility
+    /**
+     * Log merge queue entry event
+     */
+    mergeQueueLogging: {
+      entry: ["logMergeQueueEntry"],
+      type: "final"
+    },
+    /**
+     * Log merge queue failure event
+     */
+    mergeQueueFailureLogging: {
+      entry: ["logMergeQueueFailure"],
+      type: "final"
+    },
+    /**
+     * Log PR merged event
+     */
+    mergedLogging: {
+      entry: ["logMerged"],
+      type: "final"
+    },
+    /**
+     * Log stage deployment event
+     */
+    deployedStageLogging: {
+      entry: ["logDeployedStage"],
+      type: "final"
+    },
+    /**
+     * Log production deployment event
+     */
+    deployedProdLogging: {
+      entry: ["logDeployedProd"],
+      type: "final"
+    },
+    /**
+     * All work complete
+     */
+    done: {
+      entry: ["setDone", "closeIssue"],
+      type: "final"
+    }
+  }
+});
 
-// claude-state-machine/runner/executors/project.ts
-var core2 = __toESM(require_core(), 1);
-var GET_PROJECT_ITEM_QUERY = `
-query GetProjectItem($org: String!, $repo: String!, $issueNumber: Int!, $projectNumber: Int!) {
-  repository(owner: $org, name: $repo) {
+// claude-test-runner/src/predictor.ts
+var WAITING_STATES = {
+  iterating: {
+    triggers: ["CI_SUCCESS", "CI_FAILURE"],
+    waitMs: 18e4
+    // 3 minutes for CI
+  },
+  iteratingFix: {
+    triggers: ["CI_SUCCESS", "CI_FAILURE"],
+    waitMs: 18e4
+  },
+  reviewing: {
+    triggers: ["REVIEW_APPROVED", "REVIEW_CHANGES_REQUESTED"],
+    waitMs: 12e4
+    // 2 minutes for review
+  },
+  orchestrating: {
+    triggers: ["SUB_ISSUE_COMPLETE"],
+    waitMs: 6e4
+  },
+  orchestrationWaiting: {
+    triggers: ["SUB_ISSUE_COMPLETE"],
+    waitMs: 6e4
+  },
+  triaging: {
+    triggers: [],
+    waitMs: 6e4
+    // Triage is quick
+  },
+  commenting: {
+    triggers: [],
+    waitMs: 6e4
+  },
+  prReviewing: {
+    triggers: [],
+    waitMs: 12e4
+  },
+  prResponding: {
+    triggers: ["CI_SUCCESS", "CI_FAILURE"],
+    waitMs: 18e4
+  },
+  prRespondingHuman: {
+    triggers: ["CI_SUCCESS", "CI_FAILURE"],
+    waitMs: 18e4
+  }
+};
+var STATE_DESCRIPTIONS = {
+  detecting: "Detecting initial state and determining next action",
+  iterating: "Claude is implementing the issue",
+  iteratingFix: "Claude is fixing CI failures",
+  reviewing: "PR is under review",
+  orchestrating: "Managing multi-phase work",
+  orchestrationWaiting: "Waiting for current phase review to complete",
+  orchestrationRunning: "Running orchestration actions",
+  orchestrationComplete: "All phases are complete",
+  triaging: "Triaging the issue (labeling, sizing)",
+  commenting: "Responding to @claude mention",
+  prReviewing: "Claude is reviewing the PR",
+  prResponding: "Claude is responding to review feedback",
+  prRespondingHuman: "Claude is responding to human review",
+  processingCI: "Processing CI completion event",
+  processingReview: "Processing review submission",
+  transitioningToReview: "Transitioning PR to review state",
+  initializing: "Initializing multi-phase work",
+  blocked: "Issue is blocked (circuit breaker triggered)",
+  error: "Issue is in error state",
+  done: "All work is complete",
+  mergeQueueLogging: "Logging merge queue entry",
+  mergeQueueFailureLogging: "Logging merge queue failure",
+  mergedLogging: "Logging PR merge",
+  deployedStageLogging: "Logging stage deployment",
+  deployedProdLogging: "Logging production deployment"
+};
+function predictNextState(context2) {
+  const actor = createActor(claudeMachine, {
+    input: context2
+  });
+  actor.start();
+  const snapshot = actor.getSnapshot();
+  actor.stop();
+  const stateValue = snapshot.value;
+  const expectedState = typeof stateValue === "string" ? stateValue : Object.keys(stateValue)[0] || "detecting";
+  const waitingInfo = WAITING_STATES[expectedState] || {
+    triggers: [],
+    waitMs: 6e4
+  };
+  const pendingActions = snapshot.context.pendingActions || [];
+  let expectedStatus = context2.issue.projectStatus;
+  for (const action of pendingActions) {
+    if (action.type === "setProjectField" && action.field === "status") {
+      expectedStatus = action.value;
+    }
+  }
+  return {
+    expectedState,
+    expectedStatus,
+    triggersNeeded: waitingInfo.triggers,
+    estimatedWaitMs: waitingInfo.waitMs,
+    description: STATE_DESCRIPTIONS[expectedState] || expectedState
+  };
+}
+function isTerminalState(state) {
+  return state === "done" || state === "blocked" || state === "error";
+}
+
+// claude-test-runner/src/diagnostics.ts
+var GUARD_FIXES = {
+  todosDone: (state) => ({
+    reason: `${state.uncheckedTodos} unchecked todos remain`,
+    fix: `Complete ${state.uncheckedTodos} remaining todos in the issue body`
+  }),
+  ciPassed: () => ({
+    reason: "CI has not passed",
+    fix: "Wait for CI to complete successfully, or fix failing tests"
+  }),
+  ciFailed: () => ({
+    reason: "CI has not failed",
+    fix: "CI is still running or passed - wait for completion"
+  }),
+  maxFailuresReached: (state) => ({
+    reason: `Failure count (${state.failures}) has reached maximum`,
+    fix: "Reset the Failures field to 0 or fix the underlying CI issues"
+  }),
+  reviewApproved: () => ({
+    reason: "PR has not been approved",
+    fix: "Request review and get approval from nopo-reviewer"
+  }),
+  botIsAssigned: (_state) => ({
+    reason: `nopo-bot is not assigned (assignees: none visible)`,
+    fix: "Assign nopo-bot to the issue to trigger automation"
+  }),
+  hasPR: (state) => ({
+    reason: state.prNumber ? "PR exists" : "No PR exists for this issue",
+    fix: state.prNumber ? "PR already exists" : "Create a PR for the issue branch"
+  }),
+  hasBranch: (state) => ({
+    reason: state.branchExists ? "Branch exists" : "Branch does not exist",
+    fix: state.branchExists ? "Branch already exists" : "Branch will be created on first iteration"
+  }),
+  isInReview: (state) => ({
+    reason: state.projectStatus === "In review" ? "Issue is in review" : "Issue is not in review",
+    fix: state.projectStatus === "In review" ? "Wait for review completion" : "Complete todos and pass CI to transition to review"
+  }),
+  needsTriage: (state) => ({
+    reason: state.labels.includes("triaged") ? "Issue has 'triaged' label" : "Issue missing 'triaged' label",
+    fix: state.labels.includes("triaged") ? "Issue is already triaged" : "Run triage workflow or add 'triaged' label"
+  })
+};
+function evaluateGuards(state, expected) {
+  const results = [];
+  const guardsToCheck = [
+    "todosDone",
+    "ciPassed",
+    "maxFailuresReached",
+    "reviewApproved",
+    "botIsAssigned",
+    "hasPR",
+    "hasBranch",
+    "isInReview",
+    "needsTriage"
+  ];
+  for (const guardName of guardsToCheck) {
+    const guardFn = GUARD_FIXES[guardName];
+    if (!guardFn) continue;
+    const { reason, fix } = guardFn(state);
+    let passed = false;
+    let expectation = false;
+    switch (guardName) {
+      case "todosDone":
+        passed = state.uncheckedTodos === 0;
+        expectation = expected.expectedState === "reviewing";
+        break;
+      case "ciPassed":
+        passed = false;
+        expectation = expected.triggersNeeded.includes("CI_SUCCESS");
+        break;
+      case "maxFailuresReached":
+        passed = state.failures >= 5;
+        expectation = expected.expectedState === "blocked";
+        break;
+      case "reviewApproved":
+        passed = state.prState === "MERGED";
+        expectation = expected.triggersNeeded.includes("REVIEW_APPROVED");
+        break;
+      case "botIsAssigned":
+        passed = state.botAssigned;
+        expectation = true;
+        break;
+      case "hasPR":
+        passed = state.prNumber !== null;
+        expectation = expected.expectedState === "reviewing" || expected.expectedState === "prReviewing";
+        break;
+      case "hasBranch":
+        passed = state.branchExists;
+        expectation = expected.expectedState !== "detecting";
+        break;
+      case "isInReview":
+        passed = state.projectStatus === "In review";
+        expectation = expected.expectedState === "reviewing";
+        break;
+      case "needsTriage":
+        passed = !state.labels.includes("triaged");
+        expectation = expected.expectedState === "triaging";
+        break;
+    }
+    results.push({
+      name: guardName,
+      passed,
+      expected: expectation,
+      reason,
+      fix: !passed && expectation ? fix : null
+    });
+  }
+  return results;
+}
+function getWorkflowStatus(runs) {
+  if (runs.length === 0) {
+    return "not_triggered";
+  }
+  const latestRun = runs[0];
+  if (!latestRun) {
+    return "not_triggered";
+  }
+  if (latestRun.status === "in_progress" || latestRun.status === "queued") {
+    return "running";
+  }
+  if (latestRun.conclusion === "failure") {
+    return "failed";
+  }
+  return "waiting";
+}
+function diagnoseFailure(expected, actual, workflowRuns) {
+  const workflowStatus = getWorkflowStatus(workflowRuns);
+  const guardResults = evaluateGuards(actual, expected);
+  if (actual.projectStatus === "Done") {
+    return {
+      status: "done",
+      suggestedFix: "Issue is complete - no action needed",
+      diagnosis: "Issue has reached Done status",
+      details: {
+        expectedState: expected.expectedState,
+        actualState: actual.projectStatus || "unknown",
+        expectedStatus: expected.expectedStatus,
+        actualStatus: actual.projectStatus,
+        guardsEvaluated: guardResults,
+        workflowStatus,
+        workflowRuns
+      }
+    };
+  }
+  if (actual.projectStatus === "Blocked") {
+    return {
+      status: "error",
+      suggestedFix: "Issue is blocked - reset Failures field or fix underlying issues",
+      diagnosis: `Circuit breaker triggered after ${actual.failures} failures`,
+      details: {
+        expectedState: expected.expectedState,
+        actualState: "blocked",
+        expectedStatus: expected.expectedStatus,
+        actualStatus: actual.projectStatus,
+        guardsEvaluated: guardResults,
+        workflowStatus,
+        workflowRuns
+      }
+    };
+  }
+  if (workflowStatus === "running") {
+    const runningRun = workflowRuns.find(
+      (r) => r.status === "in_progress" || r.status === "queued"
+    );
+    return {
+      status: "timeout",
+      suggestedFix: `Wait longer - workflow "${runningRun?.name || "unknown"}" is still running`,
+      diagnosis: `Workflow ${runningRun?.id || "unknown"} is in progress`,
+      details: {
+        expectedState: expected.expectedState,
+        actualState: actual.projectStatus || "unknown",
+        expectedStatus: expected.expectedStatus,
+        actualStatus: actual.projectStatus,
+        guardsEvaluated: guardResults,
+        workflowStatus: "running",
+        workflowRuns
+      }
+    };
+  }
+  if (workflowStatus === "failed") {
+    const failedRun = workflowRuns.find((r) => r.conclusion === "failure");
+    return {
+      status: "error",
+      suggestedFix: `Check workflow logs: ${failedRun?.url || "unknown"}`,
+      diagnosis: `Workflow failed: ${failedRun?.displayTitle || "unknown"}`,
+      details: {
+        expectedState: expected.expectedState,
+        actualState: actual.projectStatus || "unknown",
+        expectedStatus: expected.expectedStatus,
+        actualStatus: actual.projectStatus,
+        guardsEvaluated: guardResults,
+        workflowStatus: "failed",
+        workflowRuns
+      }
+    };
+  }
+  if (workflowStatus === "not_triggered" && !actual.botAssigned) {
+    return {
+      status: "error",
+      suggestedFix: "Assign nopo-bot to the issue to trigger automation",
+      diagnosis: "No workflow triggered - nopo-bot is not assigned",
+      details: {
+        expectedState: expected.expectedState,
+        actualState: actual.projectStatus || "unknown",
+        expectedStatus: expected.expectedStatus,
+        actualStatus: actual.projectStatus,
+        guardsEvaluated: guardResults,
+        workflowStatus: "not_triggered",
+        workflowRuns
+      }
+    };
+  }
+  const blockingGuard = guardResults.find((g) => g.expected && !g.passed);
+  if (blockingGuard && blockingGuard.fix) {
+    return {
+      status: "timeout",
+      suggestedFix: blockingGuard.fix,
+      diagnosis: `Guard '${blockingGuard.name}' failed: ${blockingGuard.reason}`,
+      details: {
+        expectedState: expected.expectedState,
+        actualState: actual.projectStatus || "unknown",
+        expectedStatus: expected.expectedStatus,
+        actualStatus: actual.projectStatus,
+        guardsEvaluated: guardResults,
+        workflowStatus,
+        workflowRuns
+      }
+    };
+  }
+  return {
+    status: "timeout",
+    suggestedFix: "Unknown failure - check issue history and workflow logs manually",
+    diagnosis: `Expected state '${expected.expectedState}' not reached, actual status: ${actual.projectStatus || "unknown"}`,
+    details: {
+      expectedState: expected.expectedState,
+      actualState: actual.projectStatus || "unknown",
+      expectedStatus: expected.expectedStatus,
+      actualStatus: actual.projectStatus,
+      guardsEvaluated: guardResults,
+      workflowStatus,
+      workflowRuns
+    }
+  };
+}
+function formatDiagnosis(diagnosis) {
+  const lines = [
+    `Status: ${diagnosis.status}`,
+    `Suggested Fix: ${diagnosis.suggestedFix}`,
+    `Diagnosis: ${diagnosis.diagnosis}`,
+    "",
+    "Details:",
+    `  Expected State: ${diagnosis.details.expectedState}`,
+    `  Actual State: ${diagnosis.details.actualState}`,
+    `  Expected Status: ${diagnosis.details.expectedStatus || "N/A"}`,
+    `  Actual Status: ${diagnosis.details.actualStatus || "N/A"}`,
+    `  Workflow Status: ${diagnosis.details.workflowStatus}`
+  ];
+  if (diagnosis.details.workflowRuns.length > 0) {
+    lines.push("");
+    lines.push("Recent Workflow Runs:");
+    for (const run2 of diagnosis.details.workflowRuns.slice(0, 3)) {
+      lines.push(
+        `  - ${run2.name}: ${run2.status} (${run2.conclusion || "pending"}) - ${run2.url}`
+      );
+    }
+  }
+  const blockingGuards = diagnosis.details.guardsEvaluated.filter(
+    (g) => g.expected && !g.passed
+  );
+  if (blockingGuards.length > 0) {
+    lines.push("");
+    lines.push("Blocking Guards:");
+    for (const guard of blockingGuards) {
+      lines.push(`  - ${guard.name}: ${guard.reason}`);
+      if (guard.fix) {
+        lines.push(`    Fix: ${guard.fix}`);
+      }
+    }
+  }
+  return lines.join("\n");
+}
+
+// claude-test-runner/src/github-state.ts
+var GET_ISSUE_STATE_QUERY = `
+query GetIssueState($owner: String!, $repo: String!, $issueNumber: Int!) {
+  repository(owner: $owner, name: $repo) {
     issue(number: $issueNumber) {
       id
+      number
+      title
+      body
+      state
+      assignees(first: 10) {
+        nodes {
+          login
+        }
+      }
+      labels(first: 20) {
+        nodes {
+          name
+        }
+      }
       projectItems(first: 10) {
         nodes {
           id
@@ -28432,23 +33751,23 @@ query GetProjectItem($org: String!, $repo: String!, $issueNumber: Int!, $project
       }
     }
   }
-  organization(login: $org) {
-    projectV2(number: $projectNumber) {
-      id
-      fields(first: 20) {
-        nodes {
-          ... on ProjectV2SingleSelectField {
-            id
+}
+`;
+var GET_PR_FOR_ISSUE_QUERY = `
+query GetPRForIssue($owner: String!, $repo: String!, $headRef: String!) {
+  repository(owner: $owner, name: $repo) {
+    pullRequests(first: 1, headRefName: $headRef, states: [OPEN, MERGED]) {
+      nodes {
+        number
+        title
+        state
+        isDraft
+        headRefName
+        baseRefName
+        headRefOid
+        labels(first: 20) {
+          nodes {
             name
-            options {
-              id
-              name
-            }
-          }
-          ... on ProjectV2Field {
-            id
-            name
-            dataType
           }
         }
       }
@@ -28456,2394 +33775,1009 @@ query GetProjectItem($org: String!, $repo: String!, $issueNumber: Int!, $project
   }
 }
 `;
-var UPDATE_PROJECT_FIELD_MUTATION = `
-mutation UpdateProjectField($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
-  updateProjectV2ItemFieldValue(input: {
-    projectId: $projectId
-    itemId: $itemId
-    fieldId: $fieldId
-    value: $value
-  }) {
-    projectV2Item {
-      id
-    }
-  }
-}
-`;
-var ADD_ISSUE_TO_PROJECT_MUTATION = `
-mutation AddIssueToProject($projectId: ID!, $contentId: ID!) {
-  addProjectV2ItemById(input: {
-    projectId: $projectId
-    contentId: $contentId
-  }) {
-    item {
-      id
-    }
-  }
-}
-`;
-function parseProjectFields(projectData) {
-  const project = projectData;
-  if (!project?.projectV2?.id || !project.projectV2.fields?.nodes) {
-    return null;
-  }
-  const fields = {
-    projectId: project.projectV2.id,
-    statusFieldId: "",
-    statusOptions: {},
-    iterationFieldId: "",
-    failuresFieldId: ""
-  };
-  for (const field of project.projectV2.fields.nodes) {
-    if (!field) continue;
-    if (field.name === "Status" && field.options) {
-      fields.statusFieldId = field.id || "";
-      for (const option of field.options) {
-        fields.statusOptions[option.name] = option.id;
+var CHECK_BRANCH_EXISTS_QUERY = `
+query CheckBranchExists($owner: String!, $repo: String!, $branchName: String!) {
+  repository(owner: $owner, name: $repo) {
+    ref(qualifiedName: $branchName) {
+      name
+      target {
+        oid
       }
-    } else if (field.name === "Iteration") {
-      fields.iterationFieldId = field.id || "";
-    } else if (field.name === "Failures") {
-      fields.failuresFieldId = field.id || "";
     }
   }
-  return fields;
 }
-function findStatusOption(statusOptions, status) {
-  if (statusOptions[status]) {
-    return statusOptions[status];
+`;
+function deriveBranchName2(issueNumber, phase) {
+  if (phase !== void 0 && phase > 0) {
+    return `claude/issue/${issueNumber}/phase-${phase}`;
   }
-  const lowerStatus = status.toLowerCase();
-  for (const [name, id] of Object.entries(statusOptions)) {
-    if (name.toLowerCase() === lowerStatus) {
-      return id;
-    }
-  }
-  return void 0;
+  return `claude/issue/${issueNumber}`;
 }
-function getProjectItemId(projectItems, projectNumber) {
-  const projectItem = projectItems.find(
-    (item) => item.project?.number === projectNumber
-  );
-  return projectItem?.id || null;
-}
-function parseProjectState(projectItems, projectNumber) {
-  const projectItem = projectItems.find(
-    (item) => item.project?.number === projectNumber
-  );
-  if (!projectItem) {
-    return { status: null, iteration: 0, failures: 0 };
-  }
-  let status = null;
-  let iteration = 0;
-  let failures = 0;
-  const fieldValues = projectItem.fieldValues?.nodes || [];
-  for (const fieldValue of fieldValues) {
-    const fieldName = fieldValue.field?.name;
-    if (fieldName === "Status" && fieldValue.name) {
-      status = fieldValue.name;
-    } else if (fieldName === "Iteration" && typeof fieldValue.number === "number") {
-      iteration = fieldValue.number;
-    } else if (fieldName === "Failures" && typeof fieldValue.number === "number") {
-      failures = fieldValue.number;
-    }
-  }
-  return { status, iteration, failures };
-}
-async function getOrAddProjectItem(octokit, ctx, issueNumber) {
-  const response = await octokit.graphql(
-    GET_PROJECT_ITEM_QUERY,
+async function fetchGitHubState(octokit, owner, repo, issueNumber, projectNumber, botUsername = "nopo-bot") {
+  const issueResponse = await octokit.graphql(
+    GET_ISSUE_STATE_QUERY,
     {
-      org: ctx.owner,
-      repo: ctx.repo,
-      issueNumber,
-      projectNumber: ctx.projectNumber
+      owner,
+      repo,
+      issueNumber
     }
   );
-  const issue = response.repository?.issue;
-  const projectData = response.organization;
-  if (!issue || !projectData?.projectV2) {
-    throw new Error(`Issue #${issueNumber} or project not found`);
-  }
-  const projectFields = parseProjectFields(projectData);
-  if (!projectFields) {
-    throw new Error("Failed to parse project fields");
+  const issue = issueResponse.repository?.issue;
+  if (!issue) {
+    throw new Error(`Issue #${issueNumber} not found`);
   }
   const projectItems = issue.projectItems?.nodes || [];
-  let itemId = getProjectItemId(projectItems, ctx.projectNumber);
-  const currentState = parseProjectState(projectItems, ctx.projectNumber);
-  if (!itemId) {
-    core2.info(`Adding issue #${issueNumber} to project ${ctx.projectNumber}`);
-    const addResult = await octokit.graphql(
-      ADD_ISSUE_TO_PROJECT_MUTATION,
-      {
-        projectId: projectFields.projectId,
-        contentId: issue.id
+  const projectItem = projectItems.find(
+    (item) => item.project?.number === projectNumber
+  );
+  let projectStatus = null;
+  let iteration = 0;
+  let failures = 0;
+  if (projectItem?.fieldValues?.nodes) {
+    for (const fieldValue of projectItem.fieldValues.nodes) {
+      const fieldName = fieldValue.field?.name;
+      if (fieldName === "Status" && fieldValue.name) {
+        projectStatus = fieldValue.name;
+      } else if (fieldName === "Iteration" && typeof fieldValue.number === "number") {
+        iteration = fieldValue.number;
+      } else if (fieldName === "Failures" && typeof fieldValue.number === "number") {
+        failures = fieldValue.number;
       }
-    );
-    itemId = addResult.addProjectV2ItemById?.item?.id || null;
-    if (!itemId) {
-      throw new Error("Failed to add issue to project");
     }
   }
-  return { itemId, projectFields, currentState };
-}
-async function executeUpdateProjectStatus(action, ctx) {
-  const { itemId, projectFields, currentState } = await getOrAddProjectItem(
-    ctx.octokit,
-    ctx,
-    action.issueNumber
-  );
-  const optionId = findStatusOption(projectFields.statusOptions, action.status);
-  if (!optionId) {
-    core2.warning(`Status option '${action.status}' not found in project`);
-    return { updated: false, previousStatus: currentState.status };
-  }
-  await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
-    projectId: projectFields.projectId,
-    itemId,
-    fieldId: projectFields.statusFieldId,
-    value: { singleSelectOptionId: optionId }
-  });
-  core2.info(
-    `Updated Status to ${action.status} for issue #${action.issueNumber}`
-  );
-  return { updated: true, previousStatus: currentState.status };
-}
-async function executeIncrementIteration(action, ctx) {
-  const { itemId, projectFields, currentState } = await getOrAddProjectItem(
-    ctx.octokit,
-    ctx,
-    action.issueNumber
-  );
-  const newIteration = currentState.iteration + 1;
-  await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
-    projectId: projectFields.projectId,
-    itemId,
-    fieldId: projectFields.iterationFieldId,
-    value: { number: newIteration }
-  });
-  core2.info(
-    `Incremented Iteration to ${newIteration} for issue #${action.issueNumber}`
-  );
-  return { newIteration };
-}
-async function executeRecordFailure(action, ctx) {
-  const { itemId, projectFields, currentState } = await getOrAddProjectItem(
-    ctx.octokit,
-    ctx,
-    action.issueNumber
-  );
-  const newFailures = currentState.failures + 1;
-  await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
-    projectId: projectFields.projectId,
-    itemId,
-    fieldId: projectFields.failuresFieldId,
-    value: { number: newFailures }
-  });
-  core2.info(
-    `Incremented Failures to ${newFailures} for issue #${action.issueNumber}`
-  );
-  return { newFailures };
-}
-async function executeClearFailures(action, ctx) {
-  const { itemId, projectFields, currentState } = await getOrAddProjectItem(
-    ctx.octokit,
-    ctx,
-    action.issueNumber
-  );
-  await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
-    projectId: projectFields.projectId,
-    itemId,
-    fieldId: projectFields.failuresFieldId,
-    value: { number: 0 }
-  });
-  core2.info(`Cleared Failures for issue #${action.issueNumber}`);
-  return { previousFailures: currentState.failures };
-}
-async function executeBlock(action, ctx) {
-  const { itemId, projectFields } = await getOrAddProjectItem(
-    ctx.octokit,
-    ctx,
-    action.issueNumber
-  );
-  const optionId = findStatusOption(projectFields.statusOptions, "Blocked");
-  if (!optionId) {
-    core2.warning("Blocked status option not found in project");
-    return { blocked: false };
-  }
-  await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
-    projectId: projectFields.projectId,
-    itemId,
-    fieldId: projectFields.statusFieldId,
-    value: { singleSelectOptionId: optionId }
-  });
-  core2.info(`Blocked issue #${action.issueNumber}: ${action.reason}`);
-  return { blocked: true };
-}
-
-// claude-state-machine/runner/executors/github.ts
-var core3 = __toESM(require_core(), 1);
-
-// claude-state-machine/parser/history-parser.ts
-var HISTORY_SECTION = "## Iteration History";
-var HEADER_COLUMNS = [
-  { key: "time", value: "Time" },
-  { key: "iteration", value: "#" },
-  { key: "phase", value: "Phase" },
-  { key: "action", value: "Action" },
-  { key: "sha", value: "SHA" },
-  { key: "run", value: "Run" }
-];
-function buildValueToKeyMap() {
-  const map = /* @__PURE__ */ new Map();
-  for (const col of HEADER_COLUMNS) {
-    map.set(col.value, col.key);
-  }
-  return map;
-}
-function parseHeaderRow(headerRow, valueToKeyMap) {
-  const cells = headerRow.split("|").map((c) => c.trim()).filter((c, i, arr) => i > 0 && i < arr.length - 1 && c !== "");
-  const keys = [];
-  const unmatched = [];
-  for (const cell of cells) {
-    const key = valueToKeyMap.get(cell);
-    if (key) {
-      keys.push(key);
-    } else {
-      keys.push(null);
-      unmatched.push(cell);
-    }
-  }
-  return { keys, unmatched };
-}
-function parseDataRow(row, columnKeys) {
-  const cells = row.split("|").map((c) => c.trim()).filter((c, i, arr) => i > 0 && i < arr.length - 1);
-  const data = {};
-  for (let i = 0; i < columnKeys.length && i < cells.length; i++) {
-    const key = columnKeys[i];
-    if (key) {
-      data[key] = cells[i];
-    }
-  }
-  return data;
-}
-function parseTable(body) {
-  const lines = body.split("\n");
-  const historyIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
-  if (historyIdx === -1) {
-    return null;
-  }
-  const valueToKeyMap = buildValueToKeyMap();
-  let headerKeys = [];
-  let unmatchedHeaders = [];
-  const rows = [];
-  let foundHeader = false;
-  for (let i = historyIdx + 1; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line) continue;
-    if (line.startsWith("##") && !line.includes(HISTORY_SECTION)) {
-      break;
-    }
-    if (!line.startsWith("|")) {
-      continue;
-    }
-    if (line.includes("---")) {
-      continue;
-    }
-    if (!foundHeader) {
-      const parsed = parseHeaderRow(line, valueToKeyMap);
-      headerKeys = parsed.keys;
-      unmatchedHeaders = parsed.unmatched;
-      foundHeader = true;
-      continue;
-    }
-    const rowData = parseDataRow(line, headerKeys);
-    rows.push(rowData);
-  }
-  return {
-    headerKeys: headerKeys.filter((k) => k !== null),
-    rows,
-    unmatchedHeaders
-  };
-}
-function generateHeaderRow() {
-  const cells = HEADER_COLUMNS.map((col) => col.value);
-  return `| ${cells.join(" | ")} |`;
-}
-function generateSeparatorRow() {
-  const cells = HEADER_COLUMNS.map(() => "---");
-  return `|${cells.join("|")}|`;
-}
-function serializeRow(data) {
-  const cells = HEADER_COLUMNS.map((col) => data[col.key] ?? "-");
-  return `| ${cells.join(" | ")} |`;
-}
-function serializeTable(rows) {
-  const headerRow = generateHeaderRow();
-  const separatorRow = generateSeparatorRow();
-  const dataRows = rows.map(serializeRow);
-  return [headerRow, separatorRow, ...dataRows].join("\n");
-}
-function formatTimestamp(isoTimestamp) {
-  if (!isoTimestamp) return "-";
+  const assignees = issue.assignees?.nodes?.map((a) => a.login || "").filter(Boolean) || [];
+  const labels = issue.labels?.nodes?.map((l) => l.name || "").filter(Boolean) || [];
+  const body = issue.body || "";
+  const todos = parseTodoStats(body);
+  const botAssigned = assignees.includes(botUsername);
+  const branchName = deriveBranchName2(issueNumber);
+  let branchExists = false;
+  let latestSha = null;
   try {
-    const date = new Date(isoTimestamp);
-    if (isNaN(date.getTime())) return "-";
-    const months = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec"
-    ];
-    const month = months[date.getUTCMonth()];
-    const day = date.getUTCDate();
-    const hours = String(date.getUTCHours()).padStart(2, "0");
-    const minutes = String(date.getUTCMinutes()).padStart(2, "0");
-    return `${month} ${day} ${hours}:${minutes}`;
-  } catch {
-    return "-";
-  }
-}
-function parseMarkdownLink(text) {
-  const match = text.match(/\[.*?\]\((.*?)\)/);
-  return match?.[1] ?? null;
-}
-function extractRunIdFromUrl(url) {
-  const match = url.match(/\/actions\/runs\/(\d+)/);
-  return match?.[1] ?? null;
-}
-function parseRunIdFromCell(cell) {
-  if (cell === "-" || cell.trim() === "") {
-    return null;
-  }
-  const linkTextMatch = cell.match(/\[(\d+)\]/);
-  if (linkTextMatch) {
-    return linkTextMatch[1] ?? null;
-  }
-  const url = parseMarkdownLink(cell);
-  if (url) {
-    return extractRunIdFromUrl(url);
-  }
-  return null;
-}
-function formatHistoryCells(sha, runLink, repoUrl) {
-  const serverUrl = repoUrl || process.env.GITHUB_SERVER_URL || "https://github.com";
-  const repo = process.env.GITHUB_REPOSITORY || "";
-  const fullRepoUrl = repo ? `${serverUrl}/${repo}` : serverUrl;
-  const shaCell = sha ? `[\`${sha.slice(0, 7)}\`](${fullRepoUrl}/commit/${sha})` : "-";
-  let runCell = "-";
-  if (runLink) {
-    const runId = extractRunIdFromUrl(runLink);
-    if (runId) {
-      runCell = `[${runId}](${runLink})`;
-    } else {
-      runCell = `[Run](${runLink})`;
-    }
-  }
-  return { shaCell, runCell };
-}
-function createRowData(iteration, phase, message, timestamp, sha, runLink, repoUrl) {
-  const { shaCell, runCell } = formatHistoryCells(sha, runLink, repoUrl);
-  return {
-    time: formatTimestamp(timestamp),
-    iteration: String(iteration),
-    phase: String(phase),
-    action: message,
-    sha: shaCell,
-    run: runCell
-  };
-}
-function addHistoryEntry(body, iteration, phase, message, timestamp, sha, runLink, repoUrl) {
-  const newRowData = createRowData(
-    iteration,
-    phase,
-    message,
-    timestamp,
-    sha,
-    runLink,
-    repoUrl
-  );
-  const newRunId = runLink ? extractRunIdFromUrl(runLink) : null;
-  const historyIdx = body.indexOf(HISTORY_SECTION);
-  if (historyIdx === -1) {
-    const table = serializeTable([newRowData]);
-    return `${body}
-
-${HISTORY_SECTION}
-
-${table}`;
-  }
-  const parsed = parseTable(body);
-  if (!parsed) {
-    const table = serializeTable([newRowData]);
-    return `${body}
-
-${HISTORY_SECTION}
-
-${table}`;
-  }
-  if (parsed.unmatchedHeaders.length > 0) {
-    console.warn(
-      `[history-parser] Unmatched table headers during add (will be dropped): ${parsed.unmatchedHeaders.join(", ")}`
-    );
-  }
-  const existingRows = parsed.rows.map((row) => {
-    const normalized = {};
-    for (const col of HEADER_COLUMNS) {
-      normalized[col.key] = row[col.key] ?? "-";
-    }
-    return normalized;
-  });
-  let allRows;
-  let matchIdx = -1;
-  if (newRunId) {
-    matchIdx = existingRows.findIndex((row) => {
-      const existingRunId = parseRunIdFromCell(row.run ?? "");
-      return existingRunId === newRunId;
-    });
-  }
-  if (matchIdx !== -1) {
-    const existingRow = existingRows[matchIdx];
-    const existingAction = existingRow.action ?? "";
-    const newAction = existingAction ? `${existingAction} \u2192 ${message}` : message;
-    const updatedRow = {
-      ...existingRow,
-      action: newAction
-    };
-    if (sha && newRowData.sha !== "-") {
-      updatedRow.sha = newRowData.sha;
-    }
-    if (newRowData.time && newRowData.time !== "-") {
-      updatedRow.time = newRowData.time;
-    }
-    allRows = existingRows.map(
-      (row, idx) => idx === matchIdx ? updatedRow : row
-    );
-  } else {
-    allRows = [...existingRows, newRowData];
-  }
-  const lines = body.split("\n");
-  const historyLineIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
-  let tableEndIdx = historyLineIdx + 1;
-  for (let i = historyLineIdx + 1; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line || line.startsWith("|")) {
-      tableEndIdx = i + 1;
-    } else if (line.trim() !== "") {
-      break;
-    }
-  }
-  const beforeHistory = lines.slice(0, historyLineIdx).join("\n");
-  const afterTable = lines.slice(tableEndIdx).join("\n");
-  const newTable = serializeTable(allRows);
-  const parts = [beforeHistory, HISTORY_SECTION, "", newTable];
-  if (afterTable.trim()) {
-    parts.push("", afterTable);
-  }
-  return parts.join("\n");
-}
-function updateHistoryEntry(body, matchIteration, matchPhase, matchPattern, newMessage, timestamp, sha, runLink, repoUrl) {
-  const parsed = parseTable(body);
-  if (!parsed || parsed.rows.length === 0) {
-    return { body, updated: false };
-  }
-  if (parsed.unmatchedHeaders.length > 0) {
-    console.warn(
-      `[history-parser] Unmatched table headers during update (will be dropped): ${parsed.unmatchedHeaders.join(", ")}`
-    );
-  }
-  let matchIdx = -1;
-  for (let i = parsed.rows.length - 1; i >= 0; i--) {
-    const row = parsed.rows[i];
-    if (!row) continue;
-    const rowIteration = row.iteration || "";
-    const rowPhase = row.phase || "";
-    const rowAction = row.action || "";
-    if (rowIteration === String(matchIteration) && rowPhase === String(matchPhase) && rowAction.includes(matchPattern)) {
-      matchIdx = i;
-      break;
-    }
-  }
-  if (matchIdx === -1) {
-    return { body, updated: false };
-  }
-  const existingRow = parsed.rows[matchIdx];
-  const { shaCell, runCell } = formatHistoryCells(sha, runLink, repoUrl);
-  const updatedRow = {
-    time: timestamp ? formatTimestamp(timestamp) : existingRow.time ?? "-",
-    iteration: existingRow.iteration,
-    phase: existingRow.phase,
-    action: newMessage,
-    sha: sha ? shaCell : existingRow.sha ?? "-",
-    run: runLink ? runCell : existingRow.run ?? "-"
-  };
-  const normalizedRows = parsed.rows.map((row, idx) => {
-    if (idx === matchIdx) {
-      return updatedRow;
-    }
-    const normalized = {};
-    for (const col of HEADER_COLUMNS) {
-      normalized[col.key] = row[col.key] ?? "-";
-    }
-    return normalized;
-  });
-  const lines = body.split("\n");
-  const historyLineIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
-  let tableEndIdx = historyLineIdx + 1;
-  for (let i = historyLineIdx + 1; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line || line.startsWith("|")) {
-      tableEndIdx = i + 1;
-    } else if (line.trim() !== "") {
-      break;
-    }
-  }
-  const beforeHistory = lines.slice(0, historyLineIdx).join("\n");
-  const afterTable = lines.slice(tableEndIdx).join("\n");
-  const newTable = serializeTable(normalizedRows);
-  const parts = [beforeHistory, HISTORY_SECTION, "", newTable];
-  if (afterTable.trim()) {
-    parts.push("", afterTable);
-  }
-  return { body: parts.join("\n"), updated: true };
-}
-
-// claude-state-machine/runner/executors/github.ts
-var GET_ISSUE_BODY_QUERY = `
-query GetIssueBody($owner: String!, $repo: String!, $issueNumber: Int!) {
-  repository(owner: $owner, name: $repo) {
-    issue(number: $issueNumber) {
-      id
-      body
-      parent {
-        number
-      }
-    }
-  }
-}
-`;
-var CONVERT_PR_TO_DRAFT_MUTATION = `
-mutation ConvertPRToDraft($prId: ID!) {
-  convertPullRequestToDraft(input: { pullRequestId: $prId }) {
-    pullRequest {
-      id
-      isDraft
-    }
-  }
-}
-`;
-var MARK_PR_READY_MUTATION = `
-mutation MarkPRReady($prId: ID!) {
-  markPullRequestReadyForReview(input: { pullRequestId: $prId }) {
-    pullRequest {
-      id
-      isDraft
-    }
-  }
-}
-`;
-var GET_PR_ID_QUERY = `
-query GetPRId($owner: String!, $repo: String!, $prNumber: Int!) {
-  repository(owner: $owner, name: $repo) {
-    pullRequest(number: $prNumber) {
-      id
-    }
-  }
-}
-`;
-var CREATE_ISSUE_MUTATION = `
-mutation CreateIssue($repositoryId: ID!, $title: String!, $body: String!) {
-  createIssue(input: { repositoryId: $repositoryId, title: $title, body: $body }) {
-    issue {
-      id
-      number
-    }
-  }
-}
-`;
-var ADD_SUB_ISSUE_MUTATION = `
-mutation AddSubIssue($parentId: ID!, $childId: ID!) {
-  addSubIssue(input: { issueId: $parentId, subIssueId: $childId }) {
-    issue {
-      id
-    }
-  }
-}
-`;
-var GET_REPO_ID_QUERY = `
-query GetRepoId($owner: String!, $repo: String!) {
-  repository(owner: $owner, name: $repo) {
-    id
-  }
-}
-`;
-async function executeCloseIssue(action, ctx) {
-  await ctx.octokit.rest.issues.update({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    issue_number: action.issueNumber,
-    state: "closed",
-    state_reason: action.reason === "not_planned" ? "not_planned" : "completed"
-  });
-  core3.info(`Closed issue #${action.issueNumber}`);
-  return { closed: true };
-}
-async function executeAppendHistory(action, ctx) {
-  const response = await ctx.octokit.graphql(
-    GET_ISSUE_BODY_QUERY,
-    {
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issueNumber: action.issueNumber
-    }
-  );
-  const currentBody = response.repository?.issue?.body || "";
-  const parentNumber = response.repository?.issue?.parent?.number;
-  const iteration = action.iteration ?? 0;
-  const repoUrl = `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}`;
-  const timestamp = action.timestamp || (/* @__PURE__ */ new Date()).toISOString();
-  const newBody = addHistoryEntry(
-    currentBody,
-    iteration,
-    action.phase,
-    action.message,
-    timestamp,
-    action.commitSha,
-    action.runLink,
-    repoUrl
-  );
-  await ctx.octokit.rest.issues.update({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    issue_number: action.issueNumber,
-    body: newBody
-  });
-  core3.info(`Appended history: Phase ${action.phase}, ${action.message}`);
-  if (parentNumber) {
-    const parentResponse = await ctx.octokit.graphql(
-      GET_ISSUE_BODY_QUERY,
+    const branchResponse = await octokit.graphql(
+      CHECK_BRANCH_EXISTS_QUERY,
       {
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issueNumber: parentNumber
-      }
-    );
-    const parentBody = parentResponse.repository?.issue?.body || "";
-    const newParentBody = addHistoryEntry(
-      parentBody,
-      iteration,
-      action.phase,
-      action.message,
-      timestamp,
-      action.commitSha,
-      action.runLink,
-      repoUrl
-    );
-    await ctx.octokit.rest.issues.update({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: parentNumber,
-      body: newParentBody
-    });
-    core3.info(`Also appended to parent issue #${parentNumber}`);
-  }
-  return { appended: true };
-}
-async function executeUpdateHistory(action, ctx) {
-  const response = await ctx.octokit.graphql(
-    GET_ISSUE_BODY_QUERY,
-    {
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issueNumber: action.issueNumber
-    }
-  );
-  const currentBody = response.repository?.issue?.body || "";
-  const parentNumber = response.repository?.issue?.parent?.number;
-  const repoUrl = `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}`;
-  const timestamp = action.timestamp || (/* @__PURE__ */ new Date()).toISOString();
-  const result = updateHistoryEntry(
-    currentBody,
-    action.matchIteration,
-    action.matchPhase,
-    action.matchPattern,
-    action.newMessage,
-    timestamp,
-    action.commitSha,
-    action.runLink,
-    repoUrl
-  );
-  if (result.updated) {
-    await ctx.octokit.rest.issues.update({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: action.issueNumber,
-      body: result.body
-    });
-    core3.info(
-      `Updated history: Phase ${action.matchPhase}, ${action.newMessage}`
-    );
-  } else {
-    core3.info(
-      `No matching history entry found - adding new entry for Phase ${action.matchPhase}`
-    );
-    const newBody = addHistoryEntry(
-      currentBody,
-      action.matchIteration,
-      action.matchPhase,
-      action.newMessage,
-      timestamp,
-      action.commitSha,
-      action.runLink,
-      repoUrl
-    );
-    await ctx.octokit.rest.issues.update({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: action.issueNumber,
-      body: newBody
-    });
-    core3.info(
-      `Added new history entry: Phase ${action.matchPhase}, ${action.newMessage}`
-    );
-  }
-  if (parentNumber) {
-    const parentResponse = await ctx.octokit.graphql(
-      GET_ISSUE_BODY_QUERY,
-      {
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issueNumber: parentNumber
-      }
-    );
-    const parentBody = parentResponse.repository?.issue?.body || "";
-    const parentResult = updateHistoryEntry(
-      parentBody,
-      action.matchIteration,
-      action.matchPhase,
-      action.matchPattern,
-      action.newMessage,
-      timestamp,
-      action.commitSha,
-      action.runLink,
-      repoUrl
-    );
-    if (parentResult.updated) {
-      await ctx.octokit.rest.issues.update({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issue_number: parentNumber,
-        body: parentResult.body
-      });
-      core3.info(`Also updated parent issue #${parentNumber}`);
-    } else {
-      const newParentBody = addHistoryEntry(
-        parentBody,
-        action.matchIteration,
-        action.matchPhase,
-        action.newMessage,
-        timestamp,
-        action.commitSha,
-        action.runLink,
-        repoUrl
-      );
-      await ctx.octokit.rest.issues.update({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issue_number: parentNumber,
-        body: newParentBody
-      });
-      core3.info(`Added new entry to parent issue #${parentNumber}`);
-    }
-  }
-  return { updated: true };
-}
-async function executeUpdateIssueBody(action, ctx) {
-  await ctx.octokit.rest.issues.update({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    issue_number: action.issueNumber,
-    body: action.body
-  });
-  core3.info(`Updated body for issue #${action.issueNumber}`);
-  return { updated: true };
-}
-async function executeAddComment(action, ctx) {
-  const response = await ctx.octokit.rest.issues.createComment({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    issue_number: action.issueNumber,
-    body: action.body
-  });
-  core3.info(`Added comment to issue #${action.issueNumber}`);
-  return { commentId: response.data.id };
-}
-async function executeUnassignUser(action, ctx) {
-  await ctx.octokit.rest.issues.removeAssignees({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    issue_number: action.issueNumber,
-    assignees: [action.username]
-  });
-  core3.info(`Unassigned ${action.username} from issue #${action.issueNumber}`);
-  return { unassigned: true };
-}
-async function executeAssignUser(action, ctx) {
-  await ctx.octokit.rest.issues.addAssignees({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    issue_number: action.issueNumber,
-    assignees: [action.username]
-  });
-  core3.info(`Assigned ${action.username} to issue #${action.issueNumber}`);
-  return { assigned: true };
-}
-async function executeCreateSubIssues(action, ctx) {
-  const repoResponse = await ctx.octokit.graphql(
-    GET_REPO_ID_QUERY,
-    {
-      owner: ctx.owner,
-      repo: ctx.repo
-    }
-  );
-  const repoId = repoResponse.repository?.id;
-  if (!repoId) {
-    throw new Error("Repository not found");
-  }
-  const parentResponse = await ctx.octokit.graphql(
-    GET_ISSUE_BODY_QUERY,
-    {
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issueNumber: action.parentIssueNumber
-    }
-  );
-  const parentId = parentResponse.repository?.issue?.id;
-  if (!parentId) {
-    throw new Error(`Parent issue #${action.parentIssueNumber} not found`);
-  }
-  const subIssueNumbers = [];
-  for (let i = 0; i < action.phases.length; i++) {
-    const phase = action.phases[i];
-    if (!phase) continue;
-    const title = `[Phase ${i + 1}]: ${phase.title}`;
-    const createResponse = await ctx.octokit.graphql(
-      CREATE_ISSUE_MUTATION,
-      {
-        repositoryId: repoId,
-        title,
-        body: phase.body
-      }
-    );
-    const issueId = createResponse.createIssue?.issue?.id;
-    const issueNumber = createResponse.createIssue?.issue?.number;
-    if (!issueId || !issueNumber) {
-      throw new Error(`Failed to create sub-issue for phase ${i + 1}`);
-    }
-    await ctx.octokit.graphql(ADD_SUB_ISSUE_MUTATION, {
-      parentId,
-      childId: issueId
-    });
-    await ctx.octokit.rest.issues.addLabels({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: issueNumber,
-      labels: ["triaged"]
-    });
-    subIssueNumbers.push(issueNumber);
-    core3.info(`Created sub-issue #${issueNumber} for phase ${i + 1}`);
-  }
-  return { subIssueNumbers };
-}
-async function executeCreatePR(action, ctx) {
-  const existingPRs = await ctx.octokit.rest.pulls.list({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    head: `${ctx.owner}:${action.branchName}`,
-    base: action.baseBranch,
-    state: "open"
-  });
-  const existingPR = existingPRs.data[0];
-  if (existingPR) {
-    core3.info(
-      `PR #${existingPR.number} already exists for branch ${action.branchName}`
-    );
-    return { prNumber: existingPR.number };
-  }
-  const body = `${action.body}
-
-Fixes #${action.issueNumber}`;
-  const response = await ctx.octokit.rest.pulls.create({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    title: action.title,
-    body,
-    head: action.branchName,
-    base: action.baseBranch,
-    draft: action.draft
-  });
-  core3.info(
-    `Created PR #${response.data.number} for issue #${action.issueNumber}`
-  );
-  return { prNumber: response.data.number };
-}
-async function executeConvertPRToDraft(action, ctx) {
-  const prResponse = await ctx.octokit.graphql(GET_PR_ID_QUERY, {
-    owner: ctx.owner,
-    repo: ctx.repo,
-    prNumber: action.prNumber
-  });
-  const prId = prResponse.repository?.pullRequest?.id;
-  if (!prId) {
-    throw new Error(`PR #${action.prNumber} not found`);
-  }
-  await ctx.octokit.graphql(CONVERT_PR_TO_DRAFT_MUTATION, { prId });
-  core3.info(`Converted PR #${action.prNumber} to draft`);
-  return { converted: true };
-}
-async function executeMarkPRReady(action, ctx) {
-  const prResponse = await ctx.octokit.graphql(GET_PR_ID_QUERY, {
-    owner: ctx.owner,
-    repo: ctx.repo,
-    prNumber: action.prNumber
-  });
-  const prId = prResponse.repository?.pullRequest?.id;
-  if (!prId) {
-    throw new Error(`PR #${action.prNumber} not found`);
-  }
-  await ctx.octokit.graphql(MARK_PR_READY_MUTATION, { prId });
-  core3.info(`Marked PR #${action.prNumber} as ready for review`);
-  return { ready: true };
-}
-async function executeRequestReview(action, ctx) {
-  await ctx.octokit.rest.pulls.requestReviewers({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    pull_number: action.prNumber,
-    reviewers: [action.reviewer]
-  });
-  core3.info(
-    `Requested review from ${action.reviewer} on PR #${action.prNumber}`
-  );
-  return { requested: true };
-}
-async function executeMergePR(action, ctx) {
-  const label = "ready-to-merge";
-  try {
-    await ctx.octokit.rest.issues.addLabels({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: action.prNumber,
-      // PRs use issue numbers for labels
-      labels: [label]
-    });
-    core3.info(`Added "${label}" label to PR #${action.prNumber}`);
-  } catch (error3) {
-    core3.warning(`Failed to add label: ${error3}`);
-  }
-  const response = await ctx.octokit.graphql(
-    GET_ISSUE_BODY_QUERY,
-    {
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issueNumber: action.issueNumber
-    }
-  );
-  const currentBody = response.repository?.issue?.body || "";
-  const repoUrl = `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}`;
-  const timestamp = (/* @__PURE__ */ new Date()).toISOString();
-  const runLink = ctx.runUrl;
-  const newBody = addHistoryEntry(
-    currentBody,
-    0,
-    // iteration (0 = orchestration level)
-    "-",
-    // phase (dash = orchestration)
-    "\u{1F500} Ready for merge",
-    timestamp,
-    void 0,
-    // no SHA
-    runLink,
-    repoUrl
-  );
-  await ctx.octokit.rest.issues.update({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    issue_number: action.issueNumber,
-    body: newBody
-  });
-  core3.info(
-    `PR #${action.prNumber} marked ready for merge (human action required)`
-  );
-  return { markedReady: true };
-}
-async function executeSubmitReview(action, ctx) {
-  const eventMap = {
-    approve: "APPROVE",
-    request_changes: "REQUEST_CHANGES",
-    comment: "COMMENT"
-  };
-  const event = eventMap[action.decision];
-  if (!event) {
-    throw new Error(`Invalid review decision: ${action.decision}`);
-  }
-  await ctx.octokit.rest.pulls.createReview({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    pull_number: action.prNumber,
-    event,
-    body: action.body
-  });
-  core3.info(`Submitted ${action.decision} review on PR #${action.prNumber}`);
-  return { submitted: true, decision: action.decision };
-}
-async function executeRemoveReviewer(action, ctx) {
-  try {
-    await ctx.octokit.rest.pulls.removeRequestedReviewers({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      pull_number: action.prNumber,
-      reviewers: [action.reviewer]
-    });
-    core3.info(
-      `Removed reviewer ${action.reviewer} from PR #${action.prNumber}`
-    );
-    return { removed: true };
-  } catch (error3) {
-    if (error3 instanceof Error && error3.message.includes("404")) {
-      core3.info(
-        `Reviewer ${action.reviewer} was not a requested reviewer on PR #${action.prNumber}`
-      );
-      return { removed: false };
-    }
-    throw error3;
-  }
-}
-
-// claude-state-machine/runner/executors/git.ts
-var core4 = __toESM(require_core(), 1);
-var exec3 = __toESM(require_exec(), 1);
-async function executeCreateBranch(action, ctx) {
-  const result = {
-    created: false,
-    checkedOut: false,
-    rebased: false,
-    pushed: false,
-    shouldStop: false
-  };
-  core4.info(`Fetching latest from origin...`);
-  await exec3.exec("git", ["fetch", "origin"], { ignoreReturnCode: true });
-  const remoteBranchExists = await ctx.octokit.rest.repos.getBranch({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    branch: action.branchName
-  }).then(() => true).catch(() => false);
-  if (!remoteBranchExists) {
-    core4.info(
-      `Branch ${action.branchName} doesn't exist remotely, creating from ${action.baseBranch}`
-    );
-    const baseRef = await ctx.octokit.rest.git.getRef({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      ref: `heads/${action.baseBranch}`
-    });
-    await ctx.octokit.rest.git.createRef({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      ref: `refs/heads/${action.branchName}`,
-      sha: baseRef.data.object.sha
-    });
-    result.created = true;
-    core4.info(`Created remote branch ${action.branchName}`);
-    await exec3.exec("git", ["fetch", "origin"], { ignoreReturnCode: true });
-  }
-  let checkoutExitCode = await exec3.exec(
-    "git",
-    ["checkout", action.branchName],
-    { ignoreReturnCode: true }
-  );
-  if (checkoutExitCode !== 0) {
-    checkoutExitCode = await exec3.exec(
-      "git",
-      ["checkout", "-b", action.branchName, `origin/${action.branchName}`],
-      { ignoreReturnCode: true }
-    );
-    if (checkoutExitCode !== 0) {
-      checkoutExitCode = await exec3.exec(
-        "git",
-        ["checkout", "-b", action.branchName, `origin/${action.baseBranch}`],
-        { ignoreReturnCode: true }
-      );
-    }
-  }
-  if (checkoutExitCode !== 0) {
-    throw new Error(`Failed to checkout branch ${action.branchName}`);
-  }
-  result.checkedOut = true;
-  core4.info(`Checked out branch ${action.branchName}`);
-  await exec3.exec(
-    "git",
-    ["branch", "--set-upstream-to", `origin/${action.branchName}`],
-    { ignoreReturnCode: true }
-  );
-  let commitsCount = "";
-  await exec3.exec(
-    "git",
-    ["rev-list", "--count", `HEAD..origin/${action.baseBranch}`],
-    {
-      ignoreReturnCode: true,
-      listeners: {
-        stdout: (data) => {
-          commitsCount += data.toString();
-        }
-      }
-    }
-  );
-  const commitsBehind = parseInt(commitsCount.trim(), 10) || 0;
-  if (commitsBehind > 0) {
-    core4.info(
-      `Branch is ${commitsBehind} commits behind origin/${action.baseBranch}, attempting rebase...`
-    );
-    const rebaseExitCode = await exec3.exec(
-      "git",
-      ["rebase", `origin/${action.baseBranch}`],
-      { ignoreReturnCode: true }
-    );
-    if (rebaseExitCode !== 0) {
-      core4.warning(`Rebase failed, aborting and continuing with current state`);
-      await exec3.exec("git", ["rebase", "--abort"], { ignoreReturnCode: true });
-      return result;
-    }
-    result.rebased = true;
-    core4.info(`Successfully rebased on origin/${action.baseBranch}`);
-    const pushExitCode = await exec3.exec(
-      "git",
-      ["push", "origin", action.branchName, "--force-with-lease"],
-      { ignoreReturnCode: true }
-    );
-    if (pushExitCode === 0) {
-      result.pushed = true;
-      result.shouldStop = true;
-      core4.info(
-        `Pushed rebased changes. Stopping execution - CI will re-trigger with up-to-date branch.`
-      );
-    } else {
-      core4.warning(`Failed to push rebased changes, continuing anyway`);
-    }
-  } else {
-    core4.info(`Branch is up-to-date with origin/${action.baseBranch}`);
-  }
-  return result;
-}
-async function executeGitPush(action, _ctx) {
-  const args = ["push", "origin", action.branchName];
-  if (action.force) {
-    args.push("--force");
-  }
-  let stderr = "";
-  const exitCode = await exec3.exec("git", args, {
-    ignoreReturnCode: true,
-    listeners: {
-      stderr: (data) => {
-        stderr += data.toString();
-      }
-    }
-  });
-  if (exitCode !== 0) {
-    core4.warning(`Git push failed: ${stderr}`);
-    return { pushed: false };
-  }
-  core4.info(`Pushed to ${action.branchName}`);
-  return { pushed: true };
-}
-
-// claude-state-machine/runner/executors/claude.ts
-var core5 = __toESM(require_core(), 1);
-var exec5 = __toESM(require_exec(), 1);
-var fs = __toESM(require("fs"), 1);
-var path = __toESM(require("path"), 1);
-function substituteVars(template, vars) {
-  return template.replace(/\{\{([^}]+)\}\}/g, (match, varName) => {
-    const trimmedName = varName.trim();
-    return vars[trimmedName] ?? match;
-  });
-}
-function getPromptFromAction(action) {
-  if (action.prompt) {
-    let prompt = action.prompt;
-    if (action.promptVars) {
-      prompt = substituteVars(prompt, action.promptVars);
-    }
-    return prompt;
-  }
-  if (action.promptFile) {
-    const promptPath = path.resolve(process.cwd(), action.promptFile);
-    if (!fs.existsSync(promptPath)) {
-      throw new Error(`Prompt file not found: ${action.promptFile}`);
-    }
-    let prompt = fs.readFileSync(promptPath, "utf-8");
-    if (action.promptVars) {
-      prompt = substituteVars(prompt, action.promptVars);
-    }
-    return prompt;
-  }
-  throw new Error("Either prompt or promptFile must be provided");
-}
-async function executeRunClaude(action, ctx) {
-  const args = [
-    "--print",
-    // Print output to stdout (non-interactive mode)
-    "--dangerously-skip-permissions"
-    // Skip all permission prompts (for CI/automated runs)
-  ];
-  if (action.allowedTools && action.allowedTools.length > 0) {
-    for (const tool of action.allowedTools) {
-      args.push("--allowedTools", tool);
-    }
-  }
-  const prompt = getPromptFromAction(action);
-  args.push(prompt);
-  let stdout = "";
-  let stderr = "";
-  const cwd = action.worktree || process.cwd();
-  core5.info(`Running Claude for issue #${action.issueNumber}`);
-  core5.info(`Working directory: ${cwd}`);
-  core5.debug(`Prompt: ${prompt.slice(0, 200)}...`);
-  try {
-    const exitCode = await exec5.exec("claude", args, {
-      cwd,
-      ignoreReturnCode: true,
-      env: {
-        ...process.env,
-        // Pass through GitHub context
-        GITHUB_REPOSITORY: `${ctx.owner}/${ctx.repo}`,
-        GITHUB_SERVER_URL: ctx.serverUrl,
-        // Ensure non-interactive mode
-        CI: "true"
-      },
-      listeners: {
-        stdout: (data) => {
-          stdout += data.toString();
-        },
-        stderr: (data) => {
-          stderr += data.toString();
-        }
-      }
-    });
-    if (exitCode !== 0) {
-      core5.warning(`Claude exited with code ${exitCode}`);
-      return {
-        success: false,
-        exitCode,
-        output: stdout,
-        error: stderr || `Exit code: ${exitCode}`
-      };
-    }
-    core5.info(`Claude completed successfully for issue #${action.issueNumber}`);
-    return {
-      success: true,
-      exitCode: 0,
-      output: stdout
-    };
-  } catch (error3) {
-    const errorMessage = error3 instanceof Error ? error3.message : String(error3);
-    core5.error(`Failed to run Claude: ${errorMessage}`);
-    return {
-      success: false,
-      exitCode: 1,
-      output: stdout,
-      error: errorMessage
-    };
-  }
-}
-
-// claude-state-machine/runner/executors/discussions.ts
-var core6 = __toESM(require_core(), 1);
-var ADD_DISCUSSION_COMMENT_MUTATION = `
-mutation AddDiscussionComment($discussionId: ID!, $body: String!) {
-  addDiscussionComment(input: {
-    discussionId: $discussionId
-    body: $body
-  }) {
-    comment {
-      id
-      body
-    }
-  }
-}
-`;
-var ADD_DISCUSSION_REPLY_MUTATION = `
-mutation AddDiscussionReply($discussionId: ID!, $replyToId: ID!, $body: String!) {
-  addDiscussionComment(input: {
-    discussionId: $discussionId
-    replyToId: $replyToId
-    body: $body
-  }) {
-    comment {
-      id
-      body
-    }
-  }
-}
-`;
-var UPDATE_DISCUSSION_MUTATION = `
-mutation UpdateDiscussion($discussionId: ID!, $body: String!) {
-  updateDiscussion(input: {
-    discussionId: $discussionId
-    body: $body
-  }) {
-    discussion {
-      id
-      body
-    }
-  }
-}
-`;
-var ADD_REACTION_MUTATION = `
-mutation AddReaction($subjectId: ID!, $content: ReactionContent!) {
-  addReaction(input: {
-    subjectId: $subjectId
-    content: $content
-  }) {
-    reaction {
-      id
-      content
-    }
-  }
-}
-`;
-var GET_DISCUSSION_ID_QUERY = `
-query GetDiscussionId($owner: String!, $repo: String!, $number: Int!) {
-  repository(owner: $owner, name: $repo) {
-    discussion(number: $number) {
-      id
-    }
-  }
-}
-`;
-var GET_REPO_ID_QUERY2 = `
-query GetRepoId($owner: String!, $repo: String!) {
-  repository(owner: $owner, name: $repo) {
-    id
-  }
-}
-`;
-var CREATE_ISSUE_MUTATION2 = `
-mutation CreateIssue($repositoryId: ID!, $title: String!, $body: String!) {
-  createIssue(input: { repositoryId: $repositoryId, title: $title, body: $body }) {
-    issue {
-      id
-      number
-    }
-  }
-}
-`;
-var ADD_LABELS_MUTATION = `
-mutation AddLabelsToLabelable($labelableId: ID!, $labelIds: [ID!]!) {
-  addLabelsToLabelable(input: { labelableId: $labelableId, labelIds: $labelIds }) {
-    labelable {
-      __typename
-    }
-  }
-}
-`;
-var GET_LABEL_IDS_QUERY = `
-query GetLabelIds($owner: String!, $repo: String!, $names: [String!]!) {
-  repository(owner: $owner, name: $repo) {
-    labels(first: 100, query: "") {
-      nodes {
-        id
-        name
-      }
-    }
-  }
-}
-`;
-async function executeAddDiscussionComment(action, ctx) {
-  let response;
-  if (action.replyToNodeId) {
-    response = await ctx.octokit.graphql(
-      ADD_DISCUSSION_REPLY_MUTATION,
-      {
-        discussionId: action.discussionNodeId,
-        replyToId: action.replyToNodeId,
-        body: action.body
-      }
-    );
-  } else {
-    response = await ctx.octokit.graphql(
-      ADD_DISCUSSION_COMMENT_MUTATION,
-      {
-        discussionId: action.discussionNodeId,
-        body: action.body
-      }
-    );
-  }
-  const commentId = response.addDiscussionComment?.comment?.id;
-  if (!commentId) {
-    throw new Error("Failed to add discussion comment");
-  }
-  core6.info(
-    `Added ${action.replyToNodeId ? "reply" : "comment"} to discussion`
-  );
-  return { commentId };
-}
-async function executeUpdateDiscussionBody(action, ctx) {
-  const response = await ctx.octokit.graphql(
-    UPDATE_DISCUSSION_MUTATION,
-    {
-      discussionId: action.discussionNodeId,
-      body: action.newBody
-    }
-  );
-  if (!response.updateDiscussion?.discussion?.id) {
-    throw new Error("Failed to update discussion body");
-  }
-  core6.info("Updated discussion body");
-  return { updated: true };
-}
-async function executeAddDiscussionReaction(action, ctx) {
-  const response = await ctx.octokit.graphql(
-    ADD_REACTION_MUTATION,
-    {
-      subjectId: action.subjectId,
-      content: action.content
-    }
-  );
-  const reactionId = response.addReaction?.reaction?.id;
-  if (!reactionId) {
-    throw new Error("Failed to add reaction");
-  }
-  core6.info(`Added ${action.content} reaction`);
-  return { reactionId };
-}
-async function executeCreateIssuesFromDiscussion(action, ctx) {
-  const repoResponse = await ctx.octokit.graphql(
-    GET_REPO_ID_QUERY2,
-    {
-      owner: ctx.owner,
-      repo: ctx.repo
-    }
-  );
-  const repoId = repoResponse.repository?.id;
-  if (!repoId) {
-    throw new Error("Repository not found");
-  }
-  const discussionResponse = await ctx.octokit.graphql(
-    GET_DISCUSSION_ID_QUERY,
-    {
-      owner: ctx.owner,
-      repo: ctx.repo,
-      number: action.discussionNumber
-    }
-  );
-  const discussionId = discussionResponse.repository?.discussion?.id;
-  const labelsResponse = await ctx.octokit.graphql(
-    GET_LABEL_IDS_QUERY,
-    {
-      owner: ctx.owner,
-      repo: ctx.repo
-    }
-  );
-  const labelMap = /* @__PURE__ */ new Map();
-  for (const label of labelsResponse.repository?.labels?.nodes || []) {
-    if (label.id && label.name) {
-      labelMap.set(label.name.toLowerCase(), label.id);
-    }
-  }
-  const issueNumbers = [];
-  for (const issueDef of action.issues) {
-    const bodyWithRef = discussionId ? `${issueDef.body}
-
----
-*Created from discussion #${action.discussionNumber}*` : issueDef.body;
-    const createResponse = await ctx.octokit.graphql(
-      CREATE_ISSUE_MUTATION2,
-      {
-        repositoryId: repoId,
-        title: issueDef.title,
-        body: bodyWithRef
-      }
-    );
-    const issueId = createResponse.createIssue?.issue?.id;
-    const issueNumber = createResponse.createIssue?.issue?.number;
-    if (!issueId || !issueNumber) {
-      throw new Error(`Failed to create issue: ${issueDef.title}`);
-    }
-    if (issueDef.labels.length > 0) {
-      const labelIds = issueDef.labels.map((name) => labelMap.get(name.toLowerCase())).filter((id) => id !== void 0);
-      if (labelIds.length > 0) {
-        await ctx.octokit.graphql(ADD_LABELS_MUTATION, {
-          labelableId: issueId,
-          labelIds
-        });
-      }
-    }
-    issueNumbers.push(issueNumber);
-    core6.info(`Created issue #${issueNumber}: ${issueDef.title}`);
-  }
-  return { issueNumbers };
-}
-
-// claude-state-machine/runner/executors/triage.ts
-var core7 = __toESM(require_core(), 1);
-var fs2 = __toESM(require("fs"), 1);
-async function executeApplyTriageOutput(action, ctx) {
-  const { issueNumber, filePath } = action;
-  if (!fs2.existsSync(filePath)) {
-    throw new Error(
-      `Triage output file not found at ${filePath}. Ensure the runClaude action created the file and it was uploaded as an artifact.`
-    );
-  }
-  let triageOutput;
-  try {
-    const content = fs2.readFileSync(filePath, "utf-8");
-    triageOutput = JSON.parse(content);
-    core7.info(`Triage output: ${JSON.stringify(triageOutput)}`);
-  } catch (error3) {
-    core7.warning(`Failed to parse triage output: ${error3}`);
-    return { applied: false };
-  }
-  if (ctx.dryRun) {
-    core7.info(`[DRY RUN] Would apply triage output to issue #${issueNumber}`);
-    return { applied: true };
-  }
-  const labels = [];
-  if (triageOutput.type && triageOutput.type !== "null") {
-    labels.push(triageOutput.type);
-    core7.info(`Adding type label: ${triageOutput.type}`);
-  }
-  if (triageOutput.topics) {
-    for (const topic of triageOutput.topics) {
-      if (topic) {
-        const label = topic.startsWith("topic:") ? topic : `topic:${topic}`;
-        labels.push(label);
-        core7.info(`Adding topic label: ${label}`);
-      }
-    }
-  }
-  labels.push("triaged");
-  core7.info("Adding triaged label");
-  if (labels.length > 0) {
-    try {
-      await ctx.octokit.rest.issues.addLabels({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issue_number: issueNumber,
-        labels
-      });
-      core7.info(`Applied labels: ${labels.join(", ")}`);
-    } catch (error3) {
-      core7.warning(`Failed to apply labels: ${error3}`);
-    }
-  }
-  await applyProjectFields(ctx, issueNumber, triageOutput);
-  return { applied: true };
-}
-async function applyProjectFields(ctx, issueNumber, triageOutput) {
-  try {
-    const issueQuery = `
-      query($owner: String!, $repo: String!, $issueNumber: Int!) {
-        repository(owner: $owner, name: $repo) {
-          issue(number: $issueNumber) {
-            id
-            projectItems(first: 10) {
-              nodes {
-                id
-                project { number }
-              }
-            }
-          }
-        }
-      }
-    `;
-    const issueResult = await ctx.octokit.graphql(issueQuery, {
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issueNumber
-    });
-    const projectItem = issueResult.repository.issue.projectItems.nodes.find(
-      (item) => item.project.number === ctx.projectNumber
-    );
-    if (!projectItem) {
-      core7.info(`Issue #${issueNumber} not in project ${ctx.projectNumber}`);
-      return;
-    }
-    const projectQuery = `
-      query($owner: String!, $projectNumber: Int!) {
-        organization(login: $owner) {
-          projectV2(number: $projectNumber) {
-            id
-            fields(first: 30) {
-              nodes {
-                ... on ProjectV2SingleSelectField {
-                  id
-                  name
-                  options { id name }
-                }
-                ... on ProjectV2Field {
-                  id
-                  name
-                  dataType
-                }
-              }
-            }
-          }
-        }
-      }
-    `;
-    const projectResult = await ctx.octokit.graphql(projectQuery, {
-      owner: ctx.owner,
-      projectNumber: ctx.projectNumber
-    });
-    const project = projectResult.organization.projectV2;
-    const fields = project.fields.nodes;
-    const priorityField = fields.find((f) => f.name === "Priority");
-    const sizeField = fields.find((f) => f.name === "Size");
-    const estimateField = fields.find((f) => f.name === "Estimate");
-    if (priorityField?.options && triageOutput.priority && triageOutput.priority !== "null") {
-      const option = priorityField.options.find(
-        (o) => o.name.toLowerCase() === triageOutput.priority?.toLowerCase()
-      );
-      if (option) {
-        await updateProjectField(
-          ctx,
-          project.id,
-          projectItem.id,
-          priorityField.id,
-          { singleSelectOptionId: option.id }
-        );
-        core7.info(`Set Priority to ${option.name}`);
-      }
-    }
-    if (sizeField?.options && triageOutput.size) {
-      const option = sizeField.options.find(
-        (o) => o.name.toLowerCase() === triageOutput.size?.toLowerCase()
-      );
-      if (option) {
-        await updateProjectField(
-          ctx,
-          project.id,
-          projectItem.id,
-          sizeField.id,
-          { singleSelectOptionId: option.id }
-        );
-        core7.info(`Set Size to ${option.name}`);
-      }
-    }
-    if (estimateField && triageOutput.estimate) {
-      await updateProjectField(
-        ctx,
-        project.id,
-        projectItem.id,
-        estimateField.id,
-        { number: triageOutput.estimate }
-      );
-      core7.info(`Set Estimate to ${triageOutput.estimate}`);
-    }
-  } catch (error3) {
-    core7.warning(`Failed to apply project fields: ${error3}`);
-  }
-}
-async function updateProjectField(ctx, projectId, itemId, fieldId, value) {
-  const mutation = `
-    mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
-      updateProjectV2ItemFieldValue(input: {
-        projectId: $projectId
-        itemId: $itemId
-        fieldId: $fieldId
-        value: $value
-      }) {
-        projectV2Item { id }
-      }
-    }
-  `;
-  await ctx.octokit.graphql(mutation, {
-    projectId,
-    itemId,
-    fieldId,
-    value
-  });
-}
-
-// claude-state-machine/runner/signaler.ts
-var core8 = __toESM(require_core(), 1);
-var JOB_DESCRIPTIONS = {
-  // Issue jobs
-  "issue-triage": "triaging this issue",
-  "issue-iterate": "iterating on this issue",
-  "issue-comment": "responding to your request",
-  "issue-orchestrate": "orchestrating this issue",
-  // PR jobs
-  "push-to-draft": "converting PR to draft",
-  "pr-review": "reviewing this PR",
-  "pr-response": "responding to review feedback",
-  "pr-human-response": "addressing your review feedback",
-  // Discussion jobs
-  "discussion-research": "researching this topic",
-  "discussion-respond": "responding to your question",
-  "discussion-summarize": "summarizing this discussion",
-  "discussion-plan": "creating implementation plan",
-  "discussion-complete": "marking discussion as complete"
-};
-var GET_DISCUSSION_ID_QUERY2 = `
-query GetDiscussionId($owner: String!, $repo: String!, $number: Int!) {
-  repository(owner: $owner, name: $repo) {
-    discussion(number: $number) {
-      id
-    }
-  }
-}
-`;
-var ADD_DISCUSSION_COMMENT_MUTATION2 = `
-mutation AddDiscussionComment($discussionId: ID!, $body: String!) {
-  addDiscussionComment(input: {
-    discussionId: $discussionId
-    body: $body
-  }) {
-    comment {
-      id
-    }
-  }
-}
-`;
-var UPDATE_DISCUSSION_COMMENT_MUTATION = `
-mutation UpdateDiscussionComment($commentId: ID!, $body: String!) {
-  updateDiscussionComment(input: {
-    commentId: $commentId
-    body: $body
-  }) {
-    comment {
-      id
-    }
-  }
-}
-`;
-var ADD_GRAPHQL_REACTION_MUTATION = `
-mutation AddReaction($subjectId: ID!, $content: ReactionContent!) {
-  addReaction(input: {
-    subjectId: $subjectId
-    content: $content
-  }) {
-    reaction {
-      id
-    }
-  }
-}
-`;
-function toGraphQLReaction(reaction) {
-  switch (reaction) {
-    case "eyes":
-      return "EYES";
-    case "rocket":
-      return "ROCKET";
-    case "-1":
-      return "THUMBS_DOWN";
-  }
-}
-async function addReactionToComment(octokit, owner, repo, commentId, resourceType, reaction) {
-  try {
-    if (resourceType === "discussion") {
-      await octokit.graphql(ADD_GRAPHQL_REACTION_MUTATION, {
-        subjectId: commentId,
-        content: toGraphQLReaction(reaction)
-      });
-    } else {
-      await octokit.rest.reactions.createForIssueComment({
         owner,
         repo,
-        comment_id: parseInt(commentId, 10),
-        content: reaction
-      });
-    }
-    core8.debug(`Added ${reaction} reaction to comment ${commentId}`);
-  } catch (error3) {
-    core8.warning(`Failed to add reaction to comment: ${error3}`);
-  }
-}
-async function signalStart(ctx, progress) {
-  const description = JOB_DESCRIPTIONS[ctx.job] ?? ctx.job;
-  let progressSection = "";
-  if (ctx.job === "issue-iterate" && progress) {
-    const iteration = progress.iteration ?? 0;
-    const failures = progress.consecutiveFailures ?? 0;
-    const maxRetries = progress.maxRetries ?? 5;
-    progressSection = `
-
-**Progress:**`;
-    progressSection += `
-- Iteration: ${iteration}`;
-    if (failures > 0) {
-      progressSection += `
-- Retry attempt: ${failures}/${maxRetries}`;
-    }
-  }
-  const body = `\u23F3 **nopo-bot** is ${description}...${progressSection}
-
-[View workflow run](${ctx.runUrl})`;
-  if (ctx.triggerCommentId) {
-    await addReactionToComment(
-      ctx.octokit,
-      ctx.owner,
-      ctx.repo,
-      ctx.triggerCommentId,
-      ctx.resourceType,
-      "eyes"
-    );
-  }
-  if (ctx.resourceType === "discussion") {
-    const discussionResult = await ctx.octokit.graphql(
-      GET_DISCUSSION_ID_QUERY2,
-      {
-        owner: ctx.owner,
-        repo: ctx.repo,
-        number: ctx.resourceNumber
+        branchName: `refs/heads/${branchName}`
       }
     );
-    const discussionId = discussionResult.repository?.discussion?.id;
-    if (!discussionId) {
-      throw new Error(`Discussion #${ctx.resourceNumber} not found`);
-    }
-    const commentResult = await ctx.octokit.graphql(
-      ADD_DISCUSSION_COMMENT_MUTATION2,
-      { discussionId, body }
-    );
-    const commentId = commentResult.addDiscussionComment?.comment?.id;
-    if (!commentId) {
-      throw new Error("Failed to create discussion comment");
-    }
-    core8.info(`Created status comment: ${commentId}`);
-    return commentId;
-  }
-  const { data: comment } = await ctx.octokit.rest.issues.createComment({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    issue_number: ctx.resourceNumber,
-    body
-  });
-  core8.info(`Created status comment: ${comment.id}`);
-  return String(comment.id);
-}
-async function signalEnd(ctx, statusCommentId, result) {
-  const description = JOB_DESCRIPTIONS[ctx.job] ?? ctx.job;
-  let emoji;
-  let status;
-  let reaction;
-  switch (result) {
-    case "success":
-      emoji = "\u2705";
-      status = "completed successfully";
-      reaction = "rocket";
-      break;
-    case "failure":
-      emoji = "\u274C";
-      status = "failed";
-      reaction = "-1";
-      break;
-    case "cancelled":
-      emoji = "\u26A0\uFE0F";
-      status = "was cancelled";
-      reaction = "-1";
-      break;
-  }
-  const body = `${emoji} **nopo-bot** ${description} ${status}.
-
-[View workflow run](${ctx.runUrl})`;
-  try {
-    if (ctx.resourceType === "discussion") {
-      await ctx.octokit.graphql(UPDATE_DISCUSSION_COMMENT_MUTATION, {
-        commentId: statusCommentId,
-        body
-      });
-    } else {
-      await ctx.octokit.rest.issues.updateComment({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        comment_id: parseInt(statusCommentId, 10),
-        body
-      });
-    }
-    core8.info(`Updated status comment ${statusCommentId} to ${result}`);
-  } catch (error3) {
-    core8.warning(`Failed to update status comment: ${error3}`);
-  }
-  await addReactionToComment(
-    ctx.octokit,
-    ctx.owner,
-    ctx.repo,
-    statusCommentId,
-    ctx.resourceType,
-    reaction
-  );
-  if (ctx.triggerCommentId) {
-    await addReactionToComment(
-      ctx.octokit,
-      ctx.owner,
-      ctx.repo,
-      ctx.triggerCommentId,
-      ctx.resourceType,
-      reaction
-    );
-  }
-}
-
-// claude-state-machine/runner/runner.ts
-function getOctokitForAction(action, ctx) {
-  const tokenType = action.token || "code";
-  if (tokenType === "review" && ctx.reviewOctokit) {
-    return ctx.reviewOctokit;
-  }
-  return ctx.octokit;
-}
-async function executeAction(action, ctx) {
-  const actionCtx = {
-    ...ctx,
-    octokit: getOctokitForAction(action, ctx)
-  };
-  switch (action.type) {
-    // Project field actions
-    case "updateProjectStatus":
-      return executeUpdateProjectStatus(action, actionCtx);
-    case "incrementIteration":
-      return executeIncrementIteration(action, actionCtx);
-    case "recordFailure":
-      return executeRecordFailure(action, actionCtx);
-    case "clearFailures":
-      return executeClearFailures(action, actionCtx);
-    case "block":
-      return executeBlock(action, actionCtx);
-    // Issue actions
-    case "closeIssue":
-      return executeCloseIssue(action, actionCtx);
-    case "appendHistory":
-      return executeAppendHistory(action, actionCtx);
-    case "updateHistory":
-      return executeUpdateHistory(action, actionCtx);
-    case "updateIssueBody":
-      return executeUpdateIssueBody(action, actionCtx);
-    case "addComment":
-      return executeAddComment(action, actionCtx);
-    case "unassignUser":
-      return executeUnassignUser(action, actionCtx);
-    case "assignUser":
-      return executeAssignUser(action, actionCtx);
-    case "createSubIssues":
-      return executeCreateSubIssues(action, actionCtx);
-    // Git actions
-    case "createBranch":
-      return executeCreateBranch(action, actionCtx);
-    case "gitPush":
-      return executeGitPush(action, actionCtx);
-    // PR actions
-    case "createPR":
-      return executeCreatePR(action, actionCtx);
-    case "convertPRToDraft":
-      return executeConvertPRToDraft(action, actionCtx);
-    case "markPRReady":
-      return executeMarkPRReady(action, actionCtx);
-    case "requestReview":
-      return executeRequestReview(action, actionCtx);
-    case "mergePR":
-      return executeMergePR(action, actionCtx);
-    case "submitReview":
-      return executeSubmitReview(action, actionCtx);
-    case "removeReviewer":
-      return executeRemoveReviewer(action, actionCtx);
-    // Claude actions - handled directly by workflow via run-claude action
-    // The executor should never receive runClaude actions (workflow filters them)
-    case "runClaude":
-      return executeRunClaude(action, actionCtx);
-    // Discussion actions
-    case "addDiscussionComment":
-      return executeAddDiscussionComment(action, actionCtx);
-    case "updateDiscussionBody":
-      return executeUpdateDiscussionBody(action, actionCtx);
-    case "addDiscussionReaction":
-      return executeAddDiscussionReaction(action, actionCtx);
-    case "createIssuesFromDiscussion":
-      return executeCreateIssuesFromDiscussion(action, actionCtx);
-    // Triage actions
-    case "applyTriageOutput":
-      return executeApplyTriageOutput(action, actionCtx);
-    // Control flow actions
-    case "stop":
-      core9.info(`Stopping: ${action.reason}`);
-      return { stopped: true, reason: action.reason };
-    case "log":
-      switch (action.level) {
-        case "debug":
-          core9.debug(action.message);
-          break;
-        case "warning":
-          core9.warning(action.message);
-          break;
-        case "error":
-          core9.error(action.message);
-          break;
-        default:
-          core9.info(action.message);
-      }
-      return { logged: true };
-    case "noop":
-      core9.debug(`No-op: ${action.reason || "no reason given"}`);
-      return { noop: true };
-    default:
-      throw new Error(`Unknown action type: ${action.type}`);
-  }
-}
-async function executeActions(actions, ctx, options = {}) {
-  const startTime = Date.now();
-  const results = [];
-  let stoppedEarly = false;
-  let stopReason;
-  const { stopOnError = true, logActions = true } = options;
-  for (const action of actions) {
-    const actionStartTime = Date.now();
-    const parseResult = ActionSchema.safeParse(action);
-    if (!parseResult.success) {
-      core9.error(`Invalid action: ${JSON.stringify(action)}`);
-      results.push({
-        action,
-        success: false,
-        skipped: false,
-        error: new Error(`Invalid action: ${parseResult.error.message}`),
-        durationMs: Date.now() - actionStartTime
-      });
-      if (stopOnError) {
-        stoppedEarly = true;
-        stopReason = "Invalid action";
-        break;
-      }
-      continue;
-    }
-    const validatedAction = parseResult.data;
-    if (logActions) {
-      core9.info(`Executing action: ${validatedAction.type}`);
-    }
-    if (ctx.dryRun) {
-      core9.info(`[DRY RUN] Would execute: ${validatedAction.type}`);
-      results.push({
-        action: validatedAction,
-        success: true,
-        skipped: true,
-        durationMs: Date.now() - actionStartTime
-      });
-      continue;
-    }
-    try {
-      const result = await executeAction(validatedAction, ctx);
-      const branchResult = result;
-      if (validatedAction.type === "createBranch" && branchResult.shouldStop) {
-        results.push({
-          action: validatedAction,
-          success: true,
-          skipped: false,
-          result,
-          durationMs: Date.now() - actionStartTime
-        });
-        stoppedEarly = true;
-        stopReason = "branch_rebased_and_pushed";
-        core9.info(
-          "Stopping after branch rebase - CI will re-trigger with up-to-date branch"
-        );
-        break;
-      }
-      results.push({
-        action: validatedAction,
-        success: true,
-        skipped: false,
-        result,
-        durationMs: Date.now() - actionStartTime
-      });
-      if (isTerminalAction(validatedAction)) {
-        stoppedEarly = true;
-        stopReason = validatedAction.type === "stop" ? validatedAction.reason : `${validatedAction.type} action`;
-        break;
-      }
-    } catch (error3) {
-      const err = error3 instanceof Error ? error3 : new Error(String(error3));
-      core9.error(`Action failed: ${validatedAction.type} - ${err.message}`);
-      results.push({
-        action: validatedAction,
-        success: false,
-        skipped: false,
-        error: err,
-        durationMs: Date.now() - actionStartTime
-      });
-      if (stopOnError && shouldStopOnError(validatedAction.type)) {
-        stoppedEarly = true;
-        stopReason = `Error in ${validatedAction.type}: ${err.message}`;
-        break;
-      }
-    }
-  }
-  return {
-    success: results.every((r) => r.success || r.skipped),
-    results,
-    totalDurationMs: Date.now() - startTime,
-    stoppedEarly,
-    stopReason
-  };
-}
-function createRunnerContext(octokit, owner, repo, projectNumber, options = {}) {
-  return {
-    octokit,
-    reviewOctokit: options.reviewOctokit,
-    owner,
-    repo,
-    projectNumber,
-    serverUrl: options.serverUrl || process.env.GITHUB_SERVER_URL || "https://github.com",
-    dryRun: options.dryRun
-  };
-}
-function logRunnerSummary(result) {
-  core9.info("=".repeat(60));
-  core9.info("Runner Summary");
-  core9.info("=".repeat(60));
-  core9.info(`Total actions: ${result.results.length}`);
-  core9.info(`Successful: ${result.results.filter((r) => r.success).length}`);
-  core9.info(
-    `Failed: ${result.results.filter((r) => !r.success && !r.skipped).length}`
-  );
-  core9.info(`Skipped: ${result.results.filter((r) => r.skipped).length}`);
-  core9.info(`Total duration: ${result.totalDurationMs}ms`);
-  if (result.stoppedEarly) {
-    core9.info(`Stopped early: ${result.stopReason}`);
-  }
-  core9.info("=".repeat(60));
-  for (const actionResult of result.results) {
-    const status = actionResult.skipped ? "SKIPPED" : actionResult.success ? "SUCCESS" : "FAILED";
-    const duration = `${actionResult.durationMs}ms`;
-    core9.info(
-      `  ${status.padEnd(8)} ${actionResult.action.type.padEnd(25)} ${duration}`
-    );
-    if (actionResult.error) {
-      core9.error(`    Error: ${actionResult.error.message}`);
-    }
-  }
-}
-async function runWithSignaling(actions, ctx, options = {}) {
-  let statusCommentId = "";
-  if (ctx.dryRun) {
-    core9.info("[DRY RUN] Skipping status signaling");
-    const result2 = await executeActions(actions, ctx, options);
-    return { ...result2, statusCommentId: "" };
-  }
-  try {
-    statusCommentId = await signalStart(
-      {
-        octokit: ctx.octokit,
-        owner: ctx.owner,
-        repo: ctx.repo,
-        resourceType: ctx.resourceType,
-        resourceNumber: ctx.resourceNumber,
-        job: ctx.job,
-        runUrl: ctx.runUrl,
-        triggerCommentId: ctx.triggerCommentId
-      },
-      ctx.progress
-    );
-  } catch (error3) {
-    core9.warning(`Failed to create status comment: ${error3}`);
-  }
-  const result = await executeActions(actions, ctx, options);
-  if (statusCommentId !== "") {
-    try {
-      const jobResult = result.success ? "success" : "failure";
-      await signalEnd(
-        {
-          octokit: ctx.octokit,
-          owner: ctx.owner,
-          repo: ctx.repo,
-          resourceType: ctx.resourceType,
-          resourceNumber: ctx.resourceNumber,
-          job: ctx.job,
-          runUrl: ctx.runUrl,
-          triggerCommentId: ctx.triggerCommentId
-        },
-        statusCommentId,
-        jobResult
-      );
-    } catch (error3) {
-      core9.warning(`Failed to update status comment: ${error3}`);
-    }
-  }
-  return { ...result, statusCommentId };
-}
-function createSignaledRunnerContext(octokit, owner, repo, projectNumber, resourceType, resourceNumber, job, runUrl, options = {}) {
-  return {
-    octokit,
-    reviewOctokit: options.reviewOctokit,
-    owner,
-    repo,
-    projectNumber,
-    serverUrl: options.serverUrl || process.env.GITHUB_SERVER_URL || "https://github.com",
-    dryRun: options.dryRun,
-    resourceType,
-    resourceNumber,
-    job,
-    runUrl,
-    triggerCommentId: options.triggerCommentId,
-    progress: options.progress
-  };
-}
-
-// claude-state-executor/index.ts
-function parseActions(json) {
-  let parsed;
-  try {
-    parsed = JSON.parse(json);
+    branchExists = branchResponse.repository?.ref !== null;
+    latestSha = branchResponse.repository?.ref?.target?.oid || null;
   } catch {
-    throw new Error(`Invalid JSON: ${json.substring(0, 100)}...`);
+    branchExists = false;
   }
-  if (!Array.isArray(parsed)) {
-    throw new Error(`Expected JSON array, got: ${typeof parsed}`);
+  let prState = null;
+  let prNumber = null;
+  let prLabels = [];
+  if (branchExists) {
+    try {
+      const prResponse = await octokit.graphql(
+        GET_PR_FOR_ISSUE_QUERY,
+        {
+          owner,
+          repo,
+          headRef: branchName
+        }
+      );
+      const pr = prResponse.repository?.pullRequests?.nodes?.[0];
+      if (pr) {
+        prNumber = pr.number || null;
+        if (pr.isDraft) {
+          prState = "DRAFT";
+        } else if (pr.state === "MERGED") {
+          prState = "MERGED";
+        } else if (pr.state === "CLOSED") {
+          prState = "CLOSED";
+        } else {
+          prState = "OPEN";
+        }
+        latestSha = pr.headRefOid || latestSha;
+        prLabels = pr.labels?.nodes?.map((l) => l.name || "").filter(Boolean) || [];
+      }
+    } catch {
+    }
   }
-  const actions = [];
-  for (let i = 0; i < parsed.length; i++) {
-    const result = ActionSchema.safeParse(parsed[i]);
-    if (!result.success) {
-      throw new Error(
-        `Invalid action at index ${i}: ${result.error.message}
-Action: ${JSON.stringify(parsed[i])}`
+  return {
+    issueNumber,
+    issueState: issue.state?.toUpperCase() || "OPEN",
+    projectStatus,
+    iteration,
+    failures,
+    botAssigned,
+    labels,
+    uncheckedTodos: todos.uncheckedNonManual,
+    prState,
+    prNumber,
+    prLabels,
+    branch: branchExists ? branchName : null,
+    branchExists,
+    latestSha,
+    context: null
+    // Will be populated separately if needed
+  };
+}
+async function simulateMerge(octokit, owner, repo, prNumber) {
+  try {
+    await octokit.graphql(
+      `
+      mutation EnableAutoMerge($prId: ID!) {
+        enablePullRequestAutoMerge(input: { pullRequestId: $prId, mergeMethod: SQUASH }) {
+          pullRequest {
+            autoMergeRequest {
+              enabledAt
+            }
+          }
+        }
+      }
+      `,
+      {
+        prId: await getPullRequestNodeId(octokit, owner, repo, prNumber)
+      }
+    );
+    return true;
+  } catch {
+    try {
+      await octokit.rest.pulls.merge({
+        owner,
+        repo,
+        pull_number: prNumber,
+        merge_method: "squash"
+      });
+      return true;
+    } catch (mergeError) {
+      console.error(`Failed to merge PR #${prNumber}:`, mergeError);
+      return false;
+    }
+  }
+}
+async function getPullRequestNodeId(octokit, owner, repo, prNumber) {
+  const response = await octokit.graphql(
+    `
+    query GetPRNodeId($owner: String!, $repo: String!, $prNumber: Int!) {
+      repository(owner: $owner, name: $repo) {
+        pullRequest(number: $prNumber) {
+          id
+        }
+      }
+    }
+    `,
+    { owner, repo, prNumber }
+  );
+  const id = response.repository?.pullRequest?.id;
+  if (!id) {
+    throw new Error(`PR #${prNumber} not found`);
+  }
+  return id;
+}
+async function fetchRecentWorkflowRuns(octokit, owner, repo, issueNumber, maxRuns = 10) {
+  const branchName = deriveBranchName2(issueNumber);
+  try {
+    const { data } = await octokit.rest.actions.listWorkflowRunsForRepo({
+      owner,
+      repo,
+      branch: branchName,
+      per_page: maxRuns
+    });
+    return data.workflow_runs.map((run2) => ({
+      id: run2.id,
+      name: run2.name || "Unknown",
+      displayTitle: run2.display_title || run2.name || "Unknown",
+      status: run2.status,
+      conclusion: run2.conclusion,
+      url: run2.html_url,
+      createdAt: run2.created_at,
+      updatedAt: run2.updated_at,
+      headSha: run2.head_sha,
+      branch: run2.head_branch
+    }));
+  } catch {
+    return [];
+  }
+}
+function buildContextFromState(state, owner, repo, trigger = "issue_edited") {
+  return {
+    trigger,
+    owner,
+    repo,
+    issue: {
+      number: state.issueNumber,
+      title: "",
+      state: state.issueState,
+      body: "",
+      projectStatus: state.projectStatus,
+      iteration: state.iteration,
+      failures: state.failures,
+      assignees: state.botAssigned ? ["nopo-bot"] : [],
+      labels: state.labels,
+      subIssues: [],
+      hasSubIssues: false,
+      history: [],
+      todos: {
+        total: state.uncheckedTodos,
+        completed: 0,
+        uncheckedNonManual: state.uncheckedTodos
+      }
+    },
+    parentIssue: null,
+    currentPhase: null,
+    totalPhases: 0,
+    currentSubIssue: null,
+    ciResult: null,
+    ciRunUrl: null,
+    ciCommitSha: null,
+    workflowStartedAt: null,
+    reviewDecision: null,
+    reviewerId: null,
+    branch: state.branch,
+    hasBranch: state.branchExists,
+    pr: state.prNumber ? {
+      number: state.prNumber,
+      state: state.prState === "MERGED" ? "MERGED" : state.prState === "CLOSED" ? "CLOSED" : "OPEN",
+      isDraft: state.prState === "DRAFT",
+      title: "",
+      headRef: state.branch || "",
+      baseRef: "main"
+    } : null,
+    hasPR: state.prNumber !== null,
+    commentContextType: null,
+    commentContextDescription: null,
+    releaseEvent: null,
+    discussion: null,
+    maxRetries: 5,
+    botUsername: "nopo-bot"
+  };
+}
+
+// claude-test-runner/src/runner.ts
+function stateMatchesExpected(state, expectedStatus) {
+  if (!expectedStatus) {
+    return false;
+  }
+  return state.projectStatus === expectedStatus;
+}
+async function runTest(config) {
+  const {
+    fixture,
+    issueNumber,
+    projectNumber,
+    octokit,
+    owner,
+    repo,
+    botUsername = "nopo-bot",
+    maxRetries: _maxRetries = 5
+  } = config;
+  const phases = [];
+  const startTime = Date.now();
+  const timeoutMs = (fixture.timeout ?? 300) * 1e3;
+  core2.info(`Starting test run for issue #${issueNumber}`);
+  core2.info(`Timeout: ${timeoutMs / 1e3} seconds`);
+  let iterationCount = 0;
+  const maxIterations = 100;
+  while (iterationCount < maxIterations) {
+    iterationCount++;
+    const phaseStartTime = Date.now();
+    core2.info(`
+=== Iteration ${iterationCount} ===`);
+    const githubState = await fetchGitHubState(
+      octokit,
+      owner,
+      repo,
+      issueNumber,
+      projectNumber,
+      botUsername
+    );
+    core2.info(`Current status: ${githubState.projectStatus || "unknown"}`);
+    core2.info(
+      `Iteration: ${githubState.iteration}, Failures: ${githubState.failures}`
+    );
+    core2.info(`Bot assigned: ${githubState.botAssigned}`);
+    core2.info(
+      `PR: ${githubState.prNumber ? `#${githubState.prNumber} (${githubState.prState})` : "none"}`
+    );
+    if (githubState.prLabels.length > 0) {
+      core2.info(`PR labels: ${githubState.prLabels.join(", ")}`);
+    }
+    if (githubState.prNumber && githubState.prState === "OPEN" && githubState.prLabels.includes("ready-to-merge")) {
+      core2.info(
+        `PR #${githubState.prNumber} has "ready-to-merge" label - simulating human merge action`
+      );
+      const merged = await simulateMerge(
+        octokit,
+        owner,
+        repo,
+        githubState.prNumber
+      );
+      if (merged) {
+        core2.info(`Merge initiated for PR #${githubState.prNumber}`);
+        await new Promise((resolve) => setTimeout(resolve, 5e3));
+        continue;
+      } else {
+        core2.warning(`Failed to merge PR #${githubState.prNumber}`);
+      }
+    }
+    if (githubState.projectStatus === "Done") {
+      core2.info("Issue reached Done status - test complete!");
+      return {
+        status: "done",
+        phases,
+        totalDurationMs: Date.now() - startTime,
+        issueNumber
+      };
+    }
+    if (githubState.projectStatus === "Blocked") {
+      const workflowRuns2 = await fetchRecentWorkflowRuns(
+        octokit,
+        owner,
+        repo,
+        issueNumber
+      );
+      const context3 = buildContextFromState(githubState, owner, repo);
+      const predicted2 = predictNextState(context3);
+      const diagnosis2 = diagnoseFailure(predicted2, githubState, workflowRuns2);
+      core2.warning("Issue is blocked - circuit breaker triggered");
+      core2.warning(formatDiagnosis(diagnosis2));
+      return {
+        status: "error",
+        suggestedFix: diagnosis2.suggestedFix,
+        diagnosis: diagnosis2.diagnosis,
+        phases,
+        totalDurationMs: Date.now() - startTime,
+        issueNumber
+      };
+    }
+    const context2 = buildContextFromState(githubState, owner, repo);
+    const predicted = predictNextState(context2);
+    core2.info(`Predicted state: ${predicted.expectedState}`);
+    core2.info(`Expected status: ${predicted.expectedStatus || "unchanged"}`);
+    core2.info(`Description: ${predicted.description}`);
+    if (predicted.triggersNeeded.length > 0) {
+      core2.info(`Waiting for triggers: ${predicted.triggersNeeded.join(", ")}`);
+    }
+    if (predicted.expectedStatus && stateMatchesExpected(githubState, predicted.expectedStatus)) {
+      if (isTerminalState(predicted.expectedState)) {
+        core2.info(`Reached terminal state: ${predicted.expectedState}`);
+        phases.push({
+          phase: iterationCount,
+          startState: githubState.projectStatus || "unknown",
+          endState: predicted.expectedState,
+          success: true,
+          durationMs: Date.now() - phaseStartTime
+        });
+        if (predicted.expectedState === "done") {
+          return {
+            status: "done",
+            phases,
+            totalDurationMs: Date.now() - startTime,
+            issueNumber
+          };
+        }
+      }
+    }
+    const remainingTime = timeoutMs - (Date.now() - startTime);
+    if (remainingTime <= 0) {
+      core2.warning("Overall timeout reached");
+      break;
+    }
+    core2.info(
+      `Polling for state change (max ${Math.round(remainingTime / 1e3)}s)...`
+    );
+    const pollResult = await pollUntil(
+      () => fetchGitHubState(
+        octokit,
+        owner,
+        repo,
+        issueNumber,
+        projectNumber,
+        botUsername
+      ),
+      (state) => {
+        if (state.projectStatus !== githubState.projectStatus) {
+          return true;
+        }
+        if (state.iteration > githubState.iteration) {
+          return true;
+        }
+        if (state.prState !== githubState.prState) {
+          return true;
+        }
+        if (state.projectStatus === "Done" || state.projectStatus === "Blocked") {
+          return true;
+        }
+        return false;
+      },
+      {
+        ...DEFAULT_POLLER_CONFIG,
+        timeoutMs: Math.min(remainingTime, predicted.estimatedWaitMs * 2)
+      },
+      (state, attempt, elapsed) => {
+        core2.debug(
+          `Poll attempt ${attempt} (${Math.round(elapsed / 1e3)}s): status=${state.projectStatus}, iteration=${state.iteration}`
+        );
+      }
+    );
+    if (pollResult.success && pollResult.data) {
+      const newState = pollResult.data;
+      core2.info(
+        `State changed: ${githubState.projectStatus} -> ${newState.projectStatus}`
+      );
+      phases.push({
+        phase: iterationCount,
+        startState: githubState.projectStatus || "unknown",
+        endState: newState.projectStatus || "unknown",
+        success: true,
+        durationMs: Date.now() - phaseStartTime
+      });
+      continue;
+    }
+    core2.warning(`Poll timed out after ${pollResult.attempts} attempts`);
+    const workflowRuns = await fetchRecentWorkflowRuns(
+      octokit,
+      owner,
+      repo,
+      issueNumber
+    );
+    const diagnosis = diagnoseFailure(predicted, githubState, workflowRuns);
+    core2.warning(formatDiagnosis(diagnosis));
+    phases.push({
+      phase: iterationCount,
+      startState: githubState.projectStatus || "unknown",
+      endState: githubState.projectStatus || "unknown",
+      success: false,
+      error: diagnosis.diagnosis,
+      durationMs: Date.now() - phaseStartTime
+    });
+    return {
+      status: diagnosis.status,
+      suggestedFix: diagnosis.suggestedFix,
+      diagnosis: diagnosis.diagnosis,
+      phases,
+      totalDurationMs: Date.now() - startTime,
+      issueNumber
+    };
+  }
+  return {
+    status: "timeout",
+    suggestedFix: "Test exceeded maximum iterations - check for infinite loops",
+    diagnosis: `Exceeded ${maxIterations} iterations without reaching terminal state`,
+    phases,
+    totalDurationMs: Date.now() - startTime,
+    issueNumber
+  };
+}
+async function diagnose(config) {
+  const {
+    issueNumber,
+    projectNumber,
+    octokit,
+    owner,
+    repo,
+    botUsername = "nopo-bot"
+  } = config;
+  const startTime = Date.now();
+  const githubState = await fetchGitHubState(
+    octokit,
+    owner,
+    repo,
+    issueNumber,
+    projectNumber,
+    botUsername
+  );
+  const workflowRuns = await fetchRecentWorkflowRuns(
+    octokit,
+    owner,
+    repo,
+    issueNumber
+  );
+  const context2 = buildContextFromState(githubState, owner, repo);
+  const predicted = predictNextState(context2);
+  const diagnosis = diagnoseFailure(predicted, githubState, workflowRuns);
+  return {
+    status: diagnosis.status,
+    suggestedFix: diagnosis.suggestedFix,
+    diagnosis: diagnosis.diagnosis,
+    phases: [],
+    totalDurationMs: Date.now() - startTime,
+    issueNumber
+  };
+}
+async function waitForStatus(config, targetStatus) {
+  const {
+    fixture,
+    issueNumber,
+    projectNumber,
+    octokit,
+    owner,
+    repo,
+    botUsername = "nopo-bot"
+  } = config;
+  const startTime = Date.now();
+  const timeoutMs = (fixture.timeout ?? 300) * 1e3;
+  core2.info(
+    `Waiting for issue #${issueNumber} to reach status: ${targetStatus}`
+  );
+  const pollResult = await pollUntil(
+    () => fetchGitHubState(
+      octokit,
+      owner,
+      repo,
+      issueNumber,
+      projectNumber,
+      botUsername
+    ),
+    (state) => state.projectStatus === targetStatus,
+    {
+      ...DEFAULT_POLLER_CONFIG,
+      timeoutMs
+    },
+    (state, attempt, elapsed) => {
+      core2.info(
+        `Poll ${attempt} (${Math.round(elapsed / 1e3)}s): status=${state.projectStatus}`
       );
     }
-    actions.push(result.data);
+  );
+  if (pollResult.success) {
+    return {
+      status: "done",
+      phases: [],
+      totalDurationMs: Date.now() - startTime,
+      issueNumber
+    };
   }
-  return actions;
+  const githubState = pollResult.data;
+  if (!githubState) {
+    return {
+      status: "error",
+      suggestedFix: "Could not fetch issue state",
+      diagnosis: "Failed to fetch issue state from GitHub",
+      phases: [],
+      totalDurationMs: Date.now() - startTime,
+      issueNumber
+    };
+  }
+  const workflowRuns = await fetchRecentWorkflowRuns(
+    octokit,
+    owner,
+    repo,
+    issueNumber
+  );
+  const context2 = buildContextFromState(githubState, owner, repo);
+  const predicted = predictNextState(context2);
+  const diagnosis = diagnoseFailure(predicted, githubState, workflowRuns);
+  return {
+    status: diagnosis.status,
+    suggestedFix: diagnosis.suggestedFix,
+    diagnosis: diagnosis.diagnosis,
+    phases: [],
+    totalDurationMs: Date.now() - startTime,
+    issueNumber
+  };
+}
+
+// claude-test-runner/src/validate.ts
+var ProjectFieldsSchema = external_exports.object({
+  Status: external_exports.string().optional(),
+  Iteration: external_exports.number().int().min(0).optional(),
+  Failures: external_exports.number().int().min(0).optional()
+}).strict();
+var ParentIssueSchema2 = external_exports.object({
+  title: external_exports.string().min(1, "Parent issue title is required"),
+  body: external_exports.string().min(1, "Parent issue body is required"),
+  labels: external_exports.array(external_exports.string()).optional(),
+  project_fields: ProjectFieldsSchema.optional()
+}).strict();
+var SubIssueSchema2 = external_exports.object({
+  title: external_exports.string().min(1, "Sub-issue title is required"),
+  body: external_exports.string().min(1, "Sub-issue body is required"),
+  project_fields: external_exports.object({
+    Status: external_exports.string().optional()
+  }).strict().optional()
+}).strict();
+var BranchSchema = external_exports.object({
+  name: external_exports.string().min(1, "Branch name is required"),
+  from: external_exports.string().min(1, "Base branch is required"),
+  commits: external_exports.array(
+    external_exports.object({
+      message: external_exports.string().min(1, "Commit message is required"),
+      files: external_exports.record(external_exports.string())
+    }).strict()
+  ).optional()
+}).strict();
+var PRSchema = external_exports.object({
+  title: external_exports.string().min(1, "PR title is required"),
+  body: external_exports.string().min(1, "PR body is required"),
+  draft: external_exports.boolean().optional(),
+  request_review: external_exports.boolean().optional()
+}).strict();
+var CommentSchema = external_exports.object({
+  body: external_exports.string().min(1, "Comment body is required")
+}).strict();
+var ReviewSchema = external_exports.object({
+  state: external_exports.enum(["approve", "request_changes", "comment"]),
+  body: external_exports.string().min(1, "Review body is required"),
+  reviewer: external_exports.string().optional()
+}).strict();
+var DiscussionSchema = external_exports.object({
+  title: external_exports.string().min(1, "Discussion title is required"),
+  body: external_exports.string().min(1, "Discussion body is required"),
+  category: external_exports.string().optional()
+}).strict();
+var ProjectStatusValues = [
+  "Backlog",
+  "In progress",
+  "Ready",
+  "In review",
+  "Done",
+  "Blocked",
+  "Error"
+];
+var ExpectedSchema = external_exports.object({
+  parent_status: external_exports.enum(ProjectStatusValues).optional(),
+  sub_issue_statuses: external_exports.array(external_exports.enum(ProjectStatusValues)).optional(),
+  issue_state: external_exports.enum(["open", "closed"]).optional(),
+  pr_state: external_exports.enum(["open", "closed", "merged", "draft"]).optional(),
+  labels: external_exports.array(external_exports.string()).optional(),
+  min_iteration: external_exports.number().int().min(0).optional(),
+  failures: external_exports.number().int().min(0).optional(),
+  min_comments: external_exports.number().int().min(0).optional(),
+  all_sub_issues_closed: external_exports.boolean().optional(),
+  sub_issues_todos_done: external_exports.boolean().optional(),
+  history_contains: external_exports.array(external_exports.string()).optional(),
+  sub_issues_have_merged_pr: external_exports.boolean().optional()
+}).strict();
+var ExpectedMachineSchema = external_exports.object({
+  final_state: external_exports.string().optional(),
+  contains_actions: external_exports.array(external_exports.string()).optional(),
+  action_count: external_exports.number().int().min(0).optional(),
+  stopped_early: external_exports.union([external_exports.boolean(), external_exports.string()]).optional(),
+  stop_reason: external_exports.string().optional()
+}).strict();
+var FixtureSchema = external_exports.object({
+  name: external_exports.string().min(1, "Fixture name is required"),
+  description: external_exports.string().min(1, "Fixture description is required"),
+  job_type: external_exports.string().optional(),
+  trigger: external_exports.string().optional(),
+  trigger_context: external_exports.object({
+    ci_result: external_exports.string().optional(),
+    review_decision: external_exports.string().optional(),
+    reviewer: external_exports.string().optional()
+  }).optional(),
+  parent_issue: ParentIssueSchema2.optional(),
+  sub_issues: external_exports.array(SubIssueSchema2).optional(),
+  branch: BranchSchema.optional(),
+  pr: PRSchema.optional(),
+  comment: CommentSchema.optional(),
+  review: ReviewSchema.optional(),
+  discussion: DiscussionSchema.optional(),
+  expected: ExpectedSchema.optional(),
+  expected_machine: ExpectedMachineSchema.optional(),
+  timeout: external_exports.number().int().positive().optional(),
+  poll_interval: external_exports.number().int().positive().optional()
+}).refine(
+  (data) => data.parent_issue || data.discussion,
+  "Fixture must have either parent_issue or discussion"
+);
+function checkForWarnings(fixture) {
+  const warnings = [];
+  if (!fixture.expected && !fixture.expected_machine) {
+    warnings.push("Fixture has no expected outcomes defined");
+  }
+  if (fixture.parent_issue?.body.includes("{TODO}")) {
+    warnings.push("Parent issue body contains {TODO} placeholder");
+  }
+  if (fixture.timeout && fixture.timeout < 60) {
+    warnings.push(`Timeout of ${fixture.timeout}s is very short`);
+  }
+  if (fixture.sub_issues && fixture.expected?.sub_issue_statuses) {
+    if (fixture.sub_issues.length !== fixture.expected.sub_issue_statuses.length) {
+      warnings.push(
+        `Number of sub_issues (${fixture.sub_issues.length}) doesn't match expected statuses (${fixture.expected.sub_issue_statuses.length})`
+      );
+    }
+  }
+  if (fixture.expected?.all_sub_issues_closed && !fixture.sub_issues) {
+    warnings.push(
+      "all_sub_issues_closed expected but no sub_issues defined - triage may create them"
+    );
+  }
+  if (fixture.sub_issues && fixture.parent_issue?.labels && !fixture.parent_issue.labels.includes("triaged")) {
+    warnings.push(
+      "Sub-issues are predefined but parent_issue is missing 'triaged' label - triage may create duplicate sub-issues"
+    );
+  }
+  if (fixture.expected?.pr_state && !fixture.branch && !fixture.pr) {
+    warnings.push(
+      "PR state expected but no branch or pr config defined - PR will be created during iteration"
+    );
+  }
+  return warnings;
+}
+function validateFixture(fixture) {
+  const result = FixtureSchema.safeParse(fixture);
+  if (!result.success) {
+    const errors = result.error.errors.map((err) => ({
+      path: err.path.join("."),
+      message: err.message,
+      code: err.code
+    }));
+    return {
+      valid: false,
+      errors,
+      warnings: [],
+      fixture: null
+    };
+  }
+  const warnings = checkForWarnings(result.data);
+  return {
+    valid: true,
+    errors: [],
+    warnings,
+    fixture: result.data
+  };
+}
+function formatValidationResult(name, result) {
+  const lines = [`Fixture: ${name}`];
+  if (result.valid) {
+    lines.push("  Status: \u2705 Valid");
+  } else {
+    lines.push("  Status: \u274C Invalid");
+    lines.push("  Errors:");
+    for (const error of result.errors) {
+      lines.push(`    - ${error.path}: ${error.message}`);
+    }
+  }
+  if (result.warnings.length > 0) {
+    lines.push("  Warnings:");
+    for (const warning3 of result.warnings) {
+      lines.push(`    - ${warning3}`);
+    }
+  }
+  return lines.join("\n");
+}
+
+// claude-test-runner/index.ts
+async function triggerCleanup(octokit, owner, repo, issueNumber) {
+  core3.info(`Triggering cleanup for issue #${issueNumber}`);
+  try {
+    await octokit.rest.actions.createWorkflowDispatch({
+      owner,
+      repo,
+      workflow_id: "_test_cleanup.yml",
+      ref: "main",
+      inputs: {
+        issue_number: String(issueNumber),
+        action: "close"
+      }
+    });
+    core3.info("Cleanup workflow triggered");
+  } catch (error) {
+    core3.warning(`Could not trigger cleanup workflow: ${error}`);
+    core3.info("Attempting direct close via API...");
+    try {
+      await octokit.rest.issues.update({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        state: "closed",
+        state_reason: "not_planned"
+      });
+      core3.info(`Closed issue #${issueNumber} directly`);
+    } catch (closeError) {
+      core3.warning(`Failed to close issue: ${closeError}`);
+    }
+  }
 }
 async function run() {
   try {
-    const codeToken = getRequiredInput("github_code_token");
-    const reviewToken = getOptionalInput("github_review_token") || "";
-    const actionsJson = getRequiredInput("actions_json");
-    const projectNumber = parseInt(getRequiredInput("project_number"), 10);
-    const dryRun = getOptionalInput("dry_run") === "true";
-    const job = getOptionalInput("job") || "";
-    const resourceTypeInput = getOptionalInput("resource_type") || "issue";
-    const resourceNumber = parseInt(
-      getOptionalInput("resource_number") || "0",
+    const action = getRequiredInput("action");
+    const token = getRequiredInput("github_token");
+    const projectNumber = parseInt(
+      getOptionalInput("project_number") || "1",
       10
     );
-    const commentId = getOptionalInput("comment_id") || "";
-    const runUrl = getOptionalInput("run_url") || "";
-    const resourceType = resourceTypeInput === "pr" ? "pr" : "issue";
-    const signalingEnabled = job !== "" && resourceNumber > 0;
-    core10.info(`Claude State Executor starting...`);
-    core10.info(`Project: ${projectNumber}`);
-    core10.info(`Dry run: ${dryRun}`);
-    core10.info(`Signaling: ${signalingEnabled ? "enabled" : "disabled"}`);
-    if (signalingEnabled) {
-      core10.info(`  Job: ${job}`);
-      core10.info(`  Resource: ${resourceType} #${resourceNumber}`);
-    }
-    const actions = parseActions(actionsJson);
-    core10.info(`Actions to execute: ${actions.length}`);
-    if (actions.length === 0) {
-      core10.info("No actions to execute");
-      setOutputs({
-        success: "true",
-        stopped_early: "false",
-        stop_reason: "",
-        actions_executed: "0",
-        actions_failed: "0",
-        actions_skipped: "0",
-        total_duration_ms: "0",
-        results_json: "[]"
+    const cleanupOnFailure = getOptionalInput("cleanup_on_failure") === "true";
+    const octokit = github.getOctokit(token);
+    const { owner, repo } = github.context.repo;
+    if (action === "run") {
+      const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
+      const fixtureJson = getOptionalInput("fixture_json");
+      const fixture = fixtureJson ? JSON.parse(fixtureJson) : { name: "manual", description: "Manual test run" };
+      core3.info(`=== Claude Test Runner ===`);
+      core3.info(`Action: run`);
+      core3.info(`Issue: #${issueNumber}`);
+      core3.info(`Fixture: ${fixture.name}`);
+      const result = await runTest({
+        fixture,
+        issueNumber,
+        projectNumber,
+        octokit,
+        owner,
+        repo
       });
+      setOutputs({
+        status: result.status,
+        suggested_fix: result.suggestedFix || "",
+        diagnosis: result.diagnosis || "",
+        phases_completed: String(result.phases.filter((p) => p.success).length),
+        total_duration_ms: String(result.totalDurationMs)
+      });
+      if (result.status !== "done") {
+        core3.warning(`Test failed: ${result.diagnosis}`);
+        core3.warning(`Suggested fix: ${result.suggestedFix}`);
+        if (cleanupOnFailure) {
+          await triggerCleanup(octokit, owner, repo, issueNumber);
+        }
+        core3.setFailed(`Test failed: ${result.diagnosis}`);
+      } else {
+        core3.info(`Test passed! Completed ${result.phases.length} phases`);
+      }
       return;
     }
-    const actionTypes = actions.map((a) => a.type);
-    core10.info(`Action types: ${actionTypes.join(", ")}`);
-    const tokenUsage = actions.reduce(
-      (acc, a) => {
-        const token = a.token || "code";
-        acc[token] = (acc[token] || 0) + 1;
-        return acc;
-      },
-      {}
-    );
-    core10.info(
-      `Token usage: code=${tokenUsage.code || 0}, review=${tokenUsage.review || 0}`
-    );
-    const codeOctokit = github.getOctokit(codeToken);
-    const reviewOctokit = reviewToken ? github.getOctokit(reviewToken) : void 0;
-    const { owner, repo } = github.context.repo;
-    let result;
-    if (signalingEnabled) {
-      const signaledContext = createSignaledRunnerContext(
-        codeOctokit,
+    if (action === "diagnose") {
+      const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
+      const fixtureJson = getOptionalInput("fixture_json");
+      const fixture = fixtureJson ? JSON.parse(fixtureJson) : { name: "manual", description: "Manual diagnosis" };
+      core3.info(`=== Claude Test Runner ===`);
+      core3.info(`Action: diagnose`);
+      core3.info(`Issue: #${issueNumber}`);
+      const result = await diagnose({
+        fixture,
+        issueNumber,
+        projectNumber,
+        octokit,
+        owner,
+        repo
+      });
+      setOutputs({
+        status: result.status,
+        suggested_fix: result.suggestedFix || "",
+        diagnosis: result.diagnosis || "",
+        phases_completed: "0",
+        total_duration_ms: String(result.totalDurationMs)
+      });
+      core3.info(`
+Diagnosis Result:`);
+      core3.info(`Status: ${result.status}`);
+      if (result.suggestedFix) {
+        core3.info(`Suggested Fix: ${result.suggestedFix}`);
+      }
+      if (result.diagnosis) {
+        core3.info(`Diagnosis: ${result.diagnosis}`);
+      }
+      return;
+    }
+    if (action === "wait") {
+      const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
+      const targetStatus = getRequiredInput("target_status");
+      const fixtureJson = getOptionalInput("fixture_json");
+      const fixture = fixtureJson ? JSON.parse(fixtureJson) : {
+        name: "wait",
+        description: "Wait for status",
+        timeout: parseInt(getOptionalInput("timeout") || "300", 10)
+      };
+      core3.info(`=== Claude Test Runner ===`);
+      core3.info(`Action: wait`);
+      core3.info(`Issue: #${issueNumber}`);
+      core3.info(`Target Status: ${targetStatus}`);
+      const result = await waitForStatus(
+        {
+          fixture,
+          issueNumber,
+          projectNumber,
+          octokit,
+          owner,
+          repo
+        },
+        targetStatus
+      );
+      setOutputs({
+        status: result.status,
+        suggested_fix: result.suggestedFix || "",
+        diagnosis: result.diagnosis || "",
+        phases_completed: "0",
+        total_duration_ms: String(result.totalDurationMs)
+      });
+      if (result.status !== "done") {
+        if (cleanupOnFailure) {
+          await triggerCleanup(octokit, owner, repo, issueNumber);
+        }
+        core3.setFailed(
+          `Failed to reach status '${targetStatus}': ${result.diagnosis}`
+        );
+      } else {
+        core3.info(`Issue reached status '${targetStatus}'`);
+      }
+      return;
+    }
+    if (action === "status") {
+      const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
+      core3.info(`=== Claude Test Runner ===`);
+      core3.info(`Action: status`);
+      core3.info(`Issue: #${issueNumber}`);
+      const state = await fetchGitHubState(
+        octokit,
         owner,
         repo,
-        projectNumber,
-        resourceType,
-        resourceNumber,
-        job,
-        runUrl,
-        {
-          dryRun,
-          reviewOctokit,
-          triggerCommentId: commentId || void 0
-        }
+        issueNumber,
+        projectNumber
       );
-      result = await runWithSignaling(actions, signaledContext);
-    } else {
-      const runnerContext = createRunnerContext(
-        codeOctokit,
+      const workflowRuns = await fetchRecentWorkflowRuns(
+        octokit,
         owner,
         repo,
-        projectNumber,
-        {
-          dryRun,
-          reviewOctokit
-        }
+        issueNumber
       );
-      result = await executeActions(actions, runnerContext);
-    }
-    logRunnerSummary(result);
-    const executed = result.results.filter((r) => !r.skipped).length;
-    const failed = result.results.filter(
-      (r) => !r.success && !r.skipped
-    ).length;
-    const skipped = result.results.filter((r) => r.skipped).length;
-    const resultsForOutput = result.results.map((r) => ({
-      action: r.action.type,
-      success: r.success,
-      skipped: r.skipped,
-      error: r.error?.message,
-      durationMs: r.durationMs
-    }));
-    setOutputs({
-      success: String(result.success),
-      stopped_early: String(result.stoppedEarly),
-      stop_reason: result.stopReason || "",
-      actions_executed: String(executed),
-      actions_failed: String(failed),
-      actions_skipped: String(skipped),
-      total_duration_ms: String(result.totalDurationMs),
-      results_json: JSON.stringify(resultsForOutput)
-    });
-    if (!result.success) {
-      core10.setFailed(`${failed} action(s) failed. Check the logs for details.`);
-    } else if (result.stoppedEarly) {
-      core10.setFailed(
-        `Stopped early: ${result.stopReason || "unknown reason"}. Subsequent matrix jobs will be cancelled.`
+      const context2 = buildContextFromState(state, owner, repo);
+      const predicted = predictNextState(context2);
+      setOutputs({
+        status: state.projectStatus || "unknown",
+        iteration: String(state.iteration),
+        failures: String(state.failures),
+        bot_assigned: String(state.botAssigned),
+        pr_number: state.prNumber ? String(state.prNumber) : "",
+        pr_state: state.prState || "",
+        branch_exists: String(state.branchExists),
+        unchecked_todos: String(state.uncheckedTodos),
+        predicted_state: predicted.expectedState,
+        predicted_status: predicted.expectedStatus || "",
+        workflow_status: workflowRuns.length > 0 ? workflowRuns[0]?.status || "unknown" : "none"
+      });
+      core3.info(`
+Current State:`);
+      core3.info(`  Status: ${state.projectStatus || "unknown"}`);
+      core3.info(`  Iteration: ${state.iteration}`);
+      core3.info(`  Failures: ${state.failures}`);
+      core3.info(`  Bot Assigned: ${state.botAssigned}`);
+      core3.info(
+        `  PR: ${state.prNumber ? `#${state.prNumber} (${state.prState})` : "none"}`
       );
+      core3.info(`  Branch: ${state.branch || "none"}`);
+      core3.info(`  Unchecked Todos: ${state.uncheckedTodos}`);
+      core3.info(`
+Prediction:`);
+      core3.info(`  Expected State: ${predicted.expectedState}`);
+      core3.info(
+        `  Expected Status: ${predicted.expectedStatus || "unchanged"}`
+      );
+      core3.info(`  Description: ${predicted.description}`);
+      return;
     }
-  } catch (error3) {
-    if (error3 instanceof Error) {
-      core10.setFailed(error3.message);
+    if (action === "validate") {
+      const fixtureJson = getRequiredInput("fixture_json");
+      core3.info(`=== Claude Test Runner ===`);
+      core3.info(`Action: validate`);
+      let fixture;
+      try {
+        fixture = JSON.parse(fixtureJson);
+      } catch (error) {
+        core3.setFailed(`Invalid JSON: ${error}`);
+        setOutputs({
+          valid: "false",
+          errors: `Invalid JSON: ${error}`,
+          warnings: ""
+        });
+        return;
+      }
+      const result = validateFixture(fixture);
+      const formatted = formatValidationResult("fixture", result);
+      core3.info(`
+${formatted}`);
+      setOutputs({
+        valid: String(result.valid),
+        errors: result.errors.map((e) => `${e.path}: ${e.message}`).join("; "),
+        warnings: result.warnings.join("; ")
+      });
+      if (!result.valid) {
+        core3.setFailed(`Fixture validation failed`);
+      }
+      return;
+    }
+    core3.setFailed(`Unknown action: ${action}`);
+  } catch (error) {
+    if (error instanceof Error) {
+      core3.setFailed(error.message);
     } else {
-      core10.setFailed("An unexpected error occurred");
+      core3.setFailed("An unexpected error occurred");
     }
   }
 }

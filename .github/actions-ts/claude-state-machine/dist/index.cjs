@@ -31515,6 +31515,7 @@ var RequestReviewActionSchema = BaseActionSchema.extend({
 var MergePRActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("mergePR"),
   prNumber: external_exports.number().int().positive(),
+  issueNumber: external_exports.number().int().positive(),
   mergeMethod: external_exports.enum(["merge", "squash", "rebase"]).default("squash")
 });
 var SubmitReviewActionSchema = BaseActionSchema.extend({
@@ -32328,11 +32329,13 @@ function emitMergePR({ context: context2 }) {
   if (!context2.pr) {
     return [];
   }
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
   return [
     {
       type: "mergePR",
       token: "code",
       prNumber: context2.pr.number,
+      issueNumber,
       mergeMethod: "squash"
     }
   ];

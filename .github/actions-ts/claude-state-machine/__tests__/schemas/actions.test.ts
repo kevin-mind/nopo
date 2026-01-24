@@ -343,7 +343,7 @@ describe("RequestReviewActionSchema", () => {
 
 describe("MergePRActionSchema", () => {
   test("parses with default squash", () => {
-    const action = { type: "mergePR", prNumber: 42 };
+    const action = { type: "mergePR", prNumber: 42, issueNumber: 123 };
     const parsed = MergePRActionSchema.parse(action);
     expect(parsed.mergeMethod).toBe("squash");
   });
@@ -351,9 +351,19 @@ describe("MergePRActionSchema", () => {
   test("accepts merge methods", () => {
     const methods = ["merge", "squash", "rebase"];
     for (const mergeMethod of methods) {
-      const action = { type: "mergePR", prNumber: 1, mergeMethod };
+      const action = {
+        type: "mergePR",
+        prNumber: 1,
+        issueNumber: 123,
+        mergeMethod,
+      };
       expect(MergePRActionSchema.parse(action).mergeMethod).toBe(mergeMethod);
     }
+  });
+
+  test("requires issueNumber", () => {
+    const action = { type: "mergePR", prNumber: 42 };
+    expect(() => MergePRActionSchema.parse(action)).toThrow();
   });
 });
 

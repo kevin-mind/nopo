@@ -339,18 +339,21 @@ export function emitRequestReview({ context }: ActionContext): ActionResult {
 }
 
 /**
- * Emit action to merge PR
- * Called when review is approved and PR is ready to merge
+ * Emit action to mark PR as ready for merge
+ * Called when review is approved - adds label and history entry
+ * Actual merge is a human action (or test runner simulation)
  */
 export function emitMergePR({ context }: ActionContext): ActionResult {
   if (!context.pr) {
     return [];
   }
+  const issueNumber = context.currentSubIssue?.number ?? context.issue.number;
   return [
     {
       type: "mergePR",
       token: "code",
       prNumber: context.pr.number,
+      issueNumber,
       mergeMethod: "squash",
     },
   ];

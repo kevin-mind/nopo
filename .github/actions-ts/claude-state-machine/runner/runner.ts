@@ -72,6 +72,8 @@ export interface RunnerContext {
   projectNumber: number;
   serverUrl: string;
   dryRun?: boolean;
+  /** URL to the workflow run (optional, used for history entries) */
+  runUrl?: string;
 }
 
 /**
