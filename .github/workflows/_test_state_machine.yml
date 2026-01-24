@@ -403,9 +403,6 @@ jobs:
           parse_history() {
             local body="$1"
 
-            # Approach: use jq to build the array directly from extracted data
-            # This avoids all the shell/subshell issues
-
             # First, check if there's a history table at all
             if ! echo "$body" | grep -q '## Iteration History'; then
               echo "[]"
@@ -414,7 +411,7 @@ jobs:
 
             # Extract just the data rows (skip header with "Time" and separator with "---")
             local rows
-            rows=$(echo "$body" | grep -E '^\|' | grep -v 'Time' | grep -v '\-\-\-' || echo "")
+            rows=$(echo "$body" | grep -E '^\|' | grep -v 'Time' | grep -v '\-\-\-' 2>/dev/null || true)
 
             if [[ -z "$rows" ]]; then
               echo "[]"
@@ -422,7 +419,9 @@ jobs:
             fi
 
             # Use jq with raw input to parse the pipe-delimited rows
-            echo "$rows" | jq -Rs '
+            # If jq fails for any reason, return empty array
+            local result
+            result=$(echo "$rows" | jq -Rs '
               split("\n") |
               map(select(length > 0)) |
               map(
@@ -436,7 +435,14 @@ jobs:
                   sha: .[5]
                 }
               )
-            ' 2>/dev/null || echo "[]"
+            ' 2>/dev/null) || result="[]"
+
+            # Final safety check - ensure output is valid JSON array
+            if echo "$result" | jq -e 'type == "array"' >/dev/null 2>&1; then
+              echo "$result"
+            else
+              echo "[]"
+            fi
           }
 
           # Simulate human merge action when PR has "ready-to-merge" label
