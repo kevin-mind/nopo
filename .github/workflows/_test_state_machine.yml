@@ -399,27 +399,24 @@ jobs:
 
           # Parse history table from issue body into JSON array
           # Table format: | Time | # | Phase | Action | SHA | Run |
+          # Returns JSON array of history entries
           parse_history() {
             local body="$1"
-            echo "$body" | awk '
-              /## Iteration History/,/^##[^#]|^$/ {
-                # Skip header row (contains "Time") and separator row (contains "---")
-                if (/^\|/ && !/Time/ && !/---/) {
-                  gsub(/^\||\|$/, "")
-                  n = split($0, cols, "|")
-                  if (n >= 5) {
-                    # cols[1]=Time, cols[2]=#, cols[3]=Phase, cols[4]=Action, cols[5]=SHA
-                    gsub(/^[ \t]+|[ \t]+$/, "", cols[2])
-                    gsub(/^[ \t]+|[ \t]+$/, "", cols[3])
-                    gsub(/^[ \t]+|[ \t]+$/, "", cols[4])
-                    gsub(/^[ \t]+|[ \t]+$/, "", cols[5])
-                    # Escape quotes in action text
-                    gsub(/"/, "\\\"", cols[4])
-                    printf "{\"iteration\":%s,\"phase\":\"%s\",\"action\":\"%s\",\"sha\":\"%s\"}\n", cols[2], cols[3], cols[4], cols[5]
-                  }
-                }
-              }
-            ' | jq -s '. // []'
+            # Extract just the history table rows (skip header and separator)
+            # Use grep to find table rows, then process with simple field extraction
+            echo "$body" | grep -E '^\|[^-]' | grep -v 'Time' | while IFS='|' read -r _ time iter phase action sha run _; do
+              # Trim whitespace
+              iter=$(echo "$iter" | xargs)
+              phase=$(echo "$phase" | xargs)
+              action=$(echo "$action" | xargs)
+              sha=$(echo "$sha" | xargs)
+              # Skip if iteration is empty
+              if [[ -n "$iter" ]]; then
+                # Output JSON object (jq will handle escaping)
+                jq -n --arg iter "$iter" --arg phase "$phase" --arg action "$action" --arg sha "$sha" \
+                  '{iteration: ($iter | tonumber? // 0), phase: $phase, action: $action, sha: $sha}'
+              fi
+            done | jq -s '. // []'
           }
 
           # Simulate human merge action when PR has "ready-to-merge" label
