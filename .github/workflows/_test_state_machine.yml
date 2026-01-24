@@ -455,24 +455,34 @@ jobs:
             project_status=$(echo "$issue_json" | jq -r '.projectItems[0].fieldValueByName.name // "N/A"')
 
             # Check for PRs with "ready-to-merge" label and simulate human merge
-            # Build search query to include parent issue and all sub-issues
-            search_issues="$ISSUE_NUMBER"
+            # Only merge PRs that are linked to the current test's issues
+            all_test_issues="$ISSUE_NUMBER"
             if [[ -n "$SUB_ISSUE_NUMBERS" ]]; then
               IFS=',' read -ra SUB_NUMS <<< "$SUB_ISSUE_NUMBERS"
               for sub_num in "${SUB_NUMS[@]}"; do
                 sub_num=$(echo "$sub_num" | tr -d ' ')
-                search_issues="$search_issues OR $sub_num"
+                all_test_issues="$all_test_issues $sub_num"
               done
             fi
 
-            # Search for PRs linked to parent or sub-issues
-            pr_list=$(gh pr list --repo "$GITHUB_REPOSITORY" --label "ready-to-merge" --json number,state,labels 2>/dev/null || echo '[]')
+            # Search for PRs with ready-to-merge label
+            pr_list=$(gh pr list --repo "$GITHUB_REPOSITORY" --label "ready-to-merge" --json number,state,body 2>/dev/null || echo '[]')
             for pr_row in $(echo "$pr_list" | jq -c '.[]'); do
               pr_num=$(echo "$pr_row" | jq -r '.number')
               pr_state=$(echo "$pr_row" | jq -r '.state')
+              pr_body=$(echo "$pr_row" | jq -r '.body // ""')
 
-              if [[ "$pr_state" == "OPEN" ]]; then
-                echo "::notice::PR #$pr_num has ready-to-merge label - simulating human merge"
+              # Check if PR is linked to one of the test issues
+              is_test_pr=false
+              for issue_num in $all_test_issues; do
+                if echo "$pr_body" | grep -qE "(Fixes|Closes|Resolves) #$issue_num"; then
+                  is_test_pr=true
+                  break
+                fi
+              done
+
+              if [[ "$pr_state" == "OPEN" && "$is_test_pr" == "true" ]]; then
+                echo "::notice::PR #$pr_num has ready-to-merge label and is linked to test issues - simulating human merge"
                 simulate_merge "$pr_num"
                 # Wait for merge to propagate
                 sleep 5
