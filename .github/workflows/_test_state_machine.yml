@@ -520,10 +520,19 @@ jobs:
             # Parse history from body
             history=$(parse_history "$body")
 
-            # Debug: validate inputs before building state object
-            echo "::debug::labels=$labels"
-            echo "::debug::assignees=$assignees"
-            echo "::debug::history=$history"
+            # Validate inputs are valid JSON before building state object
+            if ! echo "$labels" | jq -e '.' >/dev/null 2>&1; then
+              echo "::warning::labels is not valid JSON: $labels"
+              labels='[]'
+            fi
+            if ! echo "$assignees" | jq -e '.' >/dev/null 2>&1; then
+              echo "::warning::assignees is not valid JSON: $assignees"
+              assignees='[]'
+            fi
+            if ! echo "$history" | jq -e '.' >/dev/null 2>&1; then
+              echo "::warning::history is not valid JSON: $history"
+              history='[]'
+            fi
 
             # Build state object
             state_obj=$(jq -n \
