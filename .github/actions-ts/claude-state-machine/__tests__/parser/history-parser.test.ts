@@ -349,7 +349,11 @@ describe("addHistoryEntry", () => {
     // Should have one row with combined actions
     expect(result).toContain("⏳ running... → ✅ Done");
     // Should only have one run ID reference (deduplicated)
-    const lines = result.split("\n").filter((l) => l.startsWith("|") && !l.includes("---") && !l.includes("Time"));
+    const lines = result
+      .split("\n")
+      .filter(
+        (l) => l.startsWith("|") && !l.includes("---") && !l.includes("Time"),
+      );
     expect(lines.length).toBe(1);
     // Should update timestamp to latest
     expect(result).toContain("Jan 22 19:10");

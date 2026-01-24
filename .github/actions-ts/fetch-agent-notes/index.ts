@@ -139,8 +139,7 @@ function formatNotesForPrompt(allNotes: AgentNotes[]): string {
       .slice(0, 5) // Limit to 5 notes per run
       .map((note) => {
         // Truncate long notes
-        const truncated =
-          note.length > 200 ? note.slice(0, 200) + "..." : note;
+        const truncated = note.length > 200 ? note.slice(0, 200) + "..." : note;
         return `- ${truncated}`;
       })
       .join("\n");
@@ -172,7 +171,7 @@ async function run(): Promise<void> {
     // so we fetch recent artifacts and filter client-side
     const artifactPrefix = `claude-notes-issue-${issueNumber}-`;
 
-    let allArtifacts: Artifact[] = [];
+    const allArtifacts: Artifact[] = [];
     let page = 1;
     const perPage = 100;
 

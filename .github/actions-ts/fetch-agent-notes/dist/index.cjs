@@ -23992,7 +23992,7 @@ async function run() {
     process.env.GH_TOKEN = token;
     core2.info(`Fetching agent notes for issue #${issueNumber}`);
     const artifactPrefix = `claude-notes-issue-${issueNumber}-`;
-    let allArtifacts = [];
+    const allArtifacts = [];
     let page = 1;
     const perPage = 100;
     while (allArtifacts.length < maxNotes * 3) {
