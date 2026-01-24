@@ -2,6 +2,12 @@ Review PR #{{PR_NUMBER}} for issue #{{ISSUE_NUMBER}}
 
 Branch: `{{HEAD_REF}}` → `{{BASE_REF}}`
 
+## Previous Agent Notes
+
+{{AGENT_NOTES}}
+
+---
+
 ## Step 1: View Changes
 
 ```bash
@@ -52,3 +58,21 @@ Decision values:
 - `"comment"` - Feedback but no blocking issues
 
 The workflow submits the review using a separate account.
+
+## Save Notes for Future Agents
+
+Before finishing, save any important findings by writing to `/tmp/claude-notes.json`:
+
+```json
+{
+  "issue_number": {{ISSUE_NUMBER}},
+  "run_id": 0,
+  "timestamp": "",
+  "agent": "review",
+  "phase": 0,
+  "notes": [
+    "Note 1: Key review finding or concern",
+    "Note 2: Pattern noticed in the code"
+  ]
+}
+```

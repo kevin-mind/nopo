@@ -4,6 +4,12 @@ Reviewer: @{{REVIEWER}}
 Decision: {{REVIEW_DECISION}}
 Branch: `{{HEAD_REF}}`
 
+## Previous Agent Notes
+
+{{AGENT_NOTES}}
+
+---
+
 ## Step 1: Get Review Comments
 
 ```bash
@@ -41,3 +47,20 @@ gh pr edit {{PR_NUMBER}} --add-reviewer "nopo-bot"
 - Atomic commits for each change
 - Always post a summary comment
 - Follow CLAUDE.md guidelines
+
+## Save Notes for Future Agents
+
+Before finishing, save any important context by writing to `/tmp/claude-notes.json`:
+
+```json
+{
+  "issue_number": {{ISSUE_NUMBER}},
+  "run_id": 0,
+  "timestamp": "",
+  "agent": "review-response",
+  "phase": 0,
+  "notes": [
+    "Note 1: Key change made in response to feedback"
+  ]
+}
+```
