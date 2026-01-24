@@ -428,13 +428,35 @@ jobs:
           fi
           echo "::endgroup::"
 
-          # Parse timeout and poll_interval from file
-          timeout=$(jq -r '.timeout // 300' "$fixture_file" 2>&1) || timeout=300
-          poll_interval=$(jq -r '.poll_interval // 10' "$fixture_file" 2>&1) || poll_interval=10
-          echo "::debug::timeout=$timeout, poll_interval=$poll_interval"
+          # Parse timeout and poll_interval from file with explicit debugging
+          echo "::debug::fixture_file path: $fixture_file"
+          echo "::debug::fixture_file exists: $(test -f "$fixture_file" && echo yes || echo no)"
 
-          # Cleanup fixture file (keep reference for debugging if needed)
-          # rm -f "$fixture_file"
+          # Parse timeout
+          echo "::debug::Parsing timeout from fixture file..."
+          timeout_output=$(jq -r '.timeout // 300' "$fixture_file" 2>&1)
+          timeout_exit=$?
+          echo "::debug::timeout parse exit code: $timeout_exit, output: '$timeout_output'"
+          if [[ $timeout_exit -eq 0 ]]; then
+            timeout="$timeout_output"
+          else
+            echo "::warning::timeout parse failed, using default"
+            timeout=300
+          fi
+
+          # Parse poll_interval
+          echo "::debug::Parsing poll_interval from fixture file..."
+          poll_output=$(jq -r '.poll_interval // 10' "$fixture_file" 2>&1)
+          poll_exit=$?
+          echo "::debug::poll_interval parse exit code: $poll_exit, output: '$poll_output'"
+          if [[ $poll_exit -eq 0 ]]; then
+            poll_interval="$poll_output"
+          else
+            echo "::warning::poll_interval parse failed, using default"
+            poll_interval=10
+          fi
+
+          echo "::debug::Final values - timeout=$timeout, poll_interval=$poll_interval"
 
           # Parse history table from issue body into JSON array
           # Table format: | Time | # | Phase | Action | SHA | Run |
