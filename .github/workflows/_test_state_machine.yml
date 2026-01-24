@@ -400,8 +400,16 @@ jobs:
           FIXTURE_JSON: ${{ needs.load-fixture.outputs.fixture }}
           GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
         run: |
-          timeout=$(echo "$FIXTURE_JSON" | jq -r '.timeout // 300')
-          poll_interval=$(echo "$FIXTURE_JSON" | jq -r '.poll_interval // 10')
+          # Debug: check if FIXTURE_JSON is valid
+          echo "::group::Debug FIXTURE_JSON"
+          echo "Length: ${#FIXTURE_JSON}"
+          echo "Line count: $(printf '%s' "$FIXTURE_JSON" | wc -l)"
+          echo "First 100 chars: ${FIXTURE_JSON:0:100}..."
+          printf '%s' "$FIXTURE_JSON" | jq -e '.' >/dev/null 2>&1 && echo "Valid JSON: yes" || echo "Valid JSON: NO!"
+          echo "::endgroup::"
+
+          timeout=$(printf '%s' "$FIXTURE_JSON" | jq -r '.timeout // 300')
+          poll_interval=$(printf '%s' "$FIXTURE_JSON" | jq -r '.poll_interval // 10')
 
           # Parse history table from issue body into JSON array
           # Table format: | Time | # | Phase | Action | SHA | Run |
