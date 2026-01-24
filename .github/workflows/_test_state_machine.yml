@@ -296,16 +296,22 @@ jobs:
               exit 1
             fi
 
-            # Get full issue state
+            # Get full issue state - use --jq for compact JSON output
             issue_json=$(gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
-              --json state,title,body,labels,assignees,projectItems 2>/dev/null || echo '{}')
+              --json state,title,body,labels,assignees,projectItems --jq '.' 2>/dev/null || echo '{}')
 
-            state=$(echo "$issue_json" | jq -r '.state // "UNKNOWN"')
-            labels=$(echo "$issue_json" | jq -c '[.labels[]?.name] // []')
-            assignees=$(echo "$issue_json" | jq -c '[.assignees[]?.login] // []')
-            project_status=$(echo "$issue_json" | jq -r '.projectItems[0].fieldValueByName.name // "N/A"')
-            has_triaged=$(echo "$issue_json" | jq '[.labels[]?.name] | any(. == "triaged")' 2>/dev/null || echo "false")
-            has_state=$(echo "$issue_json" | jq '.body | contains("CLAUDE_MAIN_STATE")' 2>/dev/null || echo "false")
+            # Validate issue_json before parsing
+            if ! printf '%s' "$issue_json" | jq -e '.' >/dev/null 2>&1; then
+              echo "::warning::issue_json is not valid JSON in triage, using fallback"
+              issue_json='{}'
+            fi
+
+            state=$(printf '%s' "$issue_json" | jq -r '.state // "UNKNOWN"')
+            labels=$(printf '%s' "$issue_json" | jq -c '[.labels[]?.name] // []')
+            assignees=$(printf '%s' "$issue_json" | jq -c '[.assignees[]?.login] // []')
+            project_status=$(printf '%s' "$issue_json" | jq -r '.projectItems[0].fieldValueByName.name // "N/A"')
+            has_triaged=$(printf '%s' "$issue_json" | jq '[.labels[]?.name] | any(. == "triaged")' 2>/dev/null || echo "false")
+            has_state=$(printf '%s' "$issue_json" | jq '.body | contains("CLAUDE_MAIN_STATE")' 2>/dev/null || echo "false")
 
             # Build state object
             state_obj=$(jq -n \
@@ -326,7 +332,7 @@ jobs:
               }')
 
             echo "::group::⏳ Triage Poll $iteration - ${elapsed}s/${timeout}s"
-            echo "$state_obj" | jq '.'
+            printf '%s\n' "$state_obj" | jq '.'
             echo "::endgroup::"
 
             if [[ "$has_triaged" == "true" ]] || [[ "$has_state" == "true" ]]; then
@@ -418,24 +424,25 @@ jobs:
             local body="$1"
 
             # First, check if there's a history table at all
-            if ! echo "$body" | grep -q '## Iteration History'; then
-              echo "[]"
+            # Use printf to avoid echo interpreting escape sequences
+            if ! printf '%s' "$body" | grep -q '## Iteration History'; then
+              printf '[]'
               return 0
             fi
 
             # Extract just the data rows (skip header with "Time" and separator with "---")
             local rows
-            rows=$(echo "$body" | grep -E '^\|' | grep -v 'Time' | grep -v '\-\-\-' 2>/dev/null || true)
+            rows=$(printf '%s' "$body" | grep -E '^\|' | grep -v 'Time' | grep -v '\-\-\-' 2>/dev/null || true)
 
             if [[ -z "$rows" ]]; then
-              echo "[]"
+              printf '[]'
               return 0
             fi
 
             # Use jq with raw input to parse the pipe-delimited rows
             # If jq fails for any reason, return empty array
             local result
-            result=$(echo "$rows" | jq -Rs '
+            result=$(printf '%s' "$rows" | jq -Rs '
               split("\n") |
               map(select(length > 0)) |
               map(
@@ -452,10 +459,10 @@ jobs:
             ' 2>/dev/null) || result="[]"
 
             # Final safety check - ensure output is valid JSON array
-            if echo "$result" | jq -e 'type == "array"' >/dev/null 2>&1; then
-              echo "$result"
+            if printf '%s' "$result" | jq -e 'type == "array"' >/dev/null 2>&1; then
+              printf '%s' "$result"
             else
-              echo "[]"
+              printf '[]'
             fi
           }
 
@@ -487,14 +494,25 @@ jobs:
               break
             fi
 
-            # Get full issue details
-            issue_json=$(gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --json state,title,body,labels,assignees,projectItems 2>/dev/null || echo '{}')
-            state=$(echo "$issue_json" | jq -r '.state // "UNKNOWN"')
-            title=$(echo "$issue_json" | jq -r '.title // "Unknown"')
-            body=$(echo "$issue_json" | jq -r '.body // ""')
-            labels=$(echo "$issue_json" | jq -c '[.labels[]?.name] // []')
-            assignees=$(echo "$issue_json" | jq -c '[.assignees[]?.login] // []')
-            project_status=$(echo "$issue_json" | jq -r '.projectItems[0].fieldValueByName.name // "N/A"')
+            # Get full issue details - use --jq to get compact JSON output
+            # gh --json outputs pretty-printed JSON which can cause issues when piped through echo
+            issue_json=$(gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --json state,title,body,labels,assignees,projectItems --jq '.' 2>/dev/null || echo '{}')
+
+            # Debug: check if issue_json is valid before parsing
+            if ! printf '%s' "$issue_json" | jq -e '.' >/dev/null 2>&1; then
+              echo "::warning::issue_json is not valid JSON, using fallback"
+              echo "::debug::issue_json length: ${#issue_json}"
+              echo "::debug::issue_json first 100 chars: ${issue_json:0:100}"
+              issue_json='{}'
+            fi
+
+            # Use printf to avoid echo interpreting escape sequences
+            state=$(printf '%s' "$issue_json" | jq -r '.state // "UNKNOWN"')
+            title=$(printf '%s' "$issue_json" | jq -r '.title // "Unknown"')
+            body=$(printf '%s' "$issue_json" | jq -r '.body // ""')
+            labels=$(printf '%s' "$issue_json" | jq -c '[.labels[]?.name] // []')
+            assignees=$(printf '%s' "$issue_json" | jq -c '[.assignees[]?.login] // []')
+            project_status=$(printf '%s' "$issue_json" | jq -r '.projectItems[0].fieldValueByName.name // "N/A"')
 
             # Check for PRs with "ready-to-merge" label and simulate human merge
             # Only merge PRs that are linked to the current test's issues
@@ -508,11 +526,12 @@ jobs:
             fi
 
             # Search for PRs with ready-to-merge label
-            pr_list=$(gh pr list --repo "$GITHUB_REPOSITORY" --label "ready-to-merge" --json number,state,body 2>/dev/null || echo '[]')
-            for pr_row in $(echo "$pr_list" | jq -c '.[]'); do
-              pr_num=$(echo "$pr_row" | jq -r '.number')
-              pr_state=$(echo "$pr_row" | jq -r '.state')
-              pr_body=$(echo "$pr_row" | jq -r '.body // ""')
+            # Use --jq for compact output
+            pr_list=$(gh pr list --repo "$GITHUB_REPOSITORY" --label "ready-to-merge" --json number,state,body --jq '.' 2>/dev/null || echo '[]')
+            for pr_row in $(printf '%s' "$pr_list" | jq -c '.[]'); do
+              pr_num=$(printf '%s' "$pr_row" | jq -r '.number')
+              pr_state=$(printf '%s' "$pr_row" | jq -r '.state')
+              pr_body=$(printf '%s' "$pr_row" | jq -r '.body // ""')
 
               # Check if PR is linked to one of the test issues
               is_test_pr=false
@@ -535,15 +554,15 @@ jobs:
             history=$(parse_history "$body")
 
             # Validate inputs are valid JSON before building state object
-            if ! echo "$labels" | jq -e '.' >/dev/null 2>&1; then
+            if ! printf '%s' "$labels" | jq -e '.' >/dev/null 2>&1; then
               echo "::warning::labels is not valid JSON: $labels"
               labels='[]'
             fi
-            if ! echo "$assignees" | jq -e '.' >/dev/null 2>&1; then
+            if ! printf '%s' "$assignees" | jq -e '.' >/dev/null 2>&1; then
               echo "::warning::assignees is not valid JSON: $assignees"
               assignees='[]'
             fi
-            if ! echo "$history" | jq -e '.' >/dev/null 2>&1; then
+            if ! printf '%s' "$history" | jq -e '.' >/dev/null 2>&1; then
               echo "::warning::history is not valid JSON: $history"
               history='[]'
             fi
@@ -568,7 +587,7 @@ jobs:
 
             # Clear screen and print state (GitHub Actions compatible)
             echo "::group::Poll $iteration - Elapsed: ${elapsed}s"
-            echo "$state_obj" | jq '.'
+            printf '%s\n' "$state_obj" | jq '.'
             echo "::endgroup::"
 
             if [[ "$state" == "CLOSED" ]]; then
@@ -587,7 +606,7 @@ jobs:
 
           # Final state
           echo "::group::Final State"
-          echo "$state_obj" | jq '.'
+          printf '%s\n' "$state_obj" | jq '.'
           echo "::endgroup::"
 
       - name: Verify outcome
