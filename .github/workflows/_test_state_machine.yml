@@ -553,30 +553,29 @@ jobs:
             set -o pipefail
 
             # Compact JSON with jq, handling failures
+            # Keep issue_tmp file around for all subsequent jq operations to avoid shell variable issues
             if [[ -s "$issue_tmp.raw" ]] && jq -c '.' "$issue_tmp.raw" > "$issue_tmp" 2>/dev/null; then
-              issue_json=$(cat "$issue_tmp")
-              echo "Got issue JSON: ${#issue_json} bytes"
+              echo "Got issue JSON: $(wc -c < "$issue_tmp") bytes"
             else
               echo "::warning::gh issue view or jq failed, using fallback"
-              issue_json='{}'
+              echo '{}' > "$issue_tmp"
             fi
-            rm -f "$issue_tmp" "$issue_tmp.raw"
+            rm -f "$issue_tmp.raw"
 
-            # Debug: check if issue_json is valid before parsing
-            if ! printf '%s' "$issue_json" | jq -e '.' >/dev/null 2>&1; then
-              echo "::warning::issue_json is not valid JSON, using fallback"
-              echo "::debug::issue_json length: ${#issue_json}"
-              echo "::debug::issue_json first 100 chars: ${issue_json:0:100}"
-              issue_json='{}'
+            # Debug: check if issue file is valid before parsing
+            if ! jq -e '.' "$issue_tmp" >/dev/null 2>&1; then
+              echo "::warning::issue_tmp is not valid JSON, using fallback"
+              echo "::debug::issue_tmp size: $(wc -c < "$issue_tmp")"
+              echo '{}' > "$issue_tmp"
             fi
 
-            # Use printf to avoid echo interpreting escape sequences
-            state=$(printf '%s' "$issue_json" | jq -r '.state // "UNKNOWN"')
-            title=$(printf '%s' "$issue_json" | jq -r '.title // "Unknown"')
-            body=$(printf '%s' "$issue_json" | jq -r '.body // ""')
-            labels=$(printf '%s' "$issue_json" | jq -c '[.labels[]?.name] // []')
-            assignees=$(printf '%s' "$issue_json" | jq -c '[.assignees[]?.login] // []')
-            project_status=$(printf '%s' "$issue_json" | jq -r '.projectItems[0].fieldValueByName.name // "N/A"')
+            # Parse from file to avoid shell variable interpolation issues
+            state=$(jq -r '.state // "UNKNOWN"' "$issue_tmp")
+            title=$(jq -r '.title // "Unknown"' "$issue_tmp")
+            body=$(jq -r '.body // ""' "$issue_tmp")
+            labels=$(jq -c '[.labels[]?.name] // []' "$issue_tmp")
+            assignees=$(jq -c '[.assignees[]?.login] // []' "$issue_tmp")
+            project_status=$(jq -r '.projectItems[0].fieldValueByName.name // "N/A"' "$issue_tmp")
 
             # Check for PRs with "ready-to-merge" label and simulate human merge
             # Only merge PRs that are linked to the current test's issues
@@ -670,13 +669,18 @@ jobs:
 
             if [[ "$state" == "CLOSED" ]]; then
               echo "✅ Parent #$ISSUE_NUMBER closed - state machine completed"
+              rm -f "$issue_tmp"
               break
             fi
 
             if [[ "$state" == "UNKNOWN" ]]; then
               echo "::warning::Parent #$ISSUE_NUMBER not found - may have been deleted"
+              rm -f "$issue_tmp"
               break
             fi
+
+            # Cleanup temp file at end of iteration
+            rm -f "$issue_tmp"
 
             sleep "$poll_interval" &
             wait $! || break
