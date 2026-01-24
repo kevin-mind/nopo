@@ -296,15 +296,21 @@ jobs:
               exit 1
             fi
 
-            # Get full issue state - pipe through jq -c for compact JSON
+            # Get full issue state
+            # Disable pipefail to prevent script exit on jq failure
             issue_tmp=$(mktemp)
-            if gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
-              --json state,title,body,labels,assignees,projectItems 2>/dev/null | jq -c '.' > "$issue_tmp" 2>/dev/null; then
+            set +o pipefail
+            gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
+              --json state,title,body,labels,assignees,projectItems 2>/dev/null > "$issue_tmp.raw" || true
+            set -o pipefail
+
+            # Compact JSON with jq
+            if [[ -s "$issue_tmp.raw" ]] && jq -c '.' "$issue_tmp.raw" > "$issue_tmp" 2>/dev/null; then
               issue_json=$(cat "$issue_tmp")
             else
               issue_json='{}'
             fi
-            rm -f "$issue_tmp"
+            rm -f "$issue_tmp" "$issue_tmp.raw"
 
             # Validate issue_json before parsing
             if ! printf '%s' "$issue_json" | jq -e '.' >/dev/null 2>&1; then
@@ -539,21 +545,22 @@ jobs:
             fi
 
             # Get full issue details
-            # Pipe through jq -c for compact single-line JSON
-            # Use temp file to avoid subshell variable scoping issues
-            echo "::debug::Starting gh issue view for #$ISSUE_NUMBER"
+            # Disable pipefail for this command to prevent script exit on jq failure
+            echo "Fetching issue #$ISSUE_NUMBER..."
             issue_tmp=$(mktemp)
-            gh_exit_code=0
-            gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --json state,title,body,labels,assignees,projectItems 2>"$issue_tmp.err" | jq -c '.' > "$issue_tmp" 2>&1 || gh_exit_code=$?
+            set +o pipefail
+            gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --json state,title,body,labels,assignees,projectItems 2>/dev/null > "$issue_tmp.raw" || true
+            set -o pipefail
 
-            if [[ $gh_exit_code -eq 0 ]] && [[ -s "$issue_tmp" ]]; then
+            # Compact JSON with jq, handling failures
+            if [[ -s "$issue_tmp.raw" ]] && jq -c '.' "$issue_tmp.raw" > "$issue_tmp" 2>/dev/null; then
               issue_json=$(cat "$issue_tmp")
-              echo "::debug::gh issue view succeeded, got ${#issue_json} bytes"
+              echo "Got issue JSON: ${#issue_json} bytes"
             else
-              echo "::warning::gh issue view failed (exit=$gh_exit_code), stderr: $(cat "$issue_tmp.err" 2>/dev/null || echo 'none')"
+              echo "::warning::gh issue view or jq failed, using fallback"
               issue_json='{}'
             fi
-            rm -f "$issue_tmp" "$issue_tmp.err"
+            rm -f "$issue_tmp" "$issue_tmp.raw"
 
             # Debug: check if issue_json is valid before parsing
             if ! printf '%s' "$issue_json" | jq -e '.' >/dev/null 2>&1; then
