@@ -1,12 +1,13 @@
 stateDiagram-v2
     [*] --> detecting
 
+    note right of detecting: entry: logDetecting
     detecting --> done: isAlreadyDone
     detecting --> blocked: isBlocked
     detecting --> error: isError
     detecting --> mergeQueueLogging: triggeredByMergeQueueEntry
     detecting --> mergeQueueFailureLogging: triggeredByMergeQueueFailure
-    detecting --> mergedLogging: triggeredByPRMerged
+    detecting --> processingMerge: triggeredByPRMerged
     detecting --> deployedStageLogging: triggeredByDeployedStage
     detecting --> deployedProdLogging: triggeredByDeployedProd
     detecting --> triaging: triggeredByTriage
@@ -22,43 +23,68 @@ stateDiagram-v2
     detecting --> initializing: needsSubIssues
     detecting --> orchestrating: hasSubIssues
     detecting --> reviewing: isInReview
-    detecting --> iterating: always
-    triaging --> [*]: final
-    commenting --> [*]: final
-    prReviewing --> [*]: final
-    prResponding --> [*]: final
-    prRespondingHuman --> [*]: final
+    detecting --> iterating
+    note right of triaging: entry: logTriaging, runClaudeTriage
+    triaging --> [*]
+    note right of commenting: entry: logCommenting, runClaudeComment
+    commenting --> [*]
+    note right of prReviewing: entry: logPRReviewing, runClaudePRReview
+    prReviewing --> [*]
+    note right of prResponding: entry: logPRResponding, runClaudePRResponse
+    prResponding --> [*]
+    note right of prRespondingHuman: entry: logPRResponding, runClaudePRHumanResponse
+    prRespondingHuman --> [*]
+    note right of initializing: entry: setInProgress
+    note right of orchestrating: entry: logOrchestrating
     orchestrating --> orchestrationComplete: allPhasesDone
     orchestrating --> orchestrationWaiting: currentPhaseInReview
-    orchestrating --> orchestrationRunning: always
-    orchestrationRunning --> [*]: final
-    orchestrationWaiting --> [*]: final
-    orchestrationComplete --> [*]: final
+    orchestrating --> orchestrationRunning
+    note right of orchestrationRunning: entry: orchestrate
+    orchestrationRunning --> [*]
+    note right of orchestrationWaiting: entry: logWaitingForReview
+    orchestrationWaiting --> [*]
+    note right of orchestrationComplete: entry: allPhasesDone
+    orchestrationComplete --> [*]
     processingCI --> transitioningToReview: readyForReview
-    processingCI --> iterating: ciPassed
-    processingCI --> blocked: shouldBlock
-    processingCI --> iteratingFix: ciFailed
-    processingCI --> iterating: always
-    processingReview --> orchestrating: reviewApproved
-    processingReview --> iterating: reviewRequestedChanges
-    processingReview --> reviewing: always
-    iterating --> transitioningToReview: todosDone
-    iterating --> iterating
-    iterating --> blocked: maxFailuresReached
-    iterating --> iteratingFix
-    iterating --> [*]: final
-    iteratingFix --> transitioningToReview: todosDone
-    iteratingFix --> iterating
-    iteratingFix --> blocked: maxFailuresReached
-    iteratingFix --> iteratingFix
-    iteratingFix --> [*]: final
-    reviewing --> iterating
-    reviewing --> [*]: final
-    blocked --> [*]: final
-    error --> [*]: final
-    mergeQueueLogging --> [*]: final
-    mergeQueueFailureLogging --> [*]: final
-    mergedLogging --> [*]: final
-    deployedStageLogging --> [*]: final
-    deployedProdLogging --> [*]: final
-    done --> [*]: final
+    processingCI --> iterating: ciPassed [clearFailures]
+    processingCI --> blocked: shouldBlock [blockIssue]
+    processingCI --> iteratingFix: ciFailed [handleCIFailure]
+    processingCI --> iterating
+    processingReview --> awaitingMerge: reviewApproved [mergePR]
+    processingReview --> iterating: reviewRequestedChanges [convertToDraft]
+    processingReview --> reviewing
+    note right of awaitingMerge: entry: logAwaitingMerge
+    awaitingMerge --> [*]
+    note right of processingMerge: entry: logMerged, setDone, closeIssue
+    note right of transitioningToReview: entry: transitionToReview
+    note right of iterating: entry: createBranch, setWorking, incrementIteration, logIterating, runClaude, createPR
+    iterating --> transitioningToReview: CI_SUCCESS [todosDone]
+    iterating --> iterating: CI_SUCCESS
+    iterating --> blocked: CI_FAILURE [maxFailuresReached]
+    iterating --> iteratingFix: CI_FAILURE
+    iterating --> [*]
+    note right of iteratingFix: entry: createBranch, incrementIteration, runClaudeFixCI, createPR
+    iteratingFix --> transitioningToReview: CI_SUCCESS [todosDone]
+    iteratingFix --> iterating: CI_SUCCESS
+    iteratingFix --> blocked: CI_FAILURE [maxFailuresReached]
+    iteratingFix --> iteratingFix: CI_FAILURE
+    iteratingFix --> [*]
+    note right of reviewing: entry: logReviewing
+    reviewing --> orchestrating: REVIEW_APPROVED
+    reviewing --> iterating: REVIEW_CHANGES_REQUESTED
+    reviewing --> reviewing: REVIEW_COMMENTED
+    reviewing --> [*]
+    blocked --> [*]
+    error --> [*]
+    note right of mergeQueueLogging: entry: logMergeQueueEntry
+    mergeQueueLogging --> [*]
+    note right of mergeQueueFailureLogging: entry: logMergeQueueFailure
+    mergeQueueFailureLogging --> [*]
+    note right of mergedLogging: entry: logMerged
+    mergedLogging --> [*]
+    note right of deployedStageLogging: entry: logDeployedStage
+    deployedStageLogging --> [*]
+    note right of deployedProdLogging: entry: logDeployedProd
+    deployedProdLogging --> [*]
+    note right of done: entry: setDone, closeIssue
+    done --> [*]

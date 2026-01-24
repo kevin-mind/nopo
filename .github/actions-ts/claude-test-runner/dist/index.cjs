@@ -32703,6 +32703,15 @@ var claudeMachine = setup({
         emitLog({ context: context2 }, "Waiting for review on current phase")
       )
     }),
+    logAwaitingMerge: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitLog(
+          { context: context2 },
+          `PR #${context2.pr?.number} marked ready for merge - awaiting human action`
+        )
+      )
+    }),
     // Status actions
     setWorking: assign({
       pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitSetWorking({ context: context2 }))
@@ -32933,7 +32942,8 @@ var claudeMachine = setup({
           target: "mergeQueueFailureLogging",
           guard: "triggeredByMergeQueueFailure"
         },
-        { target: "mergedLogging", guard: "triggeredByPRMerged" },
+        // PR merged -> process merge (close sub-issue, then orchestrate)
+        { target: "processingMerge", guard: "triggeredByPRMerged" },
         { target: "deployedStageLogging", guard: "triggeredByDeployedStage" },
         { target: "deployedProdLogging", guard: "triggeredByDeployedProd" },
         // Check if this is a triage request
@@ -33134,9 +33144,9 @@ var claudeMachine = setup({
      */
     processingReview: {
       always: [
-        // Approved -> merge PR and orchestrate (will advance phase or complete)
+        // Approved -> mark ready for merge and wait for human to merge
         {
-          target: "orchestrating",
+          target: "awaitingMerge",
           guard: "reviewApproved",
           actions: ["mergePR"]
         },
@@ -33150,6 +33160,22 @@ var claudeMachine = setup({
         // Just commented -> stay in review
         { target: "reviewing" }
       ]
+    },
+    /**
+     * Waiting for human to merge the PR
+     * PR has "ready-to-merge" label, waiting for actual merge
+     */
+    awaitingMerge: {
+      entry: ["logAwaitingMerge"],
+      type: "final"
+    },
+    /**
+     * Processing a merged PR
+     * Closes the sub-issue and advances to orchestrating
+     */
+    processingMerge: {
+      entry: ["logMerged", "setDone", "closeIssue"],
+      always: "orchestrating"
     },
     /**
      * Transitioning to review state

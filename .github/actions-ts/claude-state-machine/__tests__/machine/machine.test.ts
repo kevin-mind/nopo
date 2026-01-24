@@ -215,12 +215,8 @@ describe("claudeMachine", () => {
         },
       });
       const { state } = runMachine(context);
-      // After orchestrating with empty sub-issues, goes to orchestrationComplete
-      expect([
-        "orchestrating",
-        "orchestrationComplete",
-        "orchestrationRunning",
-      ]).toContain(state);
+      // Review approved -> awaitingMerge (waits for human to merge)
+      expect(state).toBe("awaitingMerge");
     });
 
     test("processes review changes requested and iterates", () => {

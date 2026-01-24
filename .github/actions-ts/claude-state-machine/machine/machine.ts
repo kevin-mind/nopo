@@ -192,6 +192,16 @@ export const claudeMachine = setup({
           emitLog({ context }, "Waiting for review on current phase"),
         ),
     }),
+    logAwaitingMerge: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(
+          context.pendingActions,
+          emitLog(
+            { context },
+            `PR #${context.pr?.number} marked ready for merge - awaiting human action`,
+          ),
+        ),
+    }),
 
     // Status actions
     setWorking: assign({
@@ -470,7 +480,8 @@ export const claudeMachine = setup({
           target: "mergeQueueFailureLogging",
           guard: "triggeredByMergeQueueFailure",
         },
-        { target: "mergedLogging", guard: "triggeredByPRMerged" },
+        // PR merged -> process merge (close sub-issue, then orchestrate)
+        { target: "processingMerge", guard: "triggeredByPRMerged" },
         { target: "deployedStageLogging", guard: "triggeredByDeployedStage" },
         { target: "deployedProdLogging", guard: "triggeredByDeployedProd" },
         // Check if this is a triage request
@@ -683,9 +694,9 @@ export const claudeMachine = setup({
      */
     processingReview: {
       always: [
-        // Approved -> merge PR and orchestrate (will advance phase or complete)
+        // Approved -> mark ready for merge and wait for human to merge
         {
-          target: "orchestrating",
+          target: "awaitingMerge",
           guard: "reviewApproved",
           actions: ["mergePR"],
         },
@@ -699,6 +710,24 @@ export const claudeMachine = setup({
         // Just commented -> stay in review
         { target: "reviewing" },
       ],
+    },
+
+    /**
+     * Waiting for human to merge the PR
+     * PR has "ready-to-merge" label, waiting for actual merge
+     */
+    awaitingMerge: {
+      entry: ["logAwaitingMerge"],
+      type: "final",
+    },
+
+    /**
+     * Processing a merged PR
+     * Closes the sub-issue and advances to orchestrating
+     */
+    processingMerge: {
+      entry: ["logMerged", "setDone", "closeIssue"],
+      always: "orchestrating",
     },
 
     /**
