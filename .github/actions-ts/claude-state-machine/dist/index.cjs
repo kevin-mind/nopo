@@ -33802,13 +33802,6 @@ var claudeMachine = setup({
       type: "final"
     },
     /**
-     * Log PR merged event
-     */
-    mergedLogging: {
-      entry: ["logMerged"],
-      type: "final"
-    },
-    /**
      * Log stage deployment event
      */
     deployedStageLogging: {

@@ -868,14 +868,6 @@ export const claudeMachine = setup({
     },
 
     /**
-     * Log PR merged event
-     */
-    mergedLogging: {
-      entry: ["logMerged"],
-      type: "final",
-    },
-
-    /**
      * Log stage deployment event
      */
     deployedStageLogging: {

@@ -37,7 +37,7 @@ stateDiagram-v2
     detecting --> error: isError
     detecting --> mergeQueueLogging: triggeredByMergeQueueEntry
     detecting --> mergeQueueFailureLogging: triggeredByMergeQueueFailure
-    detecting --> mergedLogging: triggeredByPRMerged
+    detecting --> processingMerge: triggeredByPRMerged
     detecting --> deployedStageLogging: triggeredByDeployedStage
     detecting --> deployedProdLogging: triggeredByDeployedProd
     detecting --> triaging: triggeredByTriage
@@ -70,9 +70,10 @@ stateDiagram-v2
     processingCI --> blocked: shouldBlock
     processingCI --> iteratingFix: ciFailed
     processingCI --> iterating: always
-    processingReview --> orchestrating: reviewApproved
+    processingReview --> awaitingMerge: reviewApproved
     processingReview --> iterating: reviewRequestedChanges
     processingReview --> reviewing: always
+    awaitingMerge --> [*]: final
     iterating --> transitioningToReview: todosDone
     iterating --> iterating
     iterating --> blocked: maxFailuresReached
@@ -89,7 +90,6 @@ stateDiagram-v2
     error --> [*]: final
     mergeQueueLogging --> [*]: final
     mergeQueueFailureLogging --> [*]: final
-    mergedLogging --> [*]: final
     deployedStageLogging --> [*]: final
     deployedProdLogging --> [*]: final
     done --> [*]: final
@@ -104,6 +104,8 @@ stateDiagram-v2
 | `orchestrating` | Advances through phases, checks completion | None |
 | `processingCI` | Handles CI completion events | None |
 | `processingReview` | Handles review submission events | None |
+| `awaitingMerge` | PR approved, waiting for human to merge | `logAwaitingMerge` |
+| `processingMerge` | Handles PR merged events | `logMerged`, `setDone`, `closeIssue` |
 | `transitioningToReview` | Transitions from working to review | `transitionToReview` |
 | `iterating` | Claude is working on implementation | `setWorking`, `incrementIteration`, `runClaude` |
 | `iteratingFix` | Claude is fixing CI failures | `incrementIteration`, `runClaudeFixCI` |
