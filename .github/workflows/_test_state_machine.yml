@@ -420,8 +420,10 @@ jobs:
           printf '%s' "$FIXTURE_JSON" | jq -e '.' >/dev/null 2>&1 && echo "Valid JSON: yes" || echo "Valid JSON: NO!"
           echo "::endgroup::"
 
-          timeout=$(printf '%s' "$FIXTURE_JSON" | jq -r '.timeout // 300')
-          poll_interval=$(printf '%s' "$FIXTURE_JSON" | jq -r '.poll_interval // 10')
+          # Parse timeout and poll_interval with explicit error handling
+          timeout=$(printf '%s' "$FIXTURE_JSON" | jq -r '.timeout // 300' 2>&1) || timeout=300
+          poll_interval=$(printf '%s' "$FIXTURE_JSON" | jq -r '.poll_interval // 10' 2>&1) || poll_interval=10
+          echo "::debug::timeout=$timeout, poll_interval=$poll_interval"
 
           # Parse history table from issue body into JSON array
           # Table format: | Time | # | Phase | Action | SHA | Run |
@@ -503,13 +505,19 @@ jobs:
             # Get full issue details
             # Pipe through jq -c for compact single-line JSON
             # Use temp file to avoid subshell variable scoping issues
+            echo "::debug::Starting gh issue view for #$ISSUE_NUMBER"
             issue_tmp=$(mktemp)
-            if gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --json state,title,body,labels,assignees,projectItems 2>/dev/null | jq -c '.' > "$issue_tmp" 2>/dev/null; then
+            gh_exit_code=0
+            gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --json state,title,body,labels,assignees,projectItems 2>"$issue_tmp.err" | jq -c '.' > "$issue_tmp" 2>&1 || gh_exit_code=$?
+
+            if [[ $gh_exit_code -eq 0 ]] && [[ -s "$issue_tmp" ]]; then
               issue_json=$(cat "$issue_tmp")
+              echo "::debug::gh issue view succeeded, got ${#issue_json} bytes"
             else
+              echo "::warning::gh issue view failed (exit=$gh_exit_code), stderr: $(cat "$issue_tmp.err" 2>/dev/null || echo 'none')"
               issue_json='{}'
             fi
-            rm -f "$issue_tmp"
+            rm -f "$issue_tmp" "$issue_tmp.err"
 
             # Debug: check if issue_json is valid before parsing
             if ! printf '%s' "$issue_json" | jq -e '.' >/dev/null 2>&1; then
@@ -585,6 +593,9 @@ jobs:
               history='[]'
             fi
 
+            # Debug: show values before building state object
+            echo "::debug::Building state_obj with labels='$labels' assignees='$assignees' history length=${#history}"
+
             # Build state object
             state_obj=$(jq -n \
               --arg elapsed "${elapsed}s" \
@@ -601,7 +612,13 @@ jobs:
                 meta: { elapsed: $elapsed, timeout: $timeout, poll: ($poll | tonumber) },
                 issue: { number: $issue, title: $title, state: $state, status: $status, labels: $labels, assignees: $assignees },
                 history: $history
-              }')
+              }' 2>&1) || {
+                echo "::error::Failed to build state_obj"
+                echo "::debug::labels=$labels"
+                echo "::debug::assignees=$assignees"
+                echo "::debug::history=$history"
+                state_obj='{}'
+              }
 
             # Clear screen and print state (GitHub Actions compatible)
             echo "::group::Poll $iteration - Elapsed: ${elapsed}s"
