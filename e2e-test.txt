@@ -3,3 +3,4 @@
 # Each test run adds a timestamped line below.
 
 2026-01-24T06:13:00Z - Test run: issue-3953-phase-1-iter-0
+2026-01-24T19:50:46Z - Test run: issue-3966-phase-1-iter-0
