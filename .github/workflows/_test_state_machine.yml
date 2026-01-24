@@ -412,18 +412,29 @@ jobs:
           FIXTURE_JSON: ${{ needs.load-fixture.outputs.fixture }}
           GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
         run: |
-          # Debug: check if FIXTURE_JSON is valid
+          # Write FIXTURE_JSON to a temp file to avoid pipeline/subshell issues
+          fixture_file=$(mktemp)
+          printf '%s' "$FIXTURE_JSON" > "$fixture_file"
+
+          # Debug: check if fixture file is valid JSON
           echo "::group::Debug FIXTURE_JSON"
-          echo "Length: ${#FIXTURE_JSON}"
-          echo "Line count: $(printf '%s' "$FIXTURE_JSON" | wc -l)"
-          echo "First 100 chars: ${FIXTURE_JSON:0:100}..."
-          printf '%s' "$FIXTURE_JSON" | jq -e '.' >/dev/null 2>&1 && echo "Valid JSON: yes" || echo "Valid JSON: NO!"
+          echo "File size: $(wc -c < "$fixture_file") bytes"
+          echo "First 100 chars: $(head -c 100 "$fixture_file")..."
+          if jq -e '.' "$fixture_file" >/dev/null 2>&1; then
+            echo "Valid JSON: yes"
+          else
+            echo "Valid JSON: NO!"
+            echo "Error: $(jq '.' "$fixture_file" 2>&1 || true)"
+          fi
           echo "::endgroup::"
 
-          # Parse timeout and poll_interval with explicit error handling
-          timeout=$(printf '%s' "$FIXTURE_JSON" | jq -r '.timeout // 300' 2>&1) || timeout=300
-          poll_interval=$(printf '%s' "$FIXTURE_JSON" | jq -r '.poll_interval // 10' 2>&1) || poll_interval=10
+          # Parse timeout and poll_interval from file
+          timeout=$(jq -r '.timeout // 300' "$fixture_file" 2>&1) || timeout=300
+          poll_interval=$(jq -r '.poll_interval // 10' "$fixture_file" 2>&1) || poll_interval=10
           echo "::debug::timeout=$timeout, poll_interval=$poll_interval"
+
+          # Cleanup fixture file (keep reference for debugging if needed)
+          # rm -f "$fixture_file"
 
           # Parse history table from issue body into JSON array
           # Table format: | Time | # | Phase | Action | SHA | Run |
