@@ -332,8 +332,8 @@ jobs:
           PROMPT_VARS: ${{ toJson(matrix.action.promptVars) }}
           AGENT_NOTES: ${{ steps.fetch-notes.outputs.notes }}
         run: |
-          # Add AGENT_NOTES to the prompt variables
-          merged=$(echo "$PROMPT_VARS" | jq --arg notes "${AGENT_NOTES:-No previous agent notes found.}" '. + {AGENT_NOTES: $notes}')
+          # Add AGENT_NOTES to the prompt variables (use -c for compact single-line JSON)
+          merged=$(echo "$PROMPT_VARS" | jq -c --arg notes "${AGENT_NOTES:-No previous agent notes found.}" '. + {AGENT_NOTES: $notes}')
           echo "merged=$merged" >> $GITHUB_OUTPUT
 
       # Execute runClaude actions via the run-claude action for rich logging
