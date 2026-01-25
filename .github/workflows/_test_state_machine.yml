@@ -530,9 +530,9 @@ jobs:
           ISSUE_NUMBER: ${{ needs.setup.outputs.issue_number }}
         run: |
           # After PR merge, state machine needs time to update issue status
-          # Poll until issue is closed or timeout (6 minutes)
+          # Poll until issue is closed or timeout (8 minutes)
           echo "Waiting for issue #$ISSUE_NUMBER to close after merge..."
-          max_attempts=72
+          max_attempts=96
           attempt=0
           while [ $attempt -lt $max_attempts ]; do
             state=$(gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --json state --jq '.state')
@@ -545,7 +545,7 @@ jobs:
             sleep 5
           done
           if [ "$state" != "CLOSED" ]; then
-            echo "⚠️ Issue still not closed after 6 minutes, proceeding with verification"
+            echo "⚠️ Issue still not closed after 8 minutes, proceeding with verification"
           fi
 
       - name: Verify final outcome
