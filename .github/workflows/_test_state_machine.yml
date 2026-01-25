@@ -524,6 +524,30 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm run build
 
+      - name: Wait for issue state to settle
+        env:
+          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
+          ISSUE_NUMBER: ${{ needs.setup.outputs.issue_number }}
+        run: |
+          # After PR merge, state machine needs time to update issue status
+          # Poll until issue is closed or timeout (2 minutes)
+          echo "Waiting for issue #$ISSUE_NUMBER to close after merge..."
+          max_attempts=24
+          attempt=0
+          while [ $attempt -lt $max_attempts ]; do
+            state=$(gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --json state --jq '.state')
+            echo "Attempt $((attempt + 1))/$max_attempts: Issue state = $state"
+            if [ "$state" = "CLOSED" ]; then
+              echo "✅ Issue closed"
+              break
+            fi
+            attempt=$((attempt + 1))
+            sleep 5
+          done
+          if [ "$state" != "CLOSED" ]; then
+            echo "⚠️ Issue still not closed after 2 minutes, proceeding with verification"
+          fi
+
       - name: Verify final outcome
         id: verify
         uses: ./.github/actions-ts/claude-test-helper
