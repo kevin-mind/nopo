@@ -318,7 +318,7 @@ jobs:
           fixture_json: ${{ needs.load-fixture.outputs.fixture }}
           github_token: ${{ secrets.NOPO_BOT_PAT }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
-          timeout: '300'
+          timeout: '500'
           poll_interval: '10'
 
       - name: Get sub-issues created by triage
