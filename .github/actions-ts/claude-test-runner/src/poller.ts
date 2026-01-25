@@ -1,7 +1,8 @@
 /**
- * Exponential backoff polling utility
+ * Exponential backoff polling utility with cancellation support
  */
 
+import * as core from "@actions/core";
 import type { PollerConfig, PollResult } from "./types.js";
 
 /**
@@ -15,11 +16,55 @@ export const DEFAULT_POLLER_CONFIG: PollerConfig = {
   timeoutMs: 300000, // 5 minutes default
 };
 
+// Global abort controller for graceful shutdown
+let globalAbortController: AbortController | null = null;
+
 /**
- * Sleep for a specified duration
+ * Setup signal handlers for graceful cancellation
  */
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+export function setupCancellationHandlers(): AbortController {
+  globalAbortController = new AbortController();
+
+  const handleSignal = (signal: string) => {
+    core.info(`\n⚠️  Received ${signal} signal - cancelling polling...`);
+    globalAbortController?.abort();
+  };
+
+  // Handle SIGINT (Ctrl+C) and SIGTERM (workflow cancellation)
+  process.on("SIGINT", () => handleSignal("SIGINT"));
+  process.on("SIGTERM", () => handleSignal("SIGTERM"));
+
+  return globalAbortController;
+}
+
+/**
+ * Get the global abort signal
+ */
+function getAbortSignal(): AbortSignal | undefined {
+  return globalAbortController?.signal;
+}
+
+/**
+ * Sleep for a specified duration with cancellation support
+ */
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new Error("Polling cancelled"));
+      return;
+    }
+
+    const timeoutId = setTimeout(resolve, ms);
+
+    signal?.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timeoutId);
+        reject(new Error("Polling cancelled"));
+      },
+      { once: true },
+    );
+  });
 }
 
 /**
@@ -44,12 +89,13 @@ function calculateNextInterval(
 }
 
 /**
- * Poll until a condition is met or timeout
+ * Poll until a condition is met, timeout, or cancellation
  *
  * @param fetchFn Function to fetch data
  * @param conditionFn Function to check if condition is met
  * @param config Polling configuration
  * @param onPoll Optional callback after each poll (for logging)
+ * @param signal Optional AbortSignal for cancellation
  * @returns Poll result with success status and final data
  */
 export async function pollUntil<T>(
@@ -57,18 +103,30 @@ export async function pollUntil<T>(
   conditionFn: (data: T) => boolean,
   config: Partial<PollerConfig> = {},
   onPoll?: (data: T, attempt: number, elapsed: number) => void,
+  signal?: AbortSignal,
 ): Promise<PollResult<T>> {
   const fullConfig: PollerConfig = {
     ...DEFAULT_POLLER_CONFIG,
     ...config,
   };
 
+  // Use provided signal or global signal
+  const abortSignal = signal || getAbortSignal();
+
   const startTime = Date.now();
   let attempts = 0;
   let interval = fullConfig.initialIntervalMs;
   let lastData: T | null = null;
+  let cancelled = false;
 
   while (Date.now() - startTime < fullConfig.timeoutMs) {
+    // Check for cancellation
+    if (abortSignal?.aborted) {
+      cancelled = true;
+      core.info("🛑 Polling cancelled by signal");
+      break;
+    }
+
     attempts++;
 
     try {
@@ -100,9 +158,23 @@ export async function pollUntil<T>(
         break;
       }
 
-      // Sleep for the shorter of interval or remaining time
-      await sleep(Math.min(sleepTime, remainingTime));
+      // Sleep for the shorter of interval or remaining time (with cancellation support)
+      try {
+        await sleep(Math.min(sleepTime, remainingTime), abortSignal);
+      } catch {
+        // Sleep was cancelled
+        cancelled = true;
+        core.info("🛑 Polling cancelled during sleep");
+        break;
+      }
     } catch {
+      // Check if this was a cancellation
+      if (abortSignal?.aborted) {
+        cancelled = true;
+        core.info("🛑 Polling cancelled");
+        break;
+      }
+
       // On error, continue polling with backoff
       const sleepTime = calculateNextInterval(interval, fullConfig);
       interval = sleepTime;
@@ -112,16 +184,22 @@ export async function pollUntil<T>(
         break;
       }
 
-      await sleep(Math.min(sleepTime, remainingTime));
+      try {
+        await sleep(Math.min(sleepTime, remainingTime), abortSignal);
+      } catch {
+        cancelled = true;
+        break;
+      }
     }
   }
 
-  // Timeout reached
+  // Return result
   return {
     success: false,
     data: lastData,
     attempts,
     totalTimeMs: Date.now() - startTime,
+    cancelled,
   };
 }
 

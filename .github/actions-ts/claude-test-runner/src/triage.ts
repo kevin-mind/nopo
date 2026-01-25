@@ -337,16 +337,24 @@ export async function waitForTriage(
     (state, attempt, elapsed) => {
       const check = (condition: boolean) => (condition ? "✅" : "❌");
 
-      core.info(`\n━━━ Poll ${attempt} (${Math.round(elapsed / 1000)}s elapsed) ━━━`);
-      core.info(`  Triaged label: ${check(state.hasTriagedLabel)} ${state.hasTriagedLabel ? "present" : "MISSING"}`);
-      core.info(`  Labels (${state.labels.length}): ${state.labels.length > 0 ? state.labels.join(", ") : "(none)"}`);
+      core.info(
+        `\n━━━ Poll ${attempt} (${Math.round(elapsed / 1000)}s elapsed) ━━━`,
+      );
+      core.info(
+        `  Triaged label: ${check(state.hasTriagedLabel)} ${state.hasTriagedLabel ? "present" : "MISSING"}`,
+      );
+      core.info(
+        `  Labels (${state.labels.length}): ${state.labels.length > 0 ? state.labels.join(", ") : "(none)"}`,
+      );
       core.info(`  Issue state: ${state.issueState}`);
       core.info(`  Sub-issues: ${state.subIssueCount}`);
       core.info(`  Project fields:`);
       core.info(`    Status: ${state.projectFields.Status || "(not set)"}`);
       core.info(`    Priority: ${state.projectFields.Priority || "(not set)"}`);
       core.info(`    Size: ${state.projectFields.Size || "(not set)"}`);
-      core.info(`    Estimate: ${state.projectFields.Estimate !== undefined ? state.projectFields.Estimate : "(not set)"}`);
+      core.info(
+        `    Estimate: ${state.projectFields.Estimate !== undefined ? state.projectFields.Estimate : "(not set)"}`,
+      );
 
       if (!state.hasTriagedLabel) {
         core.info(`  ⏳ Waiting for "triaged" label...`);
@@ -360,26 +368,44 @@ export async function waitForTriage(
     const finalState = pollResult.data;
 
     // Log detailed failure state
-    core.error(`\n╔══════════════════════════════════════════════════════════════╗`);
-    core.error(`║  TRIAGE TIMEOUT - Final State                                 ║`);
-    core.error(`╚══════════════════════════════════════════════════════════════╝`);
-    core.error(`  Duration: ${Math.round(duration / 1000)}s (timeout: ${timeoutMs / 1000}s)`);
-    core.error(`  Triaged label: ${finalState?.hasTriagedLabel ? "✅ present" : "❌ MISSING"}`);
+    core.error(
+      `\n╔══════════════════════════════════════════════════════════════╗`,
+    );
+    core.error(
+      `║  TRIAGE TIMEOUT - Final State                                 ║`,
+    );
+    core.error(
+      `╚══════════════════════════════════════════════════════════════╝`,
+    );
+    core.error(
+      `  Duration: ${Math.round(duration / 1000)}s (timeout: ${timeoutMs / 1000}s)`,
+    );
+    core.error(
+      `  Triaged label: ${finalState?.hasTriagedLabel ? "✅ present" : "❌ MISSING"}`,
+    );
     core.error(`  Labels: ${finalState?.labels?.join(", ") || "(none)"}`);
     core.error(`  Issue state: ${finalState?.issueState || "unknown"}`);
     core.error(`  Sub-issues: ${finalState?.subIssueCount || 0}`);
     core.error(`  Project fields:`);
-    core.error(`    Status: ${finalState?.projectFields?.Status || "(not set)"}`);
-    core.error(`    Priority: ${finalState?.projectFields?.Priority || "(not set)"}`);
+    core.error(
+      `    Status: ${finalState?.projectFields?.Status || "(not set)"}`,
+    );
+    core.error(
+      `    Priority: ${finalState?.projectFields?.Priority || "(not set)"}`,
+    );
     core.error(`    Size: ${finalState?.projectFields?.Size || "(not set)"}`);
-    core.error(`    Estimate: ${finalState?.projectFields?.Estimate !== undefined ? finalState.projectFields.Estimate : "(not set)"}`);
+    core.error(
+      `    Estimate: ${finalState?.projectFields?.Estimate !== undefined ? finalState.projectFields.Estimate : "(not set)"}`,
+    );
 
     return {
       success: false,
       labels: finalState?.labels || [],
       project_fields: finalState?.projectFields || {},
       sub_issue_count: finalState?.subIssueCount || 0,
-      errors: ["Triage did not complete within timeout - 'triaged' label was never added"],
+      errors: [
+        "Triage did not complete within timeout - 'triaged' label was never added",
+      ],
       duration_ms: duration,
     };
   }
@@ -390,8 +416,12 @@ export async function waitForTriage(
   const errors = verifyTriageExpectations(state, expectations);
 
   // Log final state summary
-  core.info(`\n╔══════════════════════════════════════════════════════════════╗`);
-  core.info(`║  TRIAGE ${errors.length === 0 ? "COMPLETE ✅" : "FAILED ❌"}                                         ║`);
+  core.info(
+    `\n╔══════════════════════════════════════════════════════════════╗`,
+  );
+  core.info(
+    `║  TRIAGE ${errors.length === 0 ? "COMPLETE ✅" : "FAILED ❌"}                                         ║`,
+  );
   core.info(`╚══════════════════════════════════════════════════════════════╝`);
   core.info(`  Duration: ${Math.round(duration / 1000)}s`);
   core.info(`  Labels: ${state.labels.join(", ")}`);
@@ -400,7 +430,9 @@ export async function waitForTriage(
   core.info(`    Status: ${state.projectFields.Status || "(not set)"}`);
   core.info(`    Priority: ${state.projectFields.Priority || "(not set)"}`);
   core.info(`    Size: ${state.projectFields.Size || "(not set)"}`);
-  core.info(`    Estimate: ${state.projectFields.Estimate !== undefined ? state.projectFields.Estimate : "(not set)"}`);
+  core.info(
+    `    Estimate: ${state.projectFields.Estimate !== undefined ? state.projectFields.Estimate : "(not set)"}`,
+  );
 
   if (errors.length > 0) {
     core.error(`\n  Verification errors (${errors.length}):`);

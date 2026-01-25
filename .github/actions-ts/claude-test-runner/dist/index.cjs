@@ -17586,12 +17586,12 @@ var require_lib = __commonJS({
             throw new Error("Client has already been disposed.");
           }
           const parsedUrl = new URL(requestUrl);
-          let info5 = this._prepareRequest(verb, parsedUrl, headers);
+          let info6 = this._prepareRequest(verb, parsedUrl, headers);
           const maxTries = this._allowRetries && RetryableHttpVerbs.includes(verb) ? this._maxRetries + 1 : 1;
           let numTries = 0;
           let response;
           do {
-            response = yield this.requestRaw(info5, data);
+            response = yield this.requestRaw(info6, data);
             if (response && response.message && response.message.statusCode === HttpCodes.Unauthorized) {
               let authenticationHandler;
               for (const handler of this.handlers) {
@@ -17601,7 +17601,7 @@ var require_lib = __commonJS({
                 }
               }
               if (authenticationHandler) {
-                return authenticationHandler.handleAuthentication(this, info5, data);
+                return authenticationHandler.handleAuthentication(this, info6, data);
               } else {
                 return response;
               }
@@ -17624,8 +17624,8 @@ var require_lib = __commonJS({
                   }
                 }
               }
-              info5 = this._prepareRequest(verb, parsedRedirectUrl, headers);
-              response = yield this.requestRaw(info5, data);
+              info6 = this._prepareRequest(verb, parsedRedirectUrl, headers);
+              response = yield this.requestRaw(info6, data);
               redirectsRemaining--;
             }
             if (!response.message.statusCode || !HttpResponseRetryCodes.includes(response.message.statusCode)) {
@@ -17654,7 +17654,7 @@ var require_lib = __commonJS({
        * @param info
        * @param data
        */
-      requestRaw(info5, data) {
+      requestRaw(info6, data) {
         return __awaiter(this, void 0, void 0, function* () {
           return new Promise((resolve, reject) => {
             function callbackForResult(err, res) {
@@ -17666,7 +17666,7 @@ var require_lib = __commonJS({
                 resolve(res);
               }
             }
-            this.requestRawWithCallback(info5, data, callbackForResult);
+            this.requestRawWithCallback(info6, data, callbackForResult);
           });
         });
       }
@@ -17676,12 +17676,12 @@ var require_lib = __commonJS({
        * @param data
        * @param onResult
        */
-      requestRawWithCallback(info5, data, onResult) {
+      requestRawWithCallback(info6, data, onResult) {
         if (typeof data === "string") {
-          if (!info5.options.headers) {
-            info5.options.headers = {};
+          if (!info6.options.headers) {
+            info6.options.headers = {};
           }
-          info5.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
+          info6.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
         }
         let callbackCalled = false;
         function handleResult2(err, res) {
@@ -17690,7 +17690,7 @@ var require_lib = __commonJS({
             onResult(err, res);
           }
         }
-        const req = info5.httpModule.request(info5.options, (msg) => {
+        const req = info6.httpModule.request(info6.options, (msg) => {
           const res = new HttpClientResponse(msg);
           handleResult2(void 0, res);
         });
@@ -17702,7 +17702,7 @@ var require_lib = __commonJS({
           if (socket) {
             socket.end();
           }
-          handleResult2(new Error(`Request timeout: ${info5.options.path}`));
+          handleResult2(new Error(`Request timeout: ${info6.options.path}`));
         });
         req.on("error", function(err) {
           handleResult2(err);
@@ -17738,27 +17738,27 @@ var require_lib = __commonJS({
         return this._getProxyAgentDispatcher(parsedUrl, proxyUrl);
       }
       _prepareRequest(method, requestUrl, headers) {
-        const info5 = {};
-        info5.parsedUrl = requestUrl;
-        const usingSsl = info5.parsedUrl.protocol === "https:";
-        info5.httpModule = usingSsl ? https : http;
+        const info6 = {};
+        info6.parsedUrl = requestUrl;
+        const usingSsl = info6.parsedUrl.protocol === "https:";
+        info6.httpModule = usingSsl ? https : http;
         const defaultPort = usingSsl ? 443 : 80;
-        info5.options = {};
-        info5.options.host = info5.parsedUrl.hostname;
-        info5.options.port = info5.parsedUrl.port ? parseInt(info5.parsedUrl.port) : defaultPort;
-        info5.options.path = (info5.parsedUrl.pathname || "") + (info5.parsedUrl.search || "");
-        info5.options.method = method;
-        info5.options.headers = this._mergeHeaders(headers);
+        info6.options = {};
+        info6.options.host = info6.parsedUrl.hostname;
+        info6.options.port = info6.parsedUrl.port ? parseInt(info6.parsedUrl.port) : defaultPort;
+        info6.options.path = (info6.parsedUrl.pathname || "") + (info6.parsedUrl.search || "");
+        info6.options.method = method;
+        info6.options.headers = this._mergeHeaders(headers);
         if (this.userAgent != null) {
-          info5.options.headers["user-agent"] = this.userAgent;
+          info6.options.headers["user-agent"] = this.userAgent;
         }
-        info5.options.agent = this._getAgent(info5.parsedUrl);
+        info6.options.agent = this._getAgent(info6.parsedUrl);
         if (this.handlers) {
           for (const handler of this.handlers) {
-            handler.prepareRequest(info5.options);
+            handler.prepareRequest(info6.options);
           }
         }
-        return info5;
+        return info6;
       }
       _mergeHeaders(headers) {
         if (this.requestOptions && this.requestOptions.headers) {
@@ -19748,10 +19748,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.notice = notice;
-    function info5(message) {
+    function info6(message) {
       process.stdout.write(message + os.EOL);
     }
-    exports2.info = info5;
+    exports2.info = info6;
     function startGroup(name) {
       (0, command_1.issue)("group", name);
     }
@@ -23883,7 +23883,7 @@ var require_github = __commonJS({
 });
 
 // claude-test-runner/index.ts
-var core5 = __toESM(require_core(), 1);
+var core6 = __toESM(require_core(), 1);
 var github = __toESM(require_github(), 1);
 
 // lib/index.ts
@@ -23905,9 +23905,10 @@ function setOutputs(outputs) {
 }
 
 // claude-test-runner/src/runner.ts
-var core2 = __toESM(require_core(), 1);
+var core3 = __toESM(require_core(), 1);
 
 // claude-test-runner/src/poller.ts
+var core2 = __toESM(require_core(), 1);
 var DEFAULT_POLLER_CONFIG = {
   initialIntervalMs: 5e3,
   maxIntervalMs: 6e4,
@@ -23916,8 +23917,37 @@ var DEFAULT_POLLER_CONFIG = {
   timeoutMs: 3e5
   // 5 minutes default
 };
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+var globalAbortController = null;
+function setupCancellationHandlers() {
+  globalAbortController = new AbortController();
+  const handleSignal = (signal) => {
+    core2.info(`
+\u26A0\uFE0F  Received ${signal} signal - cancelling polling...`);
+    globalAbortController?.abort();
+  };
+  process.on("SIGINT", () => handleSignal("SIGINT"));
+  process.on("SIGTERM", () => handleSignal("SIGTERM"));
+  return globalAbortController;
+}
+function getAbortSignal() {
+  return globalAbortController?.signal;
+}
+function sleep(ms, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new Error("Polling cancelled"));
+      return;
+    }
+    const timeoutId = setTimeout(resolve, ms);
+    signal?.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timeoutId);
+        reject(new Error("Polling cancelled"));
+      },
+      { once: true }
+    );
+  });
 }
 function calculateNextInterval(currentInterval, config) {
   let nextInterval = currentInterval * config.multiplier;
@@ -23927,16 +23957,23 @@ function calculateNextInterval(currentInterval, config) {
   nextInterval = Math.max(1e3, nextInterval + jitter);
   return nextInterval;
 }
-async function pollUntil(fetchFn, conditionFn, config = {}, onPoll) {
+async function pollUntil(fetchFn, conditionFn, config = {}, onPoll, signal) {
   const fullConfig = {
     ...DEFAULT_POLLER_CONFIG,
     ...config
   };
+  const abortSignal = signal || getAbortSignal();
   const startTime = Date.now();
   let attempts = 0;
   let interval = fullConfig.initialIntervalMs;
   let lastData = null;
+  let cancelled = false;
   while (Date.now() - startTime < fullConfig.timeoutMs) {
+    if (abortSignal?.aborted) {
+      cancelled = true;
+      core2.info("\u{1F6D1} Polling cancelled by signal");
+      break;
+    }
     attempts++;
     try {
       const data = await fetchFn();
@@ -23958,22 +23995,39 @@ async function pollUntil(fetchFn, conditionFn, config = {}, onPoll) {
       if (remainingTime <= 0) {
         break;
       }
-      await sleep(Math.min(sleepTime, remainingTime));
+      try {
+        await sleep(Math.min(sleepTime, remainingTime), abortSignal);
+      } catch {
+        cancelled = true;
+        core2.info("\u{1F6D1} Polling cancelled during sleep");
+        break;
+      }
     } catch {
+      if (abortSignal?.aborted) {
+        cancelled = true;
+        core2.info("\u{1F6D1} Polling cancelled");
+        break;
+      }
       const sleepTime = calculateNextInterval(interval, fullConfig);
       interval = sleepTime;
       const remainingTime = fullConfig.timeoutMs - (Date.now() - startTime);
       if (remainingTime <= 0) {
         break;
       }
-      await sleep(Math.min(sleepTime, remainingTime));
+      try {
+        await sleep(Math.min(sleepTime, remainingTime), abortSignal);
+      } catch {
+        cancelled = true;
+        break;
+      }
     }
   }
   return {
     success: false,
     data: lastData,
     attempts,
-    totalTimeMs: Date.now() - startTime
+    totalTimeMs: Date.now() - startTime,
+    cancelled
   };
 }
 
@@ -34076,14 +34130,14 @@ async function runTest(config) {
   const phases = [];
   const startTime = Date.now();
   const timeoutMs = (fixture.timeout ?? 300) * 1e3;
-  core2.info(`Starting test run for issue #${issueNumber}`);
-  core2.info(`Timeout: ${timeoutMs / 1e3} seconds`);
+  core3.info(`Starting test run for issue #${issueNumber}`);
+  core3.info(`Timeout: ${timeoutMs / 1e3} seconds`);
   let iterationCount = 0;
   const maxIterations = 100;
   while (iterationCount < maxIterations) {
     iterationCount++;
     const phaseStartTime = Date.now();
-    core2.info(`
+    core3.info(`
 === Iteration ${iterationCount} ===`);
     const githubState = await fetchGitHubState(
       octokit,
@@ -34093,19 +34147,19 @@ async function runTest(config) {
       projectNumber,
       botUsername
     );
-    core2.info(`Current status: ${githubState.projectStatus || "unknown"}`);
-    core2.info(
+    core3.info(`Current status: ${githubState.projectStatus || "unknown"}`);
+    core3.info(
       `Iteration: ${githubState.iteration}, Failures: ${githubState.failures}`
     );
-    core2.info(`Bot assigned: ${githubState.botAssigned}`);
-    core2.info(
+    core3.info(`Bot assigned: ${githubState.botAssigned}`);
+    core3.info(
       `PR: ${githubState.prNumber ? `#${githubState.prNumber} (${githubState.prState})` : "none"}`
     );
     if (githubState.prLabels.length > 0) {
-      core2.info(`PR labels: ${githubState.prLabels.join(", ")}`);
+      core3.info(`PR labels: ${githubState.prLabels.join(", ")}`);
     }
     if (githubState.prNumber && githubState.prState === "OPEN" && githubState.prLabels.includes("ready-to-merge")) {
-      core2.info(
+      core3.info(
         `PR #${githubState.prNumber} has "ready-to-merge" label - simulating human merge action`
       );
       const merged = await simulateMerge(
@@ -34115,15 +34169,15 @@ async function runTest(config) {
         githubState.prNumber
       );
       if (merged) {
-        core2.info(`Merge initiated for PR #${githubState.prNumber}`);
+        core3.info(`Merge initiated for PR #${githubState.prNumber}`);
         await new Promise((resolve) => setTimeout(resolve, 5e3));
         continue;
       } else {
-        core2.warning(`Failed to merge PR #${githubState.prNumber}`);
+        core3.warning(`Failed to merge PR #${githubState.prNumber}`);
       }
     }
     if (githubState.projectStatus === "Done") {
-      core2.info("Issue reached Done status - test complete!");
+      core3.info("Issue reached Done status - test complete!");
       return {
         status: "done",
         phases,
@@ -34141,8 +34195,8 @@ async function runTest(config) {
       const context3 = buildContextFromState(githubState, owner, repo);
       const predicted2 = predictNextState(context3);
       const diagnosis2 = diagnoseFailure(predicted2, githubState, workflowRuns2);
-      core2.warning("Issue is blocked - circuit breaker triggered");
-      core2.warning(formatDiagnosis(diagnosis2));
+      core3.warning("Issue is blocked - circuit breaker triggered");
+      core3.warning(formatDiagnosis(diagnosis2));
       return {
         status: "error",
         suggestedFix: diagnosis2.suggestedFix,
@@ -34154,15 +34208,15 @@ async function runTest(config) {
     }
     const context2 = buildContextFromState(githubState, owner, repo);
     const predicted = predictNextState(context2);
-    core2.info(`Predicted state: ${predicted.expectedState}`);
-    core2.info(`Expected status: ${predicted.expectedStatus || "unchanged"}`);
-    core2.info(`Description: ${predicted.description}`);
+    core3.info(`Predicted state: ${predicted.expectedState}`);
+    core3.info(`Expected status: ${predicted.expectedStatus || "unchanged"}`);
+    core3.info(`Description: ${predicted.description}`);
     if (predicted.triggersNeeded.length > 0) {
-      core2.info(`Waiting for triggers: ${predicted.triggersNeeded.join(", ")}`);
+      core3.info(`Waiting for triggers: ${predicted.triggersNeeded.join(", ")}`);
     }
     if (predicted.expectedStatus && stateMatchesExpected(githubState, predicted.expectedStatus)) {
       if (isTerminalState(predicted.expectedState)) {
-        core2.info(`Reached terminal state: ${predicted.expectedState}`);
+        core3.info(`Reached terminal state: ${predicted.expectedState}`);
         phases.push({
           phase: iterationCount,
           startState: githubState.projectStatus || "unknown",
@@ -34182,10 +34236,10 @@ async function runTest(config) {
     }
     const remainingTime = timeoutMs - (Date.now() - startTime);
     if (remainingTime <= 0) {
-      core2.warning("Overall timeout reached");
+      core3.warning("Overall timeout reached");
       break;
     }
-    core2.info(
+    core3.info(
       `Polling for state change (max ${Math.round(remainingTime / 1e3)}s)...`
     );
     const pollResult = await pollUntil(
@@ -34217,14 +34271,14 @@ async function runTest(config) {
         timeoutMs: Math.min(remainingTime, predicted.estimatedWaitMs * 2)
       },
       (state, attempt, elapsed) => {
-        core2.debug(
+        core3.debug(
           `Poll attempt ${attempt} (${Math.round(elapsed / 1e3)}s): status=${state.projectStatus}, iteration=${state.iteration}`
         );
       }
     );
     if (pollResult.success && pollResult.data) {
       const newState = pollResult.data;
-      core2.info(
+      core3.info(
         `State changed: ${githubState.projectStatus} -> ${newState.projectStatus}`
       );
       phases.push({
@@ -34236,7 +34290,7 @@ async function runTest(config) {
       });
       continue;
     }
-    core2.warning(`Poll timed out after ${pollResult.attempts} attempts`);
+    core3.warning(`Poll timed out after ${pollResult.attempts} attempts`);
     const workflowRuns = await fetchRecentWorkflowRuns(
       octokit,
       owner,
@@ -34244,7 +34298,7 @@ async function runTest(config) {
       issueNumber
     );
     const diagnosis = diagnoseFailure(predicted, githubState, workflowRuns);
-    core2.warning(formatDiagnosis(diagnosis));
+    core3.warning(formatDiagnosis(diagnosis));
     phases.push({
       phase: iterationCount,
       startState: githubState.projectStatus || "unknown",
@@ -34319,7 +34373,7 @@ async function waitForStatus(config, targetStatus) {
   } = config;
   const startTime = Date.now();
   const timeoutMs = (fixture.timeout ?? 300) * 1e3;
-  core2.info(
+  core3.info(
     `Waiting for issue #${issueNumber} to reach status: ${targetStatus}`
   );
   const pollResult = await pollUntil(
@@ -34337,7 +34391,7 @@ async function waitForStatus(config, targetStatus) {
       timeoutMs
     },
     (state, attempt, elapsed) => {
-      core2.info(
+      core3.info(
         `Poll ${attempt} (${Math.round(elapsed / 1e3)}s): status=${state.projectStatus}`
       );
     }
@@ -34588,7 +34642,7 @@ function formatValidationResult(name, result) {
 }
 
 // claude-test-runner/src/triage.ts
-var core3 = __toESM(require_core(), 1);
+var core4 = __toESM(require_core(), 1);
 var GET_ISSUE_WITH_PROJECT_QUERY = `
 query GetIssueWithProject($owner: String!, $repo: String!, $number: Int!, $projectNumber: Int!) {
   repository(owner: $owner, name: $repo) {
@@ -34761,8 +34815,8 @@ async function waitForTriage(options) {
     expectations
   } = options;
   const startTime = Date.now();
-  core3.info(`Waiting for triage to complete on issue #${issueNumber}...`);
-  core3.info(
+  core4.info(`Waiting for triage to complete on issue #${issueNumber}...`);
+  core4.info(
     `Timeout: ${timeoutMs / 1e3}s, Poll interval: ${pollIntervalMs / 1e3}s`
   );
   const pollResult = await pollUntil(
@@ -34776,67 +34830,99 @@ async function waitForTriage(options) {
     },
     (state2, attempt, elapsed) => {
       const check = (condition) => condition ? "\u2705" : "\u274C";
-      core3.info(`
-\u2501\u2501\u2501 Poll ${attempt} (${Math.round(elapsed / 1e3)}s elapsed) \u2501\u2501\u2501`);
-      core3.info(`  Triaged label: ${check(state2.hasTriagedLabel)} ${state2.hasTriagedLabel ? "present" : "MISSING"}`);
-      core3.info(`  Labels (${state2.labels.length}): ${state2.labels.length > 0 ? state2.labels.join(", ") : "(none)"}`);
-      core3.info(`  Issue state: ${state2.issueState}`);
-      core3.info(`  Sub-issues: ${state2.subIssueCount}`);
-      core3.info(`  Project fields:`);
-      core3.info(`    Status: ${state2.projectFields.Status || "(not set)"}`);
-      core3.info(`    Priority: ${state2.projectFields.Priority || "(not set)"}`);
-      core3.info(`    Size: ${state2.projectFields.Size || "(not set)"}`);
-      core3.info(`    Estimate: ${state2.projectFields.Estimate !== void 0 ? state2.projectFields.Estimate : "(not set)"}`);
+      core4.info(
+        `
+\u2501\u2501\u2501 Poll ${attempt} (${Math.round(elapsed / 1e3)}s elapsed) \u2501\u2501\u2501`
+      );
+      core4.info(
+        `  Triaged label: ${check(state2.hasTriagedLabel)} ${state2.hasTriagedLabel ? "present" : "MISSING"}`
+      );
+      core4.info(
+        `  Labels (${state2.labels.length}): ${state2.labels.length > 0 ? state2.labels.join(", ") : "(none)"}`
+      );
+      core4.info(`  Issue state: ${state2.issueState}`);
+      core4.info(`  Sub-issues: ${state2.subIssueCount}`);
+      core4.info(`  Project fields:`);
+      core4.info(`    Status: ${state2.projectFields.Status || "(not set)"}`);
+      core4.info(`    Priority: ${state2.projectFields.Priority || "(not set)"}`);
+      core4.info(`    Size: ${state2.projectFields.Size || "(not set)"}`);
+      core4.info(
+        `    Estimate: ${state2.projectFields.Estimate !== void 0 ? state2.projectFields.Estimate : "(not set)"}`
+      );
       if (!state2.hasTriagedLabel) {
-        core3.info(`  \u23F3 Waiting for "triaged" label...`);
+        core4.info(`  \u23F3 Waiting for "triaged" label...`);
       }
     }
   );
   const duration = Date.now() - startTime;
   if (!pollResult.success || !pollResult.data) {
     const finalState = pollResult.data;
-    core3.error(`
-\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557`);
-    core3.error(`\u2551  TRIAGE TIMEOUT - Final State                                 \u2551`);
-    core3.error(`\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255D`);
-    core3.error(`  Duration: ${Math.round(duration / 1e3)}s (timeout: ${timeoutMs / 1e3}s)`);
-    core3.error(`  Triaged label: ${finalState?.hasTriagedLabel ? "\u2705 present" : "\u274C MISSING"}`);
-    core3.error(`  Labels: ${finalState?.labels?.join(", ") || "(none)"}`);
-    core3.error(`  Issue state: ${finalState?.issueState || "unknown"}`);
-    core3.error(`  Sub-issues: ${finalState?.subIssueCount || 0}`);
-    core3.error(`  Project fields:`);
-    core3.error(`    Status: ${finalState?.projectFields?.Status || "(not set)"}`);
-    core3.error(`    Priority: ${finalState?.projectFields?.Priority || "(not set)"}`);
-    core3.error(`    Size: ${finalState?.projectFields?.Size || "(not set)"}`);
-    core3.error(`    Estimate: ${finalState?.projectFields?.Estimate !== void 0 ? finalState.projectFields.Estimate : "(not set)"}`);
+    core4.error(
+      `
+\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557`
+    );
+    core4.error(
+      `\u2551  TRIAGE TIMEOUT - Final State                                 \u2551`
+    );
+    core4.error(
+      `\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255D`
+    );
+    core4.error(
+      `  Duration: ${Math.round(duration / 1e3)}s (timeout: ${timeoutMs / 1e3}s)`
+    );
+    core4.error(
+      `  Triaged label: ${finalState?.hasTriagedLabel ? "\u2705 present" : "\u274C MISSING"}`
+    );
+    core4.error(`  Labels: ${finalState?.labels?.join(", ") || "(none)"}`);
+    core4.error(`  Issue state: ${finalState?.issueState || "unknown"}`);
+    core4.error(`  Sub-issues: ${finalState?.subIssueCount || 0}`);
+    core4.error(`  Project fields:`);
+    core4.error(
+      `    Status: ${finalState?.projectFields?.Status || "(not set)"}`
+    );
+    core4.error(
+      `    Priority: ${finalState?.projectFields?.Priority || "(not set)"}`
+    );
+    core4.error(`    Size: ${finalState?.projectFields?.Size || "(not set)"}`);
+    core4.error(
+      `    Estimate: ${finalState?.projectFields?.Estimate !== void 0 ? finalState.projectFields.Estimate : "(not set)"}`
+    );
     return {
       success: false,
       labels: finalState?.labels || [],
       project_fields: finalState?.projectFields || {},
       sub_issue_count: finalState?.subIssueCount || 0,
-      errors: ["Triage did not complete within timeout - 'triaged' label was never added"],
+      errors: [
+        "Triage did not complete within timeout - 'triaged' label was never added"
+      ],
       duration_ms: duration
     };
   }
   const state = pollResult.data;
   const errors = verifyTriageExpectations(state, expectations);
-  core3.info(`
-\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557`);
-  core3.info(`\u2551  TRIAGE ${errors.length === 0 ? "COMPLETE \u2705" : "FAILED \u274C"}                                         \u2551`);
-  core3.info(`\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255D`);
-  core3.info(`  Duration: ${Math.round(duration / 1e3)}s`);
-  core3.info(`  Labels: ${state.labels.join(", ")}`);
-  core3.info(`  Sub-issues created: ${state.subIssueCount}`);
-  core3.info(`  Project fields:`);
-  core3.info(`    Status: ${state.projectFields.Status || "(not set)"}`);
-  core3.info(`    Priority: ${state.projectFields.Priority || "(not set)"}`);
-  core3.info(`    Size: ${state.projectFields.Size || "(not set)"}`);
-  core3.info(`    Estimate: ${state.projectFields.Estimate !== void 0 ? state.projectFields.Estimate : "(not set)"}`);
+  core4.info(
+    `
+\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557`
+  );
+  core4.info(
+    `\u2551  TRIAGE ${errors.length === 0 ? "COMPLETE \u2705" : "FAILED \u274C"}                                         \u2551`
+  );
+  core4.info(`\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255D`);
+  core4.info(`  Duration: ${Math.round(duration / 1e3)}s`);
+  core4.info(`  Labels: ${state.labels.join(", ")}`);
+  core4.info(`  Sub-issues created: ${state.subIssueCount}`);
+  core4.info(`  Project fields:`);
+  core4.info(`    Status: ${state.projectFields.Status || "(not set)"}`);
+  core4.info(`    Priority: ${state.projectFields.Priority || "(not set)"}`);
+  core4.info(`    Size: ${state.projectFields.Size || "(not set)"}`);
+  core4.info(
+    `    Estimate: ${state.projectFields.Estimate !== void 0 ? state.projectFields.Estimate : "(not set)"}`
+  );
   if (errors.length > 0) {
-    core3.error(`
+    core4.error(`
   Verification errors (${errors.length}):`);
     for (const error2 of errors) {
-      core3.error(`    \u274C ${error2}`);
+      core4.error(`    \u274C ${error2}`);
     }
   }
   return {
@@ -34850,7 +34936,7 @@ async function waitForTriage(options) {
 }
 
 // claude-test-runner/src/phase.ts
-var core4 = __toESM(require_core(), 1);
+var core5 = __toESM(require_core(), 1);
 var GET_ISSUE_PROJECT_STATUS_QUERY = `
 query GetIssueProjectStatus($owner: String!, $repo: String!, $number: Int!, $projectNumber: Int!) {
   repository(owner: $owner, name: $repo) {
@@ -34984,7 +35070,7 @@ async function fetchPhaseConditions(octokit, owner, repo, issueNumber, projectNu
             }
           }
         } catch (error2) {
-          core4.debug(`Failed to fetch checks: ${error2}`);
+          core5.debug(`Failed to fetch checks: ${error2}`);
           conditions.ciStatus = "pending";
         }
       }
@@ -35016,12 +35102,12 @@ async function fetchPhaseConditions(octokit, owner, repo, issueNumber, projectNu
           conditions.reviewStatus = "pending";
         }
       } catch (error2) {
-        core4.debug(`Failed to fetch reviews: ${error2}`);
+        core5.debug(`Failed to fetch reviews: ${error2}`);
         conditions.reviewStatus = "pending";
       }
     }
   } catch (error2) {
-    core4.debug(`Failed to fetch PRs: ${error2}`);
+    core5.debug(`Failed to fetch PRs: ${error2}`);
   }
   try {
     const issueResponse = await octokit.graphql(
@@ -35049,7 +35135,7 @@ async function fetchPhaseConditions(octokit, owner, repo, issueNumber, projectNu
       }
     }
   } catch (error2) {
-    core4.debug(`Failed to fetch issue: ${error2}`);
+    core5.debug(`Failed to fetch issue: ${error2}`);
   }
   return conditions;
 }
@@ -35115,10 +35201,10 @@ async function waitForPhase(options) {
     expectations
   } = options;
   const startTime = Date.now();
-  core4.info(
+  core5.info(
     `Waiting for phase ${phaseNumber} to complete on issue #${issueNumber}...`
   );
-  core4.info(
+  core5.info(
     `Timeout: ${timeoutMs / 1e3}s, Poll interval: ${pollIntervalMs / 1e3}s`
   );
   const pollResult = await pollUntil(
@@ -35136,7 +35222,7 @@ async function waitForPhase(options) {
         if (passed === false) return "\u274C";
         return "\u23F3";
       };
-      core4.info(
+      core5.info(
         `Poll ${attempt} (${Math.round(elapsed / 1e3)}s): branch=${statusEmoji(conditions2.branchExists)} pr=${statusEmoji(conditions2.prOpened)}(${conditions2.prState || "none"}) ci=${statusEmoji(conditions2.ciPassed)}(${conditions2.ciStatus || "none"}) review=${statusEmoji(conditions2.reviewApproved)}(${conditions2.reviewStatus || "none"}) merged=${statusEmoji(conditions2.prMerged)} closed=${statusEmoji(conditions2.issueClosed)} status=${conditions2.issueStatus || "unknown"}`
       );
     }
@@ -35159,14 +35245,14 @@ async function waitForPhase(options) {
   }
   const errors = verifyPhaseExpectations(conditions, expectations);
   if (errors.length > 0) {
-    core4.warning(
+    core5.warning(
       `Phase ${phaseNumber} verification failed with ${errors.length} errors:`
     );
     for (const error2 of errors) {
-      core4.warning(`  - ${error2}`);
+      core5.warning(`  - ${error2}`);
     }
   } else {
-    core4.info(
+    core5.info(
       `Phase ${phaseNumber} completed successfully in ${Math.round(duration / 1e3)}s`
     );
   }
@@ -35186,7 +35272,7 @@ async function waitForPhase(options) {
 
 // claude-test-runner/index.ts
 async function triggerCleanup(octokit, owner, repo, issueNumber) {
-  core5.info(`Triggering cleanup for issue #${issueNumber}`);
+  core6.info(`Triggering cleanup for issue #${issueNumber}`);
   try {
     await octokit.rest.actions.createWorkflowDispatch({
       owner,
@@ -35198,10 +35284,10 @@ async function triggerCleanup(octokit, owner, repo, issueNumber) {
         action: "close"
       }
     });
-    core5.info("Cleanup workflow triggered");
+    core6.info("Cleanup workflow triggered");
   } catch (error2) {
-    core5.warning(`Could not trigger cleanup workflow: ${error2}`);
-    core5.info("Attempting direct close via API...");
+    core6.warning(`Could not trigger cleanup workflow: ${error2}`);
+    core6.info("Attempting direct close via API...");
     try {
       await octokit.rest.issues.update({
         owner,
@@ -35210,13 +35296,14 @@ async function triggerCleanup(octokit, owner, repo, issueNumber) {
         state: "closed",
         state_reason: "not_planned"
       });
-      core5.info(`Closed issue #${issueNumber} directly`);
+      core6.info(`Closed issue #${issueNumber} directly`);
     } catch (closeError) {
-      core5.warning(`Failed to close issue: ${closeError}`);
+      core6.warning(`Failed to close issue: ${closeError}`);
     }
   }
 }
 async function run() {
+  setupCancellationHandlers();
   try {
     const action = getRequiredInput("action");
     const token = getRequiredInput("github_token");
@@ -35231,10 +35318,10 @@ async function run() {
       const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
       const fixtureJson = getOptionalInput("fixture_json");
       const fixture = fixtureJson ? JSON.parse(fixtureJson) : { name: "manual", description: "Manual test run" };
-      core5.info(`=== Claude Test Runner ===`);
-      core5.info(`Action: run`);
-      core5.info(`Issue: #${issueNumber}`);
-      core5.info(`Fixture: ${fixture.name}`);
+      core6.info(`=== Claude Test Runner ===`);
+      core6.info(`Action: run`);
+      core6.info(`Issue: #${issueNumber}`);
+      core6.info(`Fixture: ${fixture.name}`);
       const result = await runTest({
         fixture,
         issueNumber,
@@ -35251,14 +35338,14 @@ async function run() {
         total_duration_ms: String(result.totalDurationMs)
       });
       if (result.status !== "done") {
-        core5.warning(`Test failed: ${result.diagnosis}`);
-        core5.warning(`Suggested fix: ${result.suggestedFix}`);
+        core6.warning(`Test failed: ${result.diagnosis}`);
+        core6.warning(`Suggested fix: ${result.suggestedFix}`);
         if (cleanupOnFailure) {
           await triggerCleanup(octokit, owner, repo, issueNumber);
         }
-        core5.setFailed(`Test failed: ${result.diagnosis}`);
+        core6.setFailed(`Test failed: ${result.diagnosis}`);
       } else {
-        core5.info(`Test passed! Completed ${result.phases.length} phases`);
+        core6.info(`Test passed! Completed ${result.phases.length} phases`);
       }
       return;
     }
@@ -35266,9 +35353,9 @@ async function run() {
       const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
       const fixtureJson = getOptionalInput("fixture_json");
       const fixture = fixtureJson ? JSON.parse(fixtureJson) : { name: "manual", description: "Manual diagnosis" };
-      core5.info(`=== Claude Test Runner ===`);
-      core5.info(`Action: diagnose`);
-      core5.info(`Issue: #${issueNumber}`);
+      core6.info(`=== Claude Test Runner ===`);
+      core6.info(`Action: diagnose`);
+      core6.info(`Issue: #${issueNumber}`);
       const result = await diagnose({
         fixture,
         issueNumber,
@@ -35284,14 +35371,14 @@ async function run() {
         phases_completed: "0",
         total_duration_ms: String(result.totalDurationMs)
       });
-      core5.info(`
+      core6.info(`
 Diagnosis Result:`);
-      core5.info(`Status: ${result.status}`);
+      core6.info(`Status: ${result.status}`);
       if (result.suggestedFix) {
-        core5.info(`Suggested Fix: ${result.suggestedFix}`);
+        core6.info(`Suggested Fix: ${result.suggestedFix}`);
       }
       if (result.diagnosis) {
-        core5.info(`Diagnosis: ${result.diagnosis}`);
+        core6.info(`Diagnosis: ${result.diagnosis}`);
       }
       return;
     }
@@ -35304,10 +35391,10 @@ Diagnosis Result:`);
         description: "Wait for status",
         timeout: parseInt(getOptionalInput("timeout") || "300", 10)
       };
-      core5.info(`=== Claude Test Runner ===`);
-      core5.info(`Action: wait`);
-      core5.info(`Issue: #${issueNumber}`);
-      core5.info(`Target Status: ${targetStatus}`);
+      core6.info(`=== Claude Test Runner ===`);
+      core6.info(`Action: wait`);
+      core6.info(`Issue: #${issueNumber}`);
+      core6.info(`Target Status: ${targetStatus}`);
       const result = await waitForStatus(
         {
           fixture,
@@ -35330,11 +35417,11 @@ Diagnosis Result:`);
         if (cleanupOnFailure) {
           await triggerCleanup(octokit, owner, repo, issueNumber);
         }
-        core5.setFailed(
+        core6.setFailed(
           `Failed to reach status '${targetStatus}': ${result.diagnosis}`
         );
       } else {
-        core5.info(`Issue reached status '${targetStatus}'`);
+        core6.info(`Issue reached status '${targetStatus}'`);
       }
       return;
     }
@@ -35344,9 +35431,9 @@ Diagnosis Result:`);
       const timeoutMs = parseInt(getOptionalInput("timeout") || "300", 10) * 1e3;
       const pollIntervalMs = parseInt(getOptionalInput("poll_interval") || "10", 10) * 1e3;
       const fixture = fixtureJson ? JSON.parse(fixtureJson) : { name: "wait-triage", description: "Wait for triage" };
-      core5.info(`=== Claude Test Runner ===`);
-      core5.info(`Action: wait-triage`);
-      core5.info(`Issue: #${issueNumber}`);
+      core6.info(`=== Claude Test Runner ===`);
+      core6.info(`Action: wait-triage`);
+      core6.info(`Issue: #${issueNumber}`);
       const result = await waitForTriage({
         octokit,
         owner,
@@ -35369,11 +35456,11 @@ Diagnosis Result:`);
         if (cleanupOnFailure) {
           await triggerCleanup(octokit, owner, repo, issueNumber);
         }
-        core5.setFailed(
+        core6.setFailed(
           `Triage verification failed: ${result.errors.join("; ")}`
         );
       } else {
-        core5.info("Triage completed and verified successfully");
+        core6.info("Triage completed and verified successfully");
       }
       return;
     }
@@ -35385,10 +35472,10 @@ Diagnosis Result:`);
       const pollIntervalMs = parseInt(getOptionalInput("poll_interval") || "15", 10) * 1e3;
       const fixture = fixtureJson ? JSON.parse(fixtureJson) : { name: "wait-phase", description: "Wait for phase" };
       const phaseExpectation = fixture.expected?.phases?.[phaseNumber - 1];
-      core5.info(`=== Claude Test Runner ===`);
-      core5.info(`Action: wait-phase`);
-      core5.info(`Issue: #${issueNumber}`);
-      core5.info(`Phase: ${phaseNumber}`);
+      core6.info(`=== Claude Test Runner ===`);
+      core6.info(`Action: wait-phase`);
+      core6.info(`Issue: #${issueNumber}`);
+      core6.info(`Phase: ${phaseNumber}`);
       const result = await waitForPhase({
         octokit,
         owner,
@@ -35416,19 +35503,19 @@ Diagnosis Result:`);
         if (cleanupOnFailure) {
           await triggerCleanup(octokit, owner, repo, issueNumber);
         }
-        core5.setFailed(
+        core6.setFailed(
           `Phase ${phaseNumber} verification failed: ${result.errors.join("; ")}`
         );
       } else {
-        core5.info(`Phase ${phaseNumber} completed and verified successfully`);
+        core6.info(`Phase ${phaseNumber} completed and verified successfully`);
       }
       return;
     }
     if (action === "status") {
       const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
-      core5.info(`=== Claude Test Runner ===`);
-      core5.info(`Action: status`);
-      core5.info(`Issue: #${issueNumber}`);
+      core6.info(`=== Claude Test Runner ===`);
+      core6.info(`Action: status`);
+      core6.info(`Issue: #${issueNumber}`);
       const state = await fetchGitHubState(
         octokit,
         owner,
@@ -35457,35 +35544,35 @@ Diagnosis Result:`);
         predicted_status: predicted.expectedStatus || "",
         workflow_status: workflowRuns.length > 0 ? workflowRuns[0]?.status || "unknown" : "none"
       });
-      core5.info(`
+      core6.info(`
 Current State:`);
-      core5.info(`  Status: ${state.projectStatus || "unknown"}`);
-      core5.info(`  Iteration: ${state.iteration}`);
-      core5.info(`  Failures: ${state.failures}`);
-      core5.info(`  Bot Assigned: ${state.botAssigned}`);
-      core5.info(
+      core6.info(`  Status: ${state.projectStatus || "unknown"}`);
+      core6.info(`  Iteration: ${state.iteration}`);
+      core6.info(`  Failures: ${state.failures}`);
+      core6.info(`  Bot Assigned: ${state.botAssigned}`);
+      core6.info(
         `  PR: ${state.prNumber ? `#${state.prNumber} (${state.prState})` : "none"}`
       );
-      core5.info(`  Branch: ${state.branch || "none"}`);
-      core5.info(`  Unchecked Todos: ${state.uncheckedTodos}`);
-      core5.info(`
+      core6.info(`  Branch: ${state.branch || "none"}`);
+      core6.info(`  Unchecked Todos: ${state.uncheckedTodos}`);
+      core6.info(`
 Prediction:`);
-      core5.info(`  Expected State: ${predicted.expectedState}`);
-      core5.info(
+      core6.info(`  Expected State: ${predicted.expectedState}`);
+      core6.info(
         `  Expected Status: ${predicted.expectedStatus || "unchanged"}`
       );
-      core5.info(`  Description: ${predicted.description}`);
+      core6.info(`  Description: ${predicted.description}`);
       return;
     }
     if (action === "validate") {
       const fixtureJson = getRequiredInput("fixture_json");
-      core5.info(`=== Claude Test Runner ===`);
-      core5.info(`Action: validate`);
+      core6.info(`=== Claude Test Runner ===`);
+      core6.info(`Action: validate`);
       let fixture;
       try {
         fixture = JSON.parse(fixtureJson);
       } catch (error2) {
-        core5.setFailed(`Invalid JSON: ${error2}`);
+        core6.setFailed(`Invalid JSON: ${error2}`);
         setOutputs({
           valid: "false",
           errors: `Invalid JSON: ${error2}`,
@@ -35495,7 +35582,7 @@ Prediction:`);
       }
       const result = validateFixture(fixture);
       const formatted = formatValidationResult("fixture", result);
-      core5.info(`
+      core6.info(`
 ${formatted}`);
       setOutputs({
         valid: String(result.valid),
@@ -35503,16 +35590,16 @@ ${formatted}`);
         warnings: result.warnings.join("; ")
       });
       if (!result.valid) {
-        core5.setFailed(`Fixture validation failed`);
+        core6.setFailed(`Fixture validation failed`);
       }
       return;
     }
-    core5.setFailed(`Unknown action: ${action}`);
+    core6.setFailed(`Unknown action: ${action}`);
   } catch (error2) {
     if (error2 instanceof Error) {
-      core5.setFailed(error2.message);
+      core6.setFailed(error2.message);
     } else {
-      core5.setFailed("An unexpected error occurred");
+      core6.setFailed("An unexpected error occurred");
     }
   }
 }

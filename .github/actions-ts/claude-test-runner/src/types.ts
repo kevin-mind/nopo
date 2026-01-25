@@ -35,6 +35,8 @@ export interface PollResult<T> {
   attempts: number;
   /** Total time spent polling in milliseconds */
   totalTimeMs: number;
+  /** Whether polling was cancelled via signal */
+  cancelled?: boolean;
 }
 
 /**

@@ -26,6 +26,7 @@ import {
 import { predictNextState } from "./src/predictor.js";
 import { waitForTriage } from "./src/triage.js";
 import { waitForPhase } from "./src/phase.js";
+import { setupCancellationHandlers } from "./src/poller.js";
 
 /**
  * Trigger cleanup for an issue when test fails
@@ -73,6 +74,9 @@ async function triggerCleanup(
 }
 
 async function run(): Promise<void> {
+  // Setup signal handlers for graceful cancellation
+  setupCancellationHandlers();
+
   try {
     const action = getRequiredInput("action");
     const token = getRequiredInput("github_token");
