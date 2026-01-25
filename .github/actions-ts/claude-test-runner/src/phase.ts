@@ -538,7 +538,9 @@ export async function waitForPhase(
         conditions.prState &&
         conditions.prState !== prevState.prState
       ) {
-        changes.push(`📝 PR state: ${prevState.prState} → ${conditions.prState}`);
+        changes.push(
+          `📝 PR state: ${prevState.prState} → ${conditions.prState}`,
+        );
       }
       if (conditions.ciPassed && !prevState.ciPassed) {
         changes.push(`✅ CI passed`);
@@ -578,7 +580,9 @@ export async function waitForPhase(
         ]
           .filter(Boolean)
           .join(", ");
-        core.info(`[${attempt}] ${Math.round(elapsed / 1000)}s | waiting... [${done || "nothing yet"}]`);
+        core.info(
+          `[${attempt}] ${Math.round(elapsed / 1000)}s | waiting... [${done || "nothing yet"}]`,
+        );
       }
 
       // Update previous state

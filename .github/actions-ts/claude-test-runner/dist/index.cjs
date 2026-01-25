@@ -1,3 +1,4 @@
+// This file is auto-generated. Do not edit directly.
 "use strict";
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -35269,7 +35270,9 @@ async function waitForPhase(options) {
           `\u2705 PR opened: #${conditions2.prNumber} (${conditions2.prState})`
         );
       } else if (conditions2.prState && conditions2.prState !== prevState.prState) {
-        changes.push(`\u{1F4DD} PR state: ${prevState.prState} \u2192 ${conditions2.prState}`);
+        changes.push(
+          `\u{1F4DD} PR state: ${prevState.prState} \u2192 ${conditions2.prState}`
+        );
       }
       if (conditions2.ciPassed && !prevState.ciPassed) {
         changes.push(`\u2705 CI passed`);
@@ -35301,7 +35304,9 @@ async function waitForPhase(options) {
           conditions2.prMerged ? "merged" : null,
           conditions2.issueClosed ? "closed" : null
         ].filter(Boolean).join(", ");
-        core5.info(`[${attempt}] ${Math.round(elapsed / 1e3)}s | waiting... [${done || "nothing yet"}]`);
+        core5.info(
+          `[${attempt}] ${Math.round(elapsed / 1e3)}s | waiting... [${done || "nothing yet"}]`
+        );
       }
       prevState = {
         branchExists: conditions2.branchExists,
