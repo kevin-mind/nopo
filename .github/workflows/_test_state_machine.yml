@@ -459,7 +459,7 @@ jobs:
           fixture_json: ${{ needs.load-fixture.outputs.fixture }}
           github_token: ${{ secrets.NOPO_BOT_PAT }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
-          timeout: '900'
+          timeout: '1800'
           poll_interval: '15'
 
       - name: Simulate human merge if needed

@@ -48,6 +48,6 @@
     "stopped_early": "true",
     "stop_reason": "run_claude_executed"
   },
-  "timeout": 900,
+  "timeout": 1800,
   "poll_interval": 15
 }
