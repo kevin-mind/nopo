@@ -70,7 +70,7 @@ interface TriageState {
 }
 
 const GET_ISSUE_WITH_PROJECT_QUERY = `
-query GetIssueWithProject($owner: String!, $repo: String!, $number: Int!, $projectNumber: Int!) {
+query GetIssueWithProject($owner: String!, $repo: String!, $number: Int!) {
   repository(owner: $owner, name: $repo) {
     issue(number: $number) {
       id
@@ -220,7 +220,6 @@ async function fetchTriageState(
       owner,
       repo,
       number: issueNumber,
-      projectNumber,
     },
   );
 

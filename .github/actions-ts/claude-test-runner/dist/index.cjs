@@ -34647,7 +34647,7 @@ function formatValidationResult(name, result) {
 // claude-test-runner/src/triage.ts
 var core4 = __toESM(require_core(), 1);
 var GET_ISSUE_WITH_PROJECT_QUERY = `
-query GetIssueWithProject($owner: String!, $repo: String!, $number: Int!, $projectNumber: Int!) {
+query GetIssueWithProject($owner: String!, $repo: String!, $number: Int!) {
   repository(owner: $owner, name: $repo) {
     issue(number: $number) {
       id
@@ -34733,8 +34733,7 @@ async function fetchTriageState(octokit, owner, repo, issueNumber, projectNumber
     {
       owner,
       repo,
-      number: issueNumber,
-      projectNumber
+      number: issueNumber
     }
   );
   const issue = response.repository?.issue;
