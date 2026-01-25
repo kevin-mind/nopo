@@ -1445,6 +1445,7 @@ async function cleanupFixture(
   owner: string,
   repo: string,
   issueNumber: number,
+  projectNumber: number,
 ): Promise<void> {
   core.info(`Cleaning up test fixture for issue #${issueNumber}`);
 
@@ -1531,27 +1532,14 @@ async function cleanupFixture(
     }
   }
 
-  // Close sub-issues
-  for (const subIssue of subIssues) {
-    if (subIssue.number) {
-      core.info(`Closing sub-issue #${subIssue.number}`);
-      await octokit.rest.issues.update({
-        owner,
-        repo,
-        issue_number: subIssue.number,
-        state: "closed",
-      });
-    }
-  }
-
-  // Close parent issue
-  core.info(`Closing parent issue #${issueNumber}`);
-  await octokit.rest.issues.update({
+  // Close all issues with proper status updates using the shared function
+  await closeIssueAndSubIssues(
+    octokit,
     owner,
     repo,
-    issue_number: issueNumber,
-    state: "closed",
-  });
+    issueNumber,
+    projectNumber,
+  );
 
   // Delete any test branches that might be orphaned
   try {
@@ -2205,7 +2193,7 @@ async function run(): Promise<void> {
     if (action === "cleanup") {
       const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
 
-      await cleanupFixture(octokit, owner, repo, issueNumber);
+      await cleanupFixture(octokit, owner, repo, issueNumber, projectNumber);
 
       setOutputs({
         success: "true",

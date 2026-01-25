@@ -24891,7 +24891,7 @@ async function verifyFixture(octokit, owner, repo, issueNumber, fixture, project
     errors
   };
 }
-async function cleanupFixture(octokit, owner, repo, issueNumber) {
+async function cleanupFixture(octokit, owner, repo, issueNumber, projectNumber) {
   core2.info(`Cleaning up test fixture for issue #${issueNumber}`);
   const { data: issue } = await octokit.rest.issues.get({
     owner,
@@ -24945,24 +24945,13 @@ async function cleanupFixture(octokit, owner, repo, issueNumber) {
       }
     }
   }
-  for (const subIssue of subIssues) {
-    if (subIssue.number) {
-      core2.info(`Closing sub-issue #${subIssue.number}`);
-      await octokit.rest.issues.update({
-        owner,
-        repo,
-        issue_number: subIssue.number,
-        state: "closed"
-      });
-    }
-  }
-  core2.info(`Closing parent issue #${issueNumber}`);
-  await octokit.rest.issues.update({
+  await closeIssueAndSubIssues(
+    octokit,
     owner,
     repo,
-    issue_number: issueNumber,
-    state: "closed"
-  });
+    issueNumber,
+    projectNumber
+  );
   try {
     const { data: refs } = await octokit.rest.git.listMatchingRefs({
       owner,
@@ -25408,7 +25397,7 @@ async function run() {
     }
     if (action === "cleanup") {
       const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
-      await cleanupFixture(octokit, owner, repo, issueNumber);
+      await cleanupFixture(octokit, owner, repo, issueNumber, projectNumber);
       setOutputs({
         success: "true"
       });
