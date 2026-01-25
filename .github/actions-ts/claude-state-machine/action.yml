@@ -71,6 +71,10 @@ outputs:
     description: Current phase number (or "-" if no phases)
   parent_issue_number:
     description: Parent issue number (same as issue_number if no parent)
+  pr_number:
+    description: PR number if a PR is associated with this issue/phase
+  commit_sha:
+    description: Commit SHA from CI context (if available)
 
 runs:
   using: node20

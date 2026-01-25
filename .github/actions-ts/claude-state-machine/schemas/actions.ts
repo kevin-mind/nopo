@@ -133,6 +133,8 @@ export const AppendHistoryActionSchema = BaseActionSchema.extend({
   /** ISO 8601 timestamp of when the workflow started */
   timestamp: z.string().optional(),
   commitSha: z.string().optional(),
+  /** PR number to link in the SHA column (alternative to commitSha) */
+  prNumber: z.number().int().positive().optional(),
   runLink: z.string().optional(),
 });
 
@@ -151,6 +153,8 @@ export const UpdateHistoryActionSchema = BaseActionSchema.extend({
   /** ISO 8601 timestamp (optional - preserves existing if not provided) */
   timestamp: z.string().optional(),
   commitSha: z.string().optional(),
+  /** PR number to link in the SHA column (alternative to commitSha) */
+  prNumber: z.number().int().positive().optional(),
   runLink: z.string().optional(),
 });
 

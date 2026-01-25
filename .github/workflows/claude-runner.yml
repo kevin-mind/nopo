@@ -193,6 +193,8 @@ jobs:
       iteration: ${{ steps.machine.outputs.iteration }}
       phase: ${{ steps.machine.outputs.phase }}
       parent_issue_number: ${{ steps.machine.outputs.parent_issue_number }}
+      pr_number: ${{ steps.machine.outputs.pr_number }}
+      commit_sha: ${{ steps.machine.outputs.commit_sha }}
 
     steps:
       - name: Checkout repository
@@ -513,6 +515,28 @@ jobs:
             echo "transition=unknown" >> $GITHUB_OUTPUT
           fi
 
+      - name: Determine link type
+        id: link
+        env:
+          TRANSITION: ${{ steps.outcome.outputs.transition }}
+          PR_NUMBER: ${{ needs.derive-actions.outputs.pr_number }}
+          COMMIT_SHA: ${{ needs.derive-actions.outputs.commit_sha || inputs.ci_commit_sha }}
+        run: |
+          # For review-related transitions, use PR number; otherwise use commit SHA
+          if [[ "$TRANSITION" == "In Review" || "$TRANSITION" == "PR Review" || "$TRANSITION" == "PR Response" || "$TRANSITION" == "PR Human Response" ]]; then
+            if [[ -n "$PR_NUMBER" && "$PR_NUMBER" != "0" ]]; then
+              echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+              echo "commit_sha=" >> $GITHUB_OUTPUT
+            else
+              echo "pr_number=" >> $GITHUB_OUTPUT
+              echo "commit_sha=" >> $GITHUB_OUTPUT
+            fi
+          else
+            # For iterate/other transitions, use commit SHA if available
+            echo "pr_number=" >> $GITHUB_OUTPUT
+            echo "commit_sha=$COMMIT_SHA" >> $GITHUB_OUTPUT
+          fi
+
       - name: Update history entry
         uses: ./.github/actions-ts/claude-state-executor
         with:
@@ -526,6 +550,8 @@ jobs:
               "matchPhase": "${{ needs.derive-context.outputs.phase || '-' }}",
               "matchPattern": "⏳ running...",
               "newMessage": "${{ steps.outcome.outputs.emoji }} ${{ steps.outcome.outputs.transition }}",
+              "commitSha": "${{ steps.link.outputs.commit_sha }}",
+              "prNumber": ${{ steps.link.outputs.pr_number || 'null' }},
               "runLink": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }]
           dry_run: ${{ inputs.dry_run && 'true' || 'false' }}

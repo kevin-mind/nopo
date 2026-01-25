@@ -466,6 +466,8 @@ async function run(): Promise<void> {
         iteration,
         phase,
         parent_issue_number: parentIssueNumber,
+        pr_number: context.pr?.number ? String(context.pr.number) : "",
+        commit_sha: context.ciCommitSha || "",
       });
       return;
     }
@@ -494,6 +496,10 @@ async function run(): Promise<void> {
       core.info(`Action types: ${actionTypes.join(", ")}`);
     }
 
+    // Extract PR and commit info for history linking
+    const prNumber = context.pr?.number ? String(context.pr.number) : "";
+    const commitSha = context.ciCommitSha || "";
+
     // Set outputs (actions as full JSON for executor)
     setOutputs({
       actions_json: JSON.stringify(pendingActions),
@@ -504,6 +510,8 @@ async function run(): Promise<void> {
       iteration,
       phase,
       parent_issue_number: parentIssueNumber,
+      pr_number: prNumber,
+      commit_sha: commitSha,
     });
 
     // Stop the actor

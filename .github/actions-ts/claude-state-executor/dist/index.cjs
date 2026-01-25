@@ -28178,6 +28178,8 @@ var AppendHistoryActionSchema = BaseActionSchema.extend({
   /** ISO 8601 timestamp of when the workflow started */
   timestamp: external_exports.string().optional(),
   commitSha: external_exports.string().optional(),
+  /** PR number to link in the SHA column (alternative to commitSha) */
+  prNumber: external_exports.number().int().positive().optional(),
   runLink: external_exports.string().optional()
 });
 var UpdateHistoryActionSchema = BaseActionSchema.extend({
@@ -28190,6 +28192,8 @@ var UpdateHistoryActionSchema = BaseActionSchema.extend({
   /** ISO 8601 timestamp (optional - preserves existing if not provided) */
   timestamp: external_exports.string().optional(),
   commitSha: external_exports.string().optional(),
+  /** PR number to link in the SHA column (alternative to commitSha) */
+  prNumber: external_exports.number().int().positive().optional(),
   runLink: external_exports.string().optional()
 });
 var UpdateIssueBodyActionSchema = BaseActionSchema.extend({
@@ -28835,11 +28839,16 @@ function parseRunIdFromCell(cell) {
   }
   return null;
 }
-function formatHistoryCells(sha, runLink, repoUrl) {
+function formatHistoryCells(sha, runLink, repoUrl, prNumber) {
   const serverUrl = repoUrl || process.env.GITHUB_SERVER_URL || "https://github.com";
   const repo = process.env.GITHUB_REPOSITORY || "";
   const fullRepoUrl = repo ? `${serverUrl}/${repo}` : serverUrl;
-  const shaCell = sha ? `[\`${sha.slice(0, 7)}\`](${fullRepoUrl}/commit/${sha})` : "-";
+  let shaCell = "-";
+  if (prNumber) {
+    shaCell = `[#${prNumber}](${fullRepoUrl}/pull/${prNumber})`;
+  } else if (sha) {
+    shaCell = `[\`${sha.slice(0, 7)}\`](${fullRepoUrl}/commit/${sha})`;
+  }
   let runCell = "-";
   if (runLink) {
     const runId = extractRunIdFromUrl(runLink);
@@ -28851,8 +28860,13 @@ function formatHistoryCells(sha, runLink, repoUrl) {
   }
   return { shaCell, runCell };
 }
-function createRowData(iteration, phase, message, timestamp, sha, runLink, repoUrl) {
-  const { shaCell, runCell } = formatHistoryCells(sha, runLink, repoUrl);
+function createRowData(iteration, phase, message, timestamp, sha, runLink, repoUrl, prNumber) {
+  const { shaCell, runCell } = formatHistoryCells(
+    sha,
+    runLink,
+    repoUrl,
+    prNumber
+  );
   return {
     time: formatTimestamp(timestamp),
     iteration: String(iteration),
@@ -28862,7 +28876,7 @@ function createRowData(iteration, phase, message, timestamp, sha, runLink, repoU
     run: runCell
   };
 }
-function addHistoryEntry(body, iteration, phase, message, timestamp, sha, runLink, repoUrl) {
+function addHistoryEntry(body, iteration, phase, message, timestamp, sha, runLink, repoUrl, prNumber) {
   const newRowData = createRowData(
     iteration,
     phase,
@@ -28870,7 +28884,8 @@ function addHistoryEntry(body, iteration, phase, message, timestamp, sha, runLin
     timestamp,
     sha,
     runLink,
-    repoUrl
+    repoUrl,
+    prNumber
   );
   const newRunId = runLink ? extractRunIdFromUrl(runLink) : null;
   const historyIdx = body.indexOf(HISTORY_SECTION);
@@ -28951,7 +28966,7 @@ ${table}`;
   }
   return parts.join("\n");
 }
-function updateHistoryEntry(body, matchIteration, matchPhase, matchPattern, newMessage, timestamp, sha, runLink, repoUrl) {
+function updateHistoryEntry(body, matchIteration, matchPhase, matchPattern, newMessage, timestamp, sha, runLink, repoUrl, prNumber) {
   const parsed = parseTable(body);
   if (!parsed || parsed.rows.length === 0) {
     return { body, updated: false };
@@ -28977,13 +28992,18 @@ function updateHistoryEntry(body, matchIteration, matchPhase, matchPattern, newM
     return { body, updated: false };
   }
   const existingRow = parsed.rows[matchIdx];
-  const { shaCell, runCell } = formatHistoryCells(sha, runLink, repoUrl);
+  const { shaCell, runCell } = formatHistoryCells(
+    sha,
+    runLink,
+    repoUrl,
+    prNumber
+  );
   const updatedRow = {
     time: timestamp ? formatTimestamp(timestamp) : existingRow.time ?? "-",
     iteration: existingRow.iteration,
     phase: existingRow.phase,
     action: newMessage,
-    sha: sha ? shaCell : existingRow.sha ?? "-",
+    sha: sha || prNumber ? shaCell : existingRow.sha ?? "-",
     run: runLink ? runCell : existingRow.run ?? "-"
   };
   const normalizedRows = parsed.rows.map((row, idx) => {
@@ -29119,7 +29139,8 @@ async function executeAppendHistory(action, ctx) {
     timestamp,
     action.commitSha,
     action.runLink,
-    repoUrl
+    repoUrl,
+    action.prNumber
   );
   await ctx.octokit.rest.issues.update({
     owner: ctx.owner,
@@ -29146,7 +29167,8 @@ async function executeAppendHistory(action, ctx) {
       timestamp,
       action.commitSha,
       action.runLink,
-      repoUrl
+      repoUrl,
+      action.prNumber
     );
     await ctx.octokit.rest.issues.update({
       owner: ctx.owner,
@@ -29180,7 +29202,8 @@ async function executeUpdateHistory(action, ctx) {
     timestamp,
     action.commitSha,
     action.runLink,
-    repoUrl
+    repoUrl,
+    action.prNumber
   );
   if (result.updated) {
     await ctx.octokit.rest.issues.update({
@@ -29204,7 +29227,8 @@ async function executeUpdateHistory(action, ctx) {
       timestamp,
       action.commitSha,
       action.runLink,
-      repoUrl
+      repoUrl,
+      action.prNumber
     );
     await ctx.octokit.rest.issues.update({
       owner: ctx.owner,
@@ -29235,7 +29259,8 @@ async function executeUpdateHistory(action, ctx) {
       timestamp,
       action.commitSha,
       action.runLink,
-      repoUrl
+      repoUrl,
+      action.prNumber
     );
     if (parentResult.updated) {
       await ctx.octokit.rest.issues.update({
@@ -29254,7 +29279,8 @@ async function executeUpdateHistory(action, ctx) {
         timestamp,
         action.commitSha,
         action.runLink,
-        repoUrl
+        repoUrl,
+        action.prNumber
       );
       await ctx.octokit.rest.issues.update({
         owner: ctx.owner,

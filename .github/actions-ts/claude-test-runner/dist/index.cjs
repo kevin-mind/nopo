@@ -31414,6 +31414,8 @@ var AppendHistoryActionSchema = BaseActionSchema.extend({
   /** ISO 8601 timestamp of when the workflow started */
   timestamp: external_exports.string().optional(),
   commitSha: external_exports.string().optional(),
+  /** PR number to link in the SHA column (alternative to commitSha) */
+  prNumber: external_exports.number().int().positive().optional(),
   runLink: external_exports.string().optional()
 });
 var UpdateHistoryActionSchema = BaseActionSchema.extend({
@@ -31426,6 +31428,8 @@ var UpdateHistoryActionSchema = BaseActionSchema.extend({
   /** ISO 8601 timestamp (optional - preserves existing if not provided) */
   timestamp: external_exports.string().optional(),
   commitSha: external_exports.string().optional(),
+  /** PR number to link in the SHA column (alternative to commitSha) */
+  prNumber: external_exports.number().int().positive().optional(),
   runLink: external_exports.string().optional()
 });
 var UpdateIssueBodyActionSchema = BaseActionSchema.extend({

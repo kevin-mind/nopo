@@ -331,20 +331,26 @@ function parseShaCell(cell: string): string | null {
 /**
  * Format cells for history table (with links)
  * Run cell format: [runId](url) for deduplication by run_id
+ * SHA cell: commit link or PR link (if prNumber provided)
  */
 export function formatHistoryCells(
   sha?: string,
   runLink?: string,
   repoUrl?: string,
+  prNumber?: number,
 ): { shaCell: string; runCell: string } {
   const serverUrl =
     repoUrl || process.env.GITHUB_SERVER_URL || "https://github.com";
   const repo = process.env.GITHUB_REPOSITORY || "";
   const fullRepoUrl = repo ? `${serverUrl}/${repo}` : serverUrl;
 
-  const shaCell = sha
-    ? `[\`${sha.slice(0, 7)}\`](${fullRepoUrl}/commit/${sha})`
-    : "-";
+  // PR number takes precedence for review-related rows
+  let shaCell = "-";
+  if (prNumber) {
+    shaCell = `[#${prNumber}](${fullRepoUrl}/pull/${prNumber})`;
+  } else if (sha) {
+    shaCell = `[\`${sha.slice(0, 7)}\`](${fullRepoUrl}/commit/${sha})`;
+  }
 
   // Use run ID as link text for deduplication
   let runCell = "-";
@@ -472,8 +478,14 @@ function createRowData(
   sha?: string,
   runLink?: string,
   repoUrl?: string,
+  prNumber?: number,
 ): RowData {
-  const { shaCell, runCell } = formatHistoryCells(sha, runLink, repoUrl);
+  const { shaCell, runCell } = formatHistoryCells(
+    sha,
+    runLink,
+    repoUrl,
+    prNumber,
+  );
 
   return {
     time: formatTimestamp(timestamp),
@@ -496,6 +508,7 @@ export function createHistoryRow(
   sha?: string,
   runLink?: string,
   repoUrl?: string,
+  prNumber?: number,
 ): string {
   const data = createRowData(
     iteration,
@@ -505,6 +518,7 @@ export function createHistoryRow(
     sha,
     runLink,
     repoUrl,
+    prNumber,
   );
   return serializeRow(data);
 }
@@ -556,6 +570,7 @@ export function addHistoryEntry(
   sha?: string,
   runLink?: string,
   repoUrl?: string,
+  prNumber?: number,
 ): string {
   const newRowData = createRowData(
     iteration,
@@ -565,6 +580,7 @@ export function addHistoryEntry(
     sha,
     runLink,
     repoUrl,
+    prNumber,
   );
 
   // Extract run_id from the new entry for deduplication
@@ -697,6 +713,7 @@ export function updateHistoryEntry(
   sha?: string,
   runLink?: string,
   repoUrl?: string,
+  prNumber?: number,
 ): { body: string; updated: boolean } {
   const parsed = parseTable(body);
 
@@ -737,14 +754,19 @@ export function updateHistoryEntry(
 
   // Update the matched row
   const existingRow = parsed.rows[matchIdx]!;
-  const { shaCell, runCell } = formatHistoryCells(sha, runLink, repoUrl);
+  const { shaCell, runCell } = formatHistoryCells(
+    sha,
+    runLink,
+    repoUrl,
+    prNumber,
+  );
 
   const updatedRow: RowData = {
     time: timestamp ? formatTimestamp(timestamp) : (existingRow.time ?? "-"),
     iteration: existingRow.iteration,
     phase: existingRow.phase,
     action: newMessage,
-    sha: sha ? shaCell : (existingRow.sha ?? "-"),
+    sha: sha || prNumber ? shaCell : (existingRow.sha ?? "-"),
     run: runLink ? runCell : (existingRow.run ?? "-"),
   };
 

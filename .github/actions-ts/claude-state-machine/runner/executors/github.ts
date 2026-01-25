@@ -196,6 +196,7 @@ export async function executeAppendHistory(
     action.commitSha,
     action.runLink,
     repoUrl,
+    action.prNumber,
   );
 
   await ctx.octokit.rest.issues.update({
@@ -228,6 +229,7 @@ export async function executeAppendHistory(
       action.commitSha,
       action.runLink,
       repoUrl,
+      action.prNumber,
     );
 
     await ctx.octokit.rest.issues.update({
@@ -278,6 +280,7 @@ export async function executeUpdateHistory(
     action.commitSha,
     action.runLink,
     repoUrl,
+    action.prNumber,
   );
 
   if (result.updated) {
@@ -307,6 +310,7 @@ export async function executeUpdateHistory(
       action.commitSha,
       action.runLink,
       repoUrl,
+      action.prNumber,
     );
 
     await ctx.octokit.rest.issues.update({
@@ -344,6 +348,7 @@ export async function executeUpdateHistory(
       action.commitSha,
       action.runLink,
       repoUrl,
+      action.prNumber,
     );
 
     if (parentResult.updated) {
@@ -365,6 +370,7 @@ export async function executeUpdateHistory(
         action.commitSha,
         action.runLink,
         repoUrl,
+        action.prNumber,
       );
 
       await ctx.octokit.rest.issues.update({
