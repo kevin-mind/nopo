@@ -398,7 +398,7 @@ var require_tunnel = __commonJS({
         connectOptions.headers = connectOptions.headers || {};
         connectOptions.headers["Proxy-Authorization"] = "Basic " + new Buffer(connectOptions.proxyAuth).toString("base64");
       }
-      debug3("making CONNECT request");
+      debug4("making CONNECT request");
       var connectReq = self2.request(connectOptions);
       connectReq.useChunkedEncodingByDefault = false;
       connectReq.once("response", onResponse);
@@ -418,7 +418,7 @@ var require_tunnel = __commonJS({
         connectReq.removeAllListeners();
         socket.removeAllListeners();
         if (res.statusCode !== 200) {
-          debug3(
+          debug4(
             "tunneling socket could not be established, statusCode=%d",
             res.statusCode
           );
@@ -430,7 +430,7 @@ var require_tunnel = __commonJS({
           return;
         }
         if (head.length > 0) {
-          debug3("got illegal response body from proxy");
+          debug4("got illegal response body from proxy");
           socket.destroy();
           var error3 = new Error("got illegal response body from proxy");
           error3.code = "ECONNRESET";
@@ -438,13 +438,13 @@ var require_tunnel = __commonJS({
           self2.removeSocket(placeholder);
           return;
         }
-        debug3("tunneling connection has established");
+        debug4("tunneling connection has established");
         self2.sockets[self2.sockets.indexOf(placeholder)] = socket;
         return cb(socket);
       }
       function onError(cause) {
         connectReq.removeAllListeners();
-        debug3(
+        debug4(
           "tunneling socket could not be established, cause=%s\n",
           cause.message,
           cause.stack
@@ -506,9 +506,9 @@ var require_tunnel = __commonJS({
       }
       return target;
     }
-    var debug3;
+    var debug4;
     if (process.env.NODE_DEBUG && /\btunnel\b/.test(process.env.NODE_DEBUG)) {
-      debug3 = function() {
+      debug4 = function() {
         var args = Array.prototype.slice.call(arguments);
         if (typeof args[0] === "string") {
           args[0] = "TUNNEL: " + args[0];
@@ -518,10 +518,10 @@ var require_tunnel = __commonJS({
         console.error.apply(console, args);
       };
     } else {
-      debug3 = function() {
+      debug4 = function() {
       };
     }
-    exports2.debug = debug3;
+    exports2.debug = debug4;
   }
 });
 
@@ -19732,10 +19732,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       return process.env["RUNNER_DEBUG"] === "1";
     }
     exports2.isDebug = isDebug;
-    function debug3(message) {
+    function debug4(message) {
       (0, command_1.issueCommand)("debug", {}, message);
     }
-    exports2.debug = debug3;
+    exports2.debug = debug4;
     function error3(message, properties = {}) {
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
@@ -34696,6 +34696,34 @@ query GetIssueWithProject($owner: String!, $repo: String!, $number: Int!, $proje
   }
 }
 `;
+async function checkTriageWorkflow(octokit, owner, repo, issueNumber) {
+  try {
+    const { data } = await octokit.rest.actions.listWorkflowRunsForRepo({
+      owner,
+      repo,
+      workflow_id: "claude.yml",
+      per_page: 20
+    });
+    const issuePattern = new RegExp(
+      `#${issueNumber}\\b|issue.*${issueNumber}`,
+      "i"
+    );
+    const triageRun = data.workflow_runs.find(
+      (run2) => issuePattern.test(run2.display_title) && (run2.status === "queued" || run2.status === "in_progress" || run2.status === "completed")
+    );
+    if (triageRun) {
+      return {
+        found: true,
+        status: triageRun.status,
+        url: triageRun.html_url
+      };
+    }
+    return { found: false, status: null, url: null };
+  } catch (error3) {
+    core4.debug(`Failed to check workflow runs: ${error3}`);
+    return { found: false, status: null, url: null };
+  }
+}
 async function fetchTriageState(octokit, owner, repo, issueNumber, projectNumber) {
   const response = await octokit.graphql(
     GET_ISSUE_WITH_PROJECT_QUERY,
@@ -34819,6 +34847,42 @@ async function waitForTriage(options) {
   core4.info(
     `Timeout: ${timeoutMs / 1e3}s, Poll interval: ${pollIntervalMs / 1e3}s`
   );
+  core4.info(`Checking for triage workflow...`);
+  let workflowFound = false;
+  for (let i = 0; i < 6; i++) {
+    const workflow = await checkTriageWorkflow(
+      octokit,
+      owner,
+      repo,
+      issueNumber
+    );
+    if (workflow.found) {
+      workflowFound = true;
+      core4.info(
+        `\u2705 Triage workflow found: ${workflow.status} - ${workflow.url}`
+      );
+      break;
+    }
+    if (i < 5) {
+      core4.info(`[${i + 1}] Waiting for triage workflow to start...`);
+      await new Promise((r) => setTimeout(r, 5e3));
+    }
+  }
+  if (!workflowFound) {
+    core4.error(`\u274C No triage workflow found for issue #${issueNumber}`);
+    core4.error(`This usually means the 'issues: opened' trigger didn't fire.`);
+    core4.error(
+      `Check that claude.yml has 'opened' in the issues trigger types.`
+    );
+    return {
+      success: false,
+      labels: [],
+      project_fields: {},
+      sub_issue_count: 0,
+      errors: ["Triage workflow was never triggered - check workflow triggers"],
+      duration_ms: Date.now() - startTime
+    };
+  }
   const pollResult = await pollUntil(
     () => fetchTriageState(octokit, owner, repo, issueNumber, projectNumber),
     isTriageComplete,

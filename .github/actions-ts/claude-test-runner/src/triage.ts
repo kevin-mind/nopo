@@ -26,7 +26,27 @@ interface OctokitType {
         issue_number: number;
       }) => Promise<{ data: IssueData }>;
     };
+    actions: {
+      listWorkflowRunsForRepo: (params: {
+        owner: string;
+        repo: string;
+        workflow_id?: string;
+        event?: string;
+        status?: string;
+        per_page?: number;
+      }) => Promise<{ data: { workflow_runs: WorkflowRun[] } }>;
+    };
   };
+}
+
+interface WorkflowRun {
+  id: number;
+  name: string;
+  status: string;
+  conclusion: string | null;
+  html_url: string;
+  display_title: string;
+  created_at: string;
 }
 
 interface IssueData {
@@ -137,6 +157,51 @@ interface IssueQueryResponse {
       };
     };
   };
+}
+
+/**
+ * Check if a triage workflow is running for this issue
+ */
+async function checkTriageWorkflow(
+  octokit: OctokitType,
+  owner: string,
+  repo: string,
+  issueNumber: number,
+): Promise<{ found: boolean; status: string | null; url: string | null }> {
+  try {
+    const { data } = await octokit.rest.actions.listWorkflowRunsForRepo({
+      owner,
+      repo,
+      workflow_id: "claude.yml",
+      per_page: 20,
+    });
+
+    // Look for a run that mentions this issue
+    const issuePattern = new RegExp(
+      `#${issueNumber}\\b|issue.*${issueNumber}`,
+      "i",
+    );
+    const triageRun = data.workflow_runs.find(
+      (run) =>
+        issuePattern.test(run.display_title) &&
+        (run.status === "queued" ||
+          run.status === "in_progress" ||
+          run.status === "completed"),
+    );
+
+    if (triageRun) {
+      return {
+        found: true,
+        status: triageRun.status,
+        url: triageRun.html_url,
+      };
+    }
+
+    return { found: false, status: null, url: null };
+  } catch (error) {
+    core.debug(`Failed to check workflow runs: ${error}`);
+    return { found: false, status: null, url: null };
+  }
 }
 
 /**
@@ -324,6 +389,47 @@ export async function waitForTriage(
   core.info(
     `Timeout: ${timeoutMs / 1000}s, Poll interval: ${pollIntervalMs / 1000}s`,
   );
+
+  // First check if triage workflow is running
+  core.info(`Checking for triage workflow...`);
+  let workflowFound = false;
+
+  // Poll for workflow to appear (give it up to 30 seconds)
+  for (let i = 0; i < 6; i++) {
+    const workflow = await checkTriageWorkflow(
+      octokit,
+      owner,
+      repo,
+      issueNumber,
+    );
+    if (workflow.found) {
+      workflowFound = true;
+      core.info(
+        `✅ Triage workflow found: ${workflow.status} - ${workflow.url}`,
+      );
+      break;
+    }
+    if (i < 5) {
+      core.info(`[${i + 1}] Waiting for triage workflow to start...`);
+      await new Promise((r) => setTimeout(r, 5000));
+    }
+  }
+
+  if (!workflowFound) {
+    core.error(`❌ No triage workflow found for issue #${issueNumber}`);
+    core.error(`This usually means the 'issues: opened' trigger didn't fire.`);
+    core.error(
+      `Check that claude.yml has 'opened' in the issues trigger types.`,
+    );
+    return {
+      success: false,
+      labels: [],
+      project_fields: {},
+      sub_issue_count: 0,
+      errors: ["Triage workflow was never triggered - check workflow triggers"],
+      duration_ms: Date.now() - startTime,
+    };
+  }
 
   const pollResult = await pollUntil<TriageState>(
     () => fetchTriageState(octokit, owner, repo, issueNumber, projectNumber),
