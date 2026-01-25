@@ -280,7 +280,7 @@ jobs:
   # E2E Mode: Per-Phase Verification Pipeline
   # ============================================================================
 
-  # Step 1: Dispatch triage and wait for completion (E2E mode only)
+  # Step 1: Wait for triage to complete (triggered automatically by issue creation)
   triage:
     needs: [load-fixture, setup]
     if: |
@@ -308,17 +308,6 @@ jobs:
           cd .github/actions-ts
           pnpm install --frozen-lockfile
           pnpm run build
-
-      - name: Dispatch triage workflow
-        env:
-          ISSUE_NUMBER: ${{ needs.setup.outputs.issue_number }}
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          echo "Dispatching triage workflow for issue #$ISSUE_NUMBER..."
-          gh workflow run claude.yml \
-            --repo "$GITHUB_REPOSITORY" \
-            -f resource_number="$ISSUE_NUMBER"
-          echo "✅ Triage workflow dispatched"
 
       - name: Wait for triage to complete
         id: wait-triage
