@@ -34988,7 +34988,7 @@ async function waitForTriage(options) {
 // claude-test-runner/src/phase.ts
 var core5 = __toESM(require_core(), 1);
 var GET_ISSUE_PROJECT_STATUS_QUERY = `
-query GetIssueProjectStatus($owner: String!, $repo: String!, $number: Int!, $projectNumber: Int!) {
+query GetIssueProjectStatus($owner: String!, $repo: String!, $number: Int!) {
   repository(owner: $owner, name: $repo) {
     issue(number: $number) {
       id
@@ -35047,24 +35047,6 @@ async function fetchPhaseConditions(octokit, owner, repo, issueNumber, projectNu
     branchName: null,
     prNumber: null
   };
-  const branchPatterns = [
-    `claude/issue-${issueNumber}`,
-    `claude/issue/${issueNumber}`,
-    `issue-${issueNumber}`
-  ];
-  for (const branchName of branchPatterns) {
-    try {
-      await octokit.rest.repos.getBranch({
-        owner,
-        repo,
-        branch: branchName
-      });
-      conditions.branchExists = true;
-      conditions.branchName = branchName;
-      break;
-    } catch {
-    }
-  }
   try {
     const { data: prs } = await octokit.rest.pulls.list({
       owner,
@@ -35073,11 +35055,13 @@ async function fetchPhaseConditions(octokit, owner, repo, issueNumber, projectNu
       per_page: 100
     });
     const linkedPr = prs.find(
-      (pr) => pr.body?.includes(`Fixes #${issueNumber}`) || pr.body?.includes(`Closes #${issueNumber}`) || pr.body?.includes(`Resolves #${issueNumber}`) || conditions.branchName && pr.head.ref === conditions.branchName
+      (pr) => pr.body?.includes(`Fixes #${issueNumber}`) || pr.body?.includes(`Closes #${issueNumber}`) || pr.body?.includes(`Resolves #${issueNumber}`)
     );
     if (linkedPr) {
       conditions.prOpened = true;
       conditions.prNumber = linkedPr.number;
+      conditions.branchName = linkedPr.head.ref;
+      conditions.branchExists = true;
       if (linkedPr.merged_at) {
         conditions.prState = "merged";
         conditions.prMerged = true;
@@ -35165,8 +35149,7 @@ async function fetchPhaseConditions(octokit, owner, repo, issueNumber, projectNu
       {
         owner,
         repo,
-        number: issueNumber,
-        projectNumber
+        number: issueNumber
       }
     );
     const issue = issueResponse.repository?.issue;
@@ -35257,6 +35240,16 @@ async function waitForPhase(options) {
   core5.info(
     `Timeout: ${timeoutMs / 1e3}s, Poll interval: ${pollIntervalMs / 1e3}s`
   );
+  let prevState = {
+    branchExists: false,
+    prOpened: false,
+    prState: null,
+    ciPassed: false,
+    reviewApproved: false,
+    prMerged: false,
+    issueClosed: false,
+    issueStatus: null
+  };
   const pollResult = await pollUntil(
     () => fetchPhaseConditions(octokit, owner, repo, issueNumber, projectNumber),
     (conditions2) => isPhaseComplete(conditions2, expectations),
@@ -35267,10 +35260,59 @@ async function waitForPhase(options) {
       timeoutMs
     },
     (conditions2, attempt, elapsed) => {
-      const c = (ok) => ok ? "\u2705" : "\u2B1C";
-      core5.info(
-        `[${attempt}] ${Math.round(elapsed / 1e3)}s | branch:${c(conditions2.branchExists)} pr:${c(conditions2.prOpened)}${conditions2.prState ? `(${conditions2.prState})` : ""} ci:${c(conditions2.ciPassed)} review:${c(conditions2.reviewApproved)} merged:${c(conditions2.prMerged)} closed:${c(conditions2.issueClosed)} status:${conditions2.issueStatus || "?"}`
-      );
+      const changes = [];
+      if (conditions2.branchExists && !prevState.branchExists) {
+        changes.push(`\u2705 Branch created: ${conditions2.branchName}`);
+      }
+      if (conditions2.prOpened && !prevState.prOpened) {
+        changes.push(
+          `\u2705 PR opened: #${conditions2.prNumber} (${conditions2.prState})`
+        );
+      } else if (conditions2.prState && conditions2.prState !== prevState.prState) {
+        changes.push(`\u{1F4DD} PR state: ${prevState.prState} \u2192 ${conditions2.prState}`);
+      }
+      if (conditions2.ciPassed && !prevState.ciPassed) {
+        changes.push(`\u2705 CI passed`);
+      }
+      if (conditions2.reviewApproved && !prevState.reviewApproved) {
+        changes.push(`\u2705 Review approved`);
+      }
+      if (conditions2.prMerged && !prevState.prMerged) {
+        changes.push(`\u2705 PR merged`);
+      }
+      if (conditions2.issueClosed && !prevState.issueClosed) {
+        changes.push(`\u2705 Issue closed`);
+      }
+      if (conditions2.issueStatus && conditions2.issueStatus !== prevState.issueStatus) {
+        changes.push(
+          `\u{1F4DD} Status: ${prevState.issueStatus || "?"} \u2192 ${conditions2.issueStatus}`
+        );
+      }
+      if (changes.length > 0) {
+        for (const change of changes) {
+          core5.info(`[${attempt}] ${Math.round(elapsed / 1e3)}s | ${change}`);
+        }
+      } else if (attempt % 5 === 0) {
+        const done = [
+          conditions2.branchExists ? "branch" : null,
+          conditions2.prOpened ? `pr(${conditions2.prState})` : null,
+          conditions2.ciPassed ? "ci" : null,
+          conditions2.reviewApproved ? "review" : null,
+          conditions2.prMerged ? "merged" : null,
+          conditions2.issueClosed ? "closed" : null
+        ].filter(Boolean).join(", ");
+        core5.info(`[${attempt}] ${Math.round(elapsed / 1e3)}s | waiting... [${done || "nothing yet"}]`);
+      }
+      prevState = {
+        branchExists: conditions2.branchExists,
+        prOpened: conditions2.prOpened,
+        prState: conditions2.prState,
+        ciPassed: conditions2.ciPassed,
+        reviewApproved: conditions2.reviewApproved,
+        prMerged: conditions2.prMerged,
+        issueClosed: conditions2.issueClosed,
+        issueStatus: conditions2.issueStatus
+      };
     }
   );
   const duration = Date.now() - startTime;
