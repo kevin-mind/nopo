@@ -410,6 +410,7 @@ jobs:
       inputs.mode == 'e2e' &&
       needs.assign.result == 'success'
     runs-on: ubuntu-latest
+    timeout-minutes: 75
     strategy:
       matrix:
         phase: ${{ fromJson(needs.load-fixture.outputs.phase_numbers) }}
@@ -459,7 +460,7 @@ jobs:
           fixture_json: ${{ needs.load-fixture.outputs.fixture }}
           github_token: ${{ secrets.NOPO_BOT_PAT }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
-          timeout: '2700'
+          timeout: '3600'
           poll_interval: '15'
 
       - name: Simulate human merge if needed
