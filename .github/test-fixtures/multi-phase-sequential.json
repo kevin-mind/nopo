@@ -53,19 +53,19 @@
     },
     "phases": [
       {
-        "branch_pattern": "claude/issue-{N}",
+        "branch_pattern": "claude/issue/.*/phase-.*",
         "pr_title_contains": "Setup infrastructure",
         "ci_required": true,
         "review_required": true
       },
       {
-        "branch_pattern": "claude/issue-{N}",
+        "branch_pattern": "claude/issue/.*/phase-.*",
         "pr_title_contains": "Implement core logic",
         "ci_required": true,
         "review_required": true
       },
       {
-        "branch_pattern": "claude/issue-{N}",
+        "branch_pattern": "claude/issue/.*/phase-.*",
         "pr_title_contains": "Add polish",
         "ci_required": true,
         "review_required": true
