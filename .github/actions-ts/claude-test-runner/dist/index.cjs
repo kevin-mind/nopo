@@ -19416,7 +19416,7 @@ var require_exec = __commonJS({
     exports2.getExecOutput = exports2.exec = void 0;
     var string_decoder_1 = require("string_decoder");
     var tr = __importStar(require_toolrunner());
-    function exec3(commandLine, args, options) {
+    function exec5(commandLine, args, options) {
       return __awaiter(this, void 0, void 0, function* () {
         const commandArgs = tr.argStringToArray(commandLine);
         if (commandArgs.length === 0) {
@@ -19428,7 +19428,7 @@ var require_exec = __commonJS({
         return runner.exec();
       });
     }
-    exports2.exec = exec3;
+    exports2.exec = exec5;
     function getExecOutput(commandLine, args, options) {
       var _a, _b;
       return __awaiter(this, void 0, void 0, function* () {
@@ -19451,7 +19451,7 @@ var require_exec = __commonJS({
           }
         };
         const listeners = Object.assign(Object.assign({}, options === null || options === void 0 ? void 0 : options.listeners), { stdout: stdOutListener, stderr: stdErrListener });
-        const exitCode = yield exec3(commandLine, args, Object.assign(Object.assign({}, options), { listeners }));
+        const exitCode = yield exec5(commandLine, args, Object.assign(Object.assign({}, options), { listeners }));
         stdout += stdoutDecoder.end();
         stderr += stderrDecoder.end();
         return {
@@ -19529,12 +19529,12 @@ var require_platform = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getDetails = exports2.isLinux = exports2.isMacOS = exports2.isWindows = exports2.arch = exports2.platform = void 0;
     var os_1 = __importDefault(require("os"));
-    var exec3 = __importStar(require_exec());
+    var exec5 = __importStar(require_exec());
     var getWindowsInfo = () => __awaiter(void 0, void 0, void 0, function* () {
-      const { stdout: version } = yield exec3.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Version"', void 0, {
+      const { stdout: version } = yield exec5.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Version"', void 0, {
         silent: true
       });
-      const { stdout: name } = yield exec3.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Caption"', void 0, {
+      const { stdout: name } = yield exec5.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Caption"', void 0, {
         silent: true
       });
       return {
@@ -19544,7 +19544,7 @@ var require_platform = __commonJS({
     });
     var getMacOsInfo = () => __awaiter(void 0, void 0, void 0, function* () {
       var _a, _b, _c, _d;
-      const { stdout } = yield exec3.getExecOutput("sw_vers", void 0, {
+      const { stdout } = yield exec5.getExecOutput("sw_vers", void 0, {
         silent: true
       });
       const version = (_b = (_a = stdout.match(/ProductVersion:\s*(.+)/)) === null || _a === void 0 ? void 0 : _a[1]) !== null && _b !== void 0 ? _b : "";
@@ -19555,7 +19555,7 @@ var require_platform = __commonJS({
       };
     });
     var getLinuxInfo = () => __awaiter(void 0, void 0, void 0, function* () {
-      const { stdout } = yield exec3.getExecOutput("lsb_release", ["-i", "-r", "-s"], {
+      const { stdout } = yield exec5.getExecOutput("lsb_release", ["-i", "-r", "-s"], {
         silent: true
       });
       const [name, version] = stdout.trim().split("\n");
@@ -19740,10 +19740,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.error = error3;
-    function warning4(message, properties = {}) {
+    function warning5(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning4;
+    exports2.warning = warning5;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
@@ -24573,7 +24573,7 @@ var Actor = class {
         }
       },
       actionExecutor: (action) => {
-        const exec3 = () => {
+        const exec5 = () => {
           this._actorScope.system._sendInspectionEvent({
             type: "@xstate.action",
             actorRef: this,
@@ -24594,9 +24594,9 @@ var Actor = class {
           }
         };
         if (this._processingStatus === ProcessingStatus.Running) {
-          exec3();
+          exec5();
         } else {
-          this._deferred.push(exec3);
+          this._deferred.push(exec5);
         }
       }
     };
@@ -34638,8 +34638,8 @@ function formatValidationResult(name, result) {
   }
   if (result.warnings.length > 0) {
     lines.push("  Warnings:");
-    for (const warning4 of result.warnings) {
-      lines.push(`    - ${warning4}`);
+    for (const warning5 of result.warnings) {
+      lines.push(`    - ${warning5}`);
     }
   }
   return lines.join("\n");
@@ -34988,6 +34988,7 @@ async function waitForTriage(options) {
 
 // claude-test-runner/src/phase.ts
 var core5 = __toESM(require_core(), 1);
+var exec3 = __toESM(require_exec(), 1);
 var GET_ISSUE_PROJECT_STATUS_QUERY = `
 query GetIssueProjectStatus($owner: String!, $repo: String!, $number: Int!) {
   repository(owner: $owner, name: $repo) {
@@ -35220,6 +35221,24 @@ function verifyPhaseExpectations(conditions, expectations) {
   }
   return errors;
 }
+async function mergePR(owner, repo, prNumber) {
+  try {
+    core5.info(`\u{1F500} Merging PR #${prNumber} via merge queue...`);
+    await exec3.exec("gh", [
+      "pr",
+      "merge",
+      String(prNumber),
+      "--repo",
+      `${owner}/${repo}`,
+      "--squash"
+    ]);
+    core5.info(`\u2705 PR #${prNumber} added to merge queue`);
+    return true;
+  } catch (error3) {
+    core5.warning(`Failed to merge PR #${prNumber}: ${error3}`);
+    return false;
+  }
+}
 async function waitForPhase(options) {
   const {
     octokit,
@@ -35251,6 +35270,7 @@ async function waitForPhase(options) {
     issueClosed: false,
     issueStatus: null
   };
+  let mergeAttempted = false;
   const pollResult = await pollUntil(
     () => fetchPhaseConditions(octokit, owner, repo, issueNumber, projectNumber),
     (conditions2) => isPhaseComplete(conditions2, expectations),
@@ -35318,6 +35338,12 @@ async function waitForPhase(options) {
         issueClosed: conditions2.issueClosed,
         issueStatus: conditions2.issueStatus
       };
+      if (!mergeAttempted && conditions2.prNumber && conditions2.prState === "open" && conditions2.ciPassed && conditions2.reviewApproved && !conditions2.prMerged) {
+        mergeAttempted = true;
+        mergePR(owner, repo, conditions2.prNumber).catch((err) => {
+          core5.warning(`Merge failed: ${err}`);
+        });
+      }
     }
   );
   const duration = Date.now() - startTime;

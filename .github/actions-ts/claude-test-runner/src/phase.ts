@@ -11,6 +11,7 @@
  */
 
 import * as core from "@actions/core";
+import * as exec from "@actions/exec";
 import type { PhaseWaitResult, PhaseExpectation } from "./types.js";
 import { pollUntil, DEFAULT_POLLER_CONFIG } from "./poller.js";
 
@@ -475,6 +476,32 @@ interface WaitForPhaseOptions {
 }
 
 /**
+ * Merge a PR using gh CLI (adds to merge queue)
+ */
+async function mergePR(
+  owner: string,
+  repo: string,
+  prNumber: number,
+): Promise<boolean> {
+  try {
+    core.info(`🔀 Merging PR #${prNumber} via merge queue...`);
+    await exec.exec("gh", [
+      "pr",
+      "merge",
+      String(prNumber),
+      "--repo",
+      `${owner}/${repo}`,
+      "--squash",
+    ]);
+    core.info(`✅ PR #${prNumber} added to merge queue`);
+    return true;
+  } catch (error) {
+    core.warning(`Failed to merge PR #${prNumber}: ${error}`);
+    return false;
+  }
+}
+
+/**
  * Wait for phase to complete and verify results
  */
 export async function waitForPhase(
@@ -512,6 +539,9 @@ export async function waitForPhase(
     issueClosed: false,
     issueStatus: null as string | null,
   };
+
+  // Track if we've attempted to merge
+  let mergeAttempted = false;
 
   const pollResult = await pollUntil<PhaseConditions>(
     () =>
@@ -596,6 +626,23 @@ export async function waitForPhase(
         issueClosed: conditions.issueClosed,
         issueStatus: conditions.issueStatus,
       };
+
+      // Trigger merge when conditions are met (simulating human action)
+      // Conditions: PR open (not draft), CI passed, review approved, not yet merged
+      if (
+        !mergeAttempted &&
+        conditions.prNumber &&
+        conditions.prState === "open" &&
+        conditions.ciPassed &&
+        conditions.reviewApproved &&
+        !conditions.prMerged
+      ) {
+        mergeAttempted = true;
+        // Fire and forget - the merge will happen async
+        mergePR(owner, repo, conditions.prNumber).catch((err) => {
+          core.warning(`Merge failed: ${err}`);
+        });
+      }
     },
   );
 
