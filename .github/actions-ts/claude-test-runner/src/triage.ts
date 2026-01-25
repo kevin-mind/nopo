@@ -226,6 +226,11 @@ async function fetchTriageState(
 
   const issue = response.repository?.issue;
   if (!issue) {
+    // Log why we might not find the issue - helps debug GraphQL issues
+    core.debug(
+      `Issue #${issueNumber} not found in GraphQL response. ` +
+        `Response had repository: ${!!response.repository}`,
+    );
     return {
       hasTriagedLabel: false,
       labels: [],

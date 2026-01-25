@@ -167,13 +167,19 @@ export async function pollUntil<T>(
         core.info("🛑 Polling cancelled during sleep");
         break;
       }
-    } catch {
+    } catch (error) {
       // Check if this was a cancellation
       if (abortSignal?.aborted) {
         cancelled = true;
         core.info("🛑 Polling cancelled");
         break;
       }
+
+      // Log the error so we can see what's happening
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      core.warning(
+        `[${attempts}] Poll error: ${errorMsg.slice(0, 200)}${errorMsg.length > 200 ? "..." : ""}`,
+      );
 
       // On error, continue polling with backoff
       const sleepTime = calculateNextInterval(interval, fullConfig);

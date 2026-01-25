@@ -1,4 +1,3 @@
-// This file is auto-generated. Do not edit directly.
 "use strict";
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -19740,10 +19739,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.error = error3;
-    function warning3(message, properties = {}) {
+    function warning4(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning3;
+    exports2.warning = warning4;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
@@ -24002,12 +24001,16 @@ async function pollUntil(fetchFn, conditionFn, config = {}, onPoll, signal) {
         core2.info("\u{1F6D1} Polling cancelled during sleep");
         break;
       }
-    } catch {
+    } catch (error3) {
       if (abortSignal?.aborted) {
         cancelled = true;
         core2.info("\u{1F6D1} Polling cancelled");
         break;
       }
+      const errorMsg = error3 instanceof Error ? error3.message : String(error3);
+      core2.warning(
+        `[${attempts}] Poll error: ${errorMsg.slice(0, 200)}${errorMsg.length > 200 ? "..." : ""}`
+      );
       const sleepTime = calculateNextInterval(interval, fullConfig);
       interval = sleepTime;
       const remainingTime = fullConfig.timeoutMs - (Date.now() - startTime);
@@ -34634,8 +34637,8 @@ function formatValidationResult(name, result) {
   }
   if (result.warnings.length > 0) {
     lines.push("  Warnings:");
-    for (const warning3 of result.warnings) {
-      lines.push(`    - ${warning3}`);
+    for (const warning4 of result.warnings) {
+      lines.push(`    - ${warning4}`);
     }
   }
   return lines.join("\n");
@@ -34736,6 +34739,9 @@ async function fetchTriageState(octokit, owner, repo, issueNumber, projectNumber
   );
   const issue = response.repository?.issue;
   if (!issue) {
+    core4.debug(
+      `Issue #${issueNumber} not found in GraphQL response. Response had repository: ${!!response.repository}`
+    );
     return {
       hasTriagedLabel: false,
       labels: [],
