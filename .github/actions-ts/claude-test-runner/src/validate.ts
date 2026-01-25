@@ -122,6 +122,48 @@ const ProjectStatusValues = [
 ] as const;
 
 /**
+ * Schema for triage verification expectations
+ */
+const TriageExpectationSchema = z
+  .object({
+    labels: z.array(z.string()).optional(),
+    project_fields: z
+      .object({
+        Priority: z.string().optional(),
+        Size: z.string().optional(),
+        Estimate: z.number().optional(),
+        Status: z.string().optional(),
+      })
+      .optional(),
+    sub_issue_count: z.number().int().min(0).optional(),
+  })
+  .strict();
+
+/**
+ * Schema for phase verification expectations
+ */
+const PhaseExpectationSchema = z
+  .object({
+    branch_pattern: z.string().optional(),
+    pr_title_contains: z.string().optional(),
+    ci_required: z.boolean().optional(),
+    review_required: z.boolean().optional(),
+    deploy_required: z.boolean().optional(),
+  })
+  .strict();
+
+/**
+ * Schema for completion verification expectations
+ */
+const CompletionExpectationSchema = z
+  .object({
+    parent_status: z.string().optional(),
+    all_sub_issues_closed: z.boolean().optional(),
+    all_prs_merged: z.boolean().optional(),
+  })
+  .strict();
+
+/**
  * Schema for expected outcomes
  */
 const ExpectedSchema = z
@@ -138,6 +180,10 @@ const ExpectedSchema = z
     sub_issues_todos_done: z.boolean().optional(),
     history_contains: z.array(z.string()).optional(),
     sub_issues_have_merged_pr: z.boolean().optional(),
+    // New E2E per-phase verification fields
+    triage: TriageExpectationSchema.optional(),
+    phases: z.array(PhaseExpectationSchema).optional(),
+    completion: CompletionExpectationSchema.optional(),
   })
   .strict();
 

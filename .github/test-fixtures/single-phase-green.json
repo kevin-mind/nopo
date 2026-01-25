@@ -21,7 +21,26 @@
     "all_sub_issues_closed": true,
     "sub_issues_todos_done": true,
     "sub_issues_have_merged_pr": true,
-    "history_contains": ["🎉 Merged"]
+    "history_contains": ["🎉 Merged"],
+    "triage": {
+      "labels": ["triaged"],
+      "project_fields": {
+        "Status": "Backlog"
+      },
+      "sub_issue_count": 1
+    },
+    "phases": [
+      {
+        "branch_pattern": "claude/issue-{N}",
+        "ci_required": true,
+        "review_required": true
+      }
+    ],
+    "completion": {
+      "parent_status": "Done",
+      "all_sub_issues_closed": true,
+      "all_prs_merged": true
+    }
   },
   "expected_machine": {
     "final_state": "iterating",

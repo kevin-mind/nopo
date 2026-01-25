@@ -65,6 +65,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       fixture: ${{ steps.read.outputs.fixture }}
+      phase_count: ${{ steps.parse.outputs.phase_count }}
+      phase_numbers: ${{ steps.parse.outputs.phase_numbers }}
     steps:
       - uses: actions/checkout@v4
 
@@ -87,6 +89,35 @@ jobs:
           echo "$delimiter" >> $GITHUB_OUTPUT
 
           echo "Loaded fixture: ${{ inputs.test_name }}"
+
+      - name: Parse phase count
+        id: parse
+        env:
+          FIXTURE_JSON: ${{ steps.read.outputs.fixture }}
+        run: |
+          # Determine phase count from sub_issues or default to 1
+          sub_issue_count=$(echo "$FIXTURE_JSON" | jq '.sub_issues | length // 0')
+
+          # If fixture has expected phases, use that count
+          expected_phase_count=$(echo "$FIXTURE_JSON" | jq '.expected.phases | length // 0')
+
+          # Use max of sub_issues or expected phases, minimum 1
+          if [[ "$expected_phase_count" -gt "$sub_issue_count" ]]; then
+            phase_count="$expected_phase_count"
+          elif [[ "$sub_issue_count" -gt 0 ]]; then
+            phase_count="$sub_issue_count"
+          else
+            phase_count=1
+          fi
+
+          echo "phase_count=$phase_count" >> $GITHUB_OUTPUT
+
+          # Create JSON array of phase numbers [1, 2, 3, ...]
+          phase_numbers=$(seq 1 $phase_count | jq -R -s -c 'split("\n") | map(select(length > 0) | tonumber)')
+          echo "phase_numbers=$phase_numbers" >> $GITHUB_OUTPUT
+
+          echo "Phase count: $phase_count"
+          echo "Phase numbers: $phase_numbers"
 
   # Create test artifacts (issues, branches, PRs)
   setup:
@@ -145,9 +176,6 @@ jobs:
           fi
 
   # Run state machine in dry-run mode (direct call, no real execution)
-  # In the new architecture:
-  # - State machine derives actions (no execution)
-  # - Executor would execute them (dry_run=true skips actual execution)
   run-dry-run:
     needs: [load-fixture, setup]
     if: |
@@ -248,21 +276,40 @@ jobs:
           echo "$ACTIONS_JSON" | jq '.' >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
-  # Trigger the state machine by assigning nopo-bot (stepwise/e2e modes only)
-  trigger:
-    needs: [setup]
+  # ============================================================================
+  # E2E Mode: Per-Phase Verification Pipeline
+  # ============================================================================
+
+  # Step 1: Dispatch triage and wait for completion (E2E mode only)
+  triage:
+    needs: [load-fixture, setup]
     if: |
       always() &&
       inputs.cleanup_only != true &&
-      inputs.mode != 'dry-run' &&
+      inputs.mode == 'e2e' &&
       needs.setup.result == 'success'
     runs-on: ubuntu-latest
+    outputs:
+      success: ${{ steps.wait-triage.outputs.success }}
+      sub_issue_numbers: ${{ steps.get-sub-issues.outputs.sub_issue_numbers }}
     steps:
-      # Dispatch triage via workflow_dispatch (E2E mode only)
-      # Issue triggers were removed to use explicit workflow dispatch instead
-      # Use GITHUB_TOKEN for workflow dispatch (PAT may not have workflow scope)
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Build test runner action
+        run: |
+          cd .github/actions-ts
+          pnpm install --frozen-lockfile
+          pnpm run build
+
       - name: Dispatch triage workflow
-        if: inputs.mode == 'e2e'
         env:
           ISSUE_NUMBER: ${{ needs.setup.outputs.issue_number }}
           GH_TOKEN: ${{ github.token }}
@@ -273,104 +320,87 @@ jobs:
             -f resource_number="$ISSUE_NUMBER"
           echo "✅ Triage workflow dispatched"
 
-      # Wait for triage to complete before assigning nopo-bot (E2E mode only)
       - name: Wait for triage to complete
-        if: inputs.mode == 'e2e'
+        id: wait-triage
+        uses: ./.github/actions-ts/claude-test-runner
+        with:
+          action: wait-triage
+          issue_number: ${{ needs.setup.outputs.issue_number }}
+          fixture_json: ${{ needs.load-fixture.outputs.fixture }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+          timeout: '300'
+          poll_interval: '10'
+
+      - name: Get sub-issues created by triage
+        id: get-sub-issues
         env:
           ISSUE_NUMBER: ${{ needs.setup.outputs.issue_number }}
           GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
         run: |
-          echo "Waiting for triage to complete on issue #$ISSUE_NUMBER..."
-          timeout=300  # 5 minutes for triage (matrix jobs add overhead)
-          poll_interval=5
-          start_time=$(date +%s)
-          iteration=0
+          # Query sub-issues of the parent issue
+          sub_issues=$(gh api graphql -f query='
+            query($owner: String!, $repo: String!, $number: Int!) {
+              repository(owner: $owner, name: $repo) {
+                issue(number: $number) {
+                  subIssues(first: 20) {
+                    nodes {
+                      number
+                    }
+                  }
+                }
+              }
+            }
+          ' -f owner="${GITHUB_REPOSITORY%/*}" -f repo="${GITHUB_REPOSITORY#*/}" -F number="$ISSUE_NUMBER" \
+            --jq '.data.repository.issue.subIssues.nodes | map(.number) | join(",")')
 
-          while true; do
-            current_time=$(date +%s)
-            elapsed=$((current_time - start_time))
-            iteration=$((iteration + 1))
+          echo "sub_issue_numbers=$sub_issues" >> $GITHUB_OUTPUT
+          echo "Sub-issues: $sub_issues"
 
-            if [[ $elapsed -ge $timeout ]]; then
-              echo "::error::Triage timeout after ${elapsed}s"
-              exit 1
-            fi
+      - name: Output triage results
+        run: |
+          echo "## Triage Verification" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ steps.wait-triage.outputs.success }}" == "true" ]]; then
+            echo "### ✅ Triage completed successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Triage verification failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Errors: ${{ steps.wait-triage.outputs.errors }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Labels** | ${{ steps.wait-triage.outputs.labels }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Project Fields** | ${{ steps.wait-triage.outputs.project_fields }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Sub-issues** | ${{ steps.get-sub-issues.outputs.sub_issue_numbers }} |" >> $GITHUB_STEP_SUMMARY
 
-            # Get full issue state
-            # Disable pipefail to prevent script exit on jq failure
-            issue_tmp=$(mktemp)
-            set +o pipefail
-            gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
-              --json state,title,body,labels,assignees,projectItems 2>/dev/null > "$issue_tmp.raw" || true
-            set -o pipefail
-
-            # Compact JSON with jq
-            if [[ -s "$issue_tmp.raw" ]] && jq -c '.' "$issue_tmp.raw" > "$issue_tmp" 2>/dev/null; then
-              issue_json=$(cat "$issue_tmp")
-            else
-              issue_json='{}'
-            fi
-            rm -f "$issue_tmp" "$issue_tmp.raw"
-
-            # Validate issue_json before parsing
-            if ! printf '%s' "$issue_json" | jq -e '.' >/dev/null 2>&1; then
-              echo "::warning::issue_json is not valid JSON in triage, using fallback"
-              issue_json='{}'
-            fi
-
-            state=$(printf '%s' "$issue_json" | jq -r '.state // "UNKNOWN"')
-            labels=$(printf '%s' "$issue_json" | jq -c '[.labels[]?.name] // []')
-            assignees=$(printf '%s' "$issue_json" | jq -c '[.assignees[]?.login] // []')
-            project_status=$(printf '%s' "$issue_json" | jq -r '.projectItems[0].fieldValueByName.name // "N/A"')
-            has_triaged=$(printf '%s' "$issue_json" | jq '[.labels[]?.name] | any(. == "triaged")' 2>/dev/null || echo "false")
-            has_state=$(printf '%s' "$issue_json" | jq '.body | contains("CLAUDE_MAIN_STATE")' 2>/dev/null || echo "false")
-
-            # Build state object
-            state_obj=$(jq -n \
-              --arg elapsed "${elapsed}s" \
-              --arg timeout "${timeout}s" \
-              --arg poll "$iteration" \
-              --arg issue "#$ISSUE_NUMBER" \
-              --arg state "$state" \
-              --arg status "$project_status" \
-              --argjson labels "$labels" \
-              --argjson assignees "$assignees" \
-              --arg has_triaged "$has_triaged" \
-              --arg has_state "$has_state" \
-              '{
-                meta: { elapsed: $elapsed, timeout: $timeout, poll: ($poll | tonumber), phase: "triage" },
-                issue: { number: $issue, state: $state, status: $status, labels: $labels, assignees: $assignees },
-                checks: { has_triaged_label: ($has_triaged == "true"), has_claude_state: ($has_state == "true") }
-              }')
-
-            echo "::group::⏳ Triage Poll $iteration - ${elapsed}s/${timeout}s"
-            jq '.' <<< "$state_obj"
-            echo "::endgroup::"
-
-            if [[ "$has_triaged" == "true" ]] || [[ "$has_state" == "true" ]]; then
-              echo "✅ Triage completed after ${elapsed}s"
-              break
-            fi
-
-            sleep $poll_interval
-          done
-
-      - name: Trigger state machine
+  # Step 2: Assign nopo-bot to trigger development (E2E mode only)
+  assign:
+    needs: [load-fixture, setup, triage]
+    if: |
+      always() &&
+      inputs.cleanup_only != true &&
+      inputs.mode == 'e2e' &&
+      needs.triage.result == 'success' &&
+      needs.triage.outputs.success == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assign nopo-bot to parent issue
         env:
           ISSUE_NUMBER: ${{ needs.setup.outputs.issue_number }}
           GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
           GH_TOKEN_WORKFLOW: ${{ github.token }}
         run: |
-          echo "Triggering state machine for issue #$ISSUE_NUMBER"
+          echo "Assigning nopo-bot to issue #$ISSUE_NUMBER..."
 
-          # Assign nopo-bot (required for state machine to proceed)
+          # Assign nopo-bot to trigger the development cycle
           gh issue edit "$ISSUE_NUMBER" \
             --repo "$GITHUB_REPOSITORY" \
             --add-assignee nopo-bot
           echo "✅ Assigned nopo-bot to issue #$ISSUE_NUMBER"
 
-          # Dispatch orchestrate workflow (since issues:assigned trigger is removed)
-          # Use GITHUB_TOKEN for workflow dispatch (PAT may not have workflow scope)
+          # Dispatch orchestrate workflow
           GH_TOKEN="$GH_TOKEN_WORKFLOW" gh workflow run claude.yml \
             --repo "$GITHUB_REPOSITORY" \
             -f resource_number="$ISSUE_NUMBER" \
@@ -382,15 +412,111 @@ jobs:
           echo "Waiting for claude workflow to be triggered..."
           sleep 10
 
-  # Wait for state machine and verify (E2E mode only)
-  verify:
-    needs: [load-fixture, setup, trigger]
+  # Step 3: Development phase verification (sequential matrix) - E2E mode only
+  development:
+    needs: [load-fixture, setup, triage, assign]
     if: |
       always() &&
       inputs.cleanup_only != true &&
       inputs.mode == 'e2e' &&
-      needs.setup.result == 'success' &&
-      needs.trigger.result == 'success'
+      needs.assign.result == 'success'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        phase: ${{ fromJson(needs.load-fixture.outputs.phase_numbers) }}
+      max-parallel: 1
+      fail-fast: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Build test runner action
+        run: |
+          cd .github/actions-ts
+          pnpm install --frozen-lockfile
+          pnpm run build
+
+      - name: Get sub-issue number for phase
+        id: sub-issue
+        env:
+          SUB_ISSUE_NUMBERS: ${{ needs.triage.outputs.sub_issue_numbers }}
+          PHASE: ${{ matrix.phase }}
+        run: |
+          # Parse comma-separated list and get the Nth item (1-indexed)
+          if [[ -z "$SUB_ISSUE_NUMBERS" ]]; then
+            # If no sub-issues from triage, use parent issue
+            sub_issue="${{ needs.setup.outputs.issue_number }}"
+          else
+            sub_issue=$(echo "$SUB_ISSUE_NUMBERS" | cut -d',' -f"$PHASE")
+          fi
+
+          echo "number=$sub_issue" >> $GITHUB_OUTPUT
+          echo "Phase $PHASE sub-issue: #$sub_issue"
+
+      - name: Wait for phase ${{ matrix.phase }} completion
+        id: wait-phase
+        uses: ./.github/actions-ts/claude-test-runner
+        with:
+          action: wait-phase
+          issue_number: ${{ steps.sub-issue.outputs.number }}
+          phase_number: ${{ matrix.phase }}
+          fixture_json: ${{ needs.load-fixture.outputs.fixture }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+          timeout: '900'
+          poll_interval: '15'
+
+      - name: Simulate human merge if needed
+        if: steps.wait-phase.outputs.pr_state == 'open' || steps.wait-phase.outputs.pr_state == 'draft'
+        env:
+          PR_NUMBER: ${{ steps.wait-phase.outputs.pr_number }}
+          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
+        run: |
+          if [[ -n "$PR_NUMBER" ]]; then
+            # Check if PR has ready-to-merge label
+            pr_labels=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json labels --jq '.labels[].name' 2>/dev/null || true)
+            if echo "$pr_labels" | grep -q "ready-to-merge"; then
+              echo "PR #$PR_NUMBER has ready-to-merge label - simulating human merge"
+              gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --squash --admin || true
+            fi
+          fi
+
+      - name: Output phase ${{ matrix.phase }} results
+        run: |
+          echo "## Phase ${{ matrix.phase }} Verification" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ steps.wait-phase.outputs.success }}" == "true" ]]; then
+            echo "### ✅ Phase ${{ matrix.phase }} completed successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Phase ${{ matrix.phase }} failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Errors: ${{ steps.wait-phase.outputs.errors }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Condition | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Branch** | ${{ steps.wait-phase.outputs.branch_name || 'N/A' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **PR** | #${{ steps.wait-phase.outputs.pr_number || 'N/A' }} (${{ steps.wait-phase.outputs.pr_state || 'N/A' }}) |" >> $GITHUB_STEP_SUMMARY
+          echo "| **CI** | ${{ steps.wait-phase.outputs.ci_status || 'N/A' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Review** | ${{ steps.wait-phase.outputs.review_status || 'N/A' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Issue** | ${{ steps.wait-phase.outputs.issue_state }} (${{ steps.wait-phase.outputs.issue_status || 'N/A' }}) |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Duration** | ${{ steps.wait-phase.outputs.total_duration_ms }}ms |" >> $GITHUB_STEP_SUMMARY
+
+  # Step 4: Final completion verification (E2E mode only)
+  completion:
+    needs: [load-fixture, setup, triage, development]
+    if: |
+      always() &&
+      inputs.cleanup_only != true &&
+      inputs.mode == 'e2e' &&
+      needs.development.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -409,318 +535,19 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm run build
 
-      - name: Wait for state machine to complete
-        # Step timeout allows cancellation to work - set slightly higher than fixture timeout
-        timeout-minutes: 30
-        env:
-          ISSUE_NUMBER: ${{ needs.setup.outputs.issue_number }}
-          SUB_ISSUE_NUMBERS: ${{ needs.setup.outputs.sub_issue_numbers }}
-          FIXTURE_JSON: ${{ needs.load-fixture.outputs.fixture }}
-          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
-        run: |
-          # Write FIXTURE_JSON to a temp file to avoid pipeline/subshell issues
-          fixture_file=$(mktemp)
-          printf '%s' "$FIXTURE_JSON" > "$fixture_file"
-
-          # Debug: check if fixture file is valid JSON
-          echo "::group::Debug FIXTURE_JSON"
-          echo "File size: $(wc -c < "$fixture_file") bytes"
-          echo "First 100 chars: $(head -c 100 "$fixture_file")..."
-          if jq -e '.' "$fixture_file" >/dev/null 2>&1; then
-            echo "Valid JSON: yes"
-          else
-            echo "Valid JSON: NO!"
-            echo "Error: $(jq '.' "$fixture_file" 2>&1 || true)"
-          fi
-          echo "::endgroup::"
-
-          # Parse timeout and poll_interval from file with explicit debugging
-          echo "Fixture file path: $fixture_file"
-          echo "Fixture file exists: $(test -f "$fixture_file" && echo yes || echo no)"
-          echo "Fixture file content (first 200 chars):"
-          head -c 200 "$fixture_file"
-          echo ""
-
-          # Parse timeout
-          echo "Parsing timeout from fixture file..."
-          timeout_output=$(jq -r '.timeout // 300' "$fixture_file" 2>&1)
-          timeout_exit=$?
-          echo "timeout parse exit code: $timeout_exit, output: '$timeout_output'"
-          if [[ $timeout_exit -eq 0 ]]; then
-            timeout="$timeout_output"
-          else
-            echo "::warning::timeout parse failed, using default"
-            timeout=300
-          fi
-
-          # Parse poll_interval
-          echo "Parsing poll_interval from fixture file..."
-          poll_output=$(jq -r '.poll_interval // 10' "$fixture_file" 2>&1)
-          poll_exit=$?
-          echo "poll_interval parse exit code: $poll_exit, output: '$poll_output'"
-          if [[ $poll_exit -eq 0 ]]; then
-            poll_interval="$poll_output"
-          else
-            echo "::warning::poll_interval parse failed, using default"
-            poll_interval=10
-          fi
-
-          echo "Final values - timeout=$timeout, poll_interval=$poll_interval"
-
-          # Parse history table from issue body into JSON array
-          # Table format: | Time | # | Phase | Action | SHA | Run |
-          # Takes a file path instead of body content to avoid shell variable issues
-          parse_history_from_file() {
-            local issue_file="$1"
-            local body_file
-            body_file=$(mktemp)
-
-            # Extract body to temp file
-            if ! jq -r '.body // ""' "$issue_file" > "$body_file" 2>/dev/null; then
-              rm -f "$body_file"
-              printf '[]'
-              return 0
-            fi
-
-            # Check if there's a history table
-            if ! grep -q '## Iteration History' "$body_file" 2>/dev/null; then
-              rm -f "$body_file"
-              printf '[]'
-              return 0
-            fi
-
-            # Extract and parse history rows from file
-            local rows_file
-            rows_file=$(mktemp)
-            grep -E '^\|' "$body_file" | grep -v 'Time' | grep -v '\-\-\-' > "$rows_file" 2>/dev/null || true
-
-            if [[ ! -s "$rows_file" ]]; then
-              rm -f "$body_file" "$rows_file"
-              printf '[]'
-              return 0
-            fi
-
-            # Parse with jq
-            local result
-            result=$(jq -Rs '
-              split("\n") |
-              map(select(length > 0)) |
-              map(
-                split("|") |
-                map(gsub("^\\s+|\\s+$"; "")) |
-                select(length >= 6) |
-                {
-                  iteration: (.[2] | tonumber? // 0),
-                  phase: .[3],
-                  action: .[4],
-                  sha: .[5]
-                }
-              )
-            ' "$rows_file" 2>/dev/null) || result="[]"
-
-            rm -f "$body_file" "$rows_file"
-
-            # Validate result is an array
-            if echo "$result" | jq -e 'type == "array"' >/dev/null 2>&1; then
-              printf '%s' "$result"
-            else
-              printf '[]'
-            fi
-          }
-
-          # Simulate human merge action when PR has "ready-to-merge" label
-          simulate_merge() {
-            local pr_number="$1"
-            echo "🔀 Simulating human merge for PR #$pr_number..."
-
-            # Try to merge the PR
-            if gh pr merge "$pr_number" --repo "$GITHUB_REPOSITORY" --squash --admin 2>/dev/null; then
-              echo "✅ Successfully merged PR #$pr_number"
-              return 0
-            else
-              echo "::warning::Failed to merge PR #$pr_number"
-              return 1
-            fi
-          }
-
-          start_time=$(date +%s)
-          iteration=0
-
-          while true; do
-            current_time=$(date +%s)
-            elapsed=$((current_time - start_time))
-            iteration=$((iteration + 1))
-
-            if [[ $elapsed -ge $timeout ]]; then
-              echo "::warning::Timeout reached after ${elapsed}s"
-              break
-            fi
-
-            # Get full issue details
-            # Disable pipefail for this command to prevent script exit on jq failure
-            echo "Fetching issue #$ISSUE_NUMBER..."
-            issue_tmp=$(mktemp)
-            set +o pipefail
-            gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --json state,title,body,labels,assignees,projectItems 2>/dev/null > "$issue_tmp.raw" || true
-            set -o pipefail
-
-            # Compact JSON with jq, handling failures
-            # Keep issue_tmp file around for all subsequent jq operations to avoid shell variable issues
-            if [[ -s "$issue_tmp.raw" ]] && jq -c '.' "$issue_tmp.raw" > "$issue_tmp" 2>/dev/null; then
-              echo "Got issue JSON: $(wc -c < "$issue_tmp") bytes"
-            else
-              echo "::warning::gh issue view or jq failed, using fallback"
-              echo '{}' > "$issue_tmp"
-            fi
-            rm -f "$issue_tmp.raw"
-
-            # Debug: check if issue file is valid before parsing
-            if ! jq -e '.' "$issue_tmp" >/dev/null 2>&1; then
-              echo "::warning::issue_tmp is not valid JSON, using fallback"
-              echo "::debug::issue_tmp size: $(wc -c < "$issue_tmp")"
-              echo '{}' > "$issue_tmp"
-            fi
-
-            # Parse from file to avoid shell variable interpolation issues
-            # Only extract simple values that won't have special characters
-            state=$(jq -r '.state // "UNKNOWN"' "$issue_tmp")
-            title=$(jq -r '.title // "Unknown"' "$issue_tmp")
-            labels=$(jq -c '[.labels[]?.name] // []' "$issue_tmp")
-            assignees=$(jq -c '[.assignees[]?.login] // []' "$issue_tmp")
-            project_status=$(jq -r '.projectItems[0].fieldValueByName.name // "N/A"' "$issue_tmp")
-
-            # Check for PRs with "ready-to-merge" label and simulate human merge
-            # Only merge PRs that are linked to the current test's issues
-            all_test_issues="$ISSUE_NUMBER"
-            if [[ -n "$SUB_ISSUE_NUMBERS" ]]; then
-              IFS=',' read -ra SUB_NUMS <<< "$SUB_ISSUE_NUMBERS"
-              for sub_num in "${SUB_NUMS[@]}"; do
-                sub_num=$(echo "$sub_num" | tr -d ' ')
-                all_test_issues="$all_test_issues $sub_num"
-              done
-            fi
-
-            # Search for PRs with ready-to-merge label
-            # Keep everything in temp files to avoid shell variable issues with special characters
-            pr_tmp=$(mktemp)
-            if gh pr list --repo "$GITHUB_REPOSITORY" --label "ready-to-merge" --json number,state,body 2>/dev/null > "$pr_tmp.raw" 2>/dev/null && jq -c '.' "$pr_tmp.raw" > "$pr_tmp" 2>/dev/null; then
-              pr_count=$(jq 'length' "$pr_tmp")
-            else
-              echo '[]' > "$pr_tmp"
-              pr_count=0
-            fi
-            rm -f "$pr_tmp.raw"
-
-            # Iterate by index to avoid shell variable issues
-            for ((pr_idx=0; pr_idx<pr_count; pr_idx++)); do
-              pr_num=$(jq -r ".[$pr_idx].number" "$pr_tmp")
-              pr_state=$(jq -r ".[$pr_idx].state" "$pr_tmp")
-
-              # Check if PR body contains a link to one of the test issues
-              is_test_pr=false
-              for issue_num in $all_test_issues; do
-                if jq -r ".[$pr_idx].body // \"\"" "$pr_tmp" | grep -qE "(Fixes|Closes|Resolves) #$issue_num"; then
-                  is_test_pr=true
-                  break
-                fi
-              done
-
-              if [[ "$pr_state" == "OPEN" && "$is_test_pr" == "true" ]]; then
-                echo "::notice::PR #$pr_num has ready-to-merge label and is linked to test issues - simulating human merge"
-                simulate_merge "$pr_num"
-                # Wait for merge to propagate
-                sleep 5
-              fi
-            done
-            rm -f "$pr_tmp"
-
-            # Parse history from issue file (avoids shell variable issues with body content)
-            history=$(parse_history_from_file "$issue_tmp")
-
-            # Validate inputs are valid JSON before building state object
-            # Use heredocs for safer JSON validation
-            if ! jq -e '.' <<< "$labels" >/dev/null 2>&1; then
-              echo "::warning::labels is not valid JSON: $labels"
-              labels='[]'
-            fi
-            if ! jq -e '.' <<< "$assignees" >/dev/null 2>&1; then
-              echo "::warning::assignees is not valid JSON: $assignees"
-              assignees='[]'
-            fi
-            if ! jq -e '.' <<< "$history" >/dev/null 2>&1; then
-              echo "::warning::history is not valid JSON: $history"
-              history='[]'
-            fi
-
-            # Debug: show values before building state object
-            echo "::debug::Building state_obj with labels='$labels' assignees='$assignees' history length=${#history}"
-
-            # Build state object
-            state_obj=$(jq -n \
-              --arg elapsed "${elapsed}s" \
-              --arg timeout "${timeout}s" \
-              --arg poll "$iteration" \
-              --arg issue "#$ISSUE_NUMBER" \
-              --arg title "$title" \
-              --arg state "$state" \
-              --arg status "$project_status" \
-              --argjson labels "$labels" \
-              --argjson assignees "$assignees" \
-              --argjson history "$history" \
-              '{
-                meta: { elapsed: $elapsed, timeout: $timeout, poll: ($poll | tonumber) },
-                issue: { number: $issue, title: $title, state: $state, status: $status, labels: $labels, assignees: $assignees },
-                history: $history
-              }' 2>&1) || {
-                echo "::error::Failed to build state_obj"
-                echo "::debug::labels=$labels"
-                echo "::debug::assignees=$assignees"
-                echo "::debug::history=$history"
-                state_obj='{}'
-              }
-
-            # Clear screen and print state (GitHub Actions compatible)
-            echo "::group::Poll $iteration - Elapsed: ${elapsed}s"
-            jq '.' <<< "$state_obj"
-            echo "::endgroup::"
-
-            if [[ "$state" == "CLOSED" ]]; then
-              echo "✅ Parent #$ISSUE_NUMBER closed - state machine completed"
-              rm -f "$issue_tmp"
-              break
-            fi
-
-            if [[ "$state" == "UNKNOWN" ]]; then
-              echo "::warning::Parent #$ISSUE_NUMBER not found - may have been deleted"
-              rm -f "$issue_tmp"
-              break
-            fi
-
-            # Cleanup temp file at end of iteration
-            rm -f "$issue_tmp"
-
-            sleep "$poll_interval" &
-            wait $! || break
-          done
-
-          # Final state
-          echo "::group::Final State"
-          jq '.' <<< "$state_obj"
-          echo "::endgroup::"
-
-      - name: Verify outcome
+      - name: Verify final outcome
         id: verify
         uses: ./.github/actions-ts/claude-test-helper
         with:
           action: verify
           fixture_json: ${{ needs.load-fixture.outputs.fixture }}
           issue_number: ${{ needs.setup.outputs.issue_number }}
-          github_token: ${{ env.GH_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
 
-      - name: Output verification result
+      - name: Output completion results
         run: |
-          echo "## Verification Result" >> $GITHUB_STEP_SUMMARY
+          echo "## Final Verification" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [[ "${{ steps.verify.outputs.verification_passed }}" == "true" ]]; then
@@ -739,7 +566,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
           ISSUE_NUMBER: ${{ needs.setup.outputs.issue_number }}
-          SUB_ISSUE_NUMBERS: ${{ needs.setup.outputs.sub_issue_numbers }}
+          SUB_ISSUE_NUMBERS: ${{ needs.triage.outputs.sub_issue_numbers }}
         run: |
           echo "## Failure Analysis" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -789,27 +616,6 @@ jobs:
             branch: .headRefName
           }' >> $GITHUB_STEP_SUMMARY || echo "No related PRs found" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Recent Claude workflow runs
-          echo "### Recent Claude Workflow Runs" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          gh run list --repo "$GITHUB_REPOSITORY" --workflow="Claude" --limit=10 --json databaseId,displayTitle,status,conclusion,createdAt 2>/dev/null | \
-            jq '.[] | select(.displayTitle | contains("#'"$ISSUE_NUMBER"'")) | {
-              run_id: .databaseId,
-              title: .displayTitle,
-              status: .status,
-              conclusion: .conclusion,
-              created: .createdAt
-            }' >> $GITHUB_STEP_SUMMARY || echo "Failed to fetch workflow runs" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Links for manual investigation
-          echo "### Investigation Links" >> $GITHUB_STEP_SUMMARY
-          echo "- [Parent Issue](https://github.com/$GITHUB_REPOSITORY/issues/$ISSUE_NUMBER)" >> $GITHUB_STEP_SUMMARY
-          echo "- [Claude Workflow Runs](https://github.com/$GITHUB_REPOSITORY/actions/workflows/claude.yml?query=branch%3Amain)" >> $GITHUB_STEP_SUMMARY
-          echo "- [Project Board](https://github.com/orgs/${GITHUB_REPOSITORY%/*}/projects/1)" >> $GITHUB_STEP_SUMMARY
 
   # Verify dry-run results against expected values (dry-run mode only)
   verify-dry-run:
@@ -885,7 +691,7 @@ jobs:
 
   # Cleanup test artifacts (always runs unless skipped)
   cleanup:
-    needs: [setup, verify, run-dry-run, verify-dry-run]
+    needs: [setup, triage, completion, run-dry-run, verify-dry-run]
     if: |
       always() &&
       (needs.setup.outputs.issue_number != '' || inputs.cleanup_only == true)
@@ -937,7 +743,7 @@ jobs:
 
   # Summary job
   summary:
-    needs: [setup, trigger, verify, run-dry-run, verify-dry-run, cleanup]
+    needs: [setup, triage, assign, development, completion, run-dry-run, verify-dry-run, cleanup]
     if: always() && inputs.cleanup_only != true
     runs-on: ubuntu-latest
     steps:
@@ -981,8 +787,10 @@ jobs:
             echo "| Run Dry-Run | ${{ needs.run-dry-run.result }} |" >> $GITHUB_STEP_SUMMARY
             echo "| Verify Dry-Run | ${{ needs.verify-dry-run.result }} |" >> $GITHUB_STEP_SUMMARY
           else
-            echo "| Trigger | ${{ needs.trigger.result }} |" >> $GITHUB_STEP_SUMMARY
-            echo "| Verify | ${{ needs.verify.result }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| Triage | ${{ needs.triage.result }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| Assign | ${{ needs.assign.result }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| Development | ${{ needs.development.result }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| Completion | ${{ needs.completion.result }} |" >> $GITHUB_STEP_SUMMARY
           fi
           echo "| Cleanup | ${{ needs.cleanup.result }} |" >> $GITHUB_STEP_SUMMARY
 
@@ -1002,4 +810,19 @@ jobs:
             echo "**Dry-Run Mode:** State machine derived actions without executing them." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Actions shown above are what _would_ be executed in a real run." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [[ "${{ inputs.mode }}" == "e2e" ]]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "---" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**E2E Mode:** Full execution with per-phase verification." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Each development phase was verified for:" >> $GITHUB_STEP_SUMMARY
+            echo "- Branch created" >> $GITHUB_STEP_SUMMARY
+            echo "- PR opened" >> $GITHUB_STEP_SUMMARY
+            echo "- CI passed" >> $GITHUB_STEP_SUMMARY
+            echo "- Review approved" >> $GITHUB_STEP_SUMMARY
+            echo "- PR merged" >> $GITHUB_STEP_SUMMARY
+            echo "- Issue closed with Done status" >> $GITHUB_STEP_SUMMARY
           fi

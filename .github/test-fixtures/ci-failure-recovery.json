@@ -18,7 +18,26 @@
     "issue_state": "closed",
     "min_iteration": 2,
     "failures": 0,
-    "all_sub_issues_closed": true
+    "all_sub_issues_closed": true,
+    "triage": {
+      "labels": ["triaged"],
+      "project_fields": {
+        "Status": "Backlog"
+      },
+      "sub_issue_count": 1
+    },
+    "phases": [
+      {
+        "branch_pattern": "claude/issue-{N}",
+        "ci_required": true,
+        "review_required": true
+      }
+    ],
+    "completion": {
+      "parent_status": "Done",
+      "all_sub_issues_closed": true,
+      "all_prs_merged": true
+    }
   },
   "expected_machine": {
     "final_state": "iterating",

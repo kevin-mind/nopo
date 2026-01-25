@@ -190,12 +190,129 @@ export interface TestResult {
 }
 
 /**
+ * Expected triage verification results
+ */
+export interface TriageExpectation {
+  /** Labels expected after triage (e.g., ["triaged", "enhancement", "P1"]) */
+  labels?: string[];
+  /** Project fields expected after triage */
+  project_fields?: {
+    /** Priority field (e.g., "P0", "P1", "P2") */
+    Priority?: string;
+    /** Size field (e.g., "XS", "S", "M", "L", "XL") */
+    Size?: string;
+    /** Estimate in hours (Fibonacci: 1, 2, 3, 5, 8, 13, 21) */
+    Estimate?: number;
+    /** Status should be "Backlog" after triage */
+    Status?: string;
+  };
+  /** Number of sub-issues expected to be created */
+  sub_issue_count?: number;
+}
+
+/**
+ * Expected phase verification results
+ */
+export interface PhaseExpectation {
+  /** Expected branch name pattern (can include {N} for issue number) */
+  branch_pattern?: string;
+  /** Expected PR title contains this string */
+  pr_title_contains?: string;
+  /** Whether CI must pass for this phase */
+  ci_required?: boolean;
+  /** Whether review approval is required for this phase */
+  review_required?: boolean;
+  /** Whether deploy to staging is required */
+  deploy_required?: boolean;
+}
+
+/**
+ * Expected completion state
+ */
+interface CompletionExpectation {
+  /** Expected parent issue status after all phases complete */
+  parent_status?: string;
+  /** Whether all sub-issues should be closed */
+  all_sub_issues_closed?: boolean;
+  /** Whether all PRs should be merged */
+  all_prs_merged?: boolean;
+}
+
+/**
+ * Triage wait result
+ */
+export interface TriageResult {
+  /** Whether triage completed successfully */
+  success: boolean;
+  /** Labels found on the issue */
+  labels: string[];
+  /** Project fields found */
+  project_fields: {
+    Priority?: string;
+    Size?: string;
+    Estimate?: number;
+    Status?: string;
+  };
+  /** Number of sub-issues found */
+  sub_issue_count: number;
+  /** Errors encountered during verification */
+  errors: string[];
+  /** Total time spent waiting in ms */
+  duration_ms: number;
+}
+
+/**
+ * Phase wait result
+ */
+export interface PhaseResult {
+  /** Phase number */
+  phase: number;
+  /** Starting state */
+  startState: string;
+  /** Ending state */
+  endState: string;
+  /** Whether the phase completed successfully */
+  success: boolean;
+  /** Error message if failed */
+  error?: string;
+  /** Duration in milliseconds */
+  durationMs: number;
+}
+
+/**
+ * Detailed phase wait result
+ */
+export interface PhaseWaitResult {
+  /** Whether phase completed successfully */
+  success: boolean;
+  /** Branch name if created */
+  branch_name: string | null;
+  /** PR number if opened */
+  pr_number: number | null;
+  /** Current PR state */
+  pr_state: "draft" | "open" | "merged" | "closed" | null;
+  /** CI check status */
+  ci_status: "pending" | "success" | "failure" | null;
+  /** Review status */
+  review_status: "pending" | "approved" | "changes_requested" | null;
+  /** Issue state */
+  issue_state: "open" | "closed";
+  /** Project status of the issue */
+  issue_status: string | null;
+  /** Errors encountered */
+  errors: string[];
+  /** Duration in ms */
+  duration_ms: number;
+}
+
+/**
  * Test fixture from claude-test-helper
  */
 export interface TestFixture {
   name: string;
   description: string;
   timeout?: number;
+  poll_interval?: number;
   parent_issue?: {
     title: string;
     body: string;
@@ -240,6 +357,13 @@ export interface TestFixture {
     category?: string;
   };
   expected?: {
+    /** Triage expectations (verified before development starts) */
+    triage?: TriageExpectation;
+    /** Per-phase expectations (verified during development) */
+    phases?: PhaseExpectation[];
+    /** Final completion expectations */
+    completion?: CompletionExpectation;
+    /** Legacy fields for backwards compatibility */
     parent_status?: string;
     sub_issue_statuses?: string[];
     issue_state?: string;
