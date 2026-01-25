@@ -16,6 +16,7 @@
   "expected": {
     "parent_status": "Done",
     "issue_state": "closed",
+    "min_iteration": 1,
     "failures": 0,
     "all_sub_issues_closed": true,
     "sub_issues_todos_done": true,

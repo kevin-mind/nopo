@@ -24615,25 +24615,58 @@ async function verifyFixture(octokit, owner, repo, issueNumber, fixture, project
     }
   }
   if (fixture.expected.min_iteration !== void 0) {
-    const projectItems = issue.projectItems?.nodes || [];
-    const projectItem = projectItems.find(
-      (item) => item.project?.number === projectNumber
-    );
-    if (projectItem) {
-      let actualIteration = 0;
-      for (const fieldValue of projectItem.fieldValues?.nodes || []) {
-        if (fieldValue.field?.name === "Iteration" && typeof fieldValue.number === "number") {
-          actualIteration = fieldValue.number;
-          break;
+    const subIterationResponse = await octokit.graphql(
+      `query GetSubIssueIterations($org: String!, $repo: String!, $parentNumber: Int!) {
+      repository(owner: $org, name: $repo) {
+        issue(number: $parentNumber) {
+          subIssues(first: 20) {
+            nodes {
+              number
+              projectItems(first: 10) {
+                nodes {
+                  project { number }
+                  fieldValues(first: 20) {
+                    nodes {
+                      ... on ProjectV2ItemFieldNumberValue {
+                        number
+                        field { ... on ProjectV2Field { name } }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
-      if (actualIteration < fixture.expected.min_iteration) {
-        errors.push({
-          field: "min_iteration",
-          expected: `>= ${fixture.expected.min_iteration}`,
-          actual: String(actualIteration)
-        });
+    }`,
+      {
+        org: owner,
+        repo,
+        parentNumber: issueNumber
       }
+    );
+    const subIssues = subIterationResponse.repository?.issue?.subIssues?.nodes || [];
+    let totalIteration = 0;
+    for (const subIssue of subIssues) {
+      const projectItem = subIssue.projectItems?.nodes?.find(
+        (item) => item.project?.number === projectNumber
+      );
+      if (projectItem) {
+        for (const fieldValue of projectItem.fieldValues?.nodes || []) {
+          if (fieldValue.field?.name === "Iteration" && typeof fieldValue.number === "number") {
+            totalIteration += fieldValue.number;
+            break;
+          }
+        }
+      }
+    }
+    if (totalIteration < fixture.expected.min_iteration) {
+      errors.push({
+        field: "min_iteration",
+        expected: `>= ${fixture.expected.min_iteration}`,
+        actual: String(totalIteration)
+      });
     }
   }
   if (fixture.expected.failures !== void 0) {
