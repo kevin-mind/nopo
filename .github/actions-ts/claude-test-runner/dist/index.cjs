@@ -1,3 +1,4 @@
+// This file is auto-generated. Do not edit directly.
 "use strict";
 var __create = Object.create;
 var __defProp = Object.defineProperty;
