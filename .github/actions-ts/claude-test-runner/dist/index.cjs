@@ -398,7 +398,7 @@ var require_tunnel = __commonJS({
         connectOptions.headers = connectOptions.headers || {};
         connectOptions.headers["Proxy-Authorization"] = "Basic " + new Buffer(connectOptions.proxyAuth).toString("base64");
       }
-      debug2("making CONNECT request");
+      debug3("making CONNECT request");
       var connectReq = self2.request(connectOptions);
       connectReq.useChunkedEncodingByDefault = false;
       connectReq.once("response", onResponse);
@@ -418,40 +418,40 @@ var require_tunnel = __commonJS({
         connectReq.removeAllListeners();
         socket.removeAllListeners();
         if (res.statusCode !== 200) {
-          debug2(
+          debug3(
             "tunneling socket could not be established, statusCode=%d",
             res.statusCode
           );
           socket.destroy();
-          var error = new Error("tunneling socket could not be established, statusCode=" + res.statusCode);
-          error.code = "ECONNRESET";
-          options.request.emit("error", error);
+          var error2 = new Error("tunneling socket could not be established, statusCode=" + res.statusCode);
+          error2.code = "ECONNRESET";
+          options.request.emit("error", error2);
           self2.removeSocket(placeholder);
           return;
         }
         if (head.length > 0) {
-          debug2("got illegal response body from proxy");
+          debug3("got illegal response body from proxy");
           socket.destroy();
-          var error = new Error("got illegal response body from proxy");
-          error.code = "ECONNRESET";
-          options.request.emit("error", error);
+          var error2 = new Error("got illegal response body from proxy");
+          error2.code = "ECONNRESET";
+          options.request.emit("error", error2);
           self2.removeSocket(placeholder);
           return;
         }
-        debug2("tunneling connection has established");
+        debug3("tunneling connection has established");
         self2.sockets[self2.sockets.indexOf(placeholder)] = socket;
         return cb(socket);
       }
       function onError(cause) {
         connectReq.removeAllListeners();
-        debug2(
+        debug3(
           "tunneling socket could not be established, cause=%s\n",
           cause.message,
           cause.stack
         );
-        var error = new Error("tunneling socket could not be established, cause=" + cause.message);
-        error.code = "ECONNRESET";
-        options.request.emit("error", error);
+        var error2 = new Error("tunneling socket could not be established, cause=" + cause.message);
+        error2.code = "ECONNRESET";
+        options.request.emit("error", error2);
         self2.removeSocket(placeholder);
       }
     };
@@ -506,9 +506,9 @@ var require_tunnel = __commonJS({
       }
       return target;
     }
-    var debug2;
+    var debug3;
     if (process.env.NODE_DEBUG && /\btunnel\b/.test(process.env.NODE_DEBUG)) {
-      debug2 = function() {
+      debug3 = function() {
         var args = Array.prototype.slice.call(arguments);
         if (typeof args[0] === "string") {
           args[0] = "TUNNEL: " + args[0];
@@ -518,10 +518,10 @@ var require_tunnel = __commonJS({
         console.error.apply(console, args);
       };
     } else {
-      debug2 = function() {
+      debug3 = function() {
       };
     }
-    exports2.debug = debug2;
+    exports2.debug = debug3;
   }
 });
 
@@ -5579,7 +5579,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
         throw new TypeError("Body is unusable");
       }
       const promise = createDeferredPromise();
-      const errorSteps = (error) => promise.reject(error);
+      const errorSteps = (error2) => promise.reject(error2);
       const successSteps = (data) => {
         try {
           promise.resolve(convertBytesToJSValue(data));
@@ -5865,16 +5865,16 @@ var require_request = __commonJS({
           this.onError(err);
         }
       }
-      onError(error) {
+      onError(error2) {
         this.onFinally();
         if (channels.error.hasSubscribers) {
-          channels.error.publish({ request: this, error });
+          channels.error.publish({ request: this, error: error2 });
         }
         if (this.aborted) {
           return;
         }
         this.aborted = true;
-        return this[kHandler].onError(error);
+        return this[kHandler].onError(error2);
       }
       onFinally() {
         if (this.errorHandler) {
@@ -6737,8 +6737,8 @@ var require_RedirectHandler = __commonJS({
       onUpgrade(statusCode, headers, socket) {
         this.handler.onUpgrade(statusCode, headers, socket);
       }
-      onError(error) {
-        this.handler.onError(error);
+      onError(error2) {
+        this.handler.onError(error2);
       }
       onHeaders(statusCode, headers, resume, statusText) {
         this.location = this.history.length >= this.maxRedirections || util2.isDisturbed(this.opts.body) ? null : parseLocation(statusCode, headers);
@@ -8879,7 +8879,7 @@ var require_pool = __commonJS({
         this[kOptions] = { ...util2.deepClone(options), connect, allowH2 };
         this[kOptions].interceptors = options.interceptors ? { ...options.interceptors } : void 0;
         this[kFactory] = factory;
-        this.on("connectionError", (origin2, targets, error) => {
+        this.on("connectionError", (origin2, targets, error2) => {
           for (const target of targets) {
             const idx = this[kClients].indexOf(target);
             if (idx !== -1) {
@@ -10488,13 +10488,13 @@ var require_mock_utils = __commonJS({
       if (mockDispatch2.data.callback) {
         mockDispatch2.data = { ...mockDispatch2.data, ...mockDispatch2.data.callback(opts) };
       }
-      const { data: { statusCode, data, headers, trailers, error }, delay, persist } = mockDispatch2;
+      const { data: { statusCode, data, headers, trailers, error: error2 }, delay, persist } = mockDispatch2;
       const { timesInvoked, times } = mockDispatch2;
       mockDispatch2.consumed = !persist && timesInvoked >= times;
       mockDispatch2.pending = timesInvoked < times;
-      if (error !== null) {
+      if (error2 !== null) {
         deleteMockDispatch(this[kDispatches], key);
-        handler.onError(error);
+        handler.onError(error2);
         return true;
       }
       if (typeof delay === "number" && delay > 0) {
@@ -10532,19 +10532,19 @@ var require_mock_utils = __commonJS({
         if (agent.isMockActive) {
           try {
             mockDispatch.call(this, opts, handler);
-          } catch (error) {
-            if (error instanceof MockNotMatchedError) {
+          } catch (error2) {
+            if (error2 instanceof MockNotMatchedError) {
               const netConnect = agent[kGetNetConnect]();
               if (netConnect === false) {
-                throw new MockNotMatchedError(`${error.message}: subsequent request to origin ${origin} was not allowed (net.connect disabled)`);
+                throw new MockNotMatchedError(`${error2.message}: subsequent request to origin ${origin} was not allowed (net.connect disabled)`);
               }
               if (checkNetConnect(netConnect, origin)) {
                 originalDispatch.call(this, opts, handler);
               } else {
-                throw new MockNotMatchedError(`${error.message}: subsequent request to origin ${origin} was not allowed (net.connect is not enabled for this origin)`);
+                throw new MockNotMatchedError(`${error2.message}: subsequent request to origin ${origin} was not allowed (net.connect is not enabled for this origin)`);
               }
             } else {
-              throw error;
+              throw error2;
             }
           }
         } else {
@@ -10707,11 +10707,11 @@ var require_mock_interceptor = __commonJS({
       /**
        * Mock an undici request with a defined error.
        */
-      replyWithError(error) {
-        if (typeof error === "undefined") {
+      replyWithError(error2) {
+        if (typeof error2 === "undefined") {
           throw new InvalidArgumentError("error must be defined");
         }
-        const newMockDispatch = addMockDispatch(this[kDispatches], this[kDispatchKey], { error });
+        const newMockDispatch = addMockDispatch(this[kDispatches], this[kDispatchKey], { error: error2 });
         return new MockScope(newMockDispatch);
       }
       /**
@@ -13038,17 +13038,17 @@ var require_fetch = __commonJS({
         this.emit("terminated", reason);
       }
       // https://fetch.spec.whatwg.org/#fetch-controller-abort
-      abort(error) {
+      abort(error2) {
         if (this.state !== "ongoing") {
           return;
         }
         this.state = "aborted";
-        if (!error) {
-          error = new DOMException2("The operation was aborted.", "AbortError");
+        if (!error2) {
+          error2 = new DOMException2("The operation was aborted.", "AbortError");
         }
-        this.serializedAbortReason = error;
-        this.connection?.destroy(error);
-        this.emit("terminated", error);
+        this.serializedAbortReason = error2;
+        this.connection?.destroy(error2);
+        this.emit("terminated", error2);
       }
     };
     function fetch(input, init = {}) {
@@ -13152,13 +13152,13 @@ var require_fetch = __commonJS({
         performance.markResourceTiming(timingInfo, originalURL.href, initiatorType, globalThis2, cacheState);
       }
     }
-    function abortFetch(p, request, responseObject, error) {
-      if (!error) {
-        error = new DOMException2("The operation was aborted.", "AbortError");
+    function abortFetch(p, request, responseObject, error2) {
+      if (!error2) {
+        error2 = new DOMException2("The operation was aborted.", "AbortError");
       }
-      p.reject(error);
+      p.reject(error2);
       if (request.body != null && isReadable(request.body?.stream)) {
-        request.body.stream.cancel(error).catch((err) => {
+        request.body.stream.cancel(error2).catch((err) => {
           if (err.code === "ERR_INVALID_STATE") {
             return;
           }
@@ -13170,7 +13170,7 @@ var require_fetch = __commonJS({
       }
       const response = responseObject[kState];
       if (response.body != null && isReadable(response.body?.stream)) {
-        response.body.stream.cancel(error).catch((err) => {
+        response.body.stream.cancel(error2).catch((err) => {
           if (err.code === "ERR_INVALID_STATE") {
             return;
           }
@@ -13950,13 +13950,13 @@ var require_fetch = __commonJS({
               fetchParams.controller.ended = true;
               this.body.push(null);
             },
-            onError(error) {
+            onError(error2) {
               if (this.abort) {
                 fetchParams.controller.off("terminated", this.abort);
               }
-              this.body?.destroy(error);
-              fetchParams.controller.terminate(error);
-              reject(error);
+              this.body?.destroy(error2);
+              fetchParams.controller.terminate(error2);
+              reject(error2);
             },
             onUpgrade(status, headersList, socket) {
               if (status !== 101) {
@@ -14422,8 +14422,8 @@ var require_util4 = __commonJS({
                   }
                   fr[kResult] = result;
                   fireAProgressEvent("load", fr);
-                } catch (error) {
-                  fr[kError] = error;
+                } catch (error2) {
+                  fr[kError] = error2;
                   fireAProgressEvent("error", fr);
                 }
                 if (fr[kState] !== "loading") {
@@ -14432,13 +14432,13 @@ var require_util4 = __commonJS({
               });
               break;
             }
-          } catch (error) {
+          } catch (error2) {
             if (fr[kAborted]) {
               return;
             }
             queueMicrotask(() => {
               fr[kState] = "done";
-              fr[kError] = error;
+              fr[kError] = error2;
               fireAProgressEvent("error", fr);
               if (fr[kState] !== "loading") {
                 fireAProgressEvent("loadend", fr);
@@ -16438,11 +16438,11 @@ var require_connection = __commonJS({
         });
       }
     }
-    function onSocketError(error) {
+    function onSocketError(error2) {
       const { ws } = this;
       ws[kReadyState] = states.CLOSING;
       if (channels.socketError.hasSubscribers) {
-        channels.socketError.publish(error);
+        channels.socketError.publish(error2);
       }
       this.destroy();
     }
@@ -17586,12 +17586,12 @@ var require_lib = __commonJS({
             throw new Error("Client has already been disposed.");
           }
           const parsedUrl = new URL(requestUrl);
-          let info3 = this._prepareRequest(verb, parsedUrl, headers);
+          let info5 = this._prepareRequest(verb, parsedUrl, headers);
           const maxTries = this._allowRetries && RetryableHttpVerbs.includes(verb) ? this._maxRetries + 1 : 1;
           let numTries = 0;
           let response;
           do {
-            response = yield this.requestRaw(info3, data);
+            response = yield this.requestRaw(info5, data);
             if (response && response.message && response.message.statusCode === HttpCodes.Unauthorized) {
               let authenticationHandler;
               for (const handler of this.handlers) {
@@ -17601,7 +17601,7 @@ var require_lib = __commonJS({
                 }
               }
               if (authenticationHandler) {
-                return authenticationHandler.handleAuthentication(this, info3, data);
+                return authenticationHandler.handleAuthentication(this, info5, data);
               } else {
                 return response;
               }
@@ -17624,8 +17624,8 @@ var require_lib = __commonJS({
                   }
                 }
               }
-              info3 = this._prepareRequest(verb, parsedRedirectUrl, headers);
-              response = yield this.requestRaw(info3, data);
+              info5 = this._prepareRequest(verb, parsedRedirectUrl, headers);
+              response = yield this.requestRaw(info5, data);
               redirectsRemaining--;
             }
             if (!response.message.statusCode || !HttpResponseRetryCodes.includes(response.message.statusCode)) {
@@ -17654,7 +17654,7 @@ var require_lib = __commonJS({
        * @param info
        * @param data
        */
-      requestRaw(info3, data) {
+      requestRaw(info5, data) {
         return __awaiter(this, void 0, void 0, function* () {
           return new Promise((resolve, reject) => {
             function callbackForResult(err, res) {
@@ -17666,7 +17666,7 @@ var require_lib = __commonJS({
                 resolve(res);
               }
             }
-            this.requestRawWithCallback(info3, data, callbackForResult);
+            this.requestRawWithCallback(info5, data, callbackForResult);
           });
         });
       }
@@ -17676,12 +17676,12 @@ var require_lib = __commonJS({
        * @param data
        * @param onResult
        */
-      requestRawWithCallback(info3, data, onResult) {
+      requestRawWithCallback(info5, data, onResult) {
         if (typeof data === "string") {
-          if (!info3.options.headers) {
-            info3.options.headers = {};
+          if (!info5.options.headers) {
+            info5.options.headers = {};
           }
-          info3.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
+          info5.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
         }
         let callbackCalled = false;
         function handleResult2(err, res) {
@@ -17690,7 +17690,7 @@ var require_lib = __commonJS({
             onResult(err, res);
           }
         }
-        const req = info3.httpModule.request(info3.options, (msg) => {
+        const req = info5.httpModule.request(info5.options, (msg) => {
           const res = new HttpClientResponse(msg);
           handleResult2(void 0, res);
         });
@@ -17702,7 +17702,7 @@ var require_lib = __commonJS({
           if (socket) {
             socket.end();
           }
-          handleResult2(new Error(`Request timeout: ${info3.options.path}`));
+          handleResult2(new Error(`Request timeout: ${info5.options.path}`));
         });
         req.on("error", function(err) {
           handleResult2(err);
@@ -17738,27 +17738,27 @@ var require_lib = __commonJS({
         return this._getProxyAgentDispatcher(parsedUrl, proxyUrl);
       }
       _prepareRequest(method, requestUrl, headers) {
-        const info3 = {};
-        info3.parsedUrl = requestUrl;
-        const usingSsl = info3.parsedUrl.protocol === "https:";
-        info3.httpModule = usingSsl ? https : http;
+        const info5 = {};
+        info5.parsedUrl = requestUrl;
+        const usingSsl = info5.parsedUrl.protocol === "https:";
+        info5.httpModule = usingSsl ? https : http;
         const defaultPort = usingSsl ? 443 : 80;
-        info3.options = {};
-        info3.options.host = info3.parsedUrl.hostname;
-        info3.options.port = info3.parsedUrl.port ? parseInt(info3.parsedUrl.port) : defaultPort;
-        info3.options.path = (info3.parsedUrl.pathname || "") + (info3.parsedUrl.search || "");
-        info3.options.method = method;
-        info3.options.headers = this._mergeHeaders(headers);
+        info5.options = {};
+        info5.options.host = info5.parsedUrl.hostname;
+        info5.options.port = info5.parsedUrl.port ? parseInt(info5.parsedUrl.port) : defaultPort;
+        info5.options.path = (info5.parsedUrl.pathname || "") + (info5.parsedUrl.search || "");
+        info5.options.method = method;
+        info5.options.headers = this._mergeHeaders(headers);
         if (this.userAgent != null) {
-          info3.options.headers["user-agent"] = this.userAgent;
+          info5.options.headers["user-agent"] = this.userAgent;
         }
-        info3.options.agent = this._getAgent(info3.parsedUrl);
+        info5.options.agent = this._getAgent(info5.parsedUrl);
         if (this.handlers) {
           for (const handler of this.handlers) {
-            handler.prepareRequest(info3.options);
+            handler.prepareRequest(info5.options);
           }
         }
-        return info3;
+        return info5;
       }
       _mergeHeaders(headers) {
         if (this.requestOptions && this.requestOptions.headers) {
@@ -18074,12 +18074,12 @@ var require_oidc_utils = __commonJS({
         var _a;
         return __awaiter(this, void 0, void 0, function* () {
           const httpclient = _OidcClient.createHttpClient();
-          const res = yield httpclient.getJson(id_token_url).catch((error) => {
+          const res = yield httpclient.getJson(id_token_url).catch((error2) => {
             throw new Error(`Failed to get ID Token. 
  
-        Error Code : ${error.statusCode}
+        Error Code : ${error2.statusCode}
  
-        Error Message: ${error.message}`);
+        Error Message: ${error2.message}`);
           });
           const id_token = (_a = res.result) === null || _a === void 0 ? void 0 : _a.value;
           if (!id_token) {
@@ -18100,8 +18100,8 @@ var require_oidc_utils = __commonJS({
             const id_token = yield _OidcClient.getCall(id_token_url);
             (0, core_1.setSecret)(id_token);
             return id_token;
-          } catch (error) {
-            throw new Error(`Error message: ${error.message}`);
+          } catch (error2) {
+            throw new Error(`Error message: ${error2.message}`);
           }
         });
       }
@@ -19223,7 +19223,7 @@ var require_toolrunner = __commonJS({
               this._debug(`STDIO streams have closed for tool '${this.toolPath}'`);
               state.CheckComplete();
             });
-            state.on("done", (error, exitCode) => {
+            state.on("done", (error2, exitCode) => {
               if (stdbuffer.length > 0) {
                 this.emit("stdline", stdbuffer);
               }
@@ -19231,8 +19231,8 @@ var require_toolrunner = __commonJS({
                 this.emit("errline", errbuffer);
               }
               cp.removeAllListeners();
-              if (error) {
-                reject(error);
+              if (error2) {
+                reject(error2);
               } else {
                 resolve(exitCode);
               }
@@ -19327,14 +19327,14 @@ var require_toolrunner = __commonJS({
         this.emit("debug", message);
       }
       _setResult() {
-        let error;
+        let error2;
         if (this.processExited) {
           if (this.processError) {
-            error = new Error(`There was an error when attempting to execute the process '${this.toolPath}'. This may indicate the process failed to start. Error: ${this.processError}`);
+            error2 = new Error(`There was an error when attempting to execute the process '${this.toolPath}'. This may indicate the process failed to start. Error: ${this.processError}`);
           } else if (this.processExitCode !== 0 && !this.options.ignoreReturnCode) {
-            error = new Error(`The process '${this.toolPath}' failed with exit code ${this.processExitCode}`);
+            error2 = new Error(`The process '${this.toolPath}' failed with exit code ${this.processExitCode}`);
           } else if (this.processStderr && this.options.failOnStdErr) {
-            error = new Error(`The process '${this.toolPath}' failed because one or more lines were written to the STDERR stream`);
+            error2 = new Error(`The process '${this.toolPath}' failed because one or more lines were written to the STDERR stream`);
           }
         }
         if (this.timeout) {
@@ -19342,7 +19342,7 @@ var require_toolrunner = __commonJS({
           this.timeout = null;
         }
         this.done = true;
-        this.emit("done", error, this.processExitCode);
+        this.emit("done", error2, this.processExitCode);
       }
       static HandleTimeout(state) {
         if (state.done) {
@@ -19725,33 +19725,33 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     exports2.setCommandEcho = setCommandEcho;
     function setFailed2(message) {
       process.exitCode = ExitCode.Failure;
-      error(message);
+      error2(message);
     }
     exports2.setFailed = setFailed2;
     function isDebug() {
       return process.env["RUNNER_DEBUG"] === "1";
     }
     exports2.isDebug = isDebug;
-    function debug2(message) {
+    function debug3(message) {
       (0, command_1.issueCommand)("debug", {}, message);
     }
-    exports2.debug = debug2;
-    function error(message, properties = {}) {
+    exports2.debug = debug3;
+    function error2(message, properties = {}) {
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.error = error;
-    function warning3(message, properties = {}) {
+    exports2.error = error2;
+    function warning4(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning3;
+    exports2.warning = warning4;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.notice = notice;
-    function info3(message) {
+    function info5(message) {
       process.stdout.write(message + os.EOL);
     }
-    exports2.info = info3;
+    exports2.info = info5;
     function startGroup(name) {
       (0, command_1.issue)("group", name);
     }
@@ -20041,8 +20041,8 @@ var require_add = __commonJS({
       }
       if (kind === "error") {
         hook = function(method, options) {
-          return Promise.resolve().then(method.bind(null, options)).catch(function(error) {
-            return orig(error, options);
+          return Promise.resolve().then(method.bind(null, options)).catch(function(error2) {
+            return orig(error2, options);
           });
         };
       }
@@ -20774,7 +20774,7 @@ var require_dist_node5 = __commonJS({
         }
         if (status >= 400) {
           const data = await getResponseData(response);
-          const error = new import_request_error.RequestError(toErrorMessage(data), status, {
+          const error2 = new import_request_error.RequestError(toErrorMessage(data), status, {
             response: {
               url,
               status,
@@ -20783,7 +20783,7 @@ var require_dist_node5 = __commonJS({
             },
             request: requestOptions
           });
-          throw error;
+          throw error2;
         }
         return parseSuccessResponseBody ? await getResponseData(response) : response.body;
       }).then((data) => {
@@ -20793,17 +20793,17 @@ var require_dist_node5 = __commonJS({
           headers,
           data
         };
-      }).catch((error) => {
-        if (error instanceof import_request_error.RequestError)
-          throw error;
-        else if (error.name === "AbortError")
-          throw error;
-        let message = error.message;
-        if (error.name === "TypeError" && "cause" in error) {
-          if (error.cause instanceof Error) {
-            message = error.cause.message;
-          } else if (typeof error.cause === "string") {
-            message = error.cause;
+      }).catch((error2) => {
+        if (error2 instanceof import_request_error.RequestError)
+          throw error2;
+        else if (error2.name === "AbortError")
+          throw error2;
+        let message = error2.message;
+        if (error2.name === "TypeError" && "cause" in error2) {
+          if (error2.cause instanceof Error) {
+            message = error2.cause.message;
+          } else if (typeof error2.cause === "string") {
+            message = error2.cause;
           }
         }
         throw new import_request_error.RequestError(message, 500, {
@@ -23475,9 +23475,9 @@ var require_dist_node10 = __commonJS({
                 /<([^<>]+)>;\s*rel="next"/
               ) || [])[1];
               return { value: normalizedResponse };
-            } catch (error) {
-              if (error.status !== 409)
-                throw error;
+            } catch (error2) {
+              if (error2.status !== 409)
+                throw error2;
               url = "";
               return {
                 value: {
@@ -23883,7 +23883,7 @@ var require_github = __commonJS({
 });
 
 // claude-test-runner/index.ts
-var core3 = __toESM(require_core(), 1);
+var core5 = __toESM(require_core(), 1);
 var github = __toESM(require_github(), 1);
 
 // lib/index.ts
@@ -24078,10 +24078,10 @@ function createDoneActorEvent(invokeId, output) {
     actorId: invokeId
   };
 }
-function createErrorActorEvent(id, error) {
+function createErrorActorEvent(id, error2) {
   return {
     type: `xstate.error.actor.${id}`,
-    error,
+    error: error2,
     actorId: id
   };
 }
@@ -27375,8 +27375,8 @@ var ZodError = class _ZodError extends Error {
       return issue.message;
     };
     const fieldErrors = { _errors: [] };
-    const processError = (error) => {
-      for (const issue of error.issues) {
+    const processError = (error2) => {
+      for (const issue of error2.issues) {
         if (issue.code === "invalid_union") {
           issue.unionErrors.map(processError);
         } else if (issue.code === "invalid_return_type") {
@@ -27439,8 +27439,8 @@ var ZodError = class _ZodError extends Error {
   }
 };
 ZodError.create = (issues) => {
-  const error = new ZodError(issues);
-  return error;
+  const error2 = new ZodError(issues);
+  return error2;
 };
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/locales/en.js
@@ -27704,8 +27704,8 @@ var handleResult = (ctx, result) => {
       get error() {
         if (this._error)
           return this._error;
-        const error = new ZodError(ctx.common.issues);
-        this._error = error;
+        const error2 = new ZodError(ctx.common.issues);
+        this._error = error2;
         return this._error;
       }
     };
@@ -30360,25 +30360,25 @@ var ZodFunction = class _ZodFunction extends ZodType {
       });
       return INVALID;
     }
-    function makeArgsIssue(args, error) {
+    function makeArgsIssue(args, error2) {
       return makeIssue({
         data: args,
         path: ctx.path,
         errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap(), en_default].filter((x) => !!x),
         issueData: {
           code: ZodIssueCode.invalid_arguments,
-          argumentsError: error
+          argumentsError: error2
         }
       });
     }
-    function makeReturnsIssue(returns, error) {
+    function makeReturnsIssue(returns, error2) {
       return makeIssue({
         data: returns,
         path: ctx.path,
         errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap(), en_default].filter((x) => !!x),
         issueData: {
           code: ZodIssueCode.invalid_return_type,
-          returnTypeError: error
+          returnTypeError: error2
         }
       });
     }
@@ -30387,15 +30387,15 @@ var ZodFunction = class _ZodFunction extends ZodType {
     if (this._def.returns instanceof ZodPromise) {
       const me = this;
       return OK(async function(...args) {
-        const error = new ZodError([]);
+        const error2 = new ZodError([]);
         const parsedArgs = await me._def.args.parseAsync(args, params).catch((e) => {
-          error.addIssue(makeArgsIssue(args, e));
-          throw error;
+          error2.addIssue(makeArgsIssue(args, e));
+          throw error2;
         });
         const result = await Reflect.apply(fn, this, parsedArgs);
         const parsedReturns = await me._def.returns._def.type.parseAsync(result, params).catch((e) => {
-          error.addIssue(makeReturnsIssue(result, e));
-          throw error;
+          error2.addIssue(makeReturnsIssue(result, e));
+          throw error2;
         });
         return parsedReturns;
       });
@@ -34437,6 +34437,28 @@ var ProjectStatusValues = [
   "Blocked",
   "Error"
 ];
+var TriageExpectationSchema = external_exports.object({
+  labels: external_exports.array(external_exports.string()).optional(),
+  project_fields: external_exports.object({
+    Priority: external_exports.string().optional(),
+    Size: external_exports.string().optional(),
+    Estimate: external_exports.number().optional(),
+    Status: external_exports.string().optional()
+  }).optional(),
+  sub_issue_count: external_exports.number().int().min(0).optional()
+}).strict();
+var PhaseExpectationSchema = external_exports.object({
+  branch_pattern: external_exports.string().optional(),
+  pr_title_contains: external_exports.string().optional(),
+  ci_required: external_exports.boolean().optional(),
+  review_required: external_exports.boolean().optional(),
+  deploy_required: external_exports.boolean().optional()
+}).strict();
+var CompletionExpectationSchema = external_exports.object({
+  parent_status: external_exports.string().optional(),
+  all_sub_issues_closed: external_exports.boolean().optional(),
+  all_prs_merged: external_exports.boolean().optional()
+}).strict();
 var ExpectedSchema = external_exports.object({
   parent_status: external_exports.enum(ProjectStatusValues).optional(),
   sub_issue_statuses: external_exports.array(external_exports.enum(ProjectStatusValues)).optional(),
@@ -34449,7 +34471,11 @@ var ExpectedSchema = external_exports.object({
   all_sub_issues_closed: external_exports.boolean().optional(),
   sub_issues_todos_done: external_exports.boolean().optional(),
   history_contains: external_exports.array(external_exports.string()).optional(),
-  sub_issues_have_merged_pr: external_exports.boolean().optional()
+  sub_issues_have_merged_pr: external_exports.boolean().optional(),
+  // New E2E per-phase verification fields
+  triage: TriageExpectationSchema.optional(),
+  phases: external_exports.array(PhaseExpectationSchema).optional(),
+  completion: CompletionExpectationSchema.optional()
 }).strict();
 var ExpectedMachineSchema = external_exports.object({
   final_state: external_exports.string().optional(),
@@ -34548,22 +34574,619 @@ function formatValidationResult(name, result) {
   } else {
     lines.push("  Status: \u274C Invalid");
     lines.push("  Errors:");
-    for (const error of result.errors) {
-      lines.push(`    - ${error.path}: ${error.message}`);
+    for (const error2 of result.errors) {
+      lines.push(`    - ${error2.path}: ${error2.message}`);
     }
   }
   if (result.warnings.length > 0) {
     lines.push("  Warnings:");
-    for (const warning3 of result.warnings) {
-      lines.push(`    - ${warning3}`);
+    for (const warning4 of result.warnings) {
+      lines.push(`    - ${warning4}`);
     }
   }
   return lines.join("\n");
 }
 
+// claude-test-runner/src/triage.ts
+var core3 = __toESM(require_core(), 1);
+var GET_ISSUE_WITH_PROJECT_QUERY = `
+query GetIssueWithProject($owner: String!, $repo: String!, $number: Int!, $projectNumber: Int!) {
+  repository(owner: $owner, name: $repo) {
+    issue(number: $number) {
+      id
+      state
+      labels(first: 50) {
+        nodes {
+          name
+        }
+      }
+      projectItems(first: 10) {
+        nodes {
+          project {
+            number
+          }
+          fieldValues(first: 20) {
+            nodes {
+              ... on ProjectV2ItemFieldSingleSelectValue {
+                name
+                field {
+                  ... on ProjectV2SingleSelectField {
+                    name
+                  }
+                }
+              }
+              ... on ProjectV2ItemFieldNumberValue {
+                number
+                field {
+                  ... on ProjectV2Field {
+                    name
+                  }
+                }
+              }
+              ... on ProjectV2ItemFieldTextValue {
+                text
+                field {
+                  ... on ProjectV2Field {
+                    name
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      subIssues(first: 20) {
+        totalCount
+      }
+    }
+  }
+}
+`;
+async function fetchTriageState(octokit, owner, repo, issueNumber, projectNumber) {
+  const response = await octokit.graphql(
+    GET_ISSUE_WITH_PROJECT_QUERY,
+    {
+      owner,
+      repo,
+      number: issueNumber,
+      projectNumber
+    }
+  );
+  const issue = response.repository?.issue;
+  if (!issue) {
+    return {
+      hasTriagedLabel: false,
+      labels: [],
+      projectFields: {},
+      subIssueCount: 0,
+      issueState: "unknown"
+    };
+  }
+  const labels = issue.labels?.nodes?.map((l) => l.name || "").filter(Boolean) || [];
+  const hasTriagedLabel = labels.includes("triaged");
+  const projectFields = {};
+  const projectItem = issue.projectItems?.nodes?.find(
+    (item) => item.project?.number === projectNumber
+  );
+  if (projectItem?.fieldValues?.nodes) {
+    for (const fieldValue of projectItem.fieldValues.nodes) {
+      const fieldName = fieldValue.field?.name;
+      if (!fieldName) continue;
+      if (fieldName === "Priority" && fieldValue.name) {
+        projectFields.Priority = fieldValue.name;
+      } else if (fieldName === "Size" && fieldValue.name) {
+        projectFields.Size = fieldValue.name;
+      } else if (fieldName === "Estimate" && typeof fieldValue.number === "number") {
+        projectFields.Estimate = fieldValue.number;
+      } else if (fieldName === "Status" && fieldValue.name) {
+        projectFields.Status = fieldValue.name;
+      }
+    }
+  }
+  return {
+    hasTriagedLabel,
+    labels,
+    projectFields,
+    subIssueCount: issue.subIssues?.totalCount || 0,
+    issueState: issue.state || "unknown"
+  };
+}
+function isTriageComplete(state) {
+  return state.hasTriagedLabel;
+}
+function verifyTriageExpectations(state, expectations) {
+  const errors = [];
+  if (!expectations) {
+    if (!state.hasTriagedLabel) {
+      errors.push('Issue does not have "triaged" label');
+    }
+    return errors;
+  }
+  if (expectations.labels) {
+    for (const expectedLabel of expectations.labels) {
+      if (!state.labels.includes(expectedLabel)) {
+        errors.push(
+          `Missing expected label: ${expectedLabel} (found: ${state.labels.join(", ")})`
+        );
+      }
+    }
+  }
+  if (expectations.project_fields) {
+    const pf = expectations.project_fields;
+    if (pf.Priority && state.projectFields.Priority !== pf.Priority) {
+      errors.push(
+        `Priority mismatch: expected ${pf.Priority}, got ${state.projectFields.Priority || "unset"}`
+      );
+    }
+    if (pf.Size && state.projectFields.Size !== pf.Size) {
+      errors.push(
+        `Size mismatch: expected ${pf.Size}, got ${state.projectFields.Size || "unset"}`
+      );
+    }
+    if (pf.Estimate !== void 0) {
+      if (state.projectFields.Estimate === void 0) {
+        errors.push(`Estimate not set, expected ${pf.Estimate}`);
+      } else if (state.projectFields.Estimate !== pf.Estimate) {
+        errors.push(
+          `Estimate mismatch: expected ${pf.Estimate}, got ${state.projectFields.Estimate}`
+        );
+      }
+    }
+    if (pf.Status && state.projectFields.Status !== pf.Status) {
+      errors.push(
+        `Status mismatch: expected ${pf.Status}, got ${state.projectFields.Status || "unset"}`
+      );
+    }
+  }
+  if (expectations.sub_issue_count !== void 0) {
+    if (state.subIssueCount !== expectations.sub_issue_count) {
+      errors.push(
+        `Sub-issue count mismatch: expected ${expectations.sub_issue_count}, got ${state.subIssueCount}`
+      );
+    }
+  }
+  return errors;
+}
+async function waitForTriage(options) {
+  const {
+    octokit,
+    owner,
+    repo,
+    issueNumber,
+    projectNumber,
+    timeoutMs = 3e5,
+    // 5 minutes default
+    pollIntervalMs = 1e4,
+    // 10 seconds default
+    expectations
+  } = options;
+  const startTime = Date.now();
+  core3.info(`Waiting for triage to complete on issue #${issueNumber}...`);
+  core3.info(
+    `Timeout: ${timeoutMs / 1e3}s, Poll interval: ${pollIntervalMs / 1e3}s`
+  );
+  const pollResult = await pollUntil(
+    () => fetchTriageState(octokit, owner, repo, issueNumber, projectNumber),
+    isTriageComplete,
+    {
+      ...DEFAULT_POLLER_CONFIG,
+      initialIntervalMs: pollIntervalMs,
+      maxIntervalMs: pollIntervalMs * 3,
+      timeoutMs
+    },
+    (state2, attempt, elapsed) => {
+      const check = (condition) => condition ? "\u2705" : "\u274C";
+      core3.info(`
+\u2501\u2501\u2501 Poll ${attempt} (${Math.round(elapsed / 1e3)}s elapsed) \u2501\u2501\u2501`);
+      core3.info(`  Triaged label: ${check(state2.hasTriagedLabel)} ${state2.hasTriagedLabel ? "present" : "MISSING"}`);
+      core3.info(`  Labels (${state2.labels.length}): ${state2.labels.length > 0 ? state2.labels.join(", ") : "(none)"}`);
+      core3.info(`  Issue state: ${state2.issueState}`);
+      core3.info(`  Sub-issues: ${state2.subIssueCount}`);
+      core3.info(`  Project fields:`);
+      core3.info(`    Status: ${state2.projectFields.Status || "(not set)"}`);
+      core3.info(`    Priority: ${state2.projectFields.Priority || "(not set)"}`);
+      core3.info(`    Size: ${state2.projectFields.Size || "(not set)"}`);
+      core3.info(`    Estimate: ${state2.projectFields.Estimate !== void 0 ? state2.projectFields.Estimate : "(not set)"}`);
+      if (!state2.hasTriagedLabel) {
+        core3.info(`  \u23F3 Waiting for "triaged" label...`);
+      }
+    }
+  );
+  const duration = Date.now() - startTime;
+  if (!pollResult.success || !pollResult.data) {
+    const finalState = pollResult.data;
+    core3.error(`
+\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557`);
+    core3.error(`\u2551  TRIAGE TIMEOUT - Final State                                 \u2551`);
+    core3.error(`\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255D`);
+    core3.error(`  Duration: ${Math.round(duration / 1e3)}s (timeout: ${timeoutMs / 1e3}s)`);
+    core3.error(`  Triaged label: ${finalState?.hasTriagedLabel ? "\u2705 present" : "\u274C MISSING"}`);
+    core3.error(`  Labels: ${finalState?.labels?.join(", ") || "(none)"}`);
+    core3.error(`  Issue state: ${finalState?.issueState || "unknown"}`);
+    core3.error(`  Sub-issues: ${finalState?.subIssueCount || 0}`);
+    core3.error(`  Project fields:`);
+    core3.error(`    Status: ${finalState?.projectFields?.Status || "(not set)"}`);
+    core3.error(`    Priority: ${finalState?.projectFields?.Priority || "(not set)"}`);
+    core3.error(`    Size: ${finalState?.projectFields?.Size || "(not set)"}`);
+    core3.error(`    Estimate: ${finalState?.projectFields?.Estimate !== void 0 ? finalState.projectFields.Estimate : "(not set)"}`);
+    return {
+      success: false,
+      labels: finalState?.labels || [],
+      project_fields: finalState?.projectFields || {},
+      sub_issue_count: finalState?.subIssueCount || 0,
+      errors: ["Triage did not complete within timeout - 'triaged' label was never added"],
+      duration_ms: duration
+    };
+  }
+  const state = pollResult.data;
+  const errors = verifyTriageExpectations(state, expectations);
+  core3.info(`
+\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557`);
+  core3.info(`\u2551  TRIAGE ${errors.length === 0 ? "COMPLETE \u2705" : "FAILED \u274C"}                                         \u2551`);
+  core3.info(`\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255D`);
+  core3.info(`  Duration: ${Math.round(duration / 1e3)}s`);
+  core3.info(`  Labels: ${state.labels.join(", ")}`);
+  core3.info(`  Sub-issues created: ${state.subIssueCount}`);
+  core3.info(`  Project fields:`);
+  core3.info(`    Status: ${state.projectFields.Status || "(not set)"}`);
+  core3.info(`    Priority: ${state.projectFields.Priority || "(not set)"}`);
+  core3.info(`    Size: ${state.projectFields.Size || "(not set)"}`);
+  core3.info(`    Estimate: ${state.projectFields.Estimate !== void 0 ? state.projectFields.Estimate : "(not set)"}`);
+  if (errors.length > 0) {
+    core3.error(`
+  Verification errors (${errors.length}):`);
+    for (const error2 of errors) {
+      core3.error(`    \u274C ${error2}`);
+    }
+  }
+  return {
+    success: errors.length === 0,
+    labels: state.labels,
+    project_fields: state.projectFields,
+    sub_issue_count: state.subIssueCount,
+    errors,
+    duration_ms: duration
+  };
+}
+
+// claude-test-runner/src/phase.ts
+var core4 = __toESM(require_core(), 1);
+var GET_ISSUE_PROJECT_STATUS_QUERY = `
+query GetIssueProjectStatus($owner: String!, $repo: String!, $number: Int!, $projectNumber: Int!) {
+  repository(owner: $owner, name: $repo) {
+    issue(number: $number) {
+      id
+      state
+      projectItems(first: 10) {
+        nodes {
+          project {
+            number
+          }
+          fieldValues(first: 10) {
+            nodes {
+              ... on ProjectV2ItemFieldSingleSelectValue {
+                name
+                field {
+                  ... on ProjectV2SingleSelectField {
+                    name
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+`;
+var GET_PR_REVIEWS_QUERY = `
+query GetPRReviews($owner: String!, $repo: String!, $number: Int!) {
+  repository(owner: $owner, name: $repo) {
+    pullRequest(number: $number) {
+      reviews(last: 20) {
+        nodes {
+          state
+          author {
+            login
+          }
+        }
+      }
+    }
+  }
+}
+`;
+async function fetchPhaseConditions(octokit, owner, repo, issueNumber, projectNumber) {
+  const conditions = {
+    branchExists: false,
+    prOpened: false,
+    prState: null,
+    ciPassed: false,
+    ciStatus: null,
+    reviewApproved: false,
+    reviewStatus: null,
+    prMerged: false,
+    issueClosed: false,
+    issueStatus: null,
+    branchName: null,
+    prNumber: null
+  };
+  const branchPatterns = [
+    `claude/issue-${issueNumber}`,
+    `claude/issue/${issueNumber}`,
+    `issue-${issueNumber}`
+  ];
+  for (const branchName of branchPatterns) {
+    try {
+      await octokit.rest.repos.getBranch({
+        owner,
+        repo,
+        branch: branchName
+      });
+      conditions.branchExists = true;
+      conditions.branchName = branchName;
+      break;
+    } catch {
+    }
+  }
+  try {
+    const { data: prs } = await octokit.rest.pulls.list({
+      owner,
+      repo,
+      state: "all",
+      per_page: 100
+    });
+    const linkedPr = prs.find(
+      (pr) => pr.body?.includes(`Fixes #${issueNumber}`) || pr.body?.includes(`Closes #${issueNumber}`) || pr.body?.includes(`Resolves #${issueNumber}`) || conditions.branchName && pr.head.ref === conditions.branchName
+    );
+    if (linkedPr) {
+      conditions.prOpened = true;
+      conditions.prNumber = linkedPr.number;
+      if (linkedPr.merged_at) {
+        conditions.prState = "merged";
+        conditions.prMerged = true;
+      } else if (linkedPr.draft) {
+        conditions.prState = "draft";
+      } else if (linkedPr.state === "open") {
+        conditions.prState = "open";
+      } else {
+        conditions.prState = "closed";
+      }
+      if (linkedPr.head.sha) {
+        try {
+          const { data: checks } = await octokit.rest.checks.listForRef({
+            owner,
+            repo,
+            ref: linkedPr.head.sha,
+            per_page: 100
+          });
+          if (checks.check_runs.length === 0) {
+            conditions.ciStatus = "pending";
+          } else {
+            const relevantChecks = checks.check_runs.filter(
+              (c) => !c.name.includes("Test State Machine") && !c.name.includes("E2E") && c.name !== "summary"
+            );
+            if (relevantChecks.length === 0) {
+              conditions.ciStatus = "pending";
+            } else {
+              const allCompleted = relevantChecks.every(
+                (c) => c.status === "completed"
+              );
+              if (!allCompleted) {
+                conditions.ciStatus = "pending";
+              } else {
+                const allPassed = relevantChecks.every(
+                  (c) => c.conclusion === "success" || c.conclusion === "skipped" || c.conclusion === "neutral"
+                );
+                conditions.ciStatus = allPassed ? "success" : "failure";
+                conditions.ciPassed = allPassed;
+              }
+            }
+          }
+        } catch (error2) {
+          core4.debug(`Failed to fetch checks: ${error2}`);
+          conditions.ciStatus = "pending";
+        }
+      }
+      try {
+        const reviewResponse = await octokit.graphql(
+          GET_PR_REVIEWS_QUERY,
+          {
+            owner,
+            repo,
+            number: linkedPr.number
+          }
+        );
+        const reviews = reviewResponse.repository?.pullRequest?.reviews?.nodes || [];
+        let hasApproval = false;
+        let hasChangesRequested = false;
+        for (const review of reviews) {
+          if (review.state === "APPROVED") {
+            hasApproval = true;
+          } else if (review.state === "CHANGES_REQUESTED") {
+            hasChangesRequested = true;
+          }
+        }
+        if (hasApproval && !hasChangesRequested) {
+          conditions.reviewApproved = true;
+          conditions.reviewStatus = "approved";
+        } else if (hasChangesRequested) {
+          conditions.reviewStatus = "changes_requested";
+        } else {
+          conditions.reviewStatus = "pending";
+        }
+      } catch (error2) {
+        core4.debug(`Failed to fetch reviews: ${error2}`);
+        conditions.reviewStatus = "pending";
+      }
+    }
+  } catch (error2) {
+    core4.debug(`Failed to fetch PRs: ${error2}`);
+  }
+  try {
+    const issueResponse = await octokit.graphql(
+      GET_ISSUE_PROJECT_STATUS_QUERY,
+      {
+        owner,
+        repo,
+        number: issueNumber,
+        projectNumber
+      }
+    );
+    const issue = issueResponse.repository?.issue;
+    if (issue) {
+      conditions.issueClosed = issue.state === "CLOSED";
+      const projectItem = issue.projectItems?.nodes?.find(
+        (item) => item.project?.number === projectNumber
+      );
+      if (projectItem?.fieldValues?.nodes) {
+        for (const fieldValue of projectItem.fieldValues.nodes) {
+          if (fieldValue.field?.name === "Status" && fieldValue.name) {
+            conditions.issueStatus = fieldValue.name;
+            break;
+          }
+        }
+      }
+    }
+  } catch (error2) {
+    core4.debug(`Failed to fetch issue: ${error2}`);
+  }
+  return conditions;
+}
+function isPhaseComplete(conditions, expectations) {
+  if (!conditions.prMerged) return false;
+  if (!conditions.issueClosed) return false;
+  if (conditions.issueStatus !== "Done") return false;
+  if (expectations) {
+    if (expectations.ci_required && !conditions.ciPassed) return false;
+    if (expectations.review_required && !conditions.reviewApproved)
+      return false;
+  }
+  return true;
+}
+function verifyPhaseExpectations(conditions, expectations) {
+  const errors = [];
+  if (!conditions.prMerged) {
+    errors.push(`PR not merged (state: ${conditions.prState || "no PR"})`);
+  }
+  if (!conditions.issueClosed) {
+    errors.push("Issue not closed");
+  }
+  if (conditions.issueStatus !== "Done") {
+    errors.push(
+      `Issue status not "Done" (status: ${conditions.issueStatus || "unknown"})`
+    );
+  }
+  if (expectations) {
+    if (expectations.ci_required && !conditions.ciPassed) {
+      errors.push(
+        `CI not passed (status: ${conditions.ciStatus || "unknown"})`
+      );
+    }
+    if (expectations.review_required && !conditions.reviewApproved) {
+      errors.push(
+        `Review not approved (status: ${conditions.reviewStatus || "unknown"})`
+      );
+    }
+    if (expectations.branch_pattern) {
+      const pattern = expectations.branch_pattern.replace("{N}", "\\d+");
+      const regex = new RegExp(pattern);
+      if (conditions.branchName && !regex.test(conditions.branchName)) {
+        errors.push(
+          `Branch name "${conditions.branchName}" doesn't match pattern "${expectations.branch_pattern}"`
+        );
+      }
+    }
+  }
+  return errors;
+}
+async function waitForPhase(options) {
+  const {
+    octokit,
+    owner,
+    repo,
+    issueNumber,
+    phaseNumber,
+    projectNumber,
+    timeoutMs = 9e5,
+    // 15 minutes default
+    pollIntervalMs = 15e3,
+    // 15 seconds default
+    expectations
+  } = options;
+  const startTime = Date.now();
+  core4.info(
+    `Waiting for phase ${phaseNumber} to complete on issue #${issueNumber}...`
+  );
+  core4.info(
+    `Timeout: ${timeoutMs / 1e3}s, Poll interval: ${pollIntervalMs / 1e3}s`
+  );
+  const pollResult = await pollUntil(
+    () => fetchPhaseConditions(octokit, owner, repo, issueNumber, projectNumber),
+    (conditions2) => isPhaseComplete(conditions2, expectations),
+    {
+      ...DEFAULT_POLLER_CONFIG,
+      initialIntervalMs: pollIntervalMs,
+      maxIntervalMs: pollIntervalMs * 2,
+      timeoutMs
+    },
+    (conditions2, attempt, elapsed) => {
+      const statusEmoji = (passed) => {
+        if (passed === true) return "\u2705";
+        if (passed === false) return "\u274C";
+        return "\u23F3";
+      };
+      core4.info(
+        `Poll ${attempt} (${Math.round(elapsed / 1e3)}s): branch=${statusEmoji(conditions2.branchExists)} pr=${statusEmoji(conditions2.prOpened)}(${conditions2.prState || "none"}) ci=${statusEmoji(conditions2.ciPassed)}(${conditions2.ciStatus || "none"}) review=${statusEmoji(conditions2.reviewApproved)}(${conditions2.reviewStatus || "none"}) merged=${statusEmoji(conditions2.prMerged)} closed=${statusEmoji(conditions2.issueClosed)} status=${conditions2.issueStatus || "unknown"}`
+      );
+    }
+  );
+  const duration = Date.now() - startTime;
+  const conditions = pollResult.data;
+  if (!pollResult.success || !conditions) {
+    return {
+      success: false,
+      branch_name: conditions?.branchName || null,
+      pr_number: conditions?.prNumber || null,
+      pr_state: conditions?.prState || null,
+      ci_status: conditions?.ciStatus || null,
+      review_status: conditions?.reviewStatus || null,
+      issue_state: conditions?.issueClosed ? "closed" : "open",
+      issue_status: conditions?.issueStatus || null,
+      errors: ["Phase did not complete within timeout"],
+      duration_ms: duration
+    };
+  }
+  const errors = verifyPhaseExpectations(conditions, expectations);
+  if (errors.length > 0) {
+    core4.warning(
+      `Phase ${phaseNumber} verification failed with ${errors.length} errors:`
+    );
+    for (const error2 of errors) {
+      core4.warning(`  - ${error2}`);
+    }
+  } else {
+    core4.info(
+      `Phase ${phaseNumber} completed successfully in ${Math.round(duration / 1e3)}s`
+    );
+  }
+  return {
+    success: errors.length === 0,
+    branch_name: conditions.branchName,
+    pr_number: conditions.prNumber,
+    pr_state: conditions.prState,
+    ci_status: conditions.ciStatus,
+    review_status: conditions.reviewStatus,
+    issue_state: conditions.issueClosed ? "closed" : "open",
+    issue_status: conditions.issueStatus,
+    errors,
+    duration_ms: duration
+  };
+}
+
 // claude-test-runner/index.ts
 async function triggerCleanup(octokit, owner, repo, issueNumber) {
-  core3.info(`Triggering cleanup for issue #${issueNumber}`);
+  core5.info(`Triggering cleanup for issue #${issueNumber}`);
   try {
     await octokit.rest.actions.createWorkflowDispatch({
       owner,
@@ -34575,10 +35198,10 @@ async function triggerCleanup(octokit, owner, repo, issueNumber) {
         action: "close"
       }
     });
-    core3.info("Cleanup workflow triggered");
-  } catch (error) {
-    core3.warning(`Could not trigger cleanup workflow: ${error}`);
-    core3.info("Attempting direct close via API...");
+    core5.info("Cleanup workflow triggered");
+  } catch (error2) {
+    core5.warning(`Could not trigger cleanup workflow: ${error2}`);
+    core5.info("Attempting direct close via API...");
     try {
       await octokit.rest.issues.update({
         owner,
@@ -34587,9 +35210,9 @@ async function triggerCleanup(octokit, owner, repo, issueNumber) {
         state: "closed",
         state_reason: "not_planned"
       });
-      core3.info(`Closed issue #${issueNumber} directly`);
+      core5.info(`Closed issue #${issueNumber} directly`);
     } catch (closeError) {
-      core3.warning(`Failed to close issue: ${closeError}`);
+      core5.warning(`Failed to close issue: ${closeError}`);
     }
   }
 }
@@ -34608,10 +35231,10 @@ async function run() {
       const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
       const fixtureJson = getOptionalInput("fixture_json");
       const fixture = fixtureJson ? JSON.parse(fixtureJson) : { name: "manual", description: "Manual test run" };
-      core3.info(`=== Claude Test Runner ===`);
-      core3.info(`Action: run`);
-      core3.info(`Issue: #${issueNumber}`);
-      core3.info(`Fixture: ${fixture.name}`);
+      core5.info(`=== Claude Test Runner ===`);
+      core5.info(`Action: run`);
+      core5.info(`Issue: #${issueNumber}`);
+      core5.info(`Fixture: ${fixture.name}`);
       const result = await runTest({
         fixture,
         issueNumber,
@@ -34628,14 +35251,14 @@ async function run() {
         total_duration_ms: String(result.totalDurationMs)
       });
       if (result.status !== "done") {
-        core3.warning(`Test failed: ${result.diagnosis}`);
-        core3.warning(`Suggested fix: ${result.suggestedFix}`);
+        core5.warning(`Test failed: ${result.diagnosis}`);
+        core5.warning(`Suggested fix: ${result.suggestedFix}`);
         if (cleanupOnFailure) {
           await triggerCleanup(octokit, owner, repo, issueNumber);
         }
-        core3.setFailed(`Test failed: ${result.diagnosis}`);
+        core5.setFailed(`Test failed: ${result.diagnosis}`);
       } else {
-        core3.info(`Test passed! Completed ${result.phases.length} phases`);
+        core5.info(`Test passed! Completed ${result.phases.length} phases`);
       }
       return;
     }
@@ -34643,9 +35266,9 @@ async function run() {
       const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
       const fixtureJson = getOptionalInput("fixture_json");
       const fixture = fixtureJson ? JSON.parse(fixtureJson) : { name: "manual", description: "Manual diagnosis" };
-      core3.info(`=== Claude Test Runner ===`);
-      core3.info(`Action: diagnose`);
-      core3.info(`Issue: #${issueNumber}`);
+      core5.info(`=== Claude Test Runner ===`);
+      core5.info(`Action: diagnose`);
+      core5.info(`Issue: #${issueNumber}`);
       const result = await diagnose({
         fixture,
         issueNumber,
@@ -34661,14 +35284,14 @@ async function run() {
         phases_completed: "0",
         total_duration_ms: String(result.totalDurationMs)
       });
-      core3.info(`
+      core5.info(`
 Diagnosis Result:`);
-      core3.info(`Status: ${result.status}`);
+      core5.info(`Status: ${result.status}`);
       if (result.suggestedFix) {
-        core3.info(`Suggested Fix: ${result.suggestedFix}`);
+        core5.info(`Suggested Fix: ${result.suggestedFix}`);
       }
       if (result.diagnosis) {
-        core3.info(`Diagnosis: ${result.diagnosis}`);
+        core5.info(`Diagnosis: ${result.diagnosis}`);
       }
       return;
     }
@@ -34681,10 +35304,10 @@ Diagnosis Result:`);
         description: "Wait for status",
         timeout: parseInt(getOptionalInput("timeout") || "300", 10)
       };
-      core3.info(`=== Claude Test Runner ===`);
-      core3.info(`Action: wait`);
-      core3.info(`Issue: #${issueNumber}`);
-      core3.info(`Target Status: ${targetStatus}`);
+      core5.info(`=== Claude Test Runner ===`);
+      core5.info(`Action: wait`);
+      core5.info(`Issue: #${issueNumber}`);
+      core5.info(`Target Status: ${targetStatus}`);
       const result = await waitForStatus(
         {
           fixture,
@@ -34707,19 +35330,105 @@ Diagnosis Result:`);
         if (cleanupOnFailure) {
           await triggerCleanup(octokit, owner, repo, issueNumber);
         }
-        core3.setFailed(
+        core5.setFailed(
           `Failed to reach status '${targetStatus}': ${result.diagnosis}`
         );
       } else {
-        core3.info(`Issue reached status '${targetStatus}'`);
+        core5.info(`Issue reached status '${targetStatus}'`);
+      }
+      return;
+    }
+    if (action === "wait-triage") {
+      const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
+      const fixtureJson = getOptionalInput("fixture_json");
+      const timeoutMs = parseInt(getOptionalInput("timeout") || "300", 10) * 1e3;
+      const pollIntervalMs = parseInt(getOptionalInput("poll_interval") || "10", 10) * 1e3;
+      const fixture = fixtureJson ? JSON.parse(fixtureJson) : { name: "wait-triage", description: "Wait for triage" };
+      core5.info(`=== Claude Test Runner ===`);
+      core5.info(`Action: wait-triage`);
+      core5.info(`Issue: #${issueNumber}`);
+      const result = await waitForTriage({
+        octokit,
+        owner,
+        repo,
+        issueNumber,
+        projectNumber,
+        timeoutMs,
+        pollIntervalMs,
+        expectations: fixture.expected?.triage
+      });
+      setOutputs({
+        success: String(result.success),
+        labels: JSON.stringify(result.labels),
+        project_fields: JSON.stringify(result.project_fields),
+        sub_issue_count: String(result.sub_issue_count),
+        errors: result.errors.join("; "),
+        total_duration_ms: String(result.duration_ms)
+      });
+      if (!result.success) {
+        if (cleanupOnFailure) {
+          await triggerCleanup(octokit, owner, repo, issueNumber);
+        }
+        core5.setFailed(
+          `Triage verification failed: ${result.errors.join("; ")}`
+        );
+      } else {
+        core5.info("Triage completed and verified successfully");
+      }
+      return;
+    }
+    if (action === "wait-phase") {
+      const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
+      const phaseNumber = parseInt(getOptionalInput("phase_number") || "1", 10);
+      const fixtureJson = getOptionalInput("fixture_json");
+      const timeoutMs = parseInt(getOptionalInput("timeout") || "900", 10) * 1e3;
+      const pollIntervalMs = parseInt(getOptionalInput("poll_interval") || "15", 10) * 1e3;
+      const fixture = fixtureJson ? JSON.parse(fixtureJson) : { name: "wait-phase", description: "Wait for phase" };
+      const phaseExpectation = fixture.expected?.phases?.[phaseNumber - 1];
+      core5.info(`=== Claude Test Runner ===`);
+      core5.info(`Action: wait-phase`);
+      core5.info(`Issue: #${issueNumber}`);
+      core5.info(`Phase: ${phaseNumber}`);
+      const result = await waitForPhase({
+        octokit,
+        owner,
+        repo,
+        issueNumber,
+        phaseNumber,
+        projectNumber,
+        timeoutMs,
+        pollIntervalMs,
+        expectations: phaseExpectation
+      });
+      setOutputs({
+        success: String(result.success),
+        branch_name: result.branch_name || "",
+        pr_number: result.pr_number ? String(result.pr_number) : "",
+        pr_state: result.pr_state || "",
+        ci_status: result.ci_status || "",
+        review_status: result.review_status || "",
+        issue_state: result.issue_state,
+        issue_status: result.issue_status || "",
+        errors: result.errors.join("; "),
+        total_duration_ms: String(result.duration_ms)
+      });
+      if (!result.success) {
+        if (cleanupOnFailure) {
+          await triggerCleanup(octokit, owner, repo, issueNumber);
+        }
+        core5.setFailed(
+          `Phase ${phaseNumber} verification failed: ${result.errors.join("; ")}`
+        );
+      } else {
+        core5.info(`Phase ${phaseNumber} completed and verified successfully`);
       }
       return;
     }
     if (action === "status") {
       const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
-      core3.info(`=== Claude Test Runner ===`);
-      core3.info(`Action: status`);
-      core3.info(`Issue: #${issueNumber}`);
+      core5.info(`=== Claude Test Runner ===`);
+      core5.info(`Action: status`);
+      core5.info(`Issue: #${issueNumber}`);
       const state = await fetchGitHubState(
         octokit,
         owner,
@@ -34748,45 +35457,45 @@ Diagnosis Result:`);
         predicted_status: predicted.expectedStatus || "",
         workflow_status: workflowRuns.length > 0 ? workflowRuns[0]?.status || "unknown" : "none"
       });
-      core3.info(`
+      core5.info(`
 Current State:`);
-      core3.info(`  Status: ${state.projectStatus || "unknown"}`);
-      core3.info(`  Iteration: ${state.iteration}`);
-      core3.info(`  Failures: ${state.failures}`);
-      core3.info(`  Bot Assigned: ${state.botAssigned}`);
-      core3.info(
+      core5.info(`  Status: ${state.projectStatus || "unknown"}`);
+      core5.info(`  Iteration: ${state.iteration}`);
+      core5.info(`  Failures: ${state.failures}`);
+      core5.info(`  Bot Assigned: ${state.botAssigned}`);
+      core5.info(
         `  PR: ${state.prNumber ? `#${state.prNumber} (${state.prState})` : "none"}`
       );
-      core3.info(`  Branch: ${state.branch || "none"}`);
-      core3.info(`  Unchecked Todos: ${state.uncheckedTodos}`);
-      core3.info(`
+      core5.info(`  Branch: ${state.branch || "none"}`);
+      core5.info(`  Unchecked Todos: ${state.uncheckedTodos}`);
+      core5.info(`
 Prediction:`);
-      core3.info(`  Expected State: ${predicted.expectedState}`);
-      core3.info(
+      core5.info(`  Expected State: ${predicted.expectedState}`);
+      core5.info(
         `  Expected Status: ${predicted.expectedStatus || "unchanged"}`
       );
-      core3.info(`  Description: ${predicted.description}`);
+      core5.info(`  Description: ${predicted.description}`);
       return;
     }
     if (action === "validate") {
       const fixtureJson = getRequiredInput("fixture_json");
-      core3.info(`=== Claude Test Runner ===`);
-      core3.info(`Action: validate`);
+      core5.info(`=== Claude Test Runner ===`);
+      core5.info(`Action: validate`);
       let fixture;
       try {
         fixture = JSON.parse(fixtureJson);
-      } catch (error) {
-        core3.setFailed(`Invalid JSON: ${error}`);
+      } catch (error2) {
+        core5.setFailed(`Invalid JSON: ${error2}`);
         setOutputs({
           valid: "false",
-          errors: `Invalid JSON: ${error}`,
+          errors: `Invalid JSON: ${error2}`,
           warnings: ""
         });
         return;
       }
       const result = validateFixture(fixture);
       const formatted = formatValidationResult("fixture", result);
-      core3.info(`
+      core5.info(`
 ${formatted}`);
       setOutputs({
         valid: String(result.valid),
@@ -34794,16 +35503,16 @@ ${formatted}`);
         warnings: result.warnings.join("; ")
       });
       if (!result.valid) {
-        core3.setFailed(`Fixture validation failed`);
+        core5.setFailed(`Fixture validation failed`);
       }
       return;
     }
-    core3.setFailed(`Unknown action: ${action}`);
-  } catch (error) {
-    if (error instanceof Error) {
-      core3.setFailed(error.message);
+    core5.setFailed(`Unknown action: ${action}`);
+  } catch (error2) {
+    if (error2 instanceof Error) {
+      core5.setFailed(error2.message);
     } else {
-      core3.setFailed("An unexpected error occurred");
+      core5.setFailed("An unexpected error occurred");
     }
   }
 }

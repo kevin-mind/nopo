@@ -9,7 +9,13 @@
   },
   "expected": {
     "labels": ["triaged", "enhancement"],
-    "issue_state": "open"
+    "issue_state": "open",
+    "triage": {
+      "labels": ["triaged", "enhancement"],
+      "project_fields": {
+        "Status": "Backlog"
+      }
+    }
   },
   "timeout": 120,
   "poll_interval": 5

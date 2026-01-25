@@ -3,7 +3,7 @@ description: 'Intelligent E2E test runner with state prediction, exponential bac
 
 inputs:
   action:
-    description: 'Action to perform: run | diagnose | wait | status | validate'
+    description: 'Action to perform: run | diagnose | wait | wait-triage | wait-phase | status | validate'
     required: true
   fixture_json:
     description: 'Test fixture JSON configuration'
@@ -22,9 +22,17 @@ inputs:
     description: 'Target status to wait for (for wait action)'
     required: false
   timeout:
-    description: 'Timeout in seconds (default: 300)'
+    description: 'Timeout in seconds (default: 300 for triage, 900 for phase)'
     required: false
     default: '300'
+  poll_interval:
+    description: 'Poll interval in seconds (default: 10 for triage, 15 for phase)'
+    required: false
+    default: '10'
+  phase_number:
+    description: 'Phase number to wait for (for wait-phase action, 1-indexed)'
+    required: false
+    default: '1'
   cleanup_on_failure:
     description: 'Whether to trigger cleanup on test failure'
     required: false
@@ -69,6 +77,26 @@ outputs:
     description: 'Validation errors (for validate action)'
   warnings:
     description: 'Validation warnings (for validate action)'
+  # Wait-triage action outputs
+  success:
+    description: 'Whether the action succeeded (for wait-triage, wait-phase)'
+  labels:
+    description: 'JSON array of labels on the issue (for wait-triage)'
+  project_fields:
+    description: 'JSON object of project fields (for wait-triage)'
+  sub_issue_count:
+    description: 'Number of sub-issues created (for wait-triage)'
+  # Wait-phase action outputs
+  branch_name:
+    description: 'Name of the created branch (for wait-phase)'
+  ci_status:
+    description: 'CI check status: pending | success | failure (for wait-phase)'
+  review_status:
+    description: 'Review status: pending | approved | changes_requested (for wait-phase)'
+  issue_state:
+    description: 'Issue state: open | closed (for wait-phase)'
+  issue_status:
+    description: 'Project status of the issue (for wait-phase)'
 
 runs:
   using: node20

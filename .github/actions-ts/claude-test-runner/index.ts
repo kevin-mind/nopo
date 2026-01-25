@@ -24,6 +24,8 @@ import {
   buildContextFromState,
 } from "./src/github-state.js";
 import { predictNextState } from "./src/predictor.js";
+import { waitForTriage } from "./src/triage.js";
+import { waitForPhase } from "./src/phase.js";
 
 /**
  * Trigger cleanup for an issue when test fails
@@ -223,6 +225,118 @@ async function run(): Promise<void> {
         );
       } else {
         core.info(`Issue reached status '${targetStatus}'`);
+      }
+
+      return;
+    }
+
+    // Wait-triage action - wait for triage to complete and verify
+    if (action === "wait-triage") {
+      const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
+      const fixtureJson = getOptionalInput("fixture_json");
+      const timeoutMs =
+        parseInt(getOptionalInput("timeout") || "300", 10) * 1000;
+      const pollIntervalMs =
+        parseInt(getOptionalInput("poll_interval") || "10", 10) * 1000;
+
+      const fixture: TestFixture = fixtureJson
+        ? JSON.parse(fixtureJson)
+        : { name: "wait-triage", description: "Wait for triage" };
+
+      core.info(`=== Claude Test Runner ===`);
+      core.info(`Action: wait-triage`);
+      core.info(`Issue: #${issueNumber}`);
+
+      const result = await waitForTriage({
+        octokit,
+        owner,
+        repo,
+        issueNumber,
+        projectNumber,
+        timeoutMs,
+        pollIntervalMs,
+        expectations: fixture.expected?.triage,
+      });
+
+      setOutputs({
+        success: String(result.success),
+        labels: JSON.stringify(result.labels),
+        project_fields: JSON.stringify(result.project_fields),
+        sub_issue_count: String(result.sub_issue_count),
+        errors: result.errors.join("; "),
+        total_duration_ms: String(result.duration_ms),
+      });
+
+      if (!result.success) {
+        if (cleanupOnFailure) {
+          await triggerCleanup(octokit, owner, repo, issueNumber);
+        }
+        core.setFailed(
+          `Triage verification failed: ${result.errors.join("; ")}`,
+        );
+      } else {
+        core.info("Triage completed and verified successfully");
+      }
+
+      return;
+    }
+
+    // Wait-phase action - wait for development phase to complete
+    if (action === "wait-phase") {
+      const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
+      const phaseNumber = parseInt(getOptionalInput("phase_number") || "1", 10);
+      const fixtureJson = getOptionalInput("fixture_json");
+      const timeoutMs =
+        parseInt(getOptionalInput("timeout") || "900", 10) * 1000;
+      const pollIntervalMs =
+        parseInt(getOptionalInput("poll_interval") || "15", 10) * 1000;
+
+      const fixture: TestFixture = fixtureJson
+        ? JSON.parse(fixtureJson)
+        : { name: "wait-phase", description: "Wait for phase" };
+
+      // Get phase-specific expectations if available
+      const phaseExpectation = fixture.expected?.phases?.[phaseNumber - 1];
+
+      core.info(`=== Claude Test Runner ===`);
+      core.info(`Action: wait-phase`);
+      core.info(`Issue: #${issueNumber}`);
+      core.info(`Phase: ${phaseNumber}`);
+
+      const result = await waitForPhase({
+        octokit,
+        owner,
+        repo,
+        issueNumber,
+        phaseNumber,
+        projectNumber,
+        timeoutMs,
+        pollIntervalMs,
+        expectations: phaseExpectation,
+      });
+
+      setOutputs({
+        success: String(result.success),
+        branch_name: result.branch_name || "",
+        pr_number: result.pr_number ? String(result.pr_number) : "",
+        pr_state: result.pr_state || "",
+        ci_status: result.ci_status || "",
+        review_status: result.review_status || "",
+        issue_state: result.issue_state,
+        issue_status: result.issue_status || "",
+        errors: result.errors.join("; "),
+        total_duration_ms: String(result.duration_ms),
+      });
+
+      if (!result.success) {
+        if (cleanupOnFailure) {
+          await triggerCleanup(octokit, owner, repo, issueNumber);
+        }
+        core.setFailed(
+          `Phase ${phaseNumber} verification failed: ${result.errors.join("; ")}`,
+        );
+      } else {
+        core.info(`Phase ${phaseNumber} completed and verified successfully`);
       }
 
       return;

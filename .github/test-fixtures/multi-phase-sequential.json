@@ -43,7 +43,39 @@
     "failures": 0,
     "all_sub_issues_closed": true,
     "sub_issues_todos_done": true,
-    "sub_issues_have_merged_pr": true
+    "sub_issues_have_merged_pr": true,
+    "triage": {
+      "labels": ["triaged"],
+      "project_fields": {
+        "Status": "Backlog"
+      },
+      "sub_issue_count": 3
+    },
+    "phases": [
+      {
+        "branch_pattern": "claude/issue-{N}",
+        "pr_title_contains": "Setup infrastructure",
+        "ci_required": true,
+        "review_required": true
+      },
+      {
+        "branch_pattern": "claude/issue-{N}",
+        "pr_title_contains": "Implement core logic",
+        "ci_required": true,
+        "review_required": true
+      },
+      {
+        "branch_pattern": "claude/issue-{N}",
+        "pr_title_contains": "Add polish",
+        "ci_required": true,
+        "review_required": true
+      }
+    ],
+    "completion": {
+      "parent_status": "Done",
+      "all_sub_issues_closed": true,
+      "all_prs_merged": true
+    }
   },
   "timeout": 900,
   "poll_interval": 15
