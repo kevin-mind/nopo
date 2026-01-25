@@ -28840,9 +28840,12 @@ function parseRunIdFromCell(cell) {
   return null;
 }
 function formatHistoryCells(sha, runLink, repoUrl, prNumber) {
-  const serverUrl = repoUrl || process.env.GITHUB_SERVER_URL || "https://github.com";
-  const repo = process.env.GITHUB_REPOSITORY || "";
-  const fullRepoUrl = repo ? `${serverUrl}/${repo}` : serverUrl;
+  let fullRepoUrl = repoUrl;
+  if (!fullRepoUrl) {
+    const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+    const repo = process.env.GITHUB_REPOSITORY || "";
+    fullRepoUrl = repo ? `${serverUrl}/${repo}` : serverUrl;
+  }
   let shaCell = "-";
   if (prNumber) {
     shaCell = `[#${prNumber}](${fullRepoUrl}/pull/${prNumber})`;

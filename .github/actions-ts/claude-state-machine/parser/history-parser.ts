@@ -339,10 +339,14 @@ export function formatHistoryCells(
   repoUrl?: string,
   prNumber?: number,
 ): { shaCell: string; runCell: string } {
-  const serverUrl =
-    repoUrl || process.env.GITHUB_SERVER_URL || "https://github.com";
-  const repo = process.env.GITHUB_REPOSITORY || "";
-  const fullRepoUrl = repo ? `${serverUrl}/${repo}` : serverUrl;
+  // repoUrl is the full repo URL (e.g., https://github.com/owner/repo)
+  // If not provided, construct from environment variables
+  let fullRepoUrl = repoUrl;
+  if (!fullRepoUrl) {
+    const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+    const repo = process.env.GITHUB_REPOSITORY || "";
+    fullRepoUrl = repo ? `${serverUrl}/${repo}` : serverUrl;
+  }
 
   // PR number takes precedence for review-related rows
   let shaCell = "-";
