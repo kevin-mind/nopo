@@ -344,7 +344,7 @@ jobs:
               }')
 
             echo "::group::⏳ Triage Poll $iteration - ${elapsed}s/${timeout}s"
-            printf '%s\n' "$state_obj" | jq '.'
+            jq '.' <<< "$state_obj"
             echo "::endgroup::"
 
             if [[ "$has_triaged" == "true" ]] || [[ "$has_state" == "true" ]]; then
@@ -469,30 +469,40 @@ jobs:
 
           # Parse history table from issue body into JSON array
           # Table format: | Time | # | Phase | Action | SHA | Run |
-          # Returns JSON array of history entries (always valid JSON)
-          parse_history() {
-            local body="$1"
+          # Takes a file path instead of body content to avoid shell variable issues
+          parse_history_from_file() {
+            local issue_file="$1"
+            local body_file
+            body_file=$(mktemp)
 
-            # First, check if there's a history table at all
-            # Use printf to avoid echo interpreting escape sequences
-            if ! printf '%s' "$body" | grep -q '## Iteration History'; then
+            # Extract body to temp file
+            if ! jq -r '.body // ""' "$issue_file" > "$body_file" 2>/dev/null; then
+              rm -f "$body_file"
               printf '[]'
               return 0
             fi
 
-            # Extract just the data rows (skip header with "Time" and separator with "---")
-            local rows
-            rows=$(printf '%s' "$body" | grep -E '^\|' | grep -v 'Time' | grep -v '\-\-\-' 2>/dev/null || true)
-
-            if [[ -z "$rows" ]]; then
+            # Check if there's a history table
+            if ! grep -q '## Iteration History' "$body_file" 2>/dev/null; then
+              rm -f "$body_file"
               printf '[]'
               return 0
             fi
 
-            # Use jq with raw input to parse the pipe-delimited rows
-            # If jq fails for any reason, return empty array
+            # Extract and parse history rows from file
+            local rows_file
+            rows_file=$(mktemp)
+            grep -E '^\|' "$body_file" | grep -v 'Time' | grep -v '\-\-\-' > "$rows_file" 2>/dev/null || true
+
+            if [[ ! -s "$rows_file" ]]; then
+              rm -f "$body_file" "$rows_file"
+              printf '[]'
+              return 0
+            fi
+
+            # Parse with jq
             local result
-            result=$(printf '%s' "$rows" | jq -Rs '
+            result=$(jq -Rs '
               split("\n") |
               map(select(length > 0)) |
               map(
@@ -506,10 +516,12 @@ jobs:
                   sha: .[5]
                 }
               )
-            ' 2>/dev/null) || result="[]"
+            ' "$rows_file" 2>/dev/null) || result="[]"
 
-            # Final safety check - ensure output is valid JSON array
-            if printf '%s' "$result" | jq -e 'type == "array"' >/dev/null 2>&1; then
+            rm -f "$body_file" "$rows_file"
+
+            # Validate result is an array
+            if echo "$result" | jq -e 'type == "array"' >/dev/null 2>&1; then
               printf '%s' "$result"
             else
               printf '[]'
@@ -570,9 +582,9 @@ jobs:
             fi
 
             # Parse from file to avoid shell variable interpolation issues
+            # Only extract simple values that won't have special characters
             state=$(jq -r '.state // "UNKNOWN"' "$issue_tmp")
             title=$(jq -r '.title // "Unknown"' "$issue_tmp")
-            body=$(jq -r '.body // ""' "$issue_tmp")
             labels=$(jq -c '[.labels[]?.name] // []' "$issue_tmp")
             assignees=$(jq -c '[.assignees[]?.login] // []' "$issue_tmp")
             project_status=$(jq -r '.projectItems[0].fieldValueByName.name // "N/A"' "$issue_tmp")
@@ -589,22 +601,25 @@ jobs:
             fi
 
             # Search for PRs with ready-to-merge label
+            # Keep everything in temp files to avoid shell variable issues with special characters
             pr_tmp=$(mktemp)
-            if gh pr list --repo "$GITHUB_REPOSITORY" --label "ready-to-merge" --json number,state,body 2>/dev/null | jq -c '.' > "$pr_tmp" 2>/dev/null; then
-              pr_list=$(cat "$pr_tmp")
+            if gh pr list --repo "$GITHUB_REPOSITORY" --label "ready-to-merge" --json number,state,body 2>/dev/null > "$pr_tmp.raw" 2>/dev/null && jq -c '.' "$pr_tmp.raw" > "$pr_tmp" 2>/dev/null; then
+              pr_count=$(jq 'length' "$pr_tmp")
             else
-              pr_list='[]'
+              echo '[]' > "$pr_tmp"
+              pr_count=0
             fi
-            rm -f "$pr_tmp"
-            for pr_row in $(printf '%s' "$pr_list" | jq -c '.[]'); do
-              pr_num=$(printf '%s' "$pr_row" | jq -r '.number')
-              pr_state=$(printf '%s' "$pr_row" | jq -r '.state')
-              pr_body=$(printf '%s' "$pr_row" | jq -r '.body // ""')
+            rm -f "$pr_tmp.raw"
 
-              # Check if PR is linked to one of the test issues
+            # Iterate by index to avoid shell variable issues
+            for ((pr_idx=0; pr_idx<pr_count; pr_idx++)); do
+              pr_num=$(jq -r ".[$pr_idx].number" "$pr_tmp")
+              pr_state=$(jq -r ".[$pr_idx].state" "$pr_tmp")
+
+              # Check if PR body contains a link to one of the test issues
               is_test_pr=false
               for issue_num in $all_test_issues; do
-                if echo "$pr_body" | grep -qE "(Fixes|Closes|Resolves) #$issue_num"; then
+                if jq -r ".[$pr_idx].body // \"\"" "$pr_tmp" | grep -qE "(Fixes|Closes|Resolves) #$issue_num"; then
                   is_test_pr=true
                   break
                 fi
@@ -617,20 +632,22 @@ jobs:
                 sleep 5
               fi
             done
+            rm -f "$pr_tmp"
 
-            # Parse history from body
-            history=$(parse_history "$body")
+            # Parse history from issue file (avoids shell variable issues with body content)
+            history=$(parse_history_from_file "$issue_tmp")
 
             # Validate inputs are valid JSON before building state object
-            if ! printf '%s' "$labels" | jq -e '.' >/dev/null 2>&1; then
+            # Use heredocs for safer JSON validation
+            if ! jq -e '.' <<< "$labels" >/dev/null 2>&1; then
               echo "::warning::labels is not valid JSON: $labels"
               labels='[]'
             fi
-            if ! printf '%s' "$assignees" | jq -e '.' >/dev/null 2>&1; then
+            if ! jq -e '.' <<< "$assignees" >/dev/null 2>&1; then
               echo "::warning::assignees is not valid JSON: $assignees"
               assignees='[]'
             fi
-            if ! printf '%s' "$history" | jq -e '.' >/dev/null 2>&1; then
+            if ! jq -e '.' <<< "$history" >/dev/null 2>&1; then
               echo "::warning::history is not valid JSON: $history"
               history='[]'
             fi
@@ -664,7 +681,7 @@ jobs:
 
             # Clear screen and print state (GitHub Actions compatible)
             echo "::group::Poll $iteration - Elapsed: ${elapsed}s"
-            printf '%s\n' "$state_obj" | jq '.'
+            jq '.' <<< "$state_obj"
             echo "::endgroup::"
 
             if [[ "$state" == "CLOSED" ]]; then
@@ -688,7 +705,7 @@ jobs:
 
           # Final state
           echo "::group::Final State"
-          printf '%s\n' "$state_obj" | jq '.'
+          jq '.' <<< "$state_obj"
           echo "::endgroup::"
 
       - name: Verify outcome
