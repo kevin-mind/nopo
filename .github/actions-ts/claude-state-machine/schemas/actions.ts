@@ -134,7 +134,7 @@ export const AppendHistoryActionSchema = BaseActionSchema.extend({
   timestamp: z.string().optional(),
   commitSha: z.string().optional(),
   /** PR number to link in the SHA column (alternative to commitSha) */
-  prNumber: z.number().int().positive().optional(),
+  prNumber: z.number().int().positive().nullable().optional(),
   runLink: z.string().optional(),
 });
 
@@ -154,7 +154,7 @@ export const UpdateHistoryActionSchema = BaseActionSchema.extend({
   timestamp: z.string().optional(),
   commitSha: z.string().optional(),
   /** PR number to link in the SHA column (alternative to commitSha) */
-  prNumber: z.number().int().positive().optional(),
+  prNumber: z.number().int().positive().nullable().optional(),
   runLink: z.string().optional(),
 });
 

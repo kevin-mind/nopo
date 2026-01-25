@@ -31415,7 +31415,7 @@ var AppendHistoryActionSchema = BaseActionSchema.extend({
   timestamp: external_exports.string().optional(),
   commitSha: external_exports.string().optional(),
   /** PR number to link in the SHA column (alternative to commitSha) */
-  prNumber: external_exports.number().int().positive().optional(),
+  prNumber: external_exports.number().int().positive().nullable().optional(),
   runLink: external_exports.string().optional()
 });
 var UpdateHistoryActionSchema = BaseActionSchema.extend({
@@ -31429,7 +31429,7 @@ var UpdateHistoryActionSchema = BaseActionSchema.extend({
   timestamp: external_exports.string().optional(),
   commitSha: external_exports.string().optional(),
   /** PR number to link in the SHA column (alternative to commitSha) */
-  prNumber: external_exports.number().int().positive().optional(),
+  prNumber: external_exports.number().int().positive().nullable().optional(),
   runLink: external_exports.string().optional()
 });
 var UpdateIssueBodyActionSchema = BaseActionSchema.extend({

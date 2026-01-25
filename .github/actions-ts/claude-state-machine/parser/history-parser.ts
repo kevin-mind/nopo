@@ -337,7 +337,7 @@ export function formatHistoryCells(
   sha?: string,
   runLink?: string,
   repoUrl?: string,
-  prNumber?: number,
+  prNumber?: number | null,
 ): { shaCell: string; runCell: string } {
   // repoUrl is the full repo URL (e.g., https://github.com/owner/repo)
   // If not provided, construct from environment variables
@@ -482,7 +482,7 @@ function createRowData(
   sha?: string,
   runLink?: string,
   repoUrl?: string,
-  prNumber?: number,
+  prNumber?: number | null,
 ): RowData {
   const { shaCell, runCell } = formatHistoryCells(
     sha,
@@ -512,7 +512,7 @@ export function createHistoryRow(
   sha?: string,
   runLink?: string,
   repoUrl?: string,
-  prNumber?: number,
+  prNumber?: number | null,
 ): string {
   const data = createRowData(
     iteration,
@@ -574,7 +574,7 @@ export function addHistoryEntry(
   sha?: string,
   runLink?: string,
   repoUrl?: string,
-  prNumber?: number,
+  prNumber?: number | null,
 ): string {
   const newRowData = createRowData(
     iteration,
@@ -717,7 +717,7 @@ export function updateHistoryEntry(
   sha?: string,
   runLink?: string,
   repoUrl?: string,
-  prNumber?: number,
+  prNumber?: number | null,
 ): { body: string; updated: boolean } {
   const parsed = parseTable(body);
 
