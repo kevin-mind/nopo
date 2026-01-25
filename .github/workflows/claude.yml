@@ -35,6 +35,7 @@ run-name: >-
   # - Discussions
   issues:
     types:
+      - opened
       - assigned
   issue_comment:
     types:
