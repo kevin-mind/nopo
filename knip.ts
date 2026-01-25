@@ -6,8 +6,8 @@ export default {
     "packages/configs/**",
     "**/.react-router/**",
     "**/+types/**",
-    // Test feature files created by Claude automation
-    "test-feature-*/**",
+    // E2E test dump directory (Claude automation artifacts)
+    "test-e2e-dump/**",
   ],
   workspaces: {
     ".": {
