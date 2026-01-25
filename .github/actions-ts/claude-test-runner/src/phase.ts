@@ -532,22 +532,50 @@ export async function waitForPhase(
       timeoutMs,
     },
     (conditions, attempt, elapsed) => {
-      const statusEmoji = (passed: boolean | null) => {
-        if (passed === true) return "✅";
-        if (passed === false) return "❌";
+      const check = (condition: boolean | null) => {
+        if (condition === true) return "✅";
+        if (condition === false) return "❌";
         return "⏳";
       };
 
       core.info(
-        `Poll ${attempt} (${Math.round(elapsed / 1000)}s): ` +
-          `branch=${statusEmoji(conditions.branchExists)} ` +
-          `pr=${statusEmoji(conditions.prOpened)}(${conditions.prState || "none"}) ` +
-          `ci=${statusEmoji(conditions.ciPassed)}(${conditions.ciStatus || "none"}) ` +
-          `review=${statusEmoji(conditions.reviewApproved)}(${conditions.reviewStatus || "none"}) ` +
-          `merged=${statusEmoji(conditions.prMerged)} ` +
-          `closed=${statusEmoji(conditions.issueClosed)} ` +
-          `status=${conditions.issueStatus || "unknown"}`,
+        `\n━━━ Poll ${attempt} (${Math.round(elapsed / 1000)}s elapsed) ━━━`,
       );
+      core.info(
+        `  Branch: ${check(conditions.branchExists)} ${conditions.branchName || "(not created)"}`,
+      );
+      core.info(
+        `  PR: ${check(conditions.prOpened)} ${conditions.prNumber ? `#${conditions.prNumber}` : "(not opened)"} [${conditions.prState || "none"}]`,
+      );
+      core.info(
+        `  CI: ${check(conditions.ciPassed)} ${conditions.ciStatus || "pending"}`,
+      );
+      core.info(
+        `  Review: ${check(conditions.reviewApproved)} ${conditions.reviewStatus || "pending"}`,
+      );
+      core.info(`  Merged: ${check(conditions.prMerged)}`);
+      core.info(
+        `  Issue: ${conditions.issueClosed ? "closed" : "open"} | Status: ${conditions.issueStatus || "(not set)"}`,
+      );
+
+      // Show what we're waiting for
+      const waiting: string[] = [];
+      if (!conditions.branchExists) waiting.push("branch");
+      if (!conditions.prOpened) waiting.push("PR");
+      if (!conditions.ciPassed && conditions.prOpened)
+        waiting.push("CI to pass");
+      if (!conditions.reviewApproved && conditions.ciPassed)
+        waiting.push("review approval");
+      if (!conditions.prMerged && conditions.reviewApproved)
+        waiting.push("PR merge");
+      if (!conditions.issueClosed && conditions.prMerged)
+        waiting.push("issue close");
+      if (conditions.issueStatus !== "Done" && conditions.issueClosed)
+        waiting.push("status=Done");
+
+      if (waiting.length > 0) {
+        core.info(`  ⏳ Waiting for: ${waiting.join(", ")}`);
+      }
     },
   );
 
@@ -555,6 +583,32 @@ export async function waitForPhase(
   const conditions = pollResult.data;
 
   if (!pollResult.success || !conditions) {
+    // Log detailed timeout state
+    core.error(
+      `\n╔══════════════════════════════════════════════════════════════╗`,
+    );
+    core.error(
+      `║  PHASE ${phaseNumber} TIMEOUT - Final State                              ║`,
+    );
+    core.error(
+      `╚══════════════════════════════════════════════════════════════╝`,
+    );
+    core.error(
+      `  Duration: ${Math.round(duration / 1000)}s (timeout: ${timeoutMs / 1000}s)`,
+    );
+    core.error(
+      `  Branch: ${conditions?.branchName || "(not created)"}`,
+    );
+    core.error(
+      `  PR: ${conditions?.prNumber ? `#${conditions.prNumber}` : "(not opened)"} [${conditions?.prState || "none"}]`,
+    );
+    core.error(`  CI: ${conditions?.ciStatus || "pending"}`);
+    core.error(`  Review: ${conditions?.reviewStatus || "pending"}`);
+    core.error(`  Merged: ${conditions?.prMerged ? "yes" : "no"}`);
+    core.error(
+      `  Issue: ${conditions?.issueClosed ? "closed" : "open"} | Status: ${conditions?.issueStatus || "(not set)"}`,
+    );
+
     return {
       success: false,
       branch_name: conditions?.branchName || null,
@@ -572,17 +626,29 @@ export async function waitForPhase(
   // Verify expectations
   const errors = verifyPhaseExpectations(conditions, expectations);
 
+  // Log final state summary
+  core.info(
+    `\n╔══════════════════════════════════════════════════════════════╗`,
+  );
+  core.info(
+    `║  PHASE ${phaseNumber} ${errors.length === 0 ? "COMPLETE ✅" : "FAILED ❌"}                                        ║`,
+  );
+  core.info(`╚══════════════════════════════════════════════════════════════╝`);
+  core.info(`  Duration: ${Math.round(duration / 1000)}s`);
+  core.info(`  Branch: ${conditions.branchName || "(none)"}`);
+  core.info(
+    `  PR: ${conditions.prNumber ? `#${conditions.prNumber}` : "(none)"} [${conditions.prState || "none"}]`,
+  );
+  core.info(`  CI: ${conditions.ciStatus || "unknown"}`);
+  core.info(`  Review: ${conditions.reviewStatus || "unknown"}`);
+  core.info(`  Issue: ${conditions.issueClosed ? "closed" : "open"}`);
+  core.info(`  Status: ${conditions.issueStatus || "(not set)"}`);
+
   if (errors.length > 0) {
-    core.warning(
-      `Phase ${phaseNumber} verification failed with ${errors.length} errors:`,
-    );
+    core.error(`\n  Verification errors (${errors.length}):`);
     for (const error of errors) {
-      core.warning(`  - ${error}`);
+      core.error(`    ❌ ${error}`);
     }
-  } else {
-    core.info(
-      `Phase ${phaseNumber} completed successfully in ${Math.round(duration / 1000)}s`,
-    );
   }
 
   return {
