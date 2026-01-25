@@ -532,50 +532,19 @@ export async function waitForPhase(
       timeoutMs,
     },
     (conditions, attempt, elapsed) => {
-      const check = (condition: boolean | null) => {
-        if (condition === true) return "✅";
-        if (condition === false) return "❌";
-        return "⏳";
-      };
+      const c = (ok: boolean) => (ok ? "✅" : "⬜");
 
+      // Compact single-line format showing what's done
       core.info(
-        `\n━━━ Poll ${attempt} (${Math.round(elapsed / 1000)}s elapsed) ━━━`,
+        `[${attempt}] ${Math.round(elapsed / 1000)}s | ` +
+          `branch:${c(conditions.branchExists)} ` +
+          `pr:${c(conditions.prOpened)}${conditions.prState ? `(${conditions.prState})` : ""} ` +
+          `ci:${c(conditions.ciPassed)} ` +
+          `review:${c(conditions.reviewApproved)} ` +
+          `merged:${c(conditions.prMerged)} ` +
+          `closed:${c(conditions.issueClosed)} ` +
+          `status:${conditions.issueStatus || "?"}`,
       );
-      core.info(
-        `  Branch: ${check(conditions.branchExists)} ${conditions.branchName || "(not created)"}`,
-      );
-      core.info(
-        `  PR: ${check(conditions.prOpened)} ${conditions.prNumber ? `#${conditions.prNumber}` : "(not opened)"} [${conditions.prState || "none"}]`,
-      );
-      core.info(
-        `  CI: ${check(conditions.ciPassed)} ${conditions.ciStatus || "pending"}`,
-      );
-      core.info(
-        `  Review: ${check(conditions.reviewApproved)} ${conditions.reviewStatus || "pending"}`,
-      );
-      core.info(`  Merged: ${check(conditions.prMerged)}`);
-      core.info(
-        `  Issue: ${conditions.issueClosed ? "closed" : "open"} | Status: ${conditions.issueStatus || "(not set)"}`,
-      );
-
-      // Show what we're waiting for
-      const waiting: string[] = [];
-      if (!conditions.branchExists) waiting.push("branch");
-      if (!conditions.prOpened) waiting.push("PR");
-      if (!conditions.ciPassed && conditions.prOpened)
-        waiting.push("CI to pass");
-      if (!conditions.reviewApproved && conditions.ciPassed)
-        waiting.push("review approval");
-      if (!conditions.prMerged && conditions.reviewApproved)
-        waiting.push("PR merge");
-      if (!conditions.issueClosed && conditions.prMerged)
-        waiting.push("issue close");
-      if (conditions.issueStatus !== "Done" && conditions.issueClosed)
-        waiting.push("status=Done");
-
-      if (waiting.length > 0) {
-        core.info(`  ⏳ Waiting for: ${waiting.join(", ")}`);
-      }
     },
   );
 
@@ -596,9 +565,7 @@ export async function waitForPhase(
     core.error(
       `  Duration: ${Math.round(duration / 1000)}s (timeout: ${timeoutMs / 1000}s)`,
     );
-    core.error(
-      `  Branch: ${conditions?.branchName || "(not created)"}`,
-    );
+    core.error(`  Branch: ${conditions?.branchName || "(not created)"}`);
     core.error(
       `  PR: ${conditions?.prNumber ? `#${conditions.prNumber}` : "(not opened)"} [${conditions?.prState || "none"}]`,
     );

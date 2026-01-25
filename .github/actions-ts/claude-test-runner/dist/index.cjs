@@ -34829,29 +34829,10 @@ async function waitForTriage(options) {
       timeoutMs
     },
     (state2, attempt, elapsed) => {
-      const check = (condition) => condition ? "\u2705" : "\u274C";
+      const c = (ok) => ok ? "\u2705" : "\u2B1C";
       core4.info(
-        `
-\u2501\u2501\u2501 Poll ${attempt} (${Math.round(elapsed / 1e3)}s elapsed) \u2501\u2501\u2501`
+        `[${attempt}] ${Math.round(elapsed / 1e3)}s | triaged:${c(state2.hasTriagedLabel)} status:${c(!!state2.projectFields.Status)}${state2.projectFields.Status ? `(${state2.projectFields.Status})` : ""} priority:${c(!!state2.projectFields.Priority)} size:${c(!!state2.projectFields.Size)} estimate:${c(state2.projectFields.Estimate !== void 0)} subs:${state2.subIssueCount}`
       );
-      core4.info(
-        `  Triaged label: ${check(state2.hasTriagedLabel)} ${state2.hasTriagedLabel ? "present" : "MISSING"}`
-      );
-      core4.info(
-        `  Labels (${state2.labels.length}): ${state2.labels.length > 0 ? state2.labels.join(", ") : "(none)"}`
-      );
-      core4.info(`  Issue state: ${state2.issueState}`);
-      core4.info(`  Sub-issues: ${state2.subIssueCount}`);
-      core4.info(`  Project fields:`);
-      core4.info(`    Status: ${state2.projectFields.Status || "(not set)"}`);
-      core4.info(`    Priority: ${state2.projectFields.Priority || "(not set)"}`);
-      core4.info(`    Size: ${state2.projectFields.Size || "(not set)"}`);
-      core4.info(
-        `    Estimate: ${state2.projectFields.Estimate !== void 0 ? state2.projectFields.Estimate : "(not set)"}`
-      );
-      if (!state2.hasTriagedLabel) {
-        core4.info(`  \u23F3 Waiting for "triaged" label...`);
-      }
     }
   );
   const duration = Date.now() - startTime;
@@ -35217,47 +35198,10 @@ async function waitForPhase(options) {
       timeoutMs
     },
     (conditions2, attempt, elapsed) => {
-      const check = (condition) => {
-        if (condition === true) return "\u2705";
-        if (condition === false) return "\u274C";
-        return "\u23F3";
-      };
+      const c = (ok) => ok ? "\u2705" : "\u2B1C";
       core5.info(
-        `
-\u2501\u2501\u2501 Poll ${attempt} (${Math.round(elapsed / 1e3)}s elapsed) \u2501\u2501\u2501`
+        `[${attempt}] ${Math.round(elapsed / 1e3)}s | branch:${c(conditions2.branchExists)} pr:${c(conditions2.prOpened)}${conditions2.prState ? `(${conditions2.prState})` : ""} ci:${c(conditions2.ciPassed)} review:${c(conditions2.reviewApproved)} merged:${c(conditions2.prMerged)} closed:${c(conditions2.issueClosed)} status:${conditions2.issueStatus || "?"}`
       );
-      core5.info(
-        `  Branch: ${check(conditions2.branchExists)} ${conditions2.branchName || "(not created)"}`
-      );
-      core5.info(
-        `  PR: ${check(conditions2.prOpened)} ${conditions2.prNumber ? `#${conditions2.prNumber}` : "(not opened)"} [${conditions2.prState || "none"}]`
-      );
-      core5.info(
-        `  CI: ${check(conditions2.ciPassed)} ${conditions2.ciStatus || "pending"}`
-      );
-      core5.info(
-        `  Review: ${check(conditions2.reviewApproved)} ${conditions2.reviewStatus || "pending"}`
-      );
-      core5.info(`  Merged: ${check(conditions2.prMerged)}`);
-      core5.info(
-        `  Issue: ${conditions2.issueClosed ? "closed" : "open"} | Status: ${conditions2.issueStatus || "(not set)"}`
-      );
-      const waiting = [];
-      if (!conditions2.branchExists) waiting.push("branch");
-      if (!conditions2.prOpened) waiting.push("PR");
-      if (!conditions2.ciPassed && conditions2.prOpened)
-        waiting.push("CI to pass");
-      if (!conditions2.reviewApproved && conditions2.ciPassed)
-        waiting.push("review approval");
-      if (!conditions2.prMerged && conditions2.reviewApproved)
-        waiting.push("PR merge");
-      if (!conditions2.issueClosed && conditions2.prMerged)
-        waiting.push("issue close");
-      if (conditions2.issueStatus !== "Done" && conditions2.issueClosed)
-        waiting.push("status=Done");
-      if (waiting.length > 0) {
-        core5.info(`  \u23F3 Waiting for: ${waiting.join(", ")}`);
-      }
     }
   );
   const duration = Date.now() - startTime;
@@ -35276,9 +35220,7 @@ async function waitForPhase(options) {
     core5.error(
       `  Duration: ${Math.round(duration / 1e3)}s (timeout: ${timeoutMs / 1e3}s)`
     );
-    core5.error(
-      `  Branch: ${conditions?.branchName || "(not created)"}`
-    );
+    core5.error(`  Branch: ${conditions?.branchName || "(not created)"}`);
     core5.error(
       `  PR: ${conditions?.prNumber ? `#${conditions.prNumber}` : "(not opened)"} [${conditions?.prState || "none"}]`
     );
