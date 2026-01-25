@@ -726,6 +726,53 @@ async function handleIssueEvent(
     );
   }
 
+  // Handle closed: if sub-issue is closed, trigger parent orchestration
+  if (action === "closed") {
+    const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
+
+    // Only handle sub-issues being closed
+    if (!details.isSubIssue) {
+      return emptyResult(true, "Closed issue is not a sub-issue");
+    }
+
+    // Fetch parent issue details to trigger orchestration
+    const parentDetails = await fetchIssueDetails(
+      octokit,
+      owner,
+      repo,
+      details.parentIssue,
+    );
+
+    // Get parent project state
+    const parentProjectState = await fetchProjectState(
+      octokit,
+      owner,
+      repo,
+      details.parentIssue,
+    );
+
+    // Route to orchestrate so it can check if all sub-issues are done
+    return {
+      job: "issue-orchestrate",
+      resourceType: "issue",
+      resourceNumber: String(details.parentIssue),
+      commentId: "",
+      contextJson: JSON.stringify({
+        issue_number: String(details.parentIssue),
+        issue_title: parentDetails.title,
+        issue_body: parentDetails.body,
+        sub_issues: parentDetails.subIssues.join(","),
+        trigger_type: "sub_issue_closed",
+        closed_sub_issue: String(issue.number),
+        project_status: parentProjectState?.status || "",
+        project_iteration: String(parentProjectState?.iteration || 0),
+        project_failures: String(parentProjectState?.failures || 0),
+      }),
+      skip: false,
+      skipReason: "",
+    };
+  }
+
   // Handle implement: assigned to nopo-bot
   if (action === "assigned") {
     const assignee = payload.assignee as { login: string };

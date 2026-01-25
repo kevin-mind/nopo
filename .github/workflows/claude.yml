@@ -37,6 +37,7 @@ run-name: >-
     types:
       - opened
       - assigned
+      - closed
   issue_comment:
     types:
       - created

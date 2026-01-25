@@ -24390,6 +24390,43 @@ async function handleIssueEvent(octokit, owner, repo) {
       "Issue edited but already triaged and not assigned to nopo-bot"
     );
   }
+  if (action === "closed") {
+    const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
+    if (!details.isSubIssue) {
+      return emptyResult(true, "Closed issue is not a sub-issue");
+    }
+    const parentDetails = await fetchIssueDetails(
+      octokit,
+      owner,
+      repo,
+      details.parentIssue
+    );
+    const parentProjectState = await fetchProjectState(
+      octokit,
+      owner,
+      repo,
+      details.parentIssue
+    );
+    return {
+      job: "issue-orchestrate",
+      resourceType: "issue",
+      resourceNumber: String(details.parentIssue),
+      commentId: "",
+      contextJson: JSON.stringify({
+        issue_number: String(details.parentIssue),
+        issue_title: parentDetails.title,
+        issue_body: parentDetails.body,
+        sub_issues: parentDetails.subIssues.join(","),
+        trigger_type: "sub_issue_closed",
+        closed_sub_issue: String(issue.number),
+        project_status: parentProjectState?.status || "",
+        project_iteration: String(parentProjectState?.iteration || 0),
+        project_failures: String(parentProjectState?.failures || 0)
+      }),
+      skip: false,
+      skipReason: ""
+    };
+  }
   if (action === "assigned") {
     const assignee = payload.assignee;
     if (assignee.login !== "nopo-bot") {
