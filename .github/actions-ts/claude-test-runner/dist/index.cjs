@@ -35090,7 +35090,7 @@ async function fetchPhaseConditions(octokit, owner, repo, issueNumber, projectNu
             conditions.ciStatus = "pending";
           } else {
             const relevantChecks = checks.check_runs.filter(
-              (c) => !c.name.includes("Test State Machine") && !c.name.includes("E2E") && c.name !== "summary"
+              (c) => !c.name.includes("Test State Machine") && !c.name.includes("E2E") && !c.name.includes("run-state-machine") && c.name !== "summary"
             );
             if (relevantChecks.length === 0) {
               conditions.ciStatus = "pending";

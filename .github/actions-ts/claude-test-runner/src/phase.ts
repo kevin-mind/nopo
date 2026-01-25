@@ -273,11 +273,12 @@ async function fetchPhaseConditions(
           if (checks.check_runs.length === 0) {
             conditions.ciStatus = "pending";
           } else {
-            // Exclude the current workflow and test-related checks
+            // Exclude automation/test workflow checks - only care about actual CI checks
             const relevantChecks = checks.check_runs.filter(
               (c) =>
                 !c.name.includes("Test State Machine") &&
                 !c.name.includes("E2E") &&
+                !c.name.includes("run-state-machine") &&
                 c.name !== "summary",
             );
 
