@@ -24121,7 +24121,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, stepw
     issue_number: 0,
     sub_issue_numbers: []
   };
-  const testModeLabel = dryRunMode ? [] : stepwiseMode ? ["_test"] : ["_e2e"];
+  const testModeLabel = dryRunMode ? ["_e2e"] : stepwiseMode ? ["_test"] : ["_e2e"];
   if (!fixture.parent_issue) {
     core2.info("No parent_issue in fixture - creating discussion-only fixture");
     if (fixture.discussion) {

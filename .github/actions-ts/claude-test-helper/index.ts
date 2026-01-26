@@ -310,10 +310,11 @@ async function createFixture(
   };
 
   // Label strategy for test mode:
-  // - dry-run mode: just test:automation (workflows skip entirely)
+  // - dry-run mode: test:automation + _e2e (workflows skip, but cleanup works)
   // - stepwise mode: test:automation + _test (detection only, pause for verification)
   // - e2e mode: test:automation + _e2e (full execution)
-  const testModeLabel = dryRunMode ? [] : stepwiseMode ? ["_test"] : ["_e2e"];
+  // Note: dry-run and e2e both use _e2e label so cleanup safety check passes
+  const testModeLabel = dryRunMode ? ["_e2e"] : stepwiseMode ? ["_test"] : ["_e2e"];
 
   // For discussion-only fixtures (no parent_issue), skip issue creation
   if (!fixture.parent_issue) {
