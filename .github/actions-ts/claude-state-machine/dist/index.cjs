@@ -33176,6 +33176,15 @@ var claudeMachine = setup({
         )
       )
     }),
+    logFixingCI: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitLog(
+          { context: context2 },
+          `Fixing CI (iteration ${context2.issue.iteration + 1})`
+        )
+      )
+    }),
     logReviewing: assign({
       pendingActions: ({ context: context2 }) => accumulateActions(
         context2.pendingActions,
@@ -33729,6 +33738,7 @@ var claudeMachine = setup({
       entry: [
         "createBranch",
         "incrementIteration",
+        "logFixingCI",
         "runClaudeFixCI",
         "createPR"
       ],
