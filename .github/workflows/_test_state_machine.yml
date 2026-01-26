@@ -217,7 +217,7 @@ jobs:
           if [[ -z "$trigger" ]]; then
             case "$job_type" in
               issue-triage)
-                trigger="issue_opened"
+                trigger="issue_triage"
                 ;;
               issue-iterate|issue-orchestrate)
                 trigger="issue_assigned"
