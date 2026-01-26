@@ -125,6 +125,7 @@ jobs:
       iteration: ${{ steps.context.outputs.iteration }}
       phase: ${{ steps.context.outputs.phase }}
       parent_issue_number: ${{ steps.context.outputs.parent_issue_number }}
+      sub_issue_number: ${{ steps.context.outputs.sub_issue_number }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -495,6 +496,8 @@ jobs:
           EXEC_RESULT: ${{ needs.exec-state-actions.result }}
           ACTION_COUNT: ${{ needs.derive-actions.outputs.action_count }}
           TRANSITION_NAME: ${{ needs.derive-actions.outputs.transition_name }}
+          PHASE: ${{ needs.derive-context.outputs.phase }}
+          SUB_ISSUE_NUMBER: ${{ needs.derive-context.outputs.sub_issue_number }}
         run: |
           # Determine emoji and status
           if [[ "$DERIVE_RESULT" == "cancelled" || "$EXEC_RESULT" == "cancelled" ]]; then
@@ -509,8 +512,14 @@ jobs:
           fi
 
           # Use transition name for summary (e.g., "Iterate", "Triage", "Fix CI")
+          # For "Done" transitions with a sub-issue, make the message more descriptive
           if [[ -n "$TRANSITION_NAME" ]]; then
-            echo "transition=$TRANSITION_NAME" >> $GITHUB_OUTPUT
+            if [[ "$TRANSITION_NAME" == "Done" && -n "$SUB_ISSUE_NUMBER" && "$PHASE" != "-" ]]; then
+              # Format: [Phase N] Done #123
+              echo "transition=[Phase $PHASE] Done [#$SUB_ISSUE_NUMBER](${{ github.server_url }}/${{ github.repository }}/issues/$SUB_ISSUE_NUMBER)" >> $GITHUB_OUTPUT
+            else
+              echo "transition=$TRANSITION_NAME" >> $GITHUB_OUTPUT
+            fi
           else
             echo "transition=unknown" >> $GITHUB_OUTPUT
           fi

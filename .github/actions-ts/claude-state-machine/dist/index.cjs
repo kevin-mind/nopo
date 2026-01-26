@@ -34185,6 +34185,7 @@ async function run() {
     const parentIssueNumber = String(
       context2.parentIssue?.number || context2.issue.number
     );
+    const subIssueNumber = context2.currentSubIssue?.number ? String(context2.currentSubIssue.number) : "";
     if (mode === "context") {
       core2.info("Context-only mode - skipping state machine");
       core2.startGroup("Context JSON");
@@ -34200,7 +34201,8 @@ async function run() {
         phase,
         parent_issue_number: parentIssueNumber,
         pr_number: context2.pr?.number ? String(context2.pr.number) : "",
-        commit_sha: context2.ciCommitSha || ""
+        commit_sha: context2.ciCommitSha || "",
+        sub_issue_number: subIssueNumber
       });
       return;
     }
@@ -34229,7 +34231,8 @@ async function run() {
       phase,
       parent_issue_number: parentIssueNumber,
       pr_number: prNumber,
-      commit_sha: commitSha
+      commit_sha: commitSha,
+      sub_issue_number: subIssueNumber
     });
     actor.stop();
   } catch (error) {

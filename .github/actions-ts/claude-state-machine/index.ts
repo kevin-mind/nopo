@@ -447,6 +447,9 @@ async function run(): Promise<void> {
     const parentIssueNumber = String(
       context.parentIssue?.number || context.issue.number,
     );
+    const subIssueNumber = context.currentSubIssue?.number
+      ? String(context.currentSubIssue.number)
+      : "";
 
     // Context-only mode: return context without running state machine
     if (mode === "context") {
@@ -468,6 +471,7 @@ async function run(): Promise<void> {
         parent_issue_number: parentIssueNumber,
         pr_number: context.pr?.number ? String(context.pr.number) : "",
         commit_sha: context.ciCommitSha || "",
+        sub_issue_number: subIssueNumber,
       });
       return;
     }
@@ -512,6 +516,7 @@ async function run(): Promise<void> {
       parent_issue_number: parentIssueNumber,
       pr_number: prNumber,
       commit_sha: commitSha,
+      sub_issue_number: subIssueNumber,
     });
 
     // Stop the actor

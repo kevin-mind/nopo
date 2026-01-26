@@ -75,6 +75,8 @@ outputs:
     description: PR number if a PR is associated with this issue/phase
   commit_sha:
     description: Commit SHA from CI context (if available)
+  sub_issue_number:
+    description: Sub-issue number if processing a phased issue
 
 runs:
   using: node20
