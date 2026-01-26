@@ -8,6 +8,8 @@ export default {
     "**/+types/**",
     // E2E test dump directory (Claude automation artifacts)
     "test-e2e-dump/**",
+    // E2E test feature directories (mock files created during multi-phase tests)
+    "test-feature-*/**",
   ],
   workspaces: {
     ".": {
