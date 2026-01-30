@@ -24359,20 +24359,44 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, stepw
           }
         );
         const subItemId = addResult.addProjectV2ItemById?.item?.id;
-        const subStatus = subConfig.project_fields?.Status;
-        if (subItemId && subStatus) {
-          const optionId = projectFields.statusOptions[subStatus] || Object.entries(projectFields.statusOptions).find(
-            ([name]) => name.toLowerCase() === subStatus.toLowerCase()
-          )?.[1];
-          if (optionId) {
+        if (subItemId) {
+          const subStatus = subConfig.project_fields?.Status;
+          if (subStatus) {
+            const optionId = projectFields.statusOptions[subStatus] || Object.entries(projectFields.statusOptions).find(
+              ([name]) => name.toLowerCase() === subStatus.toLowerCase()
+            )?.[1];
+            if (optionId) {
+              await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+                projectId: projectFields.projectId,
+                itemId: subItemId,
+                fieldId: projectFields.statusFieldId,
+                value: { singleSelectOptionId: optionId }
+              });
+              core2.info(
+                `Set sub-issue #${subIssue.number} Status to ${subStatus}`
+              );
+            }
+          }
+          if (subConfig.project_fields?.Iteration !== void 0 && projectFields.iterationFieldId) {
             await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
               projectId: projectFields.projectId,
               itemId: subItemId,
-              fieldId: projectFields.statusFieldId,
-              value: { singleSelectOptionId: optionId }
+              fieldId: projectFields.iterationFieldId,
+              value: { number: subConfig.project_fields.Iteration }
             });
             core2.info(
-              `Set sub-issue #${subIssue.number} Status to ${subStatus}`
+              `Set sub-issue #${subIssue.number} Iteration to ${subConfig.project_fields.Iteration}`
+            );
+          }
+          if (subConfig.project_fields?.Failures !== void 0 && projectFields.failuresFieldId) {
+            await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+              projectId: projectFields.projectId,
+              itemId: subItemId,
+              fieldId: projectFields.failuresFieldId,
+              value: { number: subConfig.project_fields.Failures }
+            });
+            core2.info(
+              `Set sub-issue #${subIssue.number} Failures to ${subConfig.project_fields.Failures}`
             );
           }
         }
@@ -24408,7 +24432,28 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, stepw
           commit_sha: currentRef.object.sha
         });
         const treeItems = [];
-        for (const [path, content] of Object.entries(commit.files)) {
+        const firstSubIssueNumber = result.sub_issue_numbers[0];
+        for (const [rawPath, rawContent] of Object.entries(commit.files)) {
+          let path = rawPath;
+          let content = rawContent;
+          if (firstSubIssueNumber) {
+            path = path.replace(
+              /\{SUB_ISSUE_NUMBER\}/g,
+              String(firstSubIssueNumber)
+            );
+            content = content.replace(
+              /\{SUB_ISSUE_NUMBER\}/g,
+              String(firstSubIssueNumber)
+            );
+          }
+          path = path.replace(
+            /\{ISSUE_NUMBER\}/g,
+            String(result.issue_number)
+          );
+          content = content.replace(
+            /\{ISSUE_NUMBER\}/g,
+            String(result.issue_number)
+          );
           const { data: blob } = await octokit.rest.git.createBlob({
             owner,
             repo,
@@ -24447,14 +24492,20 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, stepw
   }
   if (fixture.pr && result.branch_name) {
     core2.info(`Creating PR: ${fixture.pr.title}`);
+    const firstSubIssueNumber = result.sub_issue_numbers[0];
+    let prBody = fixture.pr.body;
+    if (firstSubIssueNumber) {
+      prBody = prBody.replace(
+        /\{SUB_ISSUE_NUMBER\}/g,
+        String(firstSubIssueNumber)
+      );
+    }
+    prBody = prBody.replace(/\{ISSUE_NUMBER\}/g, String(result.issue_number));
     const { data: pr } = await octokit.rest.pulls.create({
       owner,
       repo,
       title: `[TEST] ${fixture.pr.title}`,
-      body: fixture.pr.body.replace(
-        "{ISSUE_NUMBER}",
-        String(result.issue_number)
-      ),
+      body: prBody,
       head: result.branch_name,
       base: "main",
       draft: fixture.pr.draft ?? true

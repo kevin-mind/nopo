@@ -662,23 +662,58 @@ async function createFixture(
         );
 
         const subItemId = addResult.addProjectV2ItemById?.item?.id;
-        const subStatus = subConfig.project_fields?.Status;
-        if (subItemId && subStatus) {
-          // Case-insensitive lookup for status option
-          const optionId =
-            projectFields.statusOptions[subStatus] ||
-            Object.entries(projectFields.statusOptions).find(
-              ([name]) => name.toLowerCase() === subStatus.toLowerCase(),
-            )?.[1];
-          if (optionId) {
+        if (subItemId) {
+          // Set Status if specified
+          const subStatus = subConfig.project_fields?.Status;
+          if (subStatus) {
+            // Case-insensitive lookup for status option
+            const optionId =
+              projectFields.statusOptions[subStatus] ||
+              Object.entries(projectFields.statusOptions).find(
+                ([name]) => name.toLowerCase() === subStatus.toLowerCase(),
+              )?.[1];
+            if (optionId) {
+              await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+                projectId: projectFields.projectId,
+                itemId: subItemId,
+                fieldId: projectFields.statusFieldId,
+                value: { singleSelectOptionId: optionId },
+              });
+              core.info(
+                `Set sub-issue #${subIssue.number} Status to ${subStatus}`,
+              );
+            }
+          }
+
+          // Set Iteration if specified
+          if (
+            subConfig.project_fields?.Iteration !== undefined &&
+            projectFields.iterationFieldId
+          ) {
             await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
               projectId: projectFields.projectId,
               itemId: subItemId,
-              fieldId: projectFields.statusFieldId,
-              value: { singleSelectOptionId: optionId },
+              fieldId: projectFields.iterationFieldId,
+              value: { number: subConfig.project_fields.Iteration },
             });
             core.info(
-              `Set sub-issue #${subIssue.number} Status to ${subStatus}`,
+              `Set sub-issue #${subIssue.number} Iteration to ${subConfig.project_fields.Iteration}`,
+            );
+          }
+
+          // Set Failures if specified
+          if (
+            subConfig.project_fields?.Failures !== undefined &&
+            projectFields.failuresFieldId
+          ) {
+            await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+              projectId: projectFields.projectId,
+              itemId: subItemId,
+              fieldId: projectFields.failuresFieldId,
+              value: { number: subConfig.project_fields.Failures },
+            });
+            core.info(
+              `Set sub-issue #${subIssue.number} Failures to ${subConfig.project_fields.Failures}`,
             );
           }
         }
@@ -734,7 +769,32 @@ async function createFixture(
           sha: string;
         }> = [];
 
-        for (const [path, content] of Object.entries(commit.files)) {
+        // Get first sub-issue number for placeholder replacement
+        const firstSubIssueNumber = result.sub_issue_numbers[0];
+
+        for (const [rawPath, rawContent] of Object.entries(commit.files)) {
+          // Replace placeholders in path and content
+          let path = rawPath;
+          let content = rawContent;
+
+          if (firstSubIssueNumber) {
+            path = path.replace(
+              /\{SUB_ISSUE_NUMBER\}/g,
+              String(firstSubIssueNumber),
+            );
+            content = content.replace(
+              /\{SUB_ISSUE_NUMBER\}/g,
+              String(firstSubIssueNumber),
+            );
+          }
+
+          // Also replace parent issue number
+          path = path.replace(/\{ISSUE_NUMBER\}/g, String(result.issue_number));
+          content = content.replace(
+            /\{ISSUE_NUMBER\}/g,
+            String(result.issue_number),
+          );
+
           const { data: blob } = await octokit.rest.git.createBlob({
             owner,
             repo,
@@ -784,14 +844,26 @@ async function createFixture(
   if (fixture.pr && result.branch_name) {
     core.info(`Creating PR: ${fixture.pr.title}`);
 
+    // Replace placeholders in PR body
+    const firstSubIssueNumber = result.sub_issue_numbers[0];
+    let prBody = fixture.pr.body;
+
+    // Replace {SUB_ISSUE_NUMBER} with first sub-issue number
+    if (firstSubIssueNumber) {
+      prBody = prBody.replace(
+        /\{SUB_ISSUE_NUMBER\}/g,
+        String(firstSubIssueNumber),
+      );
+    }
+
+    // Replace {ISSUE_NUMBER} with parent issue number
+    prBody = prBody.replace(/\{ISSUE_NUMBER\}/g, String(result.issue_number));
+
     const { data: pr } = await octokit.rest.pulls.create({
       owner,
       repo,
       title: `[TEST] ${fixture.pr.title}`,
-      body: fixture.pr.body.replace(
-        "{ISSUE_NUMBER}",
-        String(result.issue_number),
-      ),
+      body: prBody,
       head: result.branch_name,
       base: "main",
       draft: fixture.pr.draft ?? true, // Default to draft

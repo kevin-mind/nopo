@@ -63,6 +63,8 @@ export interface SubIssueConfig {
   /** Project field values to set */
   project_fields?: {
     Status?: ProjectStatus;
+    Iteration?: number;
+    Failures?: number;
   };
 }
 
@@ -74,10 +76,12 @@ export interface BranchConfig {
   name: string;
   /** Base branch to create from */
   from: string;
+  /** Link the PR to the first sub-issue instead of the parent issue */
+  link_to_sub_issue?: boolean;
   /** Commits to add to the branch */
   commits?: Array<{
     message: string;
-    /** Map of file path to content */
+    /** Map of file path to content. Supports {SUB_ISSUE_NUMBER} placeholder. */
     files: Record<string, string>;
   }>;
 }
