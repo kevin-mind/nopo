@@ -24446,10 +24446,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, stepw
               String(firstSubIssueNumber)
             );
           }
-          path = path.replace(
-            /\{ISSUE_NUMBER\}/g,
-            String(result.issue_number)
-          );
+          path = path.replace(/\{ISSUE_NUMBER\}/g, String(result.issue_number));
           content = content.replace(
             /\{ISSUE_NUMBER\}/g,
             String(result.issue_number)
