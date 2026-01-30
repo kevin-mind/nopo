@@ -753,7 +753,7 @@ export async function waitForPhase(
     issueNumber,
     phaseNumber,
     projectNumber,
-    timeoutMs = 900000, // 15 minutes default
+    timeoutMs = 300000, // 5 minutes default
     pollIntervalMs = 15000, // 15 seconds default
     expectations,
     e2eConfig,

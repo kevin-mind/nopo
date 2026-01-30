@@ -35337,8 +35337,8 @@ async function waitForPhase(options) {
     issueNumber,
     phaseNumber,
     projectNumber,
-    timeoutMs = 9e5,
-    // 15 minutes default
+    timeoutMs = 3e5,
+    // 5 minutes default
     pollIntervalMs = 15e3,
     // 15 seconds default
     expectations,
