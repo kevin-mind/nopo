@@ -529,8 +529,8 @@ export async function waitForPhase(
     `Timeout: ${timeoutMs / 1000}s, Poll interval: ${pollIntervalMs / 1000}s`,
   );
 
-  // Track previous state for change detection
-  let prevState = {
+  // Track previous state for change detection (unused but kept for future use)
+  let _prevState = {
     branchExists: false,
     prOpened: false,
     prState: null as string | null,
@@ -555,69 +555,52 @@ export async function waitForPhase(
       timeoutMs,
     },
     (conditions, attempt, elapsed) => {
-      const changes: string[] = [];
+      // Milestone status helper
+      const m = (done: boolean, pending?: boolean) => {
+        if (done) return "✅";
+        if (pending) return "⏳";
+        return "⬜";
+      };
 
-      // Check for changes and log them with context
-      if (conditions.branchExists && !prevState.branchExists) {
-        changes.push(`✅ Branch created: ${conditions.branchName}`);
-      }
-      if (conditions.prOpened && !prevState.prOpened) {
-        changes.push(
-          `✅ PR opened: #${conditions.prNumber} (${conditions.prState})`,
-        );
-      } else if (
-        conditions.prState &&
-        conditions.prState !== prevState.prState
-      ) {
-        changes.push(
-          `📝 PR state: ${prevState.prState} → ${conditions.prState}`,
-        );
-      }
-      if (conditions.ciPassed && !prevState.ciPassed) {
-        changes.push(`✅ CI passed`);
-      }
-      if (conditions.reviewApproved && !prevState.reviewApproved) {
-        changes.push(`✅ Review approved`);
-      }
-      if (conditions.prMerged && !prevState.prMerged) {
-        changes.push(`✅ PR merged`);
-      }
-      if (conditions.issueClosed && !prevState.issueClosed) {
-        changes.push(`✅ Issue closed`);
-      }
-      if (
-        conditions.issueStatus &&
-        conditions.issueStatus !== prevState.issueStatus
-      ) {
-        changes.push(
-          `📝 Status: ${prevState.issueStatus || "?"} → ${conditions.issueStatus}`,
-        );
-      }
+      // CI status display
+      const ciDisplay = () => {
+        if (conditions.ciPassed) return "✅";
+        if (conditions.ciStatus === "failure") return "❌";
+        if (conditions.ciStatus === "pending") return "⏳";
+        return "⬜";
+      };
 
-      // Log changes or periodic heartbeat
-      if (changes.length > 0) {
-        for (const change of changes) {
-          core.info(`[${attempt}] ${Math.round(elapsed / 1000)}s | ${change}`);
-        }
-      } else if (attempt % 5 === 0) {
-        // Heartbeat every 5 polls (~75s with default interval)
-        const done = [
-          conditions.branchExists ? "branch" : null,
-          conditions.prOpened ? `pr(${conditions.prState})` : null,
-          conditions.ciPassed ? "ci" : null,
-          conditions.reviewApproved ? "review" : null,
-          conditions.prMerged ? "merged" : null,
-          conditions.issueClosed ? "closed" : null,
-        ]
-          .filter(Boolean)
-          .join(", ");
-        core.info(
-          `[${attempt}] ${Math.round(elapsed / 1000)}s | waiting... [${done || "nothing yet"}]`,
-        );
-      }
+      // Review status display
+      const reviewDisplay = () => {
+        if (conditions.reviewApproved) return "✅";
+        if (conditions.reviewStatus === "changes_requested") return "🔄";
+        if (conditions.reviewStatus === "pending" && conditions.prOpened)
+          return "⏳";
+        return "⬜";
+      };
 
-      // Update previous state
-      prevState = {
+      // PR state display
+      const prStateDisplay = () => {
+        if (!conditions.prOpened) return "";
+        if (conditions.prState === "draft") return "(draft)";
+        if (conditions.prState === "merged") return "(merged)";
+        return `(#${conditions.prNumber})`;
+      };
+
+      // Compact single-line format showing all milestones
+      core.info(
+        `[${attempt}] ${Math.round(elapsed / 1000)}s | ` +
+          `branch:${m(conditions.branchExists)} ` +
+          `pr:${m(conditions.prOpened)}${prStateDisplay()} ` +
+          `ci:${ciDisplay()} ` +
+          `review:${reviewDisplay()} ` +
+          `queue:${m(conditions.prMerged, conditions.prState === "open" && conditions.ciPassed && conditions.reviewApproved)} ` +
+          `merged:${m(conditions.prMerged)} ` +
+          `closed:${m(conditions.issueClosed)}${conditions.issueStatus ? `(${conditions.issueStatus})` : ""}`,
+      );
+
+      // Update previous state (for potential future change detection)
+      _prevState = {
         branchExists: conditions.branchExists,
         prOpened: conditions.prOpened,
         prState: conditions.prState,

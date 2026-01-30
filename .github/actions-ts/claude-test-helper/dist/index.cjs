@@ -25647,7 +25647,11 @@ async function run() {
         `${action === "create_e2e_config" ? "Creating" : "Updating"} e2e config with run_id=${e2eRunId}, iteration=${iteration}`
       );
       core2.info(`Outcomes: ${JSON.stringify(outcomes)}`);
-      const configContent = createE2EConfigContent(e2eRunId, outcomes, iteration);
+      const configContent = createE2EConfigContent(
+        e2eRunId,
+        outcomes,
+        iteration
+      );
       const configPath = ".github/e2e-test-config.json";
       await commitE2EConfigFile(
         octokit,

@@ -35279,7 +35279,7 @@ async function waitForPhase(options) {
   core5.info(
     `Timeout: ${timeoutMs / 1e3}s, Poll interval: ${pollIntervalMs / 1e3}s`
   );
-  let prevState = {
+  let _prevState = {
     branchExists: false,
     prOpened: false,
     prState: null,
@@ -35300,54 +35300,34 @@ async function waitForPhase(options) {
       timeoutMs
     },
     (conditions2, attempt, elapsed) => {
-      const changes = [];
-      if (conditions2.branchExists && !prevState.branchExists) {
-        changes.push(`\u2705 Branch created: ${conditions2.branchName}`);
-      }
-      if (conditions2.prOpened && !prevState.prOpened) {
-        changes.push(
-          `\u2705 PR opened: #${conditions2.prNumber} (${conditions2.prState})`
-        );
-      } else if (conditions2.prState && conditions2.prState !== prevState.prState) {
-        changes.push(
-          `\u{1F4DD} PR state: ${prevState.prState} \u2192 ${conditions2.prState}`
-        );
-      }
-      if (conditions2.ciPassed && !prevState.ciPassed) {
-        changes.push(`\u2705 CI passed`);
-      }
-      if (conditions2.reviewApproved && !prevState.reviewApproved) {
-        changes.push(`\u2705 Review approved`);
-      }
-      if (conditions2.prMerged && !prevState.prMerged) {
-        changes.push(`\u2705 PR merged`);
-      }
-      if (conditions2.issueClosed && !prevState.issueClosed) {
-        changes.push(`\u2705 Issue closed`);
-      }
-      if (conditions2.issueStatus && conditions2.issueStatus !== prevState.issueStatus) {
-        changes.push(
-          `\u{1F4DD} Status: ${prevState.issueStatus || "?"} \u2192 ${conditions2.issueStatus}`
-        );
-      }
-      if (changes.length > 0) {
-        for (const change of changes) {
-          core5.info(`[${attempt}] ${Math.round(elapsed / 1e3)}s | ${change}`);
-        }
-      } else if (attempt % 5 === 0) {
-        const done = [
-          conditions2.branchExists ? "branch" : null,
-          conditions2.prOpened ? `pr(${conditions2.prState})` : null,
-          conditions2.ciPassed ? "ci" : null,
-          conditions2.reviewApproved ? "review" : null,
-          conditions2.prMerged ? "merged" : null,
-          conditions2.issueClosed ? "closed" : null
-        ].filter(Boolean).join(", ");
-        core5.info(
-          `[${attempt}] ${Math.round(elapsed / 1e3)}s | waiting... [${done || "nothing yet"}]`
-        );
-      }
-      prevState = {
+      const m = (done, pending) => {
+        if (done) return "\u2705";
+        if (pending) return "\u23F3";
+        return "\u2B1C";
+      };
+      const ciDisplay = () => {
+        if (conditions2.ciPassed) return "\u2705";
+        if (conditions2.ciStatus === "failure") return "\u274C";
+        if (conditions2.ciStatus === "pending") return "\u23F3";
+        return "\u2B1C";
+      };
+      const reviewDisplay = () => {
+        if (conditions2.reviewApproved) return "\u2705";
+        if (conditions2.reviewStatus === "changes_requested") return "\u{1F504}";
+        if (conditions2.reviewStatus === "pending" && conditions2.prOpened)
+          return "\u23F3";
+        return "\u2B1C";
+      };
+      const prStateDisplay = () => {
+        if (!conditions2.prOpened) return "";
+        if (conditions2.prState === "draft") return "(draft)";
+        if (conditions2.prState === "merged") return "(merged)";
+        return `(#${conditions2.prNumber})`;
+      };
+      core5.info(
+        `[${attempt}] ${Math.round(elapsed / 1e3)}s | branch:${m(conditions2.branchExists)} pr:${m(conditions2.prOpened)}${prStateDisplay()} ci:${ciDisplay()} review:${reviewDisplay()} queue:${m(conditions2.prMerged, conditions2.prState === "open" && conditions2.ciPassed && conditions2.reviewApproved)} merged:${m(conditions2.prMerged)} closed:${m(conditions2.issueClosed)}${conditions2.issueStatus ? `(${conditions2.issueStatus})` : ""}`
+      );
+      _prevState = {
         branchExists: conditions2.branchExists,
         prOpened: conditions2.prOpened,
         prState: conditions2.prState,

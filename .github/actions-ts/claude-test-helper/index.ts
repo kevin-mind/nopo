@@ -2568,7 +2568,11 @@ async function run(): Promise<void> {
       core.info(`Outcomes: ${JSON.stringify(outcomes)}`);
 
       // Create the config file content
-      const configContent = createE2EConfigContent(e2eRunId, outcomes, iteration);
+      const configContent = createE2EConfigContent(
+        e2eRunId,
+        outcomes,
+        iteration,
+      );
       const configPath = ".github/e2e-test-config.json";
 
       // Commit the config file to the branch
