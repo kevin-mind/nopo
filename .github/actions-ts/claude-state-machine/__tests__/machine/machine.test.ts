@@ -329,7 +329,7 @@ describe("claudeMachine", () => {
           body: "## Description\n\nImplement feature",
           projectStatus: "In progress",
         },
-        commentContextType: "Issue",
+        commentContextType: "issue",
         commentContextDescription:
           "This is issue #123 about implementing feature X.",
       });
@@ -350,7 +350,7 @@ describe("claudeMachine", () => {
           projectStatus: "In review",
         },
         branch: "claude/issue/456",
-        commentContextType: "PR",
+        commentContextType: "pr",
         commentContextDescription:
           "This is PR #789 fixing bug in authentication.",
       });
@@ -360,7 +360,7 @@ describe("claudeMachine", () => {
         expect(runClaudeAction.promptFile).toBe(".github/prompts/comment.txt");
         expect(runClaudeAction.promptVars).toEqual({
           ISSUE_NUMBER: "456",
-          CONTEXT_TYPE: "PR",
+          CONTEXT_TYPE: "pr",
           CONTEXT_DESCRIPTION: "This is PR #789 fixing bug in authentication.",
         });
         expect(runClaudeAction.issueNumber).toBe(456);
@@ -386,7 +386,7 @@ describe("claudeMachine", () => {
       if (runClaudeAction?.type === "runClaude") {
         expect(runClaudeAction.promptVars).toEqual({
           ISSUE_NUMBER: "789",
-          CONTEXT_TYPE: "Issue",
+          CONTEXT_TYPE: "issue",
           CONTEXT_DESCRIPTION: "This is issue #789.",
         });
       } else {
@@ -398,7 +398,7 @@ describe("claudeMachine", () => {
       const context = createContext({
         trigger: "issue_comment",
         issue: { projectStatus: "Done" },
-        commentContextType: "Issue",
+        commentContextType: "issue",
         commentContextDescription: "Test",
       });
       const { state } = runMachine(context);
@@ -410,7 +410,7 @@ describe("claudeMachine", () => {
       const context = createContext({
         trigger: "issue_comment",
         issue: { projectStatus: "Blocked" },
-        commentContextType: "Issue",
+        commentContextType: "issue",
         commentContextDescription: "Test",
       });
       const { state } = runMachine(context);

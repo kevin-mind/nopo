@@ -233,7 +233,12 @@ export const MachineContextSchema = z.object({
   hasPR: z.boolean(),
 
   // Comment info (if triggered by issue_comment)
-  commentContextType: z.enum(["Issue", "PR"]).nullable().default(null),
+  commentContextType: z
+    .string()
+    .transform((v) => v?.toLowerCase())
+    .pipe(z.enum(["issue", "pr"]))
+    .nullable()
+    .default(null),
   commentContextDescription: z.string().nullable().default(null),
 
   // Release info (if triggered by release_* events)

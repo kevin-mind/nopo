@@ -501,7 +501,7 @@ export async function buildMachineContext(
   options: {
     maxRetries?: number;
     botUsername?: string;
-    commentContextType?: "Issue" | "PR" | null;
+    commentContextType?: "issue" | "pr" | null;
     commentContextDescription?: string | null;
     branch?: string | null;
     // Override trigger - use this instead of deriving from event

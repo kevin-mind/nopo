@@ -189,7 +189,7 @@ export function createContext(
     hasBranch?: boolean;
     pr?: Partial<LinkedPR> | null;
     hasPR?: boolean;
-    commentContextType?: "Issue" | "PR" | null;
+    commentContextType?: "issue" | "pr" | null;
     commentContextDescription?: string | null;
     maxRetries?: number;
     botUsername?: string;

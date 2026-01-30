@@ -530,7 +530,7 @@ export function emitRunClaudeComment({ context }: ActionContext): ActionResult {
   // The comment prompt uses these template variables
   const promptVars: Record<string, string> = {
     ISSUE_NUMBER: String(issueNumber),
-    CONTEXT_TYPE: context.commentContextType ?? "Issue",
+    CONTEXT_TYPE: context.commentContextType ?? "issue",
     CONTEXT_DESCRIPTION:
       context.commentContextDescription ?? `This is issue #${issueNumber}.`,
   };

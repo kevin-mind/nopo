@@ -1053,7 +1053,7 @@ async function handleIssueCommentEvent(
     return emptyResult(true, "Comment does not mention @claude");
   }
 
-  let contextType = "Issue";
+  let contextType = "issue";
   let branchName = "main";
 
   if (isPr) {
@@ -1070,7 +1070,7 @@ async function handleIssueCommentEvent(
       ".headRefName",
     ]);
     branchName = stdout.trim() || "main";
-    contextType = "PR";
+    contextType = "pr";
   } else {
     // Check if issue has a branch
     const issueBranch = `claude/issue/${issue.number}`;
@@ -1155,7 +1155,7 @@ async function handlePullRequestReviewCommentEvent(): Promise<DetectionResult> {
     commentId: String(comment.id),
     contextJson: JSON.stringify({
       issue_number: String(pr.number),
-      context_type: "PR",
+      context_type: "pr",
       context_description: `This is PR #${pr.number} on branch \`${pr.head.ref}\`. You are checked out on the PR branch with the code changes.`,
       branch_name: pr.head.ref,
     }),

@@ -28086,7 +28086,7 @@ var MachineContextSchema = external_exports.object({
   pr: LinkedPRSchema.nullable(),
   hasPR: external_exports.boolean(),
   // Comment info (if triggered by issue_comment)
-  commentContextType: external_exports.enum(["Issue", "PR"]).nullable().default(null),
+  commentContextType: external_exports.string().transform((v) => v?.toLowerCase()).pipe(external_exports.enum(["issue", "pr"])).nullable().default(null),
   commentContextDescription: external_exports.string().nullable().default(null),
   // Release info (if triggered by release_* events)
   releaseEvent: external_exports.object({
