@@ -17,6 +17,6 @@
       }
     }
   },
-  "timeout": 600,
-  "poll_interval": 15
+  "timeout": 1800,
+  "poll_interval": 30
 }
