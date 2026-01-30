@@ -152,7 +152,8 @@ jobs:
         with:
           action: create
           fixture_json: ${{ needs.load-fixture.outputs.fixture }}
-          github_token: ${{ env.GH_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
+          github_review_token: ${{ secrets.CLAUDE_REVIEWER_PAT }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
           stepwise_mode: ${{ inputs.mode == 'stepwise' }}
           dry_run_mode: ${{ inputs.mode == 'dry-run' }}

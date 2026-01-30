@@ -24116,7 +24116,7 @@ function parseProjectFields(projectData) {
   }
   return fields;
 }
-async function createFixture(octokit, owner, repo, fixture, projectNumber, stepwiseMode = false, dryRunMode = false) {
+async function createFixture(octokit, owner, repo, fixture, projectNumber, stepwiseMode = false, dryRunMode = false, reviewOctokit) {
   const result = {
     issue_number: 0,
     sub_issue_numbers: []
@@ -24494,13 +24494,18 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, stepw
     core2.info(`Created comment ${comment.id}`);
   }
   if (fixture.review && result.pr_number) {
+    if (!reviewOctokit) {
+      throw new Error(
+        "Test fixture requires review but no github_review_token provided. Set CLAUDE_REVIEWER_PAT secret or remove 'review' from fixture."
+      );
+    }
     core2.info(`Submitting review with state: ${fixture.review.state}`);
     const eventMap = {
       approve: "APPROVE",
       request_changes: "REQUEST_CHANGES",
       comment: "COMMENT"
     };
-    await octokit.rest.pulls.createReview({
+    await reviewOctokit.rest.pulls.createReview({
       owner,
       repo,
       pull_number: result.pr_number,
@@ -25358,6 +25363,7 @@ async function run() {
   try {
     const action = getRequiredInput("action");
     const token = getRequiredInput("github_token");
+    const reviewToken = getOptionalInput("github_review_token") || "";
     const projectNumber = parseInt(
       getOptionalInput("project_number") || "1",
       10
@@ -25365,8 +25371,20 @@ async function run() {
     const stepwiseMode = getOptionalInput("stepwise_mode") === "true";
     const dryRunMode = getOptionalInput("dry_run_mode") === "true";
     const octokit = github.getOctokit(token);
+    const reviewOctokit = reviewToken ? github.getOctokit(reviewToken) : void 0;
     const { owner, repo } = github.context.repo;
     process.env.GH_TOKEN = token;
+    const { data: codeUser } = await octokit.rest.users.getAuthenticated();
+    core2.info(`Code token authenticated as: ${codeUser.login}`);
+    if (reviewOctokit) {
+      const { data: reviewUser } = await reviewOctokit.rest.users.getAuthenticated();
+      core2.info(`Review token authenticated as: ${reviewUser.login}`);
+      if (codeUser.login === reviewUser.login) {
+        core2.warning(
+          `Code and review tokens belong to same user (${codeUser.login}) - PR reviews will fail`
+        );
+      }
+    }
     if (action === "create") {
       const fixtureJson = getRequiredInput("fixture_json");
       const fixture = JSON.parse(fixtureJson);
@@ -25379,7 +25397,8 @@ async function run() {
         fixture,
         projectNumber,
         stepwiseMode,
-        dryRunMode
+        dryRunMode,
+        reviewOctokit
       );
       setOutputs({
         issue_number: String(result.issue_number),

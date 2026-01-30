@@ -303,6 +303,7 @@ async function createFixture(
   projectNumber: number,
   stepwiseMode: boolean = false,
   dryRunMode: boolean = false,
+  reviewOctokit?: ReturnType<typeof github.getOctokit>,
 ): Promise<FixtureCreationResult> {
   const result: FixtureCreationResult = {
     issue_number: 0,
@@ -314,7 +315,11 @@ async function createFixture(
   // - stepwise mode: test:automation + _test (detection only, pause for verification)
   // - e2e mode: test:automation + _e2e (full execution)
   // Note: dry-run and e2e both use _e2e label so cleanup safety check passes
-  const testModeLabel = dryRunMode ? ["_e2e"] : stepwiseMode ? ["_test"] : ["_e2e"];
+  const testModeLabel = dryRunMode
+    ? ["_e2e"]
+    : stepwiseMode
+      ? ["_test"]
+      : ["_e2e"];
 
   // For discussion-only fixtures (no parent_issue), skip issue creation
   if (!fixture.parent_issue) {
@@ -833,7 +838,15 @@ async function createFixture(
   }
 
   // Create review on PR if specified
+  // IMPORTANT: Must use reviewOctokit (different user) to avoid self-review error
   if (fixture.review && result.pr_number) {
+    if (!reviewOctokit) {
+      throw new Error(
+        "Test fixture requires review but no github_review_token provided. " +
+          "Set CLAUDE_REVIEWER_PAT secret or remove 'review' from fixture.",
+      );
+    }
+
     core.info(`Submitting review with state: ${fixture.review.state}`);
 
     const eventMap: Record<string, "APPROVE" | "REQUEST_CHANGES" | "COMMENT"> =
@@ -843,7 +856,7 @@ async function createFixture(
         comment: "COMMENT",
       };
 
-    await octokit.rest.pulls.createReview({
+    await reviewOctokit.rest.pulls.createReview({
       owner,
       repo,
       pull_number: result.pr_number,
@@ -2165,6 +2178,7 @@ async function run(): Promise<void> {
   try {
     const action = getRequiredInput("action");
     const token = getRequiredInput("github_token");
+    const reviewToken = getOptionalInput("github_review_token") || "";
     const projectNumber = parseInt(
       getOptionalInput("project_number") || "1",
       10,
@@ -2173,10 +2187,29 @@ async function run(): Promise<void> {
     const dryRunMode = getOptionalInput("dry_run_mode") === "true";
 
     const octokit = github.getOctokit(token);
+    const reviewOctokit = reviewToken
+      ? github.getOctokit(reviewToken)
+      : undefined;
     const { owner, repo } = github.context.repo;
 
     // Set GH_TOKEN for CLI commands
     process.env.GH_TOKEN = token;
+
+    // Validate tokens and warn if same user
+    const { data: codeUser } = await octokit.rest.users.getAuthenticated();
+    core.info(`Code token authenticated as: ${codeUser.login}`);
+
+    if (reviewOctokit) {
+      const { data: reviewUser } =
+        await reviewOctokit.rest.users.getAuthenticated();
+      core.info(`Review token authenticated as: ${reviewUser.login}`);
+
+      if (codeUser.login === reviewUser.login) {
+        core.warning(
+          `Code and review tokens belong to same user (${codeUser.login}) - PR reviews will fail`,
+        );
+      }
+    }
 
     if (action === "create") {
       const fixtureJson = getRequiredInput("fixture_json");
@@ -2193,6 +2226,7 @@ async function run(): Promise<void> {
         projectNumber,
         stepwiseMode,
         dryRunMode,
+        reviewOctokit,
       );
 
       setOutputs({

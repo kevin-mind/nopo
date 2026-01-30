@@ -12,8 +12,12 @@ inputs:
     description: 'Issue number (for verify/cleanup)'
     required: false
   github_token:
-    description: 'GitHub token with repo access'
+    description: 'GitHub token for code operations (issues, branches, PRs, project fields)'
     required: true
+  github_review_token:
+    description: 'GitHub token for review operations (must be different user than github_token)'
+    required: false
+    default: ''
   project_number:
     description: 'GitHub Project number for state storage'
     required: false
