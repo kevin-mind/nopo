@@ -21,6 +21,122 @@ defaults:
 env:
   CI: 'true'
 jobs:
+  # ============================================================================
+  # E2E MODE DETECTION - Verify workflow run and parse outcome
+  # Security: Only honors e2e markers when the referenced workflow is actually running
+  # Checks both commit message pattern AND .github/e2e-test-config.json file
+  # ============================================================================
+  e2e-detect:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      e2e_mode: ${{ steps.detect.outputs.e2e_mode }}
+      ci_outcome: ${{ steps.detect.outputs.ci_outcome }}
+      release_outcome: ${{ steps.detect.outputs.release_outcome }}
+      review_outcome: ${{ steps.detect.outputs.review_outcome }}
+    steps:
+      - name: Checkout for config file
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          sparse-checkout: .github/e2e-test-config.json
+          sparse-checkout-cone-mode: false
+
+      - name: Get commit message
+        id: commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          commit_msg=$(gh api repos/${{ github.repository }}/commits/${{ github.event.pull_request.head.sha }} --jq '.commit.message')
+          echo "message<<EOF" >> $GITHUB_OUTPUT
+          echo "$commit_msg" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Detect E2E mode
+        id: detect
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMIT_MSG: ${{ steps.commit.outputs.message }}
+        run: |
+          e2e_mode=false
+          run_id=""
+          ci_outcome="success"
+          release_outcome="success"
+          review_outcome="approved"
+
+          # Method 1: Check for e2e config file
+          if [[ -f ".github/e2e-test-config.json" ]]; then
+            echo "Found .github/e2e-test-config.json"
+            config=$(cat .github/e2e-test-config.json)
+            run_id=$(echo "$config" | jq -r '.run_id // empty')
+
+            if [[ -n "$run_id" ]]; then
+              # Count commits on this PR branch using GitHub API
+              # Compare the base (main) to head to get commits ahead
+              compare_result=$(gh api repos/${{ github.repository }}/compare/main...${{ github.event.pull_request.head.sha }} --jq '.ahead_by' 2>/dev/null || echo "1")
+
+              # Iteration is 0-indexed, subtract 1 because the initial e2e config commit doesn't count as an iteration
+              iteration=$((compare_result - 1))
+              if [[ $iteration -lt 0 ]]; then
+                iteration=0
+              fi
+
+              # Get outcomes for current iteration (default to last if past array length)
+              ci_outcome=$(echo "$config" | jq -r --argjson i "$iteration" '.outcomes.ci[$i] // .outcomes.ci[-1] // "success"')
+              release_outcome=$(echo "$config" | jq -r --argjson i "$iteration" '.outcomes.release[$i] // .outcomes.release[-1] // "success"')
+              review_outcome=$(echo "$config" | jq -r --argjson i "$iteration" '.outcomes.review[$i] // .outcomes.review[-1] // "approved"')
+
+              echo "Config file: run_id=$run_id, iteration=$iteration (ahead_by=$compare_result), ci=$ci_outcome, release=$release_outcome, review=$review_outcome"
+            fi
+          fi
+
+          # Method 2: Check commit message for marker pattern (fallback)
+          if [[ -z "$run_id" && "$COMMIT_MSG" =~ \[e2e:([0-9]+):ci=(success|failure):release=(success|failure):review=(approved|changes_requested|comment)\] ]]; then
+            run_id="${BASH_REMATCH[1]}"
+            ci_outcome="${BASH_REMATCH[2]}"
+            release_outcome="${BASH_REMATCH[3]}"
+            review_outcome="${BASH_REMATCH[4]}"
+            echo "Found e2e marker in commit: run_id=$run_id, ci=$ci_outcome, release=$release_outcome, review=$review_outcome"
+          fi
+
+          # Verify the workflow is actually running
+          if [[ -n "$run_id" ]]; then
+            status=$(gh api repos/${{ github.repository }}/actions/runs/$run_id --jq '.status' 2>/dev/null || echo "not_found")
+
+            if [[ "$status" == "in_progress" ]]; then
+              echo "::notice::E2E mode verified - workflow $run_id is running"
+              e2e_mode=true
+            else
+              echo "::warning::E2E marker found but workflow $run_id is not running (status: $status)"
+            fi
+          else
+            echo "No e2e marker found"
+          fi
+
+          echo "e2e_mode=$e2e_mode" >> $GITHUB_OUTPUT
+          echo "ci_outcome=$ci_outcome" >> $GITHUB_OUTPUT
+          echo "release_outcome=$release_outcome" >> $GITHUB_OUTPUT
+          echo "review_outcome=$review_outcome" >> $GITHUB_OUTPUT
+
+  # ============================================================================
+  # E2E CI OUTCOME - Simulates CI pass/fail based on e2e marker
+  # ============================================================================
+  e2e-outcome:
+    needs: [e2e-detect]
+    if: needs.e2e-detect.outputs.e2e_mode == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Simulate CI outcome
+        run: |
+          if [[ "${{ needs.e2e-detect.outputs.ci_outcome }}" == "failure" ]]; then
+            echo "::error::E2E mode: simulating CI failure"
+            exit 1
+          else
+            echo "::notice::E2E mode: simulating CI success"
+          fi
+
   context:
     runs-on: ubuntu-latest
     permissions:
@@ -64,9 +180,11 @@ jobs:
       ref: ${{ github.event.pull_request.head.sha || github.sha }}
   build:
     needs:
+      - e2e-detect
       - context
       - discover
-    if: ${{ needs.discover.outputs.services != '' }}
+    # Skip in e2e mode - e2e-outcome handles the result
+    if: ${{ needs.discover.outputs.services != '' && needs.e2e-detect.outputs.e2e_mode != 'true' }}
     permissions:
       contents: read
       packages: write
@@ -78,7 +196,8 @@ jobs:
       push: ${{ needs.context.outputs.is_fork == 'false' }}
       services: ${{ needs.discover.outputs.services }}
   test:
-    if: ${{ needs.build.result == 'success' && needs.discover.outputs.services_json != '[]' }}
+    # Skip in e2e mode - e2e-outcome handles the result
+    if: ${{ needs.build.result == 'success' && needs.discover.outputs.services_json != '[]' && needs.e2e-detect.outputs.e2e_mode != 'true' }}
     permissions:
       contents: read
       packages: read
@@ -88,15 +207,21 @@ jobs:
       tag: ${{ needs.build.outputs.tag }}
       services: ${{ needs.discover.outputs.services_json }}
     needs:
+      - e2e-detect
       - build
       - context
       - discover
   testNopo:
+    needs:
+      - e2e-detect
+    # Skip in e2e mode - e2e-outcome handles the result
+    if: ${{ needs.e2e-detect.outputs.e2e_mode != 'true' }}
     permissions:
       contents: read
     uses: ./.github/workflows/_test_nopo.yml
   smoketest:
-    if: ${{ needs.discover.outputs.services != '' }}
+    # Skip in e2e mode - e2e-outcome handles the result
+    if: ${{ needs.discover.outputs.services != '' && needs.e2e-detect.outputs.e2e_mode != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -115,9 +240,14 @@ jobs:
         with:
           public_url: http://localhost
     needs:
+      - e2e-detect
       - context
       - discover
   terraform:
+    needs:
+      - e2e-detect
+    # Skip in e2e mode - e2e-outcome handles the result
+    if: ${{ needs.e2e-detect.outputs.e2e_mode != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -147,6 +277,8 @@ jobs:
         with:
           json: ${{ toJson(needs) }}
     needs:
+      - e2e-detect
+      - e2e-outcome
       - context
       - discover
       - build

@@ -3,7 +3,7 @@ description: Create, verify, and cleanup test fixtures for state machine testing
 
 inputs:
   action:
-    description: 'Action to perform: create, verify, cleanup, reset, close, delete'
+    description: 'Action to perform: create, verify, cleanup, reset, close, delete, create_e2e_config, update_e2e_config'
     required: true
   fixture_json:
     description: 'JSON configuration for test scenario'
@@ -30,6 +30,22 @@ inputs:
     description: 'Whether to skip test mode labels (just test:automation, workflows skip entirely)'
     required: false
     default: 'false'
+  e2e_run_id:
+    description: 'GitHub workflow run ID for e2e marker verification'
+    required: false
+    default: ''
+  e2e_outcomes:
+    description: 'JSON E2E outcomes config (overrides fixture e2e_outcomes)'
+    required: false
+    default: ''
+  branch_name:
+    description: 'Branch name for e2e config file operations (for create_e2e_config/update_e2e_config actions)'
+    required: false
+    default: ''
+  iteration:
+    description: 'Current iteration number for e2e config (for update_e2e_config action)'
+    required: false
+    default: '0'
 
 outputs:
   issue_number:
@@ -56,6 +72,8 @@ outputs:
     description: 'Number of issues closed during close action'
   delete_count:
     description: 'Number of issues deleted during delete action'
+  config_path:
+    description: 'Path to the e2e config file (for create_e2e_config/update_e2e_config actions)'
 
 runs:
   using: node20

@@ -158,6 +158,16 @@ jobs:
           stepwise_mode: ${{ inputs.mode == 'stepwise' }}
           dry_run_mode: ${{ inputs.mode == 'dry-run' }}
 
+      - name: Create e2e config file
+        if: inputs.mode == 'e2e' && steps.create.outputs.branch_name != ''
+        uses: ./.github/actions-ts/claude-test-helper
+        with:
+          action: create_e2e_config
+          branch_name: ${{ steps.create.outputs.branch_name }}
+          e2e_run_id: ${{ github.run_id }}
+          fixture_json: ${{ needs.load-fixture.outputs.fixture }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
+
       - name: Output created resources
         run: |
           echo "## Test Fixture Created" >> $GITHUB_STEP_SUMMARY
@@ -173,7 +183,7 @@ jobs:
           elif [[ "${{ inputs.mode }}" == "dry-run" ]]; then
             echo "| **Mode** | Dry-run (no test mode label, workflows skip) |" >> $GITHUB_STEP_SUMMARY
           else
-            echo "| **Mode** | E2E (_e2e label added) |" >> $GITHUB_STEP_SUMMARY
+            echo "| **Mode** | E2E (_e2e label added, run_id=${{ github.run_id }}) |" >> $GITHUB_STEP_SUMMARY
           fi
 
   # Run state machine in dry-run mode (direct call, no real execution)

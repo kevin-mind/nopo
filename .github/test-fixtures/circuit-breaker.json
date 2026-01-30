@@ -6,6 +6,11 @@
   "trigger_context": {
     "ci_result": "failure"
   },
+  "e2e_outcomes": {
+    "ci": ["failure", "failure", "failure", "failure", "failure"],
+    "release": ["success"],
+    "review": ["approved"]
+  },
   "parent_issue": {
     "title": "Feature with persistent CI failures",
     "body": "## Description\n\nA feature that will repeatedly fail CI and trigger the circuit breaker.\n\n## Requirements\n\n- This is expected to fail and block\n\n## Acceptance Criteria\n\n- [ ] Circuit breaker triggers after max failures\n- [ ] nopo-bot is unassigned",
