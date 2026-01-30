@@ -24626,7 +24626,7 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
   if (!comment.body.includes("@claude")) {
     return emptyResult(true, "Comment does not mention @claude");
   }
-  let contextType = "issue";
+  let contextType = "Issue";
   let branchName = "main";
   if (isPr) {
     const { stdout } = await execCommand("gh", [

@@ -1053,7 +1053,7 @@ async function handleIssueCommentEvent(
     return emptyResult(true, "Comment does not mention @claude");
   }
 
-  let contextType = "issue";
+  let contextType = "Issue";
   let branchName = "main";
 
   if (isPr) {
