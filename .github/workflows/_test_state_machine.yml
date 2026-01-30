@@ -322,6 +322,18 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm run build
 
+      - name: Get fixture timeout
+        id: fixture-config
+        env:
+          FIXTURE_JSON: ${{ needs.load-fixture.outputs.fixture }}
+        run: |
+          # Extract timeout from fixture (default 600 = 10 min for triage with real Claude)
+          timeout=$(echo "$FIXTURE_JSON" | jq -r '.timeout // 600')
+          poll_interval=$(echo "$FIXTURE_JSON" | jq -r '.poll_interval // 10')
+          echo "timeout=$timeout" >> $GITHUB_OUTPUT
+          echo "poll_interval=$poll_interval" >> $GITHUB_OUTPUT
+          echo "Using timeout: ${timeout}s, poll_interval: ${poll_interval}s"
+
       - name: Wait for triage to complete
         id: wait-triage
         uses: ./.github/actions-ts/claude-test-runner
@@ -331,8 +343,8 @@ jobs:
           fixture_json: ${{ needs.load-fixture.outputs.fixture }}
           github_token: ${{ secrets.NOPO_BOT_PAT }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
-          timeout: '300'
-          poll_interval: '10'
+          timeout: ${{ steps.fixture-config.outputs.timeout }}
+          poll_interval: ${{ steps.fixture-config.outputs.poll_interval }}
 
       - name: Get sub-issues created by triage
         id: get-sub-issues
