@@ -35249,6 +35249,21 @@ async function fetchPhaseConditions(octokit, owner, repo, issueNumber, projectNu
   }
   return conditions;
 }
+function isCircuitBroken(conditions) {
+  if (conditions.issueClosed && !conditions.prMerged) {
+    return {
+      broken: true,
+      reason: `Issue closed (status: ${conditions.issueStatus || "unknown"}) but PR not merged (state: ${conditions.prState || "no PR"})`
+    };
+  }
+  if (conditions.issueStatus === "Blocked" || conditions.issueStatus === "Error") {
+    return {
+      broken: true,
+      reason: `Issue has terminal status: ${conditions.issueStatus}`
+    };
+  }
+  return { broken: false, reason: null };
+}
 function isPhaseComplete(conditions, expectations) {
   if (!conditions.prMerged) return false;
   if (!conditions.issueClosed) return false;
@@ -35350,9 +35365,19 @@ async function waitForPhase(options) {
     issueStatus: null
   };
   let mergeAttempted = false;
+  let circuitBroken = false;
+  let circuitBrokenReason = null;
   const pollResult = await pollUntil(
     () => fetchPhaseConditions(octokit, owner, repo, issueNumber, projectNumber),
-    (conditions2) => isPhaseComplete(conditions2, expectations),
+    (conditions2) => {
+      const circuitCheck = isCircuitBroken(conditions2);
+      if (circuitCheck.broken) {
+        circuitBroken = true;
+        circuitBrokenReason = circuitCheck.reason;
+        return true;
+      }
+      return isPhaseComplete(conditions2, expectations);
+    },
     {
       ...DEFAULT_POLLER_CONFIG,
       initialIntervalMs: pollIntervalMs,
@@ -35407,6 +35432,39 @@ async function waitForPhase(options) {
   );
   const duration = Date.now() - startTime;
   const conditions = pollResult.data;
+  if (circuitBroken) {
+    core5.error(
+      `
+\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557`
+    );
+    core5.error(
+      `\u2551  PHASE ${phaseNumber} CIRCUIT BREAKER - Test Cancelled                   \u2551`
+    );
+    core5.error(
+      `\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255D`
+    );
+    core5.error(`  Reason: ${circuitBrokenReason}`);
+    core5.error(`  Duration: ${Math.round(duration / 1e3)}s`);
+    core5.error(`  Branch: ${conditions?.branchName || "(not created)"}`);
+    core5.error(
+      `  PR: ${conditions?.prNumber ? `#${conditions.prNumber}` : "(not opened)"} [${conditions?.prState || "none"}]`
+    );
+    core5.error(
+      `  Issue: ${conditions?.issueClosed ? "closed" : "open"} | Status: ${conditions?.issueStatus || "(not set)"}`
+    );
+    return {
+      success: false,
+      branch_name: conditions?.branchName || null,
+      pr_number: conditions?.prNumber || null,
+      pr_state: conditions?.prState || null,
+      ci_status: conditions?.ciStatus || null,
+      review_status: conditions?.reviewStatus || null,
+      issue_state: conditions?.issueClosed ? "closed" : "open",
+      issue_status: conditions?.issueStatus || null,
+      errors: [`Circuit breaker triggered: ${circuitBrokenReason}`],
+      duration_ms: duration
+    };
+  }
   if (!pollResult.success || !conditions) {
     core5.error(
       `

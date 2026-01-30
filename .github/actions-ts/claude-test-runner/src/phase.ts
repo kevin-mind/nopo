@@ -387,6 +387,37 @@ async function fetchPhaseConditions(
 }
 
 /**
+ * Check if the circuit breaker condition is met
+ * Circuit breaker: Issue closed but PR not merged = something went wrong
+ * This allows tests to be cancelled by closing the parent issue
+ */
+function isCircuitBroken(conditions: PhaseConditions): {
+  broken: boolean;
+  reason: string | null;
+} {
+  // If issue is closed but PR isn't merged, that's an error
+  if (conditions.issueClosed && !conditions.prMerged) {
+    return {
+      broken: true,
+      reason: `Issue closed (status: ${conditions.issueStatus || "unknown"}) but PR not merged (state: ${conditions.prState || "no PR"})`,
+    };
+  }
+
+  // If issue status is Blocked or Error, break out
+  if (
+    conditions.issueStatus === "Blocked" ||
+    conditions.issueStatus === "Error"
+  ) {
+    return {
+      broken: true,
+      reason: `Issue has terminal status: ${conditions.issueStatus}`,
+    };
+  }
+
+  return { broken: false, reason: null };
+}
+
+/**
  * Check if all phase conditions are met for completion
  */
 function isPhaseComplete(
@@ -755,10 +786,24 @@ export async function waitForPhase(
   // Track if we've attempted to merge
   let mergeAttempted = false;
 
+  // Track circuit breaker state
+  let circuitBroken = false;
+  let circuitBrokenReason: string | null = null;
+
   const pollResult = await pollUntil<PhaseConditions>(
     () =>
       fetchPhaseConditions(octokit, owner, repo, issueNumber, projectNumber),
-    (conditions) => isPhaseComplete(conditions, expectations),
+    (conditions) => {
+      // Check for circuit breaker FIRST
+      const circuitCheck = isCircuitBroken(conditions);
+      if (circuitCheck.broken) {
+        circuitBroken = true;
+        circuitBrokenReason = circuitCheck.reason;
+        // Return true to exit the loop (we'll handle the error after)
+        return true;
+      }
+      return isPhaseComplete(conditions, expectations);
+    },
     {
       ...DEFAULT_POLLER_CONFIG,
       initialIntervalMs: pollIntervalMs,
@@ -846,6 +891,41 @@ export async function waitForPhase(
 
   const duration = Date.now() - startTime;
   const conditions = pollResult.data;
+
+  // Check for circuit breaker - this allows tests to be cancelled by closing the issue
+  if (circuitBroken) {
+    core.error(
+      `\n╔══════════════════════════════════════════════════════════════╗`,
+    );
+    core.error(
+      `║  PHASE ${phaseNumber} CIRCUIT BREAKER - Test Cancelled                   ║`,
+    );
+    core.error(
+      `╚══════════════════════════════════════════════════════════════╝`,
+    );
+    core.error(`  Reason: ${circuitBrokenReason}`);
+    core.error(`  Duration: ${Math.round(duration / 1000)}s`);
+    core.error(`  Branch: ${conditions?.branchName || "(not created)"}`);
+    core.error(
+      `  PR: ${conditions?.prNumber ? `#${conditions.prNumber}` : "(not opened)"} [${conditions?.prState || "none"}]`,
+    );
+    core.error(
+      `  Issue: ${conditions?.issueClosed ? "closed" : "open"} | Status: ${conditions?.issueStatus || "(not set)"}`,
+    );
+
+    return {
+      success: false,
+      branch_name: conditions?.branchName || null,
+      pr_number: conditions?.prNumber || null,
+      pr_state: conditions?.prState || null,
+      ci_status: conditions?.ciStatus || null,
+      review_status: conditions?.reviewStatus || null,
+      issue_state: conditions?.issueClosed ? "closed" : "open",
+      issue_status: conditions?.issueStatus || null,
+      errors: [`Circuit breaker triggered: ${circuitBrokenReason}`],
+      duration_ms: duration,
+    };
+  }
 
   if (!pollResult.success || !conditions) {
     // Log detailed timeout state
