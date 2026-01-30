@@ -116,10 +116,115 @@ permissions:
 
 jobs:
   # ============================================================================
+  # Phase 0: E2E MODE DETECTION
+  # Parses e2e marker from PR head commit or config file to enable test instrumentation
+  # Security: Only honors e2e markers when the referenced workflow is actually running
+  # ============================================================================
+  e2e-detect:
+    runs-on: ubuntu-latest
+    outputs:
+      e2e_mode: ${{ steps.detect.outputs.e2e_mode }}
+      ci_outcome: ${{ steps.detect.outputs.ci_outcome }}
+      release_outcome: ${{ steps.detect.outputs.release_outcome }}
+      review_outcome: ${{ steps.detect.outputs.review_outcome }}
+    steps:
+      - name: Checkout for config file
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch || 'main' }}
+          sparse-checkout: .github/e2e-test-config.json
+          sparse-checkout-cone-mode: false
+        continue-on-error: true
+
+      - name: Get PR head commit
+        id: commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
+          BRANCH: ${{ inputs.branch }}
+        run: |
+          # Try to get commit message from PR associated with the issue
+          if [[ -n "$BRANCH" ]]; then
+            # If we have a branch, get the head commit from it
+            commit_msg=$(gh api repos/${{ github.repository }}/commits/$BRANCH --jq '.commit.message' 2>/dev/null || echo "")
+          else
+            # Try to find PR for this issue
+            prs=$(gh pr list --repo ${{ github.repository }} --state all --limit 5 --json number,headRefName,body --jq ".[] | select(.body | contains(\"#$ISSUE_NUMBER\"))")
+            if [[ -n "$prs" ]]; then
+              branch=$(echo "$prs" | jq -r '.headRefName' | head -1)
+              if [[ -n "$branch" && "$branch" != "null" ]]; then
+                commit_msg=$(gh api repos/${{ github.repository }}/commits/$branch --jq '.commit.message' 2>/dev/null || echo "")
+              fi
+            fi
+          fi
+
+          echo "message<<EOF" >> $GITHUB_OUTPUT
+          echo "${commit_msg:-}" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Detect E2E mode
+        id: detect
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMIT_MSG: ${{ steps.commit.outputs.message }}
+        run: |
+          e2e_mode=false
+          run_id=""
+          ci_outcome="success"
+          release_outcome="success"
+          review_outcome="approved"
+
+          # Method 1: Check for e2e config file
+          if [[ -f ".github/e2e-test-config.json" ]]; then
+            echo "Found .github/e2e-test-config.json"
+            config=$(cat .github/e2e-test-config.json)
+            run_id=$(echo "$config" | jq -r '.run_id // empty')
+            iteration=$(echo "$config" | jq -r '.iteration // 0')
+
+            if [[ -n "$run_id" ]]; then
+              # Get outcomes for current iteration (default to last if past array length)
+              ci_outcome=$(echo "$config" | jq -r --argjson i "$iteration" '.outcomes.ci[$i] // .outcomes.ci[-1] // "success"')
+              release_outcome=$(echo "$config" | jq -r --argjson i "$iteration" '.outcomes.release[$i] // .outcomes.release[-1] // "success"')
+              review_outcome=$(echo "$config" | jq -r --argjson i "$iteration" '.outcomes.review[$i] // .outcomes.review[-1] // "approved"')
+
+              echo "Config file: run_id=$run_id, iteration=$iteration, ci=$ci_outcome, release=$release_outcome, review=$review_outcome"
+            fi
+          fi
+
+          # Method 2: Check commit message for marker pattern (fallback)
+          if [[ -z "$run_id" && "$COMMIT_MSG" =~ \[e2e:([0-9]+):ci=(success|failure):release=(success|failure):review=(approved|changes_requested|comment)\] ]]; then
+            run_id="${BASH_REMATCH[1]}"
+            ci_outcome="${BASH_REMATCH[2]}"
+            release_outcome="${BASH_REMATCH[3]}"
+            review_outcome="${BASH_REMATCH[4]}"
+            echo "Found e2e marker in commit: run_id=$run_id, ci=$ci_outcome, release=$release_outcome, review=$review_outcome"
+          fi
+
+          # Verify the workflow is actually running
+          if [[ -n "$run_id" ]]; then
+            status=$(gh api repos/${{ github.repository }}/actions/runs/$run_id --jq '.status' 2>/dev/null || echo "not_found")
+
+            if [[ "$status" == "in_progress" ]]; then
+              echo "::notice::E2E mode verified - workflow $run_id is running"
+              e2e_mode=true
+            else
+              echo "::warning::E2E marker found but workflow $run_id is not running (status: $status)"
+            fi
+          else
+            echo "No e2e marker found"
+          fi
+
+          echo "e2e_mode=$e2e_mode" >> $GITHUB_OUTPUT
+          echo "ci_outcome=$ci_outcome" >> $GITHUB_OUTPUT
+          echo "release_outcome=$release_outcome" >> $GITHUB_OUTPUT
+          echo "review_outcome=$review_outcome" >> $GITHUB_OUTPUT
+
+  # ============================================================================
   # Phase 0a: Derive Context
   # Fetches issue context (iteration, phase) for use in logging
   # ============================================================================
   derive-context:
+    needs: [e2e-detect]
     runs-on: ubuntu-latest
     outputs:
       iteration: ${{ steps.context.outputs.iteration }}
@@ -183,7 +288,7 @@ jobs:
   # Runs the state machine to determine what actions to execute
   # ============================================================================
   derive-actions:
-    needs: [log-run-start, derive-context]
+    needs: [e2e-detect, log-run-start, derive-context]
     runs-on: ubuntu-latest
     outputs:
       final_state: ${{ steps.machine.outputs.final_state }}
@@ -285,7 +390,7 @@ jobs:
   # Matrix job that executes each action in isolation with max-parallel: 1
   # ============================================================================
   exec-state-actions:
-    needs: [derive-actions]
+    needs: [e2e-detect, derive-actions]
     if: needs.derive-actions.outputs.action_count != '0' && needs.derive-actions.outputs.actions_matrix != '[]'
     runs-on: ubuntu-latest
     strategy:
@@ -317,10 +422,59 @@ jobs:
         with:
           node-version: '22'
 
+      # ============================================================================
+      # E2E Mode: Simulate review submission (skips real Claude run)
+      # ============================================================================
+      - name: E2E Simulate Review
+        id: e2e-review
+        if: |
+          needs.e2e-detect.outputs.e2e_mode == 'true' &&
+          matrix.action.type == 'runClaude' &&
+          matrix.action.token == 'review' &&
+          !inputs.dry_run
+        env:
+          GH_TOKEN: ${{ secrets.CLAUDE_REVIEWER_PAT }}
+          PR_NUMBER: ${{ matrix.action.promptVars.PR_NUMBER }}
+          REVIEW_OUTCOME: ${{ needs.e2e-detect.outputs.review_outcome }}
+        run: |
+          echo "::notice::E2E mode: simulating review with outcome=$REVIEW_OUTCOME"
+
+          # Map e2e outcome to GitHub event type
+          case "$REVIEW_OUTCOME" in
+            approved)
+              event="APPROVE"
+              body="E2E Test: Simulated approval review"
+              ;;
+            changes_requested)
+              event="REQUEST_CHANGES"
+              body="E2E Test: Simulated changes requested review"
+              ;;
+            comment)
+              event="COMMENT"
+              body="E2E Test: Simulated comment review"
+              ;;
+            *)
+              echo "::error::Unknown review outcome: $REVIEW_OUTCOME"
+              exit 1
+              ;;
+          esac
+
+          # Submit the simulated review
+          gh api \
+            --method POST \
+            "/repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/reviews" \
+            -f event="$event" \
+            -f body="$body"
+
+          echo "✅ E2E simulated review submitted: $event"
+
       # Fetch previous agent notes for context injection
       - name: Fetch agent notes
         id: fetch-notes
-        if: matrix.action.type == 'runClaude' && !inputs.dry_run
+        if: |
+          matrix.action.type == 'runClaude' &&
+          !inputs.dry_run &&
+          needs.e2e-detect.outputs.e2e_mode != 'true'
         uses: ./.github/actions-ts/fetch-agent-notes
         with:
           github_token: ${{ secrets.NOPO_BOT_PAT }}
@@ -330,7 +484,10 @@ jobs:
       # Merge agent notes into prompt variables
       - name: Prepare prompt variables
         id: prompt-vars
-        if: matrix.action.type == 'runClaude' && !inputs.dry_run
+        if: |
+          matrix.action.type == 'runClaude' &&
+          !inputs.dry_run &&
+          needs.e2e-detect.outputs.e2e_mode != 'true'
         env:
           PROMPT_VARS: ${{ toJson(matrix.action.promptVars) }}
           AGENT_NOTES: ${{ steps.fetch-notes.outputs.notes }}
@@ -343,8 +500,12 @@ jobs:
       # Uses NOPO_BOT_PAT for all Claude runs (needs repo scope for permission checks)
       # CLAUDE_REVIEWER_PAT is used only for post-processing (labels, project fields)
       # Agent notes are injected via AGENT_NOTES prompt variable
+      # Skip in e2e mode - e2e-review step handles review actions
       - name: Run Claude
-        if: matrix.action.type == 'runClaude' && !inputs.dry_run
+        if: |
+          matrix.action.type == 'runClaude' &&
+          !inputs.dry_run &&
+          needs.e2e-detect.outputs.e2e_mode != 'true'
         uses: ./.github/actions/run-claude
         with:
           prompt: ${{ matrix.action.prompt }}
@@ -359,8 +520,13 @@ jobs:
       # Submit review if Claude wrote review-output.json (for review token actions)
       # CLAUDE_REVIEWER_PAT must be for a different user than the PR author (nopo-bot)
       # to avoid "Cannot approve your own pull request" error
+      # Skip in e2e mode - e2e-review step already submitted the review
       - name: Submit Review
-        if: matrix.action.type == 'runClaude' && matrix.action.token == 'review' && !inputs.dry_run
+        if: |
+          matrix.action.type == 'runClaude' &&
+          matrix.action.token == 'review' &&
+          !inputs.dry_run &&
+          needs.e2e-detect.outputs.e2e_mode != 'true'
         env:
           GH_TOKEN: ${{ secrets.CLAUDE_REVIEWER_PAT }}
           PR_NUMBER: ${{ matrix.action.promptVars.PR_NUMBER }}
@@ -477,7 +643,7 @@ jobs:
   # Updates history entry with outcome
   # ============================================================================
   log-run-end:
-    needs: [derive-context, log-run-start, derive-actions, exec-state-actions]
+    needs: [e2e-detect, derive-context, log-run-start, derive-actions, exec-state-actions]
     if: ${{ always() && !inputs.skip_bookend_logs }}
     runs-on: ubuntu-latest
     steps:
@@ -571,7 +737,7 @@ jobs:
   # NOTE: Requires NOPO_BOT_PAT to have 'actions:write' scope for workflow_dispatch
   # ============================================================================
   check-retrigger:
-    needs: [derive-actions, exec-state-actions, log-run-end]
+    needs: [e2e-detect, derive-actions, exec-state-actions, log-run-end]
     if: |
       always() &&
       needs.exec-state-actions.result == 'success' &&

@@ -3,6 +3,11 @@
   "description": "Single task, CI passes first time - verifies happy path including triage creating sub-issues",
   "job_type": "issue-iterate",
   "trigger": "issue_assigned",
+  "e2e_outcomes": {
+    "ci": ["success"],
+    "release": ["success"],
+    "review": ["approved"]
+  },
   "parent_issue": {
     "title": "Update e2e-test.txt",
     "body": "## Description\n\nAdd a timestamped line to the e2e-test.txt file in the `test-e2e-dump` directory.\n\n## Requirements\n\n- Edit the file `test-e2e-dump/e2e-test.txt`\n- Add a new line with the current timestamp and test run identifier\n\n## Acceptance Criteria\n\n- [ ] test-e2e-dump/e2e-test.txt updated with new line\n- [ ] PR created and merged",

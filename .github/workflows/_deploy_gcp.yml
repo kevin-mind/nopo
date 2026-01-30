@@ -39,6 +39,16 @@ name: Deploy to GCP
         description: JSON array of services to deploy
         required: true
         type: string
+      e2e_mode:
+        description: Whether to run in e2e simulation mode (skips real deploy)
+        required: false
+        type: boolean
+        default: false
+      e2e_outcome:
+        description: Expected outcome in e2e mode (success/failure)
+        required: false
+        type: string
+        default: 'success'
 concurrency:
   group: deploy-${{ inputs.environment }}
   cancel-in-progress: false
@@ -50,7 +60,27 @@ env:
   GCP_REGION: us-central1
   TERRAFORM_VERSION: 1.7.0
 jobs:
+  # ============================================================================
+  # E2E SIMULATION - Runs instead of real deploy in e2e mode
+  # IMPORTANT: Has 'environment' property to maintain environment context for
+  # deployment protection rules and history logging
+  # ============================================================================
+  e2e-simulation:
+    if: ${{ inputs.e2e_mode == true }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Simulate deploy to ${{ inputs.environment }}
+        run: |
+          echo "::notice::E2E mode: simulating deploy to ${{ inputs.environment }}"
+          if [[ "${{ inputs.e2e_outcome }}" == "failure" ]]; then
+            echo "::error::Simulating deploy failure to ${{ inputs.environment }}"
+            exit 1
+          fi
+          echo "Simulating deploy success to ${{ inputs.environment }}"
+
   context:
+    if: ${{ inputs.e2e_mode != true }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -77,6 +107,7 @@ jobs:
             echo "subdomain_prefix=" >> $GITHUB_OUTPUT
           fi
   provision_infra:
+    if: ${{ inputs.e2e_mode != true }}
     name: Provision Infrastructure
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
@@ -133,6 +164,7 @@ jobs:
     needs:
       - context
   get_current_state:
+    if: ${{ inputs.e2e_mode != true }}
     name: Get Current State
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
@@ -200,6 +232,7 @@ jobs:
       - context
       - provision_infra
   push_images:
+    if: ${{ inputs.e2e_mode != true }}
     name: Push ${{ matrix.service }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -240,6 +273,7 @@ jobs:
       - context
       - provision_infra
   deploy_canary:
+    if: ${{ inputs.e2e_mode != true }}
     name: Deploy Canary
     runs-on: ubuntu-latest
     environment:
@@ -279,6 +313,7 @@ jobs:
       - get_current_state
       - push_images
   upload_assets:
+    if: ${{ inputs.e2e_mode != true }}
     name: Upload Assets ${{ matrix.service }}
     runs-on: ubuntu-latest
     permissions:
@@ -338,6 +373,7 @@ jobs:
       - context
       - provision_infra
   run_migrations:
+    if: ${{ inputs.e2e_mode != true }}
     name: Database Migrations
     runs-on: ubuntu-latest
     permissions:
@@ -380,6 +416,7 @@ jobs:
       - context
       - deploy_canary
   smoketest_canary:
+    if: ${{ inputs.e2e_mode != true }}
     name: Smoketest Canary
     runs-on: ubuntu-latest
     steps:
@@ -398,6 +435,7 @@ jobs:
       - run_migrations
       - upload_assets
   promote:
+    if: ${{ inputs.e2e_mode != true }}
     name: Promote to Stable
     runs-on: ubuntu-latest
     environment:
@@ -435,6 +473,7 @@ jobs:
       - smoketest_canary
       - get_current_state
   tag_environment:
+    if: ${{ inputs.e2e_mode != true }}
     name: Tag Environment
     runs-on: ubuntu-latest
     permissions:

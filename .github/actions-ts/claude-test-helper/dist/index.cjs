@@ -25407,6 +25407,79 @@ async function setIssueProjectStatus(octokit, owner, repo, issueNumber, status, 
     });
   }
 }
+function createE2EConfigContent(runId, outcomes, iteration = 0) {
+  const config = {
+    run_id: runId,
+    iteration,
+    outcomes: {
+      ci: outcomes.ci || ["success"],
+      release: outcomes.release || ["success"],
+      review: outcomes.review || ["approved"]
+    },
+    created_at: (/* @__PURE__ */ new Date()).toISOString()
+  };
+  return JSON.stringify(config, null, 2);
+}
+async function commitE2EConfigFile(octokit, owner, repo, branchName, filePath, content, commitMessage) {
+  const { data: ref } = await octokit.rest.git.getRef({
+    owner,
+    repo,
+    ref: `heads/${branchName}`
+  });
+  const { data: commit } = await octokit.rest.git.getCommit({
+    owner,
+    repo,
+    commit_sha: ref.object.sha
+  });
+  let existingFileSha;
+  try {
+    const { data: existingFile } = await octokit.rest.repos.getContent({
+      owner,
+      repo,
+      path: filePath,
+      ref: branchName
+    });
+    if (!Array.isArray(existingFile) && existingFile.type === "file") {
+      existingFileSha = existingFile.sha;
+    }
+  } catch {
+  }
+  const { data: blob } = await octokit.rest.git.createBlob({
+    owner,
+    repo,
+    content: Buffer.from(content).toString("base64"),
+    encoding: "base64"
+  });
+  const { data: tree } = await octokit.rest.git.createTree({
+    owner,
+    repo,
+    base_tree: commit.tree.sha,
+    tree: [
+      {
+        path: filePath,
+        mode: "100644",
+        type: "blob",
+        sha: blob.sha
+      }
+    ]
+  });
+  const { data: newCommit } = await octokit.rest.git.createCommit({
+    owner,
+    repo,
+    message: commitMessage,
+    tree: tree.sha,
+    parents: [ref.object.sha]
+  });
+  await octokit.rest.git.updateRef({
+    owner,
+    repo,
+    ref: `heads/${branchName}`,
+    sha: newCommit.sha
+  });
+  core2.info(
+    `Committed ${existingFileSha ? "updated" : "new"} e2e config to ${branchName}: ${newCommit.sha}`
+  );
+}
 async function run() {
   try {
     const action = getRequiredInput("action");
@@ -25544,6 +25617,50 @@ async function run() {
       setOutputs({
         success: "true",
         delete_count: String(result.delete_count)
+      });
+      return;
+    }
+    if (action === "create_e2e_config" || action === "update_e2e_config") {
+      const branchName = getRequiredInput("branch_name");
+      const e2eRunId = getRequiredInput("e2e_run_id");
+      const e2eOutcomesJson = getOptionalInput("e2e_outcomes");
+      const fixtureJson = getOptionalInput("fixture_json");
+      const iterationStr = getOptionalInput("iteration") || "0";
+      const iteration = parseInt(iterationStr, 10);
+      let outcomes = {};
+      if (e2eOutcomesJson) {
+        outcomes = JSON.parse(e2eOutcomesJson);
+      } else if (fixtureJson) {
+        const fixture = JSON.parse(fixtureJson);
+        outcomes = fixture.e2e_outcomes || {};
+      }
+      if (!outcomes.ci || outcomes.ci.length === 0) {
+        outcomes.ci = ["success"];
+      }
+      if (!outcomes.release || outcomes.release.length === 0) {
+        outcomes.release = ["success"];
+      }
+      if (!outcomes.review || outcomes.review.length === 0) {
+        outcomes.review = ["approved"];
+      }
+      core2.info(
+        `${action === "create_e2e_config" ? "Creating" : "Updating"} e2e config with run_id=${e2eRunId}, iteration=${iteration}`
+      );
+      core2.info(`Outcomes: ${JSON.stringify(outcomes)}`);
+      const configContent = createE2EConfigContent(e2eRunId, outcomes, iteration);
+      const configPath = ".github/e2e-test-config.json";
+      await commitE2EConfigFile(
+        octokit,
+        owner,
+        repo,
+        branchName,
+        configPath,
+        configContent,
+        action === "create_e2e_config" ? "chore: add e2e test config" : `chore: update e2e config for iteration ${iteration}`
+      );
+      setOutputs({
+        success: "true",
+        config_path: configPath
       });
       return;
     }

@@ -165,6 +165,19 @@ export interface ExpectedOutcome {
 }
 
 /**
+ * E2E outcomes configuration for test instrumentation
+ * Specifies expected outcomes per iteration for CI, Release, and Review
+ */
+export interface E2EOutcomes {
+  /** CI outcomes per iteration (e.g., ["failure", "success"]) */
+  ci?: ("success" | "failure")[];
+  /** Release/deploy outcomes per iteration */
+  release?: ("success" | "failure")[];
+  /** Review outcomes per iteration */
+  review?: ("approved" | "changes_requested" | "comment")[];
+}
+
+/**
  * Complete test fixture configuration
  */
 export interface TestFixture {
@@ -197,6 +210,13 @@ export interface TestFixture {
   timeout?: number;
   /** Poll interval in seconds for verification (default: 10) */
   poll_interval?: number;
+
+  /**
+   * E2E outcomes configuration for test instrumentation
+   * Specifies expected outcomes per iteration for CI, Release, and Review
+   * Used to control simulated CI/Release/Review behavior during e2e tests
+   */
+  e2e_outcomes?: E2EOutcomes;
 }
 
 /**
