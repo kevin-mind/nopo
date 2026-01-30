@@ -377,8 +377,9 @@ jobs:
           echo "| **Project Fields** | ${{ steps.wait-triage.outputs.project_fields }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Sub-issues** | ${{ steps.get-sub-issues.outputs.sub_issue_numbers }} |" >> $GITHUB_STEP_SUMMARY
 
-  # Step 2: Assign nopo-bot to trigger development (E2E mode only)
-  assign:
+  # Step 2: Pre-create branches with e2e config (E2E mode only)
+  # This ensures CI detects e2e mode from Claude's first commit
+  prepare-branches:
     needs: [load-fixture, setup, triage]
     if: |
       always() &&
@@ -386,6 +387,110 @@ jobs:
       inputs.mode == 'e2e' &&
       needs.triage.result == 'success' &&
       needs.triage.outputs.success == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pre-create branches with e2e config
+        env:
+          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
+          FIXTURE_JSON: ${{ needs.load-fixture.outputs.fixture }}
+          SUB_ISSUE_NUMBERS: ${{ needs.triage.outputs.sub_issue_numbers }}
+          PARENT_ISSUE: ${{ needs.setup.outputs.issue_number }}
+          E2E_RUN_ID: ${{ github.run_id }}
+        run: |
+          # Get list of sub-issues (or use parent issue if no sub-issues)
+          if [[ -z "$SUB_ISSUE_NUMBERS" ]] || [[ "$SUB_ISSUE_NUMBERS" == "[]" ]]; then
+            sub_issues="$PARENT_ISSUE"
+          else
+            sub_issues=$(echo "$SUB_ISSUE_NUMBERS" | jq -r '.[]' | tr '\n' ' ')
+          fi
+
+          # Get e2e outcomes from fixture
+          ci_outcomes=$(echo "$FIXTURE_JSON" | jq -c '.e2e_outcomes.ci // ["success"]')
+          release_outcomes=$(echo "$FIXTURE_JSON" | jq -c '.e2e_outcomes.release // ["success"]')
+          review_outcomes=$(echo "$FIXTURE_JSON" | jq -c '.e2e_outcomes.review // ["approved"]')
+
+          # Create e2e config JSON
+          config=$(cat <<EOF
+          {
+            "run_id": "$E2E_RUN_ID",
+            "outcomes": {
+              "ci": $ci_outcomes,
+              "release": $release_outcomes,
+              "review": $review_outcomes
+            },
+            "created_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+          )
+
+          # Get main branch SHA
+          main_sha=$(gh api repos/$GITHUB_REPOSITORY/git/ref/heads/main --jq '.object.sha')
+          echo "Main branch SHA: $main_sha"
+
+          phase=1
+          for sub_issue in $sub_issues; do
+            branch_name="claude/issue/${PARENT_ISSUE}/phase-${phase}"
+            echo "Creating branch: $branch_name"
+
+            # Create blob with e2e config
+            blob_sha=$(echo "$config" | gh api repos/$GITHUB_REPOSITORY/git/blobs \
+              -X POST \
+              -f content="$(echo "$config" | base64)" \
+              -f encoding=base64 \
+              --jq '.sha')
+            echo "Created blob: $blob_sha"
+
+            # Get main tree
+            main_tree=$(gh api repos/$GITHUB_REPOSITORY/git/commits/$main_sha --jq '.tree.sha')
+
+            # Create new tree with e2e config file
+            new_tree=$(gh api repos/$GITHUB_REPOSITORY/git/trees \
+              -X POST \
+              -f base_tree="$main_tree" \
+              -f 'tree[][path]=.github/e2e-test-config.json' \
+              -f 'tree[][mode]=100644' \
+              -f 'tree[][type]=blob' \
+              -f "tree[][sha]=$blob_sha" \
+              --jq '.sha')
+            echo "Created tree: $new_tree"
+
+            # Create commit
+            new_commit=$(gh api repos/$GITHUB_REPOSITORY/git/commits \
+              -X POST \
+              -f "message=chore(e2e): prepare branch for run $E2E_RUN_ID" \
+              -f "tree=$new_tree" \
+              -f "parents[]=$main_sha" \
+              --jq '.sha')
+            echo "Created commit: $new_commit"
+
+            # Create branch
+            gh api repos/$GITHUB_REPOSITORY/git/refs \
+              -X POST \
+              -f "ref=refs/heads/$branch_name" \
+              -f "sha=$new_commit" || {
+              echo "Branch may already exist, trying to update..."
+              gh api repos/$GITHUB_REPOSITORY/git/refs/heads/$branch_name \
+                -X PATCH \
+                -f "sha=$new_commit" \
+                -F force=true
+            }
+
+            echo "✅ Created branch $branch_name with e2e config"
+            phase=$((phase + 1))
+          done
+
+  # Step 3: Assign nopo-bot to trigger development (E2E mode only)
+  assign:
+    needs: [load-fixture, setup, triage, prepare-branches]
+    if: |
+      always() &&
+      inputs.cleanup_only != true &&
+      inputs.mode == 'e2e' &&
+      needs.triage.result == 'success' &&
+      needs.triage.outputs.success == 'true' &&
+      needs.prepare-branches.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Assign nopo-bot to parent issue
@@ -414,9 +519,9 @@ jobs:
           echo "Waiting for claude workflow to be triggered..."
           sleep 10
 
-  # Step 3: Development phase verification (sequential matrix) - E2E mode only
+  # Step 4: Development phase verification (sequential matrix) - E2E mode only
   development:
-    needs: [load-fixture, setup, triage, assign]
+    needs: [load-fixture, setup, triage, prepare-branches, assign]
     if: |
       always() &&
       inputs.cleanup_only != true &&
@@ -513,9 +618,9 @@ jobs:
           echo "| **Issue** | ${{ steps.wait-phase.outputs.issue_state }} (${{ steps.wait-phase.outputs.issue_status || 'N/A' }}) |" >> $GITHUB_STEP_SUMMARY
           echo "| **Duration** | ${{ steps.wait-phase.outputs.total_duration_ms }}ms |" >> $GITHUB_STEP_SUMMARY
 
-  # Step 4: Final completion verification (E2E mode only)
+  # Step 5: Final completion verification (E2E mode only)
   completion:
-    needs: [load-fixture, setup, triage, development]
+    needs: [load-fixture, setup, triage, prepare-branches, development]
     if: |
       always() &&
       inputs.cleanup_only != true &&

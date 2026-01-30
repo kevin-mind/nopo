@@ -488,8 +488,9 @@ interface WaitForPhaseOptions {
 
 /**
  * Add e2e config file to a branch using gh CLI
+ * @deprecated Now handled in workflow's prepare-branches job
  */
-async function addE2EConfigToBranch(
+async function _addE2EConfigToBranch(
   owner: string,
   repo: string,
   branchName: string,
@@ -614,7 +615,7 @@ async function addE2EConfigToBranch(
     );
     const newTreeSha = stdout.trim();
 
-    // Create a new commit
+    // Create a new commit - DO NOT use [skip ci] as we need CI to detect e2e mode
     stdout = "";
     await exec.exec(
       "gh",
@@ -624,7 +625,7 @@ async function addE2EConfigToBranch(
         "-X",
         "POST",
         "-f",
-        `message=chore: add e2e test config [skip ci]`,
+        `message=chore(e2e): add test config for run ${config.runId}`,
         "-f",
         `tree=${newTreeSha}`,
         "-f",
@@ -754,9 +755,6 @@ export async function waitForPhase(
   // Track if we've attempted to merge
   let mergeAttempted = false;
 
-  // Track if we've added the e2e config file
-  let e2eConfigAdded = false;
-
   const pollResult = await pollUntil<PhaseConditions>(
     () =>
       fetchPhaseConditions(octokit, owner, repo, issueNumber, projectNumber),
@@ -824,28 +822,8 @@ export async function waitForPhase(
         issueStatus: conditions.issueStatus,
       };
 
-      // Add e2e config file when branch is first detected (before CI runs)
-      // This ensures CI can detect e2e mode and skip expensive jobs
-      if (
-        !e2eConfigAdded &&
-        e2eConfig &&
-        conditions.branchExists &&
-        conditions.branchName &&
-        conditions.prOpened &&
-        conditions.prState === "draft" // Only add when PR is still draft (before ready for review)
-      ) {
-        e2eConfigAdded = true;
-        // Fire and forget - the config will be added async
-        addE2EConfigToBranch(owner, repo, conditions.branchName, e2eConfig)
-          .then((success) => {
-            if (success) {
-              core.info(`✅ E2E config added - CI will skip expensive jobs`);
-            }
-          })
-          .catch((err) => {
-            core.warning(`Failed to add e2e config: ${err}`);
-          });
-      }
+      // Note: e2e config is now pre-created in the workflow's prepare-branches job
+      // This ensures CI detects e2e mode from Claude's very first commit
 
       // Trigger merge when conditions are met (simulating human action)
       // Conditions: PR open (not draft), CI passed, review approved, not yet merged
