@@ -569,6 +569,18 @@ jobs:
           echo "number=$sub_issue" >> $GITHUB_OUTPUT
           echo "Phase $PHASE sub-issue: #$sub_issue"
 
+      - name: Get fixture timeout
+        id: fixture-config
+        env:
+          FIXTURE_JSON: ${{ needs.load-fixture.outputs.fixture }}
+        run: |
+          # Extract timeout from fixture (default 900 = 15 min if not specified)
+          timeout=$(echo "$FIXTURE_JSON" | jq -r '.timeout // 900')
+          poll_interval=$(echo "$FIXTURE_JSON" | jq -r '.poll_interval // 15')
+          echo "timeout=$timeout" >> $GITHUB_OUTPUT
+          echo "poll_interval=$poll_interval" >> $GITHUB_OUTPUT
+          echo "Using timeout: ${timeout}s, poll_interval: ${poll_interval}s"
+
       - name: Wait for phase ${{ matrix.phase }} completion
         id: wait-phase
         uses: ./.github/actions-ts/claude-test-runner
@@ -579,8 +591,8 @@ jobs:
           fixture_json: ${{ needs.load-fixture.outputs.fixture }}
           github_token: ${{ secrets.NOPO_BOT_PAT }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
-          timeout: '300'
-          poll_interval: '15'
+          timeout: ${{ steps.fixture-config.outputs.timeout }}
+          poll_interval: ${{ steps.fixture-config.outputs.poll_interval }}
           e2e_run_id: ${{ github.run_id }}
 
       - name: Simulate human merge if needed
