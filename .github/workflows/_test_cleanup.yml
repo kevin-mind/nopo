@@ -121,23 +121,67 @@ jobs:
             needs_retry=true
           fi
 
-          # Get sub-issues
-          sub_issues=$(gh api graphql -f query='
-            query($owner: String!, $repo: String!, $number: Int!) {
+          # Get sub-issues and project status via GraphQL
+          response=$(gh api graphql -f query='
+            query($owner: String!, $repo: String!, $number: Int!, $projectNumber: Int!) {
               repository(owner: $owner, name: $repo) {
                 issue(number: $number) {
+                  state
+                  projectItems(first: 10) {
+                    nodes {
+                      project { number }
+                      fieldValues(first: 20) {
+                        nodes {
+                          ... on ProjectV2ItemFieldSingleSelectValue {
+                            name
+                            field { ... on ProjectV2SingleSelectField { name } }
+                          }
+                        }
+                      }
+                    }
+                  }
                   subIssues(first: 20) {
                     nodes {
                       number
                       state
+                      projectItems(first: 10) {
+                        nodes {
+                          project { number }
+                          fieldValues(first: 20) {
+                            nodes {
+                              ... on ProjectV2ItemFieldSingleSelectValue {
+                                name
+                                field { ... on ProjectV2SingleSelectField { name } }
+                              }
+                            }
+                          }
+                        }
+                      }
                     }
                   }
                 }
               }
             }
-          ' -f owner=${{ github.repository_owner }} -f repo=${{ github.event.repository.name }} -F number=$ISSUE_NUMBER --jq '.data.repository.issue.subIssues.nodes // []')
+          ' -f owner=${{ github.repository_owner }} -f repo=${{ github.event.repository.name }} -F number=$ISSUE_NUMBER -F projectNumber=${{ vars.PROJECT_NUMBER || 1 }})
 
-          echo "Sub-issues: $sub_issues"
+          # Extract parent issue project status
+          parent_status=$(echo "$response" | jq -r '
+            .data.repository.issue.projectItems.nodes[]
+            | select(.project.number == ${{ vars.PROJECT_NUMBER || 1 }})
+            | .fieldValues.nodes[]
+            | select(.field.name == "Status")
+            | .name
+          ' 2>/dev/null || echo "unknown")
+          echo "Parent issue project status: $parent_status"
+
+          if [[ "$parent_status" != "Done" && "$parent_status" != "unknown" ]]; then
+            echo "::warning::Parent issue #$ISSUE_NUMBER project status is not Done (status: $parent_status)"
+            # Don't retry for status - GitHub Project automation should handle it
+          fi
+
+          # Get sub-issues
+          sub_issues=$(echo "$response" | jq -r '.data.repository.issue.subIssues.nodes // []')
+          echo "Sub-issues: $(echo "$sub_issues" | jq -c '.')"
 
           # Check each sub-issue
           for row in $(echo "$sub_issues" | jq -r '.[] | @base64'); do
@@ -147,8 +191,9 @@ jobs:
 
             sub_number=$(_jq '.number')
             sub_state=$(_jq '.state')
+            sub_status=$(_jq ".projectItems.nodes[] | select(.project.number == ${{ vars.PROJECT_NUMBER || 1 }}) | .fieldValues.nodes[] | select(.field.name == \"Status\") | .name" 2>/dev/null || echo "unknown")
 
-            echo "  Sub-issue #$sub_number: $sub_state"
+            echo "  Sub-issue #$sub_number: state=$sub_state, project_status=$sub_status"
 
             if [[ "$sub_state" != "CLOSED" ]]; then
               echo "::warning::Sub-issue #$sub_number is not closed (state: $sub_state)"
