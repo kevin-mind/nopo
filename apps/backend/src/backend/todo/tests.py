@@ -370,3 +370,38 @@ class TodoItemAPITests(APITestCase):
         url = reverse("todo:todoitem-detail", kwargs={"pk": 99999})
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class ThrottleConfigurationTests(TestCase):
+    """Test that throttle configuration is properly set up."""
+
+    def test_throttle_classes_configured(self) -> None:
+        """Test that DEFAULT_THROTTLE_CLASSES is configured in REST_FRAMEWORK settings."""
+        from django.conf import settings
+
+        rest_framework_settings = getattr(settings, "REST_FRAMEWORK", {})
+        throttle_classes = rest_framework_settings.get("DEFAULT_THROTTLE_CLASSES", [])
+
+        self.assertIn(
+            "rest_framework.throttling.AnonRateThrottle",
+            throttle_classes,
+            "AnonRateThrottle should be configured in DEFAULT_THROTTLE_CLASSES",
+        )
+
+    def test_throttle_rates_configured(self) -> None:
+        """Test that DEFAULT_THROTTLE_RATES is configured in REST_FRAMEWORK settings."""
+        from django.conf import settings
+
+        rest_framework_settings = getattr(settings, "REST_FRAMEWORK", {})
+        throttle_rates = rest_framework_settings.get("DEFAULT_THROTTLE_RATES", {})
+
+        self.assertIn(
+            "anon",
+            throttle_rates,
+            "Anonymous throttle rate should be configured",
+        )
+        self.assertEqual(
+            throttle_rates["anon"],
+            "100/hour",
+            "Anonymous throttle rate should be 100/hour",
+        )
