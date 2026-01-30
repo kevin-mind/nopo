@@ -1,5 +1,7 @@
 name: Test State Machine
 
+run-name: "Test: ${{ inputs.test_name }} (${{ inputs.mode }})"
+
 on:
   workflow_dispatch:
     inputs:
