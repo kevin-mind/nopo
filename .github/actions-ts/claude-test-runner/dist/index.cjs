@@ -35240,6 +35240,154 @@ function verifyPhaseExpectations(conditions, expectations) {
   }
   return errors;
 }
+async function addE2EConfigToBranch(owner, repo, branchName, config) {
+  try {
+    const configContent = JSON.stringify(
+      {
+        run_id: config.runId,
+        outcomes: config.outcomes,
+        created_at: (/* @__PURE__ */ new Date()).toISOString()
+      },
+      null,
+      2
+    );
+    core5.info(`\u{1F4DD} Adding e2e config to branch ${branchName}...`);
+    const tempFile = `/tmp/e2e-test-config-${Date.now()}.json`;
+    await exec3.exec("bash", [
+      "-c",
+      `echo '${configContent.replace(/'/g, "'\\''")}' > ${tempFile}`
+    ]);
+    let stdout = "";
+    await exec3.exec(
+      "gh",
+      [
+        "api",
+        `repos/${owner}/${repo}/git/ref/heads/${branchName}`,
+        "--jq",
+        ".object.sha"
+      ],
+      {
+        listeners: {
+          stdout: (data) => {
+            stdout += data.toString();
+          }
+        }
+      }
+    );
+    const currentSha = stdout.trim();
+    stdout = "";
+    await exec3.exec(
+      "gh",
+      [
+        "api",
+        `repos/${owner}/${repo}/git/commits/${currentSha}`,
+        "--jq",
+        ".tree.sha"
+      ],
+      {
+        listeners: {
+          stdout: (data) => {
+            stdout += data.toString();
+          }
+        }
+      }
+    );
+    const treeSha = stdout.trim();
+    stdout = "";
+    await exec3.exec(
+      "gh",
+      [
+        "api",
+        `repos/${owner}/${repo}/git/blobs`,
+        "-X",
+        "POST",
+        "-f",
+        `content=${Buffer.from(configContent).toString("base64")}`,
+        "-f",
+        "encoding=base64",
+        "--jq",
+        ".sha"
+      ],
+      {
+        listeners: {
+          stdout: (data) => {
+            stdout += data.toString();
+          }
+        }
+      }
+    );
+    const blobSha = stdout.trim();
+    stdout = "";
+    await exec3.exec(
+      "gh",
+      [
+        "api",
+        `repos/${owner}/${repo}/git/trees`,
+        "-X",
+        "POST",
+        "-f",
+        `base_tree=${treeSha}`,
+        "-f",
+        `tree[][path]=.github/e2e-test-config.json`,
+        "-f",
+        `tree[][mode]=100644`,
+        "-f",
+        `tree[][type]=blob`,
+        "-f",
+        `tree[][sha]=${blobSha}`,
+        "--jq",
+        ".sha"
+      ],
+      {
+        listeners: {
+          stdout: (data) => {
+            stdout += data.toString();
+          }
+        }
+      }
+    );
+    const newTreeSha = stdout.trim();
+    stdout = "";
+    await exec3.exec(
+      "gh",
+      [
+        "api",
+        `repos/${owner}/${repo}/git/commits`,
+        "-X",
+        "POST",
+        "-f",
+        `message=chore: add e2e test config [skip ci]`,
+        "-f",
+        `tree=${newTreeSha}`,
+        "-f",
+        `parents[]=${currentSha}`,
+        "--jq",
+        ".sha"
+      ],
+      {
+        listeners: {
+          stdout: (data) => {
+            stdout += data.toString();
+          }
+        }
+      }
+    );
+    const newCommitSha = stdout.trim();
+    await exec3.exec("gh", [
+      "api",
+      `repos/${owner}/${repo}/git/refs/heads/${branchName}`,
+      "-X",
+      "PATCH",
+      "-f",
+      `sha=${newCommitSha}`
+    ]);
+    core5.info(`\u2705 E2E config added to branch ${branchName}`);
+    return true;
+  } catch (error3) {
+    core5.warning(`Failed to add e2e config to branch: ${error3}`);
+    return false;
+  }
+}
 async function mergePR(owner, repo, prNumber) {
   try {
     core5.info(`\u{1F500} Merging PR #${prNumber} via merge queue...`);
@@ -35270,7 +35418,8 @@ async function waitForPhase(options) {
     // 15 minutes default
     pollIntervalMs = 15e3,
     // 15 seconds default
-    expectations
+    expectations,
+    e2eConfig
   } = options;
   const startTime = Date.now();
   core5.info(
@@ -35279,6 +35428,9 @@ async function waitForPhase(options) {
   core5.info(
     `Timeout: ${timeoutMs / 1e3}s, Poll interval: ${pollIntervalMs / 1e3}s`
   );
+  if (e2eConfig) {
+    core5.info(`E2E mode: run_id=${e2eConfig.runId}`);
+  }
   let _prevState = {
     branchExists: false,
     prOpened: false,
@@ -35290,6 +35442,7 @@ async function waitForPhase(options) {
     issueStatus: null
   };
   let mergeAttempted = false;
+  let e2eConfigAdded = false;
   const pollResult = await pollUntil(
     () => fetchPhaseConditions(octokit, owner, repo, issueNumber, projectNumber),
     (conditions2) => isPhaseComplete(conditions2, expectations),
@@ -35337,6 +35490,16 @@ async function waitForPhase(options) {
         issueClosed: conditions2.issueClosed,
         issueStatus: conditions2.issueStatus
       };
+      if (!e2eConfigAdded && e2eConfig && conditions2.branchExists && conditions2.branchName && conditions2.prOpened && conditions2.prState === "draft") {
+        e2eConfigAdded = true;
+        addE2EConfigToBranch(owner, repo, conditions2.branchName, e2eConfig).then((success) => {
+          if (success) {
+            core5.info(`\u2705 E2E config added - CI will skip expensive jobs`);
+          }
+        }).catch((err) => {
+          core5.warning(`Failed to add e2e config: ${err}`);
+        });
+      }
       if (!mergeAttempted && conditions2.prNumber && conditions2.prState === "open" && conditions2.ciPassed && conditions2.reviewApproved && !conditions2.prMerged) {
         mergeAttempted = true;
         mergePR(owner, repo, conditions2.prNumber).catch((err) => {
@@ -35623,12 +35786,24 @@ Diagnosis Result:`);
       const fixtureJson = getOptionalInput("fixture_json");
       const timeoutMs = parseInt(getOptionalInput("timeout") || "900", 10) * 1e3;
       const pollIntervalMs = parseInt(getOptionalInput("poll_interval") || "15", 10) * 1e3;
+      const e2eRunId = getOptionalInput("e2e_run_id");
       const fixture = fixtureJson ? JSON.parse(fixtureJson) : { name: "wait-phase", description: "Wait for phase" };
       const phaseExpectation = fixture.expected?.phases?.[phaseNumber - 1];
+      const e2eConfig = e2eRunId ? {
+        runId: e2eRunId,
+        outcomes: fixture.e2e_outcomes || {
+          ci: ["success"],
+          release: ["success"],
+          review: ["approved"]
+        }
+      } : void 0;
       core6.info(`=== Claude Test Runner ===`);
       core6.info(`Action: wait-phase`);
       core6.info(`Issue: #${issueNumber}`);
       core6.info(`Phase: ${phaseNumber}`);
+      if (e2eConfig) {
+        core6.info(`E2E Run ID: ${e2eConfig.runId}`);
+      }
       const result = await waitForPhase({
         octokit,
         owner,
@@ -35638,7 +35813,8 @@ Diagnosis Result:`);
         projectNumber,
         timeoutMs,
         pollIntervalMs,
-        expectations: phaseExpectation
+        expectations: phaseExpectation,
+        e2eConfig
       });
       setOutputs({
         success: String(result.success),

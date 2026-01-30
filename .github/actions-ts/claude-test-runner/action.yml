@@ -37,6 +37,9 @@ inputs:
     description: 'Whether to trigger cleanup on test failure'
     required: false
     default: 'false'
+  e2e_run_id:
+    description: 'E2E test workflow run ID (enables e2e mode - adds config file to branch)'
+    required: false
 
 outputs:
   status:

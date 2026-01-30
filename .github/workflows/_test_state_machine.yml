@@ -475,6 +475,7 @@ jobs:
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
           timeout: '3600'
           poll_interval: '15'
+          e2e_run_id: ${{ github.run_id }}
 
       - name: Simulate human merge if needed
         if: steps.wait-phase.outputs.pr_state == 'open' || steps.wait-phase.outputs.pr_state == 'draft'

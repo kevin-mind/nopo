@@ -294,6 +294,7 @@ async function run(): Promise<void> {
         parseInt(getOptionalInput("timeout") || "900", 10) * 1000;
       const pollIntervalMs =
         parseInt(getOptionalInput("poll_interval") || "15", 10) * 1000;
+      const e2eRunId = getOptionalInput("e2e_run_id");
 
       const fixture: TestFixture = fixtureJson
         ? JSON.parse(fixtureJson)
@@ -302,10 +303,25 @@ async function run(): Promise<void> {
       // Get phase-specific expectations if available
       const phaseExpectation = fixture.expected?.phases?.[phaseNumber - 1];
 
+      // Build e2e config from fixture if e2e_run_id is provided
+      const e2eConfig = e2eRunId
+        ? {
+            runId: e2eRunId,
+            outcomes: fixture.e2e_outcomes || {
+              ci: ["success"],
+              release: ["success"],
+              review: ["approved"],
+            },
+          }
+        : undefined;
+
       core.info(`=== Claude Test Runner ===`);
       core.info(`Action: wait-phase`);
       core.info(`Issue: #${issueNumber}`);
       core.info(`Phase: ${phaseNumber}`);
+      if (e2eConfig) {
+        core.info(`E2E Run ID: ${e2eConfig.runId}`);
+      }
 
       const result = await waitForPhase({
         octokit,
@@ -317,6 +333,7 @@ async function run(): Promise<void> {
         timeoutMs,
         pollIntervalMs,
         expectations: phaseExpectation,
+        e2eConfig,
       });
 
       setOutputs({

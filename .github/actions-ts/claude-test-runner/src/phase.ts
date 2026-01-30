@@ -464,6 +464,15 @@ function verifyPhaseExpectations(
   return errors;
 }
 
+interface E2EConfig {
+  runId: string;
+  outcomes: {
+    ci: string[];
+    release: string[];
+    review: string[];
+  };
+}
+
 interface WaitForPhaseOptions {
   octokit: OctokitType;
   owner: string;
@@ -474,6 +483,203 @@ interface WaitForPhaseOptions {
   timeoutMs?: number;
   pollIntervalMs?: number;
   expectations?: PhaseExpectation;
+  e2eConfig?: E2EConfig;
+}
+
+/**
+ * Add e2e config file to a branch using gh CLI
+ */
+async function addE2EConfigToBranch(
+  owner: string,
+  repo: string,
+  branchName: string,
+  config: E2EConfig,
+): Promise<boolean> {
+  try {
+    const configContent = JSON.stringify(
+      {
+        run_id: config.runId,
+        outcomes: config.outcomes,
+        created_at: new Date().toISOString(),
+      },
+      null,
+      2,
+    );
+
+    core.info(`📝 Adding e2e config to branch ${branchName}...`);
+
+    // Create a temporary file with the config content
+    const tempFile = `/tmp/e2e-test-config-${Date.now()}.json`;
+    await exec.exec("bash", [
+      "-c",
+      `echo '${configContent.replace(/'/g, "'\\''")}' > ${tempFile}`,
+    ]);
+
+    // Use gh api to create the file on the branch
+    // First get the current commit SHA
+    let stdout = "";
+    await exec.exec(
+      "gh",
+      [
+        "api",
+        `repos/${owner}/${repo}/git/ref/heads/${branchName}`,
+        "--jq",
+        ".object.sha",
+      ],
+      {
+        listeners: {
+          stdout: (data) => {
+            stdout += data.toString();
+          },
+        },
+      },
+    );
+    const currentSha = stdout.trim();
+
+    // Get the current tree
+    stdout = "";
+    await exec.exec(
+      "gh",
+      [
+        "api",
+        `repos/${owner}/${repo}/git/commits/${currentSha}`,
+        "--jq",
+        ".tree.sha",
+      ],
+      {
+        listeners: {
+          stdout: (data) => {
+            stdout += data.toString();
+          },
+        },
+      },
+    );
+    const treeSha = stdout.trim();
+
+    // Create a blob with the config content
+    stdout = "";
+    await exec.exec(
+      "gh",
+      [
+        "api",
+        `repos/${owner}/${repo}/git/blobs`,
+        "-X",
+        "POST",
+        "-f",
+        `content=${Buffer.from(configContent).toString("base64")}`,
+        "-f",
+        "encoding=base64",
+        "--jq",
+        ".sha",
+      ],
+      {
+        listeners: {
+          stdout: (data) => {
+            stdout += data.toString();
+          },
+        },
+      },
+    );
+    const blobSha = stdout.trim();
+
+    // Create a new tree with the config file
+    stdout = "";
+    await exec.exec(
+      "gh",
+      [
+        "api",
+        `repos/${owner}/${repo}/git/trees`,
+        "-X",
+        "POST",
+        "-f",
+        `base_tree=${treeSha}`,
+        "-f",
+        `tree[][path]=.github/e2e-test-config.json`,
+        "-f",
+        `tree[][mode]=100644`,
+        "-f",
+        `tree[][type]=blob`,
+        "-f",
+        `tree[][sha]=${blobSha}`,
+        "--jq",
+        ".sha",
+      ],
+      {
+        listeners: {
+          stdout: (data) => {
+            stdout += data.toString();
+          },
+        },
+      },
+    );
+    const newTreeSha = stdout.trim();
+
+    // Create a new commit
+    stdout = "";
+    await exec.exec(
+      "gh",
+      [
+        "api",
+        `repos/${owner}/${repo}/git/commits`,
+        "-X",
+        "POST",
+        "-f",
+        `message=chore: add e2e test config [skip ci]`,
+        "-f",
+        `tree=${newTreeSha}`,
+        "-f",
+        `parents[]=${currentSha}`,
+        "--jq",
+        ".sha",
+      ],
+      {
+        listeners: {
+          stdout: (data) => {
+            stdout += data.toString();
+          },
+        },
+      },
+    );
+    const newCommitSha = stdout.trim();
+
+    // Update the branch ref
+    await exec.exec("gh", [
+      "api",
+      `repos/${owner}/${repo}/git/refs/heads/${branchName}`,
+      "-X",
+      "PATCH",
+      "-f",
+      `sha=${newCommitSha}`,
+    ]);
+
+    core.info(`✅ E2E config added to branch ${branchName}`);
+    return true;
+  } catch (error) {
+    core.warning(`Failed to add e2e config to branch: ${error}`);
+    return false;
+  }
+}
+
+/**
+ * Check if e2e config file exists on a branch (for future verification)
+ */
+async function _checkE2EConfigExists(
+  owner: string,
+  repo: string,
+  branchName: string,
+): Promise<boolean> {
+  try {
+    await exec.exec("gh", [
+      "api",
+      `repos/${owner}/${repo}/contents/.github/e2e-test-config.json`,
+      "-F",
+      `ref=${branchName}`,
+      "--silent",
+    ]);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -518,6 +724,7 @@ export async function waitForPhase(
     timeoutMs = 900000, // 15 minutes default
     pollIntervalMs = 15000, // 15 seconds default
     expectations,
+    e2eConfig,
   } = options;
 
   const startTime = Date.now();
@@ -528,6 +735,9 @@ export async function waitForPhase(
   core.info(
     `Timeout: ${timeoutMs / 1000}s, Poll interval: ${pollIntervalMs / 1000}s`,
   );
+  if (e2eConfig) {
+    core.info(`E2E mode: run_id=${e2eConfig.runId}`);
+  }
 
   // Track previous state for change detection (unused but kept for future use)
   let _prevState = {
@@ -543,6 +753,9 @@ export async function waitForPhase(
 
   // Track if we've attempted to merge
   let mergeAttempted = false;
+
+  // Track if we've added the e2e config file
+  let e2eConfigAdded = false;
 
   const pollResult = await pollUntil<PhaseConditions>(
     () =>
@@ -610,6 +823,29 @@ export async function waitForPhase(
         issueClosed: conditions.issueClosed,
         issueStatus: conditions.issueStatus,
       };
+
+      // Add e2e config file when branch is first detected (before CI runs)
+      // This ensures CI can detect e2e mode and skip expensive jobs
+      if (
+        !e2eConfigAdded &&
+        e2eConfig &&
+        conditions.branchExists &&
+        conditions.branchName &&
+        conditions.prOpened &&
+        conditions.prState === "draft" // Only add when PR is still draft (before ready for review)
+      ) {
+        e2eConfigAdded = true;
+        // Fire and forget - the config will be added async
+        addE2EConfigToBranch(owner, repo, conditions.branchName, e2eConfig)
+          .then((success) => {
+            if (success) {
+              core.info(`✅ E2E config added - CI will skip expensive jobs`);
+            }
+          })
+          .catch((err) => {
+            core.warning(`Failed to add e2e config: ${err}`);
+          });
+      }
 
       // Trigger merge when conditions are met (simulating human action)
       // Conditions: PR open (not draft), CI passed, review approved, not yet merged
