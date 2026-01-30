@@ -431,8 +431,9 @@ jobs:
 
           phase=1
           for sub_issue in $sub_issues; do
-            branch_name="claude/issue/${PARENT_ISSUE}/phase-${phase}"
-            echo "Creating branch: $branch_name"
+            # Branch name uses sub-issue number (matches state machine pattern)
+            branch_name="claude/issue/${sub_issue}/phase-${phase}"
+            echo "Creating branch: $branch_name for sub-issue #$sub_issue"
 
             # Create blob with e2e config
             blob_sha=$(echo "$config" | gh api repos/$GITHUB_REPOSITORY/git/blobs \
