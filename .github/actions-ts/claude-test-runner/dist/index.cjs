@@ -34468,12 +34468,15 @@ var SubIssueSchema2 = external_exports.object({
   title: external_exports.string().min(1, "Sub-issue title is required"),
   body: external_exports.string().min(1, "Sub-issue body is required"),
   project_fields: external_exports.object({
-    Status: external_exports.string().optional()
+    Status: external_exports.string().optional(),
+    Iteration: external_exports.number().int().min(0).optional(),
+    Failures: external_exports.number().int().min(0).optional()
   }).strict().optional()
 }).strict();
 var BranchSchema = external_exports.object({
   name: external_exports.string().min(1, "Branch name is required"),
   from: external_exports.string().min(1, "Base branch is required"),
+  link_to_sub_issue: external_exports.boolean().optional(),
   commits: external_exports.array(
     external_exports.object({
       message: external_exports.string().min(1, "Commit message is required"),
@@ -34524,7 +34527,9 @@ var PhaseExpectationSchema = external_exports.object({
   pr_title_contains: external_exports.string().optional(),
   ci_required: external_exports.boolean().optional(),
   review_required: external_exports.boolean().optional(),
-  deploy_required: external_exports.boolean().optional()
+  deploy_required: external_exports.boolean().optional(),
+  pr_merged: external_exports.boolean().optional(),
+  issue_closed: external_exports.boolean().optional()
 }).strict();
 var CompletionExpectationSchema = external_exports.object({
   parent_status: external_exports.string().optional(),

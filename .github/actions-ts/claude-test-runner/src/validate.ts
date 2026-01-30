@@ -39,6 +39,8 @@ const SubIssueSchema = z
     project_fields: z
       .object({
         Status: z.string().optional(),
+        Iteration: z.number().int().min(0).optional(),
+        Failures: z.number().int().min(0).optional(),
       })
       .strict()
       .optional(),
@@ -52,6 +54,7 @@ const BranchSchema = z
   .object({
     name: z.string().min(1, "Branch name is required"),
     from: z.string().min(1, "Base branch is required"),
+    link_to_sub_issue: z.boolean().optional(),
     commits: z
       .array(
         z
@@ -149,6 +152,8 @@ const PhaseExpectationSchema = z
     ci_required: z.boolean().optional(),
     review_required: z.boolean().optional(),
     deploy_required: z.boolean().optional(),
+    pr_merged: z.boolean().optional(),
+    issue_closed: z.boolean().optional(),
   })
   .strict();
 
