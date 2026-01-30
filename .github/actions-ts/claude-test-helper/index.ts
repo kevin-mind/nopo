@@ -1874,69 +1874,23 @@ async function resetIssue(
 }
 
 /**
- * Close an issue and all its sub-issues, setting statuses to Done
+ * Close an issue and all its sub-issues
  *
  * This is useful for quickly closing an issue tree without going through
  * the normal workflow.
+ *
+ * Note: We only close issues here - GitHub Project automations will
+ * automatically update the Status field when issues are closed.
  */
 async function closeIssueAndSubIssues(
   octokit: ReturnType<typeof github.getOctokit>,
   owner: string,
   repo: string,
   issueNumber: number,
-  projectNumber: number,
+  _projectNumber: number,
 ): Promise<{ close_count: number }> {
   core.info(`Closing issue #${issueNumber} and all sub-issues`);
   let closeCount = 0;
-
-  // Get project fields
-  interface ProjectQueryResponse {
-    organization?: {
-      projectV2?: unknown;
-    };
-  }
-
-  let projectFields: ProjectFields | null = null;
-
-  try {
-    const projectResponse = await octokit.graphql<ProjectQueryResponse>(
-      `query GetProjectFields($org: String!, $projectNumber: Int!) {
-        organization(login: $org) {
-          projectV2(number: $projectNumber) {
-            id
-            fields(first: 20) {
-              nodes {
-                ... on ProjectV2SingleSelectField {
-                  id
-                  name
-                  options {
-                    id
-                    name
-                  }
-                }
-                ... on ProjectV2Field {
-                  id
-                  name
-                  dataType
-                }
-              }
-            }
-          }
-        }
-      }`,
-      {
-        org: owner,
-        projectNumber,
-      },
-    );
-
-    const projectData = projectResponse.organization?.projectV2;
-    projectFields = parseProjectFields(projectData);
-  } catch (error) {
-    core.warning(
-      `Could not access project #${projectNumber}: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
 
   // Get sub-issues first
   interface SubIssuesResponse {
@@ -1964,21 +1918,10 @@ async function closeIssueAndSubIssues(
   const subIssues = subResponse.repository?.issue?.subIssues?.nodes || [];
 
   // Close all sub-issues first
+  // Note: We only close issues here - GitHub Project automations will
+  // automatically update the Status field when issues are closed
   for (const subIssue of subIssues) {
     if (subIssue.number) {
-      // Set status to Done
-      if (projectFields) {
-        await setIssueProjectStatus(
-          octokit,
-          owner,
-          repo,
-          subIssue.number,
-          "Done",
-          projectFields,
-        );
-        core.info(`Set sub-issue #${subIssue.number} status to Done`);
-      }
-
       // Close if open
       const { data: subIssueData } = await octokit.rest.issues.get({
         owner,
@@ -2000,18 +1943,8 @@ async function closeIssueAndSubIssues(
     }
   }
 
-  // Set parent status to Done
-  if (projectFields) {
-    await setIssueProjectStatus(
-      octokit,
-      owner,
-      repo,
-      issueNumber,
-      "Done",
-      projectFields,
-    );
-    core.info(`Set parent issue #${issueNumber} status to Done`);
-  }
+  // Note: We don't set project status here - GitHub Project automations
+  // will automatically update Status to Done when issues are closed
 
   // Close parent issue
   const { data: issue } = await octokit.rest.issues.get({

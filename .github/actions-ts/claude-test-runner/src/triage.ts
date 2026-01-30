@@ -25,6 +25,12 @@ interface OctokitType {
         repo: string;
         issue_number: number;
       }) => Promise<{ data: IssueData }>;
+      addLabels: (params: {
+        owner: string;
+        repo: string;
+        issue_number: number;
+        labels: string[];
+      }) => Promise<unknown>;
     };
     actions: {
       listWorkflowRunsForRepo: (params: {
@@ -66,6 +72,7 @@ interface TriageState {
     Status?: string;
   };
   subIssueCount: number;
+  subIssueNumbers: number[];
   issueState: string;
 }
 
@@ -117,6 +124,9 @@ query GetIssueWithProject($owner: String!, $repo: String!, $number: Int!) {
       }
       subIssues(first: 20) {
         totalCount
+        nodes {
+          number
+        }
       }
     }
   }
@@ -154,6 +164,7 @@ interface IssueQueryResponse {
       };
       subIssues?: {
         totalCount?: number;
+        nodes?: Array<{ number?: number }>;
       };
     };
   };
@@ -235,6 +246,7 @@ async function fetchTriageState(
       labels: [],
       projectFields: {},
       subIssueCount: 0,
+      subIssueNumbers: [],
       issueState: "unknown",
     };
   }
@@ -269,11 +281,18 @@ async function fetchTriageState(
     }
   }
 
+  // Extract sub-issue numbers
+  const subIssueNumbers =
+    issue.subIssues?.nodes
+      ?.map((n) => n.number)
+      .filter((n): n is number => n !== undefined) || [];
+
   return {
     hasTriagedLabel,
     labels,
     projectFields,
     subIssueCount: issue.subIssues?.totalCount || 0,
+    subIssueNumbers,
     issueState: issue.state || "unknown",
   };
 }
@@ -357,6 +376,42 @@ function verifyTriageExpectations(
   }
 
   return errors;
+}
+
+/**
+ * Add _e2e label to sub-issues created by triage
+ *
+ * This ensures cleanup can find and clean up sub-issues created by triage
+ * (when the fixture doesn't define sub_issues explicitly)
+ */
+async function labelSubIssuesForE2E(
+  octokit: OctokitType,
+  owner: string,
+  repo: string,
+  subIssueNumbers: number[],
+): Promise<void> {
+  if (subIssueNumbers.length === 0) {
+    return;
+  }
+
+  core.info(`Adding _e2e label to ${subIssueNumbers.length} sub-issue(s)...`);
+
+  for (const issueNumber of subIssueNumbers) {
+    try {
+      await octokit.rest.issues.addLabels({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        labels: ["_e2e"],
+      });
+      core.info(`  ✅ Added _e2e label to sub-issue #${issueNumber}`);
+    } catch (error) {
+      // Log but don't fail - the label might already exist
+      core.warning(
+        `  ⚠️ Could not add _e2e label to sub-issue #${issueNumber}: ${error}`,
+      );
+    }
+  }
 }
 
 interface WaitForTriageOptions {
@@ -509,6 +564,12 @@ export async function waitForTriage(
   }
 
   const state = pollResult.data;
+
+  // Add _e2e label to any sub-issues created by triage
+  // This ensures cleanup can find them even if the fixture didn't define sub_issues
+  if (state.subIssueNumbers.length > 0) {
+    await labelSubIssuesForE2E(octokit, owner, repo, state.subIssueNumbers);
+  }
 
   // Verify expectations
   const errors = verifyTriageExpectations(state, expectations);

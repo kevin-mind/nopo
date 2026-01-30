@@ -19740,10 +19740,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.error = error3;
-    function warning5(message, properties = {}) {
+    function warning6(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning5;
+    exports2.warning = warning6;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
@@ -34713,8 +34713,8 @@ function formatValidationResult(name, result) {
   }
   if (result.warnings.length > 0) {
     lines.push("  Warnings:");
-    for (const warning5 of result.warnings) {
-      lines.push(`    - ${warning5}`);
+    for (const warning6 of result.warnings) {
+      lines.push(`    - ${warning6}`);
     }
   }
   return lines.join("\n");
@@ -34770,6 +34770,9 @@ query GetIssueWithProject($owner: String!, $repo: String!, $number: Int!) {
       }
       subIssues(first: 20) {
         totalCount
+        nodes {
+          number
+        }
       }
     }
   }
@@ -34822,6 +34825,7 @@ async function fetchTriageState(octokit, owner, repo, issueNumber, projectNumber
       labels: [],
       projectFields: {},
       subIssueCount: 0,
+      subIssueNumbers: [],
       issueState: "unknown"
     };
   }
@@ -34846,11 +34850,13 @@ async function fetchTriageState(octokit, owner, repo, issueNumber, projectNumber
       }
     }
   }
+  const subIssueNumbers = issue.subIssues?.nodes?.map((n) => n.number).filter((n) => n !== void 0) || [];
   return {
     hasTriagedLabel,
     labels,
     projectFields,
     subIssueCount: issue.subIssues?.totalCount || 0,
+    subIssueNumbers,
     issueState: issue.state || "unknown"
   };
 }
@@ -34909,6 +34915,27 @@ function verifyTriageExpectations(state, expectations) {
     }
   }
   return errors;
+}
+async function labelSubIssuesForE2E(octokit, owner, repo, subIssueNumbers) {
+  if (subIssueNumbers.length === 0) {
+    return;
+  }
+  core4.info(`Adding _e2e label to ${subIssueNumbers.length} sub-issue(s)...`);
+  for (const issueNumber of subIssueNumbers) {
+    try {
+      await octokit.rest.issues.addLabels({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        labels: ["_e2e"]
+      });
+      core4.info(`  \u2705 Added _e2e label to sub-issue #${issueNumber}`);
+    } catch (error3) {
+      core4.warning(
+        `  \u26A0\uFE0F Could not add _e2e label to sub-issue #${issueNumber}: ${error3}`
+      );
+    }
+  }
 }
 async function waitForTriage(options) {
   const {
@@ -35025,6 +35052,9 @@ async function waitForTriage(options) {
     };
   }
   const state = pollResult.data;
+  if (state.subIssueNumbers.length > 0) {
+    await labelSubIssuesForE2E(octokit, owner, repo, state.subIssueNumbers);
+  }
   const errors = verifyTriageExpectations(state, expectations);
   core4.info(
     `

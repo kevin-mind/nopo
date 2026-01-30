@@ -25169,48 +25169,9 @@ async function resetIssue(octokit, owner, repo, issueNumber, projectNumber) {
   core2.info(`Reset complete: ${resetCount} issues re-opened, statuses updated`);
   return { reset_count: resetCount };
 }
-async function closeIssueAndSubIssues(octokit, owner, repo, issueNumber, projectNumber) {
+async function closeIssueAndSubIssues(octokit, owner, repo, issueNumber, _projectNumber) {
   core2.info(`Closing issue #${issueNumber} and all sub-issues`);
   let closeCount = 0;
-  let projectFields = null;
-  try {
-    const projectResponse = await octokit.graphql(
-      `query GetProjectFields($org: String!, $projectNumber: Int!) {
-        organization(login: $org) {
-          projectV2(number: $projectNumber) {
-            id
-            fields(first: 20) {
-              nodes {
-                ... on ProjectV2SingleSelectField {
-                  id
-                  name
-                  options {
-                    id
-                    name
-                  }
-                }
-                ... on ProjectV2Field {
-                  id
-                  name
-                  dataType
-                }
-              }
-            }
-          }
-        }
-      }`,
-      {
-        org: owner,
-        projectNumber
-      }
-    );
-    const projectData = projectResponse.organization?.projectV2;
-    projectFields = parseProjectFields(projectData);
-  } catch (error) {
-    core2.warning(
-      `Could not access project #${projectNumber}: ${error instanceof Error ? error.message : String(error)}`
-    );
-  }
   const subResponse = await octokit.graphql(
     GET_SUB_ISSUES_QUERY,
     {
@@ -25222,17 +25183,6 @@ async function closeIssueAndSubIssues(octokit, owner, repo, issueNumber, project
   const subIssues = subResponse.repository?.issue?.subIssues?.nodes || [];
   for (const subIssue of subIssues) {
     if (subIssue.number) {
-      if (projectFields) {
-        await setIssueProjectStatus(
-          octokit,
-          owner,
-          repo,
-          subIssue.number,
-          "Done",
-          projectFields
-        );
-        core2.info(`Set sub-issue #${subIssue.number} status to Done`);
-      }
       const { data: subIssueData } = await octokit.rest.issues.get({
         owner,
         repo,
@@ -25250,17 +25200,6 @@ async function closeIssueAndSubIssues(octokit, owner, repo, issueNumber, project
         closeCount++;
       }
     }
-  }
-  if (projectFields) {
-    await setIssueProjectStatus(
-      octokit,
-      owner,
-      repo,
-      issueNumber,
-      "Done",
-      projectFields
-    );
-    core2.info(`Set parent issue #${issueNumber} status to Done`);
   }
   const { data: issue } = await octokit.rest.issues.get({
     owner,
