@@ -130,12 +130,19 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "backend.mysite.wsgi.application"
 
+# Database connection pool configuration
+# These settings control persistent database connections for better performance
+# CONN_MAX_AGE: Maximum lifetime (seconds) of a database connection. 0 = close after each request
+# DB_CONN_HEALTH_CHECKS: Enable health checks on persistent connections (recommended)
+CONN_MAX_AGE = int(os.environ.get("CONN_MAX_AGE", "600"))
+DB_CONN_HEALTH_CHECKS = os.environ.get("DB_CONN_HEALTH_CHECKS", "true").lower() == "true"
+
 # Database configuration
 # Use dj_database_url if DATABASE_URL is set, otherwise fall back to SQLite for tests
 # dj_database_url parses the DATABASE_URL environment variable automatically
 db_config = dj_database_url.config(
-    conn_max_age=600,
-    conn_health_checks=True,
+    conn_max_age=CONN_MAX_AGE,
+    conn_health_checks=DB_CONN_HEALTH_CHECKS,
     ssl_require=os.environ.get("DATABASE_SSL", "false") == "true",
     test_options={
         "NAME": "test_database",
