@@ -46,10 +46,10 @@ on:
         type: string
         default: ''
 
-# Only one E2E test at a time - queue don't cancel
+# Only one E2E test at a time - new runs cancel old ones
 concurrency:
   group: e2e-test
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   contents: write
