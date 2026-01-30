@@ -3,6 +3,7 @@
  */
 
 import * as core from "@actions/core";
+import * as exec from "@actions/exec";
 import type { PollerConfig, PollResult } from "./types.js";
 
 /**
@@ -19,11 +20,20 @@ export const DEFAULT_POLLER_CONFIG: PollerConfig = {
 // Global abort controller for graceful shutdown
 let globalAbortController: AbortController | null = null;
 
+// Store the current workflow run ID for cancellation checking
+let currentWorkflowRunId: string | null = null;
+
 /**
  * Setup signal handlers for graceful cancellation
  */
 export function setupCancellationHandlers(): AbortController {
   globalAbortController = new AbortController();
+
+  // Store the workflow run ID from environment
+  currentWorkflowRunId = process.env.GITHUB_RUN_ID || null;
+  if (currentWorkflowRunId) {
+    core.debug(`Cancellation handler: tracking run ${currentWorkflowRunId}`);
+  }
 
   const handleSignal = (signal: string) => {
     core.info(`\n⚠️  Received ${signal} signal - cancelling polling...`);
@@ -35,6 +45,59 @@ export function setupCancellationHandlers(): AbortController {
   process.on("SIGTERM", () => handleSignal("SIGTERM"));
 
   return globalAbortController;
+}
+
+/**
+ * Check if the current workflow run has been cancelled via GitHub API
+ * This is more reliable than signal handlers in containerized environments
+ */
+async function isWorkflowCancelled(): Promise<boolean> {
+  if (!currentWorkflowRunId) {
+    return false;
+  }
+
+  const repoFullName = process.env.GITHUB_REPOSITORY;
+  if (!repoFullName) {
+    return false;
+  }
+
+  try {
+    let stdout = "";
+    const exitCode = await exec.exec(
+      "gh",
+      [
+        "api",
+        `repos/${repoFullName}/actions/runs/${currentWorkflowRunId}`,
+        "--jq",
+        ".status",
+      ],
+      {
+        listeners: {
+          stdout: (data) => {
+            stdout += data.toString();
+          },
+        },
+        silent: true,
+        ignoreReturnCode: true,
+      },
+    );
+
+    if (exitCode !== 0) {
+      return false;
+    }
+
+    const status = stdout.trim();
+    // If status is not "in_progress", workflow was cancelled or completed elsewhere
+    if (status === "cancelled" || status === "completed") {
+      core.info(`🛑 Workflow run ${currentWorkflowRunId} status: ${status}`);
+      return true;
+    }
+
+    return false;
+  } catch {
+    // If we can't check, assume not cancelled
+    return false;
+  }
 }
 
 /**
@@ -120,11 +183,23 @@ export async function pollUntil<T>(
   let cancelled = false;
 
   while (Date.now() - startTime < fullConfig.timeoutMs) {
-    // Check for cancellation
+    // Check for cancellation via signal
     if (abortSignal?.aborted) {
       cancelled = true;
       core.info("🛑 Polling cancelled by signal");
       break;
+    }
+
+    // Check for cancellation via GitHub API every 5 attempts
+    // This catches cases where signals don't propagate properly
+    if (attempts > 0 && attempts % 5 === 0) {
+      const workflowCancelled = await isWorkflowCancelled();
+      if (workflowCancelled) {
+        cancelled = true;
+        core.info("🛑 Polling cancelled - workflow run no longer in progress");
+        globalAbortController?.abort();
+        break;
+      }
     }
 
     attempts++;

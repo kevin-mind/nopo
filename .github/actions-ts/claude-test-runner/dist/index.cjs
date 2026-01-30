@@ -398,7 +398,7 @@ var require_tunnel = __commonJS({
         connectOptions.headers = connectOptions.headers || {};
         connectOptions.headers["Proxy-Authorization"] = "Basic " + new Buffer(connectOptions.proxyAuth).toString("base64");
       }
-      debug4("making CONNECT request");
+      debug5("making CONNECT request");
       var connectReq = self2.request(connectOptions);
       connectReq.useChunkedEncodingByDefault = false;
       connectReq.once("response", onResponse);
@@ -418,7 +418,7 @@ var require_tunnel = __commonJS({
         connectReq.removeAllListeners();
         socket.removeAllListeners();
         if (res.statusCode !== 200) {
-          debug4(
+          debug5(
             "tunneling socket could not be established, statusCode=%d",
             res.statusCode
           );
@@ -430,7 +430,7 @@ var require_tunnel = __commonJS({
           return;
         }
         if (head.length > 0) {
-          debug4("got illegal response body from proxy");
+          debug5("got illegal response body from proxy");
           socket.destroy();
           var error3 = new Error("got illegal response body from proxy");
           error3.code = "ECONNRESET";
@@ -438,13 +438,13 @@ var require_tunnel = __commonJS({
           self2.removeSocket(placeholder);
           return;
         }
-        debug4("tunneling connection has established");
+        debug5("tunneling connection has established");
         self2.sockets[self2.sockets.indexOf(placeholder)] = socket;
         return cb(socket);
       }
       function onError(cause) {
         connectReq.removeAllListeners();
-        debug4(
+        debug5(
           "tunneling socket could not be established, cause=%s\n",
           cause.message,
           cause.stack
@@ -506,9 +506,9 @@ var require_tunnel = __commonJS({
       }
       return target;
     }
-    var debug4;
+    var debug5;
     if (process.env.NODE_DEBUG && /\btunnel\b/.test(process.env.NODE_DEBUG)) {
-      debug4 = function() {
+      debug5 = function() {
         var args = Array.prototype.slice.call(arguments);
         if (typeof args[0] === "string") {
           args[0] = "TUNNEL: " + args[0];
@@ -518,10 +518,10 @@ var require_tunnel = __commonJS({
         console.error.apply(console, args);
       };
     } else {
-      debug4 = function() {
+      debug5 = function() {
       };
     }
-    exports2.debug = debug4;
+    exports2.debug = debug5;
   }
 });
 
@@ -19416,7 +19416,7 @@ var require_exec = __commonJS({
     exports2.getExecOutput = exports2.exec = void 0;
     var string_decoder_1 = require("string_decoder");
     var tr = __importStar(require_toolrunner());
-    function exec5(commandLine, args, options) {
+    function exec7(commandLine, args, options) {
       return __awaiter(this, void 0, void 0, function* () {
         const commandArgs = tr.argStringToArray(commandLine);
         if (commandArgs.length === 0) {
@@ -19428,7 +19428,7 @@ var require_exec = __commonJS({
         return runner.exec();
       });
     }
-    exports2.exec = exec5;
+    exports2.exec = exec7;
     function getExecOutput(commandLine, args, options) {
       var _a, _b;
       return __awaiter(this, void 0, void 0, function* () {
@@ -19451,7 +19451,7 @@ var require_exec = __commonJS({
           }
         };
         const listeners = Object.assign(Object.assign({}, options === null || options === void 0 ? void 0 : options.listeners), { stdout: stdOutListener, stderr: stdErrListener });
-        const exitCode = yield exec5(commandLine, args, Object.assign(Object.assign({}, options), { listeners }));
+        const exitCode = yield exec7(commandLine, args, Object.assign(Object.assign({}, options), { listeners }));
         stdout += stdoutDecoder.end();
         stderr += stderrDecoder.end();
         return {
@@ -19529,12 +19529,12 @@ var require_platform = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getDetails = exports2.isLinux = exports2.isMacOS = exports2.isWindows = exports2.arch = exports2.platform = void 0;
     var os_1 = __importDefault(require("os"));
-    var exec5 = __importStar(require_exec());
+    var exec7 = __importStar(require_exec());
     var getWindowsInfo = () => __awaiter(void 0, void 0, void 0, function* () {
-      const { stdout: version } = yield exec5.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Version"', void 0, {
+      const { stdout: version } = yield exec7.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Version"', void 0, {
         silent: true
       });
-      const { stdout: name } = yield exec5.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Caption"', void 0, {
+      const { stdout: name } = yield exec7.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Caption"', void 0, {
         silent: true
       });
       return {
@@ -19544,7 +19544,7 @@ var require_platform = __commonJS({
     });
     var getMacOsInfo = () => __awaiter(void 0, void 0, void 0, function* () {
       var _a, _b, _c, _d;
-      const { stdout } = yield exec5.getExecOutput("sw_vers", void 0, {
+      const { stdout } = yield exec7.getExecOutput("sw_vers", void 0, {
         silent: true
       });
       const version = (_b = (_a = stdout.match(/ProductVersion:\s*(.+)/)) === null || _a === void 0 ? void 0 : _a[1]) !== null && _b !== void 0 ? _b : "";
@@ -19555,7 +19555,7 @@ var require_platform = __commonJS({
       };
     });
     var getLinuxInfo = () => __awaiter(void 0, void 0, void 0, function* () {
-      const { stdout } = yield exec5.getExecOutput("lsb_release", ["-i", "-r", "-s"], {
+      const { stdout } = yield exec7.getExecOutput("lsb_release", ["-i", "-r", "-s"], {
         silent: true
       });
       const [name, version] = stdout.trim().split("\n");
@@ -19732,10 +19732,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       return process.env["RUNNER_DEBUG"] === "1";
     }
     exports2.isDebug = isDebug;
-    function debug4(message) {
+    function debug5(message) {
       (0, command_1.issueCommand)("debug", {}, message);
     }
-    exports2.debug = debug4;
+    exports2.debug = debug5;
     function error3(message, properties = {}) {
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
@@ -23909,6 +23909,7 @@ var core3 = __toESM(require_core(), 1);
 
 // claude-test-runner/src/poller.ts
 var core2 = __toESM(require_core(), 1);
+var exec3 = __toESM(require_exec(), 1);
 var DEFAULT_POLLER_CONFIG = {
   initialIntervalMs: 5e3,
   maxIntervalMs: 6e4,
@@ -23918,8 +23919,13 @@ var DEFAULT_POLLER_CONFIG = {
   // 5 minutes default
 };
 var globalAbortController = null;
+var currentWorkflowRunId = null;
 function setupCancellationHandlers() {
   globalAbortController = new AbortController();
+  currentWorkflowRunId = process.env.GITHUB_RUN_ID || null;
+  if (currentWorkflowRunId) {
+    core2.debug(`Cancellation handler: tracking run ${currentWorkflowRunId}`);
+  }
   const handleSignal = (signal) => {
     core2.info(`
 \u26A0\uFE0F  Received ${signal} signal - cancelling polling...`);
@@ -23928,6 +23934,47 @@ function setupCancellationHandlers() {
   process.on("SIGINT", () => handleSignal("SIGINT"));
   process.on("SIGTERM", () => handleSignal("SIGTERM"));
   return globalAbortController;
+}
+async function isWorkflowCancelled() {
+  if (!currentWorkflowRunId) {
+    return false;
+  }
+  const repoFullName = process.env.GITHUB_REPOSITORY;
+  if (!repoFullName) {
+    return false;
+  }
+  try {
+    let stdout = "";
+    const exitCode = await exec3.exec(
+      "gh",
+      [
+        "api",
+        `repos/${repoFullName}/actions/runs/${currentWorkflowRunId}`,
+        "--jq",
+        ".status"
+      ],
+      {
+        listeners: {
+          stdout: (data) => {
+            stdout += data.toString();
+          }
+        },
+        silent: true,
+        ignoreReturnCode: true
+      }
+    );
+    if (exitCode !== 0) {
+      return false;
+    }
+    const status = stdout.trim();
+    if (status === "cancelled" || status === "completed") {
+      core2.info(`\u{1F6D1} Workflow run ${currentWorkflowRunId} status: ${status}`);
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
 }
 function getAbortSignal() {
   return globalAbortController?.signal;
@@ -23973,6 +24020,15 @@ async function pollUntil(fetchFn, conditionFn, config = {}, onPoll, signal) {
       cancelled = true;
       core2.info("\u{1F6D1} Polling cancelled by signal");
       break;
+    }
+    if (attempts > 0 && attempts % 5 === 0) {
+      const workflowCancelled = await isWorkflowCancelled();
+      if (workflowCancelled) {
+        cancelled = true;
+        core2.info("\u{1F6D1} Polling cancelled - workflow run no longer in progress");
+        globalAbortController?.abort();
+        break;
+      }
     }
     attempts++;
     try {
@@ -24573,7 +24629,7 @@ var Actor = class {
         }
       },
       actionExecutor: (action) => {
-        const exec5 = () => {
+        const exec7 = () => {
           this._actorScope.system._sendInspectionEvent({
             type: "@xstate.action",
             actorRef: this,
@@ -24594,9 +24650,9 @@ var Actor = class {
           }
         };
         if (this._processingStatus === ProcessingStatus.Running) {
-          exec5();
+          exec7();
         } else {
-          this._deferred.push(exec5);
+          this._deferred.push(exec7);
         }
       }
     };
@@ -35007,7 +35063,7 @@ async function waitForTriage(options) {
 
 // claude-test-runner/src/phase.ts
 var core5 = __toESM(require_core(), 1);
-var exec3 = __toESM(require_exec(), 1);
+var exec5 = __toESM(require_exec(), 1);
 var GET_ISSUE_PROJECT_STATUS_QUERY = `
 query GetIssueProjectStatus($owner: String!, $repo: String!, $number: Int!) {
   repository(owner: $owner, name: $repo) {
@@ -35253,12 +35309,12 @@ async function addE2EConfigToBranch(owner, repo, branchName, config) {
     );
     core5.info(`\u{1F4DD} Adding e2e config to branch ${branchName}...`);
     const tempFile = `/tmp/e2e-test-config-${Date.now()}.json`;
-    await exec3.exec("bash", [
+    await exec5.exec("bash", [
       "-c",
       `echo '${configContent.replace(/'/g, "'\\''")}' > ${tempFile}`
     ]);
     let stdout = "";
-    await exec3.exec(
+    await exec5.exec(
       "gh",
       [
         "api",
@@ -35276,7 +35332,7 @@ async function addE2EConfigToBranch(owner, repo, branchName, config) {
     );
     const currentSha = stdout.trim();
     stdout = "";
-    await exec3.exec(
+    await exec5.exec(
       "gh",
       [
         "api",
@@ -35294,7 +35350,7 @@ async function addE2EConfigToBranch(owner, repo, branchName, config) {
     );
     const treeSha = stdout.trim();
     stdout = "";
-    await exec3.exec(
+    await exec5.exec(
       "gh",
       [
         "api",
@@ -35318,7 +35374,7 @@ async function addE2EConfigToBranch(owner, repo, branchName, config) {
     );
     const blobSha = stdout.trim();
     stdout = "";
-    await exec3.exec(
+    await exec5.exec(
       "gh",
       [
         "api",
@@ -35348,7 +35404,7 @@ async function addE2EConfigToBranch(owner, repo, branchName, config) {
     );
     const newTreeSha = stdout.trim();
     stdout = "";
-    await exec3.exec(
+    await exec5.exec(
       "gh",
       [
         "api",
@@ -35373,7 +35429,7 @@ async function addE2EConfigToBranch(owner, repo, branchName, config) {
       }
     );
     const newCommitSha = stdout.trim();
-    await exec3.exec("gh", [
+    await exec5.exec("gh", [
       "api",
       `repos/${owner}/${repo}/git/refs/heads/${branchName}`,
       "-X",
@@ -35391,7 +35447,7 @@ async function addE2EConfigToBranch(owner, repo, branchName, config) {
 async function mergePR(owner, repo, prNumber) {
   try {
     core5.info(`\u{1F500} Merging PR #${prNumber} via merge queue...`);
-    await exec3.exec("gh", [
+    await exec5.exec("gh", [
       "pr",
       "merge",
       String(prNumber),
