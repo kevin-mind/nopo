@@ -1,5 +1,5 @@
 name: Run Claude
-description: Load prompt and run Claude Code
+description: Load prompt and run Claude Code via npx
 
 inputs:
   # Prompt inputs (one of prompt, prompt_file, or prompt_dir is required)
@@ -22,7 +22,7 @@ inputs:
 
   # Required tokens
   github_token:
-    description: GitHub token for API calls and Claude action
+    description: GitHub token for API calls
     required: true
   claude_code_oauth_token:
     description: OAuth token for Claude Code
@@ -42,25 +42,9 @@ inputs:
     required: false
     default: ".claude/settings.json"
   mcp_config:
-    description: Path to MCP configuration file (MCP tools are restricted per-agent via their tools field)
+    description: Path to MCP configuration file
     required: false
     default: ".mcp.json"
-  show_full_output:
-    description: Whether to show full Claude output
-    required: false
-    default: "false"
-  trigger_phrase:
-    description: Trigger phrase for @-mentions (e.g., "@claude")
-    required: false
-    default: ""
-  assignee_trigger:
-    description: Assignee that triggers action (e.g., "nopo-bot")
-    required: false
-    default: ""
-  allowed_bots:
-    description: Comma-separated list of bot usernames allowed to trigger this action (e.g., "github-actions,dependabot")
-    required: false
-    default: ""
 
 outputs:
   success:
@@ -68,7 +52,7 @@ outputs:
     value: ${{ steps.result.outputs.success }}
   structured_output:
     description: Structured JSON output if outputs.json schema was used
-    value: ${{ steps.save_output.outputs.structured_output || steps.claude.outputs.structured_output }}
+    value: ${{ steps.claude.outputs.structured_output }}
 
 runs:
   using: "composite"
@@ -128,92 +112,85 @@ runs:
           done < <(echo "$PROMPT_REPLACEMENTS" | jq -r 'to_entries[] | "\(.key)=\(.value)"')
         fi
 
-        # Save prompt to environment file for multiline content
-        # Using heredoc delimiter for $GITHUB_OUTPUT
-        {
-          echo "prompt<<EOF_PROMPT_CONTENT"
-          echo "$prompt"
-          echo "EOF_PROMPT_CONTENT"
-        } >> "$GITHUB_OUTPUT"
+        # Save prompt to file (avoids shell escaping issues)
+        echo "$prompt" > /tmp/claude-prompt.txt
+        echo "prompt_file=/tmp/claude-prompt.txt" >> "$GITHUB_OUTPUT"
 
         # Save schema if found
         if [[ -n "$output_schema" ]]; then
-          echo "output_schema=$output_schema" >> "$GITHUB_OUTPUT"
+          echo "$output_schema" > /tmp/claude-schema.json
+          echo "has_schema=true" >> "$GITHUB_OUTPUT"
         fi
 
-    # Step 2: Run Claude Code
-    - name: Build Claude args
-      id: claude_args
+    # Step 2: Run Claude via npx
+    - name: Run Claude
+      id: claude
       shell: bash
       env:
-        OUTPUT_SCHEMA: ${{ steps.prompt.outputs.output_schema }}
+        CLAUDE_CODE_OAUTH_TOKEN: ${{ inputs.claude_code_oauth_token }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
       run: |
-        args="--model ${{ inputs.model }} --max-turns ${{ inputs.max_turns }}"
+        # Build CLI arguments
+        ARGS="--print --dangerously-skip-permissions --output-format json"
+        ARGS="$ARGS --model ${{ inputs.model }} --max-turns ${{ inputs.max_turns }}"
 
         # Add MCP config if file exists
         if [[ -n "${{ inputs.mcp_config }}" && -f "${{ inputs.mcp_config }}" ]]; then
-          args="$args --mcp-config ${{ inputs.mcp_config }}"
+          ARGS="$ARGS --mcp-config ${{ inputs.mcp_config }}"
         fi
 
-        echo "args=$args" >> "$GITHUB_OUTPUT"
-
-        # Note: --json-schema causes SDK crashes, so we disable SDK structured outputs
-        # Instead, we tell Claude to output JSON and parse it manually
-        if [[ -n "$OUTPUT_SCHEMA" ]]; then
-          echo "Found output schema - expecting JSON output from Claude"
-          echo "expect_json=true" >> "$GITHUB_OUTPUT"
+        # Add JSON schema if present
+        if [[ "${{ steps.prompt.outputs.has_schema }}" == "true" ]]; then
+          SCHEMA=$(cat /tmp/claude-schema.json)
+          ARGS="$ARGS --json-schema '$SCHEMA'"
         fi
 
-    - name: Run Claude
-      id: claude
-      uses: anthropics/claude-code-action@v1
-      with:
-        claude_code_oauth_token: ${{ inputs.claude_code_oauth_token }}
-        github_token: ${{ inputs.github_token }}
-        prompt: ${{ steps.prompt.outputs.prompt }}
-        settings: ${{ inputs.settings }}
-        claude_args: ${{ steps.claude_args.outputs.args }}
-        show_full_output: ${{ inputs.show_full_output }}
-        trigger_phrase: ${{ inputs.trigger_phrase }}
-        assignee_trigger: ${{ inputs.assignee_trigger }}
-        allowed_bots: ${{ inputs.allowed_bots }}
-      env:
-        GITHUB_TOKEN: ${{ inputs.github_token }}
+        # Read prompt from file
+        PROMPT=$(cat "${{ steps.prompt.outputs.prompt_file }}")
 
-    # Step 3: Verify and output structured JSON
-    # Claude writes the file directly via the Write tool
-    - name: Verify structured output
-      id: save_output
-      if: steps.claude_args.outputs.expect_json == 'true'
-      shell: bash
-      env:
-        STRUCTURED_OUTPUT: ${{ steps.claude.outputs.structured_output }}
-      run: |
-        # Claude should have written the file directly
-        if [[ -f "claude-structured-output.json" ]]; then
-          echo "Found claude-structured-output.json written by Claude"
-        elif [[ -n "$STRUCTURED_OUTPUT" ]]; then
-          # Fallback: use SDK structured output if available
-          echo "Using SDK structured output"
-          echo "$STRUCTURED_OUTPUT" > claude-structured-output.json
+        echo "Running Claude CLI..."
+        echo "::group::Claude Arguments"
+        echo "$ARGS"
+        echo "::endgroup::"
+
+        OUTPUT_FILE="claude-output.json"
+
+        # Run Claude via npx (auto-installs if needed)
+        if eval "npx @anthropic-ai/claude-code $ARGS \"\$PROMPT\"" > "$OUTPUT_FILE" 2>&1; then
+          echo "::group::Raw Output"
+          cat "$OUTPUT_FILE"
+          echo "::endgroup::"
+
+          # Extract structured_output if present
+          if [[ "${{ steps.prompt.outputs.has_schema }}" == "true" ]]; then
+            if jq -e '.structured_output' "$OUTPUT_FILE" > /dev/null 2>&1; then
+              jq '.structured_output' "$OUTPUT_FILE" > claude-structured-output.json
+              echo "::group::Structured Output"
+              jq . claude-structured-output.json
+              echo "::endgroup::"
+
+              # Set structured output
+              {
+                echo "structured_output<<EOF_STRUCTURED"
+                cat claude-structured-output.json
+                echo "EOF_STRUCTURED"
+              } >> "$GITHUB_OUTPUT"
+            else
+              echo "::warning::Expected structured_output but not found in response"
+            fi
+          fi
+
+          echo "success=true" >> "$GITHUB_OUTPUT"
         else
-          echo "::error::claude-structured-output.json not found - Claude may not have written the file"
-          echo "Check if Claude was prompted to write to claude-structured-output.json"
+          echo "::error::Claude CLI failed"
+          echo "::group::Error Output"
+          cat "$OUTPUT_FILE"
+          echo "::endgroup::"
+          echo "success=false" >> "$GITHUB_OUTPUT"
           exit 1
         fi
 
-        echo "::group::Structured Output"
-        cat claude-structured-output.json | jq . || { echo "::error::Output is not valid JSON"; exit 1; }
-        echo "::endgroup::"
-
-        # Set output from file
-        {
-          echo "structured_output<<EOF_STRUCTURED"
-          cat claude-structured-output.json
-          echo "EOF_STRUCTURED"
-        } >> "$GITHUB_OUTPUT"
-
-    # Step 4: Set result output
+    # Step 3: Set result output
     - name: Set result
       id: result
       if: always()
