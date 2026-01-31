@@ -155,19 +155,17 @@ runs:
           args="$args --mcp-config ${{ inputs.mcp_config }}"
         fi
 
-        # Add JSON schema for structured output if outputs.json exists
-        # Write schema to temp file to avoid shell quoting issues with complex JSON
-        if [[ -n "$OUTPUT_SCHEMA" ]]; then
-          echo "Adding --json-schema for structured output"
-          schema_file="/tmp/claude-output-schema-$$.json"
-          echo "$OUTPUT_SCHEMA" > "$schema_file"
-          # Read back and escape for shell argument
-          schema_escaped=$(cat "$schema_file" | jq -c .)
-          args="$args --json-schema '$schema_escaped'"
-          echo "schema_file=$schema_file" >> "$GITHUB_OUTPUT"
-        fi
-
         echo "args=$args" >> "$GITHUB_OUTPUT"
+
+        # Pass schema separately - will be combined with args in Run Claude step
+        if [[ -n "$OUTPUT_SCHEMA" ]]; then
+          echo "Found output schema for structured output"
+          # Use heredoc delimiter for safe output with special chars
+          delimiter=$(openssl rand -hex 16)
+          echo "json_schema<<$delimiter" >> "$GITHUB_OUTPUT"
+          echo "$OUTPUT_SCHEMA" >> "$GITHUB_OUTPUT"
+          echo "$delimiter" >> "$GITHUB_OUTPUT"
+        fi
 
     - name: Run Claude
       id: claude
@@ -177,7 +175,7 @@ runs:
         github_token: ${{ inputs.github_token }}
         prompt: ${{ steps.prompt.outputs.prompt }}
         settings: ${{ inputs.settings }}
-        claude_args: ${{ steps.claude_args.outputs.args }}
+        claude_args: ${{ steps.claude_args.outputs.json_schema != '' && format('{0} --json-schema ''{1}''', steps.claude_args.outputs.args, steps.claude_args.outputs.json_schema) || steps.claude_args.outputs.args }}
         show_full_output: ${{ inputs.show_full_output }}
         trigger_phrase: ${{ inputs.trigger_phrase }}
         assignee_trigger: ${{ inputs.assignee_trigger }}
