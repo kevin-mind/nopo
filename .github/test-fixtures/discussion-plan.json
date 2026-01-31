@@ -1,18 +1,24 @@
 {
   "name": "discussion-plan",
-  "description": "/plan command in discussion - verifies issues are created from discussion",
+  "description": "/plan command in discussion - verifies issues are created from discussion with test:automation label in e2e mode",
   "job_type": "discussion-plan",
   "discussion": {
     "title": "Implement caching layer",
     "body": "We should add a caching layer to improve performance.\n\n## Proposed Changes\n\n1. Add Redis for session caching\n2. Implement query result caching\n3. Add cache invalidation logic\n\n## Benefits\n\n- Faster response times\n- Reduced database load",
-    "category": "ideas"
+    "category": "ideas",
+    "labels": ["_e2e", "test:automation"]
   },
   "comment": {
     "body": "/plan"
   },
   "expected": {
-    "min_comments": 2
+    "min_comments": 2,
+    "created_issues": {
+      "min_count": 1,
+      "required_labels": ["test:automation"],
+      "forbidden_labels": ["triaged"]
+    }
   },
-  "timeout": 180,
-  "poll_interval": 10
+  "timeout": 600,
+  "poll_interval": 15
 }

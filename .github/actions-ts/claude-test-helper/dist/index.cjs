@@ -24090,6 +24090,32 @@ mutation AddDiscussionComment($discussionId: ID!, $body: String!) {
   }
 }
 `;
+var GET_LABEL_IDS_QUERY = `
+query GetLabelIds($owner: String!, $repo: String!, $labelNames: [String!]!) {
+  repository(owner: $owner, name: $repo) {
+    labels(first: 100, query: "") {
+      nodes {
+        id
+        name
+      }
+    }
+  }
+}
+`;
+var ADD_LABELS_TO_LABELABLE_MUTATION = `
+mutation AddLabelsToLabelable($labelableId: ID!, $labelIds: [ID!]!) {
+  addLabelsToLabelable(input: {
+    labelableId: $labelableId
+    labelIds: $labelIds
+  }) {
+    labelable {
+      ... on Discussion {
+        id
+      }
+    }
+  }
+}
+`;
 function parseProjectFields(projectData) {
   const project = projectData;
   if (!project?.id || !project?.fields?.nodes) {
@@ -24115,6 +24141,34 @@ function parseProjectFields(projectData) {
     }
   }
   return fields;
+}
+async function addLabelsToDiscussion(octokit, owner, repo, discussionId, labelNames) {
+  if (labelNames.length === 0) return;
+  const labelsResponse = await octokit.graphql(
+    GET_LABEL_IDS_QUERY,
+    { owner, repo, labelNames }
+  );
+  const allLabels = labelsResponse.repository?.labels?.nodes ?? [];
+  const labelIds = [];
+  for (const labelName of labelNames) {
+    const label = allLabels.find(
+      (l) => l.name.toLowerCase() === labelName.toLowerCase()
+    );
+    if (label) {
+      labelIds.push(label.id);
+    } else {
+      core2.warning(`Label "${labelName}" not found in repository`);
+    }
+  }
+  if (labelIds.length === 0) {
+    core2.warning("No valid labels found to add to discussion");
+    return;
+  }
+  await octokit.graphql(ADD_LABELS_TO_LABELABLE_MUTATION, {
+    labelableId: discussionId,
+    labelIds
+  });
+  core2.info(`Added ${labelIds.length} labels to discussion`);
 }
 async function createFixture(octokit, owner, repo, fixture, projectNumber, stepwiseMode = false, dryRunMode = false, reviewOctokit) {
   const result = {
@@ -24156,6 +24210,15 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, stepw
           core2.info(
             `Created discussion #${discussion.number}: ${discussion.url}`
           );
+          if (fixture.discussion.labels && fixture.discussion.labels.length > 0) {
+            await addLabelsToDiscussion(
+              octokit,
+              owner,
+              repo,
+              discussion.id,
+              fixture.discussion.labels
+            );
+          }
           if (fixture.comment) {
             await octokit.graphql(ADD_DISCUSSION_COMMENT_MUTATION, {
               discussionId: discussion.id,
@@ -24594,6 +24657,15 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, stepw
         core2.info(
           `Created discussion #${discussion.number}: ${discussion.url}`
         );
+        if (fixture.discussion.labels && fixture.discussion.labels.length > 0) {
+          await addLabelsToDiscussion(
+            octokit,
+            owner,
+            repo,
+            discussion.id,
+            fixture.discussion.labels
+          );
+        }
         if (fixture.comment) {
           await octokit.graphql(ADD_DISCUSSION_COMMENT_MUTATION, {
             discussionId: discussion.id,

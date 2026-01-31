@@ -242,6 +242,34 @@ mutation CloseDiscussion($discussionId: ID!) {
 }
 `;
 
+const GET_LABEL_IDS_QUERY = `
+query GetLabelIds($owner: String!, $repo: String!, $labelNames: [String!]!) {
+  repository(owner: $owner, name: $repo) {
+    labels(first: 100, query: "") {
+      nodes {
+        id
+        name
+      }
+    }
+  }
+}
+`;
+
+const ADD_LABELS_TO_LABELABLE_MUTATION = `
+mutation AddLabelsToLabelable($labelableId: ID!, $labelIds: [ID!]!) {
+  addLabelsToLabelable(input: {
+    labelableId: $labelableId
+    labelIds: $labelIds
+  }) {
+    labelable {
+      ... on Discussion {
+        id
+      }
+    }
+  }
+}
+`;
+
 interface ProjectFields {
   projectId: string;
   statusFieldId: string;
@@ -290,6 +318,63 @@ function parseProjectFields(projectData: unknown): ProjectFields | null {
   }
 
   return fields;
+}
+
+/**
+ * Add labels to a discussion using GraphQL
+ */
+async function addLabelsToDiscussion(
+  octokit: ReturnType<typeof github.getOctokit>,
+  owner: string,
+  repo: string,
+  discussionId: string,
+  labelNames: string[],
+): Promise<void> {
+  if (labelNames.length === 0) return;
+
+  // First, get the label IDs for the given label names
+  interface LabelsResponse {
+    repository?: {
+      labels?: {
+        nodes?: Array<{
+          id: string;
+          name: string;
+        }>;
+      };
+    };
+  }
+
+  const labelsResponse = await octokit.graphql<LabelsResponse>(
+    GET_LABEL_IDS_QUERY,
+    { owner, repo, labelNames },
+  );
+
+  const allLabels = labelsResponse.repository?.labels?.nodes ?? [];
+  const labelIds: string[] = [];
+
+  for (const labelName of labelNames) {
+    const label = allLabels.find(
+      (l) => l.name.toLowerCase() === labelName.toLowerCase(),
+    );
+    if (label) {
+      labelIds.push(label.id);
+    } else {
+      core.warning(`Label "${labelName}" not found in repository`);
+    }
+  }
+
+  if (labelIds.length === 0) {
+    core.warning("No valid labels found to add to discussion");
+    return;
+  }
+
+  // Add labels to the discussion
+  await octokit.graphql(ADD_LABELS_TO_LABELABLE_MUTATION, {
+    labelableId: discussionId,
+    labelIds,
+  });
+
+  core.info(`Added ${labelIds.length} labels to discussion`);
 }
 
 /**
@@ -389,6 +474,20 @@ async function createFixture(
           core.info(
             `Created discussion #${discussion.number}: ${discussion.url}`,
           );
+
+          // Add labels to discussion if specified
+          if (
+            fixture.discussion.labels &&
+            fixture.discussion.labels.length > 0
+          ) {
+            await addLabelsToDiscussion(
+              octokit,
+              owner,
+              repo,
+              discussion.id,
+              fixture.discussion.labels,
+            );
+          }
 
           // Add comment to discussion if specified
           if (fixture.comment) {
@@ -1002,6 +1101,17 @@ async function createFixture(
         core.info(
           `Created discussion #${discussion.number}: ${discussion.url}`,
         );
+
+        // Add labels to discussion if specified
+        if (fixture.discussion.labels && fixture.discussion.labels.length > 0) {
+          await addLabelsToDiscussion(
+            octokit,
+            owner,
+            repo,
+            discussion.id,
+            fixture.discussion.labels,
+          );
+        }
 
         // Add comment to discussion if specified
         if (fixture.comment) {

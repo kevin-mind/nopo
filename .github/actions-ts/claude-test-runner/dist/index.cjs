@@ -34557,7 +34557,8 @@ var ReviewSchema = external_exports.object({
 var DiscussionSchema = external_exports.object({
   title: external_exports.string().min(1, "Discussion title is required"),
   body: external_exports.string().min(1, "Discussion body is required"),
-  category: external_exports.string().optional()
+  category: external_exports.string().optional(),
+  labels: external_exports.array(external_exports.string()).optional()
 }).strict();
 var ProjectStatusValues = [
   "Backlog",
@@ -34592,6 +34593,11 @@ var CompletionExpectationSchema = external_exports.object({
   all_sub_issues_closed: external_exports.boolean().optional(),
   all_prs_merged: external_exports.boolean().optional()
 }).strict();
+var CreatedIssuesExpectationSchema = external_exports.object({
+  min_count: external_exports.number().int().min(0).optional(),
+  required_labels: external_exports.array(external_exports.string()).optional(),
+  forbidden_labels: external_exports.array(external_exports.string()).optional()
+}).strict();
 var ExpectedSchema = external_exports.object({
   parent_status: external_exports.enum(ProjectStatusValues).optional(),
   sub_issue_statuses: external_exports.array(external_exports.enum(ProjectStatusValues)).optional(),
@@ -34608,7 +34614,9 @@ var ExpectedSchema = external_exports.object({
   // New E2E per-phase verification fields
   triage: TriageExpectationSchema.optional(),
   phases: external_exports.array(PhaseExpectationSchema).optional(),
-  completion: CompletionExpectationSchema.optional()
+  completion: CompletionExpectationSchema.optional(),
+  // For discussion-plan: expectations about issues created from /plan command
+  created_issues: CreatedIssuesExpectationSchema.optional()
 }).strict();
 var ExpectedMachineSchema = external_exports.object({
   final_state: external_exports.string().optional(),

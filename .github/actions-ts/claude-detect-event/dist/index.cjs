@@ -24932,11 +24932,35 @@ async function handlePullRequestReviewEvent() {
     skipReason: ""
   };
 }
-async function handleDiscussionEvent() {
+async function handleDiscussionEvent(octokit, owner, repo) {
   const { context } = github;
   const payload = context.payload;
   const action = payload.action;
   const discussion = payload.discussion;
+  let discussionLabels = [];
+  try {
+    const result = await octokit.graphql(
+      `
+      query($owner: String!, $repo: String!, $number: Int!) {
+        repository(owner: $owner, name: $repo) {
+          discussion(number: $number) {
+            labels(first: 20) {
+              nodes { name }
+            }
+          }
+        }
+      }
+    `,
+      { owner, repo, number: discussion.number }
+    );
+    discussionLabels = result.repository.discussion?.labels?.nodes?.map((l) => l.name) ?? [];
+  } catch (error) {
+    core2.warning(`Failed to fetch discussion labels: ${error}`);
+  }
+  const isE2ETest = discussionLabels.includes("_e2e");
+  if (discussion.title.startsWith("[TEST]") && !isE2ETest) {
+    return emptyResult(true, "Discussion title starts with [TEST]");
+  }
   if (action === "created") {
     return {
       job: "discussion-research",
@@ -24946,7 +24970,8 @@ async function handleDiscussionEvent() {
       contextJson: JSON.stringify({
         discussion_number: String(discussion.number),
         discussion_title: discussion.title,
-        discussion_body: discussion.body ?? ""
+        discussion_body: discussion.body ?? "",
+        is_e2e_test: isE2ETest
       }),
       skip: false,
       skipReason: ""
@@ -25033,11 +25058,35 @@ async function handleMergeGroupEvent(octokit, owner, repo) {
     skipReason: ""
   };
 }
-async function handleDiscussionCommentEvent() {
+async function handleDiscussionCommentEvent(octokit, owner, repo) {
   const { context } = github;
   const payload = context.payload;
   const discussion = payload.discussion;
   const comment = payload.comment;
+  let discussionLabels = [];
+  try {
+    const result = await octokit.graphql(
+      `
+      query($owner: String!, $repo: String!, $number: Int!) {
+        repository(owner: $owner, name: $repo) {
+          discussion(number: $number) {
+            labels(first: 20) {
+              nodes { name }
+            }
+          }
+        }
+      }
+    `,
+      { owner, repo, number: discussion.number }
+    );
+    discussionLabels = result.repository.discussion?.labels?.nodes?.map((l) => l.name) ?? [];
+  } catch (error) {
+    core2.warning(`Failed to fetch discussion labels: ${error}`);
+  }
+  const isE2ETest = discussionLabels.includes("_e2e");
+  if (discussion.title.startsWith("[TEST]") && !isE2ETest) {
+    return emptyResult(true, "Discussion title starts with [TEST]");
+  }
   const body = comment.body.trim();
   const author = comment.user.login;
   const isTopLevel = !comment.parent_id;
@@ -25048,7 +25097,8 @@ async function handleDiscussionCommentEvent() {
       resourceNumber: String(discussion.number),
       commentId: comment.node_id,
       contextJson: JSON.stringify({
-        discussion_number: String(discussion.number)
+        discussion_number: String(discussion.number),
+        is_e2e_test: isE2ETest
       }),
       skip: false,
       skipReason: ""
@@ -25061,7 +25111,8 @@ async function handleDiscussionCommentEvent() {
       resourceNumber: String(discussion.number),
       commentId: comment.node_id,
       contextJson: JSON.stringify({
-        discussion_number: String(discussion.number)
+        discussion_number: String(discussion.number),
+        is_e2e_test: isE2ETest
       }),
       skip: false,
       skipReason: ""
@@ -25074,7 +25125,8 @@ async function handleDiscussionCommentEvent() {
       resourceNumber: String(discussion.number),
       commentId: comment.node_id,
       contextJson: JSON.stringify({
-        discussion_number: String(discussion.number)
+        discussion_number: String(discussion.number),
+        is_e2e_test: isE2ETest
       }),
       skip: false,
       skipReason: ""
@@ -25089,7 +25141,8 @@ async function handleDiscussionCommentEvent() {
       contextJson: JSON.stringify({
         discussion_number: String(discussion.number),
         comment_body: comment.body,
-        comment_author: author
+        comment_author: author,
+        is_e2e_test: isE2ETest
       }),
       skip: false,
       skipReason: ""
@@ -25104,7 +25157,8 @@ async function handleDiscussionCommentEvent() {
       contextJson: JSON.stringify({
         discussion_number: String(discussion.number),
         comment_body: comment.body,
-        comment_author: author
+        comment_author: author,
+        is_e2e_test: isE2ETest
       }),
       skip: false,
       skipReason: ""
@@ -25146,10 +25200,10 @@ async function run() {
         result = await handlePullRequestReviewEvent();
         break;
       case "discussion":
-        result = await handleDiscussionEvent();
+        result = await handleDiscussionEvent(octokit, owner, repo);
         break;
       case "discussion_comment":
-        result = await handleDiscussionCommentEvent();
+        result = await handleDiscussionCommentEvent(octokit, owner, repo);
         break;
       case "merge_group":
         result = await handleMergeGroupEvent(octokit, owner, repo);

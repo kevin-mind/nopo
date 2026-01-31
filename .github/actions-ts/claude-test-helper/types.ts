@@ -120,6 +120,8 @@ interface DiscussionConfig {
   body: string;
   /** Category slug (default: general) */
   category?: string;
+  /** Labels to add to the discussion */
+  labels?: string[];
 }
 
 /**

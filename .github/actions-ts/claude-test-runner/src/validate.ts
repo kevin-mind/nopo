@@ -108,6 +108,7 @@ const DiscussionSchema = z
     title: z.string().min(1, "Discussion title is required"),
     body: z.string().min(1, "Discussion body is required"),
     category: z.string().optional(),
+    labels: z.array(z.string()).optional(),
   })
   .strict();
 
@@ -169,6 +170,17 @@ const CompletionExpectationSchema = z
   .strict();
 
 /**
+ * Schema for created issues expectations (used by discussion-plan)
+ */
+const CreatedIssuesExpectationSchema = z
+  .object({
+    min_count: z.number().int().min(0).optional(),
+    required_labels: z.array(z.string()).optional(),
+    forbidden_labels: z.array(z.string()).optional(),
+  })
+  .strict();
+
+/**
  * Schema for expected outcomes
  */
 const ExpectedSchema = z
@@ -189,6 +201,8 @@ const ExpectedSchema = z
     triage: TriageExpectationSchema.optional(),
     phases: z.array(PhaseExpectationSchema).optional(),
     completion: CompletionExpectationSchema.optional(),
+    // For discussion-plan: expectations about issues created from /plan command
+    created_issues: CreatedIssuesExpectationSchema.optional(),
   })
   .strict();
 
