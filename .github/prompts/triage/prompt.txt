@@ -63,7 +63,36 @@ Save any important discoveries from codebase exploration that future agents shou
 
 ## Output
 
-Return structured JSON matching the output schema. The executor will:
+**IMPORTANT: Output ONLY valid JSON with no additional text. Your response must be parseable JSON.**
+
+Return a JSON object with this structure:
+```json
+{
+  "triage": {
+    "type": "bug|enhancement|documentation|refactor|test|chore",
+    "priority": "none|low|medium|high|critical",
+    "size": "xs|s|m|l|xl",
+    "estimate": 1|2|3|5|8|13|21,
+    "topics": ["topic1", "topic2"],
+    "needs_info": true|false
+  },
+  "issue_body": "Updated issue body text...",
+  "sub_issues": [
+    {
+      "type": "enhancement",
+      "title": "Phase title",
+      "description": "Brief description",
+      "todos": [
+        {"task": "Task description", "manual": false}
+      ]
+    }
+  ],
+  "related_issues": [123, 456],
+  "agent_notes": ["Note 1", "Note 2"]
+}
+```
+
+The executor will:
 - Apply labels (type + topics + triaged)
 - Set project fields (Priority, Size, Estimate)
 - Update the issue body

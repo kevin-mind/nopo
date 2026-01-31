@@ -89,6 +89,5 @@
       "items": { "type": "string" }
     }
   },
-  "required": ["triage", "issue_body", "sub_issues"],
-  "additionalProperties": false
+  "required": ["triage", "issue_body", "sub_issues"]
 }

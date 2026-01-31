@@ -68,7 +68,7 @@ outputs:
     value: ${{ steps.result.outputs.success }}
   structured_output:
     description: Structured JSON output if outputs.json schema was used
-    value: ${{ steps.claude.outputs.structured_output }}
+    value: ${{ steps.save_output.outputs.structured_output || steps.claude.outputs.structured_output }}
 
 runs:
   using: "composite"
@@ -157,16 +157,11 @@ runs:
 
         echo "args=$args" >> "$GITHUB_OUTPUT"
 
-        # Pass schema for structured output
-        # IMPORTANT: --output-format json is required with --json-schema for structured output to work
+        # Note: --json-schema causes SDK crashes, so we disable SDK structured outputs
+        # Instead, we tell Claude to output JSON and parse it manually
         if [[ -n "$OUTPUT_SCHEMA" ]]; then
-          echo "Found output schema for structured output"
-          echo "use_structured_output=true" >> "$GITHUB_OUTPUT"
-          # Use heredoc delimiter for safe output with special chars
-          delimiter=$(openssl rand -hex 16)
-          echo "json_schema<<$delimiter" >> "$GITHUB_OUTPUT"
-          echo "$OUTPUT_SCHEMA" >> "$GITHUB_OUTPUT"
-          echo "$delimiter" >> "$GITHUB_OUTPUT"
+          echo "Found output schema - expecting JSON output from Claude"
+          echo "expect_json=true" >> "$GITHUB_OUTPUT"
         fi
 
     - name: Run Claude
@@ -177,7 +172,7 @@ runs:
         github_token: ${{ inputs.github_token }}
         prompt: ${{ steps.prompt.outputs.prompt }}
         settings: ${{ inputs.settings }}
-        claude_args: ${{ steps.claude_args.outputs.use_structured_output == 'true' && format('{0} --output-format json --json-schema ''{1}''', steps.claude_args.outputs.args, steps.claude_args.outputs.json_schema) || steps.claude_args.outputs.args }}
+        claude_args: ${{ steps.claude_args.outputs.args }}
         show_full_output: ${{ inputs.show_full_output }}
         trigger_phrase: ${{ inputs.trigger_phrase }}
         assignee_trigger: ${{ inputs.assignee_trigger }}
@@ -186,17 +181,53 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github_token }}
 
     # Step 3: Save structured output to file (for artifact passing between matrix jobs)
+    # Handle both SDK structured output and manual JSON parsing from text
     - name: Save structured output
-      if: steps.claude.outputs.structured_output != ''
+      id: save_output
+      if: steps.claude_args.outputs.expect_json == 'true'
       shell: bash
       env:
         STRUCTURED_OUTPUT: ${{ steps.claude.outputs.structured_output }}
+        SUMMARY: ${{ steps.claude.outputs.summary }}
       run: |
-        echo "Saving structured output to claude-structured-output.json"
-        echo "$STRUCTURED_OUTPUT" > claude-structured-output.json
+        # Prefer structured_output if available, otherwise extract JSON from summary
+        if [[ -n "$STRUCTURED_OUTPUT" ]]; then
+          echo "Using SDK structured output"
+          echo "$STRUCTURED_OUTPUT" > claude-structured-output.json
+        elif [[ -n "$SUMMARY" ]]; then
+          echo "Extracting JSON from Claude's text response"
+          # Extract JSON from summary - look for the first { to last }
+          # Handle multiline JSON by using sed to extract
+          json_content=$(echo "$SUMMARY" | sed -n '/^{/,/^}$/p' | head -c 100000)
+
+          if [[ -z "$json_content" ]]; then
+            # Try extracting JSON between ```json and ```
+            json_content=$(echo "$SUMMARY" | sed -n '/```json/,/```/p' | sed '1d;$d')
+          fi
+
+          if [[ -n "$json_content" ]]; then
+            echo "$json_content" > claude-structured-output.json
+          else
+            echo "::error::Could not extract JSON from Claude's response"
+            echo "Summary content:"
+            echo "$SUMMARY" | head -c 2000
+            exit 1
+          fi
+        else
+          echo "::error::No structured output or summary available"
+          exit 1
+        fi
+
         echo "::group::Structured Output"
-        cat claude-structured-output.json | jq .
+        cat claude-structured-output.json | jq . || echo "Warning: Output is not valid JSON"
         echo "::endgroup::"
+
+        # Set output from file
+        {
+          echo "structured_output<<EOF_STRUCTURED"
+          cat claude-structured-output.json
+          echo "EOF_STRUCTURED"
+        } >> "$GITHUB_OUTPUT"
 
     # Step 4: Set result output
     - name: Set result
