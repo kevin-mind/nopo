@@ -517,8 +517,6 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           model: "claude-opus-4-5-20251101"
           max_turns: "50"
-          allowed_bots: "github-actions"
-          show_full_output: "true"
 
       # Submit review if Claude wrote review-output.json (for review token actions)
       # CLAUDE_REVIEWER_PAT must be for a different user than the PR author (nopo-bot)
