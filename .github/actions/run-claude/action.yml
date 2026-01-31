@@ -122,7 +122,12 @@ runs:
           echo "has_schema=true" >> "$GITHUB_OUTPUT"
         fi
 
-    # Step 2: Run Claude via npx
+    # Step 2: Install Claude CLI first (avoids npm output mixing with JSON)
+    - name: Install Claude CLI
+      shell: bash
+      run: npm install -g @anthropic-ai/claude-code
+
+    # Step 3: Run Claude
     - name: Run Claude
       id: claude
       shell: bash
@@ -134,7 +139,7 @@ runs:
         PROMPT=$(cat "${{ steps.prompt.outputs.prompt_file }}")
 
         # Build command array (avoids quoting issues)
-        CMD=(npx @anthropic-ai/claude-code
+        CMD=(claude
           --print
           --dangerously-skip-permissions
           --output-format json
@@ -154,17 +159,13 @@ runs:
         fi
 
         echo "Running Claude CLI..."
-        echo "::group::Command"
-        echo "${CMD[@]}"
-        echo "::endgroup::"
-
         OUTPUT_FILE="claude-output.json"
 
-        # Run Claude via npx (auto-installs if needed)
-        # Use tee to show output while also saving to file
-        if "${CMD[@]}" "$PROMPT" 2>&1 | tee "$OUTPUT_FILE"; then
-          echo ""
-          echo "::group::Checking Output"
+        # Run Claude and capture output
+        if "${CMD[@]}" "$PROMPT" > "$OUTPUT_FILE" 2>&1; then
+          echo "::group::Raw Output"
+          cat "$OUTPUT_FILE"
+          echo "::endgroup::"
 
           # Extract structured_output if present
           if [[ "${{ steps.prompt.outputs.has_schema }}" == "true" ]]; then
@@ -182,18 +183,22 @@ runs:
               } >> "$GITHUB_OUTPUT"
             else
               echo "::warning::Expected structured_output but not found in response"
+              echo "File contents:"
+              head -c 500 "$OUTPUT_FILE"
             fi
           fi
-          echo "::endgroup::"
 
           echo "success=true" >> "$GITHUB_OUTPUT"
         else
           echo "::error::Claude CLI failed"
+          echo "::group::Error Output"
+          cat "$OUTPUT_FILE"
+          echo "::endgroup::"
           echo "success=false" >> "$GITHUB_OUTPUT"
           exit 1
         fi
 
-    # Step 3: Set result output
+    # Step 4: Set result output
     - name: Set result
       id: result
       if: always()
