@@ -58,8 +58,8 @@ interface OctokitType {
 interface PullRequest {
   number: number;
   title: string;
-  body?: string;
-  state: "open" | "closed";
+  body?: string | null;
+  state: string;
   draft?: boolean;
   merged_at?: string | null;
   head: {
@@ -88,7 +88,7 @@ interface CheckRun {
 interface IssueData {
   state: string;
   labels: Array<string | { name?: string }>;
-  body?: string;
+  body?: string | null;
   node_id: string;
 }
 

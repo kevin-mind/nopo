@@ -122,6 +122,15 @@ interface ActionResult {
 }
 
 /**
+ * Context passed between sequential actions
+ * Used to pass structured output from runClaude to applyTriageOutput
+ */
+interface ActionChainContext {
+  /** Structured output from the last runClaude action */
+  lastClaudeStructuredOutput?: unknown;
+}
+
+/**
  * Result of executing all actions
  */
 export interface RunnerResult {
@@ -152,6 +161,7 @@ interface RunnerOptions {
 async function executeAction(
   action: Action,
   ctx: RunnerContext,
+  chainCtx?: ActionChainContext,
 ): Promise<unknown> {
   // Create a context with the appropriate octokit for this action
   const actionCtx: RunnerContext = {
@@ -229,7 +239,12 @@ async function executeAction(
 
     // Triage actions
     case "applyTriageOutput":
-      return executeApplyTriageOutput(action, actionCtx);
+      // Pass structured output from previous runClaude action if available
+      return executeApplyTriageOutput(
+        action,
+        actionCtx,
+        chainCtx?.lastClaudeStructuredOutput,
+      );
 
     // Control flow actions
     case "stop":
@@ -273,6 +288,9 @@ export async function executeActions(
   const results: ActionResult[] = [];
   let stoppedEarly = false;
   let stopReason: string | undefined;
+
+  // Chain context for passing data between sequential actions
+  const chainCtx: ActionChainContext = {};
 
   const { stopOnError = true, logActions = true } = options;
 
@@ -318,7 +336,16 @@ export async function executeActions(
     }
 
     try {
-      const result = await executeAction(validatedAction, ctx);
+      const result = await executeAction(validatedAction, ctx, chainCtx);
+
+      // Capture structured output from runClaude for subsequent actions
+      if (validatedAction.type === "runClaude") {
+        const claudeResult = result as { structuredOutput?: unknown };
+        if (claudeResult.structuredOutput) {
+          chainCtx.lastClaudeStructuredOutput = claudeResult.structuredOutput;
+          core.info("Stored structured output for subsequent actions");
+        }
+      }
 
       // Check if createBranch signaled to stop (rebased and pushed)
       const branchResult = result as { shouldStop?: boolean };

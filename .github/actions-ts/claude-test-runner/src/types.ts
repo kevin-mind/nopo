@@ -315,6 +315,12 @@ export interface TestFixture {
   description: string;
   timeout?: number;
   poll_interval?: number;
+  /** E2E test mode outcomes configuration */
+  e2e_outcomes?: {
+    ci: string[];
+    release: string[];
+    review: string[];
+  };
   parent_issue?: {
     title: string;
     body: string;

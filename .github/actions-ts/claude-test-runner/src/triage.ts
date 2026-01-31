@@ -38,7 +38,21 @@ interface OctokitType {
         repo: string;
         workflow_id?: string;
         event?: string;
-        status?: string;
+        status?:
+          | "completed"
+          | "success"
+          | "failure"
+          | "cancelled"
+          | "skipped"
+          | "requested"
+          | "queued"
+          | "in_progress"
+          | "waiting"
+          | "pending"
+          | "neutral"
+          | "timed_out"
+          | "action_required"
+          | "stale";
         per_page?: number;
       }) => Promise<{ data: { workflow_runs: WorkflowRun[] } }>;
     };
@@ -47,8 +61,8 @@ interface OctokitType {
 
 interface WorkflowRun {
   id: number;
-  name: string;
-  status: string;
+  name?: string | null;
+  status: string | null;
   conclusion: string | null;
   html_url: string;
   display_title: string;
@@ -58,7 +72,7 @@ interface WorkflowRun {
 interface IssueData {
   state: string;
   labels: Array<string | { name?: string }>;
-  body?: string;
+  body?: string | null;
   node_id: string;
 }
 

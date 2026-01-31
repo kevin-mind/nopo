@@ -327,17 +327,19 @@ export type RemoveReviewerAction = z.infer<typeof RemoveReviewerActionSchema>;
 /**
  * Run Claude to work on an issue
  *
- * Note: Either `prompt` or `promptFile` must be provided at runtime.
+ * Note: One of `prompt`, `promptFile`, or `promptDir` must be provided at runtime.
  * This is validated by the executor since Zod refinements can't be
  * used with discriminated unions.
  */
 export const RunClaudeActionSchema = BaseActionSchema.extend({
   type: z.literal("runClaude"),
-  /** Direct prompt string - either prompt or promptFile must be provided */
+  /** Direct prompt string */
   prompt: z.string().min(1).optional(),
   /** Path to prompt file (relative to repo root) - will be read and substituted */
   promptFile: z.string().min(1).optional(),
-  /** Template variables for prompt file substitution */
+  /** Prompt directory name (resolved to .github/prompts/{name}/) - contains prompt.txt and optional outputs.json */
+  promptDir: z.string().min(1).optional(),
+  /** Template variables for prompt substitution */
   promptVars: z.record(z.string()).optional(),
   issueNumber: z.number().int().positive(),
   allowedTools: z.array(z.string()).optional(),

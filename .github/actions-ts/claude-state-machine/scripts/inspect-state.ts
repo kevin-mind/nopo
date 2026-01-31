@@ -344,6 +344,7 @@ function createBaseContext(): MachineContext {
     commentContextType: null,
     commentContextDescription: null,
     releaseEvent: null,
+    workflowStartedAt: null,
   };
 }
 

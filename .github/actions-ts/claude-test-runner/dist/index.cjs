@@ -31559,11 +31559,13 @@ var RemoveReviewerActionSchema = BaseActionSchema.extend({
 });
 var RunClaudeActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("runClaude"),
-  /** Direct prompt string - either prompt or promptFile must be provided */
+  /** Direct prompt string */
   prompt: external_exports.string().min(1).optional(),
   /** Path to prompt file (relative to repo root) - will be read and substituted */
   promptFile: external_exports.string().min(1).optional(),
-  /** Template variables for prompt file substitution */
+  /** Prompt directory name (resolved to .github/prompts/{name}/) - contains prompt.txt and optional outputs.json */
+  promptDir: external_exports.string().min(1).optional(),
+  /** Template variables for prompt substitution */
   promptVars: external_exports.record(external_exports.string()).optional(),
   issueNumber: external_exports.number().int().positive(),
   allowedTools: external_exports.array(external_exports.string()).optional(),
@@ -32112,7 +32114,7 @@ function emitAppendHistory({ context: context2 }, message, phase) {
       type: "appendHistory",
       token: "code",
       issueNumber: context2.issue.number,
-      iteration: context2.iteration,
+      iteration: context2.issue.iteration,
       phase: String(phaseStr),
       message,
       timestamp: context2.workflowStartedAt ?? void 0,
@@ -32296,31 +32298,32 @@ function emitRunClaudeTriage({ context: context2 }) {
     ISSUE_NUMBER: String(issueNumber),
     ISSUE_TITLE: context2.issue.title,
     ISSUE_BODY: context2.issue.body,
-    REPO_OWNER: context2.owner,
-    REPO_NAME: context2.repo
+    AGENT_NOTES: ""
+    // Injected by workflow from previous runs
   };
-  const triageArtifact = {
+  const structuredOutputArtifact = {
     name: "claude-triage-output",
-    path: "triage-output.json"
+    path: "claude-structured-output.json"
   };
   return [
     {
       type: "runClaude",
       token: "code",
-      promptFile: ".github/prompts/triage.txt",
+      promptDir: "triage",
+      // Resolves to .github/prompts/triage/
       promptVars,
       issueNumber,
-      // Upload triage-output.json after Claude creates it
-      producesArtifact: triageArtifact
+      // Structured output is written to claude-structured-output.json
+      producesArtifact: structuredOutputArtifact
     },
-    // Apply labels and project fields from triage-output.json
-    // Downloads the artifact before execution
+    // Apply labels, project fields, update body, create sub-issues
+    // Reads structured output from the artifact file
     {
       type: "applyTriageOutput",
       token: "code",
       issueNumber,
-      filePath: "triage-output.json",
-      consumesArtifact: triageArtifact
+      filePath: "claude-structured-output.json",
+      consumesArtifact: structuredOutputArtifact
     }
     // Note: History entry is handled by workflow bookend logging
   ];
@@ -32471,7 +32474,7 @@ function emitInitializeParent({ context: context2 }) {
     type: "appendHistory",
     token: "code",
     issueNumber: context2.issue.number,
-    iteration: context2.iteration,
+    iteration: context2.issue.iteration,
     phase: "1",
     message: `\u{1F680} Initialized with ${context2.issue.subIssues.length} phase(s)`,
     timestamp: context2.workflowStartedAt ?? void 0
@@ -32508,7 +32511,7 @@ function emitAdvancePhase({ context: context2 }) {
       type: "appendHistory",
       token: "code",
       issueNumber: context2.issue.number,
-      iteration: context2.iteration,
+      iteration: context2.issue.iteration,
       phase: String(nextPhase),
       message: `\u23ED\uFE0F Phase ${nextPhase} started`,
       timestamp: context2.workflowStartedAt ?? void 0
@@ -32578,7 +32581,7 @@ function emitAllPhasesDone({ context: context2 }) {
     type: "appendHistory",
     token: "code",
     issueNumber: context2.issue.number,
-    iteration: context2.iteration,
+    iteration: context2.issue.iteration,
     phase: "-",
     message: "\u2705 All phases complete",
     timestamp: context2.workflowStartedAt ?? void 0
@@ -33553,8 +33556,8 @@ function predictNextState(context2) {
   const pendingActions = snapshot.context.pendingActions || [];
   let expectedStatus = context2.issue.projectStatus;
   for (const action of pendingActions) {
-    if (action.type === "setProjectField" && action.field === "status") {
-      expectedStatus = action.value;
+    if (action.type === "updateProjectStatus") {
+      expectedStatus = action.status;
     }
   }
   return {

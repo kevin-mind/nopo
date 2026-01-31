@@ -1,0 +1,82 @@
+{
+  "type": "object",
+  "properties": {
+    "triage": {
+      "type": "object",
+      "description": "Issue classification",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["bug", "enhancement", "documentation", "refactor", "test", "chore"],
+          "description": "The type of issue"
+        },
+        "priority": {
+          "type": ["string", "null"],
+          "enum": ["low", "medium", "high", "critical", null],
+          "description": "Priority level (null if not applicable)"
+        },
+        "size": {
+          "type": "string",
+          "enum": ["xs", "s", "m", "l", "xl"],
+          "description": "Size estimate: XS (<1h), S (1-3h), M (3-8h), L (8-21h), XL (21+h)"
+        },
+        "estimate": {
+          "type": "integer",
+          "enum": [1, 2, 3, 5, 8, 13, 21],
+          "description": "Fibonacci hours estimate (must match size: XS=1, S=2-3, M=5-8, L=13, XL=21)"
+        },
+        "topics": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Topic labels (without 'topic:' prefix, max 3)"
+        },
+        "needs_info": {
+          "type": "boolean",
+          "description": "Whether the issue needs more information before work can begin"
+        }
+      },
+      "required": ["type", "size", "estimate", "topics", "needs_info"]
+    },
+    "issue_body": {
+      "type": "string",
+      "description": "Updated issue body with improved description, details, and approach. MUST preserve existing ## Iteration History section and HTML comments."
+    },
+    "sub_issues": {
+      "type": "array",
+      "description": "Sub-issues to create (phases). Every issue needs at least one. XS/S: single sub-issue. M/L/XL: 2-5 sub-issues.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Sub-issue title in format '[Phase N] Title Here'"
+          },
+          "description": {
+            "type": "string",
+            "description": "Brief description of the phase"
+          },
+          "todos": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Specific implementation tasks. NO generic workflow steps (commit, PR, test, merge). Use [Manual] prefix for tasks requiring human action."
+          }
+        },
+        "required": ["title", "description", "todos"]
+      },
+      "minItems": 1,
+      "maxItems": 5
+    },
+    "related_issues": {
+      "type": "array",
+      "description": "Related issue numbers to link (duplicates, related work, etc.)",
+      "items": { "type": "integer" }
+    },
+    "agent_notes": {
+      "type": "array",
+      "description": "Important discoveries or decisions to pass to future agents",
+      "items": { "type": "string" }
+    }
+  },
+  "required": ["triage", "issue_body", "sub_issues"],
+  "additionalProperties": false
+}

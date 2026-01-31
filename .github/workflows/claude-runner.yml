@@ -502,6 +502,7 @@ jobs:
       # Agent notes are injected via AGENT_NOTES prompt variable
       # Skip in e2e mode - e2e-review step handles review actions
       - name: Run Claude
+        id: run-claude
         if: |
           matrix.action.type == 'runClaude' &&
           !inputs.dry_run &&
@@ -510,6 +511,7 @@ jobs:
         with:
           prompt: ${{ matrix.action.prompt }}
           prompt_file: ${{ matrix.action.promptFile }}
+          prompt_dir: ${{ matrix.action.promptDir }}
           prompt_replacements: ${{ steps.prompt-vars.outputs.merged || toJson(matrix.action.promptVars) }}
           github_token: ${{ secrets.NOPO_BOT_PAT }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

@@ -203,7 +203,7 @@ function emitAppendHistory(
       type: "appendHistory",
       token: "code",
       issueNumber: context.issue.number,
-      iteration: context.iteration,
+      iteration: context.issue.iteration,
       phase: String(phaseStr),
       message,
       timestamp: context.workflowStartedAt ?? undefined,
@@ -474,9 +474,15 @@ Review the CI logs at the link above and fix the failing tests or build errors.`
 /**
  * Emit action to run Claude for issue triage
  *
- * Uses the triage prompt file with template variables substituted.
- * Claude will analyze the issue, write triage-output.json, create sub-issues,
- * and update the issue body.
+ * Uses the triage prompt directory with structured output.
+ * Claude returns structured JSON which the executor uses to:
+ * - Apply labels and project fields
+ * - Update issue body
+ * - Create sub-issues with todos
+ * - Link related issues
+ *
+ * The structured output is saved to claude-structured-output.json by the
+ * run-claude action and passed via artifact to applyTriageOutput.
  */
 export function emitRunClaudeTriage({ context }: ActionContext): ActionResult {
   const issueNumber = context.issue.number;
@@ -486,33 +492,32 @@ export function emitRunClaudeTriage({ context }: ActionContext): ActionResult {
     ISSUE_NUMBER: String(issueNumber),
     ISSUE_TITLE: context.issue.title,
     ISSUE_BODY: context.issue.body,
-    REPO_OWNER: context.owner,
-    REPO_NAME: context.repo,
+    AGENT_NOTES: "", // Injected by workflow from previous runs
   };
 
-  const triageArtifact = {
+  const structuredOutputArtifact = {
     name: "claude-triage-output",
-    path: "triage-output.json",
+    path: "claude-structured-output.json",
   };
 
   return [
     {
       type: "runClaude",
       token: "code",
-      promptFile: ".github/prompts/triage.txt",
+      promptDir: "triage", // Resolves to .github/prompts/triage/
       promptVars,
       issueNumber,
-      // Upload triage-output.json after Claude creates it
-      producesArtifact: triageArtifact,
+      // Structured output is written to claude-structured-output.json
+      producesArtifact: structuredOutputArtifact,
     },
-    // Apply labels and project fields from triage-output.json
-    // Downloads the artifact before execution
+    // Apply labels, project fields, update body, create sub-issues
+    // Reads structured output from the artifact file
     {
       type: "applyTriageOutput",
       token: "code",
       issueNumber,
-      filePath: "triage-output.json",
-      consumesArtifact: triageArtifact,
+      filePath: "claude-structured-output.json",
+      consumesArtifact: structuredOutputArtifact,
     },
     // Note: History entry is handled by workflow bookend logging
   ];
@@ -745,7 +750,7 @@ export function emitInitializeParent({ context }: ActionContext): ActionResult {
     type: "appendHistory",
     token: "code",
     issueNumber: context.issue.number,
-    iteration: context.iteration,
+    iteration: context.issue.iteration,
     phase: "1",
     message: `🚀 Initialized with ${context.issue.subIssues.length} phase(s)`,
     timestamp: context.workflowStartedAt ?? undefined,
@@ -799,7 +804,7 @@ export function emitAdvancePhase({ context }: ActionContext): ActionResult {
       type: "appendHistory",
       token: "code",
       issueNumber: context.issue.number,
-      iteration: context.iteration,
+      iteration: context.issue.iteration,
       phase: String(nextPhase),
       message: `⏭️ Phase ${nextPhase} started`,
       timestamp: context.workflowStartedAt ?? undefined,
@@ -906,7 +911,7 @@ export function emitAllPhasesDone({ context }: ActionContext): ActionResult {
     type: "appendHistory",
     token: "code",
     issueNumber: context.issue.number,
-    iteration: context.iteration,
+    iteration: context.issue.iteration,
     phase: "-",
     message: "✅ All phases complete",
     timestamp: context.workflowStartedAt ?? undefined,

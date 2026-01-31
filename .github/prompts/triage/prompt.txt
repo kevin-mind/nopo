@@ -1,0 +1,69 @@
+Triage issue #{{ISSUE_NUMBER}}: "{{ISSUE_TITLE}}"
+
+{{ISSUE_BODY}}
+
+## Previous Agent Notes
+
+{{AGENT_NOTES}}
+
+---
+
+## Your Task
+
+Analyze this issue and provide structured triage output. Do NOT execute any commands - just return the structured data.
+
+## 1. Classification
+
+Determine:
+- **Type**: bug, enhancement, documentation, refactor, test, or chore
+- **Priority**: low, medium, high, critical (or null if not applicable)
+- **Size**: XS (<1h), S (1-3h), M (3-8h), L (8-21h), XL (21+h)
+- **Estimate**: Fibonacci hours (XS=1, S=2-3, M=5-8, L=13, XL=21)
+- **Topics**: Up to 3 topic labels (e.g., "ci", "testing", "backend")
+- **Needs info**: Whether more information is needed
+
+## 2. Improve Issue Body
+
+Create an improved issue body with:
+- **Description**: Concise TLDR of what needs to be done
+- **Details**: Technical context, affected files, links to docs
+- **Approach**: High-level implementation strategy
+- **Questions**: Answer existing questions, add new ones if needed
+
+**CRITICAL**: If the original body contains `## Iteration History` or HTML comments (`<!-- ... -->`), you MUST preserve them exactly as-is in the updated body.
+
+## 3. Create Sub-Issues
+
+Every issue needs at least one sub-issue. Sub-issues contain todos and produce PRs.
+
+- **XS/S issues**: Single sub-issue with all todos
+- **M/L/XL issues**: 2-5 sub-issues, one per phase
+
+For each sub-issue, provide:
+- **Title**: Format as `[Phase N] Title Here`
+- **Description**: Brief description of the phase
+- **Todos**: Specific implementation tasks (checkboxes)
+
+**Todo guidelines**:
+- Be specific and actionable
+- NO generic workflow steps (commit, PR, test, merge)
+- Use `[Manual]` prefix for tasks requiring human action (e.g., `[Manual] Verify in production`)
+
+## 4. Related Issues (Optional)
+
+If you find related or duplicate issues, include their numbers.
+
+## 5. Agent Notes (Optional)
+
+Save any important discoveries from codebase exploration that future agents should know.
+
+---
+
+## Output
+
+Return structured JSON matching the output schema. The executor will:
+- Apply labels (type + topics + triaged)
+- Set project fields (Priority, Size, Estimate)
+- Update the issue body
+- Create and link sub-issues
+- Link related issues

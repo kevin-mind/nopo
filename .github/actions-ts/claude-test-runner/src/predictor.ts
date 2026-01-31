@@ -149,8 +149,8 @@ export function predictNextState(context: MachineContext): PredictedState {
   let expectedStatus = context.issue.projectStatus;
 
   for (const action of pendingActions) {
-    if (action.type === "setProjectField" && action.field === "status") {
-      expectedStatus = action.value as typeof expectedStatus;
+    if (action.type === "updateProjectStatus") {
+      expectedStatus = action.status;
     }
   }
 

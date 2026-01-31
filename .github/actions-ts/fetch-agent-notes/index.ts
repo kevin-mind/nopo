@@ -23,10 +23,10 @@ interface AgentNotes {
 interface Artifact {
   id: number;
   name: string;
-  created_at: string;
+  created_at: string | null;
   workflow_run?: {
-    id: number;
-  };
+    id?: number;
+  } | null;
 }
 
 /**
@@ -212,10 +212,11 @@ async function run(): Promise<void> {
     }
 
     // Sort by created_at descending (most recent first)
-    allArtifacts.sort(
-      (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-    );
+    allArtifacts.sort((a, b) => {
+      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return dateB - dateA;
+    });
 
     // Take only the requested number
     const recentArtifacts = allArtifacts.slice(0, maxNotes);

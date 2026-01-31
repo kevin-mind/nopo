@@ -19752,22 +19752,22 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       process.stdout.write(message + os.EOL);
     }
     exports2.info = info10;
-    function startGroup(name) {
+    function startGroup3(name) {
       (0, command_1.issue)("group", name);
     }
-    exports2.startGroup = startGroup;
-    function endGroup() {
+    exports2.startGroup = startGroup3;
+    function endGroup3() {
       (0, command_1.issue)("endgroup");
     }
-    exports2.endGroup = endGroup;
+    exports2.endGroup = endGroup3;
     function group(name, fn) {
       return __awaiter(this, void 0, void 0, function* () {
-        startGroup(name);
+        startGroup3(name);
         let result;
         try {
           result = yield fn();
         } finally {
-          endGroup();
+          endGroup3();
         }
         return result;
       });
@@ -28267,11 +28267,13 @@ var RemoveReviewerActionSchema = BaseActionSchema.extend({
 });
 var RunClaudeActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("runClaude"),
-  /** Direct prompt string - either prompt or promptFile must be provided */
+  /** Direct prompt string */
   prompt: external_exports.string().min(1).optional(),
   /** Path to prompt file (relative to repo root) - will be read and substituted */
   promptFile: external_exports.string().min(1).optional(),
-  /** Template variables for prompt file substitution */
+  /** Prompt directory name (resolved to .github/prompts/{name}/) - contains prompt.txt and optional outputs.json */
+  promptDir: external_exports.string().min(1).optional(),
+  /** Template variables for prompt substitution */
   promptVars: external_exports.record(external_exports.string()).optional(),
   issueNumber: external_exports.number().int().positive(),
   allowedTools: external_exports.array(external_exports.string()).optional(),
@@ -29706,13 +29708,36 @@ function substituteVars(template, vars) {
     return vars[trimmedName] ?? match;
   });
 }
+function resolvePromptDir(promptDir) {
+  const dirPath = path.resolve(process.cwd(), ".github/prompts", promptDir);
+  const promptPath = path.join(dirPath, "prompt.txt");
+  const schemaPath = path.join(dirPath, "outputs.json");
+  return {
+    promptPath,
+    schemaPath: fs.existsSync(schemaPath) ? schemaPath : void 0
+  };
+}
 function getPromptFromAction(action) {
   if (action.prompt) {
     let prompt = action.prompt;
     if (action.promptVars) {
       prompt = substituteVars(prompt, action.promptVars);
     }
-    return prompt;
+    return { prompt };
+  }
+  if (action.promptDir) {
+    const { promptPath, schemaPath } = resolvePromptDir(action.promptDir);
+    if (!fs.existsSync(promptPath)) {
+      throw new Error(
+        `Prompt file not found: ${promptPath} (from promptDir: ${action.promptDir})`
+      );
+    }
+    let prompt = fs.readFileSync(promptPath, "utf-8");
+    if (action.promptVars) {
+      prompt = substituteVars(prompt, action.promptVars);
+    }
+    const outputSchema = schemaPath ? fs.readFileSync(schemaPath, "utf-8") : void 0;
+    return { prompt, outputSchema };
   }
   if (action.promptFile) {
     const promptPath = path.resolve(process.cwd(), action.promptFile);
@@ -29723,9 +29748,9 @@ function getPromptFromAction(action) {
     if (action.promptVars) {
       prompt = substituteVars(prompt, action.promptVars);
     }
-    return prompt;
+    return { prompt };
   }
-  throw new Error("Either prompt or promptFile must be provided");
+  throw new Error("Either prompt, promptFile, or promptDir must be provided");
 }
 async function executeRunClaude(action, ctx) {
   const args = [
@@ -29734,12 +29759,17 @@ async function executeRunClaude(action, ctx) {
     "--dangerously-skip-permissions"
     // Skip all permission prompts (for CI/automated runs)
   ];
+  const { prompt, outputSchema } = getPromptFromAction(action);
+  if (outputSchema) {
+    const compactSchema = JSON.stringify(JSON.parse(outputSchema));
+    args.push("--json-schema", compactSchema);
+    core5.info("Using structured output mode with JSON schema");
+  }
   if (action.allowedTools && action.allowedTools.length > 0) {
     for (const tool of action.allowedTools) {
       args.push("--allowedTools", tool);
     }
   }
-  const prompt = getPromptFromAction(action);
   args.push(prompt);
   let stdout = "";
   let stderr = "";
@@ -29778,10 +29808,25 @@ async function executeRunClaude(action, ctx) {
       };
     }
     core5.info(`Claude completed successfully for issue #${action.issueNumber}`);
+    let structuredOutput;
+    if (outputSchema) {
+      try {
+        structuredOutput = JSON.parse(stdout.trim());
+        core5.info("Parsed structured output successfully");
+        core5.startGroup("Structured Output");
+        core5.info(JSON.stringify(structuredOutput, null, 2));
+        core5.endGroup();
+      } catch (parseError) {
+        core5.warning(
+          `Failed to parse structured output: ${parseError}. Raw output will be available.`
+        );
+      }
+    }
     return {
       success: true,
       exitCode: 0,
-      output: stdout
+      output: stdout,
+      structuredOutput
     };
   } catch (error3) {
     const errorMessage = error3 instanceof Error ? error3.message : String(error3);
@@ -30026,33 +30071,126 @@ async function executeCreateIssuesFromDiscussion(action, ctx) {
 // claude-state-machine/runner/executors/triage.ts
 var core7 = __toESM(require_core(), 1);
 var fs2 = __toESM(require("fs"), 1);
-async function executeApplyTriageOutput(action, ctx) {
-  const { issueNumber, filePath } = action;
-  if (!fs2.existsSync(filePath)) {
-    throw new Error(
-      `Triage output file not found at ${filePath}. Ensure the runClaude action created the file and it was uploaded as an artifact.`
-    );
+var GET_REPO_ID_QUERY3 = `
+query GetRepoId($owner: String!, $repo: String!) {
+  repository(owner: $owner, name: $repo) {
+    id
   }
+}
+`;
+var GET_ISSUE_ID_QUERY = `
+query GetIssueId($owner: String!, $repo: String!, $issueNumber: Int!) {
+  repository(owner: $owner, name: $repo) {
+    issue(number: $issueNumber) {
+      id
+    }
+  }
+}
+`;
+var CREATE_ISSUE_MUTATION3 = `
+mutation CreateIssue($repositoryId: ID!, $title: String!, $body: String!) {
+  createIssue(input: { repositoryId: $repositoryId, title: $title, body: $body }) {
+    issue {
+      id
+      number
+    }
+  }
+}
+`;
+var ADD_SUB_ISSUE_MUTATION2 = `
+mutation AddSubIssue($parentId: ID!, $childId: ID!) {
+  addSubIssue(input: { issueId: $parentId, subIssueId: $childId }) {
+    issue {
+      id
+    }
+  }
+}
+`;
+var ADD_ISSUE_TO_PROJECT_MUTATION2 = `
+mutation AddIssueToProject($projectId: ID!, $contentId: ID!) {
+  addProjectV2ItemById(input: {
+    projectId: $projectId
+    contentId: $contentId
+  }) {
+    item {
+      id
+    }
+  }
+}
+`;
+async function executeApplyTriageOutput(action, ctx, structuredOutput) {
+  const { issueNumber, filePath } = action;
   let triageOutput;
-  try {
-    const content = fs2.readFileSync(filePath, "utf-8");
-    triageOutput = JSON.parse(content);
-    core7.info(`Triage output: ${JSON.stringify(triageOutput)}`);
-  } catch (error3) {
-    core7.warning(`Failed to parse triage output: ${error3}`);
-    return { applied: false };
+  if (structuredOutput) {
+    triageOutput = structuredOutput;
+    core7.info("Using structured output from in-process chain");
+    core7.startGroup("Triage Output (Structured)");
+    core7.info(JSON.stringify(triageOutput, null, 2));
+    core7.endGroup();
+  } else if (filePath && fs2.existsSync(filePath)) {
+    try {
+      const content = fs2.readFileSync(filePath, "utf-8");
+      triageOutput = JSON.parse(content);
+      core7.info(`Triage output from file: ${filePath}`);
+      core7.startGroup("Triage Output (File)");
+      core7.info(JSON.stringify(triageOutput, null, 2));
+      core7.endGroup();
+    } catch (error3) {
+      core7.warning(`Failed to parse triage output: ${error3}`);
+      return { applied: false };
+    }
+  } else {
+    throw new Error(
+      `No structured output provided and triage output file not found at: ${filePath || "undefined"}. Ensure runClaude action wrote claude-structured-output.json and artifact was downloaded.`
+    );
   }
   if (ctx.dryRun) {
     core7.info(`[DRY RUN] Would apply triage output to issue #${issueNumber}`);
     return { applied: true };
   }
-  const labels = [];
-  if (triageOutput.type && triageOutput.type !== "null") {
-    labels.push(triageOutput.type);
-    core7.info(`Adding type label: ${triageOutput.type}`);
+  const isStructured = "triage" in triageOutput;
+  const classification = isStructured ? triageOutput.triage : {
+    type: triageOutput.type || "enhancement",
+    priority: triageOutput.priority,
+    size: triageOutput.size || "m",
+    estimate: triageOutput.estimate || 5,
+    topics: triageOutput.topics || [],
+    needs_info: triageOutput.needs_info || false
+  };
+  await applyLabels(ctx, issueNumber, classification);
+  await applyProjectFields(ctx, issueNumber, classification);
+  if (isStructured && triageOutput.issue_body) {
+    await updateIssueBody(
+      ctx,
+      issueNumber,
+      triageOutput.issue_body
+    );
   }
-  if (triageOutput.topics) {
-    for (const topic of triageOutput.topics) {
+  let subIssueNumbers = [];
+  if (isStructured && triageOutput.sub_issues?.length > 0) {
+    subIssueNumbers = await createSubIssues(
+      ctx,
+      issueNumber,
+      triageOutput.sub_issues
+    );
+  }
+  if (isStructured && triageOutput.related_issues?.length) {
+    await linkRelatedIssues(
+      ctx,
+      issueNumber,
+      triageOutput.related_issues || []
+    );
+  }
+  return { applied: true, subIssueNumbers };
+}
+async function applyLabels(ctx, issueNumber, classification) {
+  const labels = [];
+  if (classification.type && classification.type !== "null") {
+    labels.push(classification.type);
+    core7.info(`Adding type label: ${classification.type}`);
+  }
+  if (classification.topics) {
+    for (const topic of classification.topics) {
       if (topic) {
         const label = topic.startsWith("topic:") ? topic : `topic:${topic}`;
         labels.push(label);
@@ -30075,10 +30213,217 @@ async function executeApplyTriageOutput(action, ctx) {
       core7.warning(`Failed to apply labels: ${error3}`);
     }
   }
-  await applyProjectFields(ctx, issueNumber, triageOutput);
-  return { applied: true };
 }
-async function applyProjectFields(ctx, issueNumber, triageOutput) {
+async function updateIssueBody(ctx, issueNumber, newBody) {
+  try {
+    await ctx.octokit.rest.issues.update({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: issueNumber,
+      body: newBody
+    });
+    core7.info(`Updated issue body for #${issueNumber}`);
+  } catch (error3) {
+    core7.warning(`Failed to update issue body: ${error3}`);
+  }
+}
+async function createSubIssues(ctx, parentIssueNumber, subIssues) {
+  const repoResponse = await ctx.octokit.graphql(
+    GET_REPO_ID_QUERY3,
+    {
+      owner: ctx.owner,
+      repo: ctx.repo
+    }
+  );
+  const repoId = repoResponse.repository?.id;
+  if (!repoId) {
+    throw new Error("Repository not found");
+  }
+  const parentResponse = await ctx.octokit.graphql(
+    GET_ISSUE_ID_QUERY,
+    {
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issueNumber: parentIssueNumber
+    }
+  );
+  const parentId = parentResponse.repository?.issue?.id;
+  if (!parentId) {
+    throw new Error(`Parent issue #${parentIssueNumber} not found`);
+  }
+  const projectInfo = await getProjectInfo(ctx);
+  const subIssueNumbers = [];
+  for (let i = 0; i < subIssues.length; i++) {
+    const subIssue = subIssues[i];
+    if (!subIssue) continue;
+    const todoList = subIssue.todos.map((todo) => `- [ ] ${todo}`).join("\n");
+    const body = `## Description
+
+${subIssue.description}
+
+## Todo
+
+${todoList}
+
+---
+
+Parent: #${parentIssueNumber}`;
+    const createResponse = await ctx.octokit.graphql(
+      CREATE_ISSUE_MUTATION3,
+      {
+        repositoryId: repoId,
+        title: subIssue.title,
+        body
+      }
+    );
+    const issueId = createResponse.createIssue?.issue?.id;
+    const issueNumber = createResponse.createIssue?.issue?.number;
+    if (!issueId || !issueNumber) {
+      throw new Error(`Failed to create sub-issue for phase ${i + 1}`);
+    }
+    await ctx.octokit.graphql(ADD_SUB_ISSUE_MUTATION2, {
+      parentId,
+      childId: issueId
+    });
+    await ctx.octokit.rest.issues.addLabels({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: issueNumber,
+      labels: ["triaged"]
+    });
+    if (projectInfo) {
+      await addToProjectWithStatus(ctx, issueId, projectInfo, "Ready");
+    }
+    subIssueNumbers.push(issueNumber);
+    core7.info(`Created sub-issue #${issueNumber}: ${subIssue.title}`);
+  }
+  return subIssueNumbers;
+}
+async function linkRelatedIssues(ctx, issueNumber, relatedIssues) {
+  if (relatedIssues.length === 0) return;
+  const links = relatedIssues.map((num) => `#${num}`).join(", ");
+  const body = `**Related issues:** ${links}`;
+  try {
+    await ctx.octokit.rest.issues.createComment({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: issueNumber,
+      body
+    });
+    core7.info(`Linked related issues: ${links}`);
+  } catch (error3) {
+    core7.warning(`Failed to link related issues: ${error3}`);
+  }
+}
+var GET_PROJECT_FIELDS_QUERY = `
+query($owner: String!, $projectNumber: Int!) {
+  organization(login: $owner) {
+    projectV2(number: $projectNumber) {
+      id
+      fields(first: 30) {
+        nodes {
+          ... on ProjectV2SingleSelectField {
+            id
+            name
+            options { id name }
+          }
+          ... on ProjectV2Field {
+            id
+            name
+            dataType
+          }
+        }
+      }
+    }
+  }
+}
+`;
+var UPDATE_PROJECT_FIELD_MUTATION2 = `
+mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
+  updateProjectV2ItemFieldValue(input: {
+    projectId: $projectId
+    itemId: $itemId
+    fieldId: $fieldId
+    value: $value
+  }) {
+    projectV2Item { id }
+  }
+}
+`;
+async function getProjectInfo(ctx) {
+  try {
+    const result = await ctx.octokit.graphql(GET_PROJECT_FIELDS_QUERY, {
+      owner: ctx.owner,
+      projectNumber: ctx.projectNumber
+    });
+    const project = result.organization.projectV2;
+    const fields = project.fields.nodes;
+    const projectInfo = {
+      projectId: project.id,
+      statusFieldId: "",
+      statusOptions: {},
+      priorityFieldId: "",
+      priorityOptions: {},
+      sizeFieldId: "",
+      sizeOptions: {},
+      estimateFieldId: ""
+    };
+    for (const field of fields) {
+      if (!field) continue;
+      if (field.name === "Status" && field.options) {
+        projectInfo.statusFieldId = field.id;
+        for (const option of field.options) {
+          projectInfo.statusOptions[option.name] = option.id;
+        }
+      } else if (field.name === "Priority" && field.options) {
+        projectInfo.priorityFieldId = field.id;
+        for (const option of field.options) {
+          projectInfo.priorityOptions[option.name.toLowerCase()] = option.id;
+        }
+      } else if (field.name === "Size" && field.options) {
+        projectInfo.sizeFieldId = field.id;
+        for (const option of field.options) {
+          projectInfo.sizeOptions[option.name.toLowerCase()] = option.id;
+        }
+      } else if (field.name === "Estimate") {
+        projectInfo.estimateFieldId = field.id;
+      }
+    }
+    return projectInfo;
+  } catch (error3) {
+    core7.warning(`Failed to get project info: ${error3}`);
+    return null;
+  }
+}
+async function addToProjectWithStatus(ctx, issueNodeId, projectInfo, status) {
+  try {
+    const addResult = await ctx.octokit.graphql(
+      ADD_ISSUE_TO_PROJECT_MUTATION2,
+      {
+        projectId: projectInfo.projectId,
+        contentId: issueNodeId
+      }
+    );
+    const itemId = addResult.addProjectV2ItemById?.item?.id;
+    if (!itemId) {
+      core7.warning("Failed to add issue to project");
+      return;
+    }
+    const statusOptionId = projectInfo.statusOptions[status];
+    if (statusOptionId && projectInfo.statusFieldId) {
+      await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION2, {
+        projectId: projectInfo.projectId,
+        itemId,
+        fieldId: projectInfo.statusFieldId,
+        value: { singleSelectOptionId: statusOptionId }
+      });
+      core7.info(`Set project status to ${status}`);
+    }
+  } catch (error3) {
+    core7.warning(`Failed to add issue to project with status: ${error3}`);
+  }
+}
+async function applyProjectFields(ctx, issueNumber, classification) {
   try {
     const issueQuery = `
       query($owner: String!, $repo: String!, $issueNumber: Int!) {
@@ -30107,101 +30452,47 @@ async function applyProjectFields(ctx, issueNumber, triageOutput) {
       core7.info(`Issue #${issueNumber} not in project ${ctx.projectNumber}`);
       return;
     }
-    const projectQuery = `
-      query($owner: String!, $projectNumber: Int!) {
-        organization(login: $owner) {
-          projectV2(number: $projectNumber) {
-            id
-            fields(first: 30) {
-              nodes {
-                ... on ProjectV2SingleSelectField {
-                  id
-                  name
-                  options { id name }
-                }
-                ... on ProjectV2Field {
-                  id
-                  name
-                  dataType
-                }
-              }
-            }
-          }
-        }
-      }
-    `;
-    const projectResult = await ctx.octokit.graphql(projectQuery, {
-      owner: ctx.owner,
-      projectNumber: ctx.projectNumber
-    });
-    const project = projectResult.organization.projectV2;
-    const fields = project.fields.nodes;
-    const priorityField = fields.find((f) => f.name === "Priority");
-    const sizeField = fields.find((f) => f.name === "Size");
-    const estimateField = fields.find((f) => f.name === "Estimate");
-    if (priorityField?.options && triageOutput.priority && triageOutput.priority !== "null") {
-      const option = priorityField.options.find(
-        (o) => o.name.toLowerCase() === triageOutput.priority?.toLowerCase()
-      );
-      if (option) {
-        await updateProjectField(
-          ctx,
-          project.id,
-          projectItem.id,
-          priorityField.id,
-          { singleSelectOptionId: option.id }
-        );
-        core7.info(`Set Priority to ${option.name}`);
+    const projectInfo = await getProjectInfo(ctx);
+    if (!projectInfo) {
+      core7.warning("Could not get project info");
+      return;
+    }
+    if (classification.priority && classification.priority !== "null" && projectInfo.priorityFieldId) {
+      const optionId = projectInfo.priorityOptions[classification.priority.toLowerCase()];
+      if (optionId) {
+        await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION2, {
+          projectId: projectInfo.projectId,
+          itemId: projectItem.id,
+          fieldId: projectInfo.priorityFieldId,
+          value: { singleSelectOptionId: optionId }
+        });
+        core7.info(`Set Priority to ${classification.priority}`);
       }
     }
-    if (sizeField?.options && triageOutput.size) {
-      const option = sizeField.options.find(
-        (o) => o.name.toLowerCase() === triageOutput.size?.toLowerCase()
-      );
-      if (option) {
-        await updateProjectField(
-          ctx,
-          project.id,
-          projectItem.id,
-          sizeField.id,
-          { singleSelectOptionId: option.id }
-        );
-        core7.info(`Set Size to ${option.name}`);
+    if (classification.size && projectInfo.sizeFieldId) {
+      const optionId = projectInfo.sizeOptions[classification.size.toLowerCase()];
+      if (optionId) {
+        await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION2, {
+          projectId: projectInfo.projectId,
+          itemId: projectItem.id,
+          fieldId: projectInfo.sizeFieldId,
+          value: { singleSelectOptionId: optionId }
+        });
+        core7.info(`Set Size to ${classification.size}`);
       }
     }
-    if (estimateField && triageOutput.estimate) {
-      await updateProjectField(
-        ctx,
-        project.id,
-        projectItem.id,
-        estimateField.id,
-        { number: triageOutput.estimate }
-      );
-      core7.info(`Set Estimate to ${triageOutput.estimate}`);
+    if (classification.estimate && projectInfo.estimateFieldId) {
+      await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION2, {
+        projectId: projectInfo.projectId,
+        itemId: projectItem.id,
+        fieldId: projectInfo.estimateFieldId,
+        value: { number: classification.estimate }
+      });
+      core7.info(`Set Estimate to ${classification.estimate}`);
     }
   } catch (error3) {
     core7.warning(`Failed to apply project fields: ${error3}`);
   }
-}
-async function updateProjectField(ctx, projectId, itemId, fieldId, value) {
-  const mutation = `
-    mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
-      updateProjectV2ItemFieldValue(input: {
-        projectId: $projectId
-        itemId: $itemId
-        fieldId: $fieldId
-        value: $value
-      }) {
-        projectV2Item { id }
-      }
-    }
-  `;
-  await ctx.octokit.graphql(mutation, {
-    projectId,
-    itemId,
-    fieldId,
-    value
-  });
 }
 
 // claude-state-machine/runner/signaler.ts
@@ -30433,7 +30724,7 @@ function getOctokitForAction(action, ctx) {
   }
   return ctx.octokit;
 }
-async function executeAction(action, ctx) {
+async function executeAction(action, ctx, chainCtx) {
   const actionCtx = {
     ...ctx,
     octokit: getOctokitForAction(action, ctx)
@@ -30502,7 +30793,11 @@ async function executeAction(action, ctx) {
       return executeCreateIssuesFromDiscussion(action, actionCtx);
     // Triage actions
     case "applyTriageOutput":
-      return executeApplyTriageOutput(action, actionCtx);
+      return executeApplyTriageOutput(
+        action,
+        actionCtx,
+        chainCtx?.lastClaudeStructuredOutput
+      );
     // Control flow actions
     case "stop":
       core9.info(`Stopping: ${action.reason}`);
@@ -30534,6 +30829,7 @@ async function executeActions(actions, ctx, options = {}) {
   const results = [];
   let stoppedEarly = false;
   let stopReason;
+  const chainCtx = {};
   const { stopOnError = true, logActions = true } = options;
   for (const action of actions) {
     const actionStartTime = Date.now();
@@ -30569,7 +30865,14 @@ async function executeActions(actions, ctx, options = {}) {
       continue;
     }
     try {
-      const result = await executeAction(validatedAction, ctx);
+      const result = await executeAction(validatedAction, ctx, chainCtx);
+      if (validatedAction.type === "runClaude") {
+        const claudeResult = result;
+        if (claudeResult.structuredOutput) {
+          chainCtx.lastClaudeStructuredOutput = claudeResult.structuredOutput;
+          core9.info("Stored structured output for subsequent actions");
+        }
+      }
       const branchResult = result;
       if (validatedAction.type === "createBranch" && branchResult.shouldStop) {
         results.push({

@@ -24017,9 +24017,11 @@ async function run() {
         break;
       }
     }
-    allArtifacts.sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
+    allArtifacts.sort((a, b) => {
+      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return dateB - dateA;
+    });
     const recentArtifacts = allArtifacts.slice(0, maxNotes);
     core2.info(
       `Found ${allArtifacts.length} matching artifacts, fetching ${recentArtifacts.length}`

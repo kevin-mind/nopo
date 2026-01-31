@@ -2,17 +2,21 @@ name: Run Claude
 description: Load prompt and run Claude Code
 
 inputs:
-  # Prompt inputs (one of prompt or prompt_file is required)
+  # Prompt inputs (one of prompt, prompt_file, or prompt_dir is required)
   prompt:
-    description: Direct prompt string (alternative to prompt_file)
+    description: Direct prompt string
     required: false
     default: ""
   prompt_file:
-    description: Path to the prompt file (relative to repository root)
+    description: Path to the prompt file (relative to repository root) - legacy
+    required: false
+    default: ""
+  prompt_dir:
+    description: "Prompt directory name (resolved to .github/prompts/{name}/) - new style with optional outputs.json schema"
     required: false
     default: ""
   prompt_replacements:
-    description: "JSON object of template replacements for prompt_file (e.g., '{\"ISSUE_NUMBER\": \"123\"}')"
+    description: "JSON object of template replacements for prompt (e.g., '{\"ISSUE_NUMBER\": \"123\"}')"
     required: false
     default: "{}"
 
@@ -62,6 +66,9 @@ outputs:
   success:
     description: Whether Claude completed successfully
     value: ${{ steps.result.outputs.success }}
+  structured_output:
+    description: Structured JSON output if outputs.json schema was used
+    value: ${{ steps.claude.outputs.structured_output }}
 
 runs:
   using: "composite"
@@ -73,33 +80,52 @@ runs:
       env:
         PROMPT: ${{ inputs.prompt }}
         PROMPT_FILE: ${{ inputs.prompt_file }}
+        PROMPT_DIR: ${{ inputs.prompt_dir }}
         PROMPT_REPLACEMENTS: ${{ inputs.prompt_replacements }}
       run: |
         prompt=""
+        output_schema=""
 
-        # Use direct prompt if provided, otherwise load from file
+        # Use direct prompt if provided
         if [[ -n "$PROMPT" ]]; then
           prompt="$PROMPT"
+        # Use prompt directory (new style: .github/prompts/{name}/)
+        elif [[ -n "$PROMPT_DIR" ]]; then
+          prompt_path=".github/prompts/$PROMPT_DIR/prompt.txt"
+          schema_path=".github/prompts/$PROMPT_DIR/outputs.json"
+
+          if [[ ! -f "$prompt_path" ]]; then
+            echo "Error: Prompt file not found: $prompt_path"
+            exit 1
+          fi
+          prompt=$(cat "$prompt_path")
+
+          # Check for outputs.json schema
+          if [[ -f "$schema_path" ]]; then
+            echo "Found output schema: $schema_path"
+            output_schema=$(cat "$schema_path" | jq -c .)
+          fi
+        # Use prompt file (legacy style)
         elif [[ -n "$PROMPT_FILE" ]]; then
           if [[ ! -f "$PROMPT_FILE" ]]; then
             echo "Error: Prompt file not found: $PROMPT_FILE"
             exit 1
           fi
           prompt=$(cat "$PROMPT_FILE")
-
-          # Apply template replacements from JSON (only for file-based prompts)
-          if [[ "$PROMPT_REPLACEMENTS" != "{}" ]]; then
-            while IFS='=' read -r key value; do
-              # Remove quotes from value if present
-              value="${value%\"}"
-              value="${value#\"}"
-              # Replace {{KEY}} with value
-              prompt="${prompt//\{\{$key\}\}/$value}"
-            done < <(echo "$PROMPT_REPLACEMENTS" | jq -r 'to_entries[] | "\(.key)=\(.value)"')
-          fi
         else
-          echo "Error: Either prompt or prompt_file must be provided"
+          echo "Error: One of prompt, prompt_file, or prompt_dir must be provided"
           exit 1
+        fi
+
+        # Apply template replacements from JSON
+        if [[ "$PROMPT_REPLACEMENTS" != "{}" ]]; then
+          while IFS='=' read -r key value; do
+            # Remove quotes from value if present
+            value="${value%\"}"
+            value="${value#\"}"
+            # Replace {{KEY}} with value
+            prompt="${prompt//\{\{$key\}\}/$value}"
+          done < <(echo "$PROMPT_REPLACEMENTS" | jq -r 'to_entries[] | "\(.key)=\(.value)"')
         fi
 
         # Save prompt to environment file for multiline content
@@ -110,16 +136,35 @@ runs:
           echo "EOF_PROMPT_CONTENT"
         } >> "$GITHUB_OUTPUT"
 
+        # Save schema if found
+        if [[ -n "$output_schema" ]]; then
+          echo "output_schema=$output_schema" >> "$GITHUB_OUTPUT"
+        fi
+
     # Step 2: Run Claude Code
     - name: Build Claude args
       id: claude_args
       shell: bash
+      env:
+        OUTPUT_SCHEMA: ${{ steps.prompt.outputs.output_schema }}
       run: |
         args="--model ${{ inputs.model }} --max-turns ${{ inputs.max_turns }}"
 
         # Add MCP config if file exists
         if [[ -n "${{ inputs.mcp_config }}" && -f "${{ inputs.mcp_config }}" ]]; then
           args="$args --mcp-config ${{ inputs.mcp_config }}"
+        fi
+
+        # Add JSON schema for structured output if outputs.json exists
+        # Write schema to temp file to avoid shell quoting issues with complex JSON
+        if [[ -n "$OUTPUT_SCHEMA" ]]; then
+          echo "Adding --json-schema for structured output"
+          schema_file="/tmp/claude-output-schema-$$.json"
+          echo "$OUTPUT_SCHEMA" > "$schema_file"
+          # Read back and escape for shell argument
+          schema_escaped=$(cat "$schema_file" | jq -c .)
+          args="$args --json-schema '$schema_escaped'"
+          echo "schema_file=$schema_file" >> "$GITHUB_OUTPUT"
         fi
 
         echo "args=$args" >> "$GITHUB_OUTPUT"
@@ -140,7 +185,20 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
 
-    # Step 3: Set result output
+    # Step 3: Save structured output to file (for artifact passing between matrix jobs)
+    - name: Save structured output
+      if: steps.claude.outputs.structured_output != ''
+      shell: bash
+      env:
+        STRUCTURED_OUTPUT: ${{ steps.claude.outputs.structured_output }}
+      run: |
+        echo "Saving structured output to claude-structured-output.json"
+        echo "$STRUCTURED_OUTPUT" > claude-structured-output.json
+        echo "::group::Structured Output"
+        cat claude-structured-output.json | jq .
+        echo "::endgroup::"
+
+    # Step 4: Set result output
     - name: Set result
       id: result
       if: always()

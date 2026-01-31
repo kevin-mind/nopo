@@ -17,6 +17,8 @@ interface ClaudeRunResult {
   exitCode: number;
   output: string;
   error?: string;
+  /** Parsed structured output if --json-schema was used */
+  structuredOutput?: unknown;
 }
 
 /**
@@ -34,20 +36,69 @@ function substituteVars(
 }
 
 /**
- * Get the prompt string from action (either directly or from file)
+ * Result of resolving a prompt from an action
  */
-function getPromptFromAction(action: RunClaudeAction): string {
+interface ResolvedPrompt {
+  prompt: string;
+  outputSchema?: string; // JSON schema content if outputs.json exists
+}
+
+/**
+ * Resolve prompt directory to paths
+ * Returns the prompt file path and optional schema path
+ */
+function resolvePromptDir(promptDir: string): {
+  promptPath: string;
+  schemaPath?: string;
+} {
+  const dirPath = path.resolve(process.cwd(), ".github/prompts", promptDir);
+  const promptPath = path.join(dirPath, "prompt.txt");
+  const schemaPath = path.join(dirPath, "outputs.json");
+
+  return {
+    promptPath,
+    schemaPath: fs.existsSync(schemaPath) ? schemaPath : undefined,
+  };
+}
+
+/**
+ * Get the prompt string and optional schema from action
+ * Supports: direct prompt, promptFile, or promptDir
+ */
+function getPromptFromAction(action: RunClaudeAction): ResolvedPrompt {
   if (action.prompt) {
     // Direct prompt provided
     let prompt = action.prompt;
     if (action.promptVars) {
       prompt = substituteVars(prompt, action.promptVars);
     }
-    return prompt;
+    return { prompt };
+  }
+
+  if (action.promptDir) {
+    // Prompt directory (new style: .github/prompts/{name}/)
+    const { promptPath, schemaPath } = resolvePromptDir(action.promptDir);
+
+    if (!fs.existsSync(promptPath)) {
+      throw new Error(
+        `Prompt file not found: ${promptPath} (from promptDir: ${action.promptDir})`,
+      );
+    }
+
+    let prompt = fs.readFileSync(promptPath, "utf-8");
+    if (action.promptVars) {
+      prompt = substituteVars(prompt, action.promptVars);
+    }
+
+    const outputSchema = schemaPath
+      ? fs.readFileSync(schemaPath, "utf-8")
+      : undefined;
+
+    return { prompt, outputSchema };
   }
 
   if (action.promptFile) {
-    // Read from file
+    // Read from file (legacy style)
     const promptPath = path.resolve(process.cwd(), action.promptFile);
     if (!fs.existsSync(promptPath)) {
       throw new Error(`Prompt file not found: ${action.promptFile}`);
@@ -56,10 +107,10 @@ function getPromptFromAction(action: RunClaudeAction): string {
     if (action.promptVars) {
       prompt = substituteVars(prompt, action.promptVars);
     }
-    return prompt;
+    return { prompt };
   }
 
-  throw new Error("Either prompt or promptFile must be provided");
+  throw new Error("Either prompt, promptFile, or promptDir must be provided");
 }
 
 /**
@@ -67,6 +118,9 @@ function getPromptFromAction(action: RunClaudeAction): string {
  *
  * This invokes the Claude Code CLI (claude) with the specified prompt.
  * The CLI is expected to be available in PATH.
+ *
+ * If an output schema is provided (via promptDir with outputs.json),
+ * the --json-schema flag is added to request structured output.
  */
 export async function executeRunClaude(
   action: RunClaudeAction,
@@ -77,6 +131,17 @@ export async function executeRunClaude(
     "--dangerously-skip-permissions", // Skip all permission prompts (for CI/automated runs)
   ];
 
+  // Get prompt and optional schema
+  const { prompt, outputSchema } = getPromptFromAction(action);
+
+  // Add JSON schema if outputs.json exists (structured output mode)
+  if (outputSchema) {
+    // Compact the schema to a single line for CLI argument
+    const compactSchema = JSON.stringify(JSON.parse(outputSchema));
+    args.push("--json-schema", compactSchema);
+    core.info("Using structured output mode with JSON schema");
+  }
+
   // Add allowed tools if specified
   if (action.allowedTools && action.allowedTools.length > 0) {
     for (const tool of action.allowedTools) {
@@ -85,7 +150,6 @@ export async function executeRunClaude(
   }
 
   // Add the prompt as a positional argument (must be last)
-  const prompt = getPromptFromAction(action);
   args.push(prompt);
 
   let stdout = "";
@@ -131,10 +195,29 @@ export async function executeRunClaude(
     }
 
     core.info(`Claude completed successfully for issue #${action.issueNumber}`);
+
+    // Parse structured output if schema was used
+    let structuredOutput: unknown;
+    if (outputSchema) {
+      try {
+        // The output should be valid JSON when using --json-schema
+        structuredOutput = JSON.parse(stdout.trim());
+        core.info("Parsed structured output successfully");
+        core.startGroup("Structured Output");
+        core.info(JSON.stringify(structuredOutput, null, 2));
+        core.endGroup();
+      } catch (parseError) {
+        core.warning(
+          `Failed to parse structured output: ${parseError}. Raw output will be available.`,
+        );
+      }
+    }
+
     return {
       success: true,
       exitCode: 0,
       output: stdout,
+      structuredOutput,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);

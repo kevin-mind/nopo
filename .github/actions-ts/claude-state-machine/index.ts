@@ -379,10 +379,9 @@ async function run(): Promise<void> {
       getOptionalInput("review_decision"),
     );
     const reviewer = getOptionalInput("reviewer") || null;
-    const commentContextType = getOptionalInput("comment_context_type") as
-      | "Issue"
-      | "PR"
-      | undefined;
+    const commentContextType = (getOptionalInput(
+      "comment_context_type",
+    )?.toLowerCase() || null) as "issue" | "pr" | null;
     const commentContextDescription =
       getOptionalInput("comment_context_description") || null;
     const inputBranch = getOptionalInput("branch") || null;

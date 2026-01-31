@@ -9,6 +9,7 @@ type Job =
   | "issue-comment"
   | "push-to-draft"
   | "pr-review"
+  | "pr-review-approved"
   | "pr-response"
   | "pr-human-response"
   | "merge-queue-logging"
@@ -1378,6 +1379,7 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
     number: number;
     title: string;
     draft: boolean;
+    body: string | null;
     head: { ref: string };
     author: { login: string };
     labels: Array<{ name: string }>;
