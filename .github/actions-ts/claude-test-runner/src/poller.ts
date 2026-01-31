@@ -190,16 +190,14 @@ export async function pollUntil<T>(
       break;
     }
 
-    // Check for cancellation via GitHub API every 5 attempts
-    // This catches cases where signals don't propagate properly
-    if (attempts > 0 && attempts % 5 === 0) {
-      const workflowCancelled = await isWorkflowCancelled();
-      if (workflowCancelled) {
-        cancelled = true;
-        core.info("🛑 Polling cancelled - workflow run no longer in progress");
-        globalAbortController?.abort();
-        break;
-      }
+    // Check for cancellation via GitHub API on every attempt
+    // This catches cases where signals don't propagate properly in containers
+    const workflowCancelled = await isWorkflowCancelled();
+    if (workflowCancelled) {
+      cancelled = true;
+      core.info("🛑 Polling cancelled - workflow run no longer in progress");
+      globalAbortController?.abort();
+      break;
     }
 
     attempts++;

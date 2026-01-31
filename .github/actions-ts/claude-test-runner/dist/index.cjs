@@ -24021,14 +24021,12 @@ async function pollUntil(fetchFn, conditionFn, config = {}, onPoll, signal) {
       core2.info("\u{1F6D1} Polling cancelled by signal");
       break;
     }
-    if (attempts > 0 && attempts % 5 === 0) {
-      const workflowCancelled = await isWorkflowCancelled();
-      if (workflowCancelled) {
-        cancelled = true;
-        core2.info("\u{1F6D1} Polling cancelled - workflow run no longer in progress");
-        globalAbortController?.abort();
-        break;
-      }
+    const workflowCancelled = await isWorkflowCancelled();
+    if (workflowCancelled) {
+      cancelled = true;
+      core2.info("\u{1F6D1} Polling cancelled - workflow run no longer in progress");
+      globalAbortController?.abort();
+      break;
     }
     attempts++;
     try {
