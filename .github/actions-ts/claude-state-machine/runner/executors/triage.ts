@@ -76,12 +76,21 @@ interface TriageClassification {
 }
 
 /**
+ * Todo item from structured output
+ */
+interface TodoItem {
+  task: string;
+  manual: boolean;
+}
+
+/**
  * Sub-issue definition from structured output
  */
 interface SubIssueDefinition {
+  type: string;
   title: string;
   description: string;
-  todos: string[];
+  todos: TodoItem[] | string[]; // Support both new and legacy format
 }
 
 /**
@@ -386,7 +395,19 @@ async function createSubIssues(
         : subIssue.title;
 
     // Build the sub-issue body with todos
-    const todoList = subIssue.todos.map((todo) => `- [ ] ${todo}`).join("\n");
+    // Support both new format (object with task/manual) and legacy format (string)
+    const todoList = subIssue.todos
+      .map((todo) => {
+        if (typeof todo === "string") {
+          // Legacy format: plain string
+          return `- [ ] ${todo}`;
+        } else {
+          // New format: object with task and manual flag
+          const prefix = todo.manual ? "[Manual] " : "";
+          return `- [ ] ${prefix}${todo.task}`;
+        }
+      })
+      .join("\n");
 
     const body = `## Description
 
@@ -423,12 +444,16 @@ Parent: #${parentIssueNumber}`;
       childId: issueId,
     });
 
-    // Add "triaged" label to skip triage step when assigned
+    // Add "triaged" label and type label to sub-issue
+    const subIssueLabels = ["triaged"];
+    if (subIssue.type) {
+      subIssueLabels.push(subIssue.type);
+    }
     await ctx.octokit.rest.issues.addLabels({
       owner: ctx.owner,
       repo: ctx.repo,
       issue_number: issueNumber,
-      labels: ["triaged"],
+      labels: subIssueLabels,
     });
 
     // Add to project with "Ready" status

@@ -30266,7 +30266,14 @@ async function createSubIssues(ctx, parentIssueNumber, subIssues) {
     if (!subIssue) continue;
     const phaseNumber = i + 1;
     const formattedTitle = subIssues.length > 1 ? `[Phase ${phaseNumber}] ${subIssue.title}` : subIssue.title;
-    const todoList = subIssue.todos.map((todo) => `- [ ] ${todo}`).join("\n");
+    const todoList = subIssue.todos.map((todo) => {
+      if (typeof todo === "string") {
+        return `- [ ] ${todo}`;
+      } else {
+        const prefix = todo.manual ? "[Manual] " : "";
+        return `- [ ] ${prefix}${todo.task}`;
+      }
+    }).join("\n");
     const body = `## Description
 
 ${subIssue.description}
@@ -30295,11 +30302,15 @@ Parent: #${parentIssueNumber}`;
       parentId,
       childId: issueId
     });
+    const subIssueLabels = ["triaged"];
+    if (subIssue.type) {
+      subIssueLabels.push(subIssue.type);
+    }
     await ctx.octokit.rest.issues.addLabels({
       owner: ctx.owner,
       repo: ctx.repo,
       issue_number: issueNumber,
-      labels: ["triaged"]
+      labels: subIssueLabels
     });
     if (projectInfo) {
       await addToProjectWithStatus(ctx, issueId, projectInfo, "Ready");
