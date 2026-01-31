@@ -30477,7 +30477,7 @@ async function applyProjectFields(ctx, issueNumber, classification) {
       core7.warning("Could not get project info");
       return;
     }
-    if (classification.priority && classification.priority !== "null" && projectInfo.priorityFieldId) {
+    if (classification.priority && classification.priority !== "null" && classification.priority !== "none" && projectInfo.priorityFieldId) {
       const optionId = projectInfo.priorityOptions[classification.priority.toLowerCase()];
       if (optionId) {
         await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION2, {
