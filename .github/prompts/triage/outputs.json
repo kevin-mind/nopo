@@ -49,7 +49,7 @@
         "properties": {
           "title": {
             "type": "string",
-            "description": "Sub-issue title in format '[Phase N] Title Here'"
+            "description": "Sub-issue title in format 'Phase N: Title Here' (e.g., 'Phase 1: Setup database schema')"
           },
           "description": {
             "type": "string",
@@ -58,7 +58,7 @@
           "todos": {
             "type": "array",
             "items": { "type": "string" },
-            "description": "Specific implementation tasks. NO generic workflow steps (commit, PR, test, merge). Use [Manual] prefix for tasks requiring human action."
+            "description": "Specific implementation tasks. NO generic workflow steps (commit, PR, test, merge). Use 'Manual:' prefix for tasks requiring human action."
           }
         },
         "required": ["title", "description", "todos"]

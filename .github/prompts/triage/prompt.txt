@@ -40,14 +40,14 @@ Every issue needs at least one sub-issue. Sub-issues contain todos and produce P
 - **M/L/XL issues**: 2-5 sub-issues, one per phase
 
 For each sub-issue, provide:
-- **Title**: Format as `[Phase N] Title Here`
+- **Title**: Format as `Phase N: Title Here` (e.g., `Phase 1: Setup database schema`)
 - **Description**: Brief description of the phase
 - **Todos**: Specific implementation tasks (checkboxes)
 
 **Todo guidelines**:
 - Be specific and actionable
 - NO generic workflow steps (commit, PR, test, merge)
-- Use `[Manual]` prefix for tasks requiring human action (e.g., `[Manual] Verify in production`)
+- Use `Manual:` prefix for tasks requiring human action (e.g., `Manual: Verify in production`)
 
 ## 4. Related Issues (Optional)
 
