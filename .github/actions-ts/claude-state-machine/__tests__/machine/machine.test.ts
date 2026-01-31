@@ -80,10 +80,10 @@ describe("claudeMachine", () => {
       expect(state).toBe("triaging");
       const actionTypes = actions.map((a) => a.type);
       expect(actionTypes).toContain("runClaude");
-      // Verify runClaude action uses triage prompt file
+      // Verify runClaude action uses triage prompt directory
       const runClaudeAction = actions.find((a) => a.type === "runClaude");
       if (runClaudeAction?.type === "runClaude") {
-        expect(runClaudeAction.promptFile).toContain("triage");
+        expect(runClaudeAction.promptDir).toBe("triage");
       } else {
         expect.fail("runClaude action not found");
       }
@@ -269,7 +269,7 @@ describe("claudeMachine", () => {
       expect(actionTypes).toContain("runClaude");
     });
 
-    test("emits runClaude with promptFile for triage", () => {
+    test("emits runClaude with promptDir for triage", () => {
       const context = createContext({
         trigger: "issue_triage",
         issue: {
@@ -284,13 +284,12 @@ describe("claudeMachine", () => {
       const { actions } = runMachine(context);
       const runClaudeAction = actions.find((a) => a.type === "runClaude");
       if (runClaudeAction?.type === "runClaude") {
-        expect(runClaudeAction.promptFile).toBe(".github/prompts/triage.txt");
+        expect(runClaudeAction.promptDir).toBe("triage");
         expect(runClaudeAction.promptVars).toEqual({
           ISSUE_NUMBER: "456",
           ISSUE_TITLE: "Bug report",
           ISSUE_BODY: "## Description\n\nSomething is broken",
-          REPO_OWNER: "test-owner",
-          REPO_NAME: "test-repo",
+          AGENT_NOTES: "",
         });
         expect(runClaudeAction.issueNumber).toBe(456);
       } else {
