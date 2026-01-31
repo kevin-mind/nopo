@@ -16,7 +16,7 @@ Analyze this issue and provide structured triage output. Do NOT execute any comm
 
 Determine:
 - **Type**: bug, enhancement, documentation, refactor, test, or chore
-- **Priority**: low, medium, high, critical (or null if not applicable)
+- **Priority**: none, low, medium, high, critical (use "none" if not applicable)
 - **Size**: XS (<1h), S (1-3h), M (3-8h), L (8-21h), XL (21+h)
 - **Estimate**: Fibonacci hours (XS=1, S=2-3, M=5-8, L=13, XL=21)
 - **Topics**: Up to 3 topic labels (e.g., "ci", "testing", "backend")

@@ -716,9 +716,11 @@ async function applyProjectFields(
     }
 
     // Apply Priority (single select)
+    // Skip if priority is null, "null", or "none"
     if (
       classification.priority &&
       classification.priority !== "null" &&
+      classification.priority !== "none" &&
       projectInfo.priorityFieldId
     ) {
       const optionId =

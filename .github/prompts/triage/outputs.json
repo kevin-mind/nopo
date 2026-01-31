@@ -11,9 +11,9 @@
           "description": "The type of issue"
         },
         "priority": {
-          "type": ["string", "null"],
-          "enum": ["low", "medium", "high", "critical", null],
-          "description": "Priority level (null if not applicable)"
+          "type": "string",
+          "enum": ["none", "low", "medium", "high", "critical"],
+          "description": "Priority level (use 'none' if not applicable)"
         },
         "size": {
           "type": "string",
