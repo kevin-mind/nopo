@@ -118,9 +118,9 @@ echo "Running Claude with --json-schema..."
 echo ""
 
 # Run claude with structured output
-# Using --print and --output-format json to get structured output
+# Using --print, --output-format json, and --strict to get only JSON output
 set +e
-OUTPUT=$(claude --json-schema "$SCHEMA" --output-format json --print -p "$(cat "$PROMPT_TMP")" 2>&1)
+OUTPUT=$(claude --json-schema "$SCHEMA" --output-format json --strict --print -p "$(cat "$PROMPT_TMP")" 2>&1)
 EXIT_CODE=$?
 set -e
 
