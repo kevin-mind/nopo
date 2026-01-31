@@ -289,8 +289,7 @@ describe("claudeMachine", () => {
           ISSUE_NUMBER: "456",
           ISSUE_TITLE: "Bug report",
           ISSUE_BODY: "## Description\n\nSomething is broken",
-          REPO_OWNER: "test-owner",
-          REPO_NAME: "test-repo",
+          AGENT_NOTES: "",
         });
         expect(runClaudeAction.issueNumber).toBe(456);
       } else {
