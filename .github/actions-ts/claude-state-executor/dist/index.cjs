@@ -30264,6 +30264,8 @@ async function createSubIssues(ctx, parentIssueNumber, subIssues) {
   for (let i = 0; i < subIssues.length; i++) {
     const subIssue = subIssues[i];
     if (!subIssue) continue;
+    const phaseNumber = i + 1;
+    const formattedTitle = subIssues.length > 1 ? `[Phase ${phaseNumber}] ${subIssue.title}` : subIssue.title;
     const todoList = subIssue.todos.map((todo) => `- [ ] ${todo}`).join("\n");
     const body = `## Description
 
@@ -30280,7 +30282,7 @@ Parent: #${parentIssueNumber}`;
       CREATE_ISSUE_MUTATION3,
       {
         repositoryId: repoId,
-        title: subIssue.title,
+        title: formattedTitle,
         body
       }
     );
@@ -30303,7 +30305,7 @@ Parent: #${parentIssueNumber}`;
       await addToProjectWithStatus(ctx, issueId, projectInfo, "Ready");
     }
     subIssueNumbers.push(issueNumber);
-    core7.info(`Created sub-issue #${issueNumber}: ${subIssue.title}`);
+    core7.info(`Created sub-issue #${issueNumber}: ${formattedTitle}`);
   }
   return subIssueNumbers;
 }

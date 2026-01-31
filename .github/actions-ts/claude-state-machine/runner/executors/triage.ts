@@ -378,6 +378,13 @@ async function createSubIssues(
     const subIssue = subIssues[i];
     if (!subIssue) continue;
 
+    // Format title with phase number (1-indexed)
+    const phaseNumber = i + 1;
+    const formattedTitle =
+      subIssues.length > 1
+        ? `[Phase ${phaseNumber}] ${subIssue.title}`
+        : subIssue.title;
+
     // Build the sub-issue body with todos
     const todoList = subIssue.todos.map((todo) => `- [ ] ${todo}`).join("\n");
 
@@ -398,7 +405,7 @@ Parent: #${parentIssueNumber}`;
       CREATE_ISSUE_MUTATION,
       {
         repositoryId: repoId,
-        title: subIssue.title,
+        title: formattedTitle,
         body,
       },
     );
@@ -430,7 +437,7 @@ Parent: #${parentIssueNumber}`;
     }
 
     subIssueNumbers.push(issueNumber);
-    core.info(`Created sub-issue #${issueNumber}: ${subIssue.title}`);
+    core.info(`Created sub-issue #${issueNumber}: ${formattedTitle}`);
   }
 
   return subIssueNumbers;

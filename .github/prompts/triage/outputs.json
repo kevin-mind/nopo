@@ -49,7 +49,7 @@
         "properties": {
           "title": {
             "type": "string",
-            "description": "Sub-issue title in format 'Phase N: Title Here' (e.g., 'Phase 1: Setup database schema')"
+            "description": "Sub-issue title (just the descriptive title, e.g., 'Setup database schema')"
           },
           "description": {
             "type": "string",
