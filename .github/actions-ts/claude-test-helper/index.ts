@@ -2504,18 +2504,27 @@ async function run(): Promise<void> {
     process.env.GH_TOKEN = token;
 
     // Validate tokens and warn if same user
-    const { data: codeUser } = await octokit.rest.users.getAuthenticated();
-    core.info(`Code token authenticated as: ${codeUser.login}`);
+    // Note: getAuthenticated() requires 'user' scope which GITHUB_TOKEN doesn't have
+    // Only check for actions that need to know the user identity
+    if (action === "create" || action === "verify") {
+      try {
+        const { data: codeUser } = await octokit.rest.users.getAuthenticated();
+        core.info(`Code token authenticated as: ${codeUser.login}`);
 
-    if (reviewOctokit) {
-      const { data: reviewUser } =
-        await reviewOctokit.rest.users.getAuthenticated();
-      core.info(`Review token authenticated as: ${reviewUser.login}`);
+        if (reviewOctokit) {
+          const { data: reviewUser } =
+            await reviewOctokit.rest.users.getAuthenticated();
+          core.info(`Review token authenticated as: ${reviewUser.login}`);
 
-      if (codeUser.login === reviewUser.login) {
-        core.warning(
-          `Code and review tokens belong to same user (${codeUser.login}) - PR reviews will fail`,
-        );
+          if (codeUser.login === reviewUser.login) {
+            core.warning(
+              `Code and review tokens belong to same user (${codeUser.login}) - PR reviews will fail`,
+            );
+          }
+        }
+      } catch (authError) {
+        // Token doesn't have 'user' scope - this is fine for GITHUB_TOKEN
+        core.debug(`Could not verify token identity: ${authError}`);
       }
     }
 

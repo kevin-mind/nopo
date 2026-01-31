@@ -25553,15 +25553,21 @@ async function run() {
     const reviewOctokit = reviewToken ? github.getOctokit(reviewToken) : void 0;
     const { owner, repo } = github.context.repo;
     process.env.GH_TOKEN = token;
-    const { data: codeUser } = await octokit.rest.users.getAuthenticated();
-    core2.info(`Code token authenticated as: ${codeUser.login}`);
-    if (reviewOctokit) {
-      const { data: reviewUser } = await reviewOctokit.rest.users.getAuthenticated();
-      core2.info(`Review token authenticated as: ${reviewUser.login}`);
-      if (codeUser.login === reviewUser.login) {
-        core2.warning(
-          `Code and review tokens belong to same user (${codeUser.login}) - PR reviews will fail`
-        );
+    if (action === "create" || action === "verify") {
+      try {
+        const { data: codeUser } = await octokit.rest.users.getAuthenticated();
+        core2.info(`Code token authenticated as: ${codeUser.login}`);
+        if (reviewOctokit) {
+          const { data: reviewUser } = await reviewOctokit.rest.users.getAuthenticated();
+          core2.info(`Review token authenticated as: ${reviewUser.login}`);
+          if (codeUser.login === reviewUser.login) {
+            core2.warning(
+              `Code and review tokens belong to same user (${codeUser.login}) - PR reviews will fail`
+            );
+          }
+        }
+      } catch (authError) {
+        core2.debug(`Could not verify token identity: ${authError}`);
       }
     }
     if (action === "create") {
