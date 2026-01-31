@@ -98,7 +98,7 @@ jobs:
             echo "Found e2e marker in commit: run_id=$run_id, ci=$ci_outcome, release=$release_outcome, review=$review_outcome"
           fi
 
-          # Method 3: For merge_group, check if PR has _e2e label
+          # Method 3: For merge_group, check if linked issue has _e2e label
           # This handles the case where the merge queue creates a new commit
           if [[ -z "$run_id" && "$EVENT_NAME" == "merge_group" && -n "$MERGE_GROUP_HEAD_REF" ]]; then
             echo "Checking merge queue for _e2e label..."
@@ -107,14 +107,23 @@ jobs:
               pr_number="${BASH_REMATCH[1]}"
               echo "Extracted PR #$pr_number from merge queue branch"
 
-              # Check if PR has _e2e label
-              has_e2e_label=$(gh api repos/${{ github.repository }}/pulls/$pr_number --jq '.labels[].name' 2>/dev/null | grep -q "^_e2e$" && echo "true" || echo "false")
+              # Get PR body and extract linked issue number from "Fixes #N"
+              pr_body=$(gh api repos/${{ github.repository }}/pulls/$pr_number --jq '.body' 2>/dev/null || echo "")
+              if [[ "$pr_body" =~ Fixes[[:space:]]+#([0-9]+) ]]; then
+                linked_issue="${BASH_REMATCH[1]}"
+                echo "Found linked issue #$linked_issue in PR body"
 
-              if [[ "$has_e2e_label" == "true" ]]; then
-                echo "::notice::E2E mode detected via _e2e label on PR #$pr_number"
-                e2e_mode=true
-                # For label-based detection, use default success outcomes
-                # (the e2e test has already passed CI/review to get here)
+                # Check if linked issue has _e2e label
+                has_e2e_label=$(gh api repos/${{ github.repository }}/issues/$linked_issue --jq '.labels[].name' 2>/dev/null | grep -q "^_e2e$" && echo "true" || echo "false")
+
+                if [[ "$has_e2e_label" == "true" ]]; then
+                  echo "::notice::E2E mode detected via _e2e label on linked issue #$linked_issue"
+                  e2e_mode=true
+                  # For label-based detection, use default success outcomes
+                  # (the e2e test has already passed CI/review to get here)
+                fi
+              else
+                echo "No 'Fixes #N' pattern found in PR body"
               fi
             fi
           fi
