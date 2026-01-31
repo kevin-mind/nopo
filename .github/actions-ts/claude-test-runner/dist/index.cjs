@@ -32372,7 +32372,7 @@ function emitRunClaudePRReview({
     {
       type: "runClaude",
       token: "review",
-      promptFile: ".github/prompts/review.txt",
+      promptDir: "review",
       promptVars,
       issueNumber
       // worktree intentionally omitted - checkout happens at repo root to the correct branch

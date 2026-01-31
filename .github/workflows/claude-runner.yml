@@ -518,7 +518,7 @@ jobs:
           model: "claude-opus-4-5-20251101"
           max_turns: "50"
 
-      # Submit review if Claude wrote review-output.json (for review token actions)
+      # Submit review using structured output from Claude
       # CLAUDE_REVIEWER_PAT must be for a different user than the PR author (nopo-bot)
       # to avoid "Cannot approve your own pull request" error
       # Skip in e2e mode - e2e-review step already submitted the review
@@ -531,9 +531,17 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.CLAUDE_REVIEWER_PAT }}
           PR_NUMBER: ${{ matrix.action.promptVars.PR_NUMBER }}
+          STRUCTURED_OUTPUT: ${{ steps.run-claude.outputs.structured_output }}
         run: |
-          if [[ ! -f review-output.json ]]; then
-            echo "::warning::review-output.json not found - Claude may not have written a review"
+          # Use structured output from action, fallback to file for backwards compatibility
+          if [[ -n "$STRUCTURED_OUTPUT" ]]; then
+            echo "Using structured output from action"
+            echo "$STRUCTURED_OUTPUT" > review-output.json
+          elif [[ ! -f review-output.json ]] && [[ -f claude-structured-output.json ]]; then
+            echo "Using claude-structured-output.json"
+            cp claude-structured-output.json review-output.json
+          elif [[ ! -f review-output.json ]]; then
+            echo "::warning::No review output found"
             exit 0
           fi
 

@@ -554,8 +554,8 @@ export function emitRunClaudeComment({ context }: ActionContext): ActionResult {
 /**
  * Emit action to run Claude to review a PR
  *
- * Uses the review prompt file with template variables substituted.
- * Claude will review the code and write review-output.json which is then
+ * Uses the review prompt directory with structured output schema.
+ * Claude will review the code and return structured output which is then
  * submitted as a PR review.
  */
 export function emitRunClaudePRReview({
@@ -590,7 +590,7 @@ export function emitRunClaudePRReview({
     {
       type: "runClaude",
       token: "review",
-      promptFile: ".github/prompts/review.txt",
+      promptDir: "review",
       promptVars,
       issueNumber,
       // worktree intentionally omitted - checkout happens at repo root to the correct branch

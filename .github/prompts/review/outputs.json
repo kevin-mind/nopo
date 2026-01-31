@@ -1,0 +1,22 @@
+{
+  "type": "object",
+  "properties": {
+    "decision": {
+      "type": "string",
+      "enum": ["approve", "request_changes", "comment"],
+      "description": "Review decision: approve (all requirements met), request_changes (changes needed), comment (feedback only)"
+    },
+    "body": {
+      "type": "string",
+      "description": "Review summary explaining the decision. For request_changes, explain what needs to change."
+    },
+    "agent_notes": {
+      "type": "array",
+      "description": "Important findings or patterns noticed during review for future agents",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": ["decision", "body"]
+}
