@@ -964,7 +964,9 @@ async function handleIssueCommentEvent(
   // Check for /implement, /continue, or /lfg command (issues only, not PRs)
   const isPr = !!issue.pull_request;
   const commandLines = comment.body.split("\n").map((line) => line.trim());
-  const hasImplementCommand = commandLines.some((line) => line === "/implement");
+  const hasImplementCommand = commandLines.some(
+    (line) => line === "/implement",
+  );
   const hasContinueCommand = commandLines.some((line) => line === "/continue");
   const hasLfgCommand = commandLines.some((line) => line === "/lfg");
 

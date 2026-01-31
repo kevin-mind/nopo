@@ -715,11 +715,11 @@ async function _checkE2EConfigExists(
 }
 
 /**
- * Merge a PR using gh CLI with admin privileges to bypass merge queue
+ * Merge a PR using gh CLI (adds to merge queue)
  *
- * Note: For e2e tests, we use --admin to bypass the merge queue since
- * the merge queue would run full CI/Release again which is very slow.
- * This is safe because e2e tests already verify CI passes before merging.
+ * Note: For e2e tests, we use normal merge which goes through the merge queue.
+ * The Release workflow detects e2e mode via the _e2e label and skips expensive
+ * jobs (build, test, deploy) while letting the merge complete quickly.
  */
 async function mergePR(
   owner: string,
@@ -727,7 +727,7 @@ async function mergePR(
   prNumber: number,
 ): Promise<boolean> {
   try {
-    core.info(`🔀 Merging PR #${prNumber} with admin privileges (bypass merge queue)...`);
+    core.info(`🔀 Merging PR #${prNumber} via merge queue...`);
     await exec.exec("gh", [
       "pr",
       "merge",
@@ -735,9 +735,8 @@ async function mergePR(
       "--repo",
       `${owner}/${repo}`,
       "--squash",
-      "--admin", // Bypass merge queue for e2e tests
     ]);
-    core.info(`✅ PR #${prNumber} merged successfully`);
+    core.info(`✅ PR #${prNumber} added to merge queue`);
     return true;
   } catch (error) {
     core.warning(`Failed to merge PR #${prNumber}: ${error}`);

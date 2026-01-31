@@ -24557,7 +24557,9 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
   }
   const isPr = !!issue.pull_request;
   const commandLines = comment.body.split("\n").map((line) => line.trim());
-  const hasImplementCommand = commandLines.some((line) => line === "/implement");
+  const hasImplementCommand = commandLines.some(
+    (line) => line === "/implement"
+  );
   const hasContinueCommand = commandLines.some((line) => line === "/continue");
   const hasLfgCommand = commandLines.some((line) => line === "/lfg");
   if ((hasImplementCommand || hasContinueCommand || hasLfgCommand) && !isPr) {

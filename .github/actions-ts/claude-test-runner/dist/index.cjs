@@ -35351,18 +35351,16 @@ function verifyPhaseExpectations(conditions, expectations) {
 }
 async function mergePR(owner, repo, prNumber) {
   try {
-    core5.info(`\u{1F500} Merging PR #${prNumber} with admin privileges (bypass merge queue)...`);
+    core5.info(`\u{1F500} Merging PR #${prNumber} via merge queue...`);
     await exec5.exec("gh", [
       "pr",
       "merge",
       String(prNumber),
       "--repo",
       `${owner}/${repo}`,
-      "--squash",
-      "--admin"
-      // Bypass merge queue for e2e tests
+      "--squash"
     ]);
-    core5.info(`\u2705 PR #${prNumber} merged successfully`);
+    core5.info(`\u2705 PR #${prNumber} added to merge queue`);
     return true;
   } catch (error3) {
     core5.warning(`Failed to merge PR #${prNumber}: ${error3}`);
