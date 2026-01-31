@@ -961,16 +961,14 @@ async function handleIssueCommentEvent(
     return emptyResult(true, "Comment is from a bot");
   }
 
-  // Check for /implement or /continue command (issues only, not PRs)
+  // Check for /implement, /continue, or /lfg command (issues only, not PRs)
   const isPr = !!issue.pull_request;
-  const hasImplementCommand = comment.body
-    .split("\n")
-    .some((line) => line.trim() === "/implement");
-  const hasContinueCommand = comment.body
-    .split("\n")
-    .some((line) => line.trim() === "/continue");
+  const commandLines = comment.body.split("\n").map((line) => line.trim());
+  const hasImplementCommand = commandLines.some((line) => line === "/implement");
+  const hasContinueCommand = commandLines.some((line) => line === "/continue");
+  const hasLfgCommand = commandLines.some((line) => line === "/lfg");
 
-  if ((hasImplementCommand || hasContinueCommand) && !isPr) {
+  if ((hasImplementCommand || hasContinueCommand || hasLfgCommand) && !isPr) {
     const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
 
     // Check if this is a sub-issue

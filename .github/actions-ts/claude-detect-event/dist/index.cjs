@@ -24556,9 +24556,11 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
     return emptyResult(true, "Comment is from a bot");
   }
   const isPr = !!issue.pull_request;
-  const hasImplementCommand = comment.body.split("\n").some((line) => line.trim() === "/implement");
-  const hasContinueCommand = comment.body.split("\n").some((line) => line.trim() === "/continue");
-  if ((hasImplementCommand || hasContinueCommand) && !isPr) {
+  const commandLines = comment.body.split("\n").map((line) => line.trim());
+  const hasImplementCommand = commandLines.some((line) => line === "/implement");
+  const hasContinueCommand = commandLines.some((line) => line === "/continue");
+  const hasLfgCommand = commandLines.some((line) => line === "/lfg");
+  if ((hasImplementCommand || hasContinueCommand || hasLfgCommand) && !isPr) {
     const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
     if (details.isSubIssue) {
       const phaseNumber = extractPhaseNumber(details.title);
