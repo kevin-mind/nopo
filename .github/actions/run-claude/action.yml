@@ -37,6 +37,10 @@ inputs:
     description: Path to settings file
     required: false
     default: ".claude/settings.json"
+  mcp_config:
+    description: Path to MCP configuration file (MCP tools are restricted per-agent via their tools field)
+    required: false
+    default: ".mcp.json"
   show_full_output:
     description: Whether to show full Claude output
     required: false
@@ -107,6 +111,19 @@ runs:
         } >> "$GITHUB_OUTPUT"
 
     # Step 2: Run Claude Code
+    - name: Build Claude args
+      id: claude_args
+      shell: bash
+      run: |
+        args="--model ${{ inputs.model }} --max-turns ${{ inputs.max_turns }}"
+
+        # Add MCP config if file exists
+        if [[ -n "${{ inputs.mcp_config }}" && -f "${{ inputs.mcp_config }}" ]]; then
+          args="$args --mcp-config ${{ inputs.mcp_config }}"
+        fi
+
+        echo "args=$args" >> "$GITHUB_OUTPUT"
+
     - name: Run Claude
       id: claude
       uses: anthropics/claude-code-action@v1
@@ -115,7 +132,7 @@ runs:
         github_token: ${{ inputs.github_token }}
         prompt: ${{ steps.prompt.outputs.prompt }}
         settings: ${{ inputs.settings }}
-        claude_args: "--model ${{ inputs.model }} --max-turns ${{ inputs.max_turns }}"
+        claude_args: ${{ steps.claude_args.outputs.args }}
         show_full_output: ${{ inputs.show_full_output }}
         trigger_phrase: ${{ inputs.trigger_phrase }}
         assignee_trigger: ${{ inputs.assignee_trigger }}
