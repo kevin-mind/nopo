@@ -295,6 +295,18 @@ CI is the bridge between loops.
 | @claude | `issue_comment` | Contains @claude |
 | Review | `pull_request:[review_requested]` | nopo-bot reviewer, PR ready |
 
+### Issue Commands
+
+Comment these on issues to trigger the state machine:
+
+| Command | Action |
+|---------|--------|
+| `/lfg` | Start/resume work on the issue (triggers iterate or orchestrate) |
+| `/implement` | Same as `/lfg` - start implementing the issue |
+| `/continue` | Same as `/lfg` - continue work on the issue |
+
+These commands work on both parent issues (triggers orchestration) and sub-issues (triggers iteration).
+
 ### Concurrency
 
 - `claude-resource-issue-{N}`: Triage cancels, Iterate queues
