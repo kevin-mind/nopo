@@ -10,6 +10,10 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 PROMPTS_DIR="$REPO_ROOT/.github/prompts"
 FIXTURES_DIR="$PROMPTS_DIR/fixtures"
 
+# Install Claude CLI globally to avoid npm output mixing with JSON
+echo "Installing Claude CLI..."
+npm install -g @anthropic-ai/claude-code >/dev/null 2>&1 || true
+
 test_prompt() {
     local name=$1
     local prompt_dir="$PROMPTS_DIR/$name"
@@ -36,7 +40,7 @@ test_prompt() {
     local schema=$(jq -c . "$schema_file")
     local output_file="/tmp/test-$name.json"
 
-    echo "$prompt" | npx @anthropic-ai/claude-code --print \
+    echo "$prompt" | claude --print \
         --dangerously-skip-permissions \
         --output-format json \
         --json-schema "$schema" \
