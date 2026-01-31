@@ -157,15 +157,17 @@ runs:
 
         echo "args=$args" >> "$GITHUB_OUTPUT"
 
+        # TODO: Structured output disabled - causes Claude to hang
+        # Re-enable once claude-code-action properly supports --json-schema
         # Pass schema separately - will be combined with args in Run Claude step
-        if [[ -n "$OUTPUT_SCHEMA" ]]; then
-          echo "Found output schema for structured output"
-          # Use heredoc delimiter for safe output with special chars
-          delimiter=$(openssl rand -hex 16)
-          echo "json_schema<<$delimiter" >> "$GITHUB_OUTPUT"
-          echo "$OUTPUT_SCHEMA" >> "$GITHUB_OUTPUT"
-          echo "$delimiter" >> "$GITHUB_OUTPUT"
-        fi
+        # if [[ -n "$OUTPUT_SCHEMA" ]]; then
+        #   echo "Found output schema for structured output"
+        #   # Use heredoc delimiter for safe output with special chars
+        #   delimiter=$(openssl rand -hex 16)
+        #   echo "json_schema<<$delimiter" >> "$GITHUB_OUTPUT"
+        #   echo "$OUTPUT_SCHEMA" >> "$GITHUB_OUTPUT"
+        #   echo "$delimiter" >> "$GITHUB_OUTPUT"
+        # fi
 
     - name: Run Claude
       id: claude

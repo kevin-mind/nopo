@@ -474,15 +474,8 @@ Review the CI logs at the link above and fix the failing tests or build errors.`
 /**
  * Emit action to run Claude for issue triage
  *
- * Uses the triage prompt directory with structured output.
- * Claude returns structured JSON which the executor uses to:
- * - Apply labels and project fields
- * - Update issue body
- * - Create sub-issues with todos
- * - Link related issues
- *
- * The structured output is saved to claude-structured-output.json by the
- * run-claude action and passed via artifact to applyTriageOutput.
+ * Uses the triage prompt file. Claude writes triage-output.json which
+ * the applyTriageOutput action uses to apply labels and project fields.
  */
 export function emitRunClaudeTriage({ context }: ActionContext): ActionResult {
   const issueNumber = context.issue.number;
@@ -495,29 +488,29 @@ export function emitRunClaudeTriage({ context }: ActionContext): ActionResult {
     AGENT_NOTES: "", // Injected by workflow from previous runs
   };
 
-  const structuredOutputArtifact = {
+  const triageArtifact = {
     name: "claude-triage-output",
-    path: "claude-structured-output.json",
+    path: "triage-output.json",
   };
 
   return [
     {
       type: "runClaude",
       token: "code",
-      promptDir: "triage", // Resolves to .github/prompts/triage/
+      promptFile: ".github/prompts/triage.txt",
       promptVars,
       issueNumber,
-      // Structured output is written to claude-structured-output.json
-      producesArtifact: structuredOutputArtifact,
+      // Upload triage-output.json after Claude creates it
+      producesArtifact: triageArtifact,
     },
-    // Apply labels, project fields, update body, create sub-issues
-    // Reads structured output from the artifact file
+    // Apply labels and project fields from triage-output.json
+    // Downloads the artifact before execution
     {
       type: "applyTriageOutput",
       token: "code",
       issueNumber,
-      filePath: "claude-structured-output.json",
-      consumesArtifact: structuredOutputArtifact,
+      filePath: "triage-output.json",
+      consumesArtifact: triageArtifact,
     },
     // Note: History entry is handled by workflow bookend logging
   ];
