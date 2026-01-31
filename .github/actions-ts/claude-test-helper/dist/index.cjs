@@ -394,7 +394,7 @@ var require_tunnel = __commonJS({
         connectOptions.headers = connectOptions.headers || {};
         connectOptions.headers["Proxy-Authorization"] = "Basic " + new Buffer(connectOptions.proxyAuth).toString("base64");
       }
-      debug("making CONNECT request");
+      debug2("making CONNECT request");
       var connectReq = self.request(connectOptions);
       connectReq.useChunkedEncodingByDefault = false;
       connectReq.once("response", onResponse);
@@ -414,7 +414,7 @@ var require_tunnel = __commonJS({
         connectReq.removeAllListeners();
         socket.removeAllListeners();
         if (res.statusCode !== 200) {
-          debug(
+          debug2(
             "tunneling socket could not be established, statusCode=%d",
             res.statusCode
           );
@@ -426,7 +426,7 @@ var require_tunnel = __commonJS({
           return;
         }
         if (head.length > 0) {
-          debug("got illegal response body from proxy");
+          debug2("got illegal response body from proxy");
           socket.destroy();
           var error = new Error("got illegal response body from proxy");
           error.code = "ECONNRESET";
@@ -434,13 +434,13 @@ var require_tunnel = __commonJS({
           self.removeSocket(placeholder);
           return;
         }
-        debug("tunneling connection has established");
+        debug2("tunneling connection has established");
         self.sockets[self.sockets.indexOf(placeholder)] = socket;
         return cb(socket);
       }
       function onError(cause) {
         connectReq.removeAllListeners();
-        debug(
+        debug2(
           "tunneling socket could not be established, cause=%s\n",
           cause.message,
           cause.stack
@@ -502,9 +502,9 @@ var require_tunnel = __commonJS({
       }
       return target;
     }
-    var debug;
+    var debug2;
     if (process.env.NODE_DEBUG && /\btunnel\b/.test(process.env.NODE_DEBUG)) {
-      debug = function() {
+      debug2 = function() {
         var args = Array.prototype.slice.call(arguments);
         if (typeof args[0] === "string") {
           args[0] = "TUNNEL: " + args[0];
@@ -514,10 +514,10 @@ var require_tunnel = __commonJS({
         console.error.apply(console, args);
       };
     } else {
-      debug = function() {
+      debug2 = function() {
       };
     }
-    exports2.debug = debug;
+    exports2.debug = debug2;
   }
 });
 
@@ -19728,10 +19728,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       return process.env["RUNNER_DEBUG"] === "1";
     }
     exports2.isDebug = isDebug;
-    function debug(message) {
+    function debug2(message) {
       (0, command_1.issueCommand)("debug", {}, message);
     }
-    exports2.debug = debug;
+    exports2.debug = debug2;
     function error(message, properties = {}) {
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
@@ -25049,8 +25049,58 @@ async function verifyFixture(octokit, owner, repo, issueNumber, fixture, project
     errors
   };
 }
+async function forceCancelRelatedWorkflows(octokit, owner, repo, issueNumber) {
+  core2.info(`Checking for running workflows related to issue #${issueNumber}`);
+  try {
+    const { data: runs } = await octokit.rest.actions.listWorkflowRunsForRepo({
+      owner,
+      repo,
+      status: "in_progress",
+      per_page: 50
+    });
+    const { data: queuedRuns } = await octokit.rest.actions.listWorkflowRunsForRepo({
+      owner,
+      repo,
+      status: "queued",
+      per_page: 50
+    });
+    const allRuns = [...runs.workflow_runs, ...queuedRuns.workflow_runs];
+    for (const run2 of allRuns) {
+      const runName = run2.name || "";
+      const displayTitle = run2.display_title || "";
+      const issuePattern = `#${issueNumber}`;
+      const issuePatternAlt = `${issueNumber}`;
+      const isRelated = runName.includes(issuePattern) || displayTitle.includes(issuePattern) || // Also check if run_id matches (for e2e tests)
+      displayTitle.includes(`[TEST]`) || // Check head_branch for claude/issue/{N} pattern
+      run2.head_branch?.includes(`issue/${issueNumber}`) || run2.head_branch?.includes(`issue-${issueNumber}`);
+      if (isRelated) {
+        core2.info(
+          `Force cancelling workflow run ${run2.id}: ${run2.name} - ${run2.display_title}`
+        );
+        try {
+          await octokit.request(
+            "POST /repos/{owner}/{repo}/actions/runs/{run_id}/force-cancel",
+            {
+              owner,
+              repo,
+              run_id: run2.id
+            }
+          );
+          core2.info(`\u2705 Force cancelled run ${run2.id}`);
+        } catch (cancelError) {
+          core2.debug(
+            `Could not force cancel run ${run2.id}: ${cancelError}`
+          );
+        }
+      }
+    }
+  } catch (error) {
+    core2.warning(`Failed to check/cancel related workflows: ${error}`);
+  }
+}
 async function cleanupFixture(octokit, owner, repo, issueNumber, projectNumber) {
   core2.info(`Cleaning up test fixture for issue #${issueNumber}`);
+  await forceCancelRelatedWorkflows(octokit, owner, repo, issueNumber);
   const { data: issue } = await octokit.rest.issues.get({
     owner,
     repo,

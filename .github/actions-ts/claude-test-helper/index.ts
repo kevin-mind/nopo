@@ -1692,6 +1692,84 @@ async function verifyFixture(
 }
 
 /**
+ * Force cancel any running workflow runs related to an issue
+ *
+ * This finds workflow runs that mention the issue number in their name
+ * or display_title and force cancels them. Uses the force-cancel API
+ * endpoint which immediately stops runs without waiting for cleanup.
+ */
+async function forceCancelRelatedWorkflows(
+  octokit: ReturnType<typeof github.getOctokit>,
+  owner: string,
+  repo: string,
+  issueNumber: number,
+): Promise<void> {
+  core.info(`Checking for running workflows related to issue #${issueNumber}`);
+
+  try {
+    // List recent workflow runs that are in progress or queued
+    const { data: runs } = await octokit.rest.actions.listWorkflowRunsForRepo({
+      owner,
+      repo,
+      status: "in_progress",
+      per_page: 50,
+    });
+
+    // Also get queued runs
+    const { data: queuedRuns } =
+      await octokit.rest.actions.listWorkflowRunsForRepo({
+        owner,
+        repo,
+        status: "queued",
+        per_page: 50,
+      });
+
+    const allRuns = [...runs.workflow_runs, ...queuedRuns.workflow_runs];
+
+    for (const run of allRuns) {
+      // Check if run is related to this issue (by name or title containing issue number)
+      const runName = run.name || "";
+      const displayTitle = run.display_title || "";
+      const issuePattern = `#${issueNumber}`;
+
+      const isRelated =
+        runName.includes(issuePattern) ||
+        displayTitle.includes(issuePattern) ||
+        // Also check if run_id matches (for e2e tests)
+        displayTitle.includes(`[TEST]`) ||
+        // Check head_branch for claude/issue/{N} pattern
+        run.head_branch?.includes(`issue/${issueNumber}`) ||
+        run.head_branch?.includes(`issue-${issueNumber}`);
+
+      if (isRelated) {
+        core.info(
+          `Force cancelling workflow run ${run.id}: ${run.name} - ${run.display_title}`,
+        );
+
+        try {
+          // Use force-cancel endpoint for immediate cancellation
+          await octokit.request(
+            "POST /repos/{owner}/{repo}/actions/runs/{run_id}/force-cancel",
+            {
+              owner,
+              repo,
+              run_id: run.id,
+            },
+          );
+          core.info(`✅ Force cancelled run ${run.id}`);
+        } catch (cancelError) {
+          // Ignore errors - run may already be cancelled or completed
+          core.debug(`Could not force cancel run ${run.id}: ${cancelError}`);
+        }
+      }
+    }
+  } catch (error) {
+    // Don't fail cleanup if we can't cancel workflows
+    core.warning(`Failed to check/cancel related workflows: ${error}`);
+  }
+}
+
+/**
  * Cleanup a test fixture
  *
  * SAFETY: Only cleans up issues that have the `_e2e` label to prevent
@@ -1705,6 +1783,9 @@ async function cleanupFixture(
   projectNumber: number,
 ): Promise<void> {
   core.info(`Cleaning up test fixture for issue #${issueNumber}`);
+
+  // Step 1: Force cancel any running workflow runs related to this issue
+  await forceCancelRelatedWorkflows(octokit, owner, repo, issueNumber);
 
   // SAFETY CHECK: Verify the issue has the _e2e label before proceeding
   const { data: issue } = await octokit.rest.issues.get({
