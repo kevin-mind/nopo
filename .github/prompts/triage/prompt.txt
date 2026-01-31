@@ -63,9 +63,9 @@ Save any important discoveries from codebase exploration that future agents shou
 
 ## Output
 
-**IMPORTANT: Output ONLY valid JSON with no additional text. Your response must be parseable JSON.**
+**CRITICAL: Write your triage output to a file named `claude-structured-output.json` using the Write tool.**
 
-Return a JSON object with this structure:
+The JSON file must contain:
 ```json
 {
   "triage": {
@@ -92,7 +92,9 @@ Return a JSON object with this structure:
 }
 ```
 
-The executor will:
+After writing the file, briefly confirm that you've completed triage.
+
+The executor will then:
 - Apply labels (type + topics + triaged)
 - Set project fields (Priority, Size, Estimate)
 - Update the issue body

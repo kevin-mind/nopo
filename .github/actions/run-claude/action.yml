@@ -180,46 +180,30 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
 
-    # Step 3: Save structured output to file (for artifact passing between matrix jobs)
-    # Handle both SDK structured output and manual JSON parsing from text
-    - name: Save structured output
+    # Step 3: Verify and output structured JSON
+    # Claude writes the file directly via the Write tool
+    - name: Verify structured output
       id: save_output
       if: steps.claude_args.outputs.expect_json == 'true'
       shell: bash
       env:
         STRUCTURED_OUTPUT: ${{ steps.claude.outputs.structured_output }}
-        SUMMARY: ${{ steps.claude.outputs.summary }}
       run: |
-        # Prefer structured_output if available, otherwise extract JSON from summary
-        if [[ -n "$STRUCTURED_OUTPUT" ]]; then
+        # Claude should have written the file directly
+        if [[ -f "claude-structured-output.json" ]]; then
+          echo "Found claude-structured-output.json written by Claude"
+        elif [[ -n "$STRUCTURED_OUTPUT" ]]; then
+          # Fallback: use SDK structured output if available
           echo "Using SDK structured output"
           echo "$STRUCTURED_OUTPUT" > claude-structured-output.json
-        elif [[ -n "$SUMMARY" ]]; then
-          echo "Extracting JSON from Claude's text response"
-          # Extract JSON from summary - look for the first { to last }
-          # Handle multiline JSON by using sed to extract
-          json_content=$(echo "$SUMMARY" | sed -n '/^{/,/^}$/p' | head -c 100000)
-
-          if [[ -z "$json_content" ]]; then
-            # Try extracting JSON between ```json and ```
-            json_content=$(echo "$SUMMARY" | sed -n '/```json/,/```/p' | sed '1d;$d')
-          fi
-
-          if [[ -n "$json_content" ]]; then
-            echo "$json_content" > claude-structured-output.json
-          else
-            echo "::error::Could not extract JSON from Claude's response"
-            echo "Summary content:"
-            echo "$SUMMARY" | head -c 2000
-            exit 1
-          fi
         else
-          echo "::error::No structured output or summary available"
+          echo "::error::claude-structured-output.json not found - Claude may not have written the file"
+          echo "Check if Claude was prompted to write to claude-structured-output.json"
           exit 1
         fi
 
         echo "::group::Structured Output"
-        cat claude-structured-output.json | jq . || echo "Warning: Output is not valid JSON"
+        cat claude-structured-output.json | jq . || { echo "::error::Output is not valid JSON"; exit 1; }
         echo "::endgroup::"
 
         # Set output from file
