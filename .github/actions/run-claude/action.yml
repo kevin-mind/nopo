@@ -130,36 +130,41 @@ runs:
         CLAUDE_CODE_OAUTH_TOKEN: ${{ inputs.claude_code_oauth_token }}
         GITHUB_TOKEN: ${{ inputs.github_token }}
       run: |
-        # Build CLI arguments
-        ARGS="--print --dangerously-skip-permissions --output-format json"
-        ARGS="$ARGS --model ${{ inputs.model }} --max-turns ${{ inputs.max_turns }}"
+        # Read prompt from file
+        PROMPT=$(cat "${{ steps.prompt.outputs.prompt_file }}")
+
+        # Build command array (avoids quoting issues)
+        CMD=(npx @anthropic-ai/claude-code
+          --print
+          --dangerously-skip-permissions
+          --output-format json
+          --model "${{ inputs.model }}"
+          --max-turns "${{ inputs.max_turns }}"
+        )
 
         # Add MCP config if file exists
         if [[ -n "${{ inputs.mcp_config }}" && -f "${{ inputs.mcp_config }}" ]]; then
-          ARGS="$ARGS --mcp-config ${{ inputs.mcp_config }}"
+          CMD+=(--mcp-config "${{ inputs.mcp_config }}")
         fi
 
         # Add JSON schema if present
         if [[ "${{ steps.prompt.outputs.has_schema }}" == "true" ]]; then
           SCHEMA=$(cat /tmp/claude-schema.json)
-          ARGS="$ARGS --json-schema '$SCHEMA'"
+          CMD+=(--json-schema "$SCHEMA")
         fi
 
-        # Read prompt from file
-        PROMPT=$(cat "${{ steps.prompt.outputs.prompt_file }}")
-
         echo "Running Claude CLI..."
-        echo "::group::Claude Arguments"
-        echo "$ARGS"
+        echo "::group::Command"
+        echo "${CMD[@]}"
         echo "::endgroup::"
 
         OUTPUT_FILE="claude-output.json"
 
         # Run Claude via npx (auto-installs if needed)
-        if eval "npx @anthropic-ai/claude-code $ARGS \"\$PROMPT\"" > "$OUTPUT_FILE" 2>&1; then
-          echo "::group::Raw Output"
-          cat "$OUTPUT_FILE"
-          echo "::endgroup::"
+        # Use tee to show output while also saving to file
+        if "${CMD[@]}" "$PROMPT" 2>&1 | tee "$OUTPUT_FILE"; then
+          echo ""
+          echo "::group::Checking Output"
 
           # Extract structured_output if present
           if [[ "${{ steps.prompt.outputs.has_schema }}" == "true" ]]; then
@@ -179,13 +184,11 @@ runs:
               echo "::warning::Expected structured_output but not found in response"
             fi
           fi
+          echo "::endgroup::"
 
           echo "success=true" >> "$GITHUB_OUTPUT"
         else
           echo "::error::Claude CLI failed"
-          echo "::group::Error Output"
-          cat "$OUTPUT_FILE"
-          echo "::endgroup::"
           echo "success=false" >> "$GITHUB_OUTPUT"
           exit 1
         fi
