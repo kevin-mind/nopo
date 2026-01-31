@@ -25069,7 +25069,6 @@ async function forceCancelRelatedWorkflows(octokit, owner, repo, issueNumber) {
       const runName = run2.name || "";
       const displayTitle = run2.display_title || "";
       const issuePattern = `#${issueNumber}`;
-      const issuePatternAlt = `${issueNumber}`;
       const isRelated = runName.includes(issuePattern) || displayTitle.includes(issuePattern) || // Also check if run_id matches (for e2e tests)
       displayTitle.includes(`[TEST]`) || // Check head_branch for claude/issue/{N} pattern
       run2.head_branch?.includes(`issue/${issueNumber}`) || run2.head_branch?.includes(`issue-${issueNumber}`);
@@ -25088,9 +25087,7 @@ async function forceCancelRelatedWorkflows(octokit, owner, repo, issueNumber) {
           );
           core2.info(`\u2705 Force cancelled run ${run2.id}`);
         } catch (cancelError) {
-          core2.debug(
-            `Could not force cancel run ${run2.id}: ${cancelError}`
-          );
+          core2.debug(`Could not force cancel run ${run2.id}: ${cancelError}`);
         }
       }
     }

@@ -135,15 +135,14 @@ export async function executeRunClaude(
   const { prompt, outputSchema } = getPromptFromAction(action);
 
   // Add JSON schema if outputs.json exists (structured output mode)
-  // IMPORTANT: --output-format json and --strict are required alongside --json-schema
-  // --strict ensures Claude ONLY outputs JSON, no additional text
+  // IMPORTANT: --output-format json is required alongside --json-schema
+  // Note: --strict was removed as it causes SDK schema validation errors
   if (outputSchema) {
     // Compact the schema to a single line for CLI argument
     const compactSchema = JSON.stringify(JSON.parse(outputSchema));
     args.push("--output-format", "json");
     args.push("--json-schema", compactSchema);
-    args.push("--strict");
-    core.info("Using structured output mode with JSON schema (strict)");
+    core.info("Using structured output mode with JSON schema");
   }
 
   // Add allowed tools if specified

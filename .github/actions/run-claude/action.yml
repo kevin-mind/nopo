@@ -177,7 +177,7 @@ runs:
         github_token: ${{ inputs.github_token }}
         prompt: ${{ steps.prompt.outputs.prompt }}
         settings: ${{ inputs.settings }}
-        claude_args: ${{ steps.claude_args.outputs.use_structured_output == 'true' && format('{0} --output-format json --strict --json-schema ''{1}''', steps.claude_args.outputs.args, steps.claude_args.outputs.json_schema) || steps.claude_args.outputs.args }}
+        claude_args: ${{ steps.claude_args.outputs.use_structured_output == 'true' && format('{0} --output-format json --json-schema ''{1}''', steps.claude_args.outputs.args, steps.claude_args.outputs.json_schema) || steps.claude_args.outputs.args }}
         show_full_output: ${{ inputs.show_full_output }}
         trigger_phrase: ${{ inputs.trigger_phrase }}
         assignee_trigger: ${{ inputs.assignee_trigger }}

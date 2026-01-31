@@ -29764,8 +29764,7 @@ async function executeRunClaude(action, ctx) {
     const compactSchema = JSON.stringify(JSON.parse(outputSchema));
     args.push("--output-format", "json");
     args.push("--json-schema", compactSchema);
-    args.push("--strict");
-    core5.info("Using structured output mode with JSON schema (strict)");
+    core5.info("Using structured output mode with JSON schema");
   }
   if (action.allowedTools && action.allowedTools.length > 0) {
     for (const tool of action.allowedTools) {
