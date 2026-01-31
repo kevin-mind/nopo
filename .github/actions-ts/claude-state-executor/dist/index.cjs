@@ -29762,6 +29762,7 @@ async function executeRunClaude(action, ctx) {
   const { prompt, outputSchema } = getPromptFromAction(action);
   if (outputSchema) {
     const compactSchema = JSON.stringify(JSON.parse(outputSchema));
+    args.push("--output-format", "json");
     args.push("--json-schema", compactSchema);
     core5.info("Using structured output mode with JSON schema");
   }
@@ -29811,11 +29812,17 @@ async function executeRunClaude(action, ctx) {
     let structuredOutput;
     if (outputSchema) {
       try {
-        structuredOutput = JSON.parse(stdout.trim());
-        core5.info("Parsed structured output successfully");
-        core5.startGroup("Structured Output");
-        core5.info(JSON.stringify(structuredOutput, null, 2));
-        core5.endGroup();
+        const response = JSON.parse(stdout.trim());
+        if (response.structured_output) {
+          structuredOutput = response.structured_output;
+          core5.info("Parsed structured output successfully");
+          core5.startGroup("Structured Output");
+          core5.info(JSON.stringify(structuredOutput, null, 2));
+          core5.endGroup();
+        } else {
+          core5.warning("No structured_output field found in JSON response");
+          structuredOutput = response;
+        }
       } catch (parseError) {
         core5.warning(
           `Failed to parse structured output: ${parseError}. Raw output will be available.`

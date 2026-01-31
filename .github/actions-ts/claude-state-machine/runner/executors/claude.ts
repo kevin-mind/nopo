@@ -135,9 +135,11 @@ export async function executeRunClaude(
   const { prompt, outputSchema } = getPromptFromAction(action);
 
   // Add JSON schema if outputs.json exists (structured output mode)
+  // IMPORTANT: --output-format json is required alongside --json-schema for structured output to work
   if (outputSchema) {
     // Compact the schema to a single line for CLI argument
     const compactSchema = JSON.stringify(JSON.parse(outputSchema));
+    args.push("--output-format", "json");
     args.push("--json-schema", compactSchema);
     core.info("Using structured output mode with JSON schema");
   }
@@ -200,12 +202,23 @@ export async function executeRunClaude(
     let structuredOutput: unknown;
     if (outputSchema) {
       try {
-        // The output should be valid JSON when using --json-schema
-        structuredOutput = JSON.parse(stdout.trim());
-        core.info("Parsed structured output successfully");
-        core.startGroup("Structured Output");
-        core.info(JSON.stringify(structuredOutput, null, 2));
-        core.endGroup();
+        // With --output-format json, the output is a JSON envelope with structured_output field
+        const response = JSON.parse(stdout.trim()) as {
+          type?: string;
+          structured_output?: unknown;
+        };
+
+        if (response.structured_output) {
+          structuredOutput = response.structured_output;
+          core.info("Parsed structured output successfully");
+          core.startGroup("Structured Output");
+          core.info(JSON.stringify(structuredOutput, null, 2));
+          core.endGroup();
+        } else {
+          core.warning("No structured_output field found in JSON response");
+          // Fall back to the raw response
+          structuredOutput = response;
+        }
       } catch (parseError) {
         core.warning(
           `Failed to parse structured output: ${parseError}. Raw output will be available.`,

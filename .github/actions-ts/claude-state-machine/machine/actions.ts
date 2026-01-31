@@ -474,8 +474,9 @@ Review the CI logs at the link above and fix the failing tests or build errors.`
 /**
  * Emit action to run Claude for issue triage
  *
- * Uses the triage prompt file. Claude writes triage-output.json which
- * the applyTriageOutput action uses to apply labels and project fields.
+ * Uses the triage prompt directory with structured output.
+ * Claude returns structured JSON which the applyTriageOutput action
+ * uses to apply labels and project fields.
  */
 export function emitRunClaudeTriage({ context }: ActionContext): ActionResult {
   const issueNumber = context.issue.number;
@@ -490,26 +491,27 @@ export function emitRunClaudeTriage({ context }: ActionContext): ActionResult {
 
   const triageArtifact = {
     name: "claude-triage-output",
-    path: "triage-output.json",
+    path: "claude-structured-output.json",
   };
 
   return [
     {
       type: "runClaude",
       token: "code",
-      promptFile: ".github/prompts/triage.txt",
+      // Uses structured output: .github/prompts/triage/prompt.txt + outputs.json
+      promptDir: "triage",
       promptVars,
       issueNumber,
-      // Upload triage-output.json after Claude creates it
+      // Structured output is saved to claude-structured-output.json by run-claude action
       producesArtifact: triageArtifact,
     },
-    // Apply labels and project fields from triage-output.json
+    // Apply labels and project fields from structured output
     // Downloads the artifact before execution
     {
       type: "applyTriageOutput",
       token: "code",
       issueNumber,
-      filePath: "triage-output.json",
+      filePath: "claude-structured-output.json",
       consumesArtifact: triageArtifact,
     },
     // Note: History entry is handled by workflow bookend logging

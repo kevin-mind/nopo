@@ -32428,25 +32428,26 @@ function emitRunClaudeTriage({ context: context2 }) {
   };
   const triageArtifact = {
     name: "claude-triage-output",
-    path: "triage-output.json"
+    path: "claude-structured-output.json"
   };
   return [
     {
       type: "runClaude",
       token: "code",
-      promptFile: ".github/prompts/triage.txt",
+      // Uses structured output: .github/prompts/triage/prompt.txt + outputs.json
+      promptDir: "triage",
       promptVars,
       issueNumber,
-      // Upload triage-output.json after Claude creates it
+      // Structured output is saved to claude-structured-output.json by run-claude action
       producesArtifact: triageArtifact
     },
-    // Apply labels and project fields from triage-output.json
+    // Apply labels and project fields from structured output
     // Downloads the artifact before execution
     {
       type: "applyTriageOutput",
       token: "code",
       issueNumber,
-      filePath: "triage-output.json",
+      filePath: "claude-structured-output.json",
       consumesArtifact: triageArtifact
     }
     // Note: History entry is handled by workflow bookend logging
