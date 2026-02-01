@@ -1,0 +1,4 @@
+{
+  "name": "triage-with-subissues",
+  "description": "Tests triage that creates sub-issues for larger/phased work"
+}

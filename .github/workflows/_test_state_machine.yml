@@ -13,6 +13,9 @@ on:
           - full-flow
           - ci-failure-recovery
           - triage
+          - circuit-breaker
+          - review-changes-requested
+          - triage-with-subissues
       continue:
         description: 'Run to completion (true) or stop after one step (false)'
         type: boolean

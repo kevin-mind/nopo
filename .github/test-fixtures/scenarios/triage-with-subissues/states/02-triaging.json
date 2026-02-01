@@ -1,0 +1,44 @@
+{
+  "state": "triaging",
+  "issue": {
+    "number": 0,
+    "title": "Implement multi-phase feature",
+    "state": "OPEN",
+    "body": "## Description\n\nImplement a new multi-phase feature that requires careful coordination.\n\n## Approach\n\nBreak down into phases for manageability.\n\n## Todo\n\n- [ ] Complete all phases\n\n## Iteration History\n\n<!-- iteration_history_start -->\n<!-- iteration_history_end -->",
+    "projectStatus": "Backlog",
+    "iteration": 0,
+    "failures": 0,
+    "assignees": [],
+    "labels": ["enhancement", "priority:high", "topic:architecture", "topic:testing", "triaged"],
+    "subIssues": [
+      {
+        "number": 0,
+        "title": "[Phase 1]: Design and planning",
+        "state": "OPEN",
+        "body": "## Description\n\nDesign the architecture and create a plan.\n\n## Todo\n\n- [ ] Create architecture diagram\n- [ ] Define interfaces",
+        "projectStatus": null
+      },
+      {
+        "number": 0,
+        "title": "[Phase 2]: Core implementation",
+        "state": "OPEN",
+        "body": "## Description\n\nImplement the core functionality.\n\n## Todo\n\n- [ ] Implement main logic\n- [ ] Add error handling",
+        "projectStatus": null
+      },
+      {
+        "number": 0,
+        "title": "[Phase 3]: Testing and documentation",
+        "state": "OPEN",
+        "body": "## Description\n\nAdd tests and documentation.\n\n## Todo\n\n- [ ] Write unit tests\n- [ ] Write integration tests\n- [ ] Update documentation",
+        "projectStatus": null
+      }
+    ],
+    "hasSubIssues": true,
+    "history": [],
+    "todos": {
+      "total": 1,
+      "completed": 0,
+      "uncheckedNonManual": 1
+    }
+  }
+}
