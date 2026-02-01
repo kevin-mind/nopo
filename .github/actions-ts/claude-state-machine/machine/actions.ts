@@ -436,8 +436,14 @@ export function emitRunClaude({ context }: ActionContext): ActionResult {
     {
       type: "runClaude",
       token: "code",
-      promptFile: ".github/prompts/iterate.txt",
+      promptDir: "iterate",
       promptVars,
+      issueNumber,
+    },
+    // Apply iterate output: check off completed todos, store agent notes
+    {
+      type: "applyIterateOutput",
+      token: "code",
       issueNumber,
     },
   ];
@@ -464,8 +470,14 @@ Review the CI logs at the link above and fix the failing tests or build errors.`
     {
       type: "runClaude",
       token: "code",
-      promptFile: ".github/prompts/iterate.txt",
+      promptDir: "iterate",
       promptVars,
+      issueNumber,
+    },
+    // Apply iterate output: check off completed todos, store agent notes
+    {
+      type: "applyIterateOutput",
+      token: "code",
       issueNumber,
     },
   ];

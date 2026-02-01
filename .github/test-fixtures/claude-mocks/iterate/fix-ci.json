@@ -1,0 +1,7 @@
+{
+  "description": "Claude fixes CI failures - all todos already done, this is the final fix",
+  "output": {
+    "status": "all_done",
+    "agent_notes": ["Fixed the type error causing CI to fail", "All todos are now complete", "Ready for review"]
+  }
+}

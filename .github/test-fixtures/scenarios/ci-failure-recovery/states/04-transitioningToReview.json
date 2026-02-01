@@ -1,0 +1,22 @@
+{
+  "state": "transitioningToReview",
+  "issue": {
+    "number": 0,
+    "title": "CI failure recovery test",
+    "state": "OPEN",
+    "body": "## Description\n\nTest scenario for CI failure recovery.\n\n## Todo\n\n- [x] Fix the bug",
+    "projectStatus": "In review",
+    "iteration": 2,
+    "failures": 0,
+    "assignees": ["nopo-bot"],
+    "labels": ["enhancement", "triaged"],
+    "subIssues": [],
+    "hasSubIssues": false,
+    "history": [],
+    "todos": {
+      "total": 1,
+      "completed": 1,
+      "uncheckedNonManual": 0
+    }
+  }
+}

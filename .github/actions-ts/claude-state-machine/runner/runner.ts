@@ -41,6 +41,7 @@ import {
   executeCreateIssuesFromDiscussion,
 } from "./executors/discussions.js";
 import { executeApplyTriageOutput } from "./executors/triage.js";
+import { executeApplyIterateOutput } from "./executors/iterate.js";
 import {
   signalStart,
   signalEnd,
@@ -255,6 +256,15 @@ async function executeAction(
     case "applyTriageOutput":
       // Pass structured output from previous runClaude action if available
       return executeApplyTriageOutput(
+        action,
+        actionCtx,
+        chainCtx?.lastClaudeStructuredOutput,
+      );
+
+    // Iterate actions
+    case "applyIterateOutput":
+      // Pass structured output from previous runClaude action if available
+      return executeApplyIterateOutput(
         action,
         actionCtx,
         chainCtx?.lastClaudeStructuredOutput,

@@ -1,0 +1,601 @@
+/**
+ * Configurable Test Runner
+ *
+ * Orchestrates state machine testing with configurable mock modes.
+ * Key features:
+ * - Creates fresh issue from fixture for idempotent starting points
+ * - Can start at any state by setting up GitHub to match that fixture
+ * - Verifies each transition against the next fixture
+ * - Supports mocked or real Claude and CI
+ */
+
+import * as core from "@actions/core";
+import * as github from "@actions/github";
+import * as exec from "@actions/exec";
+import type { GitHub } from "@actions/github/lib/utils.js";
+import { createActor } from "xstate";
+import {
+  type TestRunnerInputs,
+  type TestResult,
+  type StateTransitionResult,
+  type LoadedScenario,
+  type StateFixture,
+  type StateName,
+} from "./types.js";
+import type { ParentIssue, ProjectStatus, MachineContext } from "../../../claude-state-machine/schemas/state.js";
+import { claudeMachine } from "../../../claude-state-machine/machine/machine.js";
+import {
+  executeActions,
+  createRunnerContext,
+} from "../../../claude-state-machine/runner/runner.js";
+
+type Octokit = InstanceType<typeof GitHub>;
+
+// ============================================================================
+// Test Runner Configuration
+// ============================================================================
+
+interface RunnerConfig {
+  octokit: Octokit;
+  owner: string;
+  repo: string;
+  projectNumber: number;
+}
+
+// ============================================================================
+// Test Labels for Isolation
+// ============================================================================
+
+const TEST_LABEL = "test:automation";
+const TEST_TITLE_PREFIX = "[TEST]";
+
+// ============================================================================
+// Configurable Test Runner
+// ============================================================================
+
+export class ConfigurableTestRunner {
+  private scenario: LoadedScenario;
+  private inputs: TestRunnerInputs;
+  private config: RunnerConfig;
+  private issueNumber: number | null = null;
+
+  constructor(
+    scenario: LoadedScenario,
+    inputs: TestRunnerInputs,
+    config: RunnerConfig,
+  ) {
+    this.scenario = scenario;
+    this.inputs = inputs;
+    this.config = config;
+  }
+
+  /**
+   * Run the test scenario
+   */
+  async run(): Promise<TestResult> {
+    const startTime = Date.now();
+    const transitions: StateTransitionResult[] = [];
+
+    try {
+      // 1. Find starting index
+      const startIndex = this.findStartIndex();
+      core.info(
+        `Starting at state: ${this.scenario.orderedStates[startIndex]} (index ${startIndex})`,
+      );
+
+      // 2. Create test issue from first fixture
+      const firstFixture = this.scenario.fixtures.get(
+        this.scenario.orderedStates[0],
+      )!;
+      this.issueNumber = await this.createTestIssue(firstFixture);
+      core.info(`Created test issue #${this.issueNumber}`);
+
+      // 3. If starting mid-flow, set up GitHub to match starting fixture
+      if (startIndex > 0) {
+        const startState = this.scenario.orderedStates[startIndex];
+        const startFixture = this.scenario.fixtures.get(startState)!;
+        await this.setupGitHubState(startFixture);
+        core.info(`Set up GitHub state for '${startState}'`);
+      }
+
+      // 4. Run through states
+      for (
+        let i = startIndex;
+        i < this.scenario.orderedStates.length - 1;
+        i++
+      ) {
+        const currentState = this.scenario.orderedStates[i];
+        const nextState = this.scenario.orderedStates[i + 1];
+        const currentFixture = this.scenario.fixtures.get(currentState)!;
+        const nextFixture = this.scenario.fixtures.get(nextState)!;
+
+        core.info(`\n${"=".repeat(60)}`);
+        core.info(`Transition: ${currentState} -> ${nextState}`);
+        core.info(`${"=".repeat(60)}`);
+
+        const transitionStartTime = Date.now();
+
+        try {
+          // Execute the state transition
+          await this.executeStateTransition(currentFixture);
+
+          // Verify: next fixture IS the expected state
+          const verificationErrors = await this.verifyGitHubState(nextFixture);
+
+          const transitionResult: StateTransitionResult = {
+            fromState: currentState,
+            toState: nextState,
+            success: verificationErrors.length === 0,
+            durationMs: Date.now() - transitionStartTime,
+            verificationErrors:
+              verificationErrors.length > 0 ? verificationErrors : undefined,
+          };
+
+          transitions.push(transitionResult);
+
+          if (verificationErrors.length > 0) {
+            core.error(`Verification failed:`);
+            for (const error of verificationErrors) {
+              core.error(`  - ${error}`);
+            }
+            return {
+              status: "failed",
+              issueNumber: this.issueNumber,
+              transitions,
+              totalDurationMs: Date.now() - startTime,
+              error: `Verification failed: ${verificationErrors.join("; ")}`,
+            };
+          }
+
+          core.info(`✓ Transition verified`);
+
+          // Stop if not continuing
+          if (!this.inputs.continue) {
+            return {
+              status: "paused",
+              currentState,
+              nextState,
+              issueNumber: this.issueNumber,
+              transitions,
+              totalDurationMs: Date.now() - startTime,
+            };
+          }
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+
+          transitions.push({
+            fromState: currentState,
+            toState: nextState,
+            success: false,
+            error: errorMessage,
+            durationMs: Date.now() - transitionStartTime,
+          });
+
+          return {
+            status: "error",
+            issueNumber: this.issueNumber,
+            transitions,
+            totalDurationMs: Date.now() - startTime,
+            error: errorMessage,
+          };
+        }
+      }
+
+      return {
+        status: "completed",
+        issueNumber: this.issueNumber,
+        transitions,
+        totalDurationMs: Date.now() - startTime,
+      };
+    } catch (error) {
+      return {
+        status: "error",
+        issueNumber: this.issueNumber ?? 0,
+        transitions,
+        totalDurationMs: Date.now() - startTime,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  /**
+   * Find the starting index based on start_step input
+   */
+  private findStartIndex(): number {
+    if (!this.inputs.startStep) {
+      return 0;
+    }
+
+    const index = this.scenario.orderedStates.indexOf(
+      this.inputs.startStep as StateName,
+    );
+    if (index === -1) {
+      throw new Error(
+        `Unknown state: ${this.inputs.startStep}. ` +
+          `Available states: ${this.scenario.orderedStates.join(", ")}`,
+      );
+    }
+    return index;
+  }
+
+  /**
+   * Create a test issue from the first fixture
+   */
+  private async createTestIssue(fixture: StateFixture): Promise<number> {
+    const title = `${TEST_TITLE_PREFIX} ${fixture.issue.title}`;
+    const labels = [...fixture.issue.labels, TEST_LABEL];
+
+    const response = await this.config.octokit.rest.issues.create({
+      owner: this.config.owner,
+      repo: this.config.repo,
+      title,
+      body: fixture.issue.body,
+      labels,
+    });
+
+    const issueNumber = response.data.number;
+
+    // Set project fields if specified
+    if (fixture.issue.projectStatus) {
+      await this.setProjectField(issueNumber, "Status", fixture.issue.projectStatus);
+    }
+    if (fixture.issue.iteration > 0) {
+      await this.setProjectField(issueNumber, "Iteration", fixture.issue.iteration);
+    }
+    if (fixture.issue.failures > 0) {
+      await this.setProjectField(issueNumber, "Failures", fixture.issue.failures);
+    }
+
+    // Assign nopo-bot if in assignees
+    if (fixture.issue.assignees.includes("nopo-bot")) {
+      await this.config.octokit.rest.issues.addAssignees({
+        owner: this.config.owner,
+        repo: this.config.repo,
+        issue_number: issueNumber,
+        assignees: ["nopo-bot"],
+      });
+    }
+
+    return issueNumber;
+  }
+
+  /**
+   * Set up GitHub state to match a fixture (for starting mid-flow)
+   */
+  private async setupGitHubState(fixture: StateFixture): Promise<void> {
+    if (!this.issueNumber) {
+      throw new Error("Issue not created yet");
+    }
+
+    // Update project fields
+    if (fixture.issue.projectStatus) {
+      await this.setProjectField(this.issueNumber, "Status", fixture.issue.projectStatus);
+    }
+    await this.setProjectField(this.issueNumber, "Iteration", fixture.issue.iteration);
+    await this.setProjectField(this.issueNumber, "Failures", fixture.issue.failures);
+
+    // Update issue body if different
+    await this.config.octokit.rest.issues.update({
+      owner: this.config.owner,
+      repo: this.config.repo,
+      issue_number: this.issueNumber,
+      body: fixture.issue.body,
+    });
+
+    // Update labels
+    await this.config.octokit.rest.issues.setLabels({
+      owner: this.config.owner,
+      repo: this.config.repo,
+      issue_number: this.issueNumber,
+      labels: [...fixture.issue.labels, TEST_LABEL],
+    });
+
+    // Handle sub-issues if specified
+    for (const subIssue of fixture.issue.subIssues) {
+      await this.createSubIssue(subIssue);
+    }
+  }
+
+  /**
+   * Execute a state transition
+   */
+  private async executeStateTransition(fixture: StateFixture): Promise<void> {
+    if (!this.issueNumber) {
+      throw new Error("Issue not created yet");
+    }
+
+    // Get the mock output if in mock mode
+    const mockOutput = this.inputs.mockClaude && fixture.claudeMock
+      ? this.scenario.claudeMocks.get(fixture.claudeMock)?.output
+      : undefined;
+
+    // Build MachineContext from fixture
+    const context = this.buildMachineContext(fixture);
+
+    core.info(`Building machine context for state: ${fixture.state}`);
+    core.startGroup("Machine Context");
+    core.info(JSON.stringify(context, null, 2));
+    core.endGroup();
+
+    // Run state machine to get pending actions
+    const actor = createActor(claudeMachine, { input: context });
+    actor.start();
+    const snapshot = actor.getSnapshot();
+    actor.stop();
+
+    const pendingActions = snapshot.context.pendingActions;
+    core.info(`State machine produced ${pendingActions.length} actions`);
+    core.info(`Target state: ${String(snapshot.value)}`);
+
+    if (pendingActions.length === 0) {
+      core.warning("No actions to execute - state machine produced no actions");
+      return;
+    }
+
+    // Build mock outputs map for the runner
+    const mockOutputs = mockOutput && fixture.claudeMock
+      ? { [this.getPromptDirFromMock(fixture.claudeMock)]: mockOutput }
+      : undefined;
+
+    if (this.inputs.mockClaude && mockOutputs) {
+      core.info(`Using mock Claude mode with output: ${fixture.claudeMock}`);
+      core.startGroup("Mock Output");
+      core.info(JSON.stringify(mockOutput, null, 2));
+      core.endGroup();
+    }
+
+    // Create runner context with mock outputs
+    const runnerCtx = createRunnerContext(
+      this.config.octokit,
+      this.config.owner,
+      this.config.repo,
+      this.config.projectNumber,
+      {
+        dryRun: false,
+        mockOutputs,
+      },
+    );
+
+    // Execute the actions
+    core.info("Executing actions...");
+    const result = await executeActions(pendingActions, runnerCtx);
+
+    if (!result.success) {
+      const failedActions = result.results.filter(r => !r.success && !r.skipped);
+      throw new Error(
+        `Action execution failed: ${failedActions.map(r => r.error?.message).join(", ")}`,
+      );
+    }
+
+    core.info(`Executed ${result.results.filter(r => !r.skipped).length} actions successfully`);
+
+    // Trigger CI if fixture specifies a CI result
+    if (fixture.ciResult) {
+      await this.triggerCI(fixture.ciResult);
+    }
+  }
+
+  /**
+   * Build MachineContext from a fixture
+   */
+  private buildMachineContext(fixture: StateFixture): MachineContext {
+    const issue = {
+      ...fixture.issue,
+      number: this.issueNumber!,
+    };
+
+    // Determine trigger based on state
+    let trigger: MachineContext["trigger"] = "issue_edited";
+    if (fixture.state === "triaging") {
+      trigger = "issue_opened";
+    } else if (fixture.state === "reviewing" || fixture.state === "prReviewing") {
+      trigger = "pull_request_review_requested";
+    } else if (fixture.state === "processingCI") {
+      trigger = "workflow_run_completed";
+    } else if (fixture.state === "processingReview") {
+      trigger = "pull_request_review_submitted";
+    }
+
+    return {
+      trigger,
+      owner: this.config.owner,
+      repo: this.config.repo,
+      issue,
+      parentIssue: null,
+      currentPhase: null,
+      totalPhases: 0,
+      currentSubIssue: null,
+      ciResult: fixture.ciResult || null,
+      ciRunUrl: null,
+      ciCommitSha: null,
+      reviewDecision: fixture.reviewDecision || null,
+      reviewerId: null,
+      branch: `claude/issue/${this.issueNumber}`,
+      hasBranch: fixture.issue.iteration > 0,
+      pr: null,
+      hasPR: false,
+      maxRetries: 5,
+      botUsername: "nopo-bot",
+      discussion: null,
+      commentContextType: null,
+      commentContextDescription: null,
+      releaseEvent: null,
+      workflowStartedAt: null,
+    };
+  }
+
+  /**
+   * Extract prompt directory from mock reference (e.g., "iterate/broken-code" -> "iterate")
+   */
+  private getPromptDirFromMock(mockRef: string): string {
+    return mockRef.split("/")[0];
+  }
+
+  /**
+   * Trigger CI workflow (mock or real)
+   */
+  private async triggerCI(result: "success" | "failure" | "cancelled" | "skipped"): Promise<void> {
+    if (!this.issueNumber) return;
+
+    const branch = `test/scenario-${this.scenario.name}/${this.issueNumber}`;
+
+    if (this.inputs.mockCI) {
+      // Mock mode: trigger CI with mock result
+      const mockResult = result === "success" ? "pass" : "fail";
+      core.info(`Triggering mock CI with result: ${mockResult}`);
+
+      await exec.exec("gh", [
+        "workflow",
+        "run",
+        "ci.yml",
+        "-f",
+        `mock=${mockResult}`,
+        "-f",
+        `ref=${branch}`,
+      ]);
+    } else {
+      // Real mode: wait for actual CI
+      core.info("Waiting for real CI...");
+    }
+
+    // Wait for CI completion
+    await this.waitForCI();
+  }
+
+  /**
+   * Wait for CI workflow to complete
+   */
+  private async waitForCI(): Promise<void> {
+    // TODO: Implement CI waiting logic
+    // For now, just wait a bit
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+  }
+
+  /**
+   * Verify GitHub state matches expected fixture
+   */
+  private async verifyGitHubState(expected: StateFixture): Promise<string[]> {
+    if (!this.issueNumber) {
+      return ["Issue not created"];
+    }
+
+    const errors: string[] = [];
+
+    // Fetch current issue state
+    const issueResponse = await this.config.octokit.rest.issues.get({
+      owner: this.config.owner,
+      repo: this.config.repo,
+      issue_number: this.issueNumber,
+    });
+
+    const issue = issueResponse.data;
+
+    // Verify issue state
+    const expectedState = expected.issue.state;
+    const actualState = issue.state === "open" ? "OPEN" : "CLOSED";
+    if (actualState !== expectedState) {
+      errors.push(`Issue state: expected ${expectedState}, got ${actualState}`);
+    }
+
+    // Verify project status
+    const actualStatus = await this.getProjectField(this.issueNumber, "Status");
+    if (expected.issue.projectStatus && actualStatus !== expected.issue.projectStatus) {
+      errors.push(
+        `Project status: expected ${expected.issue.projectStatus}, got ${actualStatus}`,
+      );
+    }
+
+    // Verify iteration
+    const actualIteration = await this.getProjectField(this.issueNumber, "Iteration");
+    if (actualIteration !== expected.issue.iteration) {
+      errors.push(
+        `Iteration: expected ${expected.issue.iteration}, got ${actualIteration}`,
+      );
+    }
+
+    // Verify failures
+    const actualFailures = await this.getProjectField(this.issueNumber, "Failures");
+    if (actualFailures !== expected.issue.failures) {
+      errors.push(
+        `Failures: expected ${expected.issue.failures}, got ${actualFailures}`,
+      );
+    }
+
+    return errors;
+  }
+
+  /**
+   * Create a sub-issue
+   */
+  private async createSubIssue(subIssue: {
+    number: number;
+    title: string;
+    body: string;
+    state: "OPEN" | "CLOSED";
+    projectStatus: ProjectStatus | null;
+  }): Promise<number> {
+    const response = await this.config.octokit.rest.issues.create({
+      owner: this.config.owner,
+      repo: this.config.repo,
+      title: subIssue.title,
+      body: subIssue.body,
+      labels: [TEST_LABEL],
+    });
+
+    const issueNumber = response.data.number;
+
+    if (subIssue.projectStatus) {
+      await this.setProjectField(issueNumber, "Status", subIssue.projectStatus);
+    }
+
+    // Link as sub-issue to parent
+    // Note: GitHub's sub-issues API requires GraphQL
+    // For now, we'll add a reference in the body
+
+    return issueNumber;
+  }
+
+  /**
+   * Set a project field on an issue
+   */
+  private async setProjectField(
+    issueNumber: number,
+    field: string,
+    value: string | number,
+  ): Promise<void> {
+    // This requires GraphQL to properly set project fields
+    // For now, log what we would do
+    core.debug(`Would set ${field}=${value} on issue #${issueNumber}`);
+
+    // TODO: Implement using GraphQL mutation
+    // Similar to what's done in claude-state-executor
+  }
+
+  /**
+   * Get a project field from an issue
+   */
+  private async getProjectField(
+    issueNumber: number,
+    field: string,
+  ): Promise<string | number | null> {
+    // This requires GraphQL to properly get project fields
+    // For now, return null
+    core.debug(`Would get ${field} from issue #${issueNumber}`);
+
+    // TODO: Implement using GraphQL query
+    return null;
+  }
+}
+
+/**
+ * Create and run a configurable test
+ */
+export async function runConfigurableTest(
+  scenario: LoadedScenario,
+  inputs: TestRunnerInputs,
+  config: RunnerConfig,
+): Promise<TestResult> {
+  const runner = new ConfigurableTestRunner(scenario, inputs, config);
+  return runner.run();
+}

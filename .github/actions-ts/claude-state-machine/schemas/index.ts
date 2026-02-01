@@ -53,6 +53,7 @@ export {
   type RemoveReviewerAction,
   type RunClaudeAction,
   type ApplyTriageOutputAction,
+  type ApplyIterateOutputAction,
   type BlockAction,
   type AddDiscussionCommentAction,
   type UpdateDiscussionBodyAction,

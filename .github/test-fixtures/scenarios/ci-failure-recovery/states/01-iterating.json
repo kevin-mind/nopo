@@ -1,0 +1,23 @@
+{
+  "state": "iterating",
+  "issue": {
+    "number": 0,
+    "title": "CI failure recovery test",
+    "state": "OPEN",
+    "body": "## Description\n\nTest scenario for CI failure recovery.\n\n## Todo\n\n- [ ] Fix the bug",
+    "projectStatus": "In progress",
+    "iteration": 0,
+    "failures": 0,
+    "assignees": ["nopo-bot"],
+    "labels": ["enhancement", "triaged"],
+    "subIssues": [],
+    "hasSubIssues": false,
+    "history": [],
+    "todos": {
+      "total": 1,
+      "completed": 0,
+      "uncheckedNonManual": 1
+    }
+  },
+  "claudeMock": "iterate/broken-code"
+}

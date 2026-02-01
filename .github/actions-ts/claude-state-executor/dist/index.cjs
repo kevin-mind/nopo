@@ -17586,12 +17586,12 @@ var require_lib = __commonJS({
             throw new Error("Client has already been disposed.");
           }
           const parsedUrl = new URL(requestUrl);
-          let info10 = this._prepareRequest(verb, parsedUrl, headers);
+          let info11 = this._prepareRequest(verb, parsedUrl, headers);
           const maxTries = this._allowRetries && RetryableHttpVerbs.includes(verb) ? this._maxRetries + 1 : 1;
           let numTries = 0;
           let response;
           do {
-            response = yield this.requestRaw(info10, data);
+            response = yield this.requestRaw(info11, data);
             if (response && response.message && response.message.statusCode === HttpCodes.Unauthorized) {
               let authenticationHandler;
               for (const handler of this.handlers) {
@@ -17601,7 +17601,7 @@ var require_lib = __commonJS({
                 }
               }
               if (authenticationHandler) {
-                return authenticationHandler.handleAuthentication(this, info10, data);
+                return authenticationHandler.handleAuthentication(this, info11, data);
               } else {
                 return response;
               }
@@ -17624,8 +17624,8 @@ var require_lib = __commonJS({
                   }
                 }
               }
-              info10 = this._prepareRequest(verb, parsedRedirectUrl, headers);
-              response = yield this.requestRaw(info10, data);
+              info11 = this._prepareRequest(verb, parsedRedirectUrl, headers);
+              response = yield this.requestRaw(info11, data);
               redirectsRemaining--;
             }
             if (!response.message.statusCode || !HttpResponseRetryCodes.includes(response.message.statusCode)) {
@@ -17654,7 +17654,7 @@ var require_lib = __commonJS({
        * @param info
        * @param data
        */
-      requestRaw(info10, data) {
+      requestRaw(info11, data) {
         return __awaiter(this, void 0, void 0, function* () {
           return new Promise((resolve2, reject) => {
             function callbackForResult(err, res) {
@@ -17666,7 +17666,7 @@ var require_lib = __commonJS({
                 resolve2(res);
               }
             }
-            this.requestRawWithCallback(info10, data, callbackForResult);
+            this.requestRawWithCallback(info11, data, callbackForResult);
           });
         });
       }
@@ -17676,12 +17676,12 @@ var require_lib = __commonJS({
        * @param data
        * @param onResult
        */
-      requestRawWithCallback(info10, data, onResult) {
+      requestRawWithCallback(info11, data, onResult) {
         if (typeof data === "string") {
-          if (!info10.options.headers) {
-            info10.options.headers = {};
+          if (!info11.options.headers) {
+            info11.options.headers = {};
           }
-          info10.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
+          info11.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
         }
         let callbackCalled = false;
         function handleResult2(err, res) {
@@ -17690,7 +17690,7 @@ var require_lib = __commonJS({
             onResult(err, res);
           }
         }
-        const req = info10.httpModule.request(info10.options, (msg) => {
+        const req = info11.httpModule.request(info11.options, (msg) => {
           const res = new HttpClientResponse(msg);
           handleResult2(void 0, res);
         });
@@ -17702,7 +17702,7 @@ var require_lib = __commonJS({
           if (socket) {
             socket.end();
           }
-          handleResult2(new Error(`Request timeout: ${info10.options.path}`));
+          handleResult2(new Error(`Request timeout: ${info11.options.path}`));
         });
         req.on("error", function(err) {
           handleResult2(err);
@@ -17738,27 +17738,27 @@ var require_lib = __commonJS({
         return this._getProxyAgentDispatcher(parsedUrl, proxyUrl);
       }
       _prepareRequest(method, requestUrl, headers) {
-        const info10 = {};
-        info10.parsedUrl = requestUrl;
-        const usingSsl = info10.parsedUrl.protocol === "https:";
-        info10.httpModule = usingSsl ? https : http;
+        const info11 = {};
+        info11.parsedUrl = requestUrl;
+        const usingSsl = info11.parsedUrl.protocol === "https:";
+        info11.httpModule = usingSsl ? https : http;
         const defaultPort = usingSsl ? 443 : 80;
-        info10.options = {};
-        info10.options.host = info10.parsedUrl.hostname;
-        info10.options.port = info10.parsedUrl.port ? parseInt(info10.parsedUrl.port) : defaultPort;
-        info10.options.path = (info10.parsedUrl.pathname || "") + (info10.parsedUrl.search || "");
-        info10.options.method = method;
-        info10.options.headers = this._mergeHeaders(headers);
+        info11.options = {};
+        info11.options.host = info11.parsedUrl.hostname;
+        info11.options.port = info11.parsedUrl.port ? parseInt(info11.parsedUrl.port) : defaultPort;
+        info11.options.path = (info11.parsedUrl.pathname || "") + (info11.parsedUrl.search || "");
+        info11.options.method = method;
+        info11.options.headers = this._mergeHeaders(headers);
         if (this.userAgent != null) {
-          info10.options.headers["user-agent"] = this.userAgent;
+          info11.options.headers["user-agent"] = this.userAgent;
         }
-        info10.options.agent = this._getAgent(info10.parsedUrl);
+        info11.options.agent = this._getAgent(info11.parsedUrl);
         if (this.handlers) {
           for (const handler of this.handlers) {
-            handler.prepareRequest(info10.options);
+            handler.prepareRequest(info11.options);
           }
         }
-        return info10;
+        return info11;
       }
       _mergeHeaders(headers) {
         if (this.requestOptions && this.requestOptions.headers) {
@@ -19740,34 +19740,34 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.error = error3;
-    function warning9(message, properties = {}) {
+    function warning10(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning9;
+    exports2.warning = warning10;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.notice = notice;
-    function info10(message) {
+    function info11(message) {
       process.stdout.write(message + os.EOL);
     }
-    exports2.info = info10;
-    function startGroup3(name) {
+    exports2.info = info11;
+    function startGroup4(name) {
       (0, command_1.issue)("group", name);
     }
-    exports2.startGroup = startGroup3;
-    function endGroup3() {
+    exports2.startGroup = startGroup4;
+    function endGroup4() {
       (0, command_1.issue)("endgroup");
     }
-    exports2.endGroup = endGroup3;
+    exports2.endGroup = endGroup4;
     function group(name, fn) {
       return __awaiter(this, void 0, void 0, function* () {
-        startGroup3(name);
+        startGroup4(name);
         let result;
         try {
           result = yield fn();
         } finally {
-          endGroup3();
+          endGroup4();
         }
         return result;
       });
@@ -23883,7 +23883,7 @@ var require_github = __commonJS({
 });
 
 // claude-state-executor/index.ts
-var core10 = __toESM(require_core(), 1);
+var core11 = __toESM(require_core(), 1);
 var github = __toESM(require_github(), 1);
 
 // lib/index.ts
@@ -28340,6 +28340,10 @@ var ApplyTriageOutputActionSchema = BaseActionSchema.extend({
   issueNumber: external_exports.number().int().positive(),
   filePath: external_exports.string().default("triage-output.json")
 });
+var ApplyIterateOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyIterateOutput"),
+  issueNumber: external_exports.number().int().positive()
+});
 var ActionSchema = external_exports.discriminatedUnion("type", [
   // Project field actions
   UpdateProjectStatusActionSchema,
@@ -28379,7 +28383,9 @@ var ActionSchema = external_exports.discriminatedUnion("type", [
   LogActionSchema,
   NoOpActionSchema,
   // Triage actions
-  ApplyTriageOutputActionSchema
+  ApplyTriageOutputActionSchema,
+  // Iterate actions
+  ApplyIterateOutputActionSchema
 ]);
 function isTerminalAction(action) {
   return action.type === "stop" || action.type === "block";
@@ -28396,7 +28402,7 @@ function shouldStopOnError(actionType) {
 }
 
 // claude-state-machine/runner/runner.ts
-var core9 = __toESM(require_core(), 1);
+var core10 = __toESM(require_core(), 1);
 
 // claude-state-machine/runner/executors/project.ts
 var core2 = __toESM(require_core(), 1);
@@ -30535,8 +30541,87 @@ async function applyProjectFields(ctx, issueNumber, classification) {
   }
 }
 
-// claude-state-machine/runner/signaler.ts
+// claude-state-machine/runner/executors/iterate.ts
 var core8 = __toESM(require_core(), 1);
+async function executeApplyIterateOutput(action, ctx, structuredOutput) {
+  const { issueNumber } = action;
+  if (!structuredOutput) {
+    core8.warning("No structured output provided for applyIterateOutput");
+    return { applied: false };
+  }
+  const iterateOutput = structuredOutput;
+  core8.info(`Processing iterate output for issue #${issueNumber}`);
+  core8.startGroup("Iterate Output");
+  core8.info(JSON.stringify(iterateOutput, null, 2));
+  core8.endGroup();
+  if (ctx.dryRun) {
+    core8.info(`[DRY RUN] Would apply iterate output to issue #${issueNumber}`);
+    return { applied: true, status: iterateOutput.status };
+  }
+  if (iterateOutput.status === "completed_todo" && iterateOutput.todo_completed) {
+    await checkOffTodo(ctx, issueNumber, iterateOutput.todo_completed);
+  }
+  switch (iterateOutput.status) {
+    case "completed_todo":
+      core8.info(`Completed todo: ${iterateOutput.todo_completed}`);
+      break;
+    case "waiting_manual":
+      core8.info(`Waiting for manual todo: ${iterateOutput.manual_todo}`);
+      break;
+    case "blocked":
+      core8.warning(`Iteration blocked: ${iterateOutput.blocked_reason}`);
+      break;
+    case "all_done":
+      core8.info("All todos complete - ready for review");
+      break;
+  }
+  if (iterateOutput.agent_notes.length > 0) {
+    core8.info("Agent notes for future iterations:");
+    for (const note of iterateOutput.agent_notes) {
+      core8.info(`  - ${note}`);
+    }
+  }
+  return { applied: true, status: iterateOutput.status };
+}
+async function checkOffTodo(ctx, issueNumber, todoText) {
+  const issue = await ctx.octokit.rest.issues.get({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    issue_number: issueNumber
+  });
+  const body = issue.data.body || "";
+  const normalizedTodoText = todoText.trim().toLowerCase();
+  const lines = body.split("\n");
+  let found = false;
+  const updatedLines = lines.map((line) => {
+    const uncheckedMatch = line.match(/^(\s*)-\s*\[\s*\]\s*(.+)$/);
+    if (uncheckedMatch) {
+      const [, indent, text] = uncheckedMatch;
+      const normalizedLineText = text.trim().toLowerCase();
+      if (normalizedLineText === normalizedTodoText || normalizedLineText.includes(normalizedTodoText) || normalizedTodoText.includes(normalizedLineText)) {
+        found = true;
+        return `${indent}- [x] ${text}`;
+      }
+    }
+    return line;
+  });
+  if (!found) {
+    core8.warning(`Could not find unchecked todo matching: "${todoText}"`);
+    return false;
+  }
+  const updatedBody = updatedLines.join("\n");
+  await ctx.octokit.rest.issues.update({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    issue_number: issueNumber,
+    body: updatedBody
+  });
+  core8.info(`Checked off todo: "${todoText}"`);
+  return true;
+}
+
+// claude-state-machine/runner/signaler.ts
+var core9 = __toESM(require_core(), 1);
 var JOB_DESCRIPTIONS = {
   // Issue jobs
   "issue-triage": "triaging this issue",
@@ -30625,9 +30710,9 @@ async function addReactionToComment(octokit, owner, repo, commentId, resourceTyp
         content: reaction
       });
     }
-    core8.debug(`Added ${reaction} reaction to comment ${commentId}`);
+    core9.debug(`Added ${reaction} reaction to comment ${commentId}`);
   } catch (error3) {
-    core8.warning(`Failed to add reaction to comment: ${error3}`);
+    core9.warning(`Failed to add reaction to comment: ${error3}`);
   }
 }
 async function signalStart(ctx, progress) {
@@ -30681,7 +30766,7 @@ async function signalStart(ctx, progress) {
     if (!commentId) {
       throw new Error("Failed to create discussion comment");
     }
-    core8.info(`Created status comment: ${commentId}`);
+    core9.info(`Created status comment: ${commentId}`);
     return commentId;
   }
   const { data: comment } = await ctx.octokit.rest.issues.createComment({
@@ -30690,7 +30775,7 @@ async function signalStart(ctx, progress) {
     issue_number: ctx.resourceNumber,
     body
   });
-  core8.info(`Created status comment: ${comment.id}`);
+  core9.info(`Created status comment: ${comment.id}`);
   return String(comment.id);
 }
 async function signalEnd(ctx, statusCommentId, result) {
@@ -30732,9 +30817,9 @@ async function signalEnd(ctx, statusCommentId, result) {
         body
       });
     }
-    core8.info(`Updated status comment ${statusCommentId} to ${result}`);
+    core9.info(`Updated status comment ${statusCommentId} to ${result}`);
   } catch (error3) {
-    core8.warning(`Failed to update status comment: ${error3}`);
+    core9.warning(`Failed to update status comment: ${error3}`);
   }
   await addReactionToComment(
     ctx.octokit,
@@ -30838,27 +30923,34 @@ async function executeAction(action, ctx, chainCtx) {
         actionCtx,
         chainCtx?.lastClaudeStructuredOutput
       );
+    // Iterate actions
+    case "applyIterateOutput":
+      return executeApplyIterateOutput(
+        action,
+        actionCtx,
+        chainCtx?.lastClaudeStructuredOutput
+      );
     // Control flow actions
     case "stop":
-      core9.info(`Stopping: ${action.reason}`);
+      core10.info(`Stopping: ${action.reason}`);
       return { stopped: true, reason: action.reason };
     case "log":
       switch (action.level) {
         case "debug":
-          core9.debug(action.message);
+          core10.debug(action.message);
           break;
         case "warning":
-          core9.warning(action.message);
+          core10.warning(action.message);
           break;
         case "error":
-          core9.error(action.message);
+          core10.error(action.message);
           break;
         default:
-          core9.info(action.message);
+          core10.info(action.message);
       }
       return { logged: true };
     case "noop":
-      core9.debug(`No-op: ${action.reason || "no reason given"}`);
+      core10.debug(`No-op: ${action.reason || "no reason given"}`);
       return { noop: true };
     default:
       throw new Error(`Unknown action type: ${action.type}`);
@@ -30875,7 +30967,7 @@ async function executeActions(actions, ctx, options = {}) {
     const actionStartTime = Date.now();
     const parseResult = ActionSchema.safeParse(action);
     if (!parseResult.success) {
-      core9.error(`Invalid action: ${JSON.stringify(action)}`);
+      core10.error(`Invalid action: ${JSON.stringify(action)}`);
       results.push({
         action,
         success: false,
@@ -30892,10 +30984,10 @@ async function executeActions(actions, ctx, options = {}) {
     }
     const validatedAction = parseResult.data;
     if (logActions) {
-      core9.info(`Executing action: ${validatedAction.type}`);
+      core10.info(`Executing action: ${validatedAction.type}`);
     }
     if (ctx.dryRun) {
-      core9.info(`[DRY RUN] Would execute: ${validatedAction.type}`);
+      core10.info(`[DRY RUN] Would execute: ${validatedAction.type}`);
       results.push({
         action: validatedAction,
         success: true,
@@ -30910,7 +31002,7 @@ async function executeActions(actions, ctx, options = {}) {
         const claudeResult = result;
         if (claudeResult.structuredOutput) {
           chainCtx.lastClaudeStructuredOutput = claudeResult.structuredOutput;
-          core9.info("Stored structured output for subsequent actions");
+          core10.info("Stored structured output for subsequent actions");
         }
       }
       const branchResult = result;
@@ -30924,7 +31016,7 @@ async function executeActions(actions, ctx, options = {}) {
         });
         stoppedEarly = true;
         stopReason = "branch_rebased_and_pushed";
-        core9.info(
+        core10.info(
           "Stopping after branch rebase - CI will re-trigger with up-to-date branch"
         );
         break;
@@ -30943,7 +31035,7 @@ async function executeActions(actions, ctx, options = {}) {
       }
     } catch (error3) {
       const err = error3 instanceof Error ? error3 : new Error(String(error3));
-      core9.error(`Action failed: ${validatedAction.type} - ${err.message}`);
+      core10.error(`Action failed: ${validatedAction.type} - ${err.message}`);
       results.push({
         action: validatedAction,
         success: false,
@@ -30979,35 +31071,35 @@ function createRunnerContext(octokit, owner, repo, projectNumber, options = {}) 
   };
 }
 function logRunnerSummary(result) {
-  core9.info("=".repeat(60));
-  core9.info("Runner Summary");
-  core9.info("=".repeat(60));
-  core9.info(`Total actions: ${result.results.length}`);
-  core9.info(`Successful: ${result.results.filter((r) => r.success).length}`);
-  core9.info(
+  core10.info("=".repeat(60));
+  core10.info("Runner Summary");
+  core10.info("=".repeat(60));
+  core10.info(`Total actions: ${result.results.length}`);
+  core10.info(`Successful: ${result.results.filter((r) => r.success).length}`);
+  core10.info(
     `Failed: ${result.results.filter((r) => !r.success && !r.skipped).length}`
   );
-  core9.info(`Skipped: ${result.results.filter((r) => r.skipped).length}`);
-  core9.info(`Total duration: ${result.totalDurationMs}ms`);
+  core10.info(`Skipped: ${result.results.filter((r) => r.skipped).length}`);
+  core10.info(`Total duration: ${result.totalDurationMs}ms`);
   if (result.stoppedEarly) {
-    core9.info(`Stopped early: ${result.stopReason}`);
+    core10.info(`Stopped early: ${result.stopReason}`);
   }
-  core9.info("=".repeat(60));
+  core10.info("=".repeat(60));
   for (const actionResult of result.results) {
     const status = actionResult.skipped ? "SKIPPED" : actionResult.success ? "SUCCESS" : "FAILED";
     const duration = `${actionResult.durationMs}ms`;
-    core9.info(
+    core10.info(
       `  ${status.padEnd(8)} ${actionResult.action.type.padEnd(25)} ${duration}`
     );
     if (actionResult.error) {
-      core9.error(`    Error: ${actionResult.error.message}`);
+      core10.error(`    Error: ${actionResult.error.message}`);
     }
   }
 }
 async function runWithSignaling(actions, ctx, options = {}) {
   let statusCommentId = "";
   if (ctx.dryRun) {
-    core9.info("[DRY RUN] Skipping status signaling");
+    core10.info("[DRY RUN] Skipping status signaling");
     const result2 = await executeActions(actions, ctx, options);
     return { ...result2, statusCommentId: "" };
   }
@@ -31026,7 +31118,7 @@ async function runWithSignaling(actions, ctx, options = {}) {
       ctx.progress
     );
   } catch (error3) {
-    core9.warning(`Failed to create status comment: ${error3}`);
+    core10.warning(`Failed to create status comment: ${error3}`);
   }
   const result = await executeActions(actions, ctx, options);
   if (statusCommentId !== "") {
@@ -31047,7 +31139,7 @@ async function runWithSignaling(actions, ctx, options = {}) {
         jobResult
       );
     } catch (error3) {
-      core9.warning(`Failed to update status comment: ${error3}`);
+      core10.warning(`Failed to update status comment: ${error3}`);
     }
   }
   return { ...result, statusCommentId };
@@ -31107,9 +31199,9 @@ async function run() {
     if (mockOutputsJson) {
       try {
         mockOutputs = JSON.parse(mockOutputsJson);
-        core10.info("[MOCK MODE] Mock outputs loaded for Claude calls");
+        core11.info("[MOCK MODE] Mock outputs loaded for Claude calls");
       } catch (error3) {
-        core10.warning(`Failed to parse mock_outputs: ${error3}`);
+        core11.warning(`Failed to parse mock_outputs: ${error3}`);
       }
     }
     const job = getOptionalInput("job") || "";
@@ -31122,18 +31214,18 @@ async function run() {
     const runUrl = getOptionalInput("run_url") || "";
     const resourceType = resourceTypeInput === "pr" ? "pr" : "issue";
     const signalingEnabled = job !== "" && resourceNumber > 0;
-    core10.info(`Claude State Executor starting...`);
-    core10.info(`Project: ${projectNumber}`);
-    core10.info(`Dry run: ${dryRun}`);
-    core10.info(`Signaling: ${signalingEnabled ? "enabled" : "disabled"}`);
+    core11.info(`Claude State Executor starting...`);
+    core11.info(`Project: ${projectNumber}`);
+    core11.info(`Dry run: ${dryRun}`);
+    core11.info(`Signaling: ${signalingEnabled ? "enabled" : "disabled"}`);
     if (signalingEnabled) {
-      core10.info(`  Job: ${job}`);
-      core10.info(`  Resource: ${resourceType} #${resourceNumber}`);
+      core11.info(`  Job: ${job}`);
+      core11.info(`  Resource: ${resourceType} #${resourceNumber}`);
     }
     const actions = parseActions(actionsJson);
-    core10.info(`Actions to execute: ${actions.length}`);
+    core11.info(`Actions to execute: ${actions.length}`);
     if (actions.length === 0) {
-      core10.info("No actions to execute");
+      core11.info("No actions to execute");
       setOutputs({
         success: "true",
         stopped_early: "false",
@@ -31147,7 +31239,7 @@ async function run() {
       return;
     }
     const actionTypes = actions.map((a) => a.type);
-    core10.info(`Action types: ${actionTypes.join(", ")}`);
+    core11.info(`Action types: ${actionTypes.join(", ")}`);
     const tokenUsage = actions.reduce(
       (acc, a) => {
         const token = a.token || "code";
@@ -31156,7 +31248,7 @@ async function run() {
       },
       {}
     );
-    core10.info(
+    core11.info(
       `Token usage: code=${tokenUsage.code || 0}, review=${tokenUsage.review || 0}`
     );
     const codeOctokit = github.getOctokit(codeToken);
@@ -31219,17 +31311,17 @@ async function run() {
       results_json: JSON.stringify(resultsForOutput)
     });
     if (!result.success) {
-      core10.setFailed(`${failed} action(s) failed. Check the logs for details.`);
+      core11.setFailed(`${failed} action(s) failed. Check the logs for details.`);
     } else if (result.stoppedEarly) {
-      core10.setFailed(
+      core11.setFailed(
         `Stopped early: ${result.stopReason || "unknown reason"}. Subsequent matrix jobs will be cancelled.`
       );
     }
   } catch (error3) {
     if (error3 instanceof Error) {
-      core10.setFailed(error3.message);
+      core11.setFailed(error3.message);
     } else {
-      core10.setFailed("An unexpected error occurred");
+      core11.setFailed("An unexpected error occurred");
     }
   }
 }

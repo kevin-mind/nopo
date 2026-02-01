@@ -36,6 +36,7 @@ on:
           - dry-run
           - stepwise
           - e2e
+          - configurable
       cleanup_only:
         description: 'Only run cleanup (for debugging)'
         type: boolean
@@ -44,6 +45,23 @@ on:
         description: 'Issue number for cleanup_only mode'
         type: string
         default: ''
+      # Configurable test runner inputs
+      continue:
+        description: 'Run to completion (true) or stop after one step (false)'
+        type: boolean
+        default: true
+      mock_claude:
+        description: 'Mock Claude outputs from fixture files'
+        type: boolean
+        default: true
+      mock_ci:
+        description: 'Mock CI (immediate pass/fail based on fixture)'
+        type: boolean
+        default: true
+      start_step:
+        description: 'Start at a specific state (e.g., "iteratingFix"). Creates fresh issue, sets up GitHub to match that state fixture.'
+        type: string
+        required: false
 
 # Only one E2E test at a time - queue runs instead of cancelling
 concurrency:
@@ -843,9 +861,93 @@ jobs:
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
 
+  # ============================================================================
+  # Configurable Mode: State-Based Fixture Testing
+  # Uses new scenario directory structure with mocked/real Claude and CI
+  # ============================================================================
+  run-configurable:
+    needs: [load-fixture]
+    if: |
+      always() &&
+      inputs.cleanup_only != true &&
+      inputs.mode == 'configurable'
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.run.outputs.status }}
+      issue_number: ${{ steps.run.outputs.issue_number }}
+      transitions: ${{ steps.run.outputs.transitions }}
+      total_duration_ms: ${{ steps.run.outputs.total_duration_ms }}
+      error: ${{ steps.run.outputs.error }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Build actions
+        run: |
+          cd .github/actions-ts
+          pnpm install --frozen-lockfile
+          pnpm run build
+
+      - name: Run configurable test
+        id: run
+        uses: ./.github/actions-ts/claude-test-runner
+        with:
+          action: run-configurable
+          scenario_name: ${{ inputs.test_name }}
+          continue: ${{ inputs.continue }}
+          mock_claude: ${{ inputs.mock_claude }}
+          mock_ci: ${{ inputs.mock_ci }}
+          start_step: ${{ inputs.start_step }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+
+      - name: Output configurable results
+        env:
+          STATUS: ${{ steps.run.outputs.status }}
+          ISSUE_NUMBER: ${{ steps.run.outputs.issue_number }}
+          TRANSITIONS: ${{ steps.run.outputs.transitions }}
+          TOTAL_DURATION: ${{ steps.run.outputs.total_duration_ms }}
+          ERROR: ${{ steps.run.outputs.error }}
+        run: |
+          echo "## Configurable Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Status** | \`${STATUS}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Issue** | #${ISSUE_NUMBER} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Duration** | ${TOTAL_DURATION}ms |" >> $GITHUB_STEP_SUMMARY
+
+          if [[ -n "$ERROR" ]]; then
+            echo "| **Error** | ${ERROR} |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "| Setting | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Continue** | ${{ inputs.continue }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Mock Claude** | ${{ inputs.mock_claude }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Mock CI** | ${{ inputs.mock_ci }} |" >> $GITHUB_STEP_SUMMARY
+          if [[ -n "${{ inputs.start_step }}" ]]; then
+            echo "| **Start Step** | ${{ inputs.start_step }} |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Transitions" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo "$TRANSITIONS" | jq '.' >> $GITHUB_STEP_SUMMARY || echo "$TRANSITIONS" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
   # Cleanup test artifacts (always runs unless skipped)
   cleanup:
-    needs: [setup, triage, completion, run-dry-run, verify-dry-run]
+    needs: [setup, triage, completion, run-dry-run, verify-dry-run, run-configurable]
     if: |
       always() &&
       (needs.setup.outputs.issue_number != '' || inputs.cleanup_only == true)
@@ -897,7 +999,7 @@ jobs:
 
   # Summary job
   summary:
-    needs: [setup, triage, assign, development, completion, run-dry-run, verify-dry-run, cleanup]
+    needs: [setup, triage, assign, development, completion, run-dry-run, verify-dry-run, run-configurable, cleanup]
     if: always() && inputs.cleanup_only != true
     runs-on: ubuntu-latest
     steps:
@@ -906,6 +1008,9 @@ jobs:
           ACTIONS_JSON: ${{ needs.run-dry-run.outputs.actions_json }}
           FINAL_STATE: ${{ needs.run-dry-run.outputs.final_state }}
           ACTION_COUNT: ${{ needs.run-dry-run.outputs.action_count }}
+          CONFIGURABLE_STATUS: ${{ needs.run-configurable.outputs.status }}
+          CONFIGURABLE_TRANSITIONS: ${{ needs.run-configurable.outputs.transitions }}
+          CONFIGURABLE_DURATION: ${{ needs.run-configurable.outputs.total_duration_ms }}
         run: |
           echo "# State Machine Test Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -913,7 +1018,11 @@ jobs:
           echo "|-----------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| **Test** | ${{ inputs.test_name }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Mode** | ${{ inputs.mode }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Issue** | #${{ needs.setup.outputs.issue_number }} |" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ inputs.mode }}" == "configurable" ]]; then
+            echo "| **Issue** | #${{ needs.run-configurable.outputs.issue_number }} |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| **Issue** | #${{ needs.setup.outputs.issue_number }} |" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [[ "${{ inputs.mode }}" == "dry-run" ]]; then
@@ -931,16 +1040,39 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
           fi
 
+          if [[ "${{ inputs.mode }}" == "configurable" ]]; then
+            echo "## Configurable Test Results" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+            echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| **Status** | \`${CONFIGURABLE_STATUS:-N/A}\` |" >> $GITHUB_STEP_SUMMARY
+            echo "| **Duration** | ${CONFIGURABLE_DURATION:-0}ms |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Configuration" >> $GITHUB_STEP_SUMMARY
+            echo "| Setting | Value |" >> $GITHUB_STEP_SUMMARY
+            echo "|---------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| **Continue** | ${{ inputs.continue }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| **Mock Claude** | ${{ inputs.mock_claude }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| **Mock CI** | ${{ inputs.mock_ci }} |" >> $GITHUB_STEP_SUMMARY
+            if [[ -n "${{ inputs.start_step }}" ]]; then
+              echo "| **Start Step** | ${{ inputs.start_step }} |" >> $GITHUB_STEP_SUMMARY
+            fi
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+
           echo "## Job Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Setup | ${{ needs.setup.result }} |" >> $GITHUB_STEP_SUMMARY
 
-          if [[ "${{ inputs.mode }}" == "dry-run" ]]; then
+          if [[ "${{ inputs.mode }}" == "configurable" ]]; then
+            echo "| Run Configurable | ${{ needs.run-configurable.result }} |" >> $GITHUB_STEP_SUMMARY
+          elif [[ "${{ inputs.mode }}" == "dry-run" ]]; then
+            echo "| Setup | ${{ needs.setup.result }} |" >> $GITHUB_STEP_SUMMARY
             echo "| Run Dry-Run | ${{ needs.run-dry-run.result }} |" >> $GITHUB_STEP_SUMMARY
             echo "| Verify Dry-Run | ${{ needs.verify-dry-run.result }} |" >> $GITHUB_STEP_SUMMARY
           else
+            echo "| Setup | ${{ needs.setup.result }} |" >> $GITHUB_STEP_SUMMARY
             echo "| Triage | ${{ needs.triage.result }} |" >> $GITHUB_STEP_SUMMARY
             echo "| Assign | ${{ needs.assign.result }} |" >> $GITHUB_STEP_SUMMARY
             echo "| Development | ${{ needs.development.result }} |" >> $GITHUB_STEP_SUMMARY
@@ -979,4 +1111,19 @@ jobs:
             echo "- Review approved" >> $GITHUB_STEP_SUMMARY
             echo "- PR merged" >> $GITHUB_STEP_SUMMARY
             echo "- Issue closed with Done status" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [[ "${{ inputs.mode }}" == "configurable" ]]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "---" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Configurable Mode:** State-based fixture testing with mocked or real Claude/CI." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Each state transition was:" >> $GITHUB_STEP_SUMMARY
+            echo "1. Set up from the state fixture" >> $GITHUB_STEP_SUMMARY
+            echo "2. Executed (with mocked or real Claude/CI)" >> $GITHUB_STEP_SUMMARY
+            echo "3. Verified against the next state fixture" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Use \`continue=false\` for step-by-step debugging." >> $GITHUB_STEP_SUMMARY
+            echo "Use \`start_step\` to start at a specific state." >> $GITHUB_STEP_SUMMARY
           fi

@@ -77,24 +77,22 @@ If no PR exists:
 Return structured JSON with:
 
 - **status**: What happened this iteration
-  - `completed_todo` - Finished one todo item
-  - `waiting_manual` - Next todo requires human action
+  - `completed_todo` - Finished one todo item (include exact todo text in todo_completed)
+  - `waiting_manual` - Next todo has `[Manual]` prefix (include exact todo text in manual_todo)
   - `blocked` - Cannot proceed (explain in blocked_reason)
   - `all_done` - All todos complete, ready for review
 
-- **todo_completed**: The todo text if status=completed_todo
+- **todo_completed**: The **exact text** of the todo you completed (if status=completed_todo)
+  - Example: "Add login form validation"
+  - The executor will check this off in the issue body
 
-- **manual_todo**: The todo text if status=waiting_manual
+- **manual_todo**: The **exact text** of the manual todo (if status=waiting_manual)
 
 - **blocked_reason**: Explanation if status=blocked
 
-- **commits**: Array of commit SHAs created this iteration
-
-- **pr_number**: PR number if created this iteration
-
-- **agent_notes**: Important discoveries for future iterations
+- **agent_notes**: Important discoveries for future iterations (stored in history)
 
 The executor will:
-- Update todo checkboxes based on completed work
-- Handle PR ready state transitions
-- Record iteration history
+- Check off the todo_completed in the issue body
+- Store agent_notes in iteration history
+- Handle PR ready state transitions based on status

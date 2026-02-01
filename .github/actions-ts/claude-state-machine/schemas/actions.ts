@@ -482,6 +482,19 @@ export type ApplyTriageOutputAction = z.infer<
   typeof ApplyTriageOutputActionSchema
 >;
 
+/**
+ * Apply iterate output from Claude's structured output
+ * Checks off completed todos and stores agent notes in history
+ */
+const ApplyIterateOutputActionSchema = BaseActionSchema.extend({
+  type: z.literal("applyIterateOutput"),
+  issueNumber: z.number().int().positive(),
+});
+
+export type ApplyIterateOutputAction = z.infer<
+  typeof ApplyIterateOutputActionSchema
+>;
+
 // ============================================================================
 // Discriminated Union of All Actions
 // ============================================================================
@@ -529,6 +542,8 @@ export const ActionSchema = z.discriminatedUnion("type", [
   NoOpActionSchema,
   // Triage actions
   ApplyTriageOutputActionSchema,
+  // Iterate actions
+  ApplyIterateOutputActionSchema,
 ]);
 
 export type Action = z.infer<typeof ActionSchema>;

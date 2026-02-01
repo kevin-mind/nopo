@@ -27,6 +27,11 @@ import { predictNextState } from "./src/predictor.js";
 import { waitForTriage } from "./src/triage.js";
 import { waitForPhase } from "./src/phase.js";
 import { setupCancellationHandlers } from "./src/poller.js";
+import {
+  loadScenario,
+  runConfigurableTest,
+  type TestRunnerInputs,
+} from "./src/configurable/index.js";
 
 /**
  * Trigger cleanup for an issue when test fails
@@ -459,6 +464,69 @@ async function run(): Promise<void> {
 
       if (!result.valid) {
         core.setFailed(`Fixture validation failed`);
+      }
+
+      return;
+    }
+
+    // Run-configurable action - state-based fixture testing
+    if (action === "run-configurable") {
+      const scenarioName = getRequiredInput("scenario_name");
+      const continueRun = getOptionalInput("continue") !== "false";
+      const mockClaude = getOptionalInput("mock_claude") !== "false";
+      const mockCI = getOptionalInput("mock_ci") !== "false";
+      const startStep = getOptionalInput("start_step");
+
+      core.info(`=== Claude Test Runner ===`);
+      core.info(`Action: run-configurable`);
+      core.info(`Scenario: ${scenarioName}`);
+      core.info(`Continue: ${continueRun}`);
+      core.info(`Mock Claude: ${mockClaude}`);
+      core.info(`Mock CI: ${mockCI}`);
+      if (startStep) {
+        core.info(`Start Step: ${startStep}`);
+      }
+
+      // Load scenario
+      const scenario = await loadScenario(scenarioName);
+
+      // Build test runner inputs
+      const inputs: TestRunnerInputs = {
+        continue: continueRun,
+        startStep: startStep || undefined,
+        mockClaude,
+        mockCI,
+      };
+
+      // Run the configurable test
+      const result = await runConfigurableTest(scenario, inputs, {
+        octokit,
+        owner,
+        repo,
+        projectNumber,
+      });
+
+      // Set outputs
+      setOutputs({
+        status: result.status,
+        issue_number: String(result.issueNumber),
+        transitions: JSON.stringify(result.transitions),
+        total_duration_ms: String(result.totalDurationMs),
+        current_state: result.currentState || "",
+        next_state: result.nextState || "",
+        error: result.error || "",
+      });
+
+      if (result.status === "failed" || result.status === "error") {
+        core.setFailed(`Test ${result.status}: ${result.error}`);
+      } else if (result.status === "completed") {
+        core.info(
+          `Test completed successfully with ${result.transitions.length} transitions`,
+        );
+      } else if (result.status === "paused") {
+        core.info(
+          `Test paused at ${result.currentState} -> ${result.nextState}`,
+        );
       }
 
       return;

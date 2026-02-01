@@ -1,0 +1,8 @@
+{
+  "description": "Claude outputs code that will fail CI (initial iteration, completes a todo but CI will fail)",
+  "output": {
+    "status": "completed_todo",
+    "todo_completed": "Fix the bug",
+    "agent_notes": ["Initial implementation complete", "Pushed changes, waiting for CI"]
+  }
+}

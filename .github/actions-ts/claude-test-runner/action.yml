@@ -3,14 +3,14 @@ description: 'Intelligent E2E test runner with state prediction, exponential bac
 
 inputs:
   action:
-    description: 'Action to perform: run | diagnose | wait | wait-triage | wait-phase | status | validate'
+    description: 'Action to perform: run | diagnose | wait | wait-triage | wait-phase | status | validate | run-configurable'
     required: true
   fixture_json:
     description: 'Test fixture JSON configuration'
     required: false
   issue_number:
     description: 'Issue number to test'
-    required: true
+    required: false
   github_token:
     description: 'GitHub token with repo and project access'
     required: true
@@ -40,10 +40,31 @@ inputs:
   e2e_run_id:
     description: 'E2E test workflow run ID (enables e2e mode - adds config file to branch)'
     required: false
+  # Configurable test runner inputs
+  scenario_name:
+    description: 'Name of the scenario to run (for run-configurable action)'
+    required: false
+  continue:
+    description: 'Run to completion (true) or stop after one step (false)'
+    required: false
+    default: 'true'
+  mock_claude:
+    description: 'Mock Claude outputs from fixture files'
+    required: false
+    default: 'true'
+  mock_ci:
+    description: 'Mock CI (immediate pass/fail based on fixture)'
+    required: false
+    default: 'true'
+  start_step:
+    description: 'Start at a specific state (e.g., "iteratingFix")'
+    required: false
 
 outputs:
   status:
-    description: 'Result status: done | timeout | error'
+    description: 'Result status: done | timeout | error | completed | paused | failed'
+  issue_number:
+    description: 'Issue number used in the test'
   suggested_fix:
     description: 'Actionable fix suggestion if test failed'
   diagnosis:
@@ -100,6 +121,15 @@ outputs:
     description: 'Issue state: open | closed (for wait-phase)'
   issue_status:
     description: 'Project status of the issue (for wait-phase)'
+  # Configurable test runner outputs
+  transitions:
+    description: 'JSON array of state transitions executed (for run-configurable)'
+  current_state:
+    description: 'Current state if paused (for run-configurable)'
+  next_state:
+    description: 'Next state if paused (for run-configurable)'
+  error:
+    description: 'Error message if failed (for run-configurable)'
 
 runs:
   using: node20

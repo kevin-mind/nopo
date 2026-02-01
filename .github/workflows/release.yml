@@ -4,6 +4,16 @@ name: Release
     branches:
       - main
   merge_group: {}
+  workflow_dispatch:
+    inputs:
+      mock:
+        description: 'Mock mode: pass, fail, or empty for real release'
+        type: string
+        required: false
+      ref:
+        description: 'Git ref to run release on (for mock mode with specific branch)'
+        type: string
+        required: false
 concurrency:
   group: ${{ github.workflow }}-${{ (github.event_name == 'merge_group' || github.event_name == 'push' && github.event.sender.login != 'github-merge-queue[bot]') && 'push' || 'pr' }}
   cancel-in-progress: true
@@ -15,12 +25,55 @@ env:
   CI: 'true'
 jobs:
   # ============================================================================
+  # MOCK MODE DETECTION - For configurable test runner
+  # When triggered via workflow_dispatch with mock=pass or mock=fail,
+  # skip real release jobs and immediately return the mocked result.
+  # ============================================================================
+  mock-detect:
+    runs-on: ubuntu-latest
+    outputs:
+      mock_mode: ${{ steps.detect.outputs.mock_mode }}
+      mock_result: ${{ steps.detect.outputs.mock_result }}
+    steps:
+      - name: Detect mock mode
+        id: detect
+        run: |
+          if [[ "${{ inputs.mock }}" == "pass" || "${{ inputs.mock }}" == "fail" ]]; then
+            echo "mock_mode=true" >> $GITHUB_OUTPUT
+            echo "mock_result=${{ inputs.mock }}" >> $GITHUB_OUTPUT
+            echo "::notice::Mock mode enabled - result will be: ${{ inputs.mock }}"
+          else
+            echo "mock_mode=false" >> $GITHUB_OUTPUT
+            echo "mock_result=" >> $GITHUB_OUTPUT
+          fi
+
+  # ============================================================================
+  # MOCK OUTCOME - Immediate pass/fail for test runner
+  # ============================================================================
+  mock-outcome:
+    needs: [mock-detect]
+    if: needs.mock-detect.outputs.mock_mode == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mock result
+        run: |
+          if [[ "${{ needs.mock-detect.outputs.mock_result }}" == "fail" ]]; then
+            echo "::error::Mock release failure (requested by test runner)"
+            exit 1
+          else
+            echo "::notice::Mock release success (requested by test runner)"
+          fi
+
+  # ============================================================================
   # E2E MODE DETECTION - Verify workflow run and parse outcome
   # Security: Only honors e2e markers when the referenced workflow is actually running
   # For release: checks commit message from merge queue or push event
   # Also checks for .github/e2e-test-config.json file
   # ============================================================================
   e2e-detect:
+    needs: [mock-detect]
+    # Skip in mock mode - mock-outcome handles the result
+    if: needs.mock-detect.outputs.mock_mode != 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -154,6 +207,9 @@ jobs:
   # Handles batched merge queue PRs by extracting all PR numbers
   # ============================================================================
   extract-issue:
+    needs: [mock-detect]
+    # Skip in mock mode
+    if: needs.mock-detect.outputs.mock_mode != 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -325,6 +381,9 @@ jobs:
             }]
 
   context:
+    needs: [mock-detect]
+    # Skip in mock mode
+    if: needs.mock-detect.outputs.mock_mode != 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -368,6 +427,9 @@ jobs:
           echo "deploy=$deploy" >> $GITHUB_OUTPUT
           cat "$GITHUB_OUTPUT"
   discover_buildable:
+    needs: [mock-detect]
+    # Skip in mock mode
+    if: needs.mock-detect.outputs.mock_mode != 'true'
     permissions:
       contents: read
     uses: ./.github/workflows/_services.yml
@@ -375,7 +437,9 @@ jobs:
       filter: buildable
       ref: ${{ github.sha }}
   version:
-    if: ${{ github.event_name == 'push' }}
+    needs: [mock-detect, context]
+    # Skip in mock mode
+    if: ${{ needs.mock-detect.outputs.mock_mode != 'true' && github.event_name == 'push' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -401,11 +465,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-    needs:
-      - context
   build:
-    # Skip in e2e mode - deploy jobs handle e2e simulation
-    if: ${{ needs.e2e-detect.outputs.e2e_mode != 'true' }}
+    # Skip in mock mode or e2e mode
+    if: ${{ needs.mock-detect.outputs.mock_mode != 'true' && needs.e2e-detect.outputs.e2e_mode != 'true' }}
     permissions:
       contents: read
       packages: write
@@ -420,12 +482,13 @@ jobs:
       platforms: linux/amd64,linux/arm64
       driver: docker-container
     needs:
+      - mock-detect
       - e2e-detect
       - context
       - discover_buildable
   test:
-    # Skip in e2e mode - deploy jobs handle e2e simulation
-    if: ${{ needs.e2e-detect.outputs.e2e_mode != 'true' }}
+    # Skip in mock mode or e2e mode
+    if: ${{ needs.mock-detect.outputs.mock_mode != 'true' && needs.e2e-detect.outputs.e2e_mode != 'true' }}
     permissions:
       contents: read
       packages: read
@@ -435,6 +498,7 @@ jobs:
       tag: ${{ needs.build.outputs.tag }}
       services: ${{ needs.discover_buildable.outputs.services_json }}
     needs:
+      - mock-detect
       - e2e-detect
       - build
       - context
@@ -801,6 +865,8 @@ jobs:
         with:
           json: ${{ toJson(needs) }}
     needs:
+      - mock-detect
+      - mock-outcome
       - e2e-detect
       - build
       - test

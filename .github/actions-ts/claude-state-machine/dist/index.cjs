@@ -31608,6 +31608,10 @@ var ApplyTriageOutputActionSchema = BaseActionSchema.extend({
   issueNumber: external_exports.number().int().positive(),
   filePath: external_exports.string().default("triage-output.json")
 });
+var ApplyIterateOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyIterateOutput"),
+  issueNumber: external_exports.number().int().positive()
+});
 var ActionSchema = external_exports.discriminatedUnion("type", [
   // Project field actions
   UpdateProjectStatusActionSchema,
@@ -31647,7 +31651,9 @@ var ActionSchema = external_exports.discriminatedUnion("type", [
   LogActionSchema,
   NoOpActionSchema,
   // Triage actions
-  ApplyTriageOutputActionSchema
+  ApplyTriageOutputActionSchema,
+  // Iterate actions
+  ApplyIterateOutputActionSchema
 ]);
 
 // claude-state-machine/schemas/events.ts
@@ -32393,8 +32399,14 @@ function emitRunClaude({ context: context2 }) {
     {
       type: "runClaude",
       token: "code",
-      promptFile: ".github/prompts/iterate.txt",
+      promptDir: "iterate",
       promptVars,
+      issueNumber
+    },
+    // Apply iterate output: check off completed todos, store agent notes
+    {
+      type: "applyIterateOutput",
+      token: "code",
       issueNumber
     }
   ];
@@ -32411,8 +32423,14 @@ Review the CI logs at the link above and fix the failing tests or build errors.`
     {
       type: "runClaude",
       token: "code",
-      promptFile: ".github/prompts/iterate.txt",
+      promptDir: "iterate",
       promptVars,
+      issueNumber
+    },
+    // Apply iterate output: check off completed todos, store agent notes
+    {
+      type: "applyIterateOutput",
+      token: "code",
       issueNumber
     }
   ];

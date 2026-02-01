@@ -182,7 +182,7 @@ var require_file_command = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.prepareKeyValueMessage = exports2.issueFileCommand = void 0;
     var crypto = __importStar(require("crypto"));
-    var fs = __importStar(require("fs"));
+    var fs4 = __importStar(require("fs"));
     var os = __importStar(require("os"));
     var utils_1 = require_utils();
     function issueFileCommand(command, message) {
@@ -190,10 +190,10 @@ var require_file_command = __commonJS({
       if (!filePath) {
         throw new Error(`Unable to find environment variable for file command ${command}`);
       }
-      if (!fs.existsSync(filePath)) {
+      if (!fs4.existsSync(filePath)) {
         throw new Error(`Missing file at path: ${filePath}`);
       }
-      fs.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
+      fs4.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
         encoding: "utf8"
       });
     }
@@ -398,7 +398,7 @@ var require_tunnel = __commonJS({
         connectOptions.headers = connectOptions.headers || {};
         connectOptions.headers["Proxy-Authorization"] = "Basic " + new Buffer(connectOptions.proxyAuth).toString("base64");
       }
-      debug5("making CONNECT request");
+      debug10("making CONNECT request");
       var connectReq = self2.request(connectOptions);
       connectReq.useChunkedEncodingByDefault = false;
       connectReq.once("response", onResponse);
@@ -418,40 +418,40 @@ var require_tunnel = __commonJS({
         connectReq.removeAllListeners();
         socket.removeAllListeners();
         if (res.statusCode !== 200) {
-          debug5(
+          debug10(
             "tunneling socket could not be established, statusCode=%d",
             res.statusCode
           );
           socket.destroy();
-          var error3 = new Error("tunneling socket could not be established, statusCode=" + res.statusCode);
-          error3.code = "ECONNRESET";
-          options.request.emit("error", error3);
+          var error6 = new Error("tunneling socket could not be established, statusCode=" + res.statusCode);
+          error6.code = "ECONNRESET";
+          options.request.emit("error", error6);
           self2.removeSocket(placeholder);
           return;
         }
         if (head.length > 0) {
-          debug5("got illegal response body from proxy");
+          debug10("got illegal response body from proxy");
           socket.destroy();
-          var error3 = new Error("got illegal response body from proxy");
-          error3.code = "ECONNRESET";
-          options.request.emit("error", error3);
+          var error6 = new Error("got illegal response body from proxy");
+          error6.code = "ECONNRESET";
+          options.request.emit("error", error6);
           self2.removeSocket(placeholder);
           return;
         }
-        debug5("tunneling connection has established");
+        debug10("tunneling connection has established");
         self2.sockets[self2.sockets.indexOf(placeholder)] = socket;
         return cb(socket);
       }
       function onError(cause) {
         connectReq.removeAllListeners();
-        debug5(
+        debug10(
           "tunneling socket could not be established, cause=%s\n",
           cause.message,
           cause.stack
         );
-        var error3 = new Error("tunneling socket could not be established, cause=" + cause.message);
-        error3.code = "ECONNRESET";
-        options.request.emit("error", error3);
+        var error6 = new Error("tunneling socket could not be established, cause=" + cause.message);
+        error6.code = "ECONNRESET";
+        options.request.emit("error", error6);
         self2.removeSocket(placeholder);
       }
     };
@@ -506,9 +506,9 @@ var require_tunnel = __commonJS({
       }
       return target;
     }
-    var debug5;
+    var debug10;
     if (process.env.NODE_DEBUG && /\btunnel\b/.test(process.env.NODE_DEBUG)) {
-      debug5 = function() {
+      debug10 = function() {
         var args = Array.prototype.slice.call(arguments);
         if (typeof args[0] === "string") {
           args[0] = "TUNNEL: " + args[0];
@@ -518,10 +518,10 @@ var require_tunnel = __commonJS({
         console.error.apply(console, args);
       };
     } else {
-      debug5 = function() {
+      debug10 = function() {
       };
     }
-    exports2.debug = debug5;
+    exports2.debug = debug10;
   }
 });
 
@@ -996,14 +996,14 @@ var require_util = __commonJS({
         }
         const port = url.port != null ? url.port : url.protocol === "https:" ? 443 : 80;
         let origin = url.origin != null ? url.origin : `${url.protocol}//${url.hostname}:${port}`;
-        let path = url.path != null ? url.path : `${url.pathname || ""}${url.search || ""}`;
+        let path3 = url.path != null ? url.path : `${url.pathname || ""}${url.search || ""}`;
         if (origin.endsWith("/")) {
           origin = origin.substring(0, origin.length - 1);
         }
-        if (path && !path.startsWith("/")) {
-          path = `/${path}`;
+        if (path3 && !path3.startsWith("/")) {
+          path3 = `/${path3}`;
         }
-        url = new URL(origin + path);
+        url = new URL(origin + path3);
       }
       return url;
     }
@@ -2617,20 +2617,20 @@ var require_parseParams = __commonJS({
 var require_basename = __commonJS({
   "../../node_modules/.pnpm/@fastify+busboy@2.1.1/node_modules/@fastify/busboy/lib/utils/basename.js"(exports2, module2) {
     "use strict";
-    module2.exports = function basename(path) {
-      if (typeof path !== "string") {
+    module2.exports = function basename(path3) {
+      if (typeof path3 !== "string") {
         return "";
       }
-      for (var i = path.length - 1; i >= 0; --i) {
-        switch (path.charCodeAt(i)) {
+      for (var i = path3.length - 1; i >= 0; --i) {
+        switch (path3.charCodeAt(i)) {
           case 47:
           // '/'
           case 92:
-            path = path.slice(i + 1);
-            return path === ".." || path === "." ? "" : path;
+            path3 = path3.slice(i + 1);
+            return path3 === ".." || path3 === "." ? "" : path3;
         }
       }
-      return path === ".." || path === "." ? "" : path;
+      return path3 === ".." || path3 === "." ? "" : path3;
     };
   }
 });
@@ -4023,8 +4023,8 @@ var require_util2 = __commonJS({
     function createDeferredPromise() {
       let res;
       let rej;
-      const promise = new Promise((resolve, reject) => {
-        res = resolve;
+      const promise = new Promise((resolve2, reject) => {
+        res = resolve2;
         rej = reject;
       });
       return { promise, resolve: res, reject: rej };
@@ -5528,8 +5528,8 @@ Content-Type: ${value.type || "application/octet-stream"}\r
                 });
               }
             });
-            const busboyResolve = new Promise((resolve, reject) => {
-              busboy.on("finish", resolve);
+            const busboyResolve = new Promise((resolve2, reject) => {
+              busboy.on("finish", resolve2);
               busboy.on("error", (err) => reject(new TypeError(err)));
             });
             if (this.body !== null) for await (const chunk of consumeBody(this[kState].body)) busboy.write(chunk);
@@ -5579,7 +5579,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
         throw new TypeError("Body is unusable");
       }
       const promise = createDeferredPromise();
-      const errorSteps = (error3) => promise.reject(error3);
+      const errorSteps = (error6) => promise.reject(error6);
       const successSteps = (data) => {
         try {
           promise.resolve(convertBytesToJSValue(data));
@@ -5660,7 +5660,7 @@ var require_request = __commonJS({
     }
     var Request = class _Request {
       constructor(origin, {
-        path,
+        path: path3,
         method,
         body,
         headers,
@@ -5674,11 +5674,11 @@ var require_request = __commonJS({
         throwOnError,
         expectContinue
       }, handler) {
-        if (typeof path !== "string") {
+        if (typeof path3 !== "string") {
           throw new InvalidArgumentError("path must be a string");
-        } else if (path[0] !== "/" && !(path.startsWith("http://") || path.startsWith("https://")) && method !== "CONNECT") {
+        } else if (path3[0] !== "/" && !(path3.startsWith("http://") || path3.startsWith("https://")) && method !== "CONNECT") {
           throw new InvalidArgumentError("path must be an absolute URL or start with a slash");
-        } else if (invalidPathRegex.exec(path) !== null) {
+        } else if (invalidPathRegex.exec(path3) !== null) {
           throw new InvalidArgumentError("invalid request path");
         }
         if (typeof method !== "string") {
@@ -5741,7 +5741,7 @@ var require_request = __commonJS({
         this.completed = false;
         this.aborted = false;
         this.upgrade = upgrade || null;
-        this.path = query ? util2.buildURL(path, query) : path;
+        this.path = query ? util2.buildURL(path3, query) : path3;
         this.origin = origin;
         this.idempotent = idempotent == null ? method === "HEAD" || method === "GET" : idempotent;
         this.blocking = blocking == null ? false : blocking;
@@ -5865,16 +5865,16 @@ var require_request = __commonJS({
           this.onError(err);
         }
       }
-      onError(error3) {
+      onError(error6) {
         this.onFinally();
         if (channels.error.hasSubscribers) {
-          channels.error.publish({ request: this, error: error3 });
+          channels.error.publish({ request: this, error: error6 });
         }
         if (this.aborted) {
           return;
         }
         this.aborted = true;
-        return this[kHandler].onError(error3);
+        return this[kHandler].onError(error6);
       }
       onFinally() {
         if (this.errorHandler) {
@@ -6063,9 +6063,9 @@ var require_dispatcher_base = __commonJS({
       }
       close(callback) {
         if (callback === void 0) {
-          return new Promise((resolve, reject) => {
+          return new Promise((resolve2, reject) => {
             this.close((err, data) => {
-              return err ? reject(err) : resolve(data);
+              return err ? reject(err) : resolve2(data);
             });
           });
         }
@@ -6103,12 +6103,12 @@ var require_dispatcher_base = __commonJS({
           err = null;
         }
         if (callback === void 0) {
-          return new Promise((resolve, reject) => {
+          return new Promise((resolve2, reject) => {
             this.destroy(err, (err2, data) => {
               return err2 ? (
                 /* istanbul ignore next: should never error */
                 reject(err2)
-              ) : resolve(data);
+              ) : resolve2(data);
             });
           });
         }
@@ -6737,8 +6737,8 @@ var require_RedirectHandler = __commonJS({
       onUpgrade(statusCode, headers, socket) {
         this.handler.onUpgrade(statusCode, headers, socket);
       }
-      onError(error3) {
-        this.handler.onError(error3);
+      onError(error6) {
+        this.handler.onError(error6);
       }
       onHeaders(statusCode, headers, resume, statusText) {
         this.location = this.history.length >= this.maxRedirections || util2.isDisturbed(this.opts.body) ? null : parseLocation(statusCode, headers);
@@ -6749,9 +6749,9 @@ var require_RedirectHandler = __commonJS({
           return this.handler.onHeaders(statusCode, headers, resume, statusText);
         }
         const { origin, pathname, search } = util2.parseURL(new URL(this.location, this.opts.origin && new URL(this.opts.path, this.opts.origin)));
-        const path = search ? `${pathname}${search}` : pathname;
+        const path3 = search ? `${pathname}${search}` : pathname;
         this.opts.headers = cleanRequestHeaders(this.opts.headers, statusCode === 303, this.opts.origin !== origin);
-        this.opts.path = path;
+        this.opts.path = path3;
         this.opts.origin = origin;
         this.opts.maxRedirections = 0;
         this.opts.query = null;
@@ -7168,16 +7168,16 @@ var require_client = __commonJS({
         return this[kNeedDrain] < 2;
       }
       async [kClose]() {
-        return new Promise((resolve) => {
+        return new Promise((resolve2) => {
           if (!this[kSize]) {
-            resolve(null);
+            resolve2(null);
           } else {
-            this[kClosedResolve] = resolve;
+            this[kClosedResolve] = resolve2;
           }
         });
       }
       async [kDestroy](err) {
-        return new Promise((resolve) => {
+        return new Promise((resolve2) => {
           const requests = this[kQueue].splice(this[kPendingIdx]);
           for (let i = 0; i < requests.length; i++) {
             const request = requests[i];
@@ -7188,7 +7188,7 @@ var require_client = __commonJS({
               this[kClosedResolve]();
               this[kClosedResolve] = null;
             }
-            resolve();
+            resolve2();
           };
           if (this[kHTTP2Session] != null) {
             util2.destroy(this[kHTTP2Session], err);
@@ -7768,7 +7768,7 @@ var require_client = __commonJS({
         });
       }
       try {
-        const socket = await new Promise((resolve, reject) => {
+        const socket = await new Promise((resolve2, reject) => {
           client[kConnector]({
             host,
             hostname,
@@ -7780,7 +7780,7 @@ var require_client = __commonJS({
             if (err) {
               reject(err);
             } else {
-              resolve(socket2);
+              resolve2(socket2);
             }
           });
         });
@@ -7991,7 +7991,7 @@ var require_client = __commonJS({
         writeH2(client, client[kHTTP2Session], request);
         return;
       }
-      const { body, method, path, host, upgrade, headers, blocking, reset } = request;
+      const { body, method, path: path3, host, upgrade, headers, blocking, reset } = request;
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH";
       if (body && typeof body.read === "function") {
         body.read(0);
@@ -8041,7 +8041,7 @@ var require_client = __commonJS({
       if (blocking) {
         socket[kBlocking] = true;
       }
-      let header = `${method} ${path} HTTP/1.1\r
+      let header = `${method} ${path3} HTTP/1.1\r
 `;
       if (typeof host === "string") {
         header += `host: ${host}\r
@@ -8104,7 +8104,7 @@ upgrade: ${upgrade}\r
       return true;
     }
     function writeH2(client, session, request) {
-      const { body, method, path, host, upgrade, expectContinue, signal, headers: reqHeaders } = request;
+      const { body, method, path: path3, host, upgrade, expectContinue, signal, headers: reqHeaders } = request;
       let headers;
       if (typeof reqHeaders === "string") headers = Request[kHTTP2CopyHeaders](reqHeaders.trim());
       else headers = reqHeaders;
@@ -8147,7 +8147,7 @@ upgrade: ${upgrade}\r
         });
         return true;
       }
-      headers[HTTP2_HEADER_PATH] = path;
+      headers[HTTP2_HEADER_PATH] = path3;
       headers[HTTP2_HEADER_SCHEME] = "https";
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH";
       if (body && typeof body.read === "function") {
@@ -8404,12 +8404,12 @@ upgrade: ${upgrade}\r
           cb();
         }
       }
-      const waitForDrain = () => new Promise((resolve, reject) => {
+      const waitForDrain = () => new Promise((resolve2, reject) => {
         assert(callback === null);
         if (socket[kError]) {
           reject(socket[kError]);
         } else {
-          callback = resolve;
+          callback = resolve2;
         }
       });
       if (client[kHTTPConnVersion] === "h2") {
@@ -8754,8 +8754,8 @@ var require_pool_base = __commonJS({
         if (this[kQueue].isEmpty()) {
           return Promise.all(this[kClients].map((c) => c.close()));
         } else {
-          return new Promise((resolve) => {
-            this[kClosedResolve] = resolve;
+          return new Promise((resolve2) => {
+            this[kClosedResolve] = resolve2;
           });
         }
       }
@@ -8879,7 +8879,7 @@ var require_pool = __commonJS({
         this[kOptions] = { ...util2.deepClone(options), connect, allowH2 };
         this[kOptions].interceptors = options.interceptors ? { ...options.interceptors } : void 0;
         this[kFactory] = factory;
-        this.on("connectionError", (origin2, targets, error3) => {
+        this.on("connectionError", (origin2, targets, error6) => {
           for (const target of targets) {
             const idx = this[kClients].indexOf(target);
             if (idx !== -1) {
@@ -9333,7 +9333,7 @@ var require_readable = __commonJS({
         if (this.closed) {
           return Promise.resolve(null);
         }
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve2, reject) => {
           const signalListenerCleanup = signal ? util2.addAbortListener(signal, () => {
             this.destroy();
           }) : noop;
@@ -9342,7 +9342,7 @@ var require_readable = __commonJS({
             if (signal && signal.aborted) {
               reject(signal.reason || Object.assign(new Error("The operation was aborted"), { name: "AbortError" }));
             } else {
-              resolve(null);
+              resolve2(null);
             }
           }).on("error", noop).on("data", function(chunk) {
             limit -= chunk.length;
@@ -9364,11 +9364,11 @@ var require_readable = __commonJS({
         throw new TypeError("unusable");
       }
       assert(!stream[kConsume]);
-      return new Promise((resolve, reject) => {
+      return new Promise((resolve2, reject) => {
         stream[kConsume] = {
           type,
           stream,
-          resolve,
+          resolve: resolve2,
           reject,
           length: 0,
           body: []
@@ -9403,12 +9403,12 @@ var require_readable = __commonJS({
       }
     }
     function consumeEnd(consume2) {
-      const { type, body, resolve, stream, length } = consume2;
+      const { type, body, resolve: resolve2, stream, length } = consume2;
       try {
         if (type === "text") {
-          resolve(toUSVString(Buffer.concat(body)));
+          resolve2(toUSVString(Buffer.concat(body)));
         } else if (type === "json") {
-          resolve(JSON.parse(Buffer.concat(body)));
+          resolve2(JSON.parse(Buffer.concat(body)));
         } else if (type === "arrayBuffer") {
           const dst = new Uint8Array(length);
           let pos = 0;
@@ -9416,12 +9416,12 @@ var require_readable = __commonJS({
             dst.set(buf, pos);
             pos += buf.byteLength;
           }
-          resolve(dst.buffer);
+          resolve2(dst.buffer);
         } else if (type === "blob") {
           if (!Blob2) {
             Blob2 = require("buffer").Blob;
           }
-          resolve(new Blob2(body, { type: stream[kContentType] }));
+          resolve2(new Blob2(body, { type: stream[kContentType] }));
         }
         consumeFinish(consume2);
       } catch (err) {
@@ -9676,9 +9676,9 @@ var require_api_request = __commonJS({
     };
     function request(opts, callback) {
       if (callback === void 0) {
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve2, reject) => {
           request.call(this, opts, (err, data) => {
-            return err ? reject(err) : resolve(data);
+            return err ? reject(err) : resolve2(data);
           });
         });
       }
@@ -9851,9 +9851,9 @@ var require_api_stream = __commonJS({
     };
     function stream(opts, factory, callback) {
       if (callback === void 0) {
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve2, reject) => {
           stream.call(this, opts, factory, (err, data) => {
-            return err ? reject(err) : resolve(data);
+            return err ? reject(err) : resolve2(data);
           });
         });
       }
@@ -10134,9 +10134,9 @@ var require_api_upgrade = __commonJS({
     };
     function upgrade(opts, callback) {
       if (callback === void 0) {
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve2, reject) => {
           upgrade.call(this, opts, (err, data) => {
-            return err ? reject(err) : resolve(data);
+            return err ? reject(err) : resolve2(data);
           });
         });
       }
@@ -10225,9 +10225,9 @@ var require_api_connect = __commonJS({
     };
     function connect(opts, callback) {
       if (callback === void 0) {
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve2, reject) => {
           connect.call(this, opts, (err, data) => {
-            return err ? reject(err) : resolve(data);
+            return err ? reject(err) : resolve2(data);
           });
         });
       }
@@ -10387,20 +10387,20 @@ var require_mock_utils = __commonJS({
       }
       return true;
     }
-    function safeUrl(path) {
-      if (typeof path !== "string") {
-        return path;
+    function safeUrl(path3) {
+      if (typeof path3 !== "string") {
+        return path3;
       }
-      const pathSegments = path.split("?");
+      const pathSegments = path3.split("?");
       if (pathSegments.length !== 2) {
-        return path;
+        return path3;
       }
       const qp = new URLSearchParams(pathSegments.pop());
       qp.sort();
       return [...pathSegments, qp.toString()].join("?");
     }
-    function matchKey(mockDispatch2, { path, method, body, headers }) {
-      const pathMatch = matchValue(mockDispatch2.path, path);
+    function matchKey(mockDispatch2, { path: path3, method, body, headers }) {
+      const pathMatch = matchValue(mockDispatch2.path, path3);
       const methodMatch = matchValue(mockDispatch2.method, method);
       const bodyMatch = typeof mockDispatch2.body !== "undefined" ? matchValue(mockDispatch2.body, body) : true;
       const headersMatch = matchHeaders(mockDispatch2, headers);
@@ -10418,7 +10418,7 @@ var require_mock_utils = __commonJS({
     function getMockDispatch(mockDispatches, key) {
       const basePath = key.query ? buildURL(key.path, key.query) : key.path;
       const resolvedPath = typeof basePath === "string" ? safeUrl(basePath) : basePath;
-      let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path }) => matchValue(safeUrl(path), resolvedPath));
+      let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path: path3 }) => matchValue(safeUrl(path3), resolvedPath));
       if (matchedMockDispatches.length === 0) {
         throw new MockNotMatchedError(`Mock dispatch not matched for path '${resolvedPath}'`);
       }
@@ -10455,9 +10455,9 @@ var require_mock_utils = __commonJS({
       }
     }
     function buildKey(opts) {
-      const { path, method, body, headers, query } = opts;
+      const { path: path3, method, body, headers, query } = opts;
       return {
-        path,
+        path: path3,
         method,
         body,
         headers,
@@ -10488,13 +10488,13 @@ var require_mock_utils = __commonJS({
       if (mockDispatch2.data.callback) {
         mockDispatch2.data = { ...mockDispatch2.data, ...mockDispatch2.data.callback(opts) };
       }
-      const { data: { statusCode, data, headers, trailers, error: error3 }, delay, persist } = mockDispatch2;
+      const { data: { statusCode, data, headers, trailers, error: error6 }, delay, persist } = mockDispatch2;
       const { timesInvoked, times } = mockDispatch2;
       mockDispatch2.consumed = !persist && timesInvoked >= times;
       mockDispatch2.pending = timesInvoked < times;
-      if (error3 !== null) {
+      if (error6 !== null) {
         deleteMockDispatch(this[kDispatches], key);
-        handler.onError(error3);
+        handler.onError(error6);
         return true;
       }
       if (typeof delay === "number" && delay > 0) {
@@ -10532,19 +10532,19 @@ var require_mock_utils = __commonJS({
         if (agent.isMockActive) {
           try {
             mockDispatch.call(this, opts, handler);
-          } catch (error3) {
-            if (error3 instanceof MockNotMatchedError) {
+          } catch (error6) {
+            if (error6 instanceof MockNotMatchedError) {
               const netConnect = agent[kGetNetConnect]();
               if (netConnect === false) {
-                throw new MockNotMatchedError(`${error3.message}: subsequent request to origin ${origin} was not allowed (net.connect disabled)`);
+                throw new MockNotMatchedError(`${error6.message}: subsequent request to origin ${origin} was not allowed (net.connect disabled)`);
               }
               if (checkNetConnect(netConnect, origin)) {
                 originalDispatch.call(this, opts, handler);
               } else {
-                throw new MockNotMatchedError(`${error3.message}: subsequent request to origin ${origin} was not allowed (net.connect is not enabled for this origin)`);
+                throw new MockNotMatchedError(`${error6.message}: subsequent request to origin ${origin} was not allowed (net.connect is not enabled for this origin)`);
               }
             } else {
-              throw error3;
+              throw error6;
             }
           }
         } else {
@@ -10707,11 +10707,11 @@ var require_mock_interceptor = __commonJS({
       /**
        * Mock an undici request with a defined error.
        */
-      replyWithError(error3) {
-        if (typeof error3 === "undefined") {
+      replyWithError(error6) {
+        if (typeof error6 === "undefined") {
           throw new InvalidArgumentError("error must be defined");
         }
-        const newMockDispatch = addMockDispatch(this[kDispatches], this[kDispatchKey], { error: error3 });
+        const newMockDispatch = addMockDispatch(this[kDispatches], this[kDispatchKey], { error: error6 });
         return new MockScope(newMockDispatch);
       }
       /**
@@ -10906,10 +10906,10 @@ var require_pending_interceptors_formatter = __commonJS({
       }
       format(pendingInterceptors) {
         const withPrettyHeaders = pendingInterceptors.map(
-          ({ method, path, data: { statusCode }, persist, times, timesInvoked, origin }) => ({
+          ({ method, path: path3, data: { statusCode }, persist, times, timesInvoked, origin }) => ({
             Method: method,
             Origin: origin,
-            Path: path,
+            Path: path3,
             "Status code": statusCode,
             Persistent: persist ? "\u2705" : "\u274C",
             Invocations: timesInvoked,
@@ -13038,17 +13038,17 @@ var require_fetch = __commonJS({
         this.emit("terminated", reason);
       }
       // https://fetch.spec.whatwg.org/#fetch-controller-abort
-      abort(error3) {
+      abort(error6) {
         if (this.state !== "ongoing") {
           return;
         }
         this.state = "aborted";
-        if (!error3) {
-          error3 = new DOMException2("The operation was aborted.", "AbortError");
+        if (!error6) {
+          error6 = new DOMException2("The operation was aborted.", "AbortError");
         }
-        this.serializedAbortReason = error3;
-        this.connection?.destroy(error3);
-        this.emit("terminated", error3);
+        this.serializedAbortReason = error6;
+        this.connection?.destroy(error6);
+        this.emit("terminated", error6);
       }
     };
     function fetch(input, init = {}) {
@@ -13152,13 +13152,13 @@ var require_fetch = __commonJS({
         performance.markResourceTiming(timingInfo, originalURL.href, initiatorType, globalThis2, cacheState);
       }
     }
-    function abortFetch(p, request, responseObject, error3) {
-      if (!error3) {
-        error3 = new DOMException2("The operation was aborted.", "AbortError");
+    function abortFetch(p, request, responseObject, error6) {
+      if (!error6) {
+        error6 = new DOMException2("The operation was aborted.", "AbortError");
       }
-      p.reject(error3);
+      p.reject(error6);
       if (request.body != null && isReadable(request.body?.stream)) {
-        request.body.stream.cancel(error3).catch((err) => {
+        request.body.stream.cancel(error6).catch((err) => {
           if (err.code === "ERR_INVALID_STATE") {
             return;
           }
@@ -13170,7 +13170,7 @@ var require_fetch = __commonJS({
       }
       const response = responseObject[kState];
       if (response.body != null && isReadable(response.body?.stream)) {
-        response.body.stream.cancel(error3).catch((err) => {
+        response.body.stream.cancel(error6).catch((err) => {
           if (err.code === "ERR_INVALID_STATE") {
             return;
           }
@@ -13849,7 +13849,7 @@ var require_fetch = __commonJS({
       async function dispatch({ body }) {
         const url = requestCurrentURL(request);
         const agent = fetchParams.controller.dispatcher;
-        return new Promise((resolve, reject) => agent.dispatch(
+        return new Promise((resolve2, reject) => agent.dispatch(
           {
             path: url.pathname + url.search,
             origin: url.origin,
@@ -13925,7 +13925,7 @@ var require_fetch = __commonJS({
                   }
                 }
               }
-              resolve({
+              resolve2({
                 status,
                 statusText,
                 headersList: headers[kHeadersList],
@@ -13950,13 +13950,13 @@ var require_fetch = __commonJS({
               fetchParams.controller.ended = true;
               this.body.push(null);
             },
-            onError(error3) {
+            onError(error6) {
               if (this.abort) {
                 fetchParams.controller.off("terminated", this.abort);
               }
-              this.body?.destroy(error3);
-              fetchParams.controller.terminate(error3);
-              reject(error3);
+              this.body?.destroy(error6);
+              fetchParams.controller.terminate(error6);
+              reject(error6);
             },
             onUpgrade(status, headersList, socket) {
               if (status !== 101) {
@@ -13968,7 +13968,7 @@ var require_fetch = __commonJS({
                 const val = headersList[n + 1].toString("latin1");
                 headers[kHeadersList].append(key, val);
               }
-              resolve({
+              resolve2({
                 status,
                 statusText: STATUS_CODES[status],
                 headersList: headers[kHeadersList],
@@ -14422,8 +14422,8 @@ var require_util4 = __commonJS({
                   }
                   fr[kResult] = result;
                   fireAProgressEvent("load", fr);
-                } catch (error3) {
-                  fr[kError] = error3;
+                } catch (error6) {
+                  fr[kError] = error6;
                   fireAProgressEvent("error", fr);
                 }
                 if (fr[kState] !== "loading") {
@@ -14432,13 +14432,13 @@ var require_util4 = __commonJS({
               });
               break;
             }
-          } catch (error3) {
+          } catch (error6) {
             if (fr[kAborted]) {
               return;
             }
             queueMicrotask(() => {
               fr[kState] = "done";
-              fr[kError] = error3;
+              fr[kError] = error6;
               fireAProgressEvent("error", fr);
               if (fr[kState] !== "loading") {
                 fireAProgressEvent("loadend", fr);
@@ -15529,8 +15529,8 @@ var require_util6 = __commonJS({
         }
       }
     }
-    function validateCookiePath(path) {
-      for (const char of path) {
+    function validateCookiePath(path3) {
+      for (const char of path3) {
         const code = char.charCodeAt(0);
         if (code < 33 || char === ";") {
           throw new Error("Invalid cookie path");
@@ -16438,11 +16438,11 @@ var require_connection = __commonJS({
         });
       }
     }
-    function onSocketError(error3) {
+    function onSocketError(error6) {
       const { ws } = this;
       ws[kReadyState] = states.CLOSING;
       if (channels.socketError.hasSubscribers) {
-        channels.socketError.publish(error3);
+        channels.socketError.publish(error6);
       }
       this.destroy();
     }
@@ -17210,11 +17210,11 @@ var require_undici = __commonJS({
           if (typeof opts.path !== "string") {
             throw new InvalidArgumentError("invalid opts.path");
           }
-          let path = opts.path;
+          let path3 = opts.path;
           if (!opts.path.startsWith("/")) {
-            path = `/${path}`;
+            path3 = `/${path3}`;
           }
-          url = new URL(util2.parseOrigin(url).origin + path);
+          url = new URL(util2.parseOrigin(url).origin + path3);
         } else {
           if (!opts) {
             opts = typeof url === "object" ? url : {};
@@ -17322,11 +17322,11 @@ var require_lib = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve) {
-          resolve(value);
+        return value instanceof P ? value : new P(function(resolve2) {
+          resolve2(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve, reject) {
+      return new (P || (P = Promise))(function(resolve2, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -17342,7 +17342,7 @@ var require_lib = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -17428,26 +17428,26 @@ var require_lib = __commonJS({
       }
       readBody() {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve2) => __awaiter(this, void 0, void 0, function* () {
             let output = Buffer.alloc(0);
             this.message.on("data", (chunk) => {
               output = Buffer.concat([output, chunk]);
             });
             this.message.on("end", () => {
-              resolve(output.toString());
+              resolve2(output.toString());
             });
           }));
         });
       }
       readBodyBuffer() {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve2) => __awaiter(this, void 0, void 0, function* () {
             const chunks = [];
             this.message.on("data", (chunk) => {
               chunks.push(chunk);
             });
             this.message.on("end", () => {
-              resolve(Buffer.concat(chunks));
+              resolve2(Buffer.concat(chunks));
             });
           }));
         });
@@ -17586,12 +17586,12 @@ var require_lib = __commonJS({
             throw new Error("Client has already been disposed.");
           }
           const parsedUrl = new URL(requestUrl);
-          let info6 = this._prepareRequest(verb, parsedUrl, headers);
+          let info17 = this._prepareRequest(verb, parsedUrl, headers);
           const maxTries = this._allowRetries && RetryableHttpVerbs.includes(verb) ? this._maxRetries + 1 : 1;
           let numTries = 0;
           let response;
           do {
-            response = yield this.requestRaw(info6, data);
+            response = yield this.requestRaw(info17, data);
             if (response && response.message && response.message.statusCode === HttpCodes.Unauthorized) {
               let authenticationHandler;
               for (const handler of this.handlers) {
@@ -17601,7 +17601,7 @@ var require_lib = __commonJS({
                 }
               }
               if (authenticationHandler) {
-                return authenticationHandler.handleAuthentication(this, info6, data);
+                return authenticationHandler.handleAuthentication(this, info17, data);
               } else {
                 return response;
               }
@@ -17624,8 +17624,8 @@ var require_lib = __commonJS({
                   }
                 }
               }
-              info6 = this._prepareRequest(verb, parsedRedirectUrl, headers);
-              response = yield this.requestRaw(info6, data);
+              info17 = this._prepareRequest(verb, parsedRedirectUrl, headers);
+              response = yield this.requestRaw(info17, data);
               redirectsRemaining--;
             }
             if (!response.message.statusCode || !HttpResponseRetryCodes.includes(response.message.statusCode)) {
@@ -17654,19 +17654,19 @@ var require_lib = __commonJS({
        * @param info
        * @param data
        */
-      requestRaw(info6, data) {
+      requestRaw(info17, data) {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve, reject) => {
+          return new Promise((resolve2, reject) => {
             function callbackForResult(err, res) {
               if (err) {
                 reject(err);
               } else if (!res) {
                 reject(new Error("Unknown error"));
               } else {
-                resolve(res);
+                resolve2(res);
               }
             }
-            this.requestRawWithCallback(info6, data, callbackForResult);
+            this.requestRawWithCallback(info17, data, callbackForResult);
           });
         });
       }
@@ -17676,12 +17676,12 @@ var require_lib = __commonJS({
        * @param data
        * @param onResult
        */
-      requestRawWithCallback(info6, data, onResult) {
+      requestRawWithCallback(info17, data, onResult) {
         if (typeof data === "string") {
-          if (!info6.options.headers) {
-            info6.options.headers = {};
+          if (!info17.options.headers) {
+            info17.options.headers = {};
           }
-          info6.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
+          info17.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
         }
         let callbackCalled = false;
         function handleResult2(err, res) {
@@ -17690,7 +17690,7 @@ var require_lib = __commonJS({
             onResult(err, res);
           }
         }
-        const req = info6.httpModule.request(info6.options, (msg) => {
+        const req = info17.httpModule.request(info17.options, (msg) => {
           const res = new HttpClientResponse(msg);
           handleResult2(void 0, res);
         });
@@ -17702,7 +17702,7 @@ var require_lib = __commonJS({
           if (socket) {
             socket.end();
           }
-          handleResult2(new Error(`Request timeout: ${info6.options.path}`));
+          handleResult2(new Error(`Request timeout: ${info17.options.path}`));
         });
         req.on("error", function(err) {
           handleResult2(err);
@@ -17738,27 +17738,27 @@ var require_lib = __commonJS({
         return this._getProxyAgentDispatcher(parsedUrl, proxyUrl);
       }
       _prepareRequest(method, requestUrl, headers) {
-        const info6 = {};
-        info6.parsedUrl = requestUrl;
-        const usingSsl = info6.parsedUrl.protocol === "https:";
-        info6.httpModule = usingSsl ? https : http;
+        const info17 = {};
+        info17.parsedUrl = requestUrl;
+        const usingSsl = info17.parsedUrl.protocol === "https:";
+        info17.httpModule = usingSsl ? https : http;
         const defaultPort = usingSsl ? 443 : 80;
-        info6.options = {};
-        info6.options.host = info6.parsedUrl.hostname;
-        info6.options.port = info6.parsedUrl.port ? parseInt(info6.parsedUrl.port) : defaultPort;
-        info6.options.path = (info6.parsedUrl.pathname || "") + (info6.parsedUrl.search || "");
-        info6.options.method = method;
-        info6.options.headers = this._mergeHeaders(headers);
+        info17.options = {};
+        info17.options.host = info17.parsedUrl.hostname;
+        info17.options.port = info17.parsedUrl.port ? parseInt(info17.parsedUrl.port) : defaultPort;
+        info17.options.path = (info17.parsedUrl.pathname || "") + (info17.parsedUrl.search || "");
+        info17.options.method = method;
+        info17.options.headers = this._mergeHeaders(headers);
         if (this.userAgent != null) {
-          info6.options.headers["user-agent"] = this.userAgent;
+          info17.options.headers["user-agent"] = this.userAgent;
         }
-        info6.options.agent = this._getAgent(info6.parsedUrl);
+        info17.options.agent = this._getAgent(info17.parsedUrl);
         if (this.handlers) {
           for (const handler of this.handlers) {
-            handler.prepareRequest(info6.options);
+            handler.prepareRequest(info17.options);
           }
         }
-        return info6;
+        return info17;
       }
       _mergeHeaders(headers) {
         if (this.requestOptions && this.requestOptions.headers) {
@@ -17845,12 +17845,12 @@ var require_lib = __commonJS({
         return __awaiter(this, void 0, void 0, function* () {
           retryNumber = Math.min(ExponentialBackoffCeiling, retryNumber);
           const ms = ExponentialBackoffTimeSlice * Math.pow(2, retryNumber);
-          return new Promise((resolve) => setTimeout(() => resolve(), ms));
+          return new Promise((resolve2) => setTimeout(() => resolve2(), ms));
         });
       }
       _processResponse(res, options) {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve2, reject) => __awaiter(this, void 0, void 0, function* () {
             const statusCode = res.message.statusCode || 0;
             const response = {
               statusCode,
@@ -17858,7 +17858,7 @@ var require_lib = __commonJS({
               headers: {}
             };
             if (statusCode === HttpCodes.NotFound) {
-              resolve(response);
+              resolve2(response);
             }
             function dateTimeDeserializer(key, value) {
               if (typeof value === "string") {
@@ -17897,7 +17897,7 @@ var require_lib = __commonJS({
               err.result = response.result;
               reject(err);
             } else {
-              resolve(response);
+              resolve2(response);
             }
           }));
         });
@@ -17914,11 +17914,11 @@ var require_auth = __commonJS({
     "use strict";
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve) {
-          resolve(value);
+        return value instanceof P ? value : new P(function(resolve2) {
+          resolve2(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve, reject) {
+      return new (P || (P = Promise))(function(resolve2, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -17934,7 +17934,7 @@ var require_auth = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18018,11 +18018,11 @@ var require_oidc_utils = __commonJS({
     "use strict";
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve) {
-          resolve(value);
+        return value instanceof P ? value : new P(function(resolve2) {
+          resolve2(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve, reject) {
+      return new (P || (P = Promise))(function(resolve2, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18038,7 +18038,7 @@ var require_oidc_utils = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18074,12 +18074,12 @@ var require_oidc_utils = __commonJS({
         var _a;
         return __awaiter(this, void 0, void 0, function* () {
           const httpclient = _OidcClient.createHttpClient();
-          const res = yield httpclient.getJson(id_token_url).catch((error3) => {
+          const res = yield httpclient.getJson(id_token_url).catch((error6) => {
             throw new Error(`Failed to get ID Token. 
  
-        Error Code : ${error3.statusCode}
+        Error Code : ${error6.statusCode}
  
-        Error Message: ${error3.message}`);
+        Error Message: ${error6.message}`);
           });
           const id_token = (_a = res.result) === null || _a === void 0 ? void 0 : _a.value;
           if (!id_token) {
@@ -18100,8 +18100,8 @@ var require_oidc_utils = __commonJS({
             const id_token = yield _OidcClient.getCall(id_token_url);
             (0, core_1.setSecret)(id_token);
             return id_token;
-          } catch (error3) {
-            throw new Error(`Error message: ${error3.message}`);
+          } catch (error6) {
+            throw new Error(`Error message: ${error6.message}`);
           }
         });
       }
@@ -18116,11 +18116,11 @@ var require_summary = __commonJS({
     "use strict";
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve) {
-          resolve(value);
+        return value instanceof P ? value : new P(function(resolve2) {
+          resolve2(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve, reject) {
+      return new (P || (P = Promise))(function(resolve2, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18136,7 +18136,7 @@ var require_summary = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18437,7 +18437,7 @@ var require_path_utils = __commonJS({
     };
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.toPlatformPath = exports2.toWin32Path = exports2.toPosixPath = void 0;
-    var path = __importStar(require("path"));
+    var path3 = __importStar(require("path"));
     function toPosixPath(pth) {
       return pth.replace(/[\\]/g, "/");
     }
@@ -18447,7 +18447,7 @@ var require_path_utils = __commonJS({
     }
     exports2.toWin32Path = toWin32Path;
     function toPlatformPath(pth) {
-      return pth.replace(/[/\\]/g, path.sep);
+      return pth.replace(/[/\\]/g, path3.sep);
     }
     exports2.toPlatformPath = toPlatformPath;
   }
@@ -18482,11 +18482,11 @@ var require_io_util = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve) {
-          resolve(value);
+        return value instanceof P ? value : new P(function(resolve2) {
+          resolve2(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve, reject) {
+      return new (P || (P = Promise))(function(resolve2, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18502,7 +18502,7 @@ var require_io_util = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18510,12 +18510,12 @@ var require_io_util = __commonJS({
     var _a;
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getCmdPath = exports2.tryGetExecutablePath = exports2.isRooted = exports2.isDirectory = exports2.exists = exports2.READONLY = exports2.UV_FS_O_EXLOCK = exports2.IS_WINDOWS = exports2.unlink = exports2.symlink = exports2.stat = exports2.rmdir = exports2.rm = exports2.rename = exports2.readlink = exports2.readdir = exports2.open = exports2.mkdir = exports2.lstat = exports2.copyFile = exports2.chmod = void 0;
-    var fs = __importStar(require("fs"));
-    var path = __importStar(require("path"));
-    _a = fs.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
+    var fs4 = __importStar(require("fs"));
+    var path3 = __importStar(require("path"));
+    _a = fs4.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
     exports2.IS_WINDOWS = process.platform === "win32";
     exports2.UV_FS_O_EXLOCK = 268435456;
-    exports2.READONLY = fs.constants.O_RDONLY;
+    exports2.READONLY = fs4.constants.O_RDONLY;
     function exists(fsPath) {
       return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -18560,7 +18560,7 @@ var require_io_util = __commonJS({
         }
         if (stats && stats.isFile()) {
           if (exports2.IS_WINDOWS) {
-            const upperExt = path.extname(filePath).toUpperCase();
+            const upperExt = path3.extname(filePath).toUpperCase();
             if (extensions.some((validExt) => validExt.toUpperCase() === upperExt)) {
               return filePath;
             }
@@ -18584,11 +18584,11 @@ var require_io_util = __commonJS({
           if (stats && stats.isFile()) {
             if (exports2.IS_WINDOWS) {
               try {
-                const directory = path.dirname(filePath);
-                const upperName = path.basename(filePath).toUpperCase();
+                const directory = path3.dirname(filePath);
+                const upperName = path3.basename(filePath).toUpperCase();
                 for (const actualName of yield exports2.readdir(directory)) {
                   if (upperName === actualName.toUpperCase()) {
-                    filePath = path.join(directory, actualName);
+                    filePath = path3.join(directory, actualName);
                     break;
                   }
                 }
@@ -18655,11 +18655,11 @@ var require_io = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve) {
-          resolve(value);
+        return value instanceof P ? value : new P(function(resolve2) {
+          resolve2(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve, reject) {
+      return new (P || (P = Promise))(function(resolve2, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18675,7 +18675,7 @@ var require_io = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18683,7 +18683,7 @@ var require_io = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.findInPath = exports2.which = exports2.mkdirP = exports2.rmRF = exports2.mv = exports2.cp = void 0;
     var assert_1 = require("assert");
-    var path = __importStar(require("path"));
+    var path3 = __importStar(require("path"));
     var ioUtil = __importStar(require_io_util());
     function cp(source, dest, options = {}) {
       return __awaiter(this, void 0, void 0, function* () {
@@ -18692,7 +18692,7 @@ var require_io = __commonJS({
         if (destStat && destStat.isFile() && !force) {
           return;
         }
-        const newDest = destStat && destStat.isDirectory() && copySourceDirectory ? path.join(dest, path.basename(source)) : dest;
+        const newDest = destStat && destStat.isDirectory() && copySourceDirectory ? path3.join(dest, path3.basename(source)) : dest;
         if (!(yield ioUtil.exists(source))) {
           throw new Error(`no such file or directory: ${source}`);
         }
@@ -18704,7 +18704,7 @@ var require_io = __commonJS({
             yield cpDirRecursive(source, newDest, 0, force);
           }
         } else {
-          if (path.relative(source, newDest) === "") {
+          if (path3.relative(source, newDest) === "") {
             throw new Error(`'${newDest}' and '${source}' are the same file`);
           }
           yield copyFile(source, newDest, force);
@@ -18717,7 +18717,7 @@ var require_io = __commonJS({
         if (yield ioUtil.exists(dest)) {
           let destExists = true;
           if (yield ioUtil.isDirectory(dest)) {
-            dest = path.join(dest, path.basename(source));
+            dest = path3.join(dest, path3.basename(source));
             destExists = yield ioUtil.exists(dest);
           }
           if (destExists) {
@@ -18728,7 +18728,7 @@ var require_io = __commonJS({
             }
           }
         }
-        yield mkdirP(path.dirname(dest));
+        yield mkdirP(path3.dirname(dest));
         yield ioUtil.rename(source, dest);
       });
     }
@@ -18791,7 +18791,7 @@ var require_io = __commonJS({
         }
         const extensions = [];
         if (ioUtil.IS_WINDOWS && process.env["PATHEXT"]) {
-          for (const extension of process.env["PATHEXT"].split(path.delimiter)) {
+          for (const extension of process.env["PATHEXT"].split(path3.delimiter)) {
             if (extension) {
               extensions.push(extension);
             }
@@ -18804,12 +18804,12 @@ var require_io = __commonJS({
           }
           return [];
         }
-        if (tool.includes(path.sep)) {
+        if (tool.includes(path3.sep)) {
           return [];
         }
         const directories = [];
         if (process.env.PATH) {
-          for (const p of process.env.PATH.split(path.delimiter)) {
+          for (const p of process.env.PATH.split(path3.delimiter)) {
             if (p) {
               directories.push(p);
             }
@@ -18817,7 +18817,7 @@ var require_io = __commonJS({
         }
         const matches2 = [];
         for (const directory of directories) {
-          const filePath = yield ioUtil.tryGetExecutablePath(path.join(directory, tool), extensions);
+          const filePath = yield ioUtil.tryGetExecutablePath(path3.join(directory, tool), extensions);
           if (filePath) {
             matches2.push(filePath);
           }
@@ -18903,11 +18903,11 @@ var require_toolrunner = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve) {
-          resolve(value);
+        return value instanceof P ? value : new P(function(resolve2) {
+          resolve2(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve, reject) {
+      return new (P || (P = Promise))(function(resolve2, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18923,7 +18923,7 @@ var require_toolrunner = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18933,7 +18933,7 @@ var require_toolrunner = __commonJS({
     var os = __importStar(require("os"));
     var events = __importStar(require("events"));
     var child = __importStar(require("child_process"));
-    var path = __importStar(require("path"));
+    var path3 = __importStar(require("path"));
     var io = __importStar(require_io());
     var ioUtil = __importStar(require_io_util());
     var timers_1 = require("timers");
@@ -19148,10 +19148,10 @@ var require_toolrunner = __commonJS({
       exec() {
         return __awaiter(this, void 0, void 0, function* () {
           if (!ioUtil.isRooted(this.toolPath) && (this.toolPath.includes("/") || IS_WINDOWS && this.toolPath.includes("\\"))) {
-            this.toolPath = path.resolve(process.cwd(), this.options.cwd || process.cwd(), this.toolPath);
+            this.toolPath = path3.resolve(process.cwd(), this.options.cwd || process.cwd(), this.toolPath);
           }
           this.toolPath = yield io.which(this.toolPath, true);
-          return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve2, reject) => __awaiter(this, void 0, void 0, function* () {
             this._debug(`exec tool: ${this.toolPath}`);
             this._debug("arguments:");
             for (const arg of this.args) {
@@ -19223,7 +19223,7 @@ var require_toolrunner = __commonJS({
               this._debug(`STDIO streams have closed for tool '${this.toolPath}'`);
               state.CheckComplete();
             });
-            state.on("done", (error3, exitCode) => {
+            state.on("done", (error6, exitCode) => {
               if (stdbuffer.length > 0) {
                 this.emit("stdline", stdbuffer);
               }
@@ -19231,10 +19231,10 @@ var require_toolrunner = __commonJS({
                 this.emit("errline", errbuffer);
               }
               cp.removeAllListeners();
-              if (error3) {
-                reject(error3);
+              if (error6) {
+                reject(error6);
               } else {
-                resolve(exitCode);
+                resolve2(exitCode);
               }
             });
             if (this.options.input) {
@@ -19327,14 +19327,14 @@ var require_toolrunner = __commonJS({
         this.emit("debug", message);
       }
       _setResult() {
-        let error3;
+        let error6;
         if (this.processExited) {
           if (this.processError) {
-            error3 = new Error(`There was an error when attempting to execute the process '${this.toolPath}'. This may indicate the process failed to start. Error: ${this.processError}`);
+            error6 = new Error(`There was an error when attempting to execute the process '${this.toolPath}'. This may indicate the process failed to start. Error: ${this.processError}`);
           } else if (this.processExitCode !== 0 && !this.options.ignoreReturnCode) {
-            error3 = new Error(`The process '${this.toolPath}' failed with exit code ${this.processExitCode}`);
+            error6 = new Error(`The process '${this.toolPath}' failed with exit code ${this.processExitCode}`);
           } else if (this.processStderr && this.options.failOnStdErr) {
-            error3 = new Error(`The process '${this.toolPath}' failed because one or more lines were written to the STDERR stream`);
+            error6 = new Error(`The process '${this.toolPath}' failed because one or more lines were written to the STDERR stream`);
           }
         }
         if (this.timeout) {
@@ -19342,7 +19342,7 @@ var require_toolrunner = __commonJS({
           this.timeout = null;
         }
         this.done = true;
-        this.emit("done", error3, this.processExitCode);
+        this.emit("done", error6, this.processExitCode);
       }
       static HandleTimeout(state) {
         if (state.done) {
@@ -19387,11 +19387,11 @@ var require_exec = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve) {
-          resolve(value);
+        return value instanceof P ? value : new P(function(resolve2) {
+          resolve2(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve, reject) {
+      return new (P || (P = Promise))(function(resolve2, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -19407,7 +19407,7 @@ var require_exec = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -19416,7 +19416,7 @@ var require_exec = __commonJS({
     exports2.getExecOutput = exports2.exec = void 0;
     var string_decoder_1 = require("string_decoder");
     var tr = __importStar(require_toolrunner());
-    function exec7(commandLine, args, options) {
+    function exec13(commandLine, args, options) {
       return __awaiter(this, void 0, void 0, function* () {
         const commandArgs = tr.argStringToArray(commandLine);
         if (commandArgs.length === 0) {
@@ -19428,7 +19428,7 @@ var require_exec = __commonJS({
         return runner.exec();
       });
     }
-    exports2.exec = exec7;
+    exports2.exec = exec13;
     function getExecOutput(commandLine, args, options) {
       var _a, _b;
       return __awaiter(this, void 0, void 0, function* () {
@@ -19451,7 +19451,7 @@ var require_exec = __commonJS({
           }
         };
         const listeners = Object.assign(Object.assign({}, options === null || options === void 0 ? void 0 : options.listeners), { stdout: stdOutListener, stderr: stdErrListener });
-        const exitCode = yield exec7(commandLine, args, Object.assign(Object.assign({}, options), { listeners }));
+        const exitCode = yield exec13(commandLine, args, Object.assign(Object.assign({}, options), { listeners }));
         stdout += stdoutDecoder.end();
         stderr += stderrDecoder.end();
         return {
@@ -19498,11 +19498,11 @@ var require_platform = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve) {
-          resolve(value);
+        return value instanceof P ? value : new P(function(resolve2) {
+          resolve2(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve, reject) {
+      return new (P || (P = Promise))(function(resolve2, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -19518,7 +19518,7 @@ var require_platform = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -19529,12 +19529,12 @@ var require_platform = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getDetails = exports2.isLinux = exports2.isMacOS = exports2.isWindows = exports2.arch = exports2.platform = void 0;
     var os_1 = __importDefault(require("os"));
-    var exec7 = __importStar(require_exec());
+    var exec13 = __importStar(require_exec());
     var getWindowsInfo = () => __awaiter(void 0, void 0, void 0, function* () {
-      const { stdout: version } = yield exec7.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Version"', void 0, {
+      const { stdout: version } = yield exec13.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Version"', void 0, {
         silent: true
       });
-      const { stdout: name } = yield exec7.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Caption"', void 0, {
+      const { stdout: name } = yield exec13.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Caption"', void 0, {
         silent: true
       });
       return {
@@ -19544,7 +19544,7 @@ var require_platform = __commonJS({
     });
     var getMacOsInfo = () => __awaiter(void 0, void 0, void 0, function* () {
       var _a, _b, _c, _d;
-      const { stdout } = yield exec7.getExecOutput("sw_vers", void 0, {
+      const { stdout } = yield exec13.getExecOutput("sw_vers", void 0, {
         silent: true
       });
       const version = (_b = (_a = stdout.match(/ProductVersion:\s*(.+)/)) === null || _a === void 0 ? void 0 : _a[1]) !== null && _b !== void 0 ? _b : "";
@@ -19555,7 +19555,7 @@ var require_platform = __commonJS({
       };
     });
     var getLinuxInfo = () => __awaiter(void 0, void 0, void 0, function* () {
-      const { stdout } = yield exec7.getExecOutput("lsb_release", ["-i", "-r", "-s"], {
+      const { stdout } = yield exec13.getExecOutput("lsb_release", ["-i", "-r", "-s"], {
         silent: true
       });
       const [name, version] = stdout.trim().split("\n");
@@ -19617,11 +19617,11 @@ var require_core = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve) {
-          resolve(value);
+        return value instanceof P ? value : new P(function(resolve2) {
+          resolve2(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve, reject) {
+      return new (P || (P = Promise))(function(resolve2, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -19637,7 +19637,7 @@ var require_core = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -19648,7 +19648,7 @@ var require_core = __commonJS({
     var file_command_1 = require_file_command();
     var utils_1 = require_utils();
     var os = __importStar(require("os"));
-    var path = __importStar(require("path"));
+    var path3 = __importStar(require("path"));
     var oidc_utils_1 = require_oidc_utils();
     var ExitCode;
     (function(ExitCode2) {
@@ -19676,7 +19676,7 @@ var require_core = __commonJS({
       } else {
         (0, command_1.issueCommand)("add-path", {}, inputPath);
       }
-      process.env["PATH"] = `${inputPath}${path.delimiter}${process.env["PATH"]}`;
+      process.env["PATH"] = `${inputPath}${path3.delimiter}${process.env["PATH"]}`;
     }
     exports2.addPath = addPath;
     function getInput2(name, options) {
@@ -19725,49 +19725,49 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     exports2.setCommandEcho = setCommandEcho;
     function setFailed2(message) {
       process.exitCode = ExitCode.Failure;
-      error3(message);
+      error6(message);
     }
     exports2.setFailed = setFailed2;
     function isDebug() {
       return process.env["RUNNER_DEBUG"] === "1";
     }
     exports2.isDebug = isDebug;
-    function debug5(message) {
+    function debug10(message) {
       (0, command_1.issueCommand)("debug", {}, message);
     }
-    exports2.debug = debug5;
-    function error3(message, properties = {}) {
+    exports2.debug = debug10;
+    function error6(message, properties = {}) {
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.error = error3;
-    function warning6(message, properties = {}) {
+    exports2.error = error6;
+    function warning15(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning6;
+    exports2.warning = warning15;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.notice = notice;
-    function info6(message) {
+    function info17(message) {
       process.stdout.write(message + os.EOL);
     }
-    exports2.info = info6;
-    function startGroup(name) {
+    exports2.info = info17;
+    function startGroup5(name) {
       (0, command_1.issue)("group", name);
     }
-    exports2.startGroup = startGroup;
-    function endGroup() {
+    exports2.startGroup = startGroup5;
+    function endGroup5() {
       (0, command_1.issue)("endgroup");
     }
-    exports2.endGroup = endGroup;
+    exports2.endGroup = endGroup5;
     function group(name, fn) {
       return __awaiter(this, void 0, void 0, function* () {
-        startGroup(name);
+        startGroup5(name);
         let result;
         try {
           result = yield fn();
         } finally {
-          endGroup();
+          endGroup5();
         }
         return result;
       });
@@ -19832,8 +19832,8 @@ var require_context = __commonJS({
           if ((0, fs_1.existsSync)(process.env.GITHUB_EVENT_PATH)) {
             this.payload = JSON.parse((0, fs_1.readFileSync)(process.env.GITHUB_EVENT_PATH, { encoding: "utf8" }));
           } else {
-            const path = process.env.GITHUB_EVENT_PATH;
-            process.stdout.write(`GITHUB_EVENT_PATH ${path} does not exist${os_1.EOL}`);
+            const path3 = process.env.GITHUB_EVENT_PATH;
+            process.stdout.write(`GITHUB_EVENT_PATH ${path3} does not exist${os_1.EOL}`);
           }
         }
         this.eventName = process.env.GITHUB_EVENT_NAME;
@@ -19905,11 +19905,11 @@ var require_utils3 = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve) {
-          resolve(value);
+        return value instanceof P ? value : new P(function(resolve2) {
+          resolve2(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve, reject) {
+      return new (P || (P = Promise))(function(resolve2, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -19925,7 +19925,7 @@ var require_utils3 = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -20041,8 +20041,8 @@ var require_add = __commonJS({
       }
       if (kind === "error") {
         hook = function(method, options) {
-          return Promise.resolve().then(method.bind(null, options)).catch(function(error3) {
-            return orig(error3, options);
+          return Promise.resolve().then(method.bind(null, options)).catch(function(error6) {
+            return orig(error6, options);
           });
         };
       }
@@ -20774,7 +20774,7 @@ var require_dist_node5 = __commonJS({
         }
         if (status >= 400) {
           const data = await getResponseData(response);
-          const error3 = new import_request_error.RequestError(toErrorMessage(data), status, {
+          const error6 = new import_request_error.RequestError(toErrorMessage(data), status, {
             response: {
               url,
               status,
@@ -20783,7 +20783,7 @@ var require_dist_node5 = __commonJS({
             },
             request: requestOptions
           });
-          throw error3;
+          throw error6;
         }
         return parseSuccessResponseBody ? await getResponseData(response) : response.body;
       }).then((data) => {
@@ -20793,17 +20793,17 @@ var require_dist_node5 = __commonJS({
           headers,
           data
         };
-      }).catch((error3) => {
-        if (error3 instanceof import_request_error.RequestError)
-          throw error3;
-        else if (error3.name === "AbortError")
-          throw error3;
-        let message = error3.message;
-        if (error3.name === "TypeError" && "cause" in error3) {
-          if (error3.cause instanceof Error) {
-            message = error3.cause.message;
-          } else if (typeof error3.cause === "string") {
-            message = error3.cause;
+      }).catch((error6) => {
+        if (error6 instanceof import_request_error.RequestError)
+          throw error6;
+        else if (error6.name === "AbortError")
+          throw error6;
+        let message = error6.message;
+        if (error6.name === "TypeError" && "cause" in error6) {
+          if (error6.cause instanceof Error) {
+            message = error6.cause.message;
+          } else if (typeof error6.cause === "string") {
+            message = error6.cause;
           }
         }
         throw new import_request_error.RequestError(message, 500, {
@@ -23475,9 +23475,9 @@ var require_dist_node10 = __commonJS({
                 /<([^<>]+)>;\s*rel="next"/
               ) || [])[1];
               return { value: normalizedResponse };
-            } catch (error3) {
-              if (error3.status !== 409)
-                throw error3;
+            } catch (error6) {
+              if (error6.status !== 409)
+                throw error6;
               url = "";
               return {
                 value: {
@@ -23883,8 +23883,8 @@ var require_github = __commonJS({
 });
 
 // claude-test-runner/index.ts
-var core6 = __toESM(require_core(), 1);
-var github = __toESM(require_github(), 1);
+var core17 = __toESM(require_core(), 1);
+var github2 = __toESM(require_github(), 1);
 
 // lib/index.ts
 var core = __toESM(require_core(), 1);
@@ -23980,12 +23980,12 @@ function getAbortSignal() {
   return globalAbortController?.signal;
 }
 function sleep(ms, signal) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve2, reject) => {
     if (signal?.aborted) {
       reject(new Error("Polling cancelled"));
       return;
     }
-    const timeoutId = setTimeout(resolve, ms);
+    const timeoutId = setTimeout(resolve2, ms);
     signal?.addEventListener(
       "abort",
       () => {
@@ -24056,13 +24056,13 @@ async function pollUntil(fetchFn, conditionFn, config = {}, onPoll, signal) {
         core2.info("\u{1F6D1} Polling cancelled during sleep");
         break;
       }
-    } catch (error3) {
+    } catch (error6) {
       if (abortSignal?.aborted) {
         cancelled = true;
         core2.info("\u{1F6D1} Polling cancelled");
         break;
       }
-      const errorMsg = error3 instanceof Error ? error3.message : String(error3);
+      const errorMsg = error6 instanceof Error ? error6.message : String(error6);
       core2.warning(
         `[${attempts}] Poll error: ${errorMsg.slice(0, 200)}${errorMsg.length > 200 ? "..." : ""}`
       );
@@ -24190,10 +24190,10 @@ function createDoneActorEvent(invokeId, output) {
     actorId: invokeId
   };
 }
-function createErrorActorEvent(id, error3) {
+function createErrorActorEvent(id, error6) {
   return {
     type: `xstate.error.actor.${id}`,
-    error: error3,
+    error: error6,
     actorId: id
   };
 }
@@ -24627,7 +24627,7 @@ var Actor = class {
         }
       },
       actionExecutor: (action) => {
-        const exec7 = () => {
+        const exec13 = () => {
           this._actorScope.system._sendInspectionEvent({
             type: "@xstate.action",
             actorRef: this,
@@ -24648,9 +24648,9 @@ var Actor = class {
           }
         };
         if (this._processingStatus === ProcessingStatus.Running) {
-          exec7();
+          exec13();
         } else {
-          this._deferred.push(exec7);
+          this._deferred.push(exec13);
         }
       }
     };
@@ -27487,8 +27487,8 @@ var ZodError = class _ZodError extends Error {
       return issue.message;
     };
     const fieldErrors = { _errors: [] };
-    const processError = (error3) => {
-      for (const issue of error3.issues) {
+    const processError = (error6) => {
+      for (const issue of error6.issues) {
         if (issue.code === "invalid_union") {
           issue.unionErrors.map(processError);
         } else if (issue.code === "invalid_return_type") {
@@ -27551,8 +27551,8 @@ var ZodError = class _ZodError extends Error {
   }
 };
 ZodError.create = (issues) => {
-  const error3 = new ZodError(issues);
-  return error3;
+  const error6 = new ZodError(issues);
+  return error6;
 };
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/locales/en.js
@@ -27669,8 +27669,8 @@ function getErrorMap() {
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
-  const { data, path, errorMaps, issueData } = params;
-  const fullPath = [...path, ...issueData.path || []];
+  const { data, path: path3, errorMaps, issueData } = params;
+  const fullPath = [...path3, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
     path: fullPath
@@ -27786,11 +27786,11 @@ var errorUtil;
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
-  constructor(parent, value, path, key) {
+  constructor(parent, value, path3, key) {
     this._cachedPath = [];
     this.parent = parent;
     this.data = value;
-    this._path = path;
+    this._path = path3;
     this._key = key;
   }
   get path() {
@@ -27816,8 +27816,8 @@ var handleResult = (ctx, result) => {
       get error() {
         if (this._error)
           return this._error;
-        const error3 = new ZodError(ctx.common.issues);
-        this._error = error3;
+        const error6 = new ZodError(ctx.common.issues);
+        this._error = error6;
         return this._error;
       }
     };
@@ -30472,25 +30472,25 @@ var ZodFunction = class _ZodFunction extends ZodType {
       });
       return INVALID;
     }
-    function makeArgsIssue(args, error3) {
+    function makeArgsIssue(args, error6) {
       return makeIssue({
         data: args,
         path: ctx.path,
         errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap(), en_default].filter((x) => !!x),
         issueData: {
           code: ZodIssueCode.invalid_arguments,
-          argumentsError: error3
+          argumentsError: error6
         }
       });
     }
-    function makeReturnsIssue(returns, error3) {
+    function makeReturnsIssue(returns, error6) {
       return makeIssue({
         data: returns,
         path: ctx.path,
         errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap(), en_default].filter((x) => !!x),
         issueData: {
           code: ZodIssueCode.invalid_return_type,
-          returnTypeError: error3
+          returnTypeError: error6
         }
       });
     }
@@ -30499,15 +30499,15 @@ var ZodFunction = class _ZodFunction extends ZodType {
     if (this._def.returns instanceof ZodPromise) {
       const me = this;
       return OK(async function(...args) {
-        const error3 = new ZodError([]);
+        const error6 = new ZodError([]);
         const parsedArgs = await me._def.args.parseAsync(args, params).catch((e) => {
-          error3.addIssue(makeArgsIssue(args, e));
-          throw error3;
+          error6.addIssue(makeArgsIssue(args, e));
+          throw error6;
         });
         const result = await Reflect.apply(fn, this, parsedArgs);
         const parsedReturns = await me._def.returns._def.type.parseAsync(result, params).catch((e) => {
-          error3.addIssue(makeReturnsIssue(result, e));
-          throw error3;
+          error6.addIssue(makeReturnsIssue(result, e));
+          throw error6;
         });
         return parsedReturns;
       });
@@ -31630,6 +31630,10 @@ var ApplyTriageOutputActionSchema = BaseActionSchema.extend({
   issueNumber: external_exports.number().int().positive(),
   filePath: external_exports.string().default("triage-output.json")
 });
+var ApplyIterateOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyIterateOutput"),
+  issueNumber: external_exports.number().int().positive()
+});
 var ActionSchema = external_exports.discriminatedUnion("type", [
   // Project field actions
   UpdateProjectStatusActionSchema,
@@ -31669,8 +31673,23 @@ var ActionSchema = external_exports.discriminatedUnion("type", [
   LogActionSchema,
   NoOpActionSchema,
   // Triage actions
-  ApplyTriageOutputActionSchema
+  ApplyTriageOutputActionSchema,
+  // Iterate actions
+  ApplyIterateOutputActionSchema
 ]);
+function isTerminalAction(action) {
+  return action.type === "stop" || action.type === "block";
+}
+function shouldStopOnError(actionType) {
+  const criticalActions = [
+    "runClaude",
+    "createPR",
+    "mergePR",
+    "createSubIssues",
+    "block"
+  ];
+  return criticalActions.includes(actionType);
+}
 
 // claude-state-machine/machine/guards.ts
 function isAlreadyDone({ context: context2 }) {
@@ -31928,6 +31947,357 @@ var guards = {
   shouldContinueIterating,
   shouldBlock
 };
+
+// claude-state-machine/parser/history-parser.ts
+var HISTORY_SECTION = "## Iteration History";
+var HEADER_COLUMNS = [
+  { key: "time", value: "Time" },
+  { key: "iteration", value: "#" },
+  { key: "phase", value: "Phase" },
+  { key: "action", value: "Action" },
+  { key: "sha", value: "SHA" },
+  { key: "run", value: "Run" }
+];
+function buildValueToKeyMap() {
+  const map = /* @__PURE__ */ new Map();
+  for (const col of HEADER_COLUMNS) {
+    map.set(col.value, col.key);
+  }
+  return map;
+}
+function parseHeaderRow(headerRow, valueToKeyMap) {
+  const cells = headerRow.split("|").map((c) => c.trim()).filter((c, i, arr) => i > 0 && i < arr.length - 1 && c !== "");
+  const keys = [];
+  const unmatched = [];
+  for (const cell of cells) {
+    const key = valueToKeyMap.get(cell);
+    if (key) {
+      keys.push(key);
+    } else {
+      keys.push(null);
+      unmatched.push(cell);
+    }
+  }
+  return { keys, unmatched };
+}
+function parseDataRow(row, columnKeys) {
+  const cells = row.split("|").map((c) => c.trim()).filter((c, i, arr) => i > 0 && i < arr.length - 1);
+  const data = {};
+  for (let i = 0; i < columnKeys.length && i < cells.length; i++) {
+    const key = columnKeys[i];
+    if (key) {
+      data[key] = cells[i];
+    }
+  }
+  return data;
+}
+function parseTable(body) {
+  const lines = body.split("\n");
+  const historyIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
+  if (historyIdx === -1) {
+    return null;
+  }
+  const valueToKeyMap = buildValueToKeyMap();
+  let headerKeys = [];
+  let unmatchedHeaders = [];
+  const rows = [];
+  let foundHeader = false;
+  for (let i = historyIdx + 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line) continue;
+    if (line.startsWith("##") && !line.includes(HISTORY_SECTION)) {
+      break;
+    }
+    if (!line.startsWith("|")) {
+      continue;
+    }
+    if (line.includes("---")) {
+      continue;
+    }
+    if (!foundHeader) {
+      const parsed = parseHeaderRow(line, valueToKeyMap);
+      headerKeys = parsed.keys;
+      unmatchedHeaders = parsed.unmatched;
+      foundHeader = true;
+      continue;
+    }
+    const rowData = parseDataRow(line, headerKeys);
+    rows.push(rowData);
+  }
+  return {
+    headerKeys: headerKeys.filter((k) => k !== null),
+    rows,
+    unmatchedHeaders
+  };
+}
+function generateHeaderRow() {
+  const cells = HEADER_COLUMNS.map((col) => col.value);
+  return `| ${cells.join(" | ")} |`;
+}
+function generateSeparatorRow() {
+  const cells = HEADER_COLUMNS.map(() => "---");
+  return `|${cells.join("|")}|`;
+}
+function serializeRow(data) {
+  const cells = HEADER_COLUMNS.map((col) => data[col.key] ?? "-");
+  return `| ${cells.join(" | ")} |`;
+}
+function serializeTable(rows) {
+  const headerRow = generateHeaderRow();
+  const separatorRow = generateSeparatorRow();
+  const dataRows = rows.map(serializeRow);
+  return [headerRow, separatorRow, ...dataRows].join("\n");
+}
+function formatTimestamp(isoTimestamp) {
+  if (!isoTimestamp) return "-";
+  try {
+    const date = new Date(isoTimestamp);
+    if (isNaN(date.getTime())) return "-";
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec"
+    ];
+    const month = months[date.getUTCMonth()];
+    const day = date.getUTCDate();
+    const hours = String(date.getUTCHours()).padStart(2, "0");
+    const minutes = String(date.getUTCMinutes()).padStart(2, "0");
+    return `${month} ${day} ${hours}:${minutes}`;
+  } catch {
+    return "-";
+  }
+}
+function parseMarkdownLink(text) {
+  const match = text.match(/\[.*?\]\((.*?)\)/);
+  return match?.[1] ?? null;
+}
+function extractRunIdFromUrl(url) {
+  const match = url.match(/\/actions\/runs\/(\d+)/);
+  return match?.[1] ?? null;
+}
+function parseRunIdFromCell(cell) {
+  if (cell === "-" || cell.trim() === "") {
+    return null;
+  }
+  const linkTextMatch = cell.match(/\[(\d+)\]/);
+  if (linkTextMatch) {
+    return linkTextMatch[1] ?? null;
+  }
+  const url = parseMarkdownLink(cell);
+  if (url) {
+    return extractRunIdFromUrl(url);
+  }
+  return null;
+}
+function formatHistoryCells(sha, runLink, repoUrl, prNumber) {
+  let fullRepoUrl = repoUrl;
+  if (!fullRepoUrl) {
+    const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+    const repo = process.env.GITHUB_REPOSITORY || "";
+    fullRepoUrl = repo ? `${serverUrl}/${repo}` : serverUrl;
+  }
+  let shaCell = "-";
+  if (prNumber) {
+    shaCell = `[#${prNumber}](${fullRepoUrl}/pull/${prNumber})`;
+  } else if (sha) {
+    shaCell = `[\`${sha.slice(0, 7)}\`](${fullRepoUrl}/commit/${sha})`;
+  }
+  let runCell = "-";
+  if (runLink) {
+    const runId = extractRunIdFromUrl(runLink);
+    if (runId) {
+      runCell = `[${runId}](${runLink})`;
+    } else {
+      runCell = `[Run](${runLink})`;
+    }
+  }
+  return { shaCell, runCell };
+}
+function createRowData(iteration, phase, message, timestamp, sha, runLink, repoUrl, prNumber) {
+  const { shaCell, runCell } = formatHistoryCells(
+    sha,
+    runLink,
+    repoUrl,
+    prNumber
+  );
+  return {
+    time: formatTimestamp(timestamp),
+    iteration: String(iteration),
+    phase: String(phase),
+    action: message,
+    sha: shaCell,
+    run: runCell
+  };
+}
+function addHistoryEntry(body, iteration, phase, message, timestamp, sha, runLink, repoUrl, prNumber) {
+  const newRowData = createRowData(
+    iteration,
+    phase,
+    message,
+    timestamp,
+    sha,
+    runLink,
+    repoUrl,
+    prNumber
+  );
+  const newRunId = runLink ? extractRunIdFromUrl(runLink) : null;
+  const historyIdx = body.indexOf(HISTORY_SECTION);
+  if (historyIdx === -1) {
+    const table = serializeTable([newRowData]);
+    return `${body}
+
+${HISTORY_SECTION}
+
+${table}`;
+  }
+  const parsed = parseTable(body);
+  if (!parsed) {
+    const table = serializeTable([newRowData]);
+    return `${body}
+
+${HISTORY_SECTION}
+
+${table}`;
+  }
+  if (parsed.unmatchedHeaders.length > 0) {
+    console.warn(
+      `[history-parser] Unmatched table headers during add (will be dropped): ${parsed.unmatchedHeaders.join(", ")}`
+    );
+  }
+  const existingRows = parsed.rows.map((row) => {
+    const normalized = {};
+    for (const col of HEADER_COLUMNS) {
+      normalized[col.key] = row[col.key] ?? "-";
+    }
+    return normalized;
+  });
+  let allRows;
+  let matchIdx = -1;
+  if (newRunId) {
+    matchIdx = existingRows.findIndex((row) => {
+      const existingRunId = parseRunIdFromCell(row.run ?? "");
+      return existingRunId === newRunId;
+    });
+  }
+  if (matchIdx !== -1) {
+    const existingRow = existingRows[matchIdx];
+    const existingAction = existingRow.action ?? "";
+    const newAction = existingAction ? `${existingAction} \u2192 ${message}` : message;
+    const updatedRow = {
+      ...existingRow,
+      action: newAction
+    };
+    if (sha && newRowData.sha !== "-") {
+      updatedRow.sha = newRowData.sha;
+    }
+    if (newRowData.time && newRowData.time !== "-") {
+      updatedRow.time = newRowData.time;
+    }
+    allRows = existingRows.map(
+      (row, idx) => idx === matchIdx ? updatedRow : row
+    );
+  } else {
+    allRows = [...existingRows, newRowData];
+  }
+  const lines = body.split("\n");
+  const historyLineIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
+  let tableEndIdx = historyLineIdx + 1;
+  for (let i = historyLineIdx + 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line || line.startsWith("|")) {
+      tableEndIdx = i + 1;
+    } else if (line.trim() !== "") {
+      break;
+    }
+  }
+  const beforeHistory = lines.slice(0, historyLineIdx).join("\n");
+  const afterTable = lines.slice(tableEndIdx).join("\n");
+  const newTable = serializeTable(allRows);
+  const parts = [beforeHistory, HISTORY_SECTION, "", newTable];
+  if (afterTable.trim()) {
+    parts.push("", afterTable);
+  }
+  return parts.join("\n");
+}
+function updateHistoryEntry(body, matchIteration, matchPhase, matchPattern, newMessage, timestamp, sha, runLink, repoUrl, prNumber) {
+  const parsed = parseTable(body);
+  if (!parsed || parsed.rows.length === 0) {
+    return { body, updated: false };
+  }
+  if (parsed.unmatchedHeaders.length > 0) {
+    console.warn(
+      `[history-parser] Unmatched table headers during update (will be dropped): ${parsed.unmatchedHeaders.join(", ")}`
+    );
+  }
+  let matchIdx = -1;
+  for (let i = parsed.rows.length - 1; i >= 0; i--) {
+    const row = parsed.rows[i];
+    if (!row) continue;
+    const rowIteration = row.iteration || "";
+    const rowPhase = row.phase || "";
+    const rowAction = row.action || "";
+    if (rowIteration === String(matchIteration) && rowPhase === String(matchPhase) && rowAction.includes(matchPattern)) {
+      matchIdx = i;
+      break;
+    }
+  }
+  if (matchIdx === -1) {
+    return { body, updated: false };
+  }
+  const existingRow = parsed.rows[matchIdx];
+  const { shaCell, runCell } = formatHistoryCells(
+    sha,
+    runLink,
+    repoUrl,
+    prNumber
+  );
+  const updatedRow = {
+    time: timestamp ? formatTimestamp(timestamp) : existingRow.time ?? "-",
+    iteration: existingRow.iteration,
+    phase: existingRow.phase,
+    action: newMessage,
+    sha: sha || prNumber ? shaCell : existingRow.sha ?? "-",
+    run: runLink ? runCell : existingRow.run ?? "-"
+  };
+  const normalizedRows = parsed.rows.map((row, idx) => {
+    if (idx === matchIdx) {
+      return updatedRow;
+    }
+    const normalized = {};
+    for (const col of HEADER_COLUMNS) {
+      normalized[col.key] = row[col.key] ?? "-";
+    }
+    return normalized;
+  });
+  const lines = body.split("\n");
+  const historyLineIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
+  let tableEndIdx = historyLineIdx + 1;
+  for (let i = historyLineIdx + 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line || line.startsWith("|")) {
+      tableEndIdx = i + 1;
+    } else if (line.trim() !== "") {
+      break;
+    }
+  }
+  const beforeHistory = lines.slice(0, historyLineIdx).join("\n");
+  const afterTable = lines.slice(tableEndIdx).join("\n");
+  const newTable = serializeTable(normalizedRows);
+  const parts = [beforeHistory, HISTORY_SECTION, "", newTable];
+  if (afterTable.trim()) {
+    parts.push("", afterTable);
+  }
+  return { body: parts.join("\n"), updated: true };
+}
 
 // claude-state-machine/parser/todo-parser.ts
 var TODO_PATTERNS = {
@@ -32266,8 +32636,14 @@ function emitRunClaude({ context: context2 }) {
     {
       type: "runClaude",
       token: "code",
-      promptFile: ".github/prompts/iterate.txt",
+      promptDir: "iterate",
       promptVars,
+      issueNumber
+    },
+    // Apply iterate output: check off completed todos, store agent notes
+    {
+      type: "applyIterateOutput",
+      token: "code",
       issueNumber
     }
   ];
@@ -32284,8 +32660,14 @@ Review the CI logs at the link above and fix the failing tests or build errors.`
     {
       type: "runClaude",
       token: "code",
-      promptFile: ".github/prompts/iterate.txt",
+      promptDir: "iterate",
       promptVars,
+      issueNumber
+    },
+    // Apply iterate output: check off completed todos, store agent notes
+    {
+      type: "applyIterateOutput",
+      token: "code",
       issueNumber
     }
   ];
@@ -34245,7 +34627,7 @@ async function runTest(config) {
       );
       if (merged) {
         core3.info(`Merge initiated for PR #${githubState.prNumber}`);
-        await new Promise((resolve) => setTimeout(resolve, 5e3));
+        await new Promise((resolve2) => setTimeout(resolve2, 5e3));
         continue;
       } else {
         core3.warning(`Failed to merge PR #${githubState.prNumber}`);
@@ -34716,14 +35098,14 @@ function formatValidationResult(name, result) {
   } else {
     lines.push("  Status: \u274C Invalid");
     lines.push("  Errors:");
-    for (const error3 of result.errors) {
-      lines.push(`    - ${error3.path}: ${error3.message}`);
+    for (const error6 of result.errors) {
+      lines.push(`    - ${error6.path}: ${error6.message}`);
     }
   }
   if (result.warnings.length > 0) {
     lines.push("  Warnings:");
-    for (const warning6 of result.warnings) {
-      lines.push(`    - ${warning6}`);
+    for (const warning15 of result.warnings) {
+      lines.push(`    - ${warning15}`);
     }
   }
   return lines.join("\n");
@@ -34810,8 +35192,8 @@ async function checkTriageWorkflow(octokit, owner, repo, issueNumber) {
       };
     }
     return { found: false, status: null, url: null };
-  } catch (error3) {
-    core4.debug(`Failed to check workflow runs: ${error3}`);
+  } catch (error6) {
+    core4.debug(`Failed to check workflow runs: ${error6}`);
     return { found: false, status: null, url: null };
   }
 }
@@ -34939,9 +35321,9 @@ async function labelSubIssuesForE2E(octokit, owner, repo, subIssueNumbers) {
         labels: ["_e2e"]
       });
       core4.info(`  \u2705 Added _e2e label to sub-issue #${issueNumber}`);
-    } catch (error3) {
+    } catch (error6) {
       core4.warning(
-        `  \u26A0\uFE0F Could not add _e2e label to sub-issue #${issueNumber}: ${error3}`
+        `  \u26A0\uFE0F Could not add _e2e label to sub-issue #${issueNumber}: ${error6}`
       );
     }
   }
@@ -35086,8 +35468,8 @@ async function waitForTriage(options) {
   if (errors.length > 0) {
     core4.error(`
   Verification errors (${errors.length}):`);
-    for (const error3 of errors) {
-      core4.error(`    \u274C ${error3}`);
+    for (const error6 of errors) {
+      core4.error(`    \u274C ${error6}`);
     }
   }
   return {
@@ -35219,8 +35601,8 @@ async function fetchPhaseConditions(octokit, owner, repo, issueNumber, projectNu
               }
             }
           }
-        } catch (error3) {
-          core5.debug(`Failed to fetch checks: ${error3}`);
+        } catch (error6) {
+          core5.debug(`Failed to fetch checks: ${error6}`);
           conditions.ciStatus = "pending";
         }
       }
@@ -35251,13 +35633,13 @@ async function fetchPhaseConditions(octokit, owner, repo, issueNumber, projectNu
         } else {
           conditions.reviewStatus = "pending";
         }
-      } catch (error3) {
-        core5.debug(`Failed to fetch reviews: ${error3}`);
+      } catch (error6) {
+        core5.debug(`Failed to fetch reviews: ${error6}`);
         conditions.reviewStatus = "pending";
       }
     }
-  } catch (error3) {
-    core5.debug(`Failed to fetch PRs: ${error3}`);
+  } catch (error6) {
+    core5.debug(`Failed to fetch PRs: ${error6}`);
   }
   try {
     const issueResponse = await octokit.graphql(
@@ -35283,8 +35665,8 @@ async function fetchPhaseConditions(octokit, owner, repo, issueNumber, projectNu
         }
       }
     }
-  } catch (error3) {
-    core5.debug(`Failed to fetch issue: ${error3}`);
+  } catch (error6) {
+    core5.debug(`Failed to fetch issue: ${error6}`);
   }
   return conditions;
 }
@@ -35363,8 +35745,8 @@ async function mergePR(owner, repo, prNumber) {
     ]);
     core5.info(`\u2705 PR #${prNumber} added to merge queue`);
     return true;
-  } catch (error3) {
-    core5.warning(`Failed to merge PR #${prNumber}: ${error3}`);
+  } catch (error6) {
+    core5.warning(`Failed to merge PR #${prNumber}: ${error6}`);
     return false;
   }
 }
@@ -35562,8 +35944,8 @@ async function waitForPhase(options) {
   if (errors.length > 0) {
     core5.error(`
   Verification errors (${errors.length}):`);
-    for (const error3 of errors) {
-      core5.error(`    \u274C ${error3}`);
+    for (const error6 of errors) {
+      core5.error(`    \u274C ${error6}`);
     }
   }
   return {
@@ -35580,9 +35962,2743 @@ async function waitForPhase(options) {
   };
 }
 
+// claude-test-runner/src/configurable/types.ts
+var StateNameSchema = external_exports.enum([
+  // Transient states (routing decisions)
+  "detecting",
+  "initializing",
+  "orchestrating",
+  "processingCI",
+  "processingReview",
+  "processingMerge",
+  "transitioningToReview",
+  // Final states (work is done or stopped)
+  "triaging",
+  "commenting",
+  "prReviewing",
+  "prResponding",
+  "prRespondingHuman",
+  "orchestrationRunning",
+  "orchestrationWaiting",
+  "orchestrationComplete",
+  "awaitingMerge",
+  "iterating",
+  "iteratingFix",
+  "reviewing",
+  "blocked",
+  "error",
+  "done",
+  // Logging states
+  "mergeQueueLogging",
+  "mergeQueueFailureLogging",
+  "mergedLogging",
+  "deployedStageLogging",
+  "deployedProdLogging"
+]);
+var ClaudeMockSchema = external_exports.object({
+  /** Optional description of what this mock represents */
+  description: external_exports.string().optional(),
+  /** The structured output to return when this mock is used */
+  output: external_exports.record(external_exports.unknown())
+});
+var TestParentIssueSchema = external_exports.object({
+  number: external_exports.number().int().nonnegative(),
+  // Allow 0 as placeholder
+  title: external_exports.string(),
+  state: external_exports.enum(["OPEN", "CLOSED"]),
+  body: external_exports.string(),
+  projectStatus: external_exports.string().nullable(),
+  iteration: external_exports.number().int().nonnegative(),
+  failures: external_exports.number().int().nonnegative(),
+  assignees: external_exports.array(external_exports.string()),
+  labels: external_exports.array(external_exports.string()),
+  subIssues: external_exports.array(external_exports.unknown()),
+  // Simplified for fixtures
+  hasSubIssues: external_exports.boolean(),
+  history: external_exports.array(external_exports.unknown()),
+  // Simplified for fixtures
+  todos: external_exports.object({
+    total: external_exports.number().int().nonnegative(),
+    completed: external_exports.number().int().nonnegative(),
+    uncheckedNonManual: external_exports.number().int().nonnegative()
+  })
+});
+var StateFixtureSchema = external_exports.object({
+  /** The state name this fixture represents */
+  state: StateNameSchema,
+  /** CI result to inject for this transition (optional) */
+  ciResult: CIResultSchema.optional(),
+  /** Review decision to inject for this transition (optional) */
+  reviewDecision: external_exports.enum(["APPROVED", "CHANGES_REQUESTED", "COMMENTED", "DISMISSED"]).optional(),
+  /** Issue state - uses test-specific schema allowing placeholder values */
+  issue: TestParentIssueSchema,
+  /** Reference to a claude mock file (when mock_claude=true) */
+  claudeMock: external_exports.string().optional()
+});
+var ScenarioConfigSchema = external_exports.object({
+  name: external_exports.string(),
+  description: external_exports.string()
+});
+var TestRunnerInputsSchema = external_exports.object({
+  /** false = stop after one step, true = run to completion */
+  continue: external_exports.boolean().default(true),
+  /** Start at a specific state name (e.g., "iteratingFix") */
+  startStep: external_exports.string().optional(),
+  /** true = use fixture outputs, false = run real Claude */
+  mockClaude: external_exports.boolean().default(true),
+  /** true = CI passes/fails immediately, false = run real CI */
+  mockCI: external_exports.boolean().default(true)
+});
+var StateTransitionResultSchema = external_exports.object({
+  /** Starting state */
+  fromState: StateNameSchema,
+  /** Ending state */
+  toState: StateNameSchema,
+  /** Whether the transition succeeded */
+  success: external_exports.boolean(),
+  /** Error message if failed */
+  error: external_exports.string().optional(),
+  /** Duration in milliseconds */
+  durationMs: external_exports.number(),
+  /** Verification failures if any */
+  verificationErrors: external_exports.array(external_exports.string()).optional()
+});
+var TestResultSchema = external_exports.object({
+  /** Overall status */
+  status: external_exports.enum(["completed", "paused", "failed", "error"]),
+  /** Current state (if paused) */
+  currentState: StateNameSchema.optional(),
+  /** Next state (if paused) */
+  nextState: StateNameSchema.optional(),
+  /** Issue number used for test */
+  issueNumber: external_exports.number(),
+  /** All state transitions executed */
+  transitions: external_exports.array(StateTransitionResultSchema),
+  /** Total duration in milliseconds */
+  totalDurationMs: external_exports.number(),
+  /** Error message if status is error */
+  error: external_exports.string().optional()
+});
+
+// claude-test-runner/src/configurable/loader.ts
+var fs = __toESM(require("fs"), 1);
+var path = __toESM(require("path"), 1);
+var core6 = __toESM(require_core(), 1);
+var FIXTURES_BASE_PATH = ".github/test-fixtures";
+var SCENARIOS_DIR = "scenarios";
+var CLAUDE_MOCKS_DIR = "claude-mocks";
+var STATES_DIR = "states";
+var SCENARIO_CONFIG_FILE = "scenario.json";
+async function loadScenario(scenarioName, basePath = FIXTURES_BASE_PATH) {
+  const scenarioDir = path.join(basePath, SCENARIOS_DIR, scenarioName);
+  const configPath = path.join(scenarioDir, SCENARIO_CONFIG_FILE);
+  if (!fs.existsSync(configPath)) {
+    throw new Error(
+      `Scenario config not found: ${configPath}. Create a scenario.json file with name and description.`
+    );
+  }
+  const configContent = fs.readFileSync(configPath, "utf-8");
+  const configJson = JSON.parse(configContent);
+  const config = ScenarioConfigSchema.parse(configJson);
+  core6.info(`Loading scenario: ${config.name}`);
+  core6.info(`Description: ${config.description}`);
+  const statesDir = path.join(scenarioDir, STATES_DIR);
+  if (!fs.existsSync(statesDir)) {
+    throw new Error(
+      `States directory not found: ${statesDir}. Create a states/ directory with fixture files.`
+    );
+  }
+  const { orderedStates, fixtures } = await loadStateFixtures(statesDir);
+  if (orderedStates.length < 2) {
+    throw new Error(
+      `Scenario must have at least 2 state fixtures (got ${orderedStates.length}). The first is the starting state, the last is the final expected state.`
+    );
+  }
+  core6.info(`Loaded ${orderedStates.length} state fixtures`);
+  const claudeMocks = await loadReferencedMocks(fixtures, basePath);
+  core6.info(`Loaded ${claudeMocks.size} Claude mocks`);
+  return {
+    name: config.name,
+    description: config.description,
+    orderedStates,
+    fixtures,
+    claudeMocks
+  };
+}
+async function loadStateFixtures(statesDir) {
+  const files = fs.readdirSync(statesDir).filter((f) => f.endsWith(".json")).sort();
+  const orderedStates = [];
+  const fixtures = /* @__PURE__ */ new Map();
+  for (const file of files) {
+    const filePath = path.join(statesDir, file);
+    const content = fs.readFileSync(filePath, "utf-8");
+    let json;
+    try {
+      json = JSON.parse(content);
+    } catch (error6) {
+      throw new Error(
+        `Invalid JSON in ${file}: ${error6 instanceof Error ? error6.message : error6}`
+      );
+    }
+    const parseResult = StateFixtureSchema.safeParse(json);
+    if (!parseResult.success) {
+      const errors = parseResult.error.errors.map((e) => `  ${e.path.join(".")}: ${e.message}`).join("\n");
+      throw new Error(`Invalid state fixture ${file}:
+${errors}`);
+    }
+    const fixture = parseResult.data;
+    if (fixtures.has(fixture.state)) {
+      throw new Error(
+        `Duplicate state '${fixture.state}' in ${file}. Each state can only appear once in a scenario.`
+      );
+    }
+    orderedStates.push(fixture.state);
+    fixtures.set(fixture.state, fixture);
+    core6.debug(`  Loaded: ${file} -> state '${fixture.state}'`);
+  }
+  return { orderedStates, fixtures };
+}
+async function loadReferencedMocks(fixtures, basePath) {
+  const claudeMocks = /* @__PURE__ */ new Map();
+  const mocksDir = path.join(basePath, CLAUDE_MOCKS_DIR);
+  for (const [state, fixture] of fixtures) {
+    if (!fixture.claudeMock) continue;
+    if (claudeMocks.has(fixture.claudeMock)) continue;
+    const mockPath = path.join(mocksDir, `${fixture.claudeMock}.json`);
+    if (!fs.existsSync(mockPath)) {
+      throw new Error(
+        `Claude mock not found: ${mockPath} (referenced by state '${state}')`
+      );
+    }
+    const content = fs.readFileSync(mockPath, "utf-8");
+    let json;
+    try {
+      json = JSON.parse(content);
+    } catch (error6) {
+      throw new Error(
+        `Invalid JSON in ${mockPath}: ${error6 instanceof Error ? error6.message : error6}`
+      );
+    }
+    const parseResult = ClaudeMockSchema.safeParse(json);
+    if (!parseResult.success) {
+      const errors = parseResult.error.errors.map((e) => `  ${e.path.join(".")}: ${e.message}`).join("\n");
+      throw new Error(`Invalid Claude mock ${fixture.claudeMock}:
+${errors}`);
+    }
+    claudeMocks.set(fixture.claudeMock, parseResult.data);
+    core6.debug(`  Loaded mock: ${fixture.claudeMock}`);
+  }
+  return claudeMocks;
+}
+
+// claude-test-runner/src/configurable/runner.ts
+var core16 = __toESM(require_core(), 1);
+var github = __toESM(require_github(), 1);
+var exec11 = __toESM(require_exec(), 1);
+
+// claude-state-machine/runner/runner.ts
+var core15 = __toESM(require_core(), 1);
+
+// claude-state-machine/runner/executors/project.ts
+var core7 = __toESM(require_core(), 1);
+var GET_PROJECT_ITEM_QUERY = `
+query GetProjectItem($org: String!, $repo: String!, $issueNumber: Int!, $projectNumber: Int!) {
+  repository(owner: $org, name: $repo) {
+    issue(number: $issueNumber) {
+      id
+      projectItems(first: 10) {
+        nodes {
+          id
+          project {
+            id
+            number
+          }
+          fieldValues(first: 20) {
+            nodes {
+              ... on ProjectV2ItemFieldSingleSelectValue {
+                name
+                field {
+                  ... on ProjectV2SingleSelectField {
+                    name
+                    id
+                  }
+                }
+              }
+              ... on ProjectV2ItemFieldNumberValue {
+                number
+                field {
+                  ... on ProjectV2Field {
+                    name
+                    id
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  organization(login: $org) {
+    projectV2(number: $projectNumber) {
+      id
+      fields(first: 20) {
+        nodes {
+          ... on ProjectV2SingleSelectField {
+            id
+            name
+            options {
+              id
+              name
+            }
+          }
+          ... on ProjectV2Field {
+            id
+            name
+            dataType
+          }
+        }
+      }
+    }
+  }
+}
+`;
+var UPDATE_PROJECT_FIELD_MUTATION = `
+mutation UpdateProjectField($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
+  updateProjectV2ItemFieldValue(input: {
+    projectId: $projectId
+    itemId: $itemId
+    fieldId: $fieldId
+    value: $value
+  }) {
+    projectV2Item {
+      id
+    }
+  }
+}
+`;
+var ADD_ISSUE_TO_PROJECT_MUTATION = `
+mutation AddIssueToProject($projectId: ID!, $contentId: ID!) {
+  addProjectV2ItemById(input: {
+    projectId: $projectId
+    contentId: $contentId
+  }) {
+    item {
+      id
+    }
+  }
+}
+`;
+function parseProjectFields(projectData) {
+  const project = projectData;
+  if (!project?.projectV2?.id || !project.projectV2.fields?.nodes) {
+    return null;
+  }
+  const fields = {
+    projectId: project.projectV2.id,
+    statusFieldId: "",
+    statusOptions: {},
+    iterationFieldId: "",
+    failuresFieldId: ""
+  };
+  for (const field of project.projectV2.fields.nodes) {
+    if (!field) continue;
+    if (field.name === "Status" && field.options) {
+      fields.statusFieldId = field.id || "";
+      for (const option of field.options) {
+        fields.statusOptions[option.name] = option.id;
+      }
+    } else if (field.name === "Iteration") {
+      fields.iterationFieldId = field.id || "";
+    } else if (field.name === "Failures") {
+      fields.failuresFieldId = field.id || "";
+    }
+  }
+  return fields;
+}
+function findStatusOption(statusOptions, status) {
+  if (statusOptions[status]) {
+    return statusOptions[status];
+  }
+  const lowerStatus = status.toLowerCase();
+  for (const [name, id] of Object.entries(statusOptions)) {
+    if (name.toLowerCase() === lowerStatus) {
+      return id;
+    }
+  }
+  return void 0;
+}
+function getProjectItemId(projectItems, projectNumber) {
+  const projectItem = projectItems.find(
+    (item) => item.project?.number === projectNumber
+  );
+  return projectItem?.id || null;
+}
+function parseProjectState(projectItems, projectNumber) {
+  const projectItem = projectItems.find(
+    (item) => item.project?.number === projectNumber
+  );
+  if (!projectItem) {
+    return { status: null, iteration: 0, failures: 0 };
+  }
+  let status = null;
+  let iteration = 0;
+  let failures = 0;
+  const fieldValues = projectItem.fieldValues?.nodes || [];
+  for (const fieldValue of fieldValues) {
+    const fieldName = fieldValue.field?.name;
+    if (fieldName === "Status" && fieldValue.name) {
+      status = fieldValue.name;
+    } else if (fieldName === "Iteration" && typeof fieldValue.number === "number") {
+      iteration = fieldValue.number;
+    } else if (fieldName === "Failures" && typeof fieldValue.number === "number") {
+      failures = fieldValue.number;
+    }
+  }
+  return { status, iteration, failures };
+}
+async function getOrAddProjectItem(octokit, ctx, issueNumber) {
+  const response = await octokit.graphql(
+    GET_PROJECT_ITEM_QUERY,
+    {
+      org: ctx.owner,
+      repo: ctx.repo,
+      issueNumber,
+      projectNumber: ctx.projectNumber
+    }
+  );
+  const issue = response.repository?.issue;
+  const projectData = response.organization;
+  if (!issue || !projectData?.projectV2) {
+    throw new Error(`Issue #${issueNumber} or project not found`);
+  }
+  const projectFields = parseProjectFields(projectData);
+  if (!projectFields) {
+    throw new Error("Failed to parse project fields");
+  }
+  const projectItems = issue.projectItems?.nodes || [];
+  let itemId = getProjectItemId(projectItems, ctx.projectNumber);
+  const currentState = parseProjectState(projectItems, ctx.projectNumber);
+  if (!itemId) {
+    core7.info(`Adding issue #${issueNumber} to project ${ctx.projectNumber}`);
+    const addResult = await octokit.graphql(
+      ADD_ISSUE_TO_PROJECT_MUTATION,
+      {
+        projectId: projectFields.projectId,
+        contentId: issue.id
+      }
+    );
+    itemId = addResult.addProjectV2ItemById?.item?.id || null;
+    if (!itemId) {
+      throw new Error("Failed to add issue to project");
+    }
+  }
+  return { itemId, projectFields, currentState };
+}
+async function executeUpdateProjectStatus(action, ctx) {
+  const { itemId, projectFields, currentState } = await getOrAddProjectItem(
+    ctx.octokit,
+    ctx,
+    action.issueNumber
+  );
+  const optionId = findStatusOption(projectFields.statusOptions, action.status);
+  if (!optionId) {
+    core7.warning(`Status option '${action.status}' not found in project`);
+    return { updated: false, previousStatus: currentState.status };
+  }
+  await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+    projectId: projectFields.projectId,
+    itemId,
+    fieldId: projectFields.statusFieldId,
+    value: { singleSelectOptionId: optionId }
+  });
+  core7.info(
+    `Updated Status to ${action.status} for issue #${action.issueNumber}`
+  );
+  return { updated: true, previousStatus: currentState.status };
+}
+async function executeIncrementIteration(action, ctx) {
+  const { itemId, projectFields, currentState } = await getOrAddProjectItem(
+    ctx.octokit,
+    ctx,
+    action.issueNumber
+  );
+  const newIteration = currentState.iteration + 1;
+  await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+    projectId: projectFields.projectId,
+    itemId,
+    fieldId: projectFields.iterationFieldId,
+    value: { number: newIteration }
+  });
+  core7.info(
+    `Incremented Iteration to ${newIteration} for issue #${action.issueNumber}`
+  );
+  return { newIteration };
+}
+async function executeRecordFailure(action, ctx) {
+  const { itemId, projectFields, currentState } = await getOrAddProjectItem(
+    ctx.octokit,
+    ctx,
+    action.issueNumber
+  );
+  const newFailures = currentState.failures + 1;
+  await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+    projectId: projectFields.projectId,
+    itemId,
+    fieldId: projectFields.failuresFieldId,
+    value: { number: newFailures }
+  });
+  core7.info(
+    `Incremented Failures to ${newFailures} for issue #${action.issueNumber}`
+  );
+  return { newFailures };
+}
+async function executeClearFailures(action, ctx) {
+  const { itemId, projectFields, currentState } = await getOrAddProjectItem(
+    ctx.octokit,
+    ctx,
+    action.issueNumber
+  );
+  await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+    projectId: projectFields.projectId,
+    itemId,
+    fieldId: projectFields.failuresFieldId,
+    value: { number: 0 }
+  });
+  core7.info(`Cleared Failures for issue #${action.issueNumber}`);
+  return { previousFailures: currentState.failures };
+}
+async function executeBlock(action, ctx) {
+  const { itemId, projectFields } = await getOrAddProjectItem(
+    ctx.octokit,
+    ctx,
+    action.issueNumber
+  );
+  const optionId = findStatusOption(projectFields.statusOptions, "Blocked");
+  if (!optionId) {
+    core7.warning("Blocked status option not found in project");
+    return { blocked: false };
+  }
+  await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+    projectId: projectFields.projectId,
+    itemId,
+    fieldId: projectFields.statusFieldId,
+    value: { singleSelectOptionId: optionId }
+  });
+  core7.info(`Blocked issue #${action.issueNumber}: ${action.reason}`);
+  return { blocked: true };
+}
+
+// claude-state-machine/runner/executors/github.ts
+var core8 = __toESM(require_core(), 1);
+var GET_ISSUE_BODY_QUERY = `
+query GetIssueBody($owner: String!, $repo: String!, $issueNumber: Int!) {
+  repository(owner: $owner, name: $repo) {
+    issue(number: $issueNumber) {
+      id
+      body
+      parent {
+        number
+      }
+    }
+  }
+}
+`;
+var CONVERT_PR_TO_DRAFT_MUTATION = `
+mutation ConvertPRToDraft($prId: ID!) {
+  convertPullRequestToDraft(input: { pullRequestId: $prId }) {
+    pullRequest {
+      id
+      isDraft
+    }
+  }
+}
+`;
+var MARK_PR_READY_MUTATION = `
+mutation MarkPRReady($prId: ID!) {
+  markPullRequestReadyForReview(input: { pullRequestId: $prId }) {
+    pullRequest {
+      id
+      isDraft
+    }
+  }
+}
+`;
+var GET_PR_ID_QUERY = `
+query GetPRId($owner: String!, $repo: String!, $prNumber: Int!) {
+  repository(owner: $owner, name: $repo) {
+    pullRequest(number: $prNumber) {
+      id
+    }
+  }
+}
+`;
+var CREATE_ISSUE_MUTATION = `
+mutation CreateIssue($repositoryId: ID!, $title: String!, $body: String!) {
+  createIssue(input: { repositoryId: $repositoryId, title: $title, body: $body }) {
+    issue {
+      id
+      number
+    }
+  }
+}
+`;
+var ADD_SUB_ISSUE_MUTATION = `
+mutation AddSubIssue($parentId: ID!, $childId: ID!) {
+  addSubIssue(input: { issueId: $parentId, subIssueId: $childId }) {
+    issue {
+      id
+    }
+  }
+}
+`;
+var GET_REPO_ID_QUERY = `
+query GetRepoId($owner: String!, $repo: String!) {
+  repository(owner: $owner, name: $repo) {
+    id
+  }
+}
+`;
+async function executeCloseIssue(action, ctx) {
+  await ctx.octokit.rest.issues.update({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    issue_number: action.issueNumber,
+    state: "closed",
+    state_reason: action.reason === "not_planned" ? "not_planned" : "completed"
+  });
+  core8.info(`Closed issue #${action.issueNumber}`);
+  return { closed: true };
+}
+async function executeAppendHistory(action, ctx) {
+  const response = await ctx.octokit.graphql(
+    GET_ISSUE_BODY_QUERY,
+    {
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issueNumber: action.issueNumber
+    }
+  );
+  const currentBody = response.repository?.issue?.body || "";
+  const parentNumber = response.repository?.issue?.parent?.number;
+  const iteration = action.iteration ?? 0;
+  const repoUrl = `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}`;
+  const timestamp = action.timestamp || (/* @__PURE__ */ new Date()).toISOString();
+  const newBody = addHistoryEntry(
+    currentBody,
+    iteration,
+    action.phase,
+    action.message,
+    timestamp,
+    action.commitSha,
+    action.runLink,
+    repoUrl,
+    action.prNumber
+  );
+  await ctx.octokit.rest.issues.update({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    issue_number: action.issueNumber,
+    body: newBody
+  });
+  core8.info(`Appended history: Phase ${action.phase}, ${action.message}`);
+  if (parentNumber) {
+    const parentResponse = await ctx.octokit.graphql(
+      GET_ISSUE_BODY_QUERY,
+      {
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issueNumber: parentNumber
+      }
+    );
+    const parentBody = parentResponse.repository?.issue?.body || "";
+    const newParentBody = addHistoryEntry(
+      parentBody,
+      iteration,
+      action.phase,
+      action.message,
+      timestamp,
+      action.commitSha,
+      action.runLink,
+      repoUrl,
+      action.prNumber
+    );
+    await ctx.octokit.rest.issues.update({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: parentNumber,
+      body: newParentBody
+    });
+    core8.info(`Also appended to parent issue #${parentNumber}`);
+  }
+  return { appended: true };
+}
+async function executeUpdateHistory(action, ctx) {
+  const response = await ctx.octokit.graphql(
+    GET_ISSUE_BODY_QUERY,
+    {
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issueNumber: action.issueNumber
+    }
+  );
+  const currentBody = response.repository?.issue?.body || "";
+  const parentNumber = response.repository?.issue?.parent?.number;
+  const repoUrl = `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}`;
+  const timestamp = action.timestamp || (/* @__PURE__ */ new Date()).toISOString();
+  const result = updateHistoryEntry(
+    currentBody,
+    action.matchIteration,
+    action.matchPhase,
+    action.matchPattern,
+    action.newMessage,
+    timestamp,
+    action.commitSha,
+    action.runLink,
+    repoUrl,
+    action.prNumber
+  );
+  if (result.updated) {
+    await ctx.octokit.rest.issues.update({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: action.issueNumber,
+      body: result.body
+    });
+    core8.info(
+      `Updated history: Phase ${action.matchPhase}, ${action.newMessage}`
+    );
+  } else {
+    core8.info(
+      `No matching history entry found - adding new entry for Phase ${action.matchPhase}`
+    );
+    const newBody = addHistoryEntry(
+      currentBody,
+      action.matchIteration,
+      action.matchPhase,
+      action.newMessage,
+      timestamp,
+      action.commitSha,
+      action.runLink,
+      repoUrl,
+      action.prNumber
+    );
+    await ctx.octokit.rest.issues.update({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: action.issueNumber,
+      body: newBody
+    });
+    core8.info(
+      `Added new history entry: Phase ${action.matchPhase}, ${action.newMessage}`
+    );
+  }
+  if (parentNumber) {
+    const parentResponse = await ctx.octokit.graphql(
+      GET_ISSUE_BODY_QUERY,
+      {
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issueNumber: parentNumber
+      }
+    );
+    const parentBody = parentResponse.repository?.issue?.body || "";
+    const parentResult = updateHistoryEntry(
+      parentBody,
+      action.matchIteration,
+      action.matchPhase,
+      action.matchPattern,
+      action.newMessage,
+      timestamp,
+      action.commitSha,
+      action.runLink,
+      repoUrl,
+      action.prNumber
+    );
+    if (parentResult.updated) {
+      await ctx.octokit.rest.issues.update({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: parentNumber,
+        body: parentResult.body
+      });
+      core8.info(`Also updated parent issue #${parentNumber}`);
+    } else {
+      const newParentBody = addHistoryEntry(
+        parentBody,
+        action.matchIteration,
+        action.matchPhase,
+        action.newMessage,
+        timestamp,
+        action.commitSha,
+        action.runLink,
+        repoUrl,
+        action.prNumber
+      );
+      await ctx.octokit.rest.issues.update({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: parentNumber,
+        body: newParentBody
+      });
+      core8.info(`Added new entry to parent issue #${parentNumber}`);
+    }
+  }
+  return { updated: true };
+}
+async function executeUpdateIssueBody(action, ctx) {
+  await ctx.octokit.rest.issues.update({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    issue_number: action.issueNumber,
+    body: action.body
+  });
+  core8.info(`Updated body for issue #${action.issueNumber}`);
+  return { updated: true };
+}
+async function executeAddComment(action, ctx) {
+  const response = await ctx.octokit.rest.issues.createComment({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    issue_number: action.issueNumber,
+    body: action.body
+  });
+  core8.info(`Added comment to issue #${action.issueNumber}`);
+  return { commentId: response.data.id };
+}
+async function executeUnassignUser(action, ctx) {
+  await ctx.octokit.rest.issues.removeAssignees({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    issue_number: action.issueNumber,
+    assignees: [action.username]
+  });
+  core8.info(`Unassigned ${action.username} from issue #${action.issueNumber}`);
+  return { unassigned: true };
+}
+async function executeAssignUser(action, ctx) {
+  await ctx.octokit.rest.issues.addAssignees({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    issue_number: action.issueNumber,
+    assignees: [action.username]
+  });
+  core8.info(`Assigned ${action.username} to issue #${action.issueNumber}`);
+  return { assigned: true };
+}
+async function executeCreateSubIssues(action, ctx) {
+  const repoResponse = await ctx.octokit.graphql(
+    GET_REPO_ID_QUERY,
+    {
+      owner: ctx.owner,
+      repo: ctx.repo
+    }
+  );
+  const repoId = repoResponse.repository?.id;
+  if (!repoId) {
+    throw new Error("Repository not found");
+  }
+  const parentResponse = await ctx.octokit.graphql(
+    GET_ISSUE_BODY_QUERY,
+    {
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issueNumber: action.parentIssueNumber
+    }
+  );
+  const parentId = parentResponse.repository?.issue?.id;
+  if (!parentId) {
+    throw new Error(`Parent issue #${action.parentIssueNumber} not found`);
+  }
+  const subIssueNumbers = [];
+  for (let i = 0; i < action.phases.length; i++) {
+    const phase = action.phases[i];
+    if (!phase) continue;
+    const title = `[Phase ${i + 1}]: ${phase.title}`;
+    const createResponse = await ctx.octokit.graphql(
+      CREATE_ISSUE_MUTATION,
+      {
+        repositoryId: repoId,
+        title,
+        body: phase.body
+      }
+    );
+    const issueId = createResponse.createIssue?.issue?.id;
+    const issueNumber = createResponse.createIssue?.issue?.number;
+    if (!issueId || !issueNumber) {
+      throw new Error(`Failed to create sub-issue for phase ${i + 1}`);
+    }
+    await ctx.octokit.graphql(ADD_SUB_ISSUE_MUTATION, {
+      parentId,
+      childId: issueId
+    });
+    await ctx.octokit.rest.issues.addLabels({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: issueNumber,
+      labels: ["triaged"]
+    });
+    subIssueNumbers.push(issueNumber);
+    core8.info(`Created sub-issue #${issueNumber} for phase ${i + 1}`);
+  }
+  return { subIssueNumbers };
+}
+async function executeCreatePR(action, ctx) {
+  const existingPRs = await ctx.octokit.rest.pulls.list({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    head: `${ctx.owner}:${action.branchName}`,
+    base: action.baseBranch,
+    state: "open"
+  });
+  const existingPR = existingPRs.data[0];
+  if (existingPR) {
+    core8.info(
+      `PR #${existingPR.number} already exists for branch ${action.branchName}`
+    );
+    return { prNumber: existingPR.number };
+  }
+  const body = `${action.body}
+
+Fixes #${action.issueNumber}`;
+  const response = await ctx.octokit.rest.pulls.create({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    title: action.title,
+    body,
+    head: action.branchName,
+    base: action.baseBranch,
+    draft: action.draft
+  });
+  core8.info(
+    `Created PR #${response.data.number} for issue #${action.issueNumber}`
+  );
+  return { prNumber: response.data.number };
+}
+async function executeConvertPRToDraft(action, ctx) {
+  const prResponse = await ctx.octokit.graphql(GET_PR_ID_QUERY, {
+    owner: ctx.owner,
+    repo: ctx.repo,
+    prNumber: action.prNumber
+  });
+  const prId = prResponse.repository?.pullRequest?.id;
+  if (!prId) {
+    throw new Error(`PR #${action.prNumber} not found`);
+  }
+  await ctx.octokit.graphql(CONVERT_PR_TO_DRAFT_MUTATION, { prId });
+  core8.info(`Converted PR #${action.prNumber} to draft`);
+  return { converted: true };
+}
+async function executeMarkPRReady(action, ctx) {
+  const prResponse = await ctx.octokit.graphql(GET_PR_ID_QUERY, {
+    owner: ctx.owner,
+    repo: ctx.repo,
+    prNumber: action.prNumber
+  });
+  const prId = prResponse.repository?.pullRequest?.id;
+  if (!prId) {
+    throw new Error(`PR #${action.prNumber} not found`);
+  }
+  await ctx.octokit.graphql(MARK_PR_READY_MUTATION, { prId });
+  core8.info(`Marked PR #${action.prNumber} as ready for review`);
+  return { ready: true };
+}
+async function executeRequestReview(action, ctx) {
+  await ctx.octokit.rest.pulls.requestReviewers({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    pull_number: action.prNumber,
+    reviewers: [action.reviewer]
+  });
+  core8.info(
+    `Requested review from ${action.reviewer} on PR #${action.prNumber}`
+  );
+  return { requested: true };
+}
+async function executeMergePR(action, ctx) {
+  const label = "ready-to-merge";
+  try {
+    await ctx.octokit.rest.issues.addLabels({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: action.prNumber,
+      // PRs use issue numbers for labels
+      labels: [label]
+    });
+    core8.info(`Added "${label}" label to PR #${action.prNumber}`);
+  } catch (error6) {
+    core8.warning(`Failed to add label: ${error6}`);
+  }
+  const response = await ctx.octokit.graphql(
+    GET_ISSUE_BODY_QUERY,
+    {
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issueNumber: action.issueNumber
+    }
+  );
+  const currentBody = response.repository?.issue?.body || "";
+  const repoUrl = `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}`;
+  const timestamp = (/* @__PURE__ */ new Date()).toISOString();
+  const runLink = ctx.runUrl;
+  const newBody = addHistoryEntry(
+    currentBody,
+    0,
+    // iteration (0 = orchestration level)
+    "-",
+    // phase (dash = orchestration)
+    "\u{1F500} Ready for merge",
+    timestamp,
+    void 0,
+    // no SHA
+    runLink,
+    repoUrl
+  );
+  await ctx.octokit.rest.issues.update({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    issue_number: action.issueNumber,
+    body: newBody
+  });
+  core8.info(
+    `PR #${action.prNumber} marked ready for merge (human action required)`
+  );
+  return { markedReady: true };
+}
+async function executeSubmitReview(action, ctx) {
+  const eventMap = {
+    approve: "APPROVE",
+    request_changes: "REQUEST_CHANGES",
+    comment: "COMMENT"
+  };
+  const event = eventMap[action.decision];
+  if (!event) {
+    throw new Error(`Invalid review decision: ${action.decision}`);
+  }
+  await ctx.octokit.rest.pulls.createReview({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    pull_number: action.prNumber,
+    event,
+    body: action.body
+  });
+  core8.info(`Submitted ${action.decision} review on PR #${action.prNumber}`);
+  return { submitted: true, decision: action.decision };
+}
+async function executeRemoveReviewer(action, ctx) {
+  try {
+    await ctx.octokit.rest.pulls.removeRequestedReviewers({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      pull_number: action.prNumber,
+      reviewers: [action.reviewer]
+    });
+    core8.info(
+      `Removed reviewer ${action.reviewer} from PR #${action.prNumber}`
+    );
+    return { removed: true };
+  } catch (error6) {
+    if (error6 instanceof Error && error6.message.includes("404")) {
+      core8.info(
+        `Reviewer ${action.reviewer} was not a requested reviewer on PR #${action.prNumber}`
+      );
+      return { removed: false };
+    }
+    throw error6;
+  }
+}
+
+// claude-state-machine/runner/executors/git.ts
+var core9 = __toESM(require_core(), 1);
+var exec7 = __toESM(require_exec(), 1);
+async function executeCreateBranch(action, ctx) {
+  const result = {
+    created: false,
+    checkedOut: false,
+    rebased: false,
+    pushed: false,
+    shouldStop: false
+  };
+  core9.info(`Fetching latest from origin...`);
+  await exec7.exec("git", ["fetch", "origin"], { ignoreReturnCode: true });
+  const remoteBranchExists = await ctx.octokit.rest.repos.getBranch({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    branch: action.branchName
+  }).then(() => true).catch(() => false);
+  if (!remoteBranchExists) {
+    core9.info(
+      `Branch ${action.branchName} doesn't exist remotely, creating from ${action.baseBranch}`
+    );
+    const baseRef = await ctx.octokit.rest.git.getRef({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      ref: `heads/${action.baseBranch}`
+    });
+    await ctx.octokit.rest.git.createRef({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      ref: `refs/heads/${action.branchName}`,
+      sha: baseRef.data.object.sha
+    });
+    result.created = true;
+    core9.info(`Created remote branch ${action.branchName}`);
+    await exec7.exec("git", ["fetch", "origin"], { ignoreReturnCode: true });
+  }
+  let checkoutExitCode = await exec7.exec(
+    "git",
+    ["checkout", action.branchName],
+    { ignoreReturnCode: true }
+  );
+  if (checkoutExitCode !== 0) {
+    checkoutExitCode = await exec7.exec(
+      "git",
+      ["checkout", "-b", action.branchName, `origin/${action.branchName}`],
+      { ignoreReturnCode: true }
+    );
+    if (checkoutExitCode !== 0) {
+      checkoutExitCode = await exec7.exec(
+        "git",
+        ["checkout", "-b", action.branchName, `origin/${action.baseBranch}`],
+        { ignoreReturnCode: true }
+      );
+    }
+  }
+  if (checkoutExitCode !== 0) {
+    throw new Error(`Failed to checkout branch ${action.branchName}`);
+  }
+  result.checkedOut = true;
+  core9.info(`Checked out branch ${action.branchName}`);
+  await exec7.exec(
+    "git",
+    ["branch", "--set-upstream-to", `origin/${action.branchName}`],
+    { ignoreReturnCode: true }
+  );
+  let commitsCount = "";
+  await exec7.exec(
+    "git",
+    ["rev-list", "--count", `HEAD..origin/${action.baseBranch}`],
+    {
+      ignoreReturnCode: true,
+      listeners: {
+        stdout: (data) => {
+          commitsCount += data.toString();
+        }
+      }
+    }
+  );
+  const commitsBehind = parseInt(commitsCount.trim(), 10) || 0;
+  if (commitsBehind > 0) {
+    core9.info(
+      `Branch is ${commitsBehind} commits behind origin/${action.baseBranch}, attempting rebase...`
+    );
+    const rebaseExitCode = await exec7.exec(
+      "git",
+      ["rebase", `origin/${action.baseBranch}`],
+      { ignoreReturnCode: true }
+    );
+    if (rebaseExitCode !== 0) {
+      core9.warning(`Rebase failed, aborting and continuing with current state`);
+      await exec7.exec("git", ["rebase", "--abort"], { ignoreReturnCode: true });
+      return result;
+    }
+    result.rebased = true;
+    core9.info(`Successfully rebased on origin/${action.baseBranch}`);
+    const pushExitCode = await exec7.exec(
+      "git",
+      ["push", "origin", action.branchName, "--force-with-lease"],
+      { ignoreReturnCode: true }
+    );
+    if (pushExitCode === 0) {
+      result.pushed = true;
+      result.shouldStop = true;
+      core9.info(
+        `Pushed rebased changes. Stopping execution - CI will re-trigger with up-to-date branch.`
+      );
+    } else {
+      core9.warning(`Failed to push rebased changes, continuing anyway`);
+    }
+  } else {
+    core9.info(`Branch is up-to-date with origin/${action.baseBranch}`);
+  }
+  return result;
+}
+async function executeGitPush(action, _ctx) {
+  const args = ["push", "origin", action.branchName];
+  if (action.force) {
+    args.push("--force");
+  }
+  let stderr = "";
+  const exitCode = await exec7.exec("git", args, {
+    ignoreReturnCode: true,
+    listeners: {
+      stderr: (data) => {
+        stderr += data.toString();
+      }
+    }
+  });
+  if (exitCode !== 0) {
+    core9.warning(`Git push failed: ${stderr}`);
+    return { pushed: false };
+  }
+  core9.info(`Pushed to ${action.branchName}`);
+  return { pushed: true };
+}
+
+// claude-state-machine/runner/executors/claude.ts
+var core10 = __toESM(require_core(), 1);
+var exec9 = __toESM(require_exec(), 1);
+var fs2 = __toESM(require("fs"), 1);
+var path2 = __toESM(require("path"), 1);
+function substituteVars(template, vars) {
+  return template.replace(/\{\{([^}]+)\}\}/g, (match, varName) => {
+    const trimmedName = varName.trim();
+    return vars[trimmedName] ?? match;
+  });
+}
+function resolvePromptDir(promptDir) {
+  const dirPath = path2.resolve(process.cwd(), ".github/prompts", promptDir);
+  const promptPath = path2.join(dirPath, "prompt.txt");
+  const schemaPath = path2.join(dirPath, "outputs.json");
+  return {
+    promptPath,
+    schemaPath: fs2.existsSync(schemaPath) ? schemaPath : void 0
+  };
+}
+function getPromptFromAction(action) {
+  if (action.prompt) {
+    let prompt = action.prompt;
+    if (action.promptVars) {
+      prompt = substituteVars(prompt, action.promptVars);
+    }
+    return { prompt };
+  }
+  if (action.promptDir) {
+    const { promptPath, schemaPath } = resolvePromptDir(action.promptDir);
+    if (!fs2.existsSync(promptPath)) {
+      throw new Error(
+        `Prompt file not found: ${promptPath} (from promptDir: ${action.promptDir})`
+      );
+    }
+    let prompt = fs2.readFileSync(promptPath, "utf-8");
+    if (action.promptVars) {
+      prompt = substituteVars(prompt, action.promptVars);
+    }
+    const outputSchema = schemaPath ? fs2.readFileSync(schemaPath, "utf-8") : void 0;
+    return { prompt, outputSchema };
+  }
+  if (action.promptFile) {
+    const promptPath = path2.resolve(process.cwd(), action.promptFile);
+    if (!fs2.existsSync(promptPath)) {
+      throw new Error(`Prompt file not found: ${action.promptFile}`);
+    }
+    let prompt = fs2.readFileSync(promptPath, "utf-8");
+    if (action.promptVars) {
+      prompt = substituteVars(prompt, action.promptVars);
+    }
+    return { prompt };
+  }
+  throw new Error("Either prompt, promptFile, or promptDir must be provided");
+}
+async function executeRunClaude(action, ctx) {
+  if (ctx.mockOutputs && action.promptDir) {
+    const mockOutput = ctx.mockOutputs[action.promptDir];
+    if (mockOutput) {
+      core10.info(
+        `[MOCK MODE] Using mock output for '${action.promptDir}' prompt`
+      );
+      core10.startGroup("Mock Structured Output");
+      core10.info(JSON.stringify(mockOutput, null, 2));
+      core10.endGroup();
+      return {
+        success: true,
+        exitCode: 0,
+        output: JSON.stringify({ structured_output: mockOutput }),
+        structuredOutput: mockOutput
+      };
+    }
+    core10.warning(
+      `[MOCK MODE] No mock output for '${action.promptDir}' prompt, running real Claude`
+    );
+  }
+  const args = [
+    "--print",
+    // Print output to stdout (non-interactive mode)
+    "--dangerously-skip-permissions"
+    // Skip all permission prompts (for CI/automated runs)
+  ];
+  const { prompt, outputSchema } = getPromptFromAction(action);
+  if (outputSchema) {
+    const compactSchema = JSON.stringify(JSON.parse(outputSchema));
+    args.push("--output-format", "json");
+    args.push("--json-schema", compactSchema);
+    core10.info("Using structured output mode with JSON schema");
+  }
+  if (action.allowedTools && action.allowedTools.length > 0) {
+    for (const tool of action.allowedTools) {
+      args.push("--allowedTools", tool);
+    }
+  }
+  args.push(prompt);
+  let stdout = "";
+  let stderr = "";
+  const cwd = action.worktree || process.cwd();
+  core10.info(`Running Claude for issue #${action.issueNumber}`);
+  core10.info(`Working directory: ${cwd}`);
+  core10.debug(`Prompt: ${prompt.slice(0, 200)}...`);
+  try {
+    const exitCode = await exec9.exec("claude", args, {
+      cwd,
+      ignoreReturnCode: true,
+      env: {
+        ...process.env,
+        // Pass through GitHub context
+        GITHUB_REPOSITORY: `${ctx.owner}/${ctx.repo}`,
+        GITHUB_SERVER_URL: ctx.serverUrl,
+        // Ensure non-interactive mode
+        CI: "true"
+      },
+      listeners: {
+        stdout: (data) => {
+          stdout += data.toString();
+        },
+        stderr: (data) => {
+          stderr += data.toString();
+        }
+      }
+    });
+    if (exitCode !== 0) {
+      core10.warning(`Claude exited with code ${exitCode}`);
+      return {
+        success: false,
+        exitCode,
+        output: stdout,
+        error: stderr || `Exit code: ${exitCode}`
+      };
+    }
+    core10.info(`Claude completed successfully for issue #${action.issueNumber}`);
+    let structuredOutput;
+    if (outputSchema) {
+      try {
+        const response = JSON.parse(stdout.trim());
+        if (response.structured_output) {
+          structuredOutput = response.structured_output;
+          core10.info("Parsed structured output successfully");
+          core10.startGroup("Structured Output");
+          core10.info(JSON.stringify(structuredOutput, null, 2));
+          core10.endGroup();
+        } else {
+          core10.warning("No structured_output field found in JSON response");
+          structuredOutput = response;
+        }
+      } catch (parseError) {
+        core10.warning(
+          `Failed to parse structured output: ${parseError}. Raw output will be available.`
+        );
+      }
+    }
+    return {
+      success: true,
+      exitCode: 0,
+      output: stdout,
+      structuredOutput
+    };
+  } catch (error6) {
+    const errorMessage = error6 instanceof Error ? error6.message : String(error6);
+    core10.error(`Failed to run Claude: ${errorMessage}`);
+    return {
+      success: false,
+      exitCode: 1,
+      output: stdout,
+      error: errorMessage
+    };
+  }
+}
+
+// claude-state-machine/runner/executors/discussions.ts
+var core11 = __toESM(require_core(), 1);
+var ADD_DISCUSSION_COMMENT_MUTATION = `
+mutation AddDiscussionComment($discussionId: ID!, $body: String!) {
+  addDiscussionComment(input: {
+    discussionId: $discussionId
+    body: $body
+  }) {
+    comment {
+      id
+      body
+    }
+  }
+}
+`;
+var ADD_DISCUSSION_REPLY_MUTATION = `
+mutation AddDiscussionReply($discussionId: ID!, $replyToId: ID!, $body: String!) {
+  addDiscussionComment(input: {
+    discussionId: $discussionId
+    replyToId: $replyToId
+    body: $body
+  }) {
+    comment {
+      id
+      body
+    }
+  }
+}
+`;
+var UPDATE_DISCUSSION_MUTATION = `
+mutation UpdateDiscussion($discussionId: ID!, $body: String!) {
+  updateDiscussion(input: {
+    discussionId: $discussionId
+    body: $body
+  }) {
+    discussion {
+      id
+      body
+    }
+  }
+}
+`;
+var ADD_REACTION_MUTATION = `
+mutation AddReaction($subjectId: ID!, $content: ReactionContent!) {
+  addReaction(input: {
+    subjectId: $subjectId
+    content: $content
+  }) {
+    reaction {
+      id
+      content
+    }
+  }
+}
+`;
+var GET_DISCUSSION_ID_QUERY = `
+query GetDiscussionId($owner: String!, $repo: String!, $number: Int!) {
+  repository(owner: $owner, name: $repo) {
+    discussion(number: $number) {
+      id
+    }
+  }
+}
+`;
+var GET_REPO_ID_QUERY2 = `
+query GetRepoId($owner: String!, $repo: String!) {
+  repository(owner: $owner, name: $repo) {
+    id
+  }
+}
+`;
+var CREATE_ISSUE_MUTATION2 = `
+mutation CreateIssue($repositoryId: ID!, $title: String!, $body: String!) {
+  createIssue(input: { repositoryId: $repositoryId, title: $title, body: $body }) {
+    issue {
+      id
+      number
+    }
+  }
+}
+`;
+var ADD_LABELS_MUTATION = `
+mutation AddLabelsToLabelable($labelableId: ID!, $labelIds: [ID!]!) {
+  addLabelsToLabelable(input: { labelableId: $labelableId, labelIds: $labelIds }) {
+    labelable {
+      __typename
+    }
+  }
+}
+`;
+var GET_LABEL_IDS_QUERY = `
+query GetLabelIds($owner: String!, $repo: String!, $names: [String!]!) {
+  repository(owner: $owner, name: $repo) {
+    labels(first: 100, query: "") {
+      nodes {
+        id
+        name
+      }
+    }
+  }
+}
+`;
+async function executeAddDiscussionComment(action, ctx) {
+  let response;
+  if (action.replyToNodeId) {
+    response = await ctx.octokit.graphql(
+      ADD_DISCUSSION_REPLY_MUTATION,
+      {
+        discussionId: action.discussionNodeId,
+        replyToId: action.replyToNodeId,
+        body: action.body
+      }
+    );
+  } else {
+    response = await ctx.octokit.graphql(
+      ADD_DISCUSSION_COMMENT_MUTATION,
+      {
+        discussionId: action.discussionNodeId,
+        body: action.body
+      }
+    );
+  }
+  const commentId = response.addDiscussionComment?.comment?.id;
+  if (!commentId) {
+    throw new Error("Failed to add discussion comment");
+  }
+  core11.info(
+    `Added ${action.replyToNodeId ? "reply" : "comment"} to discussion`
+  );
+  return { commentId };
+}
+async function executeUpdateDiscussionBody(action, ctx) {
+  const response = await ctx.octokit.graphql(
+    UPDATE_DISCUSSION_MUTATION,
+    {
+      discussionId: action.discussionNodeId,
+      body: action.newBody
+    }
+  );
+  if (!response.updateDiscussion?.discussion?.id) {
+    throw new Error("Failed to update discussion body");
+  }
+  core11.info("Updated discussion body");
+  return { updated: true };
+}
+async function executeAddDiscussionReaction(action, ctx) {
+  const response = await ctx.octokit.graphql(
+    ADD_REACTION_MUTATION,
+    {
+      subjectId: action.subjectId,
+      content: action.content
+    }
+  );
+  const reactionId = response.addReaction?.reaction?.id;
+  if (!reactionId) {
+    throw new Error("Failed to add reaction");
+  }
+  core11.info(`Added ${action.content} reaction`);
+  return { reactionId };
+}
+async function executeCreateIssuesFromDiscussion(action, ctx) {
+  const repoResponse = await ctx.octokit.graphql(
+    GET_REPO_ID_QUERY2,
+    {
+      owner: ctx.owner,
+      repo: ctx.repo
+    }
+  );
+  const repoId = repoResponse.repository?.id;
+  if (!repoId) {
+    throw new Error("Repository not found");
+  }
+  const discussionResponse = await ctx.octokit.graphql(
+    GET_DISCUSSION_ID_QUERY,
+    {
+      owner: ctx.owner,
+      repo: ctx.repo,
+      number: action.discussionNumber
+    }
+  );
+  const discussionId = discussionResponse.repository?.discussion?.id;
+  const labelsResponse = await ctx.octokit.graphql(
+    GET_LABEL_IDS_QUERY,
+    {
+      owner: ctx.owner,
+      repo: ctx.repo
+    }
+  );
+  const labelMap = /* @__PURE__ */ new Map();
+  for (const label of labelsResponse.repository?.labels?.nodes || []) {
+    if (label.id && label.name) {
+      labelMap.set(label.name.toLowerCase(), label.id);
+    }
+  }
+  const issueNumbers = [];
+  for (const issueDef of action.issues) {
+    const bodyWithRef = discussionId ? `${issueDef.body}
+
+---
+*Created from discussion #${action.discussionNumber}*` : issueDef.body;
+    const createResponse = await ctx.octokit.graphql(
+      CREATE_ISSUE_MUTATION2,
+      {
+        repositoryId: repoId,
+        title: issueDef.title,
+        body: bodyWithRef
+      }
+    );
+    const issueId = createResponse.createIssue?.issue?.id;
+    const issueNumber = createResponse.createIssue?.issue?.number;
+    if (!issueId || !issueNumber) {
+      throw new Error(`Failed to create issue: ${issueDef.title}`);
+    }
+    if (issueDef.labels.length > 0) {
+      const labelIds = issueDef.labels.map((name) => labelMap.get(name.toLowerCase())).filter((id) => id !== void 0);
+      if (labelIds.length > 0) {
+        await ctx.octokit.graphql(ADD_LABELS_MUTATION, {
+          labelableId: issueId,
+          labelIds
+        });
+      }
+    }
+    issueNumbers.push(issueNumber);
+    core11.info(`Created issue #${issueNumber}: ${issueDef.title}`);
+  }
+  return { issueNumbers };
+}
+
+// claude-state-machine/runner/executors/triage.ts
+var core12 = __toESM(require_core(), 1);
+var fs3 = __toESM(require("fs"), 1);
+var GET_REPO_ID_QUERY3 = `
+query GetRepoId($owner: String!, $repo: String!) {
+  repository(owner: $owner, name: $repo) {
+    id
+  }
+}
+`;
+var GET_ISSUE_ID_QUERY = `
+query GetIssueId($owner: String!, $repo: String!, $issueNumber: Int!) {
+  repository(owner: $owner, name: $repo) {
+    issue(number: $issueNumber) {
+      id
+    }
+  }
+}
+`;
+var CREATE_ISSUE_MUTATION3 = `
+mutation CreateIssue($repositoryId: ID!, $title: String!, $body: String!) {
+  createIssue(input: { repositoryId: $repositoryId, title: $title, body: $body }) {
+    issue {
+      id
+      number
+    }
+  }
+}
+`;
+var ADD_SUB_ISSUE_MUTATION2 = `
+mutation AddSubIssue($parentId: ID!, $childId: ID!) {
+  addSubIssue(input: { issueId: $parentId, subIssueId: $childId }) {
+    issue {
+      id
+    }
+  }
+}
+`;
+var ADD_ISSUE_TO_PROJECT_MUTATION2 = `
+mutation AddIssueToProject($projectId: ID!, $contentId: ID!) {
+  addProjectV2ItemById(input: {
+    projectId: $projectId
+    contentId: $contentId
+  }) {
+    item {
+      id
+    }
+  }
+}
+`;
+async function executeApplyTriageOutput(action, ctx, structuredOutput) {
+  const { issueNumber, filePath } = action;
+  let triageOutput;
+  if (structuredOutput) {
+    triageOutput = structuredOutput;
+    core12.info("Using structured output from in-process chain");
+    core12.startGroup("Triage Output (Structured)");
+    core12.info(JSON.stringify(triageOutput, null, 2));
+    core12.endGroup();
+  } else if (filePath && fs3.existsSync(filePath)) {
+    try {
+      const content = fs3.readFileSync(filePath, "utf-8");
+      triageOutput = JSON.parse(content);
+      core12.info(`Triage output from file: ${filePath}`);
+      core12.startGroup("Triage Output (File)");
+      core12.info(JSON.stringify(triageOutput, null, 2));
+      core12.endGroup();
+    } catch (error6) {
+      core12.warning(`Failed to parse triage output: ${error6}`);
+      return { applied: false };
+    }
+  } else {
+    throw new Error(
+      `No structured output provided and triage output file not found at: ${filePath || "undefined"}. Ensure runClaude action wrote claude-structured-output.json and artifact was downloaded.`
+    );
+  }
+  if (ctx.dryRun) {
+    core12.info(`[DRY RUN] Would apply triage output to issue #${issueNumber}`);
+    return { applied: true };
+  }
+  const isStructured = "triage" in triageOutput;
+  const classification = isStructured ? triageOutput.triage : {
+    type: triageOutput.type || "enhancement",
+    priority: triageOutput.priority,
+    size: triageOutput.size || "m",
+    estimate: triageOutput.estimate || 5,
+    topics: triageOutput.topics || [],
+    needs_info: triageOutput.needs_info || false
+  };
+  await applyLabels(ctx, issueNumber, classification);
+  await applyProjectFields(ctx, issueNumber, classification);
+  if (isStructured && triageOutput.issue_body) {
+    await updateIssueBody(
+      ctx,
+      issueNumber,
+      triageOutput.issue_body
+    );
+  }
+  let subIssueNumbers = [];
+  if (isStructured && triageOutput.sub_issues?.length > 0) {
+    subIssueNumbers = await createSubIssues(
+      ctx,
+      issueNumber,
+      triageOutput.sub_issues
+    );
+  }
+  if (isStructured && triageOutput.related_issues?.length) {
+    await linkRelatedIssues(
+      ctx,
+      issueNumber,
+      triageOutput.related_issues || []
+    );
+  }
+  return { applied: true, subIssueNumbers };
+}
+async function applyLabels(ctx, issueNumber, classification) {
+  const labels = [];
+  if (classification.type && classification.type !== "null") {
+    labels.push(classification.type);
+    core12.info(`Adding type label: ${classification.type}`);
+  }
+  if (classification.topics) {
+    for (const topic of classification.topics) {
+      if (topic) {
+        const label = topic.startsWith("topic:") ? topic : `topic:${topic}`;
+        labels.push(label);
+        core12.info(`Adding topic label: ${label}`);
+      }
+    }
+  }
+  labels.push("triaged");
+  core12.info("Adding triaged label");
+  if (labels.length > 0) {
+    try {
+      await ctx.octokit.rest.issues.addLabels({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: issueNumber,
+        labels
+      });
+      core12.info(`Applied labels: ${labels.join(", ")}`);
+    } catch (error6) {
+      core12.warning(`Failed to apply labels: ${error6}`);
+    }
+  }
+}
+async function updateIssueBody(ctx, issueNumber, newBody) {
+  try {
+    await ctx.octokit.rest.issues.update({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: issueNumber,
+      body: newBody
+    });
+    core12.info(`Updated issue body for #${issueNumber}`);
+  } catch (error6) {
+    core12.warning(`Failed to update issue body: ${error6}`);
+  }
+}
+async function createSubIssues(ctx, parentIssueNumber, subIssues) {
+  const repoResponse = await ctx.octokit.graphql(
+    GET_REPO_ID_QUERY3,
+    {
+      owner: ctx.owner,
+      repo: ctx.repo
+    }
+  );
+  const repoId = repoResponse.repository?.id;
+  if (!repoId) {
+    throw new Error("Repository not found");
+  }
+  const parentResponse = await ctx.octokit.graphql(
+    GET_ISSUE_ID_QUERY,
+    {
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issueNumber: parentIssueNumber
+    }
+  );
+  const parentId = parentResponse.repository?.issue?.id;
+  if (!parentId) {
+    throw new Error(`Parent issue #${parentIssueNumber} not found`);
+  }
+  const projectInfo = await getProjectInfo(ctx);
+  const subIssueNumbers = [];
+  for (let i = 0; i < subIssues.length; i++) {
+    const subIssue = subIssues[i];
+    if (!subIssue) continue;
+    const phaseNumber = i + 1;
+    const formattedTitle = subIssues.length > 1 ? `[Phase ${phaseNumber}] ${subIssue.title}` : subIssue.title;
+    const todoList = subIssue.todos.map((todo) => {
+      if (typeof todo === "string") {
+        return `- [ ] ${todo}`;
+      } else {
+        const prefix = todo.manual ? "[Manual] " : "";
+        return `- [ ] ${prefix}${todo.task}`;
+      }
+    }).join("\n");
+    const body = `## Description
+
+${subIssue.description}
+
+## Todo
+
+${todoList}
+
+---
+
+Parent: #${parentIssueNumber}`;
+    const createResponse = await ctx.octokit.graphql(
+      CREATE_ISSUE_MUTATION3,
+      {
+        repositoryId: repoId,
+        title: formattedTitle,
+        body
+      }
+    );
+    const issueId = createResponse.createIssue?.issue?.id;
+    const issueNumber = createResponse.createIssue?.issue?.number;
+    if (!issueId || !issueNumber) {
+      throw new Error(`Failed to create sub-issue for phase ${i + 1}`);
+    }
+    await ctx.octokit.graphql(ADD_SUB_ISSUE_MUTATION2, {
+      parentId,
+      childId: issueId
+    });
+    const subIssueLabels = ["triaged"];
+    if (subIssue.type) {
+      subIssueLabels.push(subIssue.type);
+    }
+    await ctx.octokit.rest.issues.addLabels({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: issueNumber,
+      labels: subIssueLabels
+    });
+    if (projectInfo) {
+      await addToProjectWithStatus(ctx, issueId, projectInfo, "Ready");
+    }
+    subIssueNumbers.push(issueNumber);
+    core12.info(`Created sub-issue #${issueNumber}: ${formattedTitle}`);
+  }
+  return subIssueNumbers;
+}
+async function linkRelatedIssues(ctx, issueNumber, relatedIssues) {
+  if (relatedIssues.length === 0) return;
+  const links = relatedIssues.map((num) => `#${num}`).join(", ");
+  const body = `**Related issues:** ${links}`;
+  try {
+    await ctx.octokit.rest.issues.createComment({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: issueNumber,
+      body
+    });
+    core12.info(`Linked related issues: ${links}`);
+  } catch (error6) {
+    core12.warning(`Failed to link related issues: ${error6}`);
+  }
+}
+var GET_PROJECT_FIELDS_QUERY = `
+query($owner: String!, $projectNumber: Int!) {
+  organization(login: $owner) {
+    projectV2(number: $projectNumber) {
+      id
+      fields(first: 30) {
+        nodes {
+          ... on ProjectV2SingleSelectField {
+            id
+            name
+            options { id name }
+          }
+          ... on ProjectV2Field {
+            id
+            name
+            dataType
+          }
+        }
+      }
+    }
+  }
+}
+`;
+var UPDATE_PROJECT_FIELD_MUTATION2 = `
+mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
+  updateProjectV2ItemFieldValue(input: {
+    projectId: $projectId
+    itemId: $itemId
+    fieldId: $fieldId
+    value: $value
+  }) {
+    projectV2Item { id }
+  }
+}
+`;
+async function getProjectInfo(ctx) {
+  try {
+    const result = await ctx.octokit.graphql(GET_PROJECT_FIELDS_QUERY, {
+      owner: ctx.owner,
+      projectNumber: ctx.projectNumber
+    });
+    const project = result.organization.projectV2;
+    const fields = project.fields.nodes;
+    const projectInfo = {
+      projectId: project.id,
+      statusFieldId: "",
+      statusOptions: {},
+      priorityFieldId: "",
+      priorityOptions: {},
+      sizeFieldId: "",
+      sizeOptions: {},
+      estimateFieldId: ""
+    };
+    for (const field of fields) {
+      if (!field) continue;
+      if (field.name === "Status" && field.options) {
+        projectInfo.statusFieldId = field.id;
+        for (const option of field.options) {
+          projectInfo.statusOptions[option.name] = option.id;
+        }
+      } else if (field.name === "Priority" && field.options) {
+        projectInfo.priorityFieldId = field.id;
+        for (const option of field.options) {
+          projectInfo.priorityOptions[option.name.toLowerCase()] = option.id;
+        }
+      } else if (field.name === "Size" && field.options) {
+        projectInfo.sizeFieldId = field.id;
+        for (const option of field.options) {
+          projectInfo.sizeOptions[option.name.toLowerCase()] = option.id;
+        }
+      } else if (field.name === "Estimate") {
+        projectInfo.estimateFieldId = field.id;
+      }
+    }
+    return projectInfo;
+  } catch (error6) {
+    core12.warning(`Failed to get project info: ${error6}`);
+    return null;
+  }
+}
+async function addToProjectWithStatus(ctx, issueNodeId, projectInfo, status) {
+  try {
+    const addResult = await ctx.octokit.graphql(
+      ADD_ISSUE_TO_PROJECT_MUTATION2,
+      {
+        projectId: projectInfo.projectId,
+        contentId: issueNodeId
+      }
+    );
+    const itemId = addResult.addProjectV2ItemById?.item?.id;
+    if (!itemId) {
+      core12.warning("Failed to add issue to project");
+      return;
+    }
+    const statusOptionId = projectInfo.statusOptions[status];
+    if (statusOptionId && projectInfo.statusFieldId) {
+      await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION2, {
+        projectId: projectInfo.projectId,
+        itemId,
+        fieldId: projectInfo.statusFieldId,
+        value: { singleSelectOptionId: statusOptionId }
+      });
+      core12.info(`Set project status to ${status}`);
+    }
+  } catch (error6) {
+    core12.warning(`Failed to add issue to project with status: ${error6}`);
+  }
+}
+async function applyProjectFields(ctx, issueNumber, classification) {
+  try {
+    const issueQuery = `
+      query($owner: String!, $repo: String!, $issueNumber: Int!) {
+        repository(owner: $owner, name: $repo) {
+          issue(number: $issueNumber) {
+            id
+            projectItems(first: 10) {
+              nodes {
+                id
+                project { number }
+              }
+            }
+          }
+        }
+      }
+    `;
+    const issueResult = await ctx.octokit.graphql(issueQuery, {
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issueNumber
+    });
+    const projectItem = issueResult.repository.issue.projectItems.nodes.find(
+      (item) => item.project.number === ctx.projectNumber
+    );
+    if (!projectItem) {
+      core12.info(`Issue #${issueNumber} not in project ${ctx.projectNumber}`);
+      return;
+    }
+    const projectInfo = await getProjectInfo(ctx);
+    if (!projectInfo) {
+      core12.warning("Could not get project info");
+      return;
+    }
+    if (classification.priority && classification.priority !== "null" && classification.priority !== "none" && projectInfo.priorityFieldId) {
+      const optionId = projectInfo.priorityOptions[classification.priority.toLowerCase()];
+      if (optionId) {
+        await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION2, {
+          projectId: projectInfo.projectId,
+          itemId: projectItem.id,
+          fieldId: projectInfo.priorityFieldId,
+          value: { singleSelectOptionId: optionId }
+        });
+        core12.info(`Set Priority to ${classification.priority}`);
+      }
+    }
+    if (classification.size && projectInfo.sizeFieldId) {
+      const optionId = projectInfo.sizeOptions[classification.size.toLowerCase()];
+      if (optionId) {
+        await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION2, {
+          projectId: projectInfo.projectId,
+          itemId: projectItem.id,
+          fieldId: projectInfo.sizeFieldId,
+          value: { singleSelectOptionId: optionId }
+        });
+        core12.info(`Set Size to ${classification.size}`);
+      }
+    }
+    if (classification.estimate && projectInfo.estimateFieldId) {
+      await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION2, {
+        projectId: projectInfo.projectId,
+        itemId: projectItem.id,
+        fieldId: projectInfo.estimateFieldId,
+        value: { number: classification.estimate }
+      });
+      core12.info(`Set Estimate to ${classification.estimate}`);
+    }
+  } catch (error6) {
+    core12.warning(`Failed to apply project fields: ${error6}`);
+  }
+}
+
+// claude-state-machine/runner/executors/iterate.ts
+var core13 = __toESM(require_core(), 1);
+async function executeApplyIterateOutput(action, ctx, structuredOutput) {
+  const { issueNumber } = action;
+  if (!structuredOutput) {
+    core13.warning("No structured output provided for applyIterateOutput");
+    return { applied: false };
+  }
+  const iterateOutput = structuredOutput;
+  core13.info(`Processing iterate output for issue #${issueNumber}`);
+  core13.startGroup("Iterate Output");
+  core13.info(JSON.stringify(iterateOutput, null, 2));
+  core13.endGroup();
+  if (ctx.dryRun) {
+    core13.info(`[DRY RUN] Would apply iterate output to issue #${issueNumber}`);
+    return { applied: true, status: iterateOutput.status };
+  }
+  if (iterateOutput.status === "completed_todo" && iterateOutput.todo_completed) {
+    await checkOffTodo(ctx, issueNumber, iterateOutput.todo_completed);
+  }
+  switch (iterateOutput.status) {
+    case "completed_todo":
+      core13.info(`Completed todo: ${iterateOutput.todo_completed}`);
+      break;
+    case "waiting_manual":
+      core13.info(`Waiting for manual todo: ${iterateOutput.manual_todo}`);
+      break;
+    case "blocked":
+      core13.warning(`Iteration blocked: ${iterateOutput.blocked_reason}`);
+      break;
+    case "all_done":
+      core13.info("All todos complete - ready for review");
+      break;
+  }
+  if (iterateOutput.agent_notes.length > 0) {
+    core13.info("Agent notes for future iterations:");
+    for (const note of iterateOutput.agent_notes) {
+      core13.info(`  - ${note}`);
+    }
+  }
+  return { applied: true, status: iterateOutput.status };
+}
+async function checkOffTodo(ctx, issueNumber, todoText) {
+  const issue = await ctx.octokit.rest.issues.get({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    issue_number: issueNumber
+  });
+  const body = issue.data.body || "";
+  const normalizedTodoText = todoText.trim().toLowerCase();
+  const lines = body.split("\n");
+  let found = false;
+  const updatedLines = lines.map((line) => {
+    const uncheckedMatch = line.match(/^(\s*)-\s*\[\s*\]\s*(.+)$/);
+    if (uncheckedMatch) {
+      const [, indent, text] = uncheckedMatch;
+      const normalizedLineText = text.trim().toLowerCase();
+      if (normalizedLineText === normalizedTodoText || normalizedLineText.includes(normalizedTodoText) || normalizedTodoText.includes(normalizedLineText)) {
+        found = true;
+        return `${indent}- [x] ${text}`;
+      }
+    }
+    return line;
+  });
+  if (!found) {
+    core13.warning(`Could not find unchecked todo matching: "${todoText}"`);
+    return false;
+  }
+  const updatedBody = updatedLines.join("\n");
+  await ctx.octokit.rest.issues.update({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    issue_number: issueNumber,
+    body: updatedBody
+  });
+  core13.info(`Checked off todo: "${todoText}"`);
+  return true;
+}
+
+// claude-state-machine/runner/signaler.ts
+var core14 = __toESM(require_core(), 1);
+
+// claude-state-machine/runner/runner.ts
+function getOctokitForAction(action, ctx) {
+  const tokenType = action.token || "code";
+  if (tokenType === "review" && ctx.reviewOctokit) {
+    return ctx.reviewOctokit;
+  }
+  return ctx.octokit;
+}
+async function executeAction(action, ctx, chainCtx) {
+  const actionCtx = {
+    ...ctx,
+    octokit: getOctokitForAction(action, ctx)
+  };
+  switch (action.type) {
+    // Project field actions
+    case "updateProjectStatus":
+      return executeUpdateProjectStatus(action, actionCtx);
+    case "incrementIteration":
+      return executeIncrementIteration(action, actionCtx);
+    case "recordFailure":
+      return executeRecordFailure(action, actionCtx);
+    case "clearFailures":
+      return executeClearFailures(action, actionCtx);
+    case "block":
+      return executeBlock(action, actionCtx);
+    // Issue actions
+    case "closeIssue":
+      return executeCloseIssue(action, actionCtx);
+    case "appendHistory":
+      return executeAppendHistory(action, actionCtx);
+    case "updateHistory":
+      return executeUpdateHistory(action, actionCtx);
+    case "updateIssueBody":
+      return executeUpdateIssueBody(action, actionCtx);
+    case "addComment":
+      return executeAddComment(action, actionCtx);
+    case "unassignUser":
+      return executeUnassignUser(action, actionCtx);
+    case "assignUser":
+      return executeAssignUser(action, actionCtx);
+    case "createSubIssues":
+      return executeCreateSubIssues(action, actionCtx);
+    // Git actions
+    case "createBranch":
+      return executeCreateBranch(action, actionCtx);
+    case "gitPush":
+      return executeGitPush(action, actionCtx);
+    // PR actions
+    case "createPR":
+      return executeCreatePR(action, actionCtx);
+    case "convertPRToDraft":
+      return executeConvertPRToDraft(action, actionCtx);
+    case "markPRReady":
+      return executeMarkPRReady(action, actionCtx);
+    case "requestReview":
+      return executeRequestReview(action, actionCtx);
+    case "mergePR":
+      return executeMergePR(action, actionCtx);
+    case "submitReview":
+      return executeSubmitReview(action, actionCtx);
+    case "removeReviewer":
+      return executeRemoveReviewer(action, actionCtx);
+    // Claude actions - handled directly by workflow via run-claude action
+    // The executor should never receive runClaude actions (workflow filters them)
+    case "runClaude":
+      return executeRunClaude(action, actionCtx);
+    // Discussion actions
+    case "addDiscussionComment":
+      return executeAddDiscussionComment(action, actionCtx);
+    case "updateDiscussionBody":
+      return executeUpdateDiscussionBody(action, actionCtx);
+    case "addDiscussionReaction":
+      return executeAddDiscussionReaction(action, actionCtx);
+    case "createIssuesFromDiscussion":
+      return executeCreateIssuesFromDiscussion(action, actionCtx);
+    // Triage actions
+    case "applyTriageOutput":
+      return executeApplyTriageOutput(
+        action,
+        actionCtx,
+        chainCtx?.lastClaudeStructuredOutput
+      );
+    // Iterate actions
+    case "applyIterateOutput":
+      return executeApplyIterateOutput(
+        action,
+        actionCtx,
+        chainCtx?.lastClaudeStructuredOutput
+      );
+    // Control flow actions
+    case "stop":
+      core15.info(`Stopping: ${action.reason}`);
+      return { stopped: true, reason: action.reason };
+    case "log":
+      switch (action.level) {
+        case "debug":
+          core15.debug(action.message);
+          break;
+        case "warning":
+          core15.warning(action.message);
+          break;
+        case "error":
+          core15.error(action.message);
+          break;
+        default:
+          core15.info(action.message);
+      }
+      return { logged: true };
+    case "noop":
+      core15.debug(`No-op: ${action.reason || "no reason given"}`);
+      return { noop: true };
+    default:
+      throw new Error(`Unknown action type: ${action.type}`);
+  }
+}
+async function executeActions(actions, ctx, options = {}) {
+  const startTime = Date.now();
+  const results = [];
+  let stoppedEarly = false;
+  let stopReason;
+  const chainCtx = {};
+  const { stopOnError = true, logActions = true } = options;
+  for (const action of actions) {
+    const actionStartTime = Date.now();
+    const parseResult = ActionSchema.safeParse(action);
+    if (!parseResult.success) {
+      core15.error(`Invalid action: ${JSON.stringify(action)}`);
+      results.push({
+        action,
+        success: false,
+        skipped: false,
+        error: new Error(`Invalid action: ${parseResult.error.message}`),
+        durationMs: Date.now() - actionStartTime
+      });
+      if (stopOnError) {
+        stoppedEarly = true;
+        stopReason = "Invalid action";
+        break;
+      }
+      continue;
+    }
+    const validatedAction = parseResult.data;
+    if (logActions) {
+      core15.info(`Executing action: ${validatedAction.type}`);
+    }
+    if (ctx.dryRun) {
+      core15.info(`[DRY RUN] Would execute: ${validatedAction.type}`);
+      results.push({
+        action: validatedAction,
+        success: true,
+        skipped: true,
+        durationMs: Date.now() - actionStartTime
+      });
+      continue;
+    }
+    try {
+      const result = await executeAction(validatedAction, ctx, chainCtx);
+      if (validatedAction.type === "runClaude") {
+        const claudeResult = result;
+        if (claudeResult.structuredOutput) {
+          chainCtx.lastClaudeStructuredOutput = claudeResult.structuredOutput;
+          core15.info("Stored structured output for subsequent actions");
+        }
+      }
+      const branchResult = result;
+      if (validatedAction.type === "createBranch" && branchResult.shouldStop) {
+        results.push({
+          action: validatedAction,
+          success: true,
+          skipped: false,
+          result,
+          durationMs: Date.now() - actionStartTime
+        });
+        stoppedEarly = true;
+        stopReason = "branch_rebased_and_pushed";
+        core15.info(
+          "Stopping after branch rebase - CI will re-trigger with up-to-date branch"
+        );
+        break;
+      }
+      results.push({
+        action: validatedAction,
+        success: true,
+        skipped: false,
+        result,
+        durationMs: Date.now() - actionStartTime
+      });
+      if (isTerminalAction(validatedAction)) {
+        stoppedEarly = true;
+        stopReason = validatedAction.type === "stop" ? validatedAction.reason : `${validatedAction.type} action`;
+        break;
+      }
+    } catch (error6) {
+      const err = error6 instanceof Error ? error6 : new Error(String(error6));
+      core15.error(`Action failed: ${validatedAction.type} - ${err.message}`);
+      results.push({
+        action: validatedAction,
+        success: false,
+        skipped: false,
+        error: err,
+        durationMs: Date.now() - actionStartTime
+      });
+      if (stopOnError && shouldStopOnError(validatedAction.type)) {
+        stoppedEarly = true;
+        stopReason = `Error in ${validatedAction.type}: ${err.message}`;
+        break;
+      }
+    }
+  }
+  return {
+    success: results.every((r) => r.success || r.skipped),
+    results,
+    totalDurationMs: Date.now() - startTime,
+    stoppedEarly,
+    stopReason
+  };
+}
+function createRunnerContext(octokit, owner, repo, projectNumber, options = {}) {
+  return {
+    octokit,
+    reviewOctokit: options.reviewOctokit,
+    owner,
+    repo,
+    projectNumber,
+    serverUrl: options.serverUrl || process.env.GITHUB_SERVER_URL || "https://github.com",
+    dryRun: options.dryRun,
+    mockOutputs: options.mockOutputs
+  };
+}
+
+// claude-test-runner/src/configurable/runner.ts
+var TEST_LABEL = "test:automation";
+var TEST_TITLE_PREFIX = "[TEST]";
+var ConfigurableTestRunner = class {
+  scenario;
+  inputs;
+  config;
+  issueNumber = null;
+  constructor(scenario, inputs, config) {
+    this.scenario = scenario;
+    this.inputs = inputs;
+    this.config = config;
+  }
+  /**
+   * Run the test scenario
+   */
+  async run() {
+    const startTime = Date.now();
+    const transitions = [];
+    try {
+      const startIndex = this.findStartIndex();
+      core16.info(
+        `Starting at state: ${this.scenario.orderedStates[startIndex]} (index ${startIndex})`
+      );
+      const firstFixture = this.scenario.fixtures.get(
+        this.scenario.orderedStates[0]
+      );
+      this.issueNumber = await this.createTestIssue(firstFixture);
+      core16.info(`Created test issue #${this.issueNumber}`);
+      if (startIndex > 0) {
+        const startState = this.scenario.orderedStates[startIndex];
+        const startFixture = this.scenario.fixtures.get(startState);
+        await this.setupGitHubState(startFixture);
+        core16.info(`Set up GitHub state for '${startState}'`);
+      }
+      for (let i = startIndex; i < this.scenario.orderedStates.length - 1; i++) {
+        const currentState = this.scenario.orderedStates[i];
+        const nextState = this.scenario.orderedStates[i + 1];
+        const currentFixture = this.scenario.fixtures.get(currentState);
+        const nextFixture = this.scenario.fixtures.get(nextState);
+        core16.info(`
+${"=".repeat(60)}`);
+        core16.info(`Transition: ${currentState} -> ${nextState}`);
+        core16.info(`${"=".repeat(60)}`);
+        const transitionStartTime = Date.now();
+        try {
+          await this.executeStateTransition(currentFixture);
+          const verificationErrors = await this.verifyGitHubState(nextFixture);
+          const transitionResult = {
+            fromState: currentState,
+            toState: nextState,
+            success: verificationErrors.length === 0,
+            durationMs: Date.now() - transitionStartTime,
+            verificationErrors: verificationErrors.length > 0 ? verificationErrors : void 0
+          };
+          transitions.push(transitionResult);
+          if (verificationErrors.length > 0) {
+            core16.error(`Verification failed:`);
+            for (const error6 of verificationErrors) {
+              core16.error(`  - ${error6}`);
+            }
+            return {
+              status: "failed",
+              issueNumber: this.issueNumber,
+              transitions,
+              totalDurationMs: Date.now() - startTime,
+              error: `Verification failed: ${verificationErrors.join("; ")}`
+            };
+          }
+          core16.info(`\u2713 Transition verified`);
+          if (!this.inputs.continue) {
+            return {
+              status: "paused",
+              currentState,
+              nextState,
+              issueNumber: this.issueNumber,
+              transitions,
+              totalDurationMs: Date.now() - startTime
+            };
+          }
+        } catch (error6) {
+          const errorMessage = error6 instanceof Error ? error6.message : String(error6);
+          transitions.push({
+            fromState: currentState,
+            toState: nextState,
+            success: false,
+            error: errorMessage,
+            durationMs: Date.now() - transitionStartTime
+          });
+          return {
+            status: "error",
+            issueNumber: this.issueNumber,
+            transitions,
+            totalDurationMs: Date.now() - startTime,
+            error: errorMessage
+          };
+        }
+      }
+      return {
+        status: "completed",
+        issueNumber: this.issueNumber,
+        transitions,
+        totalDurationMs: Date.now() - startTime
+      };
+    } catch (error6) {
+      return {
+        status: "error",
+        issueNumber: this.issueNumber ?? 0,
+        transitions,
+        totalDurationMs: Date.now() - startTime,
+        error: error6 instanceof Error ? error6.message : String(error6)
+      };
+    }
+  }
+  /**
+   * Find the starting index based on start_step input
+   */
+  findStartIndex() {
+    if (!this.inputs.startStep) {
+      return 0;
+    }
+    const index = this.scenario.orderedStates.indexOf(
+      this.inputs.startStep
+    );
+    if (index === -1) {
+      throw new Error(
+        `Unknown state: ${this.inputs.startStep}. Available states: ${this.scenario.orderedStates.join(", ")}`
+      );
+    }
+    return index;
+  }
+  /**
+   * Create a test issue from the first fixture
+   */
+  async createTestIssue(fixture) {
+    const title = `${TEST_TITLE_PREFIX} ${fixture.issue.title}`;
+    const labels = [...fixture.issue.labels, TEST_LABEL];
+    const response = await this.config.octokit.rest.issues.create({
+      owner: this.config.owner,
+      repo: this.config.repo,
+      title,
+      body: fixture.issue.body,
+      labels
+    });
+    const issueNumber = response.data.number;
+    if (fixture.issue.projectStatus) {
+      await this.setProjectField(issueNumber, "Status", fixture.issue.projectStatus);
+    }
+    if (fixture.issue.iteration > 0) {
+      await this.setProjectField(issueNumber, "Iteration", fixture.issue.iteration);
+    }
+    if (fixture.issue.failures > 0) {
+      await this.setProjectField(issueNumber, "Failures", fixture.issue.failures);
+    }
+    if (fixture.issue.assignees.includes("nopo-bot")) {
+      await this.config.octokit.rest.issues.addAssignees({
+        owner: this.config.owner,
+        repo: this.config.repo,
+        issue_number: issueNumber,
+        assignees: ["nopo-bot"]
+      });
+    }
+    return issueNumber;
+  }
+  /**
+   * Set up GitHub state to match a fixture (for starting mid-flow)
+   */
+  async setupGitHubState(fixture) {
+    if (!this.issueNumber) {
+      throw new Error("Issue not created yet");
+    }
+    if (fixture.issue.projectStatus) {
+      await this.setProjectField(this.issueNumber, "Status", fixture.issue.projectStatus);
+    }
+    await this.setProjectField(this.issueNumber, "Iteration", fixture.issue.iteration);
+    await this.setProjectField(this.issueNumber, "Failures", fixture.issue.failures);
+    await this.config.octokit.rest.issues.update({
+      owner: this.config.owner,
+      repo: this.config.repo,
+      issue_number: this.issueNumber,
+      body: fixture.issue.body
+    });
+    await this.config.octokit.rest.issues.setLabels({
+      owner: this.config.owner,
+      repo: this.config.repo,
+      issue_number: this.issueNumber,
+      labels: [...fixture.issue.labels, TEST_LABEL]
+    });
+    for (const subIssue of fixture.issue.subIssues) {
+      await this.createSubIssue(subIssue);
+    }
+  }
+  /**
+   * Execute a state transition
+   */
+  async executeStateTransition(fixture) {
+    if (!this.issueNumber) {
+      throw new Error("Issue not created yet");
+    }
+    const mockOutput = this.inputs.mockClaude && fixture.claudeMock ? this.scenario.claudeMocks.get(fixture.claudeMock)?.output : void 0;
+    const context2 = this.buildMachineContext(fixture);
+    core16.info(`Building machine context for state: ${fixture.state}`);
+    core16.startGroup("Machine Context");
+    core16.info(JSON.stringify(context2, null, 2));
+    core16.endGroup();
+    const actor = createActor(claudeMachine, { input: context2 });
+    actor.start();
+    const snapshot = actor.getSnapshot();
+    actor.stop();
+    const pendingActions = snapshot.context.pendingActions;
+    core16.info(`State machine produced ${pendingActions.length} actions`);
+    core16.info(`Target state: ${String(snapshot.value)}`);
+    if (pendingActions.length === 0) {
+      core16.warning("No actions to execute - state machine produced no actions");
+      return;
+    }
+    const mockOutputs = mockOutput && fixture.claudeMock ? { [this.getPromptDirFromMock(fixture.claudeMock)]: mockOutput } : void 0;
+    if (this.inputs.mockClaude && mockOutputs) {
+      core16.info(`Using mock Claude mode with output: ${fixture.claudeMock}`);
+      core16.startGroup("Mock Output");
+      core16.info(JSON.stringify(mockOutput, null, 2));
+      core16.endGroup();
+    }
+    const runnerCtx = createRunnerContext(
+      this.config.octokit,
+      this.config.owner,
+      this.config.repo,
+      this.config.projectNumber,
+      {
+        dryRun: false,
+        mockOutputs
+      }
+    );
+    core16.info("Executing actions...");
+    const result = await executeActions(pendingActions, runnerCtx);
+    if (!result.success) {
+      const failedActions = result.results.filter((r) => !r.success && !r.skipped);
+      throw new Error(
+        `Action execution failed: ${failedActions.map((r) => r.error?.message).join(", ")}`
+      );
+    }
+    core16.info(`Executed ${result.results.filter((r) => !r.skipped).length} actions successfully`);
+    if (fixture.ciResult) {
+      await this.triggerCI(fixture.ciResult);
+    }
+  }
+  /**
+   * Build MachineContext from a fixture
+   */
+  buildMachineContext(fixture) {
+    const issue = {
+      ...fixture.issue,
+      number: this.issueNumber
+    };
+    let trigger = "issue_edited";
+    if (fixture.state === "triaging") {
+      trigger = "issue_opened";
+    } else if (fixture.state === "reviewing" || fixture.state === "prReviewing") {
+      trigger = "pull_request_review_requested";
+    } else if (fixture.state === "processingCI") {
+      trigger = "workflow_run_completed";
+    } else if (fixture.state === "processingReview") {
+      trigger = "pull_request_review_submitted";
+    }
+    return {
+      trigger,
+      owner: this.config.owner,
+      repo: this.config.repo,
+      issue,
+      parentIssue: null,
+      currentPhase: null,
+      totalPhases: 0,
+      currentSubIssue: null,
+      ciResult: fixture.ciResult || null,
+      ciRunUrl: null,
+      ciCommitSha: null,
+      reviewDecision: fixture.reviewDecision || null,
+      reviewerId: null,
+      branch: `claude/issue/${this.issueNumber}`,
+      hasBranch: fixture.issue.iteration > 0,
+      pr: null,
+      hasPR: false,
+      maxRetries: 5,
+      botUsername: "nopo-bot",
+      discussion: null,
+      commentContextType: null,
+      commentContextDescription: null,
+      releaseEvent: null,
+      workflowStartedAt: null
+    };
+  }
+  /**
+   * Extract prompt directory from mock reference (e.g., "iterate/broken-code" -> "iterate")
+   */
+  getPromptDirFromMock(mockRef) {
+    return mockRef.split("/")[0];
+  }
+  /**
+   * Trigger CI workflow (mock or real)
+   */
+  async triggerCI(result) {
+    if (!this.issueNumber) return;
+    const branch = `test/scenario-${this.scenario.name}/${this.issueNumber}`;
+    if (this.inputs.mockCI) {
+      const mockResult = result === "success" ? "pass" : "fail";
+      core16.info(`Triggering mock CI with result: ${mockResult}`);
+      await exec11.exec("gh", [
+        "workflow",
+        "run",
+        "ci.yml",
+        "-f",
+        `mock=${mockResult}`,
+        "-f",
+        `ref=${branch}`
+      ]);
+    } else {
+      core16.info("Waiting for real CI...");
+    }
+    await this.waitForCI();
+  }
+  /**
+   * Wait for CI workflow to complete
+   */
+  async waitForCI() {
+    await new Promise((resolve2) => setTimeout(resolve2, 5e3));
+  }
+  /**
+   * Verify GitHub state matches expected fixture
+   */
+  async verifyGitHubState(expected) {
+    if (!this.issueNumber) {
+      return ["Issue not created"];
+    }
+    const errors = [];
+    const issueResponse = await this.config.octokit.rest.issues.get({
+      owner: this.config.owner,
+      repo: this.config.repo,
+      issue_number: this.issueNumber
+    });
+    const issue = issueResponse.data;
+    const expectedState = expected.issue.state;
+    const actualState = issue.state === "open" ? "OPEN" : "CLOSED";
+    if (actualState !== expectedState) {
+      errors.push(`Issue state: expected ${expectedState}, got ${actualState}`);
+    }
+    const actualStatus = await this.getProjectField(this.issueNumber, "Status");
+    if (expected.issue.projectStatus && actualStatus !== expected.issue.projectStatus) {
+      errors.push(
+        `Project status: expected ${expected.issue.projectStatus}, got ${actualStatus}`
+      );
+    }
+    const actualIteration = await this.getProjectField(this.issueNumber, "Iteration");
+    if (actualIteration !== expected.issue.iteration) {
+      errors.push(
+        `Iteration: expected ${expected.issue.iteration}, got ${actualIteration}`
+      );
+    }
+    const actualFailures = await this.getProjectField(this.issueNumber, "Failures");
+    if (actualFailures !== expected.issue.failures) {
+      errors.push(
+        `Failures: expected ${expected.issue.failures}, got ${actualFailures}`
+      );
+    }
+    return errors;
+  }
+  /**
+   * Create a sub-issue
+   */
+  async createSubIssue(subIssue) {
+    const response = await this.config.octokit.rest.issues.create({
+      owner: this.config.owner,
+      repo: this.config.repo,
+      title: subIssue.title,
+      body: subIssue.body,
+      labels: [TEST_LABEL]
+    });
+    const issueNumber = response.data.number;
+    if (subIssue.projectStatus) {
+      await this.setProjectField(issueNumber, "Status", subIssue.projectStatus);
+    }
+    return issueNumber;
+  }
+  /**
+   * Set a project field on an issue
+   */
+  async setProjectField(issueNumber, field, value) {
+    core16.debug(`Would set ${field}=${value} on issue #${issueNumber}`);
+  }
+  /**
+   * Get a project field from an issue
+   */
+  async getProjectField(issueNumber, field) {
+    core16.debug(`Would get ${field} from issue #${issueNumber}`);
+    return null;
+  }
+};
+async function runConfigurableTest(scenario, inputs, config) {
+  const runner = new ConfigurableTestRunner(scenario, inputs, config);
+  return runner.run();
+}
+
 // claude-test-runner/index.ts
 async function triggerCleanup(octokit, owner, repo, issueNumber) {
-  core6.info(`Triggering cleanup for issue #${issueNumber}`);
+  core17.info(`Triggering cleanup for issue #${issueNumber}`);
   try {
     await octokit.rest.actions.createWorkflowDispatch({
       owner,
@@ -35594,10 +38710,10 @@ async function triggerCleanup(octokit, owner, repo, issueNumber) {
         action: "close"
       }
     });
-    core6.info("Cleanup workflow triggered");
-  } catch (error3) {
-    core6.warning(`Could not trigger cleanup workflow: ${error3}`);
-    core6.info("Attempting direct close via API...");
+    core17.info("Cleanup workflow triggered");
+  } catch (error6) {
+    core17.warning(`Could not trigger cleanup workflow: ${error6}`);
+    core17.info("Attempting direct close via API...");
     try {
       await octokit.rest.issues.update({
         owner,
@@ -35606,9 +38722,9 @@ async function triggerCleanup(octokit, owner, repo, issueNumber) {
         state: "closed",
         state_reason: "not_planned"
       });
-      core6.info(`Closed issue #${issueNumber} directly`);
+      core17.info(`Closed issue #${issueNumber} directly`);
     } catch (closeError) {
-      core6.warning(`Failed to close issue: ${closeError}`);
+      core17.warning(`Failed to close issue: ${closeError}`);
     }
   }
 }
@@ -35622,16 +38738,16 @@ async function run() {
       10
     );
     const cleanupOnFailure = getOptionalInput("cleanup_on_failure") === "true";
-    const octokit = github.getOctokit(token);
-    const { owner, repo } = github.context.repo;
+    const octokit = github2.getOctokit(token);
+    const { owner, repo } = github2.context.repo;
     if (action === "run") {
       const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
       const fixtureJson = getOptionalInput("fixture_json");
       const fixture = fixtureJson ? JSON.parse(fixtureJson) : { name: "manual", description: "Manual test run" };
-      core6.info(`=== Claude Test Runner ===`);
-      core6.info(`Action: run`);
-      core6.info(`Issue: #${issueNumber}`);
-      core6.info(`Fixture: ${fixture.name}`);
+      core17.info(`=== Claude Test Runner ===`);
+      core17.info(`Action: run`);
+      core17.info(`Issue: #${issueNumber}`);
+      core17.info(`Fixture: ${fixture.name}`);
       const result = await runTest({
         fixture,
         issueNumber,
@@ -35648,14 +38764,14 @@ async function run() {
         total_duration_ms: String(result.totalDurationMs)
       });
       if (result.status !== "done") {
-        core6.warning(`Test failed: ${result.diagnosis}`);
-        core6.warning(`Suggested fix: ${result.suggestedFix}`);
+        core17.warning(`Test failed: ${result.diagnosis}`);
+        core17.warning(`Suggested fix: ${result.suggestedFix}`);
         if (cleanupOnFailure) {
           await triggerCleanup(octokit, owner, repo, issueNumber);
         }
-        core6.setFailed(`Test failed: ${result.diagnosis}`);
+        core17.setFailed(`Test failed: ${result.diagnosis}`);
       } else {
-        core6.info(`Test passed! Completed ${result.phases.length} phases`);
+        core17.info(`Test passed! Completed ${result.phases.length} phases`);
       }
       return;
     }
@@ -35663,9 +38779,9 @@ async function run() {
       const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
       const fixtureJson = getOptionalInput("fixture_json");
       const fixture = fixtureJson ? JSON.parse(fixtureJson) : { name: "manual", description: "Manual diagnosis" };
-      core6.info(`=== Claude Test Runner ===`);
-      core6.info(`Action: diagnose`);
-      core6.info(`Issue: #${issueNumber}`);
+      core17.info(`=== Claude Test Runner ===`);
+      core17.info(`Action: diagnose`);
+      core17.info(`Issue: #${issueNumber}`);
       const result = await diagnose({
         fixture,
         issueNumber,
@@ -35681,14 +38797,14 @@ async function run() {
         phases_completed: "0",
         total_duration_ms: String(result.totalDurationMs)
       });
-      core6.info(`
+      core17.info(`
 Diagnosis Result:`);
-      core6.info(`Status: ${result.status}`);
+      core17.info(`Status: ${result.status}`);
       if (result.suggestedFix) {
-        core6.info(`Suggested Fix: ${result.suggestedFix}`);
+        core17.info(`Suggested Fix: ${result.suggestedFix}`);
       }
       if (result.diagnosis) {
-        core6.info(`Diagnosis: ${result.diagnosis}`);
+        core17.info(`Diagnosis: ${result.diagnosis}`);
       }
       return;
     }
@@ -35701,10 +38817,10 @@ Diagnosis Result:`);
         description: "Wait for status",
         timeout: parseInt(getOptionalInput("timeout") || "300", 10)
       };
-      core6.info(`=== Claude Test Runner ===`);
-      core6.info(`Action: wait`);
-      core6.info(`Issue: #${issueNumber}`);
-      core6.info(`Target Status: ${targetStatus}`);
+      core17.info(`=== Claude Test Runner ===`);
+      core17.info(`Action: wait`);
+      core17.info(`Issue: #${issueNumber}`);
+      core17.info(`Target Status: ${targetStatus}`);
       const result = await waitForStatus(
         {
           fixture,
@@ -35727,11 +38843,11 @@ Diagnosis Result:`);
         if (cleanupOnFailure) {
           await triggerCleanup(octokit, owner, repo, issueNumber);
         }
-        core6.setFailed(
+        core17.setFailed(
           `Failed to reach status '${targetStatus}': ${result.diagnosis}`
         );
       } else {
-        core6.info(`Issue reached status '${targetStatus}'`);
+        core17.info(`Issue reached status '${targetStatus}'`);
       }
       return;
     }
@@ -35741,9 +38857,9 @@ Diagnosis Result:`);
       const timeoutMs = parseInt(getOptionalInput("timeout") || "300", 10) * 1e3;
       const pollIntervalMs = parseInt(getOptionalInput("poll_interval") || "10", 10) * 1e3;
       const fixture = fixtureJson ? JSON.parse(fixtureJson) : { name: "wait-triage", description: "Wait for triage" };
-      core6.info(`=== Claude Test Runner ===`);
-      core6.info(`Action: wait-triage`);
-      core6.info(`Issue: #${issueNumber}`);
+      core17.info(`=== Claude Test Runner ===`);
+      core17.info(`Action: wait-triage`);
+      core17.info(`Issue: #${issueNumber}`);
       const result = await waitForTriage({
         octokit,
         owner,
@@ -35766,11 +38882,11 @@ Diagnosis Result:`);
         if (cleanupOnFailure) {
           await triggerCleanup(octokit, owner, repo, issueNumber);
         }
-        core6.setFailed(
+        core17.setFailed(
           `Triage verification failed: ${result.errors.join("; ")}`
         );
       } else {
-        core6.info("Triage completed and verified successfully");
+        core17.info("Triage completed and verified successfully");
       }
       return;
     }
@@ -35791,12 +38907,12 @@ Diagnosis Result:`);
           review: ["approved"]
         }
       } : void 0;
-      core6.info(`=== Claude Test Runner ===`);
-      core6.info(`Action: wait-phase`);
-      core6.info(`Issue: #${issueNumber}`);
-      core6.info(`Phase: ${phaseNumber}`);
+      core17.info(`=== Claude Test Runner ===`);
+      core17.info(`Action: wait-phase`);
+      core17.info(`Issue: #${issueNumber}`);
+      core17.info(`Phase: ${phaseNumber}`);
       if (e2eConfig) {
-        core6.info(`E2E Run ID: ${e2eConfig.runId}`);
+        core17.info(`E2E Run ID: ${e2eConfig.runId}`);
       }
       const result = await waitForPhase({
         octokit,
@@ -35826,19 +38942,19 @@ Diagnosis Result:`);
         if (cleanupOnFailure) {
           await triggerCleanup(octokit, owner, repo, issueNumber);
         }
-        core6.setFailed(
+        core17.setFailed(
           `Phase ${phaseNumber} verification failed: ${result.errors.join("; ")}`
         );
       } else {
-        core6.info(`Phase ${phaseNumber} completed and verified successfully`);
+        core17.info(`Phase ${phaseNumber} completed and verified successfully`);
       }
       return;
     }
     if (action === "status") {
       const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
-      core6.info(`=== Claude Test Runner ===`);
-      core6.info(`Action: status`);
-      core6.info(`Issue: #${issueNumber}`);
+      core17.info(`=== Claude Test Runner ===`);
+      core17.info(`Action: status`);
+      core17.info(`Issue: #${issueNumber}`);
       const state = await fetchGitHubState(
         octokit,
         owner,
@@ -35867,45 +38983,45 @@ Diagnosis Result:`);
         predicted_status: predicted.expectedStatus || "",
         workflow_status: workflowRuns.length > 0 ? workflowRuns[0]?.status || "unknown" : "none"
       });
-      core6.info(`
+      core17.info(`
 Current State:`);
-      core6.info(`  Status: ${state.projectStatus || "unknown"}`);
-      core6.info(`  Iteration: ${state.iteration}`);
-      core6.info(`  Failures: ${state.failures}`);
-      core6.info(`  Bot Assigned: ${state.botAssigned}`);
-      core6.info(
+      core17.info(`  Status: ${state.projectStatus || "unknown"}`);
+      core17.info(`  Iteration: ${state.iteration}`);
+      core17.info(`  Failures: ${state.failures}`);
+      core17.info(`  Bot Assigned: ${state.botAssigned}`);
+      core17.info(
         `  PR: ${state.prNumber ? `#${state.prNumber} (${state.prState})` : "none"}`
       );
-      core6.info(`  Branch: ${state.branch || "none"}`);
-      core6.info(`  Unchecked Todos: ${state.uncheckedTodos}`);
-      core6.info(`
+      core17.info(`  Branch: ${state.branch || "none"}`);
+      core17.info(`  Unchecked Todos: ${state.uncheckedTodos}`);
+      core17.info(`
 Prediction:`);
-      core6.info(`  Expected State: ${predicted.expectedState}`);
-      core6.info(
+      core17.info(`  Expected State: ${predicted.expectedState}`);
+      core17.info(
         `  Expected Status: ${predicted.expectedStatus || "unchanged"}`
       );
-      core6.info(`  Description: ${predicted.description}`);
+      core17.info(`  Description: ${predicted.description}`);
       return;
     }
     if (action === "validate") {
       const fixtureJson = getRequiredInput("fixture_json");
-      core6.info(`=== Claude Test Runner ===`);
-      core6.info(`Action: validate`);
+      core17.info(`=== Claude Test Runner ===`);
+      core17.info(`Action: validate`);
       let fixture;
       try {
         fixture = JSON.parse(fixtureJson);
-      } catch (error3) {
-        core6.setFailed(`Invalid JSON: ${error3}`);
+      } catch (error6) {
+        core17.setFailed(`Invalid JSON: ${error6}`);
         setOutputs({
           valid: "false",
-          errors: `Invalid JSON: ${error3}`,
+          errors: `Invalid JSON: ${error6}`,
           warnings: ""
         });
         return;
       }
       const result = validateFixture(fixture);
       const formatted = formatValidationResult("fixture", result);
-      core6.info(`
+      core17.info(`
 ${formatted}`);
       setOutputs({
         valid: String(result.valid),
@@ -35913,16 +39029,66 @@ ${formatted}`);
         warnings: result.warnings.join("; ")
       });
       if (!result.valid) {
-        core6.setFailed(`Fixture validation failed`);
+        core17.setFailed(`Fixture validation failed`);
       }
       return;
     }
-    core6.setFailed(`Unknown action: ${action}`);
-  } catch (error3) {
-    if (error3 instanceof Error) {
-      core6.setFailed(error3.message);
+    if (action === "run-configurable") {
+      const scenarioName = getRequiredInput("scenario_name");
+      const continueRun = getOptionalInput("continue") !== "false";
+      const mockClaude = getOptionalInput("mock_claude") !== "false";
+      const mockCI = getOptionalInput("mock_ci") !== "false";
+      const startStep = getOptionalInput("start_step");
+      core17.info(`=== Claude Test Runner ===`);
+      core17.info(`Action: run-configurable`);
+      core17.info(`Scenario: ${scenarioName}`);
+      core17.info(`Continue: ${continueRun}`);
+      core17.info(`Mock Claude: ${mockClaude}`);
+      core17.info(`Mock CI: ${mockCI}`);
+      if (startStep) {
+        core17.info(`Start Step: ${startStep}`);
+      }
+      const scenario = await loadScenario(scenarioName);
+      const inputs = {
+        continue: continueRun,
+        startStep: startStep || void 0,
+        mockClaude,
+        mockCI
+      };
+      const result = await runConfigurableTest(scenario, inputs, {
+        octokit,
+        owner,
+        repo,
+        projectNumber
+      });
+      setOutputs({
+        status: result.status,
+        issue_number: String(result.issueNumber),
+        transitions: JSON.stringify(result.transitions),
+        total_duration_ms: String(result.totalDurationMs),
+        current_state: result.currentState || "",
+        next_state: result.nextState || "",
+        error: result.error || ""
+      });
+      if (result.status === "failed" || result.status === "error") {
+        core17.setFailed(`Test ${result.status}: ${result.error}`);
+      } else if (result.status === "completed") {
+        core17.info(
+          `Test completed successfully with ${result.transitions.length} transitions`
+        );
+      } else if (result.status === "paused") {
+        core17.info(
+          `Test paused at ${result.currentState} -> ${result.nextState}`
+        );
+      }
+      return;
+    }
+    core17.setFailed(`Unknown action: ${action}`);
+  } catch (error6) {
+    if (error6 instanceof Error) {
+      core17.setFailed(error6.message);
     } else {
-      core6.setFailed("An unexpected error occurred");
+      core17.setFailed("An unexpected error occurred");
     }
   }
 }
