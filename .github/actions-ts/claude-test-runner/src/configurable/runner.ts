@@ -257,7 +257,9 @@ class ConfigurableTestRunner {
         if (nextState) {
           const nextFixture = this.scenario.fixtures.get(nextState)!;
           await this.applyStateTransitionSideEffects(startFixture, nextFixture);
-          core.info(`Applied side effects for '${startState}' -> '${nextState}'`);
+          core.info(
+            `Applied side effects for '${startState}' -> '${nextState}'`,
+          );
 
           // Update the fixture data in memory to reflect the side effects
           // This ensures buildMachineContext uses the correct state
@@ -885,6 +887,7 @@ Issue: #${this.issueNumber}
     };
 
     // Determine trigger based on state and context
+    // Note: fixture may have been modified by syncFixtureWithSideEffects
     let trigger: MachineContext["trigger"] = "issue_edited";
     if (fixture.state === "detecting") {
       // Detecting state needs to determine what to do
@@ -894,7 +897,13 @@ Issue: #${this.issueNumber}
         trigger = "issue_assigned";
       }
     } else if (fixture.state === "triaging") {
-      trigger = "issue_triage";
+      // If nopo-bot is assigned (via side effects), use issue_assigned trigger
+      // to route to iterating instead of re-running triage
+      if (fixture.issue.assignees.includes("nopo-bot")) {
+        trigger = "issue_assigned";
+      } else {
+        trigger = "issue_triage";
+      }
     } else if (
       fixture.state === "reviewing" ||
       fixture.state === "prReviewing"

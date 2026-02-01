@@ -38534,7 +38534,9 @@ var ConfigurableTestRunner = class {
         if (nextState) {
           const nextFixture = this.scenario.fixtures.get(nextState);
           await this.applyStateTransitionSideEffects(startFixture, nextFixture);
-          core16.info(`Applied side effects for '${startState}' -> '${nextState}'`);
+          core16.info(
+            `Applied side effects for '${startState}' -> '${nextState}'`
+          );
           this.syncFixtureWithSideEffects(startFixture, nextFixture);
         }
       }
@@ -39020,7 +39022,11 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
         trigger = "issue_assigned";
       }
     } else if (fixture.state === "triaging") {
-      trigger = "issue_triage";
+      if (fixture.issue.assignees.includes("nopo-bot")) {
+        trigger = "issue_assigned";
+      } else {
+        trigger = "issue_triage";
+      }
     } else if (fixture.state === "reviewing" || fixture.state === "prReviewing") {
       trigger = "pr_review_requested";
     } else if (fixture.state === "processingCI") {
