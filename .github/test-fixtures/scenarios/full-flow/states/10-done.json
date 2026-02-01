@@ -8,7 +8,7 @@
     "projectStatus": "Done",
     "iteration": 2,
     "failures": 0,
-    "assignees": [],
+    "assignees": ["nopo-bot"],
     "labels": ["enhancement", "priority:medium", "topic:testing", "triaged"],
     "subIssues": [],
     "hasSubIssues": false,
