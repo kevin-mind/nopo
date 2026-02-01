@@ -6,7 +6,7 @@
     "state": "OPEN",
     "body": "## Description\n\nTest scenario for complete happy path flow.\n\n## Approach\n\nImplement the feature and add tests.\n\n## Todo\n\n- [ ] Implement the feature\n- [ ] Add tests\n\n## Iteration History\n\n<!-- iteration_history_start -->\n<!-- iteration_history_end -->",
     "projectStatus": "In progress",
-    "iteration": 0,
+    "iteration": 1,
     "failures": 0,
     "assignees": ["nopo-bot"],
     "labels": ["enhancement", "priority:medium", "topic:testing", "triaged"],
@@ -18,6 +18,5 @@
       "completed": 0,
       "uncheckedNonManual": 2
     }
-  },
-  "claudeMock": "iterate/perfect-code"
+  }
 }
