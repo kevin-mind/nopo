@@ -40,6 +40,10 @@ inputs:
     description: If true, log actions without executing
     required: false
     default: "false"
+  mock_outputs:
+    description: JSON object with mock outputs for Claude prompts (skip real Claude in test mode)
+    required: false
+    default: ""
 
 outputs:
   success:

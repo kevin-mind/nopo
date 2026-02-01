@@ -62,6 +62,18 @@ type Octokit = InstanceType<typeof GitHub>;
  * - octokit (code token): For code operations (push, PR, project fields)
  * - reviewOctokit (review token): For review operations (submit reviews)
  */
+/**
+ * Mock outputs for Claude prompts (used in test mode to skip real Claude calls)
+ */
+interface MockOutputs {
+  triage?: Record<string, unknown>;
+  iterate?: Record<string, unknown>;
+  review?: Record<string, unknown>;
+  comment?: Record<string, unknown>;
+  "review-response"?: Record<string, unknown>;
+  [key: string]: Record<string, unknown> | undefined;
+}
+
 export interface RunnerContext {
   /** Primary octokit for code operations (push, PR, project fields) */
   octokit: Octokit;
@@ -74,6 +86,8 @@ export interface RunnerContext {
   dryRun?: boolean;
   /** URL to the workflow run (optional, used for history entries) */
   runUrl?: string;
+  /** Mock outputs for Claude calls (skip real Claude in test mode) */
+  mockOutputs?: MockOutputs;
 }
 
 /**
@@ -427,6 +441,8 @@ export function createRunnerContext(
     serverUrl?: string;
     /** Octokit for review operations (uses different token) */
     reviewOctokit?: Octokit;
+    /** Mock outputs for Claude calls (test mode) */
+    mockOutputs?: MockOutputs;
   } = {},
 ): RunnerContext {
   return {
@@ -440,6 +456,7 @@ export function createRunnerContext(
       process.env.GITHUB_SERVER_URL ||
       "https://github.com",
     dryRun: options.dryRun,
+    mockOutputs: options.mockOutputs,
   };
 }
 
@@ -608,6 +625,8 @@ export function createSignaledRunnerContext(
     reviewOctokit?: Octokit;
     triggerCommentId?: string;
     progress?: ProgressInfo;
+    /** Mock outputs for Claude calls (test mode) */
+    mockOutputs?: MockOutputs;
   } = {},
 ): SignaledRunnerContext {
   return {
@@ -621,6 +640,7 @@ export function createSignaledRunnerContext(
       process.env.GITHUB_SERVER_URL ||
       "https://github.com",
     dryRun: options.dryRun,
+    mockOutputs: options.mockOutputs,
     resourceType,
     resourceNumber,
     job,

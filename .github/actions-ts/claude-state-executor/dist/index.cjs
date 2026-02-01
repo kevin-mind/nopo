@@ -19740,10 +19740,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.error = error3;
-    function warning8(message, properties = {}) {
+    function warning9(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning8;
+    exports2.warning = warning9;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
@@ -29753,6 +29753,26 @@ function getPromptFromAction(action) {
   throw new Error("Either prompt, promptFile, or promptDir must be provided");
 }
 async function executeRunClaude(action, ctx) {
+  if (ctx.mockOutputs && action.promptDir) {
+    const mockOutput = ctx.mockOutputs[action.promptDir];
+    if (mockOutput) {
+      core5.info(
+        `[MOCK MODE] Using mock output for '${action.promptDir}' prompt`
+      );
+      core5.startGroup("Mock Structured Output");
+      core5.info(JSON.stringify(mockOutput, null, 2));
+      core5.endGroup();
+      return {
+        success: true,
+        exitCode: 0,
+        output: JSON.stringify({ structured_output: mockOutput }),
+        structuredOutput: mockOutput
+      };
+    }
+    core5.warning(
+      `[MOCK MODE] No mock output for '${action.promptDir}' prompt, running real Claude`
+    );
+  }
   const args = [
     "--print",
     // Print output to stdout (non-interactive mode)
@@ -30954,7 +30974,8 @@ function createRunnerContext(octokit, owner, repo, projectNumber, options = {}) 
     repo,
     projectNumber,
     serverUrl: options.serverUrl || process.env.GITHUB_SERVER_URL || "https://github.com",
-    dryRun: options.dryRun
+    dryRun: options.dryRun,
+    mockOutputs: options.mockOutputs
   };
 }
 function logRunnerSummary(result) {
@@ -31040,6 +31061,7 @@ function createSignaledRunnerContext(octokit, owner, repo, projectNumber, resour
     projectNumber,
     serverUrl: options.serverUrl || process.env.GITHUB_SERVER_URL || "https://github.com",
     dryRun: options.dryRun,
+    mockOutputs: options.mockOutputs,
     resourceType,
     resourceNumber,
     job,
@@ -31080,6 +31102,16 @@ async function run() {
     const actionsJson = getRequiredInput("actions_json");
     const projectNumber = parseInt(getRequiredInput("project_number"), 10);
     const dryRun = getOptionalInput("dry_run") === "true";
+    const mockOutputsJson = getOptionalInput("mock_outputs") || "";
+    let mockOutputs;
+    if (mockOutputsJson) {
+      try {
+        mockOutputs = JSON.parse(mockOutputsJson);
+        core10.info("[MOCK MODE] Mock outputs loaded for Claude calls");
+      } catch (error3) {
+        core10.warning(`Failed to parse mock_outputs: ${error3}`);
+      }
+    }
     const job = getOptionalInput("job") || "";
     const resourceTypeInput = getOptionalInput("resource_type") || "issue";
     const resourceNumber = parseInt(
@@ -31144,7 +31176,8 @@ async function run() {
         {
           dryRun,
           reviewOctokit,
-          triggerCommentId: commentId || void 0
+          triggerCommentId: commentId || void 0,
+          mockOutputs
         }
       );
       result = await runWithSignaling(actions, signaledContext);
@@ -31156,7 +31189,8 @@ async function run() {
         projectNumber,
         {
           dryRun,
-          reviewOctokit
+          reviewOctokit,
+          mockOutputs
         }
       );
       result = await executeActions(actions, runnerContext);

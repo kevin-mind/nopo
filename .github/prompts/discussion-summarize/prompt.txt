@@ -1,0 +1,72 @@
+You are summarizing Discussion #{{DISCUSSION_NUMBER}}.
+
+**Discussion title:** {{DISCUSSION_TITLE}}
+
+## Original Discussion Body
+
+{{DISCUSSION_BODY}}
+
+## Previous Agent Notes
+
+{{AGENT_NOTES}}
+
+---
+
+## Your Task
+
+Fetch the full discussion content, analyze all comments, and create a comprehensive summary.
+
+```bash
+gh api graphql -f query='
+  query($number: Int!) {
+    repository(owner: "{{REPO_OWNER}}", name: "{{REPO_NAME}}") {
+      discussion(number: $number) {
+        body
+        comments(first: 100) {
+          nodes {
+            author { login }
+            body
+            replies(first: 50) {
+              nodes {
+                author { login }
+                body
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+' -F number={{DISCUSSION_NUMBER}}
+```
+
+## Summary Structure
+
+Organize findings into:
+- **Summary**: High-level overview of discoveries/decisions
+- **Key Findings**: Validated facts from the discussion
+- **Answered Questions**: Q&A pairs extracted from comments
+- **Decisions**: Any decisions made with rationale
+- **Code References**: Relevant file paths and line numbers
+- **Related Resources**: Links to issues, PRs, external docs
+- **Open Questions**: Unanswered questions
+- **Next Steps**: Recommended actions
+
+## Output
+
+Return structured JSON with:
+
+- **updated_body**: Updated discussion description as a comprehensive summary
+  - Preserve original user content at the top
+  - Create authoritative "## Current State" section synthesizing ALL findings
+  - Include all sections that have content (see structure above)
+
+- **summary_comment**: Brief comment to post announcing the summary
+  - Point users to the updated description
+  - Highlight key findings and next steps
+
+- **agent_notes**: Important context for future agents
+
+The executor will:
+- Update the discussion description
+- Post the summary comment

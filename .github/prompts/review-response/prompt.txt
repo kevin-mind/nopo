@@ -1,0 +1,59 @@
+Address review feedback on PR #{{PR_NUMBER}}
+
+Reviewer: @{{REVIEWER}}
+Decision: {{REVIEW_DECISION}}
+Branch: `{{HEAD_REF}}`
+
+## Previous Agent Notes
+
+{{AGENT_NOTES}}
+
+---
+
+## Step 1: Get Review Comments
+
+```bash
+gh api /repos/{{REPO_OWNER}}/{{REPO_NAME}}/pulls/{{PR_NUMBER}}/comments
+gh pr view {{PR_NUMBER}} --comments
+```
+
+## Step 2: Process Feedback
+
+**For each comment:**
+
+- **Change request**: Make the fix, commit
+- **Question**: Prepare a response; make change if implied
+
+## Step 3: Commit and Push (if changes made)
+
+```bash
+git push origin {{HEAD_REF}}
+```
+
+Push converts PR to draft and triggers CI. CI-pass marks it ready.
+
+## Rules
+
+- Address ALL feedback
+- Atomic commits for each change
+- Follow CLAUDE.md guidelines
+
+## Output
+
+Return structured JSON with:
+
+- **had_commits**: true if you made commits, false if discussion only
+
+- **summary**: Comment to post on the PR explaining:
+  - What changes were made (if any)
+  - Responses to questions/discussion
+  - Any concerns or clarifications
+
+- **commits**: Array of commit SHAs created
+
+- **agent_notes**: Important context for future agents
+
+The executor will:
+- Post the summary as a PR comment
+- If had_commits=false, re-request review from the reviewer
+- If had_commits=true, CI will trigger and handle PR state

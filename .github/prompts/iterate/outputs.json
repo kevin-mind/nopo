@@ -1,0 +1,37 @@
+{
+  "type": "object",
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["completed_todo", "waiting_manual", "blocked", "all_done"],
+      "description": "What happened this iteration: completed_todo (finished a task), waiting_manual (manual todo needs human), blocked (cannot proceed), all_done (all todos complete)"
+    },
+    "todo_completed": {
+      "type": "string",
+      "description": "The todo item that was completed (if status=completed_todo)"
+    },
+    "manual_todo": {
+      "type": "string",
+      "description": "Manual todo waiting for human action (if status=waiting_manual)"
+    },
+    "blocked_reason": {
+      "type": "string",
+      "description": "Why iteration is blocked (if status=blocked)"
+    },
+    "commits": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Commit SHAs created this iteration"
+    },
+    "pr_number": {
+      "type": "integer",
+      "description": "PR number if one was created this iteration"
+    },
+    "agent_notes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Important discoveries or decisions for future iterations"
+    }
+  },
+  "required": ["status", "agent_notes"]
+}

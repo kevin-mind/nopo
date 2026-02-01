@@ -1,0 +1,59 @@
+A new discussion was created: **{{DISCUSSION_TITLE}}**
+
+**Discussion body:**
+{{DISCUSSION_BODY}}
+
+## Previous Agent Notes
+
+{{AGENT_NOTES}}
+
+---
+
+## Your Task
+
+Your goal is to IDENTIFY research questions, NOT to answer them. You are defining research threads
+that will be investigated by separate agents.
+
+1. Read the discussion topic to understand what needs to be researched
+2. Identify 3-7 distinct research questions or investigation areas
+3. Define each thread with clear scope and expected deliverables
+
+DO NOT do any research yourself. Just identify the questions and define the threads.
+
+## Thread Design Guidelines
+
+Each thread should be:
+- **Focused**: Single topic or question
+- **Actionable**: Clear investigation steps
+- **Measurable**: Defined deliverables
+
+Common thread patterns:
+- **Current Architecture** - How does the existing system work?
+- **Related Issues & PRs** - What prior work exists?
+- **Implementation Approaches** - What are the options?
+- **External Research** - What do other projects/tools do?
+- **Performance/Security** - What are the implications?
+- **Dependencies** - What would be affected?
+
+## Output
+
+Return structured JSON with:
+
+- **threads**: Array of 3-7 research threads, each with:
+  - `title`: Short descriptive title
+  - `question`: Main question to investigate
+  - `investigation_areas`: Specific things to look at
+  - `expected_deliverables`: What the research should produce
+
+- **updated_body**: Updated discussion description
+  - Preserve original user content
+  - Add "## Current State" section listing:
+    - Research threads being spawned
+    - Open questions being investigated
+
+- **agent_notes**: Important context for future agents
+
+The executor will:
+- Create a comment for each research thread
+- Each comment triggers a discussion-respond agent to investigate
+- Update the discussion description

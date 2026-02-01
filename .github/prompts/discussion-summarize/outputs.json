@@ -1,0 +1,19 @@
+{
+  "type": "object",
+  "properties": {
+    "updated_body": {
+      "type": "string",
+      "description": "Updated discussion description with comprehensive summary of all findings"
+    },
+    "summary_comment": {
+      "type": "string",
+      "description": "Summary comment to post on the discussion"
+    },
+    "agent_notes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Important context for future agents"
+    }
+  },
+  "required": ["updated_body", "summary_comment"]
+}

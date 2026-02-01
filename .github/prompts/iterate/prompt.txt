@@ -42,10 +42,11 @@ Check which todos are done vs pending.
 **If next todo has `[Manual]` prefix**:
 - These require human action (testing, verification, etc.)
 - **EXIT IMMEDIATELY** - do not attempt to complete it
-- Output: "Waiting for human to complete manual todo: [todo text]"
+- Set status to `waiting_manual` with the todo text in `manual_todo`
 - A human will complete the task, check it off, and re-trigger the workflow
 
 **If all todos done and CI passed**:
+- Set status to `all_done`
 - Workflow handles marking PR ready and requesting review
 
 ### 3. Implementation
@@ -62,52 +63,38 @@ make check && make test
 
 **STOP if any command fails.** Fix before committing.
 
-### 5. Update Todo Progress
-
-After completing a todo, update the issue:
-```bash
-gh issue view {{ISSUE_NUMBER}} --json body -q '.body' > /tmp/issue_body.md
-# Edit to change `- [ ] item` to `- [x] item`
-gh issue edit {{ISSUE_NUMBER}} --body-file /tmp/issue_body.md
-```
-
-### 6. Commit and Push
+### 5. Commit and Push
 
 Commit with descriptive message, push to origin. Workflow handles the rest.
 
-### 7. Create PR (First Iteration Only)
+### 6. Create PR (First Iteration Only)
 
 If no PR exists:
 {{PR_CREATE_COMMAND}}
 
-## Notes
+## Output
 
-- Focus on ONE logical change per iteration
-- Workflow triggers next iteration after CI
-- Update todo checkboxes after completing each
-- If blocked, commit a comment explaining why
+Return structured JSON with:
 
-### Save Notes for Future Iterations
+- **status**: What happened this iteration
+  - `completed_todo` - Finished one todo item
+  - `waiting_manual` - Next todo requires human action
+  - `blocked` - Cannot proceed (explain in blocked_reason)
+  - `all_done` - All todos complete, ready for review
 
-Before finishing, save any important discoveries or decisions for future iterations by writing to `/tmp/claude-notes.json`:
+- **todo_completed**: The todo text if status=completed_todo
 
-```json
-{
-  "issue_number": {{ISSUE_NUMBER}},
-  "run_id": 0,
-  "timestamp": "",
-  "agent": "iterate",
-  "phase": {{ITERATION}},
-  "notes": [
-    "Note 1: Implementation detail or discovery",
-    "Note 2: Trade-off or decision made"
-  ]
-}
-```
+- **manual_todo**: The todo text if status=waiting_manual
 
-Good notes include:
-- Implementation details not obvious from code
-- Trade-offs and why a specific approach was chosen
-- Roadblocks encountered and how resolved
-- Relevant discoveries about the codebase
-- Known issues or concerns for future work
+- **blocked_reason**: Explanation if status=blocked
+
+- **commits**: Array of commit SHAs created this iteration
+
+- **pr_number**: PR number if created this iteration
+
+- **agent_notes**: Important discoveries for future iterations
+
+The executor will:
+- Update todo checkboxes based on completed work
+- Handle PR ready state transitions
+- Record iteration history

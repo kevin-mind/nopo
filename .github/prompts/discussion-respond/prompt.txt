@@ -3,6 +3,18 @@ You are investigating a research thread or answering a question on Discussion #{
 **Comment to respond to:** {{COMMENT_BODY}}
 **Author:** @{{COMMENT_AUTHOR}}
 
+## Previous Agent Notes
+
+{{AGENT_NOTES}}
+
+---
+
+## Original Discussion Body
+
+{{DISCUSSION_BODY}}
+
+---
+
 ## Your Task
 
 Research thoroughly but respond CONCISELY:
@@ -51,22 +63,23 @@ graph LR
 
 If they're asking for implementation: "Use `/plan` to create issues"
 
-## IMPORTANT: Write Response to File
+## Output
 
-Write your response to /tmp/discussion-response.md
+Return structured JSON with:
 
-## IMPORTANT: Update Discussion Description
+- **response_body**: The comment to post (markdown, under 1000 words)
 
-Read current description from /tmp/discussion-original-body.txt,
-write updated version to /tmp/discussion-updated-body.md.
+- **updated_body**: Updated discussion description incorporating findings
+  - Preserve original user content (everything before `---`)
+  - Update "## Current State" section with:
+    - **Key Findings**: Validated discoveries
+    - **Answered Questions**: `**Q:** Question? **A:** Answer`
+    - **Data & Tables**: Link to comment with table
+    - **Code References**: `path/file.ts:123` - Description
+    - **Open Questions**: Remaining questions
 
-When updating:
-1. Preserve original user content (everything before `---`)
-2. Update "## Current State" section
+- **agent_notes**: Important context for future agents
 
-Add findings to appropriate sections:
-- **Key Findings**: Validated discoveries
-- **Answered Questions**: `**Q:** Question? **A:** Answer`
-- **Data & Tables**: Link to comment with table
-- **Code References**: `path/file.ts:123` - Description
-- **Open Questions**: Remaining questions
+The executor will:
+- Post the response as a comment
+- Update the discussion description

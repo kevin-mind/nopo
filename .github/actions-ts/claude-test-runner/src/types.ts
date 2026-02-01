@@ -308,6 +308,60 @@ export interface PhaseWaitResult {
 }
 
 /**
+ * Mock structured outputs for Claude prompts
+ * @public
+ */
+export interface MockOutputs {
+  triage?: Record<string, unknown>;
+  iterate?: Record<string, unknown>;
+  review?: Record<string, unknown>;
+  comment?: Record<string, unknown>;
+  "review-response"?: Record<string, unknown>;
+  [key: string]: Record<string, unknown> | undefined;
+}
+
+/**
+ * State snapshot describing GitHub state at a point in time
+ * @public
+ */
+export interface StateSnapshot {
+  name: string;
+  description: string;
+  issue?: {
+    state?: "open" | "closed";
+    labels?: string[];
+    assignees?: string[];
+    body_contains?: string[];
+  };
+  sub_issues?: {
+    count?: number;
+    statuses?: string[];
+    iterations?: number[];
+    failures?: number[];
+    all_closed?: boolean;
+  };
+  branch?: {
+    exists?: boolean;
+    pattern?: string;
+  };
+  pull_request?: {
+    exists?: boolean;
+    draft?: boolean;
+    merged?: boolean;
+    approved?: boolean;
+    review_requested?: boolean;
+    links_to_issue?: boolean;
+  };
+  project_fields?: {
+    Status?: string;
+    Priority?: string;
+    Size?: string;
+    Iteration?: number;
+    Failures?: number;
+  };
+}
+
+/**
  * Test fixture from claude-test-helper
  */
 export interface TestFixture {
@@ -321,6 +375,10 @@ export interface TestFixture {
     release: string[];
     review: string[];
   };
+  /** Mock structured outputs for Claude prompts */
+  mock_outputs?: MockOutputs;
+  /** State snapshots for snapshot-based testing */
+  states?: StateSnapshot[];
   parent_issue?: {
     title: string;
     body: string;

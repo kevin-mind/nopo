@@ -135,7 +135,9 @@ WSGI_APPLICATION = "backend.mysite.wsgi.application"
 # CONN_MAX_AGE: Maximum lifetime (seconds) of a database connection. 0 = close after each request
 # DB_CONN_HEALTH_CHECKS: Enable health checks on persistent connections (recommended)
 CONN_MAX_AGE = int(os.environ.get("CONN_MAX_AGE", "600"))
-DB_CONN_HEALTH_CHECKS = os.environ.get("DB_CONN_HEALTH_CHECKS", "true").lower() == "true"
+DB_CONN_HEALTH_CHECKS = (
+    os.environ.get("DB_CONN_HEALTH_CHECKS", "true").lower() == "true"
+)
 
 # Database configuration
 # Use dj_database_url if DATABASE_URL is set, otherwise fall back to SQLite for tests

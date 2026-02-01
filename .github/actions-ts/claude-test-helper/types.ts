@@ -180,6 +180,116 @@ export interface E2EOutcomes {
 }
 
 /**
+ * Mock structured outputs for Claude prompts
+ * Used in mock mode to skip real Claude calls and return predefined outputs
+ * @public
+ */
+export interface MockOutputs {
+  /** Mock triage output */
+  triage?: {
+    triage: {
+      type: string;
+      priority: string;
+      size: string;
+      estimate: number;
+      topics: string[];
+      needs_info: boolean;
+    };
+    issue_body: string;
+    sub_issues: Array<{
+      type: string;
+      title: string;
+      description: string;
+      todos: Array<{ task: string; manual: boolean }>;
+    }>;
+    agent_notes?: string[];
+  };
+  /** Mock iterate output */
+  iterate?: {
+    status: "completed_todo" | "waiting_manual" | "blocked" | "all_done";
+    todo_completed?: string;
+    manual_todo?: string;
+    blocked_reason?: string;
+    commits?: string[];
+    agent_notes?: string[];
+  };
+  /** Mock review output */
+  review?: {
+    decision: "approve" | "request_changes" | "comment";
+    body: string;
+    agent_notes?: string[];
+  };
+  /** Mock comment output */
+  comment?: {
+    action_type: "response" | "implementation";
+    response_body: string;
+    commits?: string[];
+    agent_notes?: string[];
+  };
+  /** Mock review-response output */
+  "review-response"?: {
+    had_commits: boolean;
+    summary: string;
+    commits?: string[];
+    agent_notes?: string[];
+  };
+}
+
+/**
+ * State snapshot describing GitHub state at a point in time
+ * Used for snapshot-based testing where tests can start at any state
+ * @public
+ */
+export interface StateSnapshot {
+  /** State name (e.g., "01-initial", "02-triaged") */
+  name: string;
+  /** Human-readable description */
+  description: string;
+
+  /** Issue state */
+  issue?: {
+    state?: "open" | "closed";
+    labels?: string[];
+    assignees?: string[];
+    body_contains?: string[];
+  };
+
+  /** Sub-issues state */
+  sub_issues?: {
+    count?: number;
+    statuses?: string[];
+    iterations?: number[];
+    failures?: number[];
+    all_closed?: boolean;
+  };
+
+  /** Branch state */
+  branch?: {
+    exists?: boolean;
+    pattern?: string;
+  };
+
+  /** Pull request state */
+  pull_request?: {
+    exists?: boolean;
+    draft?: boolean;
+    merged?: boolean;
+    approved?: boolean;
+    review_requested?: boolean;
+    links_to_issue?: boolean;
+  };
+
+  /** Project fields */
+  project_fields?: {
+    Status?: string;
+    Priority?: string;
+    Size?: string;
+    Iteration?: number;
+    Failures?: number;
+  };
+}
+
+/**
  * Complete test fixture configuration
  */
 export interface TestFixture {
@@ -219,6 +329,20 @@ export interface TestFixture {
    * Used to control simulated CI/Release/Review behavior during e2e tests
    */
   e2e_outcomes?: E2EOutcomes;
+
+  /**
+   * Mock structured outputs for Claude prompts
+   * When mock_claude mode is enabled, these outputs are returned instead
+   * of calling the real Claude CLI
+   */
+  mock_outputs?: MockOutputs;
+
+  /**
+   * State snapshots describing GitHub state at each step
+   * Used for snapshot-based testing where tests can start at any state
+   * and compare actual state to expected state
+   */
+  states?: StateSnapshot[];
 }
 
 /**

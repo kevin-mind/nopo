@@ -63,6 +63,18 @@ async function run(): Promise<void> {
     const actionsJson = getRequiredInput("actions_json");
     const projectNumber = parseInt(getRequiredInput("project_number"), 10);
     const dryRun = getOptionalInput("dry_run") === "true";
+    const mockOutputsJson = getOptionalInput("mock_outputs") || "";
+
+    // Parse mock outputs for test mode (skip real Claude calls)
+    let mockOutputs: Record<string, Record<string, unknown>> | undefined;
+    if (mockOutputsJson) {
+      try {
+        mockOutputs = JSON.parse(mockOutputsJson);
+        core.info("[MOCK MODE] Mock outputs loaded for Claude calls");
+      } catch (error) {
+        core.warning(`Failed to parse mock_outputs: ${error}`);
+      }
+    }
 
     // Signaling inputs (optional)
     const job = getOptionalInput("job") || "";
@@ -152,6 +164,7 @@ async function run(): Promise<void> {
           dryRun,
           reviewOctokit,
           triggerCommentId: commentId || undefined,
+          mockOutputs,
         },
       );
 
@@ -166,6 +179,7 @@ async function run(): Promise<void> {
         {
           dryRun,
           reviewOctokit,
+          mockOutputs,
         },
       );
 

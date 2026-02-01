@@ -1,0 +1,5 @@
+{
+  "decision": "approve",
+  "body": "## Review Summary\n\nThe changes look good:\n- File `test-e2e-dump/e2e-test.txt` has been updated correctly\n- Timestamp format is appropriate\n- No unintended changes\n\nApproved!",
+  "agent_notes": []
+}

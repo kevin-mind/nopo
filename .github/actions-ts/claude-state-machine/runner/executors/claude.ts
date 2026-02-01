@@ -121,11 +121,37 @@ function getPromptFromAction(action: RunClaudeAction): ResolvedPrompt {
  *
  * If an output schema is provided (via promptDir with outputs.json),
  * the --json-schema flag is added to request structured output.
+ *
+ * If mockOutputs are provided in the context and there's a matching mock
+ * for the prompt directory, the mock output is returned instead of running Claude.
  */
 export async function executeRunClaude(
   action: RunClaudeAction,
   ctx: RunnerContext,
 ): Promise<ClaudeRunResult> {
+  // Check for mock mode - skip real Claude and return mock output
+  if (ctx.mockOutputs && action.promptDir) {
+    const mockOutput = ctx.mockOutputs[action.promptDir];
+    if (mockOutput) {
+      core.info(
+        `[MOCK MODE] Using mock output for '${action.promptDir}' prompt`,
+      );
+      core.startGroup("Mock Structured Output");
+      core.info(JSON.stringify(mockOutput, null, 2));
+      core.endGroup();
+
+      return {
+        success: true,
+        exitCode: 0,
+        output: JSON.stringify({ structured_output: mockOutput }),
+        structuredOutput: mockOutput,
+      };
+    }
+    core.warning(
+      `[MOCK MODE] No mock output for '${action.promptDir}' prompt, running real Claude`,
+    );
+  }
+
   const args: string[] = [
     "--print", // Print output to stdout (non-interactive mode)
     "--dangerously-skip-permissions", // Skip all permission prompts (for CI/automated runs)

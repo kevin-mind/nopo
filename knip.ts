@@ -47,6 +47,10 @@ export default {
       vitest: true,
       ignore: ["*/dist/**"],
       ignoreDependencies: ["@actions/glob", "@actions/io"],
+      // Ignore exports that are only used within the file (public API types for fixture authors)
+      rules: {
+        exports: "off",
+      },
     },
   },
 } satisfies KnipConfig;

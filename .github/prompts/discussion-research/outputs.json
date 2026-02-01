@@ -1,0 +1,45 @@
+{
+  "type": "object",
+  "properties": {
+    "threads": {
+      "type": "array",
+      "description": "Research threads to spawn (3-7 threads)",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Thread title (e.g., 'Current Architecture')"
+          },
+          "question": {
+            "type": "string",
+            "description": "The main question to investigate"
+          },
+          "investigation_areas": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Specific areas to investigate"
+          },
+          "expected_deliverables": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "What this research should produce"
+          }
+        },
+        "required": ["title", "question", "investigation_areas", "expected_deliverables"]
+      },
+      "minItems": 3,
+      "maxItems": 7
+    },
+    "updated_body": {
+      "type": "string",
+      "description": "Updated discussion description listing the research threads"
+    },
+    "agent_notes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Important context for future agents"
+    }
+  },
+  "required": ["threads", "updated_body"]
+}
