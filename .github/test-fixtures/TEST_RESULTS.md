@@ -1,5 +1,23 @@
 # State Machine Test Results
 
+## Test Matrix Summary
+
+| Scenario | Mock Claude + Mock CI | Mock Claude + Real CI | Real Claude + Mock CI | Real Claude + Real CI |
+|----------|----------------------|----------------------|----------------------|----------------------|
+| full-flow | ✅ [21564697567](https://github.com/kevin-mind/nopo/actions/runs/21564697567) | ✅ [21564697567](https://github.com/kevin-mind/nopo/actions/runs/21564697567) | | ⚠️ Timeout |
+| ci-failure-recovery | ✅ [21566969232](https://github.com/kevin-mind/nopo/actions/runs/21566969232) | ✅ [21567809107](https://github.com/kevin-mind/nopo/actions/runs/21567809107) | | |
+| triage | ✅ [21566977953](https://github.com/kevin-mind/nopo/actions/runs/21566977953) | ✅ [21567853336](https://github.com/kevin-mind/nopo/actions/runs/21567853336) | | |
+| circuit-breaker | ❌ [21567158478](https://github.com/kevin-mind/nopo/actions/runs/21567158478) | ❌ Blocked | | |
+| review-changes-requested | ✅ [21567217917](https://github.com/kevin-mind/nopo/actions/runs/21567217917) | ✅ [21567894597](https://github.com/kevin-mind/nopo/actions/runs/21567894597) | | |
+| triage-with-subissues | ✅ [21567256318](https://github.com/kevin-mind/nopo/actions/runs/21567256318) | ✅ [21567913344](https://github.com/kevin-mind/nopo/actions/runs/21567913344) | | |
+
+**Legend:** ✅ Pass | ❌ Failed | ⚠️ Timeout/Cancelled | Blank = Not tested
+
+**Blockers:**
+- circuit-breaker: Requires "Blocked" status in GitHub Project (currently only: Backlog, Ready, In progress, In review, Done)
+
+---
+
 ## Individual State Transition Tests (Mock Claude + Mock CI)
 
 | # | Transition | Run ID | Outcome | Link |
