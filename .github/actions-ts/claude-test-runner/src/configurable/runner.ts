@@ -58,7 +58,7 @@ const TEST_TITLE_PREFIX = "[TEST]";
 // Configurable Test Runner
 // ============================================================================
 
-export class ConfigurableTestRunner {
+class ConfigurableTestRunner {
   private scenario: LoadedScenario;
   private inputs: TestRunnerInputs;
   private config: RunnerConfig;
@@ -420,7 +420,7 @@ export class ConfigurableTestRunner {
       number: this.issueNumber!,
     };
 
-    // Determine trigger based on state
+    // Determine trigger based on state and context
     let trigger: MachineContext["trigger"] = "issue_edited";
     if (fixture.state === "triaging") {
       trigger = "issue_opened";
@@ -433,6 +433,9 @@ export class ConfigurableTestRunner {
       trigger = "workflow_run_completed";
     } else if (fixture.state === "processingReview") {
       trigger = "pull_request_review_submitted";
+    } else if (fixture.ciResult) {
+      // If ciResult is set, this is a CI completion trigger
+      trigger = "workflow_run_completed";
     }
 
     return {

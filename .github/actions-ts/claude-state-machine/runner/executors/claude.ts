@@ -39,11 +39,7 @@ async function createMockCommit(
 
   try {
     // Configure git user identity (required for commits in GitHub Actions)
-    await exec.exec("git", [
-      "config",
-      "user.name",
-      "nopo-bot",
-    ]);
+    await exec.exec("git", ["config", "user.name", "nopo-bot"]);
     await exec.exec("git", [
       "config",
       "user.email",
@@ -90,22 +86,34 @@ Prompt: ${action.promptDir || action.promptFile || "inline"}
 This is a placeholder commit created by the test runner.
 It simulates Claude's code changes in mock mode.`;
 
-    const commitExitCode = await exec.exec("git", ["commit", "-m", commitMessage], {
-      ignoreReturnCode: true,
-    });
+    const commitExitCode = await exec.exec(
+      "git",
+      ["commit", "--no-verify", "-m", commitMessage],
+      {
+        ignoreReturnCode: true,
+      },
+    );
 
     if (commitExitCode !== 0) {
-      core.warning(`[MOCK MODE] Git commit failed with exit code ${commitExitCode}`);
+      core.warning(
+        `[MOCK MODE] Git commit failed with exit code ${commitExitCode}`,
+      );
       return;
     }
 
     // Push to remote
-    const pushExitCode = await exec.exec("git", ["push", "origin", branchName], {
-      ignoreReturnCode: true,
-    });
+    const pushExitCode = await exec.exec(
+      "git",
+      ["push", "origin", branchName],
+      {
+        ignoreReturnCode: true,
+      },
+    );
 
     if (pushExitCode !== 0) {
-      core.warning(`[MOCK MODE] Git push failed with exit code ${pushExitCode}`);
+      core.warning(
+        `[MOCK MODE] Git push failed with exit code ${pushExitCode}`,
+      );
       return;
     }
 

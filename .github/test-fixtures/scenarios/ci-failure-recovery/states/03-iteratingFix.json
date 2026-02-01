@@ -1,12 +1,13 @@
 {
   "state": "iteratingFix",
+  "ciResult": "success",
   "issue": {
     "number": 0,
     "title": "CI failure recovery test",
     "state": "OPEN",
     "body": "## Description\n\nTest scenario for CI failure recovery.\n\n## Todo\n\n- [x] Fix the bug",
     "projectStatus": "In progress",
-    "iteration": 1,
+    "iteration": 2,
     "failures": 1,
     "assignees": ["nopo-bot"],
     "labels": ["enhancement", "triaged"],
