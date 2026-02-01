@@ -314,22 +314,21 @@ class ConfigurableTestRunner {
         const transitionStartTime = Date.now();
 
         try {
-          // Execute the state transition
-          // Pass nextFixture so CI can be triggered with the expected result
-          await this.executeStateTransition(currentFixture, nextFixture);
-
-          // Apply side effects to reach next state (e.g., assign nopo-bot, create PR)
-          // This must happen BEFORE verification so the state matches
+          // Apply side effects BEFORE executing the state machine
+          // This sets up the conditions for the current transition (e.g., assign nopo-bot
+          // so the state machine uses issue_assigned trigger instead of issue_triage)
           await this.applyStateTransitionSideEffects(
             currentFixture,
             nextFixture,
           );
 
-          // In continue mode, sync the next fixture with the side effects we just applied
-          // This ensures the next iteration has correct state when nextFixture becomes currentFixture
-          if (this.inputs.continue) {
-            this.syncFixtureWithAppliedSideEffects(currentFixture, nextFixture);
-          }
+          // Update the fixture data in memory to reflect the side effects
+          // This ensures buildMachineContext uses the correct state
+          this.syncFixtureWithSideEffects(currentFixture, nextFixture);
+
+          // Execute the state transition
+          // Pass nextFixture so CI can be triggered with the expected result
+          await this.executeStateTransition(currentFixture, nextFixture);
 
           // Verify: next fixture IS the expected state
           const verificationErrors = await this.verifyGitHubState(nextFixture);

@@ -38573,14 +38573,12 @@ ${"=".repeat(60)}`);
         core16.info(`${"=".repeat(60)}`);
         const transitionStartTime = Date.now();
         try {
-          await this.executeStateTransition(currentFixture, nextFixture);
           await this.applyStateTransitionSideEffects(
             currentFixture,
             nextFixture
           );
-          if (this.inputs.continue) {
-            this.syncFixtureWithAppliedSideEffects(currentFixture, nextFixture);
-          }
+          this.syncFixtureWithSideEffects(currentFixture, nextFixture);
+          await this.executeStateTransition(currentFixture, nextFixture);
           const verificationErrors = await this.verifyGitHubState(nextFixture);
           const transitionResult = {
             fromState: currentState,
