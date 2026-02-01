@@ -1,0 +1,11 @@
+{
+  "description": "Claude requests changes on the PR",
+  "output": {
+    "decision": "request_changes",
+    "body": "The implementation needs some adjustments. Please address the following:\n\n1. Add error handling for edge cases\n2. Include unit tests for the new functionality",
+    "agent_notes": [
+      "Missing error handling",
+      "Tests not comprehensive enough"
+    ]
+  }
+}

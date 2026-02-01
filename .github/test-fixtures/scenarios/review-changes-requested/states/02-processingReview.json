@@ -1,0 +1,31 @@
+{
+  "state": "processingReview",
+  "reviewDecision": "CHANGES_REQUESTED",
+  "issue": {
+    "number": 0,
+    "title": "Feature with review feedback",
+    "state": "OPEN",
+    "body": "## Description\n\nTest scenario for review feedback loop.\n\n## Todo\n\n- [x] Implement initial feature",
+    "projectStatus": "In review",
+    "iteration": 1,
+    "failures": 0,
+    "assignees": ["nopo-bot"],
+    "labels": ["enhancement", "triaged"],
+    "subIssues": [],
+    "hasSubIssues": false,
+    "history": [],
+    "todos": {
+      "total": 1,
+      "completed": 1,
+      "uncheckedNonManual": 0
+    },
+    "pr": {
+      "number": 0,
+      "state": "OPEN",
+      "isDraft": false,
+      "title": "feat: implement initial feature",
+      "headRef": "test/review-changes-requested/issue-0",
+      "baseRef": "main"
+    }
+  }
+}
