@@ -194,6 +194,7 @@ interface RunnerConfig {
 // ============================================================================
 
 const TEST_LABEL = "test:automation";
+const E2E_LABEL = "_e2e"; // Required for cleanup to work
 const TEST_TITLE_PREFIX = "[TEST]";
 
 // ============================================================================
@@ -219,6 +220,34 @@ class ConfigurableTestRunner {
     this.config = config;
   }
 
+  // ============================================================================
+  // URL Generation Helpers
+  // ============================================================================
+
+  private getRepoUrl(): string {
+    return `https://github.com/${this.config.owner}/${this.config.repo}`;
+  }
+
+  private getIssueUrl(issueNumber: number): string {
+    return `${this.getRepoUrl()}/issues/${issueNumber}`;
+  }
+
+  private getPrUrl(prNumber: number): string {
+    return `${this.getRepoUrl()}/pull/${prNumber}`;
+  }
+
+  private getBranchUrl(branchName: string): string {
+    return `${this.getRepoUrl()}/tree/${branchName}`;
+  }
+
+  private getWorkflowRunUrl(runId: number): string {
+    return `${this.getRepoUrl()}/actions/runs/${runId}`;
+  }
+
+  private logResourceCreated(type: string, url: string): void {
+    core.info(`📌 Created ${type}: ${url}`);
+  }
+
   /**
    * Run the test scenario
    */
@@ -236,12 +265,12 @@ class ConfigurableTestRunner {
       const firstState = this.scenario.orderedStates[0]!;
       const firstFixture = this.scenario.fixtures.get(firstState)!;
       this.issueNumber = await this.createTestIssue(firstFixture);
-      core.info(`Created test issue #${this.issueNumber}`);
+      this.logResourceCreated("Issue", this.getIssueUrl(this.issueNumber));
 
       // 3. Create test branch for the scenario
       this.testBranchName = `test/${this.scenario.name}/issue-${this.issueNumber}`;
       await this.createTestBranch();
-      core.info(`Created test branch: ${this.testBranchName}`);
+      this.logResourceCreated("Branch", this.getBranchUrl(this.testBranchName));
 
       // 4. If starting mid-flow, set up GitHub to match starting fixture
       //    AND apply side effects to set up conditions for the transition
@@ -400,7 +429,7 @@ class ConfigurableTestRunner {
    */
   private async createTestIssue(fixture: StateFixture): Promise<number> {
     const title = `${TEST_TITLE_PREFIX} ${fixture.issue.title}`;
-    const labels = [...fixture.issue.labels, TEST_LABEL];
+    const labels = [...fixture.issue.labels, TEST_LABEL, E2E_LABEL];
 
     const response = await this.config.octokit.rest.issues.create({
       owner: this.config.owner,
@@ -576,14 +605,14 @@ Issue: #${this.issueNumber}
     });
 
     this.prNumber = response.data.number;
-    core.info(`Created PR #${this.prNumber}`);
+    this.logResourceCreated("PR", this.getPrUrl(this.prNumber));
 
     // Add test label to the PR
     await this.config.octokit.rest.issues.addLabels({
       owner: this.config.owner,
       repo: this.config.repo,
       issue_number: this.prNumber,
-      labels: [TEST_LABEL],
+      labels: [TEST_LABEL, E2E_LABEL],
     });
 
     return this.prNumber;
@@ -757,7 +786,7 @@ Issue: #${this.issueNumber}
       owner: this.config.owner,
       repo: this.config.repo,
       issue_number: this.issueNumber,
-      labels: [...fixture.issue.labels, TEST_LABEL],
+      labels: [...fixture.issue.labels, TEST_LABEL, E2E_LABEL],
     });
 
     // Handle sub-issues if specified
@@ -1030,8 +1059,16 @@ Issue: #${this.issueNumber}
       );
 
       if (matchingRun) {
+        // Log the workflow URL on first detection
+        if (matchingRun.status !== "completed") {
+          this.logResourceCreated(
+            "CI Workflow",
+            this.getWorkflowRunUrl(matchingRun.id),
+          );
+        }
         if (matchingRun.status === "completed") {
           core.info(`CI completed with conclusion: ${matchingRun.conclusion}`);
+          core.info(`📌 CI Run: ${this.getWorkflowRunUrl(matchingRun.id)}`);
           return;
         }
         core.info(
@@ -1144,7 +1181,7 @@ Issue: #${this.issueNumber}
       repo: this.config.repo,
       title: subIssue.title,
       body: subIssue.body,
-      labels: [TEST_LABEL],
+      labels: [TEST_LABEL, E2E_LABEL],
     });
 
     const issueNumber = response.data.number;

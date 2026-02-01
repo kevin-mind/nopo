@@ -38493,6 +38493,7 @@ mutation AddIssueToProject($projectId: ID!, $contentId: ID!) {
 }
 `;
 var TEST_LABEL = "test:automation";
+var E2E_LABEL = "_e2e";
 var TEST_TITLE_PREFIX = "[TEST]";
 var ConfigurableTestRunner = class {
   scenario;
@@ -38508,6 +38509,27 @@ var ConfigurableTestRunner = class {
     this.inputs = inputs;
     this.config = config;
   }
+  // ============================================================================
+  // URL Generation Helpers
+  // ============================================================================
+  getRepoUrl() {
+    return `https://github.com/${this.config.owner}/${this.config.repo}`;
+  }
+  getIssueUrl(issueNumber) {
+    return `${this.getRepoUrl()}/issues/${issueNumber}`;
+  }
+  getPrUrl(prNumber) {
+    return `${this.getRepoUrl()}/pull/${prNumber}`;
+  }
+  getBranchUrl(branchName) {
+    return `${this.getRepoUrl()}/tree/${branchName}`;
+  }
+  getWorkflowRunUrl(runId) {
+    return `${this.getRepoUrl()}/actions/runs/${runId}`;
+  }
+  logResourceCreated(type, url) {
+    core16.info(`\u{1F4CC} Created ${type}: ${url}`);
+  }
   /**
    * Run the test scenario
    */
@@ -38521,10 +38543,10 @@ var ConfigurableTestRunner = class {
       const firstState = this.scenario.orderedStates[0];
       const firstFixture = this.scenario.fixtures.get(firstState);
       this.issueNumber = await this.createTestIssue(firstFixture);
-      core16.info(`Created test issue #${this.issueNumber}`);
+      this.logResourceCreated("Issue", this.getIssueUrl(this.issueNumber));
       this.testBranchName = `test/${this.scenario.name}/issue-${this.issueNumber}`;
       await this.createTestBranch();
-      core16.info(`Created test branch: ${this.testBranchName}`);
+      this.logResourceCreated("Branch", this.getBranchUrl(this.testBranchName));
       if (startIndex > 0) {
         const startState = this.scenario.orderedStates[startIndex];
         const nextState = this.scenario.orderedStates[startIndex + 1];
@@ -38645,7 +38667,7 @@ ${"=".repeat(60)}`);
    */
   async createTestIssue(fixture) {
     const title = `${TEST_TITLE_PREFIX} ${fixture.issue.title}`;
-    const labels = [...fixture.issue.labels, TEST_LABEL];
+    const labels = [...fixture.issue.labels, TEST_LABEL, E2E_LABEL];
     const response = await this.config.octokit.rest.issues.create({
       owner: this.config.owner,
       repo: this.config.repo,
@@ -38791,12 +38813,12 @@ Fixes #${this.issueNumber}`;
       draft: prSpec.isDraft
     });
     this.prNumber = response.data.number;
-    core16.info(`Created PR #${this.prNumber}`);
+    this.logResourceCreated("PR", this.getPrUrl(this.prNumber));
     await this.config.octokit.rest.issues.addLabels({
       owner: this.config.owner,
       repo: this.config.repo,
       issue_number: this.prNumber,
-      labels: [TEST_LABEL]
+      labels: [TEST_LABEL, E2E_LABEL]
     });
     return this.prNumber;
   }
@@ -38919,7 +38941,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
       owner: this.config.owner,
       repo: this.config.repo,
       issue_number: this.issueNumber,
-      labels: [...fixture.issue.labels, TEST_LABEL]
+      labels: [...fixture.issue.labels, TEST_LABEL, E2E_LABEL]
     });
     for (const subIssue of fixture.issue.subIssues) {
       await this.createSubIssue(subIssue);
@@ -39127,8 +39149,15 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
         (run2) => run2.head_branch === this.testBranchName
       );
       if (matchingRun) {
+        if (matchingRun.status !== "completed") {
+          this.logResourceCreated(
+            "CI Workflow",
+            this.getWorkflowRunUrl(matchingRun.id)
+          );
+        }
         if (matchingRun.status === "completed") {
           core16.info(`CI completed with conclusion: ${matchingRun.conclusion}`);
+          core16.info(`\u{1F4CC} CI Run: ${this.getWorkflowRunUrl(matchingRun.id)}`);
           return;
         }
         core16.info(
@@ -39222,7 +39251,7 @@ State Verification:`);
       repo: this.config.repo,
       title: subIssue.title,
       body: subIssue.body,
-      labels: [TEST_LABEL]
+      labels: [TEST_LABEL, E2E_LABEL]
     });
     const issueNumber = response.data.number;
     this.subIssueNumbers.set(subIssue.title, issueNumber);
