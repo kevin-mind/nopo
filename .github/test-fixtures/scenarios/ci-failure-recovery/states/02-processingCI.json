@@ -1,11 +1,12 @@
 {
   "state": "processingCI",
   "ciResult": "failure",
+  "claudeMock": "iterate/fix-ci",
   "issue": {
     "number": 0,
     "title": "CI failure recovery test",
     "state": "OPEN",
-    "body": "## Description\n\nTest scenario for CI failure recovery.\n\n## Todo\n\n- [ ] Fix the bug",
+    "body": "## Description\n\nTest scenario for CI failure recovery.\n\n## Todo\n\n- [x] Fix the bug",
     "projectStatus": "In progress",
     "iteration": 1,
     "failures": 0,
@@ -16,8 +17,8 @@
     "history": [],
     "todos": {
       "total": 1,
-      "completed": 0,
-      "uncheckedNonManual": 1
+      "completed": 1,
+      "uncheckedNonManual": 0
     }
   }
 }
