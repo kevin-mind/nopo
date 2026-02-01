@@ -398,7 +398,7 @@ var require_tunnel = __commonJS({
         connectOptions.headers = connectOptions.headers || {};
         connectOptions.headers["Proxy-Authorization"] = "Basic " + new Buffer(connectOptions.proxyAuth).toString("base64");
       }
-      debug10("making CONNECT request");
+      debug9("making CONNECT request");
       var connectReq = self2.request(connectOptions);
       connectReq.useChunkedEncodingByDefault = false;
       connectReq.once("response", onResponse);
@@ -418,7 +418,7 @@ var require_tunnel = __commonJS({
         connectReq.removeAllListeners();
         socket.removeAllListeners();
         if (res.statusCode !== 200) {
-          debug10(
+          debug9(
             "tunneling socket could not be established, statusCode=%d",
             res.statusCode
           );
@@ -430,7 +430,7 @@ var require_tunnel = __commonJS({
           return;
         }
         if (head.length > 0) {
-          debug10("got illegal response body from proxy");
+          debug9("got illegal response body from proxy");
           socket.destroy();
           var error6 = new Error("got illegal response body from proxy");
           error6.code = "ECONNRESET";
@@ -438,13 +438,13 @@ var require_tunnel = __commonJS({
           self2.removeSocket(placeholder);
           return;
         }
-        debug10("tunneling connection has established");
+        debug9("tunneling connection has established");
         self2.sockets[self2.sockets.indexOf(placeholder)] = socket;
         return cb(socket);
       }
       function onError(cause) {
         connectReq.removeAllListeners();
-        debug10(
+        debug9(
           "tunneling socket could not be established, cause=%s\n",
           cause.message,
           cause.stack
@@ -506,9 +506,9 @@ var require_tunnel = __commonJS({
       }
       return target;
     }
-    var debug10;
+    var debug9;
     if (process.env.NODE_DEBUG && /\btunnel\b/.test(process.env.NODE_DEBUG)) {
-      debug10 = function() {
+      debug9 = function() {
         var args = Array.prototype.slice.call(arguments);
         if (typeof args[0] === "string") {
           args[0] = "TUNNEL: " + args[0];
@@ -518,10 +518,10 @@ var require_tunnel = __commonJS({
         console.error.apply(console, args);
       };
     } else {
-      debug10 = function() {
+      debug9 = function() {
       };
     }
-    exports2.debug = debug10;
+    exports2.debug = debug9;
   }
 });
 
@@ -19732,10 +19732,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       return process.env["RUNNER_DEBUG"] === "1";
     }
     exports2.isDebug = isDebug;
-    function debug10(message) {
+    function debug9(message) {
       (0, command_1.issueCommand)("debug", {}, message);
     }
-    exports2.debug = debug10;
+    exports2.debug = debug9;
     function error6(message, properties = {}) {
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
@@ -38369,6 +38369,94 @@ function createRunnerContext(octokit, owner, repo, projectNumber, options = {}) 
 }
 
 // claude-test-runner/src/configurable/runner.ts
+var GET_PROJECT_ITEM_QUERY2 = `
+query GetProjectItem($org: String!, $repo: String!, $issueNumber: Int!, $projectNumber: Int!) {
+  repository(owner: $org, name: $repo) {
+    issue(number: $issueNumber) {
+      id
+      projectItems(first: 10) {
+        nodes {
+          id
+          project {
+            id
+            number
+          }
+          fieldValues(first: 20) {
+            nodes {
+              ... on ProjectV2ItemFieldSingleSelectValue {
+                name
+                field {
+                  ... on ProjectV2SingleSelectField {
+                    name
+                    id
+                  }
+                }
+              }
+              ... on ProjectV2ItemFieldNumberValue {
+                number
+                field {
+                  ... on ProjectV2Field {
+                    name
+                    id
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  organization(login: $org) {
+    projectV2(number: $projectNumber) {
+      id
+      fields(first: 20) {
+        nodes {
+          ... on ProjectV2SingleSelectField {
+            id
+            name
+            options {
+              id
+              name
+            }
+          }
+          ... on ProjectV2Field {
+            id
+            name
+            dataType
+          }
+        }
+      }
+    }
+  }
+}
+`;
+var UPDATE_PROJECT_FIELD_MUTATION3 = `
+mutation UpdateProjectField($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
+  updateProjectV2ItemFieldValue(input: {
+    projectId: $projectId
+    itemId: $itemId
+    fieldId: $fieldId
+    value: $value
+  }) {
+    projectV2Item {
+      id
+    }
+  }
+}
+`;
+var ADD_ISSUE_TO_PROJECT_MUTATION3 = `
+mutation AddIssueToProject($projectId: ID!, $contentId: ID!) {
+  addProjectV2ItemById(input: {
+    projectId: $projectId
+    contentId: $contentId
+  }) {
+    item {
+      id
+    }
+  }
+}
+`;
 var TEST_LABEL = "test:automation";
 var TEST_TITLE_PREFIX = "[TEST]";
 var ConfigurableTestRunner = class {
@@ -38389,12 +38477,10 @@ var ConfigurableTestRunner = class {
     const transitions = [];
     try {
       const startIndex = this.findStartIndex();
-      core16.info(
-        `Starting at state: ${this.scenario.orderedStates[startIndex]} (index ${startIndex})`
-      );
-      const firstFixture = this.scenario.fixtures.get(
-        this.scenario.orderedStates[0]
-      );
+      const startingState = this.scenario.orderedStates[startIndex];
+      core16.info(`Starting at state: ${startingState} (index ${startIndex})`);
+      const firstState = this.scenario.orderedStates[0];
+      const firstFixture = this.scenario.fixtures.get(firstState);
       this.issueNumber = await this.createTestIssue(firstFixture);
       core16.info(`Created test issue #${this.issueNumber}`);
       if (startIndex > 0) {
@@ -38647,18 +38733,31 @@ ${"=".repeat(60)}`);
    */
   buildMachineContext(fixture) {
     const issue = {
-      ...fixture.issue,
-      number: this.issueNumber
+      number: this.issueNumber,
+      title: fixture.issue.title,
+      state: fixture.issue.state,
+      body: fixture.issue.body,
+      projectStatus: fixture.issue.projectStatus,
+      iteration: fixture.issue.iteration,
+      failures: fixture.issue.failures,
+      assignees: fixture.issue.assignees,
+      labels: fixture.issue.labels,
+      subIssues: [],
+      // Simplified in fixtures
+      hasSubIssues: fixture.issue.hasSubIssues,
+      history: [],
+      // Simplified in fixtures
+      todos: fixture.issue.todos
     };
     let trigger = "issue_edited";
     if (fixture.state === "triaging") {
-      trigger = "issue_opened";
+      trigger = "issue_triage";
     } else if (fixture.state === "reviewing" || fixture.state === "prReviewing") {
-      trigger = "pull_request_review_requested";
+      trigger = "pr_review_requested";
     } else if (fixture.state === "processingCI") {
       trigger = "workflow_run_completed";
     } else if (fixture.state === "processingReview") {
-      trigger = "pull_request_review_submitted";
+      trigger = "pr_review_submitted";
     } else if (fixture.ciResult) {
       trigger = "workflow_run_completed";
     }
@@ -38693,7 +38792,7 @@ ${"=".repeat(60)}`);
    * Extract prompt directory from mock reference (e.g., "iterate/broken-code" -> "iterate")
    */
   getPromptDirFromMock(mockRef) {
-    return mockRef.split("/")[0];
+    return mockRef.split("/")[0] ?? mockRef;
   }
   /**
    * Trigger CI workflow (mock or real)
@@ -38722,7 +38821,28 @@ ${"=".repeat(60)}`);
    * Wait for CI workflow to complete
    */
   async waitForCI() {
-    await new Promise((resolve2) => setTimeout(resolve2, 5e3));
+    const maxWaitMs = 3e5;
+    const pollIntervalMs = 1e4;
+    const startTime = Date.now();
+    core16.info("Waiting for CI workflow to complete...");
+    while (Date.now() - startTime < maxWaitMs) {
+      const { data: runs } = await this.config.octokit.rest.actions.listWorkflowRuns({
+        owner: this.config.owner,
+        repo: this.config.repo,
+        workflow_id: "ci.yml",
+        per_page: 5
+      });
+      const recentRun = runs.workflow_runs[0];
+      if (recentRun) {
+        if (recentRun.status === "completed") {
+          core16.info(`CI completed with conclusion: ${recentRun.conclusion}`);
+          return;
+        }
+        core16.info(`CI status: ${recentRun.status}, waiting...`);
+      }
+      await new Promise((resolve2) => setTimeout(resolve2, pollIntervalMs));
+    }
+    core16.warning("CI wait timeout - proceeding anyway");
   }
   /**
    * Verify GitHub state matches expected fixture
@@ -38790,13 +38910,153 @@ ${"=".repeat(60)}`);
    * Set a project field on an issue
    */
   async setProjectField(issueNumber, field, value) {
-    core16.debug(`Would set ${field}=${value} on issue #${issueNumber}`);
+    core16.info(`Setting ${field}=${value} on issue #${issueNumber}`);
+    const response = await this.config.octokit.graphql(
+      GET_PROJECT_ITEM_QUERY2,
+      {
+        org: this.config.owner,
+        repo: this.config.repo,
+        issueNumber,
+        projectNumber: this.config.projectNumber
+      }
+    );
+    const issue = response.repository?.issue;
+    const projectData = response.organization?.projectV2;
+    if (!issue || !projectData) {
+      throw new Error(`Issue #${issueNumber} or project not found`);
+    }
+    const projectFields = this.parseProjectFields(projectData);
+    if (!projectFields) {
+      throw new Error("Failed to parse project fields");
+    }
+    let itemId = this.getProjectItemId(
+      issue.projectItems?.nodes || [],
+      this.config.projectNumber
+    );
+    if (!itemId) {
+      core16.info(`Adding issue #${issueNumber} to project`);
+      const addResult = await this.config.octokit.graphql(ADD_ISSUE_TO_PROJECT_MUTATION3, {
+        projectId: projectFields.projectId,
+        contentId: issue.id
+      });
+      itemId = addResult.addProjectV2ItemById?.item?.id || null;
+      if (!itemId) {
+        throw new Error("Failed to add issue to project");
+      }
+    }
+    let fieldId;
+    let fieldValue;
+    if (field === "Status") {
+      fieldId = projectFields.statusFieldId;
+      const optionId = this.findStatusOption(
+        projectFields.statusOptions,
+        String(value)
+      );
+      if (!optionId) {
+        throw new Error(`Status option '${value}' not found`);
+      }
+      fieldValue = { singleSelectOptionId: optionId };
+    } else if (field === "Iteration") {
+      fieldId = projectFields.iterationFieldId;
+      fieldValue = { number: Number(value) };
+    } else if (field === "Failures") {
+      fieldId = projectFields.failuresFieldId;
+      fieldValue = { number: Number(value) };
+    } else {
+      throw new Error(`Unknown field: ${field}`);
+    }
+    await this.config.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION3, {
+      projectId: projectFields.projectId,
+      itemId,
+      fieldId,
+      value: fieldValue
+    });
+    core16.info(`Set ${field}=${value} on issue #${issueNumber}`);
+  }
+  /**
+   * Parse project fields from GraphQL response
+   */
+  parseProjectFields(projectData) {
+    if (!projectData?.id || !projectData.fields?.nodes) {
+      return null;
+    }
+    const fields = {
+      projectId: projectData.id,
+      statusFieldId: "",
+      statusOptions: {},
+      iterationFieldId: "",
+      failuresFieldId: ""
+    };
+    for (const field of projectData.fields.nodes) {
+      if (!field) continue;
+      if (field.name === "Status" && field.options) {
+        fields.statusFieldId = field.id || "";
+        for (const option of field.options) {
+          fields.statusOptions[option.name] = option.id;
+        }
+      } else if (field.name === "Iteration") {
+        fields.iterationFieldId = field.id || "";
+      } else if (field.name === "Failures") {
+        fields.failuresFieldId = field.id || "";
+      }
+    }
+    return fields;
+  }
+  /**
+   * Get project item ID for a specific project
+   */
+  getProjectItemId(projectItems, projectNumber) {
+    const projectItem = projectItems.find(
+      (item) => item.project?.number === projectNumber
+    );
+    return projectItem?.id || null;
+  }
+  /**
+   * Find status option ID by name
+   */
+  findStatusOption(statusOptions, status) {
+    if (statusOptions[status]) {
+      return statusOptions[status];
+    }
+    const lowerStatus = status.toLowerCase();
+    for (const [name, id] of Object.entries(statusOptions)) {
+      if (name.toLowerCase() === lowerStatus) {
+        return id;
+      }
+    }
+    return void 0;
   }
   /**
    * Get a project field from an issue
    */
   async getProjectField(issueNumber, field) {
-    core16.debug(`Would get ${field} from issue #${issueNumber}`);
+    const response = await this.config.octokit.graphql(
+      GET_PROJECT_ITEM_QUERY2,
+      {
+        org: this.config.owner,
+        repo: this.config.repo,
+        issueNumber,
+        projectNumber: this.config.projectNumber
+      }
+    );
+    const projectItems = response.repository?.issue?.projectItems?.nodes || [];
+    const projectItem = projectItems.find(
+      (item) => item.project?.number === this.config.projectNumber
+    );
+    if (!projectItem) {
+      return null;
+    }
+    const fieldValues = projectItem.fieldValues?.nodes || [];
+    for (const fieldValue of fieldValues) {
+      if (fieldValue.field?.name === field) {
+        if (typeof fieldValue.number === "number") {
+          return fieldValue.number;
+        }
+        if (fieldValue.name) {
+          return fieldValue.name;
+        }
+      }
+    }
     return null;
   }
 };

@@ -205,7 +205,7 @@ async function loadReferencedMocks(
 /**
  * List all available scenarios
  */
-export async function listScenarios(
+async function listScenarios(
   basePath: string = FIXTURES_BASE_PATH,
 ): Promise<string[]> {
   const scenariosDir = path.join(basePath, SCENARIOS_DIR);
@@ -237,7 +237,7 @@ export async function listScenarios(
  * Validate a scenario without fully loading it
  * Useful for CI checks to ensure fixtures are valid
  */
-export async function validateScenario(
+async function validateScenario(
   scenarioName: string,
   basePath: string = FIXTURES_BASE_PATH,
 ): Promise<{ valid: boolean; errors: string[] }> {

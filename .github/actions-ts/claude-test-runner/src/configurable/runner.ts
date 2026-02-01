@@ -37,6 +37,147 @@ import { fetchGitHubState } from "../github-state.js";
 type Octokit = InstanceType<typeof GitHub>;
 
 // ============================================================================
+// GraphQL Queries for Project Fields
+// ============================================================================
+
+const GET_PROJECT_ITEM_QUERY = `
+query GetProjectItem($org: String!, $repo: String!, $issueNumber: Int!, $projectNumber: Int!) {
+  repository(owner: $org, name: $repo) {
+    issue(number: $issueNumber) {
+      id
+      projectItems(first: 10) {
+        nodes {
+          id
+          project {
+            id
+            number
+          }
+          fieldValues(first: 20) {
+            nodes {
+              ... on ProjectV2ItemFieldSingleSelectValue {
+                name
+                field {
+                  ... on ProjectV2SingleSelectField {
+                    name
+                    id
+                  }
+                }
+              }
+              ... on ProjectV2ItemFieldNumberValue {
+                number
+                field {
+                  ... on ProjectV2Field {
+                    name
+                    id
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  organization(login: $org) {
+    projectV2(number: $projectNumber) {
+      id
+      fields(first: 20) {
+        nodes {
+          ... on ProjectV2SingleSelectField {
+            id
+            name
+            options {
+              id
+              name
+            }
+          }
+          ... on ProjectV2Field {
+            id
+            name
+            dataType
+          }
+        }
+      }
+    }
+  }
+}
+`;
+
+const UPDATE_PROJECT_FIELD_MUTATION = `
+mutation UpdateProjectField($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
+  updateProjectV2ItemFieldValue(input: {
+    projectId: $projectId
+    itemId: $itemId
+    fieldId: $fieldId
+    value: $value
+  }) {
+    projectV2Item {
+      id
+    }
+  }
+}
+`;
+
+const ADD_ISSUE_TO_PROJECT_MUTATION = `
+mutation AddIssueToProject($projectId: ID!, $contentId: ID!) {
+  addProjectV2ItemById(input: {
+    projectId: $projectId
+    contentId: $contentId
+  }) {
+    item {
+      id
+    }
+  }
+}
+`;
+
+// ============================================================================
+// Project Field Types
+// ============================================================================
+
+interface ProjectFields {
+  projectId: string;
+  statusFieldId: string;
+  statusOptions: Record<string, string>;
+  iterationFieldId: string;
+  failuresFieldId: string;
+}
+
+interface ProjectItemNode {
+  id?: string;
+  project?: { id?: string; number?: number };
+  fieldValues?: {
+    nodes?: Array<{
+      name?: string;
+      number?: number;
+      field?: { name?: string; id?: string };
+    }>;
+  };
+}
+
+interface ProjectQueryResponse {
+  repository?: {
+    issue?: {
+      id?: string;
+      projectItems?: { nodes?: ProjectItemNode[] };
+    };
+  };
+  organization?: {
+    projectV2?: {
+      id?: string;
+      fields?: {
+        nodes?: Array<{
+          id?: string;
+          name?: string;
+          options?: Array<{ id: string; name: string }>;
+          dataType?: string;
+        }>;
+      };
+    };
+  };
+}
+
+// ============================================================================
 // Test Runner Configuration
 // ============================================================================
 
@@ -84,20 +225,18 @@ class ConfigurableTestRunner {
     try {
       // 1. Find starting index
       const startIndex = this.findStartIndex();
-      core.info(
-        `Starting at state: ${this.scenario.orderedStates[startIndex]} (index ${startIndex})`,
-      );
+      const startingState = this.scenario.orderedStates[startIndex]!;
+      core.info(`Starting at state: ${startingState} (index ${startIndex})`);
 
       // 2. Create test issue from first fixture
-      const firstFixture = this.scenario.fixtures.get(
-        this.scenario.orderedStates[0],
-      )!;
+      const firstState = this.scenario.orderedStates[0]!;
+      const firstFixture = this.scenario.fixtures.get(firstState)!;
       this.issueNumber = await this.createTestIssue(firstFixture);
       core.info(`Created test issue #${this.issueNumber}`);
 
       // 3. If starting mid-flow, set up GitHub to match starting fixture
       if (startIndex > 0) {
-        const startState = this.scenario.orderedStates[startIndex];
+        const startState = this.scenario.orderedStates[startIndex]!;
         const startFixture = this.scenario.fixtures.get(startState)!;
         await this.setupGitHubState(startFixture);
         core.info(`Set up GitHub state for '${startState}'`);
@@ -109,8 +248,8 @@ class ConfigurableTestRunner {
         i < this.scenario.orderedStates.length - 1;
         i++
       ) {
-        const currentState = this.scenario.orderedStates[i];
-        const nextState = this.scenario.orderedStates[i + 1];
+        const currentState = this.scenario.orderedStates[i]!;
+        const nextState = this.scenario.orderedStates[i + 1]!;
         const currentFixture = this.scenario.fixtures.get(currentState)!;
         const nextFixture = this.scenario.fixtures.get(nextState)!;
 
@@ -321,7 +460,13 @@ class ConfigurableTestRunner {
     });
 
     // Handle sub-issues if specified
-    for (const subIssue of fixture.issue.subIssues) {
+    for (const subIssue of fixture.issue.subIssues as Array<{
+      number: number;
+      title: string;
+      body: string;
+      state: "OPEN" | "CLOSED";
+      projectStatus: ProjectStatus | null;
+    }>) {
       await this.createSubIssue(subIssue);
     }
   }
@@ -415,24 +560,36 @@ class ConfigurableTestRunner {
    * Build MachineContext from a fixture
    */
   private buildMachineContext(fixture: StateFixture): MachineContext {
-    const issue = {
-      ...fixture.issue,
+    // Cast fixture issue to ParentIssue, providing default empty arrays for simplified fields
+    const issue: ParentIssue = {
       number: this.issueNumber!,
+      title: fixture.issue.title,
+      state: fixture.issue.state,
+      body: fixture.issue.body,
+      projectStatus: fixture.issue.projectStatus as ProjectStatus | null,
+      iteration: fixture.issue.iteration,
+      failures: fixture.issue.failures,
+      assignees: fixture.issue.assignees,
+      labels: fixture.issue.labels,
+      subIssues: [], // Simplified in fixtures
+      hasSubIssues: fixture.issue.hasSubIssues,
+      history: [], // Simplified in fixtures
+      todos: fixture.issue.todos,
     };
 
     // Determine trigger based on state and context
     let trigger: MachineContext["trigger"] = "issue_edited";
     if (fixture.state === "triaging") {
-      trigger = "issue_opened";
+      trigger = "issue_triage";
     } else if (
       fixture.state === "reviewing" ||
       fixture.state === "prReviewing"
     ) {
-      trigger = "pull_request_review_requested";
+      trigger = "pr_review_requested";
     } else if (fixture.state === "processingCI") {
       trigger = "workflow_run_completed";
     } else if (fixture.state === "processingReview") {
-      trigger = "pull_request_review_submitted";
+      trigger = "pr_review_submitted";
     } else if (fixture.ciResult) {
       // If ciResult is set, this is a CI completion trigger
       trigger = "workflow_run_completed";
@@ -470,7 +627,7 @@ class ConfigurableTestRunner {
    * Extract prompt directory from mock reference (e.g., "iterate/broken-code" -> "iterate")
    */
   private getPromptDirFromMock(mockRef: string): string {
-    return mockRef.split("/")[0];
+    return mockRef.split("/")[0] ?? mockRef;
   }
 
   /**
@@ -510,9 +667,35 @@ class ConfigurableTestRunner {
    * Wait for CI workflow to complete
    */
   private async waitForCI(): Promise<void> {
-    // TODO: Implement CI waiting logic
-    // For now, just wait a bit
-    await new Promise((resolve) => setTimeout(resolve, 5000));
+    const maxWaitMs = 300000; // 5 minutes max
+    const pollIntervalMs = 10000; // 10 seconds
+    const startTime = Date.now();
+
+    core.info("Waiting for CI workflow to complete...");
+
+    while (Date.now() - startTime < maxWaitMs) {
+      // Get recent workflow runs for CI
+      const { data: runs } = await this.config.octokit.rest.actions.listWorkflowRuns({
+        owner: this.config.owner,
+        repo: this.config.repo,
+        workflow_id: "ci.yml",
+        per_page: 5,
+      });
+
+      // Find the most recent run that matches our test scenario
+      const recentRun = runs.workflow_runs[0];
+      if (recentRun) {
+        if (recentRun.status === "completed") {
+          core.info(`CI completed with conclusion: ${recentRun.conclusion}`);
+          return;
+        }
+        core.info(`CI status: ${recentRun.status}, waiting...`);
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+    }
+
+    core.warning("CI wait timeout - proceeding anyway");
   }
 
   /**
@@ -613,12 +796,155 @@ class ConfigurableTestRunner {
     field: string,
     value: string | number,
   ): Promise<void> {
-    // This requires GraphQL to properly set project fields
-    // For now, log what we would do
-    core.debug(`Would set ${field}=${value} on issue #${issueNumber}`);
+    core.info(`Setting ${field}=${value} on issue #${issueNumber}`);
 
-    // TODO: Implement using GraphQL mutation
-    // Similar to what's done in claude-state-executor
+    // Get project item and field info
+    const response = await this.config.octokit.graphql<ProjectQueryResponse>(
+      GET_PROJECT_ITEM_QUERY,
+      {
+        org: this.config.owner,
+        repo: this.config.repo,
+        issueNumber,
+        projectNumber: this.config.projectNumber,
+      },
+    );
+
+    const issue = response.repository?.issue;
+    const projectData = response.organization?.projectV2;
+
+    if (!issue || !projectData) {
+      throw new Error(`Issue #${issueNumber} or project not found`);
+    }
+
+    // Parse project fields
+    const projectFields = this.parseProjectFields(projectData);
+    if (!projectFields) {
+      throw new Error("Failed to parse project fields");
+    }
+
+    // Get or create project item
+    let itemId = this.getProjectItemId(
+      issue.projectItems?.nodes || [],
+      this.config.projectNumber,
+    );
+
+    if (!itemId) {
+      // Add issue to project
+      core.info(`Adding issue #${issueNumber} to project`);
+      const addResult = await this.config.octokit.graphql<{
+        addProjectV2ItemById?: { item?: { id?: string } };
+      }>(ADD_ISSUE_TO_PROJECT_MUTATION, {
+        projectId: projectFields.projectId,
+        contentId: issue.id,
+      });
+
+      itemId = addResult.addProjectV2ItemById?.item?.id || null;
+      if (!itemId) {
+        throw new Error("Failed to add issue to project");
+      }
+    }
+
+    // Update the field
+    let fieldId: string;
+    let fieldValue: Record<string, unknown>;
+
+    if (field === "Status") {
+      fieldId = projectFields.statusFieldId;
+      const optionId = this.findStatusOption(
+        projectFields.statusOptions,
+        String(value),
+      );
+      if (!optionId) {
+        throw new Error(`Status option '${value}' not found`);
+      }
+      fieldValue = { singleSelectOptionId: optionId };
+    } else if (field === "Iteration") {
+      fieldId = projectFields.iterationFieldId;
+      fieldValue = { number: Number(value) };
+    } else if (field === "Failures") {
+      fieldId = projectFields.failuresFieldId;
+      fieldValue = { number: Number(value) };
+    } else {
+      throw new Error(`Unknown field: ${field}`);
+    }
+
+    await this.config.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+      projectId: projectFields.projectId,
+      itemId,
+      fieldId,
+      value: fieldValue,
+    });
+
+    core.info(`Set ${field}=${value} on issue #${issueNumber}`);
+  }
+
+  /**
+   * Parse project fields from GraphQL response
+   */
+  private parseProjectFields(
+    projectData: NonNullable<
+      NonNullable<ProjectQueryResponse["organization"]>["projectV2"]
+    >,
+  ): ProjectFields | null {
+    if (!projectData?.id || !projectData.fields?.nodes) {
+      return null;
+    }
+
+    const fields: ProjectFields = {
+      projectId: projectData.id,
+      statusFieldId: "",
+      statusOptions: {},
+      iterationFieldId: "",
+      failuresFieldId: "",
+    };
+
+    for (const field of projectData.fields.nodes) {
+      if (!field) continue;
+      if (field.name === "Status" && field.options) {
+        fields.statusFieldId = field.id || "";
+        for (const option of field.options) {
+          fields.statusOptions[option.name] = option.id;
+        }
+      } else if (field.name === "Iteration") {
+        fields.iterationFieldId = field.id || "";
+      } else if (field.name === "Failures") {
+        fields.failuresFieldId = field.id || "";
+      }
+    }
+
+    return fields;
+  }
+
+  /**
+   * Get project item ID for a specific project
+   */
+  private getProjectItemId(
+    projectItems: ProjectItemNode[],
+    projectNumber: number,
+  ): string | null {
+    const projectItem = projectItems.find(
+      (item) => item.project?.number === projectNumber,
+    );
+    return projectItem?.id || null;
+  }
+
+  /**
+   * Find status option ID by name
+   */
+  private findStatusOption(
+    statusOptions: Record<string, string>,
+    status: string,
+  ): string | undefined {
+    if (statusOptions[status]) {
+      return statusOptions[status];
+    }
+    const lowerStatus = status.toLowerCase();
+    for (const [name, id] of Object.entries(statusOptions)) {
+      if (name.toLowerCase() === lowerStatus) {
+        return id;
+      }
+    }
+    return undefined;
   }
 
   /**
@@ -628,11 +954,37 @@ class ConfigurableTestRunner {
     issueNumber: number,
     field: string,
   ): Promise<string | number | null> {
-    // This requires GraphQL to properly get project fields
-    // For now, return null
-    core.debug(`Would get ${field} from issue #${issueNumber}`);
+    const response = await this.config.octokit.graphql<ProjectQueryResponse>(
+      GET_PROJECT_ITEM_QUERY,
+      {
+        org: this.config.owner,
+        repo: this.config.repo,
+        issueNumber,
+        projectNumber: this.config.projectNumber,
+      },
+    );
 
-    // TODO: Implement using GraphQL query
+    const projectItems = response.repository?.issue?.projectItems?.nodes || [];
+    const projectItem = projectItems.find(
+      (item) => item.project?.number === this.config.projectNumber,
+    );
+
+    if (!projectItem) {
+      return null;
+    }
+
+    const fieldValues = projectItem.fieldValues?.nodes || [];
+    for (const fieldValue of fieldValues) {
+      if (fieldValue.field?.name === field) {
+        if (typeof fieldValue.number === "number") {
+          return fieldValue.number;
+        }
+        if (fieldValue.name) {
+          return fieldValue.name;
+        }
+      }
+    }
+
     return null;
   }
 }
