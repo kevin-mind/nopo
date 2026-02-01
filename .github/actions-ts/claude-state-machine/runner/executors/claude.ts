@@ -31,7 +31,7 @@ interface ClaudeRunResult {
  */
 async function createMockCommit(
   action: RunClaudeAction,
-  ctx: RunnerContext,
+  _ctx: RunnerContext,
 ): Promise<void> {
   const branchName = deriveBranchName(action.issueNumber);
 

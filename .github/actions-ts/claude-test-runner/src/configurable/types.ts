@@ -73,6 +73,55 @@ export type ClaudeMock = z.infer<typeof ClaudeMockSchema>;
 // ============================================================================
 
 /**
+ * Test sub-issue schema for fixtures
+ * Simplified version for test setup
+ */
+const TestSubIssueSchema = z.object({
+  number: z.number().int().nonnegative(), // 0 = placeholder
+  title: z.string(),
+  body: z.string(),
+  state: z.enum(["OPEN", "CLOSED"]),
+  projectStatus: z.string().nullable(),
+  branch: z.string().nullable().optional(),
+  pr: z
+    .object({
+      number: z.number().int().nonnegative(), // 0 = placeholder
+      state: z.enum(["OPEN", "CLOSED", "MERGED"]),
+      isDraft: z.boolean(),
+      title: z.string(),
+      headRef: z.string(),
+      baseRef: z.string(),
+    })
+    .nullable()
+    .optional(),
+  todos: z
+    .object({
+      total: z.number().int().nonnegative(),
+      completed: z.number().int().nonnegative(),
+      uncheckedNonManual: z.number().int().nonnegative(),
+    })
+    .optional(),
+});
+
+export type TestSubIssue = z.infer<typeof TestSubIssueSchema>;
+
+/**
+ * Test PR schema for fixtures
+ * Describes the PR state needed for the test
+ */
+const TestPRSchema = z.object({
+  number: z.number().int().nonnegative(), // 0 = create new PR
+  state: z.enum(["OPEN", "CLOSED", "MERGED"]),
+  isDraft: z.boolean(),
+  title: z.string(),
+  body: z.string().optional(),
+  headRef: z.string(), // Branch name (will use test branch if not specified)
+  baseRef: z.string().default("main"),
+});
+
+export type TestPR = z.infer<typeof TestPRSchema>;
+
+/**
  * ParentIssue schema modified for test fixtures
  * Allows number: 0 as a placeholder (replaced with real issue number at runtime)
  */
@@ -86,7 +135,7 @@ const TestParentIssueSchema = z.object({
   failures: z.number().int().nonnegative(),
   assignees: z.array(z.string()),
   labels: z.array(z.string()),
-  subIssues: z.array(z.unknown()), // Simplified for fixtures
+  subIssues: z.array(TestSubIssueSchema), // Now typed for test fixtures
   hasSubIssues: z.boolean(),
   history: z.array(z.unknown()), // Simplified for fixtures
   todos: z.object({
@@ -94,6 +143,8 @@ const TestParentIssueSchema = z.object({
     completed: z.number().int().nonnegative(),
     uncheckedNonManual: z.number().int().nonnegative(),
   }),
+  /** PR linked to this issue (optional, for states that need a PR) */
+  pr: TestPRSchema.nullable().optional(),
 });
 
 // ============================================================================
@@ -138,7 +189,9 @@ export const ScenarioConfigSchema = z.object({
   description: z.string(),
 });
 
-type ScenarioConfig = z.infer<typeof ScenarioConfigSchema>;
+// Type inferred but kept for documentation
+type _ScenarioConfig = z.infer<typeof ScenarioConfigSchema>;
+void (0 as unknown as _ScenarioConfig); // Suppress unused type warning
 
 // ============================================================================
 // Test Runner Inputs Schema
@@ -147,7 +200,7 @@ type ScenarioConfig = z.infer<typeof ScenarioConfigSchema>;
 /**
  * Inputs for the configurable test runner
  */
-const TestRunnerInputsSchema = z.object({
+const _TestRunnerInputsSchema = z.object({
   /** false = stop after one step, true = run to completion */
   continue: z.boolean().default(true),
 
@@ -161,7 +214,7 @@ const TestRunnerInputsSchema = z.object({
   mockCI: z.boolean().default(true),
 });
 
-export type TestRunnerInputs = z.infer<typeof TestRunnerInputsSchema>;
+export type TestRunnerInputs = z.infer<typeof _TestRunnerInputsSchema>;
 
 // ============================================================================
 // Test Result Schema
@@ -190,7 +243,7 @@ export type StateTransitionResult = z.infer<typeof StateTransitionResultSchema>;
 /**
  * Overall test result
  */
-const TestResultSchema = z.object({
+const _TestResultSchema = z.object({
   /** Overall status */
   status: z.enum(["completed", "paused", "failed", "error"]),
   /** Current state (if paused) */
@@ -207,7 +260,7 @@ const TestResultSchema = z.object({
   error: z.string().optional(),
 });
 
-export type TestResult = z.infer<typeof TestResultSchema>;
+export type TestResult = z.infer<typeof _TestResultSchema>;
 
 // ============================================================================
 // Loaded Scenario

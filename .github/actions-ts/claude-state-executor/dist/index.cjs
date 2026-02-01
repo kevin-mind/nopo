@@ -29716,7 +29716,7 @@ var core5 = __toESM(require_core(), 1);
 var exec5 = __toESM(require_exec(), 1);
 var fs = __toESM(require("fs"), 1);
 var path = __toESM(require("path"), 1);
-async function createMockCommit(action, ctx) {
+async function createMockCommit(action, _ctx) {
   const branchName = deriveBranchName(action.issueNumber);
   core5.info(`[MOCK MODE] Creating placeholder commit on branch ${branchName}`);
   try {

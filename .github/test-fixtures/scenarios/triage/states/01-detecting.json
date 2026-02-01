@@ -1,0 +1,23 @@
+{
+  "state": "detecting",
+  "issue": {
+    "number": 0,
+    "title": "Add new feature for testing",
+    "state": "OPEN",
+    "body": "## Description\n\nWe need to implement a new feature for testing.\n\n## Requirements\n\n- Must work correctly\n- Must have tests",
+    "projectStatus": null,
+    "iteration": 0,
+    "failures": 0,
+    "assignees": [],
+    "labels": [],
+    "subIssues": [],
+    "hasSubIssues": false,
+    "history": [],
+    "todos": {
+      "total": 0,
+      "completed": 0,
+      "uncheckedNonManual": 0
+    }
+  },
+  "claudeMock": "triage/simple-issue"
+}

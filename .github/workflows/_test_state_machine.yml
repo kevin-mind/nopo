@@ -1,51 +1,18 @@
 name: Test State Machine
 
-run-name: "Test: ${{ inputs.test_name }} (${{ inputs.mode }})"
+run-name: "Test: ${{ inputs.scenario_name }}"
 
 on:
   workflow_dispatch:
     inputs:
-      test_name:
-        description: 'Test scenario to run'
+      scenario_name:
+        description: 'Scenario to run (directory name under test-fixtures/scenarios/)'
         required: true
         type: choice
         options:
-          # Issue jobs
-          - issue-orchestrate
-          - issue-comment
-          - single-phase-green
-          - multi-phase-sequential
+          - full-flow
           - ci-failure-recovery
-          - circuit-breaker
-          - phase-skip
-          # PR jobs
-          - pr-review
-          - pr-response
-          - pr-human-response
-          - review-changes-requested
-          # Discussion jobs
-          - discussion-research
-          - discussion-respond
-          - discussion-summarize
-          - discussion-plan
-      mode:
-        description: 'Test mode'
-        type: choice
-        default: dry-run
-        options:
-          - dry-run
-          - stepwise
-          - e2e
-          - configurable
-      cleanup_only:
-        description: 'Only run cleanup (for debugging)'
-        type: boolean
-        default: false
-      issue_number:
-        description: 'Issue number for cleanup_only mode'
-        type: string
-        default: ''
-      # Configurable test runner inputs
+          - triage
       continue:
         description: 'Run to completion (true) or stop after one step (false)'
         type: boolean
@@ -62,10 +29,18 @@ on:
         description: 'Start at a specific state (e.g., "iteratingFix"). Creates fresh issue, sets up GitHub to match that state fixture.'
         type: string
         required: false
+      cleanup_only:
+        description: 'Only run cleanup (for debugging)'
+        type: boolean
+        default: false
+      issue_number:
+        description: 'Issue number for cleanup_only mode'
+        type: string
+        default: ''
 
-# Only one E2E test at a time - queue runs instead of cancelling
+# Only one test at a time - queue runs instead of cancelling
 concurrency:
-  group: e2e-test
+  group: state-machine-test
   cancel-in-progress: false
 
 permissions:
@@ -79,798 +54,9 @@ env:
   GH_TOKEN: ${{ secrets.NOPO_BOT_PAT || secrets.GITHUB_TOKEN }}
 
 jobs:
-  # Load the fixture configuration
-  load-fixture:
-    runs-on: ubuntu-latest
-    outputs:
-      fixture: ${{ steps.read.outputs.fixture }}
-      phase_count: ${{ steps.parse.outputs.phase_count }}
-      phase_numbers: ${{ steps.parse.outputs.phase_numbers }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Read fixture file
-        id: read
-        run: |
-          fixture_file=".github/test-fixtures/${{ inputs.test_name }}.json"
-          if [[ ! -f "$fixture_file" ]]; then
-            echo "::error::Fixture file not found: $fixture_file"
-            exit 1
-          fi
-
-          # Read fixture as compact JSON
-          # Use heredoc delimiter syntax for outputs with special characters
-          fixture=$(cat "$fixture_file" | jq -c '.')
-
-          delimiter=$(openssl rand -hex 16)
-          echo "fixture<<$delimiter" >> $GITHUB_OUTPUT
-          echo "$fixture" >> $GITHUB_OUTPUT
-          echo "$delimiter" >> $GITHUB_OUTPUT
-
-          echo "Loaded fixture: ${{ inputs.test_name }}"
-
-      - name: Parse phase count
-        id: parse
-        env:
-          FIXTURE_JSON: ${{ steps.read.outputs.fixture }}
-        run: |
-          # Determine phase count from sub_issues or default to 1
-          sub_issue_count=$(echo "$FIXTURE_JSON" | jq '.sub_issues | length // 0')
-
-          # If fixture has expected phases, use that count
-          expected_phase_count=$(echo "$FIXTURE_JSON" | jq '.expected.phases | length // 0')
-
-          # Use max of sub_issues or expected phases, minimum 1
-          if [[ "$expected_phase_count" -gt "$sub_issue_count" ]]; then
-            phase_count="$expected_phase_count"
-          elif [[ "$sub_issue_count" -gt 0 ]]; then
-            phase_count="$sub_issue_count"
-          else
-            phase_count=1
-          fi
-
-          echo "phase_count=$phase_count" >> $GITHUB_OUTPUT
-
-          # Create JSON array of phase numbers [1, 2, 3, ...]
-          phase_numbers=$(seq 1 $phase_count | jq -R -s -c 'split("\n") | map(select(length > 0) | tonumber)')
-          echo "phase_numbers=$phase_numbers" >> $GITHUB_OUTPUT
-
-          echo "Phase count: $phase_count"
-          echo "Phase numbers: $phase_numbers"
-
-  # Create test artifacts (issues, branches, PRs)
-  setup:
-    needs: load-fixture
+  # Run the configurable test
+  run:
     if: inputs.cleanup_only != true
-    runs-on: ubuntu-latest
-    outputs:
-      issue_number: ${{ steps.create.outputs.issue_number }}
-      sub_issue_numbers: ${{ steps.create.outputs.sub_issue_numbers }}
-      branch_name: ${{ steps.create.outputs.branch_name }}
-      pr_number: ${{ steps.create.outputs.pr_number }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Build test helper action
-        run: |
-          cd .github/actions-ts
-          pnpm install --frozen-lockfile
-          pnpm run build
-
-      - name: Create test fixture
-        id: create
-        uses: ./.github/actions-ts/claude-test-helper
-        with:
-          action: create
-          fixture_json: ${{ needs.load-fixture.outputs.fixture }}
-          github_token: ${{ secrets.NOPO_BOT_PAT }}
-          github_review_token: ${{ secrets.CLAUDE_REVIEWER_PAT }}
-          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
-          stepwise_mode: ${{ inputs.mode == 'stepwise' }}
-          dry_run_mode: ${{ inputs.mode == 'dry-run' }}
-
-      - name: Create e2e config file
-        if: inputs.mode == 'e2e' && steps.create.outputs.branch_name != ''
-        uses: ./.github/actions-ts/claude-test-helper
-        with:
-          action: create_e2e_config
-          branch_name: ${{ steps.create.outputs.branch_name }}
-          e2e_run_id: ${{ github.run_id }}
-          fixture_json: ${{ needs.load-fixture.outputs.fixture }}
-          github_token: ${{ secrets.NOPO_BOT_PAT }}
-
-      - name: Output created resources
-        run: |
-          echo "## Test Fixture Created" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Resource | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| **Parent Issue** | #${{ steps.create.outputs.issue_number }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Sub-issues** | ${{ steps.create.outputs.sub_issue_numbers }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Branch** | ${{ steps.create.outputs.branch_name }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **PR** | ${{ steps.create.outputs.pr_number }} |" >> $GITHUB_STEP_SUMMARY
-          if [[ "${{ inputs.mode }}" == "stepwise" ]]; then
-            echo "| **Mode** | Stepwise (_test label added) |" >> $GITHUB_STEP_SUMMARY
-          elif [[ "${{ inputs.mode }}" == "dry-run" ]]; then
-            echo "| **Mode** | Dry-run (no test mode label, workflows skip) |" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "| **Mode** | E2E (_e2e label added, run_id=${{ github.run_id }}) |" >> $GITHUB_STEP_SUMMARY
-          fi
-
-  # Run state machine in dry-run mode (direct call, no real execution)
-  run-dry-run:
-    needs: [load-fixture, setup]
-    if: |
-      always() &&
-      inputs.cleanup_only != true &&
-      inputs.mode == 'dry-run' &&
-      needs.setup.result == 'success'
-    runs-on: ubuntu-latest
-    outputs:
-      actions_json: ${{ steps.machine.outputs.actions_json }}
-      final_state: ${{ steps.machine.outputs.final_state }}
-      action_count: ${{ steps.machine.outputs.action_count }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Build actions
-        run: |
-          cd .github/actions-ts
-          pnpm install --frozen-lockfile
-          pnpm run build
-
-      - name: Determine trigger type and context
-        id: trigger
-        env:
-          FIXTURE_JSON: ${{ needs.load-fixture.outputs.fixture }}
-        run: |
-          # Extract trigger type from fixture or default based on job_type
-          job_type=$(echo "$FIXTURE_JSON" | jq -r '.job_type // "issue-iterate"')
-          trigger=$(echo "$FIXTURE_JSON" | jq -r '.trigger // empty')
-
-          if [[ -z "$trigger" ]]; then
-            case "$job_type" in
-              issue-iterate|issue-orchestrate)
-                trigger="issue_assigned"
-                ;;
-              pr-review)
-                trigger="pr_review_requested"
-                ;;
-              pr-response|pr-human-response)
-                trigger="pr_review_submitted"
-                ;;
-              *)
-                trigger="issue_assigned"
-                ;;
-            esac
-          fi
-
-          # Extract trigger context (ci_result, review_decision, etc.)
-          ci_result=$(echo "$FIXTURE_JSON" | jq -r '.trigger_context.ci_result // empty')
-          review_decision=$(echo "$FIXTURE_JSON" | jq -r '.trigger_context.review_decision // empty')
-          reviewer=$(echo "$FIXTURE_JSON" | jq -r '.trigger_context.reviewer // empty')
-
-          echo "trigger=$trigger" >> $GITHUB_OUTPUT
-          echo "ci_result=$ci_result" >> $GITHUB_OUTPUT
-          echo "review_decision=$review_decision" >> $GITHUB_OUTPUT
-          echo "reviewer=$reviewer" >> $GITHUB_OUTPUT
-          echo "Determined trigger: $trigger, ci_result: $ci_result, review_decision: $review_decision"
-
-      # State machine now only derives actions (no execution)
-      - name: Derive Actions (State Machine)
-        id: machine
-        uses: ./.github/actions-ts/claude-state-machine
-        with:
-          github_token: ${{ env.GH_TOKEN }}
-          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
-          issue_number: ${{ needs.setup.outputs.issue_number }}
-          trigger: ${{ steps.trigger.outputs.trigger }}
-          ci_result: ${{ steps.trigger.outputs.ci_result }}
-          review_decision: ${{ steps.trigger.outputs.review_decision }}
-          reviewer: ${{ steps.trigger.outputs.reviewer }}
-
-      - name: Output dry-run results
-        env:
-          ACTIONS_JSON: ${{ steps.machine.outputs.actions_json }}
-          FINAL_STATE: ${{ steps.machine.outputs.final_state }}
-          ACTION_COUNT: ${{ steps.machine.outputs.action_count }}
-        run: |
-          echo "## State Machine Dry-Run Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| **Final State** | \`${FINAL_STATE}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Action Count** | ${ACTION_COUNT} |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Actions (would be executed)" >> $GITHUB_STEP_SUMMARY
-          echo '```json' >> $GITHUB_STEP_SUMMARY
-          echo "$ACTIONS_JSON" | jq '.' >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-
-  # ============================================================================
-  # E2E Mode: Per-Phase Verification Pipeline
-  # ============================================================================
-
-  # Step 1: Wait for triage to complete (triggered automatically by issue creation)
-  triage:
-    needs: [load-fixture, setup]
-    if: |
-      always() &&
-      inputs.cleanup_only != true &&
-      inputs.mode == 'e2e' &&
-      needs.setup.result == 'success'
-    runs-on: ubuntu-latest
-    outputs:
-      success: ${{ steps.wait-triage.outputs.success }}
-      sub_issue_numbers: ${{ steps.get-sub-issues.outputs.sub_issue_numbers }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Build test runner action
-        run: |
-          cd .github/actions-ts
-          pnpm install --frozen-lockfile
-          pnpm run build
-
-      - name: Get fixture timeout
-        id: fixture-config
-        env:
-          FIXTURE_JSON: ${{ needs.load-fixture.outputs.fixture }}
-        run: |
-          # Extract timeout from fixture (default 600 = 10 min for triage with real Claude)
-          timeout=$(echo "$FIXTURE_JSON" | jq -r '.timeout // 600')
-          poll_interval=$(echo "$FIXTURE_JSON" | jq -r '.poll_interval // 10')
-          echo "timeout=$timeout" >> $GITHUB_OUTPUT
-          echo "poll_interval=$poll_interval" >> $GITHUB_OUTPUT
-          echo "Using timeout: ${timeout}s, poll_interval: ${poll_interval}s"
-
-      - name: Wait for triage to complete
-        id: wait-triage
-        uses: ./.github/actions-ts/claude-test-runner
-        with:
-          action: wait-triage
-          issue_number: ${{ needs.setup.outputs.issue_number }}
-          fixture_json: ${{ needs.load-fixture.outputs.fixture }}
-          github_token: ${{ secrets.NOPO_BOT_PAT }}
-          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
-          timeout: ${{ steps.fixture-config.outputs.timeout }}
-          poll_interval: ${{ steps.fixture-config.outputs.poll_interval }}
-
-      - name: Get sub-issues created by triage
-        id: get-sub-issues
-        env:
-          ISSUE_NUMBER: ${{ needs.setup.outputs.issue_number }}
-          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
-        run: |
-          # Query sub-issues of the parent issue
-          sub_issues=$(gh api graphql -f query='
-            query($owner: String!, $repo: String!, $number: Int!) {
-              repository(owner: $owner, name: $repo) {
-                issue(number: $number) {
-                  subIssues(first: 20) {
-                    nodes {
-                      number
-                    }
-                  }
-                }
-              }
-            }
-          ' -f owner="${GITHUB_REPOSITORY%/*}" -f repo="${GITHUB_REPOSITORY#*/}" -F number="$ISSUE_NUMBER" \
-            --jq '.data.repository.issue.subIssues.nodes | map(.number) | join(",")')
-
-          echo "sub_issue_numbers=$sub_issues" >> $GITHUB_OUTPUT
-          echo "Sub-issues: $sub_issues"
-
-      - name: Output triage results
-        run: |
-          echo "## Triage Verification" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [[ "${{ steps.wait-triage.outputs.success }}" == "true" ]]; then
-            echo "### ✅ Triage completed successfully" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "### ❌ Triage verification failed" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Errors: ${{ steps.wait-triage.outputs.errors }}" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| **Labels** | ${{ steps.wait-triage.outputs.labels }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Project Fields** | ${{ steps.wait-triage.outputs.project_fields }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Sub-issues** | ${{ steps.get-sub-issues.outputs.sub_issue_numbers }} |" >> $GITHUB_STEP_SUMMARY
-
-  # Step 2: Pre-create branches with e2e config (E2E mode only)
-  # This ensures CI detects e2e mode from Claude's first commit
-  prepare-branches:
-    needs: [load-fixture, setup, triage]
-    if: |
-      always() &&
-      inputs.cleanup_only != true &&
-      inputs.mode == 'e2e' &&
-      needs.triage.result == 'success' &&
-      needs.triage.outputs.success == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Pre-create branches with e2e config
-        env:
-          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
-          FIXTURE_JSON: ${{ needs.load-fixture.outputs.fixture }}
-          SUB_ISSUE_NUMBERS: ${{ needs.triage.outputs.sub_issue_numbers }}
-          PARENT_ISSUE: ${{ needs.setup.outputs.issue_number }}
-          E2E_RUN_ID: ${{ github.run_id }}
-        run: |
-          # Get list of sub-issues (or use parent issue if no sub-issues)
-          if [[ -z "$SUB_ISSUE_NUMBERS" ]] || [[ "$SUB_ISSUE_NUMBERS" == "[]" ]]; then
-            sub_issues="$PARENT_ISSUE"
-          else
-            sub_issues=$(echo "$SUB_ISSUE_NUMBERS" | jq -r '.[]' | tr '\n' ' ')
-          fi
-
-          # Get e2e outcomes from fixture
-          ci_outcomes=$(echo "$FIXTURE_JSON" | jq -c '.e2e_outcomes.ci // ["success"]')
-          release_outcomes=$(echo "$FIXTURE_JSON" | jq -c '.e2e_outcomes.release // ["success"]')
-          review_outcomes=$(echo "$FIXTURE_JSON" | jq -c '.e2e_outcomes.review // ["approved"]')
-
-          # Create e2e config JSON
-          config=$(cat <<EOF
-          {
-            "run_id": "$E2E_RUN_ID",
-            "outcomes": {
-              "ci": $ci_outcomes,
-              "release": $release_outcomes,
-              "review": $review_outcomes
-            },
-            "created_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          }
-          EOF
-          )
-
-          # Get main branch SHA
-          main_sha=$(gh api repos/$GITHUB_REPOSITORY/git/ref/heads/main --jq '.object.sha')
-          echo "Main branch SHA: $main_sha"
-
-          phase=1
-          for sub_issue in $sub_issues; do
-            # Branch name uses sub-issue number (matches state machine pattern)
-            branch_name="claude/issue/${sub_issue}/phase-${phase}"
-            echo "Creating branch: $branch_name for sub-issue #$sub_issue"
-
-            # Create blob with e2e config
-            blob_sha=$(echo "$config" | gh api repos/$GITHUB_REPOSITORY/git/blobs \
-              -X POST \
-              -f content="$(echo "$config" | base64)" \
-              -f encoding=base64 \
-              --jq '.sha')
-            echo "Created blob: $blob_sha"
-
-            # Get main tree
-            main_tree=$(gh api repos/$GITHUB_REPOSITORY/git/commits/$main_sha --jq '.tree.sha')
-
-            # Create new tree with e2e config file
-            new_tree=$(gh api repos/$GITHUB_REPOSITORY/git/trees \
-              -X POST \
-              -f base_tree="$main_tree" \
-              -f 'tree[][path]=.github/e2e-test-config.json' \
-              -f 'tree[][mode]=100644' \
-              -f 'tree[][type]=blob' \
-              -f "tree[][sha]=$blob_sha" \
-              --jq '.sha')
-            echo "Created tree: $new_tree"
-
-            # Create commit
-            new_commit=$(gh api repos/$GITHUB_REPOSITORY/git/commits \
-              -X POST \
-              -f "message=chore(e2e): prepare branch for run $E2E_RUN_ID" \
-              -f "tree=$new_tree" \
-              -f "parents[]=$main_sha" \
-              --jq '.sha')
-            echo "Created commit: $new_commit"
-
-            # Create branch
-            gh api repos/$GITHUB_REPOSITORY/git/refs \
-              -X POST \
-              -f "ref=refs/heads/$branch_name" \
-              -f "sha=$new_commit" || {
-              echo "Branch may already exist, trying to update..."
-              gh api repos/$GITHUB_REPOSITORY/git/refs/heads/$branch_name \
-                -X PATCH \
-                -f "sha=$new_commit" \
-                -F force=true
-            }
-
-            echo "✅ Created branch $branch_name with e2e config"
-            phase=$((phase + 1))
-          done
-
-  # Step 3: Assign nopo-bot to trigger development (E2E mode only)
-  assign:
-    needs: [load-fixture, setup, triage, prepare-branches]
-    if: |
-      always() &&
-      inputs.cleanup_only != true &&
-      inputs.mode == 'e2e' &&
-      needs.triage.result == 'success' &&
-      needs.triage.outputs.success == 'true' &&
-      needs.prepare-branches.result == 'success'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Assign nopo-bot to parent issue
-        env:
-          ISSUE_NUMBER: ${{ needs.setup.outputs.issue_number }}
-          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
-          GH_TOKEN_WORKFLOW: ${{ github.token }}
-        run: |
-          echo "Assigning nopo-bot to issue #$ISSUE_NUMBER..."
-
-          # Assign nopo-bot to trigger the development cycle
-          gh issue edit "$ISSUE_NUMBER" \
-            --repo "$GITHUB_REPOSITORY" \
-            --add-assignee nopo-bot
-          echo "✅ Assigned nopo-bot to issue #$ISSUE_NUMBER"
-
-          # Dispatch orchestrate workflow
-          GH_TOKEN="$GH_TOKEN_WORKFLOW" gh workflow run claude.yml \
-            --repo "$GITHUB_REPOSITORY" \
-            -f resource_number="$ISSUE_NUMBER" \
-            -f continue=true
-          echo "✅ Orchestrate workflow dispatched"
-
-      - name: Wait for workflow to start
-        run: |
-          echo "Waiting for claude workflow to be triggered..."
-          sleep 10
-
-  # Step 4: Development phase verification (sequential matrix) - E2E mode only
-  development:
-    needs: [load-fixture, setup, triage, prepare-branches, assign]
-    if: |
-      always() &&
-      inputs.cleanup_only != true &&
-      inputs.mode == 'e2e' &&
-      needs.assign.result == 'success'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    strategy:
-      matrix:
-        phase: ${{ fromJson(needs.load-fixture.outputs.phase_numbers) }}
-      max-parallel: 1
-      fail-fast: true
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Build test runner action
-        run: |
-          cd .github/actions-ts
-          pnpm install --frozen-lockfile
-          pnpm run build
-
-      - name: Get sub-issue number for phase
-        id: sub-issue
-        env:
-          SUB_ISSUE_NUMBERS: ${{ needs.triage.outputs.sub_issue_numbers }}
-          PHASE: ${{ matrix.phase }}
-        run: |
-          # Parse comma-separated list and get the Nth item (1-indexed)
-          if [[ -z "$SUB_ISSUE_NUMBERS" ]]; then
-            # If no sub-issues from triage, use parent issue
-            sub_issue="${{ needs.setup.outputs.issue_number }}"
-          else
-            sub_issue=$(echo "$SUB_ISSUE_NUMBERS" | cut -d',' -f"$PHASE")
-          fi
-
-          echo "number=$sub_issue" >> $GITHUB_OUTPUT
-          echo "Phase $PHASE sub-issue: #$sub_issue"
-
-      - name: Get fixture timeout
-        id: fixture-config
-        env:
-          FIXTURE_JSON: ${{ needs.load-fixture.outputs.fixture }}
-        run: |
-          # Extract timeout from fixture (default 900 = 15 min if not specified)
-          timeout=$(echo "$FIXTURE_JSON" | jq -r '.timeout // 900')
-          poll_interval=$(echo "$FIXTURE_JSON" | jq -r '.poll_interval // 15')
-          echo "timeout=$timeout" >> $GITHUB_OUTPUT
-          echo "poll_interval=$poll_interval" >> $GITHUB_OUTPUT
-          echo "Using timeout: ${timeout}s, poll_interval: ${poll_interval}s"
-
-      - name: Wait for phase ${{ matrix.phase }} completion
-        id: wait-phase
-        uses: ./.github/actions-ts/claude-test-runner
-        with:
-          action: wait-phase
-          issue_number: ${{ steps.sub-issue.outputs.number }}
-          phase_number: ${{ matrix.phase }}
-          fixture_json: ${{ needs.load-fixture.outputs.fixture }}
-          github_token: ${{ secrets.NOPO_BOT_PAT }}
-          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
-          timeout: ${{ steps.fixture-config.outputs.timeout }}
-          poll_interval: ${{ steps.fixture-config.outputs.poll_interval }}
-          e2e_run_id: ${{ github.run_id }}
-
-      - name: Simulate human merge if needed
-        if: steps.wait-phase.outputs.pr_state == 'open' || steps.wait-phase.outputs.pr_state == 'draft'
-        env:
-          PR_NUMBER: ${{ steps.wait-phase.outputs.pr_number }}
-          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
-        run: |
-          if [[ -n "$PR_NUMBER" ]]; then
-            # Check if PR has ready-to-merge label
-            pr_labels=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json labels --jq '.labels[].name' 2>/dev/null || true)
-            if echo "$pr_labels" | grep -q "ready-to-merge"; then
-              echo "PR #$PR_NUMBER has ready-to-merge label - simulating human merge"
-              gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --squash --admin || true
-            fi
-          fi
-
-      - name: Output phase ${{ matrix.phase }} results
-        run: |
-          echo "## Phase ${{ matrix.phase }} Verification" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [[ "${{ steps.wait-phase.outputs.success }}" == "true" ]]; then
-            echo "### ✅ Phase ${{ matrix.phase }} completed successfully" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "### ❌ Phase ${{ matrix.phase }} failed" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Errors: ${{ steps.wait-phase.outputs.errors }}" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Condition | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| **Branch** | ${{ steps.wait-phase.outputs.branch_name || 'N/A' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **PR** | #${{ steps.wait-phase.outputs.pr_number || 'N/A' }} (${{ steps.wait-phase.outputs.pr_state || 'N/A' }}) |" >> $GITHUB_STEP_SUMMARY
-          echo "| **CI** | ${{ steps.wait-phase.outputs.ci_status || 'N/A' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Review** | ${{ steps.wait-phase.outputs.review_status || 'N/A' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Issue** | ${{ steps.wait-phase.outputs.issue_state }} (${{ steps.wait-phase.outputs.issue_status || 'N/A' }}) |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Duration** | ${{ steps.wait-phase.outputs.total_duration_ms }}ms |" >> $GITHUB_STEP_SUMMARY
-
-  # Step 5: Final completion verification (E2E mode only)
-  completion:
-    needs: [load-fixture, setup, triage, prepare-branches, development]
-    if: |
-      always() &&
-      inputs.cleanup_only != true &&
-      inputs.mode == 'e2e' &&
-      needs.development.result == 'success'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Build test helper action
-        run: |
-          cd .github/actions-ts
-          pnpm install --frozen-lockfile
-          pnpm run build
-
-      - name: Wait for issue state to settle
-        env:
-          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
-          ISSUE_NUMBER: ${{ needs.setup.outputs.issue_number }}
-        run: |
-          # After PR merge, state machine needs time to update issue status
-          # Poll until issue is closed or timeout (16 minutes)
-          echo "Waiting for issue #$ISSUE_NUMBER to close after merge..."
-          max_attempts=192
-          attempt=0
-          while [ $attempt -lt $max_attempts ]; do
-            state=$(gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --json state --jq '.state')
-            echo "Attempt $((attempt + 1))/$max_attempts: Issue state = $state"
-            if [ "$state" = "CLOSED" ]; then
-              echo "✅ Issue closed"
-              break
-            fi
-            attempt=$((attempt + 1))
-            sleep 5
-          done
-          if [ "$state" != "CLOSED" ]; then
-            echo "⚠️ Issue still not closed after 16 minutes, proceeding with verification"
-          fi
-
-      - name: Verify final outcome
-        id: verify
-        uses: ./.github/actions-ts/claude-test-helper
-        with:
-          action: verify
-          fixture_json: ${{ needs.load-fixture.outputs.fixture }}
-          issue_number: ${{ needs.setup.outputs.issue_number }}
-          github_token: ${{ secrets.NOPO_BOT_PAT }}
-          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
-
-      - name: Output completion results
-        run: |
-          echo "## Final Verification" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          if [[ "${{ steps.verify.outputs.verification_passed }}" == "true" ]]; then
-            echo "### ✅ All checks passed!" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "### ❌ Verification failed" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Errors:" >> $GITHUB_STEP_SUMMARY
-            echo '```json' >> $GITHUB_STEP_SUMMARY
-            echo '${{ steps.verify.outputs.verification_errors }}' >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-          fi
-
-      - name: Gather failure analysis
-        if: steps.verify.outputs.verification_passed != 'true'
-        env:
-          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
-          ISSUE_NUMBER: ${{ needs.setup.outputs.issue_number }}
-          SUB_ISSUE_NUMBERS: ${{ needs.triage.outputs.sub_issue_numbers }}
-        run: |
-          echo "## Failure Analysis" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Parent issue details
-          echo "### Parent Issue #$ISSUE_NUMBER" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --json number,title,state,body,assignees,labels,projectItems 2>/dev/null | jq '{
-            number: .number,
-            title: .title,
-            state: .state,
-            assignees: [.assignees[].login],
-            labels: [.labels[].name],
-            project_status: .projectItems[0].status.name
-          }' >> $GITHUB_STEP_SUMMARY || echo "Failed to fetch parent issue" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Sub-issues
-          if [[ -n "$SUB_ISSUE_NUMBERS" ]]; then
-            echo "### Sub-Issues" >> $GITHUB_STEP_SUMMARY
-            IFS=',' read -ra SUB_NUMS <<< "$SUB_ISSUE_NUMBERS"
-            for sub_num in "${SUB_NUMS[@]}"; do
-              sub_num=$(echo "$sub_num" | tr -d ' ')
-              echo "#### Sub-Issue #$sub_num" >> $GITHUB_STEP_SUMMARY
-              echo '```' >> $GITHUB_STEP_SUMMARY
-              gh issue view "$sub_num" --repo "$GITHUB_REPOSITORY" --json number,title,state,assignees,projectItems 2>/dev/null | jq '{
-                number: .number,
-                title: .title,
-                state: .state,
-                assignees: [.assignees[].login],
-                project_status: .projectItems[0].status.name
-              }' >> $GITHUB_STEP_SUMMARY || echo "Failed to fetch sub-issue" >> $GITHUB_STEP_SUMMARY
-              echo '```' >> $GITHUB_STEP_SUMMARY
-            done
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
-
-          # Related PRs
-          echo "### Related PRs" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          gh pr list --repo "$GITHUB_REPOSITORY" --search "$ISSUE_NUMBER in:body" --json number,title,state,isDraft,headRefName 2>/dev/null | jq '.[] | {
-            number: .number,
-            title: .title,
-            state: .state,
-            draft: .isDraft,
-            branch: .headRefName
-          }' >> $GITHUB_STEP_SUMMARY || echo "No related PRs found" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-
-  # Verify dry-run results against expected values (dry-run mode only)
-  verify-dry-run:
-    needs: [load-fixture, setup, run-dry-run]
-    if: |
-      always() &&
-      inputs.cleanup_only != true &&
-      inputs.mode == 'dry-run' &&
-      needs.run-dry-run.result == 'success'
-    runs-on: ubuntu-latest
-    outputs:
-      passed: ${{ steps.verify.outputs.passed }}
-      errors: ${{ steps.verify.outputs.errors }}
-    steps:
-      - name: Verify state machine outputs
-        id: verify
-        env:
-          ACTIONS_JSON: ${{ needs.run-dry-run.outputs.actions_json }}
-          FINAL_STATE: ${{ needs.run-dry-run.outputs.final_state }}
-          ACTION_COUNT: ${{ needs.run-dry-run.outputs.action_count }}
-          FIXTURE_JSON: ${{ needs.load-fixture.outputs.fixture }}
-        run: |
-          errors=""
-          passed="true"
-
-          # Extract expected values from fixture (if specified)
-          expected_final_state=$(echo "$FIXTURE_JSON" | jq -r '.expected_machine.final_state // empty')
-          expected_contains_actions=$(echo "$FIXTURE_JSON" | jq -r '.expected_machine.contains_actions // empty')
-          expected_action_count=$(echo "$FIXTURE_JSON" | jq -r '.expected_machine.action_count // empty')
-
-          # Verify final state (if expected)
-          if [[ -n "$expected_final_state" ]]; then
-            if [[ "$FINAL_STATE" != "$expected_final_state" ]]; then
-              errors="$errors\n- final_state: expected '$expected_final_state', got '$FINAL_STATE'"
-              passed="false"
-            fi
-          fi
-
-          # Verify action count (if expected)
-          if [[ -n "$expected_action_count" ]]; then
-            if [[ "$ACTION_COUNT" != "$expected_action_count" ]]; then
-              errors="$errors\n- action_count: expected '$expected_action_count', got '$ACTION_COUNT'"
-              passed="false"
-            fi
-          fi
-
-          # Verify actions contain expected action types (if specified)
-          if [[ -n "$expected_contains_actions" && "$expected_contains_actions" != "null" ]]; then
-            for action_type in $(echo "$expected_contains_actions" | jq -r '.[]'); do
-              if ! echo "$ACTIONS_JSON" | jq -e ".[] | select(.type == \"$action_type\")" > /dev/null 2>&1; then
-                errors="$errors\n- actions: expected to contain '$action_type' but didn't"
-                passed="false"
-              fi
-            done
-          fi
-
-          echo "passed=$passed" >> $GITHUB_OUTPUT
-          echo "errors=$errors" >> $GITHUB_OUTPUT
-
-          # Output verification result
-          echo "## Dry-Run Verification" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [[ "$passed" == "true" ]]; then
-            echo "### ✅ All verifications passed!" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "### ❌ Verification failed" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Errors:" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo -e "$errors" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-          fi
-
-  # ============================================================================
-  # Configurable Mode: State-Based Fixture Testing
-  # Uses new scenario directory structure with mocked/real Claude and CI
-  # ============================================================================
-  run-configurable:
-    needs: [load-fixture]
-    if: |
-      always() &&
-      inputs.cleanup_only != true &&
-      inputs.mode == 'configurable'
     runs-on: ubuntu-latest
     outputs:
       status: ${{ steps.run.outputs.status }}
@@ -900,7 +86,7 @@ jobs:
         uses: ./.github/actions-ts/claude-test-runner
         with:
           action: run-configurable
-          scenario_name: ${{ inputs.test_name }}
+          scenario_name: ${{ inputs.scenario_name }}
           continue: ${{ inputs.continue }}
           mock_claude: ${{ inputs.mock_claude }}
           mock_ci: ${{ inputs.mock_ci }}
@@ -908,7 +94,7 @@ jobs:
           github_token: ${{ secrets.NOPO_BOT_PAT }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
 
-      - name: Output configurable results
+      - name: Output results
         env:
           STATUS: ${{ steps.run.outputs.status }}
           ISSUE_NUMBER: ${{ steps.run.outputs.issue_number }}
@@ -916,10 +102,11 @@ jobs:
           TOTAL_DURATION: ${{ steps.run.outputs.total_duration_ms }}
           ERROR: ${{ steps.run.outputs.error }}
         run: |
-          echo "## Configurable Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "## Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Scenario** | ${{ inputs.scenario_name }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Status** | \`${STATUS}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Issue** | #${ISSUE_NUMBER} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Duration** | ${TOTAL_DURATION}ms |" >> $GITHUB_STEP_SUMMARY
@@ -945,12 +132,10 @@ jobs:
           echo "$TRANSITIONS" | jq '.' >> $GITHUB_STEP_SUMMARY || echo "$TRANSITIONS" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
-  # Cleanup test artifacts (always runs unless skipped)
+  # Cleanup test artifacts
   cleanup:
-    needs: [setup, triage, completion, run-dry-run, verify-dry-run, run-configurable]
-    if: |
-      always() &&
-      (needs.setup.outputs.issue_number != '' || needs.run-configurable.outputs.issue_number != '' || inputs.cleanup_only == true)
+    needs: [run]
+    if: always() && (needs.run.outputs.issue_number != '' || inputs.cleanup_only == true)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -978,11 +163,8 @@ jobs:
               echo "::error::issue_number is required for cleanup_only mode"
               exit 1
             fi
-          elif [[ "${{ inputs.mode }}" == "configurable" ]]; then
-            # Configurable mode creates its own issue
-            issue_number="${{ needs.run-configurable.outputs.issue_number }}"
           else
-            issue_number="${{ needs.setup.outputs.issue_number }}"
+            issue_number="${{ needs.run.outputs.issue_number }}"
           fi
           echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
 
@@ -1002,64 +184,43 @@ jobs:
 
   # Summary job
   summary:
-    needs: [setup, triage, assign, development, completion, run-dry-run, verify-dry-run, run-configurable, cleanup]
+    needs: [run, cleanup]
     if: always() && inputs.cleanup_only != true
     runs-on: ubuntu-latest
     steps:
       - name: Generate summary
         env:
-          ACTIONS_JSON: ${{ needs.run-dry-run.outputs.actions_json }}
-          FINAL_STATE: ${{ needs.run-dry-run.outputs.final_state }}
-          ACTION_COUNT: ${{ needs.run-dry-run.outputs.action_count }}
-          CONFIGURABLE_STATUS: ${{ needs.run-configurable.outputs.status }}
-          CONFIGURABLE_TRANSITIONS: ${{ needs.run-configurable.outputs.transitions }}
-          CONFIGURABLE_DURATION: ${{ needs.run-configurable.outputs.total_duration_ms }}
+          STATUS: ${{ needs.run.outputs.status }}
+          TRANSITIONS: ${{ needs.run.outputs.transitions }}
+          DURATION: ${{ needs.run.outputs.total_duration_ms }}
+          ERROR: ${{ needs.run.outputs.error }}
         run: |
           echo "# State Machine Test Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Parameter | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|-----------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| **Test** | ${{ inputs.test_name }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Mode** | ${{ inputs.mode }} |" >> $GITHUB_STEP_SUMMARY
-          if [[ "${{ inputs.mode }}" == "configurable" ]]; then
-            echo "| **Issue** | #${{ needs.run-configurable.outputs.issue_number }} |" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "| **Issue** | #${{ needs.setup.outputs.issue_number }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Scenario** | ${{ inputs.scenario_name }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Issue** | #${{ needs.run.outputs.issue_number }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Status** | \`${STATUS:-N/A}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Duration** | ${DURATION:-0}ms |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "### Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "| Setting | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Continue** | ${{ inputs.continue }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Mock Claude** | ${{ inputs.mock_claude }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Mock CI** | ${{ inputs.mock_ci }} |" >> $GITHUB_STEP_SUMMARY
+          if [[ -n "${{ inputs.start_step }}" ]]; then
+            echo "| **Start Step** | ${{ inputs.start_step }} |" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [[ "${{ inputs.mode }}" == "dry-run" ]]; then
-            echo "## State Machine Results" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
-            echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
-            echo "| **Final State** | \`${FINAL_STATE:-N/A}\` |" >> $GITHUB_STEP_SUMMARY
-            echo "| **Action Count** | ${ACTION_COUNT:-0} |" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### Actions" >> $GITHUB_STEP_SUMMARY
-            echo '```json' >> $GITHUB_STEP_SUMMARY
-            echo "$ACTIONS_JSON" | jq '.' 2>/dev/null || echo "[]" >> $GITHUB_STEP_SUMMARY
+          if [[ -n "$ERROR" ]]; then
+            echo "### Error" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
-
-          if [[ "${{ inputs.mode }}" == "configurable" ]]; then
-            echo "## Configurable Test Results" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
-            echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
-            echo "| **Status** | \`${CONFIGURABLE_STATUS:-N/A}\` |" >> $GITHUB_STEP_SUMMARY
-            echo "| **Duration** | ${CONFIGURABLE_DURATION:-0}ms |" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### Configuration" >> $GITHUB_STEP_SUMMARY
-            echo "| Setting | Value |" >> $GITHUB_STEP_SUMMARY
-            echo "|---------|-------|" >> $GITHUB_STEP_SUMMARY
-            echo "| **Continue** | ${{ inputs.continue }} |" >> $GITHUB_STEP_SUMMARY
-            echo "| **Mock Claude** | ${{ inputs.mock_claude }} |" >> $GITHUB_STEP_SUMMARY
-            echo "| **Mock CI** | ${{ inputs.mock_ci }} |" >> $GITHUB_STEP_SUMMARY
-            if [[ -n "${{ inputs.start_step }}" ]]; then
-              echo "| **Start Step** | ${{ inputs.start_step }} |" >> $GITHUB_STEP_SUMMARY
-            fi
+            echo "$ERROR" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
           fi
 
@@ -1067,66 +228,18 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
-
-          if [[ "${{ inputs.mode }}" == "configurable" ]]; then
-            echo "| Run Configurable | ${{ needs.run-configurable.result }} |" >> $GITHUB_STEP_SUMMARY
-          elif [[ "${{ inputs.mode }}" == "dry-run" ]]; then
-            echo "| Setup | ${{ needs.setup.result }} |" >> $GITHUB_STEP_SUMMARY
-            echo "| Run Dry-Run | ${{ needs.run-dry-run.result }} |" >> $GITHUB_STEP_SUMMARY
-            echo "| Verify Dry-Run | ${{ needs.verify-dry-run.result }} |" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "| Setup | ${{ needs.setup.result }} |" >> $GITHUB_STEP_SUMMARY
-            echo "| Triage | ${{ needs.triage.result }} |" >> $GITHUB_STEP_SUMMARY
-            echo "| Assign | ${{ needs.assign.result }} |" >> $GITHUB_STEP_SUMMARY
-            echo "| Development | ${{ needs.development.result }} |" >> $GITHUB_STEP_SUMMARY
-            echo "| Completion | ${{ needs.completion.result }} |" >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "| Run | ${{ needs.run.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Cleanup | ${{ needs.cleanup.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [[ "${{ inputs.mode }}" == "stepwise" ]]; then
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "---" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Stepwise Mode:** Check the claude workflow run triggered by this test to see the decision output." >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "The \`_test\` label prevents execution - only the decision is shown." >> $GITHUB_STEP_SUMMARY
-          fi
-
-          if [[ "${{ inputs.mode }}" == "dry-run" ]]; then
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "---" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Dry-Run Mode:** State machine derived actions without executing them." >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Actions shown above are what _would_ be executed in a real run." >> $GITHUB_STEP_SUMMARY
-          fi
-
-          if [[ "${{ inputs.mode }}" == "e2e" ]]; then
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "---" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**E2E Mode:** Full execution with per-phase verification." >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Each development phase was verified for:" >> $GITHUB_STEP_SUMMARY
-            echo "- Branch created" >> $GITHUB_STEP_SUMMARY
-            echo "- PR opened" >> $GITHUB_STEP_SUMMARY
-            echo "- CI passed" >> $GITHUB_STEP_SUMMARY
-            echo "- Review approved" >> $GITHUB_STEP_SUMMARY
-            echo "- PR merged" >> $GITHUB_STEP_SUMMARY
-            echo "- Issue closed with Done status" >> $GITHUB_STEP_SUMMARY
-          fi
-
-          if [[ "${{ inputs.mode }}" == "configurable" ]]; then
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "---" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Configurable Mode:** State-based fixture testing with mocked or real Claude/CI." >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Each state transition was:" >> $GITHUB_STEP_SUMMARY
-            echo "1. Set up from the state fixture" >> $GITHUB_STEP_SUMMARY
-            echo "2. Executed (with mocked or real Claude/CI)" >> $GITHUB_STEP_SUMMARY
-            echo "3. Verified against the next state fixture" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Use \`continue=false\` for step-by-step debugging." >> $GITHUB_STEP_SUMMARY
-            echo "Use \`start_step\` to start at a specific state." >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**State-based fixture testing with mocked or real Claude/CI.**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Each state transition was:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Set up from the state fixture" >> $GITHUB_STEP_SUMMARY
+          echo "2. Executed (with mocked or real Claude/CI)" >> $GITHUB_STEP_SUMMARY
+          echo "3. Verified against the next state fixture" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Use \`continue=false\` for step-by-step debugging." >> $GITHUB_STEP_SUMMARY
+          echo "Use \`start_step\` to start at a specific state." >> $GITHUB_STEP_SUMMARY

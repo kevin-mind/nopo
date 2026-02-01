@@ -23884,7 +23884,7 @@ var require_github = __commonJS({
 
 // claude-test-runner/index.ts
 var core17 = __toESM(require_core(), 1);
-var github2 = __toESM(require_github(), 1);
+var github = __toESM(require_github(), 1);
 
 // lib/index.ts
 var core = __toESM(require_core(), 1);
@@ -36001,6 +36001,40 @@ var ClaudeMockSchema = external_exports.object({
   /** The structured output to return when this mock is used */
   output: external_exports.record(external_exports.unknown())
 });
+var TestSubIssueSchema = external_exports.object({
+  number: external_exports.number().int().nonnegative(),
+  // 0 = placeholder
+  title: external_exports.string(),
+  body: external_exports.string(),
+  state: external_exports.enum(["OPEN", "CLOSED"]),
+  projectStatus: external_exports.string().nullable(),
+  branch: external_exports.string().nullable().optional(),
+  pr: external_exports.object({
+    number: external_exports.number().int().nonnegative(),
+    // 0 = placeholder
+    state: external_exports.enum(["OPEN", "CLOSED", "MERGED"]),
+    isDraft: external_exports.boolean(),
+    title: external_exports.string(),
+    headRef: external_exports.string(),
+    baseRef: external_exports.string()
+  }).nullable().optional(),
+  todos: external_exports.object({
+    total: external_exports.number().int().nonnegative(),
+    completed: external_exports.number().int().nonnegative(),
+    uncheckedNonManual: external_exports.number().int().nonnegative()
+  }).optional()
+});
+var TestPRSchema = external_exports.object({
+  number: external_exports.number().int().nonnegative(),
+  // 0 = create new PR
+  state: external_exports.enum(["OPEN", "CLOSED", "MERGED"]),
+  isDraft: external_exports.boolean(),
+  title: external_exports.string(),
+  body: external_exports.string().optional(),
+  headRef: external_exports.string(),
+  // Branch name (will use test branch if not specified)
+  baseRef: external_exports.string().default("main")
+});
 var TestParentIssueSchema = external_exports.object({
   number: external_exports.number().int().nonnegative(),
   // Allow 0 as placeholder
@@ -36012,8 +36046,8 @@ var TestParentIssueSchema = external_exports.object({
   failures: external_exports.number().int().nonnegative(),
   assignees: external_exports.array(external_exports.string()),
   labels: external_exports.array(external_exports.string()),
-  subIssues: external_exports.array(external_exports.unknown()),
-  // Simplified for fixtures
+  subIssues: external_exports.array(TestSubIssueSchema),
+  // Now typed for test fixtures
   hasSubIssues: external_exports.boolean(),
   history: external_exports.array(external_exports.unknown()),
   // Simplified for fixtures
@@ -36021,7 +36055,9 @@ var TestParentIssueSchema = external_exports.object({
     total: external_exports.number().int().nonnegative(),
     completed: external_exports.number().int().nonnegative(),
     uncheckedNonManual: external_exports.number().int().nonnegative()
-  })
+  }),
+  /** PR linked to this issue (optional, for states that need a PR) */
+  pr: TestPRSchema.nullable().optional()
 });
 var StateFixtureSchema = external_exports.object({
   /** The state name this fixture represents */
@@ -36039,7 +36075,7 @@ var ScenarioConfigSchema = external_exports.object({
   name: external_exports.string(),
   description: external_exports.string()
 });
-var TestRunnerInputsSchema = external_exports.object({
+var _TestRunnerInputsSchema = external_exports.object({
   /** false = stop after one step, true = run to completion */
   continue: external_exports.boolean().default(true),
   /** Start at a specific state name (e.g., "iteratingFix") */
@@ -36063,7 +36099,7 @@ var StateTransitionResultSchema = external_exports.object({
   /** Verification failures if any */
   verificationErrors: external_exports.array(external_exports.string()).optional()
 });
-var TestResultSchema = external_exports.object({
+var _TestResultSchema = external_exports.object({
   /** Overall status */
   status: external_exports.enum(["completed", "paused", "failed", "error"]),
   /** Current state (if paused) */
@@ -36193,7 +36229,6 @@ ${errors}`);
 
 // claude-test-runner/src/configurable/runner.ts
 var core16 = __toESM(require_core(), 1);
-var github = __toESM(require_github(), 1);
 var exec11 = __toESM(require_exec(), 1);
 
 // claude-state-machine/runner/runner.ts
@@ -37150,7 +37185,7 @@ var core10 = __toESM(require_core(), 1);
 var exec9 = __toESM(require_exec(), 1);
 var fs2 = __toESM(require("fs"), 1);
 var path2 = __toESM(require("path"), 1);
-async function createMockCommit(action, ctx) {
+async function createMockCommit(action, _ctx) {
   const branchName = deriveBranchName(action.issueNumber);
   core10.info(`[MOCK MODE] Creating placeholder commit on branch ${branchName}`);
   try {
@@ -38464,6 +38499,10 @@ var ConfigurableTestRunner = class {
   inputs;
   config;
   issueNumber = null;
+  testBranchName = null;
+  prNumber = null;
+  subIssueNumbers = /* @__PURE__ */ new Map();
+  // title -> issue number
   constructor(scenario, inputs, config) {
     this.scenario = scenario;
     this.inputs = inputs;
@@ -38483,6 +38522,9 @@ var ConfigurableTestRunner = class {
       const firstFixture = this.scenario.fixtures.get(firstState);
       this.issueNumber = await this.createTestIssue(firstFixture);
       core16.info(`Created test issue #${this.issueNumber}`);
+      this.testBranchName = `test/${this.scenario.name}/issue-${this.issueNumber}`;
+      await this.createTestBranch();
+      core16.info(`Created test branch: ${this.testBranchName}`);
       if (startIndex > 0) {
         const startState = this.scenario.orderedStates[startIndex];
         const startFixture = this.scenario.fixtures.get(startState);
@@ -38501,6 +38543,10 @@ ${"=".repeat(60)}`);
         const transitionStartTime = Date.now();
         try {
           await this.executeStateTransition(currentFixture);
+          await this.applyStateTransitionSideEffects(
+            currentFixture,
+            nextFixture
+          );
           const verificationErrors = await this.verifyGitHubState(nextFixture);
           const transitionResult = {
             fromState: currentState,
@@ -38631,6 +38677,183 @@ ${"=".repeat(60)}`);
     return issueNumber;
   }
   /**
+   * Create a test branch for the scenario
+   * Creates the branch from main with a placeholder commit so the branch exists
+   * and the state machine can push commits to it
+   */
+  async createTestBranch() {
+    if (!this.testBranchName) {
+      throw new Error("Test branch name not set");
+    }
+    core16.info(`Creating test branch: ${this.testBranchName}`);
+    const { data: mainRef } = await this.config.octokit.rest.git.getRef({
+      owner: this.config.owner,
+      repo: this.config.repo,
+      ref: "heads/main"
+    });
+    const { data: mainCommit } = await this.config.octokit.rest.git.getCommit({
+      owner: this.config.owner,
+      repo: this.config.repo,
+      commit_sha: mainRef.object.sha
+    });
+    const placeholderContent = `# Test Branch Placeholder
+# Scenario: ${this.scenario.name}
+# Issue: #${this.issueNumber}
+# Created: ${(/* @__PURE__ */ new Date()).toISOString()}
+
+This branch was created by the configurable test runner.
+`;
+    const { data: blob } = await this.config.octokit.rest.git.createBlob({
+      owner: this.config.owner,
+      repo: this.config.repo,
+      content: Buffer.from(placeholderContent).toString("base64"),
+      encoding: "base64"
+    });
+    const { data: tree } = await this.config.octokit.rest.git.createTree({
+      owner: this.config.owner,
+      repo: this.config.repo,
+      base_tree: mainCommit.tree.sha,
+      tree: [
+        {
+          path: ".test-placeholder",
+          mode: "100644",
+          type: "blob",
+          sha: blob.sha
+        }
+      ]
+    });
+    const { data: commit } = await this.config.octokit.rest.git.createCommit({
+      owner: this.config.owner,
+      repo: this.config.repo,
+      message: `test: initialize branch for ${this.scenario.name} scenario
+
+Issue: #${this.issueNumber}
+`,
+      tree: tree.sha,
+      parents: [mainRef.object.sha]
+    });
+    try {
+      await this.config.octokit.rest.git.createRef({
+        owner: this.config.owner,
+        repo: this.config.repo,
+        ref: `refs/heads/${this.testBranchName}`,
+        sha: commit.sha
+      });
+      core16.info(`Created branch ${this.testBranchName} with initial commit`);
+    } catch (error6) {
+      if (error6 instanceof Error && error6.message.includes("Reference already exists")) {
+        await this.config.octokit.rest.git.updateRef({
+          owner: this.config.owner,
+          repo: this.config.repo,
+          ref: `heads/${this.testBranchName}`,
+          sha: commit.sha,
+          force: true
+        });
+        core16.info(`Updated existing branch ${this.testBranchName}`);
+      } else {
+        throw error6;
+      }
+    }
+  }
+  /**
+   * Create a test PR for the scenario
+   * Called when a fixture requires a PR to exist
+   */
+  async createTestPR(prSpec) {
+    if (!this.testBranchName || !this.issueNumber) {
+      throw new Error("Branch and issue must be created before PR");
+    }
+    const headRef = prSpec.headRef || this.testBranchName;
+    const baseRef = prSpec.baseRef || "main";
+    const title = prSpec.title || `[TEST] PR for issue #${this.issueNumber}`;
+    const body = prSpec.body || `Test PR for scenario: ${this.scenario.name}
+
+Fixes #${this.issueNumber}`;
+    core16.info(`Creating test PR: ${title}`);
+    core16.info(`  Head: ${headRef} -> Base: ${baseRef}`);
+    core16.info(`  Draft: ${prSpec.isDraft}`);
+    const response = await this.config.octokit.rest.pulls.create({
+      owner: this.config.owner,
+      repo: this.config.repo,
+      title,
+      body,
+      head: headRef,
+      base: baseRef,
+      draft: prSpec.isDraft
+    });
+    this.prNumber = response.data.number;
+    core16.info(`Created PR #${this.prNumber}`);
+    await this.config.octokit.rest.issues.addLabels({
+      owner: this.config.owner,
+      repo: this.config.repo,
+      issue_number: this.prNumber,
+      labels: [TEST_LABEL]
+    });
+    return this.prNumber;
+  }
+  /**
+   * Request a review on a PR
+   */
+  async requestReview(prNumber, reviewer) {
+    core16.info(`Requesting review from ${reviewer} on PR #${prNumber}`);
+    await this.config.octokit.rest.pulls.requestReviewers({
+      owner: this.config.owner,
+      repo: this.config.repo,
+      pull_number: prNumber,
+      reviewers: [reviewer]
+    });
+  }
+  /**
+   * Apply side effects needed to transition from current state to next state.
+   * This handles external triggers (e.g., assigning nopo-bot) that the state machine
+   * doesn't handle automatically.
+   *
+   * Called AFTER executing the current state but BEFORE verification.
+   */
+  async applyStateTransitionSideEffects(currentFixture, nextFixture) {
+    if (!this.issueNumber) return;
+    core16.info(
+      `
+Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
+    );
+    const needsAssignment = nextFixture.issue.assignees.includes("nopo-bot") && !currentFixture.issue.assignees.includes("nopo-bot");
+    if (needsAssignment) {
+      core16.info("  \u2192 Assigning nopo-bot");
+      await this.config.octokit.rest.issues.addAssignees({
+        owner: this.config.owner,
+        repo: this.config.repo,
+        issue_number: this.issueNumber,
+        assignees: ["nopo-bot"]
+      });
+    }
+    if (nextFixture.issue.pr && !this.prNumber) {
+      core16.info("  \u2192 Creating PR");
+      await this.createTestPR(nextFixture.issue.pr);
+    }
+    if (nextFixture.state === "reviewing" || nextFixture.state === "prReviewing") {
+      if (this.prNumber) {
+        core16.info("  \u2192 Requesting review");
+        await this.requestReview(this.prNumber, "nopo-bot");
+      }
+    }
+    if (nextFixture.state === "processingMerge" && this.prNumber) {
+      core16.info("  \u2192 Merging PR");
+      await this.mergePR(this.prNumber);
+    }
+  }
+  /**
+   * Merge a PR
+   */
+  async mergePR(prNumber) {
+    core16.info(`Merging PR #${prNumber}`);
+    await this.config.octokit.rest.pulls.merge({
+      owner: this.config.owner,
+      repo: this.config.repo,
+      pull_number: prNumber,
+      merge_method: "squash"
+    });
+  }
+  /**
    * Set up GitHub state to match a fixture (for starting mid-flow)
    */
   async setupGitHubState(fixture) {
@@ -38668,6 +38891,16 @@ ${"=".repeat(60)}`);
     });
     for (const subIssue of fixture.issue.subIssues) {
       await this.createSubIssue(subIssue);
+    }
+    if (fixture.issue.pr) {
+      const prSpec = {
+        ...fixture.issue.pr,
+        headRef: fixture.issue.pr.headRef || this.testBranchName
+      };
+      await this.createTestPR(prSpec);
+      if (fixture.state === "reviewing" && this.prNumber) {
+        await this.requestReview(this.prNumber, "nopo-bot");
+      }
     }
   }
   /**
@@ -38750,7 +38983,13 @@ ${"=".repeat(60)}`);
       todos: fixture.issue.todos
     };
     let trigger = "issue_edited";
-    if (fixture.state === "triaging") {
+    if (fixture.state === "detecting") {
+      if (!fixture.issue.labels.includes("triaged")) {
+        trigger = "issue_triage";
+      } else if (fixture.issue.assignees.includes("nopo-bot")) {
+        trigger = "issue_assigned";
+      }
+    } else if (fixture.state === "triaging") {
       trigger = "issue_triage";
     } else if (fixture.state === "reviewing" || fixture.state === "prReviewing") {
       trigger = "pr_review_requested";
@@ -38758,8 +38997,21 @@ ${"=".repeat(60)}`);
       trigger = "workflow_run_completed";
     } else if (fixture.state === "processingReview") {
       trigger = "pr_review_submitted";
+    } else if (fixture.state === "processingMerge") {
+      trigger = "pr_merged";
     } else if (fixture.ciResult) {
       trigger = "workflow_run_completed";
+    }
+    let pr = null;
+    if (this.prNumber && fixture.issue.pr) {
+      pr = {
+        number: this.prNumber,
+        state: fixture.issue.pr.state,
+        isDraft: fixture.issue.pr.isDraft,
+        title: fixture.issue.pr.title,
+        headRef: this.testBranchName,
+        baseRef: fixture.issue.pr.baseRef || "main"
+      };
     }
     return {
       trigger,
@@ -38775,10 +39027,10 @@ ${"=".repeat(60)}`);
       ciCommitSha: null,
       reviewDecision: fixture.reviewDecision || null,
       reviewerId: null,
-      branch: `claude/issue/${this.issueNumber}`,
-      hasBranch: fixture.issue.iteration > 0,
-      pr: null,
-      hasPR: false,
+      branch: this.testBranchName,
+      hasBranch: fixture.issue.iteration > 0 || this.testBranchName !== null,
+      pr,
+      hasPR: pr !== null,
       maxRetries: 5,
       botUsername: "nopo-bot",
       discussion: null,
@@ -38798,8 +39050,8 @@ ${"=".repeat(60)}`);
    * Trigger CI workflow (mock or real)
    */
   async triggerCI(result) {
-    if (!this.issueNumber) return;
-    const branch = `test/scenario-${this.scenario.name}/${this.issueNumber}`;
+    if (!this.issueNumber || !this.testBranchName) return;
+    const branch = this.testBranchName;
     if (this.inputs.mockCI) {
       const mockResult = result === "success" ? "pass" : "fail";
       core16.info(`Triggering mock CI with result: ${mockResult}`);
@@ -38824,21 +39076,30 @@ ${"=".repeat(60)}`);
     const maxWaitMs = 3e5;
     const pollIntervalMs = 1e4;
     const startTime = Date.now();
-    core16.info("Waiting for CI workflow to complete...");
+    core16.info(
+      `Waiting for CI workflow to complete on branch ${this.testBranchName}...`
+    );
     while (Date.now() - startTime < maxWaitMs) {
       const { data: runs } = await this.config.octokit.rest.actions.listWorkflowRuns({
         owner: this.config.owner,
         repo: this.config.repo,
         workflow_id: "ci.yml",
+        branch: this.testBranchName || void 0,
         per_page: 5
       });
-      const recentRun = runs.workflow_runs[0];
-      if (recentRun) {
-        if (recentRun.status === "completed") {
-          core16.info(`CI completed with conclusion: ${recentRun.conclusion}`);
+      const matchingRun = runs.workflow_runs.find(
+        (run2) => run2.head_branch === this.testBranchName
+      );
+      if (matchingRun) {
+        if (matchingRun.status === "completed") {
+          core16.info(`CI completed with conclusion: ${matchingRun.conclusion}`);
           return;
         }
-        core16.info(`CI status: ${recentRun.status}, waiting...`);
+        core16.info(
+          `CI status: ${matchingRun.status} (run ${matchingRun.id}), waiting...`
+        );
+      } else {
+        core16.info("No CI run found yet, waiting...");
       }
       await new Promise((resolve2) => setTimeout(resolve2, pollIntervalMs));
     }
@@ -38846,12 +39107,12 @@ ${"=".repeat(60)}`);
   }
   /**
    * Verify GitHub state matches expected fixture
+   * Returns array of error messages (empty if all checks pass)
    */
   async verifyGitHubState(expected) {
     if (!this.issueNumber) {
       return ["Issue not created"];
     }
-    const errors = [];
     const state = await fetchGitHubState(
       this.config.octokit,
       this.config.owner,
@@ -38859,40 +39120,67 @@ ${"=".repeat(60)}`);
       this.issueNumber,
       this.config.projectNumber
     );
-    core16.info(`Fetched GitHub state for verification:`);
-    core16.info(`  Issue state: ${state.issueState}`);
-    core16.info(`  Project status: ${state.projectStatus}`);
-    core16.info(`  Iteration: ${state.iteration}`);
-    core16.info(`  Failures: ${state.failures}`);
-    const expectedState = expected.issue.state;
-    if (state.issueState !== expectedState) {
-      errors.push(
-        `Issue state: expected ${expectedState}, got ${state.issueState}`
-      );
-    }
-    if (expected.issue.projectStatus) {
-      if (state.projectStatus !== expected.issue.projectStatus) {
+    const expectedFields = {
+      issueState: expected.issue.state,
+      projectStatus: expected.issue.projectStatus,
+      iteration: expected.issue.iteration,
+      failures: expected.issue.failures,
+      botAssigned: expected.issue.assignees.includes("nopo-bot"),
+      hasTriagedLabel: expected.issue.labels.includes("triaged")
+    };
+    const actualFields = {
+      issueState: state.issueState,
+      projectStatus: state.projectStatus,
+      iteration: state.iteration,
+      failures: state.failures,
+      botAssigned: state.botAssigned,
+      hasTriagedLabel: state.labels.includes("triaged")
+    };
+    core16.info(`
+State Verification:`);
+    core16.info(`${"\u2500".repeat(60)}`);
+    const errors = [];
+    const diffLines = [];
+    for (const key of Object.keys(expectedFields)) {
+      const exp = expectedFields[key];
+      const act = actualFields[key];
+      const match = exp === act;
+      if (match) {
+        diffLines.push(`  "${key}": ${JSON.stringify(act)}`);
+      } else {
+        diffLines.push(`- "${key}": ${JSON.stringify(exp)}`);
+        diffLines.push(`+ "${key}": ${JSON.stringify(act)}`);
         errors.push(
-          `Project status: expected ${expected.issue.projectStatus}, got ${state.projectStatus}`
+          `${key}: expected ${JSON.stringify(exp)}, got ${JSON.stringify(act)}`
         );
       }
     }
-    if (state.iteration !== expected.issue.iteration) {
-      errors.push(
-        `Iteration: expected ${expected.issue.iteration}, got ${state.iteration}`
-      );
+    core16.info(`{`);
+    for (const line of diffLines) {
+      if (line.startsWith("-")) {
+        core16.info(`\x1B[31m${line}\x1B[0m`);
+      } else if (line.startsWith("+")) {
+        core16.info(`\x1B[32m${line}\x1B[0m`);
+      } else {
+        core16.info(line);
+      }
     }
-    if (state.failures !== expected.issue.failures) {
-      errors.push(
-        `Failures: expected ${expected.issue.failures}, got ${state.failures}`
-      );
+    core16.info(`}`);
+    core16.info(`${"\u2500".repeat(60)}`);
+    if (errors.length > 0) {
+      core16.info(`
+\u274C ${errors.length} field(s) differ`);
+    } else {
+      core16.info(`
+\u2705 All fields match`);
     }
     return errors;
   }
   /**
-   * Create a sub-issue
+   * Create a sub-issue with optional branch and PR
    */
   async createSubIssue(subIssue) {
+    core16.info(`Creating sub-issue: ${subIssue.title}`);
     const response = await this.config.octokit.rest.issues.create({
       owner: this.config.owner,
       repo: this.config.repo,
@@ -38901,10 +39189,126 @@ ${"=".repeat(60)}`);
       labels: [TEST_LABEL]
     });
     const issueNumber = response.data.number;
+    this.subIssueNumbers.set(subIssue.title, issueNumber);
+    core16.info(`Created sub-issue #${issueNumber}`);
     if (subIssue.projectStatus) {
       await this.setProjectField(issueNumber, "Status", subIssue.projectStatus);
     }
+    if (subIssue.branch) {
+      const branchName = subIssue.branch.replace(
+        "{issue}",
+        issueNumber.toString()
+      );
+      await this.createBranchForSubIssue(branchName, issueNumber);
+    }
+    if (subIssue.pr) {
+      const prSpec = {
+        ...subIssue.pr,
+        headRef: subIssue.pr.headRef?.replace("{issue}", issueNumber.toString()) || subIssue.branch?.replace("{issue}", issueNumber.toString()) || `test/sub-${issueNumber}`,
+        body: subIssue.pr.title ? void 0 : `Fixes #${issueNumber}
+
+Sub-issue PR for test scenario.`
+      };
+      const savedPrNumber = this.prNumber;
+      await this.createTestPR(prSpec);
+      this.prNumber = savedPrNumber;
+    }
+    await this.linkSubIssueToParent(issueNumber);
     return issueNumber;
+  }
+  /**
+   * Create a branch for a sub-issue
+   */
+  async createBranchForSubIssue(branchName, issueNumber) {
+    core16.info(`Creating branch for sub-issue #${issueNumber}: ${branchName}`);
+    const { data: mainRef } = await this.config.octokit.rest.git.getRef({
+      owner: this.config.owner,
+      repo: this.config.repo,
+      ref: "heads/main"
+    });
+    const { data: mainCommit } = await this.config.octokit.rest.git.getCommit({
+      owner: this.config.owner,
+      repo: this.config.repo,
+      commit_sha: mainRef.object.sha
+    });
+    const placeholderContent = `# Sub-issue Branch Placeholder
+# Issue: #${issueNumber}
+# Parent: #${this.issueNumber}
+# Created: ${(/* @__PURE__ */ new Date()).toISOString()}
+`;
+    const { data: blob } = await this.config.octokit.rest.git.createBlob({
+      owner: this.config.owner,
+      repo: this.config.repo,
+      content: Buffer.from(placeholderContent).toString("base64"),
+      encoding: "base64"
+    });
+    const { data: tree } = await this.config.octokit.rest.git.createTree({
+      owner: this.config.owner,
+      repo: this.config.repo,
+      base_tree: mainCommit.tree.sha,
+      tree: [
+        {
+          path: ".test-placeholder",
+          mode: "100644",
+          type: "blob",
+          sha: blob.sha
+        }
+      ]
+    });
+    const { data: commit } = await this.config.octokit.rest.git.createCommit({
+      owner: this.config.owner,
+      repo: this.config.repo,
+      message: `test: initialize branch for sub-issue #${issueNumber}`,
+      tree: tree.sha,
+      parents: [mainRef.object.sha]
+    });
+    try {
+      await this.config.octokit.rest.git.createRef({
+        owner: this.config.owner,
+        repo: this.config.repo,
+        ref: `refs/heads/${branchName}`,
+        sha: commit.sha
+      });
+      core16.info(`Created branch ${branchName}`);
+    } catch (error6) {
+      if (error6 instanceof Error && error6.message.includes("Reference already exists")) {
+        await this.config.octokit.rest.git.updateRef({
+          owner: this.config.owner,
+          repo: this.config.repo,
+          ref: `heads/${branchName}`,
+          sha: commit.sha,
+          force: true
+        });
+        core16.info(`Updated existing branch ${branchName}`);
+      } else {
+        throw error6;
+      }
+    }
+  }
+  /**
+   * Link a sub-issue to the parent issue using GitHub's sub-issues API
+   */
+  async linkSubIssueToParent(subIssueNumber) {
+    if (!this.issueNumber) return;
+    core16.info(
+      `Linking sub-issue #${subIssueNumber} to parent #${this.issueNumber}`
+    );
+    const { data: subIssue } = await this.config.octokit.rest.issues.get({
+      owner: this.config.owner,
+      repo: this.config.repo,
+      issue_number: subIssueNumber
+    });
+    const parentRef = `Parent: #${this.issueNumber}`;
+    if (!subIssue.body?.includes(parentRef)) {
+      await this.config.octokit.rest.issues.update({
+        owner: this.config.owner,
+        repo: this.config.repo,
+        issue_number: subIssueNumber,
+        body: `${parentRef}
+
+${subIssue.body || ""}`
+      });
+    }
   }
   /**
    * Set a project field on an issue
@@ -39107,8 +39511,8 @@ async function run() {
       10
     );
     const cleanupOnFailure = getOptionalInput("cleanup_on_failure") === "true";
-    const octokit = github2.getOctokit(token);
-    const { owner, repo } = github2.context.repo;
+    const octokit = github.getOctokit(token);
+    const { owner, repo } = github.context.repo;
     if (action === "run") {
       const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
       const fixtureJson = getOptionalInput("fixture_json");

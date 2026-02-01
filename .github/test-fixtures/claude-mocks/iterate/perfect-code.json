@@ -1,0 +1,11 @@
+{
+  "description": "Claude completes all todos successfully - ready for review",
+  "output": {
+    "status": "all_done",
+    "agent_notes": [
+      "All implementation tasks completed",
+      "Tests written and passing",
+      "Ready for code review"
+    ]
+  }
+}

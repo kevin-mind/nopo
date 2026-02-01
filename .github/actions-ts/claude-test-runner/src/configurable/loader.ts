@@ -204,8 +204,9 @@ async function loadReferencedMocks(
 
 /**
  * List all available scenarios
+ * @internal Reserved for future use
  */
-async function listScenarios(
+async function _listScenarios(
   basePath: string = FIXTURES_BASE_PATH,
 ): Promise<string[]> {
   const scenariosDir = path.join(basePath, SCENARIOS_DIR);
@@ -236,8 +237,9 @@ async function listScenarios(
 /**
  * Validate a scenario without fully loading it
  * Useful for CI checks to ensure fixtures are valid
+ * @internal Reserved for future use
  */
-async function validateScenario(
+async function _validateScenario(
   scenarioName: string,
   basePath: string = FIXTURES_BASE_PATH,
 ): Promise<{ valid: boolean; errors: string[] }> {
@@ -251,3 +253,7 @@ async function validateScenario(
     return { valid: false, errors };
   }
 }
+
+// Keep references to avoid lint errors for reserved functions
+void _listScenarios;
+void _validateScenario;
