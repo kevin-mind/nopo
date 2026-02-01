@@ -22,7 +22,11 @@ import {
   type StateFixture,
   type StateName,
 } from "./types.js";
-import type { ParentIssue, ProjectStatus, MachineContext } from "../../../claude-state-machine/schemas/state.js";
+import type {
+  ParentIssue,
+  ProjectStatus,
+  MachineContext,
+} from "../../../claude-state-machine/schemas/state.js";
 import { claudeMachine } from "../../../claude-state-machine/machine/machine.js";
 import {
   executeActions,
@@ -238,13 +242,25 @@ export class ConfigurableTestRunner {
 
     // Set project fields if specified
     if (fixture.issue.projectStatus) {
-      await this.setProjectField(issueNumber, "Status", fixture.issue.projectStatus);
+      await this.setProjectField(
+        issueNumber,
+        "Status",
+        fixture.issue.projectStatus,
+      );
     }
     if (fixture.issue.iteration > 0) {
-      await this.setProjectField(issueNumber, "Iteration", fixture.issue.iteration);
+      await this.setProjectField(
+        issueNumber,
+        "Iteration",
+        fixture.issue.iteration,
+      );
     }
     if (fixture.issue.failures > 0) {
-      await this.setProjectField(issueNumber, "Failures", fixture.issue.failures);
+      await this.setProjectField(
+        issueNumber,
+        "Failures",
+        fixture.issue.failures,
+      );
     }
 
     // Assign nopo-bot if in assignees
@@ -270,10 +286,22 @@ export class ConfigurableTestRunner {
 
     // Update project fields
     if (fixture.issue.projectStatus) {
-      await this.setProjectField(this.issueNumber, "Status", fixture.issue.projectStatus);
+      await this.setProjectField(
+        this.issueNumber,
+        "Status",
+        fixture.issue.projectStatus,
+      );
     }
-    await this.setProjectField(this.issueNumber, "Iteration", fixture.issue.iteration);
-    await this.setProjectField(this.issueNumber, "Failures", fixture.issue.failures);
+    await this.setProjectField(
+      this.issueNumber,
+      "Iteration",
+      fixture.issue.iteration,
+    );
+    await this.setProjectField(
+      this.issueNumber,
+      "Failures",
+      fixture.issue.failures,
+    );
 
     // Update issue body if different
     await this.config.octokit.rest.issues.update({
@@ -306,9 +334,10 @@ export class ConfigurableTestRunner {
     }
 
     // Get the mock output if in mock mode
-    const mockOutput = this.inputs.mockClaude && fixture.claudeMock
-      ? this.scenario.claudeMocks.get(fixture.claudeMock)?.output
-      : undefined;
+    const mockOutput =
+      this.inputs.mockClaude && fixture.claudeMock
+        ? this.scenario.claudeMocks.get(fixture.claudeMock)?.output
+        : undefined;
 
     // Build MachineContext from fixture
     const context = this.buildMachineContext(fixture);
@@ -334,9 +363,10 @@ export class ConfigurableTestRunner {
     }
 
     // Build mock outputs map for the runner
-    const mockOutputs = mockOutput && fixture.claudeMock
-      ? { [this.getPromptDirFromMock(fixture.claudeMock)]: mockOutput }
-      : undefined;
+    const mockOutputs =
+      mockOutput && fixture.claudeMock
+        ? { [this.getPromptDirFromMock(fixture.claudeMock)]: mockOutput }
+        : undefined;
 
     if (this.inputs.mockClaude && mockOutputs) {
       core.info(`Using mock Claude mode with output: ${fixture.claudeMock}`);
@@ -362,13 +392,17 @@ export class ConfigurableTestRunner {
     const result = await executeActions(pendingActions, runnerCtx);
 
     if (!result.success) {
-      const failedActions = result.results.filter(r => !r.success && !r.skipped);
+      const failedActions = result.results.filter(
+        (r) => !r.success && !r.skipped,
+      );
       throw new Error(
-        `Action execution failed: ${failedActions.map(r => r.error?.message).join(", ")}`,
+        `Action execution failed: ${failedActions.map((r) => r.error?.message).join(", ")}`,
       );
     }
 
-    core.info(`Executed ${result.results.filter(r => !r.skipped).length} actions successfully`);
+    core.info(
+      `Executed ${result.results.filter((r) => !r.skipped).length} actions successfully`,
+    );
 
     // Trigger CI if fixture specifies a CI result
     if (fixture.ciResult) {
@@ -389,7 +423,10 @@ export class ConfigurableTestRunner {
     let trigger: MachineContext["trigger"] = "issue_edited";
     if (fixture.state === "triaging") {
       trigger = "issue_opened";
-    } else if (fixture.state === "reviewing" || fixture.state === "prReviewing") {
+    } else if (
+      fixture.state === "reviewing" ||
+      fixture.state === "prReviewing"
+    ) {
       trigger = "pull_request_review_requested";
     } else if (fixture.state === "processingCI") {
       trigger = "workflow_run_completed";
@@ -435,7 +472,9 @@ export class ConfigurableTestRunner {
   /**
    * Trigger CI workflow (mock or real)
    */
-  private async triggerCI(result: "success" | "failure" | "cancelled" | "skipped"): Promise<void> {
+  private async triggerCI(
+    result: "success" | "failure" | "cancelled" | "skipped",
+  ): Promise<void> {
     if (!this.issueNumber) return;
 
     const branch = `test/scenario-${this.scenario.name}/${this.issueNumber}`;
@@ -500,14 +539,20 @@ export class ConfigurableTestRunner {
 
     // Verify project status
     const actualStatus = await this.getProjectField(this.issueNumber, "Status");
-    if (expected.issue.projectStatus && actualStatus !== expected.issue.projectStatus) {
+    if (
+      expected.issue.projectStatus &&
+      actualStatus !== expected.issue.projectStatus
+    ) {
       errors.push(
         `Project status: expected ${expected.issue.projectStatus}, got ${actualStatus}`,
       );
     }
 
     // Verify iteration
-    const actualIteration = await this.getProjectField(this.issueNumber, "Iteration");
+    const actualIteration = await this.getProjectField(
+      this.issueNumber,
+      "Iteration",
+    );
     if (actualIteration !== expected.issue.iteration) {
       errors.push(
         `Iteration: expected ${expected.issue.iteration}, got ${actualIteration}`,
@@ -515,7 +560,10 @@ export class ConfigurableTestRunner {
     }
 
     // Verify failures
-    const actualFailures = await this.getProjectField(this.issueNumber, "Failures");
+    const actualFailures = await this.getProjectField(
+      this.issueNumber,
+      "Failures",
+    );
     if (actualFailures !== expected.issue.failures) {
       errors.push(
         `Failures: expected ${expected.issue.failures}, got ${actualFailures}`,

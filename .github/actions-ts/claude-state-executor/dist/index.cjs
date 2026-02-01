@@ -29720,11 +29720,19 @@ async function createMockCommit(action, ctx) {
   const branchName = deriveBranchName(action.issueNumber);
   core5.info(`[MOCK MODE] Creating placeholder commit on branch ${branchName}`);
   try {
-    const checkoutCode = await exec5.exec(
-      "git",
-      ["checkout", branchName],
-      { ignoreReturnCode: true }
-    );
+    await exec5.exec("git", [
+      "config",
+      "user.name",
+      "nopo-bot"
+    ]);
+    await exec5.exec("git", [
+      "config",
+      "user.email",
+      "nopo-bot@users.noreply.github.com"
+    ]);
+    const checkoutCode = await exec5.exec("git", ["checkout", branchName], {
+      ignoreReturnCode: true
+    });
     if (checkoutCode !== 0) {
       await exec5.exec("git", ["fetch", "origin", branchName], {
         ignoreReturnCode: true
@@ -29751,12 +29759,20 @@ Prompt: ${action.promptDir || action.promptFile || "inline"}
 
 This is a placeholder commit created by the test runner.
 It simulates Claude's code changes in mock mode.`;
-    await exec5.exec("git", ["commit", "-m", commitMessage], {
+    const commitExitCode = await exec5.exec("git", ["commit", "-m", commitMessage], {
       ignoreReturnCode: true
     });
-    await exec5.exec("git", ["push", "origin", branchName], {
+    if (commitExitCode !== 0) {
+      core5.warning(`[MOCK MODE] Git commit failed with exit code ${commitExitCode}`);
+      return;
+    }
+    const pushExitCode = await exec5.exec("git", ["push", "origin", branchName], {
       ignoreReturnCode: true
     });
+    if (pushExitCode !== 0) {
+      core5.warning(`[MOCK MODE] Git push failed with exit code ${pushExitCode}`);
+      return;
+    }
     core5.info(`[MOCK MODE] Created and pushed placeholder commit`);
   } catch (error3) {
     core5.warning(

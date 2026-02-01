@@ -37154,11 +37154,19 @@ async function createMockCommit(action, ctx) {
   const branchName = deriveBranchName(action.issueNumber);
   core10.info(`[MOCK MODE] Creating placeholder commit on branch ${branchName}`);
   try {
-    const checkoutCode = await exec9.exec(
-      "git",
-      ["checkout", branchName],
-      { ignoreReturnCode: true }
-    );
+    await exec9.exec("git", [
+      "config",
+      "user.name",
+      "nopo-bot"
+    ]);
+    await exec9.exec("git", [
+      "config",
+      "user.email",
+      "nopo-bot@users.noreply.github.com"
+    ]);
+    const checkoutCode = await exec9.exec("git", ["checkout", branchName], {
+      ignoreReturnCode: true
+    });
     if (checkoutCode !== 0) {
       await exec9.exec("git", ["fetch", "origin", branchName], {
         ignoreReturnCode: true
@@ -37185,12 +37193,20 @@ Prompt: ${action.promptDir || action.promptFile || "inline"}
 
 This is a placeholder commit created by the test runner.
 It simulates Claude's code changes in mock mode.`;
-    await exec9.exec("git", ["commit", "-m", commitMessage], {
+    const commitExitCode = await exec9.exec("git", ["commit", "-m", commitMessage], {
       ignoreReturnCode: true
     });
-    await exec9.exec("git", ["push", "origin", branchName], {
+    if (commitExitCode !== 0) {
+      core10.warning(`[MOCK MODE] Git commit failed with exit code ${commitExitCode}`);
+      return;
+    }
+    const pushExitCode = await exec9.exec("git", ["push", "origin", branchName], {
       ignoreReturnCode: true
     });
+    if (pushExitCode !== 0) {
+      core10.warning(`[MOCK MODE] Git push failed with exit code ${pushExitCode}`);
+      return;
+    }
     core10.info(`[MOCK MODE] Created and pushed placeholder commit`);
   } catch (error6) {
     core10.warning(
@@ -38490,13 +38506,25 @@ ${"=".repeat(60)}`);
     });
     const issueNumber = response.data.number;
     if (fixture.issue.projectStatus) {
-      await this.setProjectField(issueNumber, "Status", fixture.issue.projectStatus);
+      await this.setProjectField(
+        issueNumber,
+        "Status",
+        fixture.issue.projectStatus
+      );
     }
     if (fixture.issue.iteration > 0) {
-      await this.setProjectField(issueNumber, "Iteration", fixture.issue.iteration);
+      await this.setProjectField(
+        issueNumber,
+        "Iteration",
+        fixture.issue.iteration
+      );
     }
     if (fixture.issue.failures > 0) {
-      await this.setProjectField(issueNumber, "Failures", fixture.issue.failures);
+      await this.setProjectField(
+        issueNumber,
+        "Failures",
+        fixture.issue.failures
+      );
     }
     if (fixture.issue.assignees.includes("nopo-bot")) {
       await this.config.octokit.rest.issues.addAssignees({
@@ -38516,10 +38544,22 @@ ${"=".repeat(60)}`);
       throw new Error("Issue not created yet");
     }
     if (fixture.issue.projectStatus) {
-      await this.setProjectField(this.issueNumber, "Status", fixture.issue.projectStatus);
+      await this.setProjectField(
+        this.issueNumber,
+        "Status",
+        fixture.issue.projectStatus
+      );
     }
-    await this.setProjectField(this.issueNumber, "Iteration", fixture.issue.iteration);
-    await this.setProjectField(this.issueNumber, "Failures", fixture.issue.failures);
+    await this.setProjectField(
+      this.issueNumber,
+      "Iteration",
+      fixture.issue.iteration
+    );
+    await this.setProjectField(
+      this.issueNumber,
+      "Failures",
+      fixture.issue.failures
+    );
     await this.config.octokit.rest.issues.update({
       owner: this.config.owner,
       repo: this.config.repo,
@@ -38580,12 +38620,16 @@ ${"=".repeat(60)}`);
     core16.info("Executing actions...");
     const result = await executeActions(pendingActions, runnerCtx);
     if (!result.success) {
-      const failedActions = result.results.filter((r) => !r.success && !r.skipped);
+      const failedActions = result.results.filter(
+        (r) => !r.success && !r.skipped
+      );
       throw new Error(
         `Action execution failed: ${failedActions.map((r) => r.error?.message).join(", ")}`
       );
     }
-    core16.info(`Executed ${result.results.filter((r) => !r.skipped).length} actions successfully`);
+    core16.info(
+      `Executed ${result.results.filter((r) => !r.skipped).length} actions successfully`
+    );
     if (fixture.ciResult) {
       await this.triggerCI(fixture.ciResult);
     }
@@ -38695,13 +38739,19 @@ ${"=".repeat(60)}`);
         `Project status: expected ${expected.issue.projectStatus}, got ${actualStatus}`
       );
     }
-    const actualIteration = await this.getProjectField(this.issueNumber, "Iteration");
+    const actualIteration = await this.getProjectField(
+      this.issueNumber,
+      "Iteration"
+    );
     if (actualIteration !== expected.issue.iteration) {
       errors.push(
         `Iteration: expected ${expected.issue.iteration}, got ${actualIteration}`
       );
     }
-    const actualFailures = await this.getProjectField(this.issueNumber, "Failures");
+    const actualFailures = await this.getProjectField(
+      this.issueNumber,
+      "Failures"
+    );
     if (actualFailures !== expected.issue.failures) {
       errors.push(
         `Failures: expected ${expected.issue.failures}, got ${actualFailures}`

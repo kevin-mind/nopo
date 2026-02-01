@@ -220,7 +220,11 @@ export async function listScenarios(
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
 
-    const configPath = path.join(scenariosDir, entry.name, SCENARIO_CONFIG_FILE);
+    const configPath = path.join(
+      scenariosDir,
+      entry.name,
+      SCENARIO_CONFIG_FILE,
+    );
     if (fs.existsSync(configPath)) {
       scenarios.push(entry.name);
     }

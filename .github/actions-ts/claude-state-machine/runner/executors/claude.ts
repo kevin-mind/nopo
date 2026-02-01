@@ -38,12 +38,22 @@ async function createMockCommit(
   core.info(`[MOCK MODE] Creating placeholder commit on branch ${branchName}`);
 
   try {
+    // Configure git user identity (required for commits in GitHub Actions)
+    await exec.exec("git", [
+      "config",
+      "user.name",
+      "nopo-bot",
+    ]);
+    await exec.exec("git", [
+      "config",
+      "user.email",
+      "nopo-bot@users.noreply.github.com",
+    ]);
+
     // Checkout the branch (it should already exist from createBranch action)
-    const checkoutCode = await exec.exec(
-      "git",
-      ["checkout", branchName],
-      { ignoreReturnCode: true },
-    );
+    const checkoutCode = await exec.exec("git", ["checkout", branchName], {
+      ignoreReturnCode: true,
+    });
 
     if (checkoutCode !== 0) {
       // Branch might not exist locally, try to fetch and checkout
@@ -80,14 +90,24 @@ Prompt: ${action.promptDir || action.promptFile || "inline"}
 This is a placeholder commit created by the test runner.
 It simulates Claude's code changes in mock mode.`;
 
-    await exec.exec("git", ["commit", "-m", commitMessage], {
+    const commitExitCode = await exec.exec("git", ["commit", "-m", commitMessage], {
       ignoreReturnCode: true,
     });
 
+    if (commitExitCode !== 0) {
+      core.warning(`[MOCK MODE] Git commit failed with exit code ${commitExitCode}`);
+      return;
+    }
+
     // Push to remote
-    await exec.exec("git", ["push", "origin", branchName], {
+    const pushExitCode = await exec.exec("git", ["push", "origin", branchName], {
       ignoreReturnCode: true,
     });
+
+    if (pushExitCode !== 0) {
+      core.warning(`[MOCK MODE] Git push failed with exit code ${pushExitCode}`);
+      return;
+    }
 
     core.info(`[MOCK MODE] Created and pushed placeholder commit`);
   } catch (error) {

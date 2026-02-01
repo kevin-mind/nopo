@@ -14,7 +14,7 @@ import { CIResultSchema } from "../../../claude-state-machine/schemas/state.js";
 // State Names - All distinct states in the state machine
 // ============================================================================
 
-export const StateNameSchema = z.enum([
+const StateNameSchema = z.enum([
   // Transient states (routing decisions)
   "detecting",
   "initializing",
@@ -138,7 +138,7 @@ export const ScenarioConfigSchema = z.object({
   description: z.string(),
 });
 
-export type ScenarioConfig = z.infer<typeof ScenarioConfigSchema>;
+type ScenarioConfig = z.infer<typeof ScenarioConfigSchema>;
 
 // ============================================================================
 // Test Runner Inputs Schema
@@ -147,7 +147,7 @@ export type ScenarioConfig = z.infer<typeof ScenarioConfigSchema>;
 /**
  * Inputs for the configurable test runner
  */
-export const TestRunnerInputsSchema = z.object({
+const TestRunnerInputsSchema = z.object({
   /** false = stop after one step, true = run to completion */
   continue: z.boolean().default(true),
 
@@ -170,7 +170,7 @@ export type TestRunnerInputs = z.infer<typeof TestRunnerInputsSchema>;
 /**
  * Result of a single state transition
  */
-export const StateTransitionResultSchema = z.object({
+const StateTransitionResultSchema = z.object({
   /** Starting state */
   fromState: StateNameSchema,
   /** Ending state */
@@ -190,7 +190,7 @@ export type StateTransitionResult = z.infer<typeof StateTransitionResultSchema>;
 /**
  * Overall test result
  */
-export const TestResultSchema = z.object({
+const TestResultSchema = z.object({
   /** Overall status */
   status: z.enum(["completed", "paused", "failed", "error"]),
   /** Current state (if paused) */

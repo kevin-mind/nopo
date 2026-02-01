@@ -24,14 +24,7 @@ export {
 } from "./types.js";
 
 // Loader
-export {
-  loadScenario,
-  listScenarios,
-  validateScenario,
-} from "./loader.js";
+export { loadScenario, listScenarios, validateScenario } from "./loader.js";
 
 // Runner
-export {
-  ConfigurableTestRunner,
-  runConfigurableTest,
-} from "./runner.js";
+export { ConfigurableTestRunner, runConfigurableTest } from "./runner.js";
