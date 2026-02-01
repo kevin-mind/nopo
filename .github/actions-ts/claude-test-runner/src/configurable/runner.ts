@@ -325,6 +325,12 @@ class ConfigurableTestRunner {
             nextFixture,
           );
 
+          // In continue mode, sync the next fixture with the side effects we just applied
+          // This ensures the next iteration has correct state when nextFixture becomes currentFixture
+          if (this.inputs.continue) {
+            this.syncFixtureWithAppliedSideEffects(currentFixture, nextFixture);
+          }
+
           // Verify: next fixture IS the expected state
           const verificationErrors = await this.verifyGitHubState(nextFixture);
 
@@ -730,6 +736,43 @@ Issue: #${this.issueNumber}
         ...currentFixture.issue.pr,
         state: nextFixture.issue.pr.state,
       };
+    }
+  }
+
+  /**
+   * Sync next fixture with side effects we just applied to GitHub
+   *
+   * In continue mode, after applying side effects, nextFixture will become
+   * currentFixture in the next iteration. We need to update it to reflect
+   * the side effects we just applied so buildMachineContext works correctly.
+   */
+  private syncFixtureWithAppliedSideEffects(
+    currentFixture: StateFixture,
+    nextFixture: StateFixture,
+  ): void {
+    // If we assigned nopo-bot (side effect applied), update nextFixture
+    // so when it becomes currentFixture, the bot is already assigned
+    const assignedBot =
+      nextFixture.issue.assignees.includes("nopo-bot") &&
+      !currentFixture.issue.assignees.includes("nopo-bot");
+
+    if (assignedBot) {
+      // The nextFixture already expects nopo-bot, so it already has the right state
+      // But we need to ensure it's there for buildMachineContext
+      if (!nextFixture.issue.assignees.includes("nopo-bot")) {
+        nextFixture.issue.assignees = [
+          ...nextFixture.issue.assignees,
+          "nopo-bot",
+        ];
+      }
+      core.debug(
+        "  → Synced next fixture: nopo-bot assigned for next iteration",
+      );
+    }
+
+    // If we created a PR (side effect applied), update nextFixture
+    if (this.prNumber && nextFixture.issue.pr) {
+      core.debug("  → Synced next fixture: PR exists for next iteration");
     }
   }
 

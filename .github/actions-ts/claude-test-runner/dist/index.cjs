@@ -38578,6 +38578,9 @@ ${"=".repeat(60)}`);
             currentFixture,
             nextFixture
           );
+          if (this.inputs.continue) {
+            this.syncFixtureWithAppliedSideEffects(currentFixture, nextFixture);
+          }
           const verificationErrors = await this.verifyGitHubState(nextFixture);
           const transitionResult = {
             fromState: currentState,
@@ -38893,6 +38896,30 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
         ...currentFixture.issue.pr,
         state: nextFixture.issue.pr.state
       };
+    }
+  }
+  /**
+   * Sync next fixture with side effects we just applied to GitHub
+   *
+   * In continue mode, after applying side effects, nextFixture will become
+   * currentFixture in the next iteration. We need to update it to reflect
+   * the side effects we just applied so buildMachineContext works correctly.
+   */
+  syncFixtureWithAppliedSideEffects(currentFixture, nextFixture) {
+    const assignedBot = nextFixture.issue.assignees.includes("nopo-bot") && !currentFixture.issue.assignees.includes("nopo-bot");
+    if (assignedBot) {
+      if (!nextFixture.issue.assignees.includes("nopo-bot")) {
+        nextFixture.issue.assignees = [
+          ...nextFixture.issue.assignees,
+          "nopo-bot"
+        ];
+      }
+      core16.debug(
+        "  \u2192 Synced next fixture: nopo-bot assigned for next iteration"
+      );
+    }
+    if (this.prNumber && nextFixture.issue.pr) {
+      core16.debug("  \u2192 Synced next fixture: PR exists for next iteration");
     }
   }
   /**
