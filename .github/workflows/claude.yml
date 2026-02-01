@@ -1,16 +1,20 @@
 name: Claude
 run-name: >-
   ${{
-    github.event_name == 'workflow_dispatch' && format('Claude - #{0}', inputs.resource_number) ||
-    github.event_name == 'issues' && format('Claude - issue #{0}', github.event.issue.number) ||
-    github.event_name == 'issue_comment' && format('Claude - comment on #{0}', github.event.issue.number) ||
-    github.event_name == 'pull_request_review_comment' && format('Claude - review comment on PR #{0}', github.event.pull_request.number) ||
-    github.event_name == 'push' && format('Claude - push to {0}', github.ref_name) ||
-    github.event_name == 'pull_request' && format('Claude - PR #{0}', github.event.pull_request.number) ||
-    github.event_name == 'pull_request_review' && format('Claude - review on PR #{0}', github.event.pull_request.number) ||
-    github.event_name == 'workflow_run' && format('Claude - CI {0} on {1}', github.event.workflow_run.conclusion, github.event.workflow_run.head_branch) ||
-    github.event_name == 'discussion' && format('Claude - discussion #{0}', github.event.discussion.number) ||
-    github.event_name == 'discussion_comment' && format('Claude - discussion #{0}', github.event.discussion.number) ||
+    github.event_name == 'workflow_dispatch' && format('Claude - dispatch #{0}', inputs.resource_number) ||
+    github.event_name == 'issues' && github.event.action == 'assigned' && format('Claude - #{0} - assign', github.event.issue.number) ||
+    github.event_name == 'issues' && github.event.action == 'opened' && format('Claude - #{0} - triage', github.event.issue.number) ||
+    github.event_name == 'issues' && github.event.action == 'edited' && format('Claude - #{0} - iterate', github.event.issue.number) ||
+    github.event_name == 'issues' && github.event.action == 'closed' && format('Claude - #{0} - closed', github.event.issue.number) ||
+    github.event_name == 'issues' && format('Claude - #{0} - {1}', github.event.issue.number, github.event.action) ||
+    github.event_name == 'issue_comment' && format('Claude - #{0} - comment', github.event.issue.number) ||
+    github.event_name == 'pull_request_review_comment' && format('Claude - PR#{0} - comment', github.event.pull_request.number) ||
+    github.event_name == 'push' && format('Claude - push - {0}', github.ref_name) ||
+    github.event_name == 'pull_request' && format('Claude - PR#{0} - {1}', github.event.pull_request.number, github.event.action) ||
+    github.event_name == 'pull_request_review' && format('Claude - PR#{0} - review {1}', github.event.pull_request.number, github.event.review.state) ||
+    github.event_name == 'workflow_run' && format('Claude - CI {0} - {1}', github.event.workflow_run.conclusion, github.event.workflow_run.head_branch) ||
+    github.event_name == 'discussion' && format('Claude - D#{0} - research', github.event.discussion.number) ||
+    github.event_name == 'discussion_comment' && format('Claude - D#{0} - respond', github.event.discussion.number) ||
     'Claude'
   }}
 
