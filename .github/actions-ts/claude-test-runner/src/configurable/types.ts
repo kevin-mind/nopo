@@ -115,7 +115,7 @@ const TestPRSchema = z.object({
   isDraft: z.boolean(),
   title: z.string(),
   body: z.string().optional(),
-  headRef: z.string(), // Branch name (will use test branch if not specified)
+  headRef: z.string().optional(), // Branch name (will use test branch if not specified)
   baseRef: z.string().default("main"),
 });
 
