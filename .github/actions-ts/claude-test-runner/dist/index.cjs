@@ -38943,6 +38943,15 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
       issue_number: this.issueNumber,
       labels: [...fixture.issue.labels, TEST_LABEL, E2E_LABEL]
     });
+    if (fixture.issue.assignees.includes("nopo-bot")) {
+      core16.info("  \u2192 Assigning nopo-bot (via setupGitHubState)");
+      await this.config.octokit.rest.issues.addAssignees({
+        owner: this.config.owner,
+        repo: this.config.repo,
+        issue_number: this.issueNumber,
+        assignees: ["nopo-bot"]
+      });
+    }
     for (const subIssue of fixture.issue.subIssues) {
       await this.createSubIssue(subIssue);
     }
@@ -39129,11 +39138,13 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
   }
   /**
    * Wait for CI workflow to complete
+   * Throws an error if CI times out - tests should fail when expected CI doesn't run
    */
   async waitForCI() {
     const maxWaitMs = 3e5;
     const pollIntervalMs = 1e4;
     const startTime = Date.now();
+    let ciRunId = null;
     core16.info(
       `Waiting for CI workflow to complete on branch ${this.testBranchName}...`
     );
@@ -39149,7 +39160,8 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
         (run2) => run2.head_branch === this.testBranchName
       );
       if (matchingRun) {
-        if (matchingRun.status !== "completed") {
+        if (ciRunId !== matchingRun.id) {
+          ciRunId = matchingRun.id;
           this.logResourceCreated(
             "CI Workflow",
             this.getWorkflowRunUrl(matchingRun.id)
@@ -39168,7 +39180,9 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
       }
       await new Promise((resolve2) => setTimeout(resolve2, pollIntervalMs));
     }
-    core16.warning("CI wait timeout - proceeding anyway");
+    throw new Error(
+      `CI wait timeout after ${maxWaitMs / 1e3}s - expected CI to run on branch ${this.testBranchName} but it did not complete`
+    );
   }
   /**
    * Verify GitHub state matches expected fixture

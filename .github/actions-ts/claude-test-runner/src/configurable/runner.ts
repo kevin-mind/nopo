@@ -789,6 +789,17 @@ Issue: #${this.issueNumber}
       labels: [...fixture.issue.labels, TEST_LABEL, E2E_LABEL],
     });
 
+    // Update assignees - assign nopo-bot if specified in fixture
+    if (fixture.issue.assignees.includes("nopo-bot")) {
+      core.info("  → Assigning nopo-bot (via setupGitHubState)");
+      await this.config.octokit.rest.issues.addAssignees({
+        owner: this.config.owner,
+        repo: this.config.repo,
+        issue_number: this.issueNumber,
+        assignees: ["nopo-bot"],
+      });
+    }
+
     // Handle sub-issues if specified
     for (const subIssue of fixture.issue.subIssues as TestSubIssue[]) {
       await this.createSubIssue(subIssue);
@@ -1032,11 +1043,13 @@ Issue: #${this.issueNumber}
 
   /**
    * Wait for CI workflow to complete
+   * Throws an error if CI times out - tests should fail when expected CI doesn't run
    */
   private async waitForCI(): Promise<void> {
     const maxWaitMs = 300000; // 5 minutes max
     const pollIntervalMs = 10000; // 10 seconds
     const startTime = Date.now();
+    let ciRunId: number | null = null;
 
     core.info(
       `Waiting for CI workflow to complete on branch ${this.testBranchName}...`,
@@ -1059,8 +1072,9 @@ Issue: #${this.issueNumber}
       );
 
       if (matchingRun) {
-        // Log the workflow URL on first detection
-        if (matchingRun.status !== "completed") {
+        // Log the workflow URL on first detection (only once)
+        if (ciRunId !== matchingRun.id) {
+          ciRunId = matchingRun.id;
           this.logResourceCreated(
             "CI Workflow",
             this.getWorkflowRunUrl(matchingRun.id),
@@ -1081,7 +1095,10 @@ Issue: #${this.issueNumber}
       await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
     }
 
-    core.warning("CI wait timeout - proceeding anyway");
+    // Timeout is a test failure - we expected CI to run but it didn't complete
+    throw new Error(
+      `CI wait timeout after ${maxWaitMs / 1000}s - expected CI to run on branch ${this.testBranchName} but it did not complete`,
+    );
   }
 
   /**
