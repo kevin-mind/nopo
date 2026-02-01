@@ -398,7 +398,7 @@ var require_tunnel = __commonJS({
         connectOptions.headers = connectOptions.headers || {};
         connectOptions.headers["Proxy-Authorization"] = "Basic " + new Buffer(connectOptions.proxyAuth).toString("base64");
       }
-      debug9("making CONNECT request");
+      debug10("making CONNECT request");
       var connectReq = self2.request(connectOptions);
       connectReq.useChunkedEncodingByDefault = false;
       connectReq.once("response", onResponse);
@@ -418,7 +418,7 @@ var require_tunnel = __commonJS({
         connectReq.removeAllListeners();
         socket.removeAllListeners();
         if (res.statusCode !== 200) {
-          debug9(
+          debug10(
             "tunneling socket could not be established, statusCode=%d",
             res.statusCode
           );
@@ -430,7 +430,7 @@ var require_tunnel = __commonJS({
           return;
         }
         if (head.length > 0) {
-          debug9("got illegal response body from proxy");
+          debug10("got illegal response body from proxy");
           socket.destroy();
           var error6 = new Error("got illegal response body from proxy");
           error6.code = "ECONNRESET";
@@ -438,13 +438,13 @@ var require_tunnel = __commonJS({
           self2.removeSocket(placeholder);
           return;
         }
-        debug9("tunneling connection has established");
+        debug10("tunneling connection has established");
         self2.sockets[self2.sockets.indexOf(placeholder)] = socket;
         return cb(socket);
       }
       function onError(cause) {
         connectReq.removeAllListeners();
-        debug9(
+        debug10(
           "tunneling socket could not be established, cause=%s\n",
           cause.message,
           cause.stack
@@ -506,9 +506,9 @@ var require_tunnel = __commonJS({
       }
       return target;
     }
-    var debug9;
+    var debug10;
     if (process.env.NODE_DEBUG && /\btunnel\b/.test(process.env.NODE_DEBUG)) {
-      debug9 = function() {
+      debug10 = function() {
         var args = Array.prototype.slice.call(arguments);
         if (typeof args[0] === "string") {
           args[0] = "TUNNEL: " + args[0];
@@ -518,10 +518,10 @@ var require_tunnel = __commonJS({
         console.error.apply(console, args);
       };
     } else {
-      debug9 = function() {
+      debug10 = function() {
       };
     }
-    exports2.debug = debug9;
+    exports2.debug = debug10;
   }
 });
 
@@ -19732,10 +19732,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       return process.env["RUNNER_DEBUG"] === "1";
     }
     exports2.isDebug = isDebug;
-    function debug9(message) {
+    function debug10(message) {
       (0, command_1.issueCommand)("debug", {}, message);
     }
-    exports2.debug = debug9;
+    exports2.debug = debug10;
     function error6(message, properties = {}) {
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
@@ -38527,9 +38527,16 @@ var ConfigurableTestRunner = class {
       core16.info(`Created test branch: ${this.testBranchName}`);
       if (startIndex > 0) {
         const startState = this.scenario.orderedStates[startIndex];
+        const nextState = this.scenario.orderedStates[startIndex + 1];
         const startFixture = this.scenario.fixtures.get(startState);
         await this.setupGitHubState(startFixture);
         core16.info(`Set up GitHub state for '${startState}'`);
+        if (nextState) {
+          const nextFixture = this.scenario.fixtures.get(nextState);
+          await this.applyStateTransitionSideEffects(startFixture, nextFixture);
+          core16.info(`Applied side effects for '${startState}' -> '${nextState}'`);
+          this.syncFixtureWithSideEffects(startFixture, nextFixture);
+        }
       }
       for (let i = startIndex; i < this.scenario.orderedStates.length - 1; i++) {
         const currentState = this.scenario.orderedStates[i];
@@ -38839,6 +38846,29 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
     if (nextFixture.state === "processingMerge" && this.prNumber) {
       core16.info("  \u2192 Merging PR");
       await this.mergePR(this.prNumber);
+    }
+  }
+  /**
+   * Sync fixture data with side effects applied
+   *
+   * After applying side effects (e.g., assigning nopo-bot), the fixture data
+   * needs to be updated so buildMachineContext uses the correct state.
+   * This is an in-memory update only.
+   */
+  syncFixtureWithSideEffects(currentFixture, nextFixture) {
+    const needsAssignment = nextFixture.issue.assignees.includes("nopo-bot") && !currentFixture.issue.assignees.includes("nopo-bot");
+    if (needsAssignment) {
+      currentFixture.issue.assignees = [
+        ...currentFixture.issue.assignees,
+        "nopo-bot"
+      ];
+      core16.debug("  \u2192 Updated fixture assignees to include nopo-bot");
+    }
+    if (nextFixture.issue.pr && currentFixture.issue.pr) {
+      currentFixture.issue.pr = {
+        ...currentFixture.issue.pr,
+        state: nextFixture.issue.pr.state
+      };
     }
   }
   /**

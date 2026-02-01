@@ -244,11 +244,25 @@ class ConfigurableTestRunner {
       core.info(`Created test branch: ${this.testBranchName}`);
 
       // 4. If starting mid-flow, set up GitHub to match starting fixture
+      //    AND apply side effects to set up conditions for the transition
       if (startIndex > 0) {
         const startState = this.scenario.orderedStates[startIndex]!;
+        const nextState = this.scenario.orderedStates[startIndex + 1];
         const startFixture = this.scenario.fixtures.get(startState)!;
         await this.setupGitHubState(startFixture);
         core.info(`Set up GitHub state for '${startState}'`);
+
+        // Apply side effects BEFORE running state machine to set up transition conditions
+        // e.g., assign nopo-bot to trigger iterating state
+        if (nextState) {
+          const nextFixture = this.scenario.fixtures.get(nextState)!;
+          await this.applyStateTransitionSideEffects(startFixture, nextFixture);
+          core.info(`Applied side effects for '${startState}' -> '${nextState}'`);
+
+          // Update the fixture data in memory to reflect the side effects
+          // This ensures buildMachineContext uses the correct state
+          this.syncFixtureWithSideEffects(startFixture, nextFixture);
+        }
       }
 
       // 5. Run through states
@@ -649,6 +663,42 @@ Issue: #${this.issueNumber}
     // Those should be set by the state machine actions, not by side effects.
     // If verification fails on those fields, it means the state machine isn't
     // producing the expected actions.
+  }
+
+  /**
+   * Sync fixture data with side effects applied
+   *
+   * After applying side effects (e.g., assigning nopo-bot), the fixture data
+   * needs to be updated so buildMachineContext uses the correct state.
+   * This is an in-memory update only.
+   */
+  private syncFixtureWithSideEffects(
+    currentFixture: StateFixture,
+    nextFixture: StateFixture,
+  ): void {
+    // If nopo-bot was assigned, update the fixture's assignees
+    const needsAssignment =
+      nextFixture.issue.assignees.includes("nopo-bot") &&
+      !currentFixture.issue.assignees.includes("nopo-bot");
+
+    if (needsAssignment) {
+      currentFixture.issue.assignees = [
+        ...currentFixture.issue.assignees,
+        "nopo-bot",
+      ];
+      core.debug("  → Updated fixture assignees to include nopo-bot");
+    }
+
+    // If PR was created, note that we have one
+    // (prNumber is already set by applyStateTransitionSideEffects)
+
+    // If PR state changed (e.g., merged), update fixture
+    if (nextFixture.issue.pr && currentFixture.issue.pr) {
+      currentFixture.issue.pr = {
+        ...currentFixture.issue.pr,
+        state: nextFixture.issue.pr.state,
+      };
+    }
   }
 
   /**
