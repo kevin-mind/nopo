@@ -1,0 +1,4 @@
+{
+  "name": "circuit-breaker",
+  "description": "Tests circuit breaker: max failures reached triggers blocked state"
+}

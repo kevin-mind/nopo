@@ -1,0 +1,31 @@
+{
+  "state": "iteratingFix",
+  "ciResult": "failure",
+  "issue": {
+    "number": 0,
+    "title": "Circuit breaker test issue",
+    "state": "OPEN",
+    "body": "## Description\n\nTest scenario for circuit breaker (max failures).\n\n## Todo\n\n- [x] Attempt fix",
+    "projectStatus": "In progress",
+    "iteration": 5,
+    "failures": 5,
+    "assignees": ["nopo-bot"],
+    "labels": ["enhancement", "triaged"],
+    "subIssues": [],
+    "hasSubIssues": false,
+    "history": [],
+    "todos": {
+      "total": 1,
+      "completed": 1,
+      "uncheckedNonManual": 0
+    },
+    "pr": {
+      "number": 0,
+      "state": "OPEN",
+      "isDraft": true,
+      "title": "fix: circuit breaker test PR",
+      "baseRef": "main"
+    }
+  },
+  "claudeMock": "iterate/fix-ci"
+}

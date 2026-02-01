@@ -13,6 +13,7 @@ on:
           - full-flow
           - ci-failure-recovery
           - triage
+          - circuit-breaker
       continue:
         description: 'Run to completion (true) or stop after one step (false)'
         type: boolean
