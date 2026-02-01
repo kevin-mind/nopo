@@ -6,7 +6,7 @@
     "state": "OPEN",
     "body": "## Description\n\nTest scenario for circuit breaker (max failures triggers blocked state).\n\n## Todo\n\n- [ ] Fix the bug",
     "projectStatus": "Blocked",
-    "iteration": 5,
+    "iteration": 6,
     "failures": 5,
     "assignees": [],
     "labels": ["bug", "triaged"],
