@@ -1350,14 +1350,44 @@ Issue: #${this.issueNumber}
     if (!itemId) {
       // Add issue to project
       core.info(`Adding issue #${issueNumber} to project`);
-      const addResult = await this.config.octokit.graphql<{
-        addProjectV2ItemById?: { item?: { id?: string } };
-      }>(ADD_ISSUE_TO_PROJECT_MUTATION, {
-        projectId: projectFields.projectId,
-        contentId: issue.id,
-      });
+      try {
+        const addResult = await this.config.octokit.graphql<{
+          addProjectV2ItemById?: { item?: { id?: string } };
+        }>(ADD_ISSUE_TO_PROJECT_MUTATION, {
+          projectId: projectFields.projectId,
+          contentId: issue.id,
+        });
 
-      itemId = addResult.addProjectV2ItemById?.item?.id || null;
+        itemId = addResult.addProjectV2ItemById?.item?.id || null;
+      } catch (error) {
+        // Handle "Content already exists in this project" error
+        // This can happen due to race conditions with project automations
+        if (
+          error instanceof Error &&
+          error.message.includes("Content already exists")
+        ) {
+          core.info("Issue already in project, refetching item ID...");
+          // Refetch to get the item ID
+          const refetchResponse =
+            await this.config.octokit.graphql<ProjectQueryResponse>(
+              GET_PROJECT_ITEM_QUERY,
+              {
+                org: this.config.owner,
+                repo: this.config.repo,
+                issueNumber,
+                projectNumber: this.config.projectNumber,
+              },
+            );
+          const refetchedIssue = refetchResponse.repository?.issue;
+          itemId = this.getProjectItemId(
+            refetchedIssue?.projectItems?.nodes || [],
+            this.config.projectNumber,
+          );
+        } else {
+          throw error;
+        }
+      }
+
       if (!itemId) {
         throw new Error("Failed to add issue to project");
       }

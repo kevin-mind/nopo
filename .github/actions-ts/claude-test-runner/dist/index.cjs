@@ -39375,11 +39375,33 @@ ${subIssue.body || ""}`
     );
     if (!itemId) {
       core16.info(`Adding issue #${issueNumber} to project`);
-      const addResult = await this.config.octokit.graphql(ADD_ISSUE_TO_PROJECT_MUTATION3, {
-        projectId: projectFields.projectId,
-        contentId: issue.id
-      });
-      itemId = addResult.addProjectV2ItemById?.item?.id || null;
+      try {
+        const addResult = await this.config.octokit.graphql(ADD_ISSUE_TO_PROJECT_MUTATION3, {
+          projectId: projectFields.projectId,
+          contentId: issue.id
+        });
+        itemId = addResult.addProjectV2ItemById?.item?.id || null;
+      } catch (error6) {
+        if (error6 instanceof Error && error6.message.includes("Content already exists")) {
+          core16.info("Issue already in project, refetching item ID...");
+          const refetchResponse = await this.config.octokit.graphql(
+            GET_PROJECT_ITEM_QUERY2,
+            {
+              org: this.config.owner,
+              repo: this.config.repo,
+              issueNumber,
+              projectNumber: this.config.projectNumber
+            }
+          );
+          const refetchedIssue = refetchResponse.repository?.issue;
+          itemId = this.getProjectItemId(
+            refetchedIssue?.projectItems?.nodes || [],
+            this.config.projectNumber
+          );
+        } else {
+          throw error6;
+        }
+      }
       if (!itemId) {
         throw new Error("Failed to add issue to project");
       }
