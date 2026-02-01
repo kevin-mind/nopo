@@ -315,7 +315,8 @@ class ConfigurableTestRunner {
 
         try {
           // Execute the state transition
-          await this.executeStateTransition(currentFixture);
+          // Pass nextFixture so CI can be triggered with the expected result
+          await this.executeStateTransition(currentFixture, nextFixture);
 
           // Apply side effects to reach next state (e.g., assign nopo-bot, create PR)
           // This must happen BEFORE verification so the state matches
@@ -822,8 +823,13 @@ Issue: #${this.issueNumber}
 
   /**
    * Execute a state transition
+   * @param fixture The current state fixture
+   * @param nextFixture Optional next fixture (used to get ciResult for CI-triggering states)
    */
-  private async executeStateTransition(fixture: StateFixture): Promise<void> {
+  private async executeStateTransition(
+    fixture: StateFixture,
+    nextFixture?: StateFixture,
+  ): Promise<void> {
     if (!this.issueNumber) {
       throw new Error("Issue not created yet");
     }
@@ -900,10 +906,11 @@ Issue: #${this.issueNumber}
     );
 
     // Only trigger CI for states that push commits
-    // processingCI is a transient state that receives CI result as input, not triggers CI
+    // The ciResult comes from the NEXT fixture (e.g., processingCI) not the current one
+    // because the current state (iterating) produces code that will be validated by CI
     const statesThatTriggerCI: StateName[] = ["iterating", "iteratingFix"];
-    if (fixture.ciResult && statesThatTriggerCI.includes(fixture.state)) {
-      await this.triggerCI(fixture.ciResult);
+    if (statesThatTriggerCI.includes(fixture.state) && nextFixture?.ciResult) {
+      await this.triggerCI(nextFixture.ciResult);
     }
   }
 

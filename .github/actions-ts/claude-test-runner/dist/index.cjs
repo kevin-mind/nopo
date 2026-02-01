@@ -38573,7 +38573,7 @@ ${"=".repeat(60)}`);
         core16.info(`${"=".repeat(60)}`);
         const transitionStartTime = Date.now();
         try {
-          await this.executeStateTransition(currentFixture);
+          await this.executeStateTransition(currentFixture, nextFixture);
           await this.applyStateTransitionSideEffects(
             currentFixture,
             nextFixture
@@ -38968,8 +38968,10 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
   }
   /**
    * Execute a state transition
+   * @param fixture The current state fixture
+   * @param nextFixture Optional next fixture (used to get ciResult for CI-triggering states)
    */
-  async executeStateTransition(fixture) {
+  async executeStateTransition(fixture, nextFixture) {
     if (!this.issueNumber) {
       throw new Error("Issue not created yet");
     }
@@ -39021,8 +39023,8 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
       `Executed ${result.results.filter((r) => !r.skipped).length} actions successfully`
     );
     const statesThatTriggerCI = ["iterating", "iteratingFix"];
-    if (fixture.ciResult && statesThatTriggerCI.includes(fixture.state)) {
-      await this.triggerCI(fixture.ciResult);
+    if (statesThatTriggerCI.includes(fixture.state) && nextFixture?.ciResult) {
+      await this.triggerCI(nextFixture.ciResult);
     }
   }
   /**
