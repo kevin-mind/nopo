@@ -899,8 +899,10 @@ Issue: #${this.issueNumber}
       `Executed ${result.results.filter((r) => !r.skipped).length} actions successfully`,
     );
 
-    // Trigger CI if fixture specifies a CI result
-    if (fixture.ciResult) {
+    // Only trigger CI for states that push commits
+    // processingCI is a transient state that receives CI result as input, not triggers CI
+    const statesThatTriggerCI: StateName[] = ["iterating", "iteratingFix"];
+    if (fixture.ciResult && statesThatTriggerCI.includes(fixture.state)) {
       await this.triggerCI(fixture.ciResult);
     }
   }

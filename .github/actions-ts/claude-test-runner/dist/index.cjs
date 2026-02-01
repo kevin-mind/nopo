@@ -39020,7 +39020,8 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
     core16.info(
       `Executed ${result.results.filter((r) => !r.skipped).length} actions successfully`
     );
-    if (fixture.ciResult) {
+    const statesThatTriggerCI = ["iterating", "iteratingFix"];
+    if (fixture.ciResult && statesThatTriggerCI.includes(fixture.state)) {
       await this.triggerCI(fixture.ciResult);
     }
   }
