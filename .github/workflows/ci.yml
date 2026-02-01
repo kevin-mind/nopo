@@ -41,10 +41,23 @@ jobs:
     outputs:
       mock_mode: ${{ steps.detect.outputs.mock_mode }}
       mock_result: ${{ steps.detect.outputs.mock_result }}
+      skip_ci: ${{ steps.detect.outputs.skip_ci }}
     steps:
       - name: Detect mock mode
         id: detect
         run: |
+          # Check for test branch - test runner controls CI via workflow_dispatch
+          HEAD_REF="${{ github.head_ref }}"
+          if [[ "$HEAD_REF" == test/* ]]; then
+            echo "skip_ci=true" >> $GITHUB_OUTPUT
+            echo "mock_mode=false" >> $GITHUB_OUTPUT
+            echo "mock_result=" >> $GITHUB_OUTPUT
+            echo "::notice::Skipping CI - test branch detected ($HEAD_REF). Test runner uses workflow_dispatch."
+            exit 0
+          fi
+
+          echo "skip_ci=false" >> $GITHUB_OUTPUT
+
           if [[ "${{ inputs.mock }}" == "pass" || "${{ inputs.mock }}" == "fail" ]]; then
             echo "mock_mode=true" >> $GITHUB_OUTPUT
             echo "mock_result=${{ inputs.mock }}" >> $GITHUB_OUTPUT
@@ -55,11 +68,23 @@ jobs:
           fi
 
   # ============================================================================
+  # SKIP OUTCOME - For test branches (test runner controls CI)
+  # ============================================================================
+  skip-outcome:
+    needs: [mock-detect]
+    if: needs.mock-detect.outputs.skip_ci == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip CI for test branch
+        run: |
+          echo "::notice::Skipping CI for test branch. Test runner controls CI via workflow_dispatch."
+
+  # ============================================================================
   # MOCK OUTCOME - Immediate pass/fail for test runner
   # ============================================================================
   mock-outcome:
     needs: [mock-detect]
-    if: needs.mock-detect.outputs.mock_mode == 'true'
+    if: needs.mock-detect.outputs.skip_ci != 'true' && needs.mock-detect.outputs.mock_mode == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Mock result
@@ -78,8 +103,8 @@ jobs:
   # ============================================================================
   e2e-detect:
     needs: [mock-detect]
-    # Skip in mock mode - mock-outcome handles the result
-    if: needs.mock-detect.outputs.mock_mode != 'true'
+    # Skip in mock mode or test branch - mock-outcome handles the result
+    if: needs.mock-detect.outputs.skip_ci != 'true' && needs.mock-detect.outputs.mock_mode != 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -192,8 +217,8 @@ jobs:
 
   context:
     needs: [mock-detect]
-    # Skip in mock mode
-    if: needs.mock-detect.outputs.mock_mode != 'true'
+    # Skip in mock mode or test branch
+    if: needs.mock-detect.outputs.skip_ci != 'true' && needs.mock-detect.outputs.mock_mode != 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -229,8 +254,8 @@ jobs:
           exit 1
   discover:
     needs: [mock-detect]
-    # Skip in mock mode
-    if: needs.mock-detect.outputs.mock_mode != 'true'
+    # Skip in mock mode or test branch
+    if: needs.mock-detect.outputs.skip_ci != 'true' && needs.mock-detect.outputs.mock_mode != 'true'
     permissions:
       contents: read
     uses: ./.github/workflows/_services.yml
@@ -276,8 +301,8 @@ jobs:
     needs:
       - mock-detect
       - e2e-detect
-    # Skip in mock mode or e2e mode
-    if: ${{ needs.mock-detect.outputs.mock_mode != 'true' && needs.e2e-detect.outputs.e2e_mode != 'true' }}
+    # Skip in mock mode, e2e mode, or test branch
+    if: ${{ needs.mock-detect.outputs.skip_ci != 'true' && needs.mock-detect.outputs.mock_mode != 'true' && needs.e2e-detect.outputs.e2e_mode != 'true' }}
     permissions:
       contents: read
     uses: ./.github/workflows/_test_nopo.yml
@@ -310,8 +335,8 @@ jobs:
     needs:
       - mock-detect
       - e2e-detect
-    # Skip in mock mode or e2e mode
-    if: ${{ needs.mock-detect.outputs.mock_mode != 'true' && needs.e2e-detect.outputs.e2e_mode != 'true' }}
+    # Skip in mock mode, e2e mode, or test branch
+    if: ${{ needs.mock-detect.outputs.skip_ci != 'true' && needs.mock-detect.outputs.mock_mode != 'true' && needs.e2e-detect.outputs.e2e_mode != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -342,6 +367,7 @@ jobs:
           json: ${{ toJson(needs) }}
     needs:
       - mock-detect
+      - skip-outcome
       - mock-outcome
       - e2e-detect
       - e2e-outcome
