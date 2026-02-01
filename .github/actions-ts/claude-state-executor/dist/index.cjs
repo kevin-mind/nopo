@@ -29048,6 +29048,14 @@ function updateHistoryEntry(body, matchIteration, matchPhase, matchPattern, newM
   return { body: parts.join("\n"), updated: true };
 }
 
+// claude-state-machine/parser/state-parser.ts
+function deriveBranchName(parentIssueNumber, phaseNumber) {
+  if (phaseNumber !== void 0 && phaseNumber > 0) {
+    return `claude/issue/${parentIssueNumber}/phase-${phaseNumber}`;
+  }
+  return `claude/issue/${parentIssueNumber}`;
+}
+
 // claude-state-machine/runner/executors/github.ts
 var GET_ISSUE_BODY_QUERY = `
 query GetIssueBody($owner: String!, $repo: String!, $issueNumber: Int!) {
@@ -29708,6 +29716,54 @@ var core5 = __toESM(require_core(), 1);
 var exec5 = __toESM(require_exec(), 1);
 var fs = __toESM(require("fs"), 1);
 var path = __toESM(require("path"), 1);
+async function createMockCommit(action, ctx) {
+  const branchName = deriveBranchName(action.issueNumber);
+  core5.info(`[MOCK MODE] Creating placeholder commit on branch ${branchName}`);
+  try {
+    const checkoutCode = await exec5.exec(
+      "git",
+      ["checkout", branchName],
+      { ignoreReturnCode: true }
+    );
+    if (checkoutCode !== 0) {
+      await exec5.exec("git", ["fetch", "origin", branchName], {
+        ignoreReturnCode: true
+      });
+      await exec5.exec(
+        "git",
+        ["checkout", "-b", branchName, `origin/${branchName}`],
+        { ignoreReturnCode: true }
+      );
+    }
+    const mockFilePath = ".mock-commit-placeholder";
+    const timestamp = (/* @__PURE__ */ new Date()).toISOString();
+    const content = `# Mock Commit Placeholder
+# This file was created by the test runner in mock mode.
+# It simulates Claude's code changes without running the actual Claude CLI.
+
+Timestamp: ${timestamp}
+Issue: #${action.issueNumber}
+Prompt: ${action.promptDir || action.promptFile || "inline"}
+`;
+    fs.writeFileSync(mockFilePath, content);
+    await exec5.exec("git", ["add", mockFilePath]);
+    const commitMessage = `test: mock commit for issue #${action.issueNumber}
+
+This is a placeholder commit created by the test runner.
+It simulates Claude's code changes in mock mode.`;
+    await exec5.exec("git", ["commit", "-m", commitMessage], {
+      ignoreReturnCode: true
+    });
+    await exec5.exec("git", ["push", "origin", branchName], {
+      ignoreReturnCode: true
+    });
+    core5.info(`[MOCK MODE] Created and pushed placeholder commit`);
+  } catch (error3) {
+    core5.warning(
+      `[MOCK MODE] Failed to create mock commit: ${error3 instanceof Error ? error3.message : String(error3)}`
+    );
+  }
+}
 function substituteVars(template, vars) {
   return template.replace(/\{\{([^}]+)\}\}/g, (match, varName) => {
     const trimmedName = varName.trim();
@@ -29768,6 +29824,7 @@ async function executeRunClaude(action, ctx) {
       core5.startGroup("Mock Structured Output");
       core5.info(JSON.stringify(mockOutput, null, 2));
       core5.endGroup();
+      await createMockCommit(action, ctx);
       return {
         success: true,
         exitCode: 0,

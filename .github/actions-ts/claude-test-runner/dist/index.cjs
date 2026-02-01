@@ -37150,6 +37150,54 @@ var core10 = __toESM(require_core(), 1);
 var exec9 = __toESM(require_exec(), 1);
 var fs2 = __toESM(require("fs"), 1);
 var path2 = __toESM(require("path"), 1);
+async function createMockCommit(action, ctx) {
+  const branchName = deriveBranchName(action.issueNumber);
+  core10.info(`[MOCK MODE] Creating placeholder commit on branch ${branchName}`);
+  try {
+    const checkoutCode = await exec9.exec(
+      "git",
+      ["checkout", branchName],
+      { ignoreReturnCode: true }
+    );
+    if (checkoutCode !== 0) {
+      await exec9.exec("git", ["fetch", "origin", branchName], {
+        ignoreReturnCode: true
+      });
+      await exec9.exec(
+        "git",
+        ["checkout", "-b", branchName, `origin/${branchName}`],
+        { ignoreReturnCode: true }
+      );
+    }
+    const mockFilePath = ".mock-commit-placeholder";
+    const timestamp = (/* @__PURE__ */ new Date()).toISOString();
+    const content = `# Mock Commit Placeholder
+# This file was created by the test runner in mock mode.
+# It simulates Claude's code changes without running the actual Claude CLI.
+
+Timestamp: ${timestamp}
+Issue: #${action.issueNumber}
+Prompt: ${action.promptDir || action.promptFile || "inline"}
+`;
+    fs2.writeFileSync(mockFilePath, content);
+    await exec9.exec("git", ["add", mockFilePath]);
+    const commitMessage = `test: mock commit for issue #${action.issueNumber}
+
+This is a placeholder commit created by the test runner.
+It simulates Claude's code changes in mock mode.`;
+    await exec9.exec("git", ["commit", "-m", commitMessage], {
+      ignoreReturnCode: true
+    });
+    await exec9.exec("git", ["push", "origin", branchName], {
+      ignoreReturnCode: true
+    });
+    core10.info(`[MOCK MODE] Created and pushed placeholder commit`);
+  } catch (error6) {
+    core10.warning(
+      `[MOCK MODE] Failed to create mock commit: ${error6 instanceof Error ? error6.message : String(error6)}`
+    );
+  }
+}
 function substituteVars(template, vars) {
   return template.replace(/\{\{([^}]+)\}\}/g, (match, varName) => {
     const trimmedName = varName.trim();
@@ -37210,6 +37258,7 @@ async function executeRunClaude(action, ctx) {
       core10.startGroup("Mock Structured Output");
       core10.info(JSON.stringify(mockOutput, null, 2));
       core10.endGroup();
+      await createMockCommit(action, ctx);
       return {
         success: true,
         exitCode: 0,

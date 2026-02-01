@@ -4,6 +4,7 @@ import * as fs from "fs";
 import * as path from "path";
 import type { RunClaudeAction } from "../../schemas/index.js";
 import type { RunnerContext } from "../runner.js";
+import { deriveBranchName } from "../../parser/index.js";
 
 // ============================================================================
 // Claude Code Executor
@@ -19,6 +20,82 @@ interface ClaudeRunResult {
   error?: string;
   /** Parsed structured output if --json-schema was used */
   structuredOutput?: unknown;
+}
+
+/**
+ * Create a mock commit for test mode
+ *
+ * When Claude runs in real mode, it creates commits as a side effect.
+ * In mock mode, we need to create a placeholder commit so that PR creation
+ * can succeed (GitHub requires at least one commit difference from base branch).
+ */
+async function createMockCommit(
+  action: RunClaudeAction,
+  ctx: RunnerContext,
+): Promise<void> {
+  const branchName = deriveBranchName(action.issueNumber);
+
+  core.info(`[MOCK MODE] Creating placeholder commit on branch ${branchName}`);
+
+  try {
+    // Checkout the branch (it should already exist from createBranch action)
+    const checkoutCode = await exec.exec(
+      "git",
+      ["checkout", branchName],
+      { ignoreReturnCode: true },
+    );
+
+    if (checkoutCode !== 0) {
+      // Branch might not exist locally, try to fetch and checkout
+      await exec.exec("git", ["fetch", "origin", branchName], {
+        ignoreReturnCode: true,
+      });
+      await exec.exec(
+        "git",
+        ["checkout", "-b", branchName, `origin/${branchName}`],
+        { ignoreReturnCode: true },
+      );
+    }
+
+    // Create a placeholder file
+    const mockFilePath = ".mock-commit-placeholder";
+    const timestamp = new Date().toISOString();
+    const content = `# Mock Commit Placeholder
+# This file was created by the test runner in mock mode.
+# It simulates Claude's code changes without running the actual Claude CLI.
+
+Timestamp: ${timestamp}
+Issue: #${action.issueNumber}
+Prompt: ${action.promptDir || action.promptFile || "inline"}
+`;
+
+    fs.writeFileSync(mockFilePath, content);
+
+    // Stage the file
+    await exec.exec("git", ["add", mockFilePath]);
+
+    // Commit
+    const commitMessage = `test: mock commit for issue #${action.issueNumber}
+
+This is a placeholder commit created by the test runner.
+It simulates Claude's code changes in mock mode.`;
+
+    await exec.exec("git", ["commit", "-m", commitMessage], {
+      ignoreReturnCode: true,
+    });
+
+    // Push to remote
+    await exec.exec("git", ["push", "origin", branchName], {
+      ignoreReturnCode: true,
+    });
+
+    core.info(`[MOCK MODE] Created and pushed placeholder commit`);
+  } catch (error) {
+    core.warning(
+      `[MOCK MODE] Failed to create mock commit: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    // Continue anyway - the test might still work depending on what actions follow
+  }
 }
 
 /**
@@ -139,6 +216,10 @@ export async function executeRunClaude(
       core.startGroup("Mock Structured Output");
       core.info(JSON.stringify(mockOutput, null, 2));
       core.endGroup();
+
+      // In mock mode, create a placeholder commit to simulate Claude's side effects
+      // This ensures PR creation can succeed (requires at least one commit)
+      await createMockCommit(action, ctx);
 
       return {
         success: true,
