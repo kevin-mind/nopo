@@ -45,6 +45,8 @@ jobs:
     steps:
       - name: Detect mock mode
         id: detect
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           # Check for test branch - test runner controls CI via workflow_dispatch
           HEAD_REF="${{ github.head_ref }}"
@@ -54,6 +56,60 @@ jobs:
             echo "mock_result=" >> $GITHUB_OUTPUT
             echo "::notice::Skipping CI - test branch detected ($HEAD_REF). Test runner uses workflow_dispatch."
             exit 0
+          fi
+
+          # Check for test markers on PR or linked issue - test runner controls CI
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          if [[ -n "$PR_NUMBER" ]]; then
+            # Get PR info
+            PR_INFO=$(gh pr view "$PR_NUMBER" --repo "${{ github.repository }}" --json labels,body,title 2>/dev/null || echo "{}")
+            PR_TITLE=$(echo "$PR_INFO" | jq -r '.title // ""')
+            PR_LABELS=$(echo "$PR_INFO" | jq -r '.labels[].name // ""')
+            PR_BODY=$(echo "$PR_INFO" | jq -r '.body // ""')
+
+            # Check PR title for [TEST] prefix
+            if [[ "$PR_TITLE" == "[TEST]"* ]]; then
+              echo "skip_ci=true" >> $GITHUB_OUTPUT
+              echo "mock_mode=false" >> $GITHUB_OUTPUT
+              echo "mock_result=" >> $GITHUB_OUTPUT
+              echo "::notice::Skipping CI - PR title has [TEST] prefix. Test runner uses workflow_dispatch."
+              exit 0
+            fi
+
+            # Check PR labels for test:automation
+            if echo "$PR_LABELS" | grep -q "^test:automation$"; then
+              echo "skip_ci=true" >> $GITHUB_OUTPUT
+              echo "mock_mode=false" >> $GITHUB_OUTPUT
+              echo "mock_result=" >> $GITHUB_OUTPUT
+              echo "::notice::Skipping CI - test:automation label on PR. Test runner uses workflow_dispatch."
+              exit 0
+            fi
+
+            # Check linked issue (via "Fixes #N" in PR body)
+            LINKED_ISSUE=$(echo "$PR_BODY" | grep -oE '(Fixes|Closes|Resolves)\s+#[0-9]+' | head -1 | grep -oE '[0-9]+' || echo "")
+            if [[ -n "$LINKED_ISSUE" ]]; then
+              ISSUE_INFO=$(gh issue view "$LINKED_ISSUE" --repo "${{ github.repository }}" --json labels,title 2>/dev/null || echo "{}")
+              ISSUE_TITLE=$(echo "$ISSUE_INFO" | jq -r '.title // ""')
+              ISSUE_LABELS=$(echo "$ISSUE_INFO" | jq -r '.labels[].name // ""')
+
+              # Check issue title for [TEST] prefix
+              if [[ "$ISSUE_TITLE" == "[TEST]"* ]]; then
+                echo "skip_ci=true" >> $GITHUB_OUTPUT
+                echo "mock_mode=false" >> $GITHUB_OUTPUT
+                echo "mock_result=" >> $GITHUB_OUTPUT
+                echo "::notice::Skipping CI - linked issue #$LINKED_ISSUE has [TEST] prefix. Test runner uses workflow_dispatch."
+                exit 0
+              fi
+
+              # Check issue labels for test:automation
+              if echo "$ISSUE_LABELS" | grep -q "^test:automation$"; then
+                echo "skip_ci=true" >> $GITHUB_OUTPUT
+                echo "mock_mode=false" >> $GITHUB_OUTPUT
+                echo "mock_result=" >> $GITHUB_OUTPUT
+                echo "::notice::Skipping CI - linked issue #$LINKED_ISSUE has test:automation label. Test runner uses workflow_dispatch."
+                exit 0
+              fi
+            fi
           fi
 
           echo "skip_ci=false" >> $GITHUB_OUTPUT
