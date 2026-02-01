@@ -12,16 +12,22 @@
     "issue_body": "## Description\n\nImplement a new multi-phase feature that requires careful coordination.\n\n## Approach\n\nBreak down into phases for manageability.\n\n## Todo\n\n- [ ] Complete all phases\n\n## Iteration History\n\n<!-- iteration_history_start -->\n<!-- iteration_history_end -->",
     "sub_issues": [
       {
+        "type": "enhancement",
         "title": "[Phase 1]: Design and planning",
-        "body": "## Description\n\nDesign the architecture and create a plan.\n\n## Todo\n\n- [ ] Create architecture diagram\n- [ ] Define interfaces"
+        "description": "Design the architecture and create a plan.",
+        "todos": ["Create architecture diagram", "Define interfaces"]
       },
       {
+        "type": "enhancement",
         "title": "[Phase 2]: Core implementation",
-        "body": "## Description\n\nImplement the core functionality.\n\n## Todo\n\n- [ ] Implement main logic\n- [ ] Add error handling"
+        "description": "Implement the core functionality.",
+        "todos": ["Implement main logic", "Add error handling"]
       },
       {
+        "type": "enhancement",
         "title": "[Phase 3]: Testing and documentation",
-        "body": "## Description\n\nAdd tests and documentation.\n\n## Todo\n\n- [ ] Write unit tests\n- [ ] Write integration tests\n- [ ] Update documentation"
+        "description": "Add tests and documentation.",
+        "todos": ["Write unit tests", "Write integration tests", "Update documentation"]
       }
     ],
     "related_issues": [],

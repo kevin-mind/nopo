@@ -24,7 +24,6 @@
       "state": "OPEN",
       "isDraft": false,
       "title": "feat: implement initial feature",
-      "headRef": "test/review-changes-requested/issue-0",
       "baseRef": "main"
     }
   }
