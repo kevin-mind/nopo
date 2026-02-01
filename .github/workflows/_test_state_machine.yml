@@ -950,7 +950,7 @@ jobs:
     needs: [setup, triage, completion, run-dry-run, verify-dry-run, run-configurable]
     if: |
       always() &&
-      (needs.setup.outputs.issue_number != '' || inputs.cleanup_only == true)
+      (needs.setup.outputs.issue_number != '' || needs.run-configurable.outputs.issue_number != '' || inputs.cleanup_only == true)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -978,6 +978,9 @@ jobs:
               echo "::error::issue_number is required for cleanup_only mode"
               exit 1
             fi
+          elif [[ "${{ inputs.mode }}" == "configurable" ]]; then
+            # Configurable mode creates its own issue
+            issue_number="${{ needs.run-configurable.outputs.issue_number }}"
           else
             issue_number="${{ needs.setup.outputs.issue_number }}"
           fi
