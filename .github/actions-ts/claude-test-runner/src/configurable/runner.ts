@@ -32,6 +32,7 @@ import {
   executeActions,
   createRunnerContext,
 } from "../../../claude-state-machine/runner/runner.js";
+import { fetchGitHubState } from "../github-state.js";
 
 type Octokit = InstanceType<typeof GitHub>;
 
@@ -521,52 +522,49 @@ export class ConfigurableTestRunner {
 
     const errors: string[] = [];
 
-    // Fetch current issue state
-    const issueResponse = await this.config.octokit.rest.issues.get({
-      owner: this.config.owner,
-      repo: this.config.repo,
-      issue_number: this.issueNumber,
-    });
+    // Fetch current GitHub state using the existing function
+    const state = await fetchGitHubState(
+      this.config.octokit,
+      this.config.owner,
+      this.config.repo,
+      this.issueNumber,
+      this.config.projectNumber,
+    );
 
-    const issue = issueResponse.data;
+    core.info(`Fetched GitHub state for verification:`);
+    core.info(`  Issue state: ${state.issueState}`);
+    core.info(`  Project status: ${state.projectStatus}`);
+    core.info(`  Iteration: ${state.iteration}`);
+    core.info(`  Failures: ${state.failures}`);
 
     // Verify issue state
     const expectedState = expected.issue.state;
-    const actualState = issue.state === "open" ? "OPEN" : "CLOSED";
-    if (actualState !== expectedState) {
-      errors.push(`Issue state: expected ${expectedState}, got ${actualState}`);
-    }
-
-    // Verify project status
-    const actualStatus = await this.getProjectField(this.issueNumber, "Status");
-    if (
-      expected.issue.projectStatus &&
-      actualStatus !== expected.issue.projectStatus
-    ) {
+    if (state.issueState !== expectedState) {
       errors.push(
-        `Project status: expected ${expected.issue.projectStatus}, got ${actualStatus}`,
+        `Issue state: expected ${expectedState}, got ${state.issueState}`,
       );
     }
 
+    // Verify project status
+    if (expected.issue.projectStatus) {
+      if (state.projectStatus !== expected.issue.projectStatus) {
+        errors.push(
+          `Project status: expected ${expected.issue.projectStatus}, got ${state.projectStatus}`,
+        );
+      }
+    }
+
     // Verify iteration
-    const actualIteration = await this.getProjectField(
-      this.issueNumber,
-      "Iteration",
-    );
-    if (actualIteration !== expected.issue.iteration) {
+    if (state.iteration !== expected.issue.iteration) {
       errors.push(
-        `Iteration: expected ${expected.issue.iteration}, got ${actualIteration}`,
+        `Iteration: expected ${expected.issue.iteration}, got ${state.iteration}`,
       );
     }
 
     // Verify failures
-    const actualFailures = await this.getProjectField(
-      this.issueNumber,
-      "Failures",
-    );
-    if (actualFailures !== expected.issue.failures) {
+    if (state.failures !== expected.issue.failures) {
       errors.push(
-        `Failures: expected ${expected.issue.failures}, got ${actualFailures}`,
+        `Failures: expected ${expected.issue.failures}, got ${state.failures}`,
       );
     }
 

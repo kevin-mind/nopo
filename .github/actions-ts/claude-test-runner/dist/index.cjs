@@ -38722,39 +38722,39 @@ ${"=".repeat(60)}`);
       return ["Issue not created"];
     }
     const errors = [];
-    const issueResponse = await this.config.octokit.rest.issues.get({
-      owner: this.config.owner,
-      repo: this.config.repo,
-      issue_number: this.issueNumber
-    });
-    const issue = issueResponse.data;
+    const state = await fetchGitHubState(
+      this.config.octokit,
+      this.config.owner,
+      this.config.repo,
+      this.issueNumber,
+      this.config.projectNumber
+    );
+    core16.info(`Fetched GitHub state for verification:`);
+    core16.info(`  Issue state: ${state.issueState}`);
+    core16.info(`  Project status: ${state.projectStatus}`);
+    core16.info(`  Iteration: ${state.iteration}`);
+    core16.info(`  Failures: ${state.failures}`);
     const expectedState = expected.issue.state;
-    const actualState = issue.state === "open" ? "OPEN" : "CLOSED";
-    if (actualState !== expectedState) {
-      errors.push(`Issue state: expected ${expectedState}, got ${actualState}`);
-    }
-    const actualStatus = await this.getProjectField(this.issueNumber, "Status");
-    if (expected.issue.projectStatus && actualStatus !== expected.issue.projectStatus) {
+    if (state.issueState !== expectedState) {
       errors.push(
-        `Project status: expected ${expected.issue.projectStatus}, got ${actualStatus}`
+        `Issue state: expected ${expectedState}, got ${state.issueState}`
       );
     }
-    const actualIteration = await this.getProjectField(
-      this.issueNumber,
-      "Iteration"
-    );
-    if (actualIteration !== expected.issue.iteration) {
+    if (expected.issue.projectStatus) {
+      if (state.projectStatus !== expected.issue.projectStatus) {
+        errors.push(
+          `Project status: expected ${expected.issue.projectStatus}, got ${state.projectStatus}`
+        );
+      }
+    }
+    if (state.iteration !== expected.issue.iteration) {
       errors.push(
-        `Iteration: expected ${expected.issue.iteration}, got ${actualIteration}`
+        `Iteration: expected ${expected.issue.iteration}, got ${state.iteration}`
       );
     }
-    const actualFailures = await this.getProjectField(
-      this.issueNumber,
-      "Failures"
-    );
-    if (actualFailures !== expected.issue.failures) {
+    if (state.failures !== expected.issue.failures) {
       errors.push(
-        `Failures: expected ${expected.issue.failures}, got ${actualFailures}`
+        `Failures: expected ${expected.issue.failures}, got ${state.failures}`
       );
     }
     return errors;
