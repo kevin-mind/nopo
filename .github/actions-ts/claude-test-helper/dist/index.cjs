@@ -24170,12 +24170,11 @@ async function addLabelsToDiscussion(octokit, owner, repo, discussionId, labelNa
   });
   core2.info(`Added ${labelIds.length} labels to discussion`);
 }
-async function createFixture(octokit, owner, repo, fixture, projectNumber, stepwiseMode = false, _dryRunMode = false, reviewOctokit) {
+async function createFixture(octokit, owner, repo, fixture, projectNumber, reviewOctokit) {
   const result = {
     issue_number: 0,
     sub_issue_numbers: []
   };
-  const testModeLabel = stepwiseMode ? ["_test"] : [];
   if (!fixture.parent_issue) {
     core2.info("No parent_issue in fixture - creating discussion-only fixture");
     if (fixture.discussion) {
@@ -24234,7 +24233,6 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, stepw
   const parentTitle = `[TEST] ${fixture.parent_issue.title}`;
   const parentLabels = [
     "test:automation",
-    ...testModeLabel,
     ...fixture.parent_issue.labels || []
   ];
   core2.info(`Creating parent issue: ${parentTitle}`);
@@ -24376,7 +24374,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, stepw
         repo,
         title: subTitle,
         body: bodyWithParent,
-        labels: ["test:automation", "triaged", ...testModeLabel]
+        labels: ["test:automation", "triaged"]
       });
       const finalBody = bodyWithParent.replace(
         /\{ISSUE_NUMBER\}/g,
@@ -24577,7 +24575,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, stepw
       owner,
       repo,
       issue_number: pr.number,
-      labels: ["test:automation", ...testModeLabel]
+      labels: ["test:automation"]
     });
     if (fixture.pr.request_review) {
       try {
@@ -26033,8 +26031,6 @@ async function run() {
       getOptionalInput("project_number") || "1",
       10
     );
-    const stepwiseMode = getOptionalInput("stepwise_mode") === "true";
-    const dryRunMode = getOptionalInput("dry_run_mode") === "true";
     const octokit = github.getOctokit(token);
     const reviewOctokit = reviewToken ? github.getOctokit(reviewToken) : void 0;
     const { owner, repo } = github.context.repo;
@@ -26067,8 +26063,6 @@ async function run() {
         repo,
         fixture,
         projectNumber,
-        stepwiseMode,
-        dryRunMode,
         reviewOctokit
       );
       setOutputs({
