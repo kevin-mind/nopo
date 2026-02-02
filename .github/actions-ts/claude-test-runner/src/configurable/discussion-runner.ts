@@ -19,7 +19,7 @@ import {
   type DiscussionStateName,
 } from "./discussion-types.js";
 import type { MachineContext } from "../../../claude-state-machine/schemas/state.js";
-import { discussionMachine } from "../../../claude-state-machine/machine/discussion-machine.js";
+import { discussionMachine } from "../../../claude-state-machine/machine/index.js";
 import {
   executeActions,
   createRunnerContext,

@@ -69,7 +69,7 @@ const TestDiscussionSchema = z.object({
   command: z.string().nullable().optional(),
 });
 
-type TestDiscussion = z.infer<typeof TestDiscussionSchema>;
+type _TestDiscussion = z.infer<typeof TestDiscussionSchema>;
 
 // ============================================================================
 // Discussion State Fixture Schema
@@ -133,7 +133,9 @@ export const DiscussionScenarioConfigSchema = z.object({
   category: z.string().default("q-a"),
 });
 
-type DiscussionScenarioConfig = z.infer<typeof DiscussionScenarioConfigSchema>;
+type _DiscussionScenarioConfig = z.infer<
+  typeof DiscussionScenarioConfigSchema
+>;
 
 // ============================================================================
 // Discussion Test Runner Inputs Schema
@@ -158,7 +160,7 @@ export type DiscussionTestRunnerInputs = z.infer<
 /**
  * Result of a discussion state test
  */
-const DiscussionTestResultSchema = z.object({
+const _DiscussionTestResultSchema = z.object({
   /** Overall status */
   status: z.enum(["completed", "failed", "error"]),
   /** Discussion number used for test */
@@ -175,7 +177,7 @@ const DiscussionTestResultSchema = z.object({
   error: z.string().optional(),
 });
 
-export type DiscussionTestResult = z.infer<typeof DiscussionTestResultSchema>;
+export type DiscussionTestResult = z.infer<typeof _DiscussionTestResultSchema>;
 
 // ============================================================================
 // Loaded Discussion Scenario

@@ -5,6 +5,7 @@
 import type {
   MachineContext,
   ProjectStatus,
+  HistoryEntry,
 } from "../../claude-state-machine/schemas/index.js";
 
 /**
@@ -131,6 +132,10 @@ export interface GitHubState {
   latestSha: string | null;
   /** Full machine context */
   context: MachineContext | null;
+  /** Issue body */
+  body: string;
+  /** Parsed history entries from issue body */
+  history: HistoryEntry[];
 }
 
 /**

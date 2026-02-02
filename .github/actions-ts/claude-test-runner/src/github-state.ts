@@ -10,6 +10,7 @@ import type {
   ProjectStatus,
 } from "../../claude-state-machine/schemas/index.js";
 import { parseTodoStats } from "../../claude-state-machine/parser/todo-parser.js";
+import { parseHistory } from "../../claude-state-machine/parser/history-parser.js";
 import type { GitHubState, WorkflowRun } from "./types.js";
 
 type Octokit = ReturnType<typeof github.getOctokit>;
@@ -235,9 +236,10 @@ export async function fetchGitHubState(
   const labels =
     issue.labels?.nodes?.map((l) => l.name || "").filter(Boolean) || [];
 
-  // Parse todos from body
+  // Parse todos and history from body
   const body = issue.body || "";
   const todos = parseTodoStats(body);
+  const history = parseHistory(body);
 
   // Check if bot is assigned
   const botAssigned = assignees.includes(botUsername);
@@ -315,6 +317,8 @@ export async function fetchGitHubState(
     branchExists,
     latestSha,
     context: null, // Will be populated separately if needed
+    body,
+    history,
   };
 }
 

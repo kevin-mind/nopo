@@ -32131,6 +32131,20 @@ function parseRunIdFromCell(cell) {
   }
   return null;
 }
+function parseShaCell(cell) {
+  if (cell === "-" || cell.trim() === "") {
+    return null;
+  }
+  const linkMatch = cell.match(/\[`?([a-f0-9]+)`?\]/i);
+  if (linkMatch) {
+    return linkMatch[1] ?? null;
+  }
+  const shaMatch = cell.match(/^[a-f0-9]+$/i);
+  if (shaMatch) {
+    return cell;
+  }
+  return null;
+}
 function formatHistoryCells(sha, runLink, repoUrl, prNumber) {
   let fullRepoUrl = repoUrl;
   if (!fullRepoUrl) {
@@ -32154,6 +32168,40 @@ function formatHistoryCells(sha, runLink, repoUrl, prNumber) {
     }
   }
   return { shaCell, runCell };
+}
+function rowDataToHistoryEntry(data) {
+  const iterationStr = data.iteration;
+  if (!iterationStr) return null;
+  const iteration = parseInt(iterationStr, 10);
+  if (isNaN(iteration)) return null;
+  const timestamp = data.time && data.time !== "-" ? data.time : null;
+  return {
+    iteration,
+    phase: data.phase || "",
+    action: data.action || "",
+    timestamp,
+    sha: data.sha ? parseShaCell(data.sha) : null,
+    runLink: data.run ? parseMarkdownLink(data.run) : null
+  };
+}
+function parseHistory(body) {
+  const parsed = parseTable(body);
+  if (!parsed) {
+    return [];
+  }
+  if (parsed.unmatchedHeaders.length > 0) {
+    console.warn(
+      `[history-parser] Unmatched table headers (will be dropped): ${parsed.unmatchedHeaders.join(", ")}`
+    );
+  }
+  const entries = [];
+  for (const row of parsed.rows) {
+    const entry = rowDataToHistoryEntry(row);
+    if (entry) {
+      entries.push(entry);
+    }
+  }
+  return entries;
 }
 function createRowData(iteration, phase, message, timestamp, sha, runLink, repoUrl, prNumber) {
   const { shaCell, runCell } = formatHistoryCells(
@@ -34407,6 +34455,7 @@ async function fetchGitHubState(octokit, owner, repo, issueNumber, projectNumber
   const labels = issue.labels?.nodes?.map((l3) => l3.name || "").filter(Boolean) || [];
   const body = issue.body || "";
   const todos = parseTodoStats(body);
+  const history = parseHistory(body);
   const botAssigned = assignees.includes(botUsername);
   const branchName = deriveBranchName2(issueNumber);
   let branchExists = false;
@@ -34471,8 +34520,10 @@ async function fetchGitHubState(octokit, owner, repo, issueNumber, projectNumber
     branch: branchExists ? branchName : null,
     branchExists,
     latestSha,
-    context: null
+    context: null,
     // Will be populated separately if needed
+    body,
+    history
   };
 }
 async function simulateMerge(octokit, owner, repo, prNumber) {
@@ -48563,6 +48614,40 @@ State Verification:`);
       core19.info(`
 \u2705 All fields match`);
     }
+    const expectedHistory = expected.issue.history;
+    if (expectedHistory && expectedHistory.length > 0) {
+      core19.info(`
+History Verification:`);
+      core19.info(`${"\u2500".repeat(60)}`);
+      const actualActions = state.history.map((h3) => h3.action);
+      const missingActions = [];
+      for (const expectedEntry of expectedHistory) {
+        const expectedAction = typeof expectedEntry === "string" ? expectedEntry : expectedEntry.action || String(expectedEntry);
+        const found = actualActions.some(
+          (action) => action.includes(expectedAction)
+        );
+        if (found) {
+          core19.info(`  \u2713 Found: "${expectedAction}"`);
+        } else {
+          core19.info(`  \u2717 Missing: "${expectedAction}"`);
+          missingActions.push(expectedAction);
+        }
+      }
+      if (missingActions.length > 0) {
+        core19.info(
+          `
+Actual history actions (${state.history.length} entries):`
+        );
+        for (const entry of state.history) {
+          core19.info(`  [${entry.iteration}/${entry.phase}] ${entry.action}`);
+        }
+        errors.push(`Missing history actions: ${missingActions.join(", ")}`);
+      } else {
+        core19.info(`
+\u2705 All expected history entries found`);
+      }
+      core19.info(`${"\u2500".repeat(60)}`);
+    }
     return errors;
   }
   /**
@@ -48954,7 +49039,7 @@ var _DiscussionTestRunnerInputsSchema = external_exports.object({
   /** true = use fixture outputs, false = run real Claude */
   mockClaude: external_exports.boolean().default(true)
 });
-var DiscussionTestResultSchema = external_exports.object({
+var _DiscussionTestResultSchema = external_exports.object({
   /** Overall status */
   status: external_exports.enum(["completed", "failed", "error"]),
   /** Discussion number used for test */

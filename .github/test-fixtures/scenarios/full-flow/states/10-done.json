@@ -12,7 +12,9 @@
     "labels": ["enhancement", "priority:medium", "topic:testing", "triaged"],
     "subIssues": [],
     "hasSubIssues": false,
-    "history": [],
+    "history": [
+      "🚢 Merged"
+    ],
     "todos": {
       "total": 2,
       "completed": 2,
