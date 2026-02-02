@@ -193,8 +193,7 @@ interface RunnerConfig {
 // Test Labels for Isolation
 // ============================================================================
 
-const TEST_LABEL = "test:automation";
-const E2E_LABEL = "_e2e"; // Required for cleanup to work
+const TEST_LABEL = "test:automation"; // Used for both skipping automation AND cleanup safety
 const TEST_TITLE_PREFIX = "[TEST]";
 
 // ============================================================================
@@ -435,7 +434,7 @@ class ConfigurableTestRunner {
    */
   private async createTestIssue(fixture: StateFixture): Promise<number> {
     const title = `${TEST_TITLE_PREFIX} ${fixture.issue.title}`;
-    const labels = [...fixture.issue.labels, TEST_LABEL, E2E_LABEL];
+    const labels = [...fixture.issue.labels, TEST_LABEL];
 
     const response = await this.config.octokit.rest.issues.create({
       owner: this.config.owner,
@@ -618,7 +617,7 @@ Issue: #${this.issueNumber}
       owner: this.config.owner,
       repo: this.config.repo,
       issue_number: this.prNumber,
-      labels: [TEST_LABEL, E2E_LABEL],
+      labels: [TEST_LABEL],
     });
 
     return this.prNumber;
@@ -829,7 +828,7 @@ Issue: #${this.issueNumber}
       owner: this.config.owner,
       repo: this.config.repo,
       issue_number: this.issueNumber,
-      labels: [...fixture.issue.labels, TEST_LABEL, E2E_LABEL],
+      labels: [...fixture.issue.labels, TEST_LABEL],
     });
 
     // Update assignees - assign nopo-bot if specified in fixture
@@ -1249,7 +1248,7 @@ Issue: #${this.issueNumber}
       repo: this.config.repo,
       title: subIssue.title,
       body: subIssue.body,
-      labels: [TEST_LABEL, E2E_LABEL],
+      labels: [TEST_LABEL],
     });
 
     const issueNumber = response.data.number;

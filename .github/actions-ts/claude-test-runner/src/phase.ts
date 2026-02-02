@@ -717,8 +717,8 @@ async function _checkE2EConfigExists(
 /**
  * Merge a PR using gh CLI (adds to merge queue)
  *
- * Note: For e2e tests, we use normal merge which goes through the merge queue.
- * The Release workflow detects e2e mode via the _e2e label and skips expensive
+ * Note: For test automation, we use normal merge which goes through the merge queue.
+ * The Release workflow detects test mode via the test:automation label and skips expensive
  * jobs (build, test, deploy) while letting the merge complete quickly.
  */
 async function mergePR(

@@ -24170,12 +24170,12 @@ async function addLabelsToDiscussion(octokit, owner, repo, discussionId, labelNa
   });
   core2.info(`Added ${labelIds.length} labels to discussion`);
 }
-async function createFixture(octokit, owner, repo, fixture, projectNumber, stepwiseMode = false, dryRunMode = false, reviewOctokit) {
+async function createFixture(octokit, owner, repo, fixture, projectNumber, stepwiseMode = false, _dryRunMode = false, reviewOctokit) {
   const result = {
     issue_number: 0,
     sub_issue_numbers: []
   };
-  const testModeLabel = dryRunMode ? ["_e2e"] : stepwiseMode ? ["_test"] : ["_e2e"];
+  const testModeLabel = stepwiseMode ? ["_test"] : [];
   if (!fixture.parent_issue) {
     core2.info("No parent_issue in fixture - creating discussion-only fixture");
     if (fixture.discussion) {
@@ -25259,7 +25259,9 @@ function renderSnapshotMarkdown(snapshot, mode) {
     lines.push(`| # | Title | State |`);
     lines.push(`|---|-------|-------|`);
     for (const sub of snapshot.subIssues) {
-      lines.push(`| [#${sub.number}](${sub.url}) | ${sub.title} | ${sub.state} |`);
+      lines.push(
+        `| [#${sub.number}](${sub.url}) | ${sub.title} | ${sub.state} |`
+      );
     }
     lines.push("");
   }
@@ -25603,7 +25605,9 @@ var CleanupGraph = class {
 };
 async function cleanupFixture(octokit, owner, repo, issueNumber, _projectNumber, mode = "close") {
   const MAX_TREE_RETRIES = 3;
-  core2.info(`Cleaning up test fixture for issue #${issueNumber} (mode: ${mode})`);
+  core2.info(
+    `Cleaning up test fixture for issue #${issueNumber} (mode: ${mode})`
+  );
   const { data: issue } = await octokit.rest.issues.get({
     owner,
     repo,
@@ -25612,12 +25616,14 @@ async function cleanupFixture(octokit, owner, repo, issueNumber, _projectNumber,
   const labels = issue.labels.map(
     (l) => typeof l === "string" ? l : l.name || ""
   );
-  if (!labels.includes("_e2e")) {
+  if (!labels.includes("test:automation")) {
     throw new Error(
-      `SAFETY: Refusing to cleanup issue #${issueNumber} - it does not have the _e2e label. Labels found: [${labels.join(", ")}]. Only issues with the _e2e label can be cleaned up to prevent accidentally closing real issues.`
+      `SAFETY: Refusing to cleanup issue #${issueNumber} - it does not have the test:automation label. Labels found: [${labels.join(", ")}]. Only issues with the test:automation label can be cleaned up to prevent accidentally closing real issues.`
     );
   }
-  core2.info(`Safety check passed: Issue #${issueNumber} has _e2e label`);
+  core2.info(
+    `Safety check passed: Issue #${issueNumber} has test:automation label`
+  );
   core2.info("Step 1: Taking resource snapshot...");
   const snapshot = await snapshotResources(octokit, owner, repo, issueNumber);
   const summaryMarkdown = renderSnapshotMarkdown(snapshot, mode);
@@ -25628,8 +25634,10 @@ async function cleanupFixture(octokit, owner, repo, issueNumber, _projectNumber,
   core2.info("Step 3: Building cleanup graph...");
   let lastResult = null;
   for (let treeAttempt = 1; treeAttempt <= MAX_TREE_RETRIES; treeAttempt++) {
-    core2.info(`
-=== Tree cleanup attempt ${treeAttempt}/${MAX_TREE_RETRIES} ===`);
+    core2.info(
+      `
+=== Tree cleanup attempt ${treeAttempt}/${MAX_TREE_RETRIES} ===`
+    );
     const currentSnapshot = treeAttempt === 1 ? snapshot : await snapshotResources(octokit, owner, repo, issueNumber);
     const graph = new CleanupGraph(octokit, owner, repo, mode, currentSnapshot);
     graph.buildGraph();
@@ -25827,9 +25835,9 @@ async function deleteIssueAndSubIssues(octokit, owner, repo, issueNumber) {
   const labels = issue.labels.map(
     (l) => typeof l === "string" ? l : l.name || ""
   );
-  if (!labels.includes("_e2e")) {
+  if (!labels.includes("test:automation")) {
     throw new Error(
-      `SAFETY: Refusing to delete issue #${issueNumber} - it does not have the _e2e label. Labels found: [${labels.join(", ")}]. Only issues with the _e2e label can be deleted to prevent accidentally deleting real issues.`
+      `SAFETY: Refusing to delete issue #${issueNumber} - it does not have the test:automation label. Labels found: [${labels.join(", ")}]. Only issues with the test:automation label can be deleted to prevent accidentally deleting real issues.`
     );
   }
   const subResponse = await octokit.graphql(
@@ -26113,7 +26121,14 @@ async function run() {
     if (action === "cleanup") {
       const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
       const cleanupMode = getOptionalInput("cleanup_mode") || "close";
-      await cleanupFixture(octokit, owner, repo, issueNumber, projectNumber, cleanupMode);
+      await cleanupFixture(
+        octokit,
+        owner,
+        repo,
+        issueNumber,
+        projectNumber,
+        cleanupMode
+      );
       setOutputs({
         success: "true"
       });
