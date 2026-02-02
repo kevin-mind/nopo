@@ -1,0 +1,8 @@
+{
+  "DISCUSSION_NUMBER": "9999",
+  "DISCUSSION_TITLE": "API Caching Strategy",
+  "DISCUSSION_BODY": "## Question\n\nHow should we implement caching for the API?\n\n## Context\n\nWe need to improve response times.",
+  "REPO_OWNER": "kevin-mind",
+  "REPO_NAME": "nopo",
+  "AGENT_NOTES": ""
+}
