@@ -24107,19 +24107,19 @@ function hasStepwiseTestLabel(labels) {
     (l) => typeof l === "string" ? l === "_test" : l.name === "_test"
   );
 }
-function hasE2ETestLabel(labels) {
+function hasTestAutomationLabel(labels) {
   return labels.some(
-    (l) => typeof l === "string" ? l === "_e2e" : l.name === "_e2e"
+    (l) => typeof l === "string" ? l === "test:automation" : l.name === "test:automation"
   );
 }
 function isInTestingMode(labels) {
-  return hasStepwiseTestLabel(labels) || hasE2ETestLabel(labels);
+  return hasStepwiseTestLabel(labels) || hasTestAutomationLabel(labels);
 }
 function isTestResource(title) {
   return title.startsWith("[TEST]");
 }
 function shouldSkipTestResource(title, labels) {
-  if (hasStepwiseTestLabel(labels) || hasE2ETestLabel(labels)) {
+  if (hasStepwiseTestLabel(labels) || hasTestAutomationLabel(labels)) {
     return false;
   }
   return isTestResource(title);
@@ -24961,8 +24961,8 @@ async function handleDiscussionEvent(octokit, owner, repo) {
   } catch (error) {
     core2.warning(`Failed to fetch discussion labels: ${error}`);
   }
-  const isE2ETest = discussionLabels.includes("_e2e");
-  if (discussion.title.startsWith("[TEST]") && !isE2ETest) {
+  const isTestAutomation = discussionLabels.includes("test:automation");
+  if (discussion.title.startsWith("[TEST]") && !isTestAutomation) {
     return emptyResult(true, "Discussion title starts with [TEST]");
   }
   if (action === "created") {
@@ -24975,7 +24975,7 @@ async function handleDiscussionEvent(octokit, owner, repo) {
         discussion_number: String(discussion.number),
         discussion_title: discussion.title,
         discussion_body: discussion.body ?? "",
-        is_e2e_test: isE2ETest
+        is_test_automation: isTestAutomation
       }),
       skip: false,
       skipReason: ""
@@ -25087,8 +25087,8 @@ async function handleDiscussionCommentEvent(octokit, owner, repo) {
   } catch (error) {
     core2.warning(`Failed to fetch discussion labels: ${error}`);
   }
-  const isE2ETest = discussionLabels.includes("_e2e");
-  if (discussion.title.startsWith("[TEST]") && !isE2ETest) {
+  const isTestAutomation = discussionLabels.includes("test:automation");
+  if (discussion.title.startsWith("[TEST]") && !isTestAutomation) {
     return emptyResult(true, "Discussion title starts with [TEST]");
   }
   const body = comment.body.trim();
@@ -25102,7 +25102,7 @@ async function handleDiscussionCommentEvent(octokit, owner, repo) {
       commentId: comment.node_id,
       contextJson: JSON.stringify({
         discussion_number: String(discussion.number),
-        is_e2e_test: isE2ETest
+        is_test_automation: isTestAutomation
       }),
       skip: false,
       skipReason: ""
@@ -25116,7 +25116,7 @@ async function handleDiscussionCommentEvent(octokit, owner, repo) {
       commentId: comment.node_id,
       contextJson: JSON.stringify({
         discussion_number: String(discussion.number),
-        is_e2e_test: isE2ETest
+        is_test_automation: isTestAutomation
       }),
       skip: false,
       skipReason: ""
@@ -25130,7 +25130,7 @@ async function handleDiscussionCommentEvent(octokit, owner, repo) {
       commentId: comment.node_id,
       contextJson: JSON.stringify({
         discussion_number: String(discussion.number),
-        is_e2e_test: isE2ETest
+        is_test_automation: isTestAutomation
       }),
       skip: false,
       skipReason: ""
@@ -25146,7 +25146,7 @@ async function handleDiscussionCommentEvent(octokit, owner, repo) {
         discussion_number: String(discussion.number),
         comment_body: comment.body,
         comment_author: author,
-        is_e2e_test: isE2ETest
+        is_test_automation: isTestAutomation
       }),
       skip: false,
       skipReason: ""
@@ -25162,7 +25162,7 @@ async function handleDiscussionCommentEvent(octokit, owner, repo) {
         discussion_number: String(discussion.number),
         comment_body: comment.body,
         comment_author: author,
-        is_e2e_test: isE2ETest
+        is_test_automation: isTestAutomation
       }),
       skip: false,
       skipReason: ""

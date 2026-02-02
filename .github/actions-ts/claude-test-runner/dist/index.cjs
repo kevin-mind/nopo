@@ -35307,23 +35307,27 @@ function verifyTriageExpectations(state, expectations) {
   }
   return errors;
 }
-async function labelSubIssuesForE2E(octokit, owner, repo, subIssueNumbers) {
+async function labelSubIssuesForCleanup(octokit, owner, repo, subIssueNumbers) {
   if (subIssueNumbers.length === 0) {
     return;
   }
-  core4.info(`Adding _e2e label to ${subIssueNumbers.length} sub-issue(s)...`);
+  core4.info(
+    `Adding test:automation label to ${subIssueNumbers.length} sub-issue(s)...`
+  );
   for (const issueNumber of subIssueNumbers) {
     try {
       await octokit.rest.issues.addLabels({
         owner,
         repo,
         issue_number: issueNumber,
-        labels: ["_e2e"]
+        labels: ["test:automation"]
       });
-      core4.info(`  \u2705 Added _e2e label to sub-issue #${issueNumber}`);
+      core4.info(
+        `  \u2705 Added test:automation label to sub-issue #${issueNumber}`
+      );
     } catch (error6) {
       core4.warning(
-        `  \u26A0\uFE0F Could not add _e2e label to sub-issue #${issueNumber}: ${error6}`
+        `  \u26A0\uFE0F Could not add test:automation label to sub-issue #${issueNumber}: ${error6}`
       );
     }
   }
@@ -35444,7 +35448,7 @@ async function waitForTriage(options) {
   }
   const state = pollResult.data;
   if (state.subIssueNumbers.length > 0) {
-    await labelSubIssuesForE2E(octokit, owner, repo, state.subIssueNumbers);
+    await labelSubIssuesForCleanup(octokit, owner, repo, state.subIssueNumbers);
   }
   const errors = verifyTriageExpectations(state, expectations);
   core4.info(
@@ -38493,7 +38497,6 @@ mutation AddIssueToProject($projectId: ID!, $contentId: ID!) {
 }
 `;
 var TEST_LABEL = "test:automation";
-var E2E_LABEL = "_e2e";
 var TEST_TITLE_PREFIX = "[TEST]";
 var ConfigurableTestRunner = class {
   scenario;
@@ -38668,7 +38671,7 @@ ${"=".repeat(60)}`);
    */
   async createTestIssue(fixture) {
     const title = `${TEST_TITLE_PREFIX} ${fixture.issue.title}`;
-    const labels = [...fixture.issue.labels, TEST_LABEL, E2E_LABEL];
+    const labels = [...fixture.issue.labels, TEST_LABEL];
     const response = await this.config.octokit.rest.issues.create({
       owner: this.config.owner,
       repo: this.config.repo,
@@ -38819,7 +38822,7 @@ Fixes #${this.issueNumber}`;
       owner: this.config.owner,
       repo: this.config.repo,
       issue_number: this.prNumber,
-      labels: [TEST_LABEL, E2E_LABEL]
+      labels: [TEST_LABEL]
     });
     return this.prNumber;
   }
@@ -38966,7 +38969,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
       owner: this.config.owner,
       repo: this.config.repo,
       issue_number: this.issueNumber,
-      labels: [...fixture.issue.labels, TEST_LABEL, E2E_LABEL]
+      labels: [...fixture.issue.labels, TEST_LABEL]
     });
     if (fixture.issue.assignees.includes("nopo-bot")) {
       core16.info("  \u2192 Assigning nopo-bot (via setupGitHubState)");
@@ -39293,7 +39296,7 @@ State Verification:`);
       repo: this.config.repo,
       title: subIssue.title,
       body: subIssue.body,
-      labels: [TEST_LABEL, E2E_LABEL]
+      labels: [TEST_LABEL]
     });
     const issueNumber = response.data.number;
     this.subIssueNumbers.set(subIssue.title, issueNumber);

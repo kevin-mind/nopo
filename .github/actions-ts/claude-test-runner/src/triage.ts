@@ -1,5 +1,5 @@
 /**
- * Triage verification for E2E tests
+ * Triage verification for test automation
  *
  * Waits for triage workflow to complete and verifies:
  * - Issue has "triaged" label
@@ -393,12 +393,12 @@ function verifyTriageExpectations(
 }
 
 /**
- * Add _e2e label to sub-issues created by triage
+ * Add test:automation label to sub-issues created by triage
  *
  * This ensures cleanup can find and clean up sub-issues created by triage
  * (when the fixture doesn't define sub_issues explicitly)
  */
-async function labelSubIssuesForE2E(
+async function labelSubIssuesForCleanup(
   octokit: OctokitType,
   owner: string,
   repo: string,
@@ -408,7 +408,9 @@ async function labelSubIssuesForE2E(
     return;
   }
 
-  core.info(`Adding _e2e label to ${subIssueNumbers.length} sub-issue(s)...`);
+  core.info(
+    `Adding test:automation label to ${subIssueNumbers.length} sub-issue(s)...`,
+  );
 
   for (const issueNumber of subIssueNumbers) {
     try {
@@ -416,13 +418,15 @@ async function labelSubIssuesForE2E(
         owner,
         repo,
         issue_number: issueNumber,
-        labels: ["_e2e"],
+        labels: ["test:automation"],
       });
-      core.info(`  ✅ Added _e2e label to sub-issue #${issueNumber}`);
+      core.info(
+        `  ✅ Added test:automation label to sub-issue #${issueNumber}`,
+      );
     } catch (error) {
       // Log but don't fail - the label might already exist
       core.warning(
-        `  ⚠️ Could not add _e2e label to sub-issue #${issueNumber}: ${error}`,
+        `  ⚠️ Could not add test:automation label to sub-issue #${issueNumber}: ${error}`,
       );
     }
   }
@@ -579,10 +583,10 @@ export async function waitForTriage(
 
   const state = pollResult.data;
 
-  // Add _e2e label to any sub-issues created by triage
+  // Add test:automation label to any sub-issues created by triage
   // This ensures cleanup can find them even if the fixture didn't define sub_issues
   if (state.subIssueNumbers.length > 0) {
-    await labelSubIssuesForE2E(octokit, owner, repo, state.subIssueNumbers);
+    await labelSubIssuesForCleanup(octokit, owner, repo, state.subIssueNumbers);
   }
 
   // Verify expectations

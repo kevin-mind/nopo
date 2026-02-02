@@ -387,7 +387,7 @@ async function createFixture(
   fixture: TestFixture,
   projectNumber: number,
   stepwiseMode: boolean = false,
-  dryRunMode: boolean = false,
+  _dryRunMode: boolean = false,
   reviewOctokit?: ReturnType<typeof github.getOctokit>,
 ): Promise<FixtureCreationResult> {
   const result: FixtureCreationResult = {
@@ -396,15 +396,11 @@ async function createFixture(
   };
 
   // Label strategy for test mode:
-  // - dry-run mode: test:automation + _e2e (workflows skip, but cleanup works)
+  // - dry-run mode: test:automation only (workflows skip, cleanup works)
   // - stepwise mode: test:automation + _test (detection only, pause for verification)
-  // - e2e mode: test:automation + _e2e (full execution)
-  // Note: dry-run and e2e both use _e2e label so cleanup safety check passes
-  const testModeLabel = dryRunMode
-    ? ["_e2e"]
-    : stepwiseMode
-      ? ["_test"]
-      : ["_e2e"];
+  // - e2e mode: test:automation only (full execution)
+  // Note: test:automation is used for both skipping automation AND cleanup safety
+  const testModeLabel = stepwiseMode ? ["_test"] : [];
 
   // For discussion-only fixtures (no parent_issue), skip issue creation
   if (!fixture.parent_issue) {
@@ -1808,7 +1804,12 @@ interface ResourceSnapshot {
   }>;
 }
 
-type CleanupNodeType = "workflow" | "pr" | "branch" | "sub-issue" | "parent-issue";
+type CleanupNodeType =
+  | "workflow"
+  | "pr"
+  | "branch"
+  | "sub-issue"
+  | "parent-issue";
 
 interface CleanupNode {
   type: CleanupNodeType;
@@ -2058,7 +2059,10 @@ async function snapshotResources(
 /**
  * Render the resource snapshot as markdown for the workflow summary
  */
-function renderSnapshotMarkdown(snapshot: ResourceSnapshot, mode: CleanupMode): string {
+function renderSnapshotMarkdown(
+  snapshot: ResourceSnapshot,
+  mode: CleanupMode,
+): string {
   const lines: string[] = [];
 
   lines.push(`## Cleanup Summary (mode: ${mode})`);
@@ -2081,7 +2085,9 @@ function renderSnapshotMarkdown(snapshot: ResourceSnapshot, mode: CleanupMode): 
     lines.push(`| # | Title | State |`);
     lines.push(`|---|-------|-------|`);
     for (const sub of snapshot.subIssues) {
-      lines.push(`| [#${sub.number}](${sub.url}) | ${sub.title} | ${sub.state} |`);
+      lines.push(
+        `| [#${sub.number}](${sub.url}) | ${sub.title} | ${sub.state} |`,
+      );
     }
     lines.push("");
   }
@@ -2505,7 +2511,7 @@ class CleanupGraph {
 /**
  * Cleanup a test fixture with graph-based traversal and deterministic retry
  *
- * SAFETY: Only cleans up issues that have the `_e2e` label to prevent
+ * SAFETY: Only cleans up issues that have the `test:automation` label to prevent
  * accidentally closing real issues.
  *
  * Steps:
@@ -2525,9 +2531,11 @@ async function cleanupFixture(
 ): Promise<void> {
   const MAX_TREE_RETRIES = 3;
 
-  core.info(`Cleaning up test fixture for issue #${issueNumber} (mode: ${mode})`);
+  core.info(
+    `Cleaning up test fixture for issue #${issueNumber} (mode: ${mode})`,
+  );
 
-  // SAFETY CHECK: Verify the issue has the _e2e label before proceeding
+  // SAFETY CHECK: Verify the issue has the test:automation label before proceeding
   const { data: issue } = await octokit.rest.issues.get({
     owner,
     repo,
@@ -2538,15 +2546,17 @@ async function cleanupFixture(
     typeof l === "string" ? l : l.name || "",
   );
 
-  if (!labels.includes("_e2e")) {
+  if (!labels.includes("test:automation")) {
     throw new Error(
-      `SAFETY: Refusing to cleanup issue #${issueNumber} - it does not have the _e2e label. ` +
+      `SAFETY: Refusing to cleanup issue #${issueNumber} - it does not have the test:automation label. ` +
         `Labels found: [${labels.join(", ")}]. ` +
-        `Only issues with the _e2e label can be cleaned up to prevent accidentally closing real issues.`,
+        `Only issues with the test:automation label can be cleaned up to prevent accidentally closing real issues.`,
     );
   }
 
-  core.info(`Safety check passed: Issue #${issueNumber} has _e2e label`);
+  core.info(
+    `Safety check passed: Issue #${issueNumber} has test:automation label`,
+  );
 
   // Step 1: Take snapshot (once, before any cleanup)
   core.info("Step 1: Taking resource snapshot...");
@@ -2567,7 +2577,9 @@ async function cleanupFixture(
   let lastResult: CleanupResult | null = null;
 
   for (let treeAttempt = 1; treeAttempt <= MAX_TREE_RETRIES; treeAttempt++) {
-    core.info(`\n=== Tree cleanup attempt ${treeAttempt}/${MAX_TREE_RETRIES} ===`);
+    core.info(
+      `\n=== Tree cleanup attempt ${treeAttempt}/${MAX_TREE_RETRIES} ===`,
+    );
 
     // Re-snapshot to pick up any state changes
     const currentSnapshot =
@@ -2875,7 +2887,7 @@ async function closeIssueAndSubIssues(
  * Delete an issue and all its sub-issues
  *
  * IMPORTANT: This permanently deletes the issues and cannot be undone!
- * Only works for issues with the _e2e label to prevent accidental deletion
+ * Only works for issues with the test:automation label to prevent accidental deletion
  * of real issues.
  */
 async function deleteIssueAndSubIssues(
@@ -2887,7 +2899,7 @@ async function deleteIssueAndSubIssues(
   core.info(`Deleting issue #${issueNumber} and all sub-issues`);
   let deleteCount = 0;
 
-  // SAFETY CHECK: Verify the issue has the _e2e label
+  // SAFETY CHECK: Verify the issue has the test:automation label
   const { data: issue } = await octokit.rest.issues.get({
     owner,
     repo,
@@ -2898,11 +2910,11 @@ async function deleteIssueAndSubIssues(
     typeof l === "string" ? l : l.name || "",
   );
 
-  if (!labels.includes("_e2e")) {
+  if (!labels.includes("test:automation")) {
     throw new Error(
-      `SAFETY: Refusing to delete issue #${issueNumber} - it does not have the _e2e label. ` +
+      `SAFETY: Refusing to delete issue #${issueNumber} - it does not have the test:automation label. ` +
         `Labels found: [${labels.join(", ")}]. ` +
-        `Only issues with the _e2e label can be deleted to prevent accidentally deleting real issues.`,
+        `Only issues with the test:automation label can be deleted to prevent accidentally deleting real issues.`,
     );
   }
 
@@ -3317,9 +3329,17 @@ async function run(): Promise<void> {
 
     if (action === "cleanup") {
       const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
-      const cleanupMode = (getOptionalInput("cleanup_mode") || "close") as CleanupMode;
+      const cleanupMode = (getOptionalInput("cleanup_mode") ||
+        "close") as CleanupMode;
 
-      await cleanupFixture(octokit, owner, repo, issueNumber, projectNumber, cleanupMode);
+      await cleanupFixture(
+        octokit,
+        owner,
+        repo,
+        issueNumber,
+        projectNumber,
+        cleanupMode,
+      );
 
       setOutputs({
         success: "true",

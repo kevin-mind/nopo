@@ -347,15 +347,19 @@ function hasStepwiseTestLabel(
   );
 }
 
-function hasE2ETestLabel(labels: Array<{ name: string }> | string[]): boolean {
+function hasTestAutomationLabel(
+  labels: Array<{ name: string }> | string[],
+): boolean {
   return labels.some((l) =>
-    typeof l === "string" ? l === "_e2e" : l.name === "_e2e",
+    typeof l === "string"
+      ? l === "test:automation"
+      : l.name === "test:automation",
   );
 }
 
 function isInTestingMode(labels: Array<{ name: string }> | string[]): boolean {
-  // Either stepwise (_test) or E2E (_e2e) testing mode
-  return hasStepwiseTestLabel(labels) || hasE2ETestLabel(labels);
+  // Either stepwise (_test) or test:automation mode
+  return hasStepwiseTestLabel(labels) || hasTestAutomationLabel(labels);
 }
 
 function isTestResource(title: string): boolean {
@@ -366,10 +370,10 @@ function shouldSkipTestResource(
   title: string,
   labels: Array<{ name: string }> | string[],
 ): boolean {
-  // Allow [TEST] resources through when _test or _e2e label is present
+  // Allow [TEST] resources through when _test or test:automation label is present
   // _test = stepwise testing (detection only, no execution)
-  // _e2e = end-to-end testing (full execution)
-  if (hasStepwiseTestLabel(labels) || hasE2ETestLabel(labels)) {
+  // test:automation = full testing (execution + cleanup safety)
+  if (hasStepwiseTestLabel(labels) || hasTestAutomationLabel(labels)) {
     return false;
   }
   return isTestResource(title);
@@ -476,11 +480,11 @@ async function handleIssueEvent(
     labels: Array<{ name: string }>;
   };
 
-  // Check for testing mode (_test for stepwise, _e2e for E2E) - allows bypassing circuit breakers
+  // Check for testing mode (_test for stepwise, test:automation for full testing) - allows bypassing circuit breakers
   const inTestingMode = isInTestingMode(issue.labels);
 
   // Check for [TEST] in title (circuit breaker for test automation)
-  // Skip unless in testing mode (_test or _e2e label present)
+  // Skip unless in testing mode (_test or test:automation label present)
   if (shouldSkipTestResource(issue.title, issue.labels)) {
     return emptyResult(true, "Issue title starts with [TEST]");
   }
@@ -932,11 +936,11 @@ async function handleIssueCommentEvent(
     pull_request?: unknown;
   };
 
-  // Check for testing mode (_test for stepwise, _e2e for E2E) - allows bypassing circuit breakers
+  // Check for testing mode (_test for stepwise, test:automation for full testing) - allows bypassing circuit breakers
   const inTestingMode = isInTestingMode(issue.labels);
 
   // Check for [TEST] in title (circuit breaker for test automation)
-  // Skip unless in testing mode (_test or _e2e label present)
+  // Skip unless in testing mode (_test or test:automation label present)
   if (shouldSkipTestResource(issue.title, issue.labels)) {
     return emptyResult(true, "Issue/PR title starts with [TEST]");
   }
@@ -1116,11 +1120,11 @@ async function handlePullRequestReviewCommentEvent(): Promise<DetectionResult> {
     labels: Array<{ name: string }>;
   };
 
-  // Check for testing mode (_test for stepwise, _e2e for E2E) - allows bypassing circuit breakers
+  // Check for testing mode (_test for stepwise, test:automation for full testing) - allows bypassing circuit breakers
   const inTestingMode = isInTestingMode(pr.labels);
 
   // Check for [TEST] in title (circuit breaker for test automation)
-  // Skip unless in testing mode (_test or _e2e label present)
+  // Skip unless in testing mode (_test or test:automation label present)
   if (shouldSkipTestResource(pr.title, pr.labels)) {
     return emptyResult(true, "PR title starts with [TEST]");
   }
@@ -1541,11 +1545,11 @@ async function handleDiscussionEvent(
   }
 
   // Check for e2e test mode
-  const isE2ETest = discussionLabels.includes("_e2e");
+  const isTestAutomation = discussionLabels.includes("test:automation");
 
   // Check for [TEST] in title (circuit breaker for test automation)
-  // Skip unless in testing mode (_e2e label present)
-  if (discussion.title.startsWith("[TEST]") && !isE2ETest) {
+  // Skip unless in testing mode (test:automation label present)
+  if (discussion.title.startsWith("[TEST]") && !isTestAutomation) {
     return emptyResult(true, "Discussion title starts with [TEST]");
   }
 
@@ -1559,7 +1563,7 @@ async function handleDiscussionEvent(
         discussion_number: String(discussion.number),
         discussion_title: discussion.title,
         discussion_body: discussion.body ?? "",
-        is_e2e_test: isE2ETest,
+        is_test_automation: isTestAutomation,
       }),
       skip: false,
       skipReason: "",
@@ -1736,11 +1740,11 @@ async function handleDiscussionCommentEvent(
   }
 
   // Check for e2e test mode
-  const isE2ETest = discussionLabels.includes("_e2e");
+  const isTestAutomation = discussionLabels.includes("test:automation");
 
   // Check for [TEST] in title (circuit breaker for test automation)
-  // Skip unless in testing mode (_e2e label present)
-  if (discussion.title.startsWith("[TEST]") && !isE2ETest) {
+  // Skip unless in testing mode (test:automation label present)
+  if (discussion.title.startsWith("[TEST]") && !isTestAutomation) {
     return emptyResult(true, "Discussion title starts with [TEST]");
   }
 
@@ -1757,7 +1761,7 @@ async function handleDiscussionCommentEvent(
       commentId: comment.node_id,
       contextJson: JSON.stringify({
         discussion_number: String(discussion.number),
-        is_e2e_test: isE2ETest,
+        is_test_automation: isTestAutomation,
       }),
       skip: false,
       skipReason: "",
@@ -1772,7 +1776,7 @@ async function handleDiscussionCommentEvent(
       commentId: comment.node_id,
       contextJson: JSON.stringify({
         discussion_number: String(discussion.number),
-        is_e2e_test: isE2ETest,
+        is_test_automation: isTestAutomation,
       }),
       skip: false,
       skipReason: "",
@@ -1787,7 +1791,7 @@ async function handleDiscussionCommentEvent(
       commentId: comment.node_id,
       contextJson: JSON.stringify({
         discussion_number: String(discussion.number),
-        is_e2e_test: isE2ETest,
+        is_test_automation: isTestAutomation,
       }),
       skip: false,
       skipReason: "",
@@ -1805,7 +1809,7 @@ async function handleDiscussionCommentEvent(
         discussion_number: String(discussion.number),
         comment_body: comment.body,
         comment_author: author,
-        is_e2e_test: isE2ETest,
+        is_test_automation: isTestAutomation,
       }),
       skip: false,
       skipReason: "",
@@ -1823,7 +1827,7 @@ async function handleDiscussionCommentEvent(
         discussion_number: String(discussion.number),
         comment_body: comment.body,
         comment_author: author,
-        is_e2e_test: isE2ETest,
+        is_test_automation: isTestAutomation,
       }),
       skip: false,
       skipReason: "",
