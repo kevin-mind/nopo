@@ -82,7 +82,7 @@ jobs:
         with:
           action: ${{ inputs.action }}
           issue_number: ${{ inputs.issue_number }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
 
       - name: Report result
@@ -105,7 +105,7 @@ jobs:
       - name: Verify cleanup state
         id: verify
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
           ISSUE_NUMBER: ${{ inputs.issue_number }}
         run: |
           echo "Verifying cleanup state for issue #$ISSUE_NUMBER"
@@ -214,7 +214,7 @@ jobs:
       - name: Trigger retry cleanup
         if: steps.verify.outputs.needs_retry == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
         run: |
           echo "::notice::Re-running cleanup due to incomplete state"
           gh workflow run _test_cleanup.yml \
