@@ -200,13 +200,14 @@ cp .vars.example .vars          # Add repo variables
 
 **Commands:**
 ```bash
-make act-list                                    # List all workflows/jobs
-make act-dry workflow=ci.yml                     # Dry run (no execution)
-make act-run workflow=check-prompt-schemas.yml   # Run a workflow
-make act-state-machine scenario=triage           # Run state machine test
+nopo act list                                  # List all workflows/jobs
+nopo act dry -w ci.yml                         # Dry run (no execution)
+nopo act run -w check-prompt-schemas.yml       # Run a workflow
+nopo act run -w ci.yml -j test                 # Run specific job
+nopo act dry -w _test_state_machine.yml -i scenario_name=triage
 ```
 
-**Limitations:** Some workflows need GitHub API access (issues, PRs) and may fail locally. Use dry runs (`-n`) to validate workflow syntax without execution.
+**Limitations:** Some workflows need GitHub API access (issues, PRs) and may fail locally. Use dry runs to validate workflow syntax without execution.
 
 ---
 

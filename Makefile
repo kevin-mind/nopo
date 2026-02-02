@@ -64,37 +64,3 @@ lint-terraform:
 		terraform -chdir="$$dir" validate; \
 	done
 
-# =============================================================================
-# Act - Run GitHub Actions locally
-# =============================================================================
-# Prerequisites: brew install act
-# Setup: cp .secrets.example .secrets && cp .vars.example .vars
-# Then fill in your tokens in .secrets
-
-.PHONY: act-list
-act-list:
-	@act -l
-
-.PHONY: act-dry
-act-dry:
-ifndef workflow
-	$(error Usage: make act-dry workflow=ci.yml [job=test] [event=push])
-endif
-	act $(or $(event),workflow_dispatch) -W .github/workflows/$(workflow) $(if $(job),-j $(job),) -n
-
-.PHONY: act-run
-act-run:
-ifndef workflow
-	$(error Usage: make act-run workflow=ci.yml [job=test] [event=push])
-endif
-	act $(or $(event),workflow_dispatch) -W .github/workflows/$(workflow) $(if $(job),-j $(job),)
-
-.PHONY: act-state-machine
-act-state-machine:
-ifndef scenario
-	$(error Usage: make act-state-machine scenario=triage [mock_claude=true] [mock_ci=true])
-endif
-	act workflow_dispatch -W .github/workflows/_test_state_machine.yml -j run \
-		--input scenario_name=$(scenario) \
-		--input mock_claude=$(or $(mock_claude),true) \
-		--input mock_ci=$(or $(mock_ci),true)

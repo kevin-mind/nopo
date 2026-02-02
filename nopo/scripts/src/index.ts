@@ -12,6 +12,7 @@ import { loadProjectConfig } from "./config/index.ts";
 import { ScriptArgs } from "./script-args.ts";
 import process from "node:process";
 
+import Act from "./scripts/act.ts";
 import Build from "./scripts/build.ts";
 import Command from "./scripts/command.ts";
 import Down from "./scripts/down.ts";
@@ -22,6 +23,7 @@ import Status from "./scripts/status.ts";
 import Up from "./scripts/up.ts";
 
 const scripts: Record<string, typeof Script> = {
+  act: Act,
   build: Build,
   command: Command,
   down: Down,
