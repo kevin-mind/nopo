@@ -25329,26 +25329,24 @@ var CleanupGraph = class {
   async setProjectStatusDone(issueNumber) {
     try {
       const response = await this.octokit.graphql(
-        `query GetProjectInfo($org: String!, $repo: String!, $issueNumber: Int!, $projectNumber: Int!) {
+        `query GetProjectInfo($org: String!, $repo: String!, $issueNumber: Int!) {
           repository(owner: $org, name: $repo) {
             issue(number: $issueNumber) {
               projectItems(first: 10) {
                 nodes {
                   id
-                  project { id number }
-                }
-              }
-            }
-          }
-          organization(login: $org) {
-            projectV2(number: $projectNumber) {
-              id
-              fields(first: 20) {
-                nodes {
-                  ... on ProjectV2SingleSelectField {
+                  project {
                     id
-                    name
-                    options { id name }
+                    number
+                    fields(first: 20) {
+                      nodes {
+                        ... on ProjectV2SingleSelectField {
+                          id
+                          name
+                          options { id name }
+                        }
+                      }
+                    }
                   }
                 }
               }
@@ -25358,8 +25356,7 @@ var CleanupGraph = class {
         {
           org: this.owner,
           repo: this.repo,
-          issueNumber,
-          projectNumber: this.projectNumber
+          issueNumber
         }
       );
       const projectItem = response.repository?.issue?.projectItems?.nodes?.find(
@@ -25371,7 +25368,12 @@ var CleanupGraph = class {
         );
         return;
       }
-      const statusField = response.organization?.projectV2?.fields?.nodes?.find(
+      const projectId = projectItem.project?.id;
+      if (!projectId) {
+        core2.warning(`Project ${this.projectNumber} not found`);
+        return;
+      }
+      const statusField = projectItem.project?.fields?.nodes?.find(
         (f) => f.name === "Status"
       );
       if (!statusField?.id || !statusField.options) {
@@ -25381,11 +25383,6 @@ var CleanupGraph = class {
       const doneOption = statusField.options.find((o) => o.name === "Done");
       if (!doneOption) {
         core2.warning(`"Done" option not found in Status field`);
-        return;
-      }
-      const projectId = response.organization?.projectV2?.id;
-      if (!projectId) {
-        core2.warning(`Project ${this.projectNumber} not found`);
         return;
       }
       await this.octokit.graphql(

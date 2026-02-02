@@ -2176,53 +2176,54 @@ class CleanupGraph {
    */
   private async setProjectStatusDone(issueNumber: number): Promise<void> {
     try {
-      // Get project item and field info
+      // Get project item and field info from the issue's linked project
+      interface ProjectFieldNode {
+        id?: string;
+        name?: string;
+        options?: Array<{ id: string; name: string }>;
+      }
+
+      interface ProjectItemNode {
+        id?: string;
+        project?: {
+          id?: string;
+          number?: number;
+          fields?: {
+            nodes?: ProjectFieldNode[];
+          };
+        };
+      }
+
       interface ProjectQueryResponse {
         repository?: {
           issue?: {
             projectItems?: {
-              nodes?: Array<{
-                id?: string;
-                project?: { id?: string; number?: number };
-              }>;
-            };
-          };
-        };
-        organization?: {
-          projectV2?: {
-            id?: string;
-            fields?: {
-              nodes?: Array<{
-                id?: string;
-                name?: string;
-                options?: Array<{ id: string; name: string }>;
-              }>;
+              nodes?: ProjectItemNode[];
             };
           };
         };
       }
 
+      // Query project item and get project fields from the linked project directly
       const response = await this.octokit.graphql<ProjectQueryResponse>(
-        `query GetProjectInfo($org: String!, $repo: String!, $issueNumber: Int!, $projectNumber: Int!) {
+        `query GetProjectInfo($org: String!, $repo: String!, $issueNumber: Int!) {
           repository(owner: $org, name: $repo) {
             issue(number: $issueNumber) {
               projectItems(first: 10) {
                 nodes {
                   id
-                  project { id number }
-                }
-              }
-            }
-          }
-          organization(login: $org) {
-            projectV2(number: $projectNumber) {
-              id
-              fields(first: 20) {
-                nodes {
-                  ... on ProjectV2SingleSelectField {
+                  project {
                     id
-                    name
-                    options { id name }
+                    number
+                    fields(first: 20) {
+                      nodes {
+                        ... on ProjectV2SingleSelectField {
+                          id
+                          name
+                          options { id name }
+                        }
+                      }
+                    }
                   }
                 }
               }
@@ -2233,7 +2234,6 @@ class CleanupGraph {
           org: this.owner,
           repo: this.repo,
           issueNumber,
-          projectNumber: this.projectNumber,
         },
       );
 
@@ -2249,8 +2249,15 @@ class CleanupGraph {
         return;
       }
 
-      // Find Status field and Done option
-      const statusField = response.organization?.projectV2?.fields?.nodes?.find(
+      // Get project ID from the project item
+      const projectId = projectItem.project?.id;
+      if (!projectId) {
+        core.warning(`Project ${this.projectNumber} not found`);
+        return;
+      }
+
+      // Find Status field and Done option from the project item's project
+      const statusField = projectItem.project?.fields?.nodes?.find(
         (f) => f.name === "Status",
       );
 
@@ -2262,12 +2269,6 @@ class CleanupGraph {
       const doneOption = statusField.options.find((o) => o.name === "Done");
       if (!doneOption) {
         core.warning(`"Done" option not found in Status field`);
-        return;
-      }
-
-      const projectId = response.organization?.projectV2?.id;
-      if (!projectId) {
-        core.warning(`Project ${this.projectNumber} not found`);
         return;
       }
 
