@@ -24102,24 +24102,19 @@ async function fetchPrByBranch(owner, repo, branch) {
 function hasSkipLabel(labels) {
   return labels.some((l) => l === "skip-dispatch" || l === "test:automation");
 }
-function hasStepwiseTestLabel(labels) {
-  return labels.some(
-    (l) => typeof l === "string" ? l === "_test" : l.name === "_test"
-  );
-}
 function hasTestAutomationLabel(labels) {
   return labels.some(
     (l) => typeof l === "string" ? l === "test:automation" : l.name === "test:automation"
   );
 }
 function isInTestingMode(labels) {
-  return hasStepwiseTestLabel(labels) || hasTestAutomationLabel(labels);
+  return hasTestAutomationLabel(labels);
 }
 function isTestResource(title) {
   return title.startsWith("[TEST]");
 }
 function shouldSkipTestResource(title, labels) {
-  if (hasStepwiseTestLabel(labels) || hasTestAutomationLabel(labels)) {
+  if (hasTestAutomationLabel(labels)) {
     return false;
   }
   return isTestResource(title);

@@ -339,14 +339,6 @@ function hasSkipLabel(labels: string[]): boolean {
   return labels.some((l) => l === "skip-dispatch" || l === "test:automation");
 }
 
-function hasStepwiseTestLabel(
-  labels: Array<{ name: string }> | string[],
-): boolean {
-  return labels.some((l) =>
-    typeof l === "string" ? l === "_test" : l.name === "_test",
-  );
-}
-
 function hasTestAutomationLabel(
   labels: Array<{ name: string }> | string[],
 ): boolean {
@@ -358,8 +350,7 @@ function hasTestAutomationLabel(
 }
 
 function isInTestingMode(labels: Array<{ name: string }> | string[]): boolean {
-  // Either stepwise (_test) or test:automation mode
-  return hasStepwiseTestLabel(labels) || hasTestAutomationLabel(labels);
+  return hasTestAutomationLabel(labels);
 }
 
 function isTestResource(title: string): boolean {
@@ -370,10 +361,8 @@ function shouldSkipTestResource(
   title: string,
   labels: Array<{ name: string }> | string[],
 ): boolean {
-  // Allow [TEST] resources through when _test or test:automation label is present
-  // _test = stepwise testing (detection only, no execution)
-  // test:automation = full testing (execution + cleanup safety)
-  if (hasStepwiseTestLabel(labels) || hasTestAutomationLabel(labels)) {
+  // Allow [TEST] resources through when test:automation label is present
+  if (hasTestAutomationLabel(labels)) {
     return false;
   }
   return isTestResource(title);
@@ -480,11 +469,11 @@ async function handleIssueEvent(
     labels: Array<{ name: string }>;
   };
 
-  // Check for testing mode (_test for stepwise, test:automation for full testing) - allows bypassing circuit breakers
+  // Check for testing mode (test:automation label) - allows bypassing circuit breakers
   const inTestingMode = isInTestingMode(issue.labels);
 
   // Check for [TEST] in title (circuit breaker for test automation)
-  // Skip unless in testing mode (_test or test:automation label present)
+  // Skip unless in testing mode (test:automation label present)
   if (shouldSkipTestResource(issue.title, issue.labels)) {
     return emptyResult(true, "Issue title starts with [TEST]");
   }
@@ -936,11 +925,11 @@ async function handleIssueCommentEvent(
     pull_request?: unknown;
   };
 
-  // Check for testing mode (_test for stepwise, test:automation for full testing) - allows bypassing circuit breakers
+  // Check for testing mode (test:automation label) - allows bypassing circuit breakers
   const inTestingMode = isInTestingMode(issue.labels);
 
   // Check for [TEST] in title (circuit breaker for test automation)
-  // Skip unless in testing mode (_test or test:automation label present)
+  // Skip unless in testing mode (test:automation label present)
   if (shouldSkipTestResource(issue.title, issue.labels)) {
     return emptyResult(true, "Issue/PR title starts with [TEST]");
   }
@@ -1120,11 +1109,11 @@ async function handlePullRequestReviewCommentEvent(): Promise<DetectionResult> {
     labels: Array<{ name: string }>;
   };
 
-  // Check for testing mode (_test for stepwise, test:automation for full testing) - allows bypassing circuit breakers
+  // Check for testing mode (test:automation label) - allows bypassing circuit breakers
   const inTestingMode = isInTestingMode(pr.labels);
 
   // Check for [TEST] in title (circuit breaker for test automation)
-  // Skip unless in testing mode (_test or test:automation label present)
+  // Skip unless in testing mode (test:automation label present)
   if (shouldSkipTestResource(pr.title, pr.labels)) {
     return emptyResult(true, "PR title starts with [TEST]");
   }
@@ -1203,7 +1192,7 @@ async function handlePushEvent(): Promise<DetectionResult> {
   }
 
   // Check for [TEST] in PR title (circuit breaker for test automation)
-  // Skip unless _test label is present (stepwise testing mode)
+  // Skip unless test:automation label is present
   if (shouldSkipTestResource(prInfo.title, prInfo.labels)) {
     return emptyResult(true, "PR title starts with [TEST]");
   }
@@ -1256,7 +1245,7 @@ async function handleWorkflowRunEvent(): Promise<DetectionResult> {
   }
 
   // Check for [TEST] in PR title (circuit breaker for test automation)
-  // Skip unless _test label is present (stepwise testing mode)
+  // Skip unless test:automation label is present
   if (shouldSkipTestResource(prInfo.title, prInfo.labels)) {
     return emptyResult(true, "PR title starts with [TEST]");
   }
@@ -1317,7 +1306,7 @@ async function handlePullRequestEvent(
   };
 
   // Check for [TEST] in title (circuit breaker for test automation)
-  // Skip unless _test label is present (stepwise testing mode)
+  // Skip unless test:automation label is present
   if (shouldSkipTestResource(pr.title, pr.labels)) {
     return emptyResult(true, "PR title starts with [TEST]");
   }
@@ -1390,7 +1379,7 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
   };
 
   // Check for [TEST] in title (circuit breaker for test automation)
-  // Skip unless _test label is present (stepwise testing mode)
+  // Skip unless test:automation label is present
   if (shouldSkipTestResource(pr.title, pr.labels)) {
     return emptyResult(true, "PR title starts with [TEST]");
   }

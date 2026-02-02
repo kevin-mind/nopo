@@ -386,21 +386,12 @@ async function createFixture(
   repo: string,
   fixture: TestFixture,
   projectNumber: number,
-  stepwiseMode: boolean = false,
-  _dryRunMode: boolean = false,
   reviewOctokit?: ReturnType<typeof github.getOctokit>,
 ): Promise<FixtureCreationResult> {
   const result: FixtureCreationResult = {
     issue_number: 0,
     sub_issue_numbers: [],
   };
-
-  // Label strategy for test mode:
-  // - dry-run mode: test:automation only (workflows skip, cleanup works)
-  // - stepwise mode: test:automation + _test (detection only, pause for verification)
-  // - e2e mode: test:automation only (full execution)
-  // Note: test:automation is used for both skipping automation AND cleanup safety
-  const testModeLabel = stepwiseMode ? ["_test"] : [];
 
   // For discussion-only fixtures (no parent_issue), skip issue creation
   if (!fixture.parent_issue) {
@@ -504,7 +495,6 @@ async function createFixture(
   const parentTitle = `[TEST] ${fixture.parent_issue.title}`;
   const parentLabels = [
     "test:automation",
-    ...testModeLabel,
     ...(fixture.parent_issue.labels || []),
   ];
 
@@ -693,7 +683,7 @@ async function createFixture(
         repo,
         title: subTitle,
         body: bodyWithParent,
-        labels: ["test:automation", "triaged", ...testModeLabel],
+        labels: ["test:automation", "triaged"],
       });
 
       // Now update body to replace {ISSUE_NUMBER} with actual sub-issue number
@@ -967,12 +957,12 @@ async function createFixture(
     result.pr_number = pr.number;
     core.info(`Created PR #${pr.number}`);
 
-    // Add test:automation label and test mode label to PR
+    // Add test:automation label to PR
     await octokit.rest.issues.addLabels({
       owner,
       repo,
       issue_number: pr.number,
-      labels: ["test:automation", ...testModeLabel],
+      labels: ["test:automation"],
     });
 
     // Request review if specified
@@ -3215,9 +3205,6 @@ async function run(): Promise<void> {
       getOptionalInput("project_number") || "1",
       10,
     );
-    const stepwiseMode = getOptionalInput("stepwise_mode") === "true";
-    const dryRunMode = getOptionalInput("dry_run_mode") === "true";
-
     const octokit = github.getOctokit(token);
     const reviewOctokit = reviewToken
       ? github.getOctokit(reviewToken)
@@ -3265,8 +3252,6 @@ async function run(): Promise<void> {
         repo,
         fixture,
         projectNumber,
-        stepwiseMode,
-        dryRunMode,
         reviewOctokit,
       );
 
