@@ -75,6 +75,27 @@ jobs:
       total_duration_ms: ${{ steps.run.outputs.total_duration_ms }}
       error: ${{ steps.run.outputs.error }}
     steps:
+      # Validate that edge case scenarios don't use Real Claude
+      # These scenarios require Claude to intentionally create failures, which is unreliable
+      - name: Validate mock_claude for edge cases
+        if: inputs.mock_claude == false
+        run: |
+          EDGE_CASES="ci-failure-recovery circuit-breaker review-changes-requested"
+          SCENARIO="${{ inputs.scenario_name }}"
+
+          for edge_case in $EDGE_CASES; do
+            if [[ "$SCENARIO" == "$edge_case" ]]; then
+              echo "::error::Scenario '$SCENARIO' requires mock_claude=true"
+              echo ""
+              echo "Edge case scenarios (ci-failure-recovery, circuit-breaker, review-changes-requested)"
+              echo "test system behavior in response to failures, not Claude's ability to create bugs."
+              echo "These scenarios only support Mock Claude mode."
+              exit 1
+            fi
+          done
+
+          echo "✓ Real Claude mode allowed for scenario: $SCENARIO"
+
       - uses: actions/checkout@v4
 
       - name: Setup Node.js

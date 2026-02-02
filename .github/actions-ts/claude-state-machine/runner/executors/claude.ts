@@ -264,6 +264,7 @@ export async function executeRunClaude(
   const args: string[] = [
     "--print", // Print output to stdout (non-interactive mode)
     "--dangerously-skip-permissions", // Skip all permission prompts (for CI/automated runs)
+    "--verbose", // Enable verbose output for real-time logging
   ];
 
   // Get prompt and optional schema
