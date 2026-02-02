@@ -19,12 +19,11 @@ on:
         required: true
         type: string
       action:
-        description: 'Cleanup action: close | cleanup | delete'
+        description: 'Cleanup action: cleanup | delete'
         required: false
-        default: 'close'
+        default: 'cleanup'
         type: choice
         options:
-          - close
           - cleanup
           - delete
       is_retry:
@@ -41,9 +40,9 @@ on:
         required: true
         type: string
       action:
-        description: 'Cleanup action: close | cleanup | delete'
+        description: 'Cleanup action: cleanup | delete'
         required: false
-        default: 'close'
+        default: 'cleanup'
         type: string
       is_retry:
         description: 'Internal: Whether this is a retry attempt'
@@ -95,7 +94,7 @@ jobs:
   # Only runs on first attempt (not retry) to prevent infinite loops
   verify:
     needs: cleanup
-    if: inputs.is_retry != 'true' && inputs.action == 'close'
+    if: inputs.is_retry != 'true' && inputs.action == 'cleanup'
     runs-on: ubuntu-latest
     steps:
       - name: Wait for GitHub Project automations

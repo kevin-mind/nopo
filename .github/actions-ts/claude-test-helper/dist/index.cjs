@@ -25772,56 +25772,6 @@ async function resetIssue(octokit, owner, repo, issueNumber, projectNumber) {
   core2.info(`Reset complete: ${resetCount} issues re-opened, statuses updated`);
   return { reset_count: resetCount };
 }
-async function closeIssueAndSubIssues(octokit, owner, repo, issueNumber, _projectNumber) {
-  core2.info(`Closing issue #${issueNumber} and all sub-issues`);
-  let closeCount = 0;
-  const subResponse = await octokit.graphql(
-    GET_SUB_ISSUES_QUERY,
-    {
-      org: owner,
-      repo,
-      parentNumber: issueNumber
-    }
-  );
-  const subIssues = subResponse.repository?.issue?.subIssues?.nodes || [];
-  for (const subIssue of subIssues) {
-    if (subIssue.number) {
-      const { data: subIssueData } = await octokit.rest.issues.get({
-        owner,
-        repo,
-        issue_number: subIssue.number
-      });
-      if (subIssueData.state === "open") {
-        core2.info(`Closing sub-issue #${subIssue.number}`);
-        await octokit.rest.issues.update({
-          owner,
-          repo,
-          issue_number: subIssue.number,
-          state: "closed",
-          state_reason: "completed"
-        });
-        closeCount++;
-      }
-    }
-  }
-  const { data: issue } = await octokit.rest.issues.get({
-    owner,
-    repo,
-    issue_number: issueNumber
-  });
-  if (issue.state === "open") {
-    core2.info(`Closing parent issue #${issueNumber}`);
-    await octokit.rest.issues.update({
-      owner,
-      repo,
-      issue_number: issueNumber,
-      state: "closed",
-      state_reason: "completed"
-    });
-    closeCount++;
-  }
-  return { close_count: closeCount };
-}
 async function deleteIssueAndSubIssues(octokit, owner, repo, issueNumber) {
   core2.info(`Deleting issue #${issueNumber} and all sub-issues`);
   let deleteCount = 0;
@@ -26140,21 +26090,6 @@ async function run() {
       setOutputs({
         success: "true",
         reset_count: String(result.reset_count)
-      });
-      return;
-    }
-    if (action === "close") {
-      const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
-      const result = await closeIssueAndSubIssues(
-        octokit,
-        owner,
-        repo,
-        issueNumber,
-        projectNumber
-      );
-      setOutputs({
-        success: "true",
-        close_count: String(result.close_count)
       });
       return;
     }

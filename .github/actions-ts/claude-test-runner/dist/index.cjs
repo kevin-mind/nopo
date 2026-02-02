@@ -39612,7 +39612,7 @@ async function triggerCleanup(octokit, owner, repo, issueNumber) {
       ref: "main",
       inputs: {
         issue_number: String(issueNumber),
-        action: "close"
+        action: "cleanup"
       }
     });
     core17.info("Cleanup workflow triggered");

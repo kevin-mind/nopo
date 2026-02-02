@@ -45,8 +45,8 @@ async function triggerCleanup(
   core.info(`Triggering cleanup for issue #${issueNumber}`);
 
   try {
-    // Use the test-helper action's close functionality via workflow dispatch
-    // This will close the issue and all sub-issues
+    // Use the test-helper action's cleanup functionality via workflow dispatch
+    // This will close the issue and all sub-issues, and set project status to Done
     await octokit.rest.actions.createWorkflowDispatch({
       owner,
       repo,
@@ -54,7 +54,7 @@ async function triggerCleanup(
       ref: "main",
       inputs: {
         issue_number: String(issueNumber),
-        action: "close",
+        action: "cleanup",
       },
     });
     core.info("Cleanup workflow triggered");

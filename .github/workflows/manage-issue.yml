@@ -2,8 +2,8 @@ name: Manage Issue
 
 # Manage an issue and its sub-issues with different methods:
 # - reset: Re-open closed issues, set parent to "Backlog", sub-issues to "Ready"
-# - close: Close all issues, set statuses to "Done"
-# - delete: Permanently delete the issue and sub-issues (requires _e2e label)
+# - cleanup: Close all issues, set statuses to "Done"
+# - delete: Permanently delete the issue and sub-issues (requires test:automation label)
 
 on:
   workflow_dispatch:
@@ -18,7 +18,7 @@ on:
         type: choice
         options:
           - reset
-          - close
+          - cleanup
           - delete
 
 permissions:
@@ -39,7 +39,7 @@ jobs:
         with:
           node-version: '22'
 
-      - name: ${{ inputs.method == 'reset' && 'Reset Issue' || inputs.method == 'close' && 'Close Issue' || 'Delete Issue' }}
+      - name: ${{ inputs.method == 'reset' && 'Reset Issue' || inputs.method == 'cleanup' && 'Close Issue' || 'Delete Issue' }}
         id: action
         uses: ./.github/actions-ts/claude-test-helper
         with:
@@ -51,7 +51,7 @@ jobs:
       - name: Write Summary
         run: |
           cat >> $GITHUB_STEP_SUMMARY << EOF
-          # Issue ${{ inputs.method == 'reset' && 'Reset' || inputs.method == 'close' && 'Closed' || 'Deleted' }}
+          # Issue ${{ inputs.method == 'reset' && 'Reset' || inputs.method == 'cleanup' && 'Closed' || 'Deleted' }}
 
           | Property | Value |
           |----------|-------|

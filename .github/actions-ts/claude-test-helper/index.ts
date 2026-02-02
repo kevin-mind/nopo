@@ -2779,101 +2779,6 @@ async function resetIssue(
 }
 
 /**
- * Close an issue and all its sub-issues
- *
- * This is useful for quickly closing an issue tree without going through
- * the normal workflow.
- *
- * Note: We only close issues here - GitHub Project automations will
- * automatically update the Status field when issues are closed.
- */
-async function closeIssueAndSubIssues(
-  octokit: ReturnType<typeof github.getOctokit>,
-  owner: string,
-  repo: string,
-  issueNumber: number,
-  _projectNumber: number,
-): Promise<{ close_count: number }> {
-  core.info(`Closing issue #${issueNumber} and all sub-issues`);
-  let closeCount = 0;
-
-  // Get sub-issues first
-  interface SubIssuesResponse {
-    repository?: {
-      issue?: {
-        subIssues?: {
-          nodes?: Array<{
-            number?: number;
-            state?: string;
-          }>;
-        };
-      };
-    };
-  }
-
-  const subResponse = await octokit.graphql<SubIssuesResponse>(
-    GET_SUB_ISSUES_QUERY,
-    {
-      org: owner,
-      repo,
-      parentNumber: issueNumber,
-    },
-  );
-
-  const subIssues = subResponse.repository?.issue?.subIssues?.nodes || [];
-
-  // Close all sub-issues first
-  // Note: We only close issues here - GitHub Project automations will
-  // automatically update the Status field when issues are closed
-  for (const subIssue of subIssues) {
-    if (subIssue.number) {
-      // Close if open
-      const { data: subIssueData } = await octokit.rest.issues.get({
-        owner,
-        repo,
-        issue_number: subIssue.number,
-      });
-
-      if (subIssueData.state === "open") {
-        core.info(`Closing sub-issue #${subIssue.number}`);
-        await octokit.rest.issues.update({
-          owner,
-          repo,
-          issue_number: subIssue.number,
-          state: "closed",
-          state_reason: "completed",
-        });
-        closeCount++;
-      }
-    }
-  }
-
-  // Note: We don't set project status here - GitHub Project automations
-  // will automatically update Status to Done when issues are closed
-
-  // Close parent issue
-  const { data: issue } = await octokit.rest.issues.get({
-    owner,
-    repo,
-    issue_number: issueNumber,
-  });
-
-  if (issue.state === "open") {
-    core.info(`Closing parent issue #${issueNumber}`);
-    await octokit.rest.issues.update({
-      owner,
-      repo,
-      issue_number: issueNumber,
-      state: "closed",
-      state_reason: "completed",
-    });
-    closeCount++;
-  }
-
-  return { close_count: closeCount };
-}
-
-/**
  * Delete an issue and all its sub-issues
  *
  * IMPORTANT: This permanently deletes the issues and cannot be undone!
@@ -3346,24 +3251,6 @@ async function run(): Promise<void> {
       setOutputs({
         success: "true",
         reset_count: String(result.reset_count),
-      });
-      return;
-    }
-
-    if (action === "close") {
-      const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
-
-      const result = await closeIssueAndSubIssues(
-        octokit,
-        owner,
-        repo,
-        issueNumber,
-        projectNumber,
-      );
-
-      setOutputs({
-        success: "true",
-        close_count: String(result.close_count),
       });
       return;
     }
