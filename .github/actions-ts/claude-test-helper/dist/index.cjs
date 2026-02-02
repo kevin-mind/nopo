@@ -25095,9 +25095,515 @@ async function forceCancelRelatedWorkflows(octokit, owner, repo, issueNumber) {
     core2.warning(`Failed to check/cancel related workflows: ${error}`);
   }
 }
-async function cleanupFixture(octokit, owner, repo, issueNumber, projectNumber) {
-  core2.info(`Cleaning up test fixture for issue #${issueNumber}`);
-  await forceCancelRelatedWorkflows(octokit, owner, repo, issueNumber);
+async function retryWithBackoff(operation, verify, options) {
+  const { maxRetries, baseDelayMs, maxJitterMs, operationName } = options;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await operation();
+      const verified = await verify();
+      if (verified) {
+        core2.info(`\u2713 ${operationName} succeeded on attempt ${attempt}`);
+        return { success: true, result };
+      }
+      core2.warning(
+        `${operationName} completed but verification failed (attempt ${attempt}/${maxRetries})`
+      );
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      core2.warning(
+        `${operationName} failed (attempt ${attempt}/${maxRetries}): ${errorMsg}`
+      );
+    }
+    if (attempt < maxRetries) {
+      const jitter = Math.floor(Math.random() * maxJitterMs);
+      const delay = attempt * baseDelayMs + jitter;
+      core2.info(`Waiting ${delay}ms before retry...`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+  return {
+    success: false,
+    error: `${operationName} failed after ${maxRetries} attempts`
+  };
+}
+async function snapshotResources(octokit, owner, repo, issueNumber) {
+  const { data: issue } = await octokit.rest.issues.get({
+    owner,
+    repo,
+    issue_number: issueNumber
+  });
+  const labels = issue.labels.map(
+    (l) => typeof l === "string" ? l : l.name || ""
+  );
+  const subResponse = await octokit.graphql(
+    GET_SUB_ISSUES_QUERY,
+    {
+      org: owner,
+      repo,
+      parentNumber: issueNumber
+    }
+  );
+  const subIssueNodes = subResponse.repository?.issue?.subIssues?.nodes || [];
+  const subIssues = [];
+  for (const sub of subIssueNodes) {
+    if (sub.number) {
+      const { data: subData } = await octokit.rest.issues.get({
+        owner,
+        repo,
+        issue_number: sub.number
+      });
+      subIssues.push({
+        number: subData.number,
+        title: subData.title,
+        state: subData.state,
+        url: subData.html_url
+      });
+    }
+  }
+  const { data: prs } = await octokit.rest.pulls.list({
+    owner,
+    repo,
+    state: "all",
+    per_page: 100
+  });
+  const relatedPRs = [];
+  const subIssueNumbers = subIssues.map((s) => s.number);
+  for (const pr of prs) {
+    if (pr.title.includes("[TEST]") && (pr.body?.includes(`#${issueNumber}`) || subIssueNumbers.some((num) => pr.body?.includes(`#${num}`)))) {
+      relatedPRs.push({
+        number: pr.number,
+        title: pr.title,
+        state: pr.state,
+        branch: pr.head.ref,
+        url: pr.html_url
+      });
+    }
+  }
+  const branches = [];
+  try {
+    const { data: refs } = await octokit.rest.git.listMatchingRefs({
+      owner,
+      repo,
+      ref: "heads/test/"
+    });
+    for (const ref of refs) {
+      if (ref.ref.includes(String(issueNumber))) {
+        branches.push({
+          name: ref.ref.replace("refs/heads/", ""),
+          ref: ref.ref
+        });
+      }
+    }
+  } catch {
+  }
+  const workflowRuns = [];
+  try {
+    const { data: runs } = await octokit.rest.actions.listWorkflowRunsForRepo({
+      owner,
+      repo,
+      status: "in_progress",
+      per_page: 50
+    });
+    const { data: queuedRuns } = await octokit.rest.actions.listWorkflowRunsForRepo({
+      owner,
+      repo,
+      status: "queued",
+      per_page: 50
+    });
+    const allRuns = [...runs.workflow_runs, ...queuedRuns.workflow_runs];
+    const issuePattern = `#${issueNumber}`;
+    for (const run2 of allRuns) {
+      const runName = run2.name || "";
+      const displayTitle = run2.display_title || "";
+      const isRelated = runName.includes(issuePattern) || displayTitle.includes(issuePattern) || displayTitle.includes(`[TEST]`) || run2.head_branch?.includes(`issue/${issueNumber}`) || run2.head_branch?.includes(`issue-${issueNumber}`);
+      if (isRelated) {
+        workflowRuns.push({
+          id: run2.id,
+          name: `${runName} - ${displayTitle}`,
+          status: run2.status || "unknown",
+          url: run2.html_url
+        });
+      }
+    }
+  } catch {
+  }
+  return {
+    parentIssue: {
+      number: issue.number,
+      title: issue.title,
+      state: issue.state,
+      labels,
+      url: issue.html_url
+    },
+    subIssues,
+    pullRequests: relatedPRs,
+    branches,
+    workflowRuns
+  };
+}
+function renderSnapshotMarkdown(snapshot, mode) {
+  const lines = [];
+  lines.push(`## Cleanup Summary (mode: ${mode})`);
+  lines.push("");
+  lines.push("### Resources to Clean");
+  lines.push("");
+  lines.push("#### Parent Issue");
+  lines.push(`| # | Title | State | Labels |`);
+  lines.push(`|---|-------|-------|--------|`);
+  lines.push(
+    `| [#${snapshot.parentIssue.number}](${snapshot.parentIssue.url}) | ${snapshot.parentIssue.title} | ${snapshot.parentIssue.state} | ${snapshot.parentIssue.labels.join(", ")} |`
+  );
+  lines.push("");
+  if (snapshot.subIssues.length > 0) {
+    lines.push("#### Sub-Issues");
+    lines.push(`| # | Title | State |`);
+    lines.push(`|---|-------|-------|`);
+    for (const sub of snapshot.subIssues) {
+      lines.push(`| [#${sub.number}](${sub.url}) | ${sub.title} | ${sub.state} |`);
+    }
+    lines.push("");
+  }
+  if (snapshot.pullRequests.length > 0) {
+    lines.push("#### Pull Requests");
+    lines.push(`| # | Title | State | Branch |`);
+    lines.push(`|---|-------|-------|--------|`);
+    for (const pr of snapshot.pullRequests) {
+      lines.push(
+        `| [#${pr.number}](${pr.url}) | ${pr.title} | ${pr.state} | \`${pr.branch}\` |`
+      );
+    }
+    lines.push("");
+  }
+  if (snapshot.branches.length > 0) {
+    lines.push("#### Branches");
+    lines.push(`| Name |`);
+    lines.push(`|------|`);
+    for (const branch of snapshot.branches) {
+      lines.push(`| \`${branch.name}\` |`);
+    }
+    lines.push("");
+  }
+  if (snapshot.workflowRuns.length > 0) {
+    lines.push("#### Active Workflow Runs");
+    lines.push(`| ID | Name | Status |`);
+    lines.push(`|---|------|--------|`);
+    for (const run2 of snapshot.workflowRuns) {
+      lines.push(`| [${run2.id}](${run2.url}) | ${run2.name} | ${run2.status} |`);
+    }
+    lines.push("");
+  }
+  return lines.join("\n");
+}
+var CleanupGraph = class {
+  octokit;
+  owner;
+  repo;
+  mode;
+  nodes = [];
+  snapshot;
+  // Retry configuration
+  MAX_NODE_RETRIES = 10;
+  BASE_DELAY_MS = 2e3;
+  MAX_JITTER_MS = 1e3;
+  constructor(octokit, owner, repo, mode, snapshot) {
+    this.octokit = octokit;
+    this.owner = owner;
+    this.repo = repo;
+    this.mode = mode;
+    this.snapshot = snapshot;
+  }
+  /**
+   * Build the cleanup graph from the snapshot
+   */
+  buildGraph() {
+    this.nodes = [];
+    for (const run2 of this.snapshot.workflowRuns) {
+      this.nodes.push({
+        type: "workflow",
+        id: String(run2.id),
+        displayName: `Workflow ${run2.id}`,
+        status: "pending"
+      });
+    }
+    for (const pr of this.snapshot.pullRequests) {
+      if (pr.state === "open") {
+        this.nodes.push({
+          type: "pr",
+          id: String(pr.number),
+          displayName: `PR #${pr.number}`,
+          status: "pending"
+        });
+      }
+    }
+    for (const branch of this.snapshot.branches) {
+      this.nodes.push({
+        type: "branch",
+        id: branch.name,
+        displayName: `Branch ${branch.name}`,
+        status: "pending"
+      });
+    }
+    for (const sub of this.snapshot.subIssues) {
+      if (sub.state === "open") {
+        this.nodes.push({
+          type: "sub-issue",
+          id: String(sub.number),
+          displayName: `Sub-issue #${sub.number}`,
+          status: "pending"
+        });
+      }
+    }
+    if (this.snapshot.parentIssue.state === "open") {
+      this.nodes.push({
+        type: "parent-issue",
+        id: String(this.snapshot.parentIssue.number),
+        displayName: `Parent issue #${this.snapshot.parentIssue.number}`,
+        status: "pending"
+      });
+    }
+    core2.info(`Built cleanup graph with ${this.nodes.length} nodes`);
+  }
+  /**
+   * Get nodes of a specific type that are still pending
+   */
+  getPendingByType(type) {
+    return this.nodes.filter((n) => n.type === type && n.status === "pending");
+  }
+  /**
+   * Check if all nodes of given types are verified
+   */
+  allVerified(types) {
+    return this.nodes.filter((n) => types.includes(n.type)).every((n) => n.status === "verified" || n.status === "failed");
+  }
+  /**
+   * Clean a single node with retry
+   */
+  async cleanNode(node) {
+    node.status = "cleaning";
+    const result = await retryWithBackoff(
+      () => this.executeCleanup(node),
+      () => this.verifyCleanup(node),
+      {
+        maxRetries: this.MAX_NODE_RETRIES,
+        baseDelayMs: this.BASE_DELAY_MS,
+        maxJitterMs: this.MAX_JITTER_MS,
+        operationName: node.displayName
+      }
+    );
+    if (result.success) {
+      node.status = "verified";
+      return true;
+    } else {
+      node.status = "failed";
+      node.error = result.error;
+      return false;
+    }
+  }
+  /**
+   * Execute the cleanup action for a node
+   */
+  async executeCleanup(node) {
+    switch (node.type) {
+      case "workflow": {
+        const runId = parseInt(node.id, 10);
+        await this.octokit.rest.actions.cancelWorkflowRun({
+          owner: this.owner,
+          repo: this.repo,
+          run_id: runId
+        });
+        break;
+      }
+      case "pr": {
+        const prNumber = parseInt(node.id, 10);
+        await this.octokit.rest.pulls.update({
+          owner: this.owner,
+          repo: this.repo,
+          pull_number: prNumber,
+          state: "closed"
+        });
+        break;
+      }
+      case "branch": {
+        await this.octokit.rest.git.deleteRef({
+          owner: this.owner,
+          repo: this.repo,
+          ref: `heads/${node.id}`
+        });
+        break;
+      }
+      case "sub-issue":
+      case "parent-issue": {
+        const issueNumber = parseInt(node.id, 10);
+        if (this.mode === "delete") {
+          const { data: issue } = await this.octokit.rest.issues.get({
+            owner: this.owner,
+            repo: this.repo,
+            issue_number: issueNumber
+          });
+          await this.octokit.graphql(
+            `mutation DeleteIssue($issueId: ID!) {
+              deleteIssue(input: { issueId: $issueId }) {
+                clientMutationId
+              }
+            }`,
+            { issueId: issue.node_id }
+          );
+        } else {
+          await this.octokit.rest.issues.update({
+            owner: this.owner,
+            repo: this.repo,
+            issue_number: issueNumber,
+            state: "closed",
+            state_reason: "completed"
+          });
+        }
+        break;
+      }
+    }
+  }
+  /**
+   * Verify the cleanup action succeeded
+   */
+  async verifyCleanup(node) {
+    try {
+      switch (node.type) {
+        case "workflow": {
+          const runId = parseInt(node.id, 10);
+          const { data: run2 } = await this.octokit.rest.actions.getWorkflowRun({
+            owner: this.owner,
+            repo: this.repo,
+            run_id: runId
+          });
+          return run2.status === "completed" || run2.status === "cancelled";
+        }
+        case "pr": {
+          const prNumber = parseInt(node.id, 10);
+          const { data: pr } = await this.octokit.rest.pulls.get({
+            owner: this.owner,
+            repo: this.repo,
+            pull_number: prNumber
+          });
+          return pr.state === "closed";
+        }
+        case "branch": {
+          try {
+            await this.octokit.rest.git.getRef({
+              owner: this.owner,
+              repo: this.repo,
+              ref: `heads/${node.id}`
+            });
+            return false;
+          } catch (error) {
+            if (error && typeof error === "object" && "status" in error && error.status === 404) {
+              return true;
+            }
+            throw error;
+          }
+        }
+        case "sub-issue":
+        case "parent-issue": {
+          const issueNumber = parseInt(node.id, 10);
+          if (this.mode === "delete") {
+            try {
+              await this.octokit.rest.issues.get({
+                owner: this.owner,
+                repo: this.repo,
+                issue_number: issueNumber
+              });
+              return false;
+            } catch (error) {
+              if (error && typeof error === "object" && "status" in error && error.status === 404) {
+                return true;
+              }
+              return false;
+            }
+          } else {
+            const { data: issue } = await this.octokit.rest.issues.get({
+              owner: this.owner,
+              repo: this.repo,
+              issue_number: issueNumber
+            });
+            return issue.state === "closed";
+          }
+        }
+        default:
+          return false;
+      }
+    } catch (error) {
+      core2.warning(`Verification error for ${node.displayName}: ${error}`);
+      return false;
+    }
+  }
+  /**
+   * Clean all nodes in dependency order
+   *
+   * Order: workflows -> PRs -> branches -> sub-issues -> parent-issue
+   */
+  async cleanAll() {
+    const result = {
+      success: true,
+      cleaned: 0,
+      failed: 0,
+      skipped: 0,
+      errors: []
+    };
+    core2.info("Phase 1: Cancelling workflow runs...");
+    const workflows = this.getPendingByType("workflow");
+    if (workflows.length > 0) {
+      await Promise.all(workflows.map((n) => this.cleanNode(n)));
+    }
+    core2.info("Phase 2: Closing PRs...");
+    for (const node of this.getPendingByType("pr")) {
+      await this.cleanNode(node);
+    }
+    core2.info("Phase 3: Deleting branches...");
+    for (const node of this.getPendingByType("branch")) {
+      await this.cleanNode(node);
+    }
+    core2.info("Phase 4: Closing/deleting sub-issues...");
+    for (const node of this.getPendingByType("sub-issue")) {
+      await this.cleanNode(node);
+    }
+    core2.info("Phase 5: Closing/deleting parent issue...");
+    for (const node of this.getPendingByType("parent-issue")) {
+      await this.cleanNode(node);
+    }
+    for (const node of this.nodes) {
+      if (node.status === "verified") {
+        result.cleaned++;
+      } else if (node.status === "failed") {
+        result.failed++;
+        result.success = false;
+        if (node.error) {
+          result.errors.push(`${node.displayName}: ${node.error}`);
+        }
+      } else {
+        result.skipped++;
+      }
+    }
+    return result;
+  }
+  /**
+   * Verify all nodes are in expected final state
+   */
+  async verifyAll() {
+    let allGood = true;
+    for (const node of this.nodes) {
+      if (node.status === "verified") {
+        const stillVerified = await this.verifyCleanup(node);
+        if (!stillVerified) {
+          core2.warning(`${node.displayName} reverted to unclean state`);
+          node.status = "pending";
+          allGood = false;
+        }
+      }
+    }
+    return allGood;
+  }
+};
+async function cleanupFixture(octokit, owner, repo, issueNumber, _projectNumber, mode = "close") {
+  const MAX_TREE_RETRIES = 3;
+  core2.info(`Cleaning up test fixture for issue #${issueNumber} (mode: ${mode})`);
   const { data: issue } = await octokit.rest.issues.get({
     owner,
     repo,
@@ -25112,71 +25618,43 @@ async function cleanupFixture(octokit, owner, repo, issueNumber, projectNumber) 
     );
   }
   core2.info(`Safety check passed: Issue #${issueNumber} has _e2e label`);
-  const subResponse = await octokit.graphql(
-    GET_SUB_ISSUES_QUERY,
-    {
-      org: owner,
-      repo,
-      parentNumber: issueNumber
-    }
-  );
-  const subIssues = subResponse.repository?.issue?.subIssues?.nodes || [];
-  const { data: prs } = await octokit.rest.pulls.list({
-    owner,
-    repo,
-    state: "open",
-    per_page: 100
-  });
-  for (const pr of prs) {
-    if (pr.title.includes("[TEST]") && (pr.body?.includes(`#${issueNumber}`) || subIssues.some((sub) => pr.body?.includes(`#${sub.number}`)))) {
-      core2.info(`Closing PR #${pr.number}`);
-      await octokit.rest.pulls.update({
-        owner,
-        repo,
-        pull_number: pr.number,
-        state: "closed"
-      });
-      if (pr.head.ref.startsWith("test/")) {
-        try {
-          await octokit.rest.git.deleteRef({
-            owner,
-            repo,
-            ref: `heads/${pr.head.ref}`
-          });
-          core2.info(`Deleted branch ${pr.head.ref}`);
-        } catch (error) {
-          core2.warning(`Failed to delete branch ${pr.head.ref}: ${error}`);
-        }
+  core2.info("Step 1: Taking resource snapshot...");
+  const snapshot = await snapshotResources(octokit, owner, repo, issueNumber);
+  const summaryMarkdown = renderSnapshotMarkdown(snapshot, mode);
+  await core2.summary.addRaw(summaryMarkdown).write();
+  core2.info("Resource snapshot written to workflow summary");
+  core2.info("Step 2: Force-cancelling related workflows...");
+  await forceCancelRelatedWorkflows(octokit, owner, repo, issueNumber);
+  core2.info("Step 3: Building cleanup graph...");
+  let lastResult = null;
+  for (let treeAttempt = 1; treeAttempt <= MAX_TREE_RETRIES; treeAttempt++) {
+    core2.info(`
+=== Tree cleanup attempt ${treeAttempt}/${MAX_TREE_RETRIES} ===`);
+    const currentSnapshot = treeAttempt === 1 ? snapshot : await snapshotResources(octokit, owner, repo, issueNumber);
+    const graph = new CleanupGraph(octokit, owner, repo, mode, currentSnapshot);
+    graph.buildGraph();
+    lastResult = await graph.cleanAll();
+    core2.info(
+      `Tree attempt ${treeAttempt} result: cleaned=${lastResult.cleaned}, failed=${lastResult.failed}, skipped=${lastResult.skipped}`
+    );
+    if (lastResult.success) {
+      const verified = await graph.verifyAll();
+      if (verified) {
+        core2.info("\u2713 Cleanup complete and verified");
+        return;
       }
+      core2.warning("Cleanup completed but final verification failed");
+    }
+    if (treeAttempt < MAX_TREE_RETRIES) {
+      const treeDelay = treeAttempt * 5e3 + Math.floor(Math.random() * 2e3);
+      core2.info(`Waiting ${treeDelay}ms before tree-level retry...`);
+      await new Promise((resolve) => setTimeout(resolve, treeDelay));
     }
   }
-  await closeIssueAndSubIssues(
-    octokit,
-    owner,
-    repo,
-    issueNumber,
-    projectNumber
-  );
-  try {
-    const { data: refs } = await octokit.rest.git.listMatchingRefs({
-      owner,
-      repo,
-      ref: "heads/test/"
-    });
-    for (const ref of refs) {
-      if (ref.ref.includes(String(issueNumber))) {
-        core2.info(`Deleting orphaned branch ${ref.ref}`);
-        await octokit.rest.git.deleteRef({
-          owner,
-          repo,
-          ref: ref.ref.replace("refs/", "")
-        });
-      }
-    }
-  } catch (error) {
-    core2.warning(`Failed to cleanup orphaned branches: ${error}`);
-  }
-  core2.info("Cleanup complete");
+  const errorMsg = `Cleanup failed after ${MAX_TREE_RETRIES} tree-level retries. Errors: ${lastResult?.errors.join("; ") || "unknown"}`;
+  await core2.summary.addRaw("\n\n## \u274C Cleanup Failed\n\n").addRaw(`${errorMsg}
+`).write();
+  throw new Error(errorMsg);
 }
 async function resetIssue(octokit, owner, repo, issueNumber, projectNumber) {
   core2.info(`Resetting issue #${issueNumber} to initial state`);
@@ -25634,7 +26112,8 @@ async function run() {
     }
     if (action === "cleanup") {
       const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
-      await cleanupFixture(octokit, owner, repo, issueNumber, projectNumber);
+      const cleanupMode = getOptionalInput("cleanup_mode") || "close";
+      await cleanupFixture(octokit, owner, repo, issueNumber, projectNumber, cleanupMode);
       setOutputs({
         success: "true"
       });

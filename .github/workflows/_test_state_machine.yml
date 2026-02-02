@@ -40,6 +40,13 @@ on:
         description: 'Issue number for cleanup_only mode'
         type: string
         default: ''
+      cleanup_mode:
+        description: 'Cleanup mode: close (preserves history) or delete (permanent removal)'
+        type: choice
+        options:
+          - close
+          - delete
+        default: close
 
 # Only one test at a time - queue runs instead of cancelling
 concurrency:
@@ -185,6 +192,7 @@ jobs:
           issue_number: ${{ steps.issue.outputs.issue_number }}
           github_token: ${{ env.GH_TOKEN }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+          cleanup_mode: ${{ inputs.cleanup_mode || 'close' }}
 
       - name: Output cleanup result
         run: |
