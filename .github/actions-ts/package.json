@@ -20,6 +20,7 @@
     "@actions/github": "^6.0.0",
     "@actions/glob": "^0.5.0",
     "@actions/io": "^1.1.3",
+    "@anthropic-ai/claude-agent-sdk": "^0.2.29",
     "xstate": "^5.19.0",
     "zod": "^3.24.0"
   }

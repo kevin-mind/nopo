@@ -120,7 +120,7 @@ async function checkOffTodo(
     const uncheckedMatch = line.match(/^(\s*)-\s*\[\s*\]\s*(.+)$/);
     if (uncheckedMatch) {
       const [, indent, text] = uncheckedMatch;
-      const normalizedLineText = text.trim().toLowerCase();
+      const normalizedLineText = (text ?? "").trim().toLowerCase();
 
       // Check for match (exact or fuzzy)
       if (
