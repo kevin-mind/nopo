@@ -25359,12 +25359,17 @@ var CleanupGraph = class {
           issueNumber
         }
       );
-      const projectItem = response.repository?.issue?.projectItems?.nodes?.find(
+      const projectItems = response.repository?.issue?.projectItems?.nodes;
+      core2.debug(
+        `Project items for issue #${issueNumber}: ${JSON.stringify(projectItems?.map((p) => ({ id: p.id, projectNumber: p.project?.number })))}`
+      );
+      core2.debug(`Looking for projectNumber: ${this.projectNumber}`);
+      const projectItem = projectItems?.find(
         (item) => item.project?.number === this.projectNumber
       );
       if (!projectItem?.id) {
         core2.warning(
-          `Issue #${issueNumber} not found in project ${this.projectNumber}`
+          `Issue #${issueNumber} not found in project ${this.projectNumber}. Available projects: ${projectItems?.map((p) => p.project?.number).join(", ") || "none"}`
         );
         return;
       }
