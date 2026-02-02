@@ -499,8 +499,9 @@ describe("ACTION_TYPES constant", () => {
   });
 
   test("has correct length", () => {
-    // Count of all action types (including assignUser, submitReview, removeReviewer, discussion actions)
-    expect(ACTION_TYPES.length).toBe(30);
+    // Count of all action types (including assignUser, submitReview, removeReviewer, discussion actions,
+    // applyTriageOutput, applyIterateOutput, applyReviewOutput, applyDiscussion*Output)
+    expect(ACTION_TYPES.length).toBe(37);
   });
 });
 

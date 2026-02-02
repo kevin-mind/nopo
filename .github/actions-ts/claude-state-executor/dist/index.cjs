@@ -182,7 +182,7 @@ var require_file_command = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.prepareKeyValueMessage = exports2.issueFileCommand = void 0;
     var crypto = __importStar(require("crypto"));
-    var fs3 = __importStar(require("fs"));
+    var fs4 = __importStar(require("fs"));
     var os = __importStar(require("os"));
     var utils_1 = require_utils();
     function issueFileCommand(command, message) {
@@ -190,10 +190,10 @@ var require_file_command = __commonJS({
       if (!filePath) {
         throw new Error(`Unable to find environment variable for file command ${command}`);
       }
-      if (!fs3.existsSync(filePath)) {
+      if (!fs4.existsSync(filePath)) {
         throw new Error(`Missing file at path: ${filePath}`);
       }
-      fs3.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
+      fs4.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
         encoding: "utf8"
       });
     }
@@ -17586,12 +17586,12 @@ var require_lib = __commonJS({
             throw new Error("Client has already been disposed.");
           }
           const parsedUrl = new URL(requestUrl);
-          let info11 = this._prepareRequest(verb, parsedUrl, headers);
+          let info14 = this._prepareRequest(verb, parsedUrl, headers);
           const maxTries = this._allowRetries && RetryableHttpVerbs.includes(verb) ? this._maxRetries + 1 : 1;
           let numTries = 0;
           let response;
           do {
-            response = yield this.requestRaw(info11, data);
+            response = yield this.requestRaw(info14, data);
             if (response && response.message && response.message.statusCode === HttpCodes.Unauthorized) {
               let authenticationHandler;
               for (const handler of this.handlers) {
@@ -17601,7 +17601,7 @@ var require_lib = __commonJS({
                 }
               }
               if (authenticationHandler) {
-                return authenticationHandler.handleAuthentication(this, info11, data);
+                return authenticationHandler.handleAuthentication(this, info14, data);
               } else {
                 return response;
               }
@@ -17624,8 +17624,8 @@ var require_lib = __commonJS({
                   }
                 }
               }
-              info11 = this._prepareRequest(verb, parsedRedirectUrl, headers);
-              response = yield this.requestRaw(info11, data);
+              info14 = this._prepareRequest(verb, parsedRedirectUrl, headers);
+              response = yield this.requestRaw(info14, data);
               redirectsRemaining--;
             }
             if (!response.message.statusCode || !HttpResponseRetryCodes.includes(response.message.statusCode)) {
@@ -17654,7 +17654,7 @@ var require_lib = __commonJS({
        * @param info
        * @param data
        */
-      requestRaw(info11, data) {
+      requestRaw(info14, data) {
         return __awaiter(this, void 0, void 0, function* () {
           return new Promise((resolve2, reject) => {
             function callbackForResult(err, res) {
@@ -17666,7 +17666,7 @@ var require_lib = __commonJS({
                 resolve2(res);
               }
             }
-            this.requestRawWithCallback(info11, data, callbackForResult);
+            this.requestRawWithCallback(info14, data, callbackForResult);
           });
         });
       }
@@ -17676,12 +17676,12 @@ var require_lib = __commonJS({
        * @param data
        * @param onResult
        */
-      requestRawWithCallback(info11, data, onResult) {
+      requestRawWithCallback(info14, data, onResult) {
         if (typeof data === "string") {
-          if (!info11.options.headers) {
-            info11.options.headers = {};
+          if (!info14.options.headers) {
+            info14.options.headers = {};
           }
-          info11.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
+          info14.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
         }
         let callbackCalled = false;
         function handleResult2(err, res) {
@@ -17690,7 +17690,7 @@ var require_lib = __commonJS({
             onResult(err, res);
           }
         }
-        const req = info11.httpModule.request(info11.options, (msg) => {
+        const req = info14.httpModule.request(info14.options, (msg) => {
           const res = new HttpClientResponse(msg);
           handleResult2(void 0, res);
         });
@@ -17702,7 +17702,7 @@ var require_lib = __commonJS({
           if (socket) {
             socket.end();
           }
-          handleResult2(new Error(`Request timeout: ${info11.options.path}`));
+          handleResult2(new Error(`Request timeout: ${info14.options.path}`));
         });
         req.on("error", function(err) {
           handleResult2(err);
@@ -17738,27 +17738,27 @@ var require_lib = __commonJS({
         return this._getProxyAgentDispatcher(parsedUrl, proxyUrl);
       }
       _prepareRequest(method, requestUrl, headers) {
-        const info11 = {};
-        info11.parsedUrl = requestUrl;
-        const usingSsl = info11.parsedUrl.protocol === "https:";
-        info11.httpModule = usingSsl ? https : http;
+        const info14 = {};
+        info14.parsedUrl = requestUrl;
+        const usingSsl = info14.parsedUrl.protocol === "https:";
+        info14.httpModule = usingSsl ? https : http;
         const defaultPort = usingSsl ? 443 : 80;
-        info11.options = {};
-        info11.options.host = info11.parsedUrl.hostname;
-        info11.options.port = info11.parsedUrl.port ? parseInt(info11.parsedUrl.port) : defaultPort;
-        info11.options.path = (info11.parsedUrl.pathname || "") + (info11.parsedUrl.search || "");
-        info11.options.method = method;
-        info11.options.headers = this._mergeHeaders(headers);
+        info14.options = {};
+        info14.options.host = info14.parsedUrl.hostname;
+        info14.options.port = info14.parsedUrl.port ? parseInt(info14.parsedUrl.port) : defaultPort;
+        info14.options.path = (info14.parsedUrl.pathname || "") + (info14.parsedUrl.search || "");
+        info14.options.method = method;
+        info14.options.headers = this._mergeHeaders(headers);
         if (this.userAgent != null) {
-          info11.options.headers["user-agent"] = this.userAgent;
+          info14.options.headers["user-agent"] = this.userAgent;
         }
-        info11.options.agent = this._getAgent(info11.parsedUrl);
+        info14.options.agent = this._getAgent(info14.parsedUrl);
         if (this.handlers) {
           for (const handler of this.handlers) {
-            handler.prepareRequest(info11.options);
+            handler.prepareRequest(info14.options);
           }
         }
-        return info11;
+        return info14;
       }
       _mergeHeaders(headers) {
         if (this.requestOptions && this.requestOptions.headers) {
@@ -18510,12 +18510,12 @@ var require_io_util = __commonJS({
     var _a;
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getCmdPath = exports2.tryGetExecutablePath = exports2.isRooted = exports2.isDirectory = exports2.exists = exports2.READONLY = exports2.UV_FS_O_EXLOCK = exports2.IS_WINDOWS = exports2.unlink = exports2.symlink = exports2.stat = exports2.rmdir = exports2.rm = exports2.rename = exports2.readlink = exports2.readdir = exports2.open = exports2.mkdir = exports2.lstat = exports2.copyFile = exports2.chmod = void 0;
-    var fs3 = __importStar(require("fs"));
+    var fs4 = __importStar(require("fs"));
     var path2 = __importStar(require("path"));
-    _a = fs3.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
+    _a = fs4.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
     exports2.IS_WINDOWS = process.platform === "win32";
     exports2.UV_FS_O_EXLOCK = 268435456;
-    exports2.READONLY = fs3.constants.O_RDONLY;
+    exports2.READONLY = fs4.constants.O_RDONLY;
     function exists(fsPath) {
       return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -19416,7 +19416,7 @@ var require_exec = __commonJS({
     exports2.getExecOutput = exports2.exec = void 0;
     var string_decoder_1 = require("string_decoder");
     var tr = __importStar(require_toolrunner());
-    function exec7(commandLine, args, options) {
+    function exec9(commandLine, args, options) {
       return __awaiter(this, void 0, void 0, function* () {
         const commandArgs = tr.argStringToArray(commandLine);
         if (commandArgs.length === 0) {
@@ -19428,7 +19428,7 @@ var require_exec = __commonJS({
         return runner.exec();
       });
     }
-    exports2.exec = exec7;
+    exports2.exec = exec9;
     function getExecOutput(commandLine, args, options) {
       var _a, _b;
       return __awaiter(this, void 0, void 0, function* () {
@@ -19451,7 +19451,7 @@ var require_exec = __commonJS({
           }
         };
         const listeners = Object.assign(Object.assign({}, options === null || options === void 0 ? void 0 : options.listeners), { stdout: stdOutListener, stderr: stdErrListener });
-        const exitCode = yield exec7(commandLine, args, Object.assign(Object.assign({}, options), { listeners }));
+        const exitCode = yield exec9(commandLine, args, Object.assign(Object.assign({}, options), { listeners }));
         stdout += stdoutDecoder.end();
         stderr += stderrDecoder.end();
         return {
@@ -19529,12 +19529,12 @@ var require_platform = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getDetails = exports2.isLinux = exports2.isMacOS = exports2.isWindows = exports2.arch = exports2.platform = void 0;
     var os_1 = __importDefault(require("os"));
-    var exec7 = __importStar(require_exec());
+    var exec9 = __importStar(require_exec());
     var getWindowsInfo = () => __awaiter(void 0, void 0, void 0, function* () {
-      const { stdout: version } = yield exec7.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Version"', void 0, {
+      const { stdout: version } = yield exec9.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Version"', void 0, {
         silent: true
       });
-      const { stdout: name } = yield exec7.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Caption"', void 0, {
+      const { stdout: name } = yield exec9.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Caption"', void 0, {
         silent: true
       });
       return {
@@ -19544,7 +19544,7 @@ var require_platform = __commonJS({
     });
     var getMacOsInfo = () => __awaiter(void 0, void 0, void 0, function* () {
       var _a, _b, _c, _d;
-      const { stdout } = yield exec7.getExecOutput("sw_vers", void 0, {
+      const { stdout } = yield exec9.getExecOutput("sw_vers", void 0, {
         silent: true
       });
       const version = (_b = (_a = stdout.match(/ProductVersion:\s*(.+)/)) === null || _a === void 0 ? void 0 : _a[1]) !== null && _b !== void 0 ? _b : "";
@@ -19555,7 +19555,7 @@ var require_platform = __commonJS({
       };
     });
     var getLinuxInfo = () => __awaiter(void 0, void 0, void 0, function* () {
-      const { stdout } = yield exec7.getExecOutput("lsb_release", ["-i", "-r", "-s"], {
+      const { stdout } = yield exec9.getExecOutput("lsb_release", ["-i", "-r", "-s"], {
         silent: true
       });
       const [name, version] = stdout.trim().split("\n");
@@ -19740,34 +19740,34 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.error = error3;
-    function warning10(message, properties = {}) {
+    function warning11(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning10;
+    exports2.warning = warning11;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.notice = notice;
-    function info11(message) {
+    function info14(message) {
       process.stdout.write(message + os.EOL);
     }
-    exports2.info = info11;
-    function startGroup4(name) {
+    exports2.info = info14;
+    function startGroup7(name) {
       (0, command_1.issue)("group", name);
     }
-    exports2.startGroup = startGroup4;
-    function endGroup4() {
+    exports2.startGroup = startGroup7;
+    function endGroup7() {
       (0, command_1.issue)("endgroup");
     }
-    exports2.endGroup = endGroup4;
+    exports2.endGroup = endGroup7;
     function group(name, fn) {
       return __awaiter(this, void 0, void 0, function* () {
-        startGroup4(name);
+        startGroup7(name);
         let result;
         try {
           result = yield fn();
         } finally {
-          endGroup4();
+          endGroup7();
         }
         return result;
       });
@@ -23883,7 +23883,7 @@ var require_github = __commonJS({
 });
 
 // claude-state-executor/index.ts
-var core11 = __toESM(require_core(), 1);
+var core14 = __toESM(require_core(), 1);
 var github = __toESM(require_github(), 1);
 
 // lib/index.ts
@@ -28344,6 +28344,32 @@ var ApplyIterateOutputActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("applyIterateOutput"),
   issueNumber: external_exports.number().int().positive()
 });
+var ApplyReviewOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyReviewOutput"),
+  prNumber: external_exports.number().int().positive()
+});
+var ApplyDiscussionResearchOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyDiscussionResearchOutput"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string().min(1)
+});
+var ApplyDiscussionRespondOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyDiscussionRespondOutput"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string().min(1),
+  /** If provided, post as a reply to this comment */
+  replyToNodeId: external_exports.string().optional()
+});
+var ApplyDiscussionSummarizeOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyDiscussionSummarizeOutput"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string().min(1)
+});
+var ApplyDiscussionPlanOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyDiscussionPlanOutput"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string().min(1)
+});
 var ActionSchema = external_exports.discriminatedUnion("type", [
   // Project field actions
   UpdateProjectStatusActionSchema,
@@ -28385,7 +28411,14 @@ var ActionSchema = external_exports.discriminatedUnion("type", [
   // Triage actions
   ApplyTriageOutputActionSchema,
   // Iterate actions
-  ApplyIterateOutputActionSchema
+  ApplyIterateOutputActionSchema,
+  // Review actions
+  ApplyReviewOutputActionSchema,
+  // Discussion apply actions
+  ApplyDiscussionResearchOutputActionSchema,
+  ApplyDiscussionRespondOutputActionSchema,
+  ApplyDiscussionSummarizeOutputActionSchema,
+  ApplyDiscussionPlanOutputActionSchema
 ]);
 function isTerminalAction(action) {
   return action.type === "stop" || action.type === "block";
@@ -28402,7 +28435,7 @@ function shouldStopOnError(actionType) {
 }
 
 // claude-state-machine/runner/runner.ts
-var core10 = __toESM(require_core(), 1);
+var core13 = __toESM(require_core(), 1);
 
 // claude-state-machine/runner/executors/project.ts
 var core2 = __toESM(require_core(), 1);
@@ -29712,10 +29745,13 @@ async function executeGitPush(action, _ctx) {
 }
 
 // claude-state-machine/runner/executors/claude.ts
+var core6 = __toESM(require_core(), 1);
+var exec7 = __toESM(require_exec(), 1);
+var fs2 = __toESM(require("fs"), 1);
+
+// claude/src/executor.ts
 var core5 = __toESM(require_core(), 1);
 var exec5 = __toESM(require_exec(), 1);
-var fs = __toESM(require("fs"), 1);
-var path = __toESM(require("path"), 1);
 
 // ../../node_modules/.pnpm/@anthropic-ai+claude-agent-sdk@0.2.29_zod@3.25.76/node_modules/@anthropic-ai/claude-agent-sdk/sdk.mjs
 var import_path = require("path");
@@ -38512,189 +38548,51 @@ function o_({ prompt: X, options: Q }) {
   return z7;
 }
 
-// claude-state-machine/runner/executors/claude.ts
-async function createMockCommit(action, _ctx) {
-  const branchName = deriveBranchName(action.issueNumber);
-  core5.info(`[MOCK MODE] Creating placeholder commit on branch ${branchName}`);
-  try {
-    await exec5.exec("git", ["config", "user.name", "nopo-bot"]);
-    await exec5.exec("git", [
-      "config",
-      "user.email",
-      "nopo-bot@users.noreply.github.com"
-    ]);
-    const checkoutCode = await exec5.exec("git", ["checkout", branchName], {
-      ignoreReturnCode: true
-    });
-    if (checkoutCode !== 0) {
-      await exec5.exec("git", ["fetch", "origin", branchName], {
-        ignoreReturnCode: true
-      });
-      await exec5.exec(
-        "git",
-        ["checkout", "-b", branchName, `origin/${branchName}`],
-        { ignoreReturnCode: true }
-      );
-    }
-    const mockFilePath = ".mock-commit-placeholder";
-    const timestamp = (/* @__PURE__ */ new Date()).toISOString();
-    const content = `# Mock Commit Placeholder
-# This file was created by the test runner in mock mode.
-# It simulates Claude's code changes without running the actual Claude CLI.
-
-Timestamp: ${timestamp}
-Issue: #${action.issueNumber}
-Prompt: ${action.promptDir || action.promptFile || "inline"}
-`;
-    fs.writeFileSync(mockFilePath, content);
-    await exec5.exec("git", ["add", mockFilePath]);
-    const commitMessage = `test: mock commit for issue #${action.issueNumber}
-
-This is a placeholder commit created by the test runner.
-It simulates Claude's code changes in mock mode.`;
-    const commitExitCode = await exec5.exec(
-      "git",
-      ["commit", "--no-verify", "-m", commitMessage],
-      {
-        ignoreReturnCode: true
-      }
-    );
-    if (commitExitCode !== 0) {
-      core5.warning(
-        `[MOCK MODE] Git commit failed with exit code ${commitExitCode}`
-      );
-      return;
-    }
-    const pushExitCode = await exec5.exec(
-      "git",
-      ["push", "origin", branchName],
-      {
-        ignoreReturnCode: true
-      }
-    );
-    if (pushExitCode !== 0) {
-      core5.warning(
-        `[MOCK MODE] Git push failed with exit code ${pushExitCode}`
-      );
-      return;
-    }
-    core5.info(`[MOCK MODE] Created and pushed placeholder commit`);
-  } catch (error3) {
-    core5.warning(
-      `[MOCK MODE] Failed to create mock commit: ${error3 instanceof Error ? error3.message : String(error3)}`
-    );
-  }
-}
-function substituteVars(template, vars) {
-  return template.replace(/\{\{([^}]+)\}\}/g, (match, varName) => {
-    const trimmedName = varName.trim();
-    return vars[trimmedName] ?? match;
-  });
-}
-function resolvePromptDir(promptDir) {
-  const dirPath = path.resolve(process.cwd(), ".github/prompts", promptDir);
-  const promptPath = path.join(dirPath, "prompt.txt");
-  const schemaPath = path.join(dirPath, "outputs.json");
-  return {
-    promptPath,
-    schemaPath: fs.existsSync(schemaPath) ? schemaPath : void 0
-  };
-}
-function getPromptFromAction(action) {
-  if (action.prompt) {
-    let prompt = action.prompt;
-    if (action.promptVars) {
-      prompt = substituteVars(prompt, action.promptVars);
-    }
-    return { prompt };
-  }
-  if (action.promptDir) {
-    const { promptPath, schemaPath } = resolvePromptDir(action.promptDir);
-    if (!fs.existsSync(promptPath)) {
-      throw new Error(
-        `Prompt file not found: ${promptPath} (from promptDir: ${action.promptDir})`
-      );
-    }
-    let prompt = fs.readFileSync(promptPath, "utf-8");
-    if (action.promptVars) {
-      prompt = substituteVars(prompt, action.promptVars);
-    }
-    const outputSchema = schemaPath ? fs.readFileSync(schemaPath, "utf-8") : void 0;
-    return { prompt, outputSchema };
-  }
-  if (action.promptFile) {
-    const promptPath = path.resolve(process.cwd(), action.promptFile);
-    if (!fs.existsSync(promptPath)) {
-      throw new Error(`Prompt file not found: ${action.promptFile}`);
-    }
-    let prompt = fs.readFileSync(promptPath, "utf-8");
-    if (action.promptVars) {
-      prompt = substituteVars(prompt, action.promptVars);
-    }
-    return { prompt };
-  }
-  throw new Error("Either prompt, promptFile, or promptDir must be provided");
-}
+// claude/src/executor.ts
 function extractTextFromMessage(msg) {
   if (msg.type !== "assistant") return "";
   return msg.message.content.filter(
     (block) => block.type === "text"
   ).map((block) => block.text).join("");
 }
-async function executeRunClaude(action, ctx) {
-  if (ctx.mockOutputs && action.promptDir) {
-    const mockOutput = ctx.mockOutputs[action.promptDir];
-    if (mockOutput) {
-      core5.info(
-        `[MOCK MODE] Using mock output for '${action.promptDir}' prompt`
-      );
-      core5.startGroup("Mock Structured Output");
-      core5.info(JSON.stringify(mockOutput, null, 2));
-      core5.endGroup();
-      await createMockCommit(action, ctx);
-      return {
-        success: true,
-        exitCode: 0,
-        output: JSON.stringify({ structured_output: mockOutput }),
-        structuredOutput: mockOutput
-      };
-    }
-    core5.warning(
-      `[MOCK MODE] No mock output for '${action.promptDir}' prompt, running real Claude`
-    );
-  }
-  const { prompt, outputSchema } = getPromptFromAction(action);
-  const cwd = action.worktree || process.cwd();
-  core5.info(`Running Claude SDK for issue #${action.issueNumber}`);
+async function executeClaudeSDK(options) {
+  const {
+    prompt,
+    cwd = process.cwd(),
+    claudePath = process.env.CLAUDE_CODE_PATH || `${process.env.HOME}/.local/bin/claude`,
+    allowedTools,
+    outputSchema,
+    permissionMode = "acceptEdits"
+  } = options;
+  core5.info(`Running Claude SDK`);
   core5.info(`Working directory: ${cwd}`);
-  core5.debug(`Prompt: ${prompt.slice(0, 200)}...`);
-  const claudePath = process.env.CLAUDE_CODE_PATH || `${process.env.HOME}/.local/bin/claude`;
   core5.info(`Claude Code path: ${claudePath}`);
-  const options = {
+  core5.debug(`Prompt: ${prompt.slice(0, 200)}...`);
+  const sdkOptions = {
     cwd,
-    // Explicitly set path to Claude Code binary
     pathToClaudeCodeExecutable: claudePath,
-    // Use acceptEdits mode - auto-approves file edits without full bypass
-    permissionMode: "acceptEdits",
+    permissionMode,
     // Load CLAUDE.md and project settings
     settingSources: ["project"],
     // Use Claude Code's system prompt
     systemPrompt: { type: "preset", preset: "claude_code" }
   };
-  if (action.allowedTools && action.allowedTools.length > 0) {
-    options.allowedTools = action.allowedTools;
+  if (allowedTools && allowedTools.length > 0) {
+    sdkOptions.allowedTools = allowedTools;
   }
   if (outputSchema) {
-    options.outputFormat = {
+    sdkOptions.outputFormat = {
       type: "json_schema",
-      schema: JSON.parse(outputSchema)
+      schema: outputSchema
     };
     core5.info("Using structured output mode with JSON schema");
   }
   let output = "";
   let structuredOutput;
+  let numTurns;
+  let costUsd;
   try {
-    const q = o_({ prompt, options });
+    const q = o_({ prompt, options: sdkOptions });
     for await (const msg of q) {
       if (msg.type === "system" && msg.subtype === "init") {
         core5.info(`[SDK] Session: ${msg.session_id}`);
@@ -38717,6 +38615,8 @@ async function executeRunClaude(action, ctx) {
       if (msg.type === "result") {
         if (msg.subtype === "success") {
           structuredOutput = msg.structured_output;
+          numTurns = msg.num_turns;
+          costUsd = msg.total_cost_usd;
           if (structuredOutput) {
             core5.startGroup("Structured Output");
             core5.info(JSON.stringify(structuredOutput, null, 2));
@@ -38724,7 +38624,7 @@ async function executeRunClaude(action, ctx) {
           }
           core5.info(
             `
-[SDK] Completed successfully (${msg.num_turns} turns, $${msg.total_cost_usd.toFixed(4)})`
+[SDK] Completed successfully (${numTurns} turns, $${costUsd.toFixed(4)})`
           );
         } else {
           const errorSubtype = msg.subtype;
@@ -38739,12 +38639,13 @@ async function executeRunClaude(action, ctx) {
         }
       }
     }
-    core5.info(`Claude completed successfully for issue #${action.issueNumber}`);
     return {
       success: true,
       exitCode: 0,
       output,
-      structuredOutput
+      structuredOutput,
+      numTurns,
+      costUsd
     };
   } catch (error3) {
     const errorMessage = error3 instanceof Error ? error3.message : String(error3);
@@ -38758,8 +38659,185 @@ async function executeRunClaude(action, ctx) {
   }
 }
 
+// claude/src/prompts.ts
+var fs = __toESM(require("fs"), 1);
+var path = __toESM(require("path"), 1);
+function substituteVars(template, vars) {
+  return template.replace(/\{\{([^}]+)\}\}/g, (match, varName) => {
+    const trimmedName = varName.trim();
+    return vars[trimmedName] ?? match;
+  });
+}
+function resolvePromptDir(promptDir, basePath = process.cwd()) {
+  const dirPath = path.resolve(basePath, ".github/prompts", promptDir);
+  const promptPath = path.join(dirPath, "prompt.txt");
+  const schemaPath = path.join(dirPath, "outputs.json");
+  return {
+    promptPath,
+    schemaPath: fs.existsSync(schemaPath) ? schemaPath : void 0
+  };
+}
+function resolvePrompt(options, basePath = process.cwd()) {
+  const { prompt, promptFile, promptDir, promptVars } = options;
+  if (prompt) {
+    let resolvedPrompt = prompt;
+    if (promptVars) {
+      resolvedPrompt = substituteVars(resolvedPrompt, promptVars);
+    }
+    return { prompt: resolvedPrompt };
+  }
+  if (promptDir) {
+    const { promptPath, schemaPath } = resolvePromptDir(promptDir, basePath);
+    if (!fs.existsSync(promptPath)) {
+      throw new Error(
+        `Prompt file not found: ${promptPath} (from promptDir: ${promptDir})`
+      );
+    }
+    let resolvedPrompt = fs.readFileSync(promptPath, "utf-8");
+    if (promptVars) {
+      resolvedPrompt = substituteVars(resolvedPrompt, promptVars);
+    }
+    let outputSchema;
+    if (schemaPath) {
+      const schemaContent = fs.readFileSync(schemaPath, "utf-8");
+      outputSchema = JSON.parse(schemaContent);
+    }
+    return { prompt: resolvedPrompt, outputSchema };
+  }
+  if (promptFile) {
+    const promptPath = path.resolve(basePath, promptFile);
+    if (!fs.existsSync(promptPath)) {
+      throw new Error(`Prompt file not found: ${promptFile}`);
+    }
+    let resolvedPrompt = fs.readFileSync(promptPath, "utf-8");
+    if (promptVars) {
+      resolvedPrompt = substituteVars(resolvedPrompt, promptVars);
+    }
+    return { prompt: resolvedPrompt };
+  }
+  throw new Error("Either prompt, promptFile, or promptDir must be provided");
+}
+
+// claude-state-machine/runner/executors/claude.ts
+async function createMockCommit(action, _ctx) {
+  const branchName = deriveBranchName(action.issueNumber);
+  core6.info(`[MOCK MODE] Creating placeholder commit on branch ${branchName}`);
+  try {
+    await exec7.exec("git", ["config", "user.name", "nopo-bot"]);
+    await exec7.exec("git", [
+      "config",
+      "user.email",
+      "nopo-bot@users.noreply.github.com"
+    ]);
+    const checkoutCode = await exec7.exec("git", ["checkout", branchName], {
+      ignoreReturnCode: true
+    });
+    if (checkoutCode !== 0) {
+      await exec7.exec("git", ["fetch", "origin", branchName], {
+        ignoreReturnCode: true
+      });
+      await exec7.exec(
+        "git",
+        ["checkout", "-b", branchName, `origin/${branchName}`],
+        { ignoreReturnCode: true }
+      );
+    }
+    const mockFilePath = ".mock-commit-placeholder";
+    const timestamp = (/* @__PURE__ */ new Date()).toISOString();
+    const content = `# Mock Commit Placeholder
+# This file was created by the test runner in mock mode.
+# It simulates Claude's code changes without running the actual Claude CLI.
+
+Timestamp: ${timestamp}
+Issue: #${action.issueNumber}
+Prompt: ${action.promptDir || action.promptFile || "inline"}
+`;
+    fs2.writeFileSync(mockFilePath, content);
+    await exec7.exec("git", ["add", mockFilePath]);
+    const commitMessage = `test: mock commit for issue #${action.issueNumber}
+
+This is a placeholder commit created by the test runner.
+It simulates Claude's code changes in mock mode.`;
+    const commitExitCode = await exec7.exec(
+      "git",
+      ["commit", "--no-verify", "-m", commitMessage],
+      {
+        ignoreReturnCode: true
+      }
+    );
+    if (commitExitCode !== 0) {
+      core6.warning(
+        `[MOCK MODE] Git commit failed with exit code ${commitExitCode}`
+      );
+      return;
+    }
+    const pushExitCode = await exec7.exec(
+      "git",
+      ["push", "origin", branchName],
+      {
+        ignoreReturnCode: true
+      }
+    );
+    if (pushExitCode !== 0) {
+      core6.warning(
+        `[MOCK MODE] Git push failed with exit code ${pushExitCode}`
+      );
+      return;
+    }
+    core6.info(`[MOCK MODE] Created and pushed placeholder commit`);
+  } catch (error3) {
+    core6.warning(
+      `[MOCK MODE] Failed to create mock commit: ${error3 instanceof Error ? error3.message : String(error3)}`
+    );
+  }
+}
+async function executeRunClaude(action, ctx) {
+  if (ctx.mockOutputs && action.promptDir) {
+    const mockOutput = ctx.mockOutputs[action.promptDir];
+    if (mockOutput) {
+      core6.info(
+        `[MOCK MODE] Using mock output for '${action.promptDir}' prompt`
+      );
+      core6.startGroup("Mock Structured Output");
+      core6.info(JSON.stringify(mockOutput, null, 2));
+      core6.endGroup();
+      await createMockCommit(action, ctx);
+      return {
+        success: true,
+        exitCode: 0,
+        output: JSON.stringify({ structured_output: mockOutput }),
+        structuredOutput: mockOutput
+      };
+    }
+    core6.warning(
+      `[MOCK MODE] No mock output for '${action.promptDir}' prompt, running real Claude`
+    );
+  }
+  const resolved = resolvePrompt({
+    prompt: action.prompt,
+    promptDir: action.promptDir,
+    promptFile: action.promptFile,
+    promptVars: action.promptVars
+  });
+  core6.info(`Running Claude SDK for issue #${action.issueNumber}`);
+  const result = await executeClaudeSDK({
+    prompt: resolved.prompt,
+    cwd: action.worktree || process.cwd(),
+    allowedTools: action.allowedTools,
+    outputSchema: resolved.outputSchema
+  });
+  core6.info(`Claude completed for issue #${action.issueNumber}`);
+  return {
+    success: result.success,
+    exitCode: result.exitCode,
+    output: result.output,
+    error: result.error,
+    structuredOutput: result.structuredOutput
+  };
+}
+
 // claude-state-machine/runner/executors/discussions.ts
-var core6 = __toESM(require_core(), 1);
+var core7 = __toESM(require_core(), 1);
 var ADD_DISCUSSION_COMMENT_MUTATION = `
 mutation AddDiscussionComment($discussionId: ID!, $body: String!) {
   addDiscussionComment(input: {
@@ -38884,7 +38962,7 @@ async function executeAddDiscussionComment(action, ctx) {
   if (!commentId) {
     throw new Error("Failed to add discussion comment");
   }
-  core6.info(
+  core7.info(
     `Added ${action.replyToNodeId ? "reply" : "comment"} to discussion`
   );
   return { commentId };
@@ -38900,7 +38978,7 @@ async function executeUpdateDiscussionBody(action, ctx) {
   if (!response.updateDiscussion?.discussion?.id) {
     throw new Error("Failed to update discussion body");
   }
-  core6.info("Updated discussion body");
+  core7.info("Updated discussion body");
   return { updated: true };
 }
 async function executeAddDiscussionReaction(action, ctx) {
@@ -38915,7 +38993,7 @@ async function executeAddDiscussionReaction(action, ctx) {
   if (!reactionId) {
     throw new Error("Failed to add reaction");
   }
-  core6.info(`Added ${action.content} reaction`);
+  core7.info(`Added ${action.content} reaction`);
   return { reactionId };
 }
 async function executeCreateIssuesFromDiscussion(action, ctx) {
@@ -38981,15 +39059,321 @@ async function executeCreateIssuesFromDiscussion(action, ctx) {
       }
     }
     issueNumbers.push(issueNumber);
-    core6.info(`Created issue #${issueNumber}: ${issueDef.title}`);
+    core7.info(`Created issue #${issueNumber}: ${issueDef.title}`);
   }
   return { issueNumbers };
 }
 
-// claude-state-machine/runner/executors/triage.ts
-var core7 = __toESM(require_core(), 1);
-var fs2 = __toESM(require("fs"), 1);
+// claude-state-machine/runner/executors/discussion-apply.ts
+var core8 = __toESM(require_core(), 1);
+var ADD_DISCUSSION_COMMENT_MUTATION2 = `
+mutation AddDiscussionComment($discussionId: ID!, $body: String!) {
+  addDiscussionComment(input: {
+    discussionId: $discussionId
+    body: $body
+  }) {
+    comment {
+      id
+      body
+    }
+  }
+}
+`;
+var ADD_DISCUSSION_REPLY_MUTATION2 = `
+mutation AddDiscussionReply($discussionId: ID!, $replyToId: ID!, $body: String!) {
+  addDiscussionComment(input: {
+    discussionId: $discussionId
+    replyToId: $replyToId
+    body: $body
+  }) {
+    comment {
+      id
+      body
+    }
+  }
+}
+`;
+var UPDATE_DISCUSSION_MUTATION2 = `
+mutation UpdateDiscussion($discussionId: ID!, $body: String!) {
+  updateDiscussion(input: {
+    discussionId: $discussionId
+    body: $body
+  }) {
+    discussion {
+      id
+      body
+    }
+  }
+}
+`;
 var GET_REPO_ID_QUERY3 = `
+query GetRepoId($owner: String!, $repo: String!) {
+  repository(owner: $owner, name: $repo) {
+    id
+  }
+}
+`;
+var CREATE_ISSUE_MUTATION3 = `
+mutation CreateIssue($repositoryId: ID!, $title: String!, $body: String!) {
+  createIssue(input: { repositoryId: $repositoryId, title: $title, body: $body }) {
+    issue {
+      id
+      number
+    }
+  }
+}
+`;
+var GET_LABEL_IDS_QUERY2 = `
+query GetLabelIds($owner: String!, $repo: String!) {
+  repository(owner: $owner, name: $repo) {
+    labels(first: 100) {
+      nodes {
+        id
+        name
+      }
+    }
+  }
+}
+`;
+var ADD_LABELS_MUTATION2 = `
+mutation AddLabelsToLabelable($labelableId: ID!, $labelIds: [ID!]!) {
+  addLabelsToLabelable(input: { labelableId: $labelableId, labelIds: $labelIds }) {
+    labelable {
+      __typename
+    }
+  }
+}
+`;
+async function executeApplyDiscussionResearchOutput(action, ctx, structuredOutput) {
+  const { discussionNodeId } = action;
+  if (!structuredOutput) {
+    core8.warning(
+      "No structured output provided for applyDiscussionResearchOutput"
+    );
+    return { applied: false, threadIds: [] };
+  }
+  const output = structuredOutput;
+  core8.info(`Processing research output for discussion`);
+  core8.startGroup("Research Output");
+  core8.info(JSON.stringify(output, null, 2));
+  core8.endGroup();
+  if (ctx.dryRun) {
+    core8.info(
+      `[DRY RUN] Would create ${output.research_threads?.length ?? 0} research threads`
+    );
+    return { applied: true, threadIds: [] };
+  }
+  const threadIds = [];
+  for (const thread of output.research_threads || []) {
+    const body = `## ${thread.topic}
+
+${thread.body}`;
+    const response = await ctx.octokit.graphql(
+      ADD_DISCUSSION_COMMENT_MUTATION2,
+      {
+        discussionId: discussionNodeId,
+        body
+      }
+    );
+    const commentId = response.addDiscussionComment?.comment?.id;
+    if (commentId) {
+      threadIds.push(commentId);
+      core8.info(`Created research thread: ${thread.topic}`);
+    }
+  }
+  if (output.updated_body) {
+    await ctx.octokit.graphql(
+      UPDATE_DISCUSSION_MUTATION2,
+      {
+        discussionId: discussionNodeId,
+        body: output.updated_body
+      }
+    );
+    core8.info("Updated discussion body");
+  }
+  return { applied: true, threadIds };
+}
+async function executeApplyDiscussionRespondOutput(action, ctx, structuredOutput) {
+  const { discussionNodeId, replyToNodeId } = action;
+  if (!structuredOutput) {
+    core8.warning(
+      "No structured output provided for applyDiscussionRespondOutput"
+    );
+    return { applied: false };
+  }
+  const output = structuredOutput;
+  core8.info(`Processing respond output for discussion`);
+  core8.startGroup("Respond Output");
+  core8.info(JSON.stringify(output, null, 2));
+  core8.endGroup();
+  if (ctx.dryRun) {
+    core8.info("[DRY RUN] Would post response comment");
+    return { applied: true };
+  }
+  let response;
+  if (replyToNodeId) {
+    response = await ctx.octokit.graphql(
+      ADD_DISCUSSION_REPLY_MUTATION2,
+      {
+        discussionId: discussionNodeId,
+        replyToId: replyToNodeId,
+        body: output.response
+      }
+    );
+  } else {
+    response = await ctx.octokit.graphql(
+      ADD_DISCUSSION_COMMENT_MUTATION2,
+      {
+        discussionId: discussionNodeId,
+        body: output.response
+      }
+    );
+  }
+  const commentId = response.addDiscussionComment?.comment?.id;
+  core8.info(`Posted ${replyToNodeId ? "reply" : "comment"} to discussion`);
+  if (output.updated_body) {
+    await ctx.octokit.graphql(
+      UPDATE_DISCUSSION_MUTATION2,
+      {
+        discussionId: discussionNodeId,
+        body: output.updated_body
+      }
+    );
+    core8.info("Updated discussion body");
+  }
+  return { applied: true, commentId };
+}
+async function executeApplyDiscussionSummarizeOutput(action, ctx, structuredOutput) {
+  const { discussionNodeId } = action;
+  if (!structuredOutput) {
+    core8.warning(
+      "No structured output provided for applyDiscussionSummarizeOutput"
+    );
+    return { applied: false };
+  }
+  const output = structuredOutput;
+  core8.info(`Processing summarize output for discussion`);
+  core8.startGroup("Summarize Output");
+  core8.info(JSON.stringify(output, null, 2));
+  core8.endGroup();
+  if (ctx.dryRun) {
+    core8.info("[DRY RUN] Would update discussion body with summary");
+    return { applied: true };
+  }
+  await ctx.octokit.graphql(
+    UPDATE_DISCUSSION_MUTATION2,
+    {
+      discussionId: discussionNodeId,
+      body: output.updated_body
+    }
+  );
+  core8.info("Updated discussion body with summary");
+  await ctx.octokit.graphql(
+    ADD_DISCUSSION_COMMENT_MUTATION2,
+    {
+      discussionId: discussionNodeId,
+      body: `## Summary
+
+${output.summary}`
+    }
+  );
+  core8.info("Posted summary comment");
+  return { applied: true };
+}
+async function executeApplyDiscussionPlanOutput(action, ctx, structuredOutput) {
+  const { discussionNumber, discussionNodeId } = action;
+  if (!structuredOutput) {
+    core8.warning("No structured output provided for applyDiscussionPlanOutput");
+    return { applied: false, issueNumbers: [] };
+  }
+  const output = structuredOutput;
+  core8.info(`Processing plan output for discussion #${discussionNumber}`);
+  core8.startGroup("Plan Output");
+  core8.info(JSON.stringify(output, null, 2));
+  core8.endGroup();
+  if (ctx.dryRun) {
+    core8.info(`[DRY RUN] Would create ${output.issues?.length ?? 0} issues`);
+    return { applied: true, issueNumbers: [] };
+  }
+  const repoResponse = await ctx.octokit.graphql(
+    GET_REPO_ID_QUERY3,
+    {
+      owner: ctx.owner,
+      repo: ctx.repo
+    }
+  );
+  const repoId = repoResponse.repository?.id;
+  if (!repoId) {
+    throw new Error("Repository not found");
+  }
+  const labelsResponse = await ctx.octokit.graphql(
+    GET_LABEL_IDS_QUERY2,
+    {
+      owner: ctx.owner,
+      repo: ctx.repo
+    }
+  );
+  const labelMap = /* @__PURE__ */ new Map();
+  for (const label of labelsResponse.repository?.labels?.nodes || []) {
+    if (label.id && label.name) {
+      labelMap.set(label.name.toLowerCase(), label.id);
+    }
+  }
+  const issueNumbers = [];
+  for (const issue of output.issues || []) {
+    const bodyWithRef = `${issue.body}
+
+---
+*Created from discussion #${discussionNumber}*`;
+    const createResponse = await ctx.octokit.graphql(
+      CREATE_ISSUE_MUTATION3,
+      {
+        repositoryId: repoId,
+        title: issue.title,
+        body: bodyWithRef
+      }
+    );
+    const issueId = createResponse.createIssue?.issue?.id;
+    const issueNum = createResponse.createIssue?.issue?.number;
+    if (!issueId || !issueNum) {
+      core8.warning(`Failed to create issue: ${issue.title}`);
+      continue;
+    }
+    if (issue.labels && issue.labels.length > 0) {
+      const labelIds = issue.labels.map((name) => labelMap.get(name.toLowerCase())).filter((id) => id !== void 0);
+      if (labelIds.length > 0) {
+        await ctx.octokit.graphql(ADD_LABELS_MUTATION2, {
+          labelableId: issueId,
+          labelIds
+        });
+      }
+    }
+    issueNumbers.push(issueNum);
+    core8.info(`Created issue #${issueNum}: ${issue.title}`);
+  }
+  const issueLinks = issueNumbers.map((n3) => `- #${n3}`).join("\n");
+  const summaryBody = `## Implementation Plan
+
+${output.summary}
+
+### Created Issues
+
+${issueLinks}`;
+  await ctx.octokit.graphql(
+    ADD_DISCUSSION_COMMENT_MUTATION2,
+    {
+      discussionId: discussionNodeId,
+      body: summaryBody
+    }
+  );
+  core8.info(`Posted plan summary with ${issueNumbers.length} issue links`);
+  return { applied: true, issueNumbers };
+}
+
+// claude-state-machine/runner/executors/triage.ts
+var core9 = __toESM(require_core(), 1);
+var fs3 = __toESM(require("fs"), 1);
+var GET_REPO_ID_QUERY4 = `
 query GetRepoId($owner: String!, $repo: String!) {
   repository(owner: $owner, name: $repo) {
     id
@@ -39005,7 +39389,7 @@ query GetIssueId($owner: String!, $repo: String!, $issueNumber: Int!) {
   }
 }
 `;
-var CREATE_ISSUE_MUTATION3 = `
+var CREATE_ISSUE_MUTATION4 = `
 mutation CreateIssue($repositoryId: ID!, $title: String!, $body: String!) {
   createIssue(input: { repositoryId: $repositoryId, title: $title, body: $body }) {
     issue {
@@ -39041,20 +39425,20 @@ async function executeApplyTriageOutput(action, ctx, structuredOutput) {
   let triageOutput;
   if (structuredOutput) {
     triageOutput = structuredOutput;
-    core7.info("Using structured output from in-process chain");
-    core7.startGroup("Triage Output (Structured)");
-    core7.info(JSON.stringify(triageOutput, null, 2));
-    core7.endGroup();
-  } else if (filePath && fs2.existsSync(filePath)) {
+    core9.info("Using structured output from in-process chain");
+    core9.startGroup("Triage Output (Structured)");
+    core9.info(JSON.stringify(triageOutput, null, 2));
+    core9.endGroup();
+  } else if (filePath && fs3.existsSync(filePath)) {
     try {
-      const content = fs2.readFileSync(filePath, "utf-8");
+      const content = fs3.readFileSync(filePath, "utf-8");
       triageOutput = JSON.parse(content);
-      core7.info(`Triage output from file: ${filePath}`);
-      core7.startGroup("Triage Output (File)");
-      core7.info(JSON.stringify(triageOutput, null, 2));
-      core7.endGroup();
+      core9.info(`Triage output from file: ${filePath}`);
+      core9.startGroup("Triage Output (File)");
+      core9.info(JSON.stringify(triageOutput, null, 2));
+      core9.endGroup();
     } catch (error3) {
-      core7.warning(`Failed to parse triage output: ${error3}`);
+      core9.warning(`Failed to parse triage output: ${error3}`);
       return { applied: false };
     }
   } else {
@@ -39063,7 +39447,7 @@ async function executeApplyTriageOutput(action, ctx, structuredOutput) {
     );
   }
   if (ctx.dryRun) {
-    core7.info(`[DRY RUN] Would apply triage output to issue #${issueNumber}`);
+    core9.info(`[DRY RUN] Would apply triage output to issue #${issueNumber}`);
     return { applied: true };
   }
   const isStructured = "triage" in triageOutput;
@@ -39105,19 +39489,19 @@ async function applyLabels(ctx, issueNumber, classification) {
   const labels = [];
   if (classification.type && classification.type !== "null") {
     labels.push(classification.type);
-    core7.info(`Adding type label: ${classification.type}`);
+    core9.info(`Adding type label: ${classification.type}`);
   }
   if (classification.topics) {
     for (const topic of classification.topics) {
       if (topic) {
         const label = topic.startsWith("topic:") ? topic : `topic:${topic}`;
         labels.push(label);
-        core7.info(`Adding topic label: ${label}`);
+        core9.info(`Adding topic label: ${label}`);
       }
     }
   }
   labels.push("triaged");
-  core7.info("Adding triaged label");
+  core9.info("Adding triaged label");
   if (labels.length > 0) {
     try {
       await ctx.octokit.rest.issues.addLabels({
@@ -39126,9 +39510,9 @@ async function applyLabels(ctx, issueNumber, classification) {
         issue_number: issueNumber,
         labels
       });
-      core7.info(`Applied labels: ${labels.join(", ")}`);
+      core9.info(`Applied labels: ${labels.join(", ")}`);
     } catch (error3) {
-      core7.warning(`Failed to apply labels: ${error3}`);
+      core9.warning(`Failed to apply labels: ${error3}`);
     }
   }
 }
@@ -39140,14 +39524,14 @@ async function updateIssueBody(ctx, issueNumber, newBody) {
       issue_number: issueNumber,
       body: newBody
     });
-    core7.info(`Updated issue body for #${issueNumber}`);
+    core9.info(`Updated issue body for #${issueNumber}`);
   } catch (error3) {
-    core7.warning(`Failed to update issue body: ${error3}`);
+    core9.warning(`Failed to update issue body: ${error3}`);
   }
 }
 async function createSubIssues(ctx, parentIssueNumber, subIssues) {
   const repoResponse = await ctx.octokit.graphql(
-    GET_REPO_ID_QUERY3,
+    GET_REPO_ID_QUERY4,
     {
       owner: ctx.owner,
       repo: ctx.repo
@@ -39196,7 +39580,7 @@ ${todoList}
 
 Parent: #${parentIssueNumber}`;
     const createResponse = await ctx.octokit.graphql(
-      CREATE_ISSUE_MUTATION3,
+      CREATE_ISSUE_MUTATION4,
       {
         repositoryId: repoId,
         title: formattedTitle,
@@ -39226,7 +39610,7 @@ Parent: #${parentIssueNumber}`;
       await addToProjectWithStatus(ctx, issueId, projectInfo, "Ready");
     }
     subIssueNumbers.push(issueNumber);
-    core7.info(`Created sub-issue #${issueNumber}: ${formattedTitle}`);
+    core9.info(`Created sub-issue #${issueNumber}: ${formattedTitle}`);
   }
   return subIssueNumbers;
 }
@@ -39241,9 +39625,9 @@ async function linkRelatedIssues(ctx, issueNumber, relatedIssues) {
       issue_number: issueNumber,
       body
     });
-    core7.info(`Linked related issues: ${links}`);
+    core9.info(`Linked related issues: ${links}`);
   } catch (error3) {
-    core7.warning(`Failed to link related issues: ${error3}`);
+    core9.warning(`Failed to link related issues: ${error3}`);
   }
 }
 var GET_PROJECT_FIELDS_QUERY = `
@@ -39322,7 +39706,7 @@ async function getProjectInfo(ctx) {
     }
     return projectInfo;
   } catch (error3) {
-    core7.warning(`Failed to get project info: ${error3}`);
+    core9.warning(`Failed to get project info: ${error3}`);
     return null;
   }
 }
@@ -39337,7 +39721,7 @@ async function addToProjectWithStatus(ctx, issueNodeId, projectInfo, status) {
     );
     const itemId = addResult.addProjectV2ItemById?.item?.id;
     if (!itemId) {
-      core7.warning("Failed to add issue to project");
+      core9.warning("Failed to add issue to project");
       return;
     }
     const statusOptionId = projectInfo.statusOptions[status];
@@ -39348,10 +39732,10 @@ async function addToProjectWithStatus(ctx, issueNodeId, projectInfo, status) {
         fieldId: projectInfo.statusFieldId,
         value: { singleSelectOptionId: statusOptionId }
       });
-      core7.info(`Set project status to ${status}`);
+      core9.info(`Set project status to ${status}`);
     }
   } catch (error3) {
-    core7.warning(`Failed to add issue to project with status: ${error3}`);
+    core9.warning(`Failed to add issue to project with status: ${error3}`);
   }
 }
 async function applyProjectFields(ctx, issueNumber, classification) {
@@ -39380,12 +39764,12 @@ async function applyProjectFields(ctx, issueNumber, classification) {
       (item) => item.project.number === ctx.projectNumber
     );
     if (!projectItem) {
-      core7.info(`Issue #${issueNumber} not in project ${ctx.projectNumber}`);
+      core9.info(`Issue #${issueNumber} not in project ${ctx.projectNumber}`);
       return;
     }
     const projectInfo = await getProjectInfo(ctx);
     if (!projectInfo) {
-      core7.warning("Could not get project info");
+      core9.warning("Could not get project info");
       return;
     }
     if (classification.priority && classification.priority !== "null" && classification.priority !== "none" && projectInfo.priorityFieldId) {
@@ -39397,7 +39781,7 @@ async function applyProjectFields(ctx, issueNumber, classification) {
           fieldId: projectInfo.priorityFieldId,
           value: { singleSelectOptionId: optionId }
         });
-        core7.info(`Set Priority to ${classification.priority}`);
+        core9.info(`Set Priority to ${classification.priority}`);
       }
     }
     if (classification.size && projectInfo.sizeFieldId) {
@@ -39409,7 +39793,7 @@ async function applyProjectFields(ctx, issueNumber, classification) {
           fieldId: projectInfo.sizeFieldId,
           value: { singleSelectOptionId: optionId }
         });
-        core7.info(`Set Size to ${classification.size}`);
+        core9.info(`Set Size to ${classification.size}`);
       }
     }
     if (classification.estimate && projectInfo.estimateFieldId) {
@@ -39419,28 +39803,28 @@ async function applyProjectFields(ctx, issueNumber, classification) {
         fieldId: projectInfo.estimateFieldId,
         value: { number: classification.estimate }
       });
-      core7.info(`Set Estimate to ${classification.estimate}`);
+      core9.info(`Set Estimate to ${classification.estimate}`);
     }
   } catch (error3) {
-    core7.warning(`Failed to apply project fields: ${error3}`);
+    core9.warning(`Failed to apply project fields: ${error3}`);
   }
 }
 
 // claude-state-machine/runner/executors/iterate.ts
-var core8 = __toESM(require_core(), 1);
+var core10 = __toESM(require_core(), 1);
 async function executeApplyIterateOutput(action, ctx, structuredOutput) {
   const { issueNumber } = action;
   if (!structuredOutput) {
-    core8.warning("No structured output provided for applyIterateOutput");
+    core10.warning("No structured output provided for applyIterateOutput");
     return { applied: false };
   }
   const iterateOutput = structuredOutput;
-  core8.info(`Processing iterate output for issue #${issueNumber}`);
-  core8.startGroup("Iterate Output");
-  core8.info(JSON.stringify(iterateOutput, null, 2));
-  core8.endGroup();
+  core10.info(`Processing iterate output for issue #${issueNumber}`);
+  core10.startGroup("Iterate Output");
+  core10.info(JSON.stringify(iterateOutput, null, 2));
+  core10.endGroup();
   if (ctx.dryRun) {
-    core8.info(`[DRY RUN] Would apply iterate output to issue #${issueNumber}`);
+    core10.info(`[DRY RUN] Would apply iterate output to issue #${issueNumber}`);
     return { applied: true, status: iterateOutput.status };
   }
   if (iterateOutput.status === "completed_todo" && iterateOutput.todo_completed) {
@@ -39448,22 +39832,22 @@ async function executeApplyIterateOutput(action, ctx, structuredOutput) {
   }
   switch (iterateOutput.status) {
     case "completed_todo":
-      core8.info(`Completed todo: ${iterateOutput.todo_completed}`);
+      core10.info(`Completed todo: ${iterateOutput.todo_completed}`);
       break;
     case "waiting_manual":
-      core8.info(`Waiting for manual todo: ${iterateOutput.manual_todo}`);
+      core10.info(`Waiting for manual todo: ${iterateOutput.manual_todo}`);
       break;
     case "blocked":
-      core8.warning(`Iteration blocked: ${iterateOutput.blocked_reason}`);
+      core10.warning(`Iteration blocked: ${iterateOutput.blocked_reason}`);
       break;
     case "all_done":
-      core8.info("All todos complete - ready for review");
+      core10.info("All todos complete - ready for review");
       break;
   }
   if (iterateOutput.agent_notes.length > 0) {
-    core8.info("Agent notes for future iterations:");
+    core10.info("Agent notes for future iterations:");
     for (const note of iterateOutput.agent_notes) {
-      core8.info(`  - ${note}`);
+      core10.info(`  - ${note}`);
     }
   }
   return { applied: true, status: iterateOutput.status };
@@ -39491,7 +39875,7 @@ async function checkOffTodo(ctx, issueNumber, todoText) {
     return line;
   });
   if (!found) {
-    core8.warning(`Could not find unchecked todo matching: "${todoText}"`);
+    core10.warning(`Could not find unchecked todo matching: "${todoText}"`);
     return false;
   }
   const updatedBody = updatedLines.join("\n");
@@ -39501,12 +39885,47 @@ async function checkOffTodo(ctx, issueNumber, todoText) {
     issue_number: issueNumber,
     body: updatedBody
   });
-  core8.info(`Checked off todo: "${todoText}"`);
+  core10.info(`Checked off todo: "${todoText}"`);
   return true;
 }
 
+// claude-state-machine/runner/executors/review.ts
+var core11 = __toESM(require_core(), 1);
+async function executeApplyReviewOutput(action, ctx, structuredOutput) {
+  if (!structuredOutput) {
+    throw new Error(
+      "No structured output provided. Ensure runClaude action ran before applyReviewOutput."
+    );
+  }
+  const reviewOutput = structuredOutput;
+  if (!reviewOutput.decision || !reviewOutput.body) {
+    throw new Error(
+      `Invalid review output: missing decision or body. Got: ${JSON.stringify(reviewOutput)}`
+    );
+  }
+  core11.info(`Applying review output: ${reviewOutput.decision}`);
+  core11.startGroup("Review Output");
+  core11.info(JSON.stringify(reviewOutput, null, 2));
+  core11.endGroup();
+  if (ctx.dryRun) {
+    core11.info(
+      `[DRY RUN] Would submit ${reviewOutput.decision} review on PR #${action.prNumber}`
+    );
+    return { submitted: true, decision: reviewOutput.decision };
+  }
+  const submitAction = {
+    type: "submitReview",
+    prNumber: action.prNumber,
+    decision: reviewOutput.decision,
+    body: reviewOutput.body,
+    token: "review"
+    // Always use review token for submitting reviews
+  };
+  return executeSubmitReview(submitAction, ctx);
+}
+
 // claude-state-machine/runner/signaler.ts
-var core9 = __toESM(require_core(), 1);
+var core12 = __toESM(require_core(), 1);
 var JOB_DESCRIPTIONS = {
   // Issue jobs
   "issue-triage": "triaging this issue",
@@ -39534,7 +39953,7 @@ query GetDiscussionId($owner: String!, $repo: String!, $number: Int!) {
   }
 }
 `;
-var ADD_DISCUSSION_COMMENT_MUTATION2 = `
+var ADD_DISCUSSION_COMMENT_MUTATION3 = `
 mutation AddDiscussionComment($discussionId: ID!, $body: String!) {
   addDiscussionComment(input: {
     discussionId: $discussionId
@@ -39595,9 +40014,9 @@ async function addReactionToComment(octokit, owner, repo, commentId, resourceTyp
         content: reaction
       });
     }
-    core9.debug(`Added ${reaction} reaction to comment ${commentId}`);
+    core12.debug(`Added ${reaction} reaction to comment ${commentId}`);
   } catch (error3) {
-    core9.warning(`Failed to add reaction to comment: ${error3}`);
+    core12.warning(`Failed to add reaction to comment: ${error3}`);
   }
 }
 async function signalStart(ctx, progress) {
@@ -39644,14 +40063,14 @@ async function signalStart(ctx, progress) {
       throw new Error(`Discussion #${ctx.resourceNumber} not found`);
     }
     const commentResult = await ctx.octokit.graphql(
-      ADD_DISCUSSION_COMMENT_MUTATION2,
+      ADD_DISCUSSION_COMMENT_MUTATION3,
       { discussionId, body }
     );
     const commentId = commentResult.addDiscussionComment?.comment?.id;
     if (!commentId) {
       throw new Error("Failed to create discussion comment");
     }
-    core9.info(`Created status comment: ${commentId}`);
+    core12.info(`Created status comment: ${commentId}`);
     return commentId;
   }
   const { data: comment } = await ctx.octokit.rest.issues.createComment({
@@ -39660,7 +40079,7 @@ async function signalStart(ctx, progress) {
     issue_number: ctx.resourceNumber,
     body
   });
-  core9.info(`Created status comment: ${comment.id}`);
+  core12.info(`Created status comment: ${comment.id}`);
   return String(comment.id);
 }
 async function signalEnd(ctx, statusCommentId, result) {
@@ -39702,9 +40121,9 @@ async function signalEnd(ctx, statusCommentId, result) {
         body
       });
     }
-    core9.info(`Updated status comment ${statusCommentId} to ${result}`);
+    core12.info(`Updated status comment ${statusCommentId} to ${result}`);
   } catch (error3) {
-    core9.warning(`Failed to update status comment: ${error3}`);
+    core12.warning(`Failed to update status comment: ${error3}`);
   }
   await addReactionToComment(
     ctx.octokit,
@@ -39815,27 +40234,59 @@ async function executeAction(action, ctx, chainCtx) {
         actionCtx,
         chainCtx?.lastClaudeStructuredOutput
       );
+    // Review actions
+    case "applyReviewOutput":
+      return executeApplyReviewOutput(
+        action,
+        actionCtx,
+        chainCtx?.lastClaudeStructuredOutput
+      );
+    // Discussion apply actions
+    case "applyDiscussionResearchOutput":
+      return executeApplyDiscussionResearchOutput(
+        action,
+        actionCtx,
+        chainCtx?.lastClaudeStructuredOutput
+      );
+    case "applyDiscussionRespondOutput":
+      return executeApplyDiscussionRespondOutput(
+        action,
+        actionCtx,
+        chainCtx?.lastClaudeStructuredOutput
+      );
+    case "applyDiscussionSummarizeOutput":
+      return executeApplyDiscussionSummarizeOutput(
+        action,
+        actionCtx,
+        chainCtx?.lastClaudeStructuredOutput
+      );
+    case "applyDiscussionPlanOutput":
+      return executeApplyDiscussionPlanOutput(
+        action,
+        actionCtx,
+        chainCtx?.lastClaudeStructuredOutput
+      );
     // Control flow actions
     case "stop":
-      core10.info(`Stopping: ${action.reason}`);
+      core13.info(`Stopping: ${action.reason}`);
       return { stopped: true, reason: action.reason };
     case "log":
       switch (action.level) {
         case "debug":
-          core10.debug(action.message);
+          core13.debug(action.message);
           break;
         case "warning":
-          core10.warning(action.message);
+          core13.warning(action.message);
           break;
         case "error":
-          core10.error(action.message);
+          core13.error(action.message);
           break;
         default:
-          core10.info(action.message);
+          core13.info(action.message);
       }
       return { logged: true };
     case "noop":
-      core10.debug(`No-op: ${action.reason || "no reason given"}`);
+      core13.debug(`No-op: ${action.reason || "no reason given"}`);
       return { noop: true };
     default:
       throw new Error(`Unknown action type: ${action.type}`);
@@ -39852,7 +40303,7 @@ async function executeActions(actions, ctx, options = {}) {
     const actionStartTime = Date.now();
     const parseResult = ActionSchema.safeParse(action);
     if (!parseResult.success) {
-      core10.error(`Invalid action: ${JSON.stringify(action)}`);
+      core13.error(`Invalid action: ${JSON.stringify(action)}`);
       results.push({
         action,
         success: false,
@@ -39869,10 +40320,10 @@ async function executeActions(actions, ctx, options = {}) {
     }
     const validatedAction = parseResult.data;
     if (logActions) {
-      core10.info(`Executing action: ${validatedAction.type}`);
+      core13.info(`Executing action: ${validatedAction.type}`);
     }
     if (ctx.dryRun) {
-      core10.info(`[DRY RUN] Would execute: ${validatedAction.type}`);
+      core13.info(`[DRY RUN] Would execute: ${validatedAction.type}`);
       results.push({
         action: validatedAction,
         success: true,
@@ -39887,7 +40338,7 @@ async function executeActions(actions, ctx, options = {}) {
         const claudeResult = result;
         if (claudeResult.structuredOutput) {
           chainCtx.lastClaudeStructuredOutput = claudeResult.structuredOutput;
-          core10.info("Stored structured output for subsequent actions");
+          core13.info("Stored structured output for subsequent actions");
         }
       }
       const branchResult = result;
@@ -39901,7 +40352,7 @@ async function executeActions(actions, ctx, options = {}) {
         });
         stoppedEarly = true;
         stopReason = "branch_rebased_and_pushed";
-        core10.info(
+        core13.info(
           "Stopping after branch rebase - CI will re-trigger with up-to-date branch"
         );
         break;
@@ -39920,7 +40371,7 @@ async function executeActions(actions, ctx, options = {}) {
       }
     } catch (error3) {
       const err = error3 instanceof Error ? error3 : new Error(String(error3));
-      core10.error(`Action failed: ${validatedAction.type} - ${err.message}`);
+      core13.error(`Action failed: ${validatedAction.type} - ${err.message}`);
       results.push({
         action: validatedAction,
         success: false,
@@ -39956,35 +40407,35 @@ function createRunnerContext(octokit, owner, repo, projectNumber, options = {}) 
   };
 }
 function logRunnerSummary(result) {
-  core10.info("=".repeat(60));
-  core10.info("Runner Summary");
-  core10.info("=".repeat(60));
-  core10.info(`Total actions: ${result.results.length}`);
-  core10.info(`Successful: ${result.results.filter((r3) => r3.success).length}`);
-  core10.info(
+  core13.info("=".repeat(60));
+  core13.info("Runner Summary");
+  core13.info("=".repeat(60));
+  core13.info(`Total actions: ${result.results.length}`);
+  core13.info(`Successful: ${result.results.filter((r3) => r3.success).length}`);
+  core13.info(
     `Failed: ${result.results.filter((r3) => !r3.success && !r3.skipped).length}`
   );
-  core10.info(`Skipped: ${result.results.filter((r3) => r3.skipped).length}`);
-  core10.info(`Total duration: ${result.totalDurationMs}ms`);
+  core13.info(`Skipped: ${result.results.filter((r3) => r3.skipped).length}`);
+  core13.info(`Total duration: ${result.totalDurationMs}ms`);
   if (result.stoppedEarly) {
-    core10.info(`Stopped early: ${result.stopReason}`);
+    core13.info(`Stopped early: ${result.stopReason}`);
   }
-  core10.info("=".repeat(60));
+  core13.info("=".repeat(60));
   for (const actionResult of result.results) {
     const status = actionResult.skipped ? "SKIPPED" : actionResult.success ? "SUCCESS" : "FAILED";
     const duration = `${actionResult.durationMs}ms`;
-    core10.info(
+    core13.info(
       `  ${status.padEnd(8)} ${actionResult.action.type.padEnd(25)} ${duration}`
     );
     if (actionResult.error) {
-      core10.error(`    Error: ${actionResult.error.message}`);
+      core13.error(`    Error: ${actionResult.error.message}`);
     }
   }
 }
 async function runWithSignaling(actions, ctx, options = {}) {
   let statusCommentId = "";
   if (ctx.dryRun) {
-    core10.info("[DRY RUN] Skipping status signaling");
+    core13.info("[DRY RUN] Skipping status signaling");
     const result2 = await executeActions(actions, ctx, options);
     return { ...result2, statusCommentId: "" };
   }
@@ -40003,7 +40454,7 @@ async function runWithSignaling(actions, ctx, options = {}) {
       ctx.progress
     );
   } catch (error3) {
-    core10.warning(`Failed to create status comment: ${error3}`);
+    core13.warning(`Failed to create status comment: ${error3}`);
   }
   const result = await executeActions(actions, ctx, options);
   if (statusCommentId !== "") {
@@ -40024,7 +40475,7 @@ async function runWithSignaling(actions, ctx, options = {}) {
         jobResult
       );
     } catch (error3) {
-      core10.warning(`Failed to update status comment: ${error3}`);
+      core13.warning(`Failed to update status comment: ${error3}`);
     }
   }
   return { ...result, statusCommentId };
@@ -40084,9 +40535,9 @@ async function run() {
     if (mockOutputsJson) {
       try {
         mockOutputs = JSON.parse(mockOutputsJson);
-        core11.info("[MOCK MODE] Mock outputs loaded for Claude calls");
+        core14.info("[MOCK MODE] Mock outputs loaded for Claude calls");
       } catch (error3) {
-        core11.warning(`Failed to parse mock_outputs: ${error3}`);
+        core14.warning(`Failed to parse mock_outputs: ${error3}`);
       }
     }
     const job = getOptionalInput("job") || "";
@@ -40099,18 +40550,18 @@ async function run() {
     const runUrl = getOptionalInput("run_url") || "";
     const resourceType = resourceTypeInput === "pr" ? "pr" : "issue";
     const signalingEnabled = job !== "" && resourceNumber > 0;
-    core11.info(`Claude State Executor starting...`);
-    core11.info(`Project: ${projectNumber}`);
-    core11.info(`Dry run: ${dryRun}`);
-    core11.info(`Signaling: ${signalingEnabled ? "enabled" : "disabled"}`);
+    core14.info(`Claude State Executor starting...`);
+    core14.info(`Project: ${projectNumber}`);
+    core14.info(`Dry run: ${dryRun}`);
+    core14.info(`Signaling: ${signalingEnabled ? "enabled" : "disabled"}`);
     if (signalingEnabled) {
-      core11.info(`  Job: ${job}`);
-      core11.info(`  Resource: ${resourceType} #${resourceNumber}`);
+      core14.info(`  Job: ${job}`);
+      core14.info(`  Resource: ${resourceType} #${resourceNumber}`);
     }
     const actions = parseActions(actionsJson);
-    core11.info(`Actions to execute: ${actions.length}`);
+    core14.info(`Actions to execute: ${actions.length}`);
     if (actions.length === 0) {
-      core11.info("No actions to execute");
+      core14.info("No actions to execute");
       setOutputs({
         success: "true",
         stopped_early: "false",
@@ -40124,7 +40575,7 @@ async function run() {
       return;
     }
     const actionTypes = actions.map((a) => a.type);
-    core11.info(`Action types: ${actionTypes.join(", ")}`);
+    core14.info(`Action types: ${actionTypes.join(", ")}`);
     const tokenUsage = actions.reduce(
       (acc, a) => {
         const token = a.token || "code";
@@ -40133,7 +40584,7 @@ async function run() {
       },
       {}
     );
-    core11.info(
+    core14.info(
       `Token usage: code=${tokenUsage.code || 0}, review=${tokenUsage.review || 0}`
     );
     const codeOctokit = github.getOctokit(codeToken);
@@ -40196,17 +40647,17 @@ async function run() {
       results_json: JSON.stringify(resultsForOutput)
     });
     if (!result.success) {
-      core11.setFailed(`${failed} action(s) failed. Check the logs for details.`);
+      core14.setFailed(`${failed} action(s) failed. Check the logs for details.`);
     } else if (result.stoppedEarly) {
-      core11.setFailed(
+      core14.setFailed(
         `Stopped early: ${result.stopReason || "unknown reason"}. Subsequent matrix jobs will be cancelled.`
       );
     }
   } catch (error3) {
     if (error3 instanceof Error) {
-      core11.setFailed(error3.message);
+      core14.setFailed(error3.message);
     } else {
-      core11.setFailed("An unexpected error occurred");
+      core14.setFailed("An unexpected error occurred");
     }
   }
 }

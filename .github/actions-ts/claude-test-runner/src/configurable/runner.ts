@@ -1089,7 +1089,9 @@ Issue: #${this.issueNumber}
     if (this.inputs.mockCI) {
       // Mock mode: trigger CI with mock result on the test branch
       const mockResult = result === "success" ? "pass" : "fail";
-      core.info(`Triggering mock CI with result: ${mockResult} on branch ${branch}`);
+      core.info(
+        `Triggering mock CI with result: ${mockResult} on branch ${branch}`,
+      );
 
       await exec.exec("gh", [
         "workflow",

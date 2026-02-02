@@ -1,0 +1,22 @@
+{
+  "state": "planning",
+  "trigger": "discussion_command",
+  "discussion": {
+    "number": 0,
+    "nodeId": "D_placeholder",
+    "title": "Implement caching layer",
+    "body": "We should add a caching layer to improve performance.\n\n## Proposed Changes\n\n1. Add Redis for session caching\n2. Implement query result caching\n3. Add cache invalidation logic",
+    "commentId": "DC_placeholder",
+    "commentBody": "/plan",
+    "commentAuthor": "test-user",
+    "command": "/plan"
+  },
+  "claudeMock": "discussion-plan/basic",
+  "expected": {
+    "minComments": 2,
+    "createdIssues": {
+      "minCount": 1,
+      "requiredLabels": ["test:automation"]
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "state": "researching",
+  "trigger": "discussion_created",
+  "discussion": {
+    "number": 0,
+    "nodeId": "D_placeholder",
+    "title": "How does the build system work?",
+    "body": "I'm trying to understand the build system architecture.\n\n## Questions\n\n- How are Docker images built?\n- What is the role of Buildx Bake?\n- How does caching work?"
+  },
+  "claudeMock": "discussion-research/basic",
+  "expected": {
+    "minComments": 1
+  }
+}

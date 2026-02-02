@@ -369,3 +369,98 @@ export function createMaxFailuresContext(
     ...overrides,
   });
 }
+
+// ============================================================================
+// Discussion Fixtures
+// ============================================================================
+
+/**
+ * Default discussion context
+ */
+export const DEFAULT_DISCUSSION = {
+  number: 1,
+  nodeId: "D_kwDOTest123",
+  title: "Test Discussion",
+  body: "Test discussion body",
+  commentCount: 0,
+  researchThreads: [],
+};
+
+/**
+ * Create a context for discussion triggers
+ */
+export function createDiscussionContext(
+  overrides: Parameters<typeof createContext>[0] & {
+    discussion?: Partial<typeof DEFAULT_DISCUSSION> & {
+      command?: "summarize" | "plan" | "complete";
+      commentId?: string;
+      commentBody?: string;
+      commentAuthor?: string;
+    };
+  } = {},
+): MachineContext {
+  const discussion = {
+    ...DEFAULT_DISCUSSION,
+    ...overrides.discussion,
+  };
+
+  return createMachineContext({
+    trigger: overrides.trigger ?? "discussion_created",
+    owner: overrides.owner ?? "test-owner",
+    repo: overrides.repo ?? "test-repo",
+    issue: createParentIssue(overrides.issue),
+    discussion,
+    maxRetries: overrides.maxRetries ?? 5,
+    botUsername: overrides.botUsername ?? "nopo-bot",
+  });
+}
+
+/**
+ * Create a context for new discussion creation
+ */
+export function createNewDiscussionContext(
+  overrides: Parameters<typeof createDiscussionContext>[0] = {},
+): MachineContext {
+  return createDiscussionContext({
+    trigger: "discussion_created",
+    ...overrides,
+  });
+}
+
+/**
+ * Create a context for discussion comment from human
+ */
+export function createDiscussionCommentContext(
+  overrides: Parameters<typeof createDiscussionContext>[0] = {},
+): MachineContext {
+  return createDiscussionContext({
+    trigger: "discussion_comment",
+    discussion: {
+      commentId: "DC_kwDOTest456",
+      commentBody: "I have a question about this",
+      commentAuthor: "human-user",
+      ...overrides.discussion,
+    },
+    ...overrides,
+  });
+}
+
+/**
+ * Create a context for discussion command
+ */
+export function createDiscussionCommandContext(
+  command: "summarize" | "plan" | "complete",
+  overrides: Parameters<typeof createDiscussionContext>[0] = {},
+): MachineContext {
+  return createDiscussionContext({
+    trigger: "discussion_command",
+    discussion: {
+      command,
+      commentId: "DC_kwDOTest789",
+      commentBody: `/${command}`,
+      commentAuthor: "human-user",
+      ...overrides.discussion,
+    },
+    ...overrides,
+  });
+}

@@ -407,13 +407,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/run-claude
+      - name: Install Claude Code
+        run: |
+          curl -fsSL https://claude.ai/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - uses: ./.github/actions-ts/claude
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         with:
-          github_token: ${{ github.token }}
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/discussion-research.txt
-          prompt_replacements: ${{ needs.discussion-context.outputs.prompt_replacements }}
-          max_turns: '30'
+          prompt_vars: ${{ needs.discussion-context.outputs.prompt_replacements }}
       - uses: actions/upload-artifact@v4
         with:
           name: claude-discussion-output
@@ -433,13 +436,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/run-claude
+      - name: Install Claude Code
+        run: |
+          curl -fsSL https://claude.ai/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - uses: ./.github/actions-ts/claude
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         with:
-          github_token: ${{ github.token }}
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/discussion-respond.txt
-          prompt_replacements: ${{ needs.discussion-context.outputs.prompt_replacements }}
-          max_turns: '100'
+          prompt_vars: ${{ needs.discussion-context.outputs.prompt_replacements }}
       - uses: actions/upload-artifact@v4
         with:
           name: claude-discussion-output
@@ -459,13 +465,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/run-claude
+      - name: Install Claude Code
+        run: |
+          curl -fsSL https://claude.ai/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - uses: ./.github/actions-ts/claude
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         with:
-          github_token: ${{ github.token }}
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/discussion-summarize.txt
-          prompt_replacements: ${{ needs.discussion-context.outputs.prompt_replacements }}
-          max_turns: '50'
+          prompt_vars: ${{ needs.discussion-context.outputs.prompt_replacements }}
       - uses: actions/upload-artifact@v4
         with:
           name: claude-discussion-output
@@ -483,13 +492,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/run-claude
+      - name: Install Claude Code
+        run: |
+          curl -fsSL https://claude.ai/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - uses: ./.github/actions-ts/claude
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         with:
-          github_token: ${{ github.token }}
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: .github/prompts/discussion-plan.txt
-          prompt_replacements: ${{ needs.discussion-context.outputs.prompt_replacements }}
-          max_turns: '100'
+          prompt_vars: ${{ needs.discussion-context.outputs.prompt_replacements }}
       - uses: actions/upload-artifact@v4
         with:
           name: claude-discussion-output

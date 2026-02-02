@@ -1,0 +1,5 @@
+{
+  "name": "discussion-complete",
+  "description": "/complete command - verifies discussion is marked complete via state machine",
+  "category": "q-a"
+}

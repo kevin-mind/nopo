@@ -1,0 +1,18 @@
+{
+  "description": "Basic plan output with issues to create",
+  "output": {
+    "issues": [
+      {
+        "title": "Add Redis for session caching",
+        "body": "## Overview\n\nImplement Redis-based session caching to improve performance.\n\n## Tasks\n\n- [ ] Set up Redis in Docker Compose\n- [ ] Configure Django to use Redis for sessions\n- [ ] Add health checks for Redis connection\n- [ ] Update documentation\n\n## Acceptance Criteria\n\n- Sessions are stored in Redis\n- Redis is available in development and production\n- Health endpoint checks Redis connectivity",
+        "labels": ["enhancement", "test:automation"]
+      },
+      {
+        "title": "Implement query result caching",
+        "body": "## Overview\n\nAdd caching for expensive database queries.\n\n## Tasks\n\n- [ ] Identify queries to cache\n- [ ] Implement cache decorator\n- [ ] Add cache invalidation triggers\n- [ ] Add metrics for cache hit/miss rates\n\n## Acceptance Criteria\n\n- High-traffic queries are cached\n- Cache is invalidated on relevant data changes\n- Metrics are available in Grafana",
+        "labels": ["enhancement", "test:automation"]
+      }
+    ],
+    "summary_comment": "Based on this discussion, I've created the following issues:\n\n1. **Add Redis for session caching** - Setting up Redis infrastructure and Django integration\n2. **Implement query result caching** - Adding caching for expensive database queries\n\nThese issues are now ready for prioritization and assignment."
+  }
+}

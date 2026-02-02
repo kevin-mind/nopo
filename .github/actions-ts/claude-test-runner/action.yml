@@ -3,7 +3,7 @@ description: 'Intelligent E2E test runner with state prediction, exponential bac
 
 inputs:
   action:
-    description: 'Action to perform: run | diagnose | wait | wait-triage | wait-phase | status | validate | run-configurable'
+    description: 'Action to perform: run | diagnose | wait | wait-triage | wait-phase | status | validate | run-configurable | run-discussion'
     required: true
   fixture_json:
     description: 'Test fixture JSON configuration'
@@ -134,6 +134,15 @@ outputs:
     description: 'Next state if paused (for run-configurable)'
   error:
     description: 'Error message if failed (for run-configurable)'
+  # Discussion test runner outputs
+  discussion_number:
+    description: 'Discussion number created for the test (for run-discussion)'
+  final_state:
+    description: 'Final state after machine execution (for run-discussion)'
+  actions_executed:
+    description: 'Number of actions executed (for run-discussion)'
+  verification_errors:
+    description: 'Verification errors if any (for run-discussion)'
 
 runs:
   using: node20

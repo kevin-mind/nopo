@@ -1,0 +1,7 @@
+{
+  "description": "Basic summarize output",
+  "output": {
+    "summary": "## Summary\n\nThis discussion covers database migration strategies for production environments.\n\n### Key Topics\n\n1. **Zero-downtime migrations** - Techniques for deploying schema changes without service interruption\n2. **Rollback strategies** - Plans for reverting changes if issues arise\n3. **Testing migrations** - Approaches for validating migrations before production\n\n### Open Questions\n\n- What is our tolerance for downtime during migrations?\n- Should we use a blue-green deployment strategy?\n- How do we handle data migrations that take a long time?\n\n### Next Steps\n\nConsider creating issues for:\n- Documenting our migration workflow\n- Setting up migration testing in CI\n- Creating rollback playbooks",
+    "updated_body": "We need to discuss how to handle database migrations in production.\n\n## Topics\n\n- Zero-downtime migrations\n- Rollback strategies\n- Testing migrations\n\n## Summary\n\nThis discussion covers database migration strategies for production environments.\n\n### Key Topics\n\n1. **Zero-downtime migrations** - Techniques for deploying schema changes without service interruption\n2. **Rollback strategies** - Plans for reverting changes if issues arise\n3. **Testing migrations** - Approaches for validating migrations before production\n\n### Open Questions\n\n- What is our tolerance for downtime during migrations?\n- Should we use a blue-green deployment strategy?\n- How do we handle data migrations that take a long time?"
+  }
+}

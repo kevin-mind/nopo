@@ -40,8 +40,15 @@ import {
   executeAddDiscussionReaction,
   executeCreateIssuesFromDiscussion,
 } from "./executors/discussions.js";
+import {
+  executeApplyDiscussionResearchOutput,
+  executeApplyDiscussionRespondOutput,
+  executeApplyDiscussionSummarizeOutput,
+  executeApplyDiscussionPlanOutput,
+} from "./executors/discussion-apply.js";
 import { executeApplyTriageOutput } from "./executors/triage.js";
 import { executeApplyIterateOutput } from "./executors/iterate.js";
+import { executeApplyReviewOutput } from "./executors/review.js";
 import {
   signalStart,
   signalEnd,
@@ -265,6 +272,41 @@ async function executeAction(
     case "applyIterateOutput":
       // Pass structured output from previous runClaude action if available
       return executeApplyIterateOutput(
+        action,
+        actionCtx,
+        chainCtx?.lastClaudeStructuredOutput,
+      );
+
+    // Review actions
+    case "applyReviewOutput":
+      // Pass structured output from previous runClaude action if available
+      return executeApplyReviewOutput(
+        action,
+        actionCtx,
+        chainCtx?.lastClaudeStructuredOutput,
+      );
+
+    // Discussion apply actions
+    case "applyDiscussionResearchOutput":
+      return executeApplyDiscussionResearchOutput(
+        action,
+        actionCtx,
+        chainCtx?.lastClaudeStructuredOutput,
+      );
+    case "applyDiscussionRespondOutput":
+      return executeApplyDiscussionRespondOutput(
+        action,
+        actionCtx,
+        chainCtx?.lastClaudeStructuredOutput,
+      );
+    case "applyDiscussionSummarizeOutput":
+      return executeApplyDiscussionSummarizeOutput(
+        action,
+        actionCtx,
+        chainCtx?.lastClaudeStructuredOutput,
+      );
+    case "applyDiscussionPlanOutput":
+      return executeApplyDiscussionPlanOutput(
         action,
         actionCtx,
         chainCtx?.lastClaudeStructuredOutput,

@@ -4,11 +4,28 @@
  * Provides state-based fixture testing for the Claude automation state machine.
  */
 
-// Types
+// Issue Types
 export { type TestRunnerInputs } from "./types.js";
 
-// Loader
+// Issue Loader
 export { loadScenario } from "./loader.js";
 
-// Runner
+// Issue Runner
 export { runConfigurableTest } from "./runner.js";
+
+// Discussion Types
+export {
+  type DiscussionTestRunnerInputs,
+  
+  
+  
+} from "./discussion-types.js";
+
+// Discussion Loader
+export {
+  loadDiscussionScenario,
+  
+} from "./discussion-loader.js";
+
+// Discussion Runner
+export { runDiscussionConfigurableTest } from "./discussion-runner.js";

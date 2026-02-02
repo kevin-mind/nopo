@@ -1,0 +1,5 @@
+{
+  "name": "discussion-respond",
+  "description": "Human comment on discussion - verifies Claude responds in thread via state machine",
+  "category": "q-a"
+}

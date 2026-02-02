@@ -1,0 +1,5 @@
+{
+  "name": "discussion-summarize",
+  "description": "/summarize command - verifies summary is generated via state machine",
+  "category": "ideas"
+}

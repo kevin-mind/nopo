@@ -31612,6 +31612,32 @@ var ApplyIterateOutputActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("applyIterateOutput"),
   issueNumber: external_exports.number().int().positive()
 });
+var ApplyReviewOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyReviewOutput"),
+  prNumber: external_exports.number().int().positive()
+});
+var ApplyDiscussionResearchOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyDiscussionResearchOutput"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string().min(1)
+});
+var ApplyDiscussionRespondOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyDiscussionRespondOutput"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string().min(1),
+  /** If provided, post as a reply to this comment */
+  replyToNodeId: external_exports.string().optional()
+});
+var ApplyDiscussionSummarizeOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyDiscussionSummarizeOutput"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string().min(1)
+});
+var ApplyDiscussionPlanOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyDiscussionPlanOutput"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string().min(1)
+});
 var ActionSchema = external_exports.discriminatedUnion("type", [
   // Project field actions
   UpdateProjectStatusActionSchema,
@@ -31653,7 +31679,14 @@ var ActionSchema = external_exports.discriminatedUnion("type", [
   // Triage actions
   ApplyTriageOutputActionSchema,
   // Iterate actions
-  ApplyIterateOutputActionSchema
+  ApplyIterateOutputActionSchema,
+  // Review actions
+  ApplyReviewOutputActionSchema,
+  // Discussion apply actions
+  ApplyDiscussionResearchOutputActionSchema,
+  ApplyDiscussionRespondOutputActionSchema,
+  ApplyDiscussionSummarizeOutputActionSchema,
+  ApplyDiscussionPlanOutputActionSchema
 ]);
 
 // claude-state-machine/schemas/events.ts
@@ -32125,6 +32158,263 @@ async function buildMachineContext(octokit, event, projectNumber, options = {}) 
   });
 }
 
+// claude-state-machine/machine/guards.ts
+function isAlreadyDone({ context: context2 }) {
+  return context2.issue.projectStatus === "Done";
+}
+function isBlocked({ context: context2 }) {
+  return context2.issue.projectStatus === "Blocked";
+}
+function isError({ context: context2 }) {
+  return context2.issue.projectStatus === "Error";
+}
+function isTerminal({ context: context2 }) {
+  const status = context2.issue.projectStatus;
+  return status !== null && isTerminalStatus(status);
+}
+function hasSubIssues({ context: context2 }) {
+  return context2.issue.hasSubIssues;
+}
+function needsSubIssues(_guardContext) {
+  return false;
+}
+function allPhasesDone({ context: context2 }) {
+  if (!context2.issue.hasSubIssues) {
+    return context2.issue.subIssues.length === 0 && context2.currentSubIssue === null;
+  }
+  return context2.issue.subIssues.every(
+    (s) => s.projectStatus === "Done" || s.state === "CLOSED"
+  );
+}
+function needsParentInit({ context: context2 }) {
+  return context2.issue.hasSubIssues && (context2.issue.projectStatus === null || context2.issue.projectStatus === "Backlog");
+}
+function currentPhaseComplete({ context: context2 }) {
+  if (!context2.currentSubIssue) {
+    return false;
+  }
+  return context2.currentSubIssue.todos.uncheckedNonManual === 0;
+}
+function hasNextPhase({ context: context2 }) {
+  if (!context2.issue.hasSubIssues || context2.currentPhase === null) {
+    return false;
+  }
+  return context2.currentPhase < context2.totalPhases;
+}
+function subIssueNeedsAssignment({ context: context2 }) {
+  return context2.currentSubIssue !== null;
+}
+function isInReview({ context: context2 }) {
+  if (context2.currentSubIssue) {
+    return context2.currentSubIssue.projectStatus === "In review";
+  }
+  return context2.issue.projectStatus === "In review";
+}
+function currentPhaseNeedsWork({ context: context2 }) {
+  if (context2.currentSubIssue) {
+    const status = context2.currentSubIssue.projectStatus;
+    return status === "In progress" || status === "Ready";
+  }
+  return context2.issue.projectStatus === "In progress";
+}
+function currentPhaseInReview({ context: context2 }) {
+  return isInReview({ context: context2 });
+}
+function todosDone({ context: context2 }) {
+  if (context2.currentSubIssue) {
+    return context2.currentSubIssue.todos.uncheckedNonManual === 0;
+  }
+  return context2.issue.todos.uncheckedNonManual === 0;
+}
+function hasPendingTodos({ context: context2 }) {
+  return !todosDone({ context: context2 });
+}
+function ciPassed({ context: context2 }) {
+  return context2.ciResult === "success";
+}
+function ciFailed({ context: context2 }) {
+  return context2.ciResult === "failure";
+}
+function ciCancelled({ context: context2 }) {
+  return context2.ciResult === "cancelled";
+}
+function maxFailuresReached({ context: context2 }) {
+  return context2.issue.failures >= context2.maxRetries;
+}
+function hasFailures({ context: context2 }) {
+  return context2.issue.failures > 0;
+}
+function reviewApproved({ context: context2 }) {
+  return context2.reviewDecision === "APPROVED";
+}
+function reviewRequestedChanges({ context: context2 }) {
+  return context2.reviewDecision === "CHANGES_REQUESTED";
+}
+function reviewCommented({ context: context2 }) {
+  return context2.reviewDecision === "COMMENTED";
+}
+function hasPR({ context: context2 }) {
+  return context2.hasPR && context2.pr !== null;
+}
+function prIsDraft({ context: context2 }) {
+  return context2.pr?.isDraft === true;
+}
+function prIsReady({ context: context2 }) {
+  return context2.pr !== null && !context2.pr.isDraft;
+}
+function prIsMerged({ context: context2 }) {
+  return context2.pr?.state === "MERGED";
+}
+function hasBranch({ context: context2 }) {
+  return context2.hasBranch;
+}
+function needsBranch({ context: context2 }) {
+  return !context2.hasBranch && context2.branch !== null;
+}
+function botIsAssigned({ context: context2 }) {
+  return context2.issue.assignees.includes(context2.botUsername);
+}
+function isFirstIteration({ context: context2 }) {
+  return context2.issue.iteration === 0;
+}
+function triggeredByAssignment({ context: context2 }) {
+  return context2.trigger === "issue_assigned";
+}
+function triggeredByEdit({ context: context2 }) {
+  return context2.trigger === "issue_edited";
+}
+function triggeredByCI({ context: context2 }) {
+  return context2.trigger === "workflow_run_completed";
+}
+function triggeredByReview({ context: context2 }) {
+  return context2.trigger === "pr_review_submitted";
+}
+function triggeredByReviewRequest({ context: context2 }) {
+  return context2.trigger === "pr_review_requested";
+}
+function triggeredByTriage({ context: context2 }) {
+  return context2.trigger === "issue_triage";
+}
+function triggeredByComment({ context: context2 }) {
+  return context2.trigger === "issue_comment";
+}
+function triggeredByOrchestrate({ context: context2 }) {
+  return context2.trigger === "issue_orchestrate";
+}
+function triggeredByPRReview({ context: context2 }) {
+  return context2.trigger === "pr_review";
+}
+function triggeredByPRResponse({ context: context2 }) {
+  return context2.trigger === "pr_response";
+}
+function triggeredByPRHumanResponse({ context: context2 }) {
+  return context2.trigger === "pr_human_response";
+}
+function triggeredByPRReviewApproved({ context: context2 }) {
+  return context2.trigger === "pr_review_approved";
+}
+function triggeredByMergeQueueEntry({ context: context2 }) {
+  return context2.trigger === "merge_queue_entered";
+}
+function triggeredByMergeQueueFailure({ context: context2 }) {
+  return context2.trigger === "merge_queue_failed";
+}
+function triggeredByPRMerged({ context: context2 }) {
+  return context2.trigger === "pr_merged";
+}
+function triggeredByDeployedStage({ context: context2 }) {
+  return context2.trigger === "deployed_stage";
+}
+function triggeredByDeployedProd({ context: context2 }) {
+  return context2.trigger === "deployed_prod";
+}
+function needsTriage({ context: context2 }) {
+  return !context2.issue.labels.includes("triaged");
+}
+function isTriaged({ context: context2 }) {
+  return context2.issue.labels.includes("triaged");
+}
+function readyForReview({ context: context2 }) {
+  return ciPassed({ context: context2 }) && todosDone({ context: context2 });
+}
+function shouldContinueIterating({ context: context2 }) {
+  return ciFailed({ context: context2 }) && !maxFailuresReached({ context: context2 });
+}
+function shouldBlock({ context: context2 }) {
+  return ciFailed({ context: context2 }) && maxFailuresReached({ context: context2 });
+}
+var guards = {
+  // Terminal state guards
+  isAlreadyDone,
+  isBlocked,
+  isError,
+  isTerminal,
+  // Sub-issue guards
+  hasSubIssues,
+  needsSubIssues,
+  allPhasesDone,
+  // Orchestration guards
+  needsParentInit,
+  currentPhaseComplete,
+  hasNextPhase,
+  subIssueNeedsAssignment,
+  // Phase state guards
+  isInReview,
+  currentPhaseNeedsWork,
+  currentPhaseInReview,
+  // Todo guards
+  todosDone,
+  hasPendingTodos,
+  // CI guards
+  ciPassed,
+  ciFailed,
+  ciCancelled,
+  // Failure guards
+  maxFailuresReached,
+  hasFailures,
+  // Review guards
+  reviewApproved,
+  reviewRequestedChanges,
+  reviewCommented,
+  // PR guards
+  hasPR,
+  prIsDraft,
+  prIsReady,
+  prIsMerged,
+  // Branch guards
+  hasBranch,
+  needsBranch,
+  // Assignment guards
+  botIsAssigned,
+  isFirstIteration,
+  // Trigger guards
+  triggeredByAssignment,
+  triggeredByEdit,
+  triggeredByCI,
+  triggeredByReview,
+  triggeredByReviewRequest,
+  triggeredByTriage,
+  triggeredByComment,
+  triggeredByOrchestrate,
+  triggeredByPRReview,
+  triggeredByPRResponse,
+  triggeredByPRHumanResponse,
+  triggeredByPRReviewApproved,
+  // Merge queue logging guards
+  triggeredByMergeQueueEntry,
+  triggeredByMergeQueueFailure,
+  triggeredByPRMerged,
+  triggeredByDeployedStage,
+  triggeredByDeployedProd,
+  // Triage guards
+  needsTriage,
+  isTriaged,
+  // Composite guards
+  readyForReview,
+  shouldContinueIterating,
+  shouldBlock
+};
+
 // claude-state-machine/machine/actions.ts
 function emitSetWorking({ context: context2 }) {
   const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
@@ -32516,11 +32806,19 @@ function emitRunClaudePRReview({
   return [
     {
       type: "runClaude",
-      token: "review",
+      token: "code",
+      // runClaude uses code token for checkout/execution
       promptDir: "review",
       promptVars,
       issueNumber
       // worktree intentionally omitted - checkout happens at repo root to the correct branch
+    },
+    // Apply review output: submit the PR review using structured output
+    {
+      type: "applyReviewOutput",
+      token: "review",
+      // submitReview uses review token for different user
+      prNumber
     }
   ];
 }
@@ -32873,263 +33171,6 @@ function emitDeployedProd({ context: context2 }) {
     }
   ];
 }
-
-// claude-state-machine/machine/guards.ts
-function isAlreadyDone({ context: context2 }) {
-  return context2.issue.projectStatus === "Done";
-}
-function isBlocked({ context: context2 }) {
-  return context2.issue.projectStatus === "Blocked";
-}
-function isError({ context: context2 }) {
-  return context2.issue.projectStatus === "Error";
-}
-function isTerminal({ context: context2 }) {
-  const status = context2.issue.projectStatus;
-  return status !== null && isTerminalStatus(status);
-}
-function hasSubIssues({ context: context2 }) {
-  return context2.issue.hasSubIssues;
-}
-function needsSubIssues(_guardContext) {
-  return false;
-}
-function allPhasesDone({ context: context2 }) {
-  if (!context2.issue.hasSubIssues) {
-    return context2.issue.subIssues.length === 0 && context2.currentSubIssue === null;
-  }
-  return context2.issue.subIssues.every(
-    (s) => s.projectStatus === "Done" || s.state === "CLOSED"
-  );
-}
-function needsParentInit({ context: context2 }) {
-  return context2.issue.hasSubIssues && (context2.issue.projectStatus === null || context2.issue.projectStatus === "Backlog");
-}
-function currentPhaseComplete({ context: context2 }) {
-  if (!context2.currentSubIssue) {
-    return false;
-  }
-  return context2.currentSubIssue.todos.uncheckedNonManual === 0;
-}
-function hasNextPhase({ context: context2 }) {
-  if (!context2.issue.hasSubIssues || context2.currentPhase === null) {
-    return false;
-  }
-  return context2.currentPhase < context2.totalPhases;
-}
-function subIssueNeedsAssignment({ context: context2 }) {
-  return context2.currentSubIssue !== null;
-}
-function isInReview({ context: context2 }) {
-  if (context2.currentSubIssue) {
-    return context2.currentSubIssue.projectStatus === "In review";
-  }
-  return context2.issue.projectStatus === "In review";
-}
-function currentPhaseNeedsWork({ context: context2 }) {
-  if (context2.currentSubIssue) {
-    const status = context2.currentSubIssue.projectStatus;
-    return status === "In progress" || status === "Ready";
-  }
-  return context2.issue.projectStatus === "In progress";
-}
-function currentPhaseInReview({ context: context2 }) {
-  return isInReview({ context: context2 });
-}
-function todosDone({ context: context2 }) {
-  if (context2.currentSubIssue) {
-    return context2.currentSubIssue.todos.uncheckedNonManual === 0;
-  }
-  return context2.issue.todos.uncheckedNonManual === 0;
-}
-function hasPendingTodos({ context: context2 }) {
-  return !todosDone({ context: context2 });
-}
-function ciPassed({ context: context2 }) {
-  return context2.ciResult === "success";
-}
-function ciFailed({ context: context2 }) {
-  return context2.ciResult === "failure";
-}
-function ciCancelled({ context: context2 }) {
-  return context2.ciResult === "cancelled";
-}
-function maxFailuresReached({ context: context2 }) {
-  return context2.issue.failures >= context2.maxRetries;
-}
-function hasFailures({ context: context2 }) {
-  return context2.issue.failures > 0;
-}
-function reviewApproved({ context: context2 }) {
-  return context2.reviewDecision === "APPROVED";
-}
-function reviewRequestedChanges({ context: context2 }) {
-  return context2.reviewDecision === "CHANGES_REQUESTED";
-}
-function reviewCommented({ context: context2 }) {
-  return context2.reviewDecision === "COMMENTED";
-}
-function hasPR({ context: context2 }) {
-  return context2.hasPR && context2.pr !== null;
-}
-function prIsDraft({ context: context2 }) {
-  return context2.pr?.isDraft === true;
-}
-function prIsReady({ context: context2 }) {
-  return context2.pr !== null && !context2.pr.isDraft;
-}
-function prIsMerged({ context: context2 }) {
-  return context2.pr?.state === "MERGED";
-}
-function hasBranch({ context: context2 }) {
-  return context2.hasBranch;
-}
-function needsBranch({ context: context2 }) {
-  return !context2.hasBranch && context2.branch !== null;
-}
-function botIsAssigned({ context: context2 }) {
-  return context2.issue.assignees.includes(context2.botUsername);
-}
-function isFirstIteration({ context: context2 }) {
-  return context2.issue.iteration === 0;
-}
-function triggeredByAssignment({ context: context2 }) {
-  return context2.trigger === "issue_assigned";
-}
-function triggeredByEdit({ context: context2 }) {
-  return context2.trigger === "issue_edited";
-}
-function triggeredByCI({ context: context2 }) {
-  return context2.trigger === "workflow_run_completed";
-}
-function triggeredByReview({ context: context2 }) {
-  return context2.trigger === "pr_review_submitted";
-}
-function triggeredByReviewRequest({ context: context2 }) {
-  return context2.trigger === "pr_review_requested";
-}
-function triggeredByTriage({ context: context2 }) {
-  return context2.trigger === "issue_triage";
-}
-function triggeredByComment({ context: context2 }) {
-  return context2.trigger === "issue_comment";
-}
-function triggeredByOrchestrate({ context: context2 }) {
-  return context2.trigger === "issue_orchestrate";
-}
-function triggeredByPRReview({ context: context2 }) {
-  return context2.trigger === "pr_review";
-}
-function triggeredByPRResponse({ context: context2 }) {
-  return context2.trigger === "pr_response";
-}
-function triggeredByPRHumanResponse({ context: context2 }) {
-  return context2.trigger === "pr_human_response";
-}
-function triggeredByPRReviewApproved({ context: context2 }) {
-  return context2.trigger === "pr_review_approved";
-}
-function triggeredByMergeQueueEntry({ context: context2 }) {
-  return context2.trigger === "merge_queue_entered";
-}
-function triggeredByMergeQueueFailure({ context: context2 }) {
-  return context2.trigger === "merge_queue_failed";
-}
-function triggeredByPRMerged({ context: context2 }) {
-  return context2.trigger === "pr_merged";
-}
-function triggeredByDeployedStage({ context: context2 }) {
-  return context2.trigger === "deployed_stage";
-}
-function triggeredByDeployedProd({ context: context2 }) {
-  return context2.trigger === "deployed_prod";
-}
-function needsTriage({ context: context2 }) {
-  return !context2.issue.labels.includes("triaged");
-}
-function isTriaged({ context: context2 }) {
-  return context2.issue.labels.includes("triaged");
-}
-function readyForReview({ context: context2 }) {
-  return ciPassed({ context: context2 }) && todosDone({ context: context2 });
-}
-function shouldContinueIterating({ context: context2 }) {
-  return ciFailed({ context: context2 }) && !maxFailuresReached({ context: context2 });
-}
-function shouldBlock({ context: context2 }) {
-  return ciFailed({ context: context2 }) && maxFailuresReached({ context: context2 });
-}
-var guards = {
-  // Terminal state guards
-  isAlreadyDone,
-  isBlocked,
-  isError,
-  isTerminal,
-  // Sub-issue guards
-  hasSubIssues,
-  needsSubIssues,
-  allPhasesDone,
-  // Orchestration guards
-  needsParentInit,
-  currentPhaseComplete,
-  hasNextPhase,
-  subIssueNeedsAssignment,
-  // Phase state guards
-  isInReview,
-  currentPhaseNeedsWork,
-  currentPhaseInReview,
-  // Todo guards
-  todosDone,
-  hasPendingTodos,
-  // CI guards
-  ciPassed,
-  ciFailed,
-  ciCancelled,
-  // Failure guards
-  maxFailuresReached,
-  hasFailures,
-  // Review guards
-  reviewApproved,
-  reviewRequestedChanges,
-  reviewCommented,
-  // PR guards
-  hasPR,
-  prIsDraft,
-  prIsReady,
-  prIsMerged,
-  // Branch guards
-  hasBranch,
-  needsBranch,
-  // Assignment guards
-  botIsAssigned,
-  isFirstIteration,
-  // Trigger guards
-  triggeredByAssignment,
-  triggeredByEdit,
-  triggeredByCI,
-  triggeredByReview,
-  triggeredByReviewRequest,
-  triggeredByTriage,
-  triggeredByComment,
-  triggeredByOrchestrate,
-  triggeredByPRReview,
-  triggeredByPRResponse,
-  triggeredByPRHumanResponse,
-  triggeredByPRReviewApproved,
-  // Merge queue logging guards
-  triggeredByMergeQueueEntry,
-  triggeredByMergeQueueFailure,
-  triggeredByPRMerged,
-  triggeredByDeployedStage,
-  triggeredByDeployedProd,
-  // Triage guards
-  needsTriage,
-  isTriaged,
-  // Composite guards
-  readyForReview,
-  shouldContinueIterating,
-  shouldBlock
-};
 
 // claude-state-machine/machine/machine.ts
 function accumulateActions(existingActions, newActions) {
@@ -33862,6 +33903,513 @@ var claudeMachine = setup({
      */
     done: {
       entry: ["setDone", "closeIssue"],
+      type: "final"
+    }
+  }
+});
+
+// claude-state-machine/machine/discussion-guards.ts
+function triggeredByDiscussionCreated({
+  context: context2
+}) {
+  return context2.trigger === "discussion_created";
+}
+function triggeredByDiscussionComment({
+  context: context2
+}) {
+  return context2.trigger === "discussion_comment";
+}
+function triggeredByDiscussionCommand({
+  context: context2
+}) {
+  return context2.trigger === "discussion_command";
+}
+function commandIsSummarize({ context: context2 }) {
+  return context2.discussion?.command === "summarize";
+}
+function commandIsPlan({ context: context2 }) {
+  return context2.discussion?.command === "plan";
+}
+function commandIsComplete({ context: context2 }) {
+  return context2.discussion?.command === "complete";
+}
+function isHumanComment({ context: context2 }) {
+  const author = context2.discussion?.commentAuthor;
+  if (!author) return false;
+  return !author.endsWith("[bot]") && author !== "nopo-bot";
+}
+function isBotResearchThread({ context: context2 }) {
+  const author = context2.discussion?.commentAuthor;
+  return (author === "nopo-bot" || author?.endsWith("[bot]") === true) && context2.trigger === "discussion_comment";
+}
+function hasDiscussionContext({ context: context2 }) {
+  return context2.discussion !== null;
+}
+function hasComment({ context: context2 }) {
+  return context2.discussion?.commentId !== void 0 && context2.discussion.commentBody !== void 0;
+}
+var discussionGuards = {
+  // Trigger guards
+  triggeredByDiscussionCreated,
+  triggeredByDiscussionComment,
+  triggeredByDiscussionCommand,
+  // Command guards
+  commandIsSummarize,
+  commandIsPlan,
+  commandIsComplete,
+  // Author guards
+  isHumanComment,
+  isBotResearchThread,
+  // State guards
+  hasDiscussionContext,
+  hasComment
+};
+
+// claude-state-machine/machine/discussion-actions.ts
+function emitRunClaudeResearch({
+  context: context2
+}) {
+  if (!context2.discussion) {
+    return [
+      {
+        type: "log",
+        token: "code",
+        level: "warning",
+        message: "No discussion context for research"
+      }
+    ];
+  }
+  const promptVars = {
+    DISCUSSION_NUMBER: String(context2.discussion.number),
+    DISCUSSION_NODE_ID: context2.discussion.nodeId,
+    DISCUSSION_TITLE: context2.discussion.title,
+    DISCUSSION_BODY: context2.discussion.body
+  };
+  return [
+    {
+      type: "runClaude",
+      token: "code",
+      promptDir: "discussion-research",
+      promptVars,
+      // Use discussion number as issue number for tracking
+      issueNumber: context2.discussion.number
+    },
+    {
+      type: "applyDiscussionResearchOutput",
+      token: "code",
+      discussionNumber: context2.discussion.number,
+      discussionNodeId: context2.discussion.nodeId
+    }
+  ];
+}
+function emitRunClaudeRespond({ context: context2 }) {
+  if (!context2.discussion) {
+    return [
+      {
+        type: "log",
+        token: "code",
+        level: "warning",
+        message: "No discussion context for respond"
+      }
+    ];
+  }
+  const promptVars = {
+    DISCUSSION_NUMBER: String(context2.discussion.number),
+    DISCUSSION_NODE_ID: context2.discussion.nodeId,
+    DISCUSSION_TITLE: context2.discussion.title,
+    DISCUSSION_BODY: context2.discussion.body,
+    COMMENT_ID: context2.discussion.commentId ?? "",
+    COMMENT_BODY: context2.discussion.commentBody ?? "",
+    COMMENT_AUTHOR: context2.discussion.commentAuthor ?? ""
+  };
+  return [
+    {
+      type: "runClaude",
+      token: "code",
+      promptDir: "discussion-respond",
+      promptVars,
+      issueNumber: context2.discussion.number
+    },
+    {
+      type: "applyDiscussionRespondOutput",
+      token: "code",
+      discussionNumber: context2.discussion.number,
+      discussionNodeId: context2.discussion.nodeId,
+      replyToNodeId: context2.discussion.commentId
+    }
+  ];
+}
+function emitRunClaudeSummarize({
+  context: context2
+}) {
+  if (!context2.discussion) {
+    return [
+      {
+        type: "log",
+        token: "code",
+        level: "warning",
+        message: "No discussion context for summarize"
+      }
+    ];
+  }
+  const promptVars = {
+    DISCUSSION_NUMBER: String(context2.discussion.number),
+    DISCUSSION_NODE_ID: context2.discussion.nodeId,
+    DISCUSSION_TITLE: context2.discussion.title,
+    DISCUSSION_BODY: context2.discussion.body
+  };
+  return [
+    {
+      type: "runClaude",
+      token: "code",
+      promptDir: "discussion-summarize",
+      promptVars,
+      issueNumber: context2.discussion.number
+    },
+    {
+      type: "applyDiscussionSummarizeOutput",
+      token: "code",
+      discussionNumber: context2.discussion.number,
+      discussionNodeId: context2.discussion.nodeId
+    }
+  ];
+}
+function emitRunClaudePlan({ context: context2 }) {
+  if (!context2.discussion) {
+    return [
+      {
+        type: "log",
+        token: "code",
+        level: "warning",
+        message: "No discussion context for plan"
+      }
+    ];
+  }
+  const promptVars = {
+    DISCUSSION_NUMBER: String(context2.discussion.number),
+    DISCUSSION_NODE_ID: context2.discussion.nodeId,
+    DISCUSSION_TITLE: context2.discussion.title,
+    DISCUSSION_BODY: context2.discussion.body
+  };
+  return [
+    {
+      type: "runClaude",
+      token: "code",
+      promptDir: "discussion-plan",
+      promptVars,
+      issueNumber: context2.discussion.number
+    },
+    {
+      type: "applyDiscussionPlanOutput",
+      token: "code",
+      discussionNumber: context2.discussion.number,
+      discussionNodeId: context2.discussion.nodeId
+    }
+  ];
+}
+function emitComplete({ context: context2 }) {
+  if (!context2.discussion) {
+    return [
+      {
+        type: "log",
+        token: "code",
+        level: "warning",
+        message: "No discussion context for complete"
+      }
+    ];
+  }
+  const actions = [];
+  if (context2.discussion.commentId) {
+    actions.push({
+      type: "addDiscussionReaction",
+      token: "code",
+      subjectId: context2.discussion.commentId,
+      content: "ROCKET"
+    });
+  }
+  actions.push({
+    type: "addDiscussionComment",
+    token: "code",
+    discussionNodeId: context2.discussion.nodeId,
+    body: `This discussion has been marked as complete.
+
+If you have additional questions, feel free to post a new comment!`
+  });
+  return actions;
+}
+function emitLogResearching({ context: context2 }) {
+  return [
+    {
+      type: "log",
+      token: "code",
+      level: "info",
+      message: `Researching discussion #${context2.discussion?.number ?? "unknown"}`
+    }
+  ];
+}
+function emitLogResponding({ context: context2 }) {
+  return [
+    {
+      type: "log",
+      token: "code",
+      level: "info",
+      message: `Responding to comment in discussion #${context2.discussion?.number ?? "unknown"}`
+    }
+  ];
+}
+function emitLogSummarizing({ context: context2 }) {
+  return [
+    {
+      type: "log",
+      token: "code",
+      level: "info",
+      message: `Summarizing discussion #${context2.discussion?.number ?? "unknown"}`
+    }
+  ];
+}
+function emitLogPlanning({ context: context2 }) {
+  return [
+    {
+      type: "log",
+      token: "code",
+      level: "info",
+      message: `Creating plan from discussion #${context2.discussion?.number ?? "unknown"}`
+    }
+  ];
+}
+function emitLogCompleting({ context: context2 }) {
+  return [
+    {
+      type: "log",
+      token: "code",
+      level: "info",
+      message: `Completing discussion #${context2.discussion?.number ?? "unknown"}`
+    }
+  ];
+}
+
+// claude-state-machine/machine/discussion-machine.ts
+function accumulateActions2(existingActions, newActions) {
+  return [...existingActions, ...newActions];
+}
+var discussionMachine = setup({
+  types: {
+    context: {},
+    events: {},
+    input: {}
+  },
+  guards: {
+    // Trigger guards
+    triggeredByDiscussionCreated: ({ context: context2 }) => discussionGuards.triggeredByDiscussionCreated({ context: context2 }),
+    triggeredByDiscussionComment: ({ context: context2 }) => discussionGuards.triggeredByDiscussionComment({ context: context2 }),
+    triggeredByDiscussionCommand: ({ context: context2 }) => discussionGuards.triggeredByDiscussionCommand({ context: context2 }),
+    // Command guards
+    commandIsSummarize: ({ context: context2 }) => discussionGuards.commandIsSummarize({ context: context2 }),
+    commandIsPlan: ({ context: context2 }) => discussionGuards.commandIsPlan({ context: context2 }),
+    commandIsComplete: ({ context: context2 }) => discussionGuards.commandIsComplete({ context: context2 }),
+    // Author guards
+    isHumanComment: ({ context: context2 }) => discussionGuards.isHumanComment({ context: context2 }),
+    isBotResearchThread: ({ context: context2 }) => discussionGuards.isBotResearchThread({ context: context2 }),
+    // State guards
+    hasDiscussionContext: ({ context: context2 }) => discussionGuards.hasDiscussionContext({ context: context2 }),
+    noDiscussionContext: ({ context: context2 }) => !discussionGuards.hasDiscussionContext({ context: context2 }),
+    isHumanDiscussionComment: ({ context: context2 }) => discussionGuards.triggeredByDiscussionComment({ context: context2 }) && discussionGuards.isHumanComment({ context: context2 })
+  },
+  actions: {
+    // Logging actions
+    logDetecting: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions2(context2.pendingActions, [
+        {
+          type: "log",
+          token: "code",
+          level: "info",
+          message: "Detecting discussion trigger type"
+        }
+      ])
+    }),
+    logResearching: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions2(
+        context2.pendingActions,
+        emitLogResearching({ context: context2 })
+      )
+    }),
+    logResponding: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions2(
+        context2.pendingActions,
+        emitLogResponding({ context: context2 })
+      )
+    }),
+    logSummarizing: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions2(
+        context2.pendingActions,
+        emitLogSummarizing({ context: context2 })
+      )
+    }),
+    logPlanning: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions2(context2.pendingActions, emitLogPlanning({ context: context2 }))
+    }),
+    logCompleting: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions2(
+        context2.pendingActions,
+        emitLogCompleting({ context: context2 })
+      )
+    }),
+    logSkipped: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions2(context2.pendingActions, [
+        {
+          type: "log",
+          token: "code",
+          level: "info",
+          message: `Skipping - bot comment or no action needed for discussion #${context2.discussion?.number ?? "unknown"}`
+        }
+      ])
+    }),
+    logNoContext: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions2(context2.pendingActions, [
+        {
+          type: "log",
+          token: "code",
+          level: "warning",
+          message: "No discussion context available"
+        }
+      ])
+    }),
+    // Research actions
+    runClaudeResearch: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions2(
+        context2.pendingActions,
+        emitRunClaudeResearch({ context: context2 })
+      )
+    }),
+    // Respond actions
+    runClaudeRespond: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions2(
+        context2.pendingActions,
+        emitRunClaudeRespond({ context: context2 })
+      )
+    }),
+    // Summarize actions
+    runClaudeSummarize: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions2(
+        context2.pendingActions,
+        emitRunClaudeSummarize({ context: context2 })
+      )
+    }),
+    // Plan actions
+    runClaudePlan: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions2(
+        context2.pendingActions,
+        emitRunClaudePlan({ context: context2 })
+      )
+    }),
+    // Complete actions
+    complete: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions2(context2.pendingActions, emitComplete({ context: context2 }))
+    })
+  }
+}).createMachine({
+  id: "discussion-automation",
+  initial: "detecting",
+  context: ({ input }) => ({
+    ...input,
+    pendingActions: []
+  }),
+  states: {
+    /**
+     * Initial state - determine what to do based on trigger type
+     */
+    detecting: {
+      entry: "logDetecting",
+      always: [
+        // No discussion context - error
+        {
+          target: "noContext",
+          guard: "noDiscussionContext"
+        },
+        // New discussion created - spawn research threads
+        {
+          target: "researching",
+          guard: "triggeredByDiscussionCreated"
+        },
+        // Command triggered - route to appropriate handler
+        {
+          target: "commanding",
+          guard: "triggeredByDiscussionCommand"
+        },
+        // Comment from human - respond
+        {
+          target: "responding",
+          guard: "isHumanDiscussionComment"
+        },
+        // Bot comment (research thread) - skip
+        {
+          target: "skipped",
+          guard: "isBotResearchThread"
+        },
+        // Default - skip (unknown trigger)
+        { target: "skipped" }
+      ]
+    },
+    /**
+     * No discussion context available
+     */
+    noContext: {
+      entry: "logNoContext",
+      type: "final"
+    },
+    /**
+     * Skipped - no action needed
+     */
+    skipped: {
+      entry: "logSkipped",
+      type: "final"
+    },
+    /**
+     * Research a new discussion
+     * Spawns research threads to investigate the topic
+     */
+    researching: {
+      entry: ["logResearching", "runClaudeResearch"],
+      type: "final"
+    },
+    /**
+     * Respond to a human comment
+     */
+    responding: {
+      entry: ["logResponding", "runClaudeRespond"],
+      type: "final"
+    },
+    /**
+     * Handle a slash command - route to specific handler
+     */
+    commanding: {
+      always: [
+        { target: "summarizing", guard: "commandIsSummarize" },
+        { target: "planning", guard: "commandIsPlan" },
+        { target: "completing", guard: "commandIsComplete" },
+        // Unknown command - skip
+        { target: "skipped" }
+      ]
+    },
+    /**
+     * Summarize the discussion (/summarize command)
+     */
+    summarizing: {
+      entry: ["logSummarizing", "runClaudeSummarize"],
+      type: "final"
+    },
+    /**
+     * Create issues from discussion (/plan command)
+     */
+    planning: {
+      entry: ["logPlanning", "runClaudePlan"],
+      type: "final"
+    },
+    /**
+     * Mark discussion as complete (/complete command)
+     */
+    completing: {
+      entry: ["logCompleting", "complete"],
       type: "final"
     }
   }

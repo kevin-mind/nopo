@@ -568,7 +568,7 @@ export function emitRunClaudeComment({ context }: ActionContext): ActionResult {
  *
  * Uses the review prompt directory with structured output schema.
  * Claude will review the code and return structured output which is then
- * submitted as a PR review.
+ * submitted as a PR review via applyReviewOutput.
  */
 export function emitRunClaudePRReview({
   context,
@@ -601,11 +601,17 @@ export function emitRunClaudePRReview({
   return [
     {
       type: "runClaude",
-      token: "review",
+      token: "code", // runClaude uses code token for checkout/execution
       promptDir: "review",
       promptVars,
       issueNumber,
       // worktree intentionally omitted - checkout happens at repo root to the correct branch
+    },
+    // Apply review output: submit the PR review using structured output
+    {
+      type: "applyReviewOutput",
+      token: "review", // submitReview uses review token for different user
+      prNumber,
     },
   ];
 }

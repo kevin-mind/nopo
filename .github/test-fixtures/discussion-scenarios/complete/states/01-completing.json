@@ -1,0 +1,18 @@
+{
+  "state": "completing",
+  "trigger": "discussion_command",
+  "discussion": {
+    "number": 0,
+    "nodeId": "D_placeholder",
+    "title": "Completed research topic",
+    "body": "This discussion has reached its conclusion.\n\n## Resolution\n\nWe decided to go with approach A.",
+    "commentId": "DC_placeholder",
+    "commentBody": "/complete",
+    "commentAuthor": "test-user",
+    "command": "/complete"
+  },
+  "expected": {
+    "minComments": 2,
+    "hasReaction": "ROCKET"
+  }
+}

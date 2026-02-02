@@ -1,0 +1,5 @@
+{
+  "name": "discussion-research",
+  "description": "New discussion created - verifies research threads are spawned via state machine",
+  "category": "q-a"
+}

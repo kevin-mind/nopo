@@ -495,6 +495,81 @@ export type ApplyIterateOutputAction = z.infer<
   typeof ApplyIterateOutputActionSchema
 >;
 
+/**
+ * Apply review output from Claude's structured output
+ * Submits the PR review using the decision and body from Claude
+ */
+const ApplyReviewOutputActionSchema = BaseActionSchema.extend({
+  type: z.literal("applyReviewOutput"),
+  prNumber: z.number().int().positive(),
+});
+
+export type ApplyReviewOutputAction = z.infer<
+  typeof ApplyReviewOutputActionSchema
+>;
+
+// ============================================================================
+// Discussion Apply Actions
+// ============================================================================
+
+/**
+ * Apply discussion research output from Claude's structured output
+ * Creates research thread comments from Claude's analysis
+ */
+const ApplyDiscussionResearchOutputActionSchema = BaseActionSchema.extend({
+  type: z.literal("applyDiscussionResearchOutput"),
+  discussionNumber: z.number().int().positive(),
+  discussionNodeId: z.string().min(1),
+});
+
+export type ApplyDiscussionResearchOutputAction = z.infer<
+  typeof ApplyDiscussionResearchOutputActionSchema
+>;
+
+/**
+ * Apply discussion respond output from Claude's structured output
+ * Posts a response comment (optionally as a reply to a thread)
+ */
+const ApplyDiscussionRespondOutputActionSchema = BaseActionSchema.extend({
+  type: z.literal("applyDiscussionRespondOutput"),
+  discussionNumber: z.number().int().positive(),
+  discussionNodeId: z.string().min(1),
+  /** If provided, post as a reply to this comment */
+  replyToNodeId: z.string().optional(),
+});
+
+export type ApplyDiscussionRespondOutputAction = z.infer<
+  typeof ApplyDiscussionRespondOutputActionSchema
+>;
+
+/**
+ * Apply discussion summarize output from Claude's structured output
+ * Updates the discussion body with a summary
+ */
+const ApplyDiscussionSummarizeOutputActionSchema = BaseActionSchema.extend({
+  type: z.literal("applyDiscussionSummarizeOutput"),
+  discussionNumber: z.number().int().positive(),
+  discussionNodeId: z.string().min(1),
+});
+
+export type ApplyDiscussionSummarizeOutputAction = z.infer<
+  typeof ApplyDiscussionSummarizeOutputActionSchema
+>;
+
+/**
+ * Apply discussion plan output from Claude's structured output
+ * Creates issues from the plan and posts a summary comment
+ */
+const ApplyDiscussionPlanOutputActionSchema = BaseActionSchema.extend({
+  type: z.literal("applyDiscussionPlanOutput"),
+  discussionNumber: z.number().int().positive(),
+  discussionNodeId: z.string().min(1),
+});
+
+export type ApplyDiscussionPlanOutputAction = z.infer<
+  typeof ApplyDiscussionPlanOutputActionSchema
+>;
+
 // ============================================================================
 // Discriminated Union of All Actions
 // ============================================================================
@@ -544,6 +619,13 @@ export const ActionSchema = z.discriminatedUnion("type", [
   ApplyTriageOutputActionSchema,
   // Iterate actions
   ApplyIterateOutputActionSchema,
+  // Review actions
+  ApplyReviewOutputActionSchema,
+  // Discussion apply actions
+  ApplyDiscussionResearchOutputActionSchema,
+  ApplyDiscussionRespondOutputActionSchema,
+  ApplyDiscussionSummarizeOutputActionSchema,
+  ApplyDiscussionPlanOutputActionSchema,
 ]);
 
 export type Action = z.infer<typeof ActionSchema>;
@@ -587,6 +669,13 @@ export const ACTION_TYPES = [
   "block",
   "log",
   "noop",
+  "applyTriageOutput",
+  "applyIterateOutput",
+  "applyReviewOutput",
+  "applyDiscussionResearchOutput",
+  "applyDiscussionRespondOutput",
+  "applyDiscussionSummarizeOutput",
+  "applyDiscussionPlanOutput",
 ] as const;
 
 /**

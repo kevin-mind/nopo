@@ -1,18 +1,39 @@
+/**
+ * Claude Code Executor for State Machine
+ *
+ * Wraps the standalone Claude action with state-machine specific functionality:
+ * - Mock mode for testing (returns fixture outputs, creates placeholder commits)
+ * - Integration with RunClaudeAction schema
+ * - Branch derivation for commit targeting
+ */
+
 import * as core from "@actions/core";
 import * as exec from "@actions/exec";
 import * as fs from "fs";
-import * as path from "path";
 import {
-  query,
-  type Options,
-  type SDKMessage,
-} from "@anthropic-ai/claude-agent-sdk";
+  executeClaudeSDK,
+  resolvePrompt,
+  isClaudeAvailable,
+  getClaudeVersion,
+  buildImplementationPrompt,
+  buildCIFixPrompt,
+  buildReviewResponsePrompt,
+} from "../../../claude/index.js";
 import type { RunClaudeAction } from "../../schemas/index.js";
 import type { RunnerContext } from "../runner.js";
 import { deriveBranchName } from "../../parser/index.js";
 
+// Re-export utilities for backwards compatibility
+export {
+  isClaudeAvailable,
+  getClaudeVersion,
+  buildImplementationPrompt,
+  buildCIFixPrompt,
+  buildReviewResponsePrompt,
+};
+
 // ============================================================================
-// Claude Code Executor (SDK-based with real-time streaming)
+// Types
 // ============================================================================
 
 /**
@@ -23,9 +44,12 @@ interface ClaudeRunResult {
   exitCode: number;
   output: string;
   error?: string;
-  /** Parsed structured output if outputFormat was used */
   structuredOutput?: unknown;
 }
+
+// ============================================================================
+// Mock Mode Support
+// ============================================================================
 
 /**
  * Create a mock commit for test mode
@@ -131,122 +155,17 @@ It simulates Claude's code changes in mock mode.`;
   }
 }
 
-/**
- * Substitute template variables in a string
- * Replaces {{VAR_NAME}} with the corresponding value from vars
- */
-function substituteVars(
-  template: string,
-  vars: Record<string, string>,
-): string {
-  return template.replace(/\{\{([^}]+)\}\}/g, (match, varName) => {
-    const trimmedName = varName.trim();
-    return vars[trimmedName] ?? match; // Keep original if not found
-  });
-}
+// ============================================================================
+// Main Executor
+// ============================================================================
 
 /**
- * Result of resolving a prompt from an action
- */
-interface ResolvedPrompt {
-  prompt: string;
-  outputSchema?: string; // JSON schema content if outputs.json exists
-}
-
-/**
- * Resolve prompt directory to paths
- * Returns the prompt file path and optional schema path
- */
-function resolvePromptDir(promptDir: string): {
-  promptPath: string;
-  schemaPath?: string;
-} {
-  const dirPath = path.resolve(process.cwd(), ".github/prompts", promptDir);
-  const promptPath = path.join(dirPath, "prompt.txt");
-  const schemaPath = path.join(dirPath, "outputs.json");
-
-  return {
-    promptPath,
-    schemaPath: fs.existsSync(schemaPath) ? schemaPath : undefined,
-  };
-}
-
-/**
- * Get the prompt string and optional schema from action
- * Supports: direct prompt, promptFile, or promptDir
- */
-function getPromptFromAction(action: RunClaudeAction): ResolvedPrompt {
-  if (action.prompt) {
-    // Direct prompt provided
-    let prompt = action.prompt;
-    if (action.promptVars) {
-      prompt = substituteVars(prompt, action.promptVars);
-    }
-    return { prompt };
-  }
-
-  if (action.promptDir) {
-    // Prompt directory (new style: .github/prompts/{name}/)
-    const { promptPath, schemaPath } = resolvePromptDir(action.promptDir);
-
-    if (!fs.existsSync(promptPath)) {
-      throw new Error(
-        `Prompt file not found: ${promptPath} (from promptDir: ${action.promptDir})`,
-      );
-    }
-
-    let prompt = fs.readFileSync(promptPath, "utf-8");
-    if (action.promptVars) {
-      prompt = substituteVars(prompt, action.promptVars);
-    }
-
-    const outputSchema = schemaPath
-      ? fs.readFileSync(schemaPath, "utf-8")
-      : undefined;
-
-    return { prompt, outputSchema };
-  }
-
-  if (action.promptFile) {
-    // Read from file (legacy style)
-    const promptPath = path.resolve(process.cwd(), action.promptFile);
-    if (!fs.existsSync(promptPath)) {
-      throw new Error(`Prompt file not found: ${action.promptFile}`);
-    }
-    let prompt = fs.readFileSync(promptPath, "utf-8");
-    if (action.promptVars) {
-      prompt = substituteVars(prompt, action.promptVars);
-    }
-    return { prompt };
-  }
-
-  throw new Error("Either prompt, promptFile, or promptDir must be provided");
-}
-
-/**
- * Extract text from an SDK assistant message
- */
-function extractTextFromMessage(msg: SDKMessage): string {
-  if (msg.type !== "assistant") return "";
-  return msg.message.content
-    .filter(
-      (block): block is { type: "text"; text: string } => block.type === "text",
-    )
-    .map((block) => block.text)
-    .join("");
-}
-
-/**
- * Run Claude Code SDK
+ * Run Claude Code SDK for a state machine action
  *
- * This invokes the Claude Agent SDK with the specified prompt.
- * Uses streaming for real-time output in GitHub Actions logs.
- *
- * If an output schema is provided (via promptDir with outputs.json),
- * the outputFormat option is set to request structured output.
- *
- * If mockOutputs are provided in the context and there's a matching mock
- * for the prompt directory, the mock output is returned instead of running Claude.
+ * This wraps the standalone executor with:
+ * - Mock mode support (returns fixture outputs, creates placeholder commits)
+ * - RunClaudeAction schema integration
+ * - Prompt resolution from action fields
  */
 export async function executeRunClaude(
   action: RunClaudeAction,
@@ -279,256 +198,31 @@ export async function executeRunClaude(
     );
   }
 
-  // Get prompt and optional schema
-  const { prompt, outputSchema } = getPromptFromAction(action);
-
-  // Set up working directory
-  const cwd = action.worktree || process.cwd();
+  // Resolve prompt from action
+  const resolved = resolvePrompt({
+    prompt: action.prompt,
+    promptDir: action.promptDir,
+    promptFile: action.promptFile,
+    promptVars: action.promptVars,
+  });
 
   core.info(`Running Claude SDK for issue #${action.issueNumber}`);
-  core.info(`Working directory: ${cwd}`);
-  core.debug(`Prompt: ${prompt.slice(0, 200)}...`);
 
-  // Build SDK options
-  // Note: pathToClaudeCodeExecutable is needed because the SDK's built-in
-  // executable discovery may fail in GitHub Actions environment
-  const claudePath =
-    process.env.CLAUDE_CODE_PATH || `${process.env.HOME}/.local/bin/claude`;
+  // Execute using the standalone executor
+  const result = await executeClaudeSDK({
+    prompt: resolved.prompt,
+    cwd: action.worktree || process.cwd(),
+    allowedTools: action.allowedTools,
+    outputSchema: resolved.outputSchema,
+  });
 
-  core.info(`Claude Code path: ${claudePath}`);
+  core.info(`Claude completed for issue #${action.issueNumber}`);
 
-  const options: Options = {
-    cwd,
-    // Explicitly set path to Claude Code binary
-    pathToClaudeCodeExecutable: claudePath,
-    // Use acceptEdits mode - auto-approves file edits without full bypass
-    permissionMode: "acceptEdits",
-    // Load CLAUDE.md and project settings
-    settingSources: ["project"],
-    // Use Claude Code's system prompt
-    systemPrompt: { type: "preset", preset: "claude_code" },
+  return {
+    success: result.success,
+    exitCode: result.exitCode,
+    output: result.output,
+    error: result.error,
+    structuredOutput: result.structuredOutput,
   };
-
-  // Add allowed tools if specified
-  if (action.allowedTools && action.allowedTools.length > 0) {
-    options.allowedTools = action.allowedTools;
-  }
-
-  // Add structured output format if schema exists
-  if (outputSchema) {
-    options.outputFormat = {
-      type: "json_schema",
-      schema: JSON.parse(outputSchema),
-    };
-    core.info("Using structured output mode with JSON schema");
-  }
-
-  let output = "";
-  let structuredOutput: unknown;
-
-  try {
-    const q = query({ prompt, options });
-
-    for await (const msg of q) {
-      // System init - log session info
-      if (msg.type === "system" && msg.subtype === "init") {
-        core.info(`[SDK] Session: ${msg.session_id}`);
-        core.info(`[SDK] Model: ${msg.model}`);
-        core.info(`[SDK] Permission mode: ${msg.permissionMode}`);
-      }
-
-      // Assistant messages - stream to stdout for real-time logs
-      if (msg.type === "assistant") {
-        const text = extractTextFromMessage(msg);
-        if (text) {
-          process.stdout.write(text);
-          output += text;
-        }
-
-        // Log tool uses
-        for (const block of msg.message.content) {
-          if (block.type === "tool_use") {
-            core.info(`\n[Tool: ${block.name}]`);
-          }
-        }
-      }
-
-      // Final result
-      if (msg.type === "result") {
-        if (msg.subtype === "success") {
-          structuredOutput = msg.structured_output;
-
-          if (structuredOutput) {
-            core.startGroup("Structured Output");
-            core.info(JSON.stringify(structuredOutput, null, 2));
-            core.endGroup();
-          }
-
-          core.info(
-            `\n[SDK] Completed successfully (${msg.num_turns} turns, $${msg.total_cost_usd.toFixed(4)})`,
-          );
-        } else {
-          // Handle various error subtypes
-          const errorSubtype = msg.subtype;
-          const errors =
-            "errors" in msg
-              ? (msg.errors as string[])?.join("\n")
-              : errorSubtype;
-
-          core.error(`[SDK] Failed: ${errors}`);
-
-          return {
-            success: false,
-            exitCode: 1,
-            output,
-            error: errors,
-          };
-        }
-      }
-    }
-
-    core.info(`Claude completed successfully for issue #${action.issueNumber}`);
-
-    return {
-      success: true,
-      exitCode: 0,
-      output,
-      structuredOutput,
-    };
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    core.error(`Failed to run Claude: ${errorMessage}`);
-    return {
-      success: false,
-      exitCode: 1,
-      output,
-      error: errorMessage,
-    };
-  }
-}
-
-/**
- * Check if Claude CLI is available
- * Note: SDK requires Claude CLI to be installed
- */
-export async function isClaudeAvailable(): Promise<boolean> {
-  try {
-    const exitCode = await exec.exec("which", ["claude"], {
-      ignoreReturnCode: true,
-      silent: true,
-    });
-    return exitCode === 0;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Get Claude version
- */
-export async function getClaudeVersion(): Promise<string | null> {
-  let stdout = "";
-
-  try {
-    const exitCode = await exec.exec("claude", ["--version"], {
-      ignoreReturnCode: true,
-      silent: true,
-      listeners: {
-        stdout: (data) => {
-          stdout += data.toString();
-        },
-      },
-    });
-
-    if (exitCode !== 0) {
-      return null;
-    }
-
-    return stdout.trim();
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Build a prompt for implementing an issue
- */
-export function buildImplementationPrompt(
-  issueNumber: number,
-  issueTitle: string,
-  issueBody: string,
-  branch: string,
-): string {
-  return `You are implementing GitHub issue #${issueNumber}: ${issueTitle}
-
-## Issue Description
-
-${issueBody}
-
-## Instructions
-
-1. Work on branch: ${branch}
-2. Implement the requirements described in the issue
-3. Ensure all tests pass
-4. Commit your changes with clear commit messages
-5. Push when ready
-
-Focus on completing all the TODO items in the issue description.
-If you encounter any blockers, document them clearly.`;
-}
-
-/**
- * Build a prompt for fixing CI failures
- */
-export function buildCIFixPrompt(
-  issueNumber: number,
-  ciRunUrl: string | null,
-  commitSha: string | null,
-): string {
-  return `You are fixing CI failures for issue #${issueNumber}.
-
-## CI Information
-
-- CI Run: ${ciRunUrl || "N/A"}
-- Commit: ${commitSha || "N/A"}
-
-## Instructions
-
-1. Check the CI logs at the URL above
-2. Identify the failing tests or build errors
-3. Fix the issues in your code
-4. Ensure all tests pass locally before pushing
-5. Push your fixes
-
-Common issues to check:
-- Type errors
-- Lint violations
-- Failing tests
-- Build errors`;
-}
-
-/**
- * Build a prompt for addressing review feedback
- */
-export function buildReviewResponsePrompt(
-  issueNumber: number,
-  reviewDecision: string | null,
-  reviewer: string | null,
-): string {
-  return `You are addressing review feedback for issue #${issueNumber}.
-
-## Review Information
-
-- Decision: ${reviewDecision || "N/A"}
-- Reviewer: ${reviewer || "N/A"}
-
-## Instructions
-
-1. Review the feedback provided in the PR comments
-2. Address each piece of feedback
-3. Make the necessary code changes
-4. Ensure all tests still pass
-5. Push your updates
-
-If you disagree with any feedback, document your reasoning in a comment.`;
 }

@@ -31,6 +31,9 @@ import {
   loadScenario,
   runConfigurableTest,
   type TestRunnerInputs,
+  loadDiscussionScenario,
+  runDiscussionConfigurableTest,
+  type DiscussionTestRunnerInputs,
 } from "./src/configurable/index.js";
 
 /**
@@ -529,6 +532,56 @@ async function run(): Promise<void> {
       } else if (result.status === "paused") {
         core.info(
           `Test paused at ${result.currentState} -> ${result.nextState}`,
+        );
+      }
+
+      return;
+    }
+
+    // Run-discussion action - discussion state-based fixture testing
+    if (action === "run-discussion") {
+      const scenarioName = getRequiredInput("scenario_name");
+      const mockClaude = getOptionalInput("mock_claude") !== "false";
+
+      core.info(`=== Claude Test Runner ===`);
+      core.info(`Action: run-discussion`);
+      core.info(`Scenario: ${scenarioName}`);
+      core.info(`Mock Claude: ${mockClaude}`);
+
+      // Load discussion scenario
+      const scenario = await loadDiscussionScenario(scenarioName);
+
+      // Build test runner inputs
+      const inputs: DiscussionTestRunnerInputs = {
+        mockClaude,
+      };
+
+      // Run the discussion test
+      const result = await runDiscussionConfigurableTest(scenario, inputs, {
+        octokit,
+        owner,
+        repo,
+        projectNumber,
+      });
+
+      // Set outputs
+      setOutputs({
+        status: result.status,
+        discussion_number: String(result.discussionNumber),
+        final_state: result.finalState,
+        actions_executed: String(result.actionsExecuted),
+        total_duration_ms: String(result.totalDurationMs),
+        verification_errors: result.verificationErrors?.join("; ") || "",
+        error: result.error || "",
+      });
+
+      if (result.status === "failed" || result.status === "error") {
+        core.setFailed(
+          `Discussion test ${result.status}: ${result.error || result.verificationErrors?.join("; ")}`,
+        );
+      } else if (result.status === "completed") {
+        core.info(
+          `Discussion test completed successfully. Final state: ${result.finalState}, Actions: ${result.actionsExecuted}`,
         );
       }
 

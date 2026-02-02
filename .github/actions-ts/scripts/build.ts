@@ -5,10 +5,16 @@ import * as path from "node:path";
 const actionsDir = path.dirname(import.meta.dirname);
 const isWatch = process.argv.includes("--watch");
 
-// Find all action directories (those with action.yml and index.ts)
-function findActions(): string[] {
+interface ActionInfo {
+  name: string;
+  entryPoint: string;
+}
+
+// Find all action directories (those with action.yml and an entry point)
+// Entry point can be action-entry.ts (preferred) or index.ts (fallback)
+function findActions(): ActionInfo[] {
   const entries = fs.readdirSync(actionsDir, { withFileTypes: true });
-  const actions: string[] = [];
+  const actions: ActionInfo[] = [];
 
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
@@ -20,10 +26,16 @@ function findActions(): string[] {
       continue;
 
     const actionYml = path.join(actionsDir, entry.name, "action.yml");
+    const actionEntryTs = path.join(actionsDir, entry.name, "action-entry.ts");
     const indexTs = path.join(actionsDir, entry.name, "index.ts");
 
-    if (fs.existsSync(actionYml) && fs.existsSync(indexTs)) {
-      actions.push(entry.name);
+    if (!fs.existsSync(actionYml)) continue;
+
+    // Prefer action-entry.ts over index.ts for the build entry point
+    if (fs.existsSync(actionEntryTs)) {
+      actions.push({ name: entry.name, entryPoint: actionEntryTs });
+    } else if (fs.existsSync(indexTs)) {
+      actions.push({ name: entry.name, entryPoint: indexTs });
     }
   }
 
@@ -38,14 +50,16 @@ async function build() {
     return;
   }
 
-  console.log(`Building ${actions.length} actions: ${actions.join(", ")}`);
+  console.log(
+    `Building ${actions.length} actions: ${actions.map((a) => a.name).join(", ")}`,
+  );
 
   const buildConfigs = actions.map((action) => ({
-    entryPoints: [path.join(actionsDir, action, "index.ts")],
+    entryPoints: [action.entryPoint],
     bundle: true,
     platform: "node" as const,
     target: "node20",
-    outfile: path.join(actionsDir, action, "dist", "index.cjs"),
+    outfile: path.join(actionsDir, action.name, "dist", "index.cjs"),
     format: "cjs" as const,
     sourcemap: true,
     minify: false,

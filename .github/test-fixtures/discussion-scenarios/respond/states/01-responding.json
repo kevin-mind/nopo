@@ -1,0 +1,17 @@
+{
+  "state": "responding",
+  "trigger": "discussion_comment",
+  "discussion": {
+    "number": 0,
+    "nodeId": "D_placeholder",
+    "title": "Best practices for error handling",
+    "body": "What are the recommended patterns for error handling in this codebase?",
+    "commentId": "DC_placeholder",
+    "commentBody": "Can you explain specifically how API errors should be structured?",
+    "commentAuthor": "test-user"
+  },
+  "claudeMock": "discussion-respond/api-errors",
+  "expected": {
+    "minComments": 2
+  }
+}
