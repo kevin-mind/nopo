@@ -50,7 +50,7 @@ on:
 
 # Per-scenario concurrency - allows parallel testing of different scenarios
 concurrency:
-  group: state-machine-test-${{ inputs.scenario }}
+  group: state-machine-test-${{ inputs.scenario_name }}
   cancel-in-progress: false
 
 permissions:
