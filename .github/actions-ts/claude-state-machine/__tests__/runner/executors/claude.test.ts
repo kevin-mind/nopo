@@ -10,12 +10,18 @@ vi.mock("@actions/core", () => ({
   endGroup: vi.fn(),
 }));
 
-// Mock @actions/exec
+// Mock @actions/exec (still used for isClaudeAvailable, getClaudeVersion, createMockCommit)
 vi.mock("@actions/exec", () => ({
   exec: vi.fn(),
 }));
 
+// Mock the SDK
+vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
+  query: vi.fn(),
+}));
+
 import * as exec from "@actions/exec";
+import { query } from "@anthropic-ai/claude-agent-sdk";
 import {
   executeRunClaude,
   isClaudeAvailable,
@@ -29,6 +35,13 @@ import type { GitHub } from "@actions/github/lib/utils.js";
 import type { RunnerContext } from "../../../runner/runner.js";
 
 type Octokit = InstanceType<typeof GitHub>;
+
+// Helper to create mock SDK message generator
+async function* mockQueryGenerator(messages: Array<Record<string, unknown>>) {
+  for (const msg of messages) {
+    yield msg;
+  }
+}
 
 // Create mock context
 function createMockContext(): RunnerContext {
@@ -49,8 +62,30 @@ describe("executeRunClaude", () => {
     ctx = createMockContext();
   });
 
-  test("executes Claude CLI successfully", async () => {
-    vi.mocked(exec.exec).mockResolvedValueOnce(0);
+  test("executes Claude SDK successfully", async () => {
+    vi.mocked(query).mockReturnValue(
+      mockQueryGenerator([
+        {
+          type: "system",
+          subtype: "init",
+          session_id: "test-session",
+          model: "claude-sonnet-4-5-20250929",
+          permissionMode: "acceptEdits",
+        },
+        {
+          type: "assistant",
+          message: {
+            content: [{ type: "text", text: "Task completed!" }],
+          },
+        },
+        {
+          type: "result",
+          subtype: "success",
+          num_turns: 1,
+          total_cost_usd: 0.01,
+        },
+      ]),
+    );
 
     const action: RunClaudeAction = {
       type: "runClaude",
@@ -63,22 +98,34 @@ describe("executeRunClaude", () => {
 
     expect(result.success).toBe(true);
     expect(result.exitCode).toBe(0);
-    expect(exec.exec).toHaveBeenCalledWith(
-      "claude",
-      expect.arrayContaining([
-        "--print",
-        "--dangerously-skip-permissions",
-        "--verbose",
-        "Implement feature", // Prompt as positional argument (last)
-      ]),
-      expect.objectContaining({
-        ignoreReturnCode: true,
+    expect(result.output).toContain("Task completed!");
+    expect(query).toHaveBeenCalledWith({
+      prompt: "Implement feature",
+      options: expect.objectContaining({
+        permissionMode: "acceptEdits",
+        settingSources: ["project"],
       }),
-    );
+    });
   });
 
-  test("passes allowed tools to CLI", async () => {
-    vi.mocked(exec.exec).mockResolvedValueOnce(0);
+  test("passes allowed tools to SDK", async () => {
+    vi.mocked(query).mockReturnValue(
+      mockQueryGenerator([
+        {
+          type: "system",
+          subtype: "init",
+          session_id: "test-session",
+          model: "claude-sonnet-4-5-20250929",
+          permissionMode: "acceptEdits",
+        },
+        {
+          type: "result",
+          subtype: "success",
+          num_turns: 1,
+          total_cost_usd: 0.01,
+        },
+      ]),
+    );
 
     const action: RunClaudeAction = {
       type: "runClaude",
@@ -90,22 +137,32 @@ describe("executeRunClaude", () => {
 
     await executeRunClaude(action, ctx);
 
-    expect(exec.exec).toHaveBeenCalledWith(
-      "claude",
-      expect.arrayContaining([
-        "--allowedTools",
-        "Read",
-        "--allowedTools",
-        "Write",
-        "--allowedTools",
-        "Bash",
-      ]),
-      expect.any(Object),
-    );
+    expect(query).toHaveBeenCalledWith({
+      prompt: "Test",
+      options: expect.objectContaining({
+        allowedTools: ["Read", "Write", "Bash"],
+      }),
+    });
   });
 
   test("uses worktree as working directory", async () => {
-    vi.mocked(exec.exec).mockResolvedValueOnce(0);
+    vi.mocked(query).mockReturnValue(
+      mockQueryGenerator([
+        {
+          type: "system",
+          subtype: "init",
+          session_id: "test-session",
+          model: "claude-sonnet-4-5-20250929",
+          permissionMode: "acceptEdits",
+        },
+        {
+          type: "result",
+          subtype: "success",
+          num_turns: 1,
+          total_cost_usd: 0.01,
+        },
+      ]),
+    );
 
     const action: RunClaudeAction = {
       type: "runClaude",
@@ -117,42 +174,31 @@ describe("executeRunClaude", () => {
 
     await executeRunClaude(action, ctx);
 
-    expect(exec.exec).toHaveBeenCalledWith(
-      "claude",
-      expect.any(Array),
-      expect.objectContaining({
+    expect(query).toHaveBeenCalledWith({
+      prompt: "Test",
+      options: expect.objectContaining({
         cwd: "/tmp/worktree-123",
       }),
-    );
+    });
   });
 
-  test("sets environment variables", async () => {
-    vi.mocked(exec.exec).mockResolvedValueOnce(0);
-
-    const action: RunClaudeAction = {
-      type: "runClaude",
-      token: "code",
-      prompt: "Test",
-      issueNumber: 1,
-    };
-
-    await executeRunClaude(action, ctx);
-
-    expect(exec.exec).toHaveBeenCalledWith(
-      "claude",
-      expect.any(Array),
-      expect.objectContaining({
-        env: expect.objectContaining({
-          GITHUB_REPOSITORY: "test-owner/test-repo",
-          GITHUB_SERVER_URL: "https://github.com",
-          CI: "true",
-        }),
-      }),
+  test("handles SDK error result", async () => {
+    vi.mocked(query).mockReturnValue(
+      mockQueryGenerator([
+        {
+          type: "system",
+          subtype: "init",
+          session_id: "test-session",
+          model: "claude-sonnet-4-5-20250929",
+          permissionMode: "acceptEdits",
+        },
+        {
+          type: "result",
+          subtype: "error_max_turns",
+          errors: ["Max turns exceeded"],
+        },
+      ]),
     );
-  });
-
-  test("handles non-zero exit code", async () => {
-    vi.mocked(exec.exec).mockResolvedValueOnce(1);
 
     const action: RunClaudeAction = {
       type: "runClaude",
@@ -165,11 +211,13 @@ describe("executeRunClaude", () => {
 
     expect(result.success).toBe(false);
     expect(result.exitCode).toBe(1);
-    expect(result.error).toBeDefined();
+    expect(result.error).toContain("Max turns exceeded");
   });
 
-  test("handles exec exception", async () => {
-    vi.mocked(exec.exec).mockRejectedValueOnce(new Error("Command not found"));
+  test("handles SDK exception", async () => {
+    vi.mocked(query).mockImplementation(() => {
+      throw new Error("SDK connection failed");
+    });
 
     const action: RunClaudeAction = {
       type: "runClaude",
@@ -182,7 +230,7 @@ describe("executeRunClaude", () => {
 
     expect(result.success).toBe(false);
     expect(result.exitCode).toBe(1);
-    expect(result.error).toBe("Command not found");
+    expect(result.error).toBe("SDK connection failed");
   });
 
   test("uses mock output when available", async () => {
@@ -209,6 +257,97 @@ describe("executeRunClaude", () => {
 
     expect(result.success).toBe(true);
     expect(result.structuredOutput).toEqual(mockOutput);
+    // SDK should not be called in mock mode
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  test("returns structured output from SDK", async () => {
+    const structuredData = {
+      answer: 42,
+      explanation: "The answer to everything",
+    };
+
+    vi.mocked(query).mockReturnValue(
+      mockQueryGenerator([
+        {
+          type: "system",
+          subtype: "init",
+          session_id: "test-session",
+          model: "claude-sonnet-4-5-20250929",
+          permissionMode: "acceptEdits",
+        },
+        {
+          type: "assistant",
+          message: {
+            content: [{ type: "text", text: "Calculating..." }],
+          },
+        },
+        {
+          type: "result",
+          subtype: "success",
+          num_turns: 1,
+          total_cost_usd: 0.01,
+          structured_output: structuredData,
+        },
+      ]),
+    );
+
+    const action: RunClaudeAction = {
+      type: "runClaude",
+      token: "code",
+      prompt: "What is the answer?",
+      issueNumber: 1,
+    };
+
+    const result = await executeRunClaude(action, ctx);
+
+    expect(result.success).toBe(true);
+    expect(result.structuredOutput).toEqual(structuredData);
+  });
+
+  test("logs tool uses", async () => {
+    vi.mocked(query).mockReturnValue(
+      mockQueryGenerator([
+        {
+          type: "system",
+          subtype: "init",
+          session_id: "test-session",
+          model: "claude-sonnet-4-5-20250929",
+          permissionMode: "acceptEdits",
+        },
+        {
+          type: "assistant",
+          message: {
+            content: [
+              { type: "text", text: "Let me check..." },
+              { type: "tool_use", name: "Glob", input: {} },
+            ],
+          },
+        },
+        {
+          type: "result",
+          subtype: "success",
+          num_turns: 2,
+          total_cost_usd: 0.02,
+        },
+      ]),
+    );
+
+    const action: RunClaudeAction = {
+      type: "runClaude",
+      token: "code",
+      prompt: "Find files",
+      issueNumber: 1,
+    };
+
+    const result = await executeRunClaude(action, ctx);
+
+    expect(result.success).toBe(true);
+    // Tool use is logged via core.info
+    const core = await import("@actions/core");
+    expect(core.info).toHaveBeenCalledWith(
+      expect.stringContaining("[Tool: Glob]"),
+    );
   });
 });
 

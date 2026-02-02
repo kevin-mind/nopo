@@ -2,12 +2,17 @@ import * as core from "@actions/core";
 import * as exec from "@actions/exec";
 import * as fs from "fs";
 import * as path from "path";
+import {
+  query,
+  type Options,
+  type SDKMessage,
+} from "@anthropic-ai/claude-agent-sdk";
 import type { RunClaudeAction } from "../../schemas/index.js";
 import type { RunnerContext } from "../runner.js";
 import { deriveBranchName } from "../../parser/index.js";
 
 // ============================================================================
-// Claude Code Executor (CLI-based with real-time logging)
+// Claude Code Executor (SDK-based with real-time streaming)
 // ============================================================================
 
 /**
@@ -18,7 +23,7 @@ interface ClaudeRunResult {
   exitCode: number;
   output: string;
   error?: string;
-  /** Parsed structured output if --json-schema was used */
+  /** Parsed structured output if outputFormat was used */
   structuredOutput?: unknown;
 }
 
@@ -219,13 +224,26 @@ function getPromptFromAction(action: RunClaudeAction): ResolvedPrompt {
 }
 
 /**
- * Run Claude Code CLI
+ * Extract text from an SDK assistant message
+ */
+function extractTextFromMessage(msg: SDKMessage): string {
+  if (msg.type !== "assistant") return "";
+  return msg.message.content
+    .filter(
+      (block): block is { type: "text"; text: string } => block.type === "text",
+    )
+    .map((block) => block.text)
+    .join("");
+}
+
+/**
+ * Run Claude Code SDK
  *
- * This invokes the Claude Code CLI (claude) with the specified prompt.
- * The CLI is expected to be available in PATH.
+ * This invokes the Claude Agent SDK with the specified prompt.
+ * Uses streaming for real-time output in GitHub Actions logs.
  *
  * If an output schema is provided (via promptDir with outputs.json),
- * the --json-schema flag is added to request structured output.
+ * the outputFormat option is set to request structured output.
  *
  * If mockOutputs are provided in the context and there's a matching mock
  * for the prompt directory, the mock output is returned instead of running Claude.
@@ -261,119 +279,111 @@ export async function executeRunClaude(
     );
   }
 
-  const args: string[] = [
-    "--print", // Print output to stdout (non-interactive mode)
-    "--dangerously-skip-permissions", // Skip all permission prompts (for CI/automated runs)
-    "--verbose", // Enable verbose output for real-time logging
-  ];
-
   // Get prompt and optional schema
   const { prompt, outputSchema } = getPromptFromAction(action);
-
-  // Add JSON schema if outputs.json exists (structured output mode)
-  // IMPORTANT: --output-format json is required alongside --json-schema
-  if (outputSchema) {
-    // Compact the schema to a single line for CLI argument
-    const compactSchema = JSON.stringify(JSON.parse(outputSchema));
-    args.push("--output-format", "json");
-    args.push("--json-schema", compactSchema);
-    core.info("Using structured output mode with JSON schema");
-  }
-
-  // Add allowed tools if specified
-  if (action.allowedTools && action.allowedTools.length > 0) {
-    for (const tool of action.allowedTools) {
-      args.push("--allowedTools", tool);
-    }
-  }
-
-  // Add the prompt as a positional argument (must be last)
-  args.push(prompt);
-
-  let stdout = "";
-  let stderr = "";
 
   // Set up working directory
   const cwd = action.worktree || process.cwd();
 
-  core.info(`Running Claude CLI for issue #${action.issueNumber}`);
+  core.info(`Running Claude SDK for issue #${action.issueNumber}`);
   core.info(`Working directory: ${cwd}`);
   core.debug(`Prompt: ${prompt.slice(0, 200)}...`);
 
-  try {
-    const exitCode = await exec.exec("claude", args, {
-      cwd,
-      ignoreReturnCode: true,
-      env: {
-        ...process.env,
-        // Pass through GitHub context
-        GITHUB_REPOSITORY: `${ctx.owner}/${ctx.repo}`,
-        GITHUB_SERVER_URL: ctx.serverUrl,
-        // Ensure non-interactive mode
-        CI: "true",
-        // Force color output for better logging
-        FORCE_COLOR: "1",
-      },
-      listeners: {
-        stdout: (data) => {
-          const chunk = data.toString();
-          stdout += chunk;
-          // Log chunks in real-time for visibility
-          process.stdout.write(chunk);
-        },
-        stderr: (data) => {
-          const chunk = data.toString();
-          stderr += chunk;
-          // Log stderr chunks in real-time
-          process.stderr.write(chunk);
-        },
-      },
-    });
+  // Build SDK options
+  const options: Options = {
+    cwd,
+    // Use acceptEdits mode - auto-approves file edits without full bypass
+    permissionMode: "acceptEdits",
+    // Load CLAUDE.md and project settings
+    settingSources: ["project"],
+    // Use Claude Code's system prompt
+    systemPrompt: { type: "preset", preset: "claude_code" },
+  };
 
-    if (exitCode !== 0) {
-      core.warning(`Claude exited with code ${exitCode}`);
-      return {
-        success: false,
-        exitCode,
-        output: stdout,
-        error: stderr || `Exit code: ${exitCode}`,
-      };
+  // Add allowed tools if specified
+  if (action.allowedTools && action.allowedTools.length > 0) {
+    options.allowedTools = action.allowedTools;
+  }
+
+  // Add structured output format if schema exists
+  if (outputSchema) {
+    options.outputFormat = {
+      type: "json_schema",
+      schema: JSON.parse(outputSchema),
+    };
+    core.info("Using structured output mode with JSON schema");
+  }
+
+  let output = "";
+  let structuredOutput: unknown;
+
+  try {
+    const q = query({ prompt, options });
+
+    for await (const msg of q) {
+      // System init - log session info
+      if (msg.type === "system" && msg.subtype === "init") {
+        core.info(`[SDK] Session: ${msg.session_id}`);
+        core.info(`[SDK] Model: ${msg.model}`);
+        core.info(`[SDK] Permission mode: ${msg.permissionMode}`);
+      }
+
+      // Assistant messages - stream to stdout for real-time logs
+      if (msg.type === "assistant") {
+        const text = extractTextFromMessage(msg);
+        if (text) {
+          process.stdout.write(text);
+          output += text;
+        }
+
+        // Log tool uses
+        for (const block of msg.message.content) {
+          if (block.type === "tool_use") {
+            core.info(`\n[Tool: ${block.name}]`);
+          }
+        }
+      }
+
+      // Final result
+      if (msg.type === "result") {
+        if (msg.subtype === "success") {
+          structuredOutput = msg.structured_output;
+
+          if (structuredOutput) {
+            core.startGroup("Structured Output");
+            core.info(JSON.stringify(structuredOutput, null, 2));
+            core.endGroup();
+          }
+
+          core.info(
+            `\n[SDK] Completed successfully (${msg.num_turns} turns, $${msg.total_cost_usd.toFixed(4)})`,
+          );
+        } else {
+          // Handle various error subtypes
+          const errorSubtype = msg.subtype;
+          const errors =
+            "errors" in msg
+              ? (msg.errors as string[])?.join("\n")
+              : errorSubtype;
+
+          core.error(`[SDK] Failed: ${errors}`);
+
+          return {
+            success: false,
+            exitCode: 1,
+            output,
+            error: errors,
+          };
+        }
+      }
     }
 
     core.info(`Claude completed successfully for issue #${action.issueNumber}`);
 
-    // Parse structured output if schema was used
-    let structuredOutput: unknown;
-    if (outputSchema) {
-      try {
-        // With --output-format json, the output is a JSON envelope with structured_output field
-        const response = JSON.parse(stdout.trim()) as {
-          type?: string;
-          structured_output?: unknown;
-        };
-
-        if (response.structured_output) {
-          structuredOutput = response.structured_output;
-          core.info("Parsed structured output successfully");
-          core.startGroup("Structured Output");
-          core.info(JSON.stringify(structuredOutput, null, 2));
-          core.endGroup();
-        } else {
-          core.warning("No structured_output field found in JSON response");
-          // Fall back to the raw response
-          structuredOutput = response;
-        }
-      } catch (parseError) {
-        core.warning(
-          `Failed to parse structured output: ${parseError}. Raw output will be available.`,
-        );
-      }
-    }
-
     return {
       success: true,
       exitCode: 0,
-      output: stdout,
+      output,
       structuredOutput,
     };
   } catch (error) {
@@ -382,7 +392,7 @@ export async function executeRunClaude(
     return {
       success: false,
       exitCode: 1,
-      output: stdout,
+      output,
       error: errorMessage,
     };
   }
@@ -390,6 +400,7 @@ export async function executeRunClaude(
 
 /**
  * Check if Claude CLI is available
+ * Note: SDK requires Claude CLI to be installed
  */
 export async function isClaudeAvailable(): Promise<boolean> {
   try {

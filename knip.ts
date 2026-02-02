@@ -45,7 +45,7 @@ export default {
     ".github/actions-ts": {
       entry: ["*/index.ts", "lib/index.ts", "scripts/*.ts", "*/scripts/*.ts"],
       vitest: true,
-      ignore: ["*/dist/**"],
+      ignore: ["*/dist/**", "spike-sdk/**"],
       ignoreDependencies: ["@actions/glob", "@actions/io"],
       // Ignore exports that are only used within the file (public API types for fixture authors)
       rules: {

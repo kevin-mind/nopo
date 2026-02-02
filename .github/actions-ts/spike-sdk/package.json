@@ -1,0 +1,20 @@
+{
+  "name": "sdk-spike",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:basic": "tsx test-basic.ts",
+    "test:structured": "tsx test-structured.ts",
+    "test:subagent": "tsx test-subagent.ts",
+    "test:slash": "tsx test-slash-commands.ts",
+    "test:all": "tsx test-all.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "latest"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.3"
+  }
+}
