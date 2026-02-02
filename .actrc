@@ -1,0 +1,14 @@
+# Act configuration for running GitHub Actions locally
+# See: https://nektosact.com/usage/index.html
+
+# Use medium-sized ubuntu image (compatible with most actions)
+-P ubuntu-latest=catthehacker/ubuntu:act-latest
+
+# Use linux/amd64 architecture for Apple Silicon compatibility
+--container-architecture linux/amd64
+
+# Bind local secrets file (create .secrets with KEY=VALUE pairs)
+--secret-file .secrets
+
+# Use local env file for vars (create .vars with KEY=VALUE pairs)
+--var-file .vars

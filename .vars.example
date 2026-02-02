@@ -1,0 +1,5 @@
+# Copy this file to .vars and fill in your values
+# Repository variables used by workflows
+
+# GitHub Project number for project field updates
+PROJECT_NUMBER=1

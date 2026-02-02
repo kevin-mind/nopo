@@ -27,3 +27,7 @@ deps
 
 .venv
 !.venv/*
+
+# Act (local GitHub Actions runner)
+.secrets
+.vars

@@ -186,6 +186,28 @@ TypeScript actions in `.github/actions-ts/` provide type safety.
 **Use TypeScript for:** Complex logic, multiple outputs, JSON manipulation, unit testing
 **Use Composite for:** Simple delegation, environment setup, bash scripts
 
+### Running Workflows Locally with Act
+
+[Act](https://github.com/nektos/act) runs GitHub Actions locally using Docker.
+
+**Prerequisites:** `brew install act` (requires Docker)
+
+**Setup:**
+```bash
+cp .secrets.example .secrets    # Add your tokens
+cp .vars.example .vars          # Add repo variables
+```
+
+**Commands:**
+```bash
+make act-list                                    # List all workflows/jobs
+make act-dry workflow=ci.yml                     # Dry run (no execution)
+make act-run workflow=check-prompt-schemas.yml   # Run a workflow
+make act-state-machine scenario=triage           # Run state machine test
+```
+
+**Limitations:** Some workflows need GitHub API access (issues, PRs) and may fail locally. Use dry runs (`-n`) to validate workflow syntax without execution.
+
 ---
 
 ## Architecture & Documentation
