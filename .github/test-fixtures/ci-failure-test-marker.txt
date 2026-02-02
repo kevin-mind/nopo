@@ -1,0 +1,3 @@
+# CI Failure Recovery Test Marker
+# This file was created by issue #4386 to test CI failure recovery workflow.
+# Created: iteration 1
