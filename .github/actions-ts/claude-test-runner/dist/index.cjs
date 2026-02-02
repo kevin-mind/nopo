@@ -47970,15 +47970,15 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
     const branch = this.testBranchName;
     if (this.inputs.mockCI) {
       const mockResult = result === "success" ? "pass" : "fail";
-      core16.info(`Triggering mock CI with result: ${mockResult}`);
+      core16.info(`Triggering mock CI with result: ${mockResult} on branch ${branch}`);
       await exec11.exec("gh", [
         "workflow",
         "run",
         "ci.yml",
+        "--ref",
+        branch,
         "-f",
-        `mock=${mockResult}`,
-        "-f",
-        `ref=${branch}`
+        `mock=${mockResult}`
       ]);
     } else {
       core16.info("Waiting for real CI...");

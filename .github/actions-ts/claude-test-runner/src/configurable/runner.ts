@@ -1087,18 +1087,18 @@ Issue: #${this.issueNumber}
     const branch = this.testBranchName;
 
     if (this.inputs.mockCI) {
-      // Mock mode: trigger CI with mock result
+      // Mock mode: trigger CI with mock result on the test branch
       const mockResult = result === "success" ? "pass" : "fail";
-      core.info(`Triggering mock CI with result: ${mockResult}`);
+      core.info(`Triggering mock CI with result: ${mockResult} on branch ${branch}`);
 
       await exec.exec("gh", [
         "workflow",
         "run",
         "ci.yml",
+        "--ref",
+        branch,
         "-f",
         `mock=${mockResult}`,
-        "-f",
-        `ref=${branch}`,
       ]);
     } else {
       // Real mode: wait for actual CI
