@@ -133,9 +133,7 @@ export const DiscussionScenarioConfigSchema = z.object({
   category: z.string().default("q-a"),
 });
 
-type DiscussionScenarioConfig = z.infer<
-  typeof DiscussionScenarioConfigSchema
->;
+type DiscussionScenarioConfig = z.infer<typeof DiscussionScenarioConfigSchema>;
 
 // ============================================================================
 // Discussion Test Runner Inputs Schema

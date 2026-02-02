@@ -1,6 +1,0 @@
-{
-  "CONTEXT_TYPE": "issue",
-  "CONTEXT_DESCRIPTION": "Issue #9999: Add user authentication\n\nThe user commented:\n> @claude Can you explain how the session management works in this codebase?",
-  "ISSUE_NUMBER": "9999",
-  "AGENT_NOTES": ""
-}

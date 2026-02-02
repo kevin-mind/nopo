@@ -1,6 +1,0 @@
-{
-  "status": "completed_todo",
-  "todo_completed": "Implement the feature",
-  "commits": [],
-  "agent_notes": ["Initial implementation complete, waiting for CI"]
-}

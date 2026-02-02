@@ -1,6 +1,0 @@
-{
-  "ISSUE_NUMBER": "9999",
-  "ISSUE_TITLE": "[TEST] Add user authentication feature",
-  "ISSUE_BODY": "## Description\n\nWe need to add user authentication to the application.\n\n## Requirements\n\n- Support email/password login\n- Add session management\n- Implement logout functionality\n\n## Acceptance Criteria\n\n- [ ] Users can register with email/password\n- [ ] Users can log in\n- [ ] Users can log out\n- [ ] Sessions persist across page refreshes",
-  "AGENT_NOTES": ""
-}

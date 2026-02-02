@@ -1,7 +1,0 @@
-{
-  "DISCUSSION_NUMBER": "9999",
-  "COMMENT_BODY": "How does the current authentication flow work? I'm trying to understand where tokens are validated.",
-  "COMMENT_AUTHOR": "kevinmeinhardt",
-  "DISCUSSION_BODY": "## Question\n\nHow should we implement authentication for the API?\n\n## Context\n\nWe need to secure the API endpoints.",
-  "AGENT_NOTES": ""
-}
