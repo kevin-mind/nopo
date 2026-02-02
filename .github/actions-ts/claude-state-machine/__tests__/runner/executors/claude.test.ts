@@ -15,13 +15,7 @@ vi.mock("@actions/exec", () => ({
   exec: vi.fn(),
 }));
 
-// Mock the Claude Agent SDK
-vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
-  query: vi.fn(),
-}));
-
 import * as exec from "@actions/exec";
-import { query } from "@anthropic-ai/claude-agent-sdk";
 import {
   executeRunClaude,
   isClaudeAvailable,
@@ -47,15 +41,6 @@ function createMockContext(): RunnerContext {
   };
 }
 
-// Helper to create an async generator from an array
-function createAsyncGenerator<T>(items: T[]): AsyncGenerator<T> {
-  return (async function* () {
-    for (const item of items) {
-      yield item;
-    }
-  })();
-}
-
 describe("executeRunClaude", () => {
   let ctx: RunnerContext;
 
@@ -64,29 +49,8 @@ describe("executeRunClaude", () => {
     ctx = createMockContext();
   });
 
-  test("executes Claude SDK successfully", async () => {
-    const mockMessages = [
-      {
-        type: "system",
-        subtype: "init",
-        model: "claude-opus-4-5",
-        session_id: "test",
-      },
-      {
-        type: "assistant",
-        message: { content: [{ type: "text", text: "Done" }] },
-      },
-      {
-        type: "result",
-        subtype: "success",
-        is_error: false,
-        duration_ms: 1000,
-        num_turns: 1,
-        total_cost_usd: 0.01,
-      },
-    ];
-
-    vi.mocked(query).mockReturnValueOnce(createAsyncGenerator(mockMessages));
+  test("executes Claude CLI successfully", async () => {
+    vi.mocked(exec.exec).mockResolvedValueOnce(0);
 
     const action: RunClaudeAction = {
       type: "runClaude",
@@ -99,31 +63,22 @@ describe("executeRunClaude", () => {
 
     expect(result.success).toBe(true);
     expect(result.exitCode).toBe(0);
-    expect(query).toHaveBeenCalledWith(
+    expect(exec.exec).toHaveBeenCalledWith(
+      "claude",
+      expect.arrayContaining([
+        "--print",
+        "--dangerously-skip-permissions",
+        "--verbose",
+        "Implement feature", // Prompt as positional argument (last)
+      ]),
       expect.objectContaining({
-        prompt: "Implement feature",
-        options: expect.objectContaining({
-          env: expect.objectContaining({
-            GITHUB_REPOSITORY: "test-owner/test-repo",
-            CI: "true",
-          }),
-        }),
+        ignoreReturnCode: true,
       }),
     );
   });
 
-  test("passes allowed tools to SDK", async () => {
-    const mockMessages = [
-      {
-        type: "result",
-        subtype: "success",
-        is_error: false,
-        duration_ms: 100,
-        num_turns: 1,
-      },
-    ];
-
-    vi.mocked(query).mockReturnValueOnce(createAsyncGenerator(mockMessages));
+  test("passes allowed tools to CLI", async () => {
+    vi.mocked(exec.exec).mockResolvedValueOnce(0);
 
     const action: RunClaudeAction = {
       type: "runClaude",
@@ -135,27 +90,22 @@ describe("executeRunClaude", () => {
 
     await executeRunClaude(action, ctx);
 
-    expect(query).toHaveBeenCalledWith(
-      expect.objectContaining({
-        options: expect.objectContaining({
-          allowedTools: ["Read", "Write", "Bash"],
-        }),
-      }),
+    expect(exec.exec).toHaveBeenCalledWith(
+      "claude",
+      expect.arrayContaining([
+        "--allowedTools",
+        "Read",
+        "--allowedTools",
+        "Write",
+        "--allowedTools",
+        "Bash",
+      ]),
+      expect.any(Object),
     );
   });
 
   test("uses worktree as working directory", async () => {
-    const mockMessages = [
-      {
-        type: "result",
-        subtype: "success",
-        is_error: false,
-        duration_ms: 100,
-        num_turns: 1,
-      },
-    ];
-
-    vi.mocked(query).mockReturnValueOnce(createAsyncGenerator(mockMessages));
+    vi.mocked(exec.exec).mockResolvedValueOnce(0);
 
     const action: RunClaudeAction = {
       type: "runClaude",
@@ -167,27 +117,42 @@ describe("executeRunClaude", () => {
 
     await executeRunClaude(action, ctx);
 
-    expect(query).toHaveBeenCalledWith(
+    expect(exec.exec).toHaveBeenCalledWith(
+      "claude",
+      expect.any(Array),
       expect.objectContaining({
-        options: expect.objectContaining({
-          cwd: "/tmp/worktree-123",
+        cwd: "/tmp/worktree-123",
+      }),
+    );
+  });
+
+  test("sets environment variables", async () => {
+    vi.mocked(exec.exec).mockResolvedValueOnce(0);
+
+    const action: RunClaudeAction = {
+      type: "runClaude",
+      token: "code",
+      prompt: "Test",
+      issueNumber: 1,
+    };
+
+    await executeRunClaude(action, ctx);
+
+    expect(exec.exec).toHaveBeenCalledWith(
+      "claude",
+      expect.any(Array),
+      expect.objectContaining({
+        env: expect.objectContaining({
+          GITHUB_REPOSITORY: "test-owner/test-repo",
+          GITHUB_SERVER_URL: "https://github.com",
+          CI: "true",
         }),
       }),
     );
   });
 
-  test("handles SDK failure result", async () => {
-    const mockMessages = [
-      {
-        type: "result",
-        subtype: "failure",
-        is_error: true,
-        duration_ms: 1000,
-        num_turns: 1,
-      },
-    ];
-
-    vi.mocked(query).mockReturnValueOnce(createAsyncGenerator(mockMessages));
+  test("handles non-zero exit code", async () => {
+    vi.mocked(exec.exec).mockResolvedValueOnce(1);
 
     const action: RunClaudeAction = {
       type: "runClaude",
@@ -203,13 +168,8 @@ describe("executeRunClaude", () => {
     expect(result.error).toBeDefined();
   });
 
-  test("handles SDK exception", async () => {
-    vi.mocked(query).mockImplementationOnce(() => {
-      // eslint-disable-next-line require-yield
-      return (async function* () {
-        throw new Error("SDK error");
-      })();
-    });
+  test("handles exec exception", async () => {
+    vi.mocked(exec.exec).mockRejectedValueOnce(new Error("Command not found"));
 
     const action: RunClaudeAction = {
       type: "runClaude",
@@ -222,43 +182,7 @@ describe("executeRunClaude", () => {
 
     expect(result.success).toBe(false);
     expect(result.exitCode).toBe(1);
-    expect(result.error).toBe("SDK error");
-  });
-
-  test("extracts structured output from result", async () => {
-    // Note: Structured output extraction happens when outputSchema is provided,
-    // which requires reading from a file via promptDir. Since we're testing the
-    // SDK integration, we verify the SDK is called and result is returned.
-    // The actual structured_output field is returned in the result regardless.
-    const structuredData = { key: "value" };
-    const mockMessages = [
-      {
-        type: "result",
-        subtype: "success",
-        is_error: false,
-        duration_ms: 1000,
-        num_turns: 1,
-        structured_output: structuredData,
-      },
-    ];
-
-    vi.mocked(query).mockReturnValueOnce(createAsyncGenerator(mockMessages));
-
-    // Use a direct prompt - structured output is still captured from SDK result
-    const action: RunClaudeAction = {
-      type: "runClaude",
-      token: "code",
-      prompt: "Test prompt",
-      issueNumber: 1,
-    };
-
-    const result = await executeRunClaude(action, ctx);
-
-    expect(result.success).toBe(true);
-    // Note: structuredOutput extraction requires outputSchema which requires promptDir with outputs.json
-    // Without outputSchema, the raw result is returned but structuredOutput is not parsed
-    // This test verifies SDK integration works correctly
-    expect(query).toHaveBeenCalled();
+    expect(result.error).toBe("Command not found");
   });
 
   test("uses mock output when available", async () => {
@@ -285,8 +209,6 @@ describe("executeRunClaude", () => {
 
     expect(result.success).toBe(true);
     expect(result.structuredOutput).toEqual(mockOutput);
-    // SDK should not be called
-    expect(query).not.toHaveBeenCalled();
   });
 });
 
