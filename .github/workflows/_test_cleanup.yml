@@ -99,8 +99,8 @@ jobs:
     steps:
       - name: Wait for GitHub Project automations
         run: |
-          echo "Waiting 3 minutes for GitHub Project automations to complete..."
-          sleep 180
+          echo "Waiting 30 seconds for GitHub Project automations to complete..."
+          sleep 30
 
       - name: Verify cleanup state
         id: verify
