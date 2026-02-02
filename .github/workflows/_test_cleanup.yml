@@ -5,10 +5,11 @@
 #
 # Features:
 # - Closes issues, sub-issues, and PRs
-# - Verification job waits 3 min then re-checks state
+# - Verification job waits 30s then re-checks state
 # - Retries cleanup once if state is not as expected
 
 name: Test Cleanup
+run-name: "Cleanup #${{ inputs.issue_number }} (${{ inputs.action }})"
 
 on:
   workflow_dispatch:
