@@ -48,9 +48,9 @@ on:
           - delete
         default: close
 
-# Only one test at a time - queue runs instead of cancelling
+# Per-scenario concurrency - allows parallel testing of different scenarios
 concurrency:
-  group: state-machine-test
+  group: state-machine-test-${{ inputs.scenario }}
   cancel-in-progress: false
 
 permissions:
