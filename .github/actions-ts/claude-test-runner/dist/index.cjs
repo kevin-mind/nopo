@@ -36087,7 +36087,9 @@ var _TestRunnerInputsSchema = external_exports.object({
   /** true = use fixture outputs, false = run real Claude */
   mockClaude: external_exports.boolean().default(true),
   /** true = CI passes/fails immediately, false = run real CI */
-  mockCI: external_exports.boolean().default(true)
+  mockCI: external_exports.boolean().default(true),
+  /** true = include all tasks (multi sub-issues), false = pick one random task */
+  multiIssue: external_exports.boolean().default(true)
 });
 var StateTransitionResultSchema = external_exports.object({
   /** Starting state */
@@ -47302,6 +47304,11 @@ mutation AddIssueToProject($projectId: ID!, $contentId: ID!) {
 `;
 var TEST_LABEL = "test:automation";
 var TEST_TITLE_PREFIX = "[TEST]";
+var SINGLE_TASK_BODIES = [
+  "I noticed there are some variables in the codebase with unclear names. Could you find one that could be renamed to better describe its purpose and fix it? Keep it small - just one change.",
+  "Our test coverage could use some improvement. Find one test that is missing or incomplete and enhance it. Nothing major, just a small improvement.",
+  "Some of our documentation has gotten stale. Find one function or module where the docs are missing or outdated and update them. Keep the scope minimal."
+];
 var ConfigurableTestRunner = class {
   scenario;
   inputs;
@@ -47472,15 +47479,22 @@ ${"=".repeat(60)}`);
   }
   /**
    * Create a test issue from the first fixture
+   * When multiIssue is false, transforms the body to a single random task
    */
   async createTestIssue(fixture) {
     const title = `${TEST_TITLE_PREFIX} ${fixture.issue.title}`;
     const labels = [...fixture.issue.labels, TEST_LABEL];
+    let body = fixture.issue.body;
+    if (!this.inputs.multiIssue) {
+      const randomIndex = Math.floor(Math.random() * SINGLE_TASK_BODIES.length);
+      body = SINGLE_TASK_BODIES[randomIndex];
+      core16.info(`Single-issue mode: using task variant ${randomIndex + 1}`);
+    }
     const response = await this.config.octokit.rest.issues.create({
       owner: this.config.owner,
       repo: this.config.repo,
       title,
-      body: fixture.issue.body,
+      body,
       labels
     });
     const issueNumber = response.data.number;
@@ -48748,12 +48762,14 @@ ${formatted}`);
       const mockClaude = getOptionalInput("mock_claude") !== "false";
       const mockCI = getOptionalInput("mock_ci") !== "false";
       const startStep = getOptionalInput("start_step");
+      const multiIssue = getOptionalInput("multi_issue") !== "false";
       core17.info(`=== Claude Test Runner ===`);
       core17.info(`Action: run-configurable`);
       core17.info(`Scenario: ${scenarioName}`);
       core17.info(`Continue: ${continueRun}`);
       core17.info(`Mock Claude: ${mockClaude}`);
       core17.info(`Mock CI: ${mockCI}`);
+      core17.info(`Multi Issue: ${multiIssue}`);
       if (startStep) {
         core17.info(`Start Step: ${startStep}`);
       }
@@ -48762,7 +48778,8 @@ ${formatted}`);
         continue: continueRun,
         startStep: startStep || void 0,
         mockClaude,
-        mockCI
+        mockCI,
+        multiIssue
       };
       const result = await runConfigurableTest(scenario, inputs, {
         octokit,

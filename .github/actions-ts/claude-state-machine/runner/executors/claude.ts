@@ -293,8 +293,7 @@ export async function executeRunClaude(
   // Note: pathToClaudeCodeExecutable is needed because the SDK's built-in
   // executable discovery may fail in GitHub Actions environment
   const claudePath =
-    process.env.CLAUDE_CODE_PATH ||
-    `${process.env.HOME}/.local/bin/claude`;
+    process.env.CLAUDE_CODE_PATH || `${process.env.HOME}/.local/bin/claude`;
 
   core.info(`Claude Code path: ${claudePath}`);
 

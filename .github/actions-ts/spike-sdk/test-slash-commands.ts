@@ -7,12 +7,17 @@
  * - Claude Code preset system prompt
  */
 
-import { unstable_v2_createSession, type SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import {
+  unstable_v2_createSession,
+  type SDKMessage,
+} from "@anthropic-ai/claude-agent-sdk";
 
 function extractText(msg: SDKMessage): string | null {
   if (msg.type !== "assistant") return null;
   return msg.message.content
-    .filter((block): block is { type: "text"; text: string } => block.type === "text")
+    .filter(
+      (block): block is { type: "text"; text: string } => block.type === "text",
+    )
     .map((block) => block.text)
     .join("");
 }
@@ -22,7 +27,9 @@ async function main() {
   console.log("==================================\n");
 
   // Navigate to project root to load CLAUDE.md
-  const projectRoot = process.cwd().replace(/\/.github\/actions-ts\/spike-sdk$/, "");
+  const projectRoot = process
+    .cwd()
+    .replace(/\/.github\/actions-ts\/spike-sdk$/, "");
 
   console.log("Project root:", projectRoot);
   console.log("Loading settings with:");

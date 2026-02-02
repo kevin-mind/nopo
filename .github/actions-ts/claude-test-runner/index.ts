@@ -476,6 +476,7 @@ async function run(): Promise<void> {
       const mockClaude = getOptionalInput("mock_claude") !== "false";
       const mockCI = getOptionalInput("mock_ci") !== "false";
       const startStep = getOptionalInput("start_step");
+      const multiIssue = getOptionalInput("multi_issue") !== "false";
 
       core.info(`=== Claude Test Runner ===`);
       core.info(`Action: run-configurable`);
@@ -483,6 +484,7 @@ async function run(): Promise<void> {
       core.info(`Continue: ${continueRun}`);
       core.info(`Mock Claude: ${mockClaude}`);
       core.info(`Mock CI: ${mockCI}`);
+      core.info(`Multi Issue: ${multiIssue}`);
       if (startStep) {
         core.info(`Start Step: ${startStep}`);
       }
@@ -496,6 +498,7 @@ async function run(): Promise<void> {
         startStep: startStep || undefined,
         mockClaude,
         mockCI,
+        multiIssue,
       };
 
       // Run the configurable test

@@ -196,6 +196,14 @@ interface RunnerConfig {
 const TEST_LABEL = "test:automation"; // Used for both skipping automation AND cleanup safety
 const TEST_TITLE_PREFIX = "[TEST]";
 
+// Single-task body variants for when multiIssue is false
+// These are simpler versions focusing on one aspect of housekeeping
+const SINGLE_TASK_BODIES = [
+  "I noticed there are some variables in the codebase with unclear names. Could you find one that could be renamed to better describe its purpose and fix it? Keep it small - just one change.",
+  "Our test coverage could use some improvement. Find one test that is missing or incomplete and enhance it. Nothing major, just a small improvement.",
+  "Some of our documentation has gotten stale. Find one function or module where the docs are missing or outdated and update them. Keep the scope minimal.",
+];
+
 // ============================================================================
 // Configurable Test Runner
 // ============================================================================
@@ -431,16 +439,26 @@ class ConfigurableTestRunner {
 
   /**
    * Create a test issue from the first fixture
+   * When multiIssue is false, transforms the body to a single random task
    */
   private async createTestIssue(fixture: StateFixture): Promise<number> {
     const title = `${TEST_TITLE_PREFIX} ${fixture.issue.title}`;
     const labels = [...fixture.issue.labels, TEST_LABEL];
 
+    // Transform body based on multiIssue mode
+    let body = fixture.issue.body;
+    if (!this.inputs.multiIssue) {
+      // Pick a random single-task body for single-issue mode
+      const randomIndex = Math.floor(Math.random() * SINGLE_TASK_BODIES.length);
+      body = SINGLE_TASK_BODIES[randomIndex]!;
+      core.info(`Single-issue mode: using task variant ${randomIndex + 1}`);
+    }
+
     const response = await this.config.octokit.rest.issues.create({
       owner: this.config.owner,
       repo: this.config.repo,
       title,
-      body: fixture.issue.body,
+      body,
       labels,
     });
 

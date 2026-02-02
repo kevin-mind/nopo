@@ -1,6 +1,6 @@
 name: Test State Machine
 
-run-name: "${{ inputs.scenario_name }} (${{ inputs.start_step && format('{0}→End', inputs.start_step) || '1→End' }}) | Claude: ${{ inputs.mock_claude && 'mock' || 'real' }} | CI: ${{ inputs.mock_ci && 'mock' || 'real' }}${{ inputs.continue == false && ' | single-step' || '' }}"
+run-name: "${{ inputs.scenario_name }} (${{ inputs.start_step && format('{0}→End', inputs.start_step) || 'Beginning→End' }}) | Claude: ${{ inputs.mock_claude && 'mock' || 'real' }} | CI: ${{ inputs.mock_ci && 'mock' || 'real' }} | ${{ inputs.multi_issue && 'multi' || 'single' }}${{ inputs.continue == false && ' | single-step' || '' }}"
 
 on:
   workflow_dispatch:
@@ -32,6 +32,10 @@ on:
         description: 'Start at a specific state (e.g., "iteratingFix"). Creates fresh issue, sets up GitHub to match that state fixture.'
         type: string
         required: false
+      multi_issue:
+        description: 'Create multiple sub-issues (true) or single issue (false). Multi tests full orchestration flow.'
+        type: boolean
+        default: true
       cleanup_only:
         description: 'Only run cleanup (for debugging)'
         type: boolean
@@ -133,6 +137,7 @@ jobs:
           mock_claude: ${{ inputs.mock_claude }}
           mock_ci: ${{ inputs.mock_ci }}
           start_step: ${{ inputs.start_step }}
+          multi_issue: ${{ inputs.multi_issue }}
           github_token: ${{ secrets.NOPO_BOT_PAT }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
 

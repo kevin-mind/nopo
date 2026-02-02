@@ -4,7 +4,7 @@
     "number": 0,
     "title": "Add new feature for testing",
     "state": "OPEN",
-    "body": "## Description\n\nSmall housekeeping improvements to the codebase.\n\n## Tasks\n\n1. **Code quality**: Find one small code improvement opportunity (e.g., a variable with an unclear name, an unnecessary type assertion, a magic number that should be a constant, or similar). Fix it.\n\n2. **Test coverage**: Find one test that is missing, incomplete, or could be improved. Enhance it.\n\n3. **Documentation**: Find one function, type, or module that lacks documentation or has outdated docs. Add or update the documentation.\n\nEach change should be minimal - the kind of thing you'd do in a quick code review pass. Keep scope XS per item.",
+    "body": "We've been meaning to do some housekeeping on the codebase. There are probably some variables with unclear names scattered around, maybe some magic numbers that should be constants, or unnecessary type assertions. It would also be nice to look at the test coverage since there are likely some edge cases or scenarios that aren't being tested properly. And documentation is always getting stale, so there might be functions or modules where the docs are missing or outdated. Nothing major, just the kind of small improvements you'd notice during a code review. Keep each change minimal and focused.",
     "projectStatus": null,
     "iteration": 0,
     "failures": 0,

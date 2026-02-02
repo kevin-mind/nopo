@@ -212,6 +212,9 @@ const _TestRunnerInputsSchema = z.object({
 
   /** true = CI passes/fails immediately, false = run real CI */
   mockCI: z.boolean().default(true),
+
+  /** true = include all tasks (multi sub-issues), false = pick one random task */
+  multiIssue: z.boolean().default(true),
 });
 
 export type TestRunnerInputs = z.infer<typeof _TestRunnerInputsSchema>;

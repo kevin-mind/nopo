@@ -9,12 +9,17 @@
  * Note: Using session-based approach since unstable_v2_prompt doesn't return structured_output
  */
 
-import { unstable_v2_createSession, type SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import {
+  unstable_v2_createSession,
+  type SDKMessage,
+} from "@anthropic-ai/claude-agent-sdk";
 
 function extractText(msg: SDKMessage): string | null {
   if (msg.type !== "assistant") return null;
   return msg.message.content
-    .filter((block): block is { type: "text"; text: string } => block.type === "text")
+    .filter(
+      (block): block is { type: "text"; text: string } => block.type === "text",
+    )
     .map((block) => block.text)
     .join("");
 }
@@ -63,7 +68,9 @@ async function main() {
     },
   });
 
-  await session.send("List 3 programming languages with their paradigm and year created.");
+  await session.send(
+    "List 3 programming languages with their paradigm and year created.",
+  );
 
   let structuredOutput: unknown = null;
   let resultSubtype = "";
@@ -87,7 +94,10 @@ async function main() {
       if (msg.subtype === "success") {
         console.log("  Cost: $" + msg.total_cost_usd.toFixed(4));
         structuredOutput = msg.structured_output;
-        console.log("\n  Structured Output:", JSON.stringify(structuredOutput, null, 4));
+        console.log(
+          "\n  Structured Output:",
+          JSON.stringify(structuredOutput, null, 4),
+        );
       }
     }
   }
@@ -110,7 +120,10 @@ async function main() {
     if (isValid) {
       console.log("✅ Structured output test passed");
       console.log("   Summary:", output.summary);
-      console.log("   Languages:", output.languages?.map((l) => l.name).join(", "));
+      console.log(
+        "   Languages:",
+        output.languages?.map((l) => l.name).join(", "),
+      );
       console.log("   Count:", output.count);
     } else {
       console.log("❌ Structured output validation failed - invalid structure");
@@ -118,8 +131,12 @@ async function main() {
     }
   } else if (resultSubtype === "success" && structuredOutput === null) {
     console.log("⚠️  Structured output test inconclusive");
-    console.log("   Result was successful but structured_output was null/undefined");
-    console.log("   This may indicate SDK doesn't support structured output in V2");
+    console.log(
+      "   Result was successful but structured_output was null/undefined",
+    );
+    console.log(
+      "   This may indicate SDK doesn't support structured output in V2",
+    );
     // Don't fail - this is useful information
   } else {
     console.log("❌ Request failed");

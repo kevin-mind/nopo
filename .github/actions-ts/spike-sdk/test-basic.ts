@@ -8,12 +8,17 @@
  * - Real-time output
  */
 
-import { unstable_v2_createSession, type SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import {
+  unstable_v2_createSession,
+  type SDKMessage,
+} from "@anthropic-ai/claude-agent-sdk";
 
 function extractText(msg: SDKMessage): string | null {
   if (msg.type !== "assistant") return null;
   return msg.message.content
-    .filter((block): block is { type: "text"; text: string } => block.type === "text")
+    .filter(
+      (block): block is { type: "text"; text: string } => block.type === "text",
+    )
     .map((block) => block.text)
     .join("");
 }
@@ -31,7 +36,9 @@ async function main() {
 
   console.log("Session created, sending prompt...\n");
 
-  await session.send("What files are in the current directory? List just the first 5.");
+  await session.send(
+    "What files are in the current directory? List just the first 5.",
+  );
 
   console.log("Streaming response:\n");
 
@@ -42,7 +49,11 @@ async function main() {
       console.log("  Model:", msg.model);
       console.log("  Permission Mode:", msg.permissionMode);
       console.log("  Tools:", msg.tools.slice(0, 5).join(", "), "...");
-      console.log("  Slash Commands:", msg.slash_commands?.length || 0, "available");
+      console.log(
+        "  Slash Commands:",
+        msg.slash_commands?.length || 0,
+        "available",
+      );
       console.log("");
     }
 

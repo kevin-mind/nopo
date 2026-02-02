@@ -59,6 +59,10 @@ inputs:
   start_step:
     description: 'Start at a specific state (e.g., "iteratingFix")'
     required: false
+  multi_issue:
+    description: 'Create multiple sub-issues (true) or single issue (false)'
+    required: false
+    default: 'true'
 
 outputs:
   status:
