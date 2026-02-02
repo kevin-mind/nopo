@@ -1,6 +1,6 @@
 name: Test State Machine
 
-run-name: "Test: ${{ inputs.scenario_name }}"
+run-name: "${{ inputs.scenario_name }} (${{ inputs.start_step && format('{0}→End', inputs.start_step) || '1→End' }}) | Claude: ${{ inputs.mock_claude && 'mock' || 'real' }} | CI: ${{ inputs.mock_ci && 'mock' || 'real' }}${{ inputs.continue == false && ' | single-step' || '' }}"
 
 on:
   workflow_dispatch:
