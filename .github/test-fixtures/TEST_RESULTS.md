@@ -4,7 +4,7 @@
 
 | Scenario | Mock Claude + Mock CI | Mock Claude + Real CI | Real Claude + Mock CI | Real Claude + Real CI |
 |----------|----------------------|----------------------|----------------------|----------------------|
-| full-flow | ✅ [21564697567](https://github.com/kevin-mind/nopo/actions/runs/21564697567) | ✅ [21564697567](https://github.com/kevin-mind/nopo/actions/runs/21564697567) | | ⚠️ Timeout |
+| full-flow | ✅ [21564697567](https://github.com/kevin-mind/nopo/actions/runs/21564697567) | ✅ [21564697567](https://github.com/kevin-mind/nopo/actions/runs/21564697567) | | ⚠️ [21564123421](https://github.com/kevin-mind/nopo/actions/runs/21564123421) |
 | ci-failure-recovery | ✅ [21566969232](https://github.com/kevin-mind/nopo/actions/runs/21566969232) | ✅ [21567809107](https://github.com/kevin-mind/nopo/actions/runs/21567809107) | | |
 | triage | ✅ [21566977953](https://github.com/kevin-mind/nopo/actions/runs/21566977953) | ✅ [21567853336](https://github.com/kevin-mind/nopo/actions/runs/21567853336) | | |
 | circuit-breaker | ✅ [21573451292](https://github.com/kevin-mind/nopo/actions/runs/21573451292) | ✅ [21573481587](https://github.com/kevin-mind/nopo/actions/runs/21573481587) | | |
