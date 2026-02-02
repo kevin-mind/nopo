@@ -25063,7 +25063,12 @@ async function forceCancelRelatedWorkflows(octokit, owner, repo, issueNumber) {
       per_page: 50
     });
     const allRuns = [...runs.workflow_runs, ...queuedRuns.workflow_runs];
+    const currentRunId = github.context.runId;
     for (const run2 of allRuns) {
+      if (run2.id === currentRunId) {
+        core2.debug(`Skipping current run ${run2.id}`);
+        continue;
+      }
       const runName = run2.name || "";
       const displayTitle = run2.display_title || "";
       const issuePattern = `#${issueNumber}`;

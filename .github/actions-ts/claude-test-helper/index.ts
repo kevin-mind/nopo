@@ -1712,7 +1712,16 @@ async function forceCancelRelatedWorkflows(
 
     const allRuns = [...runs.workflow_runs, ...queuedRuns.workflow_runs];
 
+    // Get current run ID to avoid cancelling ourselves
+    const currentRunId = github.context.runId;
+
     for (const run of allRuns) {
+      // Skip the current run - don't cancel ourselves!
+      if (run.id === currentRunId) {
+        core.debug(`Skipping current run ${run.id}`);
+        continue;
+      }
+
       // Check if run is related to this issue (by name or title containing issue number)
       const runName = run.name || "";
       const displayTitle = run.display_title || "";
