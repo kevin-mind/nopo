@@ -25308,18 +25308,111 @@ var CleanupGraph = class {
   owner;
   repo;
   mode;
+  projectNumber;
   nodes = [];
   snapshot;
   // Retry configuration
   MAX_NODE_RETRIES = 10;
   BASE_DELAY_MS = 2e3;
   MAX_JITTER_MS = 1e3;
-  constructor(octokit, owner, repo, mode, snapshot) {
+  constructor(octokit, owner, repo, mode, projectNumber, snapshot) {
     this.octokit = octokit;
     this.owner = owner;
     this.repo = repo;
     this.mode = mode;
+    this.projectNumber = projectNumber;
     this.snapshot = snapshot;
+  }
+  /**
+   * Set the project Status field to "Done" for an issue
+   */
+  async setProjectStatusDone(issueNumber) {
+    try {
+      const response = await this.octokit.graphql(
+        `query GetProjectInfo($org: String!, $repo: String!, $issueNumber: Int!, $projectNumber: Int!) {
+          repository(owner: $org, name: $repo) {
+            issue(number: $issueNumber) {
+              projectItems(first: 10) {
+                nodes {
+                  id
+                  project { id number }
+                }
+              }
+            }
+          }
+          organization(login: $org) {
+            projectV2(number: $projectNumber) {
+              id
+              fields(first: 20) {
+                nodes {
+                  ... on ProjectV2SingleSelectField {
+                    id
+                    name
+                    options { id name }
+                  }
+                }
+              }
+            }
+          }
+        }`,
+        {
+          org: this.owner,
+          repo: this.repo,
+          issueNumber,
+          projectNumber: this.projectNumber
+        }
+      );
+      const projectItem = response.repository?.issue?.projectItems?.nodes?.find(
+        (item) => item.project?.number === this.projectNumber
+      );
+      if (!projectItem?.id) {
+        core2.warning(
+          `Issue #${issueNumber} not found in project ${this.projectNumber}`
+        );
+        return;
+      }
+      const statusField = response.organization?.projectV2?.fields?.nodes?.find(
+        (f) => f.name === "Status"
+      );
+      if (!statusField?.id || !statusField.options) {
+        core2.warning(`Status field not found in project ${this.projectNumber}`);
+        return;
+      }
+      const doneOption = statusField.options.find((o) => o.name === "Done");
+      if (!doneOption) {
+        core2.warning(`"Done" option not found in Status field`);
+        return;
+      }
+      const projectId = response.organization?.projectV2?.id;
+      if (!projectId) {
+        core2.warning(`Project ${this.projectNumber} not found`);
+        return;
+      }
+      await this.octokit.graphql(
+        `mutation UpdateStatus($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+          updateProjectV2ItemFieldValue(input: {
+            projectId: $projectId
+            itemId: $itemId
+            fieldId: $fieldId
+            value: { singleSelectOptionId: $optionId }
+          }) {
+            projectV2Item { id }
+          }
+        }`,
+        {
+          projectId,
+          itemId: projectItem.id,
+          fieldId: statusField.id,
+          optionId: doneOption.id
+        }
+      );
+      core2.info(`Set issue #${issueNumber} project status to Done`);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      core2.warning(
+        `Failed to set project status for issue #${issueNumber}: ${errorMsg}`
+      );
+    }
   }
   /**
    * Build the cleanup graph from the snapshot
@@ -25353,23 +25446,19 @@ var CleanupGraph = class {
       });
     }
     for (const sub of this.snapshot.subIssues) {
-      if (sub.state === "open") {
-        this.nodes.push({
-          type: "sub-issue",
-          id: String(sub.number),
-          displayName: `Sub-issue #${sub.number}`,
-          status: "pending"
-        });
-      }
-    }
-    if (this.snapshot.parentIssue.state === "open") {
       this.nodes.push({
-        type: "parent-issue",
-        id: String(this.snapshot.parentIssue.number),
-        displayName: `Parent issue #${this.snapshot.parentIssue.number}`,
+        type: "sub-issue",
+        id: String(sub.number),
+        displayName: `Sub-issue #${sub.number}`,
         status: "pending"
       });
     }
+    this.nodes.push({
+      type: "parent-issue",
+      id: String(this.snapshot.parentIssue.number),
+      displayName: `Parent issue #${this.snapshot.parentIssue.number}`,
+      status: "pending"
+    });
     core2.info(`Built cleanup graph with ${this.nodes.length} nodes`);
   }
   /**
@@ -25458,13 +25547,21 @@ var CleanupGraph = class {
             { issueId: issue.node_id }
           );
         } else {
-          await this.octokit.rest.issues.update({
+          const { data: issue } = await this.octokit.rest.issues.get({
             owner: this.owner,
             repo: this.repo,
-            issue_number: issueNumber,
-            state: "closed",
-            state_reason: "completed"
+            issue_number: issueNumber
           });
+          if (issue.state === "open") {
+            await this.octokit.rest.issues.update({
+              owner: this.owner,
+              repo: this.repo,
+              issue_number: issueNumber,
+              state: "closed",
+              state_reason: "completed"
+            });
+          }
+          await this.setProjectStatusDone(issueNumber);
         }
         break;
       }
@@ -25610,7 +25707,7 @@ var CleanupGraph = class {
     return allGood;
   }
 };
-async function cleanupFixture(octokit, owner, repo, issueNumber, _projectNumber, mode = "close") {
+async function cleanupFixture(octokit, owner, repo, issueNumber, projectNumber, mode = "close") {
   const MAX_TREE_RETRIES = 3;
   core2.info(
     `Cleaning up test fixture for issue #${issueNumber} (mode: ${mode})`
@@ -25646,7 +25743,14 @@ async function cleanupFixture(octokit, owner, repo, issueNumber, _projectNumber,
 === Tree cleanup attempt ${treeAttempt}/${MAX_TREE_RETRIES} ===`
     );
     const currentSnapshot = treeAttempt === 1 ? snapshot : await snapshotResources(octokit, owner, repo, issueNumber);
-    const graph = new CleanupGraph(octokit, owner, repo, mode, currentSnapshot);
+    const graph = new CleanupGraph(
+      octokit,
+      owner,
+      repo,
+      mode,
+      projectNumber,
+      currentSnapshot
+    );
     graph.buildGraph();
     lastResult = await graph.cleanAll();
     core2.info(
