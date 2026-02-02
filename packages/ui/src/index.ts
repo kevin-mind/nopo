@@ -1,6 +1,6 @@
 export { Button } from "./components/button";
 
-export { cn } from "./lib/utils";
+export { cn, isValidTestId } from "./lib/utils";
 export {
   log,
   info,
