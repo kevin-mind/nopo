@@ -25501,6 +25501,17 @@ var CleanupGraph = class {
     switch (node.type) {
       case "workflow": {
         const runId = parseInt(node.id, 10);
+        const { data: run2 } = await this.octokit.rest.actions.getWorkflowRun({
+          owner: this.owner,
+          repo: this.repo,
+          run_id: runId
+        });
+        if (run2.status === "completed" || run2.status === "cancelled") {
+          core2.debug(
+            `Workflow ${runId} already ${run2.status}, skipping cancel`
+          );
+          break;
+        }
         await this.octokit.rest.actions.cancelWorkflowRun({
           owner: this.owner,
           repo: this.repo,
