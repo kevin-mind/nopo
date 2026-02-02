@@ -343,9 +343,17 @@ export async function executeRunClaude(
   // Build allowed/disallowed tools
   const allowedTools = action.allowedTools || undefined;
 
+  // Filter out undefined values from env (SDK doesn't handle them well)
+  const cleanEnv = Object.fromEntries(
+    Object.entries(env).filter(([, v]) => v !== undefined),
+  ) as Record<string, string>;
+
+  // Set entrypoint for Claude to identify as GitHub Action
+  cleanEnv.CLAUDE_CODE_ENTRYPOINT = "nopo-state-machine";
+
   const sdkOptions = {
     cwd,
-    env,
+    env: cleanEnv,
     allowedTools,
     extraArgs,
     // Use all settings sources
@@ -356,6 +364,11 @@ export async function executeRunClaude(
     )[],
     // Skip permission prompts for CI
     permissionMode: "acceptEdits" as const,
+    // Default to claude_code preset for system prompt
+    systemPrompt: {
+      type: "preset" as const,
+      preset: "claude_code" as const,
+    },
   };
 
   core.startGroup("SDK Options");

@@ -46186,15 +46186,24 @@ async function executeRunClaude(action, ctx) {
     CI: "true"
   };
   const allowedTools = action.allowedTools || void 0;
+  const cleanEnv = Object.fromEntries(
+    Object.entries(env).filter(([, v3]) => v3 !== void 0)
+  );
+  cleanEnv.CLAUDE_CODE_ENTRYPOINT = "nopo-state-machine";
   const sdkOptions = {
     cwd,
-    env,
+    env: cleanEnv,
     allowedTools,
     extraArgs,
     // Use all settings sources
     settingSources: ["user", "project", "local"],
     // Skip permission prompts for CI
-    permissionMode: "acceptEdits"
+    permissionMode: "acceptEdits",
+    // Default to claude_code preset for system prompt
+    systemPrompt: {
+      type: "preset",
+      preset: "claude_code"
+    }
   };
   core10.startGroup("SDK Options");
   core10.info(JSON.stringify({ ...sdkOptions, env: "[env hidden]" }, null, 2));
