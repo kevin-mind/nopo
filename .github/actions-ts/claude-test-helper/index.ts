@@ -2015,8 +2015,14 @@ async function snapshotResources(
 
     const allRuns = [...runs.workflow_runs, ...queuedRuns.workflow_runs];
     const issuePattern = `#${issueNumber}`;
+    const currentRunId = github.context.runId;
 
     for (const run of allRuns) {
+      // Skip the current run - don't include ourselves in cleanup!
+      if (run.id === currentRunId) {
+        continue;
+      }
+
       const runName = run.name || "";
       const displayTitle = run.display_title || "";
 

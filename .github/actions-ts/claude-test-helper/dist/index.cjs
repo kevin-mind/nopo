@@ -25215,7 +25215,11 @@ async function snapshotResources(octokit, owner, repo, issueNumber) {
     });
     const allRuns = [...runs.workflow_runs, ...queuedRuns.workflow_runs];
     const issuePattern = `#${issueNumber}`;
+    const currentRunId = github.context.runId;
     for (const run2 of allRuns) {
+      if (run2.id === currentRunId) {
+        continue;
+      }
       const runName = run2.name || "";
       const displayTitle = run2.display_title || "";
       const isRelated = runName.includes(issuePattern) || displayTitle.includes(issuePattern) || displayTitle.includes(`[TEST]`) || run2.head_branch?.includes(`issue/${issueNumber}`) || run2.head_branch?.includes(`issue-${issueNumber}`);
