@@ -40,6 +40,15 @@
             "command": "bash .claude/hooks/validate-worktree.sh"
           }
         ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/setup-remote.sh"
+          }
+        ]
       }
     ]
   }
