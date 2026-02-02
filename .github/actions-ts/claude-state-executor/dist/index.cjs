@@ -38637,7 +38637,9 @@ function getPromptFromAction(action) {
 }
 function extractTextFromMessage(msg) {
   if (msg.type !== "assistant") return "";
-  return msg.message.content.filter((block) => block.type === "text").map((block) => block.text).join("");
+  return msg.message.content.filter(
+    (block) => block.type === "text"
+  ).map((block) => block.text).join("");
 }
 async function executeRunClaude(action, ctx) {
   if (ctx.mockOutputs && action.promptDir) {
@@ -38666,8 +38668,12 @@ async function executeRunClaude(action, ctx) {
   core5.info(`Running Claude SDK for issue #${action.issueNumber}`);
   core5.info(`Working directory: ${cwd}`);
   core5.debug(`Prompt: ${prompt.slice(0, 200)}...`);
+  const claudePath = process.env.CLAUDE_CODE_PATH || `${process.env.HOME}/.local/bin/claude`;
+  core5.info(`Claude Code path: ${claudePath}`);
   const options = {
     cwd,
+    // Explicitly set path to Claude Code binary
+    pathToClaudeCodeExecutable: claudePath,
     // Use acceptEdits mode - auto-approves file edits without full bypass
     permissionMode: "acceptEdits",
     // Load CLAUDE.md and project settings

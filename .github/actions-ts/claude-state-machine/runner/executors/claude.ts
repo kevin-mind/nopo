@@ -290,8 +290,18 @@ export async function executeRunClaude(
   core.debug(`Prompt: ${prompt.slice(0, 200)}...`);
 
   // Build SDK options
+  // Note: pathToClaudeCodeExecutable is needed because the SDK's built-in
+  // executable discovery may fail in GitHub Actions environment
+  const claudePath =
+    process.env.CLAUDE_CODE_PATH ||
+    `${process.env.HOME}/.local/bin/claude`;
+
+  core.info(`Claude Code path: ${claudePath}`);
+
   const options: Options = {
     cwd,
+    // Explicitly set path to Claude Code binary
+    pathToClaudeCodeExecutable: claudePath,
     // Use acceptEdits mode - auto-approves file edits without full bypass
     permissionMode: "acceptEdits",
     // Load CLAUDE.md and project settings
