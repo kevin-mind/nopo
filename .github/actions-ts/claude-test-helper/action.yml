@@ -46,6 +46,10 @@ inputs:
     description: 'Current iteration number for e2e config (for update_e2e_config action)'
     required: false
     default: '0'
+  cleanup_mode:
+    description: 'Cleanup mode: close (preserves history) or delete (permanent removal)'
+    required: false
+    default: 'close'
 
 outputs:
   issue_number:

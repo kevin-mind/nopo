@@ -36031,7 +36031,7 @@ var TestPRSchema = external_exports.object({
   isDraft: external_exports.boolean(),
   title: external_exports.string(),
   body: external_exports.string().optional(),
-  headRef: external_exports.string(),
+  headRef: external_exports.string().optional(),
   // Branch name (will use test branch if not specified)
   baseRef: external_exports.string().default("main")
 });
