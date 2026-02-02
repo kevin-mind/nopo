@@ -112,10 +112,14 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm run build
 
-      # Install Claude CLI when running in non-mock mode (SDK requires it)
-      - name: Install Claude CLI
+      # Install Claude Code when running in non-mock mode (SDK requires it)
+      # Use official installer per: https://platform.claude.com/docs/en/agent-sdk/quickstart
+      # Binary installed to ~/.local/bin/claude
+      - name: Install Claude Code
         if: inputs.mock_claude != true
-        run: npm install -g @anthropic-ai/claude-code
+        run: |
+          curl -fsSL https://claude.ai/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Run configurable test
         env:

@@ -122,10 +122,13 @@ runs:
           echo "has_schema=true" >> "$GITHUB_OUTPUT"
         fi
 
-    # Step 2: Install Claude CLI first (avoids npm output mixing with JSON)
-    - name: Install Claude CLI
+    # Step 2: Install Claude Code first (avoids npm output mixing with JSON)
+    # Use official installer per: https://platform.claude.com/docs/en/agent-sdk/quickstart
+    - name: Install Claude Code
       shell: bash
-      run: npm install -g @anthropic-ai/claude-code
+      run: |
+        curl -fsSL https://claude.ai/install.sh | bash
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
     # Step 3: Run Claude
     - name: Run Claude
