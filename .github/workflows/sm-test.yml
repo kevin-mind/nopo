@@ -16,6 +16,9 @@ on:
           - circuit-breaker
           - review-changes-requested
           - triage-with-subissues
+          - issue-comment
+          - issue-reset
+          - slash-lfg
       continue:
         description: 'Run to completion (true) or stop after one step (false)'
         type: boolean
