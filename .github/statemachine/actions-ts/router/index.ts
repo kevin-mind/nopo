@@ -353,10 +353,36 @@ async function runIssueMachine(options: IssueMachineOptions): Promise<void> {
   core.info(`Project: ${projectNumber}`);
   core.info(`Trigger: ${trigger}`);
 
+  // Map trigger types to their underlying GitHub event types
+  // Some triggers (like issue-reset, issue-triage) are derived from other events
+  const triggerToEventType: Record<string, string> = {
+    "issue-assigned": "issue_assigned",
+    "issue-edited": "issue_edited",
+    "issue-closed": "issue_closed",
+    "issue-triage": "issue_assigned",
+    "issue-orchestrate": "issue_assigned",
+    "issue-comment": "issue_comment",
+    "issue-reset": "issue_comment",
+    "pr-review-requested": "pr_review_requested",
+    "pr-review-submitted": "pr_review_submitted",
+    "pr-review": "pr_review_submitted",
+    "pr-review-approved": "pr_review_submitted",
+    "pr-response": "pr_review_submitted",
+    "pr-human-response": "pr_review_submitted",
+    "pr-push": "pr_push",
+    "workflow-run-completed": "workflow_run_completed",
+    "merge-queue-entered": "merge_queue_entered",
+    "merge-queue-failed": "merge_queue_failed",
+    "pr-merged": "pr_merged",
+    "deployed-stage": "deployed_stage",
+    "deployed-prod": "deployed_prod",
+  };
+
+  const eventType = triggerToEventType[trigger] || trigger;
+
   // Build a GitHubEvent object for the state machine
-  // The event type maps to trigger types used by the machine
   const event = {
-    type: trigger,
+    type: eventType,
     owner,
     repo,
     issueNumber,

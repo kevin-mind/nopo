@@ -35306,8 +35306,31 @@ async function runIssueMachine(options) {
   core6.info(`Issue: #${issueNumber}`);
   core6.info(`Project: ${projectNumber}`);
   core6.info(`Trigger: ${trigger}`);
+  const triggerToEventType = {
+    "issue-assigned": "issue_assigned",
+    "issue-edited": "issue_edited",
+    "issue-closed": "issue_closed",
+    "issue-triage": "issue_assigned",
+    "issue-orchestrate": "issue_assigned",
+    "issue-comment": "issue_comment",
+    "issue-reset": "issue_comment",
+    "pr-review-requested": "pr_review_requested",
+    "pr-review-submitted": "pr_review_submitted",
+    "pr-review": "pr_review_submitted",
+    "pr-review-approved": "pr_review_submitted",
+    "pr-response": "pr_review_submitted",
+    "pr-human-response": "pr_review_submitted",
+    "pr-push": "pr_push",
+    "workflow-run-completed": "workflow_run_completed",
+    "merge-queue-entered": "merge_queue_entered",
+    "merge-queue-failed": "merge_queue_failed",
+    "pr-merged": "pr_merged",
+    "deployed-stage": "deployed_stage",
+    "deployed-prod": "deployed_prod"
+  };
+  const eventType = triggerToEventType[trigger] || trigger;
   const event = {
-    type: trigger,
+    type: eventType,
     owner,
     repo,
     issueNumber,
