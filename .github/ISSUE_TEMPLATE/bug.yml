@@ -1,0 +1,19 @@
+name: Bug Report
+description: Report a bug
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the bug. After creation, assign **nopo-bot** to trigger investigation and fix.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What's the bug?
+      placeholder: |
+        Describe what's broken and how to reproduce it.
+        Include error messages, screenshots, or logs if available.
+    validations:
+      required: true

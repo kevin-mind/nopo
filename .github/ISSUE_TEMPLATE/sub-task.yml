@@ -1,33 +1,20 @@
-name: Sub-Task
-description: A phase of work for a parent issue (created by Claude automation)
+name: Sub-Issue
+description: A phase of work for a parent issue
 title: "[Phase N]: "
 labels: []
 body:
   - type: markdown
     attributes:
       value: |
-        ## Sub-Task Template
-        This template is for phases of a larger parent issue. Each sub-issue represents independently deployable work.
+        Sub-issues are typically created automatically during triage. Link to a parent issue using the sub-issues panel.
 
   - type: textarea
-    id: todos
+    id: description
     attributes:
-      label: Todos
-      description: Implementation tasks for this phase
+      label: Description
+      description: What should this phase accomplish?
       placeholder: |
-        - [ ] Task 1
-        - [ ] Task 2
-        - [ ] Task 3
+        Describe the specific work for this phase.
+        Include acceptance criteria if known.
     validations:
       required: true
-
-  - type: textarea
-    id: testing
-    attributes:
-      label: Testing
-      description: Verification tasks to confirm the implementation
-      placeholder: |
-        - [ ] Test scenario 1
-        - [ ] Test scenario 2
-    validations:
-      required: false

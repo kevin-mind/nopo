@@ -1,69 +1,19 @@
-name: Task
-description: Create a new task for the project
-title: "[Task]: "
+name: Issue
+description: Create a new issue for Claude automation
 labels: []
 body:
   - type: markdown
     attributes:
       value: |
-        ## Task Template
-        Please fill out all sections below. Claude will use this information to triage and implement the task.
-
-        **Note:** Implementation tasks (todos) will be created as sub-issues during triage.
+        Describe what needs to be done. After creation, assign **nopo-bot** to trigger triage and implementation.
 
   - type: textarea
     id: description
     attributes:
       label: Description
-      description: A clear, concise description of what needs to be done (TLDR)
-      placeholder: Describe the task in 2-3 sentences
+      description: What needs to be done?
+      placeholder: |
+        Describe the problem, feature, or task.
+        Include any relevant context, constraints, or requirements.
     validations:
       required: true
-
-  - type: textarea
-    id: details
-    attributes:
-      label: Details
-      description: Implementation details, implications, technical requirements
-      placeholder: |
-        - Technical requirements
-        - Affected files/components
-        - Related documentation
-        - Screenshots if applicable
-
-  - type: textarea
-    id: questions
-    attributes:
-      label: Questions
-      description: Open questions or uncertainties that need clarification
-      placeholder: |
-        - [ ] Question 1?
-        - [ ] Question 2?
-
-  - type: dropdown
-    id: type
-    attributes:
-      label: Type
-      description: What type of task is this?
-      options:
-        - Feature
-        - Bug Fix
-        - Documentation
-        - Refactor
-        - Test
-        - Chore
-    validations:
-      required: true
-
-  - type: dropdown
-    id: priority
-    attributes:
-      label: Priority
-      description: How urgent is this task?
-      options:
-        - Low
-        - Medium
-        - High
-        - Critical
-    validations:
-      required: false
