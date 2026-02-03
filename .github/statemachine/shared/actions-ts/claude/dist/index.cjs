@@ -9,10 +9,6 @@ var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __commonJS = (cb, mod) => function __require() {
   return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
 };
-var __export = (target, all) => {
-  for (var name in all)
-    __defProp(target, name, { get: all[name], enumerable: true });
-};
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
     for (let key of __getOwnPropNames(from))
@@ -29,7 +25,6 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
   mod
 ));
-var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // ../../node_modules/.pnpm/@actions+core@1.11.1/node_modules/@actions/core/lib/utils.js
 var require_utils = __commonJS({
@@ -183,7 +178,7 @@ var require_file_command = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.prepareKeyValueMessage = exports2.issueFileCommand = void 0;
     var crypto = __importStar(require("crypto"));
-    var fs2 = __importStar(require("fs"));
+    var fs3 = __importStar(require("fs"));
     var os = __importStar(require("os"));
     var utils_1 = require_utils();
     function issueFileCommand(command, message) {
@@ -191,10 +186,10 @@ var require_file_command = __commonJS({
       if (!filePath) {
         throw new Error(`Unable to find environment variable for file command ${command}`);
       }
-      if (!fs2.existsSync(filePath)) {
+      if (!fs3.existsSync(filePath)) {
         throw new Error(`Missing file at path: ${filePath}`);
       }
-      fs2.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
+      fs3.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
         encoding: "utf8"
       });
     }
@@ -399,7 +394,7 @@ var require_tunnel = __commonJS({
         connectOptions.headers = connectOptions.headers || {};
         connectOptions.headers["Proxy-Authorization"] = "Basic " + new Buffer(connectOptions.proxyAuth).toString("base64");
       }
-      debug2("making CONNECT request");
+      debug3("making CONNECT request");
       var connectReq = self2.request(connectOptions);
       connectReq.useChunkedEncodingByDefault = false;
       connectReq.once("response", onResponse);
@@ -419,7 +414,7 @@ var require_tunnel = __commonJS({
         connectReq.removeAllListeners();
         socket.removeAllListeners();
         if (res.statusCode !== 200) {
-          debug2(
+          debug3(
             "tunneling socket could not be established, statusCode=%d",
             res.statusCode
           );
@@ -431,7 +426,7 @@ var require_tunnel = __commonJS({
           return;
         }
         if (head.length > 0) {
-          debug2("got illegal response body from proxy");
+          debug3("got illegal response body from proxy");
           socket.destroy();
           var error2 = new Error("got illegal response body from proxy");
           error2.code = "ECONNRESET";
@@ -439,13 +434,13 @@ var require_tunnel = __commonJS({
           self2.removeSocket(placeholder);
           return;
         }
-        debug2("tunneling connection has established");
+        debug3("tunneling connection has established");
         self2.sockets[self2.sockets.indexOf(placeholder)] = socket;
         return cb(socket);
       }
       function onError(cause) {
         connectReq.removeAllListeners();
-        debug2(
+        debug3(
           "tunneling socket could not be established, cause=%s\n",
           cause.message,
           cause.stack
@@ -507,9 +502,9 @@ var require_tunnel = __commonJS({
       }
       return target;
     }
-    var debug2;
+    var debug3;
     if (process.env.NODE_DEBUG && /\btunnel\b/.test(process.env.NODE_DEBUG)) {
-      debug2 = function() {
+      debug3 = function() {
         var args = Array.prototype.slice.call(arguments);
         if (typeof args[0] === "string") {
           args[0] = "TUNNEL: " + args[0];
@@ -519,10 +514,10 @@ var require_tunnel = __commonJS({
         console.error.apply(console, args);
       };
     } else {
-      debug2 = function() {
+      debug3 = function() {
       };
     }
-    exports2.debug = debug2;
+    exports2.debug = debug3;
   }
 });
 
@@ -17587,12 +17582,12 @@ var require_lib = __commonJS({
             throw new Error("Client has already been disposed.");
           }
           const parsedUrl = new URL(requestUrl);
-          let info2 = this._prepareRequest(verb, parsedUrl, headers);
+          let info3 = this._prepareRequest(verb, parsedUrl, headers);
           const maxTries = this._allowRetries && RetryableHttpVerbs.includes(verb) ? this._maxRetries + 1 : 1;
           let numTries = 0;
           let response;
           do {
-            response = yield this.requestRaw(info2, data);
+            response = yield this.requestRaw(info3, data);
             if (response && response.message && response.message.statusCode === HttpCodes.Unauthorized) {
               let authenticationHandler;
               for (const handler of this.handlers) {
@@ -17602,7 +17597,7 @@ var require_lib = __commonJS({
                 }
               }
               if (authenticationHandler) {
-                return authenticationHandler.handleAuthentication(this, info2, data);
+                return authenticationHandler.handleAuthentication(this, info3, data);
               } else {
                 return response;
               }
@@ -17625,8 +17620,8 @@ var require_lib = __commonJS({
                   }
                 }
               }
-              info2 = this._prepareRequest(verb, parsedRedirectUrl, headers);
-              response = yield this.requestRaw(info2, data);
+              info3 = this._prepareRequest(verb, parsedRedirectUrl, headers);
+              response = yield this.requestRaw(info3, data);
               redirectsRemaining--;
             }
             if (!response.message.statusCode || !HttpResponseRetryCodes.includes(response.message.statusCode)) {
@@ -17655,7 +17650,7 @@ var require_lib = __commonJS({
        * @param info
        * @param data
        */
-      requestRaw(info2, data) {
+      requestRaw(info3, data) {
         return __awaiter(this, void 0, void 0, function* () {
           return new Promise((resolve2, reject) => {
             function callbackForResult(err, res) {
@@ -17667,7 +17662,7 @@ var require_lib = __commonJS({
                 resolve2(res);
               }
             }
-            this.requestRawWithCallback(info2, data, callbackForResult);
+            this.requestRawWithCallback(info3, data, callbackForResult);
           });
         });
       }
@@ -17677,12 +17672,12 @@ var require_lib = __commonJS({
        * @param data
        * @param onResult
        */
-      requestRawWithCallback(info2, data, onResult) {
+      requestRawWithCallback(info3, data, onResult) {
         if (typeof data === "string") {
-          if (!info2.options.headers) {
-            info2.options.headers = {};
+          if (!info3.options.headers) {
+            info3.options.headers = {};
           }
-          info2.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
+          info3.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
         }
         let callbackCalled = false;
         function handleResult(err, res) {
@@ -17691,7 +17686,7 @@ var require_lib = __commonJS({
             onResult(err, res);
           }
         }
-        const req = info2.httpModule.request(info2.options, (msg) => {
+        const req = info3.httpModule.request(info3.options, (msg) => {
           const res = new HttpClientResponse(msg);
           handleResult(void 0, res);
         });
@@ -17703,7 +17698,7 @@ var require_lib = __commonJS({
           if (socket) {
             socket.end();
           }
-          handleResult(new Error(`Request timeout: ${info2.options.path}`));
+          handleResult(new Error(`Request timeout: ${info3.options.path}`));
         });
         req.on("error", function(err) {
           handleResult(err);
@@ -17739,27 +17734,27 @@ var require_lib = __commonJS({
         return this._getProxyAgentDispatcher(parsedUrl, proxyUrl);
       }
       _prepareRequest(method, requestUrl, headers) {
-        const info2 = {};
-        info2.parsedUrl = requestUrl;
-        const usingSsl = info2.parsedUrl.protocol === "https:";
-        info2.httpModule = usingSsl ? https : http;
+        const info3 = {};
+        info3.parsedUrl = requestUrl;
+        const usingSsl = info3.parsedUrl.protocol === "https:";
+        info3.httpModule = usingSsl ? https : http;
         const defaultPort = usingSsl ? 443 : 80;
-        info2.options = {};
-        info2.options.host = info2.parsedUrl.hostname;
-        info2.options.port = info2.parsedUrl.port ? parseInt(info2.parsedUrl.port) : defaultPort;
-        info2.options.path = (info2.parsedUrl.pathname || "") + (info2.parsedUrl.search || "");
-        info2.options.method = method;
-        info2.options.headers = this._mergeHeaders(headers);
+        info3.options = {};
+        info3.options.host = info3.parsedUrl.hostname;
+        info3.options.port = info3.parsedUrl.port ? parseInt(info3.parsedUrl.port) : defaultPort;
+        info3.options.path = (info3.parsedUrl.pathname || "") + (info3.parsedUrl.search || "");
+        info3.options.method = method;
+        info3.options.headers = this._mergeHeaders(headers);
         if (this.userAgent != null) {
-          info2.options.headers["user-agent"] = this.userAgent;
+          info3.options.headers["user-agent"] = this.userAgent;
         }
-        info2.options.agent = this._getAgent(info2.parsedUrl);
+        info3.options.agent = this._getAgent(info3.parsedUrl);
         if (this.handlers) {
           for (const handler of this.handlers) {
-            handler.prepareRequest(info2.options);
+            handler.prepareRequest(info3.options);
           }
         }
-        return info2;
+        return info3;
       }
       _mergeHeaders(headers) {
         if (this.requestOptions && this.requestOptions.headers) {
@@ -18511,12 +18506,12 @@ var require_io_util = __commonJS({
     var _a;
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getCmdPath = exports2.tryGetExecutablePath = exports2.isRooted = exports2.isDirectory = exports2.exists = exports2.READONLY = exports2.UV_FS_O_EXLOCK = exports2.IS_WINDOWS = exports2.unlink = exports2.symlink = exports2.stat = exports2.rmdir = exports2.rm = exports2.rename = exports2.readlink = exports2.readdir = exports2.open = exports2.mkdir = exports2.lstat = exports2.copyFile = exports2.chmod = void 0;
-    var fs2 = __importStar(require("fs"));
+    var fs3 = __importStar(require("fs"));
     var path2 = __importStar(require("path"));
-    _a = fs2.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
+    _a = fs3.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
     exports2.IS_WINDOWS = process.platform === "win32";
     exports2.UV_FS_O_EXLOCK = 268435456;
-    exports2.READONLY = fs2.constants.O_RDONLY;
+    exports2.READONLY = fs3.constants.O_RDONLY;
     function exists(fsPath) {
       return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -19680,7 +19675,7 @@ var require_core = __commonJS({
       process.env["PATH"] = `${inputPath}${path2.delimiter}${process.env["PATH"]}`;
     }
     exports2.addPath = addPath;
-    function getInput(name, options) {
+    function getInput2(name, options) {
       const val = process.env[`INPUT_${name.replace(/ /g, "_").toUpperCase()}`] || "";
       if (options && options.required && !val) {
         throw new Error(`Input required and not supplied: ${name}`);
@@ -19690,9 +19685,9 @@ var require_core = __commonJS({
       }
       return val.trim();
     }
-    exports2.getInput = getInput;
+    exports2.getInput = getInput2;
     function getMultilineInput(name, options) {
-      const inputs = getInput(name, options).split("\n").filter((x3) => x3 !== "");
+      const inputs = getInput2(name, options).split("\n").filter((x3) => x3 !== "");
       if (options && options.trimWhitespace === false) {
         return inputs;
       }
@@ -19702,7 +19697,7 @@ var require_core = __commonJS({
     function getBooleanInput(name, options) {
       const trueValue = ["true", "True", "TRUE"];
       const falseValue = ["false", "False", "FALSE"];
-      const val = getInput(name, options);
+      const val = getInput2(name, options);
       if (trueValue.includes(val))
         return true;
       if (falseValue.includes(val))
@@ -19711,7 +19706,7 @@ var require_core = __commonJS({
 Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     }
     exports2.getBooleanInput = getBooleanInput;
-    function setOutput(name, value) {
+    function setOutput2(name, value) {
       const filePath = process.env["GITHUB_OUTPUT"] || "";
       if (filePath) {
         return (0, file_command_1.issueFileCommand)("OUTPUT", (0, file_command_1.prepareKeyValueMessage)(name, value));
@@ -19719,40 +19714,40 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       process.stdout.write(os.EOL);
       (0, command_1.issueCommand)("set-output", { name }, (0, utils_1.toCommandValue)(value));
     }
-    exports2.setOutput = setOutput;
+    exports2.setOutput = setOutput2;
     function setCommandEcho(enabled) {
       (0, command_1.issue)("echo", enabled ? "on" : "off");
     }
     exports2.setCommandEcho = setCommandEcho;
-    function setFailed(message) {
+    function setFailed2(message) {
       process.exitCode = ExitCode.Failure;
       error2(message);
     }
-    exports2.setFailed = setFailed;
+    exports2.setFailed = setFailed2;
     function isDebug() {
       return process.env["RUNNER_DEBUG"] === "1";
     }
     exports2.isDebug = isDebug;
-    function debug2(message) {
+    function debug3(message) {
       (0, command_1.issueCommand)("debug", {}, message);
     }
-    exports2.debug = debug2;
+    exports2.debug = debug3;
     function error2(message, properties = {}) {
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.error = error2;
-    function warning(message, properties = {}) {
+    function warning2(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning;
+    exports2.warning = warning2;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.notice = notice;
-    function info2(message) {
+    function info3(message) {
       process.stdout.write(message + os.EOL);
     }
-    exports2.info = info2;
+    exports2.info = info3;
     function startGroup2(name) {
       (0, command_1.issue)("group", name);
     }
@@ -19814,18 +19809,9 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
   }
 });
 
-// shared/actions-ts/claude/index.ts
-var index_exports = {};
-__export(index_exports, {
-  buildCIFixPrompt: () => buildCIFixPrompt,
-  buildImplementationPrompt: () => buildImplementationPrompt,
-  buildReviewResponsePrompt: () => buildReviewResponsePrompt,
-  executeClaudeSDK: () => executeClaudeSDK,
-  getClaudeVersion: () => getClaudeVersion,
-  isClaudeAvailable: () => isClaudeAvailable,
-  resolvePrompt: () => resolvePrompt
-});
-module.exports = __toCommonJS(index_exports);
+// shared/actions-ts/claude/action-entry.ts
+var core2 = __toESM(require_core(), 1);
+var fs2 = __toESM(require("node:fs"), 1);
 
 // shared/actions-ts/claude/src/executor.ts
 var core = __toESM(require_core(), 1);
@@ -28736,37 +28722,6 @@ async function executeClaudeSDK(options) {
     };
   }
 }
-async function isClaudeAvailable() {
-  try {
-    const exitCode = await exec.exec("which", ["claude"], {
-      ignoreReturnCode: true,
-      silent: true
-    });
-    return exitCode === 0;
-  } catch {
-    return false;
-  }
-}
-async function getClaudeVersion() {
-  let stdout = "";
-  try {
-    const exitCode = await exec.exec("claude", ["--version"], {
-      ignoreReturnCode: true,
-      silent: true,
-      listeners: {
-        stdout: (data) => {
-          stdout += data.toString();
-        }
-      }
-    });
-    if (exitCode !== 0) {
-      return null;
-    }
-    return stdout.trim();
-  } catch {
-    return null;
-  }
-}
 
 // shared/actions-ts/claude/src/prompts.ts
 var fs = __toESM(require("fs"), 1);
@@ -28826,74 +28781,95 @@ function resolvePrompt(options, basePath = process.cwd()) {
   }
   throw new Error("Either prompt, promptFile, or promptDir must be provided");
 }
-function buildImplementationPrompt(issueNumber, issueTitle, issueBody, branch) {
-  return `You are implementing GitHub issue #${issueNumber}: ${issueTitle}
 
-## Issue Description
-
-${issueBody}
-
-## Instructions
-
-1. Work on branch: ${branch}
-2. Implement the requirements described in the issue
-3. Ensure all tests pass
-4. Commit your changes with clear commit messages
-5. Push when ready
-
-Focus on completing all the TODO items in the issue description.
-If you encounter any blockers, document them clearly.`;
+// shared/actions-ts/claude/action-entry.ts
+async function run() {
+  try {
+    const prompt = core2.getInput("prompt");
+    const promptDir = core2.getInput("prompt_dir");
+    const promptFile = core2.getInput("prompt_file");
+    const promptVarsJson = core2.getInput("prompt_vars") || "{}";
+    const workingDirectory = core2.getInput("working_directory") || process.cwd();
+    const allowedToolsStr = core2.getInput("allowed_tools");
+    const mockOutput = core2.getInput("mock_output");
+    let promptVars;
+    try {
+      promptVars = JSON.parse(promptVarsJson);
+    } catch (e2) {
+      core2.warning(`Failed to parse prompt_vars as JSON: ${e2}`);
+      promptVars = void 0;
+    }
+    if (mockOutput) {
+      core2.info("Mock mode enabled - returning mock output");
+      try {
+        const parsed = JSON.parse(mockOutput);
+        core2.setOutput("success", "true");
+        core2.setOutput("output", JSON.stringify(parsed));
+        core2.setOutput("structured_output", JSON.stringify(parsed));
+        fs2.writeFileSync("claude-structured-output.json", JSON.stringify(parsed, null, 2));
+        core2.info("Mock output written to claude-structured-output.json");
+        return;
+      } catch (e2) {
+        core2.setFailed(`Invalid mock_output JSON: ${e2}`);
+        return;
+      }
+    }
+    const basePath = process.cwd();
+    const promptsDir = ".github/statemachine/issue/prompts";
+    let resolvedPrompt;
+    let outputSchema;
+    try {
+      const resolved = resolvePrompt({
+        prompt,
+        promptDir,
+        promptFile,
+        promptVars,
+        basePath,
+        promptsDir
+      });
+      resolvedPrompt = resolved.prompt;
+      outputSchema = resolved.outputSchema;
+    } catch (e2) {
+      core2.setFailed(`Failed to resolve prompt: ${e2}`);
+      return;
+    }
+    core2.info(`Resolved prompt (${resolvedPrompt.length} chars)`);
+    core2.debug(`Prompt: ${resolvedPrompt.slice(0, 500)}...`);
+    const allowedTools = allowedToolsStr ? allowedToolsStr.split(",").map((t) => t.trim()) : void 0;
+    const result = await executeClaudeSDK({
+      prompt: resolvedPrompt,
+      cwd: workingDirectory,
+      allowedTools,
+      outputSchema
+    });
+    core2.setOutput("success", result.success.toString());
+    core2.setOutput("output", result.output);
+    if (result.structuredOutput) {
+      const structuredJson = JSON.stringify(result.structuredOutput);
+      core2.setOutput("structured_output", structuredJson);
+      fs2.writeFileSync("claude-structured-output.json", JSON.stringify(result.structuredOutput, null, 2));
+      core2.info("Structured output written to claude-structured-output.json");
+    }
+    if (result.numTurns !== void 0) {
+      core2.setOutput("num_turns", result.numTurns.toString());
+    }
+    if (result.costUsd !== void 0) {
+      core2.setOutput("cost_usd", result.costUsd.toString());
+    }
+    if (result.error) {
+      core2.setOutput("error", result.error);
+      core2.setFailed(result.error);
+    } else if (!result.success) {
+      core2.setFailed("Claude execution failed");
+    }
+  } catch (error2) {
+    const message = error2 instanceof Error ? error2.message : String(error2);
+    core2.setOutput("success", "false");
+    core2.setOutput("error", message);
+    core2.setFailed(message);
+  }
 }
-function buildCIFixPrompt(issueNumber, ciRunUrl, commitSha) {
-  return `You are fixing CI failures for issue #${issueNumber}.
-
-## CI Information
-
-- CI Run: ${ciRunUrl || "N/A"}
-- Commit: ${commitSha || "N/A"}
-
-## Instructions
-
-1. Check the CI logs at the URL above
-2. Identify the failing tests or build errors
-3. Fix the issues in your code
-4. Ensure all tests pass locally before pushing
-5. Push your fixes
-
-Common issues to check:
-- Type errors
-- Lint violations
-- Failing tests
-- Build errors`;
-}
-function buildReviewResponsePrompt(issueNumber, reviewDecision, reviewer) {
-  return `You are addressing review feedback for issue #${issueNumber}.
-
-## Review Information
-
-- Decision: ${reviewDecision || "N/A"}
-- Reviewer: ${reviewer || "N/A"}
-
-## Instructions
-
-1. Review the feedback provided in the PR comments
-2. Address each piece of feedback
-3. Make the necessary code changes
-4. Ensure all tests still pass
-5. Push your updates
-
-If you disagree with any feedback, document your reasoning in a comment.`;
-}
-// Annotate the CommonJS export names for ESM import in node:
-0 && (module.exports = {
-  buildCIFixPrompt,
-  buildImplementationPrompt,
-  buildReviewResponsePrompt,
-  executeClaudeSDK,
-  getClaudeVersion,
-  isClaudeAvailable,
-  resolvePrompt
-});
+run();
 /*! Bundled license information:
 
 undici/lib/fetch/body.js:
