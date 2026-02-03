@@ -302,6 +302,8 @@ export function emitCreateBranch({ context }: ActionContext): ActionResult {
       token: "code",
       branchName,
       baseBranch: "main",
+      // createBranch needs to run from main to create the new branch
+      worktree: "main",
     },
   ];
 }
@@ -637,6 +639,7 @@ export function emitRunClaudePRReview({
         token: "code",
         level: "warning",
         message: "No PR found for review",
+        worktree: "main",
       },
     ];
   }
@@ -689,6 +692,7 @@ export function emitRunClaudePRResponse({
         token: "code",
         level: "warning",
         message: "No PR found for response",
+        worktree: "main",
       },
     ];
   }
@@ -736,6 +740,7 @@ export function emitRunClaudePRHumanResponse({
         token: "code",
         level: "warning",
         message: "No PR found for human response",
+        worktree: "main",
       },
     ];
   }
@@ -894,6 +899,7 @@ export function emitOrchestrate({ context }: ActionContext): ActionResult {
     token: "code",
     level: "info",
     message: `Orchestrating issue #${context.issue.number} with ${context.issue.subIssues.length} phases`,
+    worktree: "main",
   });
 
   // Check if parent needs initialization
@@ -955,6 +961,7 @@ export function emitAllPhasesDone({ context }: ActionContext): ActionResult {
     token: "code",
     level: "info",
     message: `All phases complete for issue #${context.issue.number}`,
+    worktree: "main",
   });
 
   // Set parent to Done
@@ -1018,6 +1025,8 @@ export function emitLog(
       token: "code",
       level,
       message,
+      // Log actions don't need the code branch - run from main
+      worktree: "main",
     },
   ];
 }

@@ -32846,7 +32846,9 @@ function emitCreateBranch({ context: context2 }) {
       type: "createBranch",
       token: "code",
       branchName,
-      baseBranch: "main"
+      baseBranch: "main",
+      // createBranch needs to run from main to create the new branch
+      worktree: "main"
     }
   ];
 }
@@ -33071,7 +33073,8 @@ function emitRunClaudePRReview({
         type: "log",
         token: "code",
         level: "warning",
-        message: "No PR found for review"
+        message: "No PR found for review",
+        worktree: "main"
       }
     ];
   }
@@ -33114,7 +33117,8 @@ function emitRunClaudePRResponse({
         type: "log",
         token: "code",
         level: "warning",
-        message: "No PR found for response"
+        message: "No PR found for response",
+        worktree: "main"
       }
     ];
   }
@@ -33150,7 +33154,8 @@ function emitRunClaudePRHumanResponse({
         type: "log",
         token: "code",
         level: "warning",
-        message: "No PR found for human response"
+        message: "No PR found for human response",
+        worktree: "main"
       }
     ];
   }
@@ -33247,7 +33252,8 @@ function emitOrchestrate({ context: context2 }) {
     type: "log",
     token: "code",
     level: "info",
-    message: `Orchestrating issue #${context2.issue.number} with ${context2.issue.subIssues.length} phases`
+    message: `Orchestrating issue #${context2.issue.number} with ${context2.issue.subIssues.length} phases`,
+    worktree: "main"
   });
   const needsInit = context2.issue.projectStatus === null || context2.issue.projectStatus === "Backlog";
   if (needsInit) {
@@ -33285,7 +33291,8 @@ function emitAllPhasesDone({ context: context2 }) {
     type: "log",
     token: "code",
     level: "info",
-    message: `All phases complete for issue #${context2.issue.number}`
+    message: `All phases complete for issue #${context2.issue.number}`,
+    worktree: "main"
   });
   actions.push({
     type: "updateProjectStatus",
@@ -33325,7 +33332,9 @@ function emitLog(_ctx, message, level = "info") {
       type: "log",
       token: "code",
       level,
-      message
+      message,
+      // Log actions don't need the code branch - run from main
+      worktree: "main"
     }
   ];
 }
