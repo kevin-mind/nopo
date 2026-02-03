@@ -367,3 +367,208 @@ describe("detectIssueJob - unlabeled action", () => {
     expect(result.skip).toBe(true);
   });
 });
+
+// ============================================================================
+// Slash Command Detection Tests
+// ============================================================================
+
+interface SlashCommandResult {
+  command: string | null;
+  job: string;
+  triggerType: string;
+}
+
+/**
+ * Detect slash commands from issue comment body
+ * Mirrors the logic in index.ts
+ */
+function detectSlashCommand(
+  commentBody: string,
+  isPR: boolean,
+): SlashCommandResult {
+  const commandLines = commentBody.split("\n").map((line) => line.trim());
+
+  // Issue-only commands (not on PRs)
+  if (!isPR) {
+    if (commandLines.some((line) => line === "/reset")) {
+      return {
+        command: "/reset",
+        job: "issue-reset",
+        triggerType: "issue-reset",
+      };
+    }
+    if (
+      commandLines.some((line) => line === "/implement") ||
+      commandLines.some((line) => line === "/continue") ||
+      commandLines.some((line) => line === "/lfg")
+    ) {
+      const cmd = commandLines.find(
+        (line) =>
+          line === "/implement" || line === "/continue" || line === "/lfg",
+      );
+      return {
+        command: cmd || null,
+        job: "issue-iterate", // or issue-orchestrate depending on context
+        triggerType: "issue_comment",
+      };
+    }
+  }
+
+  return {
+    command: null,
+    job: "",
+    triggerType: "",
+  };
+}
+
+describe("slash command detection", () => {
+  describe("/reset command", () => {
+    it("detects /reset on its own line", () => {
+      const result = detectSlashCommand("/reset", false);
+      expect(result.command).toBe("/reset");
+      expect(result.job).toBe("issue-reset");
+      expect(result.triggerType).toBe("issue-reset");
+    });
+
+    it("detects /reset with surrounding whitespace", () => {
+      const result = detectSlashCommand("  /reset  ", false);
+      expect(result.command).toBe("/reset");
+    });
+
+    it("detects /reset in multiline comment", () => {
+      const result = detectSlashCommand(
+        "Some text\n/reset\nMore text",
+        false,
+      );
+      expect(result.command).toBe("/reset");
+    });
+
+    it("does not detect /reset on PRs", () => {
+      const result = detectSlashCommand("/reset", true);
+      expect(result.command).toBeNull();
+    });
+
+    it("does not detect /reset as part of another word", () => {
+      const result = detectSlashCommand("/resetall", false);
+      expect(result.command).toBeNull();
+    });
+  });
+
+  describe("/lfg command", () => {
+    it("detects /lfg", () => {
+      const result = detectSlashCommand("/lfg", false);
+      expect(result.command).toBe("/lfg");
+      expect(result.job).toBe("issue-iterate");
+    });
+
+    it("does not detect /lfg on PRs", () => {
+      const result = detectSlashCommand("/lfg", true);
+      expect(result.command).toBeNull();
+    });
+  });
+
+  describe("/implement command", () => {
+    it("detects /implement", () => {
+      const result = detectSlashCommand("/implement", false);
+      expect(result.command).toBe("/implement");
+      expect(result.job).toBe("issue-iterate");
+    });
+
+    it("does not detect /implement on PRs", () => {
+      const result = detectSlashCommand("/implement", true);
+      expect(result.command).toBeNull();
+    });
+  });
+
+  describe("/continue command", () => {
+    it("detects /continue", () => {
+      const result = detectSlashCommand("/continue", false);
+      expect(result.command).toBe("/continue");
+      expect(result.job).toBe("issue-iterate");
+    });
+
+    it("does not detect /continue on PRs", () => {
+      const result = detectSlashCommand("/continue", true);
+      expect(result.command).toBeNull();
+    });
+  });
+
+  describe("no command", () => {
+    it("returns null for regular comments", () => {
+      const result = detectSlashCommand("This is a normal comment", false);
+      expect(result.command).toBeNull();
+    });
+
+    it("returns null for @claude mentions", () => {
+      const result = detectSlashCommand("@claude please help", false);
+      expect(result.command).toBeNull();
+    });
+  });
+});
+
+// ============================================================================
+// Discussion Slash Command Detection Tests
+// ============================================================================
+
+interface DiscussionCommandResult {
+  command: string | null;
+  job: string;
+}
+
+/**
+ * Detect discussion slash commands
+ * Mirrors the logic in index.ts
+ */
+function detectDiscussionCommand(commentBody: string): DiscussionCommandResult {
+  const trimmed = commentBody.trim();
+
+  if (trimmed === "/summarize") {
+    return { command: "/summarize", job: "discussion-summarize" };
+  }
+  if (trimmed === "/plan") {
+    return { command: "/plan", job: "discussion-plan" };
+  }
+  if (trimmed === "/complete") {
+    return { command: "/complete", job: "discussion-complete" };
+  }
+
+  return { command: null, job: "" };
+}
+
+describe("discussion slash command detection", () => {
+  describe("/summarize command", () => {
+    it("detects /summarize", () => {
+      const result = detectDiscussionCommand("/summarize");
+      expect(result.command).toBe("/summarize");
+      expect(result.job).toBe("discussion-summarize");
+    });
+
+    it("does not detect /summarize with extra text", () => {
+      const result = detectDiscussionCommand("/summarize please");
+      expect(result.command).toBeNull();
+    });
+  });
+
+  describe("/plan command", () => {
+    it("detects /plan", () => {
+      const result = detectDiscussionCommand("/plan");
+      expect(result.command).toBe("/plan");
+      expect(result.job).toBe("discussion-plan");
+    });
+  });
+
+  describe("/complete command", () => {
+    it("detects /complete", () => {
+      const result = detectDiscussionCommand("/complete");
+      expect(result.command).toBe("/complete");
+      expect(result.job).toBe("discussion-complete");
+    });
+  });
+
+  describe("no command", () => {
+    it("returns null for regular discussion comments", () => {
+      const result = detectDiscussionCommand("This is a normal comment");
+      expect(result.command).toBeNull();
+    });
+  });
+});
