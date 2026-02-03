@@ -104,12 +104,7 @@ export function determineOutcome(params: OutcomeParams): OutcomeResult {
   // Format transition message
   // For "Done" transitions with a sub-issue, make the message more descriptive
   let transition = transitionName || "unknown";
-  if (
-    transitionName === "Done" &&
-    subIssueNumber &&
-    phase !== "-" &&
-    repoUrl
-  ) {
+  if (transitionName === "Done" && subIssueNumber && phase !== "-" && repoUrl) {
     transition = `[Phase ${phase}] Done [#${subIssueNumber}](${repoUrl}/issues/${subIssueNumber})`;
   }
 

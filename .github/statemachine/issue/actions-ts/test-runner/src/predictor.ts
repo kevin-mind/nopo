@@ -116,7 +116,7 @@ function _statusToExpectedState(status: string | null): string {
  *
  * Uses XState to simulate the machine and determine what state it would transition to
  */
-export function predictNextState(context: MachineContext): PredictedState {
+function predictNextState(context: MachineContext): PredictedState {
   // Create an actor with the context
   const actor = createActor(claudeMachine, {
     input: context,

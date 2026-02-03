@@ -471,25 +471,22 @@ export const claudeMachine = setup({
     // Push to draft action
     pushToDraft: assign({
       pendingActions: ({ context }) =>
-        accumulateActions(
-          context.pendingActions,
-          emitPushToDraft({ context }),
-        ),
+        accumulateActions(context.pendingActions, emitPushToDraft({ context })),
     }),
 
     // Reset action
     resetIssue: assign({
       pendingActions: ({ context }) =>
-        accumulateActions(
-          context.pendingActions,
-          emitResetIssue({ context }),
-        ),
+        accumulateActions(context.pendingActions, emitResetIssue({ context })),
     }),
     logResetting: assign({
       pendingActions: ({ context }) =>
         accumulateActions(
           context.pendingActions,
-          emitLog({ context }, `Resetting issue #${context.issue.number} to initial state`),
+          emitLog(
+            { context },
+            `Resetting issue #${context.issue.number} to initial state`,
+          ),
         ),
     }),
   },

@@ -15,7 +15,10 @@ import {
   determineOutcome,
   type JobResult,
 } from "../../lib/index.js";
-import { updateHistoryEntry, addHistoryEntry } from "../../../issue/actions-ts/state-machine/parser/index.js";
+import {
+  updateHistoryEntry,
+  addHistoryEntry,
+} from "../../../issue/actions-ts/state-machine/parser/index.js";
 
 // ============================================================================
 // GraphQL Queries

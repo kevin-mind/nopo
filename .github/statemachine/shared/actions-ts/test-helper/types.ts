@@ -170,7 +170,7 @@ export interface ExpectedOutcome {
  * E2E outcomes configuration for test instrumentation
  * Specifies expected outcomes per iteration for CI, Release, and Review
  */
-export interface E2EOutcomes {
+interface E2EOutcomes {
   /** CI outcomes per iteration (e.g., ["failure", "success"]) */
   ci?: ("success" | "failure")[];
   /** Release/deploy outcomes per iteration */
@@ -348,7 +348,7 @@ export interface TestFixture {
 /**
  * Result of fixture creation
  */
-export interface FixtureCreationResult {
+interface FixtureCreationResult {
   /** Created parent issue number */
   issue_number: number;
   /** Created sub-issue numbers */
@@ -366,7 +366,7 @@ export interface FixtureCreationResult {
 /**
  * Single verification error
  */
-export interface VerificationError {
+interface VerificationError {
   /** What was being checked */
   field: string;
   /** Expected value */
@@ -378,7 +378,7 @@ export interface VerificationError {
 /**
  * Result of fixture verification
  */
-export interface VerificationResult {
+interface VerificationResult {
   /** Whether all checks passed */
   passed: boolean;
   /** List of errors (if any) */

@@ -503,7 +503,7 @@ async function enrichSubIssuesWithPRs(
 /**
  * Build full machine context from an event and fetched state
  */
-export async function buildMachineContext(
+async function buildMachineContext(
   octokit: Octokit,
   event: GitHubEvent,
   projectNumber: number,
@@ -727,7 +727,7 @@ interface DiscussionResponse {
 /**
  * Options for building discussion context
  */
-export interface BuildDiscussionContextOptions {
+interface BuildDiscussionContextOptions {
   /** Comment ID (node_id) that triggered this event */
   commentId?: string;
   /** Comment body */
@@ -748,7 +748,7 @@ export interface BuildDiscussionContextOptions {
  * Fetches the discussion and builds a DiscussionContext for the discussion
  * state machine to process.
  */
-export async function buildDiscussionContext(
+async function buildDiscussionContext(
   octokit: Octokit,
   owner: string,
   repo: string,

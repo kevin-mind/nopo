@@ -56,7 +56,9 @@ export default class ActScript extends Script {
     const actCheck = await exec("which", ["act"], { nothrow: true });
     if (actCheck.exitCode !== 0) {
       this.runner.logger.log(
-        chalk.red("Error: act is not installed. Install with: brew install act"),
+        chalk.red(
+          "Error: act is not installed. Install with: brew install act",
+        ),
       );
       process.exit(1);
     }
@@ -80,21 +82,33 @@ export default class ActScript extends Script {
 
   private printUsage() {
     const { chalk } = this.runner.logger;
-    this.runner.logger.log(chalk.cyan(chalk.bold("\nUsage: nopo act <subcommand> [options]\n")));
+    this.runner.logger.log(
+      chalk.cyan(chalk.bold("\nUsage: nopo act <subcommand> [options]\n")),
+    );
     this.runner.logger.log(chalk.bold("Subcommands:"));
-    this.runner.logger.log("  list                     List all workflows and jobs");
+    this.runner.logger.log(
+      "  list                     List all workflows and jobs",
+    );
     this.runner.logger.log("  run -w <workflow>        Run a workflow");
-    this.runner.logger.log("  dry -w <workflow>        Dry run (validate only)");
+    this.runner.logger.log(
+      "  dry -w <workflow>        Dry run (validate only)",
+    );
     this.runner.logger.log("");
     this.runner.logger.log(chalk.bold("Examples:"));
     this.runner.logger.log("  nopo act list");
     this.runner.logger.log("  nopo act run -w ci.yml");
     this.runner.logger.log("  nopo act run -w ci.yml -j test");
-    this.runner.logger.log("  nopo act dry -w _test_state_machine.yml -i scenario_name=triage");
+    this.runner.logger.log(
+      "  nopo act dry -w _test_state_machine.yml -i scenario_name=triage",
+    );
     this.runner.logger.log("");
     this.runner.logger.log(chalk.bold("Setup:"));
-    this.runner.logger.log("  cp .secrets.example .secrets   # Add your tokens");
-    this.runner.logger.log("  cp .vars.example .vars         # Add repo variables");
+    this.runner.logger.log(
+      "  cp .secrets.example .secrets   # Add your tokens",
+    );
+    this.runner.logger.log(
+      "  cp .vars.example .vars         # Add repo variables",
+    );
     this.runner.logger.log("");
   }
 
@@ -136,9 +150,7 @@ export default class ActScript extends Script {
     const inputs = args.get<string[]>("input") || [];
 
     if (!workflow) {
-      this.runner.logger.log(
-        chalk.red("Error: --workflow (-w) is required"),
-      );
+      this.runner.logger.log(chalk.red("Error: --workflow (-w) is required"));
       this.printUsage();
       process.exit(1);
     }

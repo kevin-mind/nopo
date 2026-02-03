@@ -10,7 +10,7 @@ import type { PromptResolutionOptions, ResolvedPrompt } from "./types.js";
  * Substitute template variables in a string
  * Replaces {{VAR_NAME}} with the corresponding value from vars
  */
-export function substituteVars(
+function substituteVars(
   template: string,
   vars: Record<string, string>,
 ): string {
@@ -27,7 +27,7 @@ export function substituteVars(
  * - prompt.txt (required) - The prompt template
  * - outputs.json (optional) - JSON schema for structured output
  */
-export function resolvePromptDir(
+function resolvePromptDir(
   promptDir: string,
   basePath: string = process.cwd(),
 ): {

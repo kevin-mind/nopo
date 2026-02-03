@@ -20,48 +20,48 @@ export const ProjectStatusSchema = z.enum([
   "Error",
 ]);
 
-export type ProjectStatus = z.infer<typeof ProjectStatusSchema>;
+type ProjectStatus = z.infer<typeof ProjectStatusSchema>;
 
 /**
  * GitHub issue state (OPEN or CLOSED)
  */
-export const IssueStateSchema = z.enum(["OPEN", "CLOSED"]);
+const IssueStateSchema = z.enum(["OPEN", "CLOSED"]);
 
-export type IssueState = z.infer<typeof IssueStateSchema>;
+type IssueState = z.infer<typeof IssueStateSchema>;
 
 /**
  * Pull request state
  */
-export const PRStateSchema = z.enum(["OPEN", "CLOSED", "MERGED"]);
+const PRStateSchema = z.enum(["OPEN", "CLOSED", "MERGED"]);
 
-export type PRState = z.infer<typeof PRStateSchema>;
+type PRState = z.infer<typeof PRStateSchema>;
 
 /**
  * Todo item parsed from issue body
  */
-export const TodoItemSchema = z.object({
+const TodoItemSchema = z.object({
   text: z.string(),
   checked: z.boolean(),
   isManual: z.boolean(),
 });
 
-export type TodoItem = z.infer<typeof TodoItemSchema>;
+type TodoItem = z.infer<typeof TodoItemSchema>;
 
 /**
  * Aggregated todo statistics
  */
-export const TodoStatsSchema = z.object({
+const TodoStatsSchema = z.object({
   total: z.number().int().min(0),
   completed: z.number().int().min(0),
   uncheckedNonManual: z.number().int().min(0),
 });
 
-export type TodoStats = z.infer<typeof TodoStatsSchema>;
+type TodoStats = z.infer<typeof TodoStatsSchema>;
 
 /**
  * Iteration history entry from the history table
  */
-export const HistoryEntrySchema = z.object({
+const HistoryEntrySchema = z.object({
   iteration: z.number().int().min(0),
   phase: z.string(),
   action: z.string(),
@@ -70,24 +70,24 @@ export const HistoryEntrySchema = z.object({
   runLink: z.string().nullable(),
 });
 
-export type HistoryEntry = z.infer<typeof HistoryEntrySchema>;
+type HistoryEntry = z.infer<typeof HistoryEntrySchema>;
 
 /**
  * Agent notes entry from a workflow run
  */
-export const AgentNotesEntrySchema = z.object({
+const AgentNotesEntrySchema = z.object({
   runId: z.string(),
   runLink: z.string(),
   timestamp: z.string(),
   notes: z.array(z.string()),
 });
 
-export type AgentNotesEntry = z.infer<typeof AgentNotesEntrySchema>;
+type AgentNotesEntry = z.infer<typeof AgentNotesEntrySchema>;
 
 /**
  * Pull request associated with a sub-issue
  */
-export const LinkedPRSchema = z.object({
+const LinkedPRSchema = z.object({
   number: z.number().int().positive(),
   state: PRStateSchema,
   isDraft: z.boolean(),
@@ -96,7 +96,7 @@ export const LinkedPRSchema = z.object({
   baseRef: z.string(),
 });
 
-export type LinkedPR = z.infer<typeof LinkedPRSchema>;
+type LinkedPR = z.infer<typeof LinkedPRSchema>;
 
 /**
  * Sub-issue state representing a single phase of work
@@ -104,7 +104,7 @@ export type LinkedPR = z.infer<typeof LinkedPRSchema>;
  * Contains both raw body (for backward compatibility) and structured fields
  * parsed from the body content.
  */
-export const SubIssueSchema = z.object({
+const SubIssueSchema = z.object({
   number: z.number().int().positive(),
   title: z.string(),
   state: IssueStateSchema,
@@ -126,7 +126,7 @@ export const SubIssueSchema = z.object({
   }),
 });
 
-export type SubIssue = z.infer<typeof SubIssueSchema>;
+type SubIssue = z.infer<typeof SubIssueSchema>;
 
 /**
  * Parent issue state - the main issue being worked on
@@ -135,7 +135,7 @@ export type SubIssue = z.infer<typeof SubIssueSchema>;
  * parsed from the body content. Note: This is also used for sub-issues when
  * they are the trigger target.
  */
-export const ParentIssueSchema = z.object({
+const ParentIssueSchema = z.object({
   number: z.number().int().positive(),
   title: z.string(),
   state: IssueStateSchema,
@@ -166,31 +166,31 @@ export const ParentIssueSchema = z.object({
   agentNotes: z.array(AgentNotesEntrySchema).default([]),
 });
 
-export type ParentIssue = z.infer<typeof ParentIssueSchema>;
+type ParentIssue = z.infer<typeof ParentIssueSchema>;
 
 /**
  * CI result from a workflow run
  */
-export const CIResultSchema = z.enum([
+const CIResultSchema = z.enum([
   "success",
   "failure",
   "cancelled",
   "skipped",
 ]);
 
-export type CIResult = z.infer<typeof CIResultSchema>;
+type CIResult = z.infer<typeof CIResultSchema>;
 
 /**
  * Review decision from a PR review
  */
-export const ReviewDecisionSchema = z.enum([
+const ReviewDecisionSchema = z.enum([
   "APPROVED",
   "CHANGES_REQUESTED",
   "COMMENTED",
   "DISMISSED",
 ]);
 
-export type ReviewDecision = z.infer<typeof ReviewDecisionSchema>;
+type ReviewDecision = z.infer<typeof ReviewDecisionSchema>;
 
 // ============================================================================
 // Status Helpers
@@ -199,14 +199,14 @@ export type ReviewDecision = z.infer<typeof ReviewDecisionSchema>;
 /**
  * Check if a status is terminal (no more work to do)
  */
-export function isTerminalStatus(status: ProjectStatus): boolean {
+function isTerminalStatus(status: ProjectStatus): boolean {
   return status === "Done" || status === "Blocked" || status === "Error";
 }
 
 /**
  * Check if a status is a parent issue status
  */
-export function isParentStatus(status: ProjectStatus): boolean {
+function isParentStatus(status: ProjectStatus): boolean {
   return (
     status === "Backlog" ||
     status === "In progress" ||
@@ -219,7 +219,7 @@ export function isParentStatus(status: ProjectStatus): boolean {
 /**
  * Check if a status is a sub-issue status
  */
-export function isSubIssueStatus(status: ProjectStatus): boolean {
+function isSubIssueStatus(status: ProjectStatus): boolean {
   return (
     status === "Ready" ||
     status === "In progress" ||

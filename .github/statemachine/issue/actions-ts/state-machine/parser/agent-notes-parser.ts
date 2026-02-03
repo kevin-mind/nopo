@@ -18,7 +18,7 @@ export const AGENT_NOTES_SECTION = "## Agent Notes";
 /**
  * A single agent notes entry from a workflow run
  */
-export interface AgentNotesEntry {
+interface AgentNotesEntry {
   runId: string;
   runLink: string;
   timestamp: string;

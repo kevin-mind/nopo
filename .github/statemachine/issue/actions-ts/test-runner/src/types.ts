@@ -163,7 +163,7 @@ export interface Diagnosis {
 /**
  * Result from a single phase of testing
  */
-export interface PhaseResult {
+interface PhaseResult {
   /** Phase number */
   phase: number;
   /** Starting state */
@@ -181,7 +181,7 @@ export interface PhaseResult {
 /**
  * Final test result
  */
-export interface TestResult {
+interface TestResult {
   /** Overall status */
   status: "done" | "timeout" | "error";
   /** Suggested fix if failed */
@@ -199,7 +199,7 @@ export interface TestResult {
 /**
  * Expected triage verification results
  */
-export interface TriageExpectation {
+interface TriageExpectation {
   /** Labels expected after triage (e.g., ["triaged", "enhancement", "P1"]) */
   labels?: string[];
   /** Project fields expected after triage */
@@ -220,7 +220,7 @@ export interface TriageExpectation {
 /**
  * Expected phase verification results
  */
-export interface PhaseExpectation {
+interface PhaseExpectation {
   /** Expected branch name pattern (can include {N} for issue number) */
   branch_pattern?: string;
   /** Expected PR title contains this string */
@@ -248,7 +248,7 @@ interface CompletionExpectation {
 /**
  * Triage wait result
  */
-export interface TriageResult {
+interface TriageResult {
   /** Whether triage completed successfully */
   success: boolean;
   /** Labels found on the issue */
@@ -271,7 +271,7 @@ export interface TriageResult {
 /**
  * Phase wait result
  */
-export interface PhaseResult {
+interface PhaseResult {
   /** Phase number */
   phase: number;
   /** Starting state */
@@ -289,7 +289,7 @@ export interface PhaseResult {
 /**
  * Detailed phase wait result
  */
-export interface PhaseWaitResult {
+interface PhaseWaitResult {
   /** Whether phase completed successfully */
   success: boolean;
   /** Branch name if created */
@@ -369,7 +369,7 @@ export interface StateSnapshot {
 /**
  * Test fixture from claude-test-helper
  */
-export interface TestFixture {
+interface TestFixture {
   name: string;
   description: string;
   timeout?: number;
@@ -453,7 +453,7 @@ export interface TestFixture {
 /**
  * Runner configuration
  */
-export interface RunnerConfig {
+interface RunnerConfig {
   /** Test fixture */
   fixture: TestFixture;
   /** Issue number to test */

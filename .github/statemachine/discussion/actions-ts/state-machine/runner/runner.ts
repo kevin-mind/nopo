@@ -122,7 +122,9 @@ export async function executeAction(
         break;
 
       default:
-        throw new Error(`Unknown action type: ${(action as { type: string }).type}`);
+        throw new Error(
+          `Unknown action type: ${(action as { type: string }).type}`,
+        );
     }
 
     return { action, success: true, result };

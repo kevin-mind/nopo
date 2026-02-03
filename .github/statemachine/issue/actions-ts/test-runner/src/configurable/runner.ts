@@ -1264,18 +1264,22 @@ Issue: #${this.issueNumber}
       core.info(`\nHistory Verification:`);
       core.info(`${"─".repeat(60)}`);
 
-      const actualActions = state.history.map(h => h.action);
+      const actualActions = state.history.map((h) => h.action);
       const missingActions: string[] = [];
 
       // Check that each expected history action appears in actual history
       // We match by checking if the expected action pattern is contained in any actual action
       for (const expectedEntry of expectedHistory) {
         // Handle both string patterns (from z.unknown array) and structured entries
-        const expectedAction = typeof expectedEntry === 'string'
-          ? expectedEntry
-          : (expectedEntry as { action?: string }).action || String(expectedEntry);
+        const expectedAction =
+          typeof expectedEntry === "string"
+            ? expectedEntry
+            : (expectedEntry as { action?: string }).action ||
+              String(expectedEntry);
 
-        const found = actualActions.some(action => action.includes(expectedAction));
+        const found = actualActions.some((action) =>
+          action.includes(expectedAction),
+        );
         if (found) {
           core.info(`  ✓ Found: "${expectedAction}"`);
         } else {
@@ -1285,7 +1289,9 @@ Issue: #${this.issueNumber}
       }
 
       if (missingActions.length > 0) {
-        core.info(`\nActual history actions (${state.history.length} entries):`);
+        core.info(
+          `\nActual history actions (${state.history.length} entries):`,
+        );
         for (const entry of state.history) {
           core.info(`  [${entry.iteration}/${entry.phase}] ${entry.action}`);
         }

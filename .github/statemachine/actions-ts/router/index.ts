@@ -139,7 +139,9 @@ async function run(): Promise<void> {
     const trigger = ctx.trigger;
 
     core.info(`Router received context_json with trigger: ${trigger}`);
-    core.info(`Job: ${ctx.job}, Resource: ${ctx.resource_type} #${ctx.resource_number}`);
+    core.info(
+      `Job: ${ctx.job}, Resource: ${ctx.resource_type} #${ctx.resource_number}`,
+    );
 
     // Create octokit
     const octokit = github.getOctokit(token);

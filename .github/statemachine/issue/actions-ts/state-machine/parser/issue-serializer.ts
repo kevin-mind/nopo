@@ -19,7 +19,11 @@ import type {
   IssueState,
   LinkedPR,
 } from "../schemas/index.js";
-import { parseTodos, calculateTodoStats, parseTodoStats } from "./todo-parser.js";
+import {
+  parseTodos,
+  calculateTodoStats,
+  parseTodoStats,
+} from "./todo-parser.js";
 import { parseHistory, createHistoryTable } from "./history-parser.js";
 import { extractAgentNotesSection } from "./agent-notes-parser.js";
 
@@ -203,7 +207,8 @@ export function serializeParentIssueBody(issue: {
   if (issue.history.length > 0) {
     body += `\n\n${createHistoryTable(issue.history)}`;
   } else {
-    body += "\n\n## Iteration History\n\n<!-- iteration_history_start -->\n<!-- iteration_history_end -->";
+    body +=
+      "\n\n## Iteration History\n\n<!-- iteration_history_start -->\n<!-- iteration_history_end -->";
   }
 
   // Preserve agent notes section if provided
@@ -275,5 +280,9 @@ export function getSubIssueBody(subIssue: SubIssue): string {
 // Re-exports for convenience
 // ============================================================================
 
-export { parseTodos, calculateTodoStats, parseTodoStats } from "./todo-parser.js";
+export {
+  parseTodos,
+  calculateTodoStats,
+  parseTodoStats,
+} from "./todo-parser.js";
 export { parseHistory, createHistoryTable } from "./history-parser.js";

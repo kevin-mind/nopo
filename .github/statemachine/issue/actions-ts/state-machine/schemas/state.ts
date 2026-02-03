@@ -75,14 +75,14 @@ export type HistoryEntry = z.infer<typeof HistoryEntrySchema>;
 /**
  * Agent notes entry from a workflow run
  */
-export const AgentNotesEntrySchema = z.object({
+const AgentNotesEntrySchema = z.object({
   runId: z.string(),
   runLink: z.string(),
   timestamp: z.string(),
   notes: z.array(z.string()),
 });
 
-export type AgentNotesEntry = z.infer<typeof AgentNotesEntrySchema>;
+type AgentNotesEntry = z.infer<typeof AgentNotesEntrySchema>;
 
 /**
  * Pull request associated with a sub-issue

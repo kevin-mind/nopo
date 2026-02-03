@@ -10,6 +10,8 @@ export default {
     "test-e2e-dump/**",
     // E2E test feature directories (mock files created during multi-phase tests)
     "test-feature-*/**",
+    // State machine has its own build/test system
+    ".github/statemachine/**",
   ],
   workspaces: {
     ".": {
@@ -43,11 +45,10 @@ export default {
       entry: "bin.ts",
     },
     ".github/actions-ts": {
-      entry: ["*/index.ts", "lib/index.ts", "scripts/*.ts", "*/scripts/*.ts"],
+      entry: ["*/index.ts", "lib/index.ts", "scripts/*.ts"],
       vitest: true,
-      ignore: ["*/dist/**", "spike-sdk/**"],
+      ignore: ["*/dist/**"],
       ignoreDependencies: ["@actions/glob", "@actions/io"],
-      // Ignore exports that are only used within the file (public API types for fixture authors)
       rules: {
         exports: "off",
       },

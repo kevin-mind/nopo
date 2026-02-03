@@ -418,7 +418,7 @@ export function createDiscussionContext(
 /**
  * Create a context for new discussion creation
  */
-export function createNewDiscussionContext(
+function createNewDiscussionContext(
   overrides: Parameters<typeof createDiscussionContext>[0] = {},
 ): MachineContext {
   return createDiscussionContext({
@@ -430,7 +430,7 @@ export function createNewDiscussionContext(
 /**
  * Create a context for discussion comment from human
  */
-export function createDiscussionCommentContext(
+function createDiscussionCommentContext(
   overrides: Parameters<typeof createDiscussionContext>[0] = {},
 ): MachineContext {
   return createDiscussionContext({
@@ -448,7 +448,7 @@ export function createDiscussionCommentContext(
 /**
  * Create a context for discussion command
  */
-export function createDiscussionCommandContext(
+function createDiscussionCommandContext(
   command: "summarize" | "plan" | "complete",
   overrides: Parameters<typeof createDiscussionContext>[0] = {},
 ): MachineContext {

@@ -1,6 +1,11 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
-import { execCommand, getRequiredInput, getOptionalInput, setOutputs } from "../../lib/index.js";
+import {
+  execCommand,
+  getRequiredInput,
+  getOptionalInput,
+  setOutputs,
+} from "../../lib/index.js";
 import type {
   JobType,
   ResourceType,
@@ -1959,7 +1964,10 @@ async function handleWorkflowDispatchEvent(
   resourceNumber: string,
 ): Promise<DetectionResult> {
   if (!resourceNumber) {
-    return emptyResult(true, "No resource_number provided for workflow_dispatch");
+    return emptyResult(
+      true,
+      "No resource_number provided for workflow_dispatch",
+    );
   }
 
   const issueNumber = parseInt(resourceNumber, 10);
@@ -1973,7 +1981,12 @@ async function handleWorkflowDispatchEvent(
   const details = await fetchIssueDetails(octokit, owner, repo, issueNumber);
 
   // Check project state - skip if in terminal/blocked state
-  const projectState = await fetchProjectState(octokit, owner, repo, issueNumber);
+  const projectState = await fetchProjectState(
+    octokit,
+    owner,
+    repo,
+    issueNumber,
+  );
   if (shouldSkipProjectState(projectState)) {
     return emptyResult(
       true,
@@ -2014,7 +2027,10 @@ async function handleWorkflowDispatchEvent(
   // Check if this is a sub-issue - determine branch from parent and phase
   if (details.isSubIssue) {
     const phaseNumber = extractPhaseNumber(details.title);
-    const branchName = deriveBranch(details.parentIssue, phaseNumber || issueNumber);
+    const branchName = deriveBranch(
+      details.parentIssue,
+      phaseNumber || issueNumber,
+    );
 
     return {
       job: "issue-iterate",
@@ -2111,7 +2127,12 @@ async function run(): Promise<void> {
         result = await handleMergeGroupEvent(octokit, owner, repo);
         break;
       case "workflow_dispatch":
-        result = await handleWorkflowDispatchEvent(octokit, owner, repo, resourceNumber);
+        result = await handleWorkflowDispatchEvent(
+          octokit,
+          owner,
+          repo,
+          resourceNumber,
+        );
         break;
       default:
         result = emptyResult(true, `Unhandled event: ${eventName}`);

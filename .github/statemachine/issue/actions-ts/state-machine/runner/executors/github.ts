@@ -862,9 +862,13 @@ export async function executeResetIssue(
       issue_number: action.issueNumber,
       assignees: [action.botUsername],
     });
-    core.info(`Unassigned ${action.botUsername} from issue #${action.issueNumber}`);
+    core.info(
+      `Unassigned ${action.botUsername} from issue #${action.issueNumber}`,
+    );
   } catch (error) {
-    core.warning(`Failed to unassign bot from issue #${action.issueNumber}: ${error}`);
+    core.warning(
+      `Failed to unassign bot from issue #${action.issueNumber}: ${error}`,
+    );
   }
 
   // 4. Unassign bot from all sub-issues
@@ -876,9 +880,13 @@ export async function executeResetIssue(
         issue_number: subIssueNumber,
         assignees: [action.botUsername],
       });
-      core.info(`Unassigned ${action.botUsername} from sub-issue #${subIssueNumber}`);
+      core.info(
+        `Unassigned ${action.botUsername} from sub-issue #${subIssueNumber}`,
+      );
     } catch (error) {
-      core.warning(`Failed to unassign bot from sub-issue #${subIssueNumber}: ${error}`);
+      core.warning(
+        `Failed to unassign bot from sub-issue #${subIssueNumber}: ${error}`,
+      );
     }
   }
 

@@ -5,10 +5,7 @@ import {
   getOptionalInput,
   setOutputs,
 } from "../../../shared/lib/index.js";
-import type {
-  Action,
-  TokenType,
-} from "../state-machine/schemas/index.js";
+import type { Action, TokenType } from "../state-machine/schemas/index.js";
 import { ActionSchema } from "../state-machine/schemas/index.js";
 import {
   executeActions,

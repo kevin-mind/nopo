@@ -119,8 +119,7 @@ interface SignaledRunnerContext extends RunnerContext {
   progress?: ProgressInfo;
 }
 
-// Re-export types from signaler
-export type { ResourceType };
+// Re-export types from signaler;
 
 /**
  * Get the appropriate octokit based on the action's token field
@@ -608,7 +607,7 @@ interface SignaledRunnerResult extends RunnerResult {
  *
  * This replaces the separate signal-start and handle-result jobs.
  */
-export async function runWithSignaling(
+async function runWithSignaling(
   actions: Action[],
   ctx: SignaledRunnerContext,
   options: RunnerOptions = {},
@@ -674,7 +673,7 @@ export async function runWithSignaling(
 /**
  * Create a signaled runner context from GitHub action inputs
  */
-export function createSignaledRunnerContext(
+function createSignaledRunnerContext(
   octokit: Octokit,
   owner: string,
   repo: string,

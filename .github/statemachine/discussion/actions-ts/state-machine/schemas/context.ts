@@ -4,7 +4,11 @@ import { DiscussionTriggerTypeSchema } from "./triggers.js";
 /**
  * Discussion command types
  */
-export const DiscussionCommandSchema = z.enum(["summarize", "plan", "complete"]);
+export const DiscussionCommandSchema = z.enum([
+  "summarize",
+  "plan",
+  "complete",
+]);
 
 export type DiscussionCommand = z.infer<typeof DiscussionCommandSchema>;
 

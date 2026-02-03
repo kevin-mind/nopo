@@ -192,7 +192,9 @@ describe("formatAgentNotesForPrompt", () => {
     ];
 
     const result = formatAgentNotesForPrompt(entries);
-    expect(result).toContain("### [Run 123](https://example.com/123) - Jan 22 19:04");
+    expect(result).toContain(
+      "### [Run 123](https://example.com/123) - Jan 22 19:04",
+    );
     expect(result).toContain("- Note 1");
     expect(result).toContain("- Note 2");
   });

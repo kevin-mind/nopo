@@ -827,7 +827,12 @@ export const DISCUSSION_ACTION_TYPES = [
  * Shared action types
  * These actions are used by both issue and discussion contexts
  */
-export const SHARED_ACTION_TYPES = ["stop", "log", "noop", "runClaude"] as const;
+export const SHARED_ACTION_TYPES = [
+  "stop",
+  "log",
+  "noop",
+  "runClaude",
+] as const;
 
 export type IssueActionType = (typeof ISSUE_ACTION_TYPES)[number];
 export type DiscussionActionType = (typeof DISCUSSION_ACTION_TYPES)[number];

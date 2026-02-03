@@ -12,15 +12,9 @@ export {
 } from "./src/executor.js";
 export {
   resolvePrompt,
-  resolvePromptDir,
-  substituteVars,
+  
+  
   buildImplementationPrompt,
   buildCIFixPrompt,
   buildReviewResponsePrompt,
-} from "./src/prompts.js";
-export type {
-  ClaudeExecutorOptions,
-  ClaudeResult,
-  PromptResolutionOptions,
-  ResolvedPrompt,
-} from "./src/types.js";
+} from "./src/prompts.js";;
