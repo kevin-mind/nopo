@@ -46739,26 +46739,34 @@ It simulates Claude's code changes in mock mode.`;
   }
 }
 async function executeRunClaude(action, ctx) {
-  if (ctx.mockOutputs && action.promptDir) {
-    const mockOutput = ctx.mockOutputs[action.promptDir];
-    if (mockOutput) {
-      core11.info(
-        `[MOCK MODE] Using mock output for '${action.promptDir}' prompt`
-      );
-      core11.startGroup("Mock Structured Output");
-      core11.info(JSON.stringify(mockOutput, null, 2));
-      core11.endGroup();
-      await createMockCommit(action, ctx);
-      return {
-        success: true,
-        exitCode: 0,
-        output: JSON.stringify({ structured_output: mockOutput }),
-        structuredOutput: mockOutput
-      };
+  if (ctx.mockOutputs) {
+    let mockKey = action.promptDir;
+    if (!mockKey && action.promptFile) {
+      const pathParts = action.promptFile.split("/");
+      const promptTxtIndex = pathParts.findIndex((p3) => p3 === "prompt.txt");
+      if (promptTxtIndex > 0) {
+        mockKey = pathParts[promptTxtIndex - 1];
+      }
     }
-    core11.warning(
-      `[MOCK MODE] No mock output for '${action.promptDir}' prompt, running real Claude`
-    );
+    if (mockKey) {
+      const mockOutput = ctx.mockOutputs[mockKey];
+      if (mockOutput) {
+        core11.info(`[MOCK MODE] Using mock output for '${mockKey}' prompt`);
+        core11.startGroup("Mock Output");
+        core11.info(JSON.stringify(mockOutput, null, 2));
+        core11.endGroup();
+        await createMockCommit(action, ctx);
+        return {
+          success: true,
+          exitCode: 0,
+          output: JSON.stringify({ structured_output: mockOutput }),
+          structuredOutput: mockOutput
+        };
+      }
+      core11.warning(
+        `[MOCK MODE] No mock output for '${mockKey}' prompt, running real Claude`
+      );
+    }
   }
   const resolved = resolvePrompt({
     prompt: action.prompt,

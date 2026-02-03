@@ -172,30 +172,42 @@ export async function executeRunClaude(
   ctx: RunnerContext,
 ): Promise<ClaudeRunResult> {
   // Check for mock mode - skip real Claude and return mock output
-  if (ctx.mockOutputs && action.promptDir) {
-    const mockOutput = ctx.mockOutputs[action.promptDir];
-    if (mockOutput) {
-      core.info(
-        `[MOCK MODE] Using mock output for '${action.promptDir}' prompt`,
-      );
-      core.startGroup("Mock Structured Output");
-      core.info(JSON.stringify(mockOutput, null, 2));
-      core.endGroup();
-
-      // In mock mode, create a placeholder commit to simulate Claude's side effects
-      // This ensures PR creation can succeed (requires at least one commit)
-      await createMockCommit(action, ctx);
-
-      return {
-        success: true,
-        exitCode: 0,
-        output: JSON.stringify({ structured_output: mockOutput }),
-        structuredOutput: mockOutput,
-      };
+  if (ctx.mockOutputs) {
+    // Determine mock key: use promptDir if available, or extract from promptFile path
+    // e.g., ".github/statemachine/issue/prompts/comment/prompt.txt" -> "comment"
+    let mockKey = action.promptDir;
+    if (!mockKey && action.promptFile) {
+      const pathParts = action.promptFile.split("/");
+      // Get the directory name before "prompt.txt"
+      const promptTxtIndex = pathParts.findIndex((p) => p === "prompt.txt");
+      if (promptTxtIndex > 0) {
+        mockKey = pathParts[promptTxtIndex - 1];
+      }
     }
-    core.warning(
-      `[MOCK MODE] No mock output for '${action.promptDir}' prompt, running real Claude`,
-    );
+
+    if (mockKey) {
+      const mockOutput = ctx.mockOutputs[mockKey];
+      if (mockOutput) {
+        core.info(`[MOCK MODE] Using mock output for '${mockKey}' prompt`);
+        core.startGroup("Mock Output");
+        core.info(JSON.stringify(mockOutput, null, 2));
+        core.endGroup();
+
+        // In mock mode, create a placeholder commit to simulate Claude's side effects
+        // This ensures PR creation can succeed (requires at least one commit)
+        await createMockCommit(action, ctx);
+
+        return {
+          success: true,
+          exitCode: 0,
+          output: JSON.stringify({ structured_output: mockOutput }),
+          structuredOutput: mockOutput,
+        };
+      }
+      core.warning(
+        `[MOCK MODE] No mock output for '${mockKey}' prompt, running real Claude`,
+      );
+    }
   }
 
   // Resolve prompt from action
