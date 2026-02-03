@@ -1,0 +1,68 @@
+{
+  "state": "resetting",
+  "trigger": "issue-reset",
+  "issue": {
+    "number": 0,
+    "title": "Implement new feature",
+    "state": "OPEN",
+    "body": "This feature has been blocked due to CI failures.\n\n## Todos\n\n- [x] Initial implementation\n- [ ] Fix CI failures\n- [ ] Add tests",
+    "projectStatus": "Blocked",
+    "iteration": 5,
+    "failures": 3,
+    "assignees": ["nopo-bot"],
+    "labels": ["triaged", "enhancement"],
+    "subIssues": [],
+    "hasSubIssues": false,
+    "history": [
+      {
+        "iteration": 1,
+        "phase": "-",
+        "status": "Done",
+        "transition": "Triage"
+      },
+      {
+        "iteration": 2,
+        "phase": "-",
+        "status": "Failed",
+        "transition": "Iterate"
+      },
+      {
+        "iteration": 3,
+        "phase": "-",
+        "status": "Failed",
+        "transition": "Iterate"
+      },
+      {
+        "iteration": 4,
+        "phase": "-",
+        "status": "Failed",
+        "transition": "Iterate"
+      },
+      {
+        "iteration": 5,
+        "phase": "-",
+        "status": "Done",
+        "transition": "Blocked"
+      }
+    ],
+    "todos": {
+      "total": 3,
+      "completed": 1,
+      "uncheckedNonManual": 2
+    },
+    "agentNotes": [
+      {
+        "timestamp": "2024-01-15T10:00:00Z",
+        "type": "error",
+        "message": "CI failed due to flaky test"
+      }
+    ]
+  },
+  "expected": {
+    "finalState": "resetting",
+    "projectStatus": "Backlog",
+    "iteration": 0,
+    "failures": 0,
+    "assignees": []
+  }
+}

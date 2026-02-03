@@ -1,0 +1,35 @@
+{
+  "state": "iterating",
+  "trigger": "issue-assigned",
+  "issue": {
+    "number": 0,
+    "title": "Implement user authentication",
+    "state": "OPEN",
+    "body": "Add OAuth2 authentication to the API.\n\n## Todos\n\n- [ ] Add OAuth2 library\n- [ ] Create auth endpoints\n- [ ] Add middleware",
+    "projectStatus": "In progress",
+    "iteration": 0,
+    "failures": 0,
+    "assignees": ["nopo-bot"],
+    "labels": ["triaged", "enhancement"],
+    "subIssues": [],
+    "hasSubIssues": false,
+    "history": [
+      {
+        "iteration": 1,
+        "phase": "-",
+        "status": "Done",
+        "transition": "Triage"
+      }
+    ],
+    "todos": {
+      "total": 3,
+      "completed": 0,
+      "uncheckedNonManual": 3
+    },
+    "agentNotes": []
+  },
+  "claudeMock": "iterate/perfect-code",
+  "expected": {
+    "finalState": "iterating"
+  }
+}

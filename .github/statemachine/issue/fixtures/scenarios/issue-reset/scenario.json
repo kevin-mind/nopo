@@ -1,0 +1,4 @@
+{
+  "name": "issue-reset",
+  "description": "Tests /reset slash command - resets issue to initial state (Backlog/Ready)"
+}

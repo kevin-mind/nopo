@@ -1,0 +1,6 @@
+{
+  "description": "Claude explains the error handling approach",
+  "output": {
+    "response": "## Error Handling Approach\n\nI'm using a layered error handling strategy:\n\n### 1. Try/Catch at API Boundaries\nEach endpoint wraps its logic in try/catch to ensure no unhandled exceptions escape.\n\n### 2. Custom Exception Classes\nUsing custom exceptions like `ValidationError`, `NotFoundError`, and `AuthorizationError` to map to appropriate HTTP status codes.\n\n### 3. Centralized Error Handler\nA middleware catches all errors and formats them consistently:\n\n```python\n{\n  \"error\": {\n    \"code\": \"VALIDATION_ERROR\",\n    \"message\": \"Invalid input\",\n    \"details\": {...}\n  }\n}\n```\n\n### 4. Logging\nAll errors are logged with context (request ID, user, timestamp) for debugging.\n\nLet me know if you'd like me to elaborate on any part!"
+  }
+}

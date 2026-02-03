@@ -1,0 +1,47 @@
+{
+  "state": "done",
+  "description": "Final state after /lfg triggers iteration - Claude implements the feature",
+  "issue": {
+    "number": 0,
+    "title": "Implement user authentication",
+    "state": "OPEN",
+    "body": "Add OAuth2 authentication to the API.\n\n## Todos\n\n- [x] Add OAuth2 library\n- [x] Create auth endpoints\n- [x] Add middleware",
+    "projectStatus": "In review",
+    "iteration": 1,
+    "failures": 0,
+    "assignees": ["nopo-bot"],
+    "labels": ["triaged", "enhancement"],
+    "subIssues": [],
+    "hasSubIssues": false,
+    "history": [
+      {
+        "iteration": 1,
+        "phase": "-",
+        "status": "Done",
+        "transition": "Triage"
+      },
+      {
+        "iteration": 1,
+        "phase": "-",
+        "status": "Done",
+        "transition": "Iterate"
+      }
+    ],
+    "todos": {
+      "total": 3,
+      "completed": 3,
+      "uncheckedNonManual": 0
+    },
+    "agentNotes": [
+      {
+        "timestamp": "2024-01-15T10:00:00Z",
+        "type": "info",
+        "message": "All implementation tasks completed"
+      }
+    ]
+  },
+  "expected": {
+    "allTodosComplete": true,
+    "prCreated": true
+  }
+}

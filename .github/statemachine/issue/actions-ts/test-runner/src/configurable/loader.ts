@@ -22,7 +22,7 @@ import {
 // Constants
 // ============================================================================
 
-const FIXTURES_BASE_PATH = ".github/test-fixtures";
+const FIXTURES_BASE_PATH = ".github/statemachine/issue/fixtures";
 const SCENARIOS_DIR = "scenarios";
 const CLAUDE_MOCKS_DIR = "claude-mocks";
 const STATES_DIR = "states";
