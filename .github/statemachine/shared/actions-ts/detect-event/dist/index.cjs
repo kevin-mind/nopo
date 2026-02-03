@@ -24667,7 +24667,7 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
         issue_title: details.title || issue.title,
         issue_body: details.body || issue.body,
         sub_issues: details.subIssues.join(","),
-        trigger_type: "issue_comment"
+        trigger_type: "issue-reset"
       },
       skip: false,
       skipReason: ""
