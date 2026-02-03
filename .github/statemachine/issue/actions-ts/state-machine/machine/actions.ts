@@ -186,11 +186,19 @@ function emitBlock({ context }: ActionContext): ActionResult {
 }
 
 /**
- * Emit action to reset the issue (and sub-issues) to initial state
+ * Emit actions to reset the issue (and sub-issues) to initial state
  * This is triggered by /reset command
+ *
+ * Resets:
+ * - Reopens closed issues
+ * - Unassigns bot
+ * - Sets status to Backlog
+ * - Clears failure counter
+ *
+ * Note: Iteration counter is not reset (no setIteration action exists yet)
  */
 export function emitResetIssue({ context }: ActionContext): ActionResult {
-  return [
+  const actions: ActionResult = [
     {
       type: "resetIssue",
       token: "code",
@@ -198,7 +206,35 @@ export function emitResetIssue({ context }: ActionContext): ActionResult {
       subIssueNumbers: context.issue.subIssues.map((s) => s.number),
       botUsername: context.botUsername,
     },
+    {
+      type: "updateProjectStatus",
+      token: "code",
+      issueNumber: context.issue.number,
+      status: "Backlog",
+    },
+    {
+      type: "clearFailures",
+      token: "code",
+      issueNumber: context.issue.number,
+    },
   ];
+
+  // Also reset sub-issues to Ready status
+  for (const subIssue of context.issue.subIssues) {
+    actions.push({
+      type: "updateProjectStatus",
+      token: "code",
+      issueNumber: subIssue.number,
+      status: "Ready",
+    });
+    actions.push({
+      type: "clearFailures",
+      token: "code",
+      issueNumber: subIssue.number,
+    });
+  }
+
+  return actions;
 }
 
 // ============================================================================

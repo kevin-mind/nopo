@@ -13,38 +13,7 @@
     "labels": ["triaged", "enhancement"],
     "subIssues": [],
     "hasSubIssues": false,
-    "history": [
-      {
-        "iteration": 1,
-        "phase": "-",
-        "status": "Done",
-        "transition": "Triage"
-      },
-      {
-        "iteration": 2,
-        "phase": "-",
-        "status": "Failed",
-        "transition": "Iterate"
-      },
-      {
-        "iteration": 3,
-        "phase": "-",
-        "status": "Failed",
-        "transition": "Iterate"
-      },
-      {
-        "iteration": 4,
-        "phase": "-",
-        "status": "Failed",
-        "transition": "Iterate"
-      },
-      {
-        "iteration": 5,
-        "phase": "-",
-        "status": "Done",
-        "transition": "Blocked"
-      }
-    ],
+    "history": [],
     "todos": {
       "total": 3,
       "completed": 1,
@@ -61,7 +30,6 @@
   "expected": {
     "finalState": "resetting",
     "projectStatus": "Backlog",
-    "iteration": 0,
     "failures": 0,
     "assignees": []
   }

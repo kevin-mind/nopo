@@ -32772,15 +32772,40 @@ function emitBlock({ context: context2 }) {
   ];
 }
 function emitResetIssue({ context: context2 }) {
-  return [
+  const actions = [
     {
       type: "resetIssue",
       token: "code",
       issueNumber: context2.issue.number,
       subIssueNumbers: context2.issue.subIssues.map((s) => s.number),
       botUsername: context2.botUsername
+    },
+    {
+      type: "updateProjectStatus",
+      token: "code",
+      issueNumber: context2.issue.number,
+      status: "Backlog"
+    },
+    {
+      type: "clearFailures",
+      token: "code",
+      issueNumber: context2.issue.number
     }
   ];
+  for (const subIssue of context2.issue.subIssues) {
+    actions.push({
+      type: "updateProjectStatus",
+      token: "code",
+      issueNumber: subIssue.number,
+      status: "Ready"
+    });
+    actions.push({
+      type: "clearFailures",
+      token: "code",
+      issueNumber: subIssue.number
+    });
+  }
+  return actions;
 }
 function emitAppendHistory({ context: context2 }, message, phase) {
   const phaseStr = phase ?? context2.currentPhase ?? "-";

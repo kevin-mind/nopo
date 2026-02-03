@@ -13,14 +13,7 @@
     "labels": ["triaged", "enhancement"],
     "subIssues": [],
     "hasSubIssues": false,
-    "history": [
-      {
-        "iteration": 1,
-        "phase": "-",
-        "status": "Done",
-        "transition": "Triage"
-      }
-    ],
+    "history": [],
     "todos": {
       "total": 3,
       "completed": 0,
