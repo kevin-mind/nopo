@@ -28798,6 +28798,7 @@ async function run() {
   try {
     const prompt = core2.getInput("prompt");
     const promptDir = core2.getInput("prompt_dir");
+    const promptsBase = core2.getInput("prompts_base") || ".github/statemachine/issue/prompts";
     const promptFile = core2.getInput("prompt_file");
     const promptVarsJson = core2.getInput("prompt_vars") || "{}";
     const workingDirectory = core2.getInput("working_directory") || process.cwd();
@@ -28826,7 +28827,6 @@ async function run() {
       }
     }
     const basePath = process.cwd();
-    const promptsDir = ".github/statemachine/issue/prompts";
     let resolvedPrompt;
     let outputSchema;
     try {
@@ -28836,7 +28836,7 @@ async function run() {
         promptFile,
         promptVars,
         basePath,
-        promptsDir
+        promptsDir: promptsBase
       });
       resolvedPrompt = resolved.prompt;
       outputSchema = resolved.outputSchema;

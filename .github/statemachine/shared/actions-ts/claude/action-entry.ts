@@ -14,6 +14,7 @@ async function run(): Promise<void> {
     // Get inputs
     const prompt = core.getInput("prompt");
     const promptDir = core.getInput("prompt_dir");
+    const promptsBase = core.getInput("prompts_base") || ".github/statemachine/issue/prompts";
     const promptFile = core.getInput("prompt_file");
     const promptVarsJson = core.getInput("prompt_vars") || "{}";
     const workingDirectory = core.getInput("working_directory") || process.cwd();
@@ -50,7 +51,6 @@ async function run(): Promise<void> {
 
     // Resolve the prompt
     const basePath = process.cwd();
-    const promptsDir = ".github/statemachine/issue/prompts";
 
     let resolvedPrompt: string;
     let outputSchema: unknown;
@@ -62,7 +62,7 @@ async function run(): Promise<void> {
         promptFile,
         promptVars,
         basePath,
-        promptsDir,
+        promptsDir: promptsBase,
       });
       resolvedPrompt = resolved.prompt;
       outputSchema = resolved.outputSchema;

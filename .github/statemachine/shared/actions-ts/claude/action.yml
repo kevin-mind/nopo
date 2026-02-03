@@ -6,8 +6,12 @@ inputs:
     description: 'Direct prompt text to send to Claude'
     required: false
   prompt_dir:
-    description: 'Directory name in .github/prompts/ containing prompt.txt and optional outputs.json'
+    description: 'Directory name containing prompt.txt and optional outputs.json'
     required: false
+  prompts_base:
+    description: 'Base directory for prompts (default: .github/statemachine/issue/prompts)'
+    required: false
+    default: '.github/statemachine/issue/prompts'
   prompt_file:
     description: 'Path to a prompt file (legacy - prefer prompt_dir)'
     required: false
