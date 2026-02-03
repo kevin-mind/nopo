@@ -24875,6 +24875,7 @@ async function handleWorkflowRunEvent() {
   const workflowRun = payload.workflow_run;
   const conclusion = workflowRun.conclusion;
   const branch = workflowRun.head_branch;
+  const headSha = workflowRun.head_sha;
   const runId = String(workflowRun.id);
   if (branch.startsWith("test/")) {
     return emptyResult(true, "Workflow run on test branch");
@@ -24914,6 +24915,7 @@ async function handleWorkflowRunEvent() {
       branch_name: branch,
       ci_run_url: ciRunUrl,
       ci_result: conclusion,
+      ci_commit_sha: headSha,
       trigger_type: "workflow-run-completed",
       parent_issue: String(details.parentIssue)
     },

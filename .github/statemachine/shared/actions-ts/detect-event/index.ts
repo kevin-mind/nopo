@@ -1398,11 +1398,13 @@ async function handleWorkflowRunEvent(): Promise<DetectionResult> {
   const workflowRun = payload.workflow_run as {
     conclusion: string;
     head_branch: string;
+    head_sha: string;
     id: number;
   };
 
   const conclusion = workflowRun.conclusion;
   const branch = workflowRun.head_branch;
+  const headSha = workflowRun.head_sha;
   const runId = String(workflowRun.id);
 
   // Skip test branches (circuit breaker for test automation)
@@ -1459,6 +1461,7 @@ async function handleWorkflowRunEvent(): Promise<DetectionResult> {
       branch_name: branch,
       ci_run_url: ciRunUrl,
       ci_result: conclusion,
+      ci_commit_sha: headSha,
       trigger_type: "workflow-run-completed",
       parent_issue: String(details.parentIssue),
     },

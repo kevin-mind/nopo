@@ -390,7 +390,7 @@ async function runIssueMachine(options: IssueMachineOptions): Promise<void> {
     // Add CI-specific fields for workflow-run-completed triggers
     ...(ciResult && { result: ciResult }),
     ...(ciRunUrl && { runUrl: ciRunUrl }),
-    ...(ciCommitSha && { commitSha: ciCommitSha }),
+    ...(ciCommitSha && { headSha: ciCommitSha }),
     // Add review-specific fields for pr-review-submitted triggers
     ...(reviewDecision && { decision: reviewDecision }),
     ...(reviewer && { reviewer }),
