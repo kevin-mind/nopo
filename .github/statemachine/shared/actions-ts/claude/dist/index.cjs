@@ -28732,8 +28732,8 @@ function substituteVars(template, vars) {
     return vars[trimmedName] ?? match;
   });
 }
-function resolvePromptDir(promptDir, basePath = process.cwd()) {
-  const dirPath = path.resolve(basePath, ".github/prompts", promptDir);
+function resolvePromptDir(promptDir, basePath = process.cwd(), promptsDir = ".github/prompts") {
+  const dirPath = path.resolve(basePath, promptsDir, promptDir);
   const promptPath = path.join(dirPath, "prompt.txt");
   const schemaPath = path.join(dirPath, "outputs.json");
   return {
@@ -28741,8 +28741,15 @@ function resolvePromptDir(promptDir, basePath = process.cwd()) {
     schemaPath: fs.existsSync(schemaPath) ? schemaPath : void 0
   };
 }
-function resolvePrompt(options, basePath = process.cwd()) {
-  const { prompt, promptFile, promptDir, promptVars } = options;
+function resolvePrompt(options) {
+  const {
+    prompt,
+    promptFile,
+    promptDir,
+    promptsDir = ".github/prompts",
+    basePath = process.cwd(),
+    promptVars
+  } = options;
   if (prompt) {
     let resolvedPrompt = prompt;
     if (promptVars) {
@@ -28751,7 +28758,11 @@ function resolvePrompt(options, basePath = process.cwd()) {
     return { prompt: resolvedPrompt };
   }
   if (promptDir) {
-    const { promptPath, schemaPath } = resolvePromptDir(promptDir, basePath);
+    const { promptPath, schemaPath } = resolvePromptDir(
+      promptDir,
+      basePath,
+      promptsDir
+    );
     if (!fs.existsSync(promptPath)) {
       throw new Error(
         `Prompt file not found: ${promptPath} (from promptDir: ${promptDir})`

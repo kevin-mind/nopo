@@ -23,18 +23,19 @@ function substituteVars(
 /**
  * Resolve a prompt directory to file paths
  *
- * Prompt directories are located at .github/prompts/{name}/ and contain:
+ * Prompt directories contain:
  * - prompt.txt (required) - The prompt template
  * - outputs.json (optional) - JSON schema for structured output
  */
 function resolvePromptDir(
   promptDir: string,
   basePath: string = process.cwd(),
+  promptsDir: string = ".github/prompts",
 ): {
   promptPath: string;
   schemaPath?: string;
 } {
-  const dirPath = path.resolve(basePath, ".github/prompts", promptDir);
+  const dirPath = path.resolve(basePath, promptsDir, promptDir);
   const promptPath = path.join(dirPath, "prompt.txt");
   const schemaPath = path.join(dirPath, "outputs.json");
 
@@ -56,11 +57,15 @@ function resolvePromptDir(
  * @param basePath - Base path for resolving relative paths (defaults to cwd)
  * @returns Resolved prompt with optional output schema
  */
-export function resolvePrompt(
-  options: PromptResolutionOptions,
-  basePath: string = process.cwd(),
-): ResolvedPrompt {
-  const { prompt, promptFile, promptDir, promptVars } = options;
+export function resolvePrompt(options: PromptResolutionOptions): ResolvedPrompt {
+  const {
+    prompt,
+    promptFile,
+    promptDir,
+    promptsDir = ".github/prompts",
+    basePath = process.cwd(),
+    promptVars,
+  } = options;
 
   // Mode 1: Direct prompt
   if (prompt) {
@@ -73,7 +78,11 @@ export function resolvePrompt(
 
   // Mode 2: Prompt directory (recommended)
   if (promptDir) {
-    const { promptPath, schemaPath } = resolvePromptDir(promptDir, basePath);
+    const { promptPath, schemaPath } = resolvePromptDir(
+      promptDir,
+      basePath,
+      promptsDir,
+    );
 
     if (!fs.existsSync(promptPath)) {
       throw new Error(

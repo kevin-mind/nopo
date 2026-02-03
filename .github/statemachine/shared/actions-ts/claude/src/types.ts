@@ -61,8 +61,14 @@ export interface PromptResolutionOptions {
   /** Path to prompt file */
   promptFile?: string;
 
-  /** Directory name in .github/prompts/ containing prompt.txt and optional outputs.json */
+  /** Directory name containing prompt.txt and optional outputs.json */
   promptDir?: string;
+
+  /** Base directory for prompts (defaults to .github/prompts/) */
+  promptsDir?: string;
+
+  /** Base path for resolving relative paths (defaults to cwd) */
+  basePath?: string;
 
   /** Variables to substitute in the prompt (replaces {{VAR_NAME}}) */
   promptVars?: Record<string, string>;
