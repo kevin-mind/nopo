@@ -33185,7 +33185,7 @@ function emitRunClaudeComment({ context: context2 }) {
     {
       type: "runClaude",
       token: "code",
-      promptFile: ".github/prompts/comment.txt",
+      promptFile: ".github/statemachine/issue/prompts/comment/prompt.txt",
       promptVars,
       issueNumber
       // worktree intentionally omitted - checkout happens at repo root to the correct branch
@@ -33264,7 +33264,7 @@ function emitRunClaudePRResponse({
     {
       type: "runClaude",
       token: "code",
-      promptFile: ".github/prompts/review-response.txt",
+      promptFile: ".github/statemachine/issue/prompts/review-response/prompt.txt",
       promptVars,
       issueNumber
       // worktree intentionally omitted - checkout happens at repo root to the correct branch
@@ -33300,7 +33300,7 @@ function emitRunClaudePRHumanResponse({
     {
       type: "runClaude",
       token: "code",
-      promptFile: ".github/prompts/human-review-response.txt",
+      promptFile: ".github/statemachine/issue/prompts/human-review-response/prompt.txt",
       promptVars,
       issueNumber
       // worktree intentionally omitted - checkout happens at repo root to the correct branch

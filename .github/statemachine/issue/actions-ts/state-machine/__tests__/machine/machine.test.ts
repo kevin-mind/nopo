@@ -356,7 +356,7 @@ describe("claudeMachine", () => {
       const { actions } = runMachine(context);
       const runClaudeAction = actions.find((a) => a.type === "runClaude");
       if (runClaudeAction?.type === "runClaude") {
-        expect(runClaudeAction.promptFile).toBe(".github/prompts/comment.txt");
+        expect(runClaudeAction.promptFile).toBe(".github/statemachine/issue/prompts/comment/prompt.txt");
         expect(runClaudeAction.promptVars).toEqual({
           ISSUE_NUMBER: "456",
           CONTEXT_TYPE: "pr",

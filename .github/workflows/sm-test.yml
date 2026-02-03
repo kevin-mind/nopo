@@ -19,6 +19,9 @@ on:
           - issue-comment
           - issue-reset
           - slash-lfg
+          - pr-review-comment
+          - pr-review-approved
+          - pr-push-during-review
       continue:
         description: 'Run to completion (true) or stop after one step (false)'
         type: boolean

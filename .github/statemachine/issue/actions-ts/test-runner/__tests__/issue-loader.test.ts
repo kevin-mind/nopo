@@ -69,6 +69,44 @@ describe("Issue Loader", () => {
       expect(fixture).toBeDefined();
     });
 
+    test("loads pr-review-comment scenario", async () => {
+      console.log("Loading issue scenario: pr-review-comment");
+      const scenario = await loadScenario("pr-review-comment", TEST_FIXTURES_PATH);
+
+      expect(scenario.name).toBe("pr-review-comment");
+      expect(scenario.description).toContain("COMMENTED");
+      expect(scenario.orderedStates.length).toBeGreaterThanOrEqual(2);
+
+      const fixture = scenario.fixtures.get("processingReview");
+      expect(fixture).toBeDefined();
+      expect(fixture?.reviewDecision).toBe("COMMENTED");
+    });
+
+    test("loads pr-review-approved scenario", async () => {
+      console.log("Loading issue scenario: pr-review-approved");
+      const scenario = await loadScenario("pr-review-approved", TEST_FIXTURES_PATH);
+
+      expect(scenario.name).toBe("pr-review-approved");
+      expect(scenario.description).toContain("APPROVED");
+      expect(scenario.orderedStates.length).toBeGreaterThanOrEqual(2);
+
+      const fixture = scenario.fixtures.get("processingReview");
+      expect(fixture).toBeDefined();
+      expect(fixture?.reviewDecision).toBe("APPROVED");
+    });
+
+    test("loads pr-push-during-review scenario", async () => {
+      console.log("Loading issue scenario: pr-push-during-review");
+      const scenario = await loadScenario("pr-push-during-review", TEST_FIXTURES_PATH);
+
+      expect(scenario.name).toBe("pr-push-during-review");
+      expect(scenario.description).toContain("push");
+      expect(scenario.orderedStates.length).toBeGreaterThanOrEqual(2);
+
+      const firstState = scenario.orderedStates[0];
+      expect(firstState).toBe("reviewing");
+    });
+
     test("throws error for non-existent scenario", async () => {
       await expect(
         loadScenario("non-existent-scenario", TEST_FIXTURES_PATH),

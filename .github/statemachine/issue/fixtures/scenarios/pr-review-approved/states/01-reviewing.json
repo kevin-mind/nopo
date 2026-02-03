@@ -1,0 +1,30 @@
+{
+  "state": "reviewing",
+  "trigger": "pr-review-submitted",
+  "issue": {
+    "number": 0,
+    "title": "Feature ready for approval",
+    "state": "OPEN",
+    "body": "## Description\n\nTest scenario for approved review.\n\n## Todo\n\n- [x] Implement feature\n- [x] Add tests",
+    "projectStatus": "In review",
+    "iteration": 1,
+    "failures": 0,
+    "assignees": ["nopo-bot"],
+    "labels": ["enhancement", "triaged"],
+    "subIssues": [],
+    "hasSubIssues": false,
+    "history": [],
+    "todos": {
+      "total": 2,
+      "completed": 2,
+      "uncheckedNonManual": 0
+    },
+    "pr": {
+      "number": 0,
+      "state": "OPEN",
+      "isDraft": false,
+      "title": "feat: implement feature with tests",
+      "baseRef": "main"
+    }
+  }
+}

@@ -1,0 +1,4 @@
+{
+  "name": "pr-review-comment",
+  "description": "Tests review with COMMENTED decision - stays in review state awaiting approval"
+}
