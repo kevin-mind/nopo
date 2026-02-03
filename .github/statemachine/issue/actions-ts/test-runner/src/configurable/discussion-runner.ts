@@ -18,12 +18,12 @@ import {
   type DiscussionStateFixture,
   type DiscussionStateName,
 } from "./discussion-types.js";
-import type { MachineContext } from "../../../claude-state-machine/schemas/state.js";
-import { discussionMachine } from "../../../claude-state-machine/machine/index.js";
+import type { MachineContext } from "../../../state-machine/schemas/state.js";
+import { discussionMachine } from "../../../../../discussion/actions-ts/state-machine/index.js";
 import {
   executeActions,
   createRunnerContext,
-} from "../../../claude-state-machine/runner/runner.js";
+} from "../../../state-machine/runner/runner.js";
 
 type Octokit = InstanceType<typeof GitHub>;
 

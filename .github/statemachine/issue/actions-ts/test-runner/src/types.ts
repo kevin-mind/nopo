@@ -6,7 +6,7 @@ import type {
   MachineContext,
   ProjectStatus,
   HistoryEntry,
-} from "../../claude-state-machine/schemas/index.js";
+} from "../../state-machine/schemas/index.js";
 
 /**
  * Configuration for the exponential backoff poller

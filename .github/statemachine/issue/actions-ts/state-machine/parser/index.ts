@@ -29,7 +29,12 @@ export {
 } from "./issue-serializer.js";
 
 // State parser
-export { deriveBranchName, buildMachineContext } from "./state-parser.js";
+export {
+  deriveBranchName,
+  buildMachineContext,
+  buildDiscussionContext,
+  type BuildDiscussionContextOptions,
+} from "./state-parser.js";
 
 // Agent notes parser
 export {

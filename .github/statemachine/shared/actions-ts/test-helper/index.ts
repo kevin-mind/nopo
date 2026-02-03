@@ -4,7 +4,7 @@ import {
   getRequiredInput,
   getOptionalInput,
   setOutputs,
-} from "../lib/index.js";
+} from "../../lib/index.js";
 import type {
   TestFixture,
   FixtureCreationResult,

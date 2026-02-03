@@ -14,7 +14,7 @@ import {
   getRequiredInput,
   getOptionalInput,
   setOutputs,
-} from "../lib/index.js";
+} from "../../../shared/lib/index.js";
 import type { TestFixture } from "./src/types.js";
 import { runTest, diagnose, waitForStatus } from "./src/runner.js";
 import { validateFixture, formatValidationResult } from "./src/validate.js";

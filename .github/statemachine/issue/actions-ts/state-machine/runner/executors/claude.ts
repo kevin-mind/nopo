@@ -18,7 +18,7 @@ import {
   buildImplementationPrompt,
   buildCIFixPrompt,
   buildReviewResponsePrompt,
-} from "../../../claude/index.js";
+} from "../../../../../shared/actions-ts/claude/index.js";
 import type { RunClaudeAction } from "../../schemas/index.js";
 import type { RunnerContext } from "../runner.js";
 import { deriveBranchName } from "../../parser/index.js";

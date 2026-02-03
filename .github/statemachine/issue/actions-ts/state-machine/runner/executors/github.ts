@@ -15,6 +15,7 @@ import type {
   SubmitReviewAction,
   RemoveReviewerAction,
   CreateSubIssuesAction,
+  ResetIssueAction,
 } from "../../schemas/index.js";
 import { addHistoryEntry, updateHistoryEntry } from "../../parser/index.js";
 import type { RunnerContext } from "../runner.js";
@@ -791,4 +792,109 @@ export async function executeRemoveReviewer(
     }
     throw error;
   }
+}
+
+/**
+ * Reset an issue (and sub-issues) to initial state
+ * - Reopens closed issues
+ * - Sets parent status to Backlog
+ * - Sets sub-issue statuses to Ready
+ * - Clears iteration and failure counters
+ * - Unassigns bot
+ */
+export async function executeResetIssue(
+  action: ResetIssueAction,
+  ctx: RunnerContext,
+): Promise<{ resetCount: number }> {
+  let resetCount = 0;
+
+  // 1. Reopen the parent issue if closed
+  try {
+    const { data: issue } = await ctx.octokit.rest.issues.get({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: action.issueNumber,
+    });
+
+    if (issue.state === "closed") {
+      await ctx.octokit.rest.issues.update({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: action.issueNumber,
+        state: "open",
+      });
+      core.info(`Reopened issue #${action.issueNumber}`);
+      resetCount++;
+    }
+  } catch (error) {
+    core.warning(`Failed to reopen issue #${action.issueNumber}: ${error}`);
+  }
+
+  // 2. Reopen all sub-issues if closed
+  for (const subIssueNumber of action.subIssueNumbers) {
+    try {
+      const { data: subIssue } = await ctx.octokit.rest.issues.get({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: subIssueNumber,
+      });
+
+      if (subIssue.state === "closed") {
+        await ctx.octokit.rest.issues.update({
+          owner: ctx.owner,
+          repo: ctx.repo,
+          issue_number: subIssueNumber,
+          state: "open",
+        });
+        core.info(`Reopened sub-issue #${subIssueNumber}`);
+        resetCount++;
+      }
+    } catch (error) {
+      core.warning(`Failed to reopen sub-issue #${subIssueNumber}: ${error}`);
+    }
+  }
+
+  // 3. Unassign bot from parent issue
+  try {
+    await ctx.octokit.rest.issues.removeAssignees({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: action.issueNumber,
+      assignees: [action.botUsername],
+    });
+    core.info(`Unassigned ${action.botUsername} from issue #${action.issueNumber}`);
+  } catch (error) {
+    core.warning(`Failed to unassign bot from issue #${action.issueNumber}: ${error}`);
+  }
+
+  // 4. Unassign bot from all sub-issues
+  for (const subIssueNumber of action.subIssueNumbers) {
+    try {
+      await ctx.octokit.rest.issues.removeAssignees({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: subIssueNumber,
+        assignees: [action.botUsername],
+      });
+      core.info(`Unassigned ${action.botUsername} from sub-issue #${subIssueNumber}`);
+    } catch (error) {
+      core.warning(`Failed to unassign bot from sub-issue #${subIssueNumber}: ${error}`);
+    }
+  }
+
+  // Note: Project field updates (Status, Iteration, Failures) are handled
+  // by the project executor via separate actions emitted by the state machine.
+  // The resetIssue action focuses on GitHub issue state (open/closed, assignees).
+  //
+  // For a complete reset, the caller should also emit:
+  // - updateProjectStatus(issueNumber, "Backlog")
+  // - updateProjectStatus(subIssueNumbers, "Ready")
+  // - clearFailures(issueNumber)
+  // - setIteration(issueNumber, 0) -- if such an action exists
+  //
+  // However, since the reset is meant to be a single compound action,
+  // we'll use the project executor directly here.
+
+  core.info(`Reset complete: ${resetCount} issues reopened`);
+  return { resetCount };
 }

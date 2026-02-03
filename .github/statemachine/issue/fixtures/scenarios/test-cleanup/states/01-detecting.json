@@ -1,0 +1,45 @@
+{
+  "state": "detecting",
+  "trigger": "issue-reset",
+  "issue": {
+    "number": 0,
+    "title": "Completed feature to reset",
+    "state": "CLOSED",
+    "body": "## Description\n\nA completed feature that needs to be reset.\n\n## Approach\n\nThis was implemented in phases.\n\n## Todo\n\n- [x] Phase 1 complete\n- [x] Phase 2 complete\n- [x] Phase 3 complete\n\n## Iteration History\n\n<!-- iteration_history_start -->\n- Iteration 1: Implementation\n- Iteration 2: CI fix\n- Iteration 3: Review feedback\n<!-- iteration_history_end -->",
+    "projectStatus": "Done",
+    "iteration": 5,
+    "failures": 0,
+    "assignees": ["nopo-bot"],
+    "labels": ["enhancement", "priority:medium", "topic:testing", "triaged"],
+    "subIssues": [
+      {
+        "number": 0,
+        "title": "[Phase 1]: Design",
+        "state": "CLOSED",
+        "body": "## Description\n\nDesign the feature.\n\n## Todo\n\n- [x] Create design doc",
+        "projectStatus": "Done"
+      },
+      {
+        "number": 0,
+        "title": "[Phase 2]: Implementation",
+        "state": "CLOSED",
+        "body": "## Description\n\nImplement the feature.\n\n## Todo\n\n- [x] Write code",
+        "projectStatus": "Done"
+      },
+      {
+        "number": 0,
+        "title": "[Phase 3]: Testing",
+        "state": "CLOSED",
+        "body": "## Description\n\nTest the feature.\n\n## Todo\n\n- [x] Write tests",
+        "projectStatus": "Done"
+      }
+    ],
+    "hasSubIssues": true,
+    "history": [],
+    "todos": {
+      "total": 3,
+      "completed": 3,
+      "uncheckedNonManual": 0
+    }
+  }
+}

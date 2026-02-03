@@ -1,6 +1,6 @@
 import { setup, assign } from "xstate";
-import type { MachineContext, Action } from "../schemas/index.js";
-import { discussionGuards } from "./discussion-guards.js";
+import type { DiscussionContext, DiscussionAction } from "../schemas/index.js";
+import { discussionGuards } from "./guards.js";
 import {
   emitRunClaudeResearch,
   emitRunClaudeRespond,
@@ -12,13 +12,13 @@ import {
   emitLogSummarizing,
   emitLogPlanning,
   emitLogCompleting,
-} from "./discussion-actions.js";
+} from "./actions.js";
 
 /**
  * Extended context that includes accumulated actions
  */
-interface DiscussionMachineContext extends MachineContext {
-  pendingActions: Action[];
+export interface DiscussionMachineContext extends DiscussionContext {
+  pendingActions: DiscussionAction[];
 }
 
 /**
@@ -30,9 +30,9 @@ type DiscussionMachineEvent = { type: "START" };
  * Helper to accumulate actions into context
  */
 function accumulateActions(
-  existingActions: Action[],
-  newActions: Action[],
-): Action[] {
+  existingActions: DiscussionAction[],
+  newActions: DiscussionAction[],
+): DiscussionAction[] {
   return [...existingActions, ...newActions];
 }
 
@@ -68,7 +68,7 @@ export const discussionMachine = setup({
   types: {
     context: {} as DiscussionMachineContext,
     events: {} as DiscussionMachineEvent,
-    input: {} as MachineContext,
+    input: {} as DiscussionContext,
   },
   guards: {
     // Trigger guards
@@ -150,7 +150,7 @@ export const discussionMachine = setup({
             type: "log",
             token: "code",
             level: "info",
-            message: `Skipping - bot comment or no action needed for discussion #${context.discussion?.number ?? "unknown"}`,
+            message: `Skipping - bot comment or no action needed for discussion #${context.discussion.number}`,
           },
         ]),
     }),

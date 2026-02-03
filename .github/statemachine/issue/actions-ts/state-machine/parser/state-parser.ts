@@ -9,10 +9,17 @@ import type {
   LinkedPR,
   TriggerType,
   GitHubEvent,
+  DiscussionContext,
+  DiscussionTriggerType,
 } from "../schemas/index.js";
-import { createMachineContext, eventToTrigger } from "../schemas/index.js";
+import {
+  createMachineContext,
+  eventToTrigger,
+  createDiscussionContext,
+} from "../schemas/index.js";
 import { parseTodoStats } from "./todo-parser.js";
 import { parseHistory } from "./history-parser.js";
+import { parseAgentNotes } from "./agent-notes-parser.js";
 
 type Octokit = InstanceType<typeof GitHub>;
 
@@ -420,6 +427,7 @@ async function fetchIssueState(
   const body = issue.body || "";
   const history = parseHistory(body);
   const todos = parseTodoStats(body);
+  const agentNotes = parseAgentNotes(body);
 
   // Check if this issue is a sub-issue (has a parent)
   const parentIssueNumber = issue.parent?.number ?? null;
@@ -441,6 +449,7 @@ async function fetchIssueState(
       hasSubIssues: subIssues.length > 0,
       history,
       todos,
+      agentNotes,
     },
     parentIssueNumber,
   };
@@ -660,6 +669,152 @@ export async function buildMachineContext(
     commentContextType: options.commentContextType ?? null,
     commentContextDescription: options.commentContextDescription ?? null,
     releaseEvent,
+    maxRetries: options.maxRetries,
+    botUsername: options.botUsername,
+  });
+}
+
+// ============================================================================
+// Discussion Context Builder
+// ============================================================================
+
+const GET_DISCUSSION_QUERY = `
+query GetDiscussion($owner: String!, $repo: String!, $number: Int!) {
+  repository(owner: $owner, name: $repo) {
+    discussion(number: $number) {
+      id
+      number
+      title
+      body
+      comments(first: 50) {
+        totalCount
+        nodes {
+          id
+          body
+          author {
+            login
+          }
+          replies(first: 20) {
+            totalCount
+          }
+        }
+      }
+    }
+  }
+}
+`;
+
+interface DiscussionResponse {
+  repository?: {
+    discussion?: {
+      id?: string;
+      number?: number;
+      title?: string;
+      body?: string;
+      comments?: {
+        totalCount?: number;
+        nodes?: Array<{
+          id?: string;
+          body?: string;
+          author?: { login?: string };
+          replies?: { totalCount?: number };
+        }>;
+      };
+    };
+  };
+}
+
+/**
+ * Options for building discussion context
+ */
+export interface BuildDiscussionContextOptions {
+  /** Comment ID (node_id) that triggered this event */
+  commentId?: string;
+  /** Comment body */
+  commentBody?: string;
+  /** Comment author */
+  commentAuthor?: string;
+  /** Slash command if this is a command trigger */
+  command?: "summarize" | "plan" | "complete";
+  /** Max retries for circuit breaker */
+  maxRetries?: number;
+  /** Bot username */
+  botUsername?: string;
+}
+
+/**
+ * Build discussion context from API data
+ *
+ * Fetches the discussion and builds a DiscussionContext for the discussion
+ * state machine to process.
+ */
+export async function buildDiscussionContext(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  discussionNumber: number,
+  trigger: DiscussionTriggerType,
+  options: BuildDiscussionContextOptions = {},
+): Promise<DiscussionContext | null> {
+  // Fetch discussion from API
+  const response = await octokit.graphql<DiscussionResponse>(
+    GET_DISCUSSION_QUERY,
+    {
+      owner,
+      repo,
+      number: discussionNumber,
+    },
+  );
+
+  const discussion = response.repository?.discussion;
+  if (!discussion || !discussion.id || !discussion.number) {
+    return null;
+  }
+
+  // Build research threads from existing bot comments
+  const researchThreads: Array<{
+    nodeId: string;
+    topic: string;
+    replyCount: number;
+  }> = [];
+
+  const comments = discussion.comments?.nodes ?? [];
+  for (const comment of comments) {
+    // Research threads are top-level bot comments with "## Research:" header
+    if (
+      comment?.author?.login === "nopo-bot" ||
+      comment?.author?.login === "claude[bot]"
+    ) {
+      if (comment.body?.includes("## ")) {
+        // Extract topic from header
+        const topicMatch = comment.body.match(/## ([^\n]+)/);
+        if (topicMatch && comment.id) {
+          researchThreads.push({
+            nodeId: comment.id,
+            topic: topicMatch[1],
+            replyCount: comment.replies?.totalCount ?? 0,
+          });
+        }
+      }
+    }
+  }
+
+  return createDiscussionContext({
+    trigger,
+    owner,
+    repo,
+    discussion: {
+      number: discussion.number,
+      nodeId: discussion.id,
+      title: discussion.title ?? "",
+      body: discussion.body ?? "",
+      commentCount: discussion.comments?.totalCount ?? 0,
+      researchThreads,
+      command: options.command,
+      commentId: options.commentId,
+      commentBody: options.commentBody,
+      commentAuthor: options.commentAuthor,
+    },
     maxRetries: options.maxRetries,
     botUsername: options.botUsername,
   });

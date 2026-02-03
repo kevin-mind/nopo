@@ -4262,18 +4262,18 @@ var require_webidl = __commonJS({
     webidl.errors.exception = function(message) {
       return new TypeError(`${message.header}: ${message.message}`);
     };
-    webidl.errors.conversionFailed = function(context) {
-      const plural = context.types.length === 1 ? "" : " one of";
-      const message = `${context.argument} could not be converted to${plural}: ${context.types.join(", ")}.`;
+    webidl.errors.conversionFailed = function(context2) {
+      const plural = context2.types.length === 1 ? "" : " one of";
+      const message = `${context2.argument} could not be converted to${plural}: ${context2.types.join(", ")}.`;
       return webidl.errors.exception({
-        header: context.prefix,
+        header: context2.prefix,
         message
       });
     };
-    webidl.errors.invalidArgument = function(context) {
+    webidl.errors.invalidArgument = function(context2) {
       return webidl.errors.exception({
-        header: context.prefix,
-        message: `"${context.value}" is an invalid ${context.type}.`
+        header: context2.prefix,
+        message: `"${context2.value}" is an invalid ${context2.type}.`
       });
     };
     webidl.brandCheck = function(V, I, opts = void 0) {
@@ -9599,15 +9599,15 @@ var require_api_request = __commonJS({
         }
         addSignal(this, signal);
       }
-      onConnect(abort, context) {
+      onConnect(abort, context2) {
         if (!this.callback) {
           throw new RequestAbortedError();
         }
         this.abort = abort;
-        this.context = context;
+        this.context = context2;
       }
       onHeaders(statusCode, rawHeaders, resume, statusMessage) {
-        const { callback, opaque, abort, context, responseHeaders, highWaterMark } = this;
+        const { callback, opaque, abort, context: context2, responseHeaders, highWaterMark } = this;
         const headers = responseHeaders === "raw" ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders);
         if (statusCode < 200) {
           if (this.onInfo) {
@@ -9634,7 +9634,7 @@ var require_api_request = __commonJS({
               trailers: this.trailers,
               opaque,
               body,
-              context
+              context: context2
             });
           }
         }
@@ -9754,15 +9754,15 @@ var require_api_stream = __commonJS({
         }
         addSignal(this, signal);
       }
-      onConnect(abort, context) {
+      onConnect(abort, context2) {
         if (!this.callback) {
           throw new RequestAbortedError();
         }
         this.abort = abort;
-        this.context = context;
+        this.context = context2;
       }
       onHeaders(statusCode, rawHeaders, resume, statusMessage) {
-        const { factory, opaque, context, callback, responseHeaders } = this;
+        const { factory, opaque, context: context2, callback, responseHeaders } = this;
         const headers = responseHeaders === "raw" ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders);
         if (statusCode < 200) {
           if (this.onInfo) {
@@ -9790,7 +9790,7 @@ var require_api_stream = __commonJS({
             statusCode,
             headers,
             opaque,
-            context
+            context: context2
           });
           if (!res || typeof res.write !== "function" || typeof res.end !== "function" || typeof res.on !== "function") {
             throw new InvalidReturnValueError("expected Writable");
@@ -9982,17 +9982,17 @@ var require_api_pipeline = __commonJS({
         this.res = null;
         addSignal(this, signal);
       }
-      onConnect(abort, context) {
+      onConnect(abort, context2) {
         const { ret, res } = this;
         assert(!res, "pipeline cannot be retried");
         if (ret.destroyed) {
           throw new RequestAbortedError();
         }
         this.abort = abort;
-        this.context = context;
+        this.context = context2;
       }
       onHeaders(statusCode, rawHeaders, resume) {
-        const { opaque, handler, context } = this;
+        const { opaque, handler, context: context2 } = this;
         if (statusCode < 200) {
           if (this.onInfo) {
             const headers = this.responseHeaders === "raw" ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders);
@@ -10010,7 +10010,7 @@ var require_api_pipeline = __commonJS({
             headers,
             opaque,
             body: this.res,
-            context
+            context: context2
           });
         } catch (err) {
           this.res.on("error", util.nop);
@@ -10094,7 +10094,7 @@ var require_api_upgrade = __commonJS({
         this.context = null;
         addSignal(this, signal);
       }
-      onConnect(abort, context) {
+      onConnect(abort, context2) {
         if (!this.callback) {
           throw new RequestAbortedError();
         }
@@ -10105,7 +10105,7 @@ var require_api_upgrade = __commonJS({
         throw new SocketError("bad upgrade", null);
       }
       onUpgrade(statusCode, rawHeaders, socket) {
-        const { callback, opaque, context } = this;
+        const { callback, opaque, context: context2 } = this;
         assert.strictEqual(statusCode, 101);
         removeSignal(this);
         this.callback = null;
@@ -10114,7 +10114,7 @@ var require_api_upgrade = __commonJS({
           headers,
           socket,
           opaque,
-          context
+          context: context2
         });
       }
       onError(err) {
@@ -10182,18 +10182,18 @@ var require_api_connect = __commonJS({
         this.abort = null;
         addSignal(this, signal);
       }
-      onConnect(abort, context) {
+      onConnect(abort, context2) {
         if (!this.callback) {
           throw new RequestAbortedError();
         }
         this.abort = abort;
-        this.context = context;
+        this.context = context2;
       }
       onHeaders() {
         throw new SocketError("bad connect", null);
       }
       onUpgrade(statusCode, rawHeaders, socket) {
-        const { callback, opaque, context } = this;
+        const { callback, opaque, context: context2 } = this;
         removeSignal(this);
         this.callback = null;
         let headers = rawHeaders;
@@ -10205,7 +10205,7 @@ var require_api_connect = __commonJS({
           headers,
           socket,
           opaque,
-          context
+          context: context2
         });
       }
       onError(err) {
@@ -20288,8 +20288,8 @@ var require_dist_node2 = __commonJS({
     function isKeyOperator(operator) {
       return operator === ";" || operator === "&" || operator === "?";
     }
-    function getValues(context, operator, key, modifier) {
-      var value = context[key], result = [];
+    function getValues(context2, operator, key, modifier) {
+      var value = context2[key], result = [];
       if (isDefined(value) && value !== "") {
         if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
           value = value.toString();
@@ -20353,7 +20353,7 @@ var require_dist_node2 = __commonJS({
         expand: expand.bind(null, template)
       };
     }
-    function expand(template, context) {
+    function expand(template, context2) {
       var operators = ["+", "#", ".", "/", ";", "?", "&"];
       template = template.replace(
         /\{([^\{\}]+)\}|([^\{\}]+)/g,
@@ -20367,7 +20367,7 @@ var require_dist_node2 = __commonJS({
             }
             expression.split(/,/g).forEach(function(variable) {
               var tmp = /([^:\*]*)(?::(\d+)|(\*))?/.exec(variable);
-              values.push(getValues(context, operator, tmp[1], tmp[2] || tmp[3]));
+              values.push(getValues(context2, operator, tmp[1], tmp[2] || tmp[3]));
             });
             if (operator && operator !== "+") {
               var separator = ",";
@@ -23878,13 +23878,17 @@ var require_github = __commonJS({
   }
 });
 
-// claude-detect-event/index.ts
+// shared/actions-ts/detect-event/index.ts
 var core2 = __toESM(require_core(), 1);
 var github = __toESM(require_github(), 1);
 
-// lib/index.ts
+// shared/lib/index.ts
 var core = __toESM(require_core(), 1);
 var exec = __toESM(require_exec(), 1);
+function getOptionalInput(name) {
+  const value = core.getInput(name);
+  return value === "" ? void 0 : value;
+}
 function getRequiredInput(name) {
   return core.getInput(name, { required: true });
 }
@@ -23912,16 +23916,76 @@ function setOutputs(outputs) {
   }
 }
 
-// claude-detect-event/index.ts
+// shared/actions-ts/detect-event/index.ts
 function emptyResult(skip = false, skipReason = "") {
   return {
     job: "",
     resourceType: "",
     resourceNumber: "",
     commentId: "",
-    contextJson: "{}",
+    contextJson: {},
     skip,
-    skipReason
+    skipReason,
+    concurrencyGroup: "",
+    cancelInProgress: false
+  };
+}
+function jobToTrigger(job, contextJson) {
+  try {
+    const ctx = JSON.parse(contextJson);
+    if (ctx.trigger_type) {
+      return ctx.trigger_type;
+    }
+  } catch {
+  }
+  const jobTriggerOverrides = {
+    "issue-iterate": "issue-assigned",
+    "merge-queue-logging": "merge-queue-entered",
+    "discussion-research": "discussion-created",
+    "discussion-respond": "discussion-comment",
+    "discussion-summarize": "discussion-command",
+    "discussion-plan": "discussion-command",
+    "discussion-complete": "discussion-command"
+  };
+  return jobTriggerOverrides[job] || job || "issue-assigned";
+}
+function computeConcurrency(job, resourceNumber, parentIssue, branch) {
+  const reviewJobs = [
+    "pr-push",
+    "pr-review",
+    "pr-review-approved",
+    "pr-response",
+    "pr-human-response"
+  ];
+  if (reviewJobs.includes(job)) {
+    return {
+      group: `claude-job-review-${resourceNumber}`,
+      // pr-push should cancel in-flight reviews
+      cancelInProgress: job === "pr-push"
+    };
+  }
+  const discussionJobs = [
+    "discussion-research",
+    "discussion-respond",
+    "discussion-summarize",
+    "discussion-plan",
+    "discussion-complete"
+  ];
+  if (discussionJobs.includes(job)) {
+    return {
+      group: `claude-job-discussion-${resourceNumber}`,
+      cancelInProgress: false
+    };
+  }
+  if (branch && job === "issue-iterate") {
+    return {
+      group: `claude-job-issue-${parentIssue !== "0" ? parentIssue : resourceNumber}`,
+      cancelInProgress: false
+    };
+  }
+  return {
+    group: `claude-job-issue-${parentIssue !== "0" ? parentIssue : resourceNumber}`,
+    cancelInProgress: false
   };
 }
 async function fetchProjectState(octokit, owner, repo, issueNumber) {
@@ -24188,8 +24252,8 @@ ${issue.body ?? ""}
   }
 }
 async function handleIssueEvent(octokit, owner, repo) {
-  const { context } = github;
-  const payload = context.payload;
+  const { context: context2 } = github;
+  const payload = context2.payload;
   const action = payload.action;
   const issue = payload.issue;
   const inTestingMode = isInTestingMode(issue.labels);
@@ -24228,11 +24292,11 @@ async function handleIssueEvent(octokit, owner, repo) {
       resourceType: "issue",
       resourceNumber: String(issue.number),
       commentId: "",
-      contextJson: JSON.stringify({
+      contextJson: {
         issue_number: String(issue.number),
         issue_title: details.title || issue.title,
         issue_body: details.body || issue.body
-      }),
+      },
       skip: false,
       skipReason: ""
     };
@@ -24282,7 +24346,7 @@ async function handleIssueEvent(octokit, owner, repo) {
           resourceType: "issue",
           resourceNumber: String(issue.number),
           commentId: "",
-          contextJson: JSON.stringify({
+          contextJson: {
             issue_number: String(issue.number),
             issue_title: details.title || issue.title,
             issue_body: details.body || issue.body,
@@ -24294,7 +24358,7 @@ async function handleIssueEvent(octokit, owner, repo) {
             project_status: projectState?.status || "",
             project_iteration: String(projectState?.iteration || 0),
             project_failures: String(projectState?.failures || 0)
-          }),
+          },
           skip: false,
           skipReason: ""
         };
@@ -24316,7 +24380,7 @@ async function handleIssueEvent(octokit, owner, repo) {
           resourceType: "issue",
           resourceNumber: String(issue.number),
           commentId: "",
-          contextJson: JSON.stringify({
+          contextJson: {
             issue_number: String(issue.number),
             issue_title: details.title || issue.title,
             issue_body: details.body || issue.body,
@@ -24325,7 +24389,7 @@ async function handleIssueEvent(octokit, owner, repo) {
             project_status: projectState?.status || "",
             project_iteration: String(projectState?.iteration || 0),
             project_failures: String(projectState?.failures || 0)
-          }),
+          },
           skip: false,
           skipReason: ""
         };
@@ -24337,7 +24401,7 @@ async function handleIssueEvent(octokit, owner, repo) {
         resourceType: "issue",
         resourceNumber: String(issue.number),
         commentId: "",
-        contextJson: JSON.stringify({
+        contextJson: {
           issue_number: String(issue.number),
           issue_title: details.title || issue.title,
           issue_body: details.body || issue.body,
@@ -24347,7 +24411,7 @@ async function handleIssueEvent(octokit, owner, repo) {
           project_status: projectState?.status || "",
           project_iteration: String(projectState?.iteration || 0),
           project_failures: String(projectState?.failures || 0)
-        }),
+        },
         skip: false,
         skipReason: ""
       };
@@ -24371,11 +24435,11 @@ async function handleIssueEvent(octokit, owner, repo) {
         resourceType: "issue",
         resourceNumber: String(issue.number),
         commentId: "",
-        contextJson: JSON.stringify({
+        contextJson: {
           issue_number: String(issue.number),
           issue_title: details.title || issue.title,
           issue_body: details.body || issue.body
-        }),
+        },
         skip: false,
         skipReason: ""
       };
@@ -24407,7 +24471,7 @@ async function handleIssueEvent(octokit, owner, repo) {
       resourceType: "issue",
       resourceNumber: String(details.parentIssue),
       commentId: "",
-      contextJson: JSON.stringify({
+      contextJson: {
         issue_number: String(details.parentIssue),
         issue_title: parentDetails.title,
         issue_body: parentDetails.body,
@@ -24417,7 +24481,7 @@ async function handleIssueEvent(octokit, owner, repo) {
         project_status: parentProjectState?.status || "",
         project_iteration: String(parentProjectState?.iteration || 0),
         project_failures: String(parentProjectState?.failures || 0)
-      }),
+      },
       skip: false,
       skipReason: ""
     };
@@ -24453,7 +24517,7 @@ async function handleIssueEvent(octokit, owner, repo) {
         resourceType: "issue",
         resourceNumber: String(issue.number),
         commentId: "",
-        contextJson: JSON.stringify({
+        contextJson: {
           issue_number: String(issue.number),
           issue_title: details.title || issue.title,
           issue_body: details.body || issue.body,
@@ -24464,7 +24528,7 @@ async function handleIssueEvent(octokit, owner, repo) {
           project_status: projectState?.status || "",
           project_iteration: String(projectState?.iteration || 0),
           project_failures: String(projectState?.failures || 0)
-        }),
+        },
         skip: false,
         skipReason: ""
       };
@@ -24489,7 +24553,7 @@ async function handleIssueEvent(octokit, owner, repo) {
         resourceType: "issue",
         resourceNumber: String(issue.number),
         commentId: "",
-        contextJson: JSON.stringify({
+        contextJson: {
           issue_number: String(issue.number),
           issue_title: details.title || issue.title,
           issue_body: details.body || issue.body,
@@ -24498,7 +24562,7 @@ async function handleIssueEvent(octokit, owner, repo) {
           project_status: projectState?.status || "",
           project_iteration: String(projectState?.iteration || 0),
           project_failures: String(projectState?.failures || 0)
-        }),
+        },
         skip: false,
         skipReason: ""
       };
@@ -24510,7 +24574,7 @@ async function handleIssueEvent(octokit, owner, repo) {
       resourceType: "issue",
       resourceNumber: String(issue.number),
       commentId: "",
-      contextJson: JSON.stringify({
+      contextJson: {
         issue_number: String(issue.number),
         issue_title: details.title || issue.title,
         issue_body: details.body || issue.body,
@@ -24519,7 +24583,7 @@ async function handleIssueEvent(octokit, owner, repo) {
         project_status: projectState?.status || "",
         project_iteration: String(projectState?.iteration || 0),
         project_failures: String(projectState?.failures || 0)
-      }),
+      },
       skip: false,
       skipReason: ""
     };
@@ -24527,8 +24591,8 @@ async function handleIssueEvent(octokit, owner, repo) {
   return emptyResult(true, `Unhandled issue action: ${action}`);
 }
 async function handleIssueCommentEvent(octokit, owner, repo) {
-  const { context } = github;
-  const payload = context.payload;
+  const { context: context2 } = github;
+  const payload = context2.payload;
   const comment = payload.comment;
   const issue = payload.issue;
   const inTestingMode = isInTestingMode(issue.labels);
@@ -24557,6 +24621,25 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
   );
   const hasContinueCommand = commandLines.some((line) => line === "/continue");
   const hasLfgCommand = commandLines.some((line) => line === "/lfg");
+  const hasResetCommand = commandLines.some((line) => line === "/reset");
+  if (hasResetCommand && !isPr) {
+    const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
+    return {
+      job: "issue-reset",
+      resourceType: "issue",
+      resourceNumber: String(issue.number),
+      commentId: String(comment.id),
+      contextJson: {
+        issue_number: String(issue.number),
+        issue_title: details.title || issue.title,
+        issue_body: details.body || issue.body,
+        sub_issues: details.subIssues.join(","),
+        trigger_type: "issue_comment"
+      },
+      skip: false,
+      skipReason: ""
+    };
+  }
   if ((hasImplementCommand || hasContinueCommand || hasLfgCommand) && !isPr) {
     const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
     if (details.isSubIssue) {
@@ -24574,7 +24657,7 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
         resourceType: "issue",
         resourceNumber: String(issue.number),
         commentId: String(comment.id),
-        contextJson: JSON.stringify({
+        contextJson: {
           issue_number: String(issue.number),
           issue_title: details.title || issue.title,
           issue_body: details.body || issue.body,
@@ -24582,7 +24665,7 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
           trigger_type: "issue_comment",
           parent_issue: String(details.parentIssue),
           phase_number: String(phaseNumber)
-        }),
+        },
         skip: false,
         skipReason: ""
       };
@@ -24593,13 +24676,13 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
         resourceType: "issue",
         resourceNumber: String(issue.number),
         commentId: String(comment.id),
-        contextJson: JSON.stringify({
+        contextJson: {
           issue_number: String(issue.number),
           issue_title: details.title || issue.title,
           issue_body: details.body || issue.body,
           sub_issues: details.subIssues.join(","),
           trigger_type: "issue_comment"
-        }),
+        },
         skip: false,
         skipReason: ""
       };
@@ -24611,13 +24694,13 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
       resourceType: "issue",
       resourceNumber: String(issue.number),
       commentId: String(comment.id),
-      contextJson: JSON.stringify({
+      contextJson: {
         issue_number: String(issue.number),
         issue_title: details.title || issue.title,
         issue_body: details.body || issue.body,
         branch_name: branchName2,
         trigger_type: "issue_comment"
-      }),
+      },
       skip: false,
       skipReason: ""
     };
@@ -24653,19 +24736,19 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
     resourceType: isPr ? "pr" : "issue",
     resourceNumber: String(issue.number),
     commentId: String(comment.id),
-    contextJson: JSON.stringify({
+    contextJson: {
       issue_number: String(issue.number),
       context_type: contextType,
       context_description: contextDescription,
       branch_name: branchName
-    }),
+    },
     skip: false,
     skipReason: ""
   };
 }
 async function handlePullRequestReviewCommentEvent() {
-  const { context } = github;
-  const payload = context.payload;
+  const { context: context2 } = github;
+  const payload = context2.payload;
   const comment = payload.comment;
   const pr = payload.pull_request;
   const inTestingMode = isInTestingMode(pr.labels);
@@ -24693,19 +24776,19 @@ async function handlePullRequestReviewCommentEvent() {
     resourceType: "pr",
     resourceNumber: String(pr.number),
     commentId: String(comment.id),
-    contextJson: JSON.stringify({
+    contextJson: {
       issue_number: String(pr.number),
       context_type: "pr",
       context_description: `This is PR #${pr.number} on branch \`${pr.head.ref}\`. You are checked out on the PR branch with the code changes.`,
       branch_name: pr.head.ref
-    }),
+    },
     skip: false,
     skipReason: ""
   };
 }
 async function handlePushEvent() {
-  const { context } = github;
-  const ref = context.ref;
+  const { context: context2 } = github;
+  const ref = context2.ref;
   const branch = ref.replace("refs/heads/", "");
   if (branch === "main") {
     return emptyResult(true, "Push to main branch");
@@ -24716,8 +24799,8 @@ async function handlePushEvent() {
   if (branch.startsWith("test/")) {
     return emptyResult(true, "Push to test branch");
   }
-  const owner = context.repo.owner;
-  const repo = context.repo.repo;
+  const owner = context2.repo.owner;
+  const repo = context2.repo.repo;
   const prInfo = await fetchPrByBranch(owner, repo, branch);
   if (!prInfo.hasPr) {
     return emptyResult(true, "No PR found for branch");
@@ -24728,23 +24811,33 @@ async function handlePushEvent() {
   if (shouldSkipTestResource(prInfo.title, prInfo.labels)) {
     return emptyResult(true, "PR title starts with [TEST]");
   }
+  const branchMatch = branch.match(/^claude\/issue\/(\d+)/);
+  const issueNumber = branchMatch?.[1] ?? "";
+  const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+  const runId = process.env.GITHUB_RUN_ID || "";
+  const commitSha = github.context.sha;
+  const runUrl = `${serverUrl}/${owner}/${repo}/actions/runs/${runId}`;
   return {
-    job: "push-to-draft",
+    job: "pr-push",
     resourceType: "pr",
     resourceNumber: prInfo.prNumber,
     commentId: "",
-    contextJson: JSON.stringify({
+    contextJson: {
       pr_number: prInfo.prNumber,
       branch_name: branch,
-      is_draft: prInfo.isDraft
-    }),
+      is_draft: prInfo.isDraft,
+      issue_number: issueNumber,
+      // Include commit SHA and run URL for history entry
+      ci_commit_sha: commitSha,
+      ci_run_url: runUrl
+    },
     skip: false,
     skipReason: ""
   };
 }
 async function handleWorkflowRunEvent() {
-  const { context } = github;
-  const payload = context.payload;
+  const { context: context2 } = github;
+  const payload = context2.payload;
   const workflowRun = payload.workflow_run;
   const conclusion = workflowRun.conclusion;
   const branch = workflowRun.head_branch;
@@ -24752,8 +24845,8 @@ async function handleWorkflowRunEvent() {
   if (branch.startsWith("test/")) {
     return emptyResult(true, "Workflow run on test branch");
   }
-  const owner = context.repo.owner;
-  const repo = context.repo.repo;
+  const owner = context2.repo.owner;
+  const repo = context2.repo.repo;
   const prInfo = await fetchPrByBranch(owner, repo, branch);
   if (!prInfo.hasPr) {
     return emptyResult(true, "No PR found for workflow run branch");
@@ -24781,7 +24874,7 @@ async function handleWorkflowRunEvent() {
     resourceType: "issue",
     resourceNumber: issueNumber,
     commentId: "",
-    contextJson: JSON.stringify({
+    contextJson: {
       issue_number: issueNumber,
       pr_number: prInfo.prNumber,
       branch_name: branch,
@@ -24789,14 +24882,14 @@ async function handleWorkflowRunEvent() {
       ci_result: conclusion,
       trigger_type: "workflow_run_completed",
       parent_issue: String(details.parentIssue)
-    }),
+    },
     skip: false,
     skipReason: ""
   };
 }
 async function handlePullRequestEvent(octokit, owner, repo) {
-  const { context } = github;
-  const payload = context.payload;
+  const { context: context2 } = github;
+  const payload = context2.payload;
   const action = payload.action;
   const pr = payload.pull_request;
   if (shouldSkipTestResource(pr.title, pr.labels)) {
@@ -24829,12 +24922,12 @@ async function handlePullRequestEvent(octokit, owner, repo) {
       resourceType: "pr",
       resourceNumber: String(pr.number),
       commentId: "",
-      contextJson: JSON.stringify({
+      contextJson: {
         pr_number: String(pr.number),
         branch_name: pr.head.ref,
         issue_section: issueSection,
         issue_number: issueNumber
-      }),
+      },
       skip: false,
       skipReason: ""
     };
@@ -24842,8 +24935,8 @@ async function handlePullRequestEvent(octokit, owner, repo) {
   return emptyResult(true, `Unhandled PR action: ${action}`);
 }
 async function handlePullRequestReviewEvent() {
-  const { context } = github;
-  const payload = context.payload;
+  const { context: context2 } = github;
+  const payload = context2.payload;
   const review = payload.review;
   const pr = payload.pull_request;
   if (shouldSkipTestResource(pr.title, pr.labels)) {
@@ -24872,7 +24965,7 @@ async function handlePullRequestReviewEvent() {
       resourceType: "pr",
       resourceNumber: String(pr.number),
       commentId: "",
-      contextJson: JSON.stringify({
+      contextJson: {
         pr_number: String(pr.number),
         branch_name: pr.head.ref,
         review_state: state,
@@ -24881,7 +24974,7 @@ async function handlePullRequestReviewEvent() {
         review_id: String(review.id),
         issue_number: issueNumber2,
         parent_issue: parentIssue
-      }),
+      },
       skip: false,
       skipReason: ""
     };
@@ -24897,14 +24990,14 @@ async function handlePullRequestReviewEvent() {
       resourceType: "pr",
       resourceNumber: String(pr.number),
       commentId: "",
-      contextJson: JSON.stringify({
+      contextJson: {
         pr_number: String(pr.number),
         branch_name: pr.head.ref,
         review_state: state,
         review_body: review.body ?? "",
         review_id: String(review.id),
         issue_number: issueNumber
-      }),
+      },
       skip: false,
       skipReason: ""
     };
@@ -24918,7 +25011,7 @@ async function handlePullRequestReviewEvent() {
     resourceType: "pr",
     resourceNumber: String(pr.number),
     commentId: "",
-    contextJson: JSON.stringify({
+    contextJson: {
       pr_number: String(pr.number),
       branch_name: pr.head.ref,
       reviewer_login: review.user.login,
@@ -24926,14 +25019,14 @@ async function handlePullRequestReviewEvent() {
       review_body: review.body ?? "",
       review_id: String(review.id),
       issue_number: issueNumber
-    }),
+    },
     skip: false,
     skipReason: ""
   };
 }
 async function handleDiscussionEvent(octokit, owner, repo) {
-  const { context } = github;
-  const payload = context.payload;
+  const { context: context2 } = github;
+  const payload = context2.payload;
   const action = payload.action;
   const discussion = payload.discussion;
   let discussionLabels = [];
@@ -24966,12 +25059,13 @@ async function handleDiscussionEvent(octokit, owner, repo) {
       resourceType: "discussion",
       resourceNumber: String(discussion.number),
       commentId: "",
-      contextJson: JSON.stringify({
+      contextJson: {
         discussion_number: String(discussion.number),
         discussion_title: discussion.title,
         discussion_body: discussion.body ?? "",
+        trigger_type: "discussion_created",
         is_test_automation: isTestAutomation
-      }),
+      },
       skip: false,
       skipReason: ""
     };
@@ -24979,8 +25073,8 @@ async function handleDiscussionEvent(octokit, owner, repo) {
   return emptyResult(true, `Unhandled discussion action: ${action}`);
 }
 async function handleMergeGroupEvent(octokit, owner, repo) {
-  const { context } = github;
-  const payload = context.payload;
+  const { context: context2 } = github;
+  const payload = context2.payload;
   const mergeGroup = payload.merge_group;
   const headRef = mergeGroup.head_ref;
   const prMatches = headRef.match(/pr-(\d+)/g);
@@ -25044,7 +25138,7 @@ async function handleMergeGroupEvent(octokit, owner, repo) {
     resourceType: "issue",
     resourceNumber: issueNumber,
     commentId: "",
-    contextJson: JSON.stringify({
+    contextJson: {
       issue_number: issueNumber,
       parent_issue: parentIssue,
       pr_number: String(prNumber),
@@ -25052,14 +25146,14 @@ async function handleMergeGroupEvent(octokit, owner, repo) {
       ci_run_url: ciRunUrl,
       head_ref: headRef,
       head_sha: mergeGroup.head_sha
-    }),
+    },
     skip: false,
     skipReason: ""
   };
 }
 async function handleDiscussionCommentEvent(octokit, owner, repo) {
-  const { context } = github;
-  const payload = context.payload;
+  const { context: context2 } = github;
+  const payload = context2.payload;
   const discussion = payload.discussion;
   const comment = payload.comment;
   let discussionLabels = [];
@@ -25095,10 +25189,12 @@ async function handleDiscussionCommentEvent(octokit, owner, repo) {
       resourceType: "discussion",
       resourceNumber: String(discussion.number),
       commentId: comment.node_id,
-      contextJson: JSON.stringify({
+      contextJson: {
         discussion_number: String(discussion.number),
+        trigger_type: "discussion_command",
+        command: "summarize",
         is_test_automation: isTestAutomation
-      }),
+      },
       skip: false,
       skipReason: ""
     };
@@ -25109,10 +25205,12 @@ async function handleDiscussionCommentEvent(octokit, owner, repo) {
       resourceType: "discussion",
       resourceNumber: String(discussion.number),
       commentId: comment.node_id,
-      contextJson: JSON.stringify({
+      contextJson: {
         discussion_number: String(discussion.number),
+        trigger_type: "discussion_command",
+        command: "plan",
         is_test_automation: isTestAutomation
-      }),
+      },
       skip: false,
       skipReason: ""
     };
@@ -25123,10 +25221,12 @@ async function handleDiscussionCommentEvent(octokit, owner, repo) {
       resourceType: "discussion",
       resourceNumber: String(discussion.number),
       commentId: comment.node_id,
-      contextJson: JSON.stringify({
+      contextJson: {
         discussion_number: String(discussion.number),
+        trigger_type: "discussion_command",
+        command: "complete",
         is_test_automation: isTestAutomation
-      }),
+      },
       skip: false,
       skipReason: ""
     };
@@ -25137,12 +25237,13 @@ async function handleDiscussionCommentEvent(octokit, owner, repo) {
       resourceType: "discussion",
       resourceNumber: String(discussion.number),
       commentId: comment.node_id,
-      contextJson: JSON.stringify({
+      contextJson: {
         discussion_number: String(discussion.number),
         comment_body: comment.body,
         comment_author: author,
+        trigger_type: "discussion_comment",
         is_test_automation: isTestAutomation
-      }),
+      },
       skip: false,
       skipReason: ""
     };
@@ -25153,26 +25254,116 @@ async function handleDiscussionCommentEvent(octokit, owner, repo) {
       resourceType: "discussion",
       resourceNumber: String(discussion.number),
       commentId: comment.node_id,
-      contextJson: JSON.stringify({
+      contextJson: {
         discussion_number: String(discussion.number),
         comment_body: comment.body,
         comment_author: author,
+        trigger_type: "discussion_comment",
         is_test_automation: isTestAutomation
-      }),
+      },
       skip: false,
       skipReason: ""
     };
   }
   return emptyResult(true, "Bot reply comment - preventing infinite loop");
 }
+async function handleWorkflowDispatchEvent(octokit, owner, repo, resourceNumber) {
+  if (!resourceNumber) {
+    return emptyResult(true, "No resource_number provided for workflow_dispatch");
+  }
+  const issueNumber = parseInt(resourceNumber, 10);
+  if (isNaN(issueNumber)) {
+    return emptyResult(true, `Invalid resource_number: ${resourceNumber}`);
+  }
+  core2.info(`Workflow dispatch for issue #${issueNumber}`);
+  const details = await fetchIssueDetails(octokit, owner, repo, issueNumber);
+  const projectState = await fetchProjectState(octokit, owner, repo, issueNumber);
+  if (shouldSkipProjectState(projectState)) {
+    return emptyResult(
+      true,
+      `Issue project status is '${projectState?.status}' - skipping iteration`
+    );
+  }
+  let parentIssue = "0";
+  if (details.isSubIssue && details.parentIssue > 0) {
+    parentIssue = String(details.parentIssue);
+    core2.info(`Issue #${issueNumber} is a sub-issue of parent #${parentIssue}`);
+  }
+  if (details.subIssues.length > 0) {
+    return {
+      job: "issue-orchestrate",
+      resourceType: "issue",
+      resourceNumber: String(issueNumber),
+      commentId: "",
+      contextJson: {
+        issue_number: String(issueNumber),
+        issue_title: details.title,
+        issue_body: details.body,
+        sub_issues: details.subIssues.join(","),
+        trigger_type: "issue_assigned",
+        parent_issue: parentIssue,
+        project_status: projectState?.status || "",
+        project_iteration: String(projectState?.iteration || 0),
+        project_failures: String(projectState?.failures || 0)
+      },
+      skip: false,
+      skipReason: ""
+    };
+  }
+  if (details.isSubIssue) {
+    const phaseNumber = extractPhaseNumber(details.title);
+    const branchName2 = deriveBranch(details.parentIssue, phaseNumber || issueNumber);
+    return {
+      job: "issue-iterate",
+      resourceType: "issue",
+      resourceNumber: String(issueNumber),
+      commentId: "",
+      contextJson: {
+        issue_number: String(issueNumber),
+        issue_title: details.title,
+        issue_body: details.body,
+        branch_name: branchName2,
+        trigger_type: "issue_assigned",
+        parent_issue: parentIssue,
+        phase_number: String(phaseNumber),
+        project_status: projectState?.status || "",
+        project_iteration: String(projectState?.iteration || 0),
+        project_failures: String(projectState?.failures || 0)
+      },
+      skip: false,
+      skipReason: ""
+    };
+  }
+  const branchName = `claude/issue/${issueNumber}`;
+  return {
+    job: "issue-iterate",
+    resourceType: "issue",
+    resourceNumber: String(issueNumber),
+    commentId: "",
+    contextJson: {
+      issue_number: String(issueNumber),
+      issue_title: details.title,
+      issue_body: details.body,
+      branch_name: branchName,
+      trigger_type: "issue_assigned",
+      parent_issue: parentIssue,
+      project_status: projectState?.status || "",
+      project_iteration: String(projectState?.iteration || 0),
+      project_failures: String(projectState?.failures || 0)
+    },
+    skip: false,
+    skipReason: ""
+  };
+}
 async function run() {
   try {
     const token = getRequiredInput("github_token");
+    const resourceNumber = getOptionalInput("resource_number") || "";
     const octokit = github.getOctokit(token);
-    const { context } = github;
-    const eventName = context.eventName;
-    const owner = context.repo.owner;
-    const repo = context.repo.repo;
+    const { context: context2 } = github;
+    const eventName = context2.eventName;
+    const owner = context2.repo.owner;
+    const repo = context2.repo.repo;
     process.env.GH_TOKEN = token;
     core2.info(`Processing event: ${eventName}`);
     let result;
@@ -25207,6 +25398,9 @@ async function run() {
       case "merge_group":
         result = await handleMergeGroupEvent(octokit, owner, repo);
         break;
+      case "workflow_dispatch":
+        result = await handleWorkflowDispatchEvent(octokit, owner, repo, resourceNumber);
+        break;
       default:
         result = emptyResult(true, `Unhandled event: ${eventName}`);
     }
@@ -25216,23 +25410,36 @@ async function run() {
       core2.info(`Detected job: ${result.job}`);
       core2.info(`Resource: ${result.resourceType} #${result.resourceNumber}`);
     }
-    let parentIssue = "0";
-    try {
-      const ctx = JSON.parse(result.contextJson);
-      if (ctx.parent_issue && ctx.parent_issue !== "0") {
-        parentIssue = ctx.parent_issue;
-      }
-    } catch {
-    }
-    setOutputs({
+    const ctx = result.contextJson;
+    const parentIssue = ctx.parent_issue || "0";
+    const branch = ctx.branch_name || "";
+    const trigger = jobToTrigger(result.job, JSON.stringify(ctx));
+    core2.info(`Trigger: ${trigger}`);
+    const concurrency = computeConcurrency(
+      result.job,
+      result.resourceNumber,
+      parentIssue,
+      branch
+    );
+    core2.info(`Concurrency group: ${concurrency.group}`);
+    core2.info(`Cancel in progress: ${concurrency.cancelInProgress}`);
+    const unifiedContext = {
+      // Routing & control
       job: result.job,
+      trigger,
       resource_type: result.resourceType,
       resource_number: result.resourceNumber,
       parent_issue: parentIssue,
       comment_id: result.commentId,
-      context_json: result.contextJson,
-      skip: result.skip ? "true" : "false",
-      skip_reason: result.skipReason
+      concurrency_group: concurrency.group,
+      cancel_in_progress: concurrency.cancelInProgress,
+      skip: result.skip,
+      skip_reason: result.skipReason,
+      // Spread in all the context-specific fields
+      ...ctx
+    };
+    setOutputs({
+      context_json: JSON.stringify(unifiedContext)
     });
   } catch (error) {
     if (error instanceof Error) {

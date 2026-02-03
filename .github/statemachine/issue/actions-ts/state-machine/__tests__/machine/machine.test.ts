@@ -101,7 +101,7 @@ describe("claudeMachine", () => {
   describe("CI triggered transitions", () => {
     test("processes CI success and transitions to review when todos done", () => {
       const context = createContext({
-        trigger: "workflow_run_completed",
+        trigger: "workflow-run-completed",
         ciResult: "success",
         issue: { projectStatus: "In progress" },
         currentSubIssue: {
@@ -134,7 +134,7 @@ describe("claudeMachine", () => {
 
     test("processes CI success but continues iterating when todos not done", () => {
       const context = createContext({
-        trigger: "workflow_run_completed",
+        trigger: "workflow-run-completed",
         ciResult: "success",
         issue: { projectStatus: "In progress", failures: 2 },
         currentSubIssue: {
@@ -156,7 +156,7 @@ describe("claudeMachine", () => {
 
     test("processes CI failure and records failure", () => {
       const context = createContext({
-        trigger: "workflow_run_completed",
+        trigger: "workflow-run-completed",
         ciResult: "failure",
         issue: { projectStatus: "In progress", failures: 2 },
         currentSubIssue: {
@@ -179,7 +179,7 @@ describe("claudeMachine", () => {
 
     test("processes CI failure and blocks when max failures reached", () => {
       const context = createContext({
-        trigger: "workflow_run_completed",
+        trigger: "workflow-run-completed",
         ciResult: "failure",
         issue: { projectStatus: "In progress", failures: 5 },
         maxRetries: 5,
@@ -206,7 +206,7 @@ describe("claudeMachine", () => {
   describe("Review triggered transitions", () => {
     test("processes review approval and moves to orchestrating", () => {
       const context = createContext({
-        trigger: "pr_review_submitted",
+        trigger: "pr-review-submitted",
         reviewDecision: "APPROVED",
         issue: {
           projectStatus: "In review",
@@ -221,7 +221,7 @@ describe("claudeMachine", () => {
 
     test("processes review changes requested and iterates", () => {
       const context = createContext({
-        trigger: "pr_review_submitted",
+        trigger: "pr-review-submitted",
         reviewDecision: "CHANGES_REQUESTED",
         issue: { projectStatus: "In review" },
         pr: {
@@ -242,7 +242,7 @@ describe("claudeMachine", () => {
 
     test("processes review comment and stays in reviewing", () => {
       const context = createContext({
-        trigger: "pr_review_submitted",
+        trigger: "pr-review-submitted",
         reviewDecision: "COMMENTED",
         issue: { projectStatus: "In review" },
       });
@@ -254,7 +254,7 @@ describe("claudeMachine", () => {
   describe("Triage triggered transitions", () => {
     test("transitions to triaging when triggered by issue_triage", () => {
       const context = createContext({
-        trigger: "issue_triage",
+        trigger: "issue-triage",
         issue: {
           number: 123,
           title: "New feature request",
@@ -271,7 +271,7 @@ describe("claudeMachine", () => {
 
     test("emits runClaude with promptFile for triage", () => {
       const context = createContext({
-        trigger: "issue_triage",
+        trigger: "issue-triage",
         issue: {
           number: 456,
           title: "Bug report",
@@ -299,7 +299,7 @@ describe("claudeMachine", () => {
 
     test("does not triage when already done", () => {
       const context = createContext({
-        trigger: "issue_triage",
+        trigger: "issue-triage",
         issue: { projectStatus: "Done" },
       });
       const { state } = runMachine(context);
@@ -309,7 +309,7 @@ describe("claudeMachine", () => {
 
     test("does not triage when blocked", () => {
       const context = createContext({
-        trigger: "issue_triage",
+        trigger: "issue-triage",
         issue: { projectStatus: "Blocked" },
       });
       const { state } = runMachine(context);
@@ -321,7 +321,7 @@ describe("claudeMachine", () => {
   describe("Comment triggered transitions", () => {
     test("transitions to commenting when triggered by issue_comment", () => {
       const context = createContext({
-        trigger: "issue_comment",
+        trigger: "issue-comment",
         issue: {
           number: 123,
           title: "Feature request",
@@ -341,7 +341,7 @@ describe("claudeMachine", () => {
 
     test("emits runClaude with promptFile for comment", () => {
       const context = createContext({
-        trigger: "issue_comment",
+        trigger: "issue-comment",
         issue: {
           number: 456,
           title: "Bug fix PR",
@@ -372,7 +372,7 @@ describe("claudeMachine", () => {
 
     test("uses default context values when not provided", () => {
       const context = createContext({
-        trigger: "issue_comment",
+        trigger: "issue-comment",
         issue: {
           number: 789,
           projectStatus: "In progress",
@@ -395,7 +395,7 @@ describe("claudeMachine", () => {
 
     test("does not comment when already done", () => {
       const context = createContext({
-        trigger: "issue_comment",
+        trigger: "issue-comment",
         issue: { projectStatus: "Done" },
         commentContextType: "issue",
         commentContextDescription: "Test",
@@ -407,7 +407,7 @@ describe("claudeMachine", () => {
 
     test("does not comment when blocked", () => {
       const context = createContext({
-        trigger: "issue_comment",
+        trigger: "issue-comment",
         issue: { projectStatus: "Blocked" },
         commentContextType: "issue",
         commentContextDescription: "Test",
@@ -583,7 +583,7 @@ describe("claudeMachine", () => {
 describe("getTriggerEvent", () => {
   test("returns CI_SUCCESS for successful workflow_run", () => {
     const context = createContext({
-      trigger: "workflow_run_completed",
+      trigger: "workflow-run-completed",
       ciResult: "success",
     });
     expect(getTriggerEvent(context)).toEqual({ type: "CI_SUCCESS" });
@@ -591,7 +591,7 @@ describe("getTriggerEvent", () => {
 
   test("returns CI_FAILURE for failed workflow_run", () => {
     const context = createContext({
-      trigger: "workflow_run_completed",
+      trigger: "workflow-run-completed",
       ciResult: "failure",
     });
     expect(getTriggerEvent(context)).toEqual({ type: "CI_FAILURE" });
@@ -599,7 +599,7 @@ describe("getTriggerEvent", () => {
 
   test("returns REVIEW_APPROVED for approved review", () => {
     const context = createContext({
-      trigger: "pr_review_submitted",
+      trigger: "pr-review-submitted",
       reviewDecision: "APPROVED",
     });
     expect(getTriggerEvent(context)).toEqual({ type: "REVIEW_APPROVED" });
@@ -607,7 +607,7 @@ describe("getTriggerEvent", () => {
 
   test("returns REVIEW_CHANGES_REQUESTED for changes requested", () => {
     const context = createContext({
-      trigger: "pr_review_submitted",
+      trigger: "pr-review-submitted",
       reviewDecision: "CHANGES_REQUESTED",
     });
     expect(getTriggerEvent(context)).toEqual({
@@ -617,37 +617,37 @@ describe("getTriggerEvent", () => {
 
   test("returns REVIEW_COMMENTED for comment review", () => {
     const context = createContext({
-      trigger: "pr_review_submitted",
+      trigger: "pr-review-submitted",
       reviewDecision: "COMMENTED",
     });
     expect(getTriggerEvent(context)).toEqual({ type: "REVIEW_COMMENTED" });
   });
 
   test("returns START for issue_assigned", () => {
-    const context = createContext({ trigger: "issue_assigned" });
+    const context = createContext({ trigger: "issue-assigned" });
     expect(getTriggerEvent(context)).toEqual({ type: "START" });
   });
 
   test("returns START for issue_edited", () => {
-    const context = createContext({ trigger: "issue_edited" });
+    const context = createContext({ trigger: "issue-edited" });
     expect(getTriggerEvent(context)).toEqual({ type: "START" });
   });
 
   test("returns START for issue_triage", () => {
-    const context = createContext({ trigger: "issue_triage" });
+    const context = createContext({ trigger: "issue-triage" });
     expect(getTriggerEvent(context)).toEqual({ type: "START" });
   });
 
   test("returns START for workflow_run without result", () => {
     const context = createContext({
-      trigger: "workflow_run_completed",
+      trigger: "workflow-run-completed",
       ciResult: null,
     });
     expect(getTriggerEvent(context)).toEqual({ type: "START" });
   });
 
   test("returns START for issue_comment", () => {
-    const context = createContext({ trigger: "issue_comment" });
+    const context = createContext({ trigger: "issue-comment" });
     expect(getTriggerEvent(context)).toEqual({ type: "START" });
   });
 });

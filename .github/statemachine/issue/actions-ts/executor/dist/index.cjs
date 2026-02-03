@@ -27945,7 +27945,7 @@ var coerce = {
 };
 var NEVER = INVALID;
 
-// issue/actions-ts/state-machine/schemas/entities.ts
+// issue/actions-ts/state-machine/schemas/state.ts
 var ProjectStatusSchema = external_exports.enum([
   "Backlog",
   "In progress",
@@ -27975,6 +27975,12 @@ var HistoryEntrySchema = external_exports.object({
   sha: external_exports.string().nullable(),
   runLink: external_exports.string().nullable()
 });
+var AgentNotesEntrySchema = external_exports.object({
+  runId: external_exports.string(),
+  runLink: external_exports.string(),
+  timestamp: external_exports.string(),
+  notes: external_exports.array(external_exports.string())
+});
 var LinkedPRSchema = external_exports.object({
   number: external_exports.number().int().positive(),
   state: PRStateSchema,
@@ -27987,24 +27993,16 @@ var SubIssueSchema = external_exports.object({
   number: external_exports.number().int().positive(),
   title: external_exports.string(),
   state: IssueStateSchema,
-  /** Raw markdown body - kept for backward compatibility */
   body: external_exports.string(),
   projectStatus: ProjectStatusSchema.nullable(),
   branch: external_exports.string().nullable(),
   pr: LinkedPRSchema.nullable(),
-  // Structured fields parsed from body
-  /** Description extracted from "## Description" section */
-  description: external_exports.string().default(""),
-  /** Full list of todo items parsed from body */
-  todos: external_exports.array(TodoItemSchema).default([]),
-  /** Aggregated todo statistics */
-  todoStats: TodoStatsSchema.default({ total: 0, completed: 0, uncheckedNonManual: 0 })
+  todos: TodoStatsSchema
 });
 var ParentIssueSchema = external_exports.object({
   number: external_exports.number().int().positive(),
   title: external_exports.string(),
   state: IssueStateSchema,
-  /** Raw markdown body - kept for backward compatibility */
   body: external_exports.string(),
   projectStatus: ProjectStatusSchema.nullable(),
   iteration: external_exports.number().int().min(0),
@@ -28014,16 +28012,40 @@ var ParentIssueSchema = external_exports.object({
   subIssues: external_exports.array(SubIssueSchema),
   hasSubIssues: external_exports.boolean(),
   history: external_exports.array(HistoryEntrySchema),
-  // Structured fields parsed from body
-  /** Description extracted from "## Description" section */
-  description: external_exports.string().default(""),
-  /** Approach extracted from "## Approach" section (if present) */
-  approach: external_exports.string().nullable().default(null),
-  /** Aggregated todo statistics */
-  todoStats: TodoStatsSchema.default({ total: 0, completed: 0, uncheckedNonManual: 0 }),
-  /** @deprecated Use todoStats instead - kept for backward compatibility */
-  todos: TodoStatsSchema
+  /** Todos parsed from the issue body - used when this is a sub-issue triggered directly */
+  todos: TodoStatsSchema,
+  /** Agent notes from previous workflow runs */
+  agentNotes: external_exports.array(AgentNotesEntrySchema).default([])
 });
+var TriggerTypeSchema = external_exports.enum([
+  // Issue triggers
+  "issue-assigned",
+  "issue-edited",
+  "issue-closed",
+  "issue-triage",
+  "issue-orchestrate",
+  "issue-comment",
+  // PR triggers
+  "pr-review-requested",
+  "pr-review-submitted",
+  "pr-review",
+  "pr-review-approved",
+  "pr-response",
+  "pr-human-response",
+  "pr-push",
+  // Workflow triggers
+  "workflow-run-completed",
+  // Merge queue logging triggers
+  "merge-queue-entered",
+  "merge-queue-failed",
+  "pr-merged",
+  "deployed-stage",
+  "deployed-prod",
+  // Discussion triggers
+  "discussion-created",
+  "discussion-comment",
+  "discussion-command"
+]);
 var CIResultSchema = external_exports.enum([
   "success",
   "failure",
@@ -28035,129 +28057,6 @@ var ReviewDecisionSchema = external_exports.enum([
   "CHANGES_REQUESTED",
   "COMMENTED",
   "DISMISSED"
-]);
-
-// issue/actions-ts/state-machine/schemas/issue-triggers.ts
-var IssueTriggerTypeSchema = external_exports.enum([
-  // Issue triggers
-  "issue_assigned",
-  "issue_edited",
-  "issue_closed",
-  "issue_triage",
-  "issue_orchestrate",
-  "issue_comment",
-  // PR triggers
-  "pr_review_requested",
-  "pr_review_submitted",
-  "pr_review",
-  "pr_review_approved",
-  "pr_response",
-  "pr_human_response",
-  "pr_push",
-  // Workflow triggers
-  "workflow_run_completed",
-  // Release triggers (legacy - kept for backwards compatibility)
-  "release_queue_entry",
-  "release_merged",
-  "release_deployed",
-  "release_queue_failure",
-  // Merge queue logging triggers
-  "merge_queue_entered",
-  "merge_queue_failed",
-  "pr_merged",
-  "deployed_stage",
-  "deployed_prod"
-]);
-var ISSUE_TRIGGER_TYPES = IssueTriggerTypeSchema.options;
-
-// issue/actions-ts/state-machine/schemas/discussion-triggers.ts
-var DiscussionTriggerTypeSchema = external_exports.enum([
-  "discussion_created",
-  "discussion_comment",
-  "discussion_command"
-]);
-var DISCUSSION_TRIGGER_TYPES = DiscussionTriggerTypeSchema.options;
-
-// issue/actions-ts/state-machine/schemas/base.ts
-var BaseMachineContextSchema = external_exports.object({
-  // Repository info
-  owner: external_exports.string().min(1),
-  repo: external_exports.string().min(1),
-  // Config
-  maxRetries: external_exports.number().int().positive().default(5),
-  botUsername: external_exports.string().default("nopo-bot")
-});
-
-// issue/actions-ts/state-machine/schemas/issue-context.ts
-var IssueContextSchema = BaseMachineContextSchema.extend({
-  // Trigger info
-  trigger: IssueTriggerTypeSchema,
-  // Issue being worked on (could be parent or sub-issue)
-  issue: ParentIssueSchema,
-  // If this is a sub-issue, the parent
-  parentIssue: ParentIssueSchema.nullable(),
-  // Current phase info (derived from sub-issues)
-  currentPhase: external_exports.number().int().positive().nullable(),
-  totalPhases: external_exports.number().int().min(0),
-  currentSubIssue: SubIssueSchema.nullable(),
-  // CI result (if triggered by workflow_run)
-  ciResult: CIResultSchema.nullable(),
-  ciRunUrl: external_exports.string().nullable(),
-  ciCommitSha: external_exports.string().nullable(),
-  // Workflow timing
-  /** ISO 8601 timestamp of when the workflow started */
-  workflowStartedAt: external_exports.string().nullable(),
-  // Review result (if triggered by pr_review_submitted)
-  reviewDecision: ReviewDecisionSchema.nullable(),
-  reviewerId: external_exports.string().nullable(),
-  // Branch info
-  branch: external_exports.string().nullable(),
-  hasBranch: external_exports.boolean(),
-  // PR info (for the current phase/issue)
-  pr: LinkedPRSchema.nullable(),
-  hasPR: external_exports.boolean(),
-  // Comment info (if triggered by issue_comment)
-  commentContextType: external_exports.string().transform((v3) => v3?.toLowerCase()).pipe(external_exports.enum(["issue", "pr"])).nullable().default(null),
-  commentContextDescription: external_exports.string().nullable().default(null),
-  // Release info (if triggered by release_* events)
-  releaseEvent: external_exports.object({
-    type: external_exports.enum(["queue_entry", "merged", "deployed", "queue_failure"]),
-    commitSha: external_exports.string().optional(),
-    failureReason: external_exports.string().optional(),
-    services: external_exports.array(external_exports.string()).optional()
-  }).nullable().default(null)
-});
-
-// issue/actions-ts/state-machine/schemas/discussion-context.ts
-var DiscussionSchema = external_exports.object({
-  number: external_exports.number().int().positive(),
-  nodeId: external_exports.string(),
-  title: external_exports.string(),
-  body: external_exports.string(),
-  commentCount: external_exports.number().int().min(0).default(0),
-  researchThreads: external_exports.array(
-    external_exports.object({
-      nodeId: external_exports.string(),
-      topic: external_exports.string(),
-      replyCount: external_exports.number().int().min(0)
-    })
-  ).default([]),
-  command: external_exports.enum(["summarize", "plan", "complete"]).optional(),
-  commentId: external_exports.string().optional(),
-  commentBody: external_exports.string().optional(),
-  commentAuthor: external_exports.string().optional()
-});
-var DiscussionContextSchema = BaseMachineContextSchema.extend({
-  // Trigger info
-  trigger: DiscussionTriggerTypeSchema,
-  // Discussion being worked on
-  discussion: DiscussionSchema
-});
-
-// issue/actions-ts/state-machine/schemas/state.ts
-var TriggerTypeSchema = external_exports.union([
-  IssueTriggerTypeSchema,
-  DiscussionTriggerTypeSchema
 ]);
 var MachineContextSchema = external_exports.object({
   // Trigger info
@@ -28223,6 +28122,114 @@ var MachineContextSchema = external_exports.object({
   botUsername: external_exports.string().default("nopo-bot")
 });
 
+// issue/actions-ts/state-machine/schemas/entities.ts
+var ProjectStatusSchema2 = external_exports.enum([
+  "Backlog",
+  "In progress",
+  "Ready",
+  "In review",
+  "Done",
+  "Blocked",
+  "Error"
+]);
+var IssueStateSchema2 = external_exports.enum(["OPEN", "CLOSED"]);
+var PRStateSchema2 = external_exports.enum(["OPEN", "CLOSED", "MERGED"]);
+var TodoItemSchema2 = external_exports.object({
+  text: external_exports.string(),
+  checked: external_exports.boolean(),
+  isManual: external_exports.boolean()
+});
+var TodoStatsSchema2 = external_exports.object({
+  total: external_exports.number().int().min(0),
+  completed: external_exports.number().int().min(0),
+  uncheckedNonManual: external_exports.number().int().min(0)
+});
+var HistoryEntrySchema2 = external_exports.object({
+  iteration: external_exports.number().int().min(0),
+  phase: external_exports.string(),
+  action: external_exports.string(),
+  timestamp: external_exports.string().nullable(),
+  sha: external_exports.string().nullable(),
+  runLink: external_exports.string().nullable()
+});
+var AgentNotesEntrySchema2 = external_exports.object({
+  runId: external_exports.string(),
+  runLink: external_exports.string(),
+  timestamp: external_exports.string(),
+  notes: external_exports.array(external_exports.string())
+});
+var LinkedPRSchema2 = external_exports.object({
+  number: external_exports.number().int().positive(),
+  state: PRStateSchema2,
+  isDraft: external_exports.boolean(),
+  title: external_exports.string(),
+  headRef: external_exports.string(),
+  baseRef: external_exports.string()
+});
+var SubIssueSchema2 = external_exports.object({
+  number: external_exports.number().int().positive(),
+  title: external_exports.string(),
+  state: IssueStateSchema2,
+  /** Raw markdown body - kept for backward compatibility */
+  body: external_exports.string(),
+  projectStatus: ProjectStatusSchema2.nullable(),
+  branch: external_exports.string().nullable(),
+  pr: LinkedPRSchema2.nullable(),
+  // Structured fields parsed from body
+  /** Description extracted from "## Description" section */
+  description: external_exports.string().default(""),
+  /** Full list of todo items parsed from body */
+  todos: external_exports.array(TodoItemSchema2).default([]),
+  /** Aggregated todo statistics */
+  todoStats: TodoStatsSchema2.default({
+    total: 0,
+    completed: 0,
+    uncheckedNonManual: 0
+  })
+});
+var ParentIssueSchema2 = external_exports.object({
+  number: external_exports.number().int().positive(),
+  title: external_exports.string(),
+  state: IssueStateSchema2,
+  /** Raw markdown body - kept for backward compatibility */
+  body: external_exports.string(),
+  projectStatus: ProjectStatusSchema2.nullable(),
+  iteration: external_exports.number().int().min(0),
+  failures: external_exports.number().int().min(0),
+  assignees: external_exports.array(external_exports.string()),
+  labels: external_exports.array(external_exports.string()),
+  subIssues: external_exports.array(SubIssueSchema2),
+  hasSubIssues: external_exports.boolean(),
+  history: external_exports.array(HistoryEntrySchema2),
+  // Structured fields parsed from body
+  /** Description extracted from "## Description" section */
+  description: external_exports.string().default(""),
+  /** Approach extracted from "## Approach" section (if present) */
+  approach: external_exports.string().nullable().default(null),
+  /** Aggregated todo statistics */
+  todoStats: TodoStatsSchema2.default({
+    total: 0,
+    completed: 0,
+    uncheckedNonManual: 0
+  }),
+  /** @deprecated Use todoStats instead - kept for backward compatibility */
+  todos: TodoStatsSchema2,
+  /** Agent notes from previous workflow runs */
+  agentNotes: external_exports.array(AgentNotesEntrySchema2).default([])
+});
+var CIResultSchema2 = external_exports.enum([
+  "success",
+  "failure",
+  "cancelled",
+  "skipped"
+]);
+var ReviewDecisionSchema2 = external_exports.enum([
+  "APPROVED",
+  "CHANGES_REQUESTED",
+  "COMMENTED",
+  "DISMISSED"
+]);
+
 // issue/actions-ts/state-machine/schemas/actions.ts
 var TokenTypeSchema = external_exports.enum(["code", "review"]);
 var ArtifactSchema = external_exports.object({
@@ -28243,7 +28250,7 @@ var BaseActionSchema = external_exports.object({
 var UpdateProjectStatusActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("updateProjectStatus"),
   issueNumber: external_exports.number().int().positive(),
-  status: ProjectStatusSchema
+  status: ProjectStatusSchema2
 });
 var IncrementIterationActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("incrementIteration"),
@@ -28271,6 +28278,17 @@ var CloseIssueActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("closeIssue"),
   issueNumber: external_exports.number().int().positive(),
   reason: external_exports.enum(["completed", "not_planned"]).default("completed")
+});
+var ReopenIssueActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("reopenIssue"),
+  issueNumber: external_exports.number().int().positive()
+});
+var ResetIssueActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("resetIssue"),
+  issueNumber: external_exports.number().int().positive(),
+  /** Sub-issue numbers to reset */
+  subIssueNumbers: external_exports.array(external_exports.number().int().positive()).default([]),
+  botUsername: external_exports.string().min(1)
 });
 var AppendHistoryActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("appendHistory"),
@@ -28491,6 +28509,8 @@ var ActionSchema = external_exports.discriminatedUnion("type", [
   // Issue actions
   CreateSubIssuesActionSchema,
   CloseIssueActionSchema,
+  ReopenIssueActionSchema,
+  ResetIssueActionSchema,
   AppendHistoryActionSchema,
   UpdateHistoryActionSchema,
   UpdateIssueBodyActionSchema,
@@ -29791,6 +29811,75 @@ async function executeRemoveReviewer(action, ctx) {
     }
     throw error3;
   }
+}
+async function executeResetIssue(action, ctx) {
+  let resetCount = 0;
+  try {
+    const { data: issue } = await ctx.octokit.rest.issues.get({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: action.issueNumber
+    });
+    if (issue.state === "closed") {
+      await ctx.octokit.rest.issues.update({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: action.issueNumber,
+        state: "open"
+      });
+      core3.info(`Reopened issue #${action.issueNumber}`);
+      resetCount++;
+    }
+  } catch (error3) {
+    core3.warning(`Failed to reopen issue #${action.issueNumber}: ${error3}`);
+  }
+  for (const subIssueNumber of action.subIssueNumbers) {
+    try {
+      const { data: subIssue } = await ctx.octokit.rest.issues.get({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: subIssueNumber
+      });
+      if (subIssue.state === "closed") {
+        await ctx.octokit.rest.issues.update({
+          owner: ctx.owner,
+          repo: ctx.repo,
+          issue_number: subIssueNumber,
+          state: "open"
+        });
+        core3.info(`Reopened sub-issue #${subIssueNumber}`);
+        resetCount++;
+      }
+    } catch (error3) {
+      core3.warning(`Failed to reopen sub-issue #${subIssueNumber}: ${error3}`);
+    }
+  }
+  try {
+    await ctx.octokit.rest.issues.removeAssignees({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: action.issueNumber,
+      assignees: [action.botUsername]
+    });
+    core3.info(`Unassigned ${action.botUsername} from issue #${action.issueNumber}`);
+  } catch (error3) {
+    core3.warning(`Failed to unassign bot from issue #${action.issueNumber}: ${error3}`);
+  }
+  for (const subIssueNumber of action.subIssueNumbers) {
+    try {
+      await ctx.octokit.rest.issues.removeAssignees({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: subIssueNumber,
+        assignees: [action.botUsername]
+      });
+      core3.info(`Unassigned ${action.botUsername} from sub-issue #${subIssueNumber}`);
+    } catch (error3) {
+      core3.warning(`Failed to unassign bot from sub-issue #${subIssueNumber}: ${error3}`);
+    }
+  }
+  core3.info(`Reset complete: ${resetCount} issues reopened`);
+  return { resetCount };
 }
 
 // issue/actions-ts/state-machine/runner/executors/git.ts
@@ -40420,6 +40509,11 @@ async function executeAction(action, ctx, chainCtx) {
     // Issue actions
     case "closeIssue":
       return executeCloseIssue(action, actionCtx);
+    case "reopenIssue":
+      core14.info(`Reopen issue #${action.issueNumber} - handled by resetIssue`);
+      return { reopened: true };
+    case "resetIssue":
+      return executeResetIssue(action, actionCtx);
     case "appendHistory":
       return executeAppendHistory(action, actionCtx);
     case "updateHistory":

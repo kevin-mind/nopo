@@ -1,0 +1,64 @@
+name: Claude State Machine Router
+description: Routes to either issue or discussion state machine based on trigger type
+
+inputs:
+  mode:
+    description: 'Operation mode: "derive" runs full state machine, "context" only fetches context'
+    required: false
+    default: "derive"
+  github_token:
+    description: GitHub token for API operations (read-only)
+    required: true
+  project_number:
+    description: GitHub Project number
+    required: true
+  context_json:
+    description: |
+      Unified JSON context from detect-event containing all routing and resource info.
+      Includes: job, trigger, resource_type, resource_number, parent_issue, comment_id,
+      plus context-specific fields (issue_number, branch_name, ci_result, review_decision, etc.)
+    required: true
+  max_retries:
+    description: Maximum number of CI failures before blocking
+    required: false
+    default: "5"
+  bot_username:
+    description: Username of the bot account
+    required: false
+    default: "nopo-bot"
+
+outputs:
+  actions_json:
+    description: JSON array of actions to execute (pass to executor)
+  final_state:
+    description: Final state of the machine after processing
+  transition_name:
+    description: Human-readable name for the transition (e.g., "Iterate", "Triage", "Research", "Respond")
+  context_json:
+    description: Full machine context as JSON (for debugging)
+  action_count:
+    description: Number of actions derived
+
+  # Issue-specific outputs
+  iteration:
+    description: Current iteration number from project field
+  phase:
+    description: Current phase number (or "-" if no phases)
+  parent_issue_number:
+    description: Parent issue number (same as issue_number if no parent)
+  pr_number:
+    description: PR number if a PR is associated with this issue/phase
+  commit_sha:
+    description: Commit SHA from CI context (if available)
+  sub_issue_number:
+    description: Sub-issue number if processing a phased issue
+  agent_notes:
+    description: Formatted agent notes from previous workflow runs (for prompt injection)
+
+  # Discussion-specific outputs
+  discussion_number:
+    description: Discussion number (for discussion triggers)
+
+runs:
+  using: node20
+  main: dist/index.cjs

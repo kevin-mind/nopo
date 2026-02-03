@@ -1,35 +1,25 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
-import { execCommand, getRequiredInput, setOutputs } from "../lib/index.js";
+import { execCommand, getRequiredInput, getOptionalInput, setOutputs } from "../../lib/index.js";
+import type {
+  JobType,
+  ResourceType,
+  TriggerType,
+  RunnerContext,
+} from "../../schemas/index.js";
 
-type Job =
-  | "issue-triage"
-  | "issue-iterate"
-  | "issue-orchestrate"
-  | "issue-comment"
-  | "push-to-draft"
-  | "pr-review"
-  | "pr-review-approved"
-  | "pr-response"
-  | "pr-human-response"
-  | "merge-queue-logging"
-  | "discussion-research"
-  | "discussion-respond"
-  | "discussion-summarize"
-  | "discussion-plan"
-  | "discussion-complete"
-  | "";
-
-type ResourceType = "issue" | "pr" | "discussion" | "";
+type Job = JobType;
 
 interface DetectionResult {
   job: Job;
   resourceType: ResourceType;
   resourceNumber: string;
   commentId: string;
-  contextJson: string;
+  contextJson: Record<string, unknown>;
   skip: boolean;
   skipReason: string;
+  concurrencyGroup: string;
+  cancelInProgress: boolean;
 }
 
 function emptyResult(skip = false, skipReason = ""): DetectionResult {
@@ -38,9 +28,99 @@ function emptyResult(skip = false, skipReason = ""): DetectionResult {
     resourceType: "",
     resourceNumber: "",
     commentId: "",
-    contextJson: "{}",
+    contextJson: {},
     skip,
     skipReason,
+    concurrencyGroup: "",
+    cancelInProgress: false,
+  };
+}
+
+/**
+ * Get trigger type for the state machine
+ * Most jobs map directly to triggers (same name), but some have overrides
+ */
+function jobToTrigger(job: Job, contextJson: string): string {
+  // First check if trigger_type is already in context (e.g., workflow-run-completed)
+  try {
+    const ctx = JSON.parse(contextJson);
+    if (ctx.trigger_type) {
+      return ctx.trigger_type;
+    }
+  } catch {
+    // Ignore parse errors
+  }
+
+  // Special cases where job name differs from trigger
+  const jobTriggerOverrides: Partial<Record<Job, string>> = {
+    "issue-iterate": "issue-assigned",
+    "merge-queue-logging": "merge-queue-entered",
+    "discussion-research": "discussion-created",
+    "discussion-respond": "discussion-comment",
+    "discussion-summarize": "discussion-command",
+    "discussion-plan": "discussion-command",
+    "discussion-complete": "discussion-command",
+  };
+
+  return jobTriggerOverrides[job] || job || "issue-assigned";
+}
+
+/**
+ * Compute concurrency group and cancel-in-progress based on job type
+ */
+function computeConcurrency(
+  job: Job,
+  resourceNumber: string,
+  parentIssue: string,
+  branch?: string,
+): { group: string; cancelInProgress: boolean } {
+  // PR review jobs share a group - pr-push cancels in-flight reviews
+  const reviewJobs: Job[] = [
+    "pr-push",
+    "pr-review",
+    "pr-review-approved",
+    "pr-response",
+    "pr-human-response",
+  ];
+
+  if (reviewJobs.includes(job)) {
+    return {
+      group: `claude-job-review-${resourceNumber}`,
+      // pr-push should cancel in-flight reviews
+      cancelInProgress: job === "pr-push",
+    };
+  }
+
+  // Discussion jobs use their own group
+  const discussionJobs: Job[] = [
+    "discussion-research",
+    "discussion-respond",
+    "discussion-summarize",
+    "discussion-plan",
+    "discussion-complete",
+  ];
+
+  if (discussionJobs.includes(job)) {
+    return {
+      group: `claude-job-discussion-${resourceNumber}`,
+      cancelInProgress: false,
+    };
+  }
+
+  // CI completion uses branch-based group
+  if (branch && job === "issue-iterate") {
+    // Check if this looks like a CI trigger (has branch but context suggests CI)
+    // The actual CI trigger detection happens in the workflow, but we can use branch
+    return {
+      group: `claude-job-issue-${parentIssue !== "0" ? parentIssue : resourceNumber}`,
+      cancelInProgress: false,
+    };
+  }
+
+  // All other issue jobs use parent issue (or self) for grouping
+  return {
+    group: `claude-job-issue-${parentIssue !== "0" ? parentIssue : resourceNumber}`,
+    cancelInProgress: false,
   };
 }
 
@@ -529,11 +609,11 @@ async function handleIssueEvent(
       resourceType: "issue",
       resourceNumber: String(issue.number),
       commentId: "",
-      contextJson: JSON.stringify({
+      contextJson: {
         issue_number: String(issue.number),
         issue_title: details.title || issue.title,
         issue_body: details.body || issue.body,
-      }),
+      },
       skip: false,
       skipReason: "",
     };
@@ -595,7 +675,7 @@ async function handleIssueEvent(
           resourceType: "issue",
           resourceNumber: String(issue.number),
           commentId: "",
-          contextJson: JSON.stringify({
+          contextJson: {
             issue_number: String(issue.number),
             issue_title: details.title || issue.title,
             issue_body: details.body || issue.body,
@@ -607,7 +687,7 @@ async function handleIssueEvent(
             project_status: projectState?.status || "",
             project_iteration: String(projectState?.iteration || 0),
             project_failures: String(projectState?.failures || 0),
-          }),
+          },
           skip: false,
           skipReason: "",
         };
@@ -638,7 +718,7 @@ async function handleIssueEvent(
           resourceType: "issue",
           resourceNumber: String(issue.number),
           commentId: "",
-          contextJson: JSON.stringify({
+          contextJson: {
             issue_number: String(issue.number),
             issue_title: details.title || issue.title,
             issue_body: details.body || issue.body,
@@ -647,7 +727,7 @@ async function handleIssueEvent(
             project_status: projectState?.status || "",
             project_iteration: String(projectState?.iteration || 0),
             project_failures: String(projectState?.failures || 0),
-          }),
+          },
           skip: false,
           skipReason: "",
         };
@@ -664,7 +744,7 @@ async function handleIssueEvent(
         resourceType: "issue",
         resourceNumber: String(issue.number),
         commentId: "",
-        contextJson: JSON.stringify({
+        contextJson: {
           issue_number: String(issue.number),
           issue_title: details.title || issue.title,
           issue_body: details.body || issue.body,
@@ -674,7 +754,7 @@ async function handleIssueEvent(
           project_status: projectState?.status || "",
           project_iteration: String(projectState?.iteration || 0),
           project_failures: String(projectState?.failures || 0),
-        }),
+        },
         skip: false,
         skipReason: "",
       };
@@ -704,11 +784,11 @@ async function handleIssueEvent(
         resourceType: "issue",
         resourceNumber: String(issue.number),
         commentId: "",
-        contextJson: JSON.stringify({
+        contextJson: {
           issue_number: String(issue.number),
           issue_title: details.title || issue.title,
           issue_body: details.body || issue.body,
-        }),
+        },
         skip: false,
         skipReason: "",
       };
@@ -751,7 +831,7 @@ async function handleIssueEvent(
       resourceType: "issue",
       resourceNumber: String(details.parentIssue),
       commentId: "",
-      contextJson: JSON.stringify({
+      contextJson: {
         issue_number: String(details.parentIssue),
         issue_title: parentDetails.title,
         issue_body: parentDetails.body,
@@ -761,7 +841,7 @@ async function handleIssueEvent(
         project_status: parentProjectState?.status || "",
         project_iteration: String(parentProjectState?.iteration || 0),
         project_failures: String(parentProjectState?.failures || 0),
-      }),
+      },
       skip: false,
       skipReason: "",
     };
@@ -812,7 +892,7 @@ async function handleIssueEvent(
         resourceType: "issue",
         resourceNumber: String(issue.number),
         commentId: "",
-        contextJson: JSON.stringify({
+        contextJson: {
           issue_number: String(issue.number),
           issue_title: details.title || issue.title,
           issue_body: details.body || issue.body,
@@ -823,7 +903,7 @@ async function handleIssueEvent(
           project_status: projectState?.status || "",
           project_iteration: String(projectState?.iteration || 0),
           project_failures: String(projectState?.failures || 0),
-        }),
+        },
         skip: false,
         skipReason: "",
       };
@@ -860,7 +940,7 @@ async function handleIssueEvent(
         resourceType: "issue",
         resourceNumber: String(issue.number),
         commentId: "",
-        contextJson: JSON.stringify({
+        contextJson: {
           issue_number: String(issue.number),
           issue_title: details.title || issue.title,
           issue_body: details.body || issue.body,
@@ -869,7 +949,7 @@ async function handleIssueEvent(
           project_status: projectState?.status || "",
           project_iteration: String(projectState?.iteration || 0),
           project_failures: String(projectState?.failures || 0),
-        }),
+        },
         skip: false,
         skipReason: "",
       };
@@ -886,7 +966,7 @@ async function handleIssueEvent(
       resourceType: "issue",
       resourceNumber: String(issue.number),
       commentId: "",
-      contextJson: JSON.stringify({
+      contextJson: {
         issue_number: String(issue.number),
         issue_title: details.title || issue.title,
         issue_body: details.body || issue.body,
@@ -895,7 +975,7 @@ async function handleIssueEvent(
         project_status: projectState?.status || "",
         project_iteration: String(projectState?.iteration || 0),
         project_failures: String(projectState?.failures || 0),
-      }),
+      },
       skip: false,
       skipReason: "",
     };
@@ -955,7 +1035,7 @@ async function handleIssueCommentEvent(
     return emptyResult(true, "Comment is from a bot");
   }
 
-  // Check for /implement, /continue, or /lfg command (issues only, not PRs)
+  // Check for /implement, /continue, /lfg, or /reset command (issues only, not PRs)
   const isPr = !!issue.pull_request;
   const commandLines = comment.body.split("\n").map((line) => line.trim());
   const hasImplementCommand = commandLines.some(
@@ -963,6 +1043,28 @@ async function handleIssueCommentEvent(
   );
   const hasContinueCommand = commandLines.some((line) => line === "/continue");
   const hasLfgCommand = commandLines.some((line) => line === "/lfg");
+  const hasResetCommand = commandLines.some((line) => line === "/reset");
+
+  // Handle /reset command - resets issue to Backlog/Ready state
+  if (hasResetCommand && !isPr) {
+    const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
+
+    return {
+      job: "issue-reset",
+      resourceType: "issue",
+      resourceNumber: String(issue.number),
+      commentId: String(comment.id),
+      contextJson: {
+        issue_number: String(issue.number),
+        issue_title: details.title || issue.title,
+        issue_body: details.body || issue.body,
+        sub_issues: details.subIssues.join(","),
+        trigger_type: "issue_comment",
+      },
+      skip: false,
+      skipReason: "",
+    };
+  }
 
   if ((hasImplementCommand || hasContinueCommand || hasLfgCommand) && !isPr) {
     const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
@@ -985,7 +1087,7 @@ async function handleIssueCommentEvent(
         resourceType: "issue",
         resourceNumber: String(issue.number),
         commentId: String(comment.id),
-        contextJson: JSON.stringify({
+        contextJson: {
           issue_number: String(issue.number),
           issue_title: details.title || issue.title,
           issue_body: details.body || issue.body,
@@ -993,7 +1095,7 @@ async function handleIssueCommentEvent(
           trigger_type: "issue_comment",
           parent_issue: String(details.parentIssue),
           phase_number: String(phaseNumber),
-        }),
+        },
         skip: false,
         skipReason: "",
       };
@@ -1006,13 +1108,13 @@ async function handleIssueCommentEvent(
         resourceType: "issue",
         resourceNumber: String(issue.number),
         commentId: String(comment.id),
-        contextJson: JSON.stringify({
+        contextJson: {
           issue_number: String(issue.number),
           issue_title: details.title || issue.title,
           issue_body: details.body || issue.body,
           sub_issues: details.subIssues.join(","),
           trigger_type: "issue_comment",
-        }),
+        },
         skip: false,
         skipReason: "",
       };
@@ -1030,13 +1132,13 @@ async function handleIssueCommentEvent(
       resourceType: "issue",
       resourceNumber: String(issue.number),
       commentId: String(comment.id),
-      contextJson: JSON.stringify({
+      contextJson: {
         issue_number: String(issue.number),
         issue_title: details.title || issue.title,
         issue_body: details.body || issue.body,
         branch_name: branchName,
         trigger_type: "issue_comment",
-      }),
+      },
       skip: false,
       skipReason: "",
     };
@@ -1083,12 +1185,12 @@ async function handleIssueCommentEvent(
     resourceType: isPr ? "pr" : "issue",
     resourceNumber: String(issue.number),
     commentId: String(comment.id),
-    contextJson: JSON.stringify({
+    contextJson: {
       issue_number: String(issue.number),
       context_type: contextType,
       context_description: contextDescription,
       branch_name: branchName,
-    }),
+    },
     skip: false,
     skipReason: "",
   };
@@ -1147,12 +1249,12 @@ async function handlePullRequestReviewCommentEvent(): Promise<DetectionResult> {
     resourceType: "pr",
     resourceNumber: String(pr.number),
     commentId: String(comment.id),
-    contextJson: JSON.stringify({
+    contextJson: {
       issue_number: String(pr.number),
       context_type: "pr",
       context_description: `This is PR #${pr.number} on branch \`${pr.head.ref}\`. You are checked out on the PR branch with the code changes.`,
       branch_name: pr.head.ref,
-    }),
+    },
     skip: false,
     skipReason: "",
   };
@@ -1197,17 +1299,31 @@ async function handlePushEvent(): Promise<DetectionResult> {
     return emptyResult(true, "PR title starts with [TEST]");
   }
 
-  // Push-to-draft doesn't call Claude, but we still signal
+  // Extract issue number from branch name (claude/issue/N or claude/issue/N/phase-M)
+  const branchMatch = branch.match(/^claude\/issue\/(\d+)/);
+  const issueNumber = branchMatch?.[1] ?? "";
+
+  // Construct run URL for history entry
+  const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+  const runId = process.env.GITHUB_RUN_ID || "";
+  const commitSha = github.context.sha;
+  const runUrl = `${serverUrl}/${owner}/${repo}/actions/runs/${runId}`;
+
+  // PR push converts PR to draft and logs history
   return {
-    job: "push-to-draft",
+    job: "pr-push",
     resourceType: "pr",
     resourceNumber: prInfo.prNumber,
     commentId: "",
-    contextJson: JSON.stringify({
+    contextJson: {
       pr_number: prInfo.prNumber,
       branch_name: branch,
       is_draft: prInfo.isDraft,
-    }),
+      issue_number: issueNumber,
+      // Include commit SHA and run URL for history entry
+      ci_commit_sha: commitSha,
+      ci_run_url: runUrl,
+    },
     skip: false,
     skipReason: "",
   };
@@ -1274,7 +1390,7 @@ async function handleWorkflowRunEvent(): Promise<DetectionResult> {
     resourceType: "issue",
     resourceNumber: issueNumber,
     commentId: "",
-    contextJson: JSON.stringify({
+    contextJson: {
       issue_number: issueNumber,
       pr_number: prInfo.prNumber,
       branch_name: branch,
@@ -1282,7 +1398,7 @@ async function handleWorkflowRunEvent(): Promise<DetectionResult> {
       ci_result: conclusion,
       trigger_type: "workflow_run_completed",
       parent_issue: String(details.parentIssue),
-    }),
+    },
     skip: false,
     skipReason: "",
   };
@@ -1345,12 +1461,12 @@ async function handlePullRequestEvent(
       resourceType: "pr",
       resourceNumber: String(pr.number),
       commentId: "",
-      contextJson: JSON.stringify({
+      contextJson: {
         pr_number: String(pr.number),
         branch_name: pr.head.ref,
         issue_section: issueSection,
         issue_number: issueNumber,
-      }),
+      },
       skip: false,
       skipReason: "",
     };
@@ -1419,7 +1535,7 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
       resourceType: "pr",
       resourceNumber: String(pr.number),
       commentId: "",
-      contextJson: JSON.stringify({
+      contextJson: {
         pr_number: String(pr.number),
         branch_name: pr.head.ref,
         review_state: state,
@@ -1427,7 +1543,7 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
         review_id: String(review.id),
         issue_number: issueNumber,
         parent_issue: parentIssue,
-      }),
+      },
       skip: false,
       skipReason: "",
     };
@@ -1449,14 +1565,14 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
       resourceType: "pr",
       resourceNumber: String(pr.number),
       commentId: "",
-      contextJson: JSON.stringify({
+      contextJson: {
         pr_number: String(pr.number),
         branch_name: pr.head.ref,
         review_state: state,
         review_body: review.body ?? "",
         review_id: String(review.id),
         issue_number: issueNumber,
-      }),
+      },
       skip: false,
       skipReason: "",
     };
@@ -1474,7 +1590,7 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
     resourceType: "pr",
     resourceNumber: String(pr.number),
     commentId: "",
-    contextJson: JSON.stringify({
+    contextJson: {
       pr_number: String(pr.number),
       branch_name: pr.head.ref,
       reviewer_login: review.user.login,
@@ -1482,7 +1598,7 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
       review_body: review.body ?? "",
       review_id: String(review.id),
       issue_number: issueNumber,
-    }),
+    },
     skip: false,
     skipReason: "",
   };
@@ -1548,12 +1664,13 @@ async function handleDiscussionEvent(
       resourceType: "discussion",
       resourceNumber: String(discussion.number),
       commentId: "",
-      contextJson: JSON.stringify({
+      contextJson: {
         discussion_number: String(discussion.number),
         discussion_title: discussion.title,
         discussion_body: discussion.body ?? "",
+        trigger_type: "discussion_created",
         is_test_automation: isTestAutomation,
-      }),
+      },
       skip: false,
       skipReason: "",
     };
@@ -1663,7 +1780,7 @@ async function handleMergeGroupEvent(
     resourceType: "issue",
     resourceNumber: issueNumber,
     commentId: "",
-    contextJson: JSON.stringify({
+    contextJson: {
       issue_number: issueNumber,
       parent_issue: parentIssue,
       pr_number: String(prNumber),
@@ -1671,7 +1788,7 @@ async function handleMergeGroupEvent(
       ci_run_url: ciRunUrl,
       head_ref: headRef,
       head_sha: mergeGroup.head_sha,
-    }),
+    },
     skip: false,
     skipReason: "",
   };
@@ -1748,10 +1865,12 @@ async function handleDiscussionCommentEvent(
       resourceType: "discussion",
       resourceNumber: String(discussion.number),
       commentId: comment.node_id,
-      contextJson: JSON.stringify({
+      contextJson: {
         discussion_number: String(discussion.number),
+        trigger_type: "discussion_command",
+        command: "summarize",
         is_test_automation: isTestAutomation,
-      }),
+      },
       skip: false,
       skipReason: "",
     };
@@ -1763,10 +1882,12 @@ async function handleDiscussionCommentEvent(
       resourceType: "discussion",
       resourceNumber: String(discussion.number),
       commentId: comment.node_id,
-      contextJson: JSON.stringify({
+      contextJson: {
         discussion_number: String(discussion.number),
+        trigger_type: "discussion_command",
+        command: "plan",
         is_test_automation: isTestAutomation,
-      }),
+      },
       skip: false,
       skipReason: "",
     };
@@ -1778,10 +1899,12 @@ async function handleDiscussionCommentEvent(
       resourceType: "discussion",
       resourceNumber: String(discussion.number),
       commentId: comment.node_id,
-      contextJson: JSON.stringify({
+      contextJson: {
         discussion_number: String(discussion.number),
+        trigger_type: "discussion_command",
+        command: "complete",
         is_test_automation: isTestAutomation,
-      }),
+      },
       skip: false,
       skipReason: "",
     };
@@ -1794,12 +1917,13 @@ async function handleDiscussionCommentEvent(
       resourceType: "discussion",
       resourceNumber: String(discussion.number),
       commentId: comment.node_id,
-      contextJson: JSON.stringify({
+      contextJson: {
         discussion_number: String(discussion.number),
         comment_body: comment.body,
         comment_author: author,
+        trigger_type: "discussion_comment",
         is_test_automation: isTestAutomation,
-      }),
+      },
       skip: false,
       skipReason: "",
     };
@@ -1812,12 +1936,13 @@ async function handleDiscussionCommentEvent(
       resourceType: "discussion",
       resourceNumber: String(discussion.number),
       commentId: comment.node_id,
-      contextJson: JSON.stringify({
+      contextJson: {
         discussion_number: String(discussion.number),
         comment_body: comment.body,
         comment_author: author,
+        trigger_type: "discussion_comment",
         is_test_automation: isTestAutomation,
-      }),
+      },
       skip: false,
       skipReason: "",
     };
@@ -1827,9 +1952,120 @@ async function handleDiscussionCommentEvent(
   return emptyResult(true, "Bot reply comment - preventing infinite loop");
 }
 
+async function handleWorkflowDispatchEvent(
+  octokit: ReturnType<typeof github.getOctokit>,
+  owner: string,
+  repo: string,
+  resourceNumber: string,
+): Promise<DetectionResult> {
+  if (!resourceNumber) {
+    return emptyResult(true, "No resource_number provided for workflow_dispatch");
+  }
+
+  const issueNumber = parseInt(resourceNumber, 10);
+  if (isNaN(issueNumber)) {
+    return emptyResult(true, `Invalid resource_number: ${resourceNumber}`);
+  }
+
+  core.info(`Workflow dispatch for issue #${issueNumber}`);
+
+  // Fetch issue details
+  const details = await fetchIssueDetails(octokit, owner, repo, issueNumber);
+
+  // Check project state - skip if in terminal/blocked state
+  const projectState = await fetchProjectState(octokit, owner, repo, issueNumber);
+  if (shouldSkipProjectState(projectState)) {
+    return emptyResult(
+      true,
+      `Issue project status is '${projectState?.status}' - skipping iteration`,
+    );
+  }
+
+  // Determine parent issue
+  let parentIssue = "0";
+  if (details.isSubIssue && details.parentIssue > 0) {
+    parentIssue = String(details.parentIssue);
+    core.info(`Issue #${issueNumber} is a sub-issue of parent #${parentIssue}`);
+  }
+
+  // Check if this is a parent issue with sub-issues - route to orchestrate
+  if (details.subIssues.length > 0) {
+    return {
+      job: "issue-orchestrate",
+      resourceType: "issue",
+      resourceNumber: String(issueNumber),
+      commentId: "",
+      contextJson: {
+        issue_number: String(issueNumber),
+        issue_title: details.title,
+        issue_body: details.body,
+        sub_issues: details.subIssues.join(","),
+        trigger_type: "issue_assigned",
+        parent_issue: parentIssue,
+        project_status: projectState?.status || "",
+        project_iteration: String(projectState?.iteration || 0),
+        project_failures: String(projectState?.failures || 0),
+      },
+      skip: false,
+      skipReason: "",
+    };
+  }
+
+  // Check if this is a sub-issue - determine branch from parent and phase
+  if (details.isSubIssue) {
+    const phaseNumber = extractPhaseNumber(details.title);
+    const branchName = deriveBranch(details.parentIssue, phaseNumber || issueNumber);
+
+    return {
+      job: "issue-iterate",
+      resourceType: "issue",
+      resourceNumber: String(issueNumber),
+      commentId: "",
+      contextJson: {
+        issue_number: String(issueNumber),
+        issue_title: details.title,
+        issue_body: details.body,
+        branch_name: branchName,
+        trigger_type: "issue_assigned",
+        parent_issue: parentIssue,
+        phase_number: String(phaseNumber),
+        project_status: projectState?.status || "",
+        project_iteration: String(projectState?.iteration || 0),
+        project_failures: String(projectState?.failures || 0),
+      },
+      skip: false,
+      skipReason: "",
+    };
+  }
+
+  // Regular issue without sub-issues
+  const branchName = `claude/issue/${issueNumber}`;
+
+  return {
+    job: "issue-iterate",
+    resourceType: "issue",
+    resourceNumber: String(issueNumber),
+    commentId: "",
+    contextJson: {
+      issue_number: String(issueNumber),
+      issue_title: details.title,
+      issue_body: details.body,
+      branch_name: branchName,
+      trigger_type: "issue_assigned",
+      parent_issue: parentIssue,
+      project_status: projectState?.status || "",
+      project_iteration: String(projectState?.iteration || 0),
+      project_failures: String(projectState?.failures || 0),
+    },
+    skip: false,
+    skipReason: "",
+  };
+}
+
 async function run(): Promise<void> {
   try {
     const token = getRequiredInput("github_token");
+    const resourceNumber = getOptionalInput("resource_number") || "";
     const octokit = github.getOctokit(token);
     const { context } = github;
     const eventName = context.eventName;
@@ -1874,6 +2110,9 @@ async function run(): Promise<void> {
       case "merge_group":
         result = await handleMergeGroupEvent(octokit, owner, repo);
         break;
+      case "workflow_dispatch":
+        result = await handleWorkflowDispatchEvent(octokit, owner, repo, resourceNumber);
+        break;
       default:
         result = emptyResult(true, `Unhandled event: ${eventName}`);
     }
@@ -1886,26 +2125,45 @@ async function run(): Promise<void> {
       core.info(`Resource: ${result.resourceType} #${result.resourceNumber}`);
     }
 
-    // Extract parent_issue from context_json for concurrency groups
-    let parentIssue = "0";
-    try {
-      const ctx = JSON.parse(result.contextJson);
-      if (ctx.parent_issue && ctx.parent_issue !== "0") {
-        parentIssue = ctx.parent_issue;
-      }
-    } catch {
-      // Ignore parse errors
-    }
+    // Extract parent_issue and branch from context for concurrency groups
+    const ctx = result.contextJson;
+    const parentIssue = (ctx.parent_issue as string) || "0";
+    const branch = (ctx.branch_name as string) || "";
 
-    setOutputs({
+    // Compute trigger type from job
+    const trigger = jobToTrigger(result.job, JSON.stringify(ctx));
+    core.info(`Trigger: ${trigger}`);
+
+    // Compute concurrency group and cancel-in-progress
+    const concurrency = computeConcurrency(
+      result.job,
+      result.resourceNumber,
+      parentIssue,
+      branch,
+    );
+    core.info(`Concurrency group: ${concurrency.group}`);
+    core.info(`Cancel in progress: ${concurrency.cancelInProgress}`);
+
+    // Build unified context_json with all routing info embedded
+    const unifiedContext: RunnerContext = {
+      // Routing & control
       job: result.job,
+      trigger: trigger as TriggerType,
       resource_type: result.resourceType,
       resource_number: result.resourceNumber,
       parent_issue: parentIssue,
       comment_id: result.commentId,
-      context_json: result.contextJson,
-      skip: result.skip ? "true" : "false",
+      concurrency_group: concurrency.group,
+      cancel_in_progress: concurrency.cancelInProgress,
+      skip: result.skip,
       skip_reason: result.skipReason,
+      // Spread in all the context-specific fields
+      ...ctx,
+    };
+
+    // Output only context_json (single source of truth)
+    setOutputs({
+      context_json: JSON.stringify(unifiedContext),
     });
   } catch (error) {
     if (error instanceof Error) {

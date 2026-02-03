@@ -8,9 +8,9 @@ import type * as github from "@actions/github";
 import type {
   MachineContext,
   ProjectStatus,
-} from "../../claude-state-machine/schemas/index.js";
-import { parseTodoStats } from "../../claude-state-machine/parser/todo-parser.js";
-import { parseHistory } from "../../claude-state-machine/parser/history-parser.js";
+} from "../../state-machine/schemas/index.js";
+import { parseTodoStats } from "../../state-machine/parser/todo-parser.js";
+import { parseHistory } from "../../state-machine/parser/history-parser.js";
 import type { GitHubState, WorkflowRun } from "./types.js";
 
 type Octokit = ReturnType<typeof github.getOctokit>;

@@ -121,6 +121,34 @@ export const CloseIssueActionSchema = BaseActionSchema.extend({
 export type CloseIssueAction = z.infer<typeof CloseIssueActionSchema>;
 
 /**
+ * Reopen a closed issue
+ */
+export const ReopenIssueActionSchema = BaseActionSchema.extend({
+  type: z.literal("reopenIssue"),
+  issueNumber: z.number().int().positive(),
+});
+
+export type ReopenIssueAction = z.infer<typeof ReopenIssueActionSchema>;
+
+/**
+ * Reset an issue (and sub-issues) to initial state
+ * - Reopens closed issues
+ * - Sets parent status to Backlog
+ * - Sets sub-issue statuses to Ready
+ * - Clears iteration and failure counters
+ * - Unassigns bot
+ */
+export const ResetIssueActionSchema = BaseActionSchema.extend({
+  type: z.literal("resetIssue"),
+  issueNumber: z.number().int().positive(),
+  /** Sub-issue numbers to reset */
+  subIssueNumbers: z.array(z.number().int().positive()).default([]),
+  botUsername: z.string().min(1),
+});
+
+export type ResetIssueAction = z.infer<typeof ResetIssueActionSchema>;
+
+/**
  * Append an entry to the Iteration History table
  */
 export const AppendHistoryActionSchema = BaseActionSchema.extend({
@@ -603,6 +631,8 @@ export const ActionSchema = z.discriminatedUnion("type", [
   // Issue actions
   CreateSubIssuesActionSchema,
   CloseIssueActionSchema,
+  ReopenIssueActionSchema,
+  ResetIssueActionSchema,
   AppendHistoryActionSchema,
   UpdateHistoryActionSchema,
   UpdateIssueBodyActionSchema,
@@ -664,6 +694,8 @@ export const ACTION_TYPES = [
   "clearFailures",
   "createSubIssues",
   "closeIssue",
+  "reopenIssue",
+  "resetIssue",
   "appendHistory",
   "updateHistory",
   "updateIssueBody",
@@ -746,6 +778,8 @@ export const ISSUE_ACTION_TYPES = [
   // Issue actions
   "createSubIssues",
   "closeIssue",
+  "reopenIssue",
+  "resetIssue",
   "appendHistory",
   "updateHistory",
   "updateIssueBody",

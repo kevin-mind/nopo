@@ -23878,11 +23878,11 @@ var require_github = __commonJS({
   }
 });
 
-// claude-test-helper/index.ts
+// shared/actions-ts/test-helper/index.ts
 var core2 = __toESM(require_core(), 1);
 var github = __toESM(require_github(), 1);
 
-// lib/index.ts
+// shared/lib/index.ts
 var core = __toESM(require_core(), 1);
 var exec = __toESM(require_exec(), 1);
 function getOptionalInput(name) {
@@ -23900,7 +23900,7 @@ function setOutputs(outputs) {
   }
 }
 
-// claude-test-helper/index.ts
+// shared/actions-ts/test-helper/index.ts
 var GET_PROJECT_ITEM_QUERY = `
 query GetProjectItem($org: String!, $projectNumber: Int!, $issueNumber: Int!, $repo: String!) {
   repository(owner: $org, name: $repo) {

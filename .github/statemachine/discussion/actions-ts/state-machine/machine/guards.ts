@@ -1,10 +1,10 @@
-import type { MachineContext } from "../schemas/index.js";
+import type { DiscussionContext } from "../schemas/index.js";
 
 /**
  * Guard context type for XState
  */
 interface GuardContext {
-  context: MachineContext;
+  context: DiscussionContext;
 }
 
 // ============================================================================
@@ -46,21 +46,21 @@ export function triggeredByDiscussionCommand({
  * Check if the command is /summarize
  */
 export function commandIsSummarize({ context }: GuardContext): boolean {
-  return context.discussion?.command === "summarize";
+  return context.discussion.command === "summarize";
 }
 
 /**
  * Check if the command is /plan
  */
 export function commandIsPlan({ context }: GuardContext): boolean {
-  return context.discussion?.command === "plan";
+  return context.discussion.command === "plan";
 }
 
 /**
  * Check if the command is /complete
  */
 export function commandIsComplete({ context }: GuardContext): boolean {
-  return context.discussion?.command === "complete";
+  return context.discussion.command === "complete";
 }
 
 // ============================================================================
@@ -71,10 +71,10 @@ export function commandIsComplete({ context }: GuardContext): boolean {
  * Check if the comment is from a human (not a bot)
  */
 export function isHumanComment({ context }: GuardContext): boolean {
-  const author = context.discussion?.commentAuthor;
+  const author = context.discussion.commentAuthor;
   if (!author) return false;
   // Bot accounts typically end with [bot] or are known bot usernames
-  return !author.endsWith("[bot]") && author !== "nopo-bot";
+  return !author.endsWith("[bot]") && author !== context.botUsername;
 }
 
 /**
@@ -82,10 +82,10 @@ export function isHumanComment({ context }: GuardContext): boolean {
  * Research threads are created by the bot to investigate topics
  */
 export function isBotResearchThread({ context }: GuardContext): boolean {
-  const author = context.discussion?.commentAuthor;
+  const author = context.discussion.commentAuthor;
   // If the comment is from a bot and it's a reply in a discussion
   return (
-    (author === "nopo-bot" || author?.endsWith("[bot]") === true) &&
+    (author === context.botUsername || author?.endsWith("[bot]") === true) &&
     context.trigger === "discussion_comment"
   );
 }
@@ -98,7 +98,7 @@ export function isBotResearchThread({ context }: GuardContext): boolean {
  * Check if discussion has valid context
  */
 export function hasDiscussionContext({ context }: GuardContext): boolean {
-  return context.discussion !== null;
+  return context.discussion !== null && context.discussion !== undefined;
 }
 
 /**
@@ -106,7 +106,7 @@ export function hasDiscussionContext({ context }: GuardContext): boolean {
  */
 export function hasComment({ context }: GuardContext): boolean {
   return (
-    context.discussion?.commentId !== undefined &&
+    context.discussion.commentId !== undefined &&
     context.discussion.commentBody !== undefined
   );
 }

@@ -213,7 +213,7 @@ export function createContext(
 
   // Use the schema's createMachineContext for validation
   return createMachineContext({
-    trigger: overrides.trigger ?? "issue_assigned",
+    trigger: overrides.trigger ?? "issue-assigned",
     owner: overrides.owner ?? "test-owner",
     repo: overrides.repo ?? "test-repo",
     issue,
@@ -249,7 +249,7 @@ export function createNewIssueContext(
   overrides: Parameters<typeof createContext>[0] = {},
 ): MachineContext {
   return createContext({
-    trigger: "issue_assigned",
+    trigger: "issue-assigned",
     issue: { projectStatus: "In progress" },
     ...overrides,
   });
@@ -262,7 +262,7 @@ export function createCISuccessContext(
   overrides: Parameters<typeof createContext>[0] = {},
 ): MachineContext {
   return createContext({
-    trigger: "workflow_run_completed",
+    trigger: "workflow-run-completed",
     ciResult: "success",
     issue: { projectStatus: "In progress" },
     ...overrides,
@@ -276,7 +276,7 @@ export function createCIFailureContext(
   overrides: Parameters<typeof createContext>[0] = {},
 ): MachineContext {
   return createContext({
-    trigger: "workflow_run_completed",
+    trigger: "workflow-run-completed",
     ciResult: "failure",
     issue: { projectStatus: "In progress" },
     ...overrides,
@@ -291,7 +291,7 @@ export function createReviewContext(
   overrides: Parameters<typeof createContext>[0] = {},
 ): MachineContext {
   return createContext({
-    trigger: "pr_review_submitted",
+    trigger: "pr-review-submitted",
     reviewDecision: decision,
     issue: { projectStatus: "In review" },
     ...overrides,
@@ -405,7 +405,7 @@ export function createDiscussionContext(
   };
 
   return createMachineContext({
-    trigger: overrides.trigger ?? "discussion_created",
+    trigger: overrides.trigger ?? "discussion-created",
     owner: overrides.owner ?? "test-owner",
     repo: overrides.repo ?? "test-repo",
     issue: createParentIssue(overrides.issue),
@@ -422,7 +422,7 @@ export function createNewDiscussionContext(
   overrides: Parameters<typeof createDiscussionContext>[0] = {},
 ): MachineContext {
   return createDiscussionContext({
-    trigger: "discussion_created",
+    trigger: "discussion-created",
     ...overrides,
   });
 }
@@ -434,7 +434,7 @@ export function createDiscussionCommentContext(
   overrides: Parameters<typeof createDiscussionContext>[0] = {},
 ): MachineContext {
   return createDiscussionContext({
-    trigger: "discussion_comment",
+    trigger: "discussion-comment",
     discussion: {
       commentId: "DC_kwDOTest456",
       commentBody: "I have a question about this",
@@ -453,7 +453,7 @@ export function createDiscussionCommandContext(
   overrides: Parameters<typeof createDiscussionContext>[0] = {},
 ): MachineContext {
   return createDiscussionContext({
-    trigger: "discussion_command",
+    trigger: "discussion-command",
     discussion: {
       command,
       commentId: "DC_kwDOTest789",

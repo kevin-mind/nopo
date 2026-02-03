@@ -27,12 +27,12 @@ import type {
   ParentIssue,
   ProjectStatus,
   MachineContext,
-} from "../../../claude-state-machine/schemas/state.js";
-import { claudeMachine } from "../../../claude-state-machine/machine/machine.js";
+} from "../../../state-machine/schemas/state.js";
+import { claudeMachine } from "../../../state-machine/machine/machine.js";
 import {
   executeActions,
   createRunnerContext,
-} from "../../../claude-state-machine/runner/runner.js";
+} from "../../../state-machine/runner/runner.js";
 import { fetchGitHubState } from "../github-state.js";
 
 type Octokit = InstanceType<typeof GitHub>;
@@ -994,38 +994,42 @@ Issue: #${this.issueNumber}
       todos: fixture.issue.todos,
     };
 
-    // Determine trigger based on state and context
+    // Determine trigger - use explicit trigger from fixture if provided
     // Note: fixture may have been modified by syncFixtureWithSideEffects
-    let trigger: MachineContext["trigger"] = "issue_edited";
-    if (fixture.state === "detecting") {
+    let trigger: MachineContext["trigger"] = "issue-edited";
+
+    // Use explicit trigger from fixture if provided (converts kebab-case to snake_case)
+    if (fixture.trigger) {
+      trigger = fixture.trigger;
+    } else if (fixture.state === "detecting") {
       // Detecting state needs to determine what to do
       if (!fixture.issue.labels.includes("triaged")) {
-        trigger = "issue_triage";
+        trigger = "issue-triage";
       } else if (fixture.issue.assignees.includes("nopo-bot")) {
-        trigger = "issue_assigned";
+        trigger = "issue-assigned";
       }
     } else if (fixture.state === "triaging") {
-      // If nopo-bot is assigned (via side effects), use issue_assigned trigger
+      // If nopo-bot is assigned (via side effects), use issue-assigned trigger
       // to route to iterating instead of re-running triage
       if (fixture.issue.assignees.includes("nopo-bot")) {
-        trigger = "issue_assigned";
+        trigger = "issue-assigned";
       } else {
-        trigger = "issue_triage";
+        trigger = "issue-triage";
       }
     } else if (
       fixture.state === "reviewing" ||
       fixture.state === "prReviewing"
     ) {
-      trigger = "pr_review_requested";
+      trigger = "pr-review-requested";
     } else if (fixture.state === "processingCI") {
-      trigger = "workflow_run_completed";
+      trigger = "workflow-run-completed";
     } else if (fixture.state === "processingReview") {
-      trigger = "pr_review_submitted";
+      trigger = "pr-review-submitted";
     } else if (fixture.state === "processingMerge") {
-      trigger = "pr_merged";
+      trigger = "pr-merged";
     } else if (fixture.ciResult) {
       // If ciResult is set, this is a CI completion trigger
-      trigger = "workflow_run_completed";
+      trigger = "workflow-run-completed";
     }
 
     // Build PR object if we have a PR number

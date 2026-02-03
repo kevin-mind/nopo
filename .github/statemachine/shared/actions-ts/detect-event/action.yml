@@ -5,24 +5,27 @@ inputs:
   github_token:
     description: GitHub token for API calls
     required: true
+  resource_number:
+    description: Resource number for workflow_dispatch events
+    required: false
+    default: ''
 
 outputs:
-  job:
-    description: Job to run (empty if no Claude call needed)
-  resource_type:
-    description: Type of resource (issue, pr, discussion)
-  resource_number:
-    description: Issue/PR/Discussion number
-  parent_issue:
-    description: Parent issue number for sub-issues (0 if not a sub-issue or not determined)
-  comment_id:
-    description: Comment ID if responding to a comment (for reaction)
   context_json:
-    description: JSON blob with all context needed by the job
-  skip:
-    description: Whether to skip processing (true/false)
-  skip_reason:
-    description: Reason for skipping
+    description: |
+      Unified JSON context containing all routing and resource information.
+      This is the ONLY output - all fields are embedded in this JSON:
+      - job: Job to run (e.g., "issue-iterate", "pr-review")
+      - trigger: Trigger type for state machine
+      - resource_type: Type of resource (issue, pr, discussion)
+      - resource_number: Issue/PR/Discussion number
+      - parent_issue: Parent issue number for sub-issues
+      - comment_id: Comment ID for reactions
+      - concurrency_group: Concurrency group name
+      - cancel_in_progress: Whether to cancel in-progress runs
+      - skip: Whether to skip processing
+      - skip_reason: Reason for skipping
+      Plus context-specific fields (issue_number, branch_name, ci_result, etc.)
 
 runs:
   using: node20

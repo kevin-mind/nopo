@@ -325,77 +325,77 @@ export function isFirstIteration({ context }: GuardContext): boolean {
  * Check if triggered by issue assignment
  */
 export function triggeredByAssignment({ context }: GuardContext): boolean {
-  return context.trigger === "issue_assigned";
+  return context.trigger === "issue-assigned";
 }
 
 /**
  * Check if triggered by issue edit
  */
 export function triggeredByEdit({ context }: GuardContext): boolean {
-  return context.trigger === "issue_edited";
+  return context.trigger === "issue-edited";
 }
 
 /**
  * Check if triggered by CI completion
  */
 export function triggeredByCI({ context }: GuardContext): boolean {
-  return context.trigger === "workflow_run_completed";
+  return context.trigger === "workflow-run-completed";
 }
 
 /**
  * Check if triggered by review submission
  */
 export function triggeredByReview({ context }: GuardContext): boolean {
-  return context.trigger === "pr_review_submitted";
+  return context.trigger === "pr-review-submitted";
 }
 
 /**
  * Check if triggered by review request
  */
 function triggeredByReviewRequest({ context }: GuardContext): boolean {
-  return context.trigger === "pr_review_requested";
+  return context.trigger === "pr-review-requested";
 }
 
 /**
  * Check if triggered by triage request
  */
 export function triggeredByTriage({ context }: GuardContext): boolean {
-  return context.trigger === "issue_triage";
+  return context.trigger === "issue-triage";
 }
 
 /**
  * Check if triggered by issue comment (@claude mention)
  */
 function triggeredByComment({ context }: GuardContext): boolean {
-  return context.trigger === "issue_comment";
+  return context.trigger === "issue-comment";
 }
 
 /**
  * Check if triggered by orchestration request
  */
 function triggeredByOrchestrate({ context }: GuardContext): boolean {
-  return context.trigger === "issue_orchestrate";
+  return context.trigger === "issue-orchestrate";
 }
 
 /**
  * Check if triggered by PR review request (bot should review the PR)
  */
 function triggeredByPRReview({ context }: GuardContext): boolean {
-  return context.trigger === "pr_review";
+  return context.trigger === "pr-review";
 }
 
 /**
  * Check if triggered by PR response (bot should respond to bot's review)
  */
 function triggeredByPRResponse({ context }: GuardContext): boolean {
-  return context.trigger === "pr_response";
+  return context.trigger === "pr-response";
 }
 
 /**
  * Check if triggered by PR human response (bot should respond to human's review)
  */
 function triggeredByPRHumanResponse({ context }: GuardContext): boolean {
-  return context.trigger === "pr_human_response";
+  return context.trigger === "pr-human-response";
 }
 
 /**
@@ -403,7 +403,23 @@ function triggeredByPRHumanResponse({ context }: GuardContext): boolean {
  * This triggers orchestration to merge the PR
  */
 function triggeredByPRReviewApproved({ context }: GuardContext): boolean {
-  return context.trigger === "pr_review_approved";
+  return context.trigger === "pr-review-approved";
+}
+
+/**
+ * Check if triggered by a push to a PR branch (pr-push)
+ * This converts the PR to draft and removes the reviewer
+ */
+function triggeredByPRPush({ context }: GuardContext): boolean {
+  return context.trigger === "pr-push";
+}
+
+/**
+ * Check if triggered by /reset command
+ * Resets issue to Backlog/Ready state for re-running
+ */
+function triggeredByReset({ context }: GuardContext): boolean {
+  return context.trigger === "issue-reset";
 }
 
 // ============================================================================
@@ -414,35 +430,35 @@ function triggeredByPRReviewApproved({ context }: GuardContext): boolean {
  * Check if triggered by merge queue entry
  */
 function triggeredByMergeQueueEntry({ context }: GuardContext): boolean {
-  return context.trigger === "merge_queue_entered";
+  return context.trigger === "merge-queue-entered";
 }
 
 /**
  * Check if triggered by merge queue failure
  */
 function triggeredByMergeQueueFailure({ context }: GuardContext): boolean {
-  return context.trigger === "merge_queue_failed";
+  return context.trigger === "merge-queue-failed";
 }
 
 /**
  * Check if triggered by PR merged event
  */
 function triggeredByPRMerged({ context }: GuardContext): boolean {
-  return context.trigger === "pr_merged";
+  return context.trigger === "pr-merged";
 }
 
 /**
  * Check if triggered by stage deployment
  */
 function triggeredByDeployedStage({ context }: GuardContext): boolean {
-  return context.trigger === "deployed_stage";
+  return context.trigger === "deployed-stage";
 }
 
 /**
  * Check if triggered by production deployment
  */
 function triggeredByDeployedProd({ context }: GuardContext): boolean {
-  return context.trigger === "deployed_prod";
+  return context.trigger === "deployed-prod";
 }
 
 // ============================================================================
@@ -548,6 +564,8 @@ export const guards = {
   triggeredByPRResponse,
   triggeredByPRHumanResponse,
   triggeredByPRReviewApproved,
+  triggeredByPRPush,
+  triggeredByReset,
   // Merge queue logging guards
   triggeredByMergeQueueEntry,
   triggeredByMergeQueueFailure,

@@ -73,6 +73,18 @@ export const HistoryEntrySchema = z.object({
 export type HistoryEntry = z.infer<typeof HistoryEntrySchema>;
 
 /**
+ * Agent notes entry from a workflow run
+ */
+export const AgentNotesEntrySchema = z.object({
+  runId: z.string(),
+  runLink: z.string(),
+  timestamp: z.string(),
+  notes: z.array(z.string()),
+});
+
+export type AgentNotesEntry = z.infer<typeof AgentNotesEntrySchema>;
+
+/**
  * Pull request associated with a sub-issue
  */
 export const LinkedPRSchema = z.object({
@@ -150,6 +162,8 @@ export const ParentIssueSchema = z.object({
   }),
   /** @deprecated Use todoStats instead - kept for backward compatibility */
   todos: TodoStatsSchema,
+  /** Agent notes from previous workflow runs */
+  agentNotes: z.array(AgentNotesEntrySchema).default([]),
 });
 
 export type ParentIssue = z.infer<typeof ParentIssueSchema>;

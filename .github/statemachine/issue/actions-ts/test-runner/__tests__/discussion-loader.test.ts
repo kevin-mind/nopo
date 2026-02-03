@@ -9,14 +9,16 @@ import {
   listDiscussionScenarios,
 } from "../src/configurable/discussion-loader.js";
 
-// Test fixtures are at .github/test-fixtures relative to repo root
-// From actions-ts/claude-test-runner/__tests__, we need to go up to .github
+// Test fixtures are at .github/statemachine/discussion/fixtures relative to repo root
+// From issue/actions-ts/test-runner/__tests__, we need to go up to statemachine/discussion/fixtures
 const TEST_FIXTURES_PATH = path.join(
   __dirname,
   "..",
   "..",
   "..",
-  "test-fixtures",
+  "..",
+  "discussion",
+  "fixtures",
 );
 
 describe("Discussion Loader", () => {

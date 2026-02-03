@@ -173,7 +173,7 @@ describe("Factory functions produce valid schemas", () => {
     test("with all fields is valid", () => {
       const result = MachineContextSchema.safeParse(
         createContext({
-          trigger: "workflow_run_completed",
+          trigger: "workflow-run-completed",
           owner: "my-org",
           repo: "my-repo",
           issue: { number: 123, title: "My Issue" },
@@ -214,21 +214,21 @@ describe("Scenario fixtures validate against schemas", () => {
   test("createNewIssueContext is valid", () => {
     const result = MachineContextSchema.safeParse(createNewIssueContext());
     expect(result.success).toBe(true);
-    expect(result.data?.trigger).toBe("issue_assigned");
+    expect(result.data?.trigger).toBe("issue-assigned");
     expect(result.data?.issue.projectStatus).toBe("In progress");
   });
 
   test("createCISuccessContext is valid", () => {
     const result = MachineContextSchema.safeParse(createCISuccessContext());
     expect(result.success).toBe(true);
-    expect(result.data?.trigger).toBe("workflow_run_completed");
+    expect(result.data?.trigger).toBe("workflow-run-completed");
     expect(result.data?.ciResult).toBe("success");
   });
 
   test("createCIFailureContext is valid", () => {
     const result = MachineContextSchema.safeParse(createCIFailureContext());
     expect(result.success).toBe(true);
-    expect(result.data?.trigger).toBe("workflow_run_completed");
+    expect(result.data?.trigger).toBe("workflow-run-completed");
     expect(result.data?.ciResult).toBe("failure");
   });
 
@@ -237,7 +237,7 @@ describe("Scenario fixtures validate against schemas", () => {
       createReviewContext("APPROVED"),
     );
     expect(result.success).toBe(true);
-    expect(result.data?.trigger).toBe("pr_review_submitted");
+    expect(result.data?.trigger).toBe("pr-review-submitted");
     expect(result.data?.reviewDecision).toBe("APPROVED");
   });
 

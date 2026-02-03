@@ -38,6 +38,10 @@ import {
   emitMerged,
   emitDeployedStage,
   emitDeployedProd,
+  // Push to draft action
+  emitPushToDraft,
+  // Reset action
+  emitResetIssue,
 } from "./actions.js";
 
 /**
@@ -129,6 +133,8 @@ export const claudeMachine = setup({
       guards.triggeredByPRHumanResponse({ context }),
     triggeredByPRReviewApproved: ({ context }) =>
       guards.triggeredByPRReviewApproved({ context }),
+    triggeredByPRPush: ({ context }) => guards.triggeredByPRPush({ context }),
+    triggeredByReset: ({ context }) => guards.triggeredByReset({ context }),
     // Merge queue logging guards
     triggeredByMergeQueueEntry: ({ context }) =>
       guards.triggeredByMergeQueueEntry({ context }),
@@ -461,6 +467,31 @@ export const claudeMachine = setup({
           emitDeployedProd({ context }),
         ),
     }),
+
+    // Push to draft action
+    pushToDraft: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(
+          context.pendingActions,
+          emitPushToDraft({ context }),
+        ),
+    }),
+
+    // Reset action
+    resetIssue: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(
+          context.pendingActions,
+          emitResetIssue({ context }),
+        ),
+    }),
+    logResetting: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(
+          context.pendingActions,
+          emitLog({ context }, `Resetting issue #${context.issue.number} to initial state`),
+        ),
+    }),
   },
 }).createMachine({
   id: "claude-automation",
@@ -477,6 +508,8 @@ export const claudeMachine = setup({
     detecting: {
       entry: "logDetecting",
       always: [
+        // Reset takes priority - can reset even Done/Blocked issues
+        { target: "resetting", guard: "triggeredByReset" },
         // Check terminal states first
         { target: "done", guard: "isAlreadyDone" },
         { target: "blocked", guard: "isBlocked" },
@@ -529,6 +562,11 @@ export const claudeMachine = setup({
           target: "processingReview",
           guard: "triggeredByPRReviewApproved",
         },
+        // Check if this is a push to a PR branch
+        {
+          target: "prPush",
+          guard: "triggeredByPRPush",
+        },
         // Check if this is a CI completion event
         {
           target: "processingCI",
@@ -560,6 +598,18 @@ export const claudeMachine = setup({
      */
     triaging: {
       entry: ["logTriaging", "runClaudeTriage"],
+      type: "final",
+    },
+
+    /**
+     * Reset an issue to initial state (/reset command)
+     * - Reopens closed issues
+     * - Sets parent status to Backlog, sub-issues to Ready
+     * - Clears iteration and failure counters
+     * - Unassigns bot
+     */
+    resetting: {
+      entry: ["logResetting", "resetIssue"],
       type: "final",
     },
 
@@ -599,6 +649,17 @@ export const claudeMachine = setup({
      */
     prRespondingHuman: {
       entry: ["logPRResponding", "runClaudePRHumanResponse"],
+      type: "final",
+    },
+
+    /**
+     * PR Push - converts PR to draft and removes reviewer
+     *
+     * Triggered when code is pushed to a PR branch. This cancels in-flight
+     * reviews and signals that iteration will continue.
+     */
+    prPush: {
+      entry: ["pushToDraft"],
       type: "final",
     },
 
@@ -917,7 +978,7 @@ export const claudeMachine = setup({
  */
 export function getTriggerEvent(context: MachineContext): MachineEvent {
   switch (context.trigger) {
-    case "workflow_run_completed":
+    case "workflow-run-completed":
       if (context.ciResult === "success") {
         return { type: "CI_SUCCESS" };
       } else if (context.ciResult === "failure") {
@@ -925,7 +986,7 @@ export function getTriggerEvent(context: MachineContext): MachineEvent {
       }
       return { type: "START" };
 
-    case "pr_review_submitted":
+    case "pr-review-submitted":
       switch (context.reviewDecision) {
         case "APPROVED":
           return { type: "REVIEW_APPROVED" };

@@ -398,7 +398,7 @@ var require_tunnel = __commonJS({
         connectOptions.headers = connectOptions.headers || {};
         connectOptions.headers["Proxy-Authorization"] = "Basic " + new Buffer(connectOptions.proxyAuth).toString("base64");
       }
-      debug("making CONNECT request");
+      debug2("making CONNECT request");
       var connectReq = self2.request(connectOptions);
       connectReq.useChunkedEncodingByDefault = false;
       connectReq.once("response", onResponse);
@@ -418,40 +418,40 @@ var require_tunnel = __commonJS({
         connectReq.removeAllListeners();
         socket.removeAllListeners();
         if (res.statusCode !== 200) {
-          debug(
+          debug2(
             "tunneling socket could not be established, statusCode=%d",
             res.statusCode
           );
           socket.destroy();
-          var error = new Error("tunneling socket could not be established, statusCode=" + res.statusCode);
-          error.code = "ECONNRESET";
-          options.request.emit("error", error);
+          var error3 = new Error("tunneling socket could not be established, statusCode=" + res.statusCode);
+          error3.code = "ECONNRESET";
+          options.request.emit("error", error3);
           self2.removeSocket(placeholder);
           return;
         }
         if (head.length > 0) {
-          debug("got illegal response body from proxy");
+          debug2("got illegal response body from proxy");
           socket.destroy();
-          var error = new Error("got illegal response body from proxy");
-          error.code = "ECONNRESET";
-          options.request.emit("error", error);
+          var error3 = new Error("got illegal response body from proxy");
+          error3.code = "ECONNRESET";
+          options.request.emit("error", error3);
           self2.removeSocket(placeholder);
           return;
         }
-        debug("tunneling connection has established");
+        debug2("tunneling connection has established");
         self2.sockets[self2.sockets.indexOf(placeholder)] = socket;
         return cb(socket);
       }
       function onError(cause) {
         connectReq.removeAllListeners();
-        debug(
+        debug2(
           "tunneling socket could not be established, cause=%s\n",
           cause.message,
           cause.stack
         );
-        var error = new Error("tunneling socket could not be established, cause=" + cause.message);
-        error.code = "ECONNRESET";
-        options.request.emit("error", error);
+        var error3 = new Error("tunneling socket could not be established, cause=" + cause.message);
+        error3.code = "ECONNRESET";
+        options.request.emit("error", error3);
         self2.removeSocket(placeholder);
       }
     };
@@ -506,9 +506,9 @@ var require_tunnel = __commonJS({
       }
       return target;
     }
-    var debug;
+    var debug2;
     if (process.env.NODE_DEBUG && /\btunnel\b/.test(process.env.NODE_DEBUG)) {
-      debug = function() {
+      debug2 = function() {
         var args = Array.prototype.slice.call(arguments);
         if (typeof args[0] === "string") {
           args[0] = "TUNNEL: " + args[0];
@@ -518,10 +518,10 @@ var require_tunnel = __commonJS({
         console.error.apply(console, args);
       };
     } else {
-      debug = function() {
+      debug2 = function() {
       };
     }
-    exports2.debug = debug;
+    exports2.debug = debug2;
   }
 });
 
@@ -5579,7 +5579,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
         throw new TypeError("Body is unusable");
       }
       const promise = createDeferredPromise();
-      const errorSteps = (error) => promise.reject(error);
+      const errorSteps = (error3) => promise.reject(error3);
       const successSteps = (data) => {
         try {
           promise.resolve(convertBytesToJSValue(data));
@@ -5865,16 +5865,16 @@ var require_request = __commonJS({
           this.onError(err);
         }
       }
-      onError(error) {
+      onError(error3) {
         this.onFinally();
         if (channels.error.hasSubscribers) {
-          channels.error.publish({ request: this, error });
+          channels.error.publish({ request: this, error: error3 });
         }
         if (this.aborted) {
           return;
         }
         this.aborted = true;
-        return this[kHandler].onError(error);
+        return this[kHandler].onError(error3);
       }
       onFinally() {
         if (this.errorHandler) {
@@ -6737,8 +6737,8 @@ var require_RedirectHandler = __commonJS({
       onUpgrade(statusCode, headers, socket) {
         this.handler.onUpgrade(statusCode, headers, socket);
       }
-      onError(error) {
-        this.handler.onError(error);
+      onError(error3) {
+        this.handler.onError(error3);
       }
       onHeaders(statusCode, headers, resume, statusText) {
         this.location = this.history.length >= this.maxRedirections || util2.isDisturbed(this.opts.body) ? null : parseLocation(statusCode, headers);
@@ -8879,7 +8879,7 @@ var require_pool = __commonJS({
         this[kOptions] = { ...util2.deepClone(options), connect, allowH2 };
         this[kOptions].interceptors = options.interceptors ? { ...options.interceptors } : void 0;
         this[kFactory] = factory;
-        this.on("connectionError", (origin2, targets, error) => {
+        this.on("connectionError", (origin2, targets, error3) => {
           for (const target of targets) {
             const idx = this[kClients].indexOf(target);
             if (idx !== -1) {
@@ -10488,13 +10488,13 @@ var require_mock_utils = __commonJS({
       if (mockDispatch2.data.callback) {
         mockDispatch2.data = { ...mockDispatch2.data, ...mockDispatch2.data.callback(opts) };
       }
-      const { data: { statusCode, data, headers, trailers, error }, delay, persist } = mockDispatch2;
+      const { data: { statusCode, data, headers, trailers, error: error3 }, delay, persist } = mockDispatch2;
       const { timesInvoked, times } = mockDispatch2;
       mockDispatch2.consumed = !persist && timesInvoked >= times;
       mockDispatch2.pending = timesInvoked < times;
-      if (error !== null) {
+      if (error3 !== null) {
         deleteMockDispatch(this[kDispatches], key);
-        handler.onError(error);
+        handler.onError(error3);
         return true;
       }
       if (typeof delay === "number" && delay > 0) {
@@ -10532,19 +10532,19 @@ var require_mock_utils = __commonJS({
         if (agent.isMockActive) {
           try {
             mockDispatch.call(this, opts, handler);
-          } catch (error) {
-            if (error instanceof MockNotMatchedError) {
+          } catch (error3) {
+            if (error3 instanceof MockNotMatchedError) {
               const netConnect = agent[kGetNetConnect]();
               if (netConnect === false) {
-                throw new MockNotMatchedError(`${error.message}: subsequent request to origin ${origin} was not allowed (net.connect disabled)`);
+                throw new MockNotMatchedError(`${error3.message}: subsequent request to origin ${origin} was not allowed (net.connect disabled)`);
               }
               if (checkNetConnect(netConnect, origin)) {
                 originalDispatch.call(this, opts, handler);
               } else {
-                throw new MockNotMatchedError(`${error.message}: subsequent request to origin ${origin} was not allowed (net.connect is not enabled for this origin)`);
+                throw new MockNotMatchedError(`${error3.message}: subsequent request to origin ${origin} was not allowed (net.connect is not enabled for this origin)`);
               }
             } else {
-              throw error;
+              throw error3;
             }
           }
         } else {
@@ -10707,11 +10707,11 @@ var require_mock_interceptor = __commonJS({
       /**
        * Mock an undici request with a defined error.
        */
-      replyWithError(error) {
-        if (typeof error === "undefined") {
+      replyWithError(error3) {
+        if (typeof error3 === "undefined") {
           throw new InvalidArgumentError("error must be defined");
         }
-        const newMockDispatch = addMockDispatch(this[kDispatches], this[kDispatchKey], { error });
+        const newMockDispatch = addMockDispatch(this[kDispatches], this[kDispatchKey], { error: error3 });
         return new MockScope(newMockDispatch);
       }
       /**
@@ -13038,17 +13038,17 @@ var require_fetch = __commonJS({
         this.emit("terminated", reason);
       }
       // https://fetch.spec.whatwg.org/#fetch-controller-abort
-      abort(error) {
+      abort(error3) {
         if (this.state !== "ongoing") {
           return;
         }
         this.state = "aborted";
-        if (!error) {
-          error = new DOMException2("The operation was aborted.", "AbortError");
+        if (!error3) {
+          error3 = new DOMException2("The operation was aborted.", "AbortError");
         }
-        this.serializedAbortReason = error;
-        this.connection?.destroy(error);
-        this.emit("terminated", error);
+        this.serializedAbortReason = error3;
+        this.connection?.destroy(error3);
+        this.emit("terminated", error3);
       }
     };
     function fetch(input, init = {}) {
@@ -13152,13 +13152,13 @@ var require_fetch = __commonJS({
         performance.markResourceTiming(timingInfo, originalURL.href, initiatorType, globalThis2, cacheState);
       }
     }
-    function abortFetch(p, request, responseObject, error) {
-      if (!error) {
-        error = new DOMException2("The operation was aborted.", "AbortError");
+    function abortFetch(p, request, responseObject, error3) {
+      if (!error3) {
+        error3 = new DOMException2("The operation was aborted.", "AbortError");
       }
-      p.reject(error);
+      p.reject(error3);
       if (request.body != null && isReadable(request.body?.stream)) {
-        request.body.stream.cancel(error).catch((err) => {
+        request.body.stream.cancel(error3).catch((err) => {
           if (err.code === "ERR_INVALID_STATE") {
             return;
           }
@@ -13170,7 +13170,7 @@ var require_fetch = __commonJS({
       }
       const response = responseObject[kState];
       if (response.body != null && isReadable(response.body?.stream)) {
-        response.body.stream.cancel(error).catch((err) => {
+        response.body.stream.cancel(error3).catch((err) => {
           if (err.code === "ERR_INVALID_STATE") {
             return;
           }
@@ -13950,13 +13950,13 @@ var require_fetch = __commonJS({
               fetchParams.controller.ended = true;
               this.body.push(null);
             },
-            onError(error) {
+            onError(error3) {
               if (this.abort) {
                 fetchParams.controller.off("terminated", this.abort);
               }
-              this.body?.destroy(error);
-              fetchParams.controller.terminate(error);
-              reject(error);
+              this.body?.destroy(error3);
+              fetchParams.controller.terminate(error3);
+              reject(error3);
             },
             onUpgrade(status, headersList, socket) {
               if (status !== 101) {
@@ -14422,8 +14422,8 @@ var require_util4 = __commonJS({
                   }
                   fr[kResult] = result;
                   fireAProgressEvent("load", fr);
-                } catch (error) {
-                  fr[kError] = error;
+                } catch (error3) {
+                  fr[kError] = error3;
                   fireAProgressEvent("error", fr);
                 }
                 if (fr[kState] !== "loading") {
@@ -14432,13 +14432,13 @@ var require_util4 = __commonJS({
               });
               break;
             }
-          } catch (error) {
+          } catch (error3) {
             if (fr[kAborted]) {
               return;
             }
             queueMicrotask(() => {
               fr[kState] = "done";
-              fr[kError] = error;
+              fr[kError] = error3;
               fireAProgressEvent("error", fr);
               if (fr[kState] !== "loading") {
                 fireAProgressEvent("loadend", fr);
@@ -16438,11 +16438,11 @@ var require_connection = __commonJS({
         });
       }
     }
-    function onSocketError(error) {
+    function onSocketError(error3) {
       const { ws } = this;
       ws[kReadyState] = states.CLOSING;
       if (channels.socketError.hasSubscribers) {
-        channels.socketError.publish(error);
+        channels.socketError.publish(error3);
       }
       this.destroy();
     }
@@ -17586,12 +17586,12 @@ var require_lib = __commonJS({
             throw new Error("Client has already been disposed.");
           }
           const parsedUrl = new URL(requestUrl);
-          let info2 = this._prepareRequest(verb, parsedUrl, headers);
+          let info6 = this._prepareRequest(verb, parsedUrl, headers);
           const maxTries = this._allowRetries && RetryableHttpVerbs.includes(verb) ? this._maxRetries + 1 : 1;
           let numTries = 0;
           let response;
           do {
-            response = yield this.requestRaw(info2, data);
+            response = yield this.requestRaw(info6, data);
             if (response && response.message && response.message.statusCode === HttpCodes.Unauthorized) {
               let authenticationHandler;
               for (const handler of this.handlers) {
@@ -17601,7 +17601,7 @@ var require_lib = __commonJS({
                 }
               }
               if (authenticationHandler) {
-                return authenticationHandler.handleAuthentication(this, info2, data);
+                return authenticationHandler.handleAuthentication(this, info6, data);
               } else {
                 return response;
               }
@@ -17624,8 +17624,8 @@ var require_lib = __commonJS({
                   }
                 }
               }
-              info2 = this._prepareRequest(verb, parsedRedirectUrl, headers);
-              response = yield this.requestRaw(info2, data);
+              info6 = this._prepareRequest(verb, parsedRedirectUrl, headers);
+              response = yield this.requestRaw(info6, data);
               redirectsRemaining--;
             }
             if (!response.message.statusCode || !HttpResponseRetryCodes.includes(response.message.statusCode)) {
@@ -17654,7 +17654,7 @@ var require_lib = __commonJS({
        * @param info
        * @param data
        */
-      requestRaw(info2, data) {
+      requestRaw(info6, data) {
         return __awaiter(this, void 0, void 0, function* () {
           return new Promise((resolve, reject) => {
             function callbackForResult(err, res) {
@@ -17666,7 +17666,7 @@ var require_lib = __commonJS({
                 resolve(res);
               }
             }
-            this.requestRawWithCallback(info2, data, callbackForResult);
+            this.requestRawWithCallback(info6, data, callbackForResult);
           });
         });
       }
@@ -17676,12 +17676,12 @@ var require_lib = __commonJS({
        * @param data
        * @param onResult
        */
-      requestRawWithCallback(info2, data, onResult) {
+      requestRawWithCallback(info6, data, onResult) {
         if (typeof data === "string") {
-          if (!info2.options.headers) {
-            info2.options.headers = {};
+          if (!info6.options.headers) {
+            info6.options.headers = {};
           }
-          info2.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
+          info6.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
         }
         let callbackCalled = false;
         function handleResult2(err, res) {
@@ -17690,7 +17690,7 @@ var require_lib = __commonJS({
             onResult(err, res);
           }
         }
-        const req = info2.httpModule.request(info2.options, (msg) => {
+        const req = info6.httpModule.request(info6.options, (msg) => {
           const res = new HttpClientResponse(msg);
           handleResult2(void 0, res);
         });
@@ -17702,7 +17702,7 @@ var require_lib = __commonJS({
           if (socket) {
             socket.end();
           }
-          handleResult2(new Error(`Request timeout: ${info2.options.path}`));
+          handleResult2(new Error(`Request timeout: ${info6.options.path}`));
         });
         req.on("error", function(err) {
           handleResult2(err);
@@ -17738,27 +17738,27 @@ var require_lib = __commonJS({
         return this._getProxyAgentDispatcher(parsedUrl, proxyUrl);
       }
       _prepareRequest(method, requestUrl, headers) {
-        const info2 = {};
-        info2.parsedUrl = requestUrl;
-        const usingSsl = info2.parsedUrl.protocol === "https:";
-        info2.httpModule = usingSsl ? https : http;
+        const info6 = {};
+        info6.parsedUrl = requestUrl;
+        const usingSsl = info6.parsedUrl.protocol === "https:";
+        info6.httpModule = usingSsl ? https : http;
         const defaultPort = usingSsl ? 443 : 80;
-        info2.options = {};
-        info2.options.host = info2.parsedUrl.hostname;
-        info2.options.port = info2.parsedUrl.port ? parseInt(info2.parsedUrl.port) : defaultPort;
-        info2.options.path = (info2.parsedUrl.pathname || "") + (info2.parsedUrl.search || "");
-        info2.options.method = method;
-        info2.options.headers = this._mergeHeaders(headers);
+        info6.options = {};
+        info6.options.host = info6.parsedUrl.hostname;
+        info6.options.port = info6.parsedUrl.port ? parseInt(info6.parsedUrl.port) : defaultPort;
+        info6.options.path = (info6.parsedUrl.pathname || "") + (info6.parsedUrl.search || "");
+        info6.options.method = method;
+        info6.options.headers = this._mergeHeaders(headers);
         if (this.userAgent != null) {
-          info2.options.headers["user-agent"] = this.userAgent;
+          info6.options.headers["user-agent"] = this.userAgent;
         }
-        info2.options.agent = this._getAgent(info2.parsedUrl);
+        info6.options.agent = this._getAgent(info6.parsedUrl);
         if (this.handlers) {
           for (const handler of this.handlers) {
-            handler.prepareRequest(info2.options);
+            handler.prepareRequest(info6.options);
           }
         }
-        return info2;
+        return info6;
       }
       _mergeHeaders(headers) {
         if (this.requestOptions && this.requestOptions.headers) {
@@ -18074,12 +18074,12 @@ var require_oidc_utils = __commonJS({
         var _a;
         return __awaiter(this, void 0, void 0, function* () {
           const httpclient = _OidcClient.createHttpClient();
-          const res = yield httpclient.getJson(id_token_url).catch((error) => {
+          const res = yield httpclient.getJson(id_token_url).catch((error3) => {
             throw new Error(`Failed to get ID Token. 
  
-        Error Code : ${error.statusCode}
+        Error Code : ${error3.statusCode}
  
-        Error Message: ${error.message}`);
+        Error Message: ${error3.message}`);
           });
           const id_token = (_a = res.result) === null || _a === void 0 ? void 0 : _a.value;
           if (!id_token) {
@@ -18100,8 +18100,8 @@ var require_oidc_utils = __commonJS({
             const id_token = yield _OidcClient.getCall(id_token_url);
             (0, core_1.setSecret)(id_token);
             return id_token;
-          } catch (error) {
-            throw new Error(`Error message: ${error.message}`);
+          } catch (error3) {
+            throw new Error(`Error message: ${error3.message}`);
           }
         });
       }
@@ -19223,7 +19223,7 @@ var require_toolrunner = __commonJS({
               this._debug(`STDIO streams have closed for tool '${this.toolPath}'`);
               state.CheckComplete();
             });
-            state.on("done", (error, exitCode) => {
+            state.on("done", (error3, exitCode) => {
               if (stdbuffer.length > 0) {
                 this.emit("stdline", stdbuffer);
               }
@@ -19231,8 +19231,8 @@ var require_toolrunner = __commonJS({
                 this.emit("errline", errbuffer);
               }
               cp.removeAllListeners();
-              if (error) {
-                reject(error);
+              if (error3) {
+                reject(error3);
               } else {
                 resolve(exitCode);
               }
@@ -19327,14 +19327,14 @@ var require_toolrunner = __commonJS({
         this.emit("debug", message);
       }
       _setResult() {
-        let error;
+        let error3;
         if (this.processExited) {
           if (this.processError) {
-            error = new Error(`There was an error when attempting to execute the process '${this.toolPath}'. This may indicate the process failed to start. Error: ${this.processError}`);
+            error3 = new Error(`There was an error when attempting to execute the process '${this.toolPath}'. This may indicate the process failed to start. Error: ${this.processError}`);
           } else if (this.processExitCode !== 0 && !this.options.ignoreReturnCode) {
-            error = new Error(`The process '${this.toolPath}' failed with exit code ${this.processExitCode}`);
+            error3 = new Error(`The process '${this.toolPath}' failed with exit code ${this.processExitCode}`);
           } else if (this.processStderr && this.options.failOnStdErr) {
-            error = new Error(`The process '${this.toolPath}' failed because one or more lines were written to the STDERR stream`);
+            error3 = new Error(`The process '${this.toolPath}' failed because one or more lines were written to the STDERR stream`);
           }
         }
         if (this.timeout) {
@@ -19342,7 +19342,7 @@ var require_toolrunner = __commonJS({
           this.timeout = null;
         }
         this.done = true;
-        this.emit("done", error, this.processExitCode);
+        this.emit("done", error3, this.processExitCode);
       }
       static HandleTimeout(state) {
         if (state.done) {
@@ -19725,49 +19725,49 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     exports2.setCommandEcho = setCommandEcho;
     function setFailed2(message) {
       process.exitCode = ExitCode.Failure;
-      error(message);
+      error3(message);
     }
     exports2.setFailed = setFailed2;
     function isDebug() {
       return process.env["RUNNER_DEBUG"] === "1";
     }
     exports2.isDebug = isDebug;
-    function debug(message) {
+    function debug2(message) {
       (0, command_1.issueCommand)("debug", {}, message);
     }
-    exports2.debug = debug;
-    function error(message, properties = {}) {
+    exports2.debug = debug2;
+    function error3(message, properties = {}) {
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.error = error;
-    function warning(message, properties = {}) {
+    exports2.error = error3;
+    function warning3(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning;
+    exports2.warning = warning3;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.notice = notice;
-    function info2(message) {
+    function info6(message) {
       process.stdout.write(message + os.EOL);
     }
-    exports2.info = info2;
-    function startGroup2(name) {
+    exports2.info = info6;
+    function startGroup3(name) {
       (0, command_1.issue)("group", name);
     }
-    exports2.startGroup = startGroup2;
-    function endGroup2() {
+    exports2.startGroup = startGroup3;
+    function endGroup3() {
       (0, command_1.issue)("endgroup");
     }
-    exports2.endGroup = endGroup2;
+    exports2.endGroup = endGroup3;
     function group(name, fn) {
       return __awaiter(this, void 0, void 0, function* () {
-        startGroup2(name);
+        startGroup3(name);
         let result;
         try {
           result = yield fn();
         } finally {
-          endGroup2();
+          endGroup3();
         }
         return result;
       });
@@ -20041,8 +20041,8 @@ var require_add = __commonJS({
       }
       if (kind === "error") {
         hook = function(method, options) {
-          return Promise.resolve().then(method.bind(null, options)).catch(function(error) {
-            return orig(error, options);
+          return Promise.resolve().then(method.bind(null, options)).catch(function(error3) {
+            return orig(error3, options);
           });
         };
       }
@@ -20774,7 +20774,7 @@ var require_dist_node5 = __commonJS({
         }
         if (status >= 400) {
           const data = await getResponseData(response);
-          const error = new import_request_error.RequestError(toErrorMessage(data), status, {
+          const error3 = new import_request_error.RequestError(toErrorMessage(data), status, {
             response: {
               url,
               status,
@@ -20783,7 +20783,7 @@ var require_dist_node5 = __commonJS({
             },
             request: requestOptions
           });
-          throw error;
+          throw error3;
         }
         return parseSuccessResponseBody ? await getResponseData(response) : response.body;
       }).then((data) => {
@@ -20793,17 +20793,17 @@ var require_dist_node5 = __commonJS({
           headers,
           data
         };
-      }).catch((error) => {
-        if (error instanceof import_request_error.RequestError)
-          throw error;
-        else if (error.name === "AbortError")
-          throw error;
-        let message = error.message;
-        if (error.name === "TypeError" && "cause" in error) {
-          if (error.cause instanceof Error) {
-            message = error.cause.message;
-          } else if (typeof error.cause === "string") {
-            message = error.cause;
+      }).catch((error3) => {
+        if (error3 instanceof import_request_error.RequestError)
+          throw error3;
+        else if (error3.name === "AbortError")
+          throw error3;
+        let message = error3.message;
+        if (error3.name === "TypeError" && "cause" in error3) {
+          if (error3.cause instanceof Error) {
+            message = error3.cause.message;
+          } else if (typeof error3.cause === "string") {
+            message = error3.cause;
           }
         }
         throw new import_request_error.RequestError(message, 500, {
@@ -23475,9 +23475,9 @@ var require_dist_node10 = __commonJS({
                 /<([^<>]+)>;\s*rel="next"/
               ) || [])[1];
               return { value: normalizedResponse };
-            } catch (error) {
-              if (error.status !== 409)
-                throw error;
+            } catch (error3) {
+              if (error3.status !== 409)
+                throw error3;
               url = "";
               return {
                 value: {
@@ -23882,9 +23882,9 @@ var require_github = __commonJS({
   }
 });
 
-// issue/actions-ts/state-machine/index.ts
-var core2 = __toESM(require_core(), 1);
-var github = __toESM(require_github(), 1);
+// actions-ts/router/index.ts
+var core6 = __toESM(require_core(), 1);
+var github3 = __toESM(require_github(), 1);
 
 // ../../node_modules/.pnpm/xstate@5.25.1/node_modules/xstate/dev/dist/xstate-dev.esm.js
 function getGlobal() {
@@ -23987,10 +23987,10 @@ function createDoneActorEvent(invokeId, output) {
     actorId: invokeId
   };
 }
-function createErrorActorEvent(id, error) {
+function createErrorActorEvent(id, error3) {
   return {
     type: `xstate.error.actor.${id}`,
-    error,
+    error: error3,
     actorId: id
   };
 }
@@ -27006,214 +27006,6 @@ function setOutputs(outputs) {
   }
 }
 
-// issue/actions-ts/state-machine/parser/todo-parser.ts
-var TODO_PATTERNS = {
-  // Matches: - [ ] text or - [x] text or - [X] text
-  checkbox: /^(\s*)-\s*\[([ xX])\]\s*(.+)$/,
-  // Matches: [Manual] prefix or *(manual)* anywhere in the line
-  // [Manual] is the preferred format, *(manual)* is legacy
-  manual: /\[Manual\]|\*\(manual\)\*/i
-};
-function parseTodoLine(line) {
-  const match = line.match(TODO_PATTERNS.checkbox);
-  if (!match) {
-    return null;
-  }
-  const checkMark = match[2];
-  const text = match[3]?.trim() || "";
-  return {
-    text,
-    checked: checkMark?.toLowerCase() === "x",
-    isManual: TODO_PATTERNS.manual.test(line)
-  };
-}
-function parseTodos(body) {
-  const lines = body.split("\n");
-  const todos = [];
-  for (const line of lines) {
-    const todo = parseTodoLine(line);
-    if (todo) {
-      todos.push(todo);
-    }
-  }
-  return todos;
-}
-function calculateTodoStats(todos) {
-  let total = 0;
-  let completed = 0;
-  let uncheckedNonManual = 0;
-  for (const todo of todos) {
-    total++;
-    if (todo.checked) {
-      completed++;
-    } else if (!todo.isManual) {
-      uncheckedNonManual++;
-    }
-  }
-  return {
-    total,
-    completed,
-    uncheckedNonManual
-  };
-}
-function parseTodoStats(body) {
-  const todos = parseTodos(body);
-  return calculateTodoStats(todos);
-}
-
-// issue/actions-ts/state-machine/parser/history-parser.ts
-var HISTORY_SECTION = "## Iteration History";
-var HEADER_COLUMNS = [
-  { key: "time", value: "Time" },
-  { key: "iteration", value: "#" },
-  { key: "phase", value: "Phase" },
-  { key: "action", value: "Action" },
-  { key: "sha", value: "SHA" },
-  { key: "run", value: "Run" }
-];
-function buildValueToKeyMap() {
-  const map = /* @__PURE__ */ new Map();
-  for (const col of HEADER_COLUMNS) {
-    map.set(col.value, col.key);
-  }
-  return map;
-}
-function parseHeaderRow(headerRow, valueToKeyMap) {
-  const cells = headerRow.split("|").map((c) => c.trim()).filter((c, i, arr) => i > 0 && i < arr.length - 1 && c !== "");
-  const keys = [];
-  const unmatched = [];
-  for (const cell of cells) {
-    const key = valueToKeyMap.get(cell);
-    if (key) {
-      keys.push(key);
-    } else {
-      keys.push(null);
-      unmatched.push(cell);
-    }
-  }
-  return { keys, unmatched };
-}
-function parseDataRow(row, columnKeys) {
-  const cells = row.split("|").map((c) => c.trim()).filter((c, i, arr) => i > 0 && i < arr.length - 1);
-  const data = {};
-  for (let i = 0; i < columnKeys.length && i < cells.length; i++) {
-    const key = columnKeys[i];
-    if (key) {
-      data[key] = cells[i];
-    }
-  }
-  return data;
-}
-function parseTable(body) {
-  const lines = body.split("\n");
-  const historyIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
-  if (historyIdx === -1) {
-    return null;
-  }
-  const valueToKeyMap = buildValueToKeyMap();
-  let headerKeys = [];
-  let unmatchedHeaders = [];
-  const rows = [];
-  let foundHeader = false;
-  for (let i = historyIdx + 1; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line) continue;
-    if (line.startsWith("##") && !line.includes(HISTORY_SECTION)) {
-      break;
-    }
-    if (!line.startsWith("|")) {
-      continue;
-    }
-    if (line.includes("---")) {
-      continue;
-    }
-    if (!foundHeader) {
-      const parsed = parseHeaderRow(line, valueToKeyMap);
-      headerKeys = parsed.keys;
-      unmatchedHeaders = parsed.unmatched;
-      foundHeader = true;
-      continue;
-    }
-    const rowData = parseDataRow(line, headerKeys);
-    rows.push(rowData);
-  }
-  return {
-    headerKeys: headerKeys.filter((k) => k !== null),
-    rows,
-    unmatchedHeaders
-  };
-}
-function parseMarkdownLink(text) {
-  const match = text.match(/\[.*?\]\((.*?)\)/);
-  return match?.[1] ?? null;
-}
-function parseShaCell(cell) {
-  if (cell === "-" || cell.trim() === "") {
-    return null;
-  }
-  const linkMatch = cell.match(/\[`?([a-f0-9]+)`?\]/i);
-  if (linkMatch) {
-    return linkMatch[1] ?? null;
-  }
-  const shaMatch = cell.match(/^[a-f0-9]+$/i);
-  if (shaMatch) {
-    return cell;
-  }
-  return null;
-}
-function rowDataToHistoryEntry(data) {
-  const iterationStr = data.iteration;
-  if (!iterationStr) return null;
-  const iteration = parseInt(iterationStr, 10);
-  if (isNaN(iteration)) return null;
-  const timestamp = data.time && data.time !== "-" ? data.time : null;
-  return {
-    iteration,
-    phase: data.phase || "",
-    action: data.action || "",
-    timestamp,
-    sha: data.sha ? parseShaCell(data.sha) : null,
-    runLink: data.run ? parseMarkdownLink(data.run) : null
-  };
-}
-function parseHistory(body) {
-  const parsed = parseTable(body);
-  if (!parsed) {
-    return [];
-  }
-  if (parsed.unmatchedHeaders.length > 0) {
-    console.warn(
-      `[history-parser] Unmatched table headers (will be dropped): ${parsed.unmatchedHeaders.join(", ")}`
-    );
-  }
-  const entries = [];
-  for (const row of parsed.rows) {
-    const entry = rowDataToHistoryEntry(row);
-    if (entry) {
-      entries.push(entry);
-    }
-  }
-  return entries;
-}
-
-// issue/actions-ts/state-machine/parser/issue-serializer.ts
-function parseDescription(body) {
-  let match = body.match(/## Description\s*\n([\s\S]*?)(?=\n## |\n<!-- )/i);
-  if (match) {
-    return match[1]?.trim() || "";
-  }
-  match = body.match(/## Description\s*\n([\s\S]*)$/i);
-  if (match) {
-    return match[1]?.trim() || "";
-  }
-  const cleaned = body.replace(/## Approach[\s\S]*?(?=\n## |$)/gi, "").replace(/## Todo[\s\S]*?(?=\n## |$)/gi, "").replace(/## Iteration History[\s\S]*$/gi, "").trim();
-  return cleaned || body.trim();
-}
-function parseApproach(body) {
-  const match = body.match(/## Approach\s*\n+([\s\S]*?)(?=\n## |\n<!-- |$)/i);
-  return match?.[1]?.trim() || null;
-}
-
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/external.js
 var external_exports = {};
 __export(external_exports, {
@@ -27510,8 +27302,8 @@ var ZodError = class _ZodError extends Error {
       return issue.message;
     };
     const fieldErrors = { _errors: [] };
-    const processError = (error) => {
-      for (const issue of error.issues) {
+    const processError = (error3) => {
+      for (const issue of error3.issues) {
         if (issue.code === "invalid_union") {
           issue.unionErrors.map(processError);
         } else if (issue.code === "invalid_return_type") {
@@ -27574,8 +27366,8 @@ var ZodError = class _ZodError extends Error {
   }
 };
 ZodError.create = (issues) => {
-  const error = new ZodError(issues);
-  return error;
+  const error3 = new ZodError(issues);
+  return error3;
 };
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/locales/en.js
@@ -27839,8 +27631,8 @@ var handleResult = (ctx, result) => {
       get error() {
         if (this._error)
           return this._error;
-        const error = new ZodError(ctx.common.issues);
-        this._error = error;
+        const error3 = new ZodError(ctx.common.issues);
+        this._error = error3;
         return this._error;
       }
     };
@@ -30495,25 +30287,25 @@ var ZodFunction = class _ZodFunction extends ZodType {
       });
       return INVALID;
     }
-    function makeArgsIssue(args, error) {
+    function makeArgsIssue(args, error3) {
       return makeIssue({
         data: args,
         path: ctx.path,
         errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap(), en_default].filter((x) => !!x),
         issueData: {
           code: ZodIssueCode.invalid_arguments,
-          argumentsError: error
+          argumentsError: error3
         }
       });
     }
-    function makeReturnsIssue(returns, error) {
+    function makeReturnsIssue(returns, error3) {
       return makeIssue({
         data: returns,
         path: ctx.path,
         errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap(), en_default].filter((x) => !!x),
         issueData: {
           code: ZodIssueCode.invalid_return_type,
-          returnTypeError: error
+          returnTypeError: error3
         }
       });
     }
@@ -30522,15 +30314,15 @@ var ZodFunction = class _ZodFunction extends ZodType {
     if (this._def.returns instanceof ZodPromise) {
       const me = this;
       return OK(async function(...args) {
-        const error = new ZodError([]);
+        const error3 = new ZodError([]);
         const parsedArgs = await me._def.args.parseAsync(args, params).catch((e) => {
-          error.addIssue(makeArgsIssue(args, e));
-          throw error;
+          error3.addIssue(makeArgsIssue(args, e));
+          throw error3;
         });
         const result = await Reflect.apply(fn, this, parsedArgs);
         const parsedReturns = await me._def.returns._def.type.parseAsync(result, params).catch((e) => {
-          error.addIssue(makeReturnsIssue(result, e));
-          throw error;
+          error3.addIssue(makeReturnsIssue(result, e));
+          throw error3;
         });
         return parsedReturns;
       });
@@ -31255,7 +31047,213 @@ var coerce = {
 };
 var NEVER = INVALID;
 
-// issue/actions-ts/state-machine/schemas/entities.ts
+// shared/schemas/runner-context.ts
+var IssueTriggerTypeSchema = external_exports.enum([
+  // Issue triggers
+  "issue-assigned",
+  "issue-edited",
+  "issue-closed",
+  "issue-triage",
+  "issue-orchestrate",
+  "issue-comment",
+  "issue-reset",
+  // PR triggers
+  "pr-review-requested",
+  "pr-review-submitted",
+  "pr-review",
+  "pr-review-approved",
+  "pr-response",
+  "pr-human-response",
+  "pr-push",
+  // Workflow triggers
+  "workflow-run-completed",
+  // Merge queue logging triggers
+  "merge-queue-entered",
+  "merge-queue-failed",
+  "pr-merged",
+  "deployed-stage",
+  "deployed-prod"
+]);
+var DiscussionTriggerTypeSchema = external_exports.enum([
+  "discussion-created",
+  "discussion-comment",
+  "discussion-command"
+]);
+var TriggerTypeSchema = external_exports.union([
+  IssueTriggerTypeSchema,
+  DiscussionTriggerTypeSchema
+]);
+var JobTypeSchema = external_exports.enum([
+  // Issue jobs
+  "issue-triage",
+  "issue-iterate",
+  "issue-orchestrate",
+  "issue-comment",
+  "issue-reset",
+  // PR jobs
+  "pr-push",
+  "pr-review",
+  "pr-review-approved",
+  "pr-response",
+  "pr-human-response",
+  // Merge queue
+  "merge-queue-logging",
+  // Discussion jobs
+  "discussion-research",
+  "discussion-respond",
+  "discussion-summarize",
+  "discussion-plan",
+  "discussion-complete",
+  // Empty (skip)
+  ""
+]);
+var ResourceTypeSchema = external_exports.enum(["issue", "pr", "discussion", ""]);
+var CIResultSchema = external_exports.enum([
+  "success",
+  "failure",
+  "cancelled",
+  "skipped"
+]);
+var ReviewDecisionSchema = external_exports.enum([
+  "APPROVED",
+  "CHANGES_REQUESTED",
+  "COMMENTED",
+  "DISMISSED"
+]);
+var DiscussionCommandSchema = external_exports.enum([
+  "summarize",
+  "plan",
+  "complete"
+]);
+var ContextTypeSchema = external_exports.enum(["issue", "pr"]);
+var RunnerContextSchema = external_exports.object({
+  // ========================================
+  // Routing & Control (previously separate outputs)
+  // ========================================
+  /** Job type to run (e.g., "issue-iterate", "pr-review", "discussion-research") */
+  job: JobTypeSchema,
+  /** Trigger type for the state machine */
+  trigger: TriggerTypeSchema,
+  /** Type of resource being processed */
+  resource_type: ResourceTypeSchema,
+  /** Resource number (issue, PR, or discussion number) */
+  resource_number: external_exports.string(),
+  /** Parent issue number for sub-issues (or "0" if not a sub-issue) */
+  parent_issue: external_exports.string().default("0"),
+  /** Comment ID that triggered this run (for reactions) */
+  comment_id: external_exports.string().default(""),
+  /** Concurrency group name */
+  concurrency_group: external_exports.string(),
+  /** Whether to cancel in-progress runs in the same group */
+  cancel_in_progress: external_exports.boolean().default(false),
+  /** Whether to skip processing */
+  skip: external_exports.boolean().default(false),
+  /** Reason for skipping (if skip is true) */
+  skip_reason: external_exports.string().default(""),
+  // ========================================
+  // Issue-specific fields
+  // ========================================
+  /** Issue number */
+  issue_number: external_exports.string().optional(),
+  /** Issue title */
+  issue_title: external_exports.string().optional(),
+  /** Issue body */
+  issue_body: external_exports.string().optional(),
+  /** Branch name for the work */
+  branch_name: external_exports.string().optional(),
+  /** Whether the branch already exists */
+  existing_branch: external_exports.string().optional(),
+  /** Phase number for sub-issues */
+  phase_number: external_exports.string().optional(),
+  /** Comma-separated list of sub-issue numbers */
+  sub_issues: external_exports.string().optional(),
+  /** Project status from GitHub Project field */
+  project_status: external_exports.string().optional(),
+  /** Project iteration from GitHub Project field */
+  project_iteration: external_exports.string().optional(),
+  /** Project failures from GitHub Project field */
+  project_failures: external_exports.string().optional(),
+  /** Closed sub-issue number (for sub_issue_closed trigger) */
+  closed_sub_issue: external_exports.string().optional(),
+  // ========================================
+  // CI-specific fields (workflow_run_completed)
+  // ========================================
+  /** CI result (success, failure, cancelled, skipped) */
+  ci_result: CIResultSchema.optional(),
+  /** CI run URL */
+  ci_run_url: external_exports.string().optional(),
+  /** CI commit SHA */
+  ci_commit_sha: external_exports.string().optional(),
+  // ========================================
+  // Review-specific fields (pr_review_submitted)
+  // ========================================
+  /** Review decision */
+  review_decision: ReviewDecisionSchema.optional(),
+  /** Review state (lowercase version: approved, changes_requested, commented) */
+  review_state: external_exports.string().optional(),
+  /** Review body */
+  review_body: external_exports.string().optional(),
+  /** Review ID */
+  review_id: external_exports.string().optional(),
+  /** Reviewer username */
+  reviewer: external_exports.string().optional(),
+  /** Reviewer login (alias for reviewer) */
+  reviewer_login: external_exports.string().optional(),
+  // ========================================
+  // PR-specific fields
+  // ========================================
+  /** PR number */
+  pr_number: external_exports.string().optional(),
+  /** Whether PR is a draft */
+  is_draft: external_exports.boolean().optional(),
+  /** Issue section content (for pr-review job) */
+  issue_section: external_exports.string().optional(),
+  /** Merge queue head ref */
+  head_ref: external_exports.string().optional(),
+  /** Merge queue head SHA */
+  head_sha: external_exports.string().optional(),
+  // ========================================
+  // Comment-specific fields (issue_comment)
+  // ========================================
+  /** Context type for comment (Issue or PR) */
+  context_type: ContextTypeSchema.optional(),
+  /** Context description for comment */
+  context_description: external_exports.string().optional(),
+  // ========================================
+  // Discussion-specific fields
+  // ========================================
+  /** Discussion number */
+  discussion_number: external_exports.string().optional(),
+  /** Discussion title */
+  discussion_title: external_exports.string().optional(),
+  /** Discussion body */
+  discussion_body: external_exports.string().optional(),
+  /** Comment body (for discussion comments) */
+  comment_body: external_exports.string().optional(),
+  /** Comment author username */
+  comment_author: external_exports.string().optional(),
+  /** Discussion command (/summarize, /plan, /complete) */
+  command: DiscussionCommandSchema.optional(),
+  /** Whether this is a test automation run */
+  is_test_automation: external_exports.boolean().optional(),
+  // ========================================
+  // Internal trigger type tracking
+  // ========================================
+  /**
+   * Internal trigger type (may differ from the job name)
+   * Used when the state machine needs a different trigger than the job implies
+   */
+  trigger_type: external_exports.string().optional()
+});
+function parseRunnerContext(json) {
+  const parsed = JSON.parse(json);
+  return RunnerContextSchema.parse(parsed);
+}
+function isDiscussionTrigger(trigger) {
+  return DiscussionTriggerTypeSchema.safeParse(trigger).success;
+}
+
+// issue/actions-ts/state-machine/schemas/state.ts
 var ProjectStatusSchema = external_exports.enum([
   "Backlog",
   "In progress",
@@ -31285,6 +31283,12 @@ var HistoryEntrySchema = external_exports.object({
   sha: external_exports.string().nullable(),
   runLink: external_exports.string().nullable()
 });
+var AgentNotesEntrySchema = external_exports.object({
+  runId: external_exports.string(),
+  runLink: external_exports.string(),
+  timestamp: external_exports.string(),
+  notes: external_exports.array(external_exports.string())
+});
 var LinkedPRSchema = external_exports.object({
   number: external_exports.number().int().positive(),
   state: PRStateSchema,
@@ -31297,24 +31301,16 @@ var SubIssueSchema = external_exports.object({
   number: external_exports.number().int().positive(),
   title: external_exports.string(),
   state: IssueStateSchema,
-  /** Raw markdown body - kept for backward compatibility */
   body: external_exports.string(),
   projectStatus: ProjectStatusSchema.nullable(),
   branch: external_exports.string().nullable(),
   pr: LinkedPRSchema.nullable(),
-  // Structured fields parsed from body
-  /** Description extracted from "## Description" section */
-  description: external_exports.string().default(""),
-  /** Full list of todo items parsed from body */
-  todos: external_exports.array(TodoItemSchema).default([]),
-  /** Aggregated todo statistics */
-  todoStats: TodoStatsSchema.default({ total: 0, completed: 0, uncheckedNonManual: 0 })
+  todos: TodoStatsSchema
 });
 var ParentIssueSchema = external_exports.object({
   number: external_exports.number().int().positive(),
   title: external_exports.string(),
   state: IssueStateSchema,
-  /** Raw markdown body - kept for backward compatibility */
   body: external_exports.string(),
   projectStatus: ProjectStatusSchema.nullable(),
   iteration: external_exports.number().int().min(0),
@@ -31324,157 +31320,55 @@ var ParentIssueSchema = external_exports.object({
   subIssues: external_exports.array(SubIssueSchema),
   hasSubIssues: external_exports.boolean(),
   history: external_exports.array(HistoryEntrySchema),
-  // Structured fields parsed from body
-  /** Description extracted from "## Description" section */
-  description: external_exports.string().default(""),
-  /** Approach extracted from "## Approach" section (if present) */
-  approach: external_exports.string().nullable().default(null),
-  /** Aggregated todo statistics */
-  todoStats: TodoStatsSchema.default({ total: 0, completed: 0, uncheckedNonManual: 0 }),
-  /** @deprecated Use todoStats instead - kept for backward compatibility */
-  todos: TodoStatsSchema
+  /** Todos parsed from the issue body - used when this is a sub-issue triggered directly */
+  todos: TodoStatsSchema,
+  /** Agent notes from previous workflow runs */
+  agentNotes: external_exports.array(AgentNotesEntrySchema).default([])
 });
-var CIResultSchema = external_exports.enum([
+var TriggerTypeSchema2 = external_exports.enum([
+  // Issue triggers
+  "issue-assigned",
+  "issue-edited",
+  "issue-closed",
+  "issue-triage",
+  "issue-orchestrate",
+  "issue-comment",
+  // PR triggers
+  "pr-review-requested",
+  "pr-review-submitted",
+  "pr-review",
+  "pr-review-approved",
+  "pr-response",
+  "pr-human-response",
+  "pr-push",
+  // Workflow triggers
+  "workflow-run-completed",
+  // Merge queue logging triggers
+  "merge-queue-entered",
+  "merge-queue-failed",
+  "pr-merged",
+  "deployed-stage",
+  "deployed-prod",
+  // Discussion triggers
+  "discussion-created",
+  "discussion-comment",
+  "discussion-command"
+]);
+var CIResultSchema2 = external_exports.enum([
   "success",
   "failure",
   "cancelled",
   "skipped"
 ]);
-var ReviewDecisionSchema = external_exports.enum([
+var ReviewDecisionSchema2 = external_exports.enum([
   "APPROVED",
   "CHANGES_REQUESTED",
   "COMMENTED",
   "DISMISSED"
 ]);
-function isTerminalStatus(status) {
-  return status === "Done" || status === "Blocked" || status === "Error";
-}
-
-// issue/actions-ts/state-machine/schemas/issue-triggers.ts
-var IssueTriggerTypeSchema = external_exports.enum([
-  // Issue triggers
-  "issue_assigned",
-  "issue_edited",
-  "issue_closed",
-  "issue_triage",
-  "issue_orchestrate",
-  "issue_comment",
-  // PR triggers
-  "pr_review_requested",
-  "pr_review_submitted",
-  "pr_review",
-  "pr_review_approved",
-  "pr_response",
-  "pr_human_response",
-  "pr_push",
-  // Workflow triggers
-  "workflow_run_completed",
-  // Release triggers (legacy - kept for backwards compatibility)
-  "release_queue_entry",
-  "release_merged",
-  "release_deployed",
-  "release_queue_failure",
-  // Merge queue logging triggers
-  "merge_queue_entered",
-  "merge_queue_failed",
-  "pr_merged",
-  "deployed_stage",
-  "deployed_prod"
-]);
-var ISSUE_TRIGGER_TYPES = IssueTriggerTypeSchema.options;
-
-// issue/actions-ts/state-machine/schemas/discussion-triggers.ts
-var DiscussionTriggerTypeSchema = external_exports.enum([
-  "discussion_created",
-  "discussion_comment",
-  "discussion_command"
-]);
-var DISCUSSION_TRIGGER_TYPES = DiscussionTriggerTypeSchema.options;
-
-// issue/actions-ts/state-machine/schemas/base.ts
-var BaseMachineContextSchema = external_exports.object({
-  // Repository info
-  owner: external_exports.string().min(1),
-  repo: external_exports.string().min(1),
-  // Config
-  maxRetries: external_exports.number().int().positive().default(5),
-  botUsername: external_exports.string().default("nopo-bot")
-});
-
-// issue/actions-ts/state-machine/schemas/issue-context.ts
-var IssueContextSchema = BaseMachineContextSchema.extend({
-  // Trigger info
-  trigger: IssueTriggerTypeSchema,
-  // Issue being worked on (could be parent or sub-issue)
-  issue: ParentIssueSchema,
-  // If this is a sub-issue, the parent
-  parentIssue: ParentIssueSchema.nullable(),
-  // Current phase info (derived from sub-issues)
-  currentPhase: external_exports.number().int().positive().nullable(),
-  totalPhases: external_exports.number().int().min(0),
-  currentSubIssue: SubIssueSchema.nullable(),
-  // CI result (if triggered by workflow_run)
-  ciResult: CIResultSchema.nullable(),
-  ciRunUrl: external_exports.string().nullable(),
-  ciCommitSha: external_exports.string().nullable(),
-  // Workflow timing
-  /** ISO 8601 timestamp of when the workflow started */
-  workflowStartedAt: external_exports.string().nullable(),
-  // Review result (if triggered by pr_review_submitted)
-  reviewDecision: ReviewDecisionSchema.nullable(),
-  reviewerId: external_exports.string().nullable(),
-  // Branch info
-  branch: external_exports.string().nullable(),
-  hasBranch: external_exports.boolean(),
-  // PR info (for the current phase/issue)
-  pr: LinkedPRSchema.nullable(),
-  hasPR: external_exports.boolean(),
-  // Comment info (if triggered by issue_comment)
-  commentContextType: external_exports.string().transform((v) => v?.toLowerCase()).pipe(external_exports.enum(["issue", "pr"])).nullable().default(null),
-  commentContextDescription: external_exports.string().nullable().default(null),
-  // Release info (if triggered by release_* events)
-  releaseEvent: external_exports.object({
-    type: external_exports.enum(["queue_entry", "merged", "deployed", "queue_failure"]),
-    commitSha: external_exports.string().optional(),
-    failureReason: external_exports.string().optional(),
-    services: external_exports.array(external_exports.string()).optional()
-  }).nullable().default(null)
-});
-
-// issue/actions-ts/state-machine/schemas/discussion-context.ts
-var DiscussionSchema = external_exports.object({
-  number: external_exports.number().int().positive(),
-  nodeId: external_exports.string(),
-  title: external_exports.string(),
-  body: external_exports.string(),
-  commentCount: external_exports.number().int().min(0).default(0),
-  researchThreads: external_exports.array(
-    external_exports.object({
-      nodeId: external_exports.string(),
-      topic: external_exports.string(),
-      replyCount: external_exports.number().int().min(0)
-    })
-  ).default([]),
-  command: external_exports.enum(["summarize", "plan", "complete"]).optional(),
-  commentId: external_exports.string().optional(),
-  commentBody: external_exports.string().optional(),
-  commentAuthor: external_exports.string().optional()
-});
-var DiscussionContextSchema = BaseMachineContextSchema.extend({
-  // Trigger info
-  trigger: DiscussionTriggerTypeSchema,
-  // Discussion being worked on
-  discussion: DiscussionSchema
-});
-
-// issue/actions-ts/state-machine/schemas/state.ts
-var TriggerTypeSchema = external_exports.union([
-  IssueTriggerTypeSchema,
-  DiscussionTriggerTypeSchema
-]);
 var MachineContextSchema = external_exports.object({
   // Trigger info
-  trigger: TriggerTypeSchema,
+  trigger: TriggerTypeSchema2,
   // Repository info
   owner: external_exports.string().min(1),
   repo: external_exports.string().min(1),
@@ -31487,14 +31381,14 @@ var MachineContextSchema = external_exports.object({
   totalPhases: external_exports.number().int().min(0),
   currentSubIssue: SubIssueSchema.nullable(),
   // CI result (if triggered by workflow_run)
-  ciResult: CIResultSchema.nullable(),
+  ciResult: CIResultSchema2.nullable(),
   ciRunUrl: external_exports.string().nullable(),
   ciCommitSha: external_exports.string().nullable(),
   // Workflow timing
   /** ISO 8601 timestamp of when the workflow started */
   workflowStartedAt: external_exports.string().nullable(),
   // Review result (if triggered by pr_review_submitted)
-  reviewDecision: ReviewDecisionSchema.nullable(),
+  reviewDecision: ReviewDecisionSchema2.nullable(),
   reviewerId: external_exports.string().nullable(),
   // Branch info
   branch: external_exports.string().nullable(),
@@ -31563,6 +31457,117 @@ function createMachineContext(partial) {
     ...partial
   });
 }
+function isTerminalStatus(status) {
+  return status === "Done" || status === "Blocked" || status === "Error";
+}
+
+// issue/actions-ts/state-machine/schemas/entities.ts
+var ProjectStatusSchema2 = external_exports.enum([
+  "Backlog",
+  "In progress",
+  "Ready",
+  "In review",
+  "Done",
+  "Blocked",
+  "Error"
+]);
+var IssueStateSchema2 = external_exports.enum(["OPEN", "CLOSED"]);
+var PRStateSchema2 = external_exports.enum(["OPEN", "CLOSED", "MERGED"]);
+var TodoItemSchema2 = external_exports.object({
+  text: external_exports.string(),
+  checked: external_exports.boolean(),
+  isManual: external_exports.boolean()
+});
+var TodoStatsSchema2 = external_exports.object({
+  total: external_exports.number().int().min(0),
+  completed: external_exports.number().int().min(0),
+  uncheckedNonManual: external_exports.number().int().min(0)
+});
+var HistoryEntrySchema2 = external_exports.object({
+  iteration: external_exports.number().int().min(0),
+  phase: external_exports.string(),
+  action: external_exports.string(),
+  timestamp: external_exports.string().nullable(),
+  sha: external_exports.string().nullable(),
+  runLink: external_exports.string().nullable()
+});
+var AgentNotesEntrySchema2 = external_exports.object({
+  runId: external_exports.string(),
+  runLink: external_exports.string(),
+  timestamp: external_exports.string(),
+  notes: external_exports.array(external_exports.string())
+});
+var LinkedPRSchema2 = external_exports.object({
+  number: external_exports.number().int().positive(),
+  state: PRStateSchema2,
+  isDraft: external_exports.boolean(),
+  title: external_exports.string(),
+  headRef: external_exports.string(),
+  baseRef: external_exports.string()
+});
+var SubIssueSchema2 = external_exports.object({
+  number: external_exports.number().int().positive(),
+  title: external_exports.string(),
+  state: IssueStateSchema2,
+  /** Raw markdown body - kept for backward compatibility */
+  body: external_exports.string(),
+  projectStatus: ProjectStatusSchema2.nullable(),
+  branch: external_exports.string().nullable(),
+  pr: LinkedPRSchema2.nullable(),
+  // Structured fields parsed from body
+  /** Description extracted from "## Description" section */
+  description: external_exports.string().default(""),
+  /** Full list of todo items parsed from body */
+  todos: external_exports.array(TodoItemSchema2).default([]),
+  /** Aggregated todo statistics */
+  todoStats: TodoStatsSchema2.default({
+    total: 0,
+    completed: 0,
+    uncheckedNonManual: 0
+  })
+});
+var ParentIssueSchema2 = external_exports.object({
+  number: external_exports.number().int().positive(),
+  title: external_exports.string(),
+  state: IssueStateSchema2,
+  /** Raw markdown body - kept for backward compatibility */
+  body: external_exports.string(),
+  projectStatus: ProjectStatusSchema2.nullable(),
+  iteration: external_exports.number().int().min(0),
+  failures: external_exports.number().int().min(0),
+  assignees: external_exports.array(external_exports.string()),
+  labels: external_exports.array(external_exports.string()),
+  subIssues: external_exports.array(SubIssueSchema2),
+  hasSubIssues: external_exports.boolean(),
+  history: external_exports.array(HistoryEntrySchema2),
+  // Structured fields parsed from body
+  /** Description extracted from "## Description" section */
+  description: external_exports.string().default(""),
+  /** Approach extracted from "## Approach" section (if present) */
+  approach: external_exports.string().nullable().default(null),
+  /** Aggregated todo statistics */
+  todoStats: TodoStatsSchema2.default({
+    total: 0,
+    completed: 0,
+    uncheckedNonManual: 0
+  }),
+  /** @deprecated Use todoStats instead - kept for backward compatibility */
+  todos: TodoStatsSchema2,
+  /** Agent notes from previous workflow runs */
+  agentNotes: external_exports.array(AgentNotesEntrySchema2).default([])
+});
+var CIResultSchema3 = external_exports.enum([
+  "success",
+  "failure",
+  "cancelled",
+  "skipped"
+]);
+var ReviewDecisionSchema3 = external_exports.enum([
+  "APPROVED",
+  "CHANGES_REQUESTED",
+  "COMMENTED",
+  "DISMISSED"
+]);
 
 // issue/actions-ts/state-machine/schemas/actions.ts
 var TokenTypeSchema = external_exports.enum(["code", "review"]);
@@ -31584,7 +31589,7 @@ var BaseActionSchema = external_exports.object({
 var UpdateProjectStatusActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("updateProjectStatus"),
   issueNumber: external_exports.number().int().positive(),
-  status: ProjectStatusSchema
+  status: ProjectStatusSchema2
 });
 var IncrementIterationActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("incrementIteration"),
@@ -31612,6 +31617,17 @@ var CloseIssueActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("closeIssue"),
   issueNumber: external_exports.number().int().positive(),
   reason: external_exports.enum(["completed", "not_planned"]).default("completed")
+});
+var ReopenIssueActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("reopenIssue"),
+  issueNumber: external_exports.number().int().positive()
+});
+var ResetIssueActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("resetIssue"),
+  issueNumber: external_exports.number().int().positive(),
+  /** Sub-issue numbers to reset */
+  subIssueNumbers: external_exports.array(external_exports.number().int().positive()).default([]),
+  botUsername: external_exports.string().min(1)
 });
 var AppendHistoryActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("appendHistory"),
@@ -31832,6 +31848,8 @@ var ActionSchema = external_exports.discriminatedUnion("type", [
   // Issue actions
   CreateSubIssuesActionSchema,
   CloseIssueActionSchema,
+  ReopenIssueActionSchema,
+  ResetIssueActionSchema,
   AppendHistoryActionSchema,
   UpdateHistoryActionSchema,
   UpdateIssueBodyActionSchema,
@@ -31879,6 +31897,512 @@ var ActionSchema = external_exports.discriminatedUnion("type", [
 // issue/actions-ts/state-machine/schemas/events.ts
 function eventToTrigger(event) {
   return event.type;
+}
+
+// issue/actions-ts/state-machine/machine/guards.ts
+function isAlreadyDone({ context: context2 }) {
+  return context2.issue.projectStatus === "Done";
+}
+function isBlocked({ context: context2 }) {
+  return context2.issue.projectStatus === "Blocked";
+}
+function isError({ context: context2 }) {
+  return context2.issue.projectStatus === "Error";
+}
+function isTerminal({ context: context2 }) {
+  const status = context2.issue.projectStatus;
+  return status !== null && isTerminalStatus(status);
+}
+function hasSubIssues({ context: context2 }) {
+  return context2.issue.hasSubIssues;
+}
+function needsSubIssues(_guardContext) {
+  return false;
+}
+function allPhasesDone({ context: context2 }) {
+  if (!context2.issue.hasSubIssues) {
+    return context2.issue.subIssues.length === 0 && context2.currentSubIssue === null;
+  }
+  return context2.issue.subIssues.every(
+    (s) => s.projectStatus === "Done" || s.state === "CLOSED"
+  );
+}
+function needsParentInit({ context: context2 }) {
+  return context2.issue.hasSubIssues && (context2.issue.projectStatus === null || context2.issue.projectStatus === "Backlog");
+}
+function currentPhaseComplete({ context: context2 }) {
+  if (!context2.currentSubIssue) {
+    return false;
+  }
+  return context2.currentSubIssue.todos.uncheckedNonManual === 0;
+}
+function hasNextPhase({ context: context2 }) {
+  if (!context2.issue.hasSubIssues || context2.currentPhase === null) {
+    return false;
+  }
+  return context2.currentPhase < context2.totalPhases;
+}
+function subIssueNeedsAssignment({ context: context2 }) {
+  return context2.currentSubIssue !== null;
+}
+function isInReview({ context: context2 }) {
+  if (context2.currentSubIssue) {
+    return context2.currentSubIssue.projectStatus === "In review";
+  }
+  return context2.issue.projectStatus === "In review";
+}
+function currentPhaseNeedsWork({ context: context2 }) {
+  if (context2.currentSubIssue) {
+    const status = context2.currentSubIssue.projectStatus;
+    return status === "In progress" || status === "Ready";
+  }
+  return context2.issue.projectStatus === "In progress";
+}
+function currentPhaseInReview({ context: context2 }) {
+  return isInReview({ context: context2 });
+}
+function todosDone({ context: context2 }) {
+  if (context2.currentSubIssue) {
+    return context2.currentSubIssue.todos.uncheckedNonManual === 0;
+  }
+  return context2.issue.todos.uncheckedNonManual === 0;
+}
+function hasPendingTodos({ context: context2 }) {
+  return !todosDone({ context: context2 });
+}
+function ciPassed({ context: context2 }) {
+  return context2.ciResult === "success";
+}
+function ciFailed({ context: context2 }) {
+  return context2.ciResult === "failure";
+}
+function ciCancelled({ context: context2 }) {
+  return context2.ciResult === "cancelled";
+}
+function maxFailuresReached({ context: context2 }) {
+  return context2.issue.failures >= context2.maxRetries;
+}
+function hasFailures({ context: context2 }) {
+  return context2.issue.failures > 0;
+}
+function reviewApproved({ context: context2 }) {
+  return context2.reviewDecision === "APPROVED";
+}
+function reviewRequestedChanges({ context: context2 }) {
+  return context2.reviewDecision === "CHANGES_REQUESTED";
+}
+function reviewCommented({ context: context2 }) {
+  return context2.reviewDecision === "COMMENTED";
+}
+function hasPR({ context: context2 }) {
+  return context2.hasPR && context2.pr !== null;
+}
+function prIsDraft({ context: context2 }) {
+  return context2.pr?.isDraft === true;
+}
+function prIsReady({ context: context2 }) {
+  return context2.pr !== null && !context2.pr.isDraft;
+}
+function prIsMerged({ context: context2 }) {
+  return context2.pr?.state === "MERGED";
+}
+function hasBranch({ context: context2 }) {
+  return context2.hasBranch;
+}
+function needsBranch({ context: context2 }) {
+  return !context2.hasBranch && context2.branch !== null;
+}
+function botIsAssigned({ context: context2 }) {
+  return context2.issue.assignees.includes(context2.botUsername);
+}
+function isFirstIteration({ context: context2 }) {
+  return context2.issue.iteration === 0;
+}
+function triggeredByAssignment({ context: context2 }) {
+  return context2.trigger === "issue-assigned";
+}
+function triggeredByEdit({ context: context2 }) {
+  return context2.trigger === "issue-edited";
+}
+function triggeredByCI({ context: context2 }) {
+  return context2.trigger === "workflow-run-completed";
+}
+function triggeredByReview({ context: context2 }) {
+  return context2.trigger === "pr-review-submitted";
+}
+function triggeredByReviewRequest({ context: context2 }) {
+  return context2.trigger === "pr-review-requested";
+}
+function triggeredByTriage({ context: context2 }) {
+  return context2.trigger === "issue-triage";
+}
+function triggeredByComment({ context: context2 }) {
+  return context2.trigger === "issue-comment";
+}
+function triggeredByOrchestrate({ context: context2 }) {
+  return context2.trigger === "issue-orchestrate";
+}
+function triggeredByPRReview({ context: context2 }) {
+  return context2.trigger === "pr-review";
+}
+function triggeredByPRResponse({ context: context2 }) {
+  return context2.trigger === "pr-response";
+}
+function triggeredByPRHumanResponse({ context: context2 }) {
+  return context2.trigger === "pr-human-response";
+}
+function triggeredByPRReviewApproved({ context: context2 }) {
+  return context2.trigger === "pr-review-approved";
+}
+function triggeredByPRPush({ context: context2 }) {
+  return context2.trigger === "pr-push";
+}
+function triggeredByReset({ context: context2 }) {
+  return context2.trigger === "issue-reset";
+}
+function triggeredByMergeQueueEntry({ context: context2 }) {
+  return context2.trigger === "merge-queue-entered";
+}
+function triggeredByMergeQueueFailure({ context: context2 }) {
+  return context2.trigger === "merge-queue-failed";
+}
+function triggeredByPRMerged({ context: context2 }) {
+  return context2.trigger === "pr-merged";
+}
+function triggeredByDeployedStage({ context: context2 }) {
+  return context2.trigger === "deployed-stage";
+}
+function triggeredByDeployedProd({ context: context2 }) {
+  return context2.trigger === "deployed-prod";
+}
+function needsTriage({ context: context2 }) {
+  return !context2.issue.labels.includes("triaged");
+}
+function isTriaged({ context: context2 }) {
+  return context2.issue.labels.includes("triaged");
+}
+function readyForReview({ context: context2 }) {
+  return ciPassed({ context: context2 }) && todosDone({ context: context2 });
+}
+function shouldContinueIterating({ context: context2 }) {
+  return ciFailed({ context: context2 }) && !maxFailuresReached({ context: context2 });
+}
+function shouldBlock({ context: context2 }) {
+  return ciFailed({ context: context2 }) && maxFailuresReached({ context: context2 });
+}
+var guards = {
+  // Terminal state guards
+  isAlreadyDone,
+  isBlocked,
+  isError,
+  isTerminal,
+  // Sub-issue guards
+  hasSubIssues,
+  needsSubIssues,
+  allPhasesDone,
+  // Orchestration guards
+  needsParentInit,
+  currentPhaseComplete,
+  hasNextPhase,
+  subIssueNeedsAssignment,
+  // Phase state guards
+  isInReview,
+  currentPhaseNeedsWork,
+  currentPhaseInReview,
+  // Todo guards
+  todosDone,
+  hasPendingTodos,
+  // CI guards
+  ciPassed,
+  ciFailed,
+  ciCancelled,
+  // Failure guards
+  maxFailuresReached,
+  hasFailures,
+  // Review guards
+  reviewApproved,
+  reviewRequestedChanges,
+  reviewCommented,
+  // PR guards
+  hasPR,
+  prIsDraft,
+  prIsReady,
+  prIsMerged,
+  // Branch guards
+  hasBranch,
+  needsBranch,
+  // Assignment guards
+  botIsAssigned,
+  isFirstIteration,
+  // Trigger guards
+  triggeredByAssignment,
+  triggeredByEdit,
+  triggeredByCI,
+  triggeredByReview,
+  triggeredByReviewRequest,
+  triggeredByTriage,
+  triggeredByComment,
+  triggeredByOrchestrate,
+  triggeredByPRReview,
+  triggeredByPRResponse,
+  triggeredByPRHumanResponse,
+  triggeredByPRReviewApproved,
+  triggeredByPRPush,
+  triggeredByReset,
+  // Merge queue logging guards
+  triggeredByMergeQueueEntry,
+  triggeredByMergeQueueFailure,
+  triggeredByPRMerged,
+  triggeredByDeployedStage,
+  triggeredByDeployedProd,
+  // Triage guards
+  needsTriage,
+  isTriaged,
+  // Composite guards
+  readyForReview,
+  shouldContinueIterating,
+  shouldBlock
+};
+
+// issue/actions-ts/state-machine/parser/todo-parser.ts
+var TODO_PATTERNS = {
+  // Matches: - [ ] text or - [x] text or - [X] text
+  checkbox: /^(\s*)-\s*\[([ xX])\]\s*(.+)$/,
+  // Matches: [Manual] prefix or *(manual)* anywhere in the line
+  // [Manual] is the preferred format, *(manual)* is legacy
+  manual: /\[Manual\]|\*\(manual\)\*/i
+};
+function parseTodoLine(line) {
+  const match = line.match(TODO_PATTERNS.checkbox);
+  if (!match) {
+    return null;
+  }
+  const checkMark = match[2];
+  const text = match[3]?.trim() || "";
+  return {
+    text,
+    checked: checkMark?.toLowerCase() === "x",
+    isManual: TODO_PATTERNS.manual.test(line)
+  };
+}
+function parseTodos(body) {
+  const lines = body.split("\n");
+  const todos = [];
+  for (const line of lines) {
+    const todo = parseTodoLine(line);
+    if (todo) {
+      todos.push(todo);
+    }
+  }
+  return todos;
+}
+function calculateTodoStats(todos) {
+  let total = 0;
+  let completed = 0;
+  let uncheckedNonManual = 0;
+  for (const todo of todos) {
+    total++;
+    if (todo.checked) {
+      completed++;
+    } else if (!todo.isManual) {
+      uncheckedNonManual++;
+    }
+  }
+  return {
+    total,
+    completed,
+    uncheckedNonManual
+  };
+}
+function parseTodoStats(body) {
+  const todos = parseTodos(body);
+  return calculateTodoStats(todos);
+}
+
+// issue/actions-ts/state-machine/parser/history-parser.ts
+var HISTORY_SECTION = "## Iteration History";
+var HEADER_COLUMNS = [
+  { key: "time", value: "Time" },
+  { key: "iteration", value: "#" },
+  { key: "phase", value: "Phase" },
+  { key: "action", value: "Action" },
+  { key: "sha", value: "SHA" },
+  { key: "run", value: "Run" }
+];
+function buildValueToKeyMap() {
+  const map = /* @__PURE__ */ new Map();
+  for (const col of HEADER_COLUMNS) {
+    map.set(col.value, col.key);
+  }
+  return map;
+}
+function parseHeaderRow(headerRow, valueToKeyMap) {
+  const cells = headerRow.split("|").map((c) => c.trim()).filter((c, i, arr) => i > 0 && i < arr.length - 1 && c !== "");
+  const keys = [];
+  const unmatched = [];
+  for (const cell of cells) {
+    const key = valueToKeyMap.get(cell);
+    if (key) {
+      keys.push(key);
+    } else {
+      keys.push(null);
+      unmatched.push(cell);
+    }
+  }
+  return { keys, unmatched };
+}
+function parseDataRow(row, columnKeys) {
+  const cells = row.split("|").map((c) => c.trim()).filter((c, i, arr) => i > 0 && i < arr.length - 1);
+  const data = {};
+  for (let i = 0; i < columnKeys.length && i < cells.length; i++) {
+    const key = columnKeys[i];
+    if (key) {
+      data[key] = cells[i];
+    }
+  }
+  return data;
+}
+function parseTable(body) {
+  const lines = body.split("\n");
+  const historyIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
+  if (historyIdx === -1) {
+    return null;
+  }
+  const valueToKeyMap = buildValueToKeyMap();
+  let headerKeys = [];
+  let unmatchedHeaders = [];
+  const rows = [];
+  let foundHeader = false;
+  for (let i = historyIdx + 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line) continue;
+    if (line.startsWith("##") && !line.includes(HISTORY_SECTION)) {
+      break;
+    }
+    if (!line.startsWith("|")) {
+      continue;
+    }
+    if (line.includes("---")) {
+      continue;
+    }
+    if (!foundHeader) {
+      const parsed = parseHeaderRow(line, valueToKeyMap);
+      headerKeys = parsed.keys;
+      unmatchedHeaders = parsed.unmatched;
+      foundHeader = true;
+      continue;
+    }
+    const rowData = parseDataRow(line, headerKeys);
+    rows.push(rowData);
+  }
+  return {
+    headerKeys: headerKeys.filter((k) => k !== null),
+    rows,
+    unmatchedHeaders
+  };
+}
+function parseMarkdownLink(text) {
+  const match = text.match(/\[.*?\]\((.*?)\)/);
+  return match?.[1] ?? null;
+}
+function parseShaCell(cell) {
+  if (cell === "-" || cell.trim() === "") {
+    return null;
+  }
+  const linkMatch = cell.match(/\[`?([a-f0-9]+)`?\]/i);
+  if (linkMatch) {
+    return linkMatch[1] ?? null;
+  }
+  const shaMatch = cell.match(/^[a-f0-9]+$/i);
+  if (shaMatch) {
+    return cell;
+  }
+  return null;
+}
+function rowDataToHistoryEntry(data) {
+  const iterationStr = data.iteration;
+  if (!iterationStr) return null;
+  const iteration = parseInt(iterationStr, 10);
+  if (isNaN(iteration)) return null;
+  const timestamp = data.time && data.time !== "-" ? data.time : null;
+  return {
+    iteration,
+    phase: data.phase || "",
+    action: data.action || "",
+    timestamp,
+    sha: data.sha ? parseShaCell(data.sha) : null,
+    runLink: data.run ? parseMarkdownLink(data.run) : null
+  };
+}
+function parseHistory(body) {
+  const parsed = parseTable(body);
+  if (!parsed) {
+    return [];
+  }
+  if (parsed.unmatchedHeaders.length > 0) {
+    console.warn(
+      `[history-parser] Unmatched table headers (will be dropped): ${parsed.unmatchedHeaders.join(", ")}`
+    );
+  }
+  const entries = [];
+  for (const row of parsed.rows) {
+    const entry = rowDataToHistoryEntry(row);
+    if (entry) {
+      entries.push(entry);
+    }
+  }
+  return entries;
+}
+
+// issue/actions-ts/state-machine/parser/agent-notes-parser.ts
+var AGENT_NOTES_SECTION = "## Agent Notes";
+function parseAgentNotes(body) {
+  const entries = [];
+  const sectionMatch = body.match(
+    new RegExp(`${AGENT_NOTES_SECTION}\\s*\\n([\\s\\S]*)$`, "i")
+  );
+  if (!sectionMatch || !sectionMatch[1]) {
+    return entries;
+  }
+  const sectionContent = sectionMatch[1];
+  const entryPattern = /###\s*\[Run\s+(\d+)\]\(([^)]+)\)\s*-\s*([^\n]+)\n([\s\S]*?)(?=\n###\s*\[Run|\n##\s|$)/g;
+  let match;
+  while ((match = entryPattern.exec(sectionContent)) !== null) {
+    const [, runId, runLink, timestamp, notesBlock] = match;
+    const notes = [];
+    const bulletPattern = /^[-*]\s+(.+)$/gm;
+    let bulletMatch;
+    while ((bulletMatch = bulletPattern.exec(notesBlock || "")) !== null) {
+      if (bulletMatch[1]) {
+        notes.push(bulletMatch[1].trim());
+      }
+    }
+    if (runId && runLink && timestamp) {
+      entries.push({
+        runId,
+        runLink,
+        timestamp: timestamp.trim(),
+        notes
+      });
+    }
+  }
+  return entries;
+}
+function formatEntry(entry) {
+  const header = `### [Run ${entry.runId}](${entry.runLink}) - ${entry.timestamp}`;
+  const bullets = entry.notes.slice(0, 10).map((note) => {
+    const truncated = note.length > 500 ? note.slice(0, 500) + "..." : note;
+    return `- ${truncated}`;
+  }).join("\n");
+  return `${header}
+${bullets}`;
+}
+function formatAgentNotesForPrompt(entries) {
+  if (entries.length === 0) {
+    return "No previous agent notes found for this issue.";
+  }
+  const recentEntries = entries.slice(0, 3);
+  return recentEntries.map(formatEntry).join("\n\n");
 }
 
 // issue/actions-ts/state-machine/parser/state-parser.ts
@@ -32035,13 +32559,12 @@ function deriveBranchName(parentIssueNumber, phaseNumber) {
   }
   return `claude/issue/${parentIssueNumber}`;
 }
-function parseSubIssueInternal(node, projectNumber, phaseNumber, parentIssueNumber) {
+function parseSubIssue(node, projectNumber, phaseNumber, parentIssueNumber) {
   const status = parseSubIssueStatus(
     node.projectItems?.nodes || [],
     projectNumber
   );
   const body = node.body || "";
-  const todos = parseTodos(body);
   return {
     number: node.number || 0,
     title: node.title || "",
@@ -32051,10 +32574,7 @@ function parseSubIssueInternal(node, projectNumber, phaseNumber, parentIssueNumb
     branch: deriveBranchName(parentIssueNumber, phaseNumber),
     pr: null,
     // Will be populated separately
-    // Structured fields
-    description: parseDescription(body),
-    todos,
-    todoStats: calculateTodoStats(todos)
+    todos: parseTodoStats(body)
   };
 }
 async function checkBranchExists(octokit, owner, repo, branchName) {
@@ -32124,11 +32644,12 @@ async function fetchIssueState(octokit, owner, repo, issueNumber, projectNumber)
   for (let i = 0; i < sortedSubIssues.length; i++) {
     const node = sortedSubIssues[i];
     if (!node) continue;
-    subIssues.push(parseSubIssueInternal(node, projectNumber, i + 1, issueNumber));
+    subIssues.push(parseSubIssue(node, projectNumber, i + 1, issueNumber));
   }
   const body = issue.body || "";
   const history = parseHistory(body);
-  const todoStats = parseTodoStats(body);
+  const todos = parseTodoStats(body);
+  const agentNotes = parseAgentNotes(body);
   const parentIssueNumber = issue.parent?.number ?? null;
   return {
     issue: {
@@ -32144,12 +32665,8 @@ async function fetchIssueState(octokit, owner, repo, issueNumber, projectNumber)
       subIssues,
       hasSubIssues: subIssues.length > 0,
       history,
-      // Structured fields
-      description: parseDescription(body),
-      approach: parseApproach(body),
-      todoStats,
-      // Backward compatibility: keep todos as alias for todoStats
-      todos: todoStats
+      todos,
+      agentNotes
     },
     parentIssueNumber
   };
@@ -32299,263 +32816,6 @@ async function buildMachineContext(octokit, event, projectNumber, options = {}) 
   });
 }
 
-// issue/actions-ts/state-machine/machine/guards.ts
-function isAlreadyDone({ context: context2 }) {
-  return context2.issue.projectStatus === "Done";
-}
-function isBlocked({ context: context2 }) {
-  return context2.issue.projectStatus === "Blocked";
-}
-function isError({ context: context2 }) {
-  return context2.issue.projectStatus === "Error";
-}
-function isTerminal({ context: context2 }) {
-  const status = context2.issue.projectStatus;
-  return status !== null && isTerminalStatus(status);
-}
-function hasSubIssues({ context: context2 }) {
-  return context2.issue.hasSubIssues;
-}
-function needsSubIssues(_guardContext) {
-  return false;
-}
-function allPhasesDone({ context: context2 }) {
-  if (!context2.issue.hasSubIssues) {
-    return context2.issue.subIssues.length === 0 && context2.currentSubIssue === null;
-  }
-  return context2.issue.subIssues.every(
-    (s) => s.projectStatus === "Done" || s.state === "CLOSED"
-  );
-}
-function needsParentInit({ context: context2 }) {
-  return context2.issue.hasSubIssues && (context2.issue.projectStatus === null || context2.issue.projectStatus === "Backlog");
-}
-function currentPhaseComplete({ context: context2 }) {
-  if (!context2.currentSubIssue) {
-    return false;
-  }
-  return context2.currentSubIssue.todoStats.uncheckedNonManual === 0;
-}
-function hasNextPhase({ context: context2 }) {
-  if (!context2.issue.hasSubIssues || context2.currentPhase === null) {
-    return false;
-  }
-  return context2.currentPhase < context2.totalPhases;
-}
-function subIssueNeedsAssignment({ context: context2 }) {
-  return context2.currentSubIssue !== null;
-}
-function isInReview({ context: context2 }) {
-  if (context2.currentSubIssue) {
-    return context2.currentSubIssue.projectStatus === "In review";
-  }
-  return context2.issue.projectStatus === "In review";
-}
-function currentPhaseNeedsWork({ context: context2 }) {
-  if (context2.currentSubIssue) {
-    const status = context2.currentSubIssue.projectStatus;
-    return status === "In progress" || status === "Ready";
-  }
-  return context2.issue.projectStatus === "In progress";
-}
-function currentPhaseInReview({ context: context2 }) {
-  return isInReview({ context: context2 });
-}
-function todosDone({ context: context2 }) {
-  if (context2.currentSubIssue) {
-    return context2.currentSubIssue.todoStats.uncheckedNonManual === 0;
-  }
-  return context2.issue.todoStats.uncheckedNonManual === 0;
-}
-function hasPendingTodos({ context: context2 }) {
-  return !todosDone({ context: context2 });
-}
-function ciPassed({ context: context2 }) {
-  return context2.ciResult === "success";
-}
-function ciFailed({ context: context2 }) {
-  return context2.ciResult === "failure";
-}
-function ciCancelled({ context: context2 }) {
-  return context2.ciResult === "cancelled";
-}
-function maxFailuresReached({ context: context2 }) {
-  return context2.issue.failures >= context2.maxRetries;
-}
-function hasFailures({ context: context2 }) {
-  return context2.issue.failures > 0;
-}
-function reviewApproved({ context: context2 }) {
-  return context2.reviewDecision === "APPROVED";
-}
-function reviewRequestedChanges({ context: context2 }) {
-  return context2.reviewDecision === "CHANGES_REQUESTED";
-}
-function reviewCommented({ context: context2 }) {
-  return context2.reviewDecision === "COMMENTED";
-}
-function hasPR({ context: context2 }) {
-  return context2.hasPR && context2.pr !== null;
-}
-function prIsDraft({ context: context2 }) {
-  return context2.pr?.isDraft === true;
-}
-function prIsReady({ context: context2 }) {
-  return context2.pr !== null && !context2.pr.isDraft;
-}
-function prIsMerged({ context: context2 }) {
-  return context2.pr?.state === "MERGED";
-}
-function hasBranch({ context: context2 }) {
-  return context2.hasBranch;
-}
-function needsBranch({ context: context2 }) {
-  return !context2.hasBranch && context2.branch !== null;
-}
-function botIsAssigned({ context: context2 }) {
-  return context2.issue.assignees.includes(context2.botUsername);
-}
-function isFirstIteration({ context: context2 }) {
-  return context2.issue.iteration === 0;
-}
-function triggeredByAssignment({ context: context2 }) {
-  return context2.trigger === "issue_assigned";
-}
-function triggeredByEdit({ context: context2 }) {
-  return context2.trigger === "issue_edited";
-}
-function triggeredByCI({ context: context2 }) {
-  return context2.trigger === "workflow_run_completed";
-}
-function triggeredByReview({ context: context2 }) {
-  return context2.trigger === "pr_review_submitted";
-}
-function triggeredByReviewRequest({ context: context2 }) {
-  return context2.trigger === "pr_review_requested";
-}
-function triggeredByTriage({ context: context2 }) {
-  return context2.trigger === "issue_triage";
-}
-function triggeredByComment({ context: context2 }) {
-  return context2.trigger === "issue_comment";
-}
-function triggeredByOrchestrate({ context: context2 }) {
-  return context2.trigger === "issue_orchestrate";
-}
-function triggeredByPRReview({ context: context2 }) {
-  return context2.trigger === "pr_review";
-}
-function triggeredByPRResponse({ context: context2 }) {
-  return context2.trigger === "pr_response";
-}
-function triggeredByPRHumanResponse({ context: context2 }) {
-  return context2.trigger === "pr_human_response";
-}
-function triggeredByPRReviewApproved({ context: context2 }) {
-  return context2.trigger === "pr_review_approved";
-}
-function triggeredByMergeQueueEntry({ context: context2 }) {
-  return context2.trigger === "merge_queue_entered";
-}
-function triggeredByMergeQueueFailure({ context: context2 }) {
-  return context2.trigger === "merge_queue_failed";
-}
-function triggeredByPRMerged({ context: context2 }) {
-  return context2.trigger === "pr_merged";
-}
-function triggeredByDeployedStage({ context: context2 }) {
-  return context2.trigger === "deployed_stage";
-}
-function triggeredByDeployedProd({ context: context2 }) {
-  return context2.trigger === "deployed_prod";
-}
-function needsTriage({ context: context2 }) {
-  return !context2.issue.labels.includes("triaged");
-}
-function isTriaged({ context: context2 }) {
-  return context2.issue.labels.includes("triaged");
-}
-function readyForReview({ context: context2 }) {
-  return ciPassed({ context: context2 }) && todosDone({ context: context2 });
-}
-function shouldContinueIterating({ context: context2 }) {
-  return ciFailed({ context: context2 }) && !maxFailuresReached({ context: context2 });
-}
-function shouldBlock({ context: context2 }) {
-  return ciFailed({ context: context2 }) && maxFailuresReached({ context: context2 });
-}
-var guards = {
-  // Terminal state guards
-  isAlreadyDone,
-  isBlocked,
-  isError,
-  isTerminal,
-  // Sub-issue guards
-  hasSubIssues,
-  needsSubIssues,
-  allPhasesDone,
-  // Orchestration guards
-  needsParentInit,
-  currentPhaseComplete,
-  hasNextPhase,
-  subIssueNeedsAssignment,
-  // Phase state guards
-  isInReview,
-  currentPhaseNeedsWork,
-  currentPhaseInReview,
-  // Todo guards
-  todosDone,
-  hasPendingTodos,
-  // CI guards
-  ciPassed,
-  ciFailed,
-  ciCancelled,
-  // Failure guards
-  maxFailuresReached,
-  hasFailures,
-  // Review guards
-  reviewApproved,
-  reviewRequestedChanges,
-  reviewCommented,
-  // PR guards
-  hasPR,
-  prIsDraft,
-  prIsReady,
-  prIsMerged,
-  // Branch guards
-  hasBranch,
-  needsBranch,
-  // Assignment guards
-  botIsAssigned,
-  isFirstIteration,
-  // Trigger guards
-  triggeredByAssignment,
-  triggeredByEdit,
-  triggeredByCI,
-  triggeredByReview,
-  triggeredByReviewRequest,
-  triggeredByTriage,
-  triggeredByComment,
-  triggeredByOrchestrate,
-  triggeredByPRReview,
-  triggeredByPRResponse,
-  triggeredByPRHumanResponse,
-  triggeredByPRReviewApproved,
-  // Merge queue logging guards
-  triggeredByMergeQueueEntry,
-  triggeredByMergeQueueFailure,
-  triggeredByPRMerged,
-  triggeredByDeployedStage,
-  triggeredByDeployedProd,
-  // Triage guards
-  needsTriage,
-  isTriaged,
-  // Composite guards
-  readyForReview,
-  shouldContinueIterating,
-  shouldBlock
-};
-
 // issue/actions-ts/state-machine/machine/actions.ts
 function emitSetWorking({ context: context2 }) {
   const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
@@ -32666,6 +32926,17 @@ function emitBlock({ context: context2 }) {
       token: "code",
       issueNumber: context2.issue.number,
       reason: `Max failures (${context2.maxRetries}) reached`
+    }
+  ];
+}
+function emitResetIssue({ context: context2 }) {
+  return [
+    {
+      type: "resetIssue",
+      token: "code",
+      issueNumber: context2.issue.number,
+      subIssueNumbers: context2.issue.subIssues.map((s) => s.number),
+      botUsername: context2.botUsername
     }
   ];
 }
@@ -33312,6 +33583,36 @@ function emitDeployedProd({ context: context2 }) {
     }
   ];
 }
+function emitPushToDraft({ context: context2 }) {
+  const actions = [];
+  if (context2.pr) {
+    actions.push({
+      type: "convertPRToDraft",
+      token: "code",
+      prNumber: context2.pr.number
+    });
+    actions.push({
+      type: "removeReviewer",
+      token: "code",
+      prNumber: context2.pr.number,
+      reviewer: "nopo-bot"
+    });
+  }
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const phase = String(context2.currentPhase ?? "-");
+  actions.push({
+    type: "appendHistory",
+    token: "code",
+    issueNumber,
+    iteration: 0,
+    // Push-to-draft doesn't have iteration context
+    phase,
+    message: "\u{1F4DD} Code pushed - converting to draft",
+    commitSha: context2.ciCommitSha ?? void 0,
+    runLink: context2.ciRunUrl ?? void 0
+  });
+  return actions;
+}
 
 // issue/actions-ts/state-machine/machine/machine.ts
 function accumulateActions(existingActions, newActions) {
@@ -33354,6 +33655,8 @@ var claudeMachine = setup({
     triggeredByPRResponse: ({ context: context2 }) => guards.triggeredByPRResponse({ context: context2 }),
     triggeredByPRHumanResponse: ({ context: context2 }) => guards.triggeredByPRHumanResponse({ context: context2 }),
     triggeredByPRReviewApproved: ({ context: context2 }) => guards.triggeredByPRReviewApproved({ context: context2 }),
+    triggeredByPRPush: ({ context: context2 }) => guards.triggeredByPRPush({ context: context2 }),
+    triggeredByReset: ({ context: context2 }) => guards.triggeredByReset({ context: context2 }),
     // Merge queue logging guards
     triggeredByMergeQueueEntry: ({ context: context2 }) => guards.triggeredByMergeQueueEntry({ context: context2 }),
     triggeredByMergeQueueFailure: ({ context: context2 }) => guards.triggeredByMergeQueueFailure({ context: context2 }),
@@ -33625,6 +33928,26 @@ var claudeMachine = setup({
         context2.pendingActions,
         emitDeployedProd({ context: context2 })
       )
+    }),
+    // Push to draft action
+    pushToDraft: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitPushToDraft({ context: context2 })
+      )
+    }),
+    // Reset action
+    resetIssue: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitResetIssue({ context: context2 })
+      )
+    }),
+    logResetting: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitLog({ context: context2 }, `Resetting issue #${context2.issue.number} to initial state`)
+      )
     })
   }
 }).createMachine({
@@ -33641,6 +33964,8 @@ var claudeMachine = setup({
     detecting: {
       entry: "logDetecting",
       always: [
+        // Reset takes priority - can reset even Done/Blocked issues
+        { target: "resetting", guard: "triggeredByReset" },
         // Check terminal states first
         { target: "done", guard: "isAlreadyDone" },
         { target: "blocked", guard: "isBlocked" },
@@ -33693,6 +34018,11 @@ var claudeMachine = setup({
           target: "processingReview",
           guard: "triggeredByPRReviewApproved"
         },
+        // Check if this is a push to a PR branch
+        {
+          target: "prPush",
+          guard: "triggeredByPRPush"
+        },
         // Check if this is a CI completion event
         {
           target: "processingCI",
@@ -33723,6 +34053,17 @@ var claudeMachine = setup({
      */
     triaging: {
       entry: ["logTriaging", "runClaudeTriage"],
+      type: "final"
+    },
+    /**
+     * Reset an issue to initial state (/reset command)
+     * - Reopens closed issues
+     * - Sets parent status to Backlog, sub-issues to Ready
+     * - Clears iteration and failure counters
+     * - Unassigns bot
+     */
+    resetting: {
+      entry: ["logResetting", "resetIssue"],
       type: "final"
     },
     /**
@@ -33758,6 +34099,16 @@ var claudeMachine = setup({
      */
     prRespondingHuman: {
       entry: ["logPRResponding", "runClaudePRHumanResponse"],
+      type: "final"
+    },
+    /**
+     * PR Push - converts PR to draft and removes reviewer
+     *
+     * Triggered when code is pushed to a PR branch. This cancels in-flight
+     * reviews and signals that iteration will continue.
+     */
+    prPush: {
+      entry: ["pushToDraft"],
       type: "final"
     },
     /**
@@ -34049,7 +34400,148 @@ var claudeMachine = setup({
   }
 });
 
-// issue/actions-ts/state-machine/machine/discussion-guards.ts
+// discussion/actions-ts/state-machine/schemas/triggers.ts
+var DiscussionTriggerTypeSchema3 = external_exports.enum([
+  "discussion-created",
+  "discussion-comment",
+  "discussion-command"
+]);
+var DISCUSSION_TRIGGER_TYPES2 = DiscussionTriggerTypeSchema3.options;
+
+// discussion/actions-ts/state-machine/schemas/context.ts
+var DiscussionCommandSchema2 = external_exports.enum(["summarize", "plan", "complete"]);
+var ResearchThreadSchema = external_exports.object({
+  nodeId: external_exports.string(),
+  topic: external_exports.string(),
+  replyCount: external_exports.number().int().min(0)
+});
+var DiscussionSchema2 = external_exports.object({
+  number: external_exports.number().int().positive(),
+  nodeId: external_exports.string(),
+  title: external_exports.string(),
+  body: external_exports.string(),
+  commentCount: external_exports.number().int().min(0).default(0),
+  researchThreads: external_exports.array(ResearchThreadSchema).default([]),
+  command: DiscussionCommandSchema2.optional(),
+  commentId: external_exports.string().optional(),
+  commentBody: external_exports.string().optional(),
+  commentAuthor: external_exports.string().optional()
+});
+var DiscussionContextSchema2 = external_exports.object({
+  // Trigger info
+  trigger: DiscussionTriggerTypeSchema3,
+  // Repository info
+  owner: external_exports.string().min(1),
+  repo: external_exports.string().min(1),
+  // Discussion being worked on
+  discussion: DiscussionSchema2,
+  // Config
+  maxRetries: external_exports.number().int().positive().default(5),
+  botUsername: external_exports.string().default("nopo-bot")
+});
+var DISCUSSION_CONTEXT_DEFAULTS2 = {
+  maxRetries: 5,
+  botUsername: "nopo-bot"
+};
+function createDiscussionContext3(partial) {
+  return DiscussionContextSchema2.parse({
+    ...DISCUSSION_CONTEXT_DEFAULTS2,
+    ...partial
+  });
+}
+
+// discussion/actions-ts/state-machine/schemas/actions.ts
+var TokenTypeSchema2 = external_exports.enum(["code", "admin"]);
+var BaseActionSchema2 = external_exports.object({
+  type: external_exports.string(),
+  token: TokenTypeSchema2
+});
+var AddDiscussionCommentActionSchema2 = BaseActionSchema2.extend({
+  type: external_exports.literal("addDiscussionComment"),
+  discussionNodeId: external_exports.string(),
+  body: external_exports.string(),
+  replyToNodeId: external_exports.string().optional()
+});
+var UpdateDiscussionBodyActionSchema2 = BaseActionSchema2.extend({
+  type: external_exports.literal("updateDiscussionBody"),
+  discussionNodeId: external_exports.string(),
+  newBody: external_exports.string()
+});
+var AddDiscussionReactionActionSchema2 = BaseActionSchema2.extend({
+  type: external_exports.literal("addDiscussionReaction"),
+  subjectId: external_exports.string(),
+  content: external_exports.enum([
+    "THUMBS_UP",
+    "THUMBS_DOWN",
+    "LAUGH",
+    "HOORAY",
+    "CONFUSED",
+    "HEART",
+    "ROCKET",
+    "EYES"
+  ])
+});
+var CreateIssuesFromDiscussionActionSchema2 = BaseActionSchema2.extend({
+  type: external_exports.literal("createIssuesFromDiscussion"),
+  discussionNumber: external_exports.number().int().positive(),
+  issues: external_exports.array(
+    external_exports.object({
+      title: external_exports.string(),
+      body: external_exports.string(),
+      labels: external_exports.array(external_exports.string())
+    })
+  )
+});
+var ApplyDiscussionResearchOutputActionSchema2 = BaseActionSchema2.extend({
+  type: external_exports.literal("applyDiscussionResearchOutput"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string()
+});
+var ApplyDiscussionRespondOutputActionSchema2 = BaseActionSchema2.extend({
+  type: external_exports.literal("applyDiscussionRespondOutput"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string(),
+  replyToNodeId: external_exports.string().optional()
+});
+var ApplyDiscussionSummarizeOutputActionSchema2 = BaseActionSchema2.extend({
+  type: external_exports.literal("applyDiscussionSummarizeOutput"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string()
+});
+var ApplyDiscussionPlanOutputActionSchema2 = BaseActionSchema2.extend({
+  type: external_exports.literal("applyDiscussionPlanOutput"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string()
+});
+var RunClaudeActionSchema2 = BaseActionSchema2.extend({
+  type: external_exports.literal("runClaude"),
+  promptDir: external_exports.string(),
+  promptVars: external_exports.record(external_exports.string()),
+  issueNumber: external_exports.number().int().positive().optional()
+});
+var LogActionSchema2 = BaseActionSchema2.extend({
+  type: external_exports.literal("log"),
+  level: external_exports.enum(["debug", "info", "warning", "error"]),
+  message: external_exports.string()
+});
+var DiscussionActionSchema = external_exports.discriminatedUnion("type", [
+  // Discussion actions
+  AddDiscussionCommentActionSchema2,
+  UpdateDiscussionBodyActionSchema2,
+  AddDiscussionReactionActionSchema2,
+  CreateIssuesFromDiscussionActionSchema2,
+  // Apply output actions
+  ApplyDiscussionResearchOutputActionSchema2,
+  ApplyDiscussionRespondOutputActionSchema2,
+  ApplyDiscussionSummarizeOutputActionSchema2,
+  ApplyDiscussionPlanOutputActionSchema2,
+  // Claude actions
+  RunClaudeActionSchema2,
+  // Utility actions
+  LogActionSchema2
+]);
+
+// discussion/actions-ts/state-machine/machine/guards.ts
 function triggeredByDiscussionCreated({
   context: context2
 }) {
@@ -34077,14 +34569,14 @@ function commandIsComplete({ context: context2 }) {
 function isHumanComment({ context: context2 }) {
   const author = context2.discussion.commentAuthor;
   if (!author) return false;
-  return !author.endsWith("[bot]") && author !== "nopo-bot";
+  return !author.endsWith("[bot]") && author !== context2.botUsername;
 }
 function isBotResearchThread({ context: context2 }) {
   const author = context2.discussion.commentAuthor;
-  return (author === "nopo-bot" || author?.endsWith("[bot]") === true) && context2.trigger === "discussion_comment";
+  return (author === context2.botUsername || author?.endsWith("[bot]") === true) && context2.trigger === "discussion_comment";
 }
-function hasDiscussionContext({ context: _context }) {
-  return true;
+function hasDiscussionContext({ context: context2 }) {
+  return context2.discussion !== null && context2.discussion !== void 0;
 }
 function hasComment({ context: context2 }) {
   return context2.discussion.commentId !== void 0 && context2.discussion.commentBody !== void 0;
@@ -34106,127 +34598,121 @@ var discussionGuards = {
   hasComment
 };
 
-// issue/actions-ts/state-machine/machine/discussion-actions.ts
+// discussion/actions-ts/state-machine/machine/actions.ts
 function emitRunClaudeResearch({
   context: context2
 }) {
-  const { discussion } = context2;
   const promptVars = {
-    DISCUSSION_NUMBER: String(discussion.number),
-    DISCUSSION_NODE_ID: discussion.nodeId,
-    DISCUSSION_TITLE: discussion.title,
-    DISCUSSION_BODY: discussion.body
+    DISCUSSION_NUMBER: String(context2.discussion.number),
+    DISCUSSION_NODE_ID: context2.discussion.nodeId,
+    DISCUSSION_TITLE: context2.discussion.title,
+    DISCUSSION_BODY: context2.discussion.body
   };
   return [
     {
       type: "runClaude",
       token: "code",
-      promptDir: "discussion-research",
+      promptDir: "research",
       promptVars,
-      // Use discussion number as issue number for tracking
-      issueNumber: discussion.number
+      issueNumber: context2.discussion.number
     },
     {
       type: "applyDiscussionResearchOutput",
       token: "code",
-      discussionNumber: discussion.number,
-      discussionNodeId: discussion.nodeId
+      discussionNumber: context2.discussion.number,
+      discussionNodeId: context2.discussion.nodeId
     }
   ];
 }
 function emitRunClaudeRespond({ context: context2 }) {
-  const { discussion } = context2;
   const promptVars = {
-    DISCUSSION_NUMBER: String(discussion.number),
-    DISCUSSION_NODE_ID: discussion.nodeId,
-    DISCUSSION_TITLE: discussion.title,
-    DISCUSSION_BODY: discussion.body,
-    COMMENT_ID: discussion.commentId ?? "",
-    COMMENT_BODY: discussion.commentBody ?? "",
-    COMMENT_AUTHOR: discussion.commentAuthor ?? ""
+    DISCUSSION_NUMBER: String(context2.discussion.number),
+    DISCUSSION_NODE_ID: context2.discussion.nodeId,
+    DISCUSSION_TITLE: context2.discussion.title,
+    DISCUSSION_BODY: context2.discussion.body,
+    COMMENT_ID: context2.discussion.commentId ?? "",
+    COMMENT_BODY: context2.discussion.commentBody ?? "",
+    COMMENT_AUTHOR: context2.discussion.commentAuthor ?? ""
   };
   return [
     {
       type: "runClaude",
       token: "code",
-      promptDir: "discussion-respond",
+      promptDir: "respond",
       promptVars,
-      issueNumber: discussion.number
+      issueNumber: context2.discussion.number
     },
     {
       type: "applyDiscussionRespondOutput",
       token: "code",
-      discussionNumber: discussion.number,
-      discussionNodeId: discussion.nodeId,
-      replyToNodeId: discussion.commentId
+      discussionNumber: context2.discussion.number,
+      discussionNodeId: context2.discussion.nodeId,
+      replyToNodeId: context2.discussion.commentId
     }
   ];
 }
 function emitRunClaudeSummarize({
   context: context2
 }) {
-  const { discussion } = context2;
   const promptVars = {
-    DISCUSSION_NUMBER: String(discussion.number),
-    DISCUSSION_NODE_ID: discussion.nodeId,
-    DISCUSSION_TITLE: discussion.title,
-    DISCUSSION_BODY: discussion.body
+    DISCUSSION_NUMBER: String(context2.discussion.number),
+    DISCUSSION_NODE_ID: context2.discussion.nodeId,
+    DISCUSSION_TITLE: context2.discussion.title,
+    DISCUSSION_BODY: context2.discussion.body
   };
   return [
     {
       type: "runClaude",
       token: "code",
-      promptDir: "discussion-summarize",
+      promptDir: "summarize",
       promptVars,
-      issueNumber: discussion.number
+      issueNumber: context2.discussion.number
     },
     {
       type: "applyDiscussionSummarizeOutput",
       token: "code",
-      discussionNumber: discussion.number,
-      discussionNodeId: discussion.nodeId
+      discussionNumber: context2.discussion.number,
+      discussionNodeId: context2.discussion.nodeId
     }
   ];
 }
 function emitRunClaudePlan({ context: context2 }) {
-  const { discussion } = context2;
   const promptVars = {
-    DISCUSSION_NUMBER: String(discussion.number),
-    DISCUSSION_NODE_ID: discussion.nodeId,
-    DISCUSSION_TITLE: discussion.title,
-    DISCUSSION_BODY: discussion.body
+    DISCUSSION_NUMBER: String(context2.discussion.number),
+    DISCUSSION_NODE_ID: context2.discussion.nodeId,
+    DISCUSSION_TITLE: context2.discussion.title,
+    DISCUSSION_BODY: context2.discussion.body
   };
   return [
     {
       type: "runClaude",
       token: "code",
-      promptDir: "discussion-plan",
+      promptDir: "plan",
       promptVars,
-      issueNumber: discussion.number
+      issueNumber: context2.discussion.number
     },
     {
       type: "applyDiscussionPlanOutput",
       token: "code",
-      discussionNumber: discussion.number,
-      discussionNodeId: discussion.nodeId
+      discussionNumber: context2.discussion.number,
+      discussionNodeId: context2.discussion.nodeId
     }
   ];
 }
 function emitComplete({ context: context2 }) {
-  const { discussion } = context2;
   const actions = [];
-  if (discussion.commentId) {
+  if (context2.discussion.commentId) {
     actions.push({
       type: "addDiscussionReaction",
       token: "code",
-      subjectId: discussion.commentId,
+      subjectId: context2.discussion.commentId,
       content: "ROCKET"
     });
   }
   actions.push({
     type: "addDiscussionComment",
     token: "code",
-    discussionNodeId: discussion.nodeId,
+    discussionNodeId: context2.discussion.nodeId,
     body: `This discussion has been marked as complete.
 
 If you have additional questions, feel free to post a new comment!`
@@ -34284,7 +34770,7 @@ function emitLogCompleting({ context: context2 }) {
   ];
 }
 
-// issue/actions-ts/state-machine/machine/discussion-machine.ts
+// discussion/actions-ts/state-machine/machine/machine.ts
 function accumulateActions2(existingActions, newActions) {
   return [...existingActions, ...newActions];
 }
@@ -34306,7 +34792,9 @@ var discussionMachine = setup({
     // Author guards
     isHumanComment: ({ context: context2 }) => discussionGuards.isHumanComment({ context: context2 }),
     isBotResearchThread: ({ context: context2 }) => discussionGuards.isBotResearchThread({ context: context2 }),
-    // Combined guards
+    // State guards
+    hasDiscussionContext: ({ context: context2 }) => discussionGuards.hasDiscussionContext({ context: context2 }),
+    noDiscussionContext: ({ context: context2 }) => !discussionGuards.hasDiscussionContext({ context: context2 }),
     isHumanDiscussionComment: ({ context: context2 }) => discussionGuards.triggeredByDiscussionComment({ context: context2 }) && discussionGuards.isHumanComment({ context: context2 })
   },
   actions: {
@@ -34358,6 +34846,16 @@ var discussionMachine = setup({
         }
       ])
     }),
+    logNoContext: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions2(context2.pendingActions, [
+        {
+          type: "log",
+          token: "code",
+          level: "warning",
+          message: "No discussion context available"
+        }
+      ])
+    }),
     // Research actions
     runClaudeResearch: assign({
       pendingActions: ({ context: context2 }) => accumulateActions2(
@@ -34401,13 +34899,15 @@ var discussionMachine = setup({
   states: {
     /**
      * Initial state - determine what to do based on trigger type
-     *
-     * With DiscussionContext, discussion is always present (required field),
-     * so we no longer need a noContext fallback state.
      */
     detecting: {
       entry: "logDetecting",
       always: [
+        // No discussion context - error
+        {
+          target: "noContext",
+          guard: "noDiscussionContext"
+        },
         // New discussion created - spawn research threads
         {
           target: "researching",
@@ -34431,6 +34931,13 @@ var discussionMachine = setup({
         // Default - skip (unknown trigger)
         { target: "skipped" }
       ]
+    },
+    /**
+     * No discussion context available
+     */
+    noContext: {
+      entry: "logNoContext",
+      type: "final"
     },
     /**
      * Skipped - no action needed
@@ -34490,404 +34997,402 @@ var discussionMachine = setup({
   }
 });
 
-// issue/actions-ts/state-machine/index.ts
+// discussion/actions-ts/state-machine/runner/runner.ts
+var core4 = __toESM(require_core(), 1);
+var github = __toESM(require_github(), 1);
+
+// discussion/actions-ts/state-machine/runner/executors/discussions.ts
+var core2 = __toESM(require_core(), 1);
+
+// discussion/actions-ts/state-machine/runner/executors/discussion-apply.ts
+var core3 = __toESM(require_core(), 1);
+
+// discussion/actions-ts/state-machine/context-builder.ts
+var core5 = __toESM(require_core(), 1);
+var github2 = __toESM(require_github(), 1);
+var GET_DISCUSSION_QUERY = `
+query GetDiscussion($owner: String!, $repo: String!, $number: Int!) {
+  repository(owner: $owner, name: $repo) {
+    discussion(number: $number) {
+      id
+      number
+      title
+      body
+      comments(first: 100) {
+        totalCount
+        nodes {
+          id
+          body
+          author {
+            login
+          }
+          replies(first: 100) {
+            totalCount
+          }
+        }
+      }
+    }
+  }
+}
+`;
+async function buildDiscussionContext2(octokit, owner, repo, discussionNumber, trigger, options = {}) {
+  try {
+    core5.info(`Fetching discussion #${discussionNumber}`);
+    const response = await octokit.graphql(
+      GET_DISCUSSION_QUERY,
+      {
+        owner,
+        repo,
+        number: discussionNumber
+      }
+    );
+    const discussionData = response.repository?.discussion;
+    if (!discussionData || !discussionData.id) {
+      core5.error(`Discussion #${discussionNumber} not found`);
+      return null;
+    }
+    const researchThreads = [];
+    const botUsername = options.botUsername ?? "nopo-bot";
+    for (const comment of discussionData.comments?.nodes ?? []) {
+      if (!comment?.id || !comment?.body) continue;
+      const author = comment.author?.login;
+      const isBot = author === botUsername || author === "claude[bot]" || author?.endsWith("[bot]");
+      if (isBot && comment.body.startsWith("## ")) {
+        const topicMatch = comment.body.match(/^## (.+?)(?:\n|$)/);
+        const topic = topicMatch?.[1] ?? "Research";
+        researchThreads.push({
+          nodeId: comment.id,
+          topic,
+          replyCount: comment.replies?.totalCount ?? 0
+        });
+      }
+    }
+    const discussion = {
+      number: discussionData.number ?? discussionNumber,
+      nodeId: discussionData.id,
+      title: discussionData.title ?? "",
+      body: discussionData.body ?? "",
+      commentCount: discussionData.comments?.totalCount ?? 0,
+      researchThreads,
+      command: options.command,
+      commentId: options.commentId,
+      commentBody: options.commentBody,
+      commentAuthor: options.commentAuthor
+    };
+    core5.info(`Discussion fetched: "${discussion.title}"`);
+    core5.info(`Comments: ${discussion.commentCount}`);
+    core5.info(`Research threads: ${researchThreads.length}`);
+    return createDiscussionContext3({
+      trigger,
+      owner,
+      repo,
+      discussion,
+      maxRetries: options.maxRetries,
+      botUsername: options.botUsername
+    });
+  } catch (error3) {
+    const errorMessage = error3 instanceof Error ? error3.message : String(error3);
+    core5.error(`Failed to build discussion context: ${errorMessage}`);
+    return null;
+  }
+}
+
+// actions-ts/router/index.ts
+function parseDiscussionCommand(body) {
+  const trimmed = body.trim();
+  if (trimmed === "/summarize") return "summarize";
+  if (trimmed === "/plan") return "plan";
+  if (trimmed === "/complete") return "complete";
+  return void 0;
+}
 function getTransitionName(finalState) {
   const stateNames = {
-    // Triage flow
+    // Issue states - Triage flow
     triaging: "Triage",
-    // Comment flow
+    // Issue states - Reset flow
+    resetting: "Reset",
+    // Issue states - Comment flow
     commenting: "Comment",
-    // PR review flows
+    // Issue states - PR review flows
     prReviewing: "PR Review",
     prResponding: "PR Response",
     prRespondingHuman: "PR Human Response",
-    // Orchestration flows
+    prPush: "PR Push",
+    // Issue states - Orchestration flows
     orchestrationRunning: "Orchestrate",
     orchestrationWaiting: "Wait (Review)",
     orchestrationComplete: "Complete Phases",
-    // Iteration flows
+    // Issue states - Iteration flows
     iterating: "Iterate",
     iteratingFix: "Fix CI",
-    // Review/transition flows
+    // Issue states - Review/transition flows
     reviewing: "In Review",
     transitioningToReview: "Request Review",
-    // Terminal states
+    // Issue states - Terminal states
     blocked: "Blocked",
     error: "Error",
     done: "Done",
-    // Merge queue logging states
+    // Issue states - Merge queue logging states
     mergeQueueLogging: "Log Queue Entry",
     mergeQueueFailureLogging: "Log Queue Failure",
     mergedLogging: "Log Merged",
     deployedStageLogging: "Log Stage Deploy",
     deployedProdLogging: "Log Prod Deploy",
-    // Early detection states
+    // Issue states - Early detection states
     alreadyDone: "Already Done",
-    alreadyBlocked: "Already Blocked"
+    alreadyBlocked: "Already Blocked",
+    // Discussion states
+    detecting: "Detecting",
+    researching: "Research",
+    responding: "Respond",
+    commanding: "Command",
+    summarizing: "Summarize",
+    planning: "Plan",
+    completing: "Complete",
+    skipped: "Skipped",
+    noContext: "No Context"
   };
   return stateNames[finalState] || finalState;
-}
-function parseTrigger(input) {
-  const validTriggers = [
-    "issue_assigned",
-    "issue_edited",
-    "issue_closed",
-    "issue_triage",
-    "issue_orchestrate",
-    "issue_comment",
-    "pr_review_requested",
-    "pr_review_submitted",
-    "pr_review",
-    "pr_review_approved",
-    "pr_response",
-    "pr_human_response",
-    "pr_push",
-    "workflow_run_completed",
-    // Merge queue logging triggers
-    "merge_queue_entered",
-    "merge_queue_failed",
-    "pr_merged",
-    "deployed_stage",
-    "deployed_prod"
-  ];
-  if (validTriggers.includes(input)) {
-    return input;
-  }
-  throw new Error(`Invalid trigger type: ${input}`);
-}
-function parseCIResult(input) {
-  if (!input) return null;
-  const validResults = [
-    "success",
-    "failure",
-    "cancelled",
-    "skipped"
-  ];
-  if (validResults.includes(input)) {
-    return input;
-  }
-  return null;
-}
-function parseReviewDecision(input) {
-  if (!input) return null;
-  const validDecisions = [
-    "APPROVED",
-    "CHANGES_REQUESTED",
-    "COMMENTED",
-    "DISMISSED"
-  ];
-  if (validDecisions.includes(input)) {
-    return input;
-  }
-  return null;
-}
-function buildEventFromInputs(owner, repo, trigger, issueNumber, options) {
-  const base = { owner, repo };
-  switch (trigger) {
-    case "issue_assigned":
-      return {
-        ...base,
-        type: "issue_assigned",
-        issueNumber,
-        assignee: "nopo-bot"
-      };
-    case "issue_edited":
-      return {
-        ...base,
-        type: "issue_edited",
-        issueNumber
-      };
-    case "issue_closed":
-      return {
-        ...base,
-        type: "issue_closed",
-        issueNumber
-      };
-    case "workflow_run_completed":
-      return {
-        ...base,
-        type: "workflow_run_completed",
-        workflowName: "CI",
-        runId: 0,
-        runUrl: options.ciRunUrl || "",
-        headRef: "",
-        headSha: options.ciCommitSha || "",
-        result: options.ciResult || "success",
-        issueNumber
-      };
-    case "pr_review_submitted":
-      return {
-        ...base,
-        type: "pr_review_submitted",
-        prNumber: 0,
-        issueNumber,
-        reviewId: 0,
-        reviewer: options.reviewer || "",
-        decision: options.reviewDecision || "COMMENTED",
-        headRef: "",
-        baseRef: "main"
-      };
-    case "pr_review_requested":
-      return {
-        ...base,
-        type: "pr_review_requested",
-        prNumber: 0,
-        issueNumber,
-        requestedReviewer: "nopo-bot",
-        headRef: "",
-        baseRef: "main",
-        isDraft: false
-      };
-    case "pr_push":
-      return {
-        ...base,
-        type: "pr_push",
-        prNumber: 0,
-        issueNumber,
-        headRef: "",
-        commitSha: options.ciCommitSha || "",
-        wasDraft: false,
-        isNowDraft: false
-      };
-    case "issue_comment":
-      return {
-        ...base,
-        type: "issue_comment",
-        issueNumber,
-        commentId: 0,
-        commentBody: "",
-        author: "",
-        isPR: false
-      };
-    case "issue_triage":
-      return {
-        ...base,
-        type: "issue_edited",
-        issueNumber
-      };
-    case "issue_orchestrate":
-      return {
-        ...base,
-        type: "issue_edited",
-        issueNumber
-      };
-    case "pr_review":
-      return {
-        ...base,
-        type: "pr_review_requested",
-        prNumber: 0,
-        // Will be derived from branch
-        issueNumber,
-        requestedReviewer: "nopo-bot",
-        headRef: "",
-        baseRef: "main",
-        isDraft: false
-      };
-    case "pr_review_approved":
-      return {
-        ...base,
-        type: "pr_review_submitted",
-        prNumber: 0,
-        issueNumber,
-        reviewId: 0,
-        reviewer: "nopo-reviewer",
-        decision: "APPROVED",
-        headRef: "",
-        baseRef: "main"
-      };
-    case "pr_response":
-      return {
-        ...base,
-        type: "pr_review_submitted",
-        prNumber: 0,
-        issueNumber,
-        reviewId: 0,
-        reviewer: "claude[bot]",
-        // Response to bot's own review
-        decision: options.reviewDecision || "CHANGES_REQUESTED",
-        headRef: "",
-        baseRef: "main"
-      };
-    case "pr_human_response":
-      return {
-        ...base,
-        type: "pr_review_submitted",
-        prNumber: 0,
-        issueNumber,
-        reviewId: 0,
-        reviewer: options.reviewer || "",
-        // Human reviewer
-        decision: options.reviewDecision || "CHANGES_REQUESTED",
-        headRef: "",
-        baseRef: "main"
-      };
-    // Merge queue logging triggers
-    case "merge_queue_entered":
-      return {
-        ...base,
-        type: "merge_queue_entered",
-        prNumber: 0,
-        // Will be in context
-        issueNumber,
-        headRef: ""
-      };
-    case "merge_queue_failed":
-      return {
-        ...base,
-        type: "merge_queue_failed",
-        prNumber: 0,
-        issueNumber,
-        failureReason: options.ciRunUrl ? "See run link for details" : "Unknown failure"
-      };
-    case "pr_merged":
-      return {
-        ...base,
-        type: "pr_merged",
-        prNumber: 0,
-        issueNumber,
-        commitSha: options.ciCommitSha || ""
-      };
-    case "deployed_stage":
-      return {
-        ...base,
-        type: "deployed_stage",
-        issueNumber,
-        commitSha: options.ciCommitSha || ""
-      };
-    case "deployed_prod":
-      return {
-        ...base,
-        type: "deployed_prod",
-        issueNumber,
-        commitSha: options.ciCommitSha || ""
-      };
-    default:
-      throw new Error(`Unsupported trigger type: ${trigger}`);
-  }
 }
 async function run() {
   try {
     const mode = getOptionalInput("mode") || "derive";
     const token = getRequiredInput("github_token");
-    const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
     const projectNumber = parseInt(getRequiredInput("project_number"), 10);
-    const triggerInput = mode === "context" ? getOptionalInput("trigger") || "issue_edited" : getRequiredInput("trigger");
-    const trigger = parseTrigger(triggerInput);
-    const ciResult = parseCIResult(getOptionalInput("ci_result"));
-    const ciRunUrl = getOptionalInput("ci_run_url") || null;
-    const ciCommitSha = getOptionalInput("ci_commit_sha") || null;
-    const reviewDecision = parseReviewDecision(
-      getOptionalInput("review_decision")
-    );
-    const reviewer = getOptionalInput("reviewer") || null;
-    const commentContextType = getOptionalInput(
-      "comment_context_type"
-    )?.toLowerCase() || null;
-    const commentContextDescription = getOptionalInput("comment_context_description") || null;
-    const inputBranch = getOptionalInput("branch") || null;
     const maxRetries = parseInt(getOptionalInput("max_retries") || "5", 10);
     const botUsername = getOptionalInput("bot_username") || "nopo-bot";
-    const workflowStartedAt = getOptionalInput("workflow_started_at") || (/* @__PURE__ */ new Date()).toISOString();
-    core2.info(`Claude State Machine starting...`);
-    core2.info(`Mode: ${mode}`);
-    core2.info(`Issue: #${issueNumber}`);
-    core2.info(`Project: ${projectNumber}`);
-    core2.info(`Trigger: ${trigger}`);
-    const octokit = github.getOctokit(token);
-    const { owner, repo } = github.context.repo;
-    const event = buildEventFromInputs(owner, repo, trigger, issueNumber, {
+    const contextJsonInput = getRequiredInput("context_json");
+    const ctx = parseRunnerContext(contextJsonInput);
+    const trigger = ctx.trigger;
+    core6.info(`Router received context_json with trigger: ${trigger}`);
+    core6.info(`Job: ${ctx.job}, Resource: ${ctx.resource_type} #${ctx.resource_number}`);
+    const octokit = github3.getOctokit(token);
+    const { owner, repo } = github3.context.repo;
+    if (isDiscussionTrigger(trigger)) {
+      await runDiscussionMachine({
+        mode,
+        trigger,
+        ctx,
+        octokit,
+        owner,
+        repo,
+        maxRetries,
+        botUsername
+      });
+      return;
+    }
+    await runIssueMachine({
+      mode,
+      trigger,
+      ctx,
+      octokit,
+      owner,
+      repo,
+      projectNumber,
+      maxRetries,
+      botUsername
+    });
+  } catch (error3) {
+    if (error3 instanceof Error) {
+      core6.setFailed(error3.message);
+    } else {
+      core6.setFailed("An unexpected error occurred");
+    }
+  }
+}
+async function runDiscussionMachine(options) {
+  const { mode, trigger, ctx, octokit, owner, repo, maxRetries, botUsername } = options;
+  const discussionNumber = parseInt(ctx.discussion_number || "0", 10);
+  const commentId = ctx.comment_id || void 0;
+  const commentBody = ctx.comment_body || void 0;
+  const commentAuthor = ctx.comment_author || void 0;
+  core6.info(`Claude Discussion Machine starting...`);
+  core6.info(`Mode: ${mode}`);
+  core6.info(`Discussion: #${discussionNumber}`);
+  core6.info(`Trigger: ${trigger}`);
+  let command = ctx.command;
+  if (!command && commentBody) {
+    command = parseDiscussionCommand(commentBody);
+  }
+  const context2 = await buildDiscussionContext2(
+    octokit,
+    owner,
+    repo,
+    discussionNumber,
+    trigger,
+    {
+      commentId,
+      commentBody,
+      commentAuthor,
+      command,
+      maxRetries,
+      botUsername
+    }
+  );
+  if (!context2) {
+    core6.setFailed(
+      `Failed to build discussion context for discussion #${discussionNumber}`
+    );
+    return;
+  }
+  core6.info(`Discussion context built successfully`);
+  core6.info(`Discussion title: ${context2.discussion.title}`);
+  core6.info(`Comment count: ${context2.discussion.commentCount}`);
+  if (mode === "context") {
+    core6.info("Context-only mode - skipping state machine");
+    core6.startGroup("Context JSON");
+    core6.info(JSON.stringify(context2, null, 2));
+    core6.endGroup();
+    setOutputs({
+      actions_json: "[]",
+      final_state: "context_only",
+      transition_name: "Context Only",
+      context_json: JSON.stringify(context2),
+      action_count: "0",
+      discussion_number: String(discussionNumber)
+    });
+    return;
+  }
+  const actor = createActor(discussionMachine, { input: context2 });
+  actor.start();
+  const snapshot = actor.getSnapshot();
+  const finalState = String(snapshot.value);
+  const pendingActions = snapshot.context.pendingActions;
+  const transitionName = getTransitionName(finalState);
+  core6.info(`Machine final state: ${finalState}`);
+  core6.info(`Transition: ${transitionName}`);
+  core6.info(`Derived actions: ${pendingActions.length}`);
+  if (pendingActions.length > 0) {
+    const actionTypes = pendingActions.map((a) => a.type);
+    core6.info(`Action types: ${actionTypes.join(", ")}`);
+  }
+  setOutputs({
+    actions_json: JSON.stringify(pendingActions),
+    final_state: finalState,
+    transition_name: transitionName,
+    context_json: JSON.stringify(context2),
+    action_count: String(pendingActions.length),
+    discussion_number: String(discussionNumber)
+  });
+  actor.stop();
+}
+async function runIssueMachine(options) {
+  const {
+    mode,
+    trigger,
+    ctx,
+    octokit,
+    owner,
+    repo,
+    projectNumber,
+    maxRetries,
+    botUsername
+  } = options;
+  const issueNumber = parseInt(ctx.issue_number || "0", 10);
+  const ciResult = ctx.ci_result || null;
+  const ciRunUrl = ctx.ci_run_url || null;
+  const ciCommitSha = ctx.ci_commit_sha || null;
+  const reviewDecision = ctx.review_decision || null;
+  const reviewer = ctx.reviewer || ctx.reviewer_login || null;
+  const commentContextType = ctx.context_type?.toLowerCase() || null;
+  const commentContextDescription = ctx.context_description || null;
+  const inputBranch = ctx.branch_name || null;
+  const workflowStartedAt = (/* @__PURE__ */ new Date()).toISOString();
+  core6.info(`Claude Issue State Machine starting...`);
+  core6.info(`Mode: ${mode}`);
+  core6.info(`Issue: #${issueNumber}`);
+  core6.info(`Project: ${projectNumber}`);
+  core6.info(`Trigger: ${trigger}`);
+  const context2 = await buildMachineContext(
+    octokit,
+    owner,
+    repo,
+    issueNumber,
+    trigger,
+    {
       ciResult,
       ciRunUrl,
       ciCommitSha,
       reviewDecision,
-      reviewer
-    });
-    const context2 = await buildMachineContext(octokit, event, projectNumber, {
-      maxRetries,
-      botUsername,
-      commentContextType: commentContextType || null,
+      reviewer,
+      commentContextType,
       commentContextDescription,
       branch: inputBranch,
-      triggerOverride: trigger,
-      ciRunUrl,
-      // Pass through for merge queue/release logging
-      workflowStartedAt
-    });
-    if (!context2) {
-      core2.setFailed(
-        `Failed to build machine context for issue #${issueNumber}`
-      );
-      return;
+      maxRetries,
+      botUsername,
+      workflowStartedAt,
+      projectNumber
     }
-    core2.info(`Context built successfully`);
-    core2.info(`Issue status: ${context2.issue.projectStatus}`);
-    core2.info(
-      `Sub-issues: ${context2.issue.hasSubIssues ? context2.issue.subIssues.length : 0}`
-    );
-    core2.info(`Current phase: ${context2.currentPhase || "N/A"}`);
-    core2.info(`Iteration: ${context2.issue.iteration}`);
-    const iteration = String(context2.issue.iteration ?? 0);
-    const phase = context2.currentPhase !== null ? String(context2.currentPhase) : "-";
-    const parentIssueNumber = String(
-      context2.parentIssue?.number || context2.issue.number
-    );
-    const subIssueNumber = context2.currentSubIssue?.number ? String(context2.currentSubIssue.number) : "";
-    if (mode === "context") {
-      core2.info("Context-only mode - skipping state machine");
-      core2.startGroup("Context JSON");
-      core2.info(JSON.stringify(context2, null, 2));
-      core2.endGroup();
-      setOutputs({
-        actions_json: "[]",
-        final_state: "context_only",
-        transition_name: "Context Only",
-        context_json: JSON.stringify(context2),
-        action_count: "0",
-        iteration,
-        phase,
-        parent_issue_number: parentIssueNumber,
-        pr_number: context2.pr?.number ? String(context2.pr.number) : "",
-        commit_sha: context2.ciCommitSha || "",
-        sub_issue_number: subIssueNumber
-      });
-      return;
-    }
-    const actor = createActor(claudeMachine, { input: context2 });
-    actor.start();
-    const snapshot = actor.getSnapshot();
-    const finalState = String(snapshot.value);
-    const pendingActions = snapshot.context.pendingActions;
-    const transitionName = getTransitionName(finalState);
-    core2.info(`Machine final state: ${finalState}`);
-    core2.info(`Transition: ${transitionName}`);
-    core2.info(`Derived actions: ${pendingActions.length}`);
-    if (pendingActions.length > 0) {
-      const actionTypes = pendingActions.map((a) => a.type);
-      core2.info(`Action types: ${actionTypes.join(", ")}`);
-    }
-    const prNumber = context2.pr?.number ? String(context2.pr.number) : "";
-    const commitSha = context2.ciCommitSha || "";
+  );
+  if (!context2) {
+    core6.setFailed(`Failed to build machine context for issue #${issueNumber}`);
+    return;
+  }
+  core6.info(`Context built successfully`);
+  core6.info(`Issue status: ${context2.issue.projectStatus}`);
+  core6.info(
+    `Sub-issues: ${context2.issue.hasSubIssues ? context2.issue.subIssues.length : 0}`
+  );
+  core6.info(`Current phase: ${context2.currentPhase || "N/A"}`);
+  core6.info(`Iteration: ${context2.issue.iteration}`);
+  const iteration = String(context2.issue.iteration ?? 0);
+  const phase = context2.currentPhase !== null ? String(context2.currentPhase) : "-";
+  const parentIssueNumber = String(
+    context2.parentIssue?.number || context2.issue.number
+  );
+  const subIssueNumber = context2.currentSubIssue?.number ? String(context2.currentSubIssue.number) : "";
+  const agentNotes = formatAgentNotesForPrompt(context2.issue.agentNotes);
+  if (mode === "context") {
+    core6.info("Context-only mode - skipping state machine");
+    core6.startGroup("Context JSON");
+    core6.info(JSON.stringify(context2, null, 2));
+    core6.endGroup();
     setOutputs({
-      actions_json: JSON.stringify(pendingActions),
-      final_state: finalState,
-      transition_name: transitionName,
+      actions_json: "[]",
+      final_state: "context_only",
+      transition_name: "Context Only",
       context_json: JSON.stringify(context2),
-      action_count: String(pendingActions.length),
+      action_count: "0",
       iteration,
       phase,
       parent_issue_number: parentIssueNumber,
-      pr_number: prNumber,
-      commit_sha: commitSha,
-      sub_issue_number: subIssueNumber
+      pr_number: context2.pr?.number ? String(context2.pr.number) : "",
+      commit_sha: context2.ciCommitSha || "",
+      sub_issue_number: subIssueNumber,
+      agent_notes: agentNotes
     });
-    actor.stop();
-  } catch (error) {
-    if (error instanceof Error) {
-      core2.setFailed(error.message);
-    } else {
-      core2.setFailed("An unexpected error occurred");
-    }
+    return;
   }
+  const actor = createActor(claudeMachine, { input: context2 });
+  actor.start();
+  const snapshot = actor.getSnapshot();
+  const finalState = String(snapshot.value);
+  const pendingActions = snapshot.context.pendingActions;
+  const transitionName = getTransitionName(finalState);
+  core6.info(`Machine final state: ${finalState}`);
+  core6.info(`Transition: ${transitionName}`);
+  core6.info(`Derived actions: ${pendingActions.length}`);
+  if (pendingActions.length > 0) {
+    const actionTypes = pendingActions.map((a) => a.type);
+    core6.info(`Action types: ${actionTypes.join(", ")}`);
+  }
+  const prNumber = context2.pr?.number ? String(context2.pr.number) : "";
+  const commitSha = context2.ciCommitSha || "";
+  setOutputs({
+    actions_json: JSON.stringify(pendingActions),
+    final_state: finalState,
+    transition_name: transitionName,
+    context_json: JSON.stringify(context2),
+    action_count: String(pendingActions.length),
+    iteration,
+    phase,
+    parent_issue_number: parentIssueNumber,
+    pr_number: prNumber,
+    commit_sha: commitSha,
+    sub_issue_number: subIssueNumber,
+    agent_notes: agentNotes
+  });
+  actor.stop();
 }
 run();
 /*! Bundled license information:

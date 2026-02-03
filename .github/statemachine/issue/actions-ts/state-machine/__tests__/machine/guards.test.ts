@@ -583,45 +583,45 @@ describe("Assignment Guards", () => {
 describe("Trigger Guards", () => {
   describe("triggeredByAssignment", () => {
     test("returns true for issue_assigned trigger", () => {
-      const context = createContext({ trigger: "issue_assigned" });
+      const context = createContext({ trigger: "issue-assigned" });
       expect(triggeredByAssignment({ context })).toBe(true);
     });
 
     test("returns false for other triggers", () => {
-      const context = createContext({ trigger: "issue_edited" });
+      const context = createContext({ trigger: "issue-edited" });
       expect(triggeredByAssignment({ context })).toBe(false);
     });
   });
 
   describe("triggeredByEdit", () => {
     test("returns true for issue_edited trigger", () => {
-      const context = createContext({ trigger: "issue_edited" });
+      const context = createContext({ trigger: "issue-edited" });
       expect(triggeredByEdit({ context })).toBe(true);
     });
   });
 
   describe("triggeredByCI", () => {
     test("returns true for workflow_run_completed trigger", () => {
-      const context = createContext({ trigger: "workflow_run_completed" });
+      const context = createContext({ trigger: "workflow-run-completed" });
       expect(triggeredByCI({ context })).toBe(true);
     });
   });
 
   describe("triggeredByReview", () => {
     test("returns true for pr_review_submitted trigger", () => {
-      const context = createContext({ trigger: "pr_review_submitted" });
+      const context = createContext({ trigger: "pr-review-submitted" });
       expect(triggeredByReview({ context })).toBe(true);
     });
   });
 
   describe("triggeredByTriage", () => {
     test("returns true for issue_triage trigger", () => {
-      const context = createContext({ trigger: "issue_triage" });
+      const context = createContext({ trigger: "issue-triage" });
       expect(triggeredByTriage({ context })).toBe(true);
     });
 
     test("returns false for other triggers", () => {
-      const context = createContext({ trigger: "issue_assigned" });
+      const context = createContext({ trigger: "issue-assigned" });
       expect(triggeredByTriage({ context })).toBe(false);
     });
   });

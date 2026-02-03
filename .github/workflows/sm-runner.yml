@@ -12,72 +12,14 @@ name: Claude Runner
 on:
   workflow_call:
     inputs:
-      trigger:
-        description: Event trigger type (issue_assigned, issue_edited, workflow_run_completed, pr_review_submitted, etc.)
+      context_json:
+        description: |
+          Unified JSON context from detect-event containing all routing and resource info.
+          Includes: job, trigger, resource_type, resource_number, parent_issue, comment_id,
+          concurrency_group, cancel_in_progress, skip, skip_reason, plus context-specific
+          fields (issue_number, branch_name, ci_result, etc.)
         required: true
         type: string
-      issue_number:
-        description: Issue number to process
-        required: true
-        type: string
-      parent_issue_number:
-        description: Parent issue number for history entries (defaults to issue_number if not provided)
-        required: false
-        type: string
-        default: ''
-      ci_result:
-        description: CI result (success, failure) - required for workflow_run_completed trigger
-        required: false
-        type: string
-      ci_run_url:
-        description: CI run URL - for workflow_run_completed trigger
-        required: false
-        type: string
-      ci_commit_sha:
-        description: CI commit SHA - for workflow_run_completed trigger
-        required: false
-        type: string
-      review_decision:
-        description: Review decision (APPROVED, CHANGES_REQUESTED, COMMENTED) - for pr_review_submitted trigger
-        required: false
-        type: string
-      reviewer:
-        description: Reviewer username - for pr_review_submitted trigger
-        required: false
-        type: string
-      comment_context_type:
-        description: Context type (Issue or PR) - for issue_comment trigger
-        required: false
-        type: string
-      comment_context_description:
-        description: Context description - for issue_comment trigger
-        required: false
-        type: string
-      branch:
-        description: Branch name for the work - for issue_comment trigger
-        required: false
-        type: string
-      # Status signaling inputs
-      job:
-        description: Job name for status comments (e.g., 'issue-iterate', 'pr-review')
-        required: false
-        type: string
-        default: ''
-      resource_type:
-        description: Resource type for status comments ('issue' or 'pr')
-        required: false
-        type: string
-        default: 'issue'
-      resource_number:
-        description: Resource number (issue or PR number) for status comments
-        required: false
-        type: string
-        default: '0'
-      comment_id:
-        description: Comment ID that triggered this run (for reactions)
-        required: false
-        type: string
-        default: ''
       dry_run:
         description: Run in dry-run mode (log actions without executing)
         required: false
@@ -88,11 +30,6 @@ on:
         required: false
         type: boolean
         default: true
-      skip_bookend_logs:
-        description: Skip log-run-start/end jobs (use for logging-only triggers like merge queue)
-        required: false
-        type: boolean
-        default: false
     outputs:
       final_state:
         description: Final state after machine execution
@@ -114,6 +51,10 @@ permissions:
   actions: write  # Required for gh workflow run (retrigger)
   id-token: write
 
+# Extract commonly used fields from context_json for readability
+# These are available as: ${{ fromJson(inputs.context_json).field_name }}
+# Or use the ctx alias defined in env blocks
+
 jobs:
   # ============================================================================
   # Phase 0: E2E MODE DETECTION
@@ -131,7 +72,7 @@ jobs:
       - name: Checkout for config file
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.branch || 'main' }}
+          ref: ${{ fromJson(inputs.context_json).branch_name || 'main' }}
           sparse-checkout: .github/e2e-test-config.json
           sparse-checkout-cone-mode: false
         continue-on-error: true
@@ -140,8 +81,8 @@ jobs:
         id: commit
         env:
           GH_TOKEN: ${{ github.token }}
-          ISSUE_NUMBER: ${{ inputs.issue_number }}
-          BRANCH: ${{ inputs.branch }}
+          ISSUE_NUMBER: ${{ fromJson(inputs.context_json).issue_number }}
+          BRANCH: ${{ fromJson(inputs.context_json).branch_name }}
         run: |
           # Try to get commit message from PR associated with the issue
           if [[ -n "$BRANCH" ]]; then
@@ -242,13 +183,12 @@ jobs:
 
       - name: Fetch Context
         id: context
-        uses: ./.github/statemachine/issue/actions-ts/state-machine
+        uses: ./.github/statemachine/actions-ts/router
         with:
           mode: context
           github_token: ${{ secrets.NOPO_BOT_PAT }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
-          issue_number: ${{ inputs.issue_number }}
-          trigger: ${{ inputs.trigger }}
+          context_json: ${{ inputs.context_json }}
 
   # ============================================================================
   # Phase 0b: Log Run Start
@@ -256,7 +196,7 @@ jobs:
   # ============================================================================
   log-run-start:
     needs: [derive-context]
-    if: ${{ !inputs.skip_bookend_logs }}
+    if: ${{ fromJson(inputs.context_json).job != 'merge-queue-logging' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -275,7 +215,7 @@ jobs:
           actions_json: |
             [{
               "type": "appendHistory",
-              "issueNumber": ${{ needs.derive-context.outputs.parent_issue_number || inputs.parent_issue_number || inputs.issue_number }},
+              "issueNumber": ${{ needs.derive-context.outputs.parent_issue_number || fromJson(inputs.context_json).parent_issue || fromJson(inputs.context_json).issue_number }},
               "iteration": ${{ needs.derive-context.outputs.iteration || 0 }},
               "phase": "${{ needs.derive-context.outputs.phase || '-' }}",
               "message": "⏳ running...",
@@ -301,12 +241,13 @@ jobs:
       parent_issue_number: ${{ steps.machine.outputs.parent_issue_number }}
       pr_number: ${{ steps.machine.outputs.pr_number }}
       commit_sha: ${{ steps.machine.outputs.commit_sha }}
+      agent_notes: ${{ steps.machine.outputs.agent_notes }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.branch || 'main' }}
+          ref: ${{ fromJson(inputs.context_json).branch_name || 'main' }}
           fetch-depth: 1
 
       - name: Setup Node.js
@@ -314,22 +255,13 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Derive Actions (State Machine)
+      - name: Derive Actions (State Machine Router)
         id: machine
-        uses: ./.github/statemachine/issue/actions-ts/state-machine
+        uses: ./.github/statemachine/actions-ts/router
         with:
           github_token: ${{ secrets.NOPO_BOT_PAT }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
-          issue_number: ${{ inputs.issue_number }}
-          trigger: ${{ inputs.trigger }}
-          ci_result: ${{ inputs.ci_result }}
-          ci_run_url: ${{ inputs.ci_run_url }}
-          ci_commit_sha: ${{ inputs.ci_commit_sha }}
-          review_decision: ${{ inputs.review_decision }}
-          reviewer: ${{ inputs.reviewer }}
-          comment_context_type: ${{ inputs.comment_context_type }}
-          comment_context_description: ${{ inputs.comment_context_description }}
-          branch: ${{ inputs.branch }}
+          context_json: ${{ inputs.context_json }}
           max_retries: ${{ vars.MAX_CLAUDE_RETRIES || '5' }}
 
       - name: Format Actions Matrix
@@ -356,8 +288,8 @@ jobs:
           TRANSITION_NAME: ${{ steps.machine.outputs.transition_name }}
           ACTION_COUNT: ${{ steps.machine.outputs.action_count }}
           ACTIONS_JSON: ${{ steps.machine.outputs.actions_json }}
-          ISSUE_NUMBER: ${{ inputs.issue_number }}
-          TRIGGER: ${{ inputs.trigger }}
+          ISSUE_NUMBER: ${{ fromJson(inputs.context_json).issue_number }}
+          TRIGGER: ${{ fromJson(inputs.context_json).trigger }}
           DRY_RUN: ${{ inputs.dry_run }}
         run: |
           dry_run_badge=""
@@ -404,7 +336,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           # For branch-dependent actions, checkout the appropriate branch
-          ref: ${{ matrix.action.worktree || inputs.branch || 'main' }}
+          ref: ${{ matrix.action.worktree || fromJson(inputs.context_json).branch_name || 'main' }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -468,57 +400,9 @@ jobs:
 
           echo "✅ E2E simulated review submitted: $event"
 
-      # Fetch previous agent notes from issue body
-      - name: Fetch agent notes from issue body
-        id: fetch-notes
-        if: |
-          matrix.action.type == 'runClaude' &&
-          !inputs.dry_run &&
-          needs.e2e-detect.outputs.e2e_mode != 'true'
-        env:
-          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
-          ISSUE_NUMBER: ${{ inputs.issue_number }}
-        run: |
-          # Fetch issue body and extract Agent Notes section
-          body=$(gh api repos/${{ github.repository }}/issues/$ISSUE_NUMBER --jq '.body // ""')
-
-          # Extract content after "## Agent Notes" section header
-          # Take only the first 3 run entries (most recent)
-          notes=""
-          if echo "$body" | grep -q "## Agent Notes"; then
-            # Extract the Agent Notes section
-            notes_section=$(echo "$body" | sed -n '/## Agent Notes/,$p')
-
-            # Format for prompt: take first 3 run entries
-            # Each entry starts with "### [Run"
-            entry_count=0
-            formatted_notes=""
-            while IFS= read -r line; do
-              if [[ "$line" =~ ^###\ \[Run ]]; then
-                ((entry_count++))
-                if [[ $entry_count -gt 3 ]]; then
-                  break
-                fi
-              fi
-              if [[ $entry_count -ge 1 && $entry_count -le 3 ]]; then
-                formatted_notes+="$line"$'\n'
-              fi
-            done <<< "$notes_section"
-
-            notes="$formatted_notes"
-          fi
-
-          # Default message if no notes found
-          if [[ -z "$notes" || "$notes" == $'\n' ]]; then
-            notes="No previous agent notes found for this issue."
-          fi
-
-          # Output using heredoc for multiline
-          echo "notes<<EOF" >> $GITHUB_OUTPUT
-          echo "$notes" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
       # Merge agent notes into prompt variables
+      # Agent notes are now parsed from the issue body during context building
+      # and passed through the router output, eliminating the need for a separate fetch
       - name: Prepare prompt variables
         id: prompt-vars
         if: |
@@ -527,7 +411,7 @@ jobs:
           needs.e2e-detect.outputs.e2e_mode != 'true'
         env:
           PROMPT_VARS: ${{ toJson(matrix.action.promptVars) }}
-          AGENT_NOTES: ${{ steps.fetch-notes.outputs.notes }}
+          AGENT_NOTES: ${{ needs.derive-actions.outputs.agent_notes }}
         run: |
           # Add AGENT_NOTES to the prompt variables (use -c for compact single-line JSON)
           merged=$(echo "$PROMPT_VARS" | jq -c --arg notes "${AGENT_NOTES:-No previous agent notes found.}" '. + {AGENT_NOTES: $notes}')
@@ -603,7 +487,7 @@ jobs:
         env:
           ACTION_TYPE: ${{ matrix.action.type }}
           ACTION_INDEX: ${{ matrix.action.index }}
-          ISSUE_NUMBER: ${{ inputs.issue_number }}
+          ISSUE_NUMBER: ${{ fromJson(inputs.context_json).issue_number }}
           DRY_RUN: ${{ inputs.dry_run }}
         run: |
           dry_run_badge=""
@@ -626,10 +510,11 @@ jobs:
   # ============================================================================
   # Phase 3: Log Run End
   # Updates history entry with outcome
+  # Uses the log-run-end action for outcome determination and history update
   # ============================================================================
   log-run-end:
     needs: [e2e-detect, derive-context, log-run-start, derive-actions, exec-state-actions]
-    if: ${{ always() && !inputs.skip_bookend_logs }}
+    if: ${{ always() && fromJson(inputs.context_json).job != 'merge-queue-logging' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -640,80 +525,22 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Determine outcome
-        id: outcome
-        env:
-          DERIVE_RESULT: ${{ needs.derive-actions.result }}
-          EXEC_RESULT: ${{ needs.exec-state-actions.result }}
-          ACTION_COUNT: ${{ needs.derive-actions.outputs.action_count }}
-          TRANSITION_NAME: ${{ needs.derive-actions.outputs.transition_name }}
-          PHASE: ${{ needs.derive-context.outputs.phase }}
-          SUB_ISSUE_NUMBER: ${{ needs.derive-context.outputs.sub_issue_number }}
-        run: |
-          # Determine emoji and status
-          if [[ "$DERIVE_RESULT" == "cancelled" || "$EXEC_RESULT" == "cancelled" ]]; then
-            echo "emoji=⚠️" >> $GITHUB_OUTPUT
-            echo "status=Cancelled" >> $GITHUB_OUTPUT
-          elif [[ "$DERIVE_RESULT" == "success" && ("$EXEC_RESULT" == "success" || "$EXEC_RESULT" == "skipped" || "$ACTION_COUNT" == "0") ]]; then
-            echo "emoji=✅" >> $GITHUB_OUTPUT
-            echo "status=Done" >> $GITHUB_OUTPUT
-          else
-            echo "emoji=❌" >> $GITHUB_OUTPUT
-            echo "status=Failed" >> $GITHUB_OUTPUT
-          fi
-
-          # Use transition name for summary (e.g., "Iterate", "Triage", "Fix CI")
-          # For "Done" transitions with a sub-issue, make the message more descriptive
-          if [[ -n "$TRANSITION_NAME" ]]; then
-            if [[ "$TRANSITION_NAME" == "Done" && -n "$SUB_ISSUE_NUMBER" && "$PHASE" != "-" ]]; then
-              # Format: [Phase N] Done #123
-              echo "transition=[Phase $PHASE] Done [#$SUB_ISSUE_NUMBER](${{ github.server_url }}/${{ github.repository }}/issues/$SUB_ISSUE_NUMBER)" >> $GITHUB_OUTPUT
-            else
-              echo "transition=$TRANSITION_NAME" >> $GITHUB_OUTPUT
-            fi
-          else
-            echo "transition=unknown" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Determine link type
-        id: link
-        env:
-          TRANSITION: ${{ steps.outcome.outputs.transition }}
-          PR_NUMBER: ${{ needs.derive-actions.outputs.pr_number }}
-          COMMIT_SHA: ${{ needs.derive-actions.outputs.commit_sha || inputs.ci_commit_sha }}
-        run: |
-          # For review-related transitions, use PR number; otherwise use commit SHA
-          if [[ "$TRANSITION" == "In Review" || "$TRANSITION" == "PR Review" || "$TRANSITION" == "PR Response" || "$TRANSITION" == "PR Human Response" ]]; then
-            if [[ -n "$PR_NUMBER" && "$PR_NUMBER" != "0" ]]; then
-              echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
-              echo "commit_sha=" >> $GITHUB_OUTPUT
-            else
-              echo "pr_number=" >> $GITHUB_OUTPUT
-              echo "commit_sha=" >> $GITHUB_OUTPUT
-            fi
-          else
-            # For iterate/other transitions, use commit SHA if available
-            echo "pr_number=" >> $GITHUB_OUTPUT
-            echo "commit_sha=$COMMIT_SHA" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Update history entry
-        uses: ./.github/statemachine/issue/actions-ts/executor
+      - name: Log run end
+        uses: ./.github/statemachine/shared/actions-ts/log-run-end
         with:
-          github_code_token: ${{ secrets.NOPO_BOT_PAT }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
-          actions_json: |
-            [{
-              "type": "updateHistory",
-              "issueNumber": ${{ needs.derive-context.outputs.parent_issue_number || inputs.parent_issue_number || inputs.issue_number }},
-              "matchIteration": ${{ needs.derive-context.outputs.iteration || 0 }},
-              "matchPhase": "${{ needs.derive-context.outputs.phase || '-' }}",
-              "matchPattern": "⏳ running...",
-              "newMessage": "${{ steps.outcome.outputs.emoji }} ${{ steps.outcome.outputs.transition }}",
-              "commitSha": "${{ steps.link.outputs.commit_sha }}",
-              "prNumber": ${{ steps.link.outputs.pr_number || 'null' }},
-              "runLink": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            }]
+          issue_number: ${{ needs.derive-context.outputs.parent_issue_number || fromJson(inputs.context_json).parent_issue || fromJson(inputs.context_json).issue_number }}
+          derive_result: ${{ needs.derive-actions.result }}
+          exec_result: ${{ needs.exec-state-actions.result }}
+          action_count: ${{ needs.derive-actions.outputs.action_count }}
+          transition_name: ${{ needs.derive-actions.outputs.transition_name }}
+          iteration: ${{ needs.derive-context.outputs.iteration || 0 }}
+          phase: ${{ needs.derive-context.outputs.phase || '-' }}
+          sub_issue_number: ${{ needs.derive-context.outputs.sub_issue_number }}
+          pr_number: ${{ needs.derive-actions.outputs.pr_number }}
+          commit_sha: ${{ needs.derive-actions.outputs.commit_sha || fromJson(inputs.context_json).ci_commit_sha }}
+          run_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           dry_run: ${{ inputs.dry_run && 'true' || 'false' }}
 
   # ============================================================================
@@ -764,7 +591,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
           REPO: ${{ github.repository }}
-          ISSUE_NUMBER: ${{ inputs.issue_number }}
+          ISSUE_NUMBER: ${{ fromJson(inputs.context_json).issue_number }}
           CONTINUE: ${{ inputs.continue }}
         run: |
           if [[ "$CONTINUE" == "true" ]]; then

@@ -185,6 +185,22 @@ function emitBlock({ context }: ActionContext): ActionResult {
   ];
 }
 
+/**
+ * Emit action to reset the issue (and sub-issues) to initial state
+ * This is triggered by /reset command
+ */
+export function emitResetIssue({ context }: ActionContext): ActionResult {
+  return [
+    {
+      type: "resetIssue",
+      token: "code",
+      issueNumber: context.issue.number,
+      subIssueNumbers: context.issue.subIssues.map((s) => s.number),
+      botUsername: context.botUsername,
+    },
+  ];
+}
+
 // ============================================================================
 // History Actions
 // ============================================================================
@@ -1160,4 +1176,52 @@ export function emitDeployedProd({ context }: ActionContext): ActionResult {
       runLink: context.ciRunUrl ?? undefined,
     },
   ];
+}
+
+// ============================================================================
+// Push to Draft Actions
+// ============================================================================
+
+/**
+ * Emit actions for push-to-draft flow
+ *
+ * When code is pushed to a PR branch, convert the PR to draft and remove
+ * the reviewer. This cancels in-flight reviews and signals iteration will continue.
+ */
+export function emitPushToDraft({ context }: ActionContext): ActionResult {
+  const actions: Action[] = [];
+
+  // Convert PR to draft
+  if (context.pr) {
+    actions.push({
+      type: "convertPRToDraft",
+      token: "code",
+      prNumber: context.pr.number,
+    });
+
+    // Remove reviewer
+    actions.push({
+      type: "removeReviewer",
+      token: "code",
+      prNumber: context.pr.number,
+      reviewer: "nopo-bot",
+    });
+  }
+
+  // Append history entry
+  const issueNumber = context.currentSubIssue?.number ?? context.issue.number;
+  const phase = String(context.currentPhase ?? "-");
+
+  actions.push({
+    type: "appendHistory",
+    token: "code",
+    issueNumber,
+    iteration: 0, // Push-to-draft doesn't have iteration context
+    phase,
+    message: "📝 Code pushed - converting to draft",
+    commitSha: context.ciCommitSha ?? undefined,
+    runLink: context.ciRunUrl ?? undefined,
+  });
+
+  return actions;
 }

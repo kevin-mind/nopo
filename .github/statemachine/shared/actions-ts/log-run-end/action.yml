@@ -1,0 +1,64 @@
+name: Log Run End
+description: Determines workflow outcome and updates the history entry
+
+inputs:
+  github_token:
+    description: GitHub token for API operations
+    required: true
+  project_number:
+    description: GitHub Project number
+    required: true
+  issue_number:
+    description: Issue number to update history for
+    required: true
+  derive_result:
+    description: Result of derive-actions job (success, failure, cancelled, skipped)
+    required: true
+  exec_result:
+    description: Result of exec-state-actions job (success, failure, cancelled, skipped)
+    required: true
+  action_count:
+    description: Number of actions that were derived
+    required: true
+  transition_name:
+    description: Human-readable transition name (e.g., "Iterate", "Triage")
+    required: true
+  iteration:
+    description: Current iteration number
+    required: true
+  phase:
+    description: Current phase (or "-" for non-phased work)
+    required: true
+  sub_issue_number:
+    description: Sub-issue number (for phased work)
+    required: false
+    default: ''
+  pr_number:
+    description: PR number (for review-related transitions)
+    required: false
+    default: ''
+  commit_sha:
+    description: Commit SHA (for iterate transitions)
+    required: false
+    default: ''
+  run_url:
+    description: URL to the workflow run
+    required: true
+  dry_run:
+    description: Whether to run in dry-run mode
+    required: false
+    default: 'false'
+
+outputs:
+  emoji:
+    description: Status emoji (✅, ❌, ⚠️)
+  status:
+    description: Status text (Done, Failed, Cancelled)
+  transition:
+    description: Formatted transition message
+  updated:
+    description: Whether the history entry was updated
+
+runs:
+  using: node20
+  main: dist/index.cjs

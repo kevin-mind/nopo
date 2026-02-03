@@ -594,8 +594,8 @@ describe("fixture validation", () => {
   });
 
   describe("real fixture files validation", () => {
-    // Path to test-fixtures directory: from claude-test-runner -> actions-ts -> .github -> test-fixtures
-    const fixturesDir = join(__dirname, "..", "..", "test-fixtures");
+    // Path to fixtures directory: from test-runner -> actions-ts -> issue -> fixtures
+    const fixturesDir = join(__dirname, "..", "..", "fixtures");
 
     // Get all fixture files
     const fixtureFiles = readdirSync(fixturesDir).filter((f) =>

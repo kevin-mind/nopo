@@ -5,8 +5,8 @@
  */
 
 import { createActor } from "xstate";
-import type { MachineContext } from "../../claude-state-machine/schemas/index.js";
-import { claudeMachine } from "../../claude-state-machine/machine/machine.js";
+import type { MachineContext } from "../../state-machine/schemas/index.js";
+import { claudeMachine } from "../../state-machine/machine/machine.js";
 import type { PredictedState } from "./types.js";
 
 /**

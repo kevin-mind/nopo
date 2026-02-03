@@ -1,16 +1,16 @@
-import type { MachineContext, Action } from "../schemas/index.js";
+import type { DiscussionContext, DiscussionAction } from "../schemas/index.js";
 
 /**
  * Action context type for XState actions
  */
 interface ActionContext {
-  context: MachineContext;
+  context: DiscussionContext;
 }
 
 /**
  * Action result - actions to execute
  */
-type ActionResult = Action[];
+type ActionResult = DiscussionAction[];
 
 // ============================================================================
 // Claude Actions for Discussions
@@ -20,22 +20,11 @@ type ActionResult = Action[];
  * Emit action to run Claude for discussion research
  *
  * Creates research threads to investigate the discussion topic.
- * Uses the discussion-research prompt directory.
+ * Uses the discussion/prompts/research prompt directory.
  */
 export function emitRunClaudeResearch({
   context,
 }: ActionContext): ActionResult {
-  if (!context.discussion) {
-    return [
-      {
-        type: "log",
-        token: "code",
-        level: "warning",
-        message: "No discussion context for research",
-      },
-    ];
-  }
-
   const promptVars: Record<string, string> = {
     DISCUSSION_NUMBER: String(context.discussion.number),
     DISCUSSION_NODE_ID: context.discussion.nodeId,
@@ -47,9 +36,8 @@ export function emitRunClaudeResearch({
     {
       type: "runClaude",
       token: "code",
-      promptDir: "discussion-research",
+      promptDir: "research",
       promptVars,
-      // Use discussion number as issue number for tracking
       issueNumber: context.discussion.number,
     },
     {
@@ -65,20 +53,9 @@ export function emitRunClaudeResearch({
  * Emit action to run Claude to respond to a discussion comment
  *
  * Responds to a human's question or comment in the discussion.
- * Uses the discussion-respond prompt directory.
+ * Uses the discussion/prompts/respond prompt directory.
  */
 export function emitRunClaudeRespond({ context }: ActionContext): ActionResult {
-  if (!context.discussion) {
-    return [
-      {
-        type: "log",
-        token: "code",
-        level: "warning",
-        message: "No discussion context for respond",
-      },
-    ];
-  }
-
   const promptVars: Record<string, string> = {
     DISCUSSION_NUMBER: String(context.discussion.number),
     DISCUSSION_NODE_ID: context.discussion.nodeId,
@@ -93,7 +70,7 @@ export function emitRunClaudeRespond({ context }: ActionContext): ActionResult {
     {
       type: "runClaude",
       token: "code",
-      promptDir: "discussion-respond",
+      promptDir: "respond",
       promptVars,
       issueNumber: context.discussion.number,
     },
@@ -111,22 +88,11 @@ export function emitRunClaudeRespond({ context }: ActionContext): ActionResult {
  * Emit action to run Claude to summarize a discussion
  *
  * Creates a comprehensive summary and updates the discussion body.
- * Uses the discussion-summarize prompt directory.
+ * Uses the discussion/prompts/summarize prompt directory.
  */
 export function emitRunClaudeSummarize({
   context,
 }: ActionContext): ActionResult {
-  if (!context.discussion) {
-    return [
-      {
-        type: "log",
-        token: "code",
-        level: "warning",
-        message: "No discussion context for summarize",
-      },
-    ];
-  }
-
   const promptVars: Record<string, string> = {
     DISCUSSION_NUMBER: String(context.discussion.number),
     DISCUSSION_NODE_ID: context.discussion.nodeId,
@@ -138,7 +104,7 @@ export function emitRunClaudeSummarize({
     {
       type: "runClaude",
       token: "code",
-      promptDir: "discussion-summarize",
+      promptDir: "summarize",
       promptVars,
       issueNumber: context.discussion.number,
     },
@@ -155,20 +121,9 @@ export function emitRunClaudeSummarize({
  * Emit action to run Claude to create a plan from discussion
  *
  * Creates issues from the discussion and posts a summary.
- * Uses the discussion-plan prompt directory.
+ * Uses the discussion/prompts/plan prompt directory.
  */
 export function emitRunClaudePlan({ context }: ActionContext): ActionResult {
-  if (!context.discussion) {
-    return [
-      {
-        type: "log",
-        token: "code",
-        level: "warning",
-        message: "No discussion context for plan",
-      },
-    ];
-  }
-
   const promptVars: Record<string, string> = {
     DISCUSSION_NUMBER: String(context.discussion.number),
     DISCUSSION_NODE_ID: context.discussion.nodeId,
@@ -180,7 +135,7 @@ export function emitRunClaudePlan({ context }: ActionContext): ActionResult {
     {
       type: "runClaude",
       token: "code",
-      promptDir: "discussion-plan",
+      promptDir: "plan",
       promptVars,
       issueNumber: context.discussion.number,
     },
@@ -199,18 +154,7 @@ export function emitRunClaudePlan({ context }: ActionContext): ActionResult {
  * Adds a rocket reaction and posts a completion comment.
  */
 export function emitComplete({ context }: ActionContext): ActionResult {
-  if (!context.discussion) {
-    return [
-      {
-        type: "log",
-        token: "code",
-        level: "warning",
-        message: "No discussion context for complete",
-      },
-    ];
-  }
-
-  const actions: Action[] = [];
+  const actions: DiscussionAction[] = [];
 
   // Add rocket reaction to the command comment if present
   if (context.discussion.commentId) {
@@ -248,7 +192,7 @@ export function emitLogResearching({ context }: ActionContext): ActionResult {
       type: "log",
       token: "code",
       level: "info",
-      message: `Researching discussion #${context.discussion?.number ?? "unknown"}`,
+      message: `Researching discussion #${context.discussion.number}`,
     },
   ];
 }
@@ -262,7 +206,7 @@ export function emitLogResponding({ context }: ActionContext): ActionResult {
       type: "log",
       token: "code",
       level: "info",
-      message: `Responding to comment in discussion #${context.discussion?.number ?? "unknown"}`,
+      message: `Responding to comment in discussion #${context.discussion.number}`,
     },
   ];
 }
@@ -276,7 +220,7 @@ export function emitLogSummarizing({ context }: ActionContext): ActionResult {
       type: "log",
       token: "code",
       level: "info",
-      message: `Summarizing discussion #${context.discussion?.number ?? "unknown"}`,
+      message: `Summarizing discussion #${context.discussion.number}`,
     },
   ];
 }
@@ -290,7 +234,7 @@ export function emitLogPlanning({ context }: ActionContext): ActionResult {
       type: "log",
       token: "code",
       level: "info",
-      message: `Creating plan from discussion #${context.discussion?.number ?? "unknown"}`,
+      message: `Creating plan from discussion #${context.discussion.number}`,
     },
   ];
 }
@@ -304,7 +248,7 @@ export function emitLogCompleting({ context }: ActionContext): ActionResult {
       type: "log",
       token: "code",
       level: "info",
-      message: `Completing discussion #${context.discussion?.number ?? "unknown"}`,
+      message: `Completing discussion #${context.discussion.number}`,
     },
   ];
 }

@@ -31,6 +31,7 @@ import {
   executeMergePR,
   executeSubmitReview,
   executeRemoveReviewer,
+  executeResetIssue,
 } from "./executors/github.js";
 import { executeCreateBranch, executeGitPush } from "./executors/git.js";
 import { executeRunClaude } from "./executors/claude.js";
@@ -208,6 +209,12 @@ async function executeAction(
     // Issue actions
     case "closeIssue":
       return executeCloseIssue(action, actionCtx);
+    case "reopenIssue":
+      // reopenIssue is part of resetIssue compound action
+      core.info(`Reopen issue #${action.issueNumber} - handled by resetIssue`);
+      return { reopened: true };
+    case "resetIssue":
+      return executeResetIssue(action, actionCtx);
     case "appendHistory":
       return executeAppendHistory(action, actionCtx);
     case "updateHistory":

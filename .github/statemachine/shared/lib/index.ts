@@ -82,3 +82,11 @@ export function setOutputs(outputs: Record<string, string | undefined>): void {
     }
   }
 }
+
+// Outcome determination utilities
+export {
+  determineOutcome,
+  type JobResult,
+  type OutcomeParams,
+  type OutcomeResult,
+} from "./outcome.js";

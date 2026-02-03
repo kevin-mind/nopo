@@ -4,12 +4,12 @@ import {
   getRequiredInput,
   getOptionalInput,
   setOutputs,
-} from "../lib/index.js";
+} from "../../../shared/lib/index.js";
 import type {
   Action,
   TokenType,
-} from "../claude-state-machine/schemas/index.js";
-import { ActionSchema } from "../claude-state-machine/schemas/index.js";
+} from "../state-machine/schemas/index.js";
+import { ActionSchema } from "../state-machine/schemas/index.js";
 import {
   executeActions,
   createRunnerContext,
@@ -18,7 +18,7 @@ import {
   logRunnerSummary,
   type ResourceType,
   type RunnerResult,
-} from "../claude-state-machine/runner/index.js";
+} from "../state-machine/runner/index.js";
 
 /**
  * Parse and validate actions JSON

@@ -73,6 +73,18 @@ export const HistoryEntrySchema = z.object({
 export type HistoryEntry = z.infer<typeof HistoryEntrySchema>;
 
 /**
+ * Agent notes entry from a workflow run
+ */
+export const AgentNotesEntrySchema = z.object({
+  runId: z.string(),
+  runLink: z.string(),
+  timestamp: z.string(),
+  notes: z.array(z.string()),
+});
+
+export type AgentNotesEntry = z.infer<typeof AgentNotesEntrySchema>;
+
+/**
  * Pull request associated with a sub-issue
  */
 export const LinkedPRSchema = z.object({
@@ -121,6 +133,8 @@ export const ParentIssueSchema = z.object({
   history: z.array(HistoryEntrySchema),
   /** Todos parsed from the issue body - used when this is a sub-issue triggered directly */
   todos: TodoStatsSchema,
+  /** Agent notes from previous workflow runs */
+  agentNotes: z.array(AgentNotesEntrySchema).default([]),
 });
 
 export type ParentIssue = z.infer<typeof ParentIssueSchema>;
@@ -130,37 +144,32 @@ export type ParentIssue = z.infer<typeof ParentIssueSchema>;
  */
 export const TriggerTypeSchema = z.enum([
   // Issue triggers
-  "issue_assigned",
-  "issue_edited",
-  "issue_closed",
-  "issue_triage",
-  "issue_orchestrate",
-  "issue_comment",
+  "issue-assigned",
+  "issue-edited",
+  "issue-closed",
+  "issue-triage",
+  "issue-orchestrate",
+  "issue-comment",
   // PR triggers
-  "pr_review_requested",
-  "pr_review_submitted",
-  "pr_review",
-  "pr_review_approved",
-  "pr_response",
-  "pr_human_response",
-  "pr_push",
+  "pr-review-requested",
+  "pr-review-submitted",
+  "pr-review",
+  "pr-review-approved",
+  "pr-response",
+  "pr-human-response",
+  "pr-push",
   // Workflow triggers
-  "workflow_run_completed",
-  // Release triggers (legacy - kept for backwards compatibility)
-  "release_queue_entry",
-  "release_merged",
-  "release_deployed",
-  "release_queue_failure",
+  "workflow-run-completed",
   // Merge queue logging triggers
-  "merge_queue_entered",
-  "merge_queue_failed",
-  "pr_merged",
-  "deployed_stage",
-  "deployed_prod",
+  "merge-queue-entered",
+  "merge-queue-failed",
+  "pr-merged",
+  "deployed-stage",
+  "deployed-prod",
   // Discussion triggers
-  "discussion_created",
-  "discussion_comment",
-  "discussion_command",
+  "discussion-created",
+  "discussion-comment",
+  "discussion-command",
 ]);
 
 export type TriggerType = z.infer<typeof TriggerTypeSchema>;

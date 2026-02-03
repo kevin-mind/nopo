@@ -8,7 +8,8 @@
  */
 
 import { z } from "zod";
-import { CIResultSchema } from "../../../claude-state-machine/schemas/state.js";
+import { CIResultSchema } from "../../../state-machine/schemas/state.js";
+import { IssueTriggerTypeSchema } from "../../../state-machine/schemas/issue-triggers.js";
 
 // ============================================================================
 // State Names - All distinct states in the state machine
@@ -26,10 +27,12 @@ const StateNameSchema = z.enum([
 
   // Final states (work is done or stopped)
   "triaging",
+  "resetting",
   "commenting",
   "prReviewing",
   "prResponding",
   "prRespondingHuman",
+  "prPush",
   "orchestrationRunning",
   "orchestrationWaiting",
   "orchestrationComplete",
@@ -158,6 +161,9 @@ const TestParentIssueSchema = z.object({
 export const StateFixtureSchema = z.object({
   /** The state name this fixture represents */
   state: StateNameSchema,
+
+  /** Explicit trigger type to use (optional, overrides auto-detection) */
+  trigger: IssueTriggerTypeSchema.optional(),
 
   /** CI result to inject for this transition (optional) */
   ciResult: CIResultSchema.optional(),

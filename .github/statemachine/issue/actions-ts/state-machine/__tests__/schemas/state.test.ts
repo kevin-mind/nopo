@@ -243,6 +243,7 @@ describe("ParentIssueSchema", () => {
     hasSubIssues: false,
     history: [],
     todos: { total: 0, completed: 0, uncheckedNonManual: 0 },
+    agentNotes: [],
   };
 
   test("parses valid parent issue", () => {
@@ -295,14 +296,14 @@ describe("ParentIssueSchema", () => {
 describe("TriggerTypeSchema", () => {
   test("accepts all valid trigger types", () => {
     const triggers = [
-      "issue_assigned",
-      "issue_edited",
-      "issue_closed",
-      "pr_review_requested",
-      "pr_review_submitted",
-      "pr_push",
-      "workflow_run_completed",
-      "issue_comment",
+      "issue-assigned",
+      "issue-edited",
+      "issue-closed",
+      "pr-review-requested",
+      "pr-review-submitted",
+      "pr-push",
+      "workflow-run-completed",
+      "issue-comment",
     ];
     for (const trigger of triggers) {
       expect(TriggerTypeSchema.parse(trigger)).toBe(trigger);
@@ -339,7 +340,7 @@ describe("ReviewDecisionSchema", () => {
 
 describe("MachineContextSchema", () => {
   const minimalContext = {
-    trigger: "issue_assigned",
+    trigger: "issue-assigned",
     owner: "test-owner",
     repo: "test-repo",
     issue: {
@@ -356,6 +357,7 @@ describe("MachineContextSchema", () => {
       hasSubIssues: false,
       history: [],
       todos: { total: 0, completed: 0, uncheckedNonManual: 0 },
+      agentNotes: [],
     },
     parentIssue: null,
     currentPhase: null,
@@ -385,7 +387,7 @@ describe("MachineContextSchema", () => {
 
   test("applies default values", () => {
     const partial = {
-      trigger: "issue_assigned",
+      trigger: "issue-assigned",
       owner: "test",
       repo: "repo",
       issue: minimalContext.issue,
@@ -414,7 +416,7 @@ describe("MachineContextSchema", () => {
   test("accepts CI context", () => {
     const ciContext = {
       ...minimalContext,
-      trigger: "workflow_run_completed",
+      trigger: "workflow-run-completed",
       ciResult: "success",
       ciRunUrl: "https://github.com/run/123",
       ciCommitSha: "abc123def",
@@ -425,7 +427,7 @@ describe("MachineContextSchema", () => {
   test("accepts review context", () => {
     const reviewContext = {
       ...minimalContext,
-      trigger: "pr_review_submitted",
+      trigger: "pr-review-submitted",
       reviewDecision: "APPROVED",
       reviewerId: "reviewer-user",
     };
@@ -456,7 +458,7 @@ describe("MachineContextSchema", () => {
 describe("createMachineContext", () => {
   test("creates context with defaults", () => {
     const partial = {
-      trigger: "issue_assigned" as const,
+      trigger: "issue-assigned" as const,
       owner: "test",
       repo: "repo",
       issue: {
@@ -484,7 +486,7 @@ describe("createMachineContext", () => {
 
   test("preserves provided values", () => {
     const partial = {
-      trigger: "workflow_run_completed" as const,
+      trigger: "workflow-run-completed" as const,
       owner: "my-org",
       repo: "my-repo",
       issue: {
