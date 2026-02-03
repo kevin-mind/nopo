@@ -247,7 +247,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ fromJson(inputs.context_json).branch_name || 'main' }}
+          # Always checkout main for router - it's infrastructure code
+          # The exec-state-actions job uses the appropriate branch for code operations
+          ref: main
           fetch-depth: 1
 
       - name: Setup Node.js
