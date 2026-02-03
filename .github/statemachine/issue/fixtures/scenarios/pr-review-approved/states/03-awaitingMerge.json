@@ -6,7 +6,7 @@
     "title": "Feature ready for approval",
     "state": "OPEN",
     "body": "## Description\n\nTest scenario for approved review.\n\n## Todo\n\n- [x] Implement feature\n- [x] Add tests",
-    "projectStatus": "In progress",
+    "projectStatus": "In review",
     "iteration": 1,
     "failures": 0,
     "assignees": ["nopo-bot"],
