@@ -900,7 +900,8 @@ Issue: #${this.issueNumber}
         : undefined;
 
     // Build MachineContext from fixture
-    const context = this.buildMachineContext(fixture);
+    // Pass nextFixture to get trigger-specific fields (reviewDecision, ciResult)
+    const context = this.buildMachineContext(fixture, nextFixture);
 
     core.info(`Building machine context for state: ${fixture.state}`);
     core.startGroup("Machine Context");
@@ -975,8 +976,13 @@ Issue: #${this.issueNumber}
 
   /**
    * Build MachineContext from a fixture
+   * @param fixture The current state fixture
+   * @param nextFixture Optional next fixture (used to get trigger-specific fields like reviewDecision, ciResult)
    */
-  private buildMachineContext(fixture: StateFixture): MachineContext {
+  private buildMachineContext(
+    fixture: StateFixture,
+    nextFixture?: StateFixture,
+  ): MachineContext {
     // Cast fixture issue to ParentIssue, providing default empty arrays for simplified fields
     const issue: ParentIssue = {
       number: this.issueNumber!,
@@ -1054,10 +1060,12 @@ Issue: #${this.issueNumber}
       currentPhase: null,
       totalPhases: 0,
       currentSubIssue: null,
-      ciResult: fixture.ciResult || null,
+      // Prefer trigger-specific fields from nextFixture (the transition being triggered)
+      // Fall back to fixture for backward compatibility
+      ciResult: nextFixture?.ciResult || fixture.ciResult || null,
       ciRunUrl: null,
       ciCommitSha: null,
-      reviewDecision: fixture.reviewDecision || null,
+      reviewDecision: nextFixture?.reviewDecision || fixture.reviewDecision || null,
       reviewerId: null,
       branch: this.testBranchName!,
       hasBranch: fixture.issue.iteration > 0 || this.testBranchName !== null,

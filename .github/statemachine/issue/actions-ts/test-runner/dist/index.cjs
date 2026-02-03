@@ -48847,7 +48847,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
       throw new Error("Issue not created yet");
     }
     const mockOutput = this.inputs.mockClaude && fixture.claudeMock ? this.scenario.claudeMocks.get(fixture.claudeMock)?.output : void 0;
-    const context2 = this.buildMachineContext(fixture);
+    const context2 = this.buildMachineContext(fixture, nextFixture);
     core20.info(`Building machine context for state: ${fixture.state}`);
     core20.startGroup("Machine Context");
     core20.info(JSON.stringify(context2, null, 2));
@@ -48900,8 +48900,10 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
   }
   /**
    * Build MachineContext from a fixture
+   * @param fixture The current state fixture
+   * @param nextFixture Optional next fixture (used to get trigger-specific fields like reviewDecision, ciResult)
    */
-  buildMachineContext(fixture) {
+  buildMachineContext(fixture, nextFixture) {
     const issue = {
       number: this.issueNumber,
       title: fixture.issue.title,
@@ -48965,10 +48967,12 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
       currentPhase: null,
       totalPhases: 0,
       currentSubIssue: null,
-      ciResult: fixture.ciResult || null,
+      // Prefer trigger-specific fields from nextFixture (the transition being triggered)
+      // Fall back to fixture for backward compatibility
+      ciResult: nextFixture?.ciResult || fixture.ciResult || null,
       ciRunUrl: null,
       ciCommitSha: null,
-      reviewDecision: fixture.reviewDecision || null,
+      reviewDecision: nextFixture?.reviewDecision || fixture.reviewDecision || null,
       reviewerId: null,
       branch: this.testBranchName,
       hasBranch: fixture.issue.iteration > 0 || this.testBranchName !== null,
