@@ -34189,7 +34189,7 @@ var claudeMachine = setup({
      * PR is under review
      */
     reviewing: {
-      entry: ["logReviewing"],
+      entry: ["logReviewing", "setReview"],
       on: {
         REVIEW_APPROVED: "orchestrating",
         // NOTE: setWorking NOT included - iterating entry already calls it
