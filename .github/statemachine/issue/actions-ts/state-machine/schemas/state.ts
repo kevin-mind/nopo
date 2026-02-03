@@ -150,6 +150,7 @@ export const TriggerTypeSchema = z.enum([
   "issue-triage",
   "issue-orchestrate",
   "issue-comment",
+  "issue-reset",
   // PR triggers
   "pr-review-requested",
   "pr-review-submitted",
