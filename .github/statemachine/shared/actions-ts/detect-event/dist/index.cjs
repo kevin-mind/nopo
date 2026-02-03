@@ -24384,7 +24384,7 @@ async function handleIssueEvent(octokit, owner, repo) {
             issue_body: details.body || issue.body,
             branch_name: branchName2,
             existing_branch: branchExists2 ? "true" : "false",
-            trigger_type: "issue_edited",
+            trigger_type: "issue-edited",
             parent_issue: String(details.parentIssue),
             phase_number: String(phaseNumber),
             project_status: projectState?.status || "",
@@ -24417,7 +24417,7 @@ async function handleIssueEvent(octokit, owner, repo) {
             issue_title: details.title || issue.title,
             issue_body: details.body || issue.body,
             sub_issues: subIssueNumbers.join(","),
-            trigger_type: "issue_edited",
+            trigger_type: "issue-edited",
             project_status: projectState?.status || "",
             project_iteration: String(projectState?.iteration || 0),
             project_failures: String(projectState?.failures || 0)
@@ -24439,7 +24439,7 @@ async function handleIssueEvent(octokit, owner, repo) {
           issue_body: details.body || issue.body,
           branch_name: branchName,
           existing_branch: branchExists ? "true" : "false",
-          trigger_type: "issue_edited",
+          trigger_type: "issue-edited",
           project_status: projectState?.status || "",
           project_iteration: String(projectState?.iteration || 0),
           project_failures: String(projectState?.failures || 0)
@@ -24508,7 +24508,7 @@ async function handleIssueEvent(octokit, owner, repo) {
         issue_title: parentDetails.title,
         issue_body: parentDetails.body,
         sub_issues: parentDetails.subIssues.join(","),
-        trigger_type: "sub_issue_closed",
+        trigger_type: "issue-orchestrate",
         closed_sub_issue: String(issue.number),
         project_status: parentProjectState?.status || "",
         project_iteration: String(parentProjectState?.iteration || 0),
@@ -24554,7 +24554,7 @@ async function handleIssueEvent(octokit, owner, repo) {
           issue_title: details.title || issue.title,
           issue_body: details.body || issue.body,
           branch_name: branchName2,
-          trigger_type: "issue_assigned",
+          trigger_type: "issue-assigned",
           parent_issue: String(details.parentIssue),
           phase_number: String(phaseNumber),
           project_status: projectState?.status || "",
@@ -24590,7 +24590,7 @@ async function handleIssueEvent(octokit, owner, repo) {
           issue_title: details.title || issue.title,
           issue_body: details.body || issue.body,
           sub_issues: subIssueNumbers.join(","),
-          trigger_type: "issue_assigned",
+          trigger_type: "issue-assigned",
           project_status: projectState?.status || "",
           project_iteration: String(projectState?.iteration || 0),
           project_failures: String(projectState?.failures || 0)
@@ -24611,7 +24611,7 @@ async function handleIssueEvent(octokit, owner, repo) {
         issue_title: details.title || issue.title,
         issue_body: details.body || issue.body,
         branch_name: branchName,
-        trigger_type: "issue_assigned",
+        trigger_type: "issue-assigned",
         project_status: projectState?.status || "",
         project_iteration: String(projectState?.iteration || 0),
         project_failures: String(projectState?.failures || 0)
@@ -24696,7 +24696,7 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
           issue_title: details.title || issue.title,
           issue_body: details.body || issue.body,
           branch_name: branchName3,
-          trigger_type: "issue_comment",
+          trigger_type: "issue-comment",
           parent_issue: String(details.parentIssue),
           phase_number: String(phaseNumber)
         },
@@ -24715,7 +24715,7 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
           issue_title: details.title || issue.title,
           issue_body: details.body || issue.body,
           sub_issues: details.subIssues.join(","),
-          trigger_type: "issue_comment"
+          trigger_type: "issue-comment"
         },
         skip: false,
         skipReason: ""
@@ -24733,7 +24733,7 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
         issue_title: details.title || issue.title,
         issue_body: details.body || issue.body,
         branch_name: branchName2,
-        trigger_type: "issue_comment"
+        trigger_type: "issue-comment"
       },
       skip: false,
       skipReason: ""
@@ -24914,7 +24914,7 @@ async function handleWorkflowRunEvent() {
       branch_name: branch,
       ci_run_url: ciRunUrl,
       ci_result: conclusion,
-      trigger_type: "workflow_run_completed",
+      trigger_type: "workflow-run-completed",
       parent_issue: String(details.parentIssue)
     },
     skip: false,
@@ -25097,7 +25097,7 @@ async function handleDiscussionEvent(octokit, owner, repo) {
         discussion_number: String(discussion.number),
         discussion_title: discussion.title,
         discussion_body: discussion.body ?? "",
-        trigger_type: "discussion_created",
+        trigger_type: "discussion-created",
         is_test_automation: isTestAutomation
       },
       skip: false,
@@ -25176,7 +25176,7 @@ async function handleMergeGroupEvent(octokit, owner, repo) {
       issue_number: issueNumber,
       parent_issue: parentIssue,
       pr_number: String(prNumber),
-      trigger_type: "merge_queue_entered",
+      trigger_type: "merge-queue-entered",
       ci_run_url: ciRunUrl,
       head_ref: headRef,
       head_sha: mergeGroup.head_sha
@@ -25226,7 +25226,7 @@ async function handleDiscussionCommentEvent(octokit, owner, repo) {
       commentId: comment.node_id,
       contextJson: {
         discussion_number: String(discussion.number),
-        trigger_type: "discussion_command",
+        trigger_type: "discussion-command",
         command: "summarize",
         is_test_automation: isTestAutomation
       },
@@ -25243,7 +25243,7 @@ async function handleDiscussionCommentEvent(octokit, owner, repo) {
       commentId: comment.node_id,
       contextJson: {
         discussion_number: String(discussion.number),
-        trigger_type: "discussion_command",
+        trigger_type: "discussion-command",
         command: "plan",
         is_test_automation: isTestAutomation
       },
@@ -25260,7 +25260,7 @@ async function handleDiscussionCommentEvent(octokit, owner, repo) {
       commentId: comment.node_id,
       contextJson: {
         discussion_number: String(discussion.number),
-        trigger_type: "discussion_command",
+        trigger_type: "discussion-command",
         command: "complete",
         is_test_automation: isTestAutomation
       },
@@ -25278,7 +25278,7 @@ async function handleDiscussionCommentEvent(octokit, owner, repo) {
         discussion_number: String(discussion.number),
         comment_body: comment.body,
         comment_author: author,
-        trigger_type: "discussion_comment",
+        trigger_type: "discussion-comment",
         is_test_automation: isTestAutomation
       },
       skip: false,
@@ -25295,7 +25295,7 @@ async function handleDiscussionCommentEvent(octokit, owner, repo) {
         discussion_number: String(discussion.number),
         comment_body: comment.body,
         comment_author: author,
-        trigger_type: "discussion_comment",
+        trigger_type: "discussion-comment",
         is_test_automation: isTestAutomation
       },
       skip: false,
@@ -25345,7 +25345,7 @@ async function handleWorkflowDispatchEvent(octokit, owner, repo, resourceNumber)
         issue_title: details.title,
         issue_body: details.body,
         sub_issues: details.subIssues.join(","),
-        trigger_type: "issue_assigned",
+        trigger_type: "issue-assigned",
         parent_issue: parentIssue,
         project_status: projectState?.status || "",
         project_iteration: String(projectState?.iteration || 0),
@@ -25371,7 +25371,7 @@ async function handleWorkflowDispatchEvent(octokit, owner, repo, resourceNumber)
         issue_title: details.title,
         issue_body: details.body,
         branch_name: branchName2,
-        trigger_type: "issue_assigned",
+        trigger_type: "issue-assigned",
         parent_issue: parentIssue,
         phase_number: String(phaseNumber),
         project_status: projectState?.status || "",
@@ -25393,7 +25393,7 @@ async function handleWorkflowDispatchEvent(octokit, owner, repo, resourceNumber)
       issue_title: details.title,
       issue_body: details.body,
       branch_name: branchName,
-      trigger_type: "issue_assigned",
+      trigger_type: "issue-assigned",
       parent_issue: parentIssue,
       project_status: projectState?.status || "",
       project_iteration: String(projectState?.iteration || 0),
