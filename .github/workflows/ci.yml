@@ -47,9 +47,10 @@ jobs:
         id: detect
         env:
           GH_TOKEN: ${{ github.token }}
+          HEAD_REF: ${{ github.head_ref }}
         run: |
           # Check for test branch - test runner controls CI via workflow_dispatch
-          HEAD_REF="${{ github.head_ref }}"
+          # HEAD_REF is passed via env to avoid script injection vulnerabilities
           if [[ "$HEAD_REF" == test/* ]]; then
             echo "skip_ci=true" >> $GITHUB_OUTPUT
             echo "mock_mode=false" >> $GITHUB_OUTPUT

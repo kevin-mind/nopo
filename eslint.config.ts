@@ -60,6 +60,8 @@ const config: ReturnType<typeof tseslint.config> = tseslint.config(
       "**/node_modules/**",
       "**/.build/**",
       "**/dist/**",
+      // State machine has its own build/test system
+      ".github/statemachine/**",
       ...workspaceIgnores,
     ],
   },
