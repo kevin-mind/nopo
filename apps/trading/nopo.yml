@@ -1,0 +1,3 @@
+name: trading
+type: python
+description: Backtesting framework for Kalshi and Alpaca with risk management
