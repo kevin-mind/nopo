@@ -7,7 +7,7 @@
     "state": "OPEN",
     "body": "This feature has been blocked due to CI failures.\n\n## Todos\n\n- [x] Initial implementation\n- [ ] Fix CI failures\n- [ ] Add tests",
     "projectStatus": "Backlog",
-    "iteration": 0,
+    "iteration": 5,
     "failures": 0,
     "assignees": [],
     "labels": ["triaged", "enhancement"],
@@ -23,7 +23,6 @@
   },
   "expected": {
     "projectStatus": "Backlog",
-    "iteration": 0,
     "failures": 0,
     "assigneesEmpty": true
   }
