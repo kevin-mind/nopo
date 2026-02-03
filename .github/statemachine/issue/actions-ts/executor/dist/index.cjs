@@ -182,7 +182,7 @@ var require_file_command = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.prepareKeyValueMessage = exports2.issueFileCommand = void 0;
     var crypto = __importStar(require("crypto"));
-    var fs4 = __importStar(require("fs"));
+    var fs5 = __importStar(require("fs"));
     var os = __importStar(require("os"));
     var utils_1 = require_utils();
     function issueFileCommand(command, message) {
@@ -190,10 +190,10 @@ var require_file_command = __commonJS({
       if (!filePath) {
         throw new Error(`Unable to find environment variable for file command ${command}`);
       }
-      if (!fs4.existsSync(filePath)) {
+      if (!fs5.existsSync(filePath)) {
         throw new Error(`Missing file at path: ${filePath}`);
       }
-      fs4.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
+      fs5.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
         encoding: "utf8"
       });
     }
@@ -18510,12 +18510,12 @@ var require_io_util = __commonJS({
     var _a;
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getCmdPath = exports2.tryGetExecutablePath = exports2.isRooted = exports2.isDirectory = exports2.exists = exports2.READONLY = exports2.UV_FS_O_EXLOCK = exports2.IS_WINDOWS = exports2.unlink = exports2.symlink = exports2.stat = exports2.rmdir = exports2.rm = exports2.rename = exports2.readlink = exports2.readdir = exports2.open = exports2.mkdir = exports2.lstat = exports2.copyFile = exports2.chmod = void 0;
-    var fs4 = __importStar(require("fs"));
+    var fs5 = __importStar(require("fs"));
     var path2 = __importStar(require("path"));
-    _a = fs4.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
+    _a = fs5.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
     exports2.IS_WINDOWS = process.platform === "win32";
     exports2.UV_FS_O_EXLOCK = 268435456;
-    exports2.READONLY = fs4.constants.O_RDONLY;
+    exports2.READONLY = fs5.constants.O_RDONLY;
     function exists(fsPath) {
       return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -28465,7 +28465,8 @@ var ApplyTriageOutputActionSchema = BaseActionSchema.extend({
 });
 var ApplyIterateOutputActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("applyIterateOutput"),
-  issueNumber: external_exports.number().int().positive()
+  issueNumber: external_exports.number().int().positive(),
+  filePath: external_exports.string().default("claude-structured-output.json")
 });
 var AppendAgentNotesActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("appendAgentNotes"),
@@ -40115,13 +40116,28 @@ async function applyProjectFields(ctx, issueNumber, classification) {
 
 // issue/actions-ts/state-machine/runner/executors/iterate.ts
 var core10 = __toESM(require_core(), 1);
+var fs4 = __toESM(require("node:fs"), 1);
 async function executeApplyIterateOutput(action, ctx, structuredOutput) {
-  const { issueNumber } = action;
-  if (!structuredOutput) {
-    core10.warning("No structured output provided for applyIterateOutput");
+  const { issueNumber, filePath } = action;
+  let iterateOutput;
+  if (structuredOutput) {
+    iterateOutput = structuredOutput;
+    core10.info("Using structured output from in-process chain");
+  } else if (filePath && fs4.existsSync(filePath)) {
+    try {
+      const content = fs4.readFileSync(filePath, "utf-8");
+      iterateOutput = JSON.parse(content);
+      core10.info(`Iterate output from file: ${filePath}`);
+    } catch (error3) {
+      core10.warning(`Failed to parse iterate output: ${error3}`);
+      return { applied: false };
+    }
+  } else {
+    core10.warning(
+      `No structured output provided and iterate output file not found at: ${filePath || "undefined"}. Ensure runClaude action wrote claude-structured-output.json and artifact was downloaded.`
+    );
     return { applied: false };
   }
-  const iterateOutput = structuredOutput;
   core10.info(`Processing iterate output for issue #${issueNumber}`);
   core10.startGroup("Iterate Output");
   core10.info(JSON.stringify(iterateOutput, null, 2));

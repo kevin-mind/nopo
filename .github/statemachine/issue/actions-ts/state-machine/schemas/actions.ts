@@ -517,6 +517,7 @@ export type ApplyTriageOutputAction = z.infer<
 const ApplyIterateOutputActionSchema = BaseActionSchema.extend({
   type: z.literal("applyIterateOutput"),
   issueNumber: z.number().int().positive(),
+  filePath: z.string().default("claude-structured-output.json"),
 });
 
 export type ApplyIterateOutputAction = z.infer<

@@ -28871,7 +28871,8 @@ var ApplyTriageOutputActionSchema = BaseActionSchema.extend({
 });
 var ApplyIterateOutputActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("applyIterateOutput"),
-  issueNumber: external_exports.number().int().positive()
+  issueNumber: external_exports.number().int().positive(),
+  filePath: external_exports.string().default("claude-structured-output.json")
 });
 var AppendAgentNotesActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("appendAgentNotes"),

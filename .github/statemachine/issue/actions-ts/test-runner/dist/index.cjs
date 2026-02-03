@@ -182,7 +182,7 @@ var require_file_command = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.prepareKeyValueMessage = exports2.issueFileCommand = void 0;
     var crypto = __importStar(require("crypto"));
-    var fs6 = __importStar(require("fs"));
+    var fs7 = __importStar(require("fs"));
     var os = __importStar(require("os"));
     var utils_1 = require_utils();
     function issueFileCommand(command, message) {
@@ -190,10 +190,10 @@ var require_file_command = __commonJS({
       if (!filePath) {
         throw new Error(`Unable to find environment variable for file command ${command}`);
       }
-      if (!fs6.existsSync(filePath)) {
+      if (!fs7.existsSync(filePath)) {
         throw new Error(`Missing file at path: ${filePath}`);
       }
-      fs6.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
+      fs7.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
         encoding: "utf8"
       });
     }
@@ -18510,12 +18510,12 @@ var require_io_util = __commonJS({
     var _a;
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getCmdPath = exports2.tryGetExecutablePath = exports2.isRooted = exports2.isDirectory = exports2.exists = exports2.READONLY = exports2.UV_FS_O_EXLOCK = exports2.IS_WINDOWS = exports2.unlink = exports2.symlink = exports2.stat = exports2.rmdir = exports2.rm = exports2.rename = exports2.readlink = exports2.readdir = exports2.open = exports2.mkdir = exports2.lstat = exports2.copyFile = exports2.chmod = void 0;
-    var fs6 = __importStar(require("fs"));
+    var fs7 = __importStar(require("fs"));
     var path4 = __importStar(require("path"));
-    _a = fs6.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
+    _a = fs7.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
     exports2.IS_WINDOWS = process.platform === "win32";
     exports2.UV_FS_O_EXLOCK = 268435456;
-    exports2.READONLY = fs6.constants.O_RDONLY;
+    exports2.READONLY = fs7.constants.O_RDONLY;
     function exists(fsPath) {
       return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -31755,7 +31755,8 @@ var ApplyTriageOutputActionSchema = BaseActionSchema.extend({
 });
 var ApplyIterateOutputActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("applyIterateOutput"),
-  issueNumber: external_exports.number().int().positive()
+  issueNumber: external_exports.number().int().positive(),
+  filePath: external_exports.string().default("claude-structured-output.json")
 });
 var AppendAgentNotesActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("appendAgentNotes"),
@@ -32966,19 +32967,28 @@ gh pr create --draft --reviewer nopo-bot \\
 function emitRunClaude({ context: context2 }) {
   const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
   const promptVars = buildIteratePromptVars(context2);
+  const iterateArtifact = {
+    name: "claude-iterate-output",
+    path: "claude-structured-output.json"
+  };
   return [
     {
       type: "runClaude",
       token: "code",
       promptDir: "iterate",
       promptVars,
-      issueNumber
+      issueNumber,
+      // Structured output is saved to claude-structured-output.json by run-claude action
+      producesArtifact: iterateArtifact
     },
     // Apply iterate output: check off completed todos, store agent notes
+    // Downloads the artifact before execution
     {
       type: "applyIterateOutput",
       token: "code",
-      issueNumber
+      issueNumber,
+      filePath: "claude-structured-output.json",
+      consumesArtifact: iterateArtifact
     }
   ];
 }
@@ -32990,19 +33000,28 @@ CI Run: ${context2.ciRunUrl ?? "N/A"}
 Commit: ${context2.ciCommitSha ?? "N/A"}
 
 Review the CI logs at the link above and fix the failing tests or build errors.`;
+  const iterateArtifact = {
+    name: "claude-iterate-output",
+    path: "claude-structured-output.json"
+  };
   return [
     {
       type: "runClaude",
       token: "code",
       promptDir: "iterate",
       promptVars,
-      issueNumber
+      issueNumber,
+      // Structured output is saved to claude-structured-output.json by run-claude action
+      producesArtifact: iterateArtifact
     },
     // Apply iterate output: check off completed todos, store agent notes
+    // Downloads the artifact before execution
     {
       type: "applyIterateOutput",
       token: "code",
-      issueNumber
+      issueNumber,
+      filePath: "claude-structured-output.json",
+      consumesArtifact: iterateArtifact
     }
   ];
 }
@@ -47814,13 +47833,28 @@ async function applyProjectFields(ctx, issueNumber, classification) {
 
 // issue/actions-ts/state-machine/runner/executors/iterate.ts
 var core15 = __toESM(require_core(), 1);
+var fs5 = __toESM(require("node:fs"), 1);
 async function executeApplyIterateOutput(action, ctx, structuredOutput) {
-  const { issueNumber } = action;
-  if (!structuredOutput) {
-    core15.warning("No structured output provided for applyIterateOutput");
+  const { issueNumber, filePath } = action;
+  let iterateOutput;
+  if (structuredOutput) {
+    iterateOutput = structuredOutput;
+    core15.info("Using structured output from in-process chain");
+  } else if (filePath && fs5.existsSync(filePath)) {
+    try {
+      const content = fs5.readFileSync(filePath, "utf-8");
+      iterateOutput = JSON.parse(content);
+      core15.info(`Iterate output from file: ${filePath}`);
+    } catch (error9) {
+      core15.warning(`Failed to parse iterate output: ${error9}`);
+      return { applied: false };
+    }
+  } else {
+    core15.warning(
+      `No structured output provided and iterate output file not found at: ${filePath || "undefined"}. Ensure runClaude action wrote claude-structured-output.json and artifact was downloaded.`
+    );
     return { applied: false };
   }
-  const iterateOutput = structuredOutput;
   core15.info(`Processing iterate output for issue #${issueNumber}`);
   core15.startGroup("Iterate Output");
   core15.info(JSON.stringify(iterateOutput, null, 2));
@@ -49600,7 +49634,7 @@ var _DiscussionTestResultSchema = external_exports.object({
 });
 
 // issue/actions-ts/test-runner/src/configurable/discussion-loader.ts
-var fs5 = __toESM(require("fs"), 1);
+var fs6 = __toESM(require("fs"), 1);
 var path3 = __toESM(require("path"), 1);
 var core21 = __toESM(require_core(), 1);
 var FIXTURES_BASE_PATH2 = ".github/statemachine/discussion/fixtures";
@@ -49615,18 +49649,18 @@ async function loadDiscussionScenario(scenarioName, basePath = FIXTURES_BASE_PAT
     scenarioName
   );
   const configPath = path3.join(scenarioDir, SCENARIO_CONFIG_FILE2);
-  if (!fs5.existsSync(configPath)) {
+  if (!fs6.existsSync(configPath)) {
     throw new Error(
       `Discussion scenario config not found: ${configPath}. Create a scenario.json file with name and description.`
     );
   }
-  const configContent = fs5.readFileSync(configPath, "utf-8");
+  const configContent = fs6.readFileSync(configPath, "utf-8");
   const configJson = JSON.parse(configContent);
   const config = DiscussionScenarioConfigSchema.parse(configJson);
   core21.info(`Loading discussion scenario: ${config.name}`);
   core21.info(`Description: ${config.description}`);
   const statesDir = path3.join(scenarioDir, STATES_DIR2);
-  if (!fs5.existsSync(statesDir)) {
+  if (!fs6.existsSync(statesDir)) {
     throw new Error(
       `States directory not found: ${statesDir}. Create a states/ directory with fixture files.`
     );
@@ -49650,12 +49684,12 @@ async function loadDiscussionScenario(scenarioName, basePath = FIXTURES_BASE_PAT
   };
 }
 async function loadDiscussionStateFixtures(statesDir) {
-  const files = fs5.readdirSync(statesDir).filter((f) => f.endsWith(".json")).sort();
+  const files = fs6.readdirSync(statesDir).filter((f) => f.endsWith(".json")).sort();
   const orderedStates = [];
   const fixtures = /* @__PURE__ */ new Map();
   for (const file of files) {
     const filePath = path3.join(statesDir, file);
-    const content = fs5.readFileSync(filePath, "utf-8");
+    const content = fs6.readFileSync(filePath, "utf-8");
     let json;
     try {
       json = JSON.parse(content);
@@ -49689,12 +49723,12 @@ async function loadReferencedMocks2(fixtures, basePath) {
     if (!fixture.claudeMock) continue;
     if (claudeMocks.has(fixture.claudeMock)) continue;
     const mockPath = path3.join(mocksDir, `${fixture.claudeMock}.json`);
-    if (!fs5.existsSync(mockPath)) {
+    if (!fs6.existsSync(mockPath)) {
       throw new Error(
         `Claude mock not found: ${mockPath} (referenced by state '${state}')`
       );
     }
-    const content = fs5.readFileSync(mockPath, "utf-8");
+    const content = fs6.readFileSync(mockPath, "utf-8");
     let json;
     try {
       json = JSON.parse(content);

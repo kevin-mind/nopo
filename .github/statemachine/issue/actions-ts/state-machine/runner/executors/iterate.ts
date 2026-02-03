@@ -1,4 +1,5 @@
 import * as core from "@actions/core";
+import * as fs from "node:fs";
 import type { ApplyIterateOutputAction } from "../../schemas/index.js";
 import type { RunnerContext } from "../runner.js";
 import { appendAgentNotes } from "../../parser/index.js";
@@ -34,14 +35,31 @@ export async function executeApplyIterateOutput(
   ctx: RunnerContext,
   structuredOutput?: unknown,
 ): Promise<{ applied: boolean; status?: string }> {
-  const { issueNumber } = action;
+  const { issueNumber, filePath } = action;
 
-  if (!structuredOutput) {
-    core.warning("No structured output provided for applyIterateOutput");
+  let iterateOutput: IterateOutput;
+
+  // Try structured output first (in-process chaining), then fall back to file
+  if (structuredOutput) {
+    iterateOutput = structuredOutput as IterateOutput;
+    core.info("Using structured output from in-process chain");
+  } else if (filePath && fs.existsSync(filePath)) {
+    // Read from file (artifact passed between workflow matrix jobs)
+    try {
+      const content = fs.readFileSync(filePath, "utf-8");
+      iterateOutput = JSON.parse(content) as IterateOutput;
+      core.info(`Iterate output from file: ${filePath}`);
+    } catch (error) {
+      core.warning(`Failed to parse iterate output: ${error}`);
+      return { applied: false };
+    }
+  } else {
+    core.warning(
+      `No structured output provided and iterate output file not found at: ${filePath || "undefined"}. ` +
+        "Ensure runClaude action wrote claude-structured-output.json and artifact was downloaded.",
+    );
     return { applied: false };
   }
-
-  const iterateOutput = structuredOutput as IterateOutput;
 
   core.info(`Processing iterate output for issue #${issueNumber}`);
   core.startGroup("Iterate Output");

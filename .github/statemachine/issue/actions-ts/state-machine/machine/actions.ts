@@ -486,6 +486,11 @@ export function emitRunClaude({ context }: ActionContext): ActionResult {
   const issueNumber = context.currentSubIssue?.number ?? context.issue.number;
   const promptVars = buildIteratePromptVars(context);
 
+  const iterateArtifact = {
+    name: "claude-iterate-output",
+    path: "claude-structured-output.json",
+  };
+
   return [
     {
       type: "runClaude",
@@ -493,12 +498,17 @@ export function emitRunClaude({ context }: ActionContext): ActionResult {
       promptDir: "iterate",
       promptVars,
       issueNumber,
+      // Structured output is saved to claude-structured-output.json by run-claude action
+      producesArtifact: iterateArtifact,
     },
     // Apply iterate output: check off completed todos, store agent notes
+    // Downloads the artifact before execution
     {
       type: "applyIterateOutput",
       token: "code",
       issueNumber,
+      filePath: "claude-structured-output.json",
+      consumesArtifact: iterateArtifact,
     },
   ];
 }
@@ -520,6 +530,11 @@ Commit: ${context.ciCommitSha ?? "N/A"}
 
 Review the CI logs at the link above and fix the failing tests or build errors.`;
 
+  const iterateArtifact = {
+    name: "claude-iterate-output",
+    path: "claude-structured-output.json",
+  };
+
   return [
     {
       type: "runClaude",
@@ -527,12 +542,17 @@ Review the CI logs at the link above and fix the failing tests or build errors.`
       promptDir: "iterate",
       promptVars,
       issueNumber,
+      // Structured output is saved to claude-structured-output.json by run-claude action
+      producesArtifact: iterateArtifact,
     },
     // Apply iterate output: check off completed todos, store agent notes
+    // Downloads the artifact before execution
     {
       type: "applyIterateOutput",
       token: "code",
       issueNumber,
+      filePath: "claude-structured-output.json",
+      consumesArtifact: iterateArtifact,
     },
   ];
 }

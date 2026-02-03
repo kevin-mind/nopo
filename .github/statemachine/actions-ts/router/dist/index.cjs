@@ -31804,7 +31804,8 @@ var ApplyTriageOutputActionSchema = BaseActionSchema.extend({
 });
 var ApplyIterateOutputActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("applyIterateOutput"),
-  issueNumber: external_exports.number().int().positive()
+  issueNumber: external_exports.number().int().positive(),
+  filePath: external_exports.string().default("claude-structured-output.json")
 });
 var AppendAgentNotesActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("appendAgentNotes"),
@@ -33125,19 +33126,28 @@ gh pr create --draft --reviewer nopo-bot \\
 function emitRunClaude({ context: context2 }) {
   const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
   const promptVars = buildIteratePromptVars(context2);
+  const iterateArtifact = {
+    name: "claude-iterate-output",
+    path: "claude-structured-output.json"
+  };
   return [
     {
       type: "runClaude",
       token: "code",
       promptDir: "iterate",
       promptVars,
-      issueNumber
+      issueNumber,
+      // Structured output is saved to claude-structured-output.json by run-claude action
+      producesArtifact: iterateArtifact
     },
     // Apply iterate output: check off completed todos, store agent notes
+    // Downloads the artifact before execution
     {
       type: "applyIterateOutput",
       token: "code",
-      issueNumber
+      issueNumber,
+      filePath: "claude-structured-output.json",
+      consumesArtifact: iterateArtifact
     }
   ];
 }
@@ -33149,19 +33159,28 @@ CI Run: ${context2.ciRunUrl ?? "N/A"}
 Commit: ${context2.ciCommitSha ?? "N/A"}
 
 Review the CI logs at the link above and fix the failing tests or build errors.`;
+  const iterateArtifact = {
+    name: "claude-iterate-output",
+    path: "claude-structured-output.json"
+  };
   return [
     {
       type: "runClaude",
       token: "code",
       promptDir: "iterate",
       promptVars,
-      issueNumber
+      issueNumber,
+      // Structured output is saved to claude-structured-output.json by run-claude action
+      producesArtifact: iterateArtifact
     },
     // Apply iterate output: check off completed todos, store agent notes
+    // Downloads the artifact before execution
     {
       type: "applyIterateOutput",
       token: "code",
-      issueNumber
+      issueNumber,
+      filePath: "claude-structured-output.json",
+      consumesArtifact: iterateArtifact
     }
   ];
 }
