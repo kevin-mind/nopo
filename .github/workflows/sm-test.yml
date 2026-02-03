@@ -129,7 +129,7 @@ jobs:
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         id: run
-        uses: ./.github/actions-ts/claude-test-runner
+        uses: ./.github/statemachine/issue/actions-ts/test-runner
         with:
           action: run-configurable
           scenario_name: ${{ inputs.scenario_name }}
@@ -216,7 +216,7 @@ jobs:
           echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
 
       - name: Cleanup test fixture
-        uses: ./.github/actions-ts/claude-test-helper
+        uses: ./.github/statemachine/shared/actions-ts/test-helper
         with:
           action: cleanup
           issue_number: ${{ steps.issue.outputs.issue_number }}

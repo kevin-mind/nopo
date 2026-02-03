@@ -104,7 +104,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - id: detect
-        uses: ./.github/actions-ts/claude-detect-event
+        uses: ./.github/statemachine/shared/actions-ts/detect-event
         with:
           github_token: ${{ secrets.NOPO_BOT_PAT }}
           resource_number: ${{ inputs.resource_number || '' }}
