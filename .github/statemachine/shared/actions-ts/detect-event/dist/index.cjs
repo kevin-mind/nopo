@@ -23930,6 +23930,38 @@ function emptyResult(skip = false, skipReason = "") {
     cancelInProgress: false
   };
 }
+async function addReactionToComment(octokit, owner, repo, commentId, reaction) {
+  try {
+    await octokit.rest.reactions.createForIssueComment({
+      owner,
+      repo,
+      comment_id: commentId,
+      content: reaction
+    });
+    core2.info(`Added ${reaction} reaction to comment ${commentId}`);
+  } catch (error) {
+    core2.warning(`Failed to add reaction to comment: ${error}`);
+  }
+}
+async function addReactionToDiscussionComment(octokit, nodeId, reaction) {
+  try {
+    await octokit.graphql(
+      `
+      mutation($subjectId: ID!, $content: ReactionContent!) {
+        addReaction(input: {subjectId: $subjectId, content: $content}) {
+          reaction {
+            content
+          }
+        }
+      }
+      `,
+      { subjectId: nodeId, content: reaction }
+    );
+    core2.info(`Added ${reaction} reaction to discussion comment ${nodeId}`);
+  } catch (error) {
+    core2.warning(`Failed to add reaction to discussion comment: ${error}`);
+  }
+}
 function jobToTrigger(job, contextJson) {
   try {
     const ctx = JSON.parse(contextJson);
@@ -24623,6 +24655,7 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
   const hasLfgCommand = commandLines.some((line) => line === "/lfg");
   const hasResetCommand = commandLines.some((line) => line === "/reset");
   if (hasResetCommand && !isPr) {
+    await addReactionToComment(octokit, owner, repo, comment.id, "eyes");
     const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
     return {
       job: "issue-reset",
@@ -24641,6 +24674,7 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
     };
   }
   if ((hasImplementCommand || hasContinueCommand || hasLfgCommand) && !isPr) {
+    await addReactionToComment(octokit, owner, repo, comment.id, "rocket");
     const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
     if (details.isSubIssue) {
       const phaseNumber = extractPhaseNumber(details.title);
@@ -25184,6 +25218,7 @@ async function handleDiscussionCommentEvent(octokit, owner, repo) {
   const author = comment.user.login;
   const isTopLevel = !comment.parent_id;
   if (body === "/summarize") {
+    await addReactionToDiscussionComment(octokit, comment.node_id, "EYES");
     return {
       job: "discussion-summarize",
       resourceType: "discussion",
@@ -25200,6 +25235,7 @@ async function handleDiscussionCommentEvent(octokit, owner, repo) {
     };
   }
   if (body === "/plan") {
+    await addReactionToDiscussionComment(octokit, comment.node_id, "ROCKET");
     return {
       job: "discussion-plan",
       resourceType: "discussion",
@@ -25216,6 +25252,7 @@ async function handleDiscussionCommentEvent(octokit, owner, repo) {
     };
   }
   if (body === "/complete") {
+    await addReactionToDiscussionComment(octokit, comment.node_id, "THUMBS_UP");
     return {
       job: "discussion-complete",
       resourceType: "discussion",
@@ -25269,7 +25306,10 @@ async function handleDiscussionCommentEvent(octokit, owner, repo) {
 }
 async function handleWorkflowDispatchEvent(octokit, owner, repo, resourceNumber) {
   if (!resourceNumber) {
-    return emptyResult(true, "No resource_number provided for workflow_dispatch");
+    return emptyResult(
+      true,
+      "No resource_number provided for workflow_dispatch"
+    );
   }
   const issueNumber = parseInt(resourceNumber, 10);
   if (isNaN(issueNumber)) {
@@ -25277,7 +25317,12 @@ async function handleWorkflowDispatchEvent(octokit, owner, repo, resourceNumber)
   }
   core2.info(`Workflow dispatch for issue #${issueNumber}`);
   const details = await fetchIssueDetails(octokit, owner, repo, issueNumber);
-  const projectState = await fetchProjectState(octokit, owner, repo, issueNumber);
+  const projectState = await fetchProjectState(
+    octokit,
+    owner,
+    repo,
+    issueNumber
+  );
   if (shouldSkipProjectState(projectState)) {
     return emptyResult(
       true,
@@ -25312,7 +25357,10 @@ async function handleWorkflowDispatchEvent(octokit, owner, repo, resourceNumber)
   }
   if (details.isSubIssue) {
     const phaseNumber = extractPhaseNumber(details.title);
-    const branchName2 = deriveBranch(details.parentIssue, phaseNumber || issueNumber);
+    const branchName2 = deriveBranch(
+      details.parentIssue,
+      phaseNumber || issueNumber
+    );
     return {
       job: "issue-iterate",
       resourceType: "issue",
@@ -25399,7 +25447,12 @@ async function run() {
         result = await handleMergeGroupEvent(octokit, owner, repo);
         break;
       case "workflow_dispatch":
-        result = await handleWorkflowDispatchEvent(octokit, owner, repo, resourceNumber);
+        result = await handleWorkflowDispatchEvent(
+          octokit,
+          owner,
+          repo,
+          resourceNumber
+        );
         break;
       default:
         result = emptyResult(true, `Unhandled event: ${eventName}`);

@@ -29861,9 +29861,13 @@ async function executeResetIssue(action, ctx) {
       issue_number: action.issueNumber,
       assignees: [action.botUsername]
     });
-    core3.info(`Unassigned ${action.botUsername} from issue #${action.issueNumber}`);
+    core3.info(
+      `Unassigned ${action.botUsername} from issue #${action.issueNumber}`
+    );
   } catch (error3) {
-    core3.warning(`Failed to unassign bot from issue #${action.issueNumber}: ${error3}`);
+    core3.warning(
+      `Failed to unassign bot from issue #${action.issueNumber}: ${error3}`
+    );
   }
   for (const subIssueNumber of action.subIssueNumbers) {
     try {
@@ -29873,9 +29877,13 @@ async function executeResetIssue(action, ctx) {
         issue_number: subIssueNumber,
         assignees: [action.botUsername]
       });
-      core3.info(`Unassigned ${action.botUsername} from sub-issue #${subIssueNumber}`);
+      core3.info(
+        `Unassigned ${action.botUsername} from sub-issue #${subIssueNumber}`
+      );
     } catch (error3) {
-      core3.warning(`Failed to unassign bot from sub-issue #${subIssueNumber}: ${error3}`);
+      core3.warning(
+        `Failed to unassign bot from sub-issue #${subIssueNumber}: ${error3}`
+      );
     }
   }
   core3.info(`Reset complete: ${resetCount} issues reopened`);
@@ -40262,224 +40270,6 @@ async function executeAppendAgentNotes(action, ctx) {
 
 // issue/actions-ts/state-machine/runner/signaler.ts
 var core13 = __toESM(require_core(), 1);
-var JOB_DESCRIPTIONS = {
-  // Issue jobs
-  "issue-triage": "triaging this issue",
-  "issue-iterate": "iterating on this issue",
-  "issue-comment": "responding to your request",
-  "issue-orchestrate": "orchestrating this issue",
-  // PR jobs
-  "push-to-draft": "converting PR to draft",
-  "pr-review": "reviewing this PR",
-  "pr-response": "responding to review feedback",
-  "pr-human-response": "addressing your review feedback",
-  // Discussion jobs
-  "discussion-research": "researching this topic",
-  "discussion-respond": "responding to your question",
-  "discussion-summarize": "summarizing this discussion",
-  "discussion-plan": "creating implementation plan",
-  "discussion-complete": "marking discussion as complete"
-};
-var GET_DISCUSSION_ID_QUERY2 = `
-query GetDiscussionId($owner: String!, $repo: String!, $number: Int!) {
-  repository(owner: $owner, name: $repo) {
-    discussion(number: $number) {
-      id
-    }
-  }
-}
-`;
-var ADD_DISCUSSION_COMMENT_MUTATION3 = `
-mutation AddDiscussionComment($discussionId: ID!, $body: String!) {
-  addDiscussionComment(input: {
-    discussionId: $discussionId
-    body: $body
-  }) {
-    comment {
-      id
-    }
-  }
-}
-`;
-var UPDATE_DISCUSSION_COMMENT_MUTATION = `
-mutation UpdateDiscussionComment($commentId: ID!, $body: String!) {
-  updateDiscussionComment(input: {
-    commentId: $commentId
-    body: $body
-  }) {
-    comment {
-      id
-    }
-  }
-}
-`;
-var ADD_GRAPHQL_REACTION_MUTATION = `
-mutation AddReaction($subjectId: ID!, $content: ReactionContent!) {
-  addReaction(input: {
-    subjectId: $subjectId
-    content: $content
-  }) {
-    reaction {
-      id
-    }
-  }
-}
-`;
-function toGraphQLReaction(reaction) {
-  switch (reaction) {
-    case "eyes":
-      return "EYES";
-    case "rocket":
-      return "ROCKET";
-    case "-1":
-      return "THUMBS_DOWN";
-  }
-}
-async function addReactionToComment(octokit, owner, repo, commentId, resourceType, reaction) {
-  try {
-    if (resourceType === "discussion") {
-      await octokit.graphql(ADD_GRAPHQL_REACTION_MUTATION, {
-        subjectId: commentId,
-        content: toGraphQLReaction(reaction)
-      });
-    } else {
-      await octokit.rest.reactions.createForIssueComment({
-        owner,
-        repo,
-        comment_id: parseInt(commentId, 10),
-        content: reaction
-      });
-    }
-    core13.debug(`Added ${reaction} reaction to comment ${commentId}`);
-  } catch (error3) {
-    core13.warning(`Failed to add reaction to comment: ${error3}`);
-  }
-}
-async function signalStart(ctx, progress) {
-  const description = JOB_DESCRIPTIONS[ctx.job] ?? ctx.job;
-  let progressSection = "";
-  if (ctx.job === "issue-iterate" && progress) {
-    const iteration = progress.iteration ?? 0;
-    const failures = progress.consecutiveFailures ?? 0;
-    const maxRetries = progress.maxRetries ?? 5;
-    progressSection = `
-
-**Progress:**`;
-    progressSection += `
-- Iteration: ${iteration}`;
-    if (failures > 0) {
-      progressSection += `
-- Retry attempt: ${failures}/${maxRetries}`;
-    }
-  }
-  const body = `\u23F3 **nopo-bot** is ${description}...${progressSection}
-
-[View workflow run](${ctx.runUrl})`;
-  if (ctx.triggerCommentId) {
-    await addReactionToComment(
-      ctx.octokit,
-      ctx.owner,
-      ctx.repo,
-      ctx.triggerCommentId,
-      ctx.resourceType,
-      "eyes"
-    );
-  }
-  if (ctx.resourceType === "discussion") {
-    const discussionResult = await ctx.octokit.graphql(
-      GET_DISCUSSION_ID_QUERY2,
-      {
-        owner: ctx.owner,
-        repo: ctx.repo,
-        number: ctx.resourceNumber
-      }
-    );
-    const discussionId = discussionResult.repository?.discussion?.id;
-    if (!discussionId) {
-      throw new Error(`Discussion #${ctx.resourceNumber} not found`);
-    }
-    const commentResult = await ctx.octokit.graphql(
-      ADD_DISCUSSION_COMMENT_MUTATION3,
-      { discussionId, body }
-    );
-    const commentId = commentResult.addDiscussionComment?.comment?.id;
-    if (!commentId) {
-      throw new Error("Failed to create discussion comment");
-    }
-    core13.info(`Created status comment: ${commentId}`);
-    return commentId;
-  }
-  const { data: comment } = await ctx.octokit.rest.issues.createComment({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    issue_number: ctx.resourceNumber,
-    body
-  });
-  core13.info(`Created status comment: ${comment.id}`);
-  return String(comment.id);
-}
-async function signalEnd(ctx, statusCommentId, result) {
-  const description = JOB_DESCRIPTIONS[ctx.job] ?? ctx.job;
-  let emoji;
-  let status;
-  let reaction;
-  switch (result) {
-    case "success":
-      emoji = "\u2705";
-      status = "completed successfully";
-      reaction = "rocket";
-      break;
-    case "failure":
-      emoji = "\u274C";
-      status = "failed";
-      reaction = "-1";
-      break;
-    case "cancelled":
-      emoji = "\u26A0\uFE0F";
-      status = "was cancelled";
-      reaction = "-1";
-      break;
-  }
-  const body = `${emoji} **nopo-bot** ${description} ${status}.
-
-[View workflow run](${ctx.runUrl})`;
-  try {
-    if (ctx.resourceType === "discussion") {
-      await ctx.octokit.graphql(UPDATE_DISCUSSION_COMMENT_MUTATION, {
-        commentId: statusCommentId,
-        body
-      });
-    } else {
-      await ctx.octokit.rest.issues.updateComment({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        comment_id: parseInt(statusCommentId, 10),
-        body
-      });
-    }
-    core13.info(`Updated status comment ${statusCommentId} to ${result}`);
-  } catch (error3) {
-    core13.warning(`Failed to update status comment: ${error3}`);
-  }
-  await addReactionToComment(
-    ctx.octokit,
-    ctx.owner,
-    ctx.repo,
-    statusCommentId,
-    ctx.resourceType,
-    reaction
-  );
-  if (ctx.triggerCommentId) {
-    await addReactionToComment(
-      ctx.octokit,
-      ctx.owner,
-      ctx.repo,
-      ctx.triggerCommentId,
-      ctx.resourceType,
-      reaction
-    );
-  }
-}
 
 // issue/actions-ts/state-machine/runner/runner.ts
 function getOctokitForAction(action, ctx) {
@@ -40776,72 +40566,6 @@ function logRunnerSummary(result) {
     }
   }
 }
-async function runWithSignaling(actions, ctx, options = {}) {
-  let statusCommentId = "";
-  if (ctx.dryRun) {
-    core14.info("[DRY RUN] Skipping status signaling");
-    const result2 = await executeActions(actions, ctx, options);
-    return { ...result2, statusCommentId: "" };
-  }
-  try {
-    statusCommentId = await signalStart(
-      {
-        octokit: ctx.octokit,
-        owner: ctx.owner,
-        repo: ctx.repo,
-        resourceType: ctx.resourceType,
-        resourceNumber: ctx.resourceNumber,
-        job: ctx.job,
-        runUrl: ctx.runUrl,
-        triggerCommentId: ctx.triggerCommentId
-      },
-      ctx.progress
-    );
-  } catch (error3) {
-    core14.warning(`Failed to create status comment: ${error3}`);
-  }
-  const result = await executeActions(actions, ctx, options);
-  if (statusCommentId !== "") {
-    try {
-      const jobResult = result.success ? "success" : "failure";
-      await signalEnd(
-        {
-          octokit: ctx.octokit,
-          owner: ctx.owner,
-          repo: ctx.repo,
-          resourceType: ctx.resourceType,
-          resourceNumber: ctx.resourceNumber,
-          job: ctx.job,
-          runUrl: ctx.runUrl,
-          triggerCommentId: ctx.triggerCommentId
-        },
-        statusCommentId,
-        jobResult
-      );
-    } catch (error3) {
-      core14.warning(`Failed to update status comment: ${error3}`);
-    }
-  }
-  return { ...result, statusCommentId };
-}
-function createSignaledRunnerContext(octokit, owner, repo, projectNumber, resourceType, resourceNumber, job, runUrl, options = {}) {
-  return {
-    octokit,
-    reviewOctokit: options.reviewOctokit,
-    owner,
-    repo,
-    projectNumber,
-    serverUrl: options.serverUrl || process.env.GITHUB_SERVER_URL || "https://github.com",
-    dryRun: options.dryRun,
-    mockOutputs: options.mockOutputs,
-    resourceType,
-    resourceNumber,
-    job,
-    runUrl,
-    triggerCommentId: options.triggerCommentId,
-    progress: options.progress
-  };
-}
 
 // issue/actions-ts/executor/index.ts
 function parseActions(json) {
@@ -40936,7 +40660,7 @@ async function run() {
     const { owner, repo } = github.context.repo;
     let result;
     if (signalingEnabled) {
-      const signaledContext = createSignaledRunnerContext(
+      const signaledContext = createSignaledRunnerContext2(
         codeOctokit,
         owner,
         repo,
@@ -40952,7 +40676,7 @@ async function run() {
           mockOutputs
         }
       );
-      result = await runWithSignaling(actions, signaledContext);
+      result = await runWithSignaling2(actions, signaledContext);
     } else {
       const runnerContext = createRunnerContext(
         codeOctokit,

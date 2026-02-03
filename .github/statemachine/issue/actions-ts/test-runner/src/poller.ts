@@ -9,7 +9,7 @@ import type { PollerConfig, PollResult } from "./types.js";
 /**
  * Default polling configuration
  */
-const DEFAULT_POLLER_CONFIG: PollerConfig = {
+export const DEFAULT_POLLER_CONFIG: PollerConfig = {
   initialIntervalMs: 5000,
   maxIntervalMs: 60000,
   multiplier: 1.5,
@@ -26,7 +26,7 @@ let currentWorkflowRunId: string | null = null;
 /**
  * Setup signal handlers for graceful cancellation
  */
-function setupCancellationHandlers(): AbortController {
+export function setupCancellationHandlers(): AbortController {
   globalAbortController = new AbortController();
 
   // Store the workflow run ID from environment

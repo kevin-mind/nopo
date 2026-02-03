@@ -19823,9 +19823,7 @@ __export(index_exports, {
   executeClaudeSDK: () => executeClaudeSDK,
   getClaudeVersion: () => getClaudeVersion,
   isClaudeAvailable: () => isClaudeAvailable,
-  resolvePrompt: () => resolvePrompt,
-  resolvePromptDir: () => resolvePromptDir,
-  substituteVars: () => substituteVars
+  resolvePrompt: () => resolvePrompt
 });
 module.exports = __toCommonJS(index_exports);
 
@@ -28894,9 +28892,7 @@ If you disagree with any feedback, document your reasoning in a comment.`;
   executeClaudeSDK,
   getClaudeVersion,
   isClaudeAvailable,
-  resolvePrompt,
-  resolvePromptDir,
-  substituteVars
+  resolvePrompt
 });
 /*! Bundled license information:
 

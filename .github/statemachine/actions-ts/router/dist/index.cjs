@@ -32164,61 +32164,6 @@ var guards = {
   shouldBlock
 };
 
-// issue/actions-ts/state-machine/parser/todo-parser.ts
-var TODO_PATTERNS = {
-  // Matches: - [ ] text or - [x] text or - [X] text
-  checkbox: /^(\s*)-\s*\[([ xX])\]\s*(.+)$/,
-  // Matches: [Manual] prefix or *(manual)* anywhere in the line
-  // [Manual] is the preferred format, *(manual)* is legacy
-  manual: /\[Manual\]|\*\(manual\)\*/i
-};
-function parseTodoLine(line) {
-  const match = line.match(TODO_PATTERNS.checkbox);
-  if (!match) {
-    return null;
-  }
-  const checkMark = match[2];
-  const text = match[3]?.trim() || "";
-  return {
-    text,
-    checked: checkMark?.toLowerCase() === "x",
-    isManual: TODO_PATTERNS.manual.test(line)
-  };
-}
-function parseTodos(body) {
-  const lines = body.split("\n");
-  const todos = [];
-  for (const line of lines) {
-    const todo = parseTodoLine(line);
-    if (todo) {
-      todos.push(todo);
-    }
-  }
-  return todos;
-}
-function calculateTodoStats(todos) {
-  let total = 0;
-  let completed = 0;
-  let uncheckedNonManual = 0;
-  for (const todo of todos) {
-    total++;
-    if (todo.checked) {
-      completed++;
-    } else if (!todo.isManual) {
-      uncheckedNonManual++;
-    }
-  }
-  return {
-    total,
-    completed,
-    uncheckedNonManual
-  };
-}
-function parseTodoStats(body) {
-  const todos = parseTodos(body);
-  return calculateTodoStats(todos);
-}
-
 // issue/actions-ts/state-machine/parser/history-parser.ts
 var HISTORY_SECTION = "## Iteration History";
 var HEADER_COLUMNS = [
@@ -32352,6 +32297,61 @@ function parseHistory(body) {
     }
   }
   return entries;
+}
+
+// issue/actions-ts/state-machine/parser/todo-parser.ts
+var TODO_PATTERNS = {
+  // Matches: - [ ] text or - [x] text or - [X] text
+  checkbox: /^(\s*)-\s*\[([ xX])\]\s*(.+)$/,
+  // Matches: [Manual] prefix or *(manual)* anywhere in the line
+  // [Manual] is the preferred format, *(manual)* is legacy
+  manual: /\[Manual\]|\*\(manual\)\*/i
+};
+function parseTodoLine(line) {
+  const match = line.match(TODO_PATTERNS.checkbox);
+  if (!match) {
+    return null;
+  }
+  const checkMark = match[2];
+  const text = match[3]?.trim() || "";
+  return {
+    text,
+    checked: checkMark?.toLowerCase() === "x",
+    isManual: TODO_PATTERNS.manual.test(line)
+  };
+}
+function parseTodos(body) {
+  const lines = body.split("\n");
+  const todos = [];
+  for (const line of lines) {
+    const todo = parseTodoLine(line);
+    if (todo) {
+      todos.push(todo);
+    }
+  }
+  return todos;
+}
+function calculateTodoStats(todos) {
+  let total = 0;
+  let completed = 0;
+  let uncheckedNonManual = 0;
+  for (const todo of todos) {
+    total++;
+    if (todo.checked) {
+      completed++;
+    } else if (!todo.isManual) {
+      uncheckedNonManual++;
+    }
+  }
+  return {
+    total,
+    completed,
+    uncheckedNonManual
+  };
+}
+function parseTodoStats(body) {
+  const todos = parseTodos(body);
+  return calculateTodoStats(todos);
 }
 
 // issue/actions-ts/state-machine/parser/agent-notes-parser.ts
@@ -33931,22 +33931,19 @@ var claudeMachine = setup({
     }),
     // Push to draft action
     pushToDraft: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitPushToDraft({ context: context2 })
-      )
+      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitPushToDraft({ context: context2 }))
     }),
     // Reset action
     resetIssue: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitResetIssue({ context: context2 })
-      )
+      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitResetIssue({ context: context2 }))
     }),
     logResetting: assign({
       pendingActions: ({ context: context2 }) => accumulateActions(
         context2.pendingActions,
-        emitLog({ context: context2 }, `Resetting issue #${context2.issue.number} to initial state`)
+        emitLog(
+          { context: context2 },
+          `Resetting issue #${context2.issue.number} to initial state`
+        )
       )
     })
   }
@@ -34401,21 +34398,25 @@ var claudeMachine = setup({
 });
 
 // discussion/actions-ts/state-machine/schemas/triggers.ts
-var DiscussionTriggerTypeSchema3 = external_exports.enum([
+var DiscussionTriggerTypeSchema2 = external_exports.enum([
   "discussion-created",
   "discussion-comment",
   "discussion-command"
 ]);
-var DISCUSSION_TRIGGER_TYPES2 = DiscussionTriggerTypeSchema3.options;
+var DISCUSSION_TRIGGER_TYPES = DiscussionTriggerTypeSchema2.options;
 
 // discussion/actions-ts/state-machine/schemas/context.ts
-var DiscussionCommandSchema2 = external_exports.enum(["summarize", "plan", "complete"]);
+var DiscussionCommandSchema2 = external_exports.enum([
+  "summarize",
+  "plan",
+  "complete"
+]);
 var ResearchThreadSchema = external_exports.object({
   nodeId: external_exports.string(),
   topic: external_exports.string(),
   replyCount: external_exports.number().int().min(0)
 });
-var DiscussionSchema2 = external_exports.object({
+var DiscussionSchema = external_exports.object({
   number: external_exports.number().int().positive(),
   nodeId: external_exports.string(),
   title: external_exports.string(),
@@ -34427,25 +34428,25 @@ var DiscussionSchema2 = external_exports.object({
   commentBody: external_exports.string().optional(),
   commentAuthor: external_exports.string().optional()
 });
-var DiscussionContextSchema2 = external_exports.object({
+var DiscussionContextSchema = external_exports.object({
   // Trigger info
-  trigger: DiscussionTriggerTypeSchema3,
+  trigger: DiscussionTriggerTypeSchema2,
   // Repository info
   owner: external_exports.string().min(1),
   repo: external_exports.string().min(1),
   // Discussion being worked on
-  discussion: DiscussionSchema2,
+  discussion: DiscussionSchema,
   // Config
   maxRetries: external_exports.number().int().positive().default(5),
   botUsername: external_exports.string().default("nopo-bot")
 });
-var DISCUSSION_CONTEXT_DEFAULTS2 = {
+var DISCUSSION_CONTEXT_DEFAULTS = {
   maxRetries: 5,
   botUsername: "nopo-bot"
 };
 function createDiscussionContext3(partial) {
-  return DiscussionContextSchema2.parse({
-    ...DISCUSSION_CONTEXT_DEFAULTS2,
+  return DiscussionContextSchema.parse({
+    ...DISCUSSION_CONTEXT_DEFAULTS,
     ...partial
   });
 }
@@ -35035,7 +35036,7 @@ query GetDiscussion($owner: String!, $repo: String!, $number: Int!) {
   }
 }
 `;
-async function buildDiscussionContext2(octokit, owner, repo, discussionNumber, trigger, options = {}) {
+async function buildDiscussionContext(octokit, owner, repo, discussionNumber, trigger, options = {}) {
   try {
     core5.info(`Fetching discussion #${discussionNumber}`);
     const response = await octokit.graphql(
@@ -35165,7 +35166,9 @@ async function run() {
     const ctx = parseRunnerContext(contextJsonInput);
     const trigger = ctx.trigger;
     core6.info(`Router received context_json with trigger: ${trigger}`);
-    core6.info(`Job: ${ctx.job}, Resource: ${ctx.resource_type} #${ctx.resource_number}`);
+    core6.info(
+      `Job: ${ctx.job}, Resource: ${ctx.resource_type} #${ctx.resource_number}`
+    );
     const octokit = github3.getOctokit(token);
     const { owner, repo } = github3.context.repo;
     if (isDiscussionTrigger(trigger)) {
@@ -35214,7 +35217,7 @@ async function runDiscussionMachine(options) {
   if (!command && commentBody) {
     command = parseDiscussionCommand(commentBody);
   }
-  const context2 = await buildDiscussionContext2(
+  const context2 = await buildDiscussionContext(
     octokit,
     owner,
     repo,

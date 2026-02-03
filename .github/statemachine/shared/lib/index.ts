@@ -4,7 +4,7 @@ import * as exec from "@actions/exec";
 /**
  * Get an input value, returning undefined if empty
  */
-function getOptionalInput(name: string): string | undefined {
+export function getOptionalInput(name: string): string | undefined {
   const value = core.getInput(name);
   return value === "" ? undefined : value;
 }
@@ -12,14 +12,14 @@ function getOptionalInput(name: string): string | undefined {
 /**
  * Get a required input value
  */
-function getRequiredInput(name: string): string {
+export function getRequiredInput(name: string): string {
   return core.getInput(name, { required: true });
 }
 
 /**
  * Execute a command and return the output
  */
-async function execCommand(
+export async function execCommand(
   command: string,
   args: string[] = [],
   options?: exec.ExecOptions,
@@ -75,7 +75,7 @@ export function parseEnvFile(content: string): Record<string, string> {
 /**
  * Set multiple outputs from an object
  */
-function setOutputs(outputs: Record<string, string | undefined>): void {
+export function setOutputs(outputs: Record<string, string | undefined>): void {
   for (const [key, value] of Object.entries(outputs)) {
     if (value !== undefined) {
       core.setOutput(key, value);
@@ -83,5 +83,6 @@ function setOutputs(outputs: Record<string, string | undefined>): void {
   }
 }
 
-// Outcome determination utilities
-;
+// Re-export outcome determination utilities
+export { determineOutcome } from "./outcome.js";
+export type { OutcomeParams, OutcomeResult, JobResult } from "./outcome.js";

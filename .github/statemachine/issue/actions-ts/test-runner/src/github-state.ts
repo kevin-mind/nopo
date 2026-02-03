@@ -177,7 +177,7 @@ export function deriveBranchName(issueNumber: number, phase?: number): string {
 /**
  * Fetch current GitHub state for an issue
  */
-async function fetchGitHubState(
+export async function fetchGitHubState(
   octokit: Octokit,
   owner: string,
   repo: string,
@@ -330,7 +330,7 @@ async function fetchGitHubState(
  *
  * Returns true if merge was initiated, false if not needed or failed.
  */
-async function simulateMerge(
+export async function simulateMerge(
   octokit: Octokit,
   owner: string,
   repo: string,
@@ -406,7 +406,7 @@ async function getPullRequestNodeId(
 /**
  * Fetch recent workflow runs for an issue
  */
-async function fetchRecentWorkflowRuns(
+export async function fetchRecentWorkflowRuns(
   octokit: Octokit,
   owner: string,
   repo: string,

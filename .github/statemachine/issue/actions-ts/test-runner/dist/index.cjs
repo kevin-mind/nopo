@@ -32123,61 +32123,6 @@ var guards = {
   shouldBlock
 };
 
-// issue/actions-ts/state-machine/parser/todo-parser.ts
-var TODO_PATTERNS = {
-  // Matches: - [ ] text or - [x] text or - [X] text
-  checkbox: /^(\s*)-\s*\[([ xX])\]\s*(.+)$/,
-  // Matches: [Manual] prefix or *(manual)* anywhere in the line
-  // [Manual] is the preferred format, *(manual)* is legacy
-  manual: /\[Manual\]|\*\(manual\)\*/i
-};
-function parseTodoLine(line) {
-  const match = line.match(TODO_PATTERNS.checkbox);
-  if (!match) {
-    return null;
-  }
-  const checkMark = match[2];
-  const text = match[3]?.trim() || "";
-  return {
-    text,
-    checked: checkMark?.toLowerCase() === "x",
-    isManual: TODO_PATTERNS.manual.test(line)
-  };
-}
-function parseTodos(body) {
-  const lines = body.split("\n");
-  const todos = [];
-  for (const line of lines) {
-    const todo = parseTodoLine(line);
-    if (todo) {
-      todos.push(todo);
-    }
-  }
-  return todos;
-}
-function calculateTodoStats(todos) {
-  let total = 0;
-  let completed = 0;
-  let uncheckedNonManual = 0;
-  for (const todo of todos) {
-    total++;
-    if (todo.checked) {
-      completed++;
-    } else if (!todo.isManual) {
-      uncheckedNonManual++;
-    }
-  }
-  return {
-    total,
-    completed,
-    uncheckedNonManual
-  };
-}
-function parseTodoStats(body) {
-  const todos = parseTodos(body);
-  return calculateTodoStats(todos);
-}
-
 // issue/actions-ts/state-machine/parser/history-parser.ts
 var HISTORY_SECTION = "## Iteration History";
 var HEADER_COLUMNS = [
@@ -32575,6 +32520,61 @@ function updateHistoryEntry(body, matchIteration, matchPhase, matchPattern, newM
     parts.push("", afterTable);
   }
   return { body: parts.join("\n"), updated: true };
+}
+
+// issue/actions-ts/state-machine/parser/todo-parser.ts
+var TODO_PATTERNS = {
+  // Matches: - [ ] text or - [x] text or - [X] text
+  checkbox: /^(\s*)-\s*\[([ xX])\]\s*(.+)$/,
+  // Matches: [Manual] prefix or *(manual)* anywhere in the line
+  // [Manual] is the preferred format, *(manual)* is legacy
+  manual: /\[Manual\]|\*\(manual\)\*/i
+};
+function parseTodoLine(line) {
+  const match = line.match(TODO_PATTERNS.checkbox);
+  if (!match) {
+    return null;
+  }
+  const checkMark = match[2];
+  const text = match[3]?.trim() || "";
+  return {
+    text,
+    checked: checkMark?.toLowerCase() === "x",
+    isManual: TODO_PATTERNS.manual.test(line)
+  };
+}
+function parseTodos(body) {
+  const lines = body.split("\n");
+  const todos = [];
+  for (const line of lines) {
+    const todo = parseTodoLine(line);
+    if (todo) {
+      todos.push(todo);
+    }
+  }
+  return todos;
+}
+function calculateTodoStats(todos) {
+  let total = 0;
+  let completed = 0;
+  let uncheckedNonManual = 0;
+  for (const todo of todos) {
+    total++;
+    if (todo.checked) {
+      completed++;
+    } else if (!todo.isManual) {
+      uncheckedNonManual++;
+    }
+  }
+  return {
+    total,
+    completed,
+    uncheckedNonManual
+  };
+}
+function parseTodoStats(body) {
+  const todos = parseTodos(body);
+  return calculateTodoStats(todos);
 }
 
 // issue/actions-ts/state-machine/parser/agent-notes-parser.ts
@@ -33772,22 +33772,19 @@ var claudeMachine = setup({
     }),
     // Push to draft action
     pushToDraft: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitPushToDraft({ context: context2 })
-      )
+      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitPushToDraft({ context: context2 }))
     }),
     // Reset action
     resetIssue: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitResetIssue({ context: context2 })
-      )
+      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitResetIssue({ context: context2 }))
     }),
     logResetting: assign({
       pendingActions: ({ context: context2 }) => accumulateActions(
         context2.pendingActions,
-        emitLog({ context: context2 }, `Resetting issue #${context2.issue.number} to initial state`)
+        emitLog(
+          { context: context2 },
+          `Resetting issue #${context2.issue.number} to initial state`
+        )
       )
     })
   }
@@ -35334,7 +35331,7 @@ var ReviewSchema = external_exports.object({
   body: external_exports.string().min(1, "Review body is required"),
   reviewer: external_exports.string().optional()
 }).strict();
-var DiscussionSchema2 = external_exports.object({
+var DiscussionSchema = external_exports.object({
   title: external_exports.string().min(1, "Discussion title is required"),
   body: external_exports.string().min(1, "Discussion body is required"),
   category: external_exports.string().optional(),
@@ -35421,7 +35418,7 @@ var FixtureSchema = external_exports.object({
   pr: PRSchema.optional(),
   comment: CommentSchema.optional(),
   review: ReviewSchema.optional(),
-  discussion: DiscussionSchema2.optional(),
+  discussion: DiscussionSchema.optional(),
   expected: ExpectedSchema.optional(),
   expected_machine: ExpectedMachineSchema.optional(),
   timeout: external_exports.number().int().positive().optional(),
@@ -36364,7 +36361,7 @@ async function waitForPhase(options) {
 }
 
 // issue/actions-ts/state-machine/schemas/issue-triggers.ts
-var IssueTriggerTypeSchema2 = external_exports.enum([
+var IssueTriggerTypeSchema = external_exports.enum([
   // Issue triggers
   "issue-assigned",
   "issue-edited",
@@ -36390,7 +36387,7 @@ var IssueTriggerTypeSchema2 = external_exports.enum([
   "deployed-stage",
   "deployed-prod"
 ]);
-var ISSUE_TRIGGER_TYPES2 = IssueTriggerTypeSchema2.options;
+var ISSUE_TRIGGER_TYPES = IssueTriggerTypeSchema.options;
 
 // issue/actions-ts/test-runner/src/configurable/types.ts
 var StateNameSchema = external_exports.enum([
@@ -36495,7 +36492,7 @@ var StateFixtureSchema = external_exports.object({
   /** The state name this fixture represents */
   state: StateNameSchema,
   /** Explicit trigger type to use (optional, overrides auto-detection) */
-  trigger: IssueTriggerTypeSchema2.optional(),
+  trigger: IssueTriggerTypeSchema.optional(),
   /** CI result to inject for this transition (optional) */
   ciResult: CIResultSchema.optional(),
   /** Review decision to inject for this transition (optional) */
@@ -37527,9 +37524,13 @@ async function executeResetIssue(action, ctx) {
       issue_number: action.issueNumber,
       assignees: [action.botUsername]
     });
-    core8.info(`Unassigned ${action.botUsername} from issue #${action.issueNumber}`);
+    core8.info(
+      `Unassigned ${action.botUsername} from issue #${action.issueNumber}`
+    );
   } catch (error9) {
-    core8.warning(`Failed to unassign bot from issue #${action.issueNumber}: ${error9}`);
+    core8.warning(
+      `Failed to unassign bot from issue #${action.issueNumber}: ${error9}`
+    );
   }
   for (const subIssueNumber of action.subIssueNumbers) {
     try {
@@ -37539,9 +37540,13 @@ async function executeResetIssue(action, ctx) {
         issue_number: subIssueNumber,
         assignees: [action.botUsername]
       });
-      core8.info(`Unassigned ${action.botUsername} from sub-issue #${subIssueNumber}`);
+      core8.info(
+        `Unassigned ${action.botUsername} from sub-issue #${subIssueNumber}`
+      );
     } catch (error9) {
-      core8.warning(`Failed to unassign bot from sub-issue #${subIssueNumber}: ${error9}`);
+      core8.warning(
+        `Failed to unassign bot from sub-issue #${subIssueNumber}: ${error9}`
+      );
     }
   }
   core8.info(`Reset complete: ${resetCount} issues reopened`);
@@ -49101,7 +49106,9 @@ History Verification:`);
       const missingActions = [];
       for (const expectedEntry of expectedHistory) {
         const expectedAction = typeof expectedEntry === "string" ? expectedEntry : expectedEntry.action || String(expectedEntry);
-        const found = actualActions.some((action) => action.includes(expectedAction));
+        const found = actualActions.some(
+          (action) => action.includes(expectedAction)
+        );
         if (found) {
           core20.info(`  \u2713 Found: "${expectedAction}"`);
         } else {
@@ -49110,8 +49117,10 @@ History Verification:`);
         }
       }
       if (missingActions.length > 0) {
-        core20.info(`
-Actual history actions (${state.history.length} entries):`);
+        core20.info(
+          `
+Actual history actions (${state.history.length} entries):`
+        );
         for (const entry of state.history) {
           core20.info(`  [${entry.iteration}/${entry.phase}] ${entry.action}`);
         }
@@ -49650,21 +49659,25 @@ ${errors}`);
 var core26 = __toESM(require_core(), 1);
 
 // discussion/actions-ts/state-machine/schemas/triggers.ts
-var DiscussionTriggerTypeSchema2 = external_exports.enum([
+var DiscussionTriggerTypeSchema = external_exports.enum([
   "discussion-created",
   "discussion-comment",
   "discussion-command"
 ]);
-var DISCUSSION_TRIGGER_TYPES2 = DiscussionTriggerTypeSchema2.options;
+var DISCUSSION_TRIGGER_TYPES = DiscussionTriggerTypeSchema.options;
 
 // discussion/actions-ts/state-machine/schemas/context.ts
-var DiscussionCommandSchema = external_exports.enum(["summarize", "plan", "complete"]);
+var DiscussionCommandSchema = external_exports.enum([
+  "summarize",
+  "plan",
+  "complete"
+]);
 var ResearchThreadSchema = external_exports.object({
   nodeId: external_exports.string(),
   topic: external_exports.string(),
   replyCount: external_exports.number().int().min(0)
 });
-var DiscussionSchema3 = external_exports.object({
+var DiscussionSchema2 = external_exports.object({
   number: external_exports.number().int().positive(),
   nodeId: external_exports.string(),
   title: external_exports.string(),
@@ -49676,14 +49689,14 @@ var DiscussionSchema3 = external_exports.object({
   commentBody: external_exports.string().optional(),
   commentAuthor: external_exports.string().optional()
 });
-var DiscussionContextSchema2 = external_exports.object({
+var DiscussionContextSchema = external_exports.object({
   // Trigger info
-  trigger: DiscussionTriggerTypeSchema2,
+  trigger: DiscussionTriggerTypeSchema,
   // Repository info
   owner: external_exports.string().min(1),
   repo: external_exports.string().min(1),
   // Discussion being worked on
-  discussion: DiscussionSchema3,
+  discussion: DiscussionSchema2,
   // Config
   maxRetries: external_exports.number().int().positive().default(5),
   botUsername: external_exports.string().default("nopo-bot")

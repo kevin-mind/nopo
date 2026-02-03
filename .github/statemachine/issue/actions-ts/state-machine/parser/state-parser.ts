@@ -503,7 +503,7 @@ async function enrichSubIssuesWithPRs(
 /**
  * Build full machine context from an event and fetched state
  */
-async function buildMachineContext(
+export async function buildMachineContext(
   octokit: Octokit,
   event: GitHubEvent,
   projectNumber: number,

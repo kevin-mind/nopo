@@ -42,6 +42,58 @@ function emptyResult(skip = false, skipReason = ""): DetectionResult {
 }
 
 /**
+ * Add an emoji reaction to an issue comment to acknowledge slash commands
+ */
+async function addReactionToComment(
+  octokit: ReturnType<typeof github.getOctokit>,
+  owner: string,
+  repo: string,
+  commentId: number,
+  reaction: "+1" | "-1" | "laugh" | "confused" | "heart" | "hooray" | "rocket" | "eyes",
+): Promise<void> {
+  try {
+    await octokit.rest.reactions.createForIssueComment({
+      owner,
+      repo,
+      comment_id: commentId,
+      content: reaction,
+    });
+    core.info(`Added ${reaction} reaction to comment ${commentId}`);
+  } catch (error) {
+    // Don't fail the workflow if reaction fails - it's just feedback
+    core.warning(`Failed to add reaction to comment: ${error}`);
+  }
+}
+
+/**
+ * Add an emoji reaction to a discussion comment via GraphQL
+ */
+async function addReactionToDiscussionComment(
+  octokit: ReturnType<typeof github.getOctokit>,
+  nodeId: string,
+  reaction: "THUMBS_UP" | "THUMBS_DOWN" | "LAUGH" | "CONFUSED" | "HEART" | "HOORAY" | "ROCKET" | "EYES",
+): Promise<void> {
+  try {
+    await octokit.graphql(
+      `
+      mutation($subjectId: ID!, $content: ReactionContent!) {
+        addReaction(input: {subjectId: $subjectId, content: $content}) {
+          reaction {
+            content
+          }
+        }
+      }
+      `,
+      { subjectId: nodeId, content: reaction },
+    );
+    core.info(`Added ${reaction} reaction to discussion comment ${nodeId}`);
+  } catch (error) {
+    // Don't fail the workflow if reaction fails - it's just feedback
+    core.warning(`Failed to add reaction to discussion comment: ${error}`);
+  }
+}
+
+/**
  * Get trigger type for the state machine
  * Most jobs map directly to triggers (same name), but some have overrides
  */
@@ -1052,6 +1104,9 @@ async function handleIssueCommentEvent(
 
   // Handle /reset command - resets issue to Backlog/Ready state
   if (hasResetCommand && !isPr) {
+    // Add reaction to acknowledge the command
+    await addReactionToComment(octokit, owner, repo, comment.id, "eyes");
+
     const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
 
     return {
@@ -1072,6 +1127,9 @@ async function handleIssueCommentEvent(
   }
 
   if ((hasImplementCommand || hasContinueCommand || hasLfgCommand) && !isPr) {
+    // Add rocket reaction to acknowledge the command
+    await addReactionToComment(octokit, owner, repo, comment.id, "rocket");
+
     const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
 
     // Check if this is a sub-issue
@@ -1865,6 +1923,7 @@ async function handleDiscussionCommentEvent(
 
   // Check for commands first (any author can use commands)
   if (body === "/summarize") {
+    await addReactionToDiscussionComment(octokit, comment.node_id, "EYES");
     return {
       job: "discussion-summarize",
       resourceType: "discussion",
@@ -1882,6 +1941,7 @@ async function handleDiscussionCommentEvent(
   }
 
   if (body === "/plan") {
+    await addReactionToDiscussionComment(octokit, comment.node_id, "ROCKET");
     return {
       job: "discussion-plan",
       resourceType: "discussion",
@@ -1899,6 +1959,7 @@ async function handleDiscussionCommentEvent(
   }
 
   if (body === "/complete") {
+    await addReactionToDiscussionComment(octokit, comment.node_id, "THUMBS_UP");
     return {
       job: "discussion-complete",
       resourceType: "discussion",
