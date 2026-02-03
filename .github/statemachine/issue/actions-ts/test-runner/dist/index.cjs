@@ -33972,7 +33972,7 @@ var claudeMachine = setup({
      * reviews and signals that iteration will continue.
      */
     prPush: {
-      entry: ["pushToDraft"],
+      entry: ["pushToDraft", "setReview"],
       type: "final"
     },
     /**
@@ -34093,7 +34093,7 @@ var claudeMachine = setup({
      * PR has "ready-to-merge" label, waiting for actual merge
      */
     awaitingMerge: {
-      entry: ["logAwaitingMerge"],
+      entry: ["logAwaitingMerge", "setReview"],
       type: "final"
     },
     /**
