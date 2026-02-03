@@ -35306,25 +35306,33 @@ async function runIssueMachine(options) {
   core6.info(`Issue: #${issueNumber}`);
   core6.info(`Project: ${projectNumber}`);
   core6.info(`Trigger: ${trigger}`);
-  const context2 = await buildMachineContext(
-    octokit,
+  const event = {
+    type: trigger,
     owner,
     repo,
     issueNumber,
-    trigger,
+    timestamp: workflowStartedAt,
+    // Add CI-specific fields for workflow-run-completed triggers
+    ...ciResult && { result: ciResult },
+    ...ciRunUrl && { runUrl: ciRunUrl },
+    ...ciCommitSha && { commitSha: ciCommitSha },
+    // Add review-specific fields for pr-review-submitted triggers
+    ...reviewDecision && { decision: reviewDecision },
+    ...reviewer && { reviewer }
+  };
+  const context2 = await buildMachineContext(
+    octokit,
+    event,
+    projectNumber,
     {
-      ciResult,
-      ciRunUrl,
-      ciCommitSha,
-      reviewDecision,
-      reviewer,
+      maxRetries,
+      botUsername,
       commentContextType,
       commentContextDescription,
       branch: inputBranch,
-      maxRetries,
-      botUsername,
-      workflowStartedAt,
-      projectNumber
+      triggerOverride: trigger,
+      ciRunUrl,
+      workflowStartedAt
     }
   );
   if (!context2) {

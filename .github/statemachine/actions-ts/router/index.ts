@@ -353,26 +353,37 @@ async function runIssueMachine(options: IssueMachineOptions): Promise<void> {
   core.info(`Project: ${projectNumber}`);
   core.info(`Trigger: ${trigger}`);
 
-  // Build machine context
-  const context = await buildMachineContext(
-    octokit,
+  // Build a GitHubEvent object for the state machine
+  // The event type maps to trigger types used by the machine
+  const event = {
+    type: trigger,
     owner,
     repo,
     issueNumber,
-    trigger,
+    timestamp: workflowStartedAt,
+    // Add CI-specific fields for workflow-run-completed triggers
+    ...(ciResult && { result: ciResult }),
+    ...(ciRunUrl && { runUrl: ciRunUrl }),
+    ...(ciCommitSha && { commitSha: ciCommitSha }),
+    // Add review-specific fields for pr-review-submitted triggers
+    ...(reviewDecision && { decision: reviewDecision }),
+    ...(reviewer && { reviewer }),
+  };
+
+  // Build machine context
+  const context = await buildMachineContext(
+    octokit,
+    event as Parameters<typeof buildMachineContext>[1],
+    projectNumber,
     {
-      ciResult,
-      ciRunUrl,
-      ciCommitSha,
-      reviewDecision,
-      reviewer,
+      maxRetries,
+      botUsername,
       commentContextType,
       commentContextDescription,
       branch: inputBranch,
-      maxRetries,
-      botUsername,
+      triggerOverride: trigger,
+      ciRunUrl,
       workflowStartedAt,
-      projectNumber,
     },
   );
 
