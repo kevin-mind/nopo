@@ -132,5 +132,7 @@ jobs:
       # Pass the entire context_json - runner extracts what it needs
       context_json: ${{ needs.detect.outputs.context_json }}
       dry_run: false
-      continue: ${{ inputs.continue != false && inputs.continue != 'false' }}
+      # For workflow_run and other events (no inputs), always continue
+      # For workflow_dispatch, use the explicit input value
+      continue: ${{ github.event_name != 'workflow_dispatch' || (inputs.continue != false && inputs.continue != 'false') }}
     secrets: inherit
