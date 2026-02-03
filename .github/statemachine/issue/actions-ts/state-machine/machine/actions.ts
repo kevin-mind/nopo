@@ -562,10 +562,12 @@ export function emitRunClaudeTriage({ context }: ActionContext): ActionResult {
     {
       type: "runClaude",
       token: "code",
-      // Uses structured output: .github/prompts/triage/prompt.txt + outputs.json
+      // Uses structured output from prompts/triage/
       promptDir: "triage",
       promptVars,
       issueNumber,
+      // Triage runs on main branch to use latest action code
+      worktree: "main",
       // Structured output is saved to claude-structured-output.json by run-claude action
       producesArtifact: triageArtifact,
     },
