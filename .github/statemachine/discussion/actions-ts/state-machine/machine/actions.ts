@@ -20,7 +20,14 @@ type ActionResult = DiscussionAction[];
  * Emit action to run Claude for discussion research
  *
  * Creates research threads to investigate the discussion topic.
- * Uses the discussion/prompts/research prompt directory.
+ * The applyDiscussionResearchOutput executor does all the work:
+ * 1. Creates research thread comments
+ * 2. Investigates all threads in parallel (like grooming)
+ * 3. Posts findings as replies
+ * 4. Updates discussion body with summary
+ *
+ * Uses the discussion/prompts/research prompt directory for initial research,
+ * and discussion/prompts/investigate for each thread investigation.
  */
 export function emitRunClaudeResearch({
   context,
@@ -52,6 +59,8 @@ export function emitRunClaudeResearch({
       token: "code",
       discussionNumber: context.discussion.number,
       discussionNodeId: context.discussion.nodeId,
+      // Pass promptVars so investigations have context
+      promptVars,
       filePath: "claude-structured-output.json",
       consumesArtifact: researchArtifact,
     },

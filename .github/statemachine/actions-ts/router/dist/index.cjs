@@ -31868,6 +31868,8 @@ var ApplyDiscussionResearchOutputActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("applyDiscussionResearchOutput"),
   discussionNumber: external_exports.number().int().positive(),
   discussionNodeId: external_exports.string().min(1),
+  /** Prompt variables to pass to investigation agents */
+  promptVars: external_exports.record(external_exports.string()).optional(),
   /** Path to the structured output file (for artifact-based execution) */
   filePath: external_exports.string().optional(),
   /** Artifact to download before execution */
@@ -31901,6 +31903,34 @@ var ApplyDiscussionPlanOutputActionSchema = BaseActionSchema.extend({
   filePath: external_exports.string().optional(),
   /** Artifact to download before execution */
   consumesArtifact: ArtifactSchema.optional()
+});
+var ResearchThreadSchema = external_exports.object({
+  /** The comment node ID for posting replies */
+  commentNodeId: external_exports.string().min(1),
+  /** Thread title */
+  title: external_exports.string().min(1),
+  /** The main question to investigate */
+  question: external_exports.string().min(1),
+  /** Areas to investigate */
+  investigationAreas: external_exports.array(external_exports.string()),
+  /** Expected deliverables */
+  expectedDeliverables: external_exports.array(external_exports.string())
+});
+var InvestigateResearchThreadsActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("investigateResearchThreads"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string().min(1),
+  /** Research threads to investigate */
+  threads: external_exports.array(ResearchThreadSchema),
+  /** Template variables for investigation prompts */
+  promptVars: external_exports.record(external_exports.string()).optional()
+});
+var UpdateDiscussionSummaryActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("updateDiscussionSummary"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string().min(1),
+  /** Template variables for summary prompt */
+  promptVars: external_exports.record(external_exports.string()).optional()
 });
 var AddLabelActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("addLabel"),
@@ -31990,7 +32020,10 @@ var ActionSchema = external_exports.discriminatedUnion("type", [
   ApplyDiscussionResearchOutputActionSchema,
   ApplyDiscussionRespondOutputActionSchema,
   ApplyDiscussionSummarizeOutputActionSchema,
-  ApplyDiscussionPlanOutputActionSchema
+  ApplyDiscussionPlanOutputActionSchema,
+  // Discussion parallel investigation actions
+  InvestigateResearchThreadsActionSchema,
+  UpdateDiscussionSummaryActionSchema
 ]);
 
 // issue/actions-ts/state-machine/schemas/events.ts
@@ -34815,7 +34848,7 @@ var DiscussionCommandSchema2 = external_exports.enum([
   "plan",
   "complete"
 ]);
-var ResearchThreadSchema = external_exports.object({
+var ResearchThreadSchema2 = external_exports.object({
   nodeId: external_exports.string(),
   topic: external_exports.string(),
   replyCount: external_exports.number().int().min(0)
@@ -34826,7 +34859,7 @@ var DiscussionSchema = external_exports.object({
   title: external_exports.string(),
   body: external_exports.string(),
   commentCount: external_exports.number().int().min(0).default(0),
-  researchThreads: external_exports.array(ResearchThreadSchema).default([]),
+  researchThreads: external_exports.array(ResearchThreadSchema2).default([]),
   command: DiscussionCommandSchema2.optional(),
   commentId: external_exports.string().optional(),
   commentBody: external_exports.string().optional(),
@@ -34905,6 +34938,8 @@ var ApplyDiscussionResearchOutputActionSchema2 = BaseActionSchema2.extend({
   type: external_exports.literal("applyDiscussionResearchOutput"),
   discussionNumber: external_exports.number().int().positive(),
   discussionNodeId: external_exports.string(),
+  /** Prompt variables to pass to investigation agents */
+  promptVars: external_exports.record(external_exports.string()).optional(),
   filePath: external_exports.string().optional(),
   consumesArtifact: ArtifactSchema2.optional()
 });
@@ -35046,6 +35081,8 @@ function emitRunClaudeResearch({
       token: "code",
       discussionNumber: context2.discussion.number,
       discussionNodeId: context2.discussion.nodeId,
+      // Pass promptVars so investigations have context
+      promptVars,
       filePath: "claude-structured-output.json",
       consumesArtifact: researchArtifact
     }

@@ -105,12 +105,15 @@ export type CreateIssuesFromDiscussionAction = z.infer<
 // ============================================================================
 
 /**
- * Apply research output - creates research thread comments
+ * Apply research output - creates research thread comments, investigates
+ * them in parallel, posts findings as replies, and updates the body.
  */
 const ApplyDiscussionResearchOutputActionSchema = BaseActionSchema.extend({
   type: z.literal("applyDiscussionResearchOutput"),
   discussionNumber: z.number().int().positive(),
   discussionNodeId: z.string(),
+  /** Prompt variables to pass to investigation agents */
+  promptVars: z.record(z.string()).optional(),
   filePath: z.string().optional(),
   consumesArtifact: ArtifactSchema.optional(),
 });

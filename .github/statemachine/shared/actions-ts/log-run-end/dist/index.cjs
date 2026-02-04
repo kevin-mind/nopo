@@ -28930,6 +28930,8 @@ var ApplyDiscussionResearchOutputActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("applyDiscussionResearchOutput"),
   discussionNumber: external_exports.number().int().positive(),
   discussionNodeId: external_exports.string().min(1),
+  /** Prompt variables to pass to investigation agents */
+  promptVars: external_exports.record(external_exports.string()).optional(),
   /** Path to the structured output file (for artifact-based execution) */
   filePath: external_exports.string().optional(),
   /** Artifact to download before execution */
@@ -28963,6 +28965,34 @@ var ApplyDiscussionPlanOutputActionSchema = BaseActionSchema.extend({
   filePath: external_exports.string().optional(),
   /** Artifact to download before execution */
   consumesArtifact: ArtifactSchema.optional()
+});
+var ResearchThreadSchema = external_exports.object({
+  /** The comment node ID for posting replies */
+  commentNodeId: external_exports.string().min(1),
+  /** Thread title */
+  title: external_exports.string().min(1),
+  /** The main question to investigate */
+  question: external_exports.string().min(1),
+  /** Areas to investigate */
+  investigationAreas: external_exports.array(external_exports.string()),
+  /** Expected deliverables */
+  expectedDeliverables: external_exports.array(external_exports.string())
+});
+var InvestigateResearchThreadsActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("investigateResearchThreads"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string().min(1),
+  /** Research threads to investigate */
+  threads: external_exports.array(ResearchThreadSchema),
+  /** Template variables for investigation prompts */
+  promptVars: external_exports.record(external_exports.string()).optional()
+});
+var UpdateDiscussionSummaryActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("updateDiscussionSummary"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string().min(1),
+  /** Template variables for summary prompt */
+  promptVars: external_exports.record(external_exports.string()).optional()
 });
 var AddLabelActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("addLabel"),
@@ -29052,7 +29082,10 @@ var ActionSchema = external_exports.discriminatedUnion("type", [
   ApplyDiscussionResearchOutputActionSchema,
   ApplyDiscussionRespondOutputActionSchema,
   ApplyDiscussionSummarizeOutputActionSchema,
-  ApplyDiscussionPlanOutputActionSchema
+  ApplyDiscussionPlanOutputActionSchema,
+  // Discussion parallel investigation actions
+  InvestigateResearchThreadsActionSchema,
+  UpdateDiscussionSummaryActionSchema
 ]);
 
 // shared/actions-ts/log-run-end/index.ts

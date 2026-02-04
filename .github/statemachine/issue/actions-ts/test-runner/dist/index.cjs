@@ -17586,12 +17586,12 @@ var require_lib = __commonJS({
             throw new Error("Client has already been disposed.");
           }
           const parsedUrl = new URL(requestUrl);
-          let info29 = this._prepareRequest(verb, parsedUrl, headers);
+          let info30 = this._prepareRequest(verb, parsedUrl, headers);
           const maxTries = this._allowRetries && RetryableHttpVerbs.includes(verb) ? this._maxRetries + 1 : 1;
           let numTries = 0;
           let response;
           do {
-            response = yield this.requestRaw(info29, data);
+            response = yield this.requestRaw(info30, data);
             if (response && response.message && response.message.statusCode === HttpCodes.Unauthorized) {
               let authenticationHandler;
               for (const handler of this.handlers) {
@@ -17601,7 +17601,7 @@ var require_lib = __commonJS({
                 }
               }
               if (authenticationHandler) {
-                return authenticationHandler.handleAuthentication(this, info29, data);
+                return authenticationHandler.handleAuthentication(this, info30, data);
               } else {
                 return response;
               }
@@ -17624,8 +17624,8 @@ var require_lib = __commonJS({
                   }
                 }
               }
-              info29 = this._prepareRequest(verb, parsedRedirectUrl, headers);
-              response = yield this.requestRaw(info29, data);
+              info30 = this._prepareRequest(verb, parsedRedirectUrl, headers);
+              response = yield this.requestRaw(info30, data);
               redirectsRemaining--;
             }
             if (!response.message.statusCode || !HttpResponseRetryCodes.includes(response.message.statusCode)) {
@@ -17654,7 +17654,7 @@ var require_lib = __commonJS({
        * @param info
        * @param data
        */
-      requestRaw(info29, data) {
+      requestRaw(info30, data) {
         return __awaiter(this, void 0, void 0, function* () {
           return new Promise((resolve2, reject) => {
             function callbackForResult(err, res) {
@@ -17666,7 +17666,7 @@ var require_lib = __commonJS({
                 resolve2(res);
               }
             }
-            this.requestRawWithCallback(info29, data, callbackForResult);
+            this.requestRawWithCallback(info30, data, callbackForResult);
           });
         });
       }
@@ -17676,12 +17676,12 @@ var require_lib = __commonJS({
        * @param data
        * @param onResult
        */
-      requestRawWithCallback(info29, data, onResult) {
+      requestRawWithCallback(info30, data, onResult) {
         if (typeof data === "string") {
-          if (!info29.options.headers) {
-            info29.options.headers = {};
+          if (!info30.options.headers) {
+            info30.options.headers = {};
           }
-          info29.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
+          info30.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
         }
         let callbackCalled = false;
         function handleResult2(err, res) {
@@ -17690,7 +17690,7 @@ var require_lib = __commonJS({
             onResult(err, res);
           }
         }
-        const req = info29.httpModule.request(info29.options, (msg) => {
+        const req = info30.httpModule.request(info30.options, (msg) => {
           const res = new HttpClientResponse(msg);
           handleResult2(void 0, res);
         });
@@ -17702,7 +17702,7 @@ var require_lib = __commonJS({
           if (socket) {
             socket.end();
           }
-          handleResult2(new Error(`Request timeout: ${info29.options.path}`));
+          handleResult2(new Error(`Request timeout: ${info30.options.path}`));
         });
         req.on("error", function(err) {
           handleResult2(err);
@@ -17738,27 +17738,27 @@ var require_lib = __commonJS({
         return this._getProxyAgentDispatcher(parsedUrl, proxyUrl);
       }
       _prepareRequest(method, requestUrl, headers) {
-        const info29 = {};
-        info29.parsedUrl = requestUrl;
-        const usingSsl = info29.parsedUrl.protocol === "https:";
-        info29.httpModule = usingSsl ? https : http;
+        const info30 = {};
+        info30.parsedUrl = requestUrl;
+        const usingSsl = info30.parsedUrl.protocol === "https:";
+        info30.httpModule = usingSsl ? https : http;
         const defaultPort = usingSsl ? 443 : 80;
-        info29.options = {};
-        info29.options.host = info29.parsedUrl.hostname;
-        info29.options.port = info29.parsedUrl.port ? parseInt(info29.parsedUrl.port) : defaultPort;
-        info29.options.path = (info29.parsedUrl.pathname || "") + (info29.parsedUrl.search || "");
-        info29.options.method = method;
-        info29.options.headers = this._mergeHeaders(headers);
+        info30.options = {};
+        info30.options.host = info30.parsedUrl.hostname;
+        info30.options.port = info30.parsedUrl.port ? parseInt(info30.parsedUrl.port) : defaultPort;
+        info30.options.path = (info30.parsedUrl.pathname || "") + (info30.parsedUrl.search || "");
+        info30.options.method = method;
+        info30.options.headers = this._mergeHeaders(headers);
         if (this.userAgent != null) {
-          info29.options.headers["user-agent"] = this.userAgent;
+          info30.options.headers["user-agent"] = this.userAgent;
         }
-        info29.options.agent = this._getAgent(info29.parsedUrl);
+        info30.options.agent = this._getAgent(info30.parsedUrl);
         if (this.handlers) {
           for (const handler of this.handlers) {
-            handler.prepareRequest(info29.options);
+            handler.prepareRequest(info30.options);
           }
         }
-        return info29;
+        return info30;
       }
       _mergeHeaders(headers) {
         if (this.requestOptions && this.requestOptions.headers) {
@@ -19740,18 +19740,18 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.error = error10;
-    function warning21(message, properties = {}) {
+    function warning22(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning21;
+    exports2.warning = warning22;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.notice = notice;
-    function info29(message) {
+    function info30(message) {
       process.stdout.write(message + os.EOL);
     }
-    exports2.info = info29;
+    exports2.info = info30;
     function startGroup13(name) {
       (0, command_1.issue)("group", name);
     }
@@ -23883,7 +23883,7 @@ var require_github = __commonJS({
 });
 
 // issue/actions-ts/test-runner/index.ts
-var core29 = __toESM(require_core(), 1);
+var core30 = __toESM(require_core(), 1);
 var github3 = __toESM(require_github(), 1);
 
 // shared/lib/index.ts
@@ -31814,6 +31814,8 @@ var ApplyDiscussionResearchOutputActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("applyDiscussionResearchOutput"),
   discussionNumber: external_exports.number().int().positive(),
   discussionNodeId: external_exports.string().min(1),
+  /** Prompt variables to pass to investigation agents */
+  promptVars: external_exports.record(external_exports.string()).optional(),
   /** Path to the structured output file (for artifact-based execution) */
   filePath: external_exports.string().optional(),
   /** Artifact to download before execution */
@@ -31847,6 +31849,34 @@ var ApplyDiscussionPlanOutputActionSchema = BaseActionSchema.extend({
   filePath: external_exports.string().optional(),
   /** Artifact to download before execution */
   consumesArtifact: ArtifactSchema.optional()
+});
+var ResearchThreadSchema = external_exports.object({
+  /** The comment node ID for posting replies */
+  commentNodeId: external_exports.string().min(1),
+  /** Thread title */
+  title: external_exports.string().min(1),
+  /** The main question to investigate */
+  question: external_exports.string().min(1),
+  /** Areas to investigate */
+  investigationAreas: external_exports.array(external_exports.string()),
+  /** Expected deliverables */
+  expectedDeliverables: external_exports.array(external_exports.string())
+});
+var InvestigateResearchThreadsActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("investigateResearchThreads"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string().min(1),
+  /** Research threads to investigate */
+  threads: external_exports.array(ResearchThreadSchema),
+  /** Template variables for investigation prompts */
+  promptVars: external_exports.record(external_exports.string()).optional()
+});
+var UpdateDiscussionSummaryActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("updateDiscussionSummary"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string().min(1),
+  /** Template variables for summary prompt */
+  promptVars: external_exports.record(external_exports.string()).optional()
 });
 var AddLabelActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("addLabel"),
@@ -31936,7 +31966,10 @@ var ActionSchema = external_exports.discriminatedUnion("type", [
   ApplyDiscussionResearchOutputActionSchema,
   ApplyDiscussionRespondOutputActionSchema,
   ApplyDiscussionSummarizeOutputActionSchema,
-  ApplyDiscussionPlanOutputActionSchema
+  ApplyDiscussionPlanOutputActionSchema,
+  // Discussion parallel investigation actions
+  InvestigateResearchThreadsActionSchema,
+  UpdateDiscussionSummaryActionSchema
 ]);
 function isTerminalAction(action) {
   return action.type === "stop" || action.type === "block";
@@ -35842,8 +35875,8 @@ function formatValidationResult(name, result) {
   }
   if (result.warnings.length > 0) {
     lines.push("  Warnings:");
-    for (const warning21 of result.warnings) {
-      lines.push(`    - ${warning21}`);
+    for (const warning22 of result.warnings) {
+      lines.push(`    - ${warning22}`);
     }
   }
   return lines.join("\n");
@@ -37017,11 +37050,11 @@ ${errors}`);
 }
 
 // issue/actions-ts/test-runner/src/configurable/runner.ts
-var core22 = __toESM(require_core(), 1);
+var core23 = __toESM(require_core(), 1);
 var exec13 = __toESM(require_exec(), 1);
 
 // issue/actions-ts/state-machine/runner/runner.ts
-var core21 = __toESM(require_core(), 1);
+var core22 = __toESM(require_core(), 1);
 var fs10 = __toESM(require("fs"), 1);
 
 // issue/actions-ts/state-machine/runner/executors/project.ts
@@ -47442,6 +47475,65 @@ async function executeCreateIssuesFromDiscussion(action, ctx) {
 
 // issue/actions-ts/state-machine/runner/executors/discussion-apply.ts
 var core13 = __toESM(require_core(), 1);
+var DISCUSSION_HISTORY_SECTION = "## Workflow History";
+function formatHistoryTimestamp(isoTimestamp) {
+  if (!isoTimestamp) {
+    isoTimestamp = (/* @__PURE__ */ new Date()).toISOString();
+  }
+  try {
+    const date = new Date(isoTimestamp);
+    if (isNaN(date.getTime())) return "-";
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const month = months[date.getUTCMonth()];
+    const day = date.getUTCDate();
+    const hours = String(date.getUTCHours()).padStart(2, "0");
+    const minutes = String(date.getUTCMinutes()).padStart(2, "0");
+    return `${month} ${day} ${hours}:${minutes}`;
+  } catch {
+    return "-";
+  }
+}
+function extractRunIdFromUrl2(url) {
+  const match = url.match(/\/actions\/runs\/(\d+)/);
+  return match?.[1] ?? null;
+}
+function createDiscussionHistoryRow(job, result, runUrl, timestamp) {
+  const time = formatHistoryTimestamp(timestamp);
+  const resultDisplay = result === "success" ? "\u2705 Success" : result === "failure" ? "\u274C Failure" : "\u{1F504} Running";
+  let runCell = "-";
+  if (runUrl) {
+    const runId = extractRunIdFromUrl2(runUrl);
+    runCell = runId ? `[${runId}](${runUrl})` : `[Run](${runUrl})`;
+  }
+  return `| ${time} | ${job} | ${resultDisplay} | ${runCell} |`;
+}
+function addDiscussionHistoryEntry(body, job, result, runUrl, timestamp) {
+  const newRow = createDiscussionHistoryRow(job, result, runUrl, timestamp);
+  const historyIdx = body.indexOf(DISCUSSION_HISTORY_SECTION);
+  if (historyIdx === -1) {
+    return `${body}
+
+${DISCUSSION_HISTORY_SECTION}
+
+| Time | Job | Result | Run |
+|------|-----|--------|-----|
+${newRow}`;
+  }
+  const lines = body.split("\n");
+  const historyLineIdx = lines.findIndex((l3) => l3.includes(DISCUSSION_HISTORY_SECTION));
+  let lastTableRowIdx = historyLineIdx;
+  for (let i3 = historyLineIdx + 1; i3 < lines.length; i3++) {
+    const line = lines[i3];
+    if (line?.startsWith("|")) {
+      lastTableRowIdx = i3;
+    } else if (line?.trim() !== "" && !line?.startsWith("|")) {
+      break;
+    }
+  }
+  const beforeRows = lines.slice(0, lastTableRowIdx + 1);
+  const afterRows = lines.slice(lastTableRowIdx + 1);
+  return [...beforeRows, newRow, ...afterRows].join("\n");
+}
 var ADD_DISCUSSION_COMMENT_MUTATION2 = `
 mutation AddDiscussionComment($discussionId: ID!, $body: String!) {
   addDiscussionComment(input: {
@@ -47521,25 +47613,27 @@ mutation AddLabelsToLabelable($labelableId: ID!, $labelIds: [ID!]!) {
 }
 `;
 async function executeApplyDiscussionResearchOutput(action, ctx, structuredOutput) {
-  const { discussionNodeId } = action;
+  const { discussionNumber, discussionNodeId, promptVars } = action;
   if (!structuredOutput) {
     core13.warning(
       "No structured output provided for applyDiscussionResearchOutput"
     );
-    return { applied: false, threadIds: [] };
+    return { applied: false, threadIds: [], replyIds: [] };
   }
   const output = structuredOutput;
-  core13.info(`Processing research output for discussion`);
+  core13.info(`Processing research output for discussion #${discussionNumber}`);
   core13.startGroup("Research Output");
   core13.info(JSON.stringify(output, null, 2));
   core13.endGroup();
   if (ctx.dryRun) {
     core13.info(
-      `[DRY RUN] Would create ${output.threads?.length ?? 0} research threads`
+      `[DRY RUN] Would create ${output.threads?.length ?? 0} research threads and investigate them`
     );
-    return { applied: true, threadIds: [] };
+    return { applied: true, threadIds: [], replyIds: [] };
   }
   const threadIds = [];
+  core13.info("Step 1: Creating research thread comments");
+  const createdThreads = [];
   for (const thread of output.threads || []) {
     const areas = thread.investigation_areas?.map((a) => `- ${a}`).join("\n") || "";
     const deliverables = thread.expected_deliverables?.map((d) => `- ${d}`).join("\n") || "";
@@ -47562,23 +47656,206 @@ ${deliverables}`;
     const commentId = response.addDiscussionComment?.comment?.id;
     if (commentId) {
       threadIds.push(commentId);
-      core13.info(`Created research thread: ${thread.topic}`);
+      createdThreads.push({
+        commentNodeId: commentId,
+        title: thread.title,
+        question: thread.question,
+        investigationAreas: thread.investigation_areas || [],
+        expectedDeliverables: thread.expected_deliverables || []
+      });
+      core13.info(`Created research thread: ${thread.title}`);
     }
   }
-  if (output.updated_body) {
-    await ctx.octokit.graphql(
-      UPDATE_DISCUSSION_MUTATION2,
-      {
-        discussionId: discussionNodeId,
-        body: output.updated_body
+  core13.info(`Step 2: Investigating ${createdThreads.length} threads in parallel`);
+  const replyIds = [];
+  const investigationResults = await Promise.all(
+    createdThreads.map(async (thread) => {
+      core13.info(`Starting investigation: ${thread.title}`);
+      try {
+        const threadPromptVars = {
+          ...promptVars,
+          DISCUSSION_NUMBER: String(discussionNumber),
+          THREAD_TITLE: thread.title,
+          THREAD_QUESTION: thread.question,
+          INVESTIGATION_AREAS: thread.investigationAreas.join("\n- "),
+          EXPECTED_DELIVERABLES: thread.expectedDeliverables.join("\n- ")
+        };
+        const result2 = await executeRunClaude(
+          {
+            type: "runClaude",
+            token: "code",
+            promptDir: "discussion/investigate",
+            promptsDir: ".github/statemachine/discussion/prompts",
+            promptVars: threadPromptVars,
+            issueNumber: discussionNumber,
+            worktree: "main"
+          },
+          ctx
+        );
+        const investigationOutput = result2.structuredOutput;
+        if (!investigationOutput || !investigationOutput.findings) {
+          throw new Error("Investigation did not return findings");
+        }
+        core13.info(`Investigation completed: ${thread.title}`);
+        return { thread, output: investigationOutput, success: true };
+      } catch (error10) {
+        core13.warning(`Investigation failed for "${thread.title}": ${error10}`);
+        return {
+          thread,
+          output: null,
+          success: false,
+          error: error10 instanceof Error ? error10.message : String(error10)
+        };
       }
-    );
-    core13.info("Updated discussion body");
+    })
+  );
+  core13.info("Step 3: Posting investigation findings as replies");
+  for (const result2 of investigationResults) {
+    let replyBody;
+    if (result2.success && result2.output) {
+      replyBody = formatInvestigationFindings(result2.thread.title, result2.output);
+    } else {
+      replyBody = `## \u26A0\uFE0F Investigation Error: ${result2.thread.title}
+
+Unable to complete investigation for this research thread.
+
+**Error:** ${result2.error || "Unknown error"}
+
+Please retry or investigate manually.`;
+    }
+    try {
+      const response = await ctx.octokit.graphql(
+        ADD_DISCUSSION_REPLY_MUTATION2,
+        {
+          discussionId: discussionNodeId,
+          replyToId: result2.thread.commentNodeId,
+          body: replyBody
+        }
+      );
+      const replyId = response.addDiscussionComment?.comment?.id;
+      if (replyId) {
+        replyIds.push(replyId);
+        core13.info(`Posted findings for: ${result2.thread.title}`);
+      }
+    } catch (error10) {
+      core13.warning(`Failed to post findings for "${result2.thread.title}": ${error10}`);
+    }
   }
-  return { applied: true, threadIds };
+  core13.info("Step 4: Updating discussion body with summary");
+  const currentBodyResponse = await ctx.octokit.graphql(
+    `query GetDiscussionBody($owner: String!, $repo: String!, $number: Int!) {
+      repository(owner: $owner, name: $repo) {
+        discussion(number: $number) {
+          body
+        }
+      }
+    }`,
+    {
+      owner: ctx.owner,
+      repo: ctx.repo,
+      number: discussionNumber
+    }
+  );
+  const currentBody = currentBodyResponse.repository?.discussion?.body || "";
+  const summaryContent = buildDiscussionSummary(output, investigationResults);
+  const historyIdx = currentBody.indexOf(DISCUSSION_HISTORY_SECTION);
+  let historySection = "";
+  if (historyIdx !== -1) {
+    historySection = currentBody.slice(historyIdx);
+  }
+  let newBody = summaryContent;
+  if (historySection) {
+    newBody += "\n\n" + historySection;
+  }
+  const successCount = investigationResults.filter((r3) => r3.success).length;
+  const failCount = investigationResults.filter((r3) => !r3.success).length;
+  const result = failCount === 0 ? "success" : "failure";
+  const jobDescription = `Research: ${successCount}/${investigationResults.length} threads investigated`;
+  newBody = addDiscussionHistoryEntry(newBody, jobDescription, result, ctx.runUrl);
+  await ctx.octokit.graphql(
+    UPDATE_DISCUSSION_MUTATION2,
+    {
+      discussionId: discussionNodeId,
+      body: newBody
+    }
+  );
+  core13.info("Updated discussion body with summary and history");
+  return { applied: true, threadIds, replyIds };
+}
+function formatInvestigationFindings(title, output) {
+  let body = `## \u{1F4CA} Findings: ${title}
+
+${output.findings}
+
+### Key Points
+${output.key_points.map((p3) => `- ${p3}`).join("\n")}`;
+  if (output.recommendations && output.recommendations.length > 0) {
+    body += `
+
+### Recommendations
+${output.recommendations.map((r3) => `- ${r3}`).join("\n")}`;
+  }
+  if (output.open_questions && output.open_questions.length > 0) {
+    body += `
+
+### Open Questions
+${output.open_questions.map((q) => `- ${q}`).join("\n")}`;
+  }
+  return body;
+}
+function buildDiscussionSummary(researchOutput, investigationResults) {
+  const successfulInvestigations = investigationResults.filter((r3) => r3.success && r3.output);
+  const failedInvestigations = investigationResults.filter((r3) => !r3.success);
+  const allKeyPoints = successfulInvestigations.flatMap(
+    (r3) => r3.output?.key_points.map((p3) => `- **${r3.thread.title}:** ${p3}`) || []
+  );
+  const allOpenQuestions = successfulInvestigations.flatMap(
+    (r3) => r3.output?.open_questions?.map((q) => `- **${r3.thread.title}:** ${q}`) || []
+  );
+  const allRecommendations = successfulInvestigations.flatMap(
+    (r3) => r3.output?.recommendations?.map((rec) => `- **${r3.thread.title}:** ${rec}`) || []
+  );
+  let summary = `## Research Summary
+
+*Last updated: ${(/* @__PURE__ */ new Date()).toISOString()}*
+
+### Research Threads (${researchOutput.threads?.length || 0})
+
+${researchOutput.threads?.map((t) => `- \u{1F50D} **${t.title}**: ${t.question}`).join("\n") || "No threads"}
+
+### Investigation Status
+
+- \u2705 Completed: ${successfulInvestigations.length}
+- \u274C Failed: ${failedInvestigations.length}
+
+### Key Findings
+
+${allKeyPoints.length > 0 ? allKeyPoints.join("\n") : "No key findings yet."}`;
+  if (allRecommendations.length > 0) {
+    summary += `
+
+### Recommendations
+
+${allRecommendations.join("\n")}`;
+  }
+  if (allOpenQuestions.length > 0) {
+    summary += `
+
+### Open Questions
+
+${allOpenQuestions.join("\n")}`;
+  }
+  if (researchOutput.agent_notes && researchOutput.agent_notes.length > 0) {
+    summary += `
+
+### Agent Notes
+
+${researchOutput.agent_notes.map((n3) => `- ${n3}`).join("\n")}`;
+  }
+  return summary;
 }
 async function executeApplyDiscussionRespondOutput(action, ctx, structuredOutput) {
-  const { discussionNodeId, replyToNodeId } = action;
+  const { discussionNumber, discussionNodeId, replyToNodeId } = action;
   if (!structuredOutput) {
     core13.warning(
       "No structured output provided for applyDiscussionRespondOutput"
@@ -47615,20 +47892,55 @@ async function executeApplyDiscussionRespondOutput(action, ctx, structuredOutput
   }
   const commentId = response.addDiscussionComment?.comment?.id;
   core13.info(`Posted ${replyToNodeId ? "reply" : "comment"} to discussion`);
+  const currentBodyResponse = await ctx.octokit.graphql(
+    `query GetDiscussionBody($owner: String!, $repo: String!, $number: Int!) {
+      repository(owner: $owner, name: $repo) {
+        discussion(number: $number) {
+          body
+        }
+      }
+    }`,
+    {
+      owner: ctx.owner,
+      repo: ctx.repo,
+      number: discussionNumber
+    }
+  );
+  let currentBody = currentBodyResponse.repository?.discussion?.body || "";
   if (output.updated_body) {
+    const historyIdx = currentBody.indexOf(DISCUSSION_HISTORY_SECTION);
+    let historySection = "";
+    if (historyIdx !== -1) {
+      historySection = currentBody.slice(historyIdx);
+    }
+    let newBody = output.updated_body;
+    if (historySection) {
+      newBody += "\n\n" + historySection;
+    }
+    newBody = addDiscussionHistoryEntry(newBody, "Respond: Posted reply", "success", ctx.runUrl);
     await ctx.octokit.graphql(
       UPDATE_DISCUSSION_MUTATION2,
       {
         discussionId: discussionNodeId,
-        body: output.updated_body
+        body: newBody
       }
     );
-    core13.info("Updated discussion body");
+    core13.info("Updated discussion body with history");
+  } else {
+    currentBody = addDiscussionHistoryEntry(currentBody, "Respond: Posted reply", "success", ctx.runUrl);
+    await ctx.octokit.graphql(
+      UPDATE_DISCUSSION_MUTATION2,
+      {
+        discussionId: discussionNodeId,
+        body: currentBody
+      }
+    );
+    core13.info("Added history entry to discussion body");
   }
   return { applied: true, commentId };
 }
 async function executeApplyDiscussionSummarizeOutput(action, ctx, structuredOutput) {
-  const { discussionNodeId } = action;
+  const { discussionNumber, discussionNodeId } = action;
   if (!structuredOutput) {
     core13.warning(
       "No structured output provided for applyDiscussionSummarizeOutput"
@@ -47636,7 +47948,7 @@ async function executeApplyDiscussionSummarizeOutput(action, ctx, structuredOutp
     return { applied: false };
   }
   const output = structuredOutput;
-  core13.info(`Processing summarize output for discussion`);
+  core13.info(`Processing summarize output for discussion #${discussionNumber}`);
   core13.startGroup("Summarize Output");
   core13.info(JSON.stringify(output, null, 2));
   core13.endGroup();
@@ -47644,14 +47956,39 @@ async function executeApplyDiscussionSummarizeOutput(action, ctx, structuredOutp
     core13.info("[DRY RUN] Would update discussion body with summary");
     return { applied: true };
   }
+  const currentBodyResponse = await ctx.octokit.graphql(
+    `query GetDiscussionBody($owner: String!, $repo: String!, $number: Int!) {
+      repository(owner: $owner, name: $repo) {
+        discussion(number: $number) {
+          body
+        }
+      }
+    }`,
+    {
+      owner: ctx.owner,
+      repo: ctx.repo,
+      number: discussionNumber
+    }
+  );
+  const currentBody = currentBodyResponse.repository?.discussion?.body || "";
+  const historyIdx = currentBody.indexOf(DISCUSSION_HISTORY_SECTION);
+  let historySection = "";
+  if (historyIdx !== -1) {
+    historySection = currentBody.slice(historyIdx);
+  }
+  let newBody = output.updated_body;
+  if (historySection) {
+    newBody += "\n\n" + historySection;
+  }
+  newBody = addDiscussionHistoryEntry(newBody, "Summarize: Updated body", "success", ctx.runUrl);
   await ctx.octokit.graphql(
     UPDATE_DISCUSSION_MUTATION2,
     {
       discussionId: discussionNodeId,
-      body: output.updated_body
+      body: newBody
     }
   );
-  core13.info("Updated discussion body with summary");
+  core13.info("Updated discussion body with summary and history");
   await ctx.octokit.graphql(
     ADD_DISCUSSION_COMMENT_MUTATION2,
     {
@@ -47751,11 +48088,302 @@ ${issueLinks}`;
     }
   );
   core13.info(`Posted plan summary with ${issueNumbers.length} issue links`);
+  const currentBodyResponse = await ctx.octokit.graphql(
+    `query GetDiscussionBody($owner: String!, $repo: String!, $number: Int!) {
+      repository(owner: $owner, name: $repo) {
+        discussion(number: $number) {
+          body
+        }
+      }
+    }`,
+    {
+      owner: ctx.owner,
+      repo: ctx.repo,
+      number: discussionNumber
+    }
+  );
+  let currentBody = currentBodyResponse.repository?.discussion?.body || "";
+  const historyIdx = currentBody.indexOf(DISCUSSION_HISTORY_SECTION);
+  let historySection = "";
+  if (historyIdx !== -1) {
+    historySection = currentBody.slice(historyIdx);
+  }
+  let newBody = output.updated_body || currentBody.slice(0, historyIdx !== -1 ? historyIdx : void 0).trim();
+  if (historySection) {
+    newBody += "\n\n" + historySection;
+  }
+  const jobDescription = `Plan: Created ${issueNumbers.length} issues (${issueNumbers.map((n3) => `#${n3}`).join(", ")})`;
+  newBody = addDiscussionHistoryEntry(newBody, jobDescription, "success", ctx.runUrl);
+  await ctx.octokit.graphql(
+    UPDATE_DISCUSSION_MUTATION2,
+    {
+      discussionId: discussionNodeId,
+      body: newBody
+    }
+  );
+  core13.info("Updated discussion body with history");
   return { applied: true, issueNumbers };
 }
 
-// issue/actions-ts/state-machine/runner/executors/triage.ts
+// issue/actions-ts/state-machine/runner/executors/discussion-research.ts
 var core14 = __toESM(require_core(), 1);
+var ADD_DISCUSSION_REPLY_MUTATION3 = `
+mutation AddDiscussionReply($discussionId: ID!, $replyToId: ID!, $body: String!) {
+  addDiscussionComment(input: {
+    discussionId: $discussionId
+    replyToId: $replyToId
+    body: $body
+  }) {
+    comment {
+      id
+      body
+    }
+  }
+}
+`;
+var UPDATE_DISCUSSION_MUTATION3 = `
+mutation UpdateDiscussion($discussionId: ID!, $body: String!) {
+  updateDiscussion(input: {
+    discussionId: $discussionId
+    body: $body
+  }) {
+    discussion {
+      id
+      body
+    }
+  }
+}
+`;
+var GET_DISCUSSION_COMMENTS_QUERY = `
+query GetDiscussionComments($owner: String!, $repo: String!, $number: Int!) {
+  repository(owner: $owner, name: $repo) {
+    discussion(number: $number) {
+      body
+      comments(first: 100) {
+        nodes {
+          id
+          author { login }
+          body
+          createdAt
+          replies(first: 50) {
+            nodes {
+              id
+              author { login }
+              body
+              createdAt
+            }
+          }
+        }
+      }
+    }
+  }
+}
+`;
+async function executeInvestigateResearchThreads(action, ctx) {
+  const { discussionNumber, discussionNodeId, threads, promptVars } = action;
+  core14.info(
+    `Investigating ${threads.length} research threads for discussion #${discussionNumber}`
+  );
+  if (ctx.dryRun) {
+    core14.info(
+      `[DRY RUN] Would investigate ${threads.length} research threads in parallel`
+    );
+    return { investigated: true, replyIds: [] };
+  }
+  if (!threads || threads.length === 0) {
+    core14.warning("No research threads to investigate");
+    return { investigated: false, replyIds: [] };
+  }
+  const results = await Promise.all(
+    threads.map(async (thread) => {
+      core14.info(`Starting investigation: ${thread.title}`);
+      try {
+        const result = await investigateThread(
+          thread,
+          discussionNumber,
+          discussionNodeId,
+          promptVars || {},
+          ctx
+        );
+        core14.info(`Investigation completed: ${thread.title}`);
+        return result;
+      } catch (error10) {
+        core14.warning(`Investigation failed for "${thread.title}": ${error10}`);
+        const errorReplyId = await postInvestigationError(
+          thread,
+          discussionNodeId,
+          error10,
+          ctx
+        );
+        return { thread, replyId: errorReplyId, success: false };
+      }
+    })
+  );
+  const replyIds = results.filter((r3) => r3.replyId).map((r3) => r3.replyId);
+  core14.info(
+    `Posted ${replyIds.length} investigation replies out of ${threads.length} threads`
+  );
+  return { investigated: true, replyIds };
+}
+async function investigateThread(thread, discussionNumber, discussionNodeId, basePromptVars, ctx) {
+  const threadPromptVars = {
+    ...basePromptVars,
+    THREAD_TITLE: thread.title,
+    THREAD_QUESTION: thread.question,
+    INVESTIGATION_AREAS: thread.investigationAreas.join("\n- "),
+    EXPECTED_DELIVERABLES: thread.expectedDeliverables.join("\n- ")
+  };
+  const result = await executeRunClaude(
+    {
+      type: "runClaude",
+      token: "code",
+      promptDir: "discussion/investigate",
+      promptsDir: ".github/statemachine/discussion/prompts",
+      promptVars: threadPromptVars,
+      issueNumber: discussionNumber,
+      worktree: "main"
+    },
+    ctx
+  );
+  const output = result.structuredOutput;
+  if (!output || !output.findings) {
+    throw new Error("Investigation did not return findings");
+  }
+  const replyBody = formatInvestigationFindings2(thread, output);
+  const response = await ctx.octokit.graphql(
+    ADD_DISCUSSION_REPLY_MUTATION3,
+    {
+      discussionId: discussionNodeId,
+      replyToId: thread.commentNodeId,
+      body: replyBody
+    }
+  );
+  const replyId = response.addDiscussionComment?.comment?.id;
+  return { thread, replyId, success: true };
+}
+function formatInvestigationFindings2(thread, output) {
+  let body = `## \u{1F4CA} Findings: ${thread.title}
+
+${output.findings}
+
+### Key Points
+${output.key_points.map((p3) => `- ${p3}`).join("\n")}`;
+  if (output.recommendations && output.recommendations.length > 0) {
+    body += `
+
+### Recommendations
+${output.recommendations.map((r3) => `- ${r3}`).join("\n")}`;
+  }
+  if (output.open_questions && output.open_questions.length > 0) {
+    body += `
+
+### Open Questions
+${output.open_questions.map((q) => `- ${q}`).join("\n")}`;
+  }
+  return body;
+}
+async function postInvestigationError(thread, discussionNodeId, error10, ctx) {
+  const errorMessage = error10 instanceof Error ? error10.message : String(error10);
+  const body = `## \u26A0\uFE0F Investigation Error: ${thread.title}
+
+Unable to complete investigation for this research thread.
+
+**Error:** ${errorMessage}
+
+Please retry or investigate manually.`;
+  try {
+    const response = await ctx.octokit.graphql(
+      ADD_DISCUSSION_REPLY_MUTATION3,
+      {
+        discussionId: discussionNodeId,
+        replyToId: thread.commentNodeId,
+        body
+      }
+    );
+    return response.addDiscussionComment?.comment?.id;
+  } catch (postError) {
+    core14.warning(`Failed to post error reply: ${postError}`);
+    return void 0;
+  }
+}
+async function executeUpdateDiscussionSummary(action, ctx) {
+  const { discussionNumber, discussionNodeId, promptVars } = action;
+  core14.info(`Updating summary for discussion #${discussionNumber}`);
+  if (ctx.dryRun) {
+    core14.info("[DRY RUN] Would update discussion body with summary");
+    return { updated: true };
+  }
+  const discussionState = await fetchDiscussionState(discussionNumber, ctx);
+  if (!discussionState) {
+    core14.warning("Could not fetch discussion state");
+    return { updated: false };
+  }
+  const summaryPromptVars = {
+    ...promptVars,
+    ORIGINAL_BODY: discussionState.originalBody,
+    DISCUSSION_STATE: JSON.stringify(discussionState.threads, null, 2)
+  };
+  const result = await executeRunClaude(
+    {
+      type: "runClaude",
+      token: "code",
+      promptDir: "discussion/summarize",
+      promptsDir: ".github/statemachine/discussion/prompts",
+      promptVars: summaryPromptVars,
+      issueNumber: discussionNumber,
+      worktree: "main"
+    },
+    ctx
+  );
+  const output = result.structuredOutput;
+  if (!output || !output.updated_body) {
+    core14.warning("Summary agent did not return updated_body");
+    return { updated: false };
+  }
+  await ctx.octokit.graphql(
+    UPDATE_DISCUSSION_MUTATION3,
+    {
+      discussionId: discussionNodeId,
+      body: output.updated_body
+    }
+  );
+  core14.info("Updated discussion body with summary");
+  return { updated: true };
+}
+async function fetchDiscussionState(discussionNumber, ctx) {
+  try {
+    const response = await ctx.octokit.graphql(
+      GET_DISCUSSION_COMMENTS_QUERY,
+      {
+        owner: ctx.owner,
+        repo: ctx.repo,
+        number: discussionNumber
+      }
+    );
+    const discussion = response.repository?.discussion;
+    if (!discussion) {
+      return null;
+    }
+    const threads = (discussion.comments?.nodes || []).filter((c3) => c3.body.startsWith("## \u{1F50D} Research:")).map((c3) => ({
+      title: c3.body.split("\n")[0].replace("## \u{1F50D} Research: ", ""),
+      body: c3.body,
+      replies: c3.replies.nodes.map((r3) => ({
+        author: r3.author.login,
+        body: r3.body
+      }))
+    }));
+    return {
+      originalBody: discussion.body || "",
+      threads
+    };
+  } catch (error10) {
+    core14.warning(`Failed to fetch discussion state: ${error10}`);
+    return null;
+  }
+}
+
+// issue/actions-ts/state-machine/runner/executors/triage.ts
+var core15 = __toESM(require_core(), 1);
 var fs5 = __toESM(require("fs"), 1);
 var GET_REPO_ID_QUERY4 = `
 query GetRepoId($owner: String!, $repo: String!) {
@@ -47809,20 +48437,20 @@ async function executeApplyTriageOutput(action, ctx, structuredOutput) {
   let triageOutput;
   if (structuredOutput) {
     triageOutput = structuredOutput;
-    core14.info("Using structured output from in-process chain");
-    core14.startGroup("Triage Output (Structured)");
-    core14.info(JSON.stringify(triageOutput, null, 2));
-    core14.endGroup();
+    core15.info("Using structured output from in-process chain");
+    core15.startGroup("Triage Output (Structured)");
+    core15.info(JSON.stringify(triageOutput, null, 2));
+    core15.endGroup();
   } else if (filePath && fs5.existsSync(filePath)) {
     try {
       const content = fs5.readFileSync(filePath, "utf-8");
       triageOutput = JSON.parse(content);
-      core14.info(`Triage output from file: ${filePath}`);
-      core14.startGroup("Triage Output (File)");
-      core14.info(JSON.stringify(triageOutput, null, 2));
-      core14.endGroup();
+      core15.info(`Triage output from file: ${filePath}`);
+      core15.startGroup("Triage Output (File)");
+      core15.info(JSON.stringify(triageOutput, null, 2));
+      core15.endGroup();
     } catch (error10) {
-      core14.warning(`Failed to parse triage output: ${error10}`);
+      core15.warning(`Failed to parse triage output: ${error10}`);
       return { applied: false };
     }
   } else {
@@ -47831,7 +48459,7 @@ async function executeApplyTriageOutput(action, ctx, structuredOutput) {
     );
   }
   if (ctx.dryRun) {
-    core14.info(`[DRY RUN] Would apply triage output to issue #${issueNumber}`);
+    core15.info(`[DRY RUN] Would apply triage output to issue #${issueNumber}`);
     return { applied: true };
   }
   const isStructured = "triage" in triageOutput;
@@ -47873,19 +48501,19 @@ async function applyLabels(ctx, issueNumber, classification) {
   const labels = [];
   if (classification.type && classification.type !== "null") {
     labels.push(classification.type);
-    core14.info(`Adding type label: ${classification.type}`);
+    core15.info(`Adding type label: ${classification.type}`);
   }
   if (classification.topics) {
     for (const topic of classification.topics) {
       if (topic) {
         const label = topic.startsWith("topic:") ? topic : `topic:${topic}`;
         labels.push(label);
-        core14.info(`Adding topic label: ${label}`);
+        core15.info(`Adding topic label: ${label}`);
       }
     }
   }
   labels.push("triaged");
-  core14.info("Adding triaged label");
+  core15.info("Adding triaged label");
   if (labels.length > 0) {
     try {
       await ctx.octokit.rest.issues.addLabels({
@@ -47894,9 +48522,9 @@ async function applyLabels(ctx, issueNumber, classification) {
         issue_number: issueNumber,
         labels
       });
-      core14.info(`Applied labels: ${labels.join(", ")}`);
+      core15.info(`Applied labels: ${labels.join(", ")}`);
     } catch (error10) {
-      core14.warning(`Failed to apply labels: ${error10}`);
+      core15.warning(`Failed to apply labels: ${error10}`);
     }
   }
 }
@@ -47908,9 +48536,9 @@ async function updateIssueBody(ctx, issueNumber, newBody) {
       issue_number: issueNumber,
       body: newBody
     });
-    core14.info(`Updated issue body for #${issueNumber}`);
+    core15.info(`Updated issue body for #${issueNumber}`);
   } catch (error10) {
-    core14.warning(`Failed to update issue body: ${error10}`);
+    core15.warning(`Failed to update issue body: ${error10}`);
   }
 }
 async function createSubIssues(ctx, parentIssueNumber, subIssues) {
@@ -47994,7 +48622,7 @@ Parent: #${parentIssueNumber}`;
       await addToProjectWithStatus(ctx, issueId, projectInfo, "Ready");
     }
     subIssueNumbers.push(issueNumber);
-    core14.info(`Created sub-issue #${issueNumber}: ${formattedTitle}`);
+    core15.info(`Created sub-issue #${issueNumber}: ${formattedTitle}`);
   }
   return subIssueNumbers;
 }
@@ -48009,9 +48637,9 @@ async function linkRelatedIssues(ctx, issueNumber, relatedIssues) {
       issue_number: issueNumber,
       body
     });
-    core14.info(`Linked related issues: ${links}`);
+    core15.info(`Linked related issues: ${links}`);
   } catch (error10) {
-    core14.warning(`Failed to link related issues: ${error10}`);
+    core15.warning(`Failed to link related issues: ${error10}`);
   }
 }
 var GET_PROJECT_FIELDS_QUERY = `
@@ -48090,7 +48718,7 @@ async function getProjectInfo(ctx) {
     }
     return projectInfo;
   } catch (error10) {
-    core14.warning(`Failed to get project info: ${error10}`);
+    core15.warning(`Failed to get project info: ${error10}`);
     return null;
   }
 }
@@ -48105,7 +48733,7 @@ async function addToProjectWithStatus(ctx, issueNodeId, projectInfo, status) {
     );
     const itemId = addResult.addProjectV2ItemById?.item?.id;
     if (!itemId) {
-      core14.warning("Failed to add issue to project");
+      core15.warning("Failed to add issue to project");
       return;
     }
     const statusOptionId = projectInfo.statusOptions[status];
@@ -48116,10 +48744,10 @@ async function addToProjectWithStatus(ctx, issueNodeId, projectInfo, status) {
         fieldId: projectInfo.statusFieldId,
         value: { singleSelectOptionId: statusOptionId }
       });
-      core14.info(`Set project status to ${status}`);
+      core15.info(`Set project status to ${status}`);
     }
   } catch (error10) {
-    core14.warning(`Failed to add issue to project with status: ${error10}`);
+    core15.warning(`Failed to add issue to project with status: ${error10}`);
   }
 }
 async function applyProjectFields(ctx, issueNumber, classification) {
@@ -48148,12 +48776,12 @@ async function applyProjectFields(ctx, issueNumber, classification) {
       (item) => item.project.number === ctx.projectNumber
     );
     if (!projectItem) {
-      core14.info(`Issue #${issueNumber} not in project ${ctx.projectNumber}`);
+      core15.info(`Issue #${issueNumber} not in project ${ctx.projectNumber}`);
       return;
     }
     const projectInfo = await getProjectInfo(ctx);
     if (!projectInfo) {
-      core14.warning("Could not get project info");
+      core15.warning("Could not get project info");
       return;
     }
     if (classification.priority && classification.priority !== "null" && classification.priority !== "none" && projectInfo.priorityFieldId) {
@@ -48165,7 +48793,7 @@ async function applyProjectFields(ctx, issueNumber, classification) {
           fieldId: projectInfo.priorityFieldId,
           value: { singleSelectOptionId: optionId }
         });
-        core14.info(`Set Priority to ${classification.priority}`);
+        core15.info(`Set Priority to ${classification.priority}`);
       }
     }
     if (classification.size && projectInfo.sizeFieldId) {
@@ -48177,7 +48805,7 @@ async function applyProjectFields(ctx, issueNumber, classification) {
           fieldId: projectInfo.sizeFieldId,
           value: { singleSelectOptionId: optionId }
         });
-        core14.info(`Set Size to ${classification.size}`);
+        core15.info(`Set Size to ${classification.size}`);
       }
     }
     if (classification.estimate && projectInfo.estimateFieldId) {
@@ -48187,43 +48815,43 @@ async function applyProjectFields(ctx, issueNumber, classification) {
         fieldId: projectInfo.estimateFieldId,
         value: { number: classification.estimate }
       });
-      core14.info(`Set Estimate to ${classification.estimate}`);
+      core15.info(`Set Estimate to ${classification.estimate}`);
     }
   } catch (error10) {
-    core14.warning(`Failed to apply project fields: ${error10}`);
+    core15.warning(`Failed to apply project fields: ${error10}`);
   }
 }
 
 // issue/actions-ts/state-machine/runner/executors/iterate.ts
-var core15 = __toESM(require_core(), 1);
+var core16 = __toESM(require_core(), 1);
 var fs6 = __toESM(require("node:fs"), 1);
 async function executeApplyIterateOutput(action, ctx, structuredOutput) {
   const { issueNumber, filePath } = action;
   let iterateOutput;
   if (structuredOutput) {
     iterateOutput = structuredOutput;
-    core15.info("Using structured output from in-process chain");
+    core16.info("Using structured output from in-process chain");
   } else if (filePath && fs6.existsSync(filePath)) {
     try {
       const content = fs6.readFileSync(filePath, "utf-8");
       iterateOutput = JSON.parse(content);
-      core15.info(`Iterate output from file: ${filePath}`);
+      core16.info(`Iterate output from file: ${filePath}`);
     } catch (error10) {
-      core15.warning(`Failed to parse iterate output: ${error10}`);
+      core16.warning(`Failed to parse iterate output: ${error10}`);
       return { applied: false };
     }
   } else {
-    core15.warning(
+    core16.warning(
       `No structured output provided and iterate output file not found at: ${filePath || "undefined"}. Ensure runClaude action wrote claude-structured-output.json and artifact was downloaded.`
     );
     return { applied: false };
   }
-  core15.info(`Processing iterate output for issue #${issueNumber}`);
-  core15.startGroup("Iterate Output");
-  core15.info(JSON.stringify(iterateOutput, null, 2));
-  core15.endGroup();
+  core16.info(`Processing iterate output for issue #${issueNumber}`);
+  core16.startGroup("Iterate Output");
+  core16.info(JSON.stringify(iterateOutput, null, 2));
+  core16.endGroup();
   if (ctx.dryRun) {
-    core15.info(`[DRY RUN] Would apply iterate output to issue #${issueNumber}`);
+    core16.info(`[DRY RUN] Would apply iterate output to issue #${issueNumber}`);
     return { applied: true, status: iterateOutput.status };
   }
   const issue = await ctx.octokit.rest.issues.get({
@@ -48238,7 +48866,7 @@ async function executeApplyIterateOutput(action, ctx, structuredOutput) {
     if (result.found) {
       body = result.body;
       bodyChanged = true;
-      core15.info(`Completed todo: ${iterateOutput.todo_completed}`);
+      core16.info(`Completed todo: ${iterateOutput.todo_completed}`);
     }
   }
   if (iterateOutput.agent_notes.length > 0) {
@@ -48250,9 +48878,9 @@ async function executeApplyIterateOutput(action, ctx, structuredOutput) {
       notes: iterateOutput.agent_notes
     });
     bodyChanged = true;
-    core15.info("Agent notes appended to issue body:");
+    core16.info("Agent notes appended to issue body:");
     for (const note of iterateOutput.agent_notes) {
-      core15.info(`  - ${note}`);
+      core16.info(`  - ${note}`);
     }
   }
   if (bodyChanged) {
@@ -48267,13 +48895,13 @@ async function executeApplyIterateOutput(action, ctx, structuredOutput) {
     case "completed_todo":
       break;
     case "waiting_manual":
-      core15.info(`Waiting for manual todo: ${iterateOutput.manual_todo}`);
+      core16.info(`Waiting for manual todo: ${iterateOutput.manual_todo}`);
       break;
     case "blocked":
-      core15.warning(`Iteration blocked: ${iterateOutput.blocked_reason}`);
+      core16.warning(`Iteration blocked: ${iterateOutput.blocked_reason}`);
       break;
     case "all_done":
-      core15.info("All todos complete - ready for review");
+      core16.info("All todos complete - ready for review");
       break;
   }
   return { applied: true, status: iterateOutput.status };
@@ -48295,24 +48923,24 @@ function checkOffTodoInBody(body, todoText) {
     return line;
   });
   if (!found) {
-    core15.warning(`Could not find unchecked todo matching: "${todoText}"`);
+    core16.warning(`Could not find unchecked todo matching: "${todoText}"`);
   }
   return { body: updatedLines.join("\n"), found };
 }
 
 // issue/actions-ts/state-machine/runner/executors/review.ts
-var core16 = __toESM(require_core(), 1);
+var core17 = __toESM(require_core(), 1);
 var fs7 = __toESM(require("node:fs"), 1);
 async function executeApplyReviewOutput(action, ctx, structuredOutput) {
   let reviewOutput;
   if (structuredOutput) {
     reviewOutput = structuredOutput;
-    core16.info("Using structured output from in-process chain");
+    core17.info("Using structured output from in-process chain");
   } else if (action.filePath && fs7.existsSync(action.filePath)) {
     try {
       const content = fs7.readFileSync(action.filePath, "utf-8");
       reviewOutput = JSON.parse(content);
-      core16.info(`Review output from file: ${action.filePath}`);
+      core17.info(`Review output from file: ${action.filePath}`);
     } catch (error10) {
       throw new Error(`Failed to parse review output from file: ${error10}`);
     }
@@ -48326,12 +48954,12 @@ async function executeApplyReviewOutput(action, ctx, structuredOutput) {
       `Invalid review output: missing decision or body. Got: ${JSON.stringify(reviewOutput)}`
     );
   }
-  core16.info(`Applying review output: ${reviewOutput.decision}`);
-  core16.startGroup("Review Output");
-  core16.info(JSON.stringify(reviewOutput, null, 2));
-  core16.endGroup();
+  core17.info(`Applying review output: ${reviewOutput.decision}`);
+  core17.startGroup("Review Output");
+  core17.info(JSON.stringify(reviewOutput, null, 2));
+  core17.endGroup();
   if (ctx.dryRun) {
-    core16.info(
+    core17.info(
       `[DRY RUN] Would submit ${reviewOutput.decision} review on PR #${action.prNumber}`
     );
     return { submitted: true, decision: reviewOutput.decision };
@@ -48348,18 +48976,18 @@ async function executeApplyReviewOutput(action, ctx, structuredOutput) {
 }
 
 // issue/actions-ts/state-machine/runner/executors/pr-response.ts
-var core17 = __toESM(require_core(), 1);
+var core18 = __toESM(require_core(), 1);
 var fs8 = __toESM(require("node:fs"), 1);
 async function executeApplyPRResponseOutput(action, ctx, structuredOutput) {
   let responseOutput;
   if (structuredOutput) {
     responseOutput = structuredOutput;
-    core17.info("Using structured output from in-process chain");
+    core18.info("Using structured output from in-process chain");
   } else if (action.filePath && fs8.existsSync(action.filePath)) {
     try {
       const content = fs8.readFileSync(action.filePath, "utf-8");
       responseOutput = JSON.parse(content);
-      core17.info(`PR response output from file: ${action.filePath}`);
+      core18.info(`PR response output from file: ${action.filePath}`);
     } catch (error10) {
       throw new Error(`Failed to parse PR response output from file: ${error10}`);
     }
@@ -48373,12 +49001,12 @@ async function executeApplyPRResponseOutput(action, ctx, structuredOutput) {
       `Invalid PR response output: missing had_commits or summary. Got: ${JSON.stringify(responseOutput)}`
     );
   }
-  core17.info(`Applying PR response output: had_commits=${responseOutput.had_commits}`);
-  core17.startGroup("PR Response Output");
-  core17.info(JSON.stringify(responseOutput, null, 2));
-  core17.endGroup();
+  core18.info(`Applying PR response output: had_commits=${responseOutput.had_commits}`);
+  core18.startGroup("PR Response Output");
+  core18.info(JSON.stringify(responseOutput, null, 2));
+  core18.endGroup();
   if (ctx.dryRun) {
-    core17.info(
+    core18.info(
       `[DRY RUN] Would post comment and ${responseOutput.had_commits ? "wait for CI" : "re-request review"} on PR #${action.prNumber}`
     );
     return { applied: true, hadCommits: responseOutput.had_commits };
@@ -48389,7 +49017,7 @@ async function executeApplyPRResponseOutput(action, ctx, structuredOutput) {
     issue_number: action.prNumber,
     body: responseOutput.summary
   });
-  core17.info(`Posted response comment on PR #${action.prNumber}`);
+  core18.info(`Posted response comment on PR #${action.prNumber}`);
   if (!responseOutput.had_commits) {
     try {
       await ctx.octokit.rest.pulls.requestReviewers({
@@ -48398,11 +49026,11 @@ async function executeApplyPRResponseOutput(action, ctx, structuredOutput) {
         pull_number: action.prNumber,
         reviewers: [action.reviewer]
       });
-      core17.info(
+      core18.info(
         `Re-requested review from ${action.reviewer} on PR #${action.prNumber}`
       );
     } catch (error10) {
-      core17.warning(`Failed to re-request review: ${error10}`);
+      core18.warning(`Failed to re-request review: ${error10}`);
     }
   }
   if (responseOutput.agent_notes && responseOutput.agent_notes.length > 0) {
@@ -48426,28 +49054,28 @@ async function executeApplyPRResponseOutput(action, ctx, structuredOutput) {
         issue_number: action.issueNumber,
         body: updatedBody
       });
-      core17.info(`Appended ${responseOutput.agent_notes.length} agent notes to issue #${action.issueNumber}`);
+      core18.info(`Appended ${responseOutput.agent_notes.length} agent notes to issue #${action.issueNumber}`);
     }
   }
   return { applied: true, hadCommits: responseOutput.had_commits };
 }
 
 // issue/actions-ts/state-machine/runner/executors/agent-notes.ts
-var core18 = __toESM(require_core(), 1);
+var core19 = __toESM(require_core(), 1);
 async function executeAppendAgentNotes(action, ctx) {
   const { issueNumber, notes, runId, runLink, timestamp } = action;
   if (notes.length === 0) {
-    core18.info("No agent notes to append, skipping");
+    core19.info("No agent notes to append, skipping");
     return { appended: false };
   }
-  core18.info(`Appending ${notes.length} agent notes to issue #${issueNumber}`);
+  core19.info(`Appending ${notes.length} agent notes to issue #${issueNumber}`);
   if (ctx.dryRun) {
-    core18.info(`[DRY RUN] Would append agent notes to issue #${issueNumber}`);
-    core18.startGroup("Agent Notes (dry run)");
+    core19.info(`[DRY RUN] Would append agent notes to issue #${issueNumber}`);
+    core19.startGroup("Agent Notes (dry run)");
     for (const note of notes) {
-      core18.info(`  - ${note}`);
+      core19.info(`  - ${note}`);
     }
-    core18.endGroup();
+    core19.endGroup();
     return { appended: true };
   }
   const issue = await ctx.octokit.rest.issues.get({
@@ -48469,26 +49097,26 @@ async function executeAppendAgentNotes(action, ctx) {
       issue_number: issueNumber,
       body: updatedBody
     });
-    core18.info(`Appended ${notes.length} agent notes to issue #${issueNumber}`);
-    core18.startGroup("Agent Notes");
+    core19.info(`Appended ${notes.length} agent notes to issue #${issueNumber}`);
+    core19.startGroup("Agent Notes");
     for (const note of notes) {
-      core18.info(`  - ${note}`);
+      core19.info(`  - ${note}`);
     }
-    core18.endGroup();
+    core19.endGroup();
   } else {
-    core18.info("Issue body unchanged (notes may be empty)");
+    core19.info("Issue body unchanged (notes may be empty)");
   }
   return { appended: true };
 }
 
 // issue/actions-ts/state-machine/runner/executors/grooming.ts
-var core19 = __toESM(require_core(), 1);
+var core20 = __toESM(require_core(), 1);
 var fs9 = __toESM(require("fs"), 1);
 async function executeRunClaudeGrooming(action, ctx) {
   const { issueNumber, promptVars } = action;
-  core19.info(`Running grooming agents for issue #${issueNumber}`);
+  core20.info(`Running grooming agents for issue #${issueNumber}`);
   if (ctx.dryRun) {
-    core19.info("[DRY RUN] Would run 4 grooming agents in parallel");
+    core20.info("[DRY RUN] Would run 4 grooming agents in parallel");
     const mockOutput = {
       pm: { ready: true },
       engineer: { ready: true },
@@ -48500,7 +49128,7 @@ async function executeRunClaudeGrooming(action, ctx) {
   const agents = ["pm", "engineer", "qa", "research"];
   const results = await Promise.all(
     agents.map(async (agent) => {
-      core19.info(`Starting grooming agent: ${agent}`);
+      core20.info(`Starting grooming agent: ${agent}`);
       try {
         const result = await executeRunClaude(
           {
@@ -48514,10 +49142,10 @@ async function executeRunClaudeGrooming(action, ctx) {
           },
           ctx
         );
-        core19.info(`Grooming agent ${agent} completed`);
+        core20.info(`Grooming agent ${agent} completed`);
         return { agent, output: result.structuredOutput };
       } catch (error10) {
-        core19.warning(`Grooming agent ${agent} failed: ${error10}`);
+        core20.warning(`Grooming agent ${agent} failed: ${error10}`);
         return {
           agent,
           output: {
@@ -48539,7 +49167,7 @@ async function executeRunClaudeGrooming(action, ctx) {
   }
   const outputPath = "grooming-output.json";
   fs9.writeFileSync(outputPath, JSON.stringify(outputs, null, 2));
-  core19.info(`Wrote combined grooming output to ${outputPath}`);
+  core20.info(`Wrote combined grooming output to ${outputPath}`);
   return { outputs };
 }
 async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
@@ -48547,14 +49175,14 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
   let groomingOutputs;
   if (structuredOutput) {
     groomingOutputs = structuredOutput;
-    core19.info("Using grooming output from in-process chain");
+    core20.info("Using grooming output from in-process chain");
   } else if (filePath && fs9.existsSync(filePath)) {
     try {
       const content = fs9.readFileSync(filePath, "utf-8");
       groomingOutputs = JSON.parse(content);
-      core19.info(`Grooming output from file: ${filePath}`);
+      core20.info(`Grooming output from file: ${filePath}`);
     } catch (error10) {
-      core19.warning(`Failed to parse grooming output: ${error10}`);
+      core20.warning(`Failed to parse grooming output: ${error10}`);
       return { applied: false };
     }
   } else {
@@ -48562,11 +49190,11 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
       `No structured output provided and grooming output file not found at: ${filePath || "undefined"}`
     );
   }
-  core19.startGroup("Grooming Outputs");
-  core19.info(JSON.stringify(groomingOutputs, null, 2));
-  core19.endGroup();
+  core20.startGroup("Grooming Outputs");
+  core20.info(JSON.stringify(groomingOutputs, null, 2));
+  core20.endGroup();
   if (ctx.dryRun) {
-    core19.info(`[DRY RUN] Would apply grooming output to issue #${issueNumber}`);
+    core20.info(`[DRY RUN] Would apply grooming output to issue #${issueNumber}`);
     return { applied: true, decision: "ready" };
   }
   const summaryPromptVars = {
@@ -48596,7 +49224,7 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
     }
     summaryOutput = summaryResult.structuredOutput;
   } catch (error10) {
-    core19.error(`Summary agent failed: ${error10}`);
+    core20.error(`Summary agent failed: ${error10}`);
     summaryOutput = {
       summary: "Summary agent failed to run",
       decision: "needs_info",
@@ -48604,8 +49232,8 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
       questions: [{ question: "Please retry grooming", source: "pm", priority: "critical" }]
     };
   }
-  core19.info(`Grooming decision: ${summaryOutput.decision}`);
-  core19.info(`Rationale: ${summaryOutput.decision_rationale}`);
+  core20.info(`Grooming decision: ${summaryOutput.decision}`);
+  core20.info(`Rationale: ${summaryOutput.decision_rationale}`);
   await applyGroomingDecision(ctx, issueNumber, summaryOutput);
   return { applied: true, decision: summaryOutput.decision };
 }
@@ -48621,7 +49249,7 @@ async function applyGroomingDecision(ctx, issueNumber, summary) {
       await applyBlockedDecision(ctx, issueNumber, summary);
       break;
     default:
-      core19.warning(`Unknown grooming decision: ${summary.decision}`);
+      core20.warning(`Unknown grooming decision: ${summary.decision}`);
   }
 }
 async function applyReadyDecision(ctx, issueNumber, summary) {
@@ -48632,9 +49260,9 @@ async function applyReadyDecision(ctx, issueNumber, summary) {
       issue_number: issueNumber,
       labels: ["groomed"]
     });
-    core19.info('Added "groomed" label');
+    core20.info('Added "groomed" label');
   } catch (error10) {
-    core19.warning(`Failed to add groomed label: ${error10}`);
+    core20.warning(`Failed to add groomed label: ${error10}`);
   }
   try {
     const body = formatReadyComment(summary);
@@ -48644,9 +49272,9 @@ async function applyReadyDecision(ctx, issueNumber, summary) {
       issue_number: issueNumber,
       body
     });
-    core19.info("Posted grooming summary comment");
+    core20.info("Posted grooming summary comment");
   } catch (error10) {
-    core19.warning(`Failed to post grooming comment: ${error10}`);
+    core20.warning(`Failed to post grooming comment: ${error10}`);
   }
 }
 async function applyNeedsInfoDecision(ctx, issueNumber, summary) {
@@ -48657,9 +49285,9 @@ async function applyNeedsInfoDecision(ctx, issueNumber, summary) {
       issue_number: issueNumber,
       labels: ["needs-info"]
     });
-    core19.info('Added "needs-info" label');
+    core20.info('Added "needs-info" label');
   } catch (error10) {
-    core19.warning(`Failed to add needs-info label: ${error10}`);
+    core20.warning(`Failed to add needs-info label: ${error10}`);
   }
   try {
     const body = formatNeedsInfoComment(summary);
@@ -48669,9 +49297,9 @@ async function applyNeedsInfoDecision(ctx, issueNumber, summary) {
       issue_number: issueNumber,
       body
     });
-    core19.info("Posted needs-info questions comment");
+    core20.info("Posted needs-info questions comment");
   } catch (error10) {
-    core19.warning(`Failed to post needs-info comment: ${error10}`);
+    core20.warning(`Failed to post needs-info comment: ${error10}`);
   }
 }
 async function applyBlockedDecision(ctx, issueNumber, summary) {
@@ -48682,9 +49310,9 @@ async function applyBlockedDecision(ctx, issueNumber, summary) {
       issue_number: issueNumber,
       labels: ["blocked"]
     });
-    core19.info('Added "blocked" label');
+    core20.info('Added "blocked" label');
   } catch (error10) {
-    core19.warning(`Failed to add blocked label: ${error10}`);
+    core20.warning(`Failed to add blocked label: ${error10}`);
   }
   try {
     const body = formatBlockedComment(summary);
@@ -48694,9 +49322,9 @@ async function applyBlockedDecision(ctx, issueNumber, summary) {
       issue_number: issueNumber,
       body
     });
-    core19.info("Posted blocked reason comment");
+    core20.info("Posted blocked reason comment");
   } catch (error10) {
-    core19.warning(`Failed to post blocked comment: ${error10}`);
+    core20.warning(`Failed to post blocked comment: ${error10}`);
   }
 }
 function formatReadyComment(summary) {
@@ -48788,7 +49416,7 @@ ${summary.next_steps.map((s) => `- ${s}`).join("\n")}`;
 }
 
 // issue/actions-ts/state-machine/runner/signaler.ts
-var core20 = __toESM(require_core(), 1);
+var core21 = __toESM(require_core(), 1);
 
 // issue/actions-ts/state-machine/runner/runner.ts
 function getOctokitForAction(action, ctx) {
@@ -48800,30 +49428,30 @@ function getOctokitForAction(action, ctx) {
 }
 function getStructuredOutput(action, chainCtx) {
   if (chainCtx?.lastClaudeStructuredOutput) {
-    core21.info("Using structured output from chain context");
+    core22.info("Using structured output from chain context");
     return chainCtx.lastClaudeStructuredOutput;
   }
   const actionWithFile = action;
   if (actionWithFile.filePath) {
-    core21.info(`Checking for structured output file: ${actionWithFile.filePath}`);
-    core21.info(`Current working directory: ${process.cwd()}`);
+    core22.info(`Checking for structured output file: ${actionWithFile.filePath}`);
+    core22.info(`Current working directory: ${process.cwd()}`);
     try {
       const files = fs10.readdirSync(".");
-      core21.info(`Files in cwd: ${files.slice(0, 20).join(", ")}`);
+      core22.info(`Files in cwd: ${files.slice(0, 20).join(", ")}`);
     } catch (e2) {
-      core21.warning(`Failed to list files: ${e2}`);
+      core22.warning(`Failed to list files: ${e2}`);
     }
     if (fs10.existsSync(actionWithFile.filePath)) {
       try {
         const content = fs10.readFileSync(actionWithFile.filePath, "utf-8");
         const parsed = JSON.parse(content);
-        core21.info(`Loaded structured output from file: ${actionWithFile.filePath}`);
+        core22.info(`Loaded structured output from file: ${actionWithFile.filePath}`);
         return parsed;
       } catch (e2) {
-        core21.warning(`Failed to read structured output from ${actionWithFile.filePath}: ${e2}`);
+        core22.warning(`Failed to read structured output from ${actionWithFile.filePath}: ${e2}`);
       }
     } else {
-      core21.warning(`File not found: ${actionWithFile.filePath}`);
+      core22.warning(`File not found: ${actionWithFile.filePath}`);
     }
   }
   return void 0;
@@ -48849,7 +49477,7 @@ async function executeAction(action, ctx, chainCtx) {
     case "closeIssue":
       return executeCloseIssue(action, actionCtx);
     case "reopenIssue":
-      core21.info(`Reopen issue #${action.issueNumber} - handled by resetIssue`);
+      core22.info(`Reopen issue #${action.issueNumber} - handled by resetIssue`);
       return { reopened: true };
     case "resetIssue":
       return executeResetIssue(action, actionCtx);
@@ -48969,27 +49597,31 @@ async function executeAction(action, ctx, chainCtx) {
         actionCtx,
         getStructuredOutput(action, chainCtx)
       );
+    case "investigateResearchThreads":
+      return executeInvestigateResearchThreads(action, actionCtx);
+    case "updateDiscussionSummary":
+      return executeUpdateDiscussionSummary(action, actionCtx);
     // Control flow actions
     case "stop":
-      core21.info(`Stopping: ${action.reason}`);
+      core22.info(`Stopping: ${action.reason}`);
       return { stopped: true, reason: action.reason };
     case "log":
       switch (action.level) {
         case "debug":
-          core21.debug(action.message);
+          core22.debug(action.message);
           break;
         case "warning":
-          core21.warning(action.message);
+          core22.warning(action.message);
           break;
         case "error":
-          core21.error(action.message);
+          core22.error(action.message);
           break;
         default:
-          core21.info(action.message);
+          core22.info(action.message);
       }
       return { logged: true };
     case "noop":
-      core21.debug(`No-op: ${action.reason || "no reason given"}`);
+      core22.debug(`No-op: ${action.reason || "no reason given"}`);
       return { noop: true };
     default:
       throw new Error(`Unknown action type: ${action.type}`);
@@ -49006,7 +49638,7 @@ async function executeActions(actions, ctx, options = {}) {
     const actionStartTime = Date.now();
     const parseResult = ActionSchema.safeParse(action);
     if (!parseResult.success) {
-      core21.error(`Invalid action: ${JSON.stringify(action)}`);
+      core22.error(`Invalid action: ${JSON.stringify(action)}`);
       results.push({
         action,
         success: false,
@@ -49023,10 +49655,10 @@ async function executeActions(actions, ctx, options = {}) {
     }
     const validatedAction = parseResult.data;
     if (logActions) {
-      core21.info(`Executing action: ${validatedAction.type}`);
+      core22.info(`Executing action: ${validatedAction.type}`);
     }
     if (ctx.dryRun) {
-      core21.info(`[DRY RUN] Would execute: ${validatedAction.type}`);
+      core22.info(`[DRY RUN] Would execute: ${validatedAction.type}`);
       results.push({
         action: validatedAction,
         success: true,
@@ -49041,7 +49673,7 @@ async function executeActions(actions, ctx, options = {}) {
         const claudeResult = result;
         if (claudeResult.structuredOutput) {
           chainCtx.lastClaudeStructuredOutput = claudeResult.structuredOutput;
-          core21.info("Stored structured output for subsequent actions");
+          core22.info("Stored structured output for subsequent actions");
         }
       }
       const branchResult = result;
@@ -49055,7 +49687,7 @@ async function executeActions(actions, ctx, options = {}) {
         });
         stoppedEarly = true;
         stopReason = "branch_rebased_and_pushed";
-        core21.info(
+        core22.info(
           "Stopping after branch rebase - CI will re-trigger with up-to-date branch"
         );
         break;
@@ -49074,7 +49706,7 @@ async function executeActions(actions, ctx, options = {}) {
       }
     } catch (error10) {
       const err = error10 instanceof Error ? error10 : new Error(String(error10));
-      core21.error(`Action failed: ${validatedAction.type} - ${err.message}`);
+      core22.error(`Action failed: ${validatedAction.type} - ${err.message}`);
       results.push({
         action: validatedAction,
         success: false,
@@ -49239,7 +49871,7 @@ var ConfigurableTestRunner = class {
     return `${this.getRepoUrl()}/actions/runs/${runId}`;
   }
   logResourceCreated(type, url) {
-    core22.info(`\u{1F4CC} Created ${type}: ${url}`);
+    core23.info(`\u{1F4CC} Created ${type}: ${url}`);
   }
   /**
    * Run the test scenario
@@ -49250,7 +49882,7 @@ var ConfigurableTestRunner = class {
     try {
       const startIndex = this.findStartIndex();
       const startingState = this.scenario.orderedStates[startIndex];
-      core22.info(`Starting at state: ${startingState} (index ${startIndex})`);
+      core23.info(`Starting at state: ${startingState} (index ${startIndex})`);
       const firstState = this.scenario.orderedStates[0];
       const firstFixture = this.scenario.fixtures.get(firstState);
       this.issueNumber = await this.createTestIssue(firstFixture);
@@ -49263,11 +49895,11 @@ var ConfigurableTestRunner = class {
         const nextState = this.scenario.orderedStates[startIndex + 1];
         const startFixture = this.scenario.fixtures.get(startState);
         await this.setupGitHubState(startFixture);
-        core22.info(`Set up GitHub state for '${startState}'`);
+        core23.info(`Set up GitHub state for '${startState}'`);
         if (nextState) {
           const nextFixture = this.scenario.fixtures.get(nextState);
           await this.applyStateTransitionSideEffects(startFixture, nextFixture);
-          core22.info(
+          core23.info(
             `Applied side effects for '${startState}' -> '${nextState}'`
           );
           this.syncFixtureWithSideEffects(startFixture, nextFixture);
@@ -49278,10 +49910,10 @@ var ConfigurableTestRunner = class {
         const nextState = this.scenario.orderedStates[i3 + 1];
         const currentFixture = this.scenario.fixtures.get(currentState);
         const nextFixture = this.scenario.fixtures.get(nextState);
-        core22.info(`
+        core23.info(`
 ${"=".repeat(60)}`);
-        core22.info(`Transition: ${currentState} -> ${nextState}`);
-        core22.info(`${"=".repeat(60)}`);
+        core23.info(`Transition: ${currentState} -> ${nextState}`);
+        core23.info(`${"=".repeat(60)}`);
         const transitionStartTime = Date.now();
         try {
           await this.applyStateTransitionSideEffects(
@@ -49300,9 +49932,9 @@ ${"=".repeat(60)}`);
           };
           transitions.push(transitionResult);
           if (verificationErrors.length > 0) {
-            core22.error(`Verification failed:`);
+            core23.error(`Verification failed:`);
             for (const error10 of verificationErrors) {
-              core22.error(`  - ${error10}`);
+              core23.error(`  - ${error10}`);
             }
             return {
               status: "failed",
@@ -49312,7 +49944,7 @@ ${"=".repeat(60)}`);
               error: `Verification failed: ${verificationErrors.join("; ")}`
             };
           }
-          core22.info(`\u2713 Transition verified`);
+          core23.info(`\u2713 Transition verified`);
           if (!this.inputs.continue) {
             return {
               status: "paused",
@@ -49385,7 +50017,7 @@ ${"=".repeat(60)}`);
     if (!this.inputs.multiIssue) {
       const randomIndex = Math.floor(Math.random() * SINGLE_TASK_BODIES.length);
       body = SINGLE_TASK_BODIES[randomIndex];
-      core22.info(`Single-issue mode: using task variant ${randomIndex + 1}`);
+      core23.info(`Single-issue mode: using task variant ${randomIndex + 1}`);
     }
     const response = await this.config.octokit.rest.issues.create({
       owner: this.config.owner,
@@ -49435,7 +50067,7 @@ ${"=".repeat(60)}`);
     if (!this.testBranchName) {
       throw new Error("Test branch name not set");
     }
-    core22.info(`Creating test branch: ${this.testBranchName}`);
+    core23.info(`Creating test branch: ${this.testBranchName}`);
     const { data: mainRef } = await this.config.octokit.rest.git.getRef({
       owner: this.config.owner,
       repo: this.config.repo,
@@ -49489,7 +50121,7 @@ Issue: #${this.issueNumber}
         ref: `refs/heads/${this.testBranchName}`,
         sha: commit.sha
       });
-      core22.info(`Created branch ${this.testBranchName} with initial commit`);
+      core23.info(`Created branch ${this.testBranchName} with initial commit`);
     } catch (error10) {
       if (error10 instanceof Error && error10.message.includes("Reference already exists")) {
         await this.config.octokit.rest.git.updateRef({
@@ -49499,7 +50131,7 @@ Issue: #${this.issueNumber}
           sha: commit.sha,
           force: true
         });
-        core22.info(`Updated existing branch ${this.testBranchName}`);
+        core23.info(`Updated existing branch ${this.testBranchName}`);
       } else {
         throw error10;
       }
@@ -49519,9 +50151,9 @@ Issue: #${this.issueNumber}
     const body = prSpec.body || `Test PR for scenario: ${this.scenario.name}
 
 Fixes #${this.issueNumber}`;
-    core22.info(`Creating test PR: ${title}`);
-    core22.info(`  Head: ${headRef} -> Base: ${baseRef}`);
-    core22.info(`  Draft: ${prSpec.isDraft}`);
+    core23.info(`Creating test PR: ${title}`);
+    core23.info(`  Head: ${headRef} -> Base: ${baseRef}`);
+    core23.info(`  Draft: ${prSpec.isDraft}`);
     const response = await this.config.octokit.rest.pulls.create({
       owner: this.config.owner,
       repo: this.config.repo,
@@ -49545,7 +50177,7 @@ Fixes #${this.issueNumber}`;
    * Request a review on a PR
    */
   async requestReview(prNumber, reviewer) {
-    core22.info(`Requesting review from ${reviewer} on PR #${prNumber}`);
+    core23.info(`Requesting review from ${reviewer} on PR #${prNumber}`);
     await this.config.octokit.rest.pulls.requestReviewers({
       owner: this.config.owner,
       repo: this.config.repo,
@@ -49562,13 +50194,13 @@ Fixes #${this.issueNumber}`;
    */
   async applyStateTransitionSideEffects(currentFixture, nextFixture) {
     if (!this.issueNumber) return;
-    core22.info(
+    core23.info(
       `
 Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
     );
     const needsAssignment = nextFixture.issue.assignees.includes("nopo-bot") && !currentFixture.issue.assignees.includes("nopo-bot");
     if (needsAssignment) {
-      core22.info("  \u2192 Assigning nopo-bot");
+      core23.info("  \u2192 Assigning nopo-bot");
       await this.config.octokit.rest.issues.addAssignees({
         owner: this.config.owner,
         repo: this.config.repo,
@@ -49577,17 +50209,17 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
       });
     }
     if (nextFixture.issue.pr && !this.prNumber) {
-      core22.info("  \u2192 Creating PR");
+      core23.info("  \u2192 Creating PR");
       await this.createTestPR(nextFixture.issue.pr);
     }
     if (nextFixture.state === "reviewing" || nextFixture.state === "prReviewing") {
       if (this.prNumber) {
-        core22.info("  \u2192 Requesting review");
+        core23.info("  \u2192 Requesting review");
         await this.requestReview(this.prNumber, "nopo-bot");
       }
     }
     if (nextFixture.state === "processingMerge" && this.prNumber) {
-      core22.info("  \u2192 Merging PR");
+      core23.info("  \u2192 Merging PR");
       await this.mergePR(this.prNumber);
     }
   }
@@ -49605,7 +50237,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
         ...currentFixture.issue.assignees,
         "nopo-bot"
       ];
-      core22.debug("  \u2192 Updated fixture assignees to include nopo-bot");
+      core23.debug("  \u2192 Updated fixture assignees to include nopo-bot");
     }
     if (nextFixture.issue.pr && currentFixture.issue.pr) {
       currentFixture.issue.pr = {
@@ -49630,19 +50262,19 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
           "nopo-bot"
         ];
       }
-      core22.debug(
+      core23.debug(
         "  \u2192 Synced next fixture: nopo-bot assigned for next iteration"
       );
     }
     if (this.prNumber && nextFixture.issue.pr) {
-      core22.debug("  \u2192 Synced next fixture: PR exists for next iteration");
+      core23.debug("  \u2192 Synced next fixture: PR exists for next iteration");
     }
   }
   /**
    * Merge a PR
    */
   async mergePR(prNumber) {
-    core22.info(`Merging PR #${prNumber}`);
+    core23.info(`Merging PR #${prNumber}`);
     await this.config.octokit.rest.pulls.merge({
       owner: this.config.owner,
       repo: this.config.repo,
@@ -49687,7 +50319,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
       labels: [...fixture.issue.labels, TEST_LABEL]
     });
     if (fixture.issue.assignees.includes("nopo-bot")) {
-      core22.info("  \u2192 Assigning nopo-bot (via setupGitHubState)");
+      core23.info("  \u2192 Assigning nopo-bot (via setupGitHubState)");
       await this.config.octokit.rest.issues.addAssignees({
         owner: this.config.owner,
         repo: this.config.repo,
@@ -49720,19 +50352,19 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
     }
     const mockOutput = this.inputs.mockClaude && fixture.claudeMock ? this.scenario.claudeMocks.get(fixture.claudeMock)?.output : void 0;
     const context2 = this.buildMachineContext(fixture, nextFixture);
-    core22.info(`Building machine context for state: ${fixture.state}`);
-    core22.startGroup("Machine Context");
-    core22.info(JSON.stringify(context2, null, 2));
-    core22.endGroup();
+    core23.info(`Building machine context for state: ${fixture.state}`);
+    core23.startGroup("Machine Context");
+    core23.info(JSON.stringify(context2, null, 2));
+    core23.endGroup();
     const actor = createActor(claudeMachine, { input: context2 });
     actor.start();
     const snapshot = actor.getSnapshot();
     actor.stop();
     const pendingActions = snapshot.context.pendingActions;
-    core22.info(`State machine produced ${pendingActions.length} actions`);
-    core22.info(`Target state: ${String(snapshot.value)}`);
+    core23.info(`State machine produced ${pendingActions.length} actions`);
+    core23.info(`Target state: ${String(snapshot.value)}`);
     if (pendingActions.length === 0) {
-      core22.warning("No actions to execute - state machine produced no actions");
+      core23.warning("No actions to execute - state machine produced no actions");
       return;
     }
     let mockOutputs;
@@ -49742,10 +50374,10 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
         mockOutputs[mockRef] = mock.output;
       }
       if (Object.keys(mockOutputs).length > 0) {
-        core22.info(`Using mock Claude mode with ${Object.keys(mockOutputs).length} mock outputs`);
-        core22.startGroup("Mock Outputs");
-        core22.info(Object.keys(mockOutputs).join(", "));
-        core22.endGroup();
+        core23.info(`Using mock Claude mode with ${Object.keys(mockOutputs).length} mock outputs`);
+        core23.startGroup("Mock Outputs");
+        core23.info(Object.keys(mockOutputs).join(", "));
+        core23.endGroup();
       } else {
         mockOutputs = void 0;
       }
@@ -49761,7 +50393,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
         reviewOctokit: this.config.reviewOctokit
       }
     );
-    core22.info("Executing actions...");
+    core23.info("Executing actions...");
     const result = await executeActions(pendingActions, runnerCtx);
     if (!result.success) {
       const failedActions = result.results.filter(
@@ -49771,7 +50403,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
         `Action execution failed: ${failedActions.map((r3) => r3.error?.message).join(", ")}`
       );
     }
-    core22.info(
+    core23.info(
       `Executed ${result.results.filter((r3) => !r3.skipped).length} actions successfully`
     );
     const statesThatTriggerCI = ["iterating", "iteratingFix"];
@@ -49886,7 +50518,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
     const branch = this.testBranchName;
     if (this.inputs.mockCI) {
       const mockResult = result === "success" ? "pass" : "fail";
-      core22.info(
+      core23.info(
         `Triggering mock CI with result: ${mockResult} on branch ${branch}`
       );
       await exec13.exec("gh", [
@@ -49899,7 +50531,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
         `mock=${mockResult}`
       ]);
     } else {
-      core22.info("Waiting for real CI...");
+      core23.info("Waiting for real CI...");
     }
     await this.waitForCI();
   }
@@ -49912,7 +50544,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
     const pollIntervalMs = 1e4;
     const startTime = Date.now();
     let ciRunId = null;
-    core22.info(
+    core23.info(
       `Waiting for CI workflow to complete on branch ${this.testBranchName}...`
     );
     while (Date.now() - startTime < maxWaitMs) {
@@ -49935,15 +50567,15 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
           );
         }
         if (matchingRun.status === "completed") {
-          core22.info(`CI completed with conclusion: ${matchingRun.conclusion}`);
-          core22.info(`\u{1F4CC} CI Run: ${this.getWorkflowRunUrl(matchingRun.id)}`);
+          core23.info(`CI completed with conclusion: ${matchingRun.conclusion}`);
+          core23.info(`\u{1F4CC} CI Run: ${this.getWorkflowRunUrl(matchingRun.id)}`);
           return;
         }
-        core22.info(
+        core23.info(
           `CI status: ${matchingRun.status} (run ${matchingRun.id}), waiting...`
         );
       } else {
-        core22.info("No CI run found yet, waiting...");
+        core23.info("No CI run found yet, waiting...");
       }
       await new Promise((resolve2) => setTimeout(resolve2, pollIntervalMs));
     }
@@ -49982,9 +50614,9 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
       botAssigned: state.botAssigned,
       hasTriagedLabel: state.labels.includes("triaged")
     };
-    core22.info(`
+    core23.info(`
 State Verification:`);
-    core22.info(`${"\u2500".repeat(60)}`);
+    core23.info(`${"\u2500".repeat(60)}`);
     const errors = [];
     const diffLines = [];
     for (const key of Object.keys(expectedFields)) {
@@ -50001,30 +50633,30 @@ State Verification:`);
         );
       }
     }
-    core22.info(`{`);
+    core23.info(`{`);
     for (const line of diffLines) {
       if (line.startsWith("-")) {
-        core22.info(`\x1B[31m${line}\x1B[0m`);
+        core23.info(`\x1B[31m${line}\x1B[0m`);
       } else if (line.startsWith("+")) {
-        core22.info(`\x1B[32m${line}\x1B[0m`);
+        core23.info(`\x1B[32m${line}\x1B[0m`);
       } else {
-        core22.info(line);
+        core23.info(line);
       }
     }
-    core22.info(`}`);
-    core22.info(`${"\u2500".repeat(60)}`);
+    core23.info(`}`);
+    core23.info(`${"\u2500".repeat(60)}`);
     if (errors.length > 0) {
-      core22.info(`
+      core23.info(`
 \u274C ${errors.length} field(s) differ`);
     } else {
-      core22.info(`
+      core23.info(`
 \u2705 All fields match`);
     }
     const expectedHistory = expected.issue.history;
     if (expectedHistory && expectedHistory.length > 0) {
-      core22.info(`
+      core23.info(`
 History Verification:`);
-      core22.info(`${"\u2500".repeat(60)}`);
+      core23.info(`${"\u2500".repeat(60)}`);
       const actualActions = state.history.map((h3) => h3.action);
       const missingActions = [];
       for (const expectedEntry of expectedHistory) {
@@ -50033,26 +50665,26 @@ History Verification:`);
           (action) => action.includes(expectedAction)
         );
         if (found) {
-          core22.info(`  \u2713 Found: "${expectedAction}"`);
+          core23.info(`  \u2713 Found: "${expectedAction}"`);
         } else {
-          core22.info(`  \u2717 Missing: "${expectedAction}"`);
+          core23.info(`  \u2717 Missing: "${expectedAction}"`);
           missingActions.push(expectedAction);
         }
       }
       if (missingActions.length > 0) {
-        core22.info(
+        core23.info(
           `
 Actual history actions (${state.history.length} entries):`
         );
         for (const entry of state.history) {
-          core22.info(`  [${entry.iteration}/${entry.phase}] ${entry.action}`);
+          core23.info(`  [${entry.iteration}/${entry.phase}] ${entry.action}`);
         }
         errors.push(`Missing history actions: ${missingActions.join(", ")}`);
       } else {
-        core22.info(`
+        core23.info(`
 \u2705 All expected history entries found`);
       }
-      core22.info(`${"\u2500".repeat(60)}`);
+      core23.info(`${"\u2500".repeat(60)}`);
     }
     return errors;
   }
@@ -50060,7 +50692,7 @@ Actual history actions (${state.history.length} entries):`
    * Create a sub-issue with optional branch and PR
    */
   async createSubIssue(subIssue) {
-    core22.info(`Creating sub-issue: ${subIssue.title}`);
+    core23.info(`Creating sub-issue: ${subIssue.title}`);
     const response = await this.config.octokit.rest.issues.create({
       owner: this.config.owner,
       repo: this.config.repo,
@@ -50070,7 +50702,7 @@ Actual history actions (${state.history.length} entries):`
     });
     const issueNumber = response.data.number;
     this.subIssueNumbers.set(subIssue.title, issueNumber);
-    core22.info(`Created sub-issue #${issueNumber}`);
+    core23.info(`Created sub-issue #${issueNumber}`);
     if (subIssue.projectStatus) {
       await this.setProjectField(issueNumber, "Status", subIssue.projectStatus);
     }
@@ -50100,7 +50732,7 @@ Sub-issue PR for test scenario.`
    * Create a branch for a sub-issue
    */
   async createBranchForSubIssue(branchName, issueNumber) {
-    core22.info(`Creating branch for sub-issue #${issueNumber}: ${branchName}`);
+    core23.info(`Creating branch for sub-issue #${issueNumber}: ${branchName}`);
     const { data: mainRef } = await this.config.octokit.rest.git.getRef({
       owner: this.config.owner,
       repo: this.config.repo,
@@ -50149,7 +50781,7 @@ Sub-issue PR for test scenario.`
         ref: `refs/heads/${branchName}`,
         sha: commit.sha
       });
-      core22.info(`Created branch ${branchName}`);
+      core23.info(`Created branch ${branchName}`);
     } catch (error10) {
       if (error10 instanceof Error && error10.message.includes("Reference already exists")) {
         await this.config.octokit.rest.git.updateRef({
@@ -50159,7 +50791,7 @@ Sub-issue PR for test scenario.`
           sha: commit.sha,
           force: true
         });
-        core22.info(`Updated existing branch ${branchName}`);
+        core23.info(`Updated existing branch ${branchName}`);
       } else {
         throw error10;
       }
@@ -50170,7 +50802,7 @@ Sub-issue PR for test scenario.`
    */
   async linkSubIssueToParent(subIssueNumber) {
     if (!this.issueNumber) return;
-    core22.info(
+    core23.info(
       `Linking sub-issue #${subIssueNumber} to parent #${this.issueNumber}`
     );
     const { data: subIssue } = await this.config.octokit.rest.issues.get({
@@ -50194,7 +50826,7 @@ ${subIssue.body || ""}`
    * Set a project field on an issue
    */
   async setProjectField(issueNumber, field, value) {
-    core22.info(`Setting ${field}=${value} on issue #${issueNumber}`);
+    core23.info(`Setting ${field}=${value} on issue #${issueNumber}`);
     const response = await this.config.octokit.graphql(
       GET_PROJECT_ITEM_QUERY2,
       {
@@ -50218,7 +50850,7 @@ ${subIssue.body || ""}`
       this.config.projectNumber
     );
     if (!itemId) {
-      core22.info(`Adding issue #${issueNumber} to project`);
+      core23.info(`Adding issue #${issueNumber} to project`);
       try {
         const addResult = await this.config.octokit.graphql(ADD_ISSUE_TO_PROJECT_MUTATION3, {
           projectId: projectFields.projectId,
@@ -50227,7 +50859,7 @@ ${subIssue.body || ""}`
         itemId = addResult.addProjectV2ItemById?.item?.id || null;
       } catch (error10) {
         if (error10 instanceof Error && error10.message.includes("Content already exists")) {
-          core22.info("Issue already in project, refetching item ID...");
+          core23.info("Issue already in project, refetching item ID...");
           const refetchResponse = await this.config.octokit.graphql(
             GET_PROJECT_ITEM_QUERY2,
             {
@@ -50277,7 +50909,7 @@ ${subIssue.body || ""}`
       fieldId,
       value: fieldValue
     });
-    core22.info(`Set ${field}=${value} on issue #${issueNumber}`);
+    core23.info(`Set ${field}=${value} on issue #${issueNumber}`);
   }
   /**
    * Parse project fields from GraphQL response
@@ -50465,7 +51097,7 @@ var _DiscussionTestResultSchema = external_exports.object({
 // issue/actions-ts/test-runner/src/configurable/discussion-loader.ts
 var fs11 = __toESM(require("fs"), 1);
 var path3 = __toESM(require("path"), 1);
-var core23 = __toESM(require_core(), 1);
+var core24 = __toESM(require_core(), 1);
 var FIXTURES_BASE_PATH2 = ".github/statemachine/discussion/fixtures";
 var DISCUSSION_SCENARIOS_DIR = "scenarios";
 var CLAUDE_MOCKS_DIR2 = "mocks";
@@ -50486,8 +51118,8 @@ async function loadDiscussionScenario(scenarioName, basePath = FIXTURES_BASE_PAT
   const configContent = fs11.readFileSync(configPath, "utf-8");
   const configJson = JSON.parse(configContent);
   const config = DiscussionScenarioConfigSchema.parse(configJson);
-  core23.info(`Loading discussion scenario: ${config.name}`);
-  core23.info(`Description: ${config.description}`);
+  core24.info(`Loading discussion scenario: ${config.name}`);
+  core24.info(`Description: ${config.description}`);
   const statesDir = path3.join(scenarioDir, STATES_DIR2);
   if (!fs11.existsSync(statesDir)) {
     throw new Error(
@@ -50500,9 +51132,9 @@ async function loadDiscussionScenario(scenarioName, basePath = FIXTURES_BASE_PAT
       `Discussion scenario must have at least 1 state fixture (got ${orderedStates.length}).`
     );
   }
-  core23.info(`Loaded ${orderedStates.length} state fixtures`);
+  core24.info(`Loaded ${orderedStates.length} state fixtures`);
   const claudeMocks = await loadReferencedMocks2(fixtures, basePath);
-  core23.info(`Loaded ${claudeMocks.size} Claude mocks`);
+  core24.info(`Loaded ${claudeMocks.size} Claude mocks`);
   return {
     name: config.name,
     description: config.description,
@@ -50541,7 +51173,7 @@ ${errors}`);
     }
     orderedStates.push(fixture.state);
     fixtures.set(fixture.state, fixture);
-    core23.debug(`  Loaded: ${file} -> state '${fixture.state}'`);
+    core24.debug(`  Loaded: ${file} -> state '${fixture.state}'`);
   }
   return { orderedStates, fixtures };
 }
@@ -50573,13 +51205,13 @@ async function loadReferencedMocks2(fixtures, basePath) {
 ${errors}`);
     }
     claudeMocks.set(fixture.claudeMock, parseResult.data);
-    core23.debug(`  Loaded mock: ${fixture.claudeMock}`);
+    core24.debug(`  Loaded mock: ${fixture.claudeMock}`);
   }
   return claudeMocks;
 }
 
 // issue/actions-ts/test-runner/src/configurable/discussion-runner.ts
-var core28 = __toESM(require_core(), 1);
+var core29 = __toESM(require_core(), 1);
 
 // discussion/actions-ts/state-machine/schemas/triggers.ts
 var DiscussionTriggerTypeSchema = external_exports.enum([
@@ -50595,7 +51227,7 @@ var DiscussionCommandSchema = external_exports.enum([
   "plan",
   "complete"
 ]);
-var ResearchThreadSchema = external_exports.object({
+var ResearchThreadSchema2 = external_exports.object({
   nodeId: external_exports.string(),
   topic: external_exports.string(),
   replyCount: external_exports.number().int().min(0)
@@ -50606,7 +51238,7 @@ var DiscussionSchema2 = external_exports.object({
   title: external_exports.string(),
   body: external_exports.string(),
   commentCount: external_exports.number().int().min(0).default(0),
-  researchThreads: external_exports.array(ResearchThreadSchema).default([]),
+  researchThreads: external_exports.array(ResearchThreadSchema2).default([]),
   command: DiscussionCommandSchema.optional(),
   commentId: external_exports.string().optional(),
   commentBody: external_exports.string().optional(),
@@ -50675,6 +51307,8 @@ var ApplyDiscussionResearchOutputActionSchema2 = BaseActionSchema2.extend({
   type: external_exports.literal("applyDiscussionResearchOutput"),
   discussionNumber: external_exports.number().int().positive(),
   discussionNodeId: external_exports.string(),
+  /** Prompt variables to pass to investigation agents */
+  promptVars: external_exports.record(external_exports.string()).optional(),
   filePath: external_exports.string().optional(),
   consumesArtifact: ArtifactSchema2.optional()
 });
@@ -50816,6 +51450,8 @@ function emitRunClaudeResearch({
       token: "code",
       discussionNumber: context2.discussion.number,
       discussionNodeId: context2.discussion.nodeId,
+      // Pass promptVars so investigations have context
+      promptVars,
       filePath: "claude-structured-output.json",
       consumesArtifact: researchArtifact
     }
@@ -51216,17 +51852,17 @@ var discussionMachine = setup({
 });
 
 // discussion/actions-ts/state-machine/runner/runner.ts
-var core26 = __toESM(require_core(), 1);
+var core27 = __toESM(require_core(), 1);
 var github = __toESM(require_github(), 1);
 
 // discussion/actions-ts/state-machine/runner/executors/discussions.ts
-var core24 = __toESM(require_core(), 1);
-
-// discussion/actions-ts/state-machine/runner/executors/discussion-apply.ts
 var core25 = __toESM(require_core(), 1);
 
+// discussion/actions-ts/state-machine/runner/executors/discussion-apply.ts
+var core26 = __toESM(require_core(), 1);
+
 // discussion/actions-ts/state-machine/context-builder.ts
-var core27 = __toESM(require_core(), 1);
+var core28 = __toESM(require_core(), 1);
 var github2 = __toESM(require_github(), 1);
 
 // issue/actions-ts/test-runner/src/configurable/discussion-runner.ts
@@ -51260,7 +51896,7 @@ query GetRepositoryInfo($owner: String!, $name: String!) {
   }
 }
 `;
-var GET_DISCUSSION_COMMENTS_QUERY = `
+var GET_DISCUSSION_COMMENTS_QUERY2 = `
 query GetDiscussionComments($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) {
     discussion(number: $number) {
@@ -51320,7 +51956,7 @@ var DiscussionConfigurableTestRunner = class {
     return `${this.getRepoUrl()}/discussions/${discussionNumber}`;
   }
   logResourceCreated(type, url) {
-    core28.info(`\u{1F4CC} Created ${type}: ${url}`);
+    core29.info(`\u{1F4CC} Created ${type}: ${url}`);
   }
   /**
    * Run the discussion test scenario
@@ -51340,20 +51976,20 @@ var DiscussionConfigurableTestRunner = class {
         await this.addTriggeringComment(firstFixture);
       }
       const context2 = this.buildMachineContext(firstFixture);
-      core28.info(`Building machine context for state: ${firstFixture.state}`);
-      core28.startGroup("Machine Context");
-      core28.info(JSON.stringify(context2, null, 2));
-      core28.endGroup();
+      core29.info(`Building machine context for state: ${firstFixture.state}`);
+      core29.startGroup("Machine Context");
+      core29.info(JSON.stringify(context2, null, 2));
+      core29.endGroup();
       const actor = createActor(discussionMachine, { input: context2 });
       actor.start();
       const snapshot = actor.getSnapshot();
       actor.stop();
       const pendingActions = snapshot.context.pendingActions;
       const finalState = String(snapshot.value);
-      core28.info(`State machine produced ${pendingActions.length} actions`);
-      core28.info(`Final state: ${finalState}`);
+      core29.info(`State machine produced ${pendingActions.length} actions`);
+      core29.info(`Final state: ${finalState}`);
       if (pendingActions.length === 0) {
-        core28.warning(
+        core29.warning(
           "No actions to execute - state machine produced no actions"
         );
         return {
@@ -51367,12 +52003,12 @@ var DiscussionConfigurableTestRunner = class {
       const mockOutput = this.inputs.mockClaude && firstFixture.claudeMock ? this.scenario.claudeMocks.get(firstFixture.claudeMock)?.output : void 0;
       const mockOutputs = mockOutput && firstFixture.claudeMock ? { [this.getPromptDirFromMock(firstFixture.claudeMock)]: mockOutput } : void 0;
       if (this.inputs.mockClaude && mockOutputs) {
-        core28.info(
+        core29.info(
           `Using mock Claude mode with output: ${firstFixture.claudeMock}`
         );
-        core28.startGroup("Mock Output");
-        core28.info(JSON.stringify(mockOutput, null, 2));
-        core28.endGroup();
+        core29.startGroup("Mock Output");
+        core29.info(JSON.stringify(mockOutput, null, 2));
+        core29.endGroup();
       }
       const runnerCtx = createRunnerContext(
         this.config.octokit,
@@ -51384,7 +52020,7 @@ var DiscussionConfigurableTestRunner = class {
           mockOutputs
         }
       );
-      core28.info("Executing actions...");
+      core29.info("Executing actions...");
       const result = await executeActions(pendingActions, runnerCtx);
       if (!result.success) {
         const failedActions = result.results.filter(
@@ -51395,12 +52031,12 @@ var DiscussionConfigurableTestRunner = class {
         );
       }
       const actionsExecuted = result.results.filter((r3) => !r3.skipped).length;
-      core28.info(`Executed ${actionsExecuted} actions successfully`);
+      core29.info(`Executed ${actionsExecuted} actions successfully`);
       const verificationErrors = await this.verifyExpectedOutcomes(firstFixture);
       if (verificationErrors.length > 0) {
-        core28.error(`Verification failed:`);
+        core29.error(`Verification failed:`);
         for (const error10 of verificationErrors) {
-          core28.error(`  - ${error10}`);
+          core29.error(`  - ${error10}`);
         }
         return {
           status: "failed",
@@ -51411,7 +52047,7 @@ var DiscussionConfigurableTestRunner = class {
           verificationErrors
         };
       }
-      core28.info(`\u2713 All verifications passed`);
+      core29.info(`\u2713 All verifications passed`);
       return {
         status: "completed",
         discussionNumber: this.discussionNumber,
@@ -51455,10 +52091,10 @@ var DiscussionConfigurableTestRunner = class {
         throw new Error("No discussion categories found in repository");
       }
       this.categoryId = defaultCategory.id;
-      core28.info(`Using default category: ${defaultCategory.name}`);
+      core29.info(`Using default category: ${defaultCategory.name}`);
     } else {
       this.categoryId = category.id;
-      core28.info(`Using category: ${category.name}`);
+      core29.info(`Using category: ${category.name}`);
     }
   }
   /**
@@ -51494,7 +52130,7 @@ _Test discussion for scenario: ${this.scenario.name}_`;
       throw new Error("Discussion not created yet");
     }
     const commentBody = fixture.trigger === "discussion_command" ? fixture.discussion.command ?? "/summarize" : fixture.discussion.commentBody ?? "Test comment";
-    core28.info(`Adding triggering comment: ${commentBody}`);
+    core29.info(`Adding triggering comment: ${commentBody}`);
     const response = await this.config.octokit.graphql(
       ADD_DISCUSSION_COMMENT_MUTATION3,
       {
@@ -51571,7 +52207,7 @@ _Test discussion for scenario: ${this.scenario.name}_`;
     }
     await new Promise((resolve2) => setTimeout(resolve2, 2e3));
     const response = await this.config.octokit.graphql(
-      GET_DISCUSSION_COMMENTS_QUERY,
+      GET_DISCUSSION_COMMENTS_QUERY2,
       {
         owner: this.config.owner,
         name: this.config.repo,
@@ -51629,15 +52265,15 @@ _Test discussion for scenario: ${this.scenario.name}_`;
         }
       }
     }
-    core28.info(`
+    core29.info(`
 Verification Results:`);
-    core28.info(`${"\u2500".repeat(60)}`);
+    core29.info(`${"\u2500".repeat(60)}`);
     if (errors.length === 0) {
-      core28.info(`\u2705 All checks passed`);
+      core29.info(`\u2705 All checks passed`);
     } else {
-      core28.info(`\u274C ${errors.length} check(s) failed`);
+      core29.info(`\u274C ${errors.length} check(s) failed`);
     }
-    core28.info(`${"\u2500".repeat(60)}`);
+    core29.info(`${"\u2500".repeat(60)}`);
     return errors;
   }
 };
@@ -51648,7 +52284,7 @@ async function runDiscussionConfigurableTest(scenario, inputs, config) {
 
 // issue/actions-ts/test-runner/index.ts
 async function triggerCleanup(octokit, owner, repo, issueNumber) {
-  core29.info(`Triggering cleanup for issue #${issueNumber}`);
+  core30.info(`Triggering cleanup for issue #${issueNumber}`);
   try {
     await octokit.rest.actions.createWorkflowDispatch({
       owner,
@@ -51660,10 +52296,10 @@ async function triggerCleanup(octokit, owner, repo, issueNumber) {
         action: "cleanup"
       }
     });
-    core29.info("Cleanup workflow triggered");
+    core30.info("Cleanup workflow triggered");
   } catch (error10) {
-    core29.warning(`Could not trigger cleanup workflow: ${error10}`);
-    core29.info("Attempting direct close via API...");
+    core30.warning(`Could not trigger cleanup workflow: ${error10}`);
+    core30.info("Attempting direct close via API...");
     try {
       await octokit.rest.issues.update({
         owner,
@@ -51672,9 +52308,9 @@ async function triggerCleanup(octokit, owner, repo, issueNumber) {
         state: "closed",
         state_reason: "not_planned"
       });
-      core29.info(`Closed issue #${issueNumber} directly`);
+      core30.info(`Closed issue #${issueNumber} directly`);
     } catch (closeError) {
-      core29.warning(`Failed to close issue: ${closeError}`);
+      core30.warning(`Failed to close issue: ${closeError}`);
     }
   }
 }
@@ -51696,10 +52332,10 @@ async function run() {
       const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
       const fixtureJson = getOptionalInput("fixture_json");
       const fixture = fixtureJson ? JSON.parse(fixtureJson) : { name: "manual", description: "Manual test run" };
-      core29.info(`=== Claude Test Runner ===`);
-      core29.info(`Action: run`);
-      core29.info(`Issue: #${issueNumber}`);
-      core29.info(`Fixture: ${fixture.name}`);
+      core30.info(`=== Claude Test Runner ===`);
+      core30.info(`Action: run`);
+      core30.info(`Issue: #${issueNumber}`);
+      core30.info(`Fixture: ${fixture.name}`);
       const result = await runTest({
         fixture,
         issueNumber,
@@ -51716,14 +52352,14 @@ async function run() {
         total_duration_ms: String(result.totalDurationMs)
       });
       if (result.status !== "done") {
-        core29.warning(`Test failed: ${result.diagnosis}`);
-        core29.warning(`Suggested fix: ${result.suggestedFix}`);
+        core30.warning(`Test failed: ${result.diagnosis}`);
+        core30.warning(`Suggested fix: ${result.suggestedFix}`);
         if (cleanupOnFailure) {
           await triggerCleanup(octokit, owner, repo, issueNumber);
         }
-        core29.setFailed(`Test failed: ${result.diagnosis}`);
+        core30.setFailed(`Test failed: ${result.diagnosis}`);
       } else {
-        core29.info(`Test passed! Completed ${result.phases.length} phases`);
+        core30.info(`Test passed! Completed ${result.phases.length} phases`);
       }
       return;
     }
@@ -51731,9 +52367,9 @@ async function run() {
       const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
       const fixtureJson = getOptionalInput("fixture_json");
       const fixture = fixtureJson ? JSON.parse(fixtureJson) : { name: "manual", description: "Manual diagnosis" };
-      core29.info(`=== Claude Test Runner ===`);
-      core29.info(`Action: diagnose`);
-      core29.info(`Issue: #${issueNumber}`);
+      core30.info(`=== Claude Test Runner ===`);
+      core30.info(`Action: diagnose`);
+      core30.info(`Issue: #${issueNumber}`);
       const result = await diagnose({
         fixture,
         issueNumber,
@@ -51749,14 +52385,14 @@ async function run() {
         phases_completed: "0",
         total_duration_ms: String(result.totalDurationMs)
       });
-      core29.info(`
+      core30.info(`
 Diagnosis Result:`);
-      core29.info(`Status: ${result.status}`);
+      core30.info(`Status: ${result.status}`);
       if (result.suggestedFix) {
-        core29.info(`Suggested Fix: ${result.suggestedFix}`);
+        core30.info(`Suggested Fix: ${result.suggestedFix}`);
       }
       if (result.diagnosis) {
-        core29.info(`Diagnosis: ${result.diagnosis}`);
+        core30.info(`Diagnosis: ${result.diagnosis}`);
       }
       return;
     }
@@ -51769,10 +52405,10 @@ Diagnosis Result:`);
         description: "Wait for status",
         timeout: parseInt(getOptionalInput("timeout") || "300", 10)
       };
-      core29.info(`=== Claude Test Runner ===`);
-      core29.info(`Action: wait`);
-      core29.info(`Issue: #${issueNumber}`);
-      core29.info(`Target Status: ${targetStatus}`);
+      core30.info(`=== Claude Test Runner ===`);
+      core30.info(`Action: wait`);
+      core30.info(`Issue: #${issueNumber}`);
+      core30.info(`Target Status: ${targetStatus}`);
       const result = await waitForStatus(
         {
           fixture,
@@ -51795,11 +52431,11 @@ Diagnosis Result:`);
         if (cleanupOnFailure) {
           await triggerCleanup(octokit, owner, repo, issueNumber);
         }
-        core29.setFailed(
+        core30.setFailed(
           `Failed to reach status '${targetStatus}': ${result.diagnosis}`
         );
       } else {
-        core29.info(`Issue reached status '${targetStatus}'`);
+        core30.info(`Issue reached status '${targetStatus}'`);
       }
       return;
     }
@@ -51809,9 +52445,9 @@ Diagnosis Result:`);
       const timeoutMs = parseInt(getOptionalInput("timeout") || "300", 10) * 1e3;
       const pollIntervalMs = parseInt(getOptionalInput("poll_interval") || "10", 10) * 1e3;
       const fixture = fixtureJson ? JSON.parse(fixtureJson) : { name: "wait-triage", description: "Wait for triage" };
-      core29.info(`=== Claude Test Runner ===`);
-      core29.info(`Action: wait-triage`);
-      core29.info(`Issue: #${issueNumber}`);
+      core30.info(`=== Claude Test Runner ===`);
+      core30.info(`Action: wait-triage`);
+      core30.info(`Issue: #${issueNumber}`);
       const result = await waitForTriage({
         octokit,
         owner,
@@ -51834,11 +52470,11 @@ Diagnosis Result:`);
         if (cleanupOnFailure) {
           await triggerCleanup(octokit, owner, repo, issueNumber);
         }
-        core29.setFailed(
+        core30.setFailed(
           `Triage verification failed: ${result.errors.join("; ")}`
         );
       } else {
-        core29.info("Triage completed and verified successfully");
+        core30.info("Triage completed and verified successfully");
       }
       return;
     }
@@ -51859,12 +52495,12 @@ Diagnosis Result:`);
           review: ["approved"]
         }
       } : void 0;
-      core29.info(`=== Claude Test Runner ===`);
-      core29.info(`Action: wait-phase`);
-      core29.info(`Issue: #${issueNumber}`);
-      core29.info(`Phase: ${phaseNumber}`);
+      core30.info(`=== Claude Test Runner ===`);
+      core30.info(`Action: wait-phase`);
+      core30.info(`Issue: #${issueNumber}`);
+      core30.info(`Phase: ${phaseNumber}`);
       if (e2eConfig) {
-        core29.info(`E2E Run ID: ${e2eConfig.runId}`);
+        core30.info(`E2E Run ID: ${e2eConfig.runId}`);
       }
       const result = await waitForPhase({
         octokit,
@@ -51894,19 +52530,19 @@ Diagnosis Result:`);
         if (cleanupOnFailure) {
           await triggerCleanup(octokit, owner, repo, issueNumber);
         }
-        core29.setFailed(
+        core30.setFailed(
           `Phase ${phaseNumber} verification failed: ${result.errors.join("; ")}`
         );
       } else {
-        core29.info(`Phase ${phaseNumber} completed and verified successfully`);
+        core30.info(`Phase ${phaseNumber} completed and verified successfully`);
       }
       return;
     }
     if (action === "status") {
       const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
-      core29.info(`=== Claude Test Runner ===`);
-      core29.info(`Action: status`);
-      core29.info(`Issue: #${issueNumber}`);
+      core30.info(`=== Claude Test Runner ===`);
+      core30.info(`Action: status`);
+      core30.info(`Issue: #${issueNumber}`);
       const state = await fetchGitHubState(
         octokit,
         owner,
@@ -51935,35 +52571,35 @@ Diagnosis Result:`);
         predicted_status: predicted.expectedStatus || "",
         workflow_status: workflowRuns.length > 0 ? workflowRuns[0]?.status || "unknown" : "none"
       });
-      core29.info(`
+      core30.info(`
 Current State:`);
-      core29.info(`  Status: ${state.projectStatus || "unknown"}`);
-      core29.info(`  Iteration: ${state.iteration}`);
-      core29.info(`  Failures: ${state.failures}`);
-      core29.info(`  Bot Assigned: ${state.botAssigned}`);
-      core29.info(
+      core30.info(`  Status: ${state.projectStatus || "unknown"}`);
+      core30.info(`  Iteration: ${state.iteration}`);
+      core30.info(`  Failures: ${state.failures}`);
+      core30.info(`  Bot Assigned: ${state.botAssigned}`);
+      core30.info(
         `  PR: ${state.prNumber ? `#${state.prNumber} (${state.prState})` : "none"}`
       );
-      core29.info(`  Branch: ${state.branch || "none"}`);
-      core29.info(`  Unchecked Todos: ${state.uncheckedTodos}`);
-      core29.info(`
+      core30.info(`  Branch: ${state.branch || "none"}`);
+      core30.info(`  Unchecked Todos: ${state.uncheckedTodos}`);
+      core30.info(`
 Prediction:`);
-      core29.info(`  Expected State: ${predicted.expectedState}`);
-      core29.info(
+      core30.info(`  Expected State: ${predicted.expectedState}`);
+      core30.info(
         `  Expected Status: ${predicted.expectedStatus || "unchanged"}`
       );
-      core29.info(`  Description: ${predicted.description}`);
+      core30.info(`  Description: ${predicted.description}`);
       return;
     }
     if (action === "validate") {
       const fixtureJson = getRequiredInput("fixture_json");
-      core29.info(`=== Claude Test Runner ===`);
-      core29.info(`Action: validate`);
+      core30.info(`=== Claude Test Runner ===`);
+      core30.info(`Action: validate`);
       let fixture;
       try {
         fixture = JSON.parse(fixtureJson);
       } catch (error10) {
-        core29.setFailed(`Invalid JSON: ${error10}`);
+        core30.setFailed(`Invalid JSON: ${error10}`);
         setOutputs({
           valid: "false",
           errors: `Invalid JSON: ${error10}`,
@@ -51973,7 +52609,7 @@ Prediction:`);
       }
       const result = validateFixture(fixture);
       const formatted = formatValidationResult("fixture", result);
-      core29.info(`
+      core30.info(`
 ${formatted}`);
       setOutputs({
         valid: String(result.valid),
@@ -51981,7 +52617,7 @@ ${formatted}`);
         warnings: result.warnings.join("; ")
       });
       if (!result.valid) {
-        core29.setFailed(`Fixture validation failed`);
+        core30.setFailed(`Fixture validation failed`);
       }
       return;
     }
@@ -51992,15 +52628,15 @@ ${formatted}`);
       const mockCI = getOptionalInput("mock_ci") !== "false";
       const startStep = getOptionalInput("start_step");
       const multiIssue = getOptionalInput("multi_issue") !== "false";
-      core29.info(`=== Claude Test Runner ===`);
-      core29.info(`Action: run-configurable`);
-      core29.info(`Scenario: ${scenarioName}`);
-      core29.info(`Continue: ${continueRun}`);
-      core29.info(`Mock Claude: ${mockClaude}`);
-      core29.info(`Mock CI: ${mockCI}`);
-      core29.info(`Multi Issue: ${multiIssue}`);
+      core30.info(`=== Claude Test Runner ===`);
+      core30.info(`Action: run-configurable`);
+      core30.info(`Scenario: ${scenarioName}`);
+      core30.info(`Continue: ${continueRun}`);
+      core30.info(`Mock Claude: ${mockClaude}`);
+      core30.info(`Mock CI: ${mockCI}`);
+      core30.info(`Multi Issue: ${multiIssue}`);
       if (startStep) {
-        core29.info(`Start Step: ${startStep}`);
+        core30.info(`Start Step: ${startStep}`);
       }
       const scenario = await loadScenario(scenarioName);
       const inputs = {
@@ -52027,13 +52663,13 @@ ${formatted}`);
         error: result.error || ""
       });
       if (result.status === "failed" || result.status === "error") {
-        core29.setFailed(`Test ${result.status}: ${result.error}`);
+        core30.setFailed(`Test ${result.status}: ${result.error}`);
       } else if (result.status === "completed") {
-        core29.info(
+        core30.info(
           `Test completed successfully with ${result.transitions.length} transitions`
         );
       } else if (result.status === "paused") {
-        core29.info(
+        core30.info(
           `Test paused at ${result.currentState} -> ${result.nextState}`
         );
       }
@@ -52042,10 +52678,10 @@ ${formatted}`);
     if (action === "run-discussion") {
       const scenarioName = getRequiredInput("scenario_name");
       const mockClaude = getOptionalInput("mock_claude") !== "false";
-      core29.info(`=== Claude Test Runner ===`);
-      core29.info(`Action: run-discussion`);
-      core29.info(`Scenario: ${scenarioName}`);
-      core29.info(`Mock Claude: ${mockClaude}`);
+      core30.info(`=== Claude Test Runner ===`);
+      core30.info(`Action: run-discussion`);
+      core30.info(`Scenario: ${scenarioName}`);
+      core30.info(`Mock Claude: ${mockClaude}`);
       const scenario = await loadDiscussionScenario(scenarioName);
       const inputs = {
         mockClaude
@@ -52066,22 +52702,22 @@ ${formatted}`);
         error: result.error || ""
       });
       if (result.status === "failed" || result.status === "error") {
-        core29.setFailed(
+        core30.setFailed(
           `Discussion test ${result.status}: ${result.error || result.verificationErrors?.join("; ")}`
         );
       } else if (result.status === "completed") {
-        core29.info(
+        core30.info(
           `Discussion test completed successfully. Final state: ${result.finalState}, Actions: ${result.actionsExecuted}`
         );
       }
       return;
     }
-    core29.setFailed(`Unknown action: ${action}`);
+    core30.setFailed(`Unknown action: ${action}`);
   } catch (error10) {
     if (error10 instanceof Error) {
-      core29.setFailed(error10.message);
+      core30.setFailed(error10.message);
     } else {
-      core29.setFailed("An unexpected error occurred");
+      core30.setFailed("An unexpected error occurred");
     }
   }
 }

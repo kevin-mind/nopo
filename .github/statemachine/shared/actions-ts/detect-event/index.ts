@@ -130,7 +130,6 @@ function computeConcurrency(
   resourceNumber: string,
   parentIssue: string,
   branch?: string,
-  commentId?: string,
 ): { group: string; cancelInProgress: boolean } {
   // PR review jobs share a group - pr-push cancels in-flight reviews
   const reviewJobs: Job[] = [
@@ -149,7 +148,8 @@ function computeConcurrency(
     };
   }
 
-  // Discussion jobs use their own group
+  // Discussion jobs use their own group - all jobs for same discussion
+  // share a single concurrency group to prevent race conditions on body updates
   const discussionJobs: Job[] = [
     "discussion-research",
     "discussion-respond",
@@ -159,14 +159,6 @@ function computeConcurrency(
   ];
 
   if (discussionJobs.includes(job)) {
-    // For discussion-respond, use comment-specific concurrency so multiple
-    // research threads can be investigated in parallel
-    if (job === "discussion-respond" && commentId) {
-      return {
-        group: `claude-job-discussion-${resourceNumber}-comment-${commentId}`,
-        cancelInProgress: false,
-      };
-    }
     return {
       group: `claude-job-discussion-${resourceNumber}`,
       cancelInProgress: false,
@@ -2157,27 +2149,26 @@ async function handleDiscussionCommentEvent(
     };
   }
 
-  // Bot's top-level research thread - trigger investigation
+  // Bot's research thread comments - skip, investigation happens in same workflow
+  // that created the threads (no separate trigger needed)
   if (isTopLevel && comment.body.includes("## 🔍 Research:")) {
-    return {
-      job: "discussion-respond",
-      resourceType: "discussion",
-      resourceNumber: String(discussion.number),
-      commentId: comment.node_id,
-      contextJson: {
-        discussion_number: String(discussion.number),
-        comment_body: comment.body,
-        comment_author: author,
-        trigger_type: "discussion-comment",
-        is_test_automation: isTestAutomation,
-      },
-      skip: false,
-      skipReason: "",
-    };
+    return emptyResult(
+      true,
+      "Bot research thread - investigation handled in same workflow",
+    );
   }
 
-  // Skip bot's reply comments to prevent infinite loop
-  return emptyResult(true, "Bot reply comment - preventing infinite loop");
+  // Bot's investigation findings - skip for now
+  // Future: could trigger follow-up research if questions remain
+  if (comment.body.includes("## 📊 Findings:")) {
+    return emptyResult(
+      true,
+      "Bot investigation findings - no action needed",
+    );
+  }
+
+  // Skip all other bot comments to prevent infinite loops
+  return emptyResult(true, "Bot comment - preventing infinite loop");
 }
 
 async function handleWorkflowDispatchEvent(
@@ -2384,7 +2375,6 @@ async function run(): Promise<void> {
       result.resourceNumber,
       parentIssue,
       branch,
-      result.commentId,
     );
     core.info(`Concurrency group: ${concurrency.group}`);
     core.info(`Cancel in progress: ${concurrency.cancelInProgress}`);

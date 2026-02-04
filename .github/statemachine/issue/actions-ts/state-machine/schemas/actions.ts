@@ -579,12 +579,15 @@ export type ApplyPRResponseOutputAction = z.infer<
 
 /**
  * Apply discussion research output from Claude's structured output
- * Creates research thread comments from Claude's analysis
+ * Creates research thread comments, investigates them in parallel,
+ * posts findings as replies, and updates the discussion body.
  */
 const ApplyDiscussionResearchOutputActionSchema = BaseActionSchema.extend({
   type: z.literal("applyDiscussionResearchOutput"),
   discussionNumber: z.number().int().positive(),
   discussionNodeId: z.string().min(1),
+  /** Prompt variables to pass to investigation agents */
+  promptVars: z.record(z.string()).optional(),
   /** Path to the structured output file (for artifact-based execution) */
   filePath: z.string().optional(),
   /** Artifact to download before execution */
@@ -649,6 +652,60 @@ const ApplyDiscussionPlanOutputActionSchema = BaseActionSchema.extend({
 
 export type ApplyDiscussionPlanOutputAction = z.infer<
   typeof ApplyDiscussionPlanOutputActionSchema
+>;
+
+/**
+ * Research thread definition for parallel investigation
+ */
+const ResearchThreadSchema = z.object({
+  /** The comment node ID for posting replies */
+  commentNodeId: z.string().min(1),
+  /** Thread title */
+  title: z.string().min(1),
+  /** The main question to investigate */
+  question: z.string().min(1),
+  /** Areas to investigate */
+  investigationAreas: z.array(z.string()),
+  /** Expected deliverables */
+  expectedDeliverables: z.array(z.string()),
+});
+
+export type ResearchThread = z.infer<typeof ResearchThreadSchema>;
+
+/**
+ * Investigate research threads in parallel
+ * Runs Claude investigation agents for each thread concurrently (like grooming)
+ * and posts findings as replies to each thread
+ */
+export const InvestigateResearchThreadsActionSchema = BaseActionSchema.extend({
+  type: z.literal("investigateResearchThreads"),
+  discussionNumber: z.number().int().positive(),
+  discussionNodeId: z.string().min(1),
+  /** Research threads to investigate */
+  threads: z.array(ResearchThreadSchema),
+  /** Template variables for investigation prompts */
+  promptVars: z.record(z.string()).optional(),
+});
+
+export type InvestigateResearchThreadsAction = z.infer<
+  typeof InvestigateResearchThreadsActionSchema
+>;
+
+/**
+ * Update discussion body with current state summary
+ * Reads all threads and comments, generates a summary, and updates the body
+ * Should be called at the end of every discussion workflow
+ */
+export const UpdateDiscussionSummaryActionSchema = BaseActionSchema.extend({
+  type: z.literal("updateDiscussionSummary"),
+  discussionNumber: z.number().int().positive(),
+  discussionNodeId: z.string().min(1),
+  /** Template variables for summary prompt */
+  promptVars: z.record(z.string()).optional(),
+});
+
+export type UpdateDiscussionSummaryAction = z.infer<
+  typeof UpdateDiscussionSummaryActionSchema
 >;
 
 // ============================================================================
@@ -791,6 +848,9 @@ export const ActionSchema = z.discriminatedUnion("type", [
   ApplyDiscussionRespondOutputActionSchema,
   ApplyDiscussionSummarizeOutputActionSchema,
   ApplyDiscussionPlanOutputActionSchema,
+  // Discussion parallel investigation actions
+  InvestigateResearchThreadsActionSchema,
+  UpdateDiscussionSummaryActionSchema,
 ]);
 
 export type Action = z.infer<typeof ActionSchema>;

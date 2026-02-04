@@ -23981,7 +23981,7 @@ function jobToTrigger(job, contextJson) {
   };
   return jobTriggerOverrides[job] || job || "issue-assigned";
 }
-function computeConcurrency(job, resourceNumber, parentIssue, branch, commentId) {
+function computeConcurrency(job, resourceNumber, parentIssue, branch) {
   const reviewJobs = [
     "pr-push",
     "pr-review",
@@ -24004,12 +24004,6 @@ function computeConcurrency(job, resourceNumber, parentIssue, branch, commentId)
     "discussion-complete"
   ];
   if (discussionJobs.includes(job)) {
-    if (job === "discussion-respond" && commentId) {
-      return {
-        group: `claude-job-discussion-${resourceNumber}-comment-${commentId}`,
-        cancelInProgress: false
-      };
-    }
     return {
       group: `claude-job-discussion-${resourceNumber}`,
       cancelInProgress: false
@@ -25394,23 +25388,18 @@ async function handleDiscussionCommentEvent(octokit, owner, repo) {
     };
   }
   if (isTopLevel && comment.body.includes("## \u{1F50D} Research:")) {
-    return {
-      job: "discussion-respond",
-      resourceType: "discussion",
-      resourceNumber: String(discussion.number),
-      commentId: comment.node_id,
-      contextJson: {
-        discussion_number: String(discussion.number),
-        comment_body: comment.body,
-        comment_author: author,
-        trigger_type: "discussion-comment",
-        is_test_automation: isTestAutomation
-      },
-      skip: false,
-      skipReason: ""
-    };
+    return emptyResult(
+      true,
+      "Bot research thread - investigation handled in same workflow"
+    );
   }
-  return emptyResult(true, "Bot reply comment - preventing infinite loop");
+  if (comment.body.includes("## \u{1F4CA} Findings:")) {
+    return emptyResult(
+      true,
+      "Bot investigation findings - no action needed"
+    );
+  }
+  return emptyResult(true, "Bot comment - preventing infinite loop");
 }
 async function handleWorkflowDispatchEvent(octokit, owner, repo, resourceNumber) {
   if (!resourceNumber) {
@@ -25580,8 +25569,7 @@ async function run() {
       result.job,
       result.resourceNumber,
       parentIssue,
-      branch,
-      result.commentId
+      branch
     );
     core2.info(`Concurrency group: ${concurrency.group}`);
     core2.info(`Cancel in progress: ${concurrency.cancelInProgress}`);

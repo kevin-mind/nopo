@@ -50,6 +50,10 @@ import {
   executeApplyDiscussionSummarizeOutput,
   executeApplyDiscussionPlanOutput,
 } from "./executors/discussion-apply.js";
+import {
+  executeInvestigateResearchThreads,
+  executeUpdateDiscussionSummary,
+} from "./executors/discussion-research.js";
 import { executeApplyTriageOutput } from "./executors/triage.js";
 import { executeApplyIterateOutput } from "./executors/iterate.js";
 import { executeApplyReviewOutput } from "./executors/review.js";
@@ -401,6 +405,10 @@ async function executeAction(
         actionCtx,
         getStructuredOutput(action, chainCtx),
       );
+    case "investigateResearchThreads":
+      return executeInvestigateResearchThreads(action, actionCtx);
+    case "updateDiscussionSummary":
+      return executeUpdateDiscussionSummary(action, actionCtx);
 
     // Control flow actions
     case "stop":
