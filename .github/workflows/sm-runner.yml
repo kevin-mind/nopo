@@ -365,11 +365,36 @@ jobs:
           EOF
 
   # ============================================================================
+  # Debug: Print outputs before matrix evaluation
+  # ============================================================================
+  debug-outputs:
+    needs: [derive-actions]
+    if: needs.derive-actions.outputs.action_count != '0'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Debug outputs
+        run: |
+          echo "=== Debug: Raw outputs from derive-actions ==="
+          echo "action_count: '${{ needs.derive-actions.outputs.action_count }}'"
+          echo "actions_matrix length: '${#MATRIX_VALUE}'"
+          echo "actions_matrix first 500 chars:"
+          echo "${MATRIX_VALUE:0:500}"
+          echo "---"
+          echo "Attempting to parse with jq:"
+          if echo "$MATRIX_VALUE" | jq -e 'length' 2>&1; then
+            echo "jq parse succeeded"
+          else
+            echo "jq parse failed"
+          fi
+        env:
+          MATRIX_VALUE: ${{ needs.derive-actions.outputs.actions_matrix }}
+
+  # ============================================================================
   # Phase 2: Execute Actions
   # Matrix job that executes each action in isolation with max-parallel: 1
   # ============================================================================
   exec-state-actions:
-    needs: [e2e-detect, derive-actions]
+    needs: [e2e-detect, derive-actions, debug-outputs]
     # Only check action_count - the matrix validation is done in derive-actions
     if: needs.derive-actions.outputs.action_count != '0'
     runs-on: ubuntu-latest
