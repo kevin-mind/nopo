@@ -453,9 +453,10 @@ jobs:
           echo "merged=$merged" >> $GITHUB_OUTPUT
 
       # Install Claude Code for SDK-based execution
+      # Also needed for applyDiscussionResearchOutput which runs parallel investigations internally
       - name: Install Claude Code
         if: |
-          matrix.action.type == 'runClaude' &&
+          (matrix.action.type == 'runClaude' || matrix.action.type == 'applyDiscussionResearchOutput') &&
           !inputs.dry_run &&
           needs.e2e-detect.outputs.e2e_mode != 'true'
         run: |
