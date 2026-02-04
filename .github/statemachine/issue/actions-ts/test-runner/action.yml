@@ -14,6 +14,9 @@ inputs:
   github_token:
     description: 'GitHub token with repo and project access'
     required: true
+  reviewer_token:
+    description: 'GitHub token for submitting reviews (different user than github_token to avoid "cannot review own PR" errors)'
+    required: false
   project_number:
     description: 'GitHub Project number'
     required: false

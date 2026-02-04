@@ -710,8 +710,9 @@ export function emitRunClaudePRReview({
 /**
  * Emit action to run Claude to respond to (bot's) review feedback
  *
- * Uses the review-response prompt file. Claude will address the review
- * comments and make code changes.
+ * Uses the review-response prompt directory with structured output schema.
+ * Claude will address the review comments and return structured output which is then
+ * processed via applyPRResponseOutput to post comments and re-request review.
  */
 export function emitRunClaudePRResponse({
   context,
@@ -741,16 +742,39 @@ export function emitRunClaudePRResponse({
     REPO_NAME: context.repo,
     REVIEW_DECISION: context.reviewDecision ?? "N/A",
     REVIEWER: context.reviewerId ?? "N/A",
+    AGENT_NOTES: "", // Will be injected by workflow from previous runs
+  };
+
+  // Artifact configuration for passing structured output from runClaude to applyPRResponseOutput
+  const responseArtifact = {
+    name: "claude-pr-response-output",
+    path: "claude-structured-output.json",
   };
 
   return [
     {
       type: "runClaude",
       token: "code",
-      promptFile: ".github/statemachine/issue/prompts/review-response/prompt.txt",
+      promptDir: "review-response",
       promptVars,
       issueNumber,
       // worktree intentionally omitted - checkout happens at repo root to the correct branch
+      // Structured output is saved to claude-structured-output.json by run-claude action
+      producesArtifact: responseArtifact,
+    },
+    // Apply PR response output: post comment, re-request review if no commits
+    // Downloads the artifact before execution
+    // worktree: "main" ensures we checkout main where the executor code is,
+    // not the PR branch being reviewed
+    {
+      type: "applyPRResponseOutput",
+      token: "code",
+      prNumber,
+      issueNumber,
+      filePath: "claude-structured-output.json",
+      consumesArtifact: responseArtifact,
+      reviewer: "nopo-reviewer",
+      worktree: "main",
     },
   ];
 }
@@ -758,8 +782,9 @@ export function emitRunClaudePRResponse({
 /**
  * Emit action to run Claude to respond to human's review feedback
  *
- * Uses the human-review-response prompt file. Claude will address the
- * human reviewer's comments and make code changes.
+ * Uses the human-review-response prompt directory with structured output schema.
+ * Claude will address the human reviewer's comments and return structured output
+ * which is then processed via applyPRResponseOutput to post comments and re-request review.
  */
 export function emitRunClaudePRHumanResponse({
   context,
@@ -789,16 +814,39 @@ export function emitRunClaudePRHumanResponse({
     REPO_NAME: context.repo,
     REVIEW_DECISION: context.reviewDecision ?? "N/A",
     REVIEWER: context.reviewerId ?? "N/A",
+    AGENT_NOTES: "", // Will be injected by workflow from previous runs
+  };
+
+  // Artifact configuration for passing structured output from runClaude to applyPRResponseOutput
+  const responseArtifact = {
+    name: "claude-pr-human-response-output",
+    path: "claude-structured-output.json",
   };
 
   return [
     {
       type: "runClaude",
       token: "code",
-      promptFile: ".github/statemachine/issue/prompts/human-review-response/prompt.txt",
+      promptDir: "human-review-response",
       promptVars,
       issueNumber,
       // worktree intentionally omitted - checkout happens at repo root to the correct branch
+      // Structured output is saved to claude-structured-output.json by run-claude action
+      producesArtifact: responseArtifact,
+    },
+    // Apply PR response output: post comment, re-request review if no commits
+    // Downloads the artifact before execution
+    // worktree: "main" ensures we checkout main where the executor code is,
+    // not the PR branch being reviewed
+    {
+      type: "applyPRResponseOutput",
+      token: "code",
+      prNumber,
+      issueNumber,
+      filePath: "claude-structured-output.json",
+      consumesArtifact: responseArtifact,
+      reviewer: context.reviewerId ?? "nopo-reviewer",
+      worktree: "main",
     },
   ];
 }

@@ -50,6 +50,7 @@ import {
 import { executeApplyTriageOutput } from "./executors/triage.js";
 import { executeApplyIterateOutput } from "./executors/iterate.js";
 import { executeApplyReviewOutput } from "./executors/review.js";
+import { executeApplyPRResponseOutput } from "./executors/pr-response.js";
 import { executeAppendAgentNotes } from "./executors/agent-notes.js";
 import {
   signalStart,
@@ -292,6 +293,15 @@ async function executeAction(
     case "applyReviewOutput":
       // Pass structured output from previous runClaude action if available
       return executeApplyReviewOutput(
+        action,
+        actionCtx,
+        chainCtx?.lastClaudeStructuredOutput,
+      );
+
+    // PR response actions
+    case "applyPRResponseOutput":
+      // Pass structured output from previous runClaude action if available
+      return executeApplyPRResponseOutput(
         action,
         actionCtx,
         chainCtx?.lastClaudeStructuredOutput,

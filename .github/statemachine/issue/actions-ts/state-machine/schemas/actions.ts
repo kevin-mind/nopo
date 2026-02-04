@@ -555,6 +555,22 @@ export type ApplyReviewOutputAction = z.infer<
   typeof ApplyReviewOutputActionSchema
 >;
 
+/**
+ * Apply PR response output from Claude's structured output
+ * Posts summary comment and re-requests review if no commits were made
+ */
+const ApplyPRResponseOutputActionSchema = BaseActionSchema.extend({
+  type: z.literal("applyPRResponseOutput"),
+  prNumber: z.number().int().positive(),
+  issueNumber: z.number().int().positive(),
+  filePath: z.string().default("claude-structured-output.json"),
+  reviewer: z.string().default("nopo-reviewer"),
+});
+
+export type ApplyPRResponseOutputAction = z.infer<
+  typeof ApplyPRResponseOutputActionSchema
+>;
+
 // ============================================================================
 // Discussion Apply Actions
 // ============================================================================
@@ -672,6 +688,8 @@ export const ActionSchema = z.discriminatedUnion("type", [
   AppendAgentNotesActionSchema,
   // Review actions
   ApplyReviewOutputActionSchema,
+  // PR response actions
+  ApplyPRResponseOutputActionSchema,
   // Discussion apply actions
   ApplyDiscussionResearchOutputActionSchema,
   ApplyDiscussionRespondOutputActionSchema,
@@ -726,6 +744,7 @@ export const ACTION_TYPES = [
   "applyIterateOutput",
   "appendAgentNotes",
   "applyReviewOutput",
+  "applyPRResponseOutput",
   "applyDiscussionResearchOutput",
   "applyDiscussionRespondOutput",
   "applyDiscussionSummarizeOutput",
@@ -806,6 +825,7 @@ export const ISSUE_ACTION_TYPES = [
   "applyIterateOutput",
   "appendAgentNotes",
   "applyReviewOutput",
+  "applyPRResponseOutput",
   // Block action
   "block",
 ] as const;

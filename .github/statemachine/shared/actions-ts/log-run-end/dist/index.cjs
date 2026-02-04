@@ -28905,6 +28905,13 @@ var ApplyReviewOutputActionSchema = BaseActionSchema.extend({
   prNumber: external_exports.number().int().positive(),
   filePath: external_exports.string().default("claude-structured-output.json")
 });
+var ApplyPRResponseOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyPRResponseOutput"),
+  prNumber: external_exports.number().int().positive(),
+  issueNumber: external_exports.number().int().positive(),
+  filePath: external_exports.string().default("claude-structured-output.json"),
+  reviewer: external_exports.string().default("nopo-reviewer")
+});
 var ApplyDiscussionResearchOutputActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("applyDiscussionResearchOutput"),
   discussionNumber: external_exports.number().int().positive(),
@@ -28975,6 +28982,8 @@ var ActionSchema = external_exports.discriminatedUnion("type", [
   AppendAgentNotesActionSchema,
   // Review actions
   ApplyReviewOutputActionSchema,
+  // PR response actions
+  ApplyPRResponseOutputActionSchema,
   // Discussion apply actions
   ApplyDiscussionResearchOutputActionSchema,
   ApplyDiscussionRespondOutputActionSchema,

@@ -182,7 +182,7 @@ var require_file_command = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.prepareKeyValueMessage = exports2.issueFileCommand = void 0;
     var crypto = __importStar(require("crypto"));
-    var fs6 = __importStar(require("fs"));
+    var fs7 = __importStar(require("fs"));
     var os = __importStar(require("os"));
     var utils_1 = require_utils();
     function issueFileCommand(command, message) {
@@ -190,10 +190,10 @@ var require_file_command = __commonJS({
       if (!filePath) {
         throw new Error(`Unable to find environment variable for file command ${command}`);
       }
-      if (!fs6.existsSync(filePath)) {
+      if (!fs7.existsSync(filePath)) {
         throw new Error(`Missing file at path: ${filePath}`);
       }
-      fs6.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
+      fs7.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
         encoding: "utf8"
       });
     }
@@ -17586,12 +17586,12 @@ var require_lib = __commonJS({
             throw new Error("Client has already been disposed.");
           }
           const parsedUrl = new URL(requestUrl);
-          let info15 = this._prepareRequest(verb, parsedUrl, headers);
+          let info16 = this._prepareRequest(verb, parsedUrl, headers);
           const maxTries = this._allowRetries && RetryableHttpVerbs.includes(verb) ? this._maxRetries + 1 : 1;
           let numTries = 0;
           let response;
           do {
-            response = yield this.requestRaw(info15, data);
+            response = yield this.requestRaw(info16, data);
             if (response && response.message && response.message.statusCode === HttpCodes.Unauthorized) {
               let authenticationHandler;
               for (const handler of this.handlers) {
@@ -17601,7 +17601,7 @@ var require_lib = __commonJS({
                 }
               }
               if (authenticationHandler) {
-                return authenticationHandler.handleAuthentication(this, info15, data);
+                return authenticationHandler.handleAuthentication(this, info16, data);
               } else {
                 return response;
               }
@@ -17624,8 +17624,8 @@ var require_lib = __commonJS({
                   }
                 }
               }
-              info15 = this._prepareRequest(verb, parsedRedirectUrl, headers);
-              response = yield this.requestRaw(info15, data);
+              info16 = this._prepareRequest(verb, parsedRedirectUrl, headers);
+              response = yield this.requestRaw(info16, data);
               redirectsRemaining--;
             }
             if (!response.message.statusCode || !HttpResponseRetryCodes.includes(response.message.statusCode)) {
@@ -17654,7 +17654,7 @@ var require_lib = __commonJS({
        * @param info
        * @param data
        */
-      requestRaw(info15, data) {
+      requestRaw(info16, data) {
         return __awaiter(this, void 0, void 0, function* () {
           return new Promise((resolve2, reject) => {
             function callbackForResult(err, res) {
@@ -17666,7 +17666,7 @@ var require_lib = __commonJS({
                 resolve2(res);
               }
             }
-            this.requestRawWithCallback(info15, data, callbackForResult);
+            this.requestRawWithCallback(info16, data, callbackForResult);
           });
         });
       }
@@ -17676,12 +17676,12 @@ var require_lib = __commonJS({
        * @param data
        * @param onResult
        */
-      requestRawWithCallback(info15, data, onResult) {
+      requestRawWithCallback(info16, data, onResult) {
         if (typeof data === "string") {
-          if (!info15.options.headers) {
-            info15.options.headers = {};
+          if (!info16.options.headers) {
+            info16.options.headers = {};
           }
-          info15.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
+          info16.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
         }
         let callbackCalled = false;
         function handleResult2(err, res) {
@@ -17690,7 +17690,7 @@ var require_lib = __commonJS({
             onResult(err, res);
           }
         }
-        const req = info15.httpModule.request(info15.options, (msg) => {
+        const req = info16.httpModule.request(info16.options, (msg) => {
           const res = new HttpClientResponse(msg);
           handleResult2(void 0, res);
         });
@@ -17702,7 +17702,7 @@ var require_lib = __commonJS({
           if (socket) {
             socket.end();
           }
-          handleResult2(new Error(`Request timeout: ${info15.options.path}`));
+          handleResult2(new Error(`Request timeout: ${info16.options.path}`));
         });
         req.on("error", function(err) {
           handleResult2(err);
@@ -17738,27 +17738,27 @@ var require_lib = __commonJS({
         return this._getProxyAgentDispatcher(parsedUrl, proxyUrl);
       }
       _prepareRequest(method, requestUrl, headers) {
-        const info15 = {};
-        info15.parsedUrl = requestUrl;
-        const usingSsl = info15.parsedUrl.protocol === "https:";
-        info15.httpModule = usingSsl ? https : http;
+        const info16 = {};
+        info16.parsedUrl = requestUrl;
+        const usingSsl = info16.parsedUrl.protocol === "https:";
+        info16.httpModule = usingSsl ? https : http;
         const defaultPort = usingSsl ? 443 : 80;
-        info15.options = {};
-        info15.options.host = info15.parsedUrl.hostname;
-        info15.options.port = info15.parsedUrl.port ? parseInt(info15.parsedUrl.port) : defaultPort;
-        info15.options.path = (info15.parsedUrl.pathname || "") + (info15.parsedUrl.search || "");
-        info15.options.method = method;
-        info15.options.headers = this._mergeHeaders(headers);
+        info16.options = {};
+        info16.options.host = info16.parsedUrl.hostname;
+        info16.options.port = info16.parsedUrl.port ? parseInt(info16.parsedUrl.port) : defaultPort;
+        info16.options.path = (info16.parsedUrl.pathname || "") + (info16.parsedUrl.search || "");
+        info16.options.method = method;
+        info16.options.headers = this._mergeHeaders(headers);
         if (this.userAgent != null) {
-          info15.options.headers["user-agent"] = this.userAgent;
+          info16.options.headers["user-agent"] = this.userAgent;
         }
-        info15.options.agent = this._getAgent(info15.parsedUrl);
+        info16.options.agent = this._getAgent(info16.parsedUrl);
         if (this.handlers) {
           for (const handler of this.handlers) {
-            handler.prepareRequest(info15.options);
+            handler.prepareRequest(info16.options);
           }
         }
-        return info15;
+        return info16;
       }
       _mergeHeaders(headers) {
         if (this.requestOptions && this.requestOptions.headers) {
@@ -18510,12 +18510,12 @@ var require_io_util = __commonJS({
     var _a;
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getCmdPath = exports2.tryGetExecutablePath = exports2.isRooted = exports2.isDirectory = exports2.exists = exports2.READONLY = exports2.UV_FS_O_EXLOCK = exports2.IS_WINDOWS = exports2.unlink = exports2.symlink = exports2.stat = exports2.rmdir = exports2.rm = exports2.rename = exports2.readlink = exports2.readdir = exports2.open = exports2.mkdir = exports2.lstat = exports2.copyFile = exports2.chmod = void 0;
-    var fs6 = __importStar(require("fs"));
+    var fs7 = __importStar(require("fs"));
     var path2 = __importStar(require("path"));
-    _a = fs6.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
+    _a = fs7.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
     exports2.IS_WINDOWS = process.platform === "win32";
     exports2.UV_FS_O_EXLOCK = 268435456;
-    exports2.READONLY = fs6.constants.O_RDONLY;
+    exports2.READONLY = fs7.constants.O_RDONLY;
     function exists(fsPath) {
       return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -19740,34 +19740,34 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.error = error3;
-    function warning11(message, properties = {}) {
+    function warning12(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning11;
+    exports2.warning = warning12;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.notice = notice;
-    function info15(message) {
+    function info16(message) {
       process.stdout.write(message + os.EOL);
     }
-    exports2.info = info15;
-    function startGroup8(name) {
+    exports2.info = info16;
+    function startGroup9(name) {
       (0, command_1.issue)("group", name);
     }
-    exports2.startGroup = startGroup8;
-    function endGroup8() {
+    exports2.startGroup = startGroup9;
+    function endGroup9() {
       (0, command_1.issue)("endgroup");
     }
-    exports2.endGroup = endGroup8;
+    exports2.endGroup = endGroup9;
     function group(name, fn) {
       return __awaiter(this, void 0, void 0, function* () {
-        startGroup8(name);
+        startGroup9(name);
         let result;
         try {
           result = yield fn();
         } finally {
-          endGroup8();
+          endGroup9();
         }
         return result;
       });
@@ -23883,7 +23883,7 @@ var require_github = __commonJS({
 });
 
 // issue/actions-ts/executor/index.ts
-var core15 = __toESM(require_core(), 1);
+var core16 = __toESM(require_core(), 1);
 var github = __toESM(require_github(), 1);
 
 // shared/lib/index.ts
@@ -28499,6 +28499,13 @@ var ApplyReviewOutputActionSchema = BaseActionSchema.extend({
   prNumber: external_exports.number().int().positive(),
   filePath: external_exports.string().default("claude-structured-output.json")
 });
+var ApplyPRResponseOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyPRResponseOutput"),
+  prNumber: external_exports.number().int().positive(),
+  issueNumber: external_exports.number().int().positive(),
+  filePath: external_exports.string().default("claude-structured-output.json"),
+  reviewer: external_exports.string().default("nopo-reviewer")
+});
 var ApplyDiscussionResearchOutputActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("applyDiscussionResearchOutput"),
   discussionNumber: external_exports.number().int().positive(),
@@ -28569,6 +28576,8 @@ var ActionSchema = external_exports.discriminatedUnion("type", [
   AppendAgentNotesActionSchema,
   // Review actions
   ApplyReviewOutputActionSchema,
+  // PR response actions
+  ApplyPRResponseOutputActionSchema,
   // Discussion apply actions
   ApplyDiscussionResearchOutputActionSchema,
   ApplyDiscussionRespondOutputActionSchema,
@@ -28590,7 +28599,7 @@ function shouldStopOnError(actionType) {
 }
 
 // issue/actions-ts/state-machine/runner/runner.ts
-var core14 = __toESM(require_core(), 1);
+var core15 = __toESM(require_core(), 1);
 
 // issue/actions-ts/state-machine/runner/executors/project.ts
 var core2 = __toESM(require_core(), 1);
@@ -40286,22 +40295,107 @@ async function executeApplyReviewOutput(action, ctx, structuredOutput) {
   return executeSubmitReview(submitAction, ctx);
 }
 
-// issue/actions-ts/state-machine/runner/executors/agent-notes.ts
+// issue/actions-ts/state-machine/runner/executors/pr-response.ts
 var core12 = __toESM(require_core(), 1);
+var fs6 = __toESM(require("node:fs"), 1);
+async function executeApplyPRResponseOutput(action, ctx, structuredOutput) {
+  let responseOutput;
+  if (structuredOutput) {
+    responseOutput = structuredOutput;
+    core12.info("Using structured output from in-process chain");
+  } else if (action.filePath && fs6.existsSync(action.filePath)) {
+    try {
+      const content = fs6.readFileSync(action.filePath, "utf-8");
+      responseOutput = JSON.parse(content);
+      core12.info(`PR response output from file: ${action.filePath}`);
+    } catch (error3) {
+      throw new Error(`Failed to parse PR response output from file: ${error3}`);
+    }
+  } else {
+    throw new Error(
+      `No structured output provided and PR response output file not found at: ${action.filePath || "undefined"}. Ensure runClaude action wrote claude-structured-output.json and artifact was downloaded.`
+    );
+  }
+  if (typeof responseOutput.had_commits !== "boolean" || !responseOutput.summary) {
+    throw new Error(
+      `Invalid PR response output: missing had_commits or summary. Got: ${JSON.stringify(responseOutput)}`
+    );
+  }
+  core12.info(`Applying PR response output: had_commits=${responseOutput.had_commits}`);
+  core12.startGroup("PR Response Output");
+  core12.info(JSON.stringify(responseOutput, null, 2));
+  core12.endGroup();
+  if (ctx.dryRun) {
+    core12.info(
+      `[DRY RUN] Would post comment and ${responseOutput.had_commits ? "wait for CI" : "re-request review"} on PR #${action.prNumber}`
+    );
+    return { applied: true, hadCommits: responseOutput.had_commits };
+  }
+  await ctx.octokit.rest.issues.createComment({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    issue_number: action.prNumber,
+    body: responseOutput.summary
+  });
+  core12.info(`Posted response comment on PR #${action.prNumber}`);
+  if (!responseOutput.had_commits) {
+    try {
+      await ctx.octokit.rest.pulls.requestReviewers({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        pull_number: action.prNumber,
+        reviewers: [action.reviewer]
+      });
+      core12.info(
+        `Re-requested review from ${action.reviewer} on PR #${action.prNumber}`
+      );
+    } catch (error3) {
+      core12.warning(`Failed to re-request review: ${error3}`);
+    }
+  }
+  if (responseOutput.agent_notes && responseOutput.agent_notes.length > 0) {
+    const runId = ctx.runUrl?.split("/").pop() || `run-${Date.now()}`;
+    const runLink = ctx.runUrl || `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}/actions/runs/${runId}`;
+    const issue = await ctx.octokit.rest.issues.get({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: action.issueNumber
+    });
+    const currentBody = issue.data.body || "";
+    const updatedBody = appendAgentNotes(currentBody, {
+      runId,
+      runLink,
+      notes: responseOutput.agent_notes
+    });
+    if (updatedBody !== currentBody) {
+      await ctx.octokit.rest.issues.update({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: action.issueNumber,
+        body: updatedBody
+      });
+      core12.info(`Appended ${responseOutput.agent_notes.length} agent notes to issue #${action.issueNumber}`);
+    }
+  }
+  return { applied: true, hadCommits: responseOutput.had_commits };
+}
+
+// issue/actions-ts/state-machine/runner/executors/agent-notes.ts
+var core13 = __toESM(require_core(), 1);
 async function executeAppendAgentNotes(action, ctx) {
   const { issueNumber, notes, runId, runLink, timestamp } = action;
   if (notes.length === 0) {
-    core12.info("No agent notes to append, skipping");
+    core13.info("No agent notes to append, skipping");
     return { appended: false };
   }
-  core12.info(`Appending ${notes.length} agent notes to issue #${issueNumber}`);
+  core13.info(`Appending ${notes.length} agent notes to issue #${issueNumber}`);
   if (ctx.dryRun) {
-    core12.info(`[DRY RUN] Would append agent notes to issue #${issueNumber}`);
-    core12.startGroup("Agent Notes (dry run)");
+    core13.info(`[DRY RUN] Would append agent notes to issue #${issueNumber}`);
+    core13.startGroup("Agent Notes (dry run)");
     for (const note of notes) {
-      core12.info(`  - ${note}`);
+      core13.info(`  - ${note}`);
     }
-    core12.endGroup();
+    core13.endGroup();
     return { appended: true };
   }
   const issue = await ctx.octokit.rest.issues.get({
@@ -40323,20 +40417,20 @@ async function executeAppendAgentNotes(action, ctx) {
       issue_number: issueNumber,
       body: updatedBody
     });
-    core12.info(`Appended ${notes.length} agent notes to issue #${issueNumber}`);
-    core12.startGroup("Agent Notes");
+    core13.info(`Appended ${notes.length} agent notes to issue #${issueNumber}`);
+    core13.startGroup("Agent Notes");
     for (const note of notes) {
-      core12.info(`  - ${note}`);
+      core13.info(`  - ${note}`);
     }
-    core12.endGroup();
+    core13.endGroup();
   } else {
-    core12.info("Issue body unchanged (notes may be empty)");
+    core13.info("Issue body unchanged (notes may be empty)");
   }
   return { appended: true };
 }
 
 // issue/actions-ts/state-machine/runner/signaler.ts
-var core13 = __toESM(require_core(), 1);
+var core14 = __toESM(require_core(), 1);
 
 // issue/actions-ts/state-machine/runner/runner.ts
 function getOctokitForAction(action, ctx) {
@@ -40367,7 +40461,7 @@ async function executeAction(action, ctx, chainCtx) {
     case "closeIssue":
       return executeCloseIssue(action, actionCtx);
     case "reopenIssue":
-      core14.info(`Reopen issue #${action.issueNumber} - handled by resetIssue`);
+      core15.info(`Reopen issue #${action.issueNumber} - handled by resetIssue`);
       return { reopened: true };
     case "resetIssue":
       return executeResetIssue(action, actionCtx);
@@ -40442,6 +40536,13 @@ async function executeAction(action, ctx, chainCtx) {
         actionCtx,
         chainCtx?.lastClaudeStructuredOutput
       );
+    // PR response actions
+    case "applyPRResponseOutput":
+      return executeApplyPRResponseOutput(
+        action,
+        actionCtx,
+        chainCtx?.lastClaudeStructuredOutput
+      );
     // Discussion apply actions
     case "applyDiscussionResearchOutput":
       return executeApplyDiscussionResearchOutput(
@@ -40469,25 +40570,25 @@ async function executeAction(action, ctx, chainCtx) {
       );
     // Control flow actions
     case "stop":
-      core14.info(`Stopping: ${action.reason}`);
+      core15.info(`Stopping: ${action.reason}`);
       return { stopped: true, reason: action.reason };
     case "log":
       switch (action.level) {
         case "debug":
-          core14.debug(action.message);
+          core15.debug(action.message);
           break;
         case "warning":
-          core14.warning(action.message);
+          core15.warning(action.message);
           break;
         case "error":
-          core14.error(action.message);
+          core15.error(action.message);
           break;
         default:
-          core14.info(action.message);
+          core15.info(action.message);
       }
       return { logged: true };
     case "noop":
-      core14.debug(`No-op: ${action.reason || "no reason given"}`);
+      core15.debug(`No-op: ${action.reason || "no reason given"}`);
       return { noop: true };
     default:
       throw new Error(`Unknown action type: ${action.type}`);
@@ -40504,7 +40605,7 @@ async function executeActions(actions, ctx, options = {}) {
     const actionStartTime = Date.now();
     const parseResult = ActionSchema.safeParse(action);
     if (!parseResult.success) {
-      core14.error(`Invalid action: ${JSON.stringify(action)}`);
+      core15.error(`Invalid action: ${JSON.stringify(action)}`);
       results.push({
         action,
         success: false,
@@ -40521,10 +40622,10 @@ async function executeActions(actions, ctx, options = {}) {
     }
     const validatedAction = parseResult.data;
     if (logActions) {
-      core14.info(`Executing action: ${validatedAction.type}`);
+      core15.info(`Executing action: ${validatedAction.type}`);
     }
     if (ctx.dryRun) {
-      core14.info(`[DRY RUN] Would execute: ${validatedAction.type}`);
+      core15.info(`[DRY RUN] Would execute: ${validatedAction.type}`);
       results.push({
         action: validatedAction,
         success: true,
@@ -40539,7 +40640,7 @@ async function executeActions(actions, ctx, options = {}) {
         const claudeResult = result;
         if (claudeResult.structuredOutput) {
           chainCtx.lastClaudeStructuredOutput = claudeResult.structuredOutput;
-          core14.info("Stored structured output for subsequent actions");
+          core15.info("Stored structured output for subsequent actions");
         }
       }
       const branchResult = result;
@@ -40553,7 +40654,7 @@ async function executeActions(actions, ctx, options = {}) {
         });
         stoppedEarly = true;
         stopReason = "branch_rebased_and_pushed";
-        core14.info(
+        core15.info(
           "Stopping after branch rebase - CI will re-trigger with up-to-date branch"
         );
         break;
@@ -40572,7 +40673,7 @@ async function executeActions(actions, ctx, options = {}) {
       }
     } catch (error3) {
       const err = error3 instanceof Error ? error3 : new Error(String(error3));
-      core14.error(`Action failed: ${validatedAction.type} - ${err.message}`);
+      core15.error(`Action failed: ${validatedAction.type} - ${err.message}`);
       results.push({
         action: validatedAction,
         success: false,
@@ -40608,28 +40709,28 @@ function createRunnerContext(octokit, owner, repo, projectNumber, options = {}) 
   };
 }
 function logRunnerSummary(result) {
-  core14.info("=".repeat(60));
-  core14.info("Runner Summary");
-  core14.info("=".repeat(60));
-  core14.info(`Total actions: ${result.results.length}`);
-  core14.info(`Successful: ${result.results.filter((r3) => r3.success).length}`);
-  core14.info(
+  core15.info("=".repeat(60));
+  core15.info("Runner Summary");
+  core15.info("=".repeat(60));
+  core15.info(`Total actions: ${result.results.length}`);
+  core15.info(`Successful: ${result.results.filter((r3) => r3.success).length}`);
+  core15.info(
     `Failed: ${result.results.filter((r3) => !r3.success && !r3.skipped).length}`
   );
-  core14.info(`Skipped: ${result.results.filter((r3) => r3.skipped).length}`);
-  core14.info(`Total duration: ${result.totalDurationMs}ms`);
+  core15.info(`Skipped: ${result.results.filter((r3) => r3.skipped).length}`);
+  core15.info(`Total duration: ${result.totalDurationMs}ms`);
   if (result.stoppedEarly) {
-    core14.info(`Stopped early: ${result.stopReason}`);
+    core15.info(`Stopped early: ${result.stopReason}`);
   }
-  core14.info("=".repeat(60));
+  core15.info("=".repeat(60));
   for (const actionResult of result.results) {
     const status = actionResult.skipped ? "SKIPPED" : actionResult.success ? "SUCCESS" : "FAILED";
     const duration = `${actionResult.durationMs}ms`;
-    core14.info(
+    core15.info(
       `  ${status.padEnd(8)} ${actionResult.action.type.padEnd(25)} ${duration}`
     );
     if (actionResult.error) {
-      core14.error(`    Error: ${actionResult.error.message}`);
+      core15.error(`    Error: ${actionResult.error.message}`);
     }
   }
 }
@@ -40670,9 +40771,9 @@ async function run() {
     if (mockOutputsJson) {
       try {
         mockOutputs = JSON.parse(mockOutputsJson);
-        core15.info("[MOCK MODE] Mock outputs loaded for Claude calls");
+        core16.info("[MOCK MODE] Mock outputs loaded for Claude calls");
       } catch (error3) {
-        core15.warning(`Failed to parse mock_outputs: ${error3}`);
+        core16.warning(`Failed to parse mock_outputs: ${error3}`);
       }
     }
     const job = getOptionalInput("job") || "";
@@ -40685,18 +40786,18 @@ async function run() {
     const runUrl = getOptionalInput("run_url") || "";
     const resourceType = resourceTypeInput === "pr" ? "pr" : "issue";
     const signalingEnabled = job !== "" && resourceNumber > 0;
-    core15.info(`Claude State Executor starting...`);
-    core15.info(`Project: ${projectNumber}`);
-    core15.info(`Dry run: ${dryRun}`);
-    core15.info(`Signaling: ${signalingEnabled ? "enabled" : "disabled"}`);
+    core16.info(`Claude State Executor starting...`);
+    core16.info(`Project: ${projectNumber}`);
+    core16.info(`Dry run: ${dryRun}`);
+    core16.info(`Signaling: ${signalingEnabled ? "enabled" : "disabled"}`);
     if (signalingEnabled) {
-      core15.info(`  Job: ${job}`);
-      core15.info(`  Resource: ${resourceType} #${resourceNumber}`);
+      core16.info(`  Job: ${job}`);
+      core16.info(`  Resource: ${resourceType} #${resourceNumber}`);
     }
     const actions = parseActions(actionsJson);
-    core15.info(`Actions to execute: ${actions.length}`);
+    core16.info(`Actions to execute: ${actions.length}`);
     if (actions.length === 0) {
-      core15.info("No actions to execute");
+      core16.info("No actions to execute");
       setOutputs({
         success: "true",
         stopped_early: "false",
@@ -40710,7 +40811,7 @@ async function run() {
       return;
     }
     const actionTypes = actions.map((a) => a.type);
-    core15.info(`Action types: ${actionTypes.join(", ")}`);
+    core16.info(`Action types: ${actionTypes.join(", ")}`);
     const tokenUsage = actions.reduce(
       (acc, a) => {
         const token = a.token || "code";
@@ -40719,7 +40820,7 @@ async function run() {
       },
       {}
     );
-    core15.info(
+    core16.info(
       `Token usage: code=${tokenUsage.code || 0}, review=${tokenUsage.review || 0}`
     );
     const codeOctokit = github.getOctokit(codeToken);
@@ -40782,17 +40883,17 @@ async function run() {
       results_json: JSON.stringify(resultsForOutput)
     });
     if (!result.success) {
-      core15.setFailed(`${failed} action(s) failed. Check the logs for details.`);
+      core16.setFailed(`${failed} action(s) failed. Check the logs for details.`);
     } else if (result.stoppedEarly) {
-      core15.setFailed(
+      core16.setFailed(
         `Stopped early: ${result.stopReason || "unknown reason"}. Subsequent matrix jobs will be cancelled.`
       );
     }
   } catch (error3) {
     if (error3 instanceof Error) {
-      core15.setFailed(error3.message);
+      core16.setFailed(error3.message);
     } else {
-      core15.setFailed("An unexpected error occurred");
+      core16.setFailed("An unexpected error occurred");
     }
   }
 }

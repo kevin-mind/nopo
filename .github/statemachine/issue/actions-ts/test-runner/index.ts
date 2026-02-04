@@ -88,6 +88,7 @@ async function run(): Promise<void> {
   try {
     const action = getRequiredInput("action");
     const token = getRequiredInput("github_token");
+    const reviewerToken = getOptionalInput("reviewer_token");
     const projectNumber = parseInt(
       getOptionalInput("project_number") || "1",
       10,
@@ -95,6 +96,11 @@ async function run(): Promise<void> {
     const cleanupOnFailure = getOptionalInput("cleanup_on_failure") === "true";
 
     const octokit = github.getOctokit(token);
+    // Create a separate octokit for review operations if reviewer_token is provided
+    // This allows reviews to be submitted by a different user than the code author
+    const reviewOctokit = reviewerToken
+      ? github.getOctokit(reviewerToken)
+      : undefined;
     const { owner, repo } = github.context.repo;
 
     // Run action
@@ -507,6 +513,7 @@ async function run(): Promise<void> {
       // Run the configurable test
       const result = await runConfigurableTest(scenario, inputs, {
         octokit,
+        reviewOctokit,
         owner,
         repo,
         projectNumber,

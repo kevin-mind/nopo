@@ -31841,6 +31841,13 @@ var ApplyReviewOutputActionSchema = BaseActionSchema.extend({
   prNumber: external_exports.number().int().positive(),
   filePath: external_exports.string().default("claude-structured-output.json")
 });
+var ApplyPRResponseOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyPRResponseOutput"),
+  prNumber: external_exports.number().int().positive(),
+  issueNumber: external_exports.number().int().positive(),
+  filePath: external_exports.string().default("claude-structured-output.json"),
+  reviewer: external_exports.string().default("nopo-reviewer")
+});
 var ApplyDiscussionResearchOutputActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("applyDiscussionResearchOutput"),
   discussionNumber: external_exports.number().int().positive(),
@@ -31911,6 +31918,8 @@ var ActionSchema = external_exports.discriminatedUnion("type", [
   AppendAgentNotesActionSchema,
   // Review actions
   ApplyReviewOutputActionSchema,
+  // PR response actions
+  ApplyPRResponseOutputActionSchema,
   // Discussion apply actions
   ApplyDiscussionResearchOutputActionSchema,
   ApplyDiscussionRespondOutputActionSchema,
@@ -33370,16 +33379,38 @@ function emitRunClaudePRResponse({
     REPO_OWNER: context2.owner,
     REPO_NAME: context2.repo,
     REVIEW_DECISION: context2.reviewDecision ?? "N/A",
-    REVIEWER: context2.reviewerId ?? "N/A"
+    REVIEWER: context2.reviewerId ?? "N/A",
+    AGENT_NOTES: ""
+    // Will be injected by workflow from previous runs
+  };
+  const responseArtifact = {
+    name: "claude-pr-response-output",
+    path: "claude-structured-output.json"
   };
   return [
     {
       type: "runClaude",
       token: "code",
-      promptFile: ".github/statemachine/issue/prompts/review-response/prompt.txt",
+      promptDir: "review-response",
       promptVars,
-      issueNumber
+      issueNumber,
       // worktree intentionally omitted - checkout happens at repo root to the correct branch
+      // Structured output is saved to claude-structured-output.json by run-claude action
+      producesArtifact: responseArtifact
+    },
+    // Apply PR response output: post comment, re-request review if no commits
+    // Downloads the artifact before execution
+    // worktree: "main" ensures we checkout main where the executor code is,
+    // not the PR branch being reviewed
+    {
+      type: "applyPRResponseOutput",
+      token: "code",
+      prNumber,
+      issueNumber,
+      filePath: "claude-structured-output.json",
+      consumesArtifact: responseArtifact,
+      reviewer: "nopo-reviewer",
+      worktree: "main"
     }
   ];
 }
@@ -33407,16 +33438,38 @@ function emitRunClaudePRHumanResponse({
     REPO_OWNER: context2.owner,
     REPO_NAME: context2.repo,
     REVIEW_DECISION: context2.reviewDecision ?? "N/A",
-    REVIEWER: context2.reviewerId ?? "N/A"
+    REVIEWER: context2.reviewerId ?? "N/A",
+    AGENT_NOTES: ""
+    // Will be injected by workflow from previous runs
+  };
+  const responseArtifact = {
+    name: "claude-pr-human-response-output",
+    path: "claude-structured-output.json"
   };
   return [
     {
       type: "runClaude",
       token: "code",
-      promptFile: ".github/statemachine/issue/prompts/human-review-response/prompt.txt",
+      promptDir: "human-review-response",
       promptVars,
-      issueNumber
+      issueNumber,
       // worktree intentionally omitted - checkout happens at repo root to the correct branch
+      // Structured output is saved to claude-structured-output.json by run-claude action
+      producesArtifact: responseArtifact
+    },
+    // Apply PR response output: post comment, re-request review if no commits
+    // Downloads the artifact before execution
+    // worktree: "main" ensures we checkout main where the executor code is,
+    // not the PR branch being reviewed
+    {
+      type: "applyPRResponseOutput",
+      token: "code",
+      prNumber,
+      issueNumber,
+      filePath: "claude-structured-output.json",
+      consumesArtifact: responseArtifact,
+      reviewer: context2.reviewerId ?? "nopo-reviewer",
+      worktree: "main"
     }
   ];
 }

@@ -184,6 +184,8 @@ interface ProjectQueryResponse {
 
 interface RunnerConfig {
   octokit: Octokit;
+  /** Optional octokit for submitting reviews (uses different user than main octokit) */
+  reviewOctokit?: Octokit;
   owner: string;
   repo: string;
   projectNumber: number;
@@ -945,6 +947,7 @@ Issue: #${this.issueNumber}
       {
         dryRun: false,
         mockOutputs,
+        reviewOctokit: this.config.reviewOctokit,
       },
     );
 

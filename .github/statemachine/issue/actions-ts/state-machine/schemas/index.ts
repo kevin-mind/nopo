@@ -112,6 +112,7 @@ export {
   type ApplyIterateOutputAction,
   type AppendAgentNotesAction,
   type ApplyReviewOutputAction,
+  type ApplyPRResponseOutputAction,
   type BlockAction,
   type AddDiscussionCommentAction,
   type UpdateDiscussionBodyAction,

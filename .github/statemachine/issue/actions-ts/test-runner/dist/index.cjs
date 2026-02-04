@@ -182,7 +182,7 @@ var require_file_command = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.prepareKeyValueMessage = exports2.issueFileCommand = void 0;
     var crypto = __importStar(require("crypto"));
-    var fs8 = __importStar(require("fs"));
+    var fs9 = __importStar(require("fs"));
     var os = __importStar(require("os"));
     var utils_1 = require_utils();
     function issueFileCommand(command, message) {
@@ -190,10 +190,10 @@ var require_file_command = __commonJS({
       if (!filePath) {
         throw new Error(`Unable to find environment variable for file command ${command}`);
       }
-      if (!fs8.existsSync(filePath)) {
+      if (!fs9.existsSync(filePath)) {
         throw new Error(`Missing file at path: ${filePath}`);
       }
-      fs8.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
+      fs9.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
         encoding: "utf8"
       });
     }
@@ -17586,12 +17586,12 @@ var require_lib = __commonJS({
             throw new Error("Client has already been disposed.");
           }
           const parsedUrl = new URL(requestUrl);
-          let info27 = this._prepareRequest(verb, parsedUrl, headers);
+          let info28 = this._prepareRequest(verb, parsedUrl, headers);
           const maxTries = this._allowRetries && RetryableHttpVerbs.includes(verb) ? this._maxRetries + 1 : 1;
           let numTries = 0;
           let response;
           do {
-            response = yield this.requestRaw(info27, data);
+            response = yield this.requestRaw(info28, data);
             if (response && response.message && response.message.statusCode === HttpCodes.Unauthorized) {
               let authenticationHandler;
               for (const handler of this.handlers) {
@@ -17601,7 +17601,7 @@ var require_lib = __commonJS({
                 }
               }
               if (authenticationHandler) {
-                return authenticationHandler.handleAuthentication(this, info27, data);
+                return authenticationHandler.handleAuthentication(this, info28, data);
               } else {
                 return response;
               }
@@ -17624,8 +17624,8 @@ var require_lib = __commonJS({
                   }
                 }
               }
-              info27 = this._prepareRequest(verb, parsedRedirectUrl, headers);
-              response = yield this.requestRaw(info27, data);
+              info28 = this._prepareRequest(verb, parsedRedirectUrl, headers);
+              response = yield this.requestRaw(info28, data);
               redirectsRemaining--;
             }
             if (!response.message.statusCode || !HttpResponseRetryCodes.includes(response.message.statusCode)) {
@@ -17654,7 +17654,7 @@ var require_lib = __commonJS({
        * @param info
        * @param data
        */
-      requestRaw(info27, data) {
+      requestRaw(info28, data) {
         return __awaiter(this, void 0, void 0, function* () {
           return new Promise((resolve2, reject) => {
             function callbackForResult(err, res) {
@@ -17666,7 +17666,7 @@ var require_lib = __commonJS({
                 resolve2(res);
               }
             }
-            this.requestRawWithCallback(info27, data, callbackForResult);
+            this.requestRawWithCallback(info28, data, callbackForResult);
           });
         });
       }
@@ -17676,12 +17676,12 @@ var require_lib = __commonJS({
        * @param data
        * @param onResult
        */
-      requestRawWithCallback(info27, data, onResult) {
+      requestRawWithCallback(info28, data, onResult) {
         if (typeof data === "string") {
-          if (!info27.options.headers) {
-            info27.options.headers = {};
+          if (!info28.options.headers) {
+            info28.options.headers = {};
           }
-          info27.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
+          info28.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
         }
         let callbackCalled = false;
         function handleResult2(err, res) {
@@ -17690,7 +17690,7 @@ var require_lib = __commonJS({
             onResult(err, res);
           }
         }
-        const req = info27.httpModule.request(info27.options, (msg) => {
+        const req = info28.httpModule.request(info28.options, (msg) => {
           const res = new HttpClientResponse(msg);
           handleResult2(void 0, res);
         });
@@ -17702,7 +17702,7 @@ var require_lib = __commonJS({
           if (socket) {
             socket.end();
           }
-          handleResult2(new Error(`Request timeout: ${info27.options.path}`));
+          handleResult2(new Error(`Request timeout: ${info28.options.path}`));
         });
         req.on("error", function(err) {
           handleResult2(err);
@@ -17738,27 +17738,27 @@ var require_lib = __commonJS({
         return this._getProxyAgentDispatcher(parsedUrl, proxyUrl);
       }
       _prepareRequest(method, requestUrl, headers) {
-        const info27 = {};
-        info27.parsedUrl = requestUrl;
-        const usingSsl = info27.parsedUrl.protocol === "https:";
-        info27.httpModule = usingSsl ? https : http;
+        const info28 = {};
+        info28.parsedUrl = requestUrl;
+        const usingSsl = info28.parsedUrl.protocol === "https:";
+        info28.httpModule = usingSsl ? https : http;
         const defaultPort = usingSsl ? 443 : 80;
-        info27.options = {};
-        info27.options.host = info27.parsedUrl.hostname;
-        info27.options.port = info27.parsedUrl.port ? parseInt(info27.parsedUrl.port) : defaultPort;
-        info27.options.path = (info27.parsedUrl.pathname || "") + (info27.parsedUrl.search || "");
-        info27.options.method = method;
-        info27.options.headers = this._mergeHeaders(headers);
+        info28.options = {};
+        info28.options.host = info28.parsedUrl.hostname;
+        info28.options.port = info28.parsedUrl.port ? parseInt(info28.parsedUrl.port) : defaultPort;
+        info28.options.path = (info28.parsedUrl.pathname || "") + (info28.parsedUrl.search || "");
+        info28.options.method = method;
+        info28.options.headers = this._mergeHeaders(headers);
         if (this.userAgent != null) {
-          info27.options.headers["user-agent"] = this.userAgent;
+          info28.options.headers["user-agent"] = this.userAgent;
         }
-        info27.options.agent = this._getAgent(info27.parsedUrl);
+        info28.options.agent = this._getAgent(info28.parsedUrl);
         if (this.handlers) {
           for (const handler of this.handlers) {
-            handler.prepareRequest(info27.options);
+            handler.prepareRequest(info28.options);
           }
         }
-        return info27;
+        return info28;
       }
       _mergeHeaders(headers) {
         if (this.requestOptions && this.requestOptions.headers) {
@@ -18510,12 +18510,12 @@ var require_io_util = __commonJS({
     var _a;
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getCmdPath = exports2.tryGetExecutablePath = exports2.isRooted = exports2.isDirectory = exports2.exists = exports2.READONLY = exports2.UV_FS_O_EXLOCK = exports2.IS_WINDOWS = exports2.unlink = exports2.symlink = exports2.stat = exports2.rmdir = exports2.rm = exports2.rename = exports2.readlink = exports2.readdir = exports2.open = exports2.mkdir = exports2.lstat = exports2.copyFile = exports2.chmod = void 0;
-    var fs8 = __importStar(require("fs"));
+    var fs9 = __importStar(require("fs"));
     var path4 = __importStar(require("path"));
-    _a = fs8.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
+    _a = fs9.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
     exports2.IS_WINDOWS = process.platform === "win32";
     exports2.UV_FS_O_EXLOCK = 268435456;
-    exports2.READONLY = fs8.constants.O_RDONLY;
+    exports2.READONLY = fs9.constants.O_RDONLY;
     function exists(fsPath) {
       return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -19740,34 +19740,34 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.error = error9;
-    function warning19(message, properties = {}) {
+    function warning20(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning19;
+    exports2.warning = warning20;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.notice = notice;
-    function info27(message) {
+    function info28(message) {
       process.stdout.write(message + os.EOL);
     }
-    exports2.info = info27;
-    function startGroup11(name) {
+    exports2.info = info28;
+    function startGroup12(name) {
       (0, command_1.issue)("group", name);
     }
-    exports2.startGroup = startGroup11;
-    function endGroup11() {
+    exports2.startGroup = startGroup12;
+    function endGroup12() {
       (0, command_1.issue)("endgroup");
     }
-    exports2.endGroup = endGroup11;
+    exports2.endGroup = endGroup12;
     function group(name, fn) {
       return __awaiter(this, void 0, void 0, function* () {
-        startGroup11(name);
+        startGroup12(name);
         let result;
         try {
           result = yield fn();
         } finally {
-          endGroup11();
+          endGroup12();
         }
         return result;
       });
@@ -23883,7 +23883,7 @@ var require_github = __commonJS({
 });
 
 // issue/actions-ts/test-runner/index.ts
-var core27 = __toESM(require_core(), 1);
+var core28 = __toESM(require_core(), 1);
 var github3 = __toESM(require_github(), 1);
 
 // shared/lib/index.ts
@@ -31789,6 +31789,13 @@ var ApplyReviewOutputActionSchema = BaseActionSchema.extend({
   prNumber: external_exports.number().int().positive(),
   filePath: external_exports.string().default("claude-structured-output.json")
 });
+var ApplyPRResponseOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyPRResponseOutput"),
+  prNumber: external_exports.number().int().positive(),
+  issueNumber: external_exports.number().int().positive(),
+  filePath: external_exports.string().default("claude-structured-output.json"),
+  reviewer: external_exports.string().default("nopo-reviewer")
+});
 var ApplyDiscussionResearchOutputActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("applyDiscussionResearchOutput"),
   discussionNumber: external_exports.number().int().positive(),
@@ -31859,6 +31866,8 @@ var ActionSchema = external_exports.discriminatedUnion("type", [
   AppendAgentNotesActionSchema,
   // Review actions
   ApplyReviewOutputActionSchema,
+  // PR response actions
+  ApplyPRResponseOutputActionSchema,
   // Discussion apply actions
   ApplyDiscussionResearchOutputActionSchema,
   ApplyDiscussionRespondOutputActionSchema,
@@ -33180,16 +33189,38 @@ function emitRunClaudePRResponse({
     REPO_OWNER: context2.owner,
     REPO_NAME: context2.repo,
     REVIEW_DECISION: context2.reviewDecision ?? "N/A",
-    REVIEWER: context2.reviewerId ?? "N/A"
+    REVIEWER: context2.reviewerId ?? "N/A",
+    AGENT_NOTES: ""
+    // Will be injected by workflow from previous runs
+  };
+  const responseArtifact = {
+    name: "claude-pr-response-output",
+    path: "claude-structured-output.json"
   };
   return [
     {
       type: "runClaude",
       token: "code",
-      promptFile: ".github/statemachine/issue/prompts/review-response/prompt.txt",
+      promptDir: "review-response",
       promptVars,
-      issueNumber
+      issueNumber,
       // worktree intentionally omitted - checkout happens at repo root to the correct branch
+      // Structured output is saved to claude-structured-output.json by run-claude action
+      producesArtifact: responseArtifact
+    },
+    // Apply PR response output: post comment, re-request review if no commits
+    // Downloads the artifact before execution
+    // worktree: "main" ensures we checkout main where the executor code is,
+    // not the PR branch being reviewed
+    {
+      type: "applyPRResponseOutput",
+      token: "code",
+      prNumber,
+      issueNumber,
+      filePath: "claude-structured-output.json",
+      consumesArtifact: responseArtifact,
+      reviewer: "nopo-reviewer",
+      worktree: "main"
     }
   ];
 }
@@ -33217,16 +33248,38 @@ function emitRunClaudePRHumanResponse({
     REPO_OWNER: context2.owner,
     REPO_NAME: context2.repo,
     REVIEW_DECISION: context2.reviewDecision ?? "N/A",
-    REVIEWER: context2.reviewerId ?? "N/A"
+    REVIEWER: context2.reviewerId ?? "N/A",
+    AGENT_NOTES: ""
+    // Will be injected by workflow from previous runs
+  };
+  const responseArtifact = {
+    name: "claude-pr-human-response-output",
+    path: "claude-structured-output.json"
   };
   return [
     {
       type: "runClaude",
       token: "code",
-      promptFile: ".github/statemachine/issue/prompts/human-review-response/prompt.txt",
+      promptDir: "human-review-response",
       promptVars,
-      issueNumber
+      issueNumber,
       // worktree intentionally omitted - checkout happens at repo root to the correct branch
+      // Structured output is saved to claude-structured-output.json by run-claude action
+      producesArtifact: responseArtifact
+    },
+    // Apply PR response output: post comment, re-request review if no commits
+    // Downloads the artifact before execution
+    // worktree: "main" ensures we checkout main where the executor code is,
+    // not the PR branch being reviewed
+    {
+      type: "applyPRResponseOutput",
+      token: "code",
+      prNumber,
+      issueNumber,
+      filePath: "claude-structured-output.json",
+      consumesArtifact: responseArtifact,
+      reviewer: context2.reviewerId ?? "nopo-reviewer",
+      worktree: "main"
     }
   ];
 }
@@ -35588,8 +35641,8 @@ function formatValidationResult(name, result) {
   }
   if (result.warnings.length > 0) {
     lines.push("  Warnings:");
-    for (const warning19 of result.warnings) {
-      lines.push(`    - ${warning19}`);
+    for (const warning20 of result.warnings) {
+      lines.push(`    - ${warning20}`);
     }
   }
   return lines.join("\n");
@@ -36751,11 +36804,11 @@ ${errors}`);
 }
 
 // issue/actions-ts/test-runner/src/configurable/runner.ts
-var core20 = __toESM(require_core(), 1);
+var core21 = __toESM(require_core(), 1);
 var exec13 = __toESM(require_exec(), 1);
 
 // issue/actions-ts/state-machine/runner/runner.ts
-var core19 = __toESM(require_core(), 1);
+var core20 = __toESM(require_core(), 1);
 
 // issue/actions-ts/state-machine/runner/executors/project.ts
 var core7 = __toESM(require_core(), 1);
@@ -48018,22 +48071,107 @@ async function executeApplyReviewOutput(action, ctx, structuredOutput) {
   return executeSubmitReview(submitAction, ctx);
 }
 
-// issue/actions-ts/state-machine/runner/executors/agent-notes.ts
+// issue/actions-ts/state-machine/runner/executors/pr-response.ts
 var core17 = __toESM(require_core(), 1);
+var fs7 = __toESM(require("node:fs"), 1);
+async function executeApplyPRResponseOutput(action, ctx, structuredOutput) {
+  let responseOutput;
+  if (structuredOutput) {
+    responseOutput = structuredOutput;
+    core17.info("Using structured output from in-process chain");
+  } else if (action.filePath && fs7.existsSync(action.filePath)) {
+    try {
+      const content = fs7.readFileSync(action.filePath, "utf-8");
+      responseOutput = JSON.parse(content);
+      core17.info(`PR response output from file: ${action.filePath}`);
+    } catch (error9) {
+      throw new Error(`Failed to parse PR response output from file: ${error9}`);
+    }
+  } else {
+    throw new Error(
+      `No structured output provided and PR response output file not found at: ${action.filePath || "undefined"}. Ensure runClaude action wrote claude-structured-output.json and artifact was downloaded.`
+    );
+  }
+  if (typeof responseOutput.had_commits !== "boolean" || !responseOutput.summary) {
+    throw new Error(
+      `Invalid PR response output: missing had_commits or summary. Got: ${JSON.stringify(responseOutput)}`
+    );
+  }
+  core17.info(`Applying PR response output: had_commits=${responseOutput.had_commits}`);
+  core17.startGroup("PR Response Output");
+  core17.info(JSON.stringify(responseOutput, null, 2));
+  core17.endGroup();
+  if (ctx.dryRun) {
+    core17.info(
+      `[DRY RUN] Would post comment and ${responseOutput.had_commits ? "wait for CI" : "re-request review"} on PR #${action.prNumber}`
+    );
+    return { applied: true, hadCommits: responseOutput.had_commits };
+  }
+  await ctx.octokit.rest.issues.createComment({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    issue_number: action.prNumber,
+    body: responseOutput.summary
+  });
+  core17.info(`Posted response comment on PR #${action.prNumber}`);
+  if (!responseOutput.had_commits) {
+    try {
+      await ctx.octokit.rest.pulls.requestReviewers({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        pull_number: action.prNumber,
+        reviewers: [action.reviewer]
+      });
+      core17.info(
+        `Re-requested review from ${action.reviewer} on PR #${action.prNumber}`
+      );
+    } catch (error9) {
+      core17.warning(`Failed to re-request review: ${error9}`);
+    }
+  }
+  if (responseOutput.agent_notes && responseOutput.agent_notes.length > 0) {
+    const runId = ctx.runUrl?.split("/").pop() || `run-${Date.now()}`;
+    const runLink = ctx.runUrl || `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}/actions/runs/${runId}`;
+    const issue = await ctx.octokit.rest.issues.get({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: action.issueNumber
+    });
+    const currentBody = issue.data.body || "";
+    const updatedBody = appendAgentNotes(currentBody, {
+      runId,
+      runLink,
+      notes: responseOutput.agent_notes
+    });
+    if (updatedBody !== currentBody) {
+      await ctx.octokit.rest.issues.update({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: action.issueNumber,
+        body: updatedBody
+      });
+      core17.info(`Appended ${responseOutput.agent_notes.length} agent notes to issue #${action.issueNumber}`);
+    }
+  }
+  return { applied: true, hadCommits: responseOutput.had_commits };
+}
+
+// issue/actions-ts/state-machine/runner/executors/agent-notes.ts
+var core18 = __toESM(require_core(), 1);
 async function executeAppendAgentNotes(action, ctx) {
   const { issueNumber, notes, runId, runLink, timestamp } = action;
   if (notes.length === 0) {
-    core17.info("No agent notes to append, skipping");
+    core18.info("No agent notes to append, skipping");
     return { appended: false };
   }
-  core17.info(`Appending ${notes.length} agent notes to issue #${issueNumber}`);
+  core18.info(`Appending ${notes.length} agent notes to issue #${issueNumber}`);
   if (ctx.dryRun) {
-    core17.info(`[DRY RUN] Would append agent notes to issue #${issueNumber}`);
-    core17.startGroup("Agent Notes (dry run)");
+    core18.info(`[DRY RUN] Would append agent notes to issue #${issueNumber}`);
+    core18.startGroup("Agent Notes (dry run)");
     for (const note of notes) {
-      core17.info(`  - ${note}`);
+      core18.info(`  - ${note}`);
     }
-    core17.endGroup();
+    core18.endGroup();
     return { appended: true };
   }
   const issue = await ctx.octokit.rest.issues.get({
@@ -48055,20 +48193,20 @@ async function executeAppendAgentNotes(action, ctx) {
       issue_number: issueNumber,
       body: updatedBody
     });
-    core17.info(`Appended ${notes.length} agent notes to issue #${issueNumber}`);
-    core17.startGroup("Agent Notes");
+    core18.info(`Appended ${notes.length} agent notes to issue #${issueNumber}`);
+    core18.startGroup("Agent Notes");
     for (const note of notes) {
-      core17.info(`  - ${note}`);
+      core18.info(`  - ${note}`);
     }
-    core17.endGroup();
+    core18.endGroup();
   } else {
-    core17.info("Issue body unchanged (notes may be empty)");
+    core18.info("Issue body unchanged (notes may be empty)");
   }
   return { appended: true };
 }
 
 // issue/actions-ts/state-machine/runner/signaler.ts
-var core18 = __toESM(require_core(), 1);
+var core19 = __toESM(require_core(), 1);
 
 // issue/actions-ts/state-machine/runner/runner.ts
 function getOctokitForAction(action, ctx) {
@@ -48099,7 +48237,7 @@ async function executeAction(action, ctx, chainCtx) {
     case "closeIssue":
       return executeCloseIssue(action, actionCtx);
     case "reopenIssue":
-      core19.info(`Reopen issue #${action.issueNumber} - handled by resetIssue`);
+      core20.info(`Reopen issue #${action.issueNumber} - handled by resetIssue`);
       return { reopened: true };
     case "resetIssue":
       return executeResetIssue(action, actionCtx);
@@ -48174,6 +48312,13 @@ async function executeAction(action, ctx, chainCtx) {
         actionCtx,
         chainCtx?.lastClaudeStructuredOutput
       );
+    // PR response actions
+    case "applyPRResponseOutput":
+      return executeApplyPRResponseOutput(
+        action,
+        actionCtx,
+        chainCtx?.lastClaudeStructuredOutput
+      );
     // Discussion apply actions
     case "applyDiscussionResearchOutput":
       return executeApplyDiscussionResearchOutput(
@@ -48201,25 +48346,25 @@ async function executeAction(action, ctx, chainCtx) {
       );
     // Control flow actions
     case "stop":
-      core19.info(`Stopping: ${action.reason}`);
+      core20.info(`Stopping: ${action.reason}`);
       return { stopped: true, reason: action.reason };
     case "log":
       switch (action.level) {
         case "debug":
-          core19.debug(action.message);
+          core20.debug(action.message);
           break;
         case "warning":
-          core19.warning(action.message);
+          core20.warning(action.message);
           break;
         case "error":
-          core19.error(action.message);
+          core20.error(action.message);
           break;
         default:
-          core19.info(action.message);
+          core20.info(action.message);
       }
       return { logged: true };
     case "noop":
-      core19.debug(`No-op: ${action.reason || "no reason given"}`);
+      core20.debug(`No-op: ${action.reason || "no reason given"}`);
       return { noop: true };
     default:
       throw new Error(`Unknown action type: ${action.type}`);
@@ -48236,7 +48381,7 @@ async function executeActions(actions, ctx, options = {}) {
     const actionStartTime = Date.now();
     const parseResult = ActionSchema.safeParse(action);
     if (!parseResult.success) {
-      core19.error(`Invalid action: ${JSON.stringify(action)}`);
+      core20.error(`Invalid action: ${JSON.stringify(action)}`);
       results.push({
         action,
         success: false,
@@ -48253,10 +48398,10 @@ async function executeActions(actions, ctx, options = {}) {
     }
     const validatedAction = parseResult.data;
     if (logActions) {
-      core19.info(`Executing action: ${validatedAction.type}`);
+      core20.info(`Executing action: ${validatedAction.type}`);
     }
     if (ctx.dryRun) {
-      core19.info(`[DRY RUN] Would execute: ${validatedAction.type}`);
+      core20.info(`[DRY RUN] Would execute: ${validatedAction.type}`);
       results.push({
         action: validatedAction,
         success: true,
@@ -48271,7 +48416,7 @@ async function executeActions(actions, ctx, options = {}) {
         const claudeResult = result;
         if (claudeResult.structuredOutput) {
           chainCtx.lastClaudeStructuredOutput = claudeResult.structuredOutput;
-          core19.info("Stored structured output for subsequent actions");
+          core20.info("Stored structured output for subsequent actions");
         }
       }
       const branchResult = result;
@@ -48285,7 +48430,7 @@ async function executeActions(actions, ctx, options = {}) {
         });
         stoppedEarly = true;
         stopReason = "branch_rebased_and_pushed";
-        core19.info(
+        core20.info(
           "Stopping after branch rebase - CI will re-trigger with up-to-date branch"
         );
         break;
@@ -48304,7 +48449,7 @@ async function executeActions(actions, ctx, options = {}) {
       }
     } catch (error9) {
       const err = error9 instanceof Error ? error9 : new Error(String(error9));
-      core19.error(`Action failed: ${validatedAction.type} - ${err.message}`);
+      core20.error(`Action failed: ${validatedAction.type} - ${err.message}`);
       results.push({
         action: validatedAction,
         success: false,
@@ -48469,7 +48614,7 @@ var ConfigurableTestRunner = class {
     return `${this.getRepoUrl()}/actions/runs/${runId}`;
   }
   logResourceCreated(type, url) {
-    core20.info(`\u{1F4CC} Created ${type}: ${url}`);
+    core21.info(`\u{1F4CC} Created ${type}: ${url}`);
   }
   /**
    * Run the test scenario
@@ -48480,7 +48625,7 @@ var ConfigurableTestRunner = class {
     try {
       const startIndex = this.findStartIndex();
       const startingState = this.scenario.orderedStates[startIndex];
-      core20.info(`Starting at state: ${startingState} (index ${startIndex})`);
+      core21.info(`Starting at state: ${startingState} (index ${startIndex})`);
       const firstState = this.scenario.orderedStates[0];
       const firstFixture = this.scenario.fixtures.get(firstState);
       this.issueNumber = await this.createTestIssue(firstFixture);
@@ -48493,11 +48638,11 @@ var ConfigurableTestRunner = class {
         const nextState = this.scenario.orderedStates[startIndex + 1];
         const startFixture = this.scenario.fixtures.get(startState);
         await this.setupGitHubState(startFixture);
-        core20.info(`Set up GitHub state for '${startState}'`);
+        core21.info(`Set up GitHub state for '${startState}'`);
         if (nextState) {
           const nextFixture = this.scenario.fixtures.get(nextState);
           await this.applyStateTransitionSideEffects(startFixture, nextFixture);
-          core20.info(
+          core21.info(
             `Applied side effects for '${startState}' -> '${nextState}'`
           );
           this.syncFixtureWithSideEffects(startFixture, nextFixture);
@@ -48508,10 +48653,10 @@ var ConfigurableTestRunner = class {
         const nextState = this.scenario.orderedStates[i3 + 1];
         const currentFixture = this.scenario.fixtures.get(currentState);
         const nextFixture = this.scenario.fixtures.get(nextState);
-        core20.info(`
+        core21.info(`
 ${"=".repeat(60)}`);
-        core20.info(`Transition: ${currentState} -> ${nextState}`);
-        core20.info(`${"=".repeat(60)}`);
+        core21.info(`Transition: ${currentState} -> ${nextState}`);
+        core21.info(`${"=".repeat(60)}`);
         const transitionStartTime = Date.now();
         try {
           await this.applyStateTransitionSideEffects(
@@ -48530,9 +48675,9 @@ ${"=".repeat(60)}`);
           };
           transitions.push(transitionResult);
           if (verificationErrors.length > 0) {
-            core20.error(`Verification failed:`);
+            core21.error(`Verification failed:`);
             for (const error9 of verificationErrors) {
-              core20.error(`  - ${error9}`);
+              core21.error(`  - ${error9}`);
             }
             return {
               status: "failed",
@@ -48542,7 +48687,7 @@ ${"=".repeat(60)}`);
               error: `Verification failed: ${verificationErrors.join("; ")}`
             };
           }
-          core20.info(`\u2713 Transition verified`);
+          core21.info(`\u2713 Transition verified`);
           if (!this.inputs.continue) {
             return {
               status: "paused",
@@ -48615,7 +48760,7 @@ ${"=".repeat(60)}`);
     if (!this.inputs.multiIssue) {
       const randomIndex = Math.floor(Math.random() * SINGLE_TASK_BODIES.length);
       body = SINGLE_TASK_BODIES[randomIndex];
-      core20.info(`Single-issue mode: using task variant ${randomIndex + 1}`);
+      core21.info(`Single-issue mode: using task variant ${randomIndex + 1}`);
     }
     const response = await this.config.octokit.rest.issues.create({
       owner: this.config.owner,
@@ -48665,7 +48810,7 @@ ${"=".repeat(60)}`);
     if (!this.testBranchName) {
       throw new Error("Test branch name not set");
     }
-    core20.info(`Creating test branch: ${this.testBranchName}`);
+    core21.info(`Creating test branch: ${this.testBranchName}`);
     const { data: mainRef } = await this.config.octokit.rest.git.getRef({
       owner: this.config.owner,
       repo: this.config.repo,
@@ -48719,7 +48864,7 @@ Issue: #${this.issueNumber}
         ref: `refs/heads/${this.testBranchName}`,
         sha: commit.sha
       });
-      core20.info(`Created branch ${this.testBranchName} with initial commit`);
+      core21.info(`Created branch ${this.testBranchName} with initial commit`);
     } catch (error9) {
       if (error9 instanceof Error && error9.message.includes("Reference already exists")) {
         await this.config.octokit.rest.git.updateRef({
@@ -48729,7 +48874,7 @@ Issue: #${this.issueNumber}
           sha: commit.sha,
           force: true
         });
-        core20.info(`Updated existing branch ${this.testBranchName}`);
+        core21.info(`Updated existing branch ${this.testBranchName}`);
       } else {
         throw error9;
       }
@@ -48749,9 +48894,9 @@ Issue: #${this.issueNumber}
     const body = prSpec.body || `Test PR for scenario: ${this.scenario.name}
 
 Fixes #${this.issueNumber}`;
-    core20.info(`Creating test PR: ${title}`);
-    core20.info(`  Head: ${headRef} -> Base: ${baseRef}`);
-    core20.info(`  Draft: ${prSpec.isDraft}`);
+    core21.info(`Creating test PR: ${title}`);
+    core21.info(`  Head: ${headRef} -> Base: ${baseRef}`);
+    core21.info(`  Draft: ${prSpec.isDraft}`);
     const response = await this.config.octokit.rest.pulls.create({
       owner: this.config.owner,
       repo: this.config.repo,
@@ -48775,7 +48920,7 @@ Fixes #${this.issueNumber}`;
    * Request a review on a PR
    */
   async requestReview(prNumber, reviewer) {
-    core20.info(`Requesting review from ${reviewer} on PR #${prNumber}`);
+    core21.info(`Requesting review from ${reviewer} on PR #${prNumber}`);
     await this.config.octokit.rest.pulls.requestReviewers({
       owner: this.config.owner,
       repo: this.config.repo,
@@ -48792,13 +48937,13 @@ Fixes #${this.issueNumber}`;
    */
   async applyStateTransitionSideEffects(currentFixture, nextFixture) {
     if (!this.issueNumber) return;
-    core20.info(
+    core21.info(
       `
 Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
     );
     const needsAssignment = nextFixture.issue.assignees.includes("nopo-bot") && !currentFixture.issue.assignees.includes("nopo-bot");
     if (needsAssignment) {
-      core20.info("  \u2192 Assigning nopo-bot");
+      core21.info("  \u2192 Assigning nopo-bot");
       await this.config.octokit.rest.issues.addAssignees({
         owner: this.config.owner,
         repo: this.config.repo,
@@ -48807,17 +48952,17 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
       });
     }
     if (nextFixture.issue.pr && !this.prNumber) {
-      core20.info("  \u2192 Creating PR");
+      core21.info("  \u2192 Creating PR");
       await this.createTestPR(nextFixture.issue.pr);
     }
     if (nextFixture.state === "reviewing" || nextFixture.state === "prReviewing") {
       if (this.prNumber) {
-        core20.info("  \u2192 Requesting review");
+        core21.info("  \u2192 Requesting review");
         await this.requestReview(this.prNumber, "nopo-bot");
       }
     }
     if (nextFixture.state === "processingMerge" && this.prNumber) {
-      core20.info("  \u2192 Merging PR");
+      core21.info("  \u2192 Merging PR");
       await this.mergePR(this.prNumber);
     }
   }
@@ -48835,7 +48980,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
         ...currentFixture.issue.assignees,
         "nopo-bot"
       ];
-      core20.debug("  \u2192 Updated fixture assignees to include nopo-bot");
+      core21.debug("  \u2192 Updated fixture assignees to include nopo-bot");
     }
     if (nextFixture.issue.pr && currentFixture.issue.pr) {
       currentFixture.issue.pr = {
@@ -48860,19 +49005,19 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
           "nopo-bot"
         ];
       }
-      core20.debug(
+      core21.debug(
         "  \u2192 Synced next fixture: nopo-bot assigned for next iteration"
       );
     }
     if (this.prNumber && nextFixture.issue.pr) {
-      core20.debug("  \u2192 Synced next fixture: PR exists for next iteration");
+      core21.debug("  \u2192 Synced next fixture: PR exists for next iteration");
     }
   }
   /**
    * Merge a PR
    */
   async mergePR(prNumber) {
-    core20.info(`Merging PR #${prNumber}`);
+    core21.info(`Merging PR #${prNumber}`);
     await this.config.octokit.rest.pulls.merge({
       owner: this.config.owner,
       repo: this.config.repo,
@@ -48917,7 +49062,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
       labels: [...fixture.issue.labels, TEST_LABEL]
     });
     if (fixture.issue.assignees.includes("nopo-bot")) {
-      core20.info("  \u2192 Assigning nopo-bot (via setupGitHubState)");
+      core21.info("  \u2192 Assigning nopo-bot (via setupGitHubState)");
       await this.config.octokit.rest.issues.addAssignees({
         owner: this.config.owner,
         repo: this.config.repo,
@@ -48950,27 +49095,27 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
     }
     const mockOutput = this.inputs.mockClaude && fixture.claudeMock ? this.scenario.claudeMocks.get(fixture.claudeMock)?.output : void 0;
     const context2 = this.buildMachineContext(fixture, nextFixture);
-    core20.info(`Building machine context for state: ${fixture.state}`);
-    core20.startGroup("Machine Context");
-    core20.info(JSON.stringify(context2, null, 2));
-    core20.endGroup();
+    core21.info(`Building machine context for state: ${fixture.state}`);
+    core21.startGroup("Machine Context");
+    core21.info(JSON.stringify(context2, null, 2));
+    core21.endGroup();
     const actor = createActor(claudeMachine, { input: context2 });
     actor.start();
     const snapshot = actor.getSnapshot();
     actor.stop();
     const pendingActions = snapshot.context.pendingActions;
-    core20.info(`State machine produced ${pendingActions.length} actions`);
-    core20.info(`Target state: ${String(snapshot.value)}`);
+    core21.info(`State machine produced ${pendingActions.length} actions`);
+    core21.info(`Target state: ${String(snapshot.value)}`);
     if (pendingActions.length === 0) {
-      core20.warning("No actions to execute - state machine produced no actions");
+      core21.warning("No actions to execute - state machine produced no actions");
       return;
     }
     const mockOutputs = mockOutput && fixture.claudeMock ? { [this.getPromptDirFromMock(fixture.claudeMock)]: mockOutput } : void 0;
     if (this.inputs.mockClaude && mockOutputs) {
-      core20.info(`Using mock Claude mode with output: ${fixture.claudeMock}`);
-      core20.startGroup("Mock Output");
-      core20.info(JSON.stringify(mockOutput, null, 2));
-      core20.endGroup();
+      core21.info(`Using mock Claude mode with output: ${fixture.claudeMock}`);
+      core21.startGroup("Mock Output");
+      core21.info(JSON.stringify(mockOutput, null, 2));
+      core21.endGroup();
     }
     const runnerCtx = createRunnerContext(
       this.config.octokit,
@@ -48979,10 +49124,11 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
       this.config.projectNumber,
       {
         dryRun: false,
-        mockOutputs
+        mockOutputs,
+        reviewOctokit: this.config.reviewOctokit
       }
     );
-    core20.info("Executing actions...");
+    core21.info("Executing actions...");
     const result = await executeActions(pendingActions, runnerCtx);
     if (!result.success) {
       const failedActions = result.results.filter(
@@ -48992,7 +49138,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
         `Action execution failed: ${failedActions.map((r3) => r3.error?.message).join(", ")}`
       );
     }
-    core20.info(
+    core21.info(
       `Executed ${result.results.filter((r3) => !r3.skipped).length} actions successfully`
     );
     const statesThatTriggerCI = ["iterating", "iteratingFix"];
@@ -49103,7 +49249,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
     const branch = this.testBranchName;
     if (this.inputs.mockCI) {
       const mockResult = result === "success" ? "pass" : "fail";
-      core20.info(
+      core21.info(
         `Triggering mock CI with result: ${mockResult} on branch ${branch}`
       );
       await exec13.exec("gh", [
@@ -49116,7 +49262,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
         `mock=${mockResult}`
       ]);
     } else {
-      core20.info("Waiting for real CI...");
+      core21.info("Waiting for real CI...");
     }
     await this.waitForCI();
   }
@@ -49129,7 +49275,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
     const pollIntervalMs = 1e4;
     const startTime = Date.now();
     let ciRunId = null;
-    core20.info(
+    core21.info(
       `Waiting for CI workflow to complete on branch ${this.testBranchName}...`
     );
     while (Date.now() - startTime < maxWaitMs) {
@@ -49152,15 +49298,15 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
           );
         }
         if (matchingRun.status === "completed") {
-          core20.info(`CI completed with conclusion: ${matchingRun.conclusion}`);
-          core20.info(`\u{1F4CC} CI Run: ${this.getWorkflowRunUrl(matchingRun.id)}`);
+          core21.info(`CI completed with conclusion: ${matchingRun.conclusion}`);
+          core21.info(`\u{1F4CC} CI Run: ${this.getWorkflowRunUrl(matchingRun.id)}`);
           return;
         }
-        core20.info(
+        core21.info(
           `CI status: ${matchingRun.status} (run ${matchingRun.id}), waiting...`
         );
       } else {
-        core20.info("No CI run found yet, waiting...");
+        core21.info("No CI run found yet, waiting...");
       }
       await new Promise((resolve2) => setTimeout(resolve2, pollIntervalMs));
     }
@@ -49199,9 +49345,9 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
       botAssigned: state.botAssigned,
       hasTriagedLabel: state.labels.includes("triaged")
     };
-    core20.info(`
+    core21.info(`
 State Verification:`);
-    core20.info(`${"\u2500".repeat(60)}`);
+    core21.info(`${"\u2500".repeat(60)}`);
     const errors = [];
     const diffLines = [];
     for (const key of Object.keys(expectedFields)) {
@@ -49218,30 +49364,30 @@ State Verification:`);
         );
       }
     }
-    core20.info(`{`);
+    core21.info(`{`);
     for (const line of diffLines) {
       if (line.startsWith("-")) {
-        core20.info(`\x1B[31m${line}\x1B[0m`);
+        core21.info(`\x1B[31m${line}\x1B[0m`);
       } else if (line.startsWith("+")) {
-        core20.info(`\x1B[32m${line}\x1B[0m`);
+        core21.info(`\x1B[32m${line}\x1B[0m`);
       } else {
-        core20.info(line);
+        core21.info(line);
       }
     }
-    core20.info(`}`);
-    core20.info(`${"\u2500".repeat(60)}`);
+    core21.info(`}`);
+    core21.info(`${"\u2500".repeat(60)}`);
     if (errors.length > 0) {
-      core20.info(`
+      core21.info(`
 \u274C ${errors.length} field(s) differ`);
     } else {
-      core20.info(`
+      core21.info(`
 \u2705 All fields match`);
     }
     const expectedHistory = expected.issue.history;
     if (expectedHistory && expectedHistory.length > 0) {
-      core20.info(`
+      core21.info(`
 History Verification:`);
-      core20.info(`${"\u2500".repeat(60)}`);
+      core21.info(`${"\u2500".repeat(60)}`);
       const actualActions = state.history.map((h3) => h3.action);
       const missingActions = [];
       for (const expectedEntry of expectedHistory) {
@@ -49250,26 +49396,26 @@ History Verification:`);
           (action) => action.includes(expectedAction)
         );
         if (found) {
-          core20.info(`  \u2713 Found: "${expectedAction}"`);
+          core21.info(`  \u2713 Found: "${expectedAction}"`);
         } else {
-          core20.info(`  \u2717 Missing: "${expectedAction}"`);
+          core21.info(`  \u2717 Missing: "${expectedAction}"`);
           missingActions.push(expectedAction);
         }
       }
       if (missingActions.length > 0) {
-        core20.info(
+        core21.info(
           `
 Actual history actions (${state.history.length} entries):`
         );
         for (const entry of state.history) {
-          core20.info(`  [${entry.iteration}/${entry.phase}] ${entry.action}`);
+          core21.info(`  [${entry.iteration}/${entry.phase}] ${entry.action}`);
         }
         errors.push(`Missing history actions: ${missingActions.join(", ")}`);
       } else {
-        core20.info(`
+        core21.info(`
 \u2705 All expected history entries found`);
       }
-      core20.info(`${"\u2500".repeat(60)}`);
+      core21.info(`${"\u2500".repeat(60)}`);
     }
     return errors;
   }
@@ -49277,7 +49423,7 @@ Actual history actions (${state.history.length} entries):`
    * Create a sub-issue with optional branch and PR
    */
   async createSubIssue(subIssue) {
-    core20.info(`Creating sub-issue: ${subIssue.title}`);
+    core21.info(`Creating sub-issue: ${subIssue.title}`);
     const response = await this.config.octokit.rest.issues.create({
       owner: this.config.owner,
       repo: this.config.repo,
@@ -49287,7 +49433,7 @@ Actual history actions (${state.history.length} entries):`
     });
     const issueNumber = response.data.number;
     this.subIssueNumbers.set(subIssue.title, issueNumber);
-    core20.info(`Created sub-issue #${issueNumber}`);
+    core21.info(`Created sub-issue #${issueNumber}`);
     if (subIssue.projectStatus) {
       await this.setProjectField(issueNumber, "Status", subIssue.projectStatus);
     }
@@ -49317,7 +49463,7 @@ Sub-issue PR for test scenario.`
    * Create a branch for a sub-issue
    */
   async createBranchForSubIssue(branchName, issueNumber) {
-    core20.info(`Creating branch for sub-issue #${issueNumber}: ${branchName}`);
+    core21.info(`Creating branch for sub-issue #${issueNumber}: ${branchName}`);
     const { data: mainRef } = await this.config.octokit.rest.git.getRef({
       owner: this.config.owner,
       repo: this.config.repo,
@@ -49366,7 +49512,7 @@ Sub-issue PR for test scenario.`
         ref: `refs/heads/${branchName}`,
         sha: commit.sha
       });
-      core20.info(`Created branch ${branchName}`);
+      core21.info(`Created branch ${branchName}`);
     } catch (error9) {
       if (error9 instanceof Error && error9.message.includes("Reference already exists")) {
         await this.config.octokit.rest.git.updateRef({
@@ -49376,7 +49522,7 @@ Sub-issue PR for test scenario.`
           sha: commit.sha,
           force: true
         });
-        core20.info(`Updated existing branch ${branchName}`);
+        core21.info(`Updated existing branch ${branchName}`);
       } else {
         throw error9;
       }
@@ -49387,7 +49533,7 @@ Sub-issue PR for test scenario.`
    */
   async linkSubIssueToParent(subIssueNumber) {
     if (!this.issueNumber) return;
-    core20.info(
+    core21.info(
       `Linking sub-issue #${subIssueNumber} to parent #${this.issueNumber}`
     );
     const { data: subIssue } = await this.config.octokit.rest.issues.get({
@@ -49411,7 +49557,7 @@ ${subIssue.body || ""}`
    * Set a project field on an issue
    */
   async setProjectField(issueNumber, field, value) {
-    core20.info(`Setting ${field}=${value} on issue #${issueNumber}`);
+    core21.info(`Setting ${field}=${value} on issue #${issueNumber}`);
     const response = await this.config.octokit.graphql(
       GET_PROJECT_ITEM_QUERY2,
       {
@@ -49435,7 +49581,7 @@ ${subIssue.body || ""}`
       this.config.projectNumber
     );
     if (!itemId) {
-      core20.info(`Adding issue #${issueNumber} to project`);
+      core21.info(`Adding issue #${issueNumber} to project`);
       try {
         const addResult = await this.config.octokit.graphql(ADD_ISSUE_TO_PROJECT_MUTATION3, {
           projectId: projectFields.projectId,
@@ -49444,7 +49590,7 @@ ${subIssue.body || ""}`
         itemId = addResult.addProjectV2ItemById?.item?.id || null;
       } catch (error9) {
         if (error9 instanceof Error && error9.message.includes("Content already exists")) {
-          core20.info("Issue already in project, refetching item ID...");
+          core21.info("Issue already in project, refetching item ID...");
           const refetchResponse = await this.config.octokit.graphql(
             GET_PROJECT_ITEM_QUERY2,
             {
@@ -49494,7 +49640,7 @@ ${subIssue.body || ""}`
       fieldId,
       value: fieldValue
     });
-    core20.info(`Set ${field}=${value} on issue #${issueNumber}`);
+    core21.info(`Set ${field}=${value} on issue #${issueNumber}`);
   }
   /**
    * Parse project fields from GraphQL response
@@ -49680,9 +49826,9 @@ var _DiscussionTestResultSchema = external_exports.object({
 });
 
 // issue/actions-ts/test-runner/src/configurable/discussion-loader.ts
-var fs7 = __toESM(require("fs"), 1);
+var fs8 = __toESM(require("fs"), 1);
 var path3 = __toESM(require("path"), 1);
-var core21 = __toESM(require_core(), 1);
+var core22 = __toESM(require_core(), 1);
 var FIXTURES_BASE_PATH2 = ".github/statemachine/discussion/fixtures";
 var DISCUSSION_SCENARIOS_DIR = "scenarios";
 var CLAUDE_MOCKS_DIR2 = "mocks";
@@ -49695,18 +49841,18 @@ async function loadDiscussionScenario(scenarioName, basePath = FIXTURES_BASE_PAT
     scenarioName
   );
   const configPath = path3.join(scenarioDir, SCENARIO_CONFIG_FILE2);
-  if (!fs7.existsSync(configPath)) {
+  if (!fs8.existsSync(configPath)) {
     throw new Error(
       `Discussion scenario config not found: ${configPath}. Create a scenario.json file with name and description.`
     );
   }
-  const configContent = fs7.readFileSync(configPath, "utf-8");
+  const configContent = fs8.readFileSync(configPath, "utf-8");
   const configJson = JSON.parse(configContent);
   const config = DiscussionScenarioConfigSchema.parse(configJson);
-  core21.info(`Loading discussion scenario: ${config.name}`);
-  core21.info(`Description: ${config.description}`);
+  core22.info(`Loading discussion scenario: ${config.name}`);
+  core22.info(`Description: ${config.description}`);
   const statesDir = path3.join(scenarioDir, STATES_DIR2);
-  if (!fs7.existsSync(statesDir)) {
+  if (!fs8.existsSync(statesDir)) {
     throw new Error(
       `States directory not found: ${statesDir}. Create a states/ directory with fixture files.`
     );
@@ -49717,9 +49863,9 @@ async function loadDiscussionScenario(scenarioName, basePath = FIXTURES_BASE_PAT
       `Discussion scenario must have at least 1 state fixture (got ${orderedStates.length}).`
     );
   }
-  core21.info(`Loaded ${orderedStates.length} state fixtures`);
+  core22.info(`Loaded ${orderedStates.length} state fixtures`);
   const claudeMocks = await loadReferencedMocks2(fixtures, basePath);
-  core21.info(`Loaded ${claudeMocks.size} Claude mocks`);
+  core22.info(`Loaded ${claudeMocks.size} Claude mocks`);
   return {
     name: config.name,
     description: config.description,
@@ -49730,12 +49876,12 @@ async function loadDiscussionScenario(scenarioName, basePath = FIXTURES_BASE_PAT
   };
 }
 async function loadDiscussionStateFixtures(statesDir) {
-  const files = fs7.readdirSync(statesDir).filter((f) => f.endsWith(".json")).sort();
+  const files = fs8.readdirSync(statesDir).filter((f) => f.endsWith(".json")).sort();
   const orderedStates = [];
   const fixtures = /* @__PURE__ */ new Map();
   for (const file of files) {
     const filePath = path3.join(statesDir, file);
-    const content = fs7.readFileSync(filePath, "utf-8");
+    const content = fs8.readFileSync(filePath, "utf-8");
     let json;
     try {
       json = JSON.parse(content);
@@ -49758,7 +49904,7 @@ ${errors}`);
     }
     orderedStates.push(fixture.state);
     fixtures.set(fixture.state, fixture);
-    core21.debug(`  Loaded: ${file} -> state '${fixture.state}'`);
+    core22.debug(`  Loaded: ${file} -> state '${fixture.state}'`);
   }
   return { orderedStates, fixtures };
 }
@@ -49769,12 +49915,12 @@ async function loadReferencedMocks2(fixtures, basePath) {
     if (!fixture.claudeMock) continue;
     if (claudeMocks.has(fixture.claudeMock)) continue;
     const mockPath = path3.join(mocksDir, `${fixture.claudeMock}.json`);
-    if (!fs7.existsSync(mockPath)) {
+    if (!fs8.existsSync(mockPath)) {
       throw new Error(
         `Claude mock not found: ${mockPath} (referenced by state '${state}')`
       );
     }
-    const content = fs7.readFileSync(mockPath, "utf-8");
+    const content = fs8.readFileSync(mockPath, "utf-8");
     let json;
     try {
       json = JSON.parse(content);
@@ -49790,13 +49936,13 @@ async function loadReferencedMocks2(fixtures, basePath) {
 ${errors}`);
     }
     claudeMocks.set(fixture.claudeMock, parseResult.data);
-    core21.debug(`  Loaded mock: ${fixture.claudeMock}`);
+    core22.debug(`  Loaded mock: ${fixture.claudeMock}`);
   }
   return claudeMocks;
 }
 
 // issue/actions-ts/test-runner/src/configurable/discussion-runner.ts
-var core26 = __toESM(require_core(), 1);
+var core27 = __toESM(require_core(), 1);
 
 // discussion/actions-ts/state-machine/schemas/triggers.ts
 var DiscussionTriggerTypeSchema = external_exports.enum([
@@ -50390,17 +50536,17 @@ var discussionMachine = setup({
 });
 
 // discussion/actions-ts/state-machine/runner/runner.ts
-var core24 = __toESM(require_core(), 1);
+var core25 = __toESM(require_core(), 1);
 var github = __toESM(require_github(), 1);
 
 // discussion/actions-ts/state-machine/runner/executors/discussions.ts
-var core22 = __toESM(require_core(), 1);
-
-// discussion/actions-ts/state-machine/runner/executors/discussion-apply.ts
 var core23 = __toESM(require_core(), 1);
 
+// discussion/actions-ts/state-machine/runner/executors/discussion-apply.ts
+var core24 = __toESM(require_core(), 1);
+
 // discussion/actions-ts/state-machine/context-builder.ts
-var core25 = __toESM(require_core(), 1);
+var core26 = __toESM(require_core(), 1);
 var github2 = __toESM(require_github(), 1);
 
 // issue/actions-ts/test-runner/src/configurable/discussion-runner.ts
@@ -50494,7 +50640,7 @@ var DiscussionConfigurableTestRunner = class {
     return `${this.getRepoUrl()}/discussions/${discussionNumber}`;
   }
   logResourceCreated(type, url) {
-    core26.info(`\u{1F4CC} Created ${type}: ${url}`);
+    core27.info(`\u{1F4CC} Created ${type}: ${url}`);
   }
   /**
    * Run the discussion test scenario
@@ -50514,20 +50660,20 @@ var DiscussionConfigurableTestRunner = class {
         await this.addTriggeringComment(firstFixture);
       }
       const context2 = this.buildMachineContext(firstFixture);
-      core26.info(`Building machine context for state: ${firstFixture.state}`);
-      core26.startGroup("Machine Context");
-      core26.info(JSON.stringify(context2, null, 2));
-      core26.endGroup();
+      core27.info(`Building machine context for state: ${firstFixture.state}`);
+      core27.startGroup("Machine Context");
+      core27.info(JSON.stringify(context2, null, 2));
+      core27.endGroup();
       const actor = createActor(discussionMachine, { input: context2 });
       actor.start();
       const snapshot = actor.getSnapshot();
       actor.stop();
       const pendingActions = snapshot.context.pendingActions;
       const finalState = String(snapshot.value);
-      core26.info(`State machine produced ${pendingActions.length} actions`);
-      core26.info(`Final state: ${finalState}`);
+      core27.info(`State machine produced ${pendingActions.length} actions`);
+      core27.info(`Final state: ${finalState}`);
       if (pendingActions.length === 0) {
-        core26.warning(
+        core27.warning(
           "No actions to execute - state machine produced no actions"
         );
         return {
@@ -50541,12 +50687,12 @@ var DiscussionConfigurableTestRunner = class {
       const mockOutput = this.inputs.mockClaude && firstFixture.claudeMock ? this.scenario.claudeMocks.get(firstFixture.claudeMock)?.output : void 0;
       const mockOutputs = mockOutput && firstFixture.claudeMock ? { [this.getPromptDirFromMock(firstFixture.claudeMock)]: mockOutput } : void 0;
       if (this.inputs.mockClaude && mockOutputs) {
-        core26.info(
+        core27.info(
           `Using mock Claude mode with output: ${firstFixture.claudeMock}`
         );
-        core26.startGroup("Mock Output");
-        core26.info(JSON.stringify(mockOutput, null, 2));
-        core26.endGroup();
+        core27.startGroup("Mock Output");
+        core27.info(JSON.stringify(mockOutput, null, 2));
+        core27.endGroup();
       }
       const runnerCtx = createRunnerContext(
         this.config.octokit,
@@ -50558,7 +50704,7 @@ var DiscussionConfigurableTestRunner = class {
           mockOutputs
         }
       );
-      core26.info("Executing actions...");
+      core27.info("Executing actions...");
       const result = await executeActions(pendingActions, runnerCtx);
       if (!result.success) {
         const failedActions = result.results.filter(
@@ -50569,12 +50715,12 @@ var DiscussionConfigurableTestRunner = class {
         );
       }
       const actionsExecuted = result.results.filter((r3) => !r3.skipped).length;
-      core26.info(`Executed ${actionsExecuted} actions successfully`);
+      core27.info(`Executed ${actionsExecuted} actions successfully`);
       const verificationErrors = await this.verifyExpectedOutcomes(firstFixture);
       if (verificationErrors.length > 0) {
-        core26.error(`Verification failed:`);
+        core27.error(`Verification failed:`);
         for (const error9 of verificationErrors) {
-          core26.error(`  - ${error9}`);
+          core27.error(`  - ${error9}`);
         }
         return {
           status: "failed",
@@ -50585,7 +50731,7 @@ var DiscussionConfigurableTestRunner = class {
           verificationErrors
         };
       }
-      core26.info(`\u2713 All verifications passed`);
+      core27.info(`\u2713 All verifications passed`);
       return {
         status: "completed",
         discussionNumber: this.discussionNumber,
@@ -50629,10 +50775,10 @@ var DiscussionConfigurableTestRunner = class {
         throw new Error("No discussion categories found in repository");
       }
       this.categoryId = defaultCategory.id;
-      core26.info(`Using default category: ${defaultCategory.name}`);
+      core27.info(`Using default category: ${defaultCategory.name}`);
     } else {
       this.categoryId = category.id;
-      core26.info(`Using category: ${category.name}`);
+      core27.info(`Using category: ${category.name}`);
     }
   }
   /**
@@ -50668,7 +50814,7 @@ _Test discussion for scenario: ${this.scenario.name}_`;
       throw new Error("Discussion not created yet");
     }
     const commentBody = fixture.trigger === "discussion_command" ? fixture.discussion.command ?? "/summarize" : fixture.discussion.commentBody ?? "Test comment";
-    core26.info(`Adding triggering comment: ${commentBody}`);
+    core27.info(`Adding triggering comment: ${commentBody}`);
     const response = await this.config.octokit.graphql(
       ADD_DISCUSSION_COMMENT_MUTATION3,
       {
@@ -50803,15 +50949,15 @@ _Test discussion for scenario: ${this.scenario.name}_`;
         }
       }
     }
-    core26.info(`
+    core27.info(`
 Verification Results:`);
-    core26.info(`${"\u2500".repeat(60)}`);
+    core27.info(`${"\u2500".repeat(60)}`);
     if (errors.length === 0) {
-      core26.info(`\u2705 All checks passed`);
+      core27.info(`\u2705 All checks passed`);
     } else {
-      core26.info(`\u274C ${errors.length} check(s) failed`);
+      core27.info(`\u274C ${errors.length} check(s) failed`);
     }
-    core26.info(`${"\u2500".repeat(60)}`);
+    core27.info(`${"\u2500".repeat(60)}`);
     return errors;
   }
 };
@@ -50822,7 +50968,7 @@ async function runDiscussionConfigurableTest(scenario, inputs, config) {
 
 // issue/actions-ts/test-runner/index.ts
 async function triggerCleanup(octokit, owner, repo, issueNumber) {
-  core27.info(`Triggering cleanup for issue #${issueNumber}`);
+  core28.info(`Triggering cleanup for issue #${issueNumber}`);
   try {
     await octokit.rest.actions.createWorkflowDispatch({
       owner,
@@ -50834,10 +50980,10 @@ async function triggerCleanup(octokit, owner, repo, issueNumber) {
         action: "cleanup"
       }
     });
-    core27.info("Cleanup workflow triggered");
+    core28.info("Cleanup workflow triggered");
   } catch (error9) {
-    core27.warning(`Could not trigger cleanup workflow: ${error9}`);
-    core27.info("Attempting direct close via API...");
+    core28.warning(`Could not trigger cleanup workflow: ${error9}`);
+    core28.info("Attempting direct close via API...");
     try {
       await octokit.rest.issues.update({
         owner,
@@ -50846,9 +50992,9 @@ async function triggerCleanup(octokit, owner, repo, issueNumber) {
         state: "closed",
         state_reason: "not_planned"
       });
-      core27.info(`Closed issue #${issueNumber} directly`);
+      core28.info(`Closed issue #${issueNumber} directly`);
     } catch (closeError) {
-      core27.warning(`Failed to close issue: ${closeError}`);
+      core28.warning(`Failed to close issue: ${closeError}`);
     }
   }
 }
@@ -50857,21 +51003,23 @@ async function run() {
   try {
     const action = getRequiredInput("action");
     const token = getRequiredInput("github_token");
+    const reviewerToken = getOptionalInput("reviewer_token");
     const projectNumber = parseInt(
       getOptionalInput("project_number") || "1",
       10
     );
     const cleanupOnFailure = getOptionalInput("cleanup_on_failure") === "true";
     const octokit = github3.getOctokit(token);
+    const reviewOctokit = reviewerToken ? github3.getOctokit(reviewerToken) : void 0;
     const { owner, repo } = github3.context.repo;
     if (action === "run") {
       const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
       const fixtureJson = getOptionalInput("fixture_json");
       const fixture = fixtureJson ? JSON.parse(fixtureJson) : { name: "manual", description: "Manual test run" };
-      core27.info(`=== Claude Test Runner ===`);
-      core27.info(`Action: run`);
-      core27.info(`Issue: #${issueNumber}`);
-      core27.info(`Fixture: ${fixture.name}`);
+      core28.info(`=== Claude Test Runner ===`);
+      core28.info(`Action: run`);
+      core28.info(`Issue: #${issueNumber}`);
+      core28.info(`Fixture: ${fixture.name}`);
       const result = await runTest({
         fixture,
         issueNumber,
@@ -50888,14 +51036,14 @@ async function run() {
         total_duration_ms: String(result.totalDurationMs)
       });
       if (result.status !== "done") {
-        core27.warning(`Test failed: ${result.diagnosis}`);
-        core27.warning(`Suggested fix: ${result.suggestedFix}`);
+        core28.warning(`Test failed: ${result.diagnosis}`);
+        core28.warning(`Suggested fix: ${result.suggestedFix}`);
         if (cleanupOnFailure) {
           await triggerCleanup(octokit, owner, repo, issueNumber);
         }
-        core27.setFailed(`Test failed: ${result.diagnosis}`);
+        core28.setFailed(`Test failed: ${result.diagnosis}`);
       } else {
-        core27.info(`Test passed! Completed ${result.phases.length} phases`);
+        core28.info(`Test passed! Completed ${result.phases.length} phases`);
       }
       return;
     }
@@ -50903,9 +51051,9 @@ async function run() {
       const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
       const fixtureJson = getOptionalInput("fixture_json");
       const fixture = fixtureJson ? JSON.parse(fixtureJson) : { name: "manual", description: "Manual diagnosis" };
-      core27.info(`=== Claude Test Runner ===`);
-      core27.info(`Action: diagnose`);
-      core27.info(`Issue: #${issueNumber}`);
+      core28.info(`=== Claude Test Runner ===`);
+      core28.info(`Action: diagnose`);
+      core28.info(`Issue: #${issueNumber}`);
       const result = await diagnose({
         fixture,
         issueNumber,
@@ -50921,14 +51069,14 @@ async function run() {
         phases_completed: "0",
         total_duration_ms: String(result.totalDurationMs)
       });
-      core27.info(`
+      core28.info(`
 Diagnosis Result:`);
-      core27.info(`Status: ${result.status}`);
+      core28.info(`Status: ${result.status}`);
       if (result.suggestedFix) {
-        core27.info(`Suggested Fix: ${result.suggestedFix}`);
+        core28.info(`Suggested Fix: ${result.suggestedFix}`);
       }
       if (result.diagnosis) {
-        core27.info(`Diagnosis: ${result.diagnosis}`);
+        core28.info(`Diagnosis: ${result.diagnosis}`);
       }
       return;
     }
@@ -50941,10 +51089,10 @@ Diagnosis Result:`);
         description: "Wait for status",
         timeout: parseInt(getOptionalInput("timeout") || "300", 10)
       };
-      core27.info(`=== Claude Test Runner ===`);
-      core27.info(`Action: wait`);
-      core27.info(`Issue: #${issueNumber}`);
-      core27.info(`Target Status: ${targetStatus}`);
+      core28.info(`=== Claude Test Runner ===`);
+      core28.info(`Action: wait`);
+      core28.info(`Issue: #${issueNumber}`);
+      core28.info(`Target Status: ${targetStatus}`);
       const result = await waitForStatus(
         {
           fixture,
@@ -50967,11 +51115,11 @@ Diagnosis Result:`);
         if (cleanupOnFailure) {
           await triggerCleanup(octokit, owner, repo, issueNumber);
         }
-        core27.setFailed(
+        core28.setFailed(
           `Failed to reach status '${targetStatus}': ${result.diagnosis}`
         );
       } else {
-        core27.info(`Issue reached status '${targetStatus}'`);
+        core28.info(`Issue reached status '${targetStatus}'`);
       }
       return;
     }
@@ -50981,9 +51129,9 @@ Diagnosis Result:`);
       const timeoutMs = parseInt(getOptionalInput("timeout") || "300", 10) * 1e3;
       const pollIntervalMs = parseInt(getOptionalInput("poll_interval") || "10", 10) * 1e3;
       const fixture = fixtureJson ? JSON.parse(fixtureJson) : { name: "wait-triage", description: "Wait for triage" };
-      core27.info(`=== Claude Test Runner ===`);
-      core27.info(`Action: wait-triage`);
-      core27.info(`Issue: #${issueNumber}`);
+      core28.info(`=== Claude Test Runner ===`);
+      core28.info(`Action: wait-triage`);
+      core28.info(`Issue: #${issueNumber}`);
       const result = await waitForTriage({
         octokit,
         owner,
@@ -51006,11 +51154,11 @@ Diagnosis Result:`);
         if (cleanupOnFailure) {
           await triggerCleanup(octokit, owner, repo, issueNumber);
         }
-        core27.setFailed(
+        core28.setFailed(
           `Triage verification failed: ${result.errors.join("; ")}`
         );
       } else {
-        core27.info("Triage completed and verified successfully");
+        core28.info("Triage completed and verified successfully");
       }
       return;
     }
@@ -51031,12 +51179,12 @@ Diagnosis Result:`);
           review: ["approved"]
         }
       } : void 0;
-      core27.info(`=== Claude Test Runner ===`);
-      core27.info(`Action: wait-phase`);
-      core27.info(`Issue: #${issueNumber}`);
-      core27.info(`Phase: ${phaseNumber}`);
+      core28.info(`=== Claude Test Runner ===`);
+      core28.info(`Action: wait-phase`);
+      core28.info(`Issue: #${issueNumber}`);
+      core28.info(`Phase: ${phaseNumber}`);
       if (e2eConfig) {
-        core27.info(`E2E Run ID: ${e2eConfig.runId}`);
+        core28.info(`E2E Run ID: ${e2eConfig.runId}`);
       }
       const result = await waitForPhase({
         octokit,
@@ -51066,19 +51214,19 @@ Diagnosis Result:`);
         if (cleanupOnFailure) {
           await triggerCleanup(octokit, owner, repo, issueNumber);
         }
-        core27.setFailed(
+        core28.setFailed(
           `Phase ${phaseNumber} verification failed: ${result.errors.join("; ")}`
         );
       } else {
-        core27.info(`Phase ${phaseNumber} completed and verified successfully`);
+        core28.info(`Phase ${phaseNumber} completed and verified successfully`);
       }
       return;
     }
     if (action === "status") {
       const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
-      core27.info(`=== Claude Test Runner ===`);
-      core27.info(`Action: status`);
-      core27.info(`Issue: #${issueNumber}`);
+      core28.info(`=== Claude Test Runner ===`);
+      core28.info(`Action: status`);
+      core28.info(`Issue: #${issueNumber}`);
       const state = await fetchGitHubState(
         octokit,
         owner,
@@ -51107,35 +51255,35 @@ Diagnosis Result:`);
         predicted_status: predicted.expectedStatus || "",
         workflow_status: workflowRuns.length > 0 ? workflowRuns[0]?.status || "unknown" : "none"
       });
-      core27.info(`
+      core28.info(`
 Current State:`);
-      core27.info(`  Status: ${state.projectStatus || "unknown"}`);
-      core27.info(`  Iteration: ${state.iteration}`);
-      core27.info(`  Failures: ${state.failures}`);
-      core27.info(`  Bot Assigned: ${state.botAssigned}`);
-      core27.info(
+      core28.info(`  Status: ${state.projectStatus || "unknown"}`);
+      core28.info(`  Iteration: ${state.iteration}`);
+      core28.info(`  Failures: ${state.failures}`);
+      core28.info(`  Bot Assigned: ${state.botAssigned}`);
+      core28.info(
         `  PR: ${state.prNumber ? `#${state.prNumber} (${state.prState})` : "none"}`
       );
-      core27.info(`  Branch: ${state.branch || "none"}`);
-      core27.info(`  Unchecked Todos: ${state.uncheckedTodos}`);
-      core27.info(`
+      core28.info(`  Branch: ${state.branch || "none"}`);
+      core28.info(`  Unchecked Todos: ${state.uncheckedTodos}`);
+      core28.info(`
 Prediction:`);
-      core27.info(`  Expected State: ${predicted.expectedState}`);
-      core27.info(
+      core28.info(`  Expected State: ${predicted.expectedState}`);
+      core28.info(
         `  Expected Status: ${predicted.expectedStatus || "unchanged"}`
       );
-      core27.info(`  Description: ${predicted.description}`);
+      core28.info(`  Description: ${predicted.description}`);
       return;
     }
     if (action === "validate") {
       const fixtureJson = getRequiredInput("fixture_json");
-      core27.info(`=== Claude Test Runner ===`);
-      core27.info(`Action: validate`);
+      core28.info(`=== Claude Test Runner ===`);
+      core28.info(`Action: validate`);
       let fixture;
       try {
         fixture = JSON.parse(fixtureJson);
       } catch (error9) {
-        core27.setFailed(`Invalid JSON: ${error9}`);
+        core28.setFailed(`Invalid JSON: ${error9}`);
         setOutputs({
           valid: "false",
           errors: `Invalid JSON: ${error9}`,
@@ -51145,7 +51293,7 @@ Prediction:`);
       }
       const result = validateFixture(fixture);
       const formatted = formatValidationResult("fixture", result);
-      core27.info(`
+      core28.info(`
 ${formatted}`);
       setOutputs({
         valid: String(result.valid),
@@ -51153,7 +51301,7 @@ ${formatted}`);
         warnings: result.warnings.join("; ")
       });
       if (!result.valid) {
-        core27.setFailed(`Fixture validation failed`);
+        core28.setFailed(`Fixture validation failed`);
       }
       return;
     }
@@ -51164,15 +51312,15 @@ ${formatted}`);
       const mockCI = getOptionalInput("mock_ci") !== "false";
       const startStep = getOptionalInput("start_step");
       const multiIssue = getOptionalInput("multi_issue") !== "false";
-      core27.info(`=== Claude Test Runner ===`);
-      core27.info(`Action: run-configurable`);
-      core27.info(`Scenario: ${scenarioName}`);
-      core27.info(`Continue: ${continueRun}`);
-      core27.info(`Mock Claude: ${mockClaude}`);
-      core27.info(`Mock CI: ${mockCI}`);
-      core27.info(`Multi Issue: ${multiIssue}`);
+      core28.info(`=== Claude Test Runner ===`);
+      core28.info(`Action: run-configurable`);
+      core28.info(`Scenario: ${scenarioName}`);
+      core28.info(`Continue: ${continueRun}`);
+      core28.info(`Mock Claude: ${mockClaude}`);
+      core28.info(`Mock CI: ${mockCI}`);
+      core28.info(`Multi Issue: ${multiIssue}`);
       if (startStep) {
-        core27.info(`Start Step: ${startStep}`);
+        core28.info(`Start Step: ${startStep}`);
       }
       const scenario = await loadScenario(scenarioName);
       const inputs = {
@@ -51184,6 +51332,7 @@ ${formatted}`);
       };
       const result = await runConfigurableTest(scenario, inputs, {
         octokit,
+        reviewOctokit,
         owner,
         repo,
         projectNumber
@@ -51198,13 +51347,13 @@ ${formatted}`);
         error: result.error || ""
       });
       if (result.status === "failed" || result.status === "error") {
-        core27.setFailed(`Test ${result.status}: ${result.error}`);
+        core28.setFailed(`Test ${result.status}: ${result.error}`);
       } else if (result.status === "completed") {
-        core27.info(
+        core28.info(
           `Test completed successfully with ${result.transitions.length} transitions`
         );
       } else if (result.status === "paused") {
-        core27.info(
+        core28.info(
           `Test paused at ${result.currentState} -> ${result.nextState}`
         );
       }
@@ -51213,10 +51362,10 @@ ${formatted}`);
     if (action === "run-discussion") {
       const scenarioName = getRequiredInput("scenario_name");
       const mockClaude = getOptionalInput("mock_claude") !== "false";
-      core27.info(`=== Claude Test Runner ===`);
-      core27.info(`Action: run-discussion`);
-      core27.info(`Scenario: ${scenarioName}`);
-      core27.info(`Mock Claude: ${mockClaude}`);
+      core28.info(`=== Claude Test Runner ===`);
+      core28.info(`Action: run-discussion`);
+      core28.info(`Scenario: ${scenarioName}`);
+      core28.info(`Mock Claude: ${mockClaude}`);
       const scenario = await loadDiscussionScenario(scenarioName);
       const inputs = {
         mockClaude
@@ -51237,22 +51386,22 @@ ${formatted}`);
         error: result.error || ""
       });
       if (result.status === "failed" || result.status === "error") {
-        core27.setFailed(
+        core28.setFailed(
           `Discussion test ${result.status}: ${result.error || result.verificationErrors?.join("; ")}`
         );
       } else if (result.status === "completed") {
-        core27.info(
+        core28.info(
           `Discussion test completed successfully. Final state: ${result.finalState}, Actions: ${result.actionsExecuted}`
         );
       }
       return;
     }
-    core27.setFailed(`Unknown action: ${action}`);
+    core28.setFailed(`Unknown action: ${action}`);
   } catch (error9) {
     if (error9 instanceof Error) {
-      core27.setFailed(error9.message);
+      core28.setFailed(error9.message);
     } else {
-      core27.setFailed("An unexpected error occurred");
+      core28.setFailed("An unexpected error occurred");
     }
   }
 }

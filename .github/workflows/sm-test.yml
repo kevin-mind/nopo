@@ -145,6 +145,7 @@ jobs:
           start_step: ${{ inputs.start_step }}
           multi_issue: ${{ inputs.multi_issue }}
           github_token: ${{ secrets.NOPO_BOT_PAT }}
+          reviewer_token: ${{ secrets.CLAUDE_REVIEWER_PAT }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
 
       - name: Output results
