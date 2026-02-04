@@ -510,6 +510,7 @@ export function emitRunClaude({ context }: ActionContext): ActionResult {
       type: "runClaude",
       token: "code",
       promptDir: "iterate",
+      promptsDir: ".github/statemachine/issue/prompts",
       promptVars,
       issueNumber,
       // Structured output is saved to claude-structured-output.json by run-claude action
@@ -554,6 +555,7 @@ Review the CI logs at the link above and fix the failing tests or build errors.`
       type: "runClaude",
       token: "code",
       promptDir: "iterate",
+      promptsDir: ".github/statemachine/issue/prompts",
       promptVars,
       issueNumber,
       // Structured output is saved to claude-structured-output.json by run-claude action
@@ -702,6 +704,7 @@ export function emitRunClaudePRReview({
       type: "runClaude",
       token: "code", // runClaude uses code token for checkout/execution
       promptDir: "review",
+      promptsDir: ".github/statemachine/issue/prompts",
       promptVars,
       issueNumber,
       // worktree intentionally omitted - checkout happens at repo root to the correct branch
@@ -772,6 +775,7 @@ export function emitRunClaudePRResponse({
       type: "runClaude",
       token: "code",
       promptDir: "review-response",
+      promptsDir: ".github/statemachine/issue/prompts",
       promptVars,
       issueNumber,
       // worktree intentionally omitted - checkout happens at repo root to the correct branch
@@ -844,6 +848,7 @@ export function emitRunClaudePRHumanResponse({
       type: "runClaude",
       token: "code",
       promptDir: "human-review-response",
+      promptsDir: ".github/statemachine/issue/prompts",
       promptVars,
       issueNumber,
       // worktree intentionally omitted - checkout happens at repo root to the correct branch
