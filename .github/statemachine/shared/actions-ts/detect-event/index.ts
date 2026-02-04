@@ -1522,8 +1522,10 @@ async function handlePullRequestEvent(
     // Extract issue number for logging review events to iteration history
     const issueNumber = await extractIssueNumber(pr.body ?? "");
 
+    // Use pr-review-requested (not pr-review) since this is a review REQUEST,
+    // not a review SUBMISSION. pr-review expects reviewDecision/reviewer fields.
     return {
-      job: "pr-review",
+      job: "pr-review-requested",
       resourceType: "pr",
       resourceNumber: String(pr.number),
       commentId: "",

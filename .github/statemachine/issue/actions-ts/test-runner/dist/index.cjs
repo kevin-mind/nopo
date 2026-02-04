@@ -32022,7 +32022,7 @@ function triggeredByOrchestrate({ context: context2 }) {
   return context2.trigger === "issue-orchestrate";
 }
 function triggeredByPRReview({ context: context2 }) {
-  return context2.trigger === "pr-review";
+  return context2.trigger === "pr-review-requested" || context2.trigger === "pr-review";
 }
 function triggeredByPRResponse({ context: context2 }) {
   return context2.trigger === "pr-response";

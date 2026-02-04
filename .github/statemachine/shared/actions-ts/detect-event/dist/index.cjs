@@ -24954,7 +24954,7 @@ async function handlePullRequestEvent(octokit, owner, repo) {
     );
     const issueNumber = await extractIssueNumber(pr.body ?? "");
     return {
-      job: "pr-review",
+      job: "pr-review-requested",
       resourceType: "pr",
       resourceNumber: String(pr.number),
       commentId: "",

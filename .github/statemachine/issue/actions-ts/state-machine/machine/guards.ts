@@ -379,9 +379,15 @@ function triggeredByOrchestrate({ context }: GuardContext): boolean {
 
 /**
  * Check if triggered by PR review request (bot should review the PR)
+ * Matches both:
+ * - pr-review-requested: when someone requests review from nopo-reviewer
+ * - pr-review: legacy trigger for review submission events
  */
 function triggeredByPRReview({ context }: GuardContext): boolean {
-  return context.trigger === "pr-review";
+  return (
+    context.trigger === "pr-review-requested" ||
+    context.trigger === "pr-review"
+  );
 }
 
 /**
