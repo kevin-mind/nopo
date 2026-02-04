@@ -33956,6 +33956,9 @@ var claudeMachine = setup({
         { target: "orchestrating", guard: "hasSubIssues" },
         // Check current state
         { target: "reviewing", guard: "isInReview" },
+        // Check if ready for review (CI passed + todos done) from any trigger
+        // This allows the state machine to "catch up" when re-triggered
+        { target: "transitioningToReview", guard: "readyForReview" },
         // Default to iterating
         { target: "iterating" }
       ]
