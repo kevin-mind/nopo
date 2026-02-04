@@ -675,6 +675,12 @@ export function emitRunClaudePRReview({
     REPO_NAME: context.repo,
   };
 
+  // Artifact configuration for passing structured output from runClaude to applyReviewOutput
+  const reviewArtifact = {
+    name: "claude-review-output",
+    path: "claude-structured-output.json",
+  };
+
   return [
     {
       type: "runClaude",
@@ -683,12 +689,17 @@ export function emitRunClaudePRReview({
       promptVars,
       issueNumber,
       // worktree intentionally omitted - checkout happens at repo root to the correct branch
+      // Structured output is saved to claude-structured-output.json by run-claude action
+      producesArtifact: reviewArtifact,
     },
     // Apply review output: submit the PR review using structured output
+    // Downloads the artifact before execution
     {
       type: "applyReviewOutput",
       token: "review", // submitReview uses review token for different user
       prNumber,
+      filePath: "claude-structured-output.json",
+      consumesArtifact: reviewArtifact,
     },
   ];
 }

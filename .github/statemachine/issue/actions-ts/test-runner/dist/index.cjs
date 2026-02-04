@@ -33124,6 +33124,10 @@ function emitRunClaudePRReview({
     REPO_OWNER: context2.owner,
     REPO_NAME: context2.repo
   };
+  const reviewArtifact = {
+    name: "claude-review-output",
+    path: "claude-structured-output.json"
+  };
   return [
     {
       type: "runClaude",
@@ -33131,15 +33135,20 @@ function emitRunClaudePRReview({
       // runClaude uses code token for checkout/execution
       promptDir: "review",
       promptVars,
-      issueNumber
+      issueNumber,
       // worktree intentionally omitted - checkout happens at repo root to the correct branch
+      // Structured output is saved to claude-structured-output.json by run-claude action
+      producesArtifact: reviewArtifact
     },
     // Apply review output: submit the PR review using structured output
+    // Downloads the artifact before execution
     {
       type: "applyReviewOutput",
       token: "review",
       // submitReview uses review token for different user
-      prNumber
+      prNumber,
+      filePath: "claude-structured-output.json",
+      consumesArtifact: reviewArtifact
     }
   ];
 }
