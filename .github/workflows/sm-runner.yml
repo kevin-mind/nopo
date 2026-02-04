@@ -403,9 +403,9 @@ jobs:
       max-parallel: 1
       fail-fast: true
       matrix:
-        # DEBUG: Hardcode a simple matrix to verify the job runs
+        # DEBUG: Hardcode a simple matrix using fromJson
         # action: ${{ fromJson(needs.derive-actions.outputs.actions_matrix || '[]') }}
-        action: [{"type":"test","index":0}]
+        action: ${{ fromJson('[{"type":"test","index":0}]') }}
 
     steps:
       - name: Checkout repository
