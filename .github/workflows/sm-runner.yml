@@ -395,9 +395,9 @@ jobs:
   # Matrix job that executes each action in isolation with max-parallel: 1
   # ============================================================================
   exec-state-actions:
-    needs: [e2e-detect, derive-actions, debug-outputs]
-    # Only check action_count - the matrix validation is done in derive-actions
-    if: needs.derive-actions.outputs.action_count != '0'
+    needs: [e2e-detect, derive-actions]
+    # DEBUG: Use always() to ensure we can see if the job runs at all
+    if: ${{ always() && needs.derive-actions.outputs.action_count != '0' }}
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 1
