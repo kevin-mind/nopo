@@ -182,7 +182,7 @@ var require_file_command = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.prepareKeyValueMessage = exports2.issueFileCommand = void 0;
     var crypto = __importStar(require("crypto"));
-    var fs9 = __importStar(require("fs"));
+    var fs10 = __importStar(require("fs"));
     var os = __importStar(require("os"));
     var utils_1 = require_utils();
     function issueFileCommand(command, message) {
@@ -190,10 +190,10 @@ var require_file_command = __commonJS({
       if (!filePath) {
         throw new Error(`Unable to find environment variable for file command ${command}`);
       }
-      if (!fs9.existsSync(filePath)) {
+      if (!fs10.existsSync(filePath)) {
         throw new Error(`Missing file at path: ${filePath}`);
       }
-      fs9.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
+      fs10.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
         encoding: "utf8"
       });
     }
@@ -18510,12 +18510,12 @@ var require_io_util = __commonJS({
     var _a;
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getCmdPath = exports2.tryGetExecutablePath = exports2.isRooted = exports2.isDirectory = exports2.exists = exports2.READONLY = exports2.UV_FS_O_EXLOCK = exports2.IS_WINDOWS = exports2.unlink = exports2.symlink = exports2.stat = exports2.rmdir = exports2.rm = exports2.rename = exports2.readlink = exports2.readdir = exports2.open = exports2.mkdir = exports2.lstat = exports2.copyFile = exports2.chmod = void 0;
-    var fs9 = __importStar(require("fs"));
+    var fs10 = __importStar(require("fs"));
     var path2 = __importStar(require("path"));
-    _a = fs9.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
+    _a = fs10.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
     exports2.IS_WINDOWS = process.platform === "win32";
     exports2.UV_FS_O_EXLOCK = 268435456;
-    exports2.READONLY = fs9.constants.O_RDONLY;
+    exports2.READONLY = fs10.constants.O_RDONLY;
     function exists(fsPath) {
       return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -28664,7 +28664,7 @@ function shouldStopOnError(actionType) {
 
 // issue/actions-ts/state-machine/runner/runner.ts
 var core16 = __toESM(require_core(), 1);
-var fs8 = __toESM(require("fs"), 1);
+var fs9 = __toESM(require("fs"), 1);
 
 // issue/actions-ts/state-machine/runner/executors/project.ts
 var core2 = __toESM(require_core(), 1);
@@ -30167,11 +30167,12 @@ async function executeGitPush(action, _ctx) {
 // issue/actions-ts/state-machine/runner/executors/claude.ts
 var core6 = __toESM(require_core(), 1);
 var exec7 = __toESM(require_exec(), 1);
-var fs2 = __toESM(require("fs"), 1);
+var fs3 = __toESM(require("fs"), 1);
 
 // shared/actions-ts/claude/src/executor.ts
 var core5 = __toESM(require_core(), 1);
 var exec5 = __toESM(require_exec(), 1);
+var fs = __toESM(require("fs"), 1);
 
 // node_modules/@anthropic-ai/claude-agent-sdk/sdk.mjs
 var import_path = require("path");
@@ -38988,6 +38989,16 @@ async function executeClaudeSDK(options) {
   core5.info(`Working directory: ${cwd}`);
   core5.info(`Claude Code path: ${claudePath}`);
   core5.debug(`Prompt: ${prompt.slice(0, 200)}...`);
+  if (!fs.existsSync(claudePath)) {
+    const errorMsg = `Claude Code not found at ${claudePath}. Ensure Claude Code is installed (curl -fsSL https://claude.ai/install.sh | bash) or set CLAUDE_CODE_PATH environment variable.`;
+    core5.error(errorMsg);
+    return {
+      success: false,
+      exitCode: 1,
+      output: "",
+      error: errorMsg
+    };
+  }
   const sdkOptions = {
     cwd,
     pathToClaudeCodeExecutable: claudePath,
@@ -39080,7 +39091,7 @@ async function executeClaudeSDK(options) {
 }
 
 // shared/actions-ts/claude/src/prompts.ts
-var fs = __toESM(require("fs"), 1);
+var fs2 = __toESM(require("fs"), 1);
 var path = __toESM(require("path"), 1);
 function substituteVars(template, vars) {
   return template.replace(/\{\{([^}]+)\}\}/g, (match, varName) => {
@@ -39094,7 +39105,7 @@ function resolvePromptDir(promptDir, basePath = process.cwd(), promptsDir = ".gi
   const schemaPath = path.join(dirPath, "outputs.json");
   return {
     promptPath,
-    schemaPath: fs.existsSync(schemaPath) ? schemaPath : void 0
+    schemaPath: fs2.existsSync(schemaPath) ? schemaPath : void 0
   };
 }
 function resolvePrompt(options) {
@@ -39119,28 +39130,28 @@ function resolvePrompt(options) {
       basePath,
       promptsDir
     );
-    if (!fs.existsSync(promptPath)) {
+    if (!fs2.existsSync(promptPath)) {
       throw new Error(
         `Prompt file not found: ${promptPath} (from promptDir: ${promptDir})`
       );
     }
-    let resolvedPrompt = fs.readFileSync(promptPath, "utf-8");
+    let resolvedPrompt = fs2.readFileSync(promptPath, "utf-8");
     if (promptVars) {
       resolvedPrompt = substituteVars(resolvedPrompt, promptVars);
     }
     let outputSchema;
     if (schemaPath) {
-      const schemaContent = fs.readFileSync(schemaPath, "utf-8");
+      const schemaContent = fs2.readFileSync(schemaPath, "utf-8");
       outputSchema = JSON.parse(schemaContent);
     }
     return { prompt: resolvedPrompt, outputSchema };
   }
   if (promptFile) {
     const promptPath = path.resolve(basePath, promptFile);
-    if (!fs.existsSync(promptPath)) {
+    if (!fs2.existsSync(promptPath)) {
       throw new Error(`Prompt file not found: ${promptFile}`);
     }
-    let resolvedPrompt = fs.readFileSync(promptPath, "utf-8");
+    let resolvedPrompt = fs2.readFileSync(promptPath, "utf-8");
     if (promptVars) {
       resolvedPrompt = substituteVars(resolvedPrompt, promptVars);
     }
@@ -39183,7 +39194,7 @@ Timestamp: ${timestamp}
 Issue: #${action.issueNumber}
 Prompt: ${action.promptDir || action.promptFile || "inline"}
 `;
-    fs2.writeFileSync(mockFilePath, content);
+    fs3.writeFileSync(mockFilePath, content);
     await exec7.exec("git", ["add", mockFilePath]);
     const commitMessage = `test: mock commit for issue #${action.issueNumber}
 
@@ -39820,7 +39831,7 @@ ${issueLinks}`;
 
 // issue/actions-ts/state-machine/runner/executors/triage.ts
 var core9 = __toESM(require_core(), 1);
-var fs3 = __toESM(require("fs"), 1);
+var fs4 = __toESM(require("fs"), 1);
 var GET_REPO_ID_QUERY4 = `
 query GetRepoId($owner: String!, $repo: String!) {
   repository(owner: $owner, name: $repo) {
@@ -39877,9 +39888,9 @@ async function executeApplyTriageOutput(action, ctx, structuredOutput) {
     core9.startGroup("Triage Output (Structured)");
     core9.info(JSON.stringify(triageOutput, null, 2));
     core9.endGroup();
-  } else if (filePath && fs3.existsSync(filePath)) {
+  } else if (filePath && fs4.existsSync(filePath)) {
     try {
-      const content = fs3.readFileSync(filePath, "utf-8");
+      const content = fs4.readFileSync(filePath, "utf-8");
       triageOutput = JSON.parse(content);
       core9.info(`Triage output from file: ${filePath}`);
       core9.startGroup("Triage Output (File)");
@@ -40260,16 +40271,16 @@ async function applyProjectFields(ctx, issueNumber, classification) {
 
 // issue/actions-ts/state-machine/runner/executors/iterate.ts
 var core10 = __toESM(require_core(), 1);
-var fs4 = __toESM(require("node:fs"), 1);
+var fs5 = __toESM(require("node:fs"), 1);
 async function executeApplyIterateOutput(action, ctx, structuredOutput) {
   const { issueNumber, filePath } = action;
   let iterateOutput;
   if (structuredOutput) {
     iterateOutput = structuredOutput;
     core10.info("Using structured output from in-process chain");
-  } else if (filePath && fs4.existsSync(filePath)) {
+  } else if (filePath && fs5.existsSync(filePath)) {
     try {
-      const content = fs4.readFileSync(filePath, "utf-8");
+      const content = fs5.readFileSync(filePath, "utf-8");
       iterateOutput = JSON.parse(content);
       core10.info(`Iterate output from file: ${filePath}`);
     } catch (error4) {
@@ -40366,15 +40377,15 @@ function checkOffTodoInBody(body, todoText) {
 
 // issue/actions-ts/state-machine/runner/executors/review.ts
 var core11 = __toESM(require_core(), 1);
-var fs5 = __toESM(require("node:fs"), 1);
+var fs6 = __toESM(require("node:fs"), 1);
 async function executeApplyReviewOutput(action, ctx, structuredOutput) {
   let reviewOutput;
   if (structuredOutput) {
     reviewOutput = structuredOutput;
     core11.info("Using structured output from in-process chain");
-  } else if (action.filePath && fs5.existsSync(action.filePath)) {
+  } else if (action.filePath && fs6.existsSync(action.filePath)) {
     try {
-      const content = fs5.readFileSync(action.filePath, "utf-8");
+      const content = fs6.readFileSync(action.filePath, "utf-8");
       reviewOutput = JSON.parse(content);
       core11.info(`Review output from file: ${action.filePath}`);
     } catch (error4) {
@@ -40413,15 +40424,15 @@ async function executeApplyReviewOutput(action, ctx, structuredOutput) {
 
 // issue/actions-ts/state-machine/runner/executors/pr-response.ts
 var core12 = __toESM(require_core(), 1);
-var fs6 = __toESM(require("node:fs"), 1);
+var fs7 = __toESM(require("node:fs"), 1);
 async function executeApplyPRResponseOutput(action, ctx, structuredOutput) {
   let responseOutput;
   if (structuredOutput) {
     responseOutput = structuredOutput;
     core12.info("Using structured output from in-process chain");
-  } else if (action.filePath && fs6.existsSync(action.filePath)) {
+  } else if (action.filePath && fs7.existsSync(action.filePath)) {
     try {
-      const content = fs6.readFileSync(action.filePath, "utf-8");
+      const content = fs7.readFileSync(action.filePath, "utf-8");
       responseOutput = JSON.parse(content);
       core12.info(`PR response output from file: ${action.filePath}`);
     } catch (error4) {
@@ -40547,7 +40558,7 @@ async function executeAppendAgentNotes(action, ctx) {
 
 // issue/actions-ts/state-machine/runner/executors/grooming.ts
 var core14 = __toESM(require_core(), 1);
-var fs7 = __toESM(require("fs"), 1);
+var fs8 = __toESM(require("fs"), 1);
 async function executeRunClaudeGrooming(action, ctx) {
   const { issueNumber, promptVars } = action;
   core14.info(`Running grooming agents for issue #${issueNumber}`);
@@ -40603,7 +40614,7 @@ async function executeRunClaudeGrooming(action, ctx) {
     outputs[agent] = output || { ready: false };
   }
   const outputPath = "grooming-output.json";
-  fs7.writeFileSync(outputPath, JSON.stringify(outputs, null, 2));
+  fs8.writeFileSync(outputPath, JSON.stringify(outputs, null, 2));
   core14.info(`Wrote combined grooming output to ${outputPath}`);
   return { outputs };
 }
@@ -40613,9 +40624,9 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
   if (structuredOutput) {
     groomingOutputs = structuredOutput;
     core14.info("Using grooming output from in-process chain");
-  } else if (filePath && fs7.existsSync(filePath)) {
+  } else if (filePath && fs8.existsSync(filePath)) {
     try {
-      const content = fs7.readFileSync(filePath, "utf-8");
+      const content = fs8.readFileSync(filePath, "utf-8");
       groomingOutputs = JSON.parse(content);
       core14.info(`Grooming output from file: ${filePath}`);
     } catch (error4) {
@@ -40873,14 +40884,14 @@ function getStructuredOutput(action, chainCtx) {
     core16.info(`Checking for structured output file: ${actionWithFile.filePath}`);
     core16.info(`Current working directory: ${process.cwd()}`);
     try {
-      const files = fs8.readdirSync(".");
+      const files = fs9.readdirSync(".");
       core16.info(`Files in cwd: ${files.slice(0, 20).join(", ")}`);
     } catch (e2) {
       core16.warning(`Failed to list files: ${e2}`);
     }
-    if (fs8.existsSync(actionWithFile.filePath)) {
+    if (fs9.existsSync(actionWithFile.filePath)) {
       try {
-        const content = fs8.readFileSync(actionWithFile.filePath, "utf-8");
+        const content = fs9.readFileSync(actionWithFile.filePath, "utf-8");
         const parsed = JSON.parse(content);
         core16.info(`Loaded structured output from file: ${actionWithFile.filePath}`);
         return parsed;

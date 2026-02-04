@@ -178,7 +178,7 @@ var require_file_command = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.prepareKeyValueMessage = exports2.issueFileCommand = void 0;
     var crypto = __importStar(require("crypto"));
-    var fs3 = __importStar(require("fs"));
+    var fs4 = __importStar(require("fs"));
     var os = __importStar(require("os"));
     var utils_1 = require_utils();
     function issueFileCommand(command, message) {
@@ -186,10 +186,10 @@ var require_file_command = __commonJS({
       if (!filePath) {
         throw new Error(`Unable to find environment variable for file command ${command}`);
       }
-      if (!fs3.existsSync(filePath)) {
+      if (!fs4.existsSync(filePath)) {
         throw new Error(`Missing file at path: ${filePath}`);
       }
-      fs3.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
+      fs4.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
         encoding: "utf8"
       });
     }
@@ -18506,12 +18506,12 @@ var require_io_util = __commonJS({
     var _a;
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getCmdPath = exports2.tryGetExecutablePath = exports2.isRooted = exports2.isDirectory = exports2.exists = exports2.READONLY = exports2.UV_FS_O_EXLOCK = exports2.IS_WINDOWS = exports2.unlink = exports2.symlink = exports2.stat = exports2.rmdir = exports2.rm = exports2.rename = exports2.readlink = exports2.readdir = exports2.open = exports2.mkdir = exports2.lstat = exports2.copyFile = exports2.chmod = void 0;
-    var fs3 = __importStar(require("fs"));
+    var fs4 = __importStar(require("fs"));
     var path2 = __importStar(require("path"));
-    _a = fs3.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
+    _a = fs4.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
     exports2.IS_WINDOWS = process.platform === "win32";
     exports2.UV_FS_O_EXLOCK = 268435456;
-    exports2.READONLY = fs3.constants.O_RDONLY;
+    exports2.READONLY = fs4.constants.O_RDONLY;
     function exists(fsPath) {
       return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -19811,11 +19811,12 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
 
 // shared/actions-ts/claude/action-entry.ts
 var core2 = __toESM(require_core(), 1);
-var fs2 = __toESM(require("node:fs"), 1);
+var fs3 = __toESM(require("node:fs"), 1);
 
 // shared/actions-ts/claude/src/executor.ts
 var core = __toESM(require_core(), 1);
 var exec = __toESM(require_exec(), 1);
+var fs = __toESM(require("fs"), 1);
 
 // node_modules/@anthropic-ai/claude-agent-sdk/sdk.mjs
 var import_path = require("path");
@@ -28632,6 +28633,16 @@ async function executeClaudeSDK(options) {
   core.info(`Working directory: ${cwd}`);
   core.info(`Claude Code path: ${claudePath}`);
   core.debug(`Prompt: ${prompt.slice(0, 200)}...`);
+  if (!fs.existsSync(claudePath)) {
+    const errorMsg = `Claude Code not found at ${claudePath}. Ensure Claude Code is installed (curl -fsSL https://claude.ai/install.sh | bash) or set CLAUDE_CODE_PATH environment variable.`;
+    core.error(errorMsg);
+    return {
+      success: false,
+      exitCode: 1,
+      output: "",
+      error: errorMsg
+    };
+  }
   const sdkOptions = {
     cwd,
     pathToClaudeCodeExecutable: claudePath,
@@ -28724,7 +28735,7 @@ async function executeClaudeSDK(options) {
 }
 
 // shared/actions-ts/claude/src/prompts.ts
-var fs = __toESM(require("fs"), 1);
+var fs2 = __toESM(require("fs"), 1);
 var path = __toESM(require("path"), 1);
 function substituteVars(template, vars) {
   return template.replace(/\{\{([^}]+)\}\}/g, (match, varName) => {
@@ -28738,7 +28749,7 @@ function resolvePromptDir(promptDir, basePath = process.cwd(), promptsDir = ".gi
   const schemaPath = path.join(dirPath, "outputs.json");
   return {
     promptPath,
-    schemaPath: fs.existsSync(schemaPath) ? schemaPath : void 0
+    schemaPath: fs2.existsSync(schemaPath) ? schemaPath : void 0
   };
 }
 function resolvePrompt(options) {
@@ -28763,28 +28774,28 @@ function resolvePrompt(options) {
       basePath,
       promptsDir
     );
-    if (!fs.existsSync(promptPath)) {
+    if (!fs2.existsSync(promptPath)) {
       throw new Error(
         `Prompt file not found: ${promptPath} (from promptDir: ${promptDir})`
       );
     }
-    let resolvedPrompt = fs.readFileSync(promptPath, "utf-8");
+    let resolvedPrompt = fs2.readFileSync(promptPath, "utf-8");
     if (promptVars) {
       resolvedPrompt = substituteVars(resolvedPrompt, promptVars);
     }
     let outputSchema;
     if (schemaPath) {
-      const schemaContent = fs.readFileSync(schemaPath, "utf-8");
+      const schemaContent = fs2.readFileSync(schemaPath, "utf-8");
       outputSchema = JSON.parse(schemaContent);
     }
     return { prompt: resolvedPrompt, outputSchema };
   }
   if (promptFile) {
     const promptPath = path.resolve(basePath, promptFile);
-    if (!fs.existsSync(promptPath)) {
+    if (!fs2.existsSync(promptPath)) {
       throw new Error(`Prompt file not found: ${promptFile}`);
     }
-    let resolvedPrompt = fs.readFileSync(promptPath, "utf-8");
+    let resolvedPrompt = fs2.readFileSync(promptPath, "utf-8");
     if (promptVars) {
       resolvedPrompt = substituteVars(resolvedPrompt, promptVars);
     }
@@ -28818,7 +28829,7 @@ async function run() {
         core2.setOutput("success", "true");
         core2.setOutput("output", JSON.stringify(parsed));
         core2.setOutput("structured_output", JSON.stringify(parsed));
-        fs2.writeFileSync("claude-structured-output.json", JSON.stringify(parsed, null, 2));
+        fs3.writeFileSync("claude-structured-output.json", JSON.stringify(parsed, null, 2));
         core2.info("Mock output written to claude-structured-output.json");
         return;
       } catch (e2) {
@@ -28858,7 +28869,7 @@ async function run() {
     if (result.structuredOutput) {
       const structuredJson = JSON.stringify(result.structuredOutput);
       core2.setOutput("structured_output", structuredJson);
-      fs2.writeFileSync("claude-structured-output.json", JSON.stringify(result.structuredOutput, null, 2));
+      fs3.writeFileSync("claude-structured-output.json", JSON.stringify(result.structuredOutput, null, 2));
       core2.info("Structured output written to claude-structured-output.json");
     }
     if (result.numTurns !== void 0) {

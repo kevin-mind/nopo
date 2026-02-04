@@ -182,7 +182,7 @@ var require_file_command = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.prepareKeyValueMessage = exports2.issueFileCommand = void 0;
     var crypto = __importStar(require("crypto"));
-    var fs11 = __importStar(require("fs"));
+    var fs12 = __importStar(require("fs"));
     var os = __importStar(require("os"));
     var utils_1 = require_utils();
     function issueFileCommand(command, message) {
@@ -190,10 +190,10 @@ var require_file_command = __commonJS({
       if (!filePath) {
         throw new Error(`Unable to find environment variable for file command ${command}`);
       }
-      if (!fs11.existsSync(filePath)) {
+      if (!fs12.existsSync(filePath)) {
         throw new Error(`Missing file at path: ${filePath}`);
       }
-      fs11.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
+      fs12.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
         encoding: "utf8"
       });
     }
@@ -18510,12 +18510,12 @@ var require_io_util = __commonJS({
     var _a;
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getCmdPath = exports2.tryGetExecutablePath = exports2.isRooted = exports2.isDirectory = exports2.exists = exports2.READONLY = exports2.UV_FS_O_EXLOCK = exports2.IS_WINDOWS = exports2.unlink = exports2.symlink = exports2.stat = exports2.rmdir = exports2.rm = exports2.rename = exports2.readlink = exports2.readdir = exports2.open = exports2.mkdir = exports2.lstat = exports2.copyFile = exports2.chmod = void 0;
-    var fs11 = __importStar(require("fs"));
+    var fs12 = __importStar(require("fs"));
     var path4 = __importStar(require("path"));
-    _a = fs11.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
+    _a = fs12.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
     exports2.IS_WINDOWS = process.platform === "win32";
     exports2.UV_FS_O_EXLOCK = 268435456;
-    exports2.READONLY = fs11.constants.O_RDONLY;
+    exports2.READONLY = fs12.constants.O_RDONLY;
     function exists(fsPath) {
       return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -37022,7 +37022,7 @@ var exec13 = __toESM(require_exec(), 1);
 
 // issue/actions-ts/state-machine/runner/runner.ts
 var core21 = __toESM(require_core(), 1);
-var fs9 = __toESM(require("fs"), 1);
+var fs10 = __toESM(require("fs"), 1);
 
 // issue/actions-ts/state-machine/runner/executors/project.ts
 var core7 = __toESM(require_core(), 1);
@@ -38092,11 +38092,12 @@ async function executeGitPush(action, _ctx) {
 // issue/actions-ts/state-machine/runner/executors/claude.ts
 var core11 = __toESM(require_core(), 1);
 var exec11 = __toESM(require_exec(), 1);
-var fs3 = __toESM(require("fs"), 1);
+var fs4 = __toESM(require("fs"), 1);
 
 // shared/actions-ts/claude/src/executor.ts
 var core10 = __toESM(require_core(), 1);
 var exec9 = __toESM(require_exec(), 1);
+var fs2 = __toESM(require("fs"), 1);
 
 // node_modules/@anthropic-ai/claude-agent-sdk/sdk.mjs
 var import_path = require("path");
@@ -46913,6 +46914,16 @@ async function executeClaudeSDK(options) {
   core10.info(`Working directory: ${cwd}`);
   core10.info(`Claude Code path: ${claudePath}`);
   core10.debug(`Prompt: ${prompt.slice(0, 200)}...`);
+  if (!fs2.existsSync(claudePath)) {
+    const errorMsg = `Claude Code not found at ${claudePath}. Ensure Claude Code is installed (curl -fsSL https://claude.ai/install.sh | bash) or set CLAUDE_CODE_PATH environment variable.`;
+    core10.error(errorMsg);
+    return {
+      success: false,
+      exitCode: 1,
+      output: "",
+      error: errorMsg
+    };
+  }
   const sdkOptions = {
     cwd,
     pathToClaudeCodeExecutable: claudePath,
@@ -47005,7 +47016,7 @@ async function executeClaudeSDK(options) {
 }
 
 // shared/actions-ts/claude/src/prompts.ts
-var fs2 = __toESM(require("fs"), 1);
+var fs3 = __toESM(require("fs"), 1);
 var path2 = __toESM(require("path"), 1);
 function substituteVars(template, vars) {
   return template.replace(/\{\{([^}]+)\}\}/g, (match, varName) => {
@@ -47019,7 +47030,7 @@ function resolvePromptDir(promptDir, basePath = process.cwd(), promptsDir = ".gi
   const schemaPath = path2.join(dirPath, "outputs.json");
   return {
     promptPath,
-    schemaPath: fs2.existsSync(schemaPath) ? schemaPath : void 0
+    schemaPath: fs3.existsSync(schemaPath) ? schemaPath : void 0
   };
 }
 function resolvePrompt(options) {
@@ -47044,28 +47055,28 @@ function resolvePrompt(options) {
       basePath,
       promptsDir
     );
-    if (!fs2.existsSync(promptPath)) {
+    if (!fs3.existsSync(promptPath)) {
       throw new Error(
         `Prompt file not found: ${promptPath} (from promptDir: ${promptDir})`
       );
     }
-    let resolvedPrompt = fs2.readFileSync(promptPath, "utf-8");
+    let resolvedPrompt = fs3.readFileSync(promptPath, "utf-8");
     if (promptVars) {
       resolvedPrompt = substituteVars(resolvedPrompt, promptVars);
     }
     let outputSchema;
     if (schemaPath) {
-      const schemaContent = fs2.readFileSync(schemaPath, "utf-8");
+      const schemaContent = fs3.readFileSync(schemaPath, "utf-8");
       outputSchema = JSON.parse(schemaContent);
     }
     return { prompt: resolvedPrompt, outputSchema };
   }
   if (promptFile) {
     const promptPath = path2.resolve(basePath, promptFile);
-    if (!fs2.existsSync(promptPath)) {
+    if (!fs3.existsSync(promptPath)) {
       throw new Error(`Prompt file not found: ${promptFile}`);
     }
-    let resolvedPrompt = fs2.readFileSync(promptPath, "utf-8");
+    let resolvedPrompt = fs3.readFileSync(promptPath, "utf-8");
     if (promptVars) {
       resolvedPrompt = substituteVars(resolvedPrompt, promptVars);
     }
@@ -47108,7 +47119,7 @@ Timestamp: ${timestamp}
 Issue: #${action.issueNumber}
 Prompt: ${action.promptDir || action.promptFile || "inline"}
 `;
-    fs3.writeFileSync(mockFilePath, content);
+    fs4.writeFileSync(mockFilePath, content);
     await exec11.exec("git", ["add", mockFilePath]);
     const commitMessage = `test: mock commit for issue #${action.issueNumber}
 
@@ -47745,7 +47756,7 @@ ${issueLinks}`;
 
 // issue/actions-ts/state-machine/runner/executors/triage.ts
 var core14 = __toESM(require_core(), 1);
-var fs4 = __toESM(require("fs"), 1);
+var fs5 = __toESM(require("fs"), 1);
 var GET_REPO_ID_QUERY4 = `
 query GetRepoId($owner: String!, $repo: String!) {
   repository(owner: $owner, name: $repo) {
@@ -47802,9 +47813,9 @@ async function executeApplyTriageOutput(action, ctx, structuredOutput) {
     core14.startGroup("Triage Output (Structured)");
     core14.info(JSON.stringify(triageOutput, null, 2));
     core14.endGroup();
-  } else if (filePath && fs4.existsSync(filePath)) {
+  } else if (filePath && fs5.existsSync(filePath)) {
     try {
-      const content = fs4.readFileSync(filePath, "utf-8");
+      const content = fs5.readFileSync(filePath, "utf-8");
       triageOutput = JSON.parse(content);
       core14.info(`Triage output from file: ${filePath}`);
       core14.startGroup("Triage Output (File)");
@@ -48185,16 +48196,16 @@ async function applyProjectFields(ctx, issueNumber, classification) {
 
 // issue/actions-ts/state-machine/runner/executors/iterate.ts
 var core15 = __toESM(require_core(), 1);
-var fs5 = __toESM(require("node:fs"), 1);
+var fs6 = __toESM(require("node:fs"), 1);
 async function executeApplyIterateOutput(action, ctx, structuredOutput) {
   const { issueNumber, filePath } = action;
   let iterateOutput;
   if (structuredOutput) {
     iterateOutput = structuredOutput;
     core15.info("Using structured output from in-process chain");
-  } else if (filePath && fs5.existsSync(filePath)) {
+  } else if (filePath && fs6.existsSync(filePath)) {
     try {
-      const content = fs5.readFileSync(filePath, "utf-8");
+      const content = fs6.readFileSync(filePath, "utf-8");
       iterateOutput = JSON.parse(content);
       core15.info(`Iterate output from file: ${filePath}`);
     } catch (error10) {
@@ -48291,15 +48302,15 @@ function checkOffTodoInBody(body, todoText) {
 
 // issue/actions-ts/state-machine/runner/executors/review.ts
 var core16 = __toESM(require_core(), 1);
-var fs6 = __toESM(require("node:fs"), 1);
+var fs7 = __toESM(require("node:fs"), 1);
 async function executeApplyReviewOutput(action, ctx, structuredOutput) {
   let reviewOutput;
   if (structuredOutput) {
     reviewOutput = structuredOutput;
     core16.info("Using structured output from in-process chain");
-  } else if (action.filePath && fs6.existsSync(action.filePath)) {
+  } else if (action.filePath && fs7.existsSync(action.filePath)) {
     try {
-      const content = fs6.readFileSync(action.filePath, "utf-8");
+      const content = fs7.readFileSync(action.filePath, "utf-8");
       reviewOutput = JSON.parse(content);
       core16.info(`Review output from file: ${action.filePath}`);
     } catch (error10) {
@@ -48338,15 +48349,15 @@ async function executeApplyReviewOutput(action, ctx, structuredOutput) {
 
 // issue/actions-ts/state-machine/runner/executors/pr-response.ts
 var core17 = __toESM(require_core(), 1);
-var fs7 = __toESM(require("node:fs"), 1);
+var fs8 = __toESM(require("node:fs"), 1);
 async function executeApplyPRResponseOutput(action, ctx, structuredOutput) {
   let responseOutput;
   if (structuredOutput) {
     responseOutput = structuredOutput;
     core17.info("Using structured output from in-process chain");
-  } else if (action.filePath && fs7.existsSync(action.filePath)) {
+  } else if (action.filePath && fs8.existsSync(action.filePath)) {
     try {
-      const content = fs7.readFileSync(action.filePath, "utf-8");
+      const content = fs8.readFileSync(action.filePath, "utf-8");
       responseOutput = JSON.parse(content);
       core17.info(`PR response output from file: ${action.filePath}`);
     } catch (error10) {
@@ -48472,7 +48483,7 @@ async function executeAppendAgentNotes(action, ctx) {
 
 // issue/actions-ts/state-machine/runner/executors/grooming.ts
 var core19 = __toESM(require_core(), 1);
-var fs8 = __toESM(require("fs"), 1);
+var fs9 = __toESM(require("fs"), 1);
 async function executeRunClaudeGrooming(action, ctx) {
   const { issueNumber, promptVars } = action;
   core19.info(`Running grooming agents for issue #${issueNumber}`);
@@ -48528,7 +48539,7 @@ async function executeRunClaudeGrooming(action, ctx) {
     outputs[agent] = output || { ready: false };
   }
   const outputPath = "grooming-output.json";
-  fs8.writeFileSync(outputPath, JSON.stringify(outputs, null, 2));
+  fs9.writeFileSync(outputPath, JSON.stringify(outputs, null, 2));
   core19.info(`Wrote combined grooming output to ${outputPath}`);
   return { outputs };
 }
@@ -48538,9 +48549,9 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
   if (structuredOutput) {
     groomingOutputs = structuredOutput;
     core19.info("Using grooming output from in-process chain");
-  } else if (filePath && fs8.existsSync(filePath)) {
+  } else if (filePath && fs9.existsSync(filePath)) {
     try {
-      const content = fs8.readFileSync(filePath, "utf-8");
+      const content = fs9.readFileSync(filePath, "utf-8");
       groomingOutputs = JSON.parse(content);
       core19.info(`Grooming output from file: ${filePath}`);
     } catch (error10) {
@@ -48798,14 +48809,14 @@ function getStructuredOutput(action, chainCtx) {
     core21.info(`Checking for structured output file: ${actionWithFile.filePath}`);
     core21.info(`Current working directory: ${process.cwd()}`);
     try {
-      const files = fs9.readdirSync(".");
+      const files = fs10.readdirSync(".");
       core21.info(`Files in cwd: ${files.slice(0, 20).join(", ")}`);
     } catch (e2) {
       core21.warning(`Failed to list files: ${e2}`);
     }
-    if (fs9.existsSync(actionWithFile.filePath)) {
+    if (fs10.existsSync(actionWithFile.filePath)) {
       try {
-        const content = fs9.readFileSync(actionWithFile.filePath, "utf-8");
+        const content = fs10.readFileSync(actionWithFile.filePath, "utf-8");
         const parsed = JSON.parse(content);
         core21.info(`Loaded structured output from file: ${actionWithFile.filePath}`);
         return parsed;
@@ -50453,7 +50464,7 @@ var _DiscussionTestResultSchema = external_exports.object({
 });
 
 // issue/actions-ts/test-runner/src/configurable/discussion-loader.ts
-var fs10 = __toESM(require("fs"), 1);
+var fs11 = __toESM(require("fs"), 1);
 var path3 = __toESM(require("path"), 1);
 var core23 = __toESM(require_core(), 1);
 var FIXTURES_BASE_PATH2 = ".github/statemachine/discussion/fixtures";
@@ -50468,18 +50479,18 @@ async function loadDiscussionScenario(scenarioName, basePath = FIXTURES_BASE_PAT
     scenarioName
   );
   const configPath = path3.join(scenarioDir, SCENARIO_CONFIG_FILE2);
-  if (!fs10.existsSync(configPath)) {
+  if (!fs11.existsSync(configPath)) {
     throw new Error(
       `Discussion scenario config not found: ${configPath}. Create a scenario.json file with name and description.`
     );
   }
-  const configContent = fs10.readFileSync(configPath, "utf-8");
+  const configContent = fs11.readFileSync(configPath, "utf-8");
   const configJson = JSON.parse(configContent);
   const config = DiscussionScenarioConfigSchema.parse(configJson);
   core23.info(`Loading discussion scenario: ${config.name}`);
   core23.info(`Description: ${config.description}`);
   const statesDir = path3.join(scenarioDir, STATES_DIR2);
-  if (!fs10.existsSync(statesDir)) {
+  if (!fs11.existsSync(statesDir)) {
     throw new Error(
       `States directory not found: ${statesDir}. Create a states/ directory with fixture files.`
     );
@@ -50503,12 +50514,12 @@ async function loadDiscussionScenario(scenarioName, basePath = FIXTURES_BASE_PAT
   };
 }
 async function loadDiscussionStateFixtures(statesDir) {
-  const files = fs10.readdirSync(statesDir).filter((f) => f.endsWith(".json")).sort();
+  const files = fs11.readdirSync(statesDir).filter((f) => f.endsWith(".json")).sort();
   const orderedStates = [];
   const fixtures = /* @__PURE__ */ new Map();
   for (const file of files) {
     const filePath = path3.join(statesDir, file);
-    const content = fs10.readFileSync(filePath, "utf-8");
+    const content = fs11.readFileSync(filePath, "utf-8");
     let json;
     try {
       json = JSON.parse(content);
@@ -50542,12 +50553,12 @@ async function loadReferencedMocks2(fixtures, basePath) {
     if (!fixture.claudeMock) continue;
     if (claudeMocks.has(fixture.claudeMock)) continue;
     const mockPath = path3.join(mocksDir, `${fixture.claudeMock}.json`);
-    if (!fs10.existsSync(mockPath)) {
+    if (!fs11.existsSync(mockPath)) {
       throw new Error(
         `Claude mock not found: ${mockPath} (referenced by state '${state}')`
       );
     }
-    const content = fs10.readFileSync(mockPath, "utf-8");
+    const content = fs11.readFileSync(mockPath, "utf-8");
     let json;
     try {
       json = JSON.parse(content);

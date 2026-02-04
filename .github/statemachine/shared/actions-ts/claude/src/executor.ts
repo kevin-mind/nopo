@@ -7,6 +7,7 @@
 
 import * as core from "@actions/core";
 import * as exec from "@actions/exec";
+import * as fs from "fs";
 import {
   query,
   type Options,
@@ -53,6 +54,20 @@ export async function executeClaudeSDK(
   core.info(`Working directory: ${cwd}`);
   core.info(`Claude Code path: ${claudePath}`);
   core.debug(`Prompt: ${prompt.slice(0, 200)}...`);
+
+  // Verify Claude Code binary exists before calling SDK
+  if (!fs.existsSync(claudePath)) {
+    const errorMsg = `Claude Code not found at ${claudePath}. ` +
+      `Ensure Claude Code is installed (curl -fsSL https://claude.ai/install.sh | bash) ` +
+      `or set CLAUDE_CODE_PATH environment variable.`;
+    core.error(errorMsg);
+    return {
+      success: false,
+      exitCode: 1,
+      output: "",
+      error: errorMsg,
+    };
+  }
 
   // Build SDK options
   const sdkOptions: Options = {

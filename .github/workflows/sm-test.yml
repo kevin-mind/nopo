@@ -129,12 +129,26 @@ jobs:
       - name: Install Claude Code
         if: inputs.mock_claude != true
         run: |
+          set -e
+          echo "Installing Claude Code..."
           curl -fsSL https://claude.ai/install.sh | bash
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+          # Verify installation
+          if [ -f "$HOME/.local/bin/claude" ]; then
+            echo "✓ Claude Code installed at $HOME/.local/bin/claude"
+            "$HOME/.local/bin/claude" --version || echo "Warning: Could not get version"
+          else
+            echo "::error::Claude Code installation failed - binary not found at $HOME/.local/bin/claude"
+            ls -la "$HOME/.local/bin/" || echo "Directory does not exist"
+            exit 1
+          fi
 
       - name: Run configurable test
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Explicit path for Claude Code (in case PATH isn't updated in Node.js process)
+          CLAUDE_CODE_PATH: /home/runner/.local/bin/claude
         id: run
         uses: ./.github/statemachine/issue/actions-ts/test-runner
         with:
