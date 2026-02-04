@@ -196,7 +196,8 @@ jobs:
   # ============================================================================
   log-run-start:
     needs: [derive-context]
-    if: ${{ fromJson(inputs.context_json).job != 'merge-queue-logging' }}
+    # Skip for merge-queue-logging and discussion jobs (discussions don't have issue history)
+    if: ${{ fromJson(inputs.context_json).job != 'merge-queue-logging' && !startsWith(fromJson(inputs.context_json).job, 'discussion-') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -229,6 +230,8 @@ jobs:
   # ============================================================================
   derive-actions:
     needs: [e2e-detect, log-run-start, derive-context]
+    # Run even if log-run-start was skipped (e.g., for discussions)
+    if: ${{ !cancelled() && !failure() }}
     runs-on: ubuntu-latest
     outputs:
       final_state: ${{ steps.machine.outputs.final_state }}
@@ -518,7 +521,8 @@ jobs:
   # ============================================================================
   log-run-end:
     needs: [e2e-detect, derive-context, log-run-start, derive-actions, exec-state-actions]
-    if: ${{ always() && fromJson(inputs.context_json).job != 'merge-queue-logging' }}
+    # Skip for merge-queue-logging and discussion jobs (discussions don't have issue history)
+    if: ${{ always() && fromJson(inputs.context_json).job != 'merge-queue-logging' && !startsWith(fromJson(inputs.context_json).job, 'discussion-') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
