@@ -31292,6 +31292,13 @@ var AgentNotesEntrySchema = external_exports.object({
   timestamp: external_exports.string(),
   notes: external_exports.array(external_exports.string())
 });
+var IssueCommentSchema = external_exports.object({
+  id: external_exports.string(),
+  author: external_exports.string(),
+  body: external_exports.string(),
+  createdAt: external_exports.string(),
+  isBot: external_exports.boolean()
+});
 var CIStatusSchema = external_exports.enum([
   "SUCCESS",
   "FAILURE",
@@ -31335,7 +31342,9 @@ var ParentIssueSchema = external_exports.object({
   /** Todos parsed from the issue body - used when this is a sub-issue triggered directly */
   todos: TodoStatsSchema,
   /** Agent notes from previous workflow runs */
-  agentNotes: external_exports.array(AgentNotesEntrySchema).default([])
+  agentNotes: external_exports.array(AgentNotesEntrySchema).default([]),
+  /** Issue comments from GitHub */
+  comments: external_exports.array(IssueCommentSchema).default([])
 });
 var TriggerTypeSchema2 = external_exports.enum([
   // Issue triggers
@@ -31346,6 +31355,9 @@ var TriggerTypeSchema2 = external_exports.enum([
   "issue-orchestrate",
   "issue-comment",
   "issue-reset",
+  // Grooming triggers
+  "issue-groom",
+  "issue-groom-summary",
   // PR triggers
   "pr-review-requested",
   "pr-review-submitted",
@@ -31886,6 +31898,34 @@ var ApplyDiscussionPlanOutputActionSchema = BaseActionSchema.extend({
   /** Artifact to download before execution */
   consumesArtifact: ArtifactSchema.optional()
 });
+var AddLabelActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("addLabel"),
+  issueNumber: external_exports.number().int().positive(),
+  label: external_exports.string().min(1)
+});
+var RemoveLabelActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("removeLabel"),
+  issueNumber: external_exports.number().int().positive(),
+  label: external_exports.string().min(1)
+});
+var GroomingAgentTypeSchema = external_exports.enum([
+  "pm",
+  "engineer",
+  "qa",
+  "research"
+]);
+var RunClaudeGroomingActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("runClaudeGrooming"),
+  issueNumber: external_exports.number().int().positive(),
+  /** Template variables for grooming prompts */
+  promptVars: external_exports.record(external_exports.string()).optional()
+});
+var ApplyGroomingOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyGroomingOutput"),
+  issueNumber: external_exports.number().int().positive(),
+  /** Path to the combined grooming output file */
+  filePath: external_exports.string().default("grooming-output.json")
+});
 var ActionSchema = external_exports.discriminatedUnion("type", [
   // Project field actions
   UpdateProjectStatusActionSchema,
@@ -31903,6 +31943,9 @@ var ActionSchema = external_exports.discriminatedUnion("type", [
   AddCommentActionSchema,
   UnassignUserActionSchema,
   AssignUserActionSchema,
+  // Label actions
+  AddLabelActionSchema,
+  RemoveLabelActionSchema,
   // Git actions
   CreateBranchActionSchema,
   GitPushActionSchema,
@@ -31916,6 +31959,9 @@ var ActionSchema = external_exports.discriminatedUnion("type", [
   RemoveReviewerActionSchema,
   // Claude actions
   RunClaudeActionSchema,
+  // Grooming actions
+  RunClaudeGroomingActionSchema,
+  ApplyGroomingOutputActionSchema,
   // Discussion actions
   AddDiscussionCommentActionSchema,
   UpdateDiscussionBodyActionSchema,
@@ -32130,6 +32176,25 @@ function needsTriage({ context: context2 }) {
 function isTriaged({ context: context2 }) {
   return context2.issue.labels.includes("triaged");
 }
+function triggeredByGroom({ context: context2 }) {
+  return context2.trigger === "issue-groom";
+}
+function triggeredByGroomSummary({ context: context2 }) {
+  return context2.trigger === "issue-groom-summary";
+}
+function needsGrooming({ context: context2 }) {
+  const labels = context2.issue.labels;
+  const hasTriaged = labels.includes("triaged");
+  const hasGroomed = labels.includes("groomed");
+  const hasNeedsInfo = labels.includes("needs-info");
+  return hasTriaged && !hasGroomed && !hasNeedsInfo;
+}
+function isGroomed({ context: context2 }) {
+  return context2.issue.labels.includes("groomed");
+}
+function needsInfo({ context: context2 }) {
+  return context2.issue.labels.includes("needs-info");
+}
 function readyForReview({ context: context2 }) {
   return ciPassed({ context: context2 }) && todosDone({ context: context2 });
 }
@@ -32207,6 +32272,12 @@ var guards = {
   // Triage guards
   needsTriage,
   isTriaged,
+  // Grooming guards
+  triggeredByGroom,
+  triggeredByGroomSummary,
+  needsGrooming,
+  isGroomed,
+  needsInfo,
   // Composite guards
   readyForReview,
   shouldContinueIterating,
@@ -32536,6 +32607,16 @@ query GetIssueWithProject($owner: String!, $repo: String!, $issueNumber: Int!) {
           }
         }
       }
+      comments(first: 50) {
+        nodes {
+          id
+          author {
+            login
+          }
+          body
+          createdAt
+        }
+      }
     }
   }
 }
@@ -32685,7 +32766,19 @@ async function getPRForBranch(octokit, owner, repo, headRef) {
     return null;
   }
 }
-async function fetchIssueState(octokit, owner, repo, issueNumber, projectNumber) {
+function parseIssueComments(commentNodes, botUsername) {
+  return commentNodes.map((c) => {
+    const author = c.author?.login ?? "unknown";
+    return {
+      id: c.id ?? "",
+      author,
+      body: c.body ?? "",
+      createdAt: c.createdAt ?? "",
+      isBot: author.includes("[bot]") || author === botUsername
+    };
+  });
+}
+async function fetchIssueState(octokit, owner, repo, issueNumber, projectNumber, botUsername = "nopo-bot") {
   const response = await octokit.graphql(
     GET_ISSUE_WITH_PROJECT_QUERY,
     {
@@ -32717,6 +32810,7 @@ async function fetchIssueState(octokit, owner, repo, issueNumber, projectNumber)
   const history = parseHistory(body);
   const todos = parseTodoStats(body);
   const agentNotes = parseAgentNotes(body);
+  const comments = parseIssueComments(issue.comments?.nodes || [], botUsername);
   const parentIssueNumber = issue.parent?.number ?? null;
   return {
     issue: {
@@ -32733,7 +32827,8 @@ async function fetchIssueState(octokit, owner, repo, issueNumber, projectNumber)
       hasSubIssues: subIssues.length > 0,
       history,
       todos,
-      agentNotes
+      agentNotes,
+      comments
     },
     parentIssueNumber
   };
@@ -32775,12 +32870,14 @@ async function buildMachineContext(octokit, event, projectNumber, options = {}) 
   if (!issueNumber) {
     return null;
   }
+  const botUsername = options.botUsername ?? "nopo-bot";
   const issueResult = await fetchIssueState(
     octokit,
     owner,
     repo,
     issueNumber,
-    projectNumber
+    projectNumber,
+    botUsername
   );
   if (!issueResult) {
     return null;
@@ -32793,7 +32890,8 @@ async function buildMachineContext(octokit, event, projectNumber, options = {}) 
       owner,
       repo,
       parentIssueNumber,
-      projectNumber
+      projectNumber,
+      botUsername
     );
     if (parentResult) {
       parentIssue = parentResult.issue;
@@ -32894,6 +32992,13 @@ async function buildMachineContext(octokit, event, projectNumber, options = {}) 
 }
 
 // issue/actions-ts/state-machine/machine/actions.ts
+function formatCommentsForPrompt(comments) {
+  if (comments.length === 0) {
+    return "No comments yet.";
+  }
+  return comments.map((c) => `### ${c.author} (${c.createdAt})
+${c.body}`).join("\n\n---\n\n");
+}
 function emitSetWorking({ context: context2 }) {
   const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
   return [
@@ -33195,7 +33300,8 @@ gh pr create --draft --reviewer nopo-bot \\
     ISSUE_BODY: issueBody,
     PARENT_CONTEXT: parentContext,
     PR_CREATE_COMMAND: prCreateCommand,
-    EXISTING_BRANCH_SECTION: ""
+    EXISTING_BRANCH_SECTION: "",
+    ISSUE_COMMENTS: formatCommentsForPrompt(context2.issue.comments)
   };
 }
 function emitRunClaude({ context: context2 }) {
@@ -33265,6 +33371,7 @@ function emitRunClaudeTriage({ context: context2 }) {
     ISSUE_NUMBER: String(issueNumber),
     ISSUE_TITLE: context2.issue.title,
     ISSUE_BODY: context2.issue.body,
+    ISSUE_COMMENTS: formatCommentsForPrompt(context2.issue.comments),
     AGENT_NOTES: ""
     // Injected by workflow from previous runs
   };
@@ -33302,7 +33409,8 @@ function emitRunClaudeComment({ context: context2 }) {
   const promptVars = {
     ISSUE_NUMBER: String(issueNumber),
     CONTEXT_TYPE: context2.commentContextType ?? "issue",
-    CONTEXT_DESCRIPTION: context2.commentContextDescription ?? `This is issue #${issueNumber}.`
+    CONTEXT_DESCRIPTION: context2.commentContextDescription ?? `This is issue #${issueNumber}.`,
+    ISSUE_COMMENTS: formatCommentsForPrompt(context2.issue.comments)
   };
   return [
     {
@@ -33800,6 +33908,62 @@ function emitPushToDraft({ context: context2 }) {
   });
   return actions;
 }
+function buildGroomingPromptVars(context2) {
+  return {
+    ISSUE_NUMBER: String(context2.issue.number),
+    ISSUE_TITLE: context2.issue.title,
+    ISSUE_BODY: context2.issue.body,
+    ISSUE_COMMENTS: formatCommentsForPrompt(context2.issue.comments),
+    ISSUE_LABELS: context2.issue.labels.join(", ")
+  };
+}
+function emitRunClaudeGrooming({ context: context2 }) {
+  const issueNumber = context2.issue.number;
+  const promptVars = buildGroomingPromptVars(context2);
+  const groomingArtifact = {
+    name: "claude-grooming-output",
+    path: "grooming-output.json"
+  };
+  return [
+    // Log grooming start in history
+    {
+      type: "appendHistory",
+      token: "code",
+      issueNumber,
+      iteration: 0,
+      // Grooming is pre-iteration
+      phase: "groom",
+      message: "\u23F3 grooming...",
+      timestamp: context2.workflowStartedAt ?? void 0
+    },
+    // Run all 4 grooming agents in parallel
+    {
+      type: "runClaudeGrooming",
+      token: "code",
+      issueNumber,
+      promptVars,
+      producesArtifact: groomingArtifact
+    },
+    // Apply grooming output: run summary and make decision
+    {
+      type: "applyGroomingOutput",
+      token: "code",
+      issueNumber,
+      filePath: "grooming-output.json",
+      consumesArtifact: groomingArtifact
+    }
+  ];
+}
+function emitSetReady({ context: context2 }) {
+  return [
+    {
+      type: "updateProjectStatus",
+      token: "code",
+      issueNumber: context2.issue.number,
+      status: "Ready"
+    }
+  ];
+}
 
 // issue/actions-ts/state-machine/machine/machine.ts
 function accumulateActions(existingActions, newActions) {
@@ -33850,7 +34014,12 @@ var claudeMachine = setup({
     triggeredByPRMerged: ({ context: context2 }) => guards.triggeredByPRMerged({ context: context2 }),
     triggeredByDeployedStage: ({ context: context2 }) => guards.triggeredByDeployedStage({ context: context2 }),
     triggeredByDeployedProd: ({ context: context2 }) => guards.triggeredByDeployedProd({ context: context2 }),
-    needsTriage: ({ context: context2 }) => guards.needsTriage({ context: context2 })
+    needsTriage: ({ context: context2 }) => guards.needsTriage({ context: context2 }),
+    // Grooming guards
+    triggeredByGroom: ({ context: context2 }) => guards.triggeredByGroom({ context: context2 }),
+    triggeredByGroomSummary: ({ context: context2 }) => guards.triggeredByGroomSummary({ context: context2 }),
+    needsGrooming: ({ context: context2 }) => guards.needsGrooming({ context: context2 }),
+    isGroomed: ({ context: context2 }) => guards.isGroomed({ context: context2 })
   },
   actions: {
     // Log actions
@@ -34132,6 +34301,22 @@ var claudeMachine = setup({
           `Resetting issue #${context2.issue.number} to initial state`
         )
       )
+    }),
+    // Grooming actions
+    runClaudeGrooming: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitRunClaudeGrooming({ context: context2 })
+      )
+    }),
+    logGrooming: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitLog({ context: context2 }, `Grooming issue #${context2.issue.number}`)
+      )
+    }),
+    setReady: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitSetReady({ context: context2 }))
     })
   }
 }).createMachine({
@@ -34223,6 +34408,17 @@ var claudeMachine = setup({
           target: "triaging",
           guard: "needsTriage"
         },
+        // Check if this is a grooming trigger
+        {
+          target: "grooming",
+          guard: "triggeredByGroom"
+        },
+        // Check if issue needs grooming (has triaged but not groomed)
+        // This ensures triaged issues get groomed before any work begins
+        {
+          target: "grooming",
+          guard: "needsGrooming"
+        },
         // Check for multi-phase work
         { target: "initializing", guard: "needsSubIssues" },
         { target: "orchestrating", guard: "hasSubIssues" },
@@ -34240,6 +34436,20 @@ var claudeMachine = setup({
      */
     triaging: {
       entry: ["logTriaging", "runClaudeTriage"],
+      type: "final"
+    },
+    /**
+     * Groom an issue - run PM, Engineer, QA, Research agents in parallel
+     *
+     * This runs 4 grooming agents to analyze the issue and determine if it's
+     * ready for implementation. The applyGroomingOutput action then runs the
+     * summary agent and applies the decision:
+     * - ready: add "groomed" label, set status to Ready
+     * - needs_info: add "needs-info" label, post questions
+     * - blocked: set status to Blocked, post reason
+     */
+    grooming: {
+      entry: ["logGrooming", "runClaudeGrooming"],
       type: "final"
     },
     /**

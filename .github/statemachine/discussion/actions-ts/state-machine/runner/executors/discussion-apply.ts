@@ -251,7 +251,7 @@ export async function executeApplyDiscussionResearchOutput(
     const areas = thread.investigation_areas?.map((a) => `- ${a}`).join("\n") || "";
     const deliverables = thread.expected_deliverables?.map((d) => `- ${d}`).join("\n") || "";
 
-    const body = `## ${thread.title}
+    const body = `## 🔍 Research: ${thread.title}
 
 **Question:** ${thread.question}
 
