@@ -39283,7 +39283,10 @@ async function executeRunClaude(action, ctx) {
         core6.startGroup("Mock Output");
         core6.info(JSON.stringify(mockOutput, null, 2));
         core6.endGroup();
-        await createMockCommit(action, ctx);
+        const promptsThatCreateCommits = ["iterate", "ci-fix"];
+        if (mockKey && promptsThatCreateCommits.includes(mockKey)) {
+          await createMockCommit(action, ctx);
+        }
         return {
           success: true,
           exitCode: 0,

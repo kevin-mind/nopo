@@ -193,9 +193,13 @@ export async function executeRunClaude(
         core.info(JSON.stringify(mockOutput, null, 2));
         core.endGroup();
 
-        // In mock mode, create a placeholder commit to simulate Claude's side effects
-        // This ensures PR creation can succeed (requires at least one commit)
-        await createMockCommit(action, ctx);
+        // Only create mock commits for prompts that would produce code changes
+        // (iterate, ci-fix). Other prompts like triage, grooming, review don't
+        // create commits - they just return structured output.
+        const promptsThatCreateCommits = ["iterate", "ci-fix"];
+        if (mockKey && promptsThatCreateCommits.includes(mockKey)) {
+          await createMockCommit(action, ctx);
+        }
 
         return {
           success: true,

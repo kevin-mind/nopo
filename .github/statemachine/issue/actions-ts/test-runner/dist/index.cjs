@@ -47208,7 +47208,10 @@ async function executeRunClaude(action, ctx) {
         core11.startGroup("Mock Output");
         core11.info(JSON.stringify(mockOutput, null, 2));
         core11.endGroup();
-        await createMockCommit(action, ctx);
+        const promptsThatCreateCommits = ["iterate", "ci-fix"];
+        if (mockKey && promptsThatCreateCommits.includes(mockKey)) {
+          await createMockCommit(action, ctx);
+        }
         return {
           success: true,
           exitCode: 0,
