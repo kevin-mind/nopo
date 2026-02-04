@@ -1632,6 +1632,9 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
   // nopo-reviewer is Claude's review account, claude[bot] is the direct API account
   const claudeReviewers = ["nopo-reviewer", "claude[bot]"];
   if (claudeReviewers.includes(review.user.login)) {
+    // Convert state to uppercase for review_decision (e.g., "changes_requested" -> "CHANGES_REQUESTED")
+    const reviewDecision = state.toUpperCase();
+
     return {
       job: "pr-response",
       resourceType: "pr",
@@ -1641,8 +1644,10 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
         pr_number: String(pr.number),
         branch_name: pr.head.ref,
         review_state: state,
+        review_decision: reviewDecision,
         review_body: review.body ?? "",
         review_id: String(review.id),
+        reviewer: review.user.login,
         issue_number: issueNumber,
       },
       skip: false,
@@ -1660,6 +1665,9 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
     return emptyResult(true, "Human review on non-Claude PR");
   }
 
+  // Convert state to uppercase for review_decision (e.g., "changes_requested" -> "CHANGES_REQUESTED")
+  const reviewDecision = state.toUpperCase();
+
   return {
     job: "pr-human-response",
     resourceType: "pr",
@@ -1669,7 +1677,9 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
       pr_number: String(pr.number),
       branch_name: pr.head.ref,
       reviewer_login: review.user.login,
+      reviewer: review.user.login,
       review_state: state,
+      review_decision: reviewDecision,
       review_body: review.body ?? "",
       review_id: String(review.id),
       issue_number: issueNumber,
