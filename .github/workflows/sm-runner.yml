@@ -373,7 +373,8 @@ jobs:
   # ============================================================================
   exec-state-actions:
     needs: [e2e-detect, derive-actions]
-    if: needs.derive-actions.outputs.action_count != '0' && needs.derive-actions.outputs.actions_matrix != '[]'
+    # Only check action_count - the matrix validation is done in derive-actions
+    if: needs.derive-actions.outputs.action_count != '0'
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 1
