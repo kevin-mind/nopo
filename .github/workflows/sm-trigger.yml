@@ -36,7 +36,11 @@ run-name: >-
   # - CI completion (workflow_run)
   # - Review requests/responses (pull_request, pull_request_review)
   # - Comments (issue_comment, pull_request_review_comment)
+  # - Push (to convert PR to draft and trigger CI)
   # - Discussions
+  push:
+    branches:
+      - 'claude/**'  # Only Claude branches, not main
   issues:
     types:
       - opened
