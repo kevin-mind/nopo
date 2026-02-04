@@ -306,12 +306,9 @@ jobs:
           # CRITICAL: Use printf instead of echo to avoid escape sequence interpretation
           # echo interprets \r\n as actual CR LF, breaking the JSON
           # printf '%s' preserves the literal backslash sequences
-          # Use unique delimiter to avoid conflicts with JSON content
-          {
-            echo 'matrix<<MATRIX_JSON_END_7d3f8a2b'
-            printf '%s\n' "$matrix"
-            echo 'MATRIX_JSON_END_7d3f8a2b'
-          } >> $GITHUB_OUTPUT
+          # Note: Use simple assignment since jq -c guarantees single-line output
+          # and the JSON escape sequences (like \r\n) are preserved
+          printf 'matrix=%s\n' "$matrix" >> $GITHUB_OUTPUT
 
           # Debug: verify the output was written correctly
           echo "Formatted matrix with ${ACTION_COUNT} actions"
@@ -380,7 +377,8 @@ jobs:
       max-parallel: 1
       fail-fast: true
       matrix:
-        action: ${{ fromJson(needs.derive-actions.outputs.actions_matrix) }}
+        # Use fromJson with fallback to empty array if parsing fails
+        action: ${{ fromJson(needs.derive-actions.outputs.actions_matrix || '[]') }}
 
     steps:
       - name: Checkout repository
