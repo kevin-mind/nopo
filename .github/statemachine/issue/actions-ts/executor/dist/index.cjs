@@ -40584,9 +40584,8 @@ async function executeRunClaudeGrooming(action, ctx) {
             promptDir: `grooming/${agent}`,
             promptsDir: ".github/statemachine/issue/prompts",
             promptVars,
-            issueNumber,
-            worktree: "main"
-            // Grooming runs from main
+            issueNumber
+            // No worktree specified - runs from current directory (main checkout)
           },
           ctx
         );
@@ -40660,8 +40659,8 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
         promptDir: "grooming/summary",
         promptsDir: ".github/statemachine/issue/prompts",
         promptVars: summaryPromptVars,
-        issueNumber,
-        worktree: "main"
+        issueNumber
+        // No worktree specified - runs from current directory (main checkout)
       },
       ctx
     );

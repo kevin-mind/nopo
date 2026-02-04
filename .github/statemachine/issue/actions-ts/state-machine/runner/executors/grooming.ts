@@ -93,7 +93,7 @@ export async function executeRunClaudeGrooming(
             promptsDir: ".github/statemachine/issue/prompts",
             promptVars,
             issueNumber,
-            worktree: "main", // Grooming runs from main
+            // No worktree specified - runs from current directory (main checkout)
           },
           ctx,
         );
@@ -197,7 +197,7 @@ export async function executeApplyGroomingOutput(
         promptsDir: ".github/statemachine/issue/prompts",
         promptVars: summaryPromptVars,
         issueNumber,
-        worktree: "main",
+        // No worktree specified - runs from current directory (main checkout)
       },
       ctx,
     );
