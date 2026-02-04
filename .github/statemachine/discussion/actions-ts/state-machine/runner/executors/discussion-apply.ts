@@ -146,34 +146,43 @@ interface LabelsResponse {
 
 /**
  * Research thread from structured output
+ * Note: Field names must match outputs.json schema
  */
 interface ResearchThread {
-  topic: string;
-  body: string;
+  title: string;
+  question: string;
+  investigation_areas: string[];
+  expected_deliverables: string[];
 }
 
 /**
  * Research output structured schema
+ * Note: Field names must match outputs.json schema
  */
 interface DiscussionResearchOutput {
-  research_threads: ResearchThread[];
+  threads: ResearchThread[];
   updated_body?: string;
+  agent_notes?: string[];
 }
 
 /**
  * Respond output structured schema
+ * Note: Field names must match outputs.json schema
  */
 interface DiscussionRespondOutput {
-  response: string;
+  response_body: string;
   updated_body?: string;
+  agent_notes?: string[];
 }
 
 /**
  * Summarize output structured schema
+ * Note: Field names must match outputs.json schema
  */
 interface DiscussionSummarizeOutput {
-  summary: string;
+  summary_comment: string;
   updated_body: string;
+  agent_notes?: string[];
 }
 
 /**
@@ -187,10 +196,13 @@ interface PlannedIssue {
 
 /**
  * Plan output structured schema
+ * Note: Field names must match outputs.json schema
  */
 interface DiscussionPlanOutput {
   issues: PlannedIssue[];
-  summary: string;
+  updated_body: string;
+  summary_comment: string;
+  agent_notes?: string[];
 }
 
 // ============================================================================
@@ -226,7 +238,7 @@ export async function executeApplyDiscussionResearchOutput(
 
   if (ctx.dryRun) {
     core.info(
-      `[DRY RUN] Would create ${output.research_threads?.length ?? 0} research threads`,
+      `[DRY RUN] Would create ${output.threads?.length ?? 0} research threads`,
     );
     return { applied: true, threadIds: [] };
   }
@@ -234,10 +246,20 @@ export async function executeApplyDiscussionResearchOutput(
   const threadIds: string[] = [];
 
   // Create research thread comments
-  for (const thread of output.research_threads || []) {
-    const body = `## ${thread.topic}
+  for (const thread of output.threads || []) {
+    // Format the thread body from the schema fields
+    const areas = thread.investigation_areas?.map((a) => `- ${a}`).join("\n") || "";
+    const deliverables = thread.expected_deliverables?.map((d) => `- ${d}`).join("\n") || "";
 
-${thread.body}`;
+    const body = `## ${thread.title}
+
+**Question:** ${thread.question}
+
+### Investigation Areas
+${areas}
+
+### Expected Deliverables
+${deliverables}`;
 
     const response = await ctx.octokit.graphql<AddCommentResponse>(
       ADD_DISCUSSION_COMMENT_MUTATION,
@@ -250,7 +272,7 @@ ${thread.body}`;
     const commentId = response.addDiscussionComment?.comment?.id;
     if (commentId) {
       threadIds.push(commentId);
-      core.info(`Created research thread: ${thread.topic}`);
+      core.info(`Created research thread: ${thread.title}`);
     }
   }
 
@@ -309,7 +331,7 @@ export async function executeApplyDiscussionRespondOutput(
       {
         discussionId: discussionNodeId,
         replyToId: replyToNodeId,
-        body: output.response,
+        body: output.response_body,
       },
     );
   } else {
@@ -318,7 +340,7 @@ export async function executeApplyDiscussionRespondOutput(
       ADD_DISCUSSION_COMMENT_MUTATION,
       {
         discussionId: discussionNodeId,
-        body: output.response,
+        body: output.response_body,
       },
     );
   }
@@ -390,7 +412,7 @@ export async function executeApplyDiscussionSummarizeOutput(
       discussionId: discussionNodeId,
       body: `## Summary
 
-${output.summary}`,
+${output.summary_comment}`,
     },
   );
 
@@ -506,7 +528,7 @@ export async function executeApplyDiscussionPlanOutput(
   const issueLinks = issueNumbers.map((n) => `- #${n}`).join("\n");
   const summaryBody = `## Implementation Plan
 
-${output.summary}
+${output.summary_comment}
 
 ### Created Issues
 
