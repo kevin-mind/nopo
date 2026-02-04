@@ -17,7 +17,7 @@ interface GuardContext {
 export function triggeredByDiscussionCreated({
   context,
 }: GuardContext): boolean {
-  return context.trigger === "discussion_created";
+  return context.trigger === "discussion-created";
 }
 
 /**
@@ -26,7 +26,7 @@ export function triggeredByDiscussionCreated({
 export function triggeredByDiscussionComment({
   context,
 }: GuardContext): boolean {
-  return context.trigger === "discussion_comment";
+  return context.trigger === "discussion-comment";
 }
 
 /**
@@ -35,7 +35,7 @@ export function triggeredByDiscussionComment({
 export function triggeredByDiscussionCommand({
   context,
 }: GuardContext): boolean {
-  return context.trigger === "discussion_command";
+  return context.trigger === "discussion-command";
 }
 
 // ============================================================================
@@ -86,7 +86,7 @@ export function isBotResearchThread({ context }: GuardContext): boolean {
   // If the comment is from a bot and it's a reply in a discussion
   return (
     (author === context.botUsername || author?.endsWith("[bot]") === true) &&
-    context.trigger === "discussion_comment"
+    context.trigger === "discussion-comment"
   );
 }
 

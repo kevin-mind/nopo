@@ -238,15 +238,12 @@ export const discussionMachine = setup({
           target: "commanding",
           guard: "triggeredByDiscussionCommand",
         },
-        // Comment from human - respond
+        // Discussion comment - respond (human comments and bot research threads)
+        // Note: Bot reply comments are filtered by detect-event (returns skip=true)
+        // Only comments that need responses reach the state machine
         {
           target: "responding",
-          guard: "isHumanDiscussionComment",
-        },
-        // Bot comment (research thread) - skip
-        {
-          target: "skipped",
-          guard: "isBotResearchThread",
+          guard: "triggeredByDiscussionComment",
         },
         // Default - skip (unknown trigger)
         { target: "skipped" },
