@@ -2081,6 +2081,27 @@ async function handleDiscussionCommentEvent(
     };
   }
 
+  // /lfg or /research - triggers research phase (spawns research threads)
+  // Useful for kicking off research on existing discussions
+  if (body === "/lfg" || body === "/research") {
+    await addReactionToDiscussionComment(octokit, comment.node_id, "ROCKET");
+    return {
+      job: "discussion-research",
+      resourceType: "discussion",
+      resourceNumber: String(discussion.number),
+      commentId: comment.node_id,
+      contextJson: {
+        discussion_number: String(discussion.number),
+        discussion_title: discussion.title,
+        discussion_body: discussion.body ?? "",
+        trigger_type: "discussion-created",
+        is_test_automation: isTestAutomation,
+      },
+      skip: false,
+      skipReason: "",
+    };
+  }
+
   // Human comments - always respond
   if (author !== "claude[bot]" && author !== "nopo-bot") {
     return {

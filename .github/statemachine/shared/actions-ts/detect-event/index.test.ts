@@ -531,6 +531,10 @@ function detectDiscussionCommand(commentBody: string): DiscussionCommandResult {
   if (trimmed === "/complete") {
     return { command: "/complete", job: "discussion-complete" };
   }
+  // /lfg or /research triggers research phase on existing discussions
+  if (trimmed === "/lfg" || trimmed === "/research") {
+    return { command: trimmed, job: "discussion-research" };
+  }
 
   return { command: null, job: "" };
 }
@@ -562,6 +566,32 @@ describe("discussion slash command detection", () => {
       const result = detectDiscussionCommand("/complete");
       expect(result.command).toBe("/complete");
       expect(result.job).toBe("discussion-complete");
+    });
+  });
+
+  describe("/lfg command", () => {
+    it("detects /lfg and routes to discussion-research", () => {
+      const result = detectDiscussionCommand("/lfg");
+      expect(result.command).toBe("/lfg");
+      expect(result.job).toBe("discussion-research");
+    });
+
+    it("does not detect /lfg with extra text", () => {
+      const result = detectDiscussionCommand("/lfg now");
+      expect(result.command).toBeNull();
+    });
+  });
+
+  describe("/research command", () => {
+    it("detects /research and routes to discussion-research", () => {
+      const result = detectDiscussionCommand("/research");
+      expect(result.command).toBe("/research");
+      expect(result.job).toBe("discussion-research");
+    });
+
+    it("does not detect /research with extra text", () => {
+      const result = detectDiscussionCommand("/research this topic");
+      expect(result.command).toBeNull();
     });
   });
 

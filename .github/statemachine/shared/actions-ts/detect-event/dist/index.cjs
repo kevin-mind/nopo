@@ -25330,6 +25330,24 @@ async function handleDiscussionCommentEvent(octokit, owner, repo) {
       skipReason: ""
     };
   }
+  if (body === "/lfg" || body === "/research") {
+    await addReactionToDiscussionComment(octokit, comment.node_id, "ROCKET");
+    return {
+      job: "discussion-research",
+      resourceType: "discussion",
+      resourceNumber: String(discussion.number),
+      commentId: comment.node_id,
+      contextJson: {
+        discussion_number: String(discussion.number),
+        discussion_title: discussion.title,
+        discussion_body: discussion.body ?? "",
+        trigger_type: "discussion-created",
+        is_test_automation: isTestAutomation
+      },
+      skip: false,
+      skipReason: ""
+    };
+  }
   if (author !== "claude[bot]" && author !== "nopo-bot") {
     return {
       job: "discussion-respond",
