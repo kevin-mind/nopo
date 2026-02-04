@@ -34631,6 +34631,10 @@ var BaseActionSchema2 = external_exports.object({
   type: external_exports.string(),
   token: TokenTypeSchema2
 });
+var ArtifactSchema2 = external_exports.object({
+  name: external_exports.string(),
+  path: external_exports.string()
+});
 var AddDiscussionCommentActionSchema2 = BaseActionSchema2.extend({
   type: external_exports.literal("addDiscussionComment"),
   discussionNodeId: external_exports.string(),
@@ -34670,30 +34674,39 @@ var CreateIssuesFromDiscussionActionSchema2 = BaseActionSchema2.extend({
 var ApplyDiscussionResearchOutputActionSchema2 = BaseActionSchema2.extend({
   type: external_exports.literal("applyDiscussionResearchOutput"),
   discussionNumber: external_exports.number().int().positive(),
-  discussionNodeId: external_exports.string()
+  discussionNodeId: external_exports.string(),
+  filePath: external_exports.string().optional(),
+  consumesArtifact: ArtifactSchema2.optional()
 });
 var ApplyDiscussionRespondOutputActionSchema2 = BaseActionSchema2.extend({
   type: external_exports.literal("applyDiscussionRespondOutput"),
   discussionNumber: external_exports.number().int().positive(),
   discussionNodeId: external_exports.string(),
-  replyToNodeId: external_exports.string().optional()
+  replyToNodeId: external_exports.string().optional(),
+  filePath: external_exports.string().optional(),
+  consumesArtifact: ArtifactSchema2.optional()
 });
 var ApplyDiscussionSummarizeOutputActionSchema2 = BaseActionSchema2.extend({
   type: external_exports.literal("applyDiscussionSummarizeOutput"),
   discussionNumber: external_exports.number().int().positive(),
-  discussionNodeId: external_exports.string()
+  discussionNodeId: external_exports.string(),
+  filePath: external_exports.string().optional(),
+  consumesArtifact: ArtifactSchema2.optional()
 });
 var ApplyDiscussionPlanOutputActionSchema2 = BaseActionSchema2.extend({
   type: external_exports.literal("applyDiscussionPlanOutput"),
   discussionNumber: external_exports.number().int().positive(),
-  discussionNodeId: external_exports.string()
+  discussionNodeId: external_exports.string(),
+  filePath: external_exports.string().optional(),
+  consumesArtifact: ArtifactSchema2.optional()
 });
 var RunClaudeActionSchema2 = BaseActionSchema2.extend({
   type: external_exports.literal("runClaude"),
   promptDir: external_exports.string(),
   promptsBase: external_exports.string().optional(),
   promptVars: external_exports.record(external_exports.string()),
-  issueNumber: external_exports.number().int().positive().optional()
+  issueNumber: external_exports.number().int().positive().optional(),
+  producesArtifact: ArtifactSchema2.optional()
 });
 var LogActionSchema2 = BaseActionSchema2.extend({
   type: external_exports.literal("log"),
@@ -34784,6 +34797,10 @@ function emitRunClaudeResearch({
     DISCUSSION_TITLE: context2.discussion.title,
     DISCUSSION_BODY: context2.discussion.body
   };
+  const researchArtifact = {
+    name: `claude-research-output-${context2.discussion.number}`,
+    path: "claude-structured-output.json"
+  };
   return [
     {
       type: "runClaude",
@@ -34791,13 +34808,16 @@ function emitRunClaudeResearch({
       promptDir: "research",
       promptsBase: ".github/statemachine/discussion/prompts",
       promptVars,
-      issueNumber: context2.discussion.number
+      issueNumber: context2.discussion.number,
+      producesArtifact: researchArtifact
     },
     {
       type: "applyDiscussionResearchOutput",
       token: "code",
       discussionNumber: context2.discussion.number,
-      discussionNodeId: context2.discussion.nodeId
+      discussionNodeId: context2.discussion.nodeId,
+      filePath: "claude-structured-output.json",
+      consumesArtifact: researchArtifact
     }
   ];
 }
@@ -34811,6 +34831,10 @@ function emitRunClaudeRespond({ context: context2 }) {
     COMMENT_BODY: context2.discussion.commentBody ?? "",
     COMMENT_AUTHOR: context2.discussion.commentAuthor ?? ""
   };
+  const respondArtifact = {
+    name: `claude-respond-output-${context2.discussion.number}`,
+    path: "claude-structured-output.json"
+  };
   return [
     {
       type: "runClaude",
@@ -34818,14 +34842,17 @@ function emitRunClaudeRespond({ context: context2 }) {
       promptDir: "respond",
       promptsBase: ".github/statemachine/discussion/prompts",
       promptVars,
-      issueNumber: context2.discussion.number
+      issueNumber: context2.discussion.number,
+      producesArtifact: respondArtifact
     },
     {
       type: "applyDiscussionRespondOutput",
       token: "code",
       discussionNumber: context2.discussion.number,
       discussionNodeId: context2.discussion.nodeId,
-      replyToNodeId: context2.discussion.commentId
+      replyToNodeId: context2.discussion.commentId,
+      filePath: "claude-structured-output.json",
+      consumesArtifact: respondArtifact
     }
   ];
 }
@@ -34838,6 +34865,10 @@ function emitRunClaudeSummarize({
     DISCUSSION_TITLE: context2.discussion.title,
     DISCUSSION_BODY: context2.discussion.body
   };
+  const summarizeArtifact = {
+    name: `claude-summarize-output-${context2.discussion.number}`,
+    path: "claude-structured-output.json"
+  };
   return [
     {
       type: "runClaude",
@@ -34845,13 +34876,16 @@ function emitRunClaudeSummarize({
       promptDir: "summarize",
       promptsBase: ".github/statemachine/discussion/prompts",
       promptVars,
-      issueNumber: context2.discussion.number
+      issueNumber: context2.discussion.number,
+      producesArtifact: summarizeArtifact
     },
     {
       type: "applyDiscussionSummarizeOutput",
       token: "code",
       discussionNumber: context2.discussion.number,
-      discussionNodeId: context2.discussion.nodeId
+      discussionNodeId: context2.discussion.nodeId,
+      filePath: "claude-structured-output.json",
+      consumesArtifact: summarizeArtifact
     }
   ];
 }
@@ -34862,6 +34896,10 @@ function emitRunClaudePlan({ context: context2 }) {
     DISCUSSION_TITLE: context2.discussion.title,
     DISCUSSION_BODY: context2.discussion.body
   };
+  const planArtifact = {
+    name: `claude-plan-output-${context2.discussion.number}`,
+    path: "claude-structured-output.json"
+  };
   return [
     {
       type: "runClaude",
@@ -34869,13 +34907,16 @@ function emitRunClaudePlan({ context: context2 }) {
       promptDir: "plan",
       promptsBase: ".github/statemachine/discussion/prompts",
       promptVars,
-      issueNumber: context2.discussion.number
+      issueNumber: context2.discussion.number,
+      producesArtifact: planArtifact
     },
     {
       type: "applyDiscussionPlanOutput",
       token: "code",
       discussionNumber: context2.discussion.number,
-      discussionNodeId: context2.discussion.nodeId
+      discussionNodeId: context2.discussion.nodeId,
+      filePath: "claude-structured-output.json",
+      consumesArtifact: planArtifact
     }
   ];
 }

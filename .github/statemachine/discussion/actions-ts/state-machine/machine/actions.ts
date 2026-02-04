@@ -32,6 +32,11 @@ export function emitRunClaudeResearch({
     DISCUSSION_BODY: context.discussion.body,
   };
 
+  const researchArtifact = {
+    name: `claude-research-output-${context.discussion.number}`,
+    path: "claude-structured-output.json",
+  };
+
   return [
     {
       type: "runClaude",
@@ -40,12 +45,15 @@ export function emitRunClaudeResearch({
       promptsBase: ".github/statemachine/discussion/prompts",
       promptVars,
       issueNumber: context.discussion.number,
+      producesArtifact: researchArtifact,
     },
     {
       type: "applyDiscussionResearchOutput",
       token: "code",
       discussionNumber: context.discussion.number,
       discussionNodeId: context.discussion.nodeId,
+      filePath: "claude-structured-output.json",
+      consumesArtifact: researchArtifact,
     },
   ];
 }
@@ -67,6 +75,11 @@ export function emitRunClaudeRespond({ context }: ActionContext): ActionResult {
     COMMENT_AUTHOR: context.discussion.commentAuthor ?? "",
   };
 
+  const respondArtifact = {
+    name: `claude-respond-output-${context.discussion.number}`,
+    path: "claude-structured-output.json",
+  };
+
   return [
     {
       type: "runClaude",
@@ -75,6 +88,7 @@ export function emitRunClaudeRespond({ context }: ActionContext): ActionResult {
       promptsBase: ".github/statemachine/discussion/prompts",
       promptVars,
       issueNumber: context.discussion.number,
+      producesArtifact: respondArtifact,
     },
     {
       type: "applyDiscussionRespondOutput",
@@ -82,6 +96,8 @@ export function emitRunClaudeRespond({ context }: ActionContext): ActionResult {
       discussionNumber: context.discussion.number,
       discussionNodeId: context.discussion.nodeId,
       replyToNodeId: context.discussion.commentId,
+      filePath: "claude-structured-output.json",
+      consumesArtifact: respondArtifact,
     },
   ];
 }
@@ -102,6 +118,11 @@ export function emitRunClaudeSummarize({
     DISCUSSION_BODY: context.discussion.body,
   };
 
+  const summarizeArtifact = {
+    name: `claude-summarize-output-${context.discussion.number}`,
+    path: "claude-structured-output.json",
+  };
+
   return [
     {
       type: "runClaude",
@@ -110,12 +131,15 @@ export function emitRunClaudeSummarize({
       promptsBase: ".github/statemachine/discussion/prompts",
       promptVars,
       issueNumber: context.discussion.number,
+      producesArtifact: summarizeArtifact,
     },
     {
       type: "applyDiscussionSummarizeOutput",
       token: "code",
       discussionNumber: context.discussion.number,
       discussionNodeId: context.discussion.nodeId,
+      filePath: "claude-structured-output.json",
+      consumesArtifact: summarizeArtifact,
     },
   ];
 }
@@ -134,6 +158,11 @@ export function emitRunClaudePlan({ context }: ActionContext): ActionResult {
     DISCUSSION_BODY: context.discussion.body,
   };
 
+  const planArtifact = {
+    name: `claude-plan-output-${context.discussion.number}`,
+    path: "claude-structured-output.json",
+  };
+
   return [
     {
       type: "runClaude",
@@ -142,12 +171,15 @@ export function emitRunClaudePlan({ context }: ActionContext): ActionResult {
       promptsBase: ".github/statemachine/discussion/prompts",
       promptVars,
       issueNumber: context.discussion.number,
+      producesArtifact: planArtifact,
     },
     {
       type: "applyDiscussionPlanOutput",
       token: "code",
       discussionNumber: context.discussion.number,
       discussionNodeId: context.discussion.nodeId,
+      filePath: "claude-structured-output.json",
+      consumesArtifact: planArtifact,
     },
   ];
 }

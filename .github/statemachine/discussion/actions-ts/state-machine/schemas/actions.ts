@@ -15,6 +15,20 @@ const BaseActionSchema = z.object({
 });
 
 // ============================================================================
+// Artifact Schema (for passing data between matrix jobs)
+// ============================================================================
+
+/**
+ * Artifact configuration for upload/download between matrix jobs
+ */
+const ArtifactSchema = z.object({
+  name: z.string(),
+  path: z.string(),
+});
+
+export type Artifact = z.infer<typeof ArtifactSchema>;
+
+// ============================================================================
 // Discussion Actions
 // ============================================================================
 
@@ -97,6 +111,8 @@ const ApplyDiscussionResearchOutputActionSchema = BaseActionSchema.extend({
   type: z.literal("applyDiscussionResearchOutput"),
   discussionNumber: z.number().int().positive(),
   discussionNodeId: z.string(),
+  filePath: z.string().optional(),
+  consumesArtifact: ArtifactSchema.optional(),
 });
 
 export type ApplyDiscussionResearchOutputAction = z.infer<
@@ -111,6 +127,8 @@ const ApplyDiscussionRespondOutputActionSchema = BaseActionSchema.extend({
   discussionNumber: z.number().int().positive(),
   discussionNodeId: z.string(),
   replyToNodeId: z.string().optional(),
+  filePath: z.string().optional(),
+  consumesArtifact: ArtifactSchema.optional(),
 });
 
 export type ApplyDiscussionRespondOutputAction = z.infer<
@@ -124,6 +142,8 @@ const ApplyDiscussionSummarizeOutputActionSchema = BaseActionSchema.extend({
   type: z.literal("applyDiscussionSummarizeOutput"),
   discussionNumber: z.number().int().positive(),
   discussionNodeId: z.string(),
+  filePath: z.string().optional(),
+  consumesArtifact: ArtifactSchema.optional(),
 });
 
 export type ApplyDiscussionSummarizeOutputAction = z.infer<
@@ -137,6 +157,8 @@ const ApplyDiscussionPlanOutputActionSchema = BaseActionSchema.extend({
   type: z.literal("applyDiscussionPlanOutput"),
   discussionNumber: z.number().int().positive(),
   discussionNodeId: z.string(),
+  filePath: z.string().optional(),
+  consumesArtifact: ArtifactSchema.optional(),
 });
 
 export type ApplyDiscussionPlanOutputAction = z.infer<
@@ -156,6 +178,7 @@ const RunClaudeActionSchema = BaseActionSchema.extend({
   promptsBase: z.string().optional(),
   promptVars: z.record(z.string()),
   issueNumber: z.number().int().positive().optional(),
+  producesArtifact: ArtifactSchema.optional(),
 });
 
 export type RunClaudeAction = z.infer<typeof RunClaudeActionSchema>;
