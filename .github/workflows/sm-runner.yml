@@ -282,8 +282,16 @@ jobs:
           fi
 
           # Add index to each action for ordering/identification
-          matrix=$(echo "$ACTIONS_JSON" | jq -c '[to_entries | .[] | .value + {index: .key}]')
-          echo "matrix=$matrix" >> $GITHUB_OUTPUT
+          # Use printf to avoid issues with special characters in JSON
+          matrix=$(printf '%s' "$ACTIONS_JSON" | jq -c '[to_entries | .[] | .value + {index: .key}]')
+
+          # Use heredoc format for multiline-safe output
+          {
+            echo "matrix<<EOF"
+            printf '%s' "$matrix"
+            echo ""
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
           echo "Formatted matrix with ${ACTION_COUNT} actions"
 
       - name: Write Derivation Summary
