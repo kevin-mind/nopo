@@ -3,9 +3,9 @@
   "trigger": "issue-groom",
   "issue": {
     "number": 0,
-    "title": "Add new feature for testing",
+    "title": "Add test utility function for e2e validation",
     "state": "OPEN",
-    "body": "## Description\n\nTest scenario for complete happy path flow.\n\n## Approach\n\nImplement the feature and add tests.\n\n## Iteration History\n\n<!-- iteration_history_start -->\n<!-- iteration_history_end -->",
+    "body": "## Description\n\nAdd a simple test utility function to verify e2e test execution. This is a minimal change to exercise the full state machine workflow.\n\n## Acceptance Criteria\n\n- [ ] Create `test-e2e-dump/test-feature/index.ts` with a simple exported function `runTest(): boolean`\n- [ ] The function should return `true` to indicate successful execution\n- [ ] Add a unit test in `test-e2e-dump/test-feature/index.test.ts` that verifies `runTest()` returns `true`\n\n## Approach\n\nCreate the test utility directory with minimal implementation.\n\n## Iteration History\n\n<!-- iteration_history_start -->\n<!-- iteration_history_end -->",
     "projectStatus": "Backlog",
     "iteration": 0,
     "failures": 0,

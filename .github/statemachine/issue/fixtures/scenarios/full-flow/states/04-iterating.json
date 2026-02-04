@@ -2,7 +2,7 @@
   "state": "iterating",
   "issue": {
     "number": 0,
-    "title": "Add new feature for testing",
+    "title": "Add test utility function for e2e validation",
     "state": "OPEN",
     "body": "## Description\n\nTest scenario for complete happy path flow.\n\n## Approach\n\nImplement the feature and add tests.\n\n## Todo\n\n- [ ] Implement the feature\n- [ ] Add tests\n\n## Iteration History\n\n<!-- iteration_history_start -->\n<!-- iteration_history_end -->",
     "projectStatus": "In progress",

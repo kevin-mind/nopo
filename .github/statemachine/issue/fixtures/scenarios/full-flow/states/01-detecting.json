@@ -2,9 +2,9 @@
   "state": "detecting",
   "issue": {
     "number": 0,
-    "title": "Add new feature for testing",
+    "title": "Add test utility function for e2e validation",
     "state": "OPEN",
-    "body": "We've been meaning to do some housekeeping on the codebase. There are probably some variables with unclear names scattered around, maybe some magic numbers that should be constants, or unnecessary type assertions. It would also be nice to look at the test coverage since there are likely some edge cases or scenarios that aren't being tested properly. And documentation is always getting stale, so there might be functions or modules where the docs are missing or outdated. Nothing major, just the kind of small improvements you'd notice during a code review. Keep each change minimal and focused.",
+    "body": "## Description\n\nAdd a simple test utility function to verify e2e test execution. This is a minimal change to exercise the full state machine workflow.\n\n## Acceptance Criteria\n\n- [ ] Create `test-e2e-dump/test-feature/index.ts` with a simple exported function `runTest(): boolean`\n- [ ] The function should return `true` to indicate successful execution\n- [ ] Add a unit test in `test-e2e-dump/test-feature/index.test.ts` that verifies `runTest()` returns `true`\n\n## Scope\n\nThis is intentionally minimal - 2 files, ~20 lines of code. The purpose is to validate the state machine workflow, not to add significant functionality.",
     "projectStatus": null,
     "iteration": 0,
     "failures": 0,
