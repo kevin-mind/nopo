@@ -191,19 +191,35 @@ function getStructuredOutput(
 ): unknown | undefined {
   // First try chain context (same-job execution)
   if (chainCtx?.lastClaudeStructuredOutput) {
+    core.info("Using structured output from chain context");
     return chainCtx.lastClaudeStructuredOutput;
   }
 
   // Check if action has a filePath for artifact-based execution
   const actionWithFile = action as Action & { filePath?: string };
-  if (actionWithFile.filePath && fs.existsSync(actionWithFile.filePath)) {
+  if (actionWithFile.filePath) {
+    core.info(`Checking for structured output file: ${actionWithFile.filePath}`);
+    core.info(`Current working directory: ${process.cwd()}`);
+
+    // List files in current directory for debugging
     try {
-      const content = fs.readFileSync(actionWithFile.filePath, "utf-8");
-      const parsed = JSON.parse(content);
-      core.info(`Loaded structured output from file: ${actionWithFile.filePath}`);
-      return parsed;
+      const files = fs.readdirSync(".");
+      core.info(`Files in cwd: ${files.slice(0, 20).join(", ")}`);
     } catch (e) {
-      core.warning(`Failed to read structured output from ${actionWithFile.filePath}: ${e}`);
+      core.warning(`Failed to list files: ${e}`);
+    }
+
+    if (fs.existsSync(actionWithFile.filePath)) {
+      try {
+        const content = fs.readFileSync(actionWithFile.filePath, "utf-8");
+        const parsed = JSON.parse(content);
+        core.info(`Loaded structured output from file: ${actionWithFile.filePath}`);
+        return parsed;
+      } catch (e) {
+        core.warning(`Failed to read structured output from ${actionWithFile.filePath}: ${e}`);
+      }
+    } else {
+      core.warning(`File not found: ${actionWithFile.filePath}`);
     }
   }
 

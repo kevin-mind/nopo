@@ -40443,17 +40443,30 @@ function getOctokitForAction(action, ctx) {
 }
 function getStructuredOutput(action, chainCtx) {
   if (chainCtx?.lastClaudeStructuredOutput) {
+    core15.info("Using structured output from chain context");
     return chainCtx.lastClaudeStructuredOutput;
   }
   const actionWithFile = action;
-  if (actionWithFile.filePath && fs7.existsSync(actionWithFile.filePath)) {
+  if (actionWithFile.filePath) {
+    core15.info(`Checking for structured output file: ${actionWithFile.filePath}`);
+    core15.info(`Current working directory: ${process.cwd()}`);
     try {
-      const content = fs7.readFileSync(actionWithFile.filePath, "utf-8");
-      const parsed = JSON.parse(content);
-      core15.info(`Loaded structured output from file: ${actionWithFile.filePath}`);
-      return parsed;
+      const files = fs7.readdirSync(".");
+      core15.info(`Files in cwd: ${files.slice(0, 20).join(", ")}`);
     } catch (e2) {
-      core15.warning(`Failed to read structured output from ${actionWithFile.filePath}: ${e2}`);
+      core15.warning(`Failed to list files: ${e2}`);
+    }
+    if (fs7.existsSync(actionWithFile.filePath)) {
+      try {
+        const content = fs7.readFileSync(actionWithFile.filePath, "utf-8");
+        const parsed = JSON.parse(content);
+        core15.info(`Loaded structured output from file: ${actionWithFile.filePath}`);
+        return parsed;
+      } catch (e2) {
+        core15.warning(`Failed to read structured output from ${actionWithFile.filePath}: ${e2}`);
+      }
+    } else {
+      core15.warning(`File not found: ${actionWithFile.filePath}`);
     }
   }
   return void 0;
