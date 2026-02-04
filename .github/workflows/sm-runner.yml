@@ -403,8 +403,9 @@ jobs:
       max-parallel: 1
       fail-fast: true
       matrix:
-        # Use fromJson with fallback to empty array if parsing fails
-        action: ${{ fromJson(needs.derive-actions.outputs.actions_matrix || '[]') }}
+        # DEBUG: Hardcode a simple matrix to verify the job runs
+        # action: ${{ fromJson(needs.derive-actions.outputs.actions_matrix || '[]') }}
+        action: [{"type":"test","index":0}]
 
     steps:
       - name: Checkout repository
