@@ -282,8 +282,9 @@ jobs:
           fi
 
           # Add index to each action for ordering/identification
-          # Use printf to avoid issues with special characters in JSON
-          matrix=$(printf '%s' "$ACTIONS_JSON" | jq -c '[to_entries | .[] | .value + {index: .key}]')
+          # Use jq -c for compact single-line output (escapes embedded newlines as \n)
+          # Then use tr to remove any literal carriage returns that might have snuck in
+          matrix=$(printf '%s' "$ACTIONS_JSON" | jq -c '[to_entries | .[] | .value + {index: .key}]' | tr -d '\r')
 
           if [[ -z "$matrix" || "$matrix" == "[]" || "$matrix" == "null" ]]; then
             echo "::error::Failed to format matrix from ACTIONS_JSON"
@@ -291,15 +292,13 @@ jobs:
             exit 1
           fi
 
-          echo "::debug::Matrix length: ${#matrix}"
-          echo "::debug::First 200 chars: ${matrix:0:200}"
+          # Debug: show matrix info
+          echo "Matrix length: ${#matrix}"
+          echo "First 200 chars: ${matrix:0:200}"
 
-          # Use heredoc format for multiline-safe output
-          {
-            echo "matrix<<MATRIX_DELIM"
-            printf '%s\n' "$matrix"
-            echo "MATRIX_DELIM"
-          } >> $GITHUB_OUTPUT
+          # Since jq -c guarantees single-line JSON, we can use simple assignment
+          # The JSON will have all newlines escaped as \n within strings
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
           echo "Formatted matrix with ${ACTION_COUNT} actions"
 
       - name: Write Derivation Summary
