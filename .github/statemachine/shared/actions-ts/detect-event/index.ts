@@ -1175,6 +1175,8 @@ async function handleIssueCommentEvent(
     const claudeReviewers = ["nopo-reviewer", "claude[bot]"];
     const isClaudeReviewer = claudeReviewers.includes(pendingReview.author.login);
     const job = isClaudeReviewer ? "pr-response" : "pr-human-response";
+    // Use the job name as trigger type to match schema expectations
+    const triggerType = job;
 
     return {
       job,
@@ -1190,7 +1192,7 @@ async function handleIssueCommentEvent(
         reviewer: pendingReview.author.login,
         reviewer_login: pendingReview.author.login,
         issue_number: issueNumber,
-        trigger_type: "pr-comment-lfg",
+        trigger_type: triggerType,
       },
       skip: false,
       skipReason: "",

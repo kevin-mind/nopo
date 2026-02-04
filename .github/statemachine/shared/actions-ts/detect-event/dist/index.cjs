@@ -24699,6 +24699,7 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
     const claudeReviewers = ["nopo-reviewer", "claude[bot]"];
     const isClaudeReviewer = claudeReviewers.includes(pendingReview.author.login);
     const job = isClaudeReviewer ? "pr-response" : "pr-human-response";
+    const triggerType = job;
     return {
       job,
       resourceType: "pr",
@@ -24713,7 +24714,7 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
         reviewer: pendingReview.author.login,
         reviewer_login: pendingReview.author.login,
         issue_number: issueNumber,
-        trigger_type: "pr-comment-lfg"
+        trigger_type: triggerType
       },
       skip: false,
       skipReason: ""
