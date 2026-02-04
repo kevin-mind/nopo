@@ -17,6 +17,7 @@ export const IssueTriggerTypeSchema = z.enum([
   "issue-edited",
   "issue-closed",
   "issue-triage",
+  "issue-groom",
   "issue-orchestrate",
   "issue-comment",
   "issue-reset",
@@ -60,6 +61,7 @@ export type TriggerType = z.infer<typeof TriggerTypeSchema>;
 export const JobTypeSchema = z.enum([
   // Issue jobs
   "issue-triage",
+  "issue-groom",
   "issue-iterate",
   "issue-orchestrate",
   "issue-comment",

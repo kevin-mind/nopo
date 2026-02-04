@@ -31,6 +31,7 @@ export {
   type CIResult,
   type ReviewDecision,
   type MachineContext,
+  type IssueComment,
 
   // Schemas (for runtime validation)
   CIStatusSchema,
@@ -122,6 +123,11 @@ export {
   type ApplyDiscussionRespondOutputAction,
   type ApplyDiscussionSummarizeOutputAction,
   type ApplyDiscussionPlanOutputAction,
+  type AddLabelAction,
+  type RemoveLabelAction,
+  type GroomingAgentType,
+  type RunClaudeGroomingAction,
+  type ApplyGroomingOutputAction,
   type Action,
   type ActionType,
 

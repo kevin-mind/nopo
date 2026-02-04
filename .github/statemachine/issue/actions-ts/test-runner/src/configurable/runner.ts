@@ -926,16 +926,25 @@ Issue: #${this.issueNumber}
     }
 
     // Build mock outputs map for the runner
-    const mockOutputs =
-      mockOutput && fixture.claudeMock
-        ? { [this.getPromptDirFromMock(fixture.claudeMock)]: mockOutput }
-        : undefined;
+    // Include ALL mocks from the scenario (not just current fixture) to support
+    // states that call multiple Claude prompts (e.g., grooming calls pm, engineer, qa, research, summary)
+    let mockOutputs: Record<string, Record<string, unknown>> | undefined;
+    if (this.inputs.mockClaude) {
+      mockOutputs = {};
+      for (const [mockRef, mock] of this.scenario.claudeMocks) {
+        // Use the full mock reference as the key (e.g., "grooming/pm")
+        // This allows nested prompt dirs like "grooming/pm" to work
+        mockOutputs[mockRef] = mock.output as Record<string, unknown>;
+      }
 
-    if (this.inputs.mockClaude && mockOutputs) {
-      core.info(`Using mock Claude mode with output: ${fixture.claudeMock}`);
-      core.startGroup("Mock Output");
-      core.info(JSON.stringify(mockOutput, null, 2));
-      core.endGroup();
+      if (Object.keys(mockOutputs).length > 0) {
+        core.info(`Using mock Claude mode with ${Object.keys(mockOutputs).length} mock outputs`);
+        core.startGroup("Mock Outputs");
+        core.info(Object.keys(mockOutputs).join(", "));
+        core.endGroup();
+      } else {
+        mockOutputs = undefined;
+      }
     }
 
     // Create runner context with mock outputs
@@ -1001,6 +1010,8 @@ Issue: #${this.issueNumber}
       hasSubIssues: fixture.issue.hasSubIssues,
       history: [], // Simplified in fixtures
       todos: fixture.issue.todos,
+      agentNotes: [], // Simplified in fixtures
+      comments: [], // Simplified in fixtures
     };
 
     // Determine trigger - use explicit trigger from fixture if provided

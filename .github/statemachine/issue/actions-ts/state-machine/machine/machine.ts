@@ -7,6 +7,7 @@ import {
   emitSetInProgress,
   emitSetDone,
   emitSetBlocked,
+  emitSetReady,
   emitIncrementIteration,
   emitRecordFailure,
   emitClearFailures,
@@ -42,6 +43,8 @@ import {
   emitPushToDraft,
   // Reset action
   emitResetIssue,
+  // Grooming actions
+  emitRunClaudeGrooming,
 } from "./actions.js";
 
 /**
@@ -147,6 +150,12 @@ export const claudeMachine = setup({
     triggeredByDeployedProd: ({ context }) =>
       guards.triggeredByDeployedProd({ context }),
     needsTriage: ({ context }) => guards.needsTriage({ context }),
+    // Grooming guards
+    triggeredByGroom: ({ context }) => guards.triggeredByGroom({ context }),
+    triggeredByGroomSummary: ({ context }) =>
+      guards.triggeredByGroomSummary({ context }),
+    needsGrooming: ({ context }) => guards.needsGrooming({ context }),
+    isGroomed: ({ context }) => guards.isGroomed({ context }),
   },
   actions: {
     // Log actions
@@ -489,6 +498,26 @@ export const claudeMachine = setup({
           ),
         ),
     }),
+
+    // Grooming actions
+    runClaudeGrooming: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(
+          context.pendingActions,
+          emitRunClaudeGrooming({ context }),
+        ),
+    }),
+    logGrooming: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(
+          context.pendingActions,
+          emitLog({ context }, `Grooming issue #${context.issue.number}`),
+        ),
+    }),
+    setReady: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(context.pendingActions, emitSetReady({ context })),
+    }),
   },
 }).createMachine({
   id: "claude-automation",
@@ -580,6 +609,17 @@ export const claudeMachine = setup({
           target: "triaging",
           guard: "needsTriage",
         },
+        // Check if this is a grooming trigger
+        {
+          target: "grooming",
+          guard: "triggeredByGroom",
+        },
+        // Check if issue needs grooming (has triaged but not groomed)
+        // This ensures triaged issues get groomed before any work begins
+        {
+          target: "grooming",
+          guard: "needsGrooming",
+        },
         // Check for multi-phase work
         { target: "initializing", guard: "needsSubIssues" },
         { target: "orchestrating", guard: "hasSubIssues" },
@@ -598,6 +638,21 @@ export const claudeMachine = setup({
      */
     triaging: {
       entry: ["logTriaging", "runClaudeTriage"],
+      type: "final",
+    },
+
+    /**
+     * Groom an issue - run PM, Engineer, QA, Research agents in parallel
+     *
+     * This runs 4 grooming agents to analyze the issue and determine if it's
+     * ready for implementation. The applyGroomingOutput action then runs the
+     * summary agent and applies the decision:
+     * - ready: add "groomed" label, set status to Ready
+     * - needs_info: add "needs-info" label, post questions
+     * - blocked: set status to Blocked, post reason
+     */
+    grooming: {
+      entry: ["logGrooming", "runClaudeGrooming"],
       type: "final",
     },
 

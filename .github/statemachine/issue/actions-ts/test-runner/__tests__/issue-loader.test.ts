@@ -107,6 +107,32 @@ describe("Issue Loader", () => {
       expect(firstState).toBe("reviewing");
     });
 
+    test("loads grooming-ready scenario", async () => {
+      console.log("Loading issue scenario: grooming-ready");
+      const scenario = await loadScenario("grooming-ready", TEST_FIXTURES_PATH);
+
+      expect(scenario.name).toBe("grooming-ready");
+      expect(scenario.description).toContain("grooming");
+      expect(scenario.orderedStates.length).toBeGreaterThanOrEqual(2);
+      expect(scenario.fixtures.size).toBeGreaterThan(0);
+
+      // Check first state is detecting
+      const firstState = scenario.orderedStates[0];
+      expect(firstState).toBe("detecting");
+
+      const fixture = scenario.fixtures.get("detecting");
+      expect(fixture).toBeDefined();
+      expect(fixture?.trigger).toBe("issue-groom");
+
+      // Check that multiple claude mocks are loaded for grooming
+      expect(scenario.claudeMocks.size).toBeGreaterThanOrEqual(5);
+      expect(scenario.claudeMocks.has("grooming/pm")).toBe(true);
+      expect(scenario.claudeMocks.has("grooming/engineer")).toBe(true);
+      expect(scenario.claudeMocks.has("grooming/qa")).toBe(true);
+      expect(scenario.claudeMocks.has("grooming/research")).toBe(true);
+      expect(scenario.claudeMocks.has("grooming/summary")).toBe(true);
+    });
+
     test("throws error for non-existent scenario", async () => {
       await expect(
         loadScenario("non-existent-scenario", TEST_FIXTURES_PATH),

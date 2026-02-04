@@ -16,6 +16,8 @@ import type {
   RemoveReviewerAction,
   CreateSubIssuesAction,
   ResetIssueAction,
+  AddLabelAction,
+  RemoveLabelAction,
 } from "../../schemas/index.js";
 import { addHistoryEntry, updateHistoryEntry } from "../../parser/index.js";
 import type { RunnerContext } from "../runner.js";
@@ -905,4 +907,67 @@ export async function executeResetIssue(
 
   core.info(`Reset complete: ${resetCount} issues reopened`);
   return { resetCount };
+}
+
+// ============================================================================
+// Label Executors
+// ============================================================================
+
+/**
+ * Add a label to an issue
+ */
+export async function executeAddLabel(
+  action: AddLabelAction,
+  ctx: RunnerContext,
+): Promise<{ added: boolean }> {
+  try {
+    await ctx.octokit.rest.issues.addLabels({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: action.issueNumber,
+      labels: [action.label],
+    });
+
+    core.info(`Added label "${action.label}" to issue #${action.issueNumber}`);
+    return { added: true };
+  } catch (error) {
+    core.warning(
+      `Failed to add label "${action.label}" to issue #${action.issueNumber}: ${error}`,
+    );
+    return { added: false };
+  }
+}
+
+/**
+ * Remove a label from an issue
+ */
+export async function executeRemoveLabel(
+  action: RemoveLabelAction,
+  ctx: RunnerContext,
+): Promise<{ removed: boolean }> {
+  try {
+    await ctx.octokit.rest.issues.removeLabel({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: action.issueNumber,
+      name: action.label,
+    });
+
+    core.info(
+      `Removed label "${action.label}" from issue #${action.issueNumber}`,
+    );
+    return { removed: true };
+  } catch (error) {
+    // Don't fail if label wasn't present (404 error)
+    if (error instanceof Error && error.message.includes("404")) {
+      core.info(
+        `Label "${action.label}" was not present on issue #${action.issueNumber}`,
+      );
+      return { removed: false };
+    }
+    core.warning(
+      `Failed to remove label "${action.label}" from issue #${action.issueNumber}: ${error}`,
+    );
+    return { removed: false };
+  }
 }

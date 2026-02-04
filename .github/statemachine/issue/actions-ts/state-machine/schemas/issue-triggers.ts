@@ -12,6 +12,7 @@ export const IssueTriggerTypeSchema = z.enum([
   "issue-edited",
   "issue-closed",
   "issue-triage",
+  "issue-groom",
   "issue-orchestrate",
   "issue-comment",
   "issue-reset",

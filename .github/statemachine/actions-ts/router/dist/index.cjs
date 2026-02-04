@@ -31054,6 +31054,7 @@ var IssueTriggerTypeSchema = external_exports.enum([
   "issue-edited",
   "issue-closed",
   "issue-triage",
+  "issue-groom",
   "issue-orchestrate",
   "issue-comment",
   "issue-reset",
@@ -31086,6 +31087,7 @@ var TriggerTypeSchema = external_exports.union([
 var JobTypeSchema = external_exports.enum([
   // Issue jobs
   "issue-triage",
+  "issue-groom",
   "issue-iterate",
   "issue-orchestrate",
   "issue-comment",
@@ -31766,8 +31768,10 @@ var RunClaudeActionSchema = BaseActionSchema.extend({
   prompt: external_exports.string().min(1).optional(),
   /** Path to prompt file (relative to repo root) - will be read and substituted */
   promptFile: external_exports.string().min(1).optional(),
-  /** Prompt directory name (resolved to .github/prompts/{name}/) - contains prompt.txt and optional outputs.json */
+  /** Prompt directory name (resolved to {promptsDir}/{name}/) - contains prompt.txt and optional outputs.json */
   promptDir: external_exports.string().min(1).optional(),
+  /** Base directory for prompts (defaults to .github/prompts/) */
+  promptsDir: external_exports.string().min(1).optional(),
   /** Template variables for prompt substitution */
   promptVars: external_exports.record(external_exports.string()).optional(),
   issueNumber: external_exports.number().int().positive(),

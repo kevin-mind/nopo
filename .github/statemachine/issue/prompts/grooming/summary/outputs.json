@@ -1,0 +1,71 @@
+{
+  "type": "object",
+  "properties": {
+    "summary": {
+      "type": "string",
+      "description": "Combined summary of key insights from all agents"
+    },
+    "consensus": {
+      "type": "array",
+      "description": "Points where agents agree",
+      "items": { "type": "string" }
+    },
+    "conflicts": {
+      "type": "array",
+      "description": "Points of disagreement and resolution",
+      "items": {
+        "type": "object",
+        "properties": {
+          "issue": { "type": "string", "description": "What agents disagree on" },
+          "resolution": { "type": "string", "description": "How to resolve this conflict" }
+        },
+        "required": ["issue", "resolution"]
+      }
+    },
+    "decision": {
+      "type": "string",
+      "enum": ["ready", "needs_info", "blocked"],
+      "description": "Final grooming decision"
+    },
+    "decision_rationale": {
+      "type": "string",
+      "description": "Explanation for the decision"
+    },
+    "questions": {
+      "type": "array",
+      "description": "Prioritized questions if decision is needs_info",
+      "items": {
+        "type": "object",
+        "properties": {
+          "question": { "type": "string", "description": "The question" },
+          "source": {
+            "type": "string",
+            "enum": ["pm", "engineer", "qa", "research"],
+            "description": "Which agent raised this question"
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["critical", "important", "nice-to-have"],
+            "description": "How important is this question?"
+          }
+        },
+        "required": ["question", "source", "priority"]
+      }
+    },
+    "blocker_reason": {
+      "type": "string",
+      "description": "What's blocking if decision is blocked"
+    },
+    "next_steps": {
+      "type": "array",
+      "description": "Recommended next steps based on decision",
+      "items": { "type": "string" }
+    },
+    "agent_notes": {
+      "type": "array",
+      "description": "Important findings to store for future agents",
+      "items": { "type": "string" }
+    }
+  },
+  "required": ["summary", "decision", "decision_rationale"]
+}

@@ -365,8 +365,10 @@ export const RunClaudeActionSchema = BaseActionSchema.extend({
   prompt: z.string().min(1).optional(),
   /** Path to prompt file (relative to repo root) - will be read and substituted */
   promptFile: z.string().min(1).optional(),
-  /** Prompt directory name (resolved to .github/prompts/{name}/) - contains prompt.txt and optional outputs.json */
+  /** Prompt directory name (resolved to {promptsDir}/{name}/) - contains prompt.txt and optional outputs.json */
   promptDir: z.string().min(1).optional(),
+  /** Base directory for prompts (defaults to .github/prompts/) */
+  promptsDir: z.string().min(1).optional(),
   /** Template variables for prompt substitution */
   promptVars: z.record(z.string()).optional(),
   issueNumber: z.number().int().positive(),
@@ -650,6 +652,78 @@ export type ApplyDiscussionPlanOutputAction = z.infer<
 >;
 
 // ============================================================================
+// Label Actions
+// ============================================================================
+
+/**
+ * Add a label to an issue
+ */
+export const AddLabelActionSchema = BaseActionSchema.extend({
+  type: z.literal("addLabel"),
+  issueNumber: z.number().int().positive(),
+  label: z.string().min(1),
+});
+
+export type AddLabelAction = z.infer<typeof AddLabelActionSchema>;
+
+/**
+ * Remove a label from an issue
+ */
+export const RemoveLabelActionSchema = BaseActionSchema.extend({
+  type: z.literal("removeLabel"),
+  issueNumber: z.number().int().positive(),
+  label: z.string().min(1),
+});
+
+export type RemoveLabelAction = z.infer<typeof RemoveLabelActionSchema>;
+
+// ============================================================================
+// Grooming Actions
+// ============================================================================
+
+/**
+ * Grooming agent type for parallel execution
+ */
+export const GroomingAgentTypeSchema = z.enum([
+  "pm",
+  "engineer",
+  "qa",
+  "research",
+]);
+
+export type GroomingAgentType = z.infer<typeof GroomingAgentTypeSchema>;
+
+/**
+ * Run Claude grooming agents in parallel
+ * Executes PM, Engineer, QA, and Research agents and collects their outputs
+ */
+export const RunClaudeGroomingActionSchema = BaseActionSchema.extend({
+  type: z.literal("runClaudeGrooming"),
+  issueNumber: z.number().int().positive(),
+  /** Template variables for grooming prompts */
+  promptVars: z.record(z.string()).optional(),
+});
+
+export type RunClaudeGroomingAction = z.infer<
+  typeof RunClaudeGroomingActionSchema
+>;
+
+/**
+ * Apply grooming output from the grooming agents
+ * Runs the summary agent and applies the decision (ready, needs_info, blocked)
+ */
+export const ApplyGroomingOutputActionSchema = BaseActionSchema.extend({
+  type: z.literal("applyGroomingOutput"),
+  issueNumber: z.number().int().positive(),
+  /** Path to the combined grooming output file */
+  filePath: z.string().default("grooming-output.json"),
+});
+
+export type ApplyGroomingOutputAction = z.infer<
+  typeof ApplyGroomingOutputActionSchema
+>;
+
+// ============================================================================
 // Discriminated Union of All Actions
 // ============================================================================
 
@@ -673,6 +747,9 @@ export const ActionSchema = z.discriminatedUnion("type", [
   AddCommentActionSchema,
   UnassignUserActionSchema,
   AssignUserActionSchema,
+  // Label actions
+  AddLabelActionSchema,
+  RemoveLabelActionSchema,
   // Git actions
   CreateBranchActionSchema,
   GitPushActionSchema,
@@ -686,6 +763,9 @@ export const ActionSchema = z.discriminatedUnion("type", [
   RemoveReviewerActionSchema,
   // Claude actions
   RunClaudeActionSchema,
+  // Grooming actions
+  RunClaudeGroomingActionSchema,
+  ApplyGroomingOutputActionSchema,
   // Discussion actions
   AddDiscussionCommentActionSchema,
   UpdateDiscussionBodyActionSchema,
@@ -738,6 +818,8 @@ export const ACTION_TYPES = [
   "addComment",
   "unassignUser",
   "assignUser",
+  "addLabel",
+  "removeLabel",
   "createBranch",
   "gitPush",
   "createPR",
@@ -748,6 +830,8 @@ export const ACTION_TYPES = [
   "submitReview",
   "removeReviewer",
   "runClaude",
+  "runClaudeGrooming",
+  "applyGroomingOutput",
   "addDiscussionComment",
   "updateDiscussionBody",
   "addDiscussionReaction",
@@ -823,6 +907,9 @@ export const ISSUE_ACTION_TYPES = [
   "addComment",
   "unassignUser",
   "assignUser",
+  // Label actions
+  "addLabel",
+  "removeLabel",
   // Git actions
   "createBranch",
   "gitPush",
@@ -836,6 +923,9 @@ export const ISSUE_ACTION_TYPES = [
   "removeReviewer",
   // Claude actions (shared but primarily issue-focused)
   "runClaude",
+  // Grooming actions
+  "runClaudeGrooming",
+  "applyGroomingOutput",
   // Triage/iterate/review actions
   "applyTriageOutput",
   "applyIterateOutput",

@@ -12,6 +12,7 @@ import type {
   DiscussionContext,
   DiscussionTriggerType,
   CIStatus,
+  IssueComment,
 } from "../schemas/index.js";
 import {
   createMachineContext,
@@ -110,6 +111,16 @@ query GetIssueWithProject($owner: String!, $repo: String!, $issueNumber: Int!) {
           }
         }
       }
+      comments(first: 50) {
+        nodes {
+          id
+          author {
+            login
+          }
+          body
+          createdAt
+        }
+      }
     }
   }
 }
@@ -176,6 +187,13 @@ interface SubIssueNode {
   projectItems?: { nodes?: ProjectItemNode[] };
 }
 
+interface IssueCommentNode {
+  id?: string;
+  author?: { login?: string };
+  body?: string;
+  createdAt?: string;
+}
+
 interface IssueResponse {
   repository?: {
     issue?: {
@@ -189,6 +207,7 @@ interface IssueResponse {
       parent?: { number?: number } | null;
       projectItems?: { nodes?: ProjectItemNode[] };
       subIssues?: { nodes?: SubIssueNode[] };
+      comments?: { nodes?: IssueCommentNode[] };
     };
   };
 }
@@ -415,6 +434,25 @@ interface FetchIssueResult {
 }
 
 /**
+ * Parse issue comments from GraphQL response
+ */
+function parseIssueComments(
+  commentNodes: IssueCommentNode[],
+  botUsername: string,
+): IssueComment[] {
+  return commentNodes.map((c) => {
+    const author = c.author?.login ?? "unknown";
+    return {
+      id: c.id ?? "",
+      author,
+      body: c.body ?? "",
+      createdAt: c.createdAt ?? "",
+      isBot: author.includes("[bot]") || author === botUsername,
+    };
+  });
+}
+
+/**
  * Fetch full issue state from GitHub
  */
 async function fetchIssueState(
@@ -423,6 +461,7 @@ async function fetchIssueState(
   repo: string,
   issueNumber: number,
   projectNumber: number,
+  botUsername: string = "nopo-bot",
 ): Promise<FetchIssueResult | null> {
   const response = await octokit.graphql<IssueResponse>(
     GET_ISSUE_WITH_PROJECT_QUERY,
@@ -462,6 +501,7 @@ async function fetchIssueState(
   const history = parseHistory(body);
   const todos = parseTodoStats(body);
   const agentNotes = parseAgentNotes(body);
+  const comments = parseIssueComments(issue.comments?.nodes || [], botUsername);
 
   // Check if this issue is a sub-issue (has a parent)
   const parentIssueNumber = issue.parent?.number ?? null;
@@ -484,6 +524,7 @@ async function fetchIssueState(
       history,
       todos,
       agentNotes,
+      comments,
     },
     parentIssueNumber,
   };
@@ -573,6 +614,8 @@ export async function buildMachineContext(
     return null;
   }
 
+  const botUsername = options.botUsername ?? "nopo-bot";
+
   // Fetch the main issue
   const issueResult = await fetchIssueState(
     octokit,
@@ -580,6 +623,7 @@ export async function buildMachineContext(
     repo,
     issueNumber,
     projectNumber,
+    botUsername,
   );
 
   if (!issueResult) {
@@ -597,6 +641,7 @@ export async function buildMachineContext(
       repo,
       parentIssueNumber,
       projectNumber,
+      botUsername,
     );
     if (parentResult) {
       parentIssue = parentResult.issue;

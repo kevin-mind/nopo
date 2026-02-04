@@ -28387,6 +28387,13 @@ var AgentNotesEntrySchema = external_exports.object({
   timestamp: external_exports.string(),
   notes: external_exports.array(external_exports.string())
 });
+var IssueCommentSchema = external_exports.object({
+  id: external_exports.string(),
+  author: external_exports.string(),
+  body: external_exports.string(),
+  createdAt: external_exports.string(),
+  isBot: external_exports.boolean()
+});
 var CIStatusSchema = external_exports.enum([
   "SUCCESS",
   "FAILURE",
@@ -28430,7 +28437,9 @@ var ParentIssueSchema = external_exports.object({
   /** Todos parsed from the issue body - used when this is a sub-issue triggered directly */
   todos: TodoStatsSchema,
   /** Agent notes from previous workflow runs */
-  agentNotes: external_exports.array(AgentNotesEntrySchema).default([])
+  agentNotes: external_exports.array(AgentNotesEntrySchema).default([]),
+  /** Issue comments from GitHub */
+  comments: external_exports.array(IssueCommentSchema).default([])
 });
 var TriggerTypeSchema = external_exports.enum([
   // Issue triggers
@@ -28441,6 +28450,9 @@ var TriggerTypeSchema = external_exports.enum([
   "issue-orchestrate",
   "issue-comment",
   "issue-reset",
+  // Grooming triggers
+  "issue-groom",
+  "issue-groom-summary",
   // PR triggers
   "pr-review-requested",
   "pr-review-submitted",
@@ -28818,8 +28830,10 @@ var RunClaudeActionSchema = BaseActionSchema.extend({
   prompt: external_exports.string().min(1).optional(),
   /** Path to prompt file (relative to repo root) - will be read and substituted */
   promptFile: external_exports.string().min(1).optional(),
-  /** Prompt directory name (resolved to .github/prompts/{name}/) - contains prompt.txt and optional outputs.json */
+  /** Prompt directory name (resolved to {promptsDir}/{name}/) - contains prompt.txt and optional outputs.json */
   promptDir: external_exports.string().min(1).optional(),
+  /** Base directory for prompts (defaults to .github/prompts/) */
+  promptsDir: external_exports.string().min(1).optional(),
   /** Template variables for prompt substitution */
   promptVars: external_exports.record(external_exports.string()).optional(),
   issueNumber: external_exports.number().int().positive(),
@@ -28950,6 +28964,34 @@ var ApplyDiscussionPlanOutputActionSchema = BaseActionSchema.extend({
   /** Artifact to download before execution */
   consumesArtifact: ArtifactSchema.optional()
 });
+var AddLabelActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("addLabel"),
+  issueNumber: external_exports.number().int().positive(),
+  label: external_exports.string().min(1)
+});
+var RemoveLabelActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("removeLabel"),
+  issueNumber: external_exports.number().int().positive(),
+  label: external_exports.string().min(1)
+});
+var GroomingAgentTypeSchema = external_exports.enum([
+  "pm",
+  "engineer",
+  "qa",
+  "research"
+]);
+var RunClaudeGroomingActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("runClaudeGrooming"),
+  issueNumber: external_exports.number().int().positive(),
+  /** Template variables for grooming prompts */
+  promptVars: external_exports.record(external_exports.string()).optional()
+});
+var ApplyGroomingOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyGroomingOutput"),
+  issueNumber: external_exports.number().int().positive(),
+  /** Path to the combined grooming output file */
+  filePath: external_exports.string().default("grooming-output.json")
+});
 var ActionSchema = external_exports.discriminatedUnion("type", [
   // Project field actions
   UpdateProjectStatusActionSchema,
@@ -28967,6 +29009,9 @@ var ActionSchema = external_exports.discriminatedUnion("type", [
   AddCommentActionSchema,
   UnassignUserActionSchema,
   AssignUserActionSchema,
+  // Label actions
+  AddLabelActionSchema,
+  RemoveLabelActionSchema,
   // Git actions
   CreateBranchActionSchema,
   GitPushActionSchema,
@@ -28980,6 +29025,9 @@ var ActionSchema = external_exports.discriminatedUnion("type", [
   RemoveReviewerActionSchema,
   // Claude actions
   RunClaudeActionSchema,
+  // Grooming actions
+  RunClaudeGroomingActionSchema,
+  ApplyGroomingOutputActionSchema,
   // Discussion actions
   AddDiscussionCommentActionSchema,
   UpdateDiscussionBodyActionSchema,

@@ -59,10 +59,11 @@ export const DEFAULT_PARENT_ISSUE: ParentIssue = {
   iteration: 0,
   failures: 0,
   assignees: ["nopo-bot"],
-  labels: ["triaged"],
+  labels: ["triaged", "groomed"], // Both labels to bypass grooming and proceed to iteration
   subIssues: [],
   hasSubIssues: false,
   history: [],
+  comments: [],
   todos: DEFAULT_TODO_STATS,
 };
 

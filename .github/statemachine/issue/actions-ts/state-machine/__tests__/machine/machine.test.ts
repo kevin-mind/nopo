@@ -89,9 +89,17 @@ describe("claudeMachine", () => {
       }
     });
 
-    test("triaged issue proceeds to iteration", () => {
+    test("triaged issue proceeds to grooming", () => {
       const context = createContext({
         issue: { projectStatus: "In progress", labels: ["triaged"] },
+      });
+      const { state } = runMachine(context);
+      expect(state).toBe("grooming");
+    });
+
+    test("groomed issue proceeds to iteration", () => {
+      const context = createContext({
+        issue: { projectStatus: "In progress", labels: ["triaged", "groomed"] },
       });
       const { state } = runMachine(context);
       expect(state).toBe("iterating");
@@ -289,6 +297,7 @@ describe("claudeMachine", () => {
           ISSUE_NUMBER: "456",
           ISSUE_TITLE: "Bug report",
           ISSUE_BODY: "## Description\n\nSomething is broken",
+          ISSUE_COMMENTS: "No comments yet.",
           AGENT_NOTES: "",
         });
         expect(runClaudeAction.issueNumber).toBe(456);
@@ -361,6 +370,7 @@ describe("claudeMachine", () => {
           ISSUE_NUMBER: "456",
           CONTEXT_TYPE: "pr",
           CONTEXT_DESCRIPTION: "This is PR #789 fixing bug in authentication.",
+          ISSUE_COMMENTS: "No comments yet.",
         });
         expect(runClaudeAction.issueNumber).toBe(456);
         // worktree is intentionally not set - checkout happens at repo root to the correct branch
@@ -387,6 +397,7 @@ describe("claudeMachine", () => {
           ISSUE_NUMBER: "789",
           CONTEXT_TYPE: "issue",
           CONTEXT_DESCRIPTION: "This is issue #789.",
+          ISSUE_COMMENTS: "No comments yet.",
         });
       } else {
         expect.fail("runClaude action not found");

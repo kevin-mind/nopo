@@ -85,6 +85,19 @@ const AgentNotesEntrySchema = z.object({
 type AgentNotesEntry = z.infer<typeof AgentNotesEntrySchema>;
 
 /**
+ * Issue comment from GitHub
+ */
+export const IssueCommentSchema = z.object({
+  id: z.string(),
+  author: z.string(),
+  body: z.string(),
+  createdAt: z.string(),
+  isBot: z.boolean(),
+});
+
+export type IssueComment = z.infer<typeof IssueCommentSchema>;
+
+/**
  * Status check rollup state from GitHub GraphQL API
  */
 export const CIStatusSchema = z.enum([
@@ -150,6 +163,8 @@ export const ParentIssueSchema = z.object({
   todos: TodoStatsSchema,
   /** Agent notes from previous workflow runs */
   agentNotes: z.array(AgentNotesEntrySchema).default([]),
+  /** Issue comments from GitHub */
+  comments: z.array(IssueCommentSchema).default([]),
 });
 
 export type ParentIssue = z.infer<typeof ParentIssueSchema>;
@@ -166,6 +181,9 @@ export const TriggerTypeSchema = z.enum([
   "issue-orchestrate",
   "issue-comment",
   "issue-reset",
+  // Grooming triggers
+  "issue-groom",
+  "issue-groom-summary",
   // PR triggers
   "pr-review-requested",
   "pr-review-submitted",

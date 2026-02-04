@@ -2,8 +2,21 @@ import type {
   MachineContext,
   Action,
   ProjectStatus,
+  IssueComment,
 } from "../schemas/index.js";
 import { deriveBranchName } from "../parser/index.js";
+
+/**
+ * Format issue comments for inclusion in prompts
+ */
+export function formatCommentsForPrompt(comments: IssueComment[]): string {
+  if (comments.length === 0) {
+    return "No comments yet.";
+  }
+  return comments
+    .map((c) => `### ${c.author} (${c.createdAt})\n${c.body}`)
+    .join("\n\n---\n\n");
+}
 
 /**
  * Action context type for XState actions
@@ -473,6 +486,7 @@ gh pr create --draft --reviewer nopo-bot \\
     PARENT_CONTEXT: parentContext,
     PR_CREATE_COMMAND: prCreateCommand,
     EXISTING_BRANCH_SECTION: "",
+    ISSUE_COMMENTS: formatCommentsForPrompt(context.issue.comments),
   };
 }
 
@@ -572,6 +586,7 @@ export function emitRunClaudeTriage({ context }: ActionContext): ActionResult {
     ISSUE_NUMBER: String(issueNumber),
     ISSUE_TITLE: context.issue.title,
     ISSUE_BODY: context.issue.body,
+    ISSUE_COMMENTS: formatCommentsForPrompt(context.issue.comments),
     AGENT_NOTES: "", // Injected by workflow from previous runs
   };
 
@@ -621,6 +636,7 @@ export function emitRunClaudeComment({ context }: ActionContext): ActionResult {
     CONTEXT_TYPE: context.commentContextType ?? "issue",
     CONTEXT_DESCRIPTION:
       context.commentContextDescription ?? `This is issue #${issueNumber}.`,
+    ISSUE_COMMENTS: formatCommentsForPrompt(context.issue.comments),
   };
 
   return [
@@ -1353,4 +1369,135 @@ export function emitPushToDraft({ context }: ActionContext): ActionResult {
   });
 
   return actions;
+}
+
+// ============================================================================
+// Grooming Actions
+// ============================================================================
+
+/**
+ * Build prompt variables for grooming prompts
+ */
+function buildGroomingPromptVars(context: MachineContext): Record<string, string> {
+  return {
+    ISSUE_NUMBER: String(context.issue.number),
+    ISSUE_TITLE: context.issue.title,
+    ISSUE_BODY: context.issue.body,
+    ISSUE_COMMENTS: formatCommentsForPrompt(context.issue.comments),
+    ISSUE_LABELS: context.issue.labels.join(", "),
+  };
+}
+
+/**
+ * Emit action to run Claude grooming agents in parallel
+ *
+ * Executes PM, Engineer, QA, and Research agents to analyze the issue
+ * and determine if it's ready for implementation.
+ */
+export function emitRunClaudeGrooming({ context }: ActionContext): ActionResult {
+  const issueNumber = context.issue.number;
+  const promptVars = buildGroomingPromptVars(context);
+
+  const groomingArtifact = {
+    name: "claude-grooming-output",
+    path: "grooming-output.json",
+  };
+
+  return [
+    // Log grooming start in history
+    {
+      type: "appendHistory",
+      token: "code",
+      issueNumber,
+      iteration: 0, // Grooming is pre-iteration
+      phase: "groom",
+      message: "⏳ grooming...",
+      timestamp: context.workflowStartedAt ?? undefined,
+    },
+    // Run all 4 grooming agents in parallel
+    {
+      type: "runClaudeGrooming",
+      token: "code",
+      issueNumber,
+      promptVars,
+      producesArtifact: groomingArtifact,
+    },
+    // Apply grooming output: run summary and make decision
+    {
+      type: "applyGroomingOutput",
+      token: "code",
+      issueNumber,
+      filePath: "grooming-output.json",
+      consumesArtifact: groomingArtifact,
+    },
+  ];
+}
+
+/**
+ * Emit action to add a label to an issue
+ */
+export function emitAddLabel(
+  { context }: ActionContext,
+  label: string,
+): ActionResult {
+  return [
+    {
+      type: "addLabel",
+      token: "code",
+      issueNumber: context.issue.number,
+      label,
+    },
+  ];
+}
+
+/**
+ * Emit action to remove a label from an issue
+ */
+export function emitRemoveLabel(
+  { context }: ActionContext,
+  label: string,
+): ActionResult {
+  return [
+    {
+      type: "removeLabel",
+      token: "code",
+      issueNumber: context.issue.number,
+      label,
+    },
+  ];
+}
+
+/**
+ * Emit action to add "groomed" label (issue is ready for work)
+ */
+export function emitAddGroomedLabel({ context }: ActionContext): ActionResult {
+  return emitAddLabel({ context }, "groomed");
+}
+
+/**
+ * Emit action to add "needs-info" label (issue needs clarification)
+ */
+export function emitAddNeedsInfoLabel({ context }: ActionContext): ActionResult {
+  return emitAddLabel({ context }, "needs-info");
+}
+
+/**
+ * Emit action to remove "needs-info" label
+ */
+export function emitRemoveNeedsInfoLabel({ context }: ActionContext): ActionResult {
+  return emitRemoveLabel({ context }, "needs-info");
+}
+
+/**
+ * Emit action to set status to Ready (used after grooming)
+ */
+export function emitSetReady({ context }: ActionContext): ActionResult {
+  return [
+    {
+      type: "updateProjectStatus",
+      token: "code",
+      issueNumber: context.issue.number,
+      status: "Ready" as ProjectStatus,
+    },
+  ];
 }

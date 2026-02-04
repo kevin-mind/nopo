@@ -22,6 +22,7 @@ on:
           - pr-review-comment
           - pr-review-approved
           - pr-push-during-review
+          - grooming-ready
       continue:
         description: 'Run to completion (true) or stop after one step (false)'
         type: boolean

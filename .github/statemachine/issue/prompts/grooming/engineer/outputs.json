@@ -1,0 +1,67 @@
+{
+  "type": "object",
+  "properties": {
+    "implementation_plan": {
+      "type": "string",
+      "description": "High-level approach to solving this issue"
+    },
+    "affected_areas": {
+      "type": "array",
+      "description": "Files, modules, or systems that need changes",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string", "description": "File or module path" },
+          "change_type": {
+            "type": "string",
+            "enum": ["modify", "create", "delete"],
+            "description": "Type of change needed"
+          },
+          "description": { "type": "string", "description": "What changes are needed" }
+        },
+        "required": ["path", "change_type", "description"]
+      }
+    },
+    "technical_risks": {
+      "type": "array",
+      "description": "Complexity, performance, or breaking change concerns",
+      "items": {
+        "type": "object",
+        "properties": {
+          "risk": { "type": "string", "description": "Description of the risk" },
+          "severity": {
+            "type": "string",
+            "enum": ["low", "medium", "high"],
+            "description": "How severe is this risk?"
+          },
+          "mitigation": { "type": "string", "description": "How to mitigate this risk" }
+        },
+        "required": ["risk", "severity"]
+      }
+    },
+    "scope_recommendation": {
+      "type": "string",
+      "enum": ["keep", "split", "expand"],
+      "description": "Recommendation for issue scope"
+    },
+    "scope_rationale": {
+      "type": "string",
+      "description": "Explanation for scope recommendation"
+    },
+    "ready": {
+      "type": "boolean",
+      "description": "Is this issue ready for implementation?"
+    },
+    "blockers": {
+      "type": "array",
+      "description": "What's blocking this issue if not ready",
+      "items": { "type": "string" }
+    },
+    "questions": {
+      "type": "array",
+      "description": "Technical questions that need answers",
+      "items": { "type": "string" }
+    }
+  },
+  "required": ["implementation_plan", "affected_areas", "scope_recommendation", "ready"]
+}

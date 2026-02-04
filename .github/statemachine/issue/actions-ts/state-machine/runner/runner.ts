@@ -33,6 +33,8 @@ import {
   executeSubmitReview,
   executeRemoveReviewer,
   executeResetIssue,
+  executeAddLabel,
+  executeRemoveLabel,
 } from "./executors/github.js";
 import { executeCreateBranch, executeGitPush } from "./executors/git.js";
 import { executeRunClaude } from "./executors/claude.js";
@@ -53,6 +55,10 @@ import { executeApplyIterateOutput } from "./executors/iterate.js";
 import { executeApplyReviewOutput } from "./executors/review.js";
 import { executeApplyPRResponseOutput } from "./executors/pr-response.js";
 import { executeAppendAgentNotes } from "./executors/agent-notes.js";
+import {
+  executeRunClaudeGrooming,
+  executeApplyGroomingOutput,
+} from "./executors/grooming.js";
 import {
   signalStart,
   signalEnd,
@@ -278,6 +284,10 @@ async function executeAction(
       return executeAssignUser(action, actionCtx);
     case "createSubIssues":
       return executeCreateSubIssues(action, actionCtx);
+    case "addLabel":
+      return executeAddLabel(action, actionCtx);
+    case "removeLabel":
+      return executeRemoveLabel(action, actionCtx);
 
     // Git actions
     case "createBranch":
@@ -329,6 +339,16 @@ async function executeAction(
     case "applyIterateOutput":
       // Get structured output from chain context or artifact file
       return executeApplyIterateOutput(
+        action,
+        actionCtx,
+        getStructuredOutput(action, chainCtx),
+      );
+
+    // Grooming actions
+    case "runClaudeGrooming":
+      return executeRunClaudeGrooming(action, actionCtx);
+    case "applyGroomingOutput":
+      return executeApplyGroomingOutput(
         action,
         actionCtx,
         getStructuredOutput(action, chainCtx),

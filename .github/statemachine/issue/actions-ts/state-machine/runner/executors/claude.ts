@@ -215,6 +215,7 @@ export async function executeRunClaude(
     prompt: action.prompt,
     promptDir: action.promptDir,
     promptFile: action.promptFile,
+    promptsDir: action.promptsDir,
     promptVars: action.promptVars,
   });
 

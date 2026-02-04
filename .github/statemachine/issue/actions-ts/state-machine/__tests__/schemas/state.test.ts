@@ -242,6 +242,7 @@ describe("ParentIssueSchema", () => {
     subIssues: [],
     hasSubIssues: false,
     history: [],
+    comments: [],
     todos: { total: 0, completed: 0, uncheckedNonManual: 0 },
     agentNotes: [],
   };
@@ -356,6 +357,7 @@ describe("MachineContextSchema", () => {
       subIssues: [],
       hasSubIssues: false,
       history: [],
+      comments: [],
       todos: { total: 0, completed: 0, uncheckedNonManual: 0 },
       agentNotes: [],
     },

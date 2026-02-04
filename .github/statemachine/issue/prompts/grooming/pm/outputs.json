@@ -1,0 +1,61 @@
+{
+  "type": "object",
+  "properties": {
+    "user_value": {
+      "type": "object",
+      "description": "Analysis of user value",
+      "properties": {
+        "problem": {
+          "type": "string",
+          "description": "What user problem does this solve?"
+        },
+        "beneficiaries": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Who benefits from this work?"
+        }
+      },
+      "required": ["problem", "beneficiaries"]
+    },
+    "acceptance_criteria": {
+      "type": "array",
+      "description": "Specific acceptance criteria for 'done'",
+      "items": { "type": "string" }
+    },
+    "scenarios": {
+      "type": "array",
+      "description": "Given/When/Then scenarios",
+      "items": {
+        "type": "object",
+        "properties": {
+          "given": { "type": "string" },
+          "when": { "type": "string" },
+          "then": { "type": "string" }
+        },
+        "required": ["given", "when", "then"]
+      },
+      "minItems": 1,
+      "maxItems": 5
+    },
+    "dependencies": {
+      "type": "array",
+      "description": "What must be completed or available first",
+      "items": { "type": "string" }
+    },
+    "risks": {
+      "type": "array",
+      "description": "Potential risks and edge cases",
+      "items": { "type": "string" }
+    },
+    "ready": {
+      "type": "boolean",
+      "description": "Is this issue ready for engineering work?"
+    },
+    "questions": {
+      "type": "array",
+      "description": "Questions to ask if not ready",
+      "items": { "type": "string" }
+    }
+  },
+  "required": ["user_value", "acceptance_criteria", "scenarios", "ready"]
+}

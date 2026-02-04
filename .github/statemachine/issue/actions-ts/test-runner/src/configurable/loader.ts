@@ -156,6 +156,8 @@ async function loadStateFixtures(statesDir: string): Promise<{
  *
  * Mocks are referenced via claudeMock field with format: "<type>/<name>"
  * e.g., "iterate/broken-code" loads from claude-mocks/iterate/broken-code.json
+ *
+ * Also supports claudeMocks array for states that need multiple mocks (e.g., grooming)
  */
 async function loadReferencedMocks(
   fixtures: Map<StateName, StateFixture>,
@@ -165,38 +167,47 @@ async function loadReferencedMocks(
   const mocksDir = path.join(basePath, CLAUDE_MOCKS_DIR);
 
   for (const [state, fixture] of fixtures) {
-    if (!fixture.claudeMock) continue;
-
-    // Already loaded?
-    if (claudeMocks.has(fixture.claudeMock)) continue;
-
-    const mockPath = path.join(mocksDir, `${fixture.claudeMock}.json`);
-    if (!fs.existsSync(mockPath)) {
-      throw new Error(
-        `Claude mock not found: ${mockPath} (referenced by state '${state}')`,
-      );
+    // Collect all mock references from both claudeMock and claudeMocks fields
+    const mockRefs: string[] = [];
+    if (fixture.claudeMock) {
+      mockRefs.push(fixture.claudeMock);
+    }
+    if (fixture.claudeMocks) {
+      mockRefs.push(...fixture.claudeMocks);
     }
 
-    const content = fs.readFileSync(mockPath, "utf-8");
-    let json: unknown;
-    try {
-      json = JSON.parse(content);
-    } catch (error) {
-      throw new Error(
-        `Invalid JSON in ${mockPath}: ${error instanceof Error ? error.message : error}`,
-      );
-    }
+    for (const mockRef of mockRefs) {
+      // Already loaded?
+      if (claudeMocks.has(mockRef)) continue;
 
-    const parseResult = ClaudeMockSchema.safeParse(json);
-    if (!parseResult.success) {
-      const errors = parseResult.error.errors
-        .map((e) => `  ${e.path.join(".")}: ${e.message}`)
-        .join("\n");
-      throw new Error(`Invalid Claude mock ${fixture.claudeMock}:\n${errors}`);
-    }
+      const mockPath = path.join(mocksDir, `${mockRef}.json`);
+      if (!fs.existsSync(mockPath)) {
+        throw new Error(
+          `Claude mock not found: ${mockPath} (referenced by state '${state}')`,
+        );
+      }
 
-    claudeMocks.set(fixture.claudeMock, parseResult.data);
-    core.debug(`  Loaded mock: ${fixture.claudeMock}`);
+      const content = fs.readFileSync(mockPath, "utf-8");
+      let json: unknown;
+      try {
+        json = JSON.parse(content);
+      } catch (error) {
+        throw new Error(
+          `Invalid JSON in ${mockPath}: ${error instanceof Error ? error.message : error}`,
+        );
+      }
+
+      const parseResult = ClaudeMockSchema.safeParse(json);
+      if (!parseResult.success) {
+        const errors = parseResult.error.errors
+          .map((e) => `  ${e.path.join(".")}: ${e.message}`)
+          .join("\n");
+        throw new Error(`Invalid Claude mock ${mockRef}:\n${errors}`);
+      }
+
+      claudeMocks.set(mockRef, parseResult.data);
+      core.debug(`  Loaded mock: ${mockRef}`);
+    }
   }
 
   return claudeMocks;

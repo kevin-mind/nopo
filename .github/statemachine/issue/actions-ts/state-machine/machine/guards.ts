@@ -486,6 +486,51 @@ function isTriaged({ context }: GuardContext): boolean {
 }
 
 // ============================================================================
+// Grooming Guards
+// ============================================================================
+
+/**
+ * Check if triggered by grooming request
+ */
+function triggeredByGroom({ context }: GuardContext): boolean {
+  return context.trigger === "issue-groom";
+}
+
+/**
+ * Check if triggered by grooming summary request
+ */
+function triggeredByGroomSummary({ context }: GuardContext): boolean {
+  return context.trigger === "issue-groom-summary";
+}
+
+/**
+ * Check if the issue needs grooming
+ * True when: has "triaged" label, but NOT "groomed" or "needs-info"
+ */
+function needsGrooming({ context }: GuardContext): boolean {
+  const labels = context.issue.labels;
+  const hasTriaged = labels.includes("triaged");
+  const hasGroomed = labels.includes("groomed");
+  const hasNeedsInfo = labels.includes("needs-info");
+
+  return hasTriaged && !hasGroomed && !hasNeedsInfo;
+}
+
+/**
+ * Check if the issue has been groomed (has "groomed" label)
+ */
+function isGroomed({ context }: GuardContext): boolean {
+  return context.issue.labels.includes("groomed");
+}
+
+/**
+ * Check if the issue needs more info (has "needs-info" label)
+ */
+function needsInfo({ context }: GuardContext): boolean {
+  return context.issue.labels.includes("needs-info");
+}
+
+// ============================================================================
 // Composite Guards
 // ============================================================================
 
@@ -581,6 +626,12 @@ export const guards = {
   // Triage guards
   needsTriage,
   isTriaged,
+  // Grooming guards
+  triggeredByGroom,
+  triggeredByGroomSummary,
+  needsGrooming,
+  isGroomed,
+  needsInfo,
   // Composite guards
   readyForReview,
   shouldContinueIterating,

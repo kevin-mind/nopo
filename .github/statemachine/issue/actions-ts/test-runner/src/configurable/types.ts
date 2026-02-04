@@ -27,6 +27,7 @@ const StateNameSchema = z.enum([
 
   // Final states (work is done or stopped)
   "triaging",
+  "grooming",
   "resetting",
   "commenting",
   "prReviewing",
@@ -178,6 +179,9 @@ export const StateFixtureSchema = z.object({
 
   /** Reference to a claude mock file (when mock_claude=true) */
   claudeMock: z.string().optional(),
+
+  /** Multiple claude mock references (for states that call multiple Claude prompts, like grooming) */
+  claudeMocks: z.array(z.string()).optional(),
 });
 
 export type StateFixture = z.infer<typeof StateFixtureSchema>;

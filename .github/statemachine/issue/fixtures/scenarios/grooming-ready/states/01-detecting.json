@@ -1,0 +1,30 @@
+{
+  "state": "detecting",
+  "trigger": "issue-groom",
+  "issue": {
+    "number": 0,
+    "title": "Add grooming phase to state machine",
+    "state": "OPEN",
+    "body": "## Description\n\nWe need a grooming phase between triage and iteration to ensure issues are well-defined.\n\n## Requirements\n\n- Run 4 grooming agents (PM, Engineer, QA, Research) in parallel\n- Summary agent synthesizes outputs and makes decision\n- Add appropriate labels based on decision\n\n## Todo\n\n- [ ] Implement grooming state\n- [ ] Create grooming agents\n- [ ] Add E2E tests",
+    "projectStatus": "Backlog",
+    "iteration": 0,
+    "failures": 0,
+    "assignees": [],
+    "labels": ["triaged", "enhancement"],
+    "subIssues": [],
+    "hasSubIssues": false,
+    "history": [],
+    "todos": {
+      "total": 3,
+      "completed": 0,
+      "uncheckedNonManual": 3
+    }
+  },
+  "claudeMocks": [
+    "grooming/pm",
+    "grooming/engineer",
+    "grooming/qa",
+    "grooming/research",
+    "grooming/summary"
+  ]
+}
