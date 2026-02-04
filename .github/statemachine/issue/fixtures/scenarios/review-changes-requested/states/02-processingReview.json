@@ -1,6 +1,7 @@
 {
   "state": "processingReview",
   "reviewDecision": "CHANGES_REQUESTED",
+  "claudeMock": "iterate/perfect-code",
   "issue": {
     "number": 0,
     "title": "Feature with review feedback",
