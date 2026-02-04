@@ -282,9 +282,8 @@ jobs:
           fi
 
           # Add index to each action for ordering/identification
-          # Use jq -c for compact single-line output (escapes embedded newlines as \n)
-          # Then use tr to remove any literal carriage returns that might have snuck in
-          matrix=$(printf '%s' "$ACTIONS_JSON" | jq -c '[to_entries | .[] | .value + {index: .key}]' | tr -d '\r')
+          # Note: jq -c produces compact single-line JSON with properly escaped characters
+          matrix=$(printf '%s' "$ACTIONS_JSON" | jq -c '[to_entries | .[] | .value + {index: .key}]')
 
           if [[ -z "$matrix" || "$matrix" == "[]" || "$matrix" == "null" ]]; then
             echo "::error::Failed to format matrix from ACTIONS_JSON"
@@ -292,13 +291,24 @@ jobs:
             exit 1
           fi
 
-          # Debug: show matrix info
+          # Debug: show matrix info and verify it's valid JSON
           echo "Matrix length: ${#matrix}"
           echo "First 200 chars: ${matrix:0:200}"
 
-          # Since jq -c guarantees single-line JSON, we can use simple assignment
-          # The JSON will have all newlines escaped as \n within strings
-          echo "matrix=$matrix" >> $GITHUB_OUTPUT
+          # Verify jq can parse the output (catches any escaping issues)
+          if ! echo "$matrix" | jq -e 'length' > /dev/null 2>&1; then
+            echo "::error::Matrix is not valid JSON"
+            echo "matrix=[]" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          # Use heredoc format for multiline-safe output
+          # This is GitHub's recommended approach for values that may contain special characters
+          {
+            echo 'matrix<<EOF'
+            echo "$matrix"
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
           echo "Formatted matrix with ${ACTION_COUNT} actions"
 
       - name: Write Derivation Summary
