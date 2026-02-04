@@ -285,12 +285,20 @@ jobs:
           # Use printf to avoid issues with special characters in JSON
           matrix=$(printf '%s' "$ACTIONS_JSON" | jq -c '[to_entries | .[] | .value + {index: .key}]')
 
+          if [[ -z "$matrix" || "$matrix" == "[]" || "$matrix" == "null" ]]; then
+            echo "::error::Failed to format matrix from ACTIONS_JSON"
+            echo "matrix=[]" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          echo "::debug::Matrix length: ${#matrix}"
+          echo "::debug::First 200 chars: ${matrix:0:200}"
+
           # Use heredoc format for multiline-safe output
           {
-            echo "matrix<<EOF"
-            printf '%s' "$matrix"
-            echo ""
-            echo "EOF"
+            echo "matrix<<MATRIX_DELIM"
+            printf '%s\n' "$matrix"
+            echo "MATRIX_DELIM"
           } >> $GITHUB_OUTPUT
           echo "Formatted matrix with ${ACTION_COUNT} actions"
 
