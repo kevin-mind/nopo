@@ -31092,7 +31092,10 @@ var JobTypeSchema = external_exports.enum([
   "issue-reset",
   // PR jobs
   "pr-push",
+  "pr-review-requested",
+  // When someone requests a review from the bot
   "pr-review",
+  // Legacy: when bot should review (has review decision)
   "pr-review-approved",
   "pr-response",
   "pr-human-response",

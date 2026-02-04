@@ -66,7 +66,8 @@ export const JobTypeSchema = z.enum([
   "issue-reset",
   // PR jobs
   "pr-push",
-  "pr-review",
+  "pr-review-requested", // When someone requests a review from the bot
+  "pr-review", // Legacy: when bot should review (has review decision)
   "pr-review-approved",
   "pr-response",
   "pr-human-response",
