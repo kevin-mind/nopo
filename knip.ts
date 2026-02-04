@@ -16,7 +16,7 @@ export default {
   workspaces: {
     ".": {
       entry: ["fly/scripts/*.js", ".github/workflows-ts/*.wac.ts"],
-      ignoreBinaries: ["dev"],
+      ignoreBinaries: ["dev", "printf"],
       ignoreDependencies: ["tsx"],
       ignoreUnresolved: [".*\\+types.*"],
     },

@@ -296,7 +296,8 @@ jobs:
           echo "First 200 chars: ${matrix:0:200}"
 
           # Verify jq can parse the output (catches any escaping issues)
-          if ! echo "$matrix" | jq -e 'length' > /dev/null 2>&1; then
+          # CRITICAL: Use printf instead of echo to avoid escape sequence interpretation
+          if ! printf '%s' "$matrix" | jq -e 'length' > /dev/null 2>&1; then
             echo "::error::Matrix is not valid JSON"
             echo "matrix=[]" >> $GITHUB_OUTPUT
             exit 1
