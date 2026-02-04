@@ -24975,6 +24975,10 @@ async function handlePullRequestReviewEvent() {
   const payload = context2.payload;
   const review = payload.review;
   const pr = payload.pull_request;
+  if (!review?.user?.login) {
+    return emptyResult(true, "Review has no user information");
+  }
+  const reviewerLogin = review.user.login;
   if (shouldSkipTestResource(pr.title, pr.labels)) {
     return emptyResult(true, "PR title starts with [TEST]");
   }
@@ -24988,7 +24992,7 @@ async function handlePullRequestReviewEvent() {
     return emptyResult(true, "PR is a draft");
   }
   const state = review.state.toLowerCase();
-  if (state === "approved" && review.user.login === "nopo-reviewer") {
+  if (state === "approved" && reviewerLogin === "nopo-reviewer") {
     const prBody = pr.body ?? "";
     const linkedIssueMatch = prBody.match(
       /(?:fixes|closes|resolves)\s+#(\d+)/i
@@ -25021,7 +25025,7 @@ async function handlePullRequestReviewEvent() {
   const branchMatch = pr.head.ref.match(/^claude\/issue\/(\d+)(?:\/phase-(\d+))?$/);
   const issueNumber = branchMatch?.[2] ?? branchMatch?.[1] ?? "";
   const claudeReviewers = ["nopo-reviewer", "claude[bot]"];
-  if (claudeReviewers.includes(review.user.login)) {
+  if (claudeReviewers.includes(reviewerLogin)) {
     const reviewDecision2 = state.toUpperCase();
     return {
       job: "pr-response",
@@ -25035,7 +25039,7 @@ async function handlePullRequestReviewEvent() {
         review_decision: reviewDecision2,
         review_body: review.body ?? "",
         review_id: String(review.id),
-        reviewer: review.user.login,
+        reviewer: reviewerLogin,
         issue_number: issueNumber
       },
       skip: false,
@@ -25056,8 +25060,8 @@ async function handlePullRequestReviewEvent() {
     contextJson: {
       pr_number: String(pr.number),
       branch_name: pr.head.ref,
-      reviewer_login: review.user.login,
-      reviewer: review.user.login,
+      reviewer_login: reviewerLogin,
+      reviewer: reviewerLogin,
       review_state: state,
       review_decision: reviewDecision,
       review_body: review.body ?? "",

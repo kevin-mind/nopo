@@ -1550,7 +1550,7 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
     id: number;
     state: string;
     body: string;
-    user: { login: string };
+    user?: { login: string };
   };
   const pr = payload.pull_request as {
     number: number;
@@ -1561,6 +1561,13 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
     author: { login: string };
     labels: Array<{ name: string }>;
   };
+
+  // Early return if review has no user (shouldn't happen, but be defensive)
+  if (!review?.user?.login) {
+    return emptyResult(true, "Review has no user information");
+  }
+
+  const reviewerLogin = review.user.login;
 
   // Check for [TEST] in title (circuit breaker for test automation)
   // Skip unless test:automation label is present
@@ -1585,7 +1592,7 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
 
   // Handle approved state from nopo-reviewer (Claude's review account)
   // This triggers orchestration to merge the PR
-  if (state === "approved" && review.user.login === "nopo-reviewer") {
+  if (state === "approved" && reviewerLogin === "nopo-reviewer") {
     // Extract linked issue number from PR body (Fixes #N, Closes #N, Resolves #N)
     // This is more reliable than branch name for sub-issues
     const prBody = pr.body ?? "";
@@ -1631,7 +1638,7 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
   // Check if review is from Claude reviewer (pr-response) or human (pr-human-response)
   // nopo-reviewer is Claude's review account, claude[bot] is the direct API account
   const claudeReviewers = ["nopo-reviewer", "claude[bot]"];
-  if (claudeReviewers.includes(review.user.login)) {
+  if (claudeReviewers.includes(reviewerLogin)) {
     // Convert state to uppercase for review_decision (e.g., "changes_requested" -> "CHANGES_REQUESTED")
     const reviewDecision = state.toUpperCase();
 
@@ -1647,7 +1654,7 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
         review_decision: reviewDecision,
         review_body: review.body ?? "",
         review_id: String(review.id),
-        reviewer: review.user.login,
+        reviewer: reviewerLogin,
         issue_number: issueNumber,
       },
       skip: false,
@@ -1676,8 +1683,8 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
     contextJson: {
       pr_number: String(pr.number),
       branch_name: pr.head.ref,
-      reviewer_login: review.user.login,
-      reviewer: review.user.login,
+      reviewer_login: reviewerLogin,
+      reviewer: reviewerLogin,
       review_state: state,
       review_decision: reviewDecision,
       review_body: review.body ?? "",
