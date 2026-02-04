@@ -36,18 +36,23 @@ Check which todos are done vs pending.
 - Fix the issues, verify, commit
 
 **If CI passed or first iteration**:
-- Pick the **next unchecked todo**
-- Complete **just that one item**
+- Find the **next unchecked todo** (one without `[x]`)
+- Check if the code already satisfies this todo
+- If YES: Return `status: "completed_todo"` with the todo text - the executor will check it off
+- If NO: Implement the todo, then return `status: "completed_todo"`
+- Complete **just ONE todo per iteration**
 
-**If next todo has `[Manual]` prefix**:
+**If next unchecked todo has `[Manual]` prefix**:
 - These require human action (testing, verification, etc.)
 - **EXIT IMMEDIATELY** - do not attempt to complete it
 - Set status to `waiting_manual` with the todo text in `manual_todo`
 - A human will complete the task, check it off, and re-trigger the workflow
 
-**If all todos done and CI passed**:
+**If all non-manual todos are checked off and CI passed**:
 - Set status to `all_done`
 - Workflow handles marking PR ready and requesting review
+
+**IMPORTANT**: Each iteration should check off exactly ONE todo. Even if multiple todos are already satisfied by existing code, only return ONE `todo_completed` per iteration. The workflow will re-run to check off the next one.
 
 ### 3. Implementation
 
@@ -77,22 +82,25 @@ If no PR exists:
 Return structured JSON with:
 
 - **status**: What happened this iteration
-  - `completed_todo` - Finished one todo item (include exact todo text in todo_completed)
-  - `waiting_manual` - Next todo has `[Manual]` prefix (include exact todo text in manual_todo)
+  - `completed_todo` - A todo item is satisfied (code exists OR you just implemented it)
+  - `waiting_manual` - Next unchecked todo has `[Manual]` prefix
   - `blocked` - Cannot proceed (explain in blocked_reason)
-  - `all_done` - All todos complete, ready for review
+  - `all_done` - All non-manual todos are checked off, ready for review
 
-- **todo_completed**: The **exact text** of the todo you completed (if status=completed_todo)
+- **todo_completed**: The **exact text** of ONE todo that is now satisfied (if status=completed_todo)
+  - Copy the todo text EXACTLY as it appears in the issue (without the `- [ ]` prefix)
   - Example: "Add login form validation"
   - The executor will check this off in the issue body
+  - **Always use this status** when there's an unchecked todo that the code satisfies
 
 - **manual_todo**: The **exact text** of the manual todo (if status=waiting_manual)
+  - Only use this when the NEXT unchecked todo has `[Manual]` prefix
 
 - **blocked_reason**: Explanation if status=blocked
 
 - **agent_notes**: Important discoveries for future iterations (stored in history)
 
 The executor will:
-- Check off the todo_completed in the issue body
+- Check off the todo_completed in the issue body (matches fuzzy, so slight differences OK)
 - Store agent_notes in iteration history
 - Handle PR ready state transitions based on status
