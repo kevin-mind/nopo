@@ -34720,17 +34720,17 @@ var DiscussionActionSchema = external_exports.discriminatedUnion("type", [
 function triggeredByDiscussionCreated({
   context: context2
 }) {
-  return context2.trigger === "discussion_created";
+  return context2.trigger === "discussion-created";
 }
 function triggeredByDiscussionComment({
   context: context2
 }) {
-  return context2.trigger === "discussion_comment";
+  return context2.trigger === "discussion-comment";
 }
 function triggeredByDiscussionCommand({
   context: context2
 }) {
-  return context2.trigger === "discussion_command";
+  return context2.trigger === "discussion-command";
 }
 function commandIsSummarize({ context: context2 }) {
   return context2.discussion.command === "summarize";
@@ -34748,7 +34748,7 @@ function isHumanComment({ context: context2 }) {
 }
 function isBotResearchThread({ context: context2 }) {
   const author = context2.discussion.commentAuthor;
-  return (author === context2.botUsername || author?.endsWith("[bot]") === true) && context2.trigger === "discussion_comment";
+  return (author === context2.botUsername || author?.endsWith("[bot]") === true) && context2.trigger === "discussion-comment";
 }
 function hasDiscussionContext({ context: context2 }) {
   return context2.discussion !== null && context2.discussion !== void 0;
@@ -35093,15 +35093,12 @@ var discussionMachine = setup({
           target: "commanding",
           guard: "triggeredByDiscussionCommand"
         },
-        // Comment from human - respond
+        // Discussion comment - respond (human comments and bot research threads)
+        // Note: Bot reply comments are filtered by detect-event (returns skip=true)
+        // Only comments that need responses reach the state machine
         {
           target: "responding",
-          guard: "isHumanDiscussionComment"
-        },
-        // Bot comment (research thread) - skip
-        {
-          target: "skipped",
-          guard: "isBotResearchThread"
+          guard: "triggeredByDiscussionComment"
         },
         // Default - skip (unknown trigger)
         { target: "skipped" }
