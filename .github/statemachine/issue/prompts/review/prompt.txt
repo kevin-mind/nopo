@@ -16,11 +16,25 @@ git diff origin/main...HEAD --stat    # Summary
 git diff origin/main...HEAD           # Full diff
 ```
 
-## Step 2: Check Existing Comments
+## Step 2: Read ALL Existing Reviews and Comments
+
+**IMPORTANT**: Read ALL feedback to understand the full context and avoid repeating concerns already addressed.
 
 ```bash
+# Get ALL reviews (bodies and decisions) - CRITICAL for understanding history
+gh pr view {{PR_NUMBER}} --json reviews --jq '.reviews[] | "---\nReviewer: \(.author.login)\nState: \(.state)\nBody:\n\(.body)\n"'
+
+# Get inline comments on code (file-specific feedback)
+gh api repos/{{REPO_OWNER}}/{{REPO_NAME}}/pulls/{{PR_NUMBER}}/comments --jq '.[] | "---\nFile: \(.path):\(.line)\nAuthor: \(.user.login)\nComment: \(.body)\n"'
+
+# Get conversation comments (general discussion)
 gh pr view {{PR_NUMBER}} --comments
 ```
+
+Review the feedback history to:
+- See what has already been requested
+- Check if previous concerns were addressed
+- Avoid duplicate feedback
 
 ## Step 3: Review the Code
 

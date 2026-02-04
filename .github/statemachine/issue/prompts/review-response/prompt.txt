@@ -10,12 +10,25 @@ Branch: `{{HEAD_REF}}`
 
 ---
 
-## Step 1: Get Review Comments
+## Step 1: Read ALL Reviews and Comments
+
+**IMPORTANT**: Read ALL feedback to understand the full context of what's being requested.
 
 ```bash
-gh api /repos/{{REPO_OWNER}}/{{REPO_NAME}}/pulls/{{PR_NUMBER}}/comments
+# Get ALL reviews (bodies and decisions) - CRITICAL for understanding ALL feedback
+gh pr view {{PR_NUMBER}} --json reviews --jq '.reviews[] | "---\nReviewer: \(.author.login)\nState: \(.state)\nBody:\n\(.body)\n"'
+
+# Get inline comments on code (file-specific feedback) - THESE ARE OFTEN THE MOST IMPORTANT
+gh api repos/{{REPO_OWNER}}/{{REPO_NAME}}/pulls/{{PR_NUMBER}}/comments --jq '.[] | "---\nFile: \(.path):\(.line)\nAuthor: \(.user.login)\nComment: \(.body)\n"'
+
+# Get conversation comments (general discussion)
 gh pr view {{PR_NUMBER}} --comments
 ```
+
+**Pay attention to:**
+- Review bodies (overall feedback)
+- Inline comments on specific code lines (often contain the actual change requests)
+- Conversation history (may have follow-up context)
 
 ## Step 2: Process Feedback
 
