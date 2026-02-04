@@ -403,9 +403,11 @@ jobs:
       max-parallel: 1
       fail-fast: true
       matrix:
-        # DEBUG: Hardcode a simple matrix using fromJson
+        # DEBUG: Use YAML array syntax to eliminate expression evaluation issues
         # action: ${{ fromJson(needs.derive-actions.outputs.actions_matrix || '[]') }}
-        action: ${{ fromJson('[{"type":"test","index":0}]') }}
+        action:
+          - type: test
+            index: 0
 
     steps:
       - name: Checkout repository
