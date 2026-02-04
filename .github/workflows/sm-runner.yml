@@ -306,12 +306,30 @@ jobs:
           # CRITICAL: Use printf instead of echo to avoid escape sequence interpretation
           # echo interprets \r\n as actual CR LF, breaking the JSON
           # printf '%s' preserves the literal backslash sequences
+          # Use unique delimiter to avoid conflicts with JSON content
           {
-            echo 'matrix<<EOF'
+            echo 'matrix<<MATRIX_JSON_END_7d3f8a2b'
             printf '%s\n' "$matrix"
-            echo 'EOF'
+            echo 'MATRIX_JSON_END_7d3f8a2b'
           } >> $GITHUB_OUTPUT
+
+          # Debug: verify the output was written correctly
           echo "Formatted matrix with ${ACTION_COUNT} actions"
+          echo "Matrix preview (first 100 chars): ${matrix:0:100}"
+
+      - name: Debug Matrix Output
+        if: always()
+        run: |
+          echo "=== Debug: Matrix Output ==="
+          echo "Format step matrix output length: ${{ steps.format.outputs.matrix && '(has value)' || '(empty)' }}"
+          echo "Action count: ${{ steps.machine.outputs.action_count }}"
+          # Try to parse the matrix to verify it's valid
+          if printf '%s' '${{ steps.format.outputs.matrix }}' | jq -e 'length' > /dev/null 2>&1; then
+            echo "Matrix is valid JSON with $(printf '%s' '${{ steps.format.outputs.matrix }}' | jq 'length') items"
+          else
+            echo "::warning::Matrix output may not be valid JSON"
+            echo "First 200 chars of matrix: $(printf '%s' '${{ steps.format.outputs.matrix }}' | head -c 200)"
+          fi
 
       - name: Write Derivation Summary
         if: always()
