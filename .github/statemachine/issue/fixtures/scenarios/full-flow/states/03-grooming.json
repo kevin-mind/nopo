@@ -20,11 +20,5 @@
       "uncheckedNonManual": 0
     }
   },
-  "claudeMocks": [
-    "grooming/pm",
-    "grooming/engineer",
-    "grooming/qa",
-    "grooming/research",
-    "grooming/summary"
-  ]
+  "claudeMock": "iterate/perfect-code"
 }

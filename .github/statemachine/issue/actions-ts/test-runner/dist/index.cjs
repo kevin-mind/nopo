@@ -50461,8 +50461,16 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
     } else if (fixture.state === "triaging") {
       if (fixture.issue.assignees.includes("nopo-bot")) {
         trigger = "issue-assigned";
+      } else if (fixture.issue.labels.includes("triaged")) {
+        trigger = "issue-edited";
       } else {
         trigger = "issue-triage";
+      }
+    } else if (fixture.state === "grooming") {
+      if (fixture.issue.assignees.includes("nopo-bot") && fixture.issue.labels.includes("groomed")) {
+        trigger = "issue-assigned";
+      } else {
+        trigger = fixture.trigger || "issue-groom";
       }
     } else if (fixture.state === "reviewing" || fixture.state === "prReviewing") {
       trigger = "pr-review-requested";
@@ -50615,7 +50623,8 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
       iteration: expected.issue.iteration,
       failures: expected.issue.failures,
       botAssigned: expected.issue.assignees.includes("nopo-bot"),
-      hasTriagedLabel: expected.issue.labels.includes("triaged")
+      hasTriagedLabel: expected.issue.labels.includes("triaged"),
+      hasGroomedLabel: expected.issue.labels.includes("groomed")
     };
     const actualFields = {
       issueState: state.issueState,
@@ -50623,7 +50632,8 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
       iteration: state.iteration,
       failures: state.failures,
       botAssigned: state.botAssigned,
-      hasTriagedLabel: state.labels.includes("triaged")
+      hasTriagedLabel: state.labels.includes("triaged"),
+      hasGroomedLabel: state.labels.includes("groomed")
     };
     core23.info(`
 State Verification:`);

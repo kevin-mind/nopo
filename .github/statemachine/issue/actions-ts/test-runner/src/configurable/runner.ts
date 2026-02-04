@@ -1041,8 +1041,24 @@ Issue: #${this.issueNumber}
       // to route to iterating instead of re-running triage
       if (fixture.issue.assignees.includes("nopo-bot")) {
         trigger = "issue-assigned";
+      } else if (fixture.issue.labels.includes("triaged")) {
+        // Issue is already triaged (has "triaged" label), so use issue-edited
+        // which will cause the state machine to check needsGrooming
+        trigger = "issue-edited";
       } else {
         trigger = "issue-triage";
+      }
+    } else if (fixture.state === "grooming") {
+      // If nopo-bot is assigned (via side effects) and issue is already groomed,
+      // use issue-assigned trigger to route to iterating instead of re-running grooming.
+      // The "groomed" label in the fixture indicates grooming has completed.
+      if (
+        fixture.issue.assignees.includes("nopo-bot") &&
+        fixture.issue.labels.includes("groomed")
+      ) {
+        trigger = "issue-assigned";
+      } else {
+        trigger = fixture.trigger || "issue-groom";
       }
     } else if (
       fixture.state === "reviewing" ||
@@ -1231,6 +1247,7 @@ Issue: #${this.issueNumber}
       failures: expected.issue.failures,
       botAssigned: expected.issue.assignees.includes("nopo-bot"),
       hasTriagedLabel: expected.issue.labels.includes("triaged"),
+      hasGroomedLabel: expected.issue.labels.includes("groomed"),
     };
 
     const actualFields = {
@@ -1240,6 +1257,7 @@ Issue: #${this.issueNumber}
       failures: state.failures,
       botAssigned: state.botAssigned,
       hasTriagedLabel: state.labels.includes("triaged"),
+      hasGroomedLabel: state.labels.includes("groomed"),
     };
 
     // Log the comparison

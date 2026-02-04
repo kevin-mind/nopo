@@ -1,4 +1,4 @@
 {
   "name": "full-flow",
-  "description": "Complete issue lifecycle: detecting -> triaging -> iterating -> CI pass -> review -> approve -> merge -> done. No sub-issues."
+  "description": "Complete issue lifecycle: detecting -> triaging -> grooming -> iterating -> CI pass -> review -> approve -> merge -> done. No sub-issues."
 }
