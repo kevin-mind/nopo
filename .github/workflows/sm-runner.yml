@@ -302,11 +302,12 @@ jobs:
             exit 1
           fi
 
-          # Use heredoc format for multiline-safe output
-          # This is GitHub's recommended approach for values that may contain special characters
+          # CRITICAL: Use printf instead of echo to avoid escape sequence interpretation
+          # echo interprets \r\n as actual CR LF, breaking the JSON
+          # printf '%s' preserves the literal backslash sequences
           {
             echo 'matrix<<EOF'
-            echo "$matrix"
+            printf '%s\n' "$matrix"
             echo 'EOF'
           } >> $GITHUB_OUTPUT
           echo "Formatted matrix with ${ACTION_COUNT} actions"
