@@ -1,5 +1,6 @@
 import type { GitHub } from "@actions/github/lib/utils.js";
 import * as core from "@actions/core";
+import * as fs from "fs";
 import type { Action, ActionType, TokenType } from "../schemas/index.js";
 import {
   ActionSchema,
@@ -178,6 +179,38 @@ interface RunnerOptions {
 // ============================================================================
 
 /**
+ * Get structured output from chain context or file
+ *
+ * For matrix job execution where actions run in separate jobs,
+ * the structured output is passed through artifacts. This function
+ * reads from the file if chain context doesn't have the output.
+ */
+function getStructuredOutput(
+  action: Action,
+  chainCtx?: ActionChainContext,
+): unknown | undefined {
+  // First try chain context (same-job execution)
+  if (chainCtx?.lastClaudeStructuredOutput) {
+    return chainCtx.lastClaudeStructuredOutput;
+  }
+
+  // Check if action has a filePath for artifact-based execution
+  const actionWithFile = action as Action & { filePath?: string };
+  if (actionWithFile.filePath && fs.existsSync(actionWithFile.filePath)) {
+    try {
+      const content = fs.readFileSync(actionWithFile.filePath, "utf-8");
+      const parsed = JSON.parse(content);
+      core.info(`Loaded structured output from file: ${actionWithFile.filePath}`);
+      return parsed;
+    } catch (e) {
+      core.warning(`Failed to read structured output from ${actionWithFile.filePath}: ${e}`);
+    }
+  }
+
+  return undefined;
+}
+
+/**
  * Execute a single action
  *
  * Creates a context with the appropriate octokit based on action.token
@@ -269,20 +302,20 @@ async function executeAction(
 
     // Triage actions
     case "applyTriageOutput":
-      // Pass structured output from previous runClaude action if available
+      // Get structured output from chain context or artifact file
       return executeApplyTriageOutput(
         action,
         actionCtx,
-        chainCtx?.lastClaudeStructuredOutput,
+        getStructuredOutput(action, chainCtx),
       );
 
     // Iterate actions
     case "applyIterateOutput":
-      // Pass structured output from previous runClaude action if available
+      // Get structured output from chain context or artifact file
       return executeApplyIterateOutput(
         action,
         actionCtx,
-        chainCtx?.lastClaudeStructuredOutput,
+        getStructuredOutput(action, chainCtx),
       );
 
     // Agent notes actions
@@ -291,20 +324,20 @@ async function executeAction(
 
     // Review actions
     case "applyReviewOutput":
-      // Pass structured output from previous runClaude action if available
+      // Get structured output from chain context or artifact file
       return executeApplyReviewOutput(
         action,
         actionCtx,
-        chainCtx?.lastClaudeStructuredOutput,
+        getStructuredOutput(action, chainCtx),
       );
 
     // PR response actions
     case "applyPRResponseOutput":
-      // Pass structured output from previous runClaude action if available
+      // Get structured output from chain context or artifact file
       return executeApplyPRResponseOutput(
         action,
         actionCtx,
-        chainCtx?.lastClaudeStructuredOutput,
+        getStructuredOutput(action, chainCtx),
       );
 
     // Discussion apply actions
@@ -312,25 +345,25 @@ async function executeAction(
       return executeApplyDiscussionResearchOutput(
         action,
         actionCtx,
-        chainCtx?.lastClaudeStructuredOutput,
+        getStructuredOutput(action, chainCtx),
       );
     case "applyDiscussionRespondOutput":
       return executeApplyDiscussionRespondOutput(
         action,
         actionCtx,
-        chainCtx?.lastClaudeStructuredOutput,
+        getStructuredOutput(action, chainCtx),
       );
     case "applyDiscussionSummarizeOutput":
       return executeApplyDiscussionSummarizeOutput(
         action,
         actionCtx,
-        chainCtx?.lastClaudeStructuredOutput,
+        getStructuredOutput(action, chainCtx),
       );
     case "applyDiscussionPlanOutput":
       return executeApplyDiscussionPlanOutput(
         action,
         actionCtx,
-        chainCtx?.lastClaudeStructuredOutput,
+        getStructuredOutput(action, chainCtx),
       );
 
     // Control flow actions

@@ -182,7 +182,7 @@ var require_file_command = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.prepareKeyValueMessage = exports2.issueFileCommand = void 0;
     var crypto = __importStar(require("crypto"));
-    var fs9 = __importStar(require("fs"));
+    var fs10 = __importStar(require("fs"));
     var os = __importStar(require("os"));
     var utils_1 = require_utils();
     function issueFileCommand(command, message) {
@@ -190,10 +190,10 @@ var require_file_command = __commonJS({
       if (!filePath) {
         throw new Error(`Unable to find environment variable for file command ${command}`);
       }
-      if (!fs9.existsSync(filePath)) {
+      if (!fs10.existsSync(filePath)) {
         throw new Error(`Missing file at path: ${filePath}`);
       }
-      fs9.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
+      fs10.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
         encoding: "utf8"
       });
     }
@@ -18510,12 +18510,12 @@ var require_io_util = __commonJS({
     var _a;
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getCmdPath = exports2.tryGetExecutablePath = exports2.isRooted = exports2.isDirectory = exports2.exists = exports2.READONLY = exports2.UV_FS_O_EXLOCK = exports2.IS_WINDOWS = exports2.unlink = exports2.symlink = exports2.stat = exports2.rmdir = exports2.rm = exports2.rename = exports2.readlink = exports2.readdir = exports2.open = exports2.mkdir = exports2.lstat = exports2.copyFile = exports2.chmod = void 0;
-    var fs9 = __importStar(require("fs"));
+    var fs10 = __importStar(require("fs"));
     var path4 = __importStar(require("path"));
-    _a = fs9.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
+    _a = fs10.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
     exports2.IS_WINDOWS = process.platform === "win32";
     exports2.UV_FS_O_EXLOCK = 268435456;
-    exports2.READONLY = fs9.constants.O_RDONLY;
+    exports2.READONLY = fs10.constants.O_RDONLY;
     function exists(fsPath) {
       return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -36809,6 +36809,7 @@ var exec13 = __toESM(require_exec(), 1);
 
 // issue/actions-ts/state-machine/runner/runner.ts
 var core20 = __toESM(require_core(), 1);
+var fs8 = __toESM(require("fs"), 1);
 
 // issue/actions-ts/state-machine/runner/executors/project.ts
 var core7 = __toESM(require_core(), 1);
@@ -48216,6 +48217,23 @@ function getOctokitForAction(action, ctx) {
   }
   return ctx.octokit;
 }
+function getStructuredOutput(action, chainCtx) {
+  if (chainCtx?.lastClaudeStructuredOutput) {
+    return chainCtx.lastClaudeStructuredOutput;
+  }
+  const actionWithFile = action;
+  if (actionWithFile.filePath && fs8.existsSync(actionWithFile.filePath)) {
+    try {
+      const content = fs8.readFileSync(actionWithFile.filePath, "utf-8");
+      const parsed = JSON.parse(content);
+      core20.info(`Loaded structured output from file: ${actionWithFile.filePath}`);
+      return parsed;
+    } catch (e2) {
+      core20.warning(`Failed to read structured output from ${actionWithFile.filePath}: ${e2}`);
+    }
+  }
+  return void 0;
+}
 async function executeAction(action, ctx, chainCtx) {
   const actionCtx = {
     ...ctx,
@@ -48293,14 +48311,14 @@ async function executeAction(action, ctx, chainCtx) {
       return executeApplyTriageOutput(
         action,
         actionCtx,
-        chainCtx?.lastClaudeStructuredOutput
+        getStructuredOutput(action, chainCtx)
       );
     // Iterate actions
     case "applyIterateOutput":
       return executeApplyIterateOutput(
         action,
         actionCtx,
-        chainCtx?.lastClaudeStructuredOutput
+        getStructuredOutput(action, chainCtx)
       );
     // Agent notes actions
     case "appendAgentNotes":
@@ -48310,39 +48328,39 @@ async function executeAction(action, ctx, chainCtx) {
       return executeApplyReviewOutput(
         action,
         actionCtx,
-        chainCtx?.lastClaudeStructuredOutput
+        getStructuredOutput(action, chainCtx)
       );
     // PR response actions
     case "applyPRResponseOutput":
       return executeApplyPRResponseOutput(
         action,
         actionCtx,
-        chainCtx?.lastClaudeStructuredOutput
+        getStructuredOutput(action, chainCtx)
       );
     // Discussion apply actions
     case "applyDiscussionResearchOutput":
       return executeApplyDiscussionResearchOutput(
         action,
         actionCtx,
-        chainCtx?.lastClaudeStructuredOutput
+        getStructuredOutput(action, chainCtx)
       );
     case "applyDiscussionRespondOutput":
       return executeApplyDiscussionRespondOutput(
         action,
         actionCtx,
-        chainCtx?.lastClaudeStructuredOutput
+        getStructuredOutput(action, chainCtx)
       );
     case "applyDiscussionSummarizeOutput":
       return executeApplyDiscussionSummarizeOutput(
         action,
         actionCtx,
-        chainCtx?.lastClaudeStructuredOutput
+        getStructuredOutput(action, chainCtx)
       );
     case "applyDiscussionPlanOutput":
       return executeApplyDiscussionPlanOutput(
         action,
         actionCtx,
-        chainCtx?.lastClaudeStructuredOutput
+        getStructuredOutput(action, chainCtx)
       );
     // Control flow actions
     case "stop":
@@ -49826,7 +49844,7 @@ var _DiscussionTestResultSchema = external_exports.object({
 });
 
 // issue/actions-ts/test-runner/src/configurable/discussion-loader.ts
-var fs8 = __toESM(require("fs"), 1);
+var fs9 = __toESM(require("fs"), 1);
 var path3 = __toESM(require("path"), 1);
 var core22 = __toESM(require_core(), 1);
 var FIXTURES_BASE_PATH2 = ".github/statemachine/discussion/fixtures";
@@ -49841,18 +49859,18 @@ async function loadDiscussionScenario(scenarioName, basePath = FIXTURES_BASE_PAT
     scenarioName
   );
   const configPath = path3.join(scenarioDir, SCENARIO_CONFIG_FILE2);
-  if (!fs8.existsSync(configPath)) {
+  if (!fs9.existsSync(configPath)) {
     throw new Error(
       `Discussion scenario config not found: ${configPath}. Create a scenario.json file with name and description.`
     );
   }
-  const configContent = fs8.readFileSync(configPath, "utf-8");
+  const configContent = fs9.readFileSync(configPath, "utf-8");
   const configJson = JSON.parse(configContent);
   const config = DiscussionScenarioConfigSchema.parse(configJson);
   core22.info(`Loading discussion scenario: ${config.name}`);
   core22.info(`Description: ${config.description}`);
   const statesDir = path3.join(scenarioDir, STATES_DIR2);
-  if (!fs8.existsSync(statesDir)) {
+  if (!fs9.existsSync(statesDir)) {
     throw new Error(
       `States directory not found: ${statesDir}. Create a states/ directory with fixture files.`
     );
@@ -49876,12 +49894,12 @@ async function loadDiscussionScenario(scenarioName, basePath = FIXTURES_BASE_PAT
   };
 }
 async function loadDiscussionStateFixtures(statesDir) {
-  const files = fs8.readdirSync(statesDir).filter((f) => f.endsWith(".json")).sort();
+  const files = fs9.readdirSync(statesDir).filter((f) => f.endsWith(".json")).sort();
   const orderedStates = [];
   const fixtures = /* @__PURE__ */ new Map();
   for (const file of files) {
     const filePath = path3.join(statesDir, file);
-    const content = fs8.readFileSync(filePath, "utf-8");
+    const content = fs9.readFileSync(filePath, "utf-8");
     let json;
     try {
       json = JSON.parse(content);
@@ -49915,12 +49933,12 @@ async function loadReferencedMocks2(fixtures, basePath) {
     if (!fixture.claudeMock) continue;
     if (claudeMocks.has(fixture.claudeMock)) continue;
     const mockPath = path3.join(mocksDir, `${fixture.claudeMock}.json`);
-    if (!fs8.existsSync(mockPath)) {
+    if (!fs9.existsSync(mockPath)) {
       throw new Error(
         `Claude mock not found: ${mockPath} (referenced by state '${state}')`
       );
     }
-    const content = fs8.readFileSync(mockPath, "utf-8");
+    const content = fs9.readFileSync(mockPath, "utf-8");
     let json;
     try {
       json = JSON.parse(content);
