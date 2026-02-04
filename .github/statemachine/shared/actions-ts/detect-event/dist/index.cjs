@@ -25018,9 +25018,10 @@ async function handlePullRequestReviewEvent() {
   if (state !== "changes_requested" && state !== "commented") {
     return emptyResult(true, `Review state is ${state}`);
   }
-  const branchMatch = pr.head.ref.match(/^claude\/issue\/(\d+)$/);
-  const issueNumber = branchMatch?.[1] ?? "";
-  if (review.user.login === "claude[bot]") {
+  const branchMatch = pr.head.ref.match(/^claude\/issue\/(\d+)(?:\/phase-(\d+))?$/);
+  const issueNumber = branchMatch?.[2] ?? branchMatch?.[1] ?? "";
+  const claudeReviewers = ["nopo-reviewer", "claude[bot]"];
+  if (claudeReviewers.includes(review.user.login)) {
     return {
       job: "pr-response",
       resourceType: "pr",
@@ -25038,7 +25039,8 @@ async function handlePullRequestReviewEvent() {
       skipReason: ""
     };
   }
-  const isClaudePr = pr.author.login === "claude[bot]" || pr.head.ref.startsWith("claude/");
+  const claudeAuthors = ["nopo-bot", "claude[bot]"];
+  const isClaudePr = claudeAuthors.includes(pr.author.login) || pr.head.ref.startsWith("claude/");
   if (!isClaudePr) {
     return emptyResult(true, "Human review on non-Claude PR");
   }

@@ -1622,12 +1622,16 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
     return emptyResult(true, `Review state is ${state}`);
   }
 
-  // Extract issue number from branch name (claude/issue/XXX)
-  const branchMatch = pr.head.ref.match(/^claude\/issue\/(\d+)$/);
-  const issueNumber = branchMatch?.[1] ?? "";
+  // Extract issue number from branch name
+  // Supports: claude/issue/XXX or claude/issue/XXX/phase-YYY (sub-issue branches)
+  const branchMatch = pr.head.ref.match(/^claude\/issue\/(\d+)(?:\/phase-(\d+))?$/);
+  // For sub-issue branches, use the phase number (sub-issue); otherwise use parent issue number
+  const issueNumber = branchMatch?.[2] ?? branchMatch?.[1] ?? "";
 
-  // Check if review is from Claude (pr-response) or human (pr-human-response)
-  if (review.user.login === "claude[bot]") {
+  // Check if review is from Claude reviewer (pr-response) or human (pr-human-response)
+  // nopo-reviewer is Claude's review account, claude[bot] is the direct API account
+  const claudeReviewers = ["nopo-reviewer", "claude[bot]"];
+  if (claudeReviewers.includes(review.user.login)) {
     return {
       job: "pr-response",
       resourceType: "pr",
@@ -1647,8 +1651,11 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
   }
 
   // Human review - check if this is a Claude PR
+  // nopo-bot is Claude's code account, claude[bot] is the direct API account
+  const claudeAuthors = ["nopo-bot", "claude[bot]"];
   const isClaudePr =
-    pr.author.login === "claude[bot]" || pr.head.ref.startsWith("claude/");
+    claudeAuthors.includes(pr.author.login) ||
+    pr.head.ref.startsWith("claude/");
   if (!isClaudePr) {
     return emptyResult(true, "Human review on non-Claude PR");
   }
