@@ -34691,6 +34691,7 @@ var ApplyDiscussionPlanOutputActionSchema2 = BaseActionSchema2.extend({
 var RunClaudeActionSchema2 = BaseActionSchema2.extend({
   type: external_exports.literal("runClaude"),
   promptDir: external_exports.string(),
+  promptsBase: external_exports.string().optional(),
   promptVars: external_exports.record(external_exports.string()),
   issueNumber: external_exports.number().int().positive().optional()
 });
@@ -34788,6 +34789,7 @@ function emitRunClaudeResearch({
       type: "runClaude",
       token: "code",
       promptDir: "research",
+      promptsBase: ".github/statemachine/discussion/prompts",
       promptVars,
       issueNumber: context2.discussion.number
     },
@@ -34814,6 +34816,7 @@ function emitRunClaudeRespond({ context: context2 }) {
       type: "runClaude",
       token: "code",
       promptDir: "respond",
+      promptsBase: ".github/statemachine/discussion/prompts",
       promptVars,
       issueNumber: context2.discussion.number
     },
@@ -34840,6 +34843,7 @@ function emitRunClaudeSummarize({
       type: "runClaude",
       token: "code",
       promptDir: "summarize",
+      promptsBase: ".github/statemachine/discussion/prompts",
       promptVars,
       issueNumber: context2.discussion.number
     },
@@ -34863,6 +34867,7 @@ function emitRunClaudePlan({ context: context2 }) {
       type: "runClaude",
       token: "code",
       promptDir: "plan",
+      promptsBase: ".github/statemachine/discussion/prompts",
       promptVars,
       issueNumber: context2.discussion.number
     },

@@ -480,6 +480,7 @@ jobs:
           prompt: ${{ matrix.action.prompt }}
           prompt_file: ${{ matrix.action.promptFile }}
           prompt_dir: ${{ matrix.action.promptDir }}
+          prompts_base: ${{ matrix.action.promptsBase }}
           prompt_vars: ${{ steps.prompt-vars.outputs.merged || toJson(matrix.action.promptVars) }}
 
       # Note: Review submission is now handled by the applyReviewOutput action in the executor

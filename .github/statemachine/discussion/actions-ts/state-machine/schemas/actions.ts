@@ -153,6 +153,7 @@ export type ApplyDiscussionPlanOutputAction = z.infer<
 const RunClaudeActionSchema = BaseActionSchema.extend({
   type: z.literal("runClaude"),
   promptDir: z.string(),
+  promptsBase: z.string().optional(),
   promptVars: z.record(z.string()),
   issueNumber: z.number().int().positive().optional(),
 });
