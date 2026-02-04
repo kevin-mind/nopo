@@ -28509,24 +28509,40 @@ var ApplyPRResponseOutputActionSchema = BaseActionSchema.extend({
 var ApplyDiscussionResearchOutputActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("applyDiscussionResearchOutput"),
   discussionNumber: external_exports.number().int().positive(),
-  discussionNodeId: external_exports.string().min(1)
+  discussionNodeId: external_exports.string().min(1),
+  /** Path to the structured output file (for artifact-based execution) */
+  filePath: external_exports.string().optional(),
+  /** Artifact to download before execution */
+  consumesArtifact: ArtifactSchema.optional()
 });
 var ApplyDiscussionRespondOutputActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("applyDiscussionRespondOutput"),
   discussionNumber: external_exports.number().int().positive(),
   discussionNodeId: external_exports.string().min(1),
   /** If provided, post as a reply to this comment */
-  replyToNodeId: external_exports.string().optional()
+  replyToNodeId: external_exports.string().optional(),
+  /** Path to the structured output file (for artifact-based execution) */
+  filePath: external_exports.string().optional(),
+  /** Artifact to download before execution */
+  consumesArtifact: ArtifactSchema.optional()
 });
 var ApplyDiscussionSummarizeOutputActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("applyDiscussionSummarizeOutput"),
   discussionNumber: external_exports.number().int().positive(),
-  discussionNodeId: external_exports.string().min(1)
+  discussionNodeId: external_exports.string().min(1),
+  /** Path to the structured output file (for artifact-based execution) */
+  filePath: external_exports.string().optional(),
+  /** Artifact to download before execution */
+  consumesArtifact: ArtifactSchema.optional()
 });
 var ApplyDiscussionPlanOutputActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("applyDiscussionPlanOutput"),
   discussionNumber: external_exports.number().int().positive(),
-  discussionNodeId: external_exports.string().min(1)
+  discussionNodeId: external_exports.string().min(1),
+  /** Path to the structured output file (for artifact-based execution) */
+  filePath: external_exports.string().optional(),
+  /** Artifact to download before execution */
+  consumesArtifact: ArtifactSchema.optional()
 });
 var ActionSchema = external_exports.discriminatedUnion("type", [
   // Project field actions

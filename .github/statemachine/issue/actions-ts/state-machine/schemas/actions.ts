@@ -583,6 +583,10 @@ const ApplyDiscussionResearchOutputActionSchema = BaseActionSchema.extend({
   type: z.literal("applyDiscussionResearchOutput"),
   discussionNumber: z.number().int().positive(),
   discussionNodeId: z.string().min(1),
+  /** Path to the structured output file (for artifact-based execution) */
+  filePath: z.string().optional(),
+  /** Artifact to download before execution */
+  consumesArtifact: ArtifactSchema.optional(),
 });
 
 export type ApplyDiscussionResearchOutputAction = z.infer<
@@ -599,6 +603,10 @@ const ApplyDiscussionRespondOutputActionSchema = BaseActionSchema.extend({
   discussionNodeId: z.string().min(1),
   /** If provided, post as a reply to this comment */
   replyToNodeId: z.string().optional(),
+  /** Path to the structured output file (for artifact-based execution) */
+  filePath: z.string().optional(),
+  /** Artifact to download before execution */
+  consumesArtifact: ArtifactSchema.optional(),
 });
 
 export type ApplyDiscussionRespondOutputAction = z.infer<
@@ -613,6 +621,10 @@ const ApplyDiscussionSummarizeOutputActionSchema = BaseActionSchema.extend({
   type: z.literal("applyDiscussionSummarizeOutput"),
   discussionNumber: z.number().int().positive(),
   discussionNodeId: z.string().min(1),
+  /** Path to the structured output file (for artifact-based execution) */
+  filePath: z.string().optional(),
+  /** Artifact to download before execution */
+  consumesArtifact: ArtifactSchema.optional(),
 });
 
 export type ApplyDiscussionSummarizeOutputAction = z.infer<
@@ -627,6 +639,10 @@ const ApplyDiscussionPlanOutputActionSchema = BaseActionSchema.extend({
   type: z.literal("applyDiscussionPlanOutput"),
   discussionNumber: z.number().int().positive(),
   discussionNodeId: z.string().min(1),
+  /** Path to the structured output file (for artifact-based execution) */
+  filePath: z.string().optional(),
+  /** Artifact to download before execution */
+  consumesArtifact: ArtifactSchema.optional(),
 });
 
 export type ApplyDiscussionPlanOutputAction = z.infer<
