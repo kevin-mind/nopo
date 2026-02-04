@@ -29,6 +29,36 @@ git status && git log --oneline -3
 
 Check which todos are done vs pending.
 
+### 1.5. Check for Conflicts with Main
+
+**Before doing any work**, check if your branch has conflicts with main:
+
+```bash
+git fetch origin main
+git merge-base --is-ancestor origin/main HEAD && echo "Up to date" || echo "Behind main"
+```
+
+**If behind main**, try to rebase:
+
+```bash
+git rebase origin/main
+```
+
+**If rebase fails with conflicts**:
+1. Check the conflict severity: `git diff --name-only --diff-filter=U`
+2. If conflicts are in files YOU modified, try to resolve them
+3. If conflicts are in files you didn't touch or are too complex:
+   - Abort the rebase: `git rebase --abort`
+   - Set status to `blocked` with `blocked_reason: "Merge conflicts with main that require human intervention. Conflicting files: [list them]"`
+   - **Do NOT waste iterations on unresolvable conflicts**
+
+**Simple conflicts** (your changes + main changes in different parts of same file):
+- Resolve by keeping both changes appropriately
+- `git add <file>` and `git rebase --continue`
+
+**Complex conflicts** (overlapping changes, structural refactors, deleted files):
+- These need human judgment - set status to `blocked` immediately
+
 ### 2. Determine Action
 
 **If CI failed** (`LAST_CI_RESULT = failure`):
