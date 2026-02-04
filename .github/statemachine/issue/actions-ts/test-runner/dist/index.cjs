@@ -47691,7 +47691,7 @@ ${deliverables}`;
           {
             type: "runClaude",
             token: "code",
-            promptDir: "discussion/investigate",
+            promptDir: "investigate",
             promptsDir: ".github/statemachine/discussion/prompts",
             promptVars: threadPromptVars,
             issueNumber: discussionNumber,
@@ -48244,7 +48244,7 @@ async function investigateThread(thread, discussionNumber, discussionNodeId, bas
     {
       type: "runClaude",
       token: "code",
-      promptDir: "discussion/investigate",
+      promptDir: "investigate",
       promptsDir: ".github/statemachine/discussion/prompts",
       promptVars: threadPromptVars,
       issueNumber: discussionNumber,

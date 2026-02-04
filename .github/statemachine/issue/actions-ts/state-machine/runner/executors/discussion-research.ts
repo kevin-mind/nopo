@@ -228,7 +228,7 @@ async function investigateThread(
     {
       type: "runClaude",
       token: "code",
-      promptDir: "discussion/investigate",
+      promptDir: "investigate",
       promptsDir: ".github/statemachine/discussion/prompts",
       promptVars: threadPromptVars,
       issueNumber: discussionNumber,
