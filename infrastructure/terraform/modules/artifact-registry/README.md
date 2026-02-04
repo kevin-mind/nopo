@@ -115,7 +115,6 @@ If you need to adjust the retention count based on your deployment patterns:
 
 1. **Higher frequency deployments**: Increase `keep_count` to maintain longer rollback window
 2. **Lower frequency deployments**: Decrease `keep_count` to reduce storage costs
-3. **Compliance requirements**: Adjust `older_than` to meet data retention policies
 
 ## References
 
