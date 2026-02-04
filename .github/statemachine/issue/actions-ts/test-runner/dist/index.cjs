@@ -47284,15 +47284,23 @@ async function executeApplyDiscussionResearchOutput(action, ctx, structuredOutpu
   core13.endGroup();
   if (ctx.dryRun) {
     core13.info(
-      `[DRY RUN] Would create ${output.research_threads?.length ?? 0} research threads`
+      `[DRY RUN] Would create ${output.threads?.length ?? 0} research threads`
     );
     return { applied: true, threadIds: [] };
   }
   const threadIds = [];
-  for (const thread of output.research_threads || []) {
-    const body = `## ${thread.topic}
+  for (const thread of output.threads || []) {
+    const areas = thread.investigation_areas?.map((a) => `- ${a}`).join("\n") || "";
+    const deliverables = thread.expected_deliverables?.map((d) => `- ${d}`).join("\n") || "";
+    const body = `## ${thread.title}
 
-${thread.body}`;
+**Question:** ${thread.question}
+
+### Investigation Areas
+${areas}
+
+### Expected Deliverables
+${deliverables}`;
     const response = await ctx.octokit.graphql(
       ADD_DISCUSSION_COMMENT_MUTATION2,
       {
@@ -47342,7 +47350,7 @@ async function executeApplyDiscussionRespondOutput(action, ctx, structuredOutput
       {
         discussionId: discussionNodeId,
         replyToId: replyToNodeId,
-        body: output.response
+        body: output.response_body
       }
     );
   } else {
@@ -47350,7 +47358,7 @@ async function executeApplyDiscussionRespondOutput(action, ctx, structuredOutput
       ADD_DISCUSSION_COMMENT_MUTATION2,
       {
         discussionId: discussionNodeId,
-        body: output.response
+        body: output.response_body
       }
     );
   }
@@ -47399,7 +47407,7 @@ async function executeApplyDiscussionSummarizeOutput(action, ctx, structuredOutp
       discussionId: discussionNodeId,
       body: `## Summary
 
-${output.summary}`
+${output.summary_comment}`
     }
   );
   core13.info("Posted summary comment");
@@ -47479,7 +47487,7 @@ async function executeApplyDiscussionPlanOutput(action, ctx, structuredOutput) {
   const issueLinks = issueNumbers.map((n3) => `- #${n3}`).join("\n");
   const summaryBody = `## Implementation Plan
 
-${output.summary}
+${output.summary_comment}
 
 ### Created Issues
 
