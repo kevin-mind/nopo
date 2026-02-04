@@ -10,16 +10,17 @@ This module creates and manages a Google Cloud Artifact Registry repository for 
 
 ## Cleanup Policies
 
-The module implements two cleanup policies that run daily to manage storage costs:
+The module implements a keep-based cleanup policy that runs daily to manage storage costs.
 
-### 1. Keep Most Recent Policy
+### Keep Most Recent Policy
 
-**Purpose**: Retain the 15 most recent image versions per service
+**Purpose**: Retain the 15 most recent image versions per image
 
 **Rationale**:
 - Covers 2-4 weeks of deployments based on current frequency
 - Provides sufficient rollback capability for typical issues
 - Balances cost optimization with operational safety
+- **GCP automatically deletes images not covered by KEEP policies**, eliminating the need for explicit DELETE policies
 
 **Configuration**:
 ```hcl
@@ -33,32 +34,21 @@ cleanup_policies {
 }
 ```
 
-### 2. Delete Old Images Policy
+### Why KEEP-only (No DELETE Policy)
 
-**Purpose**: Remove images older than 7 days as a safety backup
+**Recommended approach**: Use only KEEP policies, not DELETE policies.
 
 **Rationale**:
-- Catches orphaned images not covered by the keep policy
-- Provides additional cost protection
-- 7-day window allows for extended rollback scenarios
-
-**Configuration**:
-```hcl
-cleanup_policies {
-  id     = "delete-old-images"
-  action = "DELETE"
-
-  condition {
-    older_than = "604800s"  # 7 days
-  }
-}
-```
+- GCP automatically removes images not covered by KEEP policies after the daily cleanup run
+- DELETE policies create unnecessary complexity and potential edge cases
+- KEEP policies provide clearer intent: "retain these specific versions"
+- Simpler configuration is easier to understand and maintain
 
 ### Policy Execution
 
 - **Frequency**: Once per day
 - **Limit**: Up to 30,000 deletions per repository per day
-- **Priority**: Keep policies take precedence over delete policies (if an image matches both, it is kept)
+- **Automatic deletion**: GCP deletes all images not matched by KEEP policies
 - **Dry Run**: Set `cleanup_policy_dry_run = true` to test policies without deleting images
 
 ## Usage
