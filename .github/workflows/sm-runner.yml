@@ -314,20 +314,6 @@ jobs:
           echo "Formatted matrix with ${ACTION_COUNT} actions"
           echo "Matrix preview (first 100 chars): ${matrix:0:100}"
 
-      - name: Debug Matrix Output
-        if: always()
-        run: |
-          echo "=== Debug: Matrix Output ==="
-          echo "Format step matrix output length: ${{ steps.format.outputs.matrix && '(has value)' || '(empty)' }}"
-          echo "Action count: ${{ steps.machine.outputs.action_count }}"
-          # Try to parse the matrix to verify it's valid
-          if printf '%s' '${{ steps.format.outputs.matrix }}' | jq -e 'length' > /dev/null 2>&1; then
-            echo "Matrix is valid JSON with $(printf '%s' '${{ steps.format.outputs.matrix }}' | jq 'length') items"
-          else
-            echo "::warning::Matrix output may not be valid JSON"
-            echo "First 200 chars of matrix: $(printf '%s' '${{ steps.format.outputs.matrix }}' | head -c 200)"
-          fi
-
       - name: Write Derivation Summary
         if: always()
         env:
@@ -365,49 +351,20 @@ jobs:
           EOF
 
   # ============================================================================
-  # Debug: Print outputs before matrix evaluation
-  # ============================================================================
-  debug-outputs:
-    needs: [derive-actions]
-    # Temporarily always run to debug the issue
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Debug outputs
-        run: |
-          echo "=== Debug: Raw outputs from derive-actions ==="
-          echo "action_count: '${{ needs.derive-actions.outputs.action_count }}'"
-          echo "actions_matrix length: '${#MATRIX_VALUE}'"
-          echo "actions_matrix first 500 chars:"
-          echo "${MATRIX_VALUE:0:500}"
-          echo "---"
-          echo "Attempting to parse with jq:"
-          if echo "$MATRIX_VALUE" | jq -e 'length' 2>&1; then
-            echo "jq parse succeeded"
-          else
-            echo "jq parse failed"
-          fi
-        env:
-          MATRIX_VALUE: ${{ needs.derive-actions.outputs.actions_matrix }}
-
-  # ============================================================================
   # Phase 2: Execute Actions
   # Matrix job that executes each action in isolation with max-parallel: 1
   # ============================================================================
   exec-state-actions:
     needs: [e2e-detect, derive-actions]
-    # DEBUG: Use always() to ensure we can see if the job runs at all
-    if: ${{ always() && needs.derive-actions.outputs.action_count != '0' }}
+    # always() is required because derive-actions has a custom 'if' condition
+    # Without always(), GitHub skips this job even when derive-actions succeeds
+    if: ${{ always() && needs.derive-actions.outputs.action_count != '0' && needs.derive-actions.result == 'success' }}
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 1
       fail-fast: true
       matrix:
-        # DEBUG: Use YAML array syntax to eliminate expression evaluation issues
-        # action: ${{ fromJson(needs.derive-actions.outputs.actions_matrix || '[]') }}
-        action:
-          - type: test
-            index: 0
+        action: ${{ fromJson(needs.derive-actions.outputs.actions_matrix || '[]') }}
 
     steps:
       - name: Checkout repository
