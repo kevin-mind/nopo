@@ -935,6 +935,14 @@ Issue: #${this.issueNumber}
         // Use the full mock reference as the key (e.g., "grooming/pm")
         // This allows nested prompt dirs like "grooming/pm" to work
         mockOutputs[mockRef] = mock.output as Record<string, unknown>;
+
+        // Also add an entry for just the base prompt directory
+        // This handles cases like "triage/simple-issue" where promptDir is just "triage"
+        // but the mock file has a variant suffix
+        const basePromptDir = mockRef.split("/")[0];
+        if (basePromptDir && basePromptDir !== mockRef && !mockOutputs[basePromptDir]) {
+          mockOutputs[basePromptDir] = mock.output as Record<string, unknown>;
+        }
       }
 
       if (Object.keys(mockOutputs).length > 0) {

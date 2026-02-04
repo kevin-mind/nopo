@@ -221,10 +221,18 @@ export async function executeRunClaude(
 
   core.info(`Running Claude SDK for issue #${action.issueNumber}`);
 
+  // Determine working directory
+  // In production, worktree is a branch name (e.g., "main") and the workflow handles checkout
+  // In test runner, we need an actual path. Use cwd if worktree looks like a branch name.
+  let cwd = process.cwd();
+  if (action.worktree && (action.worktree.startsWith("/") || action.worktree.startsWith("."))) {
+    cwd = action.worktree;
+  }
+
   // Execute using the standalone executor
   const result = await executeClaudeSDK({
     prompt: resolved.prompt,
-    cwd: action.worktree || process.cwd(),
+    cwd,
     allowedTools: action.allowedTools,
     outputSchema: resolved.outputSchema,
   });

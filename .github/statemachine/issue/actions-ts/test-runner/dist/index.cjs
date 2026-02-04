@@ -33203,10 +33203,10 @@ function emitRunClaudeTriage({ context: context2 }) {
       token: "code",
       // Uses structured output from prompts/triage/
       promptDir: "triage",
+      promptsDir: ".github/statemachine/issue/prompts",
       promptVars,
       issueNumber,
-      // Triage runs on main branch to use latest action code
-      worktree: "main",
+      // No worktree - runs from current directory (main checkout)
       // Structured output is saved to claude-structured-output.json by run-claude action
       producesArtifact: triageArtifact
     },
@@ -47229,9 +47229,13 @@ async function executeRunClaude(action, ctx) {
     promptVars: action.promptVars
   });
   core11.info(`Running Claude SDK for issue #${action.issueNumber}`);
+  let cwd = process.cwd();
+  if (action.worktree && (action.worktree.startsWith("/") || action.worktree.startsWith("."))) {
+    cwd = action.worktree;
+  }
   const result = await executeClaudeSDK({
     prompt: resolved.prompt,
-    cwd: action.worktree || process.cwd(),
+    cwd,
     allowedTools: action.allowedTools,
     outputSchema: resolved.outputSchema
   });
@@ -50372,6 +50376,10 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
       mockOutputs = {};
       for (const [mockRef, mock] of this.scenario.claudeMocks) {
         mockOutputs[mockRef] = mock.output;
+        const basePromptDir = mockRef.split("/")[0];
+        if (basePromptDir && basePromptDir !== mockRef && !mockOutputs[basePromptDir]) {
+          mockOutputs[basePromptDir] = mock.output;
+        }
       }
       if (Object.keys(mockOutputs).length > 0) {
         core23.info(`Using mock Claude mode with ${Object.keys(mockOutputs).length} mock outputs`);

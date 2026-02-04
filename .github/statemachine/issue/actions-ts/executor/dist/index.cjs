@@ -39304,9 +39304,13 @@ async function executeRunClaude(action, ctx) {
     promptVars: action.promptVars
   });
   core6.info(`Running Claude SDK for issue #${action.issueNumber}`);
+  let cwd = process.cwd();
+  if (action.worktree && (action.worktree.startsWith("/") || action.worktree.startsWith("."))) {
+    cwd = action.worktree;
+  }
   const result = await executeClaudeSDK({
     prompt: resolved.prompt,
-    cwd: action.worktree || process.cwd(),
+    cwd,
     allowedTools: action.allowedTools,
     outputSchema: resolved.outputSchema
   });
