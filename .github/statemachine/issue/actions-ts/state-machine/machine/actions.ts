@@ -694,12 +694,15 @@ export function emitRunClaudePRReview({
     },
     // Apply review output: submit the PR review using structured output
     // Downloads the artifact before execution
+    // worktree: "main" ensures we checkout main where the executor code is,
+    // not the PR branch being reviewed
     {
       type: "applyReviewOutput",
       token: "review", // submitReview uses review token for different user
       prNumber,
       filePath: "claude-structured-output.json",
       consumesArtifact: reviewArtifact,
+      worktree: "main",
     },
   ];
 }
