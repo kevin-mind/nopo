@@ -11,11 +11,13 @@ import type {
   GitHubEvent,
   DiscussionContext,
   DiscussionTriggerType,
+  CIStatus,
 } from "../schemas/index.js";
 import {
   createMachineContext,
   eventToTrigger,
   createDiscussionContext,
+  CIStatusSchema,
 } from "../schemas/index.js";
 import { parseTodoStats } from "./todo-parser.js";
 import { parseHistory } from "./history-parser.js";
@@ -124,6 +126,15 @@ query GetPRForBranch($owner: String!, $repo: String!, $headRef: String!) {
         isDraft
         headRefName
         baseRefName
+        commits(last: 1) {
+          nodes {
+            commit {
+              statusCheckRollup {
+                state
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -192,6 +203,15 @@ interface PRResponse {
         isDraft?: boolean;
         headRefName?: string;
         baseRefName?: string;
+        commits?: {
+          nodes?: Array<{
+            commit?: {
+              statusCheckRollup?: {
+                state?: string; // SUCCESS, FAILURE, PENDING, ERROR, EXPECTED
+              };
+            };
+          }>;
+        };
       }>;
     };
   };
@@ -359,6 +379,19 @@ async function getPRForBranch(
       return null;
     }
 
+    // Extract CI status from the last commit's statusCheckRollup
+    const rawCiStatus =
+      pr.commits?.nodes?.[0]?.commit?.statusCheckRollup?.state ?? null;
+
+    // Validate and parse the CI status
+    let ciStatus: CIStatus | null = null;
+    if (rawCiStatus) {
+      const parsed = CIStatusSchema.safeParse(rawCiStatus);
+      if (parsed.success) {
+        ciStatus = parsed.data;
+      }
+    }
+
     return {
       number: pr.number,
       state: (pr.state?.toUpperCase() || "OPEN") as PRState,
@@ -366,6 +399,7 @@ async function getPRForBranch(
       title: pr.title || "",
       headRef: pr.headRefName || headRef,
       baseRef: pr.baseRefName || "main",
+      ciStatus,
     };
   } catch {
     return null;
@@ -608,6 +642,20 @@ export async function buildMachineContext(
     ciResult = event.result;
     ciRunUrl = event.runUrl;
     ciCommitSha = event.headSha;
+  } else if (pr?.ciStatus) {
+    // Derive CI result from PR's statusCheckRollup when not triggered by CI completion
+    // This allows the state machine to know CI status from any trigger type
+    switch (pr.ciStatus) {
+      case "SUCCESS":
+        ciResult = "success";
+        break;
+      case "FAILURE":
+      case "ERROR":
+        ciResult = "failure";
+        break;
+      // PENDING or EXPECTED means checks are still running or haven't started
+      // Leave ciResult as null in these cases
+    }
   }
 
   // Extract review decision if this is a review event

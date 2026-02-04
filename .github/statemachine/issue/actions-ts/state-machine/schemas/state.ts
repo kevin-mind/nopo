@@ -85,6 +85,19 @@ const AgentNotesEntrySchema = z.object({
 type AgentNotesEntry = z.infer<typeof AgentNotesEntrySchema>;
 
 /**
+ * Status check rollup state from GitHub GraphQL API
+ */
+export const CIStatusSchema = z.enum([
+  "SUCCESS",
+  "FAILURE",
+  "PENDING",
+  "ERROR",
+  "EXPECTED",
+]);
+
+export type CIStatus = z.infer<typeof CIStatusSchema>;
+
+/**
  * Pull request associated with a sub-issue
  */
 export const LinkedPRSchema = z.object({
@@ -94,6 +107,8 @@ export const LinkedPRSchema = z.object({
   title: z.string(),
   headRef: z.string(),
   baseRef: z.string(),
+  // CI status from statusCheckRollup
+  ciStatus: CIStatusSchema.nullable().optional(),
 });
 
 export type LinkedPR = z.infer<typeof LinkedPRSchema>;

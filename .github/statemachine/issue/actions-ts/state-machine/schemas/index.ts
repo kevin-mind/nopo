@@ -23,7 +23,7 @@ export {
   type TodoItem,
   type TodoStats,
   type HistoryEntry,
-  
+  type CIStatus,
   type LinkedPR,
   type SubIssue,
   type ParentIssue,
@@ -31,6 +31,9 @@ export {
   type CIResult,
   type ReviewDecision,
   type MachineContext,
+
+  // Schemas (for runtime validation)
+  CIStatusSchema,
 
   // Helpers
   createMachineContext,

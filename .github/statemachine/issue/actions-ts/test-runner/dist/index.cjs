@@ -31268,13 +31268,22 @@ var AgentNotesEntrySchema = external_exports.object({
   timestamp: external_exports.string(),
   notes: external_exports.array(external_exports.string())
 });
+var CIStatusSchema = external_exports.enum([
+  "SUCCESS",
+  "FAILURE",
+  "PENDING",
+  "ERROR",
+  "EXPECTED"
+]);
 var LinkedPRSchema = external_exports.object({
   number: external_exports.number().int().positive(),
   state: PRStateSchema,
   isDraft: external_exports.boolean(),
   title: external_exports.string(),
   headRef: external_exports.string(),
-  baseRef: external_exports.string()
+  baseRef: external_exports.string(),
+  // CI status from statusCheckRollup
+  ciStatus: CIStatusSchema.nullable().optional()
 });
 var SubIssueSchema = external_exports.object({
   number: external_exports.number().int().positive(),
@@ -31449,13 +31458,22 @@ var AgentNotesEntrySchema2 = external_exports.object({
   timestamp: external_exports.string(),
   notes: external_exports.array(external_exports.string())
 });
+var CIStatusSchema2 = external_exports.enum([
+  "SUCCESS",
+  "FAILURE",
+  "PENDING",
+  "ERROR",
+  "EXPECTED"
+]);
 var LinkedPRSchema2 = external_exports.object({
   number: external_exports.number().int().positive(),
   state: PRStateSchema2,
   isDraft: external_exports.boolean(),
   title: external_exports.string(),
   headRef: external_exports.string(),
-  baseRef: external_exports.string()
+  baseRef: external_exports.string(),
+  // CI status from statusCheckRollup
+  ciStatus: CIStatusSchema2.nullable().optional()
 });
 var SubIssueSchema2 = external_exports.object({
   number: external_exports.number().int().positive(),
