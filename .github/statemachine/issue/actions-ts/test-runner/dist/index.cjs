@@ -50450,27 +50450,27 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
       // Simplified in fixtures
     };
     let trigger = "issue-edited";
-    if (fixture.trigger) {
-      trigger = fixture.trigger;
-    } else if (fixture.state === "detecting") {
-      if (!fixture.issue.labels.includes("triaged")) {
-        trigger = "issue-triage";
-      } else if (fixture.issue.assignees.includes("nopo-bot")) {
-        trigger = "issue-assigned";
-      }
-    } else if (fixture.state === "triaging") {
+    if (fixture.state === "triaging") {
       if (fixture.issue.assignees.includes("nopo-bot")) {
         trigger = "issue-assigned";
       } else if (fixture.issue.labels.includes("triaged")) {
         trigger = "issue-edited";
       } else {
-        trigger = "issue-triage";
+        trigger = fixture.trigger || "issue-triage";
       }
     } else if (fixture.state === "grooming") {
       if (fixture.issue.assignees.includes("nopo-bot") && fixture.issue.labels.includes("groomed")) {
         trigger = "issue-assigned";
       } else {
         trigger = fixture.trigger || "issue-groom";
+      }
+    } else if (fixture.trigger) {
+      trigger = fixture.trigger;
+    } else if (fixture.state === "detecting") {
+      if (!fixture.issue.labels.includes("triaged")) {
+        trigger = "issue-triage";
+      } else if (fixture.issue.assignees.includes("nopo-bot")) {
+        trigger = "issue-assigned";
       }
     } else if (fixture.state === "reviewing" || fixture.state === "prReviewing") {
       trigger = "pr-review-requested";

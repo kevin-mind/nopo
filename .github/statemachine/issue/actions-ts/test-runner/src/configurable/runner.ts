@@ -1022,21 +1022,14 @@ Issue: #${this.issueNumber}
       comments: [], // Simplified in fixtures
     };
 
-    // Determine trigger - use explicit trigger from fixture if provided
+    // Determine trigger - check state-specific overrides first, then fall back to fixture trigger
     // Note: fixture may have been modified by syncFixtureWithSideEffects
     let trigger: MachineContext["trigger"] = "issue-edited";
 
-    // Use explicit trigger from fixture if provided (converts kebab-case to snake_case)
-    if (fixture.trigger) {
-      trigger = fixture.trigger;
-    } else if (fixture.state === "detecting") {
-      // Detecting state needs to determine what to do
-      if (!fixture.issue.labels.includes("triaged")) {
-        trigger = "issue-triage";
-      } else if (fixture.issue.assignees.includes("nopo-bot")) {
-        trigger = "issue-assigned";
-      }
-    } else if (fixture.state === "triaging") {
+    // State-specific overrides take precedence over fixture trigger.
+    // These handle cases where side effects (like assigning nopo-bot) should
+    // change the trigger to route to a different state.
+    if (fixture.state === "triaging") {
       // If nopo-bot is assigned (via side effects), use issue-assigned trigger
       // to route to iterating instead of re-running triage
       if (fixture.issue.assignees.includes("nopo-bot")) {
@@ -1046,7 +1039,7 @@ Issue: #${this.issueNumber}
         // which will cause the state machine to check needsGrooming
         trigger = "issue-edited";
       } else {
-        trigger = "issue-triage";
+        trigger = fixture.trigger || "issue-triage";
       }
     } else if (fixture.state === "grooming") {
       // If nopo-bot is assigned (via side effects) and issue is already groomed,
@@ -1059,6 +1052,16 @@ Issue: #${this.issueNumber}
         trigger = "issue-assigned";
       } else {
         trigger = fixture.trigger || "issue-groom";
+      }
+    } else if (fixture.trigger) {
+      // Use explicit trigger from fixture if provided and no state-specific override
+      trigger = fixture.trigger;
+    } else if (fixture.state === "detecting") {
+      // Detecting state needs to determine what to do
+      if (!fixture.issue.labels.includes("triaged")) {
+        trigger = "issue-triage";
+      } else if (fixture.issue.assignees.includes("nopo-bot")) {
+        trigger = "issue-assigned";
       }
     } else if (
       fixture.state === "reviewing" ||
