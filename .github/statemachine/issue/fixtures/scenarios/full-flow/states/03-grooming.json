@@ -1,0 +1,30 @@
+{
+  "state": "grooming",
+  "trigger": "issue-groom",
+  "issue": {
+    "number": 0,
+    "title": "Add new feature for testing",
+    "state": "OPEN",
+    "body": "## Description\n\nTest scenario for complete happy path flow.\n\n## Approach\n\nImplement the feature and add tests.\n\n## Iteration History\n\n<!-- iteration_history_start -->\n<!-- iteration_history_end -->",
+    "projectStatus": "Backlog",
+    "iteration": 0,
+    "failures": 0,
+    "assignees": [],
+    "labels": ["enhancement", "priority:medium", "topic:testing", "triaged", "groomed"],
+    "subIssues": [],
+    "hasSubIssues": false,
+    "history": [],
+    "todos": {
+      "total": 0,
+      "completed": 0,
+      "uncheckedNonManual": 0
+    }
+  },
+  "claudeMocks": [
+    "grooming/pm",
+    "grooming/engineer",
+    "grooming/qa",
+    "grooming/research",
+    "grooming/summary"
+  ]
+}

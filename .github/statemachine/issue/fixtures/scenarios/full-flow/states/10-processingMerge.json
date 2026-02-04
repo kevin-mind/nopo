@@ -1,5 +1,5 @@
 {
-  "state": "awaitingMerge",
+  "state": "processingMerge",
   "issue": {
     "number": 0,
     "title": "Add new feature for testing",
@@ -9,7 +9,7 @@
     "iteration": 2,
     "failures": 0,
     "assignees": ["nopo-bot"],
-    "labels": ["enhancement", "priority:medium", "topic:testing", "triaged"],
+    "labels": ["enhancement", "priority:medium", "topic:testing", "triaged", "groomed"],
     "subIssues": [],
     "hasSubIssues": false,
     "history": [],

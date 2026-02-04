@@ -1,18 +1,20 @@
 {
-  "state": "processingReview",
+  "state": "done",
   "issue": {
     "number": 0,
     "title": "Add new feature for testing",
-    "state": "OPEN",
+    "state": "CLOSED",
     "body": "## Description\n\nTest scenario for complete happy path flow.\n\n## Approach\n\nImplement the feature and add tests.\n\n## Todo\n\n- [x] Implement the feature\n- [x] Add tests\n\n## Iteration History\n\n<!-- iteration_history_start -->\n<!-- iteration_history_end -->",
-    "projectStatus": "In review",
+    "projectStatus": "Done",
     "iteration": 2,
     "failures": 0,
     "assignees": ["nopo-bot"],
-    "labels": ["enhancement", "priority:medium", "topic:testing", "triaged"],
+    "labels": ["enhancement", "priority:medium", "topic:testing", "triaged", "groomed"],
     "subIssues": [],
     "hasSubIssues": false,
-    "history": [],
+    "history": [
+      "🚢 Merged"
+    ],
     "todos": {
       "total": 2,
       "completed": 2,
