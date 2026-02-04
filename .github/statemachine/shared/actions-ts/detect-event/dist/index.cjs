@@ -24673,6 +24673,52 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
       skipReason: ""
     };
   }
+  if ((hasImplementCommand || hasContinueCommand || hasLfgCommand) && isPr) {
+    await addReactionToComment(octokit, owner, repo, comment.id, "rocket");
+    const { stdout: prJson } = await execCommand("gh", [
+      "pr",
+      "view",
+      String(issue.number),
+      "--repo",
+      `${owner}/${repo}`,
+      "--json",
+      "headRefName,reviewDecision,reviews,body,isDraft"
+    ]);
+    const prData = JSON.parse(prJson);
+    if (prData.isDraft) {
+      return emptyResult(true, "PR is a draft - convert to ready for review first");
+    }
+    const issueNumber = await extractIssueNumber(prData.body ?? "");
+    const pendingReview = prData.reviews?.filter((r) => r.state === "CHANGES_REQUESTED").pop();
+    if (!pendingReview) {
+      if (prData.reviewDecision === "APPROVED") {
+        return emptyResult(true, "PR is already approved");
+      }
+      return emptyResult(true, "No pending changes requested on this PR");
+    }
+    const claudeReviewers = ["nopo-reviewer", "claude[bot]"];
+    const isClaudeReviewer = claudeReviewers.includes(pendingReview.author.login);
+    const job = isClaudeReviewer ? "pr-response" : "pr-human-response";
+    return {
+      job,
+      resourceType: "pr",
+      resourceNumber: String(issue.number),
+      commentId: String(comment.id),
+      contextJson: {
+        pr_number: String(issue.number),
+        branch_name: prData.headRefName,
+        review_state: "changes_requested",
+        review_decision: "CHANGES_REQUESTED",
+        review_body: pendingReview.body ?? "",
+        reviewer: pendingReview.author.login,
+        reviewer_login: pendingReview.author.login,
+        issue_number: issueNumber,
+        trigger_type: "pr-comment-lfg"
+      },
+      skip: false,
+      skipReason: ""
+    };
+  }
   if ((hasImplementCommand || hasContinueCommand || hasLfgCommand) && !isPr) {
     await addReactionToComment(octokit, owner, repo, comment.id, "rocket");
     const details = await fetchIssueDetails(octokit, owner, repo, issue.number);

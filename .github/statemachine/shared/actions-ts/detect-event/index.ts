@@ -1126,6 +1126,77 @@ async function handleIssueCommentEvent(
     };
   }
 
+  // Handle /lfg on PRs - triggers PR response flow based on current review state
+  if ((hasImplementCommand || hasContinueCommand || hasLfgCommand) && isPr) {
+    // Add rocket reaction to acknowledge the command
+    await addReactionToComment(octokit, owner, repo, comment.id, "rocket");
+
+    // Fetch PR details including review decision
+    const { stdout: prJson } = await execCommand("gh", [
+      "pr",
+      "view",
+      String(issue.number),
+      "--repo",
+      `${owner}/${repo}`,
+      "--json",
+      "headRefName,reviewDecision,reviews,body,isDraft",
+    ]);
+
+    const prData = JSON.parse(prJson) as {
+      headRefName: string;
+      reviewDecision: string | null;
+      reviews: Array<{ author: { login: string }; state: string; body: string }>;
+      body: string;
+      isDraft: boolean;
+    };
+
+    // Skip if PR is a draft
+    if (prData.isDraft) {
+      return emptyResult(true, "PR is a draft - convert to ready for review first");
+    }
+
+    // Extract issue number from PR body
+    const issueNumber = await extractIssueNumber(prData.body ?? "");
+
+    // Find the most recent non-dismissed review with changes requested
+    const pendingReview = prData.reviews
+      ?.filter((r) => r.state === "CHANGES_REQUESTED")
+      .pop();
+
+    if (!pendingReview) {
+      // No pending changes requested - check if there's any review decision
+      if (prData.reviewDecision === "APPROVED") {
+        return emptyResult(true, "PR is already approved");
+      }
+      return emptyResult(true, "No pending changes requested on this PR");
+    }
+
+    // Determine if reviewer is Claude or human
+    const claudeReviewers = ["nopo-reviewer", "claude[bot]"];
+    const isClaudeReviewer = claudeReviewers.includes(pendingReview.author.login);
+    const job = isClaudeReviewer ? "pr-response" : "pr-human-response";
+
+    return {
+      job,
+      resourceType: "pr",
+      resourceNumber: String(issue.number),
+      commentId: String(comment.id),
+      contextJson: {
+        pr_number: String(issue.number),
+        branch_name: prData.headRefName,
+        review_state: "changes_requested",
+        review_decision: "CHANGES_REQUESTED",
+        review_body: pendingReview.body ?? "",
+        reviewer: pendingReview.author.login,
+        reviewer_login: pendingReview.author.login,
+        issue_number: issueNumber,
+        trigger_type: "pr-comment-lfg",
+      },
+      skip: false,
+      skipReason: "",
+    };
+  }
+
   if ((hasImplementCommand || hasContinueCommand || hasLfgCommand) && !isPr) {
     // Add rocket reaction to acknowledge the command
     await addReactionToComment(octokit, owner, repo, comment.id, "rocket");
