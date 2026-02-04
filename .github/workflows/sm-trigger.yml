@@ -102,7 +102,11 @@ jobs:
     outputs:
       context_json: ${{ steps.detect.outputs.context_json }}
     steps:
+      # Always checkout main for detect-event - the detection logic should not depend on PR-specific code
+      # This ensures bug fixes to detect-event are picked up immediately without needing to merge to each PR
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - id: detect
         uses: ./.github/statemachine/shared/actions-ts/detect-event
         with:
