@@ -466,11 +466,13 @@ jobs:
       # No longer need to upload them as artifacts
 
       # Download artifact if action consumes one (runs before executor)
+      # Note: path: . extracts to current directory so the file path matches what the executor expects
       - name: Download artifact
         if: matrix.action.consumesArtifact
         uses: actions/download-artifact@v4
         with:
           name: ${{ matrix.action.consumesArtifact.name }}
+          path: .
 
       - name: Execute Action
         id: execute
