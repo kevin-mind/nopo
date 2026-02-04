@@ -25047,7 +25047,8 @@ async function handlePullRequestReviewEvent() {
     };
   }
   const claudeAuthors = ["nopo-bot", "claude[bot]"];
-  const isClaudePr = claudeAuthors.includes(pr.author.login) || pr.head.ref.startsWith("claude/");
+  const prAuthorLogin = pr.author?.login ?? pr.user?.login ?? "";
+  const isClaudePr = claudeAuthors.includes(prAuthorLogin) || pr.head.ref.startsWith("claude/");
   if (!isClaudePr) {
     return emptyResult(true, "Human review on non-Claude PR");
   }

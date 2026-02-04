@@ -1558,7 +1558,8 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
     draft: boolean;
     body: string | null;
     head: { ref: string };
-    author: { login: string };
+    author?: { login: string };
+    user?: { login: string }; // Some events use 'user' instead of 'author'
     labels: Array<{ name: string }>;
   };
 
@@ -1665,8 +1666,10 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
   // Human review - check if this is a Claude PR
   // nopo-bot is Claude's code account, claude[bot] is the direct API account
   const claudeAuthors = ["nopo-bot", "claude[bot]"];
+  // PR author can be in 'author' or 'user' field depending on event type
+  const prAuthorLogin = pr.author?.login ?? pr.user?.login ?? "";
   const isClaudePr =
-    claudeAuthors.includes(pr.author.login) ||
+    claudeAuthors.includes(prAuthorLogin) ||
     pr.head.ref.startsWith("claude/");
   if (!isClaudePr) {
     return emptyResult(true, "Human review on non-Claude PR");
