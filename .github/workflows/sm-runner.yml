@@ -369,7 +369,8 @@ jobs:
   # ============================================================================
   debug-outputs:
     needs: [derive-actions]
-    if: needs.derive-actions.outputs.action_count != '0'
+    # Temporarily always run to debug the issue
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
       - name: Debug outputs
