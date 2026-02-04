@@ -28902,7 +28902,8 @@ var AppendAgentNotesActionSchema = BaseActionSchema.extend({
 });
 var ApplyReviewOutputActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("applyReviewOutput"),
-  prNumber: external_exports.number().int().positive()
+  prNumber: external_exports.number().int().positive(),
+  filePath: external_exports.string().default("claude-structured-output.json")
 });
 var ApplyDiscussionResearchOutputActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("applyDiscussionResearchOutput"),

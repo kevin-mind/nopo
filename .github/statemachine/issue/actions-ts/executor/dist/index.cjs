@@ -182,7 +182,7 @@ var require_file_command = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.prepareKeyValueMessage = exports2.issueFileCommand = void 0;
     var crypto = __importStar(require("crypto"));
-    var fs5 = __importStar(require("fs"));
+    var fs6 = __importStar(require("fs"));
     var os = __importStar(require("os"));
     var utils_1 = require_utils();
     function issueFileCommand(command, message) {
@@ -190,10 +190,10 @@ var require_file_command = __commonJS({
       if (!filePath) {
         throw new Error(`Unable to find environment variable for file command ${command}`);
       }
-      if (!fs5.existsSync(filePath)) {
+      if (!fs6.existsSync(filePath)) {
         throw new Error(`Missing file at path: ${filePath}`);
       }
-      fs5.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
+      fs6.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
         encoding: "utf8"
       });
     }
@@ -18510,12 +18510,12 @@ var require_io_util = __commonJS({
     var _a;
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getCmdPath = exports2.tryGetExecutablePath = exports2.isRooted = exports2.isDirectory = exports2.exists = exports2.READONLY = exports2.UV_FS_O_EXLOCK = exports2.IS_WINDOWS = exports2.unlink = exports2.symlink = exports2.stat = exports2.rmdir = exports2.rm = exports2.rename = exports2.readlink = exports2.readdir = exports2.open = exports2.mkdir = exports2.lstat = exports2.copyFile = exports2.chmod = void 0;
-    var fs5 = __importStar(require("fs"));
+    var fs6 = __importStar(require("fs"));
     var path2 = __importStar(require("path"));
-    _a = fs5.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
+    _a = fs6.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
     exports2.IS_WINDOWS = process.platform === "win32";
     exports2.UV_FS_O_EXLOCK = 268435456;
-    exports2.READONLY = fs5.constants.O_RDONLY;
+    exports2.READONLY = fs6.constants.O_RDONLY;
     function exists(fsPath) {
       return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -28496,7 +28496,8 @@ var AppendAgentNotesActionSchema = BaseActionSchema.extend({
 });
 var ApplyReviewOutputActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("applyReviewOutput"),
-  prNumber: external_exports.number().int().positive()
+  prNumber: external_exports.number().int().positive(),
+  filePath: external_exports.string().default("claude-structured-output.json")
 });
 var ApplyDiscussionResearchOutputActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("applyDiscussionResearchOutput"),
@@ -40240,13 +40241,25 @@ function checkOffTodoInBody(body, todoText) {
 
 // issue/actions-ts/state-machine/runner/executors/review.ts
 var core11 = __toESM(require_core(), 1);
+var fs5 = __toESM(require("node:fs"), 1);
 async function executeApplyReviewOutput(action, ctx, structuredOutput) {
-  if (!structuredOutput) {
+  let reviewOutput;
+  if (structuredOutput) {
+    reviewOutput = structuredOutput;
+    core11.info("Using structured output from in-process chain");
+  } else if (action.filePath && fs5.existsSync(action.filePath)) {
+    try {
+      const content = fs5.readFileSync(action.filePath, "utf-8");
+      reviewOutput = JSON.parse(content);
+      core11.info(`Review output from file: ${action.filePath}`);
+    } catch (error3) {
+      throw new Error(`Failed to parse review output from file: ${error3}`);
+    }
+  } else {
     throw new Error(
-      "No structured output provided. Ensure runClaude action ran before applyReviewOutput."
+      `No structured output provided and review output file not found at: ${action.filePath || "undefined"}. Ensure runClaude action wrote claude-structured-output.json and artifact was downloaded.`
     );
   }
-  const reviewOutput = structuredOutput;
   if (!reviewOutput.decision || !reviewOutput.body) {
     throw new Error(
       `Invalid review output: missing decision or body. Got: ${JSON.stringify(reviewOutput)}`

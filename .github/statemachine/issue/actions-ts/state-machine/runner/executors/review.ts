@@ -1,4 +1,5 @@
 import * as core from "@actions/core";
+import * as fs from "node:fs";
 import type {
   ApplyReviewOutputAction,
   SubmitReviewAction,
@@ -34,13 +35,27 @@ export async function executeApplyReviewOutput(
   ctx: RunnerContext,
   structuredOutput?: unknown,
 ): Promise<{ submitted: boolean; decision: string }> {
-  if (!structuredOutput) {
+  let reviewOutput: ReviewOutput;
+
+  // Try structured output first (in-process chaining), then fall back to file
+  if (structuredOutput) {
+    reviewOutput = structuredOutput as ReviewOutput;
+    core.info("Using structured output from in-process chain");
+  } else if (action.filePath && fs.existsSync(action.filePath)) {
+    // Read from file (artifact passed between workflow matrix jobs)
+    try {
+      const content = fs.readFileSync(action.filePath, "utf-8");
+      reviewOutput = JSON.parse(content) as ReviewOutput;
+      core.info(`Review output from file: ${action.filePath}`);
+    } catch (error) {
+      throw new Error(`Failed to parse review output from file: ${error}`);
+    }
+  } else {
     throw new Error(
-      "No structured output provided. Ensure runClaude action ran before applyReviewOutput.",
+      `No structured output provided and review output file not found at: ${action.filePath || "undefined"}. ` +
+        "Ensure runClaude action wrote claude-structured-output.json and artifact was downloaded.",
     );
   }
-
-  const reviewOutput = structuredOutput as ReviewOutput;
 
   if (!reviewOutput.decision || !reviewOutput.body) {
     throw new Error(

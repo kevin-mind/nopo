@@ -548,6 +548,7 @@ export type AppendAgentNotesAction = z.infer<
 const ApplyReviewOutputActionSchema = BaseActionSchema.extend({
   type: z.literal("applyReviewOutput"),
   prNumber: z.number().int().positive(),
+  filePath: z.string().default("claude-structured-output.json"),
 });
 
 export type ApplyReviewOutputAction = z.infer<

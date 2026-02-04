@@ -182,7 +182,7 @@ var require_file_command = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.prepareKeyValueMessage = exports2.issueFileCommand = void 0;
     var crypto = __importStar(require("crypto"));
-    var fs7 = __importStar(require("fs"));
+    var fs8 = __importStar(require("fs"));
     var os = __importStar(require("os"));
     var utils_1 = require_utils();
     function issueFileCommand(command, message) {
@@ -190,10 +190,10 @@ var require_file_command = __commonJS({
       if (!filePath) {
         throw new Error(`Unable to find environment variable for file command ${command}`);
       }
-      if (!fs7.existsSync(filePath)) {
+      if (!fs8.existsSync(filePath)) {
         throw new Error(`Missing file at path: ${filePath}`);
       }
-      fs7.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
+      fs8.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
         encoding: "utf8"
       });
     }
@@ -18510,12 +18510,12 @@ var require_io_util = __commonJS({
     var _a;
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getCmdPath = exports2.tryGetExecutablePath = exports2.isRooted = exports2.isDirectory = exports2.exists = exports2.READONLY = exports2.UV_FS_O_EXLOCK = exports2.IS_WINDOWS = exports2.unlink = exports2.symlink = exports2.stat = exports2.rmdir = exports2.rm = exports2.rename = exports2.readlink = exports2.readdir = exports2.open = exports2.mkdir = exports2.lstat = exports2.copyFile = exports2.chmod = void 0;
-    var fs7 = __importStar(require("fs"));
+    var fs8 = __importStar(require("fs"));
     var path4 = __importStar(require("path"));
-    _a = fs7.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
+    _a = fs8.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
     exports2.IS_WINDOWS = process.platform === "win32";
     exports2.UV_FS_O_EXLOCK = 268435456;
-    exports2.READONLY = fs7.constants.O_RDONLY;
+    exports2.READONLY = fs8.constants.O_RDONLY;
     function exists(fsPath) {
       return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -31786,7 +31786,8 @@ var AppendAgentNotesActionSchema = BaseActionSchema.extend({
 });
 var ApplyReviewOutputActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("applyReviewOutput"),
-  prNumber: external_exports.number().int().positive()
+  prNumber: external_exports.number().int().positive(),
+  filePath: external_exports.string().default("claude-structured-output.json")
 });
 var ApplyDiscussionResearchOutputActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("applyDiscussionResearchOutput"),
@@ -47969,13 +47970,25 @@ function checkOffTodoInBody(body, todoText) {
 
 // issue/actions-ts/state-machine/runner/executors/review.ts
 var core16 = __toESM(require_core(), 1);
+var fs6 = __toESM(require("node:fs"), 1);
 async function executeApplyReviewOutput(action, ctx, structuredOutput) {
-  if (!structuredOutput) {
+  let reviewOutput;
+  if (structuredOutput) {
+    reviewOutput = structuredOutput;
+    core16.info("Using structured output from in-process chain");
+  } else if (action.filePath && fs6.existsSync(action.filePath)) {
+    try {
+      const content = fs6.readFileSync(action.filePath, "utf-8");
+      reviewOutput = JSON.parse(content);
+      core16.info(`Review output from file: ${action.filePath}`);
+    } catch (error9) {
+      throw new Error(`Failed to parse review output from file: ${error9}`);
+    }
+  } else {
     throw new Error(
-      "No structured output provided. Ensure runClaude action ran before applyReviewOutput."
+      `No structured output provided and review output file not found at: ${action.filePath || "undefined"}. Ensure runClaude action wrote claude-structured-output.json and artifact was downloaded.`
     );
   }
-  const reviewOutput = structuredOutput;
   if (!reviewOutput.decision || !reviewOutput.body) {
     throw new Error(
       `Invalid review output: missing decision or body. Got: ${JSON.stringify(reviewOutput)}`
@@ -49664,7 +49677,7 @@ var _DiscussionTestResultSchema = external_exports.object({
 });
 
 // issue/actions-ts/test-runner/src/configurable/discussion-loader.ts
-var fs6 = __toESM(require("fs"), 1);
+var fs7 = __toESM(require("fs"), 1);
 var path3 = __toESM(require("path"), 1);
 var core21 = __toESM(require_core(), 1);
 var FIXTURES_BASE_PATH2 = ".github/statemachine/discussion/fixtures";
@@ -49679,18 +49692,18 @@ async function loadDiscussionScenario(scenarioName, basePath = FIXTURES_BASE_PAT
     scenarioName
   );
   const configPath = path3.join(scenarioDir, SCENARIO_CONFIG_FILE2);
-  if (!fs6.existsSync(configPath)) {
+  if (!fs7.existsSync(configPath)) {
     throw new Error(
       `Discussion scenario config not found: ${configPath}. Create a scenario.json file with name and description.`
     );
   }
-  const configContent = fs6.readFileSync(configPath, "utf-8");
+  const configContent = fs7.readFileSync(configPath, "utf-8");
   const configJson = JSON.parse(configContent);
   const config = DiscussionScenarioConfigSchema.parse(configJson);
   core21.info(`Loading discussion scenario: ${config.name}`);
   core21.info(`Description: ${config.description}`);
   const statesDir = path3.join(scenarioDir, STATES_DIR2);
-  if (!fs6.existsSync(statesDir)) {
+  if (!fs7.existsSync(statesDir)) {
     throw new Error(
       `States directory not found: ${statesDir}. Create a states/ directory with fixture files.`
     );
@@ -49714,12 +49727,12 @@ async function loadDiscussionScenario(scenarioName, basePath = FIXTURES_BASE_PAT
   };
 }
 async function loadDiscussionStateFixtures(statesDir) {
-  const files = fs6.readdirSync(statesDir).filter((f) => f.endsWith(".json")).sort();
+  const files = fs7.readdirSync(statesDir).filter((f) => f.endsWith(".json")).sort();
   const orderedStates = [];
   const fixtures = /* @__PURE__ */ new Map();
   for (const file of files) {
     const filePath = path3.join(statesDir, file);
-    const content = fs6.readFileSync(filePath, "utf-8");
+    const content = fs7.readFileSync(filePath, "utf-8");
     let json;
     try {
       json = JSON.parse(content);
@@ -49753,12 +49766,12 @@ async function loadReferencedMocks2(fixtures, basePath) {
     if (!fixture.claudeMock) continue;
     if (claudeMocks.has(fixture.claudeMock)) continue;
     const mockPath = path3.join(mocksDir, `${fixture.claudeMock}.json`);
-    if (!fs6.existsSync(mockPath)) {
+    if (!fs7.existsSync(mockPath)) {
       throw new Error(
         `Claude mock not found: ${mockPath} (referenced by state '${state}')`
       );
     }
-    const content = fs6.readFileSync(mockPath, "utf-8");
+    const content = fs7.readFileSync(mockPath, "utf-8");
     let json;
     try {
       json = JSON.parse(content);
