@@ -23981,7 +23981,7 @@ function jobToTrigger(job, contextJson) {
   };
   return jobTriggerOverrides[job] || job || "issue-assigned";
 }
-function computeConcurrency(job, resourceNumber, parentIssue, branch) {
+function computeConcurrency(job, resourceNumber, parentIssue, branch, commentId) {
   const reviewJobs = [
     "pr-push",
     "pr-review",
@@ -24004,6 +24004,12 @@ function computeConcurrency(job, resourceNumber, parentIssue, branch) {
     "discussion-complete"
   ];
   if (discussionJobs.includes(job)) {
+    if (job === "discussion-respond" && commentId) {
+      return {
+        group: `claude-job-discussion-${resourceNumber}-comment-${commentId}`,
+        cancelInProgress: false
+      };
+    }
     return {
       group: `claude-job-discussion-${resourceNumber}`,
       cancelInProgress: false
@@ -24346,6 +24352,28 @@ async function handleIssueEvent(octokit, owner, repo) {
         true,
         `Edit made by bot/automated account (${sender}) - use workflow dispatch to continue`
       );
+    }
+    const hasGroomedLabel = issue.labels.some((l) => l.name === "groomed");
+    const hasNeedsInfoLabel = issue.labels.some((l) => l.name === "needs-info");
+    if (hasTriagedLabel && !hasGroomedLabel && !hasNeedsInfoLabel && !isNopoBotAssigned) {
+      const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
+      const hasPhaseTitle = /^\[Phase \d+\]/.test(issue.title);
+      if (!details.isSubIssue && !hasPhaseTitle) {
+        return {
+          job: "issue-groom",
+          resourceType: "issue",
+          resourceNumber: String(issue.number),
+          commentId: "",
+          contextJson: {
+            issue_number: String(issue.number),
+            issue_title: details.title || issue.title,
+            issue_body: details.body || issue.body,
+            trigger_type: "issue-groom"
+          },
+          skip: false,
+          skipReason: ""
+        };
+      }
     }
     if (isNopoBotAssigned) {
       const projectState = await fetchProjectState(
@@ -25552,7 +25580,8 @@ async function run() {
       result.job,
       result.resourceNumber,
       parentIssue,
-      branch
+      branch,
+      result.commentId
     );
     core2.info(`Concurrency group: ${concurrency.group}`);
     core2.info(`Cancel in progress: ${concurrency.cancelInProgress}`);

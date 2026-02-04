@@ -130,6 +130,7 @@ function computeConcurrency(
   resourceNumber: string,
   parentIssue: string,
   branch?: string,
+  commentId?: string,
 ): { group: string; cancelInProgress: boolean } {
   // PR review jobs share a group - pr-push cancels in-flight reviews
   const reviewJobs: Job[] = [
@@ -158,6 +159,14 @@ function computeConcurrency(
   ];
 
   if (discussionJobs.includes(job)) {
+    // For discussion-respond, use comment-specific concurrency so multiple
+    // research threads can be investigated in parallel
+    if (job === "discussion-respond" && commentId) {
+      return {
+        group: `claude-job-discussion-${resourceNumber}-comment-${commentId}`,
+        cancelInProgress: false,
+      };
+    }
     return {
       group: `claude-job-discussion-${resourceNumber}`,
       cancelInProgress: false,
@@ -693,6 +702,33 @@ async function handleIssueEvent(
         true,
         `Edit made by bot/automated account (${sender}) - use workflow dispatch to continue`,
       );
+    }
+
+    // Check for grooming trigger: triaged but not groomed and not needs-info
+    // This allows grooming to run automatically after triage completes
+    const hasGroomedLabel = issue.labels.some((l) => l.name === "groomed");
+    const hasNeedsInfoLabel = issue.labels.some((l) => l.name === "needs-info");
+
+    if (hasTriagedLabel && !hasGroomedLabel && !hasNeedsInfoLabel && !isNopoBotAssigned) {
+      // Check if sub-issue - sub-issues don't go through grooming
+      const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
+      const hasPhaseTitle = /^\[Phase \d+\]/.test(issue.title);
+      if (!details.isSubIssue && !hasPhaseTitle) {
+        return {
+          job: "issue-groom",
+          resourceType: "issue",
+          resourceNumber: String(issue.number),
+          commentId: "",
+          contextJson: {
+            issue_number: String(issue.number),
+            issue_title: details.title || issue.title,
+            issue_body: details.body || issue.body,
+            trigger_type: "issue-groom",
+          },
+          skip: false,
+          skipReason: "",
+        };
+      }
     }
 
     // If nopo-bot is assigned, edited triggers iteration (issue-edit-based loop)
@@ -2348,6 +2384,7 @@ async function run(): Promise<void> {
       result.resourceNumber,
       parentIssue,
       branch,
+      result.commentId,
     );
     core.info(`Concurrency group: ${concurrency.group}`);
     core.info(`Cancel in progress: ${concurrency.cancelInProgress}`);
