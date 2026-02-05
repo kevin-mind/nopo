@@ -12,6 +12,8 @@ Triage issue #{{ISSUE_NUMBER}}: "{{ISSUE_TITLE}}"
 
 Analyze this issue and provide structured triage output. Do NOT execute any commands - just return the structured data.
 
+**IMPORTANT**: Triage classifies and structures the issue. Sub-issues are created LATER during grooming, after the issue has been fully refined.
+
 ## 1. Classification
 
 Determine:
@@ -22,40 +24,38 @@ Determine:
 - **Topics**: Up to 3 topic labels (e.g., "ci", "testing", "backend")
 - **Needs info**: Whether more information is needed
 
-## 2. Improve Issue Body
+## 2. Extract Requirements
 
-Create an improved issue body with:
-- **Description**: Concise TLDR of what needs to be done
-- **Details**: Technical context, affected files, links to docs
-- **Approach**: High-level implementation strategy
-- **Questions**: Answer existing questions, add new ones if needed
+Identify the key requirements from the issue:
+- What must the solution accomplish?
+- What are the acceptance criteria?
+- What constraints exist?
 
-**CRITICAL**: If the original body contains `## Iteration History` or HTML comments (`<!-- ... -->`), you MUST preserve them exactly as-is in the updated body.
+Return these as an array of clear, specific requirements.
 
-## 3. Create Sub-Issues
+## 3. Initial Approach
 
-Every issue needs at least one sub-issue. Sub-issues contain todos and produce PRs.
+Provide a high-level implementation approach:
+- What's the general strategy?
+- What files/areas might be affected?
+- What patterns should be followed?
 
-- **XS/S issues**: Single sub-issue with all todos
-- **M/L/XL issues**: 2-5 sub-issues, one per phase
+This is initial thinking - grooming will refine this.
 
-For each sub-issue, provide:
-- **Type**: The type of work (bug, enhancement, etc.) - usually same as parent but can differ per phase
-- **Title**: Just the descriptive title (e.g., `Setup database schema`) - phase number is added automatically
-- **Description**: Brief description of the phase
-- **Todos**: Array of tasks, each with:
-  - `task`: The task description
-  - `manual`: true if requires human action (verification, deployment, etc.)
+## 4. Initial Questions (Optional)
 
-**Todo guidelines**:
-- Be specific and actionable
-- NO generic workflow steps (commit, PR, test, merge)
+If the issue lacks clarity, what questions need answering?
+- What ambiguities exist?
+- What decisions need human input?
+- What technical details are missing?
 
-## 4. Related Issues (Optional)
+These questions will be addressed during grooming.
+
+## 5. Related Issues (Optional)
 
 If you find related or duplicate issues, include their numbers.
 
-## 5. Agent Notes (Optional)
+## 6. Agent Notes (Optional)
 
 Save any important discoveries from codebase exploration that future agents should know.
 
@@ -66,6 +66,7 @@ Save any important discoveries from codebase exploration that future agents shou
 Return structured JSON matching the output schema. The executor will:
 - Apply labels (type + topics + triaged)
 - Set project fields (Priority, Size, Estimate)
-- Update the issue body
-- Create and link sub-issues
+- Update the issue body with structured sections (Requirements, Approach, Questions)
 - Link related issues
+
+**Note**: Sub-issues are NOT created during triage. They are created during grooming after the issue is fully refined.

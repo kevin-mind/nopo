@@ -32008,8 +32008,14 @@ function needsSubIssues(_guardContext) {
   return false;
 }
 function allPhasesDone({ context: context2 }) {
-  if (!context2.issue.hasSubIssues) {
-    return context2.issue.subIssues.length === 0 && context2.currentSubIssue === null;
+  const hasGroomedLabel = context2.issue.labels.some(
+    (l3) => l3.toLowerCase() === "groomed"
+  );
+  if (!hasGroomedLabel) {
+    return false;
+  }
+  if (context2.issue.subIssues.length === 0) {
+    return false;
   }
   return context2.issue.subIssues.every(
     (s) => s.projectStatus === "Done" || s.state === "CLOSED"
@@ -32808,6 +32814,107 @@ function deriveBranchName(parentIssueNumber, phaseNumber) {
     return `claude/issue/${parentIssueNumber}/phase-${phaseNumber}`;
   }
   return `claude/issue/${parentIssueNumber}`;
+}
+
+// issue/actions-ts/state-machine/parser/section-parser.ts
+function getSection(body, sectionName) {
+  const escapedName = sectionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(
+    `## ${escapedName}\\s*\\n([\\s\\S]*?)(?=\\n## |\\n<!-- |$)`,
+    "i"
+  );
+  const match = body.match(pattern);
+  if (match?.[1]) {
+    return match[1].trim();
+  }
+  return null;
+}
+function upsertSection(body, sectionName, content, options = {}) {
+  const existingContent = getSection(body, sectionName);
+  if (existingContent !== null) {
+    const escapedName = sectionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const pattern = new RegExp(
+      `(## ${escapedName}\\s*\\n)[\\s\\S]*?(?=\\n## |\\n<!-- |$)`,
+      "i"
+    );
+    return body.replace(pattern, `$1
+${content}
+`).trim();
+  }
+  const newSection = `## ${sectionName}
+
+${content}`;
+  if (options.sectionOrder) {
+    const targetIndex = options.sectionOrder.indexOf(sectionName);
+    if (targetIndex >= 0) {
+      for (let i3 = targetIndex + 1; i3 < options.sectionOrder.length; i3++) {
+        const nextSection = options.sectionOrder[i3];
+        if (nextSection !== void 0 && hasSection(body, nextSection)) {
+          return insertBeforeSection(body, nextSection, newSection);
+        }
+      }
+      return insertAtEnd(body, newSection);
+    }
+  }
+  if (options.insertBefore && hasSection(body, options.insertBefore)) {
+    return insertBeforeSection(body, options.insertBefore, newSection);
+  }
+  return insertAtEnd(body, newSection);
+}
+function hasSection(body, sectionName) {
+  return getSection(body, sectionName) !== null;
+}
+function insertBeforeSection(body, sectionName, content) {
+  const escapedName = sectionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`(\\n?)(## ${escapedName})`, "i");
+  return body.replace(pattern, `
+
+${content}
+$1$2`).trim();
+}
+function insertAtEnd(body, content) {
+  const specialSections = [
+    "Agent Notes",
+    "Iteration History"
+  ];
+  for (const special of specialSections) {
+    if (hasSection(body, special)) {
+      return insertBeforeSection(body, special, content);
+    }
+  }
+  const commentMatch = body.match(/(\n<!-- [\s\S]*)/);
+  if (commentMatch) {
+    const insertPos = body.indexOf(commentMatch[1]);
+    return (body.slice(0, insertPos) + "\n\n" + content + body.slice(insertPos)).trim();
+  }
+  return (body + "\n\n" + content).trim();
+}
+function upsertSections(body, sections, sectionOrder) {
+  let result = body;
+  for (const section of sections) {
+    result = upsertSection(result, section.name, section.content, {
+      sectionOrder
+    });
+  }
+  return result;
+}
+var STANDARD_SECTION_ORDER = [
+  "Description",
+  "Requirements",
+  "Approach",
+  "Acceptance Criteria",
+  "Testing",
+  "Related",
+  "Questions",
+  "Todo",
+  "Agent Notes",
+  "Iteration History"
+];
+function formatRequirements(requirements) {
+  if (requirements.length === 0) {
+    return "_No specific requirements identified._";
+  }
+  return requirements.map((r3) => `- ${r3}`).join("\n");
 }
 
 // issue/actions-ts/state-machine/machine/actions.ts
@@ -48399,53 +48506,6 @@ async function fetchDiscussionState(discussionNumber, ctx) {
 // issue/actions-ts/state-machine/runner/executors/triage.ts
 var core15 = __toESM(require_core(), 1);
 var fs5 = __toESM(require("fs"), 1);
-var GET_REPO_ID_QUERY4 = `
-query GetRepoId($owner: String!, $repo: String!) {
-  repository(owner: $owner, name: $repo) {
-    id
-  }
-}
-`;
-var GET_ISSUE_ID_QUERY = `
-query GetIssueId($owner: String!, $repo: String!, $issueNumber: Int!) {
-  repository(owner: $owner, name: $repo) {
-    issue(number: $issueNumber) {
-      id
-    }
-  }
-}
-`;
-var CREATE_ISSUE_MUTATION4 = `
-mutation CreateIssue($repositoryId: ID!, $title: String!, $body: String!) {
-  createIssue(input: { repositoryId: $repositoryId, title: $title, body: $body }) {
-    issue {
-      id
-      number
-    }
-  }
-}
-`;
-var ADD_SUB_ISSUE_MUTATION2 = `
-mutation AddSubIssue($parentId: ID!, $childId: ID!) {
-  addSubIssue(input: { issueId: $parentId, subIssueId: $childId }) {
-    issue {
-      id
-    }
-  }
-}
-`;
-var ADD_ISSUE_TO_PROJECT_MUTATION2 = `
-mutation AddIssueToProject($projectId: ID!, $contentId: ID!) {
-  addProjectV2ItemById(input: {
-    projectId: $projectId
-    contentId: $contentId
-  }) {
-    item {
-      id
-    }
-  }
-}
-`;
 async function executeApplyTriageOutput(action, ctx, structuredOutput) {
   const { issueNumber, filePath } = action;
   let triageOutput;
@@ -48476,8 +48536,9 @@ async function executeApplyTriageOutput(action, ctx, structuredOutput) {
     core15.info(`[DRY RUN] Would apply triage output to issue #${issueNumber}`);
     return { applied: true };
   }
-  const isStructured = "triage" in triageOutput;
-  const classification = isStructured ? triageOutput.triage : {
+  const isNewFormat = "triage" in triageOutput && "requirements" in triageOutput;
+  const isLegacyStructured = "triage" in triageOutput && !("requirements" in triageOutput);
+  const classification = isNewFormat || isLegacyStructured ? triageOutput.triage : {
     type: triageOutput.type || "enhancement",
     priority: triageOutput.priority,
     size: triageOutput.size || "m",
@@ -48487,29 +48548,26 @@ async function executeApplyTriageOutput(action, ctx, structuredOutput) {
   };
   await applyLabels(ctx, issueNumber, classification);
   await applyProjectFields(ctx, issueNumber, classification);
-  if (isStructured && triageOutput.issue_body) {
-    await updateIssueBody(
+  if (isNewFormat) {
+    const newFormatOutput = triageOutput;
+    await updateIssueStructure(
       ctx,
       issueNumber,
-      triageOutput.issue_body
+      newFormatOutput.requirements,
+      newFormatOutput.initial_approach,
+      newFormatOutput.initial_questions
     );
+  } else if (isLegacyStructured) {
+    const legacyOutput = triageOutput;
+    if (legacyOutput.issue_body) {
+      await updateIssueBody(ctx, issueNumber, legacyOutput.issue_body);
+    }
   }
-  let subIssueNumbers = [];
-  if (isStructured && triageOutput.sub_issues?.length > 0) {
-    subIssueNumbers = await createSubIssues(
-      ctx,
-      issueNumber,
-      triageOutput.sub_issues
-    );
+  const relatedIssues = triageOutput.related_issues || triageOutput.related_issues;
+  if (relatedIssues && relatedIssues.length > 0) {
+    await linkRelatedIssues(ctx, issueNumber, relatedIssues);
   }
-  if (isStructured && triageOutput.related_issues?.length) {
-    await linkRelatedIssues(
-      ctx,
-      issueNumber,
-      triageOutput.related_issues || []
-    );
-  }
-  return { applied: true, subIssueNumbers };
+  return { applied: true };
 }
 async function applyLabels(ctx, issueNumber, classification) {
   const labels = [];
@@ -48555,90 +48613,45 @@ async function updateIssueBody(ctx, issueNumber, newBody) {
     core15.warning(`Failed to update issue body: ${error10}`);
   }
 }
-async function createSubIssues(ctx, parentIssueNumber, subIssues) {
-  const repoResponse = await ctx.octokit.graphql(
-    GET_REPO_ID_QUERY4,
-    {
-      owner: ctx.owner,
-      repo: ctx.repo
-    }
-  );
-  const repoId = repoResponse.repository?.id;
-  if (!repoId) {
-    throw new Error("Repository not found");
-  }
-  const parentResponse = await ctx.octokit.graphql(
-    GET_ISSUE_ID_QUERY,
-    {
+async function updateIssueStructure(ctx, issueNumber, requirements, initialApproach, initialQuestions) {
+  try {
+    const { data: issue } = await ctx.octokit.rest.issues.get({
       owner: ctx.owner,
       repo: ctx.repo,
-      issueNumber: parentIssueNumber
-    }
-  );
-  const parentId = parentResponse.repository?.issue?.id;
-  if (!parentId) {
-    throw new Error(`Parent issue #${parentIssueNumber} not found`);
-  }
-  const projectInfo = await getProjectInfo(ctx);
-  const subIssueNumbers = [];
-  for (let i3 = 0; i3 < subIssues.length; i3++) {
-    const subIssue = subIssues[i3];
-    if (!subIssue) continue;
-    const phaseNumber = i3 + 1;
-    const formattedTitle = subIssues.length > 1 ? `[Phase ${phaseNumber}] ${subIssue.title}` : subIssue.title;
-    const todoList = subIssue.todos.map((todo) => {
-      if (typeof todo === "string") {
-        return `- [ ] ${todo}`;
-      } else {
-        const prefix = todo.manual ? "[Manual] " : "";
-        return `- [ ] ${prefix}${todo.task}`;
-      }
-    }).join("\n");
-    const body = `## Description
-
-${subIssue.description}
-
-## Todo
-
-${todoList}
-
----
-
-Parent: #${parentIssueNumber}`;
-    const createResponse = await ctx.octokit.graphql(
-      CREATE_ISSUE_MUTATION4,
-      {
-        repositoryId: repoId,
-        title: formattedTitle,
-        body
-      }
-    );
-    const issueId = createResponse.createIssue?.issue?.id;
-    const issueNumber = createResponse.createIssue?.issue?.number;
-    if (!issueId || !issueNumber) {
-      throw new Error(`Failed to create sub-issue for phase ${i3 + 1}`);
-    }
-    await ctx.octokit.graphql(ADD_SUB_ISSUE_MUTATION2, {
-      parentId,
-      childId: issueId
+      issue_number: issueNumber
     });
-    const subIssueLabels = ["triaged"];
-    if (subIssue.type) {
-      subIssueLabels.push(subIssue.type);
+    const currentBody = issue.body || "";
+    const sections = [];
+    if (requirements.length > 0) {
+      sections.push({
+        name: "Requirements",
+        content: formatRequirements(requirements)
+      });
     }
-    await ctx.octokit.rest.issues.addLabels({
+    if (initialApproach) {
+      sections.push({
+        name: "Approach",
+        content: initialApproach
+      });
+    }
+    if (initialQuestions && initialQuestions.length > 0) {
+      const questionsContent = initialQuestions.map((q) => `- [ ] ${q}`).join("\n");
+      sections.push({
+        name: "Questions",
+        content: questionsContent
+      });
+    }
+    const newBody = upsertSections(currentBody, sections, STANDARD_SECTION_ORDER);
+    await ctx.octokit.rest.issues.update({
       owner: ctx.owner,
       repo: ctx.repo,
       issue_number: issueNumber,
-      labels: subIssueLabels
+      body: newBody
     });
-    if (projectInfo) {
-      await addToProjectWithStatus(ctx, issueId, projectInfo, "Ready");
-    }
-    subIssueNumbers.push(issueNumber);
-    core15.info(`Created sub-issue #${issueNumber}: ${formattedTitle}`);
+    core15.info(`Updated issue #${issueNumber} with structured sections`);
+  } catch (error10) {
+    core15.warning(`Failed to update issue structure: ${error10}`);
   }
-  return subIssueNumbers;
 }
 async function linkRelatedIssues(ctx, issueNumber, relatedIssues) {
   if (relatedIssues.length === 0) return;
@@ -48734,34 +48747,6 @@ async function getProjectInfo(ctx) {
   } catch (error10) {
     core15.warning(`Failed to get project info: ${error10}`);
     return null;
-  }
-}
-async function addToProjectWithStatus(ctx, issueNodeId, projectInfo, status) {
-  try {
-    const addResult = await ctx.octokit.graphql(
-      ADD_ISSUE_TO_PROJECT_MUTATION2,
-      {
-        projectId: projectInfo.projectId,
-        contentId: issueNodeId
-      }
-    );
-    const itemId = addResult.addProjectV2ItemById?.item?.id;
-    if (!itemId) {
-      core15.warning("Failed to add issue to project");
-      return;
-    }
-    const statusOptionId = projectInfo.statusOptions[status];
-    if (statusOptionId && projectInfo.statusFieldId) {
-      await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION2, {
-        projectId: projectInfo.projectId,
-        itemId,
-        fieldId: projectInfo.statusFieldId,
-        value: { singleSelectOptionId: statusOptionId }
-      });
-      core15.info(`Set project status to ${status}`);
-    }
-  } catch (error10) {
-    core15.warning(`Failed to add issue to project with status: ${error10}`);
   }
 }
 async function applyProjectFields(ctx, issueNumber, classification) {
@@ -49126,6 +49111,83 @@ async function executeAppendAgentNotes(action, ctx) {
 // issue/actions-ts/state-machine/runner/executors/grooming.ts
 var core20 = __toESM(require_core(), 1);
 var fs9 = __toESM(require("fs"), 1);
+var GET_REPO_ID_QUERY4 = `
+query GetRepoId($owner: String!, $repo: String!) {
+  repository(owner: $owner, name: $repo) {
+    id
+  }
+}
+`;
+var GET_ISSUE_ID_QUERY = `
+query GetIssueId($owner: String!, $repo: String!, $issueNumber: Int!) {
+  repository(owner: $owner, name: $repo) {
+    issue(number: $issueNumber) {
+      id
+    }
+  }
+}
+`;
+var CREATE_ISSUE_MUTATION4 = `
+mutation CreateIssue($repositoryId: ID!, $title: String!, $body: String!) {
+  createIssue(input: { repositoryId: $repositoryId, title: $title, body: $body }) {
+    issue {
+      id
+      number
+    }
+  }
+}
+`;
+var ADD_SUB_ISSUE_MUTATION2 = `
+mutation AddSubIssue($parentId: ID!, $childId: ID!) {
+  addSubIssue(input: { issueId: $parentId, subIssueId: $childId }) {
+    issue {
+      id
+    }
+  }
+}
+`;
+var ADD_ISSUE_TO_PROJECT_MUTATION2 = `
+mutation AddIssueToProject($projectId: ID!, $contentId: ID!) {
+  addProjectV2ItemById(input: {
+    projectId: $projectId
+    contentId: $contentId
+  }) {
+    item {
+      id
+    }
+  }
+}
+`;
+var GET_PROJECT_FIELDS_QUERY2 = `
+query($owner: String!, $projectNumber: Int!) {
+  organization(login: $owner) {
+    projectV2(number: $projectNumber) {
+      id
+      fields(first: 30) {
+        nodes {
+          ... on ProjectV2SingleSelectField {
+            id
+            name
+            options { id name }
+          }
+        }
+      }
+    }
+  }
+}
+`;
+var UPDATE_PROJECT_FIELD_MUTATION3 = `
+mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
+  updateProjectV2ItemFieldValue(input: {
+    projectId: $projectId
+    itemId: $itemId
+    fieldId: $fieldId
+    value: $value
+  }) {
+    projectV2Item { id }
+  }
+}
+`;
 async function executeRunClaudeGrooming(action, ctx) {
   const { issueNumber, promptVars } = action;
   core20.info(`Running grooming agents for issue #${issueNumber}`);
@@ -49248,7 +49310,7 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
   }
   core20.info(`Grooming decision: ${summaryOutput.decision}`);
   core20.info(`Rationale: ${summaryOutput.decision_rationale}`);
-  await applyGroomingDecision(ctx, issueNumber, summaryOutput);
+  await applyGroomingDecision(ctx, issueNumber, summaryOutput, groomingOutputs);
   return { applied: true, decision: summaryOutput.decision };
 }
 function getGroomingHistoryMessage(decision) {
@@ -49263,10 +49325,10 @@ function getGroomingHistoryMessage(decision) {
       return `\u2753 ${decision}`;
   }
 }
-async function applyGroomingDecision(ctx, issueNumber, summary) {
+async function applyGroomingDecision(ctx, issueNumber, summary, groomingOutputs) {
   switch (summary.decision) {
     case "ready":
-      await applyReadyDecision(ctx, issueNumber, summary);
+      await applyReadyDecision(ctx, issueNumber, summary, groomingOutputs);
       break;
     case "needs_info":
       await applyNeedsInfoDecision(ctx, issueNumber, summary);
@@ -49313,7 +49375,7 @@ async function applyGroomingDecision(ctx, issueNumber, summary) {
     core20.debug(`No log-run-start entry to update: ${error10}`);
   }
 }
-async function applyReadyDecision(ctx, issueNumber, summary) {
+async function applyReadyDecision(ctx, issueNumber, summary, groomingOutputs) {
   try {
     await executeRemoveLabel(
       {
@@ -49338,14 +49400,31 @@ async function applyReadyDecision(ctx, issueNumber, summary) {
   } catch (error10) {
     core20.warning(`Failed to add groomed label: ${error10}`);
   }
+  if (groomingOutputs) {
+    await applyGroomingToIssue(ctx, issueNumber, groomingOutputs);
+    const phases = groomingOutputs.engineer.recommended_phases;
+    if (phases && phases.length > 0) {
+      const subIssueNumbers = await createSubIssuesFromPlan(
+        ctx,
+        issueNumber,
+        phases,
+        groomingOutputs.qa
+      );
+      core20.info(`Created ${subIssueNumbers.length} sub-issues`);
+    }
+  }
   try {
     const notes = formatReadyNotes(summary);
+    const runId = ctx.runUrl?.split("/").pop() || `run-${Date.now()}`;
+    const runLink = ctx.runUrl || `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}/actions/runs/${runId}`;
     await executeAppendAgentNotes(
       {
         type: "appendAgentNotes",
         token: "code",
         issueNumber,
         notes,
+        runId,
+        runLink,
         timestamp: (/* @__PURE__ */ new Date()).toISOString()
       },
       ctx
@@ -49369,12 +49448,16 @@ async function applyNeedsInfoDecision(ctx, issueNumber, summary) {
   }
   try {
     const notes = formatNeedsInfoNotes(summary);
+    const runId = ctx.runUrl?.split("/").pop() || `run-${Date.now()}`;
+    const runLink = ctx.runUrl || `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}/actions/runs/${runId}`;
     await executeAppendAgentNotes(
       {
         type: "appendAgentNotes",
         token: "code",
         issueNumber,
         notes,
+        runId,
+        runLink,
         timestamp: (/* @__PURE__ */ new Date()).toISOString()
       },
       ctx
@@ -49398,12 +49481,16 @@ async function applyBlockedDecision(ctx, issueNumber, summary) {
   }
   try {
     const notes = formatBlockedNotes(summary);
+    const runId = ctx.runUrl?.split("/").pop() || `run-${Date.now()}`;
+    const runLink = ctx.runUrl || `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}/actions/runs/${runId}`;
     await executeAppendAgentNotes(
       {
         type: "appendAgentNotes",
         token: "code",
         issueNumber,
         notes,
+        runId,
+        runLink,
         timestamp: (/* @__PURE__ */ new Date()).toISOString()
       },
       ctx
@@ -49460,6 +49547,234 @@ function formatBlockedNotes(summary) {
     notes.push(`To unblock: ${summary.next_steps.join("; ")}`);
   }
   return notes;
+}
+async function applyGroomingToIssue(ctx, issueNumber, outputs) {
+  try {
+    const { data: issue } = await ctx.octokit.rest.issues.get({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: issueNumber
+    });
+    const currentBody = issue.body || "";
+    const sections = [];
+    if (outputs.pm.requirements && outputs.pm.requirements.length > 0) {
+      const requirementsContent = outputs.pm.requirements.map((r3) => `- ${r3}`).join("\n");
+      sections.push({ name: "Requirements", content: requirementsContent });
+    }
+    if (outputs.pm.acceptance_criteria && outputs.pm.acceptance_criteria.length > 0) {
+      const criteriaContent = outputs.pm.acceptance_criteria.map((c3) => `- [ ] ${c3}`).join("\n");
+      sections.push({ name: "Acceptance Criteria", content: criteriaContent });
+    }
+    if (outputs.engineer.implementation_plan) {
+      let approachContent = outputs.engineer.implementation_plan;
+      if (outputs.engineer.affected_areas && outputs.engineer.affected_areas.length > 0) {
+        approachContent += "\n\n**Affected Areas:**\n";
+        approachContent += outputs.engineer.affected_areas.map((a) => `- \`${a.path}\` (${a.change_type}) - ${a.description}`).join("\n");
+      }
+      if (outputs.engineer.technical_risks && outputs.engineer.technical_risks.length > 0) {
+        approachContent += "\n\n**Technical Risks:**\n";
+        approachContent += outputs.engineer.technical_risks.map((r3) => {
+          let risk = `- **${r3.severity}**: ${r3.risk}`;
+          if (r3.mitigation) {
+            risk += ` (Mitigation: ${r3.mitigation})`;
+          }
+          return risk;
+        }).join("\n");
+      }
+      sections.push({ name: "Approach", content: approachContent });
+    }
+    if (outputs.qa.test_strategy || outputs.qa.test_cases && outputs.qa.test_cases.length > 0) {
+      let testingContent = "";
+      if (outputs.qa.test_strategy) {
+        testingContent = outputs.qa.test_strategy + "\n\n";
+      }
+      if (outputs.qa.test_cases && outputs.qa.test_cases.length > 0) {
+        testingContent += "**Test Cases:**\n";
+        testingContent += outputs.qa.test_cases.map((t) => `- [ ] [${t.type}] ${t.description}`).join("\n");
+      }
+      sections.push({ name: "Testing", content: testingContent.trim() });
+    }
+    if (sections.length > 0) {
+      const newBody = upsertSections(currentBody, sections, STANDARD_SECTION_ORDER);
+      await ctx.octokit.rest.issues.update({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: issueNumber,
+        body: newBody
+      });
+      core20.info(`Updated issue #${issueNumber} with grooming sections`);
+    }
+  } catch (error10) {
+    core20.warning(`Failed to apply grooming to issue: ${error10}`);
+  }
+}
+async function createSubIssuesFromPlan(ctx, parentIssueNumber, phases, qaOutput) {
+  if (phases.length === 0) {
+    core20.info("No phases recommended, skipping sub-issue creation");
+    return [];
+  }
+  const repoResponse = await ctx.octokit.graphql(
+    GET_REPO_ID_QUERY4,
+    {
+      owner: ctx.owner,
+      repo: ctx.repo
+    }
+  );
+  const repoId = repoResponse.repository?.id;
+  if (!repoId) {
+    throw new Error("Repository not found");
+  }
+  const parentResponse = await ctx.octokit.graphql(
+    GET_ISSUE_ID_QUERY,
+    {
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issueNumber: parentIssueNumber
+    }
+  );
+  const parentId = parentResponse.repository?.issue?.id;
+  if (!parentId) {
+    throw new Error(`Parent issue #${parentIssueNumber} not found`);
+  }
+  const projectInfo = await getProjectInfo2(ctx);
+  const subIssueNumbers = [];
+  for (const phase of phases) {
+    const formattedTitle = phases.length > 1 ? `[Phase ${phase.phase_number}] ${phase.title}` : phase.title;
+    const body = formatSubIssueBody(phase, qaOutput, parentIssueNumber);
+    const createResponse = await ctx.octokit.graphql(
+      CREATE_ISSUE_MUTATION4,
+      {
+        repositoryId: repoId,
+        title: formattedTitle,
+        body
+      }
+    );
+    const issueId = createResponse.createIssue?.issue?.id;
+    const issueNumber = createResponse.createIssue?.issue?.number;
+    if (!issueId || !issueNumber) {
+      throw new Error(`Failed to create sub-issue for phase ${phase.phase_number}`);
+    }
+    await ctx.octokit.graphql(ADD_SUB_ISSUE_MUTATION2, {
+      parentId,
+      childId: issueId
+    });
+    await ctx.octokit.rest.issues.addLabels({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: issueNumber,
+      labels: ["triaged", "groomed"]
+    });
+    if (projectInfo) {
+      await addToProjectWithStatus(ctx, issueId, projectInfo, "Ready");
+    }
+    subIssueNumbers.push(issueNumber);
+    core20.info(`Created sub-issue #${issueNumber}: ${formattedTitle}`);
+  }
+  return subIssueNumbers;
+}
+function formatSubIssueBody(phase, qaOutput, parentIssueNumber) {
+  let body = `## Description
+
+${phase.description}
+`;
+  if (phase.affected_areas && phase.affected_areas.length > 0) {
+    body += `
+## Affected Areas
+
+`;
+    body += phase.affected_areas.map((a) => `- \`${a.path}\` (${a.change_type}) - ${a.description}`).join("\n");
+    body += "\n";
+  }
+  if (phase.todos && phase.todos.length > 0) {
+    body += `
+## Todo
+
+`;
+    body += phase.todos.map((todo) => {
+      const prefix = todo.manual ? "[Manual] " : "";
+      return `- [ ] ${prefix}${todo.task}`;
+    }).join("\n");
+    body += "\n";
+  }
+  const phaseTests = qaOutput.test_cases?.filter(
+    (t) => t.phase === phase.phase_number || !t.phase
+  );
+  if (phaseTests && phaseTests.length > 0) {
+    body += `
+## Testing
+
+`;
+    body += phaseTests.map((t) => `- [ ] [${t.type}] ${t.description}`).join("\n");
+    body += "\n";
+  }
+  if (phase.depends_on && phase.depends_on.length > 0) {
+    body += `
+## Dependencies
+
+`;
+    body += `Depends on phases: ${phase.depends_on.join(", ")}
+`;
+  }
+  body += `
+---
+
+Parent: #${parentIssueNumber}`;
+  return body;
+}
+async function getProjectInfo2(ctx) {
+  try {
+    const result = await ctx.octokit.graphql(GET_PROJECT_FIELDS_QUERY2, {
+      owner: ctx.owner,
+      projectNumber: ctx.projectNumber
+    });
+    const project = result.organization.projectV2;
+    const fields = project.fields.nodes;
+    const projectInfo = {
+      projectId: project.id,
+      statusFieldId: "",
+      statusOptions: {}
+    };
+    for (const field of fields) {
+      if (field.name === "Status" && field.options) {
+        projectInfo.statusFieldId = field.id;
+        for (const option of field.options) {
+          projectInfo.statusOptions[option.name] = option.id;
+        }
+      }
+    }
+    return projectInfo;
+  } catch (error10) {
+    core20.warning(`Failed to get project info: ${error10}`);
+    return null;
+  }
+}
+async function addToProjectWithStatus(ctx, issueNodeId, projectInfo, status) {
+  try {
+    const addResult = await ctx.octokit.graphql(
+      ADD_ISSUE_TO_PROJECT_MUTATION2,
+      {
+        projectId: projectInfo.projectId,
+        contentId: issueNodeId
+      }
+    );
+    const itemId = addResult.addProjectV2ItemById?.item?.id;
+    if (!itemId) {
+      core20.warning("Failed to add issue to project");
+      return;
+    }
+    const statusOptionId = projectInfo.statusOptions[status];
+    if (statusOptionId && projectInfo.statusFieldId) {
+      await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION3, {
+        projectId: projectInfo.projectId,
+        itemId,
+        fieldId: projectInfo.statusFieldId,
+        value: { singleSelectOptionId: statusOptionId }
+      });
+      core20.info(`Set project status to ${status}`);
+    }
+  } catch (error10) {
+    core20.warning(`Failed to add issue to project with status: ${error10}`);
+  }
 }
 
 // issue/actions-ts/state-machine/runner/signaler.ts
@@ -49852,7 +50167,7 @@ query GetProjectItem($org: String!, $repo: String!, $issueNumber: Int!, $project
   }
 }
 `;
-var UPDATE_PROJECT_FIELD_MUTATION3 = `
+var UPDATE_PROJECT_FIELD_MUTATION4 = `
 mutation UpdateProjectField($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
   updateProjectV2ItemFieldValue(input: {
     projectId: $projectId
@@ -50964,7 +51279,7 @@ ${subIssue.body || ""}`
     } else {
       throw new Error(`Unknown field: ${field}`);
     }
-    await this.config.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION3, {
+    await this.config.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION4, {
       projectId: projectFields.projectId,
       itemId,
       fieldId,

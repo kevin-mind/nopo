@@ -133,6 +133,38 @@ describe("Issue Loader", () => {
       expect(scenario.claudeMocks.has("grooming/summary")).toBe(true);
     });
 
+    test("loads grooming-with-subissues scenario", async () => {
+      console.log("Loading issue scenario: grooming-with-subissues");
+      const scenario = await loadScenario("grooming-with-subissues", TEST_FIXTURES_PATH);
+
+      expect(scenario.name).toBe("grooming-with-subissues");
+      expect(scenario.description).toContain("sub-issues");
+      expect(scenario.orderedStates.length).toBeGreaterThanOrEqual(2);
+      expect(scenario.fixtures.size).toBeGreaterThan(0);
+
+      // Check first state is detecting
+      const firstState = scenario.orderedStates[0];
+      expect(firstState).toBe("detecting");
+
+      const fixture = scenario.fixtures.get("detecting");
+      expect(fixture).toBeDefined();
+      expect(fixture?.trigger).toBe("issue-groom");
+
+      // Check that grooming mocks are loaded (including engineer-with-phases)
+      expect(scenario.claudeMocks.size).toBeGreaterThanOrEqual(5);
+      expect(scenario.claudeMocks.has("grooming/pm")).toBe(true);
+      expect(scenario.claudeMocks.has("grooming/engineer-with-phases")).toBe(true);
+      expect(scenario.claudeMocks.has("grooming/qa")).toBe(true);
+      expect(scenario.claudeMocks.has("grooming/research")).toBe(true);
+      expect(scenario.claudeMocks.has("grooming/summary")).toBe(true);
+
+      // Check that end state has sub-issues
+      const groomingFixture = scenario.fixtures.get("grooming");
+      expect(groomingFixture).toBeDefined();
+      expect(groomingFixture?.issue.hasSubIssues).toBe(true);
+      expect(groomingFixture?.issue.subIssues?.length).toBe(3);
+    });
+
     test("throws error for non-existent scenario", async () => {
       await expect(
         loadScenario("non-existent-scenario", TEST_FIXTURES_PATH),

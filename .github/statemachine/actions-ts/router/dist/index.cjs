@@ -32055,8 +32055,14 @@ function needsSubIssues(_guardContext) {
   return false;
 }
 function allPhasesDone({ context: context2 }) {
-  if (!context2.issue.hasSubIssues) {
-    return context2.issue.subIssues.length === 0 && context2.currentSubIssue === null;
+  const hasGroomedLabel = context2.issue.labels.some(
+    (l) => l.toLowerCase() === "groomed"
+  );
+  if (!hasGroomedLabel) {
+    return false;
+  }
+  if (context2.issue.subIssues.length === 0) {
+    return false;
   }
   return context2.issue.subIssues.every(
     (s) => s.projectStatus === "Done" || s.state === "CLOSED"

@@ -2,62 +2,11 @@ import * as core from "@actions/core";
 import * as fs from "fs";
 import type { ApplyTriageOutputAction } from "../../schemas/index.js";
 import type { RunnerContext } from "../runner.js";
-
-// ============================================================================
-// GraphQL Queries
-// ============================================================================
-
-const GET_REPO_ID_QUERY = `
-query GetRepoId($owner: String!, $repo: String!) {
-  repository(owner: $owner, name: $repo) {
-    id
-  }
-}
-`;
-
-const GET_ISSUE_ID_QUERY = `
-query GetIssueId($owner: String!, $repo: String!, $issueNumber: Int!) {
-  repository(owner: $owner, name: $repo) {
-    issue(number: $issueNumber) {
-      id
-    }
-  }
-}
-`;
-
-const CREATE_ISSUE_MUTATION = `
-mutation CreateIssue($repositoryId: ID!, $title: String!, $body: String!) {
-  createIssue(input: { repositoryId: $repositoryId, title: $title, body: $body }) {
-    issue {
-      id
-      number
-    }
-  }
-}
-`;
-
-const ADD_SUB_ISSUE_MUTATION = `
-mutation AddSubIssue($parentId: ID!, $childId: ID!) {
-  addSubIssue(input: { issueId: $parentId, subIssueId: $childId }) {
-    issue {
-      id
-    }
-  }
-}
-`;
-
-const ADD_ISSUE_TO_PROJECT_MUTATION = `
-mutation AddIssueToProject($projectId: ID!, $contentId: ID!) {
-  addProjectV2ItemById(input: {
-    projectId: $projectId
-    contentId: $contentId
-  }) {
-    item {
-      id
-    }
-  }
-}
-`;
+import {
+  upsertSections,
+  formatRequirements,
+  STANDARD_SECTION_ORDER,
+} from "../../parser/section-parser.js";
 
 // ============================================================================
 // Types
@@ -76,36 +25,21 @@ interface TriageClassification {
 }
 
 /**
- * Todo item from structured output
- */
-interface TodoItem {
-  task: string;
-  manual: boolean;
-}
-
-/**
- * Sub-issue definition from structured output
- */
-interface SubIssueDefinition {
-  type: string;
-  title: string;
-  description: string;
-  todos: TodoItem[] | string[]; // Support both new and legacy format
-}
-
-/**
- * Full triage output JSON structure (structured output schema)
+ * Full triage output JSON structure (new structured output schema)
+ * Note: Sub-issues are no longer created during triage - they are created during grooming
  */
 interface TriageOutput {
   triage: TriageClassification;
-  issue_body: string;
-  sub_issues: SubIssueDefinition[];
+  requirements: string[];
+  initial_approach: string;
+  initial_questions?: string[];
   related_issues?: number[];
   agent_notes?: string[];
 }
 
 /**
  * Legacy triage output format (for backwards compatibility)
+ * This format is still supported for existing workflows
  */
 interface LegacyTriageOutput {
   type?: string;
@@ -114,37 +48,15 @@ interface LegacyTriageOutput {
   estimate?: number;
   topics?: string[];
   needs_info?: boolean;
-}
-
-interface RepoIdResponse {
-  repository?: {
-    id?: string;
-  };
-}
-
-interface IssueIdResponse {
-  repository?: {
-    issue?: {
-      id?: string;
-    };
-  };
-}
-
-interface CreateIssueResponse {
-  createIssue?: {
-    issue?: {
-      id?: string;
-      number?: number;
-    };
-  };
-}
-
-interface AddToProjectResponse {
-  addProjectV2ItemById?: {
-    item?: {
-      id?: string;
-    };
-  };
+  // Legacy sub-issues support for backward compatibility
+  sub_issues?: Array<{
+    type: string;
+    title: string;
+    description: string;
+    todos: Array<{ task: string; manual: boolean } | string>;
+  }>;
+  issue_body?: string;
+  related_issues?: number[];
 }
 
 // ============================================================================
@@ -158,22 +70,25 @@ interface AddToProjectResponse {
  *
  * For structured output (new style):
  * - Uses triage.triage for classification
- * - Uses triage.issue_body for updated body
- * - Uses triage.sub_issues to create sub-issues with todos
+ * - Uses triage.requirements to update Requirements section
+ * - Uses triage.initial_approach to update Approach section
+ * - Uses triage.initial_questions to update Questions section
  * - Uses triage.related_issues to link related issues
  *
  * Applies:
  * - Labels (type, topics, triaged)
  * - Project fields (Priority, Size, Estimate)
- * - Updated issue body
- * - Sub-issues with todos
- * - Related issue links
+ * - Updates issue body with structured sections
+ * - Links related issues
+ *
+ * NOTE: Sub-issues are NO LONGER created during triage.
+ * They are created during grooming after the issue is fully refined.
  */
 export async function executeApplyTriageOutput(
   action: ApplyTriageOutputAction,
   ctx: RunnerContext,
   structuredOutput?: unknown,
-): Promise<{ applied: boolean; subIssueNumbers?: number[] }> {
+): Promise<{ applied: boolean }> {
   const { issueNumber, filePath } = action;
 
   let triageOutput: TriageOutput | LegacyTriageOutput;
@@ -211,8 +126,10 @@ export async function executeApplyTriageOutput(
   }
 
   // Detect output format and extract classification
-  const isStructured = "triage" in triageOutput;
-  const classification: TriageClassification = isStructured
+  const isNewFormat = "triage" in triageOutput && "requirements" in triageOutput;
+  const isLegacyStructured = "triage" in triageOutput && !("requirements" in triageOutput);
+
+  const classification: TriageClassification = isNewFormat || isLegacyStructured
     ? (triageOutput as TriageOutput).triage
     : {
         type: (triageOutput as LegacyTriageOutput).type || "enhancement",
@@ -229,35 +146,32 @@ export async function executeApplyTriageOutput(
   // 2. Apply project fields
   await applyProjectFields(ctx, issueNumber, classification);
 
-  // 3. Update issue body (structured output only)
-  if (isStructured && (triageOutput as TriageOutput).issue_body) {
-    await updateIssueBody(
+  // 3. Update issue body with structured sections (new format only)
+  if (isNewFormat) {
+    const newFormatOutput = triageOutput as TriageOutput;
+    await updateIssueStructure(
       ctx,
       issueNumber,
-      (triageOutput as TriageOutput).issue_body,
+      newFormatOutput.requirements,
+      newFormatOutput.initial_approach,
+      newFormatOutput.initial_questions,
     );
+  } else if (isLegacyStructured) {
+    // Legacy format with issue_body - still update the body directly
+    const legacyOutput = triageOutput as LegacyTriageOutput;
+    if (legacyOutput.issue_body) {
+      await updateIssueBody(ctx, issueNumber, legacyOutput.issue_body);
+    }
   }
 
-  // 4. Create sub-issues (structured output only)
-  let subIssueNumbers: number[] = [];
-  if (isStructured && (triageOutput as TriageOutput).sub_issues?.length > 0) {
-    subIssueNumbers = await createSubIssues(
-      ctx,
-      issueNumber,
-      (triageOutput as TriageOutput).sub_issues,
-    );
+  // 4. Link related issues
+  const relatedIssues = (triageOutput as TriageOutput).related_issues ||
+    (triageOutput as LegacyTriageOutput).related_issues;
+  if (relatedIssues && relatedIssues.length > 0) {
+    await linkRelatedIssues(ctx, issueNumber, relatedIssues);
   }
 
-  // 5. Link related issues (structured output only)
-  if (isStructured && (triageOutput as TriageOutput).related_issues?.length) {
-    await linkRelatedIssues(
-      ctx,
-      issueNumber,
-      (triageOutput as TriageOutput).related_issues || [],
-    );
-  }
-
-  return { applied: true, subIssueNumbers };
+  return { applied: true };
 }
 
 // ============================================================================
@@ -316,7 +230,7 @@ async function applyLabels(
 // ============================================================================
 
 /**
- * Update the issue body
+ * Update the issue body (legacy - used for backward compatibility)
  */
 async function updateIssueBody(
   ctx: RunnerContext,
@@ -336,136 +250,73 @@ async function updateIssueBody(
   }
 }
 
-// ============================================================================
-// Sub-Issue Creation
-// ============================================================================
-
 /**
- * Create sub-issues from the structured output
- * Returns array of created issue numbers
+ * Update issue body with structured sections from triage output
+ *
+ * This adds/updates Requirements, Approach, and Questions sections
+ * while preserving existing content like Agent Notes and Iteration History.
  */
-async function createSubIssues(
+async function updateIssueStructure(
   ctx: RunnerContext,
-  parentIssueNumber: number,
-  subIssues: SubIssueDefinition[],
-): Promise<number[]> {
-  // Get repository ID
-  const repoResponse = await ctx.octokit.graphql<RepoIdResponse>(
-    GET_REPO_ID_QUERY,
-    {
-      owner: ctx.owner,
-      repo: ctx.repo,
-    },
-  );
-
-  const repoId = repoResponse.repository?.id;
-  if (!repoId) {
-    throw new Error("Repository not found");
-  }
-
-  // Get parent issue ID
-  const parentResponse = await ctx.octokit.graphql<IssueIdResponse>(
-    GET_ISSUE_ID_QUERY,
-    {
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issueNumber: parentIssueNumber,
-    },
-  );
-
-  const parentId = parentResponse.repository?.issue?.id;
-  if (!parentId) {
-    throw new Error(`Parent issue #${parentIssueNumber} not found`);
-  }
-
-  // Get project info for adding sub-issues to project
-  const projectInfo = await getProjectInfo(ctx);
-
-  const subIssueNumbers: number[] = [];
-
-  for (let i = 0; i < subIssues.length; i++) {
-    const subIssue = subIssues[i];
-    if (!subIssue) continue;
-
-    // Format title with phase number (1-indexed)
-    const phaseNumber = i + 1;
-    const formattedTitle =
-      subIssues.length > 1
-        ? `[Phase ${phaseNumber}] ${subIssue.title}`
-        : subIssue.title;
-
-    // Build the sub-issue body with todos
-    // Support both new format (object with task/manual) and legacy format (string)
-    const todoList = subIssue.todos
-      .map((todo) => {
-        if (typeof todo === "string") {
-          // Legacy format: plain string
-          return `- [ ] ${todo}`;
-        } else {
-          // New format: object with task and manual flag
-          const prefix = todo.manual ? "[Manual] " : "";
-          return `- [ ] ${prefix}${todo.task}`;
-        }
-      })
-      .join("\n");
-
-    const body = `## Description
-
-${subIssue.description}
-
-## Todo
-
-${todoList}
-
----
-
-Parent: #${parentIssueNumber}`;
-
-    // Create the sub-issue
-    const createResponse = await ctx.octokit.graphql<CreateIssueResponse>(
-      CREATE_ISSUE_MUTATION,
-      {
-        repositoryId: repoId,
-        title: formattedTitle,
-        body,
-      },
-    );
-
-    const issueId = createResponse.createIssue?.issue?.id;
-    const issueNumber = createResponse.createIssue?.issue?.number;
-
-    if (!issueId || !issueNumber) {
-      throw new Error(`Failed to create sub-issue for phase ${i + 1}`);
-    }
-
-    // Link as sub-issue
-    await ctx.octokit.graphql(ADD_SUB_ISSUE_MUTATION, {
-      parentId,
-      childId: issueId,
-    });
-
-    // Add "triaged" label and type label to sub-issue
-    const subIssueLabels = ["triaged"];
-    if (subIssue.type) {
-      subIssueLabels.push(subIssue.type);
-    }
-    await ctx.octokit.rest.issues.addLabels({
+  issueNumber: number,
+  requirements: string[],
+  initialApproach: string,
+  initialQuestions?: string[],
+): Promise<void> {
+  try {
+    // Get current issue body
+    const { data: issue } = await ctx.octokit.rest.issues.get({
       owner: ctx.owner,
       repo: ctx.repo,
       issue_number: issueNumber,
-      labels: subIssueLabels,
     });
 
-    // Add to project with "Ready" status
-    if (projectInfo) {
-      await addToProjectWithStatus(ctx, issueId, projectInfo, "Ready");
+    const currentBody = issue.body || "";
+
+    // Build sections to update
+    const sections: Array<{ name: string; content: string }> = [];
+
+    // Requirements section
+    if (requirements.length > 0) {
+      sections.push({
+        name: "Requirements",
+        content: formatRequirements(requirements),
+      });
     }
 
-    subIssueNumbers.push(issueNumber);
-    core.info(`Created sub-issue #${issueNumber}: ${formattedTitle}`);
-  }
+    // Approach section
+    if (initialApproach) {
+      sections.push({
+        name: "Approach",
+        content: initialApproach,
+      });
+    }
 
-  return subIssueNumbers;
+    // Questions section (if any)
+    if (initialQuestions && initialQuestions.length > 0) {
+      const questionsContent = initialQuestions
+        .map((q) => `- [ ] ${q}`)
+        .join("\n");
+      sections.push({
+        name: "Questions",
+        content: questionsContent,
+      });
+    }
+
+    // Update sections while preserving order and existing content
+    const newBody = upsertSections(currentBody, sections, STANDARD_SECTION_ORDER);
+
+    await ctx.octokit.rest.issues.update({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: issueNumber,
+      body: newBody,
+    });
+
+    core.info(`Updated issue #${issueNumber} with structured sections`);
+  } catch (error) {
+    core.warning(`Failed to update issue structure: ${error}`);
+  }
 }
 
 // ============================================================================
@@ -614,47 +465,6 @@ async function getProjectInfo(ctx: RunnerContext): Promise<ProjectInfo | null> {
   } catch (error) {
     core.warning(`Failed to get project info: ${error}`);
     return null;
-  }
-}
-
-/**
- * Add an issue to the project with a specific status
- */
-async function addToProjectWithStatus(
-  ctx: RunnerContext,
-  issueNodeId: string,
-  projectInfo: ProjectInfo,
-  status: string,
-): Promise<void> {
-  try {
-    // Add to project
-    const addResult = await ctx.octokit.graphql<AddToProjectResponse>(
-      ADD_ISSUE_TO_PROJECT_MUTATION,
-      {
-        projectId: projectInfo.projectId,
-        contentId: issueNodeId,
-      },
-    );
-
-    const itemId = addResult.addProjectV2ItemById?.item?.id;
-    if (!itemId) {
-      core.warning("Failed to add issue to project");
-      return;
-    }
-
-    // Set status
-    const statusOptionId = projectInfo.statusOptions[status];
-    if (statusOptionId && projectInfo.statusFieldId) {
-      await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
-        projectId: projectInfo.projectId,
-        itemId,
-        fieldId: projectInfo.statusFieldId,
-        value: { singleSelectOptionId: statusOptionId },
-      });
-      core.info(`Set project status to ${status}`);
-    }
-  } catch (error) {
-    core.warning(`Failed to add issue to project with status: ${error}`);
   }
 }
 

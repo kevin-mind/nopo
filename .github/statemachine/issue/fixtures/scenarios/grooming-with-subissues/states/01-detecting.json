@@ -1,0 +1,30 @@
+{
+  "state": "detecting",
+  "trigger": "issue-groom",
+  "issue": {
+    "number": 0,
+    "title": "Implement multi-phase feature",
+    "state": "OPEN",
+    "body": "## Description\n\nWe need to implement a complex feature that requires multiple phases.\n\n## Requirements\n\n- Design and planning\n- Core implementation\n- Testing and documentation\n\n## Approach\n\nBreak down into phases for manageability.",
+    "projectStatus": "Backlog",
+    "iteration": 0,
+    "failures": 0,
+    "assignees": [],
+    "labels": ["triaged", "enhancement", "priority:high"],
+    "subIssues": [],
+    "hasSubIssues": false,
+    "history": [],
+    "todos": {
+      "total": 0,
+      "completed": 0,
+      "uncheckedNonManual": 0
+    }
+  },
+  "claudeMocks": [
+    "grooming/pm",
+    "grooming/engineer-with-phases",
+    "grooming/qa",
+    "grooming/research",
+    "grooming/summary"
+  ]
+}

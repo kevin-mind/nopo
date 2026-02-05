@@ -64,16 +64,34 @@ export function needsSubIssues(_guardContext: GuardContext): boolean {
 
 /**
  * Check if all phases are done
+ *
+ * Returns true only if:
+ * - Issue has been groomed (has "groomed" label)
+ * - AND either:
+ *   - Multi-phase: all sub-issues are Done/CLOSED
+ *   - Single-phase: issue had sub-issues that are all complete (not just "no sub-issues exist")
+ *
+ * Returns false if issue has no sub-issues - this prevents auto-closing
+ * issues that haven't been through the full lifecycle or are being re-groomed.
  */
 export function allPhasesDone({ context }: GuardContext): boolean {
-  if (!context.issue.hasSubIssues) {
-    // Single-phase: check todos
-    return (
-      context.issue.subIssues.length === 0 && context.currentSubIssue === null
-    );
+  // Can't be "all done" if never groomed
+  const hasGroomedLabel = context.issue.labels.some(
+    (l) => l.toLowerCase() === "groomed",
+  );
+  if (!hasGroomedLabel) {
+    return false;
   }
 
-  // Multi-phase: check all sub-issues
+  // If no sub-issues exist, this is not "phases complete" - it's either:
+  // - A simple issue that should iterate directly (not go through orchestration)
+  // - An issue being re-groomed after sub-issues were removed
+  // Either way, don't auto-close.
+  if (context.issue.subIssues.length === 0) {
+    return false;
+  }
+
+  // Multi-phase: check all sub-issues are complete
   return context.issue.subIssues.every(
     (s) => s.projectStatus === "Done" || s.state === "CLOSED",
   );

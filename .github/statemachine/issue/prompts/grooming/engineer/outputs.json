@@ -48,6 +48,53 @@
       "type": "string",
       "description": "Explanation for scope recommendation"
     },
+    "recommended_phases": {
+      "type": "array",
+      "description": "Recommended phase breakdown for implementation. Empty array if issue is simple enough for single phase.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "phase_number": { "type": "integer", "description": "Phase number (1-indexed)" },
+          "title": { "type": "string", "description": "Short phase title" },
+          "description": { "type": "string", "description": "What this phase accomplishes" },
+          "affected_areas": {
+            "type": "array",
+            "description": "Files affected in this phase",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": { "type": "string", "description": "File path" },
+                "change_type": {
+                  "type": "string",
+                  "enum": ["create", "modify", "delete"],
+                  "description": "Type of change"
+                },
+                "description": { "type": "string", "description": "What changes in this file" }
+              },
+              "required": ["path", "change_type", "description"]
+            }
+          },
+          "todos": {
+            "type": "array",
+            "description": "Specific tasks for this phase",
+            "items": {
+              "type": "object",
+              "properties": {
+                "task": { "type": "string", "description": "The task description" },
+                "manual": { "type": "boolean", "description": "True if requires human action" }
+              },
+              "required": ["task", "manual"]
+            }
+          },
+          "depends_on": {
+            "type": "array",
+            "description": "Phase numbers this depends on",
+            "items": { "type": "integer" }
+          }
+        },
+        "required": ["phase_number", "title", "description", "todos"]
+      }
+    },
     "ready": {
       "type": "boolean",
       "description": "Is this issue ready for implementation?"

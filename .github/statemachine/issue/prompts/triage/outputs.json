@@ -37,46 +37,19 @@
       },
       "required": ["type", "size", "estimate", "topics", "needs_info"]
     },
-    "issue_body": {
-      "type": "string",
-      "description": "Updated issue body with improved description, details, and approach. MUST preserve existing ## Iteration History section and HTML comments."
-    },
-    "sub_issues": {
+    "requirements": {
       "type": "array",
-      "description": "Sub-issues to create (phases). Every issue needs at least one. XS/S: single sub-issue. M/L/XL: 2-5 sub-issues.",
-      "items": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": ["bug", "enhancement", "documentation", "refactor", "test", "chore"],
-            "description": "Type of work for this sub-issue (usually same as parent, but can differ per phase)"
-          },
-          "title": {
-            "type": "string",
-            "description": "Sub-issue title (just the descriptive title, e.g., 'Setup database schema')"
-          },
-          "description": {
-            "type": "string",
-            "description": "Brief description of the phase"
-          },
-          "todos": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "task": { "type": "string", "description": "The task description" },
-                "manual": { "type": "boolean", "description": "True if this task requires human action (verification, deployment checks, etc.)" }
-              },
-              "required": ["task", "manual"]
-            },
-            "description": "Specific implementation tasks. NO generic workflow steps (commit, PR, test, merge)."
-          }
-        },
-        "required": ["type", "title", "description", "todos"]
-      },
-      "minItems": 1,
-      "maxItems": 5
+      "description": "Key requirements extracted from the issue",
+      "items": { "type": "string" }
+    },
+    "initial_approach": {
+      "type": "string",
+      "description": "Initial thoughts on implementation approach"
+    },
+    "initial_questions": {
+      "type": "array",
+      "description": "Questions that need answers before implementation",
+      "items": { "type": "string" }
     },
     "related_issues": {
       "type": "array",
@@ -89,5 +62,5 @@
       "items": { "type": "string" }
     }
   },
-  "required": ["triage", "issue_body", "sub_issues"]
+  "required": ["triage", "requirements", "initial_approach"]
 }
