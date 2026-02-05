@@ -1345,9 +1345,11 @@ async function handleIssueCommentEvent(
 
   let contextType = "issue";
   let branchName = "main";
+  let linkedIssueNumber = String(issue.number);
+  let prNumber = "";
 
   if (isPr) {
-    // Fetch PR branch
+    // Fetch PR branch and body to get linked issue
     const { stdout } = await execCommand("gh", [
       "pr",
       "view",
@@ -1355,12 +1357,21 @@ async function handleIssueCommentEvent(
       "--repo",
       process.env.GITHUB_REPOSITORY ?? "",
       "--json",
-      "headRefName",
+      "headRefName,body",
       "--jq",
-      ".headRefName",
+      '"\(.headRefName)\n\(.body)"',
     ]);
-    branchName = stdout.trim() || "main";
+    const lines = stdout.split("\n");
+    branchName = lines[0]?.trim() || "main";
+    const prBody = lines.slice(1).join("\n");
     contextType = "pr";
+    prNumber = String(issue.number);
+
+    // Extract linked issue from PR body (e.g., "Fixes #4603")
+    const linkedIssue = await extractIssueNumber(prBody);
+    if (linkedIssue) {
+      linkedIssueNumber = linkedIssue;
+    }
   } else {
     // Check if issue has a branch
     const issueBranch = `claude/issue/${issue.number}`;
@@ -1380,7 +1391,8 @@ async function handleIssueCommentEvent(
     resourceNumber: String(issue.number),
     commentId: String(comment.id),
     contextJson: {
-      issue_number: String(issue.number),
+      issue_number: linkedIssueNumber,
+      pr_number: prNumber,
       context_type: contextType,
       context_description: contextDescription,
       branch_name: branchName,
