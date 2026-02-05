@@ -1,0 +1,41 @@
+{
+  "state": "pivoting",
+  "trigger": "issue-pivot",
+  "description": "User comments /pivot with complex multi-issue changes",
+  "issue": {
+    "number": 0,
+    "title": "Database migration system",
+    "state": "OPEN",
+    "body": "Implement database migration infrastructure.\n\n## Requirements\n\n- Schema migrations\n- Data migrations\n\n## Todos\n\n- [ ] Implement caching layer",
+    "projectStatus": "In progress",
+    "iteration": 3,
+    "failures": 0,
+    "assignees": ["nopo-bot"],
+    "labels": ["triaged", "enhancement"],
+    "subIssues": [
+      {
+        "number": 0,
+        "title": "[Phase 1]: Schema migrations",
+        "state": "OPEN",
+        "body": "## Description\n\nImplement schema migration system.\n\n## Todos\n\n- [ ] Run full migration in single transaction\n- [ ] Add migration versioning",
+        "projectStatus": "In progress"
+      },
+      {
+        "number": 0,
+        "title": "[Phase 2]: Data migrations",
+        "state": "OPEN",
+        "body": "## Description\n\nImplement data migration system.\n\n## Todos\n\n- [ ] Create data migration framework\n- [ ] Add rollback support",
+        "projectStatus": "Ready"
+      }
+    ],
+    "hasSubIssues": true,
+    "history": [],
+    "todos": {
+      "total": 1,
+      "completed": 0,
+      "uncheckedNonManual": 1
+    }
+  },
+  "pivotDescription": "Split the database migration into schema and data phases, add rollback support to schema migrations, batch the data migrations, and add a caching layer phase",
+  "claudeMock": "pivot/complex-multi-issue"
+}

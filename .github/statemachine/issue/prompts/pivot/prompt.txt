@@ -1,0 +1,81 @@
+You are analyzing a pivot request for issue #{{ISSUE_NUMBER}}: "{{ISSUE_TITLE}}"
+
+## Pivot Request
+
+{{PIVOT_DESCRIPTION}}
+
+## Current State
+
+### Parent Issue Body
+
+{{ISSUE_BODY}}
+
+### Sub-Issues
+
+{{SUB_ISSUES_JSON}}
+
+### Issue Comments
+
+{{ISSUE_COMMENTS}}
+
+---
+
+## CRITICAL SAFETY CONSTRAINTS
+
+These constraints are NON-NEGOTIABLE and enforced at the executor level:
+
+1. **Checked todos are IMMUTABLE** - You CANNOT uncheck or modify any `[x]` items
+2. **Closed sub-issues are IMMUTABLE** - You CANNOT modify CLOSED issues
+3. **For completed work changes** - Create NEW sub-issues with reason: "reversion" or "extension"
+
+## Your Task
+
+1. **Understand the pivot request** - What does the user want to change?
+2. **Identify affected issues/todos** - Which issues and todos are impacted?
+3. **Check for completed work** - Are any checked todos or closed sub-issues affected?
+4. **Plan safe changes**:
+   - **Uncompleted work**: Modify directly (update unchecked todos, open sub-issues)
+   - **Completed work**: Create NEW sub-issues to revert or extend
+
+## Change Types
+
+### For Parent Issue Modifications
+
+You can update specific sections of the parent issue body:
+- `update_sections`: Object with section names as keys, new content as values
+- `add_todos`: New unchecked todos to add
+- `remove_unchecked_todos`: Exact text of unchecked todos to remove (CANNOT remove checked todos)
+
+### For Sub-Issue Modifications
+
+For each OPEN sub-issue, you can:
+- `action`: "modify" to make changes, "skip" to leave unchanged
+- `add_todos`: New unchecked todos to add
+- `remove_unchecked_todos`: Exact text of unchecked todos to remove
+
+### For Completed Work Changes
+
+If the pivot affects completed work, create new sub-issues:
+- `reason`: "reversion" (undo completed work), "extension" (build on completed work), or "new_scope"
+- `title`: Descriptive title for the new sub-issue
+- `description`: Full description of what needs to be done
+- `todos`: Array of todo items for the new sub-issue
+
+## Output Format
+
+Return structured JSON with:
+
+1. `analysis`: Your understanding of the change and its impact
+2. `modifications`: The actual changes to apply
+3. `outcome`: One of "changes_applied", "needs_clarification", "no_changes_needed"
+4. `clarification_needed`: If outcome is "needs_clarification", explain what's unclear
+5. `summary_for_user`: A human-readable summary of what was changed
+
+---
+
+## Important Notes
+
+- Be conservative - only make changes that are clearly requested
+- If the pivot request is ambiguous, use outcome "needs_clarification"
+- Always preserve completed work by creating new sub-issues rather than modifying it
+- The summary_for_user will be posted as a comment on the issue

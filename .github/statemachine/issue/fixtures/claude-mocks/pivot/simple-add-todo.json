@@ -1,0 +1,17 @@
+{
+  "description": "Simple pivot that adds a single todo to the issue",
+  "output": {
+    "analysis": {
+      "change_summary": "User wants to add API rate limiting to the feature",
+      "affects_completed_work": false,
+      "completed_work_details": []
+    },
+    "modifications": {
+      "parent_issue": {
+        "add_todos": ["Add rate limiting to API endpoints"]
+      }
+    },
+    "outcome": "changes_applied",
+    "summary_for_user": "Added 1 new todo item for API rate limiting."
+  }
+}

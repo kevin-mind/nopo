@@ -23,6 +23,11 @@ on:
           - pr-review-approved
           - pr-push-during-review
           - grooming-ready
+          - pivot-simple
+          - pivot-add
+          - pivot-remove
+          - pivot-revert
+          - pivot-complex
       continue:
         description: 'Run to completion (true) or stop after one step (false)'
         type: boolean

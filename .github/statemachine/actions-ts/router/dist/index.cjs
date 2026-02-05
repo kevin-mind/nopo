@@ -31357,6 +31357,7 @@ var TriggerTypeSchema2 = external_exports.enum([
   "issue-orchestrate",
   "issue-comment",
   "issue-reset",
+  "issue-pivot",
   // Grooming triggers
   "issue-groom",
   "issue-groom-summary",
@@ -31963,6 +31964,12 @@ var ApplyGroomingOutputActionSchema = BaseActionSchema.extend({
   /** Path to the combined grooming output file */
   filePath: external_exports.string().default("grooming-output.json")
 });
+var ApplyPivotOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyPivotOutput"),
+  issueNumber: external_exports.number().int().positive(),
+  /** Path to the pivot output file */
+  filePath: external_exports.string().default("claude-structured-output.json")
+});
 var ActionSchema = external_exports.discriminatedUnion("type", [
   // Project field actions
   UpdateProjectStatusActionSchema,
@@ -31999,6 +32006,8 @@ var ActionSchema = external_exports.discriminatedUnion("type", [
   // Grooming actions
   RunClaudeGroomingActionSchema,
   ApplyGroomingOutputActionSchema,
+  // Pivot actions
+  ApplyPivotOutputActionSchema,
   // Discussion actions
   AddDiscussionCommentActionSchema,
   UpdateDiscussionBodyActionSchema,
@@ -32204,6 +32213,9 @@ function triggeredByPRPush({ context: context2 }) {
 function triggeredByReset({ context: context2 }) {
   return context2.trigger === "issue-reset";
 }
+function triggeredByPivot({ context: context2 }) {
+  return context2.trigger === "issue-pivot";
+}
 function triggeredByMergeQueueEntry({ context: context2 }) {
   return context2.trigger === "merge-queue-entered";
 }
@@ -32311,6 +32323,7 @@ var guards = {
   triggeredByPRReviewApproved,
   triggeredByPRPush,
   triggeredByReset,
+  triggeredByPivot,
   // Merge queue logging guards
   triggeredByMergeQueueEntry,
   triggeredByMergeQueueFailure,
@@ -34004,6 +34017,57 @@ function emitSetReady({ context: context2 }) {
     }
   ];
 }
+function emitRunClaudePivot({ context: context2 }) {
+  const issueNumber = context2.issue.number;
+  const subIssuesInfo = context2.issue.subIssues.map((s) => ({
+    number: s.number,
+    title: s.title,
+    state: s.state,
+    projectStatus: s.projectStatus,
+    todos: s.todos
+  }));
+  const promptVars = {
+    ISSUE_NUMBER: String(issueNumber),
+    ISSUE_TITLE: context2.issue.title,
+    SUB_ISSUES_JSON: JSON.stringify(subIssuesInfo, null, 2)
+    // PIVOT_DESCRIPTION will be injected by workflow from context_json
+  };
+  const pivotArtifact = {
+    name: "claude-pivot-output",
+    path: "claude-structured-output.json"
+  };
+  return [
+    // Log pivot start in history
+    {
+      type: "appendHistory",
+      token: "code",
+      issueNumber,
+      iteration: context2.issue.iteration,
+      phase: "pivot",
+      message: "\u23F3 Analyzing pivot request...",
+      timestamp: context2.workflowStartedAt ?? void 0,
+      runLink: context2.workflowRunUrl ?? context2.ciRunUrl ?? void 0
+    },
+    // Run Claude pivot analysis
+    {
+      type: "runClaude",
+      token: "code",
+      promptDir: "pivot",
+      promptsDir: ".github/statemachine/issue/prompts",
+      promptVars,
+      issueNumber,
+      producesArtifact: pivotArtifact
+    },
+    // Apply pivot output: validate safety, apply changes, post summary
+    {
+      type: "applyPivotOutput",
+      token: "code",
+      issueNumber,
+      filePath: "claude-structured-output.json",
+      consumesArtifact: pivotArtifact
+    }
+  ];
+}
 
 // issue/actions-ts/state-machine/machine/machine.ts
 function accumulateActions(existingActions, newActions) {
@@ -34048,6 +34112,7 @@ var claudeMachine = setup({
     triggeredByPRReviewApproved: ({ context: context2 }) => guards.triggeredByPRReviewApproved({ context: context2 }),
     triggeredByPRPush: ({ context: context2 }) => guards.triggeredByPRPush({ context: context2 }),
     triggeredByReset: ({ context: context2 }) => guards.triggeredByReset({ context: context2 }),
+    triggeredByPivot: ({ context: context2 }) => guards.triggeredByPivot({ context: context2 }),
     // Merge queue logging guards
     triggeredByMergeQueueEntry: ({ context: context2 }) => guards.triggeredByMergeQueueEntry({ context: context2 }),
     triggeredByMergeQueueFailure: ({ context: context2 }) => guards.triggeredByMergeQueueFailure({ context: context2 }),
@@ -34357,6 +34422,19 @@ var claudeMachine = setup({
     }),
     setReady: assign({
       pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitSetReady({ context: context2 }))
+    }),
+    // Pivot actions
+    runClaudePivot: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitRunClaudePivot({ context: context2 })
+      )
+    }),
+    logPivoting: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitLog({ context: context2 }, `Pivoting issue #${context2.issue.number}`)
+      )
     })
   }
 }).createMachine({
@@ -34375,6 +34453,8 @@ var claudeMachine = setup({
       always: [
         // Reset takes priority - can reset even Done/Blocked issues
         { target: "resetting", guard: "triggeredByReset" },
+        // Pivot takes priority - can pivot even Done/Blocked issues
+        { target: "pivoting", guard: "triggeredByPivot" },
         // Check terminal states first
         { target: "done", guard: "isAlreadyDone" },
         { target: "blocked", guard: "isBlocked" },
@@ -34490,6 +34570,22 @@ var claudeMachine = setup({
      */
     grooming: {
       entry: ["logGrooming", "runClaudeGrooming"],
+      type: "final"
+    },
+    /**
+     * Pivot an issue - modify specifications mid-flight (/pivot command)
+     *
+     * This is a TERMINAL state - after pivot analysis and changes are applied,
+     * the workflow STOPS. The user must review changes and manually restart
+     * with /lfg to continue implementation.
+     *
+     * Safety constraints enforced by the executor:
+     * - Cannot modify checked todos ([x] items are immutable)
+     * - Cannot modify closed sub-issues
+     * - For completed work changes, creates NEW sub-issues (reversion/extension)
+     */
+    pivoting: {
+      entry: ["logPivoting", "runClaudePivot"],
       type: "final"
     },
     /**

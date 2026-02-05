@@ -455,6 +455,14 @@ function triggeredByReset({ context }: GuardContext): boolean {
   return context.trigger === "issue-reset";
 }
 
+/**
+ * Check if triggered by /pivot command
+ * Allows modifying issue specifications mid-flight
+ */
+function triggeredByPivot({ context }: GuardContext): boolean {
+  return context.trigger === "issue-pivot";
+}
+
 // ============================================================================
 // Merge Queue Logging Guards
 // ============================================================================
@@ -645,6 +653,7 @@ export const guards = {
   triggeredByPRReviewApproved,
   triggeredByPRPush,
   triggeredByReset,
+  triggeredByPivot,
   // Merge queue logging guards
   triggeredByMergeQueueEntry,
   triggeredByMergeQueueFailure,

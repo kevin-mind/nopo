@@ -1,0 +1,26 @@
+{
+  "state": "done",
+  "description": "Final state after remove pivot - unchecked todo was removed",
+  "issue": {
+    "number": 0,
+    "title": "Implement logging system",
+    "state": "OPEN",
+    "body": "Add comprehensive logging to the application.\n\n## Requirements\n\n- Structured logging\n- Log levels\n\n## Todos\n\n- [ ] Set up logging framework\n- [ ] Configure log rotation",
+    "projectStatus": "In progress",
+    "iteration": 1,
+    "failures": 0,
+    "assignees": ["nopo-bot"],
+    "labels": ["triaged", "enhancement"],
+    "subIssues": [],
+    "hasSubIssues": false,
+    "history": [],
+    "todos": {
+      "total": 2,
+      "completed": 0,
+      "uncheckedNonManual": 2
+    }
+  },
+  "expected": {
+    "todosRemoved": 1
+  }
+}

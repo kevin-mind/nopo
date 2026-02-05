@@ -1,0 +1,17 @@
+{
+  "description": "Pivot that removes an unchecked todo from the issue",
+  "output": {
+    "analysis": {
+      "change_summary": "User wants to remove the logging todo as it's no longer needed",
+      "affects_completed_work": false,
+      "completed_work_details": []
+    },
+    "modifications": {
+      "parent_issue": {
+        "remove_unchecked_todos": ["Add comprehensive logging"]
+      }
+    },
+    "outcome": "changes_applied",
+    "summary_for_user": "Removed 1 unchecked todo item (logging is no longer in scope)."
+  }
+}

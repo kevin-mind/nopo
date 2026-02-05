@@ -1,0 +1,45 @@
+{
+  "description": "Complex pivot affecting parent issue and multiple sub-issues",
+  "output": {
+    "analysis": {
+      "change_summary": "User wants to split the database migration into two phases and add caching support",
+      "affects_completed_work": false,
+      "completed_work_details": []
+    },
+    "modifications": {
+      "parent_issue": {
+        "update_sections": {
+          "Requirements": "- Database migration (split into schema and data phases)\n- Add caching layer\n- Maintain backward compatibility"
+        },
+        "add_todos": ["Implement caching layer"]
+      },
+      "sub_issues": [
+        {
+          "issue_number": 101,
+          "action": "modify",
+          "add_todos": ["Add schema migration rollback support"],
+          "remove_unchecked_todos": ["Run full migration in single transaction"]
+        },
+        {
+          "issue_number": 102,
+          "action": "modify",
+          "add_todos": ["Split data migration into batches"]
+        }
+      ],
+      "new_sub_issues": [
+        {
+          "title": "[Phase 3]: Implement caching layer",
+          "description": "## Description\n\nAdd caching support to improve performance after migration.\n\n## Affected Areas\n\n- `src/cache/` (create) - Cache implementation\n- `src/api/` (modify) - Add cache integration",
+          "todos": [
+            "Set up Redis connection",
+            "Implement cache invalidation",
+            "Add cache to hot paths"
+          ],
+          "reason": "new_scope"
+        }
+      ]
+    },
+    "outcome": "changes_applied",
+    "summary_for_user": "Applied changes:\n- Updated Requirements section on parent issue\n- Added 'Implement caching layer' todo to parent\n- Modified sub-issue #101: added rollback support todo, removed single-transaction todo\n- Modified sub-issue #102: added batch migration todo\n- Created new sub-issue for Phase 3: caching layer"
+  }
+}

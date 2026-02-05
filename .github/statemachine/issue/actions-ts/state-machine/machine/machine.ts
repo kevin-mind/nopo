@@ -45,6 +45,8 @@ import {
   emitResetIssue,
   // Grooming actions
   emitRunClaudeGrooming,
+  // Pivot action
+  emitRunClaudePivot,
 } from "./actions.js";
 
 /**
@@ -138,6 +140,7 @@ export const claudeMachine = setup({
       guards.triggeredByPRReviewApproved({ context }),
     triggeredByPRPush: ({ context }) => guards.triggeredByPRPush({ context }),
     triggeredByReset: ({ context }) => guards.triggeredByReset({ context }),
+    triggeredByPivot: ({ context }) => guards.triggeredByPivot({ context }),
     // Merge queue logging guards
     triggeredByMergeQueueEntry: ({ context }) =>
       guards.triggeredByMergeQueueEntry({ context }),
@@ -518,6 +521,22 @@ export const claudeMachine = setup({
       pendingActions: ({ context }) =>
         accumulateActions(context.pendingActions, emitSetReady({ context })),
     }),
+
+    // Pivot actions
+    runClaudePivot: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(
+          context.pendingActions,
+          emitRunClaudePivot({ context }),
+        ),
+    }),
+    logPivoting: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(
+          context.pendingActions,
+          emitLog({ context }, `Pivoting issue #${context.issue.number}`),
+        ),
+    }),
   },
 }).createMachine({
   id: "claude-automation",
@@ -536,6 +555,8 @@ export const claudeMachine = setup({
       always: [
         // Reset takes priority - can reset even Done/Blocked issues
         { target: "resetting", guard: "triggeredByReset" },
+        // Pivot takes priority - can pivot even Done/Blocked issues
+        { target: "pivoting", guard: "triggeredByPivot" },
         // Check terminal states first
         { target: "done", guard: "isAlreadyDone" },
         { target: "blocked", guard: "isBlocked" },
@@ -653,6 +674,23 @@ export const claudeMachine = setup({
      */
     grooming: {
       entry: ["logGrooming", "runClaudeGrooming"],
+      type: "final",
+    },
+
+    /**
+     * Pivot an issue - modify specifications mid-flight (/pivot command)
+     *
+     * This is a TERMINAL state - after pivot analysis and changes are applied,
+     * the workflow STOPS. The user must review changes and manually restart
+     * with /lfg to continue implementation.
+     *
+     * Safety constraints enforced by the executor:
+     * - Cannot modify checked todos ([x] items are immutable)
+     * - Cannot modify closed sub-issues
+     * - For completed work changes, creates NEW sub-issues (reversion/extension)
+     */
+    pivoting: {
+      entry: ["logPivoting", "runClaudePivot"],
       type: "final",
     },
 

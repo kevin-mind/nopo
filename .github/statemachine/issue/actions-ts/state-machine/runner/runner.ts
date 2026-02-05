@@ -63,6 +63,7 @@ import {
   executeRunClaudeGrooming,
   executeApplyGroomingOutput,
 } from "./executors/grooming.js";
+import { executeApplyPivotOutput } from "./executors/pivot.js";
 import {
   signalStart,
   signalEnd,
@@ -353,6 +354,14 @@ async function executeAction(
       return executeRunClaudeGrooming(action, actionCtx);
     case "applyGroomingOutput":
       return executeApplyGroomingOutput(
+        action,
+        actionCtx,
+        getStructuredOutput(action, chainCtx),
+      );
+
+    // Pivot actions
+    case "applyPivotOutput":
+      return executeApplyPivotOutput(
         action,
         actionCtx,
         getStructuredOutput(action, chainCtx),

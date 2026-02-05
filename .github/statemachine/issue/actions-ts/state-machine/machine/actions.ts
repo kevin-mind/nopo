@@ -1505,3 +1505,73 @@ export function emitSetReady({ context }: ActionContext): ActionResult {
     },
   ];
 }
+
+// ============================================================================
+// Pivot Actions
+// ============================================================================
+
+/**
+ * Emit action to run Claude for issue pivot analysis
+ *
+ * Uses the pivot prompt directory with structured output schema.
+ * Claude analyzes the pivot request and returns structured output
+ * which the applyPivotOutput action uses to modify issue specs safely.
+ */
+export function emitRunClaudePivot({ context }: ActionContext): ActionResult {
+  const issueNumber = context.issue.number;
+
+  // Build sub-issues info for prompt
+  const subIssuesInfo = context.issue.subIssues.map((s) => ({
+    number: s.number,
+    title: s.title,
+    state: s.state,
+    projectStatus: s.projectStatus,
+    todos: s.todos,
+  }));
+
+  // The pivot prompt uses these template variables
+  // Note: ISSUE_BODY fetched at runtime by workflow
+  const promptVars: Record<string, string> = {
+    ISSUE_NUMBER: String(issueNumber),
+    ISSUE_TITLE: context.issue.title,
+    SUB_ISSUES_JSON: JSON.stringify(subIssuesInfo, null, 2),
+    // PIVOT_DESCRIPTION will be injected by workflow from context_json
+  };
+
+  const pivotArtifact = {
+    name: "claude-pivot-output",
+    path: "claude-structured-output.json",
+  };
+
+  return [
+    // Log pivot start in history
+    {
+      type: "appendHistory",
+      token: "code",
+      issueNumber,
+      iteration: context.issue.iteration,
+      phase: "pivot",
+      message: "⏳ Analyzing pivot request...",
+      timestamp: context.workflowStartedAt ?? undefined,
+      runLink: context.workflowRunUrl ?? context.ciRunUrl ?? undefined,
+    },
+    // Run Claude pivot analysis
+    {
+      type: "runClaude",
+      token: "code",
+      promptDir: "pivot",
+      promptsDir: ".github/statemachine/issue/prompts",
+      promptVars,
+      issueNumber,
+      producesArtifact: pivotArtifact,
+    },
+    // Apply pivot output: validate safety, apply changes, post summary
+    {
+      type: "applyPivotOutput",
+      token: "code",
+      issueNumber,
+      filePath: "claude-structured-output.json",
+      consumesArtifact: pivotArtifact,
+    },
+  ];
+}

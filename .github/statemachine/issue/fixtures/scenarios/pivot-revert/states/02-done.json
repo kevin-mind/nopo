@@ -1,0 +1,35 @@
+{
+  "state": "done",
+  "description": "Final state after revert pivot - new sub-issue created for reversion",
+  "issue": {
+    "number": 0,
+    "title": "Implement authentication system",
+    "state": "OPEN",
+    "body": "Add OAuth2 authentication.\n\n## Requirements\n\n- OAuth2 support\n- Session management\n\n## Todos\n\n- [x] Add OAuth2 library\n- [x] Create auth endpoints\n- [ ] Add rate limiting to auth",
+    "projectStatus": "In progress",
+    "iteration": 5,
+    "failures": 0,
+    "assignees": ["nopo-bot"],
+    "labels": ["triaged", "enhancement"],
+    "subIssues": [
+      {
+        "number": 0,
+        "title": "[Reversion] Remove OAuth2 implementation",
+        "state": "OPEN",
+        "body": "## Description\n\nUser requested removal of OAuth2 implementation that was already completed.\n\n## Background\n\nThe original implementation added OAuth2 authentication, but it's no longer needed.\n\n## Scope\n\nRemove all OAuth2-related code and dependencies.\n\n## Todos\n\n- [ ] Remove OAuth2 library dependency\n- [ ] Remove OAuth2 authentication endpoints\n- [ ] Update tests to remove OAuth2 tests",
+        "projectStatus": "Ready"
+      }
+    ],
+    "hasSubIssues": true,
+    "history": [],
+    "todos": {
+      "total": 3,
+      "completed": 2,
+      "uncheckedNonManual": 1
+    }
+  },
+  "expected": {
+    "newSubIssueCreated": true,
+    "completedWorkPreserved": true
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "state": "pivoting",
+  "trigger": "issue-pivot",
+  "description": "User comments /pivot to remove completed work - should create reversion sub-issue",
+  "issue": {
+    "number": 0,
+    "title": "Implement authentication system",
+    "state": "OPEN",
+    "body": "Add OAuth2 authentication.\n\n## Requirements\n\n- OAuth2 support\n- Session management\n\n## Todos\n\n- [x] Add OAuth2 library\n- [x] Create auth endpoints\n- [ ] Add rate limiting to auth",
+    "projectStatus": "In progress",
+    "iteration": 5,
+    "failures": 0,
+    "assignees": ["nopo-bot"],
+    "labels": ["triaged", "enhancement"],
+    "subIssues": [],
+    "hasSubIssues": false,
+    "history": [],
+    "todos": {
+      "total": 3,
+      "completed": 2,
+      "uncheckedNonManual": 1
+    }
+  },
+  "pivotDescription": "Actually, we don't want OAuth2 anymore. Remove all OAuth2 implementation.",
+  "claudeMock": "pivot/revert-checked-todo"
+}

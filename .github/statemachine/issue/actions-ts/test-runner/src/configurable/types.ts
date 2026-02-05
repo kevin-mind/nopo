@@ -30,6 +30,7 @@ const StateNameSchema = z.enum([
   "grooming",
   "resetting",
   "commenting",
+  "pivoting",
   "prReviewing",
   "prResponding",
   "prRespondingHuman",
@@ -159,9 +160,21 @@ const TestParentIssueSchema = z.object({
  * State fixture - represents state at entry to a state machine state
  * Uses a test-specific ParentIssue schema that allows placeholder values
  */
+/**
+ * Comment fixture schema for comment/pivot scenarios
+ */
+const TestCommentSchema = z.object({
+  id: z.number().int().nonnegative(), // 0 = placeholder
+  body: z.string(),
+  author: z.string(),
+});
+
 export const StateFixtureSchema = z.object({
   /** The state name this fixture represents */
   state: StateNameSchema,
+
+  /** Optional description of this fixture state */
+  description: z.string().optional(),
 
   /** Explicit trigger type to use (optional, overrides auto-detection) */
   trigger: IssueTriggerTypeSchema.optional(),
@@ -177,11 +190,20 @@ export const StateFixtureSchema = z.object({
   /** Issue state - uses test-specific schema allowing placeholder values */
   issue: TestParentIssueSchema,
 
+  /** Comment that triggered this state (for comment/pivot scenarios) */
+  comment: TestCommentSchema.optional(),
+
+  /** Pivot description from /pivot command (for pivot scenarios) */
+  pivotDescription: z.string().optional(),
+
   /** Reference to a claude mock file (when mock_claude=true) */
   claudeMock: z.string().optional(),
 
   /** Multiple claude mock references (for states that call multiple Claude prompts, like grooming) */
   claudeMocks: z.array(z.string()).optional(),
+
+  /** Expected results for this state transition (optional, for validation) */
+  expected: z.record(z.unknown()).optional(),
 });
 
 export type StateFixture = z.infer<typeof StateFixtureSchema>;

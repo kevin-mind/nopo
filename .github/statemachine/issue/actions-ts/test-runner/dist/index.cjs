@@ -182,7 +182,7 @@ var require_file_command = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.prepareKeyValueMessage = exports2.issueFileCommand = void 0;
     var crypto = __importStar(require("crypto"));
-    var fs12 = __importStar(require("fs"));
+    var fs13 = __importStar(require("fs"));
     var os = __importStar(require("os"));
     var utils_1 = require_utils();
     function issueFileCommand(command, message) {
@@ -190,10 +190,10 @@ var require_file_command = __commonJS({
       if (!filePath) {
         throw new Error(`Unable to find environment variable for file command ${command}`);
       }
-      if (!fs12.existsSync(filePath)) {
+      if (!fs13.existsSync(filePath)) {
         throw new Error(`Missing file at path: ${filePath}`);
       }
-      fs12.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
+      fs13.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
         encoding: "utf8"
       });
     }
@@ -423,18 +423,18 @@ var require_tunnel = __commonJS({
             res.statusCode
           );
           socket.destroy();
-          var error10 = new Error("tunneling socket could not be established, statusCode=" + res.statusCode);
-          error10.code = "ECONNRESET";
-          options.request.emit("error", error10);
+          var error11 = new Error("tunneling socket could not be established, statusCode=" + res.statusCode);
+          error11.code = "ECONNRESET";
+          options.request.emit("error", error11);
           self2.removeSocket(placeholder);
           return;
         }
         if (head.length > 0) {
           debug13("got illegal response body from proxy");
           socket.destroy();
-          var error10 = new Error("got illegal response body from proxy");
-          error10.code = "ECONNRESET";
-          options.request.emit("error", error10);
+          var error11 = new Error("got illegal response body from proxy");
+          error11.code = "ECONNRESET";
+          options.request.emit("error", error11);
           self2.removeSocket(placeholder);
           return;
         }
@@ -449,9 +449,9 @@ var require_tunnel = __commonJS({
           cause.message,
           cause.stack
         );
-        var error10 = new Error("tunneling socket could not be established, cause=" + cause.message);
-        error10.code = "ECONNRESET";
-        options.request.emit("error", error10);
+        var error11 = new Error("tunneling socket could not be established, cause=" + cause.message);
+        error11.code = "ECONNRESET";
+        options.request.emit("error", error11);
         self2.removeSocket(placeholder);
       }
     };
@@ -5579,7 +5579,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
         throw new TypeError("Body is unusable");
       }
       const promise = createDeferredPromise();
-      const errorSteps = (error10) => promise.reject(error10);
+      const errorSteps = (error11) => promise.reject(error11);
       const successSteps = (data) => {
         try {
           promise.resolve(convertBytesToJSValue(data));
@@ -5865,16 +5865,16 @@ var require_request = __commonJS({
           this.onError(err);
         }
       }
-      onError(error10) {
+      onError(error11) {
         this.onFinally();
         if (channels.error.hasSubscribers) {
-          channels.error.publish({ request: this, error: error10 });
+          channels.error.publish({ request: this, error: error11 });
         }
         if (this.aborted) {
           return;
         }
         this.aborted = true;
-        return this[kHandler].onError(error10);
+        return this[kHandler].onError(error11);
       }
       onFinally() {
         if (this.errorHandler) {
@@ -6737,8 +6737,8 @@ var require_RedirectHandler = __commonJS({
       onUpgrade(statusCode, headers, socket) {
         this.handler.onUpgrade(statusCode, headers, socket);
       }
-      onError(error10) {
-        this.handler.onError(error10);
+      onError(error11) {
+        this.handler.onError(error11);
       }
       onHeaders(statusCode, headers, resume, statusText) {
         this.location = this.history.length >= this.maxRedirections || util2.isDisturbed(this.opts.body) ? null : parseLocation(statusCode, headers);
@@ -8879,7 +8879,7 @@ var require_pool = __commonJS({
         this[kOptions] = { ...util2.deepClone(options), connect, allowH2 };
         this[kOptions].interceptors = options.interceptors ? { ...options.interceptors } : void 0;
         this[kFactory] = factory;
-        this.on("connectionError", (origin2, targets, error10) => {
+        this.on("connectionError", (origin2, targets, error11) => {
           for (const target of targets) {
             const idx = this[kClients].indexOf(target);
             if (idx !== -1) {
@@ -10488,13 +10488,13 @@ var require_mock_utils = __commonJS({
       if (mockDispatch2.data.callback) {
         mockDispatch2.data = { ...mockDispatch2.data, ...mockDispatch2.data.callback(opts) };
       }
-      const { data: { statusCode, data, headers, trailers, error: error10 }, delay, persist } = mockDispatch2;
+      const { data: { statusCode, data, headers, trailers, error: error11 }, delay, persist } = mockDispatch2;
       const { timesInvoked, times } = mockDispatch2;
       mockDispatch2.consumed = !persist && timesInvoked >= times;
       mockDispatch2.pending = timesInvoked < times;
-      if (error10 !== null) {
+      if (error11 !== null) {
         deleteMockDispatch(this[kDispatches], key);
-        handler.onError(error10);
+        handler.onError(error11);
         return true;
       }
       if (typeof delay === "number" && delay > 0) {
@@ -10532,19 +10532,19 @@ var require_mock_utils = __commonJS({
         if (agent.isMockActive) {
           try {
             mockDispatch.call(this, opts, handler);
-          } catch (error10) {
-            if (error10 instanceof MockNotMatchedError) {
+          } catch (error11) {
+            if (error11 instanceof MockNotMatchedError) {
               const netConnect = agent[kGetNetConnect]();
               if (netConnect === false) {
-                throw new MockNotMatchedError(`${error10.message}: subsequent request to origin ${origin} was not allowed (net.connect disabled)`);
+                throw new MockNotMatchedError(`${error11.message}: subsequent request to origin ${origin} was not allowed (net.connect disabled)`);
               }
               if (checkNetConnect(netConnect, origin)) {
                 originalDispatch.call(this, opts, handler);
               } else {
-                throw new MockNotMatchedError(`${error10.message}: subsequent request to origin ${origin} was not allowed (net.connect is not enabled for this origin)`);
+                throw new MockNotMatchedError(`${error11.message}: subsequent request to origin ${origin} was not allowed (net.connect is not enabled for this origin)`);
               }
             } else {
-              throw error10;
+              throw error11;
             }
           }
         } else {
@@ -10707,11 +10707,11 @@ var require_mock_interceptor = __commonJS({
       /**
        * Mock an undici request with a defined error.
        */
-      replyWithError(error10) {
-        if (typeof error10 === "undefined") {
+      replyWithError(error11) {
+        if (typeof error11 === "undefined") {
           throw new InvalidArgumentError("error must be defined");
         }
-        const newMockDispatch = addMockDispatch(this[kDispatches], this[kDispatchKey], { error: error10 });
+        const newMockDispatch = addMockDispatch(this[kDispatches], this[kDispatchKey], { error: error11 });
         return new MockScope(newMockDispatch);
       }
       /**
@@ -13038,17 +13038,17 @@ var require_fetch = __commonJS({
         this.emit("terminated", reason);
       }
       // https://fetch.spec.whatwg.org/#fetch-controller-abort
-      abort(error10) {
+      abort(error11) {
         if (this.state !== "ongoing") {
           return;
         }
         this.state = "aborted";
-        if (!error10) {
-          error10 = new DOMException2("The operation was aborted.", "AbortError");
+        if (!error11) {
+          error11 = new DOMException2("The operation was aborted.", "AbortError");
         }
-        this.serializedAbortReason = error10;
-        this.connection?.destroy(error10);
-        this.emit("terminated", error10);
+        this.serializedAbortReason = error11;
+        this.connection?.destroy(error11);
+        this.emit("terminated", error11);
       }
     };
     function fetch(input, init = {}) {
@@ -13152,13 +13152,13 @@ var require_fetch = __commonJS({
         performance.markResourceTiming(timingInfo, originalURL.href, initiatorType, globalThis2, cacheState);
       }
     }
-    function abortFetch(p3, request, responseObject, error10) {
-      if (!error10) {
-        error10 = new DOMException2("The operation was aborted.", "AbortError");
+    function abortFetch(p3, request, responseObject, error11) {
+      if (!error11) {
+        error11 = new DOMException2("The operation was aborted.", "AbortError");
       }
-      p3.reject(error10);
+      p3.reject(error11);
       if (request.body != null && isReadable(request.body?.stream)) {
-        request.body.stream.cancel(error10).catch((err) => {
+        request.body.stream.cancel(error11).catch((err) => {
           if (err.code === "ERR_INVALID_STATE") {
             return;
           }
@@ -13170,7 +13170,7 @@ var require_fetch = __commonJS({
       }
       const response = responseObject[kState];
       if (response.body != null && isReadable(response.body?.stream)) {
-        response.body.stream.cancel(error10).catch((err) => {
+        response.body.stream.cancel(error11).catch((err) => {
           if (err.code === "ERR_INVALID_STATE") {
             return;
           }
@@ -13950,13 +13950,13 @@ var require_fetch = __commonJS({
               fetchParams.controller.ended = true;
               this.body.push(null);
             },
-            onError(error10) {
+            onError(error11) {
               if (this.abort) {
                 fetchParams.controller.off("terminated", this.abort);
               }
-              this.body?.destroy(error10);
-              fetchParams.controller.terminate(error10);
-              reject(error10);
+              this.body?.destroy(error11);
+              fetchParams.controller.terminate(error11);
+              reject(error11);
             },
             onUpgrade(status, headersList, socket) {
               if (status !== 101) {
@@ -14422,8 +14422,8 @@ var require_util4 = __commonJS({
                   }
                   fr[kResult] = result;
                   fireAProgressEvent("load", fr);
-                } catch (error10) {
-                  fr[kError] = error10;
+                } catch (error11) {
+                  fr[kError] = error11;
                   fireAProgressEvent("error", fr);
                 }
                 if (fr[kState] !== "loading") {
@@ -14432,13 +14432,13 @@ var require_util4 = __commonJS({
               });
               break;
             }
-          } catch (error10) {
+          } catch (error11) {
             if (fr[kAborted]) {
               return;
             }
             queueMicrotask(() => {
               fr[kState] = "done";
-              fr[kError] = error10;
+              fr[kError] = error11;
               fireAProgressEvent("error", fr);
               if (fr[kState] !== "loading") {
                 fireAProgressEvent("loadend", fr);
@@ -16438,11 +16438,11 @@ var require_connection = __commonJS({
         });
       }
     }
-    function onSocketError(error10) {
+    function onSocketError(error11) {
       const { ws } = this;
       ws[kReadyState] = states.CLOSING;
       if (channels.socketError.hasSubscribers) {
-        channels.socketError.publish(error10);
+        channels.socketError.publish(error11);
       }
       this.destroy();
     }
@@ -17586,12 +17586,12 @@ var require_lib = __commonJS({
             throw new Error("Client has already been disposed.");
           }
           const parsedUrl = new URL(requestUrl);
-          let info30 = this._prepareRequest(verb, parsedUrl, headers);
+          let info31 = this._prepareRequest(verb, parsedUrl, headers);
           const maxTries = this._allowRetries && RetryableHttpVerbs.includes(verb) ? this._maxRetries + 1 : 1;
           let numTries = 0;
           let response;
           do {
-            response = yield this.requestRaw(info30, data);
+            response = yield this.requestRaw(info31, data);
             if (response && response.message && response.message.statusCode === HttpCodes.Unauthorized) {
               let authenticationHandler;
               for (const handler of this.handlers) {
@@ -17601,7 +17601,7 @@ var require_lib = __commonJS({
                 }
               }
               if (authenticationHandler) {
-                return authenticationHandler.handleAuthentication(this, info30, data);
+                return authenticationHandler.handleAuthentication(this, info31, data);
               } else {
                 return response;
               }
@@ -17624,8 +17624,8 @@ var require_lib = __commonJS({
                   }
                 }
               }
-              info30 = this._prepareRequest(verb, parsedRedirectUrl, headers);
-              response = yield this.requestRaw(info30, data);
+              info31 = this._prepareRequest(verb, parsedRedirectUrl, headers);
+              response = yield this.requestRaw(info31, data);
               redirectsRemaining--;
             }
             if (!response.message.statusCode || !HttpResponseRetryCodes.includes(response.message.statusCode)) {
@@ -17654,7 +17654,7 @@ var require_lib = __commonJS({
        * @param info
        * @param data
        */
-      requestRaw(info30, data) {
+      requestRaw(info31, data) {
         return __awaiter(this, void 0, void 0, function* () {
           return new Promise((resolve2, reject) => {
             function callbackForResult(err, res) {
@@ -17666,7 +17666,7 @@ var require_lib = __commonJS({
                 resolve2(res);
               }
             }
-            this.requestRawWithCallback(info30, data, callbackForResult);
+            this.requestRawWithCallback(info31, data, callbackForResult);
           });
         });
       }
@@ -17676,12 +17676,12 @@ var require_lib = __commonJS({
        * @param data
        * @param onResult
        */
-      requestRawWithCallback(info30, data, onResult) {
+      requestRawWithCallback(info31, data, onResult) {
         if (typeof data === "string") {
-          if (!info30.options.headers) {
-            info30.options.headers = {};
+          if (!info31.options.headers) {
+            info31.options.headers = {};
           }
-          info30.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
+          info31.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
         }
         let callbackCalled = false;
         function handleResult2(err, res) {
@@ -17690,7 +17690,7 @@ var require_lib = __commonJS({
             onResult(err, res);
           }
         }
-        const req = info30.httpModule.request(info30.options, (msg) => {
+        const req = info31.httpModule.request(info31.options, (msg) => {
           const res = new HttpClientResponse(msg);
           handleResult2(void 0, res);
         });
@@ -17702,7 +17702,7 @@ var require_lib = __commonJS({
           if (socket) {
             socket.end();
           }
-          handleResult2(new Error(`Request timeout: ${info30.options.path}`));
+          handleResult2(new Error(`Request timeout: ${info31.options.path}`));
         });
         req.on("error", function(err) {
           handleResult2(err);
@@ -17738,27 +17738,27 @@ var require_lib = __commonJS({
         return this._getProxyAgentDispatcher(parsedUrl, proxyUrl);
       }
       _prepareRequest(method, requestUrl, headers) {
-        const info30 = {};
-        info30.parsedUrl = requestUrl;
-        const usingSsl = info30.parsedUrl.protocol === "https:";
-        info30.httpModule = usingSsl ? https : http;
+        const info31 = {};
+        info31.parsedUrl = requestUrl;
+        const usingSsl = info31.parsedUrl.protocol === "https:";
+        info31.httpModule = usingSsl ? https : http;
         const defaultPort = usingSsl ? 443 : 80;
-        info30.options = {};
-        info30.options.host = info30.parsedUrl.hostname;
-        info30.options.port = info30.parsedUrl.port ? parseInt(info30.parsedUrl.port) : defaultPort;
-        info30.options.path = (info30.parsedUrl.pathname || "") + (info30.parsedUrl.search || "");
-        info30.options.method = method;
-        info30.options.headers = this._mergeHeaders(headers);
+        info31.options = {};
+        info31.options.host = info31.parsedUrl.hostname;
+        info31.options.port = info31.parsedUrl.port ? parseInt(info31.parsedUrl.port) : defaultPort;
+        info31.options.path = (info31.parsedUrl.pathname || "") + (info31.parsedUrl.search || "");
+        info31.options.method = method;
+        info31.options.headers = this._mergeHeaders(headers);
         if (this.userAgent != null) {
-          info30.options.headers["user-agent"] = this.userAgent;
+          info31.options.headers["user-agent"] = this.userAgent;
         }
-        info30.options.agent = this._getAgent(info30.parsedUrl);
+        info31.options.agent = this._getAgent(info31.parsedUrl);
         if (this.handlers) {
           for (const handler of this.handlers) {
-            handler.prepareRequest(info30.options);
+            handler.prepareRequest(info31.options);
           }
         }
-        return info30;
+        return info31;
       }
       _mergeHeaders(headers) {
         if (this.requestOptions && this.requestOptions.headers) {
@@ -18074,12 +18074,12 @@ var require_oidc_utils = __commonJS({
         var _a;
         return __awaiter(this, void 0, void 0, function* () {
           const httpclient = _OidcClient.createHttpClient();
-          const res = yield httpclient.getJson(id_token_url).catch((error10) => {
+          const res = yield httpclient.getJson(id_token_url).catch((error11) => {
             throw new Error(`Failed to get ID Token. 
  
-        Error Code : ${error10.statusCode}
+        Error Code : ${error11.statusCode}
  
-        Error Message: ${error10.message}`);
+        Error Message: ${error11.message}`);
           });
           const id_token = (_a = res.result) === null || _a === void 0 ? void 0 : _a.value;
           if (!id_token) {
@@ -18100,8 +18100,8 @@ var require_oidc_utils = __commonJS({
             const id_token = yield _OidcClient.getCall(id_token_url);
             (0, core_1.setSecret)(id_token);
             return id_token;
-          } catch (error10) {
-            throw new Error(`Error message: ${error10.message}`);
+          } catch (error11) {
+            throw new Error(`Error message: ${error11.message}`);
           }
         });
       }
@@ -18510,12 +18510,12 @@ var require_io_util = __commonJS({
     var _a;
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getCmdPath = exports2.tryGetExecutablePath = exports2.isRooted = exports2.isDirectory = exports2.exists = exports2.READONLY = exports2.UV_FS_O_EXLOCK = exports2.IS_WINDOWS = exports2.unlink = exports2.symlink = exports2.stat = exports2.rmdir = exports2.rm = exports2.rename = exports2.readlink = exports2.readdir = exports2.open = exports2.mkdir = exports2.lstat = exports2.copyFile = exports2.chmod = void 0;
-    var fs12 = __importStar(require("fs"));
+    var fs13 = __importStar(require("fs"));
     var path4 = __importStar(require("path"));
-    _a = fs12.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
+    _a = fs13.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
     exports2.IS_WINDOWS = process.platform === "win32";
     exports2.UV_FS_O_EXLOCK = 268435456;
-    exports2.READONLY = fs12.constants.O_RDONLY;
+    exports2.READONLY = fs13.constants.O_RDONLY;
     function exists(fsPath) {
       return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -19223,7 +19223,7 @@ var require_toolrunner = __commonJS({
               this._debug(`STDIO streams have closed for tool '${this.toolPath}'`);
               state.CheckComplete();
             });
-            state.on("done", (error10, exitCode) => {
+            state.on("done", (error11, exitCode) => {
               if (stdbuffer.length > 0) {
                 this.emit("stdline", stdbuffer);
               }
@@ -19231,8 +19231,8 @@ var require_toolrunner = __commonJS({
                 this.emit("errline", errbuffer);
               }
               cp.removeAllListeners();
-              if (error10) {
-                reject(error10);
+              if (error11) {
+                reject(error11);
               } else {
                 resolve2(exitCode);
               }
@@ -19327,14 +19327,14 @@ var require_toolrunner = __commonJS({
         this.emit("debug", message);
       }
       _setResult() {
-        let error10;
+        let error11;
         if (this.processExited) {
           if (this.processError) {
-            error10 = new Error(`There was an error when attempting to execute the process '${this.toolPath}'. This may indicate the process failed to start. Error: ${this.processError}`);
+            error11 = new Error(`There was an error when attempting to execute the process '${this.toolPath}'. This may indicate the process failed to start. Error: ${this.processError}`);
           } else if (this.processExitCode !== 0 && !this.options.ignoreReturnCode) {
-            error10 = new Error(`The process '${this.toolPath}' failed with exit code ${this.processExitCode}`);
+            error11 = new Error(`The process '${this.toolPath}' failed with exit code ${this.processExitCode}`);
           } else if (this.processStderr && this.options.failOnStdErr) {
-            error10 = new Error(`The process '${this.toolPath}' failed because one or more lines were written to the STDERR stream`);
+            error11 = new Error(`The process '${this.toolPath}' failed because one or more lines were written to the STDERR stream`);
           }
         }
         if (this.timeout) {
@@ -19342,7 +19342,7 @@ var require_toolrunner = __commonJS({
           this.timeout = null;
         }
         this.done = true;
-        this.emit("done", error10, this.processExitCode);
+        this.emit("done", error11, this.processExitCode);
       }
       static HandleTimeout(state) {
         if (state.done) {
@@ -19725,7 +19725,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     exports2.setCommandEcho = setCommandEcho;
     function setFailed2(message) {
       process.exitCode = ExitCode.Failure;
-      error10(message);
+      error11(message);
     }
     exports2.setFailed = setFailed2;
     function isDebug() {
@@ -19736,38 +19736,38 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("debug", {}, message);
     }
     exports2.debug = debug13;
-    function error10(message, properties = {}) {
+    function error11(message, properties = {}) {
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.error = error10;
-    function warning22(message, properties = {}) {
+    exports2.error = error11;
+    function warning23(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning22;
+    exports2.warning = warning23;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.notice = notice;
-    function info30(message) {
+    function info31(message) {
       process.stdout.write(message + os.EOL);
     }
-    exports2.info = info30;
-    function startGroup13(name) {
+    exports2.info = info31;
+    function startGroup14(name) {
       (0, command_1.issue)("group", name);
     }
-    exports2.startGroup = startGroup13;
-    function endGroup13() {
+    exports2.startGroup = startGroup14;
+    function endGroup14() {
       (0, command_1.issue)("endgroup");
     }
-    exports2.endGroup = endGroup13;
+    exports2.endGroup = endGroup14;
     function group(name, fn) {
       return __awaiter(this, void 0, void 0, function* () {
-        startGroup13(name);
+        startGroup14(name);
         let result;
         try {
           result = yield fn();
         } finally {
-          endGroup13();
+          endGroup14();
         }
         return result;
       });
@@ -20041,8 +20041,8 @@ var require_add = __commonJS({
       }
       if (kind === "error") {
         hook = function(method, options) {
-          return Promise.resolve().then(method.bind(null, options)).catch(function(error10) {
-            return orig(error10, options);
+          return Promise.resolve().then(method.bind(null, options)).catch(function(error11) {
+            return orig(error11, options);
           });
         };
       }
@@ -20774,7 +20774,7 @@ var require_dist_node5 = __commonJS({
         }
         if (status >= 400) {
           const data = await getResponseData(response);
-          const error10 = new import_request_error.RequestError(toErrorMessage(data), status, {
+          const error11 = new import_request_error.RequestError(toErrorMessage(data), status, {
             response: {
               url,
               status,
@@ -20783,7 +20783,7 @@ var require_dist_node5 = __commonJS({
             },
             request: requestOptions
           });
-          throw error10;
+          throw error11;
         }
         return parseSuccessResponseBody ? await getResponseData(response) : response.body;
       }).then((data) => {
@@ -20793,17 +20793,17 @@ var require_dist_node5 = __commonJS({
           headers,
           data
         };
-      }).catch((error10) => {
-        if (error10 instanceof import_request_error.RequestError)
-          throw error10;
-        else if (error10.name === "AbortError")
-          throw error10;
-        let message = error10.message;
-        if (error10.name === "TypeError" && "cause" in error10) {
-          if (error10.cause instanceof Error) {
-            message = error10.cause.message;
-          } else if (typeof error10.cause === "string") {
-            message = error10.cause;
+      }).catch((error11) => {
+        if (error11 instanceof import_request_error.RequestError)
+          throw error11;
+        else if (error11.name === "AbortError")
+          throw error11;
+        let message = error11.message;
+        if (error11.name === "TypeError" && "cause" in error11) {
+          if (error11.cause instanceof Error) {
+            message = error11.cause.message;
+          } else if (typeof error11.cause === "string") {
+            message = error11.cause;
           }
         }
         throw new import_request_error.RequestError(message, 500, {
@@ -23475,9 +23475,9 @@ var require_dist_node10 = __commonJS({
                 /<([^<>]+)>;\s*rel="next"/
               ) || [])[1];
               return { value: normalizedResponse };
-            } catch (error10) {
-              if (error10.status !== 409)
-                throw error10;
+            } catch (error11) {
+              if (error11.status !== 409)
+                throw error11;
               url = "";
               return {
                 value: {
@@ -23883,7 +23883,7 @@ var require_github = __commonJS({
 });
 
 // issue/actions-ts/test-runner/index.ts
-var core30 = __toESM(require_core(), 1);
+var core31 = __toESM(require_core(), 1);
 var github3 = __toESM(require_github(), 1);
 
 // shared/lib/index.ts
@@ -24056,13 +24056,13 @@ async function pollUntil(fetchFn, conditionFn, config = {}, onPoll, signal) {
         core2.info("\u{1F6D1} Polling cancelled during sleep");
         break;
       }
-    } catch (error10) {
+    } catch (error11) {
       if (abortSignal?.aborted) {
         cancelled = true;
         core2.info("\u{1F6D1} Polling cancelled");
         break;
       }
-      const errorMsg = error10 instanceof Error ? error10.message : String(error10);
+      const errorMsg = error11 instanceof Error ? error11.message : String(error11);
       core2.warning(
         `[${attempts}] Poll error: ${errorMsg.slice(0, 200)}${errorMsg.length > 200 ? "..." : ""}`
       );
@@ -24190,10 +24190,10 @@ function createDoneActorEvent(invokeId, output) {
     actorId: invokeId
   };
 }
-function createErrorActorEvent(id, error10) {
+function createErrorActorEvent(id, error11) {
   return {
     type: `xstate.error.actor.${id}`,
-    error: error10,
+    error: error11,
     actorId: id
   };
 }
@@ -27487,8 +27487,8 @@ var ZodError = class _ZodError extends Error {
       return issue.message;
     };
     const fieldErrors = { _errors: [] };
-    const processError = (error10) => {
-      for (const issue of error10.issues) {
+    const processError = (error11) => {
+      for (const issue of error11.issues) {
         if (issue.code === "invalid_union") {
           issue.unionErrors.map(processError);
         } else if (issue.code === "invalid_return_type") {
@@ -27551,8 +27551,8 @@ var ZodError = class _ZodError extends Error {
   }
 };
 ZodError.create = (issues) => {
-  const error10 = new ZodError(issues);
-  return error10;
+  const error11 = new ZodError(issues);
+  return error11;
 };
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/locales/en.js
@@ -27816,8 +27816,8 @@ var handleResult = (ctx, result) => {
       get error() {
         if (this._error)
           return this._error;
-        const error10 = new ZodError(ctx.common.issues);
-        this._error = error10;
+        const error11 = new ZodError(ctx.common.issues);
+        this._error = error11;
         return this._error;
       }
     };
@@ -30472,25 +30472,25 @@ var ZodFunction = class _ZodFunction extends ZodType {
       });
       return INVALID;
     }
-    function makeArgsIssue(args, error10) {
+    function makeArgsIssue(args, error11) {
       return makeIssue({
         data: args,
         path: ctx.path,
         errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap(), en_default].filter((x3) => !!x3),
         issueData: {
           code: ZodIssueCode.invalid_arguments,
-          argumentsError: error10
+          argumentsError: error11
         }
       });
     }
-    function makeReturnsIssue(returns, error10) {
+    function makeReturnsIssue(returns, error11) {
       return makeIssue({
         data: returns,
         path: ctx.path,
         errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap(), en_default].filter((x3) => !!x3),
         issueData: {
           code: ZodIssueCode.invalid_return_type,
-          returnTypeError: error10
+          returnTypeError: error11
         }
       });
     }
@@ -30499,15 +30499,15 @@ var ZodFunction = class _ZodFunction extends ZodType {
     if (this._def.returns instanceof ZodPromise) {
       const me = this;
       return OK(async function(...args) {
-        const error10 = new ZodError([]);
+        const error11 = new ZodError([]);
         const parsedArgs = await me._def.args.parseAsync(args, params).catch((e2) => {
-          error10.addIssue(makeArgsIssue(args, e2));
-          throw error10;
+          error11.addIssue(makeArgsIssue(args, e2));
+          throw error11;
         });
         const result = await Reflect.apply(fn, this, parsedArgs);
         const parsedReturns = await me._def.returns._def.type.parseAsync(result, params).catch((e2) => {
-          error10.addIssue(makeReturnsIssue(result, e2));
-          throw error10;
+          error11.addIssue(makeReturnsIssue(result, e2));
+          throw error11;
         });
         return parsedReturns;
       });
@@ -31331,6 +31331,7 @@ var TriggerTypeSchema = external_exports.enum([
   "issue-orchestrate",
   "issue-comment",
   "issue-reset",
+  "issue-pivot",
   // Grooming triggers
   "issue-groom",
   "issue-groom-summary",
@@ -31908,6 +31909,12 @@ var ApplyGroomingOutputActionSchema = BaseActionSchema.extend({
   /** Path to the combined grooming output file */
   filePath: external_exports.string().default("grooming-output.json")
 });
+var ApplyPivotOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyPivotOutput"),
+  issueNumber: external_exports.number().int().positive(),
+  /** Path to the pivot output file */
+  filePath: external_exports.string().default("claude-structured-output.json")
+});
 var ActionSchema = external_exports.discriminatedUnion("type", [
   // Project field actions
   UpdateProjectStatusActionSchema,
@@ -31944,6 +31951,8 @@ var ActionSchema = external_exports.discriminatedUnion("type", [
   // Grooming actions
   RunClaudeGroomingActionSchema,
   ApplyGroomingOutputActionSchema,
+  // Pivot actions
+  ApplyPivotOutputActionSchema,
   // Discussion actions
   AddDiscussionCommentActionSchema,
   UpdateDiscussionBodyActionSchema,
@@ -32157,6 +32166,9 @@ function triggeredByPRPush({ context: context2 }) {
 function triggeredByReset({ context: context2 }) {
   return context2.trigger === "issue-reset";
 }
+function triggeredByPivot({ context: context2 }) {
+  return context2.trigger === "issue-pivot";
+}
 function triggeredByMergeQueueEntry({ context: context2 }) {
   return context2.trigger === "merge-queue-entered";
 }
@@ -32264,6 +32276,7 @@ var guards = {
   triggeredByPRReviewApproved,
   triggeredByPRPush,
   triggeredByReset,
+  triggeredByPivot,
   // Merge queue logging guards
   triggeredByMergeQueueEntry,
   triggeredByMergeQueueFailure,
@@ -33884,6 +33897,57 @@ function emitSetReady({ context: context2 }) {
     }
   ];
 }
+function emitRunClaudePivot({ context: context2 }) {
+  const issueNumber = context2.issue.number;
+  const subIssuesInfo = context2.issue.subIssues.map((s) => ({
+    number: s.number,
+    title: s.title,
+    state: s.state,
+    projectStatus: s.projectStatus,
+    todos: s.todos
+  }));
+  const promptVars = {
+    ISSUE_NUMBER: String(issueNumber),
+    ISSUE_TITLE: context2.issue.title,
+    SUB_ISSUES_JSON: JSON.stringify(subIssuesInfo, null, 2)
+    // PIVOT_DESCRIPTION will be injected by workflow from context_json
+  };
+  const pivotArtifact = {
+    name: "claude-pivot-output",
+    path: "claude-structured-output.json"
+  };
+  return [
+    // Log pivot start in history
+    {
+      type: "appendHistory",
+      token: "code",
+      issueNumber,
+      iteration: context2.issue.iteration,
+      phase: "pivot",
+      message: "\u23F3 Analyzing pivot request...",
+      timestamp: context2.workflowStartedAt ?? void 0,
+      runLink: context2.workflowRunUrl ?? context2.ciRunUrl ?? void 0
+    },
+    // Run Claude pivot analysis
+    {
+      type: "runClaude",
+      token: "code",
+      promptDir: "pivot",
+      promptsDir: ".github/statemachine/issue/prompts",
+      promptVars,
+      issueNumber,
+      producesArtifact: pivotArtifact
+    },
+    // Apply pivot output: validate safety, apply changes, post summary
+    {
+      type: "applyPivotOutput",
+      token: "code",
+      issueNumber,
+      filePath: "claude-structured-output.json",
+      consumesArtifact: pivotArtifact
+    }
+  ];
+}
 
 // issue/actions-ts/state-machine/machine/machine.ts
 function accumulateActions(existingActions, newActions) {
@@ -33928,6 +33992,7 @@ var claudeMachine = setup({
     triggeredByPRReviewApproved: ({ context: context2 }) => guards.triggeredByPRReviewApproved({ context: context2 }),
     triggeredByPRPush: ({ context: context2 }) => guards.triggeredByPRPush({ context: context2 }),
     triggeredByReset: ({ context: context2 }) => guards.triggeredByReset({ context: context2 }),
+    triggeredByPivot: ({ context: context2 }) => guards.triggeredByPivot({ context: context2 }),
     // Merge queue logging guards
     triggeredByMergeQueueEntry: ({ context: context2 }) => guards.triggeredByMergeQueueEntry({ context: context2 }),
     triggeredByMergeQueueFailure: ({ context: context2 }) => guards.triggeredByMergeQueueFailure({ context: context2 }),
@@ -34237,6 +34302,19 @@ var claudeMachine = setup({
     }),
     setReady: assign({
       pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitSetReady({ context: context2 }))
+    }),
+    // Pivot actions
+    runClaudePivot: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitRunClaudePivot({ context: context2 })
+      )
+    }),
+    logPivoting: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitLog({ context: context2 }, `Pivoting issue #${context2.issue.number}`)
+      )
     })
   }
 }).createMachine({
@@ -34255,6 +34333,8 @@ var claudeMachine = setup({
       always: [
         // Reset takes priority - can reset even Done/Blocked issues
         { target: "resetting", guard: "triggeredByReset" },
+        // Pivot takes priority - can pivot even Done/Blocked issues
+        { target: "pivoting", guard: "triggeredByPivot" },
         // Check terminal states first
         { target: "done", guard: "isAlreadyDone" },
         { target: "blocked", guard: "isBlocked" },
@@ -34370,6 +34450,22 @@ var claudeMachine = setup({
      */
     grooming: {
       entry: ["logGrooming", "runClaudeGrooming"],
+      type: "final"
+    },
+    /**
+     * Pivot an issue - modify specifications mid-flight (/pivot command)
+     *
+     * This is a TERMINAL state - after pivot analysis and changes are applied,
+     * the workflow STOPS. The user must review changes and manually restart
+     * with /lfg to continue implementation.
+     *
+     * Safety constraints enforced by the executor:
+     * - Cannot modify checked todos ([x] items are immutable)
+     * - Cannot modify closed sub-issues
+     * - For completed work changes, creates NEW sub-issues (reversion/extension)
+     */
+    pivoting: {
+      entry: ["logPivoting", "runClaudePivot"],
       type: "final"
     },
     /**
@@ -35971,14 +36067,14 @@ function formatValidationResult(name, result) {
   } else {
     lines.push("  Status: \u274C Invalid");
     lines.push("  Errors:");
-    for (const error10 of result.errors) {
-      lines.push(`    - ${error10.path}: ${error10.message}`);
+    for (const error11 of result.errors) {
+      lines.push(`    - ${error11.path}: ${error11.message}`);
     }
   }
   if (result.warnings.length > 0) {
     lines.push("  Warnings:");
-    for (const warning22 of result.warnings) {
-      lines.push(`    - ${warning22}`);
+    for (const warning23 of result.warnings) {
+      lines.push(`    - ${warning23}`);
     }
   }
   return lines.join("\n");
@@ -36065,8 +36161,8 @@ async function checkTriageWorkflow(octokit, owner, repo, issueNumber) {
       };
     }
     return { found: false, status: null, url: null };
-  } catch (error10) {
-    core4.debug(`Failed to check workflow runs: ${error10}`);
+  } catch (error11) {
+    core4.debug(`Failed to check workflow runs: ${error11}`);
     return { found: false, status: null, url: null };
   }
 }
@@ -36198,9 +36294,9 @@ async function labelSubIssuesForCleanup(octokit, owner, repo, subIssueNumbers) {
       core4.info(
         `  \u2705 Added test:automation label to sub-issue #${issueNumber}`
       );
-    } catch (error10) {
+    } catch (error11) {
       core4.warning(
-        `  \u26A0\uFE0F Could not add test:automation label to sub-issue #${issueNumber}: ${error10}`
+        `  \u26A0\uFE0F Could not add test:automation label to sub-issue #${issueNumber}: ${error11}`
       );
     }
   }
@@ -36345,8 +36441,8 @@ async function waitForTriage(options) {
   if (errors.length > 0) {
     core4.error(`
   Verification errors (${errors.length}):`);
-    for (const error10 of errors) {
-      core4.error(`    \u274C ${error10}`);
+    for (const error11 of errors) {
+      core4.error(`    \u274C ${error11}`);
     }
   }
   return {
@@ -36478,8 +36574,8 @@ async function fetchPhaseConditions(octokit, owner, repo, issueNumber, projectNu
               }
             }
           }
-        } catch (error10) {
-          core5.debug(`Failed to fetch checks: ${error10}`);
+        } catch (error11) {
+          core5.debug(`Failed to fetch checks: ${error11}`);
           conditions.ciStatus = "pending";
         }
       }
@@ -36510,13 +36606,13 @@ async function fetchPhaseConditions(octokit, owner, repo, issueNumber, projectNu
         } else {
           conditions.reviewStatus = "pending";
         }
-      } catch (error10) {
-        core5.debug(`Failed to fetch reviews: ${error10}`);
+      } catch (error11) {
+        core5.debug(`Failed to fetch reviews: ${error11}`);
         conditions.reviewStatus = "pending";
       }
     }
-  } catch (error10) {
-    core5.debug(`Failed to fetch PRs: ${error10}`);
+  } catch (error11) {
+    core5.debug(`Failed to fetch PRs: ${error11}`);
   }
   try {
     const issueResponse = await octokit.graphql(
@@ -36542,8 +36638,8 @@ async function fetchPhaseConditions(octokit, owner, repo, issueNumber, projectNu
         }
       }
     }
-  } catch (error10) {
-    core5.debug(`Failed to fetch issue: ${error10}`);
+  } catch (error11) {
+    core5.debug(`Failed to fetch issue: ${error11}`);
   }
   return conditions;
 }
@@ -36622,8 +36718,8 @@ async function mergePR(owner, repo, prNumber) {
     ]);
     core5.info(`\u2705 PR #${prNumber} added to merge queue`);
     return true;
-  } catch (error10) {
-    core5.warning(`Failed to merge PR #${prNumber}: ${error10}`);
+  } catch (error11) {
+    core5.warning(`Failed to merge PR #${prNumber}: ${error11}`);
     return false;
   }
 }
@@ -36821,8 +36917,8 @@ async function waitForPhase(options) {
   if (errors.length > 0) {
     core5.error(`
   Verification errors (${errors.length}):`);
-    for (const error10 of errors) {
-      core5.error(`    \u274C ${error10}`);
+    for (const error11 of errors) {
+      core5.error(`    \u274C ${error11}`);
     }
   }
   return {
@@ -36884,6 +36980,7 @@ var StateNameSchema = external_exports.enum([
   "grooming",
   "resetting",
   "commenting",
+  "pivoting",
   "prReviewing",
   "prResponding",
   "prRespondingHuman",
@@ -36969,9 +37066,17 @@ var TestParentIssueSchema = external_exports.object({
   /** PR linked to this issue (optional, for states that need a PR) */
   pr: TestPRSchema.nullable().optional()
 });
+var TestCommentSchema = external_exports.object({
+  id: external_exports.number().int().nonnegative(),
+  // 0 = placeholder
+  body: external_exports.string(),
+  author: external_exports.string()
+});
 var StateFixtureSchema = external_exports.object({
   /** The state name this fixture represents */
   state: StateNameSchema,
+  /** Optional description of this fixture state */
+  description: external_exports.string().optional(),
   /** Explicit trigger type to use (optional, overrides auto-detection) */
   trigger: IssueTriggerTypeSchema.optional(),
   /** CI result to inject for this transition (optional) */
@@ -36980,10 +37085,16 @@ var StateFixtureSchema = external_exports.object({
   reviewDecision: external_exports.enum(["APPROVED", "CHANGES_REQUESTED", "COMMENTED", "DISMISSED"]).optional(),
   /** Issue state - uses test-specific schema allowing placeholder values */
   issue: TestParentIssueSchema,
+  /** Comment that triggered this state (for comment/pivot scenarios) */
+  comment: TestCommentSchema.optional(),
+  /** Pivot description from /pivot command (for pivot scenarios) */
+  pivotDescription: external_exports.string().optional(),
   /** Reference to a claude mock file (when mock_claude=true) */
   claudeMock: external_exports.string().optional(),
   /** Multiple claude mock references (for states that call multiple Claude prompts, like grooming) */
-  claudeMocks: external_exports.array(external_exports.string()).optional()
+  claudeMocks: external_exports.array(external_exports.string()).optional(),
+  /** Expected results for this state transition (optional, for validation) */
+  expected: external_exports.record(external_exports.unknown()).optional()
 });
 var ScenarioConfigSchema = external_exports.object({
   name: external_exports.string(),
@@ -37087,9 +37198,9 @@ async function loadStateFixtures(statesDir) {
     let json;
     try {
       json = JSON.parse(content);
-    } catch (error10) {
+    } catch (error11) {
       throw new Error(
-        `Invalid JSON in ${file}: ${error10 instanceof Error ? error10.message : error10}`
+        `Invalid JSON in ${file}: ${error11 instanceof Error ? error11.message : error11}`
       );
     }
     const parseResult = StateFixtureSchema.safeParse(json);
@@ -37133,9 +37244,9 @@ async function loadReferencedMocks(fixtures, basePath) {
       let json;
       try {
         json = JSON.parse(content);
-      } catch (error10) {
+      } catch (error11) {
         throw new Error(
-          `Invalid JSON in ${mockPath}: ${error10 instanceof Error ? error10.message : error10}`
+          `Invalid JSON in ${mockPath}: ${error11 instanceof Error ? error11.message : error11}`
         );
       }
       const parseResult = ClaudeMockSchema.safeParse(json);
@@ -37152,12 +37263,12 @@ ${errors}`);
 }
 
 // issue/actions-ts/test-runner/src/configurable/runner.ts
-var core23 = __toESM(require_core(), 1);
+var core24 = __toESM(require_core(), 1);
 var exec13 = __toESM(require_exec(), 1);
 
 // issue/actions-ts/state-machine/runner/runner.ts
-var core22 = __toESM(require_core(), 1);
-var fs10 = __toESM(require("fs"), 1);
+var core23 = __toESM(require_core(), 1);
+var fs11 = __toESM(require("fs"), 1);
 
 // issue/actions-ts/state-machine/runner/executors/project.ts
 var core7 = __toESM(require_core(), 1);
@@ -37886,8 +37997,8 @@ async function executeMergePR(action, ctx) {
       labels: [label]
     });
     core8.info(`Added "${label}" label to PR #${action.prNumber}`);
-  } catch (error10) {
-    core8.warning(`Failed to add label: ${error10}`);
+  } catch (error11) {
+    core8.warning(`Failed to add label: ${error11}`);
   }
   const response = await ctx.octokit.graphql(
     GET_ISSUE_BODY_QUERY,
@@ -37957,14 +38068,14 @@ async function executeRemoveReviewer(action, ctx) {
       `Removed reviewer ${action.reviewer} from PR #${action.prNumber}`
     );
     return { removed: true };
-  } catch (error10) {
-    if (error10 instanceof Error && error10.message.includes("404")) {
+  } catch (error11) {
+    if (error11 instanceof Error && error11.message.includes("404")) {
       core8.info(
         `Reviewer ${action.reviewer} was not a requested reviewer on PR #${action.prNumber}`
       );
       return { removed: false };
     }
-    throw error10;
+    throw error11;
   }
 }
 async function executeResetIssue(action, ctx) {
@@ -37985,8 +38096,8 @@ async function executeResetIssue(action, ctx) {
       core8.info(`Reopened issue #${action.issueNumber}`);
       resetCount++;
     }
-  } catch (error10) {
-    core8.warning(`Failed to reopen issue #${action.issueNumber}: ${error10}`);
+  } catch (error11) {
+    core8.warning(`Failed to reopen issue #${action.issueNumber}: ${error11}`);
   }
   for (const subIssueNumber of action.subIssueNumbers) {
     try {
@@ -38005,8 +38116,8 @@ async function executeResetIssue(action, ctx) {
         core8.info(`Reopened sub-issue #${subIssueNumber}`);
         resetCount++;
       }
-    } catch (error10) {
-      core8.warning(`Failed to reopen sub-issue #${subIssueNumber}: ${error10}`);
+    } catch (error11) {
+      core8.warning(`Failed to reopen sub-issue #${subIssueNumber}: ${error11}`);
     }
   }
   try {
@@ -38019,9 +38130,9 @@ async function executeResetIssue(action, ctx) {
     core8.info(
       `Unassigned ${action.botUsername} from issue #${action.issueNumber}`
     );
-  } catch (error10) {
+  } catch (error11) {
     core8.warning(
-      `Failed to unassign bot from issue #${action.issueNumber}: ${error10}`
+      `Failed to unassign bot from issue #${action.issueNumber}: ${error11}`
     );
   }
   for (const subIssueNumber of action.subIssueNumbers) {
@@ -38035,9 +38146,9 @@ async function executeResetIssue(action, ctx) {
       core8.info(
         `Unassigned ${action.botUsername} from sub-issue #${subIssueNumber}`
       );
-    } catch (error10) {
+    } catch (error11) {
       core8.warning(
-        `Failed to unassign bot from sub-issue #${subIssueNumber}: ${error10}`
+        `Failed to unassign bot from sub-issue #${subIssueNumber}: ${error11}`
       );
     }
   }
@@ -38054,9 +38165,9 @@ async function executeAddLabel(action, ctx) {
     });
     core8.info(`Added label "${action.label}" to issue #${action.issueNumber}`);
     return { added: true };
-  } catch (error10) {
+  } catch (error11) {
     core8.warning(
-      `Failed to add label "${action.label}" to issue #${action.issueNumber}: ${error10}`
+      `Failed to add label "${action.label}" to issue #${action.issueNumber}: ${error11}`
     );
     return { added: false };
   }
@@ -38073,15 +38184,15 @@ async function executeRemoveLabel(action, ctx) {
       `Removed label "${action.label}" from issue #${action.issueNumber}`
     );
     return { removed: true };
-  } catch (error10) {
-    if (error10 instanceof Error && error10.message.includes("404")) {
+  } catch (error11) {
+    if (error11 instanceof Error && error11.message.includes("404")) {
       core8.info(
         `Label "${action.label}" was not present on issue #${action.issueNumber}`
       );
       return { removed: false };
     }
     core8.warning(
-      `Failed to remove label "${action.label}" from issue #${action.issueNumber}: ${error10}`
+      `Failed to remove label "${action.label}" from issue #${action.issueNumber}: ${error11}`
     );
     return { removed: false };
   }
@@ -47138,8 +47249,8 @@ async function executeClaudeSDK(options) {
       numTurns,
       costUsd
     };
-  } catch (error10) {
-    const errorMessage = error10 instanceof Error ? error10.message : String(error10);
+  } catch (error11) {
+    const errorMessage = error11 instanceof Error ? error11.message : String(error11);
     core10.error(`Failed to run Claude: ${errorMessage}`);
     return {
       success: false,
@@ -47287,9 +47398,9 @@ It simulates Claude's code changes in mock mode.`;
       return;
     }
     core11.info(`[MOCK MODE] Created and pushed placeholder commit`);
-  } catch (error10) {
+  } catch (error11) {
     core11.warning(
-      `[MOCK MODE] Failed to create mock commit: ${error10 instanceof Error ? error10.message : String(error10)}`
+      `[MOCK MODE] Failed to create mock commit: ${error11 instanceof Error ? error11.message : String(error11)}`
     );
   }
 }
@@ -47807,13 +47918,13 @@ ${deliverables}`;
         }
         core13.info(`Investigation completed: ${thread.title}`);
         return { thread, output: investigationOutput, success: true };
-      } catch (error10) {
-        core13.warning(`Investigation failed for "${thread.title}": ${error10}`);
+      } catch (error11) {
+        core13.warning(`Investigation failed for "${thread.title}": ${error11}`);
         return {
           thread,
           output: null,
           success: false,
-          error: error10 instanceof Error ? error10.message : String(error10)
+          error: error11 instanceof Error ? error11.message : String(error11)
         };
       }
     })
@@ -47846,8 +47957,8 @@ Please retry or investigate manually.`;
         replyIds.push(replyId);
         core13.info(`Posted findings for: ${result2.thread.title}`);
       }
-    } catch (error10) {
-      core13.warning(`Failed to post findings for "${result2.thread.title}": ${error10}`);
+    } catch (error11) {
+      core13.warning(`Failed to post findings for "${result2.thread.title}": ${error11}`);
     }
   }
   core13.info("Step 4: Updating discussion body with summary");
@@ -48316,12 +48427,12 @@ async function executeInvestigateResearchThreads(action, ctx) {
         );
         core14.info(`Investigation completed: ${thread.title}`);
         return result;
-      } catch (error10) {
-        core14.warning(`Investigation failed for "${thread.title}": ${error10}`);
+      } catch (error11) {
+        core14.warning(`Investigation failed for "${thread.title}": ${error11}`);
         const errorReplyId = await postInvestigationError(
           thread,
           discussionNodeId,
-          error10,
+          error11,
           ctx
         );
         return { thread, replyId: errorReplyId, success: false };
@@ -48391,8 +48502,8 @@ ${output.open_questions.map((q) => `- ${q}`).join("\n")}`;
   }
   return body;
 }
-async function postInvestigationError(thread, discussionNodeId, error10, ctx) {
-  const errorMessage = error10 instanceof Error ? error10.message : String(error10);
+async function postInvestigationError(thread, discussionNodeId, error11, ctx) {
+  const errorMessage = error11 instanceof Error ? error11.message : String(error11);
   const body = `## \u26A0\uFE0F Investigation Error: ${thread.title}
 
 Unable to complete investigation for this research thread.
@@ -48485,8 +48596,8 @@ async function fetchDiscussionState(discussionNumber, ctx) {
       originalBody: discussion.body || "",
       threads
     };
-  } catch (error10) {
-    core14.warning(`Failed to fetch discussion state: ${error10}`);
+  } catch (error11) {
+    core14.warning(`Failed to fetch discussion state: ${error11}`);
     return null;
   }
 }
@@ -48511,8 +48622,8 @@ async function executeApplyTriageOutput(action, ctx, structuredOutput) {
       core15.startGroup("Triage Output (File)");
       core15.info(JSON.stringify(triageOutput, null, 2));
       core15.endGroup();
-    } catch (error10) {
-      core15.warning(`Failed to parse triage output: ${error10}`);
+    } catch (error11) {
+      core15.warning(`Failed to parse triage output: ${error11}`);
       return { applied: false };
     }
   } else {
@@ -48583,8 +48694,8 @@ async function applyLabels(ctx, issueNumber, classification) {
         labels
       });
       core15.info(`Applied labels: ${labels.join(", ")}`);
-    } catch (error10) {
-      core15.warning(`Failed to apply labels: ${error10}`);
+    } catch (error11) {
+      core15.warning(`Failed to apply labels: ${error11}`);
     }
   }
 }
@@ -48597,8 +48708,8 @@ async function updateIssueBody(ctx, issueNumber, newBody) {
       body: newBody
     });
     core15.info(`Updated issue body for #${issueNumber}`);
-  } catch (error10) {
-    core15.warning(`Failed to update issue body: ${error10}`);
+  } catch (error11) {
+    core15.warning(`Failed to update issue body: ${error11}`);
   }
 }
 async function updateIssueStructure(ctx, issueNumber, requirements, initialApproach, initialQuestions) {
@@ -48637,8 +48748,8 @@ async function updateIssueStructure(ctx, issueNumber, requirements, initialAppro
       body: newBody
     });
     core15.info(`Updated issue #${issueNumber} with structured sections`);
-  } catch (error10) {
-    core15.warning(`Failed to update issue structure: ${error10}`);
+  } catch (error11) {
+    core15.warning(`Failed to update issue structure: ${error11}`);
   }
 }
 async function linkRelatedIssues(ctx, issueNumber, relatedIssues) {
@@ -48653,8 +48764,8 @@ async function linkRelatedIssues(ctx, issueNumber, relatedIssues) {
       body
     });
     core15.info(`Linked related issues: ${links}`);
-  } catch (error10) {
-    core15.warning(`Failed to link related issues: ${error10}`);
+  } catch (error11) {
+    core15.warning(`Failed to link related issues: ${error11}`);
   }
 }
 var GET_PROJECT_FIELDS_QUERY = `
@@ -48732,8 +48843,8 @@ async function getProjectInfo(ctx) {
       }
     }
     return projectInfo;
-  } catch (error10) {
-    core15.warning(`Failed to get project info: ${error10}`);
+  } catch (error11) {
+    core15.warning(`Failed to get project info: ${error11}`);
     return null;
   }
 }
@@ -48804,8 +48915,8 @@ async function applyProjectFields(ctx, issueNumber, classification) {
       });
       core15.info(`Set Estimate to ${classification.estimate}`);
     }
-  } catch (error10) {
-    core15.warning(`Failed to apply project fields: ${error10}`);
+  } catch (error11) {
+    core15.warning(`Failed to apply project fields: ${error11}`);
   }
 }
 
@@ -48823,8 +48934,8 @@ async function executeApplyIterateOutput(action, ctx, structuredOutput) {
       const content = fs6.readFileSync(filePath, "utf-8");
       iterateOutput = JSON.parse(content);
       core16.info(`Iterate output from file: ${filePath}`);
-    } catch (error10) {
-      core16.warning(`Failed to parse iterate output: ${error10}`);
+    } catch (error11) {
+      core16.warning(`Failed to parse iterate output: ${error11}`);
       return { applied: false };
     }
   } else {
@@ -48936,8 +49047,8 @@ async function executeApplyReviewOutput(action, ctx, structuredOutput) {
       const content = fs7.readFileSync(action.filePath, "utf-8");
       reviewOutput = JSON.parse(content);
       core17.info(`Review output from file: ${action.filePath}`);
-    } catch (error10) {
-      throw new Error(`Failed to parse review output from file: ${error10}`);
+    } catch (error11) {
+      throw new Error(`Failed to parse review output from file: ${error11}`);
     }
   } else {
     throw new Error(
@@ -48983,8 +49094,8 @@ async function executeApplyPRResponseOutput(action, ctx, structuredOutput) {
       const content = fs8.readFileSync(action.filePath, "utf-8");
       responseOutput = JSON.parse(content);
       core18.info(`PR response output from file: ${action.filePath}`);
-    } catch (error10) {
-      throw new Error(`Failed to parse PR response output from file: ${error10}`);
+    } catch (error11) {
+      throw new Error(`Failed to parse PR response output from file: ${error11}`);
     }
   } else {
     throw new Error(
@@ -49024,8 +49135,8 @@ async function executeApplyPRResponseOutput(action, ctx, structuredOutput) {
       core18.info(
         `Re-requested review from ${action.reviewer} on PR #${action.prNumber}`
       );
-    } catch (error10) {
-      core18.warning(`Failed to re-request review: ${error10}`);
+    } catch (error11) {
+      core18.warning(`Failed to re-request review: ${error11}`);
     }
   }
   if (responseOutput.agent_notes && responseOutput.agent_notes.length > 0) {
@@ -49216,8 +49327,8 @@ async function executeRunClaudeGrooming(action, ctx) {
         );
         core20.info(`Grooming agent ${agent} completed`);
         return { agent, output: result.structuredOutput };
-      } catch (error10) {
-        core20.warning(`Grooming agent ${agent} failed: ${error10}`);
+      } catch (error11) {
+        core20.warning(`Grooming agent ${agent} failed: ${error11}`);
         return {
           agent,
           output: {
@@ -49253,8 +49364,8 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
       const content = fs9.readFileSync(filePath, "utf-8");
       groomingOutputs = JSON.parse(content);
       core20.info(`Grooming output from file: ${filePath}`);
-    } catch (error10) {
-      core20.warning(`Failed to parse grooming output: ${error10}`);
+    } catch (error11) {
+      core20.warning(`Failed to parse grooming output: ${error11}`);
       return { applied: false };
     }
   } else {
@@ -49295,12 +49406,12 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
       );
     }
     summaryOutput = summaryResult.structuredOutput;
-  } catch (error10) {
-    core20.error(`Summary agent failed: ${error10}`);
+  } catch (error11) {
+    core20.error(`Summary agent failed: ${error11}`);
     summaryOutput = {
       summary: "Summary agent failed to run",
       decision: "needs_info",
-      decision_rationale: `Summary agent error: ${error10}`,
+      decision_rationale: `Summary agent error: ${error11}`,
       questions: [{ question: "Please retry grooming", source: "pm", priority: "critical" }]
     };
   }
@@ -49350,8 +49461,8 @@ async function applyGroomingDecision(ctx, issueNumber, summary, groomingOutputs)
       ctx
     );
     core20.info(`Updated grooming history entry: ${historyMessage}`);
-  } catch (error10) {
-    core20.warning(`Failed to update grooming history entry: ${error10}`);
+  } catch (error11) {
+    core20.warning(`Failed to update grooming history entry: ${error11}`);
   }
   try {
     await executeUpdateHistory(
@@ -49367,8 +49478,8 @@ async function applyGroomingDecision(ctx, issueNumber, summary, groomingOutputs)
       ctx
     );
     core20.info("Updated log-run-start entry to redirect to groom");
-  } catch (error10) {
-    core20.debug(`No log-run-start entry to update: ${error10}`);
+  } catch (error11) {
+    core20.debug(`No log-run-start entry to update: ${error11}`);
   }
 }
 async function applyReadyDecision(ctx, issueNumber, summary, groomingOutputs) {
@@ -49382,8 +49493,8 @@ async function applyReadyDecision(ctx, issueNumber, summary, groomingOutputs) {
       },
       ctx
     );
-  } catch (error10) {
-    core20.debug(`Could not remove needs-info label: ${error10}`);
+  } catch (error11) {
+    core20.debug(`Could not remove needs-info label: ${error11}`);
   }
   try {
     await ctx.octokit.rest.issues.addLabels({
@@ -49393,8 +49504,8 @@ async function applyReadyDecision(ctx, issueNumber, summary, groomingOutputs) {
       labels: ["groomed"]
     });
     core20.info('Added "groomed" label');
-  } catch (error10) {
-    core20.warning(`Failed to add groomed label: ${error10}`);
+  } catch (error11) {
+    core20.warning(`Failed to add groomed label: ${error11}`);
   }
   if (groomingOutputs) {
     await applyGroomingToIssue(ctx, issueNumber, groomingOutputs);
@@ -49425,8 +49536,8 @@ async function applyReadyDecision(ctx, issueNumber, summary, groomingOutputs) {
       ctx
     );
     core20.info("Added grooming summary to Agent Notes");
-  } catch (error10) {
-    core20.warning(`Failed to add grooming notes: ${error10}`);
+  } catch (error11) {
+    core20.warning(`Failed to add grooming notes: ${error11}`);
   }
 }
 async function applyNeedsInfoDecision(ctx, issueNumber, summary) {
@@ -49438,8 +49549,8 @@ async function applyNeedsInfoDecision(ctx, issueNumber, summary) {
       labels: ["needs-info"]
     });
     core20.info('Added "needs-info" label');
-  } catch (error10) {
-    core20.warning(`Failed to add needs-info label: ${error10}`);
+  } catch (error11) {
+    core20.warning(`Failed to add needs-info label: ${error11}`);
   }
   try {
     const notes = formatNeedsInfoNotes(summary);
@@ -49458,8 +49569,8 @@ async function applyNeedsInfoDecision(ctx, issueNumber, summary) {
       ctx
     );
     core20.info("Added grooming questions to Agent Notes");
-  } catch (error10) {
-    core20.warning(`Failed to add grooming notes: ${error10}`);
+  } catch (error11) {
+    core20.warning(`Failed to add grooming notes: ${error11}`);
   }
 }
 async function applyBlockedDecision(ctx, issueNumber, summary) {
@@ -49471,8 +49582,8 @@ async function applyBlockedDecision(ctx, issueNumber, summary) {
       labels: ["blocked"]
     });
     core20.info('Added "blocked" label');
-  } catch (error10) {
-    core20.warning(`Failed to add blocked label: ${error10}`);
+  } catch (error11) {
+    core20.warning(`Failed to add blocked label: ${error11}`);
   }
   try {
     const notes = formatBlockedNotes(summary);
@@ -49491,8 +49602,8 @@ async function applyBlockedDecision(ctx, issueNumber, summary) {
       ctx
     );
     core20.info("Added blocker reason to Agent Notes");
-  } catch (error10) {
-    core20.warning(`Failed to add grooming notes: ${error10}`);
+  } catch (error11) {
+    core20.warning(`Failed to add grooming notes: ${error11}`);
   }
 }
 function formatReadyNotes(summary) {
@@ -49602,8 +49713,8 @@ async function applyGroomingToIssue(ctx, issueNumber, outputs) {
       });
       core20.info(`Updated issue #${issueNumber} with grooming sections`);
     }
-  } catch (error10) {
-    core20.warning(`Failed to apply grooming to issue: ${error10}`);
+  } catch (error11) {
+    core20.warning(`Failed to apply grooming to issue: ${error11}`);
   }
 }
 async function createSubIssuesFromPlan(ctx, parentIssueNumber, phases) {
@@ -49730,8 +49841,8 @@ async function getProjectInfo2(ctx) {
       }
     }
     return projectInfo;
-  } catch (error10) {
-    core20.warning(`Failed to get project info: ${error10}`);
+  } catch (error11) {
+    core20.warning(`Failed to get project info: ${error11}`);
     return null;
   }
 }
@@ -49759,13 +49870,459 @@ async function addToProjectWithStatus(ctx, issueNodeId, projectInfo, status) {
       });
       core20.info(`Set project status to ${status}`);
     }
-  } catch (error10) {
-    core20.warning(`Failed to add issue to project with status: ${error10}`);
+  } catch (error11) {
+    core20.warning(`Failed to add issue to project with status: ${error11}`);
+  }
+}
+
+// issue/actions-ts/state-machine/runner/executors/pivot.ts
+var core21 = __toESM(require_core(), 1);
+var fs10 = __toESM(require("fs"), 1);
+async function executeApplyPivotOutput(action, ctx, structuredOutput) {
+  const { issueNumber, filePath } = action;
+  let pivotOutput;
+  if (structuredOutput) {
+    pivotOutput = structuredOutput;
+    core21.info("Using structured output from in-process chain");
+    core21.startGroup("Pivot Output (Structured)");
+    core21.info(JSON.stringify(pivotOutput, null, 2));
+    core21.endGroup();
+  } else if (filePath && fs10.existsSync(filePath)) {
+    try {
+      const content = fs10.readFileSync(filePath, "utf-8");
+      pivotOutput = JSON.parse(content);
+      core21.info(`Pivot output from file: ${filePath}`);
+      core21.startGroup("Pivot Output (File)");
+      core21.info(JSON.stringify(pivotOutput, null, 2));
+      core21.endGroup();
+    } catch (error11) {
+      core21.warning(`Failed to parse pivot output: ${error11}`);
+      return { applied: false };
+    }
+  } else {
+    throw new Error(
+      `No structured output provided and pivot output file not found at: ${filePath || "undefined"}`
+    );
+  }
+  if (ctx.dryRun) {
+    core21.info(`[DRY RUN] Would apply pivot output to issue #${issueNumber}`);
+    return { applied: true, outcome: pivotOutput.outcome };
+  }
+  if (pivotOutput.outcome === "no_changes_needed") {
+    await postSummaryComment(ctx, issueNumber, pivotOutput, []);
+    return { applied: true, outcome: "no_changes_needed" };
+  }
+  if (pivotOutput.outcome === "needs_clarification") {
+    await postClarificationComment(ctx, issueNumber, pivotOutput);
+    return { applied: true, outcome: "needs_clarification" };
+  }
+  const validation = await validateSafetyConstraints(ctx, issueNumber, pivotOutput);
+  if (!validation.valid) {
+    core21.error(`Safety violations detected: ${validation.violations.join(", ")}`);
+    await postSafetyViolationComment(ctx, issueNumber, validation.violations);
+    return { applied: false, outcome: "safety_violation" };
+  }
+  const changesApplied = [];
+  if (pivotOutput.modifications?.parent_issue) {
+    const parentChanges = await applyParentModifications(
+      ctx,
+      issueNumber,
+      pivotOutput.modifications.parent_issue
+    );
+    changesApplied.push(...parentChanges);
+  }
+  if (pivotOutput.modifications?.sub_issues) {
+    const subChanges = await applySubIssueModifications(
+      ctx,
+      pivotOutput.modifications.sub_issues
+    );
+    changesApplied.push(...subChanges);
+  }
+  if (pivotOutput.modifications?.new_sub_issues?.length) {
+    const newIssues = await createNewSubIssues(
+      ctx,
+      issueNumber,
+      pivotOutput.modifications.new_sub_issues
+    );
+    changesApplied.push(...newIssues);
+  }
+  await postSummaryComment(ctx, issueNumber, pivotOutput, changesApplied);
+  await updateHistoryEntry2(ctx, issueNumber, pivotOutput.outcome);
+  return { applied: true, outcome: pivotOutput.outcome };
+}
+async function validateSafetyConstraints(ctx, issueNumber, pivotOutput) {
+  const violations = [];
+  if (!pivotOutput.modifications) {
+    return { valid: true, violations: [] };
+  }
+  if (pivotOutput.modifications.parent_issue?.remove_unchecked_todos) {
+    const { data: issue } = await ctx.octokit.rest.issues.get({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: issueNumber
+    });
+    const body = issue.body || "";
+    for (const todoText of pivotOutput.modifications.parent_issue.remove_unchecked_todos) {
+      const checkedPattern = new RegExp(`- \\[x\\]\\s*${escapeRegex(todoText)}`, "i");
+      if (checkedPattern.test(body)) {
+        violations.push(`Cannot remove checked todo: "${todoText}" on parent issue #${issueNumber}`);
+      }
+    }
+  }
+  if (pivotOutput.modifications.sub_issues) {
+    for (const subMod of pivotOutput.modifications.sub_issues) {
+      if (subMod.action === "skip") continue;
+      try {
+        const { data: subIssue } = await ctx.octokit.rest.issues.get({
+          owner: ctx.owner,
+          repo: ctx.repo,
+          issue_number: subMod.issue_number
+        });
+        if (subIssue.state === "closed") {
+          violations.push(`Cannot modify closed sub-issue #${subMod.issue_number}`);
+          continue;
+        }
+        if (subMod.remove_unchecked_todos) {
+          const body = subIssue.body || "";
+          for (const todoText of subMod.remove_unchecked_todos) {
+            const checkedPattern = new RegExp(`- \\[x\\]\\s*${escapeRegex(todoText)}`, "i");
+            if (checkedPattern.test(body)) {
+              violations.push(`Cannot remove checked todo: "${todoText}" on sub-issue #${subMod.issue_number}`);
+            }
+          }
+        }
+      } catch (error11) {
+        core21.warning(`Failed to fetch sub-issue #${subMod.issue_number}: ${error11}`);
+      }
+    }
+  }
+  return {
+    valid: violations.length === 0,
+    violations
+  };
+}
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+async function applyParentModifications(ctx, issueNumber, mods) {
+  const changes = [];
+  try {
+    const { data: issue } = await ctx.octokit.rest.issues.get({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: issueNumber
+    });
+    let body = issue.body || "";
+    let modified = false;
+    if (mods.update_sections) {
+      for (const [sectionName, newContent] of Object.entries(mods.update_sections)) {
+        const sectionRegex = new RegExp(
+          `(## ${escapeRegex(sectionName)}\\s*\\n)([\\s\\S]*?)(?=\\n## |$)`,
+          "i"
+        );
+        if (sectionRegex.test(body)) {
+          body = body.replace(sectionRegex, `$1${newContent}
+
+`);
+          changes.push(`Updated "${sectionName}" section`);
+          modified = true;
+        } else {
+          const insertPoint = body.search(/\n## (?:Agent Notes|Iteration History)/i);
+          const newSection = `
+## ${sectionName}
+
+${newContent}
+`;
+          if (insertPoint !== -1) {
+            body = body.slice(0, insertPoint) + newSection + body.slice(insertPoint);
+          } else {
+            body += newSection;
+          }
+          changes.push(`Added "${sectionName}" section`);
+          modified = true;
+        }
+      }
+    }
+    if (mods.remove_unchecked_todos) {
+      for (const todoText of mods.remove_unchecked_todos) {
+        const todoPattern = new RegExp(`- \\[ \\]\\s*${escapeRegex(todoText)}\\n?`, "gi");
+        if (todoPattern.test(body)) {
+          body = body.replace(todoPattern, "");
+          changes.push(`Removed todo: "${todoText}"`);
+          modified = true;
+        }
+      }
+    }
+    if (mods.add_todos && mods.add_todos.length > 0) {
+      const reqSectionMatch = body.match(/## Requirements\s*\n([\s\S]*?)(?=\n## |$)/i);
+      if (reqSectionMatch) {
+        const newTodos = mods.add_todos.map((t) => `- [ ] ${t}`).join("\n");
+        body = body.replace(
+          reqSectionMatch[0],
+          `${reqSectionMatch[0].trimEnd()}
+${newTodos}
+`
+        );
+      } else {
+        const newTodos = mods.add_todos.map((t) => `- [ ] ${t}`).join("\n");
+        body += `
+## Additional Tasks
+
+${newTodos}
+`;
+      }
+      changes.push(`Added ${mods.add_todos.length} new todo(s)`);
+      modified = true;
+    }
+    if (modified) {
+      await ctx.octokit.rest.issues.update({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: issueNumber,
+        body
+      });
+      core21.info(`Updated parent issue #${issueNumber}`);
+    }
+  } catch (error11) {
+    core21.warning(`Failed to apply parent modifications: ${error11}`);
+  }
+  return changes.length > 0 ? [`**Parent Issue #${issueNumber}:**
+${changes.map((c3) => `- ${c3}`).join("\n")}`] : [];
+}
+async function applySubIssueModifications(ctx, subMods) {
+  const changes = [];
+  for (const subMod of subMods) {
+    if (subMod.action === "skip") continue;
+    const subChanges = [];
+    try {
+      const { data: subIssue } = await ctx.octokit.rest.issues.get({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: subMod.issue_number
+      });
+      let body = subIssue.body || "";
+      let modified = false;
+      if (subMod.remove_unchecked_todos) {
+        for (const todoText of subMod.remove_unchecked_todos) {
+          const todoPattern = new RegExp(`- \\[ \\]\\s*${escapeRegex(todoText)}\\n?`, "gi");
+          if (todoPattern.test(body)) {
+            body = body.replace(todoPattern, "");
+            subChanges.push(`Removed todo: "${todoText}"`);
+            modified = true;
+          }
+        }
+      }
+      if (subMod.add_todos && subMod.add_todos.length > 0) {
+        const newTodos = subMod.add_todos.map((t) => `- [ ] ${t}`).join("\n");
+        const lastTodoMatch = body.match(/- \[[ x]\][^\n]*\n?/g);
+        if (lastTodoMatch) {
+          const lastTodo = lastTodoMatch[lastTodoMatch.length - 1];
+          const lastTodoIndex = body.lastIndexOf(lastTodo) + lastTodo.length;
+          body = body.slice(0, lastTodoIndex) + newTodos + "\n" + body.slice(lastTodoIndex);
+        } else {
+          body += `
+
+${newTodos}
+`;
+        }
+        subChanges.push(`Added ${subMod.add_todos.length} new todo(s)`);
+        modified = true;
+      }
+      if (subMod.update_description) {
+        body += `
+
+---
+
+**Pivot Update:**
+${subMod.update_description}`;
+        subChanges.push("Added pivot update description");
+        modified = true;
+      }
+      if (modified) {
+        await ctx.octokit.rest.issues.update({
+          owner: ctx.owner,
+          repo: ctx.repo,
+          issue_number: subMod.issue_number,
+          body
+        });
+        core21.info(`Updated sub-issue #${subMod.issue_number}`);
+      }
+      if (subChanges.length > 0) {
+        changes.push(`**Sub-Issue #${subMod.issue_number}:**
+${subChanges.map((c3) => `- ${c3}`).join("\n")}`);
+      }
+    } catch (error11) {
+      core21.warning(`Failed to modify sub-issue #${subMod.issue_number}: ${error11}`);
+    }
+  }
+  return changes;
+}
+async function createNewSubIssues(ctx, parentIssueNumber, newSubIssues) {
+  const changes = [];
+  for (const newSub of newSubIssues) {
+    try {
+      const reasonEmoji = newSub.reason === "reversion" ? "\u21A9\uFE0F" : newSub.reason === "extension" ? "\u2795" : "\u{1F195}";
+      const reasonLabel = newSub.reason === "reversion" ? "Reversion" : newSub.reason === "extension" ? "Extension" : "New Scope";
+      let body = `**${reasonEmoji} ${reasonLabel}** - Created from pivot request on #${parentIssueNumber}
+
+`;
+      body += `${newSub.description}
+
+`;
+      body += `## Tasks
+
+`;
+      body += newSub.todos.map((t) => `- [ ] ${t}`).join("\n");
+      const { data: createdIssue } = await ctx.octokit.rest.issues.create({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        title: `[${reasonLabel}] ${newSub.title}`,
+        body,
+        labels: ["pivot-generated"]
+      });
+      core21.info(`Created new sub-issue #${createdIssue.number}: ${newSub.title}`);
+      changes.push(`**New Sub-Issue #${createdIssue.number}:** ${newSub.title} (${newSub.reason})`);
+    } catch (error11) {
+      core21.warning(`Failed to create new sub-issue "${newSub.title}": ${error11}`);
+    }
+  }
+  return changes;
+}
+async function postSummaryComment(ctx, issueNumber, pivotOutput, changesApplied) {
+  let body = `## Pivot Summary
+
+`;
+  body += `${pivotOutput.summary_for_user}
+
+`;
+  if (changesApplied.length > 0) {
+    body += `### Changes Applied
+
+`;
+    body += changesApplied.join("\n\n");
+    body += "\n\n";
+  }
+  if (pivotOutput.analysis.affects_completed_work && pivotOutput.analysis.completed_work_details?.length) {
+    body += `### Completed Work Note
+
+`;
+    body += `New sub-issues were created because some changes affect already-completed work.
+
+`;
+  }
+  body += `---
+`;
+  body += `**Next Steps:** Review the changes above. When ready to continue, comment \`/lfg\` to resume work.
+
+`;
+  body += `*Use \`/pivot\` again if changes don't match your intent.*`;
+  try {
+    await ctx.octokit.rest.issues.createComment({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: issueNumber,
+      body
+    });
+    core21.info(`Posted pivot summary comment on #${issueNumber}`);
+  } catch (error11) {
+    core21.warning(`Failed to post summary comment: ${error11}`);
+  }
+}
+async function postClarificationComment(ctx, issueNumber, pivotOutput) {
+  let body = `## Pivot - Clarification Needed
+
+`;
+  body += `${pivotOutput.summary_for_user}
+
+`;
+  body += `### What I Need
+
+`;
+  body += pivotOutput.clarification_needed || "Please provide more details about the changes you want to make.";
+  body += `
+
+---
+`;
+  body += `*Reply with more details, then use \`/pivot <your clarification>\` to try again.*`;
+  try {
+    await ctx.octokit.rest.issues.createComment({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: issueNumber,
+      body
+    });
+    core21.info(`Posted clarification request on #${issueNumber}`);
+  } catch (error11) {
+    core21.warning(`Failed to post clarification comment: ${error11}`);
+  }
+}
+async function postSafetyViolationComment(ctx, issueNumber, violations) {
+  let body = `## Pivot - Safety Violation
+
+`;
+  body += `The requested pivot cannot be applied because it would violate safety constraints:
+
+`;
+  body += violations.map((v3) => `- \u274C ${v3}`).join("\n");
+  body += `
+
+### Why These Constraints Exist
+
+`;
+  body += `- **Checked todos** represent completed work that should not be undone silently
+`;
+  body += `- **Closed sub-issues** represent completed phases that are immutable
+
+`;
+  body += `### What You Can Do Instead
+
+`;
+  body += `If you need to change completed work, ask for a **new sub-issue** to revert or extend it. `;
+  body += `For example: \`/pivot Create a new phase to remove the MCP configuration that was added in Phase 1\`
+
+`;
+  body += `---
+`;
+  body += `*Modify your pivot request to avoid these violations and try again.*`;
+  try {
+    await ctx.octokit.rest.issues.createComment({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: issueNumber,
+      body
+    });
+    core21.info(`Posted safety violation comment on #${issueNumber}`);
+  } catch (error11) {
+    core21.warning(`Failed to post safety violation comment: ${error11}`);
+  }
+}
+async function updateHistoryEntry2(ctx, issueNumber, outcome) {
+  try {
+    const { data: issue } = await ctx.octokit.rest.issues.get({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: issueNumber
+    });
+    let body = issue.body || "";
+    const outcomeEmoji = outcome === "changes_applied" ? "\u2705" : outcome === "needs_clarification" ? "\u2753" : "\u2796";
+    const outcomeText = outcome === "changes_applied" ? "Pivot applied" : outcome === "needs_clarification" ? "Needs clarification" : "No changes needed";
+    body = body.replace(
+      /⏳ Analyzing pivot request\.\.\./g,
+      `${outcomeEmoji} ${outcomeText}`
+    );
+    await ctx.octokit.rest.issues.update({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: issueNumber,
+      body
+    });
+  } catch (error11) {
+    core21.warning(`Failed to update history entry: ${error11}`);
   }
 }
 
 // issue/actions-ts/state-machine/runner/signaler.ts
-var core21 = __toESM(require_core(), 1);
+var core22 = __toESM(require_core(), 1);
 
 // issue/actions-ts/state-machine/runner/runner.ts
 function getOctokitForAction(action, ctx) {
@@ -49777,30 +50334,30 @@ function getOctokitForAction(action, ctx) {
 }
 function getStructuredOutput(action, chainCtx) {
   if (chainCtx?.lastClaudeStructuredOutput) {
-    core22.info("Using structured output from chain context");
+    core23.info("Using structured output from chain context");
     return chainCtx.lastClaudeStructuredOutput;
   }
   const actionWithFile = action;
   if (actionWithFile.filePath) {
-    core22.info(`Checking for structured output file: ${actionWithFile.filePath}`);
-    core22.info(`Current working directory: ${process.cwd()}`);
+    core23.info(`Checking for structured output file: ${actionWithFile.filePath}`);
+    core23.info(`Current working directory: ${process.cwd()}`);
     try {
-      const files = fs10.readdirSync(".");
-      core22.info(`Files in cwd: ${files.slice(0, 20).join(", ")}`);
+      const files = fs11.readdirSync(".");
+      core23.info(`Files in cwd: ${files.slice(0, 20).join(", ")}`);
     } catch (e2) {
-      core22.warning(`Failed to list files: ${e2}`);
+      core23.warning(`Failed to list files: ${e2}`);
     }
-    if (fs10.existsSync(actionWithFile.filePath)) {
+    if (fs11.existsSync(actionWithFile.filePath)) {
       try {
-        const content = fs10.readFileSync(actionWithFile.filePath, "utf-8");
+        const content = fs11.readFileSync(actionWithFile.filePath, "utf-8");
         const parsed = JSON.parse(content);
-        core22.info(`Loaded structured output from file: ${actionWithFile.filePath}`);
+        core23.info(`Loaded structured output from file: ${actionWithFile.filePath}`);
         return parsed;
       } catch (e2) {
-        core22.warning(`Failed to read structured output from ${actionWithFile.filePath}: ${e2}`);
+        core23.warning(`Failed to read structured output from ${actionWithFile.filePath}: ${e2}`);
       }
     } else {
-      core22.warning(`File not found: ${actionWithFile.filePath}`);
+      core23.warning(`File not found: ${actionWithFile.filePath}`);
     }
   }
   return void 0;
@@ -49826,7 +50383,7 @@ async function executeAction(action, ctx, chainCtx) {
     case "closeIssue":
       return executeCloseIssue(action, actionCtx);
     case "reopenIssue":
-      core22.info(`Reopen issue #${action.issueNumber} - handled by resetIssue`);
+      core23.info(`Reopen issue #${action.issueNumber} - handled by resetIssue`);
       return { reopened: true };
     case "resetIssue":
       return executeResetIssue(action, actionCtx);
@@ -49904,6 +50461,13 @@ async function executeAction(action, ctx, chainCtx) {
         actionCtx,
         getStructuredOutput(action, chainCtx)
       );
+    // Pivot actions
+    case "applyPivotOutput":
+      return executeApplyPivotOutput(
+        action,
+        actionCtx,
+        getStructuredOutput(action, chainCtx)
+      );
     // Agent notes actions
     case "appendAgentNotes":
       return executeAppendAgentNotes(action, actionCtx);
@@ -49952,25 +50516,25 @@ async function executeAction(action, ctx, chainCtx) {
       return executeUpdateDiscussionSummary(action, actionCtx);
     // Control flow actions
     case "stop":
-      core22.info(`Stopping: ${action.reason}`);
+      core23.info(`Stopping: ${action.reason}`);
       return { stopped: true, reason: action.reason };
     case "log":
       switch (action.level) {
         case "debug":
-          core22.debug(action.message);
+          core23.debug(action.message);
           break;
         case "warning":
-          core22.warning(action.message);
+          core23.warning(action.message);
           break;
         case "error":
-          core22.error(action.message);
+          core23.error(action.message);
           break;
         default:
-          core22.info(action.message);
+          core23.info(action.message);
       }
       return { logged: true };
     case "noop":
-      core22.debug(`No-op: ${action.reason || "no reason given"}`);
+      core23.debug(`No-op: ${action.reason || "no reason given"}`);
       return { noop: true };
     default:
       throw new Error(`Unknown action type: ${action.type}`);
@@ -49987,7 +50551,7 @@ async function executeActions(actions, ctx, options = {}) {
     const actionStartTime = Date.now();
     const parseResult = ActionSchema.safeParse(action);
     if (!parseResult.success) {
-      core22.error(`Invalid action: ${JSON.stringify(action)}`);
+      core23.error(`Invalid action: ${JSON.stringify(action)}`);
       results.push({
         action,
         success: false,
@@ -50004,10 +50568,10 @@ async function executeActions(actions, ctx, options = {}) {
     }
     const validatedAction = parseResult.data;
     if (logActions) {
-      core22.info(`Executing action: ${validatedAction.type}`);
+      core23.info(`Executing action: ${validatedAction.type}`);
     }
     if (ctx.dryRun) {
-      core22.info(`[DRY RUN] Would execute: ${validatedAction.type}`);
+      core23.info(`[DRY RUN] Would execute: ${validatedAction.type}`);
       results.push({
         action: validatedAction,
         success: true,
@@ -50022,7 +50586,7 @@ async function executeActions(actions, ctx, options = {}) {
         const claudeResult = result;
         if (claudeResult.structuredOutput) {
           chainCtx.lastClaudeStructuredOutput = claudeResult.structuredOutput;
-          core22.info("Stored structured output for subsequent actions");
+          core23.info("Stored structured output for subsequent actions");
         }
       }
       const branchResult = result;
@@ -50036,7 +50600,7 @@ async function executeActions(actions, ctx, options = {}) {
         });
         stoppedEarly = true;
         stopReason = "branch_rebased_and_pushed";
-        core22.info(
+        core23.info(
           "Stopping after branch rebase - CI will re-trigger with up-to-date branch"
         );
         break;
@@ -50053,9 +50617,9 @@ async function executeActions(actions, ctx, options = {}) {
         stopReason = validatedAction.type === "stop" ? validatedAction.reason : `${validatedAction.type} action`;
         break;
       }
-    } catch (error10) {
-      const err = error10 instanceof Error ? error10 : new Error(String(error10));
-      core22.error(`Action failed: ${validatedAction.type} - ${err.message}`);
+    } catch (error11) {
+      const err = error11 instanceof Error ? error11 : new Error(String(error11));
+      core23.error(`Action failed: ${validatedAction.type} - ${err.message}`);
       results.push({
         action: validatedAction,
         success: false,
@@ -50220,7 +50784,7 @@ var ConfigurableTestRunner = class {
     return `${this.getRepoUrl()}/actions/runs/${runId}`;
   }
   logResourceCreated(type, url) {
-    core23.info(`\u{1F4CC} Created ${type}: ${url}`);
+    core24.info(`\u{1F4CC} Created ${type}: ${url}`);
   }
   /**
    * Run the test scenario
@@ -50231,7 +50795,7 @@ var ConfigurableTestRunner = class {
     try {
       const startIndex = this.findStartIndex();
       const startingState = this.scenario.orderedStates[startIndex];
-      core23.info(`Starting at state: ${startingState} (index ${startIndex})`);
+      core24.info(`Starting at state: ${startingState} (index ${startIndex})`);
       const firstState = this.scenario.orderedStates[0];
       const firstFixture = this.scenario.fixtures.get(firstState);
       this.issueNumber = await this.createTestIssue(firstFixture);
@@ -50244,11 +50808,11 @@ var ConfigurableTestRunner = class {
         const nextState = this.scenario.orderedStates[startIndex + 1];
         const startFixture = this.scenario.fixtures.get(startState);
         await this.setupGitHubState(startFixture);
-        core23.info(`Set up GitHub state for '${startState}'`);
+        core24.info(`Set up GitHub state for '${startState}'`);
         if (nextState) {
           const nextFixture = this.scenario.fixtures.get(nextState);
           await this.applyStateTransitionSideEffects(startFixture, nextFixture);
-          core23.info(
+          core24.info(
             `Applied side effects for '${startState}' -> '${nextState}'`
           );
           this.syncFixtureWithSideEffects(startFixture, nextFixture);
@@ -50259,10 +50823,10 @@ var ConfigurableTestRunner = class {
         const nextState = this.scenario.orderedStates[i3 + 1];
         const currentFixture = this.scenario.fixtures.get(currentState);
         const nextFixture = this.scenario.fixtures.get(nextState);
-        core23.info(`
+        core24.info(`
 ${"=".repeat(60)}`);
-        core23.info(`Transition: ${currentState} -> ${nextState}`);
-        core23.info(`${"=".repeat(60)}`);
+        core24.info(`Transition: ${currentState} -> ${nextState}`);
+        core24.info(`${"=".repeat(60)}`);
         const transitionStartTime = Date.now();
         try {
           await this.applyStateTransitionSideEffects(
@@ -50281,9 +50845,9 @@ ${"=".repeat(60)}`);
           };
           transitions.push(transitionResult);
           if (verificationErrors.length > 0) {
-            core23.error(`Verification failed:`);
-            for (const error10 of verificationErrors) {
-              core23.error(`  - ${error10}`);
+            core24.error(`Verification failed:`);
+            for (const error11 of verificationErrors) {
+              core24.error(`  - ${error11}`);
             }
             return {
               status: "failed",
@@ -50293,7 +50857,7 @@ ${"=".repeat(60)}`);
               error: `Verification failed: ${verificationErrors.join("; ")}`
             };
           }
-          core23.info(`\u2713 Transition verified`);
+          core24.info(`\u2713 Transition verified`);
           if (!this.inputs.continue) {
             return {
               status: "paused",
@@ -50304,8 +50868,8 @@ ${"=".repeat(60)}`);
               totalDurationMs: Date.now() - startTime
             };
           }
-        } catch (error10) {
-          const errorMessage = error10 instanceof Error ? error10.message : String(error10);
+        } catch (error11) {
+          const errorMessage = error11 instanceof Error ? error11.message : String(error11);
           transitions.push({
             fromState: currentState,
             toState: nextState,
@@ -50328,13 +50892,13 @@ ${"=".repeat(60)}`);
         transitions,
         totalDurationMs: Date.now() - startTime
       };
-    } catch (error10) {
+    } catch (error11) {
       return {
         status: "error",
         issueNumber: this.issueNumber ?? 0,
         transitions,
         totalDurationMs: Date.now() - startTime,
-        error: error10 instanceof Error ? error10.message : String(error10)
+        error: error11 instanceof Error ? error11.message : String(error11)
       };
     }
   }
@@ -50366,7 +50930,7 @@ ${"=".repeat(60)}`);
     if (!this.inputs.multiIssue) {
       const randomIndex = Math.floor(Math.random() * SINGLE_TASK_BODIES.length);
       body = SINGLE_TASK_BODIES[randomIndex];
-      core23.info(`Single-issue mode: using task variant ${randomIndex + 1}`);
+      core24.info(`Single-issue mode: using task variant ${randomIndex + 1}`);
     }
     const response = await this.config.octokit.rest.issues.create({
       owner: this.config.owner,
@@ -50416,7 +50980,7 @@ ${"=".repeat(60)}`);
     if (!this.testBranchName) {
       throw new Error("Test branch name not set");
     }
-    core23.info(`Creating test branch: ${this.testBranchName}`);
+    core24.info(`Creating test branch: ${this.testBranchName}`);
     const { data: mainRef } = await this.config.octokit.rest.git.getRef({
       owner: this.config.owner,
       repo: this.config.repo,
@@ -50470,9 +51034,9 @@ Issue: #${this.issueNumber}
         ref: `refs/heads/${this.testBranchName}`,
         sha: commit.sha
       });
-      core23.info(`Created branch ${this.testBranchName} with initial commit`);
-    } catch (error10) {
-      if (error10 instanceof Error && error10.message.includes("Reference already exists")) {
+      core24.info(`Created branch ${this.testBranchName} with initial commit`);
+    } catch (error11) {
+      if (error11 instanceof Error && error11.message.includes("Reference already exists")) {
         await this.config.octokit.rest.git.updateRef({
           owner: this.config.owner,
           repo: this.config.repo,
@@ -50480,9 +51044,9 @@ Issue: #${this.issueNumber}
           sha: commit.sha,
           force: true
         });
-        core23.info(`Updated existing branch ${this.testBranchName}`);
+        core24.info(`Updated existing branch ${this.testBranchName}`);
       } else {
-        throw error10;
+        throw error11;
       }
     }
   }
@@ -50500,9 +51064,9 @@ Issue: #${this.issueNumber}
     const body = prSpec.body || `Test PR for scenario: ${this.scenario.name}
 
 Fixes #${this.issueNumber}`;
-    core23.info(`Creating test PR: ${title}`);
-    core23.info(`  Head: ${headRef} -> Base: ${baseRef}`);
-    core23.info(`  Draft: ${prSpec.isDraft}`);
+    core24.info(`Creating test PR: ${title}`);
+    core24.info(`  Head: ${headRef} -> Base: ${baseRef}`);
+    core24.info(`  Draft: ${prSpec.isDraft}`);
     const response = await this.config.octokit.rest.pulls.create({
       owner: this.config.owner,
       repo: this.config.repo,
@@ -50526,7 +51090,7 @@ Fixes #${this.issueNumber}`;
    * Request a review on a PR
    */
   async requestReview(prNumber, reviewer) {
-    core23.info(`Requesting review from ${reviewer} on PR #${prNumber}`);
+    core24.info(`Requesting review from ${reviewer} on PR #${prNumber}`);
     await this.config.octokit.rest.pulls.requestReviewers({
       owner: this.config.owner,
       repo: this.config.repo,
@@ -50543,13 +51107,13 @@ Fixes #${this.issueNumber}`;
    */
   async applyStateTransitionSideEffects(currentFixture, nextFixture) {
     if (!this.issueNumber) return;
-    core23.info(
+    core24.info(
       `
 Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
     );
     const needsAssignment = nextFixture.issue.assignees.includes("nopo-bot") && !currentFixture.issue.assignees.includes("nopo-bot");
     if (needsAssignment) {
-      core23.info("  \u2192 Assigning nopo-bot");
+      core24.info("  \u2192 Assigning nopo-bot");
       await this.config.octokit.rest.issues.addAssignees({
         owner: this.config.owner,
         repo: this.config.repo,
@@ -50558,17 +51122,17 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
       });
     }
     if (nextFixture.issue.pr && !this.prNumber) {
-      core23.info("  \u2192 Creating PR");
+      core24.info("  \u2192 Creating PR");
       await this.createTestPR(nextFixture.issue.pr);
     }
     if (nextFixture.state === "reviewing" || nextFixture.state === "prReviewing") {
       if (this.prNumber) {
-        core23.info("  \u2192 Requesting review");
+        core24.info("  \u2192 Requesting review");
         await this.requestReview(this.prNumber, "nopo-bot");
       }
     }
     if (nextFixture.state === "processingMerge" && this.prNumber) {
-      core23.info("  \u2192 Merging PR");
+      core24.info("  \u2192 Merging PR");
       await this.mergePR(this.prNumber);
     }
   }
@@ -50586,7 +51150,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
         ...currentFixture.issue.assignees,
         "nopo-bot"
       ];
-      core23.debug("  \u2192 Updated fixture assignees to include nopo-bot");
+      core24.debug("  \u2192 Updated fixture assignees to include nopo-bot");
     }
     if (nextFixture.issue.pr && currentFixture.issue.pr) {
       currentFixture.issue.pr = {
@@ -50611,19 +51175,19 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
           "nopo-bot"
         ];
       }
-      core23.debug(
+      core24.debug(
         "  \u2192 Synced next fixture: nopo-bot assigned for next iteration"
       );
     }
     if (this.prNumber && nextFixture.issue.pr) {
-      core23.debug("  \u2192 Synced next fixture: PR exists for next iteration");
+      core24.debug("  \u2192 Synced next fixture: PR exists for next iteration");
     }
   }
   /**
    * Merge a PR
    */
   async mergePR(prNumber) {
-    core23.info(`Merging PR #${prNumber}`);
+    core24.info(`Merging PR #${prNumber}`);
     await this.config.octokit.rest.pulls.merge({
       owner: this.config.owner,
       repo: this.config.repo,
@@ -50668,7 +51232,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
       labels: [...fixture.issue.labels, TEST_LABEL]
     });
     if (fixture.issue.assignees.includes("nopo-bot")) {
-      core23.info("  \u2192 Assigning nopo-bot (via setupGitHubState)");
+      core24.info("  \u2192 Assigning nopo-bot (via setupGitHubState)");
       await this.config.octokit.rest.issues.addAssignees({
         owner: this.config.owner,
         repo: this.config.repo,
@@ -50701,19 +51265,19 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
     }
     const mockOutput = this.inputs.mockClaude && fixture.claudeMock ? this.scenario.claudeMocks.get(fixture.claudeMock)?.output : void 0;
     const context2 = this.buildMachineContext(fixture, nextFixture);
-    core23.info(`Building machine context for state: ${fixture.state}`);
-    core23.startGroup("Machine Context");
-    core23.info(JSON.stringify(context2, null, 2));
-    core23.endGroup();
+    core24.info(`Building machine context for state: ${fixture.state}`);
+    core24.startGroup("Machine Context");
+    core24.info(JSON.stringify(context2, null, 2));
+    core24.endGroup();
     const actor = createActor(claudeMachine, { input: context2 });
     actor.start();
     const snapshot = actor.getSnapshot();
     actor.stop();
     const pendingActions = snapshot.context.pendingActions;
-    core23.info(`State machine produced ${pendingActions.length} actions`);
-    core23.info(`Target state: ${String(snapshot.value)}`);
+    core24.info(`State machine produced ${pendingActions.length} actions`);
+    core24.info(`Target state: ${String(snapshot.value)}`);
     if (pendingActions.length === 0) {
-      core23.warning("No actions to execute - state machine produced no actions");
+      core24.warning("No actions to execute - state machine produced no actions");
       return;
     }
     let mockOutputs;
@@ -50727,10 +51291,10 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
         }
       }
       if (Object.keys(mockOutputs).length > 0) {
-        core23.info(`Using mock Claude mode with ${Object.keys(mockOutputs).length} mock outputs`);
-        core23.startGroup("Mock Outputs");
-        core23.info(Object.keys(mockOutputs).join(", "));
-        core23.endGroup();
+        core24.info(`Using mock Claude mode with ${Object.keys(mockOutputs).length} mock outputs`);
+        core24.startGroup("Mock Outputs");
+        core24.info(Object.keys(mockOutputs).join(", "));
+        core24.endGroup();
       } else {
         mockOutputs = void 0;
       }
@@ -50746,7 +51310,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
         reviewOctokit: this.config.reviewOctokit
       }
     );
-    core23.info("Executing actions...");
+    core24.info("Executing actions...");
     const result = await executeActions(pendingActions, runnerCtx);
     if (!result.success) {
       const failedActions = result.results.filter(
@@ -50756,7 +51320,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
         `Action execution failed: ${failedActions.map((r3) => r3.error?.message).join(", ")}`
       );
     }
-    core23.info(
+    core24.info(
       `Executed ${result.results.filter((r3) => !r3.skipped).length} actions successfully`
     );
     const statesThatTriggerCI = ["iterating", "iteratingFix"];
@@ -50879,7 +51443,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
     const branch = this.testBranchName;
     if (this.inputs.mockCI) {
       const mockResult = result === "success" ? "pass" : "fail";
-      core23.info(
+      core24.info(
         `Triggering mock CI with result: ${mockResult} on branch ${branch}`
       );
       await exec13.exec("gh", [
@@ -50892,7 +51456,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
         `mock=${mockResult}`
       ]);
     } else {
-      core23.info("Waiting for real CI...");
+      core24.info("Waiting for real CI...");
     }
     await this.waitForCI();
   }
@@ -50905,7 +51469,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
     const pollIntervalMs = 1e4;
     const startTime = Date.now();
     let ciRunId = null;
-    core23.info(
+    core24.info(
       `Waiting for CI workflow to complete on branch ${this.testBranchName}...`
     );
     while (Date.now() - startTime < maxWaitMs) {
@@ -50928,15 +51492,15 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
           );
         }
         if (matchingRun.status === "completed") {
-          core23.info(`CI completed with conclusion: ${matchingRun.conclusion}`);
-          core23.info(`\u{1F4CC} CI Run: ${this.getWorkflowRunUrl(matchingRun.id)}`);
+          core24.info(`CI completed with conclusion: ${matchingRun.conclusion}`);
+          core24.info(`\u{1F4CC} CI Run: ${this.getWorkflowRunUrl(matchingRun.id)}`);
           return;
         }
-        core23.info(
+        core24.info(
           `CI status: ${matchingRun.status} (run ${matchingRun.id}), waiting...`
         );
       } else {
-        core23.info("No CI run found yet, waiting...");
+        core24.info("No CI run found yet, waiting...");
       }
       await new Promise((resolve2) => setTimeout(resolve2, pollIntervalMs));
     }
@@ -50977,9 +51541,9 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
       hasTriagedLabel: state.labels.includes("triaged"),
       hasGroomedLabel: state.labels.includes("groomed")
     };
-    core23.info(`
+    core24.info(`
 State Verification:`);
-    core23.info(`${"\u2500".repeat(60)}`);
+    core24.info(`${"\u2500".repeat(60)}`);
     const errors = [];
     const diffLines = [];
     for (const key of Object.keys(expectedFields)) {
@@ -50996,30 +51560,30 @@ State Verification:`);
         );
       }
     }
-    core23.info(`{`);
+    core24.info(`{`);
     for (const line of diffLines) {
       if (line.startsWith("-")) {
-        core23.info(`\x1B[31m${line}\x1B[0m`);
+        core24.info(`\x1B[31m${line}\x1B[0m`);
       } else if (line.startsWith("+")) {
-        core23.info(`\x1B[32m${line}\x1B[0m`);
+        core24.info(`\x1B[32m${line}\x1B[0m`);
       } else {
-        core23.info(line);
+        core24.info(line);
       }
     }
-    core23.info(`}`);
-    core23.info(`${"\u2500".repeat(60)}`);
+    core24.info(`}`);
+    core24.info(`${"\u2500".repeat(60)}`);
     if (errors.length > 0) {
-      core23.info(`
+      core24.info(`
 \u274C ${errors.length} field(s) differ`);
     } else {
-      core23.info(`
+      core24.info(`
 \u2705 All fields match`);
     }
     const expectedHistory = expected.issue.history;
     if (expectedHistory && expectedHistory.length > 0) {
-      core23.info(`
+      core24.info(`
 History Verification:`);
-      core23.info(`${"\u2500".repeat(60)}`);
+      core24.info(`${"\u2500".repeat(60)}`);
       const actualActions = state.history.map((h3) => h3.action);
       const missingActions = [];
       for (const expectedEntry of expectedHistory) {
@@ -51028,26 +51592,26 @@ History Verification:`);
           (action) => action.includes(expectedAction)
         );
         if (found) {
-          core23.info(`  \u2713 Found: "${expectedAction}"`);
+          core24.info(`  \u2713 Found: "${expectedAction}"`);
         } else {
-          core23.info(`  \u2717 Missing: "${expectedAction}"`);
+          core24.info(`  \u2717 Missing: "${expectedAction}"`);
           missingActions.push(expectedAction);
         }
       }
       if (missingActions.length > 0) {
-        core23.info(
+        core24.info(
           `
 Actual history actions (${state.history.length} entries):`
         );
         for (const entry of state.history) {
-          core23.info(`  [${entry.iteration}/${entry.phase}] ${entry.action}`);
+          core24.info(`  [${entry.iteration}/${entry.phase}] ${entry.action}`);
         }
         errors.push(`Missing history actions: ${missingActions.join(", ")}`);
       } else {
-        core23.info(`
+        core24.info(`
 \u2705 All expected history entries found`);
       }
-      core23.info(`${"\u2500".repeat(60)}`);
+      core24.info(`${"\u2500".repeat(60)}`);
     }
     return errors;
   }
@@ -51055,7 +51619,7 @@ Actual history actions (${state.history.length} entries):`
    * Create a sub-issue with optional branch and PR
    */
   async createSubIssue(subIssue) {
-    core23.info(`Creating sub-issue: ${subIssue.title}`);
+    core24.info(`Creating sub-issue: ${subIssue.title}`);
     const response = await this.config.octokit.rest.issues.create({
       owner: this.config.owner,
       repo: this.config.repo,
@@ -51065,7 +51629,7 @@ Actual history actions (${state.history.length} entries):`
     });
     const issueNumber = response.data.number;
     this.subIssueNumbers.set(subIssue.title, issueNumber);
-    core23.info(`Created sub-issue #${issueNumber}`);
+    core24.info(`Created sub-issue #${issueNumber}`);
     if (subIssue.projectStatus) {
       await this.setProjectField(issueNumber, "Status", subIssue.projectStatus);
     }
@@ -51095,7 +51659,7 @@ Sub-issue PR for test scenario.`
    * Create a branch for a sub-issue
    */
   async createBranchForSubIssue(branchName, issueNumber) {
-    core23.info(`Creating branch for sub-issue #${issueNumber}: ${branchName}`);
+    core24.info(`Creating branch for sub-issue #${issueNumber}: ${branchName}`);
     const { data: mainRef } = await this.config.octokit.rest.git.getRef({
       owner: this.config.owner,
       repo: this.config.repo,
@@ -51144,9 +51708,9 @@ Sub-issue PR for test scenario.`
         ref: `refs/heads/${branchName}`,
         sha: commit.sha
       });
-      core23.info(`Created branch ${branchName}`);
-    } catch (error10) {
-      if (error10 instanceof Error && error10.message.includes("Reference already exists")) {
+      core24.info(`Created branch ${branchName}`);
+    } catch (error11) {
+      if (error11 instanceof Error && error11.message.includes("Reference already exists")) {
         await this.config.octokit.rest.git.updateRef({
           owner: this.config.owner,
           repo: this.config.repo,
@@ -51154,9 +51718,9 @@ Sub-issue PR for test scenario.`
           sha: commit.sha,
           force: true
         });
-        core23.info(`Updated existing branch ${branchName}`);
+        core24.info(`Updated existing branch ${branchName}`);
       } else {
-        throw error10;
+        throw error11;
       }
     }
   }
@@ -51165,7 +51729,7 @@ Sub-issue PR for test scenario.`
    */
   async linkSubIssueToParent(subIssueNumber) {
     if (!this.issueNumber) return;
-    core23.info(
+    core24.info(
       `Linking sub-issue #${subIssueNumber} to parent #${this.issueNumber}`
     );
     const { data: subIssue } = await this.config.octokit.rest.issues.get({
@@ -51189,7 +51753,7 @@ ${subIssue.body || ""}`
    * Set a project field on an issue
    */
   async setProjectField(issueNumber, field, value) {
-    core23.info(`Setting ${field}=${value} on issue #${issueNumber}`);
+    core24.info(`Setting ${field}=${value} on issue #${issueNumber}`);
     const response = await this.config.octokit.graphql(
       GET_PROJECT_ITEM_QUERY2,
       {
@@ -51213,16 +51777,16 @@ ${subIssue.body || ""}`
       this.config.projectNumber
     );
     if (!itemId) {
-      core23.info(`Adding issue #${issueNumber} to project`);
+      core24.info(`Adding issue #${issueNumber} to project`);
       try {
         const addResult = await this.config.octokit.graphql(ADD_ISSUE_TO_PROJECT_MUTATION3, {
           projectId: projectFields.projectId,
           contentId: issue.id
         });
         itemId = addResult.addProjectV2ItemById?.item?.id || null;
-      } catch (error10) {
-        if (error10 instanceof Error && error10.message.includes("Content already exists")) {
-          core23.info("Issue already in project, refetching item ID...");
+      } catch (error11) {
+        if (error11 instanceof Error && error11.message.includes("Content already exists")) {
+          core24.info("Issue already in project, refetching item ID...");
           const refetchResponse = await this.config.octokit.graphql(
             GET_PROJECT_ITEM_QUERY2,
             {
@@ -51238,7 +51802,7 @@ ${subIssue.body || ""}`
             this.config.projectNumber
           );
         } else {
-          throw error10;
+          throw error11;
         }
       }
       if (!itemId) {
@@ -51272,7 +51836,7 @@ ${subIssue.body || ""}`
       fieldId,
       value: fieldValue
     });
-    core23.info(`Set ${field}=${value} on issue #${issueNumber}`);
+    core24.info(`Set ${field}=${value} on issue #${issueNumber}`);
   }
   /**
    * Parse project fields from GraphQL response
@@ -51458,9 +52022,9 @@ var _DiscussionTestResultSchema = external_exports.object({
 });
 
 // issue/actions-ts/test-runner/src/configurable/discussion-loader.ts
-var fs11 = __toESM(require("fs"), 1);
+var fs12 = __toESM(require("fs"), 1);
 var path3 = __toESM(require("path"), 1);
-var core24 = __toESM(require_core(), 1);
+var core25 = __toESM(require_core(), 1);
 var FIXTURES_BASE_PATH2 = ".github/statemachine/discussion/fixtures";
 var DISCUSSION_SCENARIOS_DIR = "scenarios";
 var CLAUDE_MOCKS_DIR2 = "mocks";
@@ -51473,18 +52037,18 @@ async function loadDiscussionScenario(scenarioName, basePath = FIXTURES_BASE_PAT
     scenarioName
   );
   const configPath = path3.join(scenarioDir, SCENARIO_CONFIG_FILE2);
-  if (!fs11.existsSync(configPath)) {
+  if (!fs12.existsSync(configPath)) {
     throw new Error(
       `Discussion scenario config not found: ${configPath}. Create a scenario.json file with name and description.`
     );
   }
-  const configContent = fs11.readFileSync(configPath, "utf-8");
+  const configContent = fs12.readFileSync(configPath, "utf-8");
   const configJson = JSON.parse(configContent);
   const config = DiscussionScenarioConfigSchema.parse(configJson);
-  core24.info(`Loading discussion scenario: ${config.name}`);
-  core24.info(`Description: ${config.description}`);
+  core25.info(`Loading discussion scenario: ${config.name}`);
+  core25.info(`Description: ${config.description}`);
   const statesDir = path3.join(scenarioDir, STATES_DIR2);
-  if (!fs11.existsSync(statesDir)) {
+  if (!fs12.existsSync(statesDir)) {
     throw new Error(
       `States directory not found: ${statesDir}. Create a states/ directory with fixture files.`
     );
@@ -51495,9 +52059,9 @@ async function loadDiscussionScenario(scenarioName, basePath = FIXTURES_BASE_PAT
       `Discussion scenario must have at least 1 state fixture (got ${orderedStates.length}).`
     );
   }
-  core24.info(`Loaded ${orderedStates.length} state fixtures`);
+  core25.info(`Loaded ${orderedStates.length} state fixtures`);
   const claudeMocks = await loadReferencedMocks2(fixtures, basePath);
-  core24.info(`Loaded ${claudeMocks.size} Claude mocks`);
+  core25.info(`Loaded ${claudeMocks.size} Claude mocks`);
   return {
     name: config.name,
     description: config.description,
@@ -51508,18 +52072,18 @@ async function loadDiscussionScenario(scenarioName, basePath = FIXTURES_BASE_PAT
   };
 }
 async function loadDiscussionStateFixtures(statesDir) {
-  const files = fs11.readdirSync(statesDir).filter((f) => f.endsWith(".json")).sort();
+  const files = fs12.readdirSync(statesDir).filter((f) => f.endsWith(".json")).sort();
   const orderedStates = [];
   const fixtures = /* @__PURE__ */ new Map();
   for (const file of files) {
     const filePath = path3.join(statesDir, file);
-    const content = fs11.readFileSync(filePath, "utf-8");
+    const content = fs12.readFileSync(filePath, "utf-8");
     let json;
     try {
       json = JSON.parse(content);
-    } catch (error10) {
+    } catch (error11) {
       throw new Error(
-        `Invalid JSON in ${file}: ${error10 instanceof Error ? error10.message : error10}`
+        `Invalid JSON in ${file}: ${error11 instanceof Error ? error11.message : error11}`
       );
     }
     const parseResult = DiscussionStateFixtureSchema.safeParse(json);
@@ -51536,7 +52100,7 @@ ${errors}`);
     }
     orderedStates.push(fixture.state);
     fixtures.set(fixture.state, fixture);
-    core24.debug(`  Loaded: ${file} -> state '${fixture.state}'`);
+    core25.debug(`  Loaded: ${file} -> state '${fixture.state}'`);
   }
   return { orderedStates, fixtures };
 }
@@ -51547,18 +52111,18 @@ async function loadReferencedMocks2(fixtures, basePath) {
     if (!fixture.claudeMock) continue;
     if (claudeMocks.has(fixture.claudeMock)) continue;
     const mockPath = path3.join(mocksDir, `${fixture.claudeMock}.json`);
-    if (!fs11.existsSync(mockPath)) {
+    if (!fs12.existsSync(mockPath)) {
       throw new Error(
         `Claude mock not found: ${mockPath} (referenced by state '${state}')`
       );
     }
-    const content = fs11.readFileSync(mockPath, "utf-8");
+    const content = fs12.readFileSync(mockPath, "utf-8");
     let json;
     try {
       json = JSON.parse(content);
-    } catch (error10) {
+    } catch (error11) {
       throw new Error(
-        `Invalid JSON in ${mockPath}: ${error10 instanceof Error ? error10.message : error10}`
+        `Invalid JSON in ${mockPath}: ${error11 instanceof Error ? error11.message : error11}`
       );
     }
     const parseResult = DiscussionClaudeMockSchema.safeParse(json);
@@ -51568,13 +52132,13 @@ async function loadReferencedMocks2(fixtures, basePath) {
 ${errors}`);
     }
     claudeMocks.set(fixture.claudeMock, parseResult.data);
-    core24.debug(`  Loaded mock: ${fixture.claudeMock}`);
+    core25.debug(`  Loaded mock: ${fixture.claudeMock}`);
   }
   return claudeMocks;
 }
 
 // issue/actions-ts/test-runner/src/configurable/discussion-runner.ts
-var core29 = __toESM(require_core(), 1);
+var core30 = __toESM(require_core(), 1);
 
 // discussion/actions-ts/state-machine/schemas/triggers.ts
 var DiscussionTriggerTypeSchema = external_exports.enum([
@@ -52215,17 +52779,17 @@ var discussionMachine = setup({
 });
 
 // discussion/actions-ts/state-machine/runner/runner.ts
-var core27 = __toESM(require_core(), 1);
+var core28 = __toESM(require_core(), 1);
 var github = __toESM(require_github(), 1);
 
 // discussion/actions-ts/state-machine/runner/executors/discussions.ts
-var core25 = __toESM(require_core(), 1);
-
-// discussion/actions-ts/state-machine/runner/executors/discussion-apply.ts
 var core26 = __toESM(require_core(), 1);
 
+// discussion/actions-ts/state-machine/runner/executors/discussion-apply.ts
+var core27 = __toESM(require_core(), 1);
+
 // discussion/actions-ts/state-machine/context-builder.ts
-var core28 = __toESM(require_core(), 1);
+var core29 = __toESM(require_core(), 1);
 var github2 = __toESM(require_github(), 1);
 
 // issue/actions-ts/test-runner/src/configurable/discussion-runner.ts
@@ -52319,7 +52883,7 @@ var DiscussionConfigurableTestRunner = class {
     return `${this.getRepoUrl()}/discussions/${discussionNumber}`;
   }
   logResourceCreated(type, url) {
-    core29.info(`\u{1F4CC} Created ${type}: ${url}`);
+    core30.info(`\u{1F4CC} Created ${type}: ${url}`);
   }
   /**
    * Run the discussion test scenario
@@ -52339,20 +52903,20 @@ var DiscussionConfigurableTestRunner = class {
         await this.addTriggeringComment(firstFixture);
       }
       const context2 = this.buildMachineContext(firstFixture);
-      core29.info(`Building machine context for state: ${firstFixture.state}`);
-      core29.startGroup("Machine Context");
-      core29.info(JSON.stringify(context2, null, 2));
-      core29.endGroup();
+      core30.info(`Building machine context for state: ${firstFixture.state}`);
+      core30.startGroup("Machine Context");
+      core30.info(JSON.stringify(context2, null, 2));
+      core30.endGroup();
       const actor = createActor(discussionMachine, { input: context2 });
       actor.start();
       const snapshot = actor.getSnapshot();
       actor.stop();
       const pendingActions = snapshot.context.pendingActions;
       const finalState = String(snapshot.value);
-      core29.info(`State machine produced ${pendingActions.length} actions`);
-      core29.info(`Final state: ${finalState}`);
+      core30.info(`State machine produced ${pendingActions.length} actions`);
+      core30.info(`Final state: ${finalState}`);
       if (pendingActions.length === 0) {
-        core29.warning(
+        core30.warning(
           "No actions to execute - state machine produced no actions"
         );
         return {
@@ -52366,12 +52930,12 @@ var DiscussionConfigurableTestRunner = class {
       const mockOutput = this.inputs.mockClaude && firstFixture.claudeMock ? this.scenario.claudeMocks.get(firstFixture.claudeMock)?.output : void 0;
       const mockOutputs = mockOutput && firstFixture.claudeMock ? { [this.getPromptDirFromMock(firstFixture.claudeMock)]: mockOutput } : void 0;
       if (this.inputs.mockClaude && mockOutputs) {
-        core29.info(
+        core30.info(
           `Using mock Claude mode with output: ${firstFixture.claudeMock}`
         );
-        core29.startGroup("Mock Output");
-        core29.info(JSON.stringify(mockOutput, null, 2));
-        core29.endGroup();
+        core30.startGroup("Mock Output");
+        core30.info(JSON.stringify(mockOutput, null, 2));
+        core30.endGroup();
       }
       const runnerCtx = createRunnerContext(
         this.config.octokit,
@@ -52383,7 +52947,7 @@ var DiscussionConfigurableTestRunner = class {
           mockOutputs
         }
       );
-      core29.info("Executing actions...");
+      core30.info("Executing actions...");
       const result = await executeActions(pendingActions, runnerCtx);
       if (!result.success) {
         const failedActions = result.results.filter(
@@ -52394,12 +52958,12 @@ var DiscussionConfigurableTestRunner = class {
         );
       }
       const actionsExecuted = result.results.filter((r3) => !r3.skipped).length;
-      core29.info(`Executed ${actionsExecuted} actions successfully`);
+      core30.info(`Executed ${actionsExecuted} actions successfully`);
       const verificationErrors = await this.verifyExpectedOutcomes(firstFixture);
       if (verificationErrors.length > 0) {
-        core29.error(`Verification failed:`);
-        for (const error10 of verificationErrors) {
-          core29.error(`  - ${error10}`);
+        core30.error(`Verification failed:`);
+        for (const error11 of verificationErrors) {
+          core30.error(`  - ${error11}`);
         }
         return {
           status: "failed",
@@ -52410,7 +52974,7 @@ var DiscussionConfigurableTestRunner = class {
           verificationErrors
         };
       }
-      core29.info(`\u2713 All verifications passed`);
+      core30.info(`\u2713 All verifications passed`);
       return {
         status: "completed",
         discussionNumber: this.discussionNumber,
@@ -52418,14 +52982,14 @@ var DiscussionConfigurableTestRunner = class {
         actionsExecuted,
         totalDurationMs: Date.now() - startTime
       };
-    } catch (error10) {
+    } catch (error11) {
       return {
         status: "error",
         discussionNumber: this.discussionNumber ?? 0,
         finalState: "noContext",
         actionsExecuted: 0,
         totalDurationMs: Date.now() - startTime,
-        error: error10 instanceof Error ? error10.message : String(error10)
+        error: error11 instanceof Error ? error11.message : String(error11)
       };
     }
   }
@@ -52454,10 +53018,10 @@ var DiscussionConfigurableTestRunner = class {
         throw new Error("No discussion categories found in repository");
       }
       this.categoryId = defaultCategory.id;
-      core29.info(`Using default category: ${defaultCategory.name}`);
+      core30.info(`Using default category: ${defaultCategory.name}`);
     } else {
       this.categoryId = category.id;
-      core29.info(`Using category: ${category.name}`);
+      core30.info(`Using category: ${category.name}`);
     }
   }
   /**
@@ -52493,7 +53057,7 @@ _Test discussion for scenario: ${this.scenario.name}_`;
       throw new Error("Discussion not created yet");
     }
     const commentBody = fixture.trigger === "discussion_command" ? fixture.discussion.command ?? "/summarize" : fixture.discussion.commentBody ?? "Test comment";
-    core29.info(`Adding triggering comment: ${commentBody}`);
+    core30.info(`Adding triggering comment: ${commentBody}`);
     const response = await this.config.octokit.graphql(
       ADD_DISCUSSION_COMMENT_MUTATION3,
       {
@@ -52628,15 +53192,15 @@ _Test discussion for scenario: ${this.scenario.name}_`;
         }
       }
     }
-    core29.info(`
+    core30.info(`
 Verification Results:`);
-    core29.info(`${"\u2500".repeat(60)}`);
+    core30.info(`${"\u2500".repeat(60)}`);
     if (errors.length === 0) {
-      core29.info(`\u2705 All checks passed`);
+      core30.info(`\u2705 All checks passed`);
     } else {
-      core29.info(`\u274C ${errors.length} check(s) failed`);
+      core30.info(`\u274C ${errors.length} check(s) failed`);
     }
-    core29.info(`${"\u2500".repeat(60)}`);
+    core30.info(`${"\u2500".repeat(60)}`);
     return errors;
   }
 };
@@ -52647,7 +53211,7 @@ async function runDiscussionConfigurableTest(scenario, inputs, config) {
 
 // issue/actions-ts/test-runner/index.ts
 async function triggerCleanup(octokit, owner, repo, issueNumber) {
-  core30.info(`Triggering cleanup for issue #${issueNumber}`);
+  core31.info(`Triggering cleanup for issue #${issueNumber}`);
   try {
     await octokit.rest.actions.createWorkflowDispatch({
       owner,
@@ -52659,10 +53223,10 @@ async function triggerCleanup(octokit, owner, repo, issueNumber) {
         action: "cleanup"
       }
     });
-    core30.info("Cleanup workflow triggered");
-  } catch (error10) {
-    core30.warning(`Could not trigger cleanup workflow: ${error10}`);
-    core30.info("Attempting direct close via API...");
+    core31.info("Cleanup workflow triggered");
+  } catch (error11) {
+    core31.warning(`Could not trigger cleanup workflow: ${error11}`);
+    core31.info("Attempting direct close via API...");
     try {
       await octokit.rest.issues.update({
         owner,
@@ -52671,9 +53235,9 @@ async function triggerCleanup(octokit, owner, repo, issueNumber) {
         state: "closed",
         state_reason: "not_planned"
       });
-      core30.info(`Closed issue #${issueNumber} directly`);
+      core31.info(`Closed issue #${issueNumber} directly`);
     } catch (closeError) {
-      core30.warning(`Failed to close issue: ${closeError}`);
+      core31.warning(`Failed to close issue: ${closeError}`);
     }
   }
 }
@@ -52695,10 +53259,10 @@ async function run() {
       const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
       const fixtureJson = getOptionalInput("fixture_json");
       const fixture = fixtureJson ? JSON.parse(fixtureJson) : { name: "manual", description: "Manual test run" };
-      core30.info(`=== Claude Test Runner ===`);
-      core30.info(`Action: run`);
-      core30.info(`Issue: #${issueNumber}`);
-      core30.info(`Fixture: ${fixture.name}`);
+      core31.info(`=== Claude Test Runner ===`);
+      core31.info(`Action: run`);
+      core31.info(`Issue: #${issueNumber}`);
+      core31.info(`Fixture: ${fixture.name}`);
       const result = await runTest({
         fixture,
         issueNumber,
@@ -52715,14 +53279,14 @@ async function run() {
         total_duration_ms: String(result.totalDurationMs)
       });
       if (result.status !== "done") {
-        core30.warning(`Test failed: ${result.diagnosis}`);
-        core30.warning(`Suggested fix: ${result.suggestedFix}`);
+        core31.warning(`Test failed: ${result.diagnosis}`);
+        core31.warning(`Suggested fix: ${result.suggestedFix}`);
         if (cleanupOnFailure) {
           await triggerCleanup(octokit, owner, repo, issueNumber);
         }
-        core30.setFailed(`Test failed: ${result.diagnosis}`);
+        core31.setFailed(`Test failed: ${result.diagnosis}`);
       } else {
-        core30.info(`Test passed! Completed ${result.phases.length} phases`);
+        core31.info(`Test passed! Completed ${result.phases.length} phases`);
       }
       return;
     }
@@ -52730,9 +53294,9 @@ async function run() {
       const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
       const fixtureJson = getOptionalInput("fixture_json");
       const fixture = fixtureJson ? JSON.parse(fixtureJson) : { name: "manual", description: "Manual diagnosis" };
-      core30.info(`=== Claude Test Runner ===`);
-      core30.info(`Action: diagnose`);
-      core30.info(`Issue: #${issueNumber}`);
+      core31.info(`=== Claude Test Runner ===`);
+      core31.info(`Action: diagnose`);
+      core31.info(`Issue: #${issueNumber}`);
       const result = await diagnose({
         fixture,
         issueNumber,
@@ -52748,14 +53312,14 @@ async function run() {
         phases_completed: "0",
         total_duration_ms: String(result.totalDurationMs)
       });
-      core30.info(`
+      core31.info(`
 Diagnosis Result:`);
-      core30.info(`Status: ${result.status}`);
+      core31.info(`Status: ${result.status}`);
       if (result.suggestedFix) {
-        core30.info(`Suggested Fix: ${result.suggestedFix}`);
+        core31.info(`Suggested Fix: ${result.suggestedFix}`);
       }
       if (result.diagnosis) {
-        core30.info(`Diagnosis: ${result.diagnosis}`);
+        core31.info(`Diagnosis: ${result.diagnosis}`);
       }
       return;
     }
@@ -52768,10 +53332,10 @@ Diagnosis Result:`);
         description: "Wait for status",
         timeout: parseInt(getOptionalInput("timeout") || "300", 10)
       };
-      core30.info(`=== Claude Test Runner ===`);
-      core30.info(`Action: wait`);
-      core30.info(`Issue: #${issueNumber}`);
-      core30.info(`Target Status: ${targetStatus}`);
+      core31.info(`=== Claude Test Runner ===`);
+      core31.info(`Action: wait`);
+      core31.info(`Issue: #${issueNumber}`);
+      core31.info(`Target Status: ${targetStatus}`);
       const result = await waitForStatus(
         {
           fixture,
@@ -52794,11 +53358,11 @@ Diagnosis Result:`);
         if (cleanupOnFailure) {
           await triggerCleanup(octokit, owner, repo, issueNumber);
         }
-        core30.setFailed(
+        core31.setFailed(
           `Failed to reach status '${targetStatus}': ${result.diagnosis}`
         );
       } else {
-        core30.info(`Issue reached status '${targetStatus}'`);
+        core31.info(`Issue reached status '${targetStatus}'`);
       }
       return;
     }
@@ -52808,9 +53372,9 @@ Diagnosis Result:`);
       const timeoutMs = parseInt(getOptionalInput("timeout") || "300", 10) * 1e3;
       const pollIntervalMs = parseInt(getOptionalInput("poll_interval") || "10", 10) * 1e3;
       const fixture = fixtureJson ? JSON.parse(fixtureJson) : { name: "wait-triage", description: "Wait for triage" };
-      core30.info(`=== Claude Test Runner ===`);
-      core30.info(`Action: wait-triage`);
-      core30.info(`Issue: #${issueNumber}`);
+      core31.info(`=== Claude Test Runner ===`);
+      core31.info(`Action: wait-triage`);
+      core31.info(`Issue: #${issueNumber}`);
       const result = await waitForTriage({
         octokit,
         owner,
@@ -52833,11 +53397,11 @@ Diagnosis Result:`);
         if (cleanupOnFailure) {
           await triggerCleanup(octokit, owner, repo, issueNumber);
         }
-        core30.setFailed(
+        core31.setFailed(
           `Triage verification failed: ${result.errors.join("; ")}`
         );
       } else {
-        core30.info("Triage completed and verified successfully");
+        core31.info("Triage completed and verified successfully");
       }
       return;
     }
@@ -52858,12 +53422,12 @@ Diagnosis Result:`);
           review: ["approved"]
         }
       } : void 0;
-      core30.info(`=== Claude Test Runner ===`);
-      core30.info(`Action: wait-phase`);
-      core30.info(`Issue: #${issueNumber}`);
-      core30.info(`Phase: ${phaseNumber}`);
+      core31.info(`=== Claude Test Runner ===`);
+      core31.info(`Action: wait-phase`);
+      core31.info(`Issue: #${issueNumber}`);
+      core31.info(`Phase: ${phaseNumber}`);
       if (e2eConfig) {
-        core30.info(`E2E Run ID: ${e2eConfig.runId}`);
+        core31.info(`E2E Run ID: ${e2eConfig.runId}`);
       }
       const result = await waitForPhase({
         octokit,
@@ -52893,19 +53457,19 @@ Diagnosis Result:`);
         if (cleanupOnFailure) {
           await triggerCleanup(octokit, owner, repo, issueNumber);
         }
-        core30.setFailed(
+        core31.setFailed(
           `Phase ${phaseNumber} verification failed: ${result.errors.join("; ")}`
         );
       } else {
-        core30.info(`Phase ${phaseNumber} completed and verified successfully`);
+        core31.info(`Phase ${phaseNumber} completed and verified successfully`);
       }
       return;
     }
     if (action === "status") {
       const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
-      core30.info(`=== Claude Test Runner ===`);
-      core30.info(`Action: status`);
-      core30.info(`Issue: #${issueNumber}`);
+      core31.info(`=== Claude Test Runner ===`);
+      core31.info(`Action: status`);
+      core31.info(`Issue: #${issueNumber}`);
       const state = await fetchGitHubState(
         octokit,
         owner,
@@ -52934,45 +53498,45 @@ Diagnosis Result:`);
         predicted_status: predicted.expectedStatus || "",
         workflow_status: workflowRuns.length > 0 ? workflowRuns[0]?.status || "unknown" : "none"
       });
-      core30.info(`
+      core31.info(`
 Current State:`);
-      core30.info(`  Status: ${state.projectStatus || "unknown"}`);
-      core30.info(`  Iteration: ${state.iteration}`);
-      core30.info(`  Failures: ${state.failures}`);
-      core30.info(`  Bot Assigned: ${state.botAssigned}`);
-      core30.info(
+      core31.info(`  Status: ${state.projectStatus || "unknown"}`);
+      core31.info(`  Iteration: ${state.iteration}`);
+      core31.info(`  Failures: ${state.failures}`);
+      core31.info(`  Bot Assigned: ${state.botAssigned}`);
+      core31.info(
         `  PR: ${state.prNumber ? `#${state.prNumber} (${state.prState})` : "none"}`
       );
-      core30.info(`  Branch: ${state.branch || "none"}`);
-      core30.info(`  Unchecked Todos: ${state.uncheckedTodos}`);
-      core30.info(`
+      core31.info(`  Branch: ${state.branch || "none"}`);
+      core31.info(`  Unchecked Todos: ${state.uncheckedTodos}`);
+      core31.info(`
 Prediction:`);
-      core30.info(`  Expected State: ${predicted.expectedState}`);
-      core30.info(
+      core31.info(`  Expected State: ${predicted.expectedState}`);
+      core31.info(
         `  Expected Status: ${predicted.expectedStatus || "unchanged"}`
       );
-      core30.info(`  Description: ${predicted.description}`);
+      core31.info(`  Description: ${predicted.description}`);
       return;
     }
     if (action === "validate") {
       const fixtureJson = getRequiredInput("fixture_json");
-      core30.info(`=== Claude Test Runner ===`);
-      core30.info(`Action: validate`);
+      core31.info(`=== Claude Test Runner ===`);
+      core31.info(`Action: validate`);
       let fixture;
       try {
         fixture = JSON.parse(fixtureJson);
-      } catch (error10) {
-        core30.setFailed(`Invalid JSON: ${error10}`);
+      } catch (error11) {
+        core31.setFailed(`Invalid JSON: ${error11}`);
         setOutputs({
           valid: "false",
-          errors: `Invalid JSON: ${error10}`,
+          errors: `Invalid JSON: ${error11}`,
           warnings: ""
         });
         return;
       }
       const result = validateFixture(fixture);
       const formatted = formatValidationResult("fixture", result);
-      core30.info(`
+      core31.info(`
 ${formatted}`);
       setOutputs({
         valid: String(result.valid),
@@ -52980,7 +53544,7 @@ ${formatted}`);
         warnings: result.warnings.join("; ")
       });
       if (!result.valid) {
-        core30.setFailed(`Fixture validation failed`);
+        core31.setFailed(`Fixture validation failed`);
       }
       return;
     }
@@ -52991,15 +53555,15 @@ ${formatted}`);
       const mockCI = getOptionalInput("mock_ci") !== "false";
       const startStep = getOptionalInput("start_step");
       const multiIssue = getOptionalInput("multi_issue") !== "false";
-      core30.info(`=== Claude Test Runner ===`);
-      core30.info(`Action: run-configurable`);
-      core30.info(`Scenario: ${scenarioName}`);
-      core30.info(`Continue: ${continueRun}`);
-      core30.info(`Mock Claude: ${mockClaude}`);
-      core30.info(`Mock CI: ${mockCI}`);
-      core30.info(`Multi Issue: ${multiIssue}`);
+      core31.info(`=== Claude Test Runner ===`);
+      core31.info(`Action: run-configurable`);
+      core31.info(`Scenario: ${scenarioName}`);
+      core31.info(`Continue: ${continueRun}`);
+      core31.info(`Mock Claude: ${mockClaude}`);
+      core31.info(`Mock CI: ${mockCI}`);
+      core31.info(`Multi Issue: ${multiIssue}`);
       if (startStep) {
-        core30.info(`Start Step: ${startStep}`);
+        core31.info(`Start Step: ${startStep}`);
       }
       const scenario = await loadScenario(scenarioName);
       const inputs = {
@@ -53026,13 +53590,13 @@ ${formatted}`);
         error: result.error || ""
       });
       if (result.status === "failed" || result.status === "error") {
-        core30.setFailed(`Test ${result.status}: ${result.error}`);
+        core31.setFailed(`Test ${result.status}: ${result.error}`);
       } else if (result.status === "completed") {
-        core30.info(
+        core31.info(
           `Test completed successfully with ${result.transitions.length} transitions`
         );
       } else if (result.status === "paused") {
-        core30.info(
+        core31.info(
           `Test paused at ${result.currentState} -> ${result.nextState}`
         );
       }
@@ -53041,10 +53605,10 @@ ${formatted}`);
     if (action === "run-discussion") {
       const scenarioName = getRequiredInput("scenario_name");
       const mockClaude = getOptionalInput("mock_claude") !== "false";
-      core30.info(`=== Claude Test Runner ===`);
-      core30.info(`Action: run-discussion`);
-      core30.info(`Scenario: ${scenarioName}`);
-      core30.info(`Mock Claude: ${mockClaude}`);
+      core31.info(`=== Claude Test Runner ===`);
+      core31.info(`Action: run-discussion`);
+      core31.info(`Scenario: ${scenarioName}`);
+      core31.info(`Mock Claude: ${mockClaude}`);
       const scenario = await loadDiscussionScenario(scenarioName);
       const inputs = {
         mockClaude
@@ -53065,22 +53629,22 @@ ${formatted}`);
         error: result.error || ""
       });
       if (result.status === "failed" || result.status === "error") {
-        core30.setFailed(
+        core31.setFailed(
           `Discussion test ${result.status}: ${result.error || result.verificationErrors?.join("; ")}`
         );
       } else if (result.status === "completed") {
-        core30.info(
+        core31.info(
           `Discussion test completed successfully. Final state: ${result.finalState}, Actions: ${result.actionsExecuted}`
         );
       }
       return;
     }
-    core30.setFailed(`Unknown action: ${action}`);
-  } catch (error10) {
-    if (error10 instanceof Error) {
-      core30.setFailed(error10.message);
+    core31.setFailed(`Unknown action: ${action}`);
+  } catch (error11) {
+    if (error11 instanceof Error) {
+      core31.setFailed(error11.message);
     } else {
-      core30.setFailed("An unexpected error occurred");
+      core31.setFailed("An unexpected error occurred");
     }
   }
 }

@@ -781,6 +781,32 @@ export type ApplyGroomingOutputAction = z.infer<
 >;
 
 // ============================================================================
+// Pivot Actions
+// ============================================================================
+
+/**
+ * Apply pivot output from Claude's structured analysis
+ *
+ * Validates safety constraints and applies changes to issue specifications:
+ * - Cannot modify checked todos ([x] items are immutable)
+ * - Cannot modify closed sub-issues
+ * - For completed work changes, creates NEW sub-issues (reversion/extension)
+ *
+ * After applying changes, posts a summary comment explaining what changed.
+ * This is a terminal action - user must review and /lfg to continue.
+ */
+export const ApplyPivotOutputActionSchema = BaseActionSchema.extend({
+  type: z.literal("applyPivotOutput"),
+  issueNumber: z.number().int().positive(),
+  /** Path to the pivot output file */
+  filePath: z.string().default("claude-structured-output.json"),
+});
+
+export type ApplyPivotOutputAction = z.infer<
+  typeof ApplyPivotOutputActionSchema
+>;
+
+// ============================================================================
 // Discriminated Union of All Actions
 // ============================================================================
 
@@ -823,6 +849,8 @@ export const ActionSchema = z.discriminatedUnion("type", [
   // Grooming actions
   RunClaudeGroomingActionSchema,
   ApplyGroomingOutputActionSchema,
+  // Pivot actions
+  ApplyPivotOutputActionSchema,
   // Discussion actions
   AddDiscussionCommentActionSchema,
   UpdateDiscussionBodyActionSchema,
@@ -892,6 +920,7 @@ export const ACTION_TYPES = [
   "runClaude",
   "runClaudeGrooming",
   "applyGroomingOutput",
+  "applyPivotOutput",
   "addDiscussionComment",
   "updateDiscussionBody",
   "addDiscussionReaction",
@@ -986,6 +1015,8 @@ export const ISSUE_ACTION_TYPES = [
   // Grooming actions
   "runClaudeGrooming",
   "applyGroomingOutput",
+  // Pivot actions
+  "applyPivotOutput",
   // Triage/iterate/review actions
   "applyTriageOutput",
   "applyIterateOutput",

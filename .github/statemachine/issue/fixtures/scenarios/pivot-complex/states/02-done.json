@@ -1,0 +1,50 @@
+{
+  "state": "done",
+  "description": "Final state after complex pivot - parent and sub-issues modified, new sub-issue created",
+  "issue": {
+    "number": 0,
+    "title": "Database migration system",
+    "state": "OPEN",
+    "body": "Implement database migration infrastructure.\n\n## Requirements\n\n- Database migration (split into schema and data phases)\n- Add caching layer\n- Maintain backward compatibility\n\n## Todos\n\n- [ ] Implement caching layer",
+    "projectStatus": "In progress",
+    "iteration": 3,
+    "failures": 0,
+    "assignees": ["nopo-bot"],
+    "labels": ["triaged", "enhancement"],
+    "subIssues": [
+      {
+        "number": 0,
+        "title": "[Phase 1]: Schema migrations",
+        "state": "OPEN",
+        "body": "## Description\n\nImplement schema migration system.\n\n## Todos\n\n- [ ] Add migration versioning\n- [ ] Add schema migration rollback support",
+        "projectStatus": "In progress"
+      },
+      {
+        "number": 0,
+        "title": "[Phase 2]: Data migrations",
+        "state": "OPEN",
+        "body": "## Description\n\nImplement data migration system.\n\n## Todos\n\n- [ ] Create data migration framework\n- [ ] Add rollback support\n- [ ] Split data migration into batches",
+        "projectStatus": "Ready"
+      },
+      {
+        "number": 0,
+        "title": "[Phase 3]: Implement caching layer",
+        "state": "OPEN",
+        "body": "## Description\n\nAdd caching support to improve performance after migration.\n\n## Affected Areas\n\n- `src/cache/` (create) - Cache implementation\n- `src/api/` (modify) - Add cache integration\n\n## Todos\n\n- [ ] Set up Redis connection\n- [ ] Implement cache invalidation\n- [ ] Add cache to hot paths",
+        "projectStatus": "Ready"
+      }
+    ],
+    "hasSubIssues": true,
+    "history": [],
+    "todos": {
+      "total": 1,
+      "completed": 0,
+      "uncheckedNonManual": 1
+    }
+  },
+  "expected": {
+    "parentIssueModified": true,
+    "subIssuesModified": true,
+    "newSubIssueCreated": true
+  }
+}

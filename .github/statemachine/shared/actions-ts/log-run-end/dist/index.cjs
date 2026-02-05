@@ -28450,6 +28450,7 @@ var TriggerTypeSchema = external_exports.enum([
   "issue-orchestrate",
   "issue-comment",
   "issue-reset",
+  "issue-pivot",
   // Grooming triggers
   "issue-groom",
   "issue-groom-summary",
@@ -29024,6 +29025,12 @@ var ApplyGroomingOutputActionSchema = BaseActionSchema.extend({
   /** Path to the combined grooming output file */
   filePath: external_exports.string().default("grooming-output.json")
 });
+var ApplyPivotOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyPivotOutput"),
+  issueNumber: external_exports.number().int().positive(),
+  /** Path to the pivot output file */
+  filePath: external_exports.string().default("claude-structured-output.json")
+});
 var ActionSchema = external_exports.discriminatedUnion("type", [
   // Project field actions
   UpdateProjectStatusActionSchema,
@@ -29060,6 +29067,8 @@ var ActionSchema = external_exports.discriminatedUnion("type", [
   // Grooming actions
   RunClaudeGroomingActionSchema,
   ApplyGroomingOutputActionSchema,
+  // Pivot actions
+  ApplyPivotOutputActionSchema,
   // Discussion actions
   AddDiscussionCommentActionSchema,
   UpdateDiscussionBodyActionSchema,

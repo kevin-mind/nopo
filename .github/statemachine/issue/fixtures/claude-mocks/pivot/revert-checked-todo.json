@@ -1,0 +1,32 @@
+{
+  "description": "Pivot that tries to revert completed work - creates a reversion sub-issue",
+  "output": {
+    "analysis": {
+      "change_summary": "User wants to remove the OAuth implementation that was already completed",
+      "affects_completed_work": true,
+      "completed_work_details": [
+        {
+          "type": "checked_todo",
+          "issue_number": 100,
+          "description": "Add OAuth2 library"
+        }
+      ]
+    },
+    "modifications": {
+      "new_sub_issues": [
+        {
+          "title": "[Reversion] Remove OAuth2 implementation",
+          "description": "## Description\n\nUser requested removal of OAuth2 implementation that was already completed.\n\n## Background\n\nThe original implementation added OAuth2 authentication, but it's no longer needed.\n\n## Scope\n\nRemove all OAuth2-related code and dependencies.",
+          "todos": [
+            "Remove OAuth2 library dependency",
+            "Remove OAuth2 authentication endpoints",
+            "Update tests to remove OAuth2 tests"
+          ],
+          "reason": "reversion"
+        }
+      ]
+    },
+    "outcome": "changes_applied",
+    "summary_for_user": "Cannot modify completed work directly. Created a new sub-issue '[Reversion] Remove OAuth2 implementation' to handle removing the OAuth2 functionality."
+  }
+}

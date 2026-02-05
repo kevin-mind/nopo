@@ -1,0 +1,26 @@
+{
+  "state": "pivoting",
+  "trigger": "issue-pivot",
+  "description": "User comments /pivot to add a new todo item",
+  "issue": {
+    "number": 0,
+    "title": "Implement user authentication",
+    "state": "OPEN",
+    "body": "Add authentication to the API.\n\n## Requirements\n\n- Support OAuth2\n- Add session management\n\n## Todos\n\n- [ ] Add authentication endpoints\n- [ ] Create session middleware\n- [ ] Add user model",
+    "projectStatus": "In progress",
+    "iteration": 2,
+    "failures": 0,
+    "assignees": ["nopo-bot"],
+    "labels": ["triaged", "enhancement"],
+    "subIssues": [],
+    "hasSubIssues": false,
+    "history": [],
+    "todos": {
+      "total": 3,
+      "completed": 0,
+      "uncheckedNonManual": 3
+    }
+  },
+  "pivotDescription": "Add rate limiting to the API endpoints",
+  "claudeMock": "pivot/simple-add-todo"
+}

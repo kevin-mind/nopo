@@ -1,0 +1,26 @@
+{
+  "state": "done",
+  "description": "Final state after add pivot - todo was added",
+  "issue": {
+    "number": 0,
+    "title": "Add API rate limiting",
+    "state": "OPEN",
+    "body": "Implement rate limiting for API endpoints.\n\n## Requirements\n\n- Per-user rate limits\n- Configurable thresholds\n\n## Todos\n\n- [ ] Design rate limiting strategy\n- [ ] Implement rate limiter middleware\n- [ ] Add rate limiting to API endpoints",
+    "projectStatus": "In progress",
+    "iteration": 1,
+    "failures": 0,
+    "assignees": ["nopo-bot"],
+    "labels": ["triaged", "enhancement"],
+    "subIssues": [],
+    "hasSubIssues": false,
+    "history": [],
+    "todos": {
+      "total": 3,
+      "completed": 0,
+      "uncheckedNonManual": 3
+    }
+  },
+  "expected": {
+    "todosAdded": 1
+  }
+}

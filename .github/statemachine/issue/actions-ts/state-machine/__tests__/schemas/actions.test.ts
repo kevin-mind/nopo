@@ -501,8 +501,9 @@ describe("ACTION_TYPES constant", () => {
   test("has correct length", () => {
     // Count of all action types (including assignUser, submitReview, removeReviewer, discussion actions,
     // applyTriageOutput, applyIterateOutput, appendAgentNotes, applyReviewOutput, applyPRResponseOutput,
-    // applyDiscussion*Output, reopenIssue, resetIssue, addLabel, removeLabel, runClaudeGrooming, applyGroomingOutput)
-    expect(ACTION_TYPES.length).toBe(45);
+    // applyDiscussion*Output, reopenIssue, resetIssue, addLabel, removeLabel, runClaudeGrooming, applyGroomingOutput,
+    // applyPivotOutput)
+    expect(ACTION_TYPES.length).toBe(46);
   });
 });
 

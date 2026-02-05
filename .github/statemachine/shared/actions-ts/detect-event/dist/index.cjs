@@ -24657,6 +24657,7 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
   const hasContinueCommand = commandLines.some((line) => line === "/continue");
   const hasLfgCommand = commandLines.some((line) => line === "/lfg");
   const hasResetCommand = commandLines.some((line) => line === "/reset");
+  const hasPivotCommand = commandLines.some((line) => line.startsWith("/pivot"));
   if (hasResetCommand && !isPr) {
     await addReactionToComment(octokit, owner, repo, comment.id, "eyes");
     const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
@@ -24671,6 +24672,30 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
         // Note: issue_body removed - executors fetch it when needed to avoid "may contain secret" masking
         sub_issues: details.subIssues.join(","),
         trigger_type: "issue-reset"
+      },
+      skip: false,
+      skipReason: ""
+    };
+  }
+  if (hasPivotCommand && !isPr) {
+    await addReactionToComment(octokit, owner, repo, comment.id, "eyes");
+    const pivotLine = comment.body.split("\n").find((l) => l.trim().startsWith("/pivot"));
+    const pivotDescription = pivotLine?.replace(/^\/pivot\s*/, "").trim() || "";
+    const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
+    const targetIssue = details.isSubIssue ? details.parentIssue : issue.number;
+    const targetDetails = details.isSubIssue ? await fetchIssueDetails(octokit, owner, repo, details.parentIssue) : details;
+    return {
+      job: "issue-pivot",
+      resourceType: "issue",
+      resourceNumber: String(targetIssue),
+      commentId: String(comment.id),
+      contextJson: {
+        issue_number: String(targetIssue),
+        issue_title: targetDetails.title || issue.title,
+        pivot_description: pivotDescription,
+        triggered_from: String(issue.number),
+        sub_issues: targetDetails.subIssues.join(","),
+        trigger_type: "issue-pivot"
       },
       skip: false,
       skipReason: ""
