@@ -24786,7 +24786,7 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
           issue_number: String(issue.number),
           issue_title: details.title || issue.title,
           issue_body: details.body || issue.body,
-          trigger_type: "issue-comment"
+          trigger_type: "issue-groom"
         },
         skip: false,
         skipReason: ""

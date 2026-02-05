@@ -1272,7 +1272,7 @@ async function handleIssueCommentEvent(
     const hasTriagedLabel = issue.labels.some((l) => l.name === "triaged");
 
     if (hasTriagedLabel && !hasGroomedLabel && !hasNeedsInfoLabel) {
-      // Route to grooming first
+      // Route to grooming first (trigger_type must match job for state machine routing)
       return {
         job: "issue-groom",
         resourceType: "issue",
@@ -1282,7 +1282,7 @@ async function handleIssueCommentEvent(
           issue_number: String(issue.number),
           issue_title: details.title || issue.title,
           issue_body: details.body || issue.body,
-          trigger_type: "issue-comment",
+          trigger_type: "issue-groom",
         },
         skip: false,
         skipReason: "",
