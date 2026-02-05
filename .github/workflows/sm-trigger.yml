@@ -126,6 +126,7 @@ jobs:
   run-state-machine:
     needs: detect
     if: |
+      needs.detect.outputs.context_json != '' &&
       fromJson(needs.detect.outputs.context_json).skip != true &&
       fromJson(needs.detect.outputs.context_json).job != ''
     # Concurrency computed by detect job based on job type:
