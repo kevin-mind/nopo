@@ -24790,6 +24790,25 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
         skipReason: ""
       };
     }
+    const hasGroomedLabel = issue.labels.some((l) => l.name === "groomed");
+    const hasNeedsInfoLabel = issue.labels.some((l) => l.name === "needs-info");
+    const hasTriagedLabel = issue.labels.some((l) => l.name === "triaged");
+    if (hasTriagedLabel && !hasGroomedLabel && !hasNeedsInfoLabel) {
+      return {
+        job: "issue-groom",
+        resourceType: "issue",
+        resourceNumber: String(issue.number),
+        commentId: String(comment.id),
+        contextJson: {
+          issue_number: String(issue.number),
+          issue_title: details.title || issue.title,
+          issue_body: details.body || issue.body,
+          trigger_type: "issue-comment"
+        },
+        skip: false,
+        skipReason: ""
+      };
+    }
     const branchName2 = `claude/issue/${issue.number}`;
     await ensureBranchExists(branchName2);
     return {

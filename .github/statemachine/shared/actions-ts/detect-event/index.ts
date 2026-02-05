@@ -1285,6 +1285,29 @@ async function handleIssueCommentEvent(
     }
 
     // Regular issue without sub-issues
+    // Check if issue needs grooming first (triaged but not groomed)
+    const hasGroomedLabel = issue.labels.some((l) => l.name === "groomed");
+    const hasNeedsInfoLabel = issue.labels.some((l) => l.name === "needs-info");
+    const hasTriagedLabel = issue.labels.some((l) => l.name === "triaged");
+
+    if (hasTriagedLabel && !hasGroomedLabel && !hasNeedsInfoLabel) {
+      // Route to grooming first
+      return {
+        job: "issue-groom",
+        resourceType: "issue",
+        resourceNumber: String(issue.number),
+        commentId: String(comment.id),
+        contextJson: {
+          issue_number: String(issue.number),
+          issue_title: details.title || issue.title,
+          issue_body: details.body || issue.body,
+          trigger_type: "issue-comment",
+        },
+        skip: false,
+        skipReason: "",
+      };
+    }
+
     const branchName = `claude/issue/${issue.number}`;
 
     // Ensure the branch exists (create if not)
