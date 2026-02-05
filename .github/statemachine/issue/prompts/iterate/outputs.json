@@ -6,9 +6,10 @@
       "enum": ["completed_todo", "waiting_manual", "blocked", "all_done"],
       "description": "What happened this iteration: completed_todo (finished a task), waiting_manual (manual todo needs human), blocked (cannot proceed), all_done (all todos complete)"
     },
-    "todo_completed": {
-      "type": "string",
-      "description": "The exact text of the todo item that was completed (if status=completed_todo). Used to check off the todo in the issue."
+    "todos_completed": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of todo items that were completed (if status=completed_todo). Used to check off todos in the issue."
     },
     "manual_todo": {
       "type": "string",

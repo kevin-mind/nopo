@@ -66,11 +66,10 @@ git rebase origin/main
 - Fix the issues, verify, commit
 
 **If CI passed or first iteration**:
-- Find the **next unchecked todo** (one without `[x]`)
-- Check if the code already satisfies this todo
-- If YES: Return `status: "completed_todo"` with the todo text - the executor will check it off
-- If NO: Implement the todo, then return `status: "completed_todo"`
-- Complete **just ONE todo per iteration**
+- Review unchecked todos (those without `[x]`)
+- Implement what makes sense for this iteration
+- Return `status: "completed_todo"` with the todos you completed
+- You don't need to complete everything in one iteration - make reasonable progress
 
 **If next unchecked todo has `[Manual]` prefix**:
 - These require human action (testing, verification, etc.)
@@ -81,8 +80,6 @@ git rebase origin/main
 **If all non-manual todos are checked off and CI passed**:
 - Set status to `all_done`
 - Workflow handles marking PR ready and requesting review
-
-**IMPORTANT**: Each iteration should check off exactly ONE todo. Even if multiple todos are already satisfied by existing code, only return ONE `todo_completed` per iteration. The workflow will re-run to check off the next one.
 
 ### 3. Implementation
 
@@ -117,11 +114,10 @@ Return structured JSON with:
   - `blocked` - Cannot proceed (explain in blocked_reason)
   - `all_done` - All non-manual todos are checked off, ready for review
 
-- **todo_completed**: The **exact text** of ONE todo that is now satisfied (if status=completed_todo)
+- **todos_completed**: List of todos that are now satisfied (if status=completed_todo)
   - Copy the todo text EXACTLY as it appears in the issue (without the `- [ ]` prefix)
-  - Example: "Add login form validation"
-  - The executor will check this off in the issue body
-  - **Always use this status** when there's an unchecked todo that the code satisfies
+  - Example: ["Add login form validation", "Add error handling for invalid input"]
+  - The executor will check these off in the issue body
 
 - **manual_todo**: The **exact text** of the manual todo (if status=waiting_manual)
   - Only use this when the NEXT unchecked todo has `[Manual]` prefix
@@ -131,6 +127,6 @@ Return structured JSON with:
 - **agent_notes**: Important discoveries for future iterations (stored in history)
 
 The executor will:
-- Check off the todo_completed in the issue body (matches fuzzy, so slight differences OK)
+- Check off todos_completed in the issue body (matches fuzzy, so slight differences OK)
 - Store agent_notes in iteration history
 - Handle PR ready state transitions based on status

@@ -13,7 +13,8 @@ import { appendAgentNotes } from "../../parser/index.js";
  */
 interface IterateOutput {
   status: "completed_todo" | "waiting_manual" | "blocked" | "all_done";
-  todo_completed?: string;
+  todos_completed?: string[];
+  todo_completed?: string; // Legacy: single todo (backwards compatibility)
   manual_todo?: string;
   blocked_reason?: string;
   agent_notes: string[];
@@ -81,16 +82,24 @@ export async function executeApplyIterateOutput(
   let body = issue.data.body || "";
   let bodyChanged = false;
 
-  // Check off completed todo in issue body
-  if (
-    iterateOutput.status === "completed_todo" &&
-    iterateOutput.todo_completed
-  ) {
-    const result = checkOffTodoInBody(body, iterateOutput.todo_completed);
-    if (result.found) {
-      body = result.body;
-      bodyChanged = true;
-      core.info(`Completed todo: ${iterateOutput.todo_completed}`);
+  // Check off completed todos in issue body
+  if (iterateOutput.status === "completed_todo") {
+    // Support both array (new) and single string (legacy)
+    const todosToCheck: string[] = [];
+    if (iterateOutput.todos_completed && iterateOutput.todos_completed.length > 0) {
+      todosToCheck.push(...iterateOutput.todos_completed);
+    } else if (iterateOutput.todo_completed) {
+      // Legacy: single todo as string
+      todosToCheck.push(iterateOutput.todo_completed);
+    }
+
+    for (const todoText of todosToCheck) {
+      const result = checkOffTodoInBody(body, todoText);
+      if (result.found) {
+        body = result.body;
+        bodyChanged = true;
+        core.info(`Completed todo: ${todoText}`);
+      }
     }
   }
 

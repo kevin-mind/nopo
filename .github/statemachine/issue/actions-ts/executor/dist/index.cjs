@@ -40924,12 +40924,20 @@ async function executeApplyIterateOutput(action, ctx, structuredOutput) {
   });
   let body = issue.data.body || "";
   let bodyChanged = false;
-  if (iterateOutput.status === "completed_todo" && iterateOutput.todo_completed) {
-    const result = checkOffTodoInBody(body, iterateOutput.todo_completed);
-    if (result.found) {
-      body = result.body;
-      bodyChanged = true;
-      core11.info(`Completed todo: ${iterateOutput.todo_completed}`);
+  if (iterateOutput.status === "completed_todo") {
+    const todosToCheck = [];
+    if (iterateOutput.todos_completed && iterateOutput.todos_completed.length > 0) {
+      todosToCheck.push(...iterateOutput.todos_completed);
+    } else if (iterateOutput.todo_completed) {
+      todosToCheck.push(iterateOutput.todo_completed);
+    }
+    for (const todoText of todosToCheck) {
+      const result = checkOffTodoInBody(body, todoText);
+      if (result.found) {
+        body = result.body;
+        bodyChanged = true;
+        core11.info(`Completed todo: ${todoText}`);
+      }
     }
   }
   if (iterateOutput.agent_notes.length > 0) {
