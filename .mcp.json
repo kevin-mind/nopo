@@ -18,6 +18,18 @@
       "headers": {
         "Authorization": "Bearer ${SENTRY_AUTH_TOKEN}"
       }
+    },
+    "figma": {
+      "type": "http",
+      "url": "https://mcp.figma.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${FIGMA_ACCESS_TOKEN}"
+      }
+    },
+    "gcp": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@google-cloud/gcloud-mcp"]
     }
   }
 }

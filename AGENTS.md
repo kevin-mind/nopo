@@ -231,6 +231,143 @@ nopo act dry -w _test_state_machine.yml -i scenario_name=triage
 
 ---
 
+## Sub-Agent Architecture
+
+Nopo uses a multi-agent architecture where the main Claude agent delegates implementation work to specialized sub-agents via the Task tool. This creates a separation of concerns with clear permission boundaries.
+
+### Agent Roles
+
+| Agent | Permissions | Purpose |
+|-------|-------------|---------|
+| **Main Agent** | Read-only Bash patterns, Read, Glob, Grep, WebSearch, WebFetch | Analyzes issues, reads codebase, creates plans, orchestrates sub-agents |
+| **full-stack-engineer** | Unrestricted Bash, Write, Edit, Read, all MCPs | Primary implementation agent for all code changes |
+| **code-reviewer** | Read-only Bash (git*, make check/test), Read, Glob, Grep | Reviews PRs for quality, security, and consistency |
+| **design-engineer** | Write, Edit, Bash, Figma MCP, Playwright MCP | UI/UX implementation and frontend components |
+| **qa-engineer** | Write, Edit, Bash, Playwright MCP, GitHub MCP | Test writing and quality assurance |
+| **platform-engineer** | Write, Edit, Bash, GCP MCP, Sentry MCP | Infrastructure and deployment work |
+| **product-manager** | Read-only Bash (gh*), Read, Glob, Grep, GitHub MCP | Issue triage, prioritization, requirements |
+
+### Permission Model
+
+**Main Agent - Read-Only**:
+The main agent has restricted permissions to prevent accidental code modifications during analysis. It can:
+- Run read-only git commands: `git status`, `git log:*`, `git show:*`, `git diff:*`
+- Run read-only GitHub CLI: `gh pr list:*`, `gh pr view:*`, `gh issue view:*`, `gh api:*`
+- Run quality checks: `make check`, `make test`, `make status`
+- Use general tools: `pnpm*`, `nopo*`, `cd*`, `ls*`, `cat*`, `find*`, `test*`
+- Read, search, and explore codebase via Read, Glob, Grep
+
+The main agent **cannot**:
+- Write or edit files (no Write, Edit permissions)
+- Execute write operations (no `git commit`, `git push`, `make build`)
+- Modify codebase directly
+
+**Sub-Agents - Full Permissions**:
+Sub-agents spawned via the Task tool have appropriate permissions for their role:
+- `full-stack-engineer`: Full Bash, Write, Edit access for implementation
+- Specialized agents: Tailored permissions + relevant MCPs
+
+### Workflow Pattern
+
+```
+1. Human assigns issue to nopo-bot
+2. Main Agent (iterate/orchestrate):
+   - Reads issue and codebase
+   - Analyzes requirements
+   - Creates implementation plan
+   - Spawns full-stack-engineer via Task tool
+3. full-stack-engineer:
+   - Implements changes
+   - Writes tests
+   - Commits and pushes
+   - Returns results
+4. Main Agent:
+   - Verifies work
+   - Spawns code-reviewer for PR review
+5. code-reviewer:
+   - Reviews code quality
+   - Submits review comments
+6. Main Agent or full-stack-engineer:
+   - Addresses review feedback
+```
+
+### MCP Configuration
+
+MCPs (Model Context Protocols) provide specialized capabilities:
+
+| MCP | Type | Auth | Purpose |
+|-----|------|------|---------|
+| **github** | HTTP | `GITHUB_TOKEN` | Issue/PR management, code search |
+| **playwright** | stdio | None | Browser automation, E2E testing |
+| **sentry** | HTTP | `SENTRY_AUTH_TOKEN` | Error tracking, debugging |
+| **figma** | HTTP | `FIGMA_ACCESS_TOKEN` | Design specs, component properties |
+| **gcp** | stdio | `gcloud auth` | GCP resource management |
+
+**Setup Requirements**:
+
+1. **Figma MCP**:
+   ```bash
+   # Get personal access token from Figma account settings
+   export FIGMA_ACCESS_TOKEN="your-token-here"
+   ```
+
+2. **GCP MCP**:
+   ```bash
+   # Authenticate with Google Cloud
+   gcloud auth login
+   gcloud config set project nopo-production
+   ```
+
+3. **Other MCPs** (already configured):
+   - `GITHUB_TOKEN`: Provided by GitHub Actions
+   - `SENTRY_AUTH_TOKEN`: Set in repository secrets
+
+**MCP Access by Agent**:
+- Main agent: Only GitHub MCP (via WebFetch or direct access)
+- full-stack-engineer: All MCPs (github, playwright, figma, gcp, sentry)
+- Specialized agents: Subset based on role (see agent .md files)
+
+### Creating Custom Agents
+
+To create a new specialized agent:
+
+1. Create `.claude/agents/<agent-name>.md` with frontmatter:
+   ```yaml
+   ---
+   name: agent-name
+   description: "When to use this agent"
+   model: sonnet
+   color: blue
+   tools: Bash, Write, Edit, Read, Glob, Grep, mcp__*
+   ---
+   ```
+
+2. Write comprehensive prompt defining agent's role, responsibilities, and guidelines
+
+3. Reference in main agent prompts via Task tool:
+   ```
+   Task(subagent_type="agent-name", prompt="Implement feature X")
+   ```
+
+4. Update this documentation with agent's role and permissions
+
+### Agent File Locations
+
+```
+.claude/
+├── settings.json          # Main agent permissions
+├── agents/
+│   ├── full-stack-engineer.md
+│   ├── code-reviewer.md
+│   ├── design-engineer.md
+│   ├── qa-engineer.md
+│   ├── platform-engineer.md
+│   └── product-manager.md
+└── commands/              # Custom slash commands
+```
+
+---
+
 ## Tripwires
 
 **Signs you're going wrong:**
