@@ -515,6 +515,9 @@ jobs:
         id: execute
         if: matrix.action.type != 'runClaude'
         uses: ./.github/statemachine/issue/actions-ts/executor
+        # OAuth token needed for actions that run Claude internally (runClaudeGrooming, applyDiscussionResearchOutput)
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         with:
           github_code_token: ${{ secrets.NOPO_BOT_PAT }}
           github_review_token: ${{ secrets.CLAUDE_REVIEWER_PAT }}
