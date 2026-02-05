@@ -317,6 +317,7 @@ interface IssueDetails {
   isSubIssue: boolean;
   parentIssue: number; // 0 if not a sub-issue
   subIssues: number[]; // Empty array if no sub-issues
+  labels: string[]; // Label names
 }
 
 async function fetchIssueDetails(
@@ -335,6 +336,9 @@ async function fetchIssueDetails(
         subIssues?: {
           nodes: Array<{ number: number }>;
         };
+        labels?: {
+          nodes: Array<{ name: string }>;
+        };
       } | null;
     };
   }>(
@@ -347,6 +351,9 @@ async function fetchIssueDetails(
           parent { number }
           subIssues(first: 50) {
             nodes { number }
+          }
+          labels(first: 50) {
+            nodes { name }
           }
         }
       }
@@ -370,11 +377,13 @@ async function fetchIssueDetails(
       isSubIssue: false,
       parentIssue: 0,
       subIssues: [],
+      labels: [],
     };
   }
 
   const subIssues =
     issue.subIssues?.nodes?.map((n) => n.number).filter((n) => n > 0) ?? [];
+  const labels = issue.labels?.nodes?.map((l) => l.name) ?? [];
 
   return {
     title: issue.title,
@@ -382,6 +391,7 @@ async function fetchIssueDetails(
     isSubIssue: !!issue.parent,
     parentIssue: issue.parent?.number ?? 0,
     subIssues,
+    labels,
   };
 }
 
@@ -2236,6 +2246,35 @@ async function handleWorkflowDispatchEvent(
   if (details.isSubIssue && details.parentIssue > 0) {
     parentIssue = String(details.parentIssue);
     core.info(`Issue #${issueNumber} is a sub-issue of parent #${parentIssue}`);
+  }
+
+  // Check if grooming is needed BEFORE orchestration
+  // Grooming needed: has "triaged" label but NOT "groomed" label
+  const hasTriaged = details.labels.includes("triaged");
+  const hasGroomed = details.labels.includes("groomed");
+
+  if (hasTriaged && !hasGroomed) {
+    core.info(
+      `Issue #${issueNumber} needs grooming (triaged=${hasTriaged}, groomed=${hasGroomed})`,
+    );
+    return {
+      job: "issue-groom",
+      resourceType: "issue",
+      resourceNumber: String(issueNumber),
+      commentId: "",
+      contextJson: {
+        issue_number: String(issueNumber),
+        issue_title: details.title,
+        issue_body: details.body,
+        trigger_type: "issue-groom",
+        parent_issue: parentIssue,
+        project_status: projectState?.status || "",
+        project_iteration: String(projectState?.iteration || 0),
+        project_failures: String(projectState?.failures || 0),
+      },
+      skip: false,
+      skipReason: "",
+    };
   }
 
   // Check if this is a parent issue with sub-issues - route to orchestrate

@@ -32179,8 +32179,7 @@ function needsGrooming({ context: context2 }) {
   const labels = context2.issue.labels;
   const hasTriaged = labels.includes("triaged");
   const hasGroomed = labels.includes("groomed");
-  const hasNeedsInfo = labels.includes("needs-info");
-  return hasTriaged && !hasGroomed && !hasNeedsInfo;
+  return hasTriaged && !hasGroomed;
 }
 function isGroomed({ context: context2 }) {
   return context2.issue.labels.includes("groomed");

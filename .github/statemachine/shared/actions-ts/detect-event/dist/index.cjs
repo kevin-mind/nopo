@@ -24103,6 +24103,9 @@ async function fetchIssueDetails(octokit, owner, repo, issueNumber) {
           subIssues(first: 50) {
             nodes { number }
           }
+          labels(first: 50) {
+            nodes { name }
+          }
         }
       }
     }
@@ -24123,16 +24126,19 @@ async function fetchIssueDetails(octokit, owner, repo, issueNumber) {
       body: "",
       isSubIssue: false,
       parentIssue: 0,
-      subIssues: []
+      subIssues: [],
+      labels: []
     };
   }
   const subIssues = issue.subIssues?.nodes?.map((n) => n.number).filter((n) => n > 0) ?? [];
+  const labels = issue.labels?.nodes?.map((l) => l.name) ?? [];
   return {
     title: issue.title,
     body: issue.body ?? "",
     isSubIssue: !!issue.parent,
     parentIssue: issue.parent?.number ?? 0,
-    subIssues
+    subIssues,
+    labels
   };
 }
 function extractPhaseNumber(title) {
@@ -25449,6 +25455,31 @@ async function handleWorkflowDispatchEvent(octokit, owner, repo, resourceNumber)
   if (details.isSubIssue && details.parentIssue > 0) {
     parentIssue = String(details.parentIssue);
     core2.info(`Issue #${issueNumber} is a sub-issue of parent #${parentIssue}`);
+  }
+  const hasTriaged = details.labels.includes("triaged");
+  const hasGroomed = details.labels.includes("groomed");
+  if (hasTriaged && !hasGroomed) {
+    core2.info(
+      `Issue #${issueNumber} needs grooming (triaged=${hasTriaged}, groomed=${hasGroomed})`
+    );
+    return {
+      job: "issue-groom",
+      resourceType: "issue",
+      resourceNumber: String(issueNumber),
+      commentId: "",
+      contextJson: {
+        issue_number: String(issueNumber),
+        issue_title: details.title,
+        issue_body: details.body,
+        trigger_type: "issue-groom",
+        parent_issue: parentIssue,
+        project_status: projectState?.status || "",
+        project_iteration: String(projectState?.iteration || 0),
+        project_failures: String(projectState?.failures || 0)
+      },
+      skip: false,
+      skipReason: ""
+    };
   }
   if (details.subIssues.length > 0) {
     return {

@@ -505,15 +505,16 @@ function triggeredByGroomSummary({ context }: GuardContext): boolean {
 
 /**
  * Check if the issue needs grooming
- * True when: has "triaged" label, but NOT "groomed" or "needs-info"
+ * True when: has "triaged" label, but NOT "groomed"
+ * Note: "needs-info" does NOT block grooming - it just means questions were asked.
+ * When user answers questions and triggers /lfg, grooming re-runs to evaluate.
  */
 function needsGrooming({ context }: GuardContext): boolean {
   const labels = context.issue.labels;
   const hasTriaged = labels.includes("triaged");
   const hasGroomed = labels.includes("groomed");
-  const hasNeedsInfo = labels.includes("needs-info");
 
-  return hasTriaged && !hasGroomed && !hasNeedsInfo;
+  return hasTriaged && !hasGroomed;
 }
 
 /**
