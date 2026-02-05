@@ -40,6 +40,7 @@ function createMockOctokit() {
     graphql: vi.fn(),
     rest: {
       issues: {
+        get: vi.fn().mockResolvedValue({ data: { body: "## Agent Notes\n\n" } }),
         update: vi.fn().mockResolvedValue({}),
         createComment: vi.fn().mockResolvedValue({ data: { id: 1 } }),
         addLabels: vi.fn().mockResolvedValue({}),
