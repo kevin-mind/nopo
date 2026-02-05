@@ -489,9 +489,10 @@ jobs:
       # Note: Review submission is now handled by the applyReviewOutput action in the executor
       # The state machine emits [runClaude, applyReviewOutput] for review flows
 
-      # Upload artifact if action produces one (runs after runClaude)
-      - name: Upload artifact
-        if: matrix.action.producesArtifact && !inputs.dry_run
+      # Upload artifact if action produces one (runs after runClaude, only for runClaude type)
+      # For executor-handled actions (runClaudeGrooming), upload happens AFTER Execute Action
+      - name: Upload artifact (runClaude)
+        if: matrix.action.type == 'runClaude' && matrix.action.producesArtifact && !inputs.dry_run
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.action.producesArtifact.name }}
@@ -525,6 +526,16 @@ jobs:
           actions_json: ${{ format('[{0}]', toJson(matrix.action)) }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
           dry_run: ${{ inputs.dry_run && 'true' || 'false' }}
+
+      # Upload artifact for executor-handled actions (runs AFTER Execute Action creates the file)
+      - name: Upload artifact (executor)
+        if: matrix.action.type != 'runClaude' && matrix.action.producesArtifact && !inputs.dry_run
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.action.producesArtifact.name }}
+          path: ${{ matrix.action.producesArtifact.path }}
+          retention-days: 1
+          if-no-files-found: error
 
       - name: Write Action Summary
         if: always()
