@@ -456,9 +456,10 @@ jobs:
       # Also needed for actions that run Claude internally:
       # - applyDiscussionResearchOutput: runs parallel investigations
       # - runClaudeGrooming: runs 4 parallel grooming agents
+      # - applyGroomingOutput: runs summary agent
       - name: Install Claude Code
         if: |
-          (matrix.action.type == 'runClaude' || matrix.action.type == 'applyDiscussionResearchOutput' || matrix.action.type == 'runClaudeGrooming') &&
+          (matrix.action.type == 'runClaude' || matrix.action.type == 'applyDiscussionResearchOutput' || matrix.action.type == 'runClaudeGrooming' || matrix.action.type == 'applyGroomingOutput') &&
           !inputs.dry_run &&
           needs.e2e-detect.outputs.e2e_mode != 'true'
         run: |
