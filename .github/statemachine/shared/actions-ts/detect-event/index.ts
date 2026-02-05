@@ -680,7 +680,7 @@ async function handleIssueEvent(
       contextJson: {
         issue_number: String(issue.number),
         issue_title: details.title || issue.title,
-        issue_body: details.body || issue.body,
+        // Note: issue_body removed - executors fetch it when needed to avoid "may contain secret" masking
       },
       skip: false,
       skipReason: "",
@@ -724,7 +724,7 @@ async function handleIssueEvent(
           contextJson: {
             issue_number: String(issue.number),
             issue_title: details.title || issue.title,
-            issue_body: details.body || issue.body,
+            // Note: issue_body removed - executors fetch it when needed to avoid "may contain secret" masking
             trigger_type: "issue-groom",
           },
           skip: false,
@@ -773,7 +773,7 @@ async function handleIssueEvent(
           contextJson: {
             issue_number: String(issue.number),
             issue_title: details.title || issue.title,
-            issue_body: details.body || issue.body,
+            // Note: issue_body removed - executors fetch it when needed to avoid "may contain secret" masking
             branch_name: branchName,
             existing_branch: branchExists ? "true" : "false",
             trigger_type: "issue-edited",
@@ -816,7 +816,7 @@ async function handleIssueEvent(
           contextJson: {
             issue_number: String(issue.number),
             issue_title: details.title || issue.title,
-            issue_body: details.body || issue.body,
+            // Note: issue_body removed - executors fetch it when needed to avoid "may contain secret" masking
             sub_issues: subIssueNumbers.join(","),
             trigger_type: "issue-edited",
             project_status: projectState?.status || "",
@@ -842,7 +842,7 @@ async function handleIssueEvent(
         contextJson: {
           issue_number: String(issue.number),
           issue_title: details.title || issue.title,
-          issue_body: details.body || issue.body,
+          // Note: issue_body removed - executors fetch it when needed to avoid "may contain secret" masking
           branch_name: branchName,
           existing_branch: branchExists ? "true" : "false",
           trigger_type: "issue-edited",
@@ -882,7 +882,7 @@ async function handleIssueEvent(
         contextJson: {
           issue_number: String(issue.number),
           issue_title: details.title || issue.title,
-          issue_body: details.body || issue.body,
+          // Note: issue_body removed - executors fetch it when needed to avoid "may contain secret" masking
         },
         skip: false,
         skipReason: "",
@@ -929,7 +929,6 @@ async function handleIssueEvent(
       contextJson: {
         issue_number: String(details.parentIssue),
         issue_title: parentDetails.title,
-        issue_body: parentDetails.body,
         sub_issues: parentDetails.subIssues.join(","),
         trigger_type: "issue-orchestrate",
         closed_sub_issue: String(issue.number),
@@ -990,7 +989,7 @@ async function handleIssueEvent(
         contextJson: {
           issue_number: String(issue.number),
           issue_title: details.title || issue.title,
-          issue_body: details.body || issue.body,
+          // Note: issue_body removed - executors fetch it when needed to avoid "may contain secret" masking
           branch_name: branchName,
           trigger_type: "issue-assigned",
           parent_issue: String(details.parentIssue),
@@ -1038,7 +1037,7 @@ async function handleIssueEvent(
         contextJson: {
           issue_number: String(issue.number),
           issue_title: details.title || issue.title,
-          issue_body: details.body || issue.body,
+          // Note: issue_body removed - executors fetch it when needed to avoid "may contain secret" masking
           sub_issues: subIssueNumbers.join(","),
           trigger_type: "issue-assigned",
           project_status: projectState?.status || "",
@@ -1064,7 +1063,7 @@ async function handleIssueEvent(
       contextJson: {
         issue_number: String(issue.number),
         issue_title: details.title || issue.title,
-        issue_body: details.body || issue.body,
+        // Note: issue_body removed - executors fetch it when needed to avoid "may contain secret" masking
         branch_name: branchName,
         trigger_type: "issue-assigned",
         project_status: projectState?.status || "",
@@ -1155,7 +1154,7 @@ async function handleIssueCommentEvent(
       contextJson: {
         issue_number: String(issue.number),
         issue_title: details.title || issue.title,
-        issue_body: details.body || issue.body,
+        // Note: issue_body removed - executors fetch it when needed to avoid "may contain secret" masking
         sub_issues: details.subIssues.join(","),
         trigger_type: "issue-reset",
       },
@@ -1264,7 +1263,7 @@ async function handleIssueCommentEvent(
         contextJson: {
           issue_number: String(issue.number),
           issue_title: details.title || issue.title,
-          issue_body: details.body || issue.body,
+          // Note: issue_body removed - executors fetch it when needed to avoid "may contain secret" masking
           branch_name: branchName,
           trigger_type: "issue-comment",
           parent_issue: String(details.parentIssue),
@@ -1291,7 +1290,7 @@ async function handleIssueCommentEvent(
         contextJson: {
           issue_number: String(issue.number),
           issue_title: details.title || issue.title,
-          issue_body: details.body || issue.body,
+          // Note: issue_body removed - executors fetch it when needed to avoid "may contain secret" masking
           trigger_type: "issue-groom",
         },
         skip: false,
@@ -1309,7 +1308,7 @@ async function handleIssueCommentEvent(
         contextJson: {
           issue_number: String(issue.number),
           issue_title: details.title || issue.title,
-          issue_body: details.body || issue.body,
+          // Note: issue_body removed - executors fetch it when needed to avoid "may contain secret" masking
           sub_issues: details.subIssues.join(","),
           trigger_type: "issue-comment",
         },
@@ -1332,7 +1331,7 @@ async function handleIssueCommentEvent(
       contextJson: {
         issue_number: String(issue.number),
         issue_title: details.title || issue.title,
-        issue_body: details.body || issue.body,
+        // Note: issue_body removed - executors fetch it when needed to avoid "may contain secret" masking
         branch_name: branchName,
         trigger_type: "issue-comment",
       },
@@ -2265,7 +2264,6 @@ async function handleWorkflowDispatchEvent(
       contextJson: {
         issue_number: String(issueNumber),
         issue_title: details.title,
-        issue_body: details.body,
         trigger_type: "issue-groom",
         parent_issue: parentIssue,
         project_status: projectState?.status || "",
@@ -2287,7 +2285,6 @@ async function handleWorkflowDispatchEvent(
       contextJson: {
         issue_number: String(issueNumber),
         issue_title: details.title,
-        issue_body: details.body,
         sub_issues: details.subIssues.join(","),
         trigger_type: "issue-assigned",
         parent_issue: parentIssue,
@@ -2316,7 +2313,6 @@ async function handleWorkflowDispatchEvent(
       contextJson: {
         issue_number: String(issueNumber),
         issue_title: details.title,
-        issue_body: details.body,
         branch_name: branchName,
         trigger_type: "issue-assigned",
         parent_issue: parentIssue,
@@ -2341,7 +2337,6 @@ async function handleWorkflowDispatchEvent(
     contextJson: {
       issue_number: String(issueNumber),
       issue_title: details.title,
-      issue_body: details.body,
       branch_name: branchName,
       trigger_type: "issue-assigned",
       parent_issue: parentIssue,
