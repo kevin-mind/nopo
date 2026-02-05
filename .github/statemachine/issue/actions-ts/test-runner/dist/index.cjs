@@ -31388,6 +31388,8 @@ var MachineContextSchema = external_exports.object({
   // Workflow timing
   /** ISO 8601 timestamp of when the workflow started */
   workflowStartedAt: external_exports.string().nullable(),
+  /** URL to the current workflow run */
+  workflowRunUrl: external_exports.string().nullable().default(null),
   // Review result (if triggered by pr_review_submitted)
   reviewDecision: ReviewDecisionSchema.nullable(),
   reviewerId: external_exports.string().nullable(),
@@ -33757,7 +33759,8 @@ function emitRunClaudeGrooming({ context: context2 }) {
       // Grooming is pre-iteration
       phase: "groom",
       message: "\u23F3 grooming...",
-      timestamp: context2.workflowStartedAt ?? void 0
+      timestamp: context2.workflowStartedAt ?? void 0,
+      runLink: context2.workflowRunUrl ?? context2.ciRunUrl ?? void 0
     },
     // Run all 4 grooming agents in parallel
     {

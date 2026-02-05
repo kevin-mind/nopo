@@ -31414,6 +31414,8 @@ var MachineContextSchema = external_exports.object({
   // Workflow timing
   /** ISO 8601 timestamp of when the workflow started */
   workflowStartedAt: external_exports.string().nullable(),
+  /** URL to the current workflow run */
+  workflowRunUrl: external_exports.string().nullable().default(null),
   // Review result (if triggered by pr_review_submitted)
   reviewDecision: ReviewDecisionSchema2.nullable(),
   reviewerId: external_exports.string().nullable(),
@@ -31465,6 +31467,7 @@ var DEFAULT_CONTEXT_VALUES = {
   ciRunUrl: null,
   ciCommitSha: null,
   workflowStartedAt: null,
+  workflowRunUrl: null,
   reviewDecision: null,
   reviewerId: null,
   branch: null,
@@ -33014,6 +33017,7 @@ async function buildMachineContext(octokit, event, projectNumber, options = {}) 
     ciRunUrl,
     ciCommitSha,
     workflowStartedAt: options.workflowStartedAt ?? null,
+    workflowRunUrl: options.workflowRunUrl ?? null,
     reviewDecision,
     reviewerId,
     branch,
@@ -33976,7 +33980,8 @@ function emitRunClaudeGrooming({ context: context2 }) {
       // Grooming is pre-iteration
       phase: "groom",
       message: "\u23F3 grooming...",
-      timestamp: context2.workflowStartedAt ?? void 0
+      timestamp: context2.workflowStartedAt ?? void 0,
+      runLink: context2.workflowRunUrl ?? context2.ciRunUrl ?? void 0
     },
     // Run all 4 grooming agents in parallel
     {
@@ -35790,6 +35795,10 @@ async function runIssueMachine(options) {
   const commentContextDescription = ctx.context_description || null;
   const inputBranch = ctx.branch_name || null;
   const workflowStartedAt = (/* @__PURE__ */ new Date()).toISOString();
+  const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+  const repository = process.env.GITHUB_REPOSITORY || `${owner}/${repo}`;
+  const runId = process.env.GITHUB_RUN_ID;
+  const workflowRunUrl = runId ? `${serverUrl}/${repository}/actions/runs/${runId}` : null;
   core6.info(`Claude Issue State Machine starting...`);
   core6.info(`Mode: ${mode}`);
   core6.info(`Issue: #${issueNumber}`);
@@ -35844,7 +35853,8 @@ async function runIssueMachine(options) {
       branch: inputBranch,
       triggerOverride: trigger,
       ciRunUrl,
-      workflowStartedAt
+      workflowStartedAt,
+      workflowRunUrl
     }
   );
   if (!context2) {

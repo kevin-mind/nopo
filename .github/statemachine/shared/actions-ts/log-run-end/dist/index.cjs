@@ -28507,6 +28507,8 @@ var MachineContextSchema = external_exports.object({
   // Workflow timing
   /** ISO 8601 timestamp of when the workflow started */
   workflowStartedAt: external_exports.string().nullable(),
+  /** URL to the current workflow run */
+  workflowRunUrl: external_exports.string().nullable().default(null),
   // Review result (if triggered by pr_review_submitted)
   reviewDecision: ReviewDecisionSchema.nullable(),
   reviewerId: external_exports.string().nullable(),

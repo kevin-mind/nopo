@@ -262,6 +262,8 @@ export const MachineContextSchema = z.object({
   // Workflow timing
   /** ISO 8601 timestamp of when the workflow started */
   workflowStartedAt: z.string().nullable(),
+  /** URL to the current workflow run */
+  workflowRunUrl: z.string().nullable().default(null),
 
   // Review result (if triggered by pr_review_submitted)
   reviewDecision: ReviewDecisionSchema.nullable(),
@@ -350,6 +352,7 @@ const DEFAULT_CONTEXT_VALUES: Partial<MachineContext> = {
   ciRunUrl: null,
   ciCommitSha: null,
   workflowStartedAt: null,
+  workflowRunUrl: null,
   reviewDecision: null,
   reviewerId: null,
   branch: null,

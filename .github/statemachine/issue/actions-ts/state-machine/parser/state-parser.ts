@@ -596,6 +596,8 @@ export async function buildMachineContext(
     ciRunUrl?: string | null;
     // ISO 8601 timestamp of when the workflow started
     workflowStartedAt?: string | null;
+    // URL to the current workflow run
+    workflowRunUrl?: string | null;
   } = {},
 ): Promise<MachineContext | null> {
   const { owner, repo } = event;
@@ -753,6 +755,7 @@ export async function buildMachineContext(
     ciRunUrl,
     ciCommitSha,
     workflowStartedAt: options.workflowStartedAt ?? null,
+    workflowRunUrl: options.workflowRunUrl ?? null,
     reviewDecision,
     reviewerId,
     branch,

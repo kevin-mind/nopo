@@ -369,6 +369,7 @@ describe("MachineContextSchema", () => {
     ciRunUrl: null,
     ciCommitSha: null,
     workflowStartedAt: null,
+    workflowRunUrl: null,
     reviewDecision: null,
     reviewerId: null,
     branch: null,

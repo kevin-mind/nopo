@@ -347,6 +347,14 @@ async function runIssueMachine(options: IssueMachineOptions): Promise<void> {
   const inputBranch = ctx.branch_name || null;
   const workflowStartedAt = new Date().toISOString();
 
+  // Build workflow run URL from environment variables
+  const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+  const repository = process.env.GITHUB_REPOSITORY || `${owner}/${repo}`;
+  const runId = process.env.GITHUB_RUN_ID;
+  const workflowRunUrl = runId
+    ? `${serverUrl}/${repository}/actions/runs/${runId}`
+    : null;
+
   core.info(`Claude Issue State Machine starting...`);
   core.info(`Mode: ${mode}`);
   core.info(`Issue: #${issueNumber}`);
@@ -410,6 +418,7 @@ async function runIssueMachine(options: IssueMachineOptions): Promise<void> {
       triggerOverride: trigger,
       ciRunUrl,
       workflowStartedAt,
+      workflowRunUrl,
     },
   );
 

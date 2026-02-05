@@ -1418,6 +1418,7 @@ export function emitRunClaudeGrooming({ context }: ActionContext): ActionResult 
       phase: "groom",
       message: "⏳ grooming...",
       timestamp: context.workflowStartedAt ?? undefined,
+      runLink: context.workflowRunUrl ?? context.ciRunUrl ?? undefined,
     },
     // Run all 4 grooming agents in parallel
     {
