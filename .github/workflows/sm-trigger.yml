@@ -7,6 +7,7 @@ run-name: >-
     github.event_name == 'issues' && github.event.action == 'edited' && format('Claude - #{0} - iterate', github.event.issue.number) ||
     github.event_name == 'issues' && github.event.action == 'closed' && format('Claude - #{0} - closed', github.event.issue.number) ||
     github.event_name == 'issues' && format('Claude - #{0} - {1}', github.event.issue.number, github.event.action) ||
+    github.event_name == 'issue_comment' && contains(github.event.comment.body, '/lfg') && format('Claude - #{0} - lfg', github.event.issue.number) ||
     github.event_name == 'issue_comment' && format('Claude - #{0} - comment', github.event.issue.number) ||
     github.event_name == 'pull_request_review_comment' && format('Claude - PR#{0} - comment', github.event.pull_request.number) ||
     github.event_name == 'push' && format('Claude - push - {0}', github.ref_name) ||
