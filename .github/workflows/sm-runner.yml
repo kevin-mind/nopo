@@ -632,8 +632,9 @@ jobs:
           # - orchestrationRunning: waiting for issues:assigned event (sub-issue iteration)
           # - orchestrationWaiting: waiting for pull_request_review:submitted event
           # - orchestrationComplete: all phases done, no more work needed
+          # - grooming: waiting for human to answer questions and remove needs-info label
           case "$FINAL_STATE" in
-            done|blocked|error|alreadyDone|alreadyBlocked|terminal|reviewing|triaged|orchestrationRunning|orchestrationWaiting|orchestrationComplete)
+            done|blocked|error|alreadyDone|alreadyBlocked|terminal|reviewing|triaged|orchestrationRunning|orchestrationWaiting|orchestrationComplete|grooming)
               echo "Terminal/waiting state: $FINAL_STATE, no retrigger needed"
               echo "should_retrigger=false" >> $GITHUB_OUTPUT
               ;;
@@ -653,11 +654,11 @@ jobs:
         run: |
           if [[ "$CONTINUE" == "true" ]]; then
             echo "Retriggering workflow for issue #${ISSUE_NUMBER}"
-            gh workflow run claude.yml \
+            gh workflow run sm-trigger.yml \
               --repo "$REPO" \
               -f action=auto \
               -f resource_number="$ISSUE_NUMBER"
           else
             echo "::notice::Would retrigger workflow for issue #${ISSUE_NUMBER} (continue=false, skipped)"
-            echo "To continue, manually dispatch with: gh workflow run claude.yml -f action=auto -f resource_number=$ISSUE_NUMBER"
+            echo "To continue, manually dispatch with: gh workflow run sm-trigger.yml -f action=auto -f resource_number=$ISSUE_NUMBER"
           fi
