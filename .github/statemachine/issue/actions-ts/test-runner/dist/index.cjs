@@ -31989,13 +31989,10 @@ function shouldStopOnError(actionType) {
 
 // issue/actions-ts/state-machine/machine/guards.ts
 function isAlreadyDone({ context: context2 }) {
-  if (context2.issue.projectStatus !== "Done") {
-    return false;
+  if (context2.issue.projectStatus === "Done" && context2.pr?.state === "MERGED") {
+    return true;
   }
-  if (context2.pr) {
-    return context2.pr.state === "MERGED";
-  }
-  return true;
+  return false;
 }
 function isBlocked({ context: context2 }) {
   return context2.issue.projectStatus === "Blocked";
