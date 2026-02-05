@@ -14,9 +14,23 @@ interface GuardContext {
 
 /**
  * Check if the issue is already done
+ *
+ * Returns true only if status is "Done" AND the PR is merged (or no PR exists).
+ * This prevents incorrectly closing issues with open/changes-requested PRs.
  */
 export function isAlreadyDone({ context }: GuardContext): boolean {
-  return context.issue.projectStatus === "Done";
+  // Status must be Done
+  if (context.issue.projectStatus !== "Done") {
+    return false;
+  }
+
+  // If PR exists, it must be merged
+  if (context.pr) {
+    return context.pr.state === "MERGED";
+  }
+
+  // No PR - status Done is sufficient
+  return true;
 }
 
 /**
