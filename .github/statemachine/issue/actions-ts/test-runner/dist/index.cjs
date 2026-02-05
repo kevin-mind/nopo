@@ -36945,6 +36945,7 @@ var IssueTriggerTypeSchema = external_exports.enum([
   "issue-groom",
   "issue-orchestrate",
   "issue-comment",
+  "issue-pivot",
   "issue-reset",
   // PR triggers
   "pr-review-requested",
