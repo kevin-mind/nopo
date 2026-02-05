@@ -33038,13 +33038,6 @@ async function buildMachineContext(octokit, event, projectNumber, options = {}) 
 }
 
 // issue/actions-ts/state-machine/machine/actions.ts
-function formatCommentsForPrompt(comments) {
-  if (comments.length === 0) {
-    return "No comments yet.";
-  }
-  return comments.map((c) => `### ${c.author} (${c.createdAt})
-${c.body}`).join("\n\n---\n\n");
-}
 function emitSetWorking({ context: context2 }) {
   const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
   return [
@@ -33312,7 +33305,6 @@ function emitMergePR({ context: context2 }) {
 function buildIteratePromptVars(context2, ciResultOverride) {
   const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
   const issueTitle = context2.currentSubIssue?.title ?? context2.issue.title;
-  const issueBody = context2.currentSubIssue?.body ?? context2.issue.body;
   const branchName = context2.branch ?? deriveBranchName(context2.issue.number, context2.currentPhase ?? void 0);
   const iteration = context2.issue.iteration;
   const failures = context2.issue.failures;
@@ -33343,11 +33335,9 @@ gh pr create --draft --reviewer nopo-bot \\
     LAST_CI_RESULT: ciResult,
     CONSECUTIVE_FAILURES: String(failures),
     BRANCH_NAME: branchName,
-    ISSUE_BODY: issueBody,
     PARENT_CONTEXT: parentContext,
     PR_CREATE_COMMAND: prCreateCommand,
-    EXISTING_BRANCH_SECTION: "",
-    ISSUE_COMMENTS: formatCommentsForPrompt(context2.issue.comments)
+    EXISTING_BRANCH_SECTION: ""
   };
 }
 function emitRunClaude({ context: context2 }) {
@@ -33418,8 +33408,6 @@ function emitRunClaudeTriage({ context: context2 }) {
   const promptVars = {
     ISSUE_NUMBER: String(issueNumber),
     ISSUE_TITLE: context2.issue.title,
-    ISSUE_BODY: context2.issue.body,
-    ISSUE_COMMENTS: formatCommentsForPrompt(context2.issue.comments),
     AGENT_NOTES: ""
     // Injected by workflow from previous runs
   };
@@ -33457,8 +33445,7 @@ function emitRunClaudeComment({ context: context2 }) {
   const promptVars = {
     ISSUE_NUMBER: String(issueNumber),
     CONTEXT_TYPE: context2.commentContextType ?? "issue",
-    CONTEXT_DESCRIPTION: context2.commentContextDescription ?? `This is issue #${issueNumber}.`,
-    ISSUE_COMMENTS: formatCommentsForPrompt(context2.issue.comments)
+    CONTEXT_DESCRIPTION: context2.commentContextDescription ?? `This is issue #${issueNumber}.`
   };
   return [
     {
@@ -33963,8 +33950,6 @@ function buildGroomingPromptVars(context2) {
   return {
     ISSUE_NUMBER: String(context2.issue.number),
     ISSUE_TITLE: context2.issue.title,
-    ISSUE_BODY: context2.issue.body,
-    ISSUE_COMMENTS: formatCommentsForPrompt(context2.issue.comments),
     ISSUE_LABELS: context2.issue.labels.join(", ")
   };
 }

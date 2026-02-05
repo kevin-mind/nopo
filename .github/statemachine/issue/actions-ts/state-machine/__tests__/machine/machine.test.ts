@@ -293,11 +293,10 @@ describe("claudeMachine", () => {
       const runClaudeAction = actions.find((a) => a.type === "runClaude");
       if (runClaudeAction?.type === "runClaude") {
         expect(runClaudeAction.promptDir).toBe("triage");
+        // Note: ISSUE_BODY and ISSUE_COMMENTS are fetched at runtime by the executor
         expect(runClaudeAction.promptVars).toEqual({
           ISSUE_NUMBER: "456",
           ISSUE_TITLE: "Bug report",
-          ISSUE_BODY: "## Description\n\nSomething is broken",
-          ISSUE_COMMENTS: "No comments yet.",
           AGENT_NOTES: "",
         });
         expect(runClaudeAction.issueNumber).toBe(456);
@@ -366,11 +365,11 @@ describe("claudeMachine", () => {
       const runClaudeAction = actions.find((a) => a.type === "runClaude");
       if (runClaudeAction?.type === "runClaude") {
         expect(runClaudeAction.promptFile).toBe(".github/statemachine/issue/prompts/comment/prompt.txt");
+        // Note: ISSUE_COMMENTS is fetched at runtime by the executor
         expect(runClaudeAction.promptVars).toEqual({
           ISSUE_NUMBER: "456",
           CONTEXT_TYPE: "pr",
           CONTEXT_DESCRIPTION: "This is PR #789 fixing bug in authentication.",
-          ISSUE_COMMENTS: "No comments yet.",
         });
         expect(runClaudeAction.issueNumber).toBe(456);
         // worktree is intentionally not set - checkout happens at repo root to the correct branch
@@ -393,11 +392,11 @@ describe("claudeMachine", () => {
       const { actions } = runMachine(context);
       const runClaudeAction = actions.find((a) => a.type === "runClaude");
       if (runClaudeAction?.type === "runClaude") {
+        // Note: ISSUE_COMMENTS is fetched at runtime by the executor
         expect(runClaudeAction.promptVars).toEqual({
           ISSUE_NUMBER: "789",
           CONTEXT_TYPE: "issue",
           CONTEXT_DESCRIPTION: "This is issue #789.",
-          ISSUE_COMMENTS: "No comments yet.",
         });
       } else {
         expect.fail("runClaude action not found");

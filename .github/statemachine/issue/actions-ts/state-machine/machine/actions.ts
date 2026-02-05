@@ -439,7 +439,6 @@ function buildIteratePromptVars(
 ): Record<string, string> {
   const issueNumber = context.currentSubIssue?.number ?? context.issue.number;
   const issueTitle = context.currentSubIssue?.title ?? context.issue.title;
-  const issueBody = context.currentSubIssue?.body ?? context.issue.body;
   const branchName =
     context.branch ??
     deriveBranchName(context.issue.number, context.currentPhase ?? undefined);
@@ -475,6 +474,9 @@ gh pr create --draft --reviewer nopo-bot \\
   --body "Fixes #${issueNumber}"
 \`\`\``;
 
+  // Note: ISSUE_BODY and ISSUE_COMMENTS are NOT included here to avoid
+  // "may contain secret" masking when passing through actions_json output.
+  // The workflow fetches these at runtime before passing to Claude.
   return {
     ISSUE_NUMBER: String(issueNumber),
     ISSUE_TITLE: issueTitle,
@@ -482,11 +484,9 @@ gh pr create --draft --reviewer nopo-bot \\
     LAST_CI_RESULT: ciResult,
     CONSECUTIVE_FAILURES: String(failures),
     BRANCH_NAME: branchName,
-    ISSUE_BODY: issueBody,
     PARENT_CONTEXT: parentContext,
     PR_CREATE_COMMAND: prCreateCommand,
     EXISTING_BRANCH_SECTION: "",
-    ISSUE_COMMENTS: formatCommentsForPrompt(context.issue.comments),
   };
 }
 
@@ -584,11 +584,10 @@ export function emitRunClaudeTriage({ context }: ActionContext): ActionResult {
   const issueNumber = context.issue.number;
 
   // The triage prompt uses these template variables
+  // Note: ISSUE_BODY and ISSUE_COMMENTS fetched at runtime by workflow
   const promptVars: Record<string, string> = {
     ISSUE_NUMBER: String(issueNumber),
     ISSUE_TITLE: context.issue.title,
-    ISSUE_BODY: context.issue.body,
-    ISSUE_COMMENTS: formatCommentsForPrompt(context.issue.comments),
     AGENT_NOTES: "", // Injected by workflow from previous runs
   };
 
@@ -633,12 +632,12 @@ export function emitRunClaudeComment({ context }: ActionContext): ActionResult {
   const issueNumber = context.issue.number;
 
   // The comment prompt uses these template variables
+  // Note: ISSUE_COMMENTS fetched at runtime by workflow
   const promptVars: Record<string, string> = {
     ISSUE_NUMBER: String(issueNumber),
     CONTEXT_TYPE: context.commentContextType ?? "issue",
     CONTEXT_DESCRIPTION:
       context.commentContextDescription ?? `This is issue #${issueNumber}.`,
-    ISSUE_COMMENTS: formatCommentsForPrompt(context.issue.comments),
   };
 
   return [
@@ -1382,13 +1381,12 @@ export function emitPushToDraft({ context }: ActionContext): ActionResult {
 
 /**
  * Build prompt variables for grooming prompts
+ * Note: ISSUE_BODY and ISSUE_COMMENTS fetched at runtime by workflow
  */
 function buildGroomingPromptVars(context: MachineContext): Record<string, string> {
   return {
     ISSUE_NUMBER: String(context.issue.number),
     ISSUE_TITLE: context.issue.title,
-    ISSUE_BODY: context.issue.body,
-    ISSUE_COMMENTS: formatCommentsForPrompt(context.issue.comments),
     ISSUE_LABELS: context.issue.labels.join(", "),
   };
 }

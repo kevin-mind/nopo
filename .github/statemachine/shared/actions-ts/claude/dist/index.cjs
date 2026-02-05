@@ -13047,7 +13047,7 @@ var require_fetch = __commonJS({
         this.emit("terminated", error2);
       }
     };
-    function fetch(input, init = {}) {
+    function fetch2(input, init = {}) {
       webidl.argumentLengthCheck(arguments, 1, { header: "globalThis.fetch" });
       const p3 = createDeferredPromise();
       let requestObject;
@@ -13977,7 +13977,7 @@ var require_fetch = __commonJS({
       }
     }
     module2.exports = {
-      fetch,
+      fetch: fetch2,
       Fetch,
       fetching,
       finalizeAndReportTiming
@@ -17233,7 +17233,7 @@ var require_undici = __commonJS({
     module2.exports.getGlobalDispatcher = getGlobalDispatcher;
     if (util.nodeMajor > 16 || util.nodeMajor === 16 && util.nodeMinor >= 8) {
       let fetchImpl = null;
-      module2.exports.fetch = async function fetch(resource) {
+      module2.exports.fetch = async function fetch2(resource) {
         if (!fetchImpl) {
           fetchImpl = require_fetch().fetch;
         }
@@ -28805,6 +28805,32 @@ function resolvePrompt(options) {
 }
 
 // shared/actions-ts/claude/action-entry.ts
+async function fetchIssueContent(token, issueNumber) {
+  const repo = process.env.GITHUB_REPOSITORY;
+  if (!repo) {
+    throw new Error("GITHUB_REPOSITORY not set");
+  }
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    Accept: "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28"
+  };
+  const issueUrl = `https://api.github.com/repos/${repo}/issues/${issueNumber}`;
+  const issueResp = await fetch(issueUrl, { headers });
+  if (!issueResp.ok) {
+    throw new Error(`Failed to fetch issue: ${issueResp.status} ${issueResp.statusText}`);
+  }
+  const issue = await issueResp.json();
+  const body = issue.body || "";
+  const commentsUrl = `https://api.github.com/repos/${repo}/issues/${issueNumber}/comments?per_page=100`;
+  const commentsResp = await fetch(commentsUrl, { headers });
+  if (!commentsResp.ok) {
+    throw new Error(`Failed to fetch comments: ${commentsResp.status} ${commentsResp.statusText}`);
+  }
+  const commentsData = await commentsResp.json();
+  const comments = commentsData.length > 0 ? commentsData.map((c3) => `${c3.user?.login || "unknown"}: ${c3.body}`).join("\n\n---\n\n") : "No comments yet.";
+  return { body, comments };
+}
 async function run() {
   try {
     const prompt = core2.getInput("prompt");
@@ -28815,12 +28841,32 @@ async function run() {
     const workingDirectory = core2.getInput("working_directory") || process.cwd();
     const allowedToolsStr = core2.getInput("allowed_tools");
     const mockOutput = core2.getInput("mock_output");
+    const githubToken = core2.getInput("github_token");
+    const issueNumber = core2.getInput("issue_number");
+    const agentNotes = core2.getInput("agent_notes");
     let promptVars;
     try {
       promptVars = JSON.parse(promptVarsJson);
     } catch (e2) {
       core2.warning(`Failed to parse prompt_vars as JSON: ${e2}`);
       promptVars = void 0;
+    }
+    if (agentNotes && promptVars) {
+      promptVars.AGENT_NOTES = agentNotes;
+    }
+    if (issueNumber && githubToken) {
+      core2.info(`Fetching issue #${issueNumber} content...`);
+      try {
+        const { body, comments } = await fetchIssueContent(githubToken, issueNumber);
+        if (!promptVars) {
+          promptVars = {};
+        }
+        promptVars.ISSUE_BODY = body;
+        promptVars.ISSUE_COMMENTS = comments;
+        core2.info(`Fetched issue body (${body.length} chars) and ${comments === "No comments yet." ? 0 : comments.split("---").length} comments`);
+      } catch (e2) {
+        core2.warning(`Failed to fetch issue content: ${e2}`);
+      }
     }
     if (mockOutput) {
       core2.info("Mock mode enabled - returning mock output");

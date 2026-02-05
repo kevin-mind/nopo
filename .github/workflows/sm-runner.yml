@@ -435,23 +435,6 @@ jobs:
 
           echo "✅ E2E simulated review submitted: $event"
 
-      # Merge agent notes into prompt variables
-      # Agent notes are now parsed from the issue body during context building
-      # and passed through the router output, eliminating the need for a separate fetch
-      - name: Prepare prompt variables
-        id: prompt-vars
-        if: |
-          matrix.action.type == 'runClaude' &&
-          !inputs.dry_run &&
-          needs.e2e-detect.outputs.e2e_mode != 'true'
-        env:
-          PROMPT_VARS: ${{ toJson(matrix.action.promptVars) }}
-          AGENT_NOTES: ${{ needs.derive-actions.outputs.agent_notes }}
-        run: |
-          # Add AGENT_NOTES to the prompt variables (use -c for compact single-line JSON)
-          merged=$(echo "$PROMPT_VARS" | jq -c --arg notes "${AGENT_NOTES:-No previous agent notes found.}" '. + {AGENT_NOTES: $notes}')
-          echo "merged=$merged" >> $GITHUB_OUTPUT
-
       # Install Claude Code for SDK-based execution
       # Also needed for actions that run Claude internally:
       # - applyDiscussionResearchOutput: runs parallel investigations
@@ -467,10 +450,7 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       # Execute runClaude actions via the TypeScript action for SDK-based execution
-      # Uses NOPO_BOT_PAT for all Claude runs (needs repo scope for permission checks)
-      # CLAUDE_REVIEWER_PAT is used only for post-processing (labels, project fields)
-      # Agent notes are injected via AGENT_NOTES prompt variable
-      # Skip in e2e mode - e2e-review step handles review actions
+      # Issue content (body/comments) is fetched by the action itself to avoid secret masking
       - name: Run Claude
         id: run-claude
         if: |
@@ -485,7 +465,10 @@ jobs:
           prompt_file: ${{ matrix.action.promptFile }}
           prompt_dir: ${{ matrix.action.promptDir }}
           prompts_base: ${{ matrix.action.promptsBase }}
-          prompt_vars: ${{ steps.prompt-vars.outputs.merged || toJson(matrix.action.promptVars) }}
+          prompt_vars: ${{ toJson(matrix.action.promptVars) }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
+          issue_number: ${{ matrix.action.issueNumber }}
+          agent_notes: ${{ needs.derive-actions.outputs.agent_notes }}
 
       # Note: Review submission is now handled by the applyReviewOutput action in the executor
       # The state machine emits [runClaude, applyReviewOutput] for review flows

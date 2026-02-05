@@ -28,6 +28,15 @@ inputs:
   mock_output:
     description: 'JSON for test mode - returns immediately with this as structured output'
     required: false
+  github_token:
+    description: 'GitHub token for fetching issue content (body/comments). Required if issue_number is set.'
+    required: false
+  issue_number:
+    description: 'Issue number to fetch body and comments from. Will inject ISSUE_BODY and ISSUE_COMMENTS into prompt_vars.'
+    required: false
+  agent_notes:
+    description: 'Agent notes to inject as AGENT_NOTES prompt variable'
+    required: false
 
 outputs:
   success:
