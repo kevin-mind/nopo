@@ -24773,23 +24773,6 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
         skipReason: ""
       };
     }
-    if (details.subIssues.length > 0) {
-      return {
-        job: "issue-orchestrate",
-        resourceType: "issue",
-        resourceNumber: String(issue.number),
-        commentId: String(comment.id),
-        contextJson: {
-          issue_number: String(issue.number),
-          issue_title: details.title || issue.title,
-          issue_body: details.body || issue.body,
-          sub_issues: details.subIssues.join(","),
-          trigger_type: "issue-comment"
-        },
-        skip: false,
-        skipReason: ""
-      };
-    }
     const hasGroomedLabel = issue.labels.some((l) => l.name === "groomed");
     const hasNeedsInfoLabel = issue.labels.some((l) => l.name === "needs-info");
     const hasTriagedLabel = issue.labels.some((l) => l.name === "triaged");
@@ -24803,6 +24786,23 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
           issue_number: String(issue.number),
           issue_title: details.title || issue.title,
           issue_body: details.body || issue.body,
+          trigger_type: "issue-comment"
+        },
+        skip: false,
+        skipReason: ""
+      };
+    }
+    if (details.subIssues.length > 0) {
+      return {
+        job: "issue-orchestrate",
+        resourceType: "issue",
+        resourceNumber: String(issue.number),
+        commentId: String(comment.id),
+        contextJson: {
+          issue_number: String(issue.number),
+          issue_title: details.title || issue.title,
+          issue_body: details.body || issue.body,
+          sub_issues: details.subIssues.join(","),
           trigger_type: "issue-comment"
         },
         skip: false,

@@ -1265,27 +1265,8 @@ async function handleIssueCommentEvent(
       };
     }
 
-    // Check if this is a parent issue with sub-issues - route to orchestrate
-    if (details.subIssues.length > 0) {
-      return {
-        job: "issue-orchestrate",
-        resourceType: "issue",
-        resourceNumber: String(issue.number),
-        commentId: String(comment.id),
-        contextJson: {
-          issue_number: String(issue.number),
-          issue_title: details.title || issue.title,
-          issue_body: details.body || issue.body,
-          sub_issues: details.subIssues.join(","),
-          trigger_type: "issue-comment",
-        },
-        skip: false,
-        skipReason: "",
-      };
-    }
-
-    // Regular issue without sub-issues
     // Check if issue needs grooming first (triaged but not groomed)
+    // This check happens before sub-issues check because parent issues also need grooming
     const hasGroomedLabel = issue.labels.some((l) => l.name === "groomed");
     const hasNeedsInfoLabel = issue.labels.some((l) => l.name === "needs-info");
     const hasTriagedLabel = issue.labels.some((l) => l.name === "triaged");
@@ -1301,6 +1282,25 @@ async function handleIssueCommentEvent(
           issue_number: String(issue.number),
           issue_title: details.title || issue.title,
           issue_body: details.body || issue.body,
+          trigger_type: "issue-comment",
+        },
+        skip: false,
+        skipReason: "",
+      };
+    }
+
+    // Check if this is a parent issue with sub-issues - route to orchestrate
+    if (details.subIssues.length > 0) {
+      return {
+        job: "issue-orchestrate",
+        resourceType: "issue",
+        resourceNumber: String(issue.number),
+        commentId: String(comment.id),
+        contextJson: {
+          issue_number: String(issue.number),
+          issue_title: details.title || issue.title,
+          issue_body: details.body || issue.body,
+          sub_issues: details.subIssues.join(","),
           trigger_type: "issue-comment",
         },
         skip: false,
