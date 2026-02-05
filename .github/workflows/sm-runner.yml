@@ -640,9 +640,8 @@ jobs:
             echo "Retriggering workflow for issue #${ISSUE_NUMBER}"
             gh workflow run sm-trigger.yml \
               --repo "$REPO" \
-              -f action=auto \
               -f resource_number="$ISSUE_NUMBER"
           else
             echo "::notice::Would retrigger workflow for issue #${ISSUE_NUMBER} (continue=false, skipped)"
-            echo "To continue, manually dispatch with: gh workflow run sm-trigger.yml -f action=auto -f resource_number=$ISSUE_NUMBER"
+            echo "To continue, manually dispatch with: gh workflow run sm-trigger.yml -f resource_number=$ISSUE_NUMBER"
           fi
