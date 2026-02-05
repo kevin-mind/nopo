@@ -1255,6 +1255,7 @@ async function handleIssueCommentEvent(
         await ensureBranchExists(branchName);
       }
 
+      // /lfg on sub-issue -> iterate (trigger_type must route to iterating, not commenting)
       return {
         job: "issue-iterate",
         resourceType: "issue",
@@ -1263,9 +1264,8 @@ async function handleIssueCommentEvent(
         contextJson: {
           issue_number: String(issue.number),
           issue_title: details.title || issue.title,
-          // Note: issue_body removed - executors fetch it when needed to avoid "may contain secret" masking
           branch_name: branchName,
-          trigger_type: "issue-comment",
+          trigger_type: "issue-assigned", // Routes to iterating state, not commenting
           parent_issue: String(details.parentIssue),
           phase_number: String(phaseNumber),
         },
@@ -1281,7 +1281,7 @@ async function handleIssueCommentEvent(
     const hasTriagedLabel = issue.labels.some((l) => l.name === "triaged");
 
     if (hasTriagedLabel && !hasGroomedLabel && !hasNeedsInfoLabel) {
-      // Route to grooming first (trigger_type must match job for state machine routing)
+      // /lfg on ungroomed issue -> groom first
       return {
         job: "issue-groom",
         resourceType: "issue",
@@ -1290,7 +1290,6 @@ async function handleIssueCommentEvent(
         contextJson: {
           issue_number: String(issue.number),
           issue_title: details.title || issue.title,
-          // Note: issue_body removed - executors fetch it when needed to avoid "may contain secret" masking
           trigger_type: "issue-groom",
         },
         skip: false,
@@ -1300,6 +1299,7 @@ async function handleIssueCommentEvent(
 
     // Check if this is a parent issue with sub-issues - route to orchestrate
     if (details.subIssues.length > 0) {
+      // /lfg on parent with sub-issues -> orchestrate
       return {
         job: "issue-orchestrate",
         resourceType: "issue",
@@ -1308,9 +1308,8 @@ async function handleIssueCommentEvent(
         contextJson: {
           issue_number: String(issue.number),
           issue_title: details.title || issue.title,
-          // Note: issue_body removed - executors fetch it when needed to avoid "may contain secret" masking
           sub_issues: details.subIssues.join(","),
-          trigger_type: "issue-comment",
+          trigger_type: "issue-orchestrate", // Routes to orchestrating state
         },
         skip: false,
         skipReason: "",
@@ -1322,7 +1321,7 @@ async function handleIssueCommentEvent(
     // Ensure the branch exists (create if not)
     await ensureBranchExists(branchName);
 
-    // Use the unified iteration model
+    // /lfg on simple issue -> iterate
     return {
       job: "issue-iterate",
       resourceType: "issue",
@@ -1331,9 +1330,8 @@ async function handleIssueCommentEvent(
       contextJson: {
         issue_number: String(issue.number),
         issue_title: details.title || issue.title,
-        // Note: issue_body removed - executors fetch it when needed to avoid "may contain secret" masking
         branch_name: branchName,
-        trigger_type: "issue-comment",
+        trigger_type: "issue-assigned", // Routes to iterating state, not commenting
       },
       skip: false,
       skipReason: "",

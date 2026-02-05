@@ -24768,9 +24768,9 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
         contextJson: {
           issue_number: String(issue.number),
           issue_title: details.title || issue.title,
-          // Note: issue_body removed - executors fetch it when needed to avoid "may contain secret" masking
           branch_name: branchName3,
-          trigger_type: "issue-comment",
+          trigger_type: "issue-assigned",
+          // Routes to iterating state, not commenting
           parent_issue: String(details.parentIssue),
           phase_number: String(phaseNumber)
         },
@@ -24790,7 +24790,6 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
         contextJson: {
           issue_number: String(issue.number),
           issue_title: details.title || issue.title,
-          // Note: issue_body removed - executors fetch it when needed to avoid "may contain secret" masking
           trigger_type: "issue-groom"
         },
         skip: false,
@@ -24806,9 +24805,9 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
         contextJson: {
           issue_number: String(issue.number),
           issue_title: details.title || issue.title,
-          // Note: issue_body removed - executors fetch it when needed to avoid "may contain secret" masking
           sub_issues: details.subIssues.join(","),
-          trigger_type: "issue-comment"
+          trigger_type: "issue-orchestrate"
+          // Routes to orchestrating state
         },
         skip: false,
         skipReason: ""
@@ -24824,9 +24823,9 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
       contextJson: {
         issue_number: String(issue.number),
         issue_title: details.title || issue.title,
-        // Note: issue_body removed - executors fetch it when needed to avoid "may contain secret" masking
         branch_name: branchName2,
-        trigger_type: "issue-comment"
+        trigger_type: "issue-assigned"
+        // Routes to iterating state, not commenting
       },
       skip: false,
       skipReason: ""
