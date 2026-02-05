@@ -24822,18 +24822,22 @@ async function handleIssueCommentEvent(octokit, owner, repo) {
       "--repo",
       process.env.GITHUB_REPOSITORY ?? "",
       "--json",
-      "headRefName,body",
-      "--jq",
-      '"(.headRefName)\n(.body)"'
+      "headRefName,body"
     ]);
-    const lines = stdout.split("\n");
-    branchName = lines[0]?.trim() || "main";
-    const prBody = lines.slice(1).join("\n");
-    contextType = "pr";
-    prNumber = String(issue.number);
-    const linkedIssue = await extractIssueNumber(prBody);
-    if (linkedIssue) {
-      linkedIssueNumber = linkedIssue;
+    try {
+      const prData = JSON.parse(stdout);
+      branchName = prData.headRefName || "main";
+      const prBody = prData.body || "";
+      contextType = "pr";
+      prNumber = String(issue.number);
+      const linkedIssue = await extractIssueNumber(prBody);
+      if (linkedIssue) {
+        linkedIssueNumber = linkedIssue;
+      }
+    } catch {
+      branchName = "main";
+      contextType = "pr";
+      prNumber = String(issue.number);
     }
   } else {
     const issueBranch = `claude/issue/${issue.number}`;
