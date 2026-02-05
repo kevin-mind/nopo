@@ -45,6 +45,7 @@ run-name: >-
     types:
       - opened
       - assigned
+      - edited
       - closed
   issue_comment:
     types:
