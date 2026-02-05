@@ -1756,11 +1756,10 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
     return emptyResult(true, `Review state is ${state}`);
   }
 
-  // Extract issue number from branch name
-  // Supports: claude/issue/XXX or claude/issue/XXX/phase-YYY (sub-issue branches)
-  const branchMatch = pr.head.ref.match(/^claude\/issue\/(\d+)(?:\/phase-(\d+))?$/);
-  // For sub-issue branches, use the phase number (sub-issue); otherwise use parent issue number
-  const issueNumber = branchMatch?.[2] ?? branchMatch?.[1] ?? "";
+  // Extract issue number from PR body (e.g., "Fixes #4603")
+  // This is more reliable than branch parsing since sub-issue branches use
+  // phase numbers (claude/issue/4545/phase-1) not sub-issue numbers
+  const issueNumber = await extractIssueNumber(pr.body ?? "");
 
   // Check if review is from Claude reviewer (pr-response) or human (pr-human-response)
   // nopo-reviewer is Claude's review account, claude[bot] is the direct API account

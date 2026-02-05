@@ -25059,8 +25059,8 @@ async function handlePullRequestReviewEvent() {
       /(?:fixes|closes|resolves)\s+#(\d+)/i
     );
     const issueNumber2 = linkedIssueMatch?.[1] ?? "";
-    const branchMatch2 = pr.head.ref.match(/^claude\/issue\/(\d+)/);
-    const parentIssue = branchMatch2?.[1] ?? "";
+    const branchMatch = pr.head.ref.match(/^claude\/issue\/(\d+)/);
+    const parentIssue = branchMatch?.[1] ?? "";
     return {
       job: "pr-review-approved",
       resourceType: "pr",
@@ -25083,8 +25083,7 @@ async function handlePullRequestReviewEvent() {
   if (state !== "changes_requested" && state !== "commented") {
     return emptyResult(true, `Review state is ${state}`);
   }
-  const branchMatch = pr.head.ref.match(/^claude\/issue\/(\d+)(?:\/phase-(\d+))?$/);
-  const issueNumber = branchMatch?.[2] ?? branchMatch?.[1] ?? "";
+  const issueNumber = await extractIssueNumber(pr.body ?? "");
   const claudeReviewers = ["nopo-reviewer", "claude[bot]"];
   if (claudeReviewers.includes(reviewerLogin)) {
     const reviewDecision2 = state.toUpperCase();
