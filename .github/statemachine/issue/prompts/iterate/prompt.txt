@@ -83,9 +83,70 @@ git rebase origin/main
 
 ### 3. Implementation
 
-1. Read files before editing
-2. Follow CLAUDE.md guidelines
-3. Keep changes small and focused
+**IMPORTANT: Use Task Tool Delegation for All Code Changes**
+
+You MUST delegate all implementation and fix work to the full-stack-engineer sub-agent. Never directly edit or write code files yourself.
+
+**How to delegate:**
+
+1. **Before implementing or fixing**, invoke the full-stack-engineer sub-agent using the Task tool:
+
+   ```
+   Use Task tool with:
+   - subagent_type: "full-stack-engineer"
+   - description: Brief summary (3-5 words) of what needs to be done
+   - prompt: Provide full context including:
+     * Issue #{{ISSUE_NUMBER}}: {{ISSUE_TITLE}}
+     * Current iteration: {{ITERATION}}
+     * Specific todo(s) to complete
+     * Relevant files and context
+     * Any CI failures to fix
+   ```
+
+2. **Your responsibilities** (read-only operations):
+   - Assess current state (git status, git log, git diff)
+   - Run validation (make check, make test)
+   - View PR status (gh pr view, gh pr list)
+   - Read files to understand context
+   - Analyze CI failures
+   - Coordinate sub-agent work
+
+3. **Sub-agent responsibilities** (write operations):
+   - Read files before editing
+   - Implement features and fixes
+   - Edit and write code files
+   - Commit changes with descriptive messages
+   - Follow CLAUDE.md guidelines
+   - Keep changes small and focused
+
+**Example delegation:**
+
+When you need to implement a feature or fix a bug, use:
+
+```
+Task tool:
+  subagent_type: full-stack-engineer
+  description: "Implement login validation"
+  prompt: |
+    Implement issue #{{ISSUE_NUMBER}}: {{ISSUE_TITLE}}
+
+    Current state: Iteration {{ITERATION}}, {{LAST_CI_RESULT}}
+
+    Complete this todo:
+    - Add login form validation with email format check
+
+    Context:
+    - Login form is in apps/web/src/components/LoginForm.tsx
+    - Validation utilities are in apps/web/src/utils/validation.ts
+
+    Requirements:
+    - Read files before editing
+    - Follow CLAUDE.md patterns
+    - Run 'make check && make test' before committing
+    - Commit with descriptive message
+```
+
+After the sub-agent completes, verify the changes and proceed to step 4 (Verify Before Committing).
 
 ### 4. Verify Before Committing
 
