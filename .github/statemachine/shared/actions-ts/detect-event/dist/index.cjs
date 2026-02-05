@@ -24265,30 +24265,6 @@ async function checkBranchExists(branch) {
   );
   return stdout.includes(branch);
 }
-async function buildIssueSection(octokit, owner, repo, prBody) {
-  const issueNumber = await extractIssueNumber(prBody);
-  if (!issueNumber) {
-    return "## No Linked Issue\nPerforming standard code review.\n";
-  }
-  try {
-    const { data: issue } = await octokit.rest.issues.get({
-      owner,
-      repo,
-      issue_number: parseInt(issueNumber, 10)
-    });
-    return `## Linked Issue #${issueNumber}
-
-${issue.body ?? ""}
-
-## Validation
-- CHECK ALL TODO ITEMS in the issue are addressed
-- VERIFY code follows CLAUDE.md guidelines
-- ENSURE tests cover the requirements
-`;
-  } catch {
-    return "## No Linked Issue\nPerforming standard code review.\n";
-  }
-}
 async function handleIssueEvent(octokit, owner, repo) {
   const { context: context2 } = github;
   const payload = context2.payload;
@@ -25038,12 +25014,6 @@ async function handlePullRequestEvent(octokit, owner, repo) {
     if (pr.draft) {
       return emptyResult(true, "PR is a draft");
     }
-    const issueSection = await buildIssueSection(
-      octokit,
-      owner,
-      repo,
-      pr.body ?? ""
-    );
     const issueNumber = await extractIssueNumber(pr.body ?? "");
     return {
       job: "pr-review-requested",
@@ -25053,7 +25023,6 @@ async function handlePullRequestEvent(octokit, owner, repo) {
       contextJson: {
         pr_number: String(pr.number),
         branch_name: pr.head.ref,
-        issue_section: issueSection,
         issue_number: issueNumber
       },
       skip: false,

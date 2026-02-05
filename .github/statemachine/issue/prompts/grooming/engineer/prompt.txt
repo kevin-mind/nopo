@@ -56,7 +56,9 @@ If you recommend splitting, provide `recommended_phases` with:
 - **description**: What this phase accomplishes
 - **affected_areas**: Files affected in this phase (path, change_type, description)
 - **todos**: Specific implementation tasks for this phase
-  - Each todo has `task` (description) and `manual` (true if requires human action)
+  - Each todo has `task` (description) and `manual` (boolean)
+  - `manual: false` = **[Auto]** - Claude will complete during iteration (code changes, file edits)
+  - `manual: true` = **[Manual]** - Requires human action (approvals, external config, deployments)
 - **depends_on**: Array of phase numbers this depends on (empty for first phase)
 
 **Guidelines for phases:**

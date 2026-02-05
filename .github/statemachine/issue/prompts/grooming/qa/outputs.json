@@ -41,9 +41,13 @@
             "type": "string",
             "enum": ["must-have", "should-have", "nice-to-have"],
             "description": "Priority of this test"
+          },
+          "manual": {
+            "type": "boolean",
+            "description": "false = [Auto] Claude writes the test during iteration; true = [Manual] requires human action (e.g., manual verification, external system testing)"
           }
         },
-        "required": ["name", "type", "description", "priority"]
+        "required": ["name", "type", "description", "priority", "manual"]
       }
     },
     "edge_cases": {

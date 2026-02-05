@@ -81,6 +81,7 @@ interface QAOutput extends GroomingAgentOutput {
     description: string;
     type: "unit" | "integration" | "e2e";
     phase?: number;
+    manual?: boolean;
   }>;
 }
 
@@ -554,7 +555,6 @@ async function applyReadyDecision(
         ctx,
         issueNumber,
         phases,
-        groomingOutputs.qa,
       );
       core.info(`Created ${subIssueNumbers.length} sub-issues`);
     }
@@ -840,7 +840,11 @@ async function applyGroomingToIssue(
       if (outputs.qa.test_cases && outputs.qa.test_cases.length > 0) {
         testingContent += "**Test Cases:**\n";
         testingContent += outputs.qa.test_cases
-          .map((t) => `- [ ] [${t.type}] ${t.description}`)
+          .map((t) => {
+            // Use manual field if present, default to false (Auto) for backwards compatibility
+            const prefix = t.manual ? "[Manual]" : "[Auto]";
+            return `- [ ] ${prefix} [${t.type}] ${t.description}`;
+          })
           .join("\n");
       }
 
@@ -871,12 +875,12 @@ async function applyGroomingToIssue(
 
 /**
  * Create sub-issues from the engineer's recommended phases
+ * Note: Testing section stays on parent issue only
  */
 async function createSubIssuesFromPlan(
   ctx: RunnerContext,
   parentIssueNumber: number,
   phases: PhaseDefinition[],
-  qaOutput: QAOutput,
 ): Promise<number[]> {
   if (phases.length === 0) {
     core.info("No phases recommended, skipping sub-issue creation");
@@ -925,7 +929,7 @@ async function createSubIssuesFromPlan(
         : phase.title;
 
     // Build the sub-issue body
-    const body = formatSubIssueBody(phase, qaOutput, parentIssueNumber);
+    const body = formatSubIssueBody(phase, parentIssueNumber);
 
     // Create the sub-issue
     const createResponse = await ctx.octokit.graphql<CreateIssueResponse>(
@@ -972,10 +976,10 @@ async function createSubIssuesFromPlan(
 
 /**
  * Format the body for a sub-issue
+ * Note: Testing section is kept on the parent issue only, not duplicated to sub-issues
  */
 function formatSubIssueBody(
   phase: PhaseDefinition,
-  qaOutput: QAOutput,
   parentIssueNumber: number,
 ): string {
   let body = `## Description\n\n${phase.description}\n`;
@@ -994,21 +998,9 @@ function formatSubIssueBody(
     body += `\n## Todo\n\n`;
     body += phase.todos
       .map((todo) => {
-        const prefix = todo.manual ? "[Manual] " : "";
+        const prefix = todo.manual ? "[Manual] " : "[Auto] ";
         return `- [ ] ${prefix}${todo.task}`;
       })
-      .join("\n");
-    body += "\n";
-  }
-
-  // Test cases for this phase
-  const phaseTests = qaOutput.test_cases?.filter(
-    (t) => t.phase === phase.phase_number || !t.phase,
-  );
-  if (phaseTests && phaseTests.length > 0) {
-    body += `\n## Testing\n\n`;
-    body += phaseTests
-      .map((t) => `- [ ] [${t.type}] ${t.description}`)
       .join("\n");
     body += "\n";
   }

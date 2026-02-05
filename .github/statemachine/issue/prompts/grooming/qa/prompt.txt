@@ -20,6 +20,12 @@ Analyze this issue from a quality assurance perspective. Focus on:
 
 1. **Test Strategy**: What types of tests are needed? (unit, integration, e2e)
 2. **Test Cases**: Specific scenarios to test
+   - Each test case has a `manual` field:
+     - `manual: false` = **[Auto]** - Claude writes this test during iteration
+     - `manual: true` = **[Manual]** - Requires human action (manual verification, external system testing)
+   - Most code tests (unit, integration) should be `manual: false` (Claude writes them)
+   - E2E tests that can be automated should also be `manual: false`
+   - Only mark `manual: true` for tests requiring human judgment or external systems
 3. **Edge Cases**: Boundary conditions and unusual inputs
 4. **Regression Risks**: What existing functionality could break?
 5. **Test Infrastructure**: Any test setup or infrastructure needed?

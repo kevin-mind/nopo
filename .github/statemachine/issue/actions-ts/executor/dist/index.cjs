@@ -41479,8 +41479,7 @@ async function applyReadyDecision(ctx, issueNumber, summary, groomingOutputs) {
       const subIssueNumbers = await createSubIssuesFromPlan(
         ctx,
         issueNumber,
-        phases,
-        groomingOutputs.qa
+        phases
       );
       core15.info(`Created ${subIssueNumbers.length} sub-issues`);
     }
@@ -41662,7 +41661,10 @@ async function applyGroomingToIssue(ctx, issueNumber, outputs) {
       }
       if (outputs.qa.test_cases && outputs.qa.test_cases.length > 0) {
         testingContent += "**Test Cases:**\n";
-        testingContent += outputs.qa.test_cases.map((t) => `- [ ] [${t.type}] ${t.description}`).join("\n");
+        testingContent += outputs.qa.test_cases.map((t) => {
+          const prefix = t.manual ? "[Manual]" : "[Auto]";
+          return `- [ ] ${prefix} [${t.type}] ${t.description}`;
+        }).join("\n");
       }
       sections.push({ name: "Testing", content: testingContent.trim() });
     }
@@ -41680,7 +41682,7 @@ async function applyGroomingToIssue(ctx, issueNumber, outputs) {
     core15.warning(`Failed to apply grooming to issue: ${error4}`);
   }
 }
-async function createSubIssuesFromPlan(ctx, parentIssueNumber, phases, qaOutput) {
+async function createSubIssuesFromPlan(ctx, parentIssueNumber, phases) {
   if (phases.length === 0) {
     core15.info("No phases recommended, skipping sub-issue creation");
     return [];
@@ -41712,7 +41714,7 @@ async function createSubIssuesFromPlan(ctx, parentIssueNumber, phases, qaOutput)
   const subIssueNumbers = [];
   for (const phase of phases) {
     const formattedTitle = phases.length > 1 ? `[Phase ${phase.phase_number}] ${phase.title}` : phase.title;
-    const body = formatSubIssueBody(phase, qaOutput, parentIssueNumber);
+    const body = formatSubIssueBody(phase, parentIssueNumber);
     const createResponse = await ctx.octokit.graphql(
       CREATE_ISSUE_MUTATION4,
       {
@@ -41744,7 +41746,7 @@ async function createSubIssuesFromPlan(ctx, parentIssueNumber, phases, qaOutput)
   }
   return subIssueNumbers;
 }
-function formatSubIssueBody(phase, qaOutput, parentIssueNumber) {
+function formatSubIssueBody(phase, parentIssueNumber) {
   let body = `## Description
 
 ${phase.description}
@@ -41763,20 +41765,9 @@ ${phase.description}
 
 `;
     body += phase.todos.map((todo) => {
-      const prefix = todo.manual ? "[Manual] " : "";
+      const prefix = todo.manual ? "[Manual] " : "[Auto] ";
       return `- [ ] ${prefix}${todo.task}`;
     }).join("\n");
-    body += "\n";
-  }
-  const phaseTests = qaOutput.test_cases?.filter(
-    (t) => t.phase === phase.phase_number || !t.phase
-  );
-  if (phaseTests && phaseTests.length > 0) {
-    body += `
-## Testing
-
-`;
-    body += phaseTests.map((t) => `- [ ] [${t.type}] ${t.description}`).join("\n");
     body += "\n";
   }
   if (phase.depends_on && phase.depends_on.length > 0) {

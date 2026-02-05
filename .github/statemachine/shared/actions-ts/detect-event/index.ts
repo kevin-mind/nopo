@@ -1643,14 +1643,10 @@ async function handlePullRequestEvent(
       return emptyResult(true, "PR is a draft");
     }
 
-    const issueSection = await buildIssueSection(
-      octokit,
-      owner,
-      repo,
-      pr.body ?? "",
-    );
-
     // Extract issue number for logging review events to iteration history
+    // Note: We don't include issue_section here to avoid GitHub's secret masking
+    // when issue body contains patterns like ${VAR_NAME}. The review prompt
+    // can fetch issue content at runtime if needed via the issue_number.
     const issueNumber = await extractIssueNumber(pr.body ?? "");
 
     // Use pr-review-requested (not pr-review) since this is a review REQUEST,
@@ -1663,7 +1659,6 @@ async function handlePullRequestEvent(
       contextJson: {
         pr_number: String(pr.number),
         branch_name: pr.head.ref,
-        issue_section: issueSection,
         issue_number: issueNumber,
       },
       skip: false,
