@@ -398,7 +398,7 @@ var require_tunnel = __commonJS({
         connectOptions.headers = connectOptions.headers || {};
         connectOptions.headers["Proxy-Authorization"] = "Basic " + new Buffer(connectOptions.proxyAuth).toString("base64");
       }
-      debug12("making CONNECT request");
+      debug13("making CONNECT request");
       var connectReq = self2.request(connectOptions);
       connectReq.useChunkedEncodingByDefault = false;
       connectReq.once("response", onResponse);
@@ -418,7 +418,7 @@ var require_tunnel = __commonJS({
         connectReq.removeAllListeners();
         socket.removeAllListeners();
         if (res.statusCode !== 200) {
-          debug12(
+          debug13(
             "tunneling socket could not be established, statusCode=%d",
             res.statusCode
           );
@@ -430,7 +430,7 @@ var require_tunnel = __commonJS({
           return;
         }
         if (head.length > 0) {
-          debug12("got illegal response body from proxy");
+          debug13("got illegal response body from proxy");
           socket.destroy();
           var error10 = new Error("got illegal response body from proxy");
           error10.code = "ECONNRESET";
@@ -438,13 +438,13 @@ var require_tunnel = __commonJS({
           self2.removeSocket(placeholder);
           return;
         }
-        debug12("tunneling connection has established");
+        debug13("tunneling connection has established");
         self2.sockets[self2.sockets.indexOf(placeholder)] = socket;
         return cb(socket);
       }
       function onError(cause) {
         connectReq.removeAllListeners();
-        debug12(
+        debug13(
           "tunneling socket could not be established, cause=%s\n",
           cause.message,
           cause.stack
@@ -506,9 +506,9 @@ var require_tunnel = __commonJS({
       }
       return target;
     }
-    var debug12;
+    var debug13;
     if (process.env.NODE_DEBUG && /\btunnel\b/.test(process.env.NODE_DEBUG)) {
-      debug12 = function() {
+      debug13 = function() {
         var args = Array.prototype.slice.call(arguments);
         if (typeof args[0] === "string") {
           args[0] = "TUNNEL: " + args[0];
@@ -518,10 +518,10 @@ var require_tunnel = __commonJS({
         console.error.apply(console, args);
       };
     } else {
-      debug12 = function() {
+      debug13 = function() {
       };
     }
-    exports2.debug = debug12;
+    exports2.debug = debug13;
   }
 });
 
@@ -19732,10 +19732,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       return process.env["RUNNER_DEBUG"] === "1";
     }
     exports2.isDebug = isDebug;
-    function debug12(message) {
+    function debug13(message) {
       (0, command_1.issueCommand)("debug", {}, message);
     }
-    exports2.debug = debug12;
+    exports2.debug = debug13;
     function error10(message, properties = {}) {
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
@@ -49252,6 +49252,18 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
   await applyGroomingDecision(ctx, issueNumber, summaryOutput);
   return { applied: true, decision: summaryOutput.decision };
 }
+function getGroomingHistoryMessage(decision) {
+  switch (decision) {
+    case "ready":
+      return "\u2705 groomed";
+    case "needs_info":
+      return "\u{1F6A7} needs-info";
+    case "blocked":
+      return "\u26A0\uFE0F blocked";
+    default:
+      return `\u2753 ${decision}`;
+  }
+}
 async function applyGroomingDecision(ctx, issueNumber, summary) {
   switch (summary.decision) {
     case "ready":
@@ -49266,8 +49278,56 @@ async function applyGroomingDecision(ctx, issueNumber, summary) {
     default:
       core20.warning(`Unknown grooming decision: ${summary.decision}`);
   }
+  const historyMessage = getGroomingHistoryMessage(summary.decision);
+  try {
+    await executeUpdateHistory(
+      {
+        type: "updateHistory",
+        token: "code",
+        issueNumber,
+        matchIteration: 0,
+        matchPhase: "groom",
+        matchPattern: "\u23F3 grooming...",
+        newMessage: historyMessage
+      },
+      ctx
+    );
+    core20.info(`Updated grooming history entry: ${historyMessage}`);
+  } catch (error10) {
+    core20.warning(`Failed to update grooming history entry: ${error10}`);
+  }
+  try {
+    await executeUpdateHistory(
+      {
+        type: "updateHistory",
+        token: "code",
+        issueNumber,
+        matchIteration: 0,
+        matchPhase: "-",
+        matchPattern: "\u23F3 running...",
+        newMessage: "\u2192 groom"
+      },
+      ctx
+    );
+    core20.info("Updated log-run-start entry to redirect to groom");
+  } catch (error10) {
+    core20.debug(`No log-run-start entry to update: ${error10}`);
+  }
 }
 async function applyReadyDecision(ctx, issueNumber, summary) {
+  try {
+    await executeRemoveLabel(
+      {
+        type: "removeLabel",
+        token: "code",
+        issueNumber,
+        label: "needs-info"
+      },
+      ctx
+    );
+  } catch (error10) {
+    core20.debug(`Could not remove needs-info label: ${error10}`);
+  }
   try {
     await ctx.octokit.rest.issues.addLabels({
       owner: ctx.owner,

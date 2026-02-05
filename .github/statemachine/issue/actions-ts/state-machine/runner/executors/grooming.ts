@@ -7,6 +7,7 @@ import type {
 } from "../../schemas/index.js";
 import type { RunnerContext } from "../runner.js";
 import { executeRunClaude } from "./claude.js";
+import { executeUpdateHistory, executeRemoveLabel } from "./github.js";
 
 // ============================================================================
 // Types
@@ -238,6 +239,22 @@ export async function executeApplyGroomingOutput(
 // ============================================================================
 
 /**
+ * Get the history message for a grooming decision
+ */
+function getGroomingHistoryMessage(decision: string): string {
+  switch (decision) {
+    case "ready":
+      return "✅ groomed";
+    case "needs_info":
+      return "🚧 needs-info";
+    case "blocked":
+      return "⚠️ blocked";
+    default:
+      return `❓ ${decision}`;
+  }
+}
+
+/**
  * Apply the grooming decision to the issue
  */
 async function applyGroomingDecision(
@@ -258,6 +275,47 @@ async function applyGroomingDecision(
     default:
       core.warning(`Unknown grooming decision: ${summary.decision}`);
   }
+
+  // Update grooming history entry with outcome
+  const historyMessage = getGroomingHistoryMessage(summary.decision);
+  try {
+    await executeUpdateHistory(
+      {
+        type: "updateHistory",
+        token: "code",
+        issueNumber,
+        matchIteration: 0,
+        matchPhase: "groom",
+        matchPattern: "⏳ grooming...",
+        newMessage: historyMessage,
+      },
+      ctx,
+    );
+    core.info(`Updated grooming history entry: ${historyMessage}`);
+  } catch (error) {
+    core.warning(`Failed to update grooming history entry: ${error}`);
+  }
+
+  // Also update the log-run-start entry (phase="-") to redirect to groom
+  // This prevents a dangling "⏳ running..." entry
+  try {
+    await executeUpdateHistory(
+      {
+        type: "updateHistory",
+        token: "code",
+        issueNumber,
+        matchIteration: 0,
+        matchPhase: "-",
+        matchPattern: "⏳ running...",
+        newMessage: "→ groom",
+      },
+      ctx,
+    );
+    core.info("Updated log-run-start entry to redirect to groom");
+  } catch (error) {
+    // This is expected to fail if there's no matching entry (dry run, etc.)
+    core.debug(`No log-run-start entry to update: ${error}`);
+  }
 }
 
 /**
@@ -268,6 +326,22 @@ async function applyReadyDecision(
   issueNumber: number,
   summary: GroomingSummaryOutput,
 ): Promise<void> {
+  // Remove "needs-info" label if present (can't have both needs-info and groomed)
+  try {
+    await executeRemoveLabel(
+      {
+        type: "removeLabel",
+        token: "code",
+        issueNumber,
+        label: "needs-info",
+      },
+      ctx,
+    );
+  } catch (error) {
+    // Label might not be present, that's fine
+    core.debug(`Could not remove needs-info label: ${error}`);
+  }
+
   // Add "groomed" label
   try {
     await ctx.octokit.rest.issues.addLabels({

@@ -103,6 +103,9 @@ function getTransitionName(finalState: string): string {
     alreadyDone: "Already Done",
     alreadyBlocked: "Already Blocked",
 
+    // Issue states - Grooming flow
+    grooming: "Grooming",
+
     // Discussion states
     detecting: "Detecting",
     researching: "Research",

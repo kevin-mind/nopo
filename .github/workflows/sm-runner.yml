@@ -570,8 +570,9 @@ jobs:
   # ============================================================================
   log-run-end:
     needs: [e2e-detect, derive-context, log-run-start, derive-actions, exec-state-actions]
-    # Skip for merge-queue-logging and discussion jobs (discussions don't have issue history)
-    if: ${{ always() && fromJson(inputs.context_json).job != 'merge-queue-logging' && !startsWith(fromJson(inputs.context_json).job, 'discussion-') }}
+    # Skip for merge-queue-logging, discussion jobs (discussions don't have issue history),
+    # and grooming (grooming updates its own history entry)
+    if: ${{ always() && fromJson(inputs.context_json).job != 'merge-queue-logging' && !startsWith(fromJson(inputs.context_json).job, 'discussion-') && needs.derive-actions.outputs.final_state != 'grooming' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

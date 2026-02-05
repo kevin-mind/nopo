@@ -35636,6 +35636,8 @@ function getTransitionName(finalState) {
     // Issue states - Early detection states
     alreadyDone: "Already Done",
     alreadyBlocked: "Already Blocked",
+    // Issue states - Grooming flow
+    grooming: "Grooming",
     // Discussion states
     detecting: "Detecting",
     researching: "Research",
