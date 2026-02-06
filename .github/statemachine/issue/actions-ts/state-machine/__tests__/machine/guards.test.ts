@@ -39,11 +39,27 @@ import { createContext } from "../fixtures/index.js";
 
 describe("Terminal State Guards", () => {
   describe("isAlreadyDone", () => {
-    test("returns true when status is Done", () => {
+    test("returns true when status is Done AND PR is merged", () => {
+      const context = createContext({
+        issue: { projectStatus: "Done" },
+        pr: { state: "MERGED" },
+      });
+      expect(isAlreadyDone({ context })).toBe(true);
+    });
+
+    test("returns false when status is Done but no PR", () => {
       const context = createContext({
         issue: { projectStatus: "Done" },
       });
-      expect(isAlreadyDone({ context })).toBe(true);
+      expect(isAlreadyDone({ context })).toBe(false);
+    });
+
+    test("returns false when status is Done but PR is not merged", () => {
+      const context = createContext({
+        issue: { projectStatus: "Done" },
+        pr: { state: "OPEN" },
+      });
+      expect(isAlreadyDone({ context })).toBe(false);
     });
 
     test("returns false for other statuses", () => {

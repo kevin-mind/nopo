@@ -51874,7 +51874,14 @@ Pivot/Modification Verification:`);
     );
     core24.info(`  Before: ${beforeSubIssueCount} sub-issues, ${beforeTotalTodos} todos`);
     core24.info(`  After:  ${afterSubIssueCount} sub-issues, ${afterTotalTodos} todos`);
-    if (exp.newSubIssueCreated === true) {
+    if (typeof exp.newSubIssueCreated === "number") {
+      const expectedAfterCount = beforeSubIssueCount + exp.newSubIssueCreated;
+      if (afterSubIssueCount !== expectedAfterCount) {
+        errors.push(`newSubIssueCreated: expected ${exp.newSubIssueCreated} sub-issues created (${beforeSubIssueCount} -> ${expectedAfterCount}), but got ${afterSubIssueCount}`);
+      } else {
+        core24.info(`  \u2713 newSubIssueCreated: ${exp.newSubIssueCreated} sub-issue(s) created as expected`);
+      }
+    } else if (exp.newSubIssueCreated === true) {
       if (afterSubIssueCount <= beforeSubIssueCount) {
         errors.push(`newSubIssueCreated: expected sub-issue count to increase, but went from ${beforeSubIssueCount} to ${afterSubIssueCount}`);
       } else {
@@ -51961,6 +51968,33 @@ Pivot/Modification Verification:`);
       }
       if (allPreserved && closedFixtureSubs.length > 0) {
         core24.info(`  \u2713 completedWorkPreserved: ${closedFixtureSubs.length} closed sub-issue(s) unchanged`);
+      }
+    }
+    if (exp.maxFailuresReached === true) {
+      const { data: issue } = await this.config.octokit.rest.issues.get({
+        owner: this.config.owner,
+        repo: this.config.repo,
+        issue_number: this.issueNumber
+      });
+      const state = await this.getGitHubState(issue.number);
+      const failures = state.failures;
+      if (failures !== 5) {
+        errors.push(`maxFailuresReached: expected failures to be 5, but got ${failures}`);
+      } else {
+        core24.info(`  \u2713 maxFailuresReached: failures count is 5 as expected`);
+      }
+    }
+    if (exp.botUnassigned === true) {
+      const { data: issue } = await this.config.octokit.rest.issues.get({
+        owner: this.config.owner,
+        repo: this.config.repo,
+        issue_number: this.issueNumber
+      });
+      const assignees = issue.assignees?.map((a) => a.login) || [];
+      if (assignees.includes("nopo-bot")) {
+        errors.push(`botUnassigned: expected nopo-bot to be unassigned, but it's still assigned`);
+      } else {
+        core24.info(`  \u2713 botUnassigned: nopo-bot is not assigned as expected`);
       }
     }
     return errors;

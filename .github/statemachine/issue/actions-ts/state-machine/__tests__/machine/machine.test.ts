@@ -18,9 +18,10 @@ function runMachine(context: MachineContext) {
 
 describe("claudeMachine", () => {
   describe("Initial state detection", () => {
-    test("transitions to done when status is Done", () => {
+    test("transitions to done when status is Done AND PR is merged", () => {
       const context = createContext({
         issue: { projectStatus: "Done" },
+        pr: { state: "MERGED" },
       });
       const { state, actions } = runMachine(context);
       expect(state).toBe("done");
@@ -309,6 +310,7 @@ describe("claudeMachine", () => {
       const context = createContext({
         trigger: "issue-triage",
         issue: { projectStatus: "Done" },
+        pr: { state: "MERGED" },
       });
       const { state } = runMachine(context);
       // Done takes precedence over triage
@@ -407,6 +409,7 @@ describe("claudeMachine", () => {
       const context = createContext({
         trigger: "issue-comment",
         issue: { projectStatus: "Done" },
+        pr: { state: "MERGED" },
         commentContextType: "issue",
         commentContextDescription: "Test",
       });

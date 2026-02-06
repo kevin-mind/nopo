@@ -40,5 +40,9 @@
       "completed": 0,
       "uncheckedNonManual": 0
     }
+  },
+  "expected": {
+    "newSubIssueCreated": 3,
+    "todosAdded": 7
   }
 }

@@ -18,5 +18,9 @@
       "completed": 0,
       "uncheckedNonManual": 1
     }
+  },
+  "expected": {
+    "maxFailuresReached": true,
+    "botUnassigned": true
   }
 }
