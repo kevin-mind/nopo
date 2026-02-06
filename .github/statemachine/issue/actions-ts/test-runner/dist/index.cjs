@@ -51348,6 +51348,17 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
    * @param nextFixture Optional next fixture (used to get trigger-specific fields like reviewDecision, ciResult)
    */
   buildMachineContext(fixture, nextFixture) {
+    const subIssues = (fixture.issue.subIssues || []).map((sub, index) => ({
+      number: sub.number || 1e3 + index,
+      // Use placeholder numbers if not set
+      title: sub.title,
+      state: sub.state,
+      body: sub.body,
+      projectStatus: sub.projectStatus,
+      branch: sub.branch || null,
+      pr: sub.pr || null,
+      todos: sub.todos || { total: 0, completed: 0, uncheckedNonManual: 0 }
+    }));
     const issue = {
       number: this.issueNumber,
       title: fixture.issue.title,
@@ -51358,8 +51369,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
       failures: fixture.issue.failures,
       assignees: fixture.issue.assignees,
       labels: fixture.issue.labels,
-      subIssues: [],
-      // Simplified in fixtures
+      subIssues,
       hasSubIssues: fixture.issue.hasSubIssues,
       history: [],
       // Simplified in fixtures

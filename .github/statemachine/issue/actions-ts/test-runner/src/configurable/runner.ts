@@ -1003,7 +1003,19 @@ Issue: #${this.issueNumber}
     fixture: StateFixture,
     nextFixture?: StateFixture,
   ): MachineContext {
-    // Cast fixture issue to ParentIssue, providing default empty arrays for simplified fields
+    // Map sub-issues from fixture to proper SubIssue format
+    const subIssues = (fixture.issue.subIssues || []).map((sub, index) => ({
+      number: sub.number || 1000 + index, // Use placeholder numbers if not set
+      title: sub.title,
+      state: sub.state,
+      body: sub.body,
+      projectStatus: sub.projectStatus as ProjectStatus | null,
+      branch: sub.branch || null,
+      pr: sub.pr || null,
+      todos: sub.todos || { total: 0, completed: 0, uncheckedNonManual: 0 },
+    }));
+
+    // Cast fixture issue to ParentIssue
     const issue: ParentIssue = {
       number: this.issueNumber!,
       title: fixture.issue.title,
@@ -1014,7 +1026,7 @@ Issue: #${this.issueNumber}
       failures: fixture.issue.failures,
       assignees: fixture.issue.assignees,
       labels: fixture.issue.labels,
-      subIssues: [], // Simplified in fixtures
+      subIssues: subIssues,
       hasSubIssues: fixture.issue.hasSubIssues,
       history: [], // Simplified in fixtures
       todos: fixture.issue.todos,
