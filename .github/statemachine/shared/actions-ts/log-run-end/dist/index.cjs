@@ -28522,6 +28522,8 @@ var MachineContextSchema = external_exports.object({
   // Comment info (if triggered by issue_comment)
   commentContextType: external_exports.string().transform((v) => v?.toLowerCase()).pipe(external_exports.enum(["issue", "pr"])).nullable().default(null),
   commentContextDescription: external_exports.string().nullable().default(null),
+  // Pivot info (if triggered by issue-pivot)
+  pivotDescription: external_exports.string().nullable().default(null),
   // Release info (if triggered by release_* events)
   releaseEvent: external_exports.object({
     type: external_exports.enum(["queue_entry", "merged", "deployed", "queue_failure"]),

@@ -31403,6 +31403,8 @@ var MachineContextSchema = external_exports.object({
   // Comment info (if triggered by issue_comment)
   commentContextType: external_exports.string().transform((v3) => v3?.toLowerCase()).pipe(external_exports.enum(["issue", "pr"])).nullable().default(null),
   commentContextDescription: external_exports.string().nullable().default(null),
+  // Pivot info (if triggered by issue-pivot)
+  pivotDescription: external_exports.string().nullable().default(null),
   // Release info (if triggered by release_* events)
   releaseEvent: external_exports.object({
     type: external_exports.enum(["queue_entry", "merged", "deployed", "queue_failure"]),
@@ -32934,6 +32936,13 @@ function formatRequirements(requirements) {
 }
 
 // issue/actions-ts/state-machine/machine/actions.ts
+function formatCommentsForPrompt(comments) {
+  if (comments.length === 0) {
+    return "No comments yet.";
+  }
+  return comments.map((c3) => `### ${c3.author} (${c3.createdAt})
+${c3.body}`).join("\n\n---\n\n");
+}
 function emitSetWorking({ context: context2 }) {
   const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
   return [
@@ -33903,14 +33912,18 @@ function emitRunClaudePivot({ context: context2 }) {
     number: s.number,
     title: s.title,
     state: s.state,
+    body: s.body,
     projectStatus: s.projectStatus,
     todos: s.todos
   }));
+  const issueComments = formatCommentsForPrompt(context2.issue.comments ?? []);
   const promptVars = {
     ISSUE_NUMBER: String(issueNumber),
     ISSUE_TITLE: context2.issue.title,
+    ISSUE_BODY: context2.issue.body,
+    ISSUE_COMMENTS: issueComments,
+    PIVOT_DESCRIPTION: context2.pivotDescription ?? "(No pivot description provided)",
     SUB_ISSUES_JSON: JSON.stringify(subIssuesInfo, null, 2)
-    // PIVOT_DESCRIPTION will be injected by workflow from context_json
   };
   const pivotArtifact = {
     name: "claude-pivot-output",

@@ -378,6 +378,7 @@ describe("MachineContextSchema", () => {
     hasPR: false,
     commentContextType: null,
     commentContextDescription: null,
+    pivotDescription: null,
     releaseEvent: null,
     discussion: null,
     maxRetries: 5,

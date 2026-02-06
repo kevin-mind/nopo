@@ -287,6 +287,9 @@ export const MachineContextSchema = z.object({
     .default(null),
   commentContextDescription: z.string().nullable().default(null),
 
+  // Pivot info (if triggered by issue-pivot)
+  pivotDescription: z.string().nullable().default(null),
+
   // Release info (if triggered by release_* events)
   releaseEvent: z
     .object({
@@ -362,6 +365,7 @@ const DEFAULT_CONTEXT_VALUES: Partial<MachineContext> = {
   hasPR: false,
   commentContextType: null,
   commentContextDescription: null,
+  pivotDescription: null,
   releaseEvent: null,
   discussion: null,
   maxRetries: 5,

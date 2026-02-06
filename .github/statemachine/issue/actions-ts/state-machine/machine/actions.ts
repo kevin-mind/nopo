@@ -1520,22 +1520,28 @@ export function emitSetReady({ context }: ActionContext): ActionResult {
 export function emitRunClaudePivot({ context }: ActionContext): ActionResult {
   const issueNumber = context.issue.number;
 
-  // Build sub-issues info for prompt
+  // Build sub-issues info for prompt (include body for full context)
   const subIssuesInfo = context.issue.subIssues.map((s) => ({
     number: s.number,
     title: s.title,
     state: s.state,
+    body: s.body,
     projectStatus: s.projectStatus,
     todos: s.todos,
   }));
 
+  // Format comments for prompt
+  const issueComments = formatCommentsForPrompt(context.issue.comments ?? []);
+
   // The pivot prompt uses these template variables
-  // Note: ISSUE_BODY fetched at runtime by workflow
+  // All required variables are now included directly from context
   const promptVars: Record<string, string> = {
     ISSUE_NUMBER: String(issueNumber),
     ISSUE_TITLE: context.issue.title,
+    ISSUE_BODY: context.issue.body,
+    ISSUE_COMMENTS: issueComments,
+    PIVOT_DESCRIPTION: context.pivotDescription ?? "(No pivot description provided)",
     SUB_ISSUES_JSON: JSON.stringify(subIssuesInfo, null, 2),
-    // PIVOT_DESCRIPTION will be injected by workflow from context_json
   };
 
   const pivotArtifact = {
