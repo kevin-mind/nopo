@@ -1512,8 +1512,13 @@ Issue: #${this.issueNumber}
       this.scenario.orderedStates[0] as (typeof this.scenario.orderedStates)[number],
     );
     const beforeSubIssueCount = firstFixture?.issue.subIssues?.length || 0;
+    // Count only unchecked todos to be consistent with afterTotalTodos
     const beforeTotalTodos = (firstFixture?.issue.subIssues || []).reduce(
-      (sum, s) => sum + (s.todos?.total || 0),
+      (sum, s) => {
+        const total = s.todos?.total || 0;
+        const completed = s.todos?.completed || 0;
+        return sum + (total - completed);
+      },
       0,
     );
 

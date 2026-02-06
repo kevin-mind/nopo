@@ -20,7 +20,8 @@
           "todos": [
             "Remove OAuth2 library dependency",
             "Remove OAuth2 authentication endpoints",
-            "Update tests to remove OAuth2 tests"
+            "Add JWT token generation",
+            "Add JWT token validation"
           ],
           "reason": "reversion"
         }

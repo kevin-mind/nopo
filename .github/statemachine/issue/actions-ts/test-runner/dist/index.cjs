@@ -51829,7 +51829,11 @@ Pivot/Modification Verification:`);
     );
     const beforeSubIssueCount = firstFixture?.issue.subIssues?.length || 0;
     const beforeTotalTodos = (firstFixture?.issue.subIssues || []).reduce(
-      (sum, s) => sum + (s.todos?.total || 0),
+      (sum, s) => {
+        const total = s.todos?.total || 0;
+        const completed = s.todos?.completed || 0;
+        return sum + (total - completed);
+      },
       0
     );
     const subIssuesQuery = `
