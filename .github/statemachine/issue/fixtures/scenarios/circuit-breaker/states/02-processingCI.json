@@ -10,7 +10,7 @@
     "iteration": 6,
     "failures": 5,
     "assignees": ["nopo-bot"],
-    "labels": ["bug", "triaged"],
+    "labels": ["bug", "triaged", "groomed"],
     "subIssues": [],
     "hasSubIssues": false,
     "history": [],

@@ -10,7 +10,7 @@
     "iteration": 1,
     "failures": 0,
     "assignees": ["nopo-bot"],
-    "labels": ["triaged", "enhancement"],
+    "labels": ["triaged", "enhancement", "groomed"],
     "subIssues": [],
     "hasSubIssues": false,
     "history": [],
@@ -26,9 +26,5 @@
         "message": "All implementation tasks completed"
       }
     ]
-  },
-  "expected": {
-    "allTodosComplete": true,
-    "prCreated": true
   }
 }

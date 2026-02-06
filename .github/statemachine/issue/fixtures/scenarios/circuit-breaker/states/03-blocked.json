@@ -9,7 +9,7 @@
     "iteration": 6,
     "failures": 5,
     "assignees": [],
-    "labels": ["bug", "triaged"],
+    "labels": ["bug", "triaged", "groomed"],
     "subIssues": [],
     "hasSubIssues": false,
     "history": [],
