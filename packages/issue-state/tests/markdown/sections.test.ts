@@ -78,12 +78,9 @@ describe("upsertSection", () => {
   });
 
   it("respects sectionOrder for insertion", () => {
-    const result = upsertSection(
-      SAMPLE_BODY,
-      "Testing",
-      "Run tests.",
-      { sectionOrder: STANDARD_SECTION_ORDER },
-    );
+    const result = upsertSection(SAMPLE_BODY, "Testing", "Run tests.", {
+      sectionOrder: STANDARD_SECTION_ORDER,
+    });
     expect(hasSection(result, "Testing")).toBe(true);
     // Testing should come before Todo in the standard order
     const testingIdx = result.indexOf("## Testing");

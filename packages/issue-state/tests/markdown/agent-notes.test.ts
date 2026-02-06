@@ -25,7 +25,9 @@ describe("parseAgentNotes", () => {
     expect(entries).toHaveLength(2);
 
     expect(entries[0]!.runId).toBe("12345678901");
-    expect(entries[0]!.runLink).toBe("https://github.com/o/r/actions/runs/12345678901");
+    expect(entries[0]!.runLink).toBe(
+      "https://github.com/o/r/actions/runs/12345678901",
+    );
     expect(entries[0]!.timestamp).toBe("Jan 22 19:04");
     expect(entries[0]!.notes).toEqual([
       "Found a bug in auth module",

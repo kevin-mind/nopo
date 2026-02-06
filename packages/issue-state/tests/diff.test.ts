@@ -113,8 +113,12 @@ describe("computeDiff", () => {
   });
 
   it("detects body change via sections", () => {
-    const original = makeIssue({ sections: [{ name: "Approach", content: "Old" }] });
-    const updated = makeIssue({ sections: [{ name: "Approach", content: "New" }] });
+    const original = makeIssue({
+      sections: [{ name: "Approach", content: "Old" }],
+    });
+    const updated = makeIssue({
+      sections: [{ name: "Approach", content: "New" }],
+    });
     const diff = computeDiff(original, updated);
     expect(diff.bodyChanged).toBe(true);
   });

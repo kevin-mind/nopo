@@ -7,7 +7,7 @@
 
 import type { HistoryEntry } from "../schemas/index.js";
 
-export const HISTORY_SECTION = "## Iteration History";
+const HISTORY_SECTION = "## Iteration History";
 
 interface HeaderColumn {
   key: string;
@@ -174,8 +174,18 @@ function formatTimestamp(isoTimestamp?: string): string {
     if (isNaN(date.getTime())) return "-";
 
     const months = [
-      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
     ];
     const month = months[date.getUTCMonth()];
     const day = date.getUTCDate();
@@ -234,7 +244,7 @@ function parseShaCell(cell: string): string | null {
   return null;
 }
 
-export function formatHistoryCells(
+function formatHistoryCells(
   sha?: string,
   runLink?: string,
   repoUrl?: string,
@@ -364,22 +374,6 @@ function createRowData(
   };
 }
 
-export function createHistoryRow(
-  iteration: number,
-  phase: string | number,
-  message: string,
-  timestamp?: string,
-  sha?: string,
-  runLink?: string,
-  repoUrl?: string,
-  prNumber?: number | null,
-): string {
-  const data = createRowData(
-    iteration, phase, message, timestamp, sha, runLink, repoUrl, prNumber,
-  );
-  return serializeRow(data);
-}
-
 export function createHistoryTable(
   entries: HistoryEntry[],
   repoUrl?: string,
@@ -416,7 +410,14 @@ export function addHistoryEntry(
   prNumber?: number | null,
 ): string {
   const newRowData = createRowData(
-    iteration, phase, message, timestamp, sha, runLink, repoUrl, prNumber,
+    iteration,
+    phase,
+    message,
+    timestamp,
+    sha,
+    runLink,
+    repoUrl,
+    prNumber,
   );
 
   const newRunId = runLink ? extractRunIdFromUrl(runLink) : null;
@@ -548,7 +549,10 @@ export function updateHistoryEntry(
 
   const existingRow = parsed.rows[matchIdx]!;
   const { shaCell, runCell } = formatHistoryCells(
-    sha, runLink, repoUrl, prNumber,
+    sha,
+    runLink,
+    repoUrl,
+    prNumber,
   );
 
   const updatedRow: RowData = {
@@ -602,14 +606,6 @@ export function findHistoryEntries(
 ): HistoryEntry[] {
   const entries = parseHistory(body);
   return entries.filter((entry) => entry.action.includes(pattern));
-}
-
-export function getPhaseHistory(
-  body: string,
-  phase: string | number,
-): HistoryEntry[] {
-  const entries = parseHistory(body);
-  return entries.filter((entry) => entry.phase === String(phase));
 }
 
 export function hasHistoryEntry(body: string, pattern: string): boolean {

@@ -103,7 +103,7 @@ function parseSubIssueStatus(
   return null;
 }
 
-export function deriveBranchName(
+function deriveBranchName(
   parentIssueNumber: number,
   phaseNumber?: number,
 ): string {
@@ -285,10 +285,7 @@ async function fetchIssueData(
 
   const body = issue.body || "";
   const parsed = parseBody(body);
-  const comments = parseIssueComments(
-    issue.comments?.nodes || [],
-    botUsername,
-  );
+  const comments = parseIssueComments(issue.comments?.nodes || [], botUsername);
 
   const parentIssueNumber = issue.parent?.number ?? null;
 

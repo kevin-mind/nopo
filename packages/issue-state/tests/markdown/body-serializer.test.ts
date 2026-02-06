@@ -20,7 +20,14 @@ describe("serializeBody", () => {
     const result = serializeBody({
       description: "Desc",
       history: [
-        { iteration: 1, phase: "1", action: "Started", timestamp: "Jan 22", sha: null, runLink: null },
+        {
+          iteration: 1,
+          phase: "1",
+          action: "Started",
+          timestamp: "Jan 22",
+          sha: null,
+          runLink: null,
+        },
       ],
     });
 

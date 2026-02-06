@@ -44,6 +44,9 @@ export default {
     "nopo/scripts": {
       entry: "bin.ts",
     },
+    "packages/issue-state": {
+      ignore: ["scripts/**"],
+    },
     ".github/actions-ts": {
       entry: ["*/index.ts", "lib/index.ts", "scripts/*.ts"],
       vitest: true,

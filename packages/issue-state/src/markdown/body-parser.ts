@@ -17,7 +17,7 @@ import { parseTodos, calculateTodoStats } from "./todos.js";
 import { parseHistory } from "./history.js";
 import { parseAgentNotes } from "./agent-notes.js";
 
-export interface ParsedBody {
+interface ParsedBody {
   description: string | null;
   approach: string | null;
   todos: TodoItem[];

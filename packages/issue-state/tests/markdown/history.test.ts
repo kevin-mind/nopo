@@ -29,7 +29,9 @@ describe("parseHistory", () => {
     expect(entries[0]!.phase).toBe("1");
     expect(entries[0]!.action).toBe("Started work");
     expect(entries[0]!.sha).toBe("abc1234");
-    expect(entries[0]!.runLink).toBe("https://github.com/o/r/actions/runs/12345");
+    expect(entries[0]!.runLink).toBe(
+      "https://github.com/o/r/actions/runs/12345",
+    );
     expect(entries[0]!.timestamp).toBe("Jan 22 19:04");
   });
 
@@ -59,7 +61,9 @@ describe("parseHistoryRow", () => {
   });
 
   it("returns null for header row", () => {
-    expect(parseHistoryRow("| Time | # | Phase | Action | SHA | Run |")).toBeNull();
+    expect(
+      parseHistoryRow("| Time | # | Phase | Action | SHA | Run |"),
+    ).toBeNull();
   });
 
   it("returns null for separator row", () => {
@@ -71,7 +75,9 @@ describe("addHistoryEntry", () => {
   it("creates history section when none exists", () => {
     const result = addHistoryEntry(
       "Just a description",
-      1, "1", "Started",
+      1,
+      "1",
+      "Started",
       "2026-01-22T19:04:52Z",
     );
     expect(result).toContain("## Iteration History");
@@ -82,7 +88,9 @@ describe("addHistoryEntry", () => {
   it("appends to existing history", () => {
     const result = addHistoryEntry(
       BODY_WITH_HISTORY,
-      3, "1", "Pushed fix",
+      3,
+      "1",
+      "Pushed fix",
       "2026-01-22T20:00:00Z",
     );
     const entries = parseHistory(result);
@@ -93,7 +101,9 @@ describe("addHistoryEntry", () => {
   it("deduplicates by run ID", () => {
     const result = addHistoryEntry(
       BODY_WITH_HISTORY,
-      1, "1", "Also this",
+      1,
+      "1",
+      "Also this",
       "2026-01-22T19:10:00Z",
       undefined,
       "https://github.com/o/r/actions/runs/12345",
@@ -109,7 +119,9 @@ describe("updateHistoryEntry", () => {
   it("updates matching entry", () => {
     const { body, updated } = updateHistoryEntry(
       BODY_WITH_HISTORY,
-      1, "1", "Started",
+      1,
+      "1",
+      "Started",
       "Updated message",
     );
     expect(updated).toBe(true);
@@ -120,7 +132,9 @@ describe("updateHistoryEntry", () => {
   it("returns unchanged if no match", () => {
     const { body, updated } = updateHistoryEntry(
       BODY_WITH_HISTORY,
-      99, "99", "Not found",
+      99,
+      "99",
+      "Not found",
       "Updated message",
     );
     expect(updated).toBe(false);
@@ -131,7 +145,14 @@ describe("updateHistoryEntry", () => {
 describe("createHistoryTable", () => {
   it("creates full table from entries", () => {
     const entries = [
-      { iteration: 1, phase: "1", action: "Start", timestamp: "Jan 22 19:04", sha: null, runLink: null },
+      {
+        iteration: 1,
+        phase: "1",
+        action: "Start",
+        timestamp: "Jan 22 19:04",
+        sha: null,
+        runLink: null,
+      },
     ];
     const table = createHistoryTable(entries);
     expect(table).toContain("## Iteration History");

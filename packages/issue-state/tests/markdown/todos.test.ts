@@ -12,17 +12,29 @@ import {
 describe("parseTodoLine", () => {
   it("parses unchecked todo", () => {
     const result = parseTodoLine("- [ ] Do the thing");
-    expect(result).toEqual({ text: "Do the thing", checked: false, isManual: false });
+    expect(result).toEqual({
+      text: "Do the thing",
+      checked: false,
+      isManual: false,
+    });
   });
 
   it("parses checked todo", () => {
     const result = parseTodoLine("- [x] Done thing");
-    expect(result).toEqual({ text: "Done thing", checked: true, isManual: false });
+    expect(result).toEqual({
+      text: "Done thing",
+      checked: true,
+      isManual: false,
+    });
   });
 
   it("parses uppercase X", () => {
     const result = parseTodoLine("- [X] Done thing");
-    expect(result).toEqual({ text: "Done thing", checked: true, isManual: false });
+    expect(result).toEqual({
+      text: "Done thing",
+      checked: true,
+      isManual: false,
+    });
   });
 
   it("detects [Manual] tag", () => {

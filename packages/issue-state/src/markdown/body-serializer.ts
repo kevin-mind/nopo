@@ -4,11 +4,15 @@
  * Converts structured fields back into a markdown body string.
  */
 
-import type { Section, HistoryEntry, AgentNotesEntry } from "../schemas/index.js";
+import type {
+  Section,
+  HistoryEntry,
+  AgentNotesEntry,
+} from "../schemas/index.js";
 import { createHistoryTable } from "./history.js";
 import { AGENT_NOTES_SECTION } from "./agent-notes.js";
 
-export interface SerializeBodyOptions {
+interface SerializeBodyOptions {
   description?: string | null;
   sections?: Section[];
   history?: HistoryEntry[];

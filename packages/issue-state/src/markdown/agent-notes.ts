@@ -64,8 +64,18 @@ function formatTimestamp(isoTimestamp?: string | Date): string {
     }
 
     const months = [
-      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
     ];
     const month = months[date.getUTCMonth()];
     const day = date.getUTCDate();
@@ -89,15 +99,6 @@ function formatEntry(entry: AgentNotesEntry): string {
     .join("\n");
 
   return `${header}\n${bullets}`;
-}
-
-export function formatAgentNotesForPrompt(entries: AgentNotesEntry[]): string {
-  if (entries.length === 0) {
-    return "No previous agent notes found for this issue.";
-  }
-
-  const recentEntries = entries.slice(0, 3);
-  return recentEntries.map(formatEntry).join("\n\n");
 }
 
 export function appendAgentNotes(

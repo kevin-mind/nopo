@@ -114,8 +114,8 @@ describe("list", () => {
       });
       await runScript(ListScript, config, ["list", "--csv"]);
 
-      // CSV output is comma-separated service names
-      expect(output.trim()).toMatch(/^[\w,]*$/);
+      // CSV output is comma-separated service names (may include hyphens)
+      expect(output.trim()).toMatch(/^[\w,-]*$/);
       stdoutSpy.mockRestore();
     });
 
@@ -134,7 +134,7 @@ describe("list", () => {
       });
       await runScript(ListScript, config, ["list", "--format", "csv"]);
 
-      expect(output.trim()).toMatch(/^[\w,]*$/);
+      expect(output.trim()).toMatch(/^[\w,-]*$/);
       stdoutSpy.mockRestore();
     });
 
