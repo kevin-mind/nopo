@@ -4,6 +4,9 @@
   "private": true,
   "license": "MIT",
   "type": "module",
+  "scripts": {
+    "compile": "pnpm exec vite build && pnpm exec tsx scripts/extract-schemas.ts && pnpm exec tsx scripts/render-templates.ts"
+  },
   "exports": {
     ".": {
       "import": "./src/index.ts",
