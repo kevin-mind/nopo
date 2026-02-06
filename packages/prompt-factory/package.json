@@ -1,0 +1,28 @@
+{
+  "name": "@more/prompt-factory",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./jsx-runtime": {
+      "import": "./src/jsx-runtime.ts"
+    },
+    "./jsx-dev-runtime": {
+      "import": "./src/jsx-runtime.ts"
+    }
+  },
+  "dependencies": {
+    "zod": "^3.24.4",
+    "zod-to-json-schema": "^3.24"
+  },
+  "devDependencies": {
+    "@more/configs": "workspace:*",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.1"
+  }
+}

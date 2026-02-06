@@ -1,0 +1,26 @@
+{
+  "name": "@more/prompts",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./iterate": {
+      "import": "./src/prompts/iterate.tsx"
+    }
+  },
+  "dependencies": {
+    "@more/prompt-factory": "workspace:*"
+  },
+  "devDependencies": {
+    "@more/configs": "workspace:*",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.3",
+    "vite": "^6",
+    "vitest": "^3.1.1"
+  }
+}

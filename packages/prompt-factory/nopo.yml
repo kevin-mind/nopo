@@ -1,0 +1,16 @@
+name: prompt-factory
+description: JSX-based prompt factory with Zod schemas
+
+commands:
+  clean: rm -rf node_modules && rm -rf build
+  check:
+    commands:
+      types: pnpm exec tsc --noEmit
+      lint: pnpm exec eslint
+  fix:
+    commands:
+      lint: pnpm exec eslint --fix
+  test:
+    command: pnpm exec vitest run --run
+    env:
+      NODE_ENV: test

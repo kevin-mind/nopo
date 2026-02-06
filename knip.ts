@@ -47,6 +47,12 @@ export default {
     "packages/issue-state": {
       ignore: ["scripts/**"],
     },
+    "packages/prompts": {
+      entry: ["scripts/*.ts"],
+      // dist/ and prompts/ are build outputs; components.tsx exports are used via JSX
+      // which knip can't trace (custom JSX runtime, not React)
+      ignore: ["dist/**", "prompts/**", "src/components.tsx"],
+    },
     ".github/actions-ts": {
       entry: ["*/index.ts", "lib/index.ts", "scripts/*.ts"],
       vitest: true,
