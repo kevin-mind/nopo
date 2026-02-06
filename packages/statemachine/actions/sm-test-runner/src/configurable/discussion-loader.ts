@@ -23,7 +23,7 @@ import {
 // ============================================================================
 
 const FIXTURES_BASE_PATH =
-  ".github/actions-ts/sm-test-runner/fixtures/discussion";
+  "packages/statemachine/actions/sm-test-runner/fixtures/discussion";
 const DISCUSSION_SCENARIOS_DIR = "scenarios";
 const CLAUDE_MOCKS_DIR = "mocks";
 const STATES_DIR = "states";
