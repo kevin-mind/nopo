@@ -631,7 +631,6 @@ async function createNewSubIssues(
       });
 
       // Link as sub-issue to parent using GraphQL
-      core.info(`Attempting to link sub-issue: parentNodeId=${parentNodeId}, subIssueNodeId=${createdIssue.node_id}`);
       if (parentNodeId && createdIssue.node_id) {
         try {
           await ctx.octokit.graphql(ADD_SUB_ISSUE_MUTATION, {
@@ -640,10 +639,8 @@ async function createNewSubIssues(
           });
           core.info(`Linked sub-issue #${createdIssue.number} to parent #${parentIssueNumber}`);
         } catch (linkError) {
-          core.error(`Failed to link sub-issue #${createdIssue.number} to parent: ${linkError}`);
+          core.warning(`Failed to link sub-issue #${createdIssue.number} to parent: ${linkError}`);
         }
-      } else {
-        core.warning(`Skipping sub-issue linking: parentNodeId=${parentNodeId}, subIssueNodeId=${createdIssue.node_id}`);
       }
 
       core.info(`Created new sub-issue #${createdIssue.number}: ${newSub.title}`);

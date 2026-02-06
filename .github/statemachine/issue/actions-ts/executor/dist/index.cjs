@@ -42230,7 +42230,6 @@ async function createNewSubIssues(ctx, parentIssueNumber, newSubIssues) {
         body,
         labels: ["pivot-generated"]
       });
-      core16.info(`Attempting to link sub-issue: parentNodeId=${parentNodeId}, subIssueNodeId=${createdIssue.node_id}`);
       if (parentNodeId && createdIssue.node_id) {
         try {
           await ctx.octokit.graphql(ADD_SUB_ISSUE_MUTATION3, {
@@ -42239,10 +42238,8 @@ async function createNewSubIssues(ctx, parentIssueNumber, newSubIssues) {
           });
           core16.info(`Linked sub-issue #${createdIssue.number} to parent #${parentIssueNumber}`);
         } catch (linkError) {
-          core16.error(`Failed to link sub-issue #${createdIssue.number} to parent: ${linkError}`);
+          core16.warning(`Failed to link sub-issue #${createdIssue.number} to parent: ${linkError}`);
         }
-      } else {
-        core16.warning(`Skipping sub-issue linking: parentNodeId=${parentNodeId}, subIssueNodeId=${createdIssue.node_id}`);
       }
       core16.info(`Created new sub-issue #${createdIssue.number}: ${newSub.title}`);
       changes.push(`**New Sub-Issue #${createdIssue.number}:** ${newSub.title} (${newSub.reason})`);
