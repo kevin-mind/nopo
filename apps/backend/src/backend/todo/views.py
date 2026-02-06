@@ -7,6 +7,8 @@ from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiPara
 from drf_spectacular.types import OpenApiTypes
 from typing import Dict, Any, Optional
 
+from backend.logging_utils import log_info, log_error, log_debug
+
 from .models import TodoItem
 from .serializers import (
     TodoItemSerializer,
@@ -88,9 +90,17 @@ class TodoItemViewSet(viewsets.ModelViewSet):
 
     def create(self, request: Request, *args, **kwargs) -> Response:
         """Create a new todo item and return full representation."""
+        log_debug("Creating new todo item", data=request.data)
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         instance = serializer.save()
+
+        log_info(
+            "Todo item created successfully",
+            todo_id=instance.id,
+            title=instance.title,
+            priority=instance.priority,
+        )
 
         # Return the full representation using TodoItemSerializer
         response_serializer = TodoItemSerializer(instance)
@@ -107,6 +117,7 @@ class TodoItemViewSet(viewsets.ModelViewSet):
         todo_item = self.get_object()
         todo_item.completed = True
         todo_item.save(update_fields=["completed", "updated_at"])
+        log_info("Todo item marked as completed", todo_id=todo_item.id, title=todo_item.title)
         serializer = self.get_serializer(todo_item)
         return Response(serializer.data)
 
@@ -185,6 +196,7 @@ class TodoItemViewSet(viewsets.ModelViewSet):
     def complete_all(self, request: Request) -> Response:
         """Mark all incomplete todo items as completed."""
         updated_count = TodoItem.objects.filter(completed=False).update(completed=True)
+        log_info("Bulk complete operation", updated_count=updated_count)
         return Response(
             {
                 "updated_count": updated_count,
@@ -209,6 +221,7 @@ class TodoItemViewSet(viewsets.ModelViewSet):
     def clear_completed(self, request: Request) -> Response:
         """Delete all completed todo items."""
         deleted_count, _ = TodoItem.objects.filter(completed=True).delete()
+        log_info("Cleared completed todo items", deleted_count=deleted_count)
         return Response(
             {
                 "deleted_count": deleted_count,

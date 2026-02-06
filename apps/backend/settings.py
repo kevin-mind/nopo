@@ -35,19 +35,43 @@ SECRET_KEY = os.environ.get(
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "style": "{",
+        },
+        "simple": {
+            "format": "{levelname} {message}",
+            "style": "{",
+        },
+        "json": {
+            "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
+            "format": "%(asctime)s %(name)s %(levelname)s %(message)s",
+        },
+    },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+        "json_console": {
+            "class": "logging.StreamHandler",
+            "formatter": "json",
         },
     },
     "root": {
         "handlers": ["console"],
-        "level": "INFO",
+        "level": os.environ.get("LOG_LEVEL", "INFO"),
     },
     "loggers": {
         "django": {
             "handlers": ["console"],
-            "level": "INFO",
+            "level": os.environ.get("DJANGO_LOG_LEVEL", "INFO"),
+            "propagate": False,
+        },
+        "backend": {
+            "handlers": ["json_console"],
+            "level": os.environ.get("BACKEND_LOG_LEVEL", "INFO"),
             "propagate": False,
         },
     },
