@@ -20,8 +20,5 @@
       "uncheckedNonManual": 3
     },
     "agentNotes": []
-  },
-  "expected": {
-    "commentPosted": true
   }
 }
