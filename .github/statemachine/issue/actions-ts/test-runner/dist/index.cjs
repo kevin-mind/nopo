@@ -51627,6 +51627,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
   async triggerCI(result) {
     if (!this.issueNumber || !this.testBranchName) return;
     const branch = this.testBranchName;
+    const triggeredAfter = (/* @__PURE__ */ new Date()).toISOString();
     if (this.inputs.mockCI) {
       const mockResult = result === "success" ? "pass" : "fail";
       core24.info(
@@ -51644,13 +51645,14 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
     } else {
       core24.info("Waiting for real CI...");
     }
-    await this.waitForCI();
+    await this.waitForCI(triggeredAfter);
   }
   /**
    * Wait for CI workflow to complete
    * Throws an error if CI times out - tests should fail when expected CI doesn't run
+   * @param triggeredAfter ISO timestamp - only consider runs created after this time
    */
-  async waitForCI() {
+  async waitForCI(triggeredAfter) {
     const maxWaitMs = 3e5;
     const pollIntervalMs = 1e4;
     const startTime = Date.now();
@@ -51658,13 +51660,18 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
     core24.info(
       `Waiting for CI workflow to complete on branch ${this.testBranchName}...`
     );
+    if (triggeredAfter) {
+      core24.info(`Only considering runs created after ${triggeredAfter}`);
+    }
     while (Date.now() - startTime < maxWaitMs) {
       const { data: runs } = await this.config.octokit.rest.actions.listWorkflowRuns({
         owner: this.config.owner,
         repo: this.config.repo,
         workflow_id: "ci.yml",
         branch: this.testBranchName || void 0,
-        per_page: 5
+        per_page: 10,
+        // Filter by created time if specified (to find the workflow_dispatch run, not the PR-triggered one)
+        ...triggeredAfter && { created: `>=${triggeredAfter}` }
       });
       const matchingRun = runs.workflow_runs.find(
         (run2) => run2.head_branch === this.testBranchName
@@ -51672,6 +51679,9 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
       if (matchingRun) {
         if (ciRunId !== matchingRun.id) {
           ciRunId = matchingRun.id;
+          core24.info(
+            `Found CI run ${matchingRun.id} (event: ${matchingRun.event}, created: ${matchingRun.created_at})`
+          );
           this.logResourceCreated(
             "CI Workflow",
             this.getWorkflowRunUrl(matchingRun.id)

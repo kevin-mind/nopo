@@ -1259,6 +1259,9 @@ Issue: #${this.issueNumber}
 
     const branch = this.testBranchName;
 
+    // Record timestamp before triggering so we can find the new run
+    const triggeredAfter = new Date().toISOString();
+
     if (this.inputs.mockCI) {
       // Mock mode: trigger CI with mock result on the test branch
       const mockResult = result === "success" ? "pass" : "fail";
@@ -1280,15 +1283,16 @@ Issue: #${this.issueNumber}
       core.info("Waiting for real CI...");
     }
 
-    // Wait for CI completion
-    await this.waitForCI();
+    // Wait for CI completion (only consider runs started after we triggered)
+    await this.waitForCI(triggeredAfter);
   }
 
   /**
    * Wait for CI workflow to complete
    * Throws an error if CI times out - tests should fail when expected CI doesn't run
+   * @param triggeredAfter ISO timestamp - only consider runs created after this time
    */
-  private async waitForCI(): Promise<void> {
+  private async waitForCI(triggeredAfter?: string): Promise<void> {
     const maxWaitMs = 300000; // 5 minutes max
     const pollIntervalMs = 10000; // 10 seconds
     const startTime = Date.now();
@@ -1297,6 +1301,9 @@ Issue: #${this.issueNumber}
     core.info(
       `Waiting for CI workflow to complete on branch ${this.testBranchName}...`,
     );
+    if (triggeredAfter) {
+      core.info(`Only considering runs created after ${triggeredAfter}`);
+    }
 
     while (Date.now() - startTime < maxWaitMs) {
       // Get recent workflow runs for CI on our test branch
@@ -1306,7 +1313,9 @@ Issue: #${this.issueNumber}
           repo: this.config.repo,
           workflow_id: "ci.yml",
           branch: this.testBranchName || undefined,
-          per_page: 5,
+          per_page: 10,
+          // Filter by created time if specified (to find the workflow_dispatch run, not the PR-triggered one)
+          ...(triggeredAfter && { created: `>=${triggeredAfter}` }),
         });
 
       // Find the most recent run that matches our test branch
@@ -1318,6 +1327,9 @@ Issue: #${this.issueNumber}
         // Log the workflow URL on first detection (only once)
         if (ciRunId !== matchingRun.id) {
           ciRunId = matchingRun.id;
+          core.info(
+            `Found CI run ${matchingRun.id} (event: ${matchingRun.event}, created: ${matchingRun.created_at})`,
+          );
           this.logResourceCreated(
             "CI Workflow",
             this.getWorkflowRunUrl(matchingRun.id),
