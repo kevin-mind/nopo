@@ -1596,6 +1596,16 @@ Issue: #${this.issueNumber}
       }
     }
 
+    // Check todosAdded
+    if (typeof exp.todosAdded === "number") {
+      const expectedAfterTodos = beforeTotalTodos + exp.todosAdded;
+      if (afterTotalTodos !== expectedAfterTodos) {
+        errors.push(`todosAdded: expected ${exp.todosAdded} todos added (${beforeTotalTodos} -> ${expectedAfterTodos}), but got ${afterTotalTodos}`);
+      } else {
+        core.info(`  ✓ todosAdded: ${exp.todosAdded} todo(s) added as expected`);
+      }
+    }
+
     // Check requirementsUpdated - verify parent body changed
     if (exp.requirementsUpdated === true) {
       // Fetch parent issue body

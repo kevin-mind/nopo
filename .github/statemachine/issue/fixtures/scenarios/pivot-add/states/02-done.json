@@ -22,7 +22,7 @@
         "number": 0,
         "title": "[Phase 1]: Core rate limiting",
         "state": "OPEN",
-        "body": "## Todos\n\n- [ ] Design rate limiting strategy\n- [ ] Implement rate limiter middleware\n- [ ] Implement password reset endpoint and email flow",
+        "body": "## Todos\n\n- [ ] Design rate limiting strategy\n- [ ] Implement rate limiter middleware\n- [ ] Add rate limiting for WebSocket connections",
         "projectStatus": "In progress",
         "branch": null,
         "pr": null,
@@ -42,6 +42,7 @@
     }
   },
   "expected": {
-    "subIssuesModified": true
+    "subIssuesModified": true,
+    "todosAdded": 1
   }
 }

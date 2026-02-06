@@ -43,5 +43,5 @@
     }
   },
   "pivotDescription": "Also add rate limiting for WebSocket connections",
-  "claudeMock": "pivot/simple-add-todo"
+  "claudeMock": "pivot/add-websocket-ratelimit"
 }

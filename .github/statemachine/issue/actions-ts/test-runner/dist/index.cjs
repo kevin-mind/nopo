@@ -50268,7 +50268,6 @@ async function createNewSubIssues(ctx, parentIssueNumber, newSubIssues) {
         body,
         labels: ["pivot-generated"]
       });
-      core21.info(`Attempting to link sub-issue: parentNodeId=${parentNodeId}, subIssueNodeId=${createdIssue.node_id}`);
       if (parentNodeId && createdIssue.node_id) {
         try {
           await ctx.octokit.graphql(ADD_SUB_ISSUE_MUTATION3, {
@@ -50277,10 +50276,8 @@ async function createNewSubIssues(ctx, parentIssueNumber, newSubIssues) {
           });
           core21.info(`Linked sub-issue #${createdIssue.number} to parent #${parentIssueNumber}`);
         } catch (linkError) {
-          core21.error(`Failed to link sub-issue #${createdIssue.number} to parent: ${linkError}`);
+          core21.warning(`Failed to link sub-issue #${createdIssue.number} to parent: ${linkError}`);
         }
-      } else {
-        core21.warning(`Skipping sub-issue linking: parentNodeId=${parentNodeId}, subIssueNodeId=${createdIssue.node_id}`);
       }
       core21.info(`Created new sub-issue #${createdIssue.number}: ${newSub.title}`);
       changes.push(`**New Sub-Issue #${createdIssue.number}:** ${newSub.title} (${newSub.reason})`);
@@ -51886,6 +51883,14 @@ Pivot/Modification Verification:`);
         errors.push(`todosRemoved: expected ${exp.todosRemoved} todos removed (${beforeTotalTodos} -> ${expectedAfterTodos}), but got ${afterTotalTodos}`);
       } else {
         core24.info(`  \u2713 todosRemoved: ${exp.todosRemoved} todo(s) removed as expected`);
+      }
+    }
+    if (typeof exp.todosAdded === "number") {
+      const expectedAfterTodos = beforeTotalTodos + exp.todosAdded;
+      if (afterTotalTodos !== expectedAfterTodos) {
+        errors.push(`todosAdded: expected ${exp.todosAdded} todos added (${beforeTotalTodos} -> ${expectedAfterTodos}), but got ${afterTotalTodos}`);
+      } else {
+        core24.info(`  \u2713 todosAdded: ${exp.todosAdded} todo(s) added as expected`);
       }
     }
     if (exp.requirementsUpdated === true) {

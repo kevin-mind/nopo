@@ -85,6 +85,7 @@
   },
   "expected": {
     "newSubIssueCreated": true,
-    "completedWorkPreserved": true
+    "completedWorkPreserved": true,
+    "todosAdded": 4
   }
 }
