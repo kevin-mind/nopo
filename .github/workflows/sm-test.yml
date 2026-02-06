@@ -122,10 +122,15 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Compile prompts
+        run: pnpm --filter @more/prompts compile
+
       - name: Build actions
         run: |
           cd .github/actions-ts
-          pnpm install --frozen-lockfile
           pnpm run build
 
       # Install Claude Code when running in non-mock mode (SDK requires it)
