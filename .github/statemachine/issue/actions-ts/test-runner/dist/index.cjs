@@ -50983,7 +50983,29 @@ ${"=".repeat(60)}`);
         assignees: ["nopo-bot"]
       });
     }
+    if (fixture.issue.subIssues && fixture.issue.subIssues.length > 0) {
+      await this.createSubIssuesFromFixture(issueNumber, fixture.issue.subIssues);
+    }
     return issueNumber;
+  }
+  /**
+   * Create sub-issues from fixture data and link them to parent
+   */
+  async createSubIssuesFromFixture(parentIssueNumber, subIssues) {
+    core24.info(`Creating ${subIssues.length} sub-issues for parent #${parentIssueNumber}`);
+    for (const subIssue of subIssues) {
+      const subIssueNumber = await this.createSubIssue(subIssue);
+      this.logResourceCreated("Sub-issue", this.getIssueUrl(subIssueNumber));
+      if (subIssue.state === "CLOSED") {
+        await this.config.octokit.rest.issues.update({
+          owner: this.config.owner,
+          repo: this.config.repo,
+          issue_number: subIssueNumber,
+          state: "closed"
+        });
+        core24.info(`  Closed sub-issue #${subIssueNumber}`);
+      }
+    }
   }
   /**
    * Create a test branch for the scenario
@@ -51348,17 +51370,19 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
    * @param nextFixture Optional next fixture (used to get trigger-specific fields like reviewDecision, ciResult)
    */
   buildMachineContext(fixture, nextFixture) {
-    const subIssues = (fixture.issue.subIssues || []).map((sub, index) => ({
-      number: sub.number || 1e3 + index,
-      // Use placeholder numbers if not set
-      title: sub.title,
-      state: sub.state,
-      body: sub.body,
-      projectStatus: sub.projectStatus,
-      branch: sub.branch || null,
-      pr: sub.pr || null,
-      todos: sub.todos || { total: 0, completed: 0, uncheckedNonManual: 0 }
-    }));
+    const subIssues = (fixture.issue.subIssues || []).map((sub, index) => {
+      const realNumber = this.subIssueNumbers.get(sub.title) || sub.number || 1e3 + index;
+      return {
+        number: realNumber,
+        title: sub.title,
+        state: sub.state,
+        body: sub.body,
+        projectStatus: sub.projectStatus,
+        branch: sub.branch || null,
+        pr: sub.pr || null,
+        todos: sub.todos || { total: 0, completed: 0, uncheckedNonManual: 0 }
+      };
+    });
     const issue = {
       number: this.issueNumber,
       title: fixture.issue.title,

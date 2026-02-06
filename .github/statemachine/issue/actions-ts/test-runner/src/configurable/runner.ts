@@ -499,7 +499,39 @@ class ConfigurableTestRunner {
       });
     }
 
+    // Create sub-issues from fixture
+    if (fixture.issue.subIssues && fixture.issue.subIssues.length > 0) {
+      await this.createSubIssuesFromFixture(issueNumber, fixture.issue.subIssues);
+    }
+
     return issueNumber;
+  }
+
+  /**
+   * Create sub-issues from fixture data and link them to parent
+   */
+  private async createSubIssuesFromFixture(
+    parentIssueNumber: number,
+    subIssues: TestSubIssue[],
+  ): Promise<void> {
+    core.info(`Creating ${subIssues.length} sub-issues for parent #${parentIssueNumber}`);
+
+    for (const subIssue of subIssues) {
+      // Use existing createSubIssue method which handles project status, branch, PR, and linking
+      const subIssueNumber = await this.createSubIssue(subIssue);
+      this.logResourceCreated("Sub-issue", this.getIssueUrl(subIssueNumber));
+
+      // Close the issue if state is CLOSED (not handled by createSubIssue)
+      if (subIssue.state === "CLOSED") {
+        await this.config.octokit.rest.issues.update({
+          owner: this.config.owner,
+          repo: this.config.repo,
+          issue_number: subIssueNumber,
+          state: "closed",
+        });
+        core.info(`  Closed sub-issue #${subIssueNumber}`);
+      }
+    }
   }
 
   /**
@@ -1004,16 +1036,21 @@ Issue: #${this.issueNumber}
     nextFixture?: StateFixture,
   ): MachineContext {
     // Map sub-issues from fixture to proper SubIssue format
-    const subIssues = (fixture.issue.subIssues || []).map((sub, index) => ({
-      number: sub.number || 1000 + index, // Use placeholder numbers if not set
-      title: sub.title,
-      state: sub.state,
-      body: sub.body,
-      projectStatus: sub.projectStatus as ProjectStatus | null,
-      branch: sub.branch || null,
-      pr: sub.pr || null,
-      todos: sub.todos || { total: 0, completed: 0, uncheckedNonManual: 0 },
-    }));
+    // Use real issue numbers from subIssueNumbers map if available
+    const subIssues = (fixture.issue.subIssues || []).map((sub, index) => {
+      // Look up the real issue number by title (without TEST prefix)
+      const realNumber = this.subIssueNumbers.get(sub.title) || sub.number || 1000 + index;
+      return {
+        number: realNumber,
+        title: sub.title,
+        state: sub.state,
+        body: sub.body,
+        projectStatus: sub.projectStatus as ProjectStatus | null,
+        branch: sub.branch || null,
+        pr: sub.pr || null,
+        todos: sub.todos || { total: 0, completed: 0, uncheckedNonManual: 0 },
+      };
+    });
 
     // Cast fixture issue to ParentIssue
     const issue: ParentIssue = {
