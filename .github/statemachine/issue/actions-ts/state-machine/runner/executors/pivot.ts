@@ -383,7 +383,9 @@ async function applySubIssueModifications(
         if (lastTodoMatch) {
           const lastTodo = lastTodoMatch[lastTodoMatch.length - 1];
           const lastTodoIndex = body.lastIndexOf(lastTodo) + lastTodo.length;
-          body = body.slice(0, lastTodoIndex) + newTodos + "\n" + body.slice(lastTodoIndex);
+          // Ensure we add a newline before new todos if last todo doesn't end with one
+          const prefix = lastTodo.endsWith("\n") ? "" : "\n";
+          body = body.slice(0, lastTodoIndex) + prefix + newTodos + "\n" + body.slice(lastTodoIndex);
         } else {
           body += `\n\n${newTodos}\n`;
         }

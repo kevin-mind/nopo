@@ -42049,7 +42049,8 @@ async function applySubIssueModifications(ctx, subMods) {
         if (lastTodoMatch) {
           const lastTodo = lastTodoMatch[lastTodoMatch.length - 1];
           const lastTodoIndex = body.lastIndexOf(lastTodo) + lastTodo.length;
-          body = body.slice(0, lastTodoIndex) + newTodos + "\n" + body.slice(lastTodoIndex);
+          const prefix = lastTodo.endsWith("\n") ? "" : "\n";
+          body = body.slice(0, lastTodoIndex) + prefix + newTodos + "\n" + body.slice(lastTodoIndex);
         } else {
           body += `
 
