@@ -148,7 +148,7 @@ export const STANDARD_SECTION_ORDER = [
  * Extract all sections from a markdown body.
  * Returns an array of { name, content } for each ## section found.
  */
-function extractAllSections(body: string): Section[] {
+export function extractAllSections(body: string): Section[] {
   const sections: Section[] = [];
   const pattern = /## ([^\n]+)\s*\n([\s\S]*?)(?=\n## |\n<!-- |$)/gi;
 
@@ -167,7 +167,7 @@ function extractAllSections(body: string): Section[] {
 /**
  * Get the description text (content before the first ## section).
  */
-function getDescription(body: string): string | null {
+export function getDescription(body: string): string | null {
   const firstSectionIdx = body.search(/\n## /);
   if (firstSectionIdx === -1) {
     return body.trim() || null;
