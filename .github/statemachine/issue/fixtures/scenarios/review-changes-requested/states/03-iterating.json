@@ -25,5 +25,8 @@
       "title": "feat: implement initial feature",
       "baseRef": "main"
     }
+  },
+  "expected": {
+    "prIsDraft": true
   }
 }

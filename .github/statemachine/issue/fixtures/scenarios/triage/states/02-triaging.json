@@ -18,5 +18,8 @@
       "completed": 0,
       "uncheckedNonManual": 2
     }
+  },
+  "expected": {
+    "hasTriagedLabel": true
   }
 }

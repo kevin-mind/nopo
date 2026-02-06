@@ -51997,6 +51997,149 @@ Pivot/Modification Verification:`);
         core24.info(`  \u2713 botUnassigned: nopo-bot is not assigned as expected`);
       }
     }
+    if (exp.allTodosComplete === true) {
+      const { data: issue } = await this.config.octokit.rest.issues.get({
+        owner: this.config.owner,
+        repo: this.config.repo,
+        issue_number: this.issueNumber
+      });
+      const body = issue.body || "";
+      const uncheckedCount = (body.match(/- \[ \]/g) || []).length;
+      if (uncheckedCount > 0) {
+        errors.push(`allTodosComplete: expected all todos complete, but found ${uncheckedCount} unchecked`);
+      } else {
+        core24.info(`  \u2713 allTodosComplete: all todos are checked`);
+      }
+    }
+    if (exp.prCreated === true) {
+      const { data: issue } = await this.config.octokit.rest.issues.get({
+        owner: this.config.owner,
+        repo: this.config.repo,
+        issue_number: this.issueNumber
+      });
+      const { data: prs } = await this.config.octokit.rest.pulls.list({
+        owner: this.config.owner,
+        repo: this.config.repo,
+        state: "open"
+      });
+      const linkedPr = prs.find(
+        (pr) => pr.body?.includes(`#${issue.number}`) || pr.body?.includes(`Fixes #${issue.number}`)
+      );
+      if (!linkedPr) {
+        errors.push(`prCreated: expected PR to be created for issue #${issue.number}, but none found`);
+      } else {
+        core24.info(`  \u2713 prCreated: PR #${linkedPr.number} found for issue`);
+      }
+    }
+    if (exp.prIsDraft === true) {
+      const { data: issue } = await this.config.octokit.rest.issues.get({
+        owner: this.config.owner,
+        repo: this.config.repo,
+        issue_number: this.issueNumber
+      });
+      const { data: prs } = await this.config.octokit.rest.pulls.list({
+        owner: this.config.owner,
+        repo: this.config.repo,
+        state: "open"
+      });
+      const linkedPr = prs.find(
+        (pr) => pr.body?.includes(`#${issue.number}`) || pr.body?.includes(`Fixes #${issue.number}`)
+      );
+      if (!linkedPr) {
+        errors.push(`prIsDraft: no PR found to check draft status`);
+      } else if (!linkedPr.draft) {
+        errors.push(`prIsDraft: expected PR #${linkedPr.number} to be draft, but it's ready for review`);
+      } else {
+        core24.info(`  \u2713 prIsDraft: PR #${linkedPr.number} is a draft`);
+      }
+    }
+    if (exp.prMarkedReady === true) {
+      const { data: issue } = await this.config.octokit.rest.issues.get({
+        owner: this.config.owner,
+        repo: this.config.repo,
+        issue_number: this.issueNumber
+      });
+      const { data: prs } = await this.config.octokit.rest.pulls.list({
+        owner: this.config.owner,
+        repo: this.config.repo,
+        state: "open"
+      });
+      const linkedPr = prs.find(
+        (pr) => pr.body?.includes(`#${issue.number}`) || pr.body?.includes(`Fixes #${issue.number}`)
+      );
+      if (!linkedPr) {
+        errors.push(`prMarkedReady: no PR found to check ready status`);
+      } else if (linkedPr.draft) {
+        errors.push(`prMarkedReady: expected PR #${linkedPr.number} to be ready, but it's a draft`);
+      } else {
+        core24.info(`  \u2713 prMarkedReady: PR #${linkedPr.number} is ready for review`);
+      }
+    }
+    if (exp.commentPosted === true) {
+      const { data: comments } = await this.config.octokit.rest.issues.listComments({
+        owner: this.config.owner,
+        repo: this.config.repo,
+        issue_number: this.issueNumber
+      });
+      const claudeComment = comments.find(
+        (c3) => c3.user?.login === "claude[bot]" || c3.user?.type === "Bot"
+      );
+      if (!claudeComment) {
+        errors.push(`commentPosted: expected claude[bot] to post a comment, but none found`);
+      } else {
+        core24.info(`  \u2713 commentPosted: comment from ${claudeComment.user?.login} found`);
+      }
+    }
+    if (exp.issueClosed === true) {
+      const { data: issue } = await this.config.octokit.rest.issues.get({
+        owner: this.config.owner,
+        repo: this.config.repo,
+        issue_number: this.issueNumber
+      });
+      if (issue.state !== "closed") {
+        errors.push(`issueClosed: expected issue to be closed, but state is ${issue.state}`);
+      } else {
+        core24.info(`  \u2713 issueClosed: issue is closed`);
+      }
+    }
+    if (exp.failuresReset === true) {
+      const beforeFailures = firstFixture?.issue.failures || 0;
+      const state = await this.getGitHubState(this.issueNumber);
+      const afterFailures = state.failures;
+      if (beforeFailures <= 0) {
+        errors.push(`failuresReset: expected starting failures > 0, but was ${beforeFailures}`);
+      } else if (afterFailures !== 0) {
+        errors.push(`failuresReset: expected failures to reset to 0, but got ${afterFailures}`);
+      } else {
+        core24.info(`  \u2713 failuresReset: failures reset from ${beforeFailures} to 0`);
+      }
+    }
+    if (exp.hasTriagedLabel === true) {
+      const { data: issue } = await this.config.octokit.rest.issues.get({
+        owner: this.config.owner,
+        repo: this.config.repo,
+        issue_number: this.issueNumber
+      });
+      const labels = issue.labels.map((l3) => typeof l3 === "string" ? l3 : l3.name || "");
+      if (!labels.includes("triaged")) {
+        errors.push(`hasTriagedLabel: expected triaged label, but not found. Labels: ${labels.join(", ")}`);
+      } else {
+        core24.info(`  \u2713 hasTriagedLabel: triaged label present`);
+      }
+    }
+    if (exp.hasGroomedLabel === true) {
+      const { data: issue } = await this.config.octokit.rest.issues.get({
+        owner: this.config.owner,
+        repo: this.config.repo,
+        issue_number: this.issueNumber
+      });
+      const labels = issue.labels.map((l3) => typeof l3 === "string" ? l3 : l3.name || "");
+      if (!labels.includes("groomed")) {
+        errors.push(`hasGroomedLabel: expected groomed label, but not found. Labels: ${labels.join(", ")}`);
+      } else {
+        core24.info(`  \u2713 hasGroomedLabel: groomed label present`);
+      }
+    }
     return errors;
   }
   /**

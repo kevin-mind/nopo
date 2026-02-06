@@ -20,5 +20,9 @@
       "completed": 2,
       "uncheckedNonManual": 0
     }
+  },
+  "expected": {
+    "issueClosed": true,
+    "allTodosComplete": true
   }
 }
