@@ -60,8 +60,43 @@ You can update the parent issue's descriptive sections:
 
 For each OPEN sub-issue, you can:
 - `action`: "modify" to make changes, "skip" to leave unchanged
-- `add_todos`: New unchecked todos to add to this sub-issue
-- `remove_unchecked_todos`: Exact text of unchecked todos to remove
+- `todo_modifications`: Array of index-based todo operations (see below)
+
+#### Todo Modifications (Index-Based)
+
+Todos are referenced by their 0-based index. This is deterministic and order-aware.
+
+Each modification has:
+- `action`: "add" | "modify" | "remove"
+- `index`: 0-based position
+- `text`: New text (required for "add" and "modify")
+
+**Operations:**
+
+1. **Add** - Insert a new todo AFTER the specified index
+   - `index: -1` → prepend (insert at beginning)
+   - `index: 0` → insert after first todo
+   - `index: 2` → insert after third todo
+
+2. **Modify** - Change the text of an existing unchecked todo
+   - Cannot modify checked todos (will fail safety validation)
+
+3. **Remove** - Delete an unchecked todo at the index
+   - Cannot remove checked todos (will fail safety validation)
+
+**Example:** Given todos: `[0: "Setup", 1: "Implement", 2: "Test"]`
+```json
+{
+  "todo_modifications": [
+    { "action": "add", "index": 1, "text": "Add validation" },
+    { "action": "modify", "index": 2, "text": "Write unit tests" },
+    { "action": "remove", "index": 0 }
+  ]
+}
+```
+Result: `["Implement", "Add validation", "Write unit tests"]`
+
+**Important:** Operations are applied in order with index recalculation after each operation.
 
 ### For New Work (Create Sub-Issues)
 

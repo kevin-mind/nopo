@@ -1,5 +1,5 @@
 {
-  "description": "Pivot that removes an unchecked todo from the first sub-issue (index 0)",
+  "description": "Pivot that removes an unchecked todo (index 1) from the first sub-issue (index 0)",
   "output": {
     "analysis": {
       "change_summary": "User wants to remove the comprehensive logging todo as it's no longer needed - using basic logging only",
@@ -16,7 +16,12 @@
         {
           "issue_number": 0,
           "action": "modify",
-          "remove_unchecked_todos": ["Add comprehensive logging"]
+          "todo_modifications": [
+            {
+              "action": "remove",
+              "index": 1
+            }
+          ]
         }
       ]
     },

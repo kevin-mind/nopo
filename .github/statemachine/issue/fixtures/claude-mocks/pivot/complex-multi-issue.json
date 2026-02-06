@@ -16,13 +16,28 @@
         {
           "issue_number": 0,
           "action": "modify",
-          "add_todos": ["Add schema migration rollback support"],
-          "remove_unchecked_todos": ["Run full migration in single transaction"]
+          "todo_modifications": [
+            {
+              "action": "remove",
+              "index": 0
+            },
+            {
+              "action": "add",
+              "index": 0,
+              "text": "Add schema migration rollback support"
+            }
+          ]
         },
         {
           "issue_number": 1,
           "action": "modify",
-          "add_todos": ["Split data migration into batches"]
+          "todo_modifications": [
+            {
+              "action": "add",
+              "index": 1,
+              "text": "Split data migration into batches"
+            }
+          ]
         }
       ],
       "new_sub_issues": [

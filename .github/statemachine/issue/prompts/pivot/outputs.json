@@ -69,15 +69,28 @@
                 "enum": ["modify", "skip"],
                 "description": "Whether to modify this sub-issue or skip it"
               },
-              "add_todos": {
+              "todo_modifications": {
                 "type": "array",
-                "description": "New unchecked todos to add",
-                "items": { "type": "string" }
-              },
-              "remove_unchecked_todos": {
-                "type": "array",
-                "description": "Exact text of unchecked todos to remove",
-                "items": { "type": "string" }
+                "description": "Index-based modifications to todos. Indices are 0-based. Operations are applied in order.",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "action": {
+                      "type": "string",
+                      "enum": ["add", "modify", "remove"],
+                      "description": "add: insert new todo, modify: change existing todo text, remove: delete todo"
+                    },
+                    "index": {
+                      "type": "integer",
+                      "description": "0-based index. For 'add': insert AFTER this index (-1 to prepend). For 'modify'/'remove': the todo at this index."
+                    },
+                    "text": {
+                      "type": "string",
+                      "description": "New todo text (required for 'add' and 'modify', ignored for 'remove')"
+                    }
+                  },
+                  "required": ["action", "index"]
+                }
               },
               "update_description": {
                 "type": "string",

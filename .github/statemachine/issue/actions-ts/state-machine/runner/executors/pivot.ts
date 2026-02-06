@@ -35,13 +35,21 @@ interface ParentIssueModifications {
 }
 
 /**
+ * Index-based todo modification
+ */
+interface TodoModification {
+  action: "add" | "modify" | "remove";
+  index: number;
+  text?: string;
+}
+
+/**
  * Modifications to a sub-issue
  */
 interface SubIssueModification {
   issue_number: number;
   action: "modify" | "skip";
-  add_todos?: string[];
-  remove_unchecked_todos?: string[];
+  todo_modifications?: TodoModification[];
   update_description?: string;
 }
 
@@ -236,13 +244,23 @@ async function validateSafetyConstraints(
           continue;
         }
 
-        // Check for checked todos being removed
-        if (subMod.remove_unchecked_todos) {
+        // Check for modifications to checked todos
+        if (subMod.todo_modifications) {
           const body = subIssue.body || "";
-          for (const todoText of subMod.remove_unchecked_todos) {
-            const checkedPattern = new RegExp(`- \\[x\\]\\s*${escapeRegex(todoText)}`, "i");
-            if (checkedPattern.test(body)) {
-              violations.push(`Cannot remove checked todo: "${todoText}" on sub-issue #${subMod.issue_number}`);
+          const todos = parseTodosFromBody(body);
+
+          for (const mod of subMod.todo_modifications) {
+            // Skip 'add' actions - they don't modify existing todos
+            if (mod.action === "add") continue;
+
+            // Check if the target index is a checked todo
+            if (mod.index >= 0 && mod.index < todos.length) {
+              const targetTodo = todos[mod.index];
+              if (targetTodo.checked) {
+                violations.push(
+                  `Cannot ${mod.action} checked todo at index ${mod.index}: "${targetTodo.text}" on sub-issue #${subMod.issue_number}`,
+                );
+              }
             }
           }
         }
@@ -263,6 +281,136 @@ async function validateSafetyConstraints(
  */
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Parsed todo item
+ */
+interface ParsedTodo {
+  text: string;
+  checked: boolean;
+  fullMatch: string;
+}
+
+/**
+ * Parse todos from issue body
+ * Returns array of todos with their text, checked status, and full match string
+ */
+function parseTodosFromBody(body: string): ParsedTodo[] {
+  const todoPattern = /- \[([ x])\] (.+?)(?=\n|$)/g;
+  const todos: ParsedTodo[] = [];
+  let match;
+
+  while ((match = todoPattern.exec(body)) !== null) {
+    todos.push({
+      checked: match[1] === "x",
+      text: match[2],
+      fullMatch: match[0],
+    });
+  }
+
+  return todos;
+}
+
+/**
+ * Serialize todos back to markdown
+ */
+function serializeTodos(todos: ParsedTodo[]): string {
+  return todos.map((t) => `- [${t.checked ? "x" : " "}] ${t.text}`).join("\n");
+}
+
+/**
+ * Apply index-based todo modifications to a body
+ * Operations are applied in order, with indices recalculated after each operation
+ */
+function applyTodoModifications(
+  body: string,
+  modifications: TodoModification[],
+): { body: string; changed: boolean; changes: string[] } {
+  const changes: string[] = [];
+
+  // Find the todos section in the body
+  const todosMatch = body.match(/## Todos\s*\n([\s\S]*?)(?=\n## |$)/i);
+  if (!todosMatch) {
+    // No todos section - if we're adding, create one
+    const addMods = modifications.filter((m) => m.action === "add");
+    if (addMods.length > 0) {
+      const newTodos = addMods.map((m) => `- [ ] ${m.text}`).join("\n");
+      const newBody = body.trimEnd() + `\n\n## Todos\n\n${newTodos}\n`;
+      changes.push(`Added ${addMods.length} todo(s)`);
+      return { body: newBody, changed: true, changes };
+    }
+    return { body, changed: false, changes: [] };
+  }
+
+  // Parse existing todos
+  let todos = parseTodosFromBody(body);
+  let hasChanges = false;
+
+  // Apply each modification in order
+  for (const mod of modifications) {
+    switch (mod.action) {
+      case "add": {
+        if (!mod.text) {
+          core.warning(`Add operation missing text, skipping`);
+          continue;
+        }
+        const newTodo: ParsedTodo = {
+          text: mod.text,
+          checked: false,
+          fullMatch: `- [ ] ${mod.text}`,
+        };
+        // index -1 means prepend, otherwise insert after the index
+        const insertAt = mod.index < 0 ? 0 : Math.min(mod.index + 1, todos.length);
+        todos.splice(insertAt, 0, newTodo);
+        changes.push(`Added todo at position ${insertAt}: "${mod.text}"`);
+        hasChanges = true;
+        break;
+      }
+
+      case "modify": {
+        if (!mod.text) {
+          core.warning(`Modify operation missing text, skipping`);
+          continue;
+        }
+        if (mod.index < 0 || mod.index >= todos.length) {
+          core.warning(`Modify index ${mod.index} out of bounds (0-${todos.length - 1}), skipping`);
+          continue;
+        }
+        const oldText = todos[mod.index].text;
+        todos[mod.index].text = mod.text;
+        todos[mod.index].fullMatch = `- [${todos[mod.index].checked ? "x" : " "}] ${mod.text}`;
+        changes.push(`Modified todo ${mod.index}: "${oldText}" → "${mod.text}"`);
+        hasChanges = true;
+        break;
+      }
+
+      case "remove": {
+        if (mod.index < 0 || mod.index >= todos.length) {
+          core.warning(`Remove index ${mod.index} out of bounds (0-${todos.length - 1}), skipping`);
+          continue;
+        }
+        const removedText = todos[mod.index].text;
+        todos.splice(mod.index, 1);
+        changes.push(`Removed todo ${mod.index}: "${removedText}"`);
+        hasChanges = true;
+        break;
+      }
+    }
+  }
+
+  if (!hasChanges) {
+    return { body, changed: false, changes: [] };
+  }
+
+  // Rebuild the body with updated todos
+  const serializedTodos = serializeTodos(todos);
+  const newBody = body.replace(
+    /## Todos\s*\n[\s\S]*?(?=\n## |$)/i,
+    `## Todos\n\n${serializedTodos}\n`,
+  );
+
+  return { body: newBody, changed: true, changes };
 }
 
 // ============================================================================
@@ -363,34 +511,14 @@ async function applySubIssueModifications(
       let body = subIssue.body || "";
       let modified = false;
 
-      // Remove unchecked todos
-      if (subMod.remove_unchecked_todos) {
-        for (const todoText of subMod.remove_unchecked_todos) {
-          const todoPattern = new RegExp(`- \\[ \\]\\s*${escapeRegex(todoText)}\\n?`, "gi");
-          if (todoPattern.test(body)) {
-            body = body.replace(todoPattern, "");
-            subChanges.push(`Removed todo: "${todoText}"`);
-            modified = true;
-          }
+      // Apply index-based todo modifications
+      if (subMod.todo_modifications && subMod.todo_modifications.length > 0) {
+        const result = applyTodoModifications(body, subMod.todo_modifications);
+        if (result.changed) {
+          body = result.body;
+          subChanges.push(...result.changes);
+          modified = true;
         }
-      }
-
-      // Add new todos
-      if (subMod.add_todos && subMod.add_todos.length > 0) {
-        const newTodos = subMod.add_todos.map((t) => `- [ ] ${t}`).join("\n");
-        // Add at the end of existing todos or at end of body
-        const lastTodoMatch = body.match(/- \[[ x]\][^\n]*\n?/g);
-        if (lastTodoMatch) {
-          const lastTodo = lastTodoMatch[lastTodoMatch.length - 1];
-          const lastTodoIndex = body.lastIndexOf(lastTodo) + lastTodo.length;
-          // Ensure we add a newline before new todos if last todo doesn't end with one
-          const prefix = lastTodo.endsWith("\n") ? "" : "\n";
-          body = body.slice(0, lastTodoIndex) + prefix + newTodos + "\n" + body.slice(lastTodoIndex);
-        } else {
-          body += `\n\n${newTodos}\n`;
-        }
-        subChanges.push(`Added ${subMod.add_todos.length} new todo(s)`);
-        modified = true;
       }
 
       // Update description

@@ -49982,12 +49982,18 @@ async function validateSafetyConstraints(ctx, issueNumber, pivotOutput) {
           violations.push(`Cannot modify closed sub-issue #${subMod.issue_number}`);
           continue;
         }
-        if (subMod.remove_unchecked_todos) {
+        if (subMod.todo_modifications) {
           const body = subIssue.body || "";
-          for (const todoText of subMod.remove_unchecked_todos) {
-            const checkedPattern = new RegExp(`- \\[x\\]\\s*${escapeRegex(todoText)}`, "i");
-            if (checkedPattern.test(body)) {
-              violations.push(`Cannot remove checked todo: "${todoText}" on sub-issue #${subMod.issue_number}`);
+          const todos = parseTodosFromBody(body);
+          for (const mod of subMod.todo_modifications) {
+            if (mod.action === "add") continue;
+            if (mod.index >= 0 && mod.index < todos.length) {
+              const targetTodo = todos[mod.index];
+              if (targetTodo.checked) {
+                violations.push(
+                  `Cannot ${mod.action} checked todo at index ${mod.index}: "${targetTodo.text}" on sub-issue #${subMod.issue_number}`
+                );
+              }
             }
           }
         }
@@ -50003,6 +50009,102 @@ async function validateSafetyConstraints(ctx, issueNumber, pivotOutput) {
 }
 function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function parseTodosFromBody(body) {
+  const todoPattern = /- \[([ x])\] (.+?)(?=\n|$)/g;
+  const todos = [];
+  let match;
+  while ((match = todoPattern.exec(body)) !== null) {
+    todos.push({
+      checked: match[1] === "x",
+      text: match[2],
+      fullMatch: match[0]
+    });
+  }
+  return todos;
+}
+function serializeTodos(todos) {
+  return todos.map((t) => `- [${t.checked ? "x" : " "}] ${t.text}`).join("\n");
+}
+function applyTodoModifications(body, modifications) {
+  const changes = [];
+  const todosMatch = body.match(/## Todos\s*\n([\s\S]*?)(?=\n## |$)/i);
+  if (!todosMatch) {
+    const addMods = modifications.filter((m) => m.action === "add");
+    if (addMods.length > 0) {
+      const newTodos = addMods.map((m) => `- [ ] ${m.text}`).join("\n");
+      const newBody2 = body.trimEnd() + `
+
+## Todos
+
+${newTodos}
+`;
+      changes.push(`Added ${addMods.length} todo(s)`);
+      return { body: newBody2, changed: true, changes };
+    }
+    return { body, changed: false, changes: [] };
+  }
+  let todos = parseTodosFromBody(body);
+  let hasChanges = false;
+  for (const mod of modifications) {
+    switch (mod.action) {
+      case "add": {
+        if (!mod.text) {
+          core21.warning(`Add operation missing text, skipping`);
+          continue;
+        }
+        const newTodo = {
+          text: mod.text,
+          checked: false,
+          fullMatch: `- [ ] ${mod.text}`
+        };
+        const insertAt = mod.index < 0 ? 0 : Math.min(mod.index + 1, todos.length);
+        todos.splice(insertAt, 0, newTodo);
+        changes.push(`Added todo at position ${insertAt}: "${mod.text}"`);
+        hasChanges = true;
+        break;
+      }
+      case "modify": {
+        if (!mod.text) {
+          core21.warning(`Modify operation missing text, skipping`);
+          continue;
+        }
+        if (mod.index < 0 || mod.index >= todos.length) {
+          core21.warning(`Modify index ${mod.index} out of bounds (0-${todos.length - 1}), skipping`);
+          continue;
+        }
+        const oldText = todos[mod.index].text;
+        todos[mod.index].text = mod.text;
+        todos[mod.index].fullMatch = `- [${todos[mod.index].checked ? "x" : " "}] ${mod.text}`;
+        changes.push(`Modified todo ${mod.index}: "${oldText}" \u2192 "${mod.text}"`);
+        hasChanges = true;
+        break;
+      }
+      case "remove": {
+        if (mod.index < 0 || mod.index >= todos.length) {
+          core21.warning(`Remove index ${mod.index} out of bounds (0-${todos.length - 1}), skipping`);
+          continue;
+        }
+        const removedText = todos[mod.index].text;
+        todos.splice(mod.index, 1);
+        changes.push(`Removed todo ${mod.index}: "${removedText}"`);
+        hasChanges = true;
+        break;
+      }
+    }
+  }
+  if (!hasChanges) {
+    return { body, changed: false, changes: [] };
+  }
+  const serializedTodos = serializeTodos(todos);
+  const newBody = body.replace(
+    /## Todos\s*\n[\s\S]*?(?=\n## |$)/i,
+    `## Todos
+
+${serializedTodos}
+`
+  );
+  return { body: newBody, changed: true, changes };
 }
 async function applyParentModifications(ctx, issueNumber, mods) {
   const changes = [];
@@ -50071,31 +50173,13 @@ async function applySubIssueModifications(ctx, subMods) {
       });
       let body = subIssue.body || "";
       let modified = false;
-      if (subMod.remove_unchecked_todos) {
-        for (const todoText of subMod.remove_unchecked_todos) {
-          const todoPattern = new RegExp(`- \\[ \\]\\s*${escapeRegex(todoText)}\\n?`, "gi");
-          if (todoPattern.test(body)) {
-            body = body.replace(todoPattern, "");
-            subChanges.push(`Removed todo: "${todoText}"`);
-            modified = true;
-          }
+      if (subMod.todo_modifications && subMod.todo_modifications.length > 0) {
+        const result = applyTodoModifications(body, subMod.todo_modifications);
+        if (result.changed) {
+          body = result.body;
+          subChanges.push(...result.changes);
+          modified = true;
         }
-      }
-      if (subMod.add_todos && subMod.add_todos.length > 0) {
-        const newTodos = subMod.add_todos.map((t) => `- [ ] ${t}`).join("\n");
-        const lastTodoMatch = body.match(/- \[[ x]\][^\n]*\n?/g);
-        if (lastTodoMatch) {
-          const lastTodo = lastTodoMatch[lastTodoMatch.length - 1];
-          const lastTodoIndex = body.lastIndexOf(lastTodo) + lastTodo.length;
-          body = body.slice(0, lastTodoIndex) + newTodos + "\n" + body.slice(lastTodoIndex);
-        } else {
-          body += `
-
-${newTodos}
-`;
-        }
-        subChanges.push(`Added ${subMod.add_todos.length} new todo(s)`);
-        modified = true;
       }
       if (subMod.update_description) {
         body += `
