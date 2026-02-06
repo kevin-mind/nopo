@@ -3,6 +3,7 @@ packages:
   - packages/*
   - apps/*
   - .github/actions-ts
+  - .github/statemachine
 
 linkWorkspacePackages: true
 preferWorkspacePackages: true

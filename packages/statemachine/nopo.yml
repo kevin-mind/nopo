@@ -1,0 +1,16 @@
+name: statemachine
+description: State machine for GitHub issue automation
+
+commands:
+  clean: rm -rf node_modules && rm -rf build
+  check:
+    commands:
+      types: pnpm exec tsc --noEmit
+      lint: pnpm exec eslint
+  fix:
+    commands:
+      lint: pnpm exec eslint --fix
+  test:
+    command: pnpm exec vitest run --run
+    env:
+      NODE_ENV: test

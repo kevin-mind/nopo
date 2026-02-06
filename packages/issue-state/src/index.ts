@@ -64,3 +64,10 @@ export type { ParseIssueOptions } from "./parse-issue.js";
 export { computeDiff } from "./diff.js";
 export type { IssueDiff } from "./diff.js";
 export { updateIssue } from "./update-issue.js";
+export { createIssue } from "./create-issue.js";
+export type {
+  CreateIssueInput,
+  CreateIssueOptions,
+  CreateIssueProjectFields,
+  CreateIssueResult,
+} from "./create-issue.js";

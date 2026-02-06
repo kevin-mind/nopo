@@ -183,7 +183,7 @@ jobs:
 
       - name: Fetch Context
         id: context
-        uses: ./.github/statemachine/actions-ts/router
+        uses: ./packages/statemachine/actions/sm-router
         with:
           mode: context
           github_token: ${{ secrets.NOPO_BOT_PAT }}
@@ -209,7 +209,7 @@ jobs:
           node-version: '22'
 
       - name: Append history entry
-        uses: ./.github/statemachine/issue/actions-ts/executor
+        uses: ./packages/statemachine/actions/sm-executor
         with:
           github_code_token: ${{ secrets.NOPO_BOT_PAT }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
@@ -262,7 +262,7 @@ jobs:
 
       - name: Derive Actions (State Machine Router)
         id: machine
-        uses: ./.github/statemachine/actions-ts/router
+        uses: ./packages/statemachine/actions/sm-router
         with:
           github_token: ${{ secrets.NOPO_BOT_PAT }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
@@ -457,7 +457,7 @@ jobs:
           matrix.action.type == 'runClaude' &&
           !inputs.dry_run &&
           needs.e2e-detect.outputs.e2e_mode != 'true'
-        uses: ./.github/statemachine/shared/actions-ts/claude
+        uses: ./packages/statemachine/actions/sm-claude
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         with:
@@ -499,7 +499,7 @@ jobs:
       - name: Execute Action
         id: execute
         if: matrix.action.type != 'runClaude'
-        uses: ./.github/statemachine/issue/actions-ts/executor
+        uses: ./packages/statemachine/actions/sm-executor
         # OAuth token needed for actions that run Claude internally (runClaudeGrooming, applyDiscussionResearchOutput)
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -567,7 +567,7 @@ jobs:
           node-version: '22'
 
       - name: Log run end
-        uses: ./.github/statemachine/shared/actions-ts/log-run-end
+        uses: ./packages/statemachine/actions/sm-log-run-end
         with:
           github_token: ${{ secrets.NOPO_BOT_PAT }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}

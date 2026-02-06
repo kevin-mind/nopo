@@ -327,7 +327,7 @@ jobs:
           node-version: '22'
 
       - name: Log queue entry (issue #${{ matrix.issue }})
-        uses: ./.github/statemachine/issue/actions-ts/executor
+        uses: ./packages/statemachine/actions/sm-executor
         with:
           github_code_token: ${{ secrets.NOPO_BOT_PAT }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
@@ -365,7 +365,7 @@ jobs:
           node-version: '22'
 
       - name: Log merged (issue #${{ matrix.issue }})
-        uses: ./.github/statemachine/issue/actions-ts/executor
+        uses: ./packages/statemachine/actions/sm-executor
         with:
           github_code_token: ${{ secrets.NOPO_BOT_PAT }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
@@ -529,7 +529,7 @@ jobs:
           node-version: '22'
 
       - name: Log stage deploy start (issue #${{ matrix.issue }})
-        uses: ./.github/statemachine/issue/actions-ts/executor
+        uses: ./packages/statemachine/actions/sm-executor
         with:
           github_code_token: ${{ secrets.NOPO_BOT_PAT }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
@@ -593,7 +593,7 @@ jobs:
           node-version: '22'
 
       - name: Log prod deploy start (issue #${{ matrix.issue }})
-        uses: ./.github/statemachine/issue/actions-ts/executor
+        uses: ./packages/statemachine/actions/sm-executor
         with:
           github_code_token: ${{ secrets.NOPO_BOT_PAT }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
@@ -660,7 +660,7 @@ jobs:
           node-version: '22'
 
       - name: Log stage deploy success (issue #${{ matrix.issue }})
-        uses: ./.github/statemachine/issue/actions-ts/executor
+        uses: ./packages/statemachine/actions/sm-executor
         with:
           github_code_token: ${{ secrets.NOPO_BOT_PAT }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
@@ -704,7 +704,7 @@ jobs:
           node-version: '22'
 
       - name: Log stage deploy failure (issue #${{ matrix.issue }})
-        uses: ./.github/statemachine/issue/actions-ts/executor
+        uses: ./packages/statemachine/actions/sm-executor
         with:
           github_code_token: ${{ secrets.NOPO_BOT_PAT }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
@@ -747,7 +747,7 @@ jobs:
           node-version: '22'
 
       - name: Log production release (issue #${{ matrix.issue }})
-        uses: ./.github/statemachine/issue/actions-ts/executor
+        uses: ./packages/statemachine/actions/sm-executor
         with:
           github_code_token: ${{ secrets.NOPO_BOT_PAT }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
@@ -791,7 +791,7 @@ jobs:
           node-version: '22'
 
       - name: Log prod deploy failure (issue #${{ matrix.issue }})
-        uses: ./.github/statemachine/issue/actions-ts/executor
+        uses: ./packages/statemachine/actions/sm-executor
         with:
           github_code_token: ${{ secrets.NOPO_BOT_PAT }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
@@ -839,7 +839,7 @@ jobs:
           node-version: '22'
 
       - name: Log queue failure (issue #${{ matrix.issue }})
-        uses: ./.github/statemachine/issue/actions-ts/executor
+        uses: ./packages/statemachine/actions/sm-executor
         with:
           github_code_token: ${{ secrets.NOPO_BOT_PAT }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}

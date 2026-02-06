@@ -3,17 +3,24 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 const actionsDir = path.dirname(import.meta.dirname);
+const repoRoot = path.resolve(actionsDir, "../..");
+const packageActionsDir = path.join(repoRoot, "packages/statemachine/actions");
 const isWatch = process.argv.includes("--watch");
 
 interface ActionInfo {
   name: string;
   entryPoint: string;
+  outDir: string;
 }
 
-// Find all action directories (those with action.yml and an entry point)
-// Entry point can be action-entry.ts (preferred) or index.ts (fallback)
-function findActions(): ActionInfo[] {
-  const entries = fs.readdirSync(actionsDir, { withFileTypes: true });
+/**
+ * Find actions in a directory
+ * Entry point can be action-entry.ts (preferred) or index.ts (fallback)
+ */
+function findActionsInDir(dir: string): ActionInfo[] {
+  if (!fs.existsSync(dir)) return [];
+
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
   const actions: ActionInfo[] = [];
 
   for (const entry of entries) {
@@ -25,21 +32,37 @@ function findActions(): ActionInfo[] {
     )
       continue;
 
-    const actionYml = path.join(actionsDir, entry.name, "action.yml");
-    const actionEntryTs = path.join(actionsDir, entry.name, "action-entry.ts");
-    const indexTs = path.join(actionsDir, entry.name, "index.ts");
+    const actionDir = path.join(dir, entry.name);
+    const actionYml = path.join(actionDir, "action.yml");
+    const actionEntryTs = path.join(actionDir, "action-entry.ts");
+    const indexTs = path.join(actionDir, "index.ts");
 
     if (!fs.existsSync(actionYml)) continue;
 
     // Prefer action-entry.ts over index.ts for the build entry point
     if (fs.existsSync(actionEntryTs)) {
-      actions.push({ name: entry.name, entryPoint: actionEntryTs });
+      actions.push({
+        name: entry.name,
+        entryPoint: actionEntryTs,
+        outDir: path.join(actionDir, "dist"),
+      });
     } else if (fs.existsSync(indexTs)) {
-      actions.push({ name: entry.name, entryPoint: indexTs });
+      actions.push({
+        name: entry.name,
+        entryPoint: indexTs,
+        outDir: path.join(actionDir, "dist"),
+      });
     }
   }
 
   return actions;
+}
+
+// Find actions in both .github/actions-ts/ and packages/statemachine/actions/
+function findActions(): ActionInfo[] {
+  const githubActions = findActionsInDir(actionsDir);
+  const packageActions = findActionsInDir(packageActionsDir);
+  return [...githubActions, ...packageActions];
 }
 
 async function build() {
@@ -59,7 +82,7 @@ async function build() {
     bundle: true,
     platform: "node" as const,
     target: "node20",
-    outfile: path.join(actionsDir, action.name, "dist", "index.cjs"),
+    outfile: path.join(action.outDir, "index.cjs"),
     format: "cjs" as const,
     sourcemap: true,
     minify: false,

@@ -10,8 +10,8 @@ export default {
     "test-e2e-dump/**",
     // E2E test feature directories (mock files created during multi-phase tests)
     "test-feature-*/**",
-    // State machine has its own build/test system
-    ".github/statemachine/**",
+    // Statemachine exports are used by bundled actions, which knip can't trace
+    "packages/statemachine/src/**",
   ],
   workspaces: {
     ".": {
@@ -52,6 +52,11 @@ export default {
       // dist/ and prompts/ are build outputs; components.tsx exports are used via JSX
       // which knip can't trace (custom JSX runtime, not React)
       ignore: ["dist/**", "prompts/**", "src/components.tsx"],
+    },
+    "packages/statemachine": {
+      // Actions are standalone entry points compiled by esbuild
+      entry: ["actions/*/index.ts", "actions/*/src/**/*.ts"],
+      ignore: ["actions/*/dist/**"],
     },
     ".github/actions-ts": {
       entry: ["*/index.ts", "lib/index.ts", "scripts/*.ts"],

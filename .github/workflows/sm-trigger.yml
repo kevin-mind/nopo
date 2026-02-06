@@ -113,7 +113,7 @@ jobs:
         with:
           ref: main
       - id: detect
-        uses: ./.github/statemachine/shared/actions-ts/detect-event
+        uses: ./packages/statemachine/actions/sm-detect-event
         with:
           github_token: ${{ secrets.NOPO_BOT_PAT }}
           resource_number: ${{ inputs.resource_number || '' }}

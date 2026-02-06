@@ -155,7 +155,7 @@ jobs:
           # Explicit path for Claude Code (in case PATH isn't updated in Node.js process)
           CLAUDE_CODE_PATH: /home/runner/.local/bin/claude
         id: run
-        uses: ./.github/statemachine/issue/actions-ts/test-runner
+        uses: ./packages/statemachine/actions/sm-test-runner
         with:
           action: run-configurable
           scenario_name: ${{ inputs.scenario_name }}
@@ -243,7 +243,7 @@ jobs:
           echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
 
       - name: Cleanup test fixture
-        uses: ./.github/statemachine/shared/actions-ts/test-helper
+        uses: ./packages/statemachine/actions/sm-test-helper
         with:
           action: cleanup
           issue_number: ${{ steps.issue.outputs.issue_number }}

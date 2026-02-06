@@ -1,0 +1,38 @@
+{
+  "name": "@more/statemachine",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./schemas": {
+      "types": "./src/schemas/index.ts",
+      "import": "./src/schemas/index.ts",
+      "default": "./src/schemas/index.ts"
+    }
+  },
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "@actions/exec": "^1.1.1",
+    "@actions/github": "^6.0.0",
+    "@anthropic-ai/claude-agent-sdk": "^0.1.6",
+    "@more/issue-state": "workspace:*",
+    "@more/prompt-factory": "workspace:*",
+    "@more/prompts": "workspace:*",
+    "xstate": "^5.19.0",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@more/configs": "workspace:*",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.1"
+  }
+}

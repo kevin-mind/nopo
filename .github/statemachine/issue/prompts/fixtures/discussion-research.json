@@ -1,5 +1,0 @@
-{
-  "DISCUSSION_TITLE": "How should we implement caching for the API?",
-  "DISCUSSION_BODY": "## Question\n\nWe're seeing slow response times on some API endpoints. Should we implement caching?\n\n## Context\n\n- Average response time is 500ms\n- Some endpoints hit the database multiple times\n- We have ~1000 requests/minute",
-  "AGENT_NOTES": ""
-}
