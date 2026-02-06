@@ -39,25 +39,35 @@ These constraints are NON-NEGOTIABLE and enforced at the executor level:
 
 ## Change Types
 
+### IMPORTANT: Todos Belong on Sub-Issues, Not Parent Issues
+
+The parent issue contains high-level requirements and scope. **Todos are specific action items that belong on sub-issues.**
+
+When the user requests adding new work:
+1. **If it relates to an existing sub-issue** → Add todos to that sub-issue
+2. **If it's a new scope of work** → Create a new sub-issue with its own todos
+
+Never add `- [ ]` checkbox items to the parent issue body.
+
 ### For Parent Issue Modifications
 
-You can update specific sections of the parent issue body:
+You can update the parent issue's descriptive sections:
 - `update_sections`: Object with section names as keys, new content as values
-- `add_todos`: New unchecked todos to add
-- `remove_unchecked_todos`: Exact text of unchecked todos to remove (CANNOT remove checked todos)
+  - Use this for updating "Requirements", "Description", etc.
+  - Do NOT add todos here - add them to sub-issues instead
 
 ### For Sub-Issue Modifications
 
 For each OPEN sub-issue, you can:
 - `action`: "modify" to make changes, "skip" to leave unchanged
-- `add_todos`: New unchecked todos to add
+- `add_todos`: New unchecked todos to add to this sub-issue
 - `remove_unchecked_todos`: Exact text of unchecked todos to remove
 
-### For Completed Work Changes
+### For New Work (Create Sub-Issues)
 
-If the pivot affects completed work, create new sub-issues:
-- `reason`: "reversion" (undo completed work), "extension" (build on completed work), or "new_scope"
-- `title`: Descriptive title for the new sub-issue
+When the pivot adds new scope that doesn't fit existing sub-issues:
+- `reason`: "new_scope" (new work), "reversion" (undo completed work), or "extension" (build on completed work)
+- `title`: Descriptive title for the new sub-issue (e.g., "[Phase N]: Feature name")
 - `description`: Full description of what needs to be done
 - `todos`: Array of todo items for the new sub-issue
 

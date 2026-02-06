@@ -49969,20 +49969,6 @@ async function validateSafetyConstraints(ctx, issueNumber, pivotOutput) {
   if (!pivotOutput.modifications) {
     return { valid: true, violations: [] };
   }
-  if (pivotOutput.modifications.parent_issue?.remove_unchecked_todos) {
-    const { data: issue } = await ctx.octokit.rest.issues.get({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: issueNumber
-    });
-    const body = issue.body || "";
-    for (const todoText of pivotOutput.modifications.parent_issue.remove_unchecked_todos) {
-      const checkedPattern = new RegExp(`- \\[x\\]\\s*${escapeRegex(todoText)}`, "i");
-      if (checkedPattern.test(body)) {
-        violations.push(`Cannot remove checked todo: "${todoText}" on parent issue #${issueNumber}`);
-      }
-    }
-  }
   if (pivotOutput.modifications.sub_issues) {
     for (const subMod of pivotOutput.modifications.sub_issues) {
       if (subMod.action === "skip") continue;
@@ -50056,37 +50042,6 @@ ${newContent}
           modified = true;
         }
       }
-    }
-    if (mods.remove_unchecked_todos) {
-      for (const todoText of mods.remove_unchecked_todos) {
-        const todoPattern = new RegExp(`- \\[ \\]\\s*${escapeRegex(todoText)}\\n?`, "gi");
-        if (todoPattern.test(body)) {
-          body = body.replace(todoPattern, "");
-          changes.push(`Removed todo: "${todoText}"`);
-          modified = true;
-        }
-      }
-    }
-    if (mods.add_todos && mods.add_todos.length > 0) {
-      const reqSectionMatch = body.match(/## Requirements\s*\n([\s\S]*?)(?=\n## |$)/i);
-      if (reqSectionMatch) {
-        const newTodos = mods.add_todos.map((t) => `- [ ] ${t}`).join("\n");
-        body = body.replace(
-          reqSectionMatch[0],
-          `${reqSectionMatch[0].trimEnd()}
-${newTodos}
-`
-        );
-      } else {
-        const newTodos = mods.add_todos.map((t) => `- [ ] ${t}`).join("\n");
-        body += `
-## Additional Tasks
-
-${newTodos}
-`;
-      }
-      changes.push(`Added ${mods.add_todos.length} new todo(s)`);
-      modified = true;
     }
     if (modified) {
       await ctx.octokit.rest.issues.update({
@@ -51321,10 +51276,11 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
     if (this.inputs.mockClaude) {
       mockOutputs = {};
       for (const [mockRef, mock] of this.scenario.claudeMocks) {
-        mockOutputs[mockRef] = mock.output;
+        const transformedOutput = this.transformMockOutput(mock.output);
+        mockOutputs[mockRef] = transformedOutput;
         const basePromptDir = mockRef.split("/")[0];
         if (basePromptDir && basePromptDir !== mockRef && !mockOutputs[basePromptDir]) {
-          mockOutputs[basePromptDir] = mock.output;
+          mockOutputs[basePromptDir] = transformedOutput;
         }
       }
       if (Object.keys(mockOutputs).length > 0) {
@@ -51487,6 +51443,53 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
    */
   getPromptDirFromMock(mockRef) {
     return mockRef.split("/")[0] ?? mockRef;
+  }
+  /**
+   * Transform mock output to replace placeholder issue numbers with real ones
+   *
+   * For pivot mocks that reference sub-issues, we need to map the fixture
+   * sub-issue numbers to the real issue numbers that were created during the test.
+   *
+   * The mock can use:
+   * - Index-based references (0, 1, 2...) which map to subIssues by position
+   * - Fixture issue numbers which we look up by title
+   */
+  transformMockOutput(output) {
+    const transformed = JSON.parse(JSON.stringify(output));
+    const modifications = transformed.modifications;
+    if (!modifications?.sub_issues) {
+      return transformed;
+    }
+    const subIssueMods = modifications.sub_issues;
+    const currentFixture = this.scenario.fixtures.get(
+      this.scenario.orderedStates[0]
+    );
+    const fixtureSubIssues = currentFixture?.issue.subIssues || [];
+    for (const subMod of subIssueMods) {
+      const originalNumber = subMod.issue_number;
+      if (originalNumber >= 0 && originalNumber < 100) {
+        const subIssue = fixtureSubIssues[originalNumber];
+        if (subIssue) {
+          const realNumber = this.subIssueNumbers.get(subIssue.title);
+          if (realNumber) {
+            core24.debug(`Transformed sub-issue index ${originalNumber} -> #${realNumber} (${subIssue.title})`);
+            subMod.issue_number = realNumber;
+          }
+        }
+      } else {
+        for (const subIssue of fixtureSubIssues) {
+          if (subIssue.number === originalNumber) {
+            const realNumber = this.subIssueNumbers.get(subIssue.title);
+            if (realNumber) {
+              core24.debug(`Transformed fixture issue #${originalNumber} -> #${realNumber} (${subIssue.title})`);
+              subMod.issue_number = realNumber;
+            }
+            break;
+          }
+        }
+      }
+    }
+    return transformed;
   }
   /**
    * Trigger CI workflow (mock or real)

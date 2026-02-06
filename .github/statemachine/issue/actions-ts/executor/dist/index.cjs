@@ -41931,20 +41931,6 @@ async function validateSafetyConstraints(ctx, issueNumber, pivotOutput) {
   if (!pivotOutput.modifications) {
     return { valid: true, violations: [] };
   }
-  if (pivotOutput.modifications.parent_issue?.remove_unchecked_todos) {
-    const { data: issue } = await ctx.octokit.rest.issues.get({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: issueNumber
-    });
-    const body = issue.body || "";
-    for (const todoText of pivotOutput.modifications.parent_issue.remove_unchecked_todos) {
-      const checkedPattern = new RegExp(`- \\[x\\]\\s*${escapeRegex(todoText)}`, "i");
-      if (checkedPattern.test(body)) {
-        violations.push(`Cannot remove checked todo: "${todoText}" on parent issue #${issueNumber}`);
-      }
-    }
-  }
   if (pivotOutput.modifications.sub_issues) {
     for (const subMod of pivotOutput.modifications.sub_issues) {
       if (subMod.action === "skip") continue;
@@ -42018,37 +42004,6 @@ ${newContent}
           modified = true;
         }
       }
-    }
-    if (mods.remove_unchecked_todos) {
-      for (const todoText of mods.remove_unchecked_todos) {
-        const todoPattern = new RegExp(`- \\[ \\]\\s*${escapeRegex(todoText)}\\n?`, "gi");
-        if (todoPattern.test(body)) {
-          body = body.replace(todoPattern, "");
-          changes.push(`Removed todo: "${todoText}"`);
-          modified = true;
-        }
-      }
-    }
-    if (mods.add_todos && mods.add_todos.length > 0) {
-      const reqSectionMatch = body.match(/## Requirements\s*\n([\s\S]*?)(?=\n## |$)/i);
-      if (reqSectionMatch) {
-        const newTodos = mods.add_todos.map((t) => `- [ ] ${t}`).join("\n");
-        body = body.replace(
-          reqSectionMatch[0],
-          `${reqSectionMatch[0].trimEnd()}
-${newTodos}
-`
-        );
-      } else {
-        const newTodos = mods.add_todos.map((t) => `- [ ] ${t}`).join("\n");
-        body += `
-## Additional Tasks
-
-${newTodos}
-`;
-      }
-      changes.push(`Added ${mods.add_todos.length} new todo(s)`);
-      modified = true;
     }
     if (modified) {
       await ctx.octokit.rest.issues.update({

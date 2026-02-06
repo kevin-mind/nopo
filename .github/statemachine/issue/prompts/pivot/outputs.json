@@ -45,22 +45,12 @@
       "properties": {
         "parent_issue": {
           "type": "object",
-          "description": "Modifications to the parent issue",
+          "description": "Modifications to the parent issue (for updating requirements/scope, NOT for adding todos)",
           "properties": {
             "update_sections": {
               "type": "object",
-              "description": "Sections to update (key = section name, value = new content)",
+              "description": "Sections to update (key = section name, value = new content). Use for Requirements, Description, etc. Do NOT add todos here.",
               "additionalProperties": { "type": "string" }
-            },
-            "add_todos": {
-              "type": "array",
-              "description": "New unchecked todos to add",
-              "items": { "type": "string" }
-            },
-            "remove_unchecked_todos": {
-              "type": "array",
-              "description": "Exact text of unchecked todos to remove (CANNOT remove checked todos)",
-              "items": { "type": "string" }
             }
           }
         },

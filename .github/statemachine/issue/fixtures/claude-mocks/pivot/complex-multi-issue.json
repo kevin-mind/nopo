@@ -1,5 +1,5 @@
 {
-  "description": "Complex pivot affecting parent issue and multiple sub-issues",
+  "description": "Complex pivot affecting multiple sub-issues and creating a new one",
   "output": {
     "analysis": {
       "change_summary": "User wants to split the database migration into two phases and add caching support",
@@ -10,18 +10,17 @@
       "parent_issue": {
         "update_sections": {
           "Requirements": "- Database migration (split into schema and data phases)\n- Add caching layer\n- Maintain backward compatibility"
-        },
-        "add_todos": ["Implement caching layer"]
+        }
       },
       "sub_issues": [
         {
-          "issue_number": 101,
+          "issue_number": 0,
           "action": "modify",
           "add_todos": ["Add schema migration rollback support"],
           "remove_unchecked_todos": ["Run full migration in single transaction"]
         },
         {
-          "issue_number": 102,
+          "issue_number": 1,
           "action": "modify",
           "add_todos": ["Split data migration into batches"]
         }
@@ -40,6 +39,6 @@
       ]
     },
     "outcome": "changes_applied",
-    "summary_for_user": "Applied changes:\n- Updated Requirements section on parent issue\n- Added 'Implement caching layer' todo to parent\n- Modified sub-issue #101: added rollback support todo, removed single-transaction todo\n- Modified sub-issue #102: added batch migration todo\n- Created new sub-issue for Phase 3: caching layer"
+    "summary_for_user": "Applied changes:\n- Updated Requirements section on parent issue\n- Modified sub-issue #1: added rollback support todo, removed single-transaction todo\n- Modified sub-issue #2: added batch migration todo\n- Created new sub-issue for Phase 3: caching layer"
   }
 }

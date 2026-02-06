@@ -27,11 +27,11 @@ interface PivotAnalysis {
 
 /**
  * Modifications to the parent issue
+ * Note: Todos should be added to sub-issues, not the parent issue.
+ * Parent issue modifications are for updating sections like Requirements/Description.
  */
 interface ParentIssueModifications {
   update_sections?: Record<string, string>;
-  add_todos?: string[];
-  remove_unchecked_todos?: string[];
 }
 
 /**
@@ -214,24 +214,8 @@ async function validateSafetyConstraints(
     return { valid: true, violations: [] };
   }
 
-  // Check parent issue modifications
-  if (pivotOutput.modifications.parent_issue?.remove_unchecked_todos) {
-    // Get current issue body to check for checked todos
-    const { data: issue } = await ctx.octokit.rest.issues.get({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: issueNumber,
-    });
-
-    const body = issue.body || "";
-    for (const todoText of pivotOutput.modifications.parent_issue.remove_unchecked_todos) {
-      // Check if this todo is actually checked
-      const checkedPattern = new RegExp(`- \\[x\\]\\s*${escapeRegex(todoText)}`, "i");
-      if (checkedPattern.test(body)) {
-        violations.push(`Cannot remove checked todo: "${todoText}" on parent issue #${issueNumber}`);
-      }
-    }
-  }
+  // Note: We no longer allow todo modifications on parent issues.
+  // Todos belong on sub-issues only.
 
   // Check sub-issue modifications
   if (pivotOutput.modifications.sub_issues) {
@@ -333,36 +317,10 @@ async function applyParentModifications(
       }
     }
 
-    // Remove unchecked todos
-    if (mods.remove_unchecked_todos) {
-      for (const todoText of mods.remove_unchecked_todos) {
-        const todoPattern = new RegExp(`- \\[ \\]\\s*${escapeRegex(todoText)}\\n?`, "gi");
-        if (todoPattern.test(body)) {
-          body = body.replace(todoPattern, "");
-          changes.push(`Removed todo: "${todoText}"`);
-          modified = true;
-        }
-      }
-    }
-
-    // Add new todos
-    if (mods.add_todos && mods.add_todos.length > 0) {
-      // Find a good place to add todos (end of Requirements section or end of body)
-      const reqSectionMatch = body.match(/## Requirements\s*\n([\s\S]*?)(?=\n## |$)/i);
-      if (reqSectionMatch) {
-        const newTodos = mods.add_todos.map((t) => `- [ ] ${t}`).join("\n");
-        body = body.replace(
-          reqSectionMatch[0],
-          `${reqSectionMatch[0].trimEnd()}\n${newTodos}\n`,
-        );
-      } else {
-        // Add at end with a header
-        const newTodos = mods.add_todos.map((t) => `- [ ] ${t}`).join("\n");
-        body += `\n## Additional Tasks\n\n${newTodos}\n`;
-      }
-      changes.push(`Added ${mods.add_todos.length} new todo(s)`);
-      modified = true;
-    }
+    // Note: Todos are not added/removed from parent issues.
+    // Todos belong on sub-issues. If Claude output includes parent todos,
+    // they are ignored here. The prompt and schema should guide Claude
+    // to put todos on sub-issues instead.
 
     // Update issue if modified
     if (modified) {

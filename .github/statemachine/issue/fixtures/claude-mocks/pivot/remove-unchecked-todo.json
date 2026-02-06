@@ -1,17 +1,26 @@
 {
-  "description": "Pivot that removes an unchecked todo from the issue",
+  "description": "Pivot that removes an unchecked todo from the first sub-issue (index 0)",
   "output": {
     "analysis": {
-      "change_summary": "User wants to remove the logging todo as it's no longer needed",
+      "change_summary": "User wants to remove the comprehensive logging todo as it's no longer needed - using basic logging only",
       "affects_completed_work": false,
       "completed_work_details": []
     },
     "modifications": {
       "parent_issue": {
-        "remove_unchecked_todos": ["Add comprehensive logging"]
-      }
+        "update_sections": {
+          "Requirements": "- Structured logging\n- Log levels\n- Basic logging only (comprehensive logging removed from scope)"
+        }
+      },
+      "sub_issues": [
+        {
+          "issue_number": 0,
+          "action": "modify",
+          "remove_unchecked_todos": ["Add comprehensive logging"]
+        }
+      ]
     },
     "outcome": "changes_applied",
-    "summary_for_user": "Removed 1 unchecked todo item (logging is no longer in scope)."
+    "summary_for_user": "Removed 'Add comprehensive logging' todo from sub-issue. Updated requirements to note basic logging only."
   }
 }

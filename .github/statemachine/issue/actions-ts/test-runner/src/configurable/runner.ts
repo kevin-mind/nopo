@@ -966,16 +966,19 @@ Issue: #${this.issueNumber}
     if (this.inputs.mockClaude) {
       mockOutputs = {};
       for (const [mockRef, mock] of this.scenario.claudeMocks) {
+        // Transform the mock output to replace placeholder issue numbers with real ones
+        const transformedOutput = this.transformMockOutput(mock.output as Record<string, unknown>);
+
         // Use the full mock reference as the key (e.g., "grooming/pm")
         // This allows nested prompt dirs like "grooming/pm" to work
-        mockOutputs[mockRef] = mock.output as Record<string, unknown>;
+        mockOutputs[mockRef] = transformedOutput;
 
         // Also add an entry for just the base prompt directory
         // This handles cases like "triage/simple-issue" where promptDir is just "triage"
         // but the mock file has a variant suffix
         const basePromptDir = mockRef.split("/")[0];
         if (basePromptDir && basePromptDir !== mockRef && !mockOutputs[basePromptDir]) {
-          mockOutputs[basePromptDir] = mock.output as Record<string, unknown>;
+          mockOutputs[basePromptDir] = transformedOutput;
         }
       }
 
@@ -1182,6 +1185,68 @@ Issue: #${this.issueNumber}
    */
   private getPromptDirFromMock(mockRef: string): string {
     return mockRef.split("/")[0] ?? mockRef;
+  }
+
+  /**
+   * Transform mock output to replace placeholder issue numbers with real ones
+   *
+   * For pivot mocks that reference sub-issues, we need to map the fixture
+   * sub-issue numbers to the real issue numbers that were created during the test.
+   *
+   * The mock can use:
+   * - Index-based references (0, 1, 2...) which map to subIssues by position
+   * - Fixture issue numbers which we look up by title
+   */
+  private transformMockOutput(output: Record<string, unknown>): Record<string, unknown> {
+    // Deep clone to avoid mutating the original
+    const transformed = JSON.parse(JSON.stringify(output)) as Record<string, unknown>;
+
+    // Check if this is a pivot output with sub_issues modifications
+    const modifications = transformed.modifications as Record<string, unknown> | undefined;
+    if (!modifications?.sub_issues) {
+      return transformed;
+    }
+
+    const subIssueMods = modifications.sub_issues as Array<{
+      issue_number: number;
+      [key: string]: unknown;
+    }>;
+
+    // Get the fixture's sub-issues to map indices to titles
+    const currentFixture = this.scenario.fixtures.get(
+      this.scenario.orderedStates[0] as (typeof this.scenario.orderedStates)[number],
+    );
+    const fixtureSubIssues = currentFixture?.issue.subIssues || [];
+
+    for (const subMod of subIssueMods) {
+      const originalNumber = subMod.issue_number;
+
+      // If it's a small number (0-99), treat it as an index
+      if (originalNumber >= 0 && originalNumber < 100) {
+        const subIssue = fixtureSubIssues[originalNumber];
+        if (subIssue) {
+          const realNumber = this.subIssueNumbers.get(subIssue.title);
+          if (realNumber) {
+            core.debug(`Transformed sub-issue index ${originalNumber} -> #${realNumber} (${subIssue.title})`);
+            subMod.issue_number = realNumber;
+          }
+        }
+      } else {
+        // It's a fixture issue number - try to find by matching fixture sub-issue
+        for (const subIssue of fixtureSubIssues) {
+          if (subIssue.number === originalNumber) {
+            const realNumber = this.subIssueNumbers.get(subIssue.title);
+            if (realNumber) {
+              core.debug(`Transformed fixture issue #${originalNumber} -> #${realNumber} (${subIssue.title})`);
+              subMod.issue_number = realNumber;
+            }
+            break;
+          }
+        }
+      }
+    }
+
+    return transformed;
   }
 
   /**

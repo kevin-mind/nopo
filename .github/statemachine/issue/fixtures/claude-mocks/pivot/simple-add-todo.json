@@ -1,17 +1,21 @@
 {
-  "description": "Simple pivot that adds a single todo to the issue",
+  "description": "Simple pivot that adds a single todo to the first sub-issue (index 0)",
   "output": {
     "analysis": {
-      "change_summary": "User wants to add API rate limiting to the feature",
+      "change_summary": "User wants to add password reset functionality to the authentication system",
       "affects_completed_work": false,
       "completed_work_details": []
     },
     "modifications": {
-      "parent_issue": {
-        "add_todos": ["Add rate limiting to API endpoints"]
-      }
+      "sub_issues": [
+        {
+          "issue_number": 0,
+          "action": "modify",
+          "add_todos": ["Implement password reset endpoint and email flow"]
+        }
+      ]
     },
     "outcome": "changes_applied",
-    "summary_for_user": "Added 1 new todo item for API rate limiting."
+    "summary_for_user": "Added password reset todo to the authentication infrastructure sub-issue."
   }
 }
