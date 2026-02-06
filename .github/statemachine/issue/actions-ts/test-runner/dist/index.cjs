@@ -51690,7 +51690,7 @@ Pivot/Modification Verification:`);
    * Verify expected outcomes like newSubIssueCreated, todosRemoved, etc.
    * Compares the before state (from fixture) with after state (from GitHub)
    */
-  async verifyExpectedOutcomes(expected, state) {
+  async verifyExpectedOutcomes(expected, _state) {
     const errors = [];
     const exp = expected.expected;
     const fixtureSubIssues = expected.issue.subIssues || [];
@@ -51702,9 +51702,40 @@ Pivot/Modification Verification:`);
       (sum, s) => sum + (s.todos?.total || 0),
       0
     );
-    const afterSubIssueCount = state.subIssues.length;
-    const afterTotalTodos = state.subIssues.reduce(
-      (sum, s) => sum + s.todos.total,
+    const subIssuesQuery = `
+      query GetSubIssues($owner: String!, $repo: String!, $issueNumber: Int!) {
+        repository(owner: $owner, name: $repo) {
+          issue(number: $issueNumber) {
+            subIssues(first: 50) {
+              nodes {
+                number
+                title
+                state
+                body
+              }
+            }
+          }
+        }
+      }
+    `;
+    let afterSubIssues = [];
+    try {
+      const response = await this.config.octokit.graphql(subIssuesQuery, {
+        owner: this.config.owner,
+        repo: this.config.repo,
+        issueNumber: this.issueNumber
+      });
+      afterSubIssues = response.repository?.issue?.subIssues?.nodes || [];
+    } catch (error11) {
+      core24.warning(`Failed to fetch sub-issues: ${error11}`);
+    }
+    const countTodos = (body) => {
+      const matches2 = body.match(/- \[ \]/g);
+      return matches2 ? matches2.length : 0;
+    };
+    const afterSubIssueCount = afterSubIssues.length;
+    const afterTotalTodos = afterSubIssues.reduce(
+      (sum, s) => sum + countTodos(s.body),
       0
     );
     core24.info(`  Before: ${beforeSubIssueCount} sub-issues, ${beforeTotalTodos} todos`);
@@ -51756,18 +51787,11 @@ Pivot/Modification Verification:`);
     }
     if (exp.subIssuesModified === true) {
       let anyModified = false;
-      for (const sub of state.subIssues) {
+      for (const sub of afterSubIssues) {
         const fixtureSub = fixtureSubIssues.find((f) => f.title === sub.title);
-        if (fixtureSub) {
-          const { data: subIssue } = await this.config.octokit.rest.issues.get({
-            owner: this.config.owner,
-            repo: this.config.repo,
-            issue_number: sub.number
-          });
-          if (subIssue.body !== fixtureSub.body) {
-            anyModified = true;
-            break;
-          }
+        if (fixtureSub && sub.body !== fixtureSub.body) {
+          anyModified = true;
+          break;
         }
       }
       if (!anyModified) {

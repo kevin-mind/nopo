@@ -1501,15 +1501,7 @@ Issue: #${this.issueNumber}
    */
   private async verifyExpectedOutcomes(
     expected: StateFixture,
-    state: {
-      subIssues: Array<{
-        number: number;
-        title: string;
-        state: string;
-        todos: { total: number; completed: number; uncheckedNonManual: number };
-      }>;
-      [key: string]: unknown;
-    },
+    _state: Record<string, unknown>, // GitHubState - we fetch sub-issues separately
   ): Promise<string[]> {
     const errors: string[] = [];
     const exp = expected.expected as Record<string, unknown>;
@@ -1525,10 +1517,60 @@ Issue: #${this.issueNumber}
       0,
     );
 
-    // Calculate after counts from GitHub state
-    const afterSubIssueCount = state.subIssues.length;
-    const afterTotalTodos = state.subIssues.reduce(
-      (sum, s) => sum + s.todos.total,
+    // Fetch current sub-issues from GitHub using GraphQL
+    const subIssuesQuery = `
+      query GetSubIssues($owner: String!, $repo: String!, $issueNumber: Int!) {
+        repository(owner: $owner, name: $repo) {
+          issue(number: $issueNumber) {
+            subIssues(first: 50) {
+              nodes {
+                number
+                title
+                state
+                body
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    interface SubIssuesResponse {
+      repository: {
+        issue: {
+          subIssues: {
+            nodes: Array<{
+              number: number;
+              title: string;
+              state: string;
+              body: string;
+            }>;
+          };
+        };
+      };
+    }
+
+    let afterSubIssues: Array<{ number: number; title: string; state: string; body: string }> = [];
+    try {
+      const response = await this.config.octokit.graphql<SubIssuesResponse>(subIssuesQuery, {
+        owner: this.config.owner,
+        repo: this.config.repo,
+        issueNumber: this.issueNumber,
+      });
+      afterSubIssues = response.repository?.issue?.subIssues?.nodes || [];
+    } catch (error) {
+      core.warning(`Failed to fetch sub-issues: ${error}`);
+    }
+
+    // Count todos in each sub-issue
+    const countTodos = (body: string): number => {
+      const matches = body.match(/- \[ \]/g);
+      return matches ? matches.length : 0;
+    };
+
+    const afterSubIssueCount = afterSubIssues.length;
+    const afterTotalTodos = afterSubIssues.reduce(
+      (sum, s) => sum + countTodos(s.body),
       0,
     );
 
@@ -1599,19 +1641,11 @@ Issue: #${this.issueNumber}
     // Check subIssuesModified - at least one sub-issue body should be different
     if (exp.subIssuesModified === true) {
       let anyModified = false;
-      for (const sub of state.subIssues) {
+      for (const sub of afterSubIssues) {
         const fixtureSub = fixtureSubIssues.find((f) => f.title === sub.title);
-        if (fixtureSub) {
-          // Fetch actual sub-issue body
-          const { data: subIssue } = await this.config.octokit.rest.issues.get({
-            owner: this.config.owner,
-            repo: this.config.repo,
-            issue_number: sub.number,
-          });
-          if (subIssue.body !== fixtureSub.body) {
-            anyModified = true;
-            break;
-          }
+        if (fixtureSub && sub.body !== fixtureSub.body) {
+          anyModified = true;
+          break;
         }
       }
       if (!anyModified) {

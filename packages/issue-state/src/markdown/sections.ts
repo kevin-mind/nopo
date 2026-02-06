@@ -63,7 +63,7 @@ function insertAtEnd(body: string, content: string): string {
 
   const commentMatch = body.match(/(\n<!-- [\s\S]*)/);
   if (commentMatch) {
-    const insertPos = body.indexOf(commentMatch[1]);
+    const insertPos = body.indexOf(commentMatch[1]!);
     return (
       body.slice(0, insertPos) +
       "\n\n" +
