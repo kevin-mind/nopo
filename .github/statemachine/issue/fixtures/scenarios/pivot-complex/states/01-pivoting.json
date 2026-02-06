@@ -18,14 +18,20 @@
         "title": "[Phase 1]: Schema migrations",
         "state": "OPEN",
         "body": "## Description\n\nImplement schema migration system.\n\n## Todos\n\n- [ ] Run full migration in single transaction\n- [ ] Add migration versioning",
-        "projectStatus": "In progress"
+        "projectStatus": "In progress",
+        "branch": null,
+        "pr": null,
+        "todos": { "total": 2, "completed": 0, "uncheckedNonManual": 2 }
       },
       {
         "number": 0,
         "title": "[Phase 2]: Data migrations",
         "state": "OPEN",
         "body": "## Description\n\nImplement data migration system.\n\n## Todos\n\n- [ ] Create data migration framework\n- [ ] Add rollback support",
-        "projectStatus": "Ready"
+        "projectStatus": "Ready",
+        "branch": null,
+        "pr": null,
+        "todos": { "total": 2, "completed": 0, "uncheckedNonManual": 2 }
       }
     ],
     "hasSubIssues": true,

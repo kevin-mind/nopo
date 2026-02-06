@@ -1,26 +1,47 @@
 {
   "state": "done",
-  "description": "Final state after simple pivot - todo was added",
+  "description": "Final state after simple pivot - password reset added to requirements/scope",
   "issue": {
     "number": 0,
     "title": "Implement user authentication",
     "state": "OPEN",
-    "body": "Add authentication to the API.\n\n## Requirements\n\n- Support OAuth2\n- Add session management\n\n## Todos\n\n- [ ] Add authentication endpoints\n- [ ] Create session middleware\n- [ ] Add user model\n- [ ] Add rate limiting to API endpoints",
+    "body": "Add authentication to the API.\n\n## Requirements\n\n- Support OAuth2\n- Add session management\n- Password reset functionality",
     "projectStatus": "In progress",
     "iteration": 2,
     "failures": 0,
     "assignees": ["nopo-bot"],
     "labels": ["triaged", "enhancement"],
-    "subIssues": [],
-    "hasSubIssues": false,
+    "subIssues": [
+      {
+        "number": 0,
+        "title": "[Phase 1]: Set up authentication infrastructure",
+        "state": "OPEN",
+        "body": "## Todos\n\n- [ ] Add authentication endpoints\n- [ ] Create session middleware",
+        "projectStatus": "In progress",
+        "branch": null,
+        "pr": null,
+        "todos": { "total": 2, "completed": 0, "uncheckedNonManual": 2 }
+      },
+      {
+        "number": 0,
+        "title": "[Phase 2]: Implement user management",
+        "state": "OPEN",
+        "body": "## Todos\n\n- [ ] Add user model\n- [ ] Add user CRUD endpoints",
+        "projectStatus": "Ready",
+        "branch": null,
+        "pr": null,
+        "todos": { "total": 2, "completed": 0, "uncheckedNonManual": 2 }
+      }
+    ],
+    "hasSubIssues": true,
     "history": [],
     "todos": {
-      "total": 4,
+      "total": 0,
       "completed": 0,
-      "uncheckedNonManual": 4
+      "uncheckedNonManual": 0
     }
   },
   "expected": {
-    "todosAdded": 1
+    "requirementsUpdated": true
   }
 }

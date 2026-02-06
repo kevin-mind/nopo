@@ -1,11 +1,11 @@
 {
   "state": "done",
-  "description": "Final state after revert pivot - new sub-issue created for reversion",
+  "description": "Final state after revert pivot - new sub-issue created for JWT migration",
   "issue": {
     "number": 0,
     "title": "Implement authentication system",
     "state": "OPEN",
-    "body": "Add OAuth2 authentication.\n\n## Requirements\n\n- OAuth2 support\n- Session management\n\n## Todos\n\n- [x] Add OAuth2 library\n- [x] Create auth endpoints\n- [ ] Add rate limiting to auth",
+    "body": "Add JWT authentication (switched from OAuth2).\n\n## Requirements\n\n- JWT-based authentication\n- Session management",
     "projectStatus": "In progress",
     "iteration": 5,
     "failures": 0,
@@ -14,18 +14,51 @@
     "subIssues": [
       {
         "number": 0,
-        "title": "[Reversion] Remove OAuth2 implementation",
+        "title": "[Phase 1]: OAuth2 library setup",
+        "state": "CLOSED",
+        "body": "## Todos\n\n- [x] Add OAuth2 library\n- [x] Configure OAuth2 provider",
+        "projectStatus": "Done",
+        "branch": null,
+        "pr": null,
+        "todos": { "total": 2, "completed": 2, "uncheckedNonManual": 0 }
+      },
+      {
+        "number": 0,
+        "title": "[Phase 2]: Auth endpoints",
+        "state": "CLOSED",
+        "body": "## Todos\n\n- [x] Create auth endpoints\n- [x] Add token refresh flow",
+        "projectStatus": "Done",
+        "branch": null,
+        "pr": null,
+        "todos": { "total": 2, "completed": 2, "uncheckedNonManual": 0 }
+      },
+      {
+        "number": 0,
+        "title": "[Phase 3]: Rate limiting",
         "state": "OPEN",
-        "body": "## Description\n\nUser requested removal of OAuth2 implementation that was already completed.\n\n## Background\n\nThe original implementation added OAuth2 authentication, but it's no longer needed.\n\n## Scope\n\nRemove all OAuth2-related code and dependencies.\n\n## Todos\n\n- [ ] Remove OAuth2 library dependency\n- [ ] Remove OAuth2 authentication endpoints\n- [ ] Update tests to remove OAuth2 tests",
-        "projectStatus": "Ready"
+        "body": "## Todos\n\n- [ ] Add rate limiting to auth",
+        "projectStatus": "In progress",
+        "branch": null,
+        "pr": null,
+        "todos": { "total": 1, "completed": 0, "uncheckedNonManual": 1 }
+      },
+      {
+        "number": 0,
+        "title": "[Reversion] Switch from OAuth2 to JWT authentication",
+        "state": "OPEN",
+        "body": "## Description\n\nUser requested switching from OAuth2 to JWT-based authentication.\n\n## Todos\n\n- [ ] Remove OAuth2 library dependency\n- [ ] Remove OAuth2 authentication endpoints\n- [ ] Add JWT token generation\n- [ ] Add JWT token validation",
+        "projectStatus": "Ready",
+        "branch": null,
+        "pr": null,
+        "todos": { "total": 4, "completed": 0, "uncheckedNonManual": 4 }
       }
     ],
     "hasSubIssues": true,
     "history": [],
     "todos": {
-      "total": 3,
-      "completed": 2,
-      "uncheckedNonManual": 1
+      "total": 0,
+      "completed": 0,
+      "uncheckedNonManual": 0
     }
   },
   "expected": {

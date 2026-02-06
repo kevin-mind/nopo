@@ -6,21 +6,52 @@
     "number": 0,
     "title": "Implement authentication system",
     "state": "OPEN",
-    "body": "Add OAuth2 authentication.\n\n## Requirements\n\n- OAuth2 support\n- Session management\n\n## Todos\n\n- [x] Add OAuth2 library\n- [x] Create auth endpoints\n- [ ] Add rate limiting to auth",
+    "body": "Add OAuth2 authentication.\n\n## Requirements\n\n- OAuth2 support\n- Session management",
     "projectStatus": "In progress",
     "iteration": 5,
     "failures": 0,
     "assignees": ["nopo-bot"],
     "labels": ["triaged", "enhancement"],
-    "subIssues": [],
-    "hasSubIssues": false,
+    "subIssues": [
+      {
+        "number": 0,
+        "title": "[Phase 1]: OAuth2 library setup",
+        "state": "CLOSED",
+        "body": "## Todos\n\n- [x] Add OAuth2 library\n- [x] Configure OAuth2 provider",
+        "projectStatus": "Done",
+        "branch": null,
+        "pr": null,
+        "todos": { "total": 2, "completed": 2, "uncheckedNonManual": 0 }
+      },
+      {
+        "number": 0,
+        "title": "[Phase 2]: Auth endpoints",
+        "state": "CLOSED",
+        "body": "## Todos\n\n- [x] Create auth endpoints\n- [x] Add token refresh flow",
+        "projectStatus": "Done",
+        "branch": null,
+        "pr": null,
+        "todos": { "total": 2, "completed": 2, "uncheckedNonManual": 0 }
+      },
+      {
+        "number": 0,
+        "title": "[Phase 3]: Rate limiting",
+        "state": "OPEN",
+        "body": "## Todos\n\n- [ ] Add rate limiting to auth",
+        "projectStatus": "In progress",
+        "branch": null,
+        "pr": null,
+        "todos": { "total": 1, "completed": 0, "uncheckedNonManual": 1 }
+      }
+    ],
+    "hasSubIssues": true,
     "history": [],
     "todos": {
-      "total": 3,
-      "completed": 2,
-      "uncheckedNonManual": 1
+      "total": 0,
+      "completed": 0,
+      "uncheckedNonManual": 0
     }
   },
-  "pivotDescription": "Actually, we don't want OAuth2 anymore. Remove all OAuth2 implementation.",
+  "pivotDescription": "Switch from OAuth2 to JWT-based authentication. Remove the OAuth2 library and endpoints, and add todos for implementing JWT token generation and validation instead. Keep the session management.",
   "claudeMock": "pivot/revert-checked-todo"
 }
