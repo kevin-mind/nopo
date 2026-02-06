@@ -1704,14 +1704,7 @@ Issue: #${this.issueNumber}
 
     // Check maxFailuresReached - verify failures count hit max (5)
     if (exp.maxFailuresReached === true) {
-      const { data: issue } = await this.config.octokit.rest.issues.get({
-        owner: this.config.owner,
-        repo: this.config.repo,
-        issue_number: this.issueNumber!,
-      });
-      // Get failures from project field
-      const state = await this.getGitHubState(issue.number);
-      const failures = state.failures as number;
+      const failures = _state.failures as number;
       if (failures !== 5) {
         errors.push(`maxFailuresReached: expected failures to be 5, but got ${failures}`);
       } else {
@@ -1861,8 +1854,7 @@ Issue: #${this.issueNumber}
     // Check failuresReset - verify failures went from >0 to 0
     if (exp.failuresReset === true) {
       const beforeFailures = firstFixture?.issue.failures || 0;
-      const state = await this.getGitHubState(this.issueNumber!);
-      const afterFailures = state.failures as number;
+      const afterFailures = _state.failures as number;
       if (beforeFailures <= 0) {
         errors.push(`failuresReset: expected starting failures > 0, but was ${beforeFailures}`);
       } else if (afterFailures !== 0) {

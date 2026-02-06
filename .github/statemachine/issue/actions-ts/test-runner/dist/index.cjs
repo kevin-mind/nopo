@@ -51971,13 +51971,7 @@ Pivot/Modification Verification:`);
       }
     }
     if (exp.maxFailuresReached === true) {
-      const { data: issue } = await this.config.octokit.rest.issues.get({
-        owner: this.config.owner,
-        repo: this.config.repo,
-        issue_number: this.issueNumber
-      });
-      const state = await this.getGitHubState(issue.number);
-      const failures = state.failures;
+      const failures = _state.failures;
       if (failures !== 5) {
         errors.push(`maxFailuresReached: expected failures to be 5, but got ${failures}`);
       } else {
@@ -52105,8 +52099,7 @@ Pivot/Modification Verification:`);
     }
     if (exp.failuresReset === true) {
       const beforeFailures = firstFixture?.issue.failures || 0;
-      const state = await this.getGitHubState(this.issueNumber);
-      const afterFailures = state.failures;
+      const afterFailures = _state.failures;
       if (beforeFailures <= 0) {
         errors.push(`failuresReset: expected starting failures > 0, but was ${beforeFailures}`);
       } else if (afterFailures !== 0) {
