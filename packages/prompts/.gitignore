@@ -1,2 +1,3 @@
 dist/
-prompts/
+# Compiled prompt output (not the src/prompts/ source files)
+/prompts/
