@@ -9,8 +9,14 @@
     "projectStatus": "In progress",
     "iteration": 5,
     "failures": 0,
-    "assignees": ["nopo-bot"],
-    "labels": ["triaged", "enhancement"],
+    "assignees": [
+      "nopo-bot"
+    ],
+    "labels": [
+      "triaged",
+      "groomed",
+      "enhancement"
+    ],
     "subIssues": [
       {
         "number": 0,
@@ -20,7 +26,11 @@
         "projectStatus": "Done",
         "branch": null,
         "pr": null,
-        "todos": { "total": 2, "completed": 2, "uncheckedNonManual": 0 }
+        "todos": {
+          "total": 2,
+          "completed": 2,
+          "uncheckedNonManual": 0
+        }
       },
       {
         "number": 0,
@@ -30,7 +40,11 @@
         "projectStatus": "Done",
         "branch": null,
         "pr": null,
-        "todos": { "total": 2, "completed": 2, "uncheckedNonManual": 0 }
+        "todos": {
+          "total": 2,
+          "completed": 2,
+          "uncheckedNonManual": 0
+        }
       },
       {
         "number": 0,
@@ -40,7 +54,11 @@
         "projectStatus": "In progress",
         "branch": null,
         "pr": null,
-        "todos": { "total": 1, "completed": 0, "uncheckedNonManual": 1 }
+        "todos": {
+          "total": 1,
+          "completed": 0,
+          "uncheckedNonManual": 1
+        }
       },
       {
         "number": 0,
@@ -50,7 +68,11 @@
         "projectStatus": "Ready",
         "branch": null,
         "pr": null,
-        "todos": { "total": 4, "completed": 0, "uncheckedNonManual": 4 }
+        "todos": {
+          "total": 4,
+          "completed": 0,
+          "uncheckedNonManual": 4
+        }
       }
     ],
     "hasSubIssues": true,

@@ -9,8 +9,14 @@
     "projectStatus": "In progress",
     "iteration": 3,
     "failures": 0,
-    "assignees": ["nopo-bot"],
-    "labels": ["triaged", "enhancement"],
+    "assignees": [
+      "nopo-bot"
+    ],
+    "labels": [
+      "triaged",
+      "groomed",
+      "enhancement"
+    ],
     "subIssues": [
       {
         "number": 0,
