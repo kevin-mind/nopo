@@ -465,6 +465,8 @@ class ConfigurableTestRunner {
     });
 
     const issueNumber = response.data.number;
+    // Set this.issueNumber early so sub-issue linking can reference the parent
+    this.issueNumber = issueNumber;
 
     // Set project fields if specified
     if (fixture.issue.projectStatus) {

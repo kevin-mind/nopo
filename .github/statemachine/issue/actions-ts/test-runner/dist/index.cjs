@@ -50954,6 +50954,7 @@ ${"=".repeat(60)}`);
       labels
     });
     const issueNumber = response.data.number;
+    this.issueNumber = issueNumber;
     if (fixture.issue.projectStatus) {
       await this.setProjectField(
         issueNumber,
