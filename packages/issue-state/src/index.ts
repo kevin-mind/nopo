@@ -4,12 +4,7 @@ export {
   IssueStateSchema,
   PRStateSchema,
   CIStatusSchema,
-  TodoItemSchema,
-  TodoStatsSchema,
-  HistoryEntrySchema,
-  AgentNotesEntrySchema,
-  SectionSchema,
-  TableSchema,
+  MdastRootSchema,
   IssueCommentSchema,
   LinkedPRSchema,
   ProjectFieldsSchema,
@@ -23,12 +18,6 @@ export type {
   IssueState,
   PRState,
   CIStatus,
-  TodoItem,
-  TodoStats,
-  HistoryEntry,
-  AgentNotesEntry,
-  Section,
-  Table,
   IssueComment,
   LinkedPR,
   ProjectFields,
@@ -37,46 +26,8 @@ export type {
   IssueStateData,
 } from "./schemas/index.js";
 
-// Markdown parsers
-export {
-  getSection,
-  removeSection,
-  upsertSection,
-  upsertSections,
-  hasSection,
-  STANDARD_SECTION_ORDER,
-} from "./markdown/sections.js";
-
-export {
-  parseTodoLine,
-  parseTodos,
-  calculateTodoStats,
-  parseTodoStats,
-  parseTodosInSection,
-  updateTodoInBody,
-  addTodoToBody,
-} from "./markdown/todos.js";
-
-export {
-  parseHistory,
-  addHistoryEntry,
-  updateHistoryEntry,
-  createHistoryTable,
-  getLatestHistoryEntry,
-} from "./markdown/history.js";
-
-export {
-  parseAgentNotes,
-  appendAgentNotes,
-  removeAgentNotesSection,
-  extractAgentNotesSection,
-} from "./markdown/agent-notes.js";
-
-export { parseTable, serializeTable } from "./markdown/tables.js";
-
-export { parseBody } from "./markdown/body-parser.js";
-
-export { serializeBody } from "./markdown/body-serializer.js";
+// Markdown AST
+export { parseMarkdown, serializeMarkdown } from "./markdown/ast.js";
 
 // GraphQL
 export {

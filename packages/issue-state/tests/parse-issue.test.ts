@@ -86,7 +86,7 @@ const MINIMAL_ISSUE_RESPONSE: IssueResponse = {
 };
 
 describe("parseIssue", () => {
-  it("parses a basic issue", async () => {
+  it("parses a basic issue with bodyAst", async () => {
     const octokit = createMockOctokit(MINIMAL_ISSUE_RESPONSE);
 
     const { data } = await parseIssue("owner", "repo", 42, {
@@ -106,8 +106,8 @@ describe("parseIssue", () => {
     expect(data.issue.assignees).toEqual(["nopo-bot"]);
     expect(data.issue.labels).toEqual(["bug", "enhancement"]);
     expect(data.issue.hasSubIssues).toBe(false);
-    expect(data.issue.description).toBe("Description here");
-    expect(data.issue.approach).toBe("Use TDD.");
+    expect(data.issue.bodyAst.type).toBe("root");
+    expect(data.issue.bodyAst.children.length).toBeGreaterThan(0);
     expect(data.issue.comments).toHaveLength(1);
     expect(data.issue.comments[0]!.isBot).toBe(false);
     expect(data.parentIssue).toBeNull();
@@ -157,6 +157,7 @@ describe("parseIssue", () => {
     expect(data.issue.subIssues[0]!.number).toBe(43);
     expect(data.issue.subIssues[0]!.projectStatus).toBe("In progress");
     expect(data.issue.subIssues[0]!.branch).toBe("claude/issue/42/phase-1");
+    expect(data.issue.subIssues[0]!.bodyAst.type).toBe("root");
   });
 
   it("throws for non-existent issue", async () => {

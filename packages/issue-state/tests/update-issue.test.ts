@@ -2,13 +2,14 @@ import { describe, it, expect, vi } from "vitest";
 import { updateIssue } from "../src/update-issue.js";
 import type { OctokitLike } from "../src/client.js";
 import type { IssueStateData, IssueData } from "../src/schemas/index.js";
+import { parseMarkdown } from "../src/markdown/ast.js";
 
 function makeIssue(overrides: Partial<IssueData> = {}): IssueData {
   return {
     number: 1,
     title: "Test Issue",
     state: "OPEN",
-    body: "",
+    bodyAst: parseMarkdown("Description"),
     projectStatus: "In progress",
     iteration: 1,
     failures: 0,
@@ -16,13 +17,6 @@ function makeIssue(overrides: Partial<IssueData> = {}): IssueData {
     labels: ["bug"],
     subIssues: [],
     hasSubIssues: false,
-    description: "Description",
-    approach: null,
-    todos: [],
-    todoStats: { total: 0, completed: 0, uncheckedNonManual: 0 },
-    history: [],
-    agentNotes: [],
-    sections: [],
     comments: [],
     branch: "claude/issue/1",
     pr: null,

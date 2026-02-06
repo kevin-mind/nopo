@@ -1,13 +1,14 @@
 import { describe, it, expect } from "vitest";
 import { computeDiff } from "../src/diff.js";
 import type { IssueData } from "../src/schemas/index.js";
+import { parseMarkdown } from "../src/markdown/ast.js";
 
 function makeIssue(overrides: Partial<IssueData> = {}): IssueData {
   return {
     number: 1,
     title: "Test Issue",
     state: "OPEN",
-    body: "",
+    bodyAst: parseMarkdown("Test description"),
     projectStatus: "In progress",
     iteration: 1,
     failures: 0,
@@ -15,13 +16,6 @@ function makeIssue(overrides: Partial<IssueData> = {}): IssueData {
     labels: ["bug"],
     subIssues: [],
     hasSubIssues: false,
-    description: "Test description",
-    approach: null,
-    todos: [],
-    todoStats: { total: 0, completed: 0, uncheckedNonManual: 0 },
-    history: [],
-    agentNotes: [],
-    sections: [],
     comments: [],
     branch: "claude/issue/1",
     pr: null,
@@ -105,20 +99,9 @@ describe("computeDiff", () => {
     expect(diff.failuresChanged).toBe(true);
   });
 
-  it("detects body change via description", () => {
-    const original = makeIssue({ description: "Old description" });
-    const updated = makeIssue({ description: "New description" });
-    const diff = computeDiff(original, updated);
-    expect(diff.bodyChanged).toBe(true);
-  });
-
-  it("detects body change via sections", () => {
-    const original = makeIssue({
-      sections: [{ name: "Approach", content: "Old" }],
-    });
-    const updated = makeIssue({
-      sections: [{ name: "Approach", content: "New" }],
-    });
+  it("detects body change via different AST", () => {
+    const original = makeIssue({ bodyAst: parseMarkdown("Old content") });
+    const updated = makeIssue({ bodyAst: parseMarkdown("New content") });
     const diff = computeDiff(original, updated);
     expect(diff.bodyChanged).toBe(true);
   });

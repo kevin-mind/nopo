@@ -9,7 +9,11 @@ import { execSync } from "node:child_process";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseIssue, IssueStateDataSchema } from "@more/issue-state";
+import {
+  parseIssue,
+  serializeMarkdown,
+  IssueStateDataSchema,
+} from "@more/issue-state";
 import type { OctokitLike } from "@more/issue-state";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -114,6 +118,11 @@ async function main() {
       }
       continue;
     }
+
+    // Log the serialized body to verify AST round-trip
+    const bodyMarkdown = serializeMarkdown(data.issue.bodyAst);
+    console.log(`  bodyAst children: ${data.issue.bodyAst.children.length}`);
+    console.log(`  serialized body length: ${bodyMarkdown.length}`);
 
     const file = join(outDir, `issue-${number}.json`);
     writeFileSync(file, JSON.stringify(data, null, 2) + "\n");

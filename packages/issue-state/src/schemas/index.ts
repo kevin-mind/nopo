@@ -7,23 +7,7 @@ export {
 
 export type { ProjectStatus, IssueState, PRState, CIStatus } from "./enums.js";
 
-export {
-  TodoItemSchema,
-  TodoStatsSchema,
-  HistoryEntrySchema,
-  AgentNotesEntrySchema,
-  SectionSchema,
-  TableSchema,
-} from "./markdown.js";
-
-export type {
-  TodoItem,
-  TodoStats,
-  HistoryEntry,
-  AgentNotesEntry,
-  Section,
-  Table,
-} from "./markdown.js";
+export { MdastRootSchema } from "./ast.js";
 
 export { IssueCommentSchema } from "./comment.js";
 export type { IssueComment } from "./comment.js";

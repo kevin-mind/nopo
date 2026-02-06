@@ -5,7 +5,7 @@
 import type { OctokitLike } from "./client.js";
 import type { IssueStateData } from "./schemas/index.js";
 import { computeDiff } from "./diff.js";
-import { serializeBody } from "./markdown/body-serializer.js";
+import { serializeMarkdown } from "./markdown/ast.js";
 
 export async function updateIssue(
   original: IssueStateData,
@@ -32,12 +32,7 @@ export async function updateIssue(
     };
 
     if (diff.bodyChanged) {
-      updateParams.body = serializeBody({
-        description: updated.issue.description,
-        sections: updated.issue.sections,
-        history: updated.issue.history,
-        agentNotes: updated.issue.agentNotes,
-      });
+      updateParams.body = serializeMarkdown(updated.issue.bodyAst);
     }
 
     if (diff.titleChanged) {

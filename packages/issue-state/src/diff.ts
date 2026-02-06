@@ -3,7 +3,7 @@
  */
 
 import type { IssueData } from "./schemas/index.js";
-import { serializeBody } from "./markdown/body-serializer.js";
+import { serializeMarkdown } from "./markdown/ast.js";
 
 export interface IssueDiff {
   bodyChanged: boolean;
@@ -27,20 +27,8 @@ export function computeDiff(
   original: IssueData,
   updated: IssueData,
 ): IssueDiff {
-  // Compare serialized body to detect content changes
-  const originalBody = serializeBody({
-    description: original.description,
-    sections: original.sections,
-    history: original.history,
-    agentNotes: original.agentNotes,
-  });
-
-  const updatedBody = serializeBody({
-    description: updated.description,
-    sections: updated.sections,
-    history: updated.history,
-    agentNotes: updated.agentNotes,
-  });
+  const originalBody = serializeMarkdown(original.bodyAst);
+  const updatedBody = serializeMarkdown(updated.bodyAst);
 
   return {
     bodyChanged: originalBody !== updatedBody,

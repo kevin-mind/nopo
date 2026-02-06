@@ -28,9 +28,7 @@ import {
   GET_PR_FOR_BRANCH_QUERY,
   CHECK_BRANCH_EXISTS_QUERY,
 } from "./graphql/issue-queries.js";
-import { parseBody } from "./markdown/body-parser.js";
-import { parseTodos, calculateTodoStats } from "./markdown/todos.js";
-import { extractAllSections, getDescription } from "./markdown/sections.js";
+import { parseMarkdown } from "./markdown/ast.js";
 import { updateIssue } from "./update-issue.js";
 
 export interface ParseIssueOptions {
@@ -203,23 +201,16 @@ function parseSubIssueData(
     projectNumber,
   );
   const body = node.body || "";
-  const todos = parseTodos(body);
-  const todoStats = calculateTodoStats(todos);
-  const sections = extractAllSections(body);
-  const description = getDescription(body);
+  const bodyAst = parseMarkdown(body);
 
   return {
     number: node.number || 0,
     title: node.title || "",
     state: (node.state?.toUpperCase() || "OPEN") as IssueState,
-    body,
+    bodyAst,
     projectStatus: status,
     branch: deriveBranchName(parentIssueNumber, phaseNumber),
     pr: null, // Populated separately if fetchPRs is true
-    description,
-    todos,
-    todoStats,
-    sections,
   };
 }
 
@@ -284,7 +275,7 @@ async function fetchIssueData(
   }
 
   const body = issue.body || "";
-  const parsed = parseBody(body);
+  const bodyAst = parseMarkdown(body);
   const comments = parseIssueComments(issue.comments?.nodes || [], botUsername);
 
   const parentIssueNumber = issue.parent?.number ?? null;
@@ -309,7 +300,7 @@ async function fetchIssueData(
       number: issue.number || issueNumber,
       title: issue.title || "",
       state: (issue.state?.toUpperCase() || "OPEN") as IssueState,
-      body,
+      bodyAst,
       projectStatus: status,
       iteration,
       failures,
@@ -319,13 +310,6 @@ async function fetchIssueData(
         issue.labels?.nodes?.map((l) => l.name || "").filter(Boolean) || [],
       subIssues,
       hasSubIssues: subIssues.length > 0,
-      description: parsed.description,
-      approach: parsed.approach,
-      todos: parsed.todos,
-      todoStats: parsed.todoStats,
-      history: parsed.history,
-      agentNotes: parsed.agentNotes,
-      sections: parsed.sections,
       comments,
       branch: issueBranch,
       pr: issuePR,

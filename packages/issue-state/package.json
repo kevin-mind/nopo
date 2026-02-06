@@ -14,10 +14,15 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "remark-gfm": "^4",
+    "remark-parse": "^11",
+    "remark-stringify": "^11",
+    "unified": "^11",
     "zod": "^3.24.4"
   },
   "devDependencies": {
     "@more/configs": "workspace:*",
+    "@types/mdast": "^4",
     "typescript": "^5.8.3",
     "vitest": "^3.1.1"
   }

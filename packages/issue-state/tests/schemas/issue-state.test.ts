@@ -4,14 +4,13 @@ import {
   IssueStateSchema,
   PRStateSchema,
   CIStatusSchema,
-  TodoItemSchema,
-  HistoryEntrySchema,
   IssueCommentSchema,
   LinkedPRSchema,
   SubIssueDataSchema,
   IssueDataSchema,
   IssueStateDataSchema,
 } from "../../src/schemas/index.js";
+import { parseMarkdown } from "../../src/markdown/ast.js";
 
 describe("enum schemas", () => {
   it("validates ProjectStatus values", () => {
@@ -33,31 +32,6 @@ describe("enum schemas", () => {
   it("validates CIStatus values", () => {
     expect(CIStatusSchema.parse("SUCCESS")).toBe("SUCCESS");
     expect(CIStatusSchema.parse("PENDING")).toBe("PENDING");
-  });
-});
-
-describe("TodoItemSchema", () => {
-  it("validates a todo item", () => {
-    const result = TodoItemSchema.parse({
-      text: "Fix bug",
-      checked: false,
-      isManual: true,
-    });
-    expect(result.text).toBe("Fix bug");
-  });
-});
-
-describe("HistoryEntrySchema", () => {
-  it("validates with nullable fields", () => {
-    const result = HistoryEntrySchema.parse({
-      iteration: 1,
-      phase: "1",
-      action: "Started",
-      timestamp: null,
-      sha: null,
-      runLink: null,
-    });
-    expect(result.iteration).toBe(1);
   });
 });
 
@@ -95,14 +69,10 @@ describe("SubIssueDataSchema", () => {
       number: 10,
       title: "[Phase 1]: Setup",
       state: "OPEN",
-      body: "Do setup",
+      bodyAst: parseMarkdown("Do setup"),
       projectStatus: "In progress",
       branch: "claude/issue/5/phase-1",
       pr: null,
-      description: "Do setup",
-      todos: [],
-      todoStats: { total: 0, completed: 0, uncheckedNonManual: 0 },
-      sections: [],
     });
     expect(result.number).toBe(10);
   });
@@ -114,7 +84,7 @@ describe("IssueDataSchema", () => {
       number: 5,
       title: "Implement auth",
       state: "OPEN",
-      body: "Implement OAuth",
+      bodyAst: parseMarkdown("Implement OAuth"),
       projectStatus: "In progress",
       iteration: 3,
       failures: 1,
@@ -122,13 +92,6 @@ describe("IssueDataSchema", () => {
       labels: ["enhancement"],
       subIssues: [],
       hasSubIssues: false,
-      description: "Implement OAuth",
-      approach: null,
-      todos: [],
-      todoStats: { total: 0, completed: 0, uncheckedNonManual: 0 },
-      history: [],
-      agentNotes: [],
-      sections: [],
       comments: [],
       branch: "claude/issue/5",
       pr: null,
@@ -145,7 +108,7 @@ describe("IssueStateDataSchema", () => {
       number: 10,
       title: "Sub-issue",
       state: "OPEN" as const,
-      body: "",
+      bodyAst: parseMarkdown(""),
       projectStatus: "In progress" as const,
       iteration: 1,
       failures: 0,
@@ -153,13 +116,6 @@ describe("IssueStateDataSchema", () => {
       labels: [],
       subIssues: [],
       hasSubIssues: false,
-      description: null,
-      approach: null,
-      todos: [],
-      todoStats: { total: 0, completed: 0, uncheckedNonManual: 0 },
-      history: [],
-      agentNotes: [],
-      sections: [],
       comments: [],
       branch: "claude/issue/10",
       pr: null,
