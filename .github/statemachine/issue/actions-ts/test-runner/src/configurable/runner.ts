@@ -1148,6 +1148,14 @@ Issue: #${this.issueNumber}
       };
     }
 
+    // For processing states (processingCI), use the CURRENT fixture's ciResult
+    // because that's the result being processed. For other states, use nextFixture's
+    // ciResult which indicates what the triggered CI should return.
+    const isProcessingState = fixture.state === "processingCI";
+    const ciResult = isProcessingState
+      ? fixture.ciResult || null
+      : nextFixture?.ciResult || fixture.ciResult || null;
+
     return {
       trigger,
       owner: this.config.owner,
@@ -1157,9 +1165,7 @@ Issue: #${this.issueNumber}
       currentPhase: null,
       totalPhases: 0,
       currentSubIssue: null,
-      // Prefer trigger-specific fields from nextFixture (the transition being triggered)
-      // Fall back to fixture for backward compatibility
-      ciResult: nextFixture?.ciResult || fixture.ciResult || null,
+      ciResult,
       ciRunUrl: null,
       ciCommitSha: null,
       reviewDecision: nextFixture?.reviewDecision || fixture.reviewDecision || null,
@@ -1297,6 +1303,9 @@ Issue: #${this.issueNumber}
     const pollIntervalMs = 10000; // 10 seconds
     const startTime = Date.now();
     let ciRunId: number | null = null;
+    const triggeredAfterDate = triggeredAfter
+      ? new Date(triggeredAfter)
+      : null;
 
     core.info(
       `Waiting for CI workflow to complete on branch ${this.testBranchName}...`,
@@ -1314,14 +1323,25 @@ Issue: #${this.issueNumber}
           workflow_id: "ci.yml",
           branch: this.testBranchName || undefined,
           per_page: 10,
-          // Filter by created time if specified (to find the workflow_dispatch run, not the PR-triggered one)
-          ...(triggeredAfter && { created: `>=${triggeredAfter}` }),
         });
 
-      // Find the most recent run that matches our test branch
-      const matchingRun = runs.workflow_runs.find(
-        (run) => run.head_branch === this.testBranchName,
-      );
+      // Find a run that:
+      // 1. Matches our test branch
+      // 2. If triggeredAfter is specified, was created after that time
+      // 3. If we triggered via workflow_dispatch, prefer that event type
+      const matchingRun = runs.workflow_runs.find((run) => {
+        if (run.head_branch !== this.testBranchName) return false;
+
+        // If we have a trigger time, only consider runs created after it
+        if (triggeredAfterDate) {
+          const runCreatedAt = new Date(run.created_at);
+          if (runCreatedAt < triggeredAfterDate) {
+            return false;
+          }
+        }
+
+        return true;
+      });
 
       if (matchingRun) {
         // Log the workflow URL on first detection (only once)

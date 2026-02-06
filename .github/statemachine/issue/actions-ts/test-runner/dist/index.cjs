@@ -51537,6 +51537,8 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
         baseRef: fixture.issue.pr.baseRef || "main"
       };
     }
+    const isProcessingState = fixture.state === "processingCI";
+    const ciResult = isProcessingState ? fixture.ciResult || null : nextFixture?.ciResult || fixture.ciResult || null;
     return {
       trigger,
       owner: this.config.owner,
@@ -51546,9 +51548,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
       currentPhase: null,
       totalPhases: 0,
       currentSubIssue: null,
-      // Prefer trigger-specific fields from nextFixture (the transition being triggered)
-      // Fall back to fixture for backward compatibility
-      ciResult: nextFixture?.ciResult || fixture.ciResult || null,
+      ciResult,
       ciRunUrl: null,
       ciCommitSha: null,
       reviewDecision: nextFixture?.reviewDecision || fixture.reviewDecision || null,
@@ -51657,6 +51657,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
     const pollIntervalMs = 1e4;
     const startTime = Date.now();
     let ciRunId = null;
+    const triggeredAfterDate = triggeredAfter ? new Date(triggeredAfter) : null;
     core24.info(
       `Waiting for CI workflow to complete on branch ${this.testBranchName}...`
     );
@@ -51669,13 +51670,18 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
         repo: this.config.repo,
         workflow_id: "ci.yml",
         branch: this.testBranchName || void 0,
-        per_page: 10,
-        // Filter by created time if specified (to find the workflow_dispatch run, not the PR-triggered one)
-        ...triggeredAfter && { created: `>=${triggeredAfter}` }
+        per_page: 10
       });
-      const matchingRun = runs.workflow_runs.find(
-        (run2) => run2.head_branch === this.testBranchName
-      );
+      const matchingRun = runs.workflow_runs.find((run2) => {
+        if (run2.head_branch !== this.testBranchName) return false;
+        if (triggeredAfterDate) {
+          const runCreatedAt = new Date(run2.created_at);
+          if (runCreatedAt < triggeredAfterDate) {
+            return false;
+          }
+        }
+        return true;
+      });
       if (matchingRun) {
         if (ciRunId !== matchingRun.id) {
           ciRunId = matchingRun.id;
