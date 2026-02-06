@@ -42172,8 +42172,43 @@ ${subChanges.map((c3) => `- ${c3}`).join("\n")}`);
   }
   return changes;
 }
+var ADD_SUB_ISSUE_MUTATION3 = `
+mutation AddSubIssue($parentId: ID!, $subIssueId: ID!) {
+  addSubIssue(input: {
+    issueId: $parentId
+    subIssueId: $subIssueId
+  }) {
+    issue {
+      id
+    }
+    subIssue {
+      id
+    }
+  }
+}
+`;
+var GET_ISSUE_NODE_ID_QUERY = `
+query GetIssueNodeId($owner: String!, $repo: String!, $number: Int!) {
+  repository(owner: $owner, name: $repo) {
+    issue(number: $number) {
+      id
+    }
+  }
+}
+`;
 async function createNewSubIssues(ctx, parentIssueNumber, newSubIssues) {
   const changes = [];
+  let parentNodeId = null;
+  try {
+    const parentResult = await ctx.octokit.graphql(GET_ISSUE_NODE_ID_QUERY, {
+      owner: ctx.owner,
+      repo: ctx.repo,
+      number: parentIssueNumber
+    });
+    parentNodeId = parentResult.repository.issue.id;
+  } catch (error5) {
+    core16.warning(`Failed to get parent issue node ID: ${error5}`);
+  }
   for (const newSub of newSubIssues) {
     try {
       const reasonEmoji = newSub.reason === "reversion" ? "\u21A9\uFE0F" : newSub.reason === "extension" ? "\u2795" : "\u{1F195}";
@@ -42184,7 +42219,7 @@ async function createNewSubIssues(ctx, parentIssueNumber, newSubIssues) {
       body += `${newSub.description}
 
 `;
-      body += `## Tasks
+      body += `## Todos
 
 `;
       body += newSub.todos.map((t) => `- [ ] ${t}`).join("\n");
@@ -42195,6 +42230,17 @@ async function createNewSubIssues(ctx, parentIssueNumber, newSubIssues) {
         body,
         labels: ["pivot-generated"]
       });
+      if (parentNodeId && createdIssue.node_id) {
+        try {
+          await ctx.octokit.graphql(ADD_SUB_ISSUE_MUTATION3, {
+            parentId: parentNodeId,
+            subIssueId: createdIssue.node_id
+          });
+          core16.info(`Linked sub-issue #${createdIssue.number} to parent #${parentIssueNumber}`);
+        } catch (linkError) {
+          core16.warning(`Failed to link sub-issue #${createdIssue.number} to parent: ${linkError}`);
+        }
+      }
       core16.info(`Created new sub-issue #${createdIssue.number}: ${newSub.title}`);
       changes.push(`**New Sub-Issue #${createdIssue.number}:** ${newSub.title} (${newSub.reason})`);
     } catch (error5) {

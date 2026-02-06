@@ -550,6 +550,38 @@ async function applySubIssueModifications(
 }
 
 /**
+ * GraphQL mutation to link a sub-issue to a parent issue
+ */
+const ADD_SUB_ISSUE_MUTATION = `
+mutation AddSubIssue($parentId: ID!, $subIssueId: ID!) {
+  addSubIssue(input: {
+    issueId: $parentId
+    subIssueId: $subIssueId
+  }) {
+    issue {
+      id
+    }
+    subIssue {
+      id
+    }
+  }
+}
+`;
+
+/**
+ * GraphQL query to get issue node ID
+ */
+const GET_ISSUE_NODE_ID_QUERY = `
+query GetIssueNodeId($owner: String!, $repo: String!, $number: Int!) {
+  repository(owner: $owner, name: $repo) {
+    issue(number: $number) {
+      id
+    }
+  }
+}
+`;
+
+/**
  * Create new sub-issues for reversion/extension
  */
 async function createNewSubIssues(
@@ -558,6 +590,21 @@ async function createNewSubIssues(
   newSubIssues: NewSubIssue[],
 ): Promise<string[]> {
   const changes: string[] = [];
+
+  // Get parent issue node ID for linking
+  let parentNodeId: string | null = null;
+  try {
+    const parentResult = await ctx.octokit.graphql<{
+      repository: { issue: { id: string } };
+    }>(GET_ISSUE_NODE_ID_QUERY, {
+      owner: ctx.owner,
+      repo: ctx.repo,
+      number: parentIssueNumber,
+    });
+    parentNodeId = parentResult.repository.issue.id;
+  } catch (error) {
+    core.warning(`Failed to get parent issue node ID: ${error}`);
+  }
 
   for (const newSub of newSubIssues) {
     try {
@@ -571,7 +618,7 @@ async function createNewSubIssues(
 
       let body = `**${reasonEmoji} ${reasonLabel}** - Created from pivot request on #${parentIssueNumber}\n\n`;
       body += `${newSub.description}\n\n`;
-      body += `## Tasks\n\n`;
+      body += `## Todos\n\n`;
       body += newSub.todos.map((t) => `- [ ] ${t}`).join("\n");
 
       // Create the issue
@@ -583,8 +630,18 @@ async function createNewSubIssues(
         labels: ["pivot-generated"],
       });
 
-      // Link as sub-issue to parent (if GraphQL API supports it)
-      // Note: Sub-issue linking may require specific API support
+      // Link as sub-issue to parent using GraphQL
+      if (parentNodeId && createdIssue.node_id) {
+        try {
+          await ctx.octokit.graphql(ADD_SUB_ISSUE_MUTATION, {
+            parentId: parentNodeId,
+            subIssueId: createdIssue.node_id,
+          });
+          core.info(`Linked sub-issue #${createdIssue.number} to parent #${parentIssueNumber}`);
+        } catch (linkError) {
+          core.warning(`Failed to link sub-issue #${createdIssue.number} to parent: ${linkError}`);
+        }
+      }
 
       core.info(`Created new sub-issue #${createdIssue.number}: ${newSub.title}`);
       changes.push(`**New Sub-Issue #${createdIssue.number}:** ${newSub.title} (${newSub.reason})`);
