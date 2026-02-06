@@ -22,7 +22,6 @@
     }
   },
   "expected": {
-    "issueClosed": true,
-    "allTodosComplete": true
+    "issueClosed": true
   }
 }

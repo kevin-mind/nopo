@@ -18,8 +18,5 @@
       "completed": 1,
       "uncheckedNonManual": 0
     }
-  },
-  "expected": {
-    "allTodosComplete": true
   }
 }

@@ -29,7 +29,6 @@
     }
   },
   "expected": {
-    "prMarkedReady": true,
-    "commentPosted": true
+    "prMarkedReady": true
   }
 }

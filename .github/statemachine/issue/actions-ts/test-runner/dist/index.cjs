@@ -52081,13 +52081,14 @@ Pivot/Modification Verification:`);
         repo: this.config.repo,
         issue_number: this.issueNumber
       });
-      const claudeComment = comments.find(
-        (c3) => c3.user?.login === "claude[bot]" || c3.user?.type === "Bot"
+      const botComment = comments.find(
+        (c3) => c3.user?.login === "claude[bot]" || c3.user?.login === "nopo-bot" || c3.user?.login?.endsWith("[bot]") || c3.user?.type === "Bot"
       );
-      if (!claudeComment) {
-        errors.push(`commentPosted: expected claude[bot] to post a comment, but none found`);
+      if (!botComment) {
+        const commentUsers = comments.map((c3) => c3.user?.login).join(", ");
+        errors.push(`commentPosted: expected bot comment, but none found. Comments from: ${commentUsers || "(none)"}`);
       } else {
-        core24.info(`  \u2713 commentPosted: comment from ${claudeComment.user?.login} found`);
+        core24.info(`  \u2713 commentPosted: comment from ${botComment.user?.login} found`);
       }
     }
     if (exp.issueClosed === true) {

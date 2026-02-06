@@ -1821,20 +1821,26 @@ Issue: #${this.issueNumber}
       }
     }
 
-    // Check commentPosted - verify a comment was posted by claude[bot]
+    // Check commentPosted - verify a comment was posted (by bot or nopo-bot)
     if (exp.commentPosted === true) {
       const { data: comments } = await this.config.octokit.rest.issues.listComments({
         owner: this.config.owner,
         repo: this.config.repo,
         issue_number: this.issueNumber!,
       });
-      const claudeComment = comments.find(
-        (c) => c.user?.login === "claude[bot]" || c.user?.type === "Bot",
+      // Look for comments from claude[bot], nopo-bot, or any Bot type
+      const botComment = comments.find(
+        (c) =>
+          c.user?.login === "claude[bot]" ||
+          c.user?.login === "nopo-bot" ||
+          c.user?.login?.endsWith("[bot]") ||
+          c.user?.type === "Bot",
       );
-      if (!claudeComment) {
-        errors.push(`commentPosted: expected claude[bot] to post a comment, but none found`);
+      if (!botComment) {
+        const commentUsers = comments.map((c) => c.user?.login).join(", ");
+        errors.push(`commentPosted: expected bot comment, but none found. Comments from: ${commentUsers || "(none)"}`);
       } else {
-        core.info(`  ✓ commentPosted: comment from ${claudeComment.user?.login} found`);
+        core.info(`  ✓ commentPosted: comment from ${botComment.user?.login} found`);
       }
     }
 
