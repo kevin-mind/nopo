@@ -51400,6 +51400,8 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
       trigger = "pr-review-submitted";
     } else if (fixture.state === "processingMerge") {
       trigger = "pr-merged";
+    } else if (fixture.state === "pivoting") {
+      trigger = fixture.trigger || "issue-pivot";
     } else if (fixture.ciResult) {
       trigger = "workflow-run-completed";
     }
@@ -51440,7 +51442,9 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
       commentContextType: null,
       commentContextDescription: null,
       releaseEvent: null,
-      workflowStartedAt: null
+      workflowStartedAt: null,
+      // Pivot-specific fields
+      pivotDescription: fixture.pivotDescription || null
     };
   }
   /**

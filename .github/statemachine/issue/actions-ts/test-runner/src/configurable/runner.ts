@@ -1074,6 +1074,8 @@ Issue: #${this.issueNumber}
       trigger = "pr-review-submitted";
     } else if (fixture.state === "processingMerge") {
       trigger = "pr-merged";
+    } else if (fixture.state === "pivoting") {
+      trigger = fixture.trigger || "issue-pivot";
     } else if (fixture.ciResult) {
       // If ciResult is set, this is a CI completion trigger
       trigger = "workflow-run-completed";
@@ -1119,6 +1121,8 @@ Issue: #${this.issueNumber}
       commentContextDescription: null,
       releaseEvent: null,
       workflowStartedAt: null,
+      // Pivot-specific fields
+      pivotDescription: fixture.pivotDescription || null,
     };
   }
 
