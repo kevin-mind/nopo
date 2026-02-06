@@ -1,0 +1,9 @@
+{
+  "extends": "@more/configs/tsconfig.node.json",
+  "compilerOptions": {
+    "strict": true,
+    "outDir": "build",
+    "rootDir": "."
+  },
+  "include": ["src", "tests"]
+}

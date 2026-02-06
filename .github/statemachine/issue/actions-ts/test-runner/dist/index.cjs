@@ -51669,6 +51669,134 @@ Actual history actions (${state.history.length} entries):`
       }
       core24.info(`${"\u2500".repeat(60)}`);
     }
+    if (expected.expected) {
+      core24.info(`
+Pivot/Modification Verification:`);
+      core24.info(`${"\u2500".repeat(60)}`);
+      const pivotErrors = await this.verifyExpectedOutcomes(expected, state);
+      if (pivotErrors.length > 0) {
+        for (const err of pivotErrors) {
+          core24.info(`  \u2717 ${err}`);
+          errors.push(err);
+        }
+      } else {
+        core24.info(`  \u2713 All expected outcomes verified`);
+      }
+      core24.info(`${"\u2500".repeat(60)}`);
+    }
+    return errors;
+  }
+  /**
+   * Verify expected outcomes like newSubIssueCreated, todosRemoved, etc.
+   * Compares the before state (from fixture) with after state (from GitHub)
+   */
+  async verifyExpectedOutcomes(expected, state) {
+    const errors = [];
+    const exp = expected.expected;
+    const fixtureSubIssues = expected.issue.subIssues || [];
+    const firstFixture = this.scenario.fixtures.get(
+      this.scenario.orderedStates[0]
+    );
+    const beforeSubIssueCount = firstFixture?.issue.subIssues?.length || 0;
+    const beforeTotalTodos = (firstFixture?.issue.subIssues || []).reduce(
+      (sum, s) => sum + (s.todos?.total || 0),
+      0
+    );
+    const afterSubIssueCount = state.subIssues.length;
+    const afterTotalTodos = state.subIssues.reduce(
+      (sum, s) => sum + s.todos.total,
+      0
+    );
+    core24.info(`  Before: ${beforeSubIssueCount} sub-issues, ${beforeTotalTodos} todos`);
+    core24.info(`  After:  ${afterSubIssueCount} sub-issues, ${afterTotalTodos} todos`);
+    if (exp.newSubIssueCreated === true) {
+      if (afterSubIssueCount <= beforeSubIssueCount) {
+        errors.push(`newSubIssueCreated: expected sub-issue count to increase, but went from ${beforeSubIssueCount} to ${afterSubIssueCount}`);
+      } else {
+        core24.info(`  \u2713 newSubIssueCreated: sub-issue count increased from ${beforeSubIssueCount} to ${afterSubIssueCount}`);
+      }
+    }
+    if (typeof exp.todosRemoved === "number") {
+      const expectedAfterTodos = beforeTotalTodos - exp.todosRemoved;
+      if (afterTotalTodos !== expectedAfterTodos) {
+        errors.push(`todosRemoved: expected ${exp.todosRemoved} todos removed (${beforeTotalTodos} -> ${expectedAfterTodos}), but got ${afterTotalTodos}`);
+      } else {
+        core24.info(`  \u2713 todosRemoved: ${exp.todosRemoved} todo(s) removed as expected`);
+      }
+    }
+    if (exp.requirementsUpdated === true) {
+      const { data: parentIssue } = await this.config.octokit.rest.issues.get({
+        owner: this.config.owner,
+        repo: this.config.repo,
+        issue_number: this.issueNumber
+      });
+      const parentBody = parentIssue.body || "";
+      const originalBody = firstFixture?.issue.body || "";
+      const getBodyWithoutHistory = (body) => body.split("## Iteration History")[0].trim();
+      if (getBodyWithoutHistory(parentBody) === getBodyWithoutHistory(originalBody)) {
+        errors.push(`requirementsUpdated: expected parent body to change, but it didn't`);
+      } else {
+        core24.info(`  \u2713 requirementsUpdated: parent body was modified`);
+      }
+    }
+    if (exp.parentIssueModified === true) {
+      const { data: parentIssue } = await this.config.octokit.rest.issues.get({
+        owner: this.config.owner,
+        repo: this.config.repo,
+        issue_number: this.issueNumber
+      });
+      const parentBody = parentIssue.body || "";
+      const originalBody = firstFixture?.issue.body || "";
+      const getBodyWithoutHistory = (body) => body.split("## Iteration History")[0].trim();
+      if (getBodyWithoutHistory(parentBody) === getBodyWithoutHistory(originalBody)) {
+        errors.push(`parentIssueModified: expected parent body to change, but it didn't`);
+      } else {
+        core24.info(`  \u2713 parentIssueModified: parent body was modified`);
+      }
+    }
+    if (exp.subIssuesModified === true) {
+      let anyModified = false;
+      for (const sub of state.subIssues) {
+        const fixtureSub = fixtureSubIssues.find((f) => f.title === sub.title);
+        if (fixtureSub) {
+          const { data: subIssue } = await this.config.octokit.rest.issues.get({
+            owner: this.config.owner,
+            repo: this.config.repo,
+            issue_number: sub.number
+          });
+          if (subIssue.body !== fixtureSub.body) {
+            anyModified = true;
+            break;
+          }
+        }
+      }
+      if (!anyModified) {
+        errors.push(`subIssuesModified: expected at least one sub-issue to be modified, but none were`);
+      } else {
+        core24.info(`  \u2713 subIssuesModified: at least one sub-issue was modified`);
+      }
+    }
+    if (exp.completedWorkPreserved === true) {
+      const closedFixtureSubs = fixtureSubIssues.filter((s) => s.state === "CLOSED");
+      let allPreserved = true;
+      for (const closedSub of closedFixtureSubs) {
+        const realNumber = this.subIssueNumbers.get(closedSub.title);
+        if (realNumber) {
+          const { data: subIssue } = await this.config.octokit.rest.issues.get({
+            owner: this.config.owner,
+            repo: this.config.repo,
+            issue_number: realNumber
+          });
+          if (subIssue.state !== "closed") {
+            allPreserved = false;
+            errors.push(`completedWorkPreserved: closed sub-issue #${realNumber} was reopened`);
+          }
+        }
+      }
+      if (allPreserved && closedFixtureSubs.length > 0) {
+        core24.info(`  \u2713 completedWorkPreserved: ${closedFixtureSubs.length} closed sub-issue(s) unchanged`);
+      }
+    }
     return errors;
   }
   /**

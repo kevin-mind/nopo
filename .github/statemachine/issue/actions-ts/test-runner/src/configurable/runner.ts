@@ -1474,6 +1474,178 @@ Issue: #${this.issueNumber}
       core.info(`${"─".repeat(60)}`);
     }
 
+    // Verify expected pivot/modification outcomes if specified
+    if (expected.expected) {
+      core.info(`\nPivot/Modification Verification:`);
+      core.info(`${"─".repeat(60)}`);
+
+      const pivotErrors = await this.verifyExpectedOutcomes(expected, state);
+      if (pivotErrors.length > 0) {
+        for (const err of pivotErrors) {
+          core.info(`  ✗ ${err}`);
+          errors.push(err);
+        }
+      } else {
+        core.info(`  ✓ All expected outcomes verified`);
+      }
+
+      core.info(`${"─".repeat(60)}`);
+    }
+
+    return errors;
+  }
+
+  /**
+   * Verify expected outcomes like newSubIssueCreated, todosRemoved, etc.
+   * Compares the before state (from fixture) with after state (from GitHub)
+   */
+  private async verifyExpectedOutcomes(
+    expected: StateFixture,
+    state: {
+      subIssues: Array<{
+        number: number;
+        title: string;
+        state: string;
+        todos: { total: number; completed: number; uncheckedNonManual: number };
+      }>;
+      [key: string]: unknown;
+    },
+  ): Promise<string[]> {
+    const errors: string[] = [];
+    const exp = expected.expected as Record<string, unknown>;
+    const fixtureSubIssues = expected.issue.subIssues || [];
+
+    // Get the first fixture (before state) to compare counts
+    const firstFixture = this.scenario.fixtures.get(
+      this.scenario.orderedStates[0] as (typeof this.scenario.orderedStates)[number],
+    );
+    const beforeSubIssueCount = firstFixture?.issue.subIssues?.length || 0;
+    const beforeTotalTodos = (firstFixture?.issue.subIssues || []).reduce(
+      (sum, s) => sum + (s.todos?.total || 0),
+      0,
+    );
+
+    // Calculate after counts from GitHub state
+    const afterSubIssueCount = state.subIssues.length;
+    const afterTotalTodos = state.subIssues.reduce(
+      (sum, s) => sum + s.todos.total,
+      0,
+    );
+
+    core.info(`  Before: ${beforeSubIssueCount} sub-issues, ${beforeTotalTodos} todos`);
+    core.info(`  After:  ${afterSubIssueCount} sub-issues, ${afterTotalTodos} todos`);
+
+    // Check newSubIssueCreated
+    if (exp.newSubIssueCreated === true) {
+      if (afterSubIssueCount <= beforeSubIssueCount) {
+        errors.push(`newSubIssueCreated: expected sub-issue count to increase, but went from ${beforeSubIssueCount} to ${afterSubIssueCount}`);
+      } else {
+        core.info(`  ✓ newSubIssueCreated: sub-issue count increased from ${beforeSubIssueCount} to ${afterSubIssueCount}`);
+      }
+    }
+
+    // Check todosRemoved
+    if (typeof exp.todosRemoved === "number") {
+      const expectedAfterTodos = beforeTotalTodos - exp.todosRemoved;
+      if (afterTotalTodos !== expectedAfterTodos) {
+        errors.push(`todosRemoved: expected ${exp.todosRemoved} todos removed (${beforeTotalTodos} -> ${expectedAfterTodos}), but got ${afterTotalTodos}`);
+      } else {
+        core.info(`  ✓ todosRemoved: ${exp.todosRemoved} todo(s) removed as expected`);
+      }
+    }
+
+    // Check requirementsUpdated - verify parent body changed
+    if (exp.requirementsUpdated === true) {
+      // Fetch parent issue body
+      const { data: parentIssue } = await this.config.octokit.rest.issues.get({
+        owner: this.config.owner,
+        repo: this.config.repo,
+        issue_number: this.issueNumber!,
+      });
+      const parentBody = parentIssue.body || "";
+      const originalBody = firstFixture?.issue.body || "";
+
+      // Check if body changed (ignoring iteration history section)
+      const getBodyWithoutHistory = (body: string) =>
+        body.split("## Iteration History")[0].trim();
+
+      if (getBodyWithoutHistory(parentBody) === getBodyWithoutHistory(originalBody)) {
+        errors.push(`requirementsUpdated: expected parent body to change, but it didn't`);
+      } else {
+        core.info(`  ✓ requirementsUpdated: parent body was modified`);
+      }
+    }
+
+    // Check parentIssueModified
+    if (exp.parentIssueModified === true) {
+      const { data: parentIssue } = await this.config.octokit.rest.issues.get({
+        owner: this.config.owner,
+        repo: this.config.repo,
+        issue_number: this.issueNumber!,
+      });
+      const parentBody = parentIssue.body || "";
+      const originalBody = firstFixture?.issue.body || "";
+
+      const getBodyWithoutHistory = (body: string) =>
+        body.split("## Iteration History")[0].trim();
+
+      if (getBodyWithoutHistory(parentBody) === getBodyWithoutHistory(originalBody)) {
+        errors.push(`parentIssueModified: expected parent body to change, but it didn't`);
+      } else {
+        core.info(`  ✓ parentIssueModified: parent body was modified`);
+      }
+    }
+
+    // Check subIssuesModified - at least one sub-issue body should be different
+    if (exp.subIssuesModified === true) {
+      let anyModified = false;
+      for (const sub of state.subIssues) {
+        const fixtureSub = fixtureSubIssues.find((f) => f.title === sub.title);
+        if (fixtureSub) {
+          // Fetch actual sub-issue body
+          const { data: subIssue } = await this.config.octokit.rest.issues.get({
+            owner: this.config.owner,
+            repo: this.config.repo,
+            issue_number: sub.number,
+          });
+          if (subIssue.body !== fixtureSub.body) {
+            anyModified = true;
+            break;
+          }
+        }
+      }
+      if (!anyModified) {
+        errors.push(`subIssuesModified: expected at least one sub-issue to be modified, but none were`);
+      } else {
+        core.info(`  ✓ subIssuesModified: at least one sub-issue was modified`);
+      }
+    }
+
+    // Check completedWorkPreserved - closed sub-issues and checked todos unchanged
+    if (exp.completedWorkPreserved === true) {
+      // Find closed sub-issues in fixture
+      const closedFixtureSubs = fixtureSubIssues.filter((s) => s.state === "CLOSED");
+      let allPreserved = true;
+      for (const closedSub of closedFixtureSubs) {
+        const realNumber = this.subIssueNumbers.get(closedSub.title);
+        if (realNumber) {
+          const { data: subIssue } = await this.config.octokit.rest.issues.get({
+            owner: this.config.owner,
+            repo: this.config.repo,
+            issue_number: realNumber,
+          });
+          // Check state is still closed
+          if (subIssue.state !== "closed") {
+            allPreserved = false;
+            errors.push(`completedWorkPreserved: closed sub-issue #${realNumber} was reopened`);
+          }
+        }
+      }
+      if (allPreserved && closedFixtureSubs.length > 0) {
+        core.info(`  ✓ completedWorkPreserved: ${closedFixtureSubs.length} closed sub-issue(s) unchanged`);
+      }
+    }
+
     return errors;
   }
 
