@@ -51784,21 +51784,47 @@ Sub-issue PR for test scenario.`
     core24.info(
       `Linking sub-issue #${subIssueNumber} to parent #${this.issueNumber}`
     );
+    const { data: parentIssue } = await this.config.octokit.rest.issues.get({
+      owner: this.config.owner,
+      repo: this.config.repo,
+      issue_number: this.issueNumber
+    });
     const { data: subIssue } = await this.config.octokit.rest.issues.get({
       owner: this.config.owner,
       repo: this.config.repo,
       issue_number: subIssueNumber
     });
-    const parentRef = `Parent: #${this.issueNumber}`;
-    if (!subIssue.body?.includes(parentRef)) {
-      await this.config.octokit.rest.issues.update({
-        owner: this.config.owner,
-        repo: this.config.repo,
-        issue_number: subIssueNumber,
-        body: `${parentRef}
+    const mutation = `
+      mutation AddSubIssue($parentId: ID!, $subIssueId: ID!) {
+        addSubIssue(input: { issueId: $parentId, subIssueId: $subIssueId }) {
+          issue {
+            id
+          }
+          subIssue {
+            id
+          }
+        }
+      }
+    `;
+    try {
+      await this.config.octokit.graphql(mutation, {
+        parentId: parentIssue.node_id,
+        subIssueId: subIssue.node_id
+      });
+      core24.info(`  Linked sub-issue #${subIssueNumber} to parent #${this.issueNumber}`);
+    } catch (error11) {
+      core24.warning(`Failed to link via GraphQL, adding parent reference to body: ${error11}`);
+      const parentRef = `Parent: #${this.issueNumber}`;
+      if (!subIssue.body?.includes(parentRef)) {
+        await this.config.octokit.rest.issues.update({
+          owner: this.config.owner,
+          repo: this.config.repo,
+          issue_number: subIssueNumber,
+          body: `${parentRef}
 
 ${subIssue.body || ""}`
-      });
+        });
+      }
     }
   }
   /**

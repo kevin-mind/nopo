@@ -1564,23 +1564,51 @@ Issue: #${this.issueNumber}
       `Linking sub-issue #${subIssueNumber} to parent #${this.issueNumber}`,
     );
 
-    // GitHub's sub-issues feature requires the "sub-issue of" reference
-    // We'll add it to the issue body as a workaround since the GraphQL API
-    // for sub-issues is not widely available
+    // Get the node IDs for both issues (required for GraphQL mutation)
+    const { data: parentIssue } = await this.config.octokit.rest.issues.get({
+      owner: this.config.owner,
+      repo: this.config.repo,
+      issue_number: this.issueNumber,
+    });
+
     const { data: subIssue } = await this.config.octokit.rest.issues.get({
       owner: this.config.owner,
       repo: this.config.repo,
       issue_number: subIssueNumber,
     });
 
-    const parentRef = `Parent: #${this.issueNumber}`;
-    if (!subIssue.body?.includes(parentRef)) {
-      await this.config.octokit.rest.issues.update({
-        owner: this.config.owner,
-        repo: this.config.repo,
-        issue_number: subIssueNumber,
-        body: `${parentRef}\n\n${subIssue.body || ""}`,
+    // Use GitHub's addSubIssue mutation to properly link the sub-issue
+    const mutation = `
+      mutation AddSubIssue($parentId: ID!, $subIssueId: ID!) {
+        addSubIssue(input: { issueId: $parentId, subIssueId: $subIssueId }) {
+          issue {
+            id
+          }
+          subIssue {
+            id
+          }
+        }
+      }
+    `;
+
+    try {
+      await this.config.octokit.graphql(mutation, {
+        parentId: parentIssue.node_id,
+        subIssueId: subIssue.node_id,
       });
+      core.info(`  Linked sub-issue #${subIssueNumber} to parent #${this.issueNumber}`);
+    } catch (error) {
+      // If GraphQL mutation fails, fall back to adding parent reference in body
+      core.warning(`Failed to link via GraphQL, adding parent reference to body: ${error}`);
+      const parentRef = `Parent: #${this.issueNumber}`;
+      if (!subIssue.body?.includes(parentRef)) {
+        await this.config.octokit.rest.issues.update({
+          owner: this.config.owner,
+          repo: this.config.repo,
+          issue_number: subIssueNumber,
+          body: `${parentRef}\n\n${subIssue.body || ""}`,
+        });
+      }
     }
   }
 
