@@ -26,6 +26,42 @@ function substituteVars(
 }
 
 /**
+ * Transform legacy SCREAMING_SNAKE_CASE variable names to camelCase
+ * This bridges the gap between the old text-based prompts and new typed prompts
+ *
+ * Examples:
+ * - ISSUE_NUMBER -> issueNumber
+ * - ISSUE_TITLE -> issueTitle
+ * - PR_NUMBER -> prNumber
+ */
+function transformVarsToInputs(
+  vars: Record<string, string>,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(vars)) {
+    // Convert SCREAMING_SNAKE_CASE to camelCase
+    const camelKey = key
+      .toLowerCase()
+      .replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+
+    // Convert numeric strings to numbers for known numeric fields
+    const numericFields = ["issueNumber", "prNumber", "iteration"];
+    if (numericFields.includes(camelKey)) {
+      const numValue = parseInt(value, 10);
+      if (!isNaN(numValue)) {
+        result[camelKey] = numValue;
+        continue;
+      }
+    }
+
+    result[camelKey] = value;
+  }
+
+  return result;
+}
+
+/**
  * Resolve a prompt directory to file paths
  *
  * Prompt directories contain:
@@ -89,8 +125,8 @@ export function resolvePrompt(
     const registryPrompt = getPrompt(promptDir);
     if (registryPrompt) {
       // Convert promptVars to the expected input format
-      // The registry prompts use typed inputs, so we pass promptVars directly
-      const inputs = promptVars ?? {};
+      // Transform SCREAMING_SNAKE_CASE to camelCase for typed prompts
+      const inputs = promptVars ? transformVarsToInputs(promptVars) : {};
       const result = registryPrompt(inputs);
 
       // Convert PromptResult to ResolvedPrompt
