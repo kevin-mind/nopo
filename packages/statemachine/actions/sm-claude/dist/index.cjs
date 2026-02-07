@@ -40683,6 +40683,32 @@ function emitLogCIFailure({ context }) {
     }
   ];
 }
+function emitLogIterationStarted({
+  context
+}) {
+  return emitAppendHistory({ context }, "\u23F3 Iterating...");
+}
+function emitLogCISuccess({ context }) {
+  return [
+    {
+      type: "updateHistory",
+      token: "code",
+      issueNumber: context.issue.number,
+      matchIteration: context.issue.iteration,
+      matchPhase: String(context.currentPhase ?? "-"),
+      matchPattern: "\u23F3",
+      newMessage: "\u2705 CI Passed",
+      timestamp: context.workflowStartedAt ?? void 0,
+      commitSha: context.ciCommitSha ?? void 0,
+      runLink: context.ciRunUrl ?? void 0
+    }
+  ];
+}
+function emitLogReviewRequested({
+  context
+}) {
+  return emitAppendHistory({ context }, "\u{1F440} Review requested");
+}
 function emitCreateBranch({ context }) {
   const branchName = context.branch ?? deriveBranchName(context.issue.number, context.currentPhase ?? void 0);
   return [
@@ -41638,6 +41664,25 @@ var claudeMachine = setup({
         )
       )
     }),
+    // Iteration history logging (writes to issue body)
+    historyIterationStarted: assign({
+      pendingActions: ({ context }) => accumulateActions(
+        context.pendingActions,
+        emitLogIterationStarted({ context })
+      )
+    }),
+    historyCISuccess: assign({
+      pendingActions: ({ context }) => accumulateActions(
+        context.pendingActions,
+        emitLogCISuccess({ context })
+      )
+    }),
+    historyReviewRequested: assign({
+      pendingActions: ({ context }) => accumulateActions(
+        context.pendingActions,
+        emitLogReviewRequested({ context })
+      )
+    }),
     // Status actions
     setWorking: assign({
       pendingActions: ({ context }) => accumulateActions(context.pendingActions, emitSetWorking({ context }))
@@ -42097,7 +42142,7 @@ var claudeMachine = setup({
      * reviews and signals that iteration will continue.
      */
     prPush: {
-      entry: ["pushToDraft", "setReview"],
+      entry: ["pushToDraft", "setInProgress"],
       type: "final"
     },
     /**
@@ -42167,13 +42212,14 @@ var claudeMachine = setup({
         // CI passed and todos done -> go to review
         {
           target: "transitioningToReview",
-          guard: "readyForReview"
+          guard: "readyForReview",
+          actions: ["historyCISuccess"]
         },
         // CI passed but todos not done -> continue iterating
         {
           target: "iterating",
           guard: "ciPassed",
-          actions: ["clearFailures"]
+          actions: ["clearFailures", "historyCISuccess"]
         },
         // CI failed and max failures -> block
         {
@@ -42233,7 +42279,7 @@ var claudeMachine = setup({
      * Transitioning to review state
      */
     transitioningToReview: {
-      entry: ["transitionToReview"],
+      entry: ["transitionToReview", "historyReviewRequested"],
       always: "reviewing"
     },
     /**
@@ -42244,6 +42290,7 @@ var claudeMachine = setup({
         "createBranch",
         "setWorking",
         "incrementIteration",
+        "historyIterationStarted",
         "logIterating",
         "runClaude",
         "createPR"
@@ -42252,11 +42299,12 @@ var claudeMachine = setup({
         CI_SUCCESS: [
           {
             target: "transitioningToReview",
-            guard: "todosDone"
+            guard: "todosDone",
+            actions: ["historyCISuccess"]
           },
           {
             target: "iterating",
-            actions: ["clearFailures"]
+            actions: ["clearFailures", "historyCISuccess"]
           }
         ],
         CI_FAILURE: [
@@ -42281,6 +42329,7 @@ var claudeMachine = setup({
       entry: [
         "createBranch",
         "incrementIteration",
+        "historyIterationStarted",
         "logFixingCI",
         "runClaudeFixCI",
         "createPR"
@@ -42289,11 +42338,12 @@ var claudeMachine = setup({
         CI_SUCCESS: [
           {
             target: "transitioningToReview",
-            guard: "todosDone"
+            guard: "todosDone",
+            actions: ["historyCISuccess"]
           },
           {
             target: "iterating",
-            actions: ["clearFailures"]
+            actions: ["clearFailures", "historyCISuccess"]
           }
         ],
         CI_FAILURE: [

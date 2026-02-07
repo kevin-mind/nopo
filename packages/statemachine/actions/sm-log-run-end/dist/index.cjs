@@ -45103,6 +45103,32 @@ function emitLogCIFailure({ context: context2 }) {
     }
   ];
 }
+function emitLogIterationStarted({
+  context: context2
+}) {
+  return emitAppendHistory({ context: context2 }, "\u23F3 Iterating...");
+}
+function emitLogCISuccess({ context: context2 }) {
+  return [
+    {
+      type: "updateHistory",
+      token: "code",
+      issueNumber: context2.issue.number,
+      matchIteration: context2.issue.iteration,
+      matchPhase: String(context2.currentPhase ?? "-"),
+      matchPattern: "\u23F3",
+      newMessage: "\u2705 CI Passed",
+      timestamp: context2.workflowStartedAt ?? void 0,
+      commitSha: context2.ciCommitSha ?? void 0,
+      runLink: context2.ciRunUrl ?? void 0
+    }
+  ];
+}
+function emitLogReviewRequested({
+  context: context2
+}) {
+  return emitAppendHistory({ context: context2 }, "\u{1F440} Review requested");
+}
 function emitCreateBranch({ context: context2 }) {
   const branchName = context2.branch ?? deriveBranchName(context2.issue.number, context2.currentPhase ?? void 0);
   return [
@@ -46058,6 +46084,25 @@ var claudeMachine = setup({
         )
       )
     }),
+    // Iteration history logging (writes to issue body)
+    historyIterationStarted: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitLogIterationStarted({ context: context2 })
+      )
+    }),
+    historyCISuccess: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitLogCISuccess({ context: context2 })
+      )
+    }),
+    historyReviewRequested: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitLogReviewRequested({ context: context2 })
+      )
+    }),
     // Status actions
     setWorking: assign({
       pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitSetWorking({ context: context2 }))
@@ -46517,7 +46562,7 @@ var claudeMachine = setup({
      * reviews and signals that iteration will continue.
      */
     prPush: {
-      entry: ["pushToDraft", "setReview"],
+      entry: ["pushToDraft", "setInProgress"],
       type: "final"
     },
     /**
@@ -46587,13 +46632,14 @@ var claudeMachine = setup({
         // CI passed and todos done -> go to review
         {
           target: "transitioningToReview",
-          guard: "readyForReview"
+          guard: "readyForReview",
+          actions: ["historyCISuccess"]
         },
         // CI passed but todos not done -> continue iterating
         {
           target: "iterating",
           guard: "ciPassed",
-          actions: ["clearFailures"]
+          actions: ["clearFailures", "historyCISuccess"]
         },
         // CI failed and max failures -> block
         {
@@ -46653,7 +46699,7 @@ var claudeMachine = setup({
      * Transitioning to review state
      */
     transitioningToReview: {
-      entry: ["transitionToReview"],
+      entry: ["transitionToReview", "historyReviewRequested"],
       always: "reviewing"
     },
     /**
@@ -46664,6 +46710,7 @@ var claudeMachine = setup({
         "createBranch",
         "setWorking",
         "incrementIteration",
+        "historyIterationStarted",
         "logIterating",
         "runClaude",
         "createPR"
@@ -46672,11 +46719,12 @@ var claudeMachine = setup({
         CI_SUCCESS: [
           {
             target: "transitioningToReview",
-            guard: "todosDone"
+            guard: "todosDone",
+            actions: ["historyCISuccess"]
           },
           {
             target: "iterating",
-            actions: ["clearFailures"]
+            actions: ["clearFailures", "historyCISuccess"]
           }
         ],
         CI_FAILURE: [
@@ -46701,6 +46749,7 @@ var claudeMachine = setup({
       entry: [
         "createBranch",
         "incrementIteration",
+        "historyIterationStarted",
         "logFixingCI",
         "runClaudeFixCI",
         "createPR"
@@ -46709,11 +46758,12 @@ var claudeMachine = setup({
         CI_SUCCESS: [
           {
             target: "transitioningToReview",
-            guard: "todosDone"
+            guard: "todosDone",
+            actions: ["historyCISuccess"]
           },
           {
             target: "iterating",
-            actions: ["clearFailures"]
+            actions: ["clearFailures", "historyCISuccess"]
           }
         ],
         CI_FAILURE: [
