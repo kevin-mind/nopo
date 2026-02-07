@@ -759,7 +759,7 @@ export const claudeMachine = setup({
      * reviews and signals that iteration will continue.
      */
     prPush: {
-      entry: ["pushToDraft", "setReview"],
+      entry: ["pushToDraft", "setInProgress"],
       type: "final",
     },
 

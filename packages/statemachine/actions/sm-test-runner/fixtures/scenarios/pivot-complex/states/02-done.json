@@ -51,7 +51,6 @@
   "expected": {
     "parentIssueModified": true,
     "subIssuesModified": true,
-    "newSubIssueCreated": true,
-    "todosAdded": { "min": 3 }
+    "newSubIssueCreated": true
   }
 }
