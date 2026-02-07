@@ -66392,6 +66392,9 @@ async function handlePullRequestReviewCommentEvent() {
   if (hasSkipLabelOnPr) {
     return emptyResult(true, "PR has skip-dispatch label");
   }
+  if (pr.head.ref.startsWith("test/")) {
+    return emptyResult(true, "PR is on a test branch");
+  }
   if (comment.user.type === "Bot") {
     return emptyResult(true, "Comment is from a bot");
   }
@@ -66529,6 +66532,9 @@ async function handlePullRequestEvent(_octokit, _owner, _repo) {
   );
   if (hasSkipLabelOnPr) {
     return emptyResult(true, "PR has skip-dispatch or test:automation label");
+  }
+  if (pr.head.ref.startsWith("test/")) {
+    return emptyResult(true, "PR is on a test branch");
   }
   if (action === "review_requested") {
     const requestedReviewer = payload.requested_reviewer;

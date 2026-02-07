@@ -1522,6 +1522,11 @@ async function handlePullRequestReviewCommentEvent(): Promise<DetectionResult> {
     return emptyResult(true, "PR has skip-dispatch label");
   }
 
+  // Skip test branches (circuit breaker for test automation)
+  if (pr.head.ref.startsWith("test/")) {
+    return emptyResult(true, "PR is on a test branch");
+  }
+
   // Skip bot comments
   if (comment.user.type === "Bot") {
     return emptyResult(true, "Comment is from a bot");
@@ -1724,6 +1729,11 @@ async function handlePullRequestEvent(
   );
   if (hasSkipLabelOnPr) {
     return emptyResult(true, "PR has skip-dispatch or test:automation label");
+  }
+
+  // Skip test branches (circuit breaker for test automation)
+  if (pr.head.ref.startsWith("test/")) {
+    return emptyResult(true, "PR is on a test branch");
   }
 
   if (action === "review_requested") {
