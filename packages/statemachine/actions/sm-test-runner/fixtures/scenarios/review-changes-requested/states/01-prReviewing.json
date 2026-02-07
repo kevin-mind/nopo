@@ -1,5 +1,5 @@
 {
-  "state": "reviewing",
+  "state": "prReviewing",
   "issue": {
     "number": 0,
     "title": "Feature with review feedback",
