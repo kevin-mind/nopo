@@ -135,8 +135,7 @@ export async function executeApplyGroomingOutput(
     return { applied: true, decision: "ready" };
   }
 
-  // TODO: Run summary agent, create sub-issues, update issue body
-  // For now, just determine the decision based on agent readiness
+  // Determine the decision based on agent readiness
   const allReady =
     groomingOutput.pm.ready &&
     groomingOutput.engineer.ready &&
@@ -144,7 +143,43 @@ export async function executeApplyGroomingOutput(
     groomingOutput.research.ready;
 
   const decision = allReady ? "ready" : "needs_info";
-
   core.info(`Grooming decision: ${decision}`);
+
+  // Apply the decision
+  if (decision === "ready") {
+    // Add 'groomed' label to indicate issue is ready for implementation
+    try {
+      await ctx.octokit.rest.issues.addLabels({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: action.issueNumber,
+        labels: ["groomed"],
+      });
+      core.info(`Added 'groomed' label to issue #${action.issueNumber}`);
+    } catch (error) {
+      core.warning(`Failed to add 'groomed' label: ${error}`);
+    }
+  } else {
+    // Collect questions from agents
+    const questions: string[] = [];
+    for (const [agentType, output] of Object.entries(groomingOutput)) {
+      const agentOutput = output as GroomingAgentOutput;
+      if (agentOutput.questions && agentOutput.questions.length > 0) {
+        questions.push(`**${agentType}:**`);
+        questions.push(...agentOutput.questions.map((q) => `- ${q}`));
+      }
+    }
+
+    // Post comment with questions
+    if (questions.length > 0) {
+      await ctx.octokit.rest.issues.createComment({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: action.issueNumber,
+        body: `## Grooming Questions\n\nThe following questions need to be addressed before this issue is ready:\n\n${questions.join("\n")}`,
+      });
+    }
+  }
+
   return { applied: true, decision };
 }

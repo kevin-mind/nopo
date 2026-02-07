@@ -19740,10 +19740,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.error = error5;
-    function warning14(message, properties = {}) {
+    function warning15(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning14;
+    exports2.warning = warning15;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
@@ -69061,6 +69061,40 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
   const allReady = groomingOutput.pm.ready && groomingOutput.engineer.ready && groomingOutput.qa.ready && groomingOutput.research.ready;
   const decision = allReady ? "ready" : "needs_info";
   core15.info(`Grooming decision: ${decision}`);
+  if (decision === "ready") {
+    try {
+      await ctx.octokit.rest.issues.addLabels({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: action.issueNumber,
+        labels: ["groomed"]
+      });
+      core15.info(`Added 'groomed' label to issue #${action.issueNumber}`);
+    } catch (error5) {
+      core15.warning(`Failed to add 'groomed' label: ${error5}`);
+    }
+  } else {
+    const questions = [];
+    for (const [agentType, output] of Object.entries(groomingOutput)) {
+      const agentOutput = output;
+      if (agentOutput.questions && agentOutput.questions.length > 0) {
+        questions.push(`**${agentType}:**`);
+        questions.push(...agentOutput.questions.map((q) => `- ${q}`));
+      }
+    }
+    if (questions.length > 0) {
+      await ctx.octokit.rest.issues.createComment({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: action.issueNumber,
+        body: `## Grooming Questions
+
+The following questions need to be addressed before this issue is ready:
+
+${questions.join("\n")}`
+      });
+    }
+  }
   return { applied: true, decision };
 }
 
@@ -69119,9 +69153,7 @@ function applyTodoModifications(body, modifications) {
       }
     } else if (mod.action === "modify") {
       if (todoIndex < 0 || todoIndex >= todos.length) {
-        core16.warning(
-          `Cannot modify todo at index ${todoIndex}: out of bounds`
-        );
+        core16.warning(`Cannot modify todo at index ${todoIndex}: out of bounds`);
         continue;
       }
       const todo = todos[todoIndex];
@@ -69135,9 +69167,7 @@ function applyTodoModifications(body, modifications) {
       todo.text = mod.text || "";
     } else if (mod.action === "remove") {
       if (todoIndex < 0 || todoIndex >= todos.length) {
-        core16.warning(
-          `Cannot remove todo at index ${todoIndex}: out of bounds`
-        );
+        core16.warning(`Cannot remove todo at index ${todoIndex}: out of bounds`);
         continue;
       }
       const todo = todos[todoIndex];

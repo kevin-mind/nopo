@@ -19740,10 +19740,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.error = error9;
-    function warning20(message, properties = {}) {
+    function warning21(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning20;
+    exports2.warning = warning21;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
@@ -68946,6 +68946,40 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
   const allReady = groomingOutput.pm.ready && groomingOutput.engineer.ready && groomingOutput.qa.ready && groomingOutput.research.ready;
   const decision = allReady ? "ready" : "needs_info";
   core15.info(`Grooming decision: ${decision}`);
+  if (decision === "ready") {
+    try {
+      await ctx.octokit.rest.issues.addLabels({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: action.issueNumber,
+        labels: ["groomed"]
+      });
+      core15.info(`Added 'groomed' label to issue #${action.issueNumber}`);
+    } catch (error9) {
+      core15.warning(`Failed to add 'groomed' label: ${error9}`);
+    }
+  } else {
+    const questions = [];
+    for (const [agentType, output] of Object.entries(groomingOutput)) {
+      const agentOutput = output;
+      if (agentOutput.questions && agentOutput.questions.length > 0) {
+        questions.push(`**${agentType}:**`);
+        questions.push(...agentOutput.questions.map((q) => `- ${q}`));
+      }
+    }
+    if (questions.length > 0) {
+      await ctx.octokit.rest.issues.createComment({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: action.issueNumber,
+        body: `## Grooming Questions
+
+The following questions need to be addressed before this issue is ready:
+
+${questions.join("\n")}`
+      });
+    }
+  }
   return { applied: true, decision };
 }
 
@@ -71779,8 +71813,8 @@ function formatValidationResult(name, result) {
   }
   if (result.warnings.length > 0) {
     lines.push("  Warnings:");
-    for (const warning20 of result.warnings) {
-      lines.push(`    - ${warning20}`);
+    for (const warning21 of result.warnings) {
+      lines.push(`    - ${warning21}`);
     }
   }
   return lines.join("\n");
