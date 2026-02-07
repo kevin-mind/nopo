@@ -57,6 +57,156 @@ interface PivotOutput {
 }
 
 // ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Upsert a section in a markdown body
+ * Simple version - inserts or updates a ## section
+ */
+function upsertSectionInBody(
+  body: string,
+  sectionName: string,
+  content: string,
+): string {
+  const escapedName = sectionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(
+    `(## ${escapedName}\\s*\\n)[\\s\\S]*?(?=\\n## |\\n<!-- |$)`,
+    "i",
+  );
+
+  if (pattern.test(body)) {
+    // Section exists - replace it
+    return body.replace(pattern, `$1\n${content}\n`).trim();
+  } else {
+    // Section doesn't exist - append it
+    return `${body.trim()}\n\n## ${sectionName}\n\n${content}`;
+  }
+}
+
+/**
+ * Apply todo modifications to an issue body
+ *
+ * Modifications are applied in order with index recalculation after each operation:
+ * - add: inserts a new unchecked todo after the specified index (-1 for prepend)
+ * - modify: changes the text of an unchecked todo at the index
+ * - remove: deletes an unchecked todo at the index
+ *
+ * Safety: This function refuses to modify checked todos ([x])
+ */
+function applyTodoModifications(
+  body: string,
+  modifications: TodoModification[],
+): string {
+  const lines = body.split("\n");
+
+  // Build array of todo line indices and their content
+  interface TodoEntry {
+    lineIndex: number;
+    checked: boolean;
+    text: string;
+  }
+
+  const todos: TodoEntry[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    const match = line.match(/^- \[([ x])\] (.*)$/);
+    if (match) {
+      todos.push({
+        lineIndex: i,
+        checked: match[1] === "x",
+        text: match[2] || "",
+      });
+    }
+  }
+
+  // Apply modifications in order
+  for (const mod of modifications) {
+    const todoIndex = mod.index;
+
+    if (mod.action === "add") {
+      // Add inserts AFTER the specified index (-1 means prepend)
+      const insertLineIndex =
+        todoIndex < 0
+          ? todos.length > 0
+            ? todos[0]!.lineIndex
+            : lines.length
+          : todoIndex < todos.length
+            ? todos[todoIndex]!.lineIndex + 1
+            : lines.length;
+
+      const newLine = `- [ ] ${mod.text || ""}`;
+      lines.splice(insertLineIndex, 0, newLine);
+
+      // Recalculate todos
+      todos.length = 0;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]!;
+        const match = line.match(/^- \[([ x])\] (.*)$/);
+        if (match) {
+          todos.push({
+            lineIndex: i,
+            checked: match[1] === "x",
+            text: match[2] || "",
+          });
+        }
+      }
+    } else if (mod.action === "modify") {
+      if (todoIndex < 0 || todoIndex >= todos.length) {
+        core.warning(
+          `Cannot modify todo at index ${todoIndex}: out of bounds`,
+        );
+        continue;
+      }
+
+      const todo = todos[todoIndex]!;
+      if (todo.checked) {
+        core.warning(
+          `Cannot modify checked todo at index ${todoIndex}: safety constraint`,
+        );
+        continue;
+      }
+
+      lines[todo.lineIndex] = `- [ ] ${mod.text || ""}`;
+      todo.text = mod.text || "";
+    } else if (mod.action === "remove") {
+      if (todoIndex < 0 || todoIndex >= todos.length) {
+        core.warning(
+          `Cannot remove todo at index ${todoIndex}: out of bounds`,
+        );
+        continue;
+      }
+
+      const todo = todos[todoIndex]!;
+      if (todo.checked) {
+        core.warning(
+          `Cannot remove checked todo at index ${todoIndex}: safety constraint`,
+        );
+        continue;
+      }
+
+      lines.splice(todo.lineIndex, 1);
+
+      // Recalculate todos
+      todos.length = 0;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]!;
+        const match = line.match(/^- \[([ x])\] (.*)$/);
+        if (match) {
+          todos.push({
+            lineIndex: i,
+            checked: match[1] === "x",
+            text: match[2] || "",
+          });
+        }
+      }
+    }
+  }
+
+  return lines.join("\n");
+}
+
+// ============================================================================
 // Apply Pivot Output
 // ============================================================================
 
@@ -149,33 +299,116 @@ export async function executeApplyPivotOutput(
     return { applied: true, changesApplied };
   }
 
-  // TODO: Implement safety validations and change application
-  // For now, just log the changes
+  // Apply parent issue section updates
   if (mods?.parent_issue?.update_sections) {
+    const { data: parentIssue } = await ctx.octokit.rest.issues.get({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: action.issueNumber,
+    });
+
+    let updatedBody = parentIssue.body || "";
+
     for (const [section, content] of Object.entries(
       mods.parent_issue.update_sections,
     )) {
-      core.info(`Would update parent issue section "${section}": ${content}`);
+      core.info(`Updating parent issue section "${section}"`);
+      updatedBody = upsertSectionInBody(updatedBody, section, content);
     }
+
+    await ctx.octokit.rest.issues.update({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: action.issueNumber,
+      body: updatedBody,
+    });
+    core.info(`Updated parent issue body`);
   }
 
+  // Apply sub-issue modifications
   if (mods?.sub_issues) {
     for (const subIssue of mods.sub_issues) {
       if (subIssue.action === "skip") continue;
-      core.info(`Would modify sub-issue #${subIssue.issue_number}`);
-      if (subIssue.todo_modifications) {
-        for (const mod of subIssue.todo_modifications) {
-          core.info(`  ${mod.action} todo at index ${mod.index}: ${mod.text}`);
-        }
+
+      core.info(`Modifying sub-issue #${subIssue.issue_number}`);
+
+      // Fetch sub-issue body
+      const { data: issueData } = await ctx.octokit.rest.issues.get({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: subIssue.issue_number,
+      });
+
+      let updatedBody = issueData.body || "";
+
+      // Apply todo modifications
+      if (subIssue.todo_modifications && subIssue.todo_modifications.length > 0) {
+        updatedBody = applyTodoModifications(
+          updatedBody,
+          subIssue.todo_modifications,
+        );
       }
+
+      // Apply description update
+      if (subIssue.update_description) {
+        updatedBody = subIssue.update_description;
+      }
+
+      // Update the sub-issue
+      await ctx.octokit.rest.issues.update({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: subIssue.issue_number,
+        body: updatedBody,
+      });
+
+      core.info(`Updated sub-issue #${subIssue.issue_number}`);
     }
   }
 
-  // Create new sub-issues if specified
-  if (newSubIssueCount > 0) {
-    core.info(`Would create ${newSubIssueCount} new sub-issues`);
-    for (const newSubIssue of mods!.new_sub_issues!) {
-      core.info(`  - ${newSubIssue.title} (${newSubIssue.reason})`);
+  // Create new sub-issues
+  if (mods?.new_sub_issues && mods.new_sub_issues.length > 0) {
+    core.info(`Creating ${mods.new_sub_issues.length} new sub-issues`);
+
+    for (const newSubIssue of mods.new_sub_issues) {
+      // Build body with todos
+      const todoList = newSubIssue.todos.map((t) => `- [ ] ${t}`).join("\n");
+      const body = `${newSubIssue.description}\n\n## Todo\n\n${todoList}`;
+
+      const { data: createdIssue } = await ctx.octokit.rest.issues.create({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        title: newSubIssue.title,
+        body,
+      });
+
+      core.info(
+        `Created sub-issue #${createdIssue.number}: ${newSubIssue.title} (${newSubIssue.reason})`,
+      );
+
+      // Link to parent using GraphQL
+      try {
+        const { data: parentIssue } = await ctx.octokit.rest.issues.get({
+          owner: ctx.owner,
+          repo: ctx.repo,
+          issue_number: action.issueNumber,
+        });
+
+        await ctx.octokit.graphql(
+          `mutation AddSubIssue($parentId: ID!, $subIssueId: ID!) {
+            addSubIssue(input: { issueId: $parentId, subIssueId: $subIssueId }) {
+              issue { id }
+            }
+          }`,
+          {
+            parentId: parentIssue.node_id,
+            subIssueId: createdIssue.node_id,
+          },
+        );
+        core.info(`Linked sub-issue #${createdIssue.number} to parent`);
+      } catch (error) {
+        core.warning(`Failed to link sub-issue via GraphQL: ${error}`);
+      }
     }
   }
 

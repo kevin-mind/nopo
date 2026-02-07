@@ -19740,10 +19740,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.error = error5;
-    function warning13(message, properties = {}) {
+    function warning14(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning13;
+    exports2.warning = warning14;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
@@ -69067,6 +69067,103 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
 // ../../packages/statemachine/src/runner/executors/pivot.ts
 var core16 = __toESM(require_core(), 1);
 var fs11 = __toESM(require("fs"), 1);
+function upsertSectionInBody(body, sectionName, content3) {
+  const escapedName = sectionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(
+    `(## ${escapedName}\\s*\\n)[\\s\\S]*?(?=\\n## |\\n<!-- |$)`,
+    "i"
+  );
+  if (pattern.test(body)) {
+    return body.replace(pattern, `$1
+${content3}
+`).trim();
+  } else {
+    return `${body.trim()}
+
+## ${sectionName}
+
+${content3}`;
+  }
+}
+function applyTodoModifications(body, modifications) {
+  const lines = body.split("\n");
+  const todos = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const match = line.match(/^- \[([ x])\] (.*)$/);
+    if (match) {
+      todos.push({
+        lineIndex: i,
+        checked: match[1] === "x",
+        text: match[2] || ""
+      });
+    }
+  }
+  for (const mod of modifications) {
+    const todoIndex = mod.index;
+    if (mod.action === "add") {
+      const insertLineIndex = todoIndex < 0 ? todos.length > 0 ? todos[0].lineIndex : lines.length : todoIndex < todos.length ? todos[todoIndex].lineIndex + 1 : lines.length;
+      const newLine = `- [ ] ${mod.text || ""}`;
+      lines.splice(insertLineIndex, 0, newLine);
+      todos.length = 0;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const match = line.match(/^- \[([ x])\] (.*)$/);
+        if (match) {
+          todos.push({
+            lineIndex: i,
+            checked: match[1] === "x",
+            text: match[2] || ""
+          });
+        }
+      }
+    } else if (mod.action === "modify") {
+      if (todoIndex < 0 || todoIndex >= todos.length) {
+        core16.warning(
+          `Cannot modify todo at index ${todoIndex}: out of bounds`
+        );
+        continue;
+      }
+      const todo = todos[todoIndex];
+      if (todo.checked) {
+        core16.warning(
+          `Cannot modify checked todo at index ${todoIndex}: safety constraint`
+        );
+        continue;
+      }
+      lines[todo.lineIndex] = `- [ ] ${mod.text || ""}`;
+      todo.text = mod.text || "";
+    } else if (mod.action === "remove") {
+      if (todoIndex < 0 || todoIndex >= todos.length) {
+        core16.warning(
+          `Cannot remove todo at index ${todoIndex}: out of bounds`
+        );
+        continue;
+      }
+      const todo = todos[todoIndex];
+      if (todo.checked) {
+        core16.warning(
+          `Cannot remove checked todo at index ${todoIndex}: safety constraint`
+        );
+        continue;
+      }
+      lines.splice(todo.lineIndex, 1);
+      todos.length = 0;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const match = line.match(/^- \[([ x])\] (.*)$/);
+        if (match) {
+          todos.push({
+            lineIndex: i,
+            checked: match[1] === "x",
+            text: match[2] || ""
+          });
+        }
+      }
+    }
+  }
+  return lines.join("\n");
+}
 async function executeApplyPivotOutput(action, ctx, structuredOutput) {
   let pivotOutput;
   if (structuredOutput) {
@@ -69135,27 +69232,93 @@ ${pivotOutput.summary_for_user}
     return { applied: true, changesApplied };
   }
   if (mods?.parent_issue?.update_sections) {
+    const { data: parentIssue } = await ctx.octokit.rest.issues.get({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: action.issueNumber
+    });
+    let updatedBody = parentIssue.body || "";
     for (const [section, content3] of Object.entries(
       mods.parent_issue.update_sections
     )) {
-      core16.info(`Would update parent issue section "${section}": ${content3}`);
+      core16.info(`Updating parent issue section "${section}"`);
+      updatedBody = upsertSectionInBody(updatedBody, section, content3);
     }
+    await ctx.octokit.rest.issues.update({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: action.issueNumber,
+      body: updatedBody
+    });
+    core16.info(`Updated parent issue body`);
   }
   if (mods?.sub_issues) {
     for (const subIssue of mods.sub_issues) {
       if (subIssue.action === "skip") continue;
-      core16.info(`Would modify sub-issue #${subIssue.issue_number}`);
-      if (subIssue.todo_modifications) {
-        for (const mod of subIssue.todo_modifications) {
-          core16.info(`  ${mod.action} todo at index ${mod.index}: ${mod.text}`);
-        }
+      core16.info(`Modifying sub-issue #${subIssue.issue_number}`);
+      const { data: issueData } = await ctx.octokit.rest.issues.get({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: subIssue.issue_number
+      });
+      let updatedBody = issueData.body || "";
+      if (subIssue.todo_modifications && subIssue.todo_modifications.length > 0) {
+        updatedBody = applyTodoModifications(
+          updatedBody,
+          subIssue.todo_modifications
+        );
       }
+      if (subIssue.update_description) {
+        updatedBody = subIssue.update_description;
+      }
+      await ctx.octokit.rest.issues.update({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: subIssue.issue_number,
+        body: updatedBody
+      });
+      core16.info(`Updated sub-issue #${subIssue.issue_number}`);
     }
   }
-  if (newSubIssueCount > 0) {
-    core16.info(`Would create ${newSubIssueCount} new sub-issues`);
+  if (mods?.new_sub_issues && mods.new_sub_issues.length > 0) {
+    core16.info(`Creating ${mods.new_sub_issues.length} new sub-issues`);
     for (const newSubIssue of mods.new_sub_issues) {
-      core16.info(`  - ${newSubIssue.title} (${newSubIssue.reason})`);
+      const todoList = newSubIssue.todos.map((t) => `- [ ] ${t}`).join("\n");
+      const body = `${newSubIssue.description}
+
+## Todo
+
+${todoList}`;
+      const { data: createdIssue } = await ctx.octokit.rest.issues.create({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        title: newSubIssue.title,
+        body
+      });
+      core16.info(
+        `Created sub-issue #${createdIssue.number}: ${newSubIssue.title} (${newSubIssue.reason})`
+      );
+      try {
+        const { data: parentIssue } = await ctx.octokit.rest.issues.get({
+          owner: ctx.owner,
+          repo: ctx.repo,
+          issue_number: action.issueNumber
+        });
+        await ctx.octokit.graphql(
+          `mutation AddSubIssue($parentId: ID!, $subIssueId: ID!) {
+            addSubIssue(input: { issueId: $parentId, subIssueId: $subIssueId }) {
+              issue { id }
+            }
+          }`,
+          {
+            parentId: parentIssue.node_id,
+            subIssueId: createdIssue.node_id
+          }
+        );
+        core16.info(`Linked sub-issue #${createdIssue.number} to parent`);
+      } catch (error5) {
+        core16.warning(`Failed to link sub-issue via GraphQL: ${error5}`);
+      }
     }
   }
   await ctx.octokit.rest.issues.createComment({
