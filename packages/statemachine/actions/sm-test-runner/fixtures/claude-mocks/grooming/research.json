@@ -19,6 +19,8 @@
         "relevance": "Action executors that handle state machine actions"
       }
     ],
-    "context_summary": "No blocking issues or PRs found. Implementation can proceed."
+    "context_summary": "No blocking issues or PRs found. Implementation can proceed.",
+    "ready": true,
+    "questions": []
   }
 }

@@ -153,9 +153,7 @@ function applyTodoModifications(
       }
     } else if (mod.action === "modify") {
       if (todoIndex < 0 || todoIndex >= todos.length) {
-        core.warning(
-          `Cannot modify todo at index ${todoIndex}: out of bounds`,
-        );
+        core.warning(`Cannot modify todo at index ${todoIndex}: out of bounds`);
         continue;
       }
 
@@ -171,9 +169,7 @@ function applyTodoModifications(
       todo.text = mod.text || "";
     } else if (mod.action === "remove") {
       if (todoIndex < 0 || todoIndex >= todos.length) {
-        core.warning(
-          `Cannot remove todo at index ${todoIndex}: out of bounds`,
-        );
+        core.warning(`Cannot remove todo at index ${todoIndex}: out of bounds`);
         continue;
       }
 
@@ -342,7 +338,10 @@ export async function executeApplyPivotOutput(
       let updatedBody = issueData.body || "";
 
       // Apply todo modifications
-      if (subIssue.todo_modifications && subIssue.todo_modifications.length > 0) {
+      if (
+        subIssue.todo_modifications &&
+        subIssue.todo_modifications.length > 0
+      ) {
         updatedBody = applyTodoModifications(
           updatedBody,
           subIssue.todo_modifications,
