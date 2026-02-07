@@ -7,7 +7,7 @@
     "title": "Feature with review feedback",
     "state": "OPEN",
     "body": "## Description\n\nTest scenario for review feedback loop.\n\n## Todo\n\n- [x] Implement initial feature",
-    "projectStatus": "In review",
+    "projectStatus": "In progress",
     "iteration": 1,
     "failures": 0,
     "assignees": ["nopo-bot"],
