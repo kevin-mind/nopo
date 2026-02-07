@@ -1804,6 +1804,12 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
     return emptyResult(true, "PR has skip-dispatch or test:automation label");
   }
 
+  // Skip test branches (circuit breaker for test automation)
+  // This handles the case where label hasn't propagated to webhook payload yet
+  if (pr.head.ref.startsWith("test/")) {
+    return emptyResult(true, "PR is on a test branch");
+  }
+
   // Skip if PR is draft
   if (pr.draft) {
     return emptyResult(true, "PR is a draft");
