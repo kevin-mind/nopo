@@ -46726,109 +46726,115 @@ var claudeMachine = setup({
   states: {
     /**
      * Initial state - determine what to do based on context
+     *
+     * Uses event-based transitions (DETECT) instead of `always` to ensure
+     * only ONE state transition happens per invocation. This prevents the
+     * iteration counter from advancing multiple times in a single run.
      */
     detecting: {
       entry: "logDetecting",
-      always: [
-        // Reset takes priority - can reset even Done/Blocked issues
-        { target: "resetting", guard: "triggeredByReset" },
-        // Pivot takes priority - can pivot even Done/Blocked issues
-        { target: "pivoting", guard: "triggeredByPivot" },
-        // Check terminal states first
-        { target: "done", guard: "isAlreadyDone" },
-        { target: "blocked", guard: "isBlocked" },
-        { target: "error", guard: "isError" },
-        // Merge queue logging events (handle early, they're log-only)
-        {
-          target: "mergeQueueLogging",
-          guard: "triggeredByMergeQueueEntry"
-        },
-        {
-          target: "mergeQueueFailureLogging",
-          guard: "triggeredByMergeQueueFailure"
-        },
-        // PR merged -> process merge (close sub-issue, then orchestrate)
-        { target: "processingMerge", guard: "triggeredByPRMerged" },
-        { target: "deployedStageLogging", guard: "triggeredByDeployedStage" },
-        { target: "deployedProdLogging", guard: "triggeredByDeployedProd" },
-        // Check if this is a triage request
-        {
-          target: "triaging",
-          guard: "triggeredByTriage"
-        },
-        // Check if this is a comment (@claude mention)
-        {
-          target: "commenting",
-          guard: "triggeredByComment"
-        },
-        // Check if this is an orchestration request
-        {
-          target: "orchestrating",
-          guard: "triggeredByOrchestrate"
-        },
-        // Check if this is a PR review request (bot should review)
-        {
-          target: "prReviewing",
-          guard: "triggeredByPRReview"
-        },
-        // Check if this is a PR response (bot responds to bot's review)
-        {
-          target: "prResponding",
-          guard: "triggeredByPRResponse"
-        },
-        // Check if this is a PR human response (bot responds to human's review)
-        {
-          target: "prRespondingHuman",
-          guard: "triggeredByPRHumanResponse"
-        },
-        // Check if this is a PR review approval (Claude approved via nopo-reviewer)
-        {
-          target: "processingReview",
-          guard: "triggeredByPRReviewApproved"
-        },
-        // Check if this is a push to a PR branch
-        {
-          target: "prPush",
-          guard: "triggeredByPRPush"
-        },
-        // Check if this is a CI completion event
-        {
-          target: "processingCI",
-          guard: "triggeredByCI"
-        },
-        // Check if this is a review submission event (for orchestration)
-        {
-          target: "processingReview",
-          guard: "triggeredByReview"
-        },
-        // Check if issue needs triage (no "triaged" label)
-        // This ensures untriaged issues get triaged before any work begins
-        {
-          target: "triaging",
-          guard: "needsTriage"
-        },
-        // Check if this is a grooming trigger
-        {
-          target: "grooming",
-          guard: "triggeredByGroom"
-        },
-        // Check if issue needs grooming (has triaged but not groomed)
-        // This ensures triaged issues get groomed before any work begins
-        {
-          target: "grooming",
-          guard: "needsGrooming"
-        },
-        // Check for multi-phase work
-        { target: "initializing", guard: "needsSubIssues" },
-        { target: "orchestrating", guard: "hasSubIssues" },
-        // Check current state
-        { target: "reviewing", guard: "isInReview" },
-        // Check if ready for review (CI passed + todos done) from any trigger
-        // This allows the state machine to "catch up" when re-triggered
-        { target: "transitioningToReview", guard: "readyForReview" },
-        // Default to iterating
-        { target: "iterating" }
-      ]
+      on: {
+        DETECT: [
+          // Reset takes priority - can reset even Done/Blocked issues
+          { target: "resetting", guard: "triggeredByReset" },
+          // Pivot takes priority - can pivot even Done/Blocked issues
+          { target: "pivoting", guard: "triggeredByPivot" },
+          // Check terminal states first
+          { target: "done", guard: "isAlreadyDone" },
+          { target: "blocked", guard: "isBlocked" },
+          { target: "error", guard: "isError" },
+          // Merge queue logging events (handle early, they're log-only)
+          {
+            target: "mergeQueueLogging",
+            guard: "triggeredByMergeQueueEntry"
+          },
+          {
+            target: "mergeQueueFailureLogging",
+            guard: "triggeredByMergeQueueFailure"
+          },
+          // PR merged -> process merge (close sub-issue, then orchestrate)
+          { target: "processingMerge", guard: "triggeredByPRMerged" },
+          { target: "deployedStageLogging", guard: "triggeredByDeployedStage" },
+          { target: "deployedProdLogging", guard: "triggeredByDeployedProd" },
+          // Check if this is a triage request
+          {
+            target: "triaging",
+            guard: "triggeredByTriage"
+          },
+          // Check if this is a comment (@claude mention)
+          {
+            target: "commenting",
+            guard: "triggeredByComment"
+          },
+          // Check if this is an orchestration request
+          {
+            target: "orchestrating",
+            guard: "triggeredByOrchestrate"
+          },
+          // Check if this is a PR review request (bot should review)
+          {
+            target: "prReviewing",
+            guard: "triggeredByPRReview"
+          },
+          // Check if this is a PR response (bot responds to bot's review)
+          {
+            target: "prResponding",
+            guard: "triggeredByPRResponse"
+          },
+          // Check if this is a PR human response (bot responds to human's review)
+          {
+            target: "prRespondingHuman",
+            guard: "triggeredByPRHumanResponse"
+          },
+          // Check if this is a PR review approval (Claude approved via nopo-reviewer)
+          {
+            target: "processingReview",
+            guard: "triggeredByPRReviewApproved"
+          },
+          // Check if this is a push to a PR branch
+          {
+            target: "prPush",
+            guard: "triggeredByPRPush"
+          },
+          // Check if this is a CI completion event
+          {
+            target: "processingCI",
+            guard: "triggeredByCI"
+          },
+          // Check if this is a review submission event (for orchestration)
+          {
+            target: "processingReview",
+            guard: "triggeredByReview"
+          },
+          // Check if issue needs triage (no "triaged" label)
+          // This ensures untriaged issues get triaged before any work begins
+          {
+            target: "triaging",
+            guard: "needsTriage"
+          },
+          // Check if this is a grooming trigger
+          {
+            target: "grooming",
+            guard: "triggeredByGroom"
+          },
+          // Check if issue needs grooming (has triaged but not groomed)
+          // This ensures triaged issues get groomed before any work begins
+          {
+            target: "grooming",
+            guard: "needsGrooming"
+          },
+          // Check for multi-phase work
+          { target: "initializing", guard: "needsSubIssues" },
+          { target: "orchestrating", guard: "hasSubIssues" },
+          // Check current state
+          { target: "reviewing", guard: "isInReview" },
+          // Check if ready for review (CI passed + todos done) from any trigger
+          // This allows the state machine to "catch up" when re-triggered
+          { target: "transitioningToReview", guard: "readyForReview" },
+          // Default to iterating
+          { target: "iterating" }
+        ]
+      }
     },
     /**
      * Triage an issue - analyze, label, create sub-issues
@@ -66530,6 +66536,7 @@ async function runIssueMachine(options) {
   }
   const actor = createActor(claudeMachine, { input: context2 });
   actor.start();
+  actor.send({ type: "DETECT" });
   const snapshot = actor.getSnapshot();
   const finalState = String(snapshot.value);
   const pendingActions = snapshot.context.pendingActions;

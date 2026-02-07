@@ -121,8 +121,10 @@ export function predictNextState(context: MachineContext): PredictedState {
     input: context,
   });
 
-  // Start the actor to trigger initial transitions
+  // Start the actor, then send DETECT event to trigger ONE state transition
+  // Uses event-based transitions instead of `always` to ensure single transitions
   actor.start();
+  actor.send({ type: "DETECT" });
 
   // Get the final snapshot after transitions
   const snapshot = actor.getSnapshot();

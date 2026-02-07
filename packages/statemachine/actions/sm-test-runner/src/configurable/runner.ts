@@ -948,8 +948,10 @@ Issue: #${this.issueNumber}
     core.endGroup();
 
     // Run state machine to get pending actions
+    // Send DETECT event to trigger ONE state transition (event-based, not `always`)
     const actor = createActor(claudeMachine, { input: context });
     actor.start();
+    actor.send({ type: "DETECT" });
     const snapshot = actor.getSnapshot();
     actor.stop();
 
