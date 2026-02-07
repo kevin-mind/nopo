@@ -73596,6 +73596,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
     let mockOutputs;
     if (this.inputs.mockClaude) {
       mockOutputs = {};
+      const groomingMocks = {};
       for (const [mockRef, mock] of this.scenario.claudeMocks) {
         const transformedOutput = this.transformMockOutput(
           mock.output
@@ -73605,6 +73606,18 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
         if (basePromptDir && basePromptDir !== mockRef && !mockOutputs[basePromptDir]) {
           mockOutputs[basePromptDir] = transformedOutput;
         }
+        if (mockRef.startsWith("grooming/") && mockRef !== "grooming/summary") {
+          const agentType = mockRef.split("/")[1];
+          if (agentType) {
+            groomingMocks[agentType] = transformedOutput;
+          }
+        }
+      }
+      if (Object.keys(groomingMocks).length > 0) {
+        mockOutputs.grooming = groomingMocks;
+        core27.info(
+          `Combined ${Object.keys(groomingMocks).length} grooming mocks into 'grooming' key`
+        );
       }
       if (Object.keys(mockOutputs).length > 0) {
         core27.info(

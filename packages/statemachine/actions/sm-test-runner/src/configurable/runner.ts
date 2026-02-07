@@ -968,6 +968,10 @@ Issue: #${this.issueNumber}
     let mockOutputs: Record<string, Record<string, unknown>> | undefined;
     if (this.inputs.mockClaude) {
       mockOutputs = {};
+
+      // Track grooming mocks for combining into a single output
+      const groomingMocks: Record<string, Record<string, unknown>> = {};
+
       for (const [mockRef, mock] of this.scenario.claudeMocks) {
         // Transform the mock output to replace placeholder issue numbers with real ones
         const transformedOutput = this.transformMockOutput(
@@ -989,6 +993,26 @@ Issue: #${this.issueNumber}
         ) {
           mockOutputs[basePromptDir] = transformedOutput;
         }
+
+        // Collect grooming mocks for combining
+        // Mocks like grooming/pm, grooming/engineer, etc. need to be combined into
+        // a single "grooming" output with { pm: ..., engineer: ..., qa: ..., research: ... }
+        if (mockRef.startsWith("grooming/") && mockRef !== "grooming/summary") {
+          const agentType = mockRef.split("/")[1]; // pm, engineer, qa, research
+          if (agentType) {
+            groomingMocks[agentType] = transformedOutput;
+          }
+        }
+      }
+
+      // If we have grooming mocks, combine them into a single "grooming" output
+      // The executeRunClaudeGrooming executor expects ctx.mockOutputs.grooming
+      // to have { pm: ..., engineer: ..., qa: ..., research: ... }
+      if (Object.keys(groomingMocks).length > 0) {
+        mockOutputs.grooming = groomingMocks;
+        core.info(
+          `Combined ${Object.keys(groomingMocks).length} grooming mocks into 'grooming' key`,
+        );
       }
 
       if (Object.keys(mockOutputs).length > 0) {
