@@ -61848,7 +61848,12 @@ function transformVarsToInputs(vars) {
   const result = {};
   for (const [key, value] of Object.entries(vars)) {
     const camelKey = key.toLowerCase().replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-    const numericFields = ["issueNumber", "prNumber", "iteration"];
+    const numericFields = [
+      "issueNumber",
+      "prNumber",
+      "iteration",
+      "consecutiveFailures"
+    ];
     if (numericFields.includes(camelKey)) {
       const numValue = parseInt(value, 10);
       if (!isNaN(numValue)) {
@@ -61857,6 +61862,9 @@ function transformVarsToInputs(vars) {
       }
     }
     result[camelKey] = value;
+  }
+  if (result.agentNotes === "") {
+    result.agentNotes = "No previous agent notes.";
   }
   return result;
 }

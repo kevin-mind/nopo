@@ -33,6 +33,7 @@ function substituteVars(
  * - ISSUE_NUMBER -> issueNumber
  * - ISSUE_TITLE -> issueTitle
  * - PR_NUMBER -> prNumber
+ * - CONSECUTIVE_FAILURES -> consecutiveFailures
  */
 function transformVarsToInputs(
   vars: Record<string, string>,
@@ -46,7 +47,12 @@ function transformVarsToInputs(
       .replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
 
     // Convert numeric strings to numbers for known numeric fields
-    const numericFields = ["issueNumber", "prNumber", "iteration"];
+    const numericFields = [
+      "issueNumber",
+      "prNumber",
+      "iteration",
+      "consecutiveFailures",
+    ];
     if (numericFields.includes(camelKey)) {
       const numValue = parseInt(value, 10);
       if (!isNaN(numValue)) {
@@ -56,6 +62,11 @@ function transformVarsToInputs(
     }
 
     result[camelKey] = value;
+  }
+
+  // Handle empty agentNotes - prompts expect a string, not undefined
+  if (result.agentNotes === "") {
+    result.agentNotes = "No previous agent notes.";
   }
 
   return result;
