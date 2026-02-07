@@ -42,6 +42,6 @@
     }
   },
   "expected": {
-    "parentIssueModified": true
+    "subIssuesModified": true
   }
 }
