@@ -141,7 +141,8 @@ function formatToolInput(
     default:
       // For unknown tools, show all input keys
       for (const [key, value] of Object.entries(input)) {
-        const strValue = typeof value === "string" ? value : JSON.stringify(value);
+        const strValue =
+          typeof value === "string" ? value : JSON.stringify(value);
         const preview = strValue.slice(0, 100);
         lines.push(
           `${colors.dim}${key}:${colors.reset} ${preview}${strValue.length > 100 ? "..." : ""}`,
@@ -347,7 +348,10 @@ export async function executeClaudeSDK(
 
             // Log tool input details
             if (toolBlock.input && Object.keys(toolBlock.input).length > 0) {
-              const formatted = formatToolInput(toolBlock.name, toolBlock.input);
+              const formatted = formatToolInput(
+                toolBlock.name,
+                toolBlock.input,
+              );
               if (formatted) {
                 core.info(`    ${formatted}`);
               }
@@ -363,7 +367,8 @@ export async function executeClaudeSDK(
           const resultObj = result as Record<string, unknown>;
           // Check for error in result
           if (resultObj.error || resultObj.is_error) {
-            const errorMsg = resultObj.error || resultObj.message || "Unknown error";
+            const errorMsg =
+              resultObj.error || resultObj.message || "Unknown error";
             core.error(
               `${colors.red}${colors.bold}[Tool Error]${colors.reset} ${errorMsg}`,
             );

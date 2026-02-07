@@ -1727,17 +1727,34 @@ Issue: #${this.issueNumber}
       }
     }
 
-    // Check todosAdded
-    if (typeof exp.todosAdded === "number") {
-      const expectedAfterTodos = beforeTotalTodos + exp.todosAdded;
-      if (afterTotalTodos !== expectedAfterTodos) {
-        errors.push(
-          `todosAdded: expected ${exp.todosAdded} todos added (${beforeTotalTodos} -> ${expectedAfterTodos}), but got ${afterTotalTodos}`,
-        );
-      } else {
-        core.info(
-          `  ✓ todosAdded: ${exp.todosAdded} todo(s) added as expected`,
-        );
+    // Check todosAdded - supports exact number or { min: N } for minimum
+    if (exp.todosAdded !== undefined) {
+      const actualAdded = afterTotalTodos - beforeTotalTodos;
+
+      if (typeof exp.todosAdded === "number") {
+        if (actualAdded !== exp.todosAdded) {
+          errors.push(
+            `todosAdded: expected ${exp.todosAdded} todos added (${beforeTotalTodos} -> ${beforeTotalTodos + exp.todosAdded}), but got ${actualAdded}`,
+          );
+        } else {
+          core.info(
+            `  ✓ todosAdded: ${exp.todosAdded} todo(s) added as expected`,
+          );
+        }
+      } else if (
+        typeof exp.todosAdded === "object" &&
+        "min" in exp.todosAdded
+      ) {
+        const minExpected = exp.todosAdded.min as number;
+        if (actualAdded < minExpected) {
+          errors.push(
+            `todosAdded: expected at least ${minExpected} todos added, but got ${actualAdded}`,
+          );
+        } else {
+          core.info(
+            `  ✓ todosAdded: ${actualAdded} todo(s) added (minimum ${minExpected} required)`,
+          );
+        }
       }
     }
 

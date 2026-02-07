@@ -7,7 +7,7 @@
     "title": "Feature under review with new push",
     "state": "OPEN",
     "body": "## Description\n\nTest scenario for push during review.\n\n## Todo\n\n- [x] Implement feature\n- [ ] Address review feedback",
-    "projectStatus": "In review",
+    "projectStatus": "In progress",
     "iteration": 1,
     "failures": 0,
     "assignees": ["nopo-bot"],

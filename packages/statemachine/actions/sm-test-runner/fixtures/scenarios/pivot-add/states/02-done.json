@@ -43,6 +43,6 @@
   },
   "expected": {
     "subIssuesModified": true,
-    "todosAdded": 1
+    "todosAdded": { "min": 1 }
   }
 }

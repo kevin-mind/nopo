@@ -59172,7 +59172,10 @@ ${colors.magenta}${colors.bold}[Subagent ${msg.task_id}]${colors.reset} ${status
 ${toolColor}${colors.bold}[Tool: ${toolBlock.name}]${colors.reset}`
             );
             if (toolBlock.input && Object.keys(toolBlock.input).length > 0) {
-              const formatted = formatToolInput(toolBlock.name, toolBlock.input);
+              const formatted = formatToolInput(
+                toolBlock.name,
+                toolBlock.input
+              );
               if (formatted) {
                 core.info(`    ${formatted}`);
               }

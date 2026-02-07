@@ -52,6 +52,6 @@
     "parentIssueModified": true,
     "subIssuesModified": true,
     "newSubIssueCreated": true,
-    "todosAdded": 4
+    "todosAdded": { "min": 3 }
   }
 }

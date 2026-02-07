@@ -63878,7 +63878,10 @@ ${colors.magenta}${colors.bold}[Subagent ${msg.task_id}]${colors.reset} ${status
 ${toolColor}${colors.bold}[Tool: ${toolBlock.name}]${colors.reset}`
             );
             if (toolBlock.input && Object.keys(toolBlock.input).length > 0) {
-              const formatted = formatToolInput(toolBlock.name, toolBlock.input);
+              const formatted = formatToolInput(
+                toolBlock.name,
+                toolBlock.input
+              );
               if (formatted) {
                 core.info(`    ${formatted}`);
               }
@@ -74413,16 +74416,29 @@ Pivot/Modification Verification:`);
         );
       }
     }
-    if (typeof exp.todosAdded === "number") {
-      const expectedAfterTodos = beforeTotalTodos + exp.todosAdded;
-      if (afterTotalTodos !== expectedAfterTodos) {
-        errors.push(
-          `todosAdded: expected ${exp.todosAdded} todos added (${beforeTotalTodos} -> ${expectedAfterTodos}), but got ${afterTotalTodos}`
-        );
-      } else {
-        core27.info(
-          `  \u2713 todosAdded: ${exp.todosAdded} todo(s) added as expected`
-        );
+    if (exp.todosAdded !== void 0) {
+      const actualAdded = afterTotalTodos - beforeTotalTodos;
+      if (typeof exp.todosAdded === "number") {
+        if (actualAdded !== exp.todosAdded) {
+          errors.push(
+            `todosAdded: expected ${exp.todosAdded} todos added (${beforeTotalTodos} -> ${beforeTotalTodos + exp.todosAdded}), but got ${actualAdded}`
+          );
+        } else {
+          core27.info(
+            `  \u2713 todosAdded: ${exp.todosAdded} todo(s) added as expected`
+          );
+        }
+      } else if (typeof exp.todosAdded === "object" && "min" in exp.todosAdded) {
+        const minExpected = exp.todosAdded.min;
+        if (actualAdded < minExpected) {
+          errors.push(
+            `todosAdded: expected at least ${minExpected} todos added, but got ${actualAdded}`
+          );
+        } else {
+          core27.info(
+            `  \u2713 todosAdded: ${actualAdded} todo(s) added (minimum ${minExpected} required)`
+          );
+        }
       }
     }
     if (exp.requirementsUpdated === true) {

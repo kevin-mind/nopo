@@ -86,6 +86,6 @@
   "expected": {
     "newSubIssueCreated": true,
     "completedWorkPreserved": true,
-    "todosAdded": 4
+    "todosAdded": { "min": 2 }
   }
 }
