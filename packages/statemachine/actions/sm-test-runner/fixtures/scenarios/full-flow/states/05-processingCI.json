@@ -13,7 +13,7 @@
     "labels": ["enhancement", "priority:medium", "topic:testing", "triaged", "groomed"],
     "subIssues": [],
     "hasSubIssues": false,
-    "history": [],
+    "history": ["⏳ Iterating"],
     "todos": {
       "total": 2,
       "completed": 2,

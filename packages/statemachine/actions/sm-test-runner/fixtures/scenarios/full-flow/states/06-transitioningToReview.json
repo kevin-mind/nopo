@@ -12,7 +12,7 @@
     "labels": ["enhancement", "priority:medium", "topic:testing", "triaged", "groomed"],
     "subIssues": [],
     "hasSubIssues": false,
-    "history": [],
+    "history": ["✅ CI Passed"],
     "todos": {
       "total": 2,
       "completed": 2,

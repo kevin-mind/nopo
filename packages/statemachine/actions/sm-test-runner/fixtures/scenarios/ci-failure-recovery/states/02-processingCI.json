@@ -14,7 +14,7 @@
     "labels": ["enhancement", "triaged", "groomed"],
     "subIssues": [],
     "hasSubIssues": false,
-    "history": [],
+    "history": ["⏳ Iterating"],
     "todos": {
       "total": 1,
       "completed": 1,

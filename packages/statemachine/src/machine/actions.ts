@@ -298,6 +298,45 @@ function emitLogCIFailure({ context }: ActionContext): ActionResult {
   ];
 }
 
+/**
+ * Emit action to log iteration started
+ * Uses ⏳ to indicate work in progress (will be updated on completion/failure)
+ */
+export function emitLogIterationStarted({
+  context,
+}: ActionContext): ActionResult {
+  return emitAppendHistory({ context }, "⏳ Iterating...");
+}
+
+/**
+ * Emit action to log CI success (updates the ⏳ entry)
+ */
+export function emitLogCISuccess({ context }: ActionContext): ActionResult {
+  return [
+    {
+      type: "updateHistory",
+      token: "code",
+      issueNumber: context.issue.number,
+      matchIteration: context.issue.iteration,
+      matchPhase: String(context.currentPhase ?? "-"),
+      matchPattern: "⏳",
+      newMessage: "✅ CI Passed",
+      timestamp: context.workflowStartedAt ?? undefined,
+      commitSha: context.ciCommitSha ?? undefined,
+      runLink: context.ciRunUrl ?? undefined,
+    },
+  ];
+}
+
+/**
+ * Emit action to log review requested
+ */
+export function emitLogReviewRequested({
+  context,
+}: ActionContext): ActionResult {
+  return emitAppendHistory({ context }, "👀 Review requested");
+}
+
 // ============================================================================
 // Git/Branch Actions
 // ============================================================================

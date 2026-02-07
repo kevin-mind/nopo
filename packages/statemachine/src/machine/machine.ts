@@ -47,6 +47,10 @@ import {
   emitRunClaudeGrooming,
   // Pivot action
   emitRunClaudePivot,
+  // Iteration history logging
+  emitLogIterationStarted,
+  emitLogCISuccess,
+  emitLogReviewRequested,
 } from "./actions.js";
 
 /**
@@ -229,6 +233,29 @@ export const claudeMachine = setup({
             { context },
             `PR #${context.pr?.number} marked ready for merge - awaiting human action`,
           ),
+        ),
+    }),
+
+    // Iteration history logging (writes to issue body)
+    historyIterationStarted: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(
+          context.pendingActions,
+          emitLogIterationStarted({ context }),
+        ),
+    }),
+    historyCISuccess: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(
+          context.pendingActions,
+          emitLogCISuccess({ context }),
+        ),
+    }),
+    historyReviewRequested: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(
+          context.pendingActions,
+          emitLogReviewRequested({ context }),
         ),
     }),
 
@@ -836,12 +863,13 @@ export const claudeMachine = setup({
         {
           target: "transitioningToReview",
           guard: "readyForReview",
+          actions: ["historyCISuccess"],
         },
         // CI passed but todos not done -> continue iterating
         {
           target: "iterating",
           guard: "ciPassed",
-          actions: ["clearFailures"],
+          actions: ["clearFailures", "historyCISuccess"],
         },
         // CI failed and max failures -> block
         {
@@ -905,7 +933,7 @@ export const claudeMachine = setup({
      * Transitioning to review state
      */
     transitioningToReview: {
-      entry: ["transitionToReview"],
+      entry: ["transitionToReview", "historyReviewRequested"],
       always: "reviewing",
     },
 
@@ -917,6 +945,7 @@ export const claudeMachine = setup({
         "createBranch",
         "setWorking",
         "incrementIteration",
+        "historyIterationStarted",
         "logIterating",
         "runClaude",
         "createPR",
@@ -926,10 +955,11 @@ export const claudeMachine = setup({
           {
             target: "transitioningToReview",
             guard: "todosDone",
+            actions: ["historyCISuccess"],
           },
           {
             target: "iterating",
-            actions: ["clearFailures"],
+            actions: ["clearFailures", "historyCISuccess"],
           },
         ],
         CI_FAILURE: [
@@ -955,6 +985,7 @@ export const claudeMachine = setup({
       entry: [
         "createBranch",
         "incrementIteration",
+        "historyIterationStarted",
         "logFixingCI",
         "runClaudeFixCI",
         "createPR",
@@ -964,10 +995,11 @@ export const claudeMachine = setup({
           {
             target: "transitioningToReview",
             guard: "todosDone",
+            actions: ["historyCISuccess"],
           },
           {
             target: "iterating",
-            actions: ["clearFailures"],
+            actions: ["clearFailures", "historyCISuccess"],
           },
         ],
         CI_FAILURE: [
