@@ -85,6 +85,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "django_filters",
     "django_vite",
+    "oauth2_provider",
     # Local apps
     "backend.mysite",
     "backend.todo",
@@ -222,6 +223,13 @@ REST_FRAMEWORK = {
     "DEFAULT_PARSER_CLASSES": [
         "rest_framework.parsers.JSONParser",
     ],
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "oauth2_provider.contrib.rest_framework.OAuth2Authentication",
+        "rest_framework.authentication.SessionAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
 }
 
 # drf-spectacular settings
@@ -243,4 +251,16 @@ DJANGO_VITE = {
         "static_url_prefix": "vite" if IS_DEV_MODE else "",
         "manifest_path": VITE_MANIFEST,
     }
+}
+
+# OAuth2 Provider settings
+OAUTH2_PROVIDER = {
+    "SCOPES": {
+        "read": "Read scope",
+        "write": "Write scope",
+    },
+    "ACCESS_TOKEN_EXPIRE_SECONDS": 3600,  # 1 hour
+    "REFRESH_TOKEN_EXPIRE_SECONDS": 86400,  # 24 hours
+    "ROTATE_REFRESH_TOKEN": True,
+    "OAUTH2_BACKEND_CLASS": "oauth2_provider.oauth2_backends.JSONOAuthLibCore",
 }
