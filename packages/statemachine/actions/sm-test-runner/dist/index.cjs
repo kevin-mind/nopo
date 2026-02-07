@@ -69004,9 +69004,7 @@ function applyTodoModifications(body, modifications) {
       }
     } else if (mod.action === "modify") {
       if (todoIndex < 0 || todoIndex >= todos.length) {
-        core16.warning(
-          `Cannot modify todo at index ${todoIndex}: out of bounds`
-        );
+        core16.warning(`Cannot modify todo at index ${todoIndex}: out of bounds`);
         continue;
       }
       const todo = todos[todoIndex];
@@ -69020,9 +69018,7 @@ function applyTodoModifications(body, modifications) {
       todo.text = mod.text || "";
     } else if (mod.action === "remove") {
       if (todoIndex < 0 || todoIndex >= todos.length) {
-        core16.warning(
-          `Cannot remove todo at index ${todoIndex}: out of bounds`
-        );
+        core16.warning(`Cannot remove todo at index ${todoIndex}: out of bounds`);
         continue;
       }
       const todo = todos[todoIndex];
@@ -74042,11 +74038,11 @@ Pivot/Modification Verification:`);
   async verifyExpectedOutcomes(expected, _state) {
     const errors = [];
     const exp = expected.expected;
-    const fixtureSubIssues = expected.issue.subIssues || [];
     const firstFixture = this.scenario.fixtures.get(
       this.scenario.orderedStates[0]
     );
-    const beforeSubIssueCount = firstFixture?.issue.subIssues?.length || 0;
+    const initialSubIssues = firstFixture?.issue.subIssues || [];
+    const beforeSubIssueCount = initialSubIssues.length;
     const beforeTotalTodos = (firstFixture?.issue.subIssues || []).reduce(
       (sum, s) => {
         const total = s.todos?.total || 0;
@@ -74183,9 +74179,12 @@ Pivot/Modification Verification:`);
     if (exp.subIssuesModified === true) {
       let anyModified = false;
       for (const sub of afterSubIssues) {
-        const fixtureSub = fixtureSubIssues.find((f) => f.title === sub.title);
-        if (fixtureSub && sub.body !== fixtureSub.body) {
+        const initialSub = initialSubIssues.find((f) => f.title === sub.title);
+        if (initialSub && sub.body !== initialSub.body) {
           anyModified = true;
+          core27.info(
+            `  Sub-issue "${sub.title}" was modified (body differs from initial)`
+          );
           break;
         }
       }
@@ -74198,7 +74197,7 @@ Pivot/Modification Verification:`);
       }
     }
     if (exp.completedWorkPreserved === true) {
-      const closedFixtureSubs = fixtureSubIssues.filter(
+      const closedFixtureSubs = initialSubIssues.filter(
         (s) => s.state === "CLOSED"
       );
       let allPreserved = true;

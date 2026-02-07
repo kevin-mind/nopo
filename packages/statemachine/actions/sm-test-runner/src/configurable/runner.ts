@@ -1560,14 +1560,15 @@ Issue: #${this.issueNumber}
   ): Promise<string[]> {
     const errors: string[] = [];
     const exp = expected.expected as Record<string, unknown>;
-    const fixtureSubIssues = expected.issue.subIssues || [];
 
-    // Get the first fixture (before state) to compare counts
+    // Get the first fixture (before state) to compare counts and detect modifications
     const firstFixture = this.scenario.fixtures.get(
       this.scenario
         .orderedStates[0] as (typeof this.scenario.orderedStates)[number],
     );
-    const beforeSubIssueCount = firstFixture?.issue.subIssues?.length || 0;
+    // Initial state sub-issues (used for detecting modifications)
+    const initialSubIssues = firstFixture?.issue.subIssues || [];
+    const beforeSubIssueCount = initialSubIssues.length;
     // Count only unchecked todos to be consistent with afterTotalTodos
     const beforeTotalTodos = (firstFixture?.issue.subIssues || []).reduce(
       (sum, s) => {
@@ -1754,13 +1755,17 @@ Issue: #${this.issueNumber}
       }
     }
 
-    // Check subIssuesModified - at least one sub-issue body should be different
+    // Check subIssuesModified - at least one sub-issue body should be different from initial state
     if (exp.subIssuesModified === true) {
       let anyModified = false;
       for (const sub of afterSubIssues) {
-        const fixtureSub = fixtureSubIssues.find((f) => f.title === sub.title);
-        if (fixtureSub && sub.body !== fixtureSub.body) {
+        // Compare against INITIAL fixture sub-issues, not expected end state
+        const initialSub = initialSubIssues.find((f) => f.title === sub.title);
+        if (initialSub && sub.body !== initialSub.body) {
           anyModified = true;
+          core.info(
+            `  Sub-issue "${sub.title}" was modified (body differs from initial)`,
+          );
           break;
         }
       }
@@ -1775,8 +1780,8 @@ Issue: #${this.issueNumber}
 
     // Check completedWorkPreserved - closed sub-issues and checked todos unchanged
     if (exp.completedWorkPreserved === true) {
-      // Find closed sub-issues in fixture
-      const closedFixtureSubs = fixtureSubIssues.filter(
+      // Find closed sub-issues in initial fixture
+      const closedFixtureSubs = initialSubIssues.filter(
         (s) => s.state === "CLOSED",
       );
       let allPreserved = true;
