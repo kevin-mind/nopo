@@ -384,6 +384,15 @@ export async function executeActions(
         }
       }
 
+      // Capture grooming output for subsequent applyGroomingOutput action
+      if (validatedAction.type === "runClaudeGrooming") {
+        const groomingResult = result as { outputs?: unknown };
+        if (groomingResult.outputs) {
+          chainCtx.lastClaudeStructuredOutput = groomingResult.outputs;
+          core.info("Stored grooming outputs for subsequent actions");
+        }
+      }
+
       // Check if createBranch signaled to stop (rebased and pushed)
       const branchResult = result as { shouldStop?: boolean };
       if (validatedAction.type === "createBranch" && branchResult.shouldStop) {

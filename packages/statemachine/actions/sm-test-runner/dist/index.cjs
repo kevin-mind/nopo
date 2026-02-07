@@ -68970,23 +68970,78 @@ async function executeApplyPivotOutput(action, ctx, structuredOutput) {
   core16.startGroup("Pivot Output");
   core16.info(JSON.stringify(pivotOutput, null, 2));
   core16.endGroup();
-  if (ctx.dryRun) {
-    core16.info(
-      `[DRY RUN] Would apply ${pivotOutput.changes.length} pivot changes`
-    );
-    return { applied: true, changesApplied: pivotOutput.changes.length };
+  if (pivotOutput.outcome === "needs_clarification") {
+    core16.info("Pivot needs clarification - posting comment and exiting");
+    await ctx.octokit.rest.issues.createComment({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: action.issueNumber,
+      body: `## Pivot Needs Clarification
+
+${pivotOutput.clarification_needed || pivotOutput.summary_for_user}
+
+*Please provide more details and try again.*`
+    });
+    return { applied: false, changesApplied: 0 };
+  }
+  if (pivotOutput.outcome === "no_changes_needed") {
+    core16.info("No changes needed");
+    await ctx.octokit.rest.issues.createComment({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: action.issueNumber,
+      body: `## Pivot Analysis
+
+${pivotOutput.summary_for_user}
+
+*No changes were required.*`
+    });
+    return { applied: true, changesApplied: 0 };
   }
   let changesApplied = 0;
-  for (const change of pivotOutput.changes) {
-    core16.info(
-      `Would apply ${change.type} to ${change.section}: ${change.rationale}`
-    );
-    changesApplied++;
+  const mods = pivotOutput.modifications;
+  if (mods?.parent_issue?.update_sections) {
+    changesApplied += Object.keys(mods.parent_issue.update_sections).length;
   }
-  if (pivotOutput.new_sub_issues && pivotOutput.new_sub_issues.length > 0) {
-    core16.info(
-      `Would create ${pivotOutput.new_sub_issues.length} new sub-issues`
-    );
+  if (mods?.sub_issues) {
+    for (const subIssue of mods.sub_issues) {
+      if (subIssue.action === "modify" && subIssue.todo_modifications) {
+        changesApplied += subIssue.todo_modifications.length;
+      }
+      if (subIssue.update_description) {
+        changesApplied++;
+      }
+    }
+  }
+  const newSubIssueCount = mods?.new_sub_issues?.length ?? 0;
+  changesApplied += newSubIssueCount;
+  if (ctx.dryRun) {
+    core16.info(`[DRY RUN] Would apply ${changesApplied} pivot changes`);
+    return { applied: true, changesApplied };
+  }
+  if (mods?.parent_issue?.update_sections) {
+    for (const [section, content3] of Object.entries(
+      mods.parent_issue.update_sections
+    )) {
+      core16.info(`Would update parent issue section "${section}": ${content3}`);
+    }
+  }
+  if (mods?.sub_issues) {
+    for (const subIssue of mods.sub_issues) {
+      if (subIssue.action === "skip") continue;
+      core16.info(`Would modify sub-issue #${subIssue.issue_number}`);
+      if (subIssue.todo_modifications) {
+        for (const mod of subIssue.todo_modifications) {
+          core16.info(`  ${mod.action} todo at index ${mod.index}: ${mod.text}`);
+        }
+      }
+    }
+  }
+  if (newSubIssueCount > 0) {
+    core16.info(`Would create ${newSubIssueCount} new sub-issues`);
+    for (const newSubIssue of mods.new_sub_issues) {
+      core16.info(`  - ${newSubIssue.title} (${newSubIssue.reason})`);
+    }
   }
   await ctx.octokit.rest.issues.createComment({
     owner: ctx.owner,
@@ -68994,7 +69049,7 @@ async function executeApplyPivotOutput(action, ctx, structuredOutput) {
     issue_number: action.issueNumber,
     body: `## Pivot Applied
 
-${pivotOutput.summary}
+${pivotOutput.summary_for_user}
 
 *${changesApplied} changes applied. Review and use \`/lfg\` to continue.*`
   });
@@ -69263,6 +69318,13 @@ async function executeActions(actions, ctx, options = {}) {
         if (claudeResult.structuredOutput) {
           chainCtx.lastClaudeStructuredOutput = claudeResult.structuredOutput;
           core17.info("Stored structured output for subsequent actions");
+        }
+      }
+      if (validatedAction.type === "runClaudeGrooming") {
+        const groomingResult = result;
+        if (groomingResult.outputs) {
+          chainCtx.lastClaudeStructuredOutput = groomingResult.outputs;
+          core17.info("Stored grooming outputs for subsequent actions");
         }
       }
       const branchResult = result;

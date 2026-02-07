@@ -22,7 +22,8 @@ import {
 // Constants
 // ============================================================================
 
-const FIXTURES_BASE_PATH = "packages/statemachine/actions/sm-test-runner/fixtures";
+const FIXTURES_BASE_PATH =
+  "packages/statemachine/actions/sm-test-runner/fixtures";
 const SCENARIOS_DIR = "scenarios";
 const CLAUDE_MOCKS_DIR = "claude-mocks";
 const STATES_DIR = "states";
