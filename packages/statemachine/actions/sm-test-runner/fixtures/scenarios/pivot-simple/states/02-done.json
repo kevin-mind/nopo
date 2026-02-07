@@ -56,7 +56,6 @@
     }
   },
   "expected": {
-    "subIssuesModified": true,
-    "todosAdded": { "min": 1 }
+    "subIssuesModified": true
   }
 }

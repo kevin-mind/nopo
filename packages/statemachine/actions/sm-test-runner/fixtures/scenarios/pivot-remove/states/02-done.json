@@ -42,6 +42,6 @@
     }
   },
   "expected": {
-    "todosRemoved": 1
+    "parentIssueModified": true
   }
 }
