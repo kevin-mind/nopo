@@ -512,10 +512,6 @@ function hasTestAutomationLabel(
   );
 }
 
-function isInTestingMode(labels: Array<{ name: string }> | string[]): boolean {
-  return hasTestAutomationLabel(labels);
-}
-
 function isTestResource(title: string): boolean {
   return title.startsWith("[TEST]");
 }
@@ -632,21 +628,20 @@ async function handleIssueEvent(
     labels: Array<{ name: string }>;
   };
 
-  // Check for testing mode (test:automation label) - allows bypassing circuit breakers
-  const inTestingMode = isInTestingMode(issue.labels);
-
-  // Check for [TEST] in title (circuit breaker for test automation)
-  // Skip unless in testing mode (test:automation label present)
-  if (shouldSkipTestResource(issue.title, issue.labels)) {
-    return emptyResult(true, "Issue title starts with [TEST]");
+  // ALWAYS skip issues with test:automation label
+  // These are created by sm-test.yml and should not be processed by normal automation
+  // sm-test.yml uses sm-test-runner directly, not this detect-event workflow
+  const hasTestLabel = issue.labels.some((l) => l.name === "test:automation");
+  if (hasTestLabel) {
+    return emptyResult(
+      true,
+      "Issue has test:automation label - skipping from normal automation",
+    );
   }
 
-  // Check for test:automation label (skip unless in testing mode)
-  if (!inTestingMode) {
-    const hasTestLabel = issue.labels.some((l) => l.name === "test:automation");
-    if (hasTestLabel) {
-      return emptyResult(true, "Issue has test:automation label");
-    }
+  // Check for [TEST] in title (circuit breaker for test automation)
+  if (isTestResource(issue.title)) {
+    return emptyResult(true, "Issue title starts with [TEST]");
   }
 
   // Check for skip-dispatch label
@@ -1124,21 +1119,18 @@ async function handleIssueCommentEvent(
     pull_request?: unknown;
   };
 
-  // Check for testing mode (test:automation label) - allows bypassing circuit breakers
-  const inTestingMode = isInTestingMode(issue.labels);
-
-  // Check for [TEST] in title (circuit breaker for test automation)
-  // Skip unless in testing mode (test:automation label present)
-  if (shouldSkipTestResource(issue.title, issue.labels)) {
-    return emptyResult(true, "Issue/PR title starts with [TEST]");
+  // ALWAYS skip issues with test:automation label
+  const hasTestLabel = issue.labels.some((l) => l.name === "test:automation");
+  if (hasTestLabel) {
+    return emptyResult(
+      true,
+      "Issue has test:automation label - skipping from normal automation",
+    );
   }
 
-  // Check for test:automation label (skip unless in testing mode)
-  if (!inTestingMode) {
-    const hasTestLabel = issue.labels.some((l) => l.name === "test:automation");
-    if (hasTestLabel) {
-      return emptyResult(true, "Issue has test:automation label");
-    }
+  // Check for [TEST] in title (circuit breaker for test automation)
+  if (isTestResource(issue.title)) {
+    return emptyResult(true, "Issue/PR title starts with [TEST]");
   }
 
   // Check for skip-dispatch label
@@ -1499,21 +1491,18 @@ async function handlePullRequestReviewCommentEvent(): Promise<DetectionResult> {
     labels: Array<{ name: string }>;
   };
 
-  // Check for testing mode (test:automation label) - allows bypassing circuit breakers
-  const inTestingMode = isInTestingMode(pr.labels);
-
-  // Check for [TEST] in title (circuit breaker for test automation)
-  // Skip unless in testing mode (test:automation label present)
-  if (shouldSkipTestResource(pr.title, pr.labels)) {
-    return emptyResult(true, "PR title starts with [TEST]");
+  // ALWAYS skip PRs with test:automation label
+  const hasTestLabel = pr.labels.some((l) => l.name === "test:automation");
+  if (hasTestLabel) {
+    return emptyResult(
+      true,
+      "PR has test:automation label - skipping from normal automation",
+    );
   }
 
-  // Check for test:automation label (skip unless in testing mode)
-  if (!inTestingMode) {
-    const hasTestLabel = pr.labels.some((l) => l.name === "test:automation");
-    if (hasTestLabel) {
-      return emptyResult(true, "PR has test:automation label");
-    }
+  // Check for [TEST] in title (circuit breaker for test automation)
+  if (isTestResource(pr.title)) {
+    return emptyResult(true, "PR title starts with [TEST]");
   }
 
   // Check for skip-dispatch label
@@ -1596,6 +1585,23 @@ async function handlePushEvent(): Promise<DetectionResult> {
   const branchMatch = branch.match(/^claude\/issue\/(\d+)/);
   const issueNumber = branchMatch?.[1] ?? "";
 
+  // Check if the linked issue has test:automation label
+  if (issueNumber) {
+    const octokit = github.getOctokit(getRequiredInput("github_token"));
+    const details = await fetchIssueDetails(
+      octokit,
+      owner,
+      repo,
+      Number(issueNumber),
+    );
+    if (details.labels.includes("test:automation")) {
+      return emptyResult(
+        true,
+        "Linked issue has test:automation label - skipping from normal automation",
+      );
+    }
+  }
+
   // Construct run URL for history entry
   const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
   const runId = process.env.GITHUB_RUN_ID || "";
@@ -1675,6 +1681,15 @@ async function handleWorkflowRunEvent(): Promise<DetectionResult> {
     repo,
     Number(issueNumber),
   );
+
+  // Check if the linked issue has test:automation label
+  // This catches test issues even when the PR doesn't have the label
+  if (details.labels.includes("test:automation")) {
+    return emptyResult(
+      true,
+      "Linked issue has test:automation label - skipping from normal automation",
+    );
+  }
 
   // Construct CI run URL
   const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";

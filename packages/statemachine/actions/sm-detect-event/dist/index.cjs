@@ -65691,9 +65691,6 @@ function hasTestAutomationLabel(labels) {
     (l) => typeof l === "string" ? l === "test:automation" : l.name === "test:automation"
   );
 }
-function isInTestingMode(labels) {
-  return hasTestAutomationLabel(labels);
-}
 function isTestResource(title) {
   return title.startsWith("[TEST]");
 }
@@ -65752,15 +65749,15 @@ async function handleIssueEvent(octokit2, owner2, repo2) {
   const payload = context2.payload;
   const action = payload.action;
   const issue2 = payload.issue;
-  const inTestingMode = isInTestingMode(issue2.labels);
-  if (shouldSkipTestResource(issue2.title, issue2.labels)) {
-    return emptyResult(true, "Issue title starts with [TEST]");
+  const hasTestLabel = issue2.labels.some((l) => l.name === "test:automation");
+  if (hasTestLabel) {
+    return emptyResult(
+      true,
+      "Issue has test:automation label - skipping from normal automation"
+    );
   }
-  if (!inTestingMode) {
-    const hasTestLabel = issue2.labels.some((l) => l.name === "test:automation");
-    if (hasTestLabel) {
-      return emptyResult(true, "Issue has test:automation label");
-    }
+  if (isTestResource(issue2.title)) {
+    return emptyResult(true, "Issue title starts with [TEST]");
   }
   const hasSkipLabelOnIssue = issue2.labels.some(
     (l) => l.name === "skip-dispatch"
@@ -66117,15 +66114,15 @@ async function handleIssueCommentEvent(octokit2, owner2, repo2) {
   const payload = context2.payload;
   const comment = payload.comment;
   const issue2 = payload.issue;
-  const inTestingMode = isInTestingMode(issue2.labels);
-  if (shouldSkipTestResource(issue2.title, issue2.labels)) {
-    return emptyResult(true, "Issue/PR title starts with [TEST]");
+  const hasTestLabel = issue2.labels.some((l) => l.name === "test:automation");
+  if (hasTestLabel) {
+    return emptyResult(
+      true,
+      "Issue has test:automation label - skipping from normal automation"
+    );
   }
-  if (!inTestingMode) {
-    const hasTestLabel = issue2.labels.some((l) => l.name === "test:automation");
-    if (hasTestLabel) {
-      return emptyResult(true, "Issue has test:automation label");
-    }
+  if (isTestResource(issue2.title)) {
+    return emptyResult(true, "Issue/PR title starts with [TEST]");
   }
   const hasSkipLabelOnIssue = issue2.labels.some(
     (l) => l.name === "skip-dispatch"
@@ -66386,15 +66383,15 @@ async function handlePullRequestReviewCommentEvent() {
   const payload = context2.payload;
   const comment = payload.comment;
   const pr = payload.pull_request;
-  const inTestingMode = isInTestingMode(pr.labels);
-  if (shouldSkipTestResource(pr.title, pr.labels)) {
-    return emptyResult(true, "PR title starts with [TEST]");
+  const hasTestLabel = pr.labels.some((l) => l.name === "test:automation");
+  if (hasTestLabel) {
+    return emptyResult(
+      true,
+      "PR has test:automation label - skipping from normal automation"
+    );
   }
-  if (!inTestingMode) {
-    const hasTestLabel = pr.labels.some((l) => l.name === "test:automation");
-    if (hasTestLabel) {
-      return emptyResult(true, "PR has test:automation label");
-    }
+  if (isTestResource(pr.title)) {
+    return emptyResult(true, "PR title starts with [TEST]");
   }
   const hasSkipLabelOnPr = pr.labels.some((l) => l.name === "skip-dispatch");
   if (hasSkipLabelOnPr) {
@@ -66451,6 +66448,21 @@ async function handlePushEvent() {
   }
   const branchMatch = branch.match(/^claude\/issue\/(\d+)/);
   const issueNumber = branchMatch?.[1] ?? "";
+  if (issueNumber) {
+    const octokit2 = github.getOctokit(getRequiredInput("github_token"));
+    const details = await fetchIssueDetails(
+      octokit2,
+      owner2,
+      repo2,
+      Number(issueNumber)
+    );
+    if (details.labels.includes("test:automation")) {
+      return emptyResult(
+        true,
+        "Linked issue has test:automation label - skipping from normal automation"
+      );
+    }
+  }
   const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
   const runId = process.env.GITHUB_RUN_ID || "";
   const commitSha = github.context.sha;
@@ -66506,6 +66518,12 @@ async function handleWorkflowRunEvent() {
     repo2,
     Number(issueNumber)
   );
+  if (details.labels.includes("test:automation")) {
+    return emptyResult(
+      true,
+      "Linked issue has test:automation label - skipping from normal automation"
+    );
+  }
   const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
   const ciRunUrl = `${serverUrl}/${owner2}/${repo2}/actions/runs/${runId}`;
   return {
