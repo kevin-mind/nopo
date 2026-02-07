@@ -488,6 +488,7 @@ gh pr create --draft --reviewer nopo-bot \\
     PARENT_CONTEXT: parentContext,
     PR_CREATE_COMMAND: prCreateCommand,
     EXISTING_BRANCH_SECTION: "",
+    AGENT_NOTES: "", // Injected by workflow from previous runs
   };
 }
 

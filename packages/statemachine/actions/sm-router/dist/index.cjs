@@ -45631,7 +45631,9 @@ gh pr create --draft --reviewer nopo-bot \\
     BRANCH_NAME: branchName,
     PARENT_CONTEXT: parentContext,
     PR_CREATE_COMMAND: prCreateCommand,
-    EXISTING_BRANCH_SECTION: ""
+    EXISTING_BRANCH_SECTION: "",
+    AGENT_NOTES: ""
+    // Injected by workflow from previous runs
   };
 }
 function emitRunClaude({ context: context2 }) {

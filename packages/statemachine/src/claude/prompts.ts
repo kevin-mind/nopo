@@ -64,8 +64,8 @@ function transformVarsToInputs(
     result[camelKey] = value;
   }
 
-  // Handle empty agentNotes - prompts expect a string, not undefined
-  if (result.agentNotes === "") {
+  // Handle missing or empty agentNotes - prompts expect a string, not undefined
+  if (!result.agentNotes || result.agentNotes === "") {
     result.agentNotes = "No previous agent notes.";
   }
 
