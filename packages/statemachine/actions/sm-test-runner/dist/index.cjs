@@ -19740,10 +19740,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.error = error9;
-    function warning21(message, properties = {}) {
+    function warning22(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning21;
+    exports2.warning = warning22;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
@@ -63642,6 +63642,121 @@ function query({
 }
 
 // ../../packages/statemachine/src/claude/executor.ts
+var colors = {
+  reset: "\x1B[0m",
+  bold: "\x1B[1m",
+  dim: "\x1B[2m",
+  // Text colors
+  red: "\x1B[31m",
+  green: "\x1B[32m",
+  yellow: "\x1B[33m",
+  blue: "\x1B[34m",
+  magenta: "\x1B[35m",
+  cyan: "\x1B[36m",
+  white: "\x1B[37m",
+  // Bright colors
+  brightRed: "\x1B[91m",
+  brightGreen: "\x1B[92m",
+  brightYellow: "\x1B[93m",
+  brightBlue: "\x1B[94m",
+  brightMagenta: "\x1B[95m",
+  brightCyan: "\x1B[96m",
+  // Background colors
+  bgRed: "\x1B[41m",
+  bgGreen: "\x1B[42m",
+  bgYellow: "\x1B[43m",
+  bgBlue: "\x1B[44m"
+};
+function formatToolInput(toolName, input) {
+  const lines = [];
+  switch (toolName) {
+    case "Bash":
+      if (input.command) {
+        lines.push(`${colors.dim}Command:${colors.reset} ${input.command}`);
+      }
+      if (input.description) {
+        lines.push(
+          `${colors.dim}Description:${colors.reset} ${input.description}`
+        );
+      }
+      break;
+    case "Read":
+      if (input.file_path) {
+        lines.push(`${colors.dim}File:${colors.reset} ${input.file_path}`);
+      }
+      if (input.offset || input.limit) {
+        lines.push(
+          `${colors.dim}Range:${colors.reset} offset=${input.offset || 0}, limit=${input.limit || "all"}`
+        );
+      }
+      break;
+    case "Edit":
+      if (input.file_path) {
+        lines.push(`${colors.dim}File:${colors.reset} ${input.file_path}`);
+      }
+      if (input.old_string) {
+        const preview = String(input.old_string).slice(0, 100);
+        lines.push(
+          `${colors.dim}Replacing:${colors.reset} ${preview}${String(input.old_string).length > 100 ? "..." : ""}`
+        );
+      }
+      break;
+    case "Write":
+      if (input.file_path) {
+        lines.push(`${colors.dim}File:${colors.reset} ${input.file_path}`);
+      }
+      if (input.content) {
+        const preview = String(input.content).slice(0, 100);
+        lines.push(
+          `${colors.dim}Content:${colors.reset} ${preview}${String(input.content).length > 100 ? "..." : ""}`
+        );
+      }
+      break;
+    case "Glob":
+      if (input.pattern) {
+        lines.push(`${colors.dim}Pattern:${colors.reset} ${input.pattern}`);
+      }
+      if (input.path) {
+        lines.push(`${colors.dim}Path:${colors.reset} ${input.path}`);
+      }
+      break;
+    case "Grep":
+      if (input.pattern) {
+        lines.push(`${colors.dim}Pattern:${colors.reset} ${input.pattern}`);
+      }
+      if (input.path) {
+        lines.push(`${colors.dim}Path:${colors.reset} ${input.path}`);
+      }
+      break;
+    case "Task":
+      if (input.description) {
+        lines.push(
+          `${colors.dim}Description:${colors.reset} ${input.description}`
+        );
+      }
+      if (input.subagent_type) {
+        lines.push(
+          `${colors.dim}Subagent:${colors.reset} ${input.subagent_type}`
+        );
+      }
+      if (input.prompt) {
+        const preview = String(input.prompt).slice(0, 200);
+        lines.push(
+          `${colors.dim}Prompt:${colors.reset} ${preview}${String(input.prompt).length > 200 ? "..." : ""}`
+        );
+      }
+      break;
+    default:
+      for (const [key, value] of Object.entries(input)) {
+        const strValue = typeof value === "string" ? value : JSON.stringify(value);
+        const preview = strValue.slice(0, 100);
+        lines.push(
+          `${colors.dim}${key}:${colors.reset} ${preview}${strValue.length > 100 ? "..." : ""}`
+        );
+      }
+  }
+  return lines.join("\n    ");
+}
 function extractTextFromMessage(msg) {
   if (msg.type !== "assistant") return "";
   return msg.message.content.filter(
@@ -63698,9 +63813,55 @@ async function executeClaudeSDK(options) {
     const q = query({ prompt, options: sdkOptions });
     for await (const msg of q) {
       if (msg.type === "system" && msg.subtype === "init") {
-        core.info(`[SDK] Session: ${msg.session_id}`);
-        core.info(`[SDK] Model: ${msg.model}`);
-        core.info(`[SDK] Permission mode: ${msg.permissionMode}`);
+        core.info(
+          `${colors.cyan}${colors.bold}[SDK Init]${colors.reset} Session: ${msg.session_id}`
+        );
+        core.info(
+          `${colors.cyan}[SDK]${colors.reset} Model: ${colors.bold}${msg.model}${colors.reset}`
+        );
+        core.info(
+          `${colors.cyan}[SDK]${colors.reset} Permission mode: ${msg.permissionMode}`
+        );
+        if (msg.tools && msg.tools.length > 0) {
+          core.info(
+            `${colors.cyan}[SDK]${colors.reset} Tools: ${msg.tools.join(", ")}`
+          );
+        }
+      }
+      if (msg.type === "system" && msg.subtype === "task_notification") {
+        const statusColor = msg.status === "completed" ? colors.green : msg.status === "failed" ? colors.red : colors.yellow;
+        core.info(
+          `
+${colors.magenta}${colors.bold}[Subagent ${msg.task_id}]${colors.reset} ${statusColor}${msg.status}${colors.reset}`
+        );
+        if (msg.summary) {
+          core.info(`${colors.dim}Summary:${colors.reset} ${msg.summary}`);
+        }
+      }
+      if (msg.type === "tool_progress") {
+        core.info(
+          `${colors.dim}[${msg.tool_name}] Running... ${msg.elapsed_time_seconds.toFixed(1)}s${colors.reset}`
+        );
+      }
+      if (msg.type === "tool_use_summary") {
+        core.info(`${colors.dim}[Tool Summary] ${msg.summary}${colors.reset}`);
+      }
+      if (msg.type === "system" && msg.subtype === "hook_started") {
+        core.info(
+          `${colors.blue}[Hook]${colors.reset} ${msg.hook_event}: ${msg.hook_name}`
+        );
+      }
+      if (msg.type === "system" && msg.subtype === "hook_response") {
+        const outcomeColor = msg.outcome === "success" ? colors.green : msg.outcome === "error" ? colors.red : colors.yellow;
+        core.info(
+          `${colors.blue}[Hook]${colors.reset} ${msg.hook_name}: ${outcomeColor}${msg.outcome}${colors.reset}`
+        );
+        if (msg.output) {
+          core.info(`${colors.dim}${msg.output}${colors.reset}`);
+        }
+        if (msg.stderr) {
+          core.warning(`${colors.yellow}${msg.stderr}${colors.reset}`);
+        }
       }
       if (msg.type === "assistant") {
         const text5 = extractTextFromMessage(msg);
@@ -63710,8 +63871,30 @@ async function executeClaudeSDK(options) {
         }
         for (const block of msg.message.content) {
           if (block.type === "tool_use") {
-            core.info(`
-[Tool: ${block.name}]`);
+            const toolBlock = block;
+            const toolColor = toolBlock.name === "Bash" ? colors.brightYellow : toolBlock.name === "Task" ? colors.brightMagenta : toolBlock.name === "Read" || toolBlock.name === "Glob" || toolBlock.name === "Grep" ? colors.brightCyan : toolBlock.name === "Edit" || toolBlock.name === "Write" ? colors.brightGreen : colors.white;
+            core.info(
+              `
+${toolColor}${colors.bold}[Tool: ${toolBlock.name}]${colors.reset}`
+            );
+            if (toolBlock.input && Object.keys(toolBlock.input).length > 0) {
+              const formatted = formatToolInput(toolBlock.name, toolBlock.input);
+              if (formatted) {
+                core.info(`    ${formatted}`);
+              }
+            }
+          }
+        }
+      }
+      if (msg.type === "user" && msg.tool_use_result !== void 0) {
+        const result = msg.tool_use_result;
+        if (typeof result === "object" && result !== null) {
+          const resultObj = result;
+          if (resultObj.error || resultObj.is_error) {
+            const errorMsg = resultObj.error || resultObj.message || "Unknown error";
+            core.error(
+              `${colors.red}${colors.bold}[Tool Error]${colors.reset} ${errorMsg}`
+            );
           }
         }
       }
@@ -63727,12 +63910,14 @@ async function executeClaudeSDK(options) {
           }
           core.info(
             `
-[SDK] Completed successfully (${numTurns} turns, $${costUsd.toFixed(4)})`
+${colors.green}${colors.bold}[SDK]${colors.reset} Completed successfully (${numTurns} turns, $${costUsd.toFixed(4)})`
           );
         } else {
           const errorSubtype = msg.subtype;
           const errors = "errors" in msg ? msg.errors?.join("\n") : errorSubtype;
-          core.error(`[SDK] Failed: ${errors}`);
+          core.error(
+            `${colors.red}${colors.bold}[SDK Failed]${colors.reset} ${errors}`
+          );
           return {
             success: false,
             exitCode: 1,
@@ -71856,8 +72041,8 @@ function formatValidationResult(name, result) {
   }
   if (result.warnings.length > 0) {
     lines.push("  Warnings:");
-    for (const warning21 of result.warnings) {
-      lines.push(`    - ${warning21}`);
+    for (const warning22 of result.warnings) {
+      lines.push(`    - ${warning22}`);
     }
   }
   return lines.join("\n");
