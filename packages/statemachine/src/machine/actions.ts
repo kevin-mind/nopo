@@ -474,16 +474,13 @@ gh pr create --draft --reviewer nopo-bot \\
   --body "Fixes #${issueNumber}"
 \`\`\``;
 
-  // Get the issue body from the current sub-issue if available, otherwise from parent issue
-  const issueBody = context.currentSubIssue?.body ?? context.issue.body;
-
-  // Note: ISSUE_BODY is included here for test scenarios. The workflow may override
-  // with fresh data from GitHub API if available. Previous concern about secret masking
-  // is mitigated since the body is already in the context.
+  // Note: ISSUE_BODY and ISSUE_COMMENTS are NOT included here to avoid
+  // "may contain secret" masking when passing through actions_json output.
+  // The workflow fetches these at runtime before passing to Claude.
+  // For test runner: issue context is provided via RunnerContext.issueContext
   return {
     ISSUE_NUMBER: String(issueNumber),
     ISSUE_TITLE: issueTitle,
-    ISSUE_BODY: issueBody,
     ITERATION: String(iteration),
     LAST_CI_RESULT: ciResult,
     CONSECUTIVE_FAILURES: String(failures),
@@ -586,12 +583,11 @@ export function emitRunClaudeTriage({ context }: ActionContext): ActionResult {
   const issueNumber = context.issue.number;
 
   // The triage prompt uses these template variables
-  // Include ISSUE_BODY from context for test scenarios (and as fallback for real issues)
-  // The workflow will override with fresh data if available from GitHub API
+  // Note: ISSUE_BODY and ISSUE_COMMENTS are fetched at runtime by workflow.
+  // For test runner: issue context is provided via RunnerContext.issueContext
   const promptVars: Record<string, string> = {
     ISSUE_NUMBER: String(issueNumber),
     ISSUE_TITLE: context.issue.title,
-    ISSUE_BODY: context.issue.body,
     AGENT_NOTES: "", // Injected by workflow from previous runs
   };
 

@@ -30,6 +30,18 @@ export interface MockOutputs {
 // ============================================================================
 
 /**
+ * Issue context for providing issue data to executors
+ * Used when running outside the workflow (e.g., test runner) where
+ * GitHub API fetches aren't appropriate
+ */
+export interface IssueContext {
+  number: number;
+  title: string;
+  body: string;
+  comments?: string;
+}
+
+/**
  * Context for action execution
  *
  * Supports two octokits for different token types:
@@ -50,6 +62,8 @@ export interface RunnerContext {
   runUrl?: string;
   /** Mock outputs for Claude calls (skip real Claude in test mode) */
   mockOutputs?: MockOutputs;
+  /** Issue context for executors that need issue data without API fetch */
+  issueContext?: IssueContext;
 }
 
 // ============================================================================

@@ -197,13 +197,29 @@ export async function executeRunClaude(
     }
   }
 
+  // Augment promptVars with issue context if available
+  // This allows executors to receive issue data without relying on API fetches
+  // (which would fail for simulated test issues or when running outside workflow)
+  let augmentedPromptVars = action.promptVars;
+  if (ctx.issueContext && action.promptVars) {
+    augmentedPromptVars = {
+      ...action.promptVars,
+      // Only add issue context if not already present in promptVars
+      ISSUE_BODY: action.promptVars.ISSUE_BODY ?? ctx.issueContext.body,
+      ISSUE_COMMENTS:
+        action.promptVars.ISSUE_COMMENTS ??
+        ctx.issueContext.comments ??
+        "No comments yet.",
+    };
+  }
+
   // Resolve prompt from action
   const resolved = resolvePrompt({
     prompt: action.prompt,
     promptDir: action.promptDir,
     promptFile: action.promptFile,
     promptsDir: action.promptsDir,
-    promptVars: action.promptVars,
+    promptVars: augmentedPromptVars,
   });
 
   core.info(`Running Claude SDK for issue #${action.issueNumber}`);

@@ -66447,6 +66447,22 @@ function substituteVars(template, vars) {
     return vars[trimmedName] ?? match;
   });
 }
+function transformVarsToInputs(vars) {
+  const result = {};
+  for (const [key, value] of Object.entries(vars)) {
+    const camelKey = key.toLowerCase().replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+    const numericFields = ["issueNumber", "prNumber", "iteration"];
+    if (numericFields.includes(camelKey)) {
+      const numValue = parseInt(value, 10);
+      if (!isNaN(numValue)) {
+        result[camelKey] = numValue;
+        continue;
+      }
+    }
+    result[camelKey] = value;
+  }
+  return result;
+}
 function resolvePromptDir(promptDir, basePath = process.cwd(), promptsDir = ".github/prompts") {
   const dirPath = path2.resolve(basePath, promptsDir, promptDir);
   const promptPath = path2.join(dirPath, "prompt.txt");
@@ -66475,7 +66491,7 @@ function resolvePrompt(options) {
   if (promptDir) {
     const registryPrompt = getPrompt(promptDir);
     if (registryPrompt) {
-      const inputs = promptVars ?? {};
+      const inputs = promptVars ? transformVarsToInputs(promptVars) : {};
       const result = registryPrompt(inputs);
       return {
         prompt: result.prompt,
@@ -67925,12 +67941,21 @@ async function executeRunClaude(action, ctx) {
       );
     }
   }
+  let augmentedPromptVars = action.promptVars;
+  if (ctx.issueContext && action.promptVars) {
+    augmentedPromptVars = {
+      ...action.promptVars,
+      // Only add issue context if not already present in promptVars
+      ISSUE_BODY: action.promptVars.ISSUE_BODY ?? ctx.issueContext.body,
+      ISSUE_COMMENTS: action.promptVars.ISSUE_COMMENTS ?? ctx.issueContext.comments ?? "No comments yet."
+    };
+  }
   const resolved = resolvePrompt({
     prompt: action.prompt,
     promptDir: action.promptDir,
     promptFile: action.promptFile,
     promptsDir: action.promptsDir,
-    promptVars: action.promptVars
+    promptVars: augmentedPromptVars
   });
   core6.info(`Running Claude SDK for issue #${action.issueNumber}`);
   let cwd2 = process.cwd();
@@ -69697,7 +69722,8 @@ function createRunnerContext(octokit, owner, repo, projectNumber, options = {}) 
     projectNumber,
     serverUrl: options.serverUrl || process.env.GITHUB_SERVER_URL || "https://github.com",
     dryRun: options.dryRun,
-    mockOutputs: options.mockOutputs
+    mockOutputs: options.mockOutputs,
+    issueContext: options.issueContext
   };
 }
 function logRunnerSummary(result) {

@@ -61844,6 +61844,22 @@ function substituteVars(template, vars) {
     return vars[trimmedName] ?? match;
   });
 }
+function transformVarsToInputs(vars) {
+  const result = {};
+  for (const [key, value] of Object.entries(vars)) {
+    const camelKey = key.toLowerCase().replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+    const numericFields = ["issueNumber", "prNumber", "iteration"];
+    if (numericFields.includes(camelKey)) {
+      const numValue = parseInt(value, 10);
+      if (!isNaN(numValue)) {
+        result[camelKey] = numValue;
+        continue;
+      }
+    }
+    result[camelKey] = value;
+  }
+  return result;
+}
 function resolvePromptDir(promptDir, basePath = process.cwd(), promptsDir = ".github/prompts") {
   const dirPath = path2.resolve(basePath, promptsDir, promptDir);
   const promptPath = path2.join(dirPath, "prompt.txt");
@@ -61872,7 +61888,7 @@ function resolvePrompt(options) {
   if (promptDir) {
     const registryPrompt = getPrompt(promptDir);
     if (registryPrompt) {
-      const inputs = promptVars ?? {};
+      const inputs = promptVars ? transformVarsToInputs(promptVars) : {};
       const result = registryPrompt(inputs);
       return {
         prompt: result.prompt,

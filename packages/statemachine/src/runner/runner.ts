@@ -477,6 +477,7 @@ export function createRunnerContext(
     serverUrl?: string;
     reviewOctokit?: Octokit;
     mockOutputs?: RunnerContext["mockOutputs"];
+    issueContext?: RunnerContext["issueContext"];
   } = {},
 ): RunnerContext {
   return {
@@ -491,6 +492,7 @@ export function createRunnerContext(
       "https://github.com",
     dryRun: options.dryRun,
     mockOutputs: options.mockOutputs,
+    issueContext: options.issueContext,
   };
 }
 

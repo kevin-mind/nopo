@@ -1027,7 +1027,18 @@ Issue: #${this.issueNumber}
       }
     }
 
-    // Create runner context with mock outputs
+    // Build issue context for executors that need issue data without API fetch
+    // This is necessary because test issues may not exist yet or API fetch would fail
+    const issueContext = {
+      number: context.issue.number,
+      title: context.issue.title,
+      body: context.issue.body,
+      comments: context.issue.comments
+        ?.map((c) => `${c.author}: ${c.body}`)
+        .join("\n\n---\n\n"),
+    };
+
+    // Create runner context with mock outputs and issue context
     const runnerCtx = createRunnerContext(
       this.config.octokit,
       this.config.owner,
@@ -1037,6 +1048,7 @@ Issue: #${this.issueNumber}
         dryRun: false,
         mockOutputs,
         reviewOctokit: this.config.reviewOctokit,
+        issueContext,
       },
     );
 
