@@ -9,4 +9,5 @@ urlpatterns = [
     path("django", home),
     path("admin/", admin.site.urls),
     path("api/", include("backend.mysite.api_urls")),
+    path("o/", include("oauth2_provider.urls", namespace="oauth2_provider")),
 ]
