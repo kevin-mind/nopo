@@ -199,18 +199,18 @@ function computeConcurrency(
 
 /**
  * Project state from GitHub Project custom fields
+ * Note: Project state is now fetched by parseIssue in the state machine.
+ * This minimal interface is kept for skip logic checks only.
  */
 interface ProjectState {
   status: string | null;
-  iteration: number;
-  failures: number;
 }
 
 /**
- * Fetch the project state for an issue (Status, Iteration, Failures)
- * Returns null if issue is not in a project
+ * Fetch ONLY the project status for skip logic
+ * Note: Full project state (iteration, failures) is fetched by parseIssue
  */
-async function fetchProjectState(
+async function fetchProjectStatusForSkipCheck(
   octokit: ReturnType<typeof github.getOctokit>,
   owner: string,
   repo: string,
@@ -225,7 +225,6 @@ async function fetchProjectState(
               fieldValues: {
                 nodes: Array<{
                   name?: string;
-                  number?: number;
                   field?: { name?: string };
                 }>;
               };
@@ -240,20 +239,12 @@ async function fetchProjectState(
           issue(number: $number) {
             projectItems(first: 10) {
               nodes {
-                fieldValues(first: 20) {
+                fieldValues(first: 10) {
                   nodes {
                     ... on ProjectV2ItemFieldSingleSelectValue {
                       name
                       field {
                         ... on ProjectV2SingleSelectField {
-                          name
-                        }
-                      }
-                    }
-                    ... on ProjectV2ItemFieldNumberValue {
-                      number
-                      field {
-                        ... on ProjectV2Field {
                           name
                         }
                       }
@@ -274,34 +265,17 @@ async function fetchProjectState(
       return null;
     }
 
-    // Parse fields from the first project item
-    const state: ProjectState = {
-      status: null,
-      iteration: 0,
-      failures: 0,
-    };
-
+    // Only parse Status field for skip check
     const fieldValues = items[0]?.fieldValues?.nodes ?? [];
     for (const fieldValue of fieldValues) {
-      const fieldName = fieldValue.field?.name;
-      if (fieldName === "Status" && fieldValue.name) {
-        state.status = fieldValue.name;
-      } else if (
-        fieldName === "Iteration" &&
-        typeof fieldValue.number === "number"
-      ) {
-        state.iteration = fieldValue.number;
-      } else if (
-        fieldName === "Failures" &&
-        typeof fieldValue.number === "number"
-      ) {
-        state.failures = fieldValue.number;
+      if (fieldValue.field?.name === "Status" && fieldValue.name) {
+        return { status: fieldValue.name };
       }
     }
 
-    return state;
+    return { status: null };
   } catch (error) {
-    core.warning(`Failed to fetch project state: ${error}`);
+    core.warning(`Failed to fetch project status: ${error}`);
     return null;
   }
 }
@@ -689,8 +663,7 @@ async function handleIssueEvent(
       commentId: "",
       contextJson: {
         issue_number: String(issue.number),
-        issue_title: details.title || issue.title,
-        // Note: issue_body removed - executors fetch it when needed to avoid "may contain secret" masking
+        // Note: issue_title fetched by parseIssue
       },
       skip: false,
       skipReason: "",
@@ -743,9 +716,8 @@ async function handleIssueEvent(
           commentId: "",
           contextJson: {
             issue_number: String(issue.number),
-            issue_title: details.title || issue.title,
-            // Note: issue_body removed - executors fetch it when needed to avoid "may contain secret" masking
             trigger_type: "issue-groom",
+            // Note: issue_title fetched by parseIssue
           },
           skip: false,
           skipReason: "",
@@ -755,17 +727,18 @@ async function handleIssueEvent(
 
     // If nopo-bot is assigned, edited triggers iteration (issue-edit-based loop)
     if (isNopoBotAssigned) {
-      // Check project state - skip if in terminal/blocked state
-      const projectState = await fetchProjectState(
+      // Check project status - skip if in terminal/blocked state
+      // Note: Full project state is fetched by parseIssue in the state machine
+      const projectStatus = await fetchProjectStatusForSkipCheck(
         octokit,
         owner,
         repo,
         issue.number,
       );
-      if (shouldSkipProjectState(projectState)) {
+      if (shouldSkipProjectState(projectStatus)) {
         return emptyResult(
           true,
-          `Issue project status is '${projectState?.status}' - skipping iteration`,
+          `Issue project status is '${projectStatus?.status}' - skipping iteration`,
         );
       }
 
@@ -778,13 +751,6 @@ async function handleIssueEvent(
 
       // Check if this is a sub-issue (has parent) - route to iterate with parent context
       if (details.isSubIssue) {
-        const phaseNumber = extractPhaseNumber(details.title);
-        const branchName = deriveBranch(
-          details.parentIssue,
-          phaseNumber || issue.number,
-        );
-        const branchExists = await checkBranchExists(branchName);
-
         return {
           job: "issue-iterate",
           resourceType: "issue",
@@ -792,16 +758,9 @@ async function handleIssueEvent(
           commentId: "",
           contextJson: {
             issue_number: String(issue.number),
-            issue_title: details.title || issue.title,
-            // Note: issue_body removed - executors fetch it when needed to avoid "may contain secret" masking
-            branch_name: branchName,
-            existing_branch: branchExists ? "true" : "false",
             trigger_type: "issue-edited",
             parent_issue: String(details.parentIssue),
-            phase_number: String(phaseNumber),
-            project_status: projectState?.status || "",
-            project_iteration: String(projectState?.iteration || 0),
-            project_failures: String(projectState?.failures || 0),
+            // Note: branch_name, project_* fields removed - fetched by parseIssue
           },
           skip: false,
           skipReason: "",
@@ -835,13 +794,9 @@ async function handleIssueEvent(
           commentId: "",
           contextJson: {
             issue_number: String(issue.number),
-            issue_title: details.title || issue.title,
-            // Note: issue_body removed - executors fetch it when needed to avoid "may contain secret" masking
             sub_issues: subIssueNumbers.join(","),
             trigger_type: "issue-edited",
-            project_status: projectState?.status || "",
-            project_iteration: String(projectState?.iteration || 0),
-            project_failures: String(projectState?.failures || 0),
+            // Note: project_* fields removed - fetched by parseIssue
           },
           skip: false,
           skipReason: "",
@@ -849,11 +804,6 @@ async function handleIssueEvent(
       }
 
       // Regular issue without sub-issues
-      const branchName = `claude/issue/${issue.number}`;
-
-      // Check if branch exists (don't create, iteration will handle that)
-      const branchExists = await checkBranchExists(branchName);
-
       return {
         job: "issue-iterate",
         resourceType: "issue",
@@ -861,14 +811,8 @@ async function handleIssueEvent(
         commentId: "",
         contextJson: {
           issue_number: String(issue.number),
-          issue_title: details.title || issue.title,
-          // Note: issue_body removed - executors fetch it when needed to avoid "may contain secret" masking
-          branch_name: branchName,
-          existing_branch: branchExists ? "true" : "false",
           trigger_type: "issue-edited",
-          project_status: projectState?.status || "",
-          project_iteration: String(projectState?.iteration || 0),
-          project_failures: String(projectState?.failures || 0),
+          // Note: branch_name, project_* fields removed - fetched by parseIssue
         },
         skip: false,
         skipReason: "",
@@ -901,8 +845,7 @@ async function handleIssueEvent(
         commentId: "",
         contextJson: {
           issue_number: String(issue.number),
-          issue_title: details.title || issue.title,
-          // Note: issue_body removed - executors fetch it when needed to avoid "may contain secret" masking
+          // Note: issue_title fetched by parseIssue
         },
         skip: false,
         skipReason: "",
@@ -924,23 +867,8 @@ async function handleIssueEvent(
       return emptyResult(true, "Closed issue is not a sub-issue");
     }
 
-    // Fetch parent issue details to trigger orchestration
-    const parentDetails = await fetchIssueDetails(
-      octokit,
-      owner,
-      repo,
-      details.parentIssue,
-    );
-
-    // Get parent project state
-    const parentProjectState = await fetchProjectState(
-      octokit,
-      owner,
-      repo,
-      details.parentIssue,
-    );
-
     // Route to orchestrate so it can check if all sub-issues are done
+    // Note: Parent issue details fetched by parseIssue in state machine
     return {
       job: "issue-orchestrate",
       resourceType: "issue",
@@ -948,13 +876,9 @@ async function handleIssueEvent(
       commentId: "",
       contextJson: {
         issue_number: String(details.parentIssue),
-        issue_title: parentDetails.title,
-        sub_issues: parentDetails.subIssues.join(","),
         trigger_type: "issue-orchestrate",
         closed_sub_issue: String(issue.number),
-        project_status: parentProjectState?.status || "",
-        project_iteration: String(parentProjectState?.iteration || 0),
-        project_failures: String(parentProjectState?.failures || 0),
+        // Note: project_* fields removed - fetched by parseIssue
       },
       skip: false,
       skipReason: "",
@@ -968,9 +892,9 @@ async function handleIssueEvent(
       return emptyResult(true, "Not assigned to nopo-bot");
     }
 
-    // Check project state - skip if in terminal/blocked state
+    // Check project status - skip if in terminal/blocked state
     // Note: "Backlog" is allowed for assigned events (it's the initial state before state machine starts)
-    const projectState = await fetchProjectState(
+    const projectStatus = await fetchProjectStatusForSkipCheck(
       octokit,
       owner,
       repo,
@@ -978,12 +902,12 @@ async function handleIssueEvent(
     );
     const terminalStatuses = ["Done", "Blocked", "Error"];
     if (
-      projectState?.status &&
-      terminalStatuses.includes(projectState.status)
+      projectStatus?.status &&
+      terminalStatuses.includes(projectStatus.status)
     ) {
       return emptyResult(
         true,
-        `Issue project status is '${projectState?.status}' - skipping iteration`,
+        `Issue project status is '${projectStatus?.status}' - skipping iteration`,
       );
     }
 
@@ -1008,15 +932,10 @@ async function handleIssueEvent(
         commentId: "",
         contextJson: {
           issue_number: String(issue.number),
-          issue_title: details.title || issue.title,
-          // Note: issue_body removed - executors fetch it when needed to avoid "may contain secret" masking
           branch_name: branchName,
           trigger_type: "issue-assigned",
           parent_issue: String(details.parentIssue),
-          phase_number: String(phaseNumber),
-          project_status: projectState?.status || "",
-          project_iteration: String(projectState?.iteration || 0),
-          project_failures: String(projectState?.failures || 0),
+          // Note: project_* fields removed - fetched by parseIssue
         },
         skip: false,
         skipReason: "",
@@ -1056,13 +975,9 @@ async function handleIssueEvent(
         commentId: "",
         contextJson: {
           issue_number: String(issue.number),
-          issue_title: details.title || issue.title,
-          // Note: issue_body removed - executors fetch it when needed to avoid "may contain secret" masking
           sub_issues: subIssueNumbers.join(","),
           trigger_type: "issue-assigned",
-          project_status: projectState?.status || "",
-          project_iteration: String(projectState?.iteration || 0),
-          project_failures: String(projectState?.failures || 0),
+          // Note: project_* fields removed - fetched by parseIssue
         },
         skip: false,
         skipReason: "",
@@ -1082,13 +997,9 @@ async function handleIssueEvent(
       commentId: "",
       contextJson: {
         issue_number: String(issue.number),
-        issue_title: details.title || issue.title,
-        // Note: issue_body removed - executors fetch it when needed to avoid "may contain secret" masking
         branch_name: branchName,
         trigger_type: "issue-assigned",
-        project_status: projectState?.status || "",
-        project_iteration: String(projectState?.iteration || 0),
-        project_failures: String(projectState?.failures || 0),
+        // Note: project_* fields removed - fetched by parseIssue
       },
       skip: false,
       skipReason: "",
@@ -1164,8 +1075,6 @@ async function handleIssueCommentEvent(
     // Add reaction to acknowledge the command
     await addReactionToComment(octokit, owner, repo, comment.id, "eyes");
 
-    const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
-
     return {
       job: "issue-reset",
       resourceType: "issue",
@@ -1173,10 +1082,8 @@ async function handleIssueCommentEvent(
       commentId: String(comment.id),
       contextJson: {
         issue_number: String(issue.number),
-        issue_title: details.title || issue.title,
-        // Note: issue_body removed - executors fetch it when needed to avoid "may contain secret" masking
-        sub_issues: details.subIssues.join(","),
         trigger_type: "issue-reset",
+        // Note: sub_issues fetched by parseIssue
       },
       skip: false,
       skipReason: "",
@@ -1198,9 +1105,6 @@ async function handleIssueCommentEvent(
 
     // If triggered on sub-issue, redirect to parent
     const targetIssue = details.isSubIssue ? details.parentIssue : issue.number;
-    const targetDetails = details.isSubIssue
-      ? await fetchIssueDetails(octokit, owner, repo, details.parentIssue)
-      : details;
 
     return {
       job: "issue-pivot",
@@ -1209,11 +1113,10 @@ async function handleIssueCommentEvent(
       commentId: String(comment.id),
       contextJson: {
         issue_number: String(targetIssue),
-        issue_title: targetDetails.title || issue.title,
         pivot_description: pivotDescription,
         triggered_from: String(issue.number),
-        sub_issues: targetDetails.subIssues.join(","),
         trigger_type: "issue-pivot",
+        // Note: sub_issues fetched by parseIssue
       },
       skip: false,
       skipReason: "",
@@ -1329,11 +1232,9 @@ async function handleIssueCommentEvent(
         commentId: String(comment.id),
         contextJson: {
           issue_number: String(issue.number),
-          issue_title: details.title || issue.title,
           branch_name: branchName,
           trigger_type: "issue-assigned", // Routes to iterating state, not commenting
           parent_issue: String(details.parentIssue),
-          phase_number: String(phaseNumber),
         },
         skip: false,
         skipReason: "",
@@ -1355,7 +1256,6 @@ async function handleIssueCommentEvent(
         commentId: String(comment.id),
         contextJson: {
           issue_number: String(issue.number),
-          issue_title: details.title || issue.title,
           trigger_type: "issue-groom",
         },
         skip: false,
@@ -1373,7 +1273,6 @@ async function handleIssueCommentEvent(
         commentId: String(comment.id),
         contextJson: {
           issue_number: String(issue.number),
-          issue_title: details.title || issue.title,
           sub_issues: details.subIssues.join(","),
           trigger_type: "issue-orchestrate", // Routes to orchestrating state
         },
@@ -1395,7 +1294,6 @@ async function handleIssueCommentEvent(
       commentId: String(comment.id),
       contextJson: {
         issue_number: String(issue.number),
-        issue_title: details.title || issue.title,
         branch_name: branchName,
         trigger_type: "issue-assigned", // Routes to iterating state, not commenting
       },
@@ -2339,17 +2237,18 @@ async function handleWorkflowDispatchEvent(
   // Fetch issue details
   const details = await fetchIssueDetails(octokit, owner, repo, issueNumber);
 
-  // Check project state - skip if in terminal/blocked state
-  const projectState = await fetchProjectState(
+  // Check project status - skip if in terminal/blocked state
+  // Note: Full project state is fetched by parseIssue in the state machine
+  const projectStatus = await fetchProjectStatusForSkipCheck(
     octokit,
     owner,
     repo,
     issueNumber,
   );
-  if (shouldSkipProjectState(projectState)) {
+  if (shouldSkipProjectState(projectStatus)) {
     return emptyResult(
       true,
-      `Issue project status is '${projectState?.status}' - skipping iteration`,
+      `Issue project status is '${projectStatus?.status}' - skipping iteration`,
     );
   }
 
@@ -2376,12 +2275,9 @@ async function handleWorkflowDispatchEvent(
       commentId: "",
       contextJson: {
         issue_number: String(issueNumber),
-        issue_title: details.title,
         trigger_type: "issue-groom",
         parent_issue: parentIssue,
-        project_status: projectState?.status || "",
-        project_iteration: String(projectState?.iteration || 0),
-        project_failures: String(projectState?.failures || 0),
+        // Note: project_* fields removed - fetched by parseIssue
       },
       skip: false,
       skipReason: "",
@@ -2397,13 +2293,10 @@ async function handleWorkflowDispatchEvent(
       commentId: "",
       contextJson: {
         issue_number: String(issueNumber),
-        issue_title: details.title,
         sub_issues: details.subIssues.join(","),
         trigger_type: "issue-assigned",
         parent_issue: parentIssue,
-        project_status: projectState?.status || "",
-        project_iteration: String(projectState?.iteration || 0),
-        project_failures: String(projectState?.failures || 0),
+        // Note: project_* fields removed - fetched by parseIssue
       },
       skip: false,
       skipReason: "",
@@ -2425,14 +2318,10 @@ async function handleWorkflowDispatchEvent(
       commentId: "",
       contextJson: {
         issue_number: String(issueNumber),
-        issue_title: details.title,
         branch_name: branchName,
         trigger_type: "issue-assigned",
         parent_issue: parentIssue,
-        phase_number: String(phaseNumber),
-        project_status: projectState?.status || "",
-        project_iteration: String(projectState?.iteration || 0),
-        project_failures: String(projectState?.failures || 0),
+        // Note: project_* fields removed - fetched by parseIssue
       },
       skip: false,
       skipReason: "",
@@ -2449,13 +2338,10 @@ async function handleWorkflowDispatchEvent(
     commentId: "",
     contextJson: {
       issue_number: String(issueNumber),
-      issue_title: details.title,
       branch_name: branchName,
       trigger_type: "issue-assigned",
       parent_issue: parentIssue,
-      project_status: projectState?.status || "",
-      project_iteration: String(projectState?.iteration || 0),
-      project_failures: String(projectState?.failures || 0),
+      // Note: project_* fields removed - fetched by parseIssue
     },
     skip: false,
     skipReason: "",

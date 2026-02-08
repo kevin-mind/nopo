@@ -102,13 +102,18 @@ If not ready, specify what information or decisions are needed.`}
 
       <section title="Scope Recommendation">
         {`Suggest if the issue should be:
-- **keep**: Scope is appropriate as-is (single phase, no sub-issues)
+- **keep**: Scope is appropriate as-is (single phase)
 - **split**: Issue is too large, recommend splitting into phases
 - **expand**: Issue is too small, could combine with related work`}
       </section>
 
-      <section title="Phase Planning (If scope_recommendation = 'split')">
-        {`If you recommend splitting, provide \`recommended_phases\` with:
+      <section title="Phase Planning (REQUIRED)">
+        {`You MUST provide \`recommended_phases\` with at least one phase. This is REQUIRED because:
+- Work happens on sub-issues (phases), not parent issues directly
+- Sub-issues are created from your recommended_phases
+- Without phases, the issue cannot be implemented
+
+Provide \`recommended_phases\` with:
 - **phase_number**: 1-indexed phase number
 - **title**: Short descriptive title (e.g., "Setup database schema")
 - **description**: What this phase accomplishes
@@ -120,12 +125,12 @@ If not ready, specify what information or decisions are needed.`}
 - **depends_on**: Array of phase numbers this depends on (empty for first phase)
 
 **Guidelines for phases:**
-- 2-5 phases maximum
+- 1-5 phases (even simple XS/S issues need at least 1 phase)
 - Each phase should be a self-contained PR
 - No generic todos (commit, push, merge) - only specific implementation tasks
 - Phases should have clear dependencies
 
-For simple issues (XS/S size), leave \`recommended_phases\` as an empty array.`}
+For simple issues (XS/S size), provide a single phase with all todos.`}
       </section>
 
       <section title="Output">

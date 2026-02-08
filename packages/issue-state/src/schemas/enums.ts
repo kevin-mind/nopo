@@ -35,3 +35,19 @@ export const CIStatusSchema = z.enum([
 ]);
 
 export type CIStatus = z.infer<typeof CIStatusSchema>;
+
+export const ReviewDecisionSchema = z.enum([
+  "APPROVED",
+  "CHANGES_REQUESTED",
+  "REVIEW_REQUIRED",
+]);
+
+export type ReviewDecision = z.infer<typeof ReviewDecisionSchema>;
+
+export const MergeableStateSchema = z.enum([
+  "MERGEABLE",
+  "CONFLICTING",
+  "UNKNOWN",
+]);
+
+export type MergeableState = z.infer<typeof MergeableStateSchema>;

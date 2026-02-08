@@ -23949,7 +23949,34 @@ var coerce = {
 };
 var NEVER = INVALID;
 
-// ../../packages/statemachine/src/schemas/entities.ts
+// ../../packages/issue-state/src/constants.ts
+var PARENT_STATUS = {
+  BACKLOG: "Backlog",
+  IN_PROGRESS: "In progress",
+  DONE: "Done",
+  BLOCKED: "Blocked",
+  ERROR: "Error"
+};
+var SUB_ISSUE_STATUS = {
+  READY: "Ready",
+  IN_PROGRESS: "In progress",
+  IN_REVIEW: "In review",
+  DONE: "Done"
+};
+var PROJECT_STATUS = {
+  ...PARENT_STATUS,
+  ...SUB_ISSUE_STATUS
+};
+var DEFAULT_PROJECT_FIELDS = {
+  status: PARENT_STATUS.BACKLOG,
+  iteration: 0,
+  failures: 0
+};
+var DEFAULT_SUB_ISSUE_PROJECT_FIELDS = {
+  status: SUB_ISSUE_STATUS.READY
+};
+
+// ../../packages/issue-state/src/schemas/enums.ts
 var ProjectStatusSchema = external_exports.enum([
   "Backlog",
   "In progress",
@@ -23961,37 +23988,6 @@ var ProjectStatusSchema = external_exports.enum([
 ]);
 var IssueStateSchema = external_exports.enum(["OPEN", "CLOSED"]);
 var PRStateSchema = external_exports.enum(["OPEN", "CLOSED", "MERGED"]);
-var TodoItemSchema = external_exports.object({
-  text: external_exports.string(),
-  checked: external_exports.boolean(),
-  isManual: external_exports.boolean()
-});
-var TodoStatsSchema = external_exports.object({
-  total: external_exports.number().int().min(0),
-  completed: external_exports.number().int().min(0),
-  uncheckedNonManual: external_exports.number().int().min(0)
-});
-var HistoryEntrySchema = external_exports.object({
-  iteration: external_exports.number().int().min(0),
-  phase: external_exports.string(),
-  action: external_exports.string(),
-  timestamp: external_exports.string().nullable(),
-  sha: external_exports.string().nullable(),
-  runLink: external_exports.string().nullable()
-});
-var AgentNotesEntrySchema = external_exports.object({
-  runId: external_exports.string(),
-  runLink: external_exports.string(),
-  timestamp: external_exports.string(),
-  notes: external_exports.array(external_exports.string())
-});
-var IssueCommentSchema = external_exports.object({
-  id: external_exports.string(),
-  author: external_exports.string(),
-  body: external_exports.string(),
-  createdAt: external_exports.string(),
-  isBot: external_exports.boolean()
-});
 var CIStatusSchema = external_exports.enum([
   "SUCCESS",
   "FAILURE",
@@ -23999,850 +23995,15 @@ var CIStatusSchema = external_exports.enum([
   "ERROR",
   "EXPECTED"
 ]);
-var LinkedPRSchema = external_exports.object({
-  number: external_exports.number().int().positive(),
-  state: PRStateSchema,
-  isDraft: external_exports.boolean(),
-  title: external_exports.string(),
-  headRef: external_exports.string(),
-  baseRef: external_exports.string(),
-  // CI status from statusCheckRollup
-  ciStatus: CIStatusSchema.nullable().optional()
-});
-var SubIssueSchema = external_exports.object({
-  number: external_exports.number().int().positive(),
-  title: external_exports.string(),
-  state: IssueStateSchema,
-  body: external_exports.string(),
-  projectStatus: ProjectStatusSchema.nullable(),
-  branch: external_exports.string().nullable(),
-  pr: LinkedPRSchema.nullable(),
-  todos: TodoStatsSchema
-});
-var ParentIssueSchema = external_exports.object({
-  number: external_exports.number().int().positive(),
-  title: external_exports.string(),
-  state: IssueStateSchema,
-  body: external_exports.string(),
-  projectStatus: ProjectStatusSchema.nullable(),
-  iteration: external_exports.number().int().min(0),
-  failures: external_exports.number().int().min(0),
-  assignees: external_exports.array(external_exports.string()),
-  labels: external_exports.array(external_exports.string()),
-  subIssues: external_exports.array(SubIssueSchema),
-  hasSubIssues: external_exports.boolean(),
-  history: external_exports.array(HistoryEntrySchema),
-  /** Todos parsed from the issue body - used when this is a sub-issue triggered directly */
-  todos: TodoStatsSchema,
-  /** Agent notes from previous workflow runs */
-  agentNotes: external_exports.array(AgentNotesEntrySchema).default([]),
-  /** Issue comments from GitHub */
-  comments: external_exports.array(IssueCommentSchema).default([])
-});
-var CIResultSchema = external_exports.enum([
-  "success",
-  "failure",
-  "cancelled",
-  "skipped"
-]);
 var ReviewDecisionSchema = external_exports.enum([
   "APPROVED",
   "CHANGES_REQUESTED",
-  "COMMENTED",
-  "DISMISSED"
+  "REVIEW_REQUIRED"
 ]);
-function isTerminalStatus(status) {
-  return status === "Done" || status === "Blocked" || status === "Error";
-}
-
-// ../../packages/statemachine/src/schemas/state.ts
-var TriggerTypeSchema = external_exports.enum([
-  // Issue triggers
-  "issue-assigned",
-  "issue-edited",
-  "issue-closed",
-  "issue-triage",
-  "issue-orchestrate",
-  "issue-comment",
-  "issue-reset",
-  "issue-pivot",
-  // Grooming triggers
-  "issue-groom",
-  "issue-groom-summary",
-  // PR triggers
-  "pr-review-requested",
-  "pr-review-submitted",
-  "pr-review",
-  "pr-review-approved",
-  "pr-response",
-  "pr-human-response",
-  "pr-push",
-  // Workflow triggers
-  "workflow-run-completed",
-  // Merge queue logging triggers
-  "merge-queue-entered",
-  "merge-queue-failed",
-  "pr-merged",
-  "deployed-stage",
-  "deployed-prod",
-  // Discussion triggers
-  "discussion-created",
-  "discussion-comment",
-  "discussion-command"
-]);
-var MachineContextSchema = external_exports.object({
-  // Trigger info
-  trigger: TriggerTypeSchema,
-  // Repository info
-  owner: external_exports.string().min(1),
-  repo: external_exports.string().min(1),
-  // Issue being worked on (could be parent or sub-issue)
-  issue: ParentIssueSchema,
-  // If this is a sub-issue, the parent
-  parentIssue: ParentIssueSchema.nullable(),
-  // Current phase info (derived from sub-issues)
-  currentPhase: external_exports.number().int().positive().nullable(),
-  totalPhases: external_exports.number().int().min(0),
-  currentSubIssue: SubIssueSchema.nullable(),
-  // CI result (if triggered by workflow_run)
-  ciResult: CIResultSchema.nullable(),
-  ciRunUrl: external_exports.string().nullable(),
-  ciCommitSha: external_exports.string().nullable(),
-  // Workflow timing
-  /** ISO 8601 timestamp of when the workflow started */
-  workflowStartedAt: external_exports.string().nullable(),
-  /** URL to the current workflow run */
-  workflowRunUrl: external_exports.string().nullable().default(null),
-  // Review result (if triggered by pr_review_submitted)
-  reviewDecision: ReviewDecisionSchema.nullable(),
-  reviewerId: external_exports.string().nullable(),
-  // Branch info
-  branch: external_exports.string().nullable(),
-  hasBranch: external_exports.boolean(),
-  // PR info (for the current phase/issue)
-  pr: LinkedPRSchema.nullable(),
-  hasPR: external_exports.boolean(),
-  // Comment info (if triggered by issue_comment)
-  commentContextType: external_exports.string().transform((v) => v?.toLowerCase()).pipe(external_exports.enum(["issue", "pr"])).nullable().default(null),
-  commentContextDescription: external_exports.string().nullable().default(null),
-  // Pivot info (if triggered by issue-pivot)
-  pivotDescription: external_exports.string().nullable().default(null),
-  // Release info (if triggered by release_* events)
-  releaseEvent: external_exports.object({
-    type: external_exports.enum(["queue_entry", "merged", "deployed", "queue_failure"]),
-    commitSha: external_exports.string().optional(),
-    failureReason: external_exports.string().optional(),
-    services: external_exports.array(external_exports.string()).optional()
-  }).nullable().default(null),
-  // Discussion info (if triggered by discussion_* events)
-  discussion: external_exports.object({
-    number: external_exports.number().int().positive(),
-    nodeId: external_exports.string(),
-    title: external_exports.string(),
-    body: external_exports.string(),
-    commentCount: external_exports.number().int().min(0).default(0),
-    researchThreads: external_exports.array(
-      external_exports.object({
-        nodeId: external_exports.string(),
-        topic: external_exports.string(),
-        replyCount: external_exports.number().int().min(0)
-      })
-    ).default([]),
-    command: external_exports.enum(["summarize", "plan", "complete"]).optional(),
-    commentId: external_exports.string().optional(),
-    commentBody: external_exports.string().optional(),
-    commentAuthor: external_exports.string().optional()
-  }).nullable().default(null),
-  // Config
-  maxRetries: external_exports.number().int().positive().default(5),
-  botUsername: external_exports.string().default("nopo-bot")
-});
-
-// ../../packages/statemachine/src/schemas/actions.ts
-var TokenTypeSchema = external_exports.enum(["code", "review"]);
-var ArtifactSchema = external_exports.object({
-  /** Unique name for the artifact (used for upload/download matching) */
-  name: external_exports.string(),
-  /** Path to the file (relative to workspace) */
-  path: external_exports.string()
-});
-var BaseActionSchema = external_exports.object({
-  id: external_exports.string().uuid().optional(),
-  /** Which token to use for this action (defaults to 'code') */
-  token: TokenTypeSchema.default("code"),
-  /** Artifact this action produces (will be uploaded after execution) */
-  producesArtifact: ArtifactSchema.optional(),
-  /** Artifact this action consumes (will be downloaded before execution) */
-  consumesArtifact: ArtifactSchema.optional()
-});
-var UpdateProjectStatusActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("updateProjectStatus"),
-  issueNumber: external_exports.number().int().positive(),
-  status: ProjectStatusSchema
-});
-var IncrementIterationActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("incrementIteration"),
-  issueNumber: external_exports.number().int().positive()
-});
-var RecordFailureActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("recordFailure"),
-  issueNumber: external_exports.number().int().positive(),
-  failureType: external_exports.enum(["ci", "workflow", "review"]).optional()
-});
-var ClearFailuresActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("clearFailures"),
-  issueNumber: external_exports.number().int().positive()
-});
-var PhaseDefinitionSchema = external_exports.object({
-  title: external_exports.string().min(1),
-  body: external_exports.string()
-});
-var CreateSubIssuesActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("createSubIssues"),
-  parentIssueNumber: external_exports.number().int().positive(),
-  phases: external_exports.array(PhaseDefinitionSchema).min(1)
-});
-var CloseIssueActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("closeIssue"),
-  issueNumber: external_exports.number().int().positive(),
-  reason: external_exports.enum(["completed", "not_planned"]).default("completed")
-});
-var ReopenIssueActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("reopenIssue"),
-  issueNumber: external_exports.number().int().positive()
-});
-var ResetIssueActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("resetIssue"),
-  issueNumber: external_exports.number().int().positive(),
-  /** Sub-issue numbers to reset */
-  subIssueNumbers: external_exports.array(external_exports.number().int().positive()).default([]),
-  botUsername: external_exports.string().min(1)
-});
-var AppendHistoryActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("appendHistory"),
-  issueNumber: external_exports.number().int().positive(),
-  /** Iteration number from project field */
-  iteration: external_exports.number().int().min(0).optional(),
-  phase: external_exports.string(),
-  message: external_exports.string(),
-  /** ISO 8601 timestamp of when the workflow started */
-  timestamp: external_exports.string().optional(),
-  commitSha: external_exports.string().optional(),
-  /** PR number to link in the SHA column (alternative to commitSha) */
-  prNumber: external_exports.number().int().positive().nullable().optional(),
-  runLink: external_exports.string().optional()
-});
-var UpdateHistoryActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("updateHistory"),
-  issueNumber: external_exports.number().int().positive(),
-  matchIteration: external_exports.number().int().min(0),
-  matchPhase: external_exports.string(),
-  matchPattern: external_exports.string(),
-  newMessage: external_exports.string(),
-  /** ISO 8601 timestamp (optional - preserves existing if not provided) */
-  timestamp: external_exports.string().optional(),
-  commitSha: external_exports.string().optional(),
-  /** PR number to link in the SHA column (alternative to commitSha) */
-  prNumber: external_exports.number().int().positive().nullable().optional(),
-  runLink: external_exports.string().optional()
-});
-var UpdateIssueBodyActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("updateIssueBody"),
-  issueNumber: external_exports.number().int().positive(),
-  body: external_exports.string()
-});
-var AddCommentActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("addComment"),
-  issueNumber: external_exports.number().int().positive(),
-  body: external_exports.string()
-});
-var UnassignUserActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("unassignUser"),
-  issueNumber: external_exports.number().int().positive(),
-  username: external_exports.string().min(1)
-});
-var AssignUserActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("assignUser"),
-  issueNumber: external_exports.number().int().positive(),
-  username: external_exports.string().min(1)
-});
-var CreateBranchActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("createBranch"),
-  branchName: external_exports.string().min(1),
-  baseBranch: external_exports.string().default("main"),
-  /** Git worktree to run the command in */
-  worktree: external_exports.string().optional()
-});
-var GitPushActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("gitPush"),
-  branchName: external_exports.string().min(1),
-  force: external_exports.boolean().default(false)
-});
-var CreatePRActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("createPR"),
-  title: external_exports.string().min(1),
-  body: external_exports.string(),
-  branchName: external_exports.string().min(1),
-  baseBranch: external_exports.string().default("main"),
-  draft: external_exports.boolean().default(true),
-  issueNumber: external_exports.number().int().positive()
-});
-var ConvertPRToDraftActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("convertPRToDraft"),
-  prNumber: external_exports.number().int().positive()
-});
-var MarkPRReadyActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("markPRReady"),
-  prNumber: external_exports.number().int().positive()
-});
-var RequestReviewActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("requestReview"),
-  prNumber: external_exports.number().int().positive(),
-  reviewer: external_exports.string().min(1)
-});
-var MergePRActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("mergePR"),
-  prNumber: external_exports.number().int().positive(),
-  issueNumber: external_exports.number().int().positive(),
-  mergeMethod: external_exports.enum(["merge", "squash", "rebase"]).default("squash")
-});
-var SubmitReviewActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("submitReview"),
-  prNumber: external_exports.number().int().positive(),
-  decision: external_exports.enum(["approve", "request_changes", "comment"]),
-  body: external_exports.string()
-});
-var RemoveReviewerActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("removeReviewer"),
-  prNumber: external_exports.number().int().positive(),
-  reviewer: external_exports.string().min(1)
-});
-var RunClaudeActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("runClaude"),
-  /** Direct prompt string */
-  prompt: external_exports.string().min(1).optional(),
-  /** Path to prompt file (relative to repo root) - will be read and substituted */
-  promptFile: external_exports.string().min(1).optional(),
-  /** Prompt directory name (resolved to {promptsDir}/{name}/) - contains prompt.txt and optional outputs.json */
-  promptDir: external_exports.string().min(1).optional(),
-  /** Base directory for prompts (defaults to .github/prompts/) */
-  promptsDir: external_exports.string().min(1).optional(),
-  /** Template variables for prompt substitution */
-  promptVars: external_exports.record(external_exports.string()).optional(),
-  issueNumber: external_exports.number().int().positive(),
-  allowedTools: external_exports.array(external_exports.string()).optional(),
-  worktree: external_exports.string().optional()
-});
-var AddDiscussionCommentActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("addDiscussionComment"),
-  discussionNodeId: external_exports.string().min(1),
-  body: external_exports.string().min(1),
-  /** If provided, this comment is a reply to another comment */
-  replyToNodeId: external_exports.string().optional()
-});
-var UpdateDiscussionBodyActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("updateDiscussionBody"),
-  discussionNodeId: external_exports.string().min(1),
-  newBody: external_exports.string().min(1)
-});
-var AddDiscussionReactionActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("addDiscussionReaction"),
-  /** Node ID of the discussion or comment */
-  subjectId: external_exports.string().min(1),
-  content: external_exports.enum([
-    "THUMBS_UP",
-    "THUMBS_DOWN",
-    "LAUGH",
-    "HOORAY",
-    "CONFUSED",
-    "HEART",
-    "ROCKET",
-    "EYES"
-  ])
-});
-var CreateIssuesFromDiscussionActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("createIssuesFromDiscussion"),
-  discussionNumber: external_exports.number().int().positive(),
-  issues: external_exports.array(
-    external_exports.object({
-      title: external_exports.string().min(1),
-      body: external_exports.string(),
-      labels: external_exports.array(external_exports.string()).default([])
-    })
-  )
-});
-var StopActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("stop"),
-  reason: external_exports.string().min(1)
-});
-var BlockActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("block"),
-  issueNumber: external_exports.number().int().positive(),
-  reason: external_exports.string().min(1)
-});
-var LogActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("log"),
-  level: external_exports.enum(["debug", "info", "warning", "error"]).default("info"),
-  message: external_exports.string(),
-  /** Git worktree context (informational) */
-  worktree: external_exports.string().optional()
-});
-var NoOpActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("noop"),
-  reason: external_exports.string().optional()
-});
-var ApplyTriageOutputActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("applyTriageOutput"),
-  issueNumber: external_exports.number().int().positive(),
-  filePath: external_exports.string().default("triage-output.json")
-});
-var ApplyIterateOutputActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("applyIterateOutput"),
-  issueNumber: external_exports.number().int().positive(),
-  filePath: external_exports.string().default("claude-structured-output.json")
-});
-var AppendAgentNotesActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("appendAgentNotes"),
-  issueNumber: external_exports.number().int().positive(),
-  notes: external_exports.array(external_exports.string()),
-  runId: external_exports.string(),
-  runLink: external_exports.string(),
-  timestamp: external_exports.string().optional()
-});
-var ApplyReviewOutputActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("applyReviewOutput"),
-  prNumber: external_exports.number().int().positive(),
-  filePath: external_exports.string().default("claude-structured-output.json"),
-  /** Git worktree to read the output file from */
-  worktree: external_exports.string().optional()
-});
-var ApplyPRResponseOutputActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("applyPRResponseOutput"),
-  prNumber: external_exports.number().int().positive(),
-  issueNumber: external_exports.number().int().positive(),
-  filePath: external_exports.string().default("claude-structured-output.json"),
-  reviewer: external_exports.string().default("nopo-reviewer"),
-  /** Git worktree to read the output file from */
-  worktree: external_exports.string().optional()
-});
-var ApplyDiscussionResearchOutputActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("applyDiscussionResearchOutput"),
-  discussionNumber: external_exports.number().int().positive(),
-  discussionNodeId: external_exports.string().min(1),
-  /** Prompt variables to pass to investigation agents */
-  promptVars: external_exports.record(external_exports.string()).optional(),
-  /** Path to the structured output file (for artifact-based execution) */
-  filePath: external_exports.string().optional(),
-  /** Artifact to download before execution */
-  consumesArtifact: ArtifactSchema.optional()
-});
-var ApplyDiscussionRespondOutputActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("applyDiscussionRespondOutput"),
-  discussionNumber: external_exports.number().int().positive(),
-  discussionNodeId: external_exports.string().min(1),
-  /** If provided, post as a reply to this comment */
-  replyToNodeId: external_exports.string().optional(),
-  /** Path to the structured output file (for artifact-based execution) */
-  filePath: external_exports.string().optional(),
-  /** Artifact to download before execution */
-  consumesArtifact: ArtifactSchema.optional()
-});
-var ApplyDiscussionSummarizeOutputActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("applyDiscussionSummarizeOutput"),
-  discussionNumber: external_exports.number().int().positive(),
-  discussionNodeId: external_exports.string().min(1),
-  /** Path to the structured output file (for artifact-based execution) */
-  filePath: external_exports.string().optional(),
-  /** Artifact to download before execution */
-  consumesArtifact: ArtifactSchema.optional()
-});
-var ApplyDiscussionPlanOutputActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("applyDiscussionPlanOutput"),
-  discussionNumber: external_exports.number().int().positive(),
-  discussionNodeId: external_exports.string().min(1),
-  /** Path to the structured output file (for artifact-based execution) */
-  filePath: external_exports.string().optional(),
-  /** Artifact to download before execution */
-  consumesArtifact: ArtifactSchema.optional()
-});
-var ResearchThreadSchema = external_exports.object({
-  /** The comment node ID for posting replies */
-  commentNodeId: external_exports.string().min(1),
-  /** Thread title */
-  title: external_exports.string().min(1),
-  /** The main question to investigate */
-  question: external_exports.string().min(1),
-  /** Areas to investigate */
-  investigationAreas: external_exports.array(external_exports.string()),
-  /** Expected deliverables */
-  expectedDeliverables: external_exports.array(external_exports.string())
-});
-var InvestigateResearchThreadsActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("investigateResearchThreads"),
-  discussionNumber: external_exports.number().int().positive(),
-  discussionNodeId: external_exports.string().min(1),
-  /** Research threads to investigate */
-  threads: external_exports.array(ResearchThreadSchema),
-  /** Template variables for investigation prompts */
-  promptVars: external_exports.record(external_exports.string()).optional()
-});
-var UpdateDiscussionSummaryActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("updateDiscussionSummary"),
-  discussionNumber: external_exports.number().int().positive(),
-  discussionNodeId: external_exports.string().min(1),
-  /** Template variables for summary prompt */
-  promptVars: external_exports.record(external_exports.string()).optional()
-});
-var AddLabelActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("addLabel"),
-  issueNumber: external_exports.number().int().positive(),
-  label: external_exports.string().min(1)
-});
-var RemoveLabelActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("removeLabel"),
-  issueNumber: external_exports.number().int().positive(),
-  label: external_exports.string().min(1)
-});
-var GroomingAgentTypeSchema = external_exports.enum([
-  "pm",
-  "engineer",
-  "qa",
-  "research"
-]);
-var RunClaudeGroomingActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("runClaudeGrooming"),
-  issueNumber: external_exports.number().int().positive(),
-  /** Template variables for grooming prompts */
-  promptVars: external_exports.record(external_exports.string()).optional()
-});
-var ApplyGroomingOutputActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("applyGroomingOutput"),
-  issueNumber: external_exports.number().int().positive(),
-  /** Path to the combined grooming output file */
-  filePath: external_exports.string().default("grooming-output.json")
-});
-var ApplyPivotOutputActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("applyPivotOutput"),
-  issueNumber: external_exports.number().int().positive(),
-  /** Path to the pivot output file */
-  filePath: external_exports.string().default("claude-structured-output.json")
-});
-var ActionSchema = external_exports.discriminatedUnion("type", [
-  // Project field actions
-  UpdateProjectStatusActionSchema,
-  IncrementIterationActionSchema,
-  RecordFailureActionSchema,
-  ClearFailuresActionSchema,
-  // Issue actions
-  CreateSubIssuesActionSchema,
-  CloseIssueActionSchema,
-  ReopenIssueActionSchema,
-  ResetIssueActionSchema,
-  AppendHistoryActionSchema,
-  UpdateHistoryActionSchema,
-  UpdateIssueBodyActionSchema,
-  AddCommentActionSchema,
-  UnassignUserActionSchema,
-  AssignUserActionSchema,
-  // Label actions
-  AddLabelActionSchema,
-  RemoveLabelActionSchema,
-  // Git actions
-  CreateBranchActionSchema,
-  GitPushActionSchema,
-  // PR actions
-  CreatePRActionSchema,
-  ConvertPRToDraftActionSchema,
-  MarkPRReadyActionSchema,
-  RequestReviewActionSchema,
-  MergePRActionSchema,
-  SubmitReviewActionSchema,
-  RemoveReviewerActionSchema,
-  // Claude actions
-  RunClaudeActionSchema,
-  // Grooming actions
-  RunClaudeGroomingActionSchema,
-  ApplyGroomingOutputActionSchema,
-  // Pivot actions
-  ApplyPivotOutputActionSchema,
-  // Discussion actions
-  AddDiscussionCommentActionSchema,
-  UpdateDiscussionBodyActionSchema,
-  AddDiscussionReactionActionSchema,
-  CreateIssuesFromDiscussionActionSchema,
-  // Control flow actions
-  StopActionSchema,
-  BlockActionSchema,
-  LogActionSchema,
-  NoOpActionSchema,
-  // Triage actions
-  ApplyTriageOutputActionSchema,
-  // Iterate actions
-  ApplyIterateOutputActionSchema,
-  // Agent notes actions
-  AppendAgentNotesActionSchema,
-  // Review actions
-  ApplyReviewOutputActionSchema,
-  // PR response actions
-  ApplyPRResponseOutputActionSchema,
-  // Discussion apply actions
-  ApplyDiscussionResearchOutputActionSchema,
-  ApplyDiscussionRespondOutputActionSchema,
-  ApplyDiscussionSummarizeOutputActionSchema,
-  ApplyDiscussionPlanOutputActionSchema,
-  // Discussion parallel investigation actions
-  InvestigateResearchThreadsActionSchema,
-  UpdateDiscussionSummaryActionSchema
-]);
-
-// ../../packages/statemachine/src/schemas/issue-triggers.ts
-var IssueTriggerTypeSchema = external_exports.enum([
-  // Issue triggers
-  "issue-assigned",
-  "issue-edited",
-  "issue-closed",
-  "issue-triage",
-  "issue-groom",
-  "issue-orchestrate",
-  "issue-comment",
-  "issue-pivot",
-  "issue-reset",
-  // PR triggers
-  "pr-review-requested",
-  "pr-review-submitted",
-  "pr-review",
-  "pr-review-approved",
-  "pr-response",
-  "pr-human-response",
-  "pr-push",
-  // Workflow triggers
-  "workflow-run-completed",
-  // Merge queue logging triggers
-  "merge-queue-entered",
-  "merge-queue-failed",
-  "pr-merged",
-  "deployed-stage",
-  "deployed-prod"
-]);
-var ISSUE_TRIGGER_TYPES = IssueTriggerTypeSchema.options;
-
-// ../../packages/statemachine/src/schemas/discussion-triggers.ts
-var DiscussionTriggerTypeSchema = external_exports.enum([
-  "discussion-created",
-  "discussion-comment",
-  "discussion-command"
-]);
-var DISCUSSION_TRIGGER_TYPES = DiscussionTriggerTypeSchema.options;
-
-// ../../packages/statemachine/src/schemas/discussion-context.ts
-var DiscussionCommandSchema = external_exports.enum([
-  "summarize",
-  "plan",
-  "complete"
-]);
-var ResearchThreadSchema2 = external_exports.object({
-  nodeId: external_exports.string(),
-  topic: external_exports.string(),
-  replyCount: external_exports.number().int().min(0)
-});
-var DiscussionSchema = external_exports.object({
-  number: external_exports.number().int().positive(),
-  nodeId: external_exports.string(),
-  title: external_exports.string(),
-  body: external_exports.string(),
-  commentCount: external_exports.number().int().min(0).default(0),
-  researchThreads: external_exports.array(ResearchThreadSchema2).default([]),
-  command: DiscussionCommandSchema.optional(),
-  commentId: external_exports.string().optional(),
-  commentBody: external_exports.string().optional(),
-  commentAuthor: external_exports.string().optional()
-});
-var DiscussionContextSchema = external_exports.object({
-  // Trigger info
-  trigger: DiscussionTriggerTypeSchema,
-  // Repository info
-  owner: external_exports.string().min(1),
-  repo: external_exports.string().min(1),
-  // Discussion being worked on
-  discussion: DiscussionSchema,
-  // Config
-  maxRetries: external_exports.number().int().positive().default(5),
-  botUsername: external_exports.string().default("nopo-bot")
-});
-
-// ../../packages/statemachine/src/schemas/runner-context.ts
-var TriggerTypeSchema2 = external_exports.union([
-  IssueTriggerTypeSchema,
-  DiscussionTriggerTypeSchema
-]);
-var JobTypeSchema = external_exports.enum([
-  // Issue jobs
-  "issue-triage",
-  "issue-groom",
-  "issue-iterate",
-  "issue-orchestrate",
-  "issue-comment",
-  "issue-reset",
-  // PR jobs
-  "pr-push",
-  "pr-review-requested",
-  // When someone requests a review from the bot
-  "pr-review",
-  // Legacy: when bot should review (has review decision)
-  "pr-review-approved",
-  "pr-response",
-  "pr-human-response",
-  // Merge queue
-  "merge-queue-logging",
-  // Discussion jobs
-  "discussion-research",
-  "discussion-respond",
-  "discussion-summarize",
-  "discussion-plan",
-  "discussion-complete",
-  // Empty (skip)
-  ""
-]);
-var ResourceTypeSchema = external_exports.enum(["issue", "pr", "discussion", ""]);
-var ContextTypeSchema = external_exports.enum(["issue", "pr"]);
-var WorkflowContextSchema = external_exports.object({
-  // ========================================
-  // Routing & Control (previously separate outputs)
-  // ========================================
-  /** Job type to run (e.g., "issue-iterate", "pr-review", "discussion-research") */
-  job: JobTypeSchema,
-  /** Trigger type for the state machine */
-  trigger: TriggerTypeSchema2,
-  /** Type of resource being processed */
-  resource_type: ResourceTypeSchema,
-  /** Resource number (issue, PR, or discussion number) */
-  resource_number: external_exports.string(),
-  /** Parent issue number for sub-issues (or "0" if not a sub-issue) */
-  parent_issue: external_exports.string().default("0"),
-  /** Comment ID that triggered this run (for reactions) */
-  comment_id: external_exports.string().default(""),
-  /** Concurrency group name */
-  concurrency_group: external_exports.string(),
-  /** Whether to cancel in-progress runs in the same group */
-  cancel_in_progress: external_exports.boolean().default(false),
-  /** Whether to skip processing */
-  skip: external_exports.boolean().default(false),
-  /** Reason for skipping (if skip is true) */
-  skip_reason: external_exports.string().default(""),
-  // ========================================
-  // Issue-specific fields
-  // ========================================
-  /** Issue number */
-  issue_number: external_exports.string().optional(),
-  /** Issue title */
-  issue_title: external_exports.string().optional(),
-  /** Issue body */
-  issue_body: external_exports.string().optional(),
-  /** Branch name for the work */
-  branch_name: external_exports.string().optional(),
-  /** Whether the branch already exists */
-  existing_branch: external_exports.string().optional(),
-  /** Phase number for sub-issues */
-  phase_number: external_exports.string().optional(),
-  /** Comma-separated list of sub-issue numbers */
-  sub_issues: external_exports.string().optional(),
-  /** Project status from GitHub Project field */
-  project_status: external_exports.string().optional(),
-  /** Project iteration from GitHub Project field */
-  project_iteration: external_exports.string().optional(),
-  /** Project failures from GitHub Project field */
-  project_failures: external_exports.string().optional(),
-  /** Closed sub-issue number (for sub_issue_closed trigger) */
-  closed_sub_issue: external_exports.string().optional(),
-  // ========================================
-  // CI-specific fields (workflow_run_completed)
-  // ========================================
-  /** CI result (success, failure, cancelled, skipped) */
-  ci_result: CIResultSchema.optional(),
-  /** CI run URL */
-  ci_run_url: external_exports.string().optional(),
-  /** CI commit SHA */
-  ci_commit_sha: external_exports.string().optional(),
-  // ========================================
-  // Review-specific fields (pr_review_submitted)
-  // ========================================
-  /** Review decision */
-  review_decision: ReviewDecisionSchema.optional(),
-  /** Review state (lowercase version: approved, changes_requested, commented) */
-  review_state: external_exports.string().optional(),
-  /** Review body */
-  review_body: external_exports.string().optional(),
-  /** Review ID */
-  review_id: external_exports.string().optional(),
-  /** Reviewer username */
-  reviewer: external_exports.string().optional(),
-  /** Reviewer login (alias for reviewer) */
-  reviewer_login: external_exports.string().optional(),
-  // ========================================
-  // PR-specific fields
-  // ========================================
-  /** PR number */
-  pr_number: external_exports.string().optional(),
-  /** Whether PR is a draft */
-  is_draft: external_exports.boolean().optional(),
-  /** Issue section content (for pr-review job) */
-  issue_section: external_exports.string().optional(),
-  /** Merge queue head ref */
-  head_ref: external_exports.string().optional(),
-  /** Merge queue head SHA */
-  head_sha: external_exports.string().optional(),
-  // ========================================
-  // Comment-specific fields (issue_comment)
-  // ========================================
-  /** Context type for comment (Issue or PR) */
-  context_type: ContextTypeSchema.optional(),
-  /** Context description for comment */
-  context_description: external_exports.string().optional(),
-  // ========================================
-  // Discussion-specific fields
-  // ========================================
-  /** Discussion number */
-  discussion_number: external_exports.string().optional(),
-  /** Discussion title */
-  discussion_title: external_exports.string().optional(),
-  /** Discussion body */
-  discussion_body: external_exports.string().optional(),
-  /** Comment body (for discussion comments) */
-  comment_body: external_exports.string().optional(),
-  /** Comment author username */
-  comment_author: external_exports.string().optional(),
-  /** Discussion command (/summarize, /plan, /complete) */
-  command: DiscussionCommandSchema.optional(),
-  /** Whether this is a test automation run */
-  is_test_automation: external_exports.boolean().optional(),
-  // ========================================
-  // Internal trigger type tracking
-  // ========================================
-  /**
-   * Internal trigger type (may differ from the job name)
-   * Used when the state machine needs a different trigger than the job implies
-   */
-  trigger_type: external_exports.string().optional()
-});
-
-// ../../packages/issue-state/src/schemas/enums.ts
-var ProjectStatusSchema2 = external_exports.enum([
-  "Backlog",
-  "In progress",
-  "Ready",
-  "In review",
-  "Done",
-  "Blocked",
-  "Error"
-]);
-var IssueStateSchema2 = external_exports.enum(["OPEN", "CLOSED"]);
-var PRStateSchema2 = external_exports.enum(["OPEN", "CLOSED", "MERGED"]);
-var CIStatusSchema2 = external_exports.enum([
-  "SUCCESS",
-  "FAILURE",
-  "PENDING",
-  "ERROR",
-  "EXPECTED"
+var MergeableStateSchema = external_exports.enum([
+  "MERGEABLE",
+  "CONFLICTING",
+  "UNKNOWN"
 ]);
 
 // ../../packages/issue-state/src/schemas/ast.ts
@@ -24858,7 +24019,7 @@ var MdastRootSchema = external_exports.object({
 }).passthrough();
 
 // ../../packages/issue-state/src/schemas/comment.ts
-var IssueCommentSchema2 = external_exports.object({
+var IssueCommentSchema = external_exports.object({
   id: external_exports.string(),
   author: external_exports.string(),
   body: external_exports.string(),
@@ -24867,19 +24028,23 @@ var IssueCommentSchema2 = external_exports.object({
 });
 
 // ../../packages/issue-state/src/schemas/pr.ts
-var LinkedPRSchema2 = external_exports.object({
+var LinkedPRSchema = external_exports.object({
   number: external_exports.number().int().positive(),
-  state: PRStateSchema2,
+  state: PRStateSchema,
   isDraft: external_exports.boolean(),
   title: external_exports.string(),
   headRef: external_exports.string(),
   baseRef: external_exports.string(),
-  ciStatus: CIStatusSchema2.nullable().optional()
+  ciStatus: CIStatusSchema.nullable().optional(),
+  reviewDecision: ReviewDecisionSchema.nullable().optional(),
+  mergeable: MergeableStateSchema.nullable().optional(),
+  reviewCount: external_exports.number().int().nonnegative().optional(),
+  url: external_exports.string().optional()
 });
 
 // ../../packages/issue-state/src/schemas/project.ts
 var ProjectFieldsSchema = external_exports.object({
-  status: ProjectStatusSchema2.nullable(),
+  status: ProjectStatusSchema.nullable(),
   iteration: external_exports.number().int().min(0),
   failures: external_exports.number().int().min(0)
 });
@@ -24888,29 +24053,29 @@ var ProjectFieldsSchema = external_exports.object({
 var SubIssueDataSchema = external_exports.object({
   number: external_exports.number().int().positive(),
   title: external_exports.string(),
-  state: IssueStateSchema2,
+  state: IssueStateSchema,
   bodyAst: MdastRootSchema,
-  projectStatus: ProjectStatusSchema2.nullable(),
+  projectStatus: ProjectStatusSchema.nullable(),
   branch: external_exports.string().nullable(),
-  pr: LinkedPRSchema2.nullable()
+  pr: LinkedPRSchema.nullable()
 });
 
 // ../../packages/issue-state/src/schemas/issue.ts
 var IssueDataSchema = external_exports.object({
   number: external_exports.number().int().positive(),
   title: external_exports.string(),
-  state: IssueStateSchema2,
+  state: IssueStateSchema,
   bodyAst: MdastRootSchema,
-  projectStatus: ProjectStatusSchema2.nullable(),
+  projectStatus: ProjectStatusSchema.nullable(),
   iteration: external_exports.number().int().min(0),
   failures: external_exports.number().int().min(0),
   assignees: external_exports.array(external_exports.string()),
   labels: external_exports.array(external_exports.string()),
   subIssues: external_exports.array(SubIssueDataSchema),
   hasSubIssues: external_exports.boolean(),
-  comments: external_exports.array(IssueCommentSchema2).default([]),
+  comments: external_exports.array(IssueCommentSchema).default([]),
   branch: external_exports.string().nullable(),
-  pr: LinkedPRSchema2.nullable(),
+  pr: LinkedPRSchema.nullable(),
   parentIssueNumber: external_exports.number().int().positive().nullable()
 });
 
@@ -37077,6 +36242,940 @@ var serializer = unified().use(remarkParse).use(remarkGfm).use(remarkStringify, 
   listItemIndent: "one"
 });
 
+// ../../packages/issue-state/src/sections/types.ts
+var TodoItemSchema = external_exports.object({
+  text: external_exports.string(),
+  checked: external_exports.boolean(),
+  isManual: external_exports.boolean()
+});
+var TodoStatsSchema = external_exports.object({
+  total: external_exports.number().int().min(0),
+  completed: external_exports.number().int().min(0),
+  uncheckedNonManual: external_exports.number().int().min(0)
+});
+var HistoryEntrySchema = external_exports.object({
+  iteration: external_exports.number().int().min(0),
+  phase: external_exports.string(),
+  action: external_exports.string(),
+  timestamp: external_exports.string().nullable(),
+  sha: external_exports.string().nullable(),
+  runLink: external_exports.string().nullable()
+});
+var AgentNotesEntrySchema = external_exports.object({
+  runId: external_exports.string(),
+  runLink: external_exports.string(),
+  timestamp: external_exports.string(),
+  notes: external_exports.array(external_exports.string())
+});
+
+// ../../packages/statemachine/src/schemas/entities.ts
+var IssueCommentSchema2 = external_exports.object({
+  id: external_exports.string(),
+  author: external_exports.string(),
+  body: external_exports.string(),
+  createdAt: external_exports.string(),
+  isBot: external_exports.boolean()
+});
+var LinkedPRSchema2 = external_exports.object({
+  number: external_exports.number().int().positive(),
+  state: external_exports.enum(["OPEN", "CLOSED", "MERGED"]),
+  isDraft: external_exports.boolean(),
+  title: external_exports.string(),
+  headRef: external_exports.string(),
+  baseRef: external_exports.string(),
+  // CI status from statusCheckRollup
+  ciStatus: CIStatusSchema.nullable().optional()
+});
+var SubIssueSchema = external_exports.object({
+  number: external_exports.number().int().positive(),
+  title: external_exports.string(),
+  state: IssueStateSchema,
+  body: external_exports.string(),
+  projectStatus: ProjectStatusSchema.nullable(),
+  branch: external_exports.string().nullable(),
+  pr: LinkedPRSchema2.nullable(),
+  todos: TodoStatsSchema
+});
+var ParentIssueSchema = external_exports.object({
+  number: external_exports.number().int().positive(),
+  title: external_exports.string(),
+  state: IssueStateSchema,
+  body: external_exports.string(),
+  projectStatus: ProjectStatusSchema.nullable(),
+  iteration: external_exports.number().int().min(0),
+  failures: external_exports.number().int().min(0),
+  assignees: external_exports.array(external_exports.string()),
+  labels: external_exports.array(external_exports.string()),
+  subIssues: external_exports.array(SubIssueSchema),
+  hasSubIssues: external_exports.boolean(),
+  history: external_exports.array(HistoryEntrySchema),
+  /** Todos parsed from the issue body - used when this is a sub-issue triggered directly */
+  todos: TodoStatsSchema,
+  /** Agent notes from previous workflow runs */
+  agentNotes: external_exports.array(AgentNotesEntrySchema).default([]),
+  /** Issue comments from GitHub */
+  comments: external_exports.array(IssueCommentSchema2).default([])
+});
+var CIResultSchema = external_exports.enum([
+  "success",
+  "failure",
+  "cancelled",
+  "skipped"
+]);
+var ReviewDecisionSchema2 = external_exports.enum([
+  "APPROVED",
+  "CHANGES_REQUESTED",
+  "COMMENTED",
+  "DISMISSED"
+]);
+function isTerminalStatus(status) {
+  return status === "Done" || status === "Blocked" || status === "Error";
+}
+
+// ../../packages/statemachine/src/schemas/state.ts
+var TriggerTypeSchema = external_exports.enum([
+  // Issue triggers
+  "issue-assigned",
+  "issue-edited",
+  "issue-closed",
+  "issue-triage",
+  "issue-orchestrate",
+  "issue-comment",
+  "issue-reset",
+  "issue-pivot",
+  // Grooming triggers
+  "issue-groom",
+  "issue-groom-summary",
+  // PR triggers
+  "pr-review-requested",
+  "pr-review-submitted",
+  "pr-review",
+  "pr-review-approved",
+  "pr-response",
+  "pr-human-response",
+  "pr-push",
+  // Workflow triggers
+  "workflow-run-completed",
+  // Merge queue logging triggers
+  "merge-queue-entered",
+  "merge-queue-failed",
+  "pr-merged",
+  "deployed-stage",
+  "deployed-prod",
+  // Discussion triggers
+  "discussion-created",
+  "discussion-comment",
+  "discussion-command"
+]);
+var MachineContextSchema = external_exports.object({
+  // Trigger info
+  trigger: TriggerTypeSchema,
+  // Repository info
+  owner: external_exports.string().min(1),
+  repo: external_exports.string().min(1),
+  // Issue being worked on (could be parent or sub-issue)
+  issue: ParentIssueSchema,
+  // If this is a sub-issue, the parent
+  parentIssue: ParentIssueSchema.nullable(),
+  // Current phase info (derived from sub-issues)
+  currentPhase: external_exports.number().int().positive().nullable(),
+  totalPhases: external_exports.number().int().min(0),
+  currentSubIssue: SubIssueSchema.nullable(),
+  // CI result (if triggered by workflow_run)
+  ciResult: CIResultSchema.nullable(),
+  ciRunUrl: external_exports.string().nullable(),
+  ciCommitSha: external_exports.string().nullable(),
+  // Workflow timing
+  /** ISO 8601 timestamp of when the workflow started */
+  workflowStartedAt: external_exports.string().nullable(),
+  /** URL to the current workflow run */
+  workflowRunUrl: external_exports.string().nullable().default(null),
+  // Review result (if triggered by pr_review_submitted)
+  reviewDecision: ReviewDecisionSchema2.nullable(),
+  reviewerId: external_exports.string().nullable(),
+  // Branch info
+  branch: external_exports.string().nullable(),
+  hasBranch: external_exports.boolean(),
+  // PR info (for the current phase/issue)
+  pr: LinkedPRSchema2.nullable(),
+  hasPR: external_exports.boolean(),
+  // Comment info (if triggered by issue_comment)
+  commentContextType: external_exports.string().transform((v) => v?.toLowerCase()).pipe(external_exports.enum(["issue", "pr"])).nullable().default(null),
+  commentContextDescription: external_exports.string().nullable().default(null),
+  // Pivot info (if triggered by issue-pivot)
+  pivotDescription: external_exports.string().nullable().default(null),
+  // Release info (if triggered by release_* events)
+  releaseEvent: external_exports.object({
+    type: external_exports.enum(["queue_entry", "merged", "deployed", "queue_failure"]),
+    commitSha: external_exports.string().optional(),
+    failureReason: external_exports.string().optional(),
+    services: external_exports.array(external_exports.string()).optional()
+  }).nullable().default(null),
+  // Discussion info (if triggered by discussion_* events)
+  discussion: external_exports.object({
+    number: external_exports.number().int().positive(),
+    nodeId: external_exports.string(),
+    title: external_exports.string(),
+    body: external_exports.string(),
+    commentCount: external_exports.number().int().min(0).default(0),
+    researchThreads: external_exports.array(
+      external_exports.object({
+        nodeId: external_exports.string(),
+        topic: external_exports.string(),
+        replyCount: external_exports.number().int().min(0)
+      })
+    ).default([]),
+    command: external_exports.enum(["summarize", "plan", "complete"]).optional(),
+    commentId: external_exports.string().optional(),
+    commentBody: external_exports.string().optional(),
+    commentAuthor: external_exports.string().optional()
+  }).nullable().default(null),
+  // Config
+  maxRetries: external_exports.number().int().positive().default(5),
+  botUsername: external_exports.string().default("nopo-bot")
+});
+
+// ../../packages/statemachine/src/schemas/actions.ts
+var TokenTypeSchema = external_exports.enum(["code", "review"]);
+var ArtifactSchema = external_exports.object({
+  /** Unique name for the artifact (used for upload/download matching) */
+  name: external_exports.string(),
+  /** Path to the file (relative to workspace) */
+  path: external_exports.string()
+});
+var BaseActionSchema = external_exports.object({
+  id: external_exports.string().uuid().optional(),
+  /** Which token to use for this action (defaults to 'code') */
+  token: TokenTypeSchema.default("code"),
+  /** Artifact this action produces (will be uploaded after execution) */
+  producesArtifact: ArtifactSchema.optional(),
+  /** Artifact this action consumes (will be downloaded before execution) */
+  consumesArtifact: ArtifactSchema.optional()
+});
+var UpdateProjectStatusActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("updateProjectStatus"),
+  issueNumber: external_exports.number().int().positive(),
+  status: ProjectStatusSchema
+});
+var IncrementIterationActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("incrementIteration"),
+  issueNumber: external_exports.number().int().positive()
+});
+var RecordFailureActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("recordFailure"),
+  issueNumber: external_exports.number().int().positive(),
+  failureType: external_exports.enum(["ci", "workflow", "review"]).optional()
+});
+var ClearFailuresActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("clearFailures"),
+  issueNumber: external_exports.number().int().positive()
+});
+var PhaseDefinitionSchema = external_exports.object({
+  title: external_exports.string().min(1),
+  body: external_exports.string()
+});
+var CreateSubIssuesActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("createSubIssues"),
+  parentIssueNumber: external_exports.number().int().positive(),
+  phases: external_exports.array(PhaseDefinitionSchema).min(1)
+});
+var CloseIssueActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("closeIssue"),
+  issueNumber: external_exports.number().int().positive(),
+  reason: external_exports.enum(["completed", "not_planned"]).default("completed")
+});
+var ReopenIssueActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("reopenIssue"),
+  issueNumber: external_exports.number().int().positive()
+});
+var ResetIssueActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("resetIssue"),
+  issueNumber: external_exports.number().int().positive(),
+  /** Sub-issue numbers to reset */
+  subIssueNumbers: external_exports.array(external_exports.number().int().positive()).default([]),
+  botUsername: external_exports.string().min(1)
+});
+var AppendHistoryActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("appendHistory"),
+  issueNumber: external_exports.number().int().positive(),
+  /** Iteration number from project field */
+  iteration: external_exports.number().int().min(0).optional(),
+  phase: external_exports.string(),
+  message: external_exports.string(),
+  /** ISO 8601 timestamp of when the workflow started */
+  timestamp: external_exports.string().optional(),
+  commitSha: external_exports.string().optional(),
+  /** PR number to link in the SHA column (alternative to commitSha) */
+  prNumber: external_exports.number().int().positive().nullable().optional(),
+  runLink: external_exports.string().optional()
+});
+var UpdateHistoryActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("updateHistory"),
+  issueNumber: external_exports.number().int().positive(),
+  matchIteration: external_exports.number().int().min(0),
+  matchPhase: external_exports.string(),
+  matchPattern: external_exports.string(),
+  newMessage: external_exports.string(),
+  /** ISO 8601 timestamp (optional - preserves existing if not provided) */
+  timestamp: external_exports.string().optional(),
+  commitSha: external_exports.string().optional(),
+  /** PR number to link in the SHA column (alternative to commitSha) */
+  prNumber: external_exports.number().int().positive().nullable().optional(),
+  runLink: external_exports.string().optional()
+});
+var UpdateIssueBodyActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("updateIssueBody"),
+  issueNumber: external_exports.number().int().positive(),
+  body: external_exports.string()
+});
+var AddCommentActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("addComment"),
+  issueNumber: external_exports.number().int().positive(),
+  body: external_exports.string()
+});
+var UnassignUserActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("unassignUser"),
+  issueNumber: external_exports.number().int().positive(),
+  username: external_exports.string().min(1)
+});
+var AssignUserActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("assignUser"),
+  issueNumber: external_exports.number().int().positive(),
+  username: external_exports.string().min(1)
+});
+var CreateBranchActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("createBranch"),
+  branchName: external_exports.string().min(1),
+  baseBranch: external_exports.string().default("main"),
+  /** Git worktree to run the command in */
+  worktree: external_exports.string().optional()
+});
+var GitPushActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("gitPush"),
+  branchName: external_exports.string().min(1),
+  force: external_exports.boolean().default(false)
+});
+var CreatePRActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("createPR"),
+  title: external_exports.string().min(1),
+  body: external_exports.string(),
+  branchName: external_exports.string().min(1),
+  baseBranch: external_exports.string().default("main"),
+  draft: external_exports.boolean().default(true),
+  issueNumber: external_exports.number().int().positive()
+});
+var ConvertPRToDraftActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("convertPRToDraft"),
+  prNumber: external_exports.number().int().positive()
+});
+var MarkPRReadyActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("markPRReady"),
+  prNumber: external_exports.number().int().positive()
+});
+var RequestReviewActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("requestReview"),
+  prNumber: external_exports.number().int().positive(),
+  reviewer: external_exports.string().min(1)
+});
+var MergePRActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("mergePR"),
+  prNumber: external_exports.number().int().positive(),
+  issueNumber: external_exports.number().int().positive(),
+  mergeMethod: external_exports.enum(["merge", "squash", "rebase"]).default("squash")
+});
+var SubmitReviewActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("submitReview"),
+  prNumber: external_exports.number().int().positive(),
+  decision: external_exports.enum(["approve", "request_changes", "comment"]),
+  body: external_exports.string()
+});
+var RemoveReviewerActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("removeReviewer"),
+  prNumber: external_exports.number().int().positive(),
+  reviewer: external_exports.string().min(1)
+});
+var RunClaudeActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("runClaude"),
+  /** Direct prompt string */
+  prompt: external_exports.string().min(1).optional(),
+  /** Path to prompt file (relative to repo root) - will be read and substituted */
+  promptFile: external_exports.string().min(1).optional(),
+  /** Prompt directory name (resolved to {promptsDir}/{name}/) - contains prompt.txt and optional outputs.json */
+  promptDir: external_exports.string().min(1).optional(),
+  /** Base directory for prompts (defaults to .github/prompts/) */
+  promptsDir: external_exports.string().min(1).optional(),
+  /** Template variables for prompt substitution */
+  promptVars: external_exports.record(external_exports.string()).optional(),
+  issueNumber: external_exports.number().int().positive(),
+  allowedTools: external_exports.array(external_exports.string()).optional(),
+  worktree: external_exports.string().optional()
+});
+var AddDiscussionCommentActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("addDiscussionComment"),
+  discussionNodeId: external_exports.string().min(1),
+  body: external_exports.string().min(1),
+  /** If provided, this comment is a reply to another comment */
+  replyToNodeId: external_exports.string().optional()
+});
+var UpdateDiscussionBodyActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("updateDiscussionBody"),
+  discussionNodeId: external_exports.string().min(1),
+  newBody: external_exports.string().min(1)
+});
+var AddDiscussionReactionActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("addDiscussionReaction"),
+  /** Node ID of the discussion or comment */
+  subjectId: external_exports.string().min(1),
+  content: external_exports.enum([
+    "THUMBS_UP",
+    "THUMBS_DOWN",
+    "LAUGH",
+    "HOORAY",
+    "CONFUSED",
+    "HEART",
+    "ROCKET",
+    "EYES"
+  ])
+});
+var CreateIssuesFromDiscussionActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("createIssuesFromDiscussion"),
+  discussionNumber: external_exports.number().int().positive(),
+  issues: external_exports.array(
+    external_exports.object({
+      title: external_exports.string().min(1),
+      body: external_exports.string(),
+      labels: external_exports.array(external_exports.string()).default([])
+    })
+  )
+});
+var StopActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("stop"),
+  reason: external_exports.string().min(1)
+});
+var BlockActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("block"),
+  issueNumber: external_exports.number().int().positive(),
+  reason: external_exports.string().min(1)
+});
+var LogActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("log"),
+  level: external_exports.enum(["debug", "info", "warning", "error"]).default("info"),
+  message: external_exports.string(),
+  /** Git worktree context (informational) */
+  worktree: external_exports.string().optional()
+});
+var NoOpActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("noop"),
+  reason: external_exports.string().optional()
+});
+var ApplyTriageOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyTriageOutput"),
+  issueNumber: external_exports.number().int().positive(),
+  filePath: external_exports.string().default("triage-output.json")
+});
+var ApplyIterateOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyIterateOutput"),
+  issueNumber: external_exports.number().int().positive(),
+  filePath: external_exports.string().default("claude-structured-output.json")
+});
+var AppendAgentNotesActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("appendAgentNotes"),
+  issueNumber: external_exports.number().int().positive(),
+  notes: external_exports.array(external_exports.string()),
+  runId: external_exports.string(),
+  runLink: external_exports.string(),
+  timestamp: external_exports.string().optional()
+});
+var ApplyReviewOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyReviewOutput"),
+  prNumber: external_exports.number().int().positive(),
+  filePath: external_exports.string().default("claude-structured-output.json"),
+  /** Git worktree to read the output file from */
+  worktree: external_exports.string().optional()
+});
+var ApplyPRResponseOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyPRResponseOutput"),
+  prNumber: external_exports.number().int().positive(),
+  issueNumber: external_exports.number().int().positive(),
+  filePath: external_exports.string().default("claude-structured-output.json"),
+  reviewer: external_exports.string().default("nopo-reviewer"),
+  /** Git worktree to read the output file from */
+  worktree: external_exports.string().optional()
+});
+var ApplyDiscussionResearchOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyDiscussionResearchOutput"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string().min(1),
+  /** Prompt variables to pass to investigation agents */
+  promptVars: external_exports.record(external_exports.string()).optional(),
+  /** Path to the structured output file (for artifact-based execution) */
+  filePath: external_exports.string().optional(),
+  /** Artifact to download before execution */
+  consumesArtifact: ArtifactSchema.optional()
+});
+var ApplyDiscussionRespondOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyDiscussionRespondOutput"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string().min(1),
+  /** If provided, post as a reply to this comment */
+  replyToNodeId: external_exports.string().optional(),
+  /** Path to the structured output file (for artifact-based execution) */
+  filePath: external_exports.string().optional(),
+  /** Artifact to download before execution */
+  consumesArtifact: ArtifactSchema.optional()
+});
+var ApplyDiscussionSummarizeOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyDiscussionSummarizeOutput"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string().min(1),
+  /** Path to the structured output file (for artifact-based execution) */
+  filePath: external_exports.string().optional(),
+  /** Artifact to download before execution */
+  consumesArtifact: ArtifactSchema.optional()
+});
+var ApplyDiscussionPlanOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyDiscussionPlanOutput"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string().min(1),
+  /** Path to the structured output file (for artifact-based execution) */
+  filePath: external_exports.string().optional(),
+  /** Artifact to download before execution */
+  consumesArtifact: ArtifactSchema.optional()
+});
+var ResearchThreadSchema = external_exports.object({
+  /** The comment node ID for posting replies */
+  commentNodeId: external_exports.string().min(1),
+  /** Thread title */
+  title: external_exports.string().min(1),
+  /** The main question to investigate */
+  question: external_exports.string().min(1),
+  /** Areas to investigate */
+  investigationAreas: external_exports.array(external_exports.string()),
+  /** Expected deliverables */
+  expectedDeliverables: external_exports.array(external_exports.string())
+});
+var InvestigateResearchThreadsActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("investigateResearchThreads"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string().min(1),
+  /** Research threads to investigate */
+  threads: external_exports.array(ResearchThreadSchema),
+  /** Template variables for investigation prompts */
+  promptVars: external_exports.record(external_exports.string()).optional()
+});
+var UpdateDiscussionSummaryActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("updateDiscussionSummary"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string().min(1),
+  /** Template variables for summary prompt */
+  promptVars: external_exports.record(external_exports.string()).optional()
+});
+var AddLabelActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("addLabel"),
+  issueNumber: external_exports.number().int().positive(),
+  label: external_exports.string().min(1)
+});
+var RemoveLabelActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("removeLabel"),
+  issueNumber: external_exports.number().int().positive(),
+  label: external_exports.string().min(1)
+});
+var GroomingAgentTypeSchema = external_exports.enum([
+  "pm",
+  "engineer",
+  "qa",
+  "research"
+]);
+var RunClaudeGroomingActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("runClaudeGrooming"),
+  issueNumber: external_exports.number().int().positive(),
+  /** Template variables for grooming prompts */
+  promptVars: external_exports.record(external_exports.string()).optional()
+});
+var ApplyGroomingOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyGroomingOutput"),
+  issueNumber: external_exports.number().int().positive(),
+  /** Path to the combined grooming output file */
+  filePath: external_exports.string().default("grooming-output.json")
+});
+var ApplyPivotOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyPivotOutput"),
+  issueNumber: external_exports.number().int().positive(),
+  /** Path to the pivot output file */
+  filePath: external_exports.string().default("claude-structured-output.json")
+});
+var ActionSchema = external_exports.discriminatedUnion("type", [
+  // Project field actions
+  UpdateProjectStatusActionSchema,
+  IncrementIterationActionSchema,
+  RecordFailureActionSchema,
+  ClearFailuresActionSchema,
+  // Issue actions
+  CreateSubIssuesActionSchema,
+  CloseIssueActionSchema,
+  ReopenIssueActionSchema,
+  ResetIssueActionSchema,
+  AppendHistoryActionSchema,
+  UpdateHistoryActionSchema,
+  UpdateIssueBodyActionSchema,
+  AddCommentActionSchema,
+  UnassignUserActionSchema,
+  AssignUserActionSchema,
+  // Label actions
+  AddLabelActionSchema,
+  RemoveLabelActionSchema,
+  // Git actions
+  CreateBranchActionSchema,
+  GitPushActionSchema,
+  // PR actions
+  CreatePRActionSchema,
+  ConvertPRToDraftActionSchema,
+  MarkPRReadyActionSchema,
+  RequestReviewActionSchema,
+  MergePRActionSchema,
+  SubmitReviewActionSchema,
+  RemoveReviewerActionSchema,
+  // Claude actions
+  RunClaudeActionSchema,
+  // Grooming actions
+  RunClaudeGroomingActionSchema,
+  ApplyGroomingOutputActionSchema,
+  // Pivot actions
+  ApplyPivotOutputActionSchema,
+  // Discussion actions
+  AddDiscussionCommentActionSchema,
+  UpdateDiscussionBodyActionSchema,
+  AddDiscussionReactionActionSchema,
+  CreateIssuesFromDiscussionActionSchema,
+  // Control flow actions
+  StopActionSchema,
+  BlockActionSchema,
+  LogActionSchema,
+  NoOpActionSchema,
+  // Triage actions
+  ApplyTriageOutputActionSchema,
+  // Iterate actions
+  ApplyIterateOutputActionSchema,
+  // Agent notes actions
+  AppendAgentNotesActionSchema,
+  // Review actions
+  ApplyReviewOutputActionSchema,
+  // PR response actions
+  ApplyPRResponseOutputActionSchema,
+  // Discussion apply actions
+  ApplyDiscussionResearchOutputActionSchema,
+  ApplyDiscussionRespondOutputActionSchema,
+  ApplyDiscussionSummarizeOutputActionSchema,
+  ApplyDiscussionPlanOutputActionSchema,
+  // Discussion parallel investigation actions
+  InvestigateResearchThreadsActionSchema,
+  UpdateDiscussionSummaryActionSchema
+]);
+
+// ../../packages/statemachine/src/schemas/issue-triggers.ts
+var IssueTriggerTypeSchema = external_exports.enum([
+  // Issue triggers
+  "issue-assigned",
+  "issue-edited",
+  "issue-closed",
+  "issue-triage",
+  "issue-groom",
+  "issue-orchestrate",
+  "issue-comment",
+  "issue-pivot",
+  "issue-reset",
+  // PR triggers
+  "pr-review-requested",
+  "pr-review-submitted",
+  "pr-review",
+  "pr-review-approved",
+  "pr-response",
+  "pr-human-response",
+  "pr-push",
+  // Workflow triggers
+  "workflow-run-completed",
+  // Merge queue logging triggers
+  "merge-queue-entered",
+  "merge-queue-failed",
+  "pr-merged",
+  "deployed-stage",
+  "deployed-prod"
+]);
+var ISSUE_TRIGGER_TYPES = IssueTriggerTypeSchema.options;
+
+// ../../packages/statemachine/src/schemas/discussion-triggers.ts
+var DiscussionTriggerTypeSchema = external_exports.enum([
+  "discussion-created",
+  "discussion-comment",
+  "discussion-command"
+]);
+var DISCUSSION_TRIGGER_TYPES = DiscussionTriggerTypeSchema.options;
+
+// ../../packages/statemachine/src/schemas/discussion-context.ts
+var DiscussionCommandSchema = external_exports.enum([
+  "summarize",
+  "plan",
+  "complete"
+]);
+var ResearchThreadSchema2 = external_exports.object({
+  nodeId: external_exports.string(),
+  topic: external_exports.string(),
+  replyCount: external_exports.number().int().min(0)
+});
+var DiscussionSchema = external_exports.object({
+  number: external_exports.number().int().positive(),
+  nodeId: external_exports.string(),
+  title: external_exports.string(),
+  body: external_exports.string(),
+  commentCount: external_exports.number().int().min(0).default(0),
+  researchThreads: external_exports.array(ResearchThreadSchema2).default([]),
+  command: DiscussionCommandSchema.optional(),
+  commentId: external_exports.string().optional(),
+  commentBody: external_exports.string().optional(),
+  commentAuthor: external_exports.string().optional()
+});
+var DiscussionContextSchema = external_exports.object({
+  // Trigger info
+  trigger: DiscussionTriggerTypeSchema,
+  // Repository info
+  owner: external_exports.string().min(1),
+  repo: external_exports.string().min(1),
+  // Discussion being worked on
+  discussion: DiscussionSchema,
+  // Config
+  maxRetries: external_exports.number().int().positive().default(5),
+  botUsername: external_exports.string().default("nopo-bot")
+});
+
+// ../../packages/statemachine/src/schemas/runner-context.ts
+var TriggerTypeSchema2 = external_exports.union([
+  IssueTriggerTypeSchema,
+  DiscussionTriggerTypeSchema
+]);
+var JobTypeSchema = external_exports.enum([
+  // Issue jobs
+  "issue-triage",
+  "issue-groom",
+  "issue-iterate",
+  "issue-orchestrate",
+  "issue-comment",
+  "issue-reset",
+  // PR jobs
+  "pr-push",
+  "pr-review-requested",
+  // When someone requests a review from the bot
+  "pr-review",
+  // Legacy: when bot should review (has review decision)
+  "pr-review-approved",
+  "pr-response",
+  "pr-human-response",
+  // Merge queue
+  "merge-queue-logging",
+  // Discussion jobs
+  "discussion-research",
+  "discussion-respond",
+  "discussion-summarize",
+  "discussion-plan",
+  "discussion-complete",
+  // Empty (skip)
+  ""
+]);
+var ResourceTypeSchema = external_exports.enum(["issue", "pr", "discussion", ""]);
+var ContextTypeSchema = external_exports.enum(["issue", "pr"]);
+var WorkflowContextSchema = external_exports.object({
+  // ========================================
+  // Routing & Control (previously separate outputs)
+  // ========================================
+  /** Job type to run (e.g., "issue-iterate", "pr-review", "discussion-research") */
+  job: JobTypeSchema,
+  /** Trigger type for the state machine */
+  trigger: TriggerTypeSchema2,
+  /** Type of resource being processed */
+  resource_type: ResourceTypeSchema,
+  /** Resource number (issue, PR, or discussion number) */
+  resource_number: external_exports.string(),
+  /** Parent issue number for sub-issues (or "0" if not a sub-issue) */
+  parent_issue: external_exports.string().default("0"),
+  /** Comment ID that triggered this run (for reactions) */
+  comment_id: external_exports.string().default(""),
+  /** Concurrency group name */
+  concurrency_group: external_exports.string(),
+  /** Whether to cancel in-progress runs in the same group */
+  cancel_in_progress: external_exports.boolean().default(false),
+  /** Whether to skip processing */
+  skip: external_exports.boolean().default(false),
+  /** Reason for skipping (if skip is true) */
+  skip_reason: external_exports.string().default(""),
+  // ========================================
+  // Issue-specific fields
+  // ========================================
+  /** Issue number */
+  issue_number: external_exports.string().optional(),
+  /** Issue title */
+  issue_title: external_exports.string().optional(),
+  /** Issue body */
+  issue_body: external_exports.string().optional(),
+  /** Branch name for the work */
+  branch_name: external_exports.string().optional(),
+  /** Whether the branch already exists */
+  existing_branch: external_exports.string().optional(),
+  /** Phase number for sub-issues */
+  phase_number: external_exports.string().optional(),
+  /** Comma-separated list of sub-issue numbers */
+  sub_issues: external_exports.string().optional(),
+  /** Project status from GitHub Project field */
+  project_status: external_exports.string().optional(),
+  /** Project iteration from GitHub Project field */
+  project_iteration: external_exports.string().optional(),
+  /** Project failures from GitHub Project field */
+  project_failures: external_exports.string().optional(),
+  /** Closed sub-issue number (for sub_issue_closed trigger) */
+  closed_sub_issue: external_exports.string().optional(),
+  // ========================================
+  // CI-specific fields (workflow_run_completed)
+  // ========================================
+  /** CI result (success, failure, cancelled, skipped) */
+  ci_result: CIResultSchema.optional(),
+  /** CI run URL */
+  ci_run_url: external_exports.string().optional(),
+  /** CI commit SHA */
+  ci_commit_sha: external_exports.string().optional(),
+  // ========================================
+  // Review-specific fields (pr_review_submitted)
+  // ========================================
+  /** Review decision */
+  review_decision: ReviewDecisionSchema2.optional(),
+  /** Review state (lowercase version: approved, changes_requested, commented) */
+  review_state: external_exports.string().optional(),
+  /** Review body */
+  review_body: external_exports.string().optional(),
+  /** Review ID */
+  review_id: external_exports.string().optional(),
+  /** Reviewer username */
+  reviewer: external_exports.string().optional(),
+  /** Reviewer login (alias for reviewer) */
+  reviewer_login: external_exports.string().optional(),
+  // ========================================
+  // PR-specific fields
+  // ========================================
+  /** PR number */
+  pr_number: external_exports.string().optional(),
+  /** Whether PR is a draft */
+  is_draft: external_exports.boolean().optional(),
+  /** Issue section content (for pr-review job) */
+  issue_section: external_exports.string().optional(),
+  /** Merge queue head ref */
+  head_ref: external_exports.string().optional(),
+  /** Merge queue head SHA */
+  head_sha: external_exports.string().optional(),
+  // ========================================
+  // Comment-specific fields (issue_comment)
+  // ========================================
+  /** Context type for comment (Issue or PR) */
+  context_type: ContextTypeSchema.optional(),
+  /** Context description for comment */
+  context_description: external_exports.string().optional(),
+  // ========================================
+  // Discussion-specific fields
+  // ========================================
+  /** Discussion number */
+  discussion_number: external_exports.string().optional(),
+  /** Discussion title */
+  discussion_title: external_exports.string().optional(),
+  /** Discussion body */
+  discussion_body: external_exports.string().optional(),
+  /** Comment body (for discussion comments) */
+  comment_body: external_exports.string().optional(),
+  /** Comment author username */
+  comment_author: external_exports.string().optional(),
+  /** Discussion command (/summarize, /plan, /complete) */
+  command: DiscussionCommandSchema.optional(),
+  /** Whether this is a test automation run */
+  is_test_automation: external_exports.boolean().optional(),
+  // ========================================
+  // Internal trigger type tracking
+  // ========================================
+  /**
+   * Internal trigger type (may differ from the job name)
+   * Used when the state machine needs a different trigger than the job implies
+   */
+  trigger_type: external_exports.string().optional()
+});
+var MinimalTriggerContextSchema = external_exports.object({
+  // ========================================
+  // Routing & Control (required)
+  // ========================================
+  /** Job type to run */
+  job: JobTypeSchema,
+  /** Trigger type for the state machine */
+  trigger: TriggerTypeSchema2,
+  /** Type of resource being processed */
+  resource_type: ResourceTypeSchema,
+  /** Resource number (issue, PR, or discussion number) */
+  resource_number: external_exports.string(),
+  /** Concurrency group name */
+  concurrency_group: external_exports.string(),
+  /** Whether to cancel in-progress runs in the same group */
+  cancel_in_progress: external_exports.boolean().default(false),
+  /** Whether to skip processing */
+  skip: external_exports.boolean().default(false),
+  /** Reason for skipping (if skip is true) */
+  skip_reason: external_exports.string().default(""),
+  /** Comment ID that triggered this run (for reactions) */
+  comment_id: external_exports.string().default(""),
+  // ========================================
+  // CI Event Data (workflow_run_completed only)
+  // ========================================
+  /** CI result (point-in-time from workflow_run event) */
+  ci_result: CIResultSchema.optional(),
+  /** CI run URL (point-in-time from workflow_run event) */
+  ci_run_url: external_exports.string().optional(),
+  /** CI commit SHA (point-in-time from workflow_run event) */
+  ci_commit_sha: external_exports.string().optional(),
+  // ========================================
+  // Review Event Data (pr_review_submitted only)
+  // ========================================
+  /** Review decision (point-in-time from review event) */
+  review_decision: ReviewDecisionSchema2.optional(),
+  /** Review state (lowercase: approved, changes_requested, commented) */
+  review_state: external_exports.string().optional(),
+  /** Review body (point-in-time from review event) */
+  review_body: external_exports.string().optional(),
+  /** Review ID (point-in-time from review event) */
+  review_id: external_exports.string().optional(),
+  /** Reviewer username (point-in-time from review event) */
+  reviewer: external_exports.string().optional(),
+  // ========================================
+  // Comment Event Data (issue_comment only)
+  // ========================================
+  /** Context type for @claude mentions (issue or pr) */
+  context_type: ContextTypeSchema.optional(),
+  /** Context description for @claude mentions */
+  context_description: external_exports.string().optional(),
+  /** Pivot description (for /pivot command) */
+  pivot_description: external_exports.string().optional(),
+  // ========================================
+  // Discussion Event Data
+  // ========================================
+  /** Discussion number (for discussion triggers) */
+  discussion_number: external_exports.string().optional(),
+  /** Discussion command (/summarize, /plan, /complete) */
+  command: DiscussionCommandSchema.optional(),
+  /** Comment body (for discussion comments) */
+  comment_body: external_exports.string().optional(),
+  /** Comment author username */
+  comment_author: external_exports.string().optional(),
+  /** Whether this is a test automation run */
+  is_test_automation: external_exports.boolean().optional(),
+  // ========================================
+  // Merge Queue Event Data
+  // ========================================
+  /** Merge queue head ref */
+  head_ref: external_exports.string().optional(),
+  /** Merge queue head SHA */
+  head_sha: external_exports.string().optional()
+});
+
 // ../../packages/statemachine/src/parser/issue-adapter.ts
 function deriveBranchName(parentIssueNumber, phaseNumber) {
   if (phaseNumber !== void 0 && phaseNumber > 0) {
@@ -40209,6 +40308,9 @@ function isTerminal({ context }) {
 function hasSubIssues({ context }) {
   return context.issue.hasSubIssues;
 }
+function isSubIssue({ context }) {
+  return context.parentIssue !== null;
+}
 function needsSubIssues(_guardContext) {
   return false;
 }
@@ -40422,6 +40524,7 @@ var guards = {
   isTerminal,
   // Sub-issue guards
   hasSubIssues,
+  isSubIssue,
   needsSubIssues,
   allPhasesDone,
   // Orchestration guards
@@ -40555,6 +40658,51 @@ function emitSetBlocked({ context }) {
     }
   ];
 }
+function emitSetError({ context }) {
+  return [
+    {
+      type: "updateProjectStatus",
+      token: "code",
+      issueNumber: context.issue.number,
+      status: "Error"
+    }
+  ];
+}
+function emitLogInvalidIteration({
+  context
+}) {
+  const message = "\u274C FATAL: Cannot iterate on parent issue without sub-issues. Only sub-issues can be iterated on directly. Run grooming to create sub-issues first.";
+  return [
+    {
+      type: "appendHistory",
+      token: "code",
+      issueNumber: context.issue.number,
+      iteration: context.issue.iteration,
+      phase: String(context.currentPhase ?? "-"),
+      message,
+      timestamp: context.workflowStartedAt ?? void 0,
+      commitSha: context.ciCommitSha ?? void 0,
+      runLink: context.ciRunUrl ?? void 0
+    },
+    {
+      type: "addComment",
+      token: "code",
+      issueNumber: context.issue.number,
+      body: `## \u274C Invalid Iteration Attempt
+
+This issue cannot be iterated on directly because it has no parent issue.
+
+**Only sub-issues can be iterated on.** Parent issues must go through orchestration which manages their sub-issues.
+
+### To Fix
+
+1. Run grooming on this issue to create sub-issues
+2. Then trigger orchestration on the parent issue
+
+Issue #${context.issue.number} has been set to Error status.`
+    }
+  ];
+}
 function emitIncrementIteration({
   context
 }) {
@@ -40683,6 +40831,32 @@ function emitLogCIFailure({ context }) {
     }
   ];
 }
+function emitLogIterationStarted({
+  context
+}) {
+  return emitAppendHistory({ context }, "\u23F3 Iterating...");
+}
+function emitLogCISuccess({ context }) {
+  return [
+    {
+      type: "updateHistory",
+      token: "code",
+      issueNumber: context.issue.number,
+      matchIteration: context.issue.iteration,
+      matchPhase: String(context.currentPhase ?? "-"),
+      matchPattern: "\u23F3",
+      newMessage: "\u2705 CI Passed",
+      timestamp: context.workflowStartedAt ?? void 0,
+      commitSha: context.ciCommitSha ?? void 0,
+      runLink: context.ciRunUrl ?? void 0
+    }
+  ];
+}
+function emitLogReviewRequested({
+  context
+}) {
+  return emitAppendHistory({ context }, "\u{1F440} Review requested");
+}
 function emitCreateBranch({ context }) {
   const branchName = context.branch ?? deriveBranchName(context.issue.number, context.currentPhase ?? void 0);
   return [
@@ -40774,14 +40948,14 @@ function buildIteratePromptVars(context, ciResultOverride) {
   const iteration = context.issue.iteration;
   const failures = context.issue.failures;
   const ciResult = ciResultOverride ?? context.ciResult ?? "first";
-  const isSubIssue = context.parentIssue !== null && context.currentPhase !== null;
+  const isSubIssue2 = context.parentIssue !== null && context.currentPhase !== null;
   const parentIssueNumber = context.parentIssue?.number;
   const phaseNumber = context.currentPhase;
-  const parentContext = isSubIssue ? `- **Parent Issue**: #${parentIssueNumber}
+  const parentContext = isSubIssue2 ? `- **Parent Issue**: #${parentIssueNumber}
 - **Phase**: ${phaseNumber}
 
 > This is a sub-issue. Focus only on todos here. PR must reference both this issue and parent.` : "";
-  const prCreateCommand = isSubIssue ? `\`\`\`bash
+  const prCreateCommand = isSubIssue2 ? `\`\`\`bash
 gh pr create --draft --reviewer nopo-bot \\
   --title "${issueTitle}" \\
   --body "Fixes #${issueNumber}
@@ -41535,6 +41709,7 @@ var claudeMachine = setup({
     isError: ({ context }) => guards.isError({ context }),
     needsSubIssues: ({ context }) => guards.needsSubIssues({ context }),
     hasSubIssues: ({ context }) => guards.hasSubIssues({ context }),
+    isSubIssue: ({ context }) => guards.isSubIssue({ context }),
     isInReview: ({ context }) => guards.isInReview({ context }),
     allPhasesDone: ({ context }) => guards.allPhasesDone({ context }),
     currentPhaseNeedsWork: ({ context }) => guards.currentPhaseNeedsWork({ context }),
@@ -41638,6 +41813,25 @@ var claudeMachine = setup({
         )
       )
     }),
+    // Iteration history logging (writes to issue body)
+    historyIterationStarted: assign({
+      pendingActions: ({ context }) => accumulateActions(
+        context.pendingActions,
+        emitLogIterationStarted({ context })
+      )
+    }),
+    historyCISuccess: assign({
+      pendingActions: ({ context }) => accumulateActions(
+        context.pendingActions,
+        emitLogCISuccess({ context })
+      )
+    }),
+    historyReviewRequested: assign({
+      pendingActions: ({ context }) => accumulateActions(
+        context.pendingActions,
+        emitLogReviewRequested({ context })
+      )
+    }),
     // Status actions
     setWorking: assign({
       pendingActions: ({ context }) => accumulateActions(context.pendingActions, emitSetWorking({ context }))
@@ -41656,6 +41850,15 @@ var claudeMachine = setup({
     }),
     setBlocked: assign({
       pendingActions: ({ context }) => accumulateActions(context.pendingActions, emitSetBlocked({ context }))
+    }),
+    setError: assign({
+      pendingActions: ({ context }) => accumulateActions(context.pendingActions, emitSetError({ context }))
+    }),
+    logInvalidIteration: assign({
+      pendingActions: ({ context }) => accumulateActions(
+        context.pendingActions,
+        emitLogInvalidIteration({ context })
+      )
     }),
     // Iteration actions
     incrementIteration: assign({
@@ -42002,8 +42205,11 @@ var claudeMachine = setup({
           // Check if ready for review (CI passed + todos done) from any trigger
           // This allows the state machine to "catch up" when re-triggered
           { target: "transitioningToReview", guard: "readyForReview" },
-          // Default to iterating
-          { target: "iterating" }
+          // Only sub-issues can iterate directly - parent issues must have sub-issues
+          { target: "iterating", guard: "isSubIssue" },
+          // FATAL: Parent issue without sub-issues cannot iterate
+          // This catches misconfigured issues that weren't properly groomed
+          { target: "invalidIteration" }
         ]
       }
     },
@@ -42097,7 +42303,7 @@ var claudeMachine = setup({
      * reviews and signals that iteration will continue.
      */
     prPush: {
-      entry: ["pushToDraft", "setReview"],
+      entry: ["pushToDraft", "setInProgress"],
       type: "final"
     },
     /**
@@ -42167,13 +42373,14 @@ var claudeMachine = setup({
         // CI passed and todos done -> go to review
         {
           target: "transitioningToReview",
-          guard: "readyForReview"
+          guard: "readyForReview",
+          actions: ["historyCISuccess"]
         },
         // CI passed but todos not done -> continue iterating
         {
           target: "iterating",
           guard: "ciPassed",
-          actions: ["clearFailures"]
+          actions: ["clearFailures", "historyCISuccess"]
         },
         // CI failed and max failures -> block
         {
@@ -42233,7 +42440,7 @@ var claudeMachine = setup({
      * Transitioning to review state
      */
     transitioningToReview: {
-      entry: ["transitionToReview"],
+      entry: ["transitionToReview", "historyReviewRequested"],
       always: "reviewing"
     },
     /**
@@ -42244,6 +42451,7 @@ var claudeMachine = setup({
         "createBranch",
         "setWorking",
         "incrementIteration",
+        "historyIterationStarted",
         "logIterating",
         "runClaude",
         "createPR"
@@ -42252,11 +42460,12 @@ var claudeMachine = setup({
         CI_SUCCESS: [
           {
             target: "transitioningToReview",
-            guard: "todosDone"
+            guard: "todosDone",
+            actions: ["historyCISuccess"]
           },
           {
             target: "iterating",
-            actions: ["clearFailures"]
+            actions: ["clearFailures", "historyCISuccess"]
           }
         ],
         CI_FAILURE: [
@@ -42281,6 +42490,7 @@ var claudeMachine = setup({
       entry: [
         "createBranch",
         "incrementIteration",
+        "historyIterationStarted",
         "logFixingCI",
         "runClaudeFixCI",
         "createPR"
@@ -42289,11 +42499,12 @@ var claudeMachine = setup({
         CI_SUCCESS: [
           {
             target: "transitioningToReview",
-            guard: "todosDone"
+            guard: "todosDone",
+            actions: ["historyCISuccess"]
           },
           {
             target: "iterating",
-            actions: ["clearFailures"]
+            actions: ["clearFailures", "historyCISuccess"]
           }
         ],
         CI_FAILURE: [
@@ -42337,6 +42548,20 @@ var claudeMachine = setup({
      * Unrecoverable error
      */
     error: {
+      type: "final"
+    },
+    /**
+     * Invalid iteration attempt - parent issue without sub-issues tried to iterate
+     *
+     * This is a FATAL error that indicates the issue was not properly groomed.
+     * Only sub-issues (issues with a parent) can be iterated on directly.
+     * Parent issues must go through orchestration which manages their sub-issues.
+     *
+     * To fix: Run grooming on this issue to create sub-issues, then trigger
+     * orchestration on the parent.
+     */
+    invalidIteration: {
+      entry: ["logInvalidIteration", "setError"],
       type: "final"
     },
     // =========================================================================
@@ -61363,10 +61588,15 @@ var GroomingEngineer = promptFactory().inputs((z) => ({
 
 If not ready, specify what information or decisions are needed.` }),
   /* @__PURE__ */ jsx("section", { title: "Scope Recommendation", children: `Suggest if the issue should be:
-- **keep**: Scope is appropriate as-is (single phase, no sub-issues)
+- **keep**: Scope is appropriate as-is (single phase)
 - **split**: Issue is too large, recommend splitting into phases
 - **expand**: Issue is too small, could combine with related work` }),
-  /* @__PURE__ */ jsx("section", { title: "Phase Planning (If scope_recommendation = 'split')", children: `If you recommend splitting, provide \`recommended_phases\` with:
+  /* @__PURE__ */ jsx("section", { title: "Phase Planning (REQUIRED)", children: `You MUST provide \`recommended_phases\` with at least one phase. This is REQUIRED because:
+- Work happens on sub-issues (phases), not parent issues directly
+- Sub-issues are created from your recommended_phases
+- Without phases, the issue cannot be implemented
+
+Provide \`recommended_phases\` with:
 - **phase_number**: 1-indexed phase number
 - **title**: Short descriptive title (e.g., "Setup database schema")
 - **description**: What this phase accomplishes
@@ -61378,12 +61608,12 @@ If not ready, specify what information or decisions are needed.` }),
 - **depends_on**: Array of phase numbers this depends on (empty for first phase)
 
 **Guidelines for phases:**
-- 2-5 phases maximum
+- 1-5 phases (even simple XS/S issues need at least 1 phase)
 - Each phase should be a self-contained PR
 - No generic todos (commit, push, merge) - only specific implementation tasks
 - Phases should have clear dependencies
 
-For simple issues (XS/S size), leave \`recommended_phases\` as an empty array.` }),
+For simple issues (XS/S size), provide a single phase with all todos.` }),
   /* @__PURE__ */ jsx("section", { title: "Output", children: "Return structured JSON with your technical analysis." })
 ] }));
 var engineer_default = GroomingEngineer;
@@ -61616,9 +61846,16 @@ var GroomingSummary = promptFactory().inputs((z) => ({
 2. **Consensus**: Where do agents agree?
 3. **Conflicts**: Where do agents disagree? How should conflicts be resolved?
 4. **Decision**: Based on all input, is this issue ready?` }),
-  /* @__PURE__ */ jsx("section", { title: "Decision Criteria", children: `- **ready**: All agents agree ready, or conflicts are minor and resolvable
+  /* @__PURE__ */ jsx("section", { title: "Decision Criteria", children: `- **ready**: All agents agree ready, OR conflicts are minor and resolvable, AND Engineer has provided recommended_phases
 - **needs_info**: Any agent has critical questions, unclear requirements
-- **blocked**: Technical blockers, dependencies not met, scope issues` }),
+- **blocked**: Technical blockers, dependencies not met, scope issues
+
+**CRITICAL**: An issue can ONLY be marked "ready" if the Engineer analysis includes \`recommended_phases\` with at least one phase. This is because:
+- Work happens on sub-issues, not parent issues directly
+- Sub-issues are created from the recommended_phases
+- Without phases, there's nothing to iterate on
+
+If Engineer's scope_recommendation is "keep" (single phase), they MUST still provide one phase in recommended_phases.` }),
   /* @__PURE__ */ jsx("section", { title: "Output", children: `Return structured JSON with your synthesis and final decision.
 
 If decision is "needs_info", consolidate all questions from agents into a prioritized list.

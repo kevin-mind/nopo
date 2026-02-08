@@ -5,6 +5,15 @@
  */
 
 import * as core from "@actions/core";
+import {
+  GET_ISSUE_BODY_QUERY,
+  GET_PR_ID_QUERY,
+  GET_REPO_ID_QUERY,
+  CONVERT_PR_TO_DRAFT_MUTATION,
+  MARK_PR_READY_MUTATION,
+  CREATE_ISSUE_MUTATION,
+  ADD_SUB_ISSUE_MUTATION,
+} from "@more/issue-state";
 import type {
   CloseIssueAction,
   AppendHistoryAction,
@@ -27,85 +36,6 @@ import type {
 } from "../../schemas/index.js";
 import { addHistoryEntry, updateHistoryEntry } from "../../parser/index.js";
 import type { RunnerContext } from "../types.js";
-
-// ============================================================================
-// GraphQL Queries
-// ============================================================================
-
-const GET_ISSUE_BODY_QUERY = `
-query GetIssueBody($owner: String!, $repo: String!, $issueNumber: Int!) {
-  repository(owner: $owner, name: $repo) {
-    issue(number: $issueNumber) {
-      id
-      body
-      parent {
-        number
-      }
-    }
-  }
-}
-`;
-
-const CONVERT_PR_TO_DRAFT_MUTATION = `
-mutation ConvertPRToDraft($prId: ID!) {
-  convertPullRequestToDraft(input: { pullRequestId: $prId }) {
-    pullRequest {
-      id
-      isDraft
-    }
-  }
-}
-`;
-
-const MARK_PR_READY_MUTATION = `
-mutation MarkPRReady($prId: ID!) {
-  markPullRequestReadyForReview(input: { pullRequestId: $prId }) {
-    pullRequest {
-      id
-      isDraft
-    }
-  }
-}
-`;
-
-const GET_PR_ID_QUERY = `
-query GetPRId($owner: String!, $repo: String!, $prNumber: Int!) {
-  repository(owner: $owner, name: $repo) {
-    pullRequest(number: $prNumber) {
-      id
-    }
-  }
-}
-`;
-
-const CREATE_ISSUE_MUTATION = `
-mutation CreateIssue($repositoryId: ID!, $title: String!, $body: String!) {
-  createIssue(input: { repositoryId: $repositoryId, title: $title, body: $body }) {
-    issue {
-      id
-      number
-    }
-  }
-}
-`;
-
-const ADD_SUB_ISSUE_MUTATION = `
-mutation AddSubIssue($parentId: ID!, $childId: ID!) {
-  addSubIssue(input: { issueId: $parentId, subIssueId: $childId }) {
-    issue {
-      id
-    }
-  }
-}
-`;
-
-const GET_REPO_ID_QUERY = `
-query GetRepoId($owner: String!, $repo: String!) {
-  repository(owner: $owner, name: $repo) {
-    id
-  }
-}
-`;
 
 // ============================================================================
 // Types

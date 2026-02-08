@@ -6,6 +6,10 @@
 
 import * as core from "@actions/core";
 import * as fs from "fs";
+import {
+  GET_PROJECT_FIELDS_QUERY,
+  UPDATE_PROJECT_FIELD_MUTATION,
+} from "@more/issue-state";
 import type { ApplyTriageOutputAction } from "../../schemas/index.js";
 import type { RunnerContext } from "../types.js";
 import {
@@ -378,42 +382,6 @@ interface ProjectInfo {
   estimateFieldId: string;
 }
 
-const GET_PROJECT_FIELDS_QUERY = `
-query($owner: String!, $projectNumber: Int!) {
-  organization(login: $owner) {
-    projectV2(number: $projectNumber) {
-      id
-      fields(first: 30) {
-        nodes {
-          ... on ProjectV2SingleSelectField {
-            id
-            name
-            options { id name }
-          }
-          ... on ProjectV2Field {
-            id
-            name
-            dataType
-          }
-        }
-      }
-    }
-  }
-}
-`;
-
-const UPDATE_PROJECT_FIELD_MUTATION = `
-mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
-  updateProjectV2ItemFieldValue(input: {
-    projectId: $projectId
-    itemId: $itemId
-    fieldId: $fieldId
-    value: $value
-  }) {
-    projectV2Item { id }
-  }
-}
-`;
 
 /**
  * Get project info (fields, options) for the configured project

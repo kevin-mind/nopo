@@ -14,7 +14,12 @@ import type {
   LinkedPR,
   IssueComment,
 } from "./schemas/index.js";
-import { CIStatusSchema } from "./schemas/index.js";
+import {
+  CIStatusSchema,
+  ReviewDecisionSchema,
+  MergeableStateSchema,
+} from "./schemas/index.js";
+import type { ReviewDecision, MergeableState } from "./schemas/index.js";
 import type {
   IssueResponse,
   PRResponse,
@@ -22,14 +27,16 @@ import type {
   ProjectItemNode,
   SubIssueNode,
   IssueCommentNode,
+  LinkedPRsResponse,
 } from "./graphql/types.js";
 import {
   GET_ISSUE_WITH_PROJECT_QUERY,
   GET_PR_FOR_BRANCH_QUERY,
   CHECK_BRANCH_EXISTS_QUERY,
+  GET_ISSUE_LINKED_PRS_QUERY,
 } from "./graphql/issue-queries.js";
 import { parseMarkdown } from "./markdown/ast.js";
-import { updateIssue } from "./update-issue.js";
+import { updateIssue, type UpdateIssueOptions } from "./update-issue.js";
 
 export interface ParseIssueOptions {
   octokit: OctokitLike;
@@ -37,6 +44,13 @@ export interface ParseIssueOptions {
   botUsername?: string;
   fetchPRs?: boolean;
   fetchParent?: boolean;
+}
+
+// Build update options from parse options
+function buildUpdateOptions(options: ParseIssueOptions): UpdateIssueOptions {
+  return {
+    projectNumber: options.projectNumber,
+  };
 }
 
 // ============================================================================
@@ -127,7 +141,7 @@ function parseIssueComments(
   });
 }
 
-async function checkBranchExists(
+async function _checkBranchExists(
   octokit: OctokitLike,
   owner: string,
   repo: string,
@@ -145,6 +159,51 @@ async function checkBranchExists(
     return response.repository?.ref !== null;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Get all PRs linked to an issue via "Fixes #<number>" in the PR body.
+ * Uses GitHub's timeline API which tracks issue-PR linkage automatically.
+ */
+async function getLinkedPRs(
+  octokit: OctokitLike,
+  owner: string,
+  repo: string,
+  issueNumber: number,
+): Promise<LinkedPR[]> {
+  try {
+    const response = await octokit.graphql<LinkedPRsResponse>(
+      GET_ISSUE_LINKED_PRS_QUERY,
+      { owner, repo, issueNumber },
+    );
+
+    const linkedPRs: LinkedPR[] = [];
+    const timelineNodes =
+      response.repository?.issue?.timelineItems?.nodes || [];
+
+    for (const node of timelineNodes) {
+      // Handle CrossReferencedEvent (source) and ConnectedEvent (subject)
+      const pr = node.source || node.subject;
+      if (!pr?.number || !pr?.headRefName) continue;
+
+      // Avoid duplicates
+      if (linkedPRs.some((p) => p.number === pr.number)) continue;
+
+      linkedPRs.push({
+        number: pr.number,
+        state: (pr.state?.toUpperCase() || "OPEN") as PRState,
+        isDraft: false, // Timeline doesn't include draft status
+        title: pr.title || "",
+        headRef: pr.headRefName,
+        baseRef: "main", // Timeline doesn't include base ref
+        ciStatus: null, // Timeline doesn't include CI status
+      });
+    }
+
+    return linkedPRs;
+  } catch {
+    return [];
   }
 }
 
@@ -176,6 +235,22 @@ async function getPRForBranch(
       }
     }
 
+    let reviewDecision: ReviewDecision | null = null;
+    if (pr.reviewDecision) {
+      const parsed = ReviewDecisionSchema.safeParse(pr.reviewDecision);
+      if (parsed.success) {
+        reviewDecision = parsed.data;
+      }
+    }
+
+    let mergeable: MergeableState | null = null;
+    if (pr.mergeable) {
+      const parsed = MergeableStateSchema.safeParse(pr.mergeable);
+      if (parsed.success) {
+        mergeable = parsed.data;
+      }
+    }
+
     return {
       number: pr.number,
       state: (pr.state?.toUpperCase() || "OPEN") as PRState,
@@ -184,6 +259,10 @@ async function getPRForBranch(
       headRef: pr.headRefName || headRef,
       baseRef: pr.baseRefName || "main",
       ciStatus,
+      reviewDecision,
+      mergeable,
+      reviewCount: pr.reviews?.totalCount ?? 0,
+      url: pr.url || "",
     };
   } catch {
     return null;
@@ -251,22 +330,23 @@ async function fetchIssueData(
   const subIssues: SubIssueData[] = [];
   for (let i = 0; i < sortedSubIssues.length; i++) {
     const node = sortedSubIssues[i];
-    if (!node) continue;
+    if (!node || !node.number) continue;
     const subIssue = parseSubIssueData(node, projectNumber, i + 1, issueNumber);
 
-    if (fetchPRs && subIssue.branch) {
-      const branchExists = await checkBranchExists(
-        octokit,
-        owner,
-        repo,
-        subIssue.branch,
-      );
-      if (branchExists) {
+    if (fetchPRs) {
+      // Get PRs linked to this sub-issue via "Fixes #<number>"
+      const linkedPRs = await getLinkedPRs(octokit, owner, repo, node.number);
+      if (linkedPRs.length > 0) {
+        // Use the first linked PR (usually there's only one)
+        const linkedPR = linkedPRs[0];
+        subIssue.branch = linkedPR.headRef;
+
+        // Get full PR details including CI status
         subIssue.pr = await getPRForBranch(
           octokit,
           owner,
           repo,
-          subIssue.branch,
+          linkedPR.headRef,
         );
       }
     }
@@ -280,17 +360,13 @@ async function fetchIssueData(
 
   const parentIssueNumber = issue.parent?.number ?? null;
 
-  // Derive branch for the issue itself
-  const issueBranch = deriveBranchName(issueNumber);
+  // Get linked PRs for the issue itself
+  let issueBranch: string | null = null;
   let issuePR: LinkedPR | null = null;
   if (fetchPRs) {
-    const branchExists = await checkBranchExists(
-      octokit,
-      owner,
-      repo,
-      issueBranch,
-    );
-    if (branchExists) {
+    const linkedPRs = await getLinkedPRs(octokit, owner, repo, issueNumber);
+    if (linkedPRs.length > 0) {
+      issueBranch = linkedPRs[0].headRef;
       issuePR = await getPRForBranch(octokit, owner, repo, issueBranch);
     }
   }
@@ -376,9 +452,12 @@ export async function parseIssue(
   // Capture original snapshot for diffing
   const original = structuredClone(data);
 
+  // Build update options (project number for field updates)
+  const updateOptions = buildUpdateOptions(options);
+
   return {
     data,
     update: (newData: IssueStateData) =>
-      updateIssue(original, newData, octokit),
+      updateIssue(original, newData, octokit, updateOptions),
   };
 }

@@ -8,6 +8,7 @@
 
 import * as core from "@actions/core";
 import * as github from "@actions/github";
+import { GET_ISSUE_BODY_QUERY } from "@more/issue-state";
 import {
   // Action utilities
   getRequiredInput,
@@ -19,24 +20,6 @@ import {
   updateHistoryEntry,
   addHistoryEntry,
 } from "@more/statemachine";
-
-// ============================================================================
-// GraphQL Queries
-// ============================================================================
-
-const GET_ISSUE_BODY_QUERY = `
-query GetIssueBody($owner: String!, $repo: String!, $issueNumber: Int!) {
-  repository(owner: $owner, name: $repo) {
-    issue(number: $issueNumber) {
-      id
-      body
-      parent {
-        number
-      }
-    }
-  }
-}
-`;
 
 interface IssueBodyResponse {
   repository?: {

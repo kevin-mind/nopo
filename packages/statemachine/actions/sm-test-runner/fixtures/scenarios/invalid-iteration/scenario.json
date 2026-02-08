@@ -1,0 +1,4 @@
+{
+  "name": "invalid-iteration",
+  "description": "Tests error state when parent issue without sub-issues tries to iterate. Should fail with invalidIteration."
+}

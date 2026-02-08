@@ -88,3 +88,27 @@ mutation AddIssueToProject($projectId: ID!, $contentId: ID!) {
   }
 }
 `;
+
+export const GET_PROJECT_FIELDS_QUERY = `
+query GetProjectFields($owner: String!, $projectNumber: Int!) {
+  organization(login: $owner) {
+    projectV2(number: $projectNumber) {
+      id
+      fields(first: 30) {
+        nodes {
+          ... on ProjectV2SingleSelectField {
+            id
+            name
+            options { id name }
+          }
+          ... on ProjectV2Field {
+            id
+            name
+            dataType
+          }
+        }
+      }
+    }
+  }
+}
+`;

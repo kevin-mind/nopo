@@ -7,6 +7,7 @@
 
 import * as core from "@actions/core";
 import * as fs from "fs";
+import { ADD_SUB_ISSUE_MUTATION } from "@more/issue-state";
 import type { ApplyPivotOutputAction } from "../../schemas/index.js";
 import type { RunnerContext } from "../types.js";
 
@@ -393,17 +394,10 @@ export async function executeApplyPivotOutput(
           issue_number: action.issueNumber,
         });
 
-        await ctx.octokit.graphql(
-          `mutation AddSubIssue($parentId: ID!, $subIssueId: ID!) {
-            addSubIssue(input: { issueId: $parentId, subIssueId: $subIssueId }) {
-              issue { id }
-            }
-          }`,
-          {
-            parentId: parentIssue.node_id,
-            subIssueId: createdIssue.node_id,
-          },
-        );
+        await ctx.octokit.graphql(ADD_SUB_ISSUE_MUTATION, {
+          parentId: parentIssue.node_id,
+          childId: createdIssue.node_id,
+        });
         core.info(`Linked sub-issue #${createdIssue.number} to parent`);
       } catch (error) {
         core.warning(`Failed to link sub-issue via GraphQL: ${error}`);

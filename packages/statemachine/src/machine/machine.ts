@@ -7,7 +7,9 @@ import {
   emitSetInProgress,
   emitSetDone,
   emitSetBlocked,
+  emitSetError,
   emitSetReady,
+  emitLogInvalidIteration,
   emitIncrementIteration,
   emitRecordFailure,
   emitClearFailures,
@@ -109,6 +111,7 @@ export const claudeMachine = setup({
     isError: ({ context }) => guards.isError({ context }),
     needsSubIssues: ({ context }) => guards.needsSubIssues({ context }),
     hasSubIssues: ({ context }) => guards.hasSubIssues({ context }),
+    isSubIssue: ({ context }) => guards.isSubIssue({ context }),
     isInReview: ({ context }) => guards.isInReview({ context }),
     allPhasesDone: ({ context }) => guards.allPhasesDone({ context }),
     currentPhaseNeedsWork: ({ context }) =>
@@ -282,6 +285,17 @@ export const claudeMachine = setup({
     setBlocked: assign({
       pendingActions: ({ context }) =>
         accumulateActions(context.pendingActions, emitSetBlocked({ context })),
+    }),
+    setError: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(context.pendingActions, emitSetError({ context })),
+    }),
+    logInvalidIteration: assign({
+      pendingActions: ({ context }) =>
+        accumulateActions(
+          context.pendingActions,
+          emitLogInvalidIteration({ context }),
+        ),
     }),
 
     // Iteration actions
@@ -682,8 +696,11 @@ export const claudeMachine = setup({
           // Check if ready for review (CI passed + todos done) from any trigger
           // This allows the state machine to "catch up" when re-triggered
           { target: "transitioningToReview", guard: "readyForReview" },
-          // Default to iterating
-          { target: "iterating" },
+          // Only sub-issues can iterate directly - parent issues must have sub-issues
+          { target: "iterating", guard: "isSubIssue" },
+          // FATAL: Parent issue without sub-issues cannot iterate
+          // This catches misconfigured issues that weren't properly groomed
+          { target: "invalidIteration" },
         ],
       },
     },
@@ -1046,6 +1063,21 @@ export const claudeMachine = setup({
      * Unrecoverable error
      */
     error: {
+      type: "final",
+    },
+
+    /**
+     * Invalid iteration attempt - parent issue without sub-issues tried to iterate
+     *
+     * This is a FATAL error that indicates the issue was not properly groomed.
+     * Only sub-issues (issues with a parent) can be iterated on directly.
+     * Parent issues must go through orchestration which manages their sub-issues.
+     *
+     * To fix: Run grooming on this issue to create sub-issues, then trigger
+     * orchestration on the parent.
+     */
+    invalidIteration: {
+      entry: ["logInvalidIteration", "setError"],
       type: "final",
     },
 

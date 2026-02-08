@@ -3,9 +3,18 @@ export {
   IssueStateSchema,
   PRStateSchema,
   CIStatusSchema,
+  ReviewDecisionSchema,
+  MergeableStateSchema,
 } from "./enums.js";
 
-export type { ProjectStatus, IssueState, PRState, CIStatus } from "./enums.js";
+export type {
+  ProjectStatus,
+  IssueState,
+  PRState,
+  CIStatus,
+  ReviewDecision,
+  MergeableState,
+} from "./enums.js";
 
 export { MdastRootSchema } from "./ast.js";
 

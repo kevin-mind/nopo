@@ -56,6 +56,12 @@ interface PRNode {
   isDraft?: boolean;
   headRefName?: string;
   baseRefName?: string;
+  url?: string;
+  mergeable?: string;
+  reviewDecision?: string;
+  reviews?: {
+    totalCount?: number;
+  };
   commits?: {
     nodes?: Array<{
       commit?: {
@@ -78,5 +84,28 @@ export interface PRResponse {
 export interface BranchResponse {
   repository?: {
     ref?: { name?: string } | null;
+  };
+}
+
+export interface LinkedPRNode {
+  number?: number;
+  title?: string;
+  state?: string;
+  headRefName?: string;
+  url?: string;
+}
+
+export interface LinkedPRsResponse {
+  repository?: {
+    issue?: {
+      id?: string;
+      number?: number;
+      timelineItems?: {
+        nodes?: Array<{
+          source?: LinkedPRNode;
+          subject?: LinkedPRNode;
+        }>;
+      };
+    };
   };
 }

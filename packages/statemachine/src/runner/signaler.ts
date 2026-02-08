@@ -5,6 +5,12 @@
  */
 
 import * as core from "@actions/core";
+import {
+  GET_DISCUSSION_ID_QUERY,
+  ADD_DISCUSSION_COMMENT_MUTATION,
+  UPDATE_DISCUSSION_COMMENT_MUTATION,
+  ADD_REACTION_MUTATION,
+} from "@more/issue-state";
 import type {
   Octokit,
   ResourceType,
@@ -49,59 +55,6 @@ const JOB_DESCRIPTIONS: Record<string, string> = {
   "discussion-plan": "creating implementation plan",
   "discussion-complete": "marking discussion as complete",
 };
-
-// ============================================================================
-// GraphQL Queries for Discussions
-// ============================================================================
-
-const GET_DISCUSSION_ID_QUERY = `
-query GetDiscussionId($owner: String!, $repo: String!, $number: Int!) {
-  repository(owner: $owner, name: $repo) {
-    discussion(number: $number) {
-      id
-    }
-  }
-}
-`;
-
-const ADD_DISCUSSION_COMMENT_MUTATION = `
-mutation AddDiscussionComment($discussionId: ID!, $body: String!) {
-  addDiscussionComment(input: {
-    discussionId: $discussionId
-    body: $body
-  }) {
-    comment {
-      id
-    }
-  }
-}
-`;
-
-const UPDATE_DISCUSSION_COMMENT_MUTATION = `
-mutation UpdateDiscussionComment($commentId: ID!, $body: String!) {
-  updateDiscussionComment(input: {
-    commentId: $commentId
-    body: $body
-  }) {
-    comment {
-      id
-    }
-  }
-}
-`;
-
-const ADD_GRAPHQL_REACTION_MUTATION = `
-mutation AddReaction($subjectId: ID!, $content: ReactionContent!) {
-  addReaction(input: {
-    subjectId: $subjectId
-    content: $content
-  }) {
-    reaction {
-      id
-    }
-  }
-}
-`;
 
 interface DiscussionIdResponse {
   repository?: {
@@ -148,7 +101,7 @@ async function addReactionToComment(
   try {
     if (resourceType === "discussion") {
       // Use GraphQL for discussion comment reactions
-      await octokit.graphql(ADD_GRAPHQL_REACTION_MUTATION, {
+      await octokit.graphql(ADD_REACTION_MUTATION, {
         subjectId: commentId,
         content: toGraphQLReaction(reaction),
       });

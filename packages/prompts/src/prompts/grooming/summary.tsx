@@ -68,9 +68,16 @@ const GroomingSummary = promptFactory()
       </section>
 
       <section title="Decision Criteria">
-        {`- **ready**: All agents agree ready, or conflicts are minor and resolvable
+        {`- **ready**: All agents agree ready, OR conflicts are minor and resolvable, AND Engineer has provided recommended_phases
 - **needs_info**: Any agent has critical questions, unclear requirements
-- **blocked**: Technical blockers, dependencies not met, scope issues`}
+- **blocked**: Technical blockers, dependencies not met, scope issues
+
+**CRITICAL**: An issue can ONLY be marked "ready" if the Engineer analysis includes \`recommended_phases\` with at least one phase. This is because:
+- Work happens on sub-issues, not parent issues directly
+- Sub-issues are created from the recommended_phases
+- Without phases, there's nothing to iterate on
+
+If Engineer's scope_recommendation is "keep" (single phase), they MUST still provide one phase in recommended_phases.`}
       </section>
 
       <section title="Output">

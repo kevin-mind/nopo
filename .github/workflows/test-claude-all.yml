@@ -1,0 +1,586 @@
+name: Test All Scenarios with Claude Analysis
+
+run-name: "All Scenarios | ${{ inputs.include_real_claude && 'Mock + Real Claude' || 'Mock Only' }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      include_real_claude:
+        description: 'Include real Claude tests (in addition to mock tests)'
+        type: boolean
+        default: true
+      max_parallel:
+        description: 'Max parallel jobs per batch'
+        type: number
+        default: 5
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: write
+  id-token: write
+
+env:
+  GH_TOKEN: ${{ secrets.NOPO_BOT_PAT || secrets.GITHUB_TOKEN }}
+
+jobs:
+  # ============================================================================
+  # BATCH 1: Core scenarios (mock Claude)
+  # ============================================================================
+  batch1-mock:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        scenario:
+          - full-flow
+          - triage
+          - grooming-ready
+          - pivot-simple
+          - issue-comment
+    outputs:
+      results: ${{ steps.collect.outputs.results }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @more/prompts compile
+      - name: Build actions
+        run: cd .github/actions-ts && pnpm run build
+
+      - name: Run test
+        id: run
+        continue-on-error: true
+        uses: ./packages/statemachine/actions/sm-test-runner
+        with:
+          action: run-configurable
+          scenario_name: ${{ matrix.scenario }}
+          continue: true
+          mock_claude: true
+          mock_ci: true
+          multi_issue: true
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
+          reviewer_token: ${{ secrets.CLAUDE_REVIEWER_PAT }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+
+      - name: Cleanup
+        if: always() && steps.run.outputs.issue_number != ''
+        uses: ./packages/statemachine/actions/sm-test-helper
+        with:
+          action: cleanup
+          issue_number: ${{ steps.run.outputs.issue_number }}
+          github_token: ${{ env.GH_TOKEN }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+          cleanup_mode: close
+
+      - name: Collect results
+        id: collect
+        run: |
+          cat << 'EOF' >> $GITHUB_OUTPUT
+          results<<RESULTS_EOF
+          {
+            "scenario": "${{ matrix.scenario }}",
+            "mode": "mock",
+            "status": "${{ steps.run.outputs.status || 'error' }}",
+            "issue_number": "${{ steps.run.outputs.issue_number || '' }}",
+            "error": "${{ steps.run.outputs.error || '' }}",
+            "job_result": "${{ job.status }}"
+          }
+          RESULTS_EOF
+          EOF
+
+  # ============================================================================
+  # BATCH 2: Edge case scenarios (mock Claude only - these REQUIRE mock)
+  # ============================================================================
+  batch2-edge-cases:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        scenario:
+          - ci-failure-recovery
+          - circuit-breaker
+          - review-changes-requested
+          - issue-reset
+          - slash-lfg
+    outputs:
+      results: ${{ steps.collect.outputs.results }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @more/prompts compile
+      - name: Build actions
+        run: cd .github/actions-ts && pnpm run build
+
+      - name: Run test
+        id: run
+        continue-on-error: true
+        uses: ./packages/statemachine/actions/sm-test-runner
+        with:
+          action: run-configurable
+          scenario_name: ${{ matrix.scenario }}
+          continue: true
+          mock_claude: true
+          mock_ci: true
+          multi_issue: true
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
+          reviewer_token: ${{ secrets.CLAUDE_REVIEWER_PAT }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+
+      - name: Cleanup
+        if: always() && steps.run.outputs.issue_number != ''
+        uses: ./packages/statemachine/actions/sm-test-helper
+        with:
+          action: cleanup
+          issue_number: ${{ steps.run.outputs.issue_number }}
+          github_token: ${{ env.GH_TOKEN }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+          cleanup_mode: close
+
+      - name: Collect results
+        id: collect
+        run: |
+          cat << 'EOF' >> $GITHUB_OUTPUT
+          results<<RESULTS_EOF
+          {
+            "scenario": "${{ matrix.scenario }}",
+            "mode": "mock",
+            "status": "${{ steps.run.outputs.status || 'error' }}",
+            "issue_number": "${{ steps.run.outputs.issue_number || '' }}",
+            "error": "${{ steps.run.outputs.error || '' }}",
+            "job_result": "${{ job.status }}"
+          }
+          RESULTS_EOF
+          EOF
+
+  # ============================================================================
+  # BATCH 3: PR and pivot scenarios (mock Claude)
+  # ============================================================================
+  batch3-mock:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        scenario:
+          - pr-review-approved
+          - pr-review-comment
+          - pr-push-during-review
+          - pivot-add
+          - pivot-remove
+    outputs:
+      results: ${{ steps.collect.outputs.results }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @more/prompts compile
+      - name: Build actions
+        run: cd .github/actions-ts && pnpm run build
+
+      - name: Run test
+        id: run
+        continue-on-error: true
+        uses: ./packages/statemachine/actions/sm-test-runner
+        with:
+          action: run-configurable
+          scenario_name: ${{ matrix.scenario }}
+          continue: true
+          mock_claude: true
+          mock_ci: true
+          multi_issue: true
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
+          reviewer_token: ${{ secrets.CLAUDE_REVIEWER_PAT }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+
+      - name: Cleanup
+        if: always() && steps.run.outputs.issue_number != ''
+        uses: ./packages/statemachine/actions/sm-test-helper
+        with:
+          action: cleanup
+          issue_number: ${{ steps.run.outputs.issue_number }}
+          github_token: ${{ env.GH_TOKEN }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+          cleanup_mode: close
+
+      - name: Collect results
+        id: collect
+        run: |
+          cat << 'EOF' >> $GITHUB_OUTPUT
+          results<<RESULTS_EOF
+          {
+            "scenario": "${{ matrix.scenario }}",
+            "mode": "mock",
+            "status": "${{ steps.run.outputs.status || 'error' }}",
+            "issue_number": "${{ steps.run.outputs.issue_number || '' }}",
+            "error": "${{ steps.run.outputs.error || '' }}",
+            "job_result": "${{ job.status }}"
+          }
+          RESULTS_EOF
+          EOF
+
+  # ============================================================================
+  # BATCH 4: Complex pivot scenarios (mock Claude)
+  # ============================================================================
+  batch4-mock:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        scenario:
+          - pivot-revert
+          - pivot-complex
+          - grooming-with-subissues
+    outputs:
+      results: ${{ steps.collect.outputs.results }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @more/prompts compile
+      - name: Build actions
+        run: cd .github/actions-ts && pnpm run build
+
+      - name: Run test
+        id: run
+        continue-on-error: true
+        uses: ./packages/statemachine/actions/sm-test-runner
+        with:
+          action: run-configurable
+          scenario_name: ${{ matrix.scenario }}
+          continue: true
+          mock_claude: true
+          mock_ci: true
+          multi_issue: true
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
+          reviewer_token: ${{ secrets.CLAUDE_REVIEWER_PAT }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+
+      - name: Cleanup
+        if: always() && steps.run.outputs.issue_number != ''
+        uses: ./packages/statemachine/actions/sm-test-helper
+        with:
+          action: cleanup
+          issue_number: ${{ steps.run.outputs.issue_number }}
+          github_token: ${{ env.GH_TOKEN }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+          cleanup_mode: close
+
+      - name: Collect results
+        id: collect
+        run: |
+          cat << 'EOF' >> $GITHUB_OUTPUT
+          results<<RESULTS_EOF
+          {
+            "scenario": "${{ matrix.scenario }}",
+            "mode": "mock",
+            "status": "${{ steps.run.outputs.status || 'error' }}",
+            "issue_number": "${{ steps.run.outputs.issue_number || '' }}",
+            "error": "${{ steps.run.outputs.error || '' }}",
+            "job_result": "${{ job.status }}"
+          }
+          RESULTS_EOF
+          EOF
+
+  # ============================================================================
+  # BATCH 5: Real Claude tests (only if include_real_claude is true)
+  # Tests core scenarios with actual Claude to verify real behavior
+  # ============================================================================
+  batch5-real-claude:
+    if: inputs.include_real_claude == true
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        scenario:
+          - full-flow
+          - triage
+          - pivot-simple
+    outputs:
+      results: ${{ steps.collect.outputs.results }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @more/prompts compile
+      - name: Build actions
+        run: cd .github/actions-ts && pnpm run build
+
+      - name: Install Claude Code
+        run: |
+          set -e
+          echo "Installing Claude Code..."
+          curl -fsSL https://claude.ai/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          if [ -f "$HOME/.local/bin/claude" ]; then
+            echo "✓ Claude Code installed at $HOME/.local/bin/claude"
+            "$HOME/.local/bin/claude" --version || echo "Warning: Could not get version"
+          else
+            echo "::error::Claude Code installation failed"
+            exit 1
+          fi
+
+      - name: Run test
+        id: run
+        continue-on-error: true
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          CLAUDE_CODE_PATH: /home/runner/.local/bin/claude
+        uses: ./packages/statemachine/actions/sm-test-runner
+        with:
+          action: run-configurable
+          scenario_name: ${{ matrix.scenario }}
+          continue: true
+          mock_claude: false
+          mock_ci: true
+          multi_issue: true
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
+          reviewer_token: ${{ secrets.CLAUDE_REVIEWER_PAT }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+
+      - name: Cleanup
+        if: always() && steps.run.outputs.issue_number != ''
+        uses: ./packages/statemachine/actions/sm-test-helper
+        with:
+          action: cleanup
+          issue_number: ${{ steps.run.outputs.issue_number }}
+          github_token: ${{ env.GH_TOKEN }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+          cleanup_mode: close
+
+      - name: Collect results
+        id: collect
+        run: |
+          cat << 'EOF' >> $GITHUB_OUTPUT
+          results<<RESULTS_EOF
+          {
+            "scenario": "${{ matrix.scenario }}",
+            "mode": "real",
+            "status": "${{ steps.run.outputs.status || 'error' }}",
+            "issue_number": "${{ steps.run.outputs.issue_number || '' }}",
+            "error": "${{ steps.run.outputs.error || '' }}",
+            "job_result": "${{ job.status }}"
+          }
+          RESULTS_EOF
+          EOF
+
+  # ============================================================================
+  # AGGREGATION: Collect all results
+  # ============================================================================
+  aggregate-results:
+    needs: [batch1-mock, batch2-edge-cases, batch3-mock, batch4-mock, batch5-real-claude]
+    if: always()
+    runs-on: ubuntu-latest
+    outputs:
+      all_results: ${{ steps.aggregate.outputs.all_results }}
+      summary: ${{ steps.aggregate.outputs.summary }}
+      has_failures: ${{ steps.aggregate.outputs.has_failures }}
+    steps:
+      - name: Aggregate all results
+        id: aggregate
+        run: |
+          # Collect all results into a single JSON array
+          # Handle missing outputs gracefully
+
+          RESULTS='[]'
+
+          # Helper to add results if they exist
+          add_results() {
+            local batch_name="$1"
+            local results="$2"
+            if [[ -n "$results" && "$results" != "null" ]]; then
+              RESULTS=$(echo "$RESULTS" | jq --argjson new "[$results]" '. + $new')
+              echo "Added results from $batch_name"
+            else
+              echo "No results from $batch_name (job may have been skipped)"
+            fi
+          }
+
+          # Add results from each batch
+          add_results "batch1-mock" '${{ needs.batch1-mock.outputs.results }}'
+          add_results "batch2-edge-cases" '${{ needs.batch2-edge-cases.outputs.results }}'
+          add_results "batch3-mock" '${{ needs.batch3-mock.outputs.results }}'
+          add_results "batch4-mock" '${{ needs.batch4-mock.outputs.results }}'
+          add_results "batch5-real-claude" '${{ needs.batch5-real-claude.outputs.results }}'
+
+          # Count results
+          TOTAL=$(echo "$RESULTS" | jq 'length')
+          PASSED=$(echo "$RESULTS" | jq '[.[] | select(.status == "completed" and .job_result == "success")] | length')
+          FAILED=$(echo "$RESULTS" | jq '[.[] | select(.status != "completed" or .job_result != "success")] | length')
+
+          # Check for failures
+          if [[ "$FAILED" -gt 0 ]]; then
+            HAS_FAILURES="true"
+          else
+            HAS_FAILURES="false"
+          fi
+
+          # Create summary
+          SUMMARY="Total: $TOTAL | Passed: $PASSED | Failed: $FAILED"
+
+          echo "all_results<<EOF" >> $GITHUB_OUTPUT
+          echo "$RESULTS" | jq -c '.' >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          echo "summary=$SUMMARY" >> $GITHUB_OUTPUT
+          echo "has_failures=$HAS_FAILURES" >> $GITHUB_OUTPUT
+
+          # Also output for visibility
+          echo "## Aggregated Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**$SUMMARY**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### All Results" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo "$RESULTS" | jq '.' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # CLAUDE ANALYSIS: Analyze results and propose solutions
+  # ============================================================================
+  claude-analysis:
+    needs: [aggregate-results]
+    if: always() && needs.aggregate-results.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @more/prompts compile
+      - name: Build actions
+        run: cd .github/actions-ts && pnpm run build
+
+      - name: Install Claude Code
+        run: |
+          set -e
+          curl -fsSL https://claude.ai/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Prepare analysis context
+        id: context
+        run: |
+          # Get workflow run logs for failed jobs
+          RUN_ID="${{ github.run_id }}"
+
+          # Create context file with all relevant information
+          cat > /tmp/analysis_context.md << 'CONTEXT_EOF'
+          # State Machine Test Suite Analysis
+
+          ## Summary
+          ${{ needs.aggregate-results.outputs.summary }}
+
+          ## Test Results
+          ```json
+          ${{ needs.aggregate-results.outputs.all_results }}
+          ```
+
+          ## Job Status
+          - Batch 1 (Core Mock): ${{ needs.batch1-mock.result }}
+          - Batch 2 (Edge Cases): ${{ needs.batch2-edge-cases.result }}
+          - Batch 3 (PR/Pivot Mock): ${{ needs.batch3-mock.result }}
+          - Batch 4 (Complex Mock): ${{ needs.batch4-mock.result }}
+          - Batch 5 (Real Claude): ${{ needs.batch5-real-claude.result }}
+
+          ## Workflow Run
+          - Run ID: ${{ github.run_id }}
+          - Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          - Branch: ${{ github.ref_name }}
+          - Commit: ${{ github.sha }}
+
+          ## Task
+          Analyze the test results and determine:
+
+          1. **Are the test results valid?**
+             - Check if failures are due to test infrastructure issues vs actual bugs
+             - Identify any flaky tests or timing issues
+
+          2. **For any failures:**
+             - What is the root cause?
+             - Is it a test fixture issue, state machine bug, or external dependency?
+             - Propose a specific fix
+
+          3. **Overall assessment:**
+             - If all passing: Confirm the test suite is healthy
+             - If some failures: Prioritize which to fix first
+             - Provide actionable next steps
+
+          CONTEXT_EOF
+
+          echo "context_file=/tmp/analysis_context.md" >> $GITHUB_OUTPUT
+
+      - name: Run Claude Analysis
+        id: analysis
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          # Read the context
+          CONTEXT=$(cat /tmp/analysis_context.md)
+
+          # Run Claude for analysis
+          echo "Running Claude analysis..."
+
+          ANALYSIS=$(~/.local/bin/claude --print --dangerously-skip-permissions << 'PROMPT_EOF'
+          You are analyzing the results of an automated test suite for a GitHub Actions state machine.
+
+          Here is the full context:
+
+          $CONTEXT
+
+          Please provide:
+          1. A brief summary of the test results (2-3 sentences)
+          2. For any failures:
+             - Root cause analysis
+             - Whether it's a test issue or actual bug
+             - Specific fix recommendation
+          3. Overall health assessment and next steps
+
+          Format your response as markdown suitable for a GitHub Actions summary.
+          PROMPT_EOF
+          )
+
+          # Output the analysis
+          echo "## Claude Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "$ANALYSIS" >> $GITHUB_STEP_SUMMARY
+
+      - name: Final Summary
+        if: always()
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Final Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ needs.aggregate-results.outputs.has_failures }}" == "true" ]]; then
+            echo "❌ **Some tests failed** - see Claude analysis above for details" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **All tests passed**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Summary:** ${{ needs.aggregate-results.outputs.summary }}" >> $GITHUB_STEP_SUMMARY

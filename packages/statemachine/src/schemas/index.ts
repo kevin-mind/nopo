@@ -199,10 +199,14 @@ export {
   type JobType,
   type ResourceType as WorkflowResourceType,
   type ContextType,
-  // Workflow context
+  // Full workflow context (legacy - being phased out)
   WorkflowContextSchema,
   parseWorkflowContext,
   isDiscussionTrigger,
   isIssueTrigger,
   type WorkflowContext,
+  // Minimal trigger context (new - event-derived data only)
+  MinimalTriggerContextSchema,
+  parseMinimalTriggerContext,
+  type MinimalTriggerContext,
 } from "./runner-context.js";

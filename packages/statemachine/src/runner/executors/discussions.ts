@@ -5,6 +5,17 @@
  */
 
 import * as core from "@actions/core";
+import {
+  GET_DISCUSSION_ID_QUERY,
+  GET_REPO_ID_QUERY,
+  GET_LABEL_IDS_QUERY,
+  ADD_DISCUSSION_COMMENT_MUTATION,
+  ADD_DISCUSSION_REPLY_MUTATION,
+  UPDATE_DISCUSSION_MUTATION,
+  ADD_REACTION_MUTATION,
+  CREATE_ISSUE_MUTATION,
+  ADD_LABELS_MUTATION,
+} from "@more/issue-state";
 import type {
   AddDiscussionCommentAction,
   UpdateDiscussionBodyAction,
@@ -12,119 +23,6 @@ import type {
   CreateIssuesFromDiscussionAction,
 } from "../../schemas/index.js";
 import type { RunnerContext } from "../types.js";
-
-// ============================================================================
-// GraphQL Queries and Mutations
-// ============================================================================
-
-const ADD_DISCUSSION_COMMENT_MUTATION = `
-mutation AddDiscussionComment($discussionId: ID!, $body: String!) {
-  addDiscussionComment(input: {
-    discussionId: $discussionId
-    body: $body
-  }) {
-    comment {
-      id
-      body
-    }
-  }
-}
-`;
-
-const ADD_DISCUSSION_REPLY_MUTATION = `
-mutation AddDiscussionReply($discussionId: ID!, $replyToId: ID!, $body: String!) {
-  addDiscussionComment(input: {
-    discussionId: $discussionId
-    replyToId: $replyToId
-    body: $body
-  }) {
-    comment {
-      id
-      body
-    }
-  }
-}
-`;
-
-const UPDATE_DISCUSSION_MUTATION = `
-mutation UpdateDiscussion($discussionId: ID!, $body: String!) {
-  updateDiscussion(input: {
-    discussionId: $discussionId
-    body: $body
-  }) {
-    discussion {
-      id
-      body
-    }
-  }
-}
-`;
-
-const ADD_REACTION_MUTATION = `
-mutation AddReaction($subjectId: ID!, $content: ReactionContent!) {
-  addReaction(input: {
-    subjectId: $subjectId
-    content: $content
-  }) {
-    reaction {
-      id
-      content
-    }
-  }
-}
-`;
-
-const GET_DISCUSSION_ID_QUERY = `
-query GetDiscussionId($owner: String!, $repo: String!, $number: Int!) {
-  repository(owner: $owner, name: $repo) {
-    discussion(number: $number) {
-      id
-    }
-  }
-}
-`;
-
-const GET_REPO_ID_QUERY = `
-query GetRepoId($owner: String!, $repo: String!) {
-  repository(owner: $owner, name: $repo) {
-    id
-  }
-}
-`;
-
-const CREATE_ISSUE_MUTATION = `
-mutation CreateIssue($repositoryId: ID!, $title: String!, $body: String!) {
-  createIssue(input: { repositoryId: $repositoryId, title: $title, body: $body }) {
-    issue {
-      id
-      number
-    }
-  }
-}
-`;
-
-const ADD_LABELS_MUTATION = `
-mutation AddLabelsToLabelable($labelableId: ID!, $labelIds: [ID!]!) {
-  addLabelsToLabelable(input: { labelableId: $labelableId, labelIds: $labelIds }) {
-    labelable {
-      __typename
-    }
-  }
-}
-`;
-
-const GET_LABEL_IDS_QUERY = `
-query GetLabelIds($owner: String!, $repo: String!, $names: [String!]!) {
-  repository(owner: $owner, name: $repo) {
-    labels(first: 100, query: "") {
-      nodes {
-        id
-        name
-      }
-    }
-  }
-}
-`;
 
 // ============================================================================
 // Types

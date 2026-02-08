@@ -28018,7 +28018,34 @@ var coerce = {
 };
 var NEVER = INVALID;
 
-// ../../packages/statemachine/src/schemas/entities.ts
+// ../../packages/issue-state/src/constants.ts
+var PARENT_STATUS = {
+  BACKLOG: "Backlog",
+  IN_PROGRESS: "In progress",
+  DONE: "Done",
+  BLOCKED: "Blocked",
+  ERROR: "Error"
+};
+var SUB_ISSUE_STATUS = {
+  READY: "Ready",
+  IN_PROGRESS: "In progress",
+  IN_REVIEW: "In review",
+  DONE: "Done"
+};
+var PROJECT_STATUS = {
+  ...PARENT_STATUS,
+  ...SUB_ISSUE_STATUS
+};
+var DEFAULT_PROJECT_FIELDS = {
+  status: PARENT_STATUS.BACKLOG,
+  iteration: 0,
+  failures: 0
+};
+var DEFAULT_SUB_ISSUE_PROJECT_FIELDS = {
+  status: SUB_ISSUE_STATUS.READY
+};
+
+// ../../packages/issue-state/src/schemas/enums.ts
 var ProjectStatusSchema = external_exports.enum([
   "Backlog",
   "In progress",
@@ -28030,37 +28057,6 @@ var ProjectStatusSchema = external_exports.enum([
 ]);
 var IssueStateSchema = external_exports.enum(["OPEN", "CLOSED"]);
 var PRStateSchema = external_exports.enum(["OPEN", "CLOSED", "MERGED"]);
-var TodoItemSchema = external_exports.object({
-  text: external_exports.string(),
-  checked: external_exports.boolean(),
-  isManual: external_exports.boolean()
-});
-var TodoStatsSchema = external_exports.object({
-  total: external_exports.number().int().min(0),
-  completed: external_exports.number().int().min(0),
-  uncheckedNonManual: external_exports.number().int().min(0)
-});
-var HistoryEntrySchema = external_exports.object({
-  iteration: external_exports.number().int().min(0),
-  phase: external_exports.string(),
-  action: external_exports.string(),
-  timestamp: external_exports.string().nullable(),
-  sha: external_exports.string().nullable(),
-  runLink: external_exports.string().nullable()
-});
-var AgentNotesEntrySchema = external_exports.object({
-  runId: external_exports.string(),
-  runLink: external_exports.string(),
-  timestamp: external_exports.string(),
-  notes: external_exports.array(external_exports.string())
-});
-var IssueCommentSchema = external_exports.object({
-  id: external_exports.string(),
-  author: external_exports.string(),
-  body: external_exports.string(),
-  createdAt: external_exports.string(),
-  isBot: external_exports.boolean()
-});
 var CIStatusSchema = external_exports.enum([
   "SUCCESS",
   "FAILURE",
@@ -28068,1286 +28064,15 @@ var CIStatusSchema = external_exports.enum([
   "ERROR",
   "EXPECTED"
 ]);
-var LinkedPRSchema = external_exports.object({
-  number: external_exports.number().int().positive(),
-  state: PRStateSchema,
-  isDraft: external_exports.boolean(),
-  title: external_exports.string(),
-  headRef: external_exports.string(),
-  baseRef: external_exports.string(),
-  // CI status from statusCheckRollup
-  ciStatus: CIStatusSchema.nullable().optional()
-});
-var SubIssueSchema = external_exports.object({
-  number: external_exports.number().int().positive(),
-  title: external_exports.string(),
-  state: IssueStateSchema,
-  body: external_exports.string(),
-  projectStatus: ProjectStatusSchema.nullable(),
-  branch: external_exports.string().nullable(),
-  pr: LinkedPRSchema.nullable(),
-  todos: TodoStatsSchema
-});
-var ParentIssueSchema = external_exports.object({
-  number: external_exports.number().int().positive(),
-  title: external_exports.string(),
-  state: IssueStateSchema,
-  body: external_exports.string(),
-  projectStatus: ProjectStatusSchema.nullable(),
-  iteration: external_exports.number().int().min(0),
-  failures: external_exports.number().int().min(0),
-  assignees: external_exports.array(external_exports.string()),
-  labels: external_exports.array(external_exports.string()),
-  subIssues: external_exports.array(SubIssueSchema),
-  hasSubIssues: external_exports.boolean(),
-  history: external_exports.array(HistoryEntrySchema),
-  /** Todos parsed from the issue body - used when this is a sub-issue triggered directly */
-  todos: TodoStatsSchema,
-  /** Agent notes from previous workflow runs */
-  agentNotes: external_exports.array(AgentNotesEntrySchema).default([]),
-  /** Issue comments from GitHub */
-  comments: external_exports.array(IssueCommentSchema).default([])
-});
-var CIResultSchema = external_exports.enum([
-  "success",
-  "failure",
-  "cancelled",
-  "skipped"
-]);
 var ReviewDecisionSchema = external_exports.enum([
   "APPROVED",
   "CHANGES_REQUESTED",
-  "COMMENTED",
-  "DISMISSED"
+  "REVIEW_REQUIRED"
 ]);
-function isTerminalStatus(status) {
-  return status === "Done" || status === "Blocked" || status === "Error";
-}
-
-// ../../packages/statemachine/src/schemas/state.ts
-var TriggerTypeSchema = external_exports.enum([
-  // Issue triggers
-  "issue-assigned",
-  "issue-edited",
-  "issue-closed",
-  "issue-triage",
-  "issue-orchestrate",
-  "issue-comment",
-  "issue-reset",
-  "issue-pivot",
-  // Grooming triggers
-  "issue-groom",
-  "issue-groom-summary",
-  // PR triggers
-  "pr-review-requested",
-  "pr-review-submitted",
-  "pr-review",
-  "pr-review-approved",
-  "pr-response",
-  "pr-human-response",
-  "pr-push",
-  // Workflow triggers
-  "workflow-run-completed",
-  // Merge queue logging triggers
-  "merge-queue-entered",
-  "merge-queue-failed",
-  "pr-merged",
-  "deployed-stage",
-  "deployed-prod",
-  // Discussion triggers
-  "discussion-created",
-  "discussion-comment",
-  "discussion-command"
-]);
-var MachineContextSchema = external_exports.object({
-  // Trigger info
-  trigger: TriggerTypeSchema,
-  // Repository info
-  owner: external_exports.string().min(1),
-  repo: external_exports.string().min(1),
-  // Issue being worked on (could be parent or sub-issue)
-  issue: ParentIssueSchema,
-  // If this is a sub-issue, the parent
-  parentIssue: ParentIssueSchema.nullable(),
-  // Current phase info (derived from sub-issues)
-  currentPhase: external_exports.number().int().positive().nullable(),
-  totalPhases: external_exports.number().int().min(0),
-  currentSubIssue: SubIssueSchema.nullable(),
-  // CI result (if triggered by workflow_run)
-  ciResult: CIResultSchema.nullable(),
-  ciRunUrl: external_exports.string().nullable(),
-  ciCommitSha: external_exports.string().nullable(),
-  // Workflow timing
-  /** ISO 8601 timestamp of when the workflow started */
-  workflowStartedAt: external_exports.string().nullable(),
-  /** URL to the current workflow run */
-  workflowRunUrl: external_exports.string().nullable().default(null),
-  // Review result (if triggered by pr_review_submitted)
-  reviewDecision: ReviewDecisionSchema.nullable(),
-  reviewerId: external_exports.string().nullable(),
-  // Branch info
-  branch: external_exports.string().nullable(),
-  hasBranch: external_exports.boolean(),
-  // PR info (for the current phase/issue)
-  pr: LinkedPRSchema.nullable(),
-  hasPR: external_exports.boolean(),
-  // Comment info (if triggered by issue_comment)
-  commentContextType: external_exports.string().transform((v) => v?.toLowerCase()).pipe(external_exports.enum(["issue", "pr"])).nullable().default(null),
-  commentContextDescription: external_exports.string().nullable().default(null),
-  // Pivot info (if triggered by issue-pivot)
-  pivotDescription: external_exports.string().nullable().default(null),
-  // Release info (if triggered by release_* events)
-  releaseEvent: external_exports.object({
-    type: external_exports.enum(["queue_entry", "merged", "deployed", "queue_failure"]),
-    commitSha: external_exports.string().optional(),
-    failureReason: external_exports.string().optional(),
-    services: external_exports.array(external_exports.string()).optional()
-  }).nullable().default(null),
-  // Discussion info (if triggered by discussion_* events)
-  discussion: external_exports.object({
-    number: external_exports.number().int().positive(),
-    nodeId: external_exports.string(),
-    title: external_exports.string(),
-    body: external_exports.string(),
-    commentCount: external_exports.number().int().min(0).default(0),
-    researchThreads: external_exports.array(
-      external_exports.object({
-        nodeId: external_exports.string(),
-        topic: external_exports.string(),
-        replyCount: external_exports.number().int().min(0)
-      })
-    ).default([]),
-    command: external_exports.enum(["summarize", "plan", "complete"]).optional(),
-    commentId: external_exports.string().optional(),
-    commentBody: external_exports.string().optional(),
-    commentAuthor: external_exports.string().optional()
-  }).nullable().default(null),
-  // Config
-  maxRetries: external_exports.number().int().positive().default(5),
-  botUsername: external_exports.string().default("nopo-bot")
-});
-
-// ../../packages/statemachine/src/schemas/actions.ts
-var TokenTypeSchema = external_exports.enum(["code", "review"]);
-var ArtifactSchema = external_exports.object({
-  /** Unique name for the artifact (used for upload/download matching) */
-  name: external_exports.string(),
-  /** Path to the file (relative to workspace) */
-  path: external_exports.string()
-});
-var BaseActionSchema = external_exports.object({
-  id: external_exports.string().uuid().optional(),
-  /** Which token to use for this action (defaults to 'code') */
-  token: TokenTypeSchema.default("code"),
-  /** Artifact this action produces (will be uploaded after execution) */
-  producesArtifact: ArtifactSchema.optional(),
-  /** Artifact this action consumes (will be downloaded before execution) */
-  consumesArtifact: ArtifactSchema.optional()
-});
-var UpdateProjectStatusActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("updateProjectStatus"),
-  issueNumber: external_exports.number().int().positive(),
-  status: ProjectStatusSchema
-});
-var IncrementIterationActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("incrementIteration"),
-  issueNumber: external_exports.number().int().positive()
-});
-var RecordFailureActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("recordFailure"),
-  issueNumber: external_exports.number().int().positive(),
-  failureType: external_exports.enum(["ci", "workflow", "review"]).optional()
-});
-var ClearFailuresActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("clearFailures"),
-  issueNumber: external_exports.number().int().positive()
-});
-var PhaseDefinitionSchema = external_exports.object({
-  title: external_exports.string().min(1),
-  body: external_exports.string()
-});
-var CreateSubIssuesActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("createSubIssues"),
-  parentIssueNumber: external_exports.number().int().positive(),
-  phases: external_exports.array(PhaseDefinitionSchema).min(1)
-});
-var CloseIssueActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("closeIssue"),
-  issueNumber: external_exports.number().int().positive(),
-  reason: external_exports.enum(["completed", "not_planned"]).default("completed")
-});
-var ReopenIssueActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("reopenIssue"),
-  issueNumber: external_exports.number().int().positive()
-});
-var ResetIssueActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("resetIssue"),
-  issueNumber: external_exports.number().int().positive(),
-  /** Sub-issue numbers to reset */
-  subIssueNumbers: external_exports.array(external_exports.number().int().positive()).default([]),
-  botUsername: external_exports.string().min(1)
-});
-var AppendHistoryActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("appendHistory"),
-  issueNumber: external_exports.number().int().positive(),
-  /** Iteration number from project field */
-  iteration: external_exports.number().int().min(0).optional(),
-  phase: external_exports.string(),
-  message: external_exports.string(),
-  /** ISO 8601 timestamp of when the workflow started */
-  timestamp: external_exports.string().optional(),
-  commitSha: external_exports.string().optional(),
-  /** PR number to link in the SHA column (alternative to commitSha) */
-  prNumber: external_exports.number().int().positive().nullable().optional(),
-  runLink: external_exports.string().optional()
-});
-var UpdateHistoryActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("updateHistory"),
-  issueNumber: external_exports.number().int().positive(),
-  matchIteration: external_exports.number().int().min(0),
-  matchPhase: external_exports.string(),
-  matchPattern: external_exports.string(),
-  newMessage: external_exports.string(),
-  /** ISO 8601 timestamp (optional - preserves existing if not provided) */
-  timestamp: external_exports.string().optional(),
-  commitSha: external_exports.string().optional(),
-  /** PR number to link in the SHA column (alternative to commitSha) */
-  prNumber: external_exports.number().int().positive().nullable().optional(),
-  runLink: external_exports.string().optional()
-});
-var UpdateIssueBodyActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("updateIssueBody"),
-  issueNumber: external_exports.number().int().positive(),
-  body: external_exports.string()
-});
-var AddCommentActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("addComment"),
-  issueNumber: external_exports.number().int().positive(),
-  body: external_exports.string()
-});
-var UnassignUserActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("unassignUser"),
-  issueNumber: external_exports.number().int().positive(),
-  username: external_exports.string().min(1)
-});
-var AssignUserActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("assignUser"),
-  issueNumber: external_exports.number().int().positive(),
-  username: external_exports.string().min(1)
-});
-var CreateBranchActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("createBranch"),
-  branchName: external_exports.string().min(1),
-  baseBranch: external_exports.string().default("main"),
-  /** Git worktree to run the command in */
-  worktree: external_exports.string().optional()
-});
-var GitPushActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("gitPush"),
-  branchName: external_exports.string().min(1),
-  force: external_exports.boolean().default(false)
-});
-var CreatePRActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("createPR"),
-  title: external_exports.string().min(1),
-  body: external_exports.string(),
-  branchName: external_exports.string().min(1),
-  baseBranch: external_exports.string().default("main"),
-  draft: external_exports.boolean().default(true),
-  issueNumber: external_exports.number().int().positive()
-});
-var ConvertPRToDraftActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("convertPRToDraft"),
-  prNumber: external_exports.number().int().positive()
-});
-var MarkPRReadyActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("markPRReady"),
-  prNumber: external_exports.number().int().positive()
-});
-var RequestReviewActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("requestReview"),
-  prNumber: external_exports.number().int().positive(),
-  reviewer: external_exports.string().min(1)
-});
-var MergePRActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("mergePR"),
-  prNumber: external_exports.number().int().positive(),
-  issueNumber: external_exports.number().int().positive(),
-  mergeMethod: external_exports.enum(["merge", "squash", "rebase"]).default("squash")
-});
-var SubmitReviewActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("submitReview"),
-  prNumber: external_exports.number().int().positive(),
-  decision: external_exports.enum(["approve", "request_changes", "comment"]),
-  body: external_exports.string()
-});
-var RemoveReviewerActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("removeReviewer"),
-  prNumber: external_exports.number().int().positive(),
-  reviewer: external_exports.string().min(1)
-});
-var RunClaudeActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("runClaude"),
-  /** Direct prompt string */
-  prompt: external_exports.string().min(1).optional(),
-  /** Path to prompt file (relative to repo root) - will be read and substituted */
-  promptFile: external_exports.string().min(1).optional(),
-  /** Prompt directory name (resolved to {promptsDir}/{name}/) - contains prompt.txt and optional outputs.json */
-  promptDir: external_exports.string().min(1).optional(),
-  /** Base directory for prompts (defaults to .github/prompts/) */
-  promptsDir: external_exports.string().min(1).optional(),
-  /** Template variables for prompt substitution */
-  promptVars: external_exports.record(external_exports.string()).optional(),
-  issueNumber: external_exports.number().int().positive(),
-  allowedTools: external_exports.array(external_exports.string()).optional(),
-  worktree: external_exports.string().optional()
-});
-var AddDiscussionCommentActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("addDiscussionComment"),
-  discussionNodeId: external_exports.string().min(1),
-  body: external_exports.string().min(1),
-  /** If provided, this comment is a reply to another comment */
-  replyToNodeId: external_exports.string().optional()
-});
-var UpdateDiscussionBodyActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("updateDiscussionBody"),
-  discussionNodeId: external_exports.string().min(1),
-  newBody: external_exports.string().min(1)
-});
-var AddDiscussionReactionActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("addDiscussionReaction"),
-  /** Node ID of the discussion or comment */
-  subjectId: external_exports.string().min(1),
-  content: external_exports.enum([
-    "THUMBS_UP",
-    "THUMBS_DOWN",
-    "LAUGH",
-    "HOORAY",
-    "CONFUSED",
-    "HEART",
-    "ROCKET",
-    "EYES"
-  ])
-});
-var CreateIssuesFromDiscussionActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("createIssuesFromDiscussion"),
-  discussionNumber: external_exports.number().int().positive(),
-  issues: external_exports.array(
-    external_exports.object({
-      title: external_exports.string().min(1),
-      body: external_exports.string(),
-      labels: external_exports.array(external_exports.string()).default([])
-    })
-  )
-});
-var StopActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("stop"),
-  reason: external_exports.string().min(1)
-});
-var BlockActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("block"),
-  issueNumber: external_exports.number().int().positive(),
-  reason: external_exports.string().min(1)
-});
-var LogActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("log"),
-  level: external_exports.enum(["debug", "info", "warning", "error"]).default("info"),
-  message: external_exports.string(),
-  /** Git worktree context (informational) */
-  worktree: external_exports.string().optional()
-});
-var NoOpActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("noop"),
-  reason: external_exports.string().optional()
-});
-var ApplyTriageOutputActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("applyTriageOutput"),
-  issueNumber: external_exports.number().int().positive(),
-  filePath: external_exports.string().default("triage-output.json")
-});
-var ApplyIterateOutputActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("applyIterateOutput"),
-  issueNumber: external_exports.number().int().positive(),
-  filePath: external_exports.string().default("claude-structured-output.json")
-});
-var AppendAgentNotesActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("appendAgentNotes"),
-  issueNumber: external_exports.number().int().positive(),
-  notes: external_exports.array(external_exports.string()),
-  runId: external_exports.string(),
-  runLink: external_exports.string(),
-  timestamp: external_exports.string().optional()
-});
-var ApplyReviewOutputActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("applyReviewOutput"),
-  prNumber: external_exports.number().int().positive(),
-  filePath: external_exports.string().default("claude-structured-output.json"),
-  /** Git worktree to read the output file from */
-  worktree: external_exports.string().optional()
-});
-var ApplyPRResponseOutputActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("applyPRResponseOutput"),
-  prNumber: external_exports.number().int().positive(),
-  issueNumber: external_exports.number().int().positive(),
-  filePath: external_exports.string().default("claude-structured-output.json"),
-  reviewer: external_exports.string().default("nopo-reviewer"),
-  /** Git worktree to read the output file from */
-  worktree: external_exports.string().optional()
-});
-var ApplyDiscussionResearchOutputActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("applyDiscussionResearchOutput"),
-  discussionNumber: external_exports.number().int().positive(),
-  discussionNodeId: external_exports.string().min(1),
-  /** Prompt variables to pass to investigation agents */
-  promptVars: external_exports.record(external_exports.string()).optional(),
-  /** Path to the structured output file (for artifact-based execution) */
-  filePath: external_exports.string().optional(),
-  /** Artifact to download before execution */
-  consumesArtifact: ArtifactSchema.optional()
-});
-var ApplyDiscussionRespondOutputActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("applyDiscussionRespondOutput"),
-  discussionNumber: external_exports.number().int().positive(),
-  discussionNodeId: external_exports.string().min(1),
-  /** If provided, post as a reply to this comment */
-  replyToNodeId: external_exports.string().optional(),
-  /** Path to the structured output file (for artifact-based execution) */
-  filePath: external_exports.string().optional(),
-  /** Artifact to download before execution */
-  consumesArtifact: ArtifactSchema.optional()
-});
-var ApplyDiscussionSummarizeOutputActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("applyDiscussionSummarizeOutput"),
-  discussionNumber: external_exports.number().int().positive(),
-  discussionNodeId: external_exports.string().min(1),
-  /** Path to the structured output file (for artifact-based execution) */
-  filePath: external_exports.string().optional(),
-  /** Artifact to download before execution */
-  consumesArtifact: ArtifactSchema.optional()
-});
-var ApplyDiscussionPlanOutputActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("applyDiscussionPlanOutput"),
-  discussionNumber: external_exports.number().int().positive(),
-  discussionNodeId: external_exports.string().min(1),
-  /** Path to the structured output file (for artifact-based execution) */
-  filePath: external_exports.string().optional(),
-  /** Artifact to download before execution */
-  consumesArtifact: ArtifactSchema.optional()
-});
-var ResearchThreadSchema = external_exports.object({
-  /** The comment node ID for posting replies */
-  commentNodeId: external_exports.string().min(1),
-  /** Thread title */
-  title: external_exports.string().min(1),
-  /** The main question to investigate */
-  question: external_exports.string().min(1),
-  /** Areas to investigate */
-  investigationAreas: external_exports.array(external_exports.string()),
-  /** Expected deliverables */
-  expectedDeliverables: external_exports.array(external_exports.string())
-});
-var InvestigateResearchThreadsActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("investigateResearchThreads"),
-  discussionNumber: external_exports.number().int().positive(),
-  discussionNodeId: external_exports.string().min(1),
-  /** Research threads to investigate */
-  threads: external_exports.array(ResearchThreadSchema),
-  /** Template variables for investigation prompts */
-  promptVars: external_exports.record(external_exports.string()).optional()
-});
-var UpdateDiscussionSummaryActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("updateDiscussionSummary"),
-  discussionNumber: external_exports.number().int().positive(),
-  discussionNodeId: external_exports.string().min(1),
-  /** Template variables for summary prompt */
-  promptVars: external_exports.record(external_exports.string()).optional()
-});
-var AddLabelActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("addLabel"),
-  issueNumber: external_exports.number().int().positive(),
-  label: external_exports.string().min(1)
-});
-var RemoveLabelActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("removeLabel"),
-  issueNumber: external_exports.number().int().positive(),
-  label: external_exports.string().min(1)
-});
-var GroomingAgentTypeSchema = external_exports.enum([
-  "pm",
-  "engineer",
-  "qa",
-  "research"
-]);
-var RunClaudeGroomingActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("runClaudeGrooming"),
-  issueNumber: external_exports.number().int().positive(),
-  /** Template variables for grooming prompts */
-  promptVars: external_exports.record(external_exports.string()).optional()
-});
-var ApplyGroomingOutputActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("applyGroomingOutput"),
-  issueNumber: external_exports.number().int().positive(),
-  /** Path to the combined grooming output file */
-  filePath: external_exports.string().default("grooming-output.json")
-});
-var ApplyPivotOutputActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("applyPivotOutput"),
-  issueNumber: external_exports.number().int().positive(),
-  /** Path to the pivot output file */
-  filePath: external_exports.string().default("claude-structured-output.json")
-});
-var ActionSchema = external_exports.discriminatedUnion("type", [
-  // Project field actions
-  UpdateProjectStatusActionSchema,
-  IncrementIterationActionSchema,
-  RecordFailureActionSchema,
-  ClearFailuresActionSchema,
-  // Issue actions
-  CreateSubIssuesActionSchema,
-  CloseIssueActionSchema,
-  ReopenIssueActionSchema,
-  ResetIssueActionSchema,
-  AppendHistoryActionSchema,
-  UpdateHistoryActionSchema,
-  UpdateIssueBodyActionSchema,
-  AddCommentActionSchema,
-  UnassignUserActionSchema,
-  AssignUserActionSchema,
-  // Label actions
-  AddLabelActionSchema,
-  RemoveLabelActionSchema,
-  // Git actions
-  CreateBranchActionSchema,
-  GitPushActionSchema,
-  // PR actions
-  CreatePRActionSchema,
-  ConvertPRToDraftActionSchema,
-  MarkPRReadyActionSchema,
-  RequestReviewActionSchema,
-  MergePRActionSchema,
-  SubmitReviewActionSchema,
-  RemoveReviewerActionSchema,
-  // Claude actions
-  RunClaudeActionSchema,
-  // Grooming actions
-  RunClaudeGroomingActionSchema,
-  ApplyGroomingOutputActionSchema,
-  // Pivot actions
-  ApplyPivotOutputActionSchema,
-  // Discussion actions
-  AddDiscussionCommentActionSchema,
-  UpdateDiscussionBodyActionSchema,
-  AddDiscussionReactionActionSchema,
-  CreateIssuesFromDiscussionActionSchema,
-  // Control flow actions
-  StopActionSchema,
-  BlockActionSchema,
-  LogActionSchema,
-  NoOpActionSchema,
-  // Triage actions
-  ApplyTriageOutputActionSchema,
-  // Iterate actions
-  ApplyIterateOutputActionSchema,
-  // Agent notes actions
-  AppendAgentNotesActionSchema,
-  // Review actions
-  ApplyReviewOutputActionSchema,
-  // PR response actions
-  ApplyPRResponseOutputActionSchema,
-  // Discussion apply actions
-  ApplyDiscussionResearchOutputActionSchema,
-  ApplyDiscussionRespondOutputActionSchema,
-  ApplyDiscussionSummarizeOutputActionSchema,
-  ApplyDiscussionPlanOutputActionSchema,
-  // Discussion parallel investigation actions
-  InvestigateResearchThreadsActionSchema,
-  UpdateDiscussionSummaryActionSchema
-]);
-function isTerminalAction(action) {
-  return action.type === "stop" || action.type === "block";
-}
-function shouldStopOnError(actionType) {
-  const criticalActions = [
-    "runClaude",
-    "createPR",
-    "mergePR",
-    "createSubIssues",
-    "block"
-  ];
-  return criticalActions.includes(actionType);
-}
-
-// ../../packages/statemachine/src/schemas/issue-triggers.ts
-var IssueTriggerTypeSchema = external_exports.enum([
-  // Issue triggers
-  "issue-assigned",
-  "issue-edited",
-  "issue-closed",
-  "issue-triage",
-  "issue-groom",
-  "issue-orchestrate",
-  "issue-comment",
-  "issue-pivot",
-  "issue-reset",
-  // PR triggers
-  "pr-review-requested",
-  "pr-review-submitted",
-  "pr-review",
-  "pr-review-approved",
-  "pr-response",
-  "pr-human-response",
-  "pr-push",
-  // Workflow triggers
-  "workflow-run-completed",
-  // Merge queue logging triggers
-  "merge-queue-entered",
-  "merge-queue-failed",
-  "pr-merged",
-  "deployed-stage",
-  "deployed-prod"
-]);
-var ISSUE_TRIGGER_TYPES = IssueTriggerTypeSchema.options;
-
-// ../../packages/statemachine/src/schemas/discussion-triggers.ts
-var DiscussionTriggerTypeSchema = external_exports.enum([
-  "discussion-created",
-  "discussion-comment",
-  "discussion-command"
-]);
-var DISCUSSION_TRIGGER_TYPES = DiscussionTriggerTypeSchema.options;
-
-// ../../packages/statemachine/src/schemas/discussion-context.ts
-var DiscussionCommandSchema = external_exports.enum([
-  "summarize",
-  "plan",
-  "complete"
-]);
-var ResearchThreadSchema2 = external_exports.object({
-  nodeId: external_exports.string(),
-  topic: external_exports.string(),
-  replyCount: external_exports.number().int().min(0)
-});
-var DiscussionSchema = external_exports.object({
-  number: external_exports.number().int().positive(),
-  nodeId: external_exports.string(),
-  title: external_exports.string(),
-  body: external_exports.string(),
-  commentCount: external_exports.number().int().min(0).default(0),
-  researchThreads: external_exports.array(ResearchThreadSchema2).default([]),
-  command: DiscussionCommandSchema.optional(),
-  commentId: external_exports.string().optional(),
-  commentBody: external_exports.string().optional(),
-  commentAuthor: external_exports.string().optional()
-});
-var DiscussionContextSchema = external_exports.object({
-  // Trigger info
-  trigger: DiscussionTriggerTypeSchema,
-  // Repository info
-  owner: external_exports.string().min(1),
-  repo: external_exports.string().min(1),
-  // Discussion being worked on
-  discussion: DiscussionSchema,
-  // Config
-  maxRetries: external_exports.number().int().positive().default(5),
-  botUsername: external_exports.string().default("nopo-bot")
-});
-
-// ../../packages/statemachine/src/schemas/runner-context.ts
-var TriggerTypeSchema2 = external_exports.union([
-  IssueTriggerTypeSchema,
-  DiscussionTriggerTypeSchema
-]);
-var JobTypeSchema = external_exports.enum([
-  // Issue jobs
-  "issue-triage",
-  "issue-groom",
-  "issue-iterate",
-  "issue-orchestrate",
-  "issue-comment",
-  "issue-reset",
-  // PR jobs
-  "pr-push",
-  "pr-review-requested",
-  // When someone requests a review from the bot
-  "pr-review",
-  // Legacy: when bot should review (has review decision)
-  "pr-review-approved",
-  "pr-response",
-  "pr-human-response",
-  // Merge queue
-  "merge-queue-logging",
-  // Discussion jobs
-  "discussion-research",
-  "discussion-respond",
-  "discussion-summarize",
-  "discussion-plan",
-  "discussion-complete",
-  // Empty (skip)
-  ""
-]);
-var ResourceTypeSchema = external_exports.enum(["issue", "pr", "discussion", ""]);
-var ContextTypeSchema = external_exports.enum(["issue", "pr"]);
-var WorkflowContextSchema = external_exports.object({
-  // ========================================
-  // Routing & Control (previously separate outputs)
-  // ========================================
-  /** Job type to run (e.g., "issue-iterate", "pr-review", "discussion-research") */
-  job: JobTypeSchema,
-  /** Trigger type for the state machine */
-  trigger: TriggerTypeSchema2,
-  /** Type of resource being processed */
-  resource_type: ResourceTypeSchema,
-  /** Resource number (issue, PR, or discussion number) */
-  resource_number: external_exports.string(),
-  /** Parent issue number for sub-issues (or "0" if not a sub-issue) */
-  parent_issue: external_exports.string().default("0"),
-  /** Comment ID that triggered this run (for reactions) */
-  comment_id: external_exports.string().default(""),
-  /** Concurrency group name */
-  concurrency_group: external_exports.string(),
-  /** Whether to cancel in-progress runs in the same group */
-  cancel_in_progress: external_exports.boolean().default(false),
-  /** Whether to skip processing */
-  skip: external_exports.boolean().default(false),
-  /** Reason for skipping (if skip is true) */
-  skip_reason: external_exports.string().default(""),
-  // ========================================
-  // Issue-specific fields
-  // ========================================
-  /** Issue number */
-  issue_number: external_exports.string().optional(),
-  /** Issue title */
-  issue_title: external_exports.string().optional(),
-  /** Issue body */
-  issue_body: external_exports.string().optional(),
-  /** Branch name for the work */
-  branch_name: external_exports.string().optional(),
-  /** Whether the branch already exists */
-  existing_branch: external_exports.string().optional(),
-  /** Phase number for sub-issues */
-  phase_number: external_exports.string().optional(),
-  /** Comma-separated list of sub-issue numbers */
-  sub_issues: external_exports.string().optional(),
-  /** Project status from GitHub Project field */
-  project_status: external_exports.string().optional(),
-  /** Project iteration from GitHub Project field */
-  project_iteration: external_exports.string().optional(),
-  /** Project failures from GitHub Project field */
-  project_failures: external_exports.string().optional(),
-  /** Closed sub-issue number (for sub_issue_closed trigger) */
-  closed_sub_issue: external_exports.string().optional(),
-  // ========================================
-  // CI-specific fields (workflow_run_completed)
-  // ========================================
-  /** CI result (success, failure, cancelled, skipped) */
-  ci_result: CIResultSchema.optional(),
-  /** CI run URL */
-  ci_run_url: external_exports.string().optional(),
-  /** CI commit SHA */
-  ci_commit_sha: external_exports.string().optional(),
-  // ========================================
-  // Review-specific fields (pr_review_submitted)
-  // ========================================
-  /** Review decision */
-  review_decision: ReviewDecisionSchema.optional(),
-  /** Review state (lowercase version: approved, changes_requested, commented) */
-  review_state: external_exports.string().optional(),
-  /** Review body */
-  review_body: external_exports.string().optional(),
-  /** Review ID */
-  review_id: external_exports.string().optional(),
-  /** Reviewer username */
-  reviewer: external_exports.string().optional(),
-  /** Reviewer login (alias for reviewer) */
-  reviewer_login: external_exports.string().optional(),
-  // ========================================
-  // PR-specific fields
-  // ========================================
-  /** PR number */
-  pr_number: external_exports.string().optional(),
-  /** Whether PR is a draft */
-  is_draft: external_exports.boolean().optional(),
-  /** Issue section content (for pr-review job) */
-  issue_section: external_exports.string().optional(),
-  /** Merge queue head ref */
-  head_ref: external_exports.string().optional(),
-  /** Merge queue head SHA */
-  head_sha: external_exports.string().optional(),
-  // ========================================
-  // Comment-specific fields (issue_comment)
-  // ========================================
-  /** Context type for comment (Issue or PR) */
-  context_type: ContextTypeSchema.optional(),
-  /** Context description for comment */
-  context_description: external_exports.string().optional(),
-  // ========================================
-  // Discussion-specific fields
-  // ========================================
-  /** Discussion number */
-  discussion_number: external_exports.string().optional(),
-  /** Discussion title */
-  discussion_title: external_exports.string().optional(),
-  /** Discussion body */
-  discussion_body: external_exports.string().optional(),
-  /** Comment body (for discussion comments) */
-  comment_body: external_exports.string().optional(),
-  /** Comment author username */
-  comment_author: external_exports.string().optional(),
-  /** Discussion command (/summarize, /plan, /complete) */
-  command: DiscussionCommandSchema.optional(),
-  /** Whether this is a test automation run */
-  is_test_automation: external_exports.boolean().optional(),
-  // ========================================
-  // Internal trigger type tracking
-  // ========================================
-  /**
-   * Internal trigger type (may differ from the job name)
-   * Used when the state machine needs a different trigger than the job implies
-   */
-  trigger_type: external_exports.string().optional()
-});
-
-// ../../packages/statemachine/src/parser/history-parser.ts
-var HISTORY_SECTION = "## Iteration History";
-var HEADER_COLUMNS = [
-  { key: "time", value: "Time" },
-  { key: "iteration", value: "#" },
-  { key: "phase", value: "Phase" },
-  { key: "action", value: "Action" },
-  { key: "sha", value: "SHA" },
-  { key: "run", value: "Run" }
-];
-function buildValueToKeyMap() {
-  const map4 = /* @__PURE__ */ new Map();
-  for (const col of HEADER_COLUMNS) {
-    map4.set(col.value, col.key);
-  }
-  return map4;
-}
-function parseHeaderRow(headerRow, valueToKeyMap) {
-  const cells = headerRow.split("|").map((c) => c.trim()).filter((c, i, arr) => i > 0 && i < arr.length - 1 && c !== "");
-  const keys = [];
-  const unmatched = [];
-  for (const cell of cells) {
-    const key = valueToKeyMap.get(cell);
-    if (key) {
-      keys.push(key);
-    } else {
-      keys.push(null);
-      unmatched.push(cell);
-    }
-  }
-  return { keys, unmatched };
-}
-function parseDataRow(row, columnKeys) {
-  const cells = row.split("|").map((c) => c.trim()).filter((c, i, arr) => i > 0 && i < arr.length - 1);
-  const data = {};
-  for (let i = 0; i < columnKeys.length && i < cells.length; i++) {
-    const key = columnKeys[i];
-    if (key) {
-      data[key] = cells[i];
-    }
-  }
-  return data;
-}
-function parseTable(body) {
-  const lines = body.split("\n");
-  const historyIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
-  if (historyIdx === -1) {
-    return null;
-  }
-  const valueToKeyMap = buildValueToKeyMap();
-  let headerKeys = [];
-  let unmatchedHeaders = [];
-  const rows = [];
-  let foundHeader = false;
-  for (let i = historyIdx + 1; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line) continue;
-    if (line.startsWith("##") && !line.includes(HISTORY_SECTION)) {
-      break;
-    }
-    if (!line.startsWith("|")) {
-      continue;
-    }
-    if (line.includes("---")) {
-      continue;
-    }
-    if (!foundHeader) {
-      const parsed = parseHeaderRow(line, valueToKeyMap);
-      headerKeys = parsed.keys;
-      unmatchedHeaders = parsed.unmatched;
-      foundHeader = true;
-      continue;
-    }
-    const rowData = parseDataRow(line, headerKeys);
-    rows.push(rowData);
-  }
-  return {
-    headerKeys: headerKeys.filter((k) => k !== null),
-    rows,
-    unmatchedHeaders
-  };
-}
-function generateHeaderRow() {
-  const cells = HEADER_COLUMNS.map((col) => col.value);
-  return `| ${cells.join(" | ")} |`;
-}
-function generateSeparatorRow() {
-  const cells = HEADER_COLUMNS.map(() => "---");
-  return `|${cells.join("|")}|`;
-}
-function serializeRow(data) {
-  const cells = HEADER_COLUMNS.map((col) => data[col.key] ?? "-");
-  return `| ${cells.join(" | ")} |`;
-}
-function serializeTable(rows) {
-  const headerRow = generateHeaderRow();
-  const separatorRow = generateSeparatorRow();
-  const dataRows = rows.map(serializeRow);
-  return [headerRow, separatorRow, ...dataRows].join("\n");
-}
-function formatTimestamp(isoTimestamp) {
-  if (!isoTimestamp) return "-";
-  try {
-    const date3 = new Date(isoTimestamp);
-    if (isNaN(date3.getTime())) return "-";
-    const months = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec"
-    ];
-    const month = months[date3.getUTCMonth()];
-    const day = date3.getUTCDate();
-    const hours = String(date3.getUTCHours()).padStart(2, "0");
-    const minutes = String(date3.getUTCMinutes()).padStart(2, "0");
-    return `${month} ${day} ${hours}:${minutes}`;
-  } catch {
-    return "-";
-  }
-}
-function parseMarkdownLink(text5) {
-  const match = text5.match(/\[.*?\]\((.*?)\)/);
-  return match?.[1] ?? null;
-}
-function extractRunIdFromUrl(url) {
-  const match = url.match(/\/actions\/runs\/(\d+)/);
-  return match?.[1] ?? null;
-}
-function parseRunIdFromCell(cell) {
-  if (cell === "-" || cell.trim() === "") {
-    return null;
-  }
-  const linkTextMatch = cell.match(/\[(\d+)\]/);
-  if (linkTextMatch) {
-    return linkTextMatch[1] ?? null;
-  }
-  const url = parseMarkdownLink(cell);
-  if (url) {
-    return extractRunIdFromUrl(url);
-  }
-  return null;
-}
-function formatHistoryCells(sha, runLink, repoUrl, prNumber) {
-  let fullRepoUrl = repoUrl;
-  if (!fullRepoUrl) {
-    const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
-    const repo = process.env.GITHUB_REPOSITORY || "";
-    fullRepoUrl = repo ? `${serverUrl}/${repo}` : serverUrl;
-  }
-  let shaCell = "-";
-  if (prNumber) {
-    shaCell = `[#${prNumber}](${fullRepoUrl}/pull/${prNumber})`;
-  } else if (sha) {
-    shaCell = `[\`${sha.slice(0, 7)}\`](${fullRepoUrl}/commit/${sha})`;
-  }
-  let runCell = "-";
-  if (runLink) {
-    const runId = extractRunIdFromUrl(runLink);
-    if (runId) {
-      runCell = `[${runId}](${runLink})`;
-    } else {
-      runCell = `[Run](${runLink})`;
-    }
-  }
-  return { shaCell, runCell };
-}
-function createRowData(iteration, phase, message, timestamp, sha, runLink, repoUrl, prNumber) {
-  const { shaCell, runCell } = formatHistoryCells(
-    sha,
-    runLink,
-    repoUrl,
-    prNumber
-  );
-  return {
-    time: formatTimestamp(timestamp),
-    iteration: String(iteration),
-    phase: String(phase),
-    action: message,
-    sha: shaCell,
-    run: runCell
-  };
-}
-function addHistoryEntry(body, iteration, phase, message, timestamp, sha, runLink, repoUrl, prNumber) {
-  const newRowData = createRowData(
-    iteration,
-    phase,
-    message,
-    timestamp,
-    sha,
-    runLink,
-    repoUrl,
-    prNumber
-  );
-  const newRunId = runLink ? extractRunIdFromUrl(runLink) : null;
-  const historyIdx = body.indexOf(HISTORY_SECTION);
-  if (historyIdx === -1) {
-    const table = serializeTable([newRowData]);
-    return `${body}
-
-${HISTORY_SECTION}
-
-${table}`;
-  }
-  const parsed = parseTable(body);
-  if (!parsed) {
-    const table = serializeTable([newRowData]);
-    return `${body}
-
-${HISTORY_SECTION}
-
-${table}`;
-  }
-  if (parsed.unmatchedHeaders.length > 0) {
-    console.warn(
-      `[history-parser] Unmatched table headers during add (will be dropped): ${parsed.unmatchedHeaders.join(", ")}`
-    );
-  }
-  const existingRows = parsed.rows.map((row) => {
-    const normalized = {};
-    for (const col of HEADER_COLUMNS) {
-      normalized[col.key] = row[col.key] ?? "-";
-    }
-    return normalized;
-  });
-  let allRows;
-  let matchIdx = -1;
-  if (newRunId) {
-    matchIdx = existingRows.findIndex((row) => {
-      const existingRunId = parseRunIdFromCell(row.run ?? "");
-      return existingRunId === newRunId;
-    });
-  }
-  if (matchIdx !== -1) {
-    const existingRow = existingRows[matchIdx];
-    const existingAction = existingRow.action ?? "";
-    const newAction = existingAction ? `${existingAction} \u2192 ${message}` : message;
-    const updatedRow = {
-      ...existingRow,
-      action: newAction
-    };
-    if (sha && newRowData.sha !== "-") {
-      updatedRow.sha = newRowData.sha;
-    }
-    if (newRowData.time && newRowData.time !== "-") {
-      updatedRow.time = newRowData.time;
-    }
-    allRows = existingRows.map(
-      (row, idx) => idx === matchIdx ? updatedRow : row
-    );
-  } else {
-    allRows = [...existingRows, newRowData];
-  }
-  const lines = body.split("\n");
-  const historyLineIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
-  let tableEndIdx = historyLineIdx + 1;
-  for (let i = historyLineIdx + 1; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line || line.startsWith("|")) {
-      tableEndIdx = i + 1;
-    } else if (line.trim() !== "") {
-      break;
-    }
-  }
-  const beforeHistory = lines.slice(0, historyLineIdx).join("\n");
-  const afterTable = lines.slice(tableEndIdx).join("\n");
-  const newTable = serializeTable(allRows);
-  const parts = [beforeHistory, HISTORY_SECTION, "", newTable];
-  if (afterTable.trim()) {
-    parts.push("", afterTable);
-  }
-  return parts.join("\n");
-}
-function updateHistoryEntry(body, matchIteration, matchPhase, matchPattern, newMessage, timestamp, sha, runLink, repoUrl, prNumber) {
-  const parsed = parseTable(body);
-  if (!parsed || parsed.rows.length === 0) {
-    return { body, updated: false };
-  }
-  if (parsed.unmatchedHeaders.length > 0) {
-    console.warn(
-      `[history-parser] Unmatched table headers during update (will be dropped): ${parsed.unmatchedHeaders.join(", ")}`
-    );
-  }
-  let matchIdx = -1;
-  for (let i = parsed.rows.length - 1; i >= 0; i--) {
-    const row = parsed.rows[i];
-    if (!row) continue;
-    const rowIteration = row.iteration || "";
-    const rowPhase = row.phase || "";
-    const rowAction = row.action || "";
-    if (rowIteration === String(matchIteration) && rowPhase === String(matchPhase) && rowAction.includes(matchPattern)) {
-      matchIdx = i;
-      break;
-    }
-  }
-  if (matchIdx === -1) {
-    return { body, updated: false };
-  }
-  const existingRow = parsed.rows[matchIdx];
-  const { shaCell, runCell } = formatHistoryCells(
-    sha,
-    runLink,
-    repoUrl,
-    prNumber
-  );
-  const updatedRow = {
-    time: timestamp ? formatTimestamp(timestamp) : existingRow.time ?? "-",
-    iteration: existingRow.iteration,
-    phase: existingRow.phase,
-    action: newMessage,
-    sha: sha || prNumber ? shaCell : existingRow.sha ?? "-",
-    run: runLink ? runCell : existingRow.run ?? "-"
-  };
-  const normalizedRows = parsed.rows.map((row, idx) => {
-    if (idx === matchIdx) {
-      return updatedRow;
-    }
-    const normalized = {};
-    for (const col of HEADER_COLUMNS) {
-      normalized[col.key] = row[col.key] ?? "-";
-    }
-    return normalized;
-  });
-  const lines = body.split("\n");
-  const historyLineIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
-  let tableEndIdx = historyLineIdx + 1;
-  for (let i = historyLineIdx + 1; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line || line.startsWith("|")) {
-      tableEndIdx = i + 1;
-    } else if (line.trim() !== "") {
-      break;
-    }
-  }
-  const beforeHistory = lines.slice(0, historyLineIdx).join("\n");
-  const afterTable = lines.slice(tableEndIdx).join("\n");
-  const newTable = serializeTable(normalizedRows);
-  const parts = [beforeHistory, HISTORY_SECTION, "", newTable];
-  if (afterTable.trim()) {
-    parts.push("", afterTable);
-  }
-  return { body: parts.join("\n"), updated: true };
-}
-
-// ../../packages/statemachine/src/parser/agent-notes-parser.ts
-var AGENT_NOTES_SECTION = "## Agent Notes";
-function formatTimestamp2(isoTimestamp) {
-  try {
-    const date3 = isoTimestamp instanceof Date ? isoTimestamp : isoTimestamp ? new Date(isoTimestamp) : /* @__PURE__ */ new Date();
-    if (isNaN(date3.getTime())) {
-      return (/* @__PURE__ */ new Date()).toISOString();
-    }
-    const months = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec"
-    ];
-    const month = months[date3.getUTCMonth()];
-    const day = date3.getUTCDate();
-    const hours = String(date3.getUTCHours()).padStart(2, "0");
-    const minutes = String(date3.getUTCMinutes()).padStart(2, "0");
-    return `${month} ${day} ${hours}:${minutes}`;
-  } catch {
-    return (/* @__PURE__ */ new Date()).toISOString();
-  }
-}
-function formatEntry(entry) {
-  const header = `### [Run ${entry.runId}](${entry.runLink}) - ${entry.timestamp}`;
-  const bullets = entry.notes.slice(0, 10).map((note) => {
-    const truncated = note.length > 500 ? note.slice(0, 500) + "..." : note;
-    return `- ${truncated}`;
-  }).join("\n");
-  return `${header}
-${bullets}`;
-}
-function appendAgentNotes(body, entry) {
-  if (entry.notes.length === 0) {
-    return body;
-  }
-  const formattedTimestamp = formatTimestamp2(entry.timestamp);
-  const fullEntry = {
-    ...entry,
-    timestamp: formattedTimestamp
-  };
-  const newEntryMarkdown = formatEntry(fullEntry);
-  const sectionRegex = new RegExp(
-    `(${AGENT_NOTES_SECTION})\\s*\\n([\\s\\S]*)$`,
-    "i"
-  );
-  const sectionMatch = body.match(sectionRegex);
-  if (sectionMatch) {
-    const existingContent = sectionMatch[2]?.trim() || "";
-    const updatedSection = existingContent ? `${AGENT_NOTES_SECTION}
-
-${newEntryMarkdown}
-
-${existingContent}` : `${AGENT_NOTES_SECTION}
-
-${newEntryMarkdown}`;
-    return body.replace(sectionRegex, updatedSection);
-  }
-  const separator = body.trim().endsWith("\n") ? "\n" : "\n\n";
-  return `${body.trim()}${separator}${AGENT_NOTES_SECTION}
-
-${newEntryMarkdown}`;
-}
-
-// ../../packages/issue-state/src/schemas/enums.ts
-var ProjectStatusSchema2 = external_exports.enum([
-  "Backlog",
-  "In progress",
-  "Ready",
-  "In review",
-  "Done",
-  "Blocked",
-  "Error"
-]);
-var IssueStateSchema2 = external_exports.enum(["OPEN", "CLOSED"]);
-var PRStateSchema2 = external_exports.enum(["OPEN", "CLOSED", "MERGED"]);
-var CIStatusSchema2 = external_exports.enum([
-  "SUCCESS",
-  "FAILURE",
-  "PENDING",
-  "ERROR",
-  "EXPECTED"
+var MergeableStateSchema = external_exports.enum([
+  "MERGEABLE",
+  "CONFLICTING",
+  "UNKNOWN"
 ]);
 
 // ../../packages/issue-state/src/schemas/ast.ts
@@ -29363,7 +28088,7 @@ var MdastRootSchema = external_exports.object({
 }).passthrough();
 
 // ../../packages/issue-state/src/schemas/comment.ts
-var IssueCommentSchema2 = external_exports.object({
+var IssueCommentSchema = external_exports.object({
   id: external_exports.string(),
   author: external_exports.string(),
   body: external_exports.string(),
@@ -29372,19 +28097,23 @@ var IssueCommentSchema2 = external_exports.object({
 });
 
 // ../../packages/issue-state/src/schemas/pr.ts
-var LinkedPRSchema2 = external_exports.object({
+var LinkedPRSchema = external_exports.object({
   number: external_exports.number().int().positive(),
-  state: PRStateSchema2,
+  state: PRStateSchema,
   isDraft: external_exports.boolean(),
   title: external_exports.string(),
   headRef: external_exports.string(),
   baseRef: external_exports.string(),
-  ciStatus: CIStatusSchema2.nullable().optional()
+  ciStatus: CIStatusSchema.nullable().optional(),
+  reviewDecision: ReviewDecisionSchema.nullable().optional(),
+  mergeable: MergeableStateSchema.nullable().optional(),
+  reviewCount: external_exports.number().int().nonnegative().optional(),
+  url: external_exports.string().optional()
 });
 
 // ../../packages/issue-state/src/schemas/project.ts
 var ProjectFieldsSchema = external_exports.object({
-  status: ProjectStatusSchema2.nullable(),
+  status: ProjectStatusSchema.nullable(),
   iteration: external_exports.number().int().min(0),
   failures: external_exports.number().int().min(0)
 });
@@ -29393,29 +28122,29 @@ var ProjectFieldsSchema = external_exports.object({
 var SubIssueDataSchema = external_exports.object({
   number: external_exports.number().int().positive(),
   title: external_exports.string(),
-  state: IssueStateSchema2,
+  state: IssueStateSchema,
   bodyAst: MdastRootSchema,
-  projectStatus: ProjectStatusSchema2.nullable(),
+  projectStatus: ProjectStatusSchema.nullable(),
   branch: external_exports.string().nullable(),
-  pr: LinkedPRSchema2.nullable()
+  pr: LinkedPRSchema.nullable()
 });
 
 // ../../packages/issue-state/src/schemas/issue.ts
 var IssueDataSchema = external_exports.object({
   number: external_exports.number().int().positive(),
   title: external_exports.string(),
-  state: IssueStateSchema2,
+  state: IssueStateSchema,
   bodyAst: MdastRootSchema,
-  projectStatus: ProjectStatusSchema2.nullable(),
+  projectStatus: ProjectStatusSchema.nullable(),
   iteration: external_exports.number().int().min(0),
   failures: external_exports.number().int().min(0),
   assignees: external_exports.array(external_exports.string()),
   labels: external_exports.array(external_exports.string()),
   subIssues: external_exports.array(SubIssueDataSchema),
   hasSubIssues: external_exports.boolean(),
-  comments: external_exports.array(IssueCommentSchema2).default([]),
+  comments: external_exports.array(IssueCommentSchema).default([]),
   branch: external_exports.string().nullable(),
-  pr: LinkedPRSchema2.nullable(),
+  pr: LinkedPRSchema.nullable(),
   parentIssueNumber: external_exports.number().int().positive().nullable()
 });
 
@@ -41582,110 +40311,1668 @@ var serializer = unified().use(remarkParse).use(remarkGfm).use(remarkStringify, 
   listItemIndent: "one"
 });
 
+// ../../packages/issue-state/src/graphql/issue-queries.ts
+var GET_ISSUE_BODY_QUERY = `
+query GetIssueBody($owner: String!, $repo: String!, $issueNumber: Int!) {
+  repository(owner: $owner, name: $repo) {
+    issue(number: $issueNumber) {
+      id
+      body
+      parent {
+        number
+      }
+    }
+  }
+}
+`;
+
+// ../../packages/issue-state/src/graphql/pr-queries.ts
+var CONVERT_PR_TO_DRAFT_MUTATION = `
+mutation ConvertPRToDraft($prId: ID!) {
+  convertPullRequestToDraft(input: { pullRequestId: $prId }) {
+    pullRequest {
+      id
+      isDraft
+    }
+  }
+}
+`;
+var MARK_PR_READY_MUTATION = `
+mutation MarkPRReady($prId: ID!) {
+  markPullRequestReadyForReview(input: { pullRequestId: $prId }) {
+    pullRequest {
+      id
+      isDraft
+    }
+  }
+}
+`;
+var GET_PR_ID_QUERY = `
+query GetPRId($owner: String!, $repo: String!, $prNumber: Int!) {
+  repository(owner: $owner, name: $repo) {
+    pullRequest(number: $prNumber) {
+      id
+    }
+  }
+}
+`;
+
+// ../../packages/issue-state/src/graphql/project-queries.ts
+var GET_PROJECT_ITEM_QUERY = `
+query GetProjectItem($org: String!, $repo: String!, $issueNumber: Int!, $projectNumber: Int!) {
+  repository(owner: $org, name: $repo) {
+    issue(number: $issueNumber) {
+      id
+      projectItems(first: 10) {
+        nodes {
+          id
+          project {
+            id
+            number
+          }
+          fieldValues(first: 20) {
+            nodes {
+              ... on ProjectV2ItemFieldSingleSelectValue {
+                name
+                field {
+                  ... on ProjectV2SingleSelectField {
+                    name
+                    id
+                  }
+                }
+              }
+              ... on ProjectV2ItemFieldNumberValue {
+                number
+                field {
+                  ... on ProjectV2Field {
+                    name
+                    id
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  organization(login: $org) {
+    projectV2(number: $projectNumber) {
+      id
+      fields(first: 20) {
+        nodes {
+          ... on ProjectV2SingleSelectField {
+            id
+            name
+            options {
+              id
+              name
+            }
+          }
+          ... on ProjectV2Field {
+            id
+            name
+            dataType
+          }
+        }
+      }
+    }
+  }
+}
+`;
+var UPDATE_PROJECT_FIELD_MUTATION = `
+mutation UpdateProjectField($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
+  updateProjectV2ItemFieldValue(input: {
+    projectId: $projectId
+    itemId: $itemId
+    fieldId: $fieldId
+    value: $value
+  }) {
+    projectV2Item {
+      id
+    }
+  }
+}
+`;
+var ADD_ISSUE_TO_PROJECT_MUTATION = `
+mutation AddIssueToProject($projectId: ID!, $contentId: ID!) {
+  addProjectV2ItemById(input: {
+    projectId: $projectId
+    contentId: $contentId
+  }) {
+    item {
+      id
+    }
+  }
+}
+`;
+var GET_PROJECT_FIELDS_QUERY = `
+query GetProjectFields($owner: String!, $projectNumber: Int!) {
+  organization(login: $owner) {
+    projectV2(number: $projectNumber) {
+      id
+      fields(first: 30) {
+        nodes {
+          ... on ProjectV2SingleSelectField {
+            id
+            name
+            options { id name }
+          }
+          ... on ProjectV2Field {
+            id
+            name
+            dataType
+          }
+        }
+      }
+    }
+  }
+}
+`;
+
+// ../../packages/issue-state/src/graphql/issue-mutations.ts
+var CREATE_ISSUE_MUTATION = `
+mutation CreateIssue($repositoryId: ID!, $title: String!, $body: String!) {
+  createIssue(input: { repositoryId: $repositoryId, title: $title, body: $body }) {
+    issue {
+      id
+      number
+    }
+  }
+}
+`;
+var ADD_SUB_ISSUE_MUTATION = `
+mutation AddSubIssue($parentId: ID!, $childId: ID!) {
+  addSubIssue(input: { issueId: $parentId, subIssueId: $childId }) {
+    issue {
+      id
+    }
+  }
+}
+`;
+var GET_REPO_ID_QUERY = `
+query GetRepoId($owner: String!, $repo: String!) {
+  repository(owner: $owner, name: $repo) {
+    id
+  }
+}
+`;
+
+// ../../packages/issue-state/src/graphql/discussion-queries.ts
+var GET_DISCUSSION_ID_QUERY = `
+query GetDiscussionId($owner: String!, $repo: String!, $number: Int!) {
+  repository(owner: $owner, name: $repo) {
+    discussion(number: $number) {
+      id
+    }
+  }
+}
+`;
+var ADD_DISCUSSION_COMMENT_MUTATION = `
+mutation AddDiscussionComment($discussionId: ID!, $body: String!) {
+  addDiscussionComment(input: {
+    discussionId: $discussionId
+    body: $body
+  }) {
+    comment {
+      id
+      body
+    }
+  }
+}
+`;
+var ADD_DISCUSSION_REPLY_MUTATION = `
+mutation AddDiscussionReply($discussionId: ID!, $replyToId: ID!, $body: String!) {
+  addDiscussionComment(input: {
+    discussionId: $discussionId
+    replyToId: $replyToId
+    body: $body
+  }) {
+    comment {
+      id
+      body
+    }
+  }
+}
+`;
+var UPDATE_DISCUSSION_MUTATION = `
+mutation UpdateDiscussion($discussionId: ID!, $body: String!) {
+  updateDiscussion(input: {
+    discussionId: $discussionId
+    body: $body
+  }) {
+    discussion {
+      id
+      body
+    }
+  }
+}
+`;
+var UPDATE_DISCUSSION_COMMENT_MUTATION = `
+mutation UpdateDiscussionComment($commentId: ID!, $body: String!) {
+  updateDiscussionComment(input: {
+    commentId: $commentId
+    body: $body
+  }) {
+    comment {
+      id
+    }
+  }
+}
+`;
+var ADD_REACTION_MUTATION = `
+mutation AddReaction($subjectId: ID!, $content: ReactionContent!) {
+  addReaction(input: {
+    subjectId: $subjectId
+    content: $content
+  }) {
+    reaction {
+      id
+      content
+    }
+  }
+}
+`;
+
+// ../../packages/issue-state/src/graphql/label-queries.ts
+var GET_LABEL_IDS_QUERY = `
+query GetLabelIds($owner: String!, $repo: String!) {
+  repository(owner: $owner, name: $repo) {
+    labels(first: 100) {
+      nodes {
+        id
+        name
+      }
+    }
+  }
+}
+`;
+var ADD_LABELS_MUTATION = `
+mutation AddLabelsToLabelable($labelableId: ID!, $labelIds: [ID!]!) {
+  addLabelsToLabelable(input: { labelableId: $labelableId, labelIds: $labelIds }) {
+    labelable {
+      __typename
+    }
+  }
+}
+`;
+
+// ../../packages/issue-state/src/sections/types.ts
+var TodoItemSchema = external_exports.object({
+  text: external_exports.string(),
+  checked: external_exports.boolean(),
+  isManual: external_exports.boolean()
+});
+var TodoStatsSchema = external_exports.object({
+  total: external_exports.number().int().min(0),
+  completed: external_exports.number().int().min(0),
+  uncheckedNonManual: external_exports.number().int().min(0)
+});
+var HistoryEntrySchema = external_exports.object({
+  iteration: external_exports.number().int().min(0),
+  phase: external_exports.string(),
+  action: external_exports.string(),
+  timestamp: external_exports.string().nullable(),
+  sha: external_exports.string().nullable(),
+  runLink: external_exports.string().nullable()
+});
+var AgentNotesEntrySchema = external_exports.object({
+  runId: external_exports.string(),
+  runLink: external_exports.string(),
+  timestamp: external_exports.string(),
+  notes: external_exports.array(external_exports.string())
+});
+
+// ../../packages/issue-state/src/sections/history.ts
+var HISTORY_SECTION = "## Iteration History";
+var HEADER_COLUMNS = [
+  { key: "time", value: "Time" },
+  { key: "iteration", value: "#" },
+  { key: "phase", value: "Phase" },
+  { key: "action", value: "Action" },
+  { key: "sha", value: "SHA" },
+  { key: "run", value: "Run" }
+];
+function buildValueToKeyMap() {
+  const map4 = /* @__PURE__ */ new Map();
+  for (const col of HEADER_COLUMNS) {
+    map4.set(col.value, col.key);
+  }
+  return map4;
+}
+function parseHeaderRow(headerRow, valueToKeyMap) {
+  const cells = headerRow.split("|").map((c) => c.trim()).filter((c, i, arr) => i > 0 && i < arr.length - 1 && c !== "");
+  const keys = [];
+  const unmatched = [];
+  for (const cell of cells) {
+    const key = valueToKeyMap.get(cell);
+    if (key) {
+      keys.push(key);
+    } else {
+      keys.push(null);
+      unmatched.push(cell);
+    }
+  }
+  return { keys, unmatched };
+}
+function parseDataRow(row, columnKeys) {
+  const cells = row.split("|").map((c) => c.trim()).filter((c, i, arr) => i > 0 && i < arr.length - 1);
+  const data = {};
+  for (let i = 0; i < columnKeys.length && i < cells.length; i++) {
+    const key = columnKeys[i];
+    if (key) {
+      data[key] = cells[i];
+    }
+  }
+  return data;
+}
+function parseTable(body) {
+  const lines = body.split("\n");
+  const historyIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
+  if (historyIdx === -1) {
+    return null;
+  }
+  const valueToKeyMap = buildValueToKeyMap();
+  let headerKeys = [];
+  let unmatchedHeaders = [];
+  const rows = [];
+  let foundHeader = false;
+  for (let i = historyIdx + 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line) continue;
+    if (line.startsWith("##") && !line.includes(HISTORY_SECTION)) {
+      break;
+    }
+    if (!line.startsWith("|")) {
+      continue;
+    }
+    if (line.includes("---")) {
+      continue;
+    }
+    if (!foundHeader) {
+      const parsed = parseHeaderRow(line, valueToKeyMap);
+      headerKeys = parsed.keys;
+      unmatchedHeaders = parsed.unmatched;
+      foundHeader = true;
+      continue;
+    }
+    const rowData = parseDataRow(line, headerKeys);
+    rows.push(rowData);
+  }
+  return {
+    headerKeys: headerKeys.filter((k) => k !== null),
+    rows,
+    unmatchedHeaders
+  };
+}
+function generateHeaderRow() {
+  const cells = HEADER_COLUMNS.map((col) => col.value);
+  return `| ${cells.join(" | ")} |`;
+}
+function generateSeparatorRow() {
+  const cells = HEADER_COLUMNS.map(() => "---");
+  return `|${cells.join("|")}|`;
+}
+function serializeRow(data) {
+  const cells = HEADER_COLUMNS.map((col) => data[col.key] ?? "-");
+  return `| ${cells.join(" | ")} |`;
+}
+function serializeTable(rows) {
+  const headerRow = generateHeaderRow();
+  const separatorRow = generateSeparatorRow();
+  const dataRows = rows.map(serializeRow);
+  return [headerRow, separatorRow, ...dataRows].join("\n");
+}
+function formatTimestamp(isoTimestamp) {
+  if (!isoTimestamp) return "-";
+  try {
+    const date3 = new Date(isoTimestamp);
+    if (isNaN(date3.getTime())) return "-";
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec"
+    ];
+    const month = months[date3.getUTCMonth()];
+    const day = date3.getUTCDate();
+    const hours = String(date3.getUTCHours()).padStart(2, "0");
+    const minutes = String(date3.getUTCMinutes()).padStart(2, "0");
+    return `${month} ${day} ${hours}:${minutes}`;
+  } catch {
+    return "-";
+  }
+}
+function parseMarkdownLink(text5) {
+  const match = text5.match(/\[.*?\]\((.*?)\)/);
+  return match?.[1] ?? null;
+}
+function extractRunIdFromUrl(url) {
+  const match = url.match(/\/actions\/runs\/(\d+)/);
+  return match?.[1] ?? null;
+}
+function parseRunIdFromCell(cell) {
+  if (cell === "-" || cell.trim() === "") {
+    return null;
+  }
+  const linkTextMatch = cell.match(/\[(\d+)\]/);
+  if (linkTextMatch) {
+    return linkTextMatch[1] ?? null;
+  }
+  const url = parseMarkdownLink(cell);
+  if (url) {
+    return extractRunIdFromUrl(url);
+  }
+  return null;
+}
+function formatHistoryCells(sha, runLink, repoUrl, prNumber) {
+  let fullRepoUrl = repoUrl;
+  if (!fullRepoUrl) {
+    const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+    const repo = process.env.GITHUB_REPOSITORY || "";
+    fullRepoUrl = repo ? `${serverUrl}/${repo}` : serverUrl;
+  }
+  let shaCell = "-";
+  if (prNumber) {
+    shaCell = `[#${prNumber}](${fullRepoUrl}/pull/${prNumber})`;
+  } else if (sha) {
+    shaCell = `[\`${sha.slice(0, 7)}\`](${fullRepoUrl}/commit/${sha})`;
+  }
+  let runCell = "-";
+  if (runLink) {
+    const runId = extractRunIdFromUrl(runLink);
+    if (runId) {
+      runCell = `[${runId}](${runLink})`;
+    } else {
+      runCell = `[Run](${runLink})`;
+    }
+  }
+  return { shaCell, runCell };
+}
+function createRowData(iteration, phase, message, timestamp, sha, runLink, repoUrl, prNumber) {
+  const { shaCell, runCell } = formatHistoryCells(
+    sha,
+    runLink,
+    repoUrl,
+    prNumber
+  );
+  return {
+    time: formatTimestamp(timestamp),
+    iteration: String(iteration),
+    phase: String(phase),
+    action: message,
+    sha: shaCell,
+    run: runCell
+  };
+}
+function addHistoryEntry(body, iteration, phase, message, timestamp, sha, runLink, repoUrl, prNumber) {
+  const newRowData = createRowData(
+    iteration,
+    phase,
+    message,
+    timestamp,
+    sha,
+    runLink,
+    repoUrl,
+    prNumber
+  );
+  const newRunId = runLink ? extractRunIdFromUrl(runLink) : null;
+  const historyIdx = body.indexOf(HISTORY_SECTION);
+  if (historyIdx === -1) {
+    const table = serializeTable([newRowData]);
+    return `${body}
+
+${HISTORY_SECTION}
+
+${table}`;
+  }
+  const parsed = parseTable(body);
+  if (!parsed) {
+    const table = serializeTable([newRowData]);
+    return `${body}
+
+${HISTORY_SECTION}
+
+${table}`;
+  }
+  if (parsed.unmatchedHeaders.length > 0) {
+    console.warn(
+      `[history-parser] Unmatched table headers during add (will be dropped): ${parsed.unmatchedHeaders.join(", ")}`
+    );
+  }
+  const existingRows = parsed.rows.map((row) => {
+    const normalized = {};
+    for (const col of HEADER_COLUMNS) {
+      normalized[col.key] = row[col.key] ?? "-";
+    }
+    return normalized;
+  });
+  let allRows;
+  let matchIdx = -1;
+  if (newRunId) {
+    matchIdx = existingRows.findIndex((row) => {
+      const existingRunId = parseRunIdFromCell(row.run ?? "");
+      return existingRunId === newRunId;
+    });
+  }
+  if (matchIdx !== -1) {
+    const existingRow = existingRows[matchIdx];
+    const existingAction = existingRow.action ?? "";
+    const newAction = existingAction ? `${existingAction} -> ${message}` : message;
+    const updatedRow = {
+      ...existingRow,
+      action: newAction
+    };
+    if (sha && newRowData.sha !== "-") {
+      updatedRow.sha = newRowData.sha;
+    }
+    if (newRowData.time && newRowData.time !== "-") {
+      updatedRow.time = newRowData.time;
+    }
+    allRows = existingRows.map(
+      (row, idx) => idx === matchIdx ? updatedRow : row
+    );
+  } else {
+    allRows = [...existingRows, newRowData];
+  }
+  const lines = body.split("\n");
+  const historyLineIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
+  let tableEndIdx = historyLineIdx + 1;
+  for (let i = historyLineIdx + 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line || line.startsWith("|")) {
+      tableEndIdx = i + 1;
+    } else if (line.trim() !== "") {
+      break;
+    }
+  }
+  const beforeHistory = lines.slice(0, historyLineIdx).join("\n");
+  const afterTable = lines.slice(tableEndIdx).join("\n");
+  const newTable = serializeTable(allRows);
+  const parts = [beforeHistory, HISTORY_SECTION, "", newTable];
+  if (afterTable.trim()) {
+    parts.push("", afterTable);
+  }
+  return parts.join("\n");
+}
+function updateHistoryEntry(body, matchIteration, matchPhase, matchPattern, newMessage, timestamp, sha, runLink, repoUrl, prNumber) {
+  const parsed = parseTable(body);
+  if (!parsed || parsed.rows.length === 0) {
+    return { body, updated: false };
+  }
+  if (parsed.unmatchedHeaders.length > 0) {
+    console.warn(
+      `[history-parser] Unmatched table headers during update (will be dropped): ${parsed.unmatchedHeaders.join(", ")}`
+    );
+  }
+  let matchIdx = -1;
+  for (let i = parsed.rows.length - 1; i >= 0; i--) {
+    const row = parsed.rows[i];
+    if (!row) continue;
+    const rowIteration = row.iteration || "";
+    const rowPhase = row.phase || "";
+    const rowAction = row.action || "";
+    if (rowIteration === String(matchIteration) && rowPhase === String(matchPhase) && rowAction.includes(matchPattern)) {
+      matchIdx = i;
+      break;
+    }
+  }
+  if (matchIdx === -1) {
+    return { body, updated: false };
+  }
+  const existingRow = parsed.rows[matchIdx];
+  const { shaCell, runCell } = formatHistoryCells(
+    sha,
+    runLink,
+    repoUrl,
+    prNumber
+  );
+  const updatedRow = {
+    time: timestamp ? formatTimestamp(timestamp) : existingRow.time ?? "-",
+    iteration: existingRow.iteration,
+    phase: existingRow.phase,
+    action: newMessage,
+    sha: sha || prNumber ? shaCell : existingRow.sha ?? "-",
+    run: runLink ? runCell : existingRow.run ?? "-"
+  };
+  const normalizedRows = parsed.rows.map((row, idx) => {
+    if (idx === matchIdx) {
+      return updatedRow;
+    }
+    const normalized = {};
+    for (const col of HEADER_COLUMNS) {
+      normalized[col.key] = row[col.key] ?? "-";
+    }
+    return normalized;
+  });
+  const lines = body.split("\n");
+  const historyLineIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
+  let tableEndIdx = historyLineIdx + 1;
+  for (let i = historyLineIdx + 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line || line.startsWith("|")) {
+      tableEndIdx = i + 1;
+    } else if (line.trim() !== "") {
+      break;
+    }
+  }
+  const beforeHistory = lines.slice(0, historyLineIdx).join("\n");
+  const afterTable = lines.slice(tableEndIdx).join("\n");
+  const newTable = serializeTable(normalizedRows);
+  const parts = [beforeHistory, HISTORY_SECTION, "", newTable];
+  if (afterTable.trim()) {
+    parts.push("", afterTable);
+  }
+  return { body: parts.join("\n"), updated: true };
+}
+
+// ../../packages/issue-state/src/sections/agent-notes.ts
+var AGENT_NOTES_SECTION = "## Agent Notes";
+function formatTimestamp2(isoTimestamp) {
+  try {
+    const date3 = isoTimestamp instanceof Date ? isoTimestamp : isoTimestamp ? new Date(isoTimestamp) : /* @__PURE__ */ new Date();
+    if (isNaN(date3.getTime())) {
+      return (/* @__PURE__ */ new Date()).toISOString();
+    }
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec"
+    ];
+    const month = months[date3.getUTCMonth()];
+    const day = date3.getUTCDate();
+    const hours = String(date3.getUTCHours()).padStart(2, "0");
+    const minutes = String(date3.getUTCMinutes()).padStart(2, "0");
+    return `${month} ${day} ${hours}:${minutes}`;
+  } catch {
+    return (/* @__PURE__ */ new Date()).toISOString();
+  }
+}
+function formatEntry(entry) {
+  const header = `### [Run ${entry.runId}](${entry.runLink}) - ${entry.timestamp}`;
+  const bullets = entry.notes.slice(0, 10).map((note) => {
+    const truncated = note.length > 500 ? note.slice(0, 500) + "..." : note;
+    return `- ${truncated}`;
+  }).join("\n");
+  return `${header}
+${bullets}`;
+}
+function appendAgentNotes(body, entry) {
+  if (entry.notes.length === 0) {
+    return body;
+  }
+  const formattedTimestamp = formatTimestamp2(entry.timestamp);
+  const fullEntry = {
+    ...entry,
+    timestamp: formattedTimestamp
+  };
+  const newEntryMarkdown = formatEntry(fullEntry);
+  const sectionRegex = new RegExp(
+    `(${AGENT_NOTES_SECTION})\\s*\\n([\\s\\S]*)$`,
+    "i"
+  );
+  const sectionMatch = body.match(sectionRegex);
+  if (sectionMatch) {
+    const existingContent = sectionMatch[2]?.trim() || "";
+    const updatedSection = existingContent ? `${AGENT_NOTES_SECTION}
+
+${newEntryMarkdown}
+
+${existingContent}` : `${AGENT_NOTES_SECTION}
+
+${newEntryMarkdown}`;
+    return body.replace(sectionRegex, updatedSection);
+  }
+  const separator = body.trim().endsWith("\n") ? "\n" : "\n\n";
+  return `${body.trim()}${separator}${AGENT_NOTES_SECTION}
+
+${newEntryMarkdown}`;
+}
+
+// ../../packages/statemachine/src/schemas/entities.ts
+var IssueCommentSchema2 = external_exports.object({
+  id: external_exports.string(),
+  author: external_exports.string(),
+  body: external_exports.string(),
+  createdAt: external_exports.string(),
+  isBot: external_exports.boolean()
+});
+var LinkedPRSchema2 = external_exports.object({
+  number: external_exports.number().int().positive(),
+  state: external_exports.enum(["OPEN", "CLOSED", "MERGED"]),
+  isDraft: external_exports.boolean(),
+  title: external_exports.string(),
+  headRef: external_exports.string(),
+  baseRef: external_exports.string(),
+  // CI status from statusCheckRollup
+  ciStatus: CIStatusSchema.nullable().optional()
+});
+var SubIssueSchema = external_exports.object({
+  number: external_exports.number().int().positive(),
+  title: external_exports.string(),
+  state: IssueStateSchema,
+  body: external_exports.string(),
+  projectStatus: ProjectStatusSchema.nullable(),
+  branch: external_exports.string().nullable(),
+  pr: LinkedPRSchema2.nullable(),
+  todos: TodoStatsSchema
+});
+var ParentIssueSchema = external_exports.object({
+  number: external_exports.number().int().positive(),
+  title: external_exports.string(),
+  state: IssueStateSchema,
+  body: external_exports.string(),
+  projectStatus: ProjectStatusSchema.nullable(),
+  iteration: external_exports.number().int().min(0),
+  failures: external_exports.number().int().min(0),
+  assignees: external_exports.array(external_exports.string()),
+  labels: external_exports.array(external_exports.string()),
+  subIssues: external_exports.array(SubIssueSchema),
+  hasSubIssues: external_exports.boolean(),
+  history: external_exports.array(HistoryEntrySchema),
+  /** Todos parsed from the issue body - used when this is a sub-issue triggered directly */
+  todos: TodoStatsSchema,
+  /** Agent notes from previous workflow runs */
+  agentNotes: external_exports.array(AgentNotesEntrySchema).default([]),
+  /** Issue comments from GitHub */
+  comments: external_exports.array(IssueCommentSchema2).default([])
+});
+var CIResultSchema = external_exports.enum([
+  "success",
+  "failure",
+  "cancelled",
+  "skipped"
+]);
+var ReviewDecisionSchema2 = external_exports.enum([
+  "APPROVED",
+  "CHANGES_REQUESTED",
+  "COMMENTED",
+  "DISMISSED"
+]);
+function isTerminalStatus(status) {
+  return status === "Done" || status === "Blocked" || status === "Error";
+}
+
+// ../../packages/statemachine/src/schemas/state.ts
+var TriggerTypeSchema = external_exports.enum([
+  // Issue triggers
+  "issue-assigned",
+  "issue-edited",
+  "issue-closed",
+  "issue-triage",
+  "issue-orchestrate",
+  "issue-comment",
+  "issue-reset",
+  "issue-pivot",
+  // Grooming triggers
+  "issue-groom",
+  "issue-groom-summary",
+  // PR triggers
+  "pr-review-requested",
+  "pr-review-submitted",
+  "pr-review",
+  "pr-review-approved",
+  "pr-response",
+  "pr-human-response",
+  "pr-push",
+  // Workflow triggers
+  "workflow-run-completed",
+  // Merge queue logging triggers
+  "merge-queue-entered",
+  "merge-queue-failed",
+  "pr-merged",
+  "deployed-stage",
+  "deployed-prod",
+  // Discussion triggers
+  "discussion-created",
+  "discussion-comment",
+  "discussion-command"
+]);
+var MachineContextSchema = external_exports.object({
+  // Trigger info
+  trigger: TriggerTypeSchema,
+  // Repository info
+  owner: external_exports.string().min(1),
+  repo: external_exports.string().min(1),
+  // Issue being worked on (could be parent or sub-issue)
+  issue: ParentIssueSchema,
+  // If this is a sub-issue, the parent
+  parentIssue: ParentIssueSchema.nullable(),
+  // Current phase info (derived from sub-issues)
+  currentPhase: external_exports.number().int().positive().nullable(),
+  totalPhases: external_exports.number().int().min(0),
+  currentSubIssue: SubIssueSchema.nullable(),
+  // CI result (if triggered by workflow_run)
+  ciResult: CIResultSchema.nullable(),
+  ciRunUrl: external_exports.string().nullable(),
+  ciCommitSha: external_exports.string().nullable(),
+  // Workflow timing
+  /** ISO 8601 timestamp of when the workflow started */
+  workflowStartedAt: external_exports.string().nullable(),
+  /** URL to the current workflow run */
+  workflowRunUrl: external_exports.string().nullable().default(null),
+  // Review result (if triggered by pr_review_submitted)
+  reviewDecision: ReviewDecisionSchema2.nullable(),
+  reviewerId: external_exports.string().nullable(),
+  // Branch info
+  branch: external_exports.string().nullable(),
+  hasBranch: external_exports.boolean(),
+  // PR info (for the current phase/issue)
+  pr: LinkedPRSchema2.nullable(),
+  hasPR: external_exports.boolean(),
+  // Comment info (if triggered by issue_comment)
+  commentContextType: external_exports.string().transform((v) => v?.toLowerCase()).pipe(external_exports.enum(["issue", "pr"])).nullable().default(null),
+  commentContextDescription: external_exports.string().nullable().default(null),
+  // Pivot info (if triggered by issue-pivot)
+  pivotDescription: external_exports.string().nullable().default(null),
+  // Release info (if triggered by release_* events)
+  releaseEvent: external_exports.object({
+    type: external_exports.enum(["queue_entry", "merged", "deployed", "queue_failure"]),
+    commitSha: external_exports.string().optional(),
+    failureReason: external_exports.string().optional(),
+    services: external_exports.array(external_exports.string()).optional()
+  }).nullable().default(null),
+  // Discussion info (if triggered by discussion_* events)
+  discussion: external_exports.object({
+    number: external_exports.number().int().positive(),
+    nodeId: external_exports.string(),
+    title: external_exports.string(),
+    body: external_exports.string(),
+    commentCount: external_exports.number().int().min(0).default(0),
+    researchThreads: external_exports.array(
+      external_exports.object({
+        nodeId: external_exports.string(),
+        topic: external_exports.string(),
+        replyCount: external_exports.number().int().min(0)
+      })
+    ).default([]),
+    command: external_exports.enum(["summarize", "plan", "complete"]).optional(),
+    commentId: external_exports.string().optional(),
+    commentBody: external_exports.string().optional(),
+    commentAuthor: external_exports.string().optional()
+  }).nullable().default(null),
+  // Config
+  maxRetries: external_exports.number().int().positive().default(5),
+  botUsername: external_exports.string().default("nopo-bot")
+});
+
+// ../../packages/statemachine/src/schemas/actions.ts
+var TokenTypeSchema = external_exports.enum(["code", "review"]);
+var ArtifactSchema = external_exports.object({
+  /** Unique name for the artifact (used for upload/download matching) */
+  name: external_exports.string(),
+  /** Path to the file (relative to workspace) */
+  path: external_exports.string()
+});
+var BaseActionSchema = external_exports.object({
+  id: external_exports.string().uuid().optional(),
+  /** Which token to use for this action (defaults to 'code') */
+  token: TokenTypeSchema.default("code"),
+  /** Artifact this action produces (will be uploaded after execution) */
+  producesArtifact: ArtifactSchema.optional(),
+  /** Artifact this action consumes (will be downloaded before execution) */
+  consumesArtifact: ArtifactSchema.optional()
+});
+var UpdateProjectStatusActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("updateProjectStatus"),
+  issueNumber: external_exports.number().int().positive(),
+  status: ProjectStatusSchema
+});
+var IncrementIterationActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("incrementIteration"),
+  issueNumber: external_exports.number().int().positive()
+});
+var RecordFailureActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("recordFailure"),
+  issueNumber: external_exports.number().int().positive(),
+  failureType: external_exports.enum(["ci", "workflow", "review"]).optional()
+});
+var ClearFailuresActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("clearFailures"),
+  issueNumber: external_exports.number().int().positive()
+});
+var PhaseDefinitionSchema = external_exports.object({
+  title: external_exports.string().min(1),
+  body: external_exports.string()
+});
+var CreateSubIssuesActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("createSubIssues"),
+  parentIssueNumber: external_exports.number().int().positive(),
+  phases: external_exports.array(PhaseDefinitionSchema).min(1)
+});
+var CloseIssueActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("closeIssue"),
+  issueNumber: external_exports.number().int().positive(),
+  reason: external_exports.enum(["completed", "not_planned"]).default("completed")
+});
+var ReopenIssueActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("reopenIssue"),
+  issueNumber: external_exports.number().int().positive()
+});
+var ResetIssueActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("resetIssue"),
+  issueNumber: external_exports.number().int().positive(),
+  /** Sub-issue numbers to reset */
+  subIssueNumbers: external_exports.array(external_exports.number().int().positive()).default([]),
+  botUsername: external_exports.string().min(1)
+});
+var AppendHistoryActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("appendHistory"),
+  issueNumber: external_exports.number().int().positive(),
+  /** Iteration number from project field */
+  iteration: external_exports.number().int().min(0).optional(),
+  phase: external_exports.string(),
+  message: external_exports.string(),
+  /** ISO 8601 timestamp of when the workflow started */
+  timestamp: external_exports.string().optional(),
+  commitSha: external_exports.string().optional(),
+  /** PR number to link in the SHA column (alternative to commitSha) */
+  prNumber: external_exports.number().int().positive().nullable().optional(),
+  runLink: external_exports.string().optional()
+});
+var UpdateHistoryActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("updateHistory"),
+  issueNumber: external_exports.number().int().positive(),
+  matchIteration: external_exports.number().int().min(0),
+  matchPhase: external_exports.string(),
+  matchPattern: external_exports.string(),
+  newMessage: external_exports.string(),
+  /** ISO 8601 timestamp (optional - preserves existing if not provided) */
+  timestamp: external_exports.string().optional(),
+  commitSha: external_exports.string().optional(),
+  /** PR number to link in the SHA column (alternative to commitSha) */
+  prNumber: external_exports.number().int().positive().nullable().optional(),
+  runLink: external_exports.string().optional()
+});
+var UpdateIssueBodyActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("updateIssueBody"),
+  issueNumber: external_exports.number().int().positive(),
+  body: external_exports.string()
+});
+var AddCommentActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("addComment"),
+  issueNumber: external_exports.number().int().positive(),
+  body: external_exports.string()
+});
+var UnassignUserActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("unassignUser"),
+  issueNumber: external_exports.number().int().positive(),
+  username: external_exports.string().min(1)
+});
+var AssignUserActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("assignUser"),
+  issueNumber: external_exports.number().int().positive(),
+  username: external_exports.string().min(1)
+});
+var CreateBranchActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("createBranch"),
+  branchName: external_exports.string().min(1),
+  baseBranch: external_exports.string().default("main"),
+  /** Git worktree to run the command in */
+  worktree: external_exports.string().optional()
+});
+var GitPushActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("gitPush"),
+  branchName: external_exports.string().min(1),
+  force: external_exports.boolean().default(false)
+});
+var CreatePRActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("createPR"),
+  title: external_exports.string().min(1),
+  body: external_exports.string(),
+  branchName: external_exports.string().min(1),
+  baseBranch: external_exports.string().default("main"),
+  draft: external_exports.boolean().default(true),
+  issueNumber: external_exports.number().int().positive()
+});
+var ConvertPRToDraftActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("convertPRToDraft"),
+  prNumber: external_exports.number().int().positive()
+});
+var MarkPRReadyActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("markPRReady"),
+  prNumber: external_exports.number().int().positive()
+});
+var RequestReviewActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("requestReview"),
+  prNumber: external_exports.number().int().positive(),
+  reviewer: external_exports.string().min(1)
+});
+var MergePRActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("mergePR"),
+  prNumber: external_exports.number().int().positive(),
+  issueNumber: external_exports.number().int().positive(),
+  mergeMethod: external_exports.enum(["merge", "squash", "rebase"]).default("squash")
+});
+var SubmitReviewActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("submitReview"),
+  prNumber: external_exports.number().int().positive(),
+  decision: external_exports.enum(["approve", "request_changes", "comment"]),
+  body: external_exports.string()
+});
+var RemoveReviewerActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("removeReviewer"),
+  prNumber: external_exports.number().int().positive(),
+  reviewer: external_exports.string().min(1)
+});
+var RunClaudeActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("runClaude"),
+  /** Direct prompt string */
+  prompt: external_exports.string().min(1).optional(),
+  /** Path to prompt file (relative to repo root) - will be read and substituted */
+  promptFile: external_exports.string().min(1).optional(),
+  /** Prompt directory name (resolved to {promptsDir}/{name}/) - contains prompt.txt and optional outputs.json */
+  promptDir: external_exports.string().min(1).optional(),
+  /** Base directory for prompts (defaults to .github/prompts/) */
+  promptsDir: external_exports.string().min(1).optional(),
+  /** Template variables for prompt substitution */
+  promptVars: external_exports.record(external_exports.string()).optional(),
+  issueNumber: external_exports.number().int().positive(),
+  allowedTools: external_exports.array(external_exports.string()).optional(),
+  worktree: external_exports.string().optional()
+});
+var AddDiscussionCommentActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("addDiscussionComment"),
+  discussionNodeId: external_exports.string().min(1),
+  body: external_exports.string().min(1),
+  /** If provided, this comment is a reply to another comment */
+  replyToNodeId: external_exports.string().optional()
+});
+var UpdateDiscussionBodyActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("updateDiscussionBody"),
+  discussionNodeId: external_exports.string().min(1),
+  newBody: external_exports.string().min(1)
+});
+var AddDiscussionReactionActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("addDiscussionReaction"),
+  /** Node ID of the discussion or comment */
+  subjectId: external_exports.string().min(1),
+  content: external_exports.enum([
+    "THUMBS_UP",
+    "THUMBS_DOWN",
+    "LAUGH",
+    "HOORAY",
+    "CONFUSED",
+    "HEART",
+    "ROCKET",
+    "EYES"
+  ])
+});
+var CreateIssuesFromDiscussionActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("createIssuesFromDiscussion"),
+  discussionNumber: external_exports.number().int().positive(),
+  issues: external_exports.array(
+    external_exports.object({
+      title: external_exports.string().min(1),
+      body: external_exports.string(),
+      labels: external_exports.array(external_exports.string()).default([])
+    })
+  )
+});
+var StopActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("stop"),
+  reason: external_exports.string().min(1)
+});
+var BlockActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("block"),
+  issueNumber: external_exports.number().int().positive(),
+  reason: external_exports.string().min(1)
+});
+var LogActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("log"),
+  level: external_exports.enum(["debug", "info", "warning", "error"]).default("info"),
+  message: external_exports.string(),
+  /** Git worktree context (informational) */
+  worktree: external_exports.string().optional()
+});
+var NoOpActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("noop"),
+  reason: external_exports.string().optional()
+});
+var ApplyTriageOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyTriageOutput"),
+  issueNumber: external_exports.number().int().positive(),
+  filePath: external_exports.string().default("triage-output.json")
+});
+var ApplyIterateOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyIterateOutput"),
+  issueNumber: external_exports.number().int().positive(),
+  filePath: external_exports.string().default("claude-structured-output.json")
+});
+var AppendAgentNotesActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("appendAgentNotes"),
+  issueNumber: external_exports.number().int().positive(),
+  notes: external_exports.array(external_exports.string()),
+  runId: external_exports.string(),
+  runLink: external_exports.string(),
+  timestamp: external_exports.string().optional()
+});
+var ApplyReviewOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyReviewOutput"),
+  prNumber: external_exports.number().int().positive(),
+  filePath: external_exports.string().default("claude-structured-output.json"),
+  /** Git worktree to read the output file from */
+  worktree: external_exports.string().optional()
+});
+var ApplyPRResponseOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyPRResponseOutput"),
+  prNumber: external_exports.number().int().positive(),
+  issueNumber: external_exports.number().int().positive(),
+  filePath: external_exports.string().default("claude-structured-output.json"),
+  reviewer: external_exports.string().default("nopo-reviewer"),
+  /** Git worktree to read the output file from */
+  worktree: external_exports.string().optional()
+});
+var ApplyDiscussionResearchOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyDiscussionResearchOutput"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string().min(1),
+  /** Prompt variables to pass to investigation agents */
+  promptVars: external_exports.record(external_exports.string()).optional(),
+  /** Path to the structured output file (for artifact-based execution) */
+  filePath: external_exports.string().optional(),
+  /** Artifact to download before execution */
+  consumesArtifact: ArtifactSchema.optional()
+});
+var ApplyDiscussionRespondOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyDiscussionRespondOutput"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string().min(1),
+  /** If provided, post as a reply to this comment */
+  replyToNodeId: external_exports.string().optional(),
+  /** Path to the structured output file (for artifact-based execution) */
+  filePath: external_exports.string().optional(),
+  /** Artifact to download before execution */
+  consumesArtifact: ArtifactSchema.optional()
+});
+var ApplyDiscussionSummarizeOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyDiscussionSummarizeOutput"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string().min(1),
+  /** Path to the structured output file (for artifact-based execution) */
+  filePath: external_exports.string().optional(),
+  /** Artifact to download before execution */
+  consumesArtifact: ArtifactSchema.optional()
+});
+var ApplyDiscussionPlanOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyDiscussionPlanOutput"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string().min(1),
+  /** Path to the structured output file (for artifact-based execution) */
+  filePath: external_exports.string().optional(),
+  /** Artifact to download before execution */
+  consumesArtifact: ArtifactSchema.optional()
+});
+var ResearchThreadSchema = external_exports.object({
+  /** The comment node ID for posting replies */
+  commentNodeId: external_exports.string().min(1),
+  /** Thread title */
+  title: external_exports.string().min(1),
+  /** The main question to investigate */
+  question: external_exports.string().min(1),
+  /** Areas to investigate */
+  investigationAreas: external_exports.array(external_exports.string()),
+  /** Expected deliverables */
+  expectedDeliverables: external_exports.array(external_exports.string())
+});
+var InvestigateResearchThreadsActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("investigateResearchThreads"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string().min(1),
+  /** Research threads to investigate */
+  threads: external_exports.array(ResearchThreadSchema),
+  /** Template variables for investigation prompts */
+  promptVars: external_exports.record(external_exports.string()).optional()
+});
+var UpdateDiscussionSummaryActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("updateDiscussionSummary"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string().min(1),
+  /** Template variables for summary prompt */
+  promptVars: external_exports.record(external_exports.string()).optional()
+});
+var AddLabelActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("addLabel"),
+  issueNumber: external_exports.number().int().positive(),
+  label: external_exports.string().min(1)
+});
+var RemoveLabelActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("removeLabel"),
+  issueNumber: external_exports.number().int().positive(),
+  label: external_exports.string().min(1)
+});
+var GroomingAgentTypeSchema = external_exports.enum([
+  "pm",
+  "engineer",
+  "qa",
+  "research"
+]);
+var RunClaudeGroomingActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("runClaudeGrooming"),
+  issueNumber: external_exports.number().int().positive(),
+  /** Template variables for grooming prompts */
+  promptVars: external_exports.record(external_exports.string()).optional()
+});
+var ApplyGroomingOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyGroomingOutput"),
+  issueNumber: external_exports.number().int().positive(),
+  /** Path to the combined grooming output file */
+  filePath: external_exports.string().default("grooming-output.json")
+});
+var ApplyPivotOutputActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("applyPivotOutput"),
+  issueNumber: external_exports.number().int().positive(),
+  /** Path to the pivot output file */
+  filePath: external_exports.string().default("claude-structured-output.json")
+});
+var ActionSchema = external_exports.discriminatedUnion("type", [
+  // Project field actions
+  UpdateProjectStatusActionSchema,
+  IncrementIterationActionSchema,
+  RecordFailureActionSchema,
+  ClearFailuresActionSchema,
+  // Issue actions
+  CreateSubIssuesActionSchema,
+  CloseIssueActionSchema,
+  ReopenIssueActionSchema,
+  ResetIssueActionSchema,
+  AppendHistoryActionSchema,
+  UpdateHistoryActionSchema,
+  UpdateIssueBodyActionSchema,
+  AddCommentActionSchema,
+  UnassignUserActionSchema,
+  AssignUserActionSchema,
+  // Label actions
+  AddLabelActionSchema,
+  RemoveLabelActionSchema,
+  // Git actions
+  CreateBranchActionSchema,
+  GitPushActionSchema,
+  // PR actions
+  CreatePRActionSchema,
+  ConvertPRToDraftActionSchema,
+  MarkPRReadyActionSchema,
+  RequestReviewActionSchema,
+  MergePRActionSchema,
+  SubmitReviewActionSchema,
+  RemoveReviewerActionSchema,
+  // Claude actions
+  RunClaudeActionSchema,
+  // Grooming actions
+  RunClaudeGroomingActionSchema,
+  ApplyGroomingOutputActionSchema,
+  // Pivot actions
+  ApplyPivotOutputActionSchema,
+  // Discussion actions
+  AddDiscussionCommentActionSchema,
+  UpdateDiscussionBodyActionSchema,
+  AddDiscussionReactionActionSchema,
+  CreateIssuesFromDiscussionActionSchema,
+  // Control flow actions
+  StopActionSchema,
+  BlockActionSchema,
+  LogActionSchema,
+  NoOpActionSchema,
+  // Triage actions
+  ApplyTriageOutputActionSchema,
+  // Iterate actions
+  ApplyIterateOutputActionSchema,
+  // Agent notes actions
+  AppendAgentNotesActionSchema,
+  // Review actions
+  ApplyReviewOutputActionSchema,
+  // PR response actions
+  ApplyPRResponseOutputActionSchema,
+  // Discussion apply actions
+  ApplyDiscussionResearchOutputActionSchema,
+  ApplyDiscussionRespondOutputActionSchema,
+  ApplyDiscussionSummarizeOutputActionSchema,
+  ApplyDiscussionPlanOutputActionSchema,
+  // Discussion parallel investigation actions
+  InvestigateResearchThreadsActionSchema,
+  UpdateDiscussionSummaryActionSchema
+]);
+function isTerminalAction(action) {
+  return action.type === "stop" || action.type === "block";
+}
+function shouldStopOnError(actionType) {
+  const criticalActions = [
+    "runClaude",
+    "createPR",
+    "mergePR",
+    "createSubIssues",
+    "block"
+  ];
+  return criticalActions.includes(actionType);
+}
+
+// ../../packages/statemachine/src/schemas/issue-triggers.ts
+var IssueTriggerTypeSchema = external_exports.enum([
+  // Issue triggers
+  "issue-assigned",
+  "issue-edited",
+  "issue-closed",
+  "issue-triage",
+  "issue-groom",
+  "issue-orchestrate",
+  "issue-comment",
+  "issue-pivot",
+  "issue-reset",
+  // PR triggers
+  "pr-review-requested",
+  "pr-review-submitted",
+  "pr-review",
+  "pr-review-approved",
+  "pr-response",
+  "pr-human-response",
+  "pr-push",
+  // Workflow triggers
+  "workflow-run-completed",
+  // Merge queue logging triggers
+  "merge-queue-entered",
+  "merge-queue-failed",
+  "pr-merged",
+  "deployed-stage",
+  "deployed-prod"
+]);
+var ISSUE_TRIGGER_TYPES = IssueTriggerTypeSchema.options;
+
+// ../../packages/statemachine/src/schemas/discussion-triggers.ts
+var DiscussionTriggerTypeSchema = external_exports.enum([
+  "discussion-created",
+  "discussion-comment",
+  "discussion-command"
+]);
+var DISCUSSION_TRIGGER_TYPES = DiscussionTriggerTypeSchema.options;
+
+// ../../packages/statemachine/src/schemas/discussion-context.ts
+var DiscussionCommandSchema = external_exports.enum([
+  "summarize",
+  "plan",
+  "complete"
+]);
+var ResearchThreadSchema2 = external_exports.object({
+  nodeId: external_exports.string(),
+  topic: external_exports.string(),
+  replyCount: external_exports.number().int().min(0)
+});
+var DiscussionSchema = external_exports.object({
+  number: external_exports.number().int().positive(),
+  nodeId: external_exports.string(),
+  title: external_exports.string(),
+  body: external_exports.string(),
+  commentCount: external_exports.number().int().min(0).default(0),
+  researchThreads: external_exports.array(ResearchThreadSchema2).default([]),
+  command: DiscussionCommandSchema.optional(),
+  commentId: external_exports.string().optional(),
+  commentBody: external_exports.string().optional(),
+  commentAuthor: external_exports.string().optional()
+});
+var DiscussionContextSchema = external_exports.object({
+  // Trigger info
+  trigger: DiscussionTriggerTypeSchema,
+  // Repository info
+  owner: external_exports.string().min(1),
+  repo: external_exports.string().min(1),
+  // Discussion being worked on
+  discussion: DiscussionSchema,
+  // Config
+  maxRetries: external_exports.number().int().positive().default(5),
+  botUsername: external_exports.string().default("nopo-bot")
+});
+
+// ../../packages/statemachine/src/schemas/runner-context.ts
+var TriggerTypeSchema2 = external_exports.union([
+  IssueTriggerTypeSchema,
+  DiscussionTriggerTypeSchema
+]);
+var JobTypeSchema = external_exports.enum([
+  // Issue jobs
+  "issue-triage",
+  "issue-groom",
+  "issue-iterate",
+  "issue-orchestrate",
+  "issue-comment",
+  "issue-reset",
+  // PR jobs
+  "pr-push",
+  "pr-review-requested",
+  // When someone requests a review from the bot
+  "pr-review",
+  // Legacy: when bot should review (has review decision)
+  "pr-review-approved",
+  "pr-response",
+  "pr-human-response",
+  // Merge queue
+  "merge-queue-logging",
+  // Discussion jobs
+  "discussion-research",
+  "discussion-respond",
+  "discussion-summarize",
+  "discussion-plan",
+  "discussion-complete",
+  // Empty (skip)
+  ""
+]);
+var ResourceTypeSchema = external_exports.enum(["issue", "pr", "discussion", ""]);
+var ContextTypeSchema = external_exports.enum(["issue", "pr"]);
+var WorkflowContextSchema = external_exports.object({
+  // ========================================
+  // Routing & Control (previously separate outputs)
+  // ========================================
+  /** Job type to run (e.g., "issue-iterate", "pr-review", "discussion-research") */
+  job: JobTypeSchema,
+  /** Trigger type for the state machine */
+  trigger: TriggerTypeSchema2,
+  /** Type of resource being processed */
+  resource_type: ResourceTypeSchema,
+  /** Resource number (issue, PR, or discussion number) */
+  resource_number: external_exports.string(),
+  /** Parent issue number for sub-issues (or "0" if not a sub-issue) */
+  parent_issue: external_exports.string().default("0"),
+  /** Comment ID that triggered this run (for reactions) */
+  comment_id: external_exports.string().default(""),
+  /** Concurrency group name */
+  concurrency_group: external_exports.string(),
+  /** Whether to cancel in-progress runs in the same group */
+  cancel_in_progress: external_exports.boolean().default(false),
+  /** Whether to skip processing */
+  skip: external_exports.boolean().default(false),
+  /** Reason for skipping (if skip is true) */
+  skip_reason: external_exports.string().default(""),
+  // ========================================
+  // Issue-specific fields
+  // ========================================
+  /** Issue number */
+  issue_number: external_exports.string().optional(),
+  /** Issue title */
+  issue_title: external_exports.string().optional(),
+  /** Issue body */
+  issue_body: external_exports.string().optional(),
+  /** Branch name for the work */
+  branch_name: external_exports.string().optional(),
+  /** Whether the branch already exists */
+  existing_branch: external_exports.string().optional(),
+  /** Phase number for sub-issues */
+  phase_number: external_exports.string().optional(),
+  /** Comma-separated list of sub-issue numbers */
+  sub_issues: external_exports.string().optional(),
+  /** Project status from GitHub Project field */
+  project_status: external_exports.string().optional(),
+  /** Project iteration from GitHub Project field */
+  project_iteration: external_exports.string().optional(),
+  /** Project failures from GitHub Project field */
+  project_failures: external_exports.string().optional(),
+  /** Closed sub-issue number (for sub_issue_closed trigger) */
+  closed_sub_issue: external_exports.string().optional(),
+  // ========================================
+  // CI-specific fields (workflow_run_completed)
+  // ========================================
+  /** CI result (success, failure, cancelled, skipped) */
+  ci_result: CIResultSchema.optional(),
+  /** CI run URL */
+  ci_run_url: external_exports.string().optional(),
+  /** CI commit SHA */
+  ci_commit_sha: external_exports.string().optional(),
+  // ========================================
+  // Review-specific fields (pr_review_submitted)
+  // ========================================
+  /** Review decision */
+  review_decision: ReviewDecisionSchema2.optional(),
+  /** Review state (lowercase version: approved, changes_requested, commented) */
+  review_state: external_exports.string().optional(),
+  /** Review body */
+  review_body: external_exports.string().optional(),
+  /** Review ID */
+  review_id: external_exports.string().optional(),
+  /** Reviewer username */
+  reviewer: external_exports.string().optional(),
+  /** Reviewer login (alias for reviewer) */
+  reviewer_login: external_exports.string().optional(),
+  // ========================================
+  // PR-specific fields
+  // ========================================
+  /** PR number */
+  pr_number: external_exports.string().optional(),
+  /** Whether PR is a draft */
+  is_draft: external_exports.boolean().optional(),
+  /** Issue section content (for pr-review job) */
+  issue_section: external_exports.string().optional(),
+  /** Merge queue head ref */
+  head_ref: external_exports.string().optional(),
+  /** Merge queue head SHA */
+  head_sha: external_exports.string().optional(),
+  // ========================================
+  // Comment-specific fields (issue_comment)
+  // ========================================
+  /** Context type for comment (Issue or PR) */
+  context_type: ContextTypeSchema.optional(),
+  /** Context description for comment */
+  context_description: external_exports.string().optional(),
+  // ========================================
+  // Discussion-specific fields
+  // ========================================
+  /** Discussion number */
+  discussion_number: external_exports.string().optional(),
+  /** Discussion title */
+  discussion_title: external_exports.string().optional(),
+  /** Discussion body */
+  discussion_body: external_exports.string().optional(),
+  /** Comment body (for discussion comments) */
+  comment_body: external_exports.string().optional(),
+  /** Comment author username */
+  comment_author: external_exports.string().optional(),
+  /** Discussion command (/summarize, /plan, /complete) */
+  command: DiscussionCommandSchema.optional(),
+  /** Whether this is a test automation run */
+  is_test_automation: external_exports.boolean().optional(),
+  // ========================================
+  // Internal trigger type tracking
+  // ========================================
+  /**
+   * Internal trigger type (may differ from the job name)
+   * Used when the state machine needs a different trigger than the job implies
+   */
+  trigger_type: external_exports.string().optional()
+});
+var MinimalTriggerContextSchema = external_exports.object({
+  // ========================================
+  // Routing & Control (required)
+  // ========================================
+  /** Job type to run */
+  job: JobTypeSchema,
+  /** Trigger type for the state machine */
+  trigger: TriggerTypeSchema2,
+  /** Type of resource being processed */
+  resource_type: ResourceTypeSchema,
+  /** Resource number (issue, PR, or discussion number) */
+  resource_number: external_exports.string(),
+  /** Concurrency group name */
+  concurrency_group: external_exports.string(),
+  /** Whether to cancel in-progress runs in the same group */
+  cancel_in_progress: external_exports.boolean().default(false),
+  /** Whether to skip processing */
+  skip: external_exports.boolean().default(false),
+  /** Reason for skipping (if skip is true) */
+  skip_reason: external_exports.string().default(""),
+  /** Comment ID that triggered this run (for reactions) */
+  comment_id: external_exports.string().default(""),
+  // ========================================
+  // CI Event Data (workflow_run_completed only)
+  // ========================================
+  /** CI result (point-in-time from workflow_run event) */
+  ci_result: CIResultSchema.optional(),
+  /** CI run URL (point-in-time from workflow_run event) */
+  ci_run_url: external_exports.string().optional(),
+  /** CI commit SHA (point-in-time from workflow_run event) */
+  ci_commit_sha: external_exports.string().optional(),
+  // ========================================
+  // Review Event Data (pr_review_submitted only)
+  // ========================================
+  /** Review decision (point-in-time from review event) */
+  review_decision: ReviewDecisionSchema2.optional(),
+  /** Review state (lowercase: approved, changes_requested, commented) */
+  review_state: external_exports.string().optional(),
+  /** Review body (point-in-time from review event) */
+  review_body: external_exports.string().optional(),
+  /** Review ID (point-in-time from review event) */
+  review_id: external_exports.string().optional(),
+  /** Reviewer username (point-in-time from review event) */
+  reviewer: external_exports.string().optional(),
+  // ========================================
+  // Comment Event Data (issue_comment only)
+  // ========================================
+  /** Context type for @claude mentions (issue or pr) */
+  context_type: ContextTypeSchema.optional(),
+  /** Context description for @claude mentions */
+  context_description: external_exports.string().optional(),
+  /** Pivot description (for /pivot command) */
+  pivot_description: external_exports.string().optional(),
+  // ========================================
+  // Discussion Event Data
+  // ========================================
+  /** Discussion number (for discussion triggers) */
+  discussion_number: external_exports.string().optional(),
+  /** Discussion command (/summarize, /plan, /complete) */
+  command: DiscussionCommandSchema.optional(),
+  /** Comment body (for discussion comments) */
+  comment_body: external_exports.string().optional(),
+  /** Comment author username */
+  comment_author: external_exports.string().optional(),
+  /** Whether this is a test automation run */
+  is_test_automation: external_exports.boolean().optional(),
+  // ========================================
+  // Merge Queue Event Data
+  // ========================================
+  /** Merge queue head ref */
+  head_ref: external_exports.string().optional(),
+  /** Merge queue head SHA */
+  head_sha: external_exports.string().optional()
+});
+
 // ../../packages/statemachine/src/parser/issue-adapter.ts
 function deriveBranchName(parentIssueNumber, phaseNumber) {
   if (phaseNumber !== void 0 && phaseNumber > 0) {
     return `claude/issue/${parentIssueNumber}/phase-${phaseNumber}`;
   }
   return `claude/issue/${parentIssueNumber}`;
-}
-
-// ../../packages/statemachine/src/parser/section-parser.ts
-function getSection(body, sectionName) {
-  const escapedName = sectionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const pattern = new RegExp(
-    `## ${escapedName}\\s*\\n([\\s\\S]*?)(?=\\n## |\\n<!-- |$)`,
-    "i"
-  );
-  const match = body.match(pattern);
-  if (match?.[1]) {
-    return match[1].trim();
-  }
-  return null;
-}
-function upsertSection(body, sectionName, content3, options = {}) {
-  const existingContent = getSection(body, sectionName);
-  if (existingContent !== null) {
-    const escapedName = sectionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const pattern = new RegExp(
-      `(## ${escapedName}\\s*\\n)[\\s\\S]*?(?=\\n## |\\n<!-- |$)`,
-      "i"
-    );
-    return body.replace(pattern, `$1
-${content3}
-`).trim();
-  }
-  const newSection = `## ${sectionName}
-
-${content3}`;
-  if (options.sectionOrder) {
-    const targetIndex = options.sectionOrder.indexOf(sectionName);
-    if (targetIndex >= 0) {
-      for (let i = targetIndex + 1; i < options.sectionOrder.length; i++) {
-        const nextSection = options.sectionOrder[i];
-        if (nextSection !== void 0 && hasSection(body, nextSection)) {
-          return insertBeforeSection(body, nextSection, newSection);
-        }
-      }
-      return insertAtEnd(body, newSection);
-    }
-  }
-  if (options.insertBefore && hasSection(body, options.insertBefore)) {
-    return insertBeforeSection(body, options.insertBefore, newSection);
-  }
-  return insertAtEnd(body, newSection);
-}
-function hasSection(body, sectionName) {
-  return getSection(body, sectionName) !== null;
-}
-function insertBeforeSection(body, sectionName, content3) {
-  const escapedName = sectionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const pattern = new RegExp(`(\\n?)(## ${escapedName})`, "i");
-  return body.replace(pattern, `
-
-${content3}
-$1$2`).trim();
-}
-function insertAtEnd(body, content3) {
-  const specialSections = ["Agent Notes", "Iteration History"];
-  for (const special of specialSections) {
-    if (hasSection(body, special)) {
-      return insertBeforeSection(body, special, content3);
-    }
-  }
-  const commentMatch = body.match(/(\n<!-- [\s\S]*)/);
-  if (commentMatch?.[1]) {
-    const insertPos = body.indexOf(commentMatch[1]);
-    return (body.slice(0, insertPos) + "\n\n" + content3 + body.slice(insertPos)).trim();
-  }
-  return (body + "\n\n" + content3).trim();
-}
-function upsertSections(body, sections, sectionOrder) {
-  let result = body;
-  for (const section of sections) {
-    result = upsertSection(result, section.name, section.content, {
-      sectionOrder
-    });
-  }
-  return result;
-}
-var STANDARD_SECTION_ORDER = [
-  "Description",
-  "Requirements",
-  "Approach",
-  "Acceptance Criteria",
-  "Testing",
-  "Related",
-  "Questions",
-  "Todo",
-  "Agent Notes",
-  "Iteration History"
-];
-function formatRequirements(requirements) {
-  if (requirements.length === 0) {
-    return "_No specific requirements identified._";
-  }
-  return requirements.map((r) => `- ${r}`).join("\n");
 }
 
 // ../../node_modules/.pnpm/xstate@5.26.0/node_modules/xstate/dev/dist/xstate-dev.esm.js
@@ -44812,6 +45099,9 @@ function isTerminal({ context: context2 }) {
 function hasSubIssues({ context: context2 }) {
   return context2.issue.hasSubIssues;
 }
+function isSubIssue({ context: context2 }) {
+  return context2.parentIssue !== null;
+}
 function needsSubIssues(_guardContext) {
   return false;
 }
@@ -45025,6 +45315,7 @@ var guards = {
   isTerminal,
   // Sub-issue guards
   hasSubIssues,
+  isSubIssue,
   needsSubIssues,
   allPhasesDone,
   // Orchestration guards
@@ -45158,6 +45449,51 @@ function emitSetBlocked({ context: context2 }) {
     }
   ];
 }
+function emitSetError({ context: context2 }) {
+  return [
+    {
+      type: "updateProjectStatus",
+      token: "code",
+      issueNumber: context2.issue.number,
+      status: "Error"
+    }
+  ];
+}
+function emitLogInvalidIteration({
+  context: context2
+}) {
+  const message = "\u274C FATAL: Cannot iterate on parent issue without sub-issues. Only sub-issues can be iterated on directly. Run grooming to create sub-issues first.";
+  return [
+    {
+      type: "appendHistory",
+      token: "code",
+      issueNumber: context2.issue.number,
+      iteration: context2.issue.iteration,
+      phase: String(context2.currentPhase ?? "-"),
+      message,
+      timestamp: context2.workflowStartedAt ?? void 0,
+      commitSha: context2.ciCommitSha ?? void 0,
+      runLink: context2.ciRunUrl ?? void 0
+    },
+    {
+      type: "addComment",
+      token: "code",
+      issueNumber: context2.issue.number,
+      body: `## \u274C Invalid Iteration Attempt
+
+This issue cannot be iterated on directly because it has no parent issue.
+
+**Only sub-issues can be iterated on.** Parent issues must go through orchestration which manages their sub-issues.
+
+### To Fix
+
+1. Run grooming on this issue to create sub-issues
+2. Then trigger orchestration on the parent issue
+
+Issue #${context2.issue.number} has been set to Error status.`
+    }
+  ];
+}
 function emitIncrementIteration({
   context: context2
 }) {
@@ -45286,6 +45622,32 @@ function emitLogCIFailure({ context: context2 }) {
     }
   ];
 }
+function emitLogIterationStarted({
+  context: context2
+}) {
+  return emitAppendHistory({ context: context2 }, "\u23F3 Iterating...");
+}
+function emitLogCISuccess({ context: context2 }) {
+  return [
+    {
+      type: "updateHistory",
+      token: "code",
+      issueNumber: context2.issue.number,
+      matchIteration: context2.issue.iteration,
+      matchPhase: String(context2.currentPhase ?? "-"),
+      matchPattern: "\u23F3",
+      newMessage: "\u2705 CI Passed",
+      timestamp: context2.workflowStartedAt ?? void 0,
+      commitSha: context2.ciCommitSha ?? void 0,
+      runLink: context2.ciRunUrl ?? void 0
+    }
+  ];
+}
+function emitLogReviewRequested({
+  context: context2
+}) {
+  return emitAppendHistory({ context: context2 }, "\u{1F440} Review requested");
+}
 function emitCreateBranch({ context: context2 }) {
   const branchName = context2.branch ?? deriveBranchName(context2.issue.number, context2.currentPhase ?? void 0);
   return [
@@ -45377,14 +45739,14 @@ function buildIteratePromptVars(context2, ciResultOverride) {
   const iteration = context2.issue.iteration;
   const failures = context2.issue.failures;
   const ciResult = ciResultOverride ?? context2.ciResult ?? "first";
-  const isSubIssue = context2.parentIssue !== null && context2.currentPhase !== null;
+  const isSubIssue2 = context2.parentIssue !== null && context2.currentPhase !== null;
   const parentIssueNumber = context2.parentIssue?.number;
   const phaseNumber = context2.currentPhase;
-  const parentContext = isSubIssue ? `- **Parent Issue**: #${parentIssueNumber}
+  const parentContext = isSubIssue2 ? `- **Parent Issue**: #${parentIssueNumber}
 - **Phase**: ${phaseNumber}
 
 > This is a sub-issue. Focus only on todos here. PR must reference both this issue and parent.` : "";
-  const prCreateCommand = isSubIssue ? `\`\`\`bash
+  const prCreateCommand = isSubIssue2 ? `\`\`\`bash
 gh pr create --draft --reviewer nopo-bot \\
   --title "${issueTitle}" \\
   --body "Fixes #${issueNumber}
@@ -46138,6 +46500,7 @@ var claudeMachine = setup({
     isError: ({ context: context2 }) => guards.isError({ context: context2 }),
     needsSubIssues: ({ context: context2 }) => guards.needsSubIssues({ context: context2 }),
     hasSubIssues: ({ context: context2 }) => guards.hasSubIssues({ context: context2 }),
+    isSubIssue: ({ context: context2 }) => guards.isSubIssue({ context: context2 }),
     isInReview: ({ context: context2 }) => guards.isInReview({ context: context2 }),
     allPhasesDone: ({ context: context2 }) => guards.allPhasesDone({ context: context2 }),
     currentPhaseNeedsWork: ({ context: context2 }) => guards.currentPhaseNeedsWork({ context: context2 }),
@@ -46241,6 +46604,25 @@ var claudeMachine = setup({
         )
       )
     }),
+    // Iteration history logging (writes to issue body)
+    historyIterationStarted: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitLogIterationStarted({ context: context2 })
+      )
+    }),
+    historyCISuccess: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitLogCISuccess({ context: context2 })
+      )
+    }),
+    historyReviewRequested: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitLogReviewRequested({ context: context2 })
+      )
+    }),
     // Status actions
     setWorking: assign({
       pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitSetWorking({ context: context2 }))
@@ -46259,6 +46641,15 @@ var claudeMachine = setup({
     }),
     setBlocked: assign({
       pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitSetBlocked({ context: context2 }))
+    }),
+    setError: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitSetError({ context: context2 }))
+    }),
+    logInvalidIteration: assign({
+      pendingActions: ({ context: context2 }) => accumulateActions(
+        context2.pendingActions,
+        emitLogInvalidIteration({ context: context2 })
+      )
     }),
     // Iteration actions
     incrementIteration: assign({
@@ -46605,8 +46996,11 @@ var claudeMachine = setup({
           // Check if ready for review (CI passed + todos done) from any trigger
           // This allows the state machine to "catch up" when re-triggered
           { target: "transitioningToReview", guard: "readyForReview" },
-          // Default to iterating
-          { target: "iterating" }
+          // Only sub-issues can iterate directly - parent issues must have sub-issues
+          { target: "iterating", guard: "isSubIssue" },
+          // FATAL: Parent issue without sub-issues cannot iterate
+          // This catches misconfigured issues that weren't properly groomed
+          { target: "invalidIteration" }
         ]
       }
     },
@@ -46700,7 +47094,7 @@ var claudeMachine = setup({
      * reviews and signals that iteration will continue.
      */
     prPush: {
-      entry: ["pushToDraft", "setReview"],
+      entry: ["pushToDraft", "setInProgress"],
       type: "final"
     },
     /**
@@ -46770,13 +47164,14 @@ var claudeMachine = setup({
         // CI passed and todos done -> go to review
         {
           target: "transitioningToReview",
-          guard: "readyForReview"
+          guard: "readyForReview",
+          actions: ["historyCISuccess"]
         },
         // CI passed but todos not done -> continue iterating
         {
           target: "iterating",
           guard: "ciPassed",
-          actions: ["clearFailures"]
+          actions: ["clearFailures", "historyCISuccess"]
         },
         // CI failed and max failures -> block
         {
@@ -46836,7 +47231,7 @@ var claudeMachine = setup({
      * Transitioning to review state
      */
     transitioningToReview: {
-      entry: ["transitionToReview"],
+      entry: ["transitionToReview", "historyReviewRequested"],
       always: "reviewing"
     },
     /**
@@ -46847,6 +47242,7 @@ var claudeMachine = setup({
         "createBranch",
         "setWorking",
         "incrementIteration",
+        "historyIterationStarted",
         "logIterating",
         "runClaude",
         "createPR"
@@ -46855,11 +47251,12 @@ var claudeMachine = setup({
         CI_SUCCESS: [
           {
             target: "transitioningToReview",
-            guard: "todosDone"
+            guard: "todosDone",
+            actions: ["historyCISuccess"]
           },
           {
             target: "iterating",
-            actions: ["clearFailures"]
+            actions: ["clearFailures", "historyCISuccess"]
           }
         ],
         CI_FAILURE: [
@@ -46884,6 +47281,7 @@ var claudeMachine = setup({
       entry: [
         "createBranch",
         "incrementIteration",
+        "historyIterationStarted",
         "logFixingCI",
         "runClaudeFixCI",
         "createPR"
@@ -46892,11 +47290,12 @@ var claudeMachine = setup({
         CI_SUCCESS: [
           {
             target: "transitioningToReview",
-            guard: "todosDone"
+            guard: "todosDone",
+            actions: ["historyCISuccess"]
           },
           {
             target: "iterating",
-            actions: ["clearFailures"]
+            actions: ["clearFailures", "historyCISuccess"]
           }
         ],
         CI_FAILURE: [
@@ -46940,6 +47339,20 @@ var claudeMachine = setup({
      * Unrecoverable error
      */
     error: {
+      type: "final"
+    },
+    /**
+     * Invalid iteration attempt - parent issue without sub-issues tried to iterate
+     *
+     * This is a FATAL error that indicates the issue was not properly groomed.
+     * Only sub-issues (issues with a parent) can be iterated on directly.
+     * Parent issues must go through orchestration which manages their sub-issues.
+     *
+     * To fix: Run grooming on this issue to create sub-issues, then trigger
+     * orchestration on the parent.
+     */
+    invalidIteration: {
+      entry: ["logInvalidIteration", "setError"],
       type: "final"
     },
     // =========================================================================
@@ -65966,10 +66379,15 @@ var GroomingEngineer = promptFactory().inputs((z) => ({
 
 If not ready, specify what information or decisions are needed.` }),
   /* @__PURE__ */ jsx("section", { title: "Scope Recommendation", children: `Suggest if the issue should be:
-- **keep**: Scope is appropriate as-is (single phase, no sub-issues)
+- **keep**: Scope is appropriate as-is (single phase)
 - **split**: Issue is too large, recommend splitting into phases
 - **expand**: Issue is too small, could combine with related work` }),
-  /* @__PURE__ */ jsx("section", { title: "Phase Planning (If scope_recommendation = 'split')", children: `If you recommend splitting, provide \`recommended_phases\` with:
+  /* @__PURE__ */ jsx("section", { title: "Phase Planning (REQUIRED)", children: `You MUST provide \`recommended_phases\` with at least one phase. This is REQUIRED because:
+- Work happens on sub-issues (phases), not parent issues directly
+- Sub-issues are created from your recommended_phases
+- Without phases, the issue cannot be implemented
+
+Provide \`recommended_phases\` with:
 - **phase_number**: 1-indexed phase number
 - **title**: Short descriptive title (e.g., "Setup database schema")
 - **description**: What this phase accomplishes
@@ -65981,12 +66399,12 @@ If not ready, specify what information or decisions are needed.` }),
 - **depends_on**: Array of phase numbers this depends on (empty for first phase)
 
 **Guidelines for phases:**
-- 2-5 phases maximum
+- 1-5 phases (even simple XS/S issues need at least 1 phase)
 - Each phase should be a self-contained PR
 - No generic todos (commit, push, merge) - only specific implementation tasks
 - Phases should have clear dependencies
 
-For simple issues (XS/S size), leave \`recommended_phases\` as an empty array.` }),
+For simple issues (XS/S size), provide a single phase with all todos.` }),
   /* @__PURE__ */ jsx("section", { title: "Output", children: "Return structured JSON with your technical analysis." })
 ] }));
 var engineer_default = GroomingEngineer;
@@ -66219,9 +66637,16 @@ var GroomingSummary = promptFactory().inputs((z) => ({
 2. **Consensus**: Where do agents agree?
 3. **Conflicts**: Where do agents disagree? How should conflicts be resolved?
 4. **Decision**: Based on all input, is this issue ready?` }),
-  /* @__PURE__ */ jsx("section", { title: "Decision Criteria", children: `- **ready**: All agents agree ready, or conflicts are minor and resolvable
+  /* @__PURE__ */ jsx("section", { title: "Decision Criteria", children: `- **ready**: All agents agree ready, OR conflicts are minor and resolvable, AND Engineer has provided recommended_phases
 - **needs_info**: Any agent has critical questions, unclear requirements
-- **blocked**: Technical blockers, dependencies not met, scope issues` }),
+- **blocked**: Technical blockers, dependencies not met, scope issues
+
+**CRITICAL**: An issue can ONLY be marked "ready" if the Engineer analysis includes \`recommended_phases\` with at least one phase. This is because:
+- Work happens on sub-issues, not parent issues directly
+- Sub-issues are created from the recommended_phases
+- Without phases, there's nothing to iterate on
+
+If Engineer's scope_recommendation is "keep" (single phase), they MUST still provide one phase in recommended_phases.` }),
   /* @__PURE__ */ jsx("section", { title: "Output", children: `Return structured JSON with your synthesis and final decision.
 
 If decision is "needs_info", consolidate all questions from agents into a prioritized list.
@@ -66770,51 +67195,6 @@ var JOB_DESCRIPTIONS = {
   "discussion-plan": "creating implementation plan",
   "discussion-complete": "marking discussion as complete"
 };
-var GET_DISCUSSION_ID_QUERY = `
-query GetDiscussionId($owner: String!, $repo: String!, $number: Int!) {
-  repository(owner: $owner, name: $repo) {
-    discussion(number: $number) {
-      id
-    }
-  }
-}
-`;
-var ADD_DISCUSSION_COMMENT_MUTATION = `
-mutation AddDiscussionComment($discussionId: ID!, $body: String!) {
-  addDiscussionComment(input: {
-    discussionId: $discussionId
-    body: $body
-  }) {
-    comment {
-      id
-    }
-  }
-}
-`;
-var UPDATE_DISCUSSION_COMMENT_MUTATION = `
-mutation UpdateDiscussionComment($commentId: ID!, $body: String!) {
-  updateDiscussionComment(input: {
-    commentId: $commentId
-    body: $body
-  }) {
-    comment {
-      id
-    }
-  }
-}
-`;
-var ADD_GRAPHQL_REACTION_MUTATION = `
-mutation AddReaction($subjectId: ID!, $content: ReactionContent!) {
-  addReaction(input: {
-    subjectId: $subjectId
-    content: $content
-  }) {
-    reaction {
-      id
-    }
-  }
-}
-`;
 function toGraphQLReaction(reaction) {
   switch (reaction) {
     case "eyes":
@@ -66828,7 +67208,7 @@ function toGraphQLReaction(reaction) {
 async function addReactionToComment(octokit, owner, repo, commentId, resourceType, reaction) {
   try {
     if (resourceType === "discussion") {
-      await octokit.graphql(ADD_GRAPHQL_REACTION_MUTATION, {
+      await octokit.graphql(ADD_REACTION_MUTATION, {
         subjectId: commentId,
         content: toGraphQLReaction(reaction)
       });
@@ -66973,94 +67353,6 @@ async function signalEnd(ctx, statusCommentId, result) {
 
 // ../../packages/statemachine/src/runner/executors/project.ts
 var core3 = __toESM(require_core(), 1);
-var GET_PROJECT_ITEM_QUERY2 = `
-query GetProjectItem($org: String!, $repo: String!, $issueNumber: Int!, $projectNumber: Int!) {
-  repository(owner: $org, name: $repo) {
-    issue(number: $issueNumber) {
-      id
-      projectItems(first: 10) {
-        nodes {
-          id
-          project {
-            id
-            number
-          }
-          fieldValues(first: 20) {
-            nodes {
-              ... on ProjectV2ItemFieldSingleSelectValue {
-                name
-                field {
-                  ... on ProjectV2SingleSelectField {
-                    name
-                    id
-                  }
-                }
-              }
-              ... on ProjectV2ItemFieldNumberValue {
-                number
-                field {
-                  ... on ProjectV2Field {
-                    name
-                    id
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-  organization(login: $org) {
-    projectV2(number: $projectNumber) {
-      id
-      fields(first: 20) {
-        nodes {
-          ... on ProjectV2SingleSelectField {
-            id
-            name
-            options {
-              id
-              name
-            }
-          }
-          ... on ProjectV2Field {
-            id
-            name
-            dataType
-          }
-        }
-      }
-    }
-  }
-}
-`;
-var UPDATE_PROJECT_FIELD_MUTATION2 = `
-mutation UpdateProjectField($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
-  updateProjectV2ItemFieldValue(input: {
-    projectId: $projectId
-    itemId: $itemId
-    fieldId: $fieldId
-    value: $value
-  }) {
-    projectV2Item {
-      id
-    }
-  }
-}
-`;
-var ADD_ISSUE_TO_PROJECT_MUTATION2 = `
-mutation AddIssueToProject($projectId: ID!, $contentId: ID!) {
-  addProjectV2ItemById(input: {
-    projectId: $projectId
-    contentId: $contentId
-  }) {
-    item {
-      id
-    }
-  }
-}
-`;
 function parseProjectFields(projectData) {
   const project = projectData;
   if (!project?.projectV2?.id || !project.projectV2.fields?.nodes) {
@@ -67131,7 +67423,7 @@ function parseProjectState(projectItems, projectNumber) {
 }
 async function getOrAddProjectItem(octokit, ctx, issueNumber) {
   const response = await octokit.graphql(
-    GET_PROJECT_ITEM_QUERY2,
+    GET_PROJECT_ITEM_QUERY,
     {
       org: ctx.owner,
       repo: ctx.repo,
@@ -67154,7 +67446,7 @@ async function getOrAddProjectItem(octokit, ctx, issueNumber) {
   if (!itemId) {
     core3.info(`Adding issue #${issueNumber} to project ${ctx.projectNumber}`);
     const addResult = await octokit.graphql(
-      ADD_ISSUE_TO_PROJECT_MUTATION2,
+      ADD_ISSUE_TO_PROJECT_MUTATION,
       {
         projectId: projectFields.projectId,
         contentId: issue2.id
@@ -67178,7 +67470,7 @@ async function executeUpdateProjectStatus(action, ctx) {
     core3.warning(`Status option '${action.status}' not found in project`);
     return { updated: false, previousStatus: currentState.status };
   }
-  await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION2, {
+  await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
     projectId: projectFields.projectId,
     itemId,
     fieldId: projectFields.statusFieldId,
@@ -67196,7 +67488,7 @@ async function executeIncrementIteration(action, ctx) {
     action.issueNumber
   );
   const newIteration = currentState.iteration + 1;
-  await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION2, {
+  await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
     projectId: projectFields.projectId,
     itemId,
     fieldId: projectFields.iterationFieldId,
@@ -67214,7 +67506,7 @@ async function executeRecordFailure(action, ctx) {
     action.issueNumber
   );
   const newFailures = currentState.failures + 1;
-  await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION2, {
+  await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
     projectId: projectFields.projectId,
     itemId,
     fieldId: projectFields.failuresFieldId,
@@ -67231,7 +67523,7 @@ async function executeClearFailures(action, ctx) {
     ctx,
     action.issueNumber
   );
-  await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION2, {
+  await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
     projectId: projectFields.projectId,
     itemId,
     fieldId: projectFields.failuresFieldId,
@@ -67251,7 +67543,7 @@ async function executeBlock(action, ctx) {
     core3.warning("Blocked status option not found in project");
     return { blocked: false };
   }
-  await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION2, {
+  await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
     projectId: projectFields.projectId,
     itemId,
     fieldId: projectFields.statusFieldId,
@@ -67263,74 +67555,6 @@ async function executeBlock(action, ctx) {
 
 // ../../packages/statemachine/src/runner/executors/github.ts
 var core4 = __toESM(require_core(), 1);
-var GET_ISSUE_BODY_QUERY2 = `
-query GetIssueBody($owner: String!, $repo: String!, $issueNumber: Int!) {
-  repository(owner: $owner, name: $repo) {
-    issue(number: $issueNumber) {
-      id
-      body
-      parent {
-        number
-      }
-    }
-  }
-}
-`;
-var CONVERT_PR_TO_DRAFT_MUTATION2 = `
-mutation ConvertPRToDraft($prId: ID!) {
-  convertPullRequestToDraft(input: { pullRequestId: $prId }) {
-    pullRequest {
-      id
-      isDraft
-    }
-  }
-}
-`;
-var MARK_PR_READY_MUTATION2 = `
-mutation MarkPRReady($prId: ID!) {
-  markPullRequestReadyForReview(input: { pullRequestId: $prId }) {
-    pullRequest {
-      id
-      isDraft
-    }
-  }
-}
-`;
-var GET_PR_ID_QUERY2 = `
-query GetPRId($owner: String!, $repo: String!, $prNumber: Int!) {
-  repository(owner: $owner, name: $repo) {
-    pullRequest(number: $prNumber) {
-      id
-    }
-  }
-}
-`;
-var CREATE_ISSUE_MUTATION2 = `
-mutation CreateIssue($repositoryId: ID!, $title: String!, $body: String!) {
-  createIssue(input: { repositoryId: $repositoryId, title: $title, body: $body }) {
-    issue {
-      id
-      number
-    }
-  }
-}
-`;
-var ADD_SUB_ISSUE_MUTATION2 = `
-mutation AddSubIssue($parentId: ID!, $childId: ID!) {
-  addSubIssue(input: { issueId: $parentId, subIssueId: $childId }) {
-    issue {
-      id
-    }
-  }
-}
-`;
-var GET_REPO_ID_QUERY2 = `
-query GetRepoId($owner: String!, $repo: String!) {
-  repository(owner: $owner, name: $repo) {
-    id
-  }
-}
-`;
 async function executeCloseIssue(action, ctx) {
   await ctx.octokit.rest.issues.update({
     owner: ctx.owner,
@@ -67344,7 +67568,7 @@ async function executeCloseIssue(action, ctx) {
 }
 async function executeAppendHistory(action, ctx) {
   const response = await ctx.octokit.graphql(
-    GET_ISSUE_BODY_QUERY2,
+    GET_ISSUE_BODY_QUERY,
     {
       owner: ctx.owner,
       repo: ctx.repo,
@@ -67376,7 +67600,7 @@ async function executeAppendHistory(action, ctx) {
   core4.info(`Appended history: Phase ${action.phase}, ${action.message}`);
   if (parentNumber) {
     const parentResponse = await ctx.octokit.graphql(
-      GET_ISSUE_BODY_QUERY2,
+      GET_ISSUE_BODY_QUERY,
       {
         owner: ctx.owner,
         repo: ctx.repo,
@@ -67407,7 +67631,7 @@ async function executeAppendHistory(action, ctx) {
 }
 async function executeUpdateHistory(action, ctx) {
   const response = await ctx.octokit.graphql(
-    GET_ISSUE_BODY_QUERY2,
+    GET_ISSUE_BODY_QUERY,
     {
       owner: ctx.owner,
       repo: ctx.repo,
@@ -67467,7 +67691,7 @@ async function executeUpdateHistory(action, ctx) {
   }
   if (parentNumber) {
     const parentResponse = await ctx.octokit.graphql(
-      GET_ISSUE_BODY_QUERY2,
+      GET_ISSUE_BODY_QUERY,
       {
         owner: ctx.owner,
         repo: ctx.repo,
@@ -67560,7 +67784,7 @@ async function executeAssignUser(action, ctx) {
 }
 async function executeCreateSubIssues(action, ctx) {
   const repoResponse = await ctx.octokit.graphql(
-    GET_REPO_ID_QUERY2,
+    GET_REPO_ID_QUERY,
     {
       owner: ctx.owner,
       repo: ctx.repo
@@ -67571,7 +67795,7 @@ async function executeCreateSubIssues(action, ctx) {
     throw new Error("Repository not found");
   }
   const parentResponse = await ctx.octokit.graphql(
-    GET_ISSUE_BODY_QUERY2,
+    GET_ISSUE_BODY_QUERY,
     {
       owner: ctx.owner,
       repo: ctx.repo,
@@ -67588,7 +67812,7 @@ async function executeCreateSubIssues(action, ctx) {
     if (!phase) continue;
     const title = `[Phase ${i + 1}]: ${phase.title}`;
     const createResponse = await ctx.octokit.graphql(
-      CREATE_ISSUE_MUTATION2,
+      CREATE_ISSUE_MUTATION,
       {
         repositoryId: repoId,
         title,
@@ -67600,7 +67824,7 @@ async function executeCreateSubIssues(action, ctx) {
     if (!issueId || !issueNumber) {
       throw new Error(`Failed to create sub-issue for phase ${i + 1}`);
     }
-    await ctx.octokit.graphql(ADD_SUB_ISSUE_MUTATION2, {
+    await ctx.octokit.graphql(ADD_SUB_ISSUE_MUTATION, {
       parentId,
       childId: issueId
     });
@@ -67648,7 +67872,7 @@ Fixes #${action.issueNumber}`;
   return { prNumber: response.data.number };
 }
 async function executeConvertPRToDraft(action, ctx) {
-  const prResponse = await ctx.octokit.graphql(GET_PR_ID_QUERY2, {
+  const prResponse = await ctx.octokit.graphql(GET_PR_ID_QUERY, {
     owner: ctx.owner,
     repo: ctx.repo,
     prNumber: action.prNumber
@@ -67657,12 +67881,12 @@ async function executeConvertPRToDraft(action, ctx) {
   if (!prId) {
     throw new Error(`PR #${action.prNumber} not found`);
   }
-  await ctx.octokit.graphql(CONVERT_PR_TO_DRAFT_MUTATION2, { prId });
+  await ctx.octokit.graphql(CONVERT_PR_TO_DRAFT_MUTATION, { prId });
   core4.info(`Converted PR #${action.prNumber} to draft`);
   return { converted: true };
 }
 async function executeMarkPRReady(action, ctx) {
-  const prResponse = await ctx.octokit.graphql(GET_PR_ID_QUERY2, {
+  const prResponse = await ctx.octokit.graphql(GET_PR_ID_QUERY, {
     owner: ctx.owner,
     repo: ctx.repo,
     prNumber: action.prNumber
@@ -67671,7 +67895,7 @@ async function executeMarkPRReady(action, ctx) {
   if (!prId) {
     throw new Error(`PR #${action.prNumber} not found`);
   }
-  await ctx.octokit.graphql(MARK_PR_READY_MUTATION2, { prId });
+  await ctx.octokit.graphql(MARK_PR_READY_MUTATION, { prId });
   core4.info(`Marked PR #${action.prNumber} as ready for review`);
   return { ready: true };
 }
@@ -67702,7 +67926,7 @@ async function executeMergePR(action, ctx) {
     core4.warning(`Failed to add label: ${error5}`);
   }
   const response = await ctx.octokit.graphql(
-    GET_ISSUE_BODY_QUERY2,
+    GET_ISSUE_BODY_QUERY,
     {
       owner: ctx.owner,
       repo: ctx.repo,
@@ -68185,6 +68409,106 @@ async function executeRunClaude(action, ctx) {
 // ../../packages/statemachine/src/runner/executors/triage.ts
 var core7 = __toESM(require_core(), 1);
 var fs5 = __toESM(require("fs"), 1);
+
+// ../../packages/statemachine/src/parser/section-parser.ts
+function getSection2(body, sectionName) {
+  const escapedName = sectionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(
+    `## ${escapedName}\\s*\\n([\\s\\S]*?)(?=\\n## |\\n<!-- |$)`,
+    "i"
+  );
+  const match = body.match(pattern);
+  if (match?.[1]) {
+    return match[1].trim();
+  }
+  return null;
+}
+function upsertSection2(body, sectionName, content3, options = {}) {
+  const existingContent = getSection2(body, sectionName);
+  if (existingContent !== null) {
+    const escapedName = sectionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const pattern = new RegExp(
+      `(## ${escapedName}\\s*\\n)[\\s\\S]*?(?=\\n## |\\n<!-- |$)`,
+      "i"
+    );
+    return body.replace(pattern, `$1
+${content3}
+`).trim();
+  }
+  const newSection = `## ${sectionName}
+
+${content3}`;
+  if (options.sectionOrder) {
+    const targetIndex = options.sectionOrder.indexOf(sectionName);
+    if (targetIndex >= 0) {
+      for (let i = targetIndex + 1; i < options.sectionOrder.length; i++) {
+        const nextSection = options.sectionOrder[i];
+        if (nextSection !== void 0 && hasSection2(body, nextSection)) {
+          return insertBeforeSection(body, nextSection, newSection);
+        }
+      }
+      return insertAtEnd(body, newSection);
+    }
+  }
+  if (options.insertBefore && hasSection2(body, options.insertBefore)) {
+    return insertBeforeSection(body, options.insertBefore, newSection);
+  }
+  return insertAtEnd(body, newSection);
+}
+function hasSection2(body, sectionName) {
+  return getSection2(body, sectionName) !== null;
+}
+function insertBeforeSection(body, sectionName, content3) {
+  const escapedName = sectionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`(\\n?)(## ${escapedName})`, "i");
+  return body.replace(pattern, `
+
+${content3}
+$1$2`).trim();
+}
+function insertAtEnd(body, content3) {
+  const specialSections = ["Agent Notes", "Iteration History"];
+  for (const special of specialSections) {
+    if (hasSection2(body, special)) {
+      return insertBeforeSection(body, special, content3);
+    }
+  }
+  const commentMatch = body.match(/(\n<!-- [\s\S]*)/);
+  if (commentMatch?.[1]) {
+    const insertPos = body.indexOf(commentMatch[1]);
+    return (body.slice(0, insertPos) + "\n\n" + content3 + body.slice(insertPos)).trim();
+  }
+  return (body + "\n\n" + content3).trim();
+}
+function upsertSections2(body, sections, sectionOrder) {
+  let result = body;
+  for (const section of sections) {
+    result = upsertSection2(result, section.name, section.content, {
+      sectionOrder
+    });
+  }
+  return result;
+}
+var STANDARD_SECTION_ORDER2 = [
+  "Description",
+  "Requirements",
+  "Approach",
+  "Acceptance Criteria",
+  "Testing",
+  "Related",
+  "Questions",
+  "Todo",
+  "Agent Notes",
+  "Iteration History"
+];
+function formatRequirements2(requirements) {
+  if (requirements.length === 0) {
+    return "_No specific requirements identified._";
+  }
+  return requirements.map((r) => `- ${r}`).join("\n");
+}
+
+// ../../packages/statemachine/src/runner/executors/triage.ts
 async function executeApplyTriageOutput(action, ctx, structuredOutput) {
   const { issueNumber, filePath } = action;
   let triageOutput;
@@ -68304,7 +68628,7 @@ async function updateIssueStructure(ctx, issueNumber, requirements, initialAppro
     if (requirements.length > 0) {
       sections.push({
         name: "Requirements",
-        content: formatRequirements(requirements)
+        content: formatRequirements2(requirements)
       });
     }
     if (initialApproach) {
@@ -68320,10 +68644,10 @@ async function updateIssueStructure(ctx, issueNumber, requirements, initialAppro
         content: questionsContent
       });
     }
-    const newBody = upsertSections(
+    const newBody = upsertSections2(
       currentBody,
       sections,
-      STANDARD_SECTION_ORDER
+      STANDARD_SECTION_ORDER2
     );
     await ctx.octokit.rest.issues.update({
       owner: ctx.owner,
@@ -68352,41 +68676,6 @@ async function linkRelatedIssues(ctx, issueNumber, relatedIssues) {
     core7.warning(`Failed to link related issues: ${error5}`);
   }
 }
-var GET_PROJECT_FIELDS_QUERY = `
-query($owner: String!, $projectNumber: Int!) {
-  organization(login: $owner) {
-    projectV2(number: $projectNumber) {
-      id
-      fields(first: 30) {
-        nodes {
-          ... on ProjectV2SingleSelectField {
-            id
-            name
-            options { id name }
-          }
-          ... on ProjectV2Field {
-            id
-            name
-            dataType
-          }
-        }
-      }
-    }
-  }
-}
-`;
-var UPDATE_PROJECT_FIELD_MUTATION3 = `
-mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
-  updateProjectV2ItemFieldValue(input: {
-    projectId: $projectId
-    itemId: $itemId
-    fieldId: $fieldId
-    value: $value
-  }) {
-    projectV2Item { id }
-  }
-}
-`;
 async function getProjectInfo(ctx) {
   try {
     const result = await ctx.octokit.graphql(GET_PROJECT_FIELDS_QUERY, {
@@ -68469,7 +68758,7 @@ async function applyProjectFields(ctx, issueNumber, classification) {
     if (classification.priority && classification.priority !== "null" && classification.priority !== "none" && projectInfo.priorityFieldId) {
       const optionId = projectInfo.priorityOptions[classification.priority.toLowerCase()];
       if (optionId) {
-        await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION3, {
+        await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
           projectId: projectInfo.projectId,
           itemId: projectItem.id,
           fieldId: projectInfo.priorityFieldId,
@@ -68481,7 +68770,7 @@ async function applyProjectFields(ctx, issueNumber, classification) {
     if (classification.size && projectInfo.sizeFieldId) {
       const optionId = projectInfo.sizeOptions[classification.size.toLowerCase()];
       if (optionId) {
-        await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION3, {
+        await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
           projectId: projectInfo.projectId,
           itemId: projectItem.id,
           fieldId: projectInfo.sizeFieldId,
@@ -68491,7 +68780,7 @@ async function applyProjectFields(ctx, issueNumber, classification) {
       }
     }
     if (classification.estimate && projectInfo.estimateFieldId) {
-      await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION3, {
+      await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
         projectId: projectInfo.projectId,
         itemId: projectItem.id,
         fieldId: projectInfo.estimateFieldId,
@@ -68551,7 +68840,7 @@ async function executeApplyIterateOutput(action, ctx, structuredOutput) {
       todosToCheck.push(iterateOutput.todo_completed);
     }
     for (const todoText of todosToCheck) {
-      const result = checkOffTodoInBody(body, todoText);
+      const result = checkOffTodoInBody2(body, todoText);
       if (result.found) {
         body = result.body;
         bodyChanged = true;
@@ -68596,7 +68885,7 @@ async function executeApplyIterateOutput(action, ctx, structuredOutput) {
   }
   return { applied: true, status: iterateOutput.status };
 }
-function checkOffTodoInBody(body, todoText) {
+function checkOffTodoInBody2(body, todoText) {
   const normalizedTodoText = todoText.trim().toLowerCase();
   const lines = body.split("\n");
   let found = false;
@@ -68805,106 +69094,6 @@ async function executeAppendAgentNotes(action, ctx) {
 
 // ../../packages/statemachine/src/runner/executors/discussions.ts
 var core12 = __toESM(require_core(), 1);
-var ADD_DISCUSSION_COMMENT_MUTATION2 = `
-mutation AddDiscussionComment($discussionId: ID!, $body: String!) {
-  addDiscussionComment(input: {
-    discussionId: $discussionId
-    body: $body
-  }) {
-    comment {
-      id
-      body
-    }
-  }
-}
-`;
-var ADD_DISCUSSION_REPLY_MUTATION = `
-mutation AddDiscussionReply($discussionId: ID!, $replyToId: ID!, $body: String!) {
-  addDiscussionComment(input: {
-    discussionId: $discussionId
-    replyToId: $replyToId
-    body: $body
-  }) {
-    comment {
-      id
-      body
-    }
-  }
-}
-`;
-var UPDATE_DISCUSSION_MUTATION = `
-mutation UpdateDiscussion($discussionId: ID!, $body: String!) {
-  updateDiscussion(input: {
-    discussionId: $discussionId
-    body: $body
-  }) {
-    discussion {
-      id
-      body
-    }
-  }
-}
-`;
-var ADD_REACTION_MUTATION = `
-mutation AddReaction($subjectId: ID!, $content: ReactionContent!) {
-  addReaction(input: {
-    subjectId: $subjectId
-    content: $content
-  }) {
-    reaction {
-      id
-      content
-    }
-  }
-}
-`;
-var GET_DISCUSSION_ID_QUERY2 = `
-query GetDiscussionId($owner: String!, $repo: String!, $number: Int!) {
-  repository(owner: $owner, name: $repo) {
-    discussion(number: $number) {
-      id
-    }
-  }
-}
-`;
-var GET_REPO_ID_QUERY3 = `
-query GetRepoId($owner: String!, $repo: String!) {
-  repository(owner: $owner, name: $repo) {
-    id
-  }
-}
-`;
-var CREATE_ISSUE_MUTATION3 = `
-mutation CreateIssue($repositoryId: ID!, $title: String!, $body: String!) {
-  createIssue(input: { repositoryId: $repositoryId, title: $title, body: $body }) {
-    issue {
-      id
-      number
-    }
-  }
-}
-`;
-var ADD_LABELS_MUTATION = `
-mutation AddLabelsToLabelable($labelableId: ID!, $labelIds: [ID!]!) {
-  addLabelsToLabelable(input: { labelableId: $labelableId, labelIds: $labelIds }) {
-    labelable {
-      __typename
-    }
-  }
-}
-`;
-var GET_LABEL_IDS_QUERY = `
-query GetLabelIds($owner: String!, $repo: String!, $names: [String!]!) {
-  repository(owner: $owner, name: $repo) {
-    labels(first: 100, query: "") {
-      nodes {
-        id
-        name
-      }
-    }
-  }
-}
-`;
 async function executeAddDiscussionComment(action, ctx) {
   let response;
   if (action.replyToNodeId) {
@@ -68918,7 +69107,7 @@ async function executeAddDiscussionComment(action, ctx) {
     );
   } else {
     response = await ctx.octokit.graphql(
-      ADD_DISCUSSION_COMMENT_MUTATION2,
+      ADD_DISCUSSION_COMMENT_MUTATION,
       {
         discussionId: action.discussionNodeId,
         body: action.body
@@ -68965,7 +69154,7 @@ async function executeAddDiscussionReaction(action, ctx) {
 }
 async function executeCreateIssuesFromDiscussion(action, ctx) {
   const repoResponse = await ctx.octokit.graphql(
-    GET_REPO_ID_QUERY3,
+    GET_REPO_ID_QUERY,
     {
       owner: ctx.owner,
       repo: ctx.repo
@@ -68976,7 +69165,7 @@ async function executeCreateIssuesFromDiscussion(action, ctx) {
     throw new Error("Repository not found");
   }
   const discussionResponse = await ctx.octokit.graphql(
-    GET_DISCUSSION_ID_QUERY2,
+    GET_DISCUSSION_ID_QUERY,
     {
       owner: ctx.owner,
       repo: ctx.repo,
@@ -69004,7 +69193,7 @@ async function executeCreateIssuesFromDiscussion(action, ctx) {
 ---
 *Created from discussion #${action.discussionNumber}*` : issueDef.body;
     const createResponse = await ctx.octokit.graphql(
-      CREATE_ISSUE_MUTATION3,
+      CREATE_ISSUE_MUTATION,
       {
         repositoryId: repoId,
         title: issueDef.title,
@@ -69563,17 +69752,10 @@ ${todoList}`;
           repo: ctx.repo,
           issue_number: action.issueNumber
         });
-        await ctx.octokit.graphql(
-          `mutation AddSubIssue($parentId: ID!, $subIssueId: ID!) {
-            addSubIssue(input: { issueId: $parentId, subIssueId: $subIssueId }) {
-              issue { id }
-            }
-          }`,
-          {
-            parentId: parentIssue.node_id,
-            subIssueId: createdIssue.node_id
-          }
-        );
+        await ctx.octokit.graphql(ADD_SUB_ISSUE_MUTATION, {
+          parentId: parentIssue.node_id,
+          childId: createdIssue.node_id
+        });
         core16.info(`Linked sub-issue #${createdIssue.number} to parent`);
       } catch (error5) {
         core16.warning(`Failed to link sub-issue via GraphQL: ${error5}`);

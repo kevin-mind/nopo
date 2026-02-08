@@ -62,6 +62,14 @@ export function hasSubIssues({ context }: GuardContext): boolean {
 }
 
 /**
+ * Check if the current issue IS a sub-issue (has a parent)
+ * Only sub-issues can be iterated on directly - parent issues must go through orchestration
+ */
+export function isSubIssue({ context }: GuardContext): boolean {
+  return context.parentIssue !== null;
+}
+
+/**
  * Check if the issue needs sub-issues created
  * (This would be determined by issue content/labels - placeholder for now)
  */
@@ -605,6 +613,7 @@ export const guards = {
   isTerminal,
   // Sub-issue guards
   hasSubIssues,
+  isSubIssue,
   needsSubIssues,
   allPhasesDone,
   // Orchestration guards

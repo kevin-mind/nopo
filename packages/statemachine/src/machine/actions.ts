@@ -106,6 +106,63 @@ export function emitSetBlocked({ context }: ActionContext): ActionResult {
   ];
 }
 
+/**
+ * Emit action to set status to Error
+ */
+export function emitSetError({ context }: ActionContext): ActionResult {
+  return [
+    {
+      type: "updateProjectStatus",
+      token: "code",
+      issueNumber: context.issue.number,
+      status: "Error" as ProjectStatus,
+    },
+  ];
+}
+
+/**
+ * Emit action to log invalid iteration attempt
+ *
+ * This is logged when a parent issue without sub-issues tries to iterate.
+ * Only sub-issues (issues with a parent) can be iterated on directly.
+ */
+export function emitLogInvalidIteration({
+  context,
+}: ActionContext): ActionResult {
+  const message =
+    "❌ FATAL: Cannot iterate on parent issue without sub-issues. " +
+    "Only sub-issues can be iterated on directly. " +
+    "Run grooming to create sub-issues first.";
+
+  return [
+    {
+      type: "appendHistory",
+      token: "code",
+      issueNumber: context.issue.number,
+      iteration: context.issue.iteration,
+      phase: String(context.currentPhase ?? "-"),
+      message,
+      timestamp: context.workflowStartedAt ?? undefined,
+      commitSha: context.ciCommitSha ?? undefined,
+      runLink: context.ciRunUrl ?? undefined,
+    },
+    {
+      type: "addComment",
+      token: "code",
+      issueNumber: context.issue.number,
+      body:
+        `## ❌ Invalid Iteration Attempt\n\n` +
+        `This issue cannot be iterated on directly because it has no parent issue.\n\n` +
+        `**Only sub-issues can be iterated on.** Parent issues must go through ` +
+        `orchestration which manages their sub-issues.\n\n` +
+        `### To Fix\n\n` +
+        `1. Run grooming on this issue to create sub-issues\n` +
+        `2. Then trigger orchestration on the parent issue\n\n` +
+        `Issue #${context.issue.number} has been set to Error status.`,
+    },
+  ];
+}
+
 // ============================================================================
 // Iteration/Failure Actions
 // ============================================================================

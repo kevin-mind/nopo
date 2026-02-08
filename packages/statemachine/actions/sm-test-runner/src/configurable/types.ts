@@ -43,6 +43,7 @@ const StateNameSchema = z.enum([
   "reviewing",
   "blocked",
   "error",
+  "invalidIteration",
   "done",
 
   // Logging states
@@ -194,6 +195,23 @@ export const StateFixtureSchema = z.object({
 
   /** Pivot description from /pivot command (for pivot scenarios) */
   pivotDescription: z.string().optional(),
+
+  /**
+   * Parent issue for sub-issue scenarios.
+   * If provided, the fixture's `issue` is treated as a sub-issue.
+   * This is REQUIRED for iteration states - only sub-issues can iterate.
+   */
+  parentIssue: z
+    .object({
+      number: z.number().int().nonnegative(), // 0 = placeholder
+      title: z.string(),
+      state: z.enum(["OPEN", "CLOSED"]),
+      body: z.string(),
+      projectStatus: z.string().nullable(),
+      iteration: z.number().int().nonnegative(),
+      failures: z.number().int().nonnegative(),
+    })
+    .optional(),
 
   /** Reference to a claude mock file (when mock_claude=true) */
   claudeMock: z.string().optional(),

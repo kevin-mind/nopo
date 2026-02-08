@@ -29,3 +29,20 @@ query GetPRId($owner: String!, $repo: String!, $prNumber: Int!) {
   }
 }
 `;
+
+export const GET_PR_REVIEWS_QUERY = `
+query GetPRReviews($owner: String!, $repo: String!, $prNumber: Int!) {
+  repository(owner: $owner, name: $repo) {
+    pullRequest(number: $prNumber) {
+      reviews(first: 50) {
+        nodes {
+          id
+          state
+          author { login }
+          body
+        }
+      }
+    }
+  }
+}
+`;

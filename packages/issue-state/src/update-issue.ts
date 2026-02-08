@@ -6,14 +6,22 @@ import type { OctokitLike } from "./client.js";
 import type { IssueStateData } from "./schemas/index.js";
 import { computeDiff } from "./diff.js";
 import { serializeMarkdown } from "./markdown/ast.js";
+import { updateProjectFields } from "./project-helpers.js";
+
+export interface UpdateIssueOptions {
+  /** Project number for updating project fields */
+  projectNumber?: number;
+}
 
 export async function updateIssue(
   original: IssueStateData,
   updated: IssueStateData,
   octokit: OctokitLike,
+  options: UpdateIssueOptions = {},
 ): Promise<void> {
   const { owner, repo } = updated;
   const diff = computeDiff(original.issue, updated.issue);
+  const { projectNumber } = options;
 
   const promises: Promise<unknown>[] = [];
 
@@ -99,6 +107,43 @@ export async function updateIssue(
         issue_number: updated.issue.number,
         assignees: diff.assigneesRemoved,
       }),
+    );
+  }
+
+  // Project fields changed
+  if (
+    projectNumber &&
+    (diff.projectStatusChanged ||
+      diff.iterationChanged ||
+      diff.failuresChanged)
+  ) {
+    const fieldsToUpdate: {
+      status?: typeof updated.issue.projectStatus;
+      iteration?: number;
+      failures?: number;
+    } = {};
+
+    if (diff.projectStatusChanged) {
+      fieldsToUpdate.status = updated.issue.projectStatus;
+    }
+
+    if (diff.iterationChanged) {
+      fieldsToUpdate.iteration = updated.issue.iteration;
+    }
+
+    if (diff.failuresChanged) {
+      fieldsToUpdate.failures = updated.issue.failures;
+    }
+
+    promises.push(
+      updateProjectFields(
+        octokit,
+        owner,
+        repo,
+        updated.issue.number,
+        projectNumber,
+        fieldsToUpdate,
+      ),
     );
   }
 

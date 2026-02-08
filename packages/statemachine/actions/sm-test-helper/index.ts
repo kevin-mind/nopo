@@ -121,6 +121,44 @@ query GetSubIssues($org: String!, $repo: String!, $parentNumber: Int!) {
 }
 `;
 
+// Query to get PRs linked to an issue via "Fixes #<number>" or similar
+const GET_ISSUE_LINKED_PRS_QUERY = `
+query GetIssueLinkedPRs($org: String!, $repo: String!, $issueNumber: Int!) {
+  repository(owner: $org, name: $repo) {
+    issue(number: $issueNumber) {
+      id
+      number
+      timelineItems(first: 50, itemTypes: [CROSS_REFERENCED_EVENT, CONNECTED_EVENT]) {
+        nodes {
+          ... on CrossReferencedEvent {
+            source {
+              ... on PullRequest {
+                number
+                title
+                state
+                headRefName
+                url
+              }
+            }
+          }
+          ... on ConnectedEvent {
+            subject {
+              ... on PullRequest {
+                number
+                title
+                state
+                headRefName
+                url
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+`;
+
 const ADD_ISSUE_TO_PROJECT_MUTATION = `
 mutation AddIssueToProject($projectId: ID!, $contentId: ID!) {
   addProjectV2ItemById(input: {
@@ -1947,52 +1985,75 @@ async function snapshotResources(
     }
   }
 
-  // Get open PRs related to this issue
-  const { data: prs } = await octokit.rest.pulls.list({
-    owner,
-    repo,
-    state: "all",
-    per_page: 100,
-  });
-
+  // Get linked PRs for parent and all sub-issues using GitHub's timeline API
+  // This finds PRs that have "Fixes #<issue>" linking
   const relatedPRs: ResourceSnapshot["pullRequests"] = [];
-  const subIssueNumbers = subIssues.map((s) => s.number);
+  const branches: ResourceSnapshot["branches"] = [];
+  const allIssueNumbers = [issueNumber, ...subIssues.map((s) => s.number)];
 
-  for (const pr of prs) {
-    if (
-      pr.title.includes("[TEST]") &&
-      (pr.body?.includes(`#${issueNumber}`) ||
-        subIssueNumbers.some((num) => pr.body?.includes(`#${num}`)))
-    ) {
-      relatedPRs.push({
-        number: pr.number,
-        title: pr.title,
-        state: pr.state,
-        branch: pr.head.ref,
-        url: pr.html_url,
-      });
-    }
+  interface LinkedPRsResponse {
+    repository?: {
+      issue?: {
+        timelineItems?: {
+          nodes?: Array<{
+            source?: {
+              number?: number;
+              title?: string;
+              state?: string;
+              headRefName?: string;
+              url?: string;
+            };
+            subject?: {
+              number?: number;
+              title?: string;
+              state?: string;
+              headRefName?: string;
+              url?: string;
+            };
+          }>;
+        };
+      };
+    };
   }
 
-  // Get test branches
-  const branches: ResourceSnapshot["branches"] = [];
-  try {
-    const { data: refs } = await octokit.rest.git.listMatchingRefs({
-      owner,
-      repo,
-      ref: "heads/test/",
-    });
+  for (const issueNum of allIssueNumbers) {
+    try {
+      const response = await octokit.graphql<LinkedPRsResponse>(
+        GET_ISSUE_LINKED_PRS_QUERY,
+        { org: owner, repo, issueNumber: issueNum },
+      );
 
-    for (const ref of refs) {
-      if (ref.ref.includes(String(issueNumber))) {
-        branches.push({
-          name: ref.ref.replace("refs/heads/", ""),
-          ref: ref.ref,
-        });
+      const timelineNodes =
+        response.repository?.issue?.timelineItems?.nodes || [];
+
+      for (const node of timelineNodes) {
+        // Handle both CrossReferencedEvent (source) and ConnectedEvent (subject)
+        const pr = node.source || node.subject;
+        if (pr?.number && pr?.headRefName) {
+          // Avoid duplicates
+          if (!relatedPRs.some((p) => p.number === pr.number)) {
+            relatedPRs.push({
+              number: pr.number,
+              title: pr.title || "",
+              state: pr.state?.toLowerCase() || "open",
+              branch: pr.headRefName,
+              url: pr.url || "",
+            });
+
+            // Add branch from PR (branches come from PRs, not searched separately)
+            if (!branches.some((b) => b.name === pr.headRefName)) {
+              branches.push({
+                name: pr.headRefName,
+                ref: `refs/heads/${pr.headRefName}`,
+              });
+            }
+          }
+        }
       }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      core.debug(`Failed to get linked PRs for issue #${issueNum}: ${msg}`);
     }
-  } catch {
-    // Ignore errors listing branches
   }
 
   // Get running workflow runs

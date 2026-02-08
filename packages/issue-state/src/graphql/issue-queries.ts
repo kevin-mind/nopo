@@ -105,6 +105,12 @@ query GetPRForBranch($owner: String!, $repo: String!, $headRef: String!) {
         isDraft
         headRefName
         baseRefName
+        url
+        mergeable
+        reviewDecision
+        reviews(first: 50) {
+          totalCount
+        }
         commits(last: 1) {
           nodes {
             commit {
@@ -138,6 +144,91 @@ query GetIssueBody($owner: String!, $repo: String!, $issueNumber: Int!) {
       body
       parent {
         number
+      }
+    }
+  }
+}
+`;
+
+export const GET_SUB_ISSUES_QUERY = `
+query GetSubIssues($owner: String!, $repo: String!, $issueNumber: Int!) {
+  repository(owner: $owner, name: $repo) {
+    issue(number: $issueNumber) {
+      subIssues(first: 50) {
+        nodes {
+          id
+          number
+          title
+          state
+        }
+      }
+    }
+  }
+}
+`;
+
+export const GET_ISSUE_PROJECT_STATUS_QUERY = `
+query GetIssueProjectStatus($owner: String!, $repo: String!, $issueNumber: Int!) {
+  repository(owner: $owner, name: $repo) {
+    issue(number: $issueNumber) {
+      id
+      state
+      projectItems(first: 10) {
+        nodes {
+          fieldValues(first: 20) {
+            nodes {
+              ... on ProjectV2ItemFieldSingleSelectValue {
+                name
+                field { ... on ProjectV2SingleSelectField { name } }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+`;
+
+export const GET_REPOSITORY_INFO_QUERY = `
+query GetRepositoryInfo($owner: String!, $repo: String!) {
+  repository(owner: $owner, name: $repo) {
+    id
+  }
+}
+`;
+
+export const GET_ISSUE_LINKED_PRS_QUERY = `
+query GetIssueLinkedPRs($owner: String!, $repo: String!, $issueNumber: Int!) {
+  repository(owner: $owner, name: $repo) {
+    issue(number: $issueNumber) {
+      id
+      number
+      timelineItems(first: 50, itemTypes: [CROSS_REFERENCED_EVENT, CONNECTED_EVENT]) {
+        nodes {
+          ... on CrossReferencedEvent {
+            source {
+              ... on PullRequest {
+                number
+                title
+                state
+                headRefName
+                url
+              }
+            }
+          }
+          ... on ConnectedEvent {
+            subject {
+              ... on PullRequest {
+                number
+                title
+                state
+                headRefName
+                url
+              }
+            }
+          }
+        }
       }
     }
   }

@@ -6,6 +6,7 @@
  */
 
 import * as core from "@actions/core";
+import { GET_DISCUSSION_QUERY } from "@more/issue-state";
 import type {
   DiscussionContext,
   Discussion,
@@ -13,36 +14,6 @@ import type {
 } from "../schemas/discussion-context.js";
 import { createDiscussionContext } from "../schemas/discussion-context.js";
 import type { DiscussionTriggerType } from "../schemas/discussion-triggers.js";
-
-// ============================================================================
-// GraphQL Queries
-// ============================================================================
-
-const GET_DISCUSSION_QUERY = `
-query GetDiscussion($owner: String!, $repo: String!, $number: Int!) {
-  repository(owner: $owner, name: $repo) {
-    discussion(number: $number) {
-      id
-      number
-      title
-      body
-      comments(first: 100) {
-        totalCount
-        nodes {
-          id
-          body
-          author {
-            login
-          }
-          replies(first: 100) {
-            totalCount
-          }
-        }
-      }
-    }
-  }
-}
-`;
 
 // ============================================================================
 // Types

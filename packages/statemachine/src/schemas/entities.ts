@@ -1,88 +1,44 @@
+/**
+ * Entity schemas for the state machine.
+ *
+ * Common types (TodoItem, HistoryEntry, etc.) are re-exported from @more/issue-state.
+ * Statemachine-specific types (ParentIssue, SubIssue, etc.) are defined here.
+ */
+
 import { z } from "zod";
 
-/**
- * Project field values for Status single-select field
- *
- * NOTE: These must match the exact option names in the GitHub Project.
- * GitHub project has: Backlog, In progress, Ready, In review, Done, Blocked, Error
- * (note lowercase "progress" and "In review" not "Review")
- *
- * Parent issues use: Backlog, In progress, Done, Blocked, Error
- * Sub-issues use: Ready, In progress, In review, Done
- */
-export const ProjectStatusSchema = z.enum([
-  "Backlog",
-  "In progress",
-  "Ready",
-  "In review",
-  "Done",
-  "Blocked",
-  "Error",
-]);
+// Re-export common types from @more/issue-state
+export {
+  // Schema exports
+  ProjectStatusSchema,
+  IssueStateSchema,
+  PRStateSchema,
+  CIStatusSchema,
+  TodoItemSchema,
+  TodoStatsSchema,
+  HistoryEntrySchema,
+  AgentNotesEntrySchema,
+  // Type exports
+  type ProjectStatus,
+  type IssueState,
+  type PRState,
+  type CIStatus,
+  type TodoItem,
+  type TodoStats,
+  type HistoryEntry,
+  type AgentNotesEntry,
+} from "@more/issue-state";
 
-export type ProjectStatus = z.infer<typeof ProjectStatusSchema>;
-
-/**
- * GitHub issue state (OPEN or CLOSED)
- */
-export const IssueStateSchema = z.enum(["OPEN", "CLOSED"]);
-
-export type IssueState = z.infer<typeof IssueStateSchema>;
-
-/**
- * Pull request state
- */
-export const PRStateSchema = z.enum(["OPEN", "CLOSED", "MERGED"]);
-
-export type PRState = z.infer<typeof PRStateSchema>;
-
-/**
- * Todo item parsed from issue body
- */
-export const TodoItemSchema = z.object({
-  text: z.string(),
-  checked: z.boolean(),
-  isManual: z.boolean(),
-});
-
-export type TodoItem = z.infer<typeof TodoItemSchema>;
-
-/**
- * Aggregated todo statistics
- */
-export const TodoStatsSchema = z.object({
-  total: z.number().int().min(0),
-  completed: z.number().int().min(0),
-  uncheckedNonManual: z.number().int().min(0),
-});
-
-export type TodoStats = z.infer<typeof TodoStatsSchema>;
-
-/**
- * Iteration history entry from the history table
- */
-export const HistoryEntrySchema = z.object({
-  iteration: z.number().int().min(0),
-  phase: z.string(),
-  action: z.string(),
-  timestamp: z.string().nullable(),
-  sha: z.string().nullable(),
-  runLink: z.string().nullable(),
-});
-
-export type HistoryEntry = z.infer<typeof HistoryEntrySchema>;
-
-/**
- * Agent notes entry from a workflow run
- */
-export const AgentNotesEntrySchema = z.object({
-  runId: z.string(),
-  runLink: z.string(),
-  timestamp: z.string(),
-  notes: z.array(z.string()),
-});
-
-export type AgentNotesEntry = z.infer<typeof AgentNotesEntrySchema>;
+// Import schemas we need to use in local types
+import {
+  ProjectStatusSchema,
+  IssueStateSchema,
+  CIStatusSchema,
+  TodoStatsSchema,
+  HistoryEntrySchema,
+  AgentNotesEntrySchema,
+} from "@more/issue-state";
+import type { ProjectStatus } from "@more/issue-state";
 
 /**
  * Issue comment from GitHub
@@ -98,24 +54,11 @@ export const IssueCommentSchema = z.object({
 export type IssueComment = z.infer<typeof IssueCommentSchema>;
 
 /**
- * Status check rollup state from GitHub GraphQL API
- */
-export const CIStatusSchema = z.enum([
-  "SUCCESS",
-  "FAILURE",
-  "PENDING",
-  "ERROR",
-  "EXPECTED",
-]);
-
-export type CIStatus = z.infer<typeof CIStatusSchema>;
-
-/**
  * Pull request associated with a sub-issue
  */
 export const LinkedPRSchema = z.object({
   number: z.number().int().positive(),
-  state: PRStateSchema,
+  state: z.enum(["OPEN", "CLOSED", "MERGED"]),
   isDraft: z.boolean(),
   title: z.string(),
   headRef: z.string(),

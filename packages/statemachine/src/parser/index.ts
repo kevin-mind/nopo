@@ -1,5 +1,11 @@
-// Todo parsing
+/**
+ * Parser module - re-exports body section parsers from @more/issue-state
+ * and provides statemachine-specific adapters.
+ */
+
+// Re-export all section parsers from @more/issue-state
 export {
+  // Todo parsing
   parseTodoLine,
   parseTodos,
   calculateTodoStats,
@@ -12,10 +18,9 @@ export {
   parseTestingSection,
   updateTodoInBody,
   addTodoToBody,
-} from "./todo-parser.js";
-
-// History parsing
-export {
+  checkOffTodoInBody,
+  uncheckTodoInBody,
+  // History parsing
   HISTORY_SECTION,
   parseHistory,
   parseHistoryRow,
@@ -28,30 +33,14 @@ export {
   getPhaseHistory,
   hasHistoryEntry,
   formatHistoryCells,
-} from "./history-parser.js";
-
-// Agent notes parsing
-export {
+  // Agent notes parsing
   AGENT_NOTES_SECTION,
   parseAgentNotes,
   formatAgentNotesForPrompt,
   appendAgentNotes,
   removeAgentNotesSection,
   extractAgentNotesSection,
-} from "./agent-notes-parser.js";
-
-// Issue adapter
-export {
-  buildMachineContextFromIssue,
-  deriveBranchName,
-  type BuildContextOptions,
-} from "./issue-adapter.js";
-
-// State parser - has type errors that need fixing
-// export { buildMachineContext } from "./state-parser.js";
-
-// Section parser
-export {
+  // Section manipulation
   getSection,
   removeSection,
   upsertSection,
@@ -61,13 +50,26 @@ export {
   formatQuestions,
   formatRelated,
   STANDARD_SECTION_ORDER,
+  // Types
+  type TodoItem,
+  type TodoStats,
+  type HistoryEntry,
+  type AgentNotesEntry,
   type SectionContent,
-} from "./section-parser.js";
+  // Builders
+  HistoryEntryBuilder,
+  type HistoryEntryOptions,
+} from "@more/issue-state";
+
+// Issue adapter (statemachine-specific)
+export {
+  buildMachineContextFromIssue,
+  deriveBranchName,
+  type BuildContextOptions,
+} from "./issue-adapter.js";
 
 // State parser - builds MachineContext from GitHub API
 export {
   buildMachineContext,
   buildDiscussionContext,
-  // Note: deriveBranchName is also exported from issue-adapter.ts
-  // Use the one from issue-adapter for consistency
 } from "./state-parser.js";

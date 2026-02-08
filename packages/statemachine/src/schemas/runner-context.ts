@@ -266,6 +266,140 @@ export const WorkflowContextSchema = z.object({
 export type WorkflowContext = z.infer<typeof WorkflowContextSchema>;
 
 // ============================================================================
+// Minimal Trigger Context Schema
+// ============================================================================
+
+/**
+ * Minimal Trigger Context - event-derived data only
+ *
+ * This schema contains ONLY data that:
+ * 1. Comes directly from the GitHub event (not queryable)
+ * 2. Is needed for routing and workflow control
+ * 3. Represents point-in-time event data (CI results, review decisions)
+ *
+ * All other data (issue details, project fields, sub-issues, PRs, branches)
+ * should be fetched via parseIssue() in the state machine.
+ *
+ * This is the new "narrow waist" between detect-event and sm-runner.
+ */
+export const MinimalTriggerContextSchema = z.object({
+  // ========================================
+  // Routing & Control (required)
+  // ========================================
+
+  /** Job type to run */
+  job: JobTypeSchema,
+
+  /** Trigger type for the state machine */
+  trigger: TriggerTypeSchema,
+
+  /** Type of resource being processed */
+  resource_type: ResourceTypeSchema,
+
+  /** Resource number (issue, PR, or discussion number) */
+  resource_number: z.string(),
+
+  /** Concurrency group name */
+  concurrency_group: z.string(),
+
+  /** Whether to cancel in-progress runs in the same group */
+  cancel_in_progress: z.boolean().default(false),
+
+  /** Whether to skip processing */
+  skip: z.boolean().default(false),
+
+  /** Reason for skipping (if skip is true) */
+  skip_reason: z.string().default(""),
+
+  /** Comment ID that triggered this run (for reactions) */
+  comment_id: z.string().default(""),
+
+  // ========================================
+  // CI Event Data (workflow_run_completed only)
+  // ========================================
+
+  /** CI result (point-in-time from workflow_run event) */
+  ci_result: CIResultSchema.optional(),
+
+  /** CI run URL (point-in-time from workflow_run event) */
+  ci_run_url: z.string().optional(),
+
+  /** CI commit SHA (point-in-time from workflow_run event) */
+  ci_commit_sha: z.string().optional(),
+
+  // ========================================
+  // Review Event Data (pr_review_submitted only)
+  // ========================================
+
+  /** Review decision (point-in-time from review event) */
+  review_decision: ReviewDecisionSchema.optional(),
+
+  /** Review state (lowercase: approved, changes_requested, commented) */
+  review_state: z.string().optional(),
+
+  /** Review body (point-in-time from review event) */
+  review_body: z.string().optional(),
+
+  /** Review ID (point-in-time from review event) */
+  review_id: z.string().optional(),
+
+  /** Reviewer username (point-in-time from review event) */
+  reviewer: z.string().optional(),
+
+  // ========================================
+  // Comment Event Data (issue_comment only)
+  // ========================================
+
+  /** Context type for @claude mentions (issue or pr) */
+  context_type: ContextTypeSchema.optional(),
+
+  /** Context description for @claude mentions */
+  context_description: z.string().optional(),
+
+  /** Pivot description (for /pivot command) */
+  pivot_description: z.string().optional(),
+
+  // ========================================
+  // Discussion Event Data
+  // ========================================
+
+  /** Discussion number (for discussion triggers) */
+  discussion_number: z.string().optional(),
+
+  /** Discussion command (/summarize, /plan, /complete) */
+  command: DiscussionCommandSchema.optional(),
+
+  /** Comment body (for discussion comments) */
+  comment_body: z.string().optional(),
+
+  /** Comment author username */
+  comment_author: z.string().optional(),
+
+  /** Whether this is a test automation run */
+  is_test_automation: z.boolean().optional(),
+
+  // ========================================
+  // Merge Queue Event Data
+  // ========================================
+
+  /** Merge queue head ref */
+  head_ref: z.string().optional(),
+
+  /** Merge queue head SHA */
+  head_sha: z.string().optional(),
+});
+
+export type MinimalTriggerContext = z.infer<typeof MinimalTriggerContextSchema>;
+
+/**
+ * Parse and validate minimal trigger context from JSON string
+ */
+export function parseMinimalTriggerContext(json: string): MinimalTriggerContext {
+  const parsed = JSON.parse(json);
+  return MinimalTriggerContextSchema.parse(parsed);
+}
+
+// ============================================================================
 // Helper Functions
 // ============================================================================
 

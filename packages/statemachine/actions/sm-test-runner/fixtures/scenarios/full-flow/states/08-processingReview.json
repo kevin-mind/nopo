@@ -1,5 +1,14 @@
 {
   "state": "processingReview",
+  "parentIssue": {
+    "number": 0,
+    "title": "Parent: Add test utility function",
+    "state": "OPEN",
+    "body": "Parent issue body",
+    "projectStatus": "In progress",
+    "iteration": 0,
+    "failures": 0
+  },
   "issue": {
     "number": 0,
     "title": "Add test utility function for e2e validation",
