@@ -324,7 +324,9 @@ function buildPhaseIssueBody(phase: RecommendedPhase): Root {
   const children: Root["children"] = [];
 
   // Description section
-  children.push(...createSection("Description", [createParagraph(phase.description)]));
+  children.push(
+    ...createSection("Description", [createParagraph(phase.description)]),
+  );
 
   // Affected Areas section
   if (phase.affected_areas && phase.affected_areas.length > 0) {
@@ -333,7 +335,9 @@ function buildPhaseIssueBody(phase: RecommendedPhase): Root {
       const desc = area.description ? ` - ${area.description}` : "";
       return `\`${area.path}\`${changeType}${desc}`;
     });
-    children.push(...createSection("Affected Areas", [createBulletList(areas)]));
+    children.push(
+      ...createSection("Affected Areas", [createBulletList(areas)]),
+    );
   }
 
   // Todo section

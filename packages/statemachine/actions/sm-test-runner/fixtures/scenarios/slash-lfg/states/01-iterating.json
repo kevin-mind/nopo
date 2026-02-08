@@ -1,6 +1,15 @@
 {
   "state": "iterating",
   "trigger": "issue-assigned",
+  "parentIssue": {
+    "number": 0,
+    "title": "Parent: LFG test",
+    "state": "OPEN",
+    "body": "Parent issue body",
+    "projectStatus": "In progress",
+    "iteration": 0,
+    "failures": 0
+  },
   "issue": {
     "number": 0,
     "title": "Implement user authentication",

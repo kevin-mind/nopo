@@ -71030,14 +71030,18 @@ Grooming complete. Sub-issues created for phased implementation.`;
 }
 function buildPhaseIssueBody(phase) {
   const children = [];
-  children.push(...createSection("Description", [createParagraph(phase.description)]));
+  children.push(
+    ...createSection("Description", [createParagraph(phase.description)])
+  );
   if (phase.affected_areas && phase.affected_areas.length > 0) {
     const areas = phase.affected_areas.map((area) => {
       const changeType = area.change_type ? ` (${area.change_type})` : "";
       const desc = area.description ? ` - ${area.description}` : "";
       return `\`${area.path}\`${changeType}${desc}`;
     });
-    children.push(...createSection("Affected Areas", [createBulletList(areas)]));
+    children.push(
+      ...createSection("Affected Areas", [createBulletList(areas)])
+    );
   }
   if (phase.todos && phase.todos.length > 0) {
     const todos = phase.todos.map((todo) => ({

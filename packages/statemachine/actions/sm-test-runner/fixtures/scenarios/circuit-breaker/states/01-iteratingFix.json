@@ -1,5 +1,14 @@
 {
   "state": "iteratingFix",
+  "parentIssue": {
+    "number": 0,
+    "title": "Parent: Circuit breaker",
+    "state": "OPEN",
+    "body": "Parent issue body",
+    "projectStatus": "In progress",
+    "iteration": 0,
+    "failures": 0
+  },
   "issue": {
     "number": 0,
     "title": "Circuit breaker test",

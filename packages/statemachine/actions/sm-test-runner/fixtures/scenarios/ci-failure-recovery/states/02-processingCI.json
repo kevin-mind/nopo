@@ -2,6 +2,15 @@
   "state": "processingCI",
   "ciResult": "failure",
   "claudeMock": "iterate/fix-ci",
+  "parentIssue": {
+    "number": 0,
+    "title": "Parent: CI failure recovery",
+    "state": "OPEN",
+    "body": "Parent issue body",
+    "projectStatus": "In progress",
+    "iteration": 0,
+    "failures": 0
+  },
   "issue": {
     "number": 0,
     "title": "CI failure recovery test",

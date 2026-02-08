@@ -1,6 +1,15 @@
 {
   "state": "done",
   "description": "Final state after /lfg triggers iteration - Claude implements the feature",
+  "parentIssue": {
+    "number": 0,
+    "title": "Parent: LFG test",
+    "state": "OPEN",
+    "body": "Parent issue body",
+    "projectStatus": "In progress",
+    "iteration": 0,
+    "failures": 0
+  },
   "issue": {
     "number": 0,
     "title": "Implement user authentication",
