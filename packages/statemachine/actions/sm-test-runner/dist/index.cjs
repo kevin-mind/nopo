@@ -423,18 +423,18 @@ var require_tunnel = __commonJS({
             res.statusCode
           );
           socket.destroy();
-          var error9 = new Error("tunneling socket could not be established, statusCode=" + res.statusCode);
-          error9.code = "ECONNRESET";
-          options.request.emit("error", error9);
+          var error10 = new Error("tunneling socket could not be established, statusCode=" + res.statusCode);
+          error10.code = "ECONNRESET";
+          options.request.emit("error", error10);
           self2.removeSocket(placeholder);
           return;
         }
         if (head.length > 0) {
           debug13("got illegal response body from proxy");
           socket.destroy();
-          var error9 = new Error("got illegal response body from proxy");
-          error9.code = "ECONNRESET";
-          options.request.emit("error", error9);
+          var error10 = new Error("got illegal response body from proxy");
+          error10.code = "ECONNRESET";
+          options.request.emit("error", error10);
           self2.removeSocket(placeholder);
           return;
         }
@@ -449,9 +449,9 @@ var require_tunnel = __commonJS({
           cause.message,
           cause.stack
         );
-        var error9 = new Error("tunneling socket could not be established, cause=" + cause.message);
-        error9.code = "ECONNRESET";
-        options.request.emit("error", error9);
+        var error10 = new Error("tunneling socket could not be established, cause=" + cause.message);
+        error10.code = "ECONNRESET";
+        options.request.emit("error", error10);
         self2.removeSocket(placeholder);
       }
     };
@@ -5579,7 +5579,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
         throw new TypeError("Body is unusable");
       }
       const promise = createDeferredPromise();
-      const errorSteps = (error9) => promise.reject(error9);
+      const errorSteps = (error10) => promise.reject(error10);
       const successSteps = (data) => {
         try {
           promise.resolve(convertBytesToJSValue(data));
@@ -5865,16 +5865,16 @@ var require_request = __commonJS({
           this.onError(err);
         }
       }
-      onError(error9) {
+      onError(error10) {
         this.onFinally();
         if (channels.error.hasSubscribers) {
-          channels.error.publish({ request: this, error: error9 });
+          channels.error.publish({ request: this, error: error10 });
         }
         if (this.aborted) {
           return;
         }
         this.aborted = true;
-        return this[kHandler].onError(error9);
+        return this[kHandler].onError(error10);
       }
       onFinally() {
         if (this.errorHandler) {
@@ -6737,8 +6737,8 @@ var require_RedirectHandler = __commonJS({
       onUpgrade(statusCode, headers, socket) {
         this.handler.onUpgrade(statusCode, headers, socket);
       }
-      onError(error9) {
-        this.handler.onError(error9);
+      onError(error10) {
+        this.handler.onError(error10);
       }
       onHeaders(statusCode, headers, resume, statusText) {
         this.location = this.history.length >= this.maxRedirections || util3.isDisturbed(this.opts.body) ? null : parseLocation(statusCode, headers);
@@ -8879,7 +8879,7 @@ var require_pool = __commonJS({
         this[kOptions] = { ...util3.deepClone(options), connect, allowH2 };
         this[kOptions].interceptors = options.interceptors ? { ...options.interceptors } : void 0;
         this[kFactory] = factory;
-        this.on("connectionError", (origin2, targets, error9) => {
+        this.on("connectionError", (origin2, targets, error10) => {
           for (const target of targets) {
             const idx = this[kClients].indexOf(target);
             if (idx !== -1) {
@@ -10488,13 +10488,13 @@ var require_mock_utils = __commonJS({
       if (mockDispatch2.data.callback) {
         mockDispatch2.data = { ...mockDispatch2.data, ...mockDispatch2.data.callback(opts) };
       }
-      const { data: { statusCode, data, headers, trailers, error: error9 }, delay, persist } = mockDispatch2;
+      const { data: { statusCode, data, headers, trailers, error: error10 }, delay, persist } = mockDispatch2;
       const { timesInvoked, times } = mockDispatch2;
       mockDispatch2.consumed = !persist && timesInvoked >= times;
       mockDispatch2.pending = timesInvoked < times;
-      if (error9 !== null) {
+      if (error10 !== null) {
         deleteMockDispatch(this[kDispatches], key);
-        handler.onError(error9);
+        handler.onError(error10);
         return true;
       }
       if (typeof delay === "number" && delay > 0) {
@@ -10532,19 +10532,19 @@ var require_mock_utils = __commonJS({
         if (agent.isMockActive) {
           try {
             mockDispatch.call(this, opts, handler);
-          } catch (error9) {
-            if (error9 instanceof MockNotMatchedError) {
+          } catch (error10) {
+            if (error10 instanceof MockNotMatchedError) {
               const netConnect = agent[kGetNetConnect]();
               if (netConnect === false) {
-                throw new MockNotMatchedError(`${error9.message}: subsequent request to origin ${origin} was not allowed (net.connect disabled)`);
+                throw new MockNotMatchedError(`${error10.message}: subsequent request to origin ${origin} was not allowed (net.connect disabled)`);
               }
               if (checkNetConnect(netConnect, origin)) {
                 originalDispatch.call(this, opts, handler);
               } else {
-                throw new MockNotMatchedError(`${error9.message}: subsequent request to origin ${origin} was not allowed (net.connect is not enabled for this origin)`);
+                throw new MockNotMatchedError(`${error10.message}: subsequent request to origin ${origin} was not allowed (net.connect is not enabled for this origin)`);
               }
             } else {
-              throw error9;
+              throw error10;
             }
           }
         } else {
@@ -10707,11 +10707,11 @@ var require_mock_interceptor = __commonJS({
       /**
        * Mock an undici request with a defined error.
        */
-      replyWithError(error9) {
-        if (typeof error9 === "undefined") {
+      replyWithError(error10) {
+        if (typeof error10 === "undefined") {
           throw new InvalidArgumentError("error must be defined");
         }
-        const newMockDispatch = addMockDispatch(this[kDispatches], this[kDispatchKey], { error: error9 });
+        const newMockDispatch = addMockDispatch(this[kDispatches], this[kDispatchKey], { error: error10 });
         return new MockScope(newMockDispatch);
       }
       /**
@@ -13038,17 +13038,17 @@ var require_fetch = __commonJS({
         this.emit("terminated", reason);
       }
       // https://fetch.spec.whatwg.org/#fetch-controller-abort
-      abort(error9) {
+      abort(error10) {
         if (this.state !== "ongoing") {
           return;
         }
         this.state = "aborted";
-        if (!error9) {
-          error9 = new DOMException2("The operation was aborted.", "AbortError");
+        if (!error10) {
+          error10 = new DOMException2("The operation was aborted.", "AbortError");
         }
-        this.serializedAbortReason = error9;
-        this.connection?.destroy(error9);
-        this.emit("terminated", error9);
+        this.serializedAbortReason = error10;
+        this.connection?.destroy(error10);
+        this.emit("terminated", error10);
       }
     };
     function fetch2(input, init = {}) {
@@ -13152,13 +13152,13 @@ var require_fetch = __commonJS({
         performance.markResourceTiming(timingInfo, originalURL.href, initiatorType, globalThis2, cacheState);
       }
     }
-    function abortFetch(p, request, responseObject, error9) {
-      if (!error9) {
-        error9 = new DOMException2("The operation was aborted.", "AbortError");
+    function abortFetch(p, request, responseObject, error10) {
+      if (!error10) {
+        error10 = new DOMException2("The operation was aborted.", "AbortError");
       }
-      p.reject(error9);
+      p.reject(error10);
       if (request.body != null && isReadable(request.body?.stream)) {
-        request.body.stream.cancel(error9).catch((err) => {
+        request.body.stream.cancel(error10).catch((err) => {
           if (err.code === "ERR_INVALID_STATE") {
             return;
           }
@@ -13170,7 +13170,7 @@ var require_fetch = __commonJS({
       }
       const response = responseObject[kState];
       if (response.body != null && isReadable(response.body?.stream)) {
-        response.body.stream.cancel(error9).catch((err) => {
+        response.body.stream.cancel(error10).catch((err) => {
           if (err.code === "ERR_INVALID_STATE") {
             return;
           }
@@ -13950,13 +13950,13 @@ var require_fetch = __commonJS({
               fetchParams.controller.ended = true;
               this.body.push(null);
             },
-            onError(error9) {
+            onError(error10) {
               if (this.abort) {
                 fetchParams.controller.off("terminated", this.abort);
               }
-              this.body?.destroy(error9);
-              fetchParams.controller.terminate(error9);
-              reject(error9);
+              this.body?.destroy(error10);
+              fetchParams.controller.terminate(error10);
+              reject(error10);
             },
             onUpgrade(status, headersList, socket) {
               if (status !== 101) {
@@ -14422,8 +14422,8 @@ var require_util4 = __commonJS({
                   }
                   fr[kResult] = result;
                   fireAProgressEvent("load", fr);
-                } catch (error9) {
-                  fr[kError] = error9;
+                } catch (error10) {
+                  fr[kError] = error10;
                   fireAProgressEvent("error", fr);
                 }
                 if (fr[kState] !== "loading") {
@@ -14432,13 +14432,13 @@ var require_util4 = __commonJS({
               });
               break;
             }
-          } catch (error9) {
+          } catch (error10) {
             if (fr[kAborted]) {
               return;
             }
             queueMicrotask(() => {
               fr[kState] = "done";
-              fr[kError] = error9;
+              fr[kError] = error10;
               fireAProgressEvent("error", fr);
               if (fr[kState] !== "loading") {
                 fireAProgressEvent("loadend", fr);
@@ -16438,11 +16438,11 @@ var require_connection = __commonJS({
         });
       }
     }
-    function onSocketError(error9) {
+    function onSocketError(error10) {
       const { ws } = this;
       ws[kReadyState] = states.CLOSING;
       if (channels.socketError.hasSubscribers) {
-        channels.socketError.publish(error9);
+        channels.socketError.publish(error10);
       }
       this.destroy();
     }
@@ -18074,12 +18074,12 @@ var require_oidc_utils = __commonJS({
         var _a;
         return __awaiter(this, void 0, void 0, function* () {
           const httpclient = _OidcClient.createHttpClient();
-          const res = yield httpclient.getJson(id_token_url).catch((error9) => {
+          const res = yield httpclient.getJson(id_token_url).catch((error10) => {
             throw new Error(`Failed to get ID Token. 
  
-        Error Code : ${error9.statusCode}
+        Error Code : ${error10.statusCode}
  
-        Error Message: ${error9.message}`);
+        Error Message: ${error10.message}`);
           });
           const id_token = (_a = res.result) === null || _a === void 0 ? void 0 : _a.value;
           if (!id_token) {
@@ -18100,8 +18100,8 @@ var require_oidc_utils = __commonJS({
             const id_token = yield _OidcClient.getCall(id_token_url);
             (0, core_1.setSecret)(id_token);
             return id_token;
-          } catch (error9) {
-            throw new Error(`Error message: ${error9.message}`);
+          } catch (error10) {
+            throw new Error(`Error message: ${error10.message}`);
           }
         });
       }
@@ -19223,7 +19223,7 @@ var require_toolrunner = __commonJS({
               this._debug(`STDIO streams have closed for tool '${this.toolPath}'`);
               state.CheckComplete();
             });
-            state.on("done", (error9, exitCode) => {
+            state.on("done", (error10, exitCode) => {
               if (stdbuffer.length > 0) {
                 this.emit("stdline", stdbuffer);
               }
@@ -19231,8 +19231,8 @@ var require_toolrunner = __commonJS({
                 this.emit("errline", errbuffer);
               }
               cp.removeAllListeners();
-              if (error9) {
-                reject(error9);
+              if (error10) {
+                reject(error10);
               } else {
                 resolve2(exitCode);
               }
@@ -19327,14 +19327,14 @@ var require_toolrunner = __commonJS({
         this.emit("debug", message);
       }
       _setResult() {
-        let error9;
+        let error10;
         if (this.processExited) {
           if (this.processError) {
-            error9 = new Error(`There was an error when attempting to execute the process '${this.toolPath}'. This may indicate the process failed to start. Error: ${this.processError}`);
+            error10 = new Error(`There was an error when attempting to execute the process '${this.toolPath}'. This may indicate the process failed to start. Error: ${this.processError}`);
           } else if (this.processExitCode !== 0 && !this.options.ignoreReturnCode) {
-            error9 = new Error(`The process '${this.toolPath}' failed with exit code ${this.processExitCode}`);
+            error10 = new Error(`The process '${this.toolPath}' failed with exit code ${this.processExitCode}`);
           } else if (this.processStderr && this.options.failOnStdErr) {
-            error9 = new Error(`The process '${this.toolPath}' failed because one or more lines were written to the STDERR stream`);
+            error10 = new Error(`The process '${this.toolPath}' failed because one or more lines were written to the STDERR stream`);
           }
         }
         if (this.timeout) {
@@ -19342,7 +19342,7 @@ var require_toolrunner = __commonJS({
           this.timeout = null;
         }
         this.done = true;
-        this.emit("done", error9, this.processExitCode);
+        this.emit("done", error10, this.processExitCode);
       }
       static HandleTimeout(state) {
         if (state.done) {
@@ -19725,7 +19725,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     exports2.setCommandEcho = setCommandEcho;
     function setFailed2(message) {
       process.exitCode = ExitCode.Failure;
-      error9(message);
+      error10(message);
     }
     exports2.setFailed = setFailed2;
     function isDebug() {
@@ -19736,10 +19736,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("debug", {}, message);
     }
     exports2.debug = debug13;
-    function error9(message, properties = {}) {
+    function error10(message, properties = {}) {
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.error = error9;
+    exports2.error = error10;
     function warning22(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
@@ -20041,8 +20041,8 @@ var require_add = __commonJS({
       }
       if (kind === "error") {
         hook = function(method, options) {
-          return Promise.resolve().then(method.bind(null, options)).catch(function(error9) {
-            return orig(error9, options);
+          return Promise.resolve().then(method.bind(null, options)).catch(function(error10) {
+            return orig(error10, options);
           });
         };
       }
@@ -20774,7 +20774,7 @@ var require_dist_node5 = __commonJS({
         }
         if (status >= 400) {
           const data = await getResponseData(response);
-          const error9 = new import_request_error.RequestError(toErrorMessage(data), status, {
+          const error10 = new import_request_error.RequestError(toErrorMessage(data), status, {
             response: {
               url,
               status,
@@ -20783,7 +20783,7 @@ var require_dist_node5 = __commonJS({
             },
             request: requestOptions
           });
-          throw error9;
+          throw error10;
         }
         return parseSuccessResponseBody ? await getResponseData(response) : response.body;
       }).then((data) => {
@@ -20793,17 +20793,17 @@ var require_dist_node5 = __commonJS({
           headers,
           data
         };
-      }).catch((error9) => {
-        if (error9 instanceof import_request_error.RequestError)
-          throw error9;
-        else if (error9.name === "AbortError")
-          throw error9;
-        let message = error9.message;
-        if (error9.name === "TypeError" && "cause" in error9) {
-          if (error9.cause instanceof Error) {
-            message = error9.cause.message;
-          } else if (typeof error9.cause === "string") {
-            message = error9.cause;
+      }).catch((error10) => {
+        if (error10 instanceof import_request_error.RequestError)
+          throw error10;
+        else if (error10.name === "AbortError")
+          throw error10;
+        let message = error10.message;
+        if (error10.name === "TypeError" && "cause" in error10) {
+          if (error10.cause instanceof Error) {
+            message = error10.cause.message;
+          } else if (typeof error10.cause === "string") {
+            message = error10.cause;
           }
         }
         throw new import_request_error.RequestError(message, 500, {
@@ -23475,9 +23475,9 @@ var require_dist_node10 = __commonJS({
                 /<([^<>]+)>;\s*rel="next"/
               ) || [])[1];
               return { value: normalizedResponse };
-            } catch (error9) {
-              if (error9.status !== 409)
-                throw error9;
+            } catch (error10) {
+              if (error10.status !== 409)
+                throw error10;
               url = "";
               return {
                 value: {
@@ -24273,8 +24273,8 @@ var ZodError = class _ZodError extends Error {
       return issue2.message;
     };
     const fieldErrors = { _errors: [] };
-    const processError = (error9) => {
-      for (const issue2 of error9.issues) {
+    const processError = (error10) => {
+      for (const issue2 of error10.issues) {
         if (issue2.code === "invalid_union") {
           issue2.unionErrors.map(processError);
         } else if (issue2.code === "invalid_return_type") {
@@ -24337,8 +24337,8 @@ var ZodError = class _ZodError extends Error {
   }
 };
 ZodError.create = (issues) => {
-  const error9 = new ZodError(issues);
-  return error9;
+  const error10 = new ZodError(issues);
+  return error10;
 };
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/locales/en.js
@@ -24602,8 +24602,8 @@ var handleResult = (ctx, result) => {
       get error() {
         if (this._error)
           return this._error;
-        const error9 = new ZodError(ctx.common.issues);
-        this._error = error9;
+        const error10 = new ZodError(ctx.common.issues);
+        this._error = error10;
         return this._error;
       }
     };
@@ -27258,25 +27258,25 @@ var ZodFunction = class _ZodFunction extends ZodType {
       });
       return INVALID;
     }
-    function makeArgsIssue(args, error9) {
+    function makeArgsIssue(args, error10) {
       return makeIssue({
         data: args,
         path: ctx.path,
         errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap(), en_default].filter((x) => !!x),
         issueData: {
           code: ZodIssueCode.invalid_arguments,
-          argumentsError: error9
+          argumentsError: error10
         }
       });
     }
-    function makeReturnsIssue(returns, error9) {
+    function makeReturnsIssue(returns, error10) {
       return makeIssue({
         data: returns,
         path: ctx.path,
         errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap(), en_default].filter((x) => !!x),
         issueData: {
           code: ZodIssueCode.invalid_return_type,
-          returnTypeError: error9
+          returnTypeError: error10
         }
       });
     }
@@ -27285,15 +27285,15 @@ var ZodFunction = class _ZodFunction extends ZodType {
     if (this._def.returns instanceof ZodPromise) {
       const me = this;
       return OK(async function(...args) {
-        const error9 = new ZodError([]);
+        const error10 = new ZodError([]);
         const parsedArgs = await me._def.args.parseAsync(args, params).catch((e) => {
-          error9.addIssue(makeArgsIssue(args, e));
-          throw error9;
+          error10.addIssue(makeArgsIssue(args, e));
+          throw error10;
         });
         const result = await Reflect.apply(fn, this, parsedArgs);
         const parsedReturns = await me._def.returns._def.type.parseAsync(result, params).catch((e) => {
-          error9.addIssue(makeReturnsIssue(result, e));
-          throw error9;
+          error10.addIssue(makeReturnsIssue(result, e));
+          throw error10;
         });
         return parsedReturns;
       });
@@ -28157,9 +28157,9 @@ var IssueStateDataSchema = external_exports.object({
 });
 
 // ../../node_modules/.pnpm/bail@2.0.2/node_modules/bail/index.js
-function bail(error9) {
-  if (error9) {
-    throw error9;
+function bail(error10) {
+  if (error10) {
+    throw error10;
   }
 }
 
@@ -28191,11 +28191,11 @@ function trough() {
       throw new TypeError("Expected function as last argument, not " + callback);
     }
     next(null, ...values);
-    function next(error9, ...output) {
+    function next(error10, ...output) {
       const fn = fns[++middlewareIndex];
       let index2 = -1;
-      if (error9) {
-        callback(error9);
+      if (error10) {
+        callback(error10);
         return;
       }
       while (++index2 < values.length) {
@@ -28232,10 +28232,10 @@ function wrap(middleware, callback) {
     }
     try {
       result = middleware.apply(this, parameters);
-    } catch (error9) {
+    } catch (error10) {
       const exception = (
         /** @type {Error} */
-        error9
+        error10
       );
       if (fnExpectsCallback && called) {
         throw exception;
@@ -28252,10 +28252,10 @@ function wrap(middleware, callback) {
       }
     }
   }
-  function done(error9, ...output) {
+  function done(error10, ...output) {
     if (!called) {
       called = true;
-      callback(error9, ...output);
+      callback(error10, ...output);
     }
   }
   function then(value) {
@@ -29163,9 +29163,9 @@ var Processor = class _Processor extends CallableInstance {
         /** @type {unknown} */
         self2.parse(realFile)
       );
-      self2.run(parseTree, realFile, function(error9, tree, file2) {
-        if (error9 || !tree || !file2) {
-          return realDone(error9);
+      self2.run(parseTree, realFile, function(error10, tree, file2) {
+        if (error10 || !tree || !file2) {
+          return realDone(error10);
         }
         const compileTree = (
           /** @type {CompileTree extends undefined ? Node : CompileTree} */
@@ -29179,14 +29179,14 @@ var Processor = class _Processor extends CallableInstance {
           file2.result = compileResult;
         }
         realDone(
-          error9,
+          error10,
           /** @type {VFileWithOutput<CompileResult>} */
           file2
         );
       });
-      function realDone(error9, file2) {
-        if (error9 || !file2) {
-          reject(error9);
+      function realDone(error10, file2) {
+        if (error10 || !file2) {
+          reject(error10);
         } else if (resolve2) {
           resolve2(file2);
         } else {
@@ -29237,9 +29237,9 @@ var Processor = class _Processor extends CallableInstance {
     assertDone("processSync", "process", complete);
     ok(result, "we either bailed on an error or have a tree");
     return result;
-    function realDone(error9, file2) {
+    function realDone(error10, file2) {
       complete = true;
-      bail(error9);
+      bail(error10);
       result = file2;
     }
   }
@@ -29297,13 +29297,13 @@ var Processor = class _Processor extends CallableInstance {
       );
       const realFile = vfile(file);
       transformers.run(tree, realFile, realDone);
-      function realDone(error9, outputTree, file2) {
+      function realDone(error10, outputTree, file2) {
         const resultingTree = (
           /** @type {TailTree extends undefined ? Node : TailTree} */
           outputTree || tree
         );
-        if (error9) {
-          reject(error9);
+        if (error10) {
+          reject(error10);
         } else if (resolve2) {
           resolve2(resultingTree);
         } else {
@@ -29337,8 +29337,8 @@ var Processor = class _Processor extends CallableInstance {
     assertDone("runSync", "run", complete);
     ok(result, "we either bailed on an error or have a tree");
     return result;
-    function realDone(error9, tree2) {
-      bail(error9);
+    function realDone(error10, tree2) {
+      bail(error10);
       result = tree2;
       complete = true;
     }
@@ -43538,10 +43538,10 @@ function createDoneActorEvent(invokeId, output) {
     actorId: invokeId
   };
 }
-function createErrorActorEvent(id, error9) {
+function createErrorActorEvent(id, error10) {
   return {
     type: `xstate.error.actor.${id}`,
-    error: error9,
+    error: error10,
     actorId: id
   };
 }
@@ -56323,12 +56323,12 @@ var ProcessTransport = class {
       this.abortHandler = cleanup;
       process.on("exit", this.processExitHandler);
       this.abortController.signal.addEventListener("abort", this.abortHandler);
-      this.process.on("error", (error9) => {
+      this.process.on("error", (error10) => {
         this.ready = false;
         if (this.abortController.signal.aborted) {
           this.exitError = new AbortError("Claude Code process aborted by user");
         } else {
-          this.exitError = new Error(`Failed to spawn Claude Code process: ${error9.message}`);
+          this.exitError = new Error(`Failed to spawn Claude Code process: ${error10.message}`);
           logForSdkDebugging(this.exitError.message);
         }
       });
@@ -56337,17 +56337,17 @@ var ProcessTransport = class {
         if (this.abortController.signal.aborted) {
           this.exitError = new AbortError("Claude Code process aborted by user");
         } else {
-          const error9 = this.getProcessExitError(code3, signal);
-          if (error9) {
-            this.exitError = error9;
-            logForSdkDebugging(error9.message);
+          const error10 = this.getProcessExitError(code3, signal);
+          if (error10) {
+            this.exitError = error10;
+            logForSdkDebugging(error10.message);
           }
         }
       });
       this.ready = true;
-    } catch (error9) {
+    } catch (error10) {
       this.ready = false;
-      throw error9;
+      throw error10;
     }
   }
   getProcessExitError(code3, signal) {
@@ -56377,9 +56377,9 @@ var ProcessTransport = class {
       if (!written) {
         logForSdkDebugging("[ProcessTransport] Write buffer full, data queued");
       }
-    } catch (error9) {
+    } catch (error10) {
       this.ready = false;
-      throw new Error(`Failed to write to process stdin: ${error9.message}`);
+      throw new Error(`Failed to write to process stdin: ${error10.message}`);
     }
   }
   close() {
@@ -56425,8 +56425,8 @@ var ProcessTransport = class {
         }
       }
       await this.waitForExit();
-    } catch (error9) {
-      throw error9;
+    } catch (error10) {
+      throw error10;
     } finally {
       rl.close();
     }
@@ -56444,8 +56444,8 @@ var ProcessTransport = class {
       return () => {
       };
     const handler = (code3, signal) => {
-      const error9 = this.getProcessExitError(code3, signal);
-      callback(error9);
+      const error10 = this.getProcessExitError(code3, signal);
+      callback(error10);
     };
     this.process.on("exit", handler);
     this.exitListeners.push({ callback, handler });
@@ -56478,17 +56478,17 @@ var ProcessTransport = class {
           reject(new AbortError("Operation aborted"));
           return;
         }
-        const error9 = this.getProcessExitError(code3, signal);
-        if (error9) {
-          reject(error9);
+        const error10 = this.getProcessExitError(code3, signal);
+        if (error10) {
+          reject(error10);
         } else {
           resolve2();
         }
       };
       this.process.once("exit", exitHandler);
-      const errorHandler = (error9) => {
+      const errorHandler = (error10) => {
         this.process.off("exit", exitHandler);
-        reject(error9);
+        reject(error10);
       };
       this.process.once("error", errorHandler);
       this.process.once("exit", () => {
@@ -56556,13 +56556,13 @@ var Stream = class {
       resolve2({ done: true, value: void 0 });
     }
   }
-  error(error9) {
-    this.hasError = error9;
+  error(error10) {
+    this.hasError = error10;
     if (this.readReject) {
       const reject = this.readReject;
       this.readResolve = void 0;
       this.readReject = void 0;
-      reject(error9);
+      reject(error10);
     }
   }
   return() {
@@ -56639,10 +56639,10 @@ var Query = class {
     this.initialization.catch(() => {
     });
   }
-  setError(error9) {
-    this.inputStream.error(error9);
+  setError(error10) {
+    this.inputStream.error(error10);
   }
-  cleanup(error9) {
+  cleanup(error10) {
     if (this.cleanupPerformed)
       return;
     this.cleanupPerformed = true;
@@ -56659,8 +56659,8 @@ var Query = class {
         }
       }
       this.sdkMcpTransports.clear();
-      if (error9) {
-        this.inputStream.error(error9);
+      if (error10) {
+        this.inputStream.error(error10);
       } else {
         this.inputStream.done();
       }
@@ -56717,12 +56717,12 @@ var Query = class {
       }
       this.inputStream.done();
       this.cleanup();
-    } catch (error9) {
+    } catch (error10) {
       if (this.firstResultReceivedResolve) {
         this.firstResultReceivedResolve();
       }
-      this.inputStream.error(error9);
-      this.cleanup(error9);
+      this.inputStream.error(error10);
+      this.cleanup(error10);
     }
   }
   async handleControlRequest(request) {
@@ -56740,13 +56740,13 @@ var Query = class {
       };
       await Promise.resolve(this.transport.write(jsonStringify(controlResponse) + `
 `));
-    } catch (error9) {
+    } catch (error10) {
       const controlErrorResponse = {
         type: "control_response",
         response: {
           subtype: "error",
           request_id: request.request_id,
-          error: error9.message || String(error9)
+          error: error10.message || String(error10)
         }
       };
       await Promise.resolve(this.transport.write(jsonStringify(controlErrorResponse) + `
@@ -56968,9 +56968,9 @@ var Query = class {
       }
       logForDebugging(`[Query] Calling transport.endInput() to close stdin to CLI process`);
       this.transport.endInput();
-    } catch (error9) {
-      if (!(error9 instanceof AbortError)) {
-        throw error9;
+    } catch (error10) {
+      if (!(error10 instanceof AbortError)) {
+        throw error10;
       }
     }
   }
@@ -57046,9 +57046,9 @@ var Query = class {
         cleanup();
         resolve2(response);
       };
-      const rejectAndCleanup = (error9) => {
+      const rejectAndCleanup = (error10) => {
         cleanup();
-        reject(error9);
+        reject(error10);
       };
       this.pendingMcpResponses.set(key, {
         resolve: resolveAndCleanup,
@@ -57240,8 +57240,8 @@ var ZodError2 = class _ZodError extends Error {
       return issue2.message;
     };
     const fieldErrors = { _errors: [] };
-    const processError = (error9) => {
-      for (const issue2 of error9.issues) {
+    const processError = (error10) => {
+      for (const issue2 of error10.issues) {
         if (issue2.code === "invalid_union") {
           issue2.unionErrors.map(processError);
         } else if (issue2.code === "invalid_return_type") {
@@ -57304,8 +57304,8 @@ var ZodError2 = class _ZodError extends Error {
   }
 };
 ZodError2.create = (issues) => {
-  const error9 = new ZodError2(issues);
-  return error9;
+  const error10 = new ZodError2(issues);
+  return error10;
 };
 var errorMap2 = (issue2, _ctx) => {
   let message;
@@ -57551,8 +57551,8 @@ var handleResult2 = (ctx, result) => {
       get error() {
         if (this._error)
           return this._error;
-        const error9 = new ZodError2(ctx.common.issues);
-        this._error = error9;
+        const error10 = new ZodError2(ctx.common.issues);
+        this._error = error10;
         return this._error;
       }
     };
@@ -60112,25 +60112,25 @@ var ZodFunction2 = class _ZodFunction extends ZodType2 {
       });
       return INVALID2;
     }
-    function makeArgsIssue(args, error9) {
+    function makeArgsIssue(args, error10) {
       return makeIssue2({
         data: args,
         path: ctx.path,
         errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap2(), en_default2].filter((x) => !!x),
         issueData: {
           code: ZodIssueCode2.invalid_arguments,
-          argumentsError: error9
+          argumentsError: error10
         }
       });
     }
-    function makeReturnsIssue(returns, error9) {
+    function makeReturnsIssue(returns, error10) {
       return makeIssue2({
         data: returns,
         path: ctx.path,
         errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap2(), en_default2].filter((x) => !!x),
         issueData: {
           code: ZodIssueCode2.invalid_return_type,
-          returnTypeError: error9
+          returnTypeError: error10
         }
       });
     }
@@ -60139,15 +60139,15 @@ var ZodFunction2 = class _ZodFunction extends ZodType2 {
     if (this._def.returns instanceof ZodPromise2) {
       const me = this;
       return OK2(async function(...args) {
-        const error9 = new ZodError2([]);
+        const error10 = new ZodError2([]);
         const parsedArgs = await me._def.args.parseAsync(args, params).catch((e) => {
-          error9.addIssue(makeArgsIssue(args, e));
-          throw error9;
+          error10.addIssue(makeArgsIssue(args, e));
+          throw error10;
         });
         const result = await Reflect.apply(fn, this, parsedArgs);
         const parsedReturns = await me._def.returns._def.type.parseAsync(result, params).catch((e) => {
-          error9.addIssue(makeReturnsIssue(result, e));
-          throw error9;
+          error10.addIssue(makeReturnsIssue(result, e));
+          throw error10;
         });
         return parsedReturns;
       });
@@ -61418,10 +61418,10 @@ var initializer = (inst, def) => {
 };
 var $ZodError = $constructor("$ZodError", initializer);
 var $ZodRealError = $constructor("$ZodError", initializer, { Parent: Error });
-function flattenError(error9, mapper = (issue2) => issue2.message) {
+function flattenError(error10, mapper = (issue2) => issue2.message) {
   const fieldErrors = {};
   const formErrors = [];
-  for (const sub of error9.issues) {
+  for (const sub of error10.issues) {
     if (sub.path.length > 0) {
       fieldErrors[sub.path[0]] = fieldErrors[sub.path[0]] || [];
       fieldErrors[sub.path[0]].push(mapper(sub));
@@ -61431,7 +61431,7 @@ function flattenError(error9, mapper = (issue2) => issue2.message) {
   }
   return { formErrors, fieldErrors };
 }
-function formatError(error9, _mapper) {
+function formatError(error10, _mapper) {
   const mapper = _mapper || function(issue2) {
     return issue2.message;
   };
@@ -61464,7 +61464,7 @@ function formatError(error9, _mapper) {
       }
     }
   };
-  processError(error9);
+  processError(error10);
   return fieldErrors;
 }
 var _parse = (_Err) => (schema, value, _ctx, _params) => {
@@ -65713,8 +65713,8 @@ ${colors.green}${colors.bold}[SDK]${colors.reset} Completed successfully (${numT
       numTurns,
       costUsd
     };
-  } catch (error9) {
-    const errorMessage = error9 instanceof Error ? error9.message : String(error9);
+  } catch (error10) {
+    const errorMessage = error10 instanceof Error ? error10.message : String(error10);
     core.error(`Failed to run Claude: ${errorMessage}`);
     return {
       success: false,
@@ -69214,8 +69214,8 @@ async function executeMergePR(action, ctx) {
       labels: [label]
     });
     core4.info(`Added "${label}" label to PR #${action.prNumber}`);
-  } catch (error9) {
-    core4.warning(`Failed to add label: ${error9}`);
+  } catch (error10) {
+    core4.warning(`Failed to add label: ${error10}`);
   }
   const response = await ctx.octokit.graphql(
     GET_ISSUE_BODY_QUERY,
@@ -69285,14 +69285,14 @@ async function executeRemoveReviewer(action, ctx) {
       `Removed reviewer ${action.reviewer} from PR #${action.prNumber}`
     );
     return { removed: true };
-  } catch (error9) {
-    if (error9 instanceof Error && error9.message.includes("404")) {
+  } catch (error10) {
+    if (error10 instanceof Error && error10.message.includes("404")) {
       core4.info(
         `Reviewer ${action.reviewer} was not a requested reviewer on PR #${action.prNumber}`
       );
       return { removed: false };
     }
-    throw error9;
+    throw error10;
   }
 }
 async function executeResetIssue(action, ctx) {
@@ -69313,8 +69313,8 @@ async function executeResetIssue(action, ctx) {
       core4.info(`Reopened issue #${action.issueNumber}`);
       resetCount++;
     }
-  } catch (error9) {
-    core4.warning(`Failed to reopen issue #${action.issueNumber}: ${error9}`);
+  } catch (error10) {
+    core4.warning(`Failed to reopen issue #${action.issueNumber}: ${error10}`);
   }
   for (const subIssueNumber of action.subIssueNumbers) {
     try {
@@ -69333,8 +69333,8 @@ async function executeResetIssue(action, ctx) {
         core4.info(`Reopened sub-issue #${subIssueNumber}`);
         resetCount++;
       }
-    } catch (error9) {
-      core4.warning(`Failed to reopen sub-issue #${subIssueNumber}: ${error9}`);
+    } catch (error10) {
+      core4.warning(`Failed to reopen sub-issue #${subIssueNumber}: ${error10}`);
     }
   }
   try {
@@ -69347,9 +69347,9 @@ async function executeResetIssue(action, ctx) {
     core4.info(
       `Unassigned ${action.botUsername} from issue #${action.issueNumber}`
     );
-  } catch (error9) {
+  } catch (error10) {
     core4.warning(
-      `Failed to unassign bot from issue #${action.issueNumber}: ${error9}`
+      `Failed to unassign bot from issue #${action.issueNumber}: ${error10}`
     );
   }
   for (const subIssueNumber of action.subIssueNumbers) {
@@ -69363,9 +69363,9 @@ async function executeResetIssue(action, ctx) {
       core4.info(
         `Unassigned ${action.botUsername} from sub-issue #${subIssueNumber}`
       );
-    } catch (error9) {
+    } catch (error10) {
       core4.warning(
-        `Failed to unassign bot from sub-issue #${subIssueNumber}: ${error9}`
+        `Failed to unassign bot from sub-issue #${subIssueNumber}: ${error10}`
       );
     }
   }
@@ -69382,9 +69382,9 @@ async function executeAddLabel(action, ctx) {
     });
     core4.info(`Added label "${action.label}" to issue #${action.issueNumber}`);
     return { added: true };
-  } catch (error9) {
+  } catch (error10) {
     core4.warning(
-      `Failed to add label "${action.label}" to issue #${action.issueNumber}: ${error9}`
+      `Failed to add label "${action.label}" to issue #${action.issueNumber}: ${error10}`
     );
     return { added: false };
   }
@@ -69401,15 +69401,15 @@ async function executeRemoveLabel(action, ctx) {
       `Removed label "${action.label}" from issue #${action.issueNumber}`
     );
     return { removed: true };
-  } catch (error9) {
-    if (error9 instanceof Error && error9.message.includes("404")) {
+  } catch (error10) {
+    if (error10 instanceof Error && error10.message.includes("404")) {
       core4.info(
         `Label "${action.label}" was not present on issue #${action.issueNumber}`
       );
       return { removed: false };
     }
     core4.warning(
-      `Failed to remove label "${action.label}" from issue #${action.issueNumber}: ${error9}`
+      `Failed to remove label "${action.label}" from issue #${action.issueNumber}: ${error10}`
     );
     return { removed: false };
   }
@@ -69622,9 +69622,9 @@ It simulates Claude's code changes in mock mode.`;
       return;
     }
     core6.info(`[MOCK MODE] Created and pushed placeholder commit`);
-  } catch (error9) {
+  } catch (error10) {
     core6.warning(
-      `[MOCK MODE] Failed to create mock commit: ${error9 instanceof Error ? error9.message : String(error9)}`
+      `[MOCK MODE] Failed to create mock commit: ${error10 instanceof Error ? error10.message : String(error10)}`
     );
   }
 }
@@ -69718,8 +69718,8 @@ async function executeApplyTriageOutput(action, ctx, structuredOutput) {
       core7.startGroup("Triage Output (File)");
       core7.info(JSON.stringify(triageOutput, null, 2));
       core7.endGroup();
-    } catch (error9) {
-      core7.warning(`Failed to parse triage output: ${error9}`);
+    } catch (error10) {
+      core7.warning(`Failed to parse triage output: ${error10}`);
       return { applied: false };
     }
   } else {
@@ -69790,8 +69790,8 @@ async function applyLabels(ctx, issueNumber, classification) {
         labels
       });
       core7.info(`Applied labels: ${labels.join(", ")}`);
-    } catch (error9) {
-      core7.warning(`Failed to apply labels: ${error9}`);
+    } catch (error10) {
+      core7.warning(`Failed to apply labels: ${error10}`);
     }
   }
 }
@@ -69804,8 +69804,8 @@ async function updateIssueBody(ctx, issueNumber, newBody) {
       body: newBody
     });
     core7.info(`Updated issue body for #${issueNumber}`);
-  } catch (error9) {
-    core7.warning(`Failed to update issue body: ${error9}`);
+  } catch (error10) {
+    core7.warning(`Failed to update issue body: ${error10}`);
   }
 }
 async function updateIssueStructure(ctx, issueNumber, requirements, initialApproach, initialQuestions) {
@@ -69848,8 +69848,8 @@ async function updateIssueStructure(ctx, issueNumber, requirements, initialAppro
       body: newBody
     });
     core7.info(`Updated issue #${issueNumber} with structured sections`);
-  } catch (error9) {
-    core7.warning(`Failed to update issue structure: ${error9}`);
+  } catch (error10) {
+    core7.warning(`Failed to update issue structure: ${error10}`);
   }
 }
 async function linkRelatedIssues(ctx, issueNumber, relatedIssues) {
@@ -69864,8 +69864,8 @@ async function linkRelatedIssues(ctx, issueNumber, relatedIssues) {
       body
     });
     core7.info(`Linked related issues: ${links}`);
-  } catch (error9) {
-    core7.warning(`Failed to link related issues: ${error9}`);
+  } catch (error10) {
+    core7.warning(`Failed to link related issues: ${error10}`);
   }
 }
 async function getProjectInfo(ctx) {
@@ -69908,8 +69908,8 @@ async function getProjectInfo(ctx) {
       }
     }
     return projectInfo;
-  } catch (error9) {
-    core7.warning(`Failed to get project info: ${error9}`);
+  } catch (error10) {
+    core7.warning(`Failed to get project info: ${error10}`);
     return null;
   }
 }
@@ -69980,8 +69980,8 @@ async function applyProjectFields(ctx, issueNumber, classification) {
       });
       core7.info(`Set Estimate to ${classification.estimate}`);
     }
-  } catch (error9) {
-    core7.warning(`Failed to apply project fields: ${error9}`);
+  } catch (error10) {
+    core7.warning(`Failed to apply project fields: ${error10}`);
   }
 }
 
@@ -69999,8 +69999,8 @@ async function executeApplyIterateOutput(action, ctx, structuredOutput) {
       const content3 = fs6.readFileSync(filePath, "utf-8");
       iterateOutput = JSON.parse(content3);
       core8.info(`Iterate output from file: ${filePath}`);
-    } catch (error9) {
-      core8.warning(`Failed to parse iterate output: ${error9}`);
+    } catch (error10) {
+      core8.warning(`Failed to parse iterate output: ${error10}`);
       return { applied: false };
     }
   } else {
@@ -70112,8 +70112,8 @@ async function executeApplyReviewOutput(action, ctx, structuredOutput) {
       const content3 = fs7.readFileSync(action.filePath, "utf-8");
       reviewOutput = JSON.parse(content3);
       core9.info(`Review output from file: ${action.filePath}`);
-    } catch (error9) {
-      throw new Error(`Failed to parse review output from file: ${error9}`);
+    } catch (error10) {
+      throw new Error(`Failed to parse review output from file: ${error10}`);
     }
   } else {
     throw new Error(
@@ -70159,8 +70159,8 @@ async function executeApplyPRResponseOutput(action, ctx, structuredOutput) {
       const content3 = fs8.readFileSync(action.filePath, "utf-8");
       responseOutput = JSON.parse(content3);
       core10.info(`PR response output from file: ${action.filePath}`);
-    } catch (error9) {
-      throw new Error(`Failed to parse PR response output from file: ${error9}`);
+    } catch (error10) {
+      throw new Error(`Failed to parse PR response output from file: ${error10}`);
     }
   } else {
     throw new Error(
@@ -70202,8 +70202,8 @@ async function executeApplyPRResponseOutput(action, ctx, structuredOutput) {
       core10.info(
         `Re-requested review from ${action.reviewer} on PR #${action.prNumber}`
       );
-    } catch (error9) {
-      core10.warning(`Failed to re-request review: ${error9}`);
+    } catch (error10) {
+      core10.warning(`Failed to re-request review: ${error10}`);
     }
   }
   if (responseOutput.agent_notes && responseOutput.agent_notes.length > 0) {
@@ -70597,8 +70597,8 @@ async function executeInvestigateResearchThreads(action, ctx) {
       );
       investigated++;
       core14.info(`Investigated thread: ${thread.title}`);
-    } catch (error9) {
-      core14.warning(`Failed to investigate thread "${thread.title}": ${error9}`);
+    } catch (error10) {
+      core14.warning(`Failed to investigate thread "${thread.title}": ${error10}`);
     }
   }
   return { investigated };
@@ -70671,6 +70671,7 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
   const allReady = groomingOutput.pm.ready && groomingOutput.engineer.ready && groomingOutput.qa.ready && groomingOutput.research.ready;
   const decision = allReady ? "ready" : "needs_info";
   core15.info(`Grooming decision: ${decision}`);
+  let subIssuesCreated = 0;
   if (decision === "ready") {
     try {
       await ctx.octokit.rest.issues.addLabels({
@@ -70680,8 +70681,19 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
         labels: ["groomed"]
       });
       core15.info(`Added 'groomed' label to issue #${action.issueNumber}`);
-    } catch (error9) {
-      core15.warning(`Failed to add 'groomed' label: ${error9}`);
+    } catch (error10) {
+      core15.warning(`Failed to add 'groomed' label: ${error10}`);
+    }
+    const engineerOutput = groomingOutput.engineer;
+    if (engineerOutput.scope_recommendation === "split" && engineerOutput.recommended_phases && engineerOutput.recommended_phases.length > 0) {
+      core15.info(
+        `Engineer recommends splitting into ${engineerOutput.recommended_phases.length} phases`
+      );
+      subIssuesCreated = await createSubIssuesForPhases(
+        ctx,
+        action.issueNumber,
+        engineerOutput.recommended_phases
+      );
     }
   } else {
     const questions = [];
@@ -70705,7 +70717,128 @@ ${questions.join("\n")}`
       });
     }
   }
-  return { applied: true, decision };
+  return { applied: true, decision, subIssuesCreated };
+}
+async function createSubIssuesForPhases(ctx, parentIssueNumber, phases) {
+  let created = 0;
+  for (const phase of phases) {
+    const title = `[Phase ${phase.phase_number}]: ${phase.title}`;
+    const body = buildPhaseIssueBody(phase);
+    try {
+      const { data: newIssue } = await ctx.octokit.rest.issues.create({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        title,
+        body
+      });
+      core15.info(`Created sub-issue #${newIssue.number}: ${title}`);
+      created++;
+      await linkSubIssue(ctx, parentIssueNumber, newIssue.number);
+      if (phase.phase_number === 1) {
+        core15.info(
+          `Phase 1 sub-issue #${newIssue.number} should be set to Ready status`
+        );
+      }
+    } catch (error10) {
+      core15.error(`Failed to create sub-issue for phase ${phase.phase_number}: ${error10}`);
+    }
+  }
+  if (created > 0) {
+    try {
+      const { data: parentIssue } = await ctx.octokit.rest.issues.get({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: parentIssueNumber
+      });
+      const existingBody = parentIssue.body || "";
+      const agentNote = `
+
+## Agent Notes
+
+Grooming complete. Sub-issues created for phased implementation.`;
+      const newBody = existingBody + agentNote;
+      await ctx.octokit.rest.issues.update({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: parentIssueNumber,
+        body: newBody
+      });
+      core15.info(`Updated parent issue #${parentIssueNumber} with agent notes`);
+    } catch (error10) {
+      core15.warning(`Failed to update parent issue body: ${error10}`);
+    }
+  }
+  return created;
+}
+function buildPhaseIssueBody(phase) {
+  const sections = [];
+  sections.push(`## Description
+
+${phase.description}`);
+  if (phase.affected_areas && phase.affected_areas.length > 0) {
+    const areas = phase.affected_areas.map((area) => {
+      const changeType = area.change_type ? ` (${area.change_type})` : "";
+      const desc = area.description ? ` - ${area.description}` : "";
+      return `- \`${area.path}\`${changeType}${desc}`;
+    }).join("\n");
+    sections.push(`## Affected Areas
+
+${areas}`);
+  }
+  if (phase.todos && phase.todos.length > 0) {
+    const todos = phase.todos.map((todo) => {
+      const manual = todo.manual ? " *(manual)*" : "";
+      return `- [ ] ${todo.task}${manual}`;
+    }).join("\n");
+    sections.push(`## Todo
+
+${todos}`);
+  }
+  return sections.join("\n\n");
+}
+async function linkSubIssue(ctx, parentIssueNumber, subIssueNumber) {
+  const query2 = `
+    query GetIssueIds($owner: String!, $repo: String!, $parentNumber: Int!, $subNumber: Int!) {
+      repository(owner: $owner, name: $repo) {
+        parent: issue(number: $parentNumber) {
+          id
+        }
+        sub: issue(number: $subNumber) {
+          id
+        }
+      }
+    }
+  `;
+  try {
+    const result = await ctx.octokit.graphql(query2, {
+      owner: ctx.owner,
+      repo: ctx.repo,
+      parentNumber: parentIssueNumber,
+      subNumber: subIssueNumber
+    });
+    const parentId = result.repository.parent.id;
+    const subId = result.repository.sub.id;
+    const mutation = `
+      mutation AddSubIssue($parentId: ID!, $subIssueId: ID!) {
+        addSubIssue(input: { issueId: $parentId, subIssueId: $subIssueId }) {
+          issue {
+            id
+          }
+        }
+      }
+    `;
+    await ctx.octokit.graphql(mutation, {
+      parentId,
+      subIssueId: subId
+    });
+    core15.info(
+      `Linked sub-issue #${subIssueNumber} to parent #${parentIssueNumber}`
+    );
+  } catch (error10) {
+    core15.warning(
+      `Failed to link sub-issue #${subIssueNumber} to parent #${parentIssueNumber}: ${error10}`
+    );
+  }
 }
 
 // ../../packages/statemachine/src/runner/executors/pivot.ts
@@ -70949,8 +71082,8 @@ ${todoList}`;
           childId: createdIssue.node_id
         });
         core16.info(`Linked sub-issue #${createdIssue.number} to parent`);
-      } catch (error9) {
-        core16.warning(`Failed to link sub-issue via GraphQL: ${error9}`);
+      } catch (error10) {
+        core16.warning(`Failed to link sub-issue via GraphQL: ${error10}`);
       }
     }
   }
@@ -71266,8 +71399,8 @@ async function executeActions(actions, ctx, options = {}) {
         stopReason = validatedAction.type === "stop" ? validatedAction.reason : `${validatedAction.type} action`;
         break;
       }
-    } catch (error9) {
-      const err = error9 instanceof Error ? error9 : new Error(String(error9));
+    } catch (error10) {
+      const err = error10 instanceof Error ? error10 : new Error(String(error10));
       core17.error(`Action failed: ${validatedAction.type} - ${err.message}`);
       results.push({
         action: validatedAction,
@@ -72239,13 +72372,13 @@ async function pollUntil2(fetchFn, conditionFn, config2 = {}, onPoll, signal) {
         core22.info("\u{1F6D1} Polling cancelled during sleep");
         break;
       }
-    } catch (error9) {
+    } catch (error10) {
       if (abortSignal?.aborted) {
         cancelled = true;
         core22.info("\u{1F6D1} Polling cancelled");
         break;
       }
-      const errorMsg = error9 instanceof Error ? error9.message : String(error9);
+      const errorMsg = error10 instanceof Error ? error10.message : String(error10);
       core22.warning(
         `[${attempts}] Poll error: ${errorMsg.slice(0, 200)}${errorMsg.length > 200 ? "..." : ""}`
       );
@@ -73386,8 +73519,8 @@ function formatValidationResult(name, result) {
   } else {
     lines.push("  Status: \u274C Invalid");
     lines.push("  Errors:");
-    for (const error9 of result.errors) {
-      lines.push(`    - ${error9.path}: ${error9.message}`);
+    for (const error10 of result.errors) {
+      lines.push(`    - ${error10.path}: ${error10.message}`);
     }
   }
   if (result.warnings.length > 0) {
@@ -73480,8 +73613,8 @@ async function checkTriageWorkflow(octokit, owner, repo, issueNumber) {
       };
     }
     return { found: false, status: null, url: null };
-  } catch (error9) {
-    core24.debug(`Failed to check workflow runs: ${error9}`);
+  } catch (error10) {
+    core24.debug(`Failed to check workflow runs: ${error10}`);
     return { found: false, status: null, url: null };
   }
 }
@@ -73613,9 +73746,9 @@ async function labelSubIssuesForCleanup(octokit, owner, repo, subIssueNumbers) {
       core24.info(
         `  \u2705 Added test:automation label to sub-issue #${issueNumber}`
       );
-    } catch (error9) {
+    } catch (error10) {
       core24.warning(
-        `  \u26A0\uFE0F Could not add test:automation label to sub-issue #${issueNumber}: ${error9}`
+        `  \u26A0\uFE0F Could not add test:automation label to sub-issue #${issueNumber}: ${error10}`
       );
     }
   }
@@ -73760,8 +73893,8 @@ async function waitForTriage(options) {
   if (errors.length > 0) {
     core24.error(`
   Verification errors (${errors.length}):`);
-    for (const error9 of errors) {
-      core24.error(`    \u274C ${error9}`);
+    for (const error10 of errors) {
+      core24.error(`    \u274C ${error10}`);
     }
   }
   return {
@@ -73893,8 +74026,8 @@ async function fetchPhaseConditions(octokit, owner, repo, issueNumber, projectNu
               }
             }
           }
-        } catch (error9) {
-          core25.debug(`Failed to fetch checks: ${error9}`);
+        } catch (error10) {
+          core25.debug(`Failed to fetch checks: ${error10}`);
           conditions.ciStatus = "pending";
         }
       }
@@ -73925,13 +74058,13 @@ async function fetchPhaseConditions(octokit, owner, repo, issueNumber, projectNu
         } else {
           conditions.reviewStatus = "pending";
         }
-      } catch (error9) {
-        core25.debug(`Failed to fetch reviews: ${error9}`);
+      } catch (error10) {
+        core25.debug(`Failed to fetch reviews: ${error10}`);
         conditions.reviewStatus = "pending";
       }
     }
-  } catch (error9) {
-    core25.debug(`Failed to fetch PRs: ${error9}`);
+  } catch (error10) {
+    core25.debug(`Failed to fetch PRs: ${error10}`);
   }
   try {
     const issueResponse = await octokit.graphql(
@@ -73957,8 +74090,8 @@ async function fetchPhaseConditions(octokit, owner, repo, issueNumber, projectNu
         }
       }
     }
-  } catch (error9) {
-    core25.debug(`Failed to fetch issue: ${error9}`);
+  } catch (error10) {
+    core25.debug(`Failed to fetch issue: ${error10}`);
   }
   return conditions;
 }
@@ -74037,8 +74170,8 @@ async function mergePR(owner, repo, prNumber) {
     ]);
     core25.info(`\u2705 PR #${prNumber} added to merge queue`);
     return true;
-  } catch (error9) {
-    core25.warning(`Failed to merge PR #${prNumber}: ${error9}`);
+  } catch (error10) {
+    core25.warning(`Failed to merge PR #${prNumber}: ${error10}`);
     return false;
   }
 }
@@ -74236,8 +74369,8 @@ async function waitForPhase(options) {
   if (errors.length > 0) {
     core25.error(`
   Verification errors (${errors.length}):`);
-    for (const error9 of errors) {
-      core25.error(`    \u274C ${error9}`);
+    for (const error10 of errors) {
+      core25.error(`    \u274C ${error10}`);
     }
   }
   return {
@@ -74503,9 +74636,9 @@ async function loadStateFixtures(statesDir) {
     let json;
     try {
       json = JSON.parse(content3);
-    } catch (error9) {
+    } catch (error10) {
       throw new Error(
-        `Invalid JSON in ${file}: ${error9 instanceof Error ? error9.message : error9}`
+        `Invalid JSON in ${file}: ${error10 instanceof Error ? error10.message : error10}`
       );
     }
     const parseResult = StateFixtureSchema2.safeParse(json);
@@ -74549,9 +74682,9 @@ async function loadReferencedMocks(fixtures, basePath) {
       let json;
       try {
         json = JSON.parse(content3);
-      } catch (error9) {
+      } catch (error10) {
         throw new Error(
-          `Invalid JSON in ${mockPath}: ${error9 instanceof Error ? error9.message : error9}`
+          `Invalid JSON in ${mockPath}: ${error10 instanceof Error ? error10.message : error10}`
         );
       }
       const parseResult = ClaudeMockSchema2.safeParse(json);
@@ -74672,8 +74805,8 @@ ${"=".repeat(60)}`);
           transitions.push(transitionResult);
           if (verificationErrors.length > 0) {
             core27.error(`Verification failed:`);
-            for (const error9 of verificationErrors) {
-              core27.error(`  - ${error9}`);
+            for (const error10 of verificationErrors) {
+              core27.error(`  - ${error10}`);
             }
             return {
               status: "failed",
@@ -74694,8 +74827,8 @@ ${"=".repeat(60)}`);
               totalDurationMs: Date.now() - startTime
             };
           }
-        } catch (error9) {
-          const errorMessage = error9 instanceof Error ? error9.message : String(error9);
+        } catch (error10) {
+          const errorMessage = error10 instanceof Error ? error10.message : String(error10);
           transitions.push({
             fromState: currentState,
             toState: nextState,
@@ -74718,13 +74851,13 @@ ${"=".repeat(60)}`);
         transitions,
         totalDurationMs: Date.now() - startTime
       };
-    } catch (error9) {
+    } catch (error10) {
       return {
         status: "error",
         issueNumber: this.issueNumber ?? 0,
         transitions,
         totalDurationMs: Date.now() - startTime,
-        error: error9 instanceof Error ? error9.message : String(error9)
+        error: error10 instanceof Error ? error10.message : String(error10)
       };
     }
   }
@@ -74889,8 +75022,8 @@ Issue: #${this.issueNumber}
         sha: commit2.sha
       });
       core27.info(`Created branch ${this.testBranchName} with initial commit`);
-    } catch (error9) {
-      if (error9 instanceof Error && error9.message.includes("Reference already exists")) {
+    } catch (error10) {
+      if (error10 instanceof Error && error10.message.includes("Reference already exists")) {
         await this.config.octokit.rest.git.updateRef({
           owner: this.config.owner,
           repo: this.config.repo,
@@ -74900,7 +75033,7 @@ Issue: #${this.issueNumber}
         });
         core27.info(`Updated existing branch ${this.testBranchName}`);
       } else {
-        throw error9;
+        throw error10;
       }
     }
   }
@@ -75673,8 +75806,8 @@ Pivot/Modification Verification:`);
         }
       );
       afterSubIssues = response.repository?.issue?.subIssues?.nodes || [];
-    } catch (error9) {
-      core27.warning(`Failed to fetch sub-issues: ${error9}`);
+    } catch (error10) {
+      core27.warning(`Failed to fetch sub-issues: ${error10}`);
     }
     const countTodos = (body) => {
       const matches2 = body.match(/- \[ \]/g);
@@ -76125,8 +76258,8 @@ Sub-issue PR for test scenario.`
         sha: commit2.sha
       });
       core27.info(`Created branch ${branchName}`);
-    } catch (error9) {
-      if (error9 instanceof Error && error9.message.includes("Reference already exists")) {
+    } catch (error10) {
+      if (error10 instanceof Error && error10.message.includes("Reference already exists")) {
         await this.config.octokit.rest.git.updateRef({
           owner: this.config.owner,
           repo: this.config.repo,
@@ -76136,7 +76269,7 @@ Sub-issue PR for test scenario.`
         });
         core27.info(`Updated existing branch ${branchName}`);
       } else {
-        throw error9;
+        throw error10;
       }
     }
   }
@@ -76178,9 +76311,9 @@ Sub-issue PR for test scenario.`
       core27.info(
         `  Linked sub-issue #${subIssueNumber} to parent #${this.issueNumber}`
       );
-    } catch (error9) {
+    } catch (error10) {
       core27.warning(
-        `Failed to link via GraphQL, adding parent reference to body: ${error9}`
+        `Failed to link via GraphQL, adding parent reference to body: ${error10}`
       );
       const parentRef = `Parent: #${this.issueNumber}`;
       if (!subIssue.body?.includes(parentRef)) {
@@ -76230,8 +76363,8 @@ ${subIssue.body || ""}`
           contentId: issue2.id
         });
         itemId = addResult.addProjectV2ItemById?.item?.id || null;
-      } catch (error9) {
-        if (error9 instanceof Error && error9.message.includes("Content already exists")) {
+      } catch (error10) {
+        if (error10 instanceof Error && error10.message.includes("Content already exists")) {
           core27.info("Issue already in project, refetching item ID...");
           const refetchResponse = await this.config.octokit.graphql(
             GET_PROJECT_ITEM_QUERY,
@@ -76248,7 +76381,7 @@ ${subIssue.body || ""}`
             this.config.projectNumber
           );
         } else {
-          throw error9;
+          throw error10;
         }
       }
       if (!itemId) {
@@ -76527,9 +76660,9 @@ async function loadDiscussionStateFixtures(statesDir) {
     let json;
     try {
       json = JSON.parse(content3);
-    } catch (error9) {
+    } catch (error10) {
       throw new Error(
-        `Invalid JSON in ${file}: ${error9 instanceof Error ? error9.message : error9}`
+        `Invalid JSON in ${file}: ${error10 instanceof Error ? error10.message : error10}`
       );
     }
     const parseResult = DiscussionStateFixtureSchema.safeParse(json);
@@ -76566,9 +76699,9 @@ async function loadReferencedMocks2(fixtures, basePath) {
     let json;
     try {
       json = JSON.parse(content3);
-    } catch (error9) {
+    } catch (error10) {
       throw new Error(
-        `Invalid JSON in ${mockPath}: ${error9 instanceof Error ? error9.message : error9}`
+        `Invalid JSON in ${mockPath}: ${error10 instanceof Error ? error10.message : error10}`
       );
     }
     const parseResult = DiscussionClaudeMockSchema.safeParse(json);
@@ -76754,8 +76887,8 @@ var DiscussionConfigurableTestRunner = class {
       const verificationErrors = await this.verifyExpectedOutcomes(firstFixture);
       if (verificationErrors.length > 0) {
         core29.error(`Verification failed:`);
-        for (const error9 of verificationErrors) {
-          core29.error(`  - ${error9}`);
+        for (const error10 of verificationErrors) {
+          core29.error(`  - ${error10}`);
         }
         return {
           status: "failed",
@@ -76774,14 +76907,14 @@ var DiscussionConfigurableTestRunner = class {
         actionsExecuted,
         totalDurationMs: Date.now() - startTime
       };
-    } catch (error9) {
+    } catch (error10) {
       return {
         status: "error",
         discussionNumber: this.discussionNumber ?? 0,
         finalState: "noContext",
         actionsExecuted: 0,
         totalDurationMs: Date.now() - startTime,
-        error: error9 instanceof Error ? error9.message : String(error9)
+        error: error10 instanceof Error ? error10.message : String(error10)
       };
     }
   }
@@ -77016,8 +77149,8 @@ async function triggerCleanup(octokit, owner, repo, issueNumber) {
       }
     });
     core30.info("Cleanup workflow triggered");
-  } catch (error9) {
-    core30.warning(`Could not trigger cleanup workflow: ${error9}`);
+  } catch (error10) {
+    core30.warning(`Could not trigger cleanup workflow: ${error10}`);
     core30.info("Attempting direct close via API...");
     try {
       await octokit.rest.issues.update({
@@ -77317,11 +77450,11 @@ Prediction:`);
       let fixture;
       try {
         fixture = JSON.parse(fixtureJson);
-      } catch (error9) {
-        core30.setFailed(`Invalid JSON: ${error9}`);
+      } catch (error10) {
+        core30.setFailed(`Invalid JSON: ${error10}`);
         setOutputs({
           valid: "false",
-          errors: `Invalid JSON: ${error9}`,
+          errors: `Invalid JSON: ${error10}`,
           warnings: ""
         });
         return;
@@ -77432,9 +77565,9 @@ ${formatted}`);
       return;
     }
     core30.setFailed(`Unknown action: ${action}`);
-  } catch (error9) {
-    if (error9 instanceof Error) {
-      core30.setFailed(error9.message);
+  } catch (error10) {
+    if (error10 instanceof Error) {
+      core30.setFailed(error10.message);
     } else {
       core30.setFailed("An unexpected error occurred");
     }

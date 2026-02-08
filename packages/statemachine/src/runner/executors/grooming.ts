@@ -2,7 +2,6 @@
  * Grooming Executors
  *
  * Executors for running parallel grooming agents and applying their outputs.
- * TODO: Full implementation to be migrated from .github/statemachine
  */
 
 import * as core from "@actions/core";
@@ -22,6 +21,32 @@ interface GroomingAgentOutput {
   ready: boolean;
   questions?: string[];
   [key: string]: unknown;
+}
+
+interface AffectedArea {
+  path: string;
+  change_type?: string;
+  description?: string;
+  impact?: string;
+}
+
+interface TodoItem {
+  task: string;
+  manual?: boolean;
+}
+
+interface RecommendedPhase {
+  phase_number: number;
+  title: string;
+  description: string;
+  affected_areas?: AffectedArea[];
+  todos?: TodoItem[];
+  depends_on?: number[];
+}
+
+interface EngineerOutput extends GroomingAgentOutput {
+  scope_recommendation?: "direct" | "split";
+  recommended_phases?: RecommendedPhase[];
 }
 
 interface CombinedGroomingOutput {
@@ -101,14 +126,13 @@ export async function executeRunClaudeGrooming(
 /**
  * Apply grooming output from the grooming agents
  * Runs the summary agent and applies the decision (ready, needs_info, blocked).
- *
- * TODO: Full implementation with sub-issue creation
+ * Creates sub-issues if engineer recommends splitting into phases.
  */
 export async function executeApplyGroomingOutput(
   action: ApplyGroomingOutputAction,
   ctx: RunnerContext,
   structuredOutput?: unknown,
-): Promise<{ applied: boolean; decision: string }> {
+): Promise<{ applied: boolean; decision: string; subIssuesCreated?: number }> {
   let groomingOutput: CombinedGroomingOutput;
 
   // Try structured output first, then fall back to file
@@ -145,6 +169,9 @@ export async function executeApplyGroomingOutput(
   const decision = allReady ? "ready" : "needs_info";
   core.info(`Grooming decision: ${decision}`);
 
+  // Track sub-issues created
+  let subIssuesCreated = 0;
+
   // Apply the decision
   if (decision === "ready") {
     // Add 'groomed' label to indicate issue is ready for implementation
@@ -158,6 +185,23 @@ export async function executeApplyGroomingOutput(
       core.info(`Added 'groomed' label to issue #${action.issueNumber}`);
     } catch (error) {
       core.warning(`Failed to add 'groomed' label: ${error}`);
+    }
+
+    // Check if engineer recommends splitting into phases
+    const engineerOutput = groomingOutput.engineer as EngineerOutput;
+    if (
+      engineerOutput.scope_recommendation === "split" &&
+      engineerOutput.recommended_phases &&
+      engineerOutput.recommended_phases.length > 0
+    ) {
+      core.info(
+        `Engineer recommends splitting into ${engineerOutput.recommended_phases.length} phases`,
+      );
+      subIssuesCreated = await createSubIssuesForPhases(
+        ctx,
+        action.issueNumber,
+        engineerOutput.recommended_phases,
+      );
     }
   } else {
     // Collect questions from agents
@@ -181,5 +225,180 @@ export async function executeApplyGroomingOutput(
     }
   }
 
-  return { applied: true, decision };
+  return { applied: true, decision, subIssuesCreated };
+}
+
+// ============================================================================
+// Sub-Issue Creation
+// ============================================================================
+
+/**
+ * Create sub-issues for each recommended phase
+ */
+async function createSubIssuesForPhases(
+  ctx: RunnerContext,
+  parentIssueNumber: number,
+  phases: RecommendedPhase[],
+): Promise<number> {
+  let created = 0;
+
+  for (const phase of phases) {
+    const title = `[Phase ${phase.phase_number}]: ${phase.title}`;
+    const body = buildPhaseIssueBody(phase);
+
+    try {
+      // Create the sub-issue
+      const { data: newIssue } = await ctx.octokit.rest.issues.create({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        title,
+        body,
+      });
+
+      core.info(`Created sub-issue #${newIssue.number}: ${title}`);
+      created++;
+
+      // Link to parent issue using GitHub's sub-issues feature
+      // This is done via the GraphQL API for sub-issues
+      await linkSubIssue(ctx, parentIssueNumber, newIssue.number);
+
+      // Set project status for first phase to "Ready"
+      if (phase.phase_number === 1) {
+        // Note: This would need project field updates, which is complex
+        // For now, just log it
+        core.info(
+          `Phase 1 sub-issue #${newIssue.number} should be set to Ready status`,
+        );
+      }
+    } catch (error) {
+      core.error(`Failed to create sub-issue for phase ${phase.phase_number}: ${error}`);
+    }
+  }
+
+  // Update parent issue body with agent notes about sub-issue creation
+  if (created > 0) {
+    try {
+      const { data: parentIssue } = await ctx.octokit.rest.issues.get({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: parentIssueNumber,
+      });
+
+      const existingBody = parentIssue.body || "";
+      const agentNote = `\n\n## Agent Notes\n\nGrooming complete. Sub-issues created for phased implementation.`;
+      const newBody = existingBody + agentNote;
+
+      await ctx.octokit.rest.issues.update({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: parentIssueNumber,
+        body: newBody,
+      });
+      core.info(`Updated parent issue #${parentIssueNumber} with agent notes`);
+    } catch (error) {
+      core.warning(`Failed to update parent issue body: ${error}`);
+    }
+  }
+
+  return created;
+}
+
+/**
+ * Build the body for a phase sub-issue
+ */
+function buildPhaseIssueBody(phase: RecommendedPhase): string {
+  const sections: string[] = [];
+
+  // Description
+  sections.push(`## Description\n\n${phase.description}`);
+
+  // Affected Areas
+  if (phase.affected_areas && phase.affected_areas.length > 0) {
+    const areas = phase.affected_areas
+      .map((area) => {
+        const changeType = area.change_type ? ` (${area.change_type})` : "";
+        const desc = area.description ? ` - ${area.description}` : "";
+        return `- \`${area.path}\`${changeType}${desc}`;
+      })
+      .join("\n");
+    sections.push(`## Affected Areas\n\n${areas}`);
+  }
+
+  // Todos
+  if (phase.todos && phase.todos.length > 0) {
+    const todos = phase.todos
+      .map((todo) => {
+        const manual = todo.manual ? " *(manual)*" : "";
+        return `- [ ] ${todo.task}${manual}`;
+      })
+      .join("\n");
+    sections.push(`## Todo\n\n${todos}`);
+  }
+
+  return sections.join("\n\n");
+}
+
+/**
+ * Link a sub-issue to a parent issue using GitHub's sub-issues feature
+ */
+async function linkSubIssue(
+  ctx: RunnerContext,
+  parentIssueNumber: number,
+  subIssueNumber: number,
+): Promise<void> {
+  // GitHub's sub-issues feature uses GraphQL
+  // We need to get the issue node IDs first
+  const query = `
+    query GetIssueIds($owner: String!, $repo: String!, $parentNumber: Int!, $subNumber: Int!) {
+      repository(owner: $owner, name: $repo) {
+        parent: issue(number: $parentNumber) {
+          id
+        }
+        sub: issue(number: $subNumber) {
+          id
+        }
+      }
+    }
+  `;
+
+  try {
+    const result = await ctx.octokit.graphql<{
+      repository: {
+        parent: { id: string };
+        sub: { id: string };
+      };
+    }>(query, {
+      owner: ctx.owner,
+      repo: ctx.repo,
+      parentNumber: parentIssueNumber,
+      subNumber: subIssueNumber,
+    });
+
+    const parentId = result.repository.parent.id;
+    const subId = result.repository.sub.id;
+
+    // Add sub-issue relationship
+    const mutation = `
+      mutation AddSubIssue($parentId: ID!, $subIssueId: ID!) {
+        addSubIssue(input: { issueId: $parentId, subIssueId: $subIssueId }) {
+          issue {
+            id
+          }
+        }
+      }
+    `;
+
+    await ctx.octokit.graphql(mutation, {
+      parentId,
+      subIssueId: subId,
+    });
+
+    core.info(
+      `Linked sub-issue #${subIssueNumber} to parent #${parentIssueNumber}`,
+    );
+  } catch (error) {
+    core.warning(
+      `Failed to link sub-issue #${subIssueNumber} to parent #${parentIssueNumber}: ${error}`,
+    );
+  }
 }
