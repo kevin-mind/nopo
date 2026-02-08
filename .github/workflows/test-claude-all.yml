@@ -78,18 +78,23 @@ jobs:
 
       - name: Save result
         if: always()
+        env:
+          SCENARIO: ${{ matrix.scenario }}
+          STATUS: ${{ steps.run.outputs.status || 'error' }}
+          ISSUE_NUMBER: ${{ steps.run.outputs.issue_number || '' }}
+          ERROR_MSG: ${{ steps.run.outputs.error || '' }}
+          JOB_RESULT: ${{ job.status }}
         run: |
           mkdir -p results
-          cat > results/${{ matrix.scenario }}-mock.json << 'EOF'
-          {
-            "scenario": "${{ matrix.scenario }}",
-            "mode": "mock",
-            "status": "${{ steps.run.outputs.status || 'error' }}",
-            "issue_number": "${{ steps.run.outputs.issue_number || '' }}",
-            "error": "${{ steps.run.outputs.error || '' }}",
-            "job_result": "${{ job.status }}"
-          }
-          EOF
+          jq -n \
+            --arg scenario "$SCENARIO" \
+            --arg mode "mock" \
+            --arg status "$STATUS" \
+            --arg issue_number "$ISSUE_NUMBER" \
+            --arg error "$ERROR_MSG" \
+            --arg job_result "$JOB_RESULT" \
+            '{scenario: $scenario, mode: $mode, status: $status, issue_number: $issue_number, error: $error, job_result: $job_result}' \
+            > results/${{ matrix.scenario }}-mock.json
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -151,18 +156,23 @@ jobs:
 
       - name: Save result
         if: always()
+        env:
+          SCENARIO: ${{ matrix.scenario }}
+          STATUS: ${{ steps.run.outputs.status || 'error' }}
+          ISSUE_NUMBER: ${{ steps.run.outputs.issue_number || '' }}
+          ERROR_MSG: ${{ steps.run.outputs.error || '' }}
+          JOB_RESULT: ${{ job.status }}
         run: |
           mkdir -p results
-          cat > results/${{ matrix.scenario }}-mock.json << 'EOF'
-          {
-            "scenario": "${{ matrix.scenario }}",
-            "mode": "mock",
-            "status": "${{ steps.run.outputs.status || 'error' }}",
-            "issue_number": "${{ steps.run.outputs.issue_number || '' }}",
-            "error": "${{ steps.run.outputs.error || '' }}",
-            "job_result": "${{ job.status }}"
-          }
-          EOF
+          jq -n \
+            --arg scenario "$SCENARIO" \
+            --arg mode "mock" \
+            --arg status "$STATUS" \
+            --arg issue_number "$ISSUE_NUMBER" \
+            --arg error "$ERROR_MSG" \
+            --arg job_result "$JOB_RESULT" \
+            '{scenario: $scenario, mode: $mode, status: $status, issue_number: $issue_number, error: $error, job_result: $job_result}' \
+            > results/${{ matrix.scenario }}-mock.json
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -224,18 +234,23 @@ jobs:
 
       - name: Save result
         if: always()
+        env:
+          SCENARIO: ${{ matrix.scenario }}
+          STATUS: ${{ steps.run.outputs.status || 'error' }}
+          ISSUE_NUMBER: ${{ steps.run.outputs.issue_number || '' }}
+          ERROR_MSG: ${{ steps.run.outputs.error || '' }}
+          JOB_RESULT: ${{ job.status }}
         run: |
           mkdir -p results
-          cat > results/${{ matrix.scenario }}-mock.json << 'EOF'
-          {
-            "scenario": "${{ matrix.scenario }}",
-            "mode": "mock",
-            "status": "${{ steps.run.outputs.status || 'error' }}",
-            "issue_number": "${{ steps.run.outputs.issue_number || '' }}",
-            "error": "${{ steps.run.outputs.error || '' }}",
-            "job_result": "${{ job.status }}"
-          }
-          EOF
+          jq -n \
+            --arg scenario "$SCENARIO" \
+            --arg mode "mock" \
+            --arg status "$STATUS" \
+            --arg issue_number "$ISSUE_NUMBER" \
+            --arg error "$ERROR_MSG" \
+            --arg job_result "$JOB_RESULT" \
+            '{scenario: $scenario, mode: $mode, status: $status, issue_number: $issue_number, error: $error, job_result: $job_result}' \
+            > results/${{ matrix.scenario }}-mock.json
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -295,18 +310,23 @@ jobs:
 
       - name: Save result
         if: always()
+        env:
+          SCENARIO: ${{ matrix.scenario }}
+          STATUS: ${{ steps.run.outputs.status || 'error' }}
+          ISSUE_NUMBER: ${{ steps.run.outputs.issue_number || '' }}
+          ERROR_MSG: ${{ steps.run.outputs.error || '' }}
+          JOB_RESULT: ${{ job.status }}
         run: |
           mkdir -p results
-          cat > results/${{ matrix.scenario }}-mock.json << 'EOF'
-          {
-            "scenario": "${{ matrix.scenario }}",
-            "mode": "mock",
-            "status": "${{ steps.run.outputs.status || 'error' }}",
-            "issue_number": "${{ steps.run.outputs.issue_number || '' }}",
-            "error": "${{ steps.run.outputs.error || '' }}",
-            "job_result": "${{ job.status }}"
-          }
-          EOF
+          jq -n \
+            --arg scenario "$SCENARIO" \
+            --arg mode "mock" \
+            --arg status "$STATUS" \
+            --arg issue_number "$ISSUE_NUMBER" \
+            --arg error "$ERROR_MSG" \
+            --arg job_result "$JOB_RESULT" \
+            '{scenario: $scenario, mode: $mode, status: $status, issue_number: $issue_number, error: $error, job_result: $job_result}' \
+            > results/${{ matrix.scenario }}-mock.json
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -385,18 +405,23 @@ jobs:
 
       - name: Save result
         if: always()
+        env:
+          SCENARIO: ${{ matrix.scenario }}
+          STATUS: ${{ steps.run.outputs.status || 'error' }}
+          ISSUE_NUMBER: ${{ steps.run.outputs.issue_number || '' }}
+          ERROR_MSG: ${{ steps.run.outputs.error || '' }}
+          JOB_RESULT: ${{ job.status }}
         run: |
           mkdir -p results
-          cat > results/${{ matrix.scenario }}-real.json << 'EOF'
-          {
-            "scenario": "${{ matrix.scenario }}",
-            "mode": "real",
-            "status": "${{ steps.run.outputs.status || 'error' }}",
-            "issue_number": "${{ steps.run.outputs.issue_number || '' }}",
-            "error": "${{ steps.run.outputs.error || '' }}",
-            "job_result": "${{ job.status }}"
-          }
-          EOF
+          jq -n \
+            --arg scenario "$SCENARIO" \
+            --arg mode "real" \
+            --arg status "$STATUS" \
+            --arg issue_number "$ISSUE_NUMBER" \
+            --arg error "$ERROR_MSG" \
+            --arg job_result "$JOB_RESULT" \
+            '{scenario: $scenario, mode: $mode, status: $status, issue_number: $issue_number, error: $error, job_result: $job_result}' \
+            > results/${{ matrix.scenario }}-real.json
 
       - uses: actions/upload-artifact@v4
         if: always()
