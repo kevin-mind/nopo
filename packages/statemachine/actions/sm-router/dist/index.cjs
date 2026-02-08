@@ -44558,169 +44558,6 @@ function isDiscussionTrigger(trigger) {
   return DiscussionTriggerTypeSchema.safeParse(trigger).success;
 }
 
-// ../../packages/statemachine/src/parser/extractors.ts
-function findHeadingIndex(ast, text5) {
-  return ast.children.findIndex((node2) => {
-    if (node2.type !== "heading") return false;
-    const firstChild = node2.children[0];
-    return firstChild?.type === "text" && firstChild.value === text5;
-  });
-}
-function getNodeText(node2) {
-  if (!node2) return "";
-  if (node2.type === "text") return node2.value;
-  if (node2.type === "inlineCode") return node2.value;
-  if ("children" in node2 && Array.isArray(node2.children)) {
-    return node2.children.map(getNodeText).join("");
-  }
-  return "";
-}
-function getLinkUrl(node2) {
-  if (!node2) return null;
-  if (node2.type === "link") return node2.url;
-  if ("children" in node2 && Array.isArray(node2.children)) {
-    for (const child of node2.children) {
-      const url = getLinkUrl(child);
-      if (url) return url;
-    }
-  }
-  return null;
-}
-var todosExtractor = createExtractor(TodoStatsSchema, (data) => {
-  const ast = data.issue.bodyAst;
-  const todosIdx = findHeadingIndex(ast, "Todos");
-  if (todosIdx === -1) {
-    return { total: 0, completed: 0, uncheckedNonManual: 0 };
-  }
-  const listNode = ast.children[todosIdx + 1];
-  if (!listNode || listNode.type !== "list") {
-    return { total: 0, completed: 0, uncheckedNonManual: 0 };
-  }
-  let total = 0;
-  let completed = 0;
-  let uncheckedNonManual = 0;
-  for (const item of listNode.children) {
-    if (item.type === "listItem" && item.checked !== void 0) {
-      total++;
-      if (item.checked) {
-        completed++;
-      } else {
-        const text5 = getNodeText(item);
-        const isManual = /\[Manual\]|\*\(manual\)\*/i.test(text5);
-        if (!isManual) {
-          uncheckedNonManual++;
-        }
-      }
-    }
-  }
-  return { total, completed, uncheckedNonManual };
-});
-function extractTodosFromAst(bodyAst) {
-  const todosIdx = findHeadingIndex(bodyAst, "Todos");
-  if (todosIdx === -1) {
-    return { total: 0, completed: 0, uncheckedNonManual: 0 };
-  }
-  const listNode = bodyAst.children[todosIdx + 1];
-  if (!listNode || listNode.type !== "list") {
-    return { total: 0, completed: 0, uncheckedNonManual: 0 };
-  }
-  let total = 0;
-  let completed = 0;
-  let uncheckedNonManual = 0;
-  for (const item of listNode.children) {
-    if (item.type === "listItem" && item.checked !== void 0) {
-      total++;
-      if (item.checked) {
-        completed++;
-      } else {
-        const text5 = getNodeText(item);
-        const isManual = /\[Manual\]|\*\(manual\)\*/i.test(text5);
-        if (!isManual) {
-          uncheckedNonManual++;
-        }
-      }
-    }
-  }
-  return { total, completed, uncheckedNonManual };
-}
-function getCellText(row, index2) {
-  const cell = row.children[index2];
-  if (!cell) return "";
-  return cell.children.map(getNodeText).join("");
-}
-function getCellLinkUrl(row, index2) {
-  const cell = row.children[index2];
-  if (!cell) return null;
-  for (const child of cell.children) {
-    const url = getLinkUrl(child);
-    if (url) return url;
-  }
-  return null;
-}
-var historyExtractor = createExtractor(
-  external_exports.array(HistoryEntrySchema),
-  (data) => {
-    const ast = data.issue.bodyAst;
-    const historyIdx = findHeadingIndex(ast, "Iteration History");
-    if (historyIdx === -1) return [];
-    const tableNode = ast.children.slice(historyIdx + 1).find((n) => n.type === "table");
-    if (!tableNode) return [];
-    return tableNode.children.slice(1).map((row) => {
-      const timestamp = getCellText(row, 0) || null;
-      const iterationStr = getCellText(row, 1) || "0";
-      const phase = getCellText(row, 2) || "";
-      const action = getCellText(row, 3) || "";
-      const sha = getCellText(row, 4) || null;
-      const runLink = getCellLinkUrl(row, 5);
-      return {
-        timestamp: timestamp === "-" ? null : timestamp,
-        iteration: parseInt(iterationStr, 10) || 0,
-        phase,
-        action,
-        sha: sha === "-" ? null : sha,
-        runLink
-      };
-    });
-  }
-);
-var agentNotesExtractor = createExtractor(
-  external_exports.array(AgentNotesEntrySchema),
-  (data) => {
-    const ast = data.issue.bodyAst;
-    const notesIdx = findHeadingIndex(ast, "Agent Notes");
-    if (notesIdx === -1) return [];
-    const entries = [];
-    for (let i = notesIdx + 1; i < ast.children.length; i++) {
-      const node2 = ast.children[i];
-      if (!node2) continue;
-      if (node2.type === "heading" && node2.depth === 2) break;
-      if (node2.type === "heading" && node2.depth === 3) {
-        const linkNode = node2.children[0];
-        if (!linkNode || linkNode.type !== "link") continue;
-        const linkText = getNodeText(linkNode);
-        const runMatch = linkText.match(/Run\s+(\d+)/);
-        if (!runMatch || !runMatch[1]) continue;
-        const runId = runMatch[1];
-        const runLink = linkNode.url;
-        const headingText = getNodeText(node2);
-        const timestampMatch = headingText.match(/-\s*(.+)$/);
-        const timestamp = timestampMatch?.[1]?.trim() || "";
-        const listNode = ast.children[i + 1];
-        const notes = listNode?.type === "list" ? listNode.children.map(
-          (item) => getNodeText(item)
-        ) : [];
-        entries.push({
-          runId,
-          runLink,
-          timestamp,
-          notes
-        });
-      }
-    }
-    return entries;
-  }
-);
-
 // ../../packages/statemachine/src/parser/issue-adapter.ts
 function deriveBranchName(parentIssueNumber, phaseNumber) {
   if (phaseNumber !== void 0 && phaseNumber > 0) {
@@ -45066,6 +44903,169 @@ async function buildMachineContext(octokit, event, projectNumber, options = {}) 
     botUsername: options.botUsername
   });
 }
+
+// ../../packages/statemachine/src/parser/extractors.ts
+function findHeadingIndex(ast, text5) {
+  return ast.children.findIndex((node2) => {
+    if (node2.type !== "heading") return false;
+    const firstChild = node2.children[0];
+    return firstChild?.type === "text" && firstChild.value === text5;
+  });
+}
+function getNodeText(node2) {
+  if (!node2) return "";
+  if (node2.type === "text") return node2.value;
+  if (node2.type === "inlineCode") return node2.value;
+  if ("children" in node2 && Array.isArray(node2.children)) {
+    return node2.children.map(getNodeText).join("");
+  }
+  return "";
+}
+function getLinkUrl(node2) {
+  if (!node2) return null;
+  if (node2.type === "link") return node2.url;
+  if ("children" in node2 && Array.isArray(node2.children)) {
+    for (const child of node2.children) {
+      const url = getLinkUrl(child);
+      if (url) return url;
+    }
+  }
+  return null;
+}
+var todosExtractor = createExtractor(TodoStatsSchema, (data) => {
+  const ast = data.issue.bodyAst;
+  const todosIdx = findHeadingIndex(ast, "Todos");
+  if (todosIdx === -1) {
+    return { total: 0, completed: 0, uncheckedNonManual: 0 };
+  }
+  const listNode = ast.children[todosIdx + 1];
+  if (!listNode || listNode.type !== "list") {
+    return { total: 0, completed: 0, uncheckedNonManual: 0 };
+  }
+  let total = 0;
+  let completed = 0;
+  let uncheckedNonManual = 0;
+  for (const item of listNode.children) {
+    if (item.type === "listItem" && item.checked !== void 0) {
+      total++;
+      if (item.checked) {
+        completed++;
+      } else {
+        const text5 = getNodeText(item);
+        const isManual = /\[Manual\]|\*\(manual\)\*/i.test(text5);
+        if (!isManual) {
+          uncheckedNonManual++;
+        }
+      }
+    }
+  }
+  return { total, completed, uncheckedNonManual };
+});
+function extractTodosFromAst(bodyAst) {
+  const todosIdx = findHeadingIndex(bodyAst, "Todos");
+  if (todosIdx === -1) {
+    return { total: 0, completed: 0, uncheckedNonManual: 0 };
+  }
+  const listNode = bodyAst.children[todosIdx + 1];
+  if (!listNode || listNode.type !== "list") {
+    return { total: 0, completed: 0, uncheckedNonManual: 0 };
+  }
+  let total = 0;
+  let completed = 0;
+  let uncheckedNonManual = 0;
+  for (const item of listNode.children) {
+    if (item.type === "listItem" && item.checked !== void 0) {
+      total++;
+      if (item.checked) {
+        completed++;
+      } else {
+        const text5 = getNodeText(item);
+        const isManual = /\[Manual\]|\*\(manual\)\*/i.test(text5);
+        if (!isManual) {
+          uncheckedNonManual++;
+        }
+      }
+    }
+  }
+  return { total, completed, uncheckedNonManual };
+}
+function getCellText(row, index2) {
+  const cell = row.children[index2];
+  if (!cell) return "";
+  return cell.children.map(getNodeText).join("");
+}
+function getCellLinkUrl(row, index2) {
+  const cell = row.children[index2];
+  if (!cell) return null;
+  for (const child of cell.children) {
+    const url = getLinkUrl(child);
+    if (url) return url;
+  }
+  return null;
+}
+var historyExtractor = createExtractor(
+  external_exports.array(HistoryEntrySchema),
+  (data) => {
+    const ast = data.issue.bodyAst;
+    const historyIdx = findHeadingIndex(ast, "Iteration History");
+    if (historyIdx === -1) return [];
+    const tableNode = ast.children.slice(historyIdx + 1).find((n) => n.type === "table");
+    if (!tableNode) return [];
+    return tableNode.children.slice(1).map((row) => {
+      const timestamp = getCellText(row, 0) || null;
+      const iterationStr = getCellText(row, 1) || "0";
+      const phase = getCellText(row, 2) || "";
+      const action = getCellText(row, 3) || "";
+      const sha = getCellText(row, 4) || null;
+      const runLink = getCellLinkUrl(row, 5);
+      return {
+        timestamp: timestamp === "-" ? null : timestamp,
+        iteration: parseInt(iterationStr, 10) || 0,
+        phase,
+        action,
+        sha: sha === "-" ? null : sha,
+        runLink
+      };
+    });
+  }
+);
+var agentNotesExtractor = createExtractor(
+  external_exports.array(AgentNotesEntrySchema),
+  (data) => {
+    const ast = data.issue.bodyAst;
+    const notesIdx = findHeadingIndex(ast, "Agent Notes");
+    if (notesIdx === -1) return [];
+    const entries = [];
+    for (let i = notesIdx + 1; i < ast.children.length; i++) {
+      const node2 = ast.children[i];
+      if (!node2) continue;
+      if (node2.type === "heading" && node2.depth === 2) break;
+      if (node2.type === "heading" && node2.depth === 3) {
+        const linkNode = node2.children[0];
+        if (!linkNode || linkNode.type !== "link") continue;
+        const linkText = getNodeText(linkNode);
+        const runMatch = linkText.match(/Run\s+(\d+)/);
+        if (!runMatch || !runMatch[1]) continue;
+        const runId = runMatch[1];
+        const runLink = linkNode.url;
+        const headingText = getNodeText(node2);
+        const timestampMatch = headingText.match(/-\s*(.+)$/);
+        const timestamp = timestampMatch?.[1]?.trim() || "";
+        const listNode = ast.children[i + 1];
+        const notes = listNode?.type === "list" ? listNode.children.map(
+          (item) => getNodeText(item)
+        ) : [];
+        entries.push({
+          runId,
+          runLink,
+          timestamp,
+          notes
+        });
+      }
+    }
+    return entries;
+  }
+);
 
 // ../../packages/statemachine/src/parser/mutators.ts
 function findHeadingIndex2(ast, text5) {
@@ -45500,7 +45500,11 @@ var upsertSection2 = createMutator(
         }
         endIdx = i + 1;
       }
-      newAst.children.splice(sectionIdx + 1, endIdx - sectionIdx - 1, contentNode);
+      newAst.children.splice(
+        sectionIdx + 1,
+        endIdx - sectionIdx - 1,
+        contentNode
+      );
     } else {
       const targetOrderIdx = sectionOrder.indexOf(input.title);
       let insertIdx = newAst.children.length;

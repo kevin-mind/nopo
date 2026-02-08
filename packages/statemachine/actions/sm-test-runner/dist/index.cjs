@@ -42807,6 +42807,14 @@ var MinimalTriggerContextSchema = external_exports.object({
   head_sha: external_exports.string().optional()
 });
 
+// ../../packages/statemachine/src/parser/issue-adapter.ts
+function deriveBranchName2(parentIssueNumber, phaseNumber) {
+  if (phaseNumber !== void 0 && phaseNumber > 0) {
+    return `claude/issue/${parentIssueNumber}/phase-${phaseNumber}`;
+  }
+  return `claude/issue/${parentIssueNumber}`;
+}
+
 // ../../packages/statemachine/src/parser/extractors.ts
 function findHeadingIndex(ast, text5) {
   return ast.children.findIndex((node2) => {
@@ -42969,14 +42977,6 @@ var agentNotesExtractor = createExtractor(
     return entries;
   }
 );
-
-// ../../packages/statemachine/src/parser/issue-adapter.ts
-function deriveBranchName2(parentIssueNumber, phaseNumber) {
-  if (phaseNumber !== void 0 && phaseNumber > 0) {
-    return `claude/issue/${parentIssueNumber}/phase-${phaseNumber}`;
-  }
-  return `claude/issue/${parentIssueNumber}`;
-}
 
 // ../../packages/statemachine/src/parser/mutators.ts
 function findHeadingIndex2(ast, text5) {
@@ -43411,7 +43411,11 @@ var upsertSection2 = createMutator(
         }
         endIdx = i + 1;
       }
-      newAst.children.splice(sectionIdx + 1, endIdx - sectionIdx - 1, contentNode);
+      newAst.children.splice(
+        sectionIdx + 1,
+        endIdx - sectionIdx - 1,
+        contentNode
+      );
     } else {
       const targetOrderIdx = sectionOrder.indexOf(input.title);
       let insertIdx = newAst.children.length;
@@ -75145,7 +75149,8 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
           mockOutputs[basePromptDir] = transformedOutput;
         }
         if (mockRef.startsWith("grooming/") && mockRef !== "grooming/summary") {
-          const agentType = mockRef.split("/")[1];
+          const fullAgentType = mockRef.split("/")[1];
+          const agentType = fullAgentType?.split("-")[0];
           if (agentType) {
             groomingMocks[agentType] = transformedOutput;
           }
@@ -75171,7 +75176,8 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
     const issueContext = {
       number: context2.issue.number,
       title: context2.issue.title,
-      body: context2.issue.body,
+      body: serializeMarkdown(context2.issue.bodyAst),
+      // Convert MDAST back to string
       comments: context2.issue.comments?.map((c) => `${c.author}: ${c.body}`).join("\n\n---\n\n")
     };
     const runnerCtx = createRunnerContext(
@@ -75216,18 +75222,19 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
         number: realNumber,
         title: sub.title,
         state: sub.state,
-        body: sub.body,
+        bodyAst: parseMarkdown(sub.body),
+        // Convert body to MDAST
         projectStatus: sub.projectStatus,
         branch: sub.branch || null,
-        pr: sub.pr || null,
-        todos: sub.todos || { total: 0, completed: 0, uncheckedNonManual: 0 }
+        pr: sub.pr || null
       };
     });
     const issue2 = {
       number: this.issueNumber,
       title: fixture.issue.title,
       state: fixture.issue.state,
-      body: fixture.issue.body,
+      bodyAst: parseMarkdown(fixture.issue.body),
+      // Convert body to MDAST
       projectStatus: fixture.issue.projectStatus,
       iteration: fixture.issue.iteration,
       failures: fixture.issue.failures,
@@ -75235,14 +75242,43 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
       labels: fixture.issue.labels,
       subIssues,
       hasSubIssues: fixture.issue.hasSubIssues,
-      history: [],
+      comments: [],
       // Simplified in fixtures
-      todos: fixture.issue.todos,
-      agentNotes: [],
-      // Simplified in fixtures
-      comments: []
-      // Simplified in fixtures
+      branch: this.testBranchName || null,
+      pr: this.prNumber && fixture.issue.pr ? {
+        number: this.prNumber,
+        state: fixture.issue.pr.state,
+        isDraft: fixture.issue.pr.isDraft,
+        title: fixture.issue.pr.title,
+        headRef: this.testBranchName,
+        baseRef: fixture.issue.pr.baseRef || "main"
+      } : null,
+      parentIssueNumber: fixture.parentIssue ? 0 : null
+      // 0 = placeholder, will be real number
     };
+    let parentIssue = null;
+    if (fixture.parentIssue) {
+      parentIssue = {
+        number: fixture.parentIssue.number || this.issueNumber,
+        // Use real number or placeholder
+        title: fixture.parentIssue.title,
+        state: fixture.parentIssue.state,
+        bodyAst: parseMarkdown(fixture.parentIssue.body),
+        // Convert body to MDAST
+        projectStatus: fixture.parentIssue.projectStatus,
+        iteration: fixture.parentIssue.iteration,
+        failures: fixture.parentIssue.failures,
+        assignees: [],
+        labels: [],
+        subIssues: [],
+        hasSubIssues: true,
+        // Parent has sub-issues by definition
+        comments: [],
+        branch: null,
+        pr: null,
+        parentIssueNumber: null
+      };
+    }
     let trigger = "issue-edited";
     if (fixture.state === "triaging") {
       if (fixture.issue.assignees.includes("nopo-bot")) {
@@ -75297,7 +75333,8 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
       owner: this.config.owner,
       repo: this.config.repo,
       issue: issue2,
-      parentIssue: null,
+      parentIssue,
+      // Use the built parentIssue (null if not a sub-issue)
       currentPhase: null,
       totalPhases: 0,
       currentSubIssue: null,

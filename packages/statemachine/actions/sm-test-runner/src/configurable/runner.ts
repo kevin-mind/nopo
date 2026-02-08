@@ -36,6 +36,8 @@ import {
   GET_PROJECT_ITEM_QUERY,
   UPDATE_PROJECT_FIELD_MUTATION,
   ADD_ISSUE_TO_PROJECT_MUTATION,
+  parseMarkdown,
+  serializeMarkdown,
 } from "@more/issue-state";
 
 type Octokit = InstanceType<typeof GitHub>;
@@ -909,10 +911,12 @@ Issue: #${this.issueNumber}
         }
 
         // Collect grooming mocks for combining
-        // Mocks like grooming/pm, grooming/engineer, etc. need to be combined into
+        // Mocks like grooming/pm, grooming/engineer-with-phases, etc. need to be combined into
         // a single "grooming" output with { pm: ..., engineer: ..., qa: ..., research: ... }
         if (mockRef.startsWith("grooming/") && mockRef !== "grooming/summary") {
-          const agentType = mockRef.split("/")[1]; // pm, engineer, qa, research
+          const fullAgentType = mockRef.split("/")[1]; // e.g., "engineer-with-phases"
+          // Extract base agent type before any variant suffix (e.g., "engineer")
+          const agentType = fullAgentType?.split("-")[0];
           if (agentType) {
             groomingMocks[agentType] = transformedOutput;
           }
@@ -946,7 +950,7 @@ Issue: #${this.issueNumber}
     const issueContext = {
       number: context.issue.number,
       title: context.issue.title,
-      body: context.issue.body,
+      body: serializeMarkdown(context.issue.bodyAst), // Convert MDAST back to string
       comments: context.issue.comments
         ?.map((c) => `${c.author}: ${c.body}`)
         .join("\n\n---\n\n"),
@@ -1001,7 +1005,7 @@ Issue: #${this.issueNumber}
     fixture: StateFixture,
     nextFixture?: StateFixture,
   ): MachineContext {
-    // Map sub-issues from fixture to proper SubIssue format
+    // Map sub-issues from fixture to proper SubIssue format (with bodyAst)
     // Use real issue numbers from subIssueNumbers map if available
     const subIssues = (fixture.issue.subIssues || []).map((sub, index) => {
       // Look up the real issue number by title (without TEST prefix)
@@ -1011,20 +1015,19 @@ Issue: #${this.issueNumber}
         number: realNumber,
         title: sub.title,
         state: sub.state,
-        body: sub.body,
+        bodyAst: parseMarkdown(sub.body), // Convert body to MDAST
         projectStatus: sub.projectStatus as ProjectStatus | null,
         branch: sub.branch || null,
         pr: sub.pr || null,
-        todos: sub.todos || { total: 0, completed: 0, uncheckedNonManual: 0 },
       };
     });
 
-    // Cast fixture issue to ParentIssue
+    // Build ParentIssue with bodyAst (IssueData schema)
     const issue: ParentIssue = {
       number: this.issueNumber!,
       title: fixture.issue.title,
       state: fixture.issue.state,
-      body: fixture.issue.body,
+      bodyAst: parseMarkdown(fixture.issue.body), // Convert body to MDAST
       projectStatus: fixture.issue.projectStatus as ProjectStatus | null,
       iteration: fixture.issue.iteration,
       failures: fixture.issue.failures,
@@ -1032,11 +1035,44 @@ Issue: #${this.issueNumber}
       labels: fixture.issue.labels,
       subIssues: subIssues,
       hasSubIssues: fixture.issue.hasSubIssues,
-      history: [], // Simplified in fixtures
-      todos: fixture.issue.todos,
-      agentNotes: [], // Simplified in fixtures
       comments: [], // Simplified in fixtures
+      branch: this.testBranchName || null,
+      pr:
+        this.prNumber && fixture.issue.pr
+          ? {
+              number: this.prNumber,
+              state: fixture.issue.pr.state,
+              isDraft: fixture.issue.pr.isDraft,
+              title: fixture.issue.pr.title,
+              headRef: this.testBranchName!,
+              baseRef: fixture.issue.pr.baseRef || "main",
+            }
+          : null,
+      parentIssueNumber: fixture.parentIssue ? 0 : null, // 0 = placeholder, will be real number
     };
+
+    // Build parentIssue if fixture has one (for sub-issue scenarios)
+    let parentIssue: ParentIssue | null = null;
+    if (fixture.parentIssue) {
+      parentIssue = {
+        number: fixture.parentIssue.number || this.issueNumber!, // Use real number or placeholder
+        title: fixture.parentIssue.title,
+        state: fixture.parentIssue.state,
+        bodyAst: parseMarkdown(fixture.parentIssue.body), // Convert body to MDAST
+        projectStatus: fixture.parentIssue
+          .projectStatus as ProjectStatus | null,
+        iteration: fixture.parentIssue.iteration,
+        failures: fixture.parentIssue.failures,
+        assignees: [],
+        labels: [],
+        subIssues: [],
+        hasSubIssues: true, // Parent has sub-issues by definition
+        comments: [],
+        branch: null,
+        pr: null,
+        parentIssueNumber: null,
+      };
+    }
 
     // Determine trigger - check state-specific overrides first, then fall back to fixture trigger
     // Note: fixture may have been modified by syncFixtureWithSideEffects
@@ -1123,7 +1159,7 @@ Issue: #${this.issueNumber}
       owner: this.config.owner,
       repo: this.config.repo,
       issue,
-      parentIssue: null,
+      parentIssue, // Use the built parentIssue (null if not a sub-issue)
       currentPhase: null,
       totalPhases: 0,
       currentSubIssue: null,

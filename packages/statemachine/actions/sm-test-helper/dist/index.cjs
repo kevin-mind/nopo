@@ -41217,6 +41217,14 @@ var MinimalTriggerContextSchema = external_exports.object({
   head_sha: external_exports.string().optional()
 });
 
+// ../../packages/statemachine/src/parser/issue-adapter.ts
+function deriveBranchName(parentIssueNumber, phaseNumber) {
+  if (phaseNumber !== void 0 && phaseNumber > 0) {
+    return `claude/issue/${parentIssueNumber}/phase-${phaseNumber}`;
+  }
+  return `claude/issue/${parentIssueNumber}`;
+}
+
 // ../../packages/statemachine/src/parser/extractors.ts
 function findHeadingIndex(ast, text5) {
   return ast.children.findIndex((node2) => {
@@ -41379,14 +41387,6 @@ var agentNotesExtractor = createExtractor(
     return entries;
   }
 );
-
-// ../../packages/statemachine/src/parser/issue-adapter.ts
-function deriveBranchName(parentIssueNumber, phaseNumber) {
-  if (phaseNumber !== void 0 && phaseNumber > 0) {
-    return `claude/issue/${parentIssueNumber}/phase-${phaseNumber}`;
-  }
-  return `claude/issue/${parentIssueNumber}`;
-}
 
 // ../../packages/statemachine/src/parser/mutators.ts
 function findHeadingIndex2(ast, text5) {
@@ -41821,7 +41821,11 @@ var upsertSection2 = createMutator(
         }
         endIdx = i + 1;
       }
-      newAst.children.splice(sectionIdx + 1, endIdx - sectionIdx - 1, contentNode);
+      newAst.children.splice(
+        sectionIdx + 1,
+        endIdx - sectionIdx - 1,
+        contentNode
+      );
     } else {
       const targetOrderIdx = sectionOrder.indexOf(input.title);
       let insertIdx = newAst.children.length;
