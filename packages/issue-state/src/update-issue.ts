@@ -113,9 +113,7 @@ export async function updateIssue(
   // Project fields changed
   if (
     projectNumber &&
-    (diff.projectStatusChanged ||
-      diff.iterationChanged ||
-      diff.failuresChanged)
+    (diff.projectStatusChanged || diff.iterationChanged || diff.failuresChanged)
   ) {
     const fieldsToUpdate: {
       status?: typeof updated.issue.projectStatus;

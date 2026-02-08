@@ -36241,6 +36241,9 @@ var serializer = unified().use(remarkParse).use(remarkGfm).use(remarkStringify, 
   bullet: "-",
   listItemIndent: "one"
 });
+function serializeMarkdown(ast) {
+  return serializer.stringify(ast);
+}
 
 // ../../packages/issue-state/src/sections/types.ts
 var TodoItemSchema = external_exports.object({
@@ -36268,54 +36271,23 @@ var AgentNotesEntrySchema = external_exports.object({
   notes: external_exports.array(external_exports.string())
 });
 
+// ../../packages/issue-state/src/create-extractor.ts
+function createExtractor(schema, transform2) {
+  return (data) => {
+    const raw = transform2(data);
+    return schema.parse(raw);
+  };
+}
+
+// ../../packages/issue-state/src/create-mutator.ts
+function createMutator(inputSchema, mutate) {
+  return (input, data) => {
+    const validated = inputSchema.parse(input);
+    return mutate(validated, data);
+  };
+}
+
 // ../../packages/statemachine/src/schemas/entities.ts
-var IssueCommentSchema2 = external_exports.object({
-  id: external_exports.string(),
-  author: external_exports.string(),
-  body: external_exports.string(),
-  createdAt: external_exports.string(),
-  isBot: external_exports.boolean()
-});
-var LinkedPRSchema2 = external_exports.object({
-  number: external_exports.number().int().positive(),
-  state: external_exports.enum(["OPEN", "CLOSED", "MERGED"]),
-  isDraft: external_exports.boolean(),
-  title: external_exports.string(),
-  headRef: external_exports.string(),
-  baseRef: external_exports.string(),
-  // CI status from statusCheckRollup
-  ciStatus: CIStatusSchema.nullable().optional()
-});
-var SubIssueSchema = external_exports.object({
-  number: external_exports.number().int().positive(),
-  title: external_exports.string(),
-  state: IssueStateSchema,
-  body: external_exports.string(),
-  projectStatus: ProjectStatusSchema.nullable(),
-  branch: external_exports.string().nullable(),
-  pr: LinkedPRSchema2.nullable(),
-  todos: TodoStatsSchema
-});
-var ParentIssueSchema = external_exports.object({
-  number: external_exports.number().int().positive(),
-  title: external_exports.string(),
-  state: IssueStateSchema,
-  body: external_exports.string(),
-  projectStatus: ProjectStatusSchema.nullable(),
-  iteration: external_exports.number().int().min(0),
-  failures: external_exports.number().int().min(0),
-  assignees: external_exports.array(external_exports.string()),
-  labels: external_exports.array(external_exports.string()),
-  subIssues: external_exports.array(SubIssueSchema),
-  hasSubIssues: external_exports.boolean(),
-  history: external_exports.array(HistoryEntrySchema),
-  /** Todos parsed from the issue body - used when this is a sub-issue triggered directly */
-  todos: TodoStatsSchema,
-  /** Agent notes from previous workflow runs */
-  agentNotes: external_exports.array(AgentNotesEntrySchema).default([]),
-  /** Issue comments from GitHub */
-  comments: external_exports.array(IssueCommentSchema2).default([])
-});
 var CIResultSchema = external_exports.enum([
   "success",
   "failure",
@@ -36374,13 +36346,13 @@ var MachineContextSchema = external_exports.object({
   owner: external_exports.string().min(1),
   repo: external_exports.string().min(1),
   // Issue being worked on (could be parent or sub-issue)
-  issue: ParentIssueSchema,
+  issue: IssueDataSchema,
   // If this is a sub-issue, the parent
-  parentIssue: ParentIssueSchema.nullable(),
+  parentIssue: IssueDataSchema.nullable(),
   // Current phase info (derived from sub-issues)
   currentPhase: external_exports.number().int().positive().nullable(),
   totalPhases: external_exports.number().int().min(0),
-  currentSubIssue: SubIssueSchema.nullable(),
+  currentSubIssue: SubIssueDataSchema.nullable(),
   // CI result (if triggered by workflow_run)
   ciResult: CIResultSchema.nullable(),
   ciRunUrl: external_exports.string().nullable(),
@@ -36397,7 +36369,7 @@ var MachineContextSchema = external_exports.object({
   branch: external_exports.string().nullable(),
   hasBranch: external_exports.boolean(),
   // PR info (for the current phase/issue)
-  pr: LinkedPRSchema2.nullable(),
+  pr: LinkedPRSchema.nullable(),
   hasPR: external_exports.boolean(),
   // Comment info (if triggered by issue_comment)
   commentContextType: external_exports.string().transform((v) => v?.toLowerCase()).pipe(external_exports.enum(["issue", "pr"])).nullable().default(null),
@@ -37176,6 +37148,169 @@ var MinimalTriggerContextSchema = external_exports.object({
   head_sha: external_exports.string().optional()
 });
 
+// ../../packages/statemachine/src/parser/extractors.ts
+function findHeadingIndex(ast, text5) {
+  return ast.children.findIndex((node2) => {
+    if (node2.type !== "heading") return false;
+    const firstChild = node2.children[0];
+    return firstChild?.type === "text" && firstChild.value === text5;
+  });
+}
+function getNodeText(node2) {
+  if (!node2) return "";
+  if (node2.type === "text") return node2.value;
+  if (node2.type === "inlineCode") return node2.value;
+  if ("children" in node2 && Array.isArray(node2.children)) {
+    return node2.children.map(getNodeText).join("");
+  }
+  return "";
+}
+function getLinkUrl(node2) {
+  if (!node2) return null;
+  if (node2.type === "link") return node2.url;
+  if ("children" in node2 && Array.isArray(node2.children)) {
+    for (const child of node2.children) {
+      const url = getLinkUrl(child);
+      if (url) return url;
+    }
+  }
+  return null;
+}
+var todosExtractor = createExtractor(TodoStatsSchema, (data) => {
+  const ast = data.issue.bodyAst;
+  const todosIdx = findHeadingIndex(ast, "Todos");
+  if (todosIdx === -1) {
+    return { total: 0, completed: 0, uncheckedNonManual: 0 };
+  }
+  const listNode = ast.children[todosIdx + 1];
+  if (!listNode || listNode.type !== "list") {
+    return { total: 0, completed: 0, uncheckedNonManual: 0 };
+  }
+  let total = 0;
+  let completed = 0;
+  let uncheckedNonManual = 0;
+  for (const item of listNode.children) {
+    if (item.type === "listItem" && item.checked !== void 0) {
+      total++;
+      if (item.checked) {
+        completed++;
+      } else {
+        const text5 = getNodeText(item);
+        const isManual = /\[Manual\]|\*\(manual\)\*/i.test(text5);
+        if (!isManual) {
+          uncheckedNonManual++;
+        }
+      }
+    }
+  }
+  return { total, completed, uncheckedNonManual };
+});
+function extractTodosFromAst(bodyAst) {
+  const todosIdx = findHeadingIndex(bodyAst, "Todos");
+  if (todosIdx === -1) {
+    return { total: 0, completed: 0, uncheckedNonManual: 0 };
+  }
+  const listNode = bodyAst.children[todosIdx + 1];
+  if (!listNode || listNode.type !== "list") {
+    return { total: 0, completed: 0, uncheckedNonManual: 0 };
+  }
+  let total = 0;
+  let completed = 0;
+  let uncheckedNonManual = 0;
+  for (const item of listNode.children) {
+    if (item.type === "listItem" && item.checked !== void 0) {
+      total++;
+      if (item.checked) {
+        completed++;
+      } else {
+        const text5 = getNodeText(item);
+        const isManual = /\[Manual\]|\*\(manual\)\*/i.test(text5);
+        if (!isManual) {
+          uncheckedNonManual++;
+        }
+      }
+    }
+  }
+  return { total, completed, uncheckedNonManual };
+}
+function getCellText(row, index2) {
+  const cell = row.children[index2];
+  if (!cell) return "";
+  return cell.children.map(getNodeText).join("");
+}
+function getCellLinkUrl(row, index2) {
+  const cell = row.children[index2];
+  if (!cell) return null;
+  for (const child of cell.children) {
+    const url = getLinkUrl(child);
+    if (url) return url;
+  }
+  return null;
+}
+var historyExtractor = createExtractor(
+  external_exports.array(HistoryEntrySchema),
+  (data) => {
+    const ast = data.issue.bodyAst;
+    const historyIdx = findHeadingIndex(ast, "Iteration History");
+    if (historyIdx === -1) return [];
+    const tableNode = ast.children.slice(historyIdx + 1).find((n) => n.type === "table");
+    if (!tableNode) return [];
+    return tableNode.children.slice(1).map((row) => {
+      const timestamp = getCellText(row, 0) || null;
+      const iterationStr = getCellText(row, 1) || "0";
+      const phase = getCellText(row, 2) || "";
+      const action = getCellText(row, 3) || "";
+      const sha = getCellText(row, 4) || null;
+      const runLink = getCellLinkUrl(row, 5);
+      return {
+        timestamp: timestamp === "-" ? null : timestamp,
+        iteration: parseInt(iterationStr, 10) || 0,
+        phase,
+        action,
+        sha: sha === "-" ? null : sha,
+        runLink
+      };
+    });
+  }
+);
+var agentNotesExtractor = createExtractor(
+  external_exports.array(AgentNotesEntrySchema),
+  (data) => {
+    const ast = data.issue.bodyAst;
+    const notesIdx = findHeadingIndex(ast, "Agent Notes");
+    if (notesIdx === -1) return [];
+    const entries = [];
+    for (let i = notesIdx + 1; i < ast.children.length; i++) {
+      const node2 = ast.children[i];
+      if (!node2) continue;
+      if (node2.type === "heading" && node2.depth === 2) break;
+      if (node2.type === "heading" && node2.depth === 3) {
+        const linkNode = node2.children[0];
+        if (!linkNode || linkNode.type !== "link") continue;
+        const linkText = getNodeText(linkNode);
+        const runMatch = linkText.match(/Run\s+(\d+)/);
+        if (!runMatch || !runMatch[1]) continue;
+        const runId = runMatch[1];
+        const runLink = linkNode.url;
+        const headingText = getNodeText(node2);
+        const timestampMatch = headingText.match(/-\s*(.+)$/);
+        const timestamp = timestampMatch?.[1]?.trim() || "";
+        const listNode = ast.children[i + 1];
+        const notes = listNode?.type === "list" ? listNode.children.map(
+          (item) => getNodeText(item)
+        ) : [];
+        entries.push({
+          runId,
+          runLink,
+          timestamp,
+          notes
+        });
+      }
+    }
+    return entries;
+  }
+);
+
 // ../../packages/statemachine/src/parser/issue-adapter.ts
 function deriveBranchName(parentIssueNumber, phaseNumber) {
   if (phaseNumber !== void 0 && phaseNumber > 0) {
@@ -37183,6 +37318,461 @@ function deriveBranchName(parentIssueNumber, phaseNumber) {
   }
   return `claude/issue/${parentIssueNumber}`;
 }
+
+// ../../packages/statemachine/src/parser/mutators.ts
+function findHeadingIndex2(ast, text5) {
+  return ast.children.findIndex((node2) => {
+    if (node2.type !== "heading") return false;
+    const firstChild = node2.children[0];
+    return firstChild?.type === "text" && firstChild.value === text5;
+  });
+}
+function getNodeText2(node2) {
+  if (!node2) return "";
+  if (node2.type === "text") return node2.value;
+  if (node2.type === "inlineCode") return node2.value;
+  if ("children" in node2 && Array.isArray(node2.children)) {
+    return node2.children.map(getNodeText2).join("");
+  }
+  return "";
+}
+function createTextNode(value) {
+  return { type: "text", value };
+}
+function createParagraphNode(text5) {
+  return { type: "paragraph", children: [createTextNode(text5)] };
+}
+function createHeadingNode(depth, text5) {
+  return { type: "heading", depth, children: [createTextNode(text5)] };
+}
+function createLinkNode(url, text5) {
+  return { type: "link", url, children: [createTextNode(text5)] };
+}
+function createListItemNode(text5, checked = null) {
+  return {
+    type: "listItem",
+    checked,
+    spread: false,
+    children: [createParagraphNode(text5)]
+  };
+}
+function createTableCell(content3) {
+  return { type: "tableCell", children: content3 };
+}
+function createTableRowNode(cells) {
+  return { type: "tableRow", children: cells };
+}
+function formatTimestamp(isoTimestamp) {
+  if (!isoTimestamp) return "-";
+  try {
+    const date3 = new Date(isoTimestamp);
+    if (isNaN(date3.getTime())) return "-";
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec"
+    ];
+    const month = months[date3.getUTCMonth()];
+    const day = date3.getUTCDate();
+    const hours = String(date3.getUTCHours()).padStart(2, "0");
+    const minutes = String(date3.getUTCMinutes()).padStart(2, "0");
+    return `${month} ${day} ${hours}:${minutes}`;
+  } catch {
+    return "-";
+  }
+}
+function extractRunIdFromUrl(url) {
+  const match = url.match(/\/actions\/runs\/(\d+)/);
+  return match?.[1] ?? null;
+}
+var checkOffTodo = createMutator(
+  external_exports.object({ todoText: external_exports.string() }),
+  (input, data) => {
+    const ast = data.issue.bodyAst;
+    const todosIdx = findHeadingIndex2(ast, "Todos");
+    if (todosIdx === -1) return data;
+    const listNode = ast.children[todosIdx + 1];
+    if (!listNode || listNode.type !== "list") return data;
+    const newAst = structuredClone(ast);
+    const newList = newAst.children[todosIdx + 1];
+    for (const item of newList.children) {
+      if (item.checked === false) {
+        const text5 = getNodeText2(item);
+        if (text5.toLowerCase().includes(input.todoText.toLowerCase())) {
+          item.checked = true;
+          break;
+        }
+      }
+    }
+    return { ...data, issue: { ...data.issue, bodyAst: newAst } };
+  }
+);
+var uncheckTodo = createMutator(
+  external_exports.object({ todoText: external_exports.string() }),
+  (input, data) => {
+    const ast = data.issue.bodyAst;
+    const todosIdx = findHeadingIndex2(ast, "Todos");
+    if (todosIdx === -1) return data;
+    const listNode = ast.children[todosIdx + 1];
+    if (!listNode || listNode.type !== "list") return data;
+    const newAst = structuredClone(ast);
+    const newList = newAst.children[todosIdx + 1];
+    for (const item of newList.children) {
+      if (item.checked === true) {
+        const text5 = getNodeText2(item);
+        if (text5.toLowerCase().includes(input.todoText.toLowerCase())) {
+          item.checked = false;
+          break;
+        }
+      }
+    }
+    return { ...data, issue: { ...data.issue, bodyAst: newAst } };
+  }
+);
+var addTodo = createMutator(
+  external_exports.object({
+    text: external_exports.string(),
+    checked: external_exports.boolean().default(false),
+    isManual: external_exports.boolean().default(false)
+  }),
+  (input, data) => {
+    const ast = data.issue.bodyAst;
+    const newAst = structuredClone(ast);
+    const todosIdx = findHeadingIndex2(newAst, "Todos");
+    const todoText = input.isManual ? `[Manual] ${input.text}` : input.text;
+    const newItem = createListItemNode(todoText, input.checked);
+    if (todosIdx === -1) {
+      const heading2 = createHeadingNode(2, "Todos");
+      const list4 = {
+        type: "list",
+        ordered: false,
+        spread: false,
+        children: [newItem]
+      };
+      newAst.children.push(heading2, list4);
+    } else {
+      const listNode = newAst.children[todosIdx + 1];
+      if (listNode?.type === "list") {
+        listNode.children.push(newItem);
+      } else {
+        const list4 = {
+          type: "list",
+          ordered: false,
+          spread: false,
+          children: [newItem]
+        };
+        newAst.children.splice(todosIdx + 1, 0, list4);
+      }
+    }
+    return { ...data, issue: { ...data.issue, bodyAst: newAst } };
+  }
+);
+function createHistoryHeaderRow() {
+  return createTableRowNode([
+    createTableCell([createTextNode("Time")]),
+    createTableCell([createTextNode("#")]),
+    createTableCell([createTextNode("Phase")]),
+    createTableCell([createTextNode("Action")]),
+    createTableCell([createTextNode("SHA")]),
+    createTableCell([createTextNode("Run")])
+  ]);
+}
+function createHistoryDataRow(entry, repoUrl) {
+  let shaCell;
+  if (entry.sha) {
+    const shortSha = entry.sha.slice(0, 7);
+    const url = repoUrl ? `${repoUrl}/commit/${entry.sha}` : "#";
+    const code3 = { type: "inlineCode", value: shortSha };
+    const link2 = { type: "link", url, children: [code3] };
+    shaCell = [link2];
+  } else {
+    shaCell = [createTextNode("-")];
+  }
+  let runCell;
+  if (entry.runLink) {
+    const runId = extractRunIdFromUrl(entry.runLink);
+    const linkText = runId || "Run";
+    runCell = [createLinkNode(entry.runLink, linkText)];
+  } else {
+    runCell = [createTextNode("-")];
+  }
+  return createTableRowNode([
+    createTableCell([createTextNode(entry.timestamp || "-")]),
+    createTableCell([createTextNode(String(entry.iteration))]),
+    createTableCell([createTextNode(entry.phase)]),
+    createTableCell([createTextNode(entry.action)]),
+    createTableCell(shaCell),
+    createTableCell(runCell)
+  ]);
+}
+function getCellText2(row, index2) {
+  const cell = row.children[index2];
+  if (!cell) return "";
+  return cell.children.map(getNodeText2).join("");
+}
+function getCellRunId(row, index2) {
+  const cell = row.children[index2];
+  if (!cell) return null;
+  for (const child of cell.children) {
+    if (child.type === "link") {
+      const linkText = getNodeText2(child);
+      if (/^\d+$/.test(linkText)) {
+        return linkText;
+      }
+      return extractRunIdFromUrl(child.url);
+    }
+  }
+  return null;
+}
+var addHistoryEntry2 = createMutator(
+  external_exports.object({
+    iteration: external_exports.number(),
+    phase: external_exports.string(),
+    action: external_exports.string(),
+    timestamp: external_exports.string().nullable().optional(),
+    sha: external_exports.string().nullable().optional(),
+    runLink: external_exports.string().nullable().optional(),
+    repoUrl: external_exports.string().optional()
+  }),
+  (input, data) => {
+    const ast = data.issue.bodyAst;
+    const newAst = structuredClone(ast);
+    const historyIdx = findHeadingIndex2(newAst, "Iteration History");
+    const entry = {
+      iteration: input.iteration,
+      phase: input.phase,
+      action: input.action,
+      timestamp: input.timestamp ? formatTimestamp(input.timestamp) : formatTimestamp((/* @__PURE__ */ new Date()).toISOString()),
+      sha: input.sha ?? null,
+      runLink: input.runLink ?? null
+    };
+    const newRow = createHistoryDataRow(entry, input.repoUrl);
+    const runId = input.runLink ? extractRunIdFromUrl(input.runLink) : null;
+    if (historyIdx === -1) {
+      const heading2 = createHeadingNode(2, "Iteration History");
+      const table = {
+        type: "table",
+        align: null,
+        children: [createHistoryHeaderRow(), newRow]
+      };
+      newAst.children.push(heading2, table);
+    } else {
+      let tableIdx = -1;
+      for (let i = historyIdx + 1; i < newAst.children.length; i++) {
+        if (newAst.children[i]?.type === "table") {
+          tableIdx = i;
+          break;
+        }
+        if (newAst.children[i]?.type === "heading") break;
+      }
+      if (tableIdx === -1) {
+        const table = {
+          type: "table",
+          align: null,
+          children: [createHistoryHeaderRow(), newRow]
+        };
+        newAst.children.splice(historyIdx + 1, 0, table);
+      } else {
+        const table = newAst.children[tableIdx];
+        if (runId) {
+          for (let i = 1; i < table.children.length; i++) {
+            const row = table.children[i];
+            if (!row) continue;
+            const existingRunId = getCellRunId(row, 5);
+            if (existingRunId === runId) {
+              const actionCell = row.children[3];
+              if (actionCell) {
+                const existingAction = getCellText2(row, 3);
+                const newAction = existingAction ? `${existingAction} -> ${input.action}` : input.action;
+                actionCell.children = [createTextNode(newAction)];
+              }
+              return { ...data, issue: { ...data.issue, bodyAst: newAst } };
+            }
+          }
+        }
+        table.children.push(newRow);
+      }
+    }
+    return { ...data, issue: { ...data.issue, bodyAst: newAst } };
+  }
+);
+var updateHistoryEntry2 = createMutator(
+  external_exports.object({
+    matchIteration: external_exports.number(),
+    matchPhase: external_exports.string(),
+    matchPattern: external_exports.string(),
+    newAction: external_exports.string(),
+    timestamp: external_exports.string().nullable().optional(),
+    sha: external_exports.string().nullable().optional(),
+    runLink: external_exports.string().nullable().optional(),
+    repoUrl: external_exports.string().optional()
+  }),
+  (input, data) => {
+    const ast = data.issue.bodyAst;
+    const historyIdx = findHeadingIndex2(ast, "Iteration History");
+    if (historyIdx === -1) return data;
+    let tableIdx = -1;
+    for (let i = historyIdx + 1; i < ast.children.length; i++) {
+      if (ast.children[i]?.type === "table") {
+        tableIdx = i;
+        break;
+      }
+      if (ast.children[i]?.type === "heading") break;
+    }
+    if (tableIdx === -1) return data;
+    const table = ast.children[tableIdx];
+    let matchRowIdx = -1;
+    for (let i = table.children.length - 1; i >= 1; i--) {
+      const row2 = table.children[i];
+      if (!row2) continue;
+      const rowIteration = getCellText2(row2, 1);
+      const rowPhase = getCellText2(row2, 2);
+      const rowAction = getCellText2(row2, 3);
+      if (rowIteration === String(input.matchIteration) && rowPhase === input.matchPhase && rowAction.includes(input.matchPattern)) {
+        matchRowIdx = i;
+        break;
+      }
+    }
+    if (matchRowIdx === -1) return data;
+    const newAst = structuredClone(ast);
+    const newTable = newAst.children[tableIdx];
+    const row = newTable.children[matchRowIdx];
+    if (!row) return data;
+    const actionCell = row.children[3];
+    if (actionCell) {
+      actionCell.children = [createTextNode(input.newAction)];
+    }
+    if (input.timestamp) {
+      const timeCell = row.children[0];
+      if (timeCell) {
+        timeCell.children = [createTextNode(formatTimestamp(input.timestamp))];
+      }
+    }
+    if (input.sha) {
+      const shaCell = row.children[4];
+      if (shaCell) {
+        const shortSha = input.sha.slice(0, 7);
+        const url = input.repoUrl ? `${input.repoUrl}/commit/${input.sha}` : "#";
+        const code3 = { type: "inlineCode", value: shortSha };
+        const link2 = { type: "link", url, children: [code3] };
+        shaCell.children = [link2];
+      }
+    }
+    if (input.runLink) {
+      const runCell = row.children[5];
+      if (runCell) {
+        const runId = extractRunIdFromUrl(input.runLink);
+        const linkText = runId || "Run";
+        runCell.children = [createLinkNode(input.runLink, linkText)];
+      }
+    }
+    return { ...data, issue: { ...data.issue, bodyAst: newAst } };
+  }
+);
+var appendAgentNotes2 = createMutator(
+  external_exports.object({
+    runId: external_exports.string(),
+    runLink: external_exports.string(),
+    timestamp: external_exports.string().optional(),
+    notes: external_exports.array(external_exports.string())
+  }),
+  (input, data) => {
+    if (input.notes.length === 0) return data;
+    const ast = data.issue.bodyAst;
+    const newAst = structuredClone(ast);
+    const notesIdx = findHeadingIndex2(newAst, "Agent Notes");
+    const formattedTimestamp = formatTimestamp(
+      input.timestamp || (/* @__PURE__ */ new Date()).toISOString()
+    );
+    const headerLink = createLinkNode(input.runLink, `Run ${input.runId}`);
+    const headerText = createTextNode(` - ${formattedTimestamp}`);
+    const entryHeader = {
+      type: "heading",
+      depth: 3,
+      children: [headerLink, headerText]
+    };
+    const noteItems = input.notes.slice(0, 10).map((note) => {
+      const truncated = note.length > 500 ? note.slice(0, 500) + "..." : note;
+      return createListItemNode(truncated, null);
+    });
+    const notesList = {
+      type: "list",
+      ordered: false,
+      spread: false,
+      children: noteItems
+    };
+    if (notesIdx === -1) {
+      const sectionHeader = createHeadingNode(2, "Agent Notes");
+      newAst.children.push(sectionHeader, entryHeader, notesList);
+    } else {
+      newAst.children.splice(notesIdx + 1, 0, entryHeader, notesList);
+    }
+    return { ...data, issue: { ...data.issue, bodyAst: newAst } };
+  }
+);
+var STANDARD_SECTION_ORDER2 = [
+  "Description",
+  "Requirements",
+  "Approach",
+  "Acceptance Criteria",
+  "Testing",
+  "Related",
+  "Questions",
+  "Todos",
+  "Agent Notes",
+  "Iteration History"
+];
+var upsertSection2 = createMutator(
+  external_exports.object({
+    title: external_exports.string(),
+    content: external_exports.string(),
+    sectionOrder: external_exports.array(external_exports.string()).optional()
+  }),
+  (input, data) => {
+    const ast = data.issue.bodyAst;
+    const newAst = structuredClone(ast);
+    const sectionIdx = findHeadingIndex2(newAst, input.title);
+    const sectionOrder = input.sectionOrder || STANDARD_SECTION_ORDER2;
+    const contentNode = createParagraphNode(input.content);
+    if (sectionIdx !== -1) {
+      let endIdx = sectionIdx + 1;
+      for (let i = sectionIdx + 1; i < newAst.children.length; i++) {
+        const node2 = newAst.children[i];
+        if (node2?.type === "heading" && node2.depth === 2) {
+          break;
+        }
+        endIdx = i + 1;
+      }
+      newAst.children.splice(sectionIdx + 1, endIdx - sectionIdx - 1, contentNode);
+    } else {
+      const targetOrderIdx = sectionOrder.indexOf(input.title);
+      let insertIdx = newAst.children.length;
+      if (targetOrderIdx >= 0) {
+        for (let i = targetOrderIdx + 1; i < sectionOrder.length; i++) {
+          const nextSection = sectionOrder[i];
+          if (!nextSection) continue;
+          const nextIdx = findHeadingIndex2(newAst, nextSection);
+          if (nextIdx !== -1) {
+            insertIdx = nextIdx;
+            break;
+          }
+        }
+      }
+      const heading2 = createHeadingNode(2, input.title);
+      newAst.children.splice(insertIdx, 0, heading2, contentNode);
+    }
+    return { ...data, issue: { ...data.issue, bodyAst: newAst } };
+  }
+);
 
 // ../../node_modules/.pnpm/xstate@5.26.0/node_modules/xstate/dev/dist/xstate-dev.esm.js
 function getGlobal() {
@@ -40335,7 +40925,8 @@ function currentPhaseComplete({ context }) {
   if (!context.currentSubIssue) {
     return false;
   }
-  return context.currentSubIssue.todos.uncheckedNonManual === 0;
+  const todos = extractTodosFromAst(context.currentSubIssue.bodyAst);
+  return todos.uncheckedNonManual === 0;
 }
 function hasNextPhase({ context }) {
   if (!context.issue.hasSubIssues || context.currentPhase === null) {
@@ -40364,9 +40955,11 @@ function currentPhaseInReview({ context }) {
 }
 function todosDone({ context }) {
   if (context.currentSubIssue) {
-    return context.currentSubIssue.todos.uncheckedNonManual === 0;
+    const todos2 = extractTodosFromAst(context.currentSubIssue.bodyAst);
+    return todos2.uncheckedNonManual === 0;
   }
-  return context.issue.todos.uncheckedNonManual === 0;
+  const todos = extractTodosFromAst(context.issue.bodyAst);
+  return todos.uncheckedNonManual === 0;
 }
 function hasPendingTodos({ context }) {
   return !todosDone({ context });
@@ -41644,15 +42237,15 @@ function emitRunClaudePivot({ context }) {
     number: s.number,
     title: s.title,
     state: s.state,
-    body: s.body,
+    body: serializeMarkdown(s.bodyAst),
     projectStatus: s.projectStatus,
-    todos: s.todos
+    todos: extractTodosFromAst(s.bodyAst)
   }));
   const issueComments = formatCommentsForPrompt(context.issue.comments ?? []);
   const promptVars = {
     ISSUE_NUMBER: String(issueNumber),
     ISSUE_TITLE: context.issue.title,
-    ISSUE_BODY: context.issue.body,
+    ISSUE_BODY: serializeMarkdown(context.issue.bodyAst),
     ISSUE_COMMENTS: issueComments,
     PIVOT_DESCRIPTION: context.pivotDescription ?? "(No pivot description provided)",
     SUB_ISSUES_JSON: JSON.stringify(subIssuesInfo, null, 2)

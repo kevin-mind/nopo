@@ -339,15 +339,17 @@ async function fetchIssueData(
       if (linkedPRs.length > 0) {
         // Use the first linked PR (usually there's only one)
         const linkedPR = linkedPRs[0];
-        subIssue.branch = linkedPR.headRef;
+        if (linkedPR) {
+          subIssue.branch = linkedPR.headRef;
 
-        // Get full PR details including CI status
-        subIssue.pr = await getPRForBranch(
-          octokit,
-          owner,
-          repo,
-          linkedPR.headRef,
-        );
+          // Get full PR details including CI status
+          subIssue.pr = await getPRForBranch(
+            octokit,
+            owner,
+            repo,
+            linkedPR.headRef,
+          );
+        }
       }
     }
 
@@ -365,8 +367,9 @@ async function fetchIssueData(
   let issuePR: LinkedPR | null = null;
   if (fetchPRs) {
     const linkedPRs = await getLinkedPRs(octokit, owner, repo, issueNumber);
-    if (linkedPRs.length > 0) {
-      issueBranch = linkedPRs[0].headRef;
+    const firstPR = linkedPRs[0];
+    if (firstPR) {
+      issueBranch = firstPR.headRef;
       issuePR = await getPRForBranch(octokit, owner, repo, issueBranch);
     }
   }

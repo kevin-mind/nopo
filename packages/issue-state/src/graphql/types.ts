@@ -87,7 +87,7 @@ export interface BranchResponse {
   };
 }
 
-export interface LinkedPRNode {
+interface LinkedPRNode {
   number?: number;
   title?: string;
   state?: string;

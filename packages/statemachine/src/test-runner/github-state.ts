@@ -6,8 +6,7 @@
 
 import type { GitHub } from "@actions/github/lib/utils.js";
 import type { MachineContext, ProjectStatus } from "../schemas/index.js";
-import { parseTodoStats } from "../parser/todo-parser.js";
-import { parseHistory } from "../parser/history-parser.js";
+import { parseTodoStats, parseHistory, parseMarkdown } from "@more/issue-state";
 import type { GitHubState, WorkflowRun } from "./types.js";
 
 type Octokit = InstanceType<typeof GitHub>;
@@ -484,6 +483,9 @@ export function buildContextFromState(
   repo: string,
   trigger: MachineContext["trigger"] = "issue-edited",
 ): MachineContext {
+  // Create an empty MDAST for the body
+  const bodyAst = parseMarkdown("");
+
   return {
     trigger,
     owner,
@@ -492,7 +494,7 @@ export function buildContextFromState(
       number: state.issueNumber,
       title: "",
       state: state.issueState,
-      body: "",
+      bodyAst,
       projectStatus: state.projectStatus,
       iteration: state.iteration,
       failures: state.failures,
@@ -500,14 +502,24 @@ export function buildContextFromState(
       labels: state.labels,
       subIssues: [],
       hasSubIssues: false,
-      history: [],
-      todos: {
-        total: state.uncheckedTodos,
-        completed: 0,
-        uncheckedNonManual: state.uncheckedTodos,
-      },
-      agentNotes: [],
       comments: [],
+      branch: state.branch,
+      pr: state.prNumber
+        ? {
+            number: state.prNumber,
+            state:
+              state.prState === "MERGED"
+                ? "MERGED"
+                : state.prState === "CLOSED"
+                  ? "CLOSED"
+                  : "OPEN",
+            isDraft: state.prState === "DRAFT",
+            title: "",
+            headRef: state.branch || "",
+            baseRef: "main",
+          }
+        : null,
+      parentIssueNumber: null,
     },
     parentIssue: null,
     currentPhase: null,

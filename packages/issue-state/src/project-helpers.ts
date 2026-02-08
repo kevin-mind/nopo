@@ -203,7 +203,7 @@ export async function updateProjectFields(
     return;
   }
 
-  let projectItemId = fieldInfo.projectItemId;
+  const projectItemId = fieldInfo.projectItemId;
 
   // If issue is not in project, we can't update fields
   // (addIssueToProject requires the issue's GraphQL ID which we don't have here)

@@ -2,31 +2,24 @@
  * Issue Adapter
  *
  * Bridges @more/issue-state's parseIssue() with the statemachine's MachineContext.
- * This adapter transforms the ORM-style IssueStateData into the state machine's
- * context format, parsing todos, history, and agent notes from the body.
+ * Now that ParentIssue = IssueData and SubIssue = SubIssueData, this adapter
+ * mostly just wraps the data with minimal transformation.
  */
 
 import {
   parseIssue,
-  serializeMarkdown,
-  type IssueData,
   type SubIssueData,
   type OctokitLike,
   type CIStatus,
 } from "@more/issue-state";
 import type {
   MachineContext,
-  ParentIssue,
-  SubIssue,
   TriggerType,
   CIResult,
   ReviewDecision,
   LinkedPR,
 } from "../schemas/index.js";
 import { createMachineContext } from "../schemas/index.js";
-import { parseTodoStats } from "./todo-parser.js";
-import { parseHistory } from "./history-parser.js";
-import { parseAgentNotes } from "./agent-notes-parser.js";
 
 // ============================================================================
 // Types
@@ -76,54 +69,13 @@ export interface BuildContextOptions {
 // ============================================================================
 
 /**
- * Convert IssueData from @more/issue-state to ParentIssue for statemachine
- */
-function issueDataToParentIssue(issueData: IssueData): ParentIssue {
-  const body = serializeMarkdown(issueData.bodyAst);
-
-  return {
-    number: issueData.number,
-    title: issueData.title,
-    state: issueData.state,
-    body,
-    projectStatus: issueData.projectStatus,
-    iteration: issueData.iteration,
-    failures: issueData.failures,
-    assignees: issueData.assignees,
-    labels: issueData.labels,
-    subIssues: issueData.subIssues.map(subIssueDataToSubIssue),
-    hasSubIssues: issueData.hasSubIssues,
-    history: parseHistory(body),
-    todos: parseTodoStats(body),
-    agentNotes: parseAgentNotes(body),
-    comments: issueData.comments,
-  };
-}
-
-/**
- * Convert SubIssueData from @more/issue-state to SubIssue for statemachine
- */
-function subIssueDataToSubIssue(subIssueData: SubIssueData): SubIssue {
-  const body = serializeMarkdown(subIssueData.bodyAst);
-
-  return {
-    number: subIssueData.number,
-    title: subIssueData.title,
-    state: subIssueData.state,
-    body,
-    projectStatus: subIssueData.projectStatus,
-    branch: subIssueData.branch,
-    pr: subIssueData.pr,
-    todos: parseTodoStats(body),
-  };
-}
-
-/**
  * Find current phase from sub-issues
+ *
+ * Returns the first sub-issue that is not Done and is OPEN.
  */
 function findCurrentPhase(
-  subIssues: SubIssue[],
-): { phase: number; subIssue: SubIssue } | null {
+  subIssues: SubIssueData[],
+): { phase: number; subIssue: SubIssueData } | null {
   for (let i = 0; i < subIssues.length; i++) {
     const subIssue = subIssues[i];
     if (!subIssue) continue;
@@ -227,11 +179,9 @@ export async function buildMachineContextFromIssue(
 
   const { data } = issueResult;
 
-  // Transform to statemachine format
-  const issue = issueDataToParentIssue(data.issue);
-  const parentIssue = data.parentIssue
-    ? issueDataToParentIssue(data.parentIssue)
-    : null;
+  // Use IssueData directly (ParentIssue is now an alias for IssueData)
+  const issue = data.issue;
+  const parentIssue = data.parentIssue;
 
   // Find current phase
   const currentPhaseInfo = findCurrentPhase(issue.subIssues);

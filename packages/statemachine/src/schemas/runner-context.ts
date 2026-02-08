@@ -394,7 +394,9 @@ export type MinimalTriggerContext = z.infer<typeof MinimalTriggerContextSchema>;
 /**
  * Parse and validate minimal trigger context from JSON string
  */
-export function parseMinimalTriggerContext(json: string): MinimalTriggerContext {
+export function parseMinimalTriggerContext(
+  json: string,
+): MinimalTriggerContext {
   const parsed = JSON.parse(json);
   return MinimalTriggerContextSchema.parse(parsed);
 }

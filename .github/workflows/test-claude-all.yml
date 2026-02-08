@@ -515,9 +515,6 @@ jobs:
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
-          # Read the results
-          RESULTS=$(cat /tmp/all_results.json)
-
           # Create context file
           cat > /tmp/analysis_prompt.md << 'PROMPT_EOF'
           # State Machine Test Suite Analysis

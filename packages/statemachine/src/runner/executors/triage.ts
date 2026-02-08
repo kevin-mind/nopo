@@ -16,7 +16,7 @@ import {
   upsertSections,
   formatRequirements,
   STANDARD_SECTION_ORDER,
-} from "../../parser/section-parser.js";
+} from "@more/issue-state";
 
 // ============================================================================
 // Types
@@ -381,7 +381,6 @@ interface ProjectInfo {
   sizeOptions: Record<string, string>;
   estimateFieldId: string;
 }
-
 
 /**
  * Get project info (fields, options) for the configured project

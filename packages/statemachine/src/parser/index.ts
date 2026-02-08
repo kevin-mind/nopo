@@ -69,7 +69,23 @@ export {
 } from "./issue-adapter.js";
 
 // State parser - builds MachineContext from GitHub API
+export { buildMachineContext, buildDiscussionContext } from "./state-parser.js";
+
+// MDAST-based extractors (work directly with JSON, no serialize/re-parse)
 export {
-  buildMachineContext,
-  buildDiscussionContext,
-} from "./state-parser.js";
+  todosExtractor,
+  historyExtractor,
+  agentNotesExtractor,
+  extractTodosFromAst,
+} from "./extractors.js";
+
+// MDAST-based mutators (work directly with JSON, return new IssueStateData)
+export {
+  checkOffTodo,
+  uncheckTodo,
+  addTodo,
+  addHistoryEntry as addHistoryEntryMutator,
+  updateHistoryEntry as updateHistoryEntryMutator,
+  appendAgentNotes as appendAgentNotesMutator,
+  upsertSection as upsertSectionMutator,
+} from "./mutators.js";

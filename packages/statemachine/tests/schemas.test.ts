@@ -9,6 +9,7 @@ import {
   TodoStatsSchema,
   type Action,
 } from "../src/schemas/index.js";
+import { parseMarkdown } from "@more/issue-state";
 
 describe("schemas", () => {
   describe("ActionSchema", () => {
@@ -76,7 +77,7 @@ describe("schemas", () => {
         number: 123,
         title: "Test Issue",
         state: "OPEN",
-        body: "Test body",
+        bodyAst: parseMarkdown("Test body"),
         projectStatus: "In progress",
         iteration: 0,
         failures: 0,
@@ -84,8 +85,10 @@ describe("schemas", () => {
         labels: [],
         subIssues: [],
         hasSubIssues: false,
-        history: [],
-        todos: { total: 0, completed: 0, uncheckedNonManual: 0 },
+        comments: [],
+        branch: null,
+        pr: null,
+        parentIssueNumber: null,
       });
 
       const context = createMachineContext({

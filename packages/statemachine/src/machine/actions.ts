@@ -4,7 +4,8 @@ import type {
   ProjectStatus,
   IssueComment,
 } from "../schemas/index.js";
-import { deriveBranchName } from "../parser/index.js";
+import { deriveBranchName, extractTodosFromAst } from "../parser/index.js";
+import { serializeMarkdown } from "@more/issue-state";
 
 /**
  * Format issue comments for inclusion in prompts
@@ -1626,9 +1627,9 @@ export function emitRunClaudePivot({ context }: ActionContext): ActionResult {
     number: s.number,
     title: s.title,
     state: s.state,
-    body: s.body,
+    body: serializeMarkdown(s.bodyAst),
     projectStatus: s.projectStatus,
-    todos: s.todos,
+    todos: extractTodosFromAst(s.bodyAst),
   }));
 
   // Format comments for prompt
@@ -1639,7 +1640,7 @@ export function emitRunClaudePivot({ context }: ActionContext): ActionResult {
   const promptVars: Record<string, string> = {
     ISSUE_NUMBER: String(issueNumber),
     ISSUE_TITLE: context.issue.title,
-    ISSUE_BODY: context.issue.body,
+    ISSUE_BODY: serializeMarkdown(context.issue.bodyAst),
     ISSUE_COMMENTS: issueComments,
     PIVOT_DESCRIPTION:
       context.pivotDescription ?? "(No pivot description provided)",

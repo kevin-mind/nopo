@@ -1,8 +1,9 @@
 /**
  * Entity schemas for the state machine.
  *
- * Common types (TodoItem, HistoryEntry, etc.) are re-exported from @more/issue-state.
- * Statemachine-specific types (ParentIssue, SubIssue, etc.) are defined here.
+ * These schemas are now aligned with @more/issue-state.
+ * ParentIssue and SubIssue use bodyAst (MDAST) instead of body (string).
+ * Extracted fields (todos, history, agentNotes) are accessed via extractors.
  */
 
 import { z } from "zod";
@@ -18,6 +19,12 @@ export {
   TodoStatsSchema,
   HistoryEntrySchema,
   AgentNotesEntrySchema,
+  MdastRootSchema,
+  // Issue schemas
+  IssueDataSchema,
+  SubIssueDataSchema,
+  IssueCommentSchema,
+  LinkedPRSchema,
   // Type exports
   type ProjectStatus,
   type IssueState,
@@ -27,90 +34,39 @@ export {
   type TodoStats,
   type HistoryEntry,
   type AgentNotesEntry,
+  type IssueData,
+  type SubIssueData,
+  type IssueComment,
+  type LinkedPR,
 } from "@more/issue-state";
 
-// Import schemas we need to use in local types
-import {
-  ProjectStatusSchema,
-  IssueStateSchema,
-  CIStatusSchema,
-  TodoStatsSchema,
-  HistoryEntrySchema,
-  AgentNotesEntrySchema,
-} from "@more/issue-state";
+// Import for local use
 import type { ProjectStatus } from "@more/issue-state";
 
 /**
- * Issue comment from GitHub
+ * ParentIssue is now an alias for IssueData from @more/issue-state.
+ *
+ * Key changes from the old schema:
+ * - Uses `bodyAst` (MDAST) instead of `body` (string)
+ * - Removed inline `todos`, `history`, `agentNotes` - use extractors instead
+ * - Added `branch`, `pr`, `parentIssueNumber` fields
+ *
+ * @deprecated Use IssueData directly from @more/issue-state
  */
-export const IssueCommentSchema = z.object({
-  id: z.string(),
-  author: z.string(),
-  body: z.string(),
-  createdAt: z.string(),
-  isBot: z.boolean(),
-});
-
-export type IssueComment = z.infer<typeof IssueCommentSchema>;
+export { IssueDataSchema as ParentIssueSchema } from "@more/issue-state";
+export type { IssueData as ParentIssue } from "@more/issue-state";
 
 /**
- * Pull request associated with a sub-issue
+ * SubIssue is now an alias for SubIssueData from @more/issue-state.
+ *
+ * Key changes from the old schema:
+ * - Uses `bodyAst` (MDAST) instead of `body` (string)
+ * - Removed inline `todos` - use extractors instead
+ *
+ * @deprecated Use SubIssueData directly from @more/issue-state
  */
-export const LinkedPRSchema = z.object({
-  number: z.number().int().positive(),
-  state: z.enum(["OPEN", "CLOSED", "MERGED"]),
-  isDraft: z.boolean(),
-  title: z.string(),
-  headRef: z.string(),
-  baseRef: z.string(),
-  // CI status from statusCheckRollup
-  ciStatus: CIStatusSchema.nullable().optional(),
-});
-
-export type LinkedPR = z.infer<typeof LinkedPRSchema>;
-
-/**
- * Sub-issue state representing a single phase of work
- */
-export const SubIssueSchema = z.object({
-  number: z.number().int().positive(),
-  title: z.string(),
-  state: IssueStateSchema,
-  body: z.string(),
-  projectStatus: ProjectStatusSchema.nullable(),
-  branch: z.string().nullable(),
-  pr: LinkedPRSchema.nullable(),
-  todos: TodoStatsSchema,
-});
-
-export type SubIssue = z.infer<typeof SubIssueSchema>;
-
-/**
- * Parent issue state - the main issue being worked on
- * Note: This is also used for sub-issues when they are the trigger target
- */
-export const ParentIssueSchema = z.object({
-  number: z.number().int().positive(),
-  title: z.string(),
-  state: IssueStateSchema,
-  body: z.string(),
-  projectStatus: ProjectStatusSchema.nullable(),
-  iteration: z.number().int().min(0),
-  failures: z.number().int().min(0),
-  assignees: z.array(z.string()),
-  labels: z.array(z.string()),
-  subIssues: z.array(SubIssueSchema),
-  hasSubIssues: z.boolean(),
-  history: z.array(HistoryEntrySchema),
-  /** Todos parsed from the issue body - used when this is a sub-issue triggered directly */
-  todos: TodoStatsSchema,
-  /** Agent notes from previous workflow runs */
-  agentNotes: z.array(AgentNotesEntrySchema).default([]),
-  /** Issue comments from GitHub */
-  comments: z.array(IssueCommentSchema).default([]),
-});
-
-export type ParentIssue = z.infer<typeof ParentIssueSchema>;
+export { SubIssueDataSchema as SubIssueSchema } from "@more/issue-state";
+export type { SubIssueData as SubIssue } from "@more/issue-state";
 
 /**
  * CI result from a workflow run

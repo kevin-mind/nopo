@@ -1,16 +1,21 @@
 import type { GitHub } from "@actions/github/lib/utils.js";
 import {
-  GET_ISSUE_WITH_PROJECT_QUERY,
   GET_PR_FOR_BRANCH_QUERY,
   CHECK_BRANCH_EXISTS_QUERY,
   GET_DISCUSSION_QUERY,
+  GET_ISSUE_WITH_PROJECT_QUERY,
+  parseMarkdown,
+  type ProjectItemNode,
+  type SubIssueNode,
+  type IssueCommentNode,
+  type IssueResponse,
 } from "@more/issue-state";
+import type { IssueState as IssueStateValue } from "@more/issue-state";
 import type {
   MachineContext,
   ParentIssue,
   SubIssue,
   ProjectStatus,
-  IssueState,
   PRState,
   LinkedPR,
   TriggerType,
@@ -26,61 +31,12 @@ import {
   CIStatusSchema,
 } from "../schemas/index.js";
 import type { DiscussionTriggerType } from "../schemas/discussion-triggers.js";
-import { parseTodoStats } from "./todo-parser.js";
-import { parseHistory } from "./history-parser.js";
-import { parseAgentNotes } from "./agent-notes-parser.js";
 
 type Octokit = InstanceType<typeof GitHub>;
 
 // ============================================================================
-// Response Type Definitions
+// Response Type Definitions (for PR/Branch queries only)
 // ============================================================================
-
-interface ProjectFieldValue {
-  name?: string;
-  number?: number;
-  field?: { name?: string; id?: string };
-}
-
-interface ProjectItemNode {
-  id?: string;
-  project?: { id?: string; number?: number };
-  fieldValues?: { nodes?: ProjectFieldValue[] };
-}
-
-interface SubIssueNode {
-  id?: string;
-  number?: number;
-  title?: string;
-  body?: string;
-  state?: string;
-  projectItems?: { nodes?: ProjectItemNode[] };
-}
-
-interface IssueCommentNode {
-  id?: string;
-  author?: { login?: string };
-  body?: string;
-  createdAt?: string;
-}
-
-interface IssueResponse {
-  repository?: {
-    issue?: {
-      id?: string;
-      number?: number;
-      title?: string;
-      body?: string;
-      state?: string;
-      assignees?: { nodes?: Array<{ login?: string }> };
-      labels?: { nodes?: Array<{ name?: string }> };
-      parent?: { number?: number } | null;
-      projectItems?: { nodes?: ProjectItemNode[] };
-      subIssues?: { nodes?: SubIssueNode[] };
-      comments?: { nodes?: IssueCommentNode[] };
-    };
-  };
-}
 
 interface PRResponse {
   repository?: {
@@ -207,16 +163,16 @@ function parseSubIssue(
     projectNumber,
   );
   const body = node.body || "";
+  const bodyAst = parseMarkdown(body);
 
   return {
     number: node.number || 0,
     title: node.title || "",
-    state: (node.state?.toUpperCase() || "OPEN") as IssueState,
-    body,
+    state: (node.state?.toUpperCase() || "OPEN") as IssueStateValue,
+    bodyAst,
     projectStatus: status,
     branch: deriveBranchName(parentIssueNumber, phaseNumber),
     pr: null, // Will be populated separately
-    todos: parseTodoStats(body),
   };
 }
 
@@ -368,9 +324,7 @@ async function fetchIssueState(
   }
 
   const body = issue.body || "";
-  const history = parseHistory(body);
-  const todos = parseTodoStats(body);
-  const agentNotes = parseAgentNotes(body);
+  const bodyAst = parseMarkdown(body);
   const comments = parseIssueComments(issue.comments?.nodes || [], botUsername);
 
   // Check if this issue is a sub-issue (has a parent)
@@ -380,8 +334,8 @@ async function fetchIssueState(
     issue: {
       number: issue.number || issueNumber,
       title: issue.title || "",
-      state: (issue.state?.toUpperCase() || "OPEN") as IssueState,
-      body,
+      state: (issue.state?.toUpperCase() || "OPEN") as IssueStateValue,
+      bodyAst,
       projectStatus: status,
       iteration,
       failures,
@@ -391,10 +345,10 @@ async function fetchIssueState(
         issue.labels?.nodes?.map((l) => l.name || "").filter(Boolean) || [],
       subIssues,
       hasSubIssues: subIssues.length > 0,
-      history,
-      todos,
-      agentNotes,
       comments,
+      branch: null, // Will be populated separately
+      pr: null, // Will be populated separately
+      parentIssueNumber,
     },
     parentIssueNumber,
   };

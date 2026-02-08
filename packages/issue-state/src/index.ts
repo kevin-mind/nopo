@@ -102,6 +102,17 @@ export {
   ADD_LABELS_MUTATION,
 } from "./graphql/label-queries.js";
 
+// GraphQL response types (for consumers that need to handle raw responses)
+export type {
+  ProjectItemNode,
+  SubIssueNode,
+  IssueCommentNode,
+  IssueResponse,
+  PRResponse,
+  BranchResponse,
+  LinkedPRsResponse,
+} from "./graphql/types.js";
+
 // Client
 export type { OctokitLike } from "./client.js";
 
@@ -208,3 +219,9 @@ export {
   createDescriptionSection,
   createRequirementsSection,
 } from "./sections/index.js";
+
+// Extractor factory
+export { createExtractor } from "./create-extractor.js";
+
+// Mutator factory
+export { createMutator } from "./create-mutator.js";

@@ -1,5 +1,6 @@
 import type { MachineContext } from "../schemas/index.js";
 import { isTerminalStatus } from "../schemas/index.js";
+import { extractTodosFromAst } from "../parser/index.js";
 
 /**
  * Guard context type for XState
@@ -137,8 +138,9 @@ export function currentPhaseComplete({ context }: GuardContext): boolean {
   if (!context.currentSubIssue) {
     return false;
   }
-  // Phase is complete when todos are done
-  return context.currentSubIssue.todos.uncheckedNonManual === 0;
+  // Phase is complete when todos are done (extract from MDAST)
+  const todos = extractTodosFromAst(context.currentSubIssue.bodyAst);
+  return todos.uncheckedNonManual === 0;
 }
 
 /**
@@ -202,11 +204,13 @@ export function currentPhaseInReview({ context }: GuardContext): boolean {
  */
 export function todosDone({ context }: GuardContext): boolean {
   if (context.currentSubIssue) {
-    return context.currentSubIssue.todos.uncheckedNonManual === 0;
+    const todos = extractTodosFromAst(context.currentSubIssue.bodyAst);
+    return todos.uncheckedNonManual === 0;
   }
   // When triggered directly on a sub-issue (e.g., CI completion),
   // currentSubIssue is null but the issue itself has todos
-  return context.issue.todos.uncheckedNonManual === 0;
+  const todos = extractTodosFromAst(context.issue.bodyAst);
+  return todos.uncheckedNonManual === 0;
 }
 
 /**
