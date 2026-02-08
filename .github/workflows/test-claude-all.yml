@@ -595,6 +595,8 @@ jobs:
             echo "**${{ steps.aggregate.outputs.failed }}** out of **${{ steps.aggregate.outputs.total }}** tests failed." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "See Claude analysis above for recommendations." >> $GITHUB_STEP_SUMMARY
+            # Fail the workflow when tests fail
+            exit 1
           else
             echo "## ✅ All Tests Passed" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
