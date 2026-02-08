@@ -16,7 +16,7 @@
     "state": "OPEN",
     "body": "## Description\n\nTest scenario for complete happy path flow.\n\n## Approach\n\nImplement the feature and add tests.\n\n## Todo\n\n- [x] Implement the feature\n- [x] Add tests\n\n## Iteration History\n\n<!-- iteration_history_start -->\n<!-- iteration_history_end -->",
     "projectStatus": "In progress",
-    "iteration": 2,
+    "iteration": 1,
     "failures": 0,
     "assignees": ["nopo-bot"],
     "labels": ["enhancement", "priority:medium", "topic:testing", "triaged", "groomed"],
