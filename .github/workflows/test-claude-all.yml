@@ -103,6 +103,13 @@ jobs:
           path: results/
           retention-days: 1
 
+      - name: Fail job if test failed
+        if: always() && steps.run.outputs.status != 'completed'
+        run: |
+          echo "Test failed with status: ${{ steps.run.outputs.status }}"
+          echo "Error: ${{ steps.run.outputs.error }}"
+          exit 1
+
   # ============================================================================
   # BATCH 2: Edge case scenarios (mock Claude only - these REQUIRE mock)
   # ============================================================================
@@ -180,6 +187,13 @@ jobs:
           name: result-batch2-${{ matrix.scenario }}
           path: results/
           retention-days: 1
+
+      - name: Fail job if test failed
+        if: always() && steps.run.outputs.status != 'completed'
+        run: |
+          echo "Test failed with status: ${{ steps.run.outputs.status }}"
+          echo "Error: ${{ steps.run.outputs.error }}"
+          exit 1
 
   # ============================================================================
   # BATCH 3: PR and pivot scenarios (mock Claude)
@@ -259,6 +273,13 @@ jobs:
           path: results/
           retention-days: 1
 
+      - name: Fail job if test failed
+        if: always() && steps.run.outputs.status != 'completed'
+        run: |
+          echo "Test failed with status: ${{ steps.run.outputs.status }}"
+          echo "Error: ${{ steps.run.outputs.error }}"
+          exit 1
+
   # ============================================================================
   # BATCH 4: Complex pivot scenarios (mock Claude)
   # ============================================================================
@@ -334,6 +355,13 @@ jobs:
           name: result-batch4-${{ matrix.scenario }}
           path: results/
           retention-days: 1
+
+      - name: Fail job if test failed
+        if: always() && steps.run.outputs.status != 'completed'
+        run: |
+          echo "Test failed with status: ${{ steps.run.outputs.status }}"
+          echo "Error: ${{ steps.run.outputs.error }}"
+          exit 1
 
   # ============================================================================
   # BATCH 5: Real Claude tests (only if include_real_claude is true)
@@ -429,6 +457,13 @@ jobs:
           name: result-batch5-${{ matrix.scenario }}
           path: results/
           retention-days: 1
+
+      - name: Fail job if test failed
+        if: always() && steps.run.outputs.status != 'completed'
+        run: |
+          echo "Test failed with status: ${{ steps.run.outputs.status }}"
+          echo "Error: ${{ steps.run.outputs.error }}"
+          exit 1
 
   # ============================================================================
   # CLAUDE ANALYSIS: Analyze results and propose solutions
