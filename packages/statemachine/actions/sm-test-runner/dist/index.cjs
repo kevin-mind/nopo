@@ -41267,6 +41267,197 @@ async function parseIssue(owner, repo, issueNumber, options) {
   };
 }
 
+// ../../packages/issue-state/src/create-issue.ts
+var GET_PROJECT_FIELDS_QUERY2 = `
+query GetProjectFields($org: String!, $projectNumber: Int!) {
+  organization(login: $org) {
+    projectV2(number: $projectNumber) {
+      id
+      fields(first: 20) {
+        nodes {
+          ... on ProjectV2SingleSelectField {
+            id
+            name
+            options {
+              id
+              name
+            }
+          }
+          ... on ProjectV2Field {
+            id
+            name
+            dataType
+          }
+        }
+      }
+    }
+  }
+}
+`;
+async function getRepoId(octokit, owner, repo) {
+  const response = await octokit.graphql(GET_REPO_ID_QUERY, {
+    owner,
+    repo
+  });
+  if (!response.repository?.id) {
+    throw new Error(`Repository ${owner}/${repo} not found`);
+  }
+  return response.repository.id;
+}
+async function createIssueInRepo(octokit, repositoryId, title, body) {
+  const response = await octokit.graphql(
+    CREATE_ISSUE_MUTATION,
+    {
+      repositoryId,
+      title,
+      body
+    }
+  );
+  return {
+    id: response.createIssue.issue.id,
+    number: response.createIssue.issue.number
+  };
+}
+async function linkSubIssue(octokit, parentId, childId) {
+  await octokit.graphql(ADD_SUB_ISSUE_MUTATION, {
+    parentId,
+    childId
+  });
+}
+async function addIssueToProject(octokit, projectId, issueId) {
+  const response = await octokit.graphql(
+    ADD_ISSUE_TO_PROJECT_MUTATION,
+    {
+      projectId,
+      contentId: issueId
+    }
+  );
+  return response.addProjectV2ItemById.item.id;
+}
+async function getProjectFieldInfo2(octokit, organization, projectNumber) {
+  try {
+    const response = await octokit.graphql(
+      GET_PROJECT_FIELDS_QUERY2,
+      {
+        org: organization,
+        projectNumber
+      }
+    );
+    const project = response.organization?.projectV2;
+    if (!project) {
+      return null;
+    }
+    let statusFieldId = null;
+    const statusOptions = /* @__PURE__ */ new Map();
+    let iterationFieldId = null;
+    let failuresFieldId = null;
+    for (const field of project.fields.nodes) {
+      if (field.name === "Status" && field.options) {
+        statusFieldId = field.id;
+        for (const option of field.options) {
+          statusOptions.set(option.name, option.id);
+        }
+      } else if (field.name === "Iteration" && field.dataType === "NUMBER") {
+        iterationFieldId = field.id;
+      } else if (field.name === "Failures" && field.dataType === "NUMBER") {
+        failuresFieldId = field.id;
+      }
+    }
+    return {
+      projectId: project.id,
+      statusFieldId,
+      statusOptions,
+      iterationFieldId,
+      failuresFieldId
+    };
+  } catch {
+    return null;
+  }
+}
+async function updateProjectField2(octokit, projectId, itemId, fieldId, value) {
+  await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+    projectId,
+    itemId,
+    fieldId,
+    value
+  });
+}
+async function addSubIssueToParent(owner, repo, parentIssueNumber, input, options) {
+  const { octokit, projectNumber, organization = owner, projectStatus } = options;
+  const repositoryId = await getRepoId(octokit, owner, repo);
+  const parentQuery = `
+    query GetParentIssueId($owner: String!, $repo: String!, $issueNumber: Int!) {
+      repository(owner: $owner, name: $repo) {
+        issue(number: $issueNumber) {
+          id
+        }
+      }
+    }
+  `;
+  const parentResult = await octokit.graphql(parentQuery, {
+    owner,
+    repo,
+    issueNumber: parentIssueNumber
+  });
+  if (!parentResult.repository?.issue?.id) {
+    throw new Error(`Parent issue #${parentIssueNumber} not found`);
+  }
+  const parentIssueId = parentResult.repository.issue.id;
+  const subIssue = await createIssueInRepo(
+    octokit,
+    repositoryId,
+    input.title,
+    input.body || ""
+  );
+  await linkSubIssue(octokit, parentIssueId, subIssue.id);
+  if (input.labels && input.labels.length > 0) {
+    await octokit.rest.issues.addLabels({
+      owner,
+      repo,
+      issue_number: subIssue.number,
+      labels: input.labels
+    });
+  }
+  if (input.assignees && input.assignees.length > 0) {
+    await octokit.rest.issues.addAssignees({
+      owner,
+      repo,
+      issue_number: subIssue.number,
+      assignees: input.assignees
+    });
+  }
+  if (projectNumber) {
+    const fieldInfo = await getProjectFieldInfo2(
+      octokit,
+      organization,
+      projectNumber
+    );
+    if (fieldInfo) {
+      const projectItemId = await addIssueToProject(
+        octokit,
+        fieldInfo.projectId,
+        subIssue.id
+      );
+      if (projectStatus && fieldInfo.statusFieldId) {
+        const optionId = fieldInfo.statusOptions.get(projectStatus);
+        if (optionId) {
+          await updateProjectField2(
+            octokit,
+            fieldInfo.projectId,
+            projectItemId,
+            fieldInfo.statusFieldId,
+            { singleSelectOptionId: optionId }
+          );
+        }
+      }
+    }
+  }
+  return {
+    issueNumber: subIssue.number,
+    issueId: subIssue.id
+  };
+}
+
 // ../../packages/issue-state/src/sections/types.ts
 var TodoItemSchema = external_exports.object({
   text: external_exports.string(),
@@ -70724,23 +70915,30 @@ async function createSubIssuesForPhases(ctx, parentIssueNumber, phases) {
   for (const phase of phases) {
     const title = `[Phase ${phase.phase_number}]: ${phase.title}`;
     const body = buildPhaseIssueBody(phase);
+    const projectStatus = phase.phase_number === 1 ? "Ready" : void 0;
     try {
-      const { data: newIssue } = await ctx.octokit.rest.issues.create({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        title,
-        body
-      });
-      core15.info(`Created sub-issue #${newIssue.number}: ${title}`);
+      const result = await addSubIssueToParent(
+        ctx.owner,
+        ctx.repo,
+        parentIssueNumber,
+        { title, body },
+        {
+          octokit: ctx.octokit,
+          projectNumber: ctx.projectNumber,
+          projectStatus
+        }
+      );
+      core15.info(`Created sub-issue #${result.issueNumber}: ${title}`);
       created++;
-      await linkSubIssue(ctx, parentIssueNumber, newIssue.number);
-      if (phase.phase_number === 1) {
+      if (phase.phase_number === 1 && projectStatus) {
         core15.info(
-          `Phase 1 sub-issue #${newIssue.number} should be set to Ready status`
+          `Set Phase 1 sub-issue #${result.issueNumber} to ${projectStatus} status`
         );
       }
     } catch (error10) {
-      core15.error(`Failed to create sub-issue for phase ${phase.phase_number}: ${error10}`);
+      core15.error(
+        `Failed to create sub-issue for phase ${phase.phase_number}: ${error10}`
+      );
     }
   }
   if (created > 0) {
@@ -70795,50 +70993,6 @@ ${areas}`);
 ${todos}`);
   }
   return sections.join("\n\n");
-}
-async function linkSubIssue(ctx, parentIssueNumber, subIssueNumber) {
-  const query2 = `
-    query GetIssueIds($owner: String!, $repo: String!, $parentNumber: Int!, $subNumber: Int!) {
-      repository(owner: $owner, name: $repo) {
-        parent: issue(number: $parentNumber) {
-          id
-        }
-        sub: issue(number: $subNumber) {
-          id
-        }
-      }
-    }
-  `;
-  try {
-    const result = await ctx.octokit.graphql(query2, {
-      owner: ctx.owner,
-      repo: ctx.repo,
-      parentNumber: parentIssueNumber,
-      subNumber: subIssueNumber
-    });
-    const parentId = result.repository.parent.id;
-    const subId = result.repository.sub.id;
-    const mutation = `
-      mutation AddSubIssue($parentId: ID!, $subIssueId: ID!) {
-        addSubIssue(input: { issueId: $parentId, subIssueId: $subIssueId }) {
-          issue {
-            id
-          }
-        }
-      }
-    `;
-    await ctx.octokit.graphql(mutation, {
-      parentId,
-      subIssueId: subId
-    });
-    core15.info(
-      `Linked sub-issue #${subIssueNumber} to parent #${parentIssueNumber}`
-    );
-  } catch (error10) {
-    core15.warning(
-      `Failed to link sub-issue #${subIssueNumber} to parent #${parentIssueNumber}: ${error10}`
-    );
-  }
 }
 
 // ../../packages/statemachine/src/runner/executors/pivot.ts

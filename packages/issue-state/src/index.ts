@@ -123,12 +123,15 @@ export { computeDiff } from "./diff.js";
 export type { IssueDiff } from "./diff.js";
 export { updateIssue } from "./update-issue.js";
 export type { UpdateIssueOptions } from "./update-issue.js";
-export { createIssue } from "./create-issue.js";
+export { createIssue, addSubIssueToParent } from "./create-issue.js";
 export type {
   CreateIssueInput,
   CreateIssueOptions,
   CreateIssueProjectFields,
   CreateIssueResult,
+  AddSubIssueInput,
+  AddSubIssueOptions,
+  AddSubIssueResult,
 } from "./create-issue.js";
 
 // Project helpers

@@ -6,6 +6,10 @@
 
 import * as core from "@actions/core";
 import * as fs from "fs";
+import {
+  addSubIssueToParent,
+  type ProjectStatus,
+} from "@more/issue-state";
 import type {
   RunClaudeGroomingAction,
   ApplyGroomingOutputAction,
@@ -233,7 +237,7 @@ export async function executeApplyGroomingOutput(
 // ============================================================================
 
 /**
- * Create sub-issues for each recommended phase
+ * Create sub-issues for each recommended phase using issue-state
  */
 async function createSubIssuesForPhases(
   ctx: RunnerContext,
@@ -246,32 +250,36 @@ async function createSubIssuesForPhases(
     const title = `[Phase ${phase.phase_number}]: ${phase.title}`;
     const body = buildPhaseIssueBody(phase);
 
-    try {
-      // Create the sub-issue
-      const { data: newIssue } = await ctx.octokit.rest.issues.create({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        title,
-        body,
-      });
+    // Set project status for first phase to "Ready", others to null (no status)
+    const projectStatus: ProjectStatus | undefined =
+      phase.phase_number === 1 ? "Ready" : undefined;
 
-      core.info(`Created sub-issue #${newIssue.number}: ${title}`);
+    try {
+      // Use issue-state's addSubIssueToParent to create and link the sub-issue
+      const result = await addSubIssueToParent(
+        ctx.owner,
+        ctx.repo,
+        parentIssueNumber,
+        { title, body },
+        {
+          octokit: ctx.octokit,
+          projectNumber: ctx.projectNumber,
+          projectStatus,
+        },
+      );
+
+      core.info(`Created sub-issue #${result.issueNumber}: ${title}`);
       created++;
 
-      // Link to parent issue using GitHub's sub-issues feature
-      // This is done via the GraphQL API for sub-issues
-      await linkSubIssue(ctx, parentIssueNumber, newIssue.number);
-
-      // Set project status for first phase to "Ready"
-      if (phase.phase_number === 1) {
-        // Note: This would need project field updates, which is complex
-        // For now, just log it
+      if (phase.phase_number === 1 && projectStatus) {
         core.info(
-          `Phase 1 sub-issue #${newIssue.number} should be set to Ready status`,
+          `Set Phase 1 sub-issue #${result.issueNumber} to ${projectStatus} status`,
         );
       }
     } catch (error) {
-      core.error(`Failed to create sub-issue for phase ${phase.phase_number}: ${error}`);
+      core.error(
+        `Failed to create sub-issue for phase ${phase.phase_number}: ${error}`,
+      );
     }
   }
 
@@ -338,67 +346,3 @@ function buildPhaseIssueBody(phase: RecommendedPhase): string {
   return sections.join("\n\n");
 }
 
-/**
- * Link a sub-issue to a parent issue using GitHub's sub-issues feature
- */
-async function linkSubIssue(
-  ctx: RunnerContext,
-  parentIssueNumber: number,
-  subIssueNumber: number,
-): Promise<void> {
-  // GitHub's sub-issues feature uses GraphQL
-  // We need to get the issue node IDs first
-  const query = `
-    query GetIssueIds($owner: String!, $repo: String!, $parentNumber: Int!, $subNumber: Int!) {
-      repository(owner: $owner, name: $repo) {
-        parent: issue(number: $parentNumber) {
-          id
-        }
-        sub: issue(number: $subNumber) {
-          id
-        }
-      }
-    }
-  `;
-
-  try {
-    const result = await ctx.octokit.graphql<{
-      repository: {
-        parent: { id: string };
-        sub: { id: string };
-      };
-    }>(query, {
-      owner: ctx.owner,
-      repo: ctx.repo,
-      parentNumber: parentIssueNumber,
-      subNumber: subIssueNumber,
-    });
-
-    const parentId = result.repository.parent.id;
-    const subId = result.repository.sub.id;
-
-    // Add sub-issue relationship
-    const mutation = `
-      mutation AddSubIssue($parentId: ID!, $subIssueId: ID!) {
-        addSubIssue(input: { issueId: $parentId, subIssueId: $subIssueId }) {
-          issue {
-            id
-          }
-        }
-      }
-    `;
-
-    await ctx.octokit.graphql(mutation, {
-      parentId,
-      subIssueId: subId,
-    });
-
-    core.info(
-      `Linked sub-issue #${subIssueNumber} to parent #${parentIssueNumber}`,
-    );
-  } catch (error) {
-    core.warning(
-      `Failed to link sub-issue #${subIssueNumber} to parent #${parentIssueNumber}: ${error}`,
-    );
-  }
-}

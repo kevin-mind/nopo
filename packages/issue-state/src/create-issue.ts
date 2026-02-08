@@ -490,3 +490,159 @@ export async function createIssue(
     subIssueNumbers,
   };
 }
+
+// ============================================================================
+// Add Sub-Issue to Existing Parent
+// ============================================================================
+
+export interface AddSubIssueInput {
+  title: string;
+  body?: string;
+  assignees?: string[];
+  labels?: string[];
+}
+
+export interface AddSubIssueOptions {
+  octokit: OctokitLike;
+  /** Project number to add sub-issue to */
+  projectNumber?: number;
+  /** Organization name (defaults to owner) */
+  organization?: string;
+  /** Project status for the sub-issue */
+  projectStatus?: ProjectStatus;
+}
+
+export interface AddSubIssueResult {
+  issueNumber: number;
+  issueId: string;
+}
+
+/**
+ * Add a sub-issue to an existing parent issue.
+ *
+ * Creates a new issue and links it as a sub-issue to the specified parent.
+ * Optionally adds the sub-issue to a project with a specified status.
+ *
+ * @param owner - Repository owner
+ * @param repo - Repository name
+ * @param parentIssueNumber - The parent issue number to link to
+ * @param input - Sub-issue creation input
+ * @param options - Creation options
+ * @returns Created sub-issue number and ID
+ *
+ * @example
+ * ```typescript
+ * const result = await addSubIssueToParent("owner", "repo", 123, {
+ *   title: "[Phase 1]: Design",
+ *   body: "## Description\n\nDesign phase...",
+ *   labels: ["phase-1"],
+ * }, {
+ *   octokit,
+ *   projectNumber: 1,
+ *   projectStatus: "Ready",
+ * });
+ * ```
+ */
+export async function addSubIssueToParent(
+  owner: string,
+  repo: string,
+  parentIssueNumber: number,
+  input: AddSubIssueInput,
+  options: AddSubIssueOptions,
+): Promise<AddSubIssueResult> {
+  const { octokit, projectNumber, organization = owner, projectStatus } = options;
+
+  // Get repository ID and parent issue ID
+  const repositoryId = await getRepoId(octokit, owner, repo);
+
+  // Get parent issue ID
+  const parentQuery = `
+    query GetParentIssueId($owner: String!, $repo: String!, $issueNumber: Int!) {
+      repository(owner: $owner, name: $repo) {
+        issue(number: $issueNumber) {
+          id
+        }
+      }
+    }
+  `;
+
+  const parentResult = await octokit.graphql<{
+    repository: { issue: { id: string } | null };
+  }>(parentQuery, {
+    owner,
+    repo,
+    issueNumber: parentIssueNumber,
+  });
+
+  if (!parentResult.repository?.issue?.id) {
+    throw new Error(`Parent issue #${parentIssueNumber} not found`);
+  }
+
+  const parentIssueId = parentResult.repository.issue.id;
+
+  // Create the sub-issue
+  const subIssue = await createIssueInRepo(
+    octokit,
+    repositoryId,
+    input.title,
+    input.body || "",
+  );
+
+  // Link sub-issue to parent
+  await linkSubIssue(octokit, parentIssueId, subIssue.id);
+
+  // Add labels
+  if (input.labels && input.labels.length > 0) {
+    await octokit.rest.issues.addLabels({
+      owner,
+      repo,
+      issue_number: subIssue.number,
+      labels: input.labels,
+    });
+  }
+
+  // Add assignees
+  if (input.assignees && input.assignees.length > 0) {
+    await octokit.rest.issues.addAssignees({
+      owner,
+      repo,
+      issue_number: subIssue.number,
+      assignees: input.assignees,
+    });
+  }
+
+  // Add to project with status
+  if (projectNumber) {
+    const fieldInfo = await getProjectFieldInfo(
+      octokit,
+      organization,
+      projectNumber,
+    );
+    if (fieldInfo) {
+      const projectItemId = await addIssueToProject(
+        octokit,
+        fieldInfo.projectId,
+        subIssue.id,
+      );
+
+      // Set project status if specified
+      if (projectStatus && fieldInfo.statusFieldId) {
+        const optionId = fieldInfo.statusOptions.get(projectStatus);
+        if (optionId) {
+          await updateProjectField(
+            octokit,
+            fieldInfo.projectId,
+            projectItemId,
+            fieldInfo.statusFieldId,
+            { singleSelectOptionId: optionId },
+          );
+        }
+      }
+    }
+  }
+
+  return {
+    issueNumber: subIssue.number,
+    issueId: subIssue.id,
+  };
+}
