@@ -66573,6 +66573,18 @@ async function handleIssueEvent(octokit2, owner2, repo2) {
     );
   }
   if (isTestResource(issue2.title)) {
+    const freshDetails = await fetchIssueDetails(
+      octokit2,
+      owner2,
+      repo2,
+      issue2.number
+    );
+    if (freshDetails.labels.includes("test:automation")) {
+      return emptyResult(
+        true,
+        "Issue has test:automation label (verified via API) - skipping from normal automation"
+      );
+    }
     return emptyResult(true, "Issue title starts with [TEST]");
   }
   const hasSkipLabelOnIssue = issue2.labels.some(

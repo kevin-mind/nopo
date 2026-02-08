@@ -615,6 +615,21 @@ async function handleIssueEvent(
 
   // Check for [TEST] in title (circuit breaker for test automation)
   if (isTestResource(issue.title)) {
+    // Double-check by fetching fresh labels from API
+    // This handles race condition where webhook payload has stale label data
+    // when an issue is created with labels (GitHub eventual consistency)
+    const freshDetails = await fetchIssueDetails(
+      octokit,
+      owner,
+      repo,
+      issue.number,
+    );
+    if (freshDetails.labels.includes("test:automation")) {
+      return emptyResult(
+        true,
+        "Issue has test:automation label (verified via API) - skipping from normal automation",
+      );
+    }
     return emptyResult(true, "Issue title starts with [TEST]");
   }
 
