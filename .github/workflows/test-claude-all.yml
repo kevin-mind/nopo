@@ -40,8 +40,6 @@ jobs:
           - grooming-ready
           - pivot-simple
           - issue-comment
-    outputs:
-      results: ${{ steps.collect.outputs.results }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -78,11 +76,11 @@ jobs:
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
           cleanup_mode: close
 
-      - name: Collect results
-        id: collect
+      - name: Save result
+        if: always()
         run: |
-          cat << 'EOF' >> $GITHUB_OUTPUT
-          results<<RESULTS_EOF
+          mkdir -p results
+          cat > results/${{ matrix.scenario }}-mock.json << 'EOF'
           {
             "scenario": "${{ matrix.scenario }}",
             "mode": "mock",
@@ -91,8 +89,14 @@ jobs:
             "error": "${{ steps.run.outputs.error || '' }}",
             "job_result": "${{ job.status }}"
           }
-          RESULTS_EOF
           EOF
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: result-batch1-${{ matrix.scenario }}
+          path: results/
+          retention-days: 1
 
   # ============================================================================
   # BATCH 2: Edge case scenarios (mock Claude only - these REQUIRE mock)
@@ -109,8 +113,6 @@ jobs:
           - review-changes-requested
           - issue-reset
           - slash-lfg
-    outputs:
-      results: ${{ steps.collect.outputs.results }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -147,11 +149,11 @@ jobs:
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
           cleanup_mode: close
 
-      - name: Collect results
-        id: collect
+      - name: Save result
+        if: always()
         run: |
-          cat << 'EOF' >> $GITHUB_OUTPUT
-          results<<RESULTS_EOF
+          mkdir -p results
+          cat > results/${{ matrix.scenario }}-mock.json << 'EOF'
           {
             "scenario": "${{ matrix.scenario }}",
             "mode": "mock",
@@ -160,8 +162,14 @@ jobs:
             "error": "${{ steps.run.outputs.error || '' }}",
             "job_result": "${{ job.status }}"
           }
-          RESULTS_EOF
           EOF
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: result-batch2-${{ matrix.scenario }}
+          path: results/
+          retention-days: 1
 
   # ============================================================================
   # BATCH 3: PR and pivot scenarios (mock Claude)
@@ -178,8 +186,6 @@ jobs:
           - pr-push-during-review
           - pivot-add
           - pivot-remove
-    outputs:
-      results: ${{ steps.collect.outputs.results }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -216,11 +222,11 @@ jobs:
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
           cleanup_mode: close
 
-      - name: Collect results
-        id: collect
+      - name: Save result
+        if: always()
         run: |
-          cat << 'EOF' >> $GITHUB_OUTPUT
-          results<<RESULTS_EOF
+          mkdir -p results
+          cat > results/${{ matrix.scenario }}-mock.json << 'EOF'
           {
             "scenario": "${{ matrix.scenario }}",
             "mode": "mock",
@@ -229,8 +235,14 @@ jobs:
             "error": "${{ steps.run.outputs.error || '' }}",
             "job_result": "${{ job.status }}"
           }
-          RESULTS_EOF
           EOF
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: result-batch3-${{ matrix.scenario }}
+          path: results/
+          retention-days: 1
 
   # ============================================================================
   # BATCH 4: Complex pivot scenarios (mock Claude)
@@ -245,8 +257,6 @@ jobs:
           - pivot-revert
           - pivot-complex
           - grooming-with-subissues
-    outputs:
-      results: ${{ steps.collect.outputs.results }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -283,11 +293,11 @@ jobs:
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
           cleanup_mode: close
 
-      - name: Collect results
-        id: collect
+      - name: Save result
+        if: always()
         run: |
-          cat << 'EOF' >> $GITHUB_OUTPUT
-          results<<RESULTS_EOF
+          mkdir -p results
+          cat > results/${{ matrix.scenario }}-mock.json << 'EOF'
           {
             "scenario": "${{ matrix.scenario }}",
             "mode": "mock",
@@ -296,8 +306,14 @@ jobs:
             "error": "${{ steps.run.outputs.error || '' }}",
             "job_result": "${{ job.status }}"
           }
-          RESULTS_EOF
           EOF
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: result-batch4-${{ matrix.scenario }}
+          path: results/
+          retention-days: 1
 
   # ============================================================================
   # BATCH 5: Real Claude tests (only if include_real_claude is true)
@@ -314,8 +330,6 @@ jobs:
           - full-flow
           - triage
           - pivot-simple
-    outputs:
-      results: ${{ steps.collect.outputs.results }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -369,11 +383,11 @@ jobs:
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
           cleanup_mode: close
 
-      - name: Collect results
-        id: collect
+      - name: Save result
+        if: always()
         run: |
-          cat << 'EOF' >> $GITHUB_OUTPUT
-          results<<RESULTS_EOF
+          mkdir -p results
+          cat > results/${{ matrix.scenario }}-real.json << 'EOF'
           {
             "scenario": "${{ matrix.scenario }}",
             "mode": "real",
@@ -382,86 +396,21 @@ jobs:
             "error": "${{ steps.run.outputs.error || '' }}",
             "job_result": "${{ job.status }}"
           }
-          RESULTS_EOF
           EOF
 
-  # ============================================================================
-  # AGGREGATION: Collect all results
-  # ============================================================================
-  aggregate-results:
-    needs: [batch1-mock, batch2-edge-cases, batch3-mock, batch4-mock, batch5-real-claude]
-    if: always()
-    runs-on: ubuntu-latest
-    outputs:
-      all_results: ${{ steps.aggregate.outputs.all_results }}
-      summary: ${{ steps.aggregate.outputs.summary }}
-      has_failures: ${{ steps.aggregate.outputs.has_failures }}
-    steps:
-      - name: Aggregate all results
-        id: aggregate
-        run: |
-          # Collect all results into a single JSON array
-          # Handle missing outputs gracefully
-
-          RESULTS='[]'
-
-          # Helper to add results if they exist
-          add_results() {
-            local batch_name="$1"
-            local results="$2"
-            if [[ -n "$results" && "$results" != "null" ]]; then
-              RESULTS=$(echo "$RESULTS" | jq --argjson new "[$results]" '. + $new')
-              echo "Added results from $batch_name"
-            else
-              echo "No results from $batch_name (job may have been skipped)"
-            fi
-          }
-
-          # Add results from each batch
-          add_results "batch1-mock" '${{ needs.batch1-mock.outputs.results }}'
-          add_results "batch2-edge-cases" '${{ needs.batch2-edge-cases.outputs.results }}'
-          add_results "batch3-mock" '${{ needs.batch3-mock.outputs.results }}'
-          add_results "batch4-mock" '${{ needs.batch4-mock.outputs.results }}'
-          add_results "batch5-real-claude" '${{ needs.batch5-real-claude.outputs.results }}'
-
-          # Count results
-          TOTAL=$(echo "$RESULTS" | jq 'length')
-          PASSED=$(echo "$RESULTS" | jq '[.[] | select(.status == "completed" and .job_result == "success")] | length')
-          FAILED=$(echo "$RESULTS" | jq '[.[] | select(.status != "completed" or .job_result != "success")] | length')
-
-          # Check for failures
-          if [[ "$FAILED" -gt 0 ]]; then
-            HAS_FAILURES="true"
-          else
-            HAS_FAILURES="false"
-          fi
-
-          # Create summary
-          SUMMARY="Total: $TOTAL | Passed: $PASSED | Failed: $FAILED"
-
-          echo "all_results<<EOF" >> $GITHUB_OUTPUT
-          echo "$RESULTS" | jq -c '.' >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-          echo "summary=$SUMMARY" >> $GITHUB_OUTPUT
-          echo "has_failures=$HAS_FAILURES" >> $GITHUB_OUTPUT
-
-          # Also output for visibility
-          echo "## Aggregated Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**$SUMMARY**" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### All Results" >> $GITHUB_STEP_SUMMARY
-          echo '```json' >> $GITHUB_STEP_SUMMARY
-          echo "$RESULTS" | jq '.' >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: result-batch5-${{ matrix.scenario }}
+          path: results/
+          retention-days: 1
 
   # ============================================================================
   # CLAUDE ANALYSIS: Analyze results and propose solutions
   # ============================================================================
   claude-analysis:
-    needs: [aggregate-results]
-    if: always() && needs.aggregate-results.result == 'success'
+    needs: [batch1-mock, batch2-edge-cases, batch3-mock, batch4-mock, batch5-real-claude]
+    if: always()
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -474,28 +423,96 @@ jobs:
       - name: Build actions
         run: cd .github/actions-ts && pnpm run build
 
+      - name: Download all results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: result-*
+          path: all-results
+          merge-multiple: true
+
+      - name: Aggregate results
+        id: aggregate
+        run: |
+          # Combine all JSON files into a single array
+          RESULTS=$(find all-results -name "*.json" -exec cat {} \; | jq -s '.')
+
+          # Count results
+          TOTAL=$(echo "$RESULTS" | jq 'length')
+          PASSED=$(echo "$RESULTS" | jq '[.[] | select(.status == "completed")] | length')
+          FAILED=$(echo "$RESULTS" | jq '[.[] | select(.status != "completed")] | length')
+
+          # Create summary
+          SUMMARY="Total: $TOTAL | Passed: $PASSED | Failed: $FAILED"
+
+          if [[ "$FAILED" -gt 0 ]]; then
+            HAS_FAILURES="true"
+          else
+            HAS_FAILURES="false"
+          fi
+
+          # Save for Claude
+          echo "$RESULTS" > /tmp/all_results.json
+
+          echo "summary=$SUMMARY" >> $GITHUB_OUTPUT
+          echo "has_failures=$HAS_FAILURES" >> $GITHUB_OUTPUT
+          echo "total=$TOTAL" >> $GITHUB_OUTPUT
+          echo "passed=$PASSED" >> $GITHUB_OUTPUT
+          echo "failed=$FAILED" >> $GITHUB_OUTPUT
+
+          # Output summary
+          echo "## Test Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**$SUMMARY**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # List failures
+          if [[ "$HAS_FAILURES" == "true" ]]; then
+            echo "### Failures" >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            echo "$RESULTS" | jq '[.[] | select(.status != "completed")]' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### All Results" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo "$RESULTS" | jq '.' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
       - name: Install Claude Code
         run: |
           set -e
           curl -fsSL https://claude.ai/install.sh | bash
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
-      - name: Prepare analysis context
-        id: context
+      - name: Run Claude Analysis
+        id: analysis
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
-          # Get workflow run logs for failed jobs
-          RUN_ID="${{ github.run_id }}"
+          # Read the results
+          RESULTS=$(cat /tmp/all_results.json)
 
-          # Create context file with all relevant information
-          cat > /tmp/analysis_context.md << 'CONTEXT_EOF'
+          # Create context file
+          cat > /tmp/analysis_prompt.md << 'PROMPT_EOF'
           # State Machine Test Suite Analysis
 
+          You are analyzing the results of an automated end-to-end test suite for a GitHub Actions state machine that automates issue management.
+
           ## Summary
-          ${{ needs.aggregate-results.outputs.summary }}
+          PROMPT_EOF
+
+          echo "${{ steps.aggregate.outputs.summary }}" >> /tmp/analysis_prompt.md
+
+          cat >> /tmp/analysis_prompt.md << 'PROMPT_EOF'
 
           ## Test Results
           ```json
-          ${{ needs.aggregate-results.outputs.all_results }}
+          PROMPT_EOF
+
+          cat /tmp/all_results.json >> /tmp/analysis_prompt.md
+
+          cat >> /tmp/analysis_prompt.md << 'PROMPT_EOF'
           ```
 
           ## Job Status
@@ -505,82 +522,59 @@ jobs:
           - Batch 4 (Complex Mock): ${{ needs.batch4-mock.result }}
           - Batch 5 (Real Claude): ${{ needs.batch5-real-claude.result }}
 
-          ## Workflow Run
-          - Run ID: ${{ github.run_id }}
+          ## Workflow Context
           - Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           - Branch: ${{ github.ref_name }}
           - Commit: ${{ github.sha }}
 
-          ## Task
-          Analyze the test results and determine:
+          ## Your Task
 
-          1. **Are the test results valid?**
-             - Check if failures are due to test infrastructure issues vs actual bugs
-             - Identify any flaky tests or timing issues
+          Analyze the test results and provide:
 
-          2. **For any failures:**
-             - What is the root cause?
+          1. **Validity Assessment**
+             - Are these test results valid? (not infrastructure issues)
+             - Any flaky tests or timing issues?
+
+          2. **For Failures (if any)**
+             - Root cause analysis for each failure
              - Is it a test fixture issue, state machine bug, or external dependency?
-             - Propose a specific fix
+             - Specific fix recommendation with file paths if possible
 
-          3. **Overall assessment:**
-             - If all passing: Confirm the test suite is healthy
-             - If some failures: Prioritize which to fix first
-             - Provide actionable next steps
+          3. **Overall Health**
+             - If all passing: Confirm suite health
+             - If failures: Prioritize fixes
+             - Actionable next steps
 
-          CONTEXT_EOF
-
-          echo "context_file=/tmp/analysis_context.md" >> $GITHUB_OUTPUT
-
-      - name: Run Claude Analysis
-        id: analysis
-        env:
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-        run: |
-          # Read the context
-          CONTEXT=$(cat /tmp/analysis_context.md)
-
-          # Run Claude for analysis
-          echo "Running Claude analysis..."
-
-          ANALYSIS=$(~/.local/bin/claude --print --dangerously-skip-permissions << 'PROMPT_EOF'
-          You are analyzing the results of an automated test suite for a GitHub Actions state machine.
-
-          Here is the full context:
-
-          $CONTEXT
-
-          Please provide:
-          1. A brief summary of the test results (2-3 sentences)
-          2. For any failures:
-             - Root cause analysis
-             - Whether it's a test issue or actual bug
-             - Specific fix recommendation
-          3. Overall health assessment and next steps
-
-          Format your response as markdown suitable for a GitHub Actions summary.
+          Format as GitHub-flavored markdown.
           PROMPT_EOF
-          )
 
-          # Output the analysis
+          # Run Claude
+          echo "Running Claude analysis..."
+          ANALYSIS=$(~/.local/bin/claude --print --dangerously-skip-permissions -p "$(cat /tmp/analysis_prompt.md)" 2>&1 || echo "Claude analysis failed")
+
+          # Output
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Claude Analysis" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "$ANALYSIS" >> $GITHUB_STEP_SUMMARY
 
-      - name: Final Summary
+      - name: Final Status
         if: always()
         run: |
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "---" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## Final Status" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [[ "${{ needs.aggregate-results.outputs.has_failures }}" == "true" ]]; then
-            echo "❌ **Some tests failed** - see Claude analysis above for details" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ steps.aggregate.outputs.has_failures }}" == "true" ]]; then
+            echo "## ❌ Some Tests Failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**${{ steps.aggregate.outputs.failed }}** out of **${{ steps.aggregate.outputs.total }}** tests failed." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "See Claude analysis above for recommendations." >> $GITHUB_STEP_SUMMARY
           else
-            echo "✅ **All tests passed**" >> $GITHUB_STEP_SUMMARY
+            echo "## ✅ All Tests Passed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "All **${{ steps.aggregate.outputs.total }}** tests completed successfully." >> $GITHUB_STEP_SUMMARY
           fi
-
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Summary:** ${{ needs.aggregate-results.outputs.summary }}" >> $GITHUB_STEP_SUMMARY
