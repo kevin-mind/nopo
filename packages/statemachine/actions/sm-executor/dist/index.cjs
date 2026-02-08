@@ -40716,7 +40716,12 @@ async function updateProjectField(octokit, projectId, itemId, fieldId, value) {
   });
 }
 async function addSubIssueToParent(owner, repo, parentIssueNumber, input, options) {
-  const { octokit, projectNumber, organization = owner, projectStatus } = options;
+  const {
+    octokit,
+    projectNumber,
+    organization = owner,
+    projectStatus
+  } = options;
   const repositoryId = await getRepoId(octokit, owner, repo);
   const parentQuery = `
     query GetParentIssueId($owner: String!, $repo: String!, $issueNumber: Int!) {
@@ -40736,11 +40741,19 @@ async function addSubIssueToParent(owner, repo, parentIssueNumber, input, option
     throw new Error(`Parent issue #${parentIssueNumber} not found`);
   }
   const parentIssueId = parentResult.repository.issue.id;
+  let bodyString = "";
+  if (input.body) {
+    if (typeof input.body === "string") {
+      bodyString = input.body;
+    } else {
+      bodyString = serializeMarkdown(input.body);
+    }
+  }
   const subIssue = await createIssueInRepo(
     octokit,
     repositoryId,
     input.title,
-    input.body || ""
+    bodyString
   );
   await linkSubIssue(octokit, parentIssueId, subIssue.id);
   if (input.labels && input.labels.length > 0) {
@@ -41336,6 +41349,53 @@ ${newEntryMarkdown}`;
   return `${body.trim()}${separator}${AGENT_NOTES_SECTION}
 
 ${newEntryMarkdown}`;
+}
+
+// ../../packages/issue-state/src/sections/builders.ts
+function createText(value) {
+  return { type: "text", value };
+}
+function createHeading(depth, text5) {
+  return {
+    type: "heading",
+    depth,
+    children: [createText(text5)]
+  };
+}
+function createParagraph(text5) {
+  return {
+    type: "paragraph",
+    children: [createText(text5)]
+  };
+}
+function createListItem(text5, checked) {
+  return {
+    type: "listItem",
+    checked: checked ?? null,
+    children: [createParagraph(text5)]
+  };
+}
+function createTodoList(items) {
+  return {
+    type: "list",
+    ordered: false,
+    children: items.map(
+      (item) => createListItem(
+        item.manual ? `[Manual] ${item.text}` : item.text,
+        item.checked
+      )
+    )
+  };
+}
+function createBulletList(items) {
+  return {
+    type: "list",
+    ordered: false,
+    children: items.map((text5) => createListItem(text5))
+  };
+}
+function createSection(title, content3, depth = 2) {
+  return [createHeading(depth, title), ...content3];
 }
 
 // ../../packages/issue-state/src/create-extractor.ts
@@ -70372,30 +70432,25 @@ Grooming complete. Sub-issues created for phased implementation.`;
   return created;
 }
 function buildPhaseIssueBody(phase) {
-  const sections = [];
-  sections.push(`## Description
-
-${phase.description}`);
+  const children = [];
+  children.push(...createSection("Description", [createParagraph(phase.description)]));
   if (phase.affected_areas && phase.affected_areas.length > 0) {
     const areas = phase.affected_areas.map((area) => {
       const changeType = area.change_type ? ` (${area.change_type})` : "";
       const desc = area.description ? ` - ${area.description}` : "";
-      return `- \`${area.path}\`${changeType}${desc}`;
-    }).join("\n");
-    sections.push(`## Affected Areas
-
-${areas}`);
+      return `\`${area.path}\`${changeType}${desc}`;
+    });
+    children.push(...createSection("Affected Areas", [createBulletList(areas)]));
   }
   if (phase.todos && phase.todos.length > 0) {
-    const todos = phase.todos.map((todo) => {
-      const manual = todo.manual ? " *(manual)*" : "";
-      return `- [ ] ${todo.task}${manual}`;
-    }).join("\n");
-    sections.push(`## Todo
-
-${todos}`);
+    const todos = phase.todos.map((todo) => ({
+      text: todo.task,
+      checked: false,
+      manual: todo.manual || false
+    }));
+    children.push(...createSection("Todo", [createTodoList(todos)]));
   }
-  return sections.join("\n\n");
+  return { type: "root", children };
 }
 
 // ../../packages/statemachine/src/runner/executors/pivot.ts

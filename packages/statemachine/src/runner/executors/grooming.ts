@@ -6,9 +6,15 @@
 
 import * as core from "@actions/core";
 import * as fs from "fs";
+import type { Root } from "mdast";
 import {
   addSubIssueToParent,
+  createSection,
+  createParagraph,
+  createBulletList,
+  createTodoList,
   type ProjectStatus,
+  type TodoItem,
 } from "@more/issue-state";
 import type {
   RunClaudeGroomingAction,
@@ -312,37 +318,33 @@ async function createSubIssuesForPhases(
 }
 
 /**
- * Build the body for a phase sub-issue
+ * Build the body for a phase sub-issue as MDAST
  */
-function buildPhaseIssueBody(phase: RecommendedPhase): string {
-  const sections: string[] = [];
+function buildPhaseIssueBody(phase: RecommendedPhase): Root {
+  const children: Root["children"] = [];
 
-  // Description
-  sections.push(`## Description\n\n${phase.description}`);
+  // Description section
+  children.push(...createSection("Description", [createParagraph(phase.description)]));
 
-  // Affected Areas
+  // Affected Areas section
   if (phase.affected_areas && phase.affected_areas.length > 0) {
-    const areas = phase.affected_areas
-      .map((area) => {
-        const changeType = area.change_type ? ` (${area.change_type})` : "";
-        const desc = area.description ? ` - ${area.description}` : "";
-        return `- \`${area.path}\`${changeType}${desc}`;
-      })
-      .join("\n");
-    sections.push(`## Affected Areas\n\n${areas}`);
+    const areas = phase.affected_areas.map((area) => {
+      const changeType = area.change_type ? ` (${area.change_type})` : "";
+      const desc = area.description ? ` - ${area.description}` : "";
+      return `\`${area.path}\`${changeType}${desc}`;
+    });
+    children.push(...createSection("Affected Areas", [createBulletList(areas)]));
   }
 
-  // Todos
+  // Todo section
   if (phase.todos && phase.todos.length > 0) {
-    const todos = phase.todos
-      .map((todo) => {
-        const manual = todo.manual ? " *(manual)*" : "";
-        return `- [ ] ${todo.task}${manual}`;
-      })
-      .join("\n");
-    sections.push(`## Todo\n\n${todos}`);
+    const todos: TodoItem[] = phase.todos.map((todo) => ({
+      text: todo.task,
+      checked: false,
+      manual: todo.manual || false,
+    }));
+    children.push(...createSection("Todo", [createTodoList(todos)]));
   }
 
-  return sections.join("\n\n");
+  return { type: "root", children };
 }
-

@@ -2,8 +2,10 @@
  * createIssue() — create a GitHub issue with project fields, sub-issues, and comments.
  */
 
+import type { Root } from "mdast";
 import type { OctokitLike } from "./client.js";
 import type { ProjectStatus } from "./schemas/index.js";
+import { serializeMarkdown } from "./markdown/ast.js";
 import {
   CREATE_ISSUE_MUTATION,
   ADD_SUB_ISSUE_MUTATION,
@@ -497,7 +499,8 @@ export async function createIssue(
 
 export interface AddSubIssueInput {
   title: string;
-  body?: string;
+  /** Body as MDAST (recommended) or string (for backwards compatibility) */
+  body?: Root | string;
   assignees?: string[];
   labels?: string[];
 }
@@ -550,7 +553,12 @@ export async function addSubIssueToParent(
   input: AddSubIssueInput,
   options: AddSubIssueOptions,
 ): Promise<AddSubIssueResult> {
-  const { octokit, projectNumber, organization = owner, projectStatus } = options;
+  const {
+    octokit,
+    projectNumber,
+    organization = owner,
+    projectStatus,
+  } = options;
 
   // Get repository ID and parent issue ID
   const repositoryId = await getRepoId(octokit, owner, repo);
@@ -580,12 +588,23 @@ export async function addSubIssueToParent(
 
   const parentIssueId = parentResult.repository.issue.id;
 
+  // Serialize body if it's MDAST
+  let bodyString = "";
+  if (input.body) {
+    if (typeof input.body === "string") {
+      bodyString = input.body;
+    } else {
+      // It's MDAST (Root), serialize it
+      bodyString = serializeMarkdown(input.body);
+    }
+  }
+
   // Create the sub-issue
   const subIssue = await createIssueInRepo(
     octokit,
     repositoryId,
     input.title,
-    input.body || "",
+    bodyString,
   );
 
   // Link sub-issue to parent
